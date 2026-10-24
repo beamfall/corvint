@@ -1,8 +1,8 @@
 {
   "schema": "corvint.release-artifact-v0",
   "toolchain": {
-    "goVersion": "go1.27.2",
-    "goModDirective": "1.27.2",
+    "goVersion": "go1.27.3",
+    "goModDirective": "1.27.3",
     "forbiddenGoModDirective": "toolchain",
     "gotoolchain": "local"
   },

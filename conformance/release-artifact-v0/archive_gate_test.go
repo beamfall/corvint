@@ -35,7 +35,7 @@ func TestMain(m *testing.M) {
 
 func testRawCommitExportBuildCarriesExactVCSIdentity(t *testing.T) {
 	root := t.TempDir()
-	mustWrite(t, filepath.Join(root, "go.mod"), "module example.com/releasefixture\n\ngo 1.27.2\n")
+	mustWrite(t, filepath.Join(root, "go.mod"), "module example.com/releasefixture\n\ngo 1.27.3\n")
 	mustWrite(t, filepath.Join(root, "main.go"), "package main\n\nfunc main() {}\n")
 	mustWrite(t, filepath.Join(root, "unrelated.txt"), "committed\n")
 	runGitTest(t, root, "init", "-q")
@@ -131,7 +131,7 @@ func TestArchiveDestinationRequiresTrustedAbsentExternalChild(t *testing.T) {
 
 func TestArchiveReportAndWitnessAreCanonicalAndPathFree(t *testing.T) {
 	report := ArchiveReport{
-		Schema: archiveReportSchema, Revision: strings.Repeat("a", 40), Tree: strings.Repeat("b", 40), ManifestSHA256: strings.Repeat("c", 64), Toolchain: "go1.27.2", Verdict: statusPass,
+		Schema: archiveReportSchema, Revision: strings.Repeat("a", 40), Tree: strings.Repeat("b", 40), ManifestSHA256: strings.Repeat("c", 64), Toolchain: "go1.27.3", Verdict: statusPass,
 		Targets: []ArchiveTargetReport{{GOOS: "linux", GOARCH: "amd64", BinaryName: "corvint", ArchiveName: "corvint_linux_amd64.tar.gz", RetainedArchive: ArchiveDigest{SHA256: strings.Repeat("d", 64), Bytes: 10}}}, Reasons: []ArchiveReason{},
 	}
 	first, err := canonicalJSON(report)
@@ -473,7 +473,7 @@ func validArchiveReportForTest(state gitState) (ArchiveReport, map[string][]byte
 		{"linux", "arm64", "corvint", "corvint_linux_arm64.tar.gz"},
 		{"windows", "amd64", "corvint.exe", "corvint_windows_amd64.zip"},
 	}
-	report := ArchiveReport{Schema: archiveReportSchema, Revision: state.commit, Tree: state.tree, ManifestSHA256: strings.Repeat("a", 64), Toolchain: "go1.27.2", Verdict: statusPass, Limits: ArchiveLimits{Targets: 5, MembersPerArchive: 6, MaximumArchiveBytes: 100, MaximumTotalBytes: 500, MaximumReportBytes: maximumArchiveReportBytes, MaximumWitnessBytes: maxWitnessBytes}, Reasons: []ArchiveReason{}}
+	report := ArchiveReport{Schema: archiveReportSchema, Revision: state.commit, Tree: state.tree, ManifestSHA256: strings.Repeat("a", 64), Toolchain: "go1.27.3", Verdict: statusPass, Limits: ArchiveLimits{Targets: 5, MembersPerArchive: 6, MaximumArchiveBytes: 100, MaximumTotalBytes: 500, MaximumReportBytes: maximumArchiveReportBytes, MaximumWitnessBytes: maxWitnessBytes}, Reasons: []ArchiveReason{}}
 	archives := map[string][]byte{}
 	for _, row := range rows {
 		content := []byte(row.archive)
@@ -512,8 +512,8 @@ func TestArchiveReportRejectsInvalidLimits(t *testing.T) {
 
 func TestArchiveManifestRejectsEveryAuthorityDrift(t *testing.T) {
 	mutations := []struct{ old, new string }{
-		{`"goVersion": "go1.27.2"`, `"goVersion": "go1.28.0"`},
-		{`"goModDirective": "1.27.2"`, `"goModDirective": "1.28.0"`},
+		{`"goVersion": "go1.27.3"`, `"goVersion": "go1.28.0"`},
+		{`"goModDirective": "1.27.3"`, `"goModDirective": "1.28.0"`},
 		{`"package": "./cmd/corvint"`, `"package": "./cmd/other"`},
 		{`"modulePath": "github.com/Beamfall/corvint"`, `"modulePath": "example.com/corvint"`},
 		{`"binaryName": "corvint"`, `"binaryName": "corvint2"`},

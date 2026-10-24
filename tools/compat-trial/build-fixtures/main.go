@@ -32,8 +32,8 @@ func main() {
 }
 func sha(b []byte) string { s := sha256.Sum256(b); return hex.EncodeToString(s[:]) }
 func build(ctx context.Context, out string) error {
-	if runtime.Version() != "go1.27.2" {
-		return errors.New("requires go1.27.2")
+	if runtime.Version() != "go1.27.3" {
+		return errors.New("requires go1.27.3")
 	}
 	root, err := os.Getwd()
 	if err != nil {

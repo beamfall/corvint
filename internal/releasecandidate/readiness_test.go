@@ -83,7 +83,7 @@ func readinessGit(t *testing.T, source string, arguments ...string) string {
 	return strings.TrimSpace(string(out))
 }
 
-const cleanGoMod = "module example.invalid/core\n\ngo 1.27.2\n"
+const cleanGoMod = "module example.invalid/core\n\ngo 1.27.3\n"
 
 func (f readinessFixture) build(t *testing.T, evidence map[string]ReadinessEvidence) (*ReadinessRecord, []byte) {
 	t.Helper()
@@ -418,9 +418,9 @@ func testSRRV1008VulnerabilityRuleIsRequireFreeAndPinnedToolchain(t *testing.T) 
 	if record.Vulnerability != (ReadinessVulnerability{Decision: readinessDecision, RequireDirectives: 0, Toolchain: pinnedToolchain, Status: "PASS"}) {
 		t.Fatalf("clean vulnerability = %#v", record.Vulnerability)
 	}
-	goToolchainProbe = func(context.Context, string) (string, error) { return "go1.27.3", nil }
+	goToolchainProbe = func(context.Context, string) (string, error) { return "go1.27.2", nil }
 	drifted, _ := fixture.build(t, nil)
-	if drifted.Vulnerability.Status != "FAIL" || drifted.Vulnerability.Toolchain != "go1.27.3" {
+	if drifted.Vulnerability.Status != "FAIL" || drifted.Vulnerability.Toolchain != "go1.27.2" {
 		t.Fatalf("toolchain drift not FAIL: %#v", drifted.Vulnerability)
 	}
 	forged := resealReadiness(t, *drifted, func(r *ReadinessRecord) { r.Vulnerability.Status = "PASS" })

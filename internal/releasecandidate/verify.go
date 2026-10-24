@@ -105,7 +105,7 @@ func validateCoreReport(report coreReport, files map[string][]byte) error {
 }
 
 func validateCoreReportShape(report coreReport) error {
-	if report.Schema != "corvint.release-go-archive-report.v2" || report.Verdict != "PASS" || report.Toolchain != "go1.27.2" || len(report.Reasons) != 0 || !objectPattern.MatchString(report.Revision) || !objectPattern.MatchString(report.Tree) || !digestPattern.MatchString(report.ManifestSHA256) {
+	if report.Schema != "corvint.release-go-archive-report.v2" || report.Verdict != "PASS" || report.Toolchain != "go1.27.3" || len(report.Reasons) != 0 || !objectPattern.MatchString(report.Revision) || !objectPattern.MatchString(report.Tree) || !digestPattern.MatchString(report.ManifestSHA256) {
 		return fmt.Errorf("core report is not an exact PASS report")
 	}
 	expected := []struct{ goos, goarch, binary, archive string }{

@@ -331,7 +331,7 @@ func TestChecksumGrammarAndBindingMatrix(t *testing.T) {
 
 func TestBuildInfoTargetRevisionAndProfileMatrix(t *testing.T) {
 	commit := strings.Repeat("a", 40)
-	input := Input{GOOS: "linux", GOARCH: "amd64", Commit: commit, GoVersion: "go1.27.2", PackagePath: "github.com/Beamfall/corvint/cmd/corvint"}
+	input := Input{GOOS: "linux", GOARCH: "amd64", Commit: commit, GoVersion: "go1.27.3", PackagePath: "github.com/Beamfall/corvint/cmd/corvint"}
 	clean := map[string]string{"GOOS": "linux", "GOARCH": "amd64", "CGO_ENABLED": "0", "-trimpath": "true", "vcs.revision": commit, "vcs.modified": "false"}
 	if err := verifyBuildInfoValues(input, input.GoVersion, input.PackagePath, 0, clean); err != nil {
 		t.Fatal(err)
@@ -365,10 +365,10 @@ func TestBuildInfoTargetRevisionAndProfileMatrix(t *testing.T) {
 
 func TestDoubleBuildAssemblyAndIndependenceEvidence(t *testing.T) {
 	emptyDigest := "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
-	manifest := []byte(`{"schema":"corvint.release-artifact-v0","toolchain":{"goVersion":"go1.27.2","goModDirective":"1.27.2","forbiddenGoModDirective":"toolchain","gotoolchain":"local"},"profile":{"package":"./cmd/corvint","modulePath":"github.com/Beamfall/corvint","binaryName":"corvint","buildFlags":["-trimpath"],"environment":{"CGO_ENABLED":"0","GOENV":"off","GOTOOLCHAIN":"local","GOPROXY":"off","GOFLAGS":"-mod=readonly","GOSUMDB":"off"}},"targets":[{"goos":"darwin","goarch":"amd64","binarySuffix":""},{"goos":"darwin","goarch":"arm64","binarySuffix":""},{"goos":"linux","goarch":"amd64","binarySuffix":""},{"goos":"linux","goarch":"arm64","binarySuffix":""},{"goos":"windows","goarch":"amd64","binarySuffix":".exe"}],"legalFiles":[{"path":"LICENSE","sha256":"` + emptyDigest + `"},{"path":"LICENSE-APACHE-2.0","sha256":"` + emptyDigest + `"},{"path":"LICENSING.md","sha256":"` + emptyDigest + `"},{"path":"PROVENANCE.md","sha256":"` + emptyDigest + `"}],"smoke":{},"pendingEvidence":[]}`)
+	manifest := []byte(`{"schema":"corvint.release-artifact-v0","toolchain":{"goVersion":"go1.27.3","goModDirective":"1.27.3","forbiddenGoModDirective":"toolchain","gotoolchain":"local"},"profile":{"package":"./cmd/corvint","modulePath":"github.com/Beamfall/corvint","binaryName":"corvint","buildFlags":["-trimpath"],"environment":{"CGO_ENABLED":"0","GOENV":"off","GOTOOLCHAIN":"local","GOPROXY":"off","GOFLAGS":"-mod=readonly","GOSUMDB":"off"}},"targets":[{"goos":"darwin","goarch":"amd64","binarySuffix":""},{"goos":"darwin","goarch":"arm64","binarySuffix":""},{"goos":"linux","goarch":"amd64","binarySuffix":""},{"goos":"linux","goarch":"arm64","binarySuffix":""},{"goos":"windows","goarch":"amd64","binarySuffix":".exe"}],"legalFiles":[{"path":"LICENSE","sha256":"` + emptyDigest + `"},{"path":"LICENSE-APACHE-2.0","sha256":"` + emptyDigest + `"},{"path":"LICENSING.md","sha256":"` + emptyDigest + `"},{"path":"PROVENANCE.md","sha256":"` + emptyDigest + `"}],"smoke":{},"pendingEvidence":[]}`)
 	base := Input{
 		GOOS: "linux", GOARCH: "amd64", ArchiveName: "corvint_linux_amd64.tar.gz", Format: "tar.gz", Root: "corvint_linux_amd64", BinaryName: "corvint",
-		Commit: strings.Repeat("a", 40), Tree: strings.Repeat("b", 40), GoVersion: "go1.27.2", PackagePath: "github.com/Beamfall/corvint/cmd/corvint", ManifestBytes: manifest,
+		Commit: strings.Repeat("a", 40), Tree: strings.Repeat("b", 40), GoVersion: "go1.27.3", PackagePath: "github.com/Beamfall/corvint/cmd/corvint", ManifestBytes: manifest,
 		LooseBinary: []byte("a"), SecondBinary: []byte("b"), LooseGateBinary: []byte("a"), ArchiveBytes: []byte("a"), SecondArchive: []byte("a"),
 		LegalFiles: []ExpectedFile{{Name: "LICENSE"}, {Name: "LICENSE-APACHE-2.0"}, {Name: "LICENSING.md"}, {Name: "PROVENANCE.md"}}, MaximumArchiveBytes: 10, MaximumContentBytes: 10,
 	}

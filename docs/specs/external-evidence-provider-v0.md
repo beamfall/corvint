@@ -175,7 +175,7 @@ each cited path still exists at that revision, and what was omitted or could not
 - `EEP-V0-022`: The kit MUST carry a clean-checkout authoring proof script that checks out only the
   kit directory at a named commit into a fresh scratch clone, refuses when any other path is
   present, builds the runner there offline, and runs it against a named Corvint binary with only
-  Git, local Go 1.27.2 and Darwin or Linux as prerequisites.
+  Git, local Go 1.27.3 (decision 0557) and Darwin or Linux as prerequisites.
 
 ### Core-owned local language-server provider (proposed 2026-09-23; experimental; decision 0371)
 

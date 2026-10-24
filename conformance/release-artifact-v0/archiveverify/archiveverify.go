@@ -145,10 +145,10 @@ func verifyManifestAuthority(input Input) error {
 	if err := archivewire.DecodeStrict(input.ManifestBytes, &manifest); err != nil {
 		return fmt.Errorf("manifest-authority-invalid")
 	}
-	if manifest.Schema != "corvint.release-artifact-v0" || manifest.Toolchain.GoVersion != "go1.27.2" || manifest.Toolchain.GoModDirective != "1.27.2" || manifest.Toolchain.Forbidden != "toolchain" || manifest.Toolchain.GoToolchain != "local" {
+	if manifest.Schema != "corvint.release-artifact-v0" || manifest.Toolchain.GoVersion != "go1.27.3" || manifest.Toolchain.GoModDirective != "1.27.3" || manifest.Toolchain.Forbidden != "toolchain" || manifest.Toolchain.GoToolchain != "local" {
 		return fmt.Errorf("manifest-toolchain-authority-mismatch")
 	}
-	if input.GoVersion != "go1.27.2" || input.PackagePath != "github.com/Beamfall/corvint/cmd/corvint" || !hexString(input.Commit, 40) || !hexString(input.Tree, 40) {
+	if input.GoVersion != "go1.27.3" || input.PackagePath != "github.com/Beamfall/corvint/cmd/corvint" || !hexString(input.Commit, 40) || !hexString(input.Tree, 40) {
 		return fmt.Errorf("request-immutable-identity-mismatch")
 	}
 	if manifest.Profile.Package != "./cmd/corvint" || manifest.Profile.ModulePath != "github.com/Beamfall/corvint" || manifest.Profile.BinaryName != "corvint" || len(manifest.Profile.BuildFlags) != 1 || manifest.Profile.BuildFlags[0] != "-trimpath" {

@@ -40,7 +40,7 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           cache: false
-          go-version: "1.27.2"
+          go-version: "1.27.3"
       - name: Read budget
         run: make perf-budget PERF_BUDGET_ARGS="--out perf-budget-report.json"
       - name: Retain the report

@@ -54,7 +54,7 @@ digest checking and launch; this is not protection against malicious concurrent 
 
 ## Author, build, exercise
 
-Prerequisites: a clean Corvint checkout, Git, a locally installed Go **1.27.2**, and Darwin or Linux
+Prerequisites: a clean Corvint checkout, Git, a locally installed Go **1.27.3**, and Darwin or Linux
 for contained commands. No modules beyond the Go standard library are downloaded. The standalone
 producer builds from its copied single source file without Corvint or a module cache. The checker
 imports Corvint internals and builds inside this checkout. The complete reproducible conformance
@@ -87,7 +87,7 @@ An authored provider passes its own identity: `-provider-id ID -provider-version
 `authoring-proof.sh REPOSITORY COMMIT CORVINT` (`EEP-V0-022`) clones `REPOSITORY` without checkout,
 sparse-checks-out only `examples/evidence-provider/v0/` at `COMMIT`, refuses if any other file is
 present, builds the runner there with `GO111MODULE=off GOPROXY=off` and a fresh build cache, and runs
-it against `CORVINT`. Prerequisites: Git, local Go 1.27.2, Darwin or Linux, and a Corvint binary.
+it against `CORVINT`. Prerequisites: Git, local Go 1.27.3, Darwin or Linux, and a Corvint binary.
 
 ```sh
 sh examples/evidence-provider/v0/authoring-proof.sh https://github.com/beamfall/corvint.git COMMIT "$(command -v corvint)"

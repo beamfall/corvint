@@ -164,8 +164,8 @@ func TestSupportedHostVersion(t *testing.T) {
 }
 
 func TestAdmittedGoVersion(t *testing.T) {
-	t.Run("AHI-175 full qualification admits exactly the decision 0547 toolchains", func(t *testing.T) {
-		for version, want := range map[string]bool{"go1.27.2": true, "go1.27.3": true, "go1.27.1": false, "go1.27.4": false, "go1.28.0": false, "": false, "devel go1.28-abc": false} {
+	t.Run("AHI-175 full qualification admits exactly the decision 0557 toolchain", func(t *testing.T) {
+		for version, want := range map[string]bool{"go1.27.2": false, "go1.27.3": true, "go1.27.1": false, "go1.27.4": false, "go1.28.0": false, "": false, "devel go1.28-abc": false} {
 			if admittedGoVersion(version) != want {
 				t.Fatalf("%q: want %v", version, want)
 			}
