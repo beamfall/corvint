@@ -10,9 +10,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/authority"
 	"github.com/Beamfall/corvint/internal/tasks/mutation"
@@ -56,8 +58,11 @@ func mapShared(t *testing.T, p string) (flip func()) {
 
 // TestCALV0070_MutateRefusesMappedWriteAfterMergedAudit is the CAL-V0-070
 // content check. A write through a shared mapping, made after the merged audit
-// read the file, raises no inotify event and no kqueue event before msync, so
-// only the fresh inventory's digest shows it. Mutate must refuse it with the
+// read the file, raises no inotify event and no kqueue event before msync, and
+// once the page is mapped writable it changes no stat field the Linux guard
+// re-reads (PSR-V0-223), so only the fresh inventory's digest shows it. The
+// first write through the mapping faults, and the Linux guard sees that one.
+// Mutate must refuse the later write with the
 // separate passes' code and publish nothing.
 func TestCALV0070_MutateRefusesMappedWriteAfterMergedAudit(t *testing.T) {
 	t.Parallel()
@@ -68,12 +73,35 @@ func TestCALV0070_MutateRefusesMappedWriteAfterMergedAudit(t *testing.T) {
 		{"ticket", ticketFile, "INTENT_DIVERGED"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			// An old modification time makes the fault's time update below
+			// visible whatever the timestamp granularity.
+			old := time.Now().Add(-time.Hour)
+			if err := os.Chtimes(tc.file, old, old); err != nil {
+				t.Fatal(err)
+			}
 			flip := mapShared(t, tc.file)
 			before, err := os.ReadFile(tc.file)
 			if err != nil {
 				t.Fatal(err)
 			}
-			// The watch cannot see this write; reads can.
+			// PSR-V0-223: on Linux the first write through the new mapping
+			// faults its page writable, which updates the modification and
+			// change times the guard re-reads. Darwin's watch sees nothing
+			// before msync.
+			first, err := authority.WatchChanges(repo)
+			if err != nil {
+				t.Fatalf("change watch: %v", err)
+			}
+			flip()
+			firstErr := first.Check()
+			flip()
+			first.Close()
+			if seen := wire.CodeOf(firstErr) == wire.CodeSnapshotMoved; seen != (runtime.GOOS == "linux") || !seen && firstErr != nil {
+				t.Fatalf("change watch on the first mapped write: %v", firstErr)
+			}
+			// The page is now dirty and mapped writable, so a further write
+			// through it faults nothing and changes no stat field: no watch
+			// can see it; reads can.
 			watch, err := authority.WatchChanges(repo)
 			if err != nil {
 				t.Fatalf("change watch: %v", err)

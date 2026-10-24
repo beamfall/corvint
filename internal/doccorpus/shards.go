@@ -45,7 +45,7 @@ func (c *compiler) preloadProviders() error {
 				return fail("provider input missing")
 			}
 			var record ProviderRecord
-			if err := decodeBounded(source.Data, &record, MaxProviderBytes); err != nil {
+			if err := decodeNamed(path, source.Data, &record, MaxProviderBytes); err != nil {
 				return err
 			}
 			if len(source.Data) > encodingLimit(record) {

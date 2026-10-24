@@ -1,23 +1,25 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { spawn } from 'node:child_process';
 import { isAbsolute } from 'node:path';
+// The exact admitted host and adapter tuple (PWV-V0-016). Core refuses any other host version.
+export const PI_HOST_VERSION='0.99.1',PI_ADAPTER_VERSION='0.3.4';
 export const EVENTS = new Set(['session-start','user-prompt','file-change','post-tool','stop','session-end']);
 const KEYS=['profile','event','host','surface','hostVersion','adapterVersion','support','receiptId','context','degradations','fault','shouldContinue'].sort();
 const CODES=new Set(['invalid-input','unsupported-event','unsupported-host-version','core-unavailable','invalid-core-response','output-too-large','deadline','untrusted-project']);
 const DEGRADATIONS=new Set(['compaction-critical-evidence-overflow','compaction-dirty-set-over-budget','compaction-untracked-paths-not-rehydratable','frontier-authority-unavailable','outcome-persistence-unavailable']);
 export function validEnvelope(v,event) {
- if(!EVENTS.has(event) || !v || typeof v!=='object' || Array.isArray(v) || JSON.stringify(Object.keys(v).sort())!==JSON.stringify(KEYS) || v.profile!=='corvint-pi-adapter/0' || v.event!==event || v.host!=='pi'||v.surface!=='extension'||v.adapterVersion!=='0.3.3'||v.support!=='FALLBACK'||v.shouldContinue!==false||typeof v.context!=='string'||!Array.isArray(v.degradations)||new Set(v.degradations).size!==v.degradations.length||!v.degradations.every(x=>DEGRADATIONS.has(x)))return false;
- if(v.fault!==null)return CODES.has(v.fault)&&v.receiptId===null&&v.context===''&&v.degradations.length===0&&(v.hostVersion==='0.99.1'||(v.hostVersion===null&&['invalid-input','unsupported-event','unsupported-host-version','deadline'].includes(v.fault)));
+ if(!EVENTS.has(event) || !v || typeof v!=='object' || Array.isArray(v) || JSON.stringify(Object.keys(v).sort())!==JSON.stringify(KEYS) || v.profile!=='corvint-pi-adapter/0' || v.event!==event || v.host!=='pi'||v.surface!=='extension'||v.adapterVersion!==PI_ADAPTER_VERSION||v.support!=='FALLBACK'||v.shouldContinue!==false||typeof v.context!=='string'||!Array.isArray(v.degradations)||new Set(v.degradations).size!==v.degradations.length||!v.degradations.every(x=>DEGRADATIONS.has(x)))return false;
+ if(v.fault!==null)return CODES.has(v.fault)&&v.receiptId===null&&v.context===''&&v.degradations.length===0&&(v.hostVersion===PI_HOST_VERSION||(v.hostVersion===null&&['invalid-input','unsupported-event','unsupported-host-version','deadline'].includes(v.fault)));
  if(v.context!=='' && (!['session-start','user-prompt'].includes(event)||!v.context.startsWith('BEGIN CORVINT REPOSITORY DATA\n')||!v.context.endsWith('\nEND CORVINT REPOSITORY DATA')))return false;
- return v.hostVersion==='0.99.1'&&typeof v.receiptId==='string'&&/^harness-receipt:sha256:[0-9a-f]{64}$/.test(v.receiptId);
+ return v.hostVersion===PI_HOST_VERSION&&typeof v.receiptId==='string'&&/^harness-receipt:sha256:[0-9a-f]{64}$/.test(v.receiptId);
 }
 const TOOL_KEYS=['profile','operation','hostVersion','adapterVersion','support','ok','mutation','context','packet','fault'].sort();
 const TOOL_FAULTS=new Set(['unsupported-operation','invalid-input','unsupported-host-version','core-unavailable','context-unavailable','stale-context','source-unavailable','record-unavailable','invalid-core-response','output-too-large']);
 export function validToolEnvelope(v,operation) {
- if(!['context','expand','record'].includes(operation)||!v||JSON.stringify(Object.keys(v).sort())!==JSON.stringify(TOOL_KEYS)||v.profile!=='corvint-pi-tool/0'||v.operation!==operation||v.adapterVersion!=='0.3.3'||v.support!=='FALLBACK'||typeof v.ok!=='boolean'||typeof v.context!=='string'||!['not-attempted','recorded','unknown'].includes(v.mutation))return false;
+ if(!['context','expand','record'].includes(operation)||!v||JSON.stringify(Object.keys(v).sort())!==JSON.stringify(TOOL_KEYS)||v.profile!=='corvint-pi-tool/0'||v.operation!==operation||v.adapterVersion!==PI_ADAPTER_VERSION||v.support!=='FALLBACK'||typeof v.ok!=='boolean'||typeof v.context!=='string'||!['not-attempted','recorded','unknown'].includes(v.mutation))return false;
  if(operation!=='record'&&v.mutation!=='not-attempted')return false;
- if(!v.ok)return TOOL_FAULTS.has(v.fault)&&v.context===''&&v.packet===null&&(v.hostVersion==='0.99.1'||(v.hostVersion===null&&['invalid-input','unsupported-operation','unsupported-host-version'].includes(v.fault)));
- if(v.hostVersion!=='0.99.1'||v.fault!==null||!v.context.startsWith('BEGIN CORVINT REPOSITORY DATA\n')||!v.context.endsWith('\nEND CORVINT REPOSITORY DATA'))return false;
+ if(!v.ok)return TOOL_FAULTS.has(v.fault)&&v.context===''&&v.packet===null&&(v.hostVersion===PI_HOST_VERSION||(v.hostVersion===null&&['invalid-input','unsupported-operation','unsupported-host-version'].includes(v.fault)));
+ if(v.hostVersion!==PI_HOST_VERSION||v.fault!==null||!v.context.startsWith('BEGIN CORVINT REPOSITORY DATA\n')||!v.context.endsWith('\nEND CORVINT REPOSITORY DATA'))return false;
  if(operation==='record'&&v.mutation!=='recorded')return false;
  if(operation!=='context')return v.packet===null;
  const p=v.packet;
@@ -51,6 +53,8 @@ export function createRunner({binary,env=process.env,spawnImpl=spawn}={}) {
   if(conflict)return {fault:'invalid-binary-config'};
   if(!binary)return {fault:'missing-binary'};
   if(process.platform==='win32')return {fault:'cleanup-failed'};
+  // A host version Core cannot admit is refused before any process starts (PWV-V0-016).
+  if(hostVersion!==PI_HOST_VERSION)return {fault:'unsupported-host-version'};
   if(signal?.aborted)return {fault:'aborted'};
   let bytes;try{bytes=JSON.stringify({hostVersion,input});}catch{return {fault:'invalid-input'}}
   if(Buffer.byteLength(bytes)>131072)return {fault:'invalid-input'};

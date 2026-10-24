@@ -137,7 +137,7 @@ func liveFreshness(ctx context.Context, root string, a *Artifact, symbols bool) 
 		if i == 0 {
 			limits = append(limits, "structural source binding does not prove semantic truth, test adequacy or accepted intent")
 			if !attestedBuilder(a.Builder) {
-				limits = append(limits, "builder source revision is unrecorded or dirty; no immutable build attestation")
+				limits = append(limits, "builder source revision is unrecorded, dirty or not a Git object ID; no immutable build attestation")
 			}
 		}
 		maps.Copy(drift.pinned, c.drift.pinned)

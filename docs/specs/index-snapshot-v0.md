@@ -45,7 +45,8 @@ what any packet says.
   cleared. The write is atomic (temporary file then rename). The receipt is one canonical JSON
   line with `mutates:true`, `path`, `bytes`, `tree`, `commit`, `engine`, `sources`, `symbols`,
   `evicted`. The searchable-text admission allowlist includes `.rst`, `.mdx`, `.txt`, `.mts` and
-  `.cts` (IDX-SNAP-V0-108); these
+  `.cts` (IDX-SNAP-V0-108), and `.erb`, `.html`, `.htm`, `.haml`, `.slim`, `.hbs`, `.vue` and
+  `.svelte` (IDX-SNAP-V0-109); these
   suffixes enter source and term tables without a symbol extractor. Clarifying amendment
   (2026-09-13, bug hunt): a failure closing the temporary file (a delayed write-back error
   surfacing only at `Close`) MUST be treated the same as an encode failure — the temporary is
@@ -906,6 +907,21 @@ and the existing `TestSnapshotSameLengthBodyOverwriteIsAMiss`; measured in
   `textSuffixes` and bump the analyzer schema.
 Traceability: `TestAMAPV0025ChainBindingsFailClosed` (subtests `di closure reads .mts` and
 `di closure reads .cts`).
+- `IDX-SNAP-V0-109`: (accepted under the owner's standing auto-accept (2026-10-11); GH #1663)
+  A Rake task file (`.rake`) is Ruby source: the index admits it as text and reads it with the
+  Ruby symbol extractor, `#` comment markers and the Ruby region normalizer. The web and server
+  template suffixes `.erb`, `.html`, `.htm`, `.haml`, `.slim`, `.hbs`, `.vue` and `.svelte` enter
+  the source and term tables as searchable text, like `.rst`, with no symbol extractor and no
+  marker syntax. A fixed allowlist is chosen over a repository-declared suffix map, which would
+  add a project-authority configuration surface and key the cache on it; that remains a separate
+  proposal. The golden analyzer corpus carries a `.rake` and an `.html.erb` file, so the schema
+  number moves (IDX-SNAP-V0-107). Failure modes: a template's embedded code (`<% %>`, `<script>`,
+  a Vue or Svelte script block) yields no symbols, imports or markers, so `definition`, `impact`
+  and `query` symbol evidence for templates stays absent; a large generated HTML tree adds
+  searchable text up to the existing source bounds. Rollback: delete the nine suffixes from
+  `textSuffixes` and the `.rake` entries from `symbolExtractors`, `markerComments` and
+  `SymbolRegionLanguage`, drop the two golden-corpus files and bump the analyzer schema.
+Traceability: `TestTemplateAndRakeSuffixesAreIndexed_GH1663`, `TestAnalyzerSchemaOutput`.
 
 ### Accepted (2026-10-21, V1-2290, V1-2289, owner's standing auto-accept 2026-10-11): deterministic snapshot bytes and output-equivalent schema edits
 Human intent: two writes of one tree produced different snapshot files because `encoding/gob`
@@ -1183,3 +1199,4 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-106 (standing auto-accept, V1-2290) | `snapshotWireOf`, `pairsOf`, `mapOf`, `wireValue`, `warmGobTypes` | `TestSnapshotBytesAreDeterministic`, `TestSnapshotWireRoundTripsMaps` |
 | IDX-SNAP-V0-107 (standing auto-accept, V1-2289) | `script/analyzer-schema.sh` (`actual_output`, output pin in `pins`) | `TestAnalyzerSchemaOutput`, `script/analyzer-schema_test.sh` |
 | IDX-SNAP-V0-108 (standing auto-accept, V1-1088) | `textSuffixes` | `TestAMAPV0025ChainBindingsFailClosed` |
+| IDX-SNAP-V0-109 (standing auto-accept, GH #1663) | `textSuffixes`, `symbolExtractors`, `markerComments`, `SymbolRegionLanguage` | `TestTemplateAndRakeSuffixesAreIndexed_GH1663`, `TestAnalyzerSchemaOutput` |

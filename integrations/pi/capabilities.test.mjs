@@ -2,7 +2,7 @@
 // PWV-V0-011: the registered surface equals the closed capability inventory in the spec.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync,readdirSync} from 'node:fs';
 import {mkdtemp,rm} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
@@ -81,5 +81,36 @@ test('PWV-V0-011 Tasks writes are negotiated per call against native help; other
   const result=await service.command({operation,input:{ticketId,expectedRevision:'1'},requestId:'request-2'},ctx);
   assert.equal(result.fault,'unsupported-mutation',operation);
   assert.deepEqual(calls,[]);
+ }
+});
+
+test('PWV-V0-015 every model tool declares annotations that follow its inventory state',t=>{
+ const {tools}=surface(t);
+ const hints={NATIVE_READ:{readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:false},EXPLICIT_RECORD:{readOnlyHint:false,destructiveHint:false,idempotentHint:false,openWorldHint:false}};
+ for(const [name,state] of Object.entries(inventory.tools)) {
+  assert.ok(hints[state],`${name} has a state with declared hints`);
+  assert.deepEqual({...tools.get(name).annotations},hints[state],name);
+ }
+});
+
+test('PWV-V0-017 the package ships exactly the inventory skills, each routing only to registered tools',t=>{
+ const {tools,commands}=surface(t);
+ assert.deepEqual(pkg.pi.skills,['./skills']);
+ assert.ok(pkg.files.includes('skills'));
+ const dirs=readdirSync(new URL('./skills/',import.meta.url),{withFileTypes:true}).filter(e=>e.isDirectory()).map(e=>e.name).sort();
+ assert.deepEqual(dirs,inventory.skills);
+ for(const name of dirs) {
+  const text=readFileSync(new URL(`./skills/${name}/SKILL.md`,import.meta.url),'utf8');
+  const front=/^---\n([\s\S]*?)\n---\n/.exec(text);
+  assert.ok(front,`${name} has frontmatter`);
+  const fields=Object.fromEntries(front[1].split('\n').map(line=>[line.slice(0,line.indexOf(':')),line.slice(line.indexOf(':')+1).trim()]));
+  assert.equal(fields.name,name);
+  assert.ok(fields.description&&fields.description.length<=1024,`${name} description`);
+  assert.equal(fields.license,'AGPL-3.0-or-later');
+  for(const [,tool] of text.matchAll(/`(corvint_[a-z_]+)`/g))assert.ok(tools.has(tool),`${name} routes to registered tool ${tool}`);
+  for(const [,command] of text.matchAll(/`\/(corvint-[a-z-]+)/g))assert.ok(commands.has(command),`${name} routes to registered command ${command}`);
+  assert.doesNotMatch(text,/corvint-tasks (claim|submit|complete|release|renew|ticket create)/,`${name} names no native write`);
+  assert.doesNotMatch(text,/`(git|go|make|npm|npx|node|bun|pi|corvint|corvint-tasks|corvint-mcp) [^`]*`/,`${name} names no native command outside the registered tools`);
+  assert.doesNotMatch(text,/\b(run|execute)\s+(the\s+)?(selected\s+)?(tests|checks)\b/i,`${name} does not direct the model to run commands itself`);
  }
 });

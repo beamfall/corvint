@@ -48,6 +48,11 @@ that exception grants neither a native claim nor native completion and changes n
 - `PWV-V0-010`: Promotion MUST retain focused executable checks, fresh independent review and exact native host qualification. Provider tokens, cache and billed cost MUST remain NOT_OBSERVED without measurements; superiority needs a separately frozen accepted comparative protocol.
 - `PWV-V0-011`: The registered Pi tools, commands and lifecycle events, and the Core read, Tasks read and Tasks write operations, MUST equal the closed `corvint-pi-capabilities/0` inventory below, and its unavailable set MUST equal the package `unavailableCapabilities`. A Tasks write is negotiated per call: it MUST refuse with `capability-unavailable`, before any mutation argv, unless the installed native `help` result lists the exact verb as implemented; an operation outside the inventory MUST refuse with `unsupported-mutation` without any native call. Deferred routes stay absent until their owning ticket amends this inventory. A new route, state or unavailable entry MUST amend this inventory in the same change.
 - `PWV-V0-012`: The read facade MUST carry an actual named task through the native chain: governing clause, immutable source, changed-path impact and selected tests, each retaining the native receipt verbatim, its pinned blob identities, unknowns and plan-only limits. Those reads and native Tasks inspection in a repository without a task store MUST leave every byte of the worktree and Git directory unchanged and MUST NOT initialize a task store or index.
+- `PWV-V0-013`: The `corvint_tasks` read tool MUST expose native `ticket search` and `ticket list` as the closed `search` and `list` operations. `search` accepts only `status`, `kind`, `priority`, `owner`, `milestone`, `label`, `text`, `offset`, `limit` and `summary`; `list` accepts only `status`, `offset` and `limit`. `status` and `kind` MUST be members of the native closed status and kind sets; a `list` status set MUST hold distinct members, and `search` takes one status. `owner`, `milestone` and `label` MUST match native label validation (1 to 64 UTF-8 bytes, so spaces and Unicode are accepted, with no control, bidirectional-override or byte-order-mark code point). Unknown keys, a value that could become a flag (leading `-`), control characters, out-of-range pages (`limit` 1 to 100), values outside those sets and duplicate statuses MUST refuse with `invalid-input` before any native call. The native receipt, page and warnings MUST be returned verbatim.
+- `PWV-V0-014`: `corvint_core_read` MUST expose the native read-only `overview` and `features` (no input) and `witness` (`base` required, optional `head`, both full commit IDs, `--json`) operations. Their native refusals, such as a dirty worktree, MUST stay native receipts; `witness` MUST NOT accept `--cem` or `--stable-artifact-root`, so the facade never applies a CEM map.
+- `PWV-V0-015`: Every registered model tool MUST declare Pi `annotations`: `NATIVE_READ` tools are `readOnlyHint` true, `destructiveHint` false, `idempotentHint` true and `openWorldHint` false; the `EXPLICIT_RECORD` tool is `readOnlyHint`, `destructiveHint`, `idempotentHint` and `openWorldHint` false. Annotations are unverified host hints for permission extensions and grant no authority.
+- `PWV-V0-016`: The lifecycle runner MUST refuse a `hostVersion` other than the exact admitted `0.99.1` with `unsupported-host-version` before starting any process. The protected image's ordinary fallback MUST declare its embedded Pi version from one constant that equals its pinned SDK dependency; while that version is not admitted, every fallback MUST be a typed, visible refusal that injects no context.
+- `PWV-V0-017`: The package MUST ship Pi skills through its `pi.skills` manifest entry, exactly the inventory `skills` set. Each skill directory MUST contain a `SKILL.md` whose frontmatter `name` equals the directory name and whose body routes only to registered Corvint tools or the operator's explicit `/corvint-tasks` command. A skill MUST NOT instruct the model to write the task store, claim completion, or run a native command outside the registered tools.
 
 ## Trust boundary, limits and failure modes
 
@@ -63,7 +68,9 @@ The wrapper rejects unknown keys, operations and conflicting selectors before sp
 remain visible as raw stderr/stdout. Invalid JSON, spawn failure, interruption and overflow are typed
 faults and never successful receipts. Frontier exit 1 is a valid open queue, not completion failure.
 Native read-only semantics retain only Core's already contracted bounded private observation-ledger
-exceptions. File reads and proof profiles do not acquire any new authority from the Pi wrapper.
+exceptions. An older native Tasks build without `ticket search` or `ticket list` returns its own
+refusal receipt; `witness` output above the 65,536-byte bound is a typed `output-too-large` fault, so
+narrow the range. A host version mismatch refuses before spawn, so it costs no Core start. File reads and proof profiles do not acquire any new authority from the Pi wrapper.
 
 ## Capability contract
 
@@ -73,21 +80,22 @@ read; `LIFECYCLE` is an `adapter pi` event under AHI-024 with continuation false
 is explicit outcome persistence under AHI-025; `LOCAL_POLICY` is the caller-owned workflow under
 LCP-V0-008; `OPERATOR_NATIVE_WRITE` is an explicit operator command whose Tasks verb is negotiated
 per call against the installed native `help` result. The exact tuple is the package's, and
-`FALLBACK` support never implies authority. The 0.3.3 package ships no copy of this inventory, so
+`FALLBACK` support never implies authority. The 0.3.4 package ships no copy of this inventory, so
 the exact qualified tuple is unchanged; a later adapter version may ship it as a declaration, never
 as runtime admission.
 
 ```json
 {
   "profile": "corvint-pi-capabilities/0",
-  "tuple": {"adapterVersion": "0.3.3", "host": "pi", "hostVersion": "0.99.1", "support": "FALLBACK", "surface": "extension"},
+  "tuple": {"adapterVersion": "0.3.4", "host": "pi", "hostVersion": "0.99.1", "support": "FALLBACK", "surface": "extension"},
   "tools": {"corvint_context": "NATIVE_READ", "corvint_core_read": "NATIVE_READ", "corvint_expand": "NATIVE_READ", "corvint_record_outcome": "EXPLICIT_RECORD", "corvint_tasks": "NATIVE_READ"},
   "commands": {"corvint": "NATIVE_READ", "corvint-context": "LIFECYCLE", "corvint-outcome": "LIFECYCLE", "corvint-record": "EXPLICIT_RECORD", "corvint-tasks": "OPERATOR_NATIVE_WRITE", "corvint-workflow": "LOCAL_POLICY"},
   "events": ["agent_before_settle", "agent_end", "agent_settled", "before_agent_start", "context", "input", "session_compact", "session_shutdown", "session_start", "session_tree", "tool_result"],
-  "coreReadOperations": ["affected", "cem-status", "context", "dogfood-status", "frontier", "impact", "ocm-status", "prove", "query", "review"],
-  "tasksReadOperations": ["attempt", "audit", "blockers", "gate", "gates", "help", "plan", "queue", "readiness", "release", "releases", "roadmap", "ticket"],
+  "coreReadOperations": ["affected", "cem-status", "context", "dogfood-status", "features", "frontier", "impact", "ocm-status", "overview", "prove", "query", "review", "witness"],
+  "tasksReadOperations": ["attempt", "audit", "blockers", "gate", "gates", "help", "list", "plan", "queue", "readiness", "release", "releases", "roadmap", "search", "ticket"],
   "tasksWriteOperations": ["claim", "complete", "gate run", "release", "renew", "submit", "ticket prioritize"],
   "tasksWriteAdmission": "native-help-implemented-per-call",
+  "skills": ["corvint-context", "corvint-impact", "corvint-review", "corvint-tasks"],
   "unavailable": ["Windows descendant cleanup", "authoritative completion continuation", "formal FULL qualification", "protected authority"],
   "deferred": {"approved ticket create and refine": "V1-0507", "comparative qualification and support-matrix release": "V1-0511", "non-fixture native write qualification": "V1-0507", "workflow recovery qualification": "V1-0509"}
 }
@@ -119,6 +127,12 @@ requires the existing governing interface; missing dependencies remain open.
 | PWV-V0-011 | Capability contract above plus every registering module | `capabilities.test.mjs`: registered tools/commands/events, operation sets and unavailable set equal the inventory; per-call native write negotiation and out-of-inventory refusal |
 | PWV-V0-012 | `integrations/pi/core.js`, `tasks.js` reads | `core-host.test.mjs` with actual native Core and Tasks binaries: named task chain and byte-identical worktree/Git directory. Manual qualification only: excluded from `make host-adapter-test`, CI and every gate; run by hand with `node --test integrations/pi/core-host.test.mjs` and `corvint`/`corvint-tasks` on `PATH`, or `CORVINT_BIN`/`CORVINT_TASKS_BIN` set to their paths |
 
+| PWV-V0-013 | `integrations/pi/tasks.js` reads | `tasks.test.mjs`: literal search/list argv, Unicode and spaced labels, and every refusal (unknown status or kind, duplicate status, label bounds) with zero native calls; `tasks-host.test.mjs` returns tickets, page and warnings from native search/list on an initialized store without mutation; `core-host.test.mjs` shows the `UNINITIALIZED` refusal without a store |
+| PWV-V0-014 | `integrations/pi/core.js` | `core.test.mjs`: literal overview/features/witness argv, required base, refused CEM flags; `core-host.test.mjs` byte-identical worktree after the real reads |
+| PWV-V0-015 | `core.js`, `tasks.js`, `tools.js` registration | `capabilities.test.mjs`: each tool's annotations follow its inventory state; live `getAllTools` receipt in the build-log matrix |
+| PWV-V0-016 | `integrations/pi/runtime.js`, `integrations/pi-protected/host-version.mjs` | `runtime.test.mjs` refuses before spawn; `pi-protected/host-version.test.mjs` drives the protected fallback through the real runner. Built-image confirmation is NOT_RUN until the image is built |
+| PWV-V0-017 | `integrations/pi/skills/`, `package.json` | `capabilities.test.mjs`: shipped skill set, frontmatter names, tool routes, and no named native command or instruction to run tests or checks; `core-host.test.mjs`: the review skill's head rule (a head other than HEAD is refused); live `get_commands` receipt in the build-log matrix |
+
 A test path names required evidence, not an assertion that it passed. Final outcome belongs in the
 combined build-log and bound CEM/OCM. Missing or failed acceptance rows keep delivery experimental.
 
@@ -129,6 +143,9 @@ Keep candidate artifacts separate from verified releases. Disable the added regi
 the prior native package/binary to roll back; preserve task stores, receipts and unresolved mutation
 metadata for reconciliation. Never erase state to make rollback appear clean. Requalify exact host
 API/version changes and native CLI contract drift; refuse unsupported tuples rather than guessing.
+The PWV-V0-013 to PWV-V0-017 additions roll back independently: drop the operation from the
+`reads` or `fields` map, the `annotations` field, or the `pi.skills` entry, together with its
+inventory entry. None of them persists state, so rollback leaves no residue.
 
 ## Open decisions and kill criteria
 

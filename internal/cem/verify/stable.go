@@ -115,6 +115,11 @@ var structuralTuples = map[string]bool{"go1.27.1": true, "go1.27.2": true, "go1.
 
 func structuralRuntimeAdmitted(version string) bool { return structuralTuples[version] }
 
+// StructuralTupleAdmitted reports whether version is an admitted structural Go
+// tuple, the only goVersion a QUALIFIED_EXACT_TUPLE result may name
+// (CEM-V1-050, CEM-V1-570).
+func StructuralTupleAdmitted(version string) bool { return structuralRuntimeAdmitted(version) }
+
 func nullableStable(s string) *string {
 	if s == "" {
 		return nil

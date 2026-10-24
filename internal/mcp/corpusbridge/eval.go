@@ -6,8 +6,10 @@ import (
 	json "encoding/json/v2"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
 )
@@ -96,6 +98,20 @@ type EvalResult struct {
 	Unresolved        []EvalUnresolved `json:"unresolved"`
 	LatencyMS         int64            `json:"latency_ms"`
 	ReceiptBytes      int              `json:"receipt_bytes"`
+	// ReturnedRows lists a failing case's served top-k rows, and ExpectedRank the first rank of
+	// an expected item beyond k, when one is served at all (DCP-V1-473).
+	ReturnedRows []EvalRow `json:"returned_rows,omitempty"`
+	ExpectedRank *int      `json:"expected_rank,omitempty"`
+}
+
+// EvalRow is one served row of a failing case: its rank, record id, kind, name (or claim text)
+// and the first path it cites, each bounded (DCP-V1-473).
+type EvalRow struct {
+	Rank int    `json:"rank"`
+	ID   string `json:"id,omitempty"`
+	Kind string `json:"kind,omitempty"`
+	Name string `json:"name,omitempty"`
+	Path string `json:"path,omitempty"`
 }
 
 // EvalGroup summarizes the cases of one operation, tag or origin, naming them.
@@ -270,12 +286,75 @@ func (r *Registry) loadedArtifact(ctx context.Context) (*doccorpus.Artifact, err
 	return a, err
 }
 
-// Evaluate scores every case through CallTimed (DCP-V1-251..253).
-func (r *Registry) Evaluate(ctx context.Context, cases EvalCases, casesPath string, casesRaw []byte) (*EvalReport, error) {
+// evalSession pins one suite to the verified artifact and the freshness overlay observed once
+// before its first case (DCP-V1-474).
+type evalSession struct {
+	artifact *doccorpus.Artifact
+	stamp    string
+	overlay  doccorpus.FreshnessOverlay
+}
+
+type evalSessionKey struct{}
+
+// rankProbeKey marks expectedRank's repeated call, which reads the ranking at the largest limit
+// without the MCP result frame bound: it is never served, so no frame is spent (DCP-V1-473).
+type rankProbeKey struct{}
+
+func rankProbe(ctx context.Context) bool {
+	return ctx.Value(rankProbeKey{}) != nil && sessionOf(ctx) != nil
+}
+
+// sessionOf returns the evaluation session ctx carries, if any; only Evaluate sets one, so the
+// served MCP calls never take it.
+func sessionOf(ctx context.Context) *evalSession {
+	s, _ := ctx.Value(evalSessionKey{}).(*evalSession)
+	return s
+}
+
+// openEvalSession opens the artifact and observes freshness once for a whole suite.
+func (r *Registry) openEvalSession(ctx context.Context) (*evalSession, error) {
 	a, err := r.loadedArtifact(ctx)
 	if err != nil {
 		return nil, err
 	}
+	stamp := checkoutStamp(stampDirs(r.root, a.Manifest, r.pins))
+	overlay, err := r.freshness(ctx, a, stamp, &Timing{})
+	if err != nil {
+		return nil, err
+	}
+	return &evalSession{artifact: a, stamp: stamp, overlay: overlay}, nil
+}
+
+// closeEvalSession refuses the suite when the checkout the cases were answered against changed
+// while they ran: an equal checkout stamp shows nothing changed without running Git; otherwise
+// every pin must still resolve and the observation key must be the overlay's.
+func (r *Registry) closeEvalSession(ctx context.Context, s *evalSession) error {
+	if s.stamp != "" && checkoutStamp(stampDirs(r.root, s.artifact.Manifest, r.pins)) == s.stamp {
+		return nil
+	}
+	if err := verifyPinned(ctx, r.root, s.artifact.Manifest, r.pins); err != nil {
+		return err
+	}
+	key, err := observeCorpus(ctx, r.root, s.artifact)
+	if err != nil {
+		return err
+	}
+	if key != s.overlay.Observation() {
+		return evalRefused("checkout changed while the cases ran; run the evaluation again")
+	}
+	return nil
+}
+
+// Evaluate scores every case through CallTimed (DCP-V1-251..253). The suite opens and checks the
+// artifact and its freshness once, answers every case from them, and checks once after the last
+// case that the checkout did not change (DCP-V1-474).
+func (r *Registry) Evaluate(ctx context.Context, cases EvalCases, casesPath string, casesRaw []byte) (*EvalReport, error) {
+	session, err := r.openEvalSession(ctx)
+	if err != nil {
+		return nil, err
+	}
+	a := session.artifact
+	suite := context.WithValue(ctx, evalSessionKey{}, session)
 	known := evalUniverse(a)
 	report := &EvalReport{
 		Schema:   EvalReceiptSchema,
@@ -287,11 +366,14 @@ func (r *Registry) Evaluate(ctx context.Context, cases EvalCases, casesPath stri
 	}
 	report.Identity = EvalIdentity{CasesSHA256: report.CaseFile.SHA256, RepositoryID: a.Manifest.Repository.ID, ProfileID: a.Manifest.Profile.ID, ReceiptSchema: doccorpus.ReceiptSchema}
 	for _, c := range cases.Cases {
-		result, err := r.evaluateCase(ctx, c, cases.Origin, known)
+		result, err := r.evaluateCase(suite, c, cases.Origin, known)
 		if err != nil {
 			return nil, err
 		}
 		report.Cases = append(report.Cases, result)
+	}
+	if err := r.closeEvalSession(ctx, session); err != nil {
+		return nil, err
 	}
 	report.Summary = summarize(report.Cases)
 	return report, nil
@@ -434,8 +516,78 @@ func (r *Registry) evaluateCase(ctx context.Context, c EvalCase, fileOrigin stri
 	result.Status = "fail"
 	if ok {
 		result.Status = "pass"
+		return result, nil
+	}
+	for index, row := range rows {
+		result.ReturnedRows = append(result.ReturnedRows, evalRow(index+1, row))
+	}
+	if !c.Expect.Abstain && !result.Hit && result.K < doccorpus.MaxResults {
+		result.ExpectedRank = r.expectedRank(ctx, tool, arguments, wantSubjects, wantClaims, wantPaths)
 	}
 	return result, nil
+}
+
+// expectedRank reruns a missed case at the largest limit, without the result frame bound, and
+// returns the first rank an expected item is ranked at, or nil when none is, or the tool takes no
+// limit (DCP-V1-473). It never changes the case's score or latency.
+func (r *Registry) expectedRank(ctx context.Context, tool string, arguments []byte, subjects, claims, paths map[string]bool) *int {
+	var members map[string]jsontext.Value
+	if json.Unmarshal(arguments, &members) != nil || members == nil {
+		return nil
+	}
+	members["limit"] = jsontext.Value(fmt.Sprint(doccorpus.MaxResults))
+	wide, err := json.Marshal(members, json.Deterministic(true))
+	if err != nil {
+		return nil
+	}
+	structured, _, failure, transport, _ := r.CallTimed(context.WithValue(ctx, rankProbeKey{}, true), tool, wide)
+	if failure != nil || transport != nil {
+		return nil
+	}
+	rows, _ := structured["results"].([]any)
+	for index, row := range rows {
+		ids, cited := rowIdentity(row)
+		hit := slices.ContainsFunc(ids, func(id string) bool { return subjects[id] || claims[id] }) ||
+			slices.ContainsFunc(cited, func(p string) bool { return paths[p] })
+		if hit {
+			rank := index + 1
+			return &rank
+		}
+	}
+	return nil
+}
+
+// evalRow reads one served row's identity for a failing case, every member bounded.
+func evalRow(rank int, row any) EvalRow {
+	object, _ := row.(map[string]any)
+	text := func(key string, limit int) string {
+		value, _ := object[key].(string)
+		return boundedEvalText(value, limit)
+	}
+	out := EvalRow{Rank: rank, ID: text("id", maxEvalID), Kind: text("kind", 64), Name: text("name", 160)}
+	if out.Name == "" {
+		out.Name = text("text", 160)
+	}
+	if relation, ok := object["relation"].(map[string]any); ok && out.ID == "" {
+		value, _ := relation["id"].(string)
+		out.ID = boundedEvalText(value, maxEvalID)
+	}
+	if _, paths := rowIdentity(row); len(paths) > 0 {
+		out.Path = boundedEvalText(paths[0], 1024)
+	}
+	return out
+}
+
+// boundedEvalText cuts served text to at most limit bytes on a rune boundary.
+func boundedEvalText(value string, limit int) string {
+	if len(value) <= limit {
+		return value
+	}
+	cut := limit
+	for cut > 0 && !utf8.RuneStart(value[cut]) {
+		cut--
+	}
+	return value[:cut] + "..."
 }
 
 func set(items []string) map[string]bool {

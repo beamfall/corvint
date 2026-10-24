@@ -11,156 +11,333 @@ import (
 	"strings"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// setFileCeiling fixes the number of regular files a guard watches with
-// inotify.
-func setFileCeiling(t *testing.T, n int) {
-	t.Helper()
-	original := inotifyFileCeiling
-	inotifyFileCeiling = func() int { return n }
-	t.Cleanup(func() { inotifyFileCeiling = original })
-}
-
-// failFileWatchesAfter makes the kernel refuse, with ENOSPC, the watch of
-// every regular file after the first budget, as it does when the user's
-// fs.inotify.max_user_watches allowance is spent. Directories are always
-// accepted unless dirs is true.
-func failFileWatchesAfter(t *testing.T, budget int, dirs bool) *int {
+// refuseDirectoryWatches makes the kernel refuse, with ENOSPC, every
+// directory watch, as it does when the user's fs.inotify.max_user_watches
+// allowance is spent.
+func refuseDirectoryWatches(t *testing.T) {
 	t.Helper()
 	original := inotifyAddWatch
-	files := 0
 	inotifyAddWatch = func(fd int, path string, mask uint32) (int, error) {
-		info, err := os.Lstat(path)
-		if err == nil && (dirs && info.IsDir() || info.Mode().IsRegular() && files >= budget) {
+		if info, err := os.Lstat(path); err == nil && info.IsDir() {
 			return -1, syscall.ENOSPC
-		}
-		if err == nil && info.Mode().IsRegular() {
-			files++
 		}
 		return original(fd, path, mask)
 	}
 	t.Cleanup(func() { inotifyAddWatch = original })
-	return &files
 }
 
-// CAL-V0-364: a regular file beyond the per-guard file-watch ceiling, or
-// whose inotify watch the kernel refuses, is tracked by its stat identity;
-// every mutation class is reported, quiescence is not, and the registration
-// does not fail.
-func TestCALV0364_ChangeGuardTracksFilesBeyondTheInotifyLimit(t *testing.T) {
-	for _, source := range []string{"kernel-refusal", "ceiling"} {
-		for _, budget := range []int{0, 2} {
-			for _, name := range []string{"none", "write-same-size", "write-resize", "in-place-restored-time", "chmod", "rename-replace", "remove", "sibling"} {
-				t.Run(fmt.Sprintf("%s/%d/%s", source, budget, name), func(t *testing.T) {
-					if source == "kernel-refusal" {
-						failFileWatchesAfter(t, budget, false)
-					} else {
-						setFileCeiling(t, budget)
-					}
-					repo, file := guardRepo(t)
-					dir := filepath.Dir(file)
-					for i := 0; i < 4; i++ {
-						if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("%03d", i)), []byte("x"), 0600); err != nil {
-							t.Fatal(err)
-						}
-					}
-					g, err := WatchChanges(repo)
-					if err != nil {
-						t.Fatalf("registration refused when the watch allowance ran out: %v", err)
-					}
-					w := g.watch.(*notifyWatch)
-					// x.json sorts after 000..003, so it is over the limit in both cases.
-					if len(w.stats) != 5-budget || w.stats[len(w.stats)-1].path != file {
-						t.Fatalf("%d files tracked by stat, last %v", len(w.stats), w.stats)
-					}
-					switch name {
-					case "write-same-size":
-						err = os.WriteFile(file, []byte("bbbb"), 0600)
-					case "write-resize":
-						err = os.WriteFile(file, []byte("bbbbbb"), 0600)
-					case "in-place-restored-time":
-						st, _ := os.Stat(file)
-						err = os.WriteFile(file, []byte("cccc"), 0600)
-						if err == nil {
-							err = os.Chtimes(file, st.ModTime(), st.ModTime())
-						}
-					case "chmod":
-						err = os.Chmod(file, 0640)
-					case "rename-replace":
-						err = os.WriteFile(file+".tmp", []byte("aaaa"), 0600)
-						if err == nil {
-							err = os.Rename(file+".tmp", file)
-						}
-					case "remove":
-						err = os.Remove(file)
-					case "sibling":
-						err = os.WriteFile(file+".new", []byte("new"), 0600)
-					}
-					if err != nil {
-						t.Fatal(err)
-					}
-					want := wire.CodeSnapshotMoved
-					if name == "none" {
-						want = ""
-					}
-					if got := wire.CodeOf(g.Check()); got != want {
-						t.Fatalf("check = %q, want %q", got, want)
-					}
-					if name != "sibling" && name != "none" {
-						// The stat identity alone must see it, without the inotify event.
-						w.dirty = false
-						var buf [4096]byte
-						for {
-							if n, err := syscall.Read(w.fd, buf[:]); err != nil || n == 0 {
-								break
-							}
-						}
-						if !w.sweep() {
-							t.Fatalf("stat identity missed %s", name)
-						}
-					}
-					if err := g.Close(); err != nil {
-						t.Fatal(err)
-					}
-				})
-			}
+// drain discards the inotify events queued so far and clears the sticky
+// result, so that what follows is seen by the stat identity alone.
+func drain(w *notifyWatch) {
+	w.dirty = false
+	var buf [4096]byte
+	for {
+		if n, err := syscall.Read(w.fd, buf[:]); err != nil || n == 0 {
+			return
 		}
 	}
 }
 
-// CAL-V0-364: the ceiling is a 32nd of the user's watch allowance, at most
-// 4,096, and 256 when the allowance cannot be read.
-func TestCALV0364_FileCeilingFollowsTheAllowance(t *testing.T) {
-	original := inotifyWatchesLimit
-	t.Cleanup(func() { inotifyWatchesLimit = original })
-	for _, tc := range []struct {
-		content string
-		want    int
-	}{{"8192\n", 256}, {"130016\n", 4063}, {"1048576\n", 4096}, {"64\n", 2}, {"garbage", 256}, {"0", 256}} {
-		path := filepath.Join(t.TempDir(), "max_user_watches")
-		if err := os.WriteFile(path, []byte(tc.content), 0o600); err != nil {
+// PSR-V0-222: no regular file takes a watch, and every mutation class of a
+// file singly linked in a watched directory is reported by the directory's
+// events, whatever the number of files; quiescence is not reported.
+func TestPSRV0222_ChangeGuardSeesFileMutationsThroughItsDirectory(t *testing.T) {
+	for _, name := range []string{"none", "write-same-size", "write-resize", "in-place-restored-time", "open-before-guard", "truncate", "utimes", "chmod", "rename-replace", "remove", "sibling"} {
+		t.Run(name, func(t *testing.T) {
+			repo, file := guardRepo(t)
+			dir := filepath.Dir(file)
+			staging := filepath.Join(filepath.Dir(repo.StateDir), "staging-outside")
+			if err := os.Mkdir(staging, 0700); err != nil {
+				t.Fatal(err)
+			}
+			for i := 0; i < 4; i++ {
+				if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("%03d", i)), []byte("x"), 0600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			var early *os.File
+			if name == "open-before-guard" {
+				var err error
+				if early, err = os.OpenFile(file, os.O_WRONLY, 0); err != nil {
+					t.Fatal(err)
+				}
+				defer early.Close()
+			}
+			original := inotifyAddWatch
+			t.Cleanup(func() { inotifyAddWatch = original })
+			files := 0
+			inotifyAddWatch = func(fd int, path string, mask uint32) (int, error) {
+				if info, err := os.Lstat(path); err == nil && !info.IsDir() {
+					files++
+				}
+				return original(fd, path, mask)
+			}
+			g, err := WatchChanges(repo)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer g.Close()
+			if w := g.watch.(*notifyWatch); files != 0 || len(w.uncovered) != 0 {
+				t.Fatalf("%d file watches and %d uncovered files, want none", files, len(w.uncovered))
+			}
+			switch name {
+			case "write-same-size":
+				err = os.WriteFile(file, []byte("bbbb"), 0600)
+			case "write-resize":
+				err = os.WriteFile(file, []byte("bbbbbb"), 0600)
+			case "in-place-restored-time":
+				st, _ := os.Stat(file)
+				err = os.WriteFile(file, []byte("cccc"), 0600)
+				if err == nil {
+					err = os.Chtimes(file, st.ModTime(), st.ModTime())
+				}
+			case "open-before-guard":
+				// A descriptor opened through this entry before the guard
+				// writes through it; one opened through another link would
+				// not be reported (PSR-V0-222).
+				_, err = early.WriteAt([]byte("dddd"), 0)
+			case "truncate":
+				err = os.Truncate(file, 1)
+			case "utimes":
+				err = os.Chtimes(file, time.Unix(1, 0), time.Unix(1, 0))
+			case "chmod":
+				err = os.Chmod(file, 0640)
+			case "rename-replace":
+				// Staged outside the observation, so only the rename over
+				// the entry can report it.
+				staged := filepath.Join(staging, "x.json")
+				err = os.WriteFile(staged, []byte("aaaa"), 0600)
+				if err == nil {
+					err = os.Rename(staged, file)
+				}
+			case "remove":
+				err = os.Remove(file)
+			case "sibling":
+				err = os.WriteFile(file+".new", []byte("new"), 0600)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := wire.CodeSnapshotMoved
+			if name == "none" {
+				want = ""
+			}
+			if got := wire.CodeOf(g.CheckEvents()); got != want {
+				t.Fatalf("check = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+// PSR-V0-222: a regular file with a second link, through which a write
+// bypasses the watched directory, is tracked by its stat identity, and a
+// write or mode change through that link is seen by the sweep alone.
+func TestPSRV0222_ChangeGuardTracksAMultiplyLinkedFileByStat(t *testing.T) {
+	for _, name := range []string{"none", "write-same-size", "in-place-restored-time", "chmod"} {
+		t.Run(name, func(t *testing.T) {
+			repo, file := guardRepo(t)
+			outside := filepath.Join(t.TempDir(), "link")
+			if err := os.Link(file, outside); err != nil {
+				t.Skipf("hard links unsupported: %v", err)
+			}
+			g, err := WatchChanges(repo)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer g.Close()
+			w := g.watch.(*notifyWatch)
+			if len(w.uncovered) != 1 || w.files[w.uncovered[0]].path != file {
+				t.Fatalf("uncovered %v of %v, want only %s", w.uncovered, w.files, file)
+			}
+			switch name {
+			case "write-same-size":
+				err = os.WriteFile(outside, []byte("bbbb"), 0600)
+			case "in-place-restored-time":
+				st, _ := os.Stat(outside)
+				err = os.WriteFile(outside, []byte("cccc"), 0600)
+				if err == nil {
+					err = os.Chtimes(outside, st.ModTime(), st.ModTime())
+				}
+			case "chmod":
+				err = os.Chmod(outside, 0640)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			drain(w)
+			if got := w.sweep(); got != (name != "none") {
+				t.Fatalf("sweep = %v after %s", got, name)
+			}
+			want := wire.CodeSnapshotMoved
+			if name == "none" {
+				want = ""
+			}
+			if got := wire.CodeOf(g.Check()); got != want {
+				t.Fatalf("check = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+// PSR-V0-223: a link made to a singly linked file after registration, outside
+// every watched directory, and a write or mode change through it, or through a
+// descriptor opened through a link removed before registration, reaches no
+// watched directory; the stat identity re-read by Sweep (link count, size,
+// mode, change time) reports it to CheckEvents under the writer lock, and
+// Check reports it too.
+func TestPSRV0223_ChangeGuardSeesAWriteThroughAnAliasLink(t *testing.T) {
+	for _, name := range []string{"none", "alias", "alias-write-same-size", "alias-write-then-unlink", "alias-chmod", "removed-link-descriptor"} {
+		t.Run(name, func(t *testing.T) {
+			repo, file := guardRepo(t)
+			outside := filepath.Join(t.TempDir(), "alias")
+			var early *os.File
+			if name == "removed-link-descriptor" {
+				if err := os.Link(file, outside); err != nil {
+					t.Skipf("hard links unsupported: %v", err)
+				}
+				var err error
+				if early, err = os.OpenFile(outside, os.O_WRONLY, 0); err != nil {
+					t.Fatal(err)
+				}
+				defer early.Close()
+				if err := os.Remove(outside); err != nil {
+					t.Fatal(err)
+				}
+			}
+			g, err := WatchChanges(repo)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer g.Close()
+			if w := g.watch.(*notifyWatch); len(w.uncovered) != 0 {
+				t.Fatalf("uncovered %v, want none: the file is singly linked", w.uncovered)
+			}
+			alias := func() error {
+				if err := os.Link(file, outside); err != nil {
+					t.Skipf("hard links unsupported: %v", err)
+				}
+				return nil
+			}
+			switch name {
+			case "alias":
+				err = alias()
+			case "alias-write-same-size":
+				if err = alias(); err == nil {
+					err = os.WriteFile(outside, []byte("bbbb"), 0600)
+				}
+			case "alias-write-then-unlink":
+				// The link count is restored; the size is not.
+				if err = alias(); err == nil {
+					err = os.WriteFile(outside, []byte("bbbbbb"), 0600)
+				}
+				if err == nil {
+					err = os.Remove(outside)
+				}
+			case "alias-chmod":
+				if err = alias(); err == nil {
+					err = os.Chmod(outside, 0640)
+				}
+			case "removed-link-descriptor":
+				_, err = early.WriteAt([]byte("dddddd"), 0)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := wire.CodeSnapshotMoved
+			if name == "none" {
+				want = ""
+			}
+			g.Sweep()
+			if got := wire.CodeOf(g.CheckEvents()); got != want {
+				t.Fatalf("check events after sweep = %q, want %q", got, want)
+			}
+			if got := wire.CodeOf(g.Check()); got != want {
+				t.Fatalf("check = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+// PSR-V0-223: a file with a second link at registration is re-read by every
+// poll, so a write or mode change through that link after Sweep and before the
+// check under the writer lock is still reported by CheckEvents.
+func TestPSRV0223_ChangeGuardSeesASecondLinkWriteAfterTheSweep(t *testing.T) {
+	for _, name := range []string{"none", "write-resize", "truncate", "chmod"} {
+		t.Run(name, func(t *testing.T) {
+			repo, file := guardRepo(t)
+			outside := filepath.Join(t.TempDir(), "link")
+			if err := os.Link(file, outside); err != nil {
+				t.Skipf("hard links unsupported: %v", err)
+			}
+			g, err := WatchChanges(repo)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer g.Close()
+			if err := g.Check(); err != nil {
+				t.Fatal(err)
+			}
+			g.Sweep()
+			switch name {
+			case "write-resize":
+				err = os.WriteFile(outside, []byte("bbbbbb"), 0600)
+			case "truncate":
+				err = os.Truncate(outside, 1)
+			case "chmod":
+				err = os.Chmod(outside, 0640)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := wire.CodeSnapshotMoved
+			if name == "none" {
+				want = ""
+			}
+			if got := wire.CodeOf(g.CheckEvents()); got != want {
+				t.Fatalf("check events after sweep = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+// PSR-V0-222: a directory already watched with the content mask keeps it when
+// it is added again as an ancestor, so a write to an entry is still reported.
+func TestPSRV0222_AncestorAddKeepsTheContentMask(t *testing.T) {
+	_, file := guardRepo(t)
+	dir := filepath.Dir(file)
+	cw, err := newChangeWatch()
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := cw.(*notifyWatch)
+	defer w.close()
+	for _, contents := range []bool{true, false} {
+		if _, err := w.add(dir, contents); err != nil {
 			t.Fatal(err)
 		}
-		inotifyWatchesLimit = path
-		if got := defaultInotifyFileCeiling(); got != tc.want {
-			t.Errorf("allowance %q: ceiling %d, want %d", strings.TrimSpace(tc.content), got, tc.want)
-		}
 	}
-	inotifyWatchesLimit = filepath.Join(t.TempDir(), "absent")
-	if got := defaultInotifyFileCeiling(); got != 256 {
-		t.Errorf("unreadable allowance: ceiling %d, want 256", got)
+	if _, err := w.add(file, true); err != nil || len(w.uncovered) != 0 {
+		t.Fatalf("file add: %v, %d uncovered", err, len(w.uncovered))
+	}
+	if err := os.WriteFile(file, []byte("bbbb"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if changed, err := w.poll(); err != nil || !changed {
+		t.Fatalf("write after an ancestor re-add: changed %v, %v", changed, err)
 	}
 }
 
-// CAL-V0-364: a directory the kernel refuses to watch still fails the
-// registration, as UNSUPPORTED_FILESYSTEM naming the allowance, because
+// CAL-V0-364, PSR-V0-222: a directory the kernel refuses to watch still fails
+// the registration, as UNSUPPORTED_FILESYSTEM naming the allowance, because
 // only directory events report entries created or removed at any time.
 func TestCALV0364_ChangeGuardRefusesADirectoryBeyondTheInotifyLimit(t *testing.T) {
-	failFileWatchesAfter(t, 1<<30, true)
+	refuseDirectoryWatches(t)
 	repo, _ := guardRepo(t)
 	g, err := WatchChanges(repo)
 	if err == nil {
@@ -169,53 +346,6 @@ func TestCALV0364_ChangeGuardRefusesADirectoryBeyondTheInotifyLimit(t *testing.T
 	}
 	if wire.CodeOf(err) != wire.CodeUnsupportedFilesystem || !strings.Contains(err.Error(), "fs.inotify.max_user_watches") {
 		t.Fatalf("refusal %v (%s)", err, wire.CodeOf(err))
-	}
-}
-
-// CAL-V0-364: regular files register after every directory, so an allowance
-// that holds exactly the directories is spent on their events and each file,
-// including one that sorts before a directory still to be visited, is tracked
-// by stat.
-func TestCALV0364_DirectoriesRegisterBeforeFiles(t *testing.T) {
-	repo, file := guardRepo(t)
-	// A file that sorts before the directory z below it in the state directory.
-	for _, path := range []string{filepath.Join(repo.StateDir, "a.json"), filepath.Join(repo.StateDir, "z", "b.json"), file} {
-		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(path, []byte("x"), 0600); err != nil {
-			t.Fatal(err)
-		}
-	}
-	original := inotifyAddWatch
-	t.Cleanup(func() { inotifyAddWatch = original })
-	dirs, allowed := 0, -1 // -1: no limit
-	inotifyAddWatch = func(fd int, path string, mask uint32) (int, error) {
-		if info, err := os.Lstat(path); err == nil && info.IsDir() {
-			dirs++
-		}
-		if allowed == 0 {
-			return -1, syscall.ENOSPC
-		}
-		if allowed > 0 {
-			allowed--
-		}
-		return original(fd, path, mask)
-	}
-	// Count the directories with no limit, then allow exactly them.
-	g, err := WatchChanges(repo)
-	if err != nil {
-		t.Fatal(err)
-	}
-	g.Close()
-	dirs, allowed = 0, dirs
-	g, err = WatchChanges(repo)
-	if err != nil {
-		t.Fatalf("an allowance that holds every directory refused the registration: %v", err)
-	}
-	defer g.Close()
-	if n := len(g.watch.(*notifyWatch).stats); n != 3 {
-		t.Fatalf("%d files tracked by stat, want the 3 files", n)
 	}
 }
 
@@ -250,69 +380,31 @@ func watchHeadroom(t *testing.T, scratch string, limit int) int {
 	}
 }
 
-// guardWatches counts the directory and regular-file watches a registration
-// of repo asks for, with no allowance or ceiling in its way.
-func guardWatches(t *testing.T, repo *intent.Repository) (dirs, files int) {
+// guardWatches counts the watches a registration of repo asks for.
+func guardWatches(t *testing.T, repo *intent.Repository) int {
 	t.Helper()
 	original := inotifyAddWatch
+	n := 0
 	inotifyAddWatch = func(fd int, path string, mask uint32) (int, error) {
-		if info, err := os.Lstat(path); err == nil && info.IsDir() {
-			dirs++
-		} else if err == nil && info.Mode().IsRegular() {
-			files++
-		}
+		n++
 		return original(fd, path, mask)
 	}
 	defer func() { inotifyAddWatch = original }()
-	setFileCeiling(t, 1<<30)
 	g, err := WatchChanges(repo)
 	if err != nil {
 		t.Fatal(err)
 	}
 	g.Close()
-	return dirs, files
+	return n
 }
 
-// recordFileRefusals counts the regular-file watches the real kernel refuses
-// with ENOSPC.
-func recordFileRefusals(t *testing.T) *int {
-	t.Helper()
-	original := inotifyAddWatch
-	refused := 0
-	inotifyAddWatch = func(fd int, path string, mask uint32) (int, error) {
-		wd, err := original(fd, path, mask)
-		if errors.Is(err, syscall.ENOSPC) {
-			if info, lerr := os.Lstat(path); lerr == nil && info.Mode().IsRegular() {
-				refused++
-			}
-		}
-		return wd, err
-	}
-	t.Cleanup(func() { inotifyAddWatch = original })
-	return &refused
-}
-
-// checkGuardSeesAWrite requires a quiet registration to pass and a write to
-// the stat-tracked file to be reported.
-func checkGuardSeesAWrite(t *testing.T, g *ChangeGuard, file string) {
-	t.Helper()
-	if err := g.Check(); err != nil {
-		t.Fatalf("a quiet store: %v", err)
-	}
-	if err := os.WriteFile(file, []byte("bbbb"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	if got := wire.CodeOf(g.Check()); got != wire.CodeSnapshotMoved {
-		t.Fatalf("check after a write = %q", got)
-	}
-}
-
-// CAL-V0-364: the same through the real kernel. The kernel-refusal case
-// lowers fs.inotify.max_user_watches for the host while it runs and restores
-// it, so the test is opt-in (CORVINT_TASKS_INOTIFY_LIMIT=1) and needs root.
-// The kernel charges watches per user, so the limit is derived from this
-// user's measured headroom rather than from a count over every process, and
-// each case asserts that its own refusal, and only it, happened.
+// CAL-V0-364, PSR-V0-222: through the real kernel, an allowance with room for
+// exactly the guard's directory watches registers a store of many more files,
+// and a write to one of them is reported. The test lowers
+// fs.inotify.max_user_watches for the host while it runs and restores it, so
+// it is opt-in (CORVINT_TASKS_INOTIFY_LIMIT=1) and needs root. The kernel
+// charges watches per user, so the limit is derived from this user's
+// measured headroom rather than from a count over every process.
 func TestCALV0364_ChangeGuardUnderTheRealInotifyLimit(t *testing.T) {
 	if os.Getenv("CORVINT_TASKS_INOTIFY_LIMIT") != "1" {
 		t.Skip("set CORVINT_TASKS_INOTIFY_LIMIT=1 to lower fs.inotify.max_user_watches while this test runs")
@@ -333,75 +425,49 @@ func TestCALV0364_ChangeGuardUnderTheRealInotifyLimit(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	dirs, files := guardWatches(t, repo)
-	const granted = 8 // the regular files the kernel-refusal case lets the guard watch
-	if files <= granted {
-		t.Fatalf("%d regular files, want more than %d", files, granted)
+	watches := guardWatches(t, repo)
+	scratch := t.TempDir()
+	t.Cleanup(func() { os.WriteFile(sysctl, raw, 0o644) })
+	setLimit := func(n int) {
+		if err := os.WriteFile(sysctl, []byte(strconv.Itoa(n)), 0o644); err != nil {
+			t.Skipf("cannot set the inotify limit: %v", err)
+		}
 	}
-
-	t.Run("ceiling", func(t *testing.T) {
-		// The host's own allowance, which the ceiling keeps the guard far below.
-		setFileCeiling(t, granted)
-		refused := recordFileRefusals(t)
-		g, err := WatchChanges(repo)
-		if err != nil {
-			t.Fatalf("registration under a ceiling of %d files: %v", granted, err)
+	// The watches this user holds now, from its headroom under a limit small
+	// enough to probe. Another process of the user may add or drop watches
+	// meanwhile; the limit is re-derived until two probes agree.
+	probe := min(original, 1<<16)
+	for attempt := 0; ; attempt++ {
+		if attempt == 5 {
+			t.Skip("this user's inotify watch count kept changing while the test measured it")
 		}
-		defer g.Close()
-		if *refused != 0 {
-			t.Fatalf("the kernel refused %d file watches, so the ceiling was not what bound the guard", *refused)
+		setLimit(probe)
+		free := watchHeadroom(t, scratch, probe)
+		if free == 0 {
+			t.Skipf("this user already holds %d or more watches, beyond what the test probes", probe)
 		}
-		if n := len(g.watch.(*notifyWatch).stats); n != files-granted {
-			t.Fatalf("%d files tracked by stat, want the %d beyond the ceiling", n, files-granted)
+		used := probe - free
+		limit := used + watches
+		setLimit(limit)
+		if h := watchHeadroom(t, scratch, limit); h != watches {
+			t.Logf("headroom %d at limit %d, want %d; measuring again", h, limit, watches)
+			continue
 		}
-		checkGuardSeesAWrite(t, g, file)
-	})
-
-	t.Run("kernel-refusal", func(t *testing.T) {
-		setFileCeiling(t, 1<<30) // the ceiling never binds: only the kernel refuses
-		scratch := t.TempDir()
-		t.Cleanup(func() { os.WriteFile(sysctl, raw, 0o644) })
-		setLimit := func(n int) {
-			if err := os.WriteFile(sysctl, []byte(strconv.Itoa(n)), 0o644); err != nil {
-				t.Skipf("cannot set the inotify limit: %v", err)
-			}
-		}
-		// The watches this user holds now, from its headroom under a limit
-		// small enough to probe. Another process of the user may add or drop
-		// watches meanwhile; the limit is re-derived until two probes agree.
-		probe := min(original, 1<<16)
-		for attempt := 0; ; attempt++ {
-			if attempt == 5 {
-				t.Skip("this user's inotify watch count kept changing while the test measured it")
-			}
-			setLimit(probe)
-			free := watchHeadroom(t, scratch, probe)
-			if free == 0 {
-				t.Skipf("this user already holds %d or more watches, beyond what the test probes", probe)
-			}
-			used := probe - free
-			limit := used + dirs + granted
-			setLimit(limit)
-			if h := watchHeadroom(t, scratch, limit); h != dirs+granted {
-				t.Logf("headroom %d at limit %d, want %d; measuring again", h, limit, dirs+granted)
-				continue
-			}
-			t.Logf("this user holds %d watches; limit %d leaves %d directories and %d files", used, limit, dirs, granted)
-			break
-		}
-		refused := recordFileRefusals(t)
-		g, err := WatchChanges(repo)
-		if err != nil {
-			t.Fatalf("registration with room for every directory and %d files: %v", granted, err)
-		}
-		defer g.Close()
-		if *refused == 0 {
-			t.Fatal("the kernel refused no file watch, so its exhaustion was not exercised")
-		}
-		if n := len(g.watch.(*notifyWatch).stats); n != *refused {
-			t.Fatalf("%d files tracked by stat, want the %d the kernel refused", n, *refused)
-		}
-		t.Logf("the kernel refused %d of %d file watches with ENOSPC", *refused, files)
-		checkGuardSeesAWrite(t, g, file)
-	})
+		t.Logf("this user holds %d watches; limit %d leaves the guard's %d", used, limit, watches)
+		break
+	}
+	g, err := WatchChanges(repo)
+	if err != nil {
+		t.Fatalf("registration with room for its %d directory watches: %v", watches, err)
+	}
+	defer g.Close()
+	if err := g.Check(); err != nil {
+		t.Fatalf("a quiet store: %v", err)
+	}
+	if err := os.WriteFile(file, []byte("bbbb"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if got := wire.CodeOf(g.Check()); got != wire.CodeSnapshotMoved {
+		t.Fatalf("check after a write = %q", got)
+	}
 }

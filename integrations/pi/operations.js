@@ -6,6 +6,9 @@ import { mkdir, open, readdir, lstat, unlink, realpath } from 'node:fs/promises'
 import { join, isAbsolute } from 'node:path';
 import { createCommandRunner } from './process.js';
 import { workflowIdentity } from './workflow.js';
+// PWV-V0-015: unverified MCP-style hints Pi reports through getAllTools for permission extensions.
+export const READ_ONLY_TOOL=Object.freeze({readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:false});
+export const RECORD_TOOL=Object.freeze({readOnlyHint:false,destructiveHint:false,idempotentHint:false,openWorldHint:false});
 export const digest=value=>createHash('sha256').update(typeof value==='string'?value:canonical(value)).digest('hex');
 export function canonical(value) {
  if(Array.isArray(value))return '['+value.map(canonical).join(',')+']';

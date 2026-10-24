@@ -631,16 +631,17 @@ func dogfoodPrivateFiles(t *testing.T, root string) map[string]string {
 
 func TestPiLocalCompletionTuple(t *testing.T) {
 	t.Parallel()
-	exact := options{host: "pi", hostVersion: "0.99.1", surface: "extension", adapterVersion: "0.3.3"}
+	exact := options{host: "pi", hostVersion: "0.99.1", surface: "extension", adapterVersion: "0.3.4"}
 	if !dogfoodEventHostAdmitted(exact) {
 		t.Fatal("exact ordinary Pi tuple refused")
 	}
 	for _, wrong := range []options{
-		{host: "pi", hostVersion: "0.85.1", surface: "extension", adapterVersion: "0.3.3"},
-		{host: "pi", hostVersion: "0.99.1", surface: "plugin", adapterVersion: "0.3.3"},
+		{host: "pi", hostVersion: "0.85.1", surface: "extension", adapterVersion: "0.3.4"},
+		{host: "pi", hostVersion: "0.99.1", surface: "plugin", adapterVersion: "0.3.4"},
 		{host: "pi", hostVersion: "0.99.1", surface: "extension", adapterVersion: "0.2.0"},
 		{host: "pi", hostVersion: "0.99.1", surface: "extension", adapterVersion: "0.3.2"}, // superseded (V1-2150)
-		{host: "pi-protected", hostVersion: "0.99.1", surface: "extension", adapterVersion: "0.3.3"},
+		{host: "pi", hostVersion: "0.99.1", surface: "extension", adapterVersion: "0.3.3"}, // superseded (decision 0556)
+		{host: "pi-protected", hostVersion: "0.99.1", surface: "extension", adapterVersion: "0.3.4"},
 	} {
 		if dogfoodEventHostAdmitted(wrong) {
 			t.Fatalf("admitted %+v", wrong)
@@ -658,7 +659,7 @@ func TestPiLocalCompletionTuple(t *testing.T) {
 		t.Fatal(err)
 	}
 	before := repositoryBytesDigest(t, root)
-	args := []string{"--host", "pi", "--host-version", "0.99.1", "--surface", "extension", "--adapter-version", "0.3.3", "--event", "stop", "--input", "-", "--budget-bytes", "8000"}
+	args := []string{"--host", "pi", "--host-version", "0.99.1", "--surface", "extension", "--adapter-version", "0.3.4", "--event", "stop", "--input", "-", "--budget-bytes", "8000"}
 	for _, active := range []bool{false, true, true} {
 		input, _ := json.Marshal(map[string]any{"sessionIdSha256": key, "stopHookActive": active, "changedPaths": []any{}})
 		var out, diagnostics bytes.Buffer

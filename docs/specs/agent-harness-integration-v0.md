@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-08-23
-Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280); AHI-056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1969); AHI-057 accepted under the owner's standing auto-accept (2026-10-11) (V1-1974); AHI-070 accepted under the owner's standing auto-accept (2026-10-11) (V1-2062); AHI-171 accepted under the owner's standing auto-accept (2026-10-11) (V1-2192); AHI-172 accepted under the owner's standing auto-accept (2026-10-11) (V1-2201); AHI-071 accepted under the owner's standing auto-accept (2026-10-11) (V1-2150; Pi tuple now 0.99.1 / 0.3.3, decision 0550); AHI-173 and the AHI-020 Spec Kit/OpenSpec amendment accepted under the owner's standing auto-accept (2026-10-11) (V1-2145, V1-2184); AHI-174..AHI-179 accepted under the owner's standing auto-accept (2026-10-11) (V1-2346, V1-0453); AHI-190..199 accepted under the owner's standing auto-accept (2026-10-11) (V1-0403, V1-2466, V1-2440)
+Intent status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280); AHI-056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1969); AHI-057 accepted under the owner's standing auto-accept (2026-10-11) (V1-1974); AHI-070 accepted under the owner's standing auto-accept (2026-10-11) (V1-2062); AHI-171 accepted under the owner's standing auto-accept (2026-10-11) (V1-2192); AHI-172 accepted under the owner's standing auto-accept (2026-10-11) (V1-2201); AHI-071 accepted under the owner's standing auto-accept (2026-10-11) (V1-2150; Pi tuple now 0.99.1 / 0.3.4, decisions 0550 and 0556); AHI-173 and the AHI-020 Spec Kit/OpenSpec amendment accepted under the owner's standing auto-accept (2026-10-11) (V1-2145, V1-2184); AHI-174..AHI-179 accepted under the owner's standing auto-accept (2026-10-11) (V1-2346, V1-0453); AHI-190..199 accepted under the owner's standing auto-accept (2026-10-11) (V1-0403, V1-2466, V1-2440)
 Delivery status: experimental
 Authoritative inputs: `docs/PRODUCT.md`, `docs/TECHNICAL-BRAIN.md`,
 `docs/specs/cem-0.2-canonical-binding.md`
 
 ## Agent digest
 - Claim: Corvint exposes bounded native lifecycle adapters and qualifies stock OpenCode integration separately from execution authority.
-- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280); AHI-056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1969); AHI-057 accepted under the owner's standing auto-accept (2026-10-11) (V1-1974); AHI-070 accepted under the owner's standing auto-accept (2026-10-11) (V1-2062); AHI-171 accepted under the owner's standing auto-accept (2026-10-11) (V1-2192); AHI-172 accepted under the owner's standing auto-accept (2026-10-11) (V1-2201); AHI-071 accepted under the owner's standing auto-accept (2026-10-11) (V1-2150; Pi tuple now 0.99.1 / 0.3.3, decision 0550); AHI-173 and the AHI-020 Spec Kit/OpenSpec amendment accepted under the owner's standing auto-accept (2026-10-11) (V1-2145, V1-2184); AHI-174..AHI-179 accepted under the owner's standing auto-accept (2026-10-11) (V1-2346, V1-0453); AHI-190..199 accepted under the owner's standing auto-accept (2026-10-11) (V1-0403, V1-2466, V1-2440)/experimental
+- Status: accepted direction; AHI-024 Pi tuple accepted (decision 0452; V1-0506); AHI-045..047 accepted (decision 0441; V1-0939, V1-0942); AHI-048 proposed (V1-0734); AHI-049 accepted (decisions 0477, 0479; V1-1040, V1-1055); AHI-050 accepted (decision 0474; V1-0371); AHI-051 proposed (V1-1070, V1-1071); AHI-052 accepted (decision 0497; V1-1116); AHI-054 accepted (decision 0519; V1-1157); AHI-055 accepted under the owner's standing auto-accept (2026-10-11) (V1-1280); AHI-056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1969); AHI-057 accepted under the owner's standing auto-accept (2026-10-11) (V1-1974); AHI-070 accepted under the owner's standing auto-accept (2026-10-11) (V1-2062); AHI-171 accepted under the owner's standing auto-accept (2026-10-11) (V1-2192); AHI-172 accepted under the owner's standing auto-accept (2026-10-11) (V1-2201); AHI-071 accepted under the owner's standing auto-accept (2026-10-11) (V1-2150; Pi tuple now 0.99.1 / 0.3.4, decisions 0550 and 0556); AHI-173 and the AHI-020 Spec Kit/OpenSpec amendment accepted under the owner's standing auto-accept (2026-10-11) (V1-2145, V1-2184); AHI-174..AHI-179 accepted under the owner's standing auto-accept (2026-10-11) (V1-2346, V1-0453); AHI-190..199 accepted under the owner's standing auto-accept (2026-10-11) (V1-0403, V1-2466, V1-2440)/experimental
 - Exists: `internal/gokernel`, `cmd/corvint`, native adapter previews, and the experimental OpenCode inspector/change/Tasks workbench (AHI-033–041) with the owner-approved Work / Change / Evidence presentation (AHI-042).
 - Blocked on: black-box release-matrix qualification with accepted closing authority.
 - Read next: `harness-authority-relation-v0.md` (superseded by accepted decision 0009 option 2; no execution authority root) and `change-frontier-profile-1.md`.
@@ -386,7 +386,7 @@ separate exact extension tuple remains governed by AHI-024.
   `AHI-022` routes off the terminal for the two JavaScript hosts.
 
 - `AHI-024`: The experimental Pi extension MUST use runtime-provided version `0.99.1`, adapter
-  `0.3.3` (superseding `0.3.2` under `AHI-071`, decision 0550), host `pi`, and surface `extension`; other versions MUST refuse visibly. The native
+  `0.3.4` (superseding `0.3.3` and `0.3.2` under `AHI-071`, decisions 0550 and 0556), host `pi`, and surface `extension`; other versions MUST refuse visibly. The native
   translator argv is exactly `adapter pi EVENT`, where EVENT is one of `session-start`,
   `user-prompt`, `file-change`, `post-tool`, `stop`, or `session-end`. Its UTF-8 stdin is bounded
   to 131072 bytes and contains exactly `hostVersion` and event-normalized `input`. Unknown,
@@ -435,12 +435,12 @@ separate exact extension tuple remains governed by AHI-024.
   compatibility evidence MUST agree. This functional extension is FALLBACK until its exact
   tuple completes the separate protected authority and full host qualification requirements.
   The wildcard Pi peer dependency only selects host-owned modules; it MUST NOT broaden exact
-  runtime admission. Earlier 0.85.1 evidence is historical, not qualification of adapter 0.3.3.
+  runtime admission. Earlier 0.85.1 evidence is historical, not qualification of adapter 0.3.4.
   Protected Pi runtime/image contracts retain their separately pinned tuple. The exact ordinary-tuple bridge amendment is accepted by decision 0452 (V1-0506); its FALLBACK support and qualification limits are unchanged.
 
   The output has exactly `profile`, `event`, `host`, `surface`, `hostVersion`, `adapterVersion`,
   `support`, `receiptId`, `context`, `degradations`, `fault`, and `shouldContinue`. Constants are
-  `corvint-pi-adapter/0`, `pi`, `extension`, `0.3.3`, `FALLBACK`, and false respectively.
+  `corvint-pi-adapter/0`, `pi`, `extension`, `0.3.4`, `FALLBACK`, and false respectively.
   Event is the admitted selector, or null only for an unsupported-event fault. Success has
   hostVersion `0.99.1`, an existing `harness-receipt:sha256:` request identity with 64 lowercase
   hexadecimal digits, string context (empty or native framed data), recognized degradation
@@ -507,6 +507,8 @@ separate exact extension tuple remains governed by AHI-024.
   expand row 0. The refusal is a visible Pi tool error; it never echoes caller text. This schema
   change bumps the adapter to `0.3.3` together, superseding the accepted 0.99.1 / 0.3.2 tuple
   (decision 0452) in AHI-024, LCP-V0-008/009 and the PWV-V0 inventory; 0.3.2 now refuses visibly.
+  Under `AHI-020`, the shipped PWV-V0-013..017 content then bumps the adapter to `0.3.4`,
+  superseding 0.3.3 in the same locations (decision 0556); 0.3.3 now refuses visibly.
   Evidence: `AHI-071` in `integrations/pi/tools.test.mjs`; `TestPiLocalCompletionTuple`. Failure
   mode: a host that strips null before `prepareArguments` still reaches schema validation, which
   rejects the missing required index. Rollback: revert the refusal and restore 0.3.2 everywhere

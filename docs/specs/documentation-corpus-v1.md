@@ -220,7 +220,8 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   source identity; every shard is an exact pinned manifest input. Validate aggregate counts,
   global IDs and cross-shard joins. Refuse overflow, missing/reused shards and identity drift.
   Provider shards remain at most 64 MiB each; all pinned inputs together and the artifact are
-  bounded to 128 MiB. Existing `/1` and independent behavior/receipt limits remain unchanged.
+  bounded to 128 MiB (amended by `DCP-V1-472`: provider record shards and the other inputs are
+  each bounded to 128 MiB). Existing `/1` and independent behavior/receipt limits remain unchanged.
 - `DCP-V1-034`: Adoption records retain typed behavior, constraint, side-effect, integration and
   permission claims; flows with all eight canonical sections; stable paragraph IDs and acyclic
   retirement redirects; asserting versus navigating test links with explicit confidence and exact
@@ -1268,14 +1269,15 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   the read `stale` and names that input.
 - `DCP-V1-156`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1240;
   V1-1984)) Manifest inventory and build load the inputs the revision index does not hold as text
-  (for example HTML, ERB and JSON) through batched reads: per pinned revision, one verified path
+  (for example XML or CSV; HTML and ERB are indexed text since IDX-SNAP-V0-109) through batched reads: per pinned revision, one verified path
   walk (`DCP-V1-155`), then one header batch for every distinct regular blob and one body batch for
   every admitted blob. Every body must have its admitted size and self-hash to its OID. All reads
   pass through the same bounded Git runner and its operation budget; none bypasses them.
 - `DCP-V1-157`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1240;
   V1-1984)) A corpus that exceeds a capacity limit is refused with `corpus-capacity-exceeded`, and
   the message names the limit and the count: a manifest's input, scope or provider count, the
-  scope's input count at inventory, or the aggregate pinned input bytes (128 MiB). Count limits are
+  scope's input count at inventory, or the aggregate pinned input bytes (128 MiB; amended by
+  `DCP-V1-472`, which also names the largest contributors). Count limits are
   checked before any Git operation, and the byte limit and every per-input refusal (missing,
   non-regular or over-bound input) before any body is read; the empty-manifest and per-input
   refusals keep their codes. A per-input refusal is now reported before a content mismatch of an
@@ -1734,7 +1736,8 @@ accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-2
   `[0, 1]`. An exact case-insensitive name (or trimmed claim-text) match orders before every hit
   that is not exact, replacing `DCP-V1-331`'s shared bonus, even when tokenization leaves it no
   query term (a subject named `SignIn` for the query `signin`); exact hits order among themselves
-  by score. Equal scores order subjects before claims, then by record ID. A claim holding every
+  by score. Equal scores order subjects before claims, then by record ID (amended by
+  `DCP-V1-475` and `DCP-V1-477`). A claim holding every
   query term therefore outranks a subject naming only some of them; without `include` the subject
   order is the one `DCP-V1-400` and `DCP-V1-401` give, since one divisor never reorders one family.
   Acceptance: `TestDCPV1402ClaimFamilyNormalizedMerge`, `TestDCPV1402ExactMatchPrecedesTermOverlap`,
@@ -1743,7 +1746,8 @@ accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-2
   path terms of `DCP-V1-400` are read per query from the artifact's subjects without modifying
   the query index or its encoding, and the indexed and scanning readers return the same order. A
   query keeps only its own terms of a subject's name field, so a miss retains no per-subject
-  vocabulary. `docs_claims` with `query` (`DCP-V1-313`) is unchanged. Acceptance:
+  vocabulary. `docs_claims` with `query` (`DCP-V1-313`) is unchanged here (it is amended later by
+  `DCP-V1-476` and `DCP-V1-477`). Acceptance:
   `TestDCPV1402ClaimFamilyNormalizedMerge`, `TestDCPV1400ModulePathSegmentsAreNameTerms`,
   `TestDCPV1331SearchRanking`, `TestDCPV1403MissRetainsNoSubjectNameTerms`.
 - `DCP-V1-404`: (accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-2470) A committed synthetic fixture,
@@ -1778,7 +1782,8 @@ standard output, never the artifact, the cases or the baseline. Status for `DCP-
 - `DCP-V1-252`: Each case reports `hit`, the 1-based `rank` of the first relevant row, `k` (the
   case's `limit`, else 20), `returned`, `precision_at_k` and `recall_at_k` as numerator,
   denominator and value, `abstained` (zero rows), an `abstention` class, `must_not_violations` and
-  `unresolved`. A row is relevant when its record ID, subject, nested relation record or subject,
+  `unresolved` (amended by `DCP-V1-473`: a failing case also lists its returned rows). A row is
+  relevant when its record ID, subject, nested relation record or subject,
   path or evidence anchor path matches an expected answer. A case passes only with no `must_not`
   violation, no unresolved expectation, and a hit (answer case) or an abstention (abstain case).
   Acceptance: `TestDCPV1251EvalScoresThroughTheMCPToolPath`.
@@ -1894,7 +1899,8 @@ experimental; GitHub #1598.
 
 - `DCP-V1-410`: A read admits an artifact through the verified read, amending `DCP-V1-011`. It
   refuses unless the bytes are exactly the canonical encoding, match the recorded content digest,
-  name the running builder, pair the artifact schema with the manifest schema, carry a valid
+  name the running builder (amended by `DCP-V1-471`: or an attested builder of the same schema,
+  derivation version and engine), pair the artifact schema with the manifest schema, carry a valid
   manifest whose `manifest_sha256` and `profile_sha256` it recomputes, and every revision the
   manifest pins (repository, scopes, inputs, providers and additional repository pins) still
   resolves to a commit and tree in the checkout that owns it, the primary revision to the recorded
@@ -2691,6 +2697,107 @@ records. Which records carry forward:
   no output. Acceptance: `TestDCPV1399DocsCorpusExtractCLI`, `TestDocsCorpusOperationFlagMatrix`,
   `TestDocsCorpusHelpListsOperations`.
 
+### Corpus diagnostics, builder upgrades, eval cost and ranking residuals (GitHub #1662, #1664 to #1667)
+
+A caller-labelled adoption on main-730c6e0 reported five residuals. A malformed provider shard
+was refused as `invalid closed JSON input` with no file, record or position (#1666). The 128 MiB
+aggregate input bound counted provider record shards with the source inputs and named no
+contributor (#1664). `docs corpus eval` gave no returned rows for a failing case and paid a
+checkout stamp and freshness lookup per case (#1666). Every builder revision made every existing
+artifact unreadable (`builder differs`), although the derivation was unchanged (#1667). Five
+`docs_search` and `docs_claims` ranking misses remained (#1665). A caller-owned extractor profile
+(#1662) needs owner intent and is drafted as a proposal only. Status for `DCP-V1-470..477`:
+proposed, experimental; GitHub #1664 to #1667. Status for `DCP-V1-478`: proposed, not
+implemented; GitHub #1662, awaiting owner intent.
+
+- `DCP-V1-470`: A closed JSON refusal of a named local input (a manifest, a provider record or
+  shard, an extractor profile) names its location: `invalid closed JSON input: <input>: <JSON
+  pointer>[: record <id>]: <reason> (offset <byte>)`. The pointer is the decoder's JSON pointer of
+  the first invalid value, or `/` for a top-level error. The record ID is the `id` string of the
+  top-level array element the pointer enters, when it is printable and at most 256 bytes. The
+  reason is `unknown member`, `expected <kind>, got <kind>` or the syntax error, and the whole
+  message is bounded. An artifact refusal keeps the bare message, which the streamed and
+  in-memory decoders must report identically (`DCP-V1-431`); the decision is unchanged and every
+  refusal stays `corpus-refused`. Acceptance: `TestDCPV1470LocatedDecodeRefusal`.
+- `DCP-V1-471`: The builder engine names a derivation version (`native-contextindex/<schema>/
+  derivation-<N>/<go version>`), raised by any change that alters a derived record, index or
+  encoding byte for the same inputs. The verified read (`DCP-V1-410`) admits an artifact whose
+  builder differs from the running one only in an attested revision: the builder schema, the
+  derivation version and the rest of the engine must be equal, and the recorded revision must be
+  attested: a full lowercase Git object ID of 40 or 64 hex digits, so an unrecorded, `+dirty`,
+  empty or malformed revision is not. Otherwise it refuses with `builder differs:` and the
+  member that differs. A changed derivation version names both versions and asks for a rebuild;
+  an artifact from before this requirement has no recorded version and is refused as
+  `unrecorded`. `--verify-rederive` still compares the rederived bytes, builder included.
+  `TestDCPV1471DerivationVersionGuard` pins the digest of a fixture artifact with the builder
+  blanked to the derivation version, so a derived-byte change without a version raise fails the
+  test. Acceptance: `TestDCPV1471VerifiedReadAcrossBuilderRevisions`,
+  `TestDCPV1471DerivationVersionGuard`, `TestDCPV1410VerifiedReadRefusals`.
+- `DCP-V1-472`: Amending `DCP-V1-033` and `DCP-V1-157`, the pinned bytes of a corpus's distinct
+  inputs are charged to two bounds: the provider record shards (`purpose: provider`) to the
+  aggregate provider record bytes (128 MiB), and every other input to the aggregate pinned input
+  bytes (128 MiB). Every distinct input is charged before the refusal, which names the bound that
+  overflowed, both classes' totals and limits, and the three largest inputs of that class by size,
+  then path. The per-shard bound (64 MiB) and the 128 MiB artifact bound are unchanged, so a corpus
+  with a large provider record and large sources can still be refused at the artifact.
+  Acceptance: `TestDCPV1472ProviderRecordBytesChargedApart`, `TestDCPV1157CapacityRefusalsAreTypedAndEarly`.
+- `DCP-V1-473`: Amending `DCP-V1-252`, a failing eval case also carries `returned_rows`: its
+  served top-k rows by rank with record ID, kind, name (or claim text) and the first path they
+  cite, each bounded. A missed answer case whose `k` is below the query maximum also carries
+  `expected_rank`: the first rank an expected item is ranked at when the same call is repeated at
+  the maximum limit, or nothing when none is. The repeat is never served, so it skips the MCP
+  result frame bound, and it changes no score, latency, byte count or baseline comparison. A passing case carries neither. Acceptance:
+  `TestDCPV1473FailingCasesListReturnedRows`.
+- `DCP-V1-474`: An eval suite opens the verified artifact and observes the checkout's freshness
+  once before its first case, and answers every case through `CallTimed` from that artifact and
+  overlay. No per-case checkout stamp or freshness lookup runs. After the last case it checks once
+  that the checkout did not change: an equal checkout stamp passes without Git; otherwise every
+  pin must still resolve and the observation key must equal the overlay's, or the evaluation is
+  refused (`checkout changed while the cases ran`). The session is carried only by `Evaluate`'s
+  context, so a served MCP call never takes it. Acceptance: `TestDCPV1474EvalSuiteObservesOnce`,
+  `TestDCPV1251EvalScoresThroughTheMCPToolPath`; per-case cost in
+  docs/build-log/2026-10-24-corpus-diagnostics-and-ranking.md.
+- `DCP-V1-475`: Amending `DCP-V1-402`, a `docs_search` subject whose name field (`DCP-V1-400`,
+  `DCP-V1-401`) holds the query's words as a contiguous run of whole words orders after the
+  exact matches and before every other hit. Words split at every rune that is not a letter or
+  digit and at case changes, and keep stop words, so `logout_redirect_url` and
+  `LogoutRedirectURL` match each other and the phrase `on deck` matches the path segment
+  `on_deck`. A query of one identifier also matches inside a prose name. A query of fewer than two
+  words has no phrase. A phrase match is a hit on its own, even when no query term scores the
+  subject (the phrase `as is`, both stop words, finds `app/as_is.rb`); every subject the kind
+  filter keeps is checked once, after an allocation-free test for the phrase's longest word. The
+  word split is separate from the frozen evidence tokenizer and changes
+  no indexed term. Acceptance: `TestDCPV1475PhraseAndIdentifierMatchesRankFirst`,
+  `TestDCPV1404SearchRankingEvalFixture`.
+- `DCP-V1-476`: Amending `DCP-V1-313` and `DCP-V1-328`, a claim's ID and text also match the
+  regular inflections of a query term of three or more lowercase letters: `-s`, `-es`, `-ed`,
+  `-ing`, a doubled final consonant (`set`, `setting`) and a dropped final `e` (`revoke`,
+  `revoking`, `revoked`). A matched inflection counts its query term once. The forms are looked up
+  in the existing claim-term postings, so the index and its encoding are unchanged. Acceptance:
+  `TestDCPV1476ClaimTextMatchesInflections`.
+- `DCP-V1-477`: Amending `DCP-V1-313` and `DCP-V1-402`, ties no longer order by ID string.
+  `docs_claims` with `query` orders claims holding as many distinct query terms by the summed idf
+  of the terms they hold, then the shorter text, then natural ID order, in which each run of
+  digits compares by value (`claim:209` before `claim:2004`). `docs_search` orders equal scores
+  subjects before claims, then the shorter name or text, then natural ID order. Index and scan
+  readers keep the same order. Acceptance: `TestDCPV1477MeaningfulTieBreaks`,
+  `TestDCPV1404SearchRankingEvalFixture`.
+- `DCP-V1-478`: (proposed, not implemented; awaiting owner intent; GitHub #1662) `docs corpus
+  extract` would accept a caller-owned profile outside the extracted repository with
+  `--profile-file FILE --profile-sha256 HEX`. The file follows the `DCP-V1-054` local input rule
+  and must hash to the digest. Source is still read from Git at `--revision`, and the inventory
+  records the profile digest and `profile_origin: caller`, so the result is reproducible but not
+  repository-declared. The extracted provider record is admitted unchanged (`DCP-V1-393`). Open
+  questions for the owner: whether a caller profile may be used when the repository also declares
+  one, and whether its records carry a lower authority than repository-declared ones.
+  Acceptance (when accepted): a test that a matching digest extracts identical inventory bytes to
+  the same profile committed in the repository, and a mismatched or missing digest refuses with
+  no output.
+
+Not delivered here: the compact per-file anchor table of #1664 (an anchor encoding change), a
+`score` or rank group on served rows and symbol subjects derived from indexed inputs (#1665
+rows 3 and 5), and rebuilding an artifact from its embedded manifest (#1667).
+
 ## Input and authority boundary
 
 ### Experimental behavior contracts (issue 40)
@@ -3069,6 +3176,18 @@ a guessed subject.
   panic. A refused query read joins its started freshness observation before returning
   (`DCP-V1-431`). A refused or interrupted decode discards the claim terms it derived, and
   concurrent queries of one artifact take them at most once (`DCP-V1-434`).
+- Diagnostics and builder upgrades (`DCP-V1-470..474`): a located refusal never reports a record
+  ID that is not printable or is over 256 bytes, and is bounded however long the input. An
+  artifact whose builder schema, derivation version, Go toolchain or engine differs, or whose
+  revision is not an attested Git object ID, is still refused; a derived-byte change merged without a
+  derivation version raise fails `TestDCPV1471DerivationVersionGuard` rather than serving
+  artifacts the running builder would derive differently. A capacity refusal charges every
+  distinct input before it reports. An eval whose checkout changes while its cases run is
+  refused, never reported against a mix of two states; the `expected_rank` repeat failing leaves
+  the field absent and the case's score unchanged.
+- Ranking (`DCP-V1-475..477`): a query of one word, or only of punctuation, has no phrase and
+  ranks as before; inflections widen only claim-term lookups and never add an index key; the
+  natural ID order falls back to the string order when digit runs are equal in value.
 - Read-start freshness (`DCP-V1-465..467`): a primary observation that fails, or is cancelled
   by a refused read, fails the freshness that takes it exactly as a new observation would; it is
   never taken by a second freshness or by a freshness of another root, and a refusal before the
@@ -3222,6 +3341,14 @@ cache or memory-limit setting, change no artifact, manifest, receipt or index co
 make producers trust a rehashed artifact. Rollback points the CLI read and the joined `--corpus`
 read back at `ReadCorpusFile` plus `OpenRead` and drops the decode-time claim terms; the delta
 current side is `DCP-V1-460`'s and rolls back with it. No stored state needs migration.
+Diagnostics, builder upgrades, eval sessions and ranking (`DCP-V1-470..477`) add no cache,
+daemon, flag, index key or persisted state, and change no artifact or receipt format other than
+the builder engine string and the two optional eval result members. They do not authenticate an
+artifact's origin, accept an artifact from a changed derivation, or add stemming to subject
+names. Rollback restores the bare decode message, the exact builder comparison and engine
+string (artifacts built in between are then refused and rebuilt), the single aggregate bound,
+the per-case freshness, and the `DCP-V1-402` and `DCP-V1-313` orders. `DCP-V1-478` is not
+implemented.
 Read-start freshness and decode allocation (`DCP-V1-465..468`) add no cache, daemon or
 persisted observation, observe no additional checkout before its header, change no overlay,
 receipt, refusal, index or timing field, and do not shorten the decode itself. Rollback removes
@@ -3351,6 +3478,13 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-410..419 | `internal/doccorpus/read.go`, `artifact_decode.go`, `encoding.go`, `compile.go`, `query.go`, `query_index.go`, `query_index_fast.go`, `search_rank.go`, `symbol_anchor.go`, `internal/contextindex/observe_tree.go`, `internal/testvaliditydoc/read.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `stamp.go`, `eval.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1410VerifiedReadSkipsRederivation`, `TestDCPV1410VerifiedReadRefusals`, `TestDCPV1410UnattestedBuilderRederives`, `TestDCPV1411ObserveTreeMatchesBuildContext`, `TestDCPV1411ObserveTreeRetriesWhenHeadMoves`, `TestDCPV1412SymbolIndexBuiltOnlyWhenNeeded`, `TestDCPV1413CorpusReadsWithoutRederivation`, `TestDCPV1414ParallelDecodeMatchesClosedDecode`, `TestDCPV1416CorpusMCPFirstAndWarmCalls`, `TestDCPV1417WarmCallsSkipUnchangedArtifactRead`, `TestDCPV1417WarmStampRefusesParentSymlink`, `TestDCPV1418LargeFixtureVerifiedReadIsFast`, `BenchmarkDCPV1418VerifiedRead`, `TestDCPV1419FastIndexMatchesReference`, `TestDCPV1419FastIndexDeclinesEveryRefusal`, `TestDCPV1419BoundaryScanFindsStringContent`; measured in docs/build-log/2026-10-23-corpus-verified-fast-reads.md |
 | DCP-V1-430..434 | `internal/doccorpus/artifact_decode.go`, `read.go`, `encoding.go`, `query_index_fast.go`, `types.go`, `internal/testvaliditydoc/read.go`, `cmd/corvint/docs_corpus.go`, `corpus_integration.go` | `TestDCPV1431StreamedDecodeMatchesInMemory`, `TestDCPV1431StreamedReadReusesBlocks`, `TestDCPV1431OpenReadFile`, `TestDCPV1431StreamedTruncationAtWindowEnd`, `TestDCPV1431CorpusRefusalJoinsFreshness`, `TestDCPV1432JoinedCorpusReusesVerifiedArtifact`, `TestDCPV1434DecodeTimeClaimTermsMatchIndex`, `TestDCPV1434ConcurrentQueriesShareClaimTerms`, `TestDCPV1416CorpusMCPFirstAndWarmCalls`; measured in docs/build-log/2026-10-23-corpus-read-residual.md |
 | DCP-V1-465..467 | `internal/doccorpus/primary_observation.go`, `query.go`, `cmd/corvint/docs_corpus.go` | `TestDCPV1465PrimaryObservationMatchesFreshRead`, `TestDCPV1466PrimaryObservationUsedOnce`, `TestDCPV1467CancelledPrimaryObservationJoins`, `TestDCPV1467ShorterDeadlineStopsWaitingForPrimary`, `TestDCPV1467CorpusPreHeaderRefusalJoinsPrimary`, `TestDCPV1431CorpusRefusalJoinsFreshness`, `TestDCPV1413CorpusReadsWithoutRederivation`; measured in docs/build-log/2026-10-23-corpus-read-start-freshness.md |
+| DCP-V1-470 | `internal/doccorpus/encoding.go`, `shards.go`, `extractor.go` | `TestDCPV1470LocatedDecodeRefusal` |
+| DCP-V1-471 | `internal/doccorpus/encoding.go`, `read.go` | `TestDCPV1471VerifiedReadAcrossBuilderRevisions`, `TestDCPV1471DerivationVersionGuard`, `TestDCPV1410VerifiedReadRefusals` |
+| DCP-V1-472 | `internal/doccorpus/capacity.go`, `compile.go` | `TestDCPV1472ProviderRecordBytesChargedApart`, `TestDCPV1157CapacityRefusalsAreTypedAndEarly` |
+| DCP-V1-473 | `internal/mcp/corpusbridge/eval.go` | `TestDCPV1473FailingCasesListReturnedRows` |
+| DCP-V1-474 | `internal/mcp/corpusbridge/eval.go`, `corpusbridge.go` | `TestDCPV1474EvalSuiteObservesOnce`, `TestDCPV1251EvalScoresThroughTheMCPToolPath`; measured in docs/build-log/2026-10-24-corpus-diagnostics-and-ranking.md |
+| DCP-V1-475..477 | `internal/doccorpus/search_rank.go`, `search_phrase.go`, `typed_query.go` | `TestDCPV1475PhraseAndIdentifierMatchesRankFirst`, `TestDCPV1476ClaimTextMatchesInflections`, `TestDCPV1477MeaningfulTieBreaks`, `TestDCPV1404SearchRankingEvalFixture` |
+| DCP-V1-478 | not implemented (proposed; GitHub #1662) | none until accepted |
 | DCP-V1-468 | `internal/doccorpus/artifact_decode.go`, `query_index_fast.go` | `TestDCPV1431StreamedDecodeMatchesInMemory`, `TestDCPV1434DecodeTimeClaimTermsMatchIndex`, `TestDCPV1419FastIndexMatchesReference` |
 | DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-420..425 | `internal/doccorpus/delta.go`, `delta_open.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1420DeltaAdditionalRepositoryAnchors`, `TestDCPV1420DeltaSharedReadBound`, `TestDCPV1424DeltaHistoricalPins`, `TestDCPV1425OpenDeltaCurrentUnavailableCheckout`, `TestDCPV1425DeltaUnavailableCheckoutCLI`, `TestDCPV1421DeltaViewsCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |

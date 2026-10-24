@@ -920,6 +920,7 @@ var symbolExtractors = map[string]func(Source, string) ([]Symbol, []ExtractionNo
 	".kt":    kotlinSymbols,
 	".kts":   kotlinSymbols,
 	".rb":    rubySymbols,
+	".rake":  rubySymbols,
 	".ts":    webSymbols,
 	".tsx":   webSymbols,
 	".js":    webSymbols,

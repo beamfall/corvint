@@ -20,6 +20,9 @@ type typeScriptAliases struct {
 	baseURL   bool
 	paths     map[string][]string
 	valid     bool
+	// allowJS is a literal `allowJs: true`, or its absence in a jsconfig.json, which Playwright
+	// requires before it maps a specifier of a module that is not .ts or .tsx (AFP-V0-418).
+	allowJS bool
 	// refusal names the key or pattern that left an invalid config unresolved, for its frontier
 	// site (TJAA-V0-052).
 	refusal string
@@ -62,6 +65,7 @@ func parseTypeScriptAliases(name, body string) typeScriptAliases {
 		CompilerOptions struct {
 			BaseURL        *string             `json:"baseUrl"`
 			Paths          map[string][]string `json:"paths"`
+			AllowJS        json.RawMessage     `json:"allowJs"`
 			RootDirs       json.RawMessage     `json:"rootDirs"`
 			ModuleSuffixes json.RawMessage     `json:"moduleSuffixes"`
 		} `json:"compilerOptions"`
@@ -79,6 +83,8 @@ func parseTypeScriptAliases(name, body string) typeScriptAliases {
 	if config.refusal != "" {
 		return config
 	}
+	allowJS := strings.TrimSpace(string(raw.CompilerOptions.AllowJS))
+	config.allowJS = allowJS == "true" || allowJS == "" && path.Base(name) == "jsconfig.json"
 	config.base = config.directory
 	if raw.CompilerOptions.BaseURL != nil {
 		base := *raw.CompilerOptions.BaseURL

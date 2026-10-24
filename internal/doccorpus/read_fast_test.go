@@ -120,7 +120,10 @@ func TestDCPV1410VerifiedReadRefusals(t *testing.T) {
 		{"tampered byte", "artifact digest mismatch", flipped},
 		{"noncanonical", "invalid closed JSON input", append(bytes.Clone(data), '{')},
 		{"leading whitespace", "noncanonical artifact", spaced},
-		{"builder", "builder differs", rehashed(t, a, func(c *Artifact) { c.Builder.Revision = "0000000000000000000000000000000000000000" })},
+		{"builder", "derivation version differs", rehashed(t, a, func(c *Artifact) {
+			c.Builder.Revision = "0000000000000000000000000000000000000000"
+			c.Builder.Engine = strings.Replace(c.Builder.Engine, "/derivation-"+DerivationVersion+"/", "/derivation-0/", 1)
+		})},
 		{"manifest digest", "manifest digest differs", rehashed(t, a, func(c *Artifact) { c.ManifestSHA256 = strings.Repeat("0", 64) })},
 		{"profile digest", "profile digest differs", rehashed(t, a, func(c *Artifact) { c.ProfileSHA256 = strings.Repeat("0", 64) })},
 		{"schema pair", "schemas differ", rehashed(t, a, func(c *Artifact) { c.Schema = SchemaV2 })},
@@ -343,6 +346,11 @@ func TestDCPV1410UnattestedBuilderRederives(t *testing.T) {
 		"unrecorded": false,
 		"0123456789abcdef0123456789abcdef01234567+dirty": false,
 		"0123456789abcdef0123456789abcdef01234567":       true,
+		strings.Repeat("ab", 32):                         true,
+		"":                                               false,
+		"garbage":                                        false,
+		"0123456789ABCDEF0123456789ABCDEF01234567": false,
+		"0123456789abcdef0123456789abcdef0123456":  false,
 	} {
 		if attestedBuilder(Builder{Version: Schema, Revision: label}) != attested {
 			t.Errorf("attestedBuilder(%q) != %v", label, attested)
