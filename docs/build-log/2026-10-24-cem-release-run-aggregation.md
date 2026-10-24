@@ -62,6 +62,24 @@ PATH.
 Receipt authority and dependency closure are `CALLER_OBSERVED` and `NOT_OBSERVED`. The plans name
 the remote temporary root, so they cannot be re-run elsewhere byte for byte.
 
+## Independent review
+
+One Codex review round (read-only) raised three P2 findings, all fixed with tests:
+
+- Runner plan and receipt profiles were not checked, so a document with a foreign profile could
+  anchor. The run conditions now require `corvint-test-runner-plan/0` and
+  `corvint-test-runner-receipt/0` (CEM-V1-606; `TestCEMV1608UnanchorablePathsRefuseWithANamedReason`
+  foreign plan and receipt cases).
+- A failed receipt row hid a later passing row for the same plan artifact. The artifact basis now
+  accepts any passing bound run and otherwise reports the most specific failure (CEM-V1-607;
+  `TestCEMV1607RunnerArtifactAnchorsCommittedRunnerArtifacts`).
+- The source-level envelope suites inherited `CEM01_ENVELOPE_BINARY` and
+  `CEM01_S0E_CONFORMANCE_OUT`. They now drop envelope selection too (CEM-V1-609;
+  `TestCEMV1609BinaryEnvelopeSuiteNamesTheBinary`).
+
+The retained receipts and gate outcomes at 27e9d98 predate these fixes; none of them used a foreign
+profile, a second receipt for one plan, or an inherited envelope selection.
+
 ## Limits
 
 - External interoperability is `NOT_OBSERVED`, so the aggregate verdict is REFUSED. This is

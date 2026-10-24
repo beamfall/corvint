@@ -312,14 +312,16 @@ func digest(raw []byte) string {
 }
 
 // sourceSuites are the source-level repository-envelope tests, run in the
-// committed tree src rather than in the mutable checkout.
+// committed tree src rather than in the mutable checkout. They inherit no
+// envelope binary or conformance output, so an inherited selection cannot
+// replace the source-level verifier (CEM-V1-609).
 func sourceSuites(src string) []*exec.Cmd {
 	native := exec.Command("go", "test", "-count=1", "-timeout", "30m", "-run", "^(TestStableS0EPublicCases|TestStableS0ELinkedControl|TestStableCanonicalEnvelopeCellsNative|TestStableEnvelopeAdversarialShapes)$", "./internal/cem/verify")
 	native.Dir = src
 	portable := exec.Command("go", "test", "-count=1", "-timeout", "30m", "-run", "^(TestStableCanonicalEnvelopeCells|TestStableEnvelopeAdversarialShapes)$", ".")
 	portable.Dir = filepath.Join(src, "interop", "cem01-go")
 	for _, cmd := range []*exec.Cmd{native, portable} {
-		cmd.Env = withoutGitSelection(os.Environ())
+		cmd.Env = withoutEnvelopeSelection(withoutGitSelection(os.Environ()))
 	}
 	return []*exec.Cmd{native, portable}
 }

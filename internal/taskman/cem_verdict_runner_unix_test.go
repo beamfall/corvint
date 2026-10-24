@@ -26,6 +26,11 @@ type runnerFixtureOptions struct {
 	failTest bool                    // the receipt records one FAILED test
 	opaque   bool                    // the receipts row is opaque/0
 	unlinked []string                // paths whose hunks no criterionLink lists
+	foreign  string                  // "plan" or "receipt": that document carries a foreign profile
+	// failedFirst adds artifacts/runner-receipt-1.json, a FAILED run of the
+	// same plan whose receipts row precedes the passing one; the link names
+	// both, so no input is anchored (CEM-V1-606).
+	failedFirst bool
 }
 
 // newRunnerFixture is the #1703 shape in miniature: one change edits
@@ -85,15 +90,30 @@ func newRunnerFixture(t *testing.T, opt runnerFixtureOptions) verdictFixture {
 		opt.inputs(inputs)
 	}
 	plan := testrunner.PlanDocument{Profile: "corvint-test-runner-plan/0", Request: testrunner.Request{ExpectedTests: []string{"lib::TestHelper"}, InputFiles: inputs, Runner: "go-test", TimeoutSeconds: 60}}
+	if opt.foreign == "plan" {
+		plan.Profile = "corvint-test-runner-plan/9"
+	}
 	planBytes := runnerDocument(t, plan)
+	receiptFor := func(state string) []byte {
+		receipt := testrunner.ReceiptDocument{Profile: wire.StableRunnerReceiptProfile, PlanSha256: testrunner.Identity(plan), Observation: testrunner.Observation{Runner: "go-test", Tests: []testrunner.Test{{ID: "lib::TestHelper", Name: "TestHelper", State: state}}, Complete: true}}
+		if opt.foreign == "receipt" {
+			receipt.Profile = "corvint-test-runner-receipt/9"
+		}
+		return runnerDocument(t, receipt)
+	}
 	state := testrunner.Passed
 	if opt.failTest {
 		state = "FAILED"
 	}
-	receipt := testrunner.ReceiptDocument{Profile: wire.StableRunnerReceiptProfile, PlanSha256: testrunner.Identity(plan), Observation: testrunner.Observation{Runner: "go-test", Tests: []testrunner.Test{{ID: "lib::TestHelper", Name: "TestHelper", State: state}}, Complete: true}}
-	receiptBytes := runnerDocument(t, receipt)
+	receiptBytes := receiptFor(state)
 	put("artifacts/runner-plan-0.json", planBytes)
 	put("artifacts/runner-receipt-0.json", receiptBytes)
+	var failedBytes []byte
+	hunks := 5
+	if opt.failedFirst {
+		failedBytes, hunks = receiptFor("FAILED"), 6
+		put("artifacts/runner-receipt-1.json", failedBytes)
+	}
 	run("add", "-A", ".")
 	run("commit", "-qm", "change")
 	f.change = run("rev-parse", "HEAD")
@@ -113,8 +133,8 @@ func newRunnerFixture(t *testing.T, opt runnerFixtureOptions) verdictFixture {
 	var shape struct {
 		Hunks []struct{ ID, Path string } `json:"hunks"`
 	}
-	if err := json.Unmarshal(prepared, &shape); err != nil || len(shape.Hunks) != 5 {
-		t.Fatalf("fixture expects five hunks: %v %s", err, prepared)
+	if err := json.Unmarshal(prepared, &shape); err != nil || len(shape.Hunks) != hunks {
+		t.Fatalf("fixture expects %d hunks: %v %s", hunks, err, prepared)
 	}
 	for _, hunk := range shape.Hunks {
 		if session, err = workflow.Open(root); err != nil {
@@ -157,6 +177,13 @@ func newRunnerFixture(t *testing.T, opt runnerFixtureOptions) verdictFixture {
 	document.Receipts = []wire.StableReceipt{{Sha256: sum(receiptBytes), Profile: profile, PlanSha256: sum(planBytes), SourceGitBinding: "NOT_OBSERVED", ExecutionAuthority: "CALLER_OBSERVED", DependencyClosure: "NOT_OBSERVED"}}
 	document.Links = []wire.StableLink{link}
 	document.Artifacts = []wire.StableArtifact{{Kind: "runner-plan", Path: "artifacts/runner-plan-0.json", Sha256: sum(planBytes)}, {Kind: "runner-receipt", Path: "artifacts/runner-receipt-0.json", Sha256: sum(receiptBytes)}}
+	if opt.failedFirst {
+		failed := document.Receipts[0]
+		failed.Sha256 = sum(failedBytes)
+		document.Receipts = append([]wire.StableReceipt{failed}, document.Receipts...)
+		document.Links[0].RunnerReceiptSha256s = append(document.Links[0].RunnerReceiptSha256s, failed.Sha256)
+		document.Artifacts = append(document.Artifacts, wire.StableArtifact{Kind: "runner-receipt", Path: "artifacts/runner-receipt-1.json", Sha256: sum(failedBytes)})
+	}
 	bound, err := wire.EncodeStable(document)
 	if err != nil {
 		t.Fatal(err)
@@ -253,6 +280,17 @@ func TestCEMV1607RunnerArtifactAnchorsCommittedRunnerArtifacts(t *testing.T) {
 			t.Fatalf("%s must be satisfied on runner-artifact: %+v", path, h)
 		}
 	}
+	// A plan bound by a failed run and by a later passing run is anchored by
+	// the passing one; the failed run's receipt is not.
+	both := newRunnerFixture(t, runnerFixtureOptions{failedFirst: true})
+	result, view = evaluateVerdict(t, both.input(PredicateTouchedAnchored, "artifacts/runner-plan-0.json"))
+	if h := governedByPath(t, view)["artifacts/runner-plan-0.json"]; !result.Granted || !h.Satisfied || h.Anchor != runnerAnchorArtifact {
+		t.Fatalf("a passing receipt after a failed one must anchor the plan: %+v\n%s", h, result.Document)
+	}
+	view = requireVerdictRefusal(t, both.input(PredicateTouchedAnchored, "artifacts/runner-receipt-1.json"), CEMVerdictPredicateFailed, "tier-below-anchored")
+	if len(view.Governed) != 1 || view.Governed[0].Satisfied || view.Governed[0].Reason != runnerReasonNotPassed {
+		t.Fatalf("the failed receipt anchors nothing: %+v", view.Governed)
+	}
 	// An artifact bound by a failed run is not anchored.
 	failed := newRunnerFixture(t, runnerFixtureOptions{failTest: true})
 	view = requireVerdictRefusal(t, failed.input(PredicateTouchedAnchored, "artifacts/"), CEMVerdictPredicateFailed, "tier-below-anchored")
@@ -275,6 +313,8 @@ func TestCEMV1608UnanchorablePathsRefuseWithANamedReason(t *testing.T) {
 		{"stale input digest", runnerFixtureOptions{inputs: func(m map[string]string) { m["lib/util.txt"] = sum([]byte("one\n")) }}, "lib/util.txt", runnerReasonInputMismatch},
 		{"failed run", runnerFixtureOptions{failTest: true}, "lib/util.txt", runnerReasonNotPassed},
 		{"opaque receipt", runnerFixtureOptions{opaque: true}, "lib/fresh.txt", runnerReasonNoBinding},
+		{"foreign plan profile", runnerFixtureOptions{foreign: "plan"}, "lib/util.txt", runnerReasonArtifactMismatch},
+		{"foreign receipt profile", runnerFixtureOptions{foreign: "receipt"}, "artifacts/runner-plan-0.json", runnerReasonArtifactMismatch},
 		{"unlinked hunk", runnerFixtureOptions{unlinked: []string{"lib/fresh.txt"}}, "lib/fresh.txt", runnerReasonNoBinding},
 	}
 	for _, c := range cases {

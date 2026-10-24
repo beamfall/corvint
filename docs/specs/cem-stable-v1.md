@@ -316,15 +316,18 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   criterion's `evidenceId` is in the hunk's basis; every receipt the link names is a
   `runnerReceipts` row with profile `corvint-test-runner-receipt/0` whose `runner-plan` and
   `runner-receipt` artifacts are read from the candidate commit's objects with exactly the digests
-  the row binds, decode as closed runner documents, bind the receipt to that plan by plan identity,
+  the row binds, decode as closed runner documents carrying the plan profile
+  `corvint-test-runner-plan/0` and the receipt profile `corvint-test-runner-receipt/0`, bind the
+  receipt to that plan by plan identity,
   and record a complete run with no problem, no error and at least one test, every one `PASSED`;
   and one of those plans lists the hunk path in `inputFiles` with the SHA-256 of the candidate
   blob. The hunk's recomputed tier is reported unchanged; `anchor` names the basis.
 - `CEM-V1-607`: (proposed; V1-2577) The gate MUST satisfy a governed `cited` hunk on the
   `runner-artifact` basis only when its path is a map `artifacts` row of kind `runner-plan` or
-  `runner-receipt`, a `runnerReceipts` row binds that row's digest (`sha256` for a receipt,
-  `planSha256` for a plan), the candidate blob at the path has that SHA-256, and the bound run
-  satisfies the run conditions of CEM-V1-606.
+  `runner-receipt`, the candidate blob at the path has that row's SHA-256, and at least one
+  `runnerReceipts` row that binds that digest (`sha256` for a receipt, `planSha256` for a plan)
+  has a run satisfying the run conditions of CEM-V1-606. A failed run bound by one row never hides
+  a passing run of the same plan bound by another.
 - `CEM-V1-608`: (proposed; V1-2577) An unsatisfied governed hunk MUST name one closed `reason`:
   `uncited` (tier below `cited`), `no-post-image` (no regular file at the path in the candidate),
   `no-runner-binding`, `runner-not-passed`, `runner-artifact-mismatch` or `runner-input-mismatch`,
@@ -341,7 +344,7 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   `CEM01_ENVELOPE_BINARY` naming that binary's absolute path and stable verification command
   (`corvint cem verify-stable`, `cem01-go verify-stable-canonical`) as each cell's verifier, and
   `CEM01_S0E_CONFORMANCE_OUT` naming a report in the run's private directory. Inherited Git and
-  envelope selection variables are dropped. A malformed `CEM01_ENVELOPE_BINARY` fails the test and
+  envelope selection variables are dropped, from the source-level suites as well. A malformed `CEM01_ENVELOPE_BINARY` fails the test and
   never falls back to the test binary; unset, the cells keep running the test binary in `RUN_REAL`
   mode.
 - `CEM-V1-610`: (proposed; V1-2578) The `corvint:repository-envelope` and
@@ -4787,8 +4790,8 @@ tier are byte-identical under both versions; a pinned runner-bound GRANT stops r
 | Requirement | Test | Evidence |
 | --- | --- | --- |
 | CEM-V1-606 | `TestCEMV1606RunnerInputAnchorsNewAndEditedFiles` (`internal/taskman`): new and edited files GRANT on `runner-input`, tiers equal the citation, pinned bytes reverify | #1703 rerun: 18 `runner-input` hunks |
-| CEM-V1-607 | `TestCEMV1607RunnerArtifactAnchorsCommittedRunnerArtifacts`: plan and receipt GRANT on `runner-artifact`; a failed run anchors neither | #1703 rerun: 6 `runner-artifact` hunks |
-| CEM-V1-608 | `TestCEMV1608UnanchorablePathsRefuseWithANamedReason` (deletion, input absent from the plan, stale input digest, failed run, opaque receipt, unlinked hunk; `all-anchored` refuses), `TestCEMV1608RunnerAnchorReasonsAndReadFailure`, `TestCEMV1608AnchoredGrantEncodesWithoutRunnerMembers` | Earlier tier-only GRANT bytes unchanged |
+| CEM-V1-607 | `TestCEMV1607RunnerArtifactAnchorsCommittedRunnerArtifacts`: plan and receipt GRANT on `runner-artifact`; a passing receipt after a failed one for the same plan anchors the plan; a failed run anchors neither | #1703 rerun: 6 `runner-artifact` hunks |
+| CEM-V1-608 | `TestCEMV1608UnanchorablePathsRefuseWithANamedReason` (deletion, input absent from the plan, stale input digest, failed run, opaque receipt, foreign plan or receipt profile, unlinked hunk; `all-anchored` refuses), `TestCEMV1608RunnerAnchorReasonsAndReadFailure`, `TestCEMV1608AnchoredGrantEncodesWithoutRunnerMembers` | Earlier tier-only GRANT bytes unchanged |
 
 ## Release-gate binary envelopes, run aggregation and readiness binding (V1-2578, V1-2579, V1-2581, 2026-10-24)
 
@@ -4828,7 +4831,7 @@ records verify under both versions.
 
 | Requirement | Test | Evidence |
 | --- | --- | --- |
-| CEM-V1-609 | `TestCEMV1609BinaryEnvelopeSuiteNamesTheBinary` (`tools/cem-release-suites`) | darwin and linux runs: 29 of 29 cells per binary |
+| CEM-V1-609 | `TestCEMV1609BinaryEnvelopeSuiteNamesTheBinary` (`tools/cem-release-suites`): binary and source-level suites drop inherited selection | darwin and linux runs: 29 of 29 cells per binary |
 | CEM-V1-610 | `TestCEMV1610EnvelopeOutcome`, `TestCEMV1610FailingBinaryEnvelopeRunIsRefused` | A stub binary fails every cell and the row is `FAILED` |
 | CEM-V1-611 | `TestCEMV1611RunRecordIsCanonical` | darwin and linux records by digest in the build log |
 | CEM-V1-612 | `TestCEMV1612AggregationRefusesMismatchedRuns`, `TestCEMV1612BothPlatformRowsFromTwoRuns` | Real aggregation: both platform rows `PASSED`, exit 3 at the external row |

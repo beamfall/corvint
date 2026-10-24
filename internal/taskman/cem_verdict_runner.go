@@ -6,6 +6,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/verify"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/testrunner"
+	"github.com/Beamfall/corvint/internal/testrunner/cli"
 )
 
 // The runner-bound satisfaction bases (CEM-V1-606, CEM-V1-607). Neither raises
@@ -119,9 +120,9 @@ func (b *runnerBinding) artifactBytes(kind, digest string) ([]byte, string, erro
 }
 
 // run reads one runnerReceipts row: its plan and receipt artifacts must be the
-// committed bytes the row digests, decode as closed runner documents, bind the
-// receipt to that plan, and record a complete run in which every observed test
-// passed.
+// committed bytes the row digests, decode as closed runner documents carrying
+// the runner plan and receipt profiles, bind the receipt to that plan, and
+// record a complete run in which every observed test passed.
 func (b *runnerBinding) run(digest string) (runnerRun, error) {
 	if r, ok := b.runs[digest]; ok {
 		return r, nil
@@ -145,7 +146,8 @@ func (b *runnerBinding) run(digest string) (runnerRun, error) {
 	if reason == "" {
 		var plan testrunner.PlanDocument
 		var receipt testrunner.ReceiptDocument
-		if testrunner.DecodeDocument(planBytes, &plan) != nil || testrunner.DecodeDocument(receiptBytes, &receipt) != nil || receipt.PlanSha256 != testrunner.Identity(plan) {
+		if testrunner.DecodeDocument(planBytes, &plan) != nil || testrunner.DecodeDocument(receiptBytes, &receipt) != nil ||
+			plan.Profile != cli.PlanProfile || receipt.Profile != wire.StableRunnerReceiptProfile || receipt.PlanSha256 != testrunner.Identity(plan) {
 			out.reason = runnerReasonArtifactMismatch
 		} else if !runnerPassed(receipt) {
 			out.reason = runnerReasonNotPassed
@@ -234,8 +236,11 @@ func (b *runnerBinding) anchor(hunk wire.Hunk, tier string) (string, string, err
 }
 
 // artifactAnchor binds a hunk that adds or edits a committed runner artifact:
-// a runnerReceipts row must digest it and its run must pass.
+// a runnerReceipts row must digest it and its run must pass. A plan that
+// several rows name is bound by any one passing run; otherwise the most
+// specific failure is reported.
 func (b *runnerBinding) artifactAnchor(a wire.StableArtifact, f candidateFile) (string, string, error) {
+	reason := runnerReasonNoBinding
 	for _, row := range b.doc.Receipts {
 		if (a.Kind == "runner-receipt" && row.Sha256 != a.Sha256) || (a.Kind == "runner-plan" && row.PlanSha256 != a.Sha256) {
 			continue
@@ -244,12 +249,17 @@ func (b *runnerBinding) artifactAnchor(a wire.StableArtifact, f candidateFile) (
 			return "", runnerReasonArtifactMismatch, nil
 		}
 		run, err := b.run(row.Sha256)
-		if err != nil || run.reason != "" {
-			return "", run.reason, err
+		if err != nil {
+			return "", "", err
 		}
-		return runnerAnchorArtifact, "", nil
+		if run.reason == "" {
+			return runnerAnchorArtifact, "", nil
+		}
+		if runnerReasonRank(run.reason) > runnerReasonRank(reason) {
+			reason = run.reason
+		}
 	}
-	return "", runnerReasonNoBinding, nil
+	return "", reason, nil
 }
 
 // runnerReasonRank orders reasons from least to most specific.

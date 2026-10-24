@@ -383,7 +383,8 @@ func TestCEMV1603ReadinessPathIsRepositoryRelative(t *testing.T) {
 // TestCEMV1609BinaryEnvelopeSuiteNamesTheBinary pins the binary-level
 // envelope run: it runs the portable cell recipes in the committed tree, names
 // exactly the built binary's argv as each cell's verifier, writes its report
-// into the run's private directory and inherits no Git or envelope selection.
+// into the run's private directory and inherits no Git or envelope selection;
+// the source-level suites inherit no envelope selection either.
 func TestCEMV1609BinaryEnvelopeSuiteNamesTheBinary(t *testing.T) {
 	src, tmp := t.TempDir(), t.TempDir()
 	t.Setenv("GIT_DIR", "/nonexistent")
@@ -408,6 +409,14 @@ func TestCEMV1609BinaryEnvelopeSuiteNamesTheBinary(t *testing.T) {
 	}
 	if len(named) != 2 || named[0] != `CEM01_ENVELOPE_BINARY=["/abs/corvint","cem","verify-stable"]` || named[1] != "CEM01_S0E_CONFORMANCE_OUT="+report {
 		t.Fatalf("suite names %v", named)
+	}
+	// The source-level suites name no envelope selection at all.
+	for _, suite := range sourceSuites(src) {
+		for _, kv := range suite.Env {
+			if strings.HasPrefix(kv, "GIT_") || strings.HasPrefix(kv, "CEM01_ENVELOPE_BINARY=") || strings.HasPrefix(kv, "CEM01_S0E_CONFORMANCE_OUT=") {
+				t.Fatalf("source suite %v inherits %s", suite.Args, kv)
+			}
+		}
 	}
 }
 
