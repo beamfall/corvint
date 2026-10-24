@@ -173,10 +173,29 @@ func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error
 		}
 		return naturalLess(hits[i].id, hits[j].id)
 	})
-	for _, h := range hits {
+	r.ranks = make(map[string]ResultRank, len(hits))
+	group := 0
+	for n, h := range hits {
+		if n == 0 || h.exact != hits[n-1].exact || h.phrase != hits[n-1].phrase || h.score != hits[n-1].score {
+			group++
+		}
+		tier := "terms"
+		if h.exact {
+			tier = "exact"
+		} else if h.phrase {
+			tier = "phrase"
+		}
+		r.ranks[h.id] = ResultRank{Rank: n + 1, Group: group, Tier: tier, Score: servedScore(h.score)}
 		addRecord(r, h.value)
 	}
 	return ctx.Err()
+}
+
+// servedScore rounds a normalized score to six decimals for a receipt, so
+// the served value does not depend on the last bits of a float sum
+// (DCP-V1-479).
+func servedScore(score float64) float64 {
+	return math.Round(score*1e6) / 1e6
 }
 
 // subjectPostings returns, for each query term, the subject offsets whose

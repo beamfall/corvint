@@ -47,9 +47,11 @@ func resolveAlternateID(a *Artifact, id string) (string, bool) {
 // supplied text origins (DCP-V1-322), the record kind of each search hit that
 // includes claims (DCP-V1-328) and the non-witness limitation of a test run
 // whose association is not passed (DCP-V1-323). Each is absent when it does
-// not apply, so receipts without them keep their bytes.
+// not apply, so receipts without them keep their bytes. A ranked search or
+// claim-text query also shows each visible result's rank (DCP-V1-479).
 func annotateVisibleResults(a *Artifact, request Request, r *Receipt) {
-	r.TextOrigins, r.ResultKinds = nil, nil
+	r.TextOrigins, r.ResultKinds, r.ResultRanks = nil, nil, nil
+	ranked := request.Operation == "search" || request.Operation == "claims" && request.Query != ""
 	native := map[string]bool{}
 	for _, p := range a.Manifest.Providers {
 		if p.Kind == "native" {
@@ -74,6 +76,12 @@ func annotateVisibleResults(a *Artifact, request Request, r *Receipt) {
 	tag := SearchIncludesClaims(request)
 	witness := []string{}
 	for _, value := range r.Results {
+		if rank, ok := r.ranks[recordID(value)]; ranked && ok {
+			if r.ResultRanks == nil {
+				r.ResultRanks = map[string]ResultRank{}
+			}
+			r.ResultRanks[recordID(value)] = rank
+		}
 		switch v := value.(type) {
 		case Subject:
 			mark(v.ID, v.Provider, "name")

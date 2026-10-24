@@ -1758,6 +1758,79 @@ accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-2
   equal ranks. Ranking changes to `docs_search` run it before they ship. Acceptance:
   `TestDCPV1404SearchRankingEvalFixture`.
 
+### Served rank groups and derived declarations (GitHub #1665 rows 3 and 5)
+
+After #1669 two rows of #1665 remained. Results carried no score, so a caller could not see that
+the ID-ordered run of claims it received was one tie, or cut at a boundary (row 3). A method
+declared in an indexed source input that a records provider owns (`def sync_with_pos` in a `.rb`
+file) had no subject, so `docs_search --query sync_with_pos` and `--kind symbol` found nothing
+(row 5). Status for `DCP-V1-479..486`: proposed, experimental; GitHub #1665.
+
+- `DCP-V1-479`: Amending `DCP-V1-402` and `DCP-V1-477` only by adding a served member, a
+  `docs_search` receipt carries `result_ranks`, an object keyed by each visible result's record
+  ID. Each value holds `rank` (the 1-based position before paging), `group` (the 1-based tie
+  group: results whose exact flag, phrase flag and normalized score are equal share one), `tier`
+  (`exact`, `phrase` or `terms`) and `score` (the family-normalized score of `DCP-V1-402`, rounded
+  to 6 decimals). The shorter-text and natural-ID keys of `DCP-V1-477` order results inside a
+  group and never start one. Merged claim hits (`include: ["claims"]`) carry the same member. A
+  page carries only its own results. Failure modes: two results of different groups never share a
+  group number, and equal served scores in different tiers stay in different groups. Acceptance:
+  `TestDCPV1479SearchServesRankGroups`.
+- `DCP-V1-480`: A `docs_claims` receipt with `query` carries `result_ranks` with the same members
+  plus `terms`, the count of distinct query terms the claim holds (an inflection counts its term
+  once, `DCP-V1-476`). A group is the claims holding as many distinct terms with the same summed
+  idf; `score` is the summed idf normalized by the sum over the query terms. An exact trimmed
+  text match is tier `exact`. Acceptance: `TestDCPV1480ClaimsServeRankGroups`.
+- `DCP-V1-481`: `result_ranks` is an additive optional receipt member under `DCP-V1-039`: the
+  receipt schema stays `corvint-corpus-receipt/2`, the member is omitted (not empty) for every
+  other operation, for `docs_claims` without `query` and for an empty result, and is derived per
+  read from the ranking, never stored in the artifact or the query index. A reader that ignores
+  it reads the receipt as before. Acceptance: `TestDCPV1479SearchServesRankGroups` (encoded bytes,
+  decode and absence), `TestDCPV1486GH1665RankingEvalFixture` (served through the MCP tools).
+- `DCP-V1-482`: Amending `DCP-V1-003`, the first native provider derives a declaration subject
+  (`<native>:symbol:<path>:<line>:<name>`, kind `symbol`, or `test` on a test path) and its
+  `:declaration` claim for each symbol the native source index holds in a primary-revision
+  `source` input that only non-native providers claim. IDs, anchors (`syntax`, `source`, the
+  symbol name) and evidence (`source-derived`, `generated`) are the native provider's own
+  declaration records; no file subject or excerpt is added, and the owning provider's records are
+  unchanged. Acceptance: `TestDCPV1482DeclarationsOfRecordsOwnedSource`.
+- `DCP-V1-483`: Derivation runs after every provider, once per path, and skips an input a native
+  provider claims (it already declares its symbols), an unparsed or natively excluded input, an
+  input of another revision and a non-`source` input. A manifest without a native provider
+  derives nothing. Acceptance: `TestDCPV1483DerivationScope`.
+- `DCP-V1-484`: Derivation never refuses a manifest the compiler built before it. When a compile
+  that derived declarations is refused by a corpus bound or check (a record count, the output
+  byte bound), it is compiled once more without them, restoring the incremental reuse state the
+  refused compile recorded, and the artifact carries one `not-collected` gap
+  (`derived declaration bound: ...`) on the first derivable input's native file ID. A refusal of
+  the retry is the refusal the manifest had before derivation. Failure modes: an error that is
+  not a corpus refusal (Git, capacity, input availability, cancellation) is returned without a
+  retry; a refusal of the first attempted declaration (an oversized declaration line) is retried
+  like a later one; the retry leaves one cached shard per compiled shard. Acceptance:
+  `TestDCPV1484DerivationNeverRefusesABuildableManifest`,
+  `TestDCPV1484RefusedFirstDeclarationRestoresShardCache`,
+  `TestDCPV1484RetryAnswersOnlyCorpusRefusals`.
+- `DCP-V1-485`: Derived declarations change the records the same inputs build, so
+  `DerivationVersion` is `2` (`DCP-V1-471`): the verified read refuses an artifact recorded by
+  derivation 1 with `derivation version differs (artifact 1, running builder 2); rebuild the
+  corpus`, and the rebuilt artifact serves the declarations. Acceptance:
+  `TestDCPV1485DerivationTwoRefusesDerivationOneArtifacts`, `TestDCPV1471DerivationVersionGuard`.
+- `DCP-V1-486`: A committed synthetic fixture, `internal/mcp/corpusbridge/testdata/search-ranking-gh1665/`
+  (a source tree whose Ruby service and model a records provider owns, supplied records
+  reproducing the issue's examples, and a `corvint-corpus-eval-cases/1` file tagged by issue row),
+  is scored through `docs corpus eval`'s MCP tool path: every case passes, twice with equal ranks,
+  and `docs_search` and `docs_claims` serve a rank per result with a visible tie group. Measured
+  on the base `bcbd5ded`: rows 1, 2 and 4 pass (4 of 4), row 5 passes 0 of 4, and no result carries
+  a rank; after this change all 8 cases pass and every served row is ranked. Acceptance:
+  `TestDCPV1486GH1665RankingEvalFixture`.
+
+Non-goals: no score threshold or cut-off parameter, no change to any ranking order, no new index
+key or artifact member, no symbols the native index does not already extract (class members of
+TypeScript classes stay unextracted), and no derivation for inputs of other revisions. Rollback:
+drop `result_ranks` (readers that ignore it are unaffected), remove the derivation and the retry,
+and return `DerivationVersion` to `1`; artifacts built in between are then refused as another
+derivation and rebuilt. No stored state needs migration.
+
 ### Caller-owned retrieval evaluation (`docs corpus eval`)
 
 `corvint docs corpus eval --artifact PATH --cases PATH [--baseline PATH] [--format json|table]`
@@ -3631,6 +3704,10 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-474 | `internal/mcp/corpusbridge/eval.go`, `corpusbridge.go` | `TestDCPV1474EvalSuiteObservesOnce`, `TestDCPV1251EvalScoresThroughTheMCPToolPath`; measured in docs/build-log/2026-10-24-corpus-diagnostics-and-ranking.md |
 | DCP-V1-475..477 | `internal/doccorpus/search_rank.go`, `search_phrase.go`, `typed_query.go` | `TestDCPV1475PhraseAndIdentifierMatchesRankFirst`, `TestDCPV1476ClaimTextMatchesInflections`, `TestDCPV1477MeaningfulTieBreaks`, `TestDCPV1404SearchRankingEvalFixture` |
 | DCP-V1-478, DCP-V1-503..506 | `internal/doccorpus/extractor.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `docs.go` | `TestDCPV1478CallerProfileExtractsLikeTheCommittedProfile`, `TestDCPV1478CallerProfileRequiresAMatchingDigest`, `TestDCPV1478CallerProfileDirectorySwapIsRefused`, `TestDCPV1478CallerProfileUnsupportedPlatformIsRefused`, `TestDCPV1503CallerProfileProvenanceIsRecorded`, `TestDCPV1503CallerProfileWithNoSubjectsKeepsItsDigest`, `TestDCPV1504CallerProfileProviderRecordBuildsUnchanged`, `TestDCPV1505CallerProfileExtractionIsReadOnly`, `TestDCPV1506DocsCorpusExtractCallerProfileCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusHelpListsOperations`, `TestCAPV0019CommittedCatalogMatchesTheBinary` |
+| DCP-V1-479..481 | `internal/doccorpus/types.go`, `search_rank.go`, `typed_query.go`, `receipt_annotations.go` | `TestDCPV1479SearchServesRankGroups`, `TestDCPV1480ClaimsServeRankGroups`, `TestDCPV1486GH1665RankingEvalFixture` |
+| DCP-V1-482..484 | `internal/doccorpus/compile.go` | `TestDCPV1482DeclarationsOfRecordsOwnedSource`, `TestDCPV1483DerivationScope`, `TestDCPV1484DerivationNeverRefusesABuildableManifest`, `TestDCPV1484RefusedFirstDeclarationRestoresShardCache`, `TestDCPV1484RetryAnswersOnlyCorpusRefusals` |
+| DCP-V1-485 | `internal/doccorpus/encoding.go` | `TestDCPV1485DerivationTwoRefusesDerivationOneArtifacts`, `TestDCPV1471DerivationVersionGuard` |
+| DCP-V1-486 | `internal/mcp/corpusbridge/testdata/search-ranking-gh1665/` | `TestDCPV1486GH1665RankingEvalFixture` |
 | DCP-V1-468 | `internal/doccorpus/artifact_decode.go`, `query_index_fast.go` | `TestDCPV1431StreamedDecodeMatchesInMemory`, `TestDCPV1434DecodeTimeClaimTermsMatchIndex`, `TestDCPV1419FastIndexMatchesReference` |
 | DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-487..489 | `internal/doccorpus/compact_anchor.go`, `shards.go`, `encoding.go` | `TestDCPV1487CompactAnchorTableEquivalent`, `TestDCPV1488CompactAnchorRefusals`, `TestDCPV1489CompactAnchorSizeMeasured`; measured in docs/build-log/2026-10-24-corpus-compact-anchor-table.md |

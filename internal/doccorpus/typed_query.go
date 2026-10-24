@@ -349,20 +349,27 @@ func claimSearch(ctx context.Context, a *Artifact, q Request, r *Receipt) error 
 	terms := contextindex.EvidenceTerms(q.Query)
 	scores := map[int]int{}
 	weights := map[int]float64{}
+	// total is the summed idf of every query term, the most a claim can hold.
+	total := 0.0
 	for _, term := range slices.Sorted(maps.Keys(terms)) {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
 		held := claimPostings(x, term)
 		idf := searchIDF(len(a.Claims), len(held))
+		total += idf
 		for _, i := range held {
 			scores[i]++
 			weights[i] += idf
 		}
 	}
+	held := make(map[int]int, len(scores))
+	exact := map[int]bool{}
 	for i := range scores {
+		held[i] = scores[i]
 		if strings.EqualFold(strings.TrimSpace(q.Query), strings.TrimSpace(a.Claims[i].Text)) {
 			scores[i] += len(terms) + 1
+			exact[i] = true
 		}
 	}
 	ids := make([]int, 0, len(scores))
@@ -382,7 +389,19 @@ func claimSearch(ctx context.Context, a *Artifact, q Request, r *Receipt) error 
 		}
 		return naturalLess(a.Claims[ci].ID, a.Claims[cj].ID)
 	})
-	for _, i := range ids {
+	// Claims tie when they hold as many query terms of the same summed idf;
+	// specificity and the natural ID only order a tie group (DCP-V1-480).
+	r.ranks = make(map[string]ResultRank, len(ids))
+	group := 0
+	for n, i := range ids {
+		if n == 0 || scores[i] != scores[ids[n-1]] || weights[i] != weights[ids[n-1]] {
+			group++
+		}
+		tier := "terms"
+		if exact[i] {
+			tier = "exact"
+		}
+		r.ranks[a.Claims[i].ID] = ResultRank{Rank: n + 1, Group: group, Tier: tier, Score: servedScore(normalized(weights[i], total)), Terms: held[i]}
 		addRecord(r, a.Claims[i])
 	}
 	return ctx.Err()
