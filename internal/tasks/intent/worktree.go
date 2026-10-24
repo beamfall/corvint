@@ -26,7 +26,9 @@ type Repository struct {
 	PrimaryWorktree string
 	// StateDir is `<git-common-dir>/taskman` (§3.4); it may not exist.
 	StateDir string
-	// LockPath is `<git-common-dir>/taskman.lock`; reads never open it.
+	// LockPath is `<git-common-dir>/taskman.lock`; reads never create it or
+	// wait on it; only a spent journal audit opens it for a non-blocking test
+	// that it is free (CTS-V0-026).
 	LockPath string
 	// FromLinkedWorktree is true when cwd was inside a linked worktree.
 	FromLinkedWorktree bool
