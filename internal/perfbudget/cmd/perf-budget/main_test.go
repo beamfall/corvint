@@ -69,7 +69,9 @@ func TestPRBV0042MakeTargetRequireJudgement(t *testing.T) {
 		t.Skip("make not installed")
 	}
 	for value, want := range map[string]bool{"": false, "0": false, "1": true} {
-		out, err := exec.Command("make", "-s", "-n", "-C", filepath.Join("..", "..", "..", ".."), "perf-budget", "PERF_BUDGET_REQUIRE_JUDGEMENT="+value).CombinedOutput()
+		// -f names the Makefile: without it make finds it through a directory listing of the
+		// root, which the declared read scope (only the Makefile itself) does not grant.
+		out, err := exec.Command("make", "-s", "-n", "-C", filepath.Join("..", "..", "..", ".."), "-f", "Makefile", "perf-budget", "PERF_BUDGET_REQUIRE_JUDGEMENT="+value).CombinedOutput()
 		if err != nil {
 			t.Fatalf("make -n perf-budget: %v %s", err, out)
 		}
