@@ -2706,9 +2706,10 @@ contributor (#1664). `docs corpus eval` gave no returned rows for a failing case
 checkout stamp and freshness lookup per case (#1666). Every builder revision made every existing
 artifact unreadable (`builder differs`), although the derivation was unchanged (#1667). Five
 `docs_search` and `docs_claims` ranking misses remained (#1665). A caller-owned extractor profile
-(#1662) needs owner intent and is drafted as a proposal only. Status for `DCP-V1-470..477`:
-proposed, experimental; GitHub #1664 to #1667. Status for `DCP-V1-478`: proposed, not
-implemented; GitHub #1662, awaiting owner intent.
+(#1662) could not be used at all. Status for `DCP-V1-470..477`:
+proposed, experimental; GitHub #1664 to #1667. Status for `DCP-V1-478` and `DCP-V1-503..506`:
+proposed, experimental; GitHub #1662, implemented under the orchestrator's 2026-10-24 decision,
+owner acceptance open.
 
 - `DCP-V1-470`: A closed JSON refusal of a named local input (a manifest, a provider record or
   shard, an extractor profile) names its location: `invalid closed JSON input: <input>: <JSON
@@ -2782,18 +2783,56 @@ implemented; GitHub #1662, awaiting owner intent.
   subjects before claims, then the shorter name or text, then natural ID order. Index and scan
   readers keep the same order. Acceptance: `TestDCPV1477MeaningfulTieBreaks`,
   `TestDCPV1404SearchRankingEvalFixture`.
-- `DCP-V1-478`: (proposed, not implemented; awaiting owner intent; GitHub #1662) `docs corpus
-  extract` would accept a caller-owned profile outside the extracted repository with
-  `--profile-file FILE --profile-sha256 HEX`. The file follows the `DCP-V1-054` local input rule
-  and must hash to the digest. Source is still read from Git at `--revision`, and the inventory
-  records the profile digest and `profile_origin: caller`, so the result is reproducible but not
-  repository-declared. The extracted provider record is admitted unchanged (`DCP-V1-393`). Open
-  questions for the owner: whether a caller profile may be used when the repository also declares
-  one, and whether its records carry a lower authority than repository-declared ones.
-  Acceptance (when accepted): a test that a matching digest extracts identical inventory bytes to
-  the same profile committed in the repository, and a mismatched or missing digest refuses with
-  no output.
+- `DCP-V1-478`: (proposed, experimental; GitHub #1662; owner acceptance open) `docs corpus
+  extract --profile PATH --profile-sha256 HEX --revision FULL_COMMIT` admits a caller-owned
+  `corvint-extractor-profile/1` file outside the extracted repository. With `--profile-sha256`,
+  `PATH` must be a clean absolute path whose directory, with symlinks resolved, lies outside the
+  repository root; the leaf is opened without following a symlink, must be a regular file within
+  the input bound, and its exact bytes must hash to `HEX` (64 lowercase hex digits). It is then
+  admitted exactly as a committed profile (`DCP-V1-390`), and every source file is still read only
+  from Git at the revision (`DCP-V1-398`), so the same profile bytes yield the same subjects,
+  relations and gaps as when committed. Without `--profile-sha256` an absolute or otherwise
+  non-repository path keeps the `DCP-V1-399` refusal, which for an absolute path adds that a
+  caller-owned profile also needs the digest. A malformed digest, a relative or unclean path, a
+  path inside the repository, a missing, non-regular or over-bound file, or a digest mismatch
+  (which names the file's digest) is refused with no output before any source file is read. A
+  caller-owned profile is usable whether or not the repository commits one, and its records carry
+  the same `generated` trust and `external-provider` authority: a profile is configuration and
+  grants no authority (`DCP-V1-390`). Acceptance:
+  `TestDCPV1478CallerProfileExtractsLikeTheCommittedProfile`,
+  `TestDCPV1478CallerProfileRequiresAMatchingDigest`.
+- `DCP-V1-503`: (proposed, experimental; GitHub #1662; owner acceptance open) A caller-profile
+  inventory's `profile` member records `origin: caller`, `sha256` (the digest of the file's exact
+  bytes, as pinned), `document` (the admitted profile) and `canonical_sha256` (the digest of that
+  document's canonical encoding), and never the caller's local path; `path` and `blob` are
+  omitted. Its limitations add that the profile is caller-owned and not declared by the
+  repository, and the provider record's `subjects` capability reason names
+  `sha256:HEX`. A repository-declared inventory omits `origin`, `document` and `canonical_sha256`
+  and keeps its bytes. Acceptance: `TestDCPV1503CallerProfileProvenanceIsRecorded`,
+  `TestDCPV1478CallerProfileExtractsLikeTheCommittedProfile`.
+- `DCP-V1-504`: (proposed, experimental; GitHub #1662; owner acceptance open) The provider record
+  of a caller-profile inventory, committed unchanged and declared as a provider input, builds
+  through the existing provider admission (`DCP-V1-393`), and the built artifact still names the
+  profile digest through that capability reason. No artifact, manifest or provider record schema
+  changes. Acceptance: `TestDCPV1504CallerProfileProviderRecordBuildsUnchanged`.
+- `DCP-V1-505`: (proposed, experimental; GitHub #1662; owner acceptance open) A caller-profile
+  extraction writes neither the repository nor the profile or its directory, reads no working-tree
+  source, and returns identical bytes for identical inputs. Acceptance:
+  `TestDCPV1505CallerProfileExtractionIsReadOnly`.
+- `DCP-V1-506`: (proposed, experimental; GitHub #1662; owner acceptance open) `extract` takes
+  `--profile-sha256` as its one optional option, in `help --json` and the capability catalog; the
+  CLI prints exactly the producer's caller-profile inventory bytes and a refusal prints nothing.
+  Acceptance: `TestDCPV1506DocsCorpusExtractCallerProfileCLI`, `TestDocsCorpusOperationFlagMatrix`,
+  `TestDocsCorpusHelpListsOperations`, `TestCAPV0019CommittedCatalogMatchesTheBinary`.
 
+Caller-owned profiles (`DCP-V1-478`, `DCP-V1-503..506`) add one CLI option and optional
+inventory members; they run no tool, open no network, add no cache or persisted state, and do not
+change the artifact, manifest or provider record formats. They are not a way to read sources from
+outside Git, to pin a profile by path, or to raise an extractor's authority. Failure modes: a
+caller who edits the profile without updating the digest is refused, never silently re-pinned; a
+profile placed inside the working tree is refused rather than treated as committed. Rollback
+removes the option and the optional members: caller-profile inventories already emitted stay
+readable to every lenient reader, and their provider records stay admissible.
 Not delivered here: the compact per-file anchor table of #1664 (an anchor encoding change), a
 `score` or rank group on served rows and symbol subjects derived from indexed inputs (#1665
 rows 3 and 5), and rebuilding an artifact from its embedded manifest (#1667).
@@ -3347,8 +3386,8 @@ the builder engine string and the two optional eval result members. They do not 
 artifact's origin, accept an artifact from a changed derivation, or add stemming to subject
 names. Rollback restores the bare decode message, the exact builder comparison and engine
 string (artifacts built in between are then refused and rebuilt), the single aggregate bound,
-the per-case freshness, and the `DCP-V1-402` and `DCP-V1-313` orders. `DCP-V1-478` is not
-implemented.
+the per-case freshness, and the `DCP-V1-402` and `DCP-V1-313` orders. Caller-owned profiles
+(`DCP-V1-478`, `DCP-V1-503..506`) carry their own bounds and rollback after `DCP-V1-506`.
 Read-start freshness and decode allocation (`DCP-V1-465..468`) add no cache, daemon or
 persisted observation, observe no additional checkout before its header, change no overlay,
 receipt, refusal, index or timing field, and do not shorten the decode itself. Rollback removes
@@ -3484,7 +3523,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-473 | `internal/mcp/corpusbridge/eval.go` | `TestDCPV1473FailingCasesListReturnedRows` |
 | DCP-V1-474 | `internal/mcp/corpusbridge/eval.go`, `corpusbridge.go` | `TestDCPV1474EvalSuiteObservesOnce`, `TestDCPV1251EvalScoresThroughTheMCPToolPath`; measured in docs/build-log/2026-10-24-corpus-diagnostics-and-ranking.md |
 | DCP-V1-475..477 | `internal/doccorpus/search_rank.go`, `search_phrase.go`, `typed_query.go` | `TestDCPV1475PhraseAndIdentifierMatchesRankFirst`, `TestDCPV1476ClaimTextMatchesInflections`, `TestDCPV1477MeaningfulTieBreaks`, `TestDCPV1404SearchRankingEvalFixture` |
-| DCP-V1-478 | not implemented (proposed; GitHub #1662) | none until accepted |
+| DCP-V1-478, DCP-V1-503..506 | `internal/doccorpus/extractor.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `docs.go` | `TestDCPV1478CallerProfileExtractsLikeTheCommittedProfile`, `TestDCPV1478CallerProfileRequiresAMatchingDigest`, `TestDCPV1503CallerProfileProvenanceIsRecorded`, `TestDCPV1504CallerProfileProviderRecordBuildsUnchanged`, `TestDCPV1505CallerProfileExtractionIsReadOnly`, `TestDCPV1506DocsCorpusExtractCallerProfileCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusHelpListsOperations`, `TestCAPV0019CommittedCatalogMatchesTheBinary` |
 | DCP-V1-468 | `internal/doccorpus/artifact_decode.go`, `query_index_fast.go` | `TestDCPV1431StreamedDecodeMatchesInMemory`, `TestDCPV1434DecodeTimeClaimTermsMatchIndex`, `TestDCPV1419FastIndexMatchesReference` |
 | DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-420..425 | `internal/doccorpus/delta.go`, `delta_open.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1420DeltaAdditionalRepositoryAnchors`, `TestDCPV1420DeltaSharedReadBound`, `TestDCPV1424DeltaHistoricalPins`, `TestDCPV1425OpenDeltaCurrentUnavailableCheckout`, `TestDCPV1425DeltaUnavailableCheckoutCLI`, `TestDCPV1421DeltaViewsCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |

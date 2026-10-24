@@ -42,7 +42,7 @@ func buildCorpusOperations() []corpusOperation {
 		{name: "witness-playwright", purpose: "import qualified Playwright witnesses from a committed receipt and report", required: []string{"--input", "--receipt-input", "--report"}},
 		{name: "discover-legacy", purpose: "inventory Jasmine or Mocha/Cypress legacy cases statically from Git blobs", required: []string{"--runner", "--revision", "--path"}, optional: []string{"--input"}},
 		{name: "discover-tests", purpose: "read Playwright or RSpec examples, expectations, navigations, reaches and hooks statically from Git blobs", required: []string{"--runner", "--revision", "--path"}},
-		{name: "extract", purpose: "extract generic subjects and relations with a repository-declared extractor profile from Git blobs", required: []string{"--profile", "--revision"}},
+		{name: "extract", purpose: "extract generic subjects and relations with a repository-declared, or digest-pinned caller-owned, extractor profile from Git blobs", required: []string{"--profile", "--revision"}, optional: []string{"--profile-sha256"}},
 		{name: "import-cases", purpose: "import manual legacy cases from a caller-exported TestRail JSON or CSV file", required: []string{"--format", "--input"}, optional: []string{"--content"}},
 		{name: "search-cases", purpose: "search a caller-exported TestRail JSON or CSV file for legacy cases", required: []string{"--format", "--input"}, optional: []string{"--query", "--id", "--match", "--limit"}},
 		read("info", "artifact identity, capabilities and freshness", nil),
@@ -152,7 +152,8 @@ var corpusFlagHelp = map[string][2]string{
 	"--max-pattern-rate":            {"R|NAME=R[,NAME=R]", "refuse the build when a corpus pattern's rate exceeds R in [0, 1]; bare R applies to every pattern"},
 	"--sample":                      {"SAMPLE.json", doccorpus.AuditSampleSchema + " sample from docs corpus audit sample"},
 	"--provider":                    {"PROVIDER", "records provider ID declared in the previous corpus manifest"},
-	"--profile":                     {"PATH", "repository path of the " + doccorpus.ExtractorProfileSchema + " profile, read from Git at --revision"},
+	"--profile":                     {"PATH", "repository path of the " + doccorpus.ExtractorProfileSchema + " profile, read from Git at --revision; with --profile-sha256, the absolute path of a caller-owned profile outside the repository"},
+	"--profile-sha256":              {"HEX", "SHA-256 of the caller-owned profile's exact bytes; a mismatch is refused, and the digest and canonical profile are recorded in the inventory"},
 	"--uncovered":                   {"changed|all", "delta uncovered entries: changed regions only, or also uncited subjects (default all)"},
 	"--anchorless":                  {"summary|list", "delta anchorless records: counted by provider and kind, or listed (default summary)"},
 }
