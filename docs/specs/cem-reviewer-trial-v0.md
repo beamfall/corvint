@@ -19,7 +19,7 @@ baseline).
 - Claim: `tools/cem-trial` runs one agent over frozen Beamfall changes under control, treatment and seeded arms and scores base-reachable withheld test-or-spec evidence.
 - Status: proposed/experimental
 - Exists: `tools/cem-trial` (`select`, `run`, `score`), the five-change pilot manifest under `tools/cem-trial/testdata/pilot`, and `tools/cem-trial/testdata/fake-agent.sh`; added 2026-10-11 (V1-1261, accepted under the owner's standing auto-accept (2026-10-11)): the cited-not-gold precision rate (CRT-V0-013) and the registration file and its order check (CRT-V0-014).
-- Blocked on: owner acceptance of the 2026-10-01 amendments; an arm builder for the shipped profile's artifact (CRT-V0-015), which needs decision 0523 P2 to land and have a baseline; and the owner-commissioned held-out run, which is post-rc.3 and `NOT_RUN`. Since 2026-10-24 (V1-0836) the `treatment` and `seeded` arms build an all-`unknown` cem/1.0 worklist for development and pilot runs (CRT-V0-005), and the ten-pair development run froze the held-out pair count at 57 (CRT-V0-008). The real-agent pilot is run and valid (2026-09-04) but its treatment carried no evidence and three of its five changes had gold no arm could cite; no run before decision 0523 P2 has a baseline is outcome evidence.
+- Blocked on: owner acceptance of the 2026-10-01 amendments; an arm builder for the shipped profile's artifact (CRT-V0-015), which needs decision 0523 P2 to land and have a baseline; and the owner-commissioned held-out run, which is post-rc.3 and `NOT_RUN`. Since 2026-10-24 (V1-0836) the `treatment` and `seeded` arms build an all-`unknown` cem/1.0 worklist for development and pilot runs (CRT-V0-005), and the ten-pair development run froze the held-out pair count at 57 (CRT-V0-008). Since the 2026-10-24 owner decision a registered run may carry that map (CRT-V0-015). The real-agent pilot is run and valid (2026-09-04) but its treatment carried no evidence and three of its five changes had gold no arm could cite; no run before decision 0523 P2 has a baseline is outcome evidence.
 - Read next: Requirements (selection, withheld patch, arms, metrics, CRT-V0-012..015); Power; Non-goals; Stopping and publication.
 
 ## Intent and scope
@@ -108,7 +108,7 @@ name is exactly what the change's author also wrote and the harness removed.
   before each lane, and `cem status` and `cem verify` read the result (CRT-V0-007); a Corvint
   command that refuses is a measurement, one that produces no verdict (cancellation, timeout, launch
   failure) errors the lane, so it is neither scored as a verifier failure nor reused (CRT-V0-010). The seeded arm's
-  suggestions are unchanged. A registered run still refuses both arms (CRT-V0-015).
+  suggestions are unchanged. Since 2026-10-24 a registered run may name both arms (CRT-V0-015).
 - `CRT-V0-006`: Reply grammar. Every reply MUST end with one fenced JSON block
   `{"citations":[{"hunk":"N","path":"...","lines":"S:E","relation":"specification|decision|test-claim|implementation|call-site|dependency|incident","confidence":"certain|likely|unsure"}],"unknown":["N"]}`.
   The scorer takes the last fenced block naming `"citations"`, or a reply that is itself one JSON
@@ -301,7 +301,11 @@ name is exactly what the change's author also wrote and the harness removed.
   CRT-V0-005 together. Amended 2026-10-24 (V1-0836): CRT-V0-005's cem/1.0 builder now runs the
   `treatment` and `seeded` arms of pilot and development runs. It still carries an all-`unknown`
   worklist, not the shipped profile's artifact with verifier-computed support, so the
-  registered-run refusal and the rescore invalidity above are unchanged.
+  registered-run refusal and the rescore invalidity above are unchanged. Amended 2026-10-24 (V1-0836,
+  owner decision): the owner counts the all-`unknown` cem/1.0 map that `cem prepare` builds for the
+  `treatment` and `seeded` arms as the shipped profile's artifact for this trial. `run` no longer
+  refuses a registered run naming either arm, and such a report is no longer invalid on rescore. The
+  pre-baseline clause above (kill criterion K1 of decision 0523) is not changed by this amendment.
 
 ## Non-goals and simpler baseline
 
@@ -361,7 +365,7 @@ executables named on the command line; it downloads nothing. Manifest 16 MiB; pa
 | CRT-V0-004 (2026-10-01 amendment) | `inspectCommit` (status `M`/`D` gold, `unreachable`), `task.GoldUnreachable`, `printSelection` | `TestSelectionRecordsUnreachableGoldSeparately` |
 | CRT-V0-013 | `scoreCitedNotGold`, `citedNotGold`, `mergeIntervals`, `overlap`, `citedNotGoldArms`, `changeMeta.GoldSpans`, `goldSpansOf` (`tools/cem-trial/score.go`, `main.go`) | `TestCiteEverySuggestionAgentLosesOnCitedNotGold` (the cite-every-suggestion agent wins on miss, Δ 0.5, and loses on both rates); `TestCitedNotGoldCountsDistinctPathsAndLines`; `TestRunChecksItsRegistration` (a run carries `gold_spans` and scores the rate) |
 | CRT-V0-014, CRT-V0-010 (2026-10-11 amendment) | `registration`, `parseRegistration`, `loadRegistration`, `registrationRecord`, `registrationProblems`, `registrationMismatches`, `registrationInvalid`, `firstLaneStart`, `unstampedLanes`, `registeredPrior`, `registrationRecord.UnmarshalJSON`, `checkRegistration`, `scorerDigest`, `scorerFiles`, `lane.StartedAt`, `finalize` (`tools/cem-trial/register.go`, `score.go`, `main.go`) | `TestScorerDigestCoversEveryScorerSource`; `TestRegistrationRefusesAnIncompletePlan`; `TestRegistrationMustBeCommitted`; `TestReportRefusesARegistrationNewerThanItsFirstLane`; `TestRunChecksItsRegistration`; no registered run yet: the run is post-rc.3 and owner-commissioned (`NOT_RUN`) |
-| CRT-V0-015 | `registrationMismatches` (arms carrying the cem/0.1 worklist), `armsNeedCorvint` | `TestReportRefusesARegistrationNewerThanItsFirstLane` (`CRT-V0-015` subtest); `TestRunChecksItsRegistration` (registered treatment arm refused before dispatch); the shipped-profile arm builder is not built; the all-`unknown` cem/1.0 builder (CRT-V0-005) runs only unregistered runs |
+| CRT-V0-015 | `registrationMismatches` (no arm refusal since the 2026-10-24 owner decision), `armsNeedCorvint` | `TestReportRefusesARegistrationNewerThanItsFirstLane` (`CRT-V0-015` subtest: a registered cem/1.0 map arm is valid); the held-out run is recorded in `docs/build-log/2026-10-24-cem-trial-heldout-run.md` |
 | CRT-V0-005 (seeded arm), CRT-V0-012 | `seededPrologue`, `suggestEvidence`, `suggestedPaths`, `buildArtefacts`, `buildPrompt`, `prologueIdentity`, `armsNeedCorvint`, `lane.Suggested`, `lane.SeedHits`, `seedCoverage`, `contrast`, `mcnemarLanes`, `armSummary`, `citableArm`, `verifierRatesArm` (`tools/cem-trial/main.go`, `score.go`) | `TestSeededArmSharesThePromptApartFromItsPrologue`; `TestRunRefusesSeededArmWithoutCorvint`; `TestThreeArmSummaryKeepsPilotKeysAndDecomposesTheSeededArm`; `TestTwoArmSummaryIsUnchanged`; `TestLaneLevelMcNemarKeepsDiscordance`; 2026-10-24 three-arm development run (`benchmarks/results/cem-reviewer-trial-development-2026-10-24.json`, 60 lanes); the held-out run is owner-commissioned (decision 0427) and `NOT_RUN` |
 
 ## Rollout, rollback, compatibility

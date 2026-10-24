@@ -176,9 +176,9 @@ func registeredReport(started, committed string) *report {
 }
 
 // CRT-V0-010, CRT-V0-014, CRT-V0-015: the report is invalid when the
-// registration was committed after the first lane, does not describe the run,
-// or registers an arm that carries an all-unknown worklist; a heldout
-// report with no registration is invalid too.
+// registration was committed after the first lane or does not describe the
+// run; a registered cem/1.0 map arm is valid; a heldout report with no
+// registration is invalid.
 func TestReportRefusesARegistrationNewerThanItsFirstLane(t *testing.T) {
 	t.Run("CRT-V0-014/registered before the first lane", func(t *testing.T) {
 		document := registeredReport("2026-10-02T00:00:00.5Z", "2026-10-01T12:00:00Z")
@@ -267,11 +267,11 @@ func TestReportRefusesARegistrationNewerThanItsFirstLane(t *testing.T) {
 			}
 		}
 	})
-	t.Run("CRT-V0-015/cem/0.1 worklist arm", func(t *testing.T) {
+	t.Run("CRT-V0-015/registered cem/1.0 map arm", func(t *testing.T) {
 		document := registeredReport("2026-10-02T00:00:00Z", "2026-10-01T00:00:00Z")
 		document.Arms = []string{"control", "treatment"}
 		finalize(document)
-		if !strings.Contains(document.Invalid, "not the shipped profile's artifact") {
+		if strings.Contains(document.Invalid, "CRT-V0-015") || strings.Contains(document.Invalid, "shipped profile") {
 			t.Fatalf("invalid = %q", document.Invalid)
 		}
 	})
@@ -343,8 +343,8 @@ func heldoutManifest(t *testing.T, repo string) string {
 }
 
 // CRT-V0-014, CRT-V0-015: `run` refuses a heldout manifest with no
-// registration, a registration the run does not match, and a registered run
-// of an arm that carries the cem/0.1 worklist, before any lane runs; a
+// registration and a registration the run does not match, before any lane
+// runs; a
 // matching registration runs, records each lane's start, and the report reads
 // invalid only when the registration commit is newer than the first lane.
 func TestRunChecksItsRegistration(t *testing.T) {
@@ -370,10 +370,6 @@ func TestRunChecksItsRegistration(t *testing.T) {
 		t.Fatalf("mismatched registration: %v", err)
 	}
 	past := commitRegistration(t, "registration.json", validRegistration("heldout", notObserved, notObserved, 1), "2026-01-01T00:00:00Z")
-	if _, _, err := runTrial(ctx, []string{"--tasks", tasks, "--history", repo, "--arms", "control,treatment", "--agent", "script",
-		"--agent-command", agentScript, "--corvint", agentScript, "--registration", past}); err == nil || !strings.Contains(err.Error(), "shipped profile's artifact") {
-		t.Fatalf("registered cem/0.1 treatment arm: %v", err)
-	}
 	document, _, err := runTrial(ctx, arguments("control", past))
 	if err != nil {
 		t.Fatal(err)
