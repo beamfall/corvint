@@ -96,26 +96,97 @@ func TestReadHooks(t *testing.T) {
 		t.Fatal(err)
 	}
 	argv, err := readHooks(argvShape, false)
-	if err != nil || strings.Join(argv["Stop"], " ") != "corvint adapter claude-code stop" {
+	if err != nil || len(argv["Stop"]) != 1 || strings.Join(argv["Stop"][0], " ") != "corvint adapter claude-code stop" {
 		t.Fatalf("argv shape: %v %v", argv, err)
 	}
 	shell, err := readHooks(shellShape, true)
-	if err != nil || strings.Join(shell["Stop"], " ") != "corvint adapter codex" {
+	if err != nil || len(shell["Stop"]) != 1 || strings.Join(shell["Stop"][0], " ") != "corvint adapter codex" {
 		t.Fatalf("shell shape: %v %v", shell, err)
 	}
 	several := filepath.Join(directory, "several.json")
 	if err := os.WriteFile(several, []byte(`{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"corvint adapter codex"}]},{"hooks":[{"type":"command","command":"other"}]}]}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := readHooks(several, true); err == nil {
-		t.Fatal("an event with two commands was accepted")
+	// HLQ-V1-011: every command of an event is returned in registration order; discovery judges them.
+	if hooks, err := readHooks(several, true); err != nil || len(hooks["Stop"]) != 2 || strings.Join(hooks["Stop"][1], " ") != "other" {
+		t.Fatalf("an event with two commands: %v %v", hooks, err)
+	}
+	empty := filepath.Join(directory, "empty.json")
+	if err := os.WriteFile(empty, []byte(`{"hooks":{"Stop":[{"matcher":"x","hooks":[]}]}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := readHooks(empty, true); err == nil {
+		t.Fatal("an event with no command was accepted")
 	}
 	later := filepath.Join(directory, "later.json")
 	if err := os.WriteFile(later, []byte(`{"hooks":{"Stop":[{"matcher":"x","hooks":[]},{"hooks":[{"type":"command","command":"corvint adapter codex"}]}]}}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if hooks, err := readHooks(later, true); err != nil || strings.Join(hooks["Stop"], " ") != "corvint adapter codex" {
+	if hooks, err := readHooks(later, true); err != nil || len(hooks["Stop"]) != 1 || strings.Join(hooks["Stop"][0], " ") != "corvint adapter codex" {
 		t.Fatalf("command in a later group: %v %v", hooks, err)
+	}
+}
+
+// TestShippedHooksPassDiscovery reads each source plugin package's hooks.json with that host's
+// profile, so a registration the discovery case would refuse fails here before a release-gates run
+// (HLQ-V1-011, GitHub #1551: the Claude Code Stop event gained stop-done-list, AHI-191).
+func TestShippedHooksPassDiscovery(t *testing.T) {
+	for host, profile := range profiles {
+		t.Run("HLQ-V1-011 "+host, func(t *testing.T) {
+			path := filepath.Join("..", "..", "integrations", profile.sourceDir, "plugins", "corvint", "hooks", "hooks.json")
+			registered, err := readHooks(path, profile.shellCommand)
+			if err != nil {
+				t.Fatal(err)
+			}
+			primary, companions, err := discoverHooks(registered, host, profile.hooks)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for event, subcommands := range profile.hooks {
+				want := strings.TrimSpace("corvint adapter " + host + " " + subcommands[0])
+				if got := strings.Join(primary[event], " "); got != want {
+					t.Errorf("%s case command %q, want %q", event, got, want)
+				}
+				if len(companions[event]) != len(subcommands)-1 {
+					t.Errorf("%s companions %v, want %v", event, companions[event], subcommands[1:])
+				}
+			}
+		})
+	}
+	if got := strings.Join(profiles["claude-code"].hooks["Stop"], ","); got != "stop,stop-done-list" {
+		t.Fatalf("claude-code Stop registrations %s", got)
+	}
+}
+
+func TestDiscoverHooksIsExact(t *testing.T) {
+	expected := map[string][]string{"Stop": {"stop", "stop-done-list"}, "SessionStart": {"session-start"}}
+	argv := func(words ...string) []string { return append([]string{"corvint", "adapter", "claude-code"}, words...) }
+	good := map[string][][]string{"Stop": {argv("stop-done-list"), argv("stop")}, "SessionStart": {argv("session-start")}}
+	primary, companions, err := discoverHooks(good, "claude-code", expected)
+	if err != nil || strings.Join(primary["Stop"], " ") != "corvint adapter claude-code stop" || len(companions["Stop"]) != 1 || strings.Join(companions["Stop"][0], " ") != "corvint adapter claude-code stop-done-list" {
+		t.Fatalf("registration order must not choose the case command: %v %v %v", primary, companions, err)
+	}
+	for name, case_ := range map[string]struct {
+		hooks map[string][][]string
+		want  string
+	}{
+		"HLQ-V1-011 missing companion": {map[string][][]string{"Stop": {argv("stop")}, "SessionStart": {argv("session-start")}}, `Stop registers adapter commands ["stop"], expected ["stop" "stop-done-list"]`},
+		"HLQ-V1-011 extra command":     {map[string][][]string{"Stop": {argv("stop"), argv("stop-done-list"), argv("other")}, "SessionStart": {argv("session-start")}}, `Stop registers adapter commands ["other" "stop" "stop-done-list"]`},
+		"HLQ-V1-011 duplicate command": {map[string][][]string{"Stop": {argv("stop"), argv("stop")}, "SessionStart": {argv("session-start")}}, `Stop registers "corvint adapter claude-code stop" twice`},
+		"HLQ-V1-011 foreign command":   {map[string][][]string{"Stop": {argv("stop"), {"sh", "-c", "x"}}, "SessionStart": {argv("session-start")}}, `Stop hook runs "sh -c x", not the corvint claude-code adapter`},
+		"HLQ-V1-011 trailing argument": {map[string][][]string{"Stop": {argv("stop", "--x"), argv("stop-done-list")}, "SessionStart": {argv("session-start")}}, `not the corvint claude-code adapter`},
+		"HLQ-V1-011 missing event":     {map[string][][]string{"Stop": {argv("stop"), argv("stop-done-list")}}, "registered hook events [Stop], expected [SessionStart Stop]"},
+	} {
+		if _, _, err := discoverHooks(case_.hooks, "claude-code", expected); err == nil || !strings.Contains(err.Error(), case_.want) {
+			t.Errorf("%s: %v, want %q", name, err, case_.want)
+		}
+	}
+}
+
+func TestHookBeforeDiscoveryNamesDiscovery(t *testing.T) {
+	r := &runner{host: "claude-code"}
+	if _, err := r.hook("SessionStart", nil, nil); err == nil || err.Error() != "discovery did not complete" {
+		t.Fatalf("HLQ-V1-011 a hook case after a failed discovery reported %v", err)
 	}
 }
 

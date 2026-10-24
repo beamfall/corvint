@@ -3332,6 +3332,7 @@ HLQ-V1-007	docs/specs/host-lifecycle-qualification-v1.md	The runner MUST print o
 HLQ-V1-008	docs/specs/host-lifecycle-qualification-v1.md	A result MUST be recorded here with the digests of both binaries and the source	unrecorded	-
 HLQ-V1-009	docs/specs/host-lifecycle-qualification-v1.md	A hook output whose degradation frame names a time bound is not evidence for any	unrecorded	-
 HLQ-V1-010	docs/specs/host-lifecycle-qualification-v1.md	(accepted, decision 0498; V1-1121) With `--failed-reports DIR`, a run in which a	owner	decision 0498; V1-1121
+HLQ-V1-011	docs/specs/host-lifecycle-qualification-v1.md	(proposed; V1-2566, GitHub #1551) Each plugin host profile MUST declare its exac	unrecorded	-
 HDCV0-CAP-001	docs/specs/human-documentation-compiler-v0.md	`corvint-human-documentation-request/0` remains the request profile. Its	unrecorded	-
 HDCV0-CAP-002	docs/specs/human-documentation-compiler-v0.md	The request additionally binds the existing repository/config/intent/output/limi	unrecorded	-
 HDCV0-CAP-003	docs/specs/human-documentation-compiler-v0.md	Admission requires a native Linux host, kernel 5.12 or newer, systemd exactly 26	unrecorded	-
