@@ -167,6 +167,17 @@ within 15 minutes.
   be searched. `deleted` therefore means that no regular file with different content exists at the
   literal path, not that the path was removed; no `type-changed` status or reason member is added
   (decision 0098).
+- `CEM-PILOT-033`: (proposed 2026-10-24, V1-2522, not accepted) On a platform without advisory
+  file locks (every GOOS but darwin and linux, so windows/amd64, which the 1.0 release spec lists
+  `UNSUPPORTED`), the CEM update lock that `prepare`, `cite` and `mark` take MUST refuse
+  `publish-failed` before it creates any directory or lock file, and the refusal message MUST end
+  with `: serialized CEM map updates are unsupported on this platform`, the exact platform refusal
+  that `internal/testplatform` matches. Before V1-2522 the lock created `.corvint/`, then dropped
+  that cause and reported only `update lock for ".corvint/change.cem.json" cannot be opened`.
+  Non-goals: taking a lock on Windows (V1-2485 owns the Windows 1.0 scope decision), and a new wire
+  code. Failure mode: a Windows `cem prepare` exits with `publish-failed` naming the platform; no map,
+  cache, `.corvint/` directory or lock file is written. Rollback: revert the commit; the refusal
+  keeps its code and loses only its cause and its up-front position.
 
 ### Hunk review projection (V1-0501)
 
@@ -339,6 +350,7 @@ implementation non-authoritative and slated for separate removal.
 | `CEM-PILOT-013` | `internal/cem/workflow/read.go` `renderReport` | `TestReportRefusesCaseVariantOfMapPath` (case-insensitive volume; skips on a case-sensitive one), `TestReportRefusesNormalizationVariantOfMapPath` (normalization-insensitive volume; skips otherwise) |
 | `CEM-PILOT-018` | `internal/cem/cli/cli.go` `emitCEMError`, `internal/cem/workflow/commands.go` `resumeCandidate` | `TestCEMPrepareKeepsInheritedMapReplaceGuidance` (mismatch line, invalid-map line, absent-map fixed text) |
 | `CEM-PILOT-019` | `internal/cem/verify/verify.go` `driftItem` | `TestDriftSymlinkSameOIDIsStable` (identical-OID symlink), `TestDriftNonRegularTargetEntryIsDeleted` (changed symlink, directory, gitlink); the kit erratum-1 vector `deleted-symlink-changed` (decision 0098 amendment) ran through the 0.x verifier, whose interop corpus test was retired by V1-1278 S2b (`CEM-V1-215`) |
+| `CEM-PILOT-033` | `internal/cem/publish/lock.go` `Lock`, `lock_other.go` and `lock_unix.go` `LockRefusal` | `TestLockRefusalIsNilWithAdvisoryLocks` (darwin, linux), `TestLockRefusesUpFrontWithoutAdvisoryLocks` (other GOOS; type-checked by `make windows-vet`, run only on a Windows host), `TestCEMLockAndTasksRefusalsSkipOnlyOnWindows` (`internal/testplatform`); the Windows suites of `internal/cem/workflow`, `internal/lrfrepo`, `internal/frontiernextrepo` and `conformance/ocm-v0` skip on this refusal through `testplatform.SkipWindowsRefusal` (Windows rerun `NEEDS-HOST`) |
 
 ## Rollout and rollback
 

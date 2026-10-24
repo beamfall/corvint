@@ -21,6 +21,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // Queue identity shared by every fixture.
@@ -54,6 +55,9 @@ type Repo struct {
 // 4096 bytes (§2). It removes everything at test cleanup.
 func TempRepo(t *testing.T) *Repo {
 	t.Helper()
+	// Tasks refuses Windows up front, and a drive-letter temp path is no
+	// PathText, so a Windows run skips on that exact refusal (CTS-V0-025).
+	testplatform.SkipWindowsRefusal(t, wire.PlatformRefusal())
 	base, err := os.MkdirTemp("", "atm-")
 	if err != nil {
 		t.Fatalf("mkdtemp: %v", err)

@@ -11,6 +11,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/cem/workflow"
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // prepareStableCEM writes the cem/1.0 producer map for base..target at the
@@ -24,6 +25,7 @@ func prepareStableCEM(t *testing.T, root, base, target string) []byte {
 	if _, err := session.Prepare(context.Background(), workflow.PrepareOptions{
 		Base: base, Target: target, Spec: wire.StableSpec,
 	}); err != nil {
+		testplatform.SkipWindowsRefusal(t, err)
 		t.Fatal(err)
 	}
 	raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(wire.ExcludedCEMPath)))

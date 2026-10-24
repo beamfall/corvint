@@ -17,6 +17,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/patch"
 	"github.com/Beamfall/corvint/internal/cem/publish"
 	"github.com/Beamfall/corvint/internal/cem/wire"
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 func gitCmd(t *testing.T, dir string, args ...string) string {
@@ -186,8 +187,12 @@ func (s *Session) readProducerMap(relative string) ([]byte, *wire.Map, error) {
 	return raw, document, err
 }
 
+// openSession opens a session for a test that prepares, cites or marks a map.
+// Each of those takes the CEM update lock, so on Windows the test skips on
+// the lock's exact platform refusal (CEM-PILOT-033, V1-2522).
 func openSession(t *testing.T, root string) *Session {
 	t.Helper()
+	testplatform.SkipWindowsRefusal(t, publish.LockRefusal())
 	session, err := Open(root)
 	if err != nil {
 		t.Fatal(err)

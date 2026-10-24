@@ -19,6 +19,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/workflow"
 	"github.com/Beamfall/corvint/internal/frontiernext"
 	"github.com/Beamfall/corvint/internal/localauthority"
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 const intent = "# Intent\n\n## Requirements\n\n- `PLE-V0-005`: `Encode` canonical encoding preserves string bytes.\n\n## Next\n"
@@ -77,6 +78,7 @@ func fixtureRequest(t *testing.T, source, driver []byte, mutant bool) (string, f
 		t.Fatal(err)
 	}
 	if _, err = session.Prepare(context.Background(), workflow.PrepareOptions{Base: base, Target: target, Spec: wire.StableSpec}); err != nil {
+		testplatform.SkipWindowsRefusal(t, err)
 		t.Fatal(err)
 	}
 	session, err = workflow.Open(root)
