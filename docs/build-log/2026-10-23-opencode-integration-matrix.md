@@ -78,7 +78,10 @@ design (V1-2500) carries an owner question in its ticket.
 ## Live receipts
 
 - Native campaign `opencode-native-integration/1` on 2.1.3: PASS, every check true, retained as N.
-  The committed report is from the full-mode run against the committed tree.
+  The committed report is from the full-mode run (`tools/qualify-opencode`, focused suite included)
+  against committed tree `907a9f10`, adapter 0.7.18: 27 checks true, record PASS (39,355 bytes,
+  under the 131,072-byte bound); `interrupted.observation.json` (163 processes) matches the
+  report's `processesSHA256`.
 - MCP: project-config legacy selector PASS (M); global-config listing PASS (MG); global-config
   `"protocol": "2026-07-28"` PASS (`mcp-probe-protocol-2026-07-28.json`). The first model turn
   reported `Unknown tool namespace 'corvint'` in two runs: 2.1 connects MCP servers asynchronously.

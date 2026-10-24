@@ -1,5 +1,5 @@
 {
-  "adapterVersion": "0.7.17",
+  "adapterVersion": "0.7.18",
   "architecture": "arm64",
   "checks": {
     "advisory-completion": true,
@@ -34,949 +34,245 @@
     "absentBeforeSupervisorCleanup": true,
     "exit": 143,
     "observation": {
-      "scope": "observed-pid-start-identities",
-      "interval_ms": 20,
-      "processes": [
-        {
-          "pid": 75438,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:21 2026",
-          "state": "S"
-        },
-        {
-          "pid": 75464,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:21 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75472,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:21 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75474,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:21 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75476,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:21 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75480,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:21 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75482,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:21 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75484,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:21 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75487,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:21 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75489,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:21 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75506,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:21 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75510,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:21 2026",
-          "state": "S"
-        },
-        {
-          "pid": 75511,
-          "parent_pid": 75510,
-          "start": "Sat Oct 24 01:00:21 2026",
-          "state": "U"
-        },
-        {
-          "pid": 75526,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:21 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75533,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:21 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75546,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:21 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75555,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:21 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75557,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:21 2026",
-          "state": "U"
-        },
-        {
-          "pid": 75566,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75572,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75576,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75578,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75581,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75587,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75588,
-          "parent_pid": 75555,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "Rs"
-        },
-        {
-          "pid": 75594,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75602,
-          "parent_pid": 75588,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "Rs"
-        },
-        {
-          "pid": 75604,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75606,
-          "parent_pid": 75588,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "Rs"
-        },
-        {
-          "pid": 75608,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75613,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75616,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75620,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75621,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75624,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75628,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75632,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75635,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75638,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75640,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75644,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75651,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:22 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75653,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75656,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75659,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75664,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75667,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75671,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75674,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75677,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75680,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75683,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75685,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75688,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75690,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75694,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75696,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75699,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75701,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75704,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75708,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75710,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75714,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75717,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75718,
-          "parent_pid": 75588,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "Z"
-        },
-        {
-          "pid": 75720,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75723,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75726,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75729,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75732,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75738,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75741,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75744,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75746,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75748,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75751,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75755,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75758,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75762,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:23 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75765,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75767,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75771,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75773,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75779,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75780,
-          "parent_pid": 75588,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "Rs"
-        },
-        {
-          "pid": 75782,
-          "parent_pid": 75588,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "Ss"
-        },
-        {
-          "pid": 75784,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75786,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75790,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "U"
-        },
-        {
-          "pid": 75795,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75799,
-          "parent_pid": 75588,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "Rs"
-        },
-        {
-          "pid": 75800,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75802,
-          "parent_pid": 75782,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "S"
-        },
-        {
-          "pid": 75803,
-          "parent_pid": 75782,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75807,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75810,
-          "parent_pid": 75782,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75811,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75813,
-          "parent_pid": 75588,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "Ss"
-        },
-        {
-          "pid": 75815,
-          "parent_pid": 75813,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "S"
-        },
-        {
-          "pid": 75816,
-          "parent_pid": 75813,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75817,
-          "parent_pid": 75782,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75818,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75821,
-          "parent_pid": 75782,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75822,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75824,
-          "parent_pid": 75813,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75827,
-          "parent_pid": 75782,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75828,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75830,
-          "parent_pid": 75813,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75831,
-          "parent_pid": 75782,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75833,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75835,
-          "parent_pid": 75813,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75836,
-          "parent_pid": 75782,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75837,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75840,
-          "parent_pid": 75813,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75841,
-          "parent_pid": 75782,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75842,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75844,
-          "parent_pid": 75813,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75846,
-          "parent_pid": 75782,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75847,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75849,
-          "parent_pid": 75813,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75851,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75852,
-          "parent_pid": 75782,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75855,
-          "parent_pid": 75813,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        },
-        {
-          "pid": 75859,
-          "parent_pid": 75433,
-          "start": "Sat Oct 24 01:00:24 2026",
-          "state": "R"
-        }
-      ],
       "absent": true,
       "failures": [],
+      "interval_ms": 20,
       "limitations": [
         "fast detachment and reparenting between snapshots can remain unobserved; this is not full OS containment",
         "PID start identity resolution is platform-dependent; no universal adversarial containment claim"
-      ]
+      ],
+      "processCount": 163,
+      "processesFile": "interrupted.observation.json",
+      "processesSHA256": "c210f734c17db3ca00b923a84503d89e4afb84342644f3aadd640cc9b1104a15",
+      "scope": "observed-pid-start-identities"
     },
     "observedDescendants": [
-      75438,
-      75464,
-      75472,
-      75474,
-      75476,
-      75480,
-      75482,
-      75484,
-      75487,
-      75489,
-      75506,
-      75510,
-      75511,
-      75526,
-      75533,
-      75546,
-      75555,
-      75557,
-      75566,
-      75572,
-      75576,
-      75578,
-      75581,
-      75587,
-      75588,
-      75594,
-      75602,
-      75604,
-      75606,
-      75608,
-      75613,
-      75616,
-      75620,
-      75621,
-      75624,
-      75628,
-      75632,
-      75635,
-      75638,
-      75640,
-      75644,
-      75651,
-      75653,
-      75656,
-      75659,
-      75664,
-      75667,
-      75671,
-      75674,
-      75677,
-      75680,
-      75683,
-      75685,
-      75688,
-      75690,
-      75694,
-      75696,
-      75699,
-      75701,
-      75704,
-      75708,
-      75710,
-      75714,
-      75717,
-      75718,
-      75720,
-      75723,
-      75726,
-      75729,
-      75732,
-      75738,
-      75741,
-      75744,
-      75746,
-      75748,
-      75751,
-      75755,
-      75758,
-      75762,
-      75765,
-      75767,
-      75771,
-      75773,
-      75779,
-      75780,
-      75782,
-      75784,
-      75786,
-      75790,
-      75795,
-      75799,
-      75800,
-      75802,
-      75803,
-      75807,
-      75810,
-      75811,
-      75813,
-      75815,
-      75816,
-      75817,
-      75818,
-      75821,
-      75822,
-      75824,
-      75827,
-      75828,
-      75830,
-      75831,
-      75833,
-      75835,
-      75836,
-      75837,
-      75840,
-      75841,
-      75842,
-      75844,
-      75846,
-      75847,
-      75849,
-      75851,
-      75852,
-      75855,
-      75859
+      72900,
+      72906,
+      72911,
+      72915,
+      72922,
+      72926,
+      72930,
+      72937,
+      72945,
+      72954,
+      72956,
+      72973,
+      72977,
+      72978,
+      72997,
+      73000,
+      73005,
+      73010,
+      73015,
+      73019,
+      73020,
+      73024,
+      73027,
+      73031,
+      73034,
+      73036,
+      73038,
+      73041,
+      73043,
+      73046,
+      73050,
+      73051,
+      73053,
+      73056,
+      73057,
+      73060,
+      73063,
+      73066,
+      73070,
+      73073,
+      73075,
+      73079,
+      73081,
+      73085,
+      73089,
+      73090,
+      73093,
+      73097,
+      73099,
+      73102,
+      73105,
+      73109,
+      73110,
+      73113,
+      73117,
+      73120,
+      73123,
+      73125,
+      73127,
+      73131,
+      73134,
+      73136,
+      73139,
+      73142,
+      73144,
+      73147,
+      73150,
+      73154,
+      73156,
+      73160,
+      73163,
+      73165,
+      73168,
+      73172,
+      73174,
+      73177,
+      73179,
+      73182,
+      73185,
+      73188,
+      73191,
+      73193,
+      73197,
+      73199,
+      73203,
+      73205,
+      73207,
+      73210,
+      73213,
+      73216,
+      73218,
+      73222,
+      73224,
+      73227,
+      73230,
+      73232,
+      73236,
+      73239,
+      73242,
+      73244,
+      73246,
+      73250,
+      73253,
+      73255,
+      73258,
+      73260,
+      73261,
+      73264,
+      73267,
+      73270,
+      73273,
+      73277,
+      73279,
+      73281,
+      73288,
+      73312,
+      73315,
+      73317,
+      73321,
+      73323,
+      73326,
+      73331,
+      73334,
+      73337,
+      73340,
+      73343,
+      73349,
+      73356,
+      73361,
+      73365,
+      73367,
+      73370,
+      73371,
+      73373,
+      73376,
+      73378,
+      73380,
+      73381,
+      73382,
+      73383,
+      73385,
+      73387,
+      73389,
+      73390,
+      73391,
+      73395,
+      73396,
+      73404,
+      73406,
+      73407,
+      73411,
+      73414,
+      73415,
+      73421,
+      73424,
+      73425,
+      73426,
+      73429,
+      73430,
+      73431,
+      73438,
+      73439,
+      73442
     ],
     "passiveWitness": {
-      "75555": {
-        "pid": 75555,
-        "parent_pid": 75433,
-        "start": "Sat Oct 24 01:00:21 2026",
-        "state": "S"
+      "73010": {
+        "pid": 73010,
+        "parent_pid": 72898,
+        "start": "Sat Oct 24 01:32:23 2026",
+        "state": "SN"
       },
-      "75588": {
-        "pid": 75588,
-        "parent_pid": 75555,
-        "start": "Sat Oct 24 01:00:22 2026",
-        "state": "Ss"
+      "73038": {
+        "pid": 73038,
+        "parent_pid": 73010,
+        "start": "Sat Oct 24 01:32:23 2026",
+        "state": "SNs"
       },
-      "75782": {
-        "pid": 75782,
-        "parent_pid": 75588,
-        "start": "Sat Oct 24 01:00:24 2026",
-        "state": "Ss"
+      "73340": {
+        "pid": 73340,
+        "parent_pid": 73038,
+        "start": "Sat Oct 24 01:32:26 2026",
+        "state": "SNs"
       },
-      "75802": {
-        "pid": 75802,
-        "parent_pid": 75782,
-        "start": "Sat Oct 24 01:00:24 2026",
-        "state": "S"
+      "73370": {
+        "pid": 73370,
+        "parent_pid": 73340,
+        "start": "Sat Oct 24 01:32:26 2026",
+        "state": "SN"
       },
-      "75813": {
-        "pid": 75813,
-        "parent_pid": 75588,
-        "start": "Sat Oct 24 01:00:24 2026",
-        "state": "Ss"
+      "73378": {
+        "pid": 73378,
+        "parent_pid": 73038,
+        "start": "Sat Oct 24 01:32:26 2026",
+        "state": "SNs"
       },
-      "75815": {
-        "pid": 75815,
-        "parent_pid": 75813,
-        "start": "Sat Oct 24 01:00:24 2026",
-        "state": "S"
+      "73381": {
+        "pid": 73381,
+        "parent_pid": 73378,
+        "start": "Sat Oct 24 01:32:26 2026",
+        "state": "SN"
       },
-      "75822": {
-        "pid": 75822,
-        "parent_pid": 75433,
-        "start": "Sat Oct 24 01:00:24 2026",
-        "state": "R"
+      "73391": {
+        "pid": 73391,
+        "parent_pid": 72898,
+        "start": "Sat Oct 24 01:32:26 2026",
+        "state": "RN"
       },
-      "75824": {
-        "pid": 75824,
-        "parent_pid": 75813,
-        "start": "Sat Oct 24 01:00:24 2026",
-        "state": "R"
+      "73395": {
+        "pid": 73395,
+        "parent_pid": 73378,
+        "start": "Sat Oct 24 01:32:26 2026",
+        "state": "RN"
       },
-      "75827": {
-        "pid": 75827,
-        "parent_pid": 75782,
-        "start": "Sat Oct 24 01:00:24 2026",
-        "state": "R"
+      "73396": {
+        "pid": 73396,
+        "parent_pid": 73340,
+        "start": "Sat Oct 24 01:32:26 2026",
+        "state": "RN"
       }
     },
     "survivors": []
   },
-  "corvintSHA256": "8eb03db7fd69af79f68fdd9e4b6879dd4b1f1585e01173807a85085a7dc56653",
+  "corvintSHA256": "18edd8ceec3f41423e59a37e8a37698ac2e96c465c6b623e9289f6c0e50a26ae",
   "executionAuthority": "NONE",
   "frontier": "UNAVAILABLE",
-  "harnessSHA256": "ab6d1911f06d1b52977743d7fe864ec8326e732377ecbb47f2e7d53f0aaf2fa2",
+  "harnessSHA256": "c178ae4679fcf6adadc03798526aca8b281fff075560bfb03712df00aaf4a9de",
   "hostSHA256": "1638ccfd0936dc10b15df34268b541a219822f4735d564359420d426c03383f1",
   "hostVersion": "2.1.3",
   "inputTokens": "NOT_OBSERVED (provider usage is synthetic compaction stimulus)",
@@ -1000,147 +296,148 @@
       {
         "baseline": {
           "comparison": "WITHIN_SCALED_LIMITS",
-          "lifecycleRelative": 15.93568149971601,
-          "p95Ms": 5.281,
+          "lifecycleRelative": 3.9329727436994846,
+          "p95Ms": 52.575,
           "probe": "/usr/bin/true",
-          "queryRelative": 24.342272675629474,
+          "queryRelative": 5.19372800760817,
           "quietReferenceP95Ms": 2,
-          "samples": 151,
-          "scaledLifecycleLimitMs": 990.1875,
-          "scaledQueryLimitMs": 1980.375,
-          "slowdown": 2.6405,
+          "samples": 112,
+          "scaledLifecycleLimitMs": 9857.8125,
+          "scaledQueryLimitMs": 19715.625,
+          "slowdown": 26.2875,
           "tolerance": 1.5
         },
         "contention": {
           "end": {
-            "loadAverage15m": 9.82,
-            "loadAverage1m": 9.62,
-            "loadAverage5m": 9.11,
+            "loadAverage15m": 13.99,
+            "loadAverage1m": 7.45,
+            "loadAverage5m": 11.9,
             "logicalCPUs": 12,
             "runQueue": "NOT_OBSERVED",
             "source": "sysctl vm.loadavg"
           },
           "start": {
-            "loadAverage15m": 9.62,
-            "loadAverage1m": 6.23,
-            "loadAverage5m": 8.49,
+            "loadAverage15m": 14.02,
+            "loadAverage1m": 6.77,
+            "loadAverage5m": 11.92,
             "logicalCPUs": 12,
             "runQueue": "NOT_OBSERVED",
             "source": "sysctl vm.loadavg"
           }
         },
         "failures": [],
-        "lifecycleP95Ms": 84.15633400000024,
+        "lifecycleP95Ms": 206.77604200000042,
         "lifecycleSamples": 44,
         "outcome": "PASS",
-        "queryP95Ms": 128.55154199999924,
+        "queryP95Ms": 273.06024999999954,
         "querySamples": 21
       }
     ],
     "latencyBaseline": {
       "comparison": "WITHIN_SCALED_LIMITS",
-      "lifecycleRelative": 15.93568149971601,
-      "p95Ms": 5.281,
+      "lifecycleRelative": 3.9329727436994846,
+      "p95Ms": 52.575,
       "probe": "/usr/bin/true",
-      "queryRelative": 24.342272675629474,
+      "queryRelative": 5.19372800760817,
       "quietReferenceP95Ms": 2,
-      "samples": 151,
-      "scaledLifecycleLimitMs": 990.1875,
-      "scaledQueryLimitMs": 1980.375,
-      "slowdown": 2.6405,
+      "samples": 112,
+      "scaledLifecycleLimitMs": 9857.8125,
+      "scaledQueryLimitMs": 19715.625,
+      "slowdown": 26.2875,
       "tolerance": 1.5
     },
     "latencyMethod": "AHI-056: absolute AHI-012 p95 limits; at most one same-run re-sample when only a p95 limit missed; the re-sample decides and every attempt is retained. AHI-171: each window records host contention; a latency-only miss whose decisive window peaked above the declared load per CPU is RETRY_LATER (LATENCY_HOST_CONTENDED), not a regression. AHI-172: a fixed no-op probe sampled during each window measures the host's slowdown against its quiet reference; a contended miss beyond the limits scaled by that slowdown and tolerance is a LATENCY_REGRESSION",
     "latencyOutcome": "PASS",
     "lifecycle": [
-      84.15633400000024,
-      71.18512499999997,
-      72.56908299999941,
-      78.22158300000046,
-      82.13070799999969,
-      95.87862499999937,
-      80.01391700000022,
-      81.70912500000031,
-      80.11104199999863,
-      73.88008400000035,
-      76.8535410000004,
-      75.15545799999927,
-      76.19508399999904,
-      73.06679199999962,
-      77.6117919999997,
-      75.85933399999885,
-      77.00637499999903,
-      72.15554100000008,
-      72.5796250000003,
-      73.0698339999999,
-      71.76862500000061,
-      64.66237499999988,
-      65.13075000000026,
-      65.21804200000042,
-      68.1048750000009,
-      67.03545899999881,
-      65.15295800000058,
-      68.90666699999929,
-      65.67770799999926,
-      66.10412500000166,
-      69.04349999999977,
-      68.83400000000074,
-      67.87845799999923,
-      63.261750000001484,
-      63.941417,
-      65.73679100000118,
-      64.85870799999975,
-      68.18837499999972,
-      70.33541700000023,
-      66.15404200000012,
-      64.80766600000061,
-      66.8997500000005,
-      66.97691699999996,
-      333.4150840000002
+      69.90949999999975,
+      75.50329099999999,
+      79.86170900000025,
+      101.57008300000007,
+      68.44133300000021,
+      69.47762499999999,
+      70.16333300000042,
+      119.88233300000002,
+      230.7708749999997,
+      66.62937499999998,
+      65.39104199999929,
+      69.9292919999998,
+      82.23108299999967,
+      139.29329099999995,
+      88.43966699999964,
+      75.50516599999992,
+      70.07483299999967,
+      215.11712499999976,
+      70.4067500000001,
+      64.52883399999973,
+      75.67804199999955,
+      117.28562499999953,
+      130.97404199999983,
+      109.1200829999998,
+      61.81995799999913,
+      60.95100000000002,
+      61.85187499999938,
+      63.51995799999986,
+      64.29191600000013,
+      67.91949999999997,
+      78.07058299999971,
+      57.32316700000047,
+      57.21654200000012,
+      56.330291999999645,
+      57.7382090000001,
+      69.63708399999996,
+      81.41070899999977,
+      78.06891700000051,
+      57.80479199999991,
+      59.39325000000008,
+      62.70800000000054,
+      74.44641599999977,
+      70.9566249999998,
+      206.77604200000042
     ],
-    "lifecycleP95Ms": 84.15633400000024,
+    "lifecycleP95Ms": 206.77604200000042,
     "manualBytes": 14362,
     "observer": "transparent registration wrapper; candidate source unchanged; direct Corvint executable, no capture subprocess",
     "query": [
-      126.62383299999965,
-      109.9346659999992,
-      120.56762499999968,
-      118.19424999999956,
-      127.52620800000022,
-      125.63537499999984,
-      120.36549999999988,
-      121.55349999999999,
-      120.29804200000035,
-      113.86529200000041,
-      129.03058299999975,
-      113.7599999999984,
-      116.07808300000033,
-      112.08795900000041,
-      116.3690000000006,
-      118.86108299999978,
-      128.55154199999924,
-      115.16666700000133,
-      110.44908299999952,
-      112.03895799999918,
-      110.03158299999996
+      107.97845899999993,
+      115.08320800000001,
+      121.95441699999992,
+      138.51391700000022,
+      104.73754199999985,
+      117.14874999999984,
+      121.92145800000026,
+      162.10175000000027,
+      306.5465419999996,
+      115.56583300000011,
+      103.64529099999982,
+      106.23908300000039,
+      158.03699999999935,
+      198.30945900000006,
+      132.7167500000005,
+      118.82566700000007,
+      110.54370800000015,
+      273.06024999999954,
+      111.64962500000001,
+      105.93075000000044,
+      112.47379199999978
     ],
-    "queryP95Ms": 128.55154199999924,
+    "queryP95Ms": 273.06024999999954,
     "surface": "real stock host callbacks, including normalization, spawn, framing and delivery"
   },
   "os": "darwin",
   "profile": "opencode-native-integration/1",
-  "qualificationBinarySHA256": "d6ce094eb99f4be750aff355fabc157ffb9cec6e8b41d2174cebf727ee855cee",
+  "qualificationBinarySHA256": "536414dbbfd22eb69c66c0f67361935243d492531c7b18c8681d30fc5d2ae757",
   "requiresFocusedSuite": "TestHostAdapterJavaScriptHosts",
   "result": "PASS",
-  "root": "/private/tmp/claude-501/lane-host-opencode-ev/native-213-2/run-545160121",
-  "sourceCommit": "368b80d438669f618ac4cf1884ac19dd65fbc4a5",
+  "root": "/private/tmp/claude-501/lane-host-opencode-ev/qual-213/qualification-3995078891/native/run-110313062",
+  "sourceCommit": "907a9f10f265ddfe9d64a1a5ac94a564e40dd5dd",
   "sourceFiles": {
-    "integrations/opencode/README.md": "c96782479fcb2eb6fede0d2a779f33d319e4c0db7567059aa5acc541338ee6b8",
+    "integrations/opencode/README.md": "d0f5933c06f6557feecff0cc9942f257350d2cb2ffe13563410d4328a3fd6d97",
     "integrations/opencode/cockpit.test.mjs": "d2b8509ecd756d3709565ebe7a0c345a3b28a69433bb7ccb9eb03809368e3193",
+    "integrations/opencode/evidence.test.mjs": "8be68deee69a151f3254487b010d485c1e99a927175f30bbd524908c188083b7",
     "integrations/opencode/inspector.test.mjs": "3d2ecb4bbbd4872f544c9994d38ae4c9a1fa005ccc15e7841dfedd4a1bdeea62",
     "integrations/opencode/mcp.example.json": "96a8bf25105718ad2d7187f722657bbe2729a71b0947a340de6b461a6e200ebe",
     "integrations/opencode/opencode.example.json": "2d9b4779adb8ff163344eb267e09efd2983a7fc58c28bab3e3fe0ec8632bffd7",
-    "integrations/opencode/package.json": "9ca4bf510b789351eccf6a843c99281b4f52317c9cdb8617303d858e10df5867",
+    "integrations/opencode/package.json": "a354555545f538307b78397d3d5ffbd887686ab08f6e987374cddc735c1f580b",
     "integrations/opencode/skill.test.mjs": "1f92fb53664ae5e728b3c81bf35e2e5a9152bbc255328f43068090496245ac06",
     "integrations/opencode/skills/corvint/SKILL.md": "23997f3b31c840f82af6a3c3fc626337c4c4603059fcf123ebdf421bf27b6442",
     "integrations/opencode/src/cockpit-client.js": "41f4611edcbf3feeecb1e20bf5e532b773848715c2d806ae2fb9ae2a0068975d",
@@ -1152,8 +449,8 @@
     "integrations/opencode/src/inspector-view.js": "cca79f0b625326254548bea4990f76857de565eb2063415fdd14085696ef958b",
     "integrations/opencode/src/inspector.js": "7b137f7e11e4bbe092122d27e2db067c64747d040892a947ca857938eee1d0c3",
     "integrations/opencode/src/prompt-bound.js": "fd37db1c56114f650aae6a51c6d46cfa95d2d822915963fb6909639b67b04fd4",
-    "integrations/opencode/src/qualification.js": "b730a5bf1c644b91480ecc373d74df9a63933ef00fed336847d263ca0c92f306",
-    "integrations/opencode/src/runtime.js": "2e9722160296ea247126695ea22f9b283e9693f3101834fb2c25614b420ba746",
+    "integrations/opencode/src/qualification.js": "d72618137edf015ba8d63c52641d7f04e5b9910d7c3949438c72315fbf9bf9f1",
+    "integrations/opencode/src/runtime.js": "ba89946baf97ef474d4bb111ddc92678cc920431c8251c4dc8bc8d087d7afe11",
     "integrations/opencode/src/session-metrics.js": "0b61210dc6539c092fc9711659b764131d6d25151bc75429fc89ca9ac9873276",
     "integrations/opencode/src/skill.js": "d80021218bc79f06964a0ab5c3baa42bfa08e35d113c64e2f893a2f8860ff222",
     "integrations/opencode/src/task-metrics.js": "5090f5bdcf368189bdf0878b8f0ea77e9f249e8f77386d5fd3bfa6c220f22015",
