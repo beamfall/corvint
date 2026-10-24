@@ -182,13 +182,17 @@ cem-release-suites:
 # refusal: the committed declaration names rows one host cannot observe (binary-level repository
 # envelope, the other release platform, external interoperability), so a pass on this host is
 # never release support. It is opt-in, not a `make gate` step; CI wiring is owner .github work.
+# CEM_RELEASE_RECORD=PATH writes this platform's cem-release-run/1 record and
+# CEM_RELEASE_OUTCOME=PATH the cem-release-gate-outcome/1 verdict (CEM-V1-611, CEM-V1-613); both
+# paths must not exist yet. `go run ./tools/cem-release-suites --aggregate --readiness PATH
+# --outcome OUT RECORD...` judges the records of one revision from several hosts (CEM-V1-612).
 cem-release-gate: go-version
 	@test -z "$$(git status --porcelain)" || { echo "cem-release-gate: the checkout has changes or untracked files; release binaries are built from a clean HEAD" >&2; exit 2; }
 	node --test tools/cem-release-suites/readiness.test.mjs
 	@bin=$$(mktemp -d) && trap '/bin/rm -rf "$$bin"' EXIT INT TERM && \
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -o "$$bin/corvint" ./cmd/corvint && \
 	(cd interop/cem01-go && GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -o "$$bin/cem01-go" .) && \
-	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/cem-release-suites --corvint "$$bin/corvint" --cem01 "$$bin/cem01-go" --readiness tools/cem-release-suites/READINESS.json
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/cem-release-suites --corvint "$$bin/corvint" --cem01 "$$bin/cem01-go" --readiness tools/cem-release-suites/READINESS.json $(if $(CEM_RELEASE_RECORD),--record "$(CEM_RELEASE_RECORD)") $(if $(CEM_RELEASE_OUTCOME),--outcome "$(CEM_RELEASE_OUTCOME)")
 
 # spec-requirements regenerates docs/specs/REQUIREMENTS.tsv and projects the spec headers onto
 # docs/specs/INDEX.json and the docs/specs/README.md table (SRG-V0-012). The generator reads the

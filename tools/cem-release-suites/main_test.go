@@ -343,7 +343,7 @@ func TestCEMV1603JudgeReadiness(t *testing.T) {
 	}
 	runner, platforms, external := observedRows("linux/amd64", nil)
 	var out bytes.Buffer
-	if code := judgeReadiness(committed, [][]byte{accept}, runner, platforms, external, &out); code != 3 {
+	if code, _ := judgeReadiness(committed, [][]byte{accept}, runner, platforms, external, &out); code != 3 {
 		t.Fatalf("committed declaration exit %d, want 3: %s", code, out.String())
 	}
 	for _, want := range []string{"readiness: runner corvint:repository-envelope NOT_RUN", "readiness: runner cem01-go:neutral-criterion PASSED", "readiness: platform darwin/arm64 NOT_OBSERVED", "readiness: platform linux/amd64 PASSED", "readiness: external independent-external-consumer NOT_OBSERVED", "readiness: REFUSED (1 accepted stable results read): release-runner-incomplete"} {
@@ -353,15 +353,15 @@ func TestCEMV1603JudgeReadiness(t *testing.T) {
 	}
 	narrow := companionrelease.StableReleaseDeclaration{Profile: companionrelease.StableReleaseDeclarationProfile, Runner: []string{"corvint:neutral-criterion"}, Platform: []string{"linux/amd64"}, External: []string{"independent-external-consumer"}}
 	out.Reset()
-	if code := judgeReadiness(narrow, [][]byte{accept}, runner, platforms, external, &out); code != 3 || !strings.Contains(out.String(), "release-external-incomplete") {
+	if code, _ := judgeReadiness(narrow, [][]byte{accept}, runner, platforms, external, &out); code != 3 || !strings.Contains(out.String(), "release-external-incomplete") {
 		t.Fatalf("self-observed run exit %d, want 3 at external: %s", code, out.String())
 	}
 	out.Reset()
-	if code := judgeReadiness(narrow, nil, runner, platforms, external, &out); code != 3 || !strings.Contains(out.String(), "stable-result-not-accepted") {
+	if code, _ := judgeReadiness(narrow, nil, runner, platforms, external, &out); code != 3 || !strings.Contains(out.String(), "stable-result-not-accepted") {
 		t.Fatalf("run without an accepted result exit %d: %s", code, out.String())
 	}
 	out.Reset()
-	if code := judgeReadiness(narrow, [][]byte{accept}, runner, platforms, map[string]string{"independent-external-consumer": "PASSED"}, &out); code != 0 || !strings.Contains(out.String(), "readiness: READY (1 accepted stable results read)") {
+	if code, _ := judgeReadiness(narrow, [][]byte{accept}, runner, platforms, map[string]string{"independent-external-consumer": "PASSED"}, &out); code != 0 || !strings.Contains(out.String(), "readiness: READY (1 accepted stable results read)") {
 		t.Fatalf("fully observed run exit %d: %s", code, out.String())
 	}
 }

@@ -5,7 +5,8 @@
 //
 // Usage:
 //
-//	cem-release-suites --corvint BIN --cem01 BIN [--root DIR] [--readiness PATH]
+//	cem-release-suites --corvint BIN --cem01 BIN [--root DIR] [--readiness PATH [--record OUT] [--outcome OUT]]
+//	cem-release-suites --aggregate [--root DIR] --readiness PATH [--outcome OUT] RECORD...
 //
 // Each binary must carry Go build information naming one vcs.revision with
 // vcs.modified=false, the two revisions must be equal, and the checkout at
@@ -33,6 +34,12 @@
 // row is PASSED only when all 29 cells passed against that binary, and every
 // external row is NOT_OBSERVED, so a declaration that requires one is refused
 // with exit 3 after the suites pass.
+//
+// --record writes the run's cem-release-run/1 record (CEM-V1-611) and
+// --outcome its cem-release-gate-outcome/1 verdict (CEM-V1-613). --aggregate
+// judges readiness over records of one revision from several hosts, so each
+// release platform row can be observed by its own run (CEM-V1-612). Records
+// and outcomes are unauthenticated run output.
 package main
 
 import (
@@ -75,8 +82,15 @@ func run(args []string, stdout, stderr io.Writer) int {
 	cem01 := flags.String("cem01", "", "built cem01-go binary")
 	root := flags.String("root", ".", "repository checkout the binaries were built from")
 	readiness := flags.String("readiness", "", "repository-relative cem-release-readiness/1 declaration read from the build commit")
-	if err := flags.Parse(args); err != nil || *corvint == "" || *cem01 == "" || flags.NArg() != 0 || *readiness != "" && !repositoryRelative(*readiness) {
-		fmt.Fprintln(stderr, "usage: cem-release-suites --corvint BIN --cem01 BIN [--root DIR] [--readiness PATH]")
+	record := flags.String("record", "", "write this run's cem-release-run/1 record here (requires --readiness)")
+	aggregate := flags.Bool("aggregate", false, "judge readiness over the cem-release-run/1 records named as arguments")
+	outcome := flags.String("outcome", "", "write the cem-release-gate-outcome/1 readiness verdict here (requires --readiness)")
+	usage := "usage: cem-release-suites --corvint BIN --cem01 BIN [--root DIR] [--readiness PATH [--record OUT] [--outcome OUT]]\n       cem-release-suites --aggregate [--root DIR] --readiness PATH [--outcome OUT] RECORD..."
+	err := flags.Parse(args)
+	if err != nil || *readiness != "" && !repositoryRelative(*readiness) || (*record != "" || *outcome != "") && *readiness == "" ||
+		*aggregate && (*readiness == "" || *corvint != "" || *cem01 != "" || *record != "" || flags.NArg() == 0) ||
+		!*aggregate && (*corvint == "" || *cem01 == "" || flags.NArg() != 0) {
+		fmt.Fprintln(stderr, usage)
 		return 2
 	}
 	absRoot, err := filepath.Abs(*root)
@@ -84,17 +98,26 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "cem-release-suites:", err)
 		return 2
 	}
+	if *aggregate {
+		return aggregateRuns(absRoot, *readiness, flags.Args(), *outcome, stdout, stderr)
+	}
+	for _, out := range []string{*record, *outcome} {
+		if err := absentOutput(out); err != nil {
+			fmt.Fprintln(stderr, "cem-release-suites:", err)
+			return 2
+		}
+	}
 	revision, platform, err := releaseBuild(*corvint, *cem01, absRoot)
 	if err != nil {
 		fmt.Fprintln(stderr, "cem-release-suites: refused:", err)
 		return 1
 	}
-	report, err := provenanceReport(revision, *corvint, *cem01)
+	sums, err := binaryDigests(*corvint, *cem01)
 	if err != nil {
 		fmt.Fprintln(stderr, "cem-release-suites:", err)
 		return 2
 	}
-	fmt.Fprintln(stdout, report)
+	fmt.Fprintln(stdout, provenanceLine(revision, sums))
 	r := &runner{bins: [2]binary{{name: "corvint", argv: []string{mustAbs(*corvint), "cem", "verify-stable"}}, {name: "cem01-go", argv: []string{mustAbs(*cem01), "verify-stable-canonical"}}}}
 	tmp, err := privateDir()
 	if tmp != "" {
@@ -111,10 +134,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	var declaration companionrelease.StableReleaseDeclaration
+	var declarationRaw []byte
 	if *readiness != "" {
-		raw, err := os.ReadFile(filepath.Join(src, filepath.FromSlash(*readiness)))
+		declarationRaw, err = os.ReadFile(filepath.Join(src, filepath.FromSlash(*readiness)))
 		if err == nil {
-			declaration, err = companionrelease.ReadStableReleaseDeclaration(raw)
+			declaration, err = companionrelease.ReadStableReleaseDeclaration(declarationRaw)
 		}
 		if err != nil {
 			fmt.Fprintln(stderr, "cem-release-suites: refused: readiness declaration:", err)
@@ -156,7 +180,28 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 0
 	}
 	runnerRows, platformRows, externalRows := observedRows(platform, envelope)
-	return judgeReadiness(declaration, r.accepted, runnerRows, platformRows, externalRows, stdout)
+	var records []string
+	if *record != "" {
+		rec := runRecord{Profile: runRecordProfile, Revision: revision, Platform: platform,
+			Declaration: recordFile{Path: *readiness, Sha256: digest(declarationRaw)},
+			Binaries:    []recordBinary{{Name: "corvint", Main: corvintMain, Sha256: sums[0]}, {Name: "cem01-go", Main: cem01Main, Sha256: sums[1]}},
+			Runner:      runnerRows, Platforms: platformRows, Accepted: []string{}}
+		for _, line := range r.accepted {
+			rec.Accepted = append(rec.Accepted, string(line))
+		}
+		raw, err := encodeRunRecord(rec)
+		if err == nil {
+			err = writeNew(*record, raw)
+		}
+		if err != nil {
+			fmt.Fprintln(stderr, "cem-release-suites: record:", err)
+			return 2
+		}
+		records = []string{digest(raw)}
+		fmt.Fprintf(stdout, "cem-release-suites: record: %s sha256 %s (unauthenticated run output)\n", *record, records[0])
+	}
+	code, reason := judgeReadiness(declaration, r.accepted, runnerRows, platformRows, externalRows, stdout)
+	return writeOutcome(*outcome, revision, digest(declarationRaw), records, code, reason, stdout, stderr)
 }
 
 // releaseSuites are the binary-level suites, in run order.
@@ -187,8 +232,9 @@ func observedRows(platform string, envelope map[string]string) (runner, platform
 }
 
 // judgeReadiness prints every declared row's observed outcome and the
-// readiness verdict: exit 0 when ready, 3 when refused (CEM-V1-603).
-func judgeReadiness(d companionrelease.StableReleaseDeclaration, accepted [][]byte, runner, platforms, external map[string]string, stdout io.Writer) int {
+// readiness verdict: exit 0 when ready, 3 when refused (CEM-V1-603), with the
+// refusal's text.
+func judgeReadiness(d companionrelease.StableReleaseDeclaration, accepted [][]byte, runner, platforms, external map[string]string, stdout io.Writer) (int, string) {
 	for _, class := range []struct {
 		name     string
 		rows     []string
@@ -204,10 +250,10 @@ func judgeReadiness(d companionrelease.StableReleaseDeclaration, accepted [][]by
 	}
 	if err := companionrelease.StableReleaseReadiness(d, accepted, runner, platforms, external); err != nil {
 		fmt.Fprintf(stdout, "cem-release-suites: readiness: REFUSED (%d accepted stable results read): %v\n", len(accepted), err)
-		return 3
+		return 3, err.Error()
 	}
 	fmt.Fprintf(stdout, "cem-release-suites: readiness: READY (%d accepted stable results read); owner promotion is separate\n", len(accepted))
-	return 0
+	return 0, ""
 }
 
 // repositoryRelative reports whether p is a clean slash-separated path inside
@@ -236,16 +282,33 @@ func privateDir() (string, error) {
 // binary's bytes by SHA-256. A Go build stamp is unauthenticated metadata that
 // an edited binary can carry, so the line says reported, never proven.
 func provenanceReport(revision, corvint, cem01 string) (string, error) {
+	sums, err := binaryDigests(corvint, cem01)
+	if err != nil {
+		return "", err
+	}
+	return provenanceLine(revision, sums), nil
+}
+
+func provenanceLine(revision string, sums [2]string) string {
+	return fmt.Sprintf("cem-release-suites: both binaries report clean vcs.revision %s (unauthenticated build stamps, not verified build provenance); corvint sha256 %s, cem01-go sha256 %s", revision, sums[0], sums[1])
+}
+
+// binaryDigests is the SHA-256 of each binary's bytes.
+func binaryDigests(corvint, cem01 string) ([2]string, error) {
 	sums := [2]string{}
 	for i, path := range []string{corvint, cem01} {
 		raw, err := os.ReadFile(path)
 		if err != nil {
-			return "", err
+			return sums, err
 		}
-		sum := sha256.Sum256(raw)
-		sums[i] = hex.EncodeToString(sum[:])
+		sums[i] = digest(raw)
 	}
-	return fmt.Sprintf("cem-release-suites: both binaries report clean vcs.revision %s (unauthenticated build stamps, not verified build provenance); corvint sha256 %s, cem01-go sha256 %s", revision, sums[0], sums[1]), nil
+	return sums, nil
+}
+
+func digest(raw []byte) string {
+	sum := sha256.Sum256(raw)
+	return hex.EncodeToString(sum[:])
 }
 
 // sourceSuites are the source-level repository-envelope tests, run in the
