@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // CEP-V0-001: a ContextBench row maps to one sample with ContextBench's own
@@ -53,6 +55,7 @@ func TestContextBenchRowsMapToSamplesAndBadRowsAreRefused(t *testing.T) {
 // file and line coverage/precision follow ContextBench's definitions, with a
 // ranked file covering all of its lines, and the report pins the rows digest.
 func TestContextBenchFixtureScoresFileAndLineCoverage(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the corvint stand-in is a #!/bin/sh script")
 	t.Setenv("TMPDIR", t.TempDir())
 	directory := filepath.Join("testdata", "contextbench")
 	corvintGo := filepath.Join(t.TempDir(), "corvint")

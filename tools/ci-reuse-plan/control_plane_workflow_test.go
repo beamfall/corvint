@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // AFP-V0-171 (V1-1847): when CI reruns on a pull-request head that changes .github/, the
@@ -13,6 +15,7 @@ import (
 // head: it posts nothing. A bot-posted success, a newer failure, another context, or no status
 // at all (a new push) still gets failure, and an unreadable status listing posts nothing.
 func TestAFPV0171ControlPlaneKeepsAUserPostedSuccess(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the control-plane step runs under bash with a #!/bin/sh gh spy")
 	for _, tool := range []string{"bash", "jq"} {
 		if _, err := exec.LookPath(tool); err != nil {
 			t.Fatalf("the control-plane step needs %s on PATH: %v", tool, err)
