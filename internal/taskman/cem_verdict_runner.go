@@ -6,7 +6,6 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/verify"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/testrunner"
-	"github.com/Beamfall/corvint/internal/testrunner/cli"
 )
 
 // The runner-bound satisfaction bases (CEM-V1-606, CEM-V1-607). Neither raises
@@ -147,7 +146,7 @@ func (b *runnerBinding) run(digest string) (runnerRun, error) {
 		var plan testrunner.PlanDocument
 		var receipt testrunner.ReceiptDocument
 		if testrunner.DecodeDocument(planBytes, &plan) != nil || testrunner.DecodeDocument(receiptBytes, &receipt) != nil ||
-			plan.Profile != cli.PlanProfile || receipt.Profile != wire.StableRunnerReceiptProfile || receipt.PlanSha256 != testrunner.Identity(plan) {
+			plan.Profile != testrunner.PlanProfile || receipt.Profile != wire.StableRunnerReceiptProfile || receipt.PlanSha256 != testrunner.Identity(plan) {
 			out.reason = runnerReasonArtifactMismatch
 		} else if !runnerPassed(receipt) {
 			out.reason = runnerReasonNotPassed
