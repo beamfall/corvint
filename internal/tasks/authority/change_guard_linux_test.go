@@ -83,8 +83,8 @@ func TestPSRV0222_ChangeGuardSeesFileMutationsThroughItsDirectory(t *testing.T) 
 				t.Fatal(err)
 			}
 			defer g.Close()
-			if w := g.watch.(*notifyWatch); files != 0 || len(w.stats) != 0 {
-				t.Fatalf("%d file watches and %d stat-tracked files, want none", files, len(w.stats))
+			if w := g.watch.(*notifyWatch); files != 0 || len(w.uncovered) != 0 {
+				t.Fatalf("%d file watches and %d uncovered files, want none", files, len(w.uncovered))
 			}
 			switch name {
 			case "write-same-size":
@@ -152,8 +152,8 @@ func TestPSRV0222_ChangeGuardTracksAMultiplyLinkedFileByStat(t *testing.T) {
 			}
 			defer g.Close()
 			w := g.watch.(*notifyWatch)
-			if len(w.stats) != 1 || w.stats[0].path != file {
-				t.Fatalf("stat-tracked %v, want only %s", w.stats, file)
+			if len(w.uncovered) != 1 || w.files[w.uncovered[0]].path != file {
+				t.Fatalf("uncovered %v of %v, want only %s", w.uncovered, w.files, file)
 			}
 			switch name {
 			case "write-same-size":
@@ -185,6 +185,127 @@ func TestPSRV0222_ChangeGuardTracksAMultiplyLinkedFileByStat(t *testing.T) {
 	}
 }
 
+// PSR-V0-223: a link made to a singly linked file after registration, outside
+// every watched directory, and a write or mode change through it, or through a
+// descriptor opened through a link removed before registration, reaches no
+// watched directory; the stat identity re-read by Sweep (link count, size,
+// mode, change time) reports it to CheckEvents under the writer lock, and
+// Check reports it too.
+func TestPSRV0223_ChangeGuardSeesAWriteThroughAnAliasLink(t *testing.T) {
+	for _, name := range []string{"none", "alias", "alias-write-same-size", "alias-write-then-unlink", "alias-chmod", "removed-link-descriptor"} {
+		t.Run(name, func(t *testing.T) {
+			repo, file := guardRepo(t)
+			outside := filepath.Join(t.TempDir(), "alias")
+			var early *os.File
+			if name == "removed-link-descriptor" {
+				if err := os.Link(file, outside); err != nil {
+					t.Skipf("hard links unsupported: %v", err)
+				}
+				var err error
+				if early, err = os.OpenFile(outside, os.O_WRONLY, 0); err != nil {
+					t.Fatal(err)
+				}
+				defer early.Close()
+				if err := os.Remove(outside); err != nil {
+					t.Fatal(err)
+				}
+			}
+			g, err := WatchChanges(repo)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer g.Close()
+			if w := g.watch.(*notifyWatch); len(w.uncovered) != 0 {
+				t.Fatalf("uncovered %v, want none: the file is singly linked", w.uncovered)
+			}
+			alias := func() error {
+				if err := os.Link(file, outside); err != nil {
+					t.Skipf("hard links unsupported: %v", err)
+				}
+				return nil
+			}
+			switch name {
+			case "alias":
+				err = alias()
+			case "alias-write-same-size":
+				if err = alias(); err == nil {
+					err = os.WriteFile(outside, []byte("bbbb"), 0600)
+				}
+			case "alias-write-then-unlink":
+				// The link count is restored; the size is not.
+				if err = alias(); err == nil {
+					err = os.WriteFile(outside, []byte("bbbbbb"), 0600)
+				}
+				if err == nil {
+					err = os.Remove(outside)
+				}
+			case "alias-chmod":
+				if err = alias(); err == nil {
+					err = os.Chmod(outside, 0640)
+				}
+			case "removed-link-descriptor":
+				_, err = early.WriteAt([]byte("dddddd"), 0)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := wire.CodeSnapshotMoved
+			if name == "none" {
+				want = ""
+			}
+			g.Sweep()
+			if got := wire.CodeOf(g.CheckEvents()); got != want {
+				t.Fatalf("check events after sweep = %q, want %q", got, want)
+			}
+			if got := wire.CodeOf(g.Check()); got != want {
+				t.Fatalf("check = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+// PSR-V0-223: a file with a second link at registration is re-read by every
+// poll, so a write or mode change through that link after Sweep and before the
+// check under the writer lock is still reported by CheckEvents.
+func TestPSRV0223_ChangeGuardSeesASecondLinkWriteAfterTheSweep(t *testing.T) {
+	for _, name := range []string{"none", "write-resize", "truncate", "chmod"} {
+		t.Run(name, func(t *testing.T) {
+			repo, file := guardRepo(t)
+			outside := filepath.Join(t.TempDir(), "link")
+			if err := os.Link(file, outside); err != nil {
+				t.Skipf("hard links unsupported: %v", err)
+			}
+			g, err := WatchChanges(repo)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer g.Close()
+			if err := g.Check(); err != nil {
+				t.Fatal(err)
+			}
+			g.Sweep()
+			switch name {
+			case "write-resize":
+				err = os.WriteFile(outside, []byte("bbbbbb"), 0600)
+			case "truncate":
+				err = os.Truncate(outside, 1)
+			case "chmod":
+				err = os.Chmod(outside, 0640)
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := wire.CodeSnapshotMoved
+			if name == "none" {
+				want = ""
+			}
+			if got := wire.CodeOf(g.CheckEvents()); got != want {
+				t.Fatalf("check events after sweep = %q, want %q", got, want)
+			}
+		})
+	}
+}
+
 // PSR-V0-222: a directory already watched with the content mask keeps it when
 // it is added again as an ancestor, so a write to an entry is still reported.
 func TestPSRV0222_AncestorAddKeepsTheContentMask(t *testing.T) {
@@ -201,8 +322,8 @@ func TestPSRV0222_AncestorAddKeepsTheContentMask(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := w.add(file, true); err != nil || len(w.stats) != 0 {
-		t.Fatalf("file add: %v, %d stat-tracked", err, len(w.stats))
+	if _, err := w.add(file, true); err != nil || len(w.uncovered) != 0 {
+		t.Fatalf("file add: %v, %d uncovered", err, len(w.uncovered))
 	}
 	if err := os.WriteFile(file, []byte("bbbb"), 0600); err != nil {
 		t.Fatal(err)

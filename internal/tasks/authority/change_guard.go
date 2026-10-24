@@ -15,10 +15,10 @@ import (
 
 // ChangeGuard binds an optimistic store observation to a later writer lock.
 // It is transient and never writes files. Check re-reads files a kernel watch
-// does not cover (macOS files beyond the descriptor budget, Linux files with
-// another link or outside a watched directory, PSR-V0-222); a check under the
-// writer lock calls Sweep before acquiring it and CheckEvents while holding it,
-// whose cost does not depend on the number of watched files (CAL-V0-026).
+// does not cover (macOS files beyond the descriptor budget, every Linux file,
+// whose watch is its directory's, PSR-V0-223); a check under the writer lock
+// calls Sweep before acquiring it and CheckEvents while holding it, whose cost
+// does not depend on the number of watched files (CAL-V0-026).
 // Close must run after releasing the writer lock.
 type ChangeGuard struct {
 	watch      changeWatch
@@ -27,8 +27,10 @@ type ChangeGuard struct {
 }
 
 // poll reports kernel events and any difference an earlier sweep found, in
-// time independent of the number of watched paths. sweep re-reads what no
-// kernel event covers; a difference it finds is kept for every later poll.
+// time independent of the number of watched paths; on Linux it also re-reads
+// the files with another link, which no Tasks writer makes (PSR-V0-223).
+// sweep re-reads what no kernel event covers; a difference it finds is kept
+// for every later poll.
 type changeWatch interface {
 	add(string, bool) (os.FileInfo, error)
 	poll() (bool, error)
@@ -137,10 +139,12 @@ func (g *ChangeGuard) Check() error { return g.check(true) }
 // Store writers (authority.Session) change files only by creating, linking,
 // renaming or removing entries, which watched directories report at any time.
 // Only an in-place write or mode change to an uncovered file by an actor
-// outside the writer lock, made after the sweep read it, goes unreported, and
-// on Linux one through a link or descriptor that bypasses the file's watched
-// directory (PSR-V0-222); no Tasks writer edits a watched file in place, and the next journal audit
-// refuses such an edit to an intent projection as INTENT_DIVERGED.
+// outside the writer lock, made after the sweep read it, goes unreported: on
+// macOS a file beyond the descriptor budget, on Linux a write through a link
+// made after the sweep or through a descriptor opened through a since-removed
+// link (PSR-V0-223). No Tasks writer edits a watched file in place, and the
+// next journal audit refuses such an edit to an intent projection as
+// INTENT_DIVERGED.
 func (g *ChangeGuard) Sweep() {
 	if g != nil && !g.closed {
 		g.watch.sweep()
@@ -148,7 +152,8 @@ func (g *ChangeGuard) Sweep() {
 }
 
 // CheckEvents is Check without the sweep. Its cost does not depend on the
-// number of watched files, so it is the check made under the writer lock.
+// number of watched files (on Linux, beyond the files with another link), so
+// it is the check made under the writer lock.
 func (g *ChangeGuard) CheckEvents() error { return g.check(false) }
 
 func (g *ChangeGuard) check(sweep bool) error {

@@ -29,8 +29,8 @@ func inotifyWatchesHeld(t *testing.T) int {
 	return n
 }
 
-// PSR-V0-222 (V1-2482): the watches one guard holds do not grow with the
-// number of files in the store. A store of 10 files and the same store with
+// PSR-V0-222, PSR-V0-223 (V1-2482): the watches one guard holds do not grow
+// with the number of files in the store, which are tracked by stat instead. A store of 10 files and the same store with
 // 5,000 more receipt-like files in the same directories take the same count,
 // the directories and their ancestors.
 func TestPSRV0222_ChangeGuardWatchCountIsBoundedByDirectories(t *testing.T) {
@@ -39,6 +39,7 @@ func TestPSRV0222_ChangeGuardWatchCountIsBoundedByDirectories(t *testing.T) {
 	if err := os.MkdirAll(receipts, 0700); err != nil {
 		t.Fatal(err)
 	}
+	tracked := 0
 	held := func() int {
 		t.Helper()
 		before := inotifyWatchesHeld(t)
@@ -47,6 +48,11 @@ func TestPSRV0222_ChangeGuardWatchCountIsBoundedByDirectories(t *testing.T) {
 			t.Fatal(err)
 		}
 		defer g.Close()
+		// Every file is tracked by its stat identity instead (PSR-V0-223),
+		// and none is re-read under the writer lock.
+		if w := g.watch.(*notifyWatch); len(w.uncovered) != 0 || len(w.files) < tracked {
+			t.Fatalf("%d files tracked, %d uncovered, want at least %d and none", len(w.files), len(w.uncovered), tracked)
+		}
 		return inotifyWatchesHeld(t) - before
 	}
 	grow := func(n int) {
@@ -64,8 +70,10 @@ func TestPSRV0222_ChangeGuardWatchCountIsBoundedByDirectories(t *testing.T) {
 		}
 	}
 	grow(5)
+	tracked = 10
 	small := held()
 	grow(2500)
+	tracked = 5010
 	large := held()
 	if small != large {
 		t.Fatalf("a guard holds %d watches over 10 files and %d over 5,010: the count grows with the files", small, large)

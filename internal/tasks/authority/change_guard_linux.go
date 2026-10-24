@@ -18,21 +18,25 @@ import (
 // entry in it as well as the entries created, removed or renamed, so a
 // regular file whose only link is in a watched directory needs no watch of
 // its own: the guard's watch count is the store's directories and their
-// ancestors, whatever its receipt count. Events reach the directory only
-// through its own entry: a write through a descriptor an actor outside Tasks
-// opened through another link before registration, or through a link made
-// outside the observation after it, is not reported (PSR-V0-222). A file with
-// another link, through which an actor could write without the directory
-// seeing it, and a file
-// whose parent is not watched for contents, is tracked by the stat identity
-// taken when it was visited and re-read by sweep, as Darwin tracks a file
-// beyond its descriptor budget (CAL-V0-026, CAL-V0-219). A directory the
-// kernel refuses still fails the registration.
+// ancestors, whatever its receipt count.
+//
+// Events reach the directory only through its own entry, so every regular
+// file is also tracked by the stat identity taken when it was visited, link
+// count included (PSR-V0-223). A link made to it after registration, or a
+// write or mode change through such a link or through a descriptor opened
+// through another link before registration, changes its link count, size or
+// change time, which sweep re-reads for every file. A file with another link
+// at registration, through which a write never passes the watched directory,
+// and a file whose parent is not watched for contents, is uncovered: poll
+// re-reads it as well, so a check under the writer lock sees a change made to
+// it after the sweep. A directory the kernel refuses still fails the
+// registration.
 type notifyWatch struct {
-	fd    int
-	dirty bool
-	dirs  map[string]bool // directories watched with the content mask
-	stats []statWatch
+	fd        int
+	dirty     bool
+	dirs      map[string]bool // directories watched with the content mask
+	files     []statWatch     // every regular file, re-read by sweep
+	uncovered []int           // indexes into files that poll re-reads too
 }
 
 type statWatch struct {
@@ -43,6 +47,7 @@ type statWatch struct {
 type statIdentity struct {
 	dev, ino     uint64
 	mode         uint32
+	nlink        uint64
 	size         int64
 	mtime, ctime int64
 }
@@ -51,7 +56,7 @@ type statIdentity struct {
 // watch allowance, count the watches of a guard and the stat reads of a sweep.
 var (
 	inotifyAddWatch = syscall.InotifyAddWatch
-	sweepLstat      = os.Lstat
+	sweepLstat      = syscall.Lstat
 )
 
 func newChangeWatch() (changeWatch, error) {
@@ -70,8 +75,14 @@ func (w *notifyWatch) add(path string, contents bool) (os.FileInfo, error) {
 	if before.Mode().IsRegular() {
 		// The parent was watched before it was listed, so a change to this
 		// entry after the listing is already reported; one before it shows
-		// in the identity read here.
-		if st, ok := before.Sys().(*syscall.Stat_t); ok && st.Nlink == 1 && w.dirs[filepath.Dir(path)] {
+		// in the identity read here, and one through another link in the
+		// identity sweep re-reads.
+		st, ok := before.Sys().(*syscall.Stat_t)
+		if !ok {
+			return nil, fsErr(path, "no stat identity")
+		}
+		if st.Nlink == 1 && w.dirs[filepath.Dir(path)] {
+			w.files = append(w.files, statWatch{path: path, id: identityOf(st)})
 			return before, nil
 		}
 		return w.addStat(path, before)
@@ -102,30 +113,36 @@ func (w *notifyWatch) add(path string, contents bool) (os.FileInfo, error) {
 }
 
 func (w *notifyWatch) addStat(path string, before os.FileInfo) (os.FileInfo, error) {
-	id, ok := identityOf(before)
+	st, ok := before.Sys().(*syscall.Stat_t)
 	if !ok {
 		return nil, fsErr(path, "no stat identity")
 	}
+	id := identityOf(st)
 	after, err := os.Lstat(path)
 	if err != nil {
 		return nil, watchMoved(path)
 	}
-	if now, ok := identityOf(after); !ok || now != id {
+	if now, ok := after.Sys().(*syscall.Stat_t); !ok || identityOf(now) != id {
 		return nil, watchMoved(path)
 	}
-	w.stats = append(w.stats, statWatch{path: path, id: id})
+	w.uncovered = append(w.uncovered, len(w.files))
+	w.files = append(w.files, statWatch{path: path, id: id})
 	return after, nil
 }
 
-func identityOf(info os.FileInfo) (statIdentity, bool) {
-	st, ok := info.Sys().(*syscall.Stat_t)
-	if !ok {
-		return statIdentity{}, false
-	}
+func identityOf(st *syscall.Stat_t) statIdentity {
 	return statIdentity{
-		dev: uint64(st.Dev), ino: st.Ino, mode: st.Mode, size: st.Size,
+		dev: uint64(st.Dev), ino: st.Ino, mode: st.Mode, nlink: uint64(st.Nlink), size: st.Size,
 		mtime: st.Mtim.Nano(), ctime: st.Ctim.Nano(),
-	}, true
+	}
+}
+
+// changed re-reads the stat identity of one tracked file; a difference or a
+// failed read marks the watch dirty for good, so a later poll reports it.
+func (w *notifyWatch) changed(f *statWatch) bool {
+	var st syscall.Stat_t
+	w.dirty = sweepLstat(f.path, &st) != nil || identityOf(&st) != f.id
+	return w.dirty
 }
 
 func (w *notifyWatch) poll() (bool, error) {
@@ -148,28 +165,30 @@ func (w *notifyWatch) poll() (bool, error) {
 		return true, err
 	}
 	// Any event, including overflow or an ignored/revoked watch, invalidates.
-	w.dirty = n != 0
+	if w.dirty = n != 0; w.dirty {
+		return true, nil
+	}
+	// A write through another link of an uncovered file reaches no watched
+	// directory at any time, so it is re-read here as well as by sweep.
+	for _, i := range w.uncovered {
+		if w.changed(&w.files[i]) {
+			break
+		}
+	}
 	return w.dirty, nil
 }
 
-// sweep re-reads the stat identity of every file no directory event covers.
-// A difference or a failed read marks the watch dirty for good, so a later
-// poll reports it. With every file singly linked in a watched directory it
-// has nothing to read.
+// sweep re-reads the stat identity of every regular file, which reports a
+// link made to it, or a write or mode change through a link or descriptor
+// that bypasses its watched directory, made before the read (PSR-V0-223).
 func (w *notifyWatch) sweep() bool {
-	for i := 0; !w.dirty && i < len(w.stats); i++ {
-		info, err := sweepLstat(w.stats[i].path)
-		if err != nil {
-			w.dirty = true
-			break
-		}
-		id, ok := identityOf(info)
-		w.dirty = !ok || id != w.stats[i].id
+	for i := 0; !w.dirty && i < len(w.files); i++ {
+		w.changed(&w.files[i])
 	}
 	return w.dirty
 }
 
 func (w *notifyWatch) close() error {
-	w.dirs, w.stats = nil, nil
+	w.dirs, w.files, w.uncovered = nil, nil, nil
 	return syscall.Close(w.fd)
 }
