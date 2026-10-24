@@ -165,7 +165,7 @@ func (c *change) run() int {
 	c.markStableChoreMap()
 	if c.scope == passPrepare {
 		if c.cemPrepared {
-			return 0
+			return c.precheckCitationPlan()
 		}
 		c.renderReport()
 		return c.reportFailures()
@@ -1019,6 +1019,79 @@ func (c *change) probeCitationRows(lines []string, failed int, citeMap, reason s
 			c.citationRefusals = append(c.citationRefusals, citationRefusal(index, lines[index], failureReason(readFile(errorFile), status)))
 		}
 	}
+}
+
+// citePrecheckStep is the finish-lane prepare row for a plan whose cite rows
+// cem cite would refuse (DCW-V0-335).
+const citePrecheckStep = "cem-cite-precheck"
+
+// precheckCitationPlan probes every cite row of the plan against the map the
+// prepare pass derived, before finish-lane spends its bind pass. Each row is
+// cited into a private probe output that is removed at once, as
+// probeCitationRows does, so the prepared map never changes. Only refusals a
+// row itself causes are reported, each with cem cite's own detail, which for
+// cite-span-not-stable names the duplicate copies and a wider unique span;
+// plan shape and binding refusals stay the bind's to report (DCW-V0-335).
+func (c *change) precheckCitationPlan() int {
+	if c.options.Citations == "" || !isRegular(c.options.Citations) {
+		return 0
+	}
+	plan, valid := c.validateCitationPlan()
+	if !valid {
+		return 0
+	}
+	probe := ".corvint/.cem-citations-probe." + filepath.Base(c.runTmp) + ".json"
+	defer func() { _ = removeFile(c.path(probe)) }()
+	reason := ""
+	for index, line := range readLines(plan) {
+		fields := strings.SplitN(line, "\t", 4)
+		if len(fields) != 4 || unknownRow(fields) {
+			continue
+		}
+		errorFile := c.runTmp + "/cem-cite-precheck.stderr"
+		status := c.exec([]string{"cem", "cite", "--map", ".corvint/change.cem.json", "--hunk", fields[0], "--evidence-path", fields[1], "--lines", fields[2], "--relation", fields[3], "--output", probe},
+			c.runTmp+"/cem-cite-precheck.json", errorFile)
+		_ = removeFile(c.path(probe))
+		if status == 0 {
+			continue
+		}
+		stderr := readFile(errorFile)
+		code := failureReason(stderr, status)
+		if !planRowCodes[code] {
+			continue
+		}
+		if reason == "" {
+			reason = code
+		}
+		refusal := citationRefusal(index, line, code)
+		if detail := refusalDetail(stderr); detail != "" {
+			refusal += ": " + detail
+		}
+		c.citationRefusals = append(c.citationRefusals, refusal)
+	}
+	if reason == "" {
+		return 0
+	}
+	c.addStep(citePrecheckStep, "NOT_PRODUCED", reason)
+	c.say("dogfood-change: FAIL %s refused plan rows=%d (cem cite against the prepared map, before any bind; fix every row, then rerun, DCW-V0-335):\n", citePrecheckStep, len(c.citationRefusals))
+	for _, refusal := range c.citationRefusals[:min(len(c.citationRefusals), maxNamedRefusals)] {
+		c.say("  %s\n", refusal)
+	}
+	if len(c.citationRefusals) > maxNamedRefusals {
+		c.say("  (+%d more)\n", len(c.citationRefusals)-maxNamedRefusals)
+	}
+	return 1
+}
+
+// refusalDetail is the error text of a cem cite refusal envelope on one line.
+func refusalDetail(stderr []byte) string {
+	var envelope struct {
+		Error string `json:"error"`
+	}
+	if json.Unmarshal(firstLine(stderr), &envelope) != nil {
+		return ""
+	}
+	return oneLine(envelope.Error)
 }
 
 // citationRefusal names one refused plan row by number, hunk, path and span.
