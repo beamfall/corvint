@@ -3257,18 +3257,31 @@ These four requirements add two CI jobs under the owner's delegation of
 `docs/build-log/2026-10-24-owner-queue-decisions.md` on PR #1718). Neither job is a required check;
 existing jobs and check names are unchanged. Both honor the AFP-V0-081 batched skip.
 
-- **AFP-V0-432:** (proposed; V1-2580) `.github/workflows/cem-release-gate.yml`, on `ci.yml`'s
-  triggers, MUST run a `cem-release-gate` job on `ubuntu-24.04` (linux/amd64) and `macos-15` (darwin/arm64), with `fail-fast: false`, which builds `corvint` and
-  `interop/cem01-go` from the one checkout through `make cem-release-gate`, retains the command's
-  whole output as the `cem-release-gate-<os>` artifact even when it fails, writes the readiness and
-  suite verdict lines to the step summary, and fails with the target's own nonzero exit and an
-  error annotation. It MUST NOT carry `continue-on-error`, and `ci.yml` MUST NOT run the gate:
-  the AFP-V0-080 static reuse and the tested-tree reuse accept only successful `ci.yml` runs, which
-  an always-red job there would end. Failure mode: while any required
-  readiness row is `NOT_RUN` or `NOT_OBSERVED`, the target refuses (exit 3, `make` exit 2) and the
-  job is red on every run by design; that refusal is the signal, not a CI fault. Falsifier: a job
-  that passes on a nonzero exit, runs on only one platform, or loses the output on failure.
-  Rollback: delete the `cem-release-gate` job.
+- **AFP-V0-432:** (proposed; V1-2580; amended 2026-10-24, owner: per-host records judged by one
+  aggregate) `.github/workflows/cem-release-gate.yml`, on `ci.yml`'s triggers, MUST run a
+  `cem-release-gate` job on `ubuntu-24.04` (linux/amd64) and `macos-15` (darwin/arm64), with
+  `fail-fast: false`, which builds `corvint` and `interop/cem01-go` from the one checkout through
+  `make cem-release-gate` with `CEM_RELEASE_RECORD` and `CEM_RELEASE_OUTCOME` set, and retains the
+  command's whole output, its `cem-release-run/1` record and its outcome as the
+  `cem-release-gate-<os>` artifact even when it fails. A host job MUST fail, with the target's own
+  exit and an error annotation, when the target exits nonzero without writing both the record and
+  the outcome (a suite or build failure, since the record is written only after every suite
+  passed), and MUST pass when the target exits 0 or exits nonzero after writing both (only this
+  host's single-platform readiness view refused). A `cem-release-readiness` job MUST then run on
+  `ubuntu-24.04` after both host jobs pass, download both hosts' records, run
+  `cem-release-suites --aggregate` over them against the committed readiness declaration
+  (CEM-V1-612), retain its output and outcome as the `cem-release-readiness` artifact, write the
+  aggregate and readiness lines to the step summary, and fail with the tool's own nonzero exit and
+  an error annotation. Neither job may carry `continue-on-error`, the declaration MUST keep every
+  row it names, and `ci.yml` MUST NOT run the gate: the AFP-V0-080 static reuse and the tested-tree
+  reuse accept only successful `ci.yml` runs, which an always-red job there would end. Failure
+  mode: while any declared row is not observed `PASSED` across both records, the aggregate refuses
+  (exit 3) and `cem-release-readiness` is red by design. Today that is the
+  `independent-external-consumer` row alone, which no CI host observes (V1-0014); that refusal is
+  the signal, not a CI fault. Falsifier: a host job that passes after a suite failure, a readiness
+  job that passes on a nonzero exit or judges fewer than both hosts' records, a run on only one
+  platform, or output lost on failure. Rollback: revert the workflow to the single
+  `cem-release-gate` job.
 - **AFP-V0-433:** (proposed; V1-1687, cce-live part of PR #1702) `ci.yml` MUST run a `cce-live`
   job on `macos-15` that installs Node 24.11.1, installs `@playwright/test@1.64.0` into
   `$RUNNER_TEMP/pw` with `npx playwright install chromium-headless-shell`, then runs
@@ -3636,7 +3649,7 @@ fails the verification step before anything is removed.
 | AFP-V0-396 | `affectedHelp` in `cmd/corvint/help.go`; the `corvint affected` row of `docs/CAPABILITIES.md` | `TestAFPV0396HelpDocumentsTheBatchFormAndTheCache`; `make capabilities-check` |
 | AFP-V0-397 | `BuildCached` hit path | `TestAFPV0397RepeatedPathCallOnALargeRubyTreeReusesTheGraph` (1,200 Ruby files: the warm call hits and writes the cold and uncached bytes); measured cold and warm numbers in build log `2026-10-23-affected-graph-reuse-gh1601` |
 | AFP-V0-431 | the test-selection goal of `internal/capcatalog/AGENT-GUIDE.md` | `TestAFPV0431ShippedGuideAdvisesBatchingAndTheAffectedCache`; `make capability-catalog-check` |
-| AFP-V0-432 | `.github/workflows/cem-release-gate.yml` `cem-release-gate` job | `TestAFPV0432CEMReleaseGateRunsOnBothPlatformsAndRetainsOutput` |
+| AFP-V0-432 | `.github/workflows/cem-release-gate.yml` `cem-release-gate` and `cem-release-readiness` jobs | `TestAFPV0432CEMReleaseGateRunsOnBothPlatformsAndRetainsOutput` |
 | AFP-V0-433 | `.github/workflows/ci.yml` `cce-live` job | `TestAFPV0433CCELiveRunsTheLiveTargetOnTheQualifiedHost` |
 | AFP-V0-434 | `.github/workflows/ci.yml` `cce-live` change check | `TestAFPV0434CCELiveRunsOnlyWhenChangee2eChanges` |
 | AFP-V0-435 | `.github/workflows/ci.yml` `cce-live` tuple step | `TestAFPV0435CCELiveRefusesAnUnqualifiedHeadlessShell` |
