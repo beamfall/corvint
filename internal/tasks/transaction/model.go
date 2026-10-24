@@ -1150,7 +1150,7 @@ func loadTickets(r Request, in Input, queueID wire.QueueID) (*ticket.Inventory, 
 		// ticket.Decode parses with wire.Parse, which already proves the
 		// canonical framing canonical(raw) checks (re-encoding the value
 		// and comparing bytes, trailing LF included), so a record that
-		// decodes is not parsed a second time (CAL-V0-397, proposed).
+		// decodes is not parsed a second time (LGL-V0-004, proposed).
 		rec, e := ticket.Decode(raw)
 		if e != nil {
 			return nil, e

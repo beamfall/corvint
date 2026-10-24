@@ -589,7 +589,7 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 			timing.Guards += time.Since(guards)
 			return report, nil, wire.Errorf(wire.CodeOutOfScope, "queueId", "request queue differs")
 		}
-		// CAL-V0-393 (proposed): a ready writer route takes no cleanup lock
+		// LGL-V0-001 (proposed): a ready writer route takes no cleanup lock
 		// here. Staging a peer is publishing would otherwise queue this
 		// write on the writer lock for that peer's whole hold, outside the
 		// gate; the route itself declines on any staging under its lock, and

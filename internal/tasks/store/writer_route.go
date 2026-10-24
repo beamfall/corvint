@@ -235,7 +235,7 @@ func leaseWriter(ctx context.Context, repo *intent.Repository, request transacti
 	}
 	// leaseWrite clears orphan stages before this route only when the
 	// route is not ready, so a peer's live staging never queues a ready
-	// write on the writer lock outside the gate (CAL-V0-393, proposed).
+	// write on the writer lock outside the gate (LGL-V0-001, proposed).
 	// Under the lock every staging entry is an orphan; the route declines
 	// and the complete route clears it under a lock first, as before.
 	if orphans, err := stagingOccupied(repo); err != nil || orphans {

@@ -5,13 +5,13 @@ import (
 	"testing"
 )
 
-// TestCALV0397_ASCIIFastPathAgreesWithHostileRune covers CAL-V0-397
+// TestLGLV0004_ASCIIFastPathAgreesWithHostileRune covers LGL-V0-004
 // (proposed). The ASCII scan that lets checkHostile and the string parser
 // skip rune decoding accepts exactly the ASCII bytes hostileRune accepts, in
 // both modes, alone and inside a longer string; a string with any byte at or
 // above 0x80 still takes the full check, which keeps refusing C1 and bidi
 // controls and invalid UTF-8.
-func TestCALV0397_ASCIIFastPathAgreesWithHostileRune(t *testing.T) {
+func TestLGLV0004_ASCIIFastPathAgreesWithHostileRune(t *testing.T) {
 	for _, prose := range []bool{false, true} {
 		for b := 0; b < 0x80; b++ {
 			want := !hostileRune(rune(b), prose)

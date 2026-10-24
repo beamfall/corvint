@@ -1,7 +1,7 @@
 # Tasks lease-gate latency: guards cleanup lock, fdinfo retention, link-count base files, claim validation
 
-Date: 2026-10-24. Tickets: V1-2531, V1-2537, V1-2539, V1-2203. Requirements: CAL-V0-393, CAL-V0-394,
-CAL-V0-396, CAL-V0-397 (`docs/specs/corvint-tasks-agent-leases-v0.md`, V1-2531 subsection) and
+Date: 2026-10-24. Tickets: V1-2531, V1-2537, V1-2539, V1-2203. Requirements: LGL-V0-001, LGL-V0-002,
+LGL-V0-003, LGL-V0-004 (`docs/specs/corvint-tasks-lease-gate-latency-v0.md`; moved out of the leases spec, whose Requirements section is at the 256-obligation OCM limit) and
 PSR-V0-247 (`docs/specs/corvint-tasks-pool-safe-reuse-v0.md`), all proposed. Base 0949876eb.
 
 Platform for every number below: Windows box, WSL2 Ubuntu, linux/amd64, Ryzen 9 5950X (32
@@ -12,13 +12,13 @@ Raw reports: `/mnt/c/cvq/proof/2026-10-24/p1-tasks-latency/` on the box (`lease-
 
 ## Root causes
 
-- A (V1-2531, CAL-V0-393). A lease round's guards ran orphan cleanup, which takes the writer lock
+- A (V1-2531, LGL-V0-001). A lease round's guards ran orphan cleanup, which takes the writer lock
   whenever `staging/` is non-empty. A live peer keeps its slots in `staging/` for its whole hold,
   so a heartbeat or renew whose writer route was ready queued for that peer's hold outside the
   gate, then queued again inside the route. The ready route now takes no cleanup lock; under the
   lock it declines `staging` if any entry is present (under the lock every entry is an orphan),
   and the round then cleans up as before.
-- B (V1-2203, CAL-V0-394). About 85 % of journal-write CPU in one heartbeat went to pinned-parent
+- B (V1-2203, LGL-V0-002). About 85 % of journal-write CPU in one heartbeat went to pinned-parent
   checks, each opening, reading and closing `/proc/self/fdinfo/<fd>` for about eleven mounts. The
   session now retains each descriptor's fdinfo file and re-reads it from offset 0. Decision 0411's
   per-check mount-ID observation is kept.
@@ -27,7 +27,7 @@ Raw reports: `/mnt/c/cvq/proof/2026-10-24/p1-tasks-latency/` on the box (`lease-
   caught the newest receipt declined `checkpoint unusable: base file changed` and retried the
   whole round. A base file whose stamps had not settled is now compared without ctime and its
   bytes re-hashed against the base digest; settled files keep the full stamp comparison.
-- D (V1-2531, CAL-V0-397). A claim profile at 13.5k receipts and 880 tickets put 180 of 450 ms
+- D (V1-2531, LGL-V0-004). A claim profile at 13.5k receipts and 880 tickets put 180 of 450 ms
   of samples in `loadTickets`: `ticket.Decode` and then `canonical(raw)`, a second `wire.Parse`
   plus re-encode that cannot fail once the first parse succeeds, and a rune-by-rune hostile check
   on every string. The second parse is dropped and the hostile check takes an ASCII byte scan
@@ -37,7 +37,7 @@ Raw reports: `/mnt/c/cvq/proof/2026-10-24/p1-tasks-latency/` on the box (`lease-
 
 Primary: pair 6 (head first, both QUALIFIED, load 6.0 / 6.7) and pair 5 (head first, both
 QUALIFIED, load 7.7 / 4.1). Milliseconds, p50/p99; n per verb per run in brackets. Pair 6 head
-includes CAL-V0-397; pair 5 head does not.
+includes LGL-V0-004; pair 5 head does not.
 
 | verb | metric | pair 5 base | pair 5 head | pair 6 base | pair 6 head |
 |---|---|---|---|---|---|
@@ -86,7 +86,7 @@ with fsync near 32 ms and journal write 13.9 falling to 10.7.
 - V1-2537: widen and reap hold p99 is at most 198 ms on every head run, below the 250 ms target,
   and the `base file changed` declines are gone. `TestPSRV0247_UnsettledBaseFileSurvivesALinkCountChange`
   shows the moved re-check stays bound to the base snapshot's bytes. This is MET with small n.
-- V1-2539: NOT MET. The claim gate-wait p99 is 1.7 s against the 500 ms target in CAL-V0-396.
+- V1-2539: NOT MET. The claim gate-wait p99 is 1.7 s against the 500 ms target in LGL-V0-003.
   The harness starts 14 claims together, so the wait is FIFO serialization and would need a claim
   hold near 36 ms. The fsync and commit floor alone is about 70 ms. No claim work moved out of the
   lock, so the "re-validated under the lock" test does not apply.

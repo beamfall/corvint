@@ -47,7 +47,7 @@ func fixtureRename(a *os.File, from string, b *os.File, to string, source, dest 
 }
 
 // observeMount is fixtureObserveMount; only Linux retains a per-descriptor
-// observation file (CAL-V0-394, proposed).
+// observation file (LGL-V0-002, proposed).
 func (s *fixtureSession) observeMount(f *os.File, held fixtureMount) (fixtureMount, error) {
 	return fixtureObserveMount(f, held)
 }

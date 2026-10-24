@@ -41,13 +41,13 @@ func TestTMV0010_AS10_ExtMagicResolvedFromOwnMount(t *testing.T) {
 	}
 }
 
-// CAL-V0-394 (proposed): the session's retained fdinfo file is re-read from
+// LGL-V0-002 (proposed): the session's retained fdinfo file is re-read from
 // offset 0 on every observation, and procfs regenerates it each time, so a
 // change to the descriptor's state after the first read is observed (the
 // file position stands in for state that cannot change on an open
 // directory). The observed mount equals a fresh per-call observation, and
 // closing the session's handles closes the retained file.
-func TestCALV0394_RetainedFDInfoObservesCurrentState(t *testing.T) {
+func TestLGLV0002_RetainedFDInfoObservesCurrentState(t *testing.T) {
 	f, err := os.CreateTemp(t.TempDir(), "observed")
 	if err != nil {
 		t.Fatal(err)

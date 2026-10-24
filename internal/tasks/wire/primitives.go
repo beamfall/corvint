@@ -150,7 +150,7 @@ func hostileRune(r rune, allowTabLfCr bool) bool {
 
 // plainASCII reports whether s is ASCII and holds no code point hostileRune
 // refuses, so checkHostile accepts it without decoding runes; any other
-// string takes the full check (CAL-V0-397, proposed).
+// string takes the full check (LGL-V0-004, proposed).
 func plainASCII(s string, allowTabLfCr bool) bool {
 	for i := 0; i < len(s); i++ {
 		c := s[i]

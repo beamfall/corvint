@@ -386,7 +386,7 @@ func (p *parser) str() (string, error) {
 			p.pos++
 			s := string(out)
 			// The position is formatted only for a string the ASCII scan
-			// cannot accept (CAL-V0-397, proposed).
+			// cannot accept (LGL-V0-004, proposed).
 			if !plainASCII(s, true) {
 				if err := checkHostile(s, fmt.Sprintf("byte %d", start), true); err != nil {
 					return "", err

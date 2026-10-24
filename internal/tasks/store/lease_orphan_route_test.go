@@ -35,13 +35,13 @@ func orphanRouteStore(t *testing.T) (*intent.Repository, string, *Report) {
 	return repo, root, claim.rep
 }
 
-// CAL-V0-393 (proposed): a ready writer route takes no orphan-cleanup lock
+// LGL-V0-001 (proposed): a ready writer route takes no orphan-cleanup lock
 // before the preparation gate. With a staging entry present while another
 // process holds the writer lock, a heartbeat spends none of that hold in its
 // guards; it waits for the lock inside the route, which then finds the entry
 // under the lock, declines "staging", and the complete route clears the
 // orphan under a lock and commits the heartbeat exactly once.
-func TestCALV0393_ReadyRouteTakesNoCleanupLockOutsideGate(t *testing.T) {
+func TestLGLV0001_ReadyRouteTakesNoCleanupLockOutsideGate(t *testing.T) {
 	repo, root, claim := orphanRouteStore(t)
 	slot := filepath.Join(repo.StateDir, "staging", "a00")
 	fixture.Write(t, slot, []byte("orphan"))

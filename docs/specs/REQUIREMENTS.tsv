@@ -1651,10 +1651,6 @@ CAL-V0-321	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner
 CAL-V0-322	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2359) `attempt	standing	2026-10-11; V1-2359
 CAL-V0-340	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2449) A journa	standing	2026-10-11; V1-2449
 CAL-V0-372	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), #1551) When the	standing	2026-10-11; #1551
-CAL-V0-393	docs/specs/corvint-tasks-agent-leases-v0.md	(proposed; V1-2531) A lease write round MUST clear orphan stages under a cleanup	unrecorded	-
-CAL-V0-394	docs/specs/corvint-tasks-agent-leases-v0.md	(proposed; V1-2203) On Linux a session MUST open each pinned descriptor's procfs	unrecorded	-
-CAL-V0-396	docs/specs/corvint-tasks-agent-leases-v0.md	(proposed; V1-2539) The claim latency target under `TestCALV0263_LeaseGateLoad`	unrecorded	-
-CAL-V0-397	docs/specs/corvint-tasks-agent-leases-v0.md	(proposed; V1-2531) Lease-gate validation MUST NOT parse a canonical ticket twic	unrecorded	-
 CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	(proposed; V1-0989) Before listing processes, the owned process-group check afte	unrecorded	-
 CAL-V0-300	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted, decision 0538; V1-1508) A receipt MAY be	owner	decision 0538; V1-1508
 CAL-V0-301	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted, decision 0538; V1-1508) An elided receipt is	owner	decision 0538; V1-1508
@@ -1989,6 +1985,10 @@ KHN-V0-028	docs/specs/corvint-tasks-know-how-notes-v0.md	Policy MAY declare `kno
 KHN-V0-029	docs/specs/corvint-tasks-know-how-notes-v0.md	While the screen is declared, each fresh screened write reads the values file fr	unrecorded	-
 KHN-V0-030	docs/specs/corvint-tasks-know-how-notes-v0.md	A screened write whose text contains a declared value or a declared class refuse	unrecorded	-
 KHN-V0-031	docs/specs/corvint-tasks-know-how-notes-v0.md	The screen applies to the stored text of `NOTE_SET` (the operator note, which is	unrecorded	-
+LGL-V0-001	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2531) A lease write round MUST clear orphan stages under a cleanup	unrecorded	-
+LGL-V0-002	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) On Linux a session MUST open each pinned descriptor's procfs	unrecorded	-
+LGL-V0-003	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2539) The claim latency target under `TestCALV0263_LeaseGateLoad`	unrecorded	-
+LGL-V0-004	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2531) Lease-gate validation MUST NOT parse a canonical ticket twic	unrecorded	-
 TOL-V0-001	docs/specs/corvint-tasks-obligation-ledger-v0.md	A NATIVE ticket record MAY carry the optional member `obligations`, a closed	unrecorded	-
 TOL-V0-002	docs/specs/corvint-tasks-obligation-ledger-v0.md	Each `OBLIGATIONS_*` write MUST derive exactly one immutable canonical ledger	unrecorded	-
 TOL-V0-003	docs/specs/corvint-tasks-obligation-ledger-v0.md	A folded obligation entry MUST be the closed object `{id, title, core, state,	unrecorded	-

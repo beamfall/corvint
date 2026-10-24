@@ -9,13 +9,13 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-// TestCALV0397_NoncanonicalTicketBytesStillRefused covers CAL-V0-397
+// TestLGLV0004_NoncanonicalTicketBytesStillRefused covers LGL-V0-004
 // (proposed). loadTickets no longer parses a decoded canonical ticket a
 // second time, because the decoding parse already proves canonical framing.
 // A canonical ticket that differs from its encoding by a missing or extra
 // trailing LF, insignificant whitespace, or an escape form is still refused
 // as malformed, and the canonical bytes are accepted.
-func TestCALV0397_NoncanonicalTicketBytesStillRefused(t *testing.T) {
+func TestLGLV0004_NoncanonicalTicketBytesStillRefused(t *testing.T) {
 	base := paused(t)
 	c := fixture.Ticket("T-1")
 	raw := c.Encode()

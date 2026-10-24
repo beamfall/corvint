@@ -109,7 +109,7 @@ type fixtureSession struct {
 	closeRoot func(*os.Root) error
 	observe   func(*os.File, fixtureMount) (fixtureMount, error)
 	// fdinfo retains, per pinned descriptor, the open procfs fdinfo file the
-	// Linux mount observation re-reads on every check (CAL-V0-394,
+	// Linux mount observation re-reads on every check (LGL-V0-002,
 	// proposed); closeHandles closes it. Other platforms leave it empty.
 	fdinfo map[*os.File]*os.File
 	// syncTime sums the session's file and directory sync calls (issue 494

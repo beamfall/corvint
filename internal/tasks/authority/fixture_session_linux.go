@@ -41,7 +41,7 @@ func fixtureObserveMount(f *os.File, held fixtureMount) (fixtureMount, error) {
 // from offset 0 on each check. procfs regenerates fdinfo for the
 // descriptor's current state on every such read, so each check still
 // observes mnt_id from fdinfo (decision 0411) without a path walk, open and
-// close per parent (CAL-V0-394, proposed).
+// close per parent (LGL-V0-002, proposed).
 func (s *fixtureSession) observeMount(f *os.File, held fixtureMount) (fixtureMount, error) {
 	return observeMountWith(f, held, func(fd uintptr) ([]byte, error) {
 		info := s.fdinfo[f]
