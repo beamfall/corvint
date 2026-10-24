@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -28,7 +29,8 @@ func TestWriteFileMatchesOSWriteFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if info.Mode().Perm()&0o100 == 0 {
+	// Windows has no executable bit: Go reports writable regular files as 0666 there.
+	if runtime.GOOS != "windows" && info.Mode().Perm()&0o100 == 0 {
 		t.Fatalf("executable bit missing: %v", info.Mode())
 	}
 	sentinel := errors.New("sentinel")
