@@ -679,9 +679,10 @@ a non-cem/1.0 document, a stable verifier refusal, or a non-impact receipt.
 const affectedHelp = `Compile the affected-test selection plan for the dirty worktree.
 
 Usage:
-  corvint [--root PATH] affected [--full] [--require-clean] [--cache DIR]
+  corvint [--root PATH] affected [--full] [--require-clean]
+          [--cache DIR | --no-cache]
   corvint [--root PATH] affected [--full] --path PATH [--path PATH ...]
-          [--paths-from FILE] [--cache DIR]
+          [--paths-from FILE] [--cache DIR | --no-cache]
   corvint [--root PATH] affected [--full] --snapshot RECEIPT
   corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH
   corvint [--root PATH] affected [--full] [--require-clean]
@@ -691,6 +692,7 @@ Usage:
           [--playwright-env NAME[=VALUE] ...]
   corvint [--root PATH] affected discovery --playwright-config PATH
           --playwright-list FILE
+  corvint [--root PATH] affected cache [--format json|doctor-plugin]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider RECORD
           [--provider RECORD ...] [--provider-command ARGV_JSON ...]
           [--repository ID=DIR ...] [--selection-profile strict|coverage]
@@ -764,9 +766,14 @@ absolute, and is held to the same canonical-path rule and 4096-path bound as
 many paths builds the graph once and plans their union, so a caller with
 several changed files should batch them rather than call once per path.
 
---cache DIR (experimental; not with --snapshot or --playwright-config) reuses
-the verified graph between calls on an unchanged checkout. DIR is a directory
-the caller names outside the repository, outside any .git directory and outside
+The graph cache (experimental; never with --snapshot or --playwright-config)
+reuses the verified graph between calls on an unchanged checkout. By default it
+is corvint/affected under the user cache directory (os.UserCacheDir:
+~/Library/Caches on darwin, $XDG_CACHE_HOME or ~/.cache on linux); --cache DIR
+names another directory and --no-cache turns the cache off. A default location
+that is missing, unwritable or placed where --cache DIR would be refused is not
+used and the call runs uncached, with no error. DIR is a directory outside the
+repository, outside any .git directory and outside
 the repository's Git directory wherever it lives; it must be private to the
 user, is created if absent and holds at most one entry per repository root. An entry is
 trusted only when it was written by this exact corvint executable for this
@@ -775,9 +782,14 @@ has the same size, mode, inode, modification and change time;
 otherwise, or when the entry is damaged, the graph is built in full and the
 entry replaced. Files changed within two seconds of a build are not pinned, and
 platforms other than darwin and linux never use an entry. The receipt is
-byte-identical with and without --cache, hit or miss; the worktree status,
-HEAD and drift checks run on every call, and nothing is written inside the
-repository.
+byte-identical with and without the cache, cold, hit or miss; the worktree
+status, HEAD and drift checks run on every call, and nothing is written inside
+the repository.
+
+affected cache (experimental) reports the default cache's location, state
+(PRESENT, ABSENT, UNAVAILABLE or INCOMPLETE), entry count and bytes as one JSON
+object, or with --format doctor-plugin as one AFFECTED_CACHE item for a
+corvint-tasks doctor plugin; it creates and writes nothing.
 
 advice reads the repository's own declarations - a Makefile gate target and the
 AGENTS.md Verify block - and lists them as mandatory checks, followed by one
