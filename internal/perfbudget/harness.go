@@ -30,6 +30,8 @@ type Options struct {
 	Revision string
 	// Progress, when set, receives one line per phase.
 	Progress func(string)
+	// LoadAverage observes the host load around the run; nil reads the host's own.
+	LoadAverage LoadFunc
 }
 
 // Report is one harness run.
@@ -43,7 +45,10 @@ type Report struct {
 	Checks    []Check            `json:"checks"`
 	// Pending lists every pending target, so a reader sees the goals not yet enforced.
 	Pending []Check `json:"pending"`
-	OK      bool    `json:"ok"`
+	// Verdict is PASS, FAIL or NOT_JUDGED (PRB-V0-038); OK is true only for PASS.
+	Verdict         string `json:"verdict"`
+	NotJudgedReason string `json:"not_judged_reason,omitempty"`
+	OK              bool   `json:"ok"`
 }
 
 const fixtureRecord = "fixture.json"
@@ -144,7 +149,11 @@ func Run(ctx context.Context, o Options) (*Report, error) {
 	}
 	r.Fixture = fixture
 	progress(fmt.Sprintf("fixture: %d inputs, %d records, %d additional repositories", fixture.Inputs, fixture.Records, len(fixture.Additional)))
-	r.Host = observeHost(ctx)
+	load := o.LoadAverage
+	if load == nil {
+		load = loadAverage
+	}
+	r.Host = observeHost(ctx, load)
 	samples := map[string]int{}
 	for _, s := range o.Budgets.Scenarios {
 		samples[s.ID] = s.Samples
@@ -181,8 +190,9 @@ func Run(ctx context.Context, o Options) (*Report, error) {
 		}
 		r.Scenarios = append(r.Scenarios, m)
 	}
-	r.Host.finish(ctx)
-	r.Checks, r.OK = Evaluate(o.Budgets, r.Scenarios)
+	r.Host.finish(ctx, load)
+	r.Checks, r.Verdict, r.NotJudgedReason = Judge(o.Budgets, r.Host, r.Scenarios)
+	r.OK = r.Verdict == RunPass
 	r.Pending = []Check{}
 	for _, c := range r.Checks {
 		if c.Limit.Status == StatusPending {

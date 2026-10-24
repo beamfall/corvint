@@ -599,11 +599,14 @@ windows-vet: go-version
 # docs/specs/performance-profiling-and-read-budget-v0.md). It builds corvint and
 # corvint-corpus-mcp, generates the fixture in a temporary directory (minutes, several GiB of
 # memory) and measures six scenarios. The harness exits 1 when an enforced ceiling is exceeded or
-# unknown and 2 when it cannot run; it is run as a built binary, not `go run`, so make's
+# unknown (unless the run is NOT_JUDGED, below) and 2 when it cannot run; it is run as a built binary, not `go run`, so make's
 # "Error 1" or "Error 2" line keeps the two apart. The #1598 and #1601 targets report as pending. PERF_BUDGET_ARGS passes options, for example
-# --fixture DIR to reuse a fixture or --scale smoke.
+# --fixture DIR to reuse a fixture or --scale smoke. A contended host, or one without a load
+# record, is NOT_JUDGED (PRB-V0-039..042): the target succeeds and says so on stderr, unless
+# PERF_BUDGET_REQUIRE_JUDGEMENT=1, which makes it fail with "Error 3".
+PERF_BUDGET_REQUIRE_JUDGEMENT ?=
 .PHONY: perf-budget
 perf-budget: go-version
 	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT INT TERM; \
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -o "$$tmp/perf-budget" ./internal/perfbudget/cmd/perf-budget && \
-	"$$tmp/perf-budget" $(PERF_BUDGET_ARGS)
+	"$$tmp/perf-budget" $(if $(filter 1,$(PERF_BUDGET_REQUIRE_JUDGEMENT)),--require-judgement) $(PERF_BUDGET_ARGS)

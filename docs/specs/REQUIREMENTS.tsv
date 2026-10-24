@@ -4042,6 +4042,12 @@ PRB-V0-034	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted unde
 PRB-V0-035	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) An enfor	standing	2026-10-11; V1-2474
 PRB-V0-036	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) Measured	standing	2026-10-11; V1-2474
 PRB-V0-037	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2474) Every pr	standing	2026-10-11; V1-2474
+PRB-V0-038	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) Eve	standing	2026-10-11; #1602
+PRB-V0-039	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) The	standing	2026-10-11; #1602
+PRB-V0-040	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) A s	standing	2026-10-11; #1602
+PRB-V0-041	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) The	standing	2026-10-11; #1602
+PRB-V0-042	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) `ma	standing	2026-10-11; #1602
+PRB-V0-043	docs/specs/performance-profiling-and-read-budget-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), GitHub #1602) `--	standing	2026-10-11; #1602
 PRB-V0-050	docs/specs/performance-profiling-and-read-budget-v0.md	The harness MUST measure a seventh scenario after the six of `PRB-V0-024`:	unrecorded	-
 PRB-V0-051	docs/specs/performance-profiling-and-read-budget-v0.md	`unchanged-delta` MUST carry the two enforced `PRB-V0-032` ceilings, except that	unrecorded	-
 PRB-V0-052	docs/specs/performance-profiling-and-read-budget-v0.md	The baseline MUST carry the `unchanged-delta` measurement the ceilings derive fr	unrecorded	-
