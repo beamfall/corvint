@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/procgroup"
+	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
 // gitFixtureTimeout bounds one fixture git command. A fixture command touches
@@ -34,6 +35,9 @@ func RunGit(t testing.TB, git, root string, arguments ...string) string {
 	t.Helper()
 	output, err := runGitFixture(gitFixtureTimeout, git, root, arguments...)
 	if err != nil {
+		// procgroup deliberately refuses platforms without owned process
+		// groups; on Windows that refusal skips the test (V1-2486).
+		testplatform.SkipWindowsRefusal(t, err)
 		t.Fatalf("git %s: %v: %s", strings.Join(arguments, " "), err, output)
 	}
 	return output
