@@ -64,3 +64,35 @@ func TestOccurrenceLinesBoundsNamedCopiesV12541(t *testing.T) {
 		t.Fatalf("got %q", got)
 	}
 }
+
+// TestCiteDuplicatedLineNamesAsymmetricWiderSpanV12541 is the review
+// regression for DCW-V0-334: the only unique span that keeps cited line 4
+// widens two lines up and one down, between two edited lines, so a search of
+// one-sided and symmetric widenings alone would name no recovery.
+func TestCiteDuplicatedLineNamesAsymmetricWiderSpanV12541(t *testing.T) {
+	t.Parallel()
+	baseContent := "E1\nA\nB\nX\nC\nE2\n-\nA\nB\nX\nD\n-\nQ\nB\nX\nC\n"
+	targetContent := strings.Replace(strings.Replace(baseContent, "E1\n", "e1\n", 1), "E2\n", "e2\n", 1)
+	root, base, target := makeCiteSpanRepoFrom(t, baseContent, targetContent)
+	session := openSession(t, root)
+	if _, err := session.Prepare(ctx(), PrepareOptions{Base: base, Target: target}); err != nil {
+		t.Fatal(err)
+	}
+	_, err := session.Cite(ctx(), CiteOptions{
+		MapPath: wire.ExcludedCEMPath, Hunk: "1", EvidencePath: "src/app.txt",
+		Lines: "4:4", Relation: "implementation",
+	})
+	if cemcode.CodeOf(err) != cemcode.CiteSpanNotStable {
+		t.Fatalf("got %v, want cite-span-not-stable", err)
+	}
+	message := cemcode.MessageOf(err)
+	if want := "recovery: cite the wider unique span --lines 2:5, which keeps these lines"; !strings.Contains(message, want) {
+		t.Fatalf("refusal %q lacks %q", message, want)
+	}
+	if _, err := session.Cite(ctx(), CiteOptions{
+		MapPath: wire.ExcludedCEMPath, Hunk: "1", EvidencePath: "src/app.txt",
+		Lines: "2:5", Relation: "implementation",
+	}); err != nil {
+		t.Fatalf("named span 2:5 does not cite: %v (refusal %q)", err, message)
+	}
+}

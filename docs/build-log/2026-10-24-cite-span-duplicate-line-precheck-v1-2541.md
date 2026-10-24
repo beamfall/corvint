@@ -39,3 +39,10 @@ listing citable paths before a plan exists (the rest of V1-1724), were not built
 `TestOccurrenceLinesBoundsNamedCopiesV12541` and
 `TestFinishLaneDCWV0335PrepareRefusesUnstableCiteSpanBeforeBind` pass. The existing DCW-V0-068
 finish-lane test's fake now admits probe cites, so its sidecar removal still happens at bind.
+
+## Independent review
+
+One Codex round (gpt-6-astra, read-only) found one P2: the recovery search tried only one-sided
+and symmetric widenings, so a unique span that widens unequally (two lines up, one down) was never
+named. `uniqueWidening` now tries every split of each total width, more lines above first;
+`TestCiteDuplicatedLineNamesAsymmetricWiderSpanV12541` fails before the fix and passes after.

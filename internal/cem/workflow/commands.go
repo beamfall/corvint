@@ -620,9 +620,10 @@ func occurrenceLines(blob, needle []byte, limit int) string {
 // uniqueWidening returns the narrowest base line span that contains span,
 // adds at most maxWidenLines lines on each side, spans only lines no hunk
 // removes or splits, and whose text classifies stable or relocated against
-// the patched blob, so the named span cites as stated (DCW-V0-334). Upward
-// widening is tried before downward at each width; it returns "" when none
-// qualifies.
+// the patched blob, so the named span cites as stated (DCW-V0-334). Every
+// split of each total width is tried, so an asymmetric span qualifies; within
+// a width, more lines above are tried before more below. It returns "" when
+// none qualifies.
 func uniqueWidening(group *patch.Group, baseBlob, patchedBlob []byte, span wire.Span) string {
 	if group.NewPath == nil || *group.NewPath != *group.OldPath {
 		return ""
@@ -643,9 +644,9 @@ func uniqueWidening(group *patch.Group, baseBlob, patchedBlob []byte, span wire.
 		return ""
 	}
 	unchanged := bytes.Equal(baseBlob, patchedBlob)
-	for width := int64(1); width <= maxWidenLines; width++ {
-		for _, candidate := range [][2]int64{{first - width, last}, {first, last + width}, {first - width, last + width}} {
-			start, end := candidate[0], candidate[1]
+	for width := int64(1); width <= 2*maxWidenLines; width++ {
+		for above := min(width, maxWidenLines); above >= max(0, width-maxWidenLines); above-- {
+			start, end := first-above, last+width-above
 			if start < 1 || end > lines || !unedited(start, end) {
 				continue
 			}

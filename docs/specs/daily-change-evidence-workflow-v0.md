@@ -1278,9 +1278,9 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   ...)` after the occurrence count (at most 8 named, the rest counted as `+N more`), and, when one
   exists, MUST name a recovery `cite the wider unique span --lines S:E, which keeps these lines`:
   the narrowest BASE line span containing the refused span, adding at most 16 lines on each side
-  (upward before downward at each width), that spans only lines no hunk removes or splits, fits
-  the citation byte bound and classifies stable or relocated, so it cites as stated. Design: a
-  span pinned by commit, blob and line number is unambiguous in the BASE, but the frozen
+  (every split of each total width, more lines above first), that spans only lines no hunk
+  removes or splits, fits the citation byte bound and classifies stable or relocated, so it
+  cites as stated. Design: a span pinned by commit, blob and line number is unambiguous in the BASE, but the frozen
   `cem/1.0` drift classifier (`verify.ClassifySpan`, restated in the `protocol/cem-1.0` packet)
   relocates a cited span into the target by its text, and the verifier rejects an `ambiguous`
   item as `evidence-drift`; admitting such a citation would only move the refusal from `cem cite`
@@ -1291,7 +1291,9 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   recovery span and keeps the nearest stable spans only. Evidence:
   `TestCiteDuplicatedLineNamesCopiesAndWiderUniqueSpanV12541` (a `return nil` line that occurs
   twice and no hunk edits: the refusal names lines `5:5, 12:12` and `--lines 11:12`, and every
-  named span then cites); `TestOccurrenceLinesBoundsNamedCopiesV12541`. Rollback: remove
+  named span then cites); `TestCiteDuplicatedLineNamesAsymmetricWiderSpanV12541` (the only
+  unique recovery widens two lines up and one down, between edited lines: `--lines 2:5`);
+  `TestOccurrenceLinesBoundsNamedCopiesV12541`. Rollback: remove
   `occurrenceLines`, `uniqueWidening` and their use in `requireCiteSpanStable`.
 - `DCW-V0-335`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2541; refines V1-1724 and amends `DCW-V0-115`) `dogfood
   finish-lane`'s prepare pass MUST, once `cem prepare` produced the map and the plan passes the
