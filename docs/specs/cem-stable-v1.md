@@ -4645,6 +4645,9 @@ The 2026-10-24 integration adds `TestCEMV1600ReadinessDeclaration`,
 `TestCEMV1604MigrationA02Integrated`. The local `make cem-release-gate` run and the real
 V1-2322 lifecycle over this change are recorded in
 `docs/build-log/2026-10-24-cem-1-0-real-lifecycle.md`.
+Its sealed map is `.corvint/changes/fafdef4db349da6aedf6098067801d9a1e978a53.cem.json` (map
+SHA-256 `f392f540dce0a8ef1f0fc66791b15cdb38c81100fed250c731f89d3aac5a4abc`, target
+`b3a82e86695a58d02d81c5eb0e43c1e030b4554e`); this sentence is its follow-up drift commit.
 
 Rollback: revert `internal/companionrelease/core_stable_result.go` and its test,
 `wire.ParseSigned` and its test, `verify.StructuralTupleAdmitted`, `tools/cem-release-suites`, the
