@@ -44,7 +44,12 @@ manifest and profile digests and pinned revisions, then decodes it without reder
 label is dirty or unrecorded proves no rebuild equivalence, so it always rederives. An artifact built by
 another attested Corvint revision stays readable while the builder schema, derivation version and Go
 toolchain in its builder engine match the running binary's; when the derivation version changed, the
-refusal names both versions and the corpus must be rebuilt (`DCP-V1-471`). `validate`, and `--verify-rederive`
+refusal names both versions and the corpus must be rebuilt (`DCP-V1-471`). Rebuild it from the manifest
+it embeds, without re-supplying inputs: `corvint docs corpus build --artifact corpus.json > corpus.new.json`
+then `mv corpus.new.json corpus.json` (redirecting onto the file being read truncates it first). The
+rebuild checks the artifact's content and manifest digests and every pinned input's blob and SHA-256
+in Git; a read never rebuilds, and a running corpus MCP server asks to be restarted on the new file
+(`DCP-V1-495`..`498`). `validate`, and `--verify-rederive`
 on any read, rederive every record from the original pinned inputs (`source-rederived`,
 `DCP-V1-413`). Live source and provider changes are observed from Git status and the tree listing
 and reported separately from the artifact's recorded revision (`DCP-V1-411`). `--timings` writes one

@@ -19,7 +19,7 @@ var corpusReadOptional = []string{"--limit", "--offset", "--retirement", "--call
 
 var corpusFlagExpectations = map[string]corpusFlagExpectation{
 	"manifest":            {required: []string{"--revision", "--scope", "--timestamp"}, optional: []string{"--schema"}},
-	"build":               {required: []string{"--manifest"}, optional: []string{"--max-unresolved-mention-rate", "--max-pattern-rate"}}, // DCP-V1-346, DCP-V1-352
+	"build":               {optional: []string{"--manifest", "--artifact", "--max-unresolved-mention-rate", "--max-pattern-rate"}}, // DCP-V1-346, DCP-V1-352, DCP-V1-495
 	"render":              {required: []string{"--artifact"}},
 	"maintain":            {required: []string{"--artifact", "--page"}, optional: []string{"--apply"}},
 	"cem":                 {required: []string{"--artifact", "--cem"}, optional: []string{"--id"}},

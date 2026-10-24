@@ -2770,6 +2770,10 @@ DCP-V1-396	docs/specs/documentation-corpus-v1.md	(accepted under the owner's sta
 DCP-V1-397	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583) Whe	standing	2026-10-11; #1583
 DCP-V1-398	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583)	standing	2026-10-11; #1583
 DCP-V1-399	docs/specs/documentation-corpus-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1583)	standing	2026-10-11; #1583
+DCP-V1-495	docs/specs/documentation-corpus-v1.md	`corvint docs corpus build` takes exactly one of `--manifest INPUT.json` or	unrecorded	-
+DCP-V1-496	docs/specs/documentation-corpus-v1.md	Before any Git read or build, the rebuild refuses (`corpus-refused`, no output)	unrecorded	-
+DCP-V1-497	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-471`, every `builder differs:` refusal of the verified read end	unrecorded	-
+DCP-V1-498	docs/specs/documentation-corpus-v1.md	A corpus MCP server answers its first call from an artifact recorded by another	unrecorded	-
 DCP-V1-470	docs/specs/documentation-corpus-v1.md	A closed JSON refusal of a named local input (a manifest, a provider record or	unrecorded	-
 DCP-V1-471	docs/specs/documentation-corpus-v1.md	The builder engine names a derivation version (`native-contextindex/<schema>/	unrecorded	-
 DCP-V1-472	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-033` and `DCP-V1-157`, the pinned bytes of a corpus's distinct	unrecorded	-
