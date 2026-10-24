@@ -269,7 +269,8 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
 - `CEM-V1-600`: (proposed; V1-2323) `companionrelease.ReadStableReleaseDeclaration` MUST read a
   release-readiness declaration as one exact `cem-release-readiness/1` document: at most 64 KiB of
   UTF-8 strict CEM JSON (duplicate keys refused) holding exactly `profile`, `runner`, `platform`
-  and `external`, one value and nothing after it. Each class MUST declare 1 to 64 distinct row
+  and `external`, with these exact names in this order, one value and nothing after it. A
+  differently cased name is refused rather than merged. Each class MUST declare 1 to 64 distinct row
   names of 1 to 128 bytes from `[A-Za-z0-9._/:-]`. Anything else is refused with class
   `release-declaration`. The committed declaration `tools/cem-release-suites/READINESS.json`
   requires the five sealed suites on both release binaries, the source-level envelope run,
@@ -4665,7 +4666,7 @@ sealed case depends on them.
 | CEM-V1-570 | `TestCEMV1569StableReleaseReadiness`: raised native authority and runner execution, experimental and unsupported tuples, a qualified tuple outside the allowlist or without a structural proof, failed structural proof, mismatched or unchecked sidecar, unadmitted envelope, `UNSUPPORTED` outcome, `REJECT` | Admission and authority cases keep `REFERENCE_INTEGRITY_ONLY` |
 | CEM-V1-571 | `TestCEMV1569StableReleaseReadiness`: runner `FAILED`, `SKIPPED` and missing rows, platform `NOT_OBSERVED`, external undeclared | Each refusal follows an admitted ACCEPT with reference integrity |
 | CEM-V1-572 | `TestCEMV1572ReleaseBuildsMustMatch`, `TestCEMV1572GoVersionIsTheOnlyMaskedValue`, `TestCEMV1572RuntimeConsistent`, `TestCEMV1572ProvenanceIsReportedNotProven`, `TestCEMV1572SuitesReadCommittedObjects`, `TestCEMV1572MaterializeRefusesNonRegularEntries`, `TestCEMV1572EnvelopeSuitesRunInTheCommittedTree` (`tools/cem-release-suites`) | Local `make cem-release-suites` runs recorded in `docs/build-log/2026-10-23-cem-release-readiness-a02.md` and `docs/build-log/2026-10-23-cem-release-readiness-review-repair.md` |
-| CEM-V1-600 | `TestCEMV1600ReadinessDeclaration` (`internal/companionrelease`): committed declaration 11/2/1 rows; 15 malformed variants | Node check `readiness.test.mjs` reads the same bytes |
+| CEM-V1-600 | `TestCEMV1600ReadinessDeclaration` (`internal/companionrelease`): committed declaration 11/2/1 rows; 18 malformed variants, including case aliases and reordering | Node check `readiness.test.mjs` reads the same bytes |
 | CEM-V1-601 | `TestCEMV1601ReadinessReadsEveryResultFirst`: ready, no result, later wrong-mode result before outcomes, runner `NOT_RUN`, platform and external unobserved | Every refusal is a `*StableReleaseRefusal` |
 | CEM-V1-602 | `TestCEMV1602ObservedRowsNeverPassUnrunRows`, `TestCEMV1602BuildPlatform` (`tools/cem-release-suites`) | Binary-level envelope rows `NOT_RUN`; no external row |
 | CEM-V1-603 | `TestCEMV1603JudgeReadiness`, `TestCEMV1603ReadinessPathIsRepositoryRelative` | Committed declaration exits 3 with `release-runner-incomplete` |

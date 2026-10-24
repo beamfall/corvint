@@ -3,6 +3,7 @@ package companionrelease
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/cem/wire"
@@ -15,6 +16,9 @@ const StableRefusalDeclaration = "release-declaration"
 // StableReleaseDeclarationProfile names the committed release-readiness
 // declaration a release gate reads (CEM-V1-600).
 const StableReleaseDeclarationProfile = "cem-release-readiness/1"
+
+// declarationMembers is the exact member order of a declaration.
+var declarationMembers = []string{"profile", "runner", "platform", "external"}
 
 const (
 	declarationLimit    = 64 << 10
@@ -32,7 +36,7 @@ type StableReleaseDeclaration struct {
 }
 
 // ReadStableReleaseDeclaration reads raw as one exact cem-release-readiness/1
-// declaration: strict CEM JSON, these four members and no other, and 1 to 64
+// declaration: strict CEM JSON, exactly these four members in this order, and 1 to 64
 // distinct row names per class, each 1 to 128 bytes of [A-Za-z0-9._/:-].
 func ReadStableReleaseDeclaration(raw []byte) (StableReleaseDeclaration, error) {
 	var d StableReleaseDeclaration
@@ -45,6 +49,11 @@ func ReadStableReleaseDeclaration(raw []byte) (StableReleaseDeclaration, error) 
 	}
 	if parsed.Kind != wire.KindObject {
 		return d, stableRefuse(StableRefusalDeclaration, "declaration is not a JSON object")
+	}
+	// encoding/json matches member names case-insensitively, so a later
+	// "Runner" would replace "runner". Require the exact names first.
+	if fmt.Sprint(parsed.Obj.Keys) != fmt.Sprint(declarationMembers) {
+		return d, stableRefuse(StableRefusalDeclaration, "members %v are not exactly %v", parsed.Obj.Keys, declarationMembers)
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()

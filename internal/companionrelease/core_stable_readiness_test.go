@@ -61,6 +61,9 @@ func TestCEMV1600ReadinessDeclaration(t *testing.T) {
 		"too many rows":   strings.Replace(valid, `["a"]`, `[`+strings.TrimSuffix(strings.Repeat(`"r",`, 65), ",")+`]`, 1),
 		"oversized":       valid + strings.Repeat(" ", 64<<10),
 		"non-string rows": strings.Replace(valid, `["a"]`, `[1]`, 1),
+		"case alias":      strings.Replace(valid, `"external":["x"]`, `"external":["x"],"Runner":["b"]`, 1),
+		"recased member":  strings.Replace(valid, `"runner"`, `"Runner"`, 1),
+		"reordered":       `{"profile":"cem-release-readiness/1","platform":["linux/amd64"],"runner":["a"],"external":["x"]}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			_, err := ReadStableReleaseDeclaration([]byte(raw))
