@@ -29,8 +29,10 @@ rewrite would change what the test proves. No darwin/linux test is skipped, and 
 
 ## V1-2486 follow-up: deliberate platform refusals skip on Windows
 
-`testplatform.SkipWindowsRefusal(t, err)` skips only when `GOOS` is `windows` and `err` contains
-one of the exact production refusal messages in `testplatform.PlatformRefusals`; the skip reason
+`testplatform.SkipWindowsRefusal(t, err)` skips only when `GOOS` is `windows` and `err`, or an error it wraps,
+reads exactly as one of the production refusal messages in `testplatform.PlatformRefusals` or ends
+with it after a `": "` separator; refusal text inside a path or ahead of an unrelated cause does not
+qualify, and the source check anchors each message with its closing quote; the skip reason
 quotes the refusal and its source file. The list is explicit rather than a pattern such as
 "unsupported", so an unrelated Windows failure still fails. `TestPlatformRefusalsMatchTheirSources`
 rereads each source file, so a reworded refusal fails that test instead of silently no longer

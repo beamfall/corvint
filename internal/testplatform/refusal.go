@@ -1,6 +1,7 @@
 package testplatform
 
 import (
+	"errors"
 	"runtime"
 	"strings"
 	"testing"
@@ -39,7 +40,10 @@ var PlatformRefusals = []PlatformRefusal{
 }
 
 // SkipWindowsRefusal skips t when, and only when, the host is Windows and err
-// carries one of the PlatformRefusals. The skip reason quotes the production
+// is one of the PlatformRefusals: some error in its chain reads exactly as the
+// refusal, or ends with it after a "context: " separator. Refusal text
+// anywhere else, such as inside a path or in front of an unrelated cause,
+// does not qualify. The skip reason quotes the production
 // refusal. On darwin, linux and every other platform it does nothing, so a
 // supported platform never loses the test; the caller still fails on err.
 func SkipWindowsRefusal(t testing.TB, err error) {
@@ -53,11 +57,32 @@ func windowsRefusalSkip(goos string, err error) (string, bool) {
 	if goos != "windows" || err == nil {
 		return "", false
 	}
-	text := err.Error()
 	for _, refusal := range PlatformRefusals {
-		if strings.Contains(text, refusal.Message) {
+		if isRefusal(err, refusal.Message) {
 			return "production refuses this platform (" + refusal.Source + "): " + refusal.Message, true
 		}
 	}
 	return "", false
+}
+
+// isRefusal reports whether err, or an error it wraps, is exactly message or
+// ends with ": "+message.
+func isRefusal(err error, message string) bool {
+	if err == nil {
+		return false
+	}
+	if text := err.Error(); text == message || strings.HasSuffix(text, ": "+message) {
+		return true
+	}
+	switch wrapped := err.(type) {
+	case interface{ Unwrap() []error }:
+		for _, inner := range wrapped.Unwrap() {
+			if isRefusal(inner, message) {
+				return true
+			}
+		}
+		return false
+	default:
+		return isRefusal(errors.Unwrap(err), message)
+	}
 }

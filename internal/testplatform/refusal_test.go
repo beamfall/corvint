@@ -18,11 +18,32 @@ func TestWindowsRefusalSkipOnlyAppliesToAListedRefusalOnWindows(t *testing.T) {
 			t.Fatalf("%s: skip=%v reason=%q, want no skip on a supported platform", goos, skip, reason)
 		}
 	}
+	for _, accepted := range []error{
+		errors.New("process-platform-unsupported"),
+		fmt.Errorf("run git: %v", errors.New("process-platform-unsupported")),
+		errors.Join(errors.New("exit status 1"), fmt.Errorf("cleanup: %w", errors.New("owned process-group cleanup is unsupported on this platform"))),
+	} {
+		if _, skip := windowsRefusalSkip("windows", accepted); !skip {
+			t.Fatalf("windows: %q did not skip, want the exact production refusal to skip", accepted)
+		}
+	}
 	reason, skip := windowsRefusalSkip("windows", refusal)
 	if !skip || !strings.Contains(reason, "process-platform-unsupported") || !strings.Contains(reason, "internal/procgroup/process.go") {
 		t.Fatalf("windows: skip=%v reason=%q, want a skip quoting the refusal and its source", skip, reason)
 	}
-	for _, err := range []error{nil, errors.New("exit status 1"), errors.New("open x: Access is denied.")} {
+	for _, err := range []error{
+		nil,
+		errors.New("exit status 1"),
+		errors.New("open x: Access is denied."),
+		// Refusal text inside a path is not the refusal.
+		errors.New(`exec: "C:\process-platform-unsupported\git.exe": executable file not found in %PATH%`),
+		fmt.Errorf("lookup git: %w", errors.New(`C:\process-platform-unsupported\git.exe: file does not exist`)),
+		// Refusal text in front of an unrelated cause is not the refusal.
+		fmt.Errorf("process-platform-unsupported: %w", errors.New("exit status 1")),
+		fmt.Errorf("after worker platform unsupported retry: %w", errors.New("Access is denied.")),
+		// A longer token that only extends a refusal is not the refusal.
+		errors.New("run git: process-platform-unsupported-new"),
+	} {
 		if reason, skip := windowsRefusalSkip("windows", err); skip {
 			t.Fatalf("windows: %v skipped with %q, want only a listed refusal to skip", err, reason)
 		}
@@ -53,7 +74,7 @@ func TestPlatformRefusalsMatchTheirSources(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", refusal.Source, err)
 		}
-		if !strings.Contains(string(source), `"`+refusal.Message) {
+		if !strings.Contains(string(source), `"`+refusal.Message+`"`) {
 			t.Fatalf("%s no longer carries the refusal %q", refusal.Source, refusal.Message)
 		}
 	}
