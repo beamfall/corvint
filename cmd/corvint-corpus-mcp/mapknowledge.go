@@ -24,6 +24,11 @@ var mapKnowledgeViews = map[string]func(context.Context, *appmap.Map, []string, 
 	"page_objects": appmap.PageObjects,
 	"steps":        appmap.Steps,
 	"setup":        appmap.Setup,
+	"links":        appmap.Links,
+	// The corpus test-knowledge join of `flows appmap infer --corpus` is CLI-only.
+	"flow_candidates": func(ctx context.Context, m *appmap.Map, sources []string, o appmap.Options) ([]byte, error) {
+		return appmap.InferFlows(ctx, m, sources, nil, o)
+	},
 }
 
 func (p *mapPlanner) knowledgeDescriptor() bridge.ToolDescriptor {
@@ -31,13 +36,15 @@ func (p *mapPlanner) knowledgeDescriptor() bridge.ToolDescriptor {
 		Name: mapKnowledgeTool,
 		Description: "Read the site knowledge mined from committed E2E sources of one configured application map: " +
 			"page objects (methods, locators, actions, effects, screen joins), test bodies in the closed step IR, " +
-			"or setup records (fixtures, hooks, storageState, mocks, seeding) linked to the tests they arrange, " +
+			"setup records (fixtures, hooks, storageState, mocks, seeding, Rails factories, fixtures, seeds and setup endpoints) " +
+			"linked to the tests they arrange, or the screen graph's edges by provenance (static links from templates and " +
+			"components beside test-observed ones), or candidate flows clustered from test step sequences (proposals only), " +
 			"pinned to the map revision and source spans. Static, learned authority; opaque steps and unknowns are named.",
 		Annotations: bridge.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true},
 		InputSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"view":    map[string]any{"type": "string", "enum": []any{"page_objects", "steps", "setup"}},
+				"view":    map[string]any{"type": "string", "enum": []any{"page_objects", "steps", "setup", "links", "flow_candidates"}},
 				"sources": map[string]any{"type": "array", "minItems": 1, "maxItems": 16, "items": map[string]any{"type": "string", "minLength": 1, "maxLength": maxKnowledgeSource}},
 				"app":     map[string]any{"type": "string", "minLength": 1, "maxLength": maxKnowledgeApp},
 				"budget":  map[string]any{"type": "integer", "minimum": appmap.MinBudget, "maximum": appmap.MaxBudget},
