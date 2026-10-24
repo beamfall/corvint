@@ -37,8 +37,10 @@ func TestAFPV0420ShardRunsOnKeepsTheCloudFallback(t *testing.T) {
 		"(github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository))) && " +
 		`fromJSON('["self-hosted","linux","x64","corvint-box"]') || 'ubuntu-24.04' }}`
 	wantLine(t, "go-product-shard", jobBlock(t, ci, "go-product-shard"), runsOn)
+	// Other jobs stay on GitHub-hosted images; cce-live runs on hosted macos-15 (V1-2580).
+	hosted := map[string]bool{"ubuntu-24.04": true, "macos-15": true}
 	for _, m := range regexp.MustCompile(`(?m)^    runs-on: (.*)$`).FindAllStringSubmatch(ci, -1) {
-		if m[0] != runsOn && m[1] != "ubuntu-24.04" {
+		if m[0] != runsOn && !hosted[m[1]] {
 			t.Errorf("a job other than go-product-shard leaves the hosted image: %q", m[0])
 		}
 	}
