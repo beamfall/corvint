@@ -3083,17 +3083,19 @@ the plan, its digest or any exit code. Rollback: drop `--cache` and `--paths-fro
 
 ### Release and live-browser CI jobs (V1-2580, V1-1687)
 
-These four requirements add two jobs to `.github/workflows/ci.yml` under the owner's delegation of
+These four requirements add two CI jobs under the owner's delegation of
 `.github/workflows/` edits for this work (2026-10-24, recorded in
 `docs/build-log/2026-10-24-owner-queue-decisions.md` on PR #1718). Neither job is a required check;
 existing jobs and check names are unchanged. Both honor the AFP-V0-081 batched skip.
 
-- **AFP-V0-432:** (proposed; V1-2580) `ci.yml` MUST run a `cem-release-gate` job on `ubuntu-24.04`
-  (linux/amd64) and `macos-15` (darwin/arm64), with `fail-fast: false`, which builds `corvint` and
+- **AFP-V0-432:** (proposed; V1-2580) `.github/workflows/cem-release-gate.yml`, on `ci.yml`'s
+  triggers, MUST run a `cem-release-gate` job on `ubuntu-24.04` (linux/amd64) and `macos-15` (darwin/arm64), with `fail-fast: false`, which builds `corvint` and
   `interop/cem01-go` from the one checkout through `make cem-release-gate`, retains the command's
   whole output as the `cem-release-gate-<os>` artifact even when it fails, writes the readiness and
   suite verdict lines to the step summary, and fails with the target's own nonzero exit and an
-  error annotation. It MUST NOT carry `continue-on-error`. Failure mode: while any required
+  error annotation. It MUST NOT carry `continue-on-error`, and `ci.yml` MUST NOT run the gate:
+  the AFP-V0-080 static reuse and the tested-tree reuse accept only successful `ci.yml` runs, which
+  an always-red job there would end. Failure mode: while any required
   readiness row is `NOT_RUN` or `NOT_OBSERVED`, the target refuses (exit 3, `make` exit 2) and the
   job is red on every run by design; that refusal is the signal, not a CI fault. Falsifier: a job
   that passes on a nonzero exit, runs on only one platform, or loses the output on failure.
@@ -3379,7 +3381,7 @@ including one with a transient read failure, writes no entry. `--paths-from` ref
 | AFP-V0-396 | `affectedHelp` in `cmd/corvint/help.go`; the `corvint affected` row of `docs/CAPABILITIES.md` | `TestAFPV0396HelpDocumentsTheBatchFormAndTheCache`; `make capabilities-check` |
 | AFP-V0-397 | `BuildCached` hit path | `TestAFPV0397RepeatedPathCallOnALargeRubyTreeReusesTheGraph` (1,200 Ruby files: the warm call hits and writes the cold and uncached bytes); measured cold and warm numbers in build log `2026-10-23-affected-graph-reuse-gh1601` |
 | AFP-V0-431 | the test-selection goal of `internal/capcatalog/AGENT-GUIDE.md` | `TestAFPV0431ShippedGuideAdvisesBatchingAndTheAffectedCache`; `make capability-catalog-check` |
-| AFP-V0-432 | `.github/workflows/ci.yml` `cem-release-gate` job | `TestAFPV0432CEMReleaseGateRunsOnBothPlatformsAndRetainsOutput` |
+| AFP-V0-432 | `.github/workflows/cem-release-gate.yml` `cem-release-gate` job | `TestAFPV0432CEMReleaseGateRunsOnBothPlatformsAndRetainsOutput` |
 | AFP-V0-433 | `.github/workflows/ci.yml` `cce-live` job | `TestAFPV0433CCELiveRunsTheLiveTargetOnTheQualifiedHost` |
 | AFP-V0-434 | `.github/workflows/ci.yml` `cce-live` change check | `TestAFPV0434CCELiveRunsOnlyWhenChangee2eChanges` |
 | AFP-V0-435 | `.github/workflows/ci.yml` `cce-live` tuple step | `TestAFPV0435CCELiveRefusesAnUnqualifiedHeadlessShell` |

@@ -1,0 +1,78 @@
+name: CEM release gate
+
+# AFP-V0-432 (V1-2580): `make cem-release-gate` on every pull request, merge-queue entry and main
+# push, in its own workflow rather than in ci.yml. The gate refuses (tool exit 3) while the
+# committed readiness declaration names rows one host cannot observe, so it is red on every run
+# today; inside ci.yml that would fail the whole CI run, and the AFP-V0-080 static reuse and the
+# tested-tree reuse accept only successful ci.yml runs. Not a required check.
+
+on:
+  pull_request:
+  merge_group:
+    types: [checks_requested]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || (github.event_name == 'push' && github.sha) || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  cem-release-gate:
+    # AFP-V0-432 (V1-2580): `make cem-release-gate` (CEM-V1-600..605) on linux/amd64 and darwin/arm64.
+    # The target builds corvint and interop/cem01-go from this clean checkout into one private
+    # directory and runs the sealed suites with release readiness over both binaries. Any nonzero
+    # exit fails the job, including the readiness refusal (tool exit 3) that one host returns while
+    # the committed declaration names rows it cannot observe; a pass here is still not release
+    # support. Its combined output is retained per platform. Not a required check; a ci:batched
+    # constituent never starts it (AFP-V0-081), as its batch pull request and queue entry run it.
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'ci:batched') }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "24.11.1"
+      - name: CEM release gate (fails on any nonzero exit)
+        run: |
+          out="$RUNNER_TEMP/cem-release-gate"
+          mkdir -p "$out"
+          code=0
+          make cem-release-gate > "$out/output.txt" 2>&1 || code=$?
+          cat "$out/output.txt"
+          {
+            printf '### CEM release gate (AFP-V0-432)\n\nmake cem-release-gate exited %s.\n\n```\n' "$code"
+            grep -E '^cem-release-suites: (readiness: (REFUSED|platform|external)|.*(PASS|FAIL))' "$out/output.txt" || true
+            printf '```\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" != 0 ]; then
+            echo "::error::make cem-release-gate exited $code; the retained output names the refused or failed row."
+          fi
+          exit "$code"
+      - name: Retain the CEM release gate output
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cem-release-gate-${{ matrix.os }}
+          path: ${{ runner.temp }}/cem-release-gate/output.txt
+          if-no-files-found: ignore

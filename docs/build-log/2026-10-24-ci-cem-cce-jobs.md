@@ -14,6 +14,13 @@ delegation of `.github/workflows/` edits, recorded in
   `corvint:repository-envelope` is `NOT_RUN` and the linux/amd64 and external rows are
   `NOT_OBSERVED`. The job is therefore red on every run until those rows close. That is the
   intended release signal, so the job is not a required check and is not made one here.
+- Independent review (Codex, one round) found a P1 in the first cut, which placed the gate in
+  `ci.yml`: an always-red job fails the whole `CI` run, and the AFP-V0-080 static reuse and the
+  tested-tree reuse accept only successful `ci.yml` runs, so every merge-queue and main push would
+  rerun the expensive checks. The gate therefore runs in its own workflow,
+  `.github/workflows/cem-release-gate.yml`, on `ci.yml`'s triggers and concurrency key, and the
+  AFP-V0-432 test fails if `ci.yml` runs it again. `cce-live` stays in `ci.yml`: it fails only on
+  a real live failure or an unqualified tuple.
 - `cce-live` change detection (`AFP-V0-434`): `ci.yml` has no path-detection job (`docs-plan`
   outputs only `mode`), and a workflow-level `paths` filter would leave a skipped or missing check.
   The job therefore always runs and decides in its first step, with the AFP-V0-042 first-parent
@@ -35,4 +42,5 @@ fake `make`, `node` and executables and with temporary Git histories. Live runne
 
 ## Rollback
 
-Delete the two jobs from `ci.yml`, the test file and the four requirements.
+Delete `.github/workflows/cem-release-gate.yml`, the `cce-live` job from `ci.yml`, the test file
+and the four requirements.

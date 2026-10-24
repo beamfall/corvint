@@ -55,10 +55,24 @@ func readText(t *testing.T, path string) string {
 
 // AFP-V0-432 (V1-2580): cem-release-gate runs `make cem-release-gate` on linux/amd64 and
 // darwin/arm64 with the pinned Go toolchain, fails on any nonzero exit (the readiness refusal
-// included), and retains the output of each platform even when the gate fails.
+// included), and retains the output of each platform even when the gate fails. It lives in its
+// own workflow on ci.yml's triggers: the always-red gate inside ci.yml would fail every CI run,
+// and the AFP-V0-080 static reuse and the tested-tree reuse accept only successful ci.yml runs.
 func TestAFPV0432CEMReleaseGateRunsOnBothPlatformsAndRetainsOutput(t *testing.T) {
 	testplatform.SkipPOSIXShell(t, "the cem-release-gate step runs under bash with a #!/bin/sh make spy")
-	b := jobBlock(t, readWorkflow(t, "ci.yml"), "cem-release-gate")
+	if strings.Contains(readWorkflow(t, "ci.yml"), "make cem-release-gate") {
+		t.Error("ci.yml must not run the release gate: its refusal would fail every CI run and end CI reuse")
+	}
+	w := readWorkflow(t, "cem-release-gate.yml")
+	for _, line := range []string{
+		"  pull_request:",
+		"  merge_group:",
+		"    branches: [main]",
+		"  contents: read",
+	} {
+		wantLine(t, "cem-release-gate.yml", w, line)
+	}
+	b := jobBlock(t, w, "cem-release-gate")
 	for _, line := range []string{
 		batchedJobCondition,
 		"    runs-on: ${{ matrix.os }}",
