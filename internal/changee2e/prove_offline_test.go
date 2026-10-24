@@ -134,7 +134,7 @@ func TestCCEV0028LadderOfflineFakeRunner(t *testing.T) {
 	unresolved := assertionMessage(sc, "<element(s) not found>")
 	offAssertion := "Error: locator.click: Timeout 5000ms exceeded.\nCall log:\n  - waiting for getByTestId('slot')"
 	pass := fakeSide{states: repeat("passed")}
-	cleanups := cleanupLines(sc.Text)
+	cleanups := sc.CleanupLines
 	if len(cleanups) == 0 {
 		t.Fatal("the compiled scenario has no cleanup line")
 	}
@@ -231,7 +231,7 @@ func TestCCEV0017TestTreeRefusals(t *testing.T) {
 	head := commitBehaviourChange(t, root)
 	sc := compiledScenario(t, root, base, head)
 	missing := sc
-	missing.Text = []byte(strings.Replace(string(sc.Text), "import { test, expect }", "import { Missing } from './missing-helper';\nimport { test, expect }", 1))
+	missing.Text = []byte(strings.Replace(string(sc.Text), "import { test as base, expect }", "import { Missing } from './missing-helper';\nimport { test as base, expect }", 1))
 	overlapRoot, overlapBase := fixtureRepo(t)
 	commitFiles(t, overlapRoot, map[string]*string{"app/main.ts": text("import { ClubPage } from '../e2e/pages/club.page';\nexport const page = ClubPage;\n")}, "app imports a page object")
 	overlapHead := commitBehaviourChange(t, overlapRoot)
@@ -271,7 +271,7 @@ func TestCCEV0018OmittedEventControls(t *testing.T) {
 		t.Fatalf("control IDs %v", ids)
 	}
 	for _, c := range specs[2:] {
-		out, err := perturbLine(sc.Text, c.line, c.kind, sc.Locator, sc.Matcher, sc.Value, c.replacement)
+		out, err := perturbLine(sc.Text, c.line, c.kind, sc.LocatorForm, sc.Locator, sc.Matcher, sc.Value, c.replacement)
 		if err != nil {
 			t.Fatalf("%s: %v", c.id, err)
 		}
@@ -288,10 +288,10 @@ func TestCCEV0018OmittedEventControls(t *testing.T) {
 			t.Fatalf("%s line = %q", c.id, got[c.line-1])
 		}
 	}
-	if !strings.Contains(lines[specs[3].line-1], "seedOpenSlots()") || !strings.HasPrefix(lines[specs[2].line-1], "    await ") {
+	if !strings.Contains(lines[specs[3].line-1], "seedOpenSlots()") || !strings.HasPrefix(lines[specs[2].line-1], "  await test.step(") {
 		t.Fatalf("setup line %q, step line %q", lines[specs[3].line-1], lines[specs[2].line-1])
 	}
-	if _, err := perturbLine(sc.Text, sc.AssertionLine, behaviorfalsify.OmittedEvent, sc.Locator, sc.Matcher, sc.Value, omittedEvent); err == nil {
+	if _, err := perturbLine(sc.Text, sc.AssertionLine, behaviorfalsify.OmittedEvent, sc.LocatorForm, sc.Locator, sc.Matcher, sc.Value, omittedEvent); err == nil {
 		t.Fatal("omitting the outcome assertion itself must refuse")
 	}
 }

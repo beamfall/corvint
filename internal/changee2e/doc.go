@@ -27,7 +27,7 @@ const (
 	ObligationsSchema  = "e2e-obligations/0"
 	CompileSchema      = "e2e-compile/0"
 	ProveSchema        = "e2e-prove/0"
-	CompilerVersion    = "corvint-test-e2e-compile/0"
+	CompilerVersion    = "corvint-test-e2e-compile/1"
 	DeclarationsPath   = ".corvint/e2e-blocks.json"
 )
 

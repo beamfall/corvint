@@ -182,7 +182,7 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 	if err := json.Unmarshal(raw, &impact); err != nil {
 		return nil, refuse("e2e-impact-unavailable", "%v", err)
 	}
-	exemptions, err := readReachExempt(ctx, o.Root, base)
+	exemptions, contracts, err := readBaseReach(ctx, o.Root, base)
 	if err != nil {
 		return nil, err
 	}
@@ -210,6 +210,9 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 		consulted = append(consulted, CoverageBasis)
 	} else {
 		notConsulted = append(notConsulted, CoverageBasis)
+	}
+	if len(contracts) != 0 {
+		consulted = append(consulted, APIContractRelation)
 	}
 	r := &Obligations{LedgerDigest: impact.LedgerDigest, CoverageDigest: coverageDigest, AcceptancesInDiff: inDiff, Schema: ObligationsSchema, Base: base, Head: cat.Revision, CatalogDigest: cat.Digest, ImpactDigest: impact.Digest,
 		Relations:   Relations{Consulted: consulted, NotConsulted: notConsulted},
@@ -291,6 +294,13 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 	} else {
 		r.Relations.NotConsulted = append(r.Relations.NotConsulted, ModuleGraphBasis)
 	}
+	// API contract joins come last and, like the module graph, were not counted as placed
+	// (CCE-V0-114, CCE-V0-115).
+	more, err := apiContractHits(ctx, o.Root, cat.Revision, cat.m, contracts, changed, hits)
+	if err != nil {
+		return nil, err
+	}
+	hits = append(hits, more...)
 	for _, hit := range hits {
 		reached[hit.ID] = true
 		var spans []Span
@@ -329,9 +339,9 @@ func BuildObligations(ctx context.Context, o DiffOptions) (*Obligations, error) 
 				}
 			}
 		}
-		// A module-graph hit on a screen without an outcome adds no span, so the changed path's own
-		// unknown span keeps its reason (CCE-V0-054).
-		if !reaches && !strings.HasPrefix(hit.Basis, ModuleGraphBasis+":") {
+		// A module-graph or API contract hit on a screen without an outcome adds no span, so the
+		// changed path's own unknown span keeps its reason (CCE-V0-054, CCE-V0-114).
+		if !reaches && !strings.HasPrefix(hit.Basis, ModuleGraphBasis+":") && !strings.HasPrefix(hit.Basis, APIContractBasis+":") {
 			for _, s := range spans {
 				lined = append(lined, UnknownSpan{Span: s, Reason: ReasonScreenWithoutOutcome, Detail: hit.ID})
 			}
@@ -460,18 +470,19 @@ func (o *Obligations) oracleOrigin(b *Block) string {
 	return OriginChangedInDiff
 }
 
-// readReachExempt reads the `reach_exempt` member of the declarations file at base, so a diff
-// cannot exempt itself (CCE-V0-020). A missing file exempts nothing.
-func readReachExempt(ctx context.Context, root, base string) ([]ReachExemption, error) {
+// readBaseReach reads the `reach_exempt` and `api_contracts` members of the declarations file at
+// base, so a diff can neither exempt itself (CCE-V0-020) nor declare its own join (CCE-V0-114). A
+// missing file exempts and joins nothing.
+func readBaseReach(ctx context.Context, root, base string) ([]ReachExemption, []APIContract, error) {
 	data, _, ok, err := blobAt(ctx, root, base, DeclarationsPath)
 	if err != nil || !ok {
-		return nil, err
+		return nil, nil, err
 	}
 	d, err := decodeDeclarations(data)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return d.ReachExempt, nil
+	return d.ReachExempt, d.APIContracts, nil
 }
 
 func exemptGlob(list []ReachExemption, p string) (ReachExemption, bool) {

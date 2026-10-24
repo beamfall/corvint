@@ -1137,6 +1137,17 @@ CCE-V0-101	docs/specs/change-compiled-e2e-v0.md	The live ladder MUST be able to 
 CCE-V0-102	docs/specs/change-compiled-e2e-v0.md	The live prove tests MUST fail, not skip, when `CORVINT_CCE_LIVE=required` and t	unrecorded	-
 CCE-V0-103	docs/specs/change-compiled-e2e-v0.md	`obligations`, `compile` and `prove` MUST accept `--ledger FILE` (`DiffOptions.L	unrecorded	-
 CCE-V0-104	docs/specs/change-compiled-e2e-v0.md	With a bound ledger, a flow whose first screen has no admitted deep-link entry M	unrecorded	-
+CCE-V0-105	docs/specs/change-compiled-e2e-v0.md	A declared fixture MAY name `outputs`, at most eight lower-camel identifiers, ea	unrecorded	-
+CCE-V0-106	docs/specs/change-compiled-e2e-v0.md	Data MUST flow between blocks only through a declared output: a route parameter	unrecorded	-
+CCE-V0-107	docs/specs/change-compiled-e2e-v0.md	A declared `session` (`session_id` in the `session:` namespace, non-empty	unrecorded	-
+CCE-V0-108	docs/specs/change-compiled-e2e-v0.md	Every fixture MUST compile to a Playwright `base.extend` fixture: setup before	unrecorded	-
+CCE-V0-109	docs/specs/change-compiled-e2e-v0.md	A declared locator (`block` an outcome or input ID; `by` `role` with a lower-cas	unrecorded	-
+CCE-V0-110	docs/specs/change-compiled-e2e-v0.md	`toHaveAccessibleName` and `toHaveCount` MUST be admitted outcome matchers. A co	unrecorded	-
+CCE-V0-111	docs/specs/change-compiled-e2e-v0.md	A declared `route` MAY bind every required URL parameter of an entry whose only	unrecorded	-
+CCE-V0-112	docs/specs/change-compiled-e2e-v0.md	Every compiled action MUST be a `test.step` named by its block ID, the scenario	unrecorded	-
+CCE-V0-113	docs/specs/change-compiled-e2e-v0.md	Each vocabulary addition MUST have a golden compile output under	unrecorded	-
+CCE-V0-114	docs/specs/change-compiled-e2e-v0.md	`api_contracts` at base (each a `contract:` ID, one or more relative path globs	unrecorded	-
+CCE-V0-115	docs/specs/change-compiled-e2e-v0.md	A reach source MUST NOT turn `UNKNOWN` into `NONE`: with runtime coverage naming	unrecorded	-
 CF-V1-001	docs/specs/change-frontier-profile-1.md	the profile identifier is exactly `frontier/1`; its error profile is exactly	unrecorded	-
 CF-V1-002	docs/specs/change-frontier-profile-1.md	`frontier/0` is untouched in every respect — clause text, item kinds, item IDs,	unrecorded	-
 CF-V1-003	docs/specs/change-frontier-profile-1.md	identity domain separation is deliberate and asymmetric:	unrecorded	-

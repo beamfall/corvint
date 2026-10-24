@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/appmap"
@@ -44,6 +46,16 @@ type Scenario struct {
 	AssertionLines []int
 	EventLines     []int
 	DeclLine       int
+	// SetupLines and CleanupLines are a compiled scenario's fixture setup and teardown calls
+	// (CCE-V0-108): each setup of a fixture with no outputs is an omitted-event control (removing
+	// one whose outputs a later block reads fails by construction, so it would be vacuous), and a
+	// failure at a cleanup line reads cleanup-failed.
+	SetupLines, CleanupLines []int
+	// LocatorForm is the outcome locator's form, empty for a test id; for a typed locator Locator
+	// is its accessible name (CCE-V0-109).
+	LocatorForm string
+	// SessionEnv names the storage-state variable of the scenario's session, if any (CCE-V0-107).
+	SessionEnv string
 }
 
 // oracle_origin values (CCE-V0-016).
@@ -75,6 +87,14 @@ type CompiledEntry struct {
 	// the admitted entry and the test key proving each hop (CCE-V0-104).
 	ProvenPath []string `json:"proven_path,omitempty"`
 	ProvenBy   []string `json:"proven_by,omitempty"`
+	// Steps map each `test.step` line of the scenario to the block it performs (CCE-V0-112).
+	Steps []StepLine `json:"steps,omitempty"`
+}
+
+// StepLine is one `test.step` of a compiled scenario and the admitted block it performs.
+type StepLine struct {
+	Line  int    `json:"line"`
+	Block string `json:"block"`
 }
 
 // CompileReport is the e2e-compile/0 document.
@@ -146,6 +166,7 @@ func CompileObligations(obs *Obligations) (*CompileReport, error) {
 type scenarioPlan struct {
 	entry    *Block
 	fixtures []*Block
+	session  *Block
 	steps    []planStep
 	outcome  *Block
 }
@@ -182,12 +203,32 @@ func compileOne(cat *Catalog, obs *Obligations, ob Obligation) (*Scenario, Compi
 			}
 		}
 		for _, pre := range flow.Preconditions {
-			fx := cat.fixtureFor(pre)
-			if fx == nil {
-				miss(KindFixture, pre, "no-admitted-fixture")
+			// A fixture satisfies a precondition first, then a session (CCE-V0-107); a scenario
+			// runs under at most one session.
+			if fx := cat.fixtureFor(pre); fx != nil {
+				if !slices.Contains(p.fixtures, fx) {
+					p.fixtures = append(p.fixtures, fx)
+				}
 				continue
 			}
-			p.fixtures = append(p.fixtures, fx)
+			se := cat.satisfying(KindSession, pre)
+			switch {
+			case se == nil:
+				miss(KindFixture, pre, "no-admitted-fixture")
+			case p.session != nil && p.session != se:
+				miss(KindSession, pre, "session-conflict")
+			default:
+				p.session = se
+			}
+		}
+		if p.entry != nil {
+			for _, rp := range p.entry.Params {
+				// A route parameter bound to a fixture output needs that fixture in this scenario
+				// (CCE-V0-106).
+				if rp.Fixture != "" && !slices.ContainsFunc(p.fixtures, func(b *Block) bool { return b.ID == rp.Fixture }) {
+					miss(KindPath, p.entry.ID, "route-param-unbound:"+rp.Name)
+				}
+			}
 		}
 		for _, st := range flow.Steps[:expecting+1] {
 			ps, kind, reason := cat.stepBlock(st)
@@ -202,9 +243,10 @@ func compileOne(cat *Catalog, obs *Obligations, ob Obligation) (*Scenario, Compi
 		entry.State = Incomplete
 		return nil, entry
 	}
-	sc := render(cat, obs, ob, p)
+	sc, steps := render(cat, obs, ob, p)
 	sc.Screen = flow.Steps[expecting].Screen
 	entry.State, entry.Placement, entry.AssertionID, entry.AssertionLine = Compiled, sc.Placement, sc.AssertionID, sc.AssertionLine
+	entry.Steps = steps
 	entry.FileDigest = headerDigest(sc.Text)
 	entry.Blocks = p.blockIDs()
 	sc.OracleOrigin = obs.oracleOrigin(p.outcome)
@@ -214,6 +256,9 @@ func compileOne(cat *Catalog, obs *Obligations, ob Obligation) (*Scenario, Compi
 
 func (p scenarioPlan) blockIDs() []string {
 	ids := []string{p.entry.ID, p.outcome.ID}
+	if p.session != nil {
+		ids = append(ids, p.session.ID)
+	}
 	for _, f := range p.fixtures {
 		ids = append(ids, f.ID)
 		ids = append(ids, methodID(f.Setup), methodID(f.Cleanup))
@@ -271,10 +316,13 @@ func (c *Catalog) flowFor(outcomeID string) (*appmap.Flow, int) {
 }
 
 // fixtureFor is the lexically first admitted fixture block satisfying precondition pre.
-func (c *Catalog) fixtureFor(pre string) *Block {
+func (c *Catalog) fixtureFor(pre string) *Block { return c.satisfying(KindFixture, pre) }
+
+// satisfying is the lexically first admitted block of kind satisfying precondition pre.
+func (c *Catalog) satisfying(kind, pre string) *Block {
 	for i := range c.Blocks {
 		b := &c.Blocks[i]
-		if b.Kind != KindFixture {
+		if b.Kind != kind {
 			continue
 		}
 		for _, s := range b.Satisfies {
@@ -335,78 +383,188 @@ func placementFor(obligation string) string {
 // markerPrefix starts every outcome assertion's expect message.
 const markerPrefix = "corvint-e2e outcome "
 
-// render writes the scenario text. Every selector, URL, value and matcher is the exact text of an
-// admitted block; string literals are single-quoted JSON-escaped text.
-func render(cat *Catalog, obs *Obligations, ob Obligation, p scenarioPlan) *Scenario {
+// render writes the scenario text (compiler /1, CCE-V0-105..113). Every selector, URL, value and
+// matcher is the exact text of an admitted block; string literals are single-quoted JSON-escaped
+// text. Each fixture is a test-scoped Playwright fixture that depends on the one before it, so
+// Playwright tears them down in reverse even when a later setup fails (CCE-V0-108); each action
+// is one `test.step` named by its block, and the outcome assertion stands on its own line.
+func render(cat *Catalog, obs *Obligations, ob Obligation, p scenarioPlan) (*Scenario, []StepLine) {
 	placement := placementFor(ob.ID)
 	assertionID := "assert:" + strings.TrimPrefix(ob.ID, "obligation:")
 	marker := markerPrefix + assertionID
-	type po struct{ class, file string }
-	objects := map[string]po{}
-	add := func(file, class string) {
-		if class != "" {
-			objects[class] = po{class, file}
-		}
-	}
+	files := map[string]string{} // class -> page-object file
 	for _, f := range p.fixtures {
-		add(fileOf(f.Setup), cat.classOf(fileOf(f.Setup)))
-		add(fileOf(f.Cleanup), cat.classOf(fileOf(f.Cleanup)))
+		files[cat.classOf(fileOf(f.Setup))] = fileOf(f.Setup)
+		files[cat.classOf(fileOf(f.Cleanup))] = fileOf(f.Cleanup)
 	}
+	var bodyClasses []string
 	for _, s := range p.steps {
 		if s.method != nil {
-			add(s.method.File, s.method.Class)
+			files[s.method.Class] = s.method.File
+			if !slices.Contains(bodyClasses, s.method.Class) {
+				bodyClasses = append(bodyClasses, s.method.Class)
+			}
 		}
 	}
-	classes := make([]string, 0, len(objects))
-	for k := range objects {
+	delete(files, "")
+	classes := make([]string, 0, len(files))
+	for k := range files {
 		classes = append(classes, k)
 	}
 	sort.Strings(classes)
+	sort.Strings(bodyClasses)
 
 	var b strings.Builder
 	line := func(format string, args ...any) { fmt.Fprintf(&b, format+"\n", args...) }
+	next := func() int { return strings.Count(b.String(), "\n") + 1 }
+	sc := &Scenario{Obligation: ob.ID, Placement: placement, TestTitle: ob.ID, AssertionID: assertionID, Marker: marker,
+		Matcher: p.outcome.Matcher, Locator: p.outcome.Locator, Value: p.outcome.Value}
+	if t := p.outcome.Typed; t != nil {
+		sc.LocatorForm, sc.Locator = t.By, t.Name
+	}
 	line("// corvint-test e2e compiled scenario: generated, do not edit.")
 	values := []string{cat.Digest, obs.Base, obs.Head, ob.ID, CompilerVersion}
 	for i, k := range headerFields {
 		line("// %s: %s", k, values[i])
 	}
 	line("%s", digestLinePrefix)
-	line("import { test, expect } from '@playwright/test';")
+	line("import { test as base, expect } from '@playwright/test';")
 	for _, k := range classes {
-		rel, _ := relImport(placement, objects[k].file)
+		rel, _ := relImport(placement, files[k])
 		line("import { %s } from %s;", k, jsString(rel))
 	}
 	line("")
-	line("test(%s, async ({ page }) => {", jsString(ob.ID))
-	for _, k := range classes {
+	fxVar := map[string]string{}
+	var fxNames []string
+	if len(p.fixtures) == 0 {
+		line("const test = base;")
+	} else {
+		types := make([]string, len(p.fixtures))
+		for i, f := range p.fixtures {
+			fxVar[f.ID] = "fx" + strconv.Itoa(i+1)
+			fxNames = append(fxNames, fxVar[f.ID])
+			types[i] = fxVar[f.ID] + ": Record<string, any>"
+		}
+		line("const test = base.extend<{ %s }>({", strings.Join(types, "; "))
+		for i, f := range p.fixtures {
+			deps := "page"
+			if i > 0 {
+				deps += ", " + fxNames[i-1]
+			}
+			line("  %s: async ({ %s }, use) => {", fxNames[i], deps)
+			setupClass, cleanupClass := cat.classOf(fileOf(f.Setup)), cat.classOf(fileOf(f.Cleanup))
+			for _, k := range uniqueStrings(sortedCopy([]string{setupClass, cleanupClass})) {
+				if k != "" {
+					line("    const %s = new %s(page);", varName(k), k)
+				}
+			}
+			if len(f.Outputs) == 0 {
+				sc.SetupLines = append(sc.SetupLines, next())
+				line("    await %s.%s();", varName(setupClass), f.Setup.Method)
+				line("    await use({});")
+				sc.CleanupLines = append(sc.CleanupLines, next())
+				line("    await %s.%s();", varName(cleanupClass), f.Cleanup.Method)
+			} else {
+				outs := make([]string, len(f.Outputs))
+				for j, o := range f.Outputs {
+					outs[j] = jsString(o)
+				}
+				line("    const out = await %s.%s();", varName(setupClass), f.Setup.Method)
+				line("    for (const k of [%s]) if (out?.[k] === undefined) throw new Error(%s + k);", strings.Join(outs, ", "), jsString("corvint-e2e fixture-output-missing "))
+				line("    await use(out);")
+				sc.CleanupLines = append(sc.CleanupLines, next())
+				// A declared method is callable only with no parameters, so cleanup reads any
+				// setup state from its own page-object instance, not from the outputs.
+				line("    await %s.%s();", varName(cleanupClass), f.Cleanup.Method)
+			}
+			line("  },")
+		}
+		line("});")
+	}
+	line("test.use({ trace: 'retain-on-failure' });")
+	if p.session != nil {
+		env := "process.env." + p.session.StorageStateEnv
+		sc.SessionEnv = p.session.StorageStateEnv
+		line("test.use({ storageState: %s });", env)
+		line("test.skip(!%s, %s);", env, jsString("corvint-e2e session-unset "+p.session.StorageStateEnv))
+	}
+	line("")
+	line("test(%s, async ({ %s }) => {", jsString(ob.ID), strings.Join(append([]string{"page"}, fxNames...), ", "))
+	for _, k := range bodyClasses {
 		line("  const %s = new %s(page);", varName(k), k)
 	}
-	for _, f := range p.fixtures {
-		line("  await %s.%s();", varName(cat.classOf(fileOf(f.Setup))), f.Setup.Method)
+	var steps []StepLine
+	step := func(block, action string) {
+		steps = append(steps, StepLine{Line: next(), Block: block})
+		line("  await test.step(%s, () => %s);", jsString(block), action)
 	}
-	line("  try {")
-	line("    await page.goto(%s);", jsString(p.entry.URL))
+	step(p.entry.ID, "page.goto("+urlExpr(p.entry, fxVar)+")")
 	for _, s := range p.steps {
 		if s.method != nil {
-			line("    await %s.%s();", varName(s.method.Class), s.method.Method)
+			step(s.method.ID, varName(s.method.Class)+"."+s.method.Method+"()")
 		} else {
-			line("    await page.getByTestId(%s).fill(%s);", jsString(s.input.Locator), jsString(s.value))
+			step(s.input.ID, locatorExpr(s.input)+".fill("+jsString(s.value)+")")
 		}
 	}
-	assertLine := strings.Count(b.String(), "\n") + 1
-	line("    await expect(page.getByTestId(%s), %s).%s(%s);", jsString(p.outcome.Locator), jsString(marker), p.outcome.Matcher, jsString(p.outcome.Value))
-	line("  } finally {")
-	for i := len(p.fixtures) - 1; i >= 0; i-- {
-		f := p.fixtures[i]
-		line("    await %s.%s();", varName(cat.classOf(fileOf(f.Cleanup))), f.Cleanup.Method)
-	}
-	line("  }")
+	sc.AssertionLine = next()
+	line("  await expect(%s, %s).%s(%s);", locatorExpr(p.outcome), jsString(marker), p.outcome.Matcher, expectedLiteral(p.outcome.Matcher, p.outcome.Value))
 	line("});")
 	text := []byte(b.String())
-	text = []byte(strings.Replace(string(text), "\n"+digestLinePrefix+"\n", "\n"+digestLinePrefix+headerDigest(text)+"\n", 1))
-	return &Scenario{Obligation: ob.ID, Placement: placement, Text: text, TestTitle: ob.ID,
-		AssertionID: assertionID, AssertionLine: assertLine, Marker: marker,
-		Matcher: p.outcome.Matcher, Locator: p.outcome.Locator, Value: p.outcome.Value}
+	sc.Text = []byte(strings.Replace(string(text), "\n"+digestLinePrefix+"\n", "\n"+digestLinePrefix+headerDigest(text)+"\n", 1))
+	return sc, steps
+}
+
+// locatorExpr is the Playwright locator of an outcome or input block: its declared role or label
+// locator, else its test id (CCE-V0-109).
+func locatorExpr(b *Block) string {
+	switch t := b.Typed; {
+	case t == nil:
+		return "page.getByTestId(" + jsString(b.Locator) + ")"
+	case t.By == "role":
+		return "page.getByRole(" + jsString(t.Role) + ", { name: " + jsString(t.Name) + ", exact: true })"
+	default:
+		return "page.getByLabel(" + jsString(t.Name) + ", { exact: true })"
+	}
+}
+
+// expectedLiteral renders an outcome value: a count unquoted, any other value as a string
+// (CCE-V0-110).
+func expectedLiteral(matcher, value string) string {
+	if matcher == MatcherCount {
+		return value
+	}
+	return jsString(value)
+}
+
+// urlExpr is the entry URL: a literal, or for a declared route each `{name}` replaced by its
+// URI-encoded constant or fixture output (CCE-V0-106, CCE-V0-111).
+func urlExpr(entry *Block, fxVar map[string]string) string {
+	if len(entry.Params) == 0 {
+		return jsString(entry.URL)
+	}
+	byName := map[string]RouteParam{}
+	for _, rp := range entry.Params {
+		byName[rp.Name] = rp
+	}
+	var parts []string
+	rest := entry.URL
+	for _, loc := range urlParam.FindAllStringSubmatchIndex(entry.URL, -1) {
+		offset := len(entry.URL) - len(rest)
+		if lit := rest[:loc[0]-offset]; lit != "" {
+			parts = append(parts, jsString(lit))
+		}
+		rp := byName[entry.URL[loc[2]:loc[3]]]
+		val := jsString(rp.Value)
+		if rp.Fixture != "" {
+			val = fxVar[rp.Fixture] + "." + rp.Output
+		}
+		parts = append(parts, "encodeURIComponent(String("+val+"))")
+		rest = entry.URL[loc[1]:]
+	}
+	if rest != "" {
+		parts = append(parts, jsString(rest))
+	}
+	return strings.Join(parts, " + ")
 }
 
 // headerDigest is SHA-256 over text with the digest value left empty (CCE-V0-007).
