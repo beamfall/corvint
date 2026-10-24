@@ -149,6 +149,10 @@ AFP-V0-395	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecord
 AFP-V0-396	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
 AFP-V0-397	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
 AFP-V0-431	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601 re-test on main-368b80d)	unrecorded	-
+AFP-V0-432	docs/specs/affected-plan-v0.md	(proposed; V1-2580) `ci.yml` MUST run a `cem-release-gate` job on `ubuntu-24.04`	unrecorded	-
+AFP-V0-433	docs/specs/affected-plan-v0.md	(proposed; V1-1687, cce-live part of PR #1702) `ci.yml` MUST run a `cce-live`	unrecorded	-
+AFP-V0-434	docs/specs/affected-plan-v0.md	(proposed; V1-1687) The `cce-live` job MUST run its live steps only when the	unrecorded	-
+AFP-V0-435	docs/specs/affected-plan-v0.md	(proposed; V1-1687) Before the live tests, the `cce-live` job MUST require the	unrecorded	-
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
 AHI-003	docs/specs/agent-harness-integration-v0.md	On session/task start, the adapter MUST resolve repository identity, exact Git	unrecorded	-
