@@ -135,6 +135,15 @@ test('AHI-002 AHI-024 native Pi package lifecycle and ephemeral context',async t
  const settlement=readFileSync(capture+'.settle','utf8').trim().split('\n').map(JSON.parse);
  assert.deepEqual(settlement.map(e=>e.type),['agent_before_settle','agent_settled','agent_before_settle','agent_settled']);
  assert.ok(settlement.filter(e=>e.type==='agent_before_settle').every(e=>e.outcome==='completed'&&e.canContinue===false&&e.pending===0&&e.continue===false&&e.mode==='json'),JSON.stringify(settlement));
+ // PWV-V0-015 and PWV-V0-017: the installed host reports the declared annotations and the shipped skills.
+ const probe=join(scratch,'probe.ts'),probed=join(scratch,'probe.json');
+ writeFileSync(probe,`import {writeFileSync} from 'node:fs';\nexport default function(pi){pi.on('before_agent_start',()=>{writeFileSync(${JSON.stringify(probed)},JSON.stringify({tools:pi.getAllTools().filter(t=>t.name.startsWith('corvint_')).map(t=>({name:t.name,annotations:t.annotations})),commands:pi.getCommands().map(c=>({name:c.name,source:c.source}))}))})}\n`);
+ const listed=await pi([...flags.filter(flag=>flag!=='--no-skills'&&flag!=='--no-tools'),'-e',probe,'probe surface']);
+ assert.equal(listed.code,0,listed.stderr);
+ const surface=JSON.parse(readFileSync(probed,'utf8'));
+ const read={readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:false};
+ assert.deepEqual(Object.fromEntries(surface.tools.filter(t=>t.name!=='corvint_fixture_edit').map(t=>[t.name,t.annotations])),{corvint_context:read,corvint_core_read:read,corvint_expand:read,corvint_record_outcome:{readOnlyHint:false,destructiveHint:false,idempotentHint:false,openWorldHint:false},corvint_tasks:read});
+ assert.deepEqual(surface.commands.filter(c=>c.source==='skill').map(c=>c.name).sort(),['skill:corvint-context','skill:corvint-impact','skill:corvint-review','skill:corvint-tasks']);
  const printed=await pi([...flags.map(flag=>flag==='json'?'text':flag),'print qualification']);
  assert.equal(printed.code,0,printed.stderr);assert.match(printed.stdout,/fixture response/);
  assert.doesNotMatch(printed.stderr,/Corvint unavailable|Failed to load extension/);
@@ -371,7 +380,7 @@ for(const loseClaimReceipt of [false,true])test('LCP PWV native workflow owner a
  for(const dir of [home,agent,repo])mkdirSync(dir,{recursive:true});
  cpSync(resolve(process.env.CORVINT_PI_PACKAGE_SOURCE??here),pkg,{recursive:true,filter:path=>!path.endsWith('.test.mjs')});
  writeFileSync(providerPath,qualificationProvider.replace("let session,calls=0,active=0;","let session,calls=0,active=0; pi.registerCommand('fixture-reload',{description:'Reload native fixture',handler:async(_,ctx)=>{await ctx.reload()}});"));
- writeFileSync(join(repo,'.gitignore'),'.corvint/\n');writeFileSync(join(repo,'intent.md'),'# Intent\nPreserve operator ownership.\n');
+ writeFileSync(join(repo,'.gitignore'),'.corvint/\n');writeFileSync(join(repo,'intent.md'),'# Intent\n\n## Requirements\n\n- `FIXTURE-001`: preserve operator ownership.\n');
  const git=args=>{const r=spawnSync('git',['-c','user.name=Fixture','-c','user.email=fixture@example.invalid',...args],{cwd:repo,encoding:'utf8'});assert.equal(r.status,0,r.stderr);return r.stdout.trim()};
  git(['init','-q','-b','main']);
  const templates=join(root,'internal/tasks/cli/testdata/external-agents');mkdirSync(join(repo,'.taskman'));

@@ -84,7 +84,7 @@
       "validation": "adapter-fixtures-plus-exact-native-qualification"
     },
     {
-      "adapterVersion": "0.3.3",
+      "adapterVersion": "0.3.4",
       "documentedAgainstHostVersion": "0.99.1",
       "fullSupport": "external-dependent",
       "host": "pi",

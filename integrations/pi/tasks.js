@@ -1,11 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { canonical, digest, createWorktreeIdentity, createOperationLedger } from './operations.js';
-const reads={help:['help'],audit:['receipt','audit'],queue:['queue','status'],roadmap:['roadmap'],ticket:['ticket','show'],blockers:['ticket','blockers'],gates:['gate','list'],gate:['gate','show'],releases:['release','list'],release:['release','show'],readiness:['release','readiness'],attempt:['attempt','show'],plan:['plan','preview']};
+import { canonical, digest, createWorktreeIdentity, createOperationLedger, READ_ONLY_TOOL } from './operations.js';
+const reads={help:['help'],audit:['receipt','audit'],queue:['queue','status'],roadmap:['roadmap'],ticket:['ticket','show'],blockers:['ticket','blockers'],gates:['gate','list'],gate:['gate','show'],releases:['release','list'],release:['release','show'],readiness:['release','readiness'],attempt:['attempt','show'],plan:['plan','preview'],search:['ticket','search'],list:['ticket','list']};
 const writes=['ticket prioritize','claim','renew','release','submit','gate run','complete'];
 const ident=v=>typeof v==='string'&&/^[A-Za-z0-9][A-Za-z0-9:._/-]{0,511}$/.test(v)&&!v.includes('..');
 const count=v=>typeof v==='string'&&/^(0|[1-9][0-9]{0,17})$/.test(v);
 const oid=v=>typeof v==='string'&&/^[0-9a-f]{40}([0-9a-f]{24})?$/.test(v);
 const ticket=v=>ident(v)&&v.startsWith('ticket:');
+// PWV-V0-013: native ticket.Statuses, ticket.Kinds and wire.ParseLabel (1..64 UTF-8 bytes, no
+// hostile code point, no TAB/LF/CR); the adapter also refuses a leading hyphen so no value reads as a flag.
+const STATUSES=['DRAFT','OPEN','HELD','COMPLETED','ARCHIVED'],KINDS=['FEATURE','BUG','CHORE','SPIKE','DOC','MANUAL','EXTERNAL'];
+const HOSTILE=/[\0-\x1f\x7f-\x9f﻿؜‎‏‪-‮⁦-⁩]/u;
+const label=v=>typeof v==='string'&&v.isWellFormed()&&Buffer.byteLength(v)>=1&&Buffer.byteLength(v)<=64&&!v.startsWith('-')&&!HOSTILE.test(v);
+function statuses(v,many){ensure(typeof v==='string');const parts=v.split(',');ensure((many||parts.length===1)&&parts.every(x=>STATUSES.includes(x))&&new Set(parts).size===parts.length)}
 function object(v,keys,required=keys) {if(!v||typeof v!=='object'||Array.isArray(v)||Object.keys(v).some(k=>!keys.includes(k))||required.some(k=>!Object.hasOwn(v,k)))throw Error('invalid-input')}
 function ensure(ok){if(!ok)throw Error('invalid-input')}
 function failure(fault,extra={}){return {ok:false,fault,mutation:'not-attempted',...extra}}
@@ -13,6 +19,23 @@ export function tasksResult(result) {return {content:[{type:'text',text:JSON.str
 function readArgs(operation,input) {
  const args=reads[operation];if(!args)throw Error('unsupported-operation');
  if(['ticket','blockers','gate','release','readiness','attempt'].includes(operation)){object(input,['id']);ensure(ident(input.id));return [...args,input.id]}
+ // PWV-V0-013: closed native ticket search and list selectors; a value never becomes a flag.
+ if(operation==='search'||operation==='list'){
+  const keys=operation==='list'?['status','offset','limit']:['status','kind','priority','owner','milestone','label','text','offset','limit','summary'];
+  object(input,keys,[]);const out=[...args];
+  for(const k of keys)if(input[k]!==undefined){
+   const v=input[k];
+   if(k==='summary'){ensure(typeof v==='boolean');if(v)out.push('--summary');continue}
+   if(k==='offset'||k==='limit'){ensure(Number.isSafeInteger(v)&&v>=(k==='limit'?1:0)&&v<=(k==='limit'?100:100000));out.push('--'+k,String(v));continue}
+   if(k==='status')statuses(v,operation==='list');
+   else if(k==='kind')ensure(KINDS.includes(v));
+   else if(k==='priority')ensure(['P0','P1','P2','P3'].includes(v));
+   else if(k==='text')ensure(typeof v==='string'&&v.length>0&&v.length<=256&&!v.startsWith('-')&&!/[\0-\x1f\x7f]/.test(v));
+   else ensure(label(v));
+   out.push('--'+k,v);
+  }
+  return out;
+ }
  if(operation==='roadmap'){object(input,['offset','limit'],[]);const out=[...args];for(const k of ['offset','limit'])if(input[k]!==undefined){ensure(Number.isSafeInteger(input[k])&&input[k]>=0&&input[k]<=(k==='limit'?100:100000));out.push('--'+k,String(input[k]))}return out}
  object(input,[]);return [...args];
 }
@@ -136,7 +159,7 @@ export function createTasksService({runner,identity,identityOwner,ledger=createO
  return {read,command,clear(){epoch++;return ownedIdentity?.cancel()},close:()=>Promise.all([runner.close?.(),ownedIdentity?.close()])};
 }
 export function registerTasksTools(pi,{service,notice=()=>{}}) {
- pi.registerTool({name:'corvint_tasks',label:'Corvint Tasks reads',description:'Bounded native Tasks reads. Raw receipts retain unknowns; no task-store writes or initialization.',parameters:{type:'object',properties:{operation:{type:'string',enum:Object.keys(reads)},input:{type:'object'}},required:['operation'],additionalProperties:false},execute:async(_id,args,signal,_update,ctx)=>tasksResult(await service.read(args.operation,args.input??{},{...ctx,signal}))});
+ pi.registerTool({name:'corvint_tasks',label:'Corvint Tasks reads',annotations:READ_ONLY_TOOL,description:'Bounded native Tasks reads. Raw receipts retain unknowns; no task-store writes or initialization.',parameters:{type:'object',properties:{operation:{type:'string',enum:Object.keys(reads)},input:{type:'object'}},required:['operation'],additionalProperties:false},execute:async(_id,args,signal,_update,ctx)=>tasksResult(await service.read(args.operation,args.input??{},{...ctx,signal}))});
  pi.registerCommand('corvint-tasks',{description:'Explicit native Tasks operation JSON: operation, input, requestId; resume:true reconciles the same uncertain request. Local operator assertion, not authenticated identity.',handler:async(text,ctx)=>{
   let request;try{if(Buffer.byteLength(text)>8192)throw Error();request=JSON.parse(text)}catch{notice(ctx,'invalid-input');return}
   const result=await service.command(request,ctx);
