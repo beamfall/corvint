@@ -97,11 +97,18 @@ func nearestTypeScriptAliases(owner string, configs []typeScriptAliases) *typeSc
 // testIgnore), and every file the profile assigns to a project is a Playwright test of that
 // config in the general adapter. The general adapter's membership is then the config's, so the
 // markers raise no executable-config frontier (AFP-V0-404). files is every observed file name.
-func playwrightStaticMembership(config config, files []string, observations []observation) bool {
+// When it is not static, site and token name what blocks it: the first marker the profile does not
+// model, the membership unknown the parse leaves, or a profile-owned file that is not a Playwright
+// test of the config, never a modelled testDir or projects marker (AFP-V0-423).
+func playwrightStaticMembership(config config, files []string, observations []observation) (site, token string, static bool) {
+	unmodelled := -1
 	for _, marker := range dynamicConfigMarkers {
-		if marker != "testDir" && marker != "projects:" && strings.Contains(config.body, marker) {
-			return false
+		if found := strings.Index(config.body, marker); marker != "testDir" && marker != "projects:" && found >= 0 && (unmodelled < 0 || found < unmodelled) {
+			unmodelled = found
 		}
+	}
+	if unmodelled >= 0 {
+		return lineSite(config.path, config.body, unmodelled), sourceToken(config.body[unmodelled:]), false
 	}
 	projects, globalTestDir, unknown := parsePlaywrightConfig(config.path, config.body)
 	membership := []PlaywrightUnknown{}
@@ -116,12 +123,15 @@ func playwrightStaticMembership(config config, files []string, observations []ob
 	if len(projects) == 0 && len(membership) == 1 && membership[0].Reason == PlaywrightUnknownProjectSet && membership[0].Detail == "projects is absent" {
 		projects, membership = []PlaywrightProject{{}}, nil
 	}
-	if len(membership) != 0 || len(projects) == 0 {
-		return false
+	if len(membership) != 0 {
+		return config.path, membership[0].Reason, false
+	}
+	if len(projects) == 0 {
+		return config.path, "projects", false
 	}
 	for _, project := range projects {
 		if len(project.matchers) != 0 || len(project.ignores) != 0 || len(project.TestMatch) != 0 || len(project.TestIgnore) != 0 {
-			return false
+			return config.path, "testMatch", false
 		}
 	}
 	byPath := make(map[string]observation, len(observations))
@@ -141,8 +151,8 @@ func playwrightStaticMembership(config config, files []string, observations []ob
 		}
 		observation, observed := byPath[name]
 		if !observed || !observation.test || observation.runner != runnerPlaywright || !containsString(observation.configs, config.path) {
-			return false
+			return config.path, "owns " + name, false
 		}
 	}
-	return true
+	return "", "", true
 }

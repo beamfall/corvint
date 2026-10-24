@@ -203,6 +203,7 @@ Separate experimental corpus profile:
   corvint [--root PATH] docs corpus build --manifest INPUT.json
   corvint [--root PATH] docs corpus behavior-adapter --input REQUEST.json [--previous RESULT.json] [--check]
   corvint [--root PATH] docs corpus behavior-provider --input REQUEST-V2.json
+  corvint [--root PATH] docs corpus compact-provider --input PROVIDER.json
   corvint [--root PATH] docs corpus discover-playwright --migration MIGRATION.json --config PATH --playwright-list LIST.json [--receipt RECEIPT.json]
   corvint [--root PATH] docs corpus witness-playwright --input REQUEST.json --receipt-input ID --report REPORT.json
   corvint [--root PATH] docs corpus discover-legacy --runner jasmine|mocha --revision FULL_COMMIT --path PATH [--input REGISTRY.json]

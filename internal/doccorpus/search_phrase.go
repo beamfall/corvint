@@ -5,8 +5,6 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
-
-	"github.com/Beamfall/corvint/internal/contextindex"
 )
 
 // identifierWords splits text into lower-case words at every rune that is
@@ -69,24 +67,10 @@ func queryPhrase(query string) ([]string, bool) {
 // as whole words in order: its id, its name unless the name is prose, and a
 // module or file subject's anchor paths (DCP-V1-400, DCP-V1-401). A query
 // that is one identifier also matches inside a prose name, since an
-// identifier quoted in a paragraph names the same thing (DCP-V1-475).
+// identifier quoted in a paragraph names the same thing (DCP-V1-475). Which
+// of these holds it orders the match (phraseTier, DCP-V1-542).
 func phraseMatch(s Subject, phrase []string, identifier bool) bool {
-	if containsPhrase(identifierWords(s.ID), phrase) {
-		return true
-	}
-	if identifier || pathSubject(s) || len(contextindex.EvidenceTerms(s.Name)) <= proseNameTerms {
-		if containsPhrase(identifierWords(s.Name), phrase) {
-			return true
-		}
-	}
-	if pathSubject(s) {
-		for _, p := range extraPaths(s) {
-			if containsPhrase(identifierWords(p), phrase) {
-				return true
-			}
-		}
-	}
-	return false
+	return phraseTier(s, phrase, identifier) != tierTerms
 }
 
 // mayHoldPhrase is phraseMatch's allocation-free prefilter: a subject can
@@ -118,8 +102,8 @@ func mayHoldPhrase(s Subject, phrase []string) bool {
 	return false
 }
 
-// containsFoldASCII reports whether text holds the lower-case ASCII word,
-// ignoring ASCII case, without allocating.
+// containsFoldASCII reports whether text holds the ASCII word, ignoring ASCII
+// case on both sides, without allocating.
 func containsFoldASCII(text, word string) bool {
 	for i := 0; i+len(word) <= len(text); i++ {
 		j := 0
@@ -128,7 +112,11 @@ func containsFoldASCII(text, word string) bool {
 			if 'A' <= c && c <= 'Z' {
 				c += 'a' - 'A'
 			}
-			if c != word[j] {
+			w := word[j]
+			if 'A' <= w && w <= 'Z' {
+				w += 'a' - 'A'
+			}
+			if c != w {
 				break
 			}
 		}

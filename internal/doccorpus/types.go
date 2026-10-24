@@ -359,10 +359,10 @@ type Receipt struct {
 // ResultRank is one ranked result's place in its ranking (DCP-V1-479). Rank
 // is the 1-based position before offset and limit. Results that share Group
 // tie on every ranking key the scorer computes, and only the specificity and
-// natural ID tie-breaks order them. Tier is exact, phrase or terms. Score is
-// the normalized term score in [0, 1], rounded to six decimals. Terms counts
-// the distinct query terms a docs_claims result holds; it is absent on
-// docs_search (DCP-V1-480).
+// natural ID tie-breaks order them. Tier is exact, identifier, path-phrase,
+// phrase, id-phrase, named or terms (DCP-V1-544). Score is the normalized term
+// score in [0, 1], rounded to six decimals. Terms counts the distinct query
+// words a result holds (DCP-V1-480, DCP-V1-540).
 type ResultRank struct {
 	Rank  int     `json:"rank"`
 	Group int     `json:"group"`

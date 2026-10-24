@@ -454,8 +454,11 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 		observations = append(observations, observation)
 	}
 	for _, config := range configs {
-		if config.runner == runnerPlaywright && config.membership && !playwrightStaticMembership(config, files, observations) {
-			frontier.at(FrontierConfig, config.path, config.body, dynamicConfigMarker(config.body))
+		if config.runner != runnerPlaywright || !config.membership {
+			continue
+		}
+		if site, token, static := playwrightStaticMembership(config, files, observations); !static {
+			frontier.raiseToken(FrontierConfig, site, token)
 		}
 	}
 	// TJAA-V0-037: the general adapter resolves tsconfig aliases as the Playwright config mode
