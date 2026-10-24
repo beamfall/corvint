@@ -39,14 +39,14 @@ type searchHit struct {
 	value any
 	id    string
 	score float64
-	// exact marks an exact name or claim-text match, which orders before
-	// every hit that is not exact, whatever its score (DCP-V1-402).
-	exact bool
-	// phrase marks a subject whose name field holds the query's words in
-	// order, such as logout_redirect_url or the segment on_deck for the
-	// query "on deck"; it orders after exact hits and before every other
-	// hit (DCP-V1-475).
-	phrase bool
+	// tier is the hit's ranking tier, tierExact to tierTerms: an exact name
+	// or claim-text match (DCP-V1-402), an identifier token (DCP-V1-541), a
+	// phrase in a path, a name or only the ID (DCP-V1-475, DCP-V1-542), a
+	// name a question holds (DCP-V1-543), or terms alone. An earlier tier
+	// orders first, whatever the scores.
+	tier int
+	// terms counts the query words whose terms the hit holds (DCP-V1-540).
+	terms int
 	// claim orders a claim after a subject of equal score (DCP-V1-402).
 	claim bool
 	// text is the subject name or claim text whose length breaks a score
@@ -73,8 +73,11 @@ func normalized(score, maximum float64) float64 {
 // (DCP-V1-402). Exact matches order first whatever their term overlap,
 // then subjects whose name field holds the query as a phrase (DCP-V1-475).
 // Claim text also matches regular inflections of a query term
-// (DCP-V1-476). Terms are summed in sorted order so the floating-point
-// score is deterministic; equal scores order subjects before claims, then
+// (DCP-V1-476). A query word counts once, by the best of the terms it yields
+// (DCP-V1-540), and the tiers of DCP-V1-541 to DCP-V1-543 order identifier
+// tokens, path phrases, ID-only phrases and names a question holds. Groups
+// are summed in sorted order so the floating-point score is deterministic;
+// equal scores order subjects before claims, then
 // the shorter name or text, then by natural record ID order (DCP-V1-477). A kind filter keeps only subjects of the named kinds and claims about
 // them.
 func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error {
@@ -93,32 +96,48 @@ func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error
 	if err != nil {
 		return err
 	}
+	groups := queryGroups(request.Query, terms)
 	hits := []searchHit{}
 	scores := map[int]float64{}
+	held := map[int]int{}
 	maximum := 0.0
-	for _, term := range terms {
-		if err := ctx.Err(); err != nil {
-			return err
+	for _, group := range groups {
+		gain := map[int]float64{}
+		top := 0.0
+		for _, term := range group {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			idf := searchIDF(len(a.Subjects), len(postings[term]))
+			top = max(top, idf)
+			for _, i := range postings[term] {
+				if !keep(a.Subjects[i].Kind) {
+					continue
+				}
+				w := claimFieldWeight
+				if names(i)[term] {
+					w = nameFieldWeight
+				}
+				gain[i] = max(gain[i], w*idf)
+			}
 		}
-		idf := searchIDF(len(a.Subjects), len(postings[term]))
-		maximum += nameFieldWeight * idf
-		for _, i := range postings[term] {
-			if !keep(a.Subjects[i].Kind) {
-				continue
-			}
-			w := claimFieldWeight
-			if names(i)[term] {
-				w = nameFieldWeight
-			}
-			scores[i] += w * idf
+		maximum += nameFieldWeight * top
+		for i, g := range gain {
+			scores[i] += g
+			held[i]++
 		}
 	}
 	for i := range scores {
 		scores[i] = normalized(scores[i], maximum)
 	}
-	exact := map[int]bool{}
-	phrased := map[int]bool{}
+	tiers := map[int]int{}
 	phrase, identifier := queryPhrase(request.Query)
+	question := questionShaped(request.Query)
+	var queryWords []string
+	folded := ""
+	if question {
+		queryWords, folded = identifierWords(request.Query), strings.ToLower(request.Query)
+	}
 	for i, s := range a.Subjects {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -126,17 +145,27 @@ func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error
 		if !keep(s.Kind) {
 			continue
 		}
+		tier := tierTerms
 		if strings.EqualFold(request.Query, s.Name) {
 			// An exact name match outranks every partial match of either
 			// family, even one sharing no query term after tokenization.
-			exact[i] = true
-		} else if phrase != nil && mayHoldPhrase(s, phrase) && phraseMatch(s, phrase, identifier) {
+			tier = tierExact
+		} else if phrase != nil && mayHoldPhrase(s, phrase) {
 			// A phrase match is a candidate on its own, even when every
 			// phrase word is a stop word or no query term scored it.
-			phrased[i] = true
-		} else {
+			if identifier && identifierToken(s, phrase) {
+				tier = tierIdentifier
+			} else {
+				tier = phraseTier(s, phrase, identifier)
+			}
+		}
+		if tier == tierTerms && question && namedInQuery(s, queryWords, folded) {
+			tier = tierNamed
+		}
+		if tier == tierTerms {
 			continue
 		}
+		tiers[i] = tier
 		if _, ok := scores[i]; !ok {
 			scores[i] = 0
 		}
@@ -146,21 +175,22 @@ func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error
 			return err
 		}
 		s := a.Subjects[i]
-		hits = append(hits, searchHit{value: s, id: s.ID, score: score, exact: exact[i], phrase: phrased[i], text: s.Name})
+		tier, ok := tiers[i]
+		if !ok {
+			tier = tierTerms
+		}
+		hits = append(hits, searchHit{value: s, id: s.ID, score: score, tier: tier, terms: held[i], text: s.Name})
 	}
 	if claims {
-		claimHits, err := claimSearchHits(ctx, a, x, request, terms, keep)
+		claimHits, err := claimSearchHits(ctx, a, x, request, groups, keep)
 		if err != nil {
 			return err
 		}
 		hits = append(hits, claimHits...)
 	}
 	sort.Slice(hits, func(i, j int) bool {
-		if hits[i].exact != hits[j].exact {
-			return hits[i].exact
-		}
-		if hits[i].phrase != hits[j].phrase {
-			return hits[i].phrase
+		if hits[i].tier != hits[j].tier {
+			return hits[i].tier < hits[j].tier
 		}
 		if hits[i].score != hits[j].score {
 			return hits[i].score > hits[j].score
@@ -176,16 +206,10 @@ func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error
 	r.ranks = make(map[string]ResultRank, len(hits))
 	group := 0
 	for n, h := range hits {
-		if n == 0 || h.exact != hits[n-1].exact || h.phrase != hits[n-1].phrase || h.score != hits[n-1].score {
+		if n == 0 || h.tier != hits[n-1].tier || h.score != hits[n-1].score {
 			group++
 		}
-		tier := "terms"
-		if h.exact {
-			tier = "exact"
-		} else if h.phrase {
-			tier = "phrase"
-		}
-		r.ranks[h.id] = ResultRank{Rank: n + 1, Group: group, Tier: tier, Score: servedScore(h.score)}
+		r.ranks[h.id] = ResultRank{Rank: n + 1, Group: group, Tier: tierNames[h.tier], Score: servedScore(h.score), Terms: h.terms}
 		addRecord(r, h.value)
 	}
 	return ctx.Err()
@@ -329,10 +353,11 @@ func extraPaths(s Subject) []string {
 }
 
 // claimSearchHits scores claims by their ID and text terms, and regular
-// inflections of them (DCP-V1-476), with claim-text weight, normalized by the
-// claim family's largest possible partial score; an exact-text match orders
-// first (DCP-V1-328, DCP-V1-402).
-func claimSearchHits(ctx context.Context, a *Artifact, x *QueryIndex, request Request, terms []string, keep func(string) bool) ([]searchHit, error) {
+// inflections of them (DCP-V1-476), with claim-text weight, a query word
+// counting once by its best term (DCP-V1-540), normalized by the claim
+// family's largest possible partial score; an exact-text match orders first
+// (DCP-V1-328, DCP-V1-402).
+func claimSearchHits(ctx context.Context, a *Artifact, x *QueryIndex, request Request, groups [][]string, keep func(string) bool) ([]searchHit, error) {
 	about := func(c Claim) bool {
 		if request.Kinds == nil {
 			return true
@@ -341,18 +366,28 @@ func claimSearchHits(ctx context.Context, a *Artifact, x *QueryIndex, request Re
 		return ok && ref.Kind == "subject" && keep(a.Subjects[ref.Offset].Kind)
 	}
 	scores := map[int]float64{}
+	count := map[int]int{}
 	maximum := 0.0
-	for _, term := range terms {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
-		held := claimPostings(x, term)
-		idf := searchIDF(len(a.Claims), len(held))
-		maximum += claimFieldWeight * idf
-		for _, i := range held {
-			if about(a.Claims[i]) {
-				scores[i] += claimFieldWeight * idf
+	for _, group := range groups {
+		gain := map[int]float64{}
+		top := 0.0
+		for _, term := range group {
+			if err := ctx.Err(); err != nil {
+				return nil, err
 			}
+			held := claimPostings(x, term)
+			idf := searchIDF(len(a.Claims), len(held))
+			top = max(top, idf)
+			for _, i := range held {
+				if about(a.Claims[i]) {
+					gain[i] = max(gain[i], claimFieldWeight*idf)
+				}
+			}
+		}
+		maximum += claimFieldWeight * top
+		for i, g := range gain {
+			scores[i] += g
+			count[i]++
 		}
 	}
 	query := strings.TrimSpace(request.Query)
@@ -371,7 +406,11 @@ func claimSearchHits(ctx context.Context, a *Artifact, x *QueryIndex, request Re
 	hits := make([]searchHit, 0, len(scores))
 	for i, score := range scores {
 		c := a.Claims[i]
-		hits = append(hits, searchHit{value: c, id: c.ID, score: normalized(score, maximum), exact: exact[i], claim: true, text: c.Text})
+		tier := tierTerms
+		if exact[i] {
+			tier = tierExact
+		}
+		hits = append(hits, searchHit{value: c, id: c.ID, score: normalized(score, maximum), tier: tier, terms: count[i], claim: true, text: c.Text})
 	}
 	return hits, nil
 }

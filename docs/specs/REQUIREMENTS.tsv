@@ -2737,6 +2737,13 @@ DCP-V1-483	docs/specs/documentation-corpus-v1.md	Derivation runs after every pro
 DCP-V1-484	docs/specs/documentation-corpus-v1.md	Derivation never refuses a manifest the compiler built before it. When a compile	unrecorded	-
 DCP-V1-485	docs/specs/documentation-corpus-v1.md	Derived declarations change the records the same inputs build, so	unrecorded	-
 DCP-V1-486	docs/specs/documentation-corpus-v1.md	A committed synthetic fixture, `internal/mcp/corpusbridge/testdata/search-rankin	unrecorded	-
+DCP-V1-540	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-400` and `DCP-V1-402`, `docs_search` groups the query's evidenc	unrecorded	-
+DCP-V1-541	docs/specs/documentation-corpus-v1.md	A query that is one identifier of at least two words ranks, in tier `identifier`	unrecorded	-
+DCP-V1-542	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-475`, a phrase match orders by where the phrase is held: tier	unrecorded	-
+DCP-V1-543	docs/specs/documentation-corpus-v1.md	A question-shaped query (it ends with `?`, or its first whitespace field is a	unrecorded	-
+DCP-V1-544	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-479`, `tier` is one of `exact`, `identifier`, `path-phrase`,	unrecorded	-
+DCP-V1-545	docs/specs/documentation-corpus-v1.md	The tiers and groups are computed per read from the artifact and the query, with	unrecorded	-
+DCP-V1-546	docs/specs/documentation-corpus-v1.md	A committed synthetic fixture,	unrecorded	-
 DCP-V1-250	docs/specs/documentation-corpus-v1.md	The case file is a closed `corvint-corpus-eval-cases/1` document with a file	unrecorded	-
 DCP-V1-251	docs/specs/documentation-corpus-v1.md	Each case runs through `corpusbridge.Registry.CallTimed`, the code path that ser	unrecorded	-
 DCP-V1-252	docs/specs/documentation-corpus-v1.md	Each case reports `hit`, the 1-based `rank` of the first relevant row, `k` (the	unrecorded	-
