@@ -502,11 +502,15 @@ func leaseDetachChildLive(dir string, child *leaseDetachChild, now time.Time) (b
 	switch {
 	case child.Pid <= 0 || (err == nil && id == ""):
 		return false, nil // no such process
-	case err == nil && child.Identity != leaseDetachUnknownIdentity:
-		return id == child.Identity, nil // a different identity is a reused pid
+	case err == nil && child.Identity != leaseDetachUnknownIdentity && supervisor.CompareIdentity(id, child.Identity) != supervisor.IdentityUnknown:
+		// A different identity is a reused pid; a Linux btime one second
+		// off is the same child (PSR-V0-227).
+		return supervisor.SameProcess(id, child.Identity), nil
 	}
-	// The identity is not yet known: a child still starting has not taken
-	// running, so it is taken as live until the startup window has passed.
+	// The identity is not yet known, or its start tick matches with a btime
+	// more than a second off (PSR-V0-227): a child still starting has not
+	// taken running, so it is taken as live until the startup window has
+	// passed.
 	started, perr := time.Parse(time.RFC3339, child.StartedAt)
 	return perr == nil && now.Before(started.Add(leaseDetachStartBound)), nil
 }

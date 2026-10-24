@@ -664,14 +664,27 @@ func replayRun(env Env, dir string, rec *runRecord) int {
 	return *rec.ExitStatus
 }
 
+// attemptProcessIdentity reads a recorded PID's start identity; tests
+// replace it to model a Linux btime read one second off (PSR-V0-227).
+var attemptProcessIdentity = supervisor.ProcessIdentity
+
 // processLive reports whether pid is still the process recorded with
-// identity; a PID alone is never trusted (ATR-V0-012).
+// identity; a PID alone is never trusted (ATR-V0-012). The identity was
+// recorded by another process, so a Linux btime one second off is the same
+// process, and a matching start tick with btime further off is an error,
+// never a gone process (PSR-V0-227).
 func processLive(pid int, identity string) (bool, error) {
-	id, err := supervisor.ProcessIdentity(pid)
+	id, err := attemptProcessIdentity(pid)
 	if err != nil {
 		return false, err
 	}
-	return id != "" && id == identity, nil
+	switch supervisor.CompareIdentity(id, identity) {
+	case supervisor.IdentitySame:
+		return true, nil
+	case supervisor.IdentityUnknown:
+		return false, wire.Errorf(wire.CodeQuiescenceUnproved, "run", "pid %d identity is uncertain: its start tick matches but its boot time differs", pid)
+	}
+	return false, nil
 }
 
 // attemptAttach is `run --attach --attempt ID [--run RUN] [--wait SECONDS]`

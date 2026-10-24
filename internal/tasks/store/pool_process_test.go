@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 	"os"
 	"os/exec"
@@ -549,17 +550,17 @@ func TestPSRV0201_RunnerIdentityNeedsNoListing(t *testing.T) {
 func TestPSRV0204_LinuxIdentityClockStepIsUnknown(t *testing.T) {
 	for _, c := range []struct {
 		a, b string
-		want linuxIdentityMatch
+		want supervisor.IdentityMatch
 	}{
-		{"linux:1000:77", "linux:1000:77", linuxSame},
-		{"linux:1000:77", "linux:1001:77", linuxSame},
-		{"linux:1001:77", "linux:1000:77", linuxSame},
-		{"linux:1000:77", "linux:1002:77", linuxUnknown},
-		{"linux:4600:77", "linux:1000:77", linuxUnknown},
-		{"linux:1000:77", "linux:1000:78", linuxDifferent},
-		{"linux:1000:77", "Thu Oct 22 09:00:00 2026", linuxDifferent},
+		{"linux:1000:77", "linux:1000:77", supervisor.IdentitySame},
+		{"linux:1000:77", "linux:1001:77", supervisor.IdentitySame},
+		{"linux:1001:77", "linux:1000:77", supervisor.IdentitySame},
+		{"linux:1000:77", "linux:1002:77", supervisor.IdentityUnknown},
+		{"linux:4600:77", "linux:1000:77", supervisor.IdentityUnknown},
+		{"linux:1000:77", "linux:1000:78", supervisor.IdentityDifferent},
+		{"linux:1000:77", "Thu Oct 22 09:00:00 2026", supervisor.IdentityDifferent},
 	} {
-		if got := compareLinuxIdentity(c.a, c.b); got != c.want {
+		if got := supervisor.CompareIdentity(c.a, c.b); got != c.want {
 			t.Fatalf("compare %q %q = %d, want %d", c.a, c.b, got, c.want)
 		}
 	}

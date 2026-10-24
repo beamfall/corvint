@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
@@ -41,7 +42,7 @@ func TestPSRV0204_LinuxRunnerIdentityNeedsNoListing(t *testing.T) {
 	if again, e := poolRecordedIdentity(os.Getpid(), identity); e != nil || again != identity || listings != 0 {
 		t.Fatalf("recorded /proc identity re-read as %q %v after %d listings", again, e, listings)
 	}
-	boot, start, ok := splitLinuxIdentity(identity)
+	boot, start, ok := supervisor.SplitLinuxIdentity(identity)
 	if !ok {
 		t.Fatalf("identity %q does not parse", identity)
 	}

@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Date: 2026-10-01
-Intent status: proposed; TCB-V0-015..023 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283, V1-1356); TCB-V0-030..031 accepted under it (V1-1358); TCB-V0-035..039 accepted under it (V1-1359); TCB-V0-040..044 accepted under it (V1-1377); TCB-V0-045 accepted under it (V1-1761)
+Intent status: proposed; TCB-V0-015..023 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283, V1-1356); TCB-V0-030..031 accepted under it (V1-1358); TCB-V0-035..039 accepted under it (V1-1359); TCB-V0-040..044 accepted under it (V1-1377); TCB-V0-045 accepted under it (V1-1761); TCB-V0-046 accepted (decision 0548, reaffirmed 2026-10-24; V1-1895)
 Delivery status: experimental
 Authoritative inputs: decision 0397, `docs/specs/cem-criterion-experiments-v0.md`, native V1-0575;
 for TCB-V0-007..023, decision 0525 §1 step 8, `docs/specs/cem-stable-v1.md` and native V1-1283 and V1-1356.
 
 ## Agent digest
 - Claim: Native Tasks captures and verifies coherent claim-era criterion bindings; Core consumes only the Tasks wire contract.
-- Status: proposed; TCB-V0-015..023 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283, V1-1356); TCB-V0-030..031 accepted under it (V1-1358); TCB-V0-035..039 accepted under it (V1-1359); TCB-V0-040..044 accepted under it (V1-1377); TCB-V0-045 accepted under it (V1-1761)/experimental delivery; owner release intent remains accepted separately.
+- Status: proposed; TCB-V0-015..023 accepted under the owner's standing auto-accept (2026-10-11) (V1-1283, V1-1356); TCB-V0-030..031 accepted under it (V1-1358); TCB-V0-035..039 accepted under it (V1-1359); TCB-V0-040..044 accepted under it (V1-1377); TCB-V0-045 accepted under it (V1-1761); TCB-V0-046 accepted (decision 0548, reaffirmed 2026-10-24; V1-1895)/experimental delivery; owner release intent remains accepted separately.
 - Exists: `internal/tasks/criterionbinding`, compiled CLI read verbs and wire-owned projections; bounded independent repair review passed. Experimental sealed cem/1.0 verdict gate: library `internal/taskman/cem_verdict_gate.go` with a portable cross-check, `corvint cem gate-verdict`, Tasks argv placeholders and a policy entry (TCB-V0-007..019). A merged-forward lane is gated and completed at its seal commit, and an exact touch key naming a directory refuses (TCB-V0-020..023); the portable leg runs on Darwin and Linux amd64/arm64 (TCB-V0-030..031). An optional `effects.verdictPaths`, a subset of `touchPaths`, is the gate's predicate domain through `{claim.verdictPaths}` in repository policy v10, falling back to `touchPaths` (TCB-V0-035..039). The document pins the consumer's stage and code, an unsupported portable route refuses `portable-route-unsupported` by name, and the consumer resolves the gate's own Git, which fixed the hosted macos-15 gate tests (TCB-V0-040..044).
 - Blocked on: full CEM1.0 live receipt/source join, integration and release qualification; installing the gate's two executables and registering its policy entry in the live store; installing a `corvint-tasks` with TCB-V0-037 before the store adopts policy v10.
 - Read next: Requirements; Acceptance and rollback; Sealed cem/1.0 verdict gate; Merged-forward lanes; Verdict predicate domain.
@@ -144,6 +144,25 @@ for TCB-V0-007..023, decision 0525 §1 step 8, `docs/specs/cem-stable-v1.md` and
   `corvint-update` installs release components only and does not install `cem01-go`.
   `corvint help cem gate-verdict` names `verifier-build-mismatch` and this rebuild command
   (amendment accepted under the same standing auto-accept, V1-2324).
+- `TCB-V0-046`: (accepted, decision 0548, reaffirmed 2026-10-24
+  (owner-held decisions, PR #1721); V1-1895) `complete` MUST keep CAL-V0-017's
+  tree equality unchanged: a merge commit whose tree was never submitted and gated is never accepted.
+  Both `STALE_TREE` refusals of the completion check MUST name the post-merge sequence, for a change
+  that landed as a new merge commit (a merge queue): submit that merge commit's tree
+  (`submit --tree <merge>^{tree}`), run each required gate on it (`gate run`), then
+  `complete --commit <merge>`. This holds for the tree mismatch and for a commit that neither the
+  intent branch nor its upstream contains, with or without a configured upstream. The fetch or
+  integrate route the unreachable refusal already names stays first, since a merge-commit
+  integration contains the seal commit (TCB-V0-021). V1-1895's first acceptance criterion is
+  amended from "the single post-merge command" to "one named sequence".
+
+  Non-goals: no pending completion bound to a PR head, no completion of a merge commit whose
+  first-parent diff equals the submitted change without a gate rerun (both rejected by decision
+  0548), and no change to codes, to the extra-repository refusal (CAL-V0-087) or to any wire or
+  store format. Failure mode: a lane following only the fetch route after a merge queue rewrote its
+  tree keeps refusing `STALE_TREE`; the named sequence is its exit. Rollback: revert
+  `postMergeSequence` and its three uses in `internal/tasks/transaction/lease_gate.go` and
+  `internal/tasks/transaction/lease_gate_post_merge_test.go`.
 
 ## Acceptance and rollback
 
@@ -183,6 +202,7 @@ Capture includes canonical claim-era ticket bytes whose digest equals the attemp
 | TCB-V0-020, TCB-V0-022 | `internal/taskman/cem_verdict_merge_forward_unix_test.go` `TestTCBV0020GateGrantsOnlyAtTheSealCommitOfAMergedForwardLane` | Over a moved `main`, the merge commit and a post-seal merge of `main` into the lane each refuse `sealed-tree-mismatch` naming the lane's sealed map, with no consumer run; the seal commit, the merge's second-parent ancestor, grants, and so does a tree-identical empty commit after it |
 | TCB-V0-021 | `internal/tasks/store/lease_gate_merge_forward_test.go` `TestTCBV0021_CompletePinsTheSealCommitOfAMergedForwardLane`; live V1-1348 completion (`docs/build-log/2026-10-14-v1-1283-native-completion-through-cem-verdict.md`) | The merge and post-seal commits refuse `STALE_TREE` alone and write nothing; the seal commit refuses `COMMIT_NOT_INTEGRATED` until `main` contains it, then completes with no Tasks code change |
 | TCB-V0-023 | `TestTCBV0023ExactKeyNamingADirectoryRefuses`, `TestTCBV0023DirectoryListingFramingFailsClosed`; amended `TestTCBV0011PredicateIsClosedAndNeverRaisesATier` | Directory keys at the base only, the candidate only or both refuse pinned before the map; file and absent keys grant; an unlistable candidate or a misframed listing refuses `git-read-failed`; `all-anchored` ignores keys |
+| TCB-V0-046 | `internal/tasks/transaction/lease_gate_post_merge_test.go` `TestTCBV0046_TreeMismatchNamesThePostMergeSequence`, `TestTCBV0046_NotIntegratedNamesThePostMergeSequence` | Each refusal branch keeps its codes and names submit of the merge tree, the gate run and `complete --commit <merge>`; the extra-repository refusal is unchanged |
 
 Independent repair review `/private/tmp/cem10-build/tasks-rereview.json` passed the original
 claim-digest and future-sequence counterexamples plus positive native lifecycle tests. The compiled

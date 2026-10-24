@@ -672,10 +672,15 @@ func DetachedMarkers(dir string) ([]DetachedView, map[string]error, error) {
 	return out, bad, nil
 }
 
+// detachedProcessIdentity reads a recorded supervisor's or lock holder's
+// start identity; tests replace it to model a Linux btime read one second off
+// (PSR-V0-227).
+var detachedProcessIdentity = supervisor.ProcessIdentity
+
 // RunState is the CAL-V0-150 state of a marker's run from one record read:
 // RUNNING, FINISHED or SUPERVISOR_LOST, MISSING when the record is gone,
 // REPLACED when it names another run or supervisor, or UNKNOWN when it or
-// the supervisor's identity cannot be read.
+// the supervisor's identity cannot be read or is uncertain (PSR-V0-227).
 func RunState(v DetachedView, run *DetachedRun, err error) string {
 	m := &detachedMarker{RunID: v.RunID, AttemptID: v.AttemptID, Generation: v.Generation, SupervisorPID: v.SupervisorPID, SupervisorIdentity: v.SupervisorIdentity}
 	switch {
@@ -688,12 +693,18 @@ func RunState(v DetachedView, run *DetachedRun, err error) string {
 	case run.State == RunFinished:
 		return RunFinished
 	}
-	id, err := supervisor.ProcessIdentity(run.SupervisorPID)
-	switch {
-	case err != nil:
+	id, err := detachedProcessIdentity(run.SupervisorPID)
+	if err != nil {
 		return StateUnknown
-	case id != "" && id == run.SupervisorIdentity:
+	}
+	// The supervisor recorded its own identity: a Linux btime one second off
+	// this read is the same supervisor, and a matching start tick with btime
+	// further off is unknown, never lost (PSR-V0-227).
+	switch supervisor.CompareIdentity(id, run.SupervisorIdentity) {
+	case supervisor.IdentitySame:
 		return RunRunning
+	case supervisor.IdentityUnknown:
+		return StateUnknown
 	}
 	return "SUPERVISOR_LOST"
 }
