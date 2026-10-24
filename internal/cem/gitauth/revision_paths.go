@@ -17,7 +17,10 @@ import (
 // subtree whose path descend rejects is pruned unread (DCP-V1-521). The walk
 // refuses past MaxTreeDepth levels, past MaxPathSetTreeBytes of tree output
 // (git-output-exceeded) and past maxEntries listed entries, each before the
-// next level is read (DCP-V1-522). Paths are returned sorted.
+// next level is read (DCP-V1-522). Names follow Git's tree grammar (no empty,
+// ".", ".." or slash-bearing segment); wire-path policy is left to the caller's
+// selected paths, as with the per-tree walk this replaces. Paths are returned
+// sorted.
 func (r *Repository) RevisionPaths(ctx context.Context, commit string, maxEntries int, descend func(dir string) bool) ([]string, error) {
 	if !wire.IsGitOid(commit) {
 		return nil, unavailable("revision paths require a pinned commit")
@@ -61,9 +64,6 @@ func (r *Repository) RevisionPaths(ctx context.Context, commit string, maxEntrie
 				current := name
 				if dir != "" {
 					current = dir + "/" + name
-				}
-				if err := wire.ValidatePath(current); err != nil {
-					return nil, err
 				}
 				if entry.Type != "tree" {
 					paths = append(paths, current)

@@ -2945,8 +2945,11 @@ acceptance open.
   directory level, whose records must self-hash and carry the OID their verified parent names.
   The walk lists every non-tree entry (symlinks and gitlinks stay listed and become gaps when
   read, `DCP-V1-395`), exactly as `ls-tree -r` would, independent of how many directories the
-  revision holds. Acceptance: `TestDCPV1520RevisionPathsMatchesLsTreeWithinOneOpPerLevel`,
+  revision holds. A name Git's tree grammar admits, such as one containing a backslash, is
+  listed rather than refused, as the per-tree walk did. Acceptance:
+  `TestDCPV1520RevisionPathsMatchesLsTreeWithinOneOpPerLevel`,
   `TestDCPV1520RevisionPathsOpsIndependentOfDirectoryCount`,
+  `TestDCPV1520RevisionPathsListsGitSafeNamesUnfiltered`,
   `TestDCPV1520ExtractionEnumeratesMoreThan1024Directories`.
 - `DCP-V1-521`: (proposed, experimental; GitHub #1662; owner acceptance open) The walk descends
   only into a directory below which some glob can match: until a glob's first `**` segment each
@@ -3669,7 +3672,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-474 | `internal/mcp/corpusbridge/eval.go`, `corpusbridge.go` | `TestDCPV1474EvalSuiteObservesOnce`, `TestDCPV1251EvalScoresThroughTheMCPToolPath`; measured in docs/build-log/2026-10-24-corpus-diagnostics-and-ranking.md |
 | DCP-V1-475..477 | `internal/doccorpus/search_rank.go`, `search_phrase.go`, `typed_query.go` | `TestDCPV1475PhraseAndIdentifierMatchesRankFirst`, `TestDCPV1476ClaimTextMatchesInflections`, `TestDCPV1477MeaningfulTieBreaks`, `TestDCPV1404SearchRankingEvalFixture` |
 | DCP-V1-478, DCP-V1-503..506 | `internal/doccorpus/extractor.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `docs.go` | `TestDCPV1478CallerProfileExtractsLikeTheCommittedProfile`, `TestDCPV1478CallerProfileRequiresAMatchingDigest`, `TestDCPV1478CallerProfileDirectorySwapIsRefused`, `TestDCPV1478CallerProfileUnsupportedPlatformIsRefused`, `TestDCPV1503CallerProfileProvenanceIsRecorded`, `TestDCPV1503CallerProfileWithNoSubjectsKeepsItsDigest`, `TestDCPV1504CallerProfileProviderRecordBuildsUnchanged`, `TestDCPV1505CallerProfileExtractionIsReadOnly`, `TestDCPV1506DocsCorpusExtractCallerProfileCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusHelpListsOperations`, `TestCAPV0019CommittedCatalogMatchesTheBinary` |
-| DCP-V1-520..522 | `internal/cem/gitauth/revision_paths.go`, `internal/doccorpus/extractor.go` | `TestDCPV1520RevisionPathsMatchesLsTreeWithinOneOpPerLevel`, `TestDCPV1520RevisionPathsOpsIndependentOfDirectoryCount`, `TestDCPV1520ExtractionEnumeratesMoreThan1024Directories`, `TestDCPV1521ExtractorGlobPruningIsSound`, `TestDCPV1521RevisionPathsPrunesRejectedSubtrees`, `TestDCPV1522RevisionPathsRefusesPastItsBounds`; measured in docs/build-log/2026-10-24-corpus-extract-enumeration.md |
+| DCP-V1-520..522 | `internal/cem/gitauth/revision_paths.go`, `internal/doccorpus/extractor.go` | `TestDCPV1520RevisionPathsMatchesLsTreeWithinOneOpPerLevel`, `TestDCPV1520RevisionPathsOpsIndependentOfDirectoryCount`, `TestDCPV1520RevisionPathsListsGitSafeNamesUnfiltered`, `TestDCPV1520ExtractionEnumeratesMoreThan1024Directories`, `TestDCPV1521ExtractorGlobPruningIsSound`, `TestDCPV1521RevisionPathsPrunesRejectedSubtrees`, `TestDCPV1522RevisionPathsRefusesPastItsBounds`; measured in docs/build-log/2026-10-24-corpus-extract-enumeration.md |
 | DCP-V1-468 | `internal/doccorpus/artifact_decode.go`, `query_index_fast.go` | `TestDCPV1431StreamedDecodeMatchesInMemory`, `TestDCPV1434DecodeTimeClaimTermsMatchIndex`, `TestDCPV1419FastIndexMatchesReference` |
 | DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-487..489 | `internal/doccorpus/compact_anchor.go`, `shards.go`, `encoding.go` | `TestDCPV1487CompactAnchorTableEquivalent`, `TestDCPV1488CompactAnchorRefusals`, `TestDCPV1489CompactAnchorSizeMeasured`; measured in docs/build-log/2026-10-24-corpus-compact-anchor-table.md |

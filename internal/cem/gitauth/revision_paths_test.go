@@ -132,3 +132,32 @@ func TestDCPV1522RevisionPathsRefusesPastItsBounds(t *testing.T) {
 		t.Fatalf("unpinned revision: %v", err)
 	}
 }
+
+// TestDCPV1520RevisionPathsListsGitSafeNamesUnfiltered pins DCP-V1-520: the
+// walk lists every name Git's tree grammar admits, as the per-tree walk it
+// replaces did, leaving wire-path policy to the caller's selected paths, so an
+// unrelated backslash-containing name does not refuse the listing.
+func TestDCPV1520RevisionPathsListsGitSafeNamesUnfiltered(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	integrityGit(t, root, "init", "-q")
+	integrityGit(t, root, "config", "user.email", "fixture@example.invalid")
+	integrityGit(t, root, "config", "user.name", "Fixture")
+	writeFile(t, root, "app/a.rb", "def a\nend\n")
+	integrityGit(t, root, "add", "-A")
+	blob := strings.TrimSpace(string(integrityGit(t, root, "rev-parse", ":app/a.rb")))
+	integrityGit(t, root, "update-index", "--add", "--cacheinfo", "100644,"+blob+`,notes\old.txt`)
+	integrityGit(t, root, "commit", "-qm", "seed")
+	commit := integrityOID(t, root, "HEAD")
+	repo, err := Open(root, gitrun.NewBudget(2, gitrun.DefaultTotalBudget))
+	if err != nil {
+		t.Fatal(err)
+	}
+	paths, err := repo.RevisionPaths(context.Background(), commit, 1000, nil)
+	if err != nil {
+		t.Fatalf("RevisionPaths with a backslash-containing name: %v", err)
+	}
+	if want := lsTreeFiles(t, root, commit); !slices.Equal(paths, want) || !slices.Contains(paths, `notes\old.txt`) {
+		t.Fatalf("paths = %q, want %q", paths, want)
+	}
+}
