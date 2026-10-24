@@ -122,7 +122,8 @@ func runControl(ctx context.Context, inv behaviorfalsify.Invocation) (behaviorfa
 		r.TestOutcome = "infrastructure_failed"
 		obs.State = "not_run"
 		r.TargetObservation = obs
-		r.Infrastructure = &behaviorfalsify.InfrastructureFailure{Reason: infrastructureReason(ctx, receipt), Detail: reason}
+		r.Infrastructure = &behaviorfalsify.InfrastructureFailure{Reason: infrastructureReason(ctx, receipt),
+			Detail: hookInfrastructureDetail(reason, receipt, runErr, treeRoots(tree))}
 		raw, _ := json.Marshal(r)
 		r.NativeReceiptSHA256 = "sha256:" + sha256Hex(raw)
 		return r, nil

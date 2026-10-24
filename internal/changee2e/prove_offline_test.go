@@ -24,6 +24,11 @@ type fakeSide struct {
 	// teardown is a run-level reporter error's PWP-V3-009 location (`file:line`, a file relative
 	// to the staged tree unless absolute); the pool is then qualified by the real qualify.
 	teardown string
+	// globalError is the message of an unlocated run-level reporter error; the pool is then
+	// qualified by the real qualify (CCE-V0-116).
+	globalError string
+	// runErr is the provider run error returned with a non-empty reason (CCE-V0-116).
+	runErr error
 	// served are the paths the side's static server answers, given to a coverage recorder.
 	served []string
 }
@@ -33,13 +38,15 @@ type fakeRunner struct {
 	sides          map[string]fakeSide
 	controls       string // the status every control reads when the ladder reaches them
 	controlReasons []string
-	staged         map[string]map[string]string
-	called         int
+	// controlReport, when set, is the BBF report the controls read through controlResults.
+	controlReport *behaviorfalsify.Report
+	staged        map[string]map[string]string
+	called        int
 }
 
 func (f *fakeRunner) env(root string) *proveEnv {
 	e := &proveEnv{root: root}
-	e.side = func(_ context.Context, in runInput) (jstestprovider.Receipt, string, string) {
+	e.side = func(_ context.Context, in runInput) (jstestprovider.Receipt, string, string, error) {
 		f.called++
 		files := map[string]string{}
 		for _, p := range []string{"e2e/pages/club.page.ts", "app/components/teesheet.html", proveConfigName} {
@@ -82,14 +89,22 @@ func (f *fakeRunner) env(root string) *proveEnv {
 			r.Infrastructure = &jstestprovider.InfrastructureFailure{Reason: jstestprovider.ReasonReporterGlobalError, Detail: "Error: worker fixture teardown",
 				Location: &jstestprovider.Anchor{File: file, Line: line}}
 			_, reason := qualify(r, nil, len(s.states), treeRoots(in.Tree))
-			return r, "", reason
+			return r, "", reason, nil
+		}
+		if s.globalError != "" {
+			r.Infrastructure = &jstestprovider.InfrastructureFailure{Reason: jstestprovider.ReasonReporterGlobalError, Detail: s.globalError}
+			_, reason := qualify(r, nil, len(s.states), treeRoots(in.Tree))
+			return r, "", reason, nil
 		}
 		if s.reason != "" {
-			return r, "", s.reason
+			return r, "", s.reason, s.runErr
 		}
-		return r, "sha256:" + strings.Repeat("0", 64), ""
+		return r, "sha256:" + strings.Repeat("0", 64), "", nil
 	}
 	e.controls = func(_ context.Context, _ string, sc Scenario, _ testTree, _ jstestprovider.Receipt) []controlProof {
+		if f.controlReport != nil {
+			return controlResults(controlSpecs(sc), "sha256:plan", *f.controlReport)
+		}
 		out := notRunControls(sc, "")
 		for i := range out {
 			out[i].Status, out[i].Reasons = f.controls, f.controlReasons
