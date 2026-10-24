@@ -252,19 +252,26 @@ func sameDerivation(recorded, running Builder) error {
 		}
 		return boundedText(v, 128)
 	}
+	var reason string
 	switch {
 	case derivationOf(recorded) != derivationOf(running):
-		return errNotRederivable("builder differs: derivation version differs (artifact " + named(derivationOf(recorded)) +
-			", running builder " + named(derivationOf(running)) + "); rebuild the corpus")
+		reason = "derivation version differs (artifact " + named(derivationOf(recorded)) + ", running builder " + named(derivationOf(running)) + ")"
 	case recorded.Version != running.Version:
-		return errNotRederivable("builder differs: builder schema differs (artifact " + named(recorded.Version) + ", running builder " + named(running.Version) + ")")
+		reason = "builder schema differs (artifact " + named(recorded.Version) + ", running builder " + named(running.Version) + ")"
 	case recorded.Engine != running.Engine:
-		return errNotRederivable("builder differs: engine differs (artifact " + named(recorded.Engine) + ", running builder " + named(running.Engine) + ")")
+		reason = "engine differs (artifact " + named(recorded.Engine) + ", running builder " + named(running.Engine) + ")"
 	case !attestedBuilder(recorded):
-		return errNotRederivable("builder differs: the artifact's builder revision is unrecorded, dirty or not a Git object ID")
+		reason = "the artifact's builder revision is unrecorded, dirty or not a Git object ID"
+	default:
+		return nil
 	}
-	return nil
+	return errNotRederivable("builder differs: " + reason + "; " + RebuildHint)
 }
+
+// RebuildHint names the explicit write that refreshes an artifact the verified read refuses as
+// built by another builder; the read itself never rebuilds (DCP-V1-497).
+const RebuildHint = "rebuild the corpus from its embedded manifest with corvint docs corpus build --artifact <artifact> into a new file"
+
 func ReadFile(root, path string) ([]byte, error) { return readFileBounded(root, path, MaxBytes) }
 
 // ReadPlaywrightFile admits a caller-run Playwright listing or JSON report, which a multi-project

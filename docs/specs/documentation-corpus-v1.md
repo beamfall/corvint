@@ -2739,6 +2739,46 @@ format, so no derivation version changes (`DCP-V1-471`); the span hash stays per
 record decodes in about twice the time of its `/1` form. Rollback removes the `/2` decode path;
 `/1` records are unaffected, and corpora pinning `/2` records are refused until rewritten as `/1`.
 
+### Corpus rebuild from the embedded manifest (GitHub #1667)
+
+`DCP-V1-471` admits an artifact from another attested builder revision of the same derivation,
+but an artifact whose derivation, builder schema or Go toolchain changed could only be refreshed
+by re-supplying the manifest it was built from. Status for `DCP-V1-495..498`: proposed,
+experimental; GitHub #1667. This delivers the rebuild that the next section lists as not
+delivered.
+
+- `DCP-V1-495`: `corvint docs corpus build` takes exactly one of `--manifest INPUT.json` or
+  `--artifact CORPUS.json`. With `--artifact` it builds the manifest that artifact embeds, under
+  the same thresholds, admission and pin verification as `--manifest`, and prints the new
+  artifact to stdout; it writes no file, the artifact read included. The manifest is read without
+  the closed record decode or any builder, derivation or pin check, so an artifact whose records
+  this builder no longer decodes still yields it. Its output bytes equal `build --manifest` of the
+  same manifest, so rebuilding a current artifact reproduces it. Neither or both options, or
+  an empty value for the one given, are an argument error with no output. Acceptance: `TestDCPV1495RebuildFromEmbeddedManifest`,
+  `TestDCPV1495BuildRebuildsFromEmbeddedManifest`, `TestDocsCorpusOperationFlagMatrix`,
+  `TestDocsCorpusOperationHelpPrintsFlags`.
+- `DCP-V1-496`: Before any Git read or build, the rebuild refuses (`corpus-refused`, no output)
+  bytes that are not JSON, whose last `sha256` member is not the canonical tail or does not match
+  the content digest, whose schema is not a `corvint-evidence-corpus/` schema, that exceed the
+  artifact size bound of their schema (4 MiB for `/1`, 128 MiB for `/2`), that embed no
+  manifest or a manifest that does not decode closed, or whose `manifest_sha256` does not match
+  the embedded manifest. Every pinned input is then reread from Git and refused unless its blob
+  and SHA-256 match the manifest (`input changed after pinning`). Acceptance:
+  `TestDCPV1496RebuildRefusesUnverifiedManifest`, `TestDCPV1495BuildRebuildsFromEmbeddedManifest`.
+- `DCP-V1-497`: Amending `DCP-V1-471`, every `builder differs:` refusal of the verified read ends
+  with the explicit rebuild (`docs corpus build --artifact <artifact>` into a new file). A read
+  never rebuilds or writes: a refused read runs no build and leaves the artifact file's bytes
+  unchanged. `docs corpus build --help` names what changes the derivation version and that a
+  rebuild goes to a new file renamed over the old one. Acceptance:
+  `TestDCPV1497ReadNeverRebuilds`, `TestDCPV1471VerifiedReadAcrossBuilderRevisions`,
+  `TestDCPV1495BuildRebuildsFromEmbeddedManifest`.
+- `DCP-V1-498`: A corpus MCP server answers its first call from an artifact recorded by another
+  attested builder revision of the same derivation (`DCP-V1-471`). One whose derivation differs
+  is refused as `corpus-refused`, naming both versions and the rebuild. Once the artifact is
+  rebuilt into a new file renamed over the served one, the running server refuses with its
+  restart message (`DCP-V1-143`) and a restarted server answers. Acceptance:
+  `TestDCPV1498MCPServesArtifactsAcrossBuilderUpgrades`.
+
 ### Corpus diagnostics, builder upgrades, eval cost and ranking residuals (GitHub #1662, #1664 to #1667)
 
 A caller-labelled adoption on main-730c6e0 reported five residuals. A malformed provider shard
@@ -3218,6 +3258,11 @@ a guessed subject.
   panic. A refused query read joins its started freshness observation before returning
   (`DCP-V1-431`). A refused or interrupted decode discards the claim terms it derived, and
   concurrent queries of one artifact take them at most once (`DCP-V1-434`).
+- Rebuild from the embedded manifest (`DCP-V1-495..498`): a tampered, noncanonical or
+  non-corpus artifact, or one whose embedded manifest or manifest digest does not hold, is refused
+  before any Git read; a pinned input Git no longer holds refuses the build; neither path prints a
+  partial artifact. Shell redirection onto the artifact being read truncates it before the build
+  reads it, so the guide and help write to a new file and rename it.
 - Diagnostics and builder upgrades (`DCP-V1-470..474`): a located refusal never reports a record
   ID that is not printable or is over 256 bytes, and is bounded however long the input. An
   artifact whose builder schema, derivation version, Go toolchain or engine differs, or whose
@@ -3383,6 +3428,12 @@ cache or memory-limit setting, change no artifact, manifest, receipt or index co
 make producers trust a rehashed artifact. Rollback points the CLI read and the joined `--corpus`
 read back at `ReadCorpusFile` plus `OpenRead` and drops the decode-time claim terms; the delta
 current side is `DCP-V1-460`'s and rolls back with it. No stored state needs migration.
+Rebuild from the embedded manifest (`DCP-V1-495..498`) adds one input option to `build`, and
+no cache, daemon, persisted state or artifact, manifest or receipt format change. It does not
+make a read rebuild, admit an artifact from a changed derivation, or trust an artifact's records:
+only its embedded manifest, checked against both recorded digests, and Git. Rollback removes
+`--artifact` from `build`, restores `--manifest` as required, and drops the rebuild hint from
+the `builder differs:` refusals; no stored state needs migration.
 Diagnostics, builder upgrades, eval sessions and ranking (`DCP-V1-470..477`) add no cache,
 daemon, flag, index key or persisted state, and change no artifact or receipt format other than
 the builder engine string and the two optional eval result members. They do not authenticate an
@@ -3520,6 +3571,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-410..419 | `internal/doccorpus/read.go`, `artifact_decode.go`, `encoding.go`, `compile.go`, `query.go`, `query_index.go`, `query_index_fast.go`, `search_rank.go`, `symbol_anchor.go`, `internal/contextindex/observe_tree.go`, `internal/testvaliditydoc/read.go`, `internal/mcp/corpusbridge/corpusbridge.go`, `stamp.go`, `eval.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1410VerifiedReadSkipsRederivation`, `TestDCPV1410VerifiedReadRefusals`, `TestDCPV1410UnattestedBuilderRederives`, `TestDCPV1411ObserveTreeMatchesBuildContext`, `TestDCPV1411ObserveTreeRetriesWhenHeadMoves`, `TestDCPV1412SymbolIndexBuiltOnlyWhenNeeded`, `TestDCPV1413CorpusReadsWithoutRederivation`, `TestDCPV1414ParallelDecodeMatchesClosedDecode`, `TestDCPV1416CorpusMCPFirstAndWarmCalls`, `TestDCPV1417WarmCallsSkipUnchangedArtifactRead`, `TestDCPV1417WarmStampRefusesParentSymlink`, `TestDCPV1418LargeFixtureVerifiedReadIsFast`, `BenchmarkDCPV1418VerifiedRead`, `TestDCPV1419FastIndexMatchesReference`, `TestDCPV1419FastIndexDeclinesEveryRefusal`, `TestDCPV1419BoundaryScanFindsStringContent`; measured in docs/build-log/2026-10-23-corpus-verified-fast-reads.md |
 | DCP-V1-430..434 | `internal/doccorpus/artifact_decode.go`, `read.go`, `encoding.go`, `query_index_fast.go`, `types.go`, `internal/testvaliditydoc/read.go`, `cmd/corvint/docs_corpus.go`, `corpus_integration.go` | `TestDCPV1431StreamedDecodeMatchesInMemory`, `TestDCPV1431StreamedReadReusesBlocks`, `TestDCPV1431OpenReadFile`, `TestDCPV1431StreamedTruncationAtWindowEnd`, `TestDCPV1431CorpusRefusalJoinsFreshness`, `TestDCPV1432JoinedCorpusReusesVerifiedArtifact`, `TestDCPV1434DecodeTimeClaimTermsMatchIndex`, `TestDCPV1434ConcurrentQueriesShareClaimTerms`, `TestDCPV1416CorpusMCPFirstAndWarmCalls`; measured in docs/build-log/2026-10-23-corpus-read-residual.md |
 | DCP-V1-465..467 | `internal/doccorpus/primary_observation.go`, `query.go`, `cmd/corvint/docs_corpus.go` | `TestDCPV1465PrimaryObservationMatchesFreshRead`, `TestDCPV1466PrimaryObservationUsedOnce`, `TestDCPV1467CancelledPrimaryObservationJoins`, `TestDCPV1467ShorterDeadlineStopsWaitingForPrimary`, `TestDCPV1467CorpusPreHeaderRefusalJoinsPrimary`, `TestDCPV1431CorpusRefusalJoinsFreshness`, `TestDCPV1413CorpusReadsWithoutRederivation`; measured in docs/build-log/2026-10-23-corpus-read-start-freshness.md |
+| DCP-V1-495..498 | `internal/doccorpus/rebuild.go`, `encoding.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `internal/capcatalog/catalog.json` | `TestDCPV1495RebuildFromEmbeddedManifest`, `TestDCPV1495BuildRebuildsFromEmbeddedManifest`, `TestDCPV1496RebuildRefusesUnverifiedManifest`, `TestDCPV1497ReadNeverRebuilds`, `TestDCPV1498MCPServesArtifactsAcrossBuilderUpgrades`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-470 | `internal/doccorpus/encoding.go`, `shards.go`, `extractor.go` | `TestDCPV1470LocatedDecodeRefusal` |
 | DCP-V1-471 | `internal/doccorpus/encoding.go`, `read.go` | `TestDCPV1471VerifiedReadAcrossBuilderRevisions`, `TestDCPV1471DerivationVersionGuard`, `TestDCPV1410VerifiedReadRefusals` |
 | DCP-V1-472 | `internal/doccorpus/capacity.go`, `compile.go` | `TestDCPV1472ProviderRecordBytesChargedApart`, `TestDCPV1157CapacityRefusalsAreTypedAndEarly` |

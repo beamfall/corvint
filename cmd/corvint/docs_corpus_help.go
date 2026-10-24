@@ -31,7 +31,7 @@ func buildCorpusOperations() []corpusOperation {
 	typed := func(name, purpose string) corpusOperation { return typedWith(name, purpose) }
 	return []corpusOperation{
 		{name: "manifest", purpose: "inventory one or more scopes at a full commit as a corpus manifest", required: []string{"--revision", "--scope", "--timestamp"}, optional: []string{"--schema"}},
-		{name: "build", purpose: "build the immutable corpus artifact from a manifest", required: []string{"--manifest"}, optional: []string{"--max-unresolved-mention-rate", "--max-pattern-rate"}},
+		{name: "build", purpose: "build the immutable corpus artifact from a manifest, or rebuild an artifact from the manifest it embeds", optional: []string{"--manifest", "--artifact", "--max-unresolved-mention-rate", "--max-pattern-rate"}},
 		{name: "render", purpose: "emit a deterministic filename-to-content documentation plan; writes nothing", required: []string{"--artifact"}},
 		{name: "maintain", purpose: "preview, or with --apply write, generated blocks of one human page", required: []string{"--artifact", "--page"}, optional: []string{"--apply"}},
 		{name: "cem", purpose: "emit CEM citation arguments and a corpus/CEM binding sidecar", required: []string{"--artifact", "--cem"}, optional: []string{"--id"}},
@@ -174,6 +174,8 @@ var corpusOperationFlagHelp = map[string]map[string][2]string{
 		"--artifact": {"CORPUS.json", "current corpus artifact (or --manifest; exactly one)"},
 		"--manifest": {"INPUT.json", "current manifest, built in memory (or --artifact; exactly one)"}},
 	"patterns": {"--format": {"json|table", "report view (default json)"}},
+	"build": {"--manifest": {"INPUT.json", "manifest from docs corpus manifest (or --artifact; exactly one)"},
+		"--artifact": {"CORPUS.json", "artifact to rebuild from its embedded manifest (or --manifest; exactly one)"}},
 }
 
 // corpusFlagHelpFor is the help entry of flag for operation.
@@ -249,8 +251,21 @@ func docsCorpusOperationHelp(name string) string {
 	if name == "import-cases" || name == "search-cases" {
 		text.WriteString("\n" + legacyCasesHelp)
 	}
+	if name == "build" {
+		text.WriteString("\n" + corpusRebuildHelp)
+	}
 	return text.String()
 }
+
+// corpusRebuildHelp is the build topic's note on rebuilding a stale artifact (DCP-V1-495, DCP-V1-497).
+const corpusRebuildHelp = "Rebuild: a verified read refuses an artifact whose builder differs (`builder differs:`): the\n" +
+	"derivation version (derivation-N in builder.engine), the builder schema, the Go toolchain in the\n" +
+	"engine, or an unattested revision. Another attested revision with the same derivation is read as\n" +
+	"is. A derivation version changes only with a merge that can alter the records built from the same\n" +
+	"pinned inputs. --artifact rebuilds from the artifact's own embedded manifest: its content and\n" +
+	"manifest digests are checked, every pinned input is reread from Git and must match its recorded\n" +
+	"blob and SHA-256, and the new artifact goes to stdout. Write it to a new file and rename it over\n" +
+	"the old one; redirecting onto the artifact being read truncates it first. Reads never rebuild.\n"
 
 // corpusHelpTopic names the help topic of `docs corpus` arguments, or "" when the operation is
 // unknown so the corpus parser refuses it.

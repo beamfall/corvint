@@ -265,6 +265,29 @@ func corpusInputPathError(o corpusOptions) error {
 	}
 	return nil
 }
+
+// corpusBuildManifest reads the manifest docs corpus build runs: --manifest itself, or the
+// manifest a --artifact embeds, which rebuilds that artifact (DCP-V1-495). Only build writes.
+func corpusBuildManifest(o corpusOptions) (doccorpus.Manifest, error) {
+	// Presence, not value, decides: an empty --manifest= beside --artifact is still both.
+	artifact := o.given["--artifact"]
+	if artifact == o.given["--manifest"] || artifact && o.artifact == "" || !artifact && o.manifest == "" {
+		return doccorpus.Manifest{}, argumentError("docs corpus build requires exactly one of --manifest or --artifact")
+	}
+	if artifact {
+		raw, err := doccorpus.ReadCorpusFile(o.root, o.artifact)
+		if err != nil {
+			return doccorpus.Manifest{}, err
+		}
+		return doccorpus.ManifestOfArtifact(raw)
+	}
+	raw, err := doccorpus.ReadCorpusFile(o.root, o.manifest)
+	if err != nil {
+		return doccorpus.Manifest{}, err
+	}
+	return doccorpus.ParseManifest(raw)
+}
+
 func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 	if err := corpusInputPathError(o); err != nil {
 		return nil, err
@@ -281,11 +304,7 @@ func compileCorpus(ctx context.Context, o corpusOptions) ([]byte, error) {
 		return doccorpus.Encode(m)
 	}
 	if o.op == "build" {
-		raw, err := doccorpus.ReadCorpusFile(o.root, o.manifest)
-		if err != nil {
-			return nil, err
-		}
-		m, err := doccorpus.ParseManifest(raw)
+		m, err := corpusBuildManifest(o)
 		if err != nil {
 			return nil, err
 		}
