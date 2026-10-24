@@ -103,6 +103,41 @@ type leaseResume struct {
 	token writerToken
 }
 
+// sealedResumeVerb says a lease verb the writer route does not serve may
+// resume, in a new command, from the retained writer checkpoint's sealed
+// base instead of preparing the complete audit (LGL-V0-010, proposed;
+// decision 0549 R11/F3). It is the pool verbs, POOL_ACQUIRE and
+// POOL_RELEASE: a pool acquire that took the complete route would retain a
+// base-free checkpoint, so the release after it would find no sealed base.
+// Widen and reap keep the complete route until their own evidence admits
+// them.
+func sealedResumeVerb(request transaction.Request) bool {
+	if request.Operation != transaction.Lease || request.Lease == nil {
+		return false
+	}
+	return request.Lease.Verb == transaction.LeasePoolAcquire || request.Lease.Verb == transaction.LeasePoolRelease
+}
+
+// sealedResume is the resume base SealedResumeBase derives from the bound
+// writer checkpoint at head, with the invalidation token read before it, or
+// nil when the store has no sealed base to resume from (LGL-V0-010). It
+// grants nothing: the resumed route re-hashes the sealed base under the
+// preparation gate and every decline prepares the complete route.
+func sealedResume(repo *intent.Repository, head *snapshot.Head) *leaseResume {
+	if head == nil || head.Segments == nil || head.LastSeq.Uint64() < writerCheckpointMin(repo) {
+		return nil
+	}
+	wc, token := boundWriterCheckpoint(repo)
+	if wc == nil {
+		return nil
+	}
+	base, err := journalReader(repo, head).SealedResumeBase(wc, head)
+	if err != nil {
+		return nil
+	}
+	return &leaseResume{base: base, token: token}
+}
+
 // resumeFrom returns the resume base of a round that ended SNAPSHOT_MOVED,
 // and records in noResume that the command must keep the complete audit:
 // the prefix walk declined, or no base could be derived from the audit.
@@ -507,6 +542,9 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 	// walk keeps the complete audit for the rest of the command.
 	var resume *leaseResume
 	noResume := !journal.ResumableAudits()
+	// A verb the writer route does not serve tries the sealed base once,
+	// in the command's first round (LGL-V0-010).
+	sealedTried := !sealedResumeVerb(request)
 	// writerRoute runs leaseWriter under the preparation gate. done is set
 	// when the route served or failed the write.
 	//
@@ -615,6 +653,10 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 			if err != nil {
 				return guardFailureAudit(report, request.RequestID, err)
 			}
+		}
+		if !sealedTried && resume == nil && !noResume {
+			sealedTried = true
+			resume = sealedResume(repo, head)
 		}
 		if resume != nil {
 			from := resume

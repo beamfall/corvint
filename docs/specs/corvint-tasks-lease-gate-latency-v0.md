@@ -5,14 +5,14 @@ Date: 2026-10-24
 Intent status: proposed
 Delivery status: experimental
 
-Authoritative inputs: native tickets V1-2531, V1-2537, V1-2539 and V1-2203. These requirements
+Authoritative inputs: native tickets V1-2531, V1-2537, V1-2539, V1-2203 and V1-1702. These requirements
 amend the write rounds of the [agent lease contract](corvint-tasks-agent-leases-v0.md), whose
 Requirements section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 They change no lease semantics, stored state, wire format or receipt.
 
 ## Agent digest
 - Claim: Lease rounds skip the ready-route cleanup lock, keep fdinfo files open, parse tickets once; heartbeat and renew skip only staging-directory syncs.
-- Status: proposed; experimental; LGL-V0-001, 002, 004, 005, 006 and 007 are implemented with focused tests; LGL-V0-003 is a measured target that is NOT MET (claim gate-wait p99 1.7 s against 500 ms); LGL-V0-008 keeps every published artifact's sync and records why; the V1-0887 heartbeat median of 50 ms is still NOT MET.
+- Status: proposed; experimental; LGL-V0-001, 002, 004, 005, 006, 007, 009 and 010 are implemented with focused tests; LGL-V0-011 measured a 47k-receipt pool release at p99 1.03 s (target 2 s); LGL-V0-003 is a measured target that is NOT MET (claim gate-wait p99 1.7 s against 500 ms); LGL-V0-008 keeps every published artifact's sync and records why; the V1-0887 heartbeat median of 50 ms is still NOT MET.
 - Exists: the writer-route staging decline, retained Linux fdinfo files, the single-parse ticket loader, the wire ASCII scan and the heartbeat/renew staging-sync skip, each with a focused test.
 - Blocked on: V1-2539 (claim wait) and V1-2203 (the rest of the heartbeat floor needs an owner store-format decision: LGL-V0-008).
 - Read next: Requirements; Failure modes; Acceptance evidence.
@@ -95,8 +95,32 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   that only a daemon could run (product invariant 7). The owner's premise also fails for renew. `planRenew` sets the expiry to the renew's own time plus
   its lease minutes, so a lost renew that had shortened a lease leaves the longer, earlier expiry in
   force. That design needs its own owner decision on the store format.
+- `LGL-V0-009`: (proposed; V1-1702) On a segmented store whose bound writer checkpoint's `FullSeq`
+  is the sealed sequence S (the manifest's `Through`), a new command MAY derive a resume base from
+  the sealed segments instead of the complete audit (`SealedResumeBase`): the manifest, every
+  segment and every evidence or pinned blob the base relies on are stamped, re-hashed by the resume
+  precheck before the preparation gate, and re-hashed again under the writer lock with the
+  manifest digest compared. The resumed walk then reads every active receipt S+1..head (fewer than
+  `WriterSegmentedBound`, beyond `MaxWriterTail`) and checks receipt S, served from the last bound
+  segment, by its chain digest, sequence and head generation against the checkpoint. Any stamp,
+  digest, manifest, request-file, tail-receipt or checkpoint change MUST decline the resume, and the
+  command MUST keep the complete route and its decision; the resumed write MUST produce the same
+  report and the same store bytes as the complete route on the same pre-state.
+- `LGL-V0-010`: (proposed; V1-1702; decision 0549 R11/F3) Only `POOL_ACQUIRE` and `POOL_RELEASE`
+  MUST try the sealed base, once, in the command's first round, and only when the checkpoint's
+  `FullSeq` is S; widen, reap and every other verb keep their route. Acquire is included because a
+  complete-route acquire retains a checkpoint whose `FullSeq` is its head, so the release after it
+  would find no sealed base. A resumed pool write MUST keep `FullSeq` at S.
+- `LGL-V0-011`: (proposed; V1-1702) The pool release target is a wall time of at most 2 s per
+  command at 47,000 receipts, measured by the opt-in `TestLGLV0011_PoolReleaseLatency` on a real
+  disk (V1-2563) with the in-process audit cache cleared before each call, reporting p50, p95, p99,
+  n, audits, resumes and host load.
 
 ## Non-goals
+
+no writer-route admission for the pool verbs (CAL-V0-264 stays declined); no sealed-base resume
+for widen, reap or mutations; no store-format change and no resident process (LGL-V0-009 reads only
+the existing segments, manifest and writer checkpoint);
 
 no sync of a published artifact or its destination directory is coalesced or removed; only
 heartbeat and renew skip staging-directory syncs (LGL-V0-005, under the owner decision of
@@ -125,7 +149,14 @@ that residue waits `StageSlotPatience` (2 s, CTS-V0-008) before the audit sets i
 writer's orphan already has. The skip is safe only while each artifact's own file sync and its
 destination directory sync run before the session reports its commit; a change that drops either
 for a liveness session reaches LGL-V0-008, and `TestLGLV0005_SkippedStagingSyncKeepsEveryOtherSync`
-fails first.
+fails first. With LGL-V0-009 a sealed segment or manifest rewritten in place with its stamps
+restored is caught by the precheck or held re-hash and declines; a manifest rewritten before the
+command fails the head guards first, which retry as `SNAPSHOT_MOVED` rather than refusing as
+corruption (pre-existing behaviour). A store whose last write took the complete route has
+`FullSeq` past S, so LGL-V0-010 finds no sealed base and the pool verb pays the complete audit, as
+before; the first resumed acquire restores the fast path only after a write rebased the checkpoint
+to S. A base blob that a walked tail receipt removed is not re-hashed under the lock; the walk
+itself checks that it is absent.
 
 ## Acceptance evidence
 
@@ -166,6 +197,19 @@ heartbeat's receipt, or restores the pre-heartbeat head, and pins the `JOURNAL_F
 and `REDO_PENDING` refusals that keep every artifact's own sync in force. The before/after
 `TestCALV0118_WriterHoldProfile` reports (linux/WSL2 ext4, under load) are in the build-log entry
 `docs/build-log/2026-10-24-tasks-heartbeat-staging-sync.md`; the 50 ms heartbeat median is NOT MET.
+`TestLGLV0009_PoolVerbsResumeFromSealedBase` (`internal/tasks/store/lease_sealed_base_test.go`)
+runs an acquire and a release on a sealed base, each resumed with no complete audit and `FullSeq`
+kept at S, and compares the release with the complete route on a copy of the same pre-state
+without the checkpoint: the reports are equal and every store file is byte-equal except the writer
+checkpoint; with the gate forced off it fails (resumed 0, audits 1).
+`TestLGLV0009_SealedBaseDeclinesRewrittenSegment` and `TestLGLV0009_SealedBaseDeclinesChangedState`
+(same file) rewrite a segment or the manifest before the command, after the precheck or under the
+writer lock, add a stray request file, rewrite a tail receipt or invalidate the checkpoint: each
+declines, never commits over the change, and reports the complete route's decision.
+`TestLGLV0010_SealedBaseGate` (same file) keeps a widen and an acquire whose checkpoint's `FullSeq`
+is past S on the complete route. LGL-V0-011 is evidenced by the before/after reports in the
+build-log entry `docs/build-log/2026-10-24-pool-release-sealed-resume.md` (linux/WSL2 ext4,
+47,000 receipts: release p50 20.3 s, n=3, before; p50 0.68 s, p99 1.03 s, n=20, after).
 
 ## Rollback
 
@@ -174,4 +218,5 @@ and each observation opens its fdinfo file afresh; `loadTickets` again re-parses
 ticket and every hostile check decodes runes; heartbeat and renew again sync the staging directory
 twice per published artifact. No stored state, wire format or receipt changes, so a store written with
 LGL-V0-005 reads unchanged under the reverted binary, and any staging residue is the orphan both
-binaries already clear.
+binaries already clear. Reverting LGL-V0-009 and LGL-V0-010 returns the pool verbs to the complete
+audit; the writer checkpoint, segments and receipts they read and write are unchanged in format.
