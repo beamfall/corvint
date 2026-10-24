@@ -185,8 +185,12 @@ def relation_gold(section, case):
     projection that breaks TCP-V0-054 subject-first order is a defect."""
     expected, subject = case['expectedRelation'], case['subject']
     rows = [x.get('relation', {}) for x in section.get('path_relations', [])]
+    # Like TCP-V0-054, only endpoints in the bound root repository count.
+    roots = [p.get('root_repository') for p in section.get('providers', []) if p.get('state') == 'loaded']
+    root = roots[0] if len(roots) == 1 and roots[0] else None
     def path(row, side):
-        return row.get(side, {}).get('path')
+        endpoint = row.get(side, {})
+        return endpoint.get('path') if root is not None and endpoint.get('repository') == root else None
     def touches(row):
         return path(row, 'from') == subject or path(row, 'to') == subject
     if any(r.get('type') == expected['type'] and path(r, 'from') == expected['from']
@@ -278,19 +282,26 @@ def self_check():
     # gold subject definition at --limit 20; it must fail as a defect, and a
     # legitimate bound miss must stay uncertainty, never a pass.
     rel_case = {'subject': 's.go', 'expectedRelation': {'type': 'gopls:uses-definition', 'from': 's.go', 'to': 'd.go'}}
-    def row(source, target, kind='gopls:referenced-by'):
-        return {'relation': {'type': kind, 'from': {'path': source}, 'to': {'path': target}}}
+    def row(source, target, kind='gopls:referenced-by', repository='root'):
+        return {'relation': {'type': kind, 'from': {'repository': repository, 'path': source},
+                             'to': {'repository': repository, 'path': target}}}
     gold = row('s.go', 'd.go', 'gopls:uses-definition')
-    lexical = {'path_relations': [row('a.go', 'b.go'), row('s.go', 'c.go')], 'omitted': {'path_relations': 1},
-               'query': {'omitted_rows': 64, 'stopped': 'query-budget'}}
+    loaded = [{'state': 'loaded', 'root_repository': 'root'}]
+    lexical = {'providers': loaded, 'path_relations': [row('a.go', 'b.go'), row('s.go', 'c.go')],
+               'omitted': {'path_relations': 1}, 'query': {'omitted_rows': 64, 'stopped': 'query-budget'}}
     assert relation_gold(lexical, rel_case) == 'projection-not-subject-first'
     assert relation_gold({**lexical, 'path_relations': [gold, row('a.go', 'b.go')]}, rel_case) == 'present'
     subject_full = {**lexical, 'path_relations': [row('s.go', 'c.go'), row('x.go', 's.go')]}
     assert relation_gold(subject_full, rel_case) == 'omitted-by-packet-bound'
     kept_all = {**lexical, 'path_relations': [row('s.go', 'c.go'), row('a.go', 'b.go')]}
     assert relation_gold(kept_all, rel_case) == 'omitted-by-provider-bound'
-    assert relation_gold({'path_relations': kept_all['path_relations'], 'omitted': {'path_relations': 1},
+    assert relation_gold({'providers': loaded, 'path_relations': kept_all['path_relations'], 'omitted': {'path_relations': 1},
                           'query': {'omitted_rows': 0, 'stopped': ''}}, rel_case) == 'absent'
+    # A same-path endpoint in another repository neither matches gold nor gets subject priority.
+    foreign_gold = {**kept_all, 'path_relations': [row('s.go', 'c.go'), row('a.go', 'b.go'),
+                                                   row('s.go', 'd.go', 'gopls:uses-definition', 'other')]}
+    assert relation_gold(foreign_gold, rel_case) == 'omitted-by-provider-bound'
+    assert relation_gold({**lexical, 'providers': [], 'path_relations': [gold]}, rel_case) != 'present'
     for section in (lexical, subject_full, kept_all):
         assert not combined_gold_passed({'exit': 0, 'timedOut': False, 'corePacketParity': True,
                                          'goldRelation': relation_gold(section, rel_case) == 'present'})
