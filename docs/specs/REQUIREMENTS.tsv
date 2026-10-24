@@ -1993,6 +1993,9 @@ LGL-V0-005	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203)
 LGL-V0-006	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) A session MUST count the file and directory sync calls it ma	unrecorded	-
 LGL-V0-007	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) The only state a crash after a heartbeat or renew can leave	unrecorded	-
 LGL-V0-008	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) A heartbeat or renew MUST keep the file sync and the destina	unrecorded	-
+LGL-V0-009	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-1702) On a segmented store whose bound writer checkpoint's `FullSe	unrecorded	-
+LGL-V0-010	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-1702; decision 0549 R11/F3) Only `POOL_ACQUIRE` and `POOL_RELEASE`	unrecorded	-
+LGL-V0-011	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-1702) The pool release target is a wall time of at most 2 s per	unrecorded	-
 TOL-V0-001	docs/specs/corvint-tasks-obligation-ledger-v0.md	A NATIVE ticket record MAY carry the optional member `obligations`, a closed	unrecorded	-
 TOL-V0-002	docs/specs/corvint-tasks-obligation-ledger-v0.md	Each `OBLIGATIONS_*` write MUST derive exactly one immutable canonical ledger	unrecorded	-
 TOL-V0-003	docs/specs/corvint-tasks-obligation-ledger-v0.md	A folded obligation entry MUST be the closed object `{id, title, core, state,	unrecorded	-
