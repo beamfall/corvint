@@ -19,8 +19,8 @@ const AdoptionProviderSchemaV2 = "corvint-corpus-adoption-provider/2"
 // AnchorFile is one entry of a compact record's file table. An absent repository or revision is
 // the record's source repository or revision; a present one, even empty, is kept.
 type AnchorFile struct {
-	Repository *string `json:"repository,omitempty"`
-	Revision   *string `json:"revision,omitempty"`
+	Repository *string `json:"repository,omitzero"`
+	Revision   *string `json:"revision,omitzero"`
 	Path       string  `json:"path"`
 	Blob       string  `json:"blob"`
 	SHA256     string  `json:"sha256"`
@@ -44,9 +44,9 @@ type CompactAnchor struct {
 	SpanSHA256 string  `json:"span_sha256"`
 	Symbol     string  `json:"symbol,omitempty"`
 	Region     string  `json:"region,omitempty"`
-	Authority  *string `json:"authority,omitempty"`
-	Kind       *string `json:"evidence_kind,omitempty"`
-	Reason     *string `json:"reason,omitempty"`
+	Authority  *string `json:"authority,omitzero"`
+	Kind       *string `json:"evidence_kind,omitzero"`
+	Reason     *string `json:"reason,omitzero"`
 }
 
 // compactRecord is the closed wire form of a compact record: a ProviderRecord plus its file

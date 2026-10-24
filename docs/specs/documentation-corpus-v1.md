@@ -2789,7 +2789,8 @@ experimental; GitHub #1664, #1667.
 - `DCP-V1-530`: `doccorpus.EncodeCompactProvider` writes a `/1` adoption provider record as the
   `/2` record that expands to it: its anchors index a file table in first-appearance order, a file
   omits its repository or revision when it is the record's `source` one, and with defaults an
-  anchor omits each authority, kind or reason equal to the default's. Its bytes equal the
+  anchor omits each authority, kind or reason equal to the default's; a member that differs, even
+  an empty one, is written, so it expands to itself and not to the default. Its bytes equal the
   `DCP-V1-487` reference encoder's for the same record and defaults. A record of any other schema
   is refused, as is a table over the 100,000-entry bound. Acceptance:
   `TestDCPV1530CompactEncoderMatchesReference`.

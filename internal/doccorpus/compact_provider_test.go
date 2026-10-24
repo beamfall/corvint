@@ -31,6 +31,26 @@ func TestDCPV1530CompactEncoderMatchesReference(t *testing.T) {
 			}
 		}
 	}
+	// An empty member that differs from its default, and an empty file repository or revision
+	// that differs from the source's, is kept present, so it expands to itself, not the default.
+	empty := syntheticAnchoredRecord(4, 4, true)
+	empty.Subjects[0].Evidence.Anchors[0].Reason, empty.Subjects[0].Evidence.Anchors[0].Authority = "", ""
+	empty.Subjects[1].Evidence.Anchors[0].Repository, empty.Subjects[1].Evidence.Anchors[0].Revision = "", ""
+	out, err := EncodeCompactProvider(empty, &AnchorDefaults{Authority: "external-provider", Kind: "declared", Reason: "fallback"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var expanded ProviderRecord
+	if err := decodeProviderRecord("empty.json", out, &expanded); err != nil {
+		t.Fatal(err)
+	}
+	want, err := json.Marshal(empty.Subjects, json.Deterministic(true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := json.Marshal(expanded.Subjects, json.Deterministic(true)); err != nil || !bytes.Equal(got, want) {
+		t.Fatalf("explicit empty members did not survive the compact encoding:\n got %s\nwant %s", got, want)
+	}
 	compact := fixture
 	compact.Schema = AdoptionProviderSchemaV2
 	if _, err := EncodeCompactProvider(compact, nil); err == nil || !strings.Contains(err.Error(), "compact encoding needs a "+AdoptionProviderSchema+" record") {
