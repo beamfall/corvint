@@ -60,7 +60,7 @@ corvint docs corpus build --artifact CORPUS.json > CORPUS.new.json && mv CORPUS.
 - Derivation 2: #1687 (commit 1a46f822a, GitHub #1665 rows 3 and 5). Records-owned source
   declarations are derived and rank groups are served (DCP-V1-482 to DCP-V1-485). Rebuild with
   the command above.
-- Derivation 3: #PR (GitHub #1665). Derived declarations cover every additional repository of a
+- Derivation 3: #1709 (GitHub #1665). Derived declarations cover every additional repository of a
   multi-repository corpus (DCP-V1-549, DCP-V1-550). Rebuild with the command above.
 
 ### CEM 1.0 hunk-revert limits (V1-1266)
