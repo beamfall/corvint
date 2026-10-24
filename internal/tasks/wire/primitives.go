@@ -148,7 +148,23 @@ func hostileRune(r rune, allowTabLfCr bool) bool {
 	return false
 }
 
+// plainASCII reports whether s is ASCII and holds no code point hostileRune
+// refuses, so checkHostile accepts it without decoding runes; any other
+// string takes the full check (CAL-V0-397, proposed).
+func plainASCII(s string, allowTabLfCr bool) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c >= 0x80 || c < 0x20 && !(allowTabLfCr && (c == '\t' || c == '\n' || c == '\r')) {
+			return false
+		}
+	}
+	return true
+}
+
 func checkHostile(s, where string, allowTabLfCr bool) error {
+	if plainASCII(s, allowTabLfCr) {
+		return nil
+	}
 	for i := 0; i < len(s); {
 		r, size := utf8.DecodeRuneInString(s[i:])
 		if r == utf8.RuneError && size <= 1 {

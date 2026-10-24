@@ -1147,11 +1147,12 @@ func loadTickets(r Request, in Input, queueID wire.QueueID) (*ticket.Inventory, 
 			return nil, limit("canonical inventory bytes")
 		}
 		total += uint64(len(raw))
+		// ticket.Decode parses with wire.Parse, which already proves the
+		// canonical framing canonical(raw) checks (re-encoding the value
+		// and comparing bytes, trailing LF included), so a record that
+		// decodes is not parsed a second time (CAL-V0-397, proposed).
 		rec, e := ticket.Decode(raw)
 		if e != nil {
-			return nil, e
-		}
-		if e = canonical(raw); e != nil {
 			return nil, e
 		}
 		path := "intent/tickets/" + rec.TicketID.Local + ".json"

@@ -7557,7 +7557,19 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   at 40k receipts and 15 writers on the WSL2 quiet host is a claim gate-wait p99 of at most
   500 ms (at most four claim holds of the measured 125 ms p99 queued ahead) and a claim wall p99 of
   at most 1500 ms. Every claim run reports both against this target, labelled with its platform
-  and host load; a run that misses it is reported NOT MET, never rounded.
+  and host load; a run that misses it is reported NOT MET, never rounded. The harness starts all
+  15 writers' claims together, so claim gate wait is first-in-first-out serialization: the k-th
+  claim waits for about k earlier claim holds plus the liveness holds interleaved with them, and
+  a 500 ms p99 over 14 queued claims needs a claim hold near 36 ms, against a measured fsync and
+  commit floor near 70 ms. The target therefore cannot be met by trimming in-gate CPU alone.
+- `CAL-V0-397`: (proposed; V1-2531) Lease-gate validation MUST NOT parse a canonical ticket twice:
+  `loadTickets` relies on `ticket.Decode`, whose `wire.Parse` already refuses any bytes that differ
+  from the encoding of the parsed value plus one trailing LF, and drops the second parse and
+  re-encode it performed. The wire hostile-code-point check, and the string parser before it
+  formats a refusal position, MUST first scan the string's bytes and accept without decoding runes
+  when every byte is below 0x80 and none is a control hostileRune refuses (TAB, LF and CR only
+  where prose permits them); any other string takes the existing rune-by-rune check. Which bytes
+  are accepted and which refusal, code and position are reported are unchanged.
 
 Non-goals: no fsync is coalesced or removed (decision 0549 F2 stays: staging-directory sync
 coalescing needs its own decision and crash-matrix proof); decision 0411's per-check mount-ID
@@ -7570,7 +7582,11 @@ between the route's decline and the cleanup leaves the orphan for the next write
 before. With CAL-V0-394 a retained fdinfo file whose read fails, or that reports a different
 mount, fails the observation exactly as a fresh open would; a descriptor number reused after a
 close cannot alias a retained file, because the retained file is keyed by the session's own
-pinned `*os.File` and closed with it.
+pinned `*os.File` and closed with it. CAL-V0-397 is safe only while `wire.Parse` keeps its
+re-encode comparison and trailing-LF check; a change that relaxes either must restore the
+`canonical` call in `loadTickets`, and `TestCALV0397_NoncanonicalTicketBytesStillRefused` then
+fails first. The ASCII scan accepts nothing the rune check refuses, because every byte below 0x80
+is a whole rune and the scan refuses every C0 control the rune check refuses.
 
 Acceptance evidence: `TestCALV0393_ReadyRouteTakesNoCleanupLockOutsideGate`
 (`internal/tasks/store/lease_orphan_route_test.go`) holds the writer lock 600 ms over an orphan
@@ -7580,11 +7596,18 @@ the next heartbeat from the route; without the change it fails on the guards tim
 `TestCALV0394_RetainedFDInfoObservesCurrentState`
 (`internal/tasks/authority/fixture_session_linux_test.go`) seeks a pinned file to three offsets and
 sees each retained re-read report the current `pos` and equal a fresh observation, with one
-retained file per descriptor and none after the handles close. CAL-V0-396 is evidenced by the
-before/after load reports in the build-log entry `docs/build-log/2026-10-24-tasks-lease-latency.md`.
+retained file per descriptor and none after the handles close. `TestCALV0397_ASCIIFastPathAgreesWithHostileRune` (`internal/tasks/wire/plain_ascii_test.go`)
+checks every ASCII byte in both modes, alone and inside a string, against `hostileRune`, keeps
+non-ASCII strings on the rune check, and keeps a parsed hostile string's position and code point
+in its refusal; `TestCALV0397_NoncanonicalTicketBytesStillRefused`
+(`internal/tasks/transaction/canonical_ticket_test.go`) refuses a canonical ticket with a missing
+or extra trailing LF, insignificant whitespace or an escape form as malformed and accepts the
+canonical bytes. CAL-V0-396 and the CAL-V0-397 hold reduction are evidenced by the
+before/after load and hold-profile reports in the build-log entry `docs/build-log/2026-10-24-tasks-lease-latency.md`.
 
 Rollback: revert the source; the guards again take the cleanup lock whenever staging is present
-and each observation opens its fdinfo file afresh.
+and each observation opens its fdinfo file afresh; `loadTickets` again re-parses each decoded
+ticket and every hostile check decodes runes.
 
 ## Amendments to TCP-00
 

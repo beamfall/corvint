@@ -1622,6 +1622,7 @@ CAL-V0-372	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner
 CAL-V0-393	docs/specs/corvint-tasks-agent-leases-v0.md	(proposed; V1-2531) A lease write round MUST clear orphan stages under a cleanup	unrecorded	-
 CAL-V0-394	docs/specs/corvint-tasks-agent-leases-v0.md	(proposed; V1-2203) On Linux a session MUST open each pinned descriptor's procfs	unrecorded	-
 CAL-V0-396	docs/specs/corvint-tasks-agent-leases-v0.md	(proposed; V1-2539) The claim latency target under `TestCALV0263_LeaseGateLoad`	unrecorded	-
+CAL-V0-397	docs/specs/corvint-tasks-agent-leases-v0.md	(proposed; V1-2531) Lease-gate validation MUST NOT parse a canonical ticket twic	unrecorded	-
 CAL-V0-188	docs/specs/corvint-tasks-agent-leases-v0.md	(proposed; V1-0989) Before listing processes, the owned process-group check afte	unrecorded	-
 CAL-V0-300	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted, decision 0538; V1-1508) A receipt MAY be	owner	decision 0538; V1-1508
 CAL-V0-301	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted, decision 0538; V1-1508) An elided receipt is	owner	decision 0538; V1-1508
