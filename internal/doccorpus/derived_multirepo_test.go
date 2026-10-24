@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -93,14 +94,14 @@ func TestDCPV1549DerivedDeclarationsInAdditionalRepository(t *testing.T) {
 	}
 	// Derivation 3: the verified read refuses a derivation 2 artifact, which
 	// lacks these declarations, naming the rebuild.
-	if DerivationVersion != "3" {
-		t.Fatalf("additional-repository declarations need derivation 3, got %s", DerivationVersion)
+	if n, err := strconv.Atoi(DerivationVersion); err != nil || n < 3 {
+		t.Fatalf("additional-repository declarations need derivation 3 or later, got %s", DerivationVersion)
 	}
 	old := rehashed(t, a, func(c *Artifact) {
 		c.Builder.Revision = strings.Repeat("a", 40)
-		c.Builder.Engine = strings.Replace(c.Builder.Engine, "/derivation-3/", "/derivation-2/", 1)
+		c.Builder.Engine = strings.Replace(c.Builder.Engine, "/derivation-"+DerivationVersion+"/", "/derivation-2/", 1)
 	})
-	if _, err := OpenRead(context.Background(), root, old, ReadOptions{}); err == nil || !strings.Contains(err.Error(), "derivation version differs (artifact 2, running builder 3); rebuild the corpus") {
+	if _, err := OpenRead(context.Background(), root, old, ReadOptions{}); err == nil || !strings.Contains(err.Error(), "derivation version differs (artifact 2, running builder "+DerivationVersion+"); rebuild the corpus") {
 		t.Fatalf("a derivation 2 artifact should be refused naming the rebuild: %v", err)
 	}
 }

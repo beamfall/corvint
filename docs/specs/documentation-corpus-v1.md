@@ -1948,6 +1948,85 @@ the score-only `terms` order and the two-word `named` rule, drop the additional-
 derivation and return `DerivationVersion` to `2`; artifacts built in between are refused as
 another derivation and rebuilt. No stored state needs migration.
 
+### Content-word coverage, ID-slug names and bounded declaration derivation (GitHub #1665 re-test of ec41e4e)
+
+The re-test of #1665 on `ec41e4e` left three shapes open (V1-2598). The `DCP-V1-547` coverage
+count held the frame words of a question, so in "Where in the source is Player Types
+implemented?" a paragraph holding `source` and `implemented` held as many query words as the
+subject holding `player` and `types`, and general search fell from 63 to 59 of 64 cases. A flow
+whose ID slug spells the question's name (`flows/reservation-cancellation`) but whose name does not
+reached no `named` or path-phrase tier, while a paragraph named `Cancellation`, or `In the source`,
+reached tier `named` by one word. And a multi-repository corpus over a bound derived 0
+declarations: the `DCP-V1-484` retry dropped all of them, and its gap, `derived declaration bound`,
+named no bound, value or count and sat on the first derivable file. Status for `DCP-V1-565..569`:
+proposed, experimental; GitHub #1665.
+
+- `DCP-V1-565`: Amending `DCP-V1-547` and `DCP-V1-544`, in a question-shaped query
+  (`DCP-V1-543`) a query word counts as held (the served `terms` of a subject or claim) only when
+  it is a content word: it yields an evidence term and is neither a question word nor a frame word
+  (`source`, `sources`, `codebase`, `repo`, `repository`, `implemented`, `implement`, `implements`,
+  `implementation`, `implementations`, `defined`, `define`, `defines`, `definition`, `declared`,
+  `declare`, `declares`, `located`, `location`, `live`, `lives`, `handled`, `handle`, `handles`,
+  `work`, `works`, `happen`, `happens`). A term group only frame and question words yield is not
+  held; one any content word, or no word (an identifier compound), yields is. Scores are unchanged,
+  and a statement still counts every word. Failure modes: a frame word never lifts a result over one
+  holding more content words inside tier `terms`; a statement's served `terms` are unchanged; claims
+  follow the same rule. Acceptance: `TestDCPV1565QuestionCoverageCountsContentWords` (the frame
+  paragraph holds 3 words before the change).
+- `DCP-V1-566`: Amending `DCP-V1-543`, a question-shaped query also names, in tier `named`, a
+  subject whose ID slug (the ID after its last `/` or `:`, without its last dot suffix) has at
+  least two identifier words, at least two of them content words, that appear as a contiguous run
+  of the question's words. So "Where in the source is Reservation Cancellation implemented?" names
+  `flow:flows/reservation-cancellation` and `doc:docs/reservation-cancellation.md`. Failure modes:
+  a one-word slug (`flows/reservation`) and a statement name nothing; the slug prefilter keeps the
+  named check allocation-free for subjects whose slug the query cannot hold. Acceptance:
+  `TestDCPV1566QuestionNamesAnIDSlug` (the flow is in tier `terms` before the change).
+- `DCP-V1-567`: Amending `DCP-V1-543` and `DCP-V1-548`, a multi-word name reaches tier `named`
+  only when at least two of its words are content words, and a one-word name only by a capitalized
+  field that no other capitalized field, other than the first, adjoins. So `Cancellation` is not
+  named by "Reservation Cancellation", nor `In the source` by its frame words; "How does Waitlist
+  work?" still names `Waitlist`. Failure modes: a one-word match inside a longer capitalized name
+  never reaches tier `named`; `DCP-V1-548`'s accepted cases still hold. Acceptance:
+  `TestDCPV1567NamedTierNeedsTheWholeName` (`Cancellation` is named before the change),
+  `TestDCPV1548QuestionNamesAOneWordSubject`.
+- `DCP-V1-568`: Amending `DCP-V1-484`, derivation stops at the corpus record bound in the first
+  compile: it derives, in manifest input order and symbol order, the declarations the record bound
+  leaves room for (the bound less the larger of the subject and claim counts the providers built)
+  and drops the rest, with no retry. A build that drops any derived declaration carries exactly one
+  `not-collected` gap on `<native>:derived-declarations`, no file ID, whose reason is
+  `derived declaration bound: B; derived K of N declarations of source inputs other providers
+  claim, D dropped from [<repository id>:]<path>:<line> onward in manifest input order`, where `B`
+  names each bound that dropped any: `record bound R records (SCHEMA) reached`, `output byte bound
+  L bytes (SCHEMA) exceeded at S bytes with A derived` (`DCP-V1-569`), or `the compile with A
+  derived was refused (REASON)` (any other corpus refusal, which derives none as before). Failure
+  modes: a build that drops nothing has no such gap; a non-corpus error is returned without a
+  retry, as before; the gap never names an arbitrary file. Acceptance:
+  `TestDCPV1568DerivationStopsAtTheRecordBound` (2 compiles before the change),
+  `TestDCPV1484RefusedFirstDeclarationRestoresShardCache`,
+  `TestDCPV1484RetryAnswersOnlyCorpusRefusals`.
+- `DCP-V1-569`: Amending `DCP-V1-484`, a compile the output byte bound refused is retried once
+  deriving the prefix of the same declarations whose estimated encoded bytes (subject, claim, their
+  capability IDs and, for a test declaration, its unobserved-test gap) fit under the bound with a
+  4096-byte reserve, not none; if that retry is refused too, the next derives none. The byte bound
+  is known only after the whole artifact is encoded, so an over-bound corpus compiles twice
+  (three times at most). `DerivationVersion` is `4` (`DCP-V1-471`, amending `DCP-V1-550`): the
+  same over-bound inputs now build declarations and a different gap, so the verified read refuses a
+  derivation 3 artifact with `derivation version differs (artifact 3, running builder 4); rebuild
+  the corpus`; the single-repository fixture digest of derivation 4 equals derivation 3's.
+  Failure modes: the retry never exceeds the bound it answers; an artifact of an earlier derivation
+  is refused, never read with a stale gap. Acceptance:
+  `TestDCPV1569DerivationStopsAtTheOutputBound` (before the change the retry derived 0, which
+  `TestDCPV1484DerivationNeverRefusesABuildableManifest` then asserted),
+  `TestDCPV1484DerivationNeverRefusesABuildableManifest`, `TestDCPV1471DerivationVersionGuard`,
+  `TestDCPV1564ReleaseNotesListEveryDerivation`.
+
+Non-goals: no caller choice of which declarations to keep (by path or kind), no output-size
+estimate before the first encode, no new frame-word configuration, no score change, and no change
+to the `exact`, `identifier`, `path-phrase`, `phrase` or `id-phrase` tiers. Rollback: drop the
+content-word coverage, the slug and whole-name `named` rules, and the bounded derivation (restore
+the derive-none retry and its file gap), and return `DerivationVersion` to `3`; artifacts built in
+between are refused as another derivation and rebuilt. No stored state needs migration.
+
 ### Caller-owned retrieval evaluation (`docs corpus eval`)
 
 `corvint docs corpus eval --artifact PATH --cases PATH [--baseline PATH] [--format json|table]`
@@ -4026,6 +4105,7 @@ original sources, retained observations and human documentation require no migra
 | DCP-V1-540..546 | `internal/doccorpus/search_rank.go`, `search_tier.go`, `search_phrase.go`, `types.go`, `internal/mcp/corpusbridge/testdata/search-ranking-gh1665-leftovers/` | `TestDCPV1540QueryWordCountsOnce`, `TestDCPV1541IdentifierTokenTier`, `TestDCPV1542PathPhraseBeforeDeclarations`, `TestDCPV1543QuestionNamesASubject`, `TestDCPV1544ServedTiersAndTerms`, `TestDCPV1404SearchRankingEvalFixture`, `TestDCPV1546GH1665LeftoversRankingEvalFixture`, `TestDCPV1486GH1665RankingEvalFixture`; measured in docs/build-log/2026-10-24-gh1665-rank-leftovers.md |
 | DCP-V1-547..550 | `internal/doccorpus/search_rank.go`, `search_tier.go`, `compile.go`, `encoding.go` | `TestDCPV1547TermsTierOrdersByCoverage`, `TestDCPV1548QuestionNamesAOneWordSubject`, `TestDCPV1549DerivedDeclarationsInAdditionalRepository`, `TestDCPV1485DerivationTwoRefusesDerivationOneArtifacts`, `TestDCPV1471DerivationVersionGuard`; measured in docs/build-log/2026-10-24-corpus-coverage-multirepo-derivation.md |
 | DCP-V1-560..564 | `internal/doccorpus/extractor.go`, `capacity.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `docs_corpus_delta.go`, `docs/RELEASE-NOTES.md` | `TestDCPV1560ExtractorSchemaTwoAdmitsMoreThanTheRecordBound`, `TestDCPV1560DocsCorpusExtractSchemaCLI`, `TestDCPV1562ExtractorRefusesARecordOverTheInputBound`, `TestDCPV1563DeltaCurrentSideIsDecidedByPresence`, `TestDCPV1564ReleaseNotesListEveryDerivation`, `TestDocsCorpusOperationFlagMatrix`; measured in docs/build-log/2026-10-24-corpus-coverage-multirepo-derivation.md |
+| DCP-V1-565..569 | `internal/doccorpus/search_rank.go`, `search_tier.go`, `compile.go`, `encoding.go`, `docs/RELEASE-NOTES.md` | `TestDCPV1565QuestionCoverageCountsContentWords`, `TestDCPV1566QuestionNamesAnIDSlug`, `TestDCPV1567NamedTierNeedsTheWholeName`, `TestDCPV1568DerivationStopsAtTheRecordBound`, `TestDCPV1569DerivationStopsAtTheOutputBound`, `TestDCPV1484DerivationNeverRefusesABuildableManifest`, `TestDCPV1471DerivationVersionGuard`, `TestDCPV1564ReleaseNotesListEveryDerivation`; measured in docs/build-log/2026-10-24-gh1665-coverage-slug-derivation-bound.md |
 | DCP-V1-468 | `internal/doccorpus/artifact_decode.go`, `query_index_fast.go` | `TestDCPV1431StreamedDecodeMatchesInMemory`, `TestDCPV1434DecodeTimeClaimTermsMatchIndex`, `TestDCPV1419FastIndexMatchesReference` |
 | DCP-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCPV1360DeltaWorklistClasses`, `TestDCPV1366CarryForwardFeedsNextBuild`, `TestDCPV1363LineDiff`, `TestDCPV1360DeltaRepairs`, `TestDCPV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
 | DCP-V1-487..489 | `internal/doccorpus/compact_anchor.go`, `shards.go`, `encoding.go` | `TestDCPV1487CompactAnchorTableEquivalent`, `TestDCPV1488CompactAnchorRefusals`, `TestDCPV1489CompactAnchorSizeMeasured`; measured in docs/build-log/2026-10-24-corpus-compact-anchor-table.md |

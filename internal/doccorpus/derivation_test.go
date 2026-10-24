@@ -20,6 +20,10 @@ var derivationFixtureDigests = map[string]string{
 	// Derivation 3 derives declarations in additional repositories too (DCP-V1-549); the
 	// fixture declares no additional repository, so its digest is unchanged.
 	"3": "a571c3440bc8df0f5e1c5f758ce85b78511dc24d6820a32961311e272d1a3568",
+	// Derivation 4 derives declarations up to the record and output byte bounds and names the
+	// bound in one gap (DCP-V1-568, DCP-V1-569); the fixture reaches neither bound, so its
+	// digest is unchanged.
+	"4": "a571c3440bc8df0f5e1c5f758ce85b78511dc24d6820a32961311e272d1a3568",
 }
 
 // TestDCPV1471VerifiedReadAcrossBuilderRevisions: the verified read admits an artifact recorded

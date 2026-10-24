@@ -2761,6 +2761,11 @@ DCP-V1-547	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-544`, inside t
 DCP-V1-548	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-543`, a question-shaped query also names, in tier `named`, a	unrecorded	-
 DCP-V1-549	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-482` and `DCP-V1-483`, derived declarations also cover `source`	unrecorded	-
 DCP-V1-550	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-485`, `DCP-V1-549` changes the records the same multi-repositor	unrecorded	-
+DCP-V1-565	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-547` and `DCP-V1-544`, in a question-shaped query	unrecorded	-
+DCP-V1-566	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-543`, a question-shaped query also names, in tier `named`, a	unrecorded	-
+DCP-V1-567	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-543` and `DCP-V1-548`, a multi-word name reaches tier `named`	unrecorded	-
+DCP-V1-568	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-484`, derivation stops at the corpus record bound in the first	unrecorded	-
+DCP-V1-569	docs/specs/documentation-corpus-v1.md	Amending `DCP-V1-484`, a compile the output byte bound refused is retried once	unrecorded	-
 DCP-V1-250	docs/specs/documentation-corpus-v1.md	The case file is a closed `corvint-corpus-eval-cases/1` document with a file	unrecorded	-
 DCP-V1-251	docs/specs/documentation-corpus-v1.md	Each case runs through `corpusbridge.Registry.CallTimed`, the code path that ser	unrecorded	-
 DCP-V1-252	docs/specs/documentation-corpus-v1.md	Each case reports `hit`, the 1-based `rank` of the first relevant row, `k` (the	unrecorded	-

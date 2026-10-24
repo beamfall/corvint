@@ -45,7 +45,8 @@ type searchHit struct {
 	// name a question holds (DCP-V1-543), or terms alone. An earlier tier
 	// orders first, whatever the scores.
 	tier int
-	// terms counts the query words whose terms the hit holds (DCP-V1-540).
+	// terms counts the query words whose terms the hit holds (DCP-V1-540),
+	// in a question only its content words (DCP-V1-565).
 	terms int
 	// claim orders a claim after a subject of equal score (DCP-V1-402).
 	claim bool
@@ -77,7 +78,8 @@ func normalized(score, maximum float64) float64 {
 // (DCP-V1-540), and the tiers of DCP-V1-541 to DCP-V1-543 order identifier
 // tokens, path phrases, ID-only phrases and names a question holds. Groups
 // are summed in sorted order so the floating-point score is deterministic.
-// Inside tier terms a hit holding more query words orders first (DCP-V1-547);
+// Inside tier terms a hit holding more query words orders first (DCP-V1-547),
+// counting in a question only its content words (DCP-V1-565);
 // equal scores order subjects before claims, then
 // the shorter name or text, then by natural record ID order (DCP-V1-477). A kind filter keeps only subjects of the named kinds and claims about
 // them.
@@ -98,11 +100,12 @@ func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error
 		return err
 	}
 	groups := queryGroups(request.Query, terms)
+	covered := coveredGroups(request.Query, groups)
 	hits := []searchHit{}
 	scores := map[int]float64{}
 	held := map[int]int{}
 	maximum := 0.0
-	for _, group := range groups {
+	for g, group := range groups {
 		gain := map[int]float64{}
 		top := 0.0
 		for _, term := range group {
@@ -123,9 +126,11 @@ func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error
 			}
 		}
 		maximum += nameFieldWeight * top
-		for i, g := range gain {
-			scores[i] += g
-			held[i]++
+		for i, v := range gain {
+			scores[i] += v
+			if covered[g] {
+				held[i]++
+			}
 		}
 	}
 	for i := range scores {
@@ -184,7 +189,7 @@ func search(ctx context.Context, a *Artifact, request Request, r *Receipt) error
 		hits = append(hits, searchHit{value: s, id: s.ID, score: score, tier: tier, terms: held[i], text: s.Name})
 	}
 	if claims {
-		claimHits, err := claimSearchHits(ctx, a, x, request, groups, keep)
+		claimHits, err := claimSearchHits(ctx, a, x, request, groups, covered, keep)
 		if err != nil {
 			return err
 		}
@@ -361,10 +366,11 @@ func extraPaths(s Subject) []string {
 
 // claimSearchHits scores claims by their ID and text terms, and regular
 // inflections of them (DCP-V1-476), with claim-text weight, a query word
-// counting once by its best term (DCP-V1-540), normalized by the claim
+// counting once by its best term (DCP-V1-540) and, in a question, as covered
+// only when it is a content word (DCP-V1-565), normalized by the claim
 // family's largest possible partial score; an exact-text match orders first
 // (DCP-V1-328, DCP-V1-402).
-func claimSearchHits(ctx context.Context, a *Artifact, x *QueryIndex, request Request, groups [][]string, keep func(string) bool) ([]searchHit, error) {
+func claimSearchHits(ctx context.Context, a *Artifact, x *QueryIndex, request Request, groups [][]string, covered []bool, keep func(string) bool) ([]searchHit, error) {
 	about := func(c Claim) bool {
 		if request.Kinds == nil {
 			return true
@@ -375,7 +381,7 @@ func claimSearchHits(ctx context.Context, a *Artifact, x *QueryIndex, request Re
 	scores := map[int]float64{}
 	count := map[int]int{}
 	maximum := 0.0
-	for _, group := range groups {
+	for g, group := range groups {
 		gain := map[int]float64{}
 		top := 0.0
 		for _, term := range group {
@@ -392,9 +398,11 @@ func claimSearchHits(ctx context.Context, a *Artifact, x *QueryIndex, request Re
 			}
 		}
 		maximum += claimFieldWeight * top
-		for i, g := range gain {
-			scores[i] += g
-			count[i]++
+		for i, v := range gain {
+			scores[i] += v
+			if covered[g] {
+				count[i]++
+			}
 		}
 	}
 	query := strings.TrimSpace(request.Query)
