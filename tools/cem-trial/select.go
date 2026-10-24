@@ -24,8 +24,12 @@ const selectionRule = "non-merge commits since --since, oldest first, touching b
 	"(_test.go, *.test.ts, *.test.tsx, *Tests.swift, _test.py, docs/specs/**) that exists at the base revision " +
 	"(git status M or D; a test-or-spec file the change adds is recorded as gold_unreachable and never scored); " +
 	"the presented patch is the source-file " +
-	"hunks alone, at most 64 KiB, over which `cem begin` parses between 3 and 20 hunks; a change is rejected when any " +
+	"hunks alone in the canonical CEM diff form (myers, no indent heuristic, three context lines), at most 64 KiB, over which `cem begin` parses between 3 and 20 hunks; a change is rejected when any " +
 	"source hunk contains a gold path literal; select index floor(i*N/n) for i in 0..n-1 over the candidates in commit order"
+
+// canonicalDiffArguments are the git diff options of the canonical CEM patch.
+var canonicalDiffArguments = []string{"diff", "--no-color", "--no-ext-diff", "--no-textconv", "--no-renames",
+	"--no-indent-heuristic", "--diff-algorithm=myers", "--unified=3", "--inter-hunk-context=0"}
 
 const (
 	selectMinFiles = 3
@@ -388,7 +392,11 @@ func inspectCommit(ctx context.Context, repo, commit, parent string) (candidate,
 	sort.Strings(sourceFiles)
 	sort.Strings(goldPaths)
 	sort.Strings(unreachable)
-	patch, err := gitOutput(ctx, repo, append([]string{"diff", parent, commit, "--"}, sourceFiles...)...)
+	// The presented patch uses the diff options `cem prepare` maps with
+	// (internal/cem/gitauth CanonicalDiff), so a slidable hunk lands on the
+	// same line in both; git's default indent heuristic moved one by a line
+	// and errored all six lanes of a held-out pair (V1-2619).
+	patch, err := gitOutput(ctx, repo, append(append(append([]string{}, canonicalDiffArguments...), parent, commit, "--"), sourceFiles...)...)
 	if err != nil {
 		return candidate{}, false, err
 	}
