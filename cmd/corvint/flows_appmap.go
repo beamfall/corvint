@@ -28,6 +28,7 @@ Application map usage (experimental, AMAP-V0):
   corvint [--root PATH] flows appmap steps --map FILE --source DIR [--source DIR]... [--budget N | --full]
   corvint [--root PATH] flows appmap setup --map FILE --source DIR [--source DIR]... [--condition TEXT]...
       [--budget N | --full]
+  corvint [--root PATH] flows appmap links --map FILE --source DIR [--source DIR]... [--budget N | --full]
   corvint [--root PATH] flows appmap actions --map FILE [--budget N | --full]
   corvint [--root PATH] flows appmap blocker --map FILE --note TEXT [--budget N | --full]
   corvint [--root PATH] flows appmap branches --map FILE --cite PATH:START[-END] [--cite ...] [--budget N | --full]
@@ -111,7 +112,12 @@ hooks, storageState paths (never contents), route mocks (labelled mocked), API s
 cy.task and Playwright setup projects, plus the Rails factories, traits, fixture files, seeds and
 test-setup endpoints of the map's rails-routes/0 roots with what they produce, and links each test
 to the records that arrange it. --condition TEXT (up to 16) lists the records that can produce
-the condition, or unresolved; every flow precondition is answered the same way (default caps
+the condition, or unresolved; every flow precondition is answered the same way. links lists the
+screen graph's edges by provenance: static edges read from templates and components (a href,
+ui-sref, routerLink, router <Link to>, form action, link_to, button_to, form_with url:,
+redirect_to, $state.go, navigate and router or history push) beside the map's test-observed and
+flow-declared edges, never merged; a Rails view or controller action binds the source screen,
+and dynamic or relative targets and unsupported template languages are unknowns (default caps
 6144 bytes). Unsupported constructs are
 unknowns or opaque steps with a reason; secret-shaped values are screened. Learned authority,
 static, no code runs and no repository file changes.
@@ -147,7 +153,7 @@ selector strength or freshness. A --bind test key absent from every receipt refu
 
 func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writer) error {
 	if len(args) == 0 {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, pageobjects, steps, setup, actions, blocker, branches, edges, observe, impact or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, pageobjects, steps, setup, links, actions, blocker, branches, edges, observe, impact or plan")
 	}
 	verb, args := args[0], args[1:]
 	if verb == "edges" {
@@ -202,7 +208,7 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 	if verb == "refs" {
 		return runFlowsAppmapRefs(ctx, root, args, out)
 	}
-	if verb == "pageobjects" || verb == "steps" || verb == "setup" {
+	if verb == "pageobjects" || verb == "steps" || verb == "setup" || verb == "links" {
 		return runFlowsAppmapKnowledge(ctx, root, verb, args, out)
 	}
 	if verb == "actions" {
@@ -222,7 +228,7 @@ func runFlowsAppmap(ctx context.Context, root string, args []string, out io.Writ
 		"screen": appmap.ProjectScreen, "flow": appmap.ProjectFlow, "find": appmap.ProjectFind, "scaffold": appmap.ProjectScaffold,
 	}[verb], map[string]string{"screen": "screen", "flow": "flow", "find": "text", "scaffold": "flow"}[verb]
 	if project == nil {
-		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, pageobjects, steps, setup, actions, blocker, branches, edges, observe, impact or plan")
+		return errors.New("flows appmap requires build, screen, flow, find, scaffold, entries, stats, refs, pageobjects, steps, setup, links, actions, blocker, branches, edges, observe, impact or plan")
 	}
 	mapFile := f.String("map", "", "application-map/0 file")
 	query := f.String(queryFlag, "", "query")

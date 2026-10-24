@@ -11,7 +11,7 @@ points", read through `docs/specs/INDEX.json` and their Agent digests.
 
 ## Agent digest
 - Claim: Page objects, steps, setup and edges mined from tests answer "how do I X" with a live-proven E2E test, or abstain naming the missing knowledge.
-- Status: accepted (owner intent 2026-10-19; V1-1897); experimental. SKH-V0-001..089 for stages 1..8 (V1-1898..V1-1905) are accepted under the owner's standing auto-accept (2026-10-11). Stages 1 and 2 are implemented as `flows appmap pageobjects` and `flows appmap steps` and the corpus MCP tool `corvint.map_knowledge` (V1-1898, V1-1899). Stage 3 (V1-1900, SKH-V0-100..105) is implemented as `flows appmap setup`: Playwright and Cypress fixtures, hooks, `storageState`, route mocks, API seeding, `cy.task` and setup projects, Rails factories, traits, fixture files, seeds and setup endpoints through the AMAP-V0-114 writer index, Ruby test links and the `--condition` query; the V1-1883 normaliser and TSA-V0 setup-select reuse in `SKH-V0-032` stay partial; stages 4..8 are not started.
+- Status: accepted (owner intent 2026-10-19; V1-1897); experimental. SKH-V0-001..089 for stages 1..8 (V1-1898..V1-1905) are accepted under the owner's standing auto-accept (2026-10-11). Stages 1 and 2 are implemented as `flows appmap pageobjects` and `flows appmap steps` and the corpus MCP tool `corvint.map_knowledge` (V1-1898, V1-1899). Stage 3 (V1-1900, SKH-V0-100..105) is implemented as `flows appmap setup`: Playwright and Cypress fixtures, hooks, `storageState`, route mocks, API seeding, `cy.task` and setup projects, Rails factories, traits, fixture files, seeds and setup endpoints through the AMAP-V0-114 writer index, Ruby test links and the `--condition` query; the V1-1883 normaliser and TSA-V0 setup-select reuse in `SKH-V0-032` stay partial. Stage 4 (V1-1901, SKH-V0-110..115) is implemented as `flows appmap links`: static edges from templates and components with provenance `static` beside the map's test-observed edges; no router dialect is widened. Stages 5..8 are not started.
 - Exists: `flows appmap pageobjects`, `flows appmap steps`, `flows appmap setup` and `corvint.map_knowledge` (stages 1 and 2, partial stage 3, experimental), plus the contracts this extends: AMAP-V0 map and selectors, ANL-V0 edges, AFU-V1 intents, DCP-V1 inventories and test knowledge, AMSP-V0 planner draft, CCE-V0 prover, NEA-V0 controls, RVN-V0 binding, PWP-V0 receipts and TSA-V0 validity.
 - Blocked on: nothing for stage 4 (V1-1901) or stage 5 (V1-1902); a measured adopter need for any new router dialect (`SKH-V0-041`). First adopter core-history (owner 2026-10-22); N = 10.
 - Read next: Owner intent; Definition of "confidently"; Requirements; Preregistered measure; Owner questions.
@@ -434,6 +434,63 @@ condition query follows `SKH-V0-103`. Two parts of `SKH-V0-032` remain open:
   target, such as an interpolated URL or a computed state name, MUST be an UNKNOWN edge at its
   line. It is never resolved by guessing.
 
+- `SKH-V0-110`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1901) `flows appmap links` and the `links` view of `corvint.map_knowledge` MUST print
+  `site-knowledge-edges/0`. It lists every map edge with provenance `test-observed` (basis
+  `test-sequence`) or `flow-declared` (basis `flow-step`), and every static edge with provenance
+  `static`, from this closed set. Static edges are never merged into the map's edges. A static
+  edge whose resolved screen pair is also a test-observed edge is marked `observed`, and both
+  records are kept. `provenance` counts each class. `ledger` names `flows appmap edges` as the
+  only source of `PROVEN` edges (`SKH-V0-042`). Nothing is captured.
+- `SKH-V0-111`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1901) Static edges MUST be read lexically from the committed `.html`, `.htm`, `.erb`,
+  `.vue`, `.rb` and JavaScript or TypeScript files in the declared sources. Each link becomes an
+  edge of one closed kind:
+  - `a-href`: an `href` attribute, except on a `link` or `base` element;
+  - `link-to`: a `to` attribute on `Link`, `NavLink`, `router-link` or `RouterLink`;
+  - `ui-sref`: a `ui-sref` attribute, with its parameters dropped;
+  - `router-link`: a literal `routerLink`, or a bound literal array of absolute segments;
+  - `form-action`: the `action` of a `form` element;
+  - `link_to` and `button_to`, taking the first argument in the block form and the second
+    otherwise;
+  - `redirect_to`;
+  - `form_with`: `form_with url:` and `form_tag`;
+  - `state-go`: `$state.go` and `$state.transitionTo`;
+  - `navigate`: `router` or `history` `push`, `replace`, `navigate` or `navigateByUrl`,
+    `location.assign` and a bare `navigate(...)` call.
+
+  A script line that starts with `//` or `*` is skipped. A link that leaves the application or
+  stays on the page is skipped: a URL with a scheme, or one starting with `//`, `#`, `mailto:`,
+  `tel:` or `javascript:`.
+- `SKH-V0-112`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1901) The source screen of a static edge MUST come only from Rails conventions,
+  through the compiled `GET` routes of the map's `rails-routes/0` routers. A view
+  `app/views/CTRL/ACTION.*` that is not a partial binds to the screen of `CTRL#ACTION`. A line
+  inside `def ACTION` of `app/controllers/CTRL_controller.rb` binds the same way. In every other
+  case `from_status` is `UNKNOWN`, with `from_reason` `source-not-bound`,
+  `no-enclosing-action`, `no-screen-for-action` or `ambiguous-action-screen`.
+- `SKH-V0-113`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1901) A literal URL target MUST resolve through the AMAP-V0 screen index, with the same
+  reasons when it does not (`no-matching-screen`, `ambiguous-template` and the others). A
+  `ui-sref`, `$state.go` or Rails `*_path` or `*_url` helper target resolves by screen state
+  name. A relative state (`.child`, `^`) is `UNKNOWN` with reason `relative-state`, and a URL
+  that does not start with `/` is `UNKNOWN` with reason `relative-target`. No router dialect is
+  added: a target resolves only to screens the map already holds (`SKH-V0-041`).
+- `SKH-V0-114`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1901) These targets MUST be `UNKNOWN` with reason `dynamic-target` at their line
+  (`SKH-V0-043`): an interpolated value (`{{`, `${`, `<%`, `#{`), a bound attribute (`:to`,
+  `v-bind:`, or `[...]` other than a literal routerLink array), a JSX expression, a non-literal
+  call argument, and a Ruby argument that is neither a literal nor a route helper. Files in an
+  unsupported template language (`.haml`, `.slim`, `.pug`, `.jade`, `.hbs`, `.handlebars`,
+  `.mustache`, `.twig`, `.njk`, `.liquid`, `.svelte`) are named unknowns with reason
+  `unsupported-template-language`. They are never read.
+- `SKH-V0-115`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1901) The links report MUST use the site-knowledge file and byte bounds. It refuses
+  more than 8192 static links with `appmap-bound-exceeded`, is byte-capped like the other reports,
+  reruns byte-identically and writes nothing.
+
+Implementation status (V1-1901): `flows appmap links` and the `links` view implement
+`SKH-V0-040`, `042`, `043` and `110`..`115` over inline committed fixtures (Rails views and
+controllers, TSX, an Angular or ui-router HTML template, and a HAML file). For `SKH-V0-041`, no
+router dialect is widened: the cloud lane had no adopter repository to measure a need, so that
+clause is NOT MET (NEEDS-HOST). The existing dialects keep the `AMAP-V0-042` abstention. The
+V1-1191 link-only crawl is not delivered, so observed edges still come only from the map and the
+ANL-V0 producer.
+
 ### Stage 5: flow inference (V1-1902)
 
 - `SKH-V0-050`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1902) Step-IR
@@ -728,7 +785,7 @@ Stage dependencies (each stage also reads the contracts named for it above):
 | `SKH-V0-015`, `016` | V1-2407 | `internal/appmap/site_knowledge.go`, `internal/appmap/site_knowledge_project.go` | experimental: `TestSKHV0_015_016_URLJoinAndNamedEffects`; core-history sample: 0 of 10 joined, every unjoined page object and unknown effect named |
 | `SKH-V0-020`..`024` | V1-1899, V1-2406 | `internal/appmap/site_knowledge*.go` | experimental: `TestSKHV0_020_OpaqueStepsAreKept`, `TestSKHV0_021_InlinesCallsWithBoundArguments`, `TestSKHV0_022_DeduplicatesSequencesWithUsage`, `TestSKHV0_023_StrictStepDecoderRefusesOutsideTheClosedIR`, `TestSKHV0_024_PressFocusAndHoverAreTyped`; core-history sample for Playwright; Cypress and Capybara fixture-only |
 | `SKH-V0-030`..`034`, `SKH-V0-100`..`105` | V1-1900, V1-2408 | `internal/appmap/site_knowledge_setup.go`, `internal/appmap/site_knowledge_setup_rails.go`, `internal/appmap/setup_writers.go`, `internal/appmap/site_knowledge_project.go`, `cmd/corvint/flows_appmap_knowledge.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental: 030, 031, 033, 034 and 100..105 by `TestSKHV0_030_031_SetupRecordsAndTestLinks`, `TestSKHV0_100_105_RailsSetupProjectsAndConditions`, `TestSKHV0_103_SetupConditionCLI`, `TestSKHV0_013_PageObjectsAndStepsCLI` and `TestSKHV0013CorpusMCPMapKnowledge` over inline committed fixtures; 032 partial (V1-1891 reused; V1-1883 name rule only; TSA-V0 setup-select not joined); no real-adopter sample (NOT_RUN: cloud) |
-| `SKH-V0-040`..`043` | V1-1901 | none | NOT_STARTED |
+| `SKH-V0-040`..`043`, `SKH-V0-110`..`115` | V1-1901 | `internal/appmap/site_knowledge_edges.go`, `cmd/corvint/flows_appmap_knowledge.go`, `cmd/corvint-corpus-mcp/mapknowledge.go` | experimental: 040, 042, 043 and 110..115 by `TestSKHV0_110_115_StaticNavigationEdges`, `TestSKHV0_013_PageObjectsAndStepsCLI` and `TestSKHV0013CorpusMCPMapKnowledge` over inline committed fixtures; 041 dialect widening NOT MET (NEEDS-HOST: no adopter in the cloud lane); no real-adopter sample (NOT_RUN: cloud) |
 | `SKH-V0-050`..`054` | V1-1902 | none | NOT_STARTED |
 | `SKH-V0-060`..`064` | V1-1903 | none | NOT_STARTED |
 | `SKH-V0-070`..`074` | V1-1904 | none | NOT_STARTED |

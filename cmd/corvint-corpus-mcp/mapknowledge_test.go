@@ -39,7 +39,7 @@ func TestSKHV0013CorpusMCPMapKnowledge(t *testing.T) {
 	}
 	admin := maps[0]
 	for view, project := range map[string]func(context.Context, *appmap.Map, []string, appmap.Options) ([]byte, error){
-		"page_objects": appmap.PageObjects, "steps": appmap.Steps, "setup": appmap.Setup,
+		"page_objects": appmap.PageObjects, "steps": appmap.Steps, "setup": appmap.Setup, "links": appmap.Links,
 	} {
 		result, rpc := h.call(context.Background(), map[string]any{"name": mapKnowledgeTool,
 			"arguments": map[string]any{"view": view, "sources": []any{"e2e"}, "app": "admin"}})
@@ -58,7 +58,8 @@ func TestSKHV0013CorpusMCPMapKnowledge(t *testing.T) {
 		if framed, _ := repoenvelope.Frame(string(want)); result["content"].([]any)[0].(map[string]any)["text"] != framed {
 			t.Fatalf("%s: text not framed as untrusted data", view)
 		}
-		pinned := view == "setup" || strings.Contains(string(want), `"blob":`) // the fixture has no setup records
+		// The fixture has no setup records or static links.
+		pinned := view == "setup" || view == "links" || strings.Contains(string(want), `"blob":`)
 		if wantObject["map_revision"] != admin.Revision || wantObject["schema"] == nil || !pinned {
 			t.Fatalf("%s: projection lacks its evidence pins: %s", view, want)
 		}

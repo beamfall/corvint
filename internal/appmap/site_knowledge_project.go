@@ -20,64 +20,12 @@ const maxSKSources = 16
 
 // readSiteKnowledge reads the declared source directories from --root at the map revision.
 func readSiteKnowledge(ctx context.Context, m *Map, sources []string, o Options) (*SKModel, int, int, error) {
-	query := func(msg string) error { return &gokernel.Error{Code: "appmap-invalid-query", Message: msg} }
-	if len(sources) == 0 || len(sources) > maxSKSources {
-		return nil, 0, 0, query(fmt.Sprintf("site knowledge requires 1 to %d --source directories", maxSKSources))
-	}
-	seen := map[string]bool{}
-	for _, s := range sources {
-		if !safeRelative(s) || seen[s] {
-			return nil, 0, 0, query(fmt.Sprintf("--source %q is not a unique repository-relative directory", s))
-		}
-		seen[s] = true
-	}
-	r := repo{ctx: ctx, root: o.Root}
-	rev, err := r.resolve(m.Revision)
-	if err != nil || rev != m.Revision {
-		return nil, 0, 0, &gokernel.Error{Code: "appmap-invalid-revision", Message: "the map revision is not a commit in --root"}
-	}
-	if missing, err := r.missingDirs(rev, sources); err != nil {
-		return nil, 0, 0, err
-	} else if len(missing) > 0 {
-		return nil, 0, 0, query(fmt.Sprintf("--source %q is not a directory at the map revision", missing[0]))
-	}
-	entries, err := r.tree(rev, sources, maxTestFiles)
+	in, entries, skipped, err := readSKSources(ctx, m, sources, o, func(p string) bool {
+		ext := strings.ToLower(path.Ext(p))
+		return (webSuffix[ext] || ext == ".rb" || skUnsupported[ext] != "") && !strings.HasSuffix(p, ".d.ts")
+	})
 	if err != nil {
 		return nil, 0, 0, err
-	}
-	picked, skipped, total := []blobEntry{}, 0, 0
-	for _, e := range entries {
-		ext := strings.ToLower(path.Ext(e.path))
-		if !webSuffix[ext] && ext != ".rb" && skUnsupported[ext] == "" {
-			continue
-		}
-		if strings.HasSuffix(e.path, ".d.ts") {
-			continue
-		}
-		if e.size > maxTestFileBytes {
-			skipped++
-			continue
-		}
-		picked = append(picked, e)
-		total += e.size
-	}
-	if len(picked) > maxSKFiles {
-		return nil, 0, 0, bound(fmt.Sprintf("declared sources hold more than %d candidate files", maxSKFiles))
-	}
-	if total > maxTestBytes {
-		return nil, 0, 0, bound(fmt.Sprintf("declared source files exceed %d bytes", maxTestBytes))
-	}
-	data, err := r.blobs(picked, maxTestFileBytes, maxTestBytes)
-	if err != nil {
-		return nil, 0, 0, err
-	}
-	in := []skSource{}
-	for _, e := range picked {
-		if b := data[e.oid]; bytes.IndexByte(b, 0) < 0 {
-			in = append(in, skSource{entry: e, data: b})
-		} else {
-			skipped++
-		}
 	}
 	joins := map[string]TestFile{}
 	for _, f := range m.Files {
@@ -91,6 +39,68 @@ func readSiteKnowledge(ctx context.Context, m *Map, sources []string, o Options)
 		k.blobs[e.path] = e.oid
 	}
 	return k, len(in), skipped, nil
+}
+
+// readSKSources reads the committed files under the declared sources that keep selects, within
+// the site-knowledge file and byte bounds. It returns the text files read, every tree entry under
+// the sources, and the count skipped as oversized or binary.
+func readSKSources(ctx context.Context, m *Map, sources []string, o Options, keep func(string) bool) ([]skSource, []blobEntry, int, error) {
+	query := func(msg string) error { return &gokernel.Error{Code: "appmap-invalid-query", Message: msg} }
+	if len(sources) == 0 || len(sources) > maxSKSources {
+		return nil, nil, 0, query(fmt.Sprintf("site knowledge requires 1 to %d --source directories", maxSKSources))
+	}
+	seen := map[string]bool{}
+	for _, s := range sources {
+		if !safeRelative(s) || seen[s] {
+			return nil, nil, 0, query(fmt.Sprintf("--source %q is not a unique repository-relative directory", s))
+		}
+		seen[s] = true
+	}
+	r := repo{ctx: ctx, root: o.Root}
+	rev, err := r.resolve(m.Revision)
+	if err != nil || rev != m.Revision {
+		return nil, nil, 0, &gokernel.Error{Code: "appmap-invalid-revision", Message: "the map revision is not a commit in --root"}
+	}
+	if missing, err := r.missingDirs(rev, sources); err != nil {
+		return nil, nil, 0, err
+	} else if len(missing) > 0 {
+		return nil, nil, 0, query(fmt.Sprintf("--source %q is not a directory at the map revision", missing[0]))
+	}
+	entries, err := r.tree(rev, sources, maxTestFiles)
+	if err != nil {
+		return nil, nil, 0, err
+	}
+	picked, skipped, total := []blobEntry{}, 0, 0
+	for _, e := range entries {
+		if !keep(e.path) {
+			continue
+		}
+		if e.size > maxTestFileBytes {
+			skipped++
+			continue
+		}
+		picked = append(picked, e)
+		total += e.size
+	}
+	if len(picked) > maxSKFiles {
+		return nil, nil, 0, bound(fmt.Sprintf("declared sources hold more than %d candidate files", maxSKFiles))
+	}
+	if total > maxTestBytes {
+		return nil, nil, 0, bound(fmt.Sprintf("declared source files exceed %d bytes", maxTestBytes))
+	}
+	data, err := r.blobs(picked, maxTestFileBytes, maxTestBytes)
+	if err != nil {
+		return nil, nil, 0, err
+	}
+	in := []skSource{}
+	for _, e := range picked {
+		if b := data[e.oid]; bytes.IndexByte(b, 0) < 0 {
+			in = append(in, skSource{entry: e, data: b})
+		} else {
+			skipped++
+		}
+	}
+	return in, entries, skipped, nil
 }
 
 func skHead(schema string, m *Map, sources []string, budget int, o Options, read, skipped int) []field {

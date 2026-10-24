@@ -6,13 +6,13 @@ import (
 	"testing"
 )
 
-// SKH-V0-013 SKH-V0-005 SKH-V0-007 SKH-V0-030: pageobjects, steps and setup are served by the flows
+// SKH-V0-013 SKH-V0-005 SKH-V0-007 SKH-V0-030 SKH-V0-115: pageobjects, steps, setup and links are served by the flows
 // appmap family as byte-capped, byte-identical reports with no repeated top-level key, refuse
 // invalid input with exit 2 and change no repository file.
 func TestSKHV0_013_PageObjectsAndStepsCLI(t *testing.T) {
 	root, filename := railsCLIRepo(t, false)
 	for verb, schema := range map[string]string{"pageobjects": "site-knowledge-page-objects/0", "steps": "site-knowledge-steps/0",
-		"setup": "site-knowledge-setup/1"} {
+		"setup": "site-knowledge-setup/1", "links": "site-knowledge-edges/0"} {
 		code, out, diag := runFlowsCLI(root, "appmap", verb, "--map", filename, "--source", "e2e")
 		var doc map[string]any
 		if code != 0 || json.Unmarshal([]byte(out), &doc) != nil || doc["schema"] != schema || doc["authority"] != "learned" ||
