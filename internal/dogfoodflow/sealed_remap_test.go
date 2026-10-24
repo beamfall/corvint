@@ -157,3 +157,29 @@ func TestChangeDCWV0341SealedHunkOwedWithoutAdmissionSpan(t *testing.T) {
 		t.Errorf("reseal without the admission span: cem-cite = %s cites=%v; want citation-plan-map-mismatch", got, repo.cites)
 	}
 }
+
+// DCW-V0-341: the appended sealed-hunk rows count toward the uniform-plan
+// check, so a plan whose own rows all cite the admission span is refused, and
+// they share the 256-row budget, so a partial plan over 256 unmarked hunks
+// stays admissible for staging.
+func TestChangeDCWV0341AppendedRowsJoinUniformAndStagingChecks(t *testing.T) {
+	repo := newResealRepo(t, true)
+	repo.mergeSeal()
+	uniform := fmt.Sprintf("2\t%s\t3:4\tspecification\n3\t%s\t3:4\tspecification\n", sealAuthority, sealAuthority)
+	if err := os.WriteFile(repo.plan, []byte(uniform), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	if got := repo.reseal("seal", "a", "b"); !strings.Contains(got, `"reason": "citation-plan-uniform"`) || len(repo.cites) != 0 {
+		t.Errorf("plan completed uniform by the appended row: cem-cite = %s cites=%v; want citation-plan-uniform", got, repo.cites)
+	}
+	if err := os.WriteFile(repo.plan, []byte("2\ta.txt\t1:1\tspecification\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	ids := []string{"seal"}
+	for i := 1; i <= 256; i++ {
+		ids = append(ids, fmt.Sprintf("h%d", i))
+	}
+	if got := repo.reseal(ids...); !strings.Contains(got, `"status": "PRODUCED"`) || len(repo.cites) != 2 {
+		t.Errorf("partial plan over 256 unmarked hunks: cem-cite = %s cites=%v; want PRODUCED with the plan row and the seal row", got, repo.cites)
+	}
+}

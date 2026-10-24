@@ -684,7 +684,9 @@ func (c *change) citeStep() {
 		status, reason = "NOT_PRODUCED", "invalid-citation-plan"
 	case mismatch != "":
 		status, reason = "NOT_PRODUCED", mismatch
-	case c.uniformPlan(plan):
+	// Appended sealed-hunk rows count toward uniformity, so they cannot
+	// complete a plan whose own rows all cite their span (DCW-V0-341).
+	case c.uniformPlan(plan) || len(plan) > 0 && len(c.sealCiteRows) > 0 && c.uniformPlan(withRows(plan, c.sealCiteRows)):
 		status, reason = "NOT_PRODUCED", "citation-plan-uniform"
 	case c.recitesCitedHunk(plan):
 		status, reason = "NOT_PRODUCED", "citation-plan-recites-cited-hunk"
@@ -1448,14 +1450,18 @@ func (c *change) citationPlanMismatch(plan []byte) string {
 	}
 	// A hunk an earlier plan kept unknown with a recorded reason is marked,
 	// so, like a cited one, it needs no row (DCW-V0-019).
-	owed := []int{}
+	owed, unmarked := []int{}, 0
 	for index, hunk := range hunks {
-		if hunk["disposition"] == "unknown" && !bootstrap[hunk["path"]] && !recordedUnknownReasons[hunk["reason"]] && !selfCited[hunk["id"]] {
-			owed = append(owed, index+1)
+		if hunk["disposition"] == "unknown" && !bootstrap[hunk["path"]] && !recordedUnknownReasons[hunk["reason"]] {
+			unmarked++
+			if !selfCited[hunk["id"]] {
+				owed = append(owed, index+1)
+			}
 		}
 	}
 	// More owed hunks than one plan has rows: split plans stay admissible.
-	if len(owed) > 256 && len(plan) > 0 {
+	// Appended sealed-hunk rows share the 256-row budget, so they count.
+	if unmarked > 256 && len(plan) > 0 {
 		return ""
 	}
 	for _, index := range owed {
