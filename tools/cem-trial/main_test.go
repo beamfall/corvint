@@ -337,8 +337,11 @@ func TestMapArmsCarryAPreparedCEM10Map(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = os.RemoveAll(lane) })
 	good := citation{Hunk: "1", Path: "docs/specs/play-v0.md", Lines: "1:3", Relation: "specification"}
-	state := applyCitations(ctx, configuration, lane, target, item, []citation{good})
+	state, err := applyCitations(ctx, configuration, lane, target, item, []citation{good})
 	counts, _ := state["counts"].(map[string]any)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if state["accepted"] != 1 || counts["supported"] != 1 || counts["total"] != len(presented) || state["verify_ok"] != true || state["replay_ok"] != true {
 		t.Fatalf("cited state %v", state)
 	}
@@ -346,10 +349,16 @@ func TestMapArmsCarryAPreparedCEM10Map(t *testing.T) {
 		t.Fatalf("tiers %v, want one cited hunk", state["tiers"])
 	}
 	missing := citation{Hunk: "1", Path: "docs/absent.md", Lines: "1:1", Relation: "specification"}
-	state = applyCitations(ctx, configuration, lane, target, item, []citation{missing})
+	state, err = applyCitations(ctx, configuration, lane, target, item, []citation{missing})
 	counts, _ = state["counts"].(map[string]any)
-	if state["accepted"] != 0 || counts["supported"] != 0 || state["replay_ok"] != false {
-		t.Fatalf("a missing citation, or the previous lane's, reached the map: %v", state)
+	if err != nil || state["accepted"] != 0 || counts["supported"] != 0 || state["replay_ok"] != false {
+		t.Fatalf("a missing citation, or the previous lane's, reached the map: %v %v", state, err)
+	}
+	// A measurement that never ran is an error, not a verifier failure.
+	cancelled, cancel := context.WithCancel(ctx)
+	cancel()
+	if state, err := applyCitations(cancelled, configuration, lane, target, item, []citation{good}); err == nil {
+		t.Fatalf("a cancelled measurement was recorded as %v", state)
 	}
 	if artefacts, target, err := buildArtefacts(ctx, options{}, prep, patch, nil); err != nil || len(artefacts) != 0 || target != nil {
 		t.Fatalf("control arm: %v %v %v", artefacts, target, err)

@@ -105,7 +105,9 @@ name is exactly what the change's author also wrote and the harness removed.
   artefacts are the prepared map (every hunk `unknown`), `cem status` and `cem report`, with the
   target clone's path replaced by `<target-clone>` so artefacts and prompts are byte-identical across
   builds. A lane's citations are replayed with `cem cite` into a pristine copy of the map restored
-  before each lane, and `cem status` and `cem verify` read the result (CRT-V0-007). The seeded arm's
+  before each lane, and `cem status` and `cem verify` read the result (CRT-V0-007); a Corvint
+  command that refuses is a measurement, one that produces no verdict (cancellation, timeout, launch
+  failure) errors the lane, so it is neither scored as a verifier failure nor reused (CRT-V0-010). The seeded arm's
   suggestions are unchanged. A registered run still refuses both arms (CRT-V0-015).
 - `CRT-V0-006`: Reply grammar. Every reply MUST end with one fenced JSON block
   `{"citations":[{"hunk":"N","path":"...","lines":"S:E","relation":"specification|decision|test-claim|implementation|call-site|dependency|incident","confidence":"certain|likely|unsure"}],"unknown":["N"]}`.

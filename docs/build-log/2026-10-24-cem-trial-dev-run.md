@@ -90,6 +90,13 @@ That is consistent with the planned ~55. Caveats:
 
 Any held-out selection must pass both the pilot manifest and this one to `--exclude`.
 
+## Review
+
+Codex (`gpt-6-astra`, read-only, one round) found one P2:
+- **Finding.** A `cem cite`, `status` or `verify` call that was canceled or timed out after the agent finished was recorded as `verify_ok: false`. It was scored as a verifier hard failure and kept on `--reuse`.
+- **Fix.** `applyCitations` now returns an error for a command that produced no verdict, and the lane errors (CRT-V0-010). A refusal stays a measurement. `TestMapArmsCarryAPreparedCEM10Map` covers a canceled measurement.
+- **Impact on this run: none.** The development report predates the fix, and its 37 citing lanes had 0 hard failures, so no measurement was masked.
+
 ## Not run
 
 - Held-out selection and run.

@@ -504,8 +504,13 @@ func invokeLane(ctx context.Context, configuration options, runner agent, prep, 
 		return
 	}
 	citations, _ := extractCitations(record.Reply)
-	state := applyCitations(ctx, configuration, root, target, item, citations)
-	assign(saver.lock(), func() { record.CEM = state })
+	state, err := applyCitations(ctx, configuration, root, target, item, citations)
+	assign(saver.lock(), func() {
+		record.CEM = state
+		if err != nil {
+			record.Error = "cem measurement: " + err.Error()
+		}
+	})
 }
 
 // armsNeedCorvint holds when an arm carrying a map is run.
@@ -784,24 +789,34 @@ func suggestedPaths(rendered string) []string {
 // prepared cem/1.0 map: each citation is one `cem cite` on the reply's hunk
 // number, then `cem status` supplies the per-hunk dispositions and the
 // consumer-computed tiers, and `cem verify` the verdict. replay_ok is the
-// harness's own Git-only check in the lane clone (CRT-V0-007).
-func applyCitations(ctx context.Context, configuration options, laneRoot string, target *mapTarget, item task, citations []citation) map[string]any {
+// harness's own Git-only check in the lane clone (CRT-V0-007). A Corvint
+// command that ran and refused is a measurement; one that never produced a
+// verdict (cancellation, timeout, launch failure) is an error, which errors
+// the lane so it is neither scored as a verifier failure nor reused.
+func applyCitations(ctx context.Context, configuration options, laneRoot string, target *mapTarget, item task, citations []citation) (map[string]any, error) {
 	state := map[string]any{"counts": map[string]any{}, "state": notObserved, "verify_ok": notObserved, "replay_ok": notObserved, "cited": len(citations)}
 	if target == nil {
-		return state
+		return state, nil
 	}
 	if err := os.WriteFile(filepath.Join(target.root, filepath.FromSlash(targetMap)), target.pristine, 0o600); err != nil {
-		return state
+		return state, err
 	}
 	accepted := 0
 	for _, one := range citations {
-		if _, err := corvint(ctx, configuration, target.root, "cem", "cite", "--map", targetMap,
-			"--hunk", one.Hunk, "--evidence-path", one.Path, "--lines", one.Lines, "--relation", one.Relation); err == nil {
+		_, err := corvint(ctx, configuration, target.root, "cem", "cite", "--map", targetMap,
+			"--hunk", one.Hunk, "--evidence-path", one.Path, "--lines", one.Lines, "--relation", one.Relation)
+		if err == nil {
 			accepted++
+		} else if !errors.Is(err, errCorvintExit) {
+			return state, fmt.Errorf("cem cite: %w", err)
 		}
 	}
 	state["accepted"] = accepted
-	if raw, err := corvint(ctx, configuration, target.root, append([]string{"cem", "status"}, target.flags()...)...); err == nil {
+	raw, err := corvint(ctx, configuration, target.root, append([]string{"cem", "status"}, target.flags()...)...)
+	if err != nil && !errors.Is(err, errCorvintExit) {
+		return state, fmt.Errorf("cem status: %w", err)
+	}
+	if err == nil {
 		var envelope struct {
 			State  string `json:"state"`
 			Stable struct {
@@ -826,10 +841,16 @@ func applyCitations(ctx context.Context, configuration options, laneRoot string,
 			}
 		}
 	}
-	raw, err := corvint(ctx, configuration, target.root, append([]string{"cem", "verify"}, target.flags()...)...)
+	raw, err = corvint(ctx, configuration, target.root, append([]string{"cem", "verify"}, target.flags()...)...)
+	if err != nil && !errors.Is(err, errCorvintExit) {
+		return state, fmt.Errorf("cem verify: %w", err)
+	}
 	state["verify_ok"] = err == nil && verifyAccepted(raw)
 	state["replay_ok"] = replayCitations(ctx, laneRoot, item.BaseCommit, citations)
-	return state
+	if err := ctx.Err(); err != nil {
+		return state, err
+	}
+	return state, nil
 }
 
 // verifyAccepted holds for a `cem verify` envelope that is ok with a stable
@@ -850,10 +871,14 @@ func corvint(ctx context.Context, configuration options, root string, arguments 
 		return "", err
 	}
 	if exitCode != 0 {
-		return string(stdout), fmt.Errorf("corvint exited %d: %s", exitCode, strings.TrimSpace(string(stdout)))
+		return string(stdout), fmt.Errorf("%w %d: %s", errCorvintExit, exitCode, strings.TrimSpace(string(stdout)))
 	}
 	return string(stdout), nil
 }
+
+// errCorvintExit marks a Corvint command that ran and exited non-zero, as
+// distinct from one that never produced output.
+var errCorvintExit = errors.New("corvint exited")
 
 func corvintIdentity(ctx context.Context, configuration options) map[string]any {
 	if configuration.corvintGo == "" {
