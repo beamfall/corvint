@@ -27,7 +27,7 @@ fail() {
   exit 1
 }
 
-# The planner's default graph cache (AFP-V0-432) lives under the test root, never the
+# The planner's default graph cache (AFP-V0-436) lives under the test root, never the
 # real user cache directory.
 run_gate() {
   status=0

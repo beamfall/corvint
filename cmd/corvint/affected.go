@@ -90,15 +90,15 @@ type affectedInvocation struct {
 	// RequireClean refuses to plan over a worktree with any status entry
 	// (AFP-V0-045).
 	RequireClean bool
-	// Cache is the graph cache directory, caller-named or the AFP-V0-432
+	// Cache is the graph cache directory, caller-named or the AFP-V0-436
 	// default, resolved outside the repository root; empty means no cache is
 	// read or written (AFP-V0-390).
 	Cache string
-	// NoCache turns off the default graph cache (AFP-V0-433).
+	// NoCache turns off the default graph cache (AFP-V0-437).
 	NoCache bool
 	// CacheStatus is set only by `affected cache`, which reports the default
 	// cache's location and size; CacheStatusFormat is json or doctor-plugin
-	// (AFP-V0-435).
+	// (AFP-V0-439).
 	CacheStatus       bool
 	CacheStatusFormat string
 	// CacheExcluded names the repository's Git and common directories, which

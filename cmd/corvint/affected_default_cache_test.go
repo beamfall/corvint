@@ -41,10 +41,10 @@ func resolvedTempDir(t *testing.T) string {
 	return dir
 }
 
-// AFP-V0-432, AFP-V0-434: without --cache or --no-cache the graph cache is
+// AFP-V0-436, AFP-V0-438: without --cache or --no-cache the graph cache is
 // os.UserCacheDir()/corvint/affected, created private to the user, one entry
 // per root; a cold and a warm call print exactly the --no-cache bytes.
-func TestAFPV0432DefaultCacheLivesUnderTheUserCacheDirectory(t *testing.T) {
+func TestAFPV0436DefaultCacheLivesUnderTheUserCacheDirectory(t *testing.T) {
 	outcomes := observeAffectedCache(t)
 	base := resolvedTempDir(t)
 	useAffectedUserCacheDir(t, base, nil)
@@ -106,9 +106,9 @@ func TestAFPV0432DefaultCacheLivesUnderTheUserCacheDirectory(t *testing.T) {
 	}
 }
 
-// AFP-V0-433: --cache DIR replaces the default location and --no-cache turns
+// AFP-V0-437: --cache DIR replaces the default location and --no-cache turns
 // the cache off; the two cannot be combined and --no-cache takes no value.
-func TestAFPV0433NoCacheAndCacheOverrideTheDefault(t *testing.T) {
+func TestAFPV0437NoCacheAndCacheOverrideTheDefault(t *testing.T) {
 	outcomes := observeAffectedCache(t)
 	base := resolvedTempDir(t)
 	useAffectedUserCacheDir(t, base, nil)
@@ -147,10 +147,10 @@ func TestAFPV0433NoCacheAndCacheOverrideTheDefault(t *testing.T) {
 	}
 }
 
-// AFP-V0-434: a default location that cannot be named, is placed where
+// AFP-V0-438: a default location that cannot be named, is placed where
 // --cache would be refused, or cannot be written is not an error: the call
 // runs uncached and prints the --no-cache bytes with nothing on stderr.
-func TestAFPV0434DefaultCacheDegradesToUncached(t *testing.T) {
+func TestAFPV0438DefaultCacheDegradesToUncached(t *testing.T) {
 	outcomes := observeAffectedCache(t)
 	root := affectedFixtureRepository(t)
 	_, want, stderr, code := runAffectedCLI(t, root, "--no-cache", "--path", "core/core.go")
@@ -204,9 +204,9 @@ func runAffectedCacheStatusCLI(t *testing.T, root string, options ...string) ([]
 	return stdout.Bytes(), stderr.String(), code
 }
 
-// AFP-V0-435: `affected cache` reports the default cache's location, entry
+// AFP-V0-439: `affected cache` reports the default cache's location, entry
 // count and bytes as JSON or as a doctor plugin item, and creates nothing.
-func TestAFPV0435CacheStatusReportsLocationAndSize(t *testing.T) {
+func TestAFPV0439CacheStatusReportsLocationAndSize(t *testing.T) {
 	observeAffectedCache(t)
 	base := resolvedTempDir(t)
 	useAffectedUserCacheDir(t, base, nil)
@@ -285,9 +285,9 @@ func TestAFPV0435CacheStatusReportsLocationAndSize(t *testing.T) {
 	}
 }
 
-// AFP-V0-432, AFP-V0-433, AFP-V0-435: help names the default location, the
+// AFP-V0-436, AFP-V0-437, AFP-V0-439: help names the default location, the
 // two overrides and the status form.
-func TestAFPV0433HelpDocumentsTheDefaultCache(t *testing.T) {
+func TestAFPV0437HelpDocumentsTheDefaultCache(t *testing.T) {
 	t.Parallel()
 	help := strings.Join(strings.Fields(helpText("affected")), " ")
 	for _, want := range []string{

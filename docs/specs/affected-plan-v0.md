@@ -2951,8 +2951,8 @@ put the cost in the graph build: one open per Ruby file, and every spec re-readi
 the helpers it loads, about 60% of all opens. These requirements are proposed (owner auto-accept
 pending); they do not change any plan, wire member or exit code.
 
-- **AFP-V0-390:** (proposed; V1-2473, GH #1601; amended 2026-10-24 by AFP-V0-432, V1-2572)
-  `affected --cache DIR` or, without it, the AFP-V0-432 default location MUST be the only places
+- **AFP-V0-390:** (proposed; V1-2473, GH #1601; amended 2026-10-24 by AFP-V0-436, V1-2572)
+  `affected --cache DIR` or, without it, the AFP-V0-436 default location MUST be the only places
   the plan path reads or writes a graph cache; with `--no-cache` nothing is read from or written to
   any cache location. DIR is named by the caller; it is made
   absolute, the symlinks of its nearest existing ancestor are resolved, and it MUST be refused
@@ -2980,7 +2980,7 @@ pending); they do not change any plan, wire member or exit code.
   `SOL-V0-001`, `SOL-V0-007` and `SOL-V0-010`), never in Git or trace state, never evidence, and
   never an input to ranking, authority or learning; it can only reproduce a graph a full build
   would produce (AFP-V0-391 to AFP-V0-393). The user cache directory is used by default only as
-  AFP-V0-432 admits it, and no daemon or watcher is started (invariant 7).
+  AFP-V0-436 admits it, and no daemon or watcher is started (invariant 7).
 - **AFP-V0-391:** (proposed; V1-2473, GH #1601)
   An entry (profile `corvint-affected-graph-cache/0`) MUST bind: the absolute repository root; the
   SHA-256 of the running corvint executable, so a build whose plugins may observe differently never
@@ -3070,7 +3070,7 @@ pending); they do not change any plan, wire member or exit code.
   `--cache DIR` (a private directory outside the repository) so repeated calls on an unchanged
   checkout reuse the verified graph with the same plan, and that without `--cache` every call
   builds the graph again. It is advice only and adds no command, option or output. Amended
-  2026-10-24 by AFP-V0-432 (V1-2572): the cache is now on by default, so the goal says instead
+  2026-10-24 by AFP-V0-436 (V1-2572): the cache is now on by default, so the goal says instead
   that repeated calls reuse a private cache under the user cache directory, outside the
   repository, that `--cache DIR` moves it and `--no-cache` turns it off, and that
   `corvint affected cache` shows its location and size.
@@ -3085,14 +3085,14 @@ the plan, its digest or any exit code. Rollback: drop `--cache` and `--paths-fro
 `cmd/corvint/affected_identity_*.go` and `internal/liveverify/affected/graphcache*.go`, remove the `Source.record` hooks and restore
 `affected.Build`'s direct call; the Ruby helper memo reverts independently.
 
-### Default graph cache location (AFP-V0-432 to AFP-V0-435)
+### Default graph cache location (AFP-V0-436 to AFP-V0-439)
 
 Owner decision 2026-10-24 (`docs/build-log/2026-10-24-owner-queue-decisions.md`, V1-2572, part of
 GH #1601 / V1-2473): repeated `affected` calls should reuse the verified graph without every caller
 naming `--cache DIR`. These requirements are proposed (owner auto-accept pending) and experimental;
 they do not change any plan, wire member or exit code of a plan call.
 
-- **AFP-V0-432:** (proposed, experimental; V1-2572, GH #1601)
+- **AFP-V0-436:** (proposed, experimental; V1-2572, GH #1601)
   Without `--cache` and without `--no-cache`, a plan call (every form `--cache` accepts; never
   `--snapshot`, `--playwright-config`, `affected discovery` or `affected cache`) MUST use the
   graph cache directory `os.UserCacheDir()/corvint/affected` (`~/Library/Caches` on darwin,
@@ -3102,7 +3102,7 @@ they do not change any plan, wire member or exit code of a plan call.
   walked file). Missing components are created mode 0700 through the opened handle; the directory
   holds at most one entry per repository root and language set. The location is never inside the
   repository, any `.git` directory, the repository's Git or common directory, or `.corvint/`: a
-  default that the AFP-V0-390 placement check would refuse is not used (AFP-V0-434). Tests MUST
+  default that the AFP-V0-390 placement check would refuse is not used (AFP-V0-438). Tests MUST
   NOT read or write the real user cache directory: the `cmd/corvint` TestMain replaces the lookup
   with one that fails, and a test of the default injects its own directory. Invariant analysis
   (AGENTS.md invariant 4, amended in the same change): this is a bounded, private user-cache write
@@ -3112,22 +3112,22 @@ they do not change any plan, wire member or exit code of a plan call.
   is added (invariant 7). Failure mode: entries of deleted roots accumulate, one per root, until
   the user deletes the directory; `affected cache` reports its size. Rollback: drop the default
   branch in `resolveAffectedBatchAndCache`, restoring the explicit-only cache.
-- **AFP-V0-433:** (proposed, experimental; V1-2572, GH #1601)
+- **AFP-V0-437:** (proposed, experimental; V1-2572, GH #1601)
   `--cache DIR` MUST replace the default location, under the AFP-V0-390 refusals, and the default
   location MUST then be neither read nor written. `--no-cache` MUST turn the graph cache off: no
   cache location is resolved, read, created or written. `--no-cache` takes no value and is given
   at most once, and `--cache` with `--no-cache` is refused; each is `invalid-arguments` before any
   worktree read. Help lists both and names the default location. Rollback: drop `--no-cache`
-  from `parseAffectedOptions` with the AFP-V0-432 default.
-- **AFP-V0-434:** (proposed, experimental; V1-2572, GH #1601)
+  from `parseAffectedOptions` with the AFP-V0-436 default.
+- **AFP-V0-438:** (proposed, experimental; V1-2572, GH #1601)
   A default location that cannot be used MUST NOT be an error: when `os.UserCacheDir` fails or is
   not absolute, when the location fails any AFP-V0-390 placement rule (inside the root, a `.git`
   component, the Git or common directory, or a Git directory that cannot be named), or when it
   cannot be created, opened, kept private or written, the call runs uncached, writes nothing to
   stderr and exits as `--no-cache` would. The receipt MUST be byte-identical with `--no-cache`, a
   cold default cache and a warm default cache (AFP-V0-393), for every plan form. Rollback: as
-  AFP-V0-432.
-- **AFP-V0-435:** (proposed, experimental; V1-2572, GH #1601)
+  AFP-V0-436.
+- **AFP-V0-439:** (proposed, experimental; V1-2572, GH #1601)
   `corvint [--root PATH] affected cache [--format json|doctor-plugin]` MUST report the default
   location for the root without creating, opening an entry of or writing anything: one canonical
   JSON object, profile `affected-cache-status/0`, with exactly `bytes` (the sum of regular file
@@ -3251,9 +3251,9 @@ incompletely stamped entry, a FIFO or other non-regular entry, a cache directory
 link into the repository or not private to the user, an unwritable cache directory, an
 unreadable or replaced executable or an unsupported platform is a full build with the same
 receipt, never a refusal and never a reused graph; an observation that cannot be pinned,
-including one with a transient read failure, writes no entry. For the AFP-V0-432 default
+including one with a transient read failure, writes no entry. For the AFP-V0-436 default
 location every one of these, a placement refusal included, is an uncached call with the same
-receipt and no stderr (AFP-V0-434); `affected cache` reports it as `UNAVAILABLE`. `--paths-from` refusals are `invalid-arguments`
+receipt and no stderr (AFP-V0-438); `affected cache` reports it as `UNAVAILABLE`. `--paths-from` refusals are `invalid-arguments`
 (AFP-V0-395).
 
 ## Acceptance evidence and traceability
@@ -3402,10 +3402,10 @@ receipt and no stderr (AFP-V0-434); `affected cache` reports it as `UNAVAILABLE`
 | AFP-V0-396 | `affectedHelp` in `cmd/corvint/help.go`; the `corvint affected` row of `docs/CAPABILITIES.md` | `TestAFPV0396HelpDocumentsTheBatchFormAndTheCache`; `make capabilities-check` |
 | AFP-V0-397 | `BuildCached` hit path | `TestAFPV0397RepeatedPathCallOnALargeRubyTreeReusesTheGraph` (1,200 Ruby files: the warm call hits and writes the cold and uncached bytes); measured cold and warm numbers in build log `2026-10-23-affected-graph-reuse-gh1601` |
 | AFP-V0-431 | the test-selection goal of `internal/capcatalog/AGENT-GUIDE.md` | `TestAFPV0431ShippedGuideAdvisesBatchingAndTheAffectedCache`; `make capability-catalog-check` |
-| AFP-V0-432 | `affectedUserCacheDir`, `affectedDefaultCacheLocation` and the default branch of `resolveAffectedBatchAndCache` in `cmd/corvint/affected_cache.go`; the TestMain lookup replacement in `cmd/corvint/work_materialization_test.go`; the planner environment of `script/gate-affected_test.sh` | `TestAFPV0432DefaultCacheLivesUnderTheUserCacheDirectory` (bare, `--full`, `--path`, `--base`: the cold call stores and the warm call hits under the injected `corvint/affected`, both byte-identical with `--no-cache`; one entry; 0700 components; repository status unchanged; `--snapshot`, `--playwright-config`, `--no-cache` and status invocations resolve no cache) |
-| AFP-V0-433 | `--no-cache` and the `--cache`/`--no-cache` check in `parseAffectedOptions`; `affectedHelp` | `TestAFPV0433NoCacheAndCacheOverrideTheDefault` (`--no-cache` observes no cache; `--cache DIR` stores then hits in DIR and the default is never created; the combination, a repetition and a value refuse), `TestAFPV0433HelpDocumentsTheDefaultCache` |
-| AFP-V0-434 | the swallowed refusal in `resolveAffectedBatchAndCache`; `BuildCachedExcluding`'s fall-back | `TestAFPV0434DefaultCacheDegradesToUncached` (a failing lookup, an empty or relative base, a base inside the root or `.git`, an unwritable base and a file in place of `corvint/`: exit 0, no stderr, the `--no-cache` bytes, no entry read or stored, repository status unchanged); `TestAFPV0432DefaultCacheLivesUnderTheUserCacheDirectory` (cold and warm parity) |
-| AFP-V0-435 | `parseAffectedCacheStatusOptions`, `inspectAffectedDefaultCache` and `runAffectedCacheStatus` in `cmd/corvint/affected_cache.go`; `InspectCacheDirectory` in `internal/liveverify/affected/graphcache_dir.go` | `TestAFPV0435CacheStatusReportsLocationAndSize` (ABSENT creates nothing; PRESENT counts the one entry and its bytes; the doctor-plugin item; UNAVAILABLE inside the root, for a group-writable directory and with no user cache directory; argument refusals) |
+| AFP-V0-436 | `affectedUserCacheDir`, `affectedDefaultCacheLocation` and the default branch of `resolveAffectedBatchAndCache` in `cmd/corvint/affected_cache.go`; the TestMain lookup replacement in `cmd/corvint/work_materialization_test.go`; the planner environment of `script/gate-affected_test.sh` | `TestAFPV0436DefaultCacheLivesUnderTheUserCacheDirectory` (bare, `--full`, `--path`, `--base`: the cold call stores and the warm call hits under the injected `corvint/affected`, both byte-identical with `--no-cache`; one entry; 0700 components; repository status unchanged; `--snapshot`, `--playwright-config`, `--no-cache` and status invocations resolve no cache) |
+| AFP-V0-437 | `--no-cache` and the `--cache`/`--no-cache` check in `parseAffectedOptions`; `affectedHelp` | `TestAFPV0437NoCacheAndCacheOverrideTheDefault` (`--no-cache` observes no cache; `--cache DIR` stores then hits in DIR and the default is never created; the combination, a repetition and a value refuse), `TestAFPV0437HelpDocumentsTheDefaultCache` |
+| AFP-V0-438 | the swallowed refusal in `resolveAffectedBatchAndCache`; `BuildCachedExcluding`'s fall-back | `TestAFPV0438DefaultCacheDegradesToUncached` (a failing lookup, an empty or relative base, a base inside the root or `.git`, an unwritable base and a file in place of `corvint/`: exit 0, no stderr, the `--no-cache` bytes, no entry read or stored, repository status unchanged); `TestAFPV0436DefaultCacheLivesUnderTheUserCacheDirectory` (cold and warm parity) |
+| AFP-V0-439 | `parseAffectedCacheStatusOptions`, `inspectAffectedDefaultCache` and `runAffectedCacheStatus` in `cmd/corvint/affected_cache.go`; `InspectCacheDirectory` in `internal/liveverify/affected/graphcache_dir.go` | `TestAFPV0439CacheStatusReportsLocationAndSize` (ABSENT creates nothing; PRESENT counts the one entry and its bytes; the doctor-plugin item; UNAVAILABLE inside the root, for a group-writable directory and with no user cache directory; argument refusals) |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`

@@ -29,7 +29,7 @@ Corvint is a local-first, proof-carrying context compiler for software agents.
    `corvint eval --learn-slot-weights` step, whose output reaches ranking only after the frozen
    held-out gate admits it (`LTA-V0-009` to `LTA-V0-012`). Outside the repository, `affected` may
    also write one bounded, private user-cache directory, `os.UserCacheDir()/corvint/affected`, of
-   derived graph entries admitted by `AFP-V0-432` to `AFP-V0-435`; it is never repository, Git,
+   derived graph entries admitted by `AFP-V0-436` to `AFP-V0-439`; it is never repository, Git,
    trace or `.corvint/` state and never an input to ranking, evidence, authority or learning.
 5. Learning is explicit, local, bounded, secret-screened, and evaluation-gated.
 6. Corvint integrates with existing specs and agents; it does not require a new spec language.

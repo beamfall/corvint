@@ -47,7 +47,7 @@ func resolveAffectedBatchAndCache(invocation *affectedInvocation) error {
 	} else if !invocation.NoCache && !invocation.CacheStatus && invocation.Snapshot == "" && invocation.PlaywrightConfig == "" {
 		// The default location is held to every --cache placement rule; one
 		// that fails any of them, or that cannot be named, is not used and
-		// the call runs uncached with the same bytes (AFP-V0-432, AFP-V0-434).
+		// the call runs uncached with the same bytes (AFP-V0-436, AFP-V0-438).
 		if location, _ := affectedDefaultCacheLocation(); location != "" {
 			if resolved, gitDirectories, err := resolveAffectedCache(invocation.Root, location); err == nil {
 				invocation.Cache, invocation.CacheExcluded = resolved, gitDirectories
@@ -292,12 +292,12 @@ func affectedBuildGraph(ctx context.Context, invocation affectedInvocation) (*af
 }
 
 // affectedUserCacheDir names the user cache directory the default graph cache
-// lives under (AFP-V0-432). The package's TestMain replaces it, so no test
+// lives under (AFP-V0-436). The package's TestMain replaces it, so no test
 // reads or writes the real user cache; a test of the default injects its own.
 var affectedUserCacheDir = os.UserCacheDir
 
 // affectedDefaultCacheLocation is os.UserCacheDir()/corvint/affected, or
-// empty with the reason there is none (AFP-V0-432).
+// empty with the reason there is none (AFP-V0-436).
 func affectedDefaultCacheLocation() (string, string) {
 	base, err := affectedUserCacheDir()
 	if err != nil {
@@ -310,11 +310,11 @@ func affectedDefaultCacheLocation() (string, string) {
 }
 
 // affectedCacheStatusMaxEntries bounds the directory listing `affected cache`
-// reads (AFP-V0-435); a larger directory is reported INCOMPLETE.
+// reads (AFP-V0-439); a larger directory is reported INCOMPLETE.
 const affectedCacheStatusMaxEntries = 4096
 
 // parseAffectedCacheStatusOptions reads `affected cache [--format
-// json|doctor-plugin]`, the option at most once (AFP-V0-435).
+// json|doctor-plugin]`, the option at most once (AFP-V0-439).
 func parseAffectedCacheStatusOptions(rest []string) (affectedInvocation, error) {
 	invocation := affectedInvocation{CacheStatus: true}
 	for index := 0; index < len(rest); index++ {
@@ -337,7 +337,7 @@ func parseAffectedCacheStatusOptions(rest []string) (affectedInvocation, error) 
 	return invocation, nil
 }
 
-// affectedCacheStatus is the `affected-cache-status/0` report (AFP-V0-435).
+// affectedCacheStatus is the `affected-cache-status/0` report (AFP-V0-439).
 type affectedCacheStatus struct {
 	Bytes    int64  `json:"bytes"`
 	Entries  int    `json:"entries"`
@@ -417,7 +417,7 @@ func inspectAffectedDefaultCache(root string) affectedCacheStatus {
 	}
 }
 
-// runAffectedCacheStatus prints the default cache's status (AFP-V0-435) as
+// runAffectedCacheStatus prints the default cache's status (AFP-V0-439) as
 // one canonical JSON report or, with --format doctor-plugin, a one-item
 // TQD-V0-010 plugin array; it never mutates and exits 0 whatever the state.
 func runAffectedCacheStatus(invocation affectedInvocation, stdout, stderr io.Writer) int {

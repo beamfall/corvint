@@ -188,7 +188,7 @@ func TestCAPV0017ShippedGuideDocumentsThePlaywrightTwoStep(t *testing.T) {
 
 // AFP-V0-431: the guide's test-selection goal tells callers to batch changed paths into one call
 // and to pass --cache DIR on a large tree, since every uncached call builds the graph again.
-// AFP-V0-432 amends the goal: the cache is on by default.
+// AFP-V0-436 amends the goal: the cache is on by default.
 func TestAFPV0431ShippedGuideAdvisesBatchingAndTheAffectedCache(t *testing.T) {
 	t.Parallel()
 	guide := Guide()

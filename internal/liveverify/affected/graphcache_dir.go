@@ -109,7 +109,7 @@ func openCacheDirectory(dir, root string, excluded []string, create bool) (*os.R
 
 // InspectCacheDirectory reports why an existing graph cache directory dir
 // could not serve root, by the same placement, handle and privacy checks the
-// planner applies, without creating or writing anything (AFP-V0-435). The
+// planner applies, without creating or writing anything (AFP-V0-439). The
 // reason is empty when the planner would use dir.
 func InspectCacheDirectory(dir, root string, excluded []string) string {
 	handle, reason := openCacheDirectory(dir, root, excluded, false)

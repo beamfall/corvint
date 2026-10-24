@@ -1,7 +1,7 @@
 # Affected default graph cache under the user cache directory
 
 Date: 2026-10-24. Lane: claude/affected-default-cache-1024 (base ec41e4e9c). GitHub #1601, tickets
-V1-2473 and V1-2572. Requirements `AFP-V0-432..435` in `docs/specs/affected-plan-v0.md` are
+V1-2473 and V1-2572. Requirements `AFP-V0-436..435` in `docs/specs/affected-plan-v0.md` are
 proposed and experimental. Owner decision 2026-10-24 (`docs/build-log/2026-10-24-owner-queue-decisions.md`,
 PR #1718).
 
@@ -27,7 +27,7 @@ and AFP-V0-431 are amended.
 There is no new encoding. Entries keep the `corvint-affected-graph-cache/0` profile, file name and
 key of AFP-V0-391. An entry written by an older binary at an explicit `--cache` stays readable
 under the same identity rules: a different executable never reuses it and rebuilds instead. The
-new read-only report `affected-cache-status/0` (AFP-V0-435) is printed only by
+new read-only report `affected-cache-status/0` (AFP-V0-439) is printed only by
 `corvint affected cache` and is never stored.
 
 ## Doctor visibility
@@ -44,7 +44,7 @@ touches the real user cache. The default tests inject a temporary directory.
 `script/gate-affected_test.sh` runs its built planner with `HOME` and `XDG_CACHE_HOME` under the
 test root. `tools/corvint-pr-tests` already sets `HOME` to a runtime directory.
 `internal/companionrelease` sets `HOME` to the repository root, so the default there degrades to
-uncached by AFP-V0-434.
+uncached by AFP-V0-438.
 
 ## Measurement (darwin)
 
