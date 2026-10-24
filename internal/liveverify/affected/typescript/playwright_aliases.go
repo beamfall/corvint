@@ -111,13 +111,7 @@ func parseTypeScriptAliases(name, body string) typeScriptAliases {
 // relative path of its target. When keep reports true for the original reference, the target is
 // added beside it instead, so the edges the original names are kept (TJAA-V0-059).
 func resolveTypeScriptAliases(owner string, refs []string, configs []typeScriptAliases, bodies map[string]string, sites sourceSites, frontier frontierSet, keep func(string) bool) []string {
-	var nearest *typeScriptAliases
-	for index := range configs {
-		config := &configs[index]
-		if inside(owner, config.directory) && (nearest == nil || nearest.directory == "." || len(config.directory) > len(nearest.directory)) {
-			nearest = config
-		}
-	}
+	nearest := nearestTypeScriptAliases(owner, configs)
 	if nearest == nil || !nearest.valid {
 		return refs
 	}

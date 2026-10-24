@@ -277,6 +277,7 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 	importPaths := make(map[string]bool, 16)
 	testImportPaths := make(map[string]bool, 16)
 	names := make(map[string]bool, 16)
+	globs := make(map[string]bool)
 	embeds, constrained, command := false, false, false
 	var reads unboundedReads
 	fileSet := token.NewFileSet()
@@ -320,6 +321,9 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 		for _, call := range scan.calls {
 			reads.mark(relative+" calls "+call, isTest)
 		}
+		for _, glob := range literalGlobs(directory, body, file.Imports) {
+			globs[glob] = true
+		}
 		for _, name := range scan.tokens {
 			names[name] = true
 			if reason := escapesPackage(directory, name, isTest); reason != "" {
@@ -337,15 +341,24 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 	}
 	sort.Strings(sources)
 	sort.Strings(tests)
-	bounded := len(names) > maxPathTokens
+	bounded := len(names) > maxPathTokens || len(globs) > maxPathTokens
 	if bounded {
-		names = nil
+		names, globs = nil, nil
 	}
 	var unitFrontier []string
 	if constrained {
 		unitFrontier = []string{FrontierBuildConstraint}
 	}
-	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: reads.locatesRoot, Frontier: unitFrontier}, importPaths, testImportPaths, command, nil
+	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathGlobs: globSlice(globs), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: reads.locatesRoot, Frontier: unitFrontier}, importPaths, testImportPaths, command, nil
+}
+
+// globSlice is the sorted globs, nil when there are none, so a unit without
+// one keeps its graph digest.
+func globSlice(globs map[string]bool) []string {
+	if len(globs) == 0 {
+		return nil
+	}
+	return sortedKeys(globs)
 }
 
 // ignoredByGo reports a repository-relative directory the go tool's package
@@ -406,12 +419,19 @@ func pathTokens(body []byte, modulePath string, aliases map[string]string, dotIm
 		if err != nil {
 			continue
 		}
-		value = printfVerb.ReplaceAllString(value, verbMark)
-		for _, bounds := range pathToken.FindAllStringIndex(value, -1) {
-			name := rootAnchored(value[bounds[0]:bounds[1]], modulePath)
-			scan.tokens = append(scan.tokens, wholeShortEnds(name, value, bounds[0], bounds[1]))
-		}
+		scan.tokens = append(scan.tokens, literalTokens(value, modulePath)...)
 	}
+}
+
+// literalTokens is the AFP-V0-021 lexicon over one unquoted string literal.
+func literalTokens(value, modulePath string) []string {
+	value = printfVerb.ReplaceAllString(value, verbMark)
+	var tokens []string
+	for _, bounds := range pathToken.FindAllStringIndex(value, -1) {
+		name := rootAnchored(value[bounds[0]:bounds[1]], modulePath)
+		tokens = append(tokens, wholeShortEnds(name, value, bounds[0], bounds[1]))
+	}
+	return tokens
 }
 
 // verbMark stands in for a removed printf verb: like the literal's own ends, a

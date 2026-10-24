@@ -487,6 +487,15 @@ func PruneLeaseDetach(repo *intent.Repository, now time.Time) {
 	pruneLeaseDetach(filepath.Join(repo.CommonDir, leaseDetachBase), now)
 }
 
+// SetLeaseDetachProbeGap runs gap in every attach wait between its read of
+// the launch lock and its read of the child's liveness; it returns the
+// restore function (ATR-V0-311).
+func SetLeaseDetachProbeGap(gap func()) func() {
+	was := leaseDetachProbeGap
+	leaseDetachProbeGap = gap
+	return func() { leaseDetachProbeGap = was }
+}
+
 // SetLeaseDetachIdentity replaces a detached claim's process-identity probe
 // (ATR-V0-027).
 func SetLeaseDetachIdentity(probe func(int) (string, error)) func() {

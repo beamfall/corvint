@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -13,6 +14,9 @@ import (
 func buildFrozenCLI(t *testing.T) string {
 	t.Helper()
 	binary := filepath.Join(t.TempDir(), "corvint-analyzer-sql-native")
+	if runtime.GOOS == "windows" {
+		binary += ".exe"
+	}
 	build := exec.Command("go", "build", "-trimpath", "-o", binary, ".")
 	build.Env = append(os.Environ(), "GOTOOLCHAIN=local")
 	if output, err := build.CombinedOutput(); err != nil {

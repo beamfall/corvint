@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/dispatch"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -156,6 +157,7 @@ func TestCALV0053_DispatchReaderCLIReleased(t *testing.T) {
 }
 
 func TestCALV0053_DispatchReaderCLICrashRetainsQuarantine(t *testing.T) {
+	cli.ReapWorkersOnCleanup(t)
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	planTicket(t, root, "reader", "P1", `["src/"]`)
 	ready := filepath.Join(root, "reader-ready")

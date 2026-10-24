@@ -112,6 +112,9 @@ func fullCommandHelp(cmd []string) *wire.Result {
 	if redoSettlingVerbs[name] {
 		o.Set("redoPending", wire.String(redoPendingHelp))
 	}
+	if name == "import amend-map" {
+		o.Set("note", wire.String("OWNER-only amendment of a mapped queue's import map (CTS-V0-020): one IMPORT_PLAN receipt posts the canonical taskman-import-map/0 file and the queue naming its digest. --expected-map-sha256 names the journaled map you reviewed; another current map refuses REVISION_CONFLICT. Every ticket the old map names stays mapped, a mapped source item keeps its ticket, no ticket is mapped twice, and a newly mapped existing ticket must be that item's import; any conflict refuses DUPLICATE_ID naming each one with nothing written (CTS-V0-021). A queue without a map, a fixture queue or a map of another queue refuses MALFORMED. Re-running the same request ID replays the committed receipt."))
+	}
 	if name == "policy update" {
 		o.Set("fileFormat", wire.String("Canonical UTF-8 JSON: sorted object keys, no insignificant whitespace, and exactly one trailing LF."))
 		o.Set("versionRule", wire.String("The file policyVersion must equal --expected-policy-version plus one; the flag names the current version."))
@@ -260,7 +263,7 @@ const lockWaitHelp = "--lock-wait SECONDS (whole seconds, 1..300; anything else 
 // probe accepts a pending receipt and whose store writer settles it
 // (CAL-V0-260, CAL-V0-261); redoPendingHelp is their help (CAL-V0-262).
 var redoSettlingVerbs = map[string]bool{
-	"pause": true, "unpause": true, "policy update": true, "import": true, "cutover": true, "relocate": true,
+	"pause": true, "unpause": true, "policy update": true, "import": true, "import amend-map": true, "cutover": true, "relocate": true,
 	"ticket escalate": true, "ticket answer": true, "run": true, "health": true, "pool cleanup": true,
 	"pool operate": true,
 }
@@ -304,6 +307,7 @@ var commandUsage = map[string]string{
 	"policy show":             "corvint-tasks policy show",
 	"policy update":           "corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH [--role OWNER|OPERATOR]",
 	"import":                  "corvint-tasks import --file PATH [--role OWNER|OPERATOR]",
+	"import amend-map":        "corvint-tasks import amend-map --request-id ID --expected-map-sha256 SHA256 --file PATH [--role OWNER]",
 	"cutover":                 "corvint-tasks cutover [--execution] --decision REF [--qualification FILE]",
 	"relocate":                "corvint-tasks relocate --from OLD --request-id ID [--role OWNER|OPERATOR] [--dispatch-config FILE]   (run from the new primary worktree; OLD is the head.primaryWorktree the refusal names)",
 	"release list":            "corvint-tasks release list",

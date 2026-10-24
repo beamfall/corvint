@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -46,6 +47,9 @@ func TestCLIInvocationFramingAndRefusal(t *testing.T) {
 func buildCLI(t *testing.T) string {
 	t.Helper()
 	binary := filepath.Join(t.TempDir(), "corvint-analyzer-c-jni")
+	if runtime.GOOS == "windows" {
+		binary += ".exe"
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	command := exec.CommandContext(ctx, "go", "build", "-trimpath", "-buildvcs=false", "-o", binary, ".")

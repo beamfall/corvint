@@ -58,7 +58,7 @@ supervisor: `admit` reserves the ticket, a supervisor forks a `lane-leader`, a `
 handshake proves whether the runtime ran, and process-group liveness decides when a reservation may
 be released (§6.2 to §6.4). None of that is built in tree: the only reservations are S3's
 `external-agent` leases, `cutover` requires an empty reservation set
-(`internal/tasks/transaction/model.go:700@afae0d34`), and until S1 the writer refused every queue
+(`internal/tasks/transaction/model.go:754@afae0d34`), and until S1 the writer refused every queue
 that was not a fixture.
 
 The agents that use these queues are not processes corvint-tasks starts. They are interactive or
@@ -150,6 +150,13 @@ one.
 | V1-2352 | CAL-V0-321 | Accepted (standing auto-accept, 2026-10-23): a read checkpoint carries a no-false-negative filter of the request paths posted at or before its sequence, so a checkpoint read refuses a duplicate request with a null pre-state through the complete audit (PSR-V0-203); a checkpoint without the filter serves no read; implemented with focused tests |
 | V1-2359 | CAL-V0-322 | Accepted (standing auto-accept, 2026-10-23): `attempt show` and `ticket show` carry `lastFailedGate`, the newest FAILED or BLOCKED gate result with the TCD-V0-165 bounded, secret-screened tail of its retained output; implemented with focused tests |
 | V1-2449 | CAL-V0-340 | Accepted (standing auto-accept, 2026-10-23): an unlocked journal audit whose two-second stage-slot wait (CTS-V0-008) is spent with the head advanced since it first saw the slots refuses the retryable `SNAPSHOT_MOVED`, not `MALFORMED` (head movement warrants another bounded observation, it does not prove the slots' holders live); a head that never moved keeps the unchanged `MALFORMED`; implemented with focused tests |
+| #1551 | CAL-V0-372 | Accepted (standing auto-accept, 2026-10-23): the lease write's unlocked pre-round guard read that ends `SNAPSHOT_MOVED` spends that one of its sixteen rounds instead of ending the write; a non-retryable guard failure still ends it at once |
+| V1-2368 | ATR-V0-323..324 | Accepted (standing auto-accept, 2026-10-23): a cleanup or reassign interrupted after its `WORKTREE_REMOVE` write is settled by the next owner with a typed `REMOVAL_COMPLETED` or `REMOVAL_ROLLED_BACK` outcome, and a removed stage worktree's record is dropped rather than kept marked, amending ATR-V0-296..298; implemented with focused tests. ATR-V0-325..329 (PR #1631 review) hold the cleanup exclusively, record and prove the remover child, drop legacy records durably, never retry a rolled-back removal in one invocation, and keep a moved worktree's record |
+| V1-1715 | PSR-V0-220 | Accepted (standing auto-accept, 2026-10-23): `claim --next` derives scope through the CLI's scope deriver for the ticket `plan preview --pool` selects with waiters present, so the deriver is asked about, and the claim takes, the previewed ticket; the CLI test fixture takes a deriver; focused test and a mutant check |
+| V1-2137 | TQD-V0-046 | Accepted (standing auto-accept, 2026-10-23): a test-only padded-journal builder appends N synthetic heartbeat receipts, elided as liveness compaction elides them, to a store with live attempts in O(N) file writes and no audit; the complete audit finds the result CONSISTENT and AGREES, so a doctor walk at 30,000 receipts is measurable; implemented with focused tests |
+| V1-1634 | ATR-V0-320, ATR-V0-321 | Accepted (standing auto-accept, 2026-10-23): host-sleep handling on Linux and the other lease-reap paths at a wake. Only the CAL-V0-191 reap of a running worker excludes a recorded gap (ATR-V0-064); the exit recovery, the unowned-lease reap and the store's own claim and reap are not gap-aware, stated as an accepted limit. A time-namespace test shows the Go monotonic clock is `CLOCK_MONOTONIC`, not `CLOCK_BOOTTIME`, and an opt-in wall-clock step records one gap. A real suspend: `NOT_RUN` (the VM advertises no suspend state) |
+| V1-0911 | ATR-V0-322, PSR-V0-221 | Accepted (standing auto-accept, 2026-10-23): Linux qualification of the Tasks scale work. The `/proc` process-table reader agrees with `ps` on a live tree; idle CPU, scan cost and `ReadDir` measurements are in the build log. The qualification found a Linux-only failure and fixed it: the change guard watched every file with inotify, so a store with more files than the user's `fs.inotify.max_user_watches` allowance (or a few concurrent writers on a large one) ended `claim` and `pool acquire` as `MALFORMED` (`no space left on device`); a guard now watches at most a 32nd of the allowance (4,096) of its files and tracks the rest by stat, as on Darwin |
+| V1-1569 | none (evidence; PSR-V0-055, PSR-V0-221) | Accepted (standing auto-accept, 2026-10-23): the 45,000-receipt pool acquire load run on Linux, with the host, load and Go version retained. The first run ended in `no space left on device` from inotify, which PSR-V0-221 fixes; the bound of PSR-V0-055 is updated with the measured values of the run after the fix |
 | V1-1321 | ATR-V0-210, ATR-V0-211 | Delivered as a refusal naming uncovered requested paths plus the reported scope (attempt runner spec); CAL-V0-021 unamended |
 | V1-1494 | CAL-V0-263, CAL-V0-265 | Proposed (issue 967): no lease write holds the preparation gate for a complete-history audit; the scheduled refresh walks the prefix to its captured head when the journal moves; focused tests, mutation check and an opt-in load harness |
 | V1-1512 | none (evidence; PSR-V0-052) | Accepted (standing auto-accept, 2026-10-20): issue 967 remainder; at 40,000 receipts and 15 writers heartbeat/renew p99 1,138/1,131 ms (residual: gate wait behind about 1 s widen and reap commits), no `SNAPSHOT_MOVED`; reap and pool release resume tests; proposals 2 remainder and 3 are 1.0 work per decision 0549, proposal 5 deferred past 1.0 |
@@ -5783,7 +5790,7 @@ descriptor exhaustion and the existing traversal bounds still refuse.
   (`internal/tasks/authority/change_guard_darwin.go`) shall hold at most 16 regular-file vnode
   descriptors process-wide, one kqueue descriptor per live guard, and one vnode descriptor per
   watched directory; directory descriptors scale with directory count, never with receipt count.
-  Linux retains one inotify descriptor. Regular files beyond the budget keep the existing stat
+  Linux retains one inotify descriptor (PSR-V0-221 amends its per-file watches). Regular files beyond the budget keep the existing stat
   sweep and locked event-check semantics, directory event coverage is never dropped, and no
   additional directory-count admission cap applies (descriptor exhaustion and existing traversal
   bounds still refuse).
@@ -7473,6 +7480,48 @@ the same slots under an unchanged head, refuses `MALFORMED`.
 Rollback: revert the source; the audit again refuses `MALFORMED` after the budget whatever the head
 did.
 
+### #1551 torn guard read in the lease write rounds
+
+Human-owned input: GitHub issue #1551 (nightly `release-gates` on main), run 39773957842 on
+macos-15, where `TestCALV0019_RacingLeaseVerbsLeaveOneConsistentHead` failed with
+`racer 2: SNAPSHOT_MOVED: .../head.json: file replaced between stat and open`. Racer 2 is `gate run`,
+whose unlocked proof read (`readLeaseProof`) already retries `SNAPSHOT_MOVED` for sixteen rounds, and
+whose write then enters `leaseWrite`. Each of that write's sixteen rounds starts with an unlocked
+guard read (`writerGuards`, `readHead`) before it prepares or takes the lock. The bounded file read
+refuses `SNAPSHOT_MOVED` when the inode it opened is not the one it stat'ed, which is exactly what a
+writer committing `head.json` under the lock does to a reader between those two calls. The
+preparation and commit steps of the same round retry that code; the guard read returned it to the
+caller, so one torn observation ended a write that had fifteen rounds left.
+
+- `CAL-V0-372`: (accepted under the owner's standing auto-accept (2026-10-11), #1551) When the
+  lease write's unlocked pre-round guard read ends `SNAPSHOT_MOVED`, that observation MUST spend
+  the current round, counted in the write's round total, and the next round MUST read the store
+  again; the write MUST NOT return that code from the guard read while rounds remain. Every other
+  guard refusal (`PAUSED`, `INTENT_BRANCH_MISMATCH`, a forked journal, a different queue) keeps its
+  present disposition and ends the write at once. Exhaustion of the sixteen rounds keeps the
+  existing `SNAPSHOT_MOVED` `store changed during all preparation attempts` refusal, a code the
+  CAL-V0-078 retryable set already names.
+
+Non-goals: the locked guard read under the writer lock (`commitLease`) is not changed; no round
+count, wait or bound is lengthened; the other unlocked `readHead` callers outside the lease write
+(`compact`, `retire`, segment sealing) are not changed here; no stored state, wire format or
+receipt changes.
+
+Failure modes: a store whose head keeps being replaced between stat and open on every one of the
+sixteen rounds still ends `SNAPSHOT_MOVED`, now after sixteen observations instead of one. A torn
+read that hides a non-retryable guard failure is impossible: the guard read either returns the
+head it opened, on which every other guard then runs, or the torn code.
+
+Acceptance evidence: `TestCALV0372_TornGuardReadSpendsOneRound`
+(`internal/tasks/store/lease_write_guard_test.go`) injects one `SNAPSHOT_MOVED` into the guard read
+through `SetLeaseGuardFaultForTest` and sees the claim commit on the next round with the fault
+observed once and the read taken at least twice, then injects `JOURNAL_FORKED` and sees the write
+end with that code; with the retry removed the same test fails with the CI message. The CI
+failure itself was not reproduced locally: twenty runs of the racing test on the base passed, so the
+cause is the code reading above, with the retry as the mechanism that removes it.
+
+Rollback: revert the source; a torn guard read again ends the write at once.
+
 ## Amendments to TCP-00
 
 Accepting this spec accepts these amendments; each keeps the existing ID space.
@@ -8043,6 +8092,18 @@ are retired aliases. Their text moved unchanged to `CTW-V0-012` and `CTW-V0-013`
 [`corvint-tasks-intent-worktree-v0.md`](corvint-tasks-intent-worktree-v0.md) (V1-2165), because
 they were defined outside this spec's `## Requirements` section, which is at the 256-obligation
 OCM bound. Citations of the old IDs in code, help text and test names mean the new ones.
+
+## Re-homed 2026-10-23 batch requirements
+
+CAL-V0-350 (V1-1715), CAL-V0-360..364 (V1-2137, V1-1634, V1-0911, V1-1569) and CAL-V0-365..371
+(V1-2368) are retired aliases. Their text moved unchanged, because this spec's `## Requirements`
+section is at the 256-obligation OCM bound: CAL-V0-361..363 and CAL-V0-365..371 to ATR-V0-320..322
+and ATR-V0-323..329 in [`corvint-tasks-attempt-runner-v0.md`](corvint-tasks-attempt-runner-v0.md);
+CAL-V0-350 and CAL-V0-364 to PSR-V0-220 and PSR-V0-221 in
+[`corvint-tasks-pool-safe-reuse-v0.md`](corvint-tasks-pool-safe-reuse-v0.md); CAL-V0-360 to
+TQD-V0-046 in [`corvint-tasks-doctor-v0.md`](corvint-tasks-doctor-v0.md). CAL-V0-350 was already
+the retired alias of ATR-V0-180 and is not reused. Citations of the old IDs in code, messages and
+test names mean the new ones.
 
 ## V1-0793 critical-path read amendment
 

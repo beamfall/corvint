@@ -14,7 +14,8 @@ import (
 // tool call admits the artifact through the verified read, so it costs a decode and a live tree
 // observation rather than a compile, and warm calls reuse that state. The first call must beat
 // the rederivation it replaced by at least 3x; timings are logged, and CORVINT_READ_FIXTURE_LARGE
-// selects the scale the PR measurements use (DCP-V1-416, DCP-V1-418).
+// selects the scale the PR measurements use (DCP-V1-416, DCP-V1-418), and the residual
+// measurements of GitHub #1598 re-measure the first and warm calls at that scale (DCP-V1-430).
 func TestDCPV1416CorpusMCPFirstAndWarmCalls(t *testing.T) {
 	if testing.Short() {
 		t.Skip("large fixture")

@@ -188,6 +188,9 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 	if workflow.GoverningInstructionPath(hunk.path) {
 		return unknownProposal(ordinal, hunk.path+" is a governing file this change modifies, so it cannot govern its own hunk (CEM-V1-114)"), "", ""
 	}
+	if bookkeepingPath(hunk.path) {
+		return unknownProposal(ordinal, hunk.path+" is a bookkeeping record (DCW-V0-333); name the BASE contract the record describes"), "", ""
+	}
 	if row, cite := p.anchoredProposal(hunk, ordinal, edited, used); row != "" {
 		return row, cite, ""
 	}
@@ -312,7 +315,8 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 	for _, pattern := range sorted {
 		arguments = append(arguments, "-e", pattern)
 	}
-	out, status, bounded := p.boundedGit(append(arguments, p.base, "--", ".", ":(exclude).corvint/")...)
+	out, status, bounded := p.boundedGit(append(arguments, p.base, "--", ".", ":(exclude).corvint/",
+		":(exclude).taskman/", ":(exclude)docs/build-log/", ":(exclude)docs/BUILD-LOG.md")...)
 	// git grep exits 1 when nothing matches: a complete read with no candidates.
 	if status > 1 || !bounded {
 		return false
@@ -321,7 +325,7 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 		name, rest, named := strings.Cut(strings.TrimPrefix(record, p.base+":"), "\x00")
 		number, text, numbered := strings.Cut(rest, "\x00")
 		line, err := strconv.Atoi(number)
-		if !named || !numbered || err != nil || line < 1 || workflow.GoverningInstructionPath(name) || strings.HasPrefix(name, ".corvint/") {
+		if !named || !numbered || err != nil || line < 1 || workflow.GoverningInstructionPath(name) || strings.HasPrefix(name, ".corvint/") || bookkeepingPath(name) {
 			continue
 		}
 		for _, pattern := range sorted {
@@ -336,6 +340,14 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 		sort.SliceStable(found, func(i, j int) bool { return documentRank(found[i].path) < documentRank(found[j].path) })
 	}
 	return complete
+}
+
+// bookkeepingPath reports a path a draft never cites (DCW-V0-333): the task
+// store under .taskman/, the closed docs/BUILD-LOG.md and the build-log
+// entries under docs/build-log/. They record work rather than state a contract,
+// and a lane's own diff usually touches them.
+func bookkeepingPath(name string) bool {
+	return strings.HasPrefix(name, ".taskman/") || name == "docs/BUILD-LOG.md" || strings.HasPrefix(name, "docs/build-log/")
 }
 
 // canonicalDiffArguments are the canonical patch arguments of `cem` map

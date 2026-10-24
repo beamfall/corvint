@@ -36,10 +36,11 @@ func buildQueryIndexFast(parent context.Context, a *Artifact) (x *QueryIndex, ok
 		return ctx.Err() == nil
 	}
 	terms := make([]map[string]bool, len(a.Subjects))
+	pre := a.claimTerms.take(a.Claims)
 	var wg sync.WaitGroup
 	for _, derive := range []func() bool{
 		func() bool { return indexRecordsFast(a, x, stored) },
-		func() bool { return indexTermsFast(ctx, a, x, terms, stored) },
+		func() bool { return indexTermsFast(ctx, a, x, terms, stored, pre) },
 	} {
 		wg.Go(func() {
 			if !derive() {
@@ -202,12 +203,98 @@ func containsString(list []string, value string) bool {
 // into one block of claim-term postings.
 const indexClaimBlock = 2048
 
+// claimTermBlock is the claim-term derivation of the consecutive claims
+// [lo, hi): each claim's own term postings in claim order, their count, and
+// the text terms of each subject the claims are about.
+type claimTermBlock struct {
+	lo, hi   int
+	postings map[string][]int
+	n        int
+	subjects map[string]map[string]struct{}
+}
+
+// claimTermHandoff passes the claim-term blocks a read derived to exactly one query index
+// derivation of the artifact. Concurrent derivations of one artifact share it, so the blocks
+// are taken under its lock; every other derivation tokenizes, and every derivation stores the
+// same index. The blocks themselves are only read.
+type claimTermHandoff struct {
+	mu     sync.Mutex
+	blocks []*claimTermBlock
+	of     []Claim // the claims slice the blocks were derived from: a replaced slice voids them
+}
+
+// take returns the blocks, at most once, when they were derived from claims.
+func (h *claimTermHandoff) take(claims []Claim) []*claimTermBlock {
+	if h == nil {
+		return nil
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	blocks, of := h.blocks, h.of
+	h.blocks, h.of = nil, nil
+	if len(of) != len(claims) || len(claims) > 0 && &of[0] != &claims[0] {
+		return nil
+	}
+	return blocks
+}
+
+// deriveClaimTerms derives the claim-term block of claims, the first of
+// which is claim lo.
+func deriveClaimTerms(claims []Claim, lo int) *claimTermBlock {
+	b := &claimTermBlock{lo: lo, hi: lo + len(claims), postings: make(map[string][]int, len(claims)), subjects: map[string]map[string]struct{}{}}
+	text, id := map[string]struct{}{}, map[string]struct{}{}
+	for k := range claims {
+		c := &claims[k]
+		i := lo + k
+		// A space splits words and never starts or ends a camel-case
+		// boundary, so the terms of a claim's ID and text are the union of
+		// the terms of each, and the text is tokenized once.
+		clear(text)
+		clear(id)
+		contextindex.CollectEvidenceTerms(c.Text, text)
+		contextindex.CollectEvidenceTerms(c.ID, id)
+		for term := range text {
+			b.postings[term] = append(b.postings[term], i)
+		}
+		b.n += len(text)
+		for term := range id {
+			if _, ok := text[term]; !ok {
+				b.postings[term] = append(b.postings[term], i)
+				b.n++
+			}
+		}
+		set := b.subjects[c.Subject]
+		if set == nil {
+			set = make(map[string]struct{}, len(text))
+			b.subjects[c.Subject] = set
+		}
+		for term := range text {
+			set[term] = struct{}{}
+		}
+	}
+	return b
+}
+
+// claimTermBlocksCover reports whether blocks, in order, derive exactly the
+// claims [0, n).
+func claimTermBlocksCover(blocks []*claimTermBlock, n int) bool {
+	next := 0
+	for _, b := range blocks {
+		if b == nil || b.lo != next || b.hi < b.lo {
+			return false
+		}
+		next = b.hi
+	}
+	return next == n && len(blocks) > 0
+}
+
 // indexTermsFast fills each subject's term set from its identity and name
 // and from the text of every claim about it, and stores each claim's own
 // term postings in claim order. Claims are derived in blocks on worker
-// goroutines; each block's postings are in claim order, and the blocks are
-// appended in order.
-func indexTermsFast(ctx context.Context, a *Artifact, x *QueryIndex, terms []map[string]bool, stored func(int) bool) bool {
+// goroutines, or taken from pre when a read derived blocks covering every
+// claim while it decoded them (DCP-V1-434); each block's postings are in
+// claim order, and the blocks are appended in order.
+func indexTermsFast(ctx context.Context, a *Artifact, x *QueryIndex, terms []map[string]bool, stored func(int) bool, pre []*claimTermBlock) bool {
 	subjectIDs := make(map[string]int, len(a.Subjects))
 	for i := range a.Subjects {
 		subjectIDs[a.Subjects[i].ID] = i
@@ -224,50 +311,57 @@ func indexTermsFast(ctx context.Context, a *Artifact, x *QueryIndex, terms []map
 	if ctx.Err() != nil {
 		return false
 	}
+	blocks := pre
+	if !claimTermBlocksCover(blocks, len(a.Claims)) {
+		blocks = make([]*claimTermBlock, (len(a.Claims)+indexClaimBlock-1)/indexClaimBlock)
+		parallelBlocks(ctx, len(a.Claims), indexClaimBlock, func(b, lo, hi int) {
+			blocks[b] = deriveClaimTerms(a.Claims[lo:hi], lo)
+		})
+	}
+	if ctx.Err() != nil {
+		return false
+	}
 	locks := make([]sync.Mutex, len(a.Subjects))
-	blocks := make([]map[string][]int, (len(a.Claims)+indexClaimBlock-1)/indexClaimBlock)
-	counts := make([]int, len(blocks))
-	parallelBlocks(ctx, len(a.Claims), indexClaimBlock, func(b, lo, hi int) {
-		local := map[string][]int{}
-		n := 0
-		text, id := map[string]struct{}{}, map[string]struct{}{}
-		for i := lo; i < hi && ctx.Err() == nil; i++ {
-			c := &a.Claims[i]
-			// A space splits words and never starts or ends a camel-case
-			// boundary, so the terms of a claim's ID and text are the union of
-			// the terms of each, and the text is tokenized once.
-			clear(text)
-			clear(id)
-			contextindex.CollectEvidenceTerms(c.Text, text)
-			contextindex.CollectEvidenceTerms(c.ID, id)
-			for term := range text {
-				local[term] = append(local[term], i)
-			}
-			n += len(text)
-			for term := range id {
-				if _, ok := text[term]; !ok {
-					local[term] = append(local[term], i)
-					n++
-				}
-			}
-			if j, ok := subjectIDs[c.Subject]; ok {
+	parallelBlocks(ctx, len(blocks), 1, func(b, _, _ int) {
+		for subject, set := range blocks[b].subjects {
+			if j, ok := subjectIDs[subject]; ok {
 				locks[j].Lock()
-				for term := range text {
+				for term := range set {
 					terms[j][term] = true
 				}
 				locks[j].Unlock()
 			}
 		}
-		blocks[b], counts[b] = local, n
 	})
 	if ctx.Err() != nil {
 		return false
 	}
-	for b, local := range blocks {
-		for term, list := range local {
-			x.ClaimTerms[term] = append(x.ClaimTerms[term], list...)
+	// Each term's postings are allocated once at their final length, and a term that only one
+	// block holds keeps that block's list; the blocks are not read again (DCP-V1-468).
+	hint := 0
+	if len(blocks) > 0 {
+		hint = len(blocks[0].postings)
+	}
+	total := make(map[string]int, hint)
+	for _, b := range blocks {
+		for term, list := range b.postings {
+			total[term] += len(list)
 		}
-		if !stored(counts[b]) {
+	}
+	x.ClaimTerms = make(map[string][]int, len(total))
+	for _, b := range blocks {
+		for term, list := range b.postings {
+			held, ok := x.ClaimTerms[term]
+			switch {
+			case ok:
+				x.ClaimTerms[term] = append(held, list...)
+			case total[term] == len(list):
+				x.ClaimTerms[term] = list
+			default:
+				x.ClaimTerms[term] = append(make([]int, 0, total[term]), list...)
+			}
+		}
+		if !stored(b.n) {
 			return false
 		}
 	}

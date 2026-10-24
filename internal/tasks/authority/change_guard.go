@@ -15,7 +15,8 @@ import (
 
 // ChangeGuard binds an optimistic store observation to a later writer lock.
 // It is transient and never writes files. Check re-reads files a kernel watch
-// does not cover (macOS files beyond the descriptor budget); a check under the
+// does not cover (macOS files beyond the descriptor budget, Linux files the
+// user's inotify allowance has no watch left for); a check under the
 // writer lock calls Sweep before acquiring it and CheckEvents while holding it,
 // whose cost does not depend on the number of watched files (CAL-V0-026).
 // Close must run after releasing the writer lock.
@@ -116,6 +117,14 @@ func WatchChanges(repo *intent.Repository) (_ *ChangeGuard, err error) {
 			return nil, err
 		}
 		if err := visit(root); err != nil {
+			return nil, err
+		}
+	}
+	// A watch that registers regular files last (Linux) takes the kernel's
+	// per-user allowance for directories first; content reads still start
+	// only after this returns.
+	if f, ok := w.(interface{ finish() error }); ok {
+		if err := f.finish(); err != nil {
 			return nil, err
 		}
 	}

@@ -126,13 +126,16 @@ func TestCTSV0006_MovedReadsPauseBetweenAttempts(t *testing.T) {
 	if code(err) != wire.CodeSnapshotMoved || bodies < 5 || len(pauses) < 1 || pauses[0] != 25*time.Millisecond || !strings.Contains(err.Error(), "retryable") || !strings.Contains(err.Error(), "read attempts") {
 		t.Errorf("err=%v bodies=%d pauses=%v", err, bodies, pauses)
 	}
-	// Every moved re-read pauses for the first backoff step (the last one
-	// clipped to the remaining budget): a successful probe resets the stall,
-	// so moved re-reads never escalate.
+	// Moved re-reads follow the backoff (25 ms doubling, the last pause
+	// clipped to the remaining budget): the stall is not reset between
+	// re-reads, so a body longer than the budget is re-read a handful of
+	// times rather than once per 25 ms (CTS-V0-022).
+	want := 25 * time.Millisecond
 	for i, p := range pauses {
-		if p > 25*time.Millisecond || (p < 25*time.Millisecond && i != len(pauses)-1) {
-			t.Errorf("moved re-read pause %d is %s, want 25ms", i, p)
+		if p > want || (p < want && i != len(pauses)-1) {
+			t.Errorf("moved re-read pause %d is %s, want %s", i, p, want)
 		}
+		want = min(2*want, 400*time.Millisecond)
 	}
 	// A moved read that settles after one pause succeeds on the new snapshot.
 	// The budget is generous here: a slow `git commit` inside the body must
@@ -153,5 +156,44 @@ func TestCTSV0006_MovedReadsPauseBetweenAttempts(t *testing.T) {
 	})
 	if err != nil || bodies != 2 || len(pauses) != 1 || s.Head.LastSeq.Uint64() != before.Head.LastSeq.Uint64()+1 {
 		t.Errorf("settled: err=%v bodies=%d pauses=%v", err, bodies, pauses)
+	}
+}
+
+// TestCTSV0022_LongBodyKeepsPausePatience: patience bounds the pauses a read
+// spends, not its body. A read whose body alone outlasts the budget, and whose
+// re-probe meets a writer between receipt link-in and head rename, still
+// pauses, sees the writer finish and re-reads (V1-0903). Before the fix the
+// body spent the wall-clock deadline and the read reported REDO_PENDING
+// without a single pause.
+func TestCTSV0022_LongBodyKeepsPausePatience(t *testing.T) {
+	r := fixture.TempRepo(t)
+	fixture.WriteState(t, r)
+	const patience = 100 * time.Millisecond
+	var pauses []time.Duration
+	rd := snapshot.Reader{StateDir: r.StateDir, Patience: patience, Sleep: func(d time.Duration) {
+		pauses = append(pauses, d)
+		if len(pauses) == 2 {
+			fixture.ApplyReceipt(t, r, 2)
+		}
+		time.Sleep(d)
+	}}
+	bodies := 0
+	s, err := rd.Read(func(*snapshot.Snapshot) error {
+		bodies++
+		if bodies == 1 {
+			time.Sleep(patience + 50*time.Millisecond)
+			fixture.PlantReceipt(t, r, 2)
+		}
+		return nil
+	})
+	if err != nil || bodies != 2 || s.Head.LastSeq != "2" {
+		t.Fatalf("long read meeting a writer: err=%v bodies=%d pauses=%v", err, bodies, pauses)
+	}
+	var total time.Duration
+	for _, d := range pauses {
+		total += d
+	}
+	if len(pauses) < 2 || total > patience {
+		t.Fatalf("pauses %v (total %s) outside the %s budget", pauses, total, patience)
 	}
 }

@@ -679,14 +679,16 @@ a non-cem/1.0 document, a stable verifier refusal, or a non-impact receipt.
 const affectedHelp = `Compile the affected-test selection plan for the dirty worktree.
 
 Usage:
-  corvint [--root PATH] affected [--full] [--require-clean]
+  corvint [--root PATH] affected [--full] [--require-clean] [--cache DIR]
   corvint [--root PATH] affected [--full] --path PATH [--path PATH ...]
+          [--paths-from FILE] [--cache DIR]
   corvint [--root PATH] affected [--full] --snapshot RECEIPT
   corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH
   corvint [--root PATH] affected [--full] [--require-clean]
           --base FULL_COMMIT_ID
   corvint [--root PATH] affected [--base FULL_COMMIT_ID]
           --playwright-config PATH [--playwright-discovery FILE]
+          [--playwright-env NAME[=VALUE] ...]
   corvint [--root PATH] affected discovery --playwright-config PATH
           --playwright-list FILE
   corvint [--root PATH] affected [--base FULL_COMMIT_ID] --provider RECORD
@@ -755,6 +757,28 @@ would not be HEAD's. Write --path=VALUE for a name that begins with -. It does
 not combine with --snapshot, --base, --provider, --playwright-config,
 --playwright-discovery or --appmap-impact.
 
+--paths-from FILE (experimental) adds the --path values listed in FILE, one
+per LF-separated line, blank lines skipped; FILE is relative to the root unless
+absolute, and is held to the same canonical-path rule and 4096-path bound as
+--path. It joins any --path values and takes the same refusals. One call with
+many paths builds the graph once and plans their union, so a caller with
+several changed files should batch them rather than call once per path.
+
+--cache DIR (experimental; not with --snapshot or --playwright-config) reuses
+the verified graph between calls on an unchanged checkout. DIR is a directory
+the caller names outside the repository, outside any .git directory and outside
+the repository's Git directory wherever it lives; it must be private to the
+user, is created if absent and holds at most one entry per repository root. An entry is
+trusted only when it was written by this exact corvint executable for this
+root, and every directory the graph walked and every file it read or statted
+has the same size, mode, inode, modification and change time;
+otherwise, or when the entry is damaged, the graph is built in full and the
+entry replaced. Files changed within two seconds of a build are not pinned, and
+platforms other than darwin and linux never use an entry. The receipt is
+byte-identical with and without --cache, hit or miss; the worktree status,
+HEAD and drift checks run on every call, and nothing is written inside the
+repository.
+
 advice reads the repository's own declarations - a Makefile gate target and the
 AGENTS.md Verify block - and lists them as mandatory checks, followed by one
 advisory go test command over the selected packages and the unknown frontier
@@ -785,6 +809,19 @@ source bytes to the complete unfiltered project/file listing. Missing or mismatc
 discovery emits no file commands and one complete-config fallbackArgv; a MALFORMED
 receipt names its reason and a one-line detail. It executes no config or test and
 cannot be combined with --provider.
+--playwright-env (repeatable, requires --playwright-config, not with --snapshot)
+records one environment variable in plan.environment with its value and SHA-256:
+NAME=VALUE is a value the caller supplies, and NAME reads only that variable from
+the invoking environment, SET or UNSET. A use.launchOptions.executablePath of the
+form process.env.NAME, optionally with ?? or || and a string literal without
+escapes, then resolves: UNSET is undefined, so the project records the bundled
+browser, and a value records that binary path. The
+playwright:browser-executable-unresolved unknown stays when the variable is not
+named, the value is empty, or the config loads a module other than
+@playwright/test or the path, os, url and fs built-ins, names a module loader or
+evaluator such as require, createRequire, module, loadEnvFile, eval or Function,
+or declares globalSetup, any of which can set the variable first. No other
+variable is read.
 
 affected discovery converts the JSON report of an unfiltered
 ` + "`playwright test --list --reporter=json`" + ` run (--playwright-list FILE) into that

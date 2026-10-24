@@ -2,8 +2,12 @@ package doccorpus
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	json "encoding/json/v2"
+	"io"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -43,12 +47,151 @@ type splitArray struct {
 	chunks      []reflect.Value // decoded elements, in order, one slice per dispatched chunk
 }
 
-// splitChunk is the number of split elements one decode job takes.
-const splitChunk = 128
+// splitChunk is the number of split elements one decode job takes at most; a job also ends at
+// the end of a window.
+const splitChunk = 512
 
-// decodeArtifactParallel is decodeArtifact plus verifyCanonical's canonical-form check, with
+// artifactWindow is the number of artifact bytes a streamed read holds beyond the value being
+// scanned (DCP-V1-431).
+const artifactWindow = 1 << 20
+
+// decodeArtifactParallel is decodeArtifactStream over bytes already in memory; their digest is
+// hashArtifactTail's.
+func decodeArtifactParallel(data []byte, header func(*Artifact)) (*Artifact, error) {
+	return decodeArtifactBytes(data, header, nil)
+}
+
+// decodeArtifactBytes is decodeArtifactParallel with the claims hook of decodeArtifactStream.
+func decodeArtifactBytes(data []byte, header func(*Artifact), claims func(lo int, chunk []Claim)) (*Artifact, error) {
+	if len(data) > MaxCorpusBytes {
+		return nil, fail("input bound exceeded")
+	}
+	a, _, err := decodeArtifactStream(&artifactStream{buf: data, eof: true}, header, false, claims)
+	return a, err
+}
+
+// decodeArtifactReader is decodeArtifactStream over r, read ahead in blocks of artifactWindow
+// bytes on its own goroutine and hashed as it is read, so the artifact is never held whole
+// (DCP-V1-431). A read error is returned as it is, before any refusal of the bytes read so far.
+func decodeArtifactReader(r io.Reader, header func(*Artifact), claims func(lo int, chunk []Claim)) (*Artifact, artifactTail, error) {
+	return decodeArtifactBlocks(r, artifactWindow, blockHeadroom, header, claims, nil)
+}
+
+// blockStats counts the blocks a streamed read read and the buffers it allocated for them.
+type blockStats struct{ blocks, allocated int }
+
+// decodeArtifactBlocks is decodeArtifactReader with blocks of window bytes after headroom bytes
+// of room for a carry; tests use small blocks to cross every window boundary.
+func decodeArtifactBlocks(r io.Reader, window, headroom int, header func(*Artifact), claims func(lo int, chunk []Claim), stats *blockStats) (*Artifact, artifactTail, error) {
+	if stats == nil {
+		stats = &blockStats{}
+	}
+	blocks := make(chan streamBlock, 4)
+	done := make(chan struct{})
+	pool := make(chan []byte, 8)
+	var reader sync.WaitGroup
+	reader.Go(func() { readBlocks(r, blocks, done, pool, window, headroom, stats) })
+	defer func() {
+		close(done)
+		reader.Wait()
+	}()
+	s := &artifactStream{blocks: blocks, headroom: headroom}
+	a, tail, err := decodeArtifactStream(s, header, true, claims)
+	if err != nil && !s.eof {
+		// A refusal of the bytes read so far does not hide a later read error: the rest of the
+		// input is read, bounded as before, before the refusal is reported (DCP-V1-431).
+		var total int64 = s.base + int64(len(s.buf))
+		for b := range blocks {
+			total += int64(b.n)
+			b.ref.release()
+			b.ref.release()
+			if b.err != nil && b.err != io.EOF && s.readErr == nil {
+				s.readErr = b.err
+			}
+			if total > MaxCorpusBytes {
+				s.overBound = true
+				break
+			}
+		}
+	}
+	switch {
+	case s.readErr != nil:
+		return nil, artifactTail{}, s.readErr
+	case s.overBound:
+		return nil, artifactTail{}, fail("input bound exceeded")
+	}
+	return a, tail, err
+}
+
+// streamBlock is one block read ahead: data starts blockHeadroom bytes into its buffer, so a
+// short carry from the previous window can be placed right before it without copying the block.
+type streamBlock struct {
+	ref *blockRef
+	n   int
+	err error
+}
+
+// blockRef counts the holders of one block buffer: the window it backs, the hash of its data
+// and every decode job or deferred member decoding from it. The last release returns the buffer
+// to the pool for a later block, so a streamed read reuses a few buffers instead of allocating
+// one per block (DCP-V1-431). A nil blockRef is a buffer outside the pool.
+type blockRef struct {
+	buf  []byte
+	refs atomic.Int32
+	pool chan []byte
+}
+
+func (b *blockRef) hold() {
+	if b != nil {
+		b.refs.Add(1)
+	}
+}
+
+func (b *blockRef) release() {
+	if b != nil && b.refs.Add(-1) == 0 {
+		select {
+		case b.pool <- b.buf:
+		default:
+		}
+	}
+}
+
+// blockHeadroom is the room before each block's data for the carry of the previous window.
+const blockHeadroom = 64 << 10
+
+// readBlocks reads r into blocks until the end, an error or done, taking each block's buffer
+// from pool when one is free. A block starts with two holders: its window and its hash.
+func readBlocks(r io.Reader, blocks chan<- streamBlock, done <-chan struct{}, pool chan []byte, window, headroom int, stats *blockStats) {
+	defer close(blocks)
+	for {
+		var buf []byte
+		select {
+		case buf = <-pool:
+		default:
+			buf = make([]byte, headroom+window)
+			stats.allocated++
+		}
+		stats.blocks++
+		n, err := io.ReadFull(r, buf[headroom:])
+		if err == io.ErrUnexpectedEOF {
+			err = io.EOF
+		}
+		ref := &blockRef{buf: buf, pool: pool}
+		ref.refs.Store(2)
+		select {
+		case blocks <- streamBlock{ref, n, err}:
+		case <-done:
+			return
+		}
+		if err != nil {
+			return
+		}
+	}
+}
+
+// decodeArtifactStream is decodeArtifact plus verifyCanonical's canonical-form check, with
 // the elements of every split member decoded and compared with their canonical encoding in
-// parallel (DCP-V1-414). The input is validated as JSON in one sequential scan; then:
+// parallel (DCP-V1-414). The input is scanned once for member and element boundaries; then:
 //   - every split element must be exactly the canonical encoding of the element it decodes to,
 //     and the elements must be separated by exactly one comma inside their brackets;
 //   - the input with every split member's brackets emptied must equal the canonical encoding
@@ -58,21 +201,35 @@ const splitChunk = 128
 // duplicate members refuse as the closed decoder does. header, when set, receives a copy of the
 // members that precede the first split member (in canonical order the schema, builder, manifest,
 // its digests and the tree) as soon as they are decoded, and runs while the records are scanned
-// and decoded; decodeArtifactParallel returns only after it does.
-func decodeArtifactParallel(data []byte, header func(*Artifact)) (*Artifact, error) {
-	if len(data) > MaxCorpusBytes {
-		return nil, fail("input bound exceeded")
-	}
+// and decoded; decodeArtifactStream returns only after it does.
+//
+// The scan holds only the window being scanned: an element is decoded from the window it was
+// found in, the bytes outside every split member (the skeleton) are copied once, and a window is
+// released when its last element is decoded (DCP-V1-431). When hash is set the bytes are hashed
+// in read order and the tail is returned. claims, when set, runs on the decode worker for every
+// batch of claims once each of them is decoded and verified, with the offset of its first claim
+// (DCP-V1-434); its work must not be used unless the decode succeeds.
+func decodeArtifactStream(s *artifactStream, header func(*Artifact), hash bool, claims func(lo int, chunk []Claim)) (*Artifact, artifactTail, error) {
 	invalid := fail("invalid closed JSON input")
+	var hasher *tailHasher
+	if hash {
+		hasher = newTailHasher()
+		s.onRead = hasher.write
+		defer hasher.stop()
+	}
+	if s.blocks == nil && s.onRead != nil {
+		s.onRead(s.buf, nil)
+	}
+	d := &artifactDecoder{artifactStream: s}
 	var a Artifact
 	value := reflect.ValueOf(&a).Elem()
-	sc := &boundaryScanner{data: data}
-	if !sc.consume('{') {
-		return nil, invalid
+	if d.peek() != '{' {
+		return nil, artifactTail{}, invalid
 	}
+	d.pos++
 	type plain struct {
 		field int
-		raw   byteSpan
+		raw   []byte
 	}
 	plains := []plain{}
 	splits := []*splitArray{}
@@ -90,110 +247,148 @@ func decodeArtifactParallel(data []byte, header func(*Artifact)) (*Artifact, err
 	}
 	defer headerWG.Wait()
 	decodePlain := func(p plain) error {
-		if err := json.Unmarshal(data[p.raw.start:p.raw.end], value.Field(p.field).Addr().Interface(), json.RejectUnknownMembers(true)); err != nil {
+		if err := json.Unmarshal(p.raw, value.Field(p.field).Addr().Interface(), json.RejectUnknownMembers(true)); err != nil {
 			return invalid
 		}
 		return nil
 	}
-	// Split elements are decoded and compared with their canonical encoding in chunks while the
-	// scan continues (DCP-V1-414, DCP-V1-419). A decode failure refuses as the closed decoder
-	// does, before any canonical mismatch, so the refusal does not depend on which worker
+	// Split elements are decoded and compared with their canonical encoding by a pool of workers
+	// while the scan continues (DCP-V1-414, DCP-V1-419). A decode failure refuses as the closed
+	// decoder does, before any canonical mismatch, so the refusal does not depend on which worker
 	// finishes first.
 	var undecodable, mismatched, stop atomic.Bool
-	var wg sync.WaitGroup
-	defer func() {
-		stop.Store(true)
-		wg.Wait()
-	}()
-	dispatch := func(s *splitArray, from int) {
-		spans := s.elements[from:]
-		chunk := reflect.MakeSlice(value.Field(s.field).Type(), len(spans), len(spans))
-		s.chunks = append(s.chunks, chunk)
-		wg.Go(func() {
-			for i, span := range spans {
-				if stop.Load() {
-					return
+	jobs := make(chan decodeJob, runtime.GOMAXPROCS(0))
+	var workers sync.WaitGroup
+	for range runtime.GOMAXPROCS(0) {
+		workers.Go(func() {
+			options := json.RejectUnknownMembers(true)
+			for job := range jobs {
+				verified := true
+				for i, raw := range job.raws {
+					if stop.Load() {
+						verified = false
+						break
+					}
+					element := job.chunk.Index(i)
+					if json.Unmarshal(raw, element.Addr().Interface(), options) != nil {
+						undecodable.Store(true)
+						stop.Store(true)
+						verified = false
+						break
+					}
+					// A mismatch stops only the comparisons: every element is still decoded, so an
+					// undecodable element anywhere refuses first whatever the batches and their
+					// order (DCP-V1-431).
+					if !verified {
+						continue
+					}
+					c := encodingComparer{want: raw}
+					if _, err := EncodeTo(&c, element.Addr().Interface()); err != nil || c.differ || c.n != int64(len(raw)) {
+						mismatched.Store(true)
+						verified = false
+					}
 				}
-				raw := data[span.start:span.end]
-				if json.Unmarshal(raw, chunk.Index(i).Addr().Interface(), json.RejectUnknownMembers(true)) != nil {
-					undecodable.Store(true)
-					return
-				}
-				c := encodingComparer{want: raw}
-				if _, err := EncodeTo(&c, chunk.Index(i).Interface()); err != nil || c.differ || c.n != int64(len(raw)) {
-					mismatched.Store(true)
-					return
+				job.ref.release()
+				if verified && job.claims != nil {
+					job.claims(job.lo, job.chunk.Interface().([]Claim))
 				}
 			}
 		})
 	}
+	closed := false
+	finish := func() {
+		if !closed {
+			closed = true
+			close(jobs)
+			workers.Wait()
+		}
+	}
+	defer func() {
+		stop.Store(true)
+		finish()
+	}()
+	d.dispatch = func(s *splitArray, raws [][]byte) {
+		chunk := reflect.MakeSlice(value.Field(s.field).Type(), len(raws), len(raws))
+		s.chunks = append(s.chunks, chunk)
+		d.cur.hold()
+		job := decodeJob{chunk: chunk, raws: raws, lo: len(s.elements) - len(raws), ref: d.cur}
+		if s.field == claimsField {
+			job.claims = claims
+		}
+		jobs <- job
+	}
 	seen := map[string]bool{}
-	for more := sc.peek() != '}'; more; more = sc.consume(',') {
-		if sc.peek() != '"' {
-			return nil, invalid
+	for more := d.peek() != '}'; more; more = d.consume(',') {
+		if d.peek() != '"' {
+			return nil, artifactTail{}, invalid
 		}
-		from := sc.pos
-		if !sc.skipString() {
-			return nil, invalid
+		from, to, ok := d.scan()
+		if !ok {
+			return nil, artifactTail{}, invalid
 		}
-		name, ok := memberName(data[from:sc.pos])
+		name, ok := memberName(d.buf[from:to])
 		member, known := artifactMembers[name]
-		if !ok || !known || seen[name] || !sc.consume(':') {
-			return nil, invalid
+		if !ok || !known || seen[name] || !d.consume(':') {
+			return nil, artifactTail{}, invalid
 		}
 		seen[name] = true
 		if member.split && !headerSent {
 			sendHeader()
 		}
-		if member.split && sc.peek() == '[' {
-			s := &splitArray{field: member.field, open: int64(sc.pos)}
-			sc.pos++
-			flushed := 0
-			for more := sc.peek() != ']'; more; more = sc.consume(',') {
-				begin := sc.pos
-				if !sc.skipValue() {
-					return nil, invalid
+		if member.split && d.peek() == '[' {
+			s := &splitArray{field: member.field, open: d.offset()}
+			d.pos++
+			d.openSplit(s)
+			for more := d.peek() != ']'; more; more = d.consume(',') {
+				d.peek()
+				begin, end, ok := d.scan()
+				if !ok {
+					return nil, artifactTail{}, invalid
 				}
-				s.elements = append(s.elements, byteSpan{int64(begin), int64(sc.pos)})
-				if len(s.elements)-flushed == splitChunk {
-					dispatch(s, flushed)
-					flushed = len(s.elements)
+				s.elements = append(s.elements, byteSpan{d.base + int64(begin), d.base + int64(end)})
+				d.batch = append(d.batch, d.buf[begin:end])
+				if len(d.batch) == splitChunk {
+					d.flush()
 				}
 			}
-			if !sc.consume(']') {
-				return nil, invalid
+			if d.peek() != ']' {
+				return nil, artifactTail{}, invalid
 			}
-			if flushed < len(s.elements) {
-				dispatch(s, flushed)
-			}
-			s.close = int64(sc.pos)
+			d.closeSplit()
+			d.pos++
+			s.close = d.offset()
 			splits = append(splits, s)
 			continue
 		}
-		sc.peek()
-		begin := sc.pos
-		if !sc.skipValue() {
-			return nil, invalid
+		d.peek()
+		begin, end, ok := d.scan()
+		if !ok {
+			return nil, artifactTail{}, invalid
 		}
-		p := plain{member.field, byteSpan{int64(begin), int64(sc.pos)}}
+		p := plain{member.field, d.buf[begin:end]}
 		if !headerSent {
 			// The header members precede the records in the canonical order, so the header work
 			// starts while the records are still being scanned.
 			if err := decodePlain(p); err != nil {
-				return nil, err
+				return nil, artifactTail{}, err
 			}
 			continue
 		}
+		// A deferred member keeps its window out of the pool.
+		d.cur.hold()
 		plains = append(plains, p)
 	}
-	if !sc.consume('}') || sc.peek() != 0 || sc.pos != len(data) {
-		return nil, invalid
+	if !d.consume('}') || d.peek() != 0 || d.pos != len(d.buf) || !d.eof {
+		return nil, artifactTail{}, invalid
 	}
+	d.skeleton.Write(d.buf[d.skelFrom-d.base:])
+	size := d.base + int64(len(d.buf))
+	d.release()
 	if !headerSent {
 		sendHeader()
 	}
-	if int64(len(data)) > int64(encodingLimit(a)) {
-		return nil, fail("output bound exceeded")
+	if size > int64(encodingLimit(a)) {
+		return nil, artifactTail{}, fail("output bound exceeded")
 	}
 	noncanonical := fail("noncanonical artifact")
 	// The scan consumed exactly one comma between neighbours, so an element starting one byte
@@ -202,150 +397,342 @@ func decodeArtifactParallel(data []byte, header func(*Artifact)) (*Artifact, err
 		next := s.open + 1
 		for _, e := range s.elements {
 			if e.start != next {
-				return nil, noncanonical
+				return nil, artifactTail{}, noncanonical
 			}
 			next = e.end + 1
 		}
 		if len(s.elements) > 0 && s.close-1 != s.elements[len(s.elements)-1].end || len(s.elements) == 0 && s.close != s.open+2 {
-			return nil, noncanonical
+			return nil, artifactTail{}, noncanonical
 		}
 	}
+	var plainWG sync.WaitGroup
 	for _, p := range plains {
-		wg.Go(func() {
+		plainWG.Go(func() {
 			if decodePlain(p) != nil {
 				undecodable.Store(true)
 			}
 		})
 	}
-	wg.Wait()
+	finish()
+	plainWG.Wait()
 	if undecodable.Load() {
-		return nil, invalid
+		return nil, artifactTail{}, invalid
 	}
 	if mismatched.Load() {
-		return nil, noncanonical
+		return nil, artifactTail{}, noncanonical
 	}
 	for _, s := range splits {
 		slice := value.Field(s.field)
 		slice.Set(reflect.MakeSlice(slice.Type(), len(s.elements), len(s.elements)))
 		at := 0
-		for _, chunk := range s.chunks {
+		for i, chunk := range s.chunks {
 			at += reflect.Copy(slice.Slice(at, len(s.elements)), chunk)
+			s.chunks[i] = reflect.Value{}
 		}
 	}
 	// The skeleton: the artifact with every split member empty must encode to the input with
 	// those members' brackets emptied.
 	skeleton := a
-	var want bytes.Buffer
-	from := int64(0)
 	for _, s := range splits {
 		field := reflect.ValueOf(&skeleton).Elem().Field(s.field)
 		field.Set(reflect.Zero(field.Type()))
-		want.Write(data[from : s.open+1])
-		from = s.close - 1
 	}
-	want.Write(data[from:])
-	c := encodingComparer{want: want.Bytes()}
+	c := encodingComparer{want: d.skeleton.Bytes()}
 	if _, err := EncodeTo(&c, skeleton); err != nil {
-		return nil, err
+		return nil, artifactTail{}, err
 	}
 	if !c.equal() {
-		return nil, noncanonical
+		return nil, artifactTail{}, noncanonical
 	}
-	return &a, nil
+	var tail artifactTail
+	if hasher != nil {
+		tail = hasher.finish()
+	}
+	return &a, tail, nil
 }
 
-// boundaryScanner finds the byte spans of the artifact's members and of the
-// elements of its split members without validating their contents: every
-// byte it passes over is validated afterwards, by the closed decode of the
-// value that holds it or by the byte comparison of the skeleton with its
-// canonical encoding (DCP-V1-419). Strings are skipped with a vectorized
-// search for their closing quote.
-type boundaryScanner struct {
-	data []byte
-	pos  int
+// decodeJob is one batch of consecutive split elements, the slice they decode into and the
+// offset of the first; claims is set for a batch of claims.
+type decodeJob struct {
+	chunk  reflect.Value
+	raws   [][]byte
+	lo     int
+	claims func(lo int, chunk []Claim)
+	ref    *blockRef
+}
+
+// claimsField is the Artifact field index of the claims.
+var claimsField = artifactMembers["claims"].field
+
+// artifactStream is the artifact input: the window being scanned, its offset in the artifact
+// and, for a streamed read, the blocks read ahead that refill it. An in-memory artifact is one
+// window.
+type artifactStream struct {
+	blocks    <-chan streamBlock
+	cur       *blockRef // the pooled block backing buf, if any
+	headroom  int
+	buf       []byte
+	base      int64
+	pos       int
+	eof       bool
+	overBound bool
+	readErr   error
+	onRead    func(run []byte, ref *blockRef) // releases ref once run is hashed
+}
+
+// offset is the artifact offset of the scan position.
+func (s *artifactStream) offset() int64 { return s.base + int64(s.pos) }
+
+// refill drops the window before keep and appends the next block read ahead after the rest,
+// in a new window, so every slice of an earlier window that a decode job holds stays intact.
+// A carry longer than the room before a block (a value longer than a window) is copied into an
+// unpooled window that takes blocks until it is at least twice the carry, so a value of any
+// length is rescanned only a logarithmic number of times and copied a bounded number of times
+// per byte. It reports whether any byte was read.
+func (s *artifactStream) refill(keep int) bool {
+	if s.eof {
+		return false
+	}
+	b, ok := <-s.blocks
+	if !ok {
+		s.eof = true
+		return false
+	}
+	kept := len(s.buf) - keep
+	read := b.n
+	previous := s.cur
+	if kept <= s.headroom {
+		next := b.ref.buf[s.headroom-kept : s.headroom+b.n]
+		copy(next, s.buf[keep:])
+		s.cur = b.ref
+		s.buf = next
+		s.take(b, false)
+	} else {
+		next := make([]byte, kept, max(2*kept, kept+b.n))
+		copy(next, s.buf[keep:])
+		s.cur = nil
+		s.buf = next
+		s.take(b, true)
+		for !s.eof && len(s.buf) < 2*kept {
+			more, ok := <-s.blocks
+			if !ok {
+				s.eof = true
+				break
+			}
+			read += more.n
+			s.take(more, true)
+		}
+	}
+	previous.release()
+	s.base += int64(keep)
+	s.pos -= keep
+	if s.base+int64(len(s.buf)) > MaxCorpusBytes {
+		// Past the bound the scan stops as at the end of the input, and the read refuses.
+		s.eof, s.overBound = true, true
+		s.buf = s.buf[:MaxCorpusBytes+1-s.base]
+	}
+	return read > 0
+}
+
+// take hashes block b, records its end or read error, and when copy is set appends its data to
+// the window and releases the block's window hold.
+func (s *artifactStream) take(b streamBlock, copied bool) {
+	data := b.ref.buf[s.headroom : s.headroom+b.n]
+	if copied {
+		s.buf = append(s.buf, data...)
+		b.ref.release()
+	}
+	if s.onRead != nil {
+		s.onRead(data, b.ref)
+	} else {
+		b.ref.release()
+	}
+	switch {
+	case b.err == io.EOF:
+		s.eof = true
+	case b.err != nil:
+		s.eof, s.readErr = true, b.err
+	}
+}
+
+// artifactDecoder scans an artifactStream. It copies the skeleton bytes, the bytes outside every
+// split member's brackets, as they are passed, and dispatches each batch of split elements
+// before the window holding them is dropped.
+type artifactDecoder struct {
+	*artifactStream
+	skeleton bytes.Buffer
+	skelFrom int64 // artifact offset of the first skeleton byte not yet copied
+	split    *splitArray
+	batch    [][]byte
+	dispatch func(*splitArray, [][]byte)
+}
+
+// more refills the window keeping buf[keep:]; it reports whether any byte was read.
+func (d *artifactDecoder) more(keep int) bool {
+	if d.eof {
+		return false
+	}
+	if d.split == nil {
+		d.skeleton.Write(d.buf[d.skelFrom-d.base : keep])
+		d.skelFrom = d.base + int64(keep)
+	}
+	d.flush()
+	return d.refill(keep)
+}
+
+// release drops the last window once the scan has finished.
+func (d *artifactDecoder) release() {
+	d.buf, d.base, d.pos = d.buf[len(d.buf):], d.base+int64(len(d.buf)), 0
+	d.cur.release()
+	d.cur = nil
+}
+
+// openSplit starts split member s just after its '['; the skeleton keeps the bracket.
+func (d *artifactDecoder) openSplit(s *splitArray) {
+	d.skeleton.Write(d.buf[d.skelFrom-d.base : d.pos])
+	d.split, d.skelFrom = s, d.offset()
+}
+
+// closeSplit ends the current split member at its ']', which the skeleton keeps.
+func (d *artifactDecoder) closeSplit() {
+	d.flush()
+	d.split, d.skelFrom = nil, d.offset()
+}
+
+// flush dispatches the batch of split elements scanned so far.
+func (d *artifactDecoder) flush() {
+	if len(d.batch) > 0 {
+		d.dispatch(d.split, d.batch)
+		d.batch = make([][]byte, 0, splitChunk)
+	}
 }
 
 // peek skips whitespace and returns the next byte, or 0 at the end.
-func (s *boundaryScanner) peek() byte {
-	for s.pos < len(s.data) {
-		switch c := s.data[s.pos]; c {
-		case ' ', '\t', '\n', '\r':
-			s.pos++
-		default:
-			return c
+func (d *artifactDecoder) peek() byte {
+	for {
+		for d.pos < len(d.buf) {
+			switch c := d.buf[d.pos]; c {
+			case ' ', '\t', '\n', '\r':
+				d.pos++
+			default:
+				return c
+			}
+		}
+		if !d.more(d.pos) {
+			return 0
 		}
 	}
-	return 0
 }
 
 // consume skips whitespace and then c, reporting whether c was next.
-func (s *boundaryScanner) consume(c byte) bool {
-	if s.peek() != c || c == 0 {
+func (d *artifactDecoder) consume(c byte) bool {
+	if d.peek() != c || c == 0 {
 		return false
 	}
-	s.pos++
+	d.pos++
 	return true
 }
 
-// skipString skips the string whose opening quote is at pos.
-func (s *boundaryScanner) skipString() bool {
-	open := s.pos
-	for i := open + 1; ; i++ {
-		j := bytes.IndexByte(s.data[i:], '"')
-		if j < 0 {
-			return false
+// scan passes over the value at the scan position, refilling the window while the value runs
+// past it, and returns the value's bounds in the window.
+func (d *artifactDecoder) scan() (begin, end int, ok bool) {
+	for {
+		begin = d.pos
+		if begin >= len(d.buf) {
+			return 0, 0, false
 		}
-		i += j
-		k := i
-		for k > open+1 && s.data[k-1] == '\\' {
-			k--
+		end, state := scanValue(d.buf, begin)
+		switch state {
+		case scanOK:
+			d.pos = end
+			return begin, end, true
+		case scanShort:
+			// A refill moves the window even when it reads nothing, so the value is rescanned
+			// from the moved scan position; only once the input has ended is a short scalar whole.
+			if !d.eof {
+				d.more(begin)
+				continue
+			}
+			if end > begin && scalarStart(d.buf[begin]) {
+				d.pos = end
+				return begin, end, true
+			}
 		}
-		if (i-k)%2 == 0 {
-			s.pos = i + 1
-			return true
-		}
+		return 0, 0, false
 	}
 }
 
-// skipValue skips whitespace and one value: a string, a bracketed value
-// (matching only the bracket depth), or a scalar up to its delimiter.
-func (s *boundaryScanner) skipValue() bool {
-	switch s.peek() {
+const (
+	scanOK = iota
+	scanShort
+	scanInvalid
+)
+
+func scalarStart(c byte) bool { return c != '"' && c != '{' && c != '[' }
+
+// scanValue finds the end of the value starting at data[at] without validating its contents:
+// every byte it passes over is validated afterwards, by the closed decode of the value that
+// holds it or by the byte comparison of the skeleton with its canonical encoding (DCP-V1-419).
+// Strings are passed with a vectorized search for their closing quote, a bracketed value by its
+// bracket depth and a scalar up to its delimiter. scanShort means the data ended first; for a
+// scalar, end is then the end of the data.
+func scanValue(data []byte, at int) (int, int) {
+	switch data[at] {
 	case 0:
-		return false
+		return 0, scanInvalid
 	case '"':
-		return s.skipString()
+		return scanString(data, at)
 	case '{', '[':
 		depth := 0
-		for s.pos < len(s.data) {
-			switch s.data[s.pos] {
+		for i := at; i < len(data); {
+			switch data[i] {
 			case '"':
-				if !s.skipString() {
-					return false
+				end, state := scanString(data, i)
+				if state != scanOK {
+					return 0, state
 				}
+				i = end
 				continue
 			case '{', '[':
 				depth++
 			case '}', ']':
 				depth--
 				if depth == 0 {
-					s.pos++
-					return true
+					return i + 1, scanOK
 				}
 			}
-			s.pos++
+			i++
 		}
-		return false
+		return 0, scanShort
 	}
-	begin := s.pos
-	for s.pos < len(s.data) {
-		switch s.data[s.pos] {
+	for i := at; i < len(data); i++ {
+		switch data[i] {
 		case ',', '}', ']', ' ', '\t', '\n', '\r':
-			return s.pos > begin
+			if i == at {
+				return 0, scanInvalid
+			}
+			return i, scanOK
 		}
-		s.pos++
 	}
-	return s.pos > begin
+	return len(data), scanShort
+}
+
+// scanString finds the end of the string whose opening quote is at data[open].
+func scanString(data []byte, open int) (int, int) {
+	for i := open + 1; ; i++ {
+		j := bytes.IndexByte(data[i:], '"')
+		if j < 0 {
+			return 0, scanShort
+		}
+		i += j
+		k := i
+		for k > open+1 && data[k-1] == '\\' {
+			k--
+		}
+		if (i-k)%2 == 0 {
+			return i + 1, scanOK
+		}
+	}
 }
 
 // memberName is the name a quoted member key denotes.
@@ -359,3 +746,87 @@ func memberName(raw []byte) (string, bool) {
 	}
 	return name, true
 }
+
+// artifactTail is the digest of the artifact bytes before the sha256 member that ends canonical
+// artifact bytes, followed by an empty sha256 member: exactly the empty-field encoding hashValue
+// hashes, because sha256 is the last member of the canonical object. tail holds the bytes from
+// that member on; nil when the bytes hold no such member.
+type artifactTail struct {
+	tail   []byte
+	digest string
+}
+
+var tailMember = []byte(`,"sha256":`)
+
+func hashArtifactTail(data []byte) artifactTail {
+	at := bytes.LastIndex(data, tailMember)
+	if at < 0 {
+		return artifactTail{}
+	}
+	h := sha256.New()
+	h.Write(data[:at])
+	h.Write([]byte(`,"sha256":""}` + "\n"))
+	return artifactTail{data[at:], hex.EncodeToString(h.Sum(nil))}
+}
+
+// tailLength is the number of final bytes a streamed hash holds back until the end. The
+// canonical tail, `,"sha256":"<64 hex>"}` and a newline, is 78 bytes, so the streamed hash is
+// hashArtifactTail's for every artifact the verified read can admit; bytes whose last sha256
+// member starts earlier still refuse, as noncanonical.
+const tailLength = 4096
+
+// tailHasher hashes streamed artifact bytes on its own goroutine in read order, holding back
+// the last tailLength bytes until the end.
+type tailHasher struct {
+	runs chan hashRun
+	done chan artifactTail
+	once sync.Once
+}
+
+func newTailHasher() *tailHasher {
+	t := &tailHasher{runs: make(chan hashRun, 64), done: make(chan artifactTail, 1)}
+	go func() {
+		h := sha256.New()
+		held := make([]byte, 0, 2*tailLength)
+		for r := range t.runs {
+			run := r.data
+			if len(run) >= tailLength {
+				h.Write(held)
+				h.Write(run[:len(run)-tailLength])
+				held = append(held[:0], run[len(run)-tailLength:]...)
+			} else {
+				held = append(held, run...)
+				if over := len(held) - tailLength; over > 0 {
+					h.Write(held[:over])
+					held = append(held[:0], held[over:]...)
+				}
+			}
+			r.ref.release()
+		}
+		at := bytes.LastIndex(held, tailMember)
+		if at < 0 {
+			t.done <- artifactTail{}
+			return
+		}
+		h.Write(held[:at])
+		h.Write([]byte(`,"sha256":""}` + "\n"))
+		t.done <- artifactTail{held[at:], hex.EncodeToString(h.Sum(nil))}
+	}()
+	return t
+}
+
+// hashRun is one run of artifact bytes to hash and the block holding it.
+type hashRun struct {
+	data []byte
+	ref  *blockRef
+}
+
+// write hashes run, which is not written again before ref is released.
+func (t *tailHasher) write(run []byte, ref *blockRef) { t.runs <- hashRun{run, ref} }
+
+func (t *tailHasher) finish() artifactTail {
+	t.stop()
+	return <-t.done
+}
+
+func (t *tailHasher) stop() { t.once.Do(func() { close(t.runs) }) }

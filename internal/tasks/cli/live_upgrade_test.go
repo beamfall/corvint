@@ -2,6 +2,8 @@ package cli_test
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -12,6 +14,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -44,16 +47,25 @@ func TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1(t *testing.T) {
 		t.Skip("the build N attempt runner needs the owned process group API")
 	}
 	dir := t.TempDir()
-	build := func(n string) string {
-		t.Helper()
+	// The two builds are independent, so they run concurrently.
+	build := func(n string) (string, error) {
 		out := filepath.Join(dir, "build-"+n, "corvint-tasks")
 		c := exec.Command("go", "build", "-ldflags", "-X main.build="+n, "-o", out, "../../../cmd/corvint-tasks")
 		if b, err := c.CombinedOutput(); err != nil {
-			t.Fatalf("build %s: %v %s", n, err, b)
+			return "", fmt.Errorf("build %s: %v %s", n, err, b)
 		}
-		return out
+		return out, nil
 	}
-	buildN, buildNext := build("41"), build("42")
+	var buildN, buildNext string
+	var errN, errNext error
+	var builds sync.WaitGroup
+	builds.Add(2)
+	go func() { defer builds.Done(); buildN, errN = build("41") }()
+	go func() { defer builds.Done(); buildNext, errNext = build("42") }()
+	builds.Wait()
+	if err := errors.Join(errN, errNext); err != nil {
+		t.Fatal(err)
+	}
 	installed := filepath.Join(dir, "bin", "corvint-tasks")
 	if err := os.MkdirAll(filepath.Dir(installed), 0o755); err != nil {
 		t.Fatal(err)

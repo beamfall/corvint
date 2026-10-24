@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -280,6 +281,9 @@ func TestBuiltCLIDeniesAmbientExecutionChannels(t *testing.T) {
 func buildCLI(t *testing.T) string {
 	t.Helper()
 	binary := filepath.Join(t.TempDir(), "corvint-analyzer-shader")
+	if runtime.GOOS == "windows" {
+		binary += ".exe"
+	}
 	build := exec.Command("go", "build", "-trimpath", "-buildvcs=false", "-o", binary, ".")
 	build.Env = append(os.Environ(), "GOTOOLCHAIN=local")
 	if output, err := build.CombinedOutput(); err != nil {

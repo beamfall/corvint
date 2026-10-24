@@ -1248,11 +1248,14 @@
       "flags": [
         "--appmap-impact",
         "--base",
+        "--cache",
         "--full",
         "--list",
         "--path",
+        "--paths-from",
         "--playwright-config",
         "--playwright-discovery",
+        "--playwright-env",
         "--playwright-list",
         "--provider",
         "--provider-command",
@@ -1287,6 +1290,8 @@
         "--full writes the affected-plan/0 document instead: every exclusion and every selected unit's test files.",
         "It runs no test, writes no repository state, and never claims that omitted tests are safe to skip; the provider keeps its own NO_AFFECTED_SELECTION_PROOF unknown.",
         "Write --path=VALUE for a name that begins with -.",
+        "An entry is trusted only when it was written by this exact corvint executable for this root, and every directory the graph walked and every file it read or statted has the same size, mode, inode, modification and change time; otherwise, or when the entry is damaged, the graph is built in full and the entry replaced.",
+        "The receipt is byte-identical with and without --cache, hit or miss; the worktree status, HEAD and drift checks run on every call, and nothing is written inside the repository.",
         "--selection-profile e2e-safe reads one repository-relative application-flow-selection-provider/1 FILE (flows directory, runner config, discovery record, global paths, E2E inventory, per-flow coverage tiers and a coverage file) and writes an e2e-safe-selection/1 advice.test_selection."
       ],
       "unknowns": [

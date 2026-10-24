@@ -464,7 +464,11 @@ func TestCLIInvalidArgumentsBlackBox(t *testing.T) {
 }
 
 func TestCLIClockContractBlackBox(t *testing.T) {
-	root := string(os.PathSeparator)
+	// filepath.Abs makes the separator a volume root on Windows ("C:\\").
+	root, err := filepath.Abs(string(os.PathSeparator))
+	if err != nil {
+		t.Fatal(err)
+	}
 	internal := `{"code":"DASHBOARD_INTERNAL_ERROR","profile":"corvint-dashboard-error/0"}` + "\n"
 	invalid := `{"code":"DASHBOARD_INVALID_ARGUMENT","profile":"corvint-dashboard-error/0"}` + "\n"
 	tests := []struct {

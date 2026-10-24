@@ -146,6 +146,7 @@ func TestATRV0004_SignalAndSpawnClasses(t *testing.T) {
 // TestATRV0003_TimeoutRetiresDescendants: a timeout kills the whole owned
 // group, including a backgrounded descendant, before cleanup is reported.
 func TestATRV0003_TimeoutRetiresDescendants(t *testing.T) {
+	t.Parallel() // idle-bound on fixed waits and independent of process state (V1-2366)
 	root, a := attemptStore(t)
 	pidFile := filepath.Join(t.TempDir(), "pid")
 	start := time.Now()

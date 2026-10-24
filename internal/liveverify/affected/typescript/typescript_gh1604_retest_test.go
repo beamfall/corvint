@@ -145,7 +145,7 @@ func TestBlockedAliasGateSelectsAndNamesBlocker_GH1604(t *testing.T) {
 	for _, row := range []struct{ name, config, extraPath, extra, blocker string }{
 		{"playwright config loads tsconfig-paths", "import 'tsconfig-paths/register';\n" + gh1604Config, "", "", FrontierPathAlias + ":playwright.config.ts:1 `tsconfig`"},
 		{"second runner config", gh1604Config, "tools/jest.config.js", "module.exports = { testMatch: ['**/*.unit.js'] };\n", FrontierPathAlias + ":tools/jest.config.js `jest`"},
-		{"second runner test", gh1604Config, "scripts/check.test.mjs", "import test from 'node:test';\ntest('c', () => {});\n", FrontierPathAlias + ":scripts/check.test.mjs `node-test`"},
+		{"second runner test", gh1604Config, "scripts/check.test.mjs", "import test from 'node:test';\nimport { h } from 'lib/helpers/common.helper';\ntest('c', () => { void h; });\n", FrontierPathAlias + ":scripts/check.test.mjs `node-test`"},
 	} {
 		t.Run(row.name, func(t *testing.T) {
 			root := gh1604RetestRepository(t, tsconfig, row.config)
