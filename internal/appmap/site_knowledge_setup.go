@@ -2,6 +2,7 @@ package appmap
 
 import (
 	"path"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -10,11 +11,14 @@ import (
 // Stage 3 setup records (SKH-V0-030, SKH-V0-031, SKH-V0-033, SKH-V0-034), read from the
 // TypeScript and JavaScript sources stage 1 already tokenised: test.extend fixtures and their
 // chains, test hooks, storageState reads and writes, route mocks, API seeding calls and cy.task.
-// Every other SKH-V0-030 source (FactoryBot, fixture files, seeds, setup endpoints, setup projects)
-// is not read yet and is named in the report's not_read list, never guessed.
+// Playwright setup projects come from the `projects` list of a playwright.config file in the
+// declared sources (SKH-V0-104). The Rails sources are read in site_knowledge_setup_rails.go; a
+// source the run did not read is named in the report's not_read list, never guessed.
 
-// SetupSchema is the profile of `flows appmap setup`.
-const SetupSchema = "site-knowledge-setup/0"
+// SetupSchema is the profile of `flows appmap setup`. /1 adds the Rails and setup-project kinds,
+// basis, arranges, the reasoned not_read list and the condition and precondition sections
+// (SKH-V0-100..105); /0 reports are not read back by any command.
+const SetupSchema = "site-knowledge-setup/1"
 
 // Setup record kinds.
 const (
@@ -25,9 +29,6 @@ const (
 	SetupAPISeed      = "api-seed"
 	SetupTask         = "task"
 )
-
-// SetupNotRead names the SKH-V0-030 sources this profile does not read.
-var SetupNotRead = []string{"factorybot", "fixture-files", "seeds", "setup-endpoints", "setup-projects"}
 
 // skBuiltinFixtures are the Playwright fixtures every test object provides.
 var skBuiltinFixtures = wordSet("page context browser browserName request baseURL headless channel isMobile " +
@@ -74,8 +75,13 @@ type SKSetup struct {
 	// Unresolved names parameters that are neither built in nor resolved.
 	Requires   []string `json:"requires,omitempty"`
 	Unresolved []string `json:"unresolved,omitempty"`
-	Authority  string   `json:"authority"`
-	Anchor     Anchor   `json:"anchor"`
+	// Basis is the AMAP-V0-114 write basis of a Rails record (factory-attributes, fixture-keys,
+	// literal-hash, factory-call, assignment, attributes-from-request).
+	Basis string `json:"basis,omitempty"`
+	// Arranges names the Playwright projects that depend on a setup project.
+	Arranges  []string `json:"arranges,omitempty"`
+	Authority string   `json:"authority"`
+	Anchor    Anchor   `json:"anchor"`
 }
 
 // SKSetupUse links one test to the setup records that arrange it (SKH-V0-031): the fixtures it
@@ -112,6 +118,10 @@ type skSetupReader struct {
 	blobs map[string]string
 	out   []SKSetup
 	files map[string]*skSetupFile
+	// unrestricted marks a setup project some dependent project runs every test after;
+	// projectFiles holds the declared files each setup project's testMatch selects.
+	unrestricted map[string]bool
+	projectFiles map[string]map[string]bool
 }
 
 // extractSetup reads the setup records of every read TS/JS file and links each test to them.
@@ -139,6 +149,7 @@ func (m *SKModel) extractSetup(blobs map[string]string) ([]SKSetup, []SKSetupUse
 			}
 		}
 	}
+	r.resolveProjects(paths)
 	uses := []SKSetupUse{}
 	for _, p := range paths {
 		uses = append(uses, r.link(r.files[p])...)
@@ -243,6 +254,9 @@ func (r *skSetupReader) readFile(f *skFile) {
 			}
 			r.state(&s)
 			r.add(sf, i, s)
+		case !member && t.text == "projects" && next(toks, i+1, ":") && next(toks, i+2, "[") &&
+			strings.HasPrefix(path.Base(f.path), "playwright.config"):
+			r.projects(sf, i+2)
 		case !member && t.text == "storageState" && skObjectLiteral(toks, i):
 			s := SKSetup{Kind: SetupStorageState, Name: "storageState", Mode: "reads"}
 			if next(toks, i+1, ":") {
@@ -698,6 +712,13 @@ func (r *skSetupReader) link(sf *skSetupFile) []SKSetupUse {
 				follow(s.ID, 0)
 			}
 		}
+		// A setup project runs before every test of a dependent project that does not narrow its
+		// tests; the setup files themselves are not arranged by it.
+		for i := range r.out {
+			if s := r.out[i]; s.Kind == SetupProject && r.unrestricted[s.ID] && r.projectFiles[s.ID] != nil && !r.projectFiles[s.ID][f.path] {
+				follow(s.ID, 0)
+			}
+		}
 		// Records inside the test body or the helpers it reaches.
 		for _, v := range r.reach(u) {
 			key := skTestID(v.file.path, v)
@@ -751,4 +772,170 @@ func (r *skSetupReader) reach(u *skUnit) []*skUnit {
 	}
 	walk(u, 0)
 	return out
+}
+
+// skProject is one entry of a Playwright config's `projects` list.
+type skProject struct {
+	name, match, teardown string
+	regex, dynamic        bool
+	restricted            bool // testMatch, testDir, testIgnore or grep narrows the tests it runs
+	deps                  []string
+	tok                   int
+}
+
+// projects reads a literal `projects: [...]` list and records each project another project names
+// in `dependencies` (or `teardown`) as a setup project (SKH-V0-104). Its testMatch is kept as
+// written; a non-literal one is UNKNOWN with reason dynamic-value, and none is never guessed.
+func (r *skSetupReader) projects(sf *skSetupFile, open int) {
+	toks := sf.f.toks
+	end := closeParen(toks, open)
+	list := []skProject{}
+	for k := open + 1; k < end; k++ {
+		if !next(toks, k, "{") {
+			if next(toks, k, "[", "(") {
+				k = closeParen(toks, k)
+			}
+			continue
+		}
+		close := closeParen(toks, k)
+		p := skProject{tok: k}
+		for q := k + 1; q+2 < close; q++ {
+			if next(toks, q, "{", "[", "(") {
+				q = closeParen(toks, q)
+				continue
+			}
+			if toks[q].kind != tokIdent || !next(toks, q+1, ":") || !next(toks, q-1, "{", ",") {
+				continue
+			}
+			v := toks[q+2]
+			switch toks[q].text {
+			case "name":
+				if literal(v) {
+					p.name = v.text
+				}
+			case "teardown":
+				if literal(v) {
+					p.teardown = v.text
+				}
+			case "dependencies":
+				val, _ := parseValue(toks, q+2)
+				p.deps, _ = val.stringList()
+			case "testMatch":
+				p.restricted = true
+				switch {
+				case v.regex != "" && next(toks, q+3, ",", "}"):
+					p.match, p.regex = v.regex, true
+				case literal(v) && next(toks, q+3, ",", "}"):
+					p.match = v.text
+				default:
+					p.dynamic = true
+				}
+			case "testDir", "testIgnore", "grep", "grepInvert":
+				p.restricted = true
+			}
+		}
+		list = append(list, p)
+		k = close
+	}
+	arranges, unrestricted := map[string][]string{}, map[string]bool{}
+	for _, p := range list {
+		for _, d := range p.deps {
+			arranges[d] = append(arranges[d], p.name)
+			unrestricted[d] = unrestricted[d] || !p.restricted
+		}
+		if p.teardown != "" {
+			arranges[p.teardown] = append(arranges[p.teardown], p.name)
+		}
+	}
+	for _, p := range list {
+		if p.name == "" || len(arranges[p.name]) == 0 {
+			continue
+		}
+		s := SKSetup{Kind: SetupProject, Name: p.name, Target: p.match, Arranges: uniqueSorted(arranges[p.name])}
+		if p.teardown != "" {
+			s.Cleanup = "teardown:" + p.teardown
+		}
+		if p.match == "" {
+			s.Status, s.Reason = StatusUnknown, OpaqueDynamicValue
+			if !p.dynamic {
+				s.Reason = "no-test-match"
+			}
+		}
+		i := r.add(sf, p.tok, s)
+		if r.unrestricted == nil {
+			r.unrestricted = map[string]bool{}
+		}
+		r.unrestricted[r.out[i].ID] = unrestricted[p.name]
+	}
+}
+
+// skTestMatch compiles a setup project's testMatch: a flag-free or `i` regular expression literal,
+// or a glob without `**` matched against the base name (or the path when it holds a `/`).
+func skTestMatch(match string, regex bool) (func(string) bool, bool) {
+	if regex {
+		end := strings.LastIndex(match, "/")
+		if end < 1 {
+			return nil, false
+		}
+		body, flags := match[1:end], match[end+1:]
+		if flags == "i" {
+			body = "(?i)" + body
+		} else if flags != "" {
+			return nil, false
+		}
+		re, err := regexp.Compile(body)
+		if err != nil {
+			return nil, false
+		}
+		return re.MatchString, true
+	}
+	if strings.Contains(match, "**") {
+		return nil, false
+	}
+	if _, err := path.Match(match, ""); err != nil {
+		return nil, false
+	}
+	return func(p string) bool {
+		if strings.Contains(match, "/") {
+			ok, _ := path.Match(match, p)
+			return ok
+		}
+		ok, _ := path.Match(match, path.Base(p))
+		return ok
+	}, true
+}
+
+// resolveProjects binds each setup project to the records of the declared files its testMatch
+// selects. A testMatch that selects no file, or one the reader cannot evaluate, is UNKNOWN.
+func (r *skSetupReader) resolveProjects(paths []string) {
+	r.projectFiles = map[string]map[string]bool{}
+	for i := range r.out {
+		s := &r.out[i]
+		if s.Kind != SetupProject || s.Target == "" {
+			continue
+		}
+		match, ok := skTestMatch(s.Target, strings.HasPrefix(s.Target, "/"))
+		if !ok {
+			s.Status, s.Reason = StatusUnknown, "unsupported-test-match"
+			continue
+		}
+		files := map[string]bool{}
+		for _, p := range paths {
+			if match(p) {
+				files[p] = true
+			}
+		}
+		r.projectFiles[s.ID] = files
+		if len(files) == 0 {
+			s.Status, s.Reason = StatusUnknown, "no-matching-setup-file"
+			continue
+		}
+		ids := []string{}
+		for _, o := range r.out {
+			if files[o.Path] && o.ID != s.ID {
+				ids = append(ids, o.ID)
+			}
+		}
+		s.Requires = nilIfEmpty(uniqueSorted(ids))
+	}
 }

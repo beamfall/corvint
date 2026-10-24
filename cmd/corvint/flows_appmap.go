@@ -26,7 +26,8 @@ Application map usage (experimental, AMAP-V0):
   corvint [--root PATH] flows appmap refs --map FILE --source DIR [--source DIR]... [--budget N | --full]
   corvint [--root PATH] flows appmap pageobjects --map FILE --source DIR [--source DIR]... [--budget N | --full]
   corvint [--root PATH] flows appmap steps --map FILE --source DIR [--source DIR]... [--budget N | --full]
-  corvint [--root PATH] flows appmap setup --map FILE --source DIR [--source DIR]... [--budget N | --full]
+  corvint [--root PATH] flows appmap setup --map FILE --source DIR [--source DIR]... [--condition TEXT]...
+      [--budget N | --full]
   corvint [--root PATH] flows appmap actions --map FILE [--budget N | --full]
   corvint [--root PATH] flows appmap blocker --map FILE --note TEXT [--budget N | --full]
   corvint [--root PATH] flows appmap branches --map FILE --cite PATH:START[-END] [--cite ...] [--budget N | --full]
@@ -106,8 +107,12 @@ to the closed step IR (visit, click, fill, select, check, upload, press, focus, 
 assert, opaque),
 inlining page-object and helper calls with bound arguments, and deduplicates repeated sequences
 into reusable records with usage counts. setup lists test.extend fixtures and their chains,
-hooks, storageState paths (never contents), route mocks (labelled mocked), API seeding calls and
-cy.task, and links each test to the records that arrange it (default caps 6144 bytes). Unsupported constructs are
+hooks, storageState paths (never contents), route mocks (labelled mocked), API seeding calls,
+cy.task and Playwright setup projects, plus the Rails factories, traits, fixture files, seeds and
+test-setup endpoints of the map's rails-routes/0 roots with what they produce, and links each test
+to the records that arrange it. --condition TEXT (up to 16) lists the records that can produce
+the condition, or unresolved; every flow precondition is answered the same way (default caps
+6144 bytes). Unsupported constructs are
 unknowns or opaque steps with a reason; secret-shaped values are screened. Learned authority,
 static, no code runs and no repository file changes.
 

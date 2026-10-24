@@ -271,22 +271,7 @@ func (x *setupWriterIndex) readEndpoint(app *railsApp, rt railsRoute) {
 			defs[d.name] = d
 		}
 	}
-	w := setupWriter{Kind: "endpoint", Name: rt.verb + " " + rt.path, At: rt.declaration()}
-	writes := map[string]*setupWriter{}
-	add := func(model, attr string, all bool, basis string) {
-		k := model
-		if writes[k] == nil {
-			c := w
-			c.Model, c.Attributes, c.Basis = model, []string{}, basis
-			writes[k] = &c
-		}
-		if all {
-			writes[k].All, writes[k].Basis = true, "attributes-from-request"
-		}
-		if attr != "" {
-			writes[k].Attributes = appendUnique(writes[k].Attributes, attr)
-		}
-	}
+	add, flush := writeSet(setupWriter{Kind: "endpoint", Name: rt.verb + " " + rt.path, At: rt.declaration()})
 	seen := map[string]bool{}
 	queue := []string{rt.action}
 	for len(queue) > 0 && len(seen) < maxSetupCalls {
@@ -307,76 +292,112 @@ func (x *setupWriterIndex) readEndpoint(app *railsApp, rt railsRoute) {
 					queue = append(queue, word.text)
 				}
 			}
-			for _, m := range modelWrite.FindAllStringSubmatchIndex(code, -1) {
-				if m[1] < len(code) && rubyIdentByte(code[m[1]]) {
-					continue
-				}
-				model := code[m[2]:m[3]]
-				keys, all := writeArgs(code[m[1]:])
-				for _, k := range keys {
-					add(model, k, false, "literal-hash")
-				}
-				if all {
-					add(model, "", true, "attributes-from-request")
-				}
-			}
-			for _, m := range factoryCall.FindAllStringSubmatchIndex(code, -1) {
-				name := code[m[2]:m[3]]
-				model := rubyCamelize(name)
-				attrs := []string{}
-				if fw := x.factories[name]; fw != nil {
-					model, attrs = fw.Model, append(attrs, fw.Attributes...)
-				}
-				for _, t := range symbolWord.FindAllStringSubmatch(code[m[4]:m[5]], -1) {
-					if tw := x.traits[name+":"+t[1]]; tw != nil {
-						attrs = append(attrs, tw.Attributes...)
-					}
-				}
-				keys, all := writeArgs("(" + strings.TrimLeft(code[m[1]:], " ,"))
-				attrs = append(attrs, keys...)
-				for _, a := range attrs {
-					add(model, a, false, "factory-call")
-				}
-				if all {
-					add(model, "", true, "attributes-from-request")
-				}
-			}
-			for _, m := range recordUpdate.FindAllStringSubmatchIndex(code, -1) {
-				model, ok := app.modelOf(code[m[2]:m[3]])
-				if !ok || m[1] < len(code) && rubyIdentByte(code[m[1]]) {
-					continue
-				}
-				rest := code[m[1]:]
-				if method := code[m[4]:m[5]]; method == "update_attribute" || method == "update_column" {
-					if k := symbolKey.FindStringSubmatch(rest); k != nil {
-						add(model, k[1], false, "literal-hash")
-					}
-					continue
-				}
-				keys, all := writeArgs(rest)
-				for _, k := range keys {
-					add(model, k, false, "literal-hash")
-				}
-				if all {
-					add(model, "", true, "attributes-from-request")
-				}
-			}
-			for _, m := range recordAssign.FindAllStringSubmatch(code, -1) {
-				if model, ok := app.modelOf(m[1]); ok {
-					add(model, m[2], false, "assignment")
-				}
-			}
+			x.lineWrites(app, code, add)
 		}
 	}
-	models := make([]string, 0, len(writes))
-	for k := range writes {
-		models = append(models, k)
+	x.writers = append(x.writers, flush()...)
+}
+
+// writeSet accumulates one writer per model written by a source w names, and flush returns those
+// that write any attribute, ordered by model.
+func writeSet(w setupWriter) (add func(model, attr string, all bool, basis string), flush func() []setupWriter) {
+	writes := map[string]*setupWriter{}
+	add = func(model, attr string, all bool, basis string) {
+		k := model
+		if writes[k] == nil {
+			c := w
+			c.Model, c.Attributes, c.Basis = model, []string{}, basis
+			writes[k] = &c
+		}
+		if all {
+			writes[k].All, writes[k].Basis = true, "attributes-from-request"
+		}
+		if attr != "" {
+			writes[k].Attributes = appendUnique(writes[k].Attributes, attr)
+		}
 	}
-	sort.Strings(models)
-	for _, k := range models {
-		if wr := writes[k]; wr.All || len(wr.Attributes) > 0 {
-			sort.Strings(wr.Attributes)
-			x.writers = append(x.writers, *wr)
+	flush = func() []setupWriter {
+		models := make([]string, 0, len(writes))
+		for k := range writes {
+			models = append(models, k)
+		}
+		sort.Strings(models)
+		out := []setupWriter{}
+		for _, k := range models {
+			if wr := writes[k]; wr.All || len(wr.Attributes) > 0 {
+				sort.Strings(wr.Attributes)
+				out = append(out, *wr)
+			}
+		}
+		return out
+	}
+	return add, flush
+}
+
+// lineWrites reads the model writes of one masked Ruby line: model class writes, FactoryBot calls
+// expanded through the indexed factories and traits, record updates and attribute assignments
+// (AMAP-V0-114). Setup endpoints and the site-knowledge seed reader share it (SKH-V0-032).
+func (x *setupWriterIndex) lineWrites(app *railsApp, code string, add func(model, attr string, all bool, basis string)) {
+	for _, m := range modelWrite.FindAllStringSubmatchIndex(code, -1) {
+		if m[1] < len(code) && rubyIdentByte(code[m[1]]) {
+			continue
+		}
+		model := code[m[2]:m[3]]
+		if model == "FactoryBot" {
+			continue // a FactoryBot call, read below through its factory
+		}
+		keys, all := writeArgs(code[m[1]:])
+		for _, k := range keys {
+			add(model, k, false, "literal-hash")
+		}
+		if all {
+			add(model, "", true, "attributes-from-request")
+		}
+	}
+	for _, m := range factoryCall.FindAllStringSubmatchIndex(code, -1) {
+		name := code[m[2]:m[3]]
+		model := rubyCamelize(name)
+		attrs := []string{}
+		if fw := x.factories[name]; fw != nil {
+			model, attrs = fw.Model, append(attrs, fw.Attributes...)
+		}
+		for _, t := range symbolWord.FindAllStringSubmatch(code[m[4]:m[5]], -1) {
+			if tw := x.traits[name+":"+t[1]]; tw != nil {
+				attrs = append(attrs, tw.Attributes...)
+			}
+		}
+		keys, all := writeArgs("(" + strings.TrimLeft(code[m[1]:], " ,"))
+		attrs = append(attrs, keys...)
+		for _, a := range attrs {
+			add(model, a, false, "factory-call")
+		}
+		if all {
+			add(model, "", true, "attributes-from-request")
+		}
+	}
+	for _, m := range recordUpdate.FindAllStringSubmatchIndex(code, -1) {
+		model, ok := app.modelOf(code[m[2]:m[3]])
+		if !ok || m[1] < len(code) && rubyIdentByte(code[m[1]]) {
+			continue
+		}
+		rest := code[m[1]:]
+		if method := code[m[4]:m[5]]; method == "update_attribute" || method == "update_column" {
+			if k := symbolKey.FindStringSubmatch(rest); k != nil {
+				add(model, k[1], false, "literal-hash")
+			}
+			continue
+		}
+		keys, all := writeArgs(rest)
+		for _, k := range keys {
+			add(model, k, false, "literal-hash")
+		}
+		if all {
+			add(model, "", true, "attributes-from-request")
+		}
+	}
+	for _, m := range recordAssign.FindAllStringSubmatch(code, -1) {
+		if model, ok := app.modelOf(m[1]); ok {
+			add(model, m[2], false, "assignment")
 		}
 	}
 }

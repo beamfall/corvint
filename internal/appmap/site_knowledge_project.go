@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/secretscreen"
 )
 
 // SKLimits is printed in every site-knowledge report (SKH-V0-002, SKH-V0-005).
@@ -139,17 +140,46 @@ func PageObjects(ctx context.Context, m *Map, sources []string, o Options) ([]by
 }
 
 // Setup reports the stage-3 setup records of the declared sources and links each test to the
-// records that arrange it (SKH-V0-030, SKH-V0-031, SKH-V0-033, SKH-V0-034).
+// records that arrange it (SKH-V0-030..034, SKH-V0-100..105).
 func Setup(ctx context.Context, m *Map, sources []string, o Options) ([]byte, error) {
+	return SetupQuery(ctx, m, sources, nil, o)
+}
+
+// Setup query bounds (SKH-V0-103).
+const (
+	MaxSetupConditions = 16
+	maxConditionBytes  = 256
+)
+
+// SetupQuery is Setup that also answers "what can produce condition C" for each condition, and
+// links every flow precondition of the map to the records that can produce it (SKH-V0-031).
+func SetupQuery(ctx context.Context, m *Map, sources, conditions []string, o Options) ([]byte, error) {
 	budget, err := o.budget(DefaultFlowBudget)
 	if err != nil {
 		return nil, err
+	}
+	if len(conditions) > MaxSetupConditions {
+		return nil, &gokernel.Error{Code: "appmap-invalid-query", Message: fmt.Sprintf("setup accepts at most %d --condition values", MaxSetupConditions)}
+	}
+	for _, c := range conditions {
+		if strings.TrimSpace(c) == "" || len(c) > maxConditionBytes || strings.ContainsAny(c, "\x00\n") {
+			return nil, &gokernel.Error{Code: "appmap-invalid-query", Message: fmt.Sprintf("--condition must be 1 to %d bytes of one line", maxConditionBytes)}
+		}
+		if secretscreen.MatchString(c) {
+			return nil, &gokernel.Error{Code: "appmap-invalid-query", Message: "--condition holds secret-shaped text"}
+		}
 	}
 	k, read, skipped, err := readSiteKnowledge(ctx, m, sources, o)
 	if err != nil {
 		return nil, err
 	}
 	records, uses := k.extractSetup(k.blobs)
+	rails, notRead, err := readRailsSetup(repo{ctx: ctx, root: o.Root}, m)
+	if err != nil {
+		return nil, err
+	}
+	records = append(records, rails...)
+	uses = append(uses, k.linkRuby(records)...)
 	kinds, unknown, mocked := map[string]int{}, 0, 0
 	items := make([]any, len(records))
 	for i, s := range records {
@@ -173,11 +203,27 @@ func Setup(ctx context.Context, m *Map, sources []string, o Options) ([]byte, er
 		}
 		tests[i] = u
 	}
+	pre, preLinked := []any{}, 0
+	for _, f := range m.Flows {
+		for _, text := range f.Preconditions {
+			c := conditionQuery(text, records)
+			c.Flow = f.FlowID
+			if c.Status == ConditionCandidates {
+				preLinked++
+			}
+			pre = append(pre, c)
+		}
+	}
+	asked := make([]any, len(conditions))
+	for i, c := range conditions {
+		asked[i] = conditionQuery(c, records)
+	}
 	head := append(skHead(SetupSchema, m, sources, budget, o, read, skipped),
 		field{"records", len(records)}, field{"record_kinds", kinds}, field{"records_unknown", unknown},
 		field{"records_mocked", mocked}, field{"tests_total", len(uses)}, field{"tests_linked", linked},
-		field{"tests_unresolved_fixtures", unresolved}, field{"not_read", SetupNotRead})
-	return render(head, []section{{"setup", items}, {"tests", tests}}, budget)
+		field{"tests_unresolved_fixtures", unresolved}, field{"preconditions_total", len(pre)},
+		field{"preconditions_linked", preLinked}, field{"not_read", notRead})
+	return render(head, []section{{"conditions", asked}, {"preconditions", pre}, {"setup", items}, {"tests", tests}}, budget)
 }
 
 // Steps reports the test bodies of the declared sources in the closed step IR, with
