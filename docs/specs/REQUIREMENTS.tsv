@@ -671,6 +671,7 @@ AMAP-V0-424	docs/specs/application-map-v0.md	(accepted under the owner's standin
 AMAP-V0-425	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3161)	standing	2026-10-11; V1-3161
 AMAP-V0-426	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3161)	standing	2026-10-11; V1-3161
 AMAP-V0-427	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3161)	standing	2026-10-11; V1-3161
+AMAP-V0-650	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3164)	standing	2026-10-11; V1-3164
 AMAP-V0-374	docs/specs/application-map-v0.md	A `this.m(...)` call of an unbound page object whose own class does not declare	unrecorded	-
 AMAP-V0-394	docs/specs/application-map-v0.md	A hop of the AMAP-V0-374 walk MUST also follow a base class its file binds by th	unrecorded	-
 AMAP-V0-450	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3098) A page o	standing	2026-10-11; V1-3098
@@ -3199,6 +3200,7 @@ DCI-V1-027	docs/specs/documentation-corpus-inventory-v1.md	Amending `DCI-V1-009`
 DCI-V1-030	docs/specs/documentation-corpus-inventory-v1.md	Acceptance: `TestDCIV1027DeployWordsAndShortEnvironments`.	unrecorded	-
 DCI-V1-028	docs/specs/documentation-corpus-inventory-v1.md	Amending `DCI-V1-022`. `repository_inventory.environment_words`, when present,	unrecorded	-
 DCI-V1-029	docs/specs/documentation-corpus-inventory-v1.md	Amending `DCI-V1-009`, `DCI-V1-022` and `DCI-V1-023`.	unrecorded	-
+DCI-V1-230	docs/specs/documentation-corpus-inventory-v1.md	Amending `DCI-V1-005`. Every optional manifest list whose explicitly empty value	unrecorded	-
 DCS-V1-400	docs/specs/documentation-corpus-search-ranking-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-	standing	2026-10-11; #1597; V1-2470
 DCS-V1-401	docs/specs/documentation-corpus-search-ranking-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-	standing	2026-10-11; #1597; V1-2470
 DCS-V1-402	docs/specs/documentation-corpus-search-ranking-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-	standing	2026-10-11; #1597; V1-2470
@@ -3981,6 +3983,7 @@ GPK-V0-091	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-25,
 GPK-V0-092	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-26, standing auto-accept; V1-2716) The `context.widening` rows	standing	2026-10-26; V1-2716
 GPK-V0-093	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-28, standing auto-accept; V1-2946) `EvalQuery` MUST compile in	standing	2026-10-28; V1-2946
 GPK-V0-095	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-29, standing auto-accept; V1-3140) The web mask that the	standing	2026-10-29; V1-3140
+GPK-V0-295	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-30, standing auto-accept; V1-3150) Amending the `GPK-V0-095`	standing	2026-10-30; V1-3150
 GPK-V0-033	docs/specs/go-production-kernel-migration-v0.md	The frozen spec, not the Python implementation, is the conformance authority.	unrecorded	-
 GPK-V0-034	docs/specs/go-production-kernel-migration-v0.md	Every adjudication under `GPK-V0-033` MUST be recorded in	unrecorded	-
 GPK-V0-035	docs/specs/go-production-kernel-migration-v0.md	Known-divergent cases MUST NOT accumulate unexamined. Every one carries an	unrecorded	-
