@@ -102,3 +102,51 @@ func TestSensitiveInputArgumentCandidatesRespectStructure(t *testing.T) {
 		})
 	}
 }
+
+// V1-3197: JavaScript-only escapes in a bracketed property name decode before
+// the action comparison, and an undecodable name fails closed.
+func TestSensitiveInputPropertyJSEscapes(t *testing.T) {
+	policy, _ := sensitivePolicy(&SensitiveInputPolicy{AdditionalActionPatterns: []string{"custom entry"}})
+	for name, property := range map[string]string{
+		"hex":               `custom\x20entry`,
+		"code point":        `custom\u{20}entry`,
+		"code point padded": `\u{0063}ustom entry`,
+		"surrogate pair":    `custom💠entry`,
+		"null":              `custom\0entry`,
+		"vertical tab":      `custom\ventry`,
+		"backtick":          "custom\\`entry",
+		"line continuation": "cus\\\ntom entry",
+		"crlf continuation": "cus\\\r\ntom entry",
+		"ls continuation":   "cus\\ tom entry",
+		"identity":          `\custom entry`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			if !boundarySensitiveProperty(property, policy) {
+				t.Errorf("escaped property not classified: %q", property)
+			}
+			title := `page["` + property + `"]("unquoted-secret")`
+			r := Receipt{Profile: SensitiveExternalProfile, SensitiveInputPolicy: &SensitiveInputPolicy{AdditionalActionPatterns: []string{"custom entry"}}, Tests: []TestOutcome{{Attempts: []Attempt{{Steps: []BrowserStep{{Title: title}}}}}}}
+			if findings := ValidateSensitiveInputEvidence(r); len(findings) == 0 || findings[0].Code != "sensitive-input-action-syntax-unsupported" {
+				t.Errorf("escaped property admitted: %q %+v", title, findings)
+			}
+		})
+	}
+	for _, property := range []string{`custom entry\`, `harmless\`, `bad\x2`, `bad\u{110000}`, `bad\u{}`, `bad\u{20`, `bad\u12`, `bad\1`, `bad\08`, `bad\uD83D`, `bad\uDCA0x`, `bad\u{D800}`, `bad\u{DCA0}\u{D83D}`} {
+		if !boundarySensitiveProperty(property, policy) {
+			t.Errorf("undecodable property did not fail closed: %q", property)
+		}
+	}
+	for _, property := range []string{`harmless\x20name`, `harmless\u{20}name`, `harmless\0name`, "harmless\\`name", `harmless`} {
+		if boundarySensitiveProperty(property, policy) {
+			t.Errorf("negative control classified: %q", property)
+		}
+	}
+	for _, pair := range []string{`\uD83D\uDCA0`, `\u{D83D}\u{DCA0}`, `\uD83D\u{DCA0}`, `\u{1F4A0}`} {
+		if decoded, ok := boundaryDecodeJSString(pair); !ok || decoded != "💠" {
+			t.Errorf("surrogate pair %q = %q %v", pair, decoded, ok)
+		}
+	}
+	if decoded, ok := boundaryDecodeJSString(`a\b\f\n\r\t\v\0\x41B\u{1F4A0}\'\"\\`); !ok || decoded != "a\b\f\n\r\t\v\x00AB💠'\"\\" {
+		t.Errorf("decode = %q %v", decoded, ok)
+	}
+}

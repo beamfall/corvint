@@ -1,6 +1,7 @@
 package corpusbridge
 
 import (
+	"bytes"
 	"context"
 	"encoding/json/jsontext"
 	json "encoding/json/v2"
@@ -13,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/repoenvelope"
 )
 
 // boundFixture builds a corpus of pages that one search matches, in the paged
@@ -184,5 +186,27 @@ func TestDCPV1202UnpagedSchemaRefusesOverBound(t *testing.T) {
 	_, _, failure, protocol = r.Call(context.Background(), "corvint.docs_search", []byte(`{"query":"Checkout","limit":256}`))
 	if protocol != nil || failure == nil || failure.Code != "output-bound-exceeded" || !strings.Contains(failure.Message, strconv.Itoa(bound)+"-byte") {
 		t.Fatalf("over-bound v1 receipt: failure %v protocol %v", failure, protocol)
+	}
+}
+
+// V1-3198: a row's frame cost covers the bytes queryBatch writes for it, measured with the path
+// JSON-escaped in both the structured row and its enveloped text, so a path of control characters
+// (six escaped bytes each, seven in the text) cannot under-spend the batch output bound.
+func TestFrameCostCountsEscapedPath(t *testing.T) {
+	receipt := []byte(`{"schema":"x"}`)
+	for _, path := range []string{strings.Repeat("\x01", 1024), "docs/a\x1fb\n.md", "docs/plain.md"} {
+		var row bytes.Buffer
+		row.WriteString(`{"path":`)
+		writeJSON(&row, path)
+		row.WriteString(`,"receipt":`)
+		row.Write(receipt)
+		row.WriteByte('}')
+		text, _ := json.Marshal(repoenvelope.EscapeHidden(row.String()))
+		if got, want := frameCost(path, receipt), 1+row.Len()+len(text); got < want {
+			t.Errorf("path %q: frame cost %d < written %d bytes", path, got, want)
+		}
+	}
+	if got := frameCost(strings.Repeat("\x01", 1024), receipt); got < 13398 {
+		t.Errorf("control-character path frame cost %d under-counts", got)
 	}
 }

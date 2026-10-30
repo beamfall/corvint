@@ -467,8 +467,12 @@ condition query follows `SKH-V0-103`. Two parts of `SKH-V0-032` remain open:
   such as `const href = '/x'` is not a link. In Ruby, calls are found in masked code and their
   arguments are read from the same line unmasked, up to an unquoted `#`. A script line that
   starts with `//` or `*` is skipped. A link that leaves the application or
-  stays on the page is skipped: a URL with a scheme, or one starting with `//`, `#`, `mailto:`,
-  `tel:` or `javascript:`.
+  stays on the page is skipped: a URL with any scheme, with or without `//` (`https:`, `mailto:`,
+  `tel:`, `javascript:`, `blob:`, `file:`), or one starting with `//` or `#`. The target is first
+  normalised as a URL parser would: leading and trailing C0 controls and spaces are stripped, every
+  tab and newline is removed, and a backslash counts as a slash, so ` javascript:`, `java<TAB>script:`
+  and `/\host` are skipped too. A template attribute value is also checked after its HTML character
+  references decode, so `&#x6A;avascript:` and `javascript&colon;` are skipped (V1-3199).
 - `SKH-V0-112`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1901) The source screen of a static edge MUST come only from Rails conventions,
   through the compiled `GET` routes of the map's `rails-routes/0` routers. A view
   `app/views/CTRL/ACTION.*` that is not a partial binds to the screen of `CTRL#ACTION`. A line
