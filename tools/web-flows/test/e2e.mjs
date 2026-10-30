@@ -188,8 +188,10 @@ try {
   const sentinel = createServer((req,res) => { external++; res.end('unexpected'); });
   servers.add(sentinel);
   await new Promise(resolve => sentinel.listen(0,'127.0.0.1',resolve));
-  const url = `http://127.0.0.1:${sentinel.address().port}/out-of-scope`;
-  const hostile = await prepare('good',false,`<script>fetch(${JSON.stringify(url)}).catch(()=>{}); new WebSocket(${JSON.stringify(url.replace('http:','ws:'))});</script>`);
+  const sentinelPort = sentinel.address().port;
+  assert.ok(Number.isInteger(sentinelPort) && sentinelPort > 0 && sentinelPort <= 65535);
+  // Keep the script constant: fixture data is a validated numeric HTML attribute.
+  const hostile = await prepare('good',false,`<script data-port="${sentinelPort}">const url = new URL('/out-of-scope', 'http://127.0.0.1:' + document.currentScript.dataset.port); fetch(url).catch(()=>{}); url.protocol = 'ws:'; new WebSocket(url);</script>`);
   const h = await observe(hostile.root);
   assert.equal(external,0);
   assert.ok(h.evidence.gaps.includes('request-blocked-or-unavailable'));

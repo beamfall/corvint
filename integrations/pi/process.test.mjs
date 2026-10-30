@@ -45,11 +45,12 @@ test('PWV-V0-018 writer TERM grace lets the leader finish; the default and the b
  const dir=await mkdtemp(join(tmpdir(),'pi-process-grace-'));t.after(()=>rm(dir,{recursive:true,force:true}));
  const r=runner();t.after(()=>r.close());let n=0;
  const started=async call=>{
-  const ready=join(dir,String(n++)),controller=new AbortController();
-  const code=`process.on("SIGTERM",()=>setTimeout(()=>{process.stdout.write("recorded");process.exit(0)},400));require("node:fs").writeFileSync(${JSON.stringify(ready)},"");setInterval(()=>{},100)`;
-  const pending=r.run({cwd,args:['-e',code],signal:controller.signal,...call});
+  const ready=join(dir,String(n++)+'-"\'`$()\u2028'),controller=new AbortController();
+  const code='process.on("SIGTERM",()=>setTimeout(()=>{process.stdout.write("recorded");process.exit(0)},400));require("node:fs").writeFileSync(process.argv[1],"");setInterval(()=>{},100)';
+  const pending=r.run({cwd,args:['-e',code,ready],signal:controller.signal,...call});
   // Abort only once the child's TERM handler is installed.
   for(let i=0;i<1000;i++){try{await stat(ready);break}catch{await new Promise(x=>setTimeout(x,10))}}
+  assert.ok((await stat(ready)).isFile(),'child reached readiness before abort');
   controller.abort();return pending;
  };
  const graced=await started({graceMs:5000});assert.equal(graced.fault,'aborted');assert.equal(graced.stdout,'recorded');assert.equal(graced.exitCode,0);

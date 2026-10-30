@@ -23,6 +23,19 @@ if (process.argv.includes('--browser-hook-fixture')) {
     await new Promise(() => {});
   } finally { await cleanup(); }
 } else {
+  test('child executable and arguments are passed literally without a shell', async () => {
+    const args = ['$(printf injected)', '`printf injected`', '; printf injected', 'quotes "\' and spaces', 'line\nbreak'];
+    const directory = await mkdtemp(join(tmpdir(), 'core-literal-'));
+    const executable = join(directory, 'node-$(printf injected);"\'`');
+    let child;
+    try {
+      await symlink(process.execPath, executable);
+      child = new Child([executable, '-e', 'process.stdout.write(JSON.stringify(process.argv.slice(1)))', ...args], process.cwd(), 5000);
+      child.process.stdin.end();
+      assert.deepEqual(JSON.parse((await child.join()).toString()), args);
+      assert.deepEqual(child.remaining, []);
+    } finally { try { await child?.stop(); } finally { await rm(directory, { recursive: true, force: true }); } }
+  });
   for (const signal of ['SIGINT', 'SIGTERM', 'setup-failure', 'blocked-hook']) test(`bounded ${signal} cleanup retires escaped pipe-holder`, { timeout: 25000 }, async () => {
     const child = new Child([process.execPath, fileURLToPath(import.meta.url), '--escape-fixture', ...(['setup-failure', 'blocked-hook'].includes(signal) ? ['--' + signal] : [])], process.cwd(), 20000);
     try {

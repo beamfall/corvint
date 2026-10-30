@@ -299,7 +299,7 @@ The proposed delivery sequence and acceptance criteria are in
 
 - `PUB-V0-016`: The interactive alpha qualification MUST freeze fixture source, dependencies,
 runner and editor identities before execution. It MUST exercise automatic unit and E2E
-save/fail/fix feedback through an isolated real VS Code host, using Vitest 5.0.0 and Playwright
+save/fail/fix feedback through an isolated real VS Code host, using Vitest 5.0.3 and Playwright
 1.64.0, and the supported Go foreground session on macOS arm64. Completed retained results MUST
 be discovered through the actual test-validity MCP and compared with editor evidence. Cancellation
 and process cleanup MUST be qualified separately; unretained cancellation is not fabricated for
@@ -762,7 +762,7 @@ uses it. Retained readers, not new writer switches, preserve old inventories.
 `--python`, `--python-sha256`, `--expected-commit`, `--expected-tree` plus independently frozen
 `--node-sha256` and `--npm-sha256`. The existing adjacent npm CLI resolution remains, with canonical
 path/hash checks; runtime/dependency pins are the one declared tuple Node v24.11.1, npm 11.6.2,
-Vitest 5.0.0 and Playwright 1.64.0 with bundled `chromium_headless_shell-1248` (Chrome for Testing
+Vitest 5.0.3 and Playwright 1.64.0 with bundled `chromium_headless_shell-1248` (Chrome for Testing
 156.0.8078.4, executable SHA-256
 `77d8278b1ac9d0687fad4e817ea83023ede09b1deef36e1864b49ba194ac9634`). Browser identity is measured
 and bound by the retained fixture runner.
