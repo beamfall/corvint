@@ -1975,16 +1975,22 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   the one unclaimed current hunk with the same path and content, else the same path and BASE range,
   noting `refresh row N re-keyed OLD -> NEW (PATH BASE a,b; content unchanged|content changed, so
   review the row)`, and MUST drop any other row with a note and draft its hunk afresh; the PROPOSED
-  header adds `refreshed= carried= rekeyed= dropped=`. Stale IDs are resolved from the first-parent
-  commits of BASE..HEAD and the HEAD reflog (at most 32 each, BASE ancestors only); ordinal rows
-  resolve through the prepared map on disk. A missing, non-regular or over-limit PLAN is refused as
+  header adds `refreshed= carried= rekeyed= dropped= deferred=`. Stale IDs are resolved from the first-parent
+  commits of BASE..HEAD and the HEAD reflog (at most 32 each, BASE ancestors only). Ordinal rows
+  resolve only through the map the citation-plan binding recorded for this PLAN (its digest, with
+  or without the deferral rows); with no such binding they are dropped with a note naming the full
+  hunk ID, since a later prepare may have renumbered the map on disk. Valid `deferred` rows
+  (`DCW-V0-370`) are carried as written and counted as `deferred=`; invalid ones are dropped with a
+  note. A missing, non-regular or over-limit PLAN is refused as
   `refresh-plan-unavailable` with a `fix:`. Design: V1-3240 asked for carry-forward by path and
   content across amend and renumber; `docs/CHANGE-FLOW.md` orders the build-log write before the
   draft so the usual case needs no refresh. Non-goals: rewriting PLAN in place; carrying a row
   whose hunk left the change. Failure modes: two hunks with the same path and range stay ambiguous
   and are drafted afresh. Evidence: `TestProposeCitationsDCWV0441V0442RefreshRekeysReHunkedNewFile`
   (pre.go rows carried verbatim, build-log row re-keyed, refreshed plan passes the pre-flight; fails
-  on BASE, which has no `--refresh`). Rollback: remove `--refresh` and `propose_refresh.go`'s carry.
+  on BASE, which has no `--refresh`); `TestProposeCitationsDCWV0442RefreshOrdinalsNeedBinding`
+  (ordinals dropped without a binding and carried with one; a deferral row kept). Rollback: remove
+  `--refresh` and `propose_refresh.go`'s carry.
 - `DCW-V0-443`: (experimental under the standing lane auto-accept; V1-3104; refines `DCW-V0-040`)
   One `dogfood batch-check` run MUST list every hand-resolved merge of BASE..HEAD under
   `FAIL merge-resolution-unbound count=N`, earliest first, with N equal to the merges listed, and
@@ -2022,7 +2028,8 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   the plan, from its bytes alone, into stage plans of at most 256 rows each. Every row of one
   selector stays in one stage. The final stage takes the selectors with the fewest rows (the later
   ones among equals) and every deferral row. The earlier stages take the remaining selectors in plan
-  order. Each stage is written to a private directory under `$GIT_DIR/corvint/`, which the run
+  order; the stage just before the final one is the longest trailing run of them that fits, and the
+  rest are packed forward. Each stage is written to a private directory under `$GIT_DIR/corvint/`, which the run
   removes on exit. The prepare pass prepares each stage and prints `prepare PASS hunks=<n>
   stage=<k>/<n>`. The bind pass cites the earlier stages on the same retained map (`bind PASS
   stage=<k>/<n>`), then binds the final stage with the existing acceptance. The one bind commit
@@ -2044,7 +2051,8 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   can bind before any step runs: `REFUSE citation-plan-not-stageable rows=<n>`, a detail line, and a
   `fix:` line naming the manual route. This covers one selector with more than 256 rows; deferral
   rows that leave the last stage no citation row; and an earlier stage that would run while at most
-  256 hunks remain, since `DCW-V0-037` admits a subset plan only while more than 256 hunks are
+  256 hunks remain under that split (the refusal detail says no plan-order boundary avoids it),
+  since `DCW-V0-037` admits a subset plan only while more than 256 hunks are
   unmarked. After the first stage's prepare, and before any bind, it MUST also refuse two cases.
   The first is one hunk named in two stages through different selectors (ordinal and full ID),
   refused as `citation-plan-not-stageable`. The second is a whole plan that cites one span for every
@@ -2054,7 +2062,8 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   staging, and the ordinary pre-flight refuses it. Evidence:
   `TestFinishLaneDCWV0447PlanStagesRefusesUnstageablePlan` (fails on BASE, which has no stage
   planner) covers the over-bound selector, 200 hunks of two rows, deferral overflow, and the
-  cross-stage selector conflict. Rollback: drop the refusals with the `DCW-V0-446` stage planner.
+  cross-stage selector conflict; `TestFinishLaneDCWV0446PlanStagesSplitsOversizedPlan` binds 216
+  two-row then 144 one-row hunks as 64/256/256, which greedy forward packing refused. Rollback: drop the refusals with the `DCW-V0-446` stage planner.
 - `DCW-V0-448`: (experimental under the standing lane auto-accept; V1-3169; amends `DCW-V0-374`)
   `dogfood-change` MUST NOT treat as an aggregate-enrollment marker an aggregate local-outcome
   receipt (`$GIT_DIR/corvint/local-outcome.json`, profile `corvint-dogfood-aggregate-outcome/0`)

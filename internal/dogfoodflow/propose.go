@@ -59,6 +59,10 @@ type proposal struct {
 	refreshRows []refreshRow
 	carried     map[string][]string
 	carryNotes  []string
+	// refreshPlan is the --refresh plan as read; refreshDeferred holds its
+	// validated deferred rows, carried as written (DCW-V0-370).
+	refreshPlan     []byte
+	refreshDeferred []string
 }
 
 // spanLine is one line of a BASE file.
@@ -298,7 +302,7 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 		ordinal, _, _ := strings.Cut(rows[last], "\t")
 		rows[last] = unknownProposal(ordinal, "no second stable span was found near this hunk")
 	}
-	return rows, notes
+	return append(rows, p.refreshDeferred...), notes
 }
 
 // propose returns one row for hunk, the PATH:START:END it cites, or "" for an

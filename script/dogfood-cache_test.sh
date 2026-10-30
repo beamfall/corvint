@@ -224,11 +224,14 @@ git clone -q "$root/repo" "$root/bound"
   env -u BASE make -s dogfood-check > "$root/output" 2>&1 || status=$?
   [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] && rg -q '^BASE is required: pass BASE=<full origin/main sha>; no CEM bound at HEAD' "$root/output" || exit 1
   # Only the top-level member counts: a baseRevision nested in another member is not the CEM's base.
-  printf '{"artifacts":[{"baseRevision":"%s"}],"hunks":[]}\n' "$base" > .corvint/change.cem.json
-  git -c user.name=test -c user.email=test@example.invalid commit -qam nested-base
-  status=0
-  env -u BASE make -s dogfood-check > "$root/output" 2>&1 || status=$?
-  [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] && rg -q '^BASE is required: pass BASE=<full origin/main sha>; no CEM bound at HEAD' "$root/output" || exit 1
+  # A top-level member repeated under any value type, or a CEM that is not valid JSON, fails closed.
+  for cem in '{"artifacts":[{"baseRevision":"%s"}],"hunks":[]}' '{"baseRevision":{},"baseRevision":"%s"}' '{"baseRevision":"%s",}'; do
+    printf "$cem\n" "$base" > .corvint/change.cem.json
+    git -c user.name=test -c user.email=test@example.invalid commit -qam malformed-base
+    status=0
+    env -u BASE make -s dogfood-check > "$root/output" 2>&1 || status=$?
+    [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] && rg -q '^BASE is required: pass BASE=<full origin/main sha>; no CEM bound at HEAD' "$root/output" || exit 1
+  done
 ) || exit 1
 # ASD-V0-045 (V1-3119): dogfood-closeout without a plan refuses before any build or batch-precheck
 # step and names the drafting and pre-flight commands.

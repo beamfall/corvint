@@ -22,7 +22,8 @@ const stagedRoute = "docs/DOGFOOD.md Staged binding of one oversized commit"
 // so a resumed run rebuilds the same final stage (DCW-V0-446). Every row of one
 // selector stays in one stage; the final stage takes the selectors with the
 // fewest rows (the later ones among equals), then the deferral rows, so it names as many hunks as fit, and the
-// earlier stages take the rest in plan order. It returns nil stages for a plan
+// earlier stages take the rest in plan order, the one before the final stage
+// being the longest run that fits. It returns nil stages for a plan
 // the ordinary path decides (at most 256 rows, unreadable, over the byte bound
 // or not LF-terminated), and a refusal detail for a plan no staging can bind:
 // a selector with more than 256 rows, or a stage that would run while at most
@@ -82,16 +83,35 @@ func planStages(plan []byte) (stages [][]string, detail string) {
 		used += sizes[g]
 		stageOf[g] = -1 // the final stage
 	}
-	// The remaining selectors fill the earlier stages in plan order.
-	count, rows := 0, maxStageRows
+	// The remaining selectors fill the earlier stages in plan order. The stage
+	// just before the final one is the longest suffix that fits, since it is
+	// the one that must still leave more than 256 hunks to cite; the rest
+	// fill stages greedily from the start, so a greedy packing cannot leave a
+	// short stage last when a valid split keeps the plan order.
+	rest := []int{}
 	for g := range sizes {
-		if stageOf[g] == -1 {
-			continue
+		if stageOf[g] != -1 {
+			rest = append(rest, g)
 		}
+	}
+	suffix, rows := len(rest), 0
+	for suffix > 0 && rows+sizes[rest[suffix-1]] <= maxStageRows {
+		suffix--
+		rows += sizes[rest[suffix]]
+	}
+	count := 0
+	rows = maxStageRows
+	for _, g := range rest[:suffix] {
 		if rows+sizes[g] > maxStageRows {
 			count, rows = count+1, 0
 		}
 		stageOf[g], rows = count-1, rows+sizes[g]
+	}
+	if suffix < len(rest) {
+		count++
+		for _, g := range rest[suffix:] {
+			stageOf[g] = count - 1
+		}
 	}
 	final := count
 	stages = make([][]string, count+1)
@@ -108,7 +128,7 @@ func planStages(plan []byte) (stages [][]string, detail string) {
 	remaining := len(sizes)
 	for k := 0; k < final; k++ {
 		if remaining <= maxStageRows {
-			return nil, fmt.Sprintf("stage %d of %d would cite a subset while only %d hunks remain, so the last plan must name all of them, but they need %d rows", k+1, final+1, remaining, stageRows(stages[k:], true))
+			return nil, fmt.Sprintf("stage %d of %d would cite a subset while only %d hunks remain, so the last plan must name all of them, but they need %d rows; this split keeps the plan order, puts the fewest-row hunks last and the longest fitting run just before them, and no stage boundary in plan order avoids it", k+1, final+1, remaining, stageRows(stages[k:], true))
 		}
 		remaining -= len(stageSelectors(stages[k]))
 	}

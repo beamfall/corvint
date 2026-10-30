@@ -65,17 +65,34 @@ func (p *proposal) readRefreshPlan() {
 			p.prefix, strconv.Quote(p.options.Refresh), maxPlanBytes, p.options.Base)
 		p.exit(2)
 	}
+	p.refreshPlan = data
+	deferredLines := []string{}
 	for index, line := range textLines(data) {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
 		selector, rest, _ := strings.Cut(line, "\t")
+		// A deferred row records an intent-scope deferral, not a hunk, so it
+		// is kept apart from hunk matching and carried as written
+		// (DCW-V0-370).
+		if selector == deferredRowKind {
+			deferredLines = append(deferredLines, line)
+			continue
+		}
 		if len(strings.Split(line, "\t")) != 4 || selector == "" {
 			p.carryNotes = append(p.carryNotes, fmt.Sprintf("refresh row %d dropped: not a four-field SELECTOR PATH START:END RELATION row", index+1))
 			continue
 		}
 		p.refreshRows = append(p.refreshRows, refreshRow{line: index + 1, selector: selector, rest: rest})
 	}
+	if len(deferredLines) == 0 {
+		return
+	}
+	if _, _, valid := splitDeferredRows([]byte(strings.Join(deferredLines, "\n") + "\n")); !valid {
+		p.carryNotes = append(p.carryNotes, fmt.Sprintf("refresh dropped %d deferred row(s): together they are not valid deferred<TAB>PATH<TAB>REASON rows under the DCW-V0-370 record rules; rewrite them by hand", len(deferredLines)))
+		return
+	}
+	p.refreshDeferred = deferredLines
 }
 
 // refreshLabel is the PROPOSED header's account of a refresh.
@@ -95,7 +112,7 @@ func (p *proposal) refreshLabel() string {
 	for _, rows := range p.carried {
 		carried += len(rows)
 	}
-	return fmt.Sprintf(" refreshed=%s carried=%d rekeyed=%d dropped=%d", strconv.Quote(p.options.Refresh), carried, rekeyed, dropped)
+	return fmt.Sprintf(" refreshed=%s carried=%d rekeyed=%d dropped=%d deferred=%d", strconv.Quote(p.options.Refresh), carried, rekeyed, dropped, len(p.refreshDeferred))
 }
 
 // carry maps each --refresh row onto a current owed hunk (DCW-V0-442): a row
@@ -113,7 +130,7 @@ func (p *proposal) carry(owed []proposedHunk, used map[string]bool) {
 	for _, hunk := range owed {
 		current[hunk.id] = hunk
 	}
-	mapIDs := p.preparedMapIDs()
+	mapIDs, bound := p.refreshOrdinalIDs()
 	unresolved := map[string]bool{}
 	for index := range p.refreshRows {
 		row := &p.refreshRows[index]
@@ -168,8 +185,11 @@ func (p *proposal) carry(owed []proposedHunk, used map[string]bool) {
 	for _, row := range p.refreshRows {
 		target, how := "", ""
 		switch {
+		case row.id == "" && ordinal.MatchString(row.selector) && !bound:
+			p.carryNotes = append(p.carryNotes, fmt.Sprintf("refresh row %d dropped: ordinal %s cannot be resolved, because no citation-plan binding records the map this plan was cited against and the prepared map may have been renumbered since; name the row by its full hunk ID to carry it; its hunk is drafted afresh", row.line, row.selector))
+			continue
 		case row.id == "":
-			p.carryNotes = append(p.carryNotes, fmt.Sprintf("refresh row %d dropped: selector %s names no hunk of the prepared map", row.line, strconv.Quote(row.selector)))
+			p.carryNotes = append(p.carryNotes, fmt.Sprintf("refresh row %d dropped: selector %s names no hunk of the map this plan was cited against", row.line, strconv.Quote(row.selector)))
 			continue
 		case current[row.id].id != "":
 			target = row.id
@@ -199,22 +219,26 @@ func (p *proposal) carry(owed []proposedHunk, used map[string]bool) {
 	}
 }
 
-// preparedMapIDs are the hunk IDs, in ordinal order, of the map on disk, which
-// is the one an ordinal --refresh plan was written against.
-func (p *proposal) preparedMapIDs() []string {
-	data, err := readPrefix(filepath.Join(p.root, ".corvint", "change.cem.json"), maxPlanBytes)
-	if err != nil {
-		return nil
+// refreshOrdinalIDs are the hunk IDs, in ordinal order, that the --refresh
+// plan's ordinals name, and whether they are known. They come from the
+// citation-plan binding the bind loop recorded when it cited this plan (its
+// digest must match the plan, with or without its deferred rows). The map on
+// disk is not used: a later prepare may have renumbered it, so without the
+// binding an ordinal is ambiguous and its row is dropped rather than carried
+// onto whichever hunk now holds that ordinal (DCW-V0-442).
+func (p *proposal) refreshOrdinalIDs() ([]string, bool) {
+	gitDir, status := p.git(true, "rev-parse", "--absolute-git-dir")
+	if status == 0 {
+		recorded := readLines(readFile(strings.TrimSpace(gitDir) + "/corvint" + citationBinding))
+		digests := map[string]bool{sha256Hex(p.refreshPlan): true}
+		if stripped, _, valid := splitDeferredRows(p.refreshPlan); valid {
+			digests[sha256Hex(stripped)] = true
+		}
+		if len(recorded) > 0 && digests[recorded[0]] {
+			return recorded[1:], true
+		}
 	}
-	_, hunks, ok := preparedHunks(data)
-	if !ok {
-		return nil
-	}
-	ids := make([]string, len(hunks))
-	for index, hunk := range hunks {
-		ids[index] = hunk.id
-	}
-	return ids
+	return nil, false
 }
 
 // resolveHunkFacts finds each wanted hunk ID in the canonical patch of BASE to

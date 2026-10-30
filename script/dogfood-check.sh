@@ -14,13 +14,16 @@ base_arg=${1:?usage: dogfood-check.sh BASE|--bound-base}
 repo=$(cd "$(dirname "$0")/.." && pwd)
 # --bound-base (make dogfood-check without BASE) takes the baseRevision of the CEM committed at
 # HEAD, never a default branch; with no such CEM it refuses naming BASE (ASD-V0-085, V1-3172).
-# A string-aware scan reads only the top-level object's members: a baseRevision nested in another
-# member is not the CEM's, and a missing, repeated or non-40-hex top-level member fails closed.
+# The CEM must parse as one JSON object (jq -e; a missing jq fails closed). A string-aware scan then
+# reads only the top-level object's members: a baseRevision nested in another member is not the
+# CEM's, and a missing, repeated (under any value type) or non-40-hex top-level member fails closed.
 if [[ $base_arg == --bound-base ]]; then
-  bound=$(git -C "$repo" show "HEAD:.corvint/change.cem.json" 2> /dev/null | LC_ALL=C awk '
+  cem=$(git -C "$repo" show "HEAD:.corvint/change.cem.json" 2> /dev/null) || cem=
+  jq -e 'type == "object"' <<< "$cem" > /dev/null 2>&1 || cem=
+  bound=$(printf '%s\n' "$cem" | LC_ALL=C awk '
     { text = text $0 "\n" }
     END {
-      depth = 0; instr = 0; esc = 0; token = ""; key = ""; want = 0; found = 0; value = ""
+      depth = 0; instr = 0; esc = 0; token = ""; key = ""; want = 0; found = 0; keys = 0; value = ""
       for (i = 1; i <= length(text); i++) {
         c = substr(text, i, 1)
         if (instr) {
@@ -35,14 +38,14 @@ if [[ $base_arg == --bound-base ]]; then
         if (c == "\"") { instr = 1; token = ""; continue }
         if (c == "{" || c == "[") { depth++; want = 0; continue }
         if (c == "}" || c == "]") { depth--; continue }
-        if (depth == 1 && c == ":") { want = (key == "baseRevision"); key = ""; continue }
+        if (depth == 1 && c == ":") { want = (key == "baseRevision"); keys += want; key = ""; continue }
         if (depth == 1 && c == ",") { want = 0; key = ""; continue }
         if (depth == 1 && c !~ /[ \t\r\n]/ && want) { want = 0; found = 99 }
       }
-      if (found == 1 && depth == 0 && length(value) == 40 && value !~ /[^0-9a-f]/) print value
+      if (keys == 1 && found == 1 && depth == 0 && length(value) == 40 && value !~ /[^0-9a-f]/) print value
     }' || :)
   if [[ -z $bound ]] || ! git -C "$repo" merge-base --is-ancestor "$bound" HEAD 2> /dev/null; then
-    printf 'BASE is required: pass BASE=<full origin/main sha>; no CEM bound at HEAD records a base (HEAD:.corvint/change.cem.json is absent or has no single baseRevision that HEAD contains); the Makefile default (main) is not used by dogfood targets\n' >&2
+    printf 'BASE is required: pass BASE=<full origin/main sha>; no CEM bound at HEAD records a base (HEAD:.corvint/change.cem.json is absent, is not one valid JSON object (checked with jq), or has no single baseRevision that HEAD contains); the Makefile default (main) is not used by dogfood targets\n' >&2
     printf '  fix: make dogfood-check BASE=<the full sha passed to dogfood-change>, or commit the bound CEM first (docs/DOGFOOD.md §4); on a seal commit check its bind commit: git checkout --detach HEAD^\n' >&2
     exit 2
   fi

@@ -34,7 +34,7 @@ func TestFinishLaneDCWV0446PlanStagesSplitsOversizedPlan(t *testing.T) {
 	}{
 		{"300 single rows", 300, 1, 0, []int{44, 256}, "1\t", "45\t"},
 		{"deferrals go last", 300, 1, 2, []int{46, 256}, "1\t", "47\t"},
-		{"600 single rows", 600, 1, 0, []int{256, 88, 256}, "1\t", "345\t"},
+		{"600 single rows", 600, 1, 0, []int{88, 256, 256}, "1\t", "345\t"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			stages, detail := planStages(stagedPlan(tc.hunks, tc.rows, tc.deferrals))
@@ -60,6 +60,34 @@ func TestFinishLaneDCWV0446PlanStagesSplitsOversizedPlan(t *testing.T) {
 	if stages, detail := planStages(stagedPlan(256, 1, 0)); stages != nil || detail != "" {
 		t.Fatalf("a 256-row plan was staged: %d %q", len(stages), detail)
 	}
+	// 216 two-row hunks then 144 one-row hunks: a greedy forward packing of
+	// the earlier stages (256/64 rows) left only 232 hunks for its second
+	// stage and refused a plan that binds; the longest run before the final
+	// stage keeps more than 256 hunks unknown there.
+	mixed := new(strings.Builder)
+	for h := 1; h <= 360; h++ {
+		for r := 0; r < 1+btoi(h <= 216); r++ {
+			fmt.Fprintf(mixed, "%d\tintent.md\t%d:%d\tspecification\n", h, r+1, r+1)
+		}
+	}
+	stages, detail := planStages([]byte(mixed.String()))
+	if detail != "" {
+		t.Fatalf("mixed plan refused: %s", detail)
+	}
+	sizes := []int{}
+	for _, stage := range stages {
+		sizes = append(sizes, len(stage))
+	}
+	if fmt.Sprint(sizes) != "[64 256 256]" || !strings.HasPrefix(stages[0][0], "1\t") {
+		t.Fatalf("mixed plan stage sizes %v, first row %q", sizes, stages[0][0])
+	}
+}
+
+func btoi(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 // DCW-V0-447: a plan no staging can bind is refused before any step runs: one
