@@ -257,7 +257,7 @@ func TestAFPV0080WorkflowWiresPushStaticReuse(t *testing.T) {
 	wantLine(t, "go-product", gp, "    needs: [go-product-shard, go-static, docs-plan, static-reuse]")
 	wantLine(t, "go-product", gp, `          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$STATIC_REUSE" = REUSE ] && [ "$STATIC_RESULT" = skipped ]; then`)
 	wantLine(t, "go-product", gp, `            test "$STATIC_RESULT" = success`)
-	wantLine(t, "go-product", gp, `          test "$SHARDS_RESULT" = success`)
+	wantLine(t, "go-product", gp, `            test "$SHARDS_RESULT" = success`)
 }
 
 // staticReuseScript extracts the run script of the static-reuse step.
@@ -859,6 +859,46 @@ func TestCINV0006DocGatesRefusesAICoauthorTrailersOnPullRequests(t *testing.T) {
 	for _, event := range []string{"merge_group", "push"} {
 		if out, err := run(event, "echo ran\nexit 1\n"); err != nil || strings.Contains(out, "ran") {
 			t.Fatalf("%s: %v\n%s", event, err, out)
+		}
+	}
+}
+
+// TestCINV0007ShardsSkipAtJobLevelOnlyForADocsOrReuseDecision (V1-2902): no shard job starts on
+// a passed DOCS or REUSE decision, and go-product accepts skipped shards only then; a skip under
+// any other decision, or a failed docs-plan, still fails the required check.
+func TestCINV0007ShardsSkipAtJobLevelOnlyForADocsOrReuseDecision(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the go-product step runs under bash")
+	ci := readWorkflow(t, "ci.yml")
+	wantLine(t, "go-product-shard", jobBlock(t, ci, "go-product-shard"),
+		"    if: ${{ always() && !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && !(needs.docs-plan.result == 'success' && (needs.docs-plan.outputs.mode == 'DOCS' || needs.docs-plan.outputs.mode == 'REUSE')) }}")
+	script := runScript(t, jobBlock(t, ci, "go-product"))
+	run := func(event, shards, docs, mode string) (bool, string) {
+		t.Helper()
+		dir := t.TempDir()
+		cmd := exec.Command("bash", "-eo", "pipefail", "-c", script)
+		cmd.Env = append(os.Environ(), "BATCHED=false", "SHARDS_RESULT="+shards, "STATIC_RESULT=success", "STATIC_REUSE=",
+			"DOCS_RESULT="+docs, "DOCS_MODE="+mode, "SHARDS=8", "RUNNER_TEMP="+dir, "GITHUB_RUN_ID=7", "GITHUB_RUN_ATTEMPT=1",
+			"GITHUB_EVENT_NAME="+event, "GITHUB_STEP_SUMMARY="+filepath.Join(dir, "summary"))
+		out, err := cmd.CombinedOutput()
+		return err == nil, string(out)
+	}
+	for _, event := range []string{"pull_request", "merge_group", "push"} {
+		for _, mode := range []string{"DOCS", "REUSE"} {
+			if ok, out := run(event, "skipped", "success", mode); !ok || !strings.Contains(out, "CIN-V0-007: no go-product shard started (docs-plan "+mode+")") {
+				t.Errorf("%s %s: skipped shards must pass; ok=%v\n%s", event, mode, ok, out)
+			}
+		}
+		for name, c := range map[string][3]string{
+			"skipped under FULL":           {"skipped", "success", "FULL"},
+			"skipped under no decision":    {"skipped", "success", ""},
+			"skipped with failed docs":     {"skipped", "failure", "DOCS"},
+			"skipped with skipped docs":    {"skipped", "skipped", "REUSE"},
+			"failed shards under DOCS":     {"failure", "success", "DOCS"},
+			"cancelled shards under REUSE": {"cancelled", "success", "REUSE"},
+		} {
+			if ok, out := run(event, c[0], c[1], c[2]); ok {
+				t.Errorf("%s, %s: go-product passed\n%s", event, name, out)
+			}
 		}
 	}
 }
