@@ -1979,8 +1979,10 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   line of the hunk's own file. Intent: a lane that pastes the draft never binds the change's own
   text as its evidence. Non-goals: changing the check's anchor tiers, the bind's plan precheck or
   what a reviewer may cite by hand. Failure modes: more `unknown` rows where only the changed file
-  named the hunk; the reviewer names the BASE contract. Evidence:
+  named the hunk; the reviewer names the BASE contract. The changed-path inventory is git's name
+  list, so a mode-only change counts; if it cannot be read the draft cites nothing. Evidence:
   `TestProposeCitationsDCWV0393NeverCitesChangedPaths`,
+  `TestProposeCitationsDCWV0393ModeOnlyChangeIsChanged`,
   `TestProposeCitationsDCWV0150DraftsPerHunkPlan`, `TestProposeCitationsDCWV0161DraftsAnchoredRows`,
   `TestProposeCitationsDCWV0333SkipsBookkeepingPaths`,
   `TestProposeCitationsDCWV0385CitesPriorSealOnStackedRepair`.
@@ -2325,7 +2327,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-390` (experimental under the standing lane auto-accept; V1-3168) | `internal/dogfoodflow/citation_replace.go` `resolveCitationReplace`, `replaceArgs`; `change.go` `citeStep`, `recitesCitedHunk`, `cite`; `TestChangeDCWV0390ReplacesOnlyTheNamedCitedHunk` (only the first row for the named hunk carries `--replace` and the digest; the recites refusal names the entry); `TestDogfoodCitationReplaceCorrectsOneHunkOfAnAppliedStage` (built binary: after two applied stages, a one-hunk correction is refused with the entry, the rerun replaces hunk 1 only and hunks 2 and 3 keep their basis bytes, with no map deletion) | implemented; focused tests PASS |
 | `DCW-V0-391` (experimental under the standing lane auto-accept; V1-3168) | `resolveCitationReplace`; `TestChangeDCWV0390ReplacesOnlyTheNamedCitedHunk` (stale, malformed, digest-less, unknown, ordinal, duplicate, over-bound and unplanned entries refuse with no cite or mark); `TestDogfoodCitationReplaceCorrectsOneHunkOfAnAppliedStage` (stale digest leaves the map bytes intact) | implemented; focused tests PASS |
 | `DCW-V0-392` (experimental under the standing lane auto-accept; V1-3168) | `rowsAlreadyApplied`; `TestChangeDCWV0390ReplacesOnlyTheNamedCitedHunk`; `TestDogfoodCitationReplaceCorrectsOneHunkOfAnAppliedStage` (committed map replays to exit 0 and `dogfood check` PASS) | implemented; focused tests PASS |
-| `DCW-V0-393` (experimental under the standing lane auto-accept; V1-3144) | `internal/dogfoodflow/propose.go` `changed`, `prepareAnchors`, `sealedProposal`, `propose`; `TestProposeCitationsDCWV0393NeverCitesChangedPaths`, `TestProposeCitationsDCWV0150DraftsPerHunkPlan` | implemented; focused tests PASS |
+| `DCW-V0-393` (experimental under the standing lane auto-accept; V1-3144) | `internal/dogfoodflow/propose.go` `changed`, `prepareAnchors`, `sealedProposal`, `propose`; `TestProposeCitationsDCWV0393NeverCitesChangedPaths`, `TestProposeCitationsDCWV0393ModeOnlyChangeIsChanged`, `TestProposeCitationsDCWV0150DraftsPerHunkPlan` | implemented; focused tests PASS |
 | `DCW-V0-394` (experimental under the standing lane auto-accept; V1-3204) | `internal/dogfoodflow/propose.go` `run`, `template`; `TestProposeCitationsDCWV0394DraftsWithoutUsableMap` | implemented; focused tests PASS |
 | `DCW-V0-395` (experimental under the standing lane auto-accept; V1-3209) | `internal/dogfoodflow/propose.go` `propose`; `TestProposeCitationsDCWV0393NeverCitesChangedPaths`; build log 2026-10-30 | implemented; focused tests PASS |
 | `DCW-V0-359` (experimental under the standing lane auto-accept; V1-2858) | `script/heavy.sh` `keep_written`, `copy_back`, `fetch`; `script/lane-scripts_test.sh` copy-back fixtures | implemented; shell test PASS |

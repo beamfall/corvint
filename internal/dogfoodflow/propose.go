@@ -254,7 +254,20 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 			owed = append(owed, hunk)
 		}
 	}
+	// The inventory is git's name list, not the parsed patch, so a mode-only
+	// change still counts; without it no file is provably untouched, so the
+	// draft cites nothing (DCW-V0-393).
+	names, status, bounded := p.boundedGit("diff", "--name-only", "-z", "--no-renames", "--end-of-options", p.base, p.target, "--")
+	for _, name := range strings.Split(names, "\x00") {
+		if name != "" {
+			p.changed[name] = true
+		}
+	}
 	p.prepareAnchors(owed)
+	if status != 0 || !bounded {
+		p.matches = map[string][]spanLine{}
+		p.changed[sealContract] = true
+	}
 	used := map[string]bool{}
 	rows, notes := []string{}, []string{}
 	cited := 0

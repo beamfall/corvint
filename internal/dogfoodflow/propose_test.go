@@ -375,3 +375,35 @@ func TestProposeCitationsDCWV0393NeverCitesChangedPaths(t *testing.T) {
 		t.Errorf("the added file's row does not name the runner receipt:\n%s", stdout.String())
 	}
 }
+
+// DCW-V0-393: the changed-path inventory comes from git's name list, so a
+// mode-only change to a file the patch parser rejects still keeps that file
+// out of the draft.
+func TestProposeCitationsDCWV0393ModeOnlyChangeIsChanged(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	testGit(t, root, "config", "core.fileMode", "true")
+	writeTree(t, root, map[string]string{
+		"docs/specs/p-v0.md": "# P v0\n\n- internal/p/p.go answers.\n",
+		"internal/p/p.go":    "package p\n\nfunc P() int { return 1 }\n",
+	})
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	writeTree(t, root, map[string]string{"internal/p/p.go": "package p\n\nfunc P() int { return 2 }\n"})
+	testGit(t, root, "commit", "-q", "-am", "change")
+	document, err := json.Marshal(map[string]any{"baseRevision": base, "hunks": diffHunks(t, root, base)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeTree(t, root, map[string]string{".corvint/change.cem.json": string(document)})
+	testGit(t, root, "update-index", "--chmod=+x", "docs/specs/p-v0.md")
+	testGit(t, root, "commit", "-q", "-m", "mode-only contract change")
+	var stdout, stderr bytes.Buffer
+	if code, err := ProposeCitations(context.Background(), ProposeOptions{Root: root, Base: base}, &stdout, &stderr); code != 0 || err != nil {
+		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
+	}
+	if strings.Contains(stdout.String(), "\tdocs/specs/p-v0.md\t") {
+		t.Errorf("draft cites a file the change made executable:\n%s", stdout.String())
+	}
+}
