@@ -519,6 +519,36 @@ func TestAFPV0380InteropTestsRunOnceInGoStatic(t *testing.T) {
 	}
 }
 
+// TestCINV0008LocalAuthorityModuleTestsRunInGoStatic (V1-3329): go-static, which starts on every
+// path that starts the shards and which go-product needs, is the one CI run of the nested
+// tools/local-authority module's tests and vet. Its external modules are fetched once, verified
+// against the module's go.sum under -mod=readonly; the tests and vet then run under the job's
+// GOPROXY=off. No other job runs that module.
+func TestCINV0008LocalAuthorityModuleTestsRunInGoStatic(t *testing.T) {
+	ci := readWorkflow(t, "ci.yml")
+	static := jobBlock(t, ci, "go-static")
+	step := stepBlock(t, static, "Nested module tools/local-authority tests and vet (CIN-V0-008)")
+	wantLine(t, "go-static", step, "        working-directory: source/tools/local-authority")
+	for _, env := range []string{`      GOPROXY: "off"`, `      GOSUMDB: "off"`} {
+		wantLine(t, "go-static", static, env)
+	}
+	// No literal here ends in a package pattern, which would make this package an unbounded
+	// reader (AFP-V0-012 rule (d)).
+	lines := strings.Split(strings.TrimSpace(runScript(t, step)), "\n")
+	if len(lines) != 3 ||
+		lines[0] != "GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org GOFLAGS=-mod=readonly go mod download" ||
+		!strings.HasPrefix(lines[1], "go test -count=1 -timeout 30m ") || !strings.HasPrefix(lines[2], "go vet ") ||
+		strings.Contains(lines[1], "GOPROXY") || strings.Contains(lines[2], "GOPROXY") {
+		t.Errorf("go-static local-authority step = %q, want a verified download, then its tests and vet offline", lines)
+	}
+	if n := strings.Count(ci, "working-directory: source/tools/local-authority\n"); n != 1 {
+		t.Errorf("tools/local-authority runs in %d steps, want only go-static's", n)
+	}
+	if !strings.Contains(regexp.MustCompile(`(?m)^    needs: .*$`).FindString(jobBlock(t, ci, "go-product")), "go-static") {
+		t.Error("go-product must need go-static, which owns the tools/local-authority tests")
+	}
+}
+
 // V1-0728: a main push run is grouped by its own commit, so a later merge never cancels it,
 // while a pull request still cancels its superseded run.
 func TestAFPV0082PushConcurrencyGroupsByCommit(t *testing.T) {
