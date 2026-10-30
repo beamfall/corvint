@@ -16,6 +16,10 @@ registry: fields the registry cannot answer are `null` and named under `unknowns
 guide` prints a task-indexed guide with runnable examples and the non-capabilities each tracked
 by an issue (CAP-V0-015 to CAP-V0-021).
 
+For a dated, counted snapshot of this page by maturity, with the first promotion batch and its
+unmet gates, see the [Core promotion inventory](build-log/2026-10-29-core-promotion-inventory.md)
+(V1-3180). It is a snapshot, not a second catalog: when the two differ, this page is right.
+
 ## Command trees
 
 Every subcommand at every depth, with its flags, required inputs and an example, is in one
@@ -311,6 +315,14 @@ digest that `ticket similar --digest FILE` matches without a store; `ticket recu
 recurrence on the existing ticket. `queue snapshot` exports a verified intent snapshot that
 `CORVINT_TASKS_SNAPSHOT=FILE` serves read-only on a lane host without a journal, refusing every
 other verb (experimental; [TCL-V0](specs/corvint-tasks-cli-v0.md), [lane use](LANE-ORCHESTRATION.md)).
+
+The basic external-agent lifecycle (create, plan preview, claim, renew, release, submit, gate run,
+complete, readback and receipt audit on one store) has a named profile,
+[TBS-V1](specs/corvint-tasks-basic-stability-v1.md). It fixes the profile's commands, refusal codes
+and supported tuples. `script/qualify-tasks-basic.sh OUT_DIR` requalifies it from source on a
+disposable non-fixture store. The profile was qualified on darwin/arm64 and linux/amd64
+([evidence](build-log/2026-10-29-tasks-basic-stability.md)). The binary stays experimental until the
+owner accepts the profile.
 
 ## Language and path support
 
