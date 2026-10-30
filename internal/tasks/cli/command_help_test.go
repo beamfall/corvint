@@ -182,6 +182,10 @@ func TestCAPV0060_EveryVerbHelpAndUnknownWordRoutes(t *testing.T) {
 	routes := map[string][]string{}
 	for _, verb := range cli.ReadVerbs {
 		if verb == "help" {
+			// `help --help` is the root help, pinned by CAL-V0-047.
+			if r := help("help", "--help"); r.Outcome != wire.OutcomeOK || len(field(r.Items[0], "implemented").Arr) == 0 {
+				t.Fatalf("help --help is not the root help: %s %v", r.Outcome, r.Warnings)
+			}
 			continue
 		}
 		args := append(strings.Fields(verb), "--help")

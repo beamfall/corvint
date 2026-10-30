@@ -295,8 +295,9 @@ cannot silently go missing or outlive its command.
   first word of a `corvint-tasks` command is not a verb, the unknown-verb warning MUST name, as
   `corvint-tasks VERB --help`, every implemented verb whose last word is that word (a guessed
   `heartbeat --help` names `attempt heartbeat`), and keep the plain `corvint-tasks help` pointer
-  hint when none matches; the outcome stays `ERROR`. A test walks every implemented verb with
-  `--help` and fails on an unknown-verb result or help without usage, flags or an example.
+  hint when none matches; the outcome stays `ERROR`. A test walks every implemented verb except
+  `help`, whose `--help` is the root help (CAL-V0-047), with `--help` and fails on an unknown-verb
+  result or help without usage, flags or an example.
 
 ## Boundaries and failure modes
 
