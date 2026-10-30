@@ -39,3 +39,20 @@ a candidate that "predates the bounded replay window".
 ## Rollback
 
 Revert the commit. The ancestry-limit refusal returns.
+
+## Review fix (Codex review of the lane, 2026-10-30)
+
+The first version charged each trace name beyond the window three Git calls (cat-file, merge-base,
+rev-parse), plus one tree listing, against the fixed 1,024-operation default. A valid store of
+about 250 such traces therefore refused, although the store admits 1,000. Two changes fix this:
+
+- A single `cat-file --batch-check` now reads the object type and peels the tree.
+- The commit-object check is cached.
+
+Each trace now costs at most three operations, across both plans of an apply. The budget is the
+default plus three per admitted trace file. `TestLTPMV0517StoreAtMaximumBeyondTheWindow` builds
+1,000 traces beyond a two-commit window with `git fast-import`, ten of them stranded and each on
+its own tree. The dry run and the apply both pass. With the default budget the dry run fails with
+`git-budget-exceeded`. The test takes about 87 s because it spawns roughly 6,000 Git processes. A
+true batched probe would make it faster, but it would need a batch interface on
+`MigrationAuthority`.

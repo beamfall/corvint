@@ -20,6 +20,18 @@ import (
 // history without building one.
 var maximumAncestry = 10_000
 
+// migrationOperations bounds the Git operations of one migration: the frozen
+// default floor plus operationsPerTrace for every trace file the store admits,
+// so a valid store at its maximum never exhausts the budget (LTPM-V0-517).
+const migrationOperations = gitrun.DefaultOperations + operationsPerTrace*trace.MaxTraceFiles
+
+// operationsPerTrace is the most Git operations one trace file costs across a
+// dry run and an apply, which plans twice: beyond the replay window its name is
+// resolved once (one cat-file for its type and tree, one merge-base, both
+// cached), and then either its tree is listed once (cached) or, stranded, its
+// commit object is checked once (cached).
+const operationsPerTrace = 3
+
 const (
 	maximumAncestryBytes  = 2 << 20
 	maximumTreeBytes      = 64 << 20
@@ -64,7 +76,7 @@ func bindAuthority(ctx context.Context, root string) (trace.MigrationAuthority, 
 	if err != nil {
 		return trace.MigrationAuthority{}, nil, err
 	}
-	budget := gitrun.NewDefaultBudget()
+	budget := gitrun.NewBudget(migrationOperations, gitrun.DefaultTotalBudget)
 	raw, err := runGit(ctx, budget, root, maximumAncestryBytes,
 		"log", fmt.Sprintf("--max-count=%d", maximumAncestry+1), "--format=%H %T", "HEAD")
 	if err != nil {
@@ -139,9 +151,17 @@ func bindAuthority(ctx context.Context, root string) (trace.MigrationAuthority, 
 	}
 	// --batch-check reports a missing object on stdout and exits zero, so an
 	// error here is a Git failure, never absence.
+	commitObjects := map[string]bool{}
 	authority.CommitObject = func(id string) (bool, error) {
+		if commit, ok := commitObjects[id]; ok {
+			return commit, nil
+		}
 		kind, err := runGitInput(ctx, budget, root, []byte(id+"\n"), 128, "cat-file", "--batch-check=%(objecttype)")
-		return string(kind) == "commit\n", err
+		if err != nil {
+			return false, err
+		}
+		commitObjects[id] = string(kind) == "commit\n"
+		return commitObjects[id], nil
 	}
 	// The check reads only header fields, so it observes them rather than
 	// compiling an index whose sources it would discard. ProfileID is not
@@ -164,7 +184,8 @@ func bindAuthority(ctx context.Context, root string) (trace.MigrationAuthority, 
 
 // reachableCommit resolves a trace name outside the replay window: a commit
 // object that `git merge-base --is-ancestor` places under HEAD is reachable,
-// with the tree `rev-parse` names. Each name is probed once.
+// with its tree. One cat-file reads the type and the tree together, so each
+// name costs at most two Git operations, once.
 func reachableCommit(ctx context.Context, budget *gitrun.Budget, root string, length int) func(string) (trace.Revision, bool, error) {
 	type result struct {
 		revision  trace.Revision
@@ -175,13 +196,23 @@ func reachableCommit(ctx context.Context, budget *gitrun.Budget, root string, le
 		if cached, ok := cache[id]; ok {
 			return cached.revision, cached.reachable, nil
 		}
-		kind, err := runGitInput(ctx, budget, root, []byte(id+"\n"), 128, "cat-file", "--batch-check=%(objecttype)")
+		// --batch-check answers each input line: "<id> <type>" for an object,
+		// "<input> missing" otherwise; the second line peels the commit to its tree.
+		raw, err := runGitInput(ctx, budget, root, []byte(id+"\n"+id+"^{tree}\n"), 512, "cat-file", "--batch-check=%(objectname) %(objecttype)")
 		if err != nil {
 			return trace.Revision{}, false, err
 		}
-		if string(kind) != "commit\n" {
+		answers := strings.Split(strings.TrimSuffix(string(raw), "\n"), "\n")
+		if len(answers) != 2 {
+			return trace.Revision{}, false, fmt.Errorf("Git ancestry contains malformed commit/tree identity")
+		}
+		if answers[0] != id+" commit" {
 			cache[id] = result{}
 			return trace.Revision{}, false, nil
+		}
+		tree, kind, _ := strings.Cut(answers[1], " ")
+		if kind != "tree" || !lowerHex(tree, length) {
+			return trace.Revision{}, false, fmt.Errorf("Git ancestry contains malformed commit/tree identity")
 		}
 		if _, err := runGit(ctx, budget, root, 128, "merge-base", "--is-ancestor", id, "HEAD"); err != nil {
 			if details, ok := cemcode.GitExitFailureDetails(err); ok && details.ExitCode == 1 {
@@ -189,14 +220,6 @@ func reachableCommit(ctx context.Context, budget *gitrun.Budget, root string, le
 				return trace.Revision{}, false, nil
 			}
 			return trace.Revision{}, false, err
-		}
-		raw, err := runGit(ctx, budget, root, 128, "rev-parse", "--verify", "--end-of-options", id+"^{tree}")
-		if err != nil {
-			return trace.Revision{}, false, err
-		}
-		tree := strings.TrimSuffix(string(raw), "\n")
-		if !lowerHex(tree, length) {
-			return trace.Revision{}, false, fmt.Errorf("Git ancestry contains malformed commit/tree identity")
 		}
 		cache[id] = result{trace.Revision{TreeRevision: tree}, true}
 		return cache[id].revision, true, nil
