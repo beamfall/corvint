@@ -34,7 +34,9 @@ pass() {
 }
 fail() {
   local why=$1; shift
-  if "$selector" "$@" >"$scratch/out" 2>"$scratch/err"; then echo "accepted: $why" >&2; exit 1; fi
+  local code=0
+  "$selector" "$@" >"$scratch/out" 2>"$scratch/err" || code=$?
+  if [ "$code" -ne 2 ]; then echo "exit $code, want refusal 2: $why" >&2; exit 1; fi
   test ! -s "$scratch/out"
   grep -Fq "$why" "$scratch/err"
   if grep -Fq 'previous-release: mode=' "$scratch/err"; then exit 1; fi
@@ -74,9 +76,12 @@ fail 'descends from the candidate' "$candidate" v2.0.0 "$future"
 git tag 'v9!invalid' "$base"
 fail 'invalid release tag spelling' "$candidate"
 git tag -d 'v9!invalid' >/dev/null
-# No ancestry is not a Git failure. An isolated candidate has no automatic predecessor.
-if "$selector" "$disconnected" >"$scratch/out" 2>"$scratch/err"; then exit 1; fi
-grep -Fq 'no reachable previous release' "$scratch/err"
+# No ancestry is not a Git failure. An isolated candidate has no automatic predecessor: exit 3,
+# distinct from every refusal (exit 2), with no tag on stdout.
+code=0; "$selector" "$disconnected" >"$scratch/out" 2>"$scratch/err" || code=$?
+test "$code" -eq 3; test ! -s "$scratch/out"
+grep -Fq "previous-release: none: no reachable previous release tag before $disconnected" "$scratch/err"
+if grep -Fq 'previous-release: mode=' "$scratch/err"; then exit 1; fi
 # Both real info/grafts and ambient graft files must be ignored.
 printf '%s %s\n' "$disconnected" "$candidate" > .git/info/grafts
 pass v0.9.9 "$candidate" v0.9.9 "$preserved"
@@ -104,9 +109,14 @@ test -s "$scratch/run-gate"; test -s "$scratch/n1-step"
 chmod +x "$scratch/run-gate"
 mkdir -p script
 cp "$selector" script/select-previous-release.sh
+cp "$source_root/script/core-n1-source.sh" script/core-n1-source.sh
 cat > "$scratch/bin/gh" <<SHIM
 #!/bin/sh
 printf '%s\n' "\$*" >> '$scratch/gh-invoked'
+case "\$1 \$2" in
+  'release view') printf '%s false\n' "\$3"; exit 0 ;;
+  'release list') exit 0 ;;
+esac
 printf 'corvint_linux_amd64.tar.gz\n' > "\$RUNNER_TEMP/n1/SHA256SUMS"
 printf '#!/bin/sh\nexit 0\n' > "\$RUNNER_TEMP/previous/corvint"
 chmod +x "\$RUNNER_TEMP/previous/corvint"
@@ -116,15 +126,31 @@ chmod +x "$scratch/bin/gh" "$scratch/bin/tar" "$scratch/bin/sha256sum"
 export SHA="$candidate" RELEASE=fixture RUNNER_LABEL=local ImageVersion=fixture
 export GITHUB_SERVER_URL=https://example.invalid GITHUB_REPOSITORY=beamfall/corvint GITHUB_RUN_ID=1 GITHUB_RUN_ATTEMPT=1
 export PREVIOUS_RELEASE_TAG=v0.9.9 PREVIOUS_RELEASE_OID="$candidate"
-export RUNNER_TEMP="$scratch/refused"
+export RUNNER_TEMP="$scratch/refused" GITHUB_OUTPUT="$scratch/refused-output" GITHUB_STEP_SUMMARY="$scratch/summary"
 mkdir -p "$RUNNER_TEMP/evidence"; cp "$scratch/run-gate" "$RUNNER_TEMP/run-gate"
 if PATH="$scratch/bin:$PATH" bash -e "$scratch/n1-step" >"$scratch/step-out" 2>&1; then exit 1; fi
 test ! -e "$scratch/gh-invoked"
+test ! -s "$GITHUB_OUTPUT"
 grep -Fq 'tag direct OID differs' "$RUNNER_TEMP/evidence/n1-archive-fixture-local.log"
-export PREVIOUS_RELEASE_OID="$preserved" RUNNER_TEMP="$scratch/accepted"
+export PREVIOUS_RELEASE_OID="$preserved" RUNNER_TEMP="$scratch/accepted" GITHUB_OUTPUT="$scratch/accepted-output"
 mkdir -p "$RUNNER_TEMP/evidence"; cp "$scratch/run-gate" "$RUNNER_TEMP/run-gate"
 PATH="$scratch/bin:$PATH" bash -e "$scratch/n1-step" >"$scratch/step-out" 2>&1
+grep -Fqx 'release view v0.9.9 --repo beamfall/corvint --json tagName,isDraft --jq "\(.tagName) \(.isDraft)"' "$scratch/gh-invoked"
 grep -Fq 'release download v0.9.9 --repo beamfall/corvint' "$scratch/gh-invoked"
+test "$(cat "$GITHUB_OUTPUT")" = first_release=false
 grep -Fq "tag=v0.9.9 direct=$preserved commit=$disconnected" "$RUNNER_TEMP/evidence/n1-archive-fixture-local.log"
 test -s "$RUNNER_TEMP/evidence/n1-archive-fixture-local.log.sha256"
+# FIRST_RELEASE (V1-3177): no reachable tag and no published release is a visible, logged
+# not-applicable outcome with first_release=true, and nothing is downloaded.
+rm "$scratch/gh-invoked"
+export SHA="$disconnected" PREVIOUS_RELEASE_TAG='' PREVIOUS_RELEASE_OID='' RUNNER_TEMP="$scratch/first" GITHUB_OUTPUT="$scratch/first-output"
+mkdir -p "$RUNNER_TEMP/evidence"; cp "$scratch/run-gate" "$RUNNER_TEMP/run-gate"
+PATH="$scratch/bin:$PATH" bash -e "$scratch/n1-step" >"$scratch/step-out" 2>&1
+test "$(cat "$GITHUB_OUTPUT")" = first_release=true
+grep -Fq 'release list --repo beamfall/corvint --exclude-drafts' "$scratch/gh-invoked"
+if grep -Fq 'release download' "$scratch/gh-invoked"; then exit 1; fi
+grep -Fq "core-n1-source: FIRST_RELEASE: no published release of beamfall/corvint precedes $disconnected" "$RUNNER_TEMP/evidence/n1-archive-fixture-local.log"
+grep -Fq '::notice title=N-1::FIRST_RELEASE' "$scratch/step-out"
+grep -Fq "N-1 FIRST_RELEASE: no published release of beamfall/corvint precedes $disconnected" "$GITHUB_STEP_SUMMARY"
+grep -Fqx 'n1-archive EXIT 0' "$RUNNER_TEMP/evidence/n1-archive-fixture-local.log"
 printf 'previous release selector and workflow boundary: PASS\n'

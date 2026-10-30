@@ -4,7 +4,7 @@ name: Release gates
 # platform as CI (decision 0320, AFP-V0-017). Each gate runs in its own job at the exact `sha`
 # input; `full-gate` runs on ubuntu-24.04 and macos-15. `release-checklist` reads the private
 # witnesses `make gate` records in its own clone, so it runs after `make gate` in each full-gate
-# job. The `core-n1-replay-*` gates run the CCF-V1-007 N-1 replay (runbook step 8). `linux-core`
+# job. The `core-n1-replay` gate runs the CCF-V1-007 N-1 replay (runbook step 8). `linux-core`
 # runs the linux/amd64 Core platform evidence natively (decision 0420 item 2).
 # Every log is an artifact with its sha256 beside it; nothing here pins, commits, or publishes.
 # A failed scheduled run comments on, or opens, one `nightly-triage` issue (SOP-V0-013); that job
@@ -71,17 +71,12 @@ jobs:
             os: ubuntu-24.04
             timeout: 60
             command: make interop-gate
-          # Runbook step 8's CCF-V1-007 N-1 replay against each documented N-1 baseline, named
-          # explicitly rather than by ancestry: v1.0.0-rc.1 (decision 0434 item 3) and v0.8.1 (the
-          # CCF-V1-007 text and the CORE_N1_TAG default). Change them with that record (V1-1382).
-          - gate: core-n1-replay-v1.0.0-rc.1
+          # Runbook step 8's CCF-V1-007 N-1 replay against the previous published release of this
+          # repository, selected as linux-core's n1 step does; with none it reports FIRST_RELEASE.
+          - gate: core-n1-replay
             os: ubuntu-24.04
             timeout: 90
-            command: make core-n1-replay CORE_N1_TAG=v1.0.0-rc.1
-          - gate: core-n1-replay-v0.8.1
-            os: ubuntu-24.04
-            timeout: 90
-            command: make core-n1-replay CORE_N1_TAG=v0.8.1
+            command: script/core-n1-source.sh --replay
           # The companion bundle targets darwin/arm64 and smoke-runs its installed binaries.
           - gate: companion-release
             os: macos-15
@@ -171,6 +166,8 @@ jobs:
         env:
           GATE: ${{ matrix.gate }}
           COMMAND: ${{ matrix.command }}
+          # Only the N-1 replay reads this repository's published releases.
+          GH_TOKEN: ${{ matrix.gate == 'core-n1-replay' && github.token || '' }}
         # COMMAND is a fixed matrix value, split on spaces into argv.
         run: |
           # shellcheck disable=SC2086
@@ -230,8 +227,10 @@ jobs:
       - name: Fetch the previous release's published linux/amd64 archive (N-1)
         id: n1
         # The operator may pin a preserved nonancestor tag for SOP-V0-003 lifecycle evidence.
-        # Otherwise choose the newest reachable prior tag. Identity stays in the archive log;
-        # Core's explicit CCF-V1-007 compatibility replay is a separate runbook step.
+        # Otherwise choose the newest reachable prior tag, which must be a published release here.
+        # With none, script/core-n1-source.sh reports FIRST_RELEASE and the steps below say the N-1
+        # checks are not applicable; a predecessor that cannot be fetched or verified fails closed.
+        # Identity stays in the archive log; the CCF-V1-007 replay is the core-n1-replay gate.
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -239,7 +238,15 @@ jobs:
           # The inner sh expands the single-quoted script.
           # shellcheck disable=SC2016
           "$RUNNER_TEMP/run-gate" n1-archive sh -euc '
-            n1=$(script/select-previous-release.sh "$SHA" "$PREVIOUS_RELEASE_TAG" "$PREVIOUS_RELEASE_OID")
+            code=0
+            n1=$(script/core-n1-source.sh) || code=$?
+            if [ "$code" -eq 3 ]; then
+              echo "::notice title=N-1::FIRST_RELEASE: no published release precedes $SHA; N-1 checks not applicable"
+              echo "first_release=true" >>"$GITHUB_OUTPUT"
+              exit 0
+            fi
+            [ "$code" -eq 0 ] || exit "$code"
+            echo "first_release=false" >>"$GITHUB_OUTPUT"
             gh release download "$n1" --repo "$GITHUB_REPOSITORY" --dir "$RUNNER_TEMP/n1" --pattern corvint_linux_amd64.tar.gz --pattern SHA256SUMS
             cd "$RUNNER_TEMP/n1"
             grep -F corvint_linux_amd64.tar.gz SHA256SUMS
@@ -265,18 +272,47 @@ jobs:
         env:
           CORVINT_LIFECYCLE_ARCHIVE: ${{ runner.temp }}/n1/corvint_linux_amd64.tar.gz
           CORVINT_LIFECYCLE_UPGRADE_BINARY: ${{ runner.temp }}/current/corvint
+          FIRST_RELEASE: ${{ steps.n1.outputs.first_release }}
         run: |
+          if [ "$FIRST_RELEASE" = true ]; then
+            reason="FIRST_RELEASE: no published release precedes $SHA; the N-1 install lifecycle is not applicable"
+            "$RUNNER_TEMP/run-gate" install-lifecycle-n1 echo "install-lifecycle-n1: NOT_APPLICABLE $reason"
+            echo "::notice title=install-lifecycle-n1::$reason"
+            echo "- install-lifecycle-n1 $reason" >>"$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          test "$FIRST_RELEASE" = false
           "$RUNNER_TEMP/run-gate" install-lifecycle-n1 script/check-install-lifecycle.sh
       - name: Host lifecycle qualification of the three Core tuples (HLQ-V1)
-        # Each raw --report is kept for conformance/host-lifecycle-v1/results/ (HLQ-V1-008).
+        # Each raw --report is kept for conformance/host-lifecycle-v1/results/ (HLQ-V1-008). On a
+        # FIRST_RELEASE run there is no --base-corvint: the upgrade case must be its only NOT_RUN
+        # case, and every other case must pass.
         if: ${{ !cancelled() && steps.n1.outcome == 'success' }}
+        env:
+          FIRST_RELEASE: ${{ steps.n1.outputs.first_release }}
         run: |
           mkdir "$RUNNER_TEMP/host-lifecycle"
+          case $FIRST_RELEASE in
+            true) base=() ;;
+            false) base=(--base-corvint "$RUNNER_TEMP/previous/corvint") ;;
+            *) echo "::error::n1 step set no first_release output"; exit 1 ;;
+          esac
           status=0
           for host in cli codex claude-code; do
+            report="$RUNNER_TEMP/host-lifecycle/$host.txt"
+            code=0
             "$RUNNER_TEMP/run-gate" "host-lifecycle-$host" go run ./conformance/host-lifecycle-v1 --host "$host" \
-              --corvint "$RUNNER_TEMP/current/corvint" --base-corvint "$RUNNER_TEMP/previous/corvint" \
-              --source "$GITHUB_WORKSPACE" --report "$RUNNER_TEMP/host-lifecycle/$host.txt" || status=1
+              --corvint "$RUNNER_TEMP/current/corvint" "${base[@]}" \
+              --source "$GITHUB_WORKSPACE" --report "$report" || code=$?
+            if [ "$FIRST_RELEASE" = true ] && [ "$code" -eq 1 ] &&
+              grep -Fqx $'case\tupgrade\tNOT_RUN\tno --base-corvint supplied' "$report" &&
+              grep -Fqx $'SUMMARY\tstatus=FAIL\tpassed=8\tfailed=0\tnotRun=1' "$report"; then
+              reason="FIRST_RELEASE: no published release precedes $SHA; host-lifecycle-$host upgrade case is not applicable"
+              echo "::notice title=host-lifecycle-$host::$reason"
+              echo "- host-lifecycle-$host $reason; the other eight cases passed" >>"$GITHUB_STEP_SUMMARY"
+              code=0
+            fi
+            [ "$code" -eq 0 ] || status=1
           done
           exit "$status"
       - name: Hostile regression matrix (runbook step 8)
