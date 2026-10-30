@@ -672,6 +672,7 @@ AMAP-V0-425	docs/specs/application-map-v0.md	(accepted under the owner's standin
 AMAP-V0-426	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3161)	standing	2026-10-11; V1-3161
 AMAP-V0-427	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3161)	standing	2026-10-11; V1-3161
 AMAP-V0-650	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3164)	standing	2026-10-11; V1-3164
+AMAP-V0-651	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3164 review	standing	2026-10-11; V1-3164
 AMAP-V0-374	docs/specs/application-map-v0.md	A `this.m(...)` call of an unbound page object whose own class does not declare	unrecorded	-
 AMAP-V0-394	docs/specs/application-map-v0.md	A hop of the AMAP-V0-374 walk MUST also follow a base class its file binds by th	unrecorded	-
 AMAP-V0-450	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3098) A page o	standing	2026-10-11; V1-3098

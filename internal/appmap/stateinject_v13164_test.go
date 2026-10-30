@@ -42,3 +42,32 @@ func TestAMAPV0650PlainFunctionSpreadRebuildBlocks(t *testing.T) {
 		})
 	}
 }
+
+// AMAP-V0-651 (V1-3164 review repair): a concise arrow body that holds the literal below an
+// operator, a parenthesized return type, and an arrow at the start of a file keep the blocker, and a
+// spread of a module const named only as a parameter default stays quiet.
+func TestAMAPV0651ParameterSpreadReviewRepairs(t *testing.T) {
+	const caller = "const annotation = go(data);\nannotation.pop();\nannotation.push(function (n) { n.HOME = '/changed'; });\nregister(annotation);\n"
+	for name, src := range map[string]string{
+		"conditional concise body":        "export const go = i => true ? [...i, 0] : [];\n" + caller,
+		"parenthesized return type":       "export function go(i: string[]): (string | number)[] { return [...i, 0]; }\n" + caller,
+		"arrow parenthesized return type": "export const go = (i: string[]): (string | number)[] => [...i, 0];\n" + caller,
+		"arrow at file start":             "i => [...i, 0];\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			m, _ := gh1994Routed(t, src, "")
+			if d := diDetails(m); len(d) == 0 || !strings.Contains(strings.Join(d, ";"), ":computed-annotation") {
+				t.Fatalf("a parameter spread rebuild resolved: %+v", m.Unknowns)
+			}
+		})
+	}
+	for name, src := range map[string]string{
+		"module const default": "const PIPES = ['x'];\nexport function go(i = PIPES) { return [...PIPES, 'x']; }\ngo(data);\n",
+		"module const type":    "const PIPES = ['x'];\nexport function go(i: typeof PIPES) { return [...PIPES, 'x']; }\ngo(data);\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			m, details := gh1994Routed(t, src, "")
+			gh1869Resolved(t, name, m, details)
+		})
+	}
+}

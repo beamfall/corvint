@@ -395,12 +395,17 @@ func computedAnnotations(toks []token, exempt bool, quiet map[int]bool) []int {
 }
 
 // parameterSpread reports whether an element of the array literal opening at toks[i] spreads a name
-// (`...p`, `...p.deps`) that a parameter list enclosing the literal binds (AMAP-V0-650): the list of
-// a function, method or arrow whose body holds the literal, read as every `(...)` before a `{` and
-// every list or single name before an arrow, directly or through a return type. The literal then copies its caller's elements, so a
-// caller that pops its plain last element and pushes a function registers a rebuilt annotation, as
-// a method's spread parameter does (AMAP-V0-426). Any other parenthesized list before a `{` (an
-// `if` condition) is read as a parameter list too, which can only keep the literal judged.
+// (`...p`, `...p.deps`) that a parameter list enclosing the literal binds (AMAP-V0-650, AMAP-V0-651):
+// the list of a function, method or arrow whose body holds the literal, read as every `(...)` before
+// a `{` that encloses it, and every list or single name before an arrow `=>` at the literal's own or
+// an enclosing bracket level, back to that level's statement start, so a concise body such as
+// `i => c ? [...i, 0] : []` is read. A list may reach the `{` or `=>` through any balanced return
+// type (`): (A | B)[] {`). Only names in binding position count: a default value or type
+// annotation names no parameter (`go(i = LIST)`). The literal then copies its caller's elements, so
+// a caller that pops its plain last element and pushes a function registers a rebuilt annotation,
+// as a method's spread parameter does (AMAP-V0-426). Any other parenthesized list before a `{` (an
+// `if` condition), and an earlier arrow of the same statement, are read too, which can only keep
+// the literal judged.
 func parameterSpread(toks []token, elems [][2]int, i int) bool {
 	names := map[string]bool{}
 	for _, el := range elems {
@@ -411,36 +416,89 @@ func parameterSpread(toks []token, elems [][2]int, i int) bool {
 	if len(names) == 0 {
 		return false
 	}
+	opens := func(t token) bool { return isPunct(t, "(") || isPunct(t, "[") || isPunct(t, "{") }
+	closes := func(t token) bool { return isPunct(t, ")") || isPunct(t, "]") || isPunct(t, "}") }
+	arrow := func(k int) bool { return k > 0 && isPunct(toks[k], ">") && toks[k].glued && isPunct(toks[k-1], "=") }
+	// binds reports whether the list toks[open+1:close] binds a name: a default value (after `=`)
+	// or a type (after `:` at the list's own level) is skipped up to the `,` that ends it.
 	binds := func(open, close int) bool {
+		depth, skip := 0, -1
 		for k := open + 1; k < close; k++ {
-			if toks[k].kind == tokIdent && names[toks[k].text] && !property(toks, k) {
+			t := toks[k]
+			switch {
+			case opens(t):
+				depth++
+			case closes(t):
+				if depth--; skip > depth {
+					skip = -1
+				}
+			case isPunct(t, ",") && skip == depth:
+				skip = -1
+			case skip >= 0:
+			case isPunct(t, "=") && !next(toks, k+1, "=", ">") || isPunct(t, ":") && depth == 0:
+				skip = depth
+			case t.kind == tokIdent && names[t.text] && !property(toks, k):
 				return true
 			}
 		}
 		return false
 	}
+	// balanced reports whether toks[from:to] is a bracket-balanced run with no `;`: a return type.
+	balanced := func(from, to int) bool {
+		depth := 0
+		for k := from; k < to; k++ {
+			switch {
+			case opens(toks[k]):
+				depth++
+			case closes(toks[k]):
+				if depth--; depth < 0 {
+					return false
+				}
+			case isPunct(toks[k], ";"):
+				return false
+			}
+		}
+		return from < to && depth == 0
+	}
 	// list returns the `(` and `)` of a parameter list that ends just before toks[at], directly
-	// or through a return type (`): T[] {`, `): T =>`).
+	// or through a return type (`): T[] {`, `): (A | B)[] =>`).
 	list := func(at int) (int, int, bool) {
 		for c := at - 1; c > 0 && at-c <= 64; c-- {
-			if isPunct(toks[c], ")") && (c == at-1 || next(toks, c+1, ":") && typeEnd(toks, c+2) == at) {
+			if isPunct(toks[c], ")") && (c == at-1 || next(toks, c+1, ":") && balanced(c+2, at)) {
 				o := openParen(toks, c)
 				return o, c, o >= 0
 			}
 		}
 		return 0, 0, false
 	}
-	for h := i; h > 0; h = enclosingOpen(toks, h) {
-		switch {
-		case h > 2 && isPunct(toks[h-1], ">") && toks[h-1].glued && isPunct(toks[h-2], "="):
-			if l := h - 3; toks[l].kind == tokIdent && names[toks[l].text] && !next(toks, l-1, ":") {
-				return true
-			}
-			if o, c, ok := list(h - 2); ok && binds(o, c) {
-				return true
-			}
-		case isPunct(toks[h], "{"):
+	// arrowBinds reports whether the arrow whose `>` is toks[k] binds a name.
+	arrowBinds := func(k int) bool {
+		eq := k - 1
+		if l := eq - 1; l >= 0 && toks[l].kind == tokIdent && names[toks[l].text] && !next(toks, l-1, ":") {
+			return true
+		}
+		o, c, ok := list(eq)
+		return ok && binds(o, c)
+	}
+	for h := i; h >= 0; h = enclosingOpen(toks, h) {
+		if isPunct(toks[h], "{") {
 			if o, c, ok := list(h); ok && binds(o, c) {
+				return true
+			}
+		}
+		depth := 0
+		for k := h - 1; k >= 0; k-- {
+			t := toks[k]
+			if closes(t) {
+				depth++
+			} else if opens(t) {
+				if depth == 0 {
+					break
+				}
+				depth--
+			} else if depth == 0 && isPunct(t, ";") {
+				break
+			} else if depth == 0 && arrow(k) && arrowBinds(k) {
 				return true
 			}
 		}

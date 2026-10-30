@@ -1522,6 +1522,18 @@ but does not read it; only non-Go syntax impact does.
   whose popped result a caller registered, stayed quiet. Non-goals: a spread whose operand is no
   name (a call or parenthesized expression), caller-flow analysis. Rollback: drop
   `parameterSpread` from `computedAnnotations`. Delivery: experimental.
+- `AMAP-V0-651`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3164 review
+  repair) The AMAP-V0-650 parameter reading MUST also read every arrow `=>` that lies at the
+  literal's own or an enclosing bracket level, back to that level's opening bracket or a `;`, so a
+  concise body that holds the literal below an operator (`i => c ? [...i, 0] : []`) is read. A
+  parameter list MUST reach its `{` or `=>` through any bracket-balanced return type with no `;`
+  (`): (string | number)[] {`). Only a name in binding position counts: a name after a default
+  `=`, or after a `:` type at the list's own level, up to the `,` that ends it, binds nothing, so
+  `function go(i = PIPES) { return [...PIPES, 'x'] }` keeps the module-const exemption. The token
+  reader's punctuation test MUST answer false for a negative index, so an examined file that begins
+  with `i => [...i, 0]` is read rather than panicking. An earlier arrow of the same statement is read
+  too, which can only keep a literal judged. Rollback: restore the AMAP-V0-650 reading. Delivery:
+  experimental.
 - `AMAP-V0-374`: A `this.m(...)` call of an unbound page object whose own class does not declare m
   (AMAP-V0-370) MUST walk the test-root `extends` chain, each hop a class its file imports by name
   from a test file whose class is that name, at most 8 hops, to the nearest class declaring m, and
@@ -2413,6 +2425,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-426 | `TestAMAPV0425ParameterPatternsAndMethodConsts`, `TestAMAPV0427ReportedFormsStayRefused`, `TestAMAPV0424ElementWiseRefusals` (typed `Kind[]` const passed to a proved method quiet; escaping parameter, injector-facing name, other receiver and a parameter spread into a returned plain-ended literal block; computed and reflective member writes still block) |
 | AMAP-V0-427 | `TestAMAPV0427ReportedFormsStayRefused` (the seven unproved #2020 forms, provider `deps`, computed `$inject` and method-decorator arrays keep `computed-annotation`) |
 | AMAP-V0-650 | `TestAMAPV0650PlainFunctionSpreadRebuildBlocks` (function declaration, unexported, arrow body, arrow block, function expression, typed return, typed arrow return, later parameter, nested arrow and parameter-member spreads ending in a plain element and popped by a caller block; a spread-free literal and a module-const spread stay quiet) |
+| AMAP-V0-651 | `TestAMAPV0651ParameterSpreadReviewRepairs` (conditional concise arrow body, parenthesized function and arrow return types and an arrow at the start of a file block without a panic; a module const named only as a parameter default or type stays quiet) |
 | AMAP-V0-374 | `TestAMAPV0374InheritedChain` (Leaf -> Mid -> Base places the helper's state; a cycle, an unresolved package base and a chain one hop past the bound are `inherited-depth` gaps) |
 | AMAP-V0-394 | `TestAMAPV0394DefaultImportedMiddleClass`, `TestAMAPV0394DefaultImportBindings` (a default-exported, default-imported middle class places the helper's state through relative, bare and mixed-clause imports; a default import of a named-only class is `inherited-depth`, also in the `page-object-unresolved-target` detail; the default-clause reading skips named, namespace, type-only, dynamic and twice-bound imports) |
 | AMAP-V0-450 | `TestAMAPV0450UnresolvedTargetKeepsHelperGotos` (Base/Mid/Leaf retains its inherited helper candidate without binding; every unplaceable direct site has a nonempty file/line/reason detail, excluding resolved sites); `TestAMAPV0394DefaultImportedMiddleClass` (direct-site details retain an unfollowed helper gap) |
