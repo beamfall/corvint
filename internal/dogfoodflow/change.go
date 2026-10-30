@@ -126,6 +126,9 @@ type change struct {
 	// citationFailedMap is the map the failing cite command read: the staged
 	// citation map after the first row (DCW-V0-068).
 	citationFailedMap string
+	// nested marks a finish-lane pass, whose run already checked the
+	// worktree for an earlier lane's state (DCW-V0-400).
+	nested bool
 	// scope narrows a finish-lane pass to the steps its decision reads
 	// (DCW-V0-115); a standalone change run is always passFull.
 	scope passScope
@@ -165,6 +168,10 @@ func (c *change) run() int {
 	}
 	c.base = c.gitValue("rev-parse", c.options.Base+"^{commit}")
 	c.target = c.gitValue("rev-parse", "HEAD^{commit}")
+	// finish-lane checks once before its first pass; its passes skip it.
+	if !c.nested {
+		c.requireFreshWorktree(c.base, c.gitDir)
+	}
 	task := c.options.Task
 	if task == "" {
 		task = "Dogfood change from " + c.base[:12] + " to HEAD"
@@ -1606,6 +1613,10 @@ func (c *change) citationPlanMismatch(plan []byte) string {
 	if len(records) > 0 {
 		recordCitation = c.authorityCitation(deferralAuthorityAnchor)
 	}
+	// A hunk on a path whose whole BASE..HEAD change is one commit that
+	// replays as regenerated is cited against the DCW-V0-401 bullet at BASE
+	// (DCW-V0-398, V1-3214).
+	regenCitation := c.authorityCitation(regenerationAuthorityAnchor)
 	seals := []string{}
 	for index, hunk := range hunks {
 		if hunk["disposition"] != "unknown" || recordedUnknownReasons[hunk["reason"]] || named[strconv.Itoa(index+1)] || named[hunk["id"]] {
@@ -1616,6 +1627,8 @@ func (c *change) citationPlanMismatch(plan []byte) string {
 			seals = append(seals, hunk["id"]+"\t"+citation)
 		case recordCitation != "" && records[hunk["id"]]:
 			seals = append(seals, hunk["id"]+"\t"+recordCitation)
+		case regenCitation != "" && c.regeneratedPath(hunk["path"]):
+			seals = append(seals, hunk["id"]+"\t"+regenCitation)
 		}
 	}
 	if len(textLines(plan))+len(seals) <= 256 {
@@ -1754,7 +1767,26 @@ const (
 	sealAuthority           = "docs/specs/daily-change-evidence-workflow-v0.md"
 	sealAuthorityAnchor     = "- `DCW-V0-042`:"
 	deferralAuthorityAnchor = "- `DCW-V0-372`:"
+	// regenerationAuthorityAnchor is the DCW-V0-401 requirement a regenerated
+	// hunk is cited against (DCW-V0-398).
+	regenerationAuthorityAnchor = "- `DCW-V0-401`:"
 )
+
+// regeneratedPath reports whether path's whole BASE..HEAD change is one
+// non-merge commit that replays as regenerated from its parent (DCW-V0-398):
+// then BASE holds that parent's bytes of path and HEAD that commit's, so every
+// hunk on path is generated. A path any other commit also touches, or whose
+// one commit has a hand edit anywhere, still owes its citation rows.
+func (c *change) regeneratedPath(path string) bool {
+	listing, status, bounded := c.boundedGit("rev-list", "--full-history", c.base+"..HEAD", "--", path)
+	commits := nonEmpty(strings.Split(listing, "\n"))
+	if status != 0 || !bounded || len(commits) != 1 {
+		return false
+	}
+	// Path limiting rewrites --parents, so the real parents are read apart.
+	parents := nonEmpty(strings.Split(c.gitValue("rev-parse", commits[0]+"^@"), "\n"))
+	return len(parents) == 1 && c.regenerated(parents[0], commits[0]).ok
+}
 
 // sealCitation cites the DCW-V0-042 bullet (DCW-V0-341).
 func (c *change) sealCitation() string {

@@ -168,6 +168,7 @@ set -uo pipefail
 
 refuse() {
   printf 'heavy.sh: REFUSE %s\n' "$*" >&2
+  printf 'heavy.sh: REFUSED %s (exit 2)\n' "${1%% *}" # stdout marker survives `| tail` (V1-3213)
   exit 2
 }
 
@@ -971,6 +972,7 @@ selection_policy() {
   esac
   if [[ -z ${HEAVY_WHOLE_REASON-} ]]; then
     printf '%s\n' "heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON. Run only Corvint's selection: corvint test --base <origin/main sha> --dry-run, then go test -run '<selected>' ./<pkg>. If Corvint selected the package whole or reported UNKNOWN/FALLBACK for it, rerun with HEAVY_WHOLE_REASON='<that reason>'." >&2
+    printf 'heavy.sh: REFUSED whole-reason-missing (exit 2)\n' # stdout marker (V1-3213)
     selection_log "$now refused pwd=$PWD cmd=$*"
     return 1
   fi
@@ -983,6 +985,7 @@ local_policy() {
   [[ ${HEAVY_REMOTE:-1} == 0 ]] && offloadable "$@" || return 0
   [[ -n ${HEAVY_LOCAL_REASON-} ]] && return 0
   printf '%s\n' "heavy.sh: refused: HEAVY_REMOTE=0 without HEAVY_LOCAL_REASON. Drop HEAVY_REMOTE=0 so the run offloads (flake reruns and -count=N included). Only a test that needs this host may run locally: rerun with HEAVY_LOCAL_REASON='<why it needs this host>'." >&2
+  printf 'heavy.sh: REFUSED local-reason-missing (exit 2)\n' # stdout marker (V1-3213)
   fallback_log refused-local "$@"
   return 1
 }

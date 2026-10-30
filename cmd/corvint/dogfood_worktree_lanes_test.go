@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 type laneRun struct {
@@ -45,8 +46,8 @@ func (run portableRun) concurrently(t *testing.T, dirs []string, extra func(int)
 // worktree, run change, bind, check and seal at the same time and neither
 // refuses: each worktree keeps its own local trace store, evidence directory
 // and operation lock, and the primary worktree's store is never written. Run
-// in lane A's worktree instead, lane B is refused by lane A's stranded traces,
-// and the refusal names the per-lane worktree.
+// in lane A's worktree instead, lane B is refused before any prepare by lane
+// A's stranded traces (DCW-V0-400), and the named recovery clears it.
 func TestDogfoodDCWV0044WorktreeLanesRunConcurrently(t *testing.T) {
 	t.Parallel()
 	run := portableDogfoodRunner(t)
@@ -113,11 +114,44 @@ func TestDogfoodDCWV0044WorktreeLanesRunConcurrently(t *testing.T) {
 	}
 
 	// The shared-store failure V1-1209 reported: lane B's work run in lane A's
-	// worktree, whose traces name commits lane B cannot reach.
+	// worktree, whose traces name commits lane B cannot reach, beside an ignored
+	// OCM sidecar older than BASE (fixture commits are dated 2000-01-01). DCW-V0-400 (V1-3211) refuses it before any
+	// prepare or bind and names the recovery, which then clears the refusal.
 	cemGit(t, lanes[0], "checkout", "-q", "--detach", work)
+	stale := filepath.Join(lanes[0], ".corvint", "change.ocm.009.json")
+	if err := os.WriteFile(stale, []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(stale, time.Unix(946684000, 0), time.Unix(946684000, 0)); err != nil {
+		t.Fatal(err)
+	}
+	before := cemGit(t, lanes[0], "rev-parse", "HEAD")
 	code, _, stderr := run.exec(t, lanes[0], inputs(1), "dogfood", "change", base)
-	if code != 1 || !strings.Contains(stderr, "  local trace store: a recorded trace names a commit no longer reachable from HEAD; ") ||
-		!strings.Contains(stderr, "run each lane in its own worktree (git worktree add) or clone") {
+	if code != 2 || !strings.Contains(stderr, "dogfood-change: REFUSE reused-worktree-state\n") ||
+		!strings.Contains(stderr, "  stale trace: the worktree-local trace store names ") ||
+		!strings.Contains(stderr, "  stale sidecar: .corvint/change.ocm.009.json is ignored and was last written before BASE ") ||
+		!strings.Contains(stderr, "each lane should use a fresh worktree (git worktree add)") {
 		t.Fatalf("shared worktree exit=%d stderr=%s", code, stderr)
+	}
+	if after := cemGit(t, lanes[0], "rev-parse", "HEAD"); after != before {
+		t.Fatalf("the refusal committed %s", after)
+	}
+	digest := ""
+	for _, line := range strings.Split(stderr, "\n") {
+		if rest, ok := strings.CutPrefix(line, "  fix: corvint migrate-traces --apply --plan-digest "); ok {
+			digest, _, _ = strings.Cut(rest, " ")
+		}
+	}
+	if len(digest) != 64 {
+		t.Fatalf("no plan digest in %s", stderr)
+	}
+	if err := os.Rename(stale, filepath.Join(t.TempDir(), "change.ocm.009.json")); err != nil {
+		t.Fatal(err)
+	}
+	if code, stdout, stderr := run.exec(t, lanes[0], nil, "migrate-traces", "--apply", "--plan-digest", digest); code != 0 {
+		t.Fatalf("migrate-traces exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	if _, _, stderr := run.exec(t, lanes[0], inputs(1), "dogfood", "change", base); strings.Contains(stderr, "reused-worktree-state") {
+		t.Fatalf("recovered worktree still refused: %s", stderr)
 	}
 }
