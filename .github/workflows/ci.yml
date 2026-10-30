@@ -1483,6 +1483,17 @@ jobs:
               CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
             )
           done
+      - name: Nested module tools/local-authority tests and vet (CIN-V0-008)
+        # V1-3329: the only CI run of this nested module's tests. It runs on every path that
+        # starts go-static, so it covers every change a plan can carry to the module, its own
+        # files included. Its two external modules are fetched once, verified against the
+        # module's go.sum (-mod=readonly fails on a missing or mismatched hash); the tests and
+        # vet then run with GOPROXY off, as every other Go step does.
+        working-directory: source/tools/local-authority
+        run: |
+          GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org GOFLAGS=-mod=readonly go mod download
+          go test -count=1 -timeout 30m ./...
+          go vet ./...
       - name: Independent interop under production toolchain
         # AFP-V0-380 (V1-1103): the only run of interop/cem01-go's tests and vet in this workflow.
         working-directory: source/interop/cem01-go
