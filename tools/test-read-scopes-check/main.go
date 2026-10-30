@@ -118,7 +118,7 @@ type finding struct {
 	// (V1-2037), rather than a literal the test names.
 	listed bool
 	// built marks a dependency directory a go build, run, vet, test or install
-	// of repository source by the test loads (AFP-V0-840).
+	// of repository source by the test loads (AFP-V0-847).
 	built bool
 	// sandbox is the reason a declared package's tests launch a nested
 	// sandbox (AFP-V0-615); file and path are then empty.
@@ -314,7 +314,7 @@ func goListTargets(name string, body []byte) ([]string, error) {
 }
 
 // goBuildVerbs are the go subcommands that compile repository source, so a
-// confined run reads every in-repository package they load (AFP-V0-840).
+// confined run reads every in-repository package they load (AFP-V0-847).
 var goBuildVerbs = []string{"build", "run", "vet", "test", "install"}
 
 // goTestVerbs also compile the package's test files, so their targets load the
@@ -571,7 +571,7 @@ func dependencyCovered(directory, dependency string, entries []string) bool {
 }
 
 // recordedAbove returns the recorded path of a package that is dependency or a
-// directory above it (AFP-V0-840).
+// directory above it (AFP-V0-847).
 func recordedAbove(recorded map[string]string, dependency string) (string, bool) {
 	for target := range recorded {
 		if dependency == target || strings.HasPrefix(dependency, target+"/") {
