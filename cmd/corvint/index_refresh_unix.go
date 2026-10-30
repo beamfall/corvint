@@ -3,7 +3,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -32,17 +35,71 @@ type snapshotRefreshCommandKey struct{}
 type snapshotRefreshCommand func(root string) (*exec.Cmd, error)
 
 func startSnapshotRefresh(ctx context.Context, root string) string {
+	status, _ := startSnapshotRefreshReporting(ctx, root)
+	return status
+}
+
+// startSnapshotRefreshReporting also returns, for a started refresh, the outcome the previous
+// writer left in the lock metadata it holds: "" when that writer completed or none ran
+// (proposed IDX-SNAP-V0-515).
+func startSnapshotRefreshReporting(ctx context.Context, root string) (string, string) {
 	if adapterGetenv(ctx, "CORVINT_INDEX_AUTO_REFRESH") == "0" {
-		return "disabled"
+		return "disabled", ""
 	}
 	lock, err := contextindex.AcquireSnapshotRefreshLock(root)
 	if err != nil {
-		return "failed to start"
+		return "failed to start", ""
 	}
 	if lock == nil {
-		return "already running"
+		return "already running", ""
 	}
 	defer lock.Close()
+	previous := previousSnapshotRefresh(lock)
+	status := spawnSnapshotRefresh(ctx, root, lock)
+	if status != "started" {
+		previous = ""
+	}
+	return status, previous
+}
+
+// snapshotRefreshMetadataBound caps the lock metadata a hook reads back.
+const snapshotRefreshMetadataBound = 512
+
+// snapshotRefreshRecord is the lock metadata: pid and start while a writer runs, plus its end
+// and outcome once it stopped without finishing successfully (proposed IDX-SNAP-V0-515).
+type snapshotRefreshRecord struct {
+	PID     int    `json:"pid"`
+	Started string `json:"started"`
+	Ended   string `json:"ended,omitempty"`
+	Outcome string `json:"outcome,omitempty"`
+}
+
+// previousSnapshotRefresh reads the metadata of the lock the caller holds. A completed writer
+// truncates it, so any record left behind names a writer that did not finish successfully; it may
+// still have published a snapshot before a later step failed or a kill landed. Only
+// the parsed start time and a closed outcome reach the notice, never the raw bytes or the PID.
+func previousSnapshotRefresh(lock *os.File) string {
+	buffer := make([]byte, snapshotRefreshMetadataBound)
+	read, _ := lock.ReadAt(buffer, 0)
+	var record snapshotRefreshRecord
+	if read == 0 || json.Unmarshal(bytes.TrimSpace(buffer[:read]), &record) != nil {
+		return ""
+	}
+	started, err := time.Parse(time.RFC3339Nano, record.Started)
+	if err != nil {
+		return ""
+	}
+	cause := "it stopped before recording an outcome (its 60-second hard limit, a crash or a signal ends a refresh this way)"
+	switch record.Outcome {
+	case "expired":
+		cause = "it reached its 55-second work limit; heavy machine load can cause this, because the refresh runs at low priority on one CPU"
+	case "failed":
+		cause = "it failed"
+	}
+	return "The previous background refresh, started at " + started.UTC().Format(time.RFC3339) + ", did not finish successfully: " + cause + ". Until a refresh completes, later events may also get no Corvint context."
+}
+
+func spawnSnapshotRefresh(ctx context.Context, root string, lock *os.File) string {
 	commandFor := func(root string) (*exec.Cmd, error) {
 		executable, err := os.Executable()
 		if err != nil {
@@ -128,6 +185,9 @@ func runSnapshotRefreshWorker(arguments []string, wallBound time.Duration) int {
 	// Linux retains fd 3 and the original wall deadline across its self-exec.
 	if err := prepareSnapshotRefreshPriority(deadline); err != nil {
 		fmt.Fprintln(os.Stderr, "index refresh priority:", err)
+		// The lock is validated, so the refused start is recorded like any other failure.
+		now := time.Now().UTC().Format(time.RFC3339Nano)
+		_ = writeSnapshotRefreshRecord(lock, snapshotRefreshRecord{PID: os.Getpid(), Started: now, Ended: now, Outcome: "failed"})
 		return 2
 	}
 	// FD 3 belongs only to this worker, never its Git children.
@@ -135,10 +195,10 @@ func runSnapshotRefreshWorker(arguments []string, wallBound time.Duration) int {
 	if err := lock.Truncate(0); err != nil {
 		return 2
 	}
-	if _, err := fmt.Fprintf(lock, "{\"pid\":%d,\"started\":%q}\n", os.Getpid(), time.Now().UTC().Format(time.RFC3339Nano)); err != nil {
+	record := snapshotRefreshRecord{PID: os.Getpid(), Started: time.Now().UTC().Format(time.RFC3339Nano)}
+	if err := writeSnapshotRefreshRecord(lock, record); err != nil {
 		return 2
 	}
-	defer lock.Truncate(0)
 	runtime.GOMAXPROCS(1)
 	interrupted := make(chan os.Signal, 1)
 	signal.Notify(interrupted, syscall.SIGINT, syscall.SIGTERM)
@@ -151,7 +211,31 @@ func runSnapshotRefreshWorker(arguments []string, wallBound time.Duration) int {
 	}()
 	ctx, cancel := context.WithDeadline(context.Background(), deadline.Add(-wallBound/12))
 	defer cancel()
-	return runIndex(ctx, invocation, os.Stdout, os.Stderr)
+	status := runIndex(ctx, invocation, os.Stdout, os.Stderr)
+	if status == 0 {
+		_ = lock.Truncate(0)
+		return status
+	}
+	// A refresh that published nothing leaves its outcome for the next hook's notice.
+	record.Ended, record.Outcome = time.Now().UTC().Format(time.RFC3339Nano), "failed"
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		record.Outcome = "expired"
+	}
+	_ = writeSnapshotRefreshRecord(lock, record)
+	return status
+}
+
+// writeSnapshotRefreshRecord replaces the lock metadata with one JSON line.
+func writeSnapshotRefreshRecord(lock *os.File, record snapshotRefreshRecord) error {
+	encoded, err := json.Marshal(record)
+	if err != nil {
+		return err
+	}
+	if err := lock.Truncate(0); err != nil {
+		return err
+	}
+	_, err = lock.WriteAt(append(encoded, '\n'), 0)
+	return err
 }
 
 // Linux nice is per-thread. Exec on the lowered, locked thread discards the

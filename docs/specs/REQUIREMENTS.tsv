@@ -4197,6 +4197,7 @@ IDX-SNAP-V0-033	docs/specs/index-snapshot-v0.md	(accepted, decision 0517) The ch
 IDX-SNAP-V0-034	docs/specs/index-snapshot-v0.md	(accepted, decision 0517) Publication, disk bounds and	owner	decision 0517
 IDX-SNAP-V0-035	docs/specs/index-snapshot-v0.md	(accepted, decision 0517) `CORVINT_INDEX_AUTO_REFRESH=0`	owner	decision 0517
 IDX-SNAP-V0-036	docs/specs/index-snapshot-v0.md	(accepted, decision 0517) Acceptance requires a real	owner	decision 0517
+IDX-SNAP-V0-515	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0607) A	standing	2026-10-11; V1-0607
 IDX-SNAP-V0-060	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-2130)) The	standing	2026-10-11; V1-2130
 IDX-SNAP-V0-061	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1732))	standing	2026-10-11; V1-1732
 IDX-SNAP-V0-102	docs/specs/index-snapshot-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1640)) When	standing	2026-10-11; V1-1640
