@@ -108,6 +108,14 @@ func runLocalCompletion(ctx context.Context, root string, args []string, stdin i
 		if errors.As(err, &reasonless) {
 			return emitLocalCompletionFailureDetail(stderr, err.Error(), reasonless.Detail())
 		}
+		var drift *localcompletion.SealedDriftError
+		if errors.As(err, &drift) {
+			return emitLocalCompletionFailureDetail(stderr, err.Error(), drift.Detail())
+		}
+		var final *localcompletion.FinalCheckError
+		if errors.As(err, &final) {
+			return emitLocalCompletionFailureDetail(stderr, err.Error(), final.Detail())
+		}
 		return emitLocalCompletionFailure(stderr, err.Error())
 	}
 	code := localCompletionExit(args[0], flags["--check"], result)
@@ -282,6 +290,9 @@ func emitLocalCompletionFailureDetail(stderr io.Writer, code, detail string) int
 // carries no path or command text; the code stays the stable member.
 var localCompletionRemedies = map[string]string{
 	"cancel-reason-required": "an active, unsatisfied enrollment is cancelled only with --reason TEXT; to move to a new base, leave it ACTIVE and begin a new enrollment in a fresh worktree or clone instead (docs/DOGFOOD.md)",
+	"sealed-evidence-drift":  "a sealed continuation's pinned evidence no longer matches; the detail names the artifact, the reason and, for a byte change, the pinned and current digests. Only the lane closeout's own outcome record is re-pinned, so run the enrolled finish, then the lane closeout, then dogfood verify and finish (docs/DOGFOOD.md); restore any other named artifact instead of editing private evidence",
+	"finish-interrupted":     "the caller's signal or cancellation ended finish during the named step; its logs are retained, no outcome or terminal was written, and rerunning the named finish reuses the unchanged bound results",
+	"final-check-failed":     "the final strict dogfood check did not pass; read the named logs under the Git directory, fix the cause, and rerun finish",
 	"prior-completion-stale": "this session's satisfied enrollment is bound to an earlier target and no longer evaluates as satisfied; begin the next stage of a staged binding in a fresh worktree or clone, and leave this one as it is (docs/DOGFOOD.md, staged binding)",
 	"invalid-check-bound":    "each plan check takes 1-64 argv elements and timeoutSeconds 1-3600; split a longer run into several checks",
 	"invalid-intent-scope":   "the plan intents array must list 1-16 repository-relative spec paths, each clean, sorted in byte order with no duplicates (the rule DOGFOOD_INTENTS_FILE follows for dogfood change); sort and de-duplicate it, for example with LC_ALL=C sort -u",

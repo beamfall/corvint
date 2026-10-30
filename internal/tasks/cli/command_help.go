@@ -395,6 +395,7 @@ func init() {
 	for _, verb := range []string{"create", "update", "candidate", "record-gate", "promote"} {
 		commandUsage["release "+verb] = "corvint-tasks release " + verb + " --request-id ID --target RELEASE [--expected-revision N] (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE]"
 	}
+	commandUsage["release membership"] = "corvint-tasks release membership --request-id ID --target RELEASE --expected-revision N (--add TICKET | --remove TICKET)... [--issued-at TS] [--role ROLE]"
 	for _, verb := range []string{"run", "admit", "resume", "retry", "drain", "cancel", "answer"} {
 		commandUsage[verb] = "corvint-tasks " + verb + " --program ID --config FILE [--role implementer|reviewer|integrator] [--count N] [--ticket ID] [--host codex|claude-code|opencode] [--grant ID] [--question SHA256] [--revision N] [--answer TEXT]"
 	}

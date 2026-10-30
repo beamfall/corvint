@@ -814,14 +814,16 @@ func normalizeRoot(value string) (string, error) {
 }
 
 // invalidChoice renders argparse's invalid-choice message. The choice order is
-// the parser's declaration order, which argparse preserves.
+// the parser's declaration order, which argparse preserves. Like argparse's
+// %r, the value is a Python repr, so a quote or control character in it is
+// escaped rather than ending the quoted span.
 func invalidChoice(argument, value string, choices []string) error {
 	quoted := make([]string, 0, len(choices))
 	for _, choice := range choices {
-		quoted = append(quoted, "'"+choice+"'")
+		quoted = append(quoted, pythonRepr(choice))
 	}
-	return argumentError("argument " + argument + ": invalid choice: '" + value +
-		"' (choose from " + strings.Join(quoted, ", ") + ")")
+	return argumentError("argument " + argument + ": invalid choice: " + pythonRepr(value) +
+		" (choose from " + strings.Join(quoted, ", ") + ")")
 }
 
 var (

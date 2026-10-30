@@ -327,7 +327,7 @@ func unretireLocked(ctx context.Context, repo *intent.Repository, archivePath st
 		if err != nil {
 			return report, wire.Errorf(wire.CodeMalformed, archivePath, "archive changed after verification: %v", err)
 		}
-		seq, ok := retiredReceipt(hdr.Name, seal.Seq())
+		seq, name, ok := retiredReceipt(hdr.Name, seal.Seq())
 		if !ok {
 			continue
 		}
@@ -341,7 +341,6 @@ func unretireLocked(ctx context.Context, repo *intent.Repository, archivePath st
 		if wire.Sum(raw) != want[hdr.Name] {
 			return report, wire.Errorf(wire.CodeJournalForked, hdr.Name, "archived receipt differs from the verified manifest")
 		}
-		name := strings.TrimPrefix(hdr.Name, "receipts/")
 		if err := dir.LinkIn(name, raw); errors.Is(err, authority.ErrExists) {
 			held, rerr := intent.ReadFile(filepath.Join(dir.Path(), name), wire.MaxReceiptFileBytes)
 			if rerr != nil || wire.Sum(held) != wire.Sum(raw) {
@@ -387,26 +386,29 @@ func unretireLocked(ctx context.Context, repo *intent.Repository, archivePath st
 	return report, closingAudit(repo, 0)
 }
 
-// retiredReceipt reports whether an archive entry is a retired receipt.
-func retiredReceipt(name string, anchor uint64) (uint64, bool) {
+// retiredReceipt reports whether an archive entry is a retired receipt, and
+// returns its sequence and the canonical receipt file name. Callers write that
+// regenerated name, never the archive's own bytes (V1-3179).
+func retiredReceipt(name string, anchor uint64) (uint64, string, bool) {
 	base, ok := strings.CutPrefix(name, "receipts/")
 	if !ok || len(base) != 17 || !strings.HasSuffix(base, ".json") {
-		return 0, false
+		return 0, "", false
 	}
 	seq := uint64(0)
 	for _, c := range base[:12] {
 		if c < '0' || c > '9' {
-			return 0, false
+			return 0, "", false
 		}
 		seq = seq*10 + uint64(c-'0')
 	}
 	if seq == 0 || seq >= anchor {
-		return 0, false
+		return 0, "", false
 	}
-	if n, _ := snapshot.ReceiptName(seq); n != base {
-		return 0, false
+	n, err := snapshot.ReceiptName(seq)
+	if err != nil || n != base {
+		return 0, "", false
 	}
-	return seq, true
+	return seq, n, true
 }
 
 // recoverRetire finishes an interrupted retire or unretire (JRT-V0-009). The

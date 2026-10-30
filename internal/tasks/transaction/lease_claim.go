@@ -72,11 +72,16 @@ func declaredOther(rec *ticket.Record) []ticket.Resource {
 }
 
 // claimScope applies the CAL-V0-021 precedence: DECLARED, REQUESTED,
-// DERIVED, then WHOLE_REPOSITORY.
-func (c leaseContext) claimScope(rec *ticket.Record) (*snapshot.Scope, error) {
+// DERIVED, then WHOLE_REPOSITORY. Restored paths join a DECLARED scope as
+// the widen they repeat would have joined it (TRM-V0-006).
+func (c leaseContext) claimScope(rec *ticket.Record, restored []string) (*snapshot.Scope, error) {
 	other := declaredOther(rec)
 	if declared := Declared(rec); len(declared) > 0 {
-		return &snapshot.Scope{Source: "DECLARED", Resources: append(pathResources(declared), other...)}, nil
+		paths := append(pathResources(declared), pathResources(restored)...)
+		if len(paths)+len(other) > snapshot.MaxScopeResources {
+			return nil, limit("restored scope exceeds " + string(wire.CountOf(snapshot.MaxScopeResources)) + " resources")
+		}
+		return &snapshot.Scope{Source: "DECLARED", Resources: append(paths, other...)}, nil
 	}
 	if c.l.Scope != nil {
 		return &snapshot.Scope{Source: "REQUESTED", Resources: append(pathResources(c.l.Scope), other...)}, nil
@@ -342,7 +347,8 @@ func planClaim(c leaseContext) leaseOutcome {
 	if c.l.Pool != "" && c.st.policy.Pool(c.l.Pool) == nil {
 		return c.fail(malformed("unknown pool"))
 	}
-	if bad := requestedOutsideDeclared(rec, c.l.Scope); len(bad) > 0 {
+	bad, restored := c.restoreScope(rec, requestedOutsideDeclared(rec, c.l.Scope))
+	if len(bad) > 0 {
 		declared := Declared(rec)
 		out := c.refuse(mutation.OutcomeBlocked, wire.CodeOutOfScope, "requested --scope paths outside the ticket's declared scope: "+strings.Join(bad, " ")+"; declared paths: "+strings.Join(declared, " ")+exactKeyHint(declared, bad)+"; the declared scope takes precedence (CAL-V0-021): "+ScopeRetry+" (CAL-V0-025, ATR-V0-210, ATR-V0-214)")
 		out.result.ScopeRefusal = &ScopeRefusal{Declared: declared, Rejected: bad}
@@ -356,11 +362,49 @@ func planClaim(c leaseContext) leaseOutcome {
 		out.result.ScopeRefusal = &ScopeRefusal{Declared: declared, Rejected: bad}
 		return out
 	}
-	sc, e := c.claimScope(rec)
+	sc, e := c.claimScope(rec, restored.paths())
 	if e != nil {
 		return c.fail(e)
 	}
-	return c.admit(rec, sc)
+	out := c.admit(rec, sc)
+	if out.effect != nil {
+		out.restored = restored
+	}
+	return out
+}
+
+// restoreScope splits the requested paths outside the declared scope into
+// those the ticket's last ended generation already held, at this acceptance
+// revision, and the rest (TRM-V0-006, V1-3190). Only a generation a claim
+// would retry qualifies, so a restored path was admitted to this ticket's
+// attempt before, through a widen. The rest stay OUT_OF_SCOPE (TRM-V0-007).
+func (c leaseContext) restoreScope(rec *ticket.Record, outside []string) ([]string, *RestoredScope) {
+	if len(outside) == 0 {
+		return outside, nil
+	}
+	prior := lastAttemptOf(c.st.attempts, rec.TicketID.Raw)
+	if prior == nil || prior.Phase == "COMPLETED" || prior.TicketRevision != rec.AcceptanceRevision || prior.Scope == nil || prior.Scope.Source != "DECLARED" {
+		return outside, nil
+	}
+	held := []ticket.Resource{}
+	for _, r := range prior.Scope.Resources {
+		if r.Class == "PATH" {
+			held = append(held, r)
+		}
+	}
+	bad, restored := []string{}, []string{}
+	for _, p := range outside {
+		if covered(held, p) {
+			restored = append(restored, p)
+		} else {
+			bad = append(bad, p)
+		}
+	}
+	if len(restored) == 0 {
+		return bad, nil
+	}
+	sort.Strings(restored)
+	return bad, &RestoredScope{FromGeneration: prior.Generation, Paths: slices.Compact(restored)}
 }
 
 // exactKeyHint names each rejected path that is a declared directory key
@@ -528,6 +572,13 @@ func (c leaseContext) addedPaths(a *snapshot.Attempt) []string {
 	return out
 }
 
+// widenPausedRemedy is the PAUSED detail for widen under an admission
+// barrier: it says why widen counts as an admission and names the recovery
+// (TRM-V0-005, V1-3189).
+const widenPausedRemedy = "an admission barrier is present: widen admits new paths to a live attempt's reservation, so the barrier refuses it like a claim; " +
+	"the owner or operator lifts the barrier (corvint-tasks unpause), widens and restores it (corvint-tasks pause), " +
+	"or the attempt releases and a later claim restores its widened scope (TRM-V0-006); the attempt's existing scope stays held"
+
 func planWiden(c leaseContext) leaseOutcome {
 	a, e := c.named()
 	if e != nil {
@@ -539,9 +590,10 @@ func planWiden(c leaseContext) leaseOutcome {
 	if a.Scope.Source == "WHOLE_REPOSITORY" {
 		return c.unchanged()
 	}
-	// An admission barrier refuses scope-expand (TCP-00 §3.4).
+	// An admission barrier refuses scope-expand (TCP-00 §3.4): widen admits
+	// new paths to a live reservation, so it is an admission (TRM-V0-005).
 	if c.st.barrier != nil {
-		return c.refuse(mutation.OutcomeBlocked, wire.CodePaused, "an admission barrier is present")
+		return c.refuse(mutation.OutcomeBlocked, wire.CodePaused, widenPausedRemedy)
 	}
 	if c.l.WholeRepository {
 		return c.widenWhole(a)

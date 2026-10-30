@@ -255,6 +255,7 @@ For a bounded lookup, use [Agent evidence routes](../AGENT-ROUTES.md#from-index-
 | CEM Additive Profiles V0 | [`cem-additive-profiles-v0.md`](cem-additive-profiles-v0.md) | experimental under the standing lane auto-accept | experimental | what the frozen `cem/1.0` wire cannot carry ships as opt-in, separately versioned profiles a `cem/1.0` consumer can ignore. |
 | Documentation corpus estate inventory V1 | [`documentation-corpus-inventory-v1.md`](documentation-corpus-inventory-v1.md) | proposed | experimental | An estate receipt joins corpora by exact name, and inventory rules derive packages and deploys only from evidence, such as a publish step tied to its manifest. |
 | Additive Narrowing V0 | [`additive-narrowing-v0.md`](additive-narrowing-v0.md) | experimental under the owner's standing lane auto-accept (2026-10-11; V1-3123, V1-3129, V1-3138); ADN-V0-009 amends AFP-V0-094 | experimental | Additive Go changes select only importers that reference a new declaration; documentation and sealed-CEM paths take their readers from the plan. |
+| Corvint Tasks release membership and lease resume V0 | [`corvint-tasks-release-membership-and-resume-v0.md`](corvint-tasks-release-membership-and-resume-v0.md) | proposed | experimental | Release membership edits alone; widen PAUSED names admission and recovery; a resumed claim restores its widened scope. |
 
 “Accepted direction” means the repository owner has explicitly selected the product outcome, while
 individual generated or inferred claims still require review. A spec can be accepted and still have

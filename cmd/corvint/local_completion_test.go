@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -799,6 +800,42 @@ func assertSealedCompletionControls(t *testing.T, root, key, base, seal string, 
 	if e != nil {
 		t.Fatal(e)
 	}
+	// LCP-V0-043 (V1-3192): a supervised signal during the final strict check is
+	// finish-interrupted naming the step, its retained logs and the rerun, and
+	// writes no state; a genuine checker failure stays final-check-failed and
+	// names the logs. Both are followed by a real finish reusing the bound results.
+	interruptedState, e := os.ReadFile(statePath)
+	if e != nil {
+		t.Fatal(e)
+	}
+	signalled, signal := context.WithCancel(ctx)
+	interrupts := 0
+	interruptChecker := func(ctx context.Context, root string, args []string, out, errout io.Writer) int {
+		if len(args) > 1 && args[0] == "cem" && args[1] == "status" {
+			interrupts++
+			if interrupts > 1 {
+				signal()
+				return 2
+			}
+		}
+		return localCompletionPublicCommand(ctx, root, args, out, errout)
+	}
+	result, e = localcompletion.Finish(signalled, root, key, interruptChecker)
+	var final *localcompletion.FinalCheckError
+	if interrupts < 2 || !errors.As(e, &final) || e.Error() != "finish-interrupted" || !final.Interrupted || final.Step != "final-check" || result.Satisfied {
+		t.Fatalf("interrupted final check misreported: calls=%d result=%#v err=%v", interrupts, result, e)
+	}
+	if !strings.Contains(final.Detail(), "rerun=corvint dogfood finish --session-key "+key) || len(final.Logs) != 2 {
+		t.Fatalf("interrupted detail: %s", final.Detail())
+	}
+	for _, name := range final.Logs {
+		if _, err := os.Stat(filepath.Join(root, ".git", strings.TrimPrefix(name, "$GIT_DIR/"))); err != nil {
+			t.Fatalf("interrupted log %s not retained: %v", name, err)
+		}
+	}
+	if after, _ := os.ReadFile(statePath); !bytes.Equal(after, interruptedState) {
+		t.Fatal("interrupted final check wrote state")
+	}
 	statuses := 0
 	failChecker := func(ctx context.Context, root string, args []string, out, errout io.Writer) int {
 		if len(args) > 1 && args[0] == "cem" && args[1] == "status" {
@@ -810,8 +847,11 @@ func assertSealedCompletionControls(t *testing.T, root, key, base, seal string, 
 		return localCompletionPublicCommand(ctx, root, args, out, errout)
 	}
 	result, e = localcompletion.Finish(ctx, root, key, failChecker)
-	if statuses < 2 || e == nil || e.Error() != "final-check-failed" || result.Satisfied {
+	if statuses < 2 || !errors.As(e, &final) || e.Error() != "final-check-failed" || final.Interrupted || result.Satisfied {
 		t.Fatalf("final checker fault not reached/refused: calls=%d result=%#v err=%v", statuses, result, e)
+	}
+	if detail := final.Detail(); !strings.Contains(detail, "step=final-check logs=$GIT_DIR/corvint/local-completion/"+key+"/") || !strings.HasSuffix(detail, "/final-check.stderr") {
+		t.Fatalf("failed final check hides its logs: %s", detail)
 	}
 	if after, _ := os.ReadFile(reportPath); !bytes.Equal(after, reportRaw) {
 		t.Fatal("sealed checker changed parent report")
@@ -826,5 +866,189 @@ func assertSealedCompletionControls(t *testing.T, root, key, base, seal string, 
 	}
 	if _, e = os.Stat(shared); !os.IsNotExist(e) {
 		t.Fatal("continuation restored shared map")
+	}
+}
+
+// TestLocalCompletionSealedCloseoutRepin pins LCP-V0-041 and LCP-V0-042
+// (V1-3194): an enrolled strict finish, then the real one-command lane closeout,
+// then the sealed finish reaches satisfied with no manual file edits, although
+// the closeout's own dogfood record rewrote the pinned local outcome. Positive
+// first; then tampered, retargeted, unreferenced and unrecorded replacements
+// and a foreign OCM aggregate change each refuse sealed-evidence-drift naming
+// the artifact with its pinned and current digests, and re-pin nothing.
+func TestLocalCompletionSealedCloseoutRepin(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	root, base := localCompletionRepo(t)
+	key := localcompletion.HashSession(t.Name())
+	ctx := context.Background()
+	plan := localcompletion.Plan{Base: base, Intents: []string{"intent.md"}, Checks: []localcompletion.Check{{ID: "actual-test", Argv: []string{"go", "test", "./fixture"}, TimeoutSeconds: 60}}}
+	raw, _ := json.Marshal(plan)
+	if _, err := localcompletion.Begin(ctx, root, key, raw); err != nil {
+		t.Fatal(err)
+	}
+	publicLocal(t, root, "cem", "prepare", "--base", base, "--target", "HEAD")
+	publicLocal(t, root, "cem", "cite", "--map", ".corvint/change.cem.json", "--hunk", "1", "--evidence-path", "intent.md", "--lines", "1:5", "--relation", "specification")
+	cemGit(t, root, "add", "-f", ".corvint/change.cem.json")
+	cemGit(t, root, "commit", "-qm", "bind evidence")
+	bound := cemGit(t, root, "rev-parse", "HEAD")
+	publicLocal(t, root, "ocm", "prepare", "--map", ".corvint/change.ocm.001.json", "--cem", ".corvint/change.cem.json", "--intent", "intent.md", "--expected-base", base, "--target", bound)
+	publicLocal(t, root, "ocm", "link", "--map", ".corvint/change.ocm.001.json", "--cem", ".corvint/change.cem.json", "--obligation", "FIXTURE-LCP-001", "--hunk", "1", "--test-path", "fixture/fixture_test.go", "--claim", "test:TestAnswer/case:fixture-lcp", "--expected-base", base, "--target", bound)
+	finishReviewed := func(stage string) localcompletion.Evaluation {
+		t.Helper()
+		if _, err := localcompletion.Verify(ctx, root, key, "actual-test"); err != nil {
+			t.Fatalf("%s verify: %v", stage, err)
+		}
+		result, err := localcompletion.Finish(ctx, root, key, localCompletionPublicCommand)
+		if err == nil && !result.Satisfied && result.ReportSetDigest != "" {
+			if _, err = localcompletion.Review(ctx, root, key, result.ReportSetDigest); err != nil {
+				t.Fatalf("%s review: %v", stage, err)
+			}
+			result, err = localcompletion.Finish(ctx, root, key, localCompletionPublicCommand)
+		}
+		if err != nil || !result.Satisfied {
+			dumpLocalCompletionFailure(t, root, key)
+			t.Fatalf("%s finish: %#v %v", stage, result, err)
+		}
+		return result
+	}
+	finishReviewed("enrolled")
+	outcomePath := filepath.Join(root, ".git/corvint/local-outcome.json")
+	enrolled, err := os.ReadFile(outcomePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	env, args := finishLaneInputs(t, "1\tintent.md\t1:5\tspecification\n", "intent.md\n")
+	if code, stdout, stderr := run.exec(t, root, append(env[:3:3], finishLaneIdentity...), append([]string{"dogfood", "finish-lane", "--base", base}, args...)...); code != 0 {
+		t.Fatalf("closeout exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	seal := cemGit(t, root, "rev-parse", "HEAD")
+	if parent := cemGit(t, root, "rev-parse", "HEAD^"); parent != bound {
+		t.Fatalf("closeout committed beyond the seal: parent %s, bound %s", parent, bound)
+	}
+	closeout, err := os.ReadFile(outcomePath)
+	if err != nil || bytes.Equal(closeout, enrolled) {
+		t.Fatalf("closeout did not rewrite the pinned outcome: %v", err)
+	}
+	statePath := filepath.Join(root, ".git/corvint/local-completion", key, "state.json")
+	reportPath := filepath.Join(root, ".corvint/dogfood-report.json")
+	statusPath := filepath.Join(root, ".corvint/change.ocm-status.json")
+	storePath := filepath.Join(root, ".context-corvint/traces", bound+".jsonl")
+	if _, err = localcompletion.Verify(ctx, root, key, "actual-test"); err != nil {
+		t.Fatal(err)
+	}
+	snapshot := map[string][]byte{}
+	for _, name := range []string{statePath, outcomePath, reportPath, statusPath, storePath} {
+		if snapshot[name], err = os.ReadFile(name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	restore := func() {
+		t.Helper()
+		for name, original := range snapshot {
+			if err := os.WriteFile(name, original, 0600); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	// Positive control: the closeout's own record is re-pinned and a new
+	// review of a report set naming both digests is required.
+	pending, err := localcompletion.Finish(ctx, root, key, localCompletionPublicCommand)
+	if err != nil || pending.Satisfied || pending.ReportSetDigest == "" {
+		dumpLocalCompletionFailure(t, root, key)
+		t.Fatalf("sealed finish after closeout: %#v %v", pending, err)
+	}
+	report, err := os.ReadFile(pending.Reports[0])
+	enrolledDigest, closeoutDigest := fmt.Sprintf("sha256:%x", sha256.Sum256(enrolled)), fmt.Sprintf("sha256:%x", sha256.Sum256(closeout))
+	if err != nil || !strings.Contains(string(report), "replaced the coordinated outcome `"+enrolledDigest+"` with `"+closeoutDigest+"`") {
+		t.Fatalf("continuation report hides the re-pin: %v %s", err, report)
+	}
+	if _, err = localcompletion.Review(ctx, root, key, pending.ReportSetDigest); err != nil {
+		t.Fatal(err)
+	}
+	result, err := localcompletion.Finish(ctx, root, key, localCompletionPublicCommand)
+	if err != nil || !result.Satisfied || result.Target != seal || result.EvidenceTarget != bound {
+		dumpLocalCompletionFailure(t, root, key)
+		t.Fatalf("sealed completion after closeout: %#v %v", result, err)
+	}
+	if got := cemGit(t, root, "status", "--porcelain"); got != "" {
+		t.Fatalf("finish changed sealed worktree: %s", got)
+	}
+	retarget := func(raw []byte) []byte {
+		var document map[string]any
+		if err := json.Unmarshal(raw, &document); err != nil {
+			t.Fatal(err)
+		}
+		document["target"] = base
+		document["trace"].(map[string]any)["revision"] = base
+		out, _ := json.Marshal(document)
+		return out
+	}
+	failed := func(raw []byte) []byte {
+		var document map[string]any
+		if err := json.Unmarshal(raw, &document); err != nil {
+			t.Fatal(err)
+		}
+		document["trace"].(map[string]any)["outcome"] = "failed"
+		out, _ := json.Marshal(document)
+		return out
+	}
+	referenced := func(outcome []byte) {
+		t.Helper()
+		changed := bytes.ReplaceAll(snapshot[reportPath], []byte(closeoutDigest), []byte(fmt.Sprintf("sha256:%x", sha256.Sum256(outcome))))
+		if bytes.Equal(changed, snapshot[reportPath]) {
+			t.Fatal("report does not reference the closeout outcome")
+		}
+		if err := os.WriteFile(reportPath, changed, 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	firstRow := snapshot[storePath][:bytes.IndexByte(snapshot[storePath], '\n')+1]
+	for _, control := range []struct {
+		name, artifact, reason, path string
+		content                      []byte
+		before                       func([]byte)
+	}{
+		{"tampered", "local-outcome.json", "replacement-tampered", outcomePath, failed(closeout), referenced},
+		{"retargeted", "local-outcome.json", "replacement-retargeted", outcomePath, retarget(closeout), referenced},
+		{"unreferenced", "local-outcome.json", "replacement-unreferenced", outcomePath, append(append([]byte{}, closeout...), '\n'), nil},
+		{"unrecorded", "local-outcome.json", "replacement-unrecorded", storePath, firstRow, nil},
+		{"foreign-ocm-status", "change.ocm-status.json", "foreign-change", statusPath, append(append([]byte{}, snapshot[statusPath]...), ' '), nil},
+	} {
+		restore()
+		if control.before != nil {
+			control.before(control.content)
+		}
+		if err = os.WriteFile(control.path, control.content, 0600); err != nil {
+			t.Fatal(err)
+		}
+		_, err = localcompletion.Finish(ctx, root, key, localCompletionPublicCommand)
+		var drift *localcompletion.SealedDriftError
+		if !errors.As(err, &drift) || err.Error() != "sealed-evidence-drift" || drift.Artifact != control.artifact || drift.Reason != control.reason {
+			t.Fatalf("%s: %v", control.name, err)
+		}
+		pinned, current := enrolledDigest, ""
+		if control.artifact == "local-outcome.json" {
+			now, _ := os.ReadFile(outcomePath)
+			current = fmt.Sprintf("sha256:%x", sha256.Sum256(now))
+		} else {
+			pinned, current = fmt.Sprintf("sha256:%x", sha256.Sum256(snapshot[statusPath])), fmt.Sprintf("sha256:%x", sha256.Sum256(control.content))
+		}
+		if drift.Pinned != pinned || drift.Current != current {
+			t.Fatalf("%s digests: %#v", control.name, drift)
+		}
+		if after, _ := os.ReadFile(statePath); !bytes.Equal(after, snapshot[statePath]) {
+			t.Fatalf("%s re-pinned or saved state", control.name)
+		}
+		if control.name == "tampered" {
+			code, _, stderr := runCLI(t, "--root", root, "dogfood", "finish", "--session-key", key)
+			if code == 0 || !strings.Contains(stderr, "sealed-evidence-drift") || !strings.Contains(stderr, "artifact=local-outcome.json reason=replacement-tampered pinned="+pinned+" current="+current) {
+				t.Fatalf("CLI hides the drifted artifact: exit=%d %s", code, stderr)
+			}
+		}
+	}
+	restore()
+	if result = finishReviewed("restored"); result.Target != seal {
+		t.Fatalf("restored completion: %#v", result)
 	}
 }

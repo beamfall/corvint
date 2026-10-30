@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/Beamfall/corvint/internal/secretscreen"
 )
@@ -281,6 +282,60 @@ func (e *CancelReasonError) Error() string { return "cancel-reason-required" }
 // Detail names the selected checks and saved observations the cancel closes.
 func (e *CancelReasonError) Detail() string {
 	return fmt.Sprintf("cancelling this active enrollment closes %d selected checks and %d saved observations as non-success", e.Checks, e.Observations)
+}
+
+// SealedDriftError is the sealed-evidence-drift refusal (LCP-V0-042). Its
+// Error is the stable code; Detail names the drifted artifact by a fixed label
+// and a fixed reason, with the pinned and current digests when the drift is a
+// byte change. Labels and reasons are constants, so Detail carries no path.
+type SealedDriftError struct {
+	Artifact string
+	Reason   string
+	Pinned   string
+	Current  string
+}
+
+func (e *SealedDriftError) Error() string { return "sealed-evidence-drift" }
+
+// Detail names the artifact, the reason and, for a byte change, both digests.
+func (e *SealedDriftError) Detail() string {
+	detail := "artifact=" + e.Artifact + " reason=" + e.Reason
+	if e.Pinned != "" {
+		detail += " pinned=" + e.Pinned + " current=" + e.Current
+	}
+	return detail
+}
+
+// FinalCheckError is a final strict check that did not pass (LCP-V0-043). When
+// the caller's context ended during the check (a supervised signal), it is the
+// finish-interrupted result naming the step and the rerun command; otherwise it
+// is final-check-failed naming the retained logs. Step and Logs are fixed names
+// under the Git directory and Session is the hashed key, so Detail carries no
+// command output.
+type FinalCheckError struct {
+	Interrupted bool
+	Step        string
+	Session     string
+	Logs        []string
+}
+
+func (e *FinalCheckError) Error() string {
+	if e.Interrupted {
+		return "finish-interrupted"
+	}
+	return "final-check-failed"
+}
+
+// Detail names the step, its retained logs and, after an interruption, the rerun.
+func (e *FinalCheckError) Detail() string {
+	detail := "step=" + e.Step
+	if len(e.Logs) > 0 {
+		detail += " logs=" + strings.Join(e.Logs, ",")
+	}
+	if e.Interrupted {
+		detail += " rerun=corvint dogfood finish --session-key " + e.Session
+	}
+	return detail
 }
 
 // CheckBoundError is the invalid-check-bound refusal. Its Error is the stable

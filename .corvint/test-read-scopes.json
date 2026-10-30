@@ -194,6 +194,7 @@
       "internal/localauthority/",
       "internal/slotlearn/"
     ],
+    "internal/archivepath": [],
     "internal/attest": [
       "protocol/cem-1.0/stable/receipt-authentication/"
     ],
@@ -504,12 +505,14 @@
     ],
     "tools/compat-trial": [
       "go.mod",
+      "internal/archivepath/",
       "internal/groupreap/",
       "internal/liveverify/",
       "internal/procgroup/"
     ],
     "tools/compat-trial/build-fixtures": [
       "go.mod",
+      "internal/archivepath/",
       "internal/groupreap/",
       "internal/liveverify/processidentity/",
       "internal/procgroup/",

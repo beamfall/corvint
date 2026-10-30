@@ -226,6 +226,24 @@ type Result struct {
 	// ScopeRefusal is the ATR-V0-214 detail of a claim refused
 	// OUT_OF_SCOPE: the declared and the rejected requested paths.
 	ScopeRefusal *ScopeRefusal
+	// RestoredScope names the requested paths outside the declared scope
+	// that an admitted claim restored from the ticket's last ended
+	// generation (TRM-V0-006); nil otherwise.
+	RestoredScope *RestoredScope
+}
+
+// RestoredScope is the provenance of a claim's restored paths: the ended
+// generation of the same attempt whose widened scope held them (TRM-V0-006).
+type RestoredScope struct {
+	FromGeneration wire.Size
+	Paths          []string
+}
+
+func (r *RestoredScope) paths() []string {
+	if r == nil {
+		return nil
+	}
+	return r.Paths
 }
 
 // ScopeRefusal names the paths a ticket declares and the requested --scope
@@ -676,6 +694,7 @@ func model(r Request, in Input, sequence *ImportSequence) Result {
 	var lease *leaseEffect
 	detail := ""
 	var authors *AuthorExclusion
+	var restored *RestoredScope
 	switch r.Operation {
 	case Init:
 		if in.Inventory.Summarized() {
@@ -927,7 +946,7 @@ func model(r Request, in Input, sequence *ImportSequence) Result {
 		for path, raw := range planned.posts {
 			posts[path] = raw
 		}
-		lease, effect, detail, authors = planned.effect, planned.ticket, planned.detail, planned.authors
+		lease, effect, detail, authors, restored = planned.effect, planned.ticket, planned.detail, planned.authors, planned.restored
 	}
 	if e = importMapUnchanged(r, state, posts); e != nil {
 		return failed(r.RequestID, e)
@@ -947,7 +966,7 @@ func model(r Request, in Input, sequence *ImportSequence) Result {
 	if sequence == nil && capacity.Final != nil {
 		delete(capacity.Final.dirs, "staging")
 	}
-	res := Result{Kind: "Transaction", Outcome: out, Coverage: coverage(), Plan: p, Final: capacity.Final, Detail: detail, AuthorExclusion: authors}
+	res := Result{Kind: "Transaction", Outcome: out, Coverage: coverage(), Plan: p, Final: capacity.Final, Detail: detail, AuthorExclusion: authors, RestoredScope: restored}
 	if lease != nil {
 		res.AttemptID, res.Generation = lease.attemptID, lease.generation
 	}
