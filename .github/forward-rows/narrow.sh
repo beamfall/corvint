@@ -41,11 +41,17 @@ if [ -z "${SELECTION:-}" ]; then
     'select(.Reason == "" and .EventBase == $event and .Head == $head and .Target == $target) | .Base' \
     "$out/driver/selection.json" 2> /dev/null) || effective_base=""
 fi
-# --no-renames includes both sides of a rename out of .github/.
-if [ -n "$effective_base" ] && changed=$(git diff --no-renames --name-only "$effective_base" "$TESTED_MERGE" 2> /dev/null); then
-  if printf '%s\n' "$changed" | grep -q '^\.github/'; then github=1; else github=0; fi
-else
-  github=unreadable
+# --no-renames includes both sides of a rename out of .github/. The exit status, not --name-only
+# text, decides (AFP-V0-933, V1-3109): git quotes a non-ASCII path, so ".github/\303\251.yml" would
+# not match ^\.github/. 0 is no change, 1 a change, anything else unreadable.
+github=unreadable
+if [ -n "$effective_base" ]; then
+  rc=0
+  git diff --quiet --no-renames "$effective_base" "$TESTED_MERGE" -- .github/ > /dev/null 2>&1 || rc=$?
+  case $rc in
+  0) github=0 ;;
+  1) github=1 ;;
+  esac
 fi
 shadow_exit=0
 "$SHADOW" --root "$PWD" test --base "$effective_base" --profile ci --confine "$CONFINE" --placement universe --dry-run \

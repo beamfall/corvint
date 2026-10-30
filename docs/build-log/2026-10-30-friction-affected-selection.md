@@ -44,6 +44,31 @@ left open.
   now honour it at launch (STR-V0-174). The reported divergence in results is not reproduced.
 - V1-3148: `--format json|text` (AFP-V0-928, amending AFP-V0-201).
 
+## Narrowing scripts (tip commit, AFP-V0-933 to AFP-V0-935)
+
+- V1-3160: AFP-V0-816 required a BOUNDED delta and record receipt, which this repository never
+  produces, so delta reuse could never apply. A receipt whose unknowns are all LANGUAGE_FRONTIER
+  entries is now accepted (AFP-V0-935). The pinned selector FALLBACKs on the module-level ones and
+  attributes the rest, exactly as it does for the queue-range selection the entry runs. Any other
+  unknown still refuses.
+- V1-3159: GitHub names a stacked entry's `base_sha` as the entry ahead of it, which is not on
+  main. The scripts now come from the newest main commit that base descends from. The selection
+  is measured from that commit too, a superset of the entry's range, so narrow.sh's `.github/` and
+  shadow guards cover the earlier entries as well (AFP-V0-934).
+- V1-3109: narrow.sh's AFP-V0-098 guard now uses the exit status of `git diff --quiet`, as
+  mq-narrow.sh already did (AFP-V0-933).
+
+## Dogfood intent scope
+
+The CEM's intent scope is `docs/specs/session-test-runner-v0.md` alone.
+`docs/specs/affected-plan-v0.md`, the owning spec of AFP-V0-928 to AFP-V0-931 and AFP-V0-933 to
+AFP-V0-935, holds more than 256 requirements, so `ocm prepare` refuses it
+(`too-many-obligations`; DOGFOOD.md §4, OCM-V0-023 (3)). Its base lines that the hunks implement or
+amend are cited as `specification` instead: AFP-V0-050, 098, 152, 201, 494, 511, 731, 813 and 816,
+plus ADN-V0-009 and ADN-V0-011. Omitting the spec is not a claim that its requirements hold. They
+are carried by the traceability rows and the tests above. Restructuring that spec is an owner
+decision.
+
 ## Not done
 
 V1-3243 is PARTIAL. The fix, `git update-index --chmod=+x` on `script/release-env-compat_test.sh`
