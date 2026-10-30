@@ -256,6 +256,39 @@ Then point the operator wrapper and the lane charter at `script/heavy.sh` and re
 and `rt.sh`. `gh` must be authenticated on the lane host; an unauthenticated `gh` fails every query
 and so keeps every command local, visible as `query-failed` lines in the fallback log.
 
+### One semaphore per host: `~/.config/corvint/heavy.env` (V1-3222)
+
+Every host that runs lanes keeps exactly one heavy semaphore. `script/heavy.sh` reads its host
+settings from `~/.config/corvint/heavy.env` (`HEAVY_CONFIG` names another file): at least
+`HEAVY_SLOTS` (the host-wide slot count) and `HEAVY_LOCK_DIR` (the one directory every caller takes
+its `flock` slots in), plus any other `HEAVY_*` key; the environment still wins. Any other wrapper
+on the host delegates to `script/heavy.sh` rather than keeping slots of its own. On the WSL lane
+host (2026-10-30) the file is
+
+```sh
+HEAVY_LOCK_DIR=/home/russell/bench/rt/.locks
+HEAVY_SLOTS=4
+HEAVY_SELECTION_LOG=/home/russell/lanes/heavy-selection.log
+```
+
+`~/bench/rt/.locks` is where `~/bench/rt.sh` (the remote half the Mac's offloads run) takes its four
+`flock` slots, so local lanes and offloads now queue on one semaphore instead of three
+(`~/lanes/heavy.sh`'s `mkdir` slots, 4; `script/heavy.sh`'s `/tmp/corvint-heavy-1000`, 8; and
+`rt.sh`'s). `~/lanes/heavy.sh` now delegates to the checkout's `script/heavy.sh` and refuses outside
+a checkout whose script reads `heavy.env`; the old wrapper is kept as
+`~/lanes/heavy.sh.bak-20261030-v1-3222`. Change the file between batches: a running command keeps
+the slot it holds, and only later commands see a new lock directory. `script/heavy.sh
+--print-lock-dir` prints the directory a run would use.
+
+### Small packages run whole without a reason (ASD-V0-074, V1-3120)
+
+`corvint test --dry-run` plans a whole Go package for a small tool package, which `ASD-V0-030`
+would refuse without `HEAVY_WHOLE_REASON`. A whole-package `go test` whose every package is a plain
+`./tools/...` or `./conformance/...` directory (no `...`) with at most `HEAVY_SMALL_TEST_BYTES`
+(default 49152) bytes of `*_test.go` runs without one and is logged `whole reason=small-package:NB`;
+on 2026-10-30 the six such packages each ran whole in 0.6 to 16 s. `cmd/` and `internal/` packages
+still need the reason.
+
 ### WSL keepalive (ASD-V0-039)
 
 A WSL distro stops a few seconds after its last client exits, so an offload host reached over ssh
@@ -385,7 +418,20 @@ every gap above the threshold with the time the watchdog would have flagged it.
   `--reference` (dogfood refuses borrowed objects, `unsupported-object-alternates`). The
   orchestrator fetches it.
 - One checkout per lane, created once and reused for every check of that lane:
-  `git -C <shared> worktree add -b claude/<slug> <lanes-root>/<slug> origin/main`. The dogfood
+  `script/lane-setup.sh --repo <shared> --dir <lanes-root>/<slug> --branch claude/<slug>`, which runs
+  `git -C <shared> worktree add -b claude/<slug> <lanes-root>/<slug> origin/main` and installs the
+  AI-trailer commit-msg hook below.
+- The shared repository holds the full history (ASD-V0-072, V1-3230). A shallow clone breaks
+  merge-base, `corvint affected` and every dogfood range, so `lane-setup.sh`, `corvint affected
+  --base`, `dogfood-change`, `dogfood-check` (and so `dogfood-seal`), `dogfood-bind-range`,
+  `batch-review-packet` and `batch-precheck --base` refuse one up front with `REFUSE
+  shallow-repository` and the recovery `git -C <shared> fetch --unshallow origin` (or a reclone
+  without `--depth`).
+- No commit carries an AI co-author or "Generated with" trailer (ASD-V0-071, V1-3227). The
+  commit-msg hook `lane-setup.sh` installs (`script/check-ai-trailers.sh --install`, shared by every
+  worktree of the clone) refuses one at commit time, and `make batch-precheck` refuses any commit in
+  `BASE..HEAD` (default `origin/main..HEAD`) that carries one, naming the commit and the line;
+  remove it with `git commit --amend` or a reword before the batch push. The dogfood
   loop supports linked worktrees with per-worktree trace stores and locks (`DCW-V0-044`); never
   switch one checkout between lanes. A fresh plain clone remains the fallback until a live lane has
   run `dogfood-finish` and `dogfood-batch-check` in a linked worktree

@@ -6,7 +6,21 @@
 # and the Git objects of every build input. Every build runs with -trimpath and -buildvcs=false,
 # so its bytes depend on those inputs alone. Any failure while computing, reading or storing a key
 # falls back to the plain build: a reuse is never required for the wrapper to succeed.
-dogfood_bin_cache=${CORVINT_DOGFOOD_BIN_CACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-dogfood-bin}
+# ASD-V0-070 (V1-3233): with no HOME the reuse cache is off; the plain build still runs.
+dogfood_bin_cache=${CORVINT_DOGFOOD_BIN_CACHE:-${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}}
+dogfood_bin_cache=${dogfood_bin_cache:+${CORVINT_DOGFOOD_BIN_CACHE:-$dogfood_bin_cache/corvint-dogfood-bin}}
+
+# dogfood_require_full_history NAME: ASD-V0-072 (V1-3230). A shallow clone can hide the base or the
+# merge base of the dogfood range, so the wrapper refuses it up front, naming the recovery; a
+# directory Git cannot inspect is left to the wrapper's own checks.
+dogfood_require_full_history() {
+  local shallow
+  shallow=$(git -C "$repo" rev-parse --is-shallow-repository 2> /dev/null) || return 0
+  [[ $shallow == true ]] || return 0
+  printf '%s: REFUSE shallow-repository: %s is a shallow clone, so a base commit or merge base may lie past its shallow boundary; run `git -C %q fetch --unshallow origin` (or reclone without --depth), then rerun\n' "$1" "$repo" "$repo" >&2
+  return 2
+}
+
 # GOFLAGS comes from `go env`, so flags persisted with `go env -w` are kept like a plain build.
 dogfood_goflags=$(GOTOOLCHAIN=local go env GOFLAGS 2> /dev/null) || dogfood_goflags=
 dogfood_goflags="${dogfood_goflags:+$dogfood_goflags }-buildvcs=false"
@@ -85,7 +99,7 @@ dogfood_corvint_key() {
 # dogfood_corvint_reuse OUT KEY copies the verified cached build for KEY to OUT, or fails.
 dogfood_corvint_reuse() {
   local out=$1 key=$2 entry="$dogfood_bin_cache/$2" expected temporary
-  [[ -n $key && -f $entry/corvint && -f $entry/corvint.oid ]] || return 1
+  [[ -n $dogfood_bin_cache && -n $key && -f $entry/corvint && -f $entry/corvint.oid ]] || return 1
   expected=$(cat "$entry/corvint.oid") || return 1
   temporary=$(mktemp "$out.XXXXXX") || return 1
   if /bin/cp -f "$entry/corvint" "$temporary" && chmod 755 "$temporary" &&
@@ -100,7 +114,7 @@ dogfood_corvint_reuse() {
 # dogfood_corvint_store OUT KEY records OUT as the build for KEY; a failure only skips the record.
 dogfood_corvint_store() {
   local out=$1 key=$2 entry="$dogfood_bin_cache/$2" binary record
-  [[ -n $key ]] || return 0
+  [[ -n $dogfood_bin_cache && -n $key ]] || return 0
   mkdir -p "$entry" 2> /dev/null || return 0
   binary=$(mktemp "$entry/.corvint.XXXXXX") || return 0
   record=$(mktemp "$entry/.corvint.oid.XXXXXX") || { /bin/rm -f "$binary"; return 0; }

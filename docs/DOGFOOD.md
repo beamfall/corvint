@@ -724,7 +724,7 @@ target already carries an older sidecar that `CEM-CB-009` requires to equal the 
   (`corvint-version-mismatch expected=V`); without it the current tree is built
   (`current-tree-corvint-build-failed`). The 256-commit refusal is not a promise that one piece fits:
   size each piece for both the 256-row citation-plan limit
-  (`script/dogfood-bind-range.sh:133-140@3b3a27f5`) and the verifier's 1,024-logical-Git-operation
+  (`script/dogfood-bind-range.sh:136-143@3b3a27f5`) and the verifier's 1,024-logical-Git-operation
   budget (`internal/cem/gitrun/gitrun.go:32-38@a875e210`). For the current object-identity and
   tree-walk checks, use roughly 5.7 operations per changed path plus 10 per evidence record as a
   planning estimate; path depth, shared objects, and request-memo hits change the exact count, so

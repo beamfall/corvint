@@ -35,7 +35,9 @@ export LC_ALL=C
 root=${BATCH_REGEN_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null)} || exit 2
 cd "$root" || exit 2
 heavy=${BATCH_REGEN_HEAVY-script/heavy.sh}
-gocache=${CORVINT_GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache}
+# ASD-V0-070 (V1-3233): with no HOME the go test step refuses (exit 3) instead of aborting on it.
+cache_home=${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}
+gocache=${CORVINT_GOCACHE:-${cache_home:+$cache_home/corvint-go-build-cache}}
 
 # Every test that rewrites its golden under CORVINT_UPDATE_GOLDEN=1. batch-precheck --sync-check
 # fails when a test that reads that variable is missing here.
@@ -52,6 +54,7 @@ goldens() {
     case " ${pkgs[*]-} " in *" $pkg "*) ;; *) pkgs+=("$pkg") ;; esac
     names+="${names:+|}${line#* }"
   done
+  [[ -n $gocache ]] || { printf 'batch-regen: REFUSE home-unset: HOME, XDG_CACHE_HOME and CORVINT_GOCACHE are all unset; set HOME (or CORVINT_GOCACHE) and rerun\n' >&2; exit 3; }
   env CORVINT_UPDATE_GOLDEN=1 HEAVY_REMOTE=0 HEAVY_LOCAL_REASON=golden-regen $heavy \
     env GOCACHE="$gocache" GOTOOLCHAIN=local go test -count=1 -run "^($names)\$" "${pkgs[@]}"
 }
