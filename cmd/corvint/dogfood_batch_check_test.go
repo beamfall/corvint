@@ -76,7 +76,7 @@ func TestDogfoodBatchCheckDCWV0039SealedLanesWithCodeCitations(t *testing.T) {
 		t.Fatal(err)
 	}
 	for plan, fix := range map[string]string{
-		"1\tfixture/fixture.go\t1:1\timplements\n": "  cem-cite: invalid-arguments\n    fix: plan row 1 (RELATION \"implements\" and START:END \"1:1\"): RELATION must be one of call-site, decision, dependency, implementation, incident, specification or test-claim",
+		"1\tfixture/fixture.go\t1:1\timplements\n": "  cem-cite: citation-plan-relation-unknown\n    fix: RELATION, the fourth field of a cite row, is one of call-site, decision, dependency, implementation, incident, specification, test-claim",
 		"1\tfixture/extra.go\t1:1\tdependency\n":   "  cem-cite: missing-evidence\n    fix: plan row 1 cites a path that is not a regular file at BASE",
 	} {
 		citations := filepath.Join(inputsDir, "bad.tsv")

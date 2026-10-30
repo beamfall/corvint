@@ -653,6 +653,30 @@ func main() {
 	}
 	fmt.Println(string(raw))
 	if !reflect.DeepEqual(result["valid"], true) {
+		errs, _ := result["errors"].([]any)
+		for _, line := range recoveryHint(errs, *ledger) {
+			fmt.Fprintln(os.Stderr, line)
+		}
 		os.Exit(1)
 	}
+}
+
+// recoveryHint names the recovery for a digest refusal (UCV0-020): a changed subject is repinned by
+// script/repin-use-case-receipts.sh; a receipt that left its ledger pin is restored from HEAD
+// first, since the repin refuses to rewrite a receipt it cannot prove. stdout stays the result.
+func recoveryHint(errs []any, ledger string) []string {
+	var subject, receipt bool
+	for _, e := range errs {
+		s, _ := e.(string)
+		subject = subject || strings.HasSuffix(s, ":subject-digest-mismatch")
+		receipt = receipt || strings.HasSuffix(s, ":receipt-digest-mismatch")
+	}
+	var out []string
+	if receipt {
+		out = append(out, fmt.Sprintf("use-cases-v0: fix: a receipt's bytes differ from its ledger pin (a hand edit, or a merge or cherry-pick that carried a receipt without its ledger); restore the ledger and receipts from HEAD first, `git restore --source=HEAD -- %s %s`, then run `script/repin-use-case-receipts.sh` (it names an older commit holding the pinned bytes when HEAD lacks them), then rerun `go run ./conformance/use-cases-v0`", ledger, path.Join(path.Dir(ledger), "receipts")))
+	}
+	if subject {
+		out = append(out, "use-cases-v0: fix: a pinned subject changed; run `script/repin-use-case-receipts.sh` to repin the receipts and the ledger, review the diff, then rerun `go run ./conformance/use-cases-v0`")
+	}
+	return out
 }

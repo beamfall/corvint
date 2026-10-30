@@ -4,7 +4,8 @@
 # the dogfood-finish missing-input refusal (ASD-V0-015), lane-idle-check.sh (ASD-V0-017),
 # lane-clean.sh (ASD-V0-018), lane-guard.sh (ASD-V0-024),
 # install-local-bin.sh (ASD-V0-025), install-cem-verifiers.sh (TCB-V0-046),
-# wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043). No Go build runs.
+# wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), codex-review.sh
+# (ASD-V0-064), lane-setup.sh (ASD-V0-071, ASD-V0-072). No Go build runs.
 set -uo pipefail
 export LC_ALL=C
 # The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
@@ -895,7 +896,8 @@ HEAVY_REMOTE=0 HEAVY_LOCAL_REASON='darwin syscall' pv go vet ./x 2> /dev/null ||
 HEAVY_REMOTE=0 pv go build ./x 2> /dev/null || fail "heavy.sh applied HEAVY_LOCAL_REASON to go build"
 s0=$SECONDS
 STUB_LOAD=50.00 HEAVY_MAX_LOAD=10 HEAVY_LOAD_WAIT=1 pv true 2> "$pol/err" || fail "heavy.sh load wait failed"
-((SECONDS - s0 >= 4)) && grep -q '^heavy.sh: waited [0-9]*s for host load 50 (HEAVY_MAX_LOAD=10)' "$pol/err" ||
+# V1-3232: the wait stops at the 1-second bound instead of finishing a 5-second poll.
+((SECONDS - s0 >= 1 && SECONDS - s0 <= 3)) && grep -q '^heavy.sh: waited [0-9]*s for host load 50 (HEAVY_MAX_LOAD=10)' "$pol/err" ||
   fail "heavy.sh did not wait out a high load: $(cat "$pol/err")"
 STUB_LOAD=9.99 HEAVY_MAX_LOAD=9 pv true 2> "$pol/err" && ! grep -q waited "$pol/err" ||
   fail "heavy.sh waited at a load whose integer part is within HEAVY_MAX_LOAD"
@@ -990,6 +992,40 @@ for cmd in \
   [[ -z $out ]] || fail "lane-guard refused a subagent command with no background work: $cmd -> $out"
 done
 [[ -z $(guard "$tmp" "make build &") ]] || fail "lane-guard checked background work without an agent_id"
+ok
+# ASD-V0-107 (V1-3224): a session lane (no agent_id) may not background a dogfood closeout,
+# finish, check or seal step; the refusal names the foreground recipe. The same steps in the
+# foreground, and other background work without an agent_id, stay allowed.
+session_guard() { # session_guard COMMAND [RUN_IN_BACKGROUND] -> the decision
+  perl -MJSON::PP -e 'my %i = (command => $ARGV[1]); $i{run_in_background} = JSON::PP::true if $ARGV[2];
+    print JSON::PP->new->encode({cwd => $ARGV[0], tool_name => "Bash", tool_input => \%i})' "$tmp" "$1" "${2-}" | "$script/lane-guard.sh"
+}
+session_denied() { [[ $(session_guard "$@") == *'"permissionDecision":"deny"'*'run in the foreground'*'make dogfood-finish LANE=1'* ]]; }
+for cmd in \
+  "make dogfood-closeout BASE=x CITATIONS=c &" \
+  "script/heavy.sh make dogfood-seal BASE=x > seal.log 2>&1 &" \
+  "nohup make dogfood-finish LANE=1 BASE=x" \
+  "make dogfood-check BASE=x & echo started" \
+  "corvint dogfood finish-lane --base x &" \
+  "script/dogfood-finish.sh x c i v passed & disown" \
+  "(cd lane && make dogfood-seal BASE=x) &" \
+  "make dogfood-seal BASE=x &> seal.log &"; do
+  session_denied "$cmd" || fail "lane-guard allowed a background dogfood step: $cmd"
+done
+session_denied "make dogfood-seal BASE=x" 1 || fail "lane-guard allowed run_in_background for dogfood-seal"
+for cmd in \
+  "script/heavy.sh make dogfood-finish LANE=1 BASE=x CITATIONS=c INTENTS=i VERIFY=v OUTCOME=passed" \
+  "make dogfood-seal BASE=x > seal.log 2>&1" \
+  "make dogfood-check BASE=x && git log -1" \
+  "make dogfood-change BASE=x &" \
+  "make dogfood-checks-report &" \
+  "git log --grep='dogfood-seal' &" \
+  "make dogfood-check BASE=x; sleep 1 & wait" \
+  "tail -n 30 /tmp/dogfood-finish.log & wait" \
+  "cat > notes.md <<EOF"$'\nmake dogfood-seal &\nEOF'; do
+  out=$(session_guard "$cmd")
+  [[ -z $out ]] || fail "lane-guard refused a foreground dogfood step or unrelated background work: $cmd -> $out"
+done
 ok
 
 # ASD-V0-025 (V1-1979): install-local-bin.sh keeps a bounded rollback set and never prunes
@@ -1130,6 +1166,89 @@ out=$(KA_OUT='query-error\n' kac 2>&1); rc=$?
   fail "keepalive check read a query error as no holder: rc=$rc out=$out"
 kac --distro 'bad;name' 2> /dev/null; [[ $? == 2 ]] || fail "keepalive check accepted an invalid distro"
 kac --bogus 2> /dev/null; [[ $? == 2 ]] || fail "keepalive check accepted an unknown argument"
+ok
+
+# ASD-V0-074 (V1-3120): a whole-package go test of plain tools/ or conformance/ directories whose
+# *_test.go files total at most HEAVY_SMALL_TEST_BYTES runs with no HEAVY_WHOLE_REASON and is logged
+# as small-package; a larger total, an internal/ package, `...`, an import path, -C or a zero
+# limit is still refused.
+sp=$tmp/small-pkg
+mkdir -p "$sp/bin" "$sp/tools/small" "$sp/tools/big" "$sp/conformance/c" "$sp/internal/x" || fail "small-package fixture"
+printf '#!/bin/sh\nexit 0\n' > "$sp/bin/go" && chmod +x "$sp/bin/go"
+head -c 100 /dev/zero | tr '\0' x > "$sp/tools/small/a_test.go"
+head -c 50 /dev/zero | tr '\0' x > "$sp/conformance/c/a_test.go"
+head -c 300 /dev/zero | tr '\0' x > "$sp/tools/big/a_test.go"
+cp "$sp/tools/small/a_test.go" "$sp/internal/x/a_test.go"
+spv() { (cd "$sp" && env -u HEAVY_WHOLE_REASON PATH="$sp/bin:$PATH" HEAVY_SELECTION_LOG="$sp/sel.log" HEAVY_LOCK_DIR="$sp/slots" \
+  HEAVY_SLOTS=1 HEAVY_SMALL_TEST_BYTES="${limit:-200}" "$heavy" "$@") 2> "$sp/err"; }
+spv env GOTOOLCHAIN=local go test -count=1 -timeout 30m ./tools/small ./conformance/c || fail "a small tools package was refused: $(cat "$sp/err")"
+grep -Eq ' whole reason=small-package:150B pwd=.* cmd=env GOTOOLCHAIN=local go test -count=1 -timeout 30m \./tools/small \./conformance/c script=' "$sp/sel.log" ||
+  fail "small-package not logged: $(cat "$sp/sel.log")"
+for args in './tools/big' './tools/small ./tools/big' './internal/x' './tools/...' 'example.invalid/tools/small' '-C tools ./small'; do
+  # shellcheck disable=SC2086 # each case is a word list on purpose
+  spv go test $args
+  [[ $? == 2 ]] && grep -q 'without HEAVY_WHOLE_REASON' "$sp/err" || fail "heavy.sh ran whole go test $args without a reason: $(cat "$sp/err")"
+done
+limit=0 spv go test ./tools/small
+[[ $? == 2 ]] || fail "HEAVY_SMALL_TEST_BYTES=0 did not disable the exemption"
+ok
+
+# ASD-V0-072 (V1-3230), ASD-V0-071 (V1-3227): lane-setup.sh refuses a shallow shared clone with the
+# `git fetch --unshallow` recovery and creates nothing; on the full clone it adds the lane worktree
+# on its branch at origin/main and installs the commit-msg hook that refuses an AI trailer.
+ls_src=$tmp/lane-setup-src
+git init -q "$ls_src" && git -C "$ls_src" -c user.name=t -c user.email=t@t commit -q --allow-empty -m one &&
+  git -C "$ls_src" -c user.name=t -c user.email=t@t commit -q --allow-empty -m two || fail "lane-setup source"
+git clone -q --depth 1 "file://$ls_src" "$tmp/lane-setup-shallow" 2> /dev/null || fail "lane-setup shallow clone"
+out=$("$script/lane-setup.sh" --repo "$tmp/lane-setup-shallow" --dir "$tmp/lane-a" --branch claude/a 2>&1)
+rc=$?
+[[ $rc == 2 && $out == *'lane-setup: REFUSE shallow-repository'*'fetch --unshallow origin'* ]] || fail "shallow lane setup (rc $rc): $out"
+[[ ! -e $tmp/lane-a ]] || fail "a refused lane setup created its directory"
+git clone -q "file://$ls_src" "$tmp/lane-setup-full" 2> /dev/null || fail "lane-setup full clone"
+out=$("$script/lane-setup.sh" --repo "$tmp/lane-setup-full" --dir "$tmp/lane-a" --branch claude/a 2>&1) || fail "lane setup: $out"
+[[ $(git -C "$tmp/lane-a" rev-parse --abbrev-ref HEAD) == claude/a && $(git -C "$tmp/lane-a" rev-parse HEAD) == $(git -C "$ls_src" rev-parse HEAD) ]] ||
+  fail "lane worktree not on claude/a at origin/main: $out"
+printf 'feat: x\n\n%s\n' "$(printf 'Co-Authored-By: Claude <noreply@%s>' anthropic.com)" > "$tmp/lane-a-msg"
+git -C "$tmp/lane-a" -c user.name=t -c user.email=t@t commit -q --allow-empty -F "$tmp/lane-a-msg" 2> /dev/null &&
+  fail "the lane's commit-msg hook let an AI trailer through"
+out=$("$script/lane-setup.sh" --repo "$tmp/lane-setup-full" --dir "$tmp/lane-a" --branch claude/b 2>&1)
+[[ $? == 2 && $out == *'dir-exists'* ]] || fail "lane setup over an existing dir: $out"
+# Relative --repo and --dir, run from a directory outside the repository, name the same lane
+# directory for git and for the hook install (both resolve against the caller's directory).
+rm -f "$(git -C "$tmp/lane-setup-full" rev-parse --path-format=absolute --git-path hooks/commit-msg)"
+mkdir -p "$tmp/lane-caller"
+out=$(cd "$tmp/lane-caller" && "$script/lane-setup.sh" --repo ../lane-setup-full --dir lanes/b --branch claude/b 2>&1) || fail "relative lane setup: $out"
+[[ $(git -C "$tmp/lane-caller/lanes/b" rev-parse --abbrev-ref HEAD) == claude/b ]] || fail "relative lane dir not created under the caller: $out"
+[[ -x $(git -C "$tmp/lane-setup-full" rev-parse --path-format=absolute --git-path hooks/commit-msg) ]] || fail "relative lane setup installed no hook: $out"
+git -C "$tmp/lane-caller/lanes/b" -c user.name=t -c user.email=t@t commit -q --allow-empty -F "$tmp/lane-a-msg" 2> /dev/null &&
+  fail "the relative lane's hook let an AI trailer through"
+ok
+
+# ASD-V0-064 (V1-3219): the Codex review preflight reports NOT_AVAILABLE once, with the login fix.
+out=$("$script/codex-review_test.sh" 2>&1) || fail "codex-review_test.sh: $out"
+ok
+
+# ASD-V0-086 (V1-3242): the dogfood wrapper fixtures share one copy step that follows the copied
+# scripts' source/run references, so a new helper a wrapper sources reaches every fixture unedited.
+fsrc=$tmp/fixture-src fdst=$tmp/fixture-dst
+mkdir -p "$fsrc/script" "$fdst"
+printf '#!/usr/bin/env bash\nsource "$repo/script/new-helper.sh" || exit 2\n# script/only-in-comment.sh\n' > "$fsrc/script/dogfood-wrap.sh"
+printf '#!/usr/bin/env bash\n"$repo/script/deep-helper.sh" "$@"\n' > "$fsrc/script/new-helper.sh"
+printf '#!/usr/bin/env bash\n# script/new-helper.sh is mentioned again; the copy is single\n' > "$fsrc/script/deep-helper.sh"
+# shellcheck source=script/dogfood-fixture-scripts.sh
+source "$script/dogfood-fixture-scripts.sh"
+dogfood_fixture_copy "$fsrc" "$fdst" dogfood-wrap.sh || fail "fixture copy refused a complete closure"
+[[ $(cd "$fdst" && /bin/ls | tr '\n' ' ') == 'deep-helper.sh dogfood-wrap.sh new-helper.sh ' ]] ||
+  fail "fixture copy did not follow the sourced helper: $(/bin/ls "$fdst" | tr '\n' ' ')"
+# The real wrappers: every fixture named by a wrapper gets the build helper it sources.
+real=$tmp/fixture-real
+mkdir -p "$real"
+dogfood_fixture_copy "$script/.." "$real" dogfood-change.sh dogfood-check.sh dogfood-bind-range.sh ||
+  fail "fixture copy refused the real dogfood wrappers"
+[[ -f $real/dogfood-build-corvint.sh ]] || fail "the real wrapper closure lacks dogfood-build-corvint.sh"
+printf 'source "$repo/script/missing-helper.sh"\n' > "$fsrc/script/dogfood-broken.sh"
+out=$(dogfood_fixture_copy "$fsrc" "$fdst" dogfood-broken.sh 2>&1) && fail "a missing helper was copied silently"
+[[ $out == *'REFUSE missing-script script/missing-helper.sh'*'fix: '* ]] || fail "missing-helper refusal names no recovery: $out"
 ok
 
 # ASD-V0-014: no fixture outlives the run, so nothing can write after the summary line. Every

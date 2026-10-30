@@ -30,6 +30,7 @@ integrations/pi/compatibility.json
 integrations/compatibility.json
 integrations/pi/runtime.js
 cmd/corvint/pi_adapter.go
+docs/specs/pi-workflow-v0.md
 protocol/integrations/speckit/corvint/extension.yml
 protocol/integrations/openspec/skills/corvint-openspec/SKILL.md"
 mkdir -p "$test_root/script"
@@ -56,7 +57,7 @@ before=$(evidence)
 # 2. Bumping each package changes exactly one line per location and leaves recorded evidence
 # versions alone.
 cases=1
-for spec in claude-code:4 codex:3 gemini-cli:3 opencode:4 pi:6 speckit:1 openspec:1; do
+for spec in claude-code:4 codex:3 gemini-cli:3 opencode:4 pi:7 speckit:1 openspec:1; do
     package=${spec%%:*} want=${spec#*:}
     old=$(tool verify "$package") || fail "$package did not verify before its bump"
     old=${old#* }
@@ -83,8 +84,9 @@ case $output in *'gemini-cli: integrations/gemini-cli/compatibility.json has 0.0
 if tool bump gemini-cli >/dev/null 2>&1; then fail "bump ran over disagreeing locations"; fi
 
 # 4b. AHI-240: a drifted Pi emitter or native literal is a location verify names.
-# AHI-249: the OpenCode runtime ADAPTER_VERSION literal is a location too.
-for spec in "pi|integrations/pi/runtime.js|PI_ADAPTER_VERSION='" "pi|cmd/corvint/pi_adapter.go|piAdapterVersion = \"" "opencode|integrations/opencode/src/runtime.js|ADAPTER_VERSION = \""; do
+# AHI-249: the OpenCode runtime ADAPTER_VERSION literal is a location too. AHI-522 (V1-3170): so
+# is the Pi spec's declared capability tuple.
+for spec in "pi|integrations/pi/runtime.js|PI_ADAPTER_VERSION='" "pi|cmd/corvint/pi_adapter.go|piAdapterVersion = \"" 'pi|docs/specs/pi-workflow-v0.md|"tuple": {"adapterVersion": "' "opencode|integrations/opencode/src/runtime.js|ADAPTER_VERSION = \""; do
     package=${spec%%|*} spec=${spec#*|}
     path=${spec%%|*} prefix=${spec#*|}
     (cd "$test_root" && git checkout -q -- . && P=$prefix perl -0pi -e 's/\Q$ENV{P}\E[0-9.]+/$ENV{P}0.0.1/' "$path")
@@ -93,6 +95,12 @@ for spec in "pi|integrations/pi/runtime.js|PI_ADAPTER_VERSION='" "pi|cmd/corvint
     if tool bump "$package" >/dev/null 2>&1; then fail "bump ran over a drifted $path"; fi
     cases=$((cases + 1))
 done
+# 4c. AHI-522: a spec holding two tuple objects has no single value, so verify and bump refuse it.
+(cd "$test_root" && git checkout -q -- . && printf '%s\n' '{"tuple": {"adapterVersion": "9.9.9"}}' >>docs/specs/pi-workflow-v0.md)
+if output=$(tool verify pi 2>&1); then fail "verify passed a spec with two tuples"; fi
+case $output in *'docs/specs/pi-workflow-v0.md: no single value at tuple:adapterVersion'*) ;; *) fail "two tuples not refused: $output" ;; esac
+if tool bump pi >/dev/null 2>&1; then fail "bump ran over a spec with two tuples"; fi
+cases=$((cases + 1))
 (cd "$test_root" && git checkout -q -- .)
 grep -A3 '^host-package-versions-check:' "$source_root/Makefile" | grep -q 'host-package-version.sh verify' ||
     fail "make host-package-versions-check does not run verify (AHI-240)"

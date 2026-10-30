@@ -46,14 +46,14 @@ func testWholeReasons(planned []sessiontest.Planned, fallback string, stderr io.
 	}
 }
 
-// wholeGoTest reports whether command is a go test without a -run selection. It names its
-// parameter command, not argv, so the command-tree scanner (CAP-V0-047) does not read these
-// go-toolchain words as corvint dispatch.
-func wholeGoTest(command []string) bool {
-	if len(command) < 2 || command[0] != "go" || command[1] != "test" {
+// wholeGoTest reports whether argv is a go test without a -run selection. Its only caller hands
+// it a recorded invocation, never corvint's own arguments, so the command-tree scanner does not
+// read these go-toolchain words as corvint dispatch (CAP-V0-200, V1-3153).
+func wholeGoTest(argv []string) bool {
+	if len(argv) < 2 || argv[0] != "go" || argv[1] != "test" {
 		return false
 	}
-	for _, word := range command[2:] {
+	for _, word := range argv[2:] {
 		if word == "-run" || strings.HasPrefix(word, "-run=") {
 			return false
 		}

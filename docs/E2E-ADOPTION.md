@@ -312,7 +312,7 @@ guide stops naming one (CCE-V0-120).
 |---|---|
 | `corvint flows appmap build` | `--manifest`, `--revision`, `--repo`, `--manifest-repo`, `--repo-revision`, `--workspace`, `--no-workspace`, `--from`, `--verify` |
 | `e2e catalog` | `--rev`, `--root`, `--manifest`, `--out`, `--repo`, `--manifest-repo`, `--repo-revision`, `--workspace`, `--no-workspace` |
-| `e2e harvest` | `--rev`, `--root`, `--manifest`, `--out`, `--repo`, `--manifest-repo`, `--repo-revision`, `--workspace`, `--no-workspace` |
+| `e2e harvest` | `--rev`, `--root`, `--manifest`, `--source`, `--out`, `--repo`, `--manifest-repo`, `--repo-revision`, `--workspace`, `--no-workspace` |
 | `e2e obligations` | `--base`, `--head`, `--root`, `--manifest`, `--out`, `--coverage`, `--ledger`, `--module-graph`, `--repo`, `--manifest-repo`, `--repo-revision`, `--workspace`, `--no-workspace`, `--endpoint-source`, `--rails-routes`, `--openapi`, `--remedy-summary`, `--remedy-commits`. The endpoint flags join server endpoints to client calls so a changed controller reaches its calling screens (CCE-V0-152). The last two write `e2e-remedy-summary/0` (CCE-V0-151) and take no `--coverage` or `--ledger` |
 | `e2e compile` | the obligations flags except `--remedy-summary` and `--remedy-commits`. `--out` is a directory |
 | `e2e prove` | the compile flags, plus `--node-bin`, `--node-modules`, `--repeats`, `--package-json`, `--lockfile`, `--record-coverage`, `--oracle-acceptance`, `--hosted-test` and `--hosted-title`. The last two take no root flags, `--coverage` or `--ledger` |

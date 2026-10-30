@@ -26,22 +26,36 @@ var staleOCMPatterns = []string{"change.ocm.[0-9][0-9][0-9].json", "change.ocm-s
 // reachable from HEAD, or an ignored OCM sidecar last written before BASE was
 // committed. Either one makes the later rebind refuse
 // unsupported-query-trace-state or record-failed only after the bind commit.
-// The refusal names the exact recovery: the sidecars move aside under the Git
-// directory, and migrate-traces retires the stranded traces with the digest
-// its dry run printed. A trace store that cannot be evaluated is left to the
-// steps that already report it.
-func (f *flow) requireFreshWorktree(base, gitDir string) {
-	var stranded []string
-	digest := ""
-	if result, err := tracemigraterepo.Evaluate(f.ctx, f.root, tracemigraterepo.Options{}); err == nil {
-		stranded, digest = result.StrandedRevisions, result.PlanDigest
-	}
+// The run first retires that state itself (DCW-V0-406): it moves the sidecars,
+// byte-preserved, into a new directory under the Git directory and quarantines
+// the stranded traces with migrate-traces --apply and the digest of the dry run
+// it just made, then continues. That apply runs only when the dry-run plan
+// holds nothing but stranded traces: a plan that would also rekey reachable
+// tree-keyed legacy traces is left to the operator. It refuses only when
+// something is still stale after that, naming the exact manual recovery.
+// Nothing is deleted. A trace store that cannot be evaluated is left to the
+// steps that already report it. The dogfood inputs-check pre-flight passes
+// retire=false: it only checks, and still refuses with the manual recovery
+// (DCW-V0-400).
+func (f *flow) requireFreshWorktree(base, gitDir string, retire bool) {
+	stranded, digest, legacy := f.strandedTraces()
 	stale := f.staleOCMSidecars(base)
 	if len(stranded) == 0 && len(stale) == 0 {
 		return
 	}
+	if retire {
+		if legacy > 0 {
+			digest = ""
+		}
+		f.retireStaleState(base, gitDir, stranded, digest, stale)
+		stranded, digest, legacy = f.strandedTraces()
+		stale = f.staleOCMSidecars(base)
+		if len(stranded) == 0 && len(stale) == 0 {
+			return
+		}
+	}
 	f.say("%s: REFUSE reused-worktree-state\n", f.prefix)
-	f.say("  this worktree path holds dogfood state from an earlier lane or an amended/rebased commit; nothing was prepared or bound\n")
+	f.say("  this worktree path holds dogfood state from an earlier lane or an amended/rebased commit that could not be retired; nothing was prepared or bound\n")
 	for _, revision := range stranded {
 		f.say("  stale trace: the worktree-local trace store names %s, which HEAD does not reach (LTPM-V0-012)\n", revision)
 	}
@@ -52,11 +66,54 @@ func (f *flow) requireFreshWorktree(base, gitDir string) {
 		aside := gitDir + "/corvint/stale-ocm"
 		f.say("  fix: mkdir -p %s && mv %s %s/\n", shellQuote(aside), strings.Join(quoteAll(stale), " "), shellQuote(aside))
 	}
+	if retire && len(stranded) > 0 && legacy > 0 {
+		f.say("  the same migration plan also rekeys %d reachable tree-keyed legacy trace(s), so it was not applied automatically (DCW-V0-406)\n", legacy)
+	}
 	if len(stranded) > 0 {
 		f.say("  fix: corvint migrate-traces --apply --plan-digest %s (the digest of corvint migrate-traces --dry-run now; it quarantines the stranded traces byte-preserved)\n", digest)
 	}
 	f.say("  then rerun the same command; each lane should use a fresh worktree (git worktree add) rather than a reused path (DCW-V0-044)\n")
 	f.exit(2)
+}
+
+// strandedTraces returns the revisions the worktree-local trace store names
+// that HEAD does not reach, with the dry-run plan digest that retires them and
+// the number of reachable legacy traces that same plan would rekey; a store
+// that cannot be evaluated yields none.
+func (f *flow) strandedTraces() ([]string, string, int) {
+	result, err := tracemigraterepo.Evaluate(f.ctx, f.root, tracemigraterepo.Options{})
+	if err != nil {
+		return nil, "", 0
+	}
+	return result.StrandedRevisions, result.PlanDigest, len(result.Entries)
+}
+
+// retireStaleState moves each stale sidecar into a fresh directory under
+// <git-dir>/corvint/stale-ocm, so no earlier aside is overwritten, and applies
+// the trace migration whose dry-run digest is digest, unless digest is empty.
+// Each retirement it completes is printed; one that fails or is skipped is
+// left for the caller's refusal.
+func (f *flow) retireStaleState(base, gitDir string, stranded []string, digest string, stale []string) {
+	if len(stale) > 0 {
+		parent := filepath.Join(gitDir, "corvint", "stale-ocm")
+		aside := ""
+		if err := os.MkdirAll(parent, 0o777); err == nil {
+			aside, _ = os.MkdirTemp(parent, base[:12]+"-")
+		}
+		for _, name := range stale {
+			if aside == "" || os.Rename(filepath.Join(f.root, filepath.FromSlash(name)), filepath.Join(aside, filepath.Base(name))) != nil {
+				continue
+			}
+			f.say("%s: RETIRE stale sidecar %s moved to %s/ (DCW-V0-406)\n", f.prefix, name, filepath.ToSlash(aside))
+		}
+	}
+	if len(stranded) > 0 && digest != "" {
+		if _, err := tracemigraterepo.Evaluate(f.ctx, f.root, tracemigraterepo.Options{Apply: true, PlanDigest: &digest}); err == nil {
+			for _, revision := range stranded {
+				f.say("%s: RETIRE stale trace %s quarantined byte-preserved to .context-corvint/legacy-traces/ by migrate-traces --apply --plan-digest %s (DCW-V0-406, LTPM-V0-012)\n", f.prefix, revision, digest)
+			}
+		}
+	}
 }
 
 // staleOCMSidecars lists, sorted and root-relative, each ignored untracked OCM

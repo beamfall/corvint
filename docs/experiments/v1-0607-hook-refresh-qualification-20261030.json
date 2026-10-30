@@ -1,0 +1,2343 @@
+{
+ "profile": "corvint-experiment/0",
+ "ticket": "V1-0607",
+ "date": "2026-10-30",
+ "lane": "hooks-w7",
+ "requirements": [
+  "IDX-SNAP-V0-031",
+  "IDX-SNAP-V0-032",
+  "IDX-SNAP-V0-033",
+  "IDX-SNAP-V0-034",
+  "IDX-SNAP-V0-036",
+  "IDX-SNAP-V0-515",
+  "AHI-031",
+  "AHI-053",
+  "LCP-V0-008"
+ ],
+ "drivers": [
+  "docs/experiments/v1-0607/qualify.py",
+  "docs/experiments/v1-0607/refresh_load.py",
+  "docs/experiments/v1-0607/load_recovery.py"
+ ],
+ "method": "Each hook is the shipped hooks.json UserPromptSubmit command (`corvint adapter claude-code user-prompt`, stdin JSON with session_id and prompt, CLAUDE_PROJECT_DIR set) run under `timeout 2` to emulate the host's 2 s limit, on a clean linked worktree (`git worktree add`) of a `--no-local` clone of corvint at 93b9f5b08. Refresh completion is awaited with a blocking `flock` on the shared refresh.lock, never a manual index command. A raw `dogfood event` after each recovered hook proves the packet's tree equals HEAD^{tree}. Load is N `sh -c 'while :; do :; done'` busy loops at the stated nice. The Claude Code app was not driven: live host dispatch is NOT_RUN. corvint-b is the same source built with -X main.build=8, so only the executable digest (the snapshot engine key) differs.",
+ "notObserved": [
+  "Claude Code app live dispatch (claude 2.1.311 is installed but no live session was driven)",
+  "Codex host (absent on this machine)",
+  "darwin and Windows",
+  "host-reported version: Claude Code hooks report none (`unreported-by-hook-api`)",
+  "the original 2026-10-01 and 2026-10-29 incidents' durations and load: not reproducible from the ticket record"
+ ],
+ "runs": {
+  "idle_build7_base": {
+   "tuple": {
+    "core": "Corvint 1.0.0-rc.3.dev (build 7, commit 93b9f5b08ce841875c9c81d17905908d91346f99)",
+    "coreB": "Corvint 1.0.0-rc.3.dev (build 8, commit 93b9f5b08ce841875c9c81d17905908d91346f99)",
+    "binarySha256": {
+     "corvint": "764ecb86072cd9066e57a46688515332bc7d61bdeeab300ed6c6a4da2307aaa3",
+     "corvint-b": "3088497d98a9130705ad3286393211a11d4b7e188bf59978742d3da8d0d3c4fd"
+    },
+    "adapterWire": "0.1.0",
+    "plugin": "corvint 0.3.6 (integrations/claude-code/plugins/corvint, hooks.json timeout 2 s)",
+    "hostEmulated": "Claude Code UserPromptSubmit command hook payload; host binary on PATH: 2.1.311 (Claude Code)",
+    "os": "Linux-6.18.38-Unraid-x86_64-with-glibc2.39",
+    "cpus": 12,
+    "trackedFiles": 10217,
+    "worktree": "clean linked worktree (git worktree add) of corvint at 93b9f5b08ce841875c9c81d17905908d91346f99"
+   },
+   "steps": [
+    {
+     "step": "A1-cold",
+     "binary": "corvint",
+     "ms": 1671,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "started",
+     "load": [
+      "0.76",
+      "1.05",
+      "0.80"
+     ],
+     "head": "93b9f5b08ce841875c9c81d17905908d91346f99",
+     "tree": "6b644ac7e348344d9d731a8051b5764b1c0341c7",
+     "dirty": 0,
+     "outputBytes": 965
+    },
+    {
+     "step": "A2-concurrent-during-refresh",
+     "ms": 1635,
+     "results": [
+      {
+       "rc": 0,
+       "refresh": "already running",
+       "context": false
+      },
+      {
+       "rc": 0,
+       "refresh": "already running",
+       "context": false
+      },
+      {
+       "rc": 0,
+       "refresh": "already running",
+       "context": false
+      },
+      {
+       "rc": 0,
+       "refresh": "already running",
+       "context": false
+      }
+     ],
+     "workers": 1
+    },
+    {
+     "step": "A3-refresh-done",
+     "refreshWaitMs": 7330,
+     "workersAfter": [],
+     "store": [
+      "build-cost.json",
+      "refresh.lock",
+      "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-764ecb86072cd906.gob"
+     ]
+    },
+    {
+     "step": "A4-next-hook",
+     "binary": "corvint",
+     "ms": 766,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "0.80",
+      "1.04",
+      "0.80"
+     ],
+     "head": "93b9f5b08ce841875c9c81d17905908d91346f99",
+     "tree": "6b644ac7e348344d9d731a8051b5764b1c0341c7",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "A5-packet-tree",
+     "ms": 626,
+     "rc": 0,
+     "packetRevision": "6b644ac7e348344d9d731a8051b5764b1c0341c7",
+     "freshness": "clean",
+     "taskEvidence": 2,
+     "matchesTree": true
+    },
+    {
+     "step": "B1-after-commit",
+     "binary": "corvint",
+     "ms": 147,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "started",
+     "load": [
+      "0.80",
+      "1.04",
+      "0.80"
+     ],
+     "head": "a35755555ae70235e6e13db5b031826e588c7b3f",
+     "tree": "be329212136c193228202ea0d362f47193ba042e",
+     "dirty": 0,
+     "outputBytes": 965
+    },
+    {
+     "step": "B2-refresh-done",
+     "refreshWaitMs": 4548,
+     "workersAfter": [],
+     "store": [
+      "build-cost.json",
+      "refresh.lock",
+      "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-764ecb86072cd906.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-764ecb86072cd906.gob"
+     ]
+    },
+    {
+     "step": "B3-next-hook",
+     "binary": "corvint",
+     "ms": 621,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "0.82",
+      "1.04",
+      "0.80"
+     ],
+     "head": "a35755555ae70235e6e13db5b031826e588c7b3f",
+     "tree": "be329212136c193228202ea0d362f47193ba042e",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "B4-packet-tree",
+     "ms": 681,
+     "rc": 0,
+     "packetRevision": "be329212136c193228202ea0d362f47193ba042e",
+     "freshness": "clean",
+     "taskEvidence": 2,
+     "matchesTree": true
+    },
+    {
+     "step": "C1-new-binary",
+     "binary": "corvint-b",
+     "ms": 159,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "started",
+     "load": [
+      "0.82",
+      "1.04",
+      "0.80"
+     ],
+     "head": "a35755555ae70235e6e13db5b031826e588c7b3f",
+     "tree": "be329212136c193228202ea0d362f47193ba042e",
+     "dirty": 0,
+     "outputBytes": 965
+    },
+    {
+     "step": "C2-refresh-done",
+     "refreshWaitMs": 8698,
+     "workersAfter": [],
+     "store": [
+      "build-cost.json",
+      "refresh.lock",
+      "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-764ecb86072cd906.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-3088497d98a91307.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-764ecb86072cd906.gob"
+     ]
+    },
+    {
+     "step": "C3-next-hook",
+     "binary": "corvint-b",
+     "ms": 731,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.00",
+      "1.08",
+      "0.82"
+     ],
+     "head": "a35755555ae70235e6e13db5b031826e588c7b3f",
+     "tree": "be329212136c193228202ea0d362f47193ba042e",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "C4-packet-tree",
+     "ms": 737,
+     "rc": 0,
+     "packetRevision": "be329212136c193228202ea0d362f47193ba042e",
+     "freshness": "clean",
+     "taskEvidence": 2,
+     "matchesTree": true
+    },
+    {
+     "step": "C5-old-binary-still-served",
+     "binary": "corvint",
+     "ms": 637,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.40",
+      "1.16",
+      "0.84"
+     ],
+     "head": "a35755555ae70235e6e13db5b031826e588c7b3f",
+     "tree": "be329212136c193228202ea0d362f47193ba042e",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "D1-after-commit",
+     "binary": "corvint",
+     "ms": 154,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "started",
+     "load": [
+      "1.40",
+      "1.16",
+      "0.84"
+     ],
+     "head": "b72fa45184781d05cb7f94bf0779c8b3103778bb",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 965
+    },
+    {
+     "step": "D2-killed",
+     "killed": [
+      "1028156  10 <fixture>/bin/corvint --root <fixture>/fx/linked index --if-stale"
+     ],
+     "workersAfter": [],
+     "storeBefore": [
+      "build-cost.json",
+      "refresh.lock",
+      "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-764ecb86072cd906.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-3088497d98a91307.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-764ecb86072cd906.gob"
+     ],
+     "storeAfter": [
+      "build-cost.json",
+      "refresh.lock",
+      "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-764ecb86072cd906.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-3088497d98a91307.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-764ecb86072cd906.gob"
+     ],
+     "lockFree": true
+    },
+    {
+     "step": "D3-retry",
+     "binary": "corvint",
+     "ms": 163,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "started",
+     "load": [
+      "1.40",
+      "1.16",
+      "0.84"
+     ],
+     "head": "b72fa45184781d05cb7f94bf0779c8b3103778bb",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 965
+    },
+    {
+     "step": "D4-refresh-done",
+     "refreshWaitMs": 4779,
+     "workersAfter": [],
+     "store": [
+      "build-cost.json",
+      "refresh.lock",
+      "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-764ecb86072cd906.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-3088497d98a91307.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-764ecb86072cd906.gob",
+      "sha1-e5ab195153df76708271de8a40b7285667f25aa5-764ecb86072cd906.gob"
+     ]
+    },
+    {
+     "step": "D5-next-hook",
+     "binary": "corvint",
+     "ms": 640,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.45",
+      "1.17",
+      "0.85"
+     ],
+     "head": "b72fa45184781d05cb7f94bf0779c8b3103778bb",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "D6-packet-tree",
+     "ms": 651,
+     "rc": 0,
+     "packetRevision": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "freshness": "clean",
+     "taskEvidence": 2,
+     "matchesTree": true
+    },
+    {
+     "step": "E-warm-00",
+     "binary": "corvint",
+     "ms": 669,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.45",
+      "1.17",
+      "0.85"
+     ],
+     "head": "b72fa45184781d05cb7f94bf0779c8b3103778bb",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-01",
+     "binary": "corvint",
+     "ms": 633,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.45",
+      "1.17",
+      "0.85"
+     ],
+     "head": "b72fa45184781d05cb7f94bf0779c8b3103778bb",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-02",
+     "binary": "corvint",
+     "ms": 774,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.45",
+      "1.17",
+      "0.85"
+     ],
+     "head": "b72fa45184781d05cb7f94bf0779c8b3103778bb",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-03",
+     "binary": "corvint",
+     "ms": 640,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.73",
+      "1.24",
+      "0.87"
+     ],
+     "head": "b72fa45184781d05cb7f94bf0779c8b3103778bb",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-04",
+     "binary": "corvint",
+     "ms": 660,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.73",
+      "1.24",
+      "0.87"
+     ],
+     "head": "b72fa45184781d05cb7f94bf0779c8b3103778bb",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-05",
+     "binary": "corvint",
+     "ms": 666,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.73",
+      "1.24",
+      "0.87"
+     ],
+     "head": "b72fa45184781d05cb7f94bf0779c8b3103778bb",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-06",
+     "binary": "corvint",
+     "ms": 651,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.73",
+      "1.24",
+      "0.87"
+     ],
+     "head": "b72fa45184781d05cb7f94bf0779c8b3103778bb",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-07",
+     "binary": "corvint",
+     "ms": 631,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.73",
+      "1.24",
+      "0.87"
+     ],
+     "head": "b72fa45184781d05cb7f94bf0779c8b3103778bb",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-08",
+     "binary": "corvint",
+     "ms": 627,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.73",
+      "1.24",
+      "0.87"
+     ],
+     "head": "b72fa45184781d05cb7f94bf0779c8b3103778bb",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-09",
+     "binary": "corvint",
+     "ms": 634,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.73",
+      "1.24",
+      "0.87"
+     ],
+     "head": "b72fa45184781d05cb7f94bf0779c8b3103778bb",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-10",
+     "binary": "corvint",
+     "ms": 638,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.75",
+      "1.25",
+      "0.88"
+     ],
+     "head": "b72fa45184781d05cb7f94bf0779c8b3103778bb",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-11",
+     "binary": "corvint",
+     "ms": 623,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.75",
+      "1.25",
+      "0.88"
+     ],
+     "head": "b72fa45184781d05cb7f94bf0779c8b3103778bb",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-12",
+     "binary": "corvint",
+     "ms": 625,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.75",
+      "1.25",
+      "0.88"
+     ],
+     "head": "b72fa45184781d05cb7f94bf0779c8b3103778bb",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-13",
+     "binary": "corvint",
+     "ms": 621,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.75",
+      "1.25",
+      "0.88"
+     ],
+     "head": "b72fa45184781d05cb7f94bf0779c8b3103778bb",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-14",
+     "binary": "corvint",
+     "ms": 656,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.75",
+      "1.25",
+      "0.88"
+     ],
+     "head": "b72fa45184781d05cb7f94bf0779c8b3103778bb",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-15",
+     "binary": "corvint",
+     "ms": 622,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.75",
+      "1.25",
+      "0.88"
+     ],
+     "head": "b72fa45184781d05cb7f94bf0779c8b3103778bb",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-16",
+     "binary": "corvint",
+     "ms": 764,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.75",
+      "1.25",
+      "0.88"
+     ],
+     "head": "b72fa45184781d05cb7f94bf0779c8b3103778bb",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-17",
+     "binary": "corvint",
+     "ms": 631,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.75",
+      "1.25",
+      "0.88"
+     ],
+     "head": "b72fa45184781d05cb7f94bf0779c8b3103778bb",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-18",
+     "binary": "corvint",
+     "ms": 618,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.77",
+      "1.26",
+      "0.89"
+     ],
+     "head": "b72fa45184781d05cb7f94bf0779c8b3103778bb",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-19",
+     "binary": "corvint",
+     "ms": 666,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.77",
+      "1.26",
+      "0.89"
+     ],
+     "head": "b72fa45184781d05cb7f94bf0779c8b3103778bb",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-summary",
+     "warmMs": {
+      "min": 618,
+      "p50": 638,
+      "p95": 764,
+      "max": 774
+     },
+     "warmContext": 20
+    }
+   ]
+  },
+  "load36_build7_base": {
+   "tuple": {
+    "cpuBurners": 36,
+    "core": "Corvint 1.0.0-rc.3.dev (build 7, commit 93b9f5b08ce841875c9c81d17905908d91346f99)",
+    "coreB": "Corvint 1.0.0-rc.3.dev (build 8, commit 93b9f5b08ce841875c9c81d17905908d91346f99)",
+    "binarySha256": {
+     "corvint": "764ecb86072cd9066e57a46688515332bc7d61bdeeab300ed6c6a4da2307aaa3",
+     "corvint-b": "3088497d98a9130705ad3286393211a11d4b7e188bf59978742d3da8d0d3c4fd"
+    },
+    "adapterWire": "0.1.0",
+    "plugin": "corvint 0.3.6 (integrations/claude-code/plugins/corvint, hooks.json timeout 2 s)",
+    "hostEmulated": "Claude Code UserPromptSubmit command hook payload; host binary on PATH: 2.1.311 (Claude Code)",
+    "os": "Linux-6.18.38-Unraid-x86_64-with-glibc2.39",
+    "cpus": 12,
+    "trackedFiles": 10217,
+    "worktree": "clean linked worktree (git worktree add) of corvint at 93b9f5b08ce841875c9c81d17905908d91346f99"
+   },
+   "steps": [
+    {
+     "step": "A1-cold",
+     "binary": "corvint",
+     "ms": 1700,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "started",
+     "load": [
+      "1.81",
+      "1.34",
+      "0.93"
+     ],
+     "head": "93b9f5b08ce841875c9c81d17905908d91346f99",
+     "tree": "6b644ac7e348344d9d731a8051b5764b1c0341c7",
+     "dirty": 0,
+     "outputBytes": 965
+    },
+    {
+     "step": "A2-concurrent-during-refresh",
+     "ms": 1768,
+     "results": [
+      {
+       "rc": 0,
+       "refresh": "already running",
+       "context": false
+      },
+      {
+       "rc": 0,
+       "refresh": "already running",
+       "context": false
+      },
+      {
+       "rc": 0,
+       "refresh": "already running",
+       "context": false
+      },
+      {
+       "rc": 0,
+       "refresh": "already running",
+       "context": false
+      }
+     ],
+     "workers": 1
+    },
+    {
+     "step": "A3-refresh-done",
+     "refreshWaitMs": 58780,
+     "workersAfter": [],
+     "store": [
+      "refresh.lock"
+     ]
+    },
+    {
+     "step": "A4-next-hook",
+     "binary": "corvint",
+     "ms": 1778,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "started",
+     "load": [
+      "1.25",
+      "1.27",
+      "0.94"
+     ],
+     "head": "93b9f5b08ce841875c9c81d17905908d91346f99",
+     "tree": "6b644ac7e348344d9d731a8051b5764b1c0341c7",
+     "dirty": 0,
+     "outputBytes": 965
+    },
+    {
+     "step": "A5-packet-tree",
+     "ms": 1800,
+     "rc": 2,
+     "stderr": "{\"code\": \"dogfood-event-index-snapshot-stale\", \"error\": \"dogfood-event-index-snapshot-stale\", \"ok\": false}\n"
+    },
+    {
+     "step": "B1-after-commit",
+     "binary": "corvint",
+     "ms": 1653,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "already running",
+     "load": [
+      "1.15",
+      "1.25",
+      "0.93"
+     ],
+     "head": "0648287bf2cab3acb6e41ca6765c032eeefd090a",
+     "tree": "be329212136c193228202ea0d362f47193ba042e",
+     "dirty": 0,
+     "outputBytes": 981
+    },
+    {
+     "step": "B2-refresh-done",
+     "refreshWaitMs": 56475,
+     "workersAfter": [],
+     "store": [
+      "refresh.lock"
+     ]
+    },
+    {
+     "step": "B3-next-hook",
+     "binary": "corvint",
+     "ms": 1774,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-deadline",
+     "refresh": null,
+     "load": [
+      "21.38",
+      "6.60",
+      "2.76"
+     ],
+     "head": "0648287bf2cab3acb6e41ca6765c032eeefd090a",
+     "tree": "be329212136c193228202ea0d362f47193ba042e",
+     "dirty": 0,
+     "outputBytes": 953
+    },
+    {
+     "step": "B4-packet-tree",
+     "ms": 1786,
+     "rc": 2,
+     "stderr": "{\"code\": \"dogfood-event-index-snapshot-stale\", \"error\": \"dogfood-event-index-snapshot-stale\", \"ok\": false}\n"
+    },
+    {
+     "step": "C1-new-binary",
+     "binary": "corvint-b",
+     "ms": 1754,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "started",
+     "load": [
+      "21.38",
+      "6.60",
+      "2.76"
+     ],
+     "head": "0648287bf2cab3acb6e41ca6765c032eeefd090a",
+     "tree": "be329212136c193228202ea0d362f47193ba042e",
+     "dirty": 0,
+     "outputBytes": 965
+    },
+    {
+     "step": "C2-refresh-done",
+     "refreshWaitMs": 60153,
+     "workersAfter": [],
+     "store": [
+      "refresh.lock"
+     ]
+    },
+    {
+     "step": "C3-next-hook",
+     "binary": "corvint-b",
+     "ms": 1774,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "started",
+     "load": [
+      "32.57",
+      "12.79",
+      "5.16"
+     ],
+     "head": "0648287bf2cab3acb6e41ca6765c032eeefd090a",
+     "tree": "be329212136c193228202ea0d362f47193ba042e",
+     "dirty": 0,
+     "outputBytes": 965
+    },
+    {
+     "step": "C4-packet-tree",
+     "ms": 1872,
+     "rc": 2,
+     "stderr": "{\"code\": \"dogfood-event-index-snapshot-stale\", \"error\": \"dogfood-event-index-snapshot-stale\", \"ok\": false}\n"
+    },
+    {
+     "step": "C5-old-binary-still-served",
+     "binary": "corvint",
+     "ms": 1704,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "already running",
+     "load": [
+      "32.57",
+      "12.79",
+      "5.16"
+     ],
+     "head": "0648287bf2cab3acb6e41ca6765c032eeefd090a",
+     "tree": "be329212136c193228202ea0d362f47193ba042e",
+     "dirty": 0,
+     "outputBytes": 981
+    },
+    {
+     "step": "D1-after-commit",
+     "binary": "corvint",
+     "ms": 1683,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "started",
+     "load": [
+      "34.85",
+      "13.59",
+      "5.46"
+     ],
+     "head": "12dc5f1cd16b76d069d5abc9fee54f6be6b84193",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 965
+    },
+    {
+     "step": "D2-killed",
+     "killed": [
+      "1031754  10 <fixture>/bin/corvint --root <fixture>/fx/linked index --if-stale"
+     ],
+     "workersAfter": [],
+     "storeBefore": [
+      "refresh.lock"
+     ],
+     "storeAfter": [
+      "refresh.lock"
+     ],
+     "lockFree": true
+    },
+    {
+     "step": "D3-retry",
+     "binary": "corvint",
+     "ms": 1797,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "started",
+     "load": [
+      "34.85",
+      "13.59",
+      "5.46"
+     ],
+     "head": "12dc5f1cd16b76d069d5abc9fee54f6be6b84193",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 965
+    },
+    {
+     "step": "D4-refresh-done",
+     "refreshWaitMs": 60486,
+     "workersAfter": [],
+     "store": [
+      "refresh.lock",
+      "snapshot-1109369761.tmp"
+     ]
+    },
+    {
+     "step": "D5-next-hook",
+     "binary": "corvint",
+     "ms": 1881,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "started",
+     "load": [
+      "37.01",
+      "18.39",
+      "7.68"
+     ],
+     "head": "12dc5f1cd16b76d069d5abc9fee54f6be6b84193",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 965
+    },
+    {
+     "step": "D6-packet-tree",
+     "ms": 1756,
+     "rc": 2,
+     "stderr": "{\"code\": \"dogfood-event-index-snapshot-stale\", \"error\": \"dogfood-event-index-snapshot-stale\", \"ok\": false}\n"
+    },
+    {
+     "step": "E-warm-00",
+     "binary": "corvint",
+     "ms": 1927,
+     "rc": 0,
+     "outcome": "FALLBACK:adapter-host-kill-deadline",
+     "refresh": null,
+     "load": [
+      "37.17",
+      "18.74",
+      "7.85"
+     ],
+     "head": "12dc5f1cd16b76d069d5abc9fee54f6be6b84193",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 153
+    },
+    {
+     "step": "E-warm-01",
+     "binary": "corvint",
+     "ms": 1696,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "already running",
+     "load": [
+      "37.17",
+      "18.74",
+      "7.85"
+     ],
+     "head": "12dc5f1cd16b76d069d5abc9fee54f6be6b84193",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 981
+    },
+    {
+     "step": "E-warm-02",
+     "binary": "corvint",
+     "ms": 1878,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "already running",
+     "load": [
+      "37.64",
+      "19.14",
+      "8.03"
+     ],
+     "head": "12dc5f1cd16b76d069d5abc9fee54f6be6b84193",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 981
+    },
+    {
+     "step": "E-warm-03",
+     "binary": "corvint",
+     "ms": 1687,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "already running",
+     "load": [
+      "37.64",
+      "19.14",
+      "8.03"
+     ],
+     "head": "12dc5f1cd16b76d069d5abc9fee54f6be6b84193",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 981
+    },
+    {
+     "step": "E-warm-04",
+     "binary": "corvint",
+     "ms": 1681,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "already running",
+     "load": [
+      "37.64",
+      "19.14",
+      "8.03"
+     ],
+     "head": "12dc5f1cd16b76d069d5abc9fee54f6be6b84193",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 981
+    },
+    {
+     "step": "E-warm-05",
+     "binary": "corvint",
+     "ms": 1767,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "already running",
+     "load": [
+      "37.75",
+      "19.47",
+      "8.20"
+     ],
+     "head": "12dc5f1cd16b76d069d5abc9fee54f6be6b84193",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 981
+    },
+    {
+     "step": "E-warm-06",
+     "binary": "corvint",
+     "ms": 1849,
+     "rc": 0,
+     "outcome": "FALLBACK:adapter-host-kill-deadline",
+     "refresh": null,
+     "load": [
+      "37.75",
+      "19.47",
+      "8.20"
+     ],
+     "head": "12dc5f1cd16b76d069d5abc9fee54f6be6b84193",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 153
+    },
+    {
+     "step": "E-warm-07",
+     "binary": "corvint",
+     "ms": 1716,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "already running",
+     "load": [
+      "37.75",
+      "19.47",
+      "8.20"
+     ],
+     "head": "12dc5f1cd16b76d069d5abc9fee54f6be6b84193",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 981
+    },
+    {
+     "step": "E-warm-08",
+     "binary": "corvint",
+     "ms": 1697,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "already running",
+     "load": [
+      "37.93",
+      "19.81",
+      "8.37"
+     ],
+     "head": "12dc5f1cd16b76d069d5abc9fee54f6be6b84193",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 981
+    },
+    {
+     "step": "E-warm-09",
+     "binary": "corvint",
+     "ms": 1754,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "already running",
+     "load": [
+      "37.93",
+      "19.81",
+      "8.37"
+     ],
+     "head": "12dc5f1cd16b76d069d5abc9fee54f6be6b84193",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 981
+    },
+    {
+     "step": "E-warm-10",
+     "binary": "corvint",
+     "ms": 1686,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "already running",
+     "load": [
+      "38.09",
+      "20.15",
+      "8.54"
+     ],
+     "head": "12dc5f1cd16b76d069d5abc9fee54f6be6b84193",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 981
+    },
+    {
+     "step": "E-warm-11",
+     "binary": "corvint",
+     "ms": 1788,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "already running",
+     "load": [
+      "38.09",
+      "20.15",
+      "8.54"
+     ],
+     "head": "12dc5f1cd16b76d069d5abc9fee54f6be6b84193",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 981
+    },
+    {
+     "step": "E-warm-12",
+     "binary": "corvint",
+     "ms": 1669,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "already running",
+     "load": [
+      "38.09",
+      "20.15",
+      "8.54"
+     ],
+     "head": "12dc5f1cd16b76d069d5abc9fee54f6be6b84193",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 981
+    },
+    {
+     "step": "E-warm-13",
+     "binary": "corvint",
+     "ms": 1765,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "already running",
+     "load": [
+      "38.09",
+      "20.44",
+      "8.70"
+     ],
+     "head": "12dc5f1cd16b76d069d5abc9fee54f6be6b84193",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 981
+    },
+    {
+     "step": "E-warm-14",
+     "binary": "corvint",
+     "ms": 1669,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "already running",
+     "load": [
+      "38.09",
+      "20.44",
+      "8.70"
+     ],
+     "head": "12dc5f1cd16b76d069d5abc9fee54f6be6b84193",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 981
+    },
+    {
+     "step": "E-warm-15",
+     "binary": "corvint",
+     "ms": 1720,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "already running",
+     "load": [
+      "38.09",
+      "20.44",
+      "8.70"
+     ],
+     "head": "12dc5f1cd16b76d069d5abc9fee54f6be6b84193",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 981
+    },
+    {
+     "step": "E-warm-16",
+     "binary": "corvint",
+     "ms": 1712,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "already running",
+     "load": [
+      "38.48",
+      "20.82",
+      "8.89"
+     ],
+     "head": "12dc5f1cd16b76d069d5abc9fee54f6be6b84193",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 981
+    },
+    {
+     "step": "E-warm-17",
+     "binary": "corvint",
+     "ms": 1716,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "already running",
+     "load": [
+      "38.48",
+      "20.82",
+      "8.89"
+     ],
+     "head": "12dc5f1cd16b76d069d5abc9fee54f6be6b84193",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 981
+    },
+    {
+     "step": "E-warm-18",
+     "binary": "corvint",
+     "ms": 1694,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "already running",
+     "load": [
+      "38.48",
+      "20.82",
+      "8.89"
+     ],
+     "head": "12dc5f1cd16b76d069d5abc9fee54f6be6b84193",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 981
+    },
+    {
+     "step": "E-warm-19",
+     "binary": "corvint",
+     "ms": 1706,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "already running",
+     "load": [
+      "38.52",
+      "21.12",
+      "9.05"
+     ],
+     "head": "12dc5f1cd16b76d069d5abc9fee54f6be6b84193",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 981
+    },
+    {
+     "step": "E-summary",
+     "warmMs": {
+      "min": 1669,
+      "p50": 1716,
+      "p95": 1878,
+      "max": 1927
+     },
+     "warmContext": 0
+    }
+   ]
+  },
+  "refresh_cost_under_load_build7_base": [
+   {
+    "burners": 0,
+    "loadNice": 0,
+    "workerNice": 10,
+    "gomaxprocs": 1,
+    "limitS": 150,
+    "rc": 0,
+    "wallMs": 8066,
+    "childCpuS": 8.0,
+    "loadBefore": [
+     "11.73",
+     "16.93",
+     "11.72"
+    ],
+    "loadAfter": [
+     "10.22",
+     "16.44",
+     "11.61"
+    ]
+   },
+   {
+    "burners": 36,
+    "loadNice": 0,
+    "workerNice": 10,
+    "gomaxprocs": 1,
+    "limitS": 150,
+    "rc": -9,
+    "wallMs": 150183,
+    "childCpuS": 0.0,
+    "loadBefore": [
+     "16.46",
+     "17.52",
+     "12.04"
+    ],
+    "loadAfter": [
+     "36.82",
+     "25.94",
+     "16.06"
+    ]
+   },
+   {
+    "burners": 36,
+    "loadNice": 0,
+    "workerNice": 0,
+    "gomaxprocs": 1,
+    "limitS": 150,
+    "rc": 0,
+    "wallMs": 87999,
+    "childCpuS": 13.7,
+    "loadBefore": [
+     "32.63",
+     "25.72",
+     "16.24"
+    ],
+    "loadAfter": [
+     "26.95",
+     "26.64",
+     "17.46"
+    ]
+   },
+   {
+    "burners": 36,
+    "loadNice": 15,
+    "workerNice": 10,
+    "gomaxprocs": 1,
+    "limitS": 150,
+    "rc": 0,
+    "wallMs": 27300,
+    "childCpuS": 12.9,
+    "loadBefore": [
+     "21.05",
+     "25.35",
+     "17.18"
+    ],
+    "loadAfter": [
+     "14.50",
+     "23.42",
+     "16.80"
+    ]
+   }
+  ],
+  "load36_then_unloaded_with_IDX_SNAP_V0_515": [
+   {
+    "step": "tuple",
+    "core": "Corvint 1.0.0-rc.3.dev (build 7, commit 93b9f5b08ce841875c9c81d17905908d91346f99, modified)",
+    "burners": 36,
+    "loadNice": 0,
+    "head": "93b9f5b08ce841875c9c81d17905908d91346f99"
+   },
+   {
+    "step": "L1-cold-loaded",
+    "ms": 1838,
+    "rc": 0,
+    "outcome": "corvint-event-rejected:dogfood-event-index-snapshot-stale",
+    "refresh": "started",
+    "previous": null,
+    "load": [
+     "9.10",
+     "12.84",
+     "13.78"
+    ]
+   },
+   {
+    "step": "L2-refresh-ended",
+    "waitMs": 34802,
+    "metadata": "",
+    "snapshots": [
+     "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-e5e8d1b71df4b881.gob"
+    ]
+   },
+   {
+    "step": "L3-next-loaded",
+    "ms": 1701,
+    "rc": 0,
+    "outcome": "corvint-event-rejected:dogfood-event-deadline",
+    "refresh": null,
+    "previous": null,
+    "load": [
+     "21.81",
+     "15.61",
+     "14.67"
+    ]
+   },
+   {
+    "step": "L4-refresh-ended",
+    "waitMs": 7,
+    "metadata": "",
+    "snapshots": [
+     "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-e5e8d1b71df4b881.gob"
+    ]
+   },
+   {
+    "step": "L5-next-loaded",
+    "ms": 1688,
+    "rc": 0,
+    "outcome": "corvint-event-rejected:dogfood-event-deadline",
+    "refresh": null,
+    "previous": null,
+    "load": [
+     "23.27",
+     "16.01",
+     "14.81"
+    ]
+   },
+   {
+    "step": "L6-load-removed",
+    "load": [
+     "23.27",
+     "16.01",
+     "14.81"
+    ]
+   },
+   {
+    "step": "L7-refresh-ended",
+    "waitMs": 1,
+    "metadata": "",
+    "snapshots": [
+     "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-e5e8d1b71df4b881.gob"
+    ]
+   },
+   {
+    "step": "L8-unloaded",
+    "ms": 612,
+    "rc": 0,
+    "outcome": "CONTEXT",
+    "refresh": null,
+    "previous": null,
+    "load": [
+     "23.27",
+     "16.01",
+     "14.81"
+    ]
+   },
+   {
+    "step": "L9-refresh-ended",
+    "waitMs": 1,
+    "metadata": "",
+    "snapshots": [
+     "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-e5e8d1b71df4b881.gob"
+    ]
+   },
+   {
+    "step": "L10-next-unloaded",
+    "ms": 630,
+    "rc": 0,
+    "outcome": "CONTEXT",
+    "refresh": null,
+    "previous": null,
+    "load": [
+     "23.27",
+     "16.01",
+     "14.81"
+    ]
+   },
+   {
+    "step": "L11-next-unloaded",
+    "ms": 619,
+    "rc": 0,
+    "outcome": "CONTEXT",
+    "refresh": null,
+    "previous": null,
+    "load": [
+     "23.27",
+     "16.01",
+     "14.81"
+    ]
+   }
+  ],
+  "load72_then_unloaded_with_IDX_SNAP_V0_515": [
+   {
+    "step": "tuple",
+    "core": "Corvint 1.0.0-rc.3.dev (build 7, commit 93b9f5b08ce841875c9c81d17905908d91346f99, modified)",
+    "burners": 72,
+    "loadNice": 0,
+    "head": "93b9f5b08ce841875c9c81d17905908d91346f99"
+   },
+   {
+    "step": "L1-cold-loaded",
+    "ms": 1884,
+    "rc": 0,
+    "outcome": "corvint-event-rejected:dogfood-event-index-snapshot-stale",
+    "refresh": "started",
+    "previous": null,
+    "load": [
+     "30.27",
+     "18.06",
+     "15.51"
+    ]
+   },
+   {
+    "step": "L2-refresh-ended",
+    "waitMs": 60998,
+    "metadata": "{\"pid\":1040712,\"started\":\"2026-10-30T19:54:01.609176147Z\"}",
+    "snapshots": []
+   },
+   {
+    "step": "L3-next-loaded",
+    "ms": 1750,
+    "rc": 0,
+    "outcome": "corvint-event-rejected:dogfood-event-index-snapshot-stale",
+    "refresh": "started",
+    "previous": ", started at 2026-10-30T19:54:01Z, ended without publishing a snapshot: it stopped before recording an outcome (its 60-second hard limit, a crash or a signal ends a refresh this way). ",
+    "load": [
+     "59.59",
+     "29.11",
+     "19.50"
+    ]
+   },
+   {
+    "step": "L4-refresh-ended",
+    "waitMs": 60447,
+    "metadata": "{\"pid\":1040815,\"started\":\"2026-10-30T19:55:01.48902943Z\"}",
+    "snapshots": []
+   },
+   {
+    "step": "L5-next-loaded",
+    "ms": 2057,
+    "rc": 124,
+    "outcome": "corvint-event-rejected:dogfood-event-index-snapshot-stale",
+    "refresh": "started",
+    "previous": ", started at 2026-10-30T19:55:01Z, ended without publishing a snapshot: it stopped before recording an outcome (its 60-second hard limit, a crash or a signal ends a refresh this way). ",
+    "load": [
+     "35.35",
+     "28.74",
+     "20.04"
+    ]
+   },
+   {
+    "step": "L6-load-removed",
+    "load": [
+     "35.35",
+     "28.74",
+     "20.04"
+    ]
+   },
+   {
+    "step": "L7-refresh-ended",
+    "waitMs": 8157,
+    "metadata": "",
+    "snapshots": [
+     "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-e5e8d1b71df4b881.gob"
+    ]
+   },
+   {
+    "step": "L8-unloaded",
+    "ms": 608,
+    "rc": 0,
+    "outcome": "CONTEXT",
+    "refresh": null,
+    "previous": null,
+    "load": [
+     "30.07",
+     "27.82",
+     "19.84"
+    ]
+   },
+   {
+    "step": "L9-refresh-ended",
+    "waitMs": 1,
+    "metadata": "",
+    "snapshots": [
+     "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-e5e8d1b71df4b881.gob"
+    ]
+   },
+   {
+    "step": "L10-next-unloaded",
+    "ms": 624,
+    "rc": 0,
+    "outcome": "CONTEXT",
+    "refresh": null,
+    "previous": null,
+    "load": [
+     "30.07",
+     "27.82",
+     "19.84"
+    ]
+   },
+   {
+    "step": "L11-next-unloaded",
+    "ms": 749,
+    "rc": 0,
+    "outcome": "CONTEXT",
+    "refresh": null,
+    "previous": null,
+    "load": [
+     "27.74",
+     "27.38",
+     "19.73"
+    ]
+   }
+  ],
+  "driver_fix_idle_rerun": {
+   "tuple": {
+    "cpuBurners": 0,
+    "core": "Corvint 1.0.0-rc.3.dev (build 7, commit 69ffd04cdb423c06e6fa623b194e926867d59328, modified)",
+    "coreB": "Corvint 1.0.0-rc.3.dev (build 8, commit 93b9f5b08ce841875c9c81d17905908d91346f99)",
+    "binarySha256": {
+     "corvint-fix2": "e9a211e35f0c828c5bac7207f39d3895c5a0971caf767b49b5172bb7c2a4dc03",
+     "corvint-b": "3088497d98a9130705ad3286393211a11d4b7e188bf59978742d3da8d0d3c4fd"
+    },
+    "adapterWire": "0.1.0",
+    "plugin": "corvint 0.3.6 (integrations/claude-code/plugins/corvint, hooks.json timeout 2 s)",
+    "hostEmulated": "Claude Code UserPromptSubmit command hook payload; host binary on PATH: 2.1.311 (Claude Code)",
+    "os": "Linux-6.18.38-Unraid-x86_64-with-glibc2.39",
+    "cpus": 12,
+    "trackedFiles": 10217,
+    "worktree": "clean linked worktree (git worktree add) of corvint at 93b9f5b08ce841875c9c81d17905908d91346f99"
+   },
+   "steps": [
+    {
+     "step": "A1-cold",
+     "binary": "corvint-fix2",
+     "ms": 1603,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "started",
+     "load": [
+      "1.61",
+      "4.42",
+      "9.48"
+     ],
+     "head": "93b9f5b08ce841875c9c81d17905908d91346f99",
+     "tree": "6b644ac7e348344d9d731a8051b5764b1c0341c7",
+     "dirty": 0,
+     "outputBytes": 965
+    },
+    {
+     "step": "A2-concurrent-during-refresh",
+     "ms": 1591,
+     "results": [
+      {
+       "rc": 0,
+       "refresh": "already running",
+       "context": false
+      },
+      {
+       "rc": 0,
+       "refresh": "already running",
+       "context": false
+      },
+      {
+       "rc": 0,
+       "refresh": "already running",
+       "context": false
+      },
+      {
+       "rc": 0,
+       "refresh": "already running",
+       "context": false
+      }
+     ],
+     "workers": 1
+    },
+    {
+     "step": "A3-refresh-done",
+     "refreshWaitMs": 7316,
+     "workersAfter": [],
+     "store": [
+      "build-cost.json",
+      "refresh.lock",
+      "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-e9a211e35f0c828c.gob"
+     ]
+    },
+    {
+     "step": "A4-next-hook",
+     "binary": "corvint-fix2",
+     "ms": 596,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.64",
+      "4.38",
+      "9.44"
+     ],
+     "head": "93b9f5b08ce841875c9c81d17905908d91346f99",
+     "tree": "6b644ac7e348344d9d731a8051b5764b1c0341c7",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "A5-packet-tree",
+     "ms": 621,
+     "rc": 0,
+     "packetRevision": "6b644ac7e348344d9d731a8051b5764b1c0341c7",
+     "freshness": "clean",
+     "taskEvidence": 2,
+     "matchesTree": true
+    },
+    {
+     "step": "B1-after-commit",
+     "binary": "corvint-fix2",
+     "ms": 143,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "started",
+     "load": [
+      "1.75",
+      "4.36",
+      "9.41"
+     ],
+     "head": "88cd94258da4f346865cd175244a0d861a96f65a",
+     "tree": "be329212136c193228202ea0d362f47193ba042e",
+     "dirty": 0,
+     "outputBytes": 965
+    },
+    {
+     "step": "B2-refresh-done",
+     "refreshWaitMs": 4500,
+     "workersAfter": [],
+     "store": [
+      "build-cost.json",
+      "refresh.lock",
+      "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-e9a211e35f0c828c.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-e9a211e35f0c828c.gob"
+     ]
+    },
+    {
+     "step": "B3-next-hook",
+     "binary": "corvint-fix2",
+     "ms": 606,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.77",
+      "4.32",
+      "9.37"
+     ],
+     "head": "88cd94258da4f346865cd175244a0d861a96f65a",
+     "tree": "be329212136c193228202ea0d362f47193ba042e",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "B4-packet-tree",
+     "ms": 617,
+     "rc": 0,
+     "packetRevision": "be329212136c193228202ea0d362f47193ba042e",
+     "freshness": "clean",
+     "taskEvidence": 2,
+     "matchesTree": true
+    },
+    {
+     "step": "C1-new-binary",
+     "binary": "corvint-b",
+     "ms": 144,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "started",
+     "load": [
+      "1.77",
+      "4.32",
+      "9.37"
+     ],
+     "head": "88cd94258da4f346865cd175244a0d861a96f65a",
+     "tree": "be329212136c193228202ea0d362f47193ba042e",
+     "dirty": 0,
+     "outputBytes": 965
+    },
+    {
+     "step": "C2-refresh-done",
+     "refreshWaitMs": 8083,
+     "workersAfter": [],
+     "store": [
+      "build-cost.json",
+      "refresh.lock",
+      "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-e9a211e35f0c828c.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-3088497d98a91307.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-e9a211e35f0c828c.gob"
+     ]
+    },
+    {
+     "step": "C3-next-hook",
+     "binary": "corvint-b",
+     "ms": 712,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.73",
+      "4.23",
+      "9.28"
+     ],
+     "head": "88cd94258da4f346865cd175244a0d861a96f65a",
+     "tree": "be329212136c193228202ea0d362f47193ba042e",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "C4-packet-tree",
+     "ms": 621,
+     "rc": 0,
+     "packetRevision": "be329212136c193228202ea0d362f47193ba042e",
+     "freshness": "clean",
+     "taskEvidence": 2,
+     "matchesTree": true
+    },
+    {
+     "step": "C5-old-binary-still-served",
+     "binary": "corvint-fix2",
+     "ms": 636,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.73",
+      "4.23",
+      "9.28"
+     ],
+     "head": "88cd94258da4f346865cd175244a0d861a96f65a",
+     "tree": "be329212136c193228202ea0d362f47193ba042e",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "D1-after-commit",
+     "binary": "corvint-fix2",
+     "ms": 147,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "started",
+     "load": [
+      "1.73",
+      "4.23",
+      "9.28"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 965
+    },
+    {
+     "step": "D2-killed",
+     "killed": [
+      "1235226 1235226  10 <fixture>/bin/corvint-fix2 --root <fixture>/fx/linked index --if-stale"
+     ],
+     "workersAfter": [],
+     "storeBefore": [
+      "build-cost.json",
+      "refresh.lock",
+      "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-e9a211e35f0c828c.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-3088497d98a91307.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-e9a211e35f0c828c.gob"
+     ],
+     "storeAfter": [
+      "build-cost.json",
+      "refresh.lock",
+      "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-e9a211e35f0c828c.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-3088497d98a91307.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-e9a211e35f0c828c.gob"
+     ],
+     "lockFree": true
+    },
+    {
+     "step": "D3-retry",
+     "binary": "corvint-fix2",
+     "ms": 146,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "started",
+     "load": [
+      "1.73",
+      "4.23",
+      "9.28"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1525
+    },
+    {
+     "step": "D4-refresh-done",
+     "refreshWaitMs": 4576,
+     "workersAfter": [],
+     "store": [
+      "build-cost.json",
+      "refresh.lock",
+      "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-e9a211e35f0c828c.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-3088497d98a91307.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-e9a211e35f0c828c.gob",
+      "sha1-e5ab195153df76708271de8a40b7285667f25aa5-e9a211e35f0c828c.gob"
+     ]
+    },
+    {
+     "step": "D5-next-hook",
+     "binary": "corvint-fix2",
+     "ms": 602,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.67",
+      "4.17",
+      "9.24"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "D6-packet-tree",
+     "ms": 663,
+     "rc": 0,
+     "packetRevision": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "freshness": "clean",
+     "taskEvidence": 2,
+     "matchesTree": true
+    },
+    {
+     "step": "E-warm-00",
+     "binary": "corvint-fix2",
+     "ms": 609,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.67",
+      "4.17",
+      "9.24"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-01",
+     "binary": "corvint-fix2",
+     "ms": 619,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.67",
+      "4.17",
+      "9.24"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-02",
+     "binary": "corvint-fix2",
+     "ms": 612,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.78",
+      "4.15",
+      "9.20"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-03",
+     "binary": "corvint-fix2",
+     "ms": 615,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.78",
+      "4.15",
+      "9.20"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-04",
+     "binary": "corvint-fix2",
+     "ms": 717,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.78",
+      "4.15",
+      "9.20"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-05",
+     "binary": "corvint-fix2",
+     "ms": 613,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.78",
+      "4.15",
+      "9.20"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-06",
+     "binary": "corvint-fix2",
+     "ms": 605,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.78",
+      "4.15",
+      "9.20"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-07",
+     "binary": "corvint-fix2",
+     "ms": 631,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.78",
+      "4.15",
+      "9.20"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-08",
+     "binary": "corvint-fix2",
+     "ms": 611,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.78",
+      "4.15",
+      "9.20"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-09",
+     "binary": "corvint-fix2",
+     "ms": 615,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.80",
+      "4.12",
+      "9.16"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-10",
+     "binary": "corvint-fix2",
+     "ms": 612,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.80",
+      "4.12",
+      "9.16"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-11",
+     "binary": "corvint-fix2",
+     "ms": 609,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.80",
+      "4.12",
+      "9.16"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-12",
+     "binary": "corvint-fix2",
+     "ms": 609,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.80",
+      "4.12",
+      "9.16"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-13",
+     "binary": "corvint-fix2",
+     "ms": 603,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.80",
+      "4.12",
+      "9.16"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-14",
+     "binary": "corvint-fix2",
+     "ms": 618,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.80",
+      "4.12",
+      "9.16"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-15",
+     "binary": "corvint-fix2",
+     "ms": 611,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.80",
+      "4.12",
+      "9.16"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-16",
+     "binary": "corvint-fix2",
+     "ms": 613,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.80",
+      "4.12",
+      "9.16"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-17",
+     "binary": "corvint-fix2",
+     "ms": 705,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "2.05",
+      "4.13",
+      "9.14"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-18",
+     "binary": "corvint-fix2",
+     "ms": 614,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "2.05",
+      "4.13",
+      "9.14"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-19",
+     "binary": "corvint-fix2",
+     "ms": 613,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "2.05",
+      "4.13",
+      "9.14"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-summary",
+     "warmMs": {
+      "min": 603,
+      "p50": 613,
+      "p95": 705,
+      "max": 717
+     },
+     "warmContext": 20
+    }
+   ]
+  }
+ }
+}

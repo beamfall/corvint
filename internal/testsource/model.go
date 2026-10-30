@@ -27,6 +27,9 @@ type source struct {
 	// abstentions collects the advisory readings the validity rules withheld because what
 	// decides them is declared in another file (TSA-V0-300).
 	abstentions []testvalidity.RuleAbstention
+	// exemptions collects the readings a justified annotation exempted, with its reason
+	// (TSA-V0-870).
+	exemptions []testvalidity.RuleExemption
 	// assertNames are the local bindings of assertion modules and nodeTest whether the file imports
 	// node:test, both read on first use (TSA-V0-649).
 	assertNames map[string]bool

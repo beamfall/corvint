@@ -114,16 +114,19 @@ func TestSelectStructuralTakesDocumentationReadersFromThePlan_ADNV0010(t *testin
 
 // TestSelectStructuralTakesSealedEvidenceReadersFromThePlan_ADNV0011 replays
 // ADN-V0-011 (V1-3138): for a sealed CEM directly under .corvint/changes/,
-// `corvint test` adds no rule (c) reader of its own (a `.corvint` token held
-// beside a bare "/" no longer selects its holder), keeps the plan's reader that
-// enumerates the directory, and prints an evidence line; the CEM sidecar, a
-// path-token-bound frontier and Select keep rule (c) whole.
+// `corvint test` adds no rule (c) reader of its own, keeps the plan's reader
+// that enumerates the directory, and prints an evidence line; the CEM
+// sidecar, a path-token-bound frontier and Select keep rule (c) whole. Since
+// AFP-V0-931 (V1-3146) that whole rule (c) no longer composes a `.corvint`
+// token with a bare "/" (loose), only with a parent-only token (climb).
 func TestSelectStructuralTakesSealedEvidenceReadersFromThePlan_ADNV0011(t *testing.T) {
 	const sealed = ".corvint/changes/0123456789abcdef0123456789abcdef01234567.cem.json"
 	root := writeFixture(t, map[string]string{
 		"enum/enum_test.go":        "package enum\n\nvar sealed = \"../.corvint/changes\"\n",
 		"loose/loose.go":           "package loose\n\nvar sep, base = \"/\", \".corvint\"\n",
 		"loose/loose_test.go":      "package loose\n",
+		"climb/climb.go":           "package climb\n\nvar up, base = \"..\", \".corvint\"\n",
+		"climb/climb_test.go":      "package climb\n",
 		sealed:                     "{}\n",
 		".corvint/change.cem.json": "{}\n",
 	})
@@ -140,7 +143,7 @@ func TestSelectStructuralTakesSealedEvidenceReadersFromThePlan_ADNV0011(t *testi
 		}
 		return plan
 	}
-	whole := "run example.com/fixture/enum example.com/fixture/loose"
+	whole := "run example.com/fixture/climb example.com/fixture/enum"
 	got, lines := structuralVerdict(plan(sealed, ""), root)
 	if got != "run example.com/fixture/enum" || !slices.Contains(lines, "evidence "+sealed) {
 		t.Fatalf("sealed structural selection = %q", strings.Join(lines, "\n"))
@@ -158,7 +161,7 @@ func TestSelectStructuralTakesSealedEvidenceReadersFromThePlan_ADNV0011(t *testi
 	}
 	stale := plan(sealed, "")
 	stale.Provider.Go.Packages = []string{"example.com/fixture/loose"}
-	if got, lines := structuralVerdict(stale, root); got != whole {
+	if got, lines := structuralVerdict(stale, root); got != "run example.com/fixture/climb example.com/fixture/enum example.com/fixture/loose" {
 		t.Fatalf("a plan without the enumerating reader narrowed rule (c): %q", strings.Join(lines, "\n"))
 	}
 	if _, lines := structuralVerdict(plan(".corvint/change.cem.json", ""), root); slices.ContainsFunc(lines, func(line string) bool { return strings.HasPrefix(line, "evidence ") }) {

@@ -566,17 +566,26 @@ func (index *repositoryIndex) pathReaders(paths []string) [][]string {
 // the holder's own directory (a root-anchored token against the root), can
 // form dirtyPath or one of its ancestor directories. A separate root anchor
 // in the same package may compose with a partial naming token; the package is
-// the narrowest relation the literal-only index can prove.
+// the narrowest relation the literal-only index can prove. Naming is the
+// planner's (namesResolvedPath, AFP-V0-931): a lone component names only the
+// file name, so a module-path `/` anchor beside a bare `.corvint` token does
+// not make its holder a reader of every sealed CEM.
 func (index *repositoryIndex) resolvingReaders(dirtyPath string) []string {
 	readers := map[string]bool{}
 	anchors := index.rootAnchors(dirtyPath)
+	climbs := index.climbingAnchors()
 	for value, directories := range index.holders {
 		if !namesPath(value, dirtyPath) {
 			continue
 		}
+		// A lone directory component composes with the root only beside a
+		// parent-only token, which can climb there from the package
+		// directory; a `/` anchor alone (the module path) cannot
+		// (AFP-V0-931).
+		named := namesResolvedPath(value, dirtyPath)
 		for _, directory := range directories {
 			if resolvesWithin(directory, value, dirtyPath) ||
-				(anchors[directory] && resolvesWithin("", value, dirtyPath)) {
+				(anchors[directory] && resolvesWithin("", value, dirtyPath) && (named || climbs[directory])) {
 				readers[directory] = true
 			}
 		}
@@ -663,6 +672,20 @@ func (index *repositoryIndex) rootAnchors(dirtyPath string) map[string]bool {
 		}
 	}
 	return anchors
+}
+
+// climbingAnchors reports the packages holding a parent-only token, the
+// rootAnchors that can climb from the package directory to the root.
+func (index *repositoryIndex) climbingAnchors() map[string]bool {
+	climbs := map[string]bool{}
+	for value, directories := range index.holders {
+		if parentOnly(value) {
+			for _, directory := range directories {
+				climbs[directory] = true
+			}
+		}
+	}
+	return climbs
 }
 
 func parentOnly(value string) bool {
@@ -757,6 +780,31 @@ func componentRuns(value string) []run {
 		start = end + 1
 	}
 	return runs
+}
+
+// namesResolvedPath is namesPath with the planner's lone-component rule
+// (internal/liveverify/affected namesPath, V1-0290), which resolvingReaders
+// mirrors (AFP-V0-931, V1-3146): a single-component run of a token that is
+// neither anchored nor climbing is tried against the file name only, never a
+// directory component, so the `.corvint` of a fixture-root join does not name
+// `.corvint/changes/<commit>.cem.json`. A reader that composes such a
+// component with a located repository root reads through a root locator,
+// which rule (d) selects whatever this returns.
+func namesResolvedPath(value, dirtyPath string) bool {
+	parts := strings.Split(dirtyPath, "/")
+	nameOnly := !strings.HasPrefix(value, "/") && !strings.Contains(value, "..")
+	for _, candidate := range componentRuns(value) {
+		first := 0
+		if len(candidate.components) == 1 && nameOnly {
+			first = len(parts) - 1
+		}
+		for offset := first; offset+len(candidate.components) <= len(parts); offset++ {
+			if candidate.matchesAt(parts[offset:]) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func namesPath(value, dirtyPath string) bool {

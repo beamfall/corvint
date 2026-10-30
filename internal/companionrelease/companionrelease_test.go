@@ -1301,10 +1301,40 @@ func TestBuildComponentTwiceRefusesPlantedScratchLink(t *testing.T) {
 	}
 }
 
+// doubleBuildScratchBytes is the free space one component's double build
+// needs under its scratch directory (PUB-V0-054, V1-3221): measured on
+// 2026-10-30 at c5d5f0829, one cold corvint build with go1.27.3 leaves a
+// 272 MB home (GOCACHE) and a 53 MB binary, so its two builds peak near
+// 650 MB; corvint is the largest component, and 1 GiB keeps a margin.
+const doubleBuildScratchBytes = 1 << 30
+
+// doubleBuildWorkers is how many components may build concurrently in free
+// bytes of scratch: at most components, at least one, and none (a skip) when
+// even one component's measured need does not fit.
+func doubleBuildWorkers(free uint64, components int) int {
+	return int(min(free/doubleBuildScratchBytes, uint64(components)))
+}
+
+// TestDoubleBuildWorkersFitFreeScratch_V1_3221 pins the PUB-V0-054 bound.
+func TestDoubleBuildWorkersFitFreeScratch_V1_3221(t *testing.T) {
+	for _, c := range []struct {
+		free uint64
+		want int
+	}{{0, 0}, {doubleBuildScratchBytes - 1, 0}, {doubleBuildScratchBytes, 1}, {3*doubleBuildScratchBytes + 7, 3}, {16 << 30, 4}} {
+		if got := doubleBuildWorkers(c.free, 4); got != c.want {
+			t.Errorf("doubleBuildWorkers(%d, 4) = %d, want %d", c.free, got, c.want)
+		}
+	}
+}
+
 // TestCorvintBundledBinariesBuildTwiceIdentically drives PUB-V0-013's
 // byte-identity with the real toolchain: bundled binaries from this module,
 // including the in-tree corvint-tasks companion (decision 0397), each build
-// twice with cold, separate caches and match byte-for-byte.
+// twice with cold, separate caches and match byte-for-byte. PUB-V0-054
+// (V1-3221) bounds its scratch: only as many components build at once as
+// the free space under the scratch directory admits, each removes its caches
+// once it passes, and the test skips, naming both figures, when one
+// component's measured need does not fit.
 func TestCorvintBundledBinariesBuildTwiceIdentically(t *testing.T) {
 	t.Run("PUB-V0-013 corvint-binary-double-build", func(t *testing.T) {
 		if runtime.Version() != requiredGoVersion {
@@ -1318,13 +1348,33 @@ func TestCorvintBundledBinariesBuildTwiceIdentically(t *testing.T) {
 			t.Fatal(err)
 		}
 		scratch := t.TempDir()
+		names := []string{"corvint", "corvint-console", "corvint-dashboard-snapshot", "corvint-tasks"}
+		var stat syscall.Statfs_t
+		if err := syscall.Statfs(scratch, &stat); err != nil {
+			t.Fatalf("free space under %s: %v", scratch, err)
+		}
+		free := uint64(stat.Bavail) * uint64(stat.Bsize)
+		workers := doubleBuildWorkers(free, len(names))
+		if workers == 0 {
+			t.Skipf("PUB-V0-054: %d MiB free under %s (TMPDIR), below the %d MiB one component's cold double build needs; free space or point TMPDIR at a larger file system",
+				free>>20, filepath.Dir(scratch), doubleBuildScratchBytes>>20)
+		}
 		// The components share nothing but the read-only module tree, so they
-		// build concurrently (V1-2740); each still builds twice with its own
-		// two cold caches.
-		for _, name := range []string{"corvint", "corvint-console", "corvint-dashboard-snapshot", "corvint-tasks"} {
+		// build concurrently (V1-2740), as many at once as the scratch admits;
+		// each still builds twice with its own two cold caches.
+		slots := make(chan struct{}, workers)
+		for _, name := range names {
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
-				built, err := buildComponentTwice(context.Background(), root, "./cmd/"+name, name, supportedTarget, scratch)
+				slots <- struct{}{}
+				defer func() { <-slots }()
+				own := filepath.Join(scratch, name)
+				if err := os.Mkdir(own, 0o700); err != nil {
+					t.Fatal(err)
+				}
+				// Release the caches before the next component takes the slot.
+				defer os.RemoveAll(own)
+				built, err := buildComponentTwice(context.Background(), root, "./cmd/"+name, name, supportedTarget, own)
 				if err != nil {
 					t.Fatalf("%s: %v", name, err)
 				}

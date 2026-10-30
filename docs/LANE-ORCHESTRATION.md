@@ -256,6 +256,39 @@ Then point the operator wrapper and the lane charter at `script/heavy.sh` and re
 and `rt.sh`. `gh` must be authenticated on the lane host; an unauthenticated `gh` fails every query
 and so keeps every command local, visible as `query-failed` lines in the fallback log.
 
+### One semaphore per host: `~/.config/corvint/heavy.env` (V1-3222)
+
+Every host that runs lanes keeps exactly one heavy semaphore. `script/heavy.sh` reads its host
+settings from `~/.config/corvint/heavy.env` (`HEAVY_CONFIG` names another file): at least
+`HEAVY_SLOTS` (the host-wide slot count) and `HEAVY_LOCK_DIR` (the one directory every caller takes
+its `flock` slots in), plus any other `HEAVY_*` key; the environment still wins. Any other wrapper
+on the host delegates to `script/heavy.sh` rather than keeping slots of its own. On the WSL lane
+host (2026-10-30) the file is
+
+```sh
+HEAVY_LOCK_DIR=/home/russell/bench/rt/.locks
+HEAVY_SLOTS=4
+HEAVY_SELECTION_LOG=/home/russell/lanes/heavy-selection.log
+```
+
+`~/bench/rt/.locks` is where `~/bench/rt.sh` (the remote half the Mac's offloads run) takes its four
+`flock` slots, so local lanes and offloads now queue on one semaphore instead of three
+(`~/lanes/heavy.sh`'s `mkdir` slots, 4; `script/heavy.sh`'s `/tmp/corvint-heavy-1000`, 8; and
+`rt.sh`'s). `~/lanes/heavy.sh` now delegates to the checkout's `script/heavy.sh` and refuses outside
+a checkout whose script reads `heavy.env`; the old wrapper is kept as
+`~/lanes/heavy.sh.bak-20261030-v1-3222`. Change the file between batches: a running command keeps
+the slot it holds, and only later commands see a new lock directory. `script/heavy.sh
+--print-lock-dir` prints the directory a run would use.
+
+### Small packages run whole without a reason (ASD-V0-074, V1-3120)
+
+`corvint test --dry-run` plans a whole Go package for a small tool package, which `ASD-V0-030`
+would refuse without `HEAVY_WHOLE_REASON`. A whole-package `go test` whose every package is a plain
+`./tools/...` or `./conformance/...` directory (no `...`) with at most `HEAVY_SMALL_TEST_BYTES`
+(default 49152) bytes of `*_test.go` runs without one and is logged `whole reason=small-package:NB`;
+on 2026-10-30 the six such packages each ran whole in 0.6 to 16 s. `cmd/` and `internal/` packages
+still need the reason.
+
 ### WSL keepalive (ASD-V0-039)
 
 A WSL distro stops a few seconds after its last client exits, so an offload host reached over ssh
@@ -348,6 +381,18 @@ known to approach or exceed it and are bounded as listed:
 | `go test ./internal/doccorpus` | 7 lane calls of 600 s or more (load-bound); 52 s on WSL2 at load 33 | offload (section 2) and one package per command |
 | `go test ./internal/contextindex`, `./conformance/mcp-2026-07-28`, `./internal/mcp/corpusbridge` | 604-707 s in a lane under load; CI 59 s, 27 s and 5.5 s | offload, narrow `-run` |
 
+Closeout, check and seal run in the foreground (ASD-V0-107, V1-3224). A lane that starts
+`dogfood-closeout`, `dogfood-finish`, `dogfood-check` or `dogfood-seal` as a background job and
+ends its turn to wait for it parks: the job's completion does not reliably resume the session, so
+the lane sits idle with its seal unfinished until the orchestrator notices. Run each such command
+in the foreground and, when one would pass the 600 s tool-call limit, split it at its own phase
+boundary (stop after the bind commit, as the table says) instead of backgrounding it. A lane never
+ends a turn with its own job still running: it finishes the job, or it reports the exact remaining
+command as its handoff and ends with nothing running. `script/lane-guard.sh` enforces the first half for
+every session, subagent or not: a backgrounded `make dogfood-closeout`, `-finish`, `-check` or
+`-seal`, `script/dogfood-finish.sh` or `corvint dogfood finish-lane`/`finish`/`check`/`seal` is
+denied with this foreground recipe.
+
 The 2026-10-23..25 counts come from `script/lane-transcript-metrics.py`
 (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-25-lane-infra-p0-evidence.md`): 48 tool calls ran 600 s or longer, 15 of
 them unclassified Bash commands; the timeout target in section 7 was not yet met.
@@ -385,7 +430,20 @@ every gap above the threshold with the time the watchdog would have flagged it.
   `--reference` (dogfood refuses borrowed objects, `unsupported-object-alternates`). The
   orchestrator fetches it.
 - One checkout per lane, created once and reused for every check of that lane:
-  `git -C <shared> worktree add -b claude/<slug> <lanes-root>/<slug> origin/main`. The dogfood
+  `script/lane-setup.sh --repo <shared> --dir <lanes-root>/<slug> --branch claude/<slug>`, which runs
+  `git -C <shared> worktree add -b claude/<slug> <lanes-root>/<slug> origin/main` and installs the
+  AI-trailer commit-msg hook below.
+- The shared repository holds the full history (ASD-V0-072, V1-3230). A shallow clone breaks
+  merge-base, `corvint affected` and every dogfood range, so `lane-setup.sh`, `corvint affected
+  --base`, `dogfood-change`, `dogfood-check` (and so `dogfood-seal`), `dogfood-bind-range`,
+  `batch-review-packet` and `batch-precheck --base` refuse one up front with `REFUSE
+  shallow-repository` and the recovery `git -C <shared> fetch --unshallow origin` (or a reclone
+  without `--depth`).
+- No commit carries an AI co-author or "Generated with" trailer (ASD-V0-071, V1-3227). The
+  commit-msg hook `lane-setup.sh` installs (`script/check-ai-trailers.sh --install`, shared by every
+  worktree of the clone) refuses one at commit time, and `make batch-precheck` refuses any commit in
+  `BASE..HEAD` (default `origin/main..HEAD`) that carries one, naming the commit and the line;
+  remove it with `git commit --amend` or a reword before the batch push. The dogfood
   loop supports linked worktrees with per-worktree trace stores and locks (`DCW-V0-044`); never
   switch one checkout between lanes. A fresh plain clone remains the fallback until a live lane has
   run `dogfood-finish` and `dogfood-batch-check` in a linked worktree
@@ -397,7 +455,16 @@ every gap above the threshold with the time the watchdog would have flagged it.
   restore with `git apply ../p.patch`) or in a named WIP commit on the lane's own branch.
   `script/lane-clean.sh` keeps any checkout that still has a stash entry.
 - Scratch logs go outside the checkout (untracked files make dogfood report
-  `record-index-failed`).
+  `record-index-failed`), into a directory only this lane writes (ASD-V0-108, V1-3156):
+  `"$(git rev-parse --absolute-git-dir)/corvint/lane-logs/"`, unique per worktree like
+  `lane-inputs/` (section 3), or a `mktemp -d` directory. Never a fixed name in the shared
+  temporary directory such as `/tmp/closeout.log` or `/tmp/precheck.log`: on macOS `/tmp` is
+  `/private/tmp`, one directory for every lane on the host, so two lanes running the same step
+  overwrite each other's log and a report can quote another lane's output.
+- Helper binaries build into scratch too: `go build -o "$TMPDIR/NAME" ./cmd/NAME`, never a bare
+  `go build ./cmd/NAME`, which leaves an untracked `NAME` at the worktree root that the recorder
+  counts as dirty (V1-3132). `dogfood-change` names such a file as
+  `NOTE untracked-build-output` (`DCW-V0-386`); delete it before the next dogfood step.
 - After a lane's PR merges, the orchestrator fetches the shared repository and runs
   `script/lane-clean.sh --root <lanes-root> --repo <shared> --active <dir>...` (dry run), reviews
   the `WOULD-REMOVE` lines, then reruns with `--apply`. It removes only checkouts whose `HEAD` and
@@ -566,3 +633,101 @@ cases ahead of it.
 Measurement: over the next 6 lanes that carry the pass, the share of reviews returning CONCERNS
 against the 3 of 3 baseline and the repair rounds per lane, retained in the batch build-log entry.
 It is `NOT_PRODUCED` until those 6 lanes have run.
+
+## 10. Codex review login preflight (ASD-V0-064)
+
+On 2026-10-30 a lane's `codex exec -m gpt-6.1-sol -s read-only` review retried "401 Not logged
+in" several times before it became `NOT_PRODUCED` (V1-3219). Lane setup runs the check once:
+
+```sh
+script/codex-review.sh --preflight   # codex-review: OK logged-in, or NOT_AVAILABLE and exit 3
+```
+
+and the lane's review goes through the same script, which checks `codex login status` once more
+and then runs `codex exec -m gpt-6.1-sol -s read-only` with the lane's arguments
+(`CODEX_REVIEW_MODEL` and `CODEX_BIN` override the model and executable). A missing CLI or a
+logged-out one prints one `codex-review: NOT_AVAILABLE` line with the fix (`codex login`, or
+`codex login --with-api-key` on a headless host) and exits 3 without any review call; the lane
+records the review as `NOT_RUN` with that line instead of retrying.
+
+## 11. Friction goes up to the orchestrator (ASD-V0-076)
+
+Lane friction (stale binaries, missing logins, requirement ID collisions, parked background jobs)
+is the main input to process repairs, and most lane hosts cannot file tickets: the WSL and Unraid
+lanes have no current Tasks store. A side session's relayed report is cut to its first 400
+characters, so a Friction section only in the final report never reaches the orchestrator; on
+2026-10-30 the owner restated this three times. The orchestrator copies the block below into
+every lane charter verbatim, together with a digest (ID and title) of the open friction tickets
+from `corvint-tasks ticket search --status OPEN --label agent-memory`, and puts every merge
+instruction (for example, a lane to merge as the one pre-dogfood merge) in the charter before
+dispatch:
+
+```text
+Friction report (docs/LANE-ORCHESTRATION.md section 11). Before closeout and before wrap_up,
+SendMessage the full numbered friction list to the orchestrator session: an item already in the
+charter's digest as one line `+1 V1-NNNN <context>`; a new item with its repro, host and tool
+version, expected versus actual, and whether it is suspected or confirmed; "none" when there was
+none. Friction found mid-task may be sent as soon as it is found. A Friction section only in the
+final report does not count. Do not file tickets yourself.
+```
+
+An in-process subagent's charter (the Agent tool) requires the same Friction section in its
+result instead. The orchestrator reads every list in the round it arrives, dedupes it against
+`corvint-tasks ticket search --text`, files the new items (labels `agent-memory` plus the
+category) or adds the `+1` context to the existing ticket, and asks a lane whose report arrived
+cut off to resend its list by SendMessage.
+
+## 12. Friction dedupe and lanes without a journal (TCL-V0-001 to TCL-V0-012)
+
+A lane report ends with a Friction section, and before 2026-10-30 the orchestrator deduplicated
+each item by hand: that day's round of 27 items held 13 duplicates of open tickets, each found by
+repeated `ticket search` calls. The duplicate check in
+[Corvint Tasks CLI V0](specs/corvint-tasks-cli-v0.md) replaces those searches.
+
+Charter. The orchestrator pastes a recent digest into each charter and gives a remote lane the
+full digest file:
+
+```sh
+corvint-tasks ticket digest --since 2026-10-23 --format text > digest.txt   # paste into the brief
+corvint-tasks ticket digest --format text > digest-full.txt                 # every OPEN agent-memory ticket
+```
+
+The full digest of every open `agent-memory` ticket was 1,070 lines (120 KB) on 2026-10-30, too
+large for a brief; a one-week `--since` window was 263 lines (33 KB). The digest header names the
+intent tree digest it was printed from.
+
+Lane. For each friction item, a lane matches the item against the digest, with no store and no
+journal:
+
+```sh
+corvint-tasks ticket similar --digest digest.txt --text 'heavy.sh ignores unstaged files'
+```
+
+An item that matches an open ticket is reported as `+1 V1-NNNN <one-line context>`; only an item
+with no match is written out in full. The digest holds titles only, so the offline match is weaker
+than the store's (11 of 13 still-open duplicates at rank 3 or better in the 2026-10-30 round,
+against 14 of 15 for the store); a lane that is unsure reports both the item and its best match.
+
+Orchestrator. A `+1` line is recorded on the existing ticket, never as a new one:
+
+```sh
+corvint-tasks ticket recur V1-NNNN --context 'lane w4: <context>' --request-id <lane>-friction-<n>
+```
+
+Each new item takes one `ticket similar --text` call. `ticket create` runs the same check and
+refuses a likely duplicate with `DUPLICATE_ID`, naming the candidates; file it anyway with
+`--not-duplicate-of V1-NNNN` (repeatable) once the candidates are confirmed different.
+
+Lanes without a journal. A lane host whose checkout has no Tasks journal (for example Unraid)
+reads the queue from a snapshot the orchestrator exports on the owning host:
+
+```sh
+corvint-tasks queue snapshot --out queue-snapshot.json                      # on the owning host
+CORVINT_TASKS_SNAPSHOT=queue-snapshot.json corvint-tasks ticket show V1-3223 # on the lane host
+```
+
+Under `CORVINT_TASKS_SNAPSHOT` only `ticket search`, `ticket show`, `ticket export`,
+`ticket similar`, `ticket digest`, `roadmap` and `queue status` run. Every file and the tree digest
+are verified first, and every result names the snapshot's host, primary worktree, `producedAt` and
+journal sequence. Any other verb, every write included, is refused `UNSUPPORTED` before any read,
+naming the owning store and the command to run there.

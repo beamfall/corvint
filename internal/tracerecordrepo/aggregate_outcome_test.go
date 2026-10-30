@@ -805,3 +805,71 @@ func TestDCWV0374OverLimitOutcomeLearnsNothing(t *testing.T) {
 		t.Fatal("empty verification accepted")
 	}
 }
+
+// DCW-V0-445 (V1-3166): the aggregate path accepts a VERIFY file in any line
+// order, as the learning trace recorder does, by normalizing the author's list
+// to the receipt's sorted unique byte order; the receipt it produces is the
+// one a sorted file records. Fails on BASE with aggregate-schema-invalid.
+func TestDCWV0445AggregateAcceptsAnyVerifyOrder(t *testing.T) {
+	root := newAdapterFixture(t)
+	for i, path := range aggregateTestPaths(201) {
+		writeAdapterFixture(t, root, path, fmt.Sprintf("package source\nconst V%d = %d\n", i, i))
+	}
+	gitAdapterFixture(t, root, "add", "source")
+	gitAdapterFixture(t, root, "commit", "-qm", "over-limit change")
+	sorted := []string{"go test ./internal", "go test ./source", "go vet ./source"}
+	unsorted := []string{"go vet ./source", "go test ./source", "go test ./internal", "go test ./source"}
+	receipts := [][]byte{}
+	for _, verification := range [][]string{sorted, unsorted} {
+		expected, err := AggregateExpectedFor(context.Background(), root, "HEAD~1", "HEAD", "large change", verification, "passed")
+		if err != nil {
+			t.Fatalf("verification %q: %v", verification, err)
+		}
+		if !reflect.DeepEqual(expected.Verification, sorted) {
+			t.Fatalf("verification not normalized: %q", expected.Verification)
+		}
+		raw, err := ProduceAggregateOutcome(context.Background(), root, expected)
+		if err != nil {
+			t.Fatal(err)
+		}
+		receipts = append(receipts, raw)
+	}
+	if !bytes.Equal(receipts[0], receipts[1]) {
+		t.Fatalf("line order changed the receipt:\n%s\n%s", receipts[0], receipts[1])
+	}
+	if len(unsorted) != 4 || unsorted[0] != "go vet ./source" {
+		t.Fatalf("caller's list was modified: %q", unsorted)
+	}
+}
+
+// ASD-V0-089 (V1-3248): every aggregate-schema-invalid cause keeps its wire code
+// and names the offending field and a recovery step, not only unsorted rows.
+func TestASDV0089AggregateSchemaCausesNameFieldAndFix(t *testing.T) {
+	root := newAdapterFixture(t)
+	writeAdapterFixture(t, root, "source/a.go", "package source\n")
+	gitAdapterFixture(t, root, "add", "source")
+	gitAdapterFixture(t, root, "commit", "-qm", "change")
+	for _, tc := range []struct {
+		task, field, line string
+		verification      []string
+	}{
+		{task: "change", field: "verification", line: "go test ./source ", verification: []string{"go test ./source "}},
+		{task: "change", field: "verification", verification: nil},
+		{task: " change", field: "task", verification: []string{"go test ./source"}},
+	} {
+		_, err := AggregateExpectedFor(context.Background(), root, "HEAD~1", "HEAD", tc.task, tc.verification, "passed")
+		if err == nil || err.Error() != "aggregate-schema-invalid" {
+			t.Fatalf("%+v: wire code changed: %v", tc, err)
+		}
+		fix := AggregateSchemaFix(err)
+		if !strings.HasPrefix(fix, "field: "+tc.field) || !strings.Contains(fix, "; fix: ") || !strings.Contains(fix, tc.line) {
+			t.Fatalf("%+v: fix hint %q", tc, fix)
+		}
+	}
+	if fix := AggregateSchemaFix(AggregateSchemaReportError("anchor.state")); !strings.Contains(fix, "field: report \"anchor.state\"; fix: ") {
+		t.Fatalf("report member hint %q", fix)
+	}
+	if AggregateSchemaFix(fmt.Errorf("aggregate-schema-invalid")) != "" {
+		t.Fatal("untagged error produced a hint")
+	}
+}

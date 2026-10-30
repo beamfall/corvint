@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-07
 Requirement prefix: `DCG-V0`
-Intent status: accepted (owner instruction 2026-09-07)
+Intent status: accepted (owner instruction 2026-09-07); DCG-V0-048 experimental under the standing lane auto-accept (V1-3228)
 Delivery status: implemented
 Authoritative inputs: `../../AGENTS.md` invariants 1, 2 and 8, `../SPEC-DRIVEN-DEVELOPMENT.md`,
 `../DOGFOOD.md` §4, `falsifiable-packet-v0.md` FPK-V0-004 (the packet-side citation check this
@@ -14,7 +14,7 @@ gate mirrors for prose), `../decisions/0136-extensionless-root-line-citations-20
 
 ## Agent digest
 - Claim: Path:line citations resolve against the Git index, including decisions; malformed tokens fail, legacy unpinned debt cannot grow, new docs need content anchors.
-- Status: accepted (owner instruction 2026-09-07) / implemented
+- Status: accepted (owner instruction 2026-09-07); DCG-V0-048 experimental under the standing lane auto-accept (V1-3228) / implemented
 - Exists: `script/check-line-citations.sh`, `script/check-line-citations_test.sh`, `make` targets `line-citations-check` and `line-citations-test`.
 - Blocked on: nothing for this gate. The three sibling gate scripts named in `../agent-memory/fixes.md` remain unspecified.
 - Read next: Requirements; Non-goals; Failure modes.
@@ -279,6 +279,16 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   prose value such as `retry:3` is not one, so changing it still refuses. Any other text change is
   still left for a reader, and that refusal names the token-only route. The check's exit status is
   unchanged.
+- `DCG-V0-048`: (experimental under the standing lane auto-accept (V1-3228); refines DCG-V0-045 and
+  DCG-V0-047) `--repin` MUST stage each document it rewrites (`git add -- <documents>`; it rewrites
+  only a document whose worktree copy equals its index copy, so nothing else is staged), print
+  `--repin rewrote N citation(s) in M document(s) and staged them (git add -- <documents>)`, and then
+  rerun itself, at most five passes in all, until a pass rewrites nothing, so a transitive chain
+  resolves in one call and the index-reading check passes with no manual staging. Paths are staged
+  as literal pathspecs, so a document whose name is a glob never stages a sibling it matches. A
+  failed `git add` prints the exact command and exits non-zero; a fifth pass that still rewrote
+  exits non-zero as not converged; a refused document still exits non-zero before any rerun. The
+  check without `--repin` is unchanged.
 
 ## Non-goals and simpler baseline
 
@@ -365,6 +375,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-044 | test case 31: a pinned one-line span whose line of 52 non-whitespace characters moved down two lines reported as moved to line 6, `--repin` printing that relocation and rewriting it to a passing citation; the same line appearing twice reported with the position count and left alone; an edited line reported as changed with no move and left alone; case 28's `return nil` still not relocated; with the threshold raised to 999 case 31 fails |
 | DCG-V0-045 | test case 32: three lines inserted above a committed file move a repeated three-line span and a lone `return nil` line, which the check reports as ambiguous; `--repin` rewrites both to their diff-proven lines, leaves a changed span written as it was and prints the span the diff maps it to with that span's `--hash` anchor; after staging only the changed span fails; an unstaged cited file is named with `git add -- internal/demo/shift.go`; `--base no-such-rev` refuses. With the diff relocation disabled, case 32 fails |
 | DCG-V0-046 | test case 22: a root-basename skip prints one counted note line and no per-citation note, `--verbose` lists it, and a failing run prints its failure before the count, with the exit status unchanged in both modes; case 21 prints its failure before the DCG-V0-021 note |
+| DCG-V0-048 | test case 24: `--repin` names what it staged, leaves no unstaged diff and the check then passes with no `git add`; case 24b: a held `index.lock` exits 1 naming the `git add`, a fifth pass that rewrote exits 1 as not converged, and a `[fx].md` document leaves its unstaged sibling `f.md` unstaged; test case 33: one `--repin` call moves the inner citation, stages it and in its second pass re-anchors the outer citation, leaving nothing unstaged, and the check passes; case 33b: the second pass still refuses a prose change and the call exits 0 |
 | DCG-V0-047 | test case 33: a fixture pins a spec line that cites a moved source line; `--repin` moves the spec's token, and after staging a second `--repin` re-anchors the fixture's citation, including a moved continuation token, with no `--hash`, and the check passes; case 33b: changing a backticked prose `name:number` value still refuses |
 | DCG-V0-040 | test cases 24-26: a two-line insertion above a pinned two-line span reported as moved to lines 5-6, `--repin` refused on a dirty document and then rewriting it to a passing citation; text that now appears twice reported as changed with the position count and left alone by `--repin`; changed text never reported as a move; cases 28-29: a one-line unique match left unresolved and untouched by `--repin`, and of two identical continuations on one line only the moved one rewritten. This change also repinned its own spec's moved script citations with `--repin` |
 
@@ -373,27 +384,27 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | DCG-V0-001, DCG-V0-004, DCG-V0-005, DCG-V0-015 | the citation scanner loop in `script/check-line-citations.sh` | `line-citations-check`; cases 9 and 10 |
-| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:276-280@ac0b3493` and `:325-328@087dfc00` | `line-citations-check`; case 14 |
+| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:279-283@ac0b3493` and `:328-331@087dfc00` | `line-citations-check`; case 14 |
 | DCG-V0-006, DCG-V0-009, DCG-V0-010 | the anchor comparison in `check` | `line-citations_test.sh` cases 1-4, 6 |
-| DCG-V0-007 | `anchor_of`, `script/check-line-citations.sh:187-193@ca6f1248` | case 2 |
-| DCG-V0-008 | `anchored_numbers`, `script/check-line-citations.sh:179-185@9a3cc62d` | case 5 |
-| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:581-598@e1697d2d` | cases 1 and 14 |
+| DCG-V0-007 | `anchor_of`, `script/check-line-citations.sh:190-196@ca6f1248` | case 2 |
+| DCG-V0-008 | `anchored_numbers`, `script/check-line-citations.sh:182-188@9a3cc62d` | case 5 |
+| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:585-602@e1697d2d` | cases 1 and 14 |
 | DCG-V0-012 | `make gate` target list | gate run 2026-09-07 |
-| DCG-V0-013 | the tracked set, the `index_blob` batch reader, and `lines_of`, `script/check-line-citations.sh:76-162@4888d14b` | cases 7, 8, and 13 |
-| DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:195-200@fce1154d` and `:270-275@e5963c48` | case 11 |
-| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:276-280@ac0b3493` and `:325-328@087dfc00` | `line-citations-check`; case 14 |
+| DCG-V0-013 | the tracked set, the `index_blob` batch reader, and `lines_of`, `script/check-line-citations.sh:79-165@4888d14b` | cases 7, 8, and 13 |
+| DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:198-203@fce1154d` and `:273-278@e5963c48` | case 11 |
+| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:279-283@ac0b3493` and `:328-331@087dfc00` | `line-citations-check`; case 14 |
 | DCG-V0-006, DCG-V0-009, DCG-V0-010 | the anchor comparison in `check` | `line-citations_test.sh` cases 1-4, 6 |
-| DCG-V0-007 | `anchor_of`, `script/check-line-citations.sh:187-193@ca6f1248` | case 2 |
-| DCG-V0-008 | `anchored_numbers`, `script/check-line-citations.sh:179-185@9a3cc62d` | case 5 |
-| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:581-598@e1697d2d` | cases 1 and 14 |
+| DCG-V0-007 | `anchor_of`, `script/check-line-citations.sh:190-196@ca6f1248` | case 2 |
+| DCG-V0-008 | `anchored_numbers`, `script/check-line-citations.sh:182-188@9a3cc62d` | case 5 |
+| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:585-602@e1697d2d` | cases 1 and 14 |
 | DCG-V0-012 | `make gate` target list | gate run 2026-09-07 |
-| DCG-V0-013 | the tracked set, the `index_blob` batch reader, and `lines_of`, `script/check-line-citations.sh:76-162@4888d14b` | cases 7, 8, and 13 |
-| DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:195-200@fce1154d` and `:270-275@e5963c48` | case 11 |
+| DCG-V0-013 | the tracked set, the `index_blob` batch reader, and `lines_of`, `script/check-line-citations.sh:79-165@4888d14b` | cases 7, 8, and 13 |
+| DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:198-203@fce1154d` and `:273-278@e5963c48` | case 11 |
 | DCG-V0-016 | `check_malformed` and the backticked-token pre-scan in `script/check-line-citations.sh` | case 16; `line-citations-check` |
 | DCG-V0-017 | the unpinned counter and committed ceiling in `script/check-line-citations.sh` | case 17; `line-citations-check` |
 | DCG-V0-018 | `script/line-citation-legacy-documents.txt` and the new-document branch in `check` | case 18; decision 0176's manual admission of decision 0158 |
 | DCG-V0-019 | the citation-token regex in the scanner loop (no alternative matches a suffix-less token) | decision 0105's `Makefile@3c41cad3` conversion; `line-citations-check` |
-| DCG-V0-020 | the drift-waiver loading block and `$waived` gating in `check`, `script/check-line-citations.sh:226-244@5e2147f9` and `:281@851bb9b7` | `script/line-citation-drift-waivers.txt`; `line-citations-check` |
+| DCG-V0-020 | the drift-waiver loading block and `$waived` gating in `check`, `script/check-line-citations.sh:229-247@5e2147f9` and `:284@851bb9b7` | `script/line-citation-drift-waivers.txt`; `line-citations-check` |
 | DCG-V0-021 | the unstaged-edit note before `close_index` in `script/check-line-citations.sh` | case 21 |
 | DCG-V0-042 | the `scanned_doc` pattern in `script/check-line-citations.sh`; the pinned citations in `docs/AUTOMATION.md` and `docs/GLOSSARY.md` | full-index run |
 | DCG-V0-041 | the inventory loader after the legacy allowlist, the inventory branch in `check` and the unused-row failure loop, `script/check-line-citations.sh`; `script/line-citation-unpinned-inventory.txt` | case 27 |
@@ -401,6 +412,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-044 | `$distinctive_line`, `distinctive` and the lone-line branch of `relocatable` in `script/check-line-citations.sh` | case 31 |
 | DCG-V0-045 | `base_hunks`, `base_lines`, `map_line`, `diff_relocation`, `diff_suggestion`, the `--base` parser and `print_unstaged` in `script/check-line-citations.sh` | case 32 |
 | DCG-V0-046 | `@skipped`, `print_skipped`, `--verbose` and the failures-first ordering in `script/check-line-citations.sh` | case 22 |
+| DCG-V0-048 | the staging and rerun at the end of the `--repin` block and `CHECK_LINE_CITATIONS_SELF` in `script/check-line-citations.sh` | cases 24, 24b, 33 and 33b |
 | DCG-V0-047 | `token_reanchor`, `citation_prefix` and the call in the pinned-span branch of `script/check-line-citations.sh` | cases 33 and 33b |
 | DCG-V0-040 | the relocation branch in `check`, `relocations`, `relocatable`, `shifted_token`, `$token_at` and the `--repin` block before the final `close_index` in `script/check-line-citations.sh` | cases 24-26, 28-29 |
 
@@ -419,7 +431,8 @@ which position), so the sentence still cites the same text. The anchor DCG-V0-04
 changed span is a suggestion for an author who has read those lines, never a rewrite. Rollback of
 DCG-V0-045 and DCG-V0-046 is reverting their commits; neither changes a document or the check's exit
 status. Rollback of DCG-V0-047 is removing `token_reanchor`, `citation_prefix`, their call and cases 33 and 33b; a token-only change
-then needs a reader again. Second drift
+then needs a reader again. Rollback of DCG-V0-048 is removing the `git add` and rerun from the `--repin`
+block; the author then stages and reruns by hand. Second drift
 rule: no path may be resolved with a filesystem test such as `-f` or `-e`, in this gate or in a
 sibling gate script, because that is the defect DCG-V0-013 closes and it fails silently in the
 passing direction. The DCG-V0-002 and DCG-V0-003 traceability pin was repinned to `check`'s two

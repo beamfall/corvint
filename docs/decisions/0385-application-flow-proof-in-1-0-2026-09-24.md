@@ -100,7 +100,7 @@ expert and the cited evidence was checked.
    that a prose claim has no form a check can find mechanically, the way `path:line` citations do. A
    mandatory rule could only require one anchor per page, and that anchor would falsely cover the
    whole page. The repository's own citation gate kept legacy documents opt-in behind a ratchet
-   (`script/check-line-citations.sh:221-222@4b76039b`). Unanchored documents are listed as
+   (`script/check-line-citations.sh:224-225@4b76039b`). Unanchored documents are listed as
    `UNPROVEN` coverage (`DCP-V1-010`). Revisit when a repository asks to protect a docs path, or a
    qualification finds hand-written drift that an anchor would have caught.
 

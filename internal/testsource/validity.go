@@ -28,6 +28,9 @@ type ValidityReport struct {
 	// Abstentions are the advisory readings withheld because what decides them is declared in
 	// another file (TSA-V0-300).
 	Abstentions []testvalidity.RuleAbstention `json:"abstentions,omitempty"`
+	// Exemptions are the readings a justified annotation exempted, each with the annotation's
+	// reason (TSA-V0-870).
+	Exemptions []testvalidity.RuleExemption `json:"exemptions,omitempty"`
 }
 
 // ValidityFindings reads one test file's text for the static test-validity rules: a JS/TS test
@@ -50,6 +53,7 @@ func ValidityFindings(name, text string) ValidityReport {
 		report = s.isolatedInSerial()
 		report.Findings = append(report.Findings, s.outcomeFindings()...)
 		report.Abstentions = s.abstentions
+		report.Exemptions = s.exemptions
 	case webExtensions[path.Ext(name)]:
 		s := parseSource(name, text)
 		report.Findings = append(report.Findings, s.chFindings()...)
@@ -58,7 +62,9 @@ func ValidityFindings(name, text string) ValidityReport {
 			report.Uncertain, report.Reason = true, validitySourceUnparsed
 		}
 	case eoIsContract(name):
-		report.Findings = append(report.Findings, eoContractFindings(name, text)...)
+		findings, exemptions := eoContractFindings(name, text)
+		report.Findings = append(report.Findings, findings...)
+		report.Exemptions = exemptions
 	}
 	return report
 }

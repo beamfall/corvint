@@ -375,7 +375,14 @@ func TestSnapshotRefreshInterrupted(t *testing.T) {
 			if err != nil || lock == nil {
 				t.Fatalf("killed lock not recovered: %v", err)
 			}
+			// Proposed IDX-SNAP-V0-515: the stopped writer stays visible to the next start.
+			previous := previousSnapshotRefresh(lock)
 			lock.Close()
+			// Every mode here ends at a kill: the injected Git ignores cancellation, so even the
+			// expired writer meets its hard bound before it can record an outcome.
+			if !strings.Contains(previous, "did not finish successfully: it stopped before recording an outcome") {
+				t.Fatalf("previous outcome %q", previous)
+			}
 			// A writer killed during encoding can leave a temporary. Readers must
 			// ignore it; the existing writer sweeps it only after ten minutes.
 			temporary := filepath.Join(contextindex.SnapshotDirectory(root), "snapshot-interrupted.tmp")
@@ -474,5 +481,85 @@ func TestSnapshotRefreshPriorityDenied(t *testing.T) {
 	if err != nil || lock == nil {
 		t.Fatalf("denied worker retained lock: %v", err)
 	}
+	// Proposed IDX-SNAP-V0-515: the refused priority setup is recorded as failed.
+	previous := previousSnapshotRefresh(lock)
 	lock.Close()
+	if !strings.Contains(previous, "did not finish successfully: it failed.") {
+		t.Fatalf("denied worker left no failed outcome: %q", previous)
+	}
+}
+
+// Proposed IDX-SNAP-V0-515: a started refresh names how the previous writer stopped, from the
+// lock metadata only; a completed writer's truncated record and malformed bytes name nothing.
+func TestSnapshotRefreshPreviousOutcome(t *testing.T) {
+	cases := map[string]string{
+		"":          "",
+		"not json":  "",
+		`{"pid":7}`: "",
+		`{"pid":7,"started":"2026-10-30T19:36:04.5Z"}`:                                                  "started at 2026-10-30T19:36:04Z, did not finish successfully: it stopped before recording an outcome",
+		`{"pid":7,"started":"2026-10-30T19:36:04Z","ended":"2026-10-30T19:37:00Z","outcome":"expired"}`: "it reached its 55-second work limit; heavy machine load can cause this",
+		`{"pid":7,"started":"2026-10-30T19:36:04Z","outcome":"failed"}`:                                 "did not finish successfully: it failed.",
+		`{"pid":7,"started":"2026-10-30T19:36:04Z","outcome":"<injected>"}`:                             "it stopped before recording an outcome",
+	}
+	for metadata, want := range cases {
+		lock, err := os.CreateTemp(t.TempDir(), "refresh.lock")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := lock.WriteString(metadata); err != nil {
+			t.Fatal(err)
+		}
+		got := previousSnapshotRefresh(lock)
+		lock.Close()
+		if (want == "") != (got == "") || !strings.Contains(got, want) || strings.Contains(got, "injected") || strings.Contains(got, "pid") {
+			t.Fatalf("%s: %q", metadata, got)
+		}
+	}
+}
+
+// Proposed IDX-SNAP-V0-515: the hook notice carries the previous writer's outcome after the
+// started status, and the worker that then completes clears the record.
+func TestSnapshotRefreshNoticeNamesPreviousOutcome(t *testing.T) {
+	root := staleSnapshotRepository(t)
+	if err := contextindex.RecordBuildCost(root, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	lockPath := filepath.Join(contextindex.SnapshotDirectory(root), "refresh.lock")
+	if err := os.WriteFile(lockPath, []byte(`{"pid":1,"started":"2000-01-01T00:00:00Z","ended":"2000-01-01T00:00:55Z","outcome":"expired"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, commands := refreshTestContext(t, root)
+	output := refreshEvent(ctx, root, "claude")
+	text := fmt.Sprint(output)
+	if adapterDegradationReason(output) != claudeSnapshotStaleReason || !strings.Contains(text, "Background index refresh started. The previous background refresh, started at 2000-01-01T00:00:00Z, did not finish successfully: it reached its 55-second work limit") {
+		t.Fatalf("notice: %v", output)
+	}
+	waitRefreshExit(t, (*commands)[0])
+	if data, err := os.ReadFile(lockPath); err != nil || len(data) != 0 {
+		t.Fatalf("completed refresh left metadata %q %v", data, err)
+	}
+	if _, fresh, err := contextindex.ProbeSnapshot(context.Background(), root); err != nil || !fresh {
+		t.Fatalf("refresh did not publish: %t %v", fresh, err)
+	}
+}
+
+// Proposed IDX-SNAP-V0-515: the previous outcome is dropped, never the frame, status or argv,
+// when it would push the hook output past adapterOutputLimit.
+func TestSnapshotRefreshPreviousOutcomeYieldsToOutputLimit(t *testing.T) {
+	root := staleSnapshotRepository(t)
+	lockPath := filepath.Join(contextindex.SnapshotDirectory(root), "refresh.lock")
+	if err := os.WriteFile(lockPath, []byte(`{"pid":1,"started":"2000-01-01T00:00:00Z","outcome":"expired"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, commands := refreshTestContext(t, root)
+	refresh, _ := json.Marshal([]string{"corvint", "--root", root, "index", "--if-stale"})
+	plain := "\nNo index snapshot matches the current tree, and building one in memory does not fit the hook deadline. Background index refresh started. Manual fallback, outside the hook:\n" + string(refresh)
+	probe, _ := json.Marshal(map[string]any{"systemMessage": plain})
+	frame := "Corvint FALLBACK degraded: " + claudeSnapshotStaleReason + "; coding continues" + strings.Repeat(" ", adapterOutputLimit-1-len(probe)-200)
+	output := withSnapshotRemediation(ctx, root, "stop", claudeSnapshotStaleReason, map[string]any{"systemMessage": frame})
+	waitRefreshExit(t, (*commands)[0])
+	text, _ := output["systemMessage"].(string)
+	if text != frame+plain || !withinAdapterOutputLimit(output) {
+		t.Fatalf("over-limit notice kept the outcome or lost the argv: %d bytes", len(text))
+	}
 }

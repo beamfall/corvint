@@ -9,7 +9,7 @@ Authoritative inputs: native tickets V1-3101, V1-3102 and V1-3103 and GitHub iss
 [#1998](https://github.com/beamfall/corvint/issues/1998),
 [#1999](https://github.com/beamfall/corvint/issues/1999) and
 [#2000](https://github.com/beamfall/corvint/issues/2000), with V1-3112 to V1-3115 and GitHub #2006 to #2009
-for `DCI-V1-020..026`, and V1-3162 and GitHub #2021 for `DCI-V1-027..030`. This companion extends the repository
+for `DCI-V1-020..026`, and V1-3162 and GitHub #2021 for `DCI-V1-027..030`, and V1-3106 for `DCI-V1-230`. This companion extends the repository
 inventory of the [documentation corpus contract](documentation-corpus-v1.md) (`DCP-V1-700..706`),
 whose Requirements section is at the 256-obligation OCM limit (`maxObligations`). The parent's
 input and authority boundary, failure codes and acceptance gates govern these requirements.
@@ -320,6 +320,26 @@ change the records an inventory build derives, so they are derivation `11` (`DCI
   derivation 10 or earlier is refused by the verified read until rebuilt. `docs/RELEASE-NOTES.md`
   lists it. Acceptance: `TestDCXV1471DerivationVersionGuard` and
   `TestDCXV1564ReleaseNotesListEveryDerivation`.
+
+### Explicit empty declarations (V1-3106)
+
+Status for `DCI-V1-230`: proposed, experimental; V1-3106. It changes which manifests are admitted,
+not the records a build derives, so the derivation is unchanged.
+
+- `DCI-V1-230`: Amending `DCI-V1-005`. Every optional manifest list whose explicitly empty value the
+  canonical encoder drops (`omitempty`, under `encoding/json/v2`, omits an encoded `[]`) MUST be
+  refused when it is present and empty, so a declared-empty manifest never round-trips as an
+  undeclared one. Newly refused: `additional_repositories`, `over_bound_inputs`, and a provider's
+  `derive.paths` or `derive.kinds` when the other list is non-empty. Already refused:
+  `additional_repositories[].revisions`, `behavior_repositories`, `providers[].shards`,
+  `repository_inventory.repositories`, `.repositories[].aliases`, `.first_party`,
+  `.environment_words`, `.deploy_jobs` and `production_scope.exclude`. Pointer declarations such as
+  `production_scope` and `behavior_revisions` encode their empty target, so they are kept, and an
+  empty string or zero is no declaration. Producers append to these lists, so they stay absent when
+  empty and every manifest Corvint writes keeps its bytes. Failure mode closed: `"over_bound_inputs":
+  []` was admitted and then dropped from the artifact's embedded manifest. Rollback: drop the three
+  refusals. Acceptance: `TestDCIV1230ExplicitEmptyDeclarationsStayDistinct`, which finds every such
+  field by reflection, so a new one fails until its refusal is added.
 
 ## Non-goals
 

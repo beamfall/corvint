@@ -603,8 +603,8 @@ Lane cce2-1022u adds CCE-V0-048 (V1-2410), accepted under the standing auto-acce
   `app-map-unavailable`, `test-file-not-mapped`, `goto-unresolved`, `goto-not-mapped`,
   `flow-ambiguous`, `no-flow-or-screen`. A missing map never refuses the harvest, and the binding
   never changes a proposal ID or admits a proposal (CCE-V0-043). Failure mode: an accepted proposal
-  is compiled against a flow it was never observed on. The site-knowledge IR (SKH-V0, not yet on
-  this base) is not consulted; binding through it is the V1-2411 remainder.
+  is compiled against a flow it was never observed on. A proposal the map leaves at a screen-less
+  reason is bound through the site-knowledge IR when `--source` is declared (`CCE-V0-310`).
 - `CCE-V0-051`: (V1-2413) A `CHANGED_IN_DIFF` scenario's proof MUST carry `oracle_digest`
   (`sha256:` of the scenario's test text at head). `prove --oracle-acceptance FILE` reads a closed
   `e2e-oracle-acceptance/0` document `{schema, base, head, acceptances: [{assertion_id,
@@ -1122,6 +1122,28 @@ proving at a tests revision other than the catalog's pin, and changing a single-
   additive members; the digest changes. Rollback: drop `RemedySet`, `Unknowns`, `Cover` and
   `greedyCover`.
 
+- `CCE-V0-310`: (V1-2411) `corvint-test e2e harvest --source [ALIAS:]DIR` (repeatable;
+  `HarvestOptions.Sources`) MUST read the site-knowledge IR of the declared sources at the map
+  revision (SKH-V0-020) and bind a proposal the map could not bind to a screen through it.
+  `appmap.LineScreens` places each test-body line holding a visit on the screen its URL resolves
+  to (basis `site-knowledge-visit`), and each line holding an assertion on the screen of the last
+  visit, or of the last action through a page object joined to a screen, before it (basis
+  `site-knowledge-step-screen`); an unresolved visit, an unresolved call or an unparsed step forgets
+  the screen, even when it runs inside a page object joined to a screen, and a line two tests place
+  on different screens is omitted. A path proposal takes
+  only a visit basis and an outcome proposal only a step basis. Precedence: the map's own goto,
+  flow-outcome locator and `flow-ambiguous` result win; the IR wins over `test-file-screen` and over
+  the map's unbound reasons; an ambiguous flow is never overridden. Without `--source` the binding is
+  unchanged. A declared source that cannot be read refuses `e2e-site-knowledge-unavailable`; it
+  never falls back silently. Catalog acceptances stay unbound (`CCE-V0-050`). Failure mode
+  (V1-2411): assertions after a page-object navigation bound only to the test file's screen, or to
+  nothing, though the IR knew the screen. Non-goals: binding helper-body lines (`Via` steps), a new
+  binding member, proposals the IR alone admits. Acceptance:
+  `TestCCEV0310HarvestBindingSiteKnowledge`, `TestCCEV0310BindProposalIRPrecedence`,
+  `TestCCEV0310OpaqueVisitInJoinedPageObjectForgetsScreen`, `TestCCEV0310HarvestSourceFlag`.
+  Rollback: omit `--source`; remove `LineScreens` and the `lines`
+  argument of `bindProposal`.
+
 - `CCE-V0-121`: The e2e step help, the `e2e-map-unavailable` hint and the guide MUST say: `--manifest`
   is the `application-map-manifest/0` manifest, not a built `application-map/0`, and CCE builds
   the map at each revision; outcome blocks and `REACHED` obligations need the manifest's `flows`
@@ -1466,7 +1488,8 @@ row's status says what is delivered.
 | CCE-V0-052 | an unresolved outcome locator gets a proposed, never applied, data-testid rename with diff evidence | V1-2413 | PASS: `TestCCEV0052LocatorRepairProposal` (proposed `slot-state` with the line pair, verdict unchanged; value mismatch proposes nothing; ambiguous and no-rename; failed with the proposal removed) |
 | CCE-V0-053 | the head pool's served application paths recorded per screen, pinned to head blobs, and consumed by `--coverage` | V1-2412 | PASS: `TestCCEV0053RecordingHandler` (200/304 recorded, directory as `index.html`, 404 not), `TestCCEV0053CoverageRecorderFeedsReach` (pins equal head blobs; test-tree and `node_modules` dropped; unrequested, hosted and unqualified pools unrecorded; the produced document widens reach through `runtime-coverage`; a stale pin refuses; fails with the head recorder removed or `checkPins` disabled), `TestCCEV0053RecordCoverageFlag`, live `TestCCEV0053LiveRecordsCoverage` (Playwright 1.64.0, Node 22.23.2: `index.html`, `app/routes.js`, `app/components/teesheet.html` pinned on `screen:admin:app.clubs.teesheets`) |
 | CCE-V0-054 | the head tree's TJAA module graph widens reach from a changed module to its importers' screens and never removes or demotes an unknown span | V1-1685 (module graph; API joins and ANL edge-to-screen not delivered) | PASS: `TestCCEV0054ModuleGraphWidensReach` (a helper imported by the router anchor beside a comment the reference hop cannot prove reaches `obligation:book-tee-time/booked` with basis `tjaa-module-graph:app/routes.js`; every baseline unknown span stands with its reason; an unimported module reaches nothing; fails with the hits dropped), `TestCCEV0054ModuleGraphReadsHeadTree` (a worktree-only importer reaches nothing; fails when the graph is built from the worktree), `TestCCEV0054ModuleGraphFlag` |
-| CCE-V0-050 | harvested proposals bound to a map flow or screen, or carrying a closed unbound reason | V1-2411 (partial: no site-knowledge IR on this base) | PASS: `TestCCEV0050HarvestBinding` (flow-outcome and goto bindings on the AMAP fixture, `no-flow-or-screen` and `goto-unresolved`, every proposal `app-map-unavailable` without a map; failed with the binding removed) |
+| CCE-V0-050 | harvested proposals bound to a map flow or screen, or carrying a closed unbound reason | V1-2411 (site-knowledge IR binding: `CCE-V0-310`) | PASS: `TestCCEV0050HarvestBinding` (flow-outcome and goto bindings on the AMAP fixture, `no-flow-or-screen` and `goto-unresolved`, every proposal `app-map-unavailable` without a map; failed with the binding removed) |
+| CCE-V0-310 | `--source` binds proposals the map leaves screen-less through the site-knowledge IR; ambiguity never overridden; unreadable source refuses | V1-2411 | PASS: `TestCCEV0310HarvestBindingSiteKnowledge` (two assertions bound only through the IR, one after a page-object navigation; map goto, flow locator, `goto-unresolved` and `no-flow-or-screen` kept; bad source refuses), `TestCCEV0310BindProposalIRPrecedence` (basis-kind mismatch ignored, no map stays `app-map-unavailable`), `TestCCEV0310OpaqueVisitInJoinedPageObjectForgetsScreen` (a dynamic visit inside a joined page object forgets the screen; failed before the opaque reset preceded the page-object screen), `TestCCEV0310HarvestSourceFlag` (CLI flag and refusal) |
 | CCE-V0-048 | a located worker teardown error reads `teardown-failed` at its tree location; unlocated, outside-tree and `node_modules` errors stay infrastructure | V1-2410 | PASS: `TestCCEV0048TeardownAttribution`, the four teardown cases of `TestCCEV0028LadderOfflineFakeRunner` (both failed with the attribution removed), `TestPWPV3009RunLevelErrorLocation`; Playwright 1.64.0 observed live to report a worker fixture teardown as a located global error and test-scoped teardown on the test result (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-22-cce2-1022u-cce-followups.md`) |
 | CCE-V0-026..030 | failure kind; oracle cap and scoring; offline seams; omitted-event reading; test-tree resolution | V1-1679, V1-1680, V1-1687 | PASS: `TestCCEV0026FailureKind`, `TestCCEV0028LadderOfflineFakeRunner`, `TestCCEV0018OmittedEventControls`, `TestCCEV0017TestTreeRefusals` |
 | CCE-V0-034..038 | hosted test held at head through the ladder; receipt-located assertions; required behaviour-removal control kills F1; no-op `PRESERVES` not useful; actualbudget rerun | V1-1733, V1-1713 | 034..037 PASS (lane 1022k): `TestCCEV0034HostedScenario`, `TestCCEV0034HostedTestFlag`, `TestCCEV0036HostedControls`, `TestCCEV0035HostedLadderOffline` (F1 reads `CONTROL_SURVIVED`, a base setup failure reads `INCONCLUSIVE`), `TestCCEV0037NoOpPreservesNotUseful`; live (Playwright 1.64.0, Node v24.11.1) `TestCCEV0034LiveHosted` (the booked test reads `DISCRIMINATES` with its base failure located at the assertion and its control killed; the F1 static overlay reads `CONTROL_SURVIVED`). 038 NOT_RUN (external host; command in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-22-cce-1022k.md`) |

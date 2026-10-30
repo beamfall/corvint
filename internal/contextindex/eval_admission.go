@@ -391,7 +391,8 @@ func evalIdentifierByte(value byte) bool {
 // TypeScript sources, where a Rust lifetime or Go rune cannot be one.
 func evalBlankCommentsAndStrings(path string, text string) string {
 	python := strings.HasSuffix(path, ".py")
-	singleQuoted := python || evalWebPath(path)
+	web := evalWebPath(path)
+	singleQuoted := python || web
 	out := []byte(text)
 	blank := func(from, to int) {
 		for position := from; position < to && position < len(out); position++ {
@@ -425,6 +426,13 @@ func evalBlankCommentsAndStrings(path string, text string) string {
 			if end >= 0 {
 				stop = position + 3 + end + 3
 			}
+			blank(position, stop)
+			position = stop
+		case current == '`' && web:
+			// A web template literal is blanked whole, its `${}` substitutions
+			// and every literal nested in them included, so a nested backtick
+			// never ends the outer template (GPK-V0-295).
+			stop := evalWebTemplateEnd(text, position)
 			blank(position, stop)
 			position = stop
 		case current == '"' || current == '`' || current == '\'' && singleQuoted:

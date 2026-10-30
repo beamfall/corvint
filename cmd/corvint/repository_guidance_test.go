@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
 )
 
 func guidanceWrite(t *testing.T, root, name, body string) {
@@ -513,6 +514,44 @@ func TestRepositoryGuidanceReviewAffectedInventoryCompleteness(t *testing.T) {
 			t.Fatal("within-cap review lost its selection")
 		}
 	})
+}
+
+// AFP-V0-930 (V1-3147): the within-cap snapshot plan goes through the same
+// planning tail as `corvint affected --base`, so an edit of one key of the
+// read-scope declaration selects only that key's package by declaration, and
+// review.affected stays the affected-plan/1 projection of the standalone plan.
+func TestRepositoryGuidanceSnapshotPlanSharesTheAffectedTail_AFPV0930(t *testing.T) {
+	root, _ := guidanceFixture(t)
+	scopes := func(lib string) string {
+		return `{"profile":"corvint-test-read-scopes/0","packages":{"cmd/demo":["docs/"],"lib":["` + lib + `"]}}` + "\n"
+	}
+	guidanceWrite(t, root, "lib/lib.go", "package lib\n\n// Value is read by tests.\nconst Value = 1\n")
+	guidanceWrite(t, root, "lib/lib_test.go", "package lib\nimport \"testing\"\nfunc TestValue(t *testing.T) {}\n")
+	guidanceWrite(t, root, affected.ReadScopesPath, scopes("docs/"))
+	guidanceGit(t, root, "add", "-f", ".")
+	guidanceGit(t, root, "commit", "-qm", "declare")
+	base := guidanceGit(t, root, "rev-parse", "HEAD")
+	guidanceWrite(t, root, affected.ReadScopesPath, scopes("spec/"))
+	guidanceGit(t, root, "add", "-f", affected.ReadScopesPath)
+	guidanceGit(t, root, "commit", "-qm", "rescope lib")
+	out, raw := guidanceRead(t, root, "review", base)
+	if strings.Contains(strings.Join(out.Unknown, "\n"), guidanceAffectedFallback(base)) {
+		t.Fatal("within-cap review left the immutable snapshot path")
+	}
+	actual, err := compileAffected(context.Background(), affectedInvocation{Root: root, Base: base})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var declared []string
+	for _, selection := range out.Review.Affected.Plan.Selected {
+		if selection.Witness.Kind == affected.WitnessDeclaredReadScope {
+			declared = append(declared, selection.UnitID)
+		}
+	}
+	if want := []string{"go:example.test/demo/lib"}; !reflect.DeepEqual(declared, want) {
+		t.Fatalf("snapshot review selected %v by declaration, want %v", declared, want)
+	}
+	assertReviewAffectedResolves(t, root, base, out, raw, actual)
 }
 
 // assertReviewAffectedResolves checks RGV-V0-015: review.affected is the

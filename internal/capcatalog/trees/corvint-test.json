@@ -105,7 +105,7 @@
         "corvint-test e2e catalog --rev REV [--root DIR] [--manifest FILE] [--out FILE]",
         "corvint-test e2e compile --base REV --head REV --out DIR [--root DIR] [--manifest FILE] [--coverage FILE] [--ledger FILE] [--module-graph] [--endpoint-source [ALIAS:]DIR]... [--rails-routes [ALIAS:]FILE]... [--openapi [ALIAS:]FILE]...",
         "corvint-test e2e discriminate --base REV --head REV --app-dir DIR --test-command JSON [--root DIR] [--tests-dir DIR] [--rebuild-command JSON] [--verdict exit|provider] [--max-mutants N] [--wall-time D] [--run-timeout D] [--rebuild-timeout D] [--dir-match any|leading] [--exclude-dir NAME]... [--keep-dir NAME]... [--map FILE] [--out FILE]",
-        "corvint-test e2e harvest --rev REV [--root DIR] [--manifest FILE] [--out FILE]",
+        "corvint-test e2e harvest --rev REV [--root DIR] [--manifest FILE] [--source [ALIAS:]DIR]... [--out FILE]",
         "corvint-test e2e how-accept --answer FILE [--write PATH] [--evidence FILE] [--oracle FILE]",
         "corvint-test e2e how-evidence --answer FILE --prove FILE --validity FILE [--root DIR]",
         "corvint-test e2e obligations --base REV --head REV [--root DIR] [--manifest FILE] [--coverage FILE] [--ledger FILE] [--module-graph] [--out FILE] [--endpoint-source [ALIAS:]DIR]... [--rails-routes [ALIAS:]FILE]... [--openapi [ALIAS:]FILE]... [--remedy-summary [--remedy-commits N]]",
@@ -149,6 +149,7 @@
         "--rev",
         "--root",
         "--run-timeout",
+        "--source",
         "--test-command",
         "--tests-dir",
         "--validity",
@@ -260,13 +261,14 @@
       "command": "corvint-test e2e harvest",
       "summary": "Harvest candidate blocks from the application map at one revision",
       "usage": [
-        "corvint-test e2e harvest --rev REV [--root DIR] [--manifest FILE] [--out FILE]"
+        "corvint-test e2e harvest --rev REV [--root DIR] [--manifest FILE] [--source [ALIAS:]DIR]... [--out FILE]"
       ],
       "flags": [
         "--manifest",
         "--out",
         "--rev",
-        "--root"
+        "--root",
+        "--source"
       ],
       "required": [
         "--rev REV"

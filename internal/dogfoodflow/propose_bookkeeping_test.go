@@ -66,7 +66,7 @@ func TestProposeCitationsDCWV0333SkipsBookkeepingPaths(t *testing.T) {
 		}
 		switch path := hunks[index].Path; path {
 		case "internal/x/named.go":
-			if !strings.HasPrefix("\t"+rest, bookkeeping+"no stable BASE line of a file this change leaves untouched names internal/x/named.go") {
+			if !strings.HasPrefix("\t"+rest, bookkeeping+"no stable BASE line of a file this change leaves untouched names internal/x/named.go") || !strings.Contains(rest, "nearest stable line internal/x/named.go 4:4 dependency is a review hint only (DCW-V0-439)") {
 				t.Errorf("code row = %q; want an unknown row, not a cite of a file the change modifies", row)
 			}
 		default:

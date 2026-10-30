@@ -90,8 +90,8 @@ mkdir -p "$test_root/repo/script" "$test_root/repo/docs/specs" "$test_root/bin"
 (cd "$source_root" && GOCACHE=/tmp/corvint-go-build-cache GOTOOLCHAIN=local \
   go build -o "$test_root/driver" ./cmd/corvint)
 export DOGFOOD_TEST_DRIVER="$test_root/driver"
-cp "$source_root/script/dogfood-change.sh" "$source_root/script/dogfood-check.sh" \
-  "$source_root/script/dogfood-build-corvint.sh" "$test_root/repo/script/"
+source "$source_root/script/dogfood-fixture-scripts.sh"
+dogfood_fixture_copy "$source_root" "$test_root/repo/script" dogfood-change.sh dogfood-check.sh
 cp "$source_root/.gitignore" "$test_root/repo/"
 printf '%s\n' '0.4.0a4' > "$test_root/repo/VERSION"
 # Literal backticks are requirement syntax, not shell interpolation.
@@ -739,7 +739,7 @@ phase_jobs="$phase_jobs $!"
   test "$input_status" = 1
   rg -Fxq -- '  cem-cite: citation-plan-unavailable' <<< "$input_output"
   rg -Fxq -- '    fix: DOGFOOD_CITATIONS must be the path of a TSV file of ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION rows, not the rows themselves' <<< "$input_output"
-  rg -Fxq -- '    fix: intent must be a spec that exists at BASE and contains exactly one "## Requirements" heading' <<< "$input_output"
+  rg -q -- '^    fix: (the intent on line N of DOGFOOD_INTENTS_FILE, ocm-prepare-001 being|"docs/specs/intent-a\.md" on line 001 ).* "## Requirements" heading outside code fences' <<< "$input_output"
   rg -Fxq -- '  ocm-aggregate: intent-scope-drift' <<< "$input_output"
   rg -Fxq -- '    fix: fix the ocm-prepare or ocm-status row above; otherwise the intents file changed during the run' <<< "$input_output"
   rg -Fxq -- '    fix: set DOGFOOD_OUTCOME (passed, failed or blocked) and DOGFOOD_VERIFY_FILE (one verification command per line)' <<< "$input_output"
@@ -847,13 +847,13 @@ printf 'file gate\n\ngo vet ./...\n' > "$test_root/verify.txt"
     DOGFOOD_OUTCOME=passed)
   # DCW-V0-034 / V1-1123: reject syntax before the first sidecar bind,
   # naming the command, and never invoke the fake recorder for that refusal.
-  printf '%s\n' "go test ./fixture -run '^(A|B)$'" > "$test_root/verify-invalid.txt"
+  printf '%s\n' "go test ./fixture -run '^(A|[B])$'" > "$test_root/verify-invalid.txt"
   verify_syntax_status=0
   verify_syntax_output=$("${verify_env[@]}" DOGFOOD_VERIFY_FILE="$test_root/verify-invalid.txt" \
     script/dogfood-change.sh "$base" 2>&1) || verify_syntax_status=$?
   test "$verify_syntax_status" = 1
   rg -Fq 'local-outcome: unsupported-verify-syntax' <<< "$verify_syntax_output"
-  rg -Fq "go test ./fixture -run '^(A|B)$'" <<< "$verify_syntax_output"
+  rg -Fq "go test ./fixture -run '^(A|[B])$'" <<< "$verify_syntax_output"
   rg -Fq 'ASCII letters, digits and _./:@=+, - only' <<< "$verify_syntax_output"
   if rg -q '^dogfood-record ' "$test_root/verify-corvint.log"; then
     printf '%s\n' 'unsupported verification reached recorder' >&2
