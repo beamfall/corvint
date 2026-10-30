@@ -4910,6 +4910,32 @@
     },
     {
       "path": [
+        "mcp"
+      ],
+      "command": "corvint mcp",
+      "summary": "Serve the local read-only stdio MCP server (AHI-373, experimental)",
+      "usage": [
+        "corvint mcp --root ABSOLUTE_ROOT [--protocol-version 2026-07-28|2025-11-25]",
+        "corvint mcp --root ALIAS=ABSOLUTE_ROOT [--root ALIAS=ABSOLUTE_ROOT ...]",
+        "corvint mcp --root ABSOLUTE_ROOT --tool-profile LIST [--corpus-artifact [ALIAS=]PATH]",
+        "corvint mcp --root ABSOLUTE_ROOT --follow-ref REF",
+        "corvint mcp --workspace FILE [--follow-ref ALIAS=REF ...]",
+        "corvint mcp --root /absolute/repo --protocol-version 2025-11-25"
+      ],
+      "flags": [
+        "--corpus-artifact",
+        "--follow-ref",
+        "--protocol-version",
+        "--root",
+        "--tool-profile",
+        "--workspace"
+      ],
+      "required": [],
+      "example": "corvint mcp --root ABSOLUTE_ROOT",
+      "help": "corvint mcp --help"
+    },
+    {
+      "path": [
         "migrate-traces"
       ],
       "command": "corvint migrate-traces",

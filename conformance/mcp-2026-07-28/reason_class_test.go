@@ -247,7 +247,7 @@ func TestReasonClassSourcesAgree(t *testing.T) {
 	compare("MCPV0-028 spec", values)
 
 	fallback := ""
-	ast.Inspect(parse("cmd/corvint-mcp/main.go"), func(node ast.Node) bool {
+	ast.Inspect(parse("internal/mcp/cli/main.go"), func(node ast.Node) bool {
 		spec, ok := node.(*ast.ValueSpec)
 		if !ok || len(spec.Names) != 1 || spec.Names[0].Name != "unclassified" {
 			return true

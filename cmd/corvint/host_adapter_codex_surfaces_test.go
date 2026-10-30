@@ -71,7 +71,7 @@ func TestAHI206CodexReviewProfileClosesBothWriteDoors(t *testing.T) {
 	}
 }
 
-// AHI-207: the plugin declares one read-only corvint-mcp server that binds the launch directory's
+// AHI-207, AHI-373: the plugin declares one read-only `corvint mcp` server that binds the launch directory's
 // Git worktree with the legacy protocol, and refuses before exec outside a worktree.
 func TestAHI207CodexPluginMCPServerBindsLaunchWorktree(t *testing.T) {
 	if runtime.GOOS == "windows" {
@@ -98,7 +98,7 @@ func TestAHI207CodexPluginMCPServerBindsLaunchWorktree(t *testing.T) {
 	}
 	bin := t.TempDir()
 	stub := "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CORVINT_TEST_ARGV\"\n"
-	if err := os.WriteFile(filepath.Join(bin, "corvint-mcp"), []byte(stub), 0o755); err != nil {
+	if err := os.WriteFile(filepath.Join(bin, "corvint"), []byte(stub), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	launch := func(dir, ceiling string) (string, string, error) {
@@ -115,7 +115,7 @@ func TestAHI207CodexPluginMCPServerBindsLaunchWorktree(t *testing.T) {
 	nested := filepath.Join(repository, "pkg")
 	argv, output, err := launch(nested, filepath.Dir(repository))
 	toplevel, _ := filepath.EvalSymlinks(repository)
-	if got := strings.Split(strings.TrimSpace(argv), "\n"); err != nil || !slices.Equal(got, []string{"--protocol-version", "2025-11-25", "--root", toplevel}) {
+	if got := strings.Split(strings.TrimSpace(argv), "\n"); err != nil || !slices.Equal(got, []string{"mcp", "--protocol-version", "2025-11-25", "--root", toplevel}) {
 		t.Fatalf("worktree launch argv=%q output=%q err=%v (want root %s)", got, output, err, toplevel)
 	}
 

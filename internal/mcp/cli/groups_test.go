@@ -1,4 +1,4 @@
-package main
+package cli
 
 import (
 	"bytes"
@@ -315,7 +315,7 @@ func TestMMRV0013ParityWithDedicatedServers(t *testing.T) {
 	binaries := t.TempDir()
 	// Without VCS stamping the dedicated corpus server has this test binary's
 	// unrecorded builder label, so it rederives the artifact the fixture built.
-	build := exec.Command("go", "build", "-buildvcs=false", "-o", binaries, "../corvint-test-validity-mcp", "../corvint-docs-mcp", "../corvint-corpus-mcp")
+	build := exec.Command("go", "build", "-buildvcs=false", "-o", binaries, "../../../cmd/corvint-test-validity-mcp", "../../../cmd/corvint-docs-mcp", "../../../cmd/corvint-corpus-mcp")
 	if output, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("go build: %v: %s", err, output)
 	}

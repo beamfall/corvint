@@ -29,6 +29,10 @@ import (
 	"github.com/Beamfall/corvint/internal/procgroup"
 )
 
+// CoreExecutables names every executable the Core release archive may carry. A host plugin may
+// launch only these from PATH (AHI-373), so a declared command can never outrun the release.
+var CoreExecutables = []string{"corvint"}
+
 const metadataLimit = 2 << 20
 const archiveLimit = 120 << 20
 const extractedLimit = 300 << 20
@@ -1309,7 +1313,10 @@ func verify(root, component, platform string) (string, int, error) {
 		}
 	}
 	if component == "core" {
-		allowed := map[string]bool{"corvint": true, "SHA256SUMS": true, "LICENSE": true, "LICENSE-APACHE-2.0": true, "LICENSING.md": true, "PROVENANCE.md": true}
+		allowed := map[string]bool{"SHA256SUMS": true, "LICENSE": true, "LICENSE-APACHE-2.0": true, "LICENSING.md": true, "PROVENANCE.md": true}
+		for _, executable := range CoreExecutables {
+			allowed[executable] = true
+		}
 		err = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
 			if err != nil {
 				return err

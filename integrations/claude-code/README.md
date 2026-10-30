@@ -3,7 +3,7 @@
 This local marketplace contains the `corvint@corvint` plugin, which works in the Claude Code terminal
 and in the Code tab of the Claude desktop app. Its support level is intentionally `FALLBACK`: the formal harness hooks
 translate only fields exposed by Claude Code into `corvint-harness-event/0`. The plugin declares
-Corvint's experimental local stdio MCP server (`corvint-mcp`, `AHI-198`) so the read-only
+Corvint's experimental local stdio MCP server (`corvint mcp`, `AHI-198`, `AHI-373`) so the read-only
 `corvint.*` tools, including `corvint.help`, are reachable in-session; official-schema execution and
 official MCP conformance remain `NOT_RUN`. No accepted Frontier authority can block or continue a
 Stop event.
@@ -51,10 +51,11 @@ the end of each main-thread turn on a dirty tree. The Stop hook runs only `affec
 10-second bound; witness and mutation need a committed range and minutes of test time, so the hook
 names the exact `corvint adapter done-list --base <HEAD> --mutate` argv instead of running them.
 
-MCP (`AHI-198`): `.mcp.json` starts `corvint-mcp --root ${CLAUDE_PROJECT_DIR} --protocol-version
-2025-11-25` (the initialize-handshake protocol Claude Code speaks). `corvint-mcp` must be on `PATH`
-next to `corvint`; when it is missing, `/mcp` and `claude mcp list` show the server as failed and the
-hooks and skills are unaffected. Disable the server alone from `/mcp`.
+MCP (`AHI-198`, `AHI-373`): `.mcp.json` starts `corvint mcp --root ${CLAUDE_PROJECT_DIR}
+--protocol-version 2025-11-25` (the initialize-handshake protocol Claude Code speaks), served by the
+same `corvint` binary the hooks use, so no second executable is needed. A `corvint` older than the
+`mcp` verb makes `/mcp` and `claude mcp list` show the server as failed; the hooks and skills are
+unaffected. Disable the server alone from `/mcp`.
 
 Use `claude --plugin-dir ./integrations/claude-code/plugins/corvint` for an installation-free local
 check and `/hooks` to inspect the registered hooks. Corvint has no exact-handle expansion command yet

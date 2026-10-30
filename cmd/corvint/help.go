@@ -263,6 +263,8 @@ func topicText(topic string) string {
 		return runsHelp
 	case "repro":
 		return reproHelp
+	case "mcp":
+		return mcpHelp
 	case "test":
 		return testHelp
 	case "tests":
@@ -357,6 +359,7 @@ Commands:
     repro  pinned reproduction bundles (RPB-V0)
     harness event  one agent lifecycle event (AHI)
     adapter  one native host adapter (AHI)
+    mcp  local read-only stdio MCP server (AHI)
     dogfood-ocm  verify dogfood OCM maps (OCM-V0)
     lrf  lexical relevance floor (LRF-V0)
     record  record one local task outcome (LTPM-V0)

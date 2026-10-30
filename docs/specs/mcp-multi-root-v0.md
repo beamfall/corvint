@@ -11,7 +11,7 @@ Authoritative inputs: AGENTS.md invariants 2, 3, 4, 7 and 8; `mcp-server-2026-07
 ## Agent digest
 - Claim: One corvint-mcp process serves up to 32 operator-declared repositories, each named by an alias that every repository-scoped tool call must select.
 - Status: accepted (decision 0441); MMR-V0-009 accepted (decision 0519; V1-1173); MMR-V0-010 and MMR-V0-011 experimental under the standing lane auto-accept (V1-3116); MMR-V0-012 to MMR-V0-017 experimental under the standing lane auto-accept (V1-3117) / experimental
-- Exists: `cmd/corvint-mcp/roots.go`, `cmd/corvint-mcp/main.go` (`parseArguments`, `toolHandler.call`), `bridge.Registry.SharesRoot`; `cmd/corvint-mcp/worktree_notice.go`; per-root `--follow-ref ALIAS=REF` in `cmd/corvint-mcp/follow_ref.go`; `--tool-profile` tool groups, `--corpus-artifact` and `--workspace` in `cmd/corvint-mcp/groups.go` over the shared `internal/mcp/toolgroup`; tests in `cmd/corvint-mcp/roots_test.go`, `main_test.go`, `worktree_notice_test.go`, `follow_ref_roots_test.go` and `groups_test.go`.
+- Exists: `internal/mcp/cli/roots.go`, `internal/mcp/cli/main.go` (`parseArguments`, `toolHandler.call`), `bridge.Registry.SharesRoot`; `internal/mcp/cli/worktree_notice.go`; per-root `--follow-ref ALIAS=REF` in `internal/mcp/cli/follow_ref.go`; `--tool-profile` tool groups, `--corpus-artifact` and `--workspace` in `internal/mcp/cli/groups.go` over the shared `internal/mcp/toolgroup`; tests in `internal/mcp/cli/roots_test.go`, `main_test.go`, `worktree_notice_test.go`, `follow_ref_roots_test.go` and `groups_test.go`.
 - Blocked on: owner acceptance; no qualified host run; the dedicated `corvint-test-validity-mcp`, `corvint-docs-mcp` and `corvint-corpus-mcp` binaries stay single-root deprecated aliases for one release (`MMR-V0-016`).
 - Read next: Requirements; Bounded state and measurements.
 
@@ -286,7 +286,7 @@ against repository identity with a typed refusal (V1-1172), and cwd discovery pe
 ## Acceptance evidence and rollback
 
 Acceptance evidence: the maintained tests in the traceability table pass; the existing
-`cmd/corvint-mcp` golden `tools/list` files and the `conformance/mcp-2026-07-28` black-box suite pass
+`internal/mcp/cli` golden `tools/list` files and the `conformance/mcp-2026-07-28` black-box suite pass
 unchanged; the measurements above are recorded in
 `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-07-mcp-multi-root.md`. The owner accepted this intent in decision 0441.
 
@@ -307,7 +307,7 @@ No persisted state, index format or wire field of the single-root profile change
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| `MMR-V0-001` | `cmd/corvint-mcp/main.go` `parseArguments`, `run`; `roots.go` `splitAlias` | `TestParseArgumentsIsClosed`, `TestMMRV0001SingleRootBytesUnchanged`, `TestAFUV1034FlowsToolProfile` (golden single-root bytes) |
+| `MMR-V0-001` | `internal/mcp/cli/main.go` `parseArguments`, `run`; `roots.go` `splitAlias` | `TestParseArgumentsIsClosed`, `TestMMRV0001SingleRootBytesUnchanged`, `TestAFUV1034FlowsToolProfile` (golden single-root bytes) |
 | `MMR-V0-002` | `roots.go` `validAlias`, `maxRoots`, `maxAliasBytes`; `main.go` `parseArguments` | `TestParseArgumentsIsClosed`, `TestMMRV0003StartupRefusals` |
 | `MMR-V0-003` | `roots.go` `openRepositories`; `bridge.Registry.SharesRoot` | `TestMMRV0003StartupRefusals` |
 | `MMR-V0-004` | `roots.go` `multiRootTools`; `main.go` `Handle` | `TestMMRV0004RepositoryEnumOnEveryTool` |
@@ -316,9 +316,9 @@ No persisted state, index format or wire field of the single-root profile change
 | `MMR-V0-007` | `bridge.Registry` per root; `contextindex` path-keyed caches | `TestMMRV0005AliasRoutingAndRefusal` (interleaved calls across three roots), `TestMMRV0006StatusReportsEveryBinding` (commit in one root), `TestMMRV0007LinkedWorktreesBindTheirOwnCommit` (linked worktrees, V1-1139) |
 | `MMR-V0-008` | `bridge.Registry` pin-only state; `contextindex` `packCacheCapacity` | Measurements above; `TestMMRV0005AliasRoutingAndRefusal` (interleaved calls stay bound) |
 | `MMR-V0-010` | `follow_ref.go` `extractFollowRef`, `bindFollowSelectors`, `openFollowRefs`, `followState.block`, `followRefRootsTools`; `main.go` `followFor`, `call`; `roots.go` `statusAll` | `TestMMRV0010PerRootFollowRefServesBothRoots` (#2010 repro), `TestMMRV0010FollowersAreIsolatedAndStatusAllHoldsEachLock` (per-alias locks), `TestMMRV0010FollowRefBoundsTheRefNotTheValue` (REF bound), `TestMMRV0010SingleRootBlockUnchanged` (single-root bytes) |
-| `MMR-V0-011` | `cmd/corvint-mcp/follow_ref.go` `followReason*`, `extractFollowRef`, `bindFollowSelectors`, `openFollowRefs`; `main.go` `run` | `TestMMRV0011FollowRefRefusalsNameTheirReason` (every refusal's exact stderr, the unchanged single-root refusals and the bare text outside the path; `--help` names both forms) |
-| `MMR-V0-009` | `cmd/corvint-mcp/worktree_notice.go` `launchWorktreeNotices`, `withWorktreeNotice`; `run`, `toolHandler.call` in `main.go` | `TestMMRV0009LaunchWorktreeNotice` (real linked worktrees: labelled only from another worktree, first block and structuredContent unchanged, client roots ignored, per-alias label, none on status-all), `TestMMRV0009NoticeOnToolError`, `TestMMRV0009NoticeOnRoutedToolError` (real routed envelope-collision tool error) |
-| `MMR-V0-012` | `cmd/corvint-mcp/groups.go` `splitToolProfile`; `main.go` `extractToolProfile`, `run` | `TestMMRV0012ToolProfileList` (grammar and bare refusals; code tools kept beside groups), `TestMMRV0012GroupsToolsListGolden`, `TestAFUV1034FlowsToolProfile` (four profile goldens unchanged) |
+| `MMR-V0-011` | `internal/mcp/cli/follow_ref.go` `followReason*`, `extractFollowRef`, `bindFollowSelectors`, `openFollowRefs`; `main.go` `run` | `TestMMRV0011FollowRefRefusalsNameTheirReason` (every refusal's exact stderr, the unchanged single-root refusals and the bare text outside the path; `--help` names both forms) |
+| `MMR-V0-009` | `internal/mcp/cli/worktree_notice.go` `launchWorktreeNotices`, `withWorktreeNotice`; `run`, `toolHandler.call` in `main.go` | `TestMMRV0009LaunchWorktreeNotice` (real linked worktrees: labelled only from another worktree, first block and structuredContent unchanged, client roots ignored, per-alias label, none on status-all), `TestMMRV0009NoticeOnToolError`, `TestMMRV0009NoticeOnRoutedToolError` (real routed envelope-collision tool error) |
+| `MMR-V0-012` | `internal/mcp/cli/groups.go` `splitToolProfile`; `main.go` `extractToolProfile`, `run` | `TestMMRV0012ToolProfileList` (grammar and bare refusals; code tools kept beside groups), `TestMMRV0012GroupsToolsListGolden`, `TestAFUV1034FlowsToolProfile` (four profile goldens unchanged) |
 | `MMR-V0-013` | `internal/mcp/toolgroup` test-validity and `Docs` groups, `answer`; `groups.go` `openGroups`, `groupDescriptors`, `answerGroup`; `roots.go` `multiRootTools` | `TestMMRV0013UnionAcrossFollowedRoots` (#2011 acceptance: union across two roots, e2e following a ref; a draft answered from e2e at the followed ref changes when the ref advances between calls), `TestMMRV0013ParityWithDedicatedServers` (same results as the dedicated binaries) |
 | `MMR-V0-014` | `internal/mcp/toolgroup` `Corpus`, `CorpusArtifact`, `RootRelativePath`; `corpusbridge.AllTools`; `groups.go` `extractCorpusArtifact`, `bindCorpusArtifact` | `TestMMRV0014CorpusArtifactMissingAndStale`, `TestMMRV0014CorpusArtifactRefusals`, `TestMMRV0013ParityWithDedicatedServers` (corpus rows) |
 | `MMR-V0-015` | `groups.go` `expandWorkspace`; `internal/workspace` `Load` | `TestMMRV0015WorkspaceFile` |

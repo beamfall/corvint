@@ -206,15 +206,20 @@ func TestPRBV0009HelpJSONListsProfileKnobScope(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	servers = append(servers, filepath.Join("..", "corvint-mcp"))
+	// corvint-mcp's entry point moved to internal/mcp/cli so `corvint mcp` shares it (AHI-373).
+	servers = append(servers, filepath.Join("..", "..", "internal", "mcp", "cli"))
 	want := []string{}
 	for _, dir := range servers {
-		want = append(want, filepath.Base(dir))
+		name, call := filepath.Base(dir), "os.Exit(runProfiled("
+		if name == "cli" {
+			name, call = "corvint-mcp", "return runProfiled("
+		}
+		want = append(want, name)
 		source, err := os.ReadFile(filepath.Join(dir, "main.go"))
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !bytes.Contains(source, []byte("procprofile.Run(")) || !bytes.Contains(source, []byte("os.Exit(runProfiled(")) {
+		if !bytes.Contains(source, []byte("procprofile.Run(")) || !bytes.Contains(source, []byte(call)) {
 			t.Errorf("%s does not apply the profile bracket at its entry point", dir)
 		}
 	}
