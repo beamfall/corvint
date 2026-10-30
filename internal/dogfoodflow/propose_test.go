@@ -74,11 +74,13 @@ func numbered(prefix string, count int) string {
 }
 
 // DCW-V0-150 (V1-2283): propose-citations prints one draft row per owed hunk
-// of the prepared map, in worklist order. Each cite row names one BASE line
-// that no hunk's old range (context included) covers and whose text occurs
-// once after the change, preferring the enclosing heading of a document and
-// the enclosing declaration of code; a file absent at BASE and a governing
-// file the change edits get unknown rows. Hunks already cited or kept
+// of the prepared map, in worklist order. Since DCW-V0-439 (V1-3145) a hunk
+// whose own file is the only candidate gets an unknown row naming, as a
+// review hint, one BASE line that no hunk's old range (context included)
+// covers and whose text occurs once after the change, preferring the
+// enclosing heading of a document and the enclosing declaration of code; a
+// file absent at BASE and a governing file the change edits get unknown rows
+// with no hint. Hunks already cited or kept
 // unknown with a recorded reason get none. The draft is not uniform, passes
 // the plan grammar, is labelled PROPOSED, and nothing is written.
 func TestProposeCitationsDCWV0150DraftsPerHunkPlan(t *testing.T) {
@@ -141,6 +143,10 @@ func TestProposeCitationsDCWV0150DraftsPerHunkPlan(t *testing.T) {
 	if len(rows) != len(hunks) {
 		t.Fatalf("draft has %d rows for %d owed hunks:\n%s", len(rows), len(hunks), plan)
 	}
+	// No row cites a line of a file the change modifies (DCW-V0-439): every
+	// owed hunk here edits its own file, so each row is a reasoned unknown
+	// whose note names the enclosing heading or declaration as a review hint.
+	hintPattern := regexp.MustCompile(`nearest stable line (\S+) (\d+):(\d+) (\w+) is a review hint only`)
 	byPath := map[string]string{}
 	for index, row := range rows {
 		fields := strings.Split(row, "\t")
@@ -148,18 +154,18 @@ func TestProposeCitationsDCWV0150DraftsPerHunkPlan(t *testing.T) {
 			t.Fatalf("row %d %q is not ORDINAL<TAB>...<TAB>...<TAB>...", index+1, row)
 		}
 		hunk := hunks[index]
-		if unknownRow(fields) {
-			if !reasonedUnknownRow(fields) || !strings.HasPrefix(fields[3], "proposed: ") {
-				t.Errorf("row %q is not a reasoned proposed unknown row", row)
-			}
+		if !unknownRow(fields) || !reasonedUnknownRow(fields) || !strings.HasPrefix(fields[3], "proposed: ") {
+			t.Fatalf("row %q cites a line of %s, a file the change modifies (DCW-V0-439)", row, hunk.Path)
+		}
+		hint := hintPattern.FindStringSubmatch(fields[3])
+		if hint == nil {
 			byPath[hunk.Path] += "unknown;"
 			continue
 		}
-		start, end, _ := strings.Cut(fields[2], ":")
-		first, _ := strconv.Atoi(start)
-		last, _ := strconv.Atoi(end)
-		if fields[1] != hunk.Path || first != last {
-			t.Fatalf("row %q does not cite one line of its own hunk's file %s", row, hunk.Path)
+		first, _ := strconv.Atoi(hint[2])
+		last, _ := strconv.Atoi(hint[3])
+		if hint[1] != hunk.Path || first != last || !strings.Contains(fields[3], "(DCW-V0-439)") {
+			t.Fatalf("row %q does not hint one line of its own hunk's file %s", row, hunk.Path)
 		}
 		baseLines := splitRecords([]byte(testGit(t, root, "show", base+":"+hunk.Path) + "\n"))
 		if first < 1 || first > len(baseLines) {
@@ -167,14 +173,14 @@ func TestProposeCitationsDCWV0150DraftsPerHunkPlan(t *testing.T) {
 		}
 		for _, other := range hunks {
 			if other.Path == hunk.Path && first >= other.OldRange.Start && first < other.OldRange.Start+other.OldRange.Count {
-				t.Errorf("row %q cites a line inside a hunk's old range %+v", row, other.OldRange)
+				t.Errorf("row %q hints a line inside a hunk's old range %+v", row, other.OldRange)
 			}
 		}
 		after := []byte(testGit(t, root, "show", "HEAD:"+hunk.Path) + "\n")
 		if spanOccurrences(after, baseLines[first-1]) != 1 {
-			t.Errorf("row %q cites %q, which does not occur exactly once after the change", row, baseLines[first-1])
+			t.Errorf("row %q hints %q, which does not occur exactly once after the change", row, baseLines[first-1])
 		}
-		byPath[hunk.Path] += fields[3] + ":" + strings.TrimSpace(string(baseLines[first-1])) + ";"
+		byPath[hunk.Path] += hint[4] + ":" + strings.TrimSpace(string(baseLines[first-1])) + ";"
 	}
 	for name, want := range map[string]string{
 		"docs/specs/x-v0.md":       "specification:## Requirements;specification:",
@@ -186,9 +192,6 @@ func TestProposeCitationsDCWV0150DraftsPerHunkPlan(t *testing.T) {
 		if !strings.HasPrefix(byPath[name], want) {
 			t.Errorf("%s rows = %q; want prefix %q", name, byPath[name], want)
 		}
-	}
-	if strings.Count(byPath["docs/specs/x-v0.md"], "## Requirements") != 1 {
-		t.Errorf("two hunks of one section share one span: %q", byPath["docs/specs/x-v0.md"])
 	}
 	mapHunkRows := []map[string]string{}
 	for range all {
@@ -228,9 +231,17 @@ func TestProposeCitationsDCWV0150NeverDraftsUniformPlan(t *testing.T) {
 	if code, err := ProposeCitations(context.Background(), ProposeOptions{Root: root, Base: base}, &stdout, &stderr); code != 0 || err != nil {
 		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
 	}
-	want := "1\ta.md\t1:1\tspecification\n2\tunknown\tinsufficient-evidence\tproposed: no second stable span was found near this hunk\n"
-	if stdout.String() != want {
-		t.Errorf("draft = %q; want %q", stdout.String(), want)
+	// Both hunks edit a.md, so neither drafts a line of it (DCW-V0-439);
+	// the heading is named only as a review hint, and no uniform plan results.
+	rows := textLines(stdout.Bytes())
+	if len(rows) != 2 {
+		t.Fatalf("draft = %q; want two rows", stdout.String())
+	}
+	for _, row := range rows {
+		fields := strings.Split(row, "\t")
+		if !reasonedUnknownRow(fields) || !strings.Contains(fields[3], "nearest stable line a.md 1:1 specification is a review hint only") {
+			t.Errorf("row %q is not an unknown row hinting a.md 1:1", row)
+		}
 	}
 }
 

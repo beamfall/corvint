@@ -45,4 +45,23 @@ else
   fi
 fi
 cd "$repo" || exit 2
-"$corvint_bin" dogfood batch-check --verifier "$corvint_bin" "$base_arg"
+# ASD-V0-090 (V1-3249): the verdict is also retained as a report file in the dogfood evidence
+# directory, outside the worktree, so a lane can cite and reread it after the terminal is gone.
+# The check's stdout and stderr keep their own streams; they print once the check exits.
+report_dir="$(git rev-parse --absolute-git-dir)/corvint" && mkdir -p "$report_dir" || exit 2
+report="$report_dir/batch-check-report.txt"
+out=$(mktemp "${TMPDIR:-/tmp}/corvint-batch-check-out.XXXXXX") || exit 2
+err=$(mktemp "${TMPDIR:-/tmp}/corvint-batch-check-err.XXXXXX") || { /bin/rm -f "$out"; exit 2; }
+status=0
+"$corvint_bin" dogfood batch-check --verifier "$corvint_bin" "$base_arg" > "$out" 2> "$err" || status=$?
+cat "$out"
+cat "$err" >&2
+case $status in 0) verdict=PASS ;; 1) verdict=FAIL ;; *) verdict=REFUSE ;; esac
+{
+  printf 'dogfood-batch-check: REPORT base=%s head=%s verdict=%s status=%d
+' "$base_arg" "$(git rev-parse HEAD 2> /dev/null)" "$verdict" "$status"
+  cat "$out" "$err"
+} > "$report" || printf 'dogfood-batch-check: NOTE report NOT_PRODUCED path=%s\n' "$report" >&2
+/bin/rm -f "$out" "$err"
+[[ ! -s $report ]] || printf 'dogfood-batch-check: REPORT %s verdict=%s\n' "$report" "$verdict" >&2
+exit "$status"

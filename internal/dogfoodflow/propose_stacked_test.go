@@ -13,7 +13,7 @@ import (
 // anchor. Each such hunk gets a cite row on a stable BASE line of
 // docs/DOGFOOD.md that defines the sealed path, a different line per sealed
 // file, instead of an unknown row the bind loop must rewrite; the code hunks
-// keep their own stable spans, and the rows are keyed by the current patch's
+// stay unknown since they edit their only candidate file (DCW-V0-439), and the rows are keyed by the current patch's
 // hunk IDs.
 func TestProposeCitationsDCWV0385CitesPriorSealOnStackedRepair(t *testing.T) {
 	root := t.TempDir()
@@ -79,7 +79,11 @@ func TestProposeCitationsDCWV0385CitesPriorSealOnStackedRepair(t *testing.T) {
 			}
 		}
 		if unknownRow(fields) {
-			t.Errorf("hunk of %s drafted unknown: %q\n%s", mapped, row, errText)
+			// A code hunk's only candidates are lines of the file it modifies,
+			// so it stays unknown (DCW-V0-439); a sealed CEM never does.
+			if mapped != "pkg/code.go" || !strings.Contains(fields[3], "(DCW-V0-439)") {
+				t.Errorf("hunk of %s drafted unknown: %q\n%s", mapped, row, errText)
+			}
 			continue
 		}
 		if spans[fields[1]+":"+fields[2]] {

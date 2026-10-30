@@ -9,6 +9,7 @@ import (
 	"errors"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"reflect"
+	"slices"
 	"sort"
 
 	"github.com/Beamfall/corvint/internal/cem/wire"
@@ -126,10 +127,27 @@ func aggregateExpectedValid(expected AggregateExpected) error {
 	if err != nil {
 		return err
 	}
-	if expected.Task != normalized.Task || len(expected.Verification) == 0 || !reflect.DeepEqual(expected.Verification, normalized.Verification) {
-		return errors.New("aggregate-schema-invalid")
+	if expected.Task != normalized.Task {
+		return schemaInvalid("task", expected.Task)
+	}
+	if len(expected.Verification) == 0 {
+		return schemaInvalid("verification", "")
+	}
+	if !reflect.DeepEqual(expected.Verification, normalized.Verification) {
+		return schemaInvalid("verification", firstUnnormalized(expected.Verification, normalized.Verification))
 	}
 	return nil
+}
+
+// firstUnnormalized is the first verify command the recorder's normal form
+// changes, or "" when the lists differ only in length.
+func firstUnnormalized(got, normalized []string) string {
+	for i, command := range got {
+		if i >= len(normalized) || command != normalized[i] {
+			return command
+		}
+	}
+	return ""
 }
 
 func aggregatePathsValid(candidates, admitted []string) error {
@@ -142,13 +160,19 @@ func aggregatePathsValid(candidates, admitted []string) error {
 	if len(admitted) <= trace.MaxTracePaths {
 		return errors.New("aggregate-not-required")
 	}
-	if len(candidates) == 0 || !sort.StringsAreSorted(candidates) || !sort.StringsAreSorted(admitted) {
-		return errors.New("aggregate-schema-invalid")
+	if len(candidates) == 0 || !sort.StringsAreSorted(candidates) {
+		return schemaInvalid("candidates", "")
 	}
-	for _, set := range [][]string{candidates, admitted} {
-		for i, path := range set {
-			if path == "" || i > 0 && path == set[i-1] {
-				return errors.New("aggregate-schema-invalid")
+	if !sort.StringsAreSorted(admitted) {
+		return schemaInvalid("admitted", "")
+	}
+	for _, set := range []struct {
+		field string
+		paths []string
+	}{{"candidates", candidates}, {"admitted", admitted}} {
+		for i, path := range set.paths {
+			if path == "" || i > 0 && path == set.paths[i-1] {
+				return schemaInvalid(set.field, path)
 			}
 		}
 	}
@@ -199,24 +223,24 @@ func ParseAggregateOutcome(raw []byte) (AggregateOutcome, error) {
 	}
 	parsed, err := wire.Parse(raw)
 	if err != nil || parsed.Kind != wire.KindObject {
-		return AggregateOutcome{}, errors.New("aggregate-schema-invalid")
+		return AggregateOutcome{}, schemaInvalid("receipt", "")
 	}
 	keys := append([]string(nil), parsed.Obj.Keys...)
 	sort.Strings(keys)
 	if !reflect.DeepEqual(keys, aggregateMembers) || !bytes.Equal(raw, append(wire.CanonicalValue(parsed), '\n')) {
-		return AggregateOutcome{}, errors.New("aggregate-schema-invalid")
+		return AggregateOutcome{}, schemaInvalid("receipt", "")
 	}
 	var value AggregateOutcome
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&value); err != nil {
-		return AggregateOutcome{}, errors.New("aggregate-schema-invalid")
+		return AggregateOutcome{}, schemaInvalid("receipt", "")
 	}
 	if value.Profile != AggregateOutcomeProfile {
 		return AggregateOutcome{}, errors.New("aggregate-profile-unsupported")
 	}
 	if value.State != "aggregate-recorded" {
-		return AggregateOutcome{}, errors.New("aggregate-schema-invalid")
+		return AggregateOutcome{}, schemaInvalid("receipt", "")
 	}
 	expected, err := newAggregateOutcome(value.AggregateExpected, value.Candidates, value.Admitted)
 	if err != nil {
@@ -227,7 +251,7 @@ func ParseAggregateOutcome(raw []byte) (AggregateOutcome, error) {
 		return AggregateOutcome{}, err
 	}
 	if !bytes.Equal(raw, want) {
-		return AggregateOutcome{}, errors.New("aggregate-schema-invalid")
+		return AggregateOutcome{}, schemaInvalid("receipt", "")
 	}
 	return value, nil
 }
@@ -273,9 +297,14 @@ func acquireAggregate(ctx context.Context, root string, expected AggregateExpect
 // AggregateExpectedFor resolves BASE and TARGET to full SHA-1 commit identities
 // and TARGET's tree, for the dogfood-record opt-in aggregate (DCW-V0-374). The
 // author's task, verification and outcome pass through aggregateExpectedValid.
+// The verification list is put in the receipt's sorted unique byte order first,
+// as the learning trace recorder normalizes the same VERIFY file, so any line
+// order records the same receipt (DCW-V0-445); the receipt itself stays strict.
 func AggregateExpectedFor(ctx context.Context, root, base, target, task string, verification []string, outcome string) (AggregateExpected, error) {
+	sorted := append([]string(nil), verification...)
+	sort.Strings(sorted)
 	expected := AggregateExpected{ObjectFormat: "sha1", AdmissionPolicy: AggregateAdmissionPolicy, Task: task,
-		Verification: append([]string(nil), verification...), Outcome: outcome}
+		Verification: slices.Compact(sorted), Outcome: outcome}
 	var err error
 	if expected.Base, err = resolveCommit(ctx, root, "sha1", base); err != nil {
 		return AggregateExpected{}, err

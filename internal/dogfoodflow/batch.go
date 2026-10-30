@@ -97,6 +97,9 @@ type batch struct {
 	// forward is the merge whose merged parent holds every unbound commit,
 	// and that parent (DCW-V0-110).
 	forward [2]string
+	// unresolved lists each hand-resolved merge with its first and second
+	// parent, in range order, for its own recovery line (DCW-V0-443).
+	unresolved [][3]string
 }
 
 // BatchCheck verifies a merge batch whose every change is already bound and
@@ -566,6 +569,7 @@ func (b *batch) deriveMerge(merge, first, second string) {
 		return
 	}
 	b.failure("merge-resolution-unbound", merge+detail)
+	b.unresolved = append(b.unresolved, [3]string{merge, first, second})
 }
 
 func (b *batch) derive(merge, derivation string) {
@@ -626,6 +630,20 @@ func (b *batch) scratchCommand(args ...string) *exec.Cmd {
 	return command
 }
 
+// mergeRecovery names, under the merge-resolution-unbound failure, the change
+// each listed merge brought in and the BASE it rebinds against, and, for more
+// than one merge, that all of them are recovered in one round (DCW-V0-443).
+func (b *batch) mergeRecovery() {
+	for _, merge := range b.unresolved {
+		b.say("  fix: %s: rebind the change merged from its second parent %s with BASE=%s (its first parent), then remerge it there\n",
+			merge[0], merge[2], merge[1])
+	}
+	if len(b.unresolved) > 1 {
+		b.say("  fix: recover all %d listed merges in this round, in the listed order: redoing a merge changes the first parent of every later merge, so rebind each later change against its rebuilt first parent, or remerge the derivable changes first and the listed ones last\n",
+			len(b.unresolved))
+	}
+}
+
 func (b *batch) finish(commits, constituents int) int {
 	derivations := []string{}
 	for _, name := range []string{"first-parent-tree", "ort", "ort-ours", "ort-theirs"} {
@@ -643,6 +661,9 @@ func (b *batch) finish(commits, constituents int) int {
 			b.say("  fix: %s\n", batchRecovery[reason])
 			for _, code := range b.codeFixes[reason] {
 				b.say("  fix: %s: %s\n", code, batchCodeRecovery[code])
+			}
+			if reason == "merge-resolution-unbound" {
+				b.mergeRecovery()
 			}
 			if reason == "unbound-commits" && b.forward[0] != "" {
 				b.say("  fix: every listed commit came in through merge %s from its merged parent %s; if that parent is a mainline commit (git merge-base --is-ancestor %s origin/main), its commits are the mainline's to check: rerun batch-check with BASE=%s, which still checks every commit of this branch; a merged lane branch is not mainline, and its commits need the binding above\n",

@@ -354,6 +354,39 @@ func TestBatchCheckDCWV0040NamesUnboundContentAndRecovery(t *testing.T) {
 	}
 }
 
+// DCW-V0-443 (V1-3104): one run lists every hand-resolved merge of the
+// range, earliest first, with count equal to the merges listed, and names each
+// merge's own rebind BASE and merged change, so all of them are recovered in
+// one round. The per-merge and one-round fix lines fail on BASE.
+func TestBatchCheckDCWV0443ListsEveryHandResolvedMerge(t *testing.T) {
+	repo := newBatchRepo(t)
+	_, sealA := repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", "")
+	_, sealB := repo.lane("lane-b", "a.txt", "a1\nB2\na3\n", "")
+	_, sealC := repo.lane("lane-c", "b.txt", "b1\nC2\nb3\n", "")
+	_, sealD := repo.lane("lane-d", "b.txt", "b1\nD2\nb3\n", "")
+	handMerge := func(tip, path, data string) (string, string) {
+		first := testGit(t, repo.root, "rev-parse", "HEAD")
+		testGit(t, repo.root, "merge", "-q", "--no-ff", "--no-edit", "-X", "ours", tip)
+		repo.write(path, data)
+		testGit(t, repo.root, "add", path)
+		testGit(t, repo.root, "commit", "-q", "--amend", "--no-edit")
+		return testGit(t, repo.root, "rev-parse", "HEAD"), first
+	}
+	repo.batch(sealA)
+	early, earlyFirst := handMerge(sealB, "a.txt", "a1\nAB2\na3\n")
+	testGit(t, repo.root, "merge", "-q", "--no-ff", "--no-edit", sealC)
+	late, lateFirst := handMerge(sealD, "b.txt", "b1\nCD2\nb3\n")
+	code, _, stderr := repo.check()
+	want := "dogfood-batch-check: FAIL merge-resolution-unbound count=2\n  " + early + " paths=a.txt\n  " + late + " paths=b.txt\n" +
+		"  fix: " + batchRecovery["merge-resolution-unbound"] + "\n" +
+		"  fix: " + early + ": rebind the change merged from its second parent " + sealB + " with BASE=" + earlyFirst + " (its first parent), then remerge it there\n" +
+		"  fix: " + late + ": rebind the change merged from its second parent " + sealD + " with BASE=" + lateFirst + " (its first parent), then remerge it there\n" +
+		"  fix: recover all 2 listed merges in this round, in the listed order: redoing a merge changes the first parent of every later merge"
+	if code != 1 || !strings.Contains(stderr, want) {
+		t.Fatalf("exit=%d missing %q in %s", code, want, stderr)
+	}
+}
+
 // DCW-V0-039: sealed CEMs are immutable; a drifted copy, an edited CEM that
 // BASE already sealed, an unsealed sidecar and a failing constituent policy
 // each fail.

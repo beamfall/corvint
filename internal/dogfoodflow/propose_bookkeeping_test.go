@@ -10,8 +10,8 @@ import (
 
 // DCW-V0-333 (V1-2423): a draft never cites a bookkeeping path. A line in the
 // task store, docs/BUILD-LOG.md or a build-log entry that names a hunk's path
-// is no anchor candidate, so the code hunk falls back to its own nearby line,
-// and a hunk in a bookkeeping file gets an unknown row instead of a cite of
+// is no anchor candidate, so the code hunk gets an unknown row rather than a
+// line of the file it modifies (DCW-V0-439), and a hunk in a bookkeeping file gets an unknown row instead of a cite of
 // itself. Every cite row of the draft is then usable as written.
 func TestProposeCitationsDCWV0333SkipsBookkeepingPaths(t *testing.T) {
 	root := t.TempDir()
@@ -66,8 +66,8 @@ func TestProposeCitationsDCWV0333SkipsBookkeepingPaths(t *testing.T) {
 		}
 		switch path := hunks[index].Path; path {
 		case "internal/x/named.go":
-			if rest != "internal/x/named.go\t4:4\tdependency" {
-				t.Errorf("code row = %q; want its own declaration line", row)
+			if !strings.HasPrefix("\t"+rest, bookkeeping) || !strings.Contains(rest, "nearest stable line internal/x/named.go 4:4 dependency is a review hint only") {
+				t.Errorf("code row = %q; want a DCW-V0-439 unknown row hinting its own declaration line", row)
 			}
 		default:
 			if want := bookkeeping + path + " is a bookkeeping record (DCW-V0-333)"; !strings.HasPrefix("\t"+rest, want) {

@@ -1122,6 +1122,7 @@
         "--plan",
         "--reason",
         "--receipt",
+        "--refresh",
         "--report-set",
         "--session-key",
         "--task-state",
@@ -1144,7 +1145,8 @@
         "Prepare also cites each plan row against the prepared map without writing it, so a row cem cite would refuse stops the run before any bind (DCW-V0-335), and so does an intents manifest or a plan the bind would refuse before any cite: invalid, past the map's hunks, or citing one span for every hunk (DCW-V0-379).",
         "batch-check is read-only.",
         "propose-citations is read-only.",
-        "The draft is labelled PROPOSED on stderr; review it and write it to the DOGFOOD_CITATIONS file yourself (DCW-V0-150)."
+        "The draft is labelled PROPOSED on stderr; review it and write it to the DOGFOOD_CITATIONS file yourself (DCW-V0-150).",
+        "--refresh PLAN carries an earlier plan forward after a later edit, amend or renumber re-hunked it (DCW-V0-442): rows whose hunk ID is current are kept as written, a row whose hunk was re-hunked is re-keyed to the hunk with the same path and content (else the same path and BASE range), and every re-keyed or dropped row is noted on stderr; only the remaining hunks are drafted afresh."
       ],
       "unknowns": [
         {

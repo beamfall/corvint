@@ -10,8 +10,23 @@ export LC_ALL=C
 corvint_bin_set=${CORVINT_BIN+x}
 corvint_bin=${CORVINT_BIN-}
 
-base_arg=${1:?usage: dogfood-check.sh BASE}
+base_arg=${1:?usage: dogfood-check.sh BASE|--bound-base}
 repo=$(cd "$(dirname "$0")/.." && pwd)
+# --bound-base (make dogfood-check without BASE) takes the baseRevision of the CEM committed at
+# HEAD, never a default branch; with no such CEM it refuses naming BASE (ASD-V0-085, V1-3172).
+# The pattern matches only a JSON key (an escaped quote cannot precede the colon), so exactly
+# one match is the top-level member; any other count fails closed.
+if [[ $base_arg == --bound-base ]]; then
+  bound=$(git -C "$repo" show "HEAD:.corvint/change.cem.json" 2> /dev/null |
+    grep -oE '"baseRevision"[[:space:]]*:[[:space:]]*"[0-9a-f]{40}"' || :)
+  if [[ -z $bound || $bound == *$'\n'* ]] || ! git -C "$repo" merge-base --is-ancestor "${bound: -41:40}" HEAD 2> /dev/null; then
+    printf 'BASE is required: pass BASE=<full origin/main sha>; no CEM bound at HEAD records a base (HEAD:.corvint/change.cem.json is absent or has no single baseRevision that HEAD contains); the Makefile default (main) is not used by dogfood targets\n' >&2
+    printf '  fix: make dogfood-check BASE=<the full sha passed to dogfood-change>, or commit the bound CEM first (docs/DOGFOOD.md §4); on a seal commit check its bind commit: git checkout --detach HEAD^\n' >&2
+    exit 2
+  fi
+  base_arg=${bound: -41:40}
+  printf 'dogfood-check: BASE=%s from the CEM bound at HEAD (.corvint/change.cem.json baseRevision)\n' "$base_arg" >&2
+fi
 base=$(git -C "$repo" rev-parse "$base_arg^{commit}") || exit 2
 git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2
 source "$repo/script/dogfood-build-corvint.sh" || exit 2
