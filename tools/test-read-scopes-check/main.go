@@ -120,6 +120,52 @@ type finding struct {
 	// sandbox is the reason a declared package's tests launch a nested
 	// sandbox (AFP-V0-615); file and path are then empty.
 	sandbox string
+	// rootedBy names the test-file literal that makes the package's tokens
+	// root-relative, when path is reached only from the repository root
+	// (V1-3234); it is empty when the package directory resolves it.
+	rootedBy string
+}
+
+// rootLocator names the first test-file literal of a package that locates the
+// repository root, as file:line and the quoted literal (V1-3234). A token the
+// AFP-V0-021 lexicon read outside a string literal is named by the line of its
+// first occurrence.
+func rootLocator(files []string, bodies [][]byte, tokens [][]string) string {
+	scan := tempRootScan{tokens: map[string][]string{}}
+	for index, name := range files {
+		fileSet := token.NewFileSet()
+		file, err := parser.ParseFile(fileSet, name, bodies[index], parser.SkipObjectResolution)
+		if err != nil {
+			continue
+		}
+		found := ""
+		ast.Inspect(file, func(node ast.Node) bool {
+			literal, ok := node.(*ast.BasicLit)
+			if !ok || literal.Kind != token.STRING || found != "" {
+				return found == ""
+			}
+			values, err := scan.literalTokens(literal.Value)
+			if err != nil {
+				return true
+			}
+			if locatesRoot([][]string{values}) {
+				found = fmt.Sprintf("%s:%d holds %s", name, fileSet.Position(literal.Pos()).Line, literal.Value)
+			}
+			return found == ""
+		})
+		if found != "" {
+			return found
+		}
+	}
+	for index, name := range files {
+		for _, value := range tokens[index] {
+			if locatesRoot([][]string{{value}}) {
+				line := 1 + bytes.Count(bodies[index][:max(0, bytes.Index(bodies[index], []byte(value)))], []byte("\n"))
+				return fmt.Sprintf("%s:%d holds %q", name, line, value)
+			}
+		}
+	}
+	return ""
 }
 
 // tracked lists the paths Git tracks under root, except changeEvidencePath,
@@ -439,6 +485,10 @@ func check(root string) ([]finding, []string, error) {
 			}
 		}
 		fromRoot := locatesRoot(tokens)
+		rootedBy := ""
+		if fromRoot {
+			rootedBy = rootLocator(unit.Tests, bodies, tokens)
+		}
 		exempt, err := tempRootOnly(unit.Tests, bodies)
 		if err != nil {
 			return nil, nil, err
@@ -461,7 +511,11 @@ func check(root string) ([]finding, []string, error) {
 						used[directory+" "+target] = true
 						continue
 					}
-					findings = append(findings, finding{pkg: directory, file: file, path: target})
+					found := finding{pkg: directory, file: file, path: target}
+					if target != path.Join(directory, value) {
+						found.rootedBy = rootedBy
+					}
+					findings = append(findings, found)
 				}
 			}
 		}
@@ -505,8 +559,13 @@ func run(root string, stdout, stderr io.Writer) int {
 				found.pkg, found.file, found.path, affected.ReadScopesPath)
 			continue
 		}
-		fmt.Fprintf(stderr, "test-read-scopes-check: package %s: %s names %s, outside its entries in %s; declare it there (AFP-V0-023), keep the read inside the package, or record in %s why it is no read\n",
-			found.pkg, found.file, found.path, affected.ReadScopesPath, literalsPath)
+		rooted := ""
+		if found.rootedBy != "" {
+			// V1-3234: name the literal and the rule that resolve the token from the root.
+			rooted = fmt.Sprintf("; it is read from the repository root because %s, which locates the root (AFP-V0-021: such a literal in any test file makes the package's tokens root-relative; only a token whose every literal lies in a temp-root-only test function is exempt, AFP-V0-828)", found.rootedBy)
+		}
+		fmt.Fprintf(stderr, "test-read-scopes-check: package %s: %s names %s, outside its entries in %s; declare it there (AFP-V0-023), keep the read inside the package, or record in %s why it is no read%s\n",
+			found.pkg, found.file, found.path, affected.ReadScopesPath, literalsPath, rooted)
 	}
 	if len(findings) > 0 {
 		return 1

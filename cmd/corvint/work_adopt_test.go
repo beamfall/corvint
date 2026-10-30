@@ -47,28 +47,58 @@ func workBoundCorvint(t *testing.T) string {
 	return workBoundBuild.path
 }
 
-func workBuildCorvint(path, build string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+// workMkdirAll is os.MkdirAll that sets 0755 on every directory it creates, so
+// a bound executable's parents never inherit a group-writable umask such as
+// 0002, which the product refuses as an unsafe parent (V1-3220).
+func workMkdirAll(dir string) error {
+	if info, err := os.Stat(dir); err == nil && info.IsDir() {
+		return nil
+	}
+	if parent := filepath.Dir(dir); parent != dir {
+		if err := workMkdirAll(parent); err != nil {
+			return err
+		}
+	}
+	if err := os.Mkdir(dir, 0755); err != nil {
 		return err
 	}
-	command := exec.Command("go", "build", "-trimpath", "-ldflags", "-X main.build="+build, "-o", path, ".")
-	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOCACHE="+filepath.Join(os.TempDir(), "corvint-go-build-cache"))
-	if output, err := command.CombinedOutput(); err != nil {
-		return errors.New(err.Error() + ": " + string(output))
+	return os.Chmod(dir, 0755)
+}
+
+// workFixtureRoot is a resolved t.TempDir() with an explicit 0755 mode:
+// testing creates it with the process umask, so under umask 0002 it would be a
+// group-writable parent of every executable bound below it (V1-3220).
+func workFixtureRoot(t *testing.T) (string, error) {
+	t.Helper()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		return "", err
 	}
-	return nil
+	return root, os.Chmod(root, 0755)
+}
+
+func workBuildCorvint(path, build string) error {
+	return workBuildExecutable(path, "-ldflags", "-X main.build="+build)
 }
 
 func workBuildCorvintWithoutVCS(path string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+	return workBuildExecutable(path, "-buildvcs=false")
+}
+
+// workBuildExecutable builds this command to path with an explicit 0755 mode:
+// go build applies the process umask, and the product refuses a group- or
+// world-writable executable (V1-3220).
+func workBuildExecutable(path string, flags ...string) error {
+	if err := workMkdirAll(filepath.Dir(path)); err != nil {
 		return err
 	}
-	command := exec.Command("go", "build", "-trimpath", "-buildvcs=false", "-o", path, ".")
+	arguments := append(append([]string{"build", "-trimpath"}, flags...), "-o", path, ".")
+	command := exec.Command("go", arguments...)
 	command.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOCACHE="+filepath.Join(os.TempDir(), "corvint-go-build-cache"))
 	if output, err := command.CombinedOutput(); err != nil {
 		return errors.New(err.Error() + ": " + string(output))
 	}
-	return nil
+	return os.Chmod(path, 0755)
 }
 
 func workCopyExecutable(t *testing.T, source, destination string) {
@@ -77,10 +107,14 @@ func workCopyExecutable(t *testing.T, source, destination string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Dir(destination), 0755); err != nil {
+	if err := workMkdirAll(filepath.Dir(destination)); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(destination, raw, 0755); err != nil {
+		t.Fatal(err)
+	}
+	// WriteFile applies the umask only when it creates the file (V1-3220).
+	if err := os.Chmod(destination, 0755); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -225,7 +259,7 @@ func TestWorkInitBindsExplicitExecutableWQOV0049(t *testing.T) {
 
 func testWorkInitBindsExplicitExecutable(t *testing.T) {
 	binary := workBoundCorvint(t)
-	fixtureRoot, err := filepath.EvalSymlinks(t.TempDir())
+	fixtureRoot, err := workFixtureRoot(t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -290,7 +324,7 @@ func testWorkInitBindsExplicitExecutable(t *testing.T) {
 // reached directly or through a symlink, are refused before init writes anything.
 func TestWorkInitRejectsUnqualifiedExecutableWQOV0049(t *testing.T) {
 	binary := workBoundCorvint(t)
-	fixtureRoot, err := filepath.EvalSymlinks(t.TempDir())
+	fixtureRoot, err := workFixtureRoot(t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -305,6 +339,17 @@ func TestWorkInitRejectsUnqualifiedExecutableWQOV0049(t *testing.T) {
 		}
 		return path
 	}
+	// A group- or world-writable executable is refused under any umask
+	// (V1-3220): the fixtures set these modes explicitly.
+	writable := func(name string, mode os.FileMode) string {
+		path := filepath.Join(fixtureRoot, name, "corvint")
+		workCopyExecutable(t, binary, path)
+		if err := os.Chmod(path, mode); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	groupWritable, worldWritable := writable("group-writable", 0775), writable("world-writable", 0777)
 	repositoryLocal := func(root string) string {
 		path := filepath.Join(root, "bin", "corvint")
 		workCopyExecutable(t, binary, path)
@@ -332,6 +377,8 @@ func TestWorkInitRejectsUnqualifiedExecutableWQOV0049(t *testing.T) {
 			return link(binary, filepath.Join(root, "tools", "corvint"))
 		}},
 		{"unsafe-parent", "path has an unsafe parent component", func(string) string { return unsafe }},
+		{"group-writable-0775", "executable must not be group- or world-writable", func(string) string { return groupWritable }},
+		{"world-writable-0777", "executable must not be group- or world-writable", func(string) string { return worldWritable }},
 		{"repository-local", "path is repository-controlled", repositoryLocal},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -352,7 +399,7 @@ func TestWorkInitRejectsUnqualifiedExecutableWQOV0049(t *testing.T) {
 // binds its resolved target, says so, and observation then qualifies.
 func TestWorkInitBindsResolvedSymlinkTargetWQOV0049(t *testing.T) {
 	binary := workBoundCorvint(t)
-	linkDirectory, err := filepath.EvalSymlinks(t.TempDir())
+	linkDirectory, err := workFixtureRoot(t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -412,7 +459,7 @@ func TestWorkExecutableChangeRequiresReviewedRebindWQOV0050(t *testing.T) {
 }
 
 func testWorkExecutableChangeRequiresReviewedRebind(t *testing.T) {
-	fixtureRoot, err := filepath.EvalSymlinks(t.TempDir())
+	fixtureRoot, err := workFixtureRoot(t)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -470,7 +517,7 @@ func TestWorkExecutableMissingAndSymlinkSwapWQOV0049(t *testing.T) {
 		}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			fixtureRoot, err := filepath.EvalSymlinks(t.TempDir())
+			fixtureRoot, err := workFixtureRoot(t)
 			if err != nil {
 				t.Fatal(err)
 			}

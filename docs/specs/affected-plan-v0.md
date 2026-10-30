@@ -5471,6 +5471,25 @@ traceability row, which fail the four acceptance cases without the rule; on the
 `lanes/gh2006-2009` tree the check reports its `.github/workflows` record stale. Rollback: delete
 `tools/test-read-scopes-check/temp_root.go` and the `exempt` term in `check`.
 
+
+### A root-resolved refusal names its locating literal (AFP-V0-829; V1-3234)
+
+Intent (orchestrator lane request, 2026-10-30; V1-3234): one test-file literal that locates the
+repository root makes every token of the package root-relative, withholding the AFP-V0-828
+exemption from any token used outside a temp-root-only function, and the refusal named neither
+that literal nor the rule, so a lane could not tell why a fixture path counted as a read.
+
+- **AFP-V0-829:** (experimental under the owner's standing lane auto-accept, 2026-10-30; V1-3234;
+  amends the AFP-V0-023 refusal) When a refused repository path is reached only by resolving the
+  token from the repository root (not from the package directory), the refusal SHALL also name the
+  first root-locating literal of the package's test files as `FILE:LINE holds LITERAL` and state
+  the rule: such a literal in any test file makes the package's tokens root-relative (AFP-V0-021),
+  and only a token whose every literal lies in a temp-root-only test function is exempt
+  (AFP-V0-828). A path the package directory resolves names no locating literal. Non-goals: naming
+  every locating literal, or which AFP-V0-828 condition withheld a function's exemption. Failure
+  mode: a root-locating token the lexicon reads outside any string literal is named by the line of
+  its first textual occurrence. Rollback: drop `rootedBy` and `rootLocator`; the refusal loses the
+  clause only.
 ### Frame metadata and embedded JavaScript (V1-2758, V1-2898)
 
 - `AFP-V0-810`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2758)
@@ -5855,6 +5874,7 @@ stream truncated by the runner lists the unfinished packages and `no package-lev
 | AFP-V0-814 | `Reused`, `reused` and `reuse` in `.github/forward-rows/narrow.jq`; the summary line of `.github/forward-rows/narrow.sh`; `select_` in `mq-narrow.sh` | the reuse cases of `TestAFPV0098SupersetGuard` (an applied reuse narrows with `reused`; not applied, no record, a miscount, a base that is no commit id, an overlap, a non-list and no list are FULL) in `tools/ci-forward-row/narrowing_test.go`; `TestAFPV0813MergeQueueReusesTheNarrowedRecordOfAMovedBase` |
 | AFP-V0-815 | the `comm` sets of `reuse_` in `.github/forward-rows/mq-narrow.sh` | `TestAFPV0813MergeQueueReusesTheNarrowedRecordOfAMovedBase` (S = a b c, Rs = a b, D = b runs b and c and reuses a; D empty reuses a and b and runs c) |
 | AFP-V0-816 | `refuse` in `mq-narrow.sh`; the help probe of the docs-plan reuse step in `.github/workflows/ci.yml` | the refusal cases of `TestAFPV0813MergeQueueReusesTheNarrowedRecordOfAMovedBase` (no or a malformed offer, another head, another first parent, a base off the history, a tree mismatch, a `.github/` delta, a non-ASCII `.github/` path, FALLBACK on either range, an UNKNOWN `.plan.scope` under a `run` verdict on either range and a failing delta planner keep the whole selection and name the reason; the non-ASCII and UNKNOWN-scope cases failed before the review fix and pass after it); `TestAFPV0170ReuseStepRefusesForgedArtifacts` failed before the probe fix and passes after it |
+| AFP-V0-829 | `rootLocator`, `finding.rootedBy` and the refusal clause in `run` of `tools/test-read-scopes-check/main.go` | `TestRootResolvedRefusalNamesLocatingLiteralAndRule_V1_3234` (the root-resolved refusal names `root_test.go:3`, the literal and both rules; a package-directory read names no culprit) |
 | AFP-V0-828 | `tempRootOnly`, `tempRooted`, `tempRootScan`, `packageNames`, `localNames` and `importAliases` in `tools/test-read-scopes-check/temp_root.go`; the `exempt` term in `check` | `TestTempRootOnlyLiteralsAreNoRepositoryRead_V1_3137` (five accepted shapes and twenty-five refusals), `TestTempRootOnlyRefusesAnUnparsableFile_V1_3137` |
 | AFP-V0-760 | `list_names`, `list_names_read` and `list_names_keep` in `.github/forward-rows/names.sh` | `TestAFPV0760ListNamesSplitsATruncatedPage` (a split page of 100 lists the same names, `pages_read` and `exhausted` as a clean listing; a split last page; the page budget bounds a split page; a listing of exactly 200; an unreadable page of 25 names the limit after three tries 5 s and 10 s apart); `TestAFPV0097VerdictAcceptance` (a truncated page of 100 read as pages of 25 gives MET; its unreadable page of 25 gives FULL with the named limit); live measurement in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-v1-3084-artifact-page-split.md`; hosted verdict `NOT_OBSERVED` |
 | AFP-V0-600 | `embedPatterns`, `embedArguments`, `embedTargets`, `embeddable` in `internal/liveverify/affected/golang/embed.go`; `resolveEmbeds` and the `observeDirectory` embed patterns in `golang/golang.go`; `Unit.EmbedFiles` in `internal/liveverify/affected/unit.go`; `Graph.embedded`, `digestUnit` in `graph.go`; `cachedUnit` in `graphcache.go`; `seed`, `claimantsOf` and `namedGoReadData` in `select.go` | `TestEmbedPatternsReadOnlyDirectives_AFPV0600`, `TestEmbedTargetsResolveAsTheGoCommand_AFPV0600`, `TestEmbeddedFilesAreOwnedByTheEmbeddingPackage_AFPV0600` (`golang/embed_test.go`); `TestEmbeddedFileIsAttributedToItsPackage_AFPV0600`, `TestEmbedLeavesForeignReadersOpen_AFPV0600`, `TestEmbedFilesAreDigestedValidatedAndCached_AFPV0600` (`ownership_test.go`); measured counts in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-affected-embed-readscope-ownership.md` |

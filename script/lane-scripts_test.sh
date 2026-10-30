@@ -4,7 +4,8 @@
 # the dogfood-finish missing-input refusal (ASD-V0-015), lane-idle-check.sh (ASD-V0-017),
 # lane-clean.sh (ASD-V0-018), lane-guard.sh (ASD-V0-024),
 # install-local-bin.sh (ASD-V0-025), install-cem-verifiers.sh (TCB-V0-046),
-# wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043). No Go build runs.
+# wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), codex-review.sh
+# (ASD-V0-064). No Go build runs.
 set -uo pipefail
 export LC_ALL=C
 # The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
@@ -1083,6 +1084,10 @@ out=$(KA_OUT='query-error\n' kac 2>&1); rc=$?
   fail "keepalive check read a query error as no holder: rc=$rc out=$out"
 kac --distro 'bad;name' 2> /dev/null; [[ $? == 2 ]] || fail "keepalive check accepted an invalid distro"
 kac --bogus 2> /dev/null; [[ $? == 2 ]] || fail "keepalive check accepted an unknown argument"
+ok
+
+# ASD-V0-064 (V1-3219): the Codex review preflight reports NOT_AVAILABLE once, with the login fix.
+out=$("$script/codex-review_test.sh" 2>&1) || fail "codex-review_test.sh: $out"
 ok
 
 # ASD-V0-014: no fixture outlives the run, so nothing can write after the summary line. Every
