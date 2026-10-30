@@ -7,7 +7,8 @@ set -eu
 # that lacks a suite test fails before any lifecycle case, a clean run over a supplied binary and
 # suite reports LIFECYCLE_PASSED (never QUALIFIED), and a tampered expectation fails exactly the
 # tampered case with exit 1 while the initialization cases still pass, so the injection is shown
-# reachable rather than assumed.
+# reachable rather than assumed. A refusal that exits 0 and an envelope of another profile each fail
+# the cutover-missing case.
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-qualify-tasks-basic-test.XXXXXX")
@@ -72,4 +73,17 @@ grep -q '"case": "claim-before-cutover".*"pass": true' "$test_root/tamper/result
 grep -q '"case": "init-nonfixture".*"pass": true' "$test_root/tamper/results.jsonl" || fail "non-fixture reachability case did not pass"
 tail -n 1 "$test_root/tamper.out" | grep -q '^FAILED cases=[0-9]* failed=1$' || fail "tampered run summary not FAILED"
 
-echo "PASS: qualify-tasks-basic refusals, supplied-input labelling and tamper injection"
+# TBS-V1-452: a refusal that exits 0, or an envelope of another profile, fails its case.
+real=$test_root/corvint-tasks
+printf '#!/bin/sh\n"%s" "$@"\nexit 0\n' "$real" >"$test_root/exit0-tasks"
+printf '#!/bin/sh\nset -o pipefail 2>/dev/null || :\n"%s" "$@" | sed "s#taskman-command-result/0#taskman-command-result/1#"\n' "$real" >"$test_root/profile1-tasks"
+chmod +x "$test_root/exit0-tasks" "$test_root/profile1-tasks"
+for wrap in exit0 profile1; do
+  status=0
+  "$qualify" "$test_root/$wrap" --tasks-binary "$test_root/$wrap-tasks" --suite-run "$test_root/suite.jsonl" \
+    >"$test_root/$wrap.out" 2>&1 || status=$?
+  [ "$status" -eq 1 ] || fail "$wrap run exited $status, want 1"
+  grep -q '^FAIL case=claim-before-cutover ' "$test_root/$wrap.out" || fail "$wrap run passed the cutover refusal"
+done
+
+echo "PASS: qualify-tasks-basic refusals, supplied-input labelling, exit and profile checks, tamper injection"

@@ -36,7 +36,8 @@ companion with its own qualification (`PRS-V1-002`, release classification table
   fixture-queue path.
 - `TBS-V1-452`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)
   Output and refusal compatibility. Each profile command prints one `taskman-command-result/0`
-  envelope with an `outcome` and a closed `codes` set. Within a profile qualification, a later
+  envelope with an `outcome` and a closed `codes` set, and exits 0 on `OK` and 1 on any other
+  outcome. Each case checks the profile, the exit status, the outcome and the codes. Within a profile qualification, a later
   build keeps each qualified situation's outcome class and code set. The qualified situations are:
 
   | Situation | Outcome | Codes |
@@ -113,13 +114,15 @@ companion with its own qualification (`PRS-V1-002`, release classification table
 - `TBS-V1-459`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)
   No failed or skipped case counts as passed. Any mismatch prints `FAIL case=...` and ends the run
   `FAILED` with exit 1. A suite run that lacks a passing suite test, or that has a failure, stops the
-  run before any lifecycle case. The last line is `QUALIFIED` only when all three hold:
+  run before any lifecycle case. The last line is `QUALIFIED` only when all four hold:
   - the binary was built by the run;
   - the suite was run by it;
-  - the source tree was clean.
+  - the source tree was clean;
+  - the host and toolchain are a supported tuple of TBS-V1-454 (`uname` Darwin/arm64 or
+    Linux/x86_64, and `go1.27.3`).
 
-  A supplied binary (`--tasks-binary`), a supplied suite run (`--suite-run`) or a dirty source
-  prints `LIFECYCLE_PASSED` with those inputs named.
+  A supplied binary (`--tasks-binary`), a supplied suite run (`--suite-run`), a dirty source or
+  an unsupported tuple prints `LIFECYCLE_PASSED` with those inputs and the tuple named.
 - `TBS-V1-460`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3181)
   Qualification is per source commit and tuple. Any change under `cmd/corvint-tasks/` or
   `internal/tasks/` needs a new run before the profile is claimed for it. The catalog maturity of

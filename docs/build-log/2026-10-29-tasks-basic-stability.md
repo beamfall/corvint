@@ -84,6 +84,24 @@ The 30 cases, in order, with the observed outcome and codes, were the same on bo
 - In the tampered run, the two reachability cases (`init-nonfixture`, `claim-before-cutover`) still
   pass.
 
+## Review fixes
+
+An independent review of `93b9f5b08..31d354914` found four gaps, all fixed in the same lane:
+
+- A case's verdict left out the exit status, so a refusal that exited 0 passed. Each case now also
+  requires exit 0 on `OK` and 1 otherwise (TBS-V1-452).
+- The envelope profile was not checked. Each case now requires `taskman-command-result/0`.
+- `QUALIFIED` checked only input provenance and a clean source. It now also requires a supported
+  tuple and `go1.27.3`; otherwise the last line is `LIFECYCLE_PASSED ... tuple=OS/ARCH/GO
+  supportedTuple=false` (TBS-V1-454, TBS-V1-459).
+- The shell test runs `go build`, so it is an unbounded unit. It is now registered per
+  `docs/SHELL-TEST-REGISTRATION.md`: the `qualify-tasks-basic-test` target, `GATE_STEPS`,
+  `shell-test` and `units` in `.corvint/unbounded-readers.json`. Its reads cannot be declared in
+  `.corvint/test-read-scopes.json`, because a `go build` reads the whole program.
+
+The shell test now also runs the lifecycle over two wrapped binaries: one that always exits 0 and one
+that rewrites the profile to `/1`. Each must fail `claim-before-cutover` and end with exit 1.
+
 ## Tuples
 
 The supported tuples are darwin/arm64 and linux/amd64. Both are qualified above, so neither is
@@ -91,8 +109,6 @@ unavailable. Windows is UNSUPPORTED under PRS-V1-004 and was not run.
 
 ## Limits
 
-- `script/qualify-tasks-basic_test.sh` is not wired into a Makefile target or CI; the Makefile is
-  outside V1-3181's declared scope. It runs by hand.
 - The linux/amd64 run used a clone transported as a Git bundle. The repository has no remote
   qualification helper for this.
 - Qualification is per commit and tuple (TBS-V1-460). A later change under `cmd/corvint-tasks/` or

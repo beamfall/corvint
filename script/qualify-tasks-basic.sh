@@ -139,6 +139,7 @@ try:
     item=(d.get("items") or [{}])[0]
 except Exception as e:
     d=None; outcome="UNPARSED"; codes=[]; item={}
+profile=(d or {}).get("profile")
 field_ok=True; observed_field=None
 if want_f:
     k,v=want_f.split("=",1); cur=item
@@ -146,9 +147,13 @@ if want_f:
         cur=cur.get(part) if isinstance(cur,dict) else None
     observed_field=cur; field_ok=json.dumps(cur)==v or str(cur)==v
 want=sorted(c for c in want_c.split(",") if c)
-ok=outcome==want_o and codes==want and field_ok
-print(json.dumps({"case":name,"argv":argv,"exit":int(status),"outcome":outcome,"codes":codes,
-  "expected":{"outcome":want_o,"codes":want,"field":want_f or None},"observedField":observed_field,
+# TBS-V1-452: one taskman-command-result/0 envelope; OK exits 0 and every other outcome exits 1.
+want_exit=0 if want_o=="OK" else 1
+ok=(profile=="taskman-command-result/0" and outcome==want_o and codes==want and field_ok
+    and int(status)==want_exit)
+print(json.dumps({"case":name,"argv":argv,"exit":int(status),"profile":profile,"outcome":outcome,"codes":codes,
+  "expected":{"profile":"taskman-command-result/0","exit":want_exit,"outcome":want_o,"codes":want,"field":want_f or None},
+  "observedField":observed_field,
   "warnings":[w for w in (d or {}).get("warnings",[]) if "actor binding" not in w],"pass":ok},sort_keys=True))
 ' "$name" "$want_outcome" "$want_codes" "$want_field" "$status" "$last" "$@")
   printf '%s\n' "$verdict" >>"$results"
@@ -156,7 +161,7 @@ print(json.dumps({"case":name,"argv":argv,"exit":int(status),"outcome":outcome,"
     echo "PASS case=$name"
   else
     failed=$((failed + 1))
-    echo "FAIL case=$name $(pyjson 'import json,sys; v=json.loads(sys.argv[1]); print("observed",v["outcome"],v["codes"],v["observedField"],"expected",v["expected"])' "$verdict")"
+    echo "FAIL case=$name $(pyjson 'import json,sys; v=json.loads(sys.argv[1]); print("observed",v["profile"],v["exit"],v["outcome"],v["codes"],v["observedField"],"expected",v["expected"])' "$verdict")"
   fi
 }
 item() { pyjson 'import json,sys; d=json.load(open(sys.argv[1])); print((d.get("items") or [{}])[0].get(sys.argv[2]) or "")' "$last" "$1"; }
@@ -228,8 +233,14 @@ if [[ $failed -gt 0 ]]; then
   echo "FAILED cases=$cases failed=$failed"
   exit 1
 fi
-if [[ $binary_source == BUILT && $suite_source == RUN && $src_dirty == false ]]; then
+# TBS-V1-454: only darwin/arm64 and linux/amd64 on go1.27.3 can qualify.
+tuple=$(uname -s)/$(uname -m)/$go_version
+case $tuple in
+  Darwin/arm64/go1.27.3 | Linux/x86_64/go1.27.3) tuple_ok=true ;;
+  *) tuple_ok=false ;;
+esac
+if [[ $binary_source == BUILT && $suite_source == RUN && $src_dirty == false && $tuple_ok == true ]]; then
   echo "QUALIFIED cases=$cases"
 else
-  echo "LIFECYCLE_PASSED cases=$cases binary=$binary_source suite=$suite_source sourceDirty=$src_dirty"
+  echo "LIFECYCLE_PASSED cases=$cases binary=$binary_source suite=$suite_source sourceDirty=$src_dirty tuple=$tuple supportedTuple=$tuple_ok"
 fi
