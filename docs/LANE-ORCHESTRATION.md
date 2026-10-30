@@ -381,6 +381,18 @@ known to approach or exceed it and are bounded as listed:
 | `go test ./internal/doccorpus` | 7 lane calls of 600 s or more (load-bound); 52 s on WSL2 at load 33 | offload (section 2) and one package per command |
 | `go test ./internal/contextindex`, `./conformance/mcp-2026-07-28`, `./internal/mcp/corpusbridge` | 604-707 s in a lane under load; CI 59 s, 27 s and 5.5 s | offload, narrow `-run` |
 
+Closeout, check and seal run in the foreground (ASD-V0-107, V1-3224). A lane that starts
+`dogfood-closeout`, `dogfood-finish`, `dogfood-check` or `dogfood-seal` as a background job and
+ends its turn to wait for it parks: the job's completion does not reliably resume the session, so
+the lane sits idle with its seal unfinished until the orchestrator notices. Run each such command
+in the foreground and, when one would pass the 600 s tool-call limit, split it at its own phase
+boundary (stop after the bind commit, as the table says) instead of backgrounding it. A lane never
+ends a turn with its own job still running: it finishes the job, or it reports the exact remaining
+command as its handoff and ends with nothing running. `script/lane-guard.sh` enforces the first half for
+every session, subagent or not: a backgrounded `make dogfood-closeout`, `-finish`, `-check` or
+`-seal`, `script/dogfood-finish.sh` or `corvint dogfood finish-lane`/`finish`/`check`/`seal` is
+denied with this foreground recipe.
+
 The 2026-10-23..25 counts come from `script/lane-transcript-metrics.py`
 (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-25-lane-infra-p0-evidence.md`): 48 tool calls ran 600 s or longer, 15 of
 them unclassified Bash commands; the timeout target in section 7 was not yet met.
@@ -443,7 +455,16 @@ every gap above the threshold with the time the watchdog would have flagged it.
   restore with `git apply ../p.patch`) or in a named WIP commit on the lane's own branch.
   `script/lane-clean.sh` keeps any checkout that still has a stash entry.
 - Scratch logs go outside the checkout (untracked files make dogfood report
-  `record-index-failed`).
+  `record-index-failed`), into a directory only this lane writes (ASD-V0-108, V1-3156):
+  `"$(git rev-parse --absolute-git-dir)/corvint/lane-logs/"`, unique per worktree like
+  `lane-inputs/` (section 3), or a `mktemp -d` directory. Never a fixed name in the shared
+  temporary directory such as `/tmp/closeout.log` or `/tmp/precheck.log`: on macOS `/tmp` is
+  `/private/tmp`, one directory for every lane on the host, so two lanes running the same step
+  overwrite each other's log and a report can quote another lane's output.
+- Helper binaries build into scratch too: `go build -o "$TMPDIR/NAME" ./cmd/NAME`, never a bare
+  `go build ./cmd/NAME`, which leaves an untracked `NAME` at the worktree root that the recorder
+  counts as dirty (V1-3132). `dogfood-change` names such a file as
+  `NOTE untracked-build-output` (`DCW-V0-386`); delete it before the next dogfood step.
 - After a lane's PR merges, the orchestrator fetches the shared repository and runs
   `script/lane-clean.sh --root <lanes-root> --repo <shared> --active <dir>...` (dry run), reviews
   the `WOULD-REMOVE` lines, then reruns with `--apply`. It removes only checkouts whose `HEAD` and

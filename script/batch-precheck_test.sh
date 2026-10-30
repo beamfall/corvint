@@ -5,7 +5,8 @@
 # parallel runner and its table on stub make/go/gofmt commands, the HEAD-bound receipt and its push
 # guard, the regen commit, its idempotence and its refusals, the --base classification, and the
 # ledger reuse of ASD-V0-042 (V1-2985), the drift and catalog selection of ASD-V0-050 and
-# ASD-V0-051 (V1-3134, V1-3136), and the one rerun of a failed step (ASD-V0-046, V1-3122).
+# ASD-V0-051 (V1-3134, V1-3136), the one rerun of a failed step (ASD-V0-046, V1-3122) and the
+# sealed CEM name check (ASD-V0-109, V1-3267).
 set -uo pipefail
 export LC_ALL=C
 script=$(cd "$(dirname "$0")" && pwd)
@@ -786,6 +787,59 @@ if [[ $(uname -s) == Linux && $(stat -f -c %T /dev/shm 2> /dev/null) == tmpfs ]]
     [[ $(sort -u "$tmp/step-tmpdirs") == "$tmp/disk-tmp" ]] || fail "a disk TMPDIR was replaced: $(sort -u "$tmp/step-tmpdirs")"
   fi
 fi
+
+# 13. ASD-V0-109 (V1-3267): a sealed CEM the branch adds must be named for a commit in HEAD's
+# history. A resolvable name passes; an unresolvable one fails naming the file and the reseal
+# recovery; an unreachable name the base already holds is not judged; with no base and no
+# origin/main the check is skipped with its reason.
+srepo=$tmp/srepo
+mkdir -p "$srepo/.github/workflows" "$srepo/pkg" "$srepo/interop/cem01-go" "$srepo/.corvint/changes"
+cp "$repo/.github/workflows/ci.yml" "$srepo/.github/workflows/ci.yml"
+cp "$repo/pkg/a_test.go" "$srepo/pkg/a_test.go"
+inherited=1111111111111111111111111111111111111111
+: > "$srepo/.corvint/changes/$inherited.cem.json"
+git -C "$srepo" init -q && git -C "$srepo" add -A && git -C "$srepo" commit -qm base || fail "seal fixture base commit"
+sbase=$(git -C "$srepo" rev-parse HEAD)
+srun() { PATH=$fbin:$PATH FLAKY_MARK=$tmp/fmark BATCH_PRECHECK_ROOT=$srepo BATCH_PRECHECK_HEAVY= BATCH_PRECHECK_REGEN= BATCH_PRECHECK_PLANNER= BATCH_PRECHECK_DRIFT="./pkg TestDrift" "$pre" "$@" > "$tmp/out" 2>&1; }
+srun || fail "seal fixture without a base failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: SKIP sealed-cem-names (no --base and no merge base with origin/main)$' "$tmp/out" || fail "no-base seal check not skipped: $(cat "$tmp/out")"
+: > "$srepo/.corvint/changes/$sbase.cem.json"
+git -C "$srepo" add -A && git -C "$srepo" commit -qm "seal a real commit" || fail "resolvable seal commit"
+srun --base "$sbase" || fail "a resolvable seal name failed: $(cat "$tmp/out")"
+grep -q '^batch-precheck: PASS sealed-cem-names$' "$tmp/out" || fail "resolvable seal not checked: $(cat "$tmp/out")"
+grep -Eq '^batch-precheck: \| PASS \| +[0-9]+s \| sealed-cem-names$' "$tmp/out" || fail "no sealed-cem-names row: $(cat "$tmp/out")"
+ghost=87a5ef5d00000000000000000000000000000000
+: > "$srepo/.corvint/changes/$ghost.cem.json"
+git -C "$srepo" add -A && git -C "$srepo" commit -qm "seal from another lineage" || fail "unresolvable seal commit"
+srun --base "$sbase"
+[[ $? == 1 ]] || fail "an unresolvable seal name passed: $(cat "$tmp/out")"
+grep -q "^  | sealed-cem-names: .corvint/changes/$ghost.cem.json names $ghost, which is not a commit in HEAD's history" "$tmp/out" ||
+  fail "refusal does not name the file: $(cat "$tmp/out")"
+grep -q "^  | sealed-cem-names: recover: git rm each named tracked file and commit$" "$tmp/out" &&
+  grep -q "^  | sealed-cem-names: recover: then rebind and reseal this branch against its base: make dogfood-finish LANE=1 BASE=$sbase " "$tmp/out" ||
+  fail "refusal does not name the reseal recovery: $(cat "$tmp/out")"
+grep -q 'rm each named untracked file' "$tmp/out" && fail "an untracked recovery for a committed seal: $(cat "$tmp/out")"
+grep -q "$sbase.cem.json names\|$inherited" "$tmp/out" && fail "a resolvable or base-held seal was refused: $(cat "$tmp/out")"
+grep -q '^batch-precheck: failed: sealed-cem-names$' "$tmp/out" || fail "sealed-cem-names not in the failed list: $(cat "$tmp/out")"
+git -C "$srepo" rm -q ".corvint/changes/$ghost.cem.json" && : > "$srepo/.corvint/changes/q\"uote.cem.json" &&
+  git -C "$srepo" add -A && git -C "$srepo" commit -qm "quoted seal name" || fail "quoted seal commit"
+srun --base "$sbase"
+[[ $? == 1 ]] && grep -q 'sealed-cem-names: ".corvint/changes/q\\"uote.cem.json" needs quoting' "$tmp/out" || fail "a quoted seal name was not refused: $(cat "$tmp/out")"
+# A quoted name that is not a sealed CEM is not judged.
+git -C "$srepo" rm -q ".corvint/changes/q\"uote.cem.json" && : > "$srepo/.corvint/changes/review\"notes.txt" &&
+  git -C "$srepo" add -A && git -C "$srepo" commit -qm "quoted note" || fail "quoted note commit"
+srun --base "$sbase" || fail "a quoted non-CEM name failed sealed-cem-names: $(cat "$tmp/out")"
+grep -q '^batch-precheck: PASS sealed-cem-names$' "$tmp/out" || fail "quoted non-CEM name: $(cat "$tmp/out")"
+# An untracked stale seal names the rm recovery, not git rm.
+: > "$srepo/.corvint/changes/$ghost.cem.json"
+srun --base "$sbase"
+[[ $? == 1 ]] || fail "an untracked unresolvable seal passed: $(cat "$tmp/out")"
+grep -q "names $ghost, which is not a commit in HEAD's history (a seal made on another lineage, such as before a rewrite; untracked)" "$tmp/out" &&
+  grep -q '^  | sealed-cem-names: recover: rm each named untracked file$' "$tmp/out" ||
+  fail "untracked seal recovery not named: $(cat "$tmp/out")"
+grep -q 'git rm each named tracked file' "$tmp/out" && fail "git rm recovery for an untracked seal: $(cat "$tmp/out")"
+/bin/rm -f "$srepo/.corvint/changes/$ghost.cem.json"
+
 "$pre" --bogus > /dev/null 2>&1
 [[ $? == 2 ]] || fail "bad argument did not exit 2"
 "$regen" --bogus > /dev/null 2>&1

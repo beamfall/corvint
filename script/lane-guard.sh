@@ -12,7 +12,11 @@
 #     command separator), nohup, setsid or disown (ASD-V0-016: a lane waiting on its own background
 #     job stays parked). `&&`, redirections (`>&`, `<&`, `&>`, `&>>`, `|&`), quoted strings,
 #     comments, arithmetic (`$((a & b))`, `((x = y & 3))`) and heredoc bodies never count as a
-#     background `&`; an unterminated quote or arithmetic expression does not hide one.
+#     background `&`; an unterminated quote or arithmetic expression does not hide one; or
+#   - from any session, subagent or not, starts a dogfood closeout, finish, check or seal step
+#     (make dogfood-closeout/-finish/-check/-seal, script/dogfood-finish.sh, corvint dogfood
+#     finish-lane/finish/check/seal) as background work by the same tests; the refusal names the
+#     foreground recipe (ASD-V0-107, V1-3224: a session lane that ends its turn waiting on one parks).
 # Heredoc bodies are file content, not commands, so they are never matched.
 #
 #   LANE_GUARD_ROOTS  colon-separated directory prefixes; when set, a command whose cwd is under
@@ -22,7 +26,7 @@
 set -uo pipefail
 
 if [[ ${1-} == -h || ${1-} == --help ]]; then
-  sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'
   exit 0
 fi
 
@@ -110,6 +114,44 @@ sub shell_words {
     }
     $out =~ s/&&|\d*[<>]&(?:\d+|-)?|&>>?|\|&/ /g;
     return $out;
+}
+my $rib_value = ref $in->{tool_input} eq "HASH" ? $in->{tool_input}{run_in_background} : undef;
+my $in_background = defined $rib_value && "$rib_value" ne "" && "$rib_value" ne "0" && "$rib_value" ne "false";
+{
+    # A dogfood step is a command word: a make target, the wrapper script or the corvint verb, never
+    # a substring such as a log name (/tmp/dogfood-finish.log). The background test is scoped to the
+    # command the step is in: the segment before a background & (a whole (...) group when the &
+    # follows one), or the rest of a nohup/setsid command, so `make dogfood-check; sleep 1 & wait`
+    # is allowed.
+    my $end = qr/(?=[\s;&|)]|$)/;
+    my $step = qr/(?:(?:^|[\s(])dogfood-(?:closeout|finish|seal|check)$end|(?:^|[\s(\/])dogfood-finish\.sh$end|\bdogfood\s+(?:finish-lane|finish|check|seal)$end)/;
+    my $words = shell_words(join "\n", @kept);
+    my $bg_step = $in_background && $words =~ $step;
+    for (my $i = index($words, "&"); !$bg_step && $i >= 0; $i = index($words, "&", $i + 1)) {
+        my $j = $i - 1;
+        $j-- while $j >= 0 && substr($words, $j, 1) =~ /[ \t]/;
+        my $start;
+        if ($j >= 0 && substr($words, $j, 1) eq ")") {
+            my $depth = 0;
+            for ($start = $j; $start >= 0; $start--) {
+                my $c = substr($words, $start, 1);
+                $depth++ if $c eq ")";
+                $depth-- if $c eq "(";
+                last if $depth == 0;
+            }
+            $start = 0 if $start < 0;
+        } else {
+            for ($start = $j; $start >= 0 && substr($words, $start, 1) !~ /[;\n|&(]/; $start--) {}
+            $start++;
+        }
+        $bg_step = substr($words, $start, $i - $start) =~ $step;
+    }
+    while (!$bg_step && $words =~ /(?:^|[;|(&\s])(?:nohup|setsid)\s([^;\n|&)]*)/g) {
+        $bg_step = " $1" =~ $step;
+    }
+    if ($bg_step) {
+        deny("Lane rule: dogfood closeout, finish, check and seal run in the foreground (docs/LANE-ORCHESTRATION.md section 4): a lane that backgrounds one and ends its turn stays parked. Run $heavy make dogfood-finish LANE=1 BASE=.. CITATIONS=.. INTENTS=.. VERIFY=.. OUTCOME=.. in the foreground; if it would pass 600s, stop after the bind commit and hand off the exact remaining command.");
+    }
 }
 if (defined $in->{agent_id} && "$in->{agent_id}" ne "") {
     my $bg = "Lane rule: no background work (run_in_background, &, nohup/setsid/disown, Monitor); a lane waiting on its own background job stays parked. Run it in the foreground through $heavy under 600s, splitting it if needed.";

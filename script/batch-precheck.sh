@@ -78,6 +78,14 @@
 # that cannot be checked out and a failed mechanical repin, stays an introduced FAIL. A run with a
 # base-present WARN writes no receipt, since not every step passed.
 #
+# Sealed CEM names (ASD-V0-109, V1-3267): before the steps, every `.corvint/changes/NAME.cem.json`
+# the branch adds since the base (--base, BATCH_PRECHECK_BASE, else `git merge-base HEAD origin/main`)
+# must name, as NAME, a full commit in HEAD's history; a seal made on another lineage (a pre-rewrite
+# seal carried by a cherry-pick) otherwise fails CI's TestCEMV1201CommittedCorpusBinding after about
+# 28 minutes. The refusal names each file and the reseal recovery. Seals the base already holds are
+# not judged, and with no resolvable base the check is skipped with the reason printed. It runs
+# outside the ledger, whose key is the tree, not the history.
+#
 # Not mirrored: the full go-product shards (-race, the whole suite), go vet and the Windows build
 # and vet (`make windows-vet`), the protected .github helper self-tests, interop tests, and the
 # docs-plan/artifact-integrity/cce-live/release jobs. They are not drift checks.
@@ -751,6 +759,53 @@ if [[ -n $regen ]]; then
   printf 'batch-precheck: %s repin (mechanical) (%ss)\n' "$( ((repin_rc)) && echo FAIL || echo PASS)" $((SECONDS - t0))
 fi
 
+# sealed_names BASE prints one refusal line per sealed CEM added since BASE whose name is not a
+# commit in HEAD's history (ASD-V0-109, V1-3267), and returns 1 when there is any.
+sealed_names() {
+  local tracked untracked name sha where bad=0 rm_untracked=0 rm_tracked=0
+  tracked=$(git -c core.quotePath=true diff --name-only --diff-filter=A --no-renames "$1" -- .corvint/changes/) &&
+    untracked=$(git -c core.quotePath=true ls-files -o --exclude-standard -- .corvint/changes/) ||
+    { printf 'sealed-cem-names: cannot list the sealed CEMs added since %s\n' "$1"; return 1; }
+  while IFS=$'\t' read -r where name; do
+    [[ -n $name ]] || continue
+    # Only sealed CEMs are judged; a Git-quoted name is one when its decoded name ends in .cem.json.
+    if [[ $name == \"* ]]; then
+      [[ $name == *'.cem.json"' ]] || continue
+      printf 'sealed-cem-names: %s needs quoting, so its name cannot be a commit (%s)\n' "$name" "$where"
+    else
+      [[ $name == *.cem.json ]] || continue
+      sha=${name##*/}
+      sha=${sha%.cem.json}
+      if [[ $sha =~ ^[0-9a-f]{40}$ ]] && git cat-file -e "$sha^{commit}" 2> /dev/null && git merge-base --is-ancestor "$sha" HEAD 2> /dev/null; then
+        continue
+      fi
+      printf 'sealed-cem-names: %s names %s, which is not a commit in HEAD'"'"'s history (a seal made on another lineage, such as before a rewrite; %s)\n' "$name" "$sha" "$where"
+    fi
+    bad=1
+    if [[ $where == untracked ]]; then rm_untracked=1; else rm_tracked=1; fi
+  done < <(sed 's/^/tracked\t/' <<< "$tracked"; sed 's/^/untracked\t/' <<< "$untracked")
+  if ((bad)); then
+    ((rm_untracked)) && printf 'sealed-cem-names: recover: rm each named untracked file\n'
+    ((rm_tracked)) && printf 'sealed-cem-names: recover: git rm each named tracked file and commit\n'
+    printf 'sealed-cem-names: recover: then rebind and reseal this branch against its base: make dogfood-finish LANE=1 BASE=%s CITATIONS=.. INTENTS=.. VERIFY=.. OUTCOME=.. (docs/DOGFOOD.md section 4)\n' "$1"
+  fi
+  return "$bad"
+}
+sealed_rc=0 sealed_base=${base:-}
+[[ -n $sealed_base ]] || sealed_base=$(git merge-base HEAD origin/main 2> /dev/null) || sealed_base=
+if [[ -z $sealed_base ]]; then
+  printf 'batch-precheck: SKIP sealed-cem-names (no --base and no merge base with origin/main)\n'
+elif ! sealed_sha=$(git rev-parse --verify -q "$sealed_base^{commit}"); then
+  printf 'sealed-cem-names: base %s is not a commit\n' "$sealed_base" > "$dir/sealed.log"
+  sealed_rc=1
+else
+  sealed_names "$sealed_sha" > "$dir/sealed.log" 2>&1 || sealed_rc=1
+fi
+if [[ -n $sealed_base ]]; then
+  printf '%s 0\n' "$sealed_rc" > "$dir/sealed.rc"
+  printf 'batch-precheck: %s sealed-cem-names\n' "$( ((sealed_rc)) && echo FAIL || echo PASS)"
+fi
+
 # Ledger reuse is decided once, after the repins wrote what they write (ASD-V0-042).
 ledger='' ledger_off=''
 if [[ ${CORVINT_GATE_LEDGER:-} == off ]]; then
@@ -927,6 +982,7 @@ row() {
 }
 printf 'batch-precheck: | result | seconds | step\n'
 [[ -f $dir/repin.rc ]] && row 'repin (mechanical)' "$dir/repin.rc"
+[[ -f $dir/sealed.rc ]] && row 'sealed-cem-names' "$dir/sealed.rc"
 for ((i = 1; i <= n; i++)); do row "$(sed -n "${i}p" "$dir/steps" | cut -f1)" "$dir/$i.rc"; done
 printf 'batch-precheck: %d passed, %d failed in %ss wall, %ss summed\n' "$pass" "$fail" $((SECONDS - start)) "$summed"
 ((flaky)) && printf 'batch-precheck: %d step(s) FLAKY, passed only on their one rerun: %s\n' "$flaky" "$(IFS=,; printf '%s' "${flakes[*]}")"
@@ -938,6 +994,10 @@ if ((fail)); then
   if ((repin_rc)); then
     printf 'batch-precheck: FAIL repin (mechanical) output:\n'
     tail -n 40 "$dir/repin.log" | sed 's/^/  | /'
+  fi
+  if ((sealed_rc)); then
+    printf 'batch-precheck: FAIL sealed-cem-names output:\n'
+    tail -n 40 "$dir/sealed.log" | sed 's/^/  | /'
   fi
   for ((i = 1; i <= n; i++)); do
     read -r rc _ < "$dir/$i.rc" 2> /dev/null || rc=1

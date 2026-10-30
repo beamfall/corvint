@@ -21,13 +21,17 @@ func (run portableRun) concurrently(t *testing.T, dirs []string, extra func(int)
 	commands := make([]*exec.Cmd, len(dirs))
 	stdout, stderr := make([]strings.Builder, len(dirs)), make([]strings.Builder, len(dirs))
 	for i, dir := range dirs {
-		commands[i] = exec.Command(run.binary, args...)
-		commands[i].Dir = dir
-		commands[i].Env = append(append([]string{}, run.env...), extra(i)...)
-		commands[i].Stdout, commands[i].Stderr = &stdout[i], &stderr[i]
-		if err := commands[i].Start(); err != nil {
+		command, err := startCopiedBinary(func() *exec.Cmd {
+			command := exec.Command(run.binary, args...)
+			command.Dir = dir
+			command.Env = append(append([]string{}, run.env...), extra(i)...)
+			command.Stdout, command.Stderr = &stdout[i], &stderr[i]
+			return command
+		})
+		if err != nil {
 			t.Fatal(err)
 		}
+		commands[i] = command
 	}
 	results := make([]laneRun, len(dirs))
 	for i, command := range commands {

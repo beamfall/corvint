@@ -993,6 +993,40 @@ for cmd in \
 done
 [[ -z $(guard "$tmp" "make build &") ]] || fail "lane-guard checked background work without an agent_id"
 ok
+# ASD-V0-107 (V1-3224): a session lane (no agent_id) may not background a dogfood closeout,
+# finish, check or seal step; the refusal names the foreground recipe. The same steps in the
+# foreground, and other background work without an agent_id, stay allowed.
+session_guard() { # session_guard COMMAND [RUN_IN_BACKGROUND] -> the decision
+  perl -MJSON::PP -e 'my %i = (command => $ARGV[1]); $i{run_in_background} = JSON::PP::true if $ARGV[2];
+    print JSON::PP->new->encode({cwd => $ARGV[0], tool_name => "Bash", tool_input => \%i})' "$tmp" "$1" "${2-}" | "$script/lane-guard.sh"
+}
+session_denied() { [[ $(session_guard "$@") == *'"permissionDecision":"deny"'*'run in the foreground'*'make dogfood-finish LANE=1'* ]]; }
+for cmd in \
+  "make dogfood-closeout BASE=x CITATIONS=c &" \
+  "script/heavy.sh make dogfood-seal BASE=x > seal.log 2>&1 &" \
+  "nohup make dogfood-finish LANE=1 BASE=x" \
+  "make dogfood-check BASE=x & echo started" \
+  "corvint dogfood finish-lane --base x &" \
+  "script/dogfood-finish.sh x c i v passed & disown" \
+  "(cd lane && make dogfood-seal BASE=x) &" \
+  "make dogfood-seal BASE=x &> seal.log &"; do
+  session_denied "$cmd" || fail "lane-guard allowed a background dogfood step: $cmd"
+done
+session_denied "make dogfood-seal BASE=x" 1 || fail "lane-guard allowed run_in_background for dogfood-seal"
+for cmd in \
+  "script/heavy.sh make dogfood-finish LANE=1 BASE=x CITATIONS=c INTENTS=i VERIFY=v OUTCOME=passed" \
+  "make dogfood-seal BASE=x > seal.log 2>&1" \
+  "make dogfood-check BASE=x && git log -1" \
+  "make dogfood-change BASE=x &" \
+  "make dogfood-checks-report &" \
+  "git log --grep='dogfood-seal' &" \
+  "make dogfood-check BASE=x; sleep 1 & wait" \
+  "tail -n 30 /tmp/dogfood-finish.log & wait" \
+  "cat > notes.md <<EOF"$'\nmake dogfood-seal &\nEOF'; do
+  out=$(session_guard "$cmd")
+  [[ -z $out ]] || fail "lane-guard refused a foreground dogfood step or unrelated background work: $cmd -> $out"
+done
+ok
 
 # ASD-V0-025 (V1-1979): install-local-bin.sh keeps a bounded rollback set and never prunes
 # backups it did not create.
