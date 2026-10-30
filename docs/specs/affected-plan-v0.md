@@ -5551,6 +5551,24 @@ current tree, with the `conformance/go-live-test-v0` darwin-only provider build'
 declared, exits 0. Rollback: delete `goBuildTargets`, `specArgv`, `goBinary`, `buildTarget`,
 `recordedAbove` and the `built` finding, and the `/...` suffix handling in `dependencyDirectories`.
 
+### A root-resolved refusal names its locating literal (AFP-V0-829; V1-3234)
+
+Intent (orchestrator lane request, 2026-10-30; V1-3234): one test-file literal that locates the
+repository root makes every token of the package root-relative, withholding the AFP-V0-828
+exemption from any token used outside a temp-root-only function, and the refusal named neither
+that literal nor the rule, so a lane could not tell why a fixture path counted as a read.
+
+- **AFP-V0-829:** (experimental under the owner's standing lane auto-accept, 2026-10-30; V1-3234;
+  amends the AFP-V0-023 refusal) When a refused repository path is reached only by resolving the
+  token from the repository root (not from the package directory), the refusal SHALL also name the
+  first root-locating literal of the package's test files as `FILE:LINE holds LITERAL` and state
+  the rule: such a literal in any test file makes the package's tokens root-relative (AFP-V0-021),
+  and only a token whose every literal lies in a temp-root-only test function is exempt
+  (AFP-V0-828). A path the package directory resolves names no locating literal. Non-goals: naming
+  every locating literal, or which AFP-V0-828 condition withheld a function's exemption. Failure
+  mode: a root-locating token the lexicon reads outside any string literal is named by the line of
+  its first textual occurrence. Rollback: drop `rootedBy` and `rootLocator`; the refusal loses the
+  clause only.
 ### Frame metadata and embedded JavaScript (V1-2758, V1-2898)
 
 - `AFP-V0-810`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2758)
@@ -5971,6 +5989,7 @@ stream truncated by the runner lists the unfinished packages and `no package-lev
 | AFP-V0-814 | `Reused`, `reused` and `reuse` in `.github/forward-rows/narrow.jq`; the summary line of `.github/forward-rows/narrow.sh`; `select_` in `mq-narrow.sh` | the reuse cases of `TestAFPV0098SupersetGuard` (an applied reuse narrows with `reused`; not applied, no record, a miscount, a base that is no commit id, an overlap, a non-list and no list are FULL) in `tools/ci-forward-row/narrowing_test.go`; `TestAFPV0813MergeQueueReusesTheNarrowedRecordOfAMovedBase` |
 | AFP-V0-815 | the `comm` sets of `reuse_` in `.github/forward-rows/mq-narrow.sh` | `TestAFPV0813MergeQueueReusesTheNarrowedRecordOfAMovedBase` (S = a b c, Rs = a b, D = b runs b and c and reuses a; D empty reuses a and b and runs c) |
 | AFP-V0-816 | `refuse` in `mq-narrow.sh`; the help probe of the docs-plan reuse step in `.github/workflows/ci.yml` | the refusal cases of `TestAFPV0813MergeQueueReusesTheNarrowedRecordOfAMovedBase` (no or a malformed offer, another head, another first parent, a base off the history, a tree mismatch, a `.github/` delta, a non-ASCII `.github/` path, FALLBACK on either range, an UNKNOWN `.plan.scope` under a `run` verdict on either range and a failing delta planner keep the whole selection and name the reason; the non-ASCII and UNKNOWN-scope cases failed before the review fix and pass after it); `TestAFPV0170ReuseStepRefusesForgedArtifacts` failed before the probe fix and passes after it |
+| AFP-V0-829 | `rootLocator`, `finding.rootedBy` and the refusal clause in `run` of `tools/test-read-scopes-check/main.go` | `TestRootResolvedRefusalNamesLocatingLiteralAndRule_V1_3234` (the root-resolved refusal names `root_test.go:3`, the literal and both rules; a package-directory read names no culprit) |
 | AFP-V0-828 | `tempRootOnly`, `tempRooted`, `tempRootScan`, `packageNames`, `localNames` and `importAliases` in `tools/test-read-scopes-check/temp_root.go`; the `exempt` term in `check` | `TestTempRootOnlyLiteralsAreNoRepositoryRead_V1_3137` (five accepted shapes and twenty-five refusals), `TestTempRootOnlyRefusesAnUnparsableFile_V1_3137` |
 | AFP-V0-840 | `closesEscapedTag` and the closing-tag branch of `literalTokens` in `internal/liveverify/affected/golang/golang.go` | `TestPathLiteralBoundary_AFPV0840` (escaped tags lex to lone names; `source.sh` and `foo-source.sh` do not select `script/core-n1-source.sh`, the full path and `../script/` do) |
 | AFP-V0-841 | `seed` direct test-change selection in `internal/liveverify/affected/select.go`; `FrontierBuildConstraint` in `internal/liveverify/affected/golang/golang.go` | `TestBuildConstrainedTestFileSelectsOwner_AFPV0841` (a `//go:build` test file selects only its package, with the variant unknown retained) |

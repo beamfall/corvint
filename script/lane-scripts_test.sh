@@ -4,8 +4,8 @@
 # the dogfood-finish missing-input refusal (ASD-V0-015), lane-idle-check.sh (ASD-V0-017),
 # lane-clean.sh (ASD-V0-018), lane-guard.sh (ASD-V0-024),
 # install-local-bin.sh (ASD-V0-025), install-cem-verifiers.sh (TCB-V0-046),
-# wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), lane-setup.sh
-# (ASD-V0-071, ASD-V0-072). No Go build runs.
+# wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), codex-review.sh
+# (ASD-V0-064), lane-setup.sh (ASD-V0-071, ASD-V0-072). No Go build runs.
 set -uo pipefail
 export LC_ALL=C
 # The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
@@ -1188,6 +1188,10 @@ out=$(cd "$tmp/lane-caller" && "$script/lane-setup.sh" --repo ../lane-setup-full
 [[ -x $(git -C "$tmp/lane-setup-full" rev-parse --path-format=absolute --git-path hooks/commit-msg) ]] || fail "relative lane setup installed no hook: $out"
 git -C "$tmp/lane-caller/lanes/b" -c user.name=t -c user.email=t@t commit -q --allow-empty -F "$tmp/lane-a-msg" 2> /dev/null &&
   fail "the relative lane's hook let an AI trailer through"
+ok
+
+# ASD-V0-064 (V1-3219): the Codex review preflight reports NOT_AVAILABLE once, with the login fix.
+out=$("$script/codex-review_test.sh" 2>&1) || fail "codex-review_test.sh: $out"
 ok
 
 # ASD-V0-014: no fixture outlives the run, so nothing can write after the summary line. Every

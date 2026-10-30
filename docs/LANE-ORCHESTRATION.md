@@ -612,3 +612,19 @@ cases ahead of it.
 Measurement: over the next 6 lanes that carry the pass, the share of reviews returning CONCERNS
 against the 3 of 3 baseline and the repair rounds per lane, retained in the batch build-log entry.
 It is `NOT_PRODUCED` until those 6 lanes have run.
+
+## 10. Codex review login preflight (ASD-V0-064)
+
+On 2026-10-30 a lane's `codex exec -m gpt-6.1-sol -s read-only` review retried "401 Not logged
+in" several times before it became `NOT_PRODUCED` (V1-3219). Lane setup runs the check once:
+
+```sh
+script/codex-review.sh --preflight   # codex-review: OK logged-in, or NOT_AVAILABLE and exit 3
+```
+
+and the lane's review goes through the same script, which checks `codex login status` once more
+and then runs `codex exec -m gpt-6.1-sol -s read-only` with the lane's arguments
+(`CODEX_REVIEW_MODEL` and `CODEX_BIN` override the model and executable). A missing CLI or a
+logged-out one prints one `codex-review: NOT_AVAILABLE` line with the fix (`codex login`, or
+`codex login --with-api-key` on a headless host) and exits 3 without any review call; the lane
+records the review as `NOT_RUN` with that line instead of retrying.

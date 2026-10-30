@@ -108,6 +108,40 @@ func TestUndeclaredRepositoryLiteralFailsNamingPackageAndPath_V1_1351(t *testing
 	}
 }
 
+// V1-3234: a token resolved only from the repository root is refused with the
+// file, line and literal that locate the root and the rule that applies, and a
+// token the package directory resolves names no culprit.
+func TestRootResolvedRefusalNamesLocatingLiteralAndRule_V1_3234(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	if code := run(repository(t, `"testdata/case.json"`, ""), &stdout, &stderr); code != 1 {
+		t.Fatalf("code=%d want 1; stderr %q", code, stderr.String())
+	}
+	output := stderr.String()
+	for _, want := range []string{
+		"internal/cem/verify/matrix_test.go names protocol/cem-1.0/stable/tamper-matrix, outside its entries",
+		"it is read from the repository root because internal/cem/verify/root_test.go:3 holds \"" + strings.Repeat(up, 3) + "\", which locates the root",
+		"(AFP-V0-021: such a literal in any test file makes the package's tokens root-relative; only a token whose every literal lies in a temp-root-only test function is exempt, AFP-V0-828)",
+	} {
+		if !strings.Contains(output, want) {
+			t.Errorf("output %q lacks %q", output, want)
+		}
+	}
+	// A package whose tests never locate the root names its own path plainly.
+	root := writeRepository(t, map[string]string{
+		"go.mod":                         "module example.test/m\n\ngo 1.27\n",
+		"p/p.go":                         "package p\n",
+		"p/p_test.go":                    "package p\n\nvar fixture = \"" + up + "q/data.json\"\n",
+		"q/data.json":                    "{}\n",
+		".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"p":[]}}`,
+	})
+	stdout.Reset()
+	stderr.Reset()
+	code := run(root, &stdout, &stderr)
+	if strings.Contains(stderr.String(), "from the repository root") || !strings.Contains(stderr.String(), "names q/data.json") {
+		t.Errorf("code=%d: a package-directory read names a root culprit: %q", code, stderr.String())
+	}
+}
+
 // V1-2117: a test that builds a tracked path from adjacent filepath.Join string
 // segments, as cmd/corvint-cem-candidate/next_action_test.go did at d114cc62e,
 // is reported when the path is outside its scope; the same segments joined onto
