@@ -26,7 +26,7 @@ arm64, Go 1.27.1, at `01b6804`); the worked example at the end is that run.
   console "carries no authority" (line 25), and decision 0373 took formal host FULL and protected
   authority off the Core path (row 6, line 19); a CI or hook invocation of the same binary gains
   nothing either path lacks. In particular: `affected` never claims omitted tests are safe to skip
-  (`cmd/corvint/help.go:895-896@d5d6e05c`); a valid CEM establishes provenance completeness, not semantic
+  (`cmd/corvint/help.go:904-905@d5d6e05c`); a valid CEM establishes provenance completeness, not semantic
   correctness ([Change Evidence Map](CHANGE-EVIDENCE-MAP.md)); and `witness` exits 0 on a
   report whose obligations are all unproven (worked example below).
 - **Network.** "Local-only; no network or telemetry" (root help support boundary)
@@ -84,7 +84,7 @@ Where each row was verified:
 
 - `affected`: profile `cmd/corvint/affected.go:36@af9fb447`; exits `cmd/corvint/affected.go:666-705@af892533`; its
   refusals are emitted without the ledger recorder (`cmd/corvint/main.go:1104-1109@7ed11581`); help text
-  "runs no test, writes no repository state" (`cmd/corvint/help.go:895@f024c3ab`).
+  "runs no test, writes no repository state" (`cmd/corvint/help.go:904@f024c3ab`).
 - `cem verify` and `cem status`: exits `internal/cem/cli/cli.go:460-489@773eecd5` (0 when the envelope says
   `"ok": true`, 1 when it says false, 2 on a dispatch error); `ok`, `mutates` and `state`
   `internal/cem/workflow/stable_read.go:143-200@7e596fa3`; refusals pass through the ledger recorder
@@ -126,10 +126,10 @@ headroom, and it is a hang detector, not a budget.
 | Command | Why it is excluded | Source |
 |---|---|---|
 | `corvint cem report` | Writes the review report, by default to `$GIT_DIR/corvint/cem-review.md` (or to `--output`: repository-relative, or absolute outside the repository), and returns `"mutates": true`. | `internal/cem/workflow/workflow.go:25@c21ea11c`, `internal/cem/workflow/stable_read.go:338-354@19c5c7be` |
-| `make dogfood-check BASE=...` | Once its preconditions pass it rewrites `.corvint/dogfood-report.json`, builds verifier binaries into `$GIT_DIR/corvint/`, and uses `${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache`. It is an authoring-time step, not a gate prerequisite, because it needs untracked `.corvint/` artifacts a clean checkout never has. Its wrapper builds the verifiers first; in a fresh clone the check then fails before the report rewrite (below). | `script/dogfood-check.sh:47-65@70896eeb`, `internal/dogfoodflow/check.go:359-368@8edfe182`, `Makefile:35-38@6362815e` |
+| `make dogfood-check BASE=...` | Once its preconditions pass it rewrites `.corvint/dogfood-report.json`, builds verifier binaries into `$GIT_DIR/corvint/`, and uses `${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache`. It is an authoring-time step, not a gate prerequisite, because it needs untracked `.corvint/` artifacts a clean checkout never has. Its wrapper builds the verifiers first; in a fresh clone the check then fails before the report rewrite (below). | `script/dogfood-check.sh:87-105@70896eeb`, `internal/dogfoodflow/check.go:359-368@8edfe182`, `Makefile:35-38@6362815e` |
 | `make dogfood-change`, `make dogfood-seal`, `corvint index`, `cem begin`, `prepare`, `cite`, `mark`, `cover`, `discriminate`, `anchor` | Write the dogfood report, a commit, the index snapshot, CEM maps, the patch cache or a Git note by design. | `script/dogfood-change.sh:33@f8f6aa02`, `script/dogfood-seal.sh:28-31@5c2ac3f4`, `SOP-V0-002` for `index`, `cmd/corvint/help.go:406-408@bfe2edf4` and `corvint cem --help` |
 | `corvint cem report` | Writes the review report, by default to `$GIT_DIR/corvint/cem-review.md` (or to `--output`: repository-relative, or absolute outside the repository), and returns `"mutates": true`. `--preview` (DCW-V0-345) and `--format json` write nothing and return `"mutates": false`. | `internal/cem/workflow/workflow.go:25@c21ea11c`, `internal/cem/workflow/stable_read.go:338-354@19c5c7be` |
-| `make dogfood-check BASE=...` | Once its preconditions pass it rewrites `.corvint/dogfood-report.json`, builds verifier binaries into `$GIT_DIR/corvint/`, and uses `${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache`. It is an authoring-time step, not a gate prerequisite, because it needs untracked `.corvint/` artifacts a clean checkout never has. Its wrapper builds the verifiers first; in a fresh clone the check then fails before the report rewrite (below). | `script/dogfood-check.sh:47-65@70896eeb`, `internal/dogfoodflow/check.go:359-368@8edfe182`, `Makefile:35-38@6362815e` |
+| `make dogfood-check BASE=...` | Once its preconditions pass it rewrites `.corvint/dogfood-report.json`, builds verifier binaries into `$GIT_DIR/corvint/`, and uses `${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache`. It is an authoring-time step, not a gate prerequisite, because it needs untracked `.corvint/` artifacts a clean checkout never has. Its wrapper builds the verifiers first; in a fresh clone the check then fails before the report rewrite (below). | `script/dogfood-check.sh:87-105@70896eeb`, `internal/dogfoodflow/check.go:359-368@8edfe182`, `Makefile:35-38@6362815e` |
 | `make dogfood-change`, `make dogfood-seal`, `corvint index`, `cem begin`, `prepare`, `cite`, `mark`, `cover`, `discriminate`, `anchor` | Write the dogfood report, a commit, the index snapshot, CEM maps, the patch cache or a Git note by design. | `script/dogfood-change.sh:33@f8f6aa02`, `script/dogfood-seal.sh:28-31@5c2ac3f4`, `SOP-V0-002` for `index`, `cmd/corvint/help.go:406-408@bfe2edf4` and `corvint cem --help` |
 
 `corvint dogfood check`, and so `script/dogfood-check.sh`, exits 0 on `PASS`, 1 on `FAIL`, 2 on

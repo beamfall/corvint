@@ -8,7 +8,7 @@
     ]
   },
   "evidenceClass": "implementation",
-  "repositoryRevision": "05422b17e647e944fa0e1d9fd7e6ef0c097657e1",
+  "repositoryRevision": "a23ba7b8c50ec5b892dcc772d9edbff174be39a2",
   "result": "PASS",
   "spec": "corvint-use-case-evidence/0",
   "subjects": [
@@ -30,11 +30,11 @@
     },
     {
       "path": "cmd/corvint/dogfood_record.go",
-      "sha256": "6e74b80767409397f1a81f0f7031ceea76ccd516e48b644849279fa8e017ec6a"
+      "sha256": "a0f46f37567e6b30790f84c992a4c1cb2cca55a16d3a7ddcafa271bde6318d8f"
     },
     {
       "path": "cmd/corvint/local_completion.go",
-      "sha256": "964ff61e0642b792797d6b6158d7756f1e250cdc02904eccea7aebead202f846"
+      "sha256": "2e8f329e525fe36388b4777f02907df4e0f215ff190d00ca67289d49135516f1"
     }
   ],
   "useCaseId": "UC-EVIDENCE-CARRYING-COMPLETION"
