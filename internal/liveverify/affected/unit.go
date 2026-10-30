@@ -88,6 +88,11 @@ const MaxPathsPerUnit = 20_000
 // plugin resolved without an explicit load, such as a Ruby constant that
 // autoloading maps to a file (RUBY-AFFECTED-V0-009). A change there selects
 // the unit like an import does, but the witness says the edge is advisory.
+// Callers name repository files whose code or tests run the unit by a path
+// no plugin resolves to an edge, as a verified project declaration lists them
+// (TSP-V0-005). The graph makes each file's owning unit a dependent of this
+// one: a test user when the file is one of its tests, else an importer. A file
+// no unit owns adds no edge.
 // RouteDispatchImports name units a test reaches only because the framework
 // dispatches a request to them, with no constant naming them, such as every
 // Rails controller for a request spec (RUBY-AFFECTED-V0-049). A change there
@@ -113,6 +118,7 @@ type Unit struct {
 	ReadScope            []string `json:"readScope,omitempty"`
 	Frontier             []string `json:"frontier,omitempty"`
 	FrontierBears        string   `json:"frontierBears,omitempty"`
+	Callers              []string `json:"callers,omitempty"`
 }
 
 // FrontierBears values. The empty value names a unit's Frontier on every plan
@@ -226,6 +232,9 @@ func validUnit(unit Unit, namespace string) error {
 		return err
 	}
 	if err := validPathList(unit.EmbedFiles); err != nil {
+		return err
+	}
+	if err := validPathList(unit.Callers); err != nil {
 		return err
 	}
 	if err := validIdentifierList(unit.Imports); err != nil {

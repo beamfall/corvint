@@ -149,6 +149,7 @@ type digestUnit struct {
 	ReadScope            []string `json:"readScope,omitempty"`
 	Frontier             []string `json:"frontier"`
 	FrontierBears        string   `json:"frontierBears,omitempty"`
+	Callers              []string `json:"callers,omitempty"`
 }
 
 // Build composes one graph from every supplied language plugin.
@@ -422,8 +423,37 @@ func (graph *Graph) finish() {
 	graph.routed = graph.reverse(func(unit Unit) []string { return unit.RouteDispatchImports })
 	graph.testUsers = graph.reverse(func(unit Unit) []string { return unit.TestImports })
 	graph.execUsers = graph.reverse(func(unit Unit) []string { return unit.Execs })
-	graph.testReach = graph.unitsReachingTests()
+	called := graph.callerEdges()
+	graph.testReach = graph.unitsReachingTests(called)
 	graph.unbounded, graph.causes, graph.chains, graph.locatorReach = graph.unboundedReaders()
+}
+
+// callerEdges adds the TSP-V0-005 edges of every unit's declared Callers to
+// the reverse maps: the owner of a caller file that is one of its tests
+// becomes a test user of the unit, any other owner a dependent. It returns
+// the forward form of the importer edges, owner to called units, for the
+// walk that finds the units reaching a test.
+func (graph *Graph) callerEdges() map[string][]string {
+	called := map[string][]string{}
+	for _, id := range graph.order {
+		for _, path := range graph.units[id].Callers {
+			owner, owned := graph.owner[path]
+			if !owned || owner == id {
+				continue
+			}
+			edges := graph.dependents
+			if slices.Contains(graph.units[owner].Tests, path) {
+				edges = graph.testUsers
+			} else if !slices.Contains(called[owner], id) {
+				called[owner] = append(called[owner], id)
+			}
+			if !slices.Contains(edges[id], owner) {
+				edges[id] = append(edges[id], owner)
+				sort.Strings(edges[id])
+			}
+		}
+	}
+	return called
 }
 
 // unboundedReaders lists, in id order, every unit whose reads no literal
@@ -493,7 +523,7 @@ func (graph *Graph) reverse(edges func(Unit) []string) map[string][]string {
 // unitsReachingTests names every unit that reaches, itself included, a unit
 // declaring a test along reverse dependency edges: one walk over forward
 // imports from every unit that declares a test.
-func (graph *Graph) unitsReachingTests() map[string]bool {
+func (graph *Graph) unitsReachingTests(called map[string][]string) map[string]bool {
 	reach := make(map[string]bool)
 	frontier := make([]string, 0, len(graph.order))
 	for _, id := range graph.order {
@@ -506,7 +536,7 @@ func (graph *Graph) unitsReachingTests() map[string]bool {
 		id := frontier[len(frontier)-1]
 		frontier = frontier[:len(frontier)-1]
 		unit := graph.units[id]
-		for _, target := range slices.Concat(unit.Imports, unit.AdvisoryImports, unit.RouteDispatchImports) {
+		for _, target := range slices.Concat(unit.Imports, unit.AdvisoryImports, unit.RouteDispatchImports, called[id]) {
 			if _, known := graph.units[target]; !known || reach[target] {
 				continue
 			}
@@ -623,6 +653,7 @@ func projectUnit(unit Unit) digestUnit {
 		ReadScope:            unit.ReadScope,
 		Frontier:             unit.Frontier,
 		FrontierBears:        unit.FrontierBears,
+		Callers:              unit.Callers,
 	}
 }
 

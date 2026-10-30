@@ -8,6 +8,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
 	"github.com/Beamfall/corvint/internal/liveverify/affected/languages"
+	"github.com/Beamfall/corvint/internal/liveverify/affected/shell"
 )
 
 // batch1028cUnowned is every UNOWNED_DIRTY_PATH of batch 1028c
@@ -67,6 +68,11 @@ var docsOnly = []string{
 // frontierFloor is the LANGUAGE_FRONTIER detail set of a plain Go source edit
 // in the package that embeds the catalog: the entries of the Go and shell
 // readers that rule (d) selects for every dirty path, which any plan carries.
+// Since the shell foreign-caller declaration (TSP-V0-005) the floor is empty.
+// The replayed CEM and spec paths are still named by undeclared non-test shell
+// scripts (check-line-citations.sh, dogfood-seal.sh and others), path-literal
+// readers whose shell:foreign-invocation-unmodelled entry bears; that one
+// entry is the measured residual, and no other may appear.
 func frontierFloor(t *testing.T, graph *affected.Graph) map[string]bool {
 	t.Helper()
 	floor := map[string]bool{}
@@ -74,9 +80,6 @@ func frontierFloor(t *testing.T, graph *affected.Graph) map[string]bool {
 		if entry.Reason == affected.UnknownLanguageFrontier {
 			floor[entry.Detail] = true
 		}
-	}
-	if len(floor) == 0 {
-		t.Fatal("a Go source edit carries no frontier; the floor comparison would prove nothing")
 	}
 	return floor
 }
@@ -126,7 +129,7 @@ func TestBatchReplayDeclaredRuntimeReaders_V12941(t *testing.T) {
 				if !selected[plugin] {
 					t.Errorf("%s: LANGUAGE_FRONTIER %s from %s, which has no selected unit", name, entry.Detail, plugin)
 				}
-				if name != "1028a" && !floor[entry.Detail] {
+				if name != "1028a" && !floor[entry.Detail] && entry.Detail != shell.FrontierForeignInvocation {
 					t.Errorf("%s: LANGUAGE_FRONTIER %s beyond a Go source edit's floor", name, entry.Detail)
 				}
 			default:

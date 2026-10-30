@@ -10,10 +10,10 @@ when the [affected plan](affected-plan-v0.md) names a unit frontier; that spec's
 section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 
 ## Agent digest
-- Claim: the build-constraint frontier bears only on its package's own files; a declared gated root locator stops widening every plan.
+- Claim: build-constraint frontiers bear only on own files; declared gated locators and verified shell callers stop widening every plan.
 - Status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3160); TSP-V0-001 amends AFP-V0-580.
-- Exists: `FrontierBearsOnOwnFiles` in `internal/liveverify/affected/unit.go`; `ownFilesBear` in `internal/liveverify/affected/select.go`; `observeDirectory` in `internal/liveverify/affected/golang/golang.go`; `applyGatedLocators` in `internal/liveverify/affected/golang/gatedlocators.go`; tests named in the traceability table.
-- Blocked on: nothing for TSP-V0-001 to 003; see Open questions for the shell frontier.
+- Exists: `FrontierBearsOnOwnFiles` in `internal/liveverify/affected/unit.go`; `ownFilesBear` in `internal/liveverify/affected/select.go`; `observeDirectory` in `internal/liveverify/affected/golang/golang.go`; `applyGatedLocators` in `internal/liveverify/affected/golang/gatedlocators.go`; `applyForeignCallers` in `internal/liveverify/affected/shell/callers.go`; tests named in the traceability table.
+- Blocked on: nothing; Open questions names the residual shell frontier.
 - Read next: Requirements; Failure modes; Open questions.
 
 ## Intent and scope
@@ -78,6 +78,24 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   body, brace group or conditional arm, never a subshell or command substitution), does not follow
   `&&`, `||`, `|` or `&` and does not precede `|` or `&`; and no `source`, `.`, `load` or `eval`
   runs between them. Every other non-literal source SHALL stay `shell:dynamic-source`.
+- **TSP-V0-005:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; the
+  orchestrator's option (c) decision, 2026-10-30) The project MAY declare, in
+  `.corvint/shell-foreign-callers.json` (profile `corvint-shell-foreign-callers/0`), for a non-test
+  shell script, every repository file that names it, split into sorted, unique, disjoint `callers`
+  (files that run it) and `mentions` (files that only name it), with a non-empty reason. The shell
+  plugin SHALL verify the declaration against the source universe: it holds only when every
+  declared script is an observed single-file non-test shell unit and, for each script, the files
+  other than the script among the shell sources, the planned languages' sources, Make files
+  (`Makefile`, `makefile`, `GNUmakefile`, `*.mk`) and YAML files whose text contains the script's
+  file name are exactly its callers and mentions, and every one of them is readable. A verified
+  script SHALL carry its callers and SHALL NOT carry `shell:foreign-invocation-unmodelled`; each
+  caller that is a test file of a unit SHALL add a test-user edge from the script to that unit, and
+  each other owned caller SHALL make its unit a dependent of the script; a mention SHALL add no edge.
+  A missing declaration SHALL change nothing; a present one that is unreadable, invalid or not
+  exactly complete SHALL declare nothing and name `shell:foreign-callers-invalid`, so every script
+  keeps the frontier. A plan with the declaration dirty SHALL name `shell:foreign-callers-changed`.
+  The repository's declaration SHALL be checked by a test that fails on any tracked file naming a
+  declared script, other than prose and data (`.md`, `.json`, `.tsv`), that is not listed.
 
 ## Non-goals
 
@@ -110,6 +128,16 @@ is excluded by refusing any source after the first; an `eval` of computed text n
 nameref (`declare -n`) or an indirect `${!x}` assignment it cannot see would let the read escape,
 and only a textual occurrence of NAME in another form refuses. `mktemp -d` that fails leaves NAME
 empty, so the read is of an absolute path, still outside the repository.
+(6) TSP-V0-005: the scan is textual. A caller that builds the script's file name from parts (no
+file in the repository does today) is missed, so the declaration can verify while a caller is
+unlisted; the scan cannot prove the absence of such a construction. The caller or mention split is
+the project's own per-file claim: a file listed as a mention that does run the script loses its
+edge, so its tests are not selected for a change to the script. A caller in a file outside the
+candidate suffixes (a `.md` runbook an operator pastes from) is not a code path and is not
+scanned. A declared script stays an unbounded reader when it is one, so its callers' tests are
+selected on every plan; that is the declared price of the narrowing. Each graph build reads every
+candidate file once more for the scan. Undeclared non-test shell scripts keep the frontier, so a
+plan that reaches one still bears it.
 
 ## Open questions
 
@@ -121,10 +149,12 @@ stays as it was:
    `go:nested-module-frontier` bore on every plan because the `tools/local-authority` unit
    inherited root locating from `internal/authoritystore`. Its tests still run only in the job
    V1-3329 adds.
-2. `shell:foreign-invocation-unmodelled` bears on every plan through `script/heavy.sh`, which
-   locates the root (`git rev-parse --show-toplevel`) and sources a runtime file (`. "$w/meta.env"`),
-   so it is an unbounded reader followed on every dirty path. Narrowing needs a model of what that
-   dynamic source can read, or a model of the script's non-Go callers.
+2. Resolved by TSP-V0-004 and TSP-V0-005 (the orchestrator chose option (c), 2026-10-30):
+   `shell:foreign-invocation-unmodelled` bore on every plan through `script/heavy.sh`, an unbounded
+   reader followed on every dirty path. Its callers, and those of the scripts that run it, are now a
+   verified declaration. The frontier still bears through the undeclared non-test shell scripts
+   that read a dirty path by a literal path (the `docs/specs/**` checkers and the CEM scripts under
+   `script/`); declaring them would make many Go packages that only name them dependents.
 
 ## Acceptance evidence and traceability
 
@@ -137,6 +167,7 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | TSP-V0-002 | `LinkedEntries` in `internal/liveverify/affected/source.go`; `observeDirectory` in `internal/liveverify/affected/golang/golang.go` | `TestBuildConstraintFrontierSymlinkedSource_TSP_V0_002` (a constrained package reached through an imported package, with a dirty symlink target outside its directory: the frontier bears and the plan is `UNKNOWN` with the link, and is not named without it) in `internal/liveverify/affected/golang/golang_test.go` |
 | TSP-V0-003 | `readGatedLocators`, `applyGatedLocators` and `carriesLiteral` in `internal/liveverify/affected/golang/gatedlocators.go`; their call in `internal/liveverify/affected/golang/golang.go`; `gatedLocatorsChanged` in `internal/liveverify/affected/readers.go` and its call in `internal/liveverify/affected/select.go`; `.corvint/gated-root-locators.json` | `TestGatedRootLocators_TSP_V0_003` in `internal/liveverify/affected/golang/gatedlocators_test.go` (undeclared: the dependent is selected on an unrelated change; declared: it is not and the plan is `BOUNDED`, the locator's own tests stay selected and a change to the locator still selects it; a gate not carried, a package that is not a locator or not present, a relative gate, an unknown member and unparsed JSON each name the invalid frontier and keep it selected; a dirty declaration is `UNKNOWN`); `TestRootLocatorGated_TSP_V0_003` in `internal/authoritystore/gated_locator_test.go` |
 | TSP-V0-004 | `freshDirectorySource`, `makesDirectory` and `onlyExpanded` in `internal/liveverify/affected/shell/fresh.go`; block identity and separators in `parse` in `internal/liveverify/affected/shell/lex.go`; `plainAt` and the source case of `observe` in `internal/liveverify/affected/shell/shell.go` | `TestFreshTemporaryDirectorySourceIsBounded_TSP_V0_004` in `internal/liveverify/affected/shell/shell_test.go` (a heavy.sh-shaped `serve` is bounded; another value, a second assignment, a `for`, `read`, `local` or `unset` rebinding, `${w:=}`, a `local w=` declaration, another function, a subshell, an `if` arm, `&&`, a pipeline, an inner pipeline, a dynamic, `..` or empty rest, `mktemp` without `-d` or with `-u`, a prefix assignment, an `ENVFILE` source, a source between, a second fresh source, a source before the assignment and backquotes each stay dynamic) |
+| TSP-V0-005 | `readForeignCallers`, `applyForeignCallers` and `foreignCallersComplete` in `internal/liveverify/affected/shell/callers.go` and their call in `internal/liveverify/affected/shell/shell.go`; `Unit.Callers` in `internal/liveverify/affected/unit.go`; `callerEdges` in `internal/liveverify/affected/graph.go`; `foreignCallersChanged` in `internal/liveverify/affected/readers.go`; `.corvint/shell-foreign-callers.json` | `TestForeignCallerDeclaration_TSP_V0_005` in `internal/liveverify/affected/shell/callers_test.go` (declared: the frontier is gone, the plan on an unrelated change is `BOUNDED` and selects the caller, test-file caller and upstream dependents' tests but not a mention's; undeclared keeps it bearing; an unlisted Go, shell, Make, Python or workflow caller or mention, a stale caller or mention, unsorted lists, a script that is no unit, an empty reason, a bad profile, an unknown member, unparsed JSON and a file both caller and mention each name the invalid frontier and keep it bearing; a dirty declaration is `UNKNOWN`); `TestRepositoryShellForeignCallersComplete_TSP_V0_005` in `internal/liveverify/affected/shell_callers_repo_test.go`; `TestBatchReplayDeclaredRuntimeReaders_V12941` frontier floor in `internal/liveverify/affected/replay_v12941_test.go` |
 
 ## Rollback
 
@@ -146,3 +177,6 @@ Remove `frontierBears = affected.FrontierBearsOnOwnFiles` in `observeDirectory`;
 `.corvint/gated-root-locators.json` (a change that itself plans `UNKNOWN`); the package is then a
 root locator again and its dependents are followed on every dirty path. TSP-V0-004: make
 `freshDirectorySource` return false; every such source is then dynamic again, as before.
+TSP-V0-005: delete `.corvint/shell-foreign-callers.json` (a change that itself plans `UNKNOWN`) or
+make `applyForeignCallers` return at once; every script then carries the frontier again and the
+`Callers` edges are empty.

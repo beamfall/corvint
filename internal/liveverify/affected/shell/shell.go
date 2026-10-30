@@ -127,6 +127,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 		units = append(units, foreignFrontier(observe(relative, string(body), known), len(foreign) > 0))
 	}
 	sort.Slice(units, func(left, right int) bool { return units[left].ID < units[right].ID })
+	applyForeignCallers(root, units, frontier)
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
 }
 
