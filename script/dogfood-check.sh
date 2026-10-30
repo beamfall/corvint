@@ -12,9 +12,10 @@ corvint_bin=${CORVINT_BIN-}
 
 base_arg=${1:?usage: dogfood-check.sh BASE}
 repo=$(cd "$(dirname "$0")/.." && pwd)
+source "$repo/script/dogfood-build-corvint.sh" || exit 2
+dogfood_require_full_history dogfood-check || exit 2
 base=$(git -C "$repo" rev-parse "$base_arg^{commit}") || exit 2
 git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2
-source "$repo/script/dogfood-build-corvint.sh" || exit 2
 evidence="$git_dir/corvint"
 override=()
 expected_version=$(cat "$repo/VERSION")
@@ -40,6 +41,9 @@ if [[ -n $corvint_bin_set ]]; then
   fi
   override=(--override-verifier "$corvint_bin")
 fi
+# ASD-V0-060 (V1-3233): an empty environment (env -i) names the missing HOME instead of aborting.
+[[ -n ${CORVINT_GOCACHE:-}${GOCACHE:-}${XDG_CACHE_HOME:-}${HOME:-} ]] ||
+  { printf 'dogfood-check: REFUSE home-unset: HOME, XDG_CACHE_HOME, GOCACHE and CORVINT_GOCACHE are all unset; set HOME and rerun\n' >&2; exit 2; }
 go_cache=${CORVINT_GOCACHE:-${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache}}
 tree_bin="$evidence/corvint"
 base_bin="$evidence/corvint-base"

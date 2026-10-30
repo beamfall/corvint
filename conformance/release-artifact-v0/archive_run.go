@@ -94,7 +94,7 @@ func buildArchives(ctx context.Context, options ArchiveOptions) (report ArchiveR
 	looseReport, err := verify(ctx, Options{Root: options.Root, ManifestPath: manifestPath, Output: looseOutput, Writer: io.Discard})
 	if err != nil || looseReport.Verdict != statusPass || looseReport.Commit != state.commit || looseReport.Tree != state.tree || len(looseReport.Targets) != len(manifest.Targets) {
 		if err == nil {
-			err = fmt.Errorf("existing loose reproducibility gate did not PASS the selected commit")
+			err = looseGateFailure(looseReport)
 		}
 		return failArchive(report, "loose-gate-failed", "", err)
 	}
@@ -787,6 +787,25 @@ func syncDirectory(name string) error {
 	}
 	defer directory.Close()
 	return directory.Sync()
+}
+
+// looseGateFailure names why the loose gate did not PASS: each of its FAIL lines, in the form the
+// loose gate prints them, so a refusal such as `FAIL legal-file-altered` is not swallowed by the
+// generic summary (GAG-V0-009, V1-3238). A PASS bound to another commit or target set has no
+// reason, so its verdict and binding are named instead.
+func looseGateFailure(loose Report) error {
+	lines := []string{"existing loose reproducibility gate did not PASS the selected commit"}
+	for _, reason := range loose.Reasons {
+		if reason.Target != "" {
+			lines = append(lines, fmt.Sprintf("FAIL %s %s: %s", reason.Kind, reason.Target, reason.Detail))
+		} else {
+			lines = append(lines, fmt.Sprintf("FAIL %s: %s", reason.Kind, reason.Detail))
+		}
+	}
+	if len(loose.Reasons) == 0 {
+		lines = append(lines, fmt.Sprintf("loose gate verdict=%s commit=%s tree=%s targets=%d", loose.Verdict, loose.Commit, loose.Tree, len(loose.Targets)))
+	}
+	return errors.New(strings.Join(lines, "\n"))
 }
 
 func failArchive(report ArchiveReport, code, target string, err error) (ArchiveReport, error) {

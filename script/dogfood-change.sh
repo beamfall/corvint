@@ -13,12 +13,16 @@ export LC_ALL=C
 # Read the executable selection before Git, temporary files, or a selected executable can run.
 corvint_bin_set=${CORVINT_BIN+x}
 corvint_bin=${CORVINT_BIN-}
+# ASD-V0-060 (V1-3233): an empty environment (env -i) names the missing HOME instead of aborting.
+[[ -n ${CORVINT_GOCACHE:-}${GOCACHE:-}${XDG_CACHE_HOME:-}${HOME:-} ]] ||
+  { printf 'dogfood-change: REFUSE home-unset: HOME, XDG_CACHE_HOME, GOCACHE and CORVINT_GOCACHE are all unset; set HOME and rerun\n' >&2; exit 2; }
 go_cache=${CORVINT_GOCACHE:-${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache}}
 
 base_arg=${1:?usage: dogfood-change.sh BASE}
 repo=$(cd "$(dirname "$0")/.." && pwd)
-git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2
 source "$repo/script/dogfood-build-corvint.sh" || exit 2
+dogfood_require_full_history dogfood-change || exit 2
+git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2
 evidence="$git_dir/corvint"
 mkdir -p "$evidence" || exit 2
 expected_version=$(cat "$repo/VERSION")

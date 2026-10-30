@@ -677,3 +677,24 @@ func runGitTest(t *testing.T, root string, arguments ...string) {
 func TestRawCommitExportBuildCarriesExactVCSIdentity(t *testing.T) {
 	t.Run("GOC-V0-006 raw committed source identity", testRawCommitExportBuildCarriesExactVCSIdentity)
 }
+
+// GAG-V0-009 (V1-3238): the archive gate's refusal carries every FAIL line of the loose gate, so a
+// stale legal-file pin names `FAIL legal-file-altered` and the file instead of only the summary.
+func TestGAGV0009LooseGateFailureNamesItsFailLines(t *testing.T) {
+	loose := Report{Verdict: statusFail}
+	loose.fail(reasonLegalFileAltered, "", "LICENSING.md sha256 aaaa want bbbb")
+	loose.fail(reasonLegalFileMissing, "linux-amd64", "PROVENANCE.md: missing")
+	got := looseGateFailure(loose).Error()
+	for _, want := range []string{
+		"existing loose reproducibility gate did not PASS the selected commit",
+		"\nFAIL legal-file-altered: LICENSING.md sha256 aaaa want bbbb",
+		"\nFAIL legal-file-missing linux-amd64: PROVENANCE.md: missing",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("refusal %q does not contain %q", got, want)
+		}
+	}
+	if got := looseGateFailure(Report{Verdict: statusPass, Commit: "c"}).Error(); !strings.Contains(got, "verdict=PASS commit=c") {
+		t.Fatalf("a mis-bound PASS was not named: %q", got)
+	}
+}

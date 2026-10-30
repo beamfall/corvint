@@ -265,6 +265,9 @@ func parseAffectedInvocation(arguments []string) (affectedInvocation, bool, erro
 	if err := resolveAffectedAbbrevBase(&invocation); err != nil {
 		return affectedInvocation{}, true, err
 	}
+	if err := refuseAffectedShallow(invocation); err != nil {
+		return affectedInvocation{}, true, err
+	}
 	if err := resolveAffectedBatchAndCache(&invocation); err != nil {
 		return affectedInvocation{}, true, err
 	}

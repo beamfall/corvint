@@ -1767,6 +1767,12 @@ ASD-V0-050	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-051	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-29; V1-3136) Under th	standing	2026-10-29; V1-3136
 ASD-V0-052	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-29; V1-3135) `docs/LA	standing	2026-10-29; V1-3135
 ASD-V0-053	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-29; V1-2552; refines	standing	2026-10-29; V1-2552
+ASD-V0-060	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3233) Under an	standing	2026-10-30; V1-3233
+ASD-V0-061	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3227) No lane	standing	2026-10-30; V1-3227
+ASD-V0-062	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3230) A shallo	standing	2026-10-30; V1-3230
+ASD-V0-063	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3238) `make ba	standing	2026-10-30; V1-3238
+ASD-V0-064	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3120; refines	standing	2026-10-30; V1-3120
+ASD-V0-065	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3232; refines	standing	2026-10-30; V1-3232
 CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and	unrecorded	-
 CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow	unrecorded	-
 CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom	unrecorded	-
@@ -3091,6 +3097,7 @@ DCG-V0-044	docs/specs/documentation-citation-gate-v0.md	(experimental under the 
 DCG-V0-045	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-2820)) `--repin [--base <r	standing	V1-2820
 DCG-V0-046	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-2821)) The gate MUST print	standing	V1-2821
 DCG-V0-047	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3124); refines DCG-V0-045)	standing	V1-3124
+DCG-V0-048	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3228); refines DCG-V0-045	standing	V1-3228
 DCX-V1-370	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) The	standing	2026-10-11; #1582
 DCX-V1-371	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) Eac	standing	2026-10-11; #1582
 DCX-V1-372	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) Eac	standing	2026-10-11; #1582
@@ -3862,6 +3869,7 @@ GAG-V0-005	docs/specs/go-archive-gate-v0.md	The gate MUST build the archive set 
 GAG-V0-006	docs/specs/go-archive-gate-v0.md	The gate MUST require the output directory to contain exactly the seven expected	unrecorded	-
 GAG-V0-007	docs/specs/go-archive-gate-v0.md	The gate MUST cross-check the build against the private witness the build record	unrecorded	-
 GAG-V0-008	docs/specs/go-archive-gate-v0.md	The gate MUST exit non-zero when any of its build, closed-set, or witness checks	unrecorded	-
+GAG-V0-009	docs/specs/go-archive-gate-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3238) When the	standing	2026-10-30; V1-3238
 GFG-V0-001	docs/specs/go-format-gate-v0.md	The gate MUST check every Go file in the repository's tracked set, obtained from	unrecorded	-
 GFG-V0-002	docs/specs/go-format-gate-v0.md	The tracked set spans every Go module in the repository. The gate MUST NOT carry	unrecorded	-
 GFG-V0-003	docs/specs/go-format-gate-v0.md	The formatter MUST be the `gofmt` of the toolchain `go env GOROOT` names under	unrecorded	-
@@ -6701,6 +6709,7 @@ UCV0-016	docs/specs/use-case-conformance-v0.md	(proposed 2026-09-25, not accepte
 UCV0-217	docs/specs/use-case-conformance-v0.md	(accepted 2026-10-21 under the owner's standing auto-accept of 2026-10-11; V1-03	standing	2026-10-21; 2026-10-11; V1-0303
 UCV0-018	docs/specs/use-case-conformance-v0.md	(experimental under the standing lane auto-accept (2026-10-27); V1-2828)	standing	2026-10-27; V1-2828
 UCV0-019	docs/specs/use-case-conformance-v0.md	(experimental under the standing lane auto-accept (2026-10-29); V1-3124)	standing	2026-10-29; V1-3124
+UCV0-020	docs/specs/use-case-conformance-v0.md	(experimental under the standing lane auto-accept (2026-10-30); V1-3229)	standing	2026-10-30; V1-3229
 VPO-V0-001	docs/specs/verification-planner-observer-v0.md	Every V0 JSON document MUST be one Change Frontier canonical JSON body followed	unrecorded	-
 VPO-V0-002	docs/specs/verification-planner-observer-v0.md	Every document MUST contain exactly its named `profile`. Unknown profiles fail	unrecorded	-
 VPO-V0-003	docs/specs/verification-planner-observer-v0.md	Content identities use	unrecorded	-

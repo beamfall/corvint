@@ -24,8 +24,16 @@ export CORVINT_GATE_LEDGER=off
 # that fails when CI gains a step batch-precheck cannot run.
 (cd "$script/.." && "$pre" --sync-check) > "$tmp/out" 2>&1 || fail "checkout out of sync: $(cat "$tmp/out")"
 (cd "$script/.." && "$pre" --list) > "$tmp/out" 2>&1 || fail "checkout --list: $(cat "$tmp/out")"
-grep -qx 'make doc-gates' "$tmp/out" || fail "derived doc-gates miss shared target: $(cat "$tmp/out")"
+# V1-3232: the shared doc-gates target runs as its Makefile targets and go run, in parallel.
+grep -qx 'make line-citations-check' "$tmp/out" && grep -qx 'go run ./conformance/use-cases-v0' "$tmp/out" ||
+  fail "derived doc-gates not expanded into their targets: $(cat "$tmp/out")"
+grep -qx 'make doc-gates' "$tmp/out" && fail "doc-gates still runs as one step: $(cat "$tmp/out")"
+for t in $(sed -n 's/^DOC_GATE_TARGETS := //p' "$script/../Makefile"); do
+  grep -qx "make $t" "$tmp/out" || fail "doc-gates target $t has no step: $(cat "$tmp/out")"
+done
 grep -q '^batch-drift (' "$tmp/out" || fail "no batch-drift step: $(cat "$tmp/out")"
+grep -qx 'batch-drift TestCorvintBundledBinariesBuildTwiceIdentically' "$tmp/out" &&
+  grep -qx 'batch-drift TestCurrentTasksSourceArchiveBuildsOffline' "$tmp/out" || fail "the @own drift tests are not their own steps: $(cat "$tmp/out")"
 grep -qx 'make host-adapter-node-test' "$tmp/out" || fail "no host-adapter-node-test step: $(cat "$tmp/out")"
 
 # 1b. ASD-V0-044 (V1-3062): that step catches a Pi adapter version bump that leaves the
@@ -269,7 +277,7 @@ grep -q -- '-run ^(TestDriftOne|TestGoldenWriter|TestVacant) ./pkg ./internal/g 
 grep -q '^make -s use-case-receipts-test GOPROXY=off$' "$tmp/calls" || fail "doc-gates env not applied: $(cat "$tmp/calls")"
 grep -q '^make -s capability-catalog-check GOPROXY=unset$' "$tmp/calls" || fail "extra target: $(cat "$tmp/calls")"
 grep -q '^make -s host-adapter-node-test GOPROXY=unset$' "$tmp/calls" || fail "host-adapter-node-test not run: $(cat "$tmp/calls")"
-grep -q '^batch-precheck: 12 passed, 3 failed in ' "$tmp/out" || fail "summary: $(cat "$tmp/out")"
+grep -q '^batch-precheck: 14 passed, 3 failed in ' "$tmp/out" || fail "summary: $(cat "$tmp/out")"
 grep -q '^batch-precheck: failed: ' "$tmp/out" || fail "failed list: $(cat "$tmp/out")"
 [[ -f $receipt ]] && fail "a failing run wrote a receipt"
 # Parallel: the two 3-second steps overlap, so the wall time is below the summed time.
@@ -294,7 +302,7 @@ head=$(git -C "$repo" rev-parse HEAD)
 grep -q 'refused: no precheck receipt' "$tmp/out" || fail "no receipt: $(cat "$tmp/out")"
 run || fail "passing run failed: $(cat "$tmp/out")"
 grep -q "^batch-precheck: receipt for $head written" "$tmp/out" || fail "receipt not written: $(cat "$tmp/out")"
-grep -qx 'steps 15' "$receipt" && grep -qx 'passed 15' "$receipt" || fail "receipt counts: $(cat "$receipt")"
+grep -qx 'steps 17' "$receipt" && grep -qx 'passed 17' "$receipt" || fail "receipt counts: $(cat "$receipt")"
 [[ $(head -n 1 "$receipt") == corvint-batch-precheck-receipt/0 ]] || fail "receipt profile: $(cat "$receipt")"
 (cd "$repo" && "$pre" --verify-receipt) > "$tmp/out" 2>&1 || fail "guard refused HEAD: $(cat "$tmp/out")"
 (cd "$repo" && "$pre" --verify-receipt "$head") > /dev/null 2>&1 || fail "guard refused an explicit REV"
@@ -373,9 +381,9 @@ lrun || fail "reuse run failed: $(cat "$tmp/out")"
 grep -q '^batch-precheck: | REUSE | *[0-9]*s | make test-commands-check$' "$tmp/out" || fail "make step not reused: $(cat "$tmp/out")"
 grep -q '^batch-precheck: | REUSE | *[0-9]*s | batch-drift (2 packages)$' "$tmp/out" || fail "drift not reused: $(cat "$tmp/out")"
 grep -q '^batch-precheck: REUSE make slow-a ([0-9]*s): .*recorded ' "$tmp/out" || fail "reuse line: $(cat "$tmp/out")"
-grep -q '^batch-precheck: 15 passed, 0 failed in ' "$tmp/out" || fail "reuse summary: $(cat "$tmp/out")"
-grep -q '^batch-precheck: 14 of 14 steps reused a ledger pass on identical inputs' "$tmp/out" || fail "reuse count: $(cat "$tmp/out")"
-grep -q '^batch-precheck: receipt for ' "$tmp/out" && grep -qx 'passed 15' "$receipt" || fail "reuse receipt: $(cat "$tmp/out")"
+grep -q '^batch-precheck: 17 passed, 0 failed in ' "$tmp/out" || fail "reuse summary: $(cat "$tmp/out")"
+grep -q '^batch-precheck: 16 of 16 steps reused a ledger pass on identical inputs' "$tmp/out" || fail "reuse count: $(cat "$tmp/out")"
+grep -q '^batch-precheck: receipt for ' "$tmp/out" && grep -qx 'passed 17' "$receipt" || fail "reuse receipt: $(cat "$tmp/out")"
 grep -q '^make \|^gofmt \|^go test' "$tmp/calls" && fail "a reused step ran: $(cat "$tmp/calls")"
 printf 'note\n' > "$repo/notes.txt"
 lrun || fail "tree-change run failed: $(cat "$tmp/out")"
@@ -702,4 +710,109 @@ grep -q '^batch-precheck: FLAKY make test-read-scopes-check' "$tmp/out" || fail 
 [[ $? == 2 ]] || fail "bad argument did not exit 2"
 "$regen" --bogus > /dev/null 2>&1
 [[ $? == 2 ]] || fail "regen bad argument did not exit 2"
+
+# 8b. V1-3232: a Makefile whose doc-gates recipe has its two known lines expands into one step per
+# target plus the go run; any other recipe keeps `make doc-gates` as one step. An `@own` drift entry
+# is its own go test step beside the union of the others.
+erepo=$tmp/erepo
+mkdir -p "$erepo"
+cp -R "$repo/.github" "$erepo/.github" && cp -R "$repo/pkg" "$erepo/pkg" || fail "expansion fixture"
+printf 'jobs:\n  doc-gates:\n    steps:\n      - run: make doc-gates\n' > "$erepo/.github/workflows/ci.yml"
+printf 'DOC_GATE_TARGETS := alpha-check beta-test\ndoc-gates:\n\t@$(MAKE) --no-print-directory $(DOC_GATE_TARGETS)\n\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0\n' > "$erepo/Makefile"
+git -C "$erepo" init -q && git -C "$erepo" add -A && git -C "$erepo" commit -qm e || fail "expansion fixture commit"
+elist() { BATCH_PRECHECK_ROOT=$erepo BATCH_PRECHECK_REGEN= BATCH_PRECHECK_DRIFT="./pkg TestDrift
+./pkg TestOwn @own" "$pre" --list; }
+elist > "$tmp/out" 2>&1 || fail "expansion --list: $(cat "$tmp/out")"
+grep -qx 'make alpha-check' "$tmp/out" && grep -qx 'make beta-test' "$tmp/out" && grep -qx 'go run ./conformance/use-cases-v0' "$tmp/out" ||
+  fail "doc-gates not expanded: $(cat "$tmp/out")"
+grep -qx 'make doc-gates' "$tmp/out" && fail "an expanded doc-gates also ran whole: $(cat "$tmp/out")"
+grep -qx 'batch-drift (1 packages)' "$tmp/out" && grep -qx 'batch-drift TestOwn' "$tmp/out" || fail "@own not split: $(cat "$tmp/out")"
+printf 'DOC_GATE_TARGETS := alpha-check\ndoc-gates:\n\t@$(MAKE) --no-print-directory $(DOC_GATE_TARGETS)\n\t@echo extra\n' > "$erepo/Makefile"
+elist > "$tmp/out" 2>&1 || fail "unexpanded --list: $(cat "$tmp/out")"
+grep -qx 'make doc-gates' "$tmp/out" && ! grep -qx 'make alpha-check' "$tmp/out" || fail "an unknown doc-gates recipe was expanded: $(cat "$tmp/out")"
+
+# 9. ASD-V0-060 (V1-3233): under an empty environment (env -i) a run and --list refuse with exit 3
+# naming the unset HOME, a bad argument still exits 2, and --sync-check needs no cache.
+(cd "$script/.." && env -i "$pre") > "$tmp/out" 2>&1
+[[ $? == 3 ]] || fail "env -i run did not exit 3: $(cat "$tmp/out")"
+grep -q '^batch-precheck: REFUSE home-unset: HOME, XDG_CACHE_HOME and CORVINT_GOCACHE are all unset' "$tmp/out" || fail "env -i refusal: $(cat "$tmp/out")"
+grep -q 'unbound variable' "$tmp/out" && fail "env -i aborted on an unbound variable: $(cat "$tmp/out")"
+(cd "$script/.." && env -i "$pre" --list) > "$tmp/out" 2>&1
+[[ $? == 3 ]] || fail "env -i --list did not exit 3: $(cat "$tmp/out")"
+(cd "$script/.." && env -i "$pre" --bogus) > /dev/null 2>&1
+[[ $? == 2 ]] || fail "env -i bad argument did not exit 2"
+(cd "$script/.." && env -i "$pre" --sync-check) > "$tmp/out" 2>&1 || fail "env -i --sync-check: $(cat "$tmp/out")"
+(cd "$script/.." && env -i CORVINT_GOCACHE=$tmp/gc "$pre" --list) > /dev/null 2>&1 || fail "env -i with CORVINT_GOCACHE --list failed"
+
+# 10. ASD-V0-061 (V1-3227): the ai-trailers step refuses a commit since the base carrying an AI
+# co-author or "Generated with" trailer, naming the commit and the line; a human co-author, a
+# prose "regenerated with" line and a clean range pass. The commit-msg hook refuses the same
+# message and installs only over its own hook.
+trepo=$tmp/trepo
+git init -q "$trepo" && git -C "$trepo" commit -q --allow-empty -m base || fail "trailer fixture"
+tbase=$(git -C "$trepo" rev-parse HEAD)
+git -C "$trepo" commit -q --allow-empty -m 'fix: regenerated with batch-regen' -m 'Co-authored-by: Pat Doe <pat@example.invalid>' || fail "human trailer commit"
+(cd "$trepo" && "$script/check-ai-trailers.sh" --range "$tbase") > "$tmp/out" 2>&1 || fail "a human co-author was refused: $(cat "$tmp/out")"
+ai_line=$(printf 'Co-Authored-By: Claude Opus <noreply@%s>' anthropic.com)
+gen_line=$(printf '\xf0\x9f\xa4\x96 Generated with [Claude Code](https://claude.example.invalid)')
+git -C "$trepo" commit -q --allow-empty -m 'feat: x' -m "$ai_line" || fail "ai trailer commit"
+bad1=$(git -C "$trepo" rev-parse HEAD)
+git -C "$trepo" commit -q --allow-empty -m 'feat: y' -m "$gen_line" || fail "generated trailer commit"
+bad2=$(git -C "$trepo" rev-parse HEAD)
+(cd "$trepo" && "$script/check-ai-trailers.sh" --range "$tbase") > "$tmp/out" 2>&1
+[[ $? == 1 ]] || fail "an AI trailer passed: $(cat "$tmp/out")"
+grep -qF "check-ai-trailers: REFUSE ai-trailer $bad1: $ai_line" "$tmp/out" || fail "co-author line not named: $(cat "$tmp/out")"
+grep -qF "check-ai-trailers: REFUSE ai-trailer $bad2: $gen_line" "$tmp/out" || fail "generated line not named: $(cat "$tmp/out")"
+(cd "$trepo" && "$script/check-ai-trailers.sh" --range "$tbase" "$tbase") > /dev/null 2>&1 || fail "an empty range was refused"
+(cd "$trepo" && "$script/check-ai-trailers.sh" --range no-such-rev) > /dev/null 2>&1
+[[ $? == 2 ]] || fail "an unresolvable base did not exit 2"
+# The precheck step itself, on the fixture with --base: the ai-trailers row fails.
+(cd "$trepo" && BATCH_PRECHECK_ROOT=$trepo BATCH_PRECHECK_BASE=$tbase "$pre" --list) | grep -qx 'ai-trailers' || fail "no ai-trailers step"
+printf 'feat: z\n\n%s\n' "$ai_line" > "$tmp/msg"
+(cd "$trepo" && "$script/check-ai-trailers.sh" --install) > "$tmp/out" 2>&1 || fail "hook install: $(cat "$tmp/out")"
+(cd "$trepo" && "$script/check-ai-trailers.sh" --install) > /dev/null 2>&1 || fail "hook reinstall over its own hook failed"
+git -C "$trepo" commit -q --allow-empty -F "$tmp/msg" > "$tmp/out" 2>&1 && fail "the commit-msg hook let an AI trailer through"
+grep -q 'REFUSE ai-trailer in this commit message' "$tmp/out" || fail "hook refusal: $(cat "$tmp/out")"
+git -C "$trepo" commit -q --allow-empty -m 'feat: clean' || fail "the hook refused a clean message"
+printf '#!/bin/sh\nexit 0\n' > "$(git -C "$trepo" rev-parse --path-format=absolute --git-path hooks/commit-msg)"
+(cd "$trepo" && "$script/check-ai-trailers.sh" --install) > /dev/null 2>&1
+[[ $? == 2 ]] || fail "install replaced a foreign commit-msg hook"
+
+# 11. ASD-V0-063 (V1-3238): the legal-file-pins step refuses a legal file whose manifest sha256 is
+# stale, naming the file and the manifest, and a missing one; matching pins pass.
+lrepo=$tmp/lrepo
+mkdir -p "$lrepo/conformance/release-artifact-v0"
+printf 'Apache\n' > "$lrepo/LICENSE"
+printf 'terms\n' > "$lrepo/LICENSING.md"
+pin() { perl -MDigest::SHA=sha256_hex -e 'local $/; open my $f, "<", $ARGV[0] or die; print sha256_hex(<$f>)' "$lrepo/$1"; }
+printf '{"legalFiles": [{"path": "LICENSE", "sha256": "%s"}, {"path": "LICENSING.md", "sha256": "%s"}]}\n' "$(pin LICENSE)" "$(pin LICENSING.md)" \
+  > "$lrepo/conformance/release-artifact-v0/manifest.json"
+(cd "$lrepo" && "$script/check-legal-file-pins.sh") > "$tmp/out" 2>&1 || fail "matching legal pins failed: $(cat "$tmp/out")"
+printf 'edited terms\n' > "$lrepo/LICENSING.md"
+(cd "$lrepo" && "$script/check-legal-file-pins.sh") > "$tmp/out" 2>&1
+[[ $? == 1 ]] || fail "a stale legal pin passed: $(cat "$tmp/out")"
+grep -q '^check-legal-file-pins: FAIL legal-file-altered LICENSING.md sha256 [0-9a-f]\{64\}, conformance/release-artifact-v0/manifest.json pins ' "$tmp/out" ||
+  fail "stale pin not named: $(cat "$tmp/out")"
+rm -f "$lrepo/LICENSE"
+(cd "$lrepo" && "$script/check-legal-file-pins.sh") > "$tmp/out" 2>&1
+grep -q '^check-legal-file-pins: FAIL legal-file-missing LICENSE' "$tmp/out" || fail "missing legal file not named: $(cat "$tmp/out")"
+(cd "$tmp" && "$script/check-legal-file-pins.sh") > "$tmp/out" 2>&1 || fail "a checkout without the manifest failed: $(cat "$tmp/out")"
+(cd "$script/.." && "$script/check-legal-file-pins.sh") > "$tmp/out" 2>&1 || fail "this checkout's legal pins are stale: $(cat "$tmp/out")"
+
+# 12. ASD-V0-062 (V1-3230): a --base run in a shallow clone refuses with the unshallow recovery
+# before any step runs.
+srepo2=$tmp/shallow
+git clone -q --depth 1 "file://$trepo" "$srepo2" 2> /dev/null || fail "shallow clone"
+(cd "$srepo2" && "$pre" --base HEAD) > "$tmp/out" 2>&1
+[[ $? == 2 ]] || fail "a shallow --base run did not exit 2: $(cat "$tmp/out")"
+grep -q '^batch-precheck: REFUSE shallow-repository: .* fetch --unshallow origin' "$tmp/out" || fail "shallow refusal: $(cat "$tmp/out")"
+"$script/require-full-history.sh" probe "$trepo" || fail "a full clone was refused"
+# The dogfood range wrappers refuse the same clone before resolving their base.
+mkdir -p "$srepo2/script" && cp "$script/dogfood-change.sh" "$script/dogfood-check.sh" "$script/dogfood-bind-range.sh" "$script/dogfood-build-corvint.sh" "$srepo2/script/" ||
+  fail "copy dogfood wrappers"
+for w in dogfood-change dogfood-check dogfood-bind-range; do
+  "$srepo2/script/$w.sh" HEAD HEAD > "$tmp/out" 2>&1
+  [[ $? == 2 ]] && grep -q "^$w: REFUSE shallow-repository: .* fetch --unshallow origin" "$tmp/out" || fail "$w in a shallow clone: $(cat "$tmp/out")"
+done
+
 printf 'batch-precheck_test: PASS\n'

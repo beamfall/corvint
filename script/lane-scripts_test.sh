@@ -4,7 +4,8 @@
 # the dogfood-finish missing-input refusal (ASD-V0-015), lane-idle-check.sh (ASD-V0-017),
 # lane-clean.sh (ASD-V0-018), lane-guard.sh (ASD-V0-024),
 # install-local-bin.sh (ASD-V0-025), install-cem-verifiers.sh (TCB-V0-046),
-# wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043). No Go build runs.
+# wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), lane-setup.sh
+# (ASD-V0-061, ASD-V0-062). No Go build runs.
 set -uo pipefail
 export LC_ALL=C
 # The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
@@ -1083,6 +1084,53 @@ out=$(KA_OUT='query-error\n' kac 2>&1); rc=$?
   fail "keepalive check read a query error as no holder: rc=$rc out=$out"
 kac --distro 'bad;name' 2> /dev/null; [[ $? == 2 ]] || fail "keepalive check accepted an invalid distro"
 kac --bogus 2> /dev/null; [[ $? == 2 ]] || fail "keepalive check accepted an unknown argument"
+ok
+
+# ASD-V0-064 (V1-3120): a whole-package go test of plain tools/ or conformance/ directories whose
+# *_test.go files total at most HEAVY_SMALL_TEST_BYTES runs with no HEAVY_WHOLE_REASON and is logged
+# as small-package; a larger total, an internal/ package, `...`, an import path, -C or a zero
+# limit is still refused.
+sp=$tmp/small-pkg
+mkdir -p "$sp/bin" "$sp/tools/small" "$sp/tools/big" "$sp/conformance/c" "$sp/internal/x" || fail "small-package fixture"
+printf '#!/bin/sh\nexit 0\n' > "$sp/bin/go" && chmod +x "$sp/bin/go"
+head -c 100 /dev/zero | tr '\0' x > "$sp/tools/small/a_test.go"
+head -c 50 /dev/zero | tr '\0' x > "$sp/conformance/c/a_test.go"
+head -c 300 /dev/zero | tr '\0' x > "$sp/tools/big/a_test.go"
+cp "$sp/tools/small/a_test.go" "$sp/internal/x/a_test.go"
+spv() { (cd "$sp" && env -u HEAVY_WHOLE_REASON PATH="$sp/bin:$PATH" HEAVY_SELECTION_LOG="$sp/sel.log" HEAVY_LOCK_DIR="$sp/slots" \
+  HEAVY_SLOTS=1 HEAVY_SMALL_TEST_BYTES="${limit:-200}" "$heavy" "$@") 2> "$sp/err"; }
+spv env GOTOOLCHAIN=local go test -count=1 -timeout 30m ./tools/small ./conformance/c || fail "a small tools package was refused: $(cat "$sp/err")"
+grep -Eq ' whole reason=small-package:150B pwd=.* cmd=env GOTOOLCHAIN=local go test -count=1 -timeout 30m \./tools/small \./conformance/c script=' "$sp/sel.log" ||
+  fail "small-package not logged: $(cat "$sp/sel.log")"
+for args in './tools/big' './tools/small ./tools/big' './internal/x' './tools/...' 'example.invalid/tools/small' '-C tools ./small'; do
+  # shellcheck disable=SC2086 # each case is a word list on purpose
+  spv go test $args
+  [[ $? == 2 ]] && grep -q 'without HEAVY_WHOLE_REASON' "$sp/err" || fail "heavy.sh ran whole go test $args without a reason: $(cat "$sp/err")"
+done
+limit=0 spv go test ./tools/small
+[[ $? == 2 ]] || fail "HEAVY_SMALL_TEST_BYTES=0 did not disable the exemption"
+ok
+
+# ASD-V0-062 (V1-3230), ASD-V0-061 (V1-3227): lane-setup.sh refuses a shallow shared clone with the
+# `git fetch --unshallow` recovery and creates nothing; on the full clone it adds the lane worktree
+# on its branch at origin/main and installs the commit-msg hook that refuses an AI trailer.
+ls_src=$tmp/lane-setup-src
+git init -q "$ls_src" && git -C "$ls_src" -c user.name=t -c user.email=t@t commit -q --allow-empty -m one &&
+  git -C "$ls_src" -c user.name=t -c user.email=t@t commit -q --allow-empty -m two || fail "lane-setup source"
+git clone -q --depth 1 "file://$ls_src" "$tmp/lane-setup-shallow" 2> /dev/null || fail "lane-setup shallow clone"
+out=$("$script/lane-setup.sh" --repo "$tmp/lane-setup-shallow" --dir "$tmp/lane-a" --branch claude/a 2>&1)
+rc=$?
+[[ $rc == 2 && $out == *'lane-setup: REFUSE shallow-repository'*'fetch --unshallow origin'* ]] || fail "shallow lane setup (rc $rc): $out"
+[[ ! -e $tmp/lane-a ]] || fail "a refused lane setup created its directory"
+git clone -q "file://$ls_src" "$tmp/lane-setup-full" 2> /dev/null || fail "lane-setup full clone"
+out=$("$script/lane-setup.sh" --repo "$tmp/lane-setup-full" --dir "$tmp/lane-a" --branch claude/a 2>&1) || fail "lane setup: $out"
+[[ $(git -C "$tmp/lane-a" rev-parse --abbrev-ref HEAD) == claude/a && $(git -C "$tmp/lane-a" rev-parse HEAD) == $(git -C "$ls_src" rev-parse HEAD) ]] ||
+  fail "lane worktree not on claude/a at origin/main: $out"
+printf 'feat: x\n\n%s\n' "$(printf 'Co-Authored-By: Claude <noreply@%s>' anthropic.com)" > "$tmp/lane-a-msg"
+git -C "$tmp/lane-a" -c user.name=t -c user.email=t@t commit -q --allow-empty -F "$tmp/lane-a-msg" 2> /dev/null &&
+  fail "the lane's commit-msg hook let an AI trailer through"
+out=$("$script/lane-setup.sh" --repo "$tmp/lane-setup-full" --dir "$tmp/lane-a" --branch claude/b 2>&1)
+[[ $? == 2 && $out == *'dir-exists'* ]] || fail "lane setup over an existing dir: $out"
 ok
 
 # ASD-V0-014: no fixture outlives the run, so nothing can write after the summary line. Every

@@ -17,6 +17,9 @@ guard_hunks_bin=${CORVINT_GUARD_HUNKS_BIN-}
 base_arg=${1:?usage: dogfood-bind-range.sh BASE TARGET}
 target_arg=${2:?usage: dogfood-bind-range.sh BASE TARGET}
 repo=$(cd "$(dirname "$0")/.." && pwd)
+# ASD-V0-060 (V1-3233): an empty environment (env -i) names the missing HOME instead of aborting.
+[[ -n ${CORVINT_GOCACHE:-}${GOCACHE:-}${XDG_CACHE_HOME:-}${HOME:-} ]] ||
+  { printf 'dogfood-bind-range: REFUSE home-unset: HOME, XDG_CACHE_HOME, GOCACHE and CORVINT_GOCACHE are all unset; set HOME and rerun\n' >&2; exit 2; }
 go_cache=${CORVINT_GOCACHE:-${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache}}
 source "$repo/script/dogfood-build-corvint.sh" || exit 2
 run_tmp=
@@ -212,6 +215,7 @@ removed_intent_pin_at_base() {
   ((10#$end <= size))
 }
 
+dogfood_require_full_history dogfood-bind-range || exit 2
 base=$(git -C "$repo" rev-parse --verify --quiet "$base_arg^{commit}") || refuse base-unavailable
 target=$(git -C "$repo" rev-parse --verify --quiet "$target_arg^{commit}") || refuse target-unavailable
 head=$(git -C "$repo" rev-parse 'HEAD^{commit}') || exit 2

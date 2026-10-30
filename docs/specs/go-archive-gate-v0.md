@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-12
 Requirement prefix: `GAG-V0`
-Intent status: accepted (decision 0105 amendment 2026-09-12)
+Intent status: accepted (decision 0105 amendment 2026-09-12); GAG-V0-009 experimental under the standing lane auto-accept (2026-10-30; V1-3238)
 Delivery status: implemented
 Authoritative inputs: `../../AGENTS.md` invariant 8, `../SPEC-DRIVEN-DEVELOPMENT.md` "Required
 capability-spec shape", `release-artifact-integrity-v0.md` and `go-production-kernel-migration-v0.md`
@@ -13,7 +13,7 @@ scripts still without an owning spec).
 
 ## Agent digest
 - Claim: Every `make gate` run rebuilds the five release archives from the committed revision hermetically and proves the result is the expected closed set.
-- Status: accepted (decision 0105 amendment 2026-09-12) / implemented
+- Status: accepted (decision 0105 amendment 2026-09-12); GAG-V0-009 experimental under the standing lane auto-accept (2026-10-30; V1-3238) / implemented
 - Exists: `script/go-archive-gate` and `script/go-archive-gate_test.sh`, `make` targets `go-archive-gate` and `go-archive-gate-test`, both wired into `make gate`; `script/go-archive-gate-injection_test.sh` (`make go-archive-gate-injection-test`, on demand, not in `make gate`) injects negative outputs into real producer output.
 - Blocked on: no implementation change. The real gate requires an exact local `go1.27.0`; a bare `GOTOOLCHAIN=local make go-archive-gate` fails whenever the host's `PATH` resolves `go` to a different point release (observed on 2026-09-12 with `go1.27.1`), but the pinned version was already installed alongside it and re-ran to `PASS` once `PATH` was pointed at it first — see README.md's toolchain-selection note. Real-command negative artifact injection ran on 2026-09-13 (`script/go-archive-gate-injection_test.sh`, exit 0): extra, missing and symlinked outputs of the real producer and a real-build interrupt each failed or cleaned up as specified. Archive content corruption is not this gate's check (non-goal); it belongs to `release-artifact-integrity-v0.md`.
 - Read next: Requirements; Trust boundary, limits, and failure modes.
@@ -160,6 +160,13 @@ its witness write fails, was not taken: it changes the release command that
   fail, and MUST exit zero only when all of them pass, so that `make gate`, which runs this check
   through the `go-archive-gate` target, fails with it. It MUST abort on the first failing command
   rather than continuing, and MUST write nothing into the working tree.
+- `GAG-V0-009`: (experimental under the standing lane auto-accept, 2026-10-30; V1-3238) When the
+  existing loose reproducibility gate the archive build runs first does not PASS the selected
+  commit, the refusal MUST carry each of its `FAIL <kind>[ <target>]: <detail>` lines (for a stale
+  legal-file pin, `FAIL legal-file-altered: <path> sha256 <actual> want <expected>`) after the
+  summary line, and a PASS bound to another commit, tree or target count MUST name that verdict and
+  binding, so the cause is never swallowed by the generic summary. `make batch-precheck` checks the
+  legal-file pins before CI (`ASD-V0-063`).
 
 ## Non-goals and simpler baseline
 
@@ -267,6 +274,7 @@ has Go tests; those cover the command, not this wrapper.
 | GAG-V0-006 | the `expected` array, the `test -f` loop, and the two `find`/`wc -l` count comparisons | `script/go-archive-gate_test.sh` case 3: an extra top-level directory, symlink or regular file, a missing artifact, and an expected name that is a symlink each fail; `script/go-archive-gate-injection_test.sh` case 3 repeats them on real producer output and names the failing check; `script/go-archive-gate-injection-interrupt_test.sh` proves an interrupted harness exits 130 and removes its temporary directory, so the harness's exit 0 is evidence only of a run that finished |
 | GAG-V0-007 | the pre-build `rm -f "$witness"` at `script/go-archive-gate:35` and the `archive-status --witness --revision --tree` invocation with its `PASS` comparison; `conformance/release-artifact-v0/archive_witness.go` writes the witness | `script/go-archive-gate_test.sh` cases 2 and 3b: an unrecorded witness, a recorded non-`PASS` verdict, and a witness bound to another revision each fail |
 | GAG-V0-008 | the `Makefile` `go-archive-gate` target and its listing in the `gate` target | `make gate` membership; PASS at `c937bc669f47d9df1feb8cd0e2bcd43d53fc2201` on 2026-09-12 (exit 0, 291s) with the pinned toolchain first on `PATH` |
+| GAG-V0-009 | `looseGateFailure` in `conformance/release-artifact-v0/archive_run.go` | `TestGAGV0009LooseGateFailureNamesItsFailLines`: a legal-file-altered and a targeted legal-file-missing reason each appear as a FAIL line after the summary, and a mis-bound PASS names its verdict and commit |
 
 ## Rollout, rollback, and drift
 

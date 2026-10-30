@@ -65,6 +65,9 @@ set -eu
 # inside a given `docs/agent-memory/X.md` pointing at that same `X.md`) is exempt from this rule.
 
 root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
+# DCG-V0-048: --repin reruns this script after staging what it rewrote.
+CHECK_LINE_CITATIONS_SELF=$(CDPATH='' cd -- "$(dirname "$0")" && pwd)/${0##*/}
+export CHECK_LINE_CITATIONS_SELF
 cd "$root"
 
 perl - "$@" <<'PERL'
@@ -553,6 +556,7 @@ sub shifted_token {
 # without computing the digest by hand.
 my $usage = "usage: check-line-citations.sh [--verbose] [--repin [--base <rev>]] | --hash <path:line[-line][,line]> ...\n";
 my ($repin, $verbose, $base_arg);
+my @original_argv = @ARGV;
 if (@ARGV && $ARGV[0] ne '--hash') {
     my @flags = @ARGV;
     while (@flags) {
@@ -702,8 +706,11 @@ push @failures, "unpinned citation count $unpinned_count exceeds committed ceili
     if $unpinned_count > $unpinned_ceiling;
 
 # DCG-V0-022: --repin rewrites the worktree copy of each document whose citations moved
-# unchanged, and only when that copy is byte-identical to the index copy the scan read; it never
-# stages. Every other finding is left for the ordinary check to report.
+# unchanged, and only when that copy is byte-identical to the index copy the scan read. DCG-V0-048:
+# it then stages exactly those rewritten documents (the index held their pre-rewrite bytes, so
+# nothing else is staged) and reruns itself until a pass rewrites nothing, at most five passes, so a
+# transitive chain resolves in one call and the index-reading check passes with no manual staging.
+# Every other finding is left for the ordinary check to report.
 if ($repin) {
     my (%by_doc, @refused);
     push @{ $by_doc{$_->[0]} }, $_ for @repins;
@@ -744,13 +751,26 @@ if ($repin) {
     }
     my @rewritten = grep { my $doc = $_; !grep { $_ eq $doc } @refused } sort keys %by_doc;
     my $count = grep { my $doc = $_->[0]; grep { $_ eq $doc } @rewritten } @repins;
-    print STDERR "line citations: --repin rewrote $count citation(s) in " . scalar(@rewritten) . " document(s); "
-        . "run `git add -- @rewritten` and rerun the check\n"
-        if @rewritten;
+    my $pass = ($ENV{CHECK_LINE_CITATIONS_REPIN_PASS} // 1) =~ /\A[1-9]\z/ ? $ENV{CHECK_LINE_CITATIONS_REPIN_PASS} // 1 : 1;
+    my $staged = 0;
+    if (@rewritten) {
+        $staged = system('git', 'add', '--', @rewritten) == 0;
+        print STDERR "line citations: --repin rewrote $count citation(s) in " . scalar(@rewritten) . " document(s) and "
+            . ($staged ? "staged them (git add -- @rewritten)\n"
+                : "could not stage them; run `git add -- @rewritten` and rerun the check\n");
+    }
     print STDERR "line citations: --repin found no citation whose content moved unchanged\n" unless @repins;
     print_unstaged('--repin', @rewritten);
     print_skipped();
-    exit(@refused ? 1 : 0);
+    exit 1 if @refused;
+    # DCG-V0-048: a rewrite can unpin a citation into the rewritten document; the next pass reads
+    # the staged rewrite and resolves that link of the chain.
+    if ($staged && $pass < 5 && defined $ENV{CHECK_LINE_CITATIONS_SELF}) {
+        print STDERR "line citations: --repin pass " . ($pass + 1) . " rereads the staged rewrite\n";
+        $ENV{CHECK_LINE_CITATIONS_REPIN_PASS} = $pass + 1;
+        exec 'bash', $ENV{CHECK_LINE_CITATIONS_SELF}, @original_argv or die "rerun --repin: $!\n";
+    }
+    exit 0;
 }
 
 close_index();
@@ -761,7 +781,7 @@ if (@failures) {
     print STDERR "  $_\n" for @failures;
     # DCW-V0-353 (V1-2836): the one command that clears every moved-unchanged failure.
     my $movable = grep { /--repin rewrites it/ } @failures;
-    print STDERR "line citations: fix: $movable citation(s) moved unchanged; run script/check-line-citations.sh --repin, git add the rewritten documents, then rerun make line-citations-check\n"
+    print STDERR "line citations: fix: $movable citation(s) moved unchanged; run script/check-line-citations.sh --repin (it stages the documents it rewrites), then rerun make line-citations-check\n"
         if $movable;
 }
 print_skipped();
