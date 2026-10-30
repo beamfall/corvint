@@ -170,9 +170,9 @@ func parseBound(text, name string, fallback int64) (int64, error) {
 	if text == "" {
 		return fallback, nil
 	}
-	value, err := strconv.ParseInt(text, 10, 64)
+	value, err := strconv.ParseInt(text, 10, strconv.IntSize)
 	if err != nil || value < 1 {
-		return 0, invalidArguments("%s must be a positive integer", name)
+		return 0, invalidArguments("%s must be a positive integer representable by the native runner", name)
 	}
 	return value, nil
 }

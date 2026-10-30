@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -213,11 +214,13 @@ func TestDiscriminateRefusesInvalidBoundsAndTarget(t *testing.T) {
 		options DiscriminateOptions
 		code    string
 	}{
-		"zero-hunks":      {DiscriminateOptions{MapPath: wire.ExcludedCEMPath, Target: "HEAD", MaxHunks: "0"}, cemcode.InvalidArguments},
-		"negative-mutant": {DiscriminateOptions{MapPath: wire.ExcludedCEMPath, Target: "HEAD", MaxMutants: "-1"}, cemcode.InvalidArguments},
-		"sub-second":      {DiscriminateOptions{MapPath: wire.ExcludedCEMPath, Target: "HEAD", WallTime: "500ms"}, cemcode.InvalidArguments},
-		"no-target":       {DiscriminateOptions{MapPath: wire.ExcludedCEMPath}, cemcode.InvalidArguments},
-		"base-as-target":  {DiscriminateOptions{MapPath: wire.ExcludedCEMPath, Target: base}, cemcode.PatchDigestMismatch},
+		"overflow-hunks":   {DiscriminateOptions{MapPath: wire.ExcludedCEMPath, Target: "HEAD", MaxHunks: strconv.FormatUint(uint64(^uint(0)>>1)+1, 10)}, cemcode.InvalidArguments},
+		"overflow-mutants": {DiscriminateOptions{MapPath: wire.ExcludedCEMPath, Target: "HEAD", MaxMutants: strconv.FormatUint(uint64(^uint(0)>>1)+1, 10)}, cemcode.InvalidArguments},
+		"zero-hunks":       {DiscriminateOptions{MapPath: wire.ExcludedCEMPath, Target: "HEAD", MaxHunks: "0"}, cemcode.InvalidArguments},
+		"negative-mutant":  {DiscriminateOptions{MapPath: wire.ExcludedCEMPath, Target: "HEAD", MaxMutants: "-1"}, cemcode.InvalidArguments},
+		"sub-second":       {DiscriminateOptions{MapPath: wire.ExcludedCEMPath, Target: "HEAD", WallTime: "500ms"}, cemcode.InvalidArguments},
+		"no-target":        {DiscriminateOptions{MapPath: wire.ExcludedCEMPath}, cemcode.InvalidArguments},
+		"base-as-target":   {DiscriminateOptions{MapPath: wire.ExcludedCEMPath, Target: base}, cemcode.PatchDigestMismatch},
 	}
 	for name, refusal := range refusals {
 		_, err := openSession(t, root).Discriminate(ctx(), refusal.options)

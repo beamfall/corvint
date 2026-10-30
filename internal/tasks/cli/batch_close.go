@@ -391,7 +391,7 @@ func batchCloseValue(in *batchInput, rows []closeRow, merge, runURL string, evid
 	} else {
 		o.Set("profile", wire.String(profileBatchClose))
 	}
-	o.Set("batchPr", count(int(in.number)))
+	o.Set("batchPr", wire.String(strconv.FormatInt(in.number, 10)))
 	o.Set("mergeCommit", wire.String(merge))
 	o.Set("runUrl", wire.String(runURL))
 	o.Set("evidence", wire.Array(ev...))

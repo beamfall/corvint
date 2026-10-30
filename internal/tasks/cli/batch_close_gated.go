@@ -224,7 +224,7 @@ func (r *closeRow) unrunnable(code, detail, recovery string) {
 func (b *gatedBatch) mergeDocument(batch, lane int64, g *gatedRow) []byte {
 	o := wire.NewObject()
 	o.Set("profile", wire.String(profileBatchMerge))
-	o.Set("batchPr", count(int(batch)))
+	o.Set("batchPr", wire.String(strconv.FormatInt(batch, 10)))
 	o.Set("prUrl", wire.String(b.prURL))
 	o.Set("mergeCommit", wire.String(b.merge))
 	o.Set("mergedAt", orNull(b.mergedAt))

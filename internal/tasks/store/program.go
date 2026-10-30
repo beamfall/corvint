@@ -192,7 +192,11 @@ func SupervisorTransition(ctx context.Context, repo *intent.Repository, actor mu
 		if e != nil || recordedMatch(owner, change.OwnerStarted) != supervisor.IdentitySame {
 			return nil, wire.Errorf(wire.CodeSupervisorLost, "supervisor transition", "heartbeat owner not live")
 		}
-		leader, e := recordedProcessIdentity(int(a.Lane.LeaderPid.Uint64()))
+		pid := a.Lane.LeaderPid.Uint64()
+		if pid == 0 || pid > uint64(^uint(0)>>1) {
+			return nil, wire.Errorf(wire.CodeSupervisorLost, "supervisor transition", "heartbeat leader PID is not representable")
+		}
+		leader, e := recordedProcessIdentity(int(pid))
 		if e != nil || recordedMatch(leader, a.Supervision.LeaderStarted) != supervisor.IdentitySame {
 			return nil, wire.Errorf(wire.CodeSupervisorLost, "supervisor transition", "heartbeat leader not live")
 		}

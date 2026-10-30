@@ -243,7 +243,8 @@ closeout step is missing.
   and never queries a network service. `--ref`, `--since` and `--limit` resolve and bound the commit
   scan exactly as `TCD-V0-001`..`TCD-V0-003` do. `--prs FILE` is a bounded (32 MiB) JSON array that
   `gh pr list --state all --json number,state,title,body,labels` writes. An unknown ticket, a
-  missing ticket argument or an undecodable export is refused `MALFORMED`.
+  missing ticket argument or an undecodable export is refused `MALFORMED`. Each positive
+  int64 PR identifier is rendered as its exact decimal string, independent of native integer width.
 - `TCD-V0-160`: A PR title or body line references a ticket as delivered when it names the ticket
   by ID, starts with `Refs`, `Closes`, `Fixes`, `Delivers` or `Delivered` (any case, after leading
   punctuation) or contains `DELIVERED` in capitals, and contains none of `not started`, `not
@@ -266,7 +267,9 @@ closeout step is missing.
   `PREREQUISITE_UNSATISFIED` when not merged). The lane PRs are the other exported PRs that the
   batch title or body names as `#N`. Each ticket a lane body, or else the batch body, delivers
   under `TCD-V0-160` is one `delivered` row: the ticket, its status, the lane PR (null for the batch
-  body), the batch PR, the merge commit and `greenRuns`. `greenRuns` is the sorted ids of the
+  body), the batch PR, the merge commit and `greenRuns`. The batch PR retains the exact positive
+  int64 identifier in canonical decimal form in the envelope, rows and batch-close report; it
+  is not a cardinality `Count`. `greenRuns` is the sorted ids of the
   `--runs` export records (`gh run list --json databaseId,headSha,conclusion`) that concluded
   `success` at the merge commit or the batch head, or `NOT_OBSERVED` without that export. The item
   is `taskman-batch-delivered/0`, marked untrusted, with `mutationAuthority` false.
@@ -481,7 +484,9 @@ closeout step is missing.
 - `TCD-V0-188`: before the claim, each closed ticket receives one `ATTACH_EVIDENCE` mutation
   whose evidence is the SHA-256 of a canonical `taskman-batch-merge/0` document. The document holds
   `batchPr`, `prUrl`, `mergeCommit`, `mergedAt` (or null), `runUrl`, `lanePr` (or null),
-  `sealCommit` (or null), `candidateCommit` and `baseCommit`, and it is printed in the row. `prUrl`
+  `sealCommit` (or null), `candidateCommit` and `baseCommit`, and it is printed in the row.
+  `batchPr` preserves the exact positive int64 PR identifier as a decimal string in the hashed
+  document; it is never narrowed through a native integer or cardinality `Count`. `prUrl`
   is the batch record's `url` in the `--prs` export when it is an `https://` URL, else
   `https://github.com/<--repo>/pull/N`, else derived from the run URL's repository. With none it is
   `PREREQUISITE_UNSATISFIED` and nothing is written. A rerun that finds the digest already attached

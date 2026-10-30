@@ -386,7 +386,7 @@ func deliveryScreenCommand(env Env, args []string) (*wire.Result, int) {
 			}
 			if len(r.prs) < maxScreenHits {
 				o := wire.NewObject()
-				o.Set("number", count(int(p.Number)))
+				o.Set("number", wire.String(strconv.FormatInt(p.Number, 10)))
 				o.Set("state", wire.String(prose(p.State)))
 				o.Set("reference", wire.String(kind))
 				o.Set("batch", wire.Bool(p.batch()))
@@ -736,7 +736,7 @@ func batchDeliveredCommand(env Env, args []string) *wire.Result {
 		o.Set("local", wire.String(local))
 		o.Set("status", wire.String(st))
 		o.Set("lanePr", lanePR(h.lane))
-		o.Set("batchPr", count(int(number)))
+		o.Set("batchPr", wire.String(strconv.FormatInt(number, 10)))
 		o.Set("mergeCommit", wire.String(batch.mergeOid()))
 		o.Set("greenRuns", greenValue)
 		rows = append(rows, wire.ObjectValue(o))
@@ -758,7 +758,7 @@ func batchDeliveredCommand(env Env, args []string) *wire.Result {
 	}
 	o := wire.NewObject()
 	o.Set("profile", wire.String(profileBatchDelivered))
-	o.Set("batchPr", count(int(number)))
+	o.Set("batchPr", wire.String(strconv.FormatInt(number, 10)))
 	o.Set("mergeCommit", wire.String(batch.mergeOid()))
 	o.Set("batchHead", orNull(batch.HeadRefOid))
 	o.Set("lanePrs", wire.Array(lanesValue...))

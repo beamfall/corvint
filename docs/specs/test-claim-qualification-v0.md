@@ -711,7 +711,9 @@ its tests; a surviving mutant is a change the cited tests cannot tell from the o
   [--max-mutants N] [--wall-time DURATION] [--output PATH]` runs bounded mutation on at most
   `--max-hunks` hunks (default 8), at most `--max-mutants` mutants per hunk (default 8), inside
   one `--wall-time` budget of whole seconds (default `10m`) that covers the export and every run.
-  A non-positive bound, a sub-second or fractional wall time, a missing `--target`, a
+  Hunk and mutant bounds must fit the executing runner's native `int`; larger values are
+  refused before conversion or execution, never clamped. A non-positive or unrepresentable
+  bound, a sub-second or fractional wall time, a missing `--target`, a
   non-canonical (`cem/0.1`) map, and a `--target` whose canonical patch from the map base does
   not carry the map's `patchSha256` are refused (`invalid-arguments`, or `patch-digest-mismatch`
   for the target) and leave the map unchanged with no mutant run. The run is pinned to the
