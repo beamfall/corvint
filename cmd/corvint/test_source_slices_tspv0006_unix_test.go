@@ -21,7 +21,7 @@ func sourceSliceFixture(t *testing.T) (root, base string) {
 	root = t.TempDir()
 	files := map[string]string{
 		"go.mod":      "module example.test/m\n\ngo 1.27\n",
-		"u/u.go":      "package u\n\nfunc U() string { return \"u\" }\n",
+		"u/u.go":      "package u\n\nvar Last string\n\nfunc U() string { return \"u\" }\n",
 		"u/u_test.go": "package u\n\nimport \"testing\"\n\nfunc TestU(t *testing.T) { _ = U() }\n",
 		"p/p.go": "package p\n\nimport (\n\t\"strings\"\n\n\t\"example.test/m/u\"\n)\n\n" +
 			"type T struct{ n int }\n\nfunc (t T) Double() int { return twice(t.n) }\n\n" +
@@ -30,18 +30,26 @@ func sourceSliceFixture(t *testing.T) (root, base string) {
 			"func Lower(s string) string { return strings.ToLower(s) }\n\n" +
 			"var table = map[string]func(string) string{\"lower\": Lower}\n\n" +
 			"var counter int\n\nfunc Bump() int { counter++; return counter }\n\n" +
-			"var greeting = Greet()\n\nfunc Greet() string { return \"hi\" }\n",
+			"var greeting = Greet()\n\nfunc Greet() string { return \"hi\" }\n\n" +
+			"var state int\n\nfunc Set(p *int) { *p = 1 }\n\n" +
+			"func Mark(s string) { u.Last = s }\n\nfunc remember(s string) { u.Last = s }\n",
 		"p/p_test.go": "package p\n\nimport \"testing\"\n\n" +
 			"func TestUpper(t *testing.T) { _ = Upper(\"a\") }\n\n" +
 			"func TestDouble(t *testing.T) { _ = T{n: 1}.Double() }\n\n" +
 			"func TestTable(t *testing.T) { _ = table[\"lower\"](\"A\") }\n\n" +
 			"func TestBump(t *testing.T) { _ = Bump() }\n\n" +
-			"func TestGreeting(t *testing.T) { _ = greeting }\n",
+			"func TestGreeting(t *testing.T) { _ = greeting }\n\n" +
+			"func TestCounter(t *testing.T) { _ = counter }\n\n" +
+			"func TestSet(t *testing.T) { Set(&state) }\n\n" +
+			"func TestState(t *testing.T) { _ = state }\n\n" +
+			"func TestMark(t *testing.T) { Mark(\"m\") }\n",
 		"p/ext_test.go":             "package p_test\n\nimport (\n\t\"testing\"\n\n\t\"example.test/m/p\"\n)\n\nfunc TestExternal(t *testing.T) { _ = p.Lower(\"X\") }\n",
 		"q/q.go":                    "package q\n\nimport \"example.test/m/p\"\n\nfunc Q() string { return p.Upper(\"q\") }\n",
 		"q/q_test.go":               "package q\n\nimport \"testing\"\n\nfunc TestQ(t *testing.T) { _ = Q() }\n",
 		"r/r.go":                    "package r\n\nfunc R() int { return 1 }\n\nfunc S() int { return 2 }\n",
 		"r/r_test.go":               "package r\n\nimport \"testing\"\n\nfunc TestR(t *testing.T) { _ = R() }\n",
+		"d/d.go":                    "package d\n\nimport . \"strings\"\n\nfunc D(s string) string { return ToUpper(s) }\n\nfunc E() int { return 1 }\n",
+		"d/d_test.go":               "package d\n\nimport \"testing\"\n\nfunc TestD(t *testing.T) { _ = D(\"d\") }\n",
 		sessiontest.DeclarationPath: sessionDeclaration(""),
 	}
 	for name, body := range files {
@@ -165,6 +173,20 @@ func TestTSPV0006DryRunSlicesSourceChanges(t *testing.T) {
 			map[string]string{"p/p.go": edit("strings.ToLower(s)", "strings.ToLower(s + \"\")")}},
 		{"a function reaching a package variable", "go:example.test/m/p", "whole: DIRECT_SOURCE_CHANGE via p/p.go (Bump reaches the package variable counter)",
 			map[string]string{"p/p.go": edit("counter++; return counter", "counter += 2; return counter")}},
+		// The base body counts too: TestCounter observes what TestBump's Bump did at base.
+		{"a function that stopped reaching a package variable", "go:example.test/m/p", "whole: DIRECT_SOURCE_CHANGE via p/p.go (Bump reaches the package variable counter)",
+			map[string]string{"p/p.go": edit("counter++; return counter", "return 1")}},
+		// TestState observes what TestSet's Set writes through its pointer argument.
+		{"a function with a pointer parameter", "go:example.test/m/p", "whole: DIRECT_SOURCE_CHANGE via p/p.go (Set in p/p.go has a parameter or result of a type that may share memory)",
+			map[string]string{"p/p.go": edit("*p = 1", "*p = 2")}},
+		{"a write to another package", "go:example.test/m/p", "whole: DIRECT_SOURCE_CHANGE via p/p.go (Mark writes through u.Last (not provably local))",
+			map[string]string{"p/p.go": edit("func Mark(s string) { u.Last = s }", "func Mark(s string) { u.Last = s + \"!\" }")}},
+		{"a write only the base body made", "go:example.test/m/p", "whole: DIRECT_SOURCE_CHANGE via p/p.go (Mark writes through u.Last (not provably local))",
+			map[string]string{"p/p.go": edit("func Mark(s string) { u.Last = s }", "func Mark(s string) {}")}},
+		{"a function reaching a write", "go:example.test/m/p", "whole: DIRECT_SOURCE_CHANGE via p/p.go (Upper reaches remember, which writes through u.Last (not provably local))",
+			map[string]string{"p/p.go": edit("{ return strings.ToUpper(s) +", "{ remember(s); return strings.ToUpper(s) +")}},
+		{"a dot import", "go:example.test/m/d", "whole: DIRECT_SOURCE_CHANGE via d/d.go (d/d.go dot-imports \"strings\")",
+			map[string]string{"d/d.go": "package d\n\nimport . \"strings\"\n\nfunc D(s string) string { return ToUpper(s) }\n\nfunc E() int { return 2 }\n"}},
 		{"a function package initialization calls", "go:example.test/m/p", "whole: DIRECT_SOURCE_CHANGE via p/p.go (package initialization in p/p.go reaches Greet)",
 			map[string]string{"p/p.go": edit("return \"hi\"", "return \"hello\"")}},
 		{"a method", "go:example.test/m/p", "whole: DIRECT_SOURCE_CHANGE via p/p.go (p/p.go changes more than plain functions)",

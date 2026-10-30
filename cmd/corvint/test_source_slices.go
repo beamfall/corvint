@@ -37,7 +37,17 @@ import (
 //     that could travel into another package;
 //   - package initialization (variable initializers, init functions,
 //     TestMain) does not reach a changed function, and no changed function
-//     reaches a package variable (state a skipped test could observe).
+//     reaches a package variable (state a skipped test could observe);
+//   - a changed function's base body counts beside its head body, so state
+//     the change stopped reaching or writing still keeps the package whole;
+//   - each changed function's parameters and results are predeclared basic
+//     value types (no pointer, slice, map, channel, function, interface,
+//     struct, array, named, type-parameter or variadic type), so it cannot
+//     write memory its caller shares; its file has no dot import;
+//   - nothing the changed functions reach writes other than to a plain
+//     identifier (no write through a pointer, selector or index, and no
+//     copy, clear or delete), so every write is a local or a package
+//     variable reach already refuses.
 //
 // Reach is the closure over top-level declarations: a declaration reaches
 // every declaration of any identifier written inside it, a type reaches all
@@ -129,6 +139,7 @@ type testSourceDecl struct {
 	file  string
 	test  string
 	root  bool
+	write string
 }
 
 func testSourceSlice(root string, candidate testSourceCandidate, atBase map[string]testBaseBlob) sessiontest.GoSlice {
@@ -190,6 +201,11 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 	}
 
 	changed := make(map[string]bool)
+	type ownFile struct {
+		name       string
+		head, base *ast.File
+	}
+	var owned []ownFile
 	for _, own := range candidate.own {
 		prior := atBase[own]
 		switch {
@@ -212,6 +228,12 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 		if headRest != baseRest {
 			return whole(own + " changes more than plain functions")
 		}
+		for _, spec := range baseFile.Imports {
+			if spec.Name != nil && spec.Name.Name == "." {
+				return whole(own + " dot-imports " + spec.Path.Value)
+			}
+		}
+		owned = append(owned, ownFile{name: own, head: files[index].file, base: baseFile})
 		for name, text := range headFuncs {
 			if prior, ok := baseFuncs[name]; !ok || prior != text {
 				changed[name] = true
@@ -254,6 +276,26 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 		qualifiers := testSourceQualifiers(file.file, declared)
 		for _, decl := range file.file.Decls {
 			decls = append(decls, testSourceDeclOf(file.name, file.tests, qualifiers, decl))
+		}
+	}
+	// A changed function's base body joins the graph beside its head body, so
+	// state the change stopped reaching or writing still counts; and its
+	// signature must carry no reference a caller's memory could travel through.
+	for _, own := range owned {
+		for _, version := range []*ast.File{own.head, own.base} {
+			qualifiers := testSourceQualifiers(version, declared)
+			for _, decl := range version.Decls {
+				function, ok := decl.(*ast.FuncDecl)
+				if !ok || function.Recv != nil || !changed[function.Name.Name] {
+					continue
+				}
+				if reference := testSourceReferenceSignature(function.Type, declared); reference != "" {
+					return whole(function.Name.Name + " in " + own.name + " has " + reference)
+				}
+				if version == own.base {
+					decls = append(decls, testSourceDeclOf(own.name, nil, qualifiers, decl))
+				}
+			}
 		}
 	}
 	declaring := make(map[string][]int)
@@ -305,6 +347,16 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 		case decl.root && decl.test == "" && reached[index] && len(decl.names) != 0:
 			return whole(strings.Join(names, ", ") + " reaches the package variable " + strings.Join(decl.names, ", "))
 		}
+	}
+	for index, decl := range decls {
+		if !reached[index] || decl.write == "" {
+			continue
+		}
+		writer := strings.Join(names, ", ") + " reaches " + strings.Join(decl.names, ", ") + ", which writes "
+		if len(decl.names) == 1 && changed[decl.names[0]] {
+			writer = decl.names[0] + " writes "
+		}
+		return whole(writer + decl.write + " (not provably local)")
 	}
 
 	var all, kept []string
@@ -479,6 +531,7 @@ func testSourceDeclOf(file string, tests []string, qualifiers map[string]bool, d
 	})
 	switch decl := decl.(type) {
 	case *ast.FuncDecl:
+		entry.write = testSourceWrite(decl)
 		entry.names = []string{decl.Name.Name}
 		delete(entry.uses, decl.Name.Name)
 		if decl.Recv == nil {
@@ -539,4 +592,101 @@ func testSourceReceiver(receiver *ast.FieldList) string {
 		return ident.Name
 	}
 	return ""
+}
+
+// testSourceBasic are the predeclared value types whose values share no
+// memory (uintptr is excluded: unsafe can turn it into a pointer).
+var testSourceBasic = map[string]bool{
+	"bool": true, "string": true, "byte": true, "rune": true,
+	"int": true, "int8": true, "int16": true, "int32": true, "int64": true,
+	"uint": true, "uint8": true, "uint16": true, "uint32": true, "uint64": true,
+	"float32": true, "float64": true, "complex64": true, "complex128": true,
+}
+
+// testSourceReferenceSignature names the first parameter or result of a
+// changed function whose type is not a predeclared basic value type the
+// package does not redeclare: a pointer, slice, map, channel, function,
+// interface, struct, array, named, type-parameter or variadic type could let
+// the function write memory its caller shares with other tests.
+func testSourceReferenceSignature(function *ast.FuncType, declared map[string]bool) string {
+	if function.TypeParams != nil && len(function.TypeParams.List) != 0 {
+		return "type parameters"
+	}
+	for _, list := range []*ast.FieldList{function.Params, function.Results} {
+		if list == nil {
+			continue
+		}
+		for _, field := range list.List {
+			ident, ok := field.Type.(*ast.Ident)
+			if !ok || !testSourceBasic[ident.Name] || declared[ident.Name] {
+				return "a parameter or result of a type that may share memory"
+			}
+		}
+	}
+	return ""
+}
+
+// testSourceWrite names the first write in a function that the lexical model
+// cannot prove local: an assignment, increment or range target other than a
+// plain identifier or _ (a write through a pointer, selector or index), or a
+// call of the builtins copy, clear or delete, which write through an argument.
+// A plain identifier is a local or a package variable, which reach catches.
+func testSourceWrite(function *ast.FuncDecl) string {
+	if function.Body == nil {
+		return ""
+	}
+	write := ""
+	target := func(expression ast.Expr) {
+		for {
+			paren, ok := expression.(*ast.ParenExpr)
+			if !ok {
+				break
+			}
+			expression = paren.X
+		}
+		if _, ok := expression.(*ast.Ident); !ok && write == "" {
+			write = "through " + testSourceExpression(expression)
+		}
+	}
+	ast.Inspect(function.Body, func(node ast.Node) bool {
+		switch node := node.(type) {
+		case *ast.AssignStmt:
+			if node.Tok != token.DEFINE {
+				for _, left := range node.Lhs {
+					target(left)
+				}
+			}
+		case *ast.IncDecStmt:
+			target(node.X)
+		case *ast.RangeStmt:
+			if node.Tok == token.ASSIGN {
+				for _, left := range []ast.Expr{node.Key, node.Value} {
+					if left != nil {
+						target(left)
+					}
+				}
+			}
+		case *ast.CallExpr:
+			if ident, ok := node.Fun.(*ast.Ident); ok && (ident.Name == "copy" || ident.Name == "clear" || ident.Name == "delete") && write == "" {
+				write = "with " + ident.Name
+			}
+		}
+		return write == ""
+	})
+	return write
+}
+
+// testSourceExpression renders a write target briefly for a reason.
+func testSourceExpression(expression ast.Expr) string {
+	switch expression := expression.(type) {
+	case *ast.StarExpr:
+		return "*" + testSourceExpression(expression.X)
+	case *ast.SelectorExpr:
+		return testSourceExpression(expression.X) + "." + expression.Sel.Name
+	case *ast.IndexExpr:
+		return testSourceExpression(expression.X) + "[...]"
+	case *ast.Ident:
+		return expression.Name
+	}
+	return "an expression"
 }

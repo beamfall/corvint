@@ -82,3 +82,58 @@ func TestTSPV0006PlainFunctionsAndQualifiers(t *testing.T) {
 		t.Fatalf("uses %v: want M and T, not the qualified Short", uses)
 	}
 }
+
+// TSP-V0-006: a changed function's signature carries only predeclared basic
+// value types, and a write the lexical model cannot prove local is named.
+func TestTSPV0006ReferenceSignatureAndWrites(t *testing.T) {
+	function := func(t *testing.T, source string) *ast.FuncDecl {
+		t.Helper()
+		file, err := parser.ParseFile(token.NewFileSet(), "f.go", "package p\n\n"+source+"\n", parser.SkipObjectResolution)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return file.Decls[0].(*ast.FuncDecl)
+	}
+	for _, tc := range []struct {
+		source    string
+		declared  map[string]bool
+		reference bool
+	}{
+		{"func F(a, b int, s string) (bool, float64) { return true, 0 }", nil, false},
+		{"func F() {}", nil, false},
+		{"func F(p *int) {}", nil, true},
+		{"func F(s []byte) {}", nil, true},
+		{"func F(m map[string]int) {}", nil, true},
+		{"func F(c chan int) {}", nil, true},
+		{"func F(f func()) {}", nil, true},
+		{"func F(v any) {}", nil, true},
+		{"func F(v T) {}", nil, true},
+		{"func F(v struct{ p *int }) {}", nil, true},
+		{"func F(v [2]int) {}", nil, true},
+		{"func F(v ...int) {}", nil, true},
+		{"func F(v uintptr) {}", nil, true},
+		{"func F() *int { return nil }", nil, true},
+		{"func F[X any](v int) {}", nil, true},
+		{"func F(v int) {}", map[string]bool{"int": true}, true},
+	} {
+		if got := testSourceReferenceSignature(function(t, tc.source).Type, tc.declared) != ""; got != tc.reference {
+			t.Errorf("%s: reference %v, want %v", tc.source, got, tc.reference)
+		}
+	}
+	for _, tc := range []struct{ source, write string }{
+		{"func F(n int) int { x := n; x++; x += 2; var y int; y = x; (y) = 1; _ = y; for i := range 3 { x = i }; return x }", ""},
+		{"func F() { var s struct{ n int }; s.n = 1 }", "through s.n"},
+		{"func F(p *int) { *p = 1 }", "through *p"},
+		{"func F() { m := map[int]int{}; m[1] = 2 }", "through m[...]"},
+		{"func F() { u.Last++ }", "through u.Last"},
+		{"func F() { var a [2]int; for a[0] = range 2 {} }", "through a[...]"},
+		{"func F() { var a, b []int; copy(a, b) }", "with copy"},
+		{"func F() { m := map[int]int{}; delete(m, 1) }", "with delete"},
+		{"func F() { var m map[int]int; clear(m) }", "with clear"},
+		{"func F() { go func() { *new(int) = 1 }() }", "through *an expression"},
+	} {
+		if got := testSourceWrite(function(t, tc.source)); got != tc.write {
+			t.Errorf("%s: write %q, want %q", tc.source, got, tc.write)
+		}
+	}
+}
