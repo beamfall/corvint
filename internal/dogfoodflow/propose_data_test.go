@@ -70,3 +70,44 @@ func TestProposeCitationsDCWV0381SkipsDataAndPartialPaths(t *testing.T) {
 		}
 	}
 }
+
+// DCW-V0-404 (V1-3118): a hunk that names a requirement family is drafted
+// against a line of that family, never another spec's trace row or a bare
+// list that also names its path. The hunk in tool.go edits a line beside a
+// DCW-V0-001 comment, so no added line defines an ID to anchor on;
+// docs/zz.md defines DCW-V0-001 naming tool.go, while docs/aa.md lists
+// tool.go bare and docs/ab.md carries another family's row for it.
+func TestProposeCitationsDCWV0404AnchorsToTheHunksRequirementFamily(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	tool := strings.Replace("package tool\n\n"+numbered("// tool", 12), "// tool line 5\n", "// tool drafts rows (DCW-V0-001)\n", 1)
+	writeTree(t, root, map[string]string{
+		"tool.go":    tool,
+		"docs/aa.md": "# List\n\n- tool.go\n",
+		"docs/ab.md": "# Other\n\n| `ASD-V0-014` | tool.go |\n",
+		"docs/zz.md": "# Spec\n\n- `DCW-V0-001`: tool.go drafts rows.\n",
+	})
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	writeTree(t, root, map[string]string{"tool.go": strings.Replace(tool, "// tool line 6\n", "// tool line 6 changed\n", 1)})
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "change")
+	hunks := diffHunks(t, root, base)
+	document, err := json.Marshal(map[string]any{"baseRevision": base, "hunks": hunks})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeTree(t, root, map[string]string{".corvint/change.cem.json": string(document) + "\n"})
+	var stdout, stderr bytes.Buffer
+	run := &proposal{
+		flow:    flow{ctx: context.Background(), prefix: "dogfood-propose-citations", root: root, stderr: &stderr},
+		options: ProposeOptions{Root: root, Base: base}, stdout: &stdout, blobs: map[string][]byte{}, lines: map[string][][]byte{},
+	}
+	if code, err := boundary(context.Background(), run.run, func() {}); err != nil || code != 0 {
+		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
+	}
+	if got, want := stdout.String(), "1\tdocs/zz.md\t3:3\tspecification\n"; got != want {
+		t.Fatalf("draft = %q; want %q", got, want)
+	}
+}
