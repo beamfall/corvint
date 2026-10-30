@@ -549,10 +549,11 @@ func firstOf(values []string) string {
 func (r *Runner) launch(ctx context.Context, planned Planned, identity [2]string, budget time.Duration, deadline time.Time) (Invocation, string) {
 	runCtx, cancel := r.withDeadline(ctx, deadline)
 	defer cancel()
-	env := append(append([]string{}, r.Environ...), planned.Env...)
+	plannedEnv := GoCacheOverride(planned.Env, r.Environ)
+	env := append(append([]string{}, r.Environ...), plannedEnv...)
 	envDigest, _ := Digest(env)
 	recorded := Invocation{
-		Adapter: planned.Adapter, Argv: planned.Argv, Dir: planned.Dir, Env: nonNil(planned.Env), EnvDigest: envDigest,
+		Adapter: planned.Adapter, Argv: planned.Argv, Dir: planned.Dir, Env: nonNil(plannedEnv), EnvDigest: envDigest,
 		Exit: -1, Outcomes: []Outcome{}, Runner: identity[0], Version: identity[1],
 	}
 	cmd := exec.CommandContext(runCtx, identity[0], planned.Argv[1:]...)

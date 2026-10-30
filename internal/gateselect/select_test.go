@@ -122,11 +122,16 @@ func TestSelectPackagesNarrowsSealedChangeEvidenceReaders(t *testing.T) {
 		"exact/exact_test.go":     "package exact\n\nvar sealed = \"../.corvint/changes\"\n",
 		"anchored/anchored.go":    "package anchored\n\nfunc Sealed(root string) string { return root + \"/.corvint/changes/\" }\n",
 		"deep/dir/dir_test.go":    "package dir\n\nvar evidence = \"../../.corvint\"\n",
+		// AFP-V0-931 (V1-3146): the module path is a bare `/` anchor, and a
+		// lone `.corvint` beside it names a directory component only, so it
+		// is no reader of a sealed CEM or the sidecar, as in the planner.
+		"modroot/modroot_test.go": "package modroot\n\nvar module, dir = \"example.com/fixture\", \".corvint\"\n",
 	})
 	sealed := ".corvint/changes/0123456789abcdef0123456789abcdef01234567.cem.json"
 	cases := []struct{ name, dirty, verdict string }{
 		{name: "sealed CEM selects only resolving readers", dirty: sealed, verdict: "run example.com/fixture/anchored example.com/fixture/deep/dir example.com/fixture/exact"},
-		{name: "other file keeps component-run readers", dirty: ".corvint/changes/x/y.cem.json", verdict: "run example.com/fixture/anchored example.com/fixture/deep/dir example.com/fixture/exact example.com/fixture/fixture"},
+		{name: "AFP-V0-931 sidecar ignores a lone component beside a module anchor", dirty: ".corvint/change.cem.json", verdict: "run example.com/fixture/deep/dir"},
+		{name: "other file keeps component-run readers", dirty: ".corvint/changes/x/y.cem.json", verdict: "run example.com/fixture/anchored example.com/fixture/deep/dir example.com/fixture/exact example.com/fixture/fixture example.com/fixture/modroot"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

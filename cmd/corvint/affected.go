@@ -107,6 +107,9 @@ type affectedInvocation struct {
 	Cache string
 	// NoCache turns off the default graph cache (AFP-V0-437).
 	NoCache bool
+	// Format is the --format value: "" or json writes the JSON document,
+	// text the affected-plan/1 projection as lines (AFP-V0-928).
+	Format string
 	// CacheStatus is set only by `affected cache`, which reports the default
 	// cache's location and size; CacheStatusFormat is json or doctor-plugin
 	// (AFP-V0-439).
@@ -278,15 +281,19 @@ func parseAffectedInvocation(arguments []string) (affectedInvocation, bool, erro
 // as `--flag VALUE` or `--flag=VALUE`.
 var affectedOptionNames = map[string]bool{"--path": true, "--snapshot": true, "--base": true, "--appmap-impact": true, "--playwright-config": true, "--playwright-discovery": true, "--playwright-env": true, "--provider": true, "--provider-command": true, "--repository": true, "--repository-base": true, "--selection-profile": true, "--cache": true, "--paths-from": true}
 
-// affectedFormatRefusal names why `--format` is refused and every option
-// `affected` accepts (AFP-V0-201): the command has one output, JSON.
-func affectedFormatRefusal() error {
-	names := []string{"--full", "--no-cache", "--require-clean"}
+// affectedFormatValues are the --format values `affected` accepts
+// (AFP-V0-928, amending AFP-V0-201).
+var affectedFormatValues = []string{"json", "text"}
+
+// affectedFormatRefusal names why a --format value is refused, the values
+// accepted, and every option `affected` accepts (AFP-V0-201, AFP-V0-928).
+func affectedFormatRefusal(value string) error {
+	names := []string{"--format", "--full", "--no-cache", "--require-clean"}
 	for name := range affectedOptionNames {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	return argumentError("affected has no --format option: it always writes one JSON document (affected-plan/1, or affected-plan/0 with --full); accepted options: " + strings.Join(names, ", "))
+	return argumentError("affected --format accepts " + strings.Join(affectedFormatValues, " or ") + ", got " + pythonRepr(value) + ": json writes one JSON document (affected-plan/1, or affected-plan/0 with --full), text the affected-plan/1 plan as lines; accepted options: " + strings.Join(names, ", "))
 }
 
 // parseAffectedOptions reads the flags after `affected`. `--base` must
@@ -333,7 +340,22 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 		}
 		name, value, inline := strings.Cut(rest[index], "=")
 		if name == "--format" {
-			return affectedInvocation{}, affectedFormatRefusal()
+			if !inline {
+				if index+1 >= len(rest) {
+					return affectedInvocation{}, affectedFormatRefusal("")
+				}
+				value = rest[index+1]
+				index++
+			}
+			index++
+			if invocation.Format != "" {
+				return affectedInvocation{}, argumentError("--format may be given once")
+			}
+			if !slices.Contains(affectedFormatValues, value) {
+				return affectedInvocation{}, affectedFormatRefusal(value)
+			}
+			invocation.Format = value
+			continue
 		}
 		if !affectedOptionNames[name] {
 			return affectedInvocation{}, argumentError("unrecognized arguments: " + rest[index])
@@ -395,6 +417,9 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 		if err != nil {
 			return affectedInvocation{}, err
 		}
+	}
+	if invocation.Format == "text" && (invocation.Full || invocation.PlaywrightConfig != "") {
+		return affectedInvocation{}, argumentError("--format text writes the affected-plan/1 plan and cannot be combined with --full or --playwright-config")
 	}
 	if invocation.Cache != "" && invocation.NoCache {
 		return affectedInvocation{}, argumentError("--cache and --no-cache cannot be combined")
@@ -686,6 +711,18 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 	if err != nil {
 		emitError(stderr, err)
 		return 2
+	}
+	if invocation.Format == "text" {
+		compact, ok := receipt.(affectedCompactReceipt)
+		if !ok {
+			emitError(stderr, argumentError("--format text has no line form for this receipt"))
+			return 2
+		}
+		if _, err := io.WriteString(stdout, renderAffectedText(compact)); err != nil {
+			emitError(stderr, &gokernel.Error{Code: "output-failed", Message: "cannot write affected plan"})
+			return 2
+		}
+		return 0
 	}
 	// Streamed, so a large receipt is not held in a second full copy (AFP-V0-398).
 	if err := gokernel.WriteCanonicalJSON(stdout, receipt); err != nil {
@@ -1013,13 +1050,10 @@ func compileAffectedGraph(ctx context.Context, invocation affectedInvocation) (a
 			return affectedReceipt{}, nil, err
 		}
 	}
-	graph = graph.WithReadScopeBase(affectedPriorReadScopes(ctx, gitExecutable, root, invocation.Base, revision, changed))
-	if len(invocation.PathList) == 0 {
-		graph = graph.WithGoAdditive(affectedGoAdditive(ctx, gitExecutable, root, invocation.Base, revision, graph, changed))
-	}
-	plan := affectedSelect(graph, changed, invocation.sharedVia)
-	provider := providerGoProjection(graph, plan)
-	advice := withFocusedNextStep(compileAffectedAdvice(root, graph, plan, provider), invocation.Base, plan)
+	graph, plan, provider, advice := planAffectedGraph(ctx, affectedPlanInputs{
+		gitExecutable: gitExecutable, repository: root, tree: root, base: invocation.Base, revision: revision,
+		additive: len(invocation.PathList) == 0, shared: invocation.sharedVia,
+	}, graph, changed)
 	if invocation.SelectionProfile == appflows.E2ESafeProfile {
 		advice.TestSelection, err = affectedE2ESafeSelection(ctx, invocation, revision, graph, plan, advice)
 		if err != nil {
@@ -1154,12 +1188,44 @@ func affectedPriorReadScopes(ctx context.Context, gitExecutable, root, base, rev
 	return scopes
 }
 
+// affectedPlanInputs are what planAffectedGraph measures a change from: the
+// repository whose Git objects hold the base, the tree the graph was built
+// over (the worktree, or a review's materialized snapshot), and whether the
+// plan records ADN-V0-001 additive changes (not in --path mode, ADN-V0-009).
+type affectedPlanInputs struct {
+	gitExecutable, repository, tree, base, revision string
+	additive, shared                                bool
+}
+
+// planAffectedGraph is the one planning tail of `corvint affected` and of a
+// review's snapshot plan (AFP-V0-930, V1-3147): the prior read-scope
+// declaration (AFP-V0-050), the additive-change records (ADN-V0-001), the
+// selection, the Go provider projection and the advice. Both callers go
+// through it, so a plan member added here reaches review.affected too.
+func planAffectedGraph(ctx context.Context, in affectedPlanInputs, graph *affected.Graph, changed []string) (*affected.Graph, affected.Plan, affectedGoProvider, affectedAdvice) {
+	graph = graph.WithReadScopeBase(affectedPriorReadScopes(ctx, in.gitExecutable, in.repository, in.base, in.revision, changed))
+	if in.additive {
+		graph = graph.WithGoAdditive(affectedGoAdditiveAt(ctx, in.gitExecutable, in.repository, in.tree, in.base, in.revision, graph, changed))
+	}
+	plan := affectedSelect(graph, changed, in.shared)
+	provider := providerGoProjection(graph, plan)
+	advice := withFocusedNextStep(compileAffectedAdvice(in.tree, graph, plan, provider), in.base, plan)
+	return graph, plan, provider, advice
+}
+
 // affectedGoAdditive reads, for each changed Go package, whether the change
 // only adds top-level declarations and which importers reference one, against
 // the commit the change is measured from: the base commit with --base, else
 // HEAD (ADN-V0-001). A base that cannot be resolved records every candidate
 // as a fallback, which selects as before.
 func affectedGoAdditive(ctx context.Context, gitExecutable, root, base, revision string, graph *affected.Graph, changed []string) []affected.GoAdditive {
+	return affectedGoAdditiveAt(ctx, gitExecutable, root, root, base, revision, graph, changed)
+}
+
+// affectedGoAdditiveAt is affectedGoAdditive for a graph built over tree,
+// which is root itself or a review's snapshot of HEAD materialized elsewhere;
+// the commit is always read from root's Git objects.
+func affectedGoAdditiveAt(ctx context.Context, gitExecutable, root, tree, base, revision string, graph *affected.Graph, changed []string) []affected.GoAdditive {
 	commit := revision
 	if base != "" {
 		resolved, err := affectedRevision(ctx, gitExecutable, root, base)
@@ -1168,7 +1234,7 @@ func affectedGoAdditive(ctx context.Context, gitExecutable, root, base, revision
 		}
 		commit = resolved
 	}
-	return golang.AdditiveChanges(ctx, root, commit, graph, changed)
+	return golang.AdditiveChangesAt(ctx, root, tree, commit, graph, changed)
 }
 
 func affectedRangePaths(ctx context.Context, gitExecutable, root, base string) ([]string, error) {

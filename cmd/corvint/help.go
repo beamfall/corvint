@@ -839,7 +839,7 @@ const affectedHelp = `Compile the affected-test selection plan for the dirty wor
 
 Usage:
   corvint [--root PATH] affected [--full] [--require-clean]
-          [--cache DIR | --no-cache]
+          [--cache DIR | --no-cache] [--format json|text]
   corvint [--root PATH] affected [--full] --path PATH [PATH ...] [--path PATH ...]
           [--paths-from FILE] [--cache DIR | --no-cache]
   corvint [--root PATH] affected [--full] --snapshot RECEIPT
@@ -883,6 +883,14 @@ unknown counts, unknownByReason {REASON: count}, and line, the same as one
 text line ("scope=UNKNOWN dirty=5 selected=1 excluded=0 unknown=3
 UNOWNED_DIRTY_PATH=3"), so a reader needs neither the plan nor a JSON tool
 to learn what was decided; it never changes the selection.
+--format text (AFP-V0-928) writes the same affected-plan/1 plan as lines
+instead of JSON: "affected <summary.line> revision=SHA [base=SHA]", one
+"selected UNIT tests=N WITNESS <- DIRTY_PATH [via A > B]" line per selection,
+one "unknown REASON DETAIL [hint TEXT]" line per plan unknown, the exclusion
+count and digest, and one "check KIND COMMAND" line per advice check with the
+advisory packages appended. It cannot be combined with --full or
+--playwright-config; --format json (the default) is the JSON document.
+Example: corvint affected --base FULL_SHA --format text
 --full writes the affected-plan/0 document instead: every exclusion and every
 selected unit's test files. It runs no test, writes no repository state, and never claims
 that omitted tests are safe to skip; the provider keeps its own

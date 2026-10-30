@@ -15,6 +15,7 @@ import (
 	"reflect"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -444,12 +445,14 @@ func TestAffectedRejectsNonRepositoryAndExtraArguments(t *testing.T) {
 	}
 }
 
-// TestAFPV0201AffectedFormatIsRefusedWithAcceptedOptions pins the specific
-// --format refusal: it names the single JSON output and every accepted option
-// instead of the generic unrecognized-arguments message (V1-2348).
-func TestAFPV0201AffectedFormatIsRefusedWithAcceptedOptions(t *testing.T) {
+// TestAFPV0928AffectedFormatRefusesOtherValuesWithAcceptedOptions pins the
+// --format refusal, amending AFP-V0-201 (V1-2348, V1-3148): a value other
+// than json or text, a missing value, a repetition, and text with --full are
+// refused with invalid-arguments, naming the accepted values and every
+// accepted option instead of the generic unrecognized-arguments message.
+func TestAFPV0928AffectedFormatRefusesOtherValuesWithAcceptedOptions(t *testing.T) {
 	t.Parallel()
-	for _, arguments := range [][]string{{"affected", "--format", "json"}, {"affected", "--format=table"}, {"affected", "--full", "--format"}} {
+	for _, arguments := range [][]string{{"affected", "--format=table"}, {"affected", "--full", "--format"}, {"affected", "--format", "yaml"}} {
 		var stdout, stderr bytes.Buffer
 		if code := runContext(context.Background(), append([]string{"--root", t.TempDir()}, arguments...), strings.NewReader(""), &stdout, &stderr); code != 2 {
 			t.Fatalf("%q must exit 2, got %d: %s", arguments, code, stderr.String())
@@ -458,14 +461,68 @@ func TestAFPV0201AffectedFormatIsRefusedWithAcceptedOptions(t *testing.T) {
 		if err := json.Unmarshal(stderr.Bytes(), &refusal); err != nil {
 			t.Fatalf("%q: stderr is not one JSON refusal: %v: %s", arguments, err, stderr.String())
 		}
-		if refusal.Code != "invalid-arguments" || strings.Contains(refusal.Error, "unrecognized arguments") || !strings.Contains(refusal.Error, "affected has no --format option") {
+		if refusal.Code != "invalid-arguments" || strings.Contains(refusal.Error, "unrecognized arguments") || !strings.Contains(refusal.Error, "affected --format accepts json or text") {
 			t.Fatalf("%q: refusal is not the specific --format message: %+v", arguments, refusal)
 		}
-		for _, option := range []string{"--base", "--full", "--path", "--provider", "--require-clean", "--selection-profile", "--snapshot"} {
+		for _, option := range []string{"--base", "--format", "--full", "--path", "--provider", "--require-clean", "--selection-profile", "--snapshot"} {
 			if !strings.Contains(refusal.Error, option) {
 				t.Fatalf("%q: refusal does not name accepted option %s: %s", arguments, option, refusal.Error)
 			}
 		}
+	}
+	for _, arguments := range [][]string{{"affected", "--format", "json", "--format", "json"}, {"affected", "--format", "text", "--full"}} {
+		var stdout, stderr bytes.Buffer
+		if code := runContext(context.Background(), append([]string{"--root", t.TempDir()}, arguments...), strings.NewReader(""), &stdout, &stderr); code != 2 || !strings.Contains(stderr.String(), "invalid-arguments") {
+			t.Fatalf("%q must be refused with invalid-arguments, got %d: %s", arguments, code, stderr.String())
+		}
+	}
+}
+
+// TestAFPV0928AffectedFormatTextRestatesThePlan: --format json is the default
+// document byte for byte, and --format text states the summary line, one
+// `selected` line per selection with its witness, one `unknown` line per plan
+// unknown and the advisory command with its packages (V1-3148).
+func TestAFPV0928AffectedFormatTextRestatesThePlan(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	writeAffectedFiles(t, root, map[string]string{"core/core.go": "package core\n\n// Core is edited.\nfunc Core() int { return 2 }\n"})
+	run := func(arguments ...string) string {
+		var stdout, stderr bytes.Buffer
+		if code := runContext(context.Background(), append([]string{"--root", root, "affected"}, arguments...), strings.NewReader(""), &stdout, &stderr); code != 0 {
+			t.Fatalf("%q exit %d: %s", arguments, code, stderr.String())
+		}
+		return stdout.String()
+	}
+	plain, asJSON, text := run(), run("--format", "json"), run("--format=text")
+	if plain != asJSON {
+		t.Fatalf("--format json differs from the default document:\n%s\n%s", plain, asJSON)
+	}
+	var receipt affectedCompactReceipt
+	if err := json.Unmarshal([]byte(plain), &receipt); err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSuffix(text, "\n"), "\n")
+	if want := "affected " + receipt.Summary.Line + " revision=" + receipt.Revision; lines[0] != want {
+		t.Fatalf("first line %q, want %q", lines[0], want)
+	}
+	count := func(prefix string) int {
+		n := 0
+		for _, line := range lines {
+			if strings.HasPrefix(line, prefix) {
+				n++
+			}
+		}
+		return n
+	}
+	if len(receipt.Plan.Selected) == 0 || count("selected ") != len(receipt.Plan.Selected) || count("unknown ") != len(receipt.Plan.Unknown) {
+		t.Fatalf("text does not restate the plan (%d selected, %d unknown):\n%s", len(receipt.Plan.Selected), len(receipt.Plan.Unknown), text)
+	}
+	first := receipt.Plan.Selected[0]
+	if !strings.Contains(text, "selected "+first.UnitID+" tests="+strconv.Itoa(first.TestCount)+" "+first.Witness.Kind+" <- "+first.Witness.DirtyPath) {
+		t.Fatalf("first selection is not restated with its witness:\n%s", text)
+	}
+	if len(receipt.Provider.Go.Packages) != 0 && !strings.Contains(text, shellQuoteJoin(receipt.Provider.Go.Packages)) {
+		t.Fatalf("advisory command lacks the provider packages:\n%s", text)
 	}
 }
 

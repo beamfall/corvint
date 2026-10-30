@@ -66,7 +66,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 // invocation is the declared command: argv `go test <go.flags> ./...` and
 // the environment with each go.env entry replacing any inherited value of
-// the same name.
+// the same name, except that an inherited CORVINT_GOCACHE replaces a declared
+// GOCACHE, as `corvint test` does (STR-V0-174).
 func invocation(declared sessiontest.Declared, environ []string) ([]string, []string) {
 	argv := append(append([]string{"go", "test"}, declared.GoFlags...), "./...")
 	env := make([]string, 0, len(environ)+len(declared.GoEnv))
@@ -76,7 +77,7 @@ func invocation(declared sessiontest.Declared, environ []string) ([]string, []st
 			env = append(env, entry)
 		}
 	}
-	return argv, append(env, declared.GoEnv...)
+	return argv, append(env, sessiontest.GoCacheOverride(declared.GoEnv, environ)...)
 }
 
 func declaredName(declared sessiontest.Declared, name string) bool {

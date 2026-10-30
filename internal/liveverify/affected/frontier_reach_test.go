@@ -161,3 +161,36 @@ func TestFrontierReachDeclarationsAreValidatedAtBuild_AFPV0511(t *testing.T) {
 		t.Fatalf("a well-formed declaration failed: %v", err)
 	}
 }
+
+// AFP-V0-929 (V1-3152): a frontier entry raised only through a dirty path no
+// plugin owns carries a Hint naming that path; an entry its plugin raises by
+// owning a dirty path carries none, and neither the entries nor the scope
+// change.
+func TestUnownedOnlyFrontierCarriesItsHint_AFPV0929(t *testing.T) {
+	goPlugin := fake{name: "go", units: []Unit{{ID: "go:pkg", Sources: []string{"pkg/pkg.go"}, Tests: []string{"pkg/pkg_test.go"}}}}
+	plainPlugin := fake{name: "z", frontier: []string{"z:import-unresolved:app.z:1 `./gone`"}, units: []Unit{{ID: "z:app", Sources: []string{"app.z"}, Tests: []string{"app_test.z"}}}}
+	graph, err := Build(context.Background(), t.TempDir(), goPlugin, bystander(), plainPlugin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := Select(graph, []string{"Makefile", "app.y", "docs/x.txt"})
+	if plan.Scope != ScopeUnknown {
+		t.Fatalf("scope %s, want UNKNOWN", plan.Scope)
+	}
+	want := unownedFrontierHint([]string{"Makefile", "docs/x.txt"})
+	if !strings.Contains(want, `"Makefile" (and 1 more UNOWNED_DIRTY_PATH)`) {
+		t.Fatalf("hint %q does not name the first unowned path and the rest", want)
+	}
+	for _, unknown := range plan.Unknown {
+		if unknown.Reason != UnknownLanguageFrontier {
+			continue
+		}
+		owned := strings.HasPrefix(unknown.Detail, "y:")
+		if owned && unknown.Hint != "" || !owned && unknown.Hint != want {
+			t.Errorf("%s: hint %q (owned by a dirty path: %v)", unknown.Detail, unknown.Hint, owned)
+		}
+	}
+	if got := languageFrontier(plan); len(got) != 6 {
+		t.Fatalf("frontier %v, want y's five entries and z's one", got)
+	}
+}
