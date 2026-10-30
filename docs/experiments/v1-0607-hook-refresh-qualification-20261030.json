@@ -1667,6 +1667,677 @@
      "19.73"
     ]
    }
-  ]
+  ],
+  "driver_fix_idle_rerun": {
+   "tuple": {
+    "cpuBurners": 0,
+    "core": "Corvint 1.0.0-rc.3.dev (build 7, commit 69ffd04cdb423c06e6fa623b194e926867d59328, modified)",
+    "coreB": "Corvint 1.0.0-rc.3.dev (build 8, commit 93b9f5b08ce841875c9c81d17905908d91346f99)",
+    "binarySha256": {
+     "corvint-fix2": "e9a211e35f0c828c5bac7207f39d3895c5a0971caf767b49b5172bb7c2a4dc03",
+     "corvint-b": "3088497d98a9130705ad3286393211a11d4b7e188bf59978742d3da8d0d3c4fd"
+    },
+    "adapterWire": "0.1.0",
+    "plugin": "corvint 0.3.6 (integrations/claude-code/plugins/corvint, hooks.json timeout 2 s)",
+    "hostEmulated": "Claude Code UserPromptSubmit command hook payload; host binary on PATH: 2.1.311 (Claude Code)",
+    "os": "Linux-6.18.38-Unraid-x86_64-with-glibc2.39",
+    "cpus": 12,
+    "trackedFiles": 10217,
+    "worktree": "clean linked worktree (git worktree add) of corvint at 93b9f5b08ce841875c9c81d17905908d91346f99"
+   },
+   "steps": [
+    {
+     "step": "A1-cold",
+     "binary": "corvint-fix2",
+     "ms": 1603,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "started",
+     "load": [
+      "1.61",
+      "4.42",
+      "9.48"
+     ],
+     "head": "93b9f5b08ce841875c9c81d17905908d91346f99",
+     "tree": "6b644ac7e348344d9d731a8051b5764b1c0341c7",
+     "dirty": 0,
+     "outputBytes": 965
+    },
+    {
+     "step": "A2-concurrent-during-refresh",
+     "ms": 1591,
+     "results": [
+      {
+       "rc": 0,
+       "refresh": "already running",
+       "context": false
+      },
+      {
+       "rc": 0,
+       "refresh": "already running",
+       "context": false
+      },
+      {
+       "rc": 0,
+       "refresh": "already running",
+       "context": false
+      },
+      {
+       "rc": 0,
+       "refresh": "already running",
+       "context": false
+      }
+     ],
+     "workers": 1
+    },
+    {
+     "step": "A3-refresh-done",
+     "refreshWaitMs": 7316,
+     "workersAfter": [],
+     "store": [
+      "build-cost.json",
+      "refresh.lock",
+      "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-e9a211e35f0c828c.gob"
+     ]
+    },
+    {
+     "step": "A4-next-hook",
+     "binary": "corvint-fix2",
+     "ms": 596,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.64",
+      "4.38",
+      "9.44"
+     ],
+     "head": "93b9f5b08ce841875c9c81d17905908d91346f99",
+     "tree": "6b644ac7e348344d9d731a8051b5764b1c0341c7",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "A5-packet-tree",
+     "ms": 621,
+     "rc": 0,
+     "packetRevision": "6b644ac7e348344d9d731a8051b5764b1c0341c7",
+     "freshness": "clean",
+     "taskEvidence": 2,
+     "matchesTree": true
+    },
+    {
+     "step": "B1-after-commit",
+     "binary": "corvint-fix2",
+     "ms": 143,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "started",
+     "load": [
+      "1.75",
+      "4.36",
+      "9.41"
+     ],
+     "head": "88cd94258da4f346865cd175244a0d861a96f65a",
+     "tree": "be329212136c193228202ea0d362f47193ba042e",
+     "dirty": 0,
+     "outputBytes": 965
+    },
+    {
+     "step": "B2-refresh-done",
+     "refreshWaitMs": 4500,
+     "workersAfter": [],
+     "store": [
+      "build-cost.json",
+      "refresh.lock",
+      "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-e9a211e35f0c828c.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-e9a211e35f0c828c.gob"
+     ]
+    },
+    {
+     "step": "B3-next-hook",
+     "binary": "corvint-fix2",
+     "ms": 606,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.77",
+      "4.32",
+      "9.37"
+     ],
+     "head": "88cd94258da4f346865cd175244a0d861a96f65a",
+     "tree": "be329212136c193228202ea0d362f47193ba042e",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "B4-packet-tree",
+     "ms": 617,
+     "rc": 0,
+     "packetRevision": "be329212136c193228202ea0d362f47193ba042e",
+     "freshness": "clean",
+     "taskEvidence": 2,
+     "matchesTree": true
+    },
+    {
+     "step": "C1-new-binary",
+     "binary": "corvint-b",
+     "ms": 144,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "started",
+     "load": [
+      "1.77",
+      "4.32",
+      "9.37"
+     ],
+     "head": "88cd94258da4f346865cd175244a0d861a96f65a",
+     "tree": "be329212136c193228202ea0d362f47193ba042e",
+     "dirty": 0,
+     "outputBytes": 965
+    },
+    {
+     "step": "C2-refresh-done",
+     "refreshWaitMs": 8083,
+     "workersAfter": [],
+     "store": [
+      "build-cost.json",
+      "refresh.lock",
+      "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-e9a211e35f0c828c.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-3088497d98a91307.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-e9a211e35f0c828c.gob"
+     ]
+    },
+    {
+     "step": "C3-next-hook",
+     "binary": "corvint-b",
+     "ms": 712,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.73",
+      "4.23",
+      "9.28"
+     ],
+     "head": "88cd94258da4f346865cd175244a0d861a96f65a",
+     "tree": "be329212136c193228202ea0d362f47193ba042e",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "C4-packet-tree",
+     "ms": 621,
+     "rc": 0,
+     "packetRevision": "be329212136c193228202ea0d362f47193ba042e",
+     "freshness": "clean",
+     "taskEvidence": 2,
+     "matchesTree": true
+    },
+    {
+     "step": "C5-old-binary-still-served",
+     "binary": "corvint-fix2",
+     "ms": 636,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.73",
+      "4.23",
+      "9.28"
+     ],
+     "head": "88cd94258da4f346865cd175244a0d861a96f65a",
+     "tree": "be329212136c193228202ea0d362f47193ba042e",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "D1-after-commit",
+     "binary": "corvint-fix2",
+     "ms": 147,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "started",
+     "load": [
+      "1.73",
+      "4.23",
+      "9.28"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 965
+    },
+    {
+     "step": "D2-killed",
+     "killed": [
+      "1235226 1235226  10 <fixture>/bin/corvint-fix2 --root <fixture>/fx/linked index --if-stale"
+     ],
+     "workersAfter": [],
+     "storeBefore": [
+      "build-cost.json",
+      "refresh.lock",
+      "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-e9a211e35f0c828c.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-3088497d98a91307.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-e9a211e35f0c828c.gob"
+     ],
+     "storeAfter": [
+      "build-cost.json",
+      "refresh.lock",
+      "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-e9a211e35f0c828c.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-3088497d98a91307.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-e9a211e35f0c828c.gob"
+     ],
+     "lockFree": true
+    },
+    {
+     "step": "D3-retry",
+     "binary": "corvint-fix2",
+     "ms": 146,
+     "rc": 0,
+     "outcome": "FALLBACK:corvint-event-rejected:dogfood-event-index-snapshot-stale",
+     "refresh": "started",
+     "load": [
+      "1.73",
+      "4.23",
+      "9.28"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1525
+    },
+    {
+     "step": "D4-refresh-done",
+     "refreshWaitMs": 4576,
+     "workersAfter": [],
+     "store": [
+      "build-cost.json",
+      "refresh.lock",
+      "sha1-6b644ac7e348344d9d731a8051b5764b1c0341c7-e9a211e35f0c828c.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-3088497d98a91307.gob",
+      "sha1-be329212136c193228202ea0d362f47193ba042e-e9a211e35f0c828c.gob",
+      "sha1-e5ab195153df76708271de8a40b7285667f25aa5-e9a211e35f0c828c.gob"
+     ]
+    },
+    {
+     "step": "D5-next-hook",
+     "binary": "corvint-fix2",
+     "ms": 602,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.67",
+      "4.17",
+      "9.24"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "D6-packet-tree",
+     "ms": 663,
+     "rc": 0,
+     "packetRevision": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "freshness": "clean",
+     "taskEvidence": 2,
+     "matchesTree": true
+    },
+    {
+     "step": "E-warm-00",
+     "binary": "corvint-fix2",
+     "ms": 609,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.67",
+      "4.17",
+      "9.24"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-01",
+     "binary": "corvint-fix2",
+     "ms": 619,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.67",
+      "4.17",
+      "9.24"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-02",
+     "binary": "corvint-fix2",
+     "ms": 612,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.78",
+      "4.15",
+      "9.20"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-03",
+     "binary": "corvint-fix2",
+     "ms": 615,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.78",
+      "4.15",
+      "9.20"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-04",
+     "binary": "corvint-fix2",
+     "ms": 717,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.78",
+      "4.15",
+      "9.20"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-05",
+     "binary": "corvint-fix2",
+     "ms": 613,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.78",
+      "4.15",
+      "9.20"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-06",
+     "binary": "corvint-fix2",
+     "ms": 605,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.78",
+      "4.15",
+      "9.20"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-07",
+     "binary": "corvint-fix2",
+     "ms": 631,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.78",
+      "4.15",
+      "9.20"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-08",
+     "binary": "corvint-fix2",
+     "ms": 611,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.78",
+      "4.15",
+      "9.20"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-09",
+     "binary": "corvint-fix2",
+     "ms": 615,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.80",
+      "4.12",
+      "9.16"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-10",
+     "binary": "corvint-fix2",
+     "ms": 612,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.80",
+      "4.12",
+      "9.16"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-11",
+     "binary": "corvint-fix2",
+     "ms": 609,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.80",
+      "4.12",
+      "9.16"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-12",
+     "binary": "corvint-fix2",
+     "ms": 609,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.80",
+      "4.12",
+      "9.16"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-13",
+     "binary": "corvint-fix2",
+     "ms": 603,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.80",
+      "4.12",
+      "9.16"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-14",
+     "binary": "corvint-fix2",
+     "ms": 618,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.80",
+      "4.12",
+      "9.16"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-15",
+     "binary": "corvint-fix2",
+     "ms": 611,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.80",
+      "4.12",
+      "9.16"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-16",
+     "binary": "corvint-fix2",
+     "ms": 613,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "1.80",
+      "4.12",
+      "9.16"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-17",
+     "binary": "corvint-fix2",
+     "ms": 705,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "2.05",
+      "4.13",
+      "9.14"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-18",
+     "binary": "corvint-fix2",
+     "ms": 614,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "2.05",
+      "4.13",
+      "9.14"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-warm-19",
+     "binary": "corvint-fix2",
+     "ms": 613,
+     "rc": 0,
+     "outcome": "CONTEXT",
+     "refresh": null,
+     "load": [
+      "2.05",
+      "4.13",
+      "9.14"
+     ],
+     "head": "5ecc7eb3c4969e53dddfe2e90e9462e0198cdd99",
+     "tree": "e5ab195153df76708271de8a40b7285667f25aa5",
+     "dirty": 0,
+     "outputBytes": 1023
+    },
+    {
+     "step": "E-summary",
+     "warmMs": {
+      "min": 603,
+      "p50": 613,
+      "p95": 705,
+      "max": 717
+     },
+     "warmContext": 20
+    }
+   ]
+  }
  }
 }

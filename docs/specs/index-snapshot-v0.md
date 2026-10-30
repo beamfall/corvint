@@ -792,21 +792,24 @@ snapshots refreshed automatically without a manual warmup.
   A leader-only SIGKILL test retains the descendant-cleanup residual and explicitly retires its
   surviving group. Tests own and reap every child. Cross-platform/live-host qualification remains separately named.
 - `IDX-SNAP-V0-515`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0607) A
-  writer that stops without publishing stays visible to the next start. On a nonzero exit the
-  worker replaces its `refresh.lock` metadata with `{"pid","started","ended","outcome"}`, where
+  writer that does not finish successfully stays visible to the next start. A worker that has
+  validated its inherited lock and then exits nonzero, including when lowering its priority is
+  refused, replaces the `refresh.lock` metadata with `{"pid","started","ended","outcome"}`, where
   `outcome` is `expired` when its 55-second work bound cancelled the build and `failed`
   otherwise; a completed writer still clears the metadata. A hard kill, crash or signal leaves
-  the running record. When a hook then wins the lock and starts a writer, the stale notice
-  (`AHI-053`) follows `Background index refresh started.` with one sentence: the previous
-  refresh, started at its parsed UTC second, ended without publishing a snapshot, its closed
-  cause (work limit under host load, failed, or stopped before recording an outcome), and that
-  later events may also get no Corvint context until a refresh completes. The sentence is dropped,
-  and the frame, status and manual argv kept, when it would push the hook output past its
-  8000-byte limit. Only the parsed start time
-  and the closed cause reach the notice; never the PID, raw bytes or an unknown outcome. The read
-  is at most 512 bytes of the lock the hook already holds. The record never feeds ranking,
-  evidence or authority, and the priority, GOMAXPROCS, work and hard wall bounds of
-  `IDX-SNAP-V0-033` are unchanged.
+  the running record. A left record does not prove that no snapshot was published: a writer can
+  publish and then fail or be killed in a later step, such as eviction or the build-cost record.
+  When a hook then wins the lock and starts a writer, the stale notice (`AHI-053`) follows
+  `Background index refresh started.` with one sentence: the previous refresh, started at its
+  parsed UTC second, did not finish successfully, its closed cause (work limit under host load,
+  failed, or stopped before recording an outcome), and that later events may also get no Corvint
+  context until a refresh completes. The sentence is dropped, and the frame, status and manual
+  argv kept, when it would push the hook output past its 8000-byte limit. Only the parsed start
+  time and one of the three closed causes reach the notice, never the PID or raw bytes: an
+  outcome other than `expired` or `failed` reads as stopped before recording an outcome, and a
+  record without a parseable start names nothing. The read is at most 512 bytes of the lock the
+  hook already holds. The record never feeds ranking, evidence or authority, and the priority,
+  GOMAXPROCS, work and hard wall bounds of `IDX-SNAP-V0-033` are unchanged.
 
 ### Accepted (2026-10-21, V1-2130, V1-1732, owner's standing auto-accept 2026-10-11): analyzer schema maintenance
 
@@ -1188,8 +1191,10 @@ stale fail-open and temporary sweep. The test helper logs NOT_OBSERVED when its 
 nice priority and substitutes only that scheduler syscall; this does not qualify real niceness,
 live host latency, Linux, or the V1-1120 load envelope. See the V1-1128 build-log entry for results.
 
-V1-0607 (`IDX-SNAP-V0-515`): `TestSnapshotRefreshPreviousOutcome` pins the closed causes and
-refuses malformed, PID-only and unknown-outcome records; `TestSnapshotRefreshNoticeNamesPreviousOutcome`
+V1-0607 (`IDX-SNAP-V0-515`): `TestSnapshotRefreshPreviousOutcome` pins the closed causes, names
+nothing for malformed and PID-only records, and reports an unknown outcome as stopped before
+recording one without echoing it; `TestSnapshotRefreshPriorityDenied` asserts the refused priority
+setup records `failed`; `TestSnapshotRefreshNoticeNamesPreviousOutcome`
 proves the hook notice carries the previous outcome and that the completing writer clears it;
 `TestSnapshotRefreshInterrupted` asserts that every killed mode is reported as stopped before
 recording an outcome. Linux live qualification through the real hook command, at idle and under

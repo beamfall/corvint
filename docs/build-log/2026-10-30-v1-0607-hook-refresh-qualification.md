@@ -67,7 +67,7 @@ under load, or keep them and make the repeated loss visible. Decision: keep the 
 they are owner-accepted (decision 0517) and protect interactive work, and add `IDX-SNAP-V0-515`.
 A writer that exits nonzero records `expired` or `failed` in its lock metadata. A killed writer
 leaves its running record. The next hook that starts a writer reads that record under the lock
-it holds, and its notice says that the previous refresh ended without publishing, its closed
+it holds, and its notice says that the previous refresh did not finish successfully, its closed
 cause, and that later events may also get no context until one completes. If that sentence
 would push the output past the 8000-byte limit it is dropped, so the frame and manual argv are
 never replaced by `corvint-output-too-large`. Each started writer overwrites
@@ -103,3 +103,22 @@ Focused tests: `go test -run 'Snapshot|Adapter|Claude|Codex|Refresh|Deadline|Dog
 `./conformance/host-lifecycle-v1`, and `-run 'Refresh|Snapshot|BuildCost' ./internal/contextindex`
 all PASS. The JavaScript host tests are NOT_RUN because this host has no Node. The other 71
 `corvint affected` units were selected as unbounded readers (`os.Getwd`) and are NOT_RUN.
+
+## Review fixes (Codex, relayed by the orchestrator)
+
+1. A left record does not prove that nothing was published: a writer can publish the snapshot and
+   then fail in the build-cost write or be killed during eviction. The notice now says the previous
+   refresh "did not finish successfully" instead of "ended without publishing a snapshot".
+2. A refused priority setup exited before the record existed. The worker now records `failed`
+   once its lock is validated, before returning; `TestSnapshotRefreshPriorityDenied` asserts it.
+3. The qualification driver signalled every `index --if-stale` process on the host. It now lists
+   and signals only process-group leaders that run one of its two binaries on its own fixture
+   root. Its burners lead their own sessions and are killed as groups, including at exit.
+4. The spec said unknown outcomes were refused while the test expected the generic cause. The
+   spec now says that an unknown outcome reads as stopped before recording one, without echoing it.
+
+Rerun at idle with the corrected driver and binary (`driver_fix_idle_rerun` in the evidence
+file): every step behaves as before. Step D killed only the fixture's own writer group, and the
+retry's notice carried the previous outcome (1525 bytes against 965). 20/20 warm hooks delivered
+context, with a p50 of 613 ms and a p95 of 705 ms. The `previous` strings in the earlier loaded
+runs keep the old wording, as recorded.

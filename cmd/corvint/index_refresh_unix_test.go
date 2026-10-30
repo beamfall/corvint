@@ -380,7 +380,7 @@ func TestSnapshotRefreshInterrupted(t *testing.T) {
 			lock.Close()
 			// Every mode here ends at a kill: the injected Git ignores cancellation, so even the
 			// expired writer meets its hard bound before it can record an outcome.
-			if !strings.Contains(previous, "ended without publishing a snapshot: it stopped before recording an outcome") {
+			if !strings.Contains(previous, "did not finish successfully: it stopped before recording an outcome") {
 				t.Fatalf("previous outcome %q", previous)
 			}
 			// A writer killed during encoding can leave a temporary. Readers must
@@ -481,7 +481,12 @@ func TestSnapshotRefreshPriorityDenied(t *testing.T) {
 	if err != nil || lock == nil {
 		t.Fatalf("denied worker retained lock: %v", err)
 	}
+	// Proposed IDX-SNAP-V0-515: the refused priority setup is recorded as failed.
+	previous := previousSnapshotRefresh(lock)
 	lock.Close()
+	if !strings.Contains(previous, "did not finish successfully: it failed.") {
+		t.Fatalf("denied worker left no failed outcome: %q", previous)
+	}
 }
 
 // Proposed IDX-SNAP-V0-515: a started refresh names how the previous writer stopped, from the
@@ -491,9 +496,9 @@ func TestSnapshotRefreshPreviousOutcome(t *testing.T) {
 		"":          "",
 		"not json":  "",
 		`{"pid":7}`: "",
-		`{"pid":7,"started":"2026-10-30T19:36:04.5Z"}`:                                                  "started at 2026-10-30T19:36:04Z, ended without publishing a snapshot: it stopped before recording an outcome",
+		`{"pid":7,"started":"2026-10-30T19:36:04.5Z"}`:                                                  "started at 2026-10-30T19:36:04Z, did not finish successfully: it stopped before recording an outcome",
 		`{"pid":7,"started":"2026-10-30T19:36:04Z","ended":"2026-10-30T19:37:00Z","outcome":"expired"}`: "it reached its 55-second work limit; heavy machine load can cause this",
-		`{"pid":7,"started":"2026-10-30T19:36:04Z","outcome":"failed"}`:                                 "ended without publishing a snapshot: it failed.",
+		`{"pid":7,"started":"2026-10-30T19:36:04Z","outcome":"failed"}`:                                 "did not finish successfully: it failed.",
 		`{"pid":7,"started":"2026-10-30T19:36:04Z","outcome":"<injected>"}`:                             "it stopped before recording an outcome",
 	}
 	for metadata, want := range cases {
@@ -526,7 +531,7 @@ func TestSnapshotRefreshNoticeNamesPreviousOutcome(t *testing.T) {
 	ctx, commands := refreshTestContext(t, root)
 	output := refreshEvent(ctx, root, "claude")
 	text := fmt.Sprint(output)
-	if adapterDegradationReason(output) != claudeSnapshotStaleReason || !strings.Contains(text, "Background index refresh started. The previous background refresh, started at 2000-01-01T00:00:00Z, ended without publishing a snapshot: it reached its 55-second work limit") {
+	if adapterDegradationReason(output) != claudeSnapshotStaleReason || !strings.Contains(text, "Background index refresh started. The previous background refresh, started at 2000-01-01T00:00:00Z, did not finish successfully: it reached its 55-second work limit") {
 		t.Fatalf("notice: %v", output)
 	}
 	waitRefreshExit(t, (*commands)[0])

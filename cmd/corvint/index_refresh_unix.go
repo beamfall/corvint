@@ -66,7 +66,7 @@ func startSnapshotRefreshReporting(ctx context.Context, root string) (string, st
 const snapshotRefreshMetadataBound = 512
 
 // snapshotRefreshRecord is the lock metadata: pid and start while a writer runs, plus its end
-// and outcome once it stopped without publishing (proposed IDX-SNAP-V0-515).
+// and outcome once it stopped without finishing successfully (proposed IDX-SNAP-V0-515).
 type snapshotRefreshRecord struct {
 	PID     int    `json:"pid"`
 	Started string `json:"started"`
@@ -75,7 +75,8 @@ type snapshotRefreshRecord struct {
 }
 
 // previousSnapshotRefresh reads the metadata of the lock the caller holds. A completed writer
-// truncates it, so any record left behind names a writer that stopped without publishing. Only
+// truncates it, so any record left behind names a writer that did not finish successfully; it may
+// still have published a snapshot before a later step failed or a kill landed. Only
 // the parsed start time and a closed outcome reach the notice, never the raw bytes or the PID.
 func previousSnapshotRefresh(lock *os.File) string {
 	buffer := make([]byte, snapshotRefreshMetadataBound)
@@ -95,7 +96,7 @@ func previousSnapshotRefresh(lock *os.File) string {
 	case "failed":
 		cause = "it failed"
 	}
-	return "The previous background refresh, started at " + started.UTC().Format(time.RFC3339) + ", ended without publishing a snapshot: " + cause + ". Until a refresh completes, later events may also get no Corvint context."
+	return "The previous background refresh, started at " + started.UTC().Format(time.RFC3339) + ", did not finish successfully: " + cause + ". Until a refresh completes, later events may also get no Corvint context."
 }
 
 func spawnSnapshotRefresh(ctx context.Context, root string, lock *os.File) string {
@@ -184,6 +185,9 @@ func runSnapshotRefreshWorker(arguments []string, wallBound time.Duration) int {
 	// Linux retains fd 3 and the original wall deadline across its self-exec.
 	if err := prepareSnapshotRefreshPriority(deadline); err != nil {
 		fmt.Fprintln(os.Stderr, "index refresh priority:", err)
+		// The lock is validated, so the refused start is recorded like any other failure.
+		now := time.Now().UTC().Format(time.RFC3339Nano)
+		_ = writeSnapshotRefreshRecord(lock, snapshotRefreshRecord{PID: os.Getpid(), Started: now, Ended: now, Outcome: "failed"})
 		return 2
 	}
 	// FD 3 belongs only to this worker, never its Git children.

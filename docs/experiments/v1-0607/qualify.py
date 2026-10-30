@@ -5,7 +5,7 @@ Drives `corvint adapter claude-code user-prompt` exactly as the shipped hooks.js
 (stdin JSON, CLAUDE_PROJECT_DIR, 2 s host timeout) on a clean linked worktree, and records
 per-step wall time, load, outcome, refresh state and the matching raw-event revision.
 """
-import json, os, signal, subprocess, sys, time, glob, platform
+import atexit, json, os, signal, subprocess, sys, time, glob, platform
 
 S, BIN_A, BIN_B, OUT = sys.argv[1:5]
 WT = os.path.join(S, "fx", "linked")
@@ -25,8 +25,15 @@ def load():
 
 
 def workers():
-    out = subprocess.run(["ps", "-eo", "pid,ni,args"], capture_output=True, text=True).stdout
-    return [line.strip() for line in out.splitlines() if "index --if-stale" in line and "ps -eo" not in line]
+    """Refresh workers this fixture owns: one of the two binaries under test, run on this fixture's
+    root, leading its own process group (the writer's setsid). Nothing else on the host is listed."""
+    out = subprocess.run(["ps", "-eo", "pid,pgid,ni,args"], capture_output=True, text=True).stdout
+    owned = []
+    for line in out.splitlines()[1:]:
+        fields = line.split(None, 3)
+        if len(fields) == 4 and fields[0] == fields[1] and fields[3] in (b + " --root " + WT + " index --if-stale" for b in (BIN_A, BIN_B)):
+            owned.append(line.strip())
+    return owned
 
 
 def store_files():
@@ -122,7 +129,9 @@ def burst(binary, label, count=4):
 
 
 LOAD = int(os.environ.get("QUAL_LOAD", "0"))
-burners = [subprocess.Popen(["timeout", "400", "sh", "-c", "while :; do :; done"]) for _ in range(LOAD)]
+# Each burner leads its own session so cleanup kills the loop itself, not only a wrapper.
+burners = [subprocess.Popen(["sh", "-c", "while :; do :; done"], start_new_session=True) for _ in range(LOAD)]
+atexit.register(lambda: [os.killpg(b.pid, signal.SIGKILL) for b in burners if b.poll() is None])
 time.sleep(20 if LOAD else 0)  # let the 1-minute load average climb
 tuple_ = {"cpuBurners": LOAD,
     "core": subprocess.run([BIN_A, "--version"], capture_output=True, text=True).stdout.strip(),
@@ -163,7 +172,7 @@ row = hook(BIN_A, "D1-after-commit")
 time.sleep(0.3)
 victims = workers()
 for line in victims:
-    os.killpg(int(line.split()[0]), signal.SIGTERM)
+    os.killpg(int(line.split()[0]), signal.SIGTERM)  # owned group only, see workers()
 time.sleep(0.5)
 steps.append({"step": "D2-killed", "killed": victims, "workersAfter": workers(), "storeBefore": before, "storeAfter": store_files(),
               "lockFree": subprocess.run(["flock", "-n", LOCK, "true"]).returncode == 0})
@@ -182,5 +191,6 @@ steps.append(summary)
 print(json.dumps(summary), flush=True)
 
 for burner in burners:
-    burner.kill()
+    os.killpg(burner.pid, signal.SIGKILL)
+    burner.wait()
 json.dump({"tuple": tuple_, "steps": steps}, open(OUT, "w"), indent=1)
