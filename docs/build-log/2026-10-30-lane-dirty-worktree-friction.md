@@ -6,7 +6,7 @@ worktree. `bin/` is not ignored, so `make dogfood-inputs-check` refused `dirty-w
 `.corvint/change.cem.json` sidecar looked like the cause, but finish-lane already admits it. Only a
 separate `git status` showed the binary.
 
-- `DCW-V0-390`: the `dirty-worktree` refusal from finish-lane and inputs-check now prints an
+- `DCW-V0-397`: the `dirty-worktree` refusal from finish-lane and inputs-check now prints an
   `uncommitted:` line between the `REFUSE` line and the `fix:` line. The line names at most five
   sorted, Go-quoted paths from Core's hardened probe and counts the rest. `gokernel.Repository`
   carries the sample as a string, which keeps the struct comparable for its `!=` callers. The sample

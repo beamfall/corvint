@@ -1927,7 +1927,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   beyond `DCW-V0-381`. Evidence: `TestProposeCitationsDCWV0389SkipsRecordedCommandOutput` (fails
   on BASE, citing the `raw/` capture). Rollback: remove the recorded-output clauses from
   `dataPath` and the draft's grep exclusions.
-- `DCW-V0-390`: (experimental under the standing lane auto-accept; sec-res-w2 lane friction; refines
+- `DCW-V0-397`: (experimental under the standing lane auto-accept; sec-res-w2 lane friction; refines
   `DCW-V0-060` and `DCW-V0-061`) A `dogfood finish-lane` or `dogfood-inputs-check` refusal
   `dirty-worktree` MUST print, between the `REFUSE` line and its `fix:` line, one
   `  uncommitted: P1 .. Pn[ and K more]` line. It names at most five of the dirty paths that Core's

@@ -273,7 +273,7 @@ Write the `CITATIONS`, `INTENTS` and `VERIFY` files into a directory only this l
 the tree: `"$(git rev-parse --absolute-git-dir)/corvint/lane-inputs/"` is unique per worktree. Build a
 lane-local `corvint` there too (`go build -o "$(git rev-parse --absolute-git-dir)/corvint/bin/corvint"
 ./cmd/corvint`), never into `./bin/`: that path is not ignored, so finish-lane refuses the
-untracked binary as `dirty-worktree` (`DCW-V0-390` now names it). A
+untracked binary as `dirty-worktree` (`DCW-V0-397` now names it). A
 shared path such as `/tmp/cites.tsv` lets another lane overwrite the plan between prepare and bind;
 finish-lane hashes every supplied input file before prepare and refuses
 `REFUSE input-changed-during-run step=<step>` naming each changed file (`DCW-V0-378`), instead of the

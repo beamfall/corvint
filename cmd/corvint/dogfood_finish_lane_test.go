@@ -276,7 +276,7 @@ func TestDogfoodFinishLaneDCWV0060RefusesBeforeAnyStep(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(root, ".corvint/dogfood-report.json")); !os.IsNotExist(err) {
 		t.Fatalf("a refused run wrote a report: %v", err)
 	}
-	// DCW-V0-390: the refusal names at most five sorted paths, quoted, and counts the rest.
+	// DCW-V0-397: the refusal names at most five sorted paths, quoted, and counts the rest.
 	for _, name := range []string{"a\x1b[31m.txt", "b.txt", "c.txt", "d.txt", "e.txt", "f.txt"} {
 		cemWrite(t, root, name, "draft\n")
 	}

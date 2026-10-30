@@ -335,7 +335,7 @@ func (l *finishLane) requireCleanWorktree(committed, sealed bool) {
 	}
 	l.say("%s: REFUSE dirty-worktree\n", l.prefix)
 	// Naming the paths saves a status round trip; the sample is sorted and
-	// bounded, and each path is quoted so no byte reaches the terminal raw (DCW-V0-390).
+	// bounded, and each path is quoted so no byte reaches the terminal raw (DCW-V0-397).
 	more := ""
 	if extra := repository.DirtyPathCount - min(repository.DirtyPathCount, gokernel.DirtySampleSize); extra > 0 {
 		more = fmt.Sprintf(" and %d more", extra)

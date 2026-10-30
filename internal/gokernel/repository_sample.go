@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// DirtySampleSize bounds the dirty paths a refusal may name (DCW-V0-390).
+// DirtySampleSize bounds the dirty paths a refusal may name (DCW-V0-397).
 const DirtySampleSize = 5
 
 // dirtySample is Repository.DirtySample: the first sorted dirty paths, at
