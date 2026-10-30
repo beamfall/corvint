@@ -403,7 +403,22 @@ func Run(env Env) int {
 	if isOmitted(args[0]) {
 		return emit(env.Stdout, notRun([]string{args[0]}))
 	}
-	return emit(env.Stdout, usage([]string{"help"}, "unknown verb; run `corvint-tasks help`"))
+	return emit(env.Stdout, usage([]string{"help"}, unknownVerbHint(args[0])))
+}
+
+// unknownVerbHint names the implemented verbs whose last word is the unknown
+// first word, so a guessed `heartbeat --help` routes to `attempt heartbeat`.
+func unknownVerbHint(word string) string {
+	var matches []string
+	for _, verb := range ReadVerbs {
+		if i := strings.LastIndexByte(verb, ' '); i >= 0 && verb[i+1:] == word {
+			matches = append(matches, "`corvint-tasks "+verb+" --help`")
+		}
+	}
+	if len(matches) == 0 {
+		return "unknown verb; run `corvint-tasks help`"
+	}
+	return "unknown verb; did you mean " + strings.Join(matches, " or ") + "? run `corvint-tasks help` for every verb"
 }
 
 func isOmitted(verb string) bool {
