@@ -512,6 +512,7 @@ steps() {
     args=${s#*|}
     printf 'gofmt -l %s (%s)\tout=$(cd %q && gofmt -l %s) || exit 1; [ -z "$out" ] || { printf "%%s\\n" "$out"; exit 1; }\n' "$args" "$dir" "$dir" "$args"
   done
+  printf 'ai-coauthor-trailers (%s)\t%q --batch %q\n' "$(git rev-parse --short HEAD)" "${0%/*}/check-ai-coauthor-trailers.sh" "$base" # ASD-V0-560, V1-3227
   printf 'sync-check\t%q --sync-check\n' "$0"
   # ASD-V0-071 (V1-3227): no commit since the base (else origin/main) carries an AI trailer; HEAD
   # is in the command, so a ledger pass never covers a reworded commit. ASD-V0-073 (V1-3238): every

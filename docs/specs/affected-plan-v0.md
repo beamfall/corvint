@@ -2541,12 +2541,27 @@ accepted before promotion.
   comment is removed, so the last statement can continue, and once as written, so a `#` inside a
   string does not hide a later import; the lines a continued statement spans are scanned again on
   their own without the conditional-import flag, so a string that only looks like an open import
-  never hides the imports after it. A reference is recorded once per file. A `;` inside a string can
-  add a spurious edge, which only widens selection. Evidence:
+  never hides the imports after it. A reference is recorded once per file. Evidence:
   `TestAFPV0680EverySemicolonStatementIsAnImport` (fails without the change: `import a; import b`
   did not select the test when `b.py` changed). Rollback: restore the single
   `strings.HasPrefix(trimmed, ...)` check, the `index = next` advance and the one `parseImportLine`
-  call in `scanImports`.
+  call in `scanImports`. Amended for V1-3044 (2026-10-30, same auto-accept): an import that is the
+  body of a one-line compound statement (`if x: import a`, `try: import a`, `except ImportError:
+  import b`, `with c: import a`, `def f(): import a`, any of `if elif else try except finally with
+  while for def class async case`) MUST add its edges too; the header ends at its first colon outside
+  brackets and string literals that is not the walrus `:=`, and such an import raises
+  `python:conditional-import` like an indented one, so a test whose only import of a changed module
+  is conditional is still selected. A header colon the scan cannot find leaves the line unread, as
+  before. Evidence: `TestAFPV0680CompoundStatementBodyIsAnImport` (fails without the amendment:
+  `if x: import b` did not select the test when `b.py` changed). Rollback: restore the boolean
+  `hasImportStatement` and drop `importStatement` and `compoundBody`. Amended again (2026-10-30, V1-3044
+  review): a `;` separates statements only outside string literals (single, double and triple
+  quoted, with backslash escapes) and before a `#` comment, so `if ";" in value: import b` keeps
+  its header and adds its edge; a line that ends inside a string literal and mentions `import`
+  MUST raise `python:conditional-import`, never nothing, since its statements are not known.
+  Evidence: the `semicolon in a string`, `semicolon in a triple`, `escaped quote` and `open triple
+  string` cases of `TestAFPV0680CompoundStatementBodyIsAnImport` (each fails with a plain split on
+  `;`). Rollback: replace `splitStatements` with `strings.Split(line, ";")` and drop `stringEnd`.
 - **AFP-V0-681:** (experimental under the standing lane auto-accept, 2026-10-28; V1-3002) An
   import of a dotted name MUST add an edge to the unit of every observed module name that prefixes
   it, not only the longest: Python runs each ancestor package's `__init__.py` before the submodule,
@@ -5881,7 +5896,7 @@ stream truncated by the runner lists the unfinished packages and `no package-lev
 | AFP-V0-187 | `scanImports`, `joinContinuation` in `internal/liveverify/affected/python/python.go` | `TestAFPV0187MultiLineFromImportReadsEveryName`; `TestAFPV0187ContinuationLinesAreNotStatements` |
 | AFP-V0-188 | `scanImports`, `pluginsAssignment`, `pluginModules`, `FrontierPytestPlugins` | `TestAFPV0188PytestPluginsAreImports` |
 | AFP-V0-189 | `linkConftests` | `TestAFPV0189ConftestSelectsEveryTestBelowIt` |
-| AFP-V0-680 | `scanImports`, `hasImportStatement`, `isImportStatement` in `internal/liveverify/affected/python/python.go` | `TestAFPV0680EverySemicolonStatementIsAnImport` |
+| AFP-V0-680 | `scanImports`, `hasImportStatement`, `splitStatements`, `stringEnd`, `isImportStatement`, `importStatement`, `compoundBody` in `internal/liveverify/affected/python/python.go` | `TestAFPV0680EverySemicolonStatementIsAnImport`, `TestAFPV0680CompoundStatementBodyIsAnImport` |
 | AFP-V0-681 | `resolveRef`, `resolve` | `TestAFPV0681SubmoduleImportReachesEveryAncestorPackage`; `TestResolveRefPrefersTheLongestObservedModule` |
 | AFP-V0-682 | the `moduleNames` owner lists in `UnitsSource`, `resolveRef`, `resolve` | `TestAFPV0682SourceRootAliasReachesEveryOwner` |
 | AFP-V0-190 | `workspaceDirectories`, `appendUse`, `FrontierWorkspaceUnparsed` in `internal/liveverify/affected/golang/golang.go`; `CommittedReadScopes` in `golang/readscopes.go` | `TestWorkspaceUseSetIsTheStrictReaders_AFPV0190`; `TestBaseReadScopesFollowCommittedReadScopes_AFPV0050` (a go.work that is an empty tree) |
