@@ -805,9 +805,12 @@ const claudeSnapshotStaleReason = "corvint-event-rejected:dogfood-event-index-sn
 // and the explicit refresh argv (AHI-031).
 func snapshotRemediation(ctx context.Context, root string) string {
 	refresh, _ := json.Marshal([]string{"corvint", "--root", root, "index", "--if-stale"})
-	status := startSnapshotRefresh(ctx, root)
+	status, previous := startSnapshotRefreshReporting(ctx, root)
+	if previous != "" {
+		previous = " " + previous
+	}
 	if status != "disabled" {
-		return "\nNo index snapshot matches the current tree, and building one in memory does not fit the hook deadline. Background index refresh " + status + ". Manual fallback, outside the hook:\n" + string(refresh)
+		return "\nNo index snapshot matches the current tree, and building one in memory does not fit the hook deadline. Background index refresh " + status + "." + previous + " Manual fallback, outside the hook:\n" + string(refresh)
 	}
 	return "\nNo index snapshot matches the current tree, and building one in memory does not fit the hook deadline. Refresh the snapshot once, outside the hook:\n" + string(refresh)
 }

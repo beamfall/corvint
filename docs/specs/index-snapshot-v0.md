@@ -791,6 +791,20 @@ snapshots refreshed automatically without a manual warmup.
   check, and killed/expired-writer checks including stale temporary sweep and descendant retirement.
   A leader-only SIGKILL test retains the descendant-cleanup residual and explicitly retires its
   surviving group. Tests own and reap every child. Cross-platform/live-host qualification remains separately named.
+- `IDX-SNAP-V0-515`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0607) A
+  writer that stops without publishing stays visible to the next start. On a nonzero exit the
+  worker replaces its `refresh.lock` metadata with `{"pid","started","ended","outcome"}`, where
+  `outcome` is `expired` when its 55-second work bound cancelled the build and `failed`
+  otherwise; a completed writer still clears the metadata. A hard kill, crash or signal leaves
+  the running record. When a hook then wins the lock and starts a writer, the stale notice
+  (`AHI-053`) follows `Background index refresh started.` with one sentence: the previous
+  refresh, started at its parsed UTC second, ended without publishing a snapshot, its closed
+  cause (work limit under host load, failed, or stopped before recording an outcome), and that
+  later events also get no Corvint context until a refresh completes. Only the parsed start time
+  and the closed cause reach the notice; never the PID, raw bytes or an unknown outcome. The read
+  is at most 512 bytes of the lock the hook already holds. The record never feeds ranking,
+  evidence or authority, and the priority, GOMAXPROCS, work and hard wall bounds of
+  `IDX-SNAP-V0-033` are unchanged.
 
 ### Accepted (2026-10-21, V1-2130, V1-1732, owner's standing auto-accept 2026-10-11): analyzer schema maintenance
 
@@ -1084,6 +1098,16 @@ and manual argv. A busy writer produces an already-running notice; killed/expire
 no partial published snapshot, release flock automatically and retain only stale metadata or
 unpublished temporaries until retry/sweep. A tree moving again can still miss on the next hook.
 
+Measured, V1-0607 (2026-10-30, linux/amd64, 12 CPUs): a cold refresh of the Corvint tree costs
+about 8 CPU-seconds at `GOMAXPROCS=1`. Against sustained CPU load at normal priority (36 to 72
+busy loops) the nice +10 writer can get too little CPU to finish within the 60-second bound:
+writers were killed at the hard bound, never at the 55-second cancel, and published nothing.
+Each later hook started another doomed writer, so context stayed lost for as long as the load
+lasted. One 36-loop rerun finished in 35 s, so the outcome depends on scheduling. With the load
+itself at nice 15 the writer finished in 27 s. A writer at nice 0 still took 88 s under 36 loops.
+`IDX-SNAP-V0-515` makes the repeated expiry visible; recovering under such load needs either a
+lower-priority load (V1-2440) or an owner amendment to the `IDX-SNAP-V0-033` bounds.
+
 - A rebuilt binary: the engine digest changes, every existing snapshot misses, `index` must be
   rerun. Development builds pay a build per binary.
 - A snapshot written by a different Corvint version with the same engine digest: impossible by
@@ -1161,6 +1185,13 @@ at its readiness marker, then independently checks child retirement, lock recove
 stale fail-open and temporary sweep. The test helper logs NOT_OBSERVED when its sandbox denies
 nice priority and substitutes only that scheduler syscall; this does not qualify real niceness,
 live host latency, Linux, or the V1-1120 load envelope. See the V1-1128 build-log entry for results.
+
+V1-0607 (`IDX-SNAP-V0-515`): `TestSnapshotRefreshPreviousOutcome` pins the closed causes and
+refuses malformed, PID-only and unknown-outcome records; `TestSnapshotRefreshNoticeNamesPreviousOutcome`
+proves the hook notice carries the previous outcome and that the completing writer clears it;
+`TestSnapshotRefreshInterrupted` asserts that every killed mode is reported as stopped before
+recording an outcome. Linux live qualification through the real hook command, at idle and under
+load, is in `docs/experiments/v1-0607-hook-refresh-qualification-20261030.json`.
 
 `internal/contextindex/snapshot_test.go` (round trip equals the built index, dirty paths applied
 from status, a new tree misses); `cmd/corvint/index_snapshot_test.go` (`context` never creates
@@ -1272,6 +1303,7 @@ topic, the dispatch line in `cmd/corvint/main.go`, the two lines in `runTaskCont
 | IDX-SNAP-V0-035 (accepted, decision 0517) | `snapshotRemediation` | `TestSnapshotRefreshDisabledAndFailures` |
 | IDX-SNAP-V0-036 (accepted, decision 0517) | refresh regression matrix | `TestSnapshotRefreshCommitThenEvent`, `TestSnapshotRefreshSingleFlight`, `TestSnapshotRefreshInterrupted` |
 | IDX-SNAP-V0-037 (standing auto-accept, V1-0328) | `BuildForSnapshot`, `snapshotReuseEnabled`, `loadReusePrior`, `priorFacts`, `takeUnchanged`, `attach`, `buildReusedVocabulary`, `mergeReusedPostings` | `TestSnapshotReuseMatchesColdBuild`, `TestSnapshotReuseRefusesUnverifiedPrior`, `TestSnapshotReuseRefusesRowsBoundToOtherBlobs`, `TestSnapshotReuseRecomputesIdentGraphForUnchangedReferrers`, `TestMergeReusedPostingsEqualsFullInversion`, `TestColdAndIncrementalSnapshotsAreByteIdentical` |
+| IDX-SNAP-V0-515 (standing) | `previousSnapshotRefresh`, `writeSnapshotRefreshRecord`, `runSnapshotRefreshWorker`, `startSnapshotRefreshReporting`, `snapshotRemediation` | `TestSnapshotRefreshPreviousOutcome`, `TestSnapshotRefreshNoticeNamesPreviousOutcome`, `TestSnapshotRefreshInterrupted`; live run `docs/experiments/v1-0607-hook-refresh-qualification-20261030.json` |
 | IDX-SNAP-V0-102 (standing auto-accept, V1-1640) | `noteSnapshotMissBuild`, `snapshotMissNoticeAfter`, `compileTaskContext` | `TestSnapshotMissNoticeNamesTheBuild` |
 | IDX-SNAP-V0-103 (standing auto-accept, V1-1640) | `mayHoldGenericImport`, `skipGenericImportSpaces`, `sourceImports` | `TestGenericImportPrefilterLosesNoMatch`, `FuzzGenericImportPrefilter` |
 | IDX-SNAP-V0-104 (standing auto-accept, V1-1640) | `withSnapshotMissNotice`, `timedMissBuild`, `repositoryQueryContext`, `authorityStartQueryContext` | `TestSnapshotMissNoticeNamesTheBuild` |
