@@ -79,9 +79,11 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   job stays pull-request only. A narrowed merge therefore keeps its full `main` push as the
   backstop, and that push still produces forward rows.
 - **CIN-V0-006:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3227)
-  On a pull request the `doc-gates` job SHALL run `script/check-ai-coauthor-trailers.sh
-  "$BASE_SHA" HEAD` and fail with it. A tree without the script, a merge-queue run and a push say
-  so and pass; the step carries the AFP-V0-670 REUSE condition.
+  On a pull request the `doc-gates` job SHALL run `make -s ai-coauthor-trailers-check` with
+  `BASE_SHA` set to the pull request's base, which runs `script/check-ai-coauthor-trailers.sh
+  "$BASE_SHA" HEAD` and fails with it; a make target keeps the step mirrorable by batch-precheck.
+  A pull request run without `BASE_SHA` SHALL fail. A tree without the script, a merge-queue run
+  and a push say so and pass; the step carries the AFP-V0-670 REUSE condition.
 - **CIN-V0-007:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-2902)
   A `go-product-shard` job SHALL NOT start when `docs-plan` succeeded with mode `DOCS` or `REUSE`,
   and `go-product` SHALL accept a skipped shard result only for that decision. A skip under any
@@ -135,7 +137,7 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-003 | `list_names` stop time in `names.sh`; `since`, `covered` and `reachedEpochSince` in `verdict.sh`; `FORWARD_EPOCH_SINCE` in `ci-forward-bar.yml` | `TestCINV0003VerdictListsBackToTheEpochSince` |
 | CIN-V0-004 | `listedAt` and `windowNames` in `verdict.sh` and `bar.jq`; the incremental branch of `accept.sh` | the `CIN-V0-004` cases of `TestAFPV0097VerdictAcceptance` (31 reads to 2 on the replay; malformed members fall back) |
 | CIN-V0-005 | `Decide` in `tools/ci-reuse-plan/main.go`; the pull-request-only `ci-narrowed-tree-record` job of `ci.yml` | `TestCINV0005PushNeverReusesANarrowedQueueRecord`; `TestAFPV0734NarrowedRecordJob` |
-| CIN-V0-006 | the "Refuse AI co-author trailers" step of `doc-gates` in `ci.yml` | `TestCINV0006DocGatesRefusesAICoauthorTrailersOnPullRequests`; `TestAFPV0670GatesWireExactTreeReuse` |
+| CIN-V0-006 | the "Refuse AI co-author trailers" step of `doc-gates` in `ci.yml`; the `ai-coauthor-trailers-check` target in `Makefile` | `TestCINV0006DocGatesRefusesAICoauthorTrailersOnPullRequests`; `TestAFPV0670GatesWireExactTreeReuse` |
 | CIN-V0-007 | the `go-product-shard` job condition and the `go-product` shard check of `ci.yml` | `TestCINV0007ShardsSkipAtJobLevelOnlyForADocsOrReuseDecision` |
 | CIN-V0-008 | the "Nested module tools/local-authority tests and vet" step of `go-static` in `ci.yml` | `TestCINV0008LocalAuthorityModuleTestsRunInGoStatic`; `TestAFPV0380InteropTestsRunOnceInGoStatic` |
 

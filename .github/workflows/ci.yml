@@ -88,21 +88,13 @@ jobs:
         if: needs.doc-gates-reuse.outputs.mode != 'REUSE'
         run: make -s doc-gates
       - name: Refuse AI co-author trailers in the pull request's commits (CIN-V0-006)
-        # V1-3227: no commit may credit an AI agent as a GitHub co-author. Pull requests only; a
-        # tree without the check script (before it lands) says so and passes.
+        # V1-3227: no commit may credit an AI agent as a GitHub co-author. A make target, so
+        # batch-precheck can mirror it; BASE_SHA is empty outside a pull request, where it skips,
+        # as it does on a tree without the check script (before it lands).
         if: needs.doc-gates-reuse.outputs.mode != 'REUSE'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: |
-          if [ "$GITHUB_EVENT_NAME" != pull_request ]; then
-            echo 'CIN-V0-006: not a pull request; the trailer check is skipped.'
-            exit 0
-          fi
-          if [ ! -f script/check-ai-coauthor-trailers.sh ]; then
-            echo 'CIN-V0-006: this tree has no script/check-ai-coauthor-trailers.sh; the trailer check is skipped.'
-            exit 0
-          fi
-          bash script/check-ai-coauthor-trailers.sh "$BASE_SHA" HEAD
+        run: make -s ai-coauthor-trailers-check
 
   doc-gates-record:
     # AFP-V0-670, AFP-V0-671: the only evidence the doc-gates-reuse decision accepts. It runs in a
