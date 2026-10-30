@@ -42,8 +42,12 @@ const (
 	// FrontierBuildConstraint reports a package with a file under a //go:build
 	// constraint or a GOOS/GOARCH file-name suffix. Every variant's imports
 	// are edges here, so the closure is a superset of each variant's; the
-	// reason is the unit's own and bears only on a plan that reaches it, whose
-	// tests one run exercises in one variant (AFP-V0-580).
+	// reason is the unit's own and bears only on a plan with a dirty path in
+	// the package's directory or an ancestor, where its files, go.mod and
+	// build configuration live and its variant set can change; a change
+	// elsewhere reaches every variant through the same union edges, and one
+	// run exercises the same host variant whatever it selects (AFP-V0-580 as
+	// amended by TSP-V0-001).
 	FrontierBuildConstraint = "go:build-constraint-variants"
 	// FrontierUnparsedSource reports a file the parser rejected.
 	FrontierUnparsedSource = "go:unparsed-source"
@@ -425,10 +429,12 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 		names, globs = nil, nil
 	}
 	var unitFrontier []string
+	var frontierBears string
 	if constrained {
 		unitFrontier = []string{FrontierBuildConstraint}
+		frontierBears = affected.FrontierBearsOnOwnFiles
 	}
-	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathGlobs: globSlice(globs), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: reads.locatesRoot, Frontier: unitFrontier}, importPaths, testImportPaths, command, patterns, nil
+	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathGlobs: globSlice(globs), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: reads.locatesRoot, Frontier: unitFrontier, FrontierBears: frontierBears}, importPaths, testImportPaths, command, patterns, nil
 }
 
 // platformNames are the GOOS and GOARCH values a file-name suffix constrains

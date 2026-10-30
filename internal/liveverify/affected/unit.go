@@ -75,7 +75,9 @@ const MaxPathsPerUnit = 20_000
 // Frontier holds the sorted, unique reasons that bear only on this unit: the
 // plan names them only when the unit is reached (V1-0289) or narrowed away as
 // a file-name reader (AFP-V0-072(4)); with FrontierBearsOnDependents only on a
-// plan that follows the unit's dependents (AFP-V0-581).
+// plan that follows the unit's dependents (AFP-V0-581); with
+// FrontierBearsOnOwnFiles only on a plan with a dirty path directly in the
+// unit's directory or an ancestor (TSP-V0-001).
 // TestImports name the units only the unit's own tests import. A change there
 // selects the unit's tests but reaches no importer of the unit, because an
 // importer never compiles another unit's tests (`go list -deps -test`).
@@ -119,6 +121,10 @@ const (
 	// FrontierBearsOnDependents names it only on a plan that follows the
 	// unit's dependents (AFP-V0-581).
 	FrontierBearsOnDependents = "DEPENDENTS"
+	// FrontierBearsOnOwnFiles names it only on a plan with a dirty path
+	// directly in the unit's own directory or in an ancestor, the only places
+	// its files and its module's build configuration live (TSP-V0-001).
+	FrontierBearsOnOwnFiles = "OWN_FILES"
 )
 
 // Result is what one Language plugin observed for a repository.
@@ -249,9 +255,11 @@ func validUnit(unit Unit, namespace string) error {
 	return validIdentifierList(unit.PathTokens)
 }
 
-// validFrontierBears accepts the empty and DEPENDENTS values.
+// validFrontierBears accepts the empty, DEPENDENTS and OWN_FILES values.
 func validFrontierBears(unit Unit) error {
-	if unit.FrontierBears != "" && unit.FrontierBears != FrontierBearsOnDependents {
+	switch unit.FrontierBears {
+	case "", FrontierBearsOnDependents, FrontierBearsOnOwnFiles:
+	default:
 		return ErrInvalidUnit
 	}
 	return nil

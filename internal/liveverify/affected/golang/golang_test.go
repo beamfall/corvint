@@ -810,8 +810,10 @@ func TestFileNameOnlyReadersKeepWhatTheyCanReach_AFPV0072(t *testing.T) {
 		{"docs/user guides/README.md", "UNKNOWN [guides/guides_test.go]"},
 		// A lexable component outside the vocabulary still narrows.
 		{"docs/user-guides/README.md", "UNKNOWN []"},
-		// variant is narrowed away, but its build-constraint frontier stays.
-		{"core/core.go", "UNKNOWN [core/core_test.go]"},
+		// variant is narrowed away; its build-constraint frontier bears only
+		// on a dirty path in variant/ (TSP-V0-001).
+		{"core/core.go", "BOUNDED [core/core_test.go]"},
+		{"variant/linux.go", "UNKNOWN [variant/variant_test.go]"},
 	}
 	for _, tc := range cases {
 		plan := affected.Select(graph, []string{tc.dirty})
@@ -819,14 +821,16 @@ func TestFileNameOnlyReadersKeepWhatTheyCanReach_AFPV0072(t *testing.T) {
 			t.Errorf("%s: %s, want %s (unknown %v)", tc.dirty, got, tc.want, plan.Unknown)
 		}
 	}
-	plan := affected.Select(graph, []string{"core/core.go"})
+	plan := affected.Select(graph, []string{"variant/linux.go"})
 	if got := fmt.Sprint(plan.Unknown); got != "[{LANGUAGE_FRONTIER go:build-constraint-variants}]" {
-		t.Errorf("core/core.go unknown = %s, want the narrowed variant's frontier", got)
+		t.Errorf("variant/linux.go unknown = %s, want the variant's own frontier", got)
 	}
 }
 
-// V1-0289: every build variant's imports are edges, so a constrained file
-// raises a frontier on its own package only, named by a plan that reaches it.
+// V1-0289, TSP-V0-001: every build variant's imports are edges, so a
+// constrained file raises a frontier on its own package only, named by a plan
+// with a dirty path in that package's directory. A dependency change reaches
+// the package through the union edges and selects it without the frontier.
 func TestBuildConstraintIsTheConstrainedPackagesFrontier_V1_0289(t *testing.T) {
 	root := t.TempDir()
 	writeFiles(t, root, map[string]string{
@@ -847,7 +851,8 @@ func TestBuildConstraintIsTheConstrainedPackagesFrontier_V1_0289(t *testing.T) {
 	}
 	cases := []struct{ dirty, want string }{
 		{"plain/plain.go", "BOUNDED [] [plain/plain_test.go]"},
-		{"core/core.go", "UNKNOWN [{LANGUAGE_FRONTIER go:build-constraint-variants}] [core/core_test.go variant/variant_test.go]"},
+		{"core/core.go", "BOUNDED [] [core/core_test.go variant/variant_test.go]"},
+		{"variant/linux.go", "UNKNOWN [{LANGUAGE_FRONTIER go:build-constraint-variants}] [variant/variant_test.go]"},
 	}
 	for _, tc := range cases {
 		plan := affected.Select(graph, []string{tc.dirty})
@@ -859,7 +864,8 @@ func TestBuildConstraintIsTheConstrainedPackagesFrontier_V1_0289(t *testing.T) {
 
 // V1-1818: a literal that may be concatenated keeps its outer fragments of
 // any length, so `"docs/a" + "lpha.go"` still names docs/alpha.go and its
-// root package keeps its build-constraint frontier, while a short outer
+// root package stays its reader (its build-constraint frontier bears only on
+// a dirty path in the root directory, TSP-V0-001), while a short outer
 // component the literal itself delimits (the `s/a` of a sed expression) is a
 // whole component and names only a path that has it whole.
 func TestShortFragmentsKeepConcatenatedReaders_V1_1818(t *testing.T) {
@@ -875,7 +881,7 @@ func TestShortFragmentsKeepConcatenatedReaders_V1_1818(t *testing.T) {
 		t.Fatal(err)
 	}
 	plan := affected.Select(graph, []string{"docs/alpha.go"})
-	want := "UNKNOWN [{LANGUAGE_FRONTIER go:build-constraint-variants} {NO_SELECTABLE_TEST go:example.test/m/docs}] [root_test.go]"
+	want := "UNKNOWN [{NO_SELECTABLE_TEST go:example.test/m/docs}] [root_test.go]"
 	if got := fmt.Sprint(plan.Scope, " ", plan.Unknown, " ", plan.SelectedTests()); got != want {
 		t.Errorf("docs/alpha.go: %s, want %s", got, want)
 	}
@@ -909,17 +915,21 @@ func TestShortFragmentsKeepConcatenatedReaders_V1_1818(t *testing.T) {
 	}
 }
 
-// AFP-V0-580: a GOOS or GOARCH file-name suffix makes a variant as a
-// //go:build line does, and the build-constraint frontier bears on every plan
-// that reaches the package. A variant file can call the package's other code,
-// so a change reaching the package through a plain file's import or literal
-// still changes what the variant runs (the file-local scoping was withdrawn).
-func TestBuildConstraintFrontierBearsOnEveryReach_AFP_V0_580(t *testing.T) {
+// AFP-V0-580, TSP-V0-001: a GOOS or GOARCH file-name suffix makes a variant
+// as a //go:build line does, and the build-constraint frontier bears only on a
+// plan with a dirty path in the package's own directory: a changed variant, a
+// changed plain file a variant calls, an added or deleted file, or any other
+// file there. A change that reaches the package from elsewhere (a dependency,
+// a data path its literal names) still selects it, through edges that are the
+// union over every variant, but leaves the plan BOUNDED.
+func TestBuildConstraintFrontierBearsOnOwnFiles_TSP_V0_001(t *testing.T) {
 	files := map[string]string{
 		"go.mod":                  "module example.test/m\n",
-		"variant/variant.go":      "package variant\n\nimport _ \"example.test/m/mid\"\n\nvar plain = \"data/plain.txt\"\n\nfunc helper() string { return plain }\n",
+		"variant/variant.go":      "package variant\n\nimport _ \"example.test/m/mid\"\n\nvar plain = \"data/plain.txt\"\n\nvar conf = \"build.conf\"\n\nfunc helper() string { return plain }\n",
 		"variant/os_windows.go":   "package variant\n\nvar win = helper()\n",
 		"variant/variant_test.go": "package variant\n",
+		"lib/inner/inner.go":      "//go:build linux\n\npackage inner\n\nimport _ \"example.test/m/mid\"\n\nvar conf = \"lib/inner.conf\"\n",
+		"lib/inner/inner_test.go": "package inner\n",
 		"mid/mid.go":              "package mid\n",
 		"mid/mid_test.go":         "package mid\n",
 		"other/other.go":          "package other\n",
@@ -932,19 +942,43 @@ func TestBuildConstraintFrontierBearsOnEveryReach_AFP_V0_580(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct {
-		dirty string
+		dirty []string
 		want  bool
 	}{
-		{"variant/variant.go", true},
-		{"mid/mid.go", true},
-		{"data/plain.txt", true},
-		{"other/other.go", false},
+		// The fallback: every change that can alter the variant set or what a
+		// variant compiles from keeps the frontier, so the plan stays UNKNOWN.
+		{[]string{"variant/variant.go"}, true},
+		{[]string{"variant/os_windows.go"}, true},
+		{[]string{"variant/gone_linux.go"}, true},
+		{[]string{"variant/notes.txt"}, true},
+		{[]string{"mid/mid.go", "variant/os_windows.go"}, true},
+		// An ancestor directory holds the manifests and build configuration
+		// that choose the toolchain and tags.
+		{[]string{"build.conf"}, true},
+		{[]string{"lib/inner.conf"}, true},
+		// Reached from elsewhere: selected, frontier not named.
+		{[]string{"mid/mid.go"}, false},
+		{[]string{"data/plain.txt"}, false},
+		{[]string{"other/other.go"}, false},
 	} {
-		plan := affected.Select(graph, []string{tc.dirty})
+		plan := affected.Select(graph, tc.dirty)
 		got := slices.Contains(plan.Unknown, affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: golang.FrontierBuildConstraint})
 		if got != tc.want {
-			t.Errorf("%s: build-constraint frontier %v, want %v (selected %v)", tc.dirty, got, tc.want, plan.Selected)
+			t.Errorf("%v: build-constraint frontier %v, want %v (selected %v)", tc.dirty, got, tc.want, plan.Selected)
 		}
+		if tc.want && plan.Scope != affected.ScopeUnknown {
+			t.Errorf("%v: scope %s, want %s", tc.dirty, plan.Scope, affected.ScopeUnknown)
+		}
+	}
+	// data/plain.txt is owned by no unit, so its plan keeps that unknown.
+	for _, dirty := range []string{"mid/mid.go", "data/plain.txt"} {
+		plan := affected.Select(graph, []string{dirty})
+		if !slices.Contains(plan.SelectedTests(), "variant/variant_test.go") {
+			t.Errorf("%s: tests %v; want the variant package selected", dirty, plan.SelectedTests())
+		}
+	}
+	if plan := affected.Select(graph, []string{"mid/mid.go"}); plan.Scope != affected.ScopeBounded {
+		t.Errorf("mid/mid.go: scope %s (unknown %v), want BOUNDED", plan.Scope, plan.Unknown)
 	}
 }
 

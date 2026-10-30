@@ -4140,5 +4140,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/test-selection-precision-v0.md",
+    "title": "Test Selection Precision V0",
+    "reqPrefix": "TSP-V0",
+    "intent": "experimental under the owner's standing lane auto-accept (2026-10-11; V1-3160); TSP-V0-001 amends AFP-V0-580",
+    "delivery": "experimental",
+    "claim": "`go:build-constraint-variants` is named only on a plan with a dirty path in the constrained package's own directory or an ancestor.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
