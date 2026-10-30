@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"github.com/Beamfall/corvint/internal/groupreap"
 	"os"
 	"os/exec"
@@ -11,6 +12,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -124,11 +126,27 @@ func portableDogfoodRunner(t *testing.T) portableRun {
 func (run portableRun) exec(t *testing.T, root string, extra []string, args ...string) (int, string, string) {
 	t.Helper()
 	var stdout, stderr strings.Builder
-	command := exec.Command(run.binary, args...)
-	command.Dir = root
-	command.Env = append(append([]string{}, run.env...), extra...)
-	command.Stdout, command.Stderr = &stdout, &stderr
-	err := command.Run()
+	// The binary was just copied, so a fork another parallel test makes can still hold its
+	// write descriptor and fail this start with ETXTBSY. Nothing started then, so the start is
+	// retried on workTextBusyRetries, as workStartAdapter does (ASD-V0-106, V1-3175).
+	var command *exec.Cmd
+	var err error
+	for attempt := 0; ; attempt++ {
+		stdout.Reset()
+		stderr.Reset()
+		command = exec.Command(run.binary, args...)
+		command.Dir = root
+		command.Env = append(append([]string{}, run.env...), extra...)
+		command.Stdout, command.Stderr = &stdout, &stderr
+		err = command.Start()
+		if err == nil || !errors.Is(err, syscall.ETXTBSY) || attempt == len(workTextBusyRetries) {
+			break
+		}
+		time.Sleep(workTextBusyRetries[attempt])
+	}
+	if err == nil {
+		err = command.Wait()
+	}
 	code := 0
 	if exit, ok := err.(*exec.ExitError); ok {
 		code = exit.ExitCode()
@@ -136,6 +154,33 @@ func (run portableRun) exec(t *testing.T, root string, extra []string, args ...s
 		t.Fatal(err)
 	}
 	return code, stdout.String(), stderr.String()
+}
+
+// TestPortableRunRetriesTextFileBusy holds the copied binary open for writing, as a concurrent
+// fork briefly can, so its first start fails with ETXTBSY on Linux; the runner must retry the
+// start and run it once the descriptor closes (ASD-V0-106, V1-3175).
+func TestPortableRunRetriesTextFileBusy(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("ETXTBSY on an open-for-write executable is Linux behavior")
+	}
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	held, err := os.OpenFile(run.binary, os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := exec.Command(run.binary, "--version").Run(); !errors.Is(err, syscall.ETXTBSY) {
+		held.Close()
+		t.Skipf("this host does not report ETXTBSY for a held executable: %v", err)
+	}
+	released := make(chan struct{})
+	go func() {
+		time.Sleep(30 * time.Millisecond)
+		held.Close()
+		close(released)
+	}()
+	run.ok(t, t.TempDir(), "--version")
+	<-released
 }
 
 func (run portableRun) ok(t *testing.T, root string, args ...string) string {

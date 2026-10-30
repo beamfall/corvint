@@ -1897,6 +1897,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   empty; byte-order and no-intent manifests accepted; an absent manifest keeps the generic fix;
   fails to build without the change) and the unsorted case of
   `TestDCWV0379InputsCheckRefusesEachPlanAndManifestDefect` through `dogfood inputs-check`.
+  Rollback: remove `manifestIssue` and its `fixHint` branch.
 - `DCW-V0-388`: (experimental under the standing lane auto-accept; V1-3130; amends `DCW-V0-112`
   and `DCW-V0-344`) A `cited` or `unknown` hunk for which an anchor is available, whose basis in
   the staged change map (the `DCW-V0-165` map bound to the same BASE) cites at least one evidence
@@ -1916,7 +1917,8 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `TestDCWV0388SamePathCitationIsANoteNotAWarning` (same-path note, cross-file and prefix-path
   hunks warned, unanchorable note kept first; refusals: unlisted evidence ID, suffix-only path, no
   basis, other base, unparsable map; fails with the classifier stubbed out).
-  Rollback: remove `manifestIssue` and its `fixHint` branch.
+  Rollback: remove `samePathHunks` and its use in `quietHunks`, the `samePathCnt` tally and the
+  `tierBelowAnchoredSamePath` note, so every such hunk is tier-warned again (V1-3171).
 - `DCW-V0-389`: (experimental under the standing lane auto-accept; V1-3118; extends `DCW-V0-381`)
   A citation draft MUST NOT cite recorded command output as an anchor: any file under a `raw/`
   directory and any `.stdout` or `.stderr` file, such as a `conformance/perf-v0/results/*/raw/`

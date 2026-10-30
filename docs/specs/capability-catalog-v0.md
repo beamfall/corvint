@@ -3,13 +3,13 @@
 Owner: Russell Lewis
 Date: 2026-10-20
 Requirement prefix: `CAP-V0`
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020); CAP-V0-015 to CAP-V0-021 accepted under the same standing auto-accept (beamfall/corvint#1588); CAP-V0-024 to CAP-V0-029 accepted under the same standing auto-accept (beamfall/corvint#1626); CAP-V0-030 to CAP-V0-032 accepted under the same standing auto-accept (beamfall/corvint#1784); CAP-V0-040 to CAP-V0-050 accepted under the same standing auto-accept (V1-2685)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020); CAP-V0-015 to CAP-V0-021 accepted under the same standing auto-accept (beamfall/corvint#1588); CAP-V0-024 to CAP-V0-029 accepted under the same standing auto-accept (beamfall/corvint#1626); CAP-V0-030 to CAP-V0-032 accepted under the same standing auto-accept (beamfall/corvint#1784); CAP-V0-040 to CAP-V0-050 accepted under the same standing auto-accept (V1-2685); CAP-V0-200 experimental under the standing lane auto-accept (2026-10-30; V1-3153)
 Delivery status: experimental
 Authoritative inputs: V1-2008 owner request (2026-10-20) "make sure corvints capabilities are properly documented so agents can fully understand what it can do", and the same-day scope addition for a README capability section; `../../AGENTS.md` invariants 2 and 8; `../AGENT-ROUTES.md`; beamfall/corvint#1588 (2026-10-23), a machine-readable command catalog generated from the command registry and a task-indexed guide shipped with the install.
 
 ## Agent digest
 - Claim: `llms.txt`, `docs/CAPABILITIES.md`, `corvint help --json`, the guide and per-binary command trees describe every command, flag and MCP tool; drift fails tests.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020); CAP-V0-015 to CAP-V0-021 accepted under the same standing auto-accept (beamfall/corvint#1588); CAP-V0-024 to CAP-V0-029 accepted under the same standing auto-accept (beamfall/corvint#1626); CAP-V0-030 to CAP-V0-032 accepted under the same standing auto-accept (beamfall/corvint#1784); CAP-V0-040 to CAP-V0-050 accepted under the same standing auto-accept (V1-2685)/experimental
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020); CAP-V0-015 to CAP-V0-021 accepted under the same standing auto-accept (beamfall/corvint#1588); CAP-V0-024 to CAP-V0-029 accepted under the same standing auto-accept (beamfall/corvint#1626); CAP-V0-030 to CAP-V0-032 accepted under the same standing auto-accept (beamfall/corvint#1784); CAP-V0-040 to CAP-V0-050 accepted under the same standing auto-accept (V1-2685); CAP-V0-200 experimental under the standing lane auto-accept (2026-10-30; V1-3153)/experimental
 - Exists: `docs/CAPABILITIES.md`, the README "What Corvint can do" section, `tools/capabilities-check` (its `go test` and `make capabilities-check`), and `internal/capcatalog` (`corvint help --json`, `corvint help guide`, `make capability-catalog`, `make capability-catalog-check`, and the offline Non-capabilities status guard `NONCAPABILITY-STATUS.tsv`), `internal/clitree` with the snapshots under `internal/capcatalog/trees/` and the shrink-only `CLI-RATCHET.tsv`, the root `llms.txt`, and catalog pointers in `AGENTS.md`, `docs/AGENT-ROUTES.md`, `docs/README.md` and the shipped Claude Code, Codex, Gemini CLI, OpenCode and OpenSpec skills.
 - Blocked on: the 52 `cmd/` binaries on the CLI ratchet have no command tree yet; subcommands and flags are gated against the command trees, not against the `docs/CAPABILITIES.md` rows, and profile membership and prose claims are not gated (see Failure modes); the guide ships inside the binary rather than as a release-archive member (owner-accepted as shipped with the install, 2026-10-23: a seventh member would break deployed updaters); the drift tests run in the existing Go test shards, and `capability-catalog-check` is not a separate CI step; `corvint-mcp` serves both through `corvint.help` (`MCPV0-100`), the other MCP servers do not; the Pi package text is not routed yet (its qualified adapter tuple pins the package bytes).
 - Read next: Requirements; Boundaries and failure modes; Traceability.
@@ -291,6 +291,22 @@ cannot silently go missing or outlive its command.
   MUST state that new functionality ships with its help and catalog entry and that the
   capabilities check enforces it. `CAP-V0-051` to `CAP-V0-059` are reserved for this slice and
   unassigned.
+- `CAP-V0-200`: (experimental under the standing lane auto-accept (2026-10-30); V1-3153; refines
+  `CAP-V0-041` and `CAP-V0-047`) The dispatch scan MUST NOT treat as this binary's arguments a
+  slice that a function body uses as a child process's argv: one it passes, whole, indexed,
+  sliced, spread or through `append`, to `exec.Command`, `exec.CommandContext` or `syscall.Exec`, assigns to a
+  `Cmd`'s `Args` field or sets as `Args:` in a composite literal, or binds to a `[]string{...}`
+  literal it builds. Words and options compared against such a slice or its elements in that
+  function are not scanned, so a helper named `argv` or `args` that builds a `git` or `go`
+  command line no longer demands tree entries for the child's words and flags. `os.Args`, any
+  selector's `Args` field, and a name the function binds from one of them or from an `Args()`
+  call (`flag.Args()`, a flag set's `Args()`) are never excluded, so a binary that re-executes
+  itself with its own arguments is still scanned; a slice the function only dispatches on is
+  scanned as before. Non-goals: data-flow tracking across functions or through a second name
+  (`a := argv` excludes only `a`). Failure mode: a function that both dispatches on an argument
+  parameter and execs that same parameter hides its dispatch words, a false negative the
+  repository's own trees show none of (the scan of all three trees is unchanged). Rollback:
+  remove `childScopes`, `commandLine` and the `childArgv` predicate.
 
 ## Boundaries and failure modes
 
@@ -441,3 +457,4 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-048 | `internal/capcatalog/CLI-RATCHET.tsv`, `readRatchet`, `ratchetCeiling`, `ratchetBaseline` | `TestCAPV0048RatchetMatchesCeiling`, `TestCAPV0047SyntheticDriftFails` (ratchet cases) |
 | CAP-V0-049 | `llms.txt`, `CheckEntryPoint`, `docs/CAPABILITIES.md` Command trees section | `TestCAPV0049LLMsEntryPointLinksEveryView`, `TestCAPV0005RoutingPointersNameTheCatalog` |
 | CAP-V0-050 | `AGENTS.md` Agent routing rule | `TestCAPV0050AgentsRuleNamesHelpCatalogAndGate` |
+| CAP-V0-200 | `clitree.ScanDirs` `childScopes`, `childArgv`, `commandLine`, `stringSliceLiteral` | `TestCAPV0047ChildArgvIsNotDispatch` (fails without the change: `--no-pager` and `--exec-child` scanned; `os.Args[1:]` and `flag.Args()` re-executed stay scanned), `TestCAPV0041ScanFindsDispatch`, `TestCAPV0047RepositoryCommandTreesMatchDispatch` |

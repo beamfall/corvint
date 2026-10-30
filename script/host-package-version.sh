@@ -13,7 +13,9 @@ set -euf
 # and each JSON edit is checked against jq's setpath of the same path before it is written.
 # Recorded evidence fields that name an older adapter version (lastValidation, lastConformance,
 # hostVersionEvidenceAdapterVersion) are never touched. A lit:NAME filter is a source-code
-# constant (AHI-240): the one quoted string assigned to NAME, as in NAME='X' or NAME = "X".
+# constant (AHI-240): the one quoted string assigned to NAME, as in NAME='X' or NAME = "X". A
+# tuple:FIELD filter is a spec's declared host tuple (AHI-522, V1-3170): the quoted FIELD value
+# inside the one `"tuple": {...}` object on a single line, as in the Pi capability inventory.
 
 root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"
@@ -32,7 +34,7 @@ known() {
 }
 
 # locations PKG: one "path|filter" line per version location; the first is the package manifest.
-# A filter is a jq path expression, yaml:PARENT.CHILD or lit:NAME.
+# A filter is a jq path expression, yaml:PARENT.CHILD, lit:NAME or tuple:FIELD.
 locations() {
     matrix='integrations/compatibility.json|.entries[]|select(.host=="'$1'")|.adapterVersion'
     case $1 in
@@ -55,7 +57,8 @@ locations() {
             'integrations/pi/package.json|.corvintIntegration.adapterVersion' \
             'integrations/pi/compatibility.json|.adapterVersion' "$matrix" \
             'integrations/pi/runtime.js|lit:PI_ADAPTER_VERSION' \
-            'cmd/corvint/pi_adapter.go|lit:piAdapterVersion' ;;
+            'cmd/corvint/pi_adapter.go|lit:piAdapterVersion' \
+            'docs/specs/pi-workflow-v0.md|tuple:adapterVersion' ;;
         speckit) printf '%s\n' 'protocol/integrations/speckit/corvint/extension.yml|yaml:extension.version' ;;
         openspec) printf '%s\n' 'protocol/integrations/openspec/skills/corvint-openspec/SKILL.md|yaml:metadata.version' ;;
         *) printf 'host package version: unknown package %s (one of: %s)\n' "$1" "$packages" >&2; exit 2 ;;
@@ -84,10 +87,16 @@ lit_field() {
     N=$1 perl -0ne '@m = /\b\Q$ENV{N}\E\s*=\s*["\x27]([^"\x27\n]*)["\x27]/g; exit 1 if @m != 1; print $m[0]' "$2"
 }
 
+# tuple_field FIELD FILE: the quoted FIELD value of the one single-line "tuple" object.
+tuple_field() {
+    F=$1 perl -0ne '@m = /"tuple":\s*\{[^}\n]*"\Q$ENV{F}\E":\s*"([^"\n]*)"/g; exit 1 if @m != 1; print $m[0]' "$2"
+}
+
 # read_field PATH FILTER: the value at one location, or a refusal naming it.
 read_field() {
     case $2 in
         lit:*) value=$(lit_field "${2#lit:}" "$1") || value= ;;
+        tuple:*) value=$(tuple_field "${2#tuple:}" "$1") || value= ;;
         yaml:*) key=${2#yaml:}; value=$(yaml_field "${key%%.*}" "${key#*.}" "$1") || value= ;;
         *) value=$(jq -er "[$2] | if length == 1 then .[0] else error end" "$1" 2>/dev/null) || value= ;;
     esac
@@ -102,6 +111,9 @@ set_field() {
     case $filter in
         lit:*)
             N=${filter#lit:} O=$old V=$new perl -0pe 's/(\b\Q$ENV{N}\E\s*=\s*["\x27])\Q$ENV{O}\E(["\x27])/$1$ENV{V}$2/' "$file" >"$tmp"
+            ;;
+        tuple:*)
+            F=${filter#tuple:} O=$old V=$new perl -0pe 's/("tuple":\s*\{[^}\n]*"\Q$ENV{F}\E":\s*")\Q$ENV{O}\E"/$1$ENV{V}"/' "$file" >"$tmp"
             ;;
         yaml:*)
             key=${filter#yaml:}

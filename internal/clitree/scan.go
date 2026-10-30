@@ -34,24 +34,193 @@ func argumentSlice(name string) bool {
 		lowered == "remaining" || lowered == "words" || lowered == "cmd"
 }
 
-func sliceName(expression ast.Expr) (string, bool) {
+// childArgv reports whether an identifier names a child-process argument
+// vector rather than this binary's command line (CAP-V0-047, CAP-V0-200).
+type childArgv func(*ast.Ident) bool
+
+func sliceName(expression ast.Expr, child childArgv) (string, bool) {
 	switch value := expression.(type) {
 	case *ast.Ident:
-		return value.Name, argumentSlice(value.Name)
+		return value.Name, argumentSlice(value.Name) && !child(value)
 	case *ast.SelectorExpr:
 		return value.Sel.Name, value.Sel.Name == "Args" || argumentSlice(value.Sel.Name)
 	case *ast.SliceExpr:
-		return sliceName(value.X)
+		return sliceName(value.X, child)
 	}
 	return "", false
 }
 
+// rootIdent returns the variable an argument expression reads: NAME, NAME[i],
+// NAME[i:j] or a parenthesized form of them.
+func rootIdent(expression ast.Expr) *ast.Ident {
+	switch value := expression.(type) {
+	case *ast.Ident:
+		return value
+	case *ast.IndexExpr:
+		return rootIdent(value.X)
+	case *ast.SliceExpr:
+		return rootIdent(value.X)
+	case *ast.ParenExpr:
+		return rootIdent(value.X)
+	}
+	return nil
+}
+
+// childScope is one function body and the slice names it uses as a
+// child-process argv there.
+type childScope struct {
+	start, end token.Pos
+	names      map[string]bool
+}
+
+// childScopes finds, per function body, the slices that are a child process's
+// argv, not this binary's arguments: a slice passed to exec.Command,
+// exec.CommandContext or syscall.Exec, assigned to a Cmd's Args field, or
+// bound to a []string composite literal it builds (V1-3153). A function that
+// both dispatches on a parameter and execs it keeps it as a child argv, so its
+// dispatch words are not scanned; os.Args, a selector's Args field and a name
+// the function binds from one of them or from an Args() call (flag.Args(),
+// set.Args()) are never excluded, so a binary that re-executes itself with its
+// own arguments is still scanned.
+func childScopes(file *ast.File) []childScope {
+	var scopes []childScope
+	ast.Inspect(file, func(n ast.Node) bool {
+		var body *ast.BlockStmt
+		switch fn := n.(type) {
+		case *ast.FuncDecl:
+			body = fn.Body
+		case *ast.FuncLit:
+			body = fn.Body
+		}
+		if body == nil {
+			return true
+		}
+		names, own := map[string]bool{}, map[string]bool{}
+		var mark func(ast.Expr)
+		mark = func(expression ast.Expr) {
+			// append(prefix, argv...) builds the child argv from its arguments.
+			if call, ok := expression.(*ast.CallExpr); ok {
+				if fn, ok := call.Fun.(*ast.Ident); ok && fn.Name == "append" {
+					for _, argument := range call.Args {
+						mark(argument)
+					}
+				}
+				return
+			}
+			if id := rootIdent(expression); id != nil {
+				names[id.Name] = true
+			}
+		}
+		bindOwn := func(name string, right ast.Expr) {
+			if commandLine(right) {
+				own[name] = true
+			}
+		}
+		ast.Inspect(body, func(m ast.Node) bool {
+			switch node := m.(type) {
+			case *ast.CallExpr:
+				selector, ok := node.Fun.(*ast.SelectorExpr)
+				if !ok {
+					return true
+				}
+				pkg, ok := selector.X.(*ast.Ident)
+				if !ok {
+					return true
+				}
+				switch {
+				case pkg.Name == "exec" && (selector.Sel.Name == "Command" || selector.Sel.Name == "CommandContext"),
+					pkg.Name == "syscall" && selector.Sel.Name == "Exec":
+					for _, argument := range node.Args {
+						mark(argument)
+					}
+				}
+			case *ast.AssignStmt:
+				if len(node.Lhs) != len(node.Rhs) {
+					return true
+				}
+				for index, left := range node.Lhs {
+					if selector, ok := left.(*ast.SelectorExpr); ok && selector.Sel.Name == "Args" {
+						mark(node.Rhs[index])
+					}
+					if id, ok := left.(*ast.Ident); ok {
+						bindOwn(id.Name, node.Rhs[index])
+						if stringSliceLiteral(node.Rhs[index]) {
+							names[id.Name] = true
+						}
+					}
+				}
+			case *ast.ValueSpec:
+				for index, name := range node.Names {
+					if index < len(node.Values) {
+						bindOwn(name.Name, node.Values[index])
+						if stringSliceLiteral(node.Values[index]) {
+							names[name.Name] = true
+						}
+					}
+				}
+			case *ast.CompositeLit:
+				// exec.Cmd{Args: argv}
+				for _, element := range node.Elts {
+					if pair, ok := element.(*ast.KeyValueExpr); ok {
+						if key, ok := pair.Key.(*ast.Ident); ok && key.Name == "Args" {
+							mark(pair.Value)
+						}
+					}
+				}
+			}
+			return true
+		})
+		for name := range own {
+			delete(names, name)
+		}
+		if len(names) > 0 {
+			scopes = append(scopes, childScope{body.Pos(), body.End(), names})
+		}
+		return true
+	})
+	return scopes
+}
+
+// commandLine reports whether an expression reads this binary's own command
+// line: os.Args (or a selector's Args field), an Args() call, or a slice or
+// element of one.
+func commandLine(expression ast.Expr) bool {
+	switch value := expression.(type) {
+	case *ast.SelectorExpr:
+		return value.Sel.Name == "Args"
+	case *ast.CallExpr:
+		selector, ok := value.Fun.(*ast.SelectorExpr)
+		return ok && selector.Sel.Name == "Args" && len(value.Args) == 0
+	case *ast.SliceExpr:
+		return commandLine(value.X)
+	case *ast.IndexExpr:
+		return commandLine(value.X)
+	case *ast.ParenExpr:
+		return commandLine(value.X)
+	}
+	return false
+}
+
+// stringSliceLiteral reports whether an expression is a []string{...} literal.
+func stringSliceLiteral(expression ast.Expr) bool {
+	literal, ok := expression.(*ast.CompositeLit)
+	if !ok {
+		return false
+	}
+	array, ok := literal.Type.(*ast.ArrayType)
+	if !ok || array.Len != nil {
+		return false
+	}
+	element, ok := array.Elt.(*ast.Ident)
+	return ok && element.Name == "string"
+}
+
 // position classifies an expression: fixed when it indexes an argument slice
 // at a constant, any when it is an argument element at a computed index.
-func position(expression ast.Expr, fixed, element map[string]bool) (isFixed, isElement bool) {
+func position(expression ast.Expr, fixed, element map[string]bool, child childArgv) (isFixed, isElement bool) {
 	switch value := expression.(type) {
 	case *ast.IndexExpr:
-		if _, ok := sliceName(value.X); !ok {
+		if _, ok := sliceName(value.X, child); !ok {
 			return false, false
 		}
 		_, constant := value.Index.(*ast.BasicLit)
@@ -62,7 +231,7 @@ func position(expression ast.Expr, fixed, element map[string]bool) (isFixed, isE
 		// strings.TrimSpace(args[0]), strings.ToLower(sub) and the like.
 		if selector, ok := value.Fun.(*ast.SelectorExpr); ok && len(value.Args) == 1 {
 			if pkg, ok := selector.X.(*ast.Ident); ok && pkg.Name == "strings" {
-				return position(value.Args[0], fixed, element)
+				return position(value.Args[0], fixed, element, child)
 			}
 		}
 	}
@@ -143,11 +312,20 @@ func scanPackage(fset *token.FileSet, files []*ast.File, words, flags map[string
 	}
 	for _, file := range files {
 		fixed, element, flagSets := map[string]bool{}, map[string]bool{}, map[string]bool{}
+		scopes := childScopes(file)
+		child := func(id *ast.Ident) bool {
+			for _, scope := range scopes {
+				if scope.names[id.Name] && id.Pos() >= scope.start && id.Pos() < scope.end {
+					return true
+				}
+			}
+			return false
+		}
 		// bind records what NAME = RIGHT (an assignment or a var declaration) makes NAME: a
 		// table, an argument at a fixed or computed position, or a flag set.
 		bind := func(name string, right ast.Expr) {
 			tables[name] = append(tables[name], right)
-			if isFixed, isElement := position(right, fixed, element); isElement {
+			if isFixed, isElement := position(right, fixed, element, child); isElement {
 				fixed[name] = fixed[name] || isFixed
 				element[name] = true
 			}
@@ -186,7 +364,7 @@ func scanPackage(fset *token.FileSet, files []*ast.File, words, flags map[string
 					bind(identifier.Name, node.Rhs[index])
 				}
 			case *ast.RangeStmt:
-				if _, ok := sliceName(node.X); ok {
+				if _, ok := sliceName(node.X, child); ok {
 					if value, ok := node.Value.(*ast.Ident); ok {
 						element[value.Name] = true
 					}
@@ -205,7 +383,7 @@ func scanPackage(fset *token.FileSet, files []*ast.File, words, flags map[string
 				if node.Tag == nil {
 					return true
 				}
-				if isFixed, isElement := position(node.Tag, fixed, element); isElement {
+				if isFixed, isElement := position(node.Tag, fixed, element, child); isElement {
 					for _, statement := range node.Body.List {
 						for _, label := range statement.(*ast.CaseClause).List {
 							if value, ok := stringLiteral(label); ok {
@@ -220,14 +398,14 @@ func scanPackage(fset *token.FileSet, files []*ast.File, words, flags map[string
 				}
 				for _, pair := range [][2]ast.Expr{{node.X, node.Y}, {node.Y, node.X}} {
 					if value, ok := stringLiteral(pair[1]); ok {
-						if isFixed, isElement := position(pair[0], fixed, element); isElement {
+						if isFixed, isElement := position(pair[0], fixed, element, child); isElement {
 							add(value, pair[1].Pos(), isFixed)
 						}
 					}
 				}
 			case *ast.IndexExpr:
 				if table, ok := node.X.(*ast.Ident); ok {
-					if isFixed, _ := position(node.Index, fixed, element); isFixed {
+					if isFixed, _ := position(node.Index, fixed, element, child); isFixed {
 						looked[table.Name] = true
 					}
 				}

@@ -185,3 +185,112 @@ func dispatch(args []string) {
 		t.Errorf("flags %v", flags)
 	}
 }
+
+// TestCAPV0047ChildArgvIsNotDispatch checks that a slice a function builds or hands to a child
+// process (exec.Command, exec.CommandContext, syscall.Exec, a Cmd's Args, through append) is not
+// scanned as this binary's arguments, while a parameter it only dispatches on, and its own
+// command line re-executed (os.Args, flag.Args()), still are (CAP-V0-200, V1-3153).
+func TestCAPV0047ChildArgvIsNotDispatch(t *testing.T) {
+	dir := t.TempDir()
+	source := `package main
+
+import (
+	"context"
+	"flag"
+	"os"
+	"os/exec"
+	"syscall"
+)
+
+func runGit(argv []string) {
+	if argv[0] == "log" {
+	}
+	for _, arg := range argv {
+		if arg == "--no-pager" {
+		}
+	}
+	_ = exec.Command("git", argv...)
+}
+
+func runContext(ctx context.Context, args []string) {
+	switch args[0] {
+	case "context-child":
+	}
+	_ = exec.CommandContext(ctx, args[0], args[1:]...)
+}
+
+func runField(argv []string) {
+	if argv[0] == "field-child" {
+	}
+	command := exec.Command("x")
+	command.Args = argv
+}
+
+func runLiteral(argv []string) {
+	if argv[0] == "literal-field-child" {
+	}
+	_ = exec.Cmd{Path: "x", Args: argv}
+}
+
+func runExec(argv []string) {
+	if argv[1] == "--exec-child" {
+	}
+	_ = syscall.Exec("/bin/x", argv, nil)
+}
+
+func built() {
+	args := []string{"status", "--short"}
+	if args[0] == "built-child" {
+	}
+	var cmdArgs = []string{"x"}
+	if cmdArgs[0] == "var-child" {
+	}
+}
+
+func runAppended(dir string, argv []string) {
+	if argv[0] == "appended-child" {
+	}
+	_ = exec.Command("git", append([]string{"-C", dir}, argv...)...)
+}
+
+func reexec() {
+	args := os.Args[1:]
+	if args[0] == "reexec-verb" {
+	}
+	_ = exec.Command(os.Args[0], args...)
+	rest := flag.Args()
+	if rest[0] == "flag-args-verb" {
+	}
+	_ = exec.Command("x", rest...)
+}
+
+func dispatch(argv []string) {
+	if argv[0] == "real-verb" {
+	}
+	for _, arg := range argv {
+		if arg == "--real-flag" {
+		}
+	}
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(source), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	scan, err := ScanDirs(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var words, flags []string
+	for _, literal := range scan.Words {
+		words = append(words, literal.Value)
+	}
+	for _, literal := range scan.Flags {
+		flags = append(flags, literal.Value)
+	}
+	if want := []string{"flag-args-verb", "real-verb", "reexec-verb"}; !slices.Equal(words, want) {
+		t.Errorf("words %v, want %v", words, want)
+	}
+	if !slices.Equal(flags, []string{"--real-flag"}) {
+		t.Errorf("flags %v, want only --real-flag", flags)
+	}
+}
