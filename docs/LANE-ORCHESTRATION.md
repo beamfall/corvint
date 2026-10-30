@@ -262,7 +262,7 @@ a checkout whose script reads `heavy.env`; the old wrapper is kept as
 the slot it holds, and only later commands see a new lock directory. `script/heavy.sh
 --print-lock-dir` prints the directory a run would use.
 
-### Small packages run whole without a reason (ASD-V0-064, V1-3120)
+### Small packages run whole without a reason (ASD-V0-074, V1-3120)
 
 `corvint test --dry-run` plans a whole Go package for a small tool package, which `ASD-V0-030`
 would refuse without `HEAVY_WHOLE_REASON`. A whole-package `go test` whose every package is a plain
@@ -400,13 +400,13 @@ every gap above the threshold with the time the watchdog would have flagged it.
   `script/lane-setup.sh --repo <shared> --dir <lanes-root>/<slug> --branch claude/<slug>`, which runs
   `git -C <shared> worktree add -b claude/<slug> <lanes-root>/<slug> origin/main` and installs the
   AI-trailer commit-msg hook below.
-- The shared repository holds the full history (ASD-V0-062, V1-3230). A shallow clone breaks
+- The shared repository holds the full history (ASD-V0-072, V1-3230). A shallow clone breaks
   merge-base, `corvint affected` and every dogfood range, so `lane-setup.sh`, `corvint affected
   --base`, `dogfood-change`, `dogfood-check` (and so `dogfood-seal`), `dogfood-bind-range`,
   `batch-review-packet` and `batch-precheck --base` refuse one up front with `REFUSE
   shallow-repository` and the recovery `git -C <shared> fetch --unshallow origin` (or a reclone
   without `--depth`).
-- No commit carries an AI co-author or "Generated with" trailer (ASD-V0-061, V1-3227). The
+- No commit carries an AI co-author or "Generated with" trailer (ASD-V0-071, V1-3227). The
   commit-msg hook `lane-setup.sh` installs (`script/check-ai-trailers.sh --install`, shared by every
   worktree of the clone) refuses one at commit time, and `make batch-precheck` refuses any commit in
   `BASE..HEAD` (default `origin/main..HEAD`) that carries one, naming the commit and the line;

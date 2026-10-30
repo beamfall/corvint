@@ -17,7 +17,7 @@ guard_hunks_bin=${CORVINT_GUARD_HUNKS_BIN-}
 base_arg=${1:?usage: dogfood-bind-range.sh BASE TARGET}
 target_arg=${2:?usage: dogfood-bind-range.sh BASE TARGET}
 repo=$(cd "$(dirname "$0")/.." && pwd)
-# ASD-V0-060 (V1-3233): an empty environment (env -i) names the missing HOME instead of aborting.
+# ASD-V0-070 (V1-3233): an empty environment (env -i) names the missing HOME instead of aborting.
 [[ -n ${CORVINT_GOCACHE:-}${GOCACHE:-}${XDG_CACHE_HOME:-}${HOME:-} ]] ||
   { printf 'dogfood-bind-range: REFUSE home-unset: HOME, XDG_CACHE_HOME, GOCACHE and CORVINT_GOCACHE are all unset; set HOME and rerun\n' >&2; exit 2; }
 go_cache=${CORVINT_GOCACHE:-${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache}}

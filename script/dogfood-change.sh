@@ -13,7 +13,7 @@ export LC_ALL=C
 # Read the executable selection before Git, temporary files, or a selected executable can run.
 corvint_bin_set=${CORVINT_BIN+x}
 corvint_bin=${CORVINT_BIN-}
-# ASD-V0-060 (V1-3233): an empty environment (env -i) names the missing HOME instead of aborting.
+# ASD-V0-070 (V1-3233): an empty environment (env -i) names the missing HOME instead of aborting.
 [[ -n ${CORVINT_GOCACHE:-}${GOCACHE:-}${XDG_CACHE_HOME:-}${HOME:-} ]] ||
   { printf 'dogfood-change: REFUSE home-unset: HOME, XDG_CACHE_HOME, GOCACHE and CORVINT_GOCACHE are all unset; set HOME and rerun\n' >&2; exit 2; }
 go_cache=${CORVINT_GOCACHE:-${GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache}}

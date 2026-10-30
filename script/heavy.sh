@@ -29,7 +29,7 @@
 #   HEAVY_SMALL_TEST_BYTES  a whole-package `go test` whose every package is a plain local directory
 #                        under tools/ or conformance/ (no `...`) and whose *_test.go files total at
 #                        most this many bytes runs without HEAVY_WHOLE_REASON, logged as
-#                        `whole reason=small-package:NB` (ASD-V0-064, V1-3120); default 49152. On
+#                        `whole reason=small-package:NB` (ASD-V0-074, V1-3120); default 49152. On
 #                        2026-10-30 the six such packages measured (4-45 KB of tests) each ran whole
 #                        in 0.6-16 s; cmd/ and internal/ packages are never exempt. 0 disables it.
 #   HEAVY_SELECTION_LOG  every `go test` appends `UTC selected|whole reason=Q|refused pwd=... cmd=...`
@@ -927,7 +927,7 @@ selection_log() {
 
 # small_package_bytes COMMAND...: print the total *_test.go bytes of the go test's packages and
 # succeed when every package is a plain local directory under tools/ or conformance/ and the total
-# is at most HEAVY_SMALL_TEST_BYTES (ASD-V0-064, V1-3120). Flags are skipped, with the value of a
+# is at most HEAVY_SMALL_TEST_BYTES (ASD-V0-074, V1-3120). Flags are skipped, with the value of a
 # flag that takes one; any other package form (an import path, `...`, a file) fails.
 small_package_bytes() {
   local limit=${HEAVY_SMALL_TEST_BYTES:-49152} seen=0 skip=0 prev_go=0 arg dir total=0 n=0 f size
@@ -1054,7 +1054,7 @@ main() {
     [[ $# -eq 0 ]] && return 2
     return 0
   fi
-  # ASD-V0-060 (V1-3233): with no HOME and no XDG_CONFIG_HOME there is no default config file.
+  # ASD-V0-070 (V1-3233): with no HOME and no XDG_CONFIG_HOME there is no default config file.
   local config_home=${XDG_CONFIG_HOME:-${HOME:+$HOME/.config}}
   load_config "${HEAVY_CONFIG:-${config_home:+$config_home/corvint/heavy.env}}"
   local cpus slots par nice_level lock_dir rc retry

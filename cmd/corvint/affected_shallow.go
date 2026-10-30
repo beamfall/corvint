@@ -6,7 +6,7 @@ import (
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
-// affectedShallowCode names a --base plan refused in a shallow clone (ASD-V0-062, V1-3230).
+// affectedShallowCode names a --base plan refused in a shallow clone (ASD-V0-072, V1-3230).
 const affectedShallowCode = "shallow-repository"
 
 // refuseAffectedShallow refuses a --base plan in a shallow clone: its grafted history can hide the

@@ -262,10 +262,12 @@ func parseAffectedInvocation(arguments []string) (affectedInvocation, bool, erro
 		return affectedInvocation{}, true, err
 	}
 	invocation.Root = resolved
-	if err := resolveAffectedAbbrevBase(&invocation); err != nil {
+	// The shallow refusal comes first: in a shallow clone an abbreviated base may be past the
+	// boundary, and the abbreviation refusal would hide the unshallow recovery (ASD-V0-072).
+	if err := refuseAffectedShallow(invocation); err != nil {
 		return affectedInvocation{}, true, err
 	}
-	if err := refuseAffectedShallow(invocation); err != nil {
+	if err := resolveAffectedAbbrevBase(&invocation); err != nil {
 		return affectedInvocation{}, true, err
 	}
 	if err := resolveAffectedBatchAndCache(&invocation); err != nil {

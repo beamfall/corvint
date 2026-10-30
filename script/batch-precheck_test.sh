@@ -731,7 +731,7 @@ printf 'DOC_GATE_TARGETS := alpha-check\ndoc-gates:\n\t@$(MAKE) --no-print-direc
 elist > "$tmp/out" 2>&1 || fail "unexpanded --list: $(cat "$tmp/out")"
 grep -qx 'make doc-gates' "$tmp/out" && ! grep -qx 'make alpha-check' "$tmp/out" || fail "an unknown doc-gates recipe was expanded: $(cat "$tmp/out")"
 
-# 9. ASD-V0-060 (V1-3233): under an empty environment (env -i) a run and --list refuse with exit 3
+# 9. ASD-V0-070 (V1-3233): under an empty environment (env -i) a run and --list refuse with exit 3
 # naming the unset HOME, a bad argument still exits 2, and --sync-check needs no cache.
 (cd "$script/.." && env -i "$pre") > "$tmp/out" 2>&1
 [[ $? == 3 ]] || fail "env -i run did not exit 3: $(cat "$tmp/out")"
@@ -744,7 +744,7 @@ grep -q 'unbound variable' "$tmp/out" && fail "env -i aborted on an unbound vari
 (cd "$script/.." && env -i "$pre" --sync-check) > "$tmp/out" 2>&1 || fail "env -i --sync-check: $(cat "$tmp/out")"
 (cd "$script/.." && env -i CORVINT_GOCACHE=$tmp/gc "$pre" --list) > /dev/null 2>&1 || fail "env -i with CORVINT_GOCACHE --list failed"
 
-# 10. ASD-V0-061 (V1-3227): the ai-trailers step refuses a commit since the base carrying an AI
+# 10. ASD-V0-071 (V1-3227): the ai-trailers step refuses a commit since the base carrying an AI
 # co-author or "Generated with" trailer, naming the commit and the line; a human co-author, a
 # prose "regenerated with" line and a clean range pass. The commit-msg hook refuses the same
 # message and installs only over its own hook.
@@ -768,6 +768,18 @@ grep -qF "check-ai-trailers: REFUSE ai-trailer $bad2: $gen_line" "$tmp/out" || f
 [[ $? == 2 ]] || fail "an unresolvable base did not exit 2"
 # The precheck step itself, on the fixture with --base: the ai-trailers row fails.
 (cd "$trepo" && BATCH_PRECHECK_ROOT=$trepo BATCH_PRECHECK_BASE=$tbase "$pre" --list) | grep -qx 'ai-trailers' || fail "no ai-trailers step"
+# A full --base run with an AI trailer since the base fails: the step reruns at the base on the
+# same pinned range and fails the same way there, but a history check is never base-present.
+gclone=$tmp/gclone
+git clone -q "$frepo" "$gclone" 2> /dev/null && rm -f "$gclone/flaky-test-read-scopes-check" &&
+  git -C "$gclone" commit -qam 'no flaky' && gbase=$(git -C "$gclone" rev-parse HEAD) &&
+  git -C "$gclone" commit -q --allow-empty -m 'feat: g' -m "$ai_line" || fail "trailer precheck fixture"
+mkdir -p "$tmp/gmark"
+(cd "$gclone" && PATH=$fbin:$PATH FLAKY_MARK=$tmp/gmark BATCH_PRECHECK_ROOT=$gclone BATCH_PRECHECK_HEAVY= BATCH_PRECHECK_REGEN= \
+  BATCH_PRECHECK_PLANNER= BATCH_PRECHECK_DRIFT="./pkg TestDrift" "$pre" --base "$gbase") > "$tmp/out" 2>&1
+[[ $? == 1 ]] || fail "a --base run with an AI trailer did not fail: $(cat "$tmp/out")"
+grep -Eq '^batch-precheck: \| FAIL \| +[0-9]+s \| ai-trailers$' "$tmp/out" || fail "ai-trailers not an introduced FAIL: $(cat "$tmp/out")"
+grep -q 'WARN ai-trailers' "$tmp/out" && fail "ai-trailers was downgraded to base-present: $(cat "$tmp/out")"
 printf 'feat: z\n\n%s\n' "$ai_line" > "$tmp/msg"
 (cd "$trepo" && "$script/check-ai-trailers.sh" --install) > "$tmp/out" 2>&1 || fail "hook install: $(cat "$tmp/out")"
 (cd "$trepo" && "$script/check-ai-trailers.sh" --install) > /dev/null 2>&1 || fail "hook reinstall over its own hook failed"
@@ -777,8 +789,34 @@ git -C "$trepo" commit -q --allow-empty -m 'feat: clean' || fail "the hook refus
 printf '#!/bin/sh\nexit 0\n' > "$(git -C "$trepo" rev-parse --path-format=absolute --git-path hooks/commit-msg)"
 (cd "$trepo" && "$script/check-ai-trailers.sh" --install) > /dev/null 2>&1
 [[ $? == 2 ]] || fail "install replaced a foreign commit-msg hook"
+# A marked hook a user extended is not replaced either, and stays as it was.
+hookf=$(git -C "$trepo" rev-parse --path-format=absolute --git-path hooks/commit-msg)
+rm -f "$hookf" && (cd "$trepo" && "$script/check-ai-trailers.sh" --install) > /dev/null 2>&1 || fail "install into an empty hooks dir"
+printf 'echo extra-user-logic\n' >> "$hookf"
+cp "$hookf" "$tmp/hook.before"
+(cd "$trepo" && "$script/check-ai-trailers.sh" --install) > "$tmp/out" 2>&1
+[[ $? == 2 ]] && cmp -s "$hookf" "$tmp/hook.before" || fail "install replaced a marked hook with user logic: $(cat "$tmp/out")"
+grep -q 'is not exactly this guard' "$tmp/out" || fail "modified-hook refusal: $(cat "$tmp/out")"
+rm -f "$hookf"
+# A "#" line is checked too (-m, -F and --cleanup=verbatim keep it in the commit); below a
+# `git commit -v` scissors line is the diff, which is not.
+printf 'feat: c\n\n# %s\n' "${gen_line#* }" > "$tmp/msg"
+"$script/check-ai-trailers.sh" --commit-msg "$tmp/msg" > /dev/null 2>&1
+[[ $? == 1 ]] || fail "a commented Generated-with line passed the hook"
+printf 'feat: d\n# ------------------------ >8 ------------------------\n+%s\n' "$ai_line" > "$tmp/msg"
+"$script/check-ai-trailers.sh" --commit-msg "$tmp/msg" || fail "a trailer inside the -v diff was refused"
+# A failing git read is an error (exit 2), never a clean range.
+gstub=$tmp/gstub
+mkdir -p "$gstub"
+realgit=$(command -v git)
+for verb in rev-list log; do
+  printf '#!/bin/sh\n[ "$1" = %s ] && { echo "fatal: simulated" >&2; exit 128; }\nexec %q "$@"\n' "$verb" "$realgit" > "$gstub/git"
+  chmod +x "$gstub/git"
+  (cd "$trepo" && PATH=$gstub:$PATH "$script/check-ai-trailers.sh" --range "$tbase") > "$tmp/out" 2>&1
+  [[ $? == 2 ]] && grep -q "git $verb .*failed" "$tmp/out" || fail "a failed git $verb did not exit 2: $(cat "$tmp/out")"
+done
 
-# 11. ASD-V0-063 (V1-3238): the legal-file-pins step refuses a legal file whose manifest sha256 is
+# 11. ASD-V0-073 (V1-3238): the legal-file-pins step refuses a legal file whose manifest sha256 is
 # stale, naming the file and the manifest, and a missing one; matching pins pass.
 lrepo=$tmp/lrepo
 mkdir -p "$lrepo/conformance/release-artifact-v0"
@@ -799,7 +837,7 @@ grep -q '^check-legal-file-pins: FAIL legal-file-missing LICENSE' "$tmp/out" || 
 (cd "$tmp" && "$script/check-legal-file-pins.sh") > "$tmp/out" 2>&1 || fail "a checkout without the manifest failed: $(cat "$tmp/out")"
 (cd "$script/.." && "$script/check-legal-file-pins.sh") > "$tmp/out" 2>&1 || fail "this checkout's legal pins are stale: $(cat "$tmp/out")"
 
-# 12. ASD-V0-062 (V1-3230): a --base run in a shallow clone refuses with the unshallow recovery
+# 12. ASD-V0-072 (V1-3230): a --base run in a shallow clone refuses with the unshallow recovery
 # before any step runs.
 srepo2=$tmp/shallow
 git clone -q --depth 1 "file://$trepo" "$srepo2" 2> /dev/null || fail "shallow clone"

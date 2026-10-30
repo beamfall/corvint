@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # usage: script/check-legal-file-pins.sh [MANIFEST]
 #
-# ASD-V0-063 (V1-3238): the release-artifact manifest (default
+# ASD-V0-073 (V1-3238): the release-artifact manifest (default
 # conformance/release-artifact-v0/manifest.json) pins every legal file by sha256 (GPK-V0-020), and
 # `make go-archive-gate` fails with `FAIL legal-file-altered` when a checkout's bytes differ. That
 # gate runs only in CI, so batch-precheck runs this check first: for each `legalFiles` entry it

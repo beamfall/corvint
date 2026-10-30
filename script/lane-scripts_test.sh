@@ -5,7 +5,7 @@
 # lane-clean.sh (ASD-V0-018), lane-guard.sh (ASD-V0-024),
 # install-local-bin.sh (ASD-V0-025), install-cem-verifiers.sh (TCB-V0-046),
 # wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), lane-setup.sh
-# (ASD-V0-061, ASD-V0-062). No Go build runs.
+# (ASD-V0-071, ASD-V0-072). No Go build runs.
 set -uo pipefail
 export LC_ALL=C
 # The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
@@ -1087,7 +1087,7 @@ kac --distro 'bad;name' 2> /dev/null; [[ $? == 2 ]] || fail "keepalive check acc
 kac --bogus 2> /dev/null; [[ $? == 2 ]] || fail "keepalive check accepted an unknown argument"
 ok
 
-# ASD-V0-064 (V1-3120): a whole-package go test of plain tools/ or conformance/ directories whose
+# ASD-V0-074 (V1-3120): a whole-package go test of plain tools/ or conformance/ directories whose
 # *_test.go files total at most HEAVY_SMALL_TEST_BYTES runs with no HEAVY_WHOLE_REASON and is logged
 # as small-package; a larger total, an internal/ package, `...`, an import path, -C or a zero
 # limit is still refused.
@@ -1112,7 +1112,7 @@ limit=0 spv go test ./tools/small
 [[ $? == 2 ]] || fail "HEAVY_SMALL_TEST_BYTES=0 did not disable the exemption"
 ok
 
-# ASD-V0-062 (V1-3230), ASD-V0-061 (V1-3227): lane-setup.sh refuses a shallow shared clone with the
+# ASD-V0-072 (V1-3230), ASD-V0-071 (V1-3227): lane-setup.sh refuses a shallow shared clone with the
 # `git fetch --unshallow` recovery and creates nothing; on the full clone it adds the lane worktree
 # on its branch at origin/main and installs the commit-msg hook that refuses an AI trailer.
 ls_src=$tmp/lane-setup-src
@@ -1132,6 +1132,15 @@ git -C "$tmp/lane-a" -c user.name=t -c user.email=t@t commit -q --allow-empty -F
   fail "the lane's commit-msg hook let an AI trailer through"
 out=$("$script/lane-setup.sh" --repo "$tmp/lane-setup-full" --dir "$tmp/lane-a" --branch claude/b 2>&1)
 [[ $? == 2 && $out == *'dir-exists'* ]] || fail "lane setup over an existing dir: $out"
+# Relative --repo and --dir, run from a directory outside the repository, name the same lane
+# directory for git and for the hook install (both resolve against the caller's directory).
+rm -f "$(git -C "$tmp/lane-setup-full" rev-parse --path-format=absolute --git-path hooks/commit-msg)"
+mkdir -p "$tmp/lane-caller"
+out=$(cd "$tmp/lane-caller" && "$script/lane-setup.sh" --repo ../lane-setup-full --dir lanes/b --branch claude/b 2>&1) || fail "relative lane setup: $out"
+[[ $(git -C "$tmp/lane-caller/lanes/b" rev-parse --abbrev-ref HEAD) == claude/b ]] || fail "relative lane dir not created under the caller: $out"
+[[ -x $(git -C "$tmp/lane-setup-full" rev-parse --path-format=absolute --git-path hooks/commit-msg) ]] || fail "relative lane setup installed no hook: $out"
+git -C "$tmp/lane-caller/lanes/b" -c user.name=t -c user.email=t@t commit -q --allow-empty -F "$tmp/lane-a-msg" 2> /dev/null &&
+  fail "the relative lane's hook let an AI trailer through"
 ok
 
 # ASD-V0-014: no fixture outlives the run, so nothing can write after the summary line. Every

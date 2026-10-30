@@ -2,7 +2,7 @@
 
 One lane (`claude/lane-friction-scripts-w4`, base `c5d5f0829c28756ee7b202caf80a3f3fc37fa85b`,
 WSL lane host, 32 CPUs) for the open script and gate friction tickets. Requirements:
-DCG-V0-048, UCV0-020, GAG-V0-009, ASD-V0-060 to ASD-V0-065.
+DCG-V0-048, UCV0-020, GAG-V0-009, ASD-V0-070 to ASD-V0-075.
 
 ## Decisions
 
@@ -13,24 +13,24 @@ DCG-V0-048, UCV0-020, GAG-V0-009, ASD-V0-060 to ASD-V0-065.
 - V1-3229 (UCV0-020): the runner stays a pure reader (no Git, no subprocess); it only prints the
   recovery to stderr. A receipt that left its ledger pin is restored from HEAD first, since the
   repin script refuses such a receipt by design (UCV0-019).
-- V1-3230 (ASD-V0-062): refuse, never unshallow, because unshallowing fetches from the network.
+- V1-3230 (ASD-V0-072): refuse, never unshallow, because unshallowing fetches from the network.
   `corvint affected` refuses only with `--base`; the dogfood wrappers carry the check in the
   sourced `dogfood-build-corvint.sh` because every fixture already copies that file, while
   `batch-precheck --base`, `batch-review-packet` and the new `script/lane-setup.sh` share
   `script/require-full-history.sh`.
-- V1-3233 (ASD-V0-060): a named refusal with its own status (3) for batch-precheck and
+- V1-3233 (ASD-V0-070): a named refusal with its own status (3) for batch-precheck and
   batch-regen, and the same `home-unset` refusal (status 2, their refusal status) for the dogfood
   wrappers, which the same `env -i` probe showed abort the same way. heavy.sh simply has no
   default config file without HOME.
-- V1-3238 (ASD-V0-063, GAG-V0-009): the precheck hashes the manifest's legal files itself (a
+- V1-3238 (ASD-V0-073, GAG-V0-009): the precheck hashes the manifest's legal files itself (a
   second, cheap reader of the same pins), and the archive gate now appends the loose gate's FAIL
   lines instead of replacing them with its summary.
-- V1-3227 (ASD-V0-061): one script serves the range check (a batch-precheck step, HEAD in its
+- V1-3227 (ASD-V0-071): one script serves the range check (a batch-precheck step, HEAD in its
   command so a ledger pass never covers a reworded commit) and the commit-msg hook. The installed
   hook runs the committing worktree's copy, so removing one lane checkout cannot break the others.
-- V1-3120 (ASD-V0-064): small packages are exempt below a measured cost threshold, limited to
+- V1-3120 (ASD-V0-074): small packages are exempt below a measured cost threshold, limited to
   `tools/` and `conformance/`, whose cost follows their size; `cmd/` and `internal/` do not.
-- V1-3232 (ASD-V0-065): split the serial parts of the critical path rather than drop a check.
+- V1-3232 (ASD-V0-075): split the serial parts of the critical path rather than drop a check.
 - V1-3222: the repository side already existed (`HEAVY_CONFIG`, default
   `~/.config/corvint/heavy.env`); the gap was the host configuration and its documentation.
 
@@ -83,3 +83,15 @@ share one semaphore. `script/heavy.sh --print-lock-dir` and `~/lanes/heavy.sh --
 both print `/home/russell/bench/rt/.locks`, and the next run reported `slot 1/4`. Running
 commands kept the slots they held. `~/corvint` (Oct 22) predates `HEAVY_CONFIG`, so the wrapper
 refuses outside a current checkout rather than fall back to it.
+
+## Independent review and renumber
+
+A Codex review of `c5d5f0829..2f9f10e55` (run by the orchestrator) returned FAIL with eight
+findings, all fixed in one commit set: the `ai-trailers` step is never downgraded to base-present
+under `--base` (its base rerun checks the same pinned range); `--repin` stages with literal
+pathspecs and exits non-zero on a failed `git add` or a fifth pass that still rewrote; `--install`
+replaces only a byte-identical managed hook; every Git read in the trailer range check is checked;
+the commit-msg form checks `#` lines above the `-v` scissors line; `lane-setup.sh` resolves relative
+paths once and exits 1 when the hook install fails; and `corvint affected` refuses a shallow clone
+before resolving an abbreviated base. The lane's ASD-V0-060..065 collided with other lanes and
+became ASD-V0-070..075.

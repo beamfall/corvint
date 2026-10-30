@@ -35,7 +35,7 @@ export LC_ALL=C
 root=${BATCH_REGEN_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null)} || exit 2
 cd "$root" || exit 2
 heavy=${BATCH_REGEN_HEAVY-script/heavy.sh}
-# ASD-V0-060 (V1-3233): with no HOME the go test step refuses (exit 3) instead of aborting on it.
+# ASD-V0-070 (V1-3233): with no HOME the go test step refuses (exit 3) instead of aborting on it.
 cache_home=${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}
 gocache=${CORVINT_GOCACHE:-${cache_home:+$cache_home/corvint-go-build-cache}}
 

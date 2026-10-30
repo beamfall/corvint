@@ -166,7 +166,7 @@ its witness write fails, was not taken: it changes the release command that
   legal-file pin, `FAIL legal-file-altered: <path> sha256 <actual> want <expected>`) after the
   summary line, and a PASS bound to another commit, tree or target count MUST name that verdict and
   binding, so the cause is never swallowed by the generic summary. `make batch-precheck` checks the
-  legal-file pins before CI (`ASD-V0-063`).
+  legal-file pins before CI (`ASD-V0-073`).
 
 ## Non-goals and simpler baseline
 

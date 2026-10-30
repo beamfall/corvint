@@ -91,7 +91,7 @@ workflow=${BATCH_PRECHECK_WORKFLOW:-.github/workflows/ci.yml}
 heavy=${BATCH_PRECHECK_HEAVY-script/heavy.sh}
 regen=${BATCH_PRECHECK_REGEN-script/batch-regen.sh}
 jobs=${BATCH_PRECHECK_JOBS:-6}
-# ASD-V0-060 (V1-3233): under an empty environment (env -i) the Go build cache has no location;
+# ASD-V0-070 (V1-3233): under an empty environment (env -i) the Go build cache has no location;
 # the run and --list refuse with exit 3 naming it, instead of aborting on an unbound HOME.
 cache_home=${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}
 gocache=${CORVINT_GOCACHE:-${cache_home:+$cache_home/corvint-go-build-cache}}
@@ -513,8 +513,8 @@ steps() {
     printf 'gofmt -l %s (%s)\tout=$(cd %q && gofmt -l %s) || exit 1; [ -z "$out" ] || { printf "%%s\\n" "$out"; exit 1; }\n' "$args" "$dir" "$dir" "$args"
   done
   printf 'sync-check\t%q --sync-check\n' "$0"
-  # ASD-V0-061 (V1-3227): no commit since the base (else origin/main) carries an AI trailer; HEAD
-  # is in the command, so a ledger pass never covers a reworded commit. ASD-V0-063 (V1-3238): every
+  # ASD-V0-071 (V1-3227): no commit since the base (else origin/main) carries an AI trailer; HEAD
+  # is in the command, so a ledger pass never covers a reworded commit. ASD-V0-073 (V1-3238): every
   # legal file still matches its release-artifact manifest pin.
   local tbase thead
   if tbase=$(git rev-parse --verify -q "${base:-origin/main}^{commit}") && thead=$(git rev-parse --verify -q 'HEAD^{commit}'); then
@@ -588,7 +588,7 @@ case ${1:-} in
   *) printf 'usage: script/batch-precheck.sh [--base REV|--sync-check|--list|--verify-receipt [REV]]\n' >&2; exit 2 ;;
 esac
 need_gocache
-# ASD-V0-062 (V1-3230): a --base range in a shallow clone refuses with the unshallow recovery.
+# ASD-V0-072 (V1-3230): a --base range in a shallow clone refuses with the unshallow recovery.
 [[ -z $base ]] || "$self_dir/require-full-history.sh" batch-precheck || exit 2
 
 # normalize DIR < output: one finding per line, with only volatile tokens erased, so the same
@@ -840,7 +840,9 @@ if [[ -n $base ]]; then
     [[ $rc == 0 ]] && continue
     line=$(sed -n "${i}p" "$dir/steps")
     name=${line%%$'\t'*}
-    if at_base "${line#*$'\t'}" "$dir/$i.log"; then
+    # ASD-V0-071: the ai-trailers step checks the same pinned BASE..HEAD range at the base, so its
+    # failure would always look base-present; a history check is never downgraded.
+    if [[ $name != ai-trailers ]] && at_base "${line#*$'\t'}" "$dir/$i.log"; then
       : > "$dir/$i.warn"
       printf 'batch-precheck: WARN %s (%ss) base-present: fails the same way at %s\n' "$name" "$secs" "$base"
       tail -n 40 "$dir/$i.log" | sed 's/^/  | /'

@@ -6,11 +6,11 @@
 # and the Git objects of every build input. Every build runs with -trimpath and -buildvcs=false,
 # so its bytes depend on those inputs alone. Any failure while computing, reading or storing a key
 # falls back to the plain build: a reuse is never required for the wrapper to succeed.
-# ASD-V0-060 (V1-3233): with no HOME the reuse cache is off; the plain build still runs.
+# ASD-V0-070 (V1-3233): with no HOME the reuse cache is off; the plain build still runs.
 dogfood_bin_cache=${CORVINT_DOGFOOD_BIN_CACHE:-${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}}
 dogfood_bin_cache=${dogfood_bin_cache:+${CORVINT_DOGFOOD_BIN_CACHE:-$dogfood_bin_cache/corvint-dogfood-bin}}
 
-# dogfood_require_full_history NAME: ASD-V0-062 (V1-3230). A shallow clone can hide the base or the
+# dogfood_require_full_history NAME: ASD-V0-072 (V1-3230). A shallow clone can hide the base or the
 # merge base of the dogfood range, so the wrapper refuses it up front, naming the recovery; a
 # directory Git cannot inspect is left to the wrapper's own checks.
 dogfood_require_full_history() {

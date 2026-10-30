@@ -436,6 +436,32 @@ grep -q "internal/demo/demo.go:5-6@$pin" "$test_root/docs/agent-memory/fixture.m
 case $out in *'staged them (git add -- docs/agent-memory/fixture.md)'*) ;; *) fail "--repin did not name what it staged: $out" ;; esac
 [ -z "$(git -C "$test_root" diff --name-only -- docs/agent-memory/fixture.md)" ] || fail "--repin left its rewrite unstaged"
 run >/dev/null || fail "the repinned citation did not pass without manual staging"
+# 24b. DCG-V0-048: a failed `git add` (index.lock held) exits non-zero naming the command; a pass
+#      that still rewrote at the fifth pass exits non-zero as not converged; a document whose name
+#      is a glob stages only itself, never an unstaged sibling the glob would match.
+cite "$span"
+: > "$test_root/.git/index.lock"
+rc=0
+out=$(cd "$test_root" && script/check-line-citations.sh --repin 2>&1) || rc=$?
+rm -f "$test_root/.git/index.lock"
+[ "$rc" = 1 ] || fail "--repin exited $rc after a failed git add: $out"
+case $out in *'could not stage them; run `git add -- docs/agent-memory/fixture.md`'*) ;; *) fail "failed staging not named: $out" ;; esac
+cite "$span"
+rc=0
+out=$(cd "$test_root" && CHECK_LINE_CITATIONS_REPIN_PASS=5 script/check-line-citations.sh --repin 2>&1) || rc=$?
+[ "$rc" = 1 ] || fail "--repin exited $rc when its fifth pass still rewrote: $out"
+case $out in *'did not converge'*) ;; *) fail "non-convergence not named: $out" ;; esac
+cite "$span"
+printf 'sibling\n' > "$test_root/docs/agent-memory/f.md"
+printf '# Glob\n\nAlso `%s`.\n' "$span" > "$test_root/docs/agent-memory/[fx].md"
+stage docs/agent-memory/f.md
+git -C "$test_root" --literal-pathspecs add -- 'docs/agent-memory/[fx].md'
+printf 'unstaged sibling edit\n' >> "$test_root/docs/agent-memory/f.md"
+out=$(cd "$test_root" && script/check-line-citations.sh --repin 2>&1) || fail "--repin of a glob-named document failed: $out"
+git -C "$test_root" diff --name-only | grep -qx 'docs/agent-memory/f.md' || fail "--repin staged a sibling its glob-named document matches"
+[ -z "$(git -C "$test_root" --literal-pathspecs diff --name-only -- 'docs/agent-memory/[fx].md')" ] || fail "--repin left the glob-named rewrite unstaged"
+git -C "$test_root" --literal-pathspecs rm -q -f --cached -- 'docs/agent-memory/f.md' 'docs/agent-memory/[fx].md'
+rm -f "$test_root/docs/agent-memory/f.md" "$test_root/docs/agent-memory/[fx].md"
 
 # 25. Moved text that now appears twice is ambiguous and is not relocated.
 cite "$span"
@@ -734,7 +760,7 @@ stage internal/demo/prose.go
 perl -0pi -e 's/`retry:3`/`retry:0`/' "$test_root/docs/specs/prose.md"
 stage docs/specs/prose.md
 # One --repin moves the inner citation and stages it (DCG-V0-048); its second pass must refuse.
-(cd "$test_root" && script/check-line-citations.sh --repin >/dev/null 2>&1) || true
+(cd "$test_root" && script/check-line-citations.sh --repin >/dev/null 2>&1) || fail "--repin of the prose chain exited non-zero"
 grep -q "internal/demo/prose.go:5@${inner##*@}\` with \`retry:0\`" "$test_root/docs/specs/prose.md" ||
   fail "the prose fixture was not set up: $(cat "$test_root/docs/specs/prose.md")"
 grep -qF "$outer" "$test_root/docs/agent-memory/fixture.md" ||

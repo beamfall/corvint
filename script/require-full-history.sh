@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # usage: script/require-full-history.sh NAME [DIR]
 #
-# ASD-V0-062 (V1-3230): refuse, before any range is computed, when the repository holding DIR
+# ASD-V0-072 (V1-3230): refuse, before any range is computed, when the repository holding DIR
 # (default the working directory) is a shallow clone. Its grafted history can hide a base commit
 # or the merge base of a range, so merge-base, `corvint affected` and the dogfood ranges would fail
 # or mislead before anything said the clone is shallow. On refusal it prints

@@ -754,7 +754,8 @@ if ($repin) {
     my $pass = ($ENV{CHECK_LINE_CITATIONS_REPIN_PASS} // 1) =~ /\A[1-9]\z/ ? $ENV{CHECK_LINE_CITATIONS_REPIN_PASS} // 1 : 1;
     my $staged = 0;
     if (@rewritten) {
-        $staged = system('git', 'add', '--', @rewritten) == 0;
+        # Literal pathspecs: a document named docs/[ab].md must not also stage docs/a.md.
+        $staged = system('git', '--literal-pathspecs', 'add', '--', @rewritten) == 0;
         print STDERR "line citations: --repin rewrote $count citation(s) in " . scalar(@rewritten) . " document(s) and "
             . ($staged ? "staged them (git add -- @rewritten)\n"
                 : "could not stage them; run `git add -- @rewritten` and rerun the check\n");
@@ -763,9 +764,15 @@ if ($repin) {
     print_unstaged('--repin', @rewritten);
     print_skipped();
     exit 1 if @refused;
-    # DCG-V0-048: a rewrite can unpin a citation into the rewritten document; the next pass reads
-    # the staged rewrite and resolves that link of the chain.
-    if ($staged && $pass < 5 && defined $ENV{CHECK_LINE_CITATIONS_SELF}) {
+    # DCG-V0-048: an unstaged rewrite leaves the index-reading check failing, so it fails here too.
+    exit 1 if @rewritten && !$staged;
+    # A rewrite can unpin a citation into the rewritten document; the next pass reads the staged
+    # rewrite and resolves that link of the chain. A fifth pass that still rewrote did not converge.
+    if (@rewritten) {
+        if ($pass >= 5 || !defined $ENV{CHECK_LINE_CITATIONS_SELF}) {
+            print STDERR "line citations: --repin still rewrote citations in pass $pass of at most 5; the chain did not converge, so read the rewritten documents and rerun --repin\n";
+            exit 1;
+        }
         print STDERR "line citations: --repin pass " . ($pass + 1) . " rereads the staged rewrite\n";
         $ENV{CHECK_LINE_CITATIONS_REPIN_PASS} = $pass + 1;
         exec 'bash', $ENV{CHECK_LINE_CITATIONS_SELF}, @original_argv or die "rerun --repin: $!\n";

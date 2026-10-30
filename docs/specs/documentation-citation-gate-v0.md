@@ -284,9 +284,11 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   only a document whose worktree copy equals its index copy, so nothing else is staged), print
   `--repin rewrote N citation(s) in M document(s) and staged them (git add -- <documents>)`, and then
   rerun itself, at most five passes in all, until a pass rewrites nothing, so a transitive chain
-  resolves in one call and the index-reading check passes with no manual staging. A failed `git add`
-  prints the exact command instead and stops; a refused document still exits non-zero before any
-  rerun. The check without `--repin` is unchanged.
+  resolves in one call and the index-reading check passes with no manual staging. Paths are staged
+  as literal pathspecs, so a document whose name is a glob never stages a sibling it matches. A
+  failed `git add` prints the exact command and exits non-zero; a fifth pass that still rewrote
+  exits non-zero as not converged; a refused document still exits non-zero before any rerun. The
+  check without `--repin` is unchanged.
 
 ## Non-goals and simpler baseline
 
@@ -373,7 +375,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-044 | test case 31: a pinned one-line span whose line of 52 non-whitespace characters moved down two lines reported as moved to line 6, `--repin` printing that relocation and rewriting it to a passing citation; the same line appearing twice reported with the position count and left alone; an edited line reported as changed with no move and left alone; case 28's `return nil` still not relocated; with the threshold raised to 999 case 31 fails |
 | DCG-V0-045 | test case 32: three lines inserted above a committed file move a repeated three-line span and a lone `return nil` line, which the check reports as ambiguous; `--repin` rewrites both to their diff-proven lines, leaves a changed span written as it was and prints the span the diff maps it to with that span's `--hash` anchor; after staging only the changed span fails; an unstaged cited file is named with `git add -- internal/demo/shift.go`; `--base no-such-rev` refuses. With the diff relocation disabled, case 32 fails |
 | DCG-V0-046 | test case 22: a root-basename skip prints one counted note line and no per-citation note, `--verbose` lists it, and a failing run prints its failure before the count, with the exit status unchanged in both modes; case 21 prints its failure before the DCG-V0-021 note |
-| DCG-V0-048 | test case 24: `--repin` names what it staged, leaves no unstaged diff and the check then passes with no `git add`; test case 33: one `--repin` call moves the inner citation, stages it and in its second pass re-anchors the outer citation, leaving nothing unstaged, and the check passes; case 33b: the second pass still refuses a prose change |
+| DCG-V0-048 | test case 24: `--repin` names what it staged, leaves no unstaged diff and the check then passes with no `git add`; case 24b: a held `index.lock` exits 1 naming the `git add`, a fifth pass that rewrote exits 1 as not converged, and a `[fx].md` document leaves its unstaged sibling `f.md` unstaged; test case 33: one `--repin` call moves the inner citation, stages it and in its second pass re-anchors the outer citation, leaving nothing unstaged, and the check passes; case 33b: the second pass still refuses a prose change and the call exits 0 |
 | DCG-V0-047 | test case 33: a fixture pins a spec line that cites a moved source line; `--repin` moves the spec's token, and after staging a second `--repin` re-anchors the fixture's citation, including a moved continuation token, with no `--hash`, and the check passes; case 33b: changing a backticked prose `name:number` value still refuses |
 | DCG-V0-040 | test cases 24-26: a two-line insertion above a pinned two-line span reported as moved to lines 5-6, `--repin` refused on a dirty document and then rewriting it to a passing citation; text that now appears twice reported as changed with the position count and left alone by `--repin`; changed text never reported as a move; cases 28-29: a one-line unique match left unresolved and untouched by `--repin`, and of two identical continuations on one line only the moved one rewritten. This change also repinned its own spec's moved script citations with `--repin` |
 
@@ -410,7 +412,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-044 | `$distinctive_line`, `distinctive` and the lone-line branch of `relocatable` in `script/check-line-citations.sh` | case 31 |
 | DCG-V0-045 | `base_hunks`, `base_lines`, `map_line`, `diff_relocation`, `diff_suggestion`, the `--base` parser and `print_unstaged` in `script/check-line-citations.sh` | case 32 |
 | DCG-V0-046 | `@skipped`, `print_skipped`, `--verbose` and the failures-first ordering in `script/check-line-citations.sh` | case 22 |
-| DCG-V0-048 | the staging and rerun at the end of the `--repin` block and `CHECK_LINE_CITATIONS_SELF` in `script/check-line-citations.sh` | cases 24, 33 and 33b |
+| DCG-V0-048 | the staging and rerun at the end of the `--repin` block and `CHECK_LINE_CITATIONS_SELF` in `script/check-line-citations.sh` | cases 24, 24b, 33 and 33b |
 | DCG-V0-047 | `token_reanchor`, `citation_prefix` and the call in the pinned-span branch of `script/check-line-citations.sh` | cases 33 and 33b |
 | DCG-V0-040 | the relocation branch in `check`, `relocations`, `relocatable`, `shifted_token`, `$token_at` and the `--repin` block before the final `close_index` in `script/check-line-citations.sh` | cases 24-26, 28-29 |
 
