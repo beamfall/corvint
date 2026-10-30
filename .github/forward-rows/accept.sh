@@ -83,6 +83,32 @@ status=$(jq -r '.status' "$dir/$name/verdict.json")
   decide FULL "the verdict of run $run has a tripped or unknown kill switch" "$run"
 # The verdict may be up to 7 days old: rows since then can trip the kill switch.
 pages=${KILL_PAGES:-25}
+# CIN-V0-004 (V1-3091): a verdict that names when its listing began (listedAt) and its
+# AFP-V0-030 window rows (windowNames) needs only the rows since then: the listing stops an
+# hour before listedAt, and the kill switch is re-checked over those rows followed by the
+# window rows, a re-run row replacing its older row as in a whole listing. A verdict without
+# both, or with either malformed, keeps the listing below, back to the verdict's creation.
+listed_at=$(jq -r --arg epoch "$FORWARD_EPOCH" 'if (.listedAt | type == "string" and test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"))
+    and (.windowNames | type == "array" and length >= 1 and length <= 20
+         and all(.[]; type == "string" and test("^ci-forward-(CLEAN|FLAKY|MISS|INCOMPLETE)-pr[0-9]+-[0-9a-f]{40}-e" + $epoch + "-f[01]$")))
+  then .listedAt else "" end' "$dir/$name/verdict.json" 2> /dev/null) || listed_at=""
+if [ -n "$listed_at" ]; then
+  stop=$(jq -n -r --arg t "$listed_at" '$t | fromdateiso8601 - 3600 | todateiso8601' 2> /dev/null) ||
+    decide FULL "the listing time $listed_at of the verdict of run $run is unreadable" "$run"
+  list_names "$pages" "$dir/names" "$dir/times" "$stop"
+  [ -z "$limit" ] || decide FULL "the newest forward rows are unreadable: $limit" "$run"
+  [ "$exhausted" = 1 ] || [ "$reached" = 1 ] ||
+    decide FULL "the newest $pages artifact page(s) do not reach $stop, an hour before the verdict's listing, so rows since it cannot be excluded" "$run"
+  jq -r '.windowNames[]' "$dir/$name/verdict.json" >> "$dir/names"
+  live=$(jq -R -s -c --arg epoch "$FORWARD_EPOCH" --arg exhausted "$exhausted" --arg format json --rawfile reclassified "$here/infra-reclassified.txt" -f "$here/bar.jq" < "$dir/names") ||
+    decide FULL "the newest forward rows could not be classified" "$run"
+  [ "$(printf '%s' "$live" | jq -r '.covered or .window.rows >= 20' 2> /dev/null)" = true ] ||
+    decide FULL "the rows since the verdict and its window hold fewer than 20 rows of epoch $FORWARD_EPOCH, so the AFP-V0-030 window is not covered" "$run"
+  if [ "$(printf '%s' "$live" | jq -r '.killSwitch')" != clear ] || [ "$(printf '%s' "$live" | jq -r '.epochRows.miss')" != 0 ]; then
+    decide FULL "the newest forward rows show a MISS or a tripped kill switch" "$run"
+  fi
+  decide MET "verdict run $run of $created, epoch $FORWARD_EPOCH; $pages_read page(s) back to $stop" "$run"
+fi
 list_names "$pages" "$dir/names" "$dir/times"
 [ -z "$limit" ] || decide FULL "the newest forward rows are unreadable: $limit" "$run"
 live=$(jq -R -s -c --arg epoch "$FORWARD_EPOCH" --arg exhausted "$exhausted" --arg format json --rawfile reclassified "$here/infra-reclassified.txt" -f "$here/bar.jq" < "$dir/names") ||

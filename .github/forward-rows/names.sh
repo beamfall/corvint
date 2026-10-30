@@ -1,20 +1,24 @@
 # SPDX-License-Identifier: Apache-2.0
 # shellcheck shell=sh
-# AFP-V0-047/AFP-V0-097: list_names PAGES OUT [TIMES] writes the names of the repository's
+# AFP-V0-047/AFP-V0-097: list_names PAGES OUT [TIMES [STOP]] writes the names of the repository's
 # newest artifacts (at most PAGES pages of 100, newest first) that a run on `main`
 # of this repository uploaded, one per line, to OUT. Sourced by bar.sh, verdict.sh
 # and accept.sh; needs gh, GH_TOKEN and REPO. TIMES, when named, gets one
 # "CREATED_AT NAME" line per listed name. Sets `pages_read` (pages of 100),
 # `exhausted` (1 when a short page ended the listing: every artifact was read)
 # and `limit` (why the listing stopped early, or empty).
+# CIN-V0-003 (V1-3091): STOP, when named, is a UTC time YYYY-MM-DDTHH:MM:SSZ; the listing ends
+# after the first page that holds an artifact created at or before it and sets `reached` to 1,
+# so a caller that needs only the artifacts since STOP reads only their pages.
 # Only an artifact of a run on `main` of this repository counts: the forward-rows
 # job runs there, while a pull-request or queue run can upload any name it likes.
-# shellcheck disable=SC2034 # the callers read pages_read, exhausted and limit
+# shellcheck disable=SC2034 # the callers read pages_read, exhausted, reached and limit
 list_names() {
   : > "$2"
   times=${3:-/dev/null}
+  stop=${4:-}
   [ "$times" = /dev/null ] || : > "$times"
-  page=1 pages_read=0 limit="" exhausted=""
+  page=1 pages_read=0 limit="" exhausted="" reached=""
   while [ "$page" -le "$1" ]; do
     # AFP-V0-760 (V1-3084): an uncached page of 100 can come back truncated ("unexpected end
     # of JSON input") after about 8 s on every try, while the same artifacts read cleanly as
@@ -23,6 +27,7 @@ list_names() {
     # tries 5 s and 10 s apart; the last error stays in the limit.
     if list_names_read 100 "$page"; then
       list_names_keep "$2" "$times"
+      list_names_reached
       # A short page is the end of the listing: every artifact was read (owner, 2026-10-20; V1-0812).
       [ "$(printf '%s\n' "$got" | grep -c .)" -ge 100 ] || exhausted=1
     else
@@ -38,6 +43,8 @@ list_names() {
           tries=$((tries + 1))
         done
         list_names_keep "$2" "$times"
+        list_names_reached
+        [ -z "$reached" ] || break
         [ "$(printf '%s\n' "$got" | grep -c .)" -ge 25 ] || {
           exhausted=1
           break
@@ -46,7 +53,7 @@ list_names() {
       done
     fi
     pages_read=$page
-    [ -z "$exhausted" ] || break
+    [ -z "$exhausted" ] && [ -z "$reached" ] || break
     page=$((page + 1))
   done
 }
@@ -66,4 +73,10 @@ list_names_read() {
 list_names_keep() {
   printf '%s\n' "$got" | sed -n 's/^main \(.*\) [^ ]*$/\1/p' >> "$1"
   printf '%s\n' "$got" | sed -n 's/^main \(.*\) \([^ ]*\)$/\2 \1/p' >> "$2"
+}
+
+# list_names_reached sets `reached` when STOP is named and `got` holds an artifact of any
+# branch created at or before it (UTC times of one format compare as strings).
+list_names_reached() {
+  [ -z "$stop" ] || ! printf '%s\n' "$got" | awk -v s="$stop" '$NF != "-" && $NF <= s { f = 1 } END { exit !f }' || reached=1
 }

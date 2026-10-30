@@ -358,7 +358,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           # Must equal CORVINT_PR_FORWARD_EPOCH below and FORWARD_EPOCH in ci-forward-bar.yml.
-          FORWARD_EPOCH: "1"
+          FORWARD_EPOCH: "2"
           VERDICT_WORKFLOW: .github/workflows/ci-forward-bar.yml
         run: sh trusted/.github/forward-rows/accept.sh
 
@@ -422,10 +422,11 @@ jobs:
       # AFP-V0-098 superset rule records FULL on every batch.
       CORVINT_TEST_SHADOW_SOURCE: "b609ca4b266e63ccbf08954edd99a2a914213e47"
       # AFP-V0-030: the forward-evidence epoch. Advanced to 1 when `corvint test` joined the
-      # shadow (STR-V0-012 step 3), so no earlier row counts toward the AFP-V0-029 bar. The
-      # first shadow rows of this epoch come from the AFP-V0-047 shadow pin above. Must equal
+      # shadow (STR-V0-012 step 3), and to 2 (V1-3314, CIN-V0-001) after the dead-pin rows of
+      # the 1.0 mint, so no earlier row counts toward the AFP-V0-029 bar. The first shadow
+      # rows of this epoch come from the AFP-V0-047 shadow pin above. Must equal
       # FORWARD_EPOCH in ci-control-plane.yml, which names the rows.
-      CORVINT_PR_FORWARD_EPOCH: "1"
+      CORVINT_PR_FORWARD_EPOCH: "2"
       GOTOOLCHAIN: local
       GOPROXY: "off"
       GOSUMDB: "off"
@@ -612,6 +613,7 @@ jobs:
           cp -a -- "$src" "$GOCACHE" || cold "copying $src failed"
           echo "AFP-V0-427: restored $(du -sk -- "$GOCACHE" | cut -f1) KiB from $src"
       - name: Capture trusted tool source outside tested checkout
+        id: pin-tool-capture
         continue-on-error: true
         if: (github.event_name == 'pull_request' || (github.event_name == 'merge_group' && vars.CORVINT_MQ_NARROWING == 'on' && github.event.merge_group.base_ref == 'refs/heads/main')) && env.CORVINT_PR_TOOL_SOURCE != ''
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -620,6 +622,7 @@ jobs:
           ref: ${{ env.CORVINT_PR_TOOL_SOURCE }}
           persist-credentials: false
       - name: Build pinned planner, selector, and driver
+        id: pin-tool-build
         continue-on-error: true
         if: (github.event_name == 'pull_request' || (github.event_name == 'merge_group' && vars.CORVINT_MQ_NARROWING == 'on' && github.event.merge_group.base_ref == 'refs/heads/main')) && env.CORVINT_PR_TOOL_SOURCE != ''
         working-directory: trusted-tools
@@ -630,6 +633,7 @@ jobs:
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-pr-bin/selector" ./tools/gate-affected-select
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-pr-bin/driver" ./tools/corvint-pr-tests
       - name: Capture the pinned shadow planner source outside tested checkout
+        id: pin-shadow-capture
         continue-on-error: true
         if: (github.event_name == 'pull_request' || (github.event_name == 'merge_group' && vars.CORVINT_MQ_NARROWING == 'on' && github.event.merge_group.base_ref == 'refs/heads/main')) && env.CORVINT_TEST_SHADOW_SOURCE != '' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE'
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -640,6 +644,7 @@ jobs:
       - name: Build the pinned shadow planner
         # AFP-V0-047: only ./cmd/corvint, from the shadow pin, never from the tested checkout.
         # AFP-V0-731: a merge-queue entry builds it too, for the narrowing gate's superset guard.
+        id: pin-shadow-build
         continue-on-error: true
         if: (github.event_name == 'pull_request' || (github.event_name == 'merge_group' && vars.CORVINT_MQ_NARROWING == 'on' && github.event.merge_group.base_ref == 'refs/heads/main')) && env.CORVINT_TEST_SHADOW_SOURCE != '' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE'
         working-directory: trusted-shadow
@@ -1227,6 +1232,27 @@ jobs:
         with:
           path: ~/.cache/go-build
           key: ${{ steps.gocache.outputs.cache-primary-key }}
+      - name: Fail loudly on an unreachable or unbuildable pin (CIN-V0-002, V1-3309)
+        # The pin steps above stay continue-on-error so the full suite still runs, but a pin that
+        # cannot be fetched or built leaves every forward row of this run INCOMPLETE and narrowing
+        # dead; the shard fails here, after every other step, and names the pin.
+        if: always() && (steps.pin-tool-capture.outcome == 'failure' || steps.pin-tool-build.outcome == 'failure' || steps.pin-shadow-capture.outcome == 'failure' || steps.pin-shadow-build.outcome == 'failure')
+        timeout-minutes: 1
+        env:
+          TOOL_CAPTURE: ${{ steps.pin-tool-capture.outcome }}
+          TOOL_BUILD: ${{ steps.pin-tool-build.outcome }}
+          SHADOW_CAPTURE: ${{ steps.pin-shadow-capture.outcome }}
+          SHADOW_BUILD: ${{ steps.pin-shadow-build.outcome }}
+        run: |
+          for s in "CORVINT_PR_TOOL_SOURCE $CORVINT_PR_TOOL_SOURCE fetch $TOOL_CAPTURE" "CORVINT_PR_TOOL_SOURCE $CORVINT_PR_TOOL_SOURCE build $TOOL_BUILD" \
+            "CORVINT_TEST_SHADOW_SOURCE $CORVINT_TEST_SHADOW_SOURCE fetch $SHADOW_CAPTURE" "CORVINT_TEST_SHADOW_SOURCE $CORVINT_TEST_SHADOW_SOURCE build $SHADOW_BUILD"; do
+            set -- $s
+            if [ "$4" = failure ]; then
+              echo "::error title=CI pin unreachable (CIN-V0-002)::$1 $2 failed to $3; every forward row of this run is INCOMPLETE until it is repinned"
+              echo "CIN-V0-002: $1 $2 failed to $3" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+          exit 1
 
   ci-tested-tree-record:
     # AFP-V0-170 (V1-2271): the only evidence the AFP-V0-024/046 reuse decision accepts. In a
