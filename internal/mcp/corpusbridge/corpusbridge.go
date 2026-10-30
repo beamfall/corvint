@@ -15,7 +15,6 @@ import (
 	"runtime/debug"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -637,7 +636,11 @@ func queryBatch(ctx context.Context, a *doccorpus.Artifact, request doccorpus.Re
 	answered := 0
 	budget := MaxBatchBytes
 	for _, path := range paths {
-		budget -= 2 * (len(path) + batchRowReserve)
+		// An unresolved row carries the path JSON-escaped, and its text carries that
+		// escaped form escaped again, so the reserve counts both encodings (V1-3198).
+		escaped, _ := json.Marshal(path, json.Deterministic(true))
+		text, _ := json.Marshal(repoenvelope.EscapeHidden(string(escaped)))
+		budget -= len(escaped) + len(text) + 2*batchRowReserve
 	}
 	for i, path := range paths {
 		if ctx.Err() != nil {
@@ -681,11 +684,14 @@ func queryBatch(ctx context.Context, a *doccorpus.Artifact, request doccorpus.Re
 
 // frameCost is what one receipt row adds to the MCP result frame: its JSON
 // bytes once as structured content, and once as the JSON string of its
-// envelope-escaped text.
+// envelope-escaped text. Both halves are measured on the row as queryBatch
+// writes it, with the path JSON-escaped, not on len(path) (V1-3198). The ten
+// bytes beyond the row cover its separating comma and keep the former slack.
 func frameCost(path string, receipt []byte) int {
-	row := len(path) + len(receipt) + 32
-	text, _ := json.Marshal(repoenvelope.EscapeHidden(`{"path":` + strconv.Quote(path) + `,"receipt":` + string(receipt) + `}`))
-	return row + len(text)
+	escaped, _ := json.Marshal(path, json.Deterministic(true))
+	row := `{"path":` + string(escaped) + `,"receipt":` + string(receipt) + `}`
+	text, _ := json.Marshal(repoenvelope.EscapeHidden(row))
+	return len(row) + 10 + len(text)
 }
 
 func writeJSON(out *bytes.Buffer, value any) {

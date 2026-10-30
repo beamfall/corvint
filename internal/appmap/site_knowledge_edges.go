@@ -2,6 +2,7 @@ package appmap
 
 import (
 	"context"
+	"html"
 	"path"
 	"regexp"
 	"sort"
@@ -101,10 +102,26 @@ var (
 // skLinkTags are the elements whose `to` attribute is a router link.
 var skLinkTags = wordSet("Link NavLink router-link RouterLink")
 
+// skScheme is a URL scheme with or without an authority (javascript:, blob:, file:).
+var skScheme = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]*:`)
+
 // skExternal reports a target that leaves the application or stays on the page.
+// The target is first normalised as a URL parser would: leading and trailing C0
+// controls and spaces are stripped and every tab and newline removed, so
+// " javascript:" and "java\tscript:" carry their scheme (V1-3199). A backslash
+// counts as a slash, so "/\\host" is protocol-relative. A template attribute is also
+// checked after HTML character references decode, as a browser reads "&#x6A;avascript:".
 func skExternal(v string) bool {
-	return urlScheme.MatchString(v) || strings.HasPrefix(v, "//") || strings.HasPrefix(v, "#") ||
-		strings.HasPrefix(v, "mailto:") || strings.HasPrefix(v, "tel:") || strings.HasPrefix(v, "javascript:")
+	v = strings.TrimFunc(v, func(r rune) bool { return r <= ' ' })
+	v = strings.Map(func(r rune) rune {
+		switch r {
+		case '\t', '\n', '\r':
+			return -1
+		}
+		return r
+	}, v)
+	v = strings.ReplaceAll(v, `\`, "/")
+	return skScheme.MatchString(v) || strings.HasPrefix(v, "//") || strings.HasPrefix(v, "#")
 }
 
 // templateLinks reads the attribute links of one template or component text.
@@ -166,7 +183,7 @@ func templateLinks(text string) []skLinkSite {
 			switch {
 			case bound || !literalValue || skInterp.MatchString(value):
 				site.dynamic = true
-			case value == "" || skExternal(value):
+			case value == "" || skExternal(value) || skExternal(html.UnescapeString(value)):
 				continue
 			default:
 				site.target = value
