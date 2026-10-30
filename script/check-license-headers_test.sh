@@ -16,7 +16,7 @@ trap 'exit 143' TERM
 
 mkdir -p "$test_root/script" "$test_root/examples/demo" "$test_root/protocol" "$test_root/internal/x" \
     "$test_root/docs/build-log" "$test_root/docs/decisions" "$test_root/.taskman" "$test_root/.github/workflows" \
-    "$test_root/benchmarks/daily-loop-v0"
+    "$test_root/benchmarks/daily-loop-v0" "$test_root/internal/cem/corpusbinding/testdata/public-root-history/notices"
 cp "$source_root/script/check-license-headers.sh" "$test_root/script/"
 git -C "$test_root" init -q
 
@@ -54,6 +54,7 @@ printf '# Entry\n\n%s\n' "$former" >"$test_root/docs/build-log/2026-10-10-entry.
 printf '# %s\n' "$former" >"$test_root/docs/decisions/evidence.py"
 printf '{"body":"%s"}\n' "$former" >"$test_root/.taskman/ticket.json"
 printf '# %s\n' "$former" >"$test_root/benchmarks/daily-loop-v0/harness.py"
+printf 'policy: %s\n' "$former" >"$test_root/internal/cem/corpusbinding/testdata/public-root-history/notices/aaaa.txt"
 git -C "$test_root" add -A
 output=$(run) || fail "a clean tree did not pass: $output"
 case $output in
@@ -68,6 +69,12 @@ printf 'package x\n' >"$test_root/internal/x/x.go"
 printf '# %s\nname: ci\n' "$former" >"$test_root/.github/workflows/ci.yml"
 expect_failure "a former identifier in .github/" ".github/workflows/ci.yml carries a former AGPL SPDX identifier"
 rm "$test_root/.github/workflows/ci.yml"
+
+# 2b. The exemption is the frozen notices directory only: a real former header beside it in the
+#     corpusbinding tree still fails.
+printf '// %s\npackage x\n' "$former" >"$test_root/internal/cem/corpusbinding/other.go"
+expect_failure "a former identifier next to the notice fixtures" "internal/cem/corpusbinding/other.go carries a former AGPL SPDX identifier"
+rm "$test_root/internal/cem/corpusbinding/other.go"
 
 # 3. A former identifier under examples/ fails, alone or in a compound expression.
 printf '#!/bin/sh\n# %s\necho ok\n' "$former" >"$test_root/examples/demo/run.sh"
