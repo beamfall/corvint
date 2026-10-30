@@ -251,7 +251,10 @@ func boundaryDecodeJSString(raw string) (string, bool) {
 			return 0, false
 		}
 		v, err := strconv.ParseUint(string(runes[from:to]), 16, 32)
-		return rune(v), err == nil && v <= unicode.MaxRune
+		if err != nil || v > unicode.MaxRune {
+			return 0, false
+		}
+		return rune(v), true
 	}
 	for i := 0; i < len(runes); i++ {
 		r := runes[i]

@@ -688,10 +688,14 @@ func queryBatch(ctx context.Context, a *doccorpus.Artifact, request doccorpus.Re
 // writes it, with the path JSON-escaped, not on len(path) (V1-3198). The ten
 // bytes beyond the row cover its separating comma and keep the former slack.
 func frameCost(path string, receipt []byte) int {
-	escaped, _ := json.Marshal(path, json.Deterministic(true))
-	row := `{"path":` + string(escaped) + `,"receipt":` + string(receipt) + `}`
-	text, _ := json.Marshal(repoenvelope.EscapeHidden(row))
-	return len(row) + 10 + len(text)
+	var row bytes.Buffer
+	row.WriteString(`{"path":`)
+	writeJSON(&row, path)
+	row.WriteString(`,"receipt":`)
+	row.Write(receipt)
+	row.WriteByte('}')
+	text, _ := json.Marshal(repoenvelope.EscapeHidden(row.String()))
+	return row.Len() + 10 + len(text)
 }
 
 func writeJSON(out *bytes.Buffer, value any) {
