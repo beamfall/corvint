@@ -124,7 +124,7 @@ type flow struct {
 	anchorMergeBase string
 	// gitOutputLimit overrides maxGitOutputBytes when positive (tests only).
 	gitOutputLimit int
-	// replays memoizes each regeneration replay by commit (DCW-V0-397).
+	// replays memoizes each regeneration replay by commit (DCW-V0-401).
 	replays     map[string]regeneration
 	replayCount int
 }

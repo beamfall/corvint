@@ -18,7 +18,7 @@ const batchRegenSubject = "chore(batch): regenerate derived files (make batch-re
 
 // regenerationReplayLimit bounds how many commits one run replays, and
 // regenerationReplayTimeout bounds each commit's replay, every mode together
-// (DCW-V0-397).
+// (DCW-V0-401).
 const (
 	regenerationReplayLimit   = 8
 	regenerationReplayTimeout = 15 * time.Minute
@@ -37,7 +37,7 @@ type regeneration struct {
 }
 
 // regenerated reports whether commit is exactly what script/batch-regen.sh
-// produces from parent (DCW-V0-397, V1-2981, V1-3214): a private clone outside
+// produces from parent (DCW-V0-401, V1-2981, V1-3214): a private clone outside
 // the repository, reading its objects as an alternate, checks parent out
 // detached, runs the parent's own script/batch-regen.sh --mechanical (and,
 // for a commit under the batch-regen subject, the full --no-commit run), stages

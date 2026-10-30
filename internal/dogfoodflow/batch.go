@@ -480,18 +480,18 @@ func (b *batch) verifyCoverage() {
 }
 
 // regeneratedCommit accepts a one-parent commit that is exactly the output of
-// script/batch-regen.sh replayed on its parent (DCW-V0-397): the batch-regen
+// script/batch-regen.sh replayed on its parent (DCW-V0-401): the batch-regen
 // commit and a lane's post-seal receipt or line-citation repin. It prints one
 // NOTE either way, so an unbound commit names why its replay did not match.
 func (b *batch) regeneratedCommit(parent, commit string) bool {
 	result := b.regenerated(parent, commit)
 	if result.ok {
 		b.derived["regenerated"]++
-		b.print("%s: NOTE COMMIT %s derivation=regenerated mode=%s (DCW-V0-397)\n", b.prefix, commit, result.mode)
+		b.print("%s: NOTE COMMIT %s derivation=regenerated mode=%s (DCW-V0-401)\n", b.prefix, commit, result.mode)
 		return true
 	}
 	if !result.silent {
-		b.print("%s: NOTE COMMIT %s regeneration NOT_REPRODUCED %s (DCW-V0-397)\n", b.prefix, commit, result.reason)
+		b.print("%s: NOTE COMMIT %s regeneration NOT_REPRODUCED %s (DCW-V0-401)\n", b.prefix, commit, result.reason)
 	}
 	return false
 }

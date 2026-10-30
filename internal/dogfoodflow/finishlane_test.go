@@ -502,10 +502,10 @@ func TestFinishLaneDCWV0378DigestsOnlyRegularFiles(t *testing.T) {
 	}
 }
 
-// DCW-V0-396 (V1-3211): finish-lane refuses a reused worktree's ignored OCM
+// DCW-V0-400 (V1-3211): finish-lane refuses a reused worktree's ignored OCM
 // sidecar older than BASE before it prepares or binds anything, and names the
 // move that clears it.
-func TestFinishLaneDCWV0396RefusesAStaleSidecarBeforePrepare(t *testing.T) {
+func TestFinishLaneDCWV0400RefusesAStaleSidecarBeforePrepare(t *testing.T) {
 	// Glob syntax in the worktree path must not hide its sidecars.
 	root := filepath.Join(t.TempDir(), "lane[1]")
 	if err := os.Mkdir(root, 0o777); err != nil {
@@ -572,10 +572,10 @@ func TestFinishLaneDCWV0396RefusesAStaleSidecarBeforePrepare(t *testing.T) {
 	}
 }
 
-// DCW-V0-396 (V1-3211): inputs-check refuses, before any prepare, a reused
+// DCW-V0-400 (V1-3211): inputs-check refuses, before any prepare, a reused
 // worktree whose local trace store names a commit HEAD does not reach, and
 // names the migrate-traces recovery with the dry run's digest.
-func TestFinishLaneDCWV0396InputsCheckRefusesAStrandedTrace(t *testing.T) {
+func TestFinishLaneDCWV0400InputsCheckRefusesAStrandedTrace(t *testing.T) {
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
 	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("a\n"), 0o666); err != nil {

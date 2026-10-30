@@ -131,7 +131,7 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    byte-preserved, to `.context-corvint/legacy-traces/` (LTPM-V0-012). `dogfood change` and
    `finish-lane` check this before they prepare anything and refuse `reused-worktree-state` with
    those exact commands, also naming ignored `.corvint/change.ocm*` sidecars older than BASE to
-   move aside (`DCW-V0-396`). The trace store, the `<git-dir>/corvint/` evidence and the operation lock belong to one worktree: lanes that share a
+   move aside (`DCW-V0-400`). The trace store, the `<git-dir>/corvint/` evidence and the operation lock belong to one worktree: lanes that share a
    repository each run in their own `git worktree add` worktree or clone, and can then change,
    check and seal at the same time; switching one worktree between lanes strands the first lane's
    traces the same way (`DCW-V0-044`, proposed).
@@ -240,7 +240,7 @@ produces `"complete": true` or `dogfood-check: PASS`.
 | Unsupported | run from a subdirectory of the worktree (reproduced for V1-0236) | `REFUSE not-repository-root` (exit 2) | `REFUSE not-repository-root` (exit 2) |
 | Unsupported | intent without exactly one `## Requirements` heading | `ocm-prepare-001: invalid-requirements-section`, `ocm-aggregate: intent-scope-drift` | NOT_OBSERVED |
 | Drift | OCM map marked or linked without a rerun | not applicable | `FAIL intent-scope-drift`, `fix:` reruns `dogfood-change` |
-| Rewritten | amend or rebase after a recorded pass, or another lane run in the same worktree | before any prepare, `REFUSE reused-worktree-state` (exit 2) naming each stranded trace and each ignored OCM sidecar older than BASE, with the `mv` and `corvint migrate-traces --apply --plan-digest` recovery lines (`DCW-V0-396`); a trace stranded mid-run still reports `coordination-time-query: unsupported-query-trace-state`, `local-outcome: record-failed` and a `local trace store:` line; restoring the commit as an ancestor, or quarantining the trace with `corvint migrate-traces`, clears it | not reached |
+| Rewritten | amend or rebase after a recorded pass, or another lane run in the same worktree | before any prepare, `REFUSE reused-worktree-state` (exit 2) naming each stranded trace and each ignored OCM sidecar older than BASE, with the `mv` and `corvint migrate-traces --apply --plan-digest` recovery lines (`DCW-V0-400`); a trace stranded mid-run still reports `coordination-time-query: unsupported-query-trace-state`, `local-outcome: record-failed` and a `local trace store:` line; restoring the commit as an ancestor, or quarantining the trace with `corvint migrate-traces`, clears it | not reached |
 | Sealed | check on the seal commit, or a change containing a modified or unverifiable seal | `REFUSE sealed-cem-in-change`, one line per refused path | `REFUSE sealed-head` |
 | Undeclared | `DOGFOOD_OUTPUT_CHANGE` names a requirement `REQUIREMENTS.tsv` at `HEAD` lacks, or whose spec `BASE..HEAD` does not modify, or is set for an enrolled aggregate check (`DCW-V0-047`; reproduced by `TestCheckDCWV0047DeclaredOutputChange` for V1-1279, the aggregate case NOT_OBSERVED) | not applicable | `REFUSE output-change-requirement-unknown`, `output-change-not-in-diff` or `output-change-aggregate-unsupported` (exit 2) before any verifier runs; without the variable an output change still fails `verifier-disagreement` |
 
@@ -428,7 +428,7 @@ leave no map, so a `|` in the verify file, a uniform plan, a stale ordinal, a ci
 change edits or an empty file exits naming the file and line before any bind work (`DCW-V0-380`).
 Run it alone, with the same variables, as `make dogfood-inputs-check` while writing the inputs.
 It also refuses `reused-worktree-state` for a trace or OCM sidecar an earlier lane left in a reused
-worktree and prints the `corvint migrate-traces --apply` recovery (`DCW-V0-396`). Before the first
+worktree and prints the `corvint migrate-traces --apply` recovery (`DCW-V0-400`). Before the first
 bind, also run `make doc-gates` on the working tree: it is the doc-gate list closeout and CI run, so
 a spec whose Agent digest `Status` no longer repeats its header `Status`, a stale
 `REQUIREMENTS.tsv` or a missing read scope fails there, before any bind (`DCW-V0-399`).
@@ -638,7 +638,7 @@ commit (`ASD-V0-033`) and a lane's post-seal receipt or line-citation repin. Bat
 parent's script in a private clone outside the repository; a commit with any hand-edited hunk
 does not reproduce and stays `unbound-commits` with `NOT_REPRODUCED tree-differs`. A repin commit
 inside a lane's own range needs no hand citation rows for the paths it alone changes
-(`DCW-V0-397`, `DCW-V0-398`).
+(`DCW-V0-401`, `DCW-V0-398`).
 
 The check is read-only: it writes no object, ref, index, worktree file, trace or ledger, runs no
 repository-configured filter, hook or merge driver (a configuration Core's hardened status cannot

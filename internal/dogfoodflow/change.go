@@ -113,7 +113,7 @@ type change struct {
 	// citation map after the first row (DCW-V0-068).
 	citationFailedMap string
 	// nested marks a finish-lane pass, whose run already checked the
-	// worktree for an earlier lane's state (DCW-V0-396).
+	// worktree for an earlier lane's state (DCW-V0-400).
 	nested bool
 	// scope narrows a finish-lane pass to the steps its decision reads
 	// (DCW-V0-115); a standalone change run is always passFull.
@@ -1620,7 +1620,7 @@ func (c *change) citationPlanMismatch(plan []byte) string {
 		recordCitation = c.authorityCitation(deferralAuthorityAnchor)
 	}
 	// A hunk on a path whose whole BASE..HEAD change is one commit that
-	// replays as regenerated is cited against the DCW-V0-397 bullet at BASE
+	// replays as regenerated is cited against the DCW-V0-401 bullet at BASE
 	// (DCW-V0-398, V1-3214).
 	regenCitation := c.authorityCitation(regenerationAuthorityAnchor)
 	seals := []string{}
@@ -1773,9 +1773,9 @@ const (
 	sealAuthority           = "docs/specs/daily-change-evidence-workflow-v0.md"
 	sealAuthorityAnchor     = "- `DCW-V0-042`:"
 	deferralAuthorityAnchor = "- `DCW-V0-372`:"
-	// regenerationAuthorityAnchor is the DCW-V0-397 requirement a regenerated
+	// regenerationAuthorityAnchor is the DCW-V0-401 requirement a regenerated
 	// hunk is cited against (DCW-V0-398).
-	regenerationAuthorityAnchor = "- `DCW-V0-397`:"
+	regenerationAuthorityAnchor = "- `DCW-V0-401`:"
 )
 
 // regeneratedPath reports whether path's whole BASE..HEAD change is one

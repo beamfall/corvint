@@ -22,7 +22,7 @@ var staleOCMPatterns = []string{"change.ocm.[0-9][0-9][0-9].json", "change.ocm-s
 
 // requireFreshWorktree refuses, before any prepare or bind, a worktree whose
 // private dogfood state was left by an earlier lane at the same path
-// (DCW-V0-396, V1-3211): a worktree-local trace that names a commit no longer
+// (DCW-V0-400, V1-3211): a worktree-local trace that names a commit no longer
 // reachable from HEAD, or an ignored OCM sidecar last written before BASE was
 // committed. Either one makes the later rebind refuse
 // unsupported-query-trace-state or record-failed only after the bind commit.

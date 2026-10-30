@@ -25,7 +25,7 @@ git add -A
 `
 
 // regenRepo is a batch repository whose base carries the fake batch-regen.sh
-// and the DCW-V0-397 bullet a regenerated hunk is cited against.
+// and the DCW-V0-401 bullet a regenerated hunk is cited against.
 func regenRepo(t *testing.T) *batchRepo {
 	t.Helper()
 	repo := newBatchRepo(t)
@@ -33,7 +33,7 @@ func regenRepo(t *testing.T) *batchRepo {
 	if err := os.Chmod(filepath.Join(repo.root, "script/batch-regen.sh"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	repo.write(sealAuthority, "# spec\n\n- `DCW-V0-396`: other\n- `DCW-V0-397`: a regenerated commit\n  is derived\n- `DCW-V0-398`: other\n")
+	repo.write(sealAuthority, "# spec\n\n- `DCW-V0-400`: other\n- `DCW-V0-401`: a regenerated commit\n  is derived\n- `DCW-V0-398`: other\n")
 	repo.base = repo.commit("regen script")
 	return repo
 }
@@ -54,10 +54,10 @@ func (r *batchRepo) regenerate(mode, subject string) string {
 	return r.commit(subject)
 }
 
-// DCW-V0-397 (V1-2981): the batch-regen commit and a post-seal receipt repin
+// DCW-V0-401 (V1-2981): the batch-regen commit and a post-seal receipt repin
 // equal to regeneration from their parents pass unbound-commits with a NOTE;
 // a repin commit with a hand edit beside it stays unbound and says why.
-func TestBatchCheckDCWV0397AcceptsRegeneratedCommits(t *testing.T) {
+func TestBatchCheckDCWV0401AcceptsRegeneratedCommits(t *testing.T) {
 	repo := regenRepo(t)
 	// The checker's own overrides never reach the replayed script: a step
 	// override would make the fake script fail, and a startup file would write
@@ -75,8 +75,8 @@ func TestBatchCheckDCWV0397AcceptsRegeneratedCommits(t *testing.T) {
 	regen := repo.regenerate("full", batchRegenSubject)
 	code, stdout, stderr := repo.check()
 	for _, want := range []string{
-		"NOTE COMMIT " + repinA + " derivation=regenerated mode=--mechanical (DCW-V0-397)\n",
-		"NOTE COMMIT " + regen + " derivation=regenerated mode=--no-commit (DCW-V0-397)\n",
+		"NOTE COMMIT " + repinA + " derivation=regenerated mode=--mechanical (DCW-V0-401)\n",
+		"NOTE COMMIT " + regen + " derivation=regenerated mode=--no-commit (DCW-V0-401)\n",
 	} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("exit=%d missing %q in\n%s%s", code, want, stdout, stderr)
@@ -96,13 +96,13 @@ func TestBatchCheckDCWV0397AcceptsRegeneratedCommits(t *testing.T) {
 	hand := repo.commit("repin plus a hand edit")
 	code, stdout, stderr = repo.check()
 	if code != 1 || !strings.Contains(stderr, "FAIL unbound-commits count=1\n  "+hand+"\n") ||
-		!strings.Contains(stdout, "NOTE COMMIT "+hand+" regeneration NOT_REPRODUCED tree-differs (DCW-V0-397)\n") {
+		!strings.Contains(stdout, "NOTE COMMIT "+hand+" regeneration NOT_REPRODUCED tree-differs (DCW-V0-401)\n") {
 		t.Fatalf("hand edit exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 }
 
 // DCW-V0-398 (V1-3214): the citation preflight cites a hunk on a path whose
-// whole change is one regenerated commit against the DCW-V0-397 bullet at
+// whole change is one regenerated commit against the DCW-V0-401 bullet at
 // BASE, with no hand row; a repin commit with any non-generated hunk still
 // owes a row for every hunk it touches.
 func TestChangeDCWV0398CitesRegeneratedHunksOnly(t *testing.T) {

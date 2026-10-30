@@ -47,7 +47,7 @@ func (run portableRun) concurrently(t *testing.T, dirs []string, extra func(int)
 // refuses: each worktree keeps its own local trace store, evidence directory
 // and operation lock, and the primary worktree's store is never written. Run
 // in lane A's worktree instead, lane B is refused before any prepare by lane
-// A's stranded traces (DCW-V0-396), and the named recovery clears it.
+// A's stranded traces (DCW-V0-400), and the named recovery clears it.
 func TestDogfoodDCWV0044WorktreeLanesRunConcurrently(t *testing.T) {
 	t.Parallel()
 	run := portableDogfoodRunner(t)
@@ -115,7 +115,7 @@ func TestDogfoodDCWV0044WorktreeLanesRunConcurrently(t *testing.T) {
 
 	// The shared-store failure V1-1209 reported: lane B's work run in lane A's
 	// worktree, whose traces name commits lane B cannot reach, beside an ignored
-	// OCM sidecar older than BASE (fixture commits are dated 2000-01-01). DCW-V0-396 (V1-3211) refuses it before any
+	// OCM sidecar older than BASE (fixture commits are dated 2000-01-01). DCW-V0-400 (V1-3211) refuses it before any
 	// prepare or bind and names the recovery, which then clears the refusal.
 	cemGit(t, lanes[0], "checkout", "-q", "--detach", work)
 	stale := filepath.Join(lanes[0], ".corvint", "change.ocm.009.json")
