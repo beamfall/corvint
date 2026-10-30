@@ -301,6 +301,14 @@ func Main(args []string) {
 	forwarded(args[1:])
 }
 
+// Run's parameter is not argument-named, but it carries the command line into routed.
+func Run(input []string) { routed(input) }
+
+func routed(args []string) {
+	if args[0] == "input-verb" {
+	}
+}
+
 func nested(args []string) {
 	helper := func(args []string) { _ = exec.Command("git", args...) }
 	_ = helper
@@ -346,7 +354,7 @@ func dispatch(argv []string) {
 	for _, literal := range scan.Flags {
 		flags = append(flags, literal.Value)
 	}
-	if want := []string{"appended-own", "elem-verb", "flag-args-verb", "forwarded-verb", "handler-verb", "nested-verb", "real-verb", "reexec-verb"}; !slices.Equal(words, want) {
+	if want := []string{"appended-own", "elem-verb", "flag-args-verb", "forwarded-verb", "handler-verb", "input-verb", "nested-verb", "real-verb", "reexec-verb"}; !slices.Equal(words, want) {
 		t.Errorf("words %v, want %v", words, want)
 	}
 	if !slices.Equal(flags, []string{"--real-flag"}) {

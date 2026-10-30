@@ -27,11 +27,17 @@ command -v jq >/dev/null 2>&1 || { printf 'documentation paths: jq is required\n
 # /bin/sh has no pipefail: a failed listing must refuse, never write a short declaration.
 generate() {
     work=$(mktemp -d "${TMPDIR:-/tmp}/corvint-documentation-paths.XXXXXX") || exit 1
-    # -z keeps a name with a quote, backslash or non-ASCII byte raw (git C-quotes it otherwise); a
-    # name holding a newline cannot be one JSON line entry here, so it refuses.
+    # -z keeps a name with a quote or non-ASCII byte raw (git C-quotes it otherwise). A name the
+    # AFP-V0-160 entry grammar (ValidRelativePath) refuses, one holding a backslash, a newline or
+    # bytes that are not UTF-8, refuses here too, so --check never passes a declaration the
+    # planner would reject.
     git ls-files -z -- 'docs/*.md' >"$work/listed" ||
         { rm -rf "$work"; printf 'documentation paths: git ls-files failed\n' >&2; exit 1; }
-    perl -0ne 'chomp; next unless m{\Adocs/[^/]+\.md\z}s; die "documentation paths: a docs/*.md name holds a newline\n" if /\n/; print "$_\n"' \
+    perl -0ne 'chomp; next unless m{\Adocs/[^/]+\.md\z}s;
+        die "documentation paths: a docs/*.md name holds a newline\n" if /\n/;
+        die "documentation paths: $_ holds a backslash, which a declaration entry cannot (AFP-V0-160); rename it\n" if /\\/;
+        my $copy = $_; die "documentation paths: a docs/*.md name is not UTF-8; rename it\n" unless utf8::decode($copy);
+        print "$_\n"' \
         "$work/listed" >"$work/paths" || { rm -rf "$work"; exit 1; }
     printf '%s\n' "$DIRS" >>"$work/paths"
     LC_ALL=C sort -u "$work/paths" >"$work/sorted" &&

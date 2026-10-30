@@ -297,8 +297,9 @@ cannot silently go missing or outlive its command.
   function that never receives the command line: the function is not exported, `main` or
   `init`, is called in the package and named nowhere but as a callee, and every call passes, at
   that position, only a struct field other than `Args` (a recorded invocation such as
-  `wholeGoTest(invocation.Argv)`), a literal, an `append` of those, or a caller parameter that is
-  itself of this kind, computed to a fixed point; any other argument (a local, a closure
+  `wholeGoTest(invocation.Argv)`), a literal, an `append` of those, or a caller `[]string`
+  parameter, whatever its name, that is not shown to receive the command line, computed to a fixed
+  point, so `Run(input []string) { routed(input) }` carries the command line into `routed`; any other argument (a local, a closure
   parameter, a call result) counts as the command line. (2) A slice a function body hands whole,
   sliced, spread or through `append` to `exec.Command`, `exec.CommandContext` or `syscall.Exec`,
   assigns to a `Cmd`'s `Args` field or sets as `Args:` in a composite literal, or binds to a

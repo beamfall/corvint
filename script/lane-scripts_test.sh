@@ -958,7 +958,9 @@ for cmd in \
   "nohup make dogfood-finish LANE=1 BASE=x" \
   "make dogfood-check BASE=x & echo started" \
   "corvint dogfood finish-lane --base x &" \
-  "script/dogfood-finish.sh x c i v passed & disown"; do
+  "script/dogfood-finish.sh x c i v passed & disown" \
+  "(cd lane && make dogfood-seal BASE=x) &" \
+  "make dogfood-seal BASE=x &> seal.log &"; do
   session_denied "$cmd" || fail "lane-guard allowed a background dogfood step: $cmd"
 done
 session_denied "make dogfood-seal BASE=x" 1 || fail "lane-guard allowed run_in_background for dogfood-seal"
@@ -969,6 +971,8 @@ for cmd in \
   "make dogfood-change BASE=x &" \
   "make dogfood-checks-report &" \
   "git log --grep='dogfood-seal' &" \
+  "make dogfood-check BASE=x; sleep 1 & wait" \
+  "tail -n 30 /tmp/dogfood-finish.log & wait" \
   "cat > notes.md <<EOF"$'\nmake dogfood-seal &\nEOF'; do
   out=$(session_guard "$cmd")
   [[ -z $out ]] || fail "lane-guard refused a foreground dogfood step or unrelated background work: $cmd -> $out"

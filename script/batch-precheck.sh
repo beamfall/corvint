@@ -679,29 +679,32 @@ fi
 # sealed_names BASE prints one refusal line per sealed CEM added since BASE whose name is not a
 # commit in HEAD's history (ASD-V0-109, V1-3267), and returns 1 when there is any.
 sealed_names() {
-  local added name sha bad=0
-  added=$({ git -c core.quotePath=true diff --name-only --diff-filter=A --no-renames "$1" -- .corvint/changes/ &&
-    git -c core.quotePath=true ls-files -o --exclude-standard -- .corvint/changes/; } | sort -u) ||
+  local tracked untracked name sha where bad=0 rm_untracked=0 rm_tracked=0
+  tracked=$(git -c core.quotePath=true diff --name-only --diff-filter=A --no-renames "$1" -- .corvint/changes/) &&
+    untracked=$(git -c core.quotePath=true ls-files -o --exclude-standard -- .corvint/changes/) ||
     { printf 'sealed-cem-names: cannot list the sealed CEMs added since %s\n' "$1"; return 1; }
-  while IFS= read -r name; do
+  while IFS=$'\t' read -r where name; do
     [[ -n $name ]] || continue
+    # Only sealed CEMs are judged; a Git-quoted name is one when its decoded name ends in .cem.json.
     if [[ $name == \"* ]]; then
-      # Git quoted the path, so no commit can be read from it.
-      printf 'sealed-cem-names: %s needs quoting, so its name cannot be a commit\n' "$name"
-      bad=1
-      continue
+      [[ $name == *'.cem.json"' ]] || continue
+      printf 'sealed-cem-names: %s needs quoting, so its name cannot be a commit (%s)\n' "$name" "$where"
+    else
+      [[ $name == *.cem.json ]] || continue
+      sha=${name##*/}
+      sha=${sha%.cem.json}
+      if [[ $sha =~ ^[0-9a-f]{40}$ ]] && git cat-file -e "$sha^{commit}" 2> /dev/null && git merge-base --is-ancestor "$sha" HEAD 2> /dev/null; then
+        continue
+      fi
+      printf 'sealed-cem-names: %s names %s, which is not a commit in HEAD'"'"'s history (a seal made on another lineage, such as before a rewrite; %s)\n' "$name" "$sha" "$where"
     fi
-    [[ $name == *.cem.json ]] || continue
-    sha=${name##*/}
-    sha=${sha%.cem.json}
-    if [[ $sha =~ ^[0-9a-f]{40}$ ]] && git cat-file -e "$sha^{commit}" 2> /dev/null && git merge-base --is-ancestor "$sha" HEAD 2> /dev/null; then
-      continue
-    fi
-    printf 'sealed-cem-names: %s names %s, which is not a commit in HEAD'"'"'s history (a seal made on another lineage, such as before a rewrite)\n' "$name" "$sha"
     bad=1
-  done <<< "$added"
+    if [[ $where == untracked ]]; then rm_untracked=1; else rm_tracked=1; fi
+  done < <(sed 's/^/tracked\t/' <<< "$tracked"; sed 's/^/untracked\t/' <<< "$untracked")
   if ((bad)); then
-    printf 'sealed-cem-names: recover: git rm each named file and commit, then rebind and reseal this branch against its base: make dogfood-finish LANE=1 BASE=%s CITATIONS=.. INTENTS=.. VERIFY=.. OUTCOME=.. (docs/DOGFOOD.md section 4)\n' "$1"
+    ((rm_untracked)) && printf 'sealed-cem-names: recover: rm each named untracked file\n'
+    ((rm_tracked)) && printf 'sealed-cem-names: recover: git rm each named tracked file and commit\n'
+    printf 'sealed-cem-names: recover: then rebind and reseal this branch against its base: make dogfood-finish LANE=1 BASE=%s CITATIONS=.. INTENTS=.. VERIFY=.. OUTCOME=.. (docs/DOGFOOD.md section 4)\n' "$1"
   fi
   return "$bad"
 }

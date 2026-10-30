@@ -118,9 +118,38 @@ sub shell_words {
 my $rib_value = ref $in->{tool_input} eq "HASH" ? $in->{tool_input}{run_in_background} : undef;
 my $in_background = defined $rib_value && "$rib_value" ne "" && "$rib_value" ne "0" && "$rib_value" ne "false";
 {
+    # A dogfood step is a command word: a make target, the wrapper script or the corvint verb, never
+    # a substring such as a log name (/tmp/dogfood-finish.log). The background test is scoped to the
+    # command the step is in: the segment before a background & (a whole (...) group when the &
+    # follows one), or the rest of a nohup/setsid command, so `make dogfood-check; sleep 1 & wait`
+    # is allowed.
+    my $end = qr/(?=[\s;&|)]|$)/;
+    my $step = qr/(?:(?:^|[\s(])dogfood-(?:closeout|finish|seal|check)$end|(?:^|[\s(\/])dogfood-finish\.sh$end|\bdogfood\s+(?:finish-lane|finish|check|seal)$end)/;
     my $words = shell_words(join "\n", @kept);
-    if ($words =~ /(?:dogfood-(?:closeout|finish|seal|check)(?![\w-])|dogfood-finish\.sh|\bdogfood\s+(?:finish-lane|finish|check|seal)(?![\w-]))/ &&
-        ($in_background || $words =~ /&/ || $words =~ /(?:^|[;|(&\s])(?:nohup|setsid|disown)(?:\s|$)/)) {
+    my $bg_step = $in_background && $words =~ $step;
+    for (my $i = index($words, "&"); !$bg_step && $i >= 0; $i = index($words, "&", $i + 1)) {
+        my $j = $i - 1;
+        $j-- while $j >= 0 && substr($words, $j, 1) =~ /[ \t]/;
+        my $start;
+        if ($j >= 0 && substr($words, $j, 1) eq ")") {
+            my $depth = 0;
+            for ($start = $j; $start >= 0; $start--) {
+                my $c = substr($words, $start, 1);
+                $depth++ if $c eq ")";
+                $depth-- if $c eq "(";
+                last if $depth == 0;
+            }
+            $start = 0 if $start < 0;
+        } else {
+            for ($start = $j; $start >= 0 && substr($words, $start, 1) !~ /[;\n|&(]/; $start--) {}
+            $start++;
+        }
+        $bg_step = substr($words, $start, $i - $start) =~ $step;
+    }
+    while (!$bg_step && $words =~ /(?:^|[;|(&\s])(?:nohup|setsid)\s([^;\n|&)]*)/g) {
+        $bg_step = " $1" =~ $step;
+    }
+    if ($bg_step) {
         deny("Lane rule: dogfood closeout, finish, check and seal run in the foreground (docs/LANE-ORCHESTRATION.md section 4): a lane that backgrounds one and ends its turn stays parked. Run $heavy make dogfood-finish LANE=1 BASE=.. CITATIONS=.. INTENTS=.. VERIFY=.. OUTCOME=.. in the foreground; if it would pass 600s, stop after the bind commit and hand off the exact remaining command.");
     }
 }

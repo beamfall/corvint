@@ -71,6 +71,17 @@ jq -e --arg p "$odd" '.paths | index($p)' "$test_root/.corvint/documentation-pat
     fail "unusual name not declared raw: $(cat "$test_root/.corvint/documentation-paths.json")"
 cases=$((cases + 1))
 
+# 4b. A guide name with a backslash, which the AFP-V0-160 entry grammar refuses, is refused by
+# both modes, so --check cannot pass a declaration the planner would reject.
+back='docs/a\b.md'
+printf 'b\n' >"$test_root/$back"
+git -C "$test_root" add -- "$back"
+if output=$(tool 2>&1); then fail "generate accepted a backslash name"; fi
+case $output in *'docs/a\b.md holds a backslash'*) ;; *) fail "backslash refusal did not name the path: $output" ;; esac
+if tool --check 2>/dev/null; then fail "check passed a backslash name"; fi
+git -C "$test_root" rm -qf --cached -- "$back" && rm -f "$test_root/$back"
+cases=$((cases + 1))
+
 # 5. An unknown argument is a usage refusal.
 status=0
 tool --nope >/dev/null 2>&1 || status=$?

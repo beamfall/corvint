@@ -227,7 +227,9 @@ func nonCommandLineParams(files []*ast.File) map[*ast.FuncDecl]map[string]bool {
 			}
 		}
 	}
-	// params[fn][i] is the name of fn's i-th parameter when it is an argument-named []string.
+	// params[fn][i] is the name of fn's i-th parameter when it is a []string, whatever its name, so
+	// the command line flows through Main(input []string) { dispatch(input) } (V1-3153 review);
+	// only argument-named ones can be excluded from the scan.
 	params := map[*ast.FuncDecl][]string{}
 	for _, fns := range byName {
 		for _, fn := range fns {
@@ -236,7 +238,7 @@ func nonCommandLineParams(files []*ast.File) map[*ast.FuncDecl]map[string]bool {
 				count := max(1, len(field.Names))
 				for index := range count {
 					name := ""
-					if index < len(field.Names) && isStringSlice(field.Type) && argumentSlice(field.Names[index].Name) {
+					if index < len(field.Names) && isStringSlice(field.Type) {
 						name = field.Names[index].Name
 					}
 					names = append(names, name)
@@ -296,7 +298,7 @@ func nonCommandLineParams(files []*ast.File) map[*ast.FuncDecl]map[string]bool {
 				return index, true
 			}
 		}
-		// Any other parameter of the caller is not an argument slice.
+		// Any other parameter of the caller (a named slice type, an interface) has no tracked state.
 		for _, field := range fn.Type.Params.List {
 			for _, id := range field.Names {
 				if id.Name == name {
@@ -307,14 +309,14 @@ func nonCommandLineParams(files []*ast.File) map[*ast.FuncDecl]map[string]bool {
 		return 0, false
 	}
 	// fromCommandLine is conservative: only a struct field other than Args (a
-	// recorded invocation), a literal, or a caller parameter not yet shown to
-	// receive the command line counts as not this binary's arguments.
+	// recorded invocation), a literal, or a caller []string parameter not yet
+	// shown to receive the command line counts as not this binary's arguments.
 	var fromCommandLine func(ast.Expr, *ast.FuncDecl) bool
 	fromCommandLine = func(expression ast.Expr, caller *ast.FuncDecl) bool {
 		switch value := expression.(type) {
 		case *ast.Ident:
 			if index, isParam := paramIndex(caller, value.Name); isParam {
-				return index >= 0 && cli[caller][index]
+				return index < 0 || cli[caller][index]
 			}
 			return true
 		case *ast.SelectorExpr:
@@ -358,7 +360,7 @@ func nonCommandLineParams(files []*ast.File) map[*ast.FuncDecl]map[string]bool {
 	out := map[*ast.FuncDecl]map[string]bool{}
 	for fn, names := range params {
 		for index, name := range names {
-			if name != "" && !cli[fn][index] {
+			if name != "" && argumentSlice(name) && !cli[fn][index] {
 				if out[fn] == nil {
 					out[fn] = map[string]bool{}
 				}

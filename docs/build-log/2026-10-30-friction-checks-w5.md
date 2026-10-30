@@ -173,3 +173,24 @@ batch-precheck-test` section 9 (run without the node-only section 1b on this hos
 fails with the previous script. Disposition: V1-3267 delivered; sealed as a change stacked on this
 lane's first seal commit `fc80ce4b8` (docs/DOGFOOD.md, stacking on a sealed predecessor).
 
+## Follow-up: Codex review of 42718740f
+
+The orchestrator ran one Codex review on the Mac; its five findings, fixed in one commit:
+
+1. P2, `CAP-V0-200`: `Run(input []string) { routed(input) }` hid `routed`'s dispatch because the
+   call graph tracked only argument-named parameters. Every `[]string` parameter now carries its
+   command-line state; only argument-named ones can be excluded (`input-verb` case, which fails on
+   the previous code). The repository scan is unchanged.
+2. P2, `ASD-V0-105`: a staged `docs/a\b.md` produced a declaration `--check` passed but the
+   AFP-V0-160 grammar rejects. Generate and `--check` now refuse a backslash, newline or non-UTF-8
+   name, naming it (case 4b).
+3. P2, `ASD-V0-107`: the guard matched the step name and `&` anywhere in the call. It now needs
+   the step as a command word inside the backgrounded command; the two reported calls are allowed
+   cases and a `(...) &` group and `&> log &` stay denied.
+4. P3, `ASD-V0-109`: a quoted non-CEM name such as `review"notes.txt` failed the check; names are
+   now filtered for `.cem.json` first.
+5. P3, `ASD-V0-109`: an untracked stale seal was told to `git rm`; each refusal now says tracked or
+   untracked and the recovery is `rm` for untracked files (section 9 cases).
+
+The `afcaa46` rename fix is not merged: this branch adds only its own seals (`77a70d62f`,
+`ec5509cf2`), both commits in its history.
