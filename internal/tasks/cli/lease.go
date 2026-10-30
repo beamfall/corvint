@@ -489,6 +489,11 @@ func leaseResult(cmd []string, report *store.Report) *wire.Result {
 		if r := report.ScopeRefusal; r != nil {
 			o.Set("scopeRefusal", wire.ObjectValue(wire.NewObject().Set("declared", wire.Strings(r.Declared)).Set("rejected", wire.Strings(r.Rejected)).Set("nextAction", wire.String(transaction.ScopeRetry))))
 		}
+		// TRM-V0-006: a resumed claim names the paths it restored and the
+		// ended generation that held them.
+		if r := report.RestoredScope; r != nil {
+			o.Set("restoredScope", wire.ObjectValue(wire.NewObject().Set("fromGeneration", wire.String(string(r.FromGeneration))).Set("paths", wire.Strings(r.Paths))))
+		}
 	}
 	if report.SharedAllocation != nil {
 		o.Set("sharedAllocation", snapshot.SharedAllocationValue(report.SharedAllocation))

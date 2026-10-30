@@ -16,9 +16,11 @@ const (
 	OpExternalAttest = "RELEASE_EXTERNAL_ATTEST"
 	OpManualAttest   = "RELEASE_MANUAL_ATTEST"
 	OpPromote        = "RELEASE_PROMOTE"
+	// OpMembership adds or removes ticket membership only (TRM-V0-001).
+	OpMembership = "RELEASE_MEMBERSHIP"
 )
 
-var Operations = []string{OpCandidate, OpCreate, OpExternalAttest, OpManualAttest, OpPromote, OpUpdate}
+var Operations = []string{OpCandidate, OpCreate, OpExternalAttest, OpManualAttest, OpMembership, OpPromote, OpUpdate}
 
 var DefaultRoleMatrix = map[string][]string{
 	"OWNER":    Operations,
@@ -100,7 +102,21 @@ func requestID(r *wire.Reader) string {
 }
 
 func validatePayload(operation string, v wire.Value) error {
-	r := wire.NewReader(v, "/payload")
+	return checkPayload(wire.NewReader(v, "/payload"), operation)
+}
+
+// CanonicalPayload validates a payload the CLI built and sorts, in place,
+// every set array in it by canonical bytes, so repeated membership flags may
+// arrive in any order (TRM-V0-004). A duplicate is still refused, and the
+// envelope decoder re-checks the sorted value.
+func CanonicalPayload(operation string, v wire.Value) (wire.Value, error) {
+	if err := checkPayload(wire.NewSetSortingReader(v, "/payload"), operation); err != nil {
+		return wire.Value{}, err
+	}
+	return v, nil
+}
+
+func checkPayload(r *wire.Reader, operation string) error {
 	switch operation {
 	case OpCreate, OpUpdate:
 		r.Closed("version", "title", "predecessorReleaseIds", "ticketIds", "acceptanceCriteria", "requiredGates")
@@ -112,6 +128,17 @@ func validatePayload(operation string, v wire.Value) error {
 		}
 		r.Field("acceptanceCriteria").Strings(wire.MaxAcceptanceCriteria, true, func(x *wire.Reader) string { return x.Prose(0, wire.MaxCriterionBytes) })
 		r.Field("requiredGates").Strings(wire.MaxRequiredGates, false, (*wire.Reader).Label)
+	case OpMembership:
+		r.Closed("add", "remove")
+		add, remove := membershipIDs(r.Field("add")), membershipIDs(r.Field("remove"))
+		if r.Err() == nil && len(add)+len(remove) == 0 {
+			r.Fail(wire.CodeMalformed, "a membership change names at least one ticket to add or remove")
+		}
+		for id := range add {
+			if r.Err() == nil && remove[id] {
+				r.Fail(wire.CodeMalformed, "ticket %s is both added and removed", id)
+			}
+		}
 	case OpCandidate:
 		r.Closed("headCommit")
 		if !r.Field("headCommit").IsNull() {
@@ -134,6 +161,11 @@ func validatePayload(operation string, v wire.Value) error {
 // Authorized applies the policy-removable maximum role matrix. A configured
 // role row may remove operations but can never add beyond the maximum.
 func Authorized(role, operation, provenance string, configured map[string][]string) bool {
+	// A membership change is a narrower RELEASE_UPDATE and is authorized
+	// exactly as one, so no role row needs a new entry (TRM-V0-003).
+	if operation == OpMembership {
+		operation = OpUpdate
+	}
 	maximum := contains(DefaultRoleMatrix[role], operation)
 	if !maximum {
 		return false
@@ -179,6 +211,7 @@ func Apply(env *Envelope, binding Actor, current *Record, queue wire.QueueID, co
 		return nil, wire.Errorf(wire.CodeMalformed, "releaseId", "promoted release is immutable")
 	}
 	var out *Record
+	var err error
 	switch env.Operation {
 	case OpCreate, OpUpdate:
 		r := wire.NewReader(env.Payload, "payload")
@@ -204,6 +237,11 @@ func Apply(env *Envelope, binding Actor, current *Record, queue wire.QueueID, co
 			if !found {
 				return nil, wire.Errorf(wire.CodeMalformed, "requiredGates", "unknown required gate")
 			}
+		}
+	case OpMembership:
+		out, err = applyMembership(env.Payload, current, tickets)
+		if err != nil {
+			return nil, err
 		}
 	case OpCandidate:
 		if observed == nil {
@@ -264,3 +302,60 @@ func Apply(env *Envelope, binding Actor, current *Record, queue wire.QueueID, co
 }
 
 func cloneRecord(r *Record) *Record { x, _ := Decode(Encode(r)); return x }
+
+// membershipIDs reads one membership set: ticket IDs in canonical order
+// without duplicates, the order a release record stores (TRM-V0-001).
+func membershipIDs(r *wire.Reader) map[string]bool {
+	out := map[string]bool{}
+	for _, x := range r.Array(wire.MaxTicketsPerQueue, false) {
+		out[x.TicketID().Raw] = true
+	}
+	return out
+}
+
+// applyMembership changes only the release's ticket membership (TRM-V0-002):
+// every other definition field is copied from the current record. Like
+// RELEASE_UPDATE it clears the candidate and its attestations, which bind the
+// old membership. Adding a member or removing a non-member is refused, so a
+// change that would leave membership as it is never takes a revision.
+func applyMembership(payload wire.Value, current *Record, tickets map[string]bool) (*Record, error) {
+	r := wire.NewReader(payload, "payload")
+	add, remove := membershipIDs(r.Field("add")), membershipIDs(r.Field("remove"))
+	if err := r.Err(); err != nil {
+		return nil, err
+	}
+	members := map[string]bool{}
+	for _, id := range current.TicketIDs {
+		members[id.Raw] = true
+	}
+	for id := range add {
+		if members[id] {
+			return nil, wire.Errorf(wire.CodeMalformed, "payload/add", "ticket %s is already a member", id)
+		}
+		if !tickets[id] {
+			return nil, wire.Errorf(wire.CodeMalformed, "payload/add", "unknown scoped ticket %s", id)
+		}
+		members[id] = true
+	}
+	for id := range remove {
+		if !members[id] {
+			return nil, wire.Errorf(wire.CodeMalformed, "payload/remove", "ticket %s is not a member", id)
+		}
+		delete(members, id)
+	}
+	out := cloneRecord(current)
+	out.Candidate, out.Attestations, out.TicketIDs = nil, []Attestation{}, []wire.TicketID{}
+	ids := make([]string, 0, len(members))
+	for id := range members {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		t, err := wire.ParseTicketID("ticketIds", id)
+		if err != nil {
+			return nil, err
+		}
+		out.TicketIDs = append(out.TicketIDs, t)
+	}
+	return out, nil
+}

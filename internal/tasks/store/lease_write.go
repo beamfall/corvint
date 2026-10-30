@@ -760,6 +760,7 @@ func setLeaseReport(report *Report, result transaction.Result) {
 	report.Escalation = result.Escalation
 	report.AuthorExclusion = result.AuthorExclusion
 	report.ScopeRefusal = result.ScopeRefusal
+	report.RestoredScope = result.RestoredScope
 }
 
 func commitLease(ctx context.Context, repo *intent.Repository, request transaction.Request, p *preparedLease, report *Report, beforeCommit func() error) (err error) {
