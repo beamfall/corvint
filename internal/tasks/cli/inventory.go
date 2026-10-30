@@ -11,6 +11,9 @@ import (
 // withInventoryStore permits only an absent journal, never an incomplete or
 // unreadable one. It captures current intent without conferring journal authority.
 func withInventoryStore(env Env, body func(*readCtx) error) (*readCtx, error) {
+	if path := snapshotBundlePath(env.Cwd); path != "" {
+		return withSnapshotStore(path, body)
+	}
 	repo, err := intent.Resolve(env.Cwd)
 	if err != nil {
 		return nil, err

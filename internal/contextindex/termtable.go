@@ -498,6 +498,12 @@ func newTermCounter() *termCounter {
 // count is countTerms: maximal ASCII alphanumeric runs, split where a
 // lowercase letter meets an uppercase one, lowercased, at least two bytes.
 func (counter *termCounter) count(text string) map[string]uint32 {
+	counter.tally(text)
+	return counter.take()
+}
+
+// tally adds text's countTerms terms to the touched counts.
+func (counter *termCounter) tally(text string) {
 	for index := 0; index < len(text); index++ {
 		c := text[index]
 		if !isASCIIAlnum(c) {
@@ -513,7 +519,6 @@ func (counter *termCounter) count(text string) map[string]uint32 {
 		counter.buffer = append(counter.buffer, c)
 	}
 	counter.flush()
-	return counter.take()
 }
 
 // scan is scanWords: every maximal run of ASCII word bytes of at least

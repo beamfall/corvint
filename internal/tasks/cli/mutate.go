@@ -53,6 +53,9 @@ type mutateFlags struct {
 	// batch is --batch, recognized only in a flag position, never as the
 	// value of another flag (CAL-V0-106); only ticket refine accepts it.
 	batch bool
+	// notDuplicateOf is each --not-duplicate-of, accepted only by ticket
+	// create (TCL-V0-004).
+	notDuplicateOf []string
 	// others counts the flags passed besides --help and --template, so
 	// --template refuses any flag by presence, not by value.
 	others int
@@ -117,6 +120,11 @@ func mutateCommand(env Env, verb string, args []string) *wire.Result {
 	if err != nil {
 		return errorResult(cmd, err)
 	}
+	if operation == mutation.OpCreate {
+		if refused := createDuplicateGuard(env, cmd, flags, payload); refused != nil {
+			return refused
+		}
+	}
 	if operation == mutation.OpHold && len(flags.targets) > 1 {
 		return multiTargetSubmit(env, cmd, operation, actor, flags, flags.targets, payload, true)
 	}
@@ -159,6 +167,18 @@ func parseMutateFlags(cmd []string, args []string) (mutateFlags, *wire.Result) {
 		}
 		if args[i] == "--batch" {
 			f.batch = true
+			f.others++
+			continue
+		}
+		if args[i] == "--not-duplicate-of" {
+			if cmd[len(cmd)-1] != "create" {
+				return f, usage(cmd, "unknown flag --not-duplicate-of: only ticket create runs the duplicate check")
+			}
+			if i+1 >= len(args) {
+				return f, usage(cmd, args[i]+" needs a value")
+			}
+			i++
+			f.notDuplicateOf = append(f.notDuplicateOf, args[i])
 			f.others++
 			continue
 		}
@@ -255,6 +275,7 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 		target = ""
 		o.Set("localToken", wire.String("Optional payload member localToken chooses the queue-local ID, e.g. \"localToken\":\"BT-002\". It uses the existing LocalToken grammar and refuses collisions (including case-fold collisions). Omit it for automatic allocation. CREATE forbids --target and --expected-revision."))
 		o.Set("optionalPayloadKeys", wire.Strings([]string{"localToken"}))
+		o.Set("duplicateCheck", wire.String("CREATE first ranks the OPEN tickets against the payload (ticket similar). A match with similarity at least 0.60 over at least 3 distinct terms refuses DUPLICATE_ID naming each match and writes nothing: record a recurrence with ticket recur ID --context TEXT --request-id R, or pass --not-duplicate-of ID for each named ticket to file it anyway. A replayed --request-id skips the check (TCL-V0-004)."))
 		o.Set("template", wire.String("corvint-tasks ticket create --template prints a canonical CREATE payload for this queue with each field's type, enum values and nullability; fill title, body and acceptanceCriteria and submit it with --payload-stdin. --template --skeleton prints only the complete payload as items[0] (every key, nulls, empty arrays, the native source; title empty so an unedited submit refuses). A MALFORMED CREATE payload is refused with every missing, unknown and invalid key and its expected shape in one error. It reads only the intent store and writes nothing."))
 	}
 	if operation == mutation.OpHold {
@@ -274,7 +295,7 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 	}
 	usageText := "corvint-tasks " + strings.Join(cmd, " ") + " --request-id ID (--payload JSON | --payload-stdin)" + target + " [--issued-at TS] [--role ROLE]"
 	if operation == mutation.OpCreate {
-		usageText += "; corvint-tasks " + strings.Join(cmd, " ") + " --template [--skeleton]"
+		usageText += " [--not-duplicate-of TICKET|LOCAL ...]; corvint-tasks " + strings.Join(cmd, " ") + " --template [--skeleton]"
 	}
 	if operation == mutation.OpRefine {
 		usageText += "; corvint-tasks " + strings.Join(cmd, " ") + " --batch --request-id ID (--payload-stdin | --payload JSON) [--issued-at TS] [--role ROLE]"

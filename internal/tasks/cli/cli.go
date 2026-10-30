@@ -76,13 +76,13 @@ type Env struct {
 // `ticket` mutations write: they commit through the §5.2 journal writer.
 var ReadVerbs = []string{
 	"criterion-binding capture", "criterion-binding verify",
-	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket delivery-screen", "ticket batch-delivered", "ticket export",
-	"queue status", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "receipt compact", "receipt retire", "receipt unretire", "receipt put", "receipt get", "receipt path", "receipt prune", "journal seal", "journal unseal", "reconcile inspect", "reconcile intent",
+	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket delivery-screen", "ticket batch-delivered", "ticket export", "ticket similar", "ticket digest",
+	"queue status", "queue snapshot", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "receipt compact", "receipt retire", "receipt unretire", "receipt put", "receipt get", "receipt path", "receipt prune", "journal seal", "journal unseal", "reconcile inspect", "reconcile intent",
 	"init", "pause", "unpause", "policy show", "policy update", "import", "import amend-map", "cutover", "relocate",
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
 	"ticket set-gates", "ticket set-effects", "ticket hold", "ticket release-hold", "ticket reopen",
 	"ticket archive", "ticket restore", "ticket complete-manual", "ticket grant-approval",
-	"ticket revoke-approval", "ticket attach-evidence", "ticket batch-close",
+	"ticket revoke-approval", "ticket attach-evidence", "ticket batch-close", "ticket recur",
 	"release create", "release update", "release membership", "release candidate", "release record-gate", "release promote", "release list", "release show", "release readiness",
 	"claim", "renew", "release", "reap", "widen", "attempt show", "attempt heartbeat", "plan preview", "plan batches",
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show", "program cleanup",
@@ -143,6 +143,9 @@ func Run(env Env) int {
 		return emit(env.Stdout, result)
 	}
 	if result := readOnlyRefusal(args); result != nil {
+		return emit(env.Stdout, result)
+	}
+	if result := snapshotRefusal(env, args); result != nil {
 		return emit(env.Stdout, result)
 	}
 	switch args[0] {
@@ -212,6 +215,12 @@ func Run(env Env) int {
 			return emit(env.Stdout, batchCloseCommand(env, args[2:]))
 		case "export":
 			return emit(env.Stdout, ticketExport(env, args[2:]))
+		case "similar":
+			return emit(env.Stdout, ticketSimilar(env, args[2:]))
+		case "digest":
+			return ticketDigest(env, args[2:])
+		case "recur":
+			return emit(env.Stdout, ticketRecur(env, args[2:]))
 		}
 		if args[1] == "note" {
 			return emit(env.Stdout, noteCommand(env, args[2:]))
@@ -307,10 +316,13 @@ func Run(env Env) int {
 	case "init":
 		return emit(env.Stdout, initCommand(env, args[1:]))
 	case "queue":
+		if len(args) >= 2 && args[1] == "snapshot" {
+			return queueSnapshot(env, args[2:])
+		}
 		if len(args) >= 2 && args[1] == "status" {
 			return emit(env.Stdout, compactRead([]string{"queue", "status"}, args[2:], compactSpec{summary: queueStatusSummary, extra: "--retries"}, func(a []string) *wire.Result { return queueStatus(env, a) }))
 		}
-		return emit(env.Stdout, usage([]string{"queue"}, "queue needs the verb status"))
+		return emit(env.Stdout, usage([]string{"queue"}, "queue needs the verb status or snapshot"))
 	case "roadmap":
 		return emit(env.Stdout, compactRead([]string{"roadmap"}, args[1:], compactSpec{summary: roadmapSummary, values: pageValueFlags}, func(a []string) *wire.Result { return roadmap(env, a) }))
 	case "critical-path":
@@ -558,7 +570,7 @@ func LiveFormats() []string {
 		dispatch.ConfigProfile, dispatch.StateProfile, dispatch.AdmissionProfile, dispatch.EventProfile, "taskman-dispatch-reader-lifecycle/1", dispatch.ReaderRecoveryProfile, dispatch.ReaderLeaderProfile, "taskman-dispatch-detached-run/1", dispatch.ContextProfile, dispatch.DrainSignalProfile, dispatch.SessionChurnProfile, dispatch.HostSleepProfile, dispatch.HandoffNoteProfile, dispatch.ContextExhaustedProfile, dispatch.CarryOverProfile, dispatch.PoolHoldProfile,
 		dispatch.UpgradeStateProfile, dispatch.UpgradeRequestProfile, dispatch.WorkerBuildProfile,
 		service.ProfileName, service.ManifestName, service.ControlName, service.PulseName, service.OperationName,
-		service.RequestsName, service.HelperRecordName, service.ResumeOperationName,
+		service.RequestsName, service.HelperRecordName, service.ResumeOperationName, snapshotBundleSchema,
 	}
 	sort.Strings(f)
 	return f
@@ -600,6 +612,10 @@ type readCtx struct {
 	// a journal audit inside body shares both hashes instead of reading the
 	// tree twice more (CAL-V0-140).
 	tree *intent.Tree
+	// bundle is the CORVINT_TASKS_SNAPSHOT file a read is served from, or
+	// nil (TCL-V0-011).
+	bundle     *snapshotBundle
+	bundlePath string
 }
 
 // reuseProbedTree exists so the parity test can compare decoding the probed
@@ -677,6 +693,9 @@ func failure(cmd []string, rc *readCtx, err error) *wire.Result {
 }
 
 func success(cmd []string, rc *readCtx) *wire.Result {
+	if rc.bundle != nil {
+		return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Warnings: []string{bundleWarning(rc)}}
+	}
 	if rc.journalAbsent {
 		return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Warnings: []string{"journal-absent; unaudited current worktree intent projection; journal history and liveness NOT_OBSERVED"}}
 	}
@@ -1277,7 +1296,13 @@ func ticketExport(env Env, args []string) *wire.Result {
 	}
 	var items []wire.Value
 	var pg *wire.Page
-	rc, err := withStore(env, func(rc *readCtx) error {
+	// Export needs journal authority (CTS-V0-002) except from a verified
+	// snapshot (TCL-V0-011).
+	with := withStore
+	if snapshotBundlePath(env.Cwd) != "" {
+		with = withInventoryStore
+	}
+	rc, err := with(env, func(rc *readCtx) error {
 		ids := rc.store.Inventory.Sorted()
 		start, end := p.window(len(ids))
 		items = items[:0]
@@ -1647,7 +1672,9 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 	res := success(cmd, rc)
 	if notFound != "" {
 		res.Outcome = wire.OutcomeRefused
-		if rc.journalAbsent {
+		if rc.bundle != nil {
+			res.Warnings = append(res.Warnings, bundleNotFound(rc, notFound))
+		} else if rc.journalAbsent {
 			res.Warnings = append(res.Warnings, journalAbsentNotFound(rc, notFound))
 		} else {
 			res.Warnings = append(res.Warnings, "ticket "+notFound+" does not exist in this queue")

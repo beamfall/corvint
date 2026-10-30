@@ -4140,5 +4140,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/corvint-tasks-cli-v0.md",
+    "title": "Corvint Tasks CLI companion V0",
+    "reqPrefix": "TCL-V0",
+    "intent": "accepted under the owner's standing auto-accept (2026-10-11; V1-3236, V1-3237, V1-3223)",
+    "delivery": "experimental",
+    "claim": "Tasks ranks friction against open tickets with BM25, guards duplicate creates, and serves lane hosts without a journal from a verified snapshot.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
