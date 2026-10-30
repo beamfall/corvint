@@ -541,7 +541,8 @@ func literalTokens(value, modulePath string) []string {
 		start, end := bounds[0], bounds[1]
 		// A `/` directly after `<` closes a markup tag (`</script>`), so it
 		// anchors nothing: the tag name is a lone name token (AFP-V0-505).
-		if start > 0 && value[start-1] == '<' && value[start] == '/' {
+		// The HTML-escaped `&lt;/script&gt;` closes one too (AFP-V0-840).
+		if value[start] == '/' && (start > 0 && value[start-1] == '<' || closesEscapedTag(value, start)) {
 			start++
 			if start == end {
 				continue
@@ -551,6 +552,13 @@ func literalTokens(value, modulePath string) []string {
 		tokens = append(tokens, wholeShortEnds(name, value, start, end))
 	}
 	return tokens
+}
+
+// closesEscapedTag reports a `/` at index directly after the HTML entity
+// `&lt;`, in any letter case: the escaped closing tag an HTML test asserts
+// (AFP-V0-840, V1-3207).
+func closesEscapedTag(value string, index int) bool {
+	return index >= len("&lt;") && strings.EqualFold(value[index-len("&lt;"):index], "&lt;")
 }
 
 // parentBackslash rewrites a backslash after a parent component (`..\x`) to
