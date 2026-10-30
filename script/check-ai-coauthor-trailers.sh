@@ -11,8 +11,10 @@
 #
 #   BASE [HEAD]     check every commit in BASE..HEAD (merges included); BASE defaults to
 #                   origin/main and HEAD to HEAD, and one that does not resolve refuses.
-#   --message FILE  check one commit message file, as a commit-msg hook does: lines starting
-#                   with `#` and everything below a scissors line are ignored, as Git strips them.
+#   --message FILE  check one commit message file, as a commit-msg hook does. The text below a
+#                   scissors line is ignored only when Git's own template comment follows it
+#                   (`git commit -v`, or scissors cleanup in the editor), since only then does Git
+#                   drop it; `git commit -F` and verbatim cleanup keep it, so it is checked.
 #   --batch [BASE]  the BASE..HEAD form that make batch-precheck runs: an empty BASE means
 #                   origin/main, and a checkout where that does not resolve skips, saying so.
 #   --strip         copy a commit message from stdin to stdout without its AI co-author lines
@@ -22,12 +24,13 @@
 #                   so the trailer is refused before the commit exists. An existing different
 #                   hook is never overwritten.
 #
-# A `Co-authored-by:` line (any case, any position in the message) names an AI agent when its
-# address is a no-reply address at anthropic.com or openai.com (or a subdomain), a GitHub no-reply
-# address of a Claude, Codex, ChatGPT or Copilot account, or when its name is an unambiguous agent
-# name: Claude Code, Claude <model> (Opus, Sonnet, Haiku, Fable), claude[bot], Codex, OpenAI
-# Codex, ChatGPT, Copilot, GitHub Copilot, copilot[bot]. A bare "Claude" is a human name too, so
-# it is refused only with an AI address or no address at all. Exit 0 clean, 1 refused, 2 usage.
+# A `Co-authored-by:` line (any case, any position in the message) names an AI agent only when it
+# is a known agent identity: a no-reply address at anthropic.com or openai.com (or a subdomain);
+# the GitHub no-reply address of one of the agent logins claude, claude[bot], copilot,
+# copilot[bot] or chatgpt-codex-connector[bot] (exact login, so a human `claude-smith` passes);
+# or an agent name: Claude Code, Claude <Opus|Sonnet|Haiku|Fable> <version>, claude[bot],
+# copilot[bot], GitHub Copilot, OpenAI Codex, or a bare Claude with no address. Exit 0 clean,
+# 1 refused, 2 usage or a Git failure (fail closed).
 set -uo pipefail
 export LC_ALL=C
 me=check-ai-coauthor-trailers
@@ -48,12 +51,12 @@ ai_reason() {
   if [[ $lemail == *@users.noreply.github.com ]]; then
     local_part=${lemail%@*}
     local_part=${local_part#*+}
-    if [[ $local_part =~ ^(claude|codex|chatgpt|copilot|openai)([-[]|$) ]]; then
+    if [[ $local_part =~ ^(claude|claude\[bot\]|copilot|copilot\[bot\]|chatgpt-codex-connector\[bot\])$ ]]; then
       printf 'the GitHub no-reply address of an AI agent account <%s>' "$email"
       return
     fi
   fi
-  if [[ $lname =~ ^(claude[[:space:]]+code|claude[[:space:]]+(opus|sonnet|haiku|fable)([[:space:]].*)?|claude\[bot\]|(openai[[:space:]]+)?codex([[:space:]]+cli)?|chatgpt|(github[[:space:]]+)?copilot|copilot\[bot\])$ ]]; then
+  if [[ $lname =~ ^(claude[[:space:]]+code|claude[[:space:]]+(opus|sonnet|haiku|fable)[[:space:]]+[0-9][0-9.]*|claude\[bot\]|copilot\[bot\]|github[[:space:]]+copilot|openai[[:space:]]+codex)$ ]]; then
     printf 'the AI agent name "%s"' "$name"
     return
   fi
@@ -93,7 +96,15 @@ case ${1-} in
   --message)
     file=${2-}
     [[ -n $file && -r $file ]] || { printf '%s: refused: --message needs a readable commit message file\n' "$me" >&2; exit 2; }
-    found=$(sed -e '/^# -\{1,\} >8 -\{1,\}$/,$d' -e '/^#/d' "$file" | scan)
+    # Git's verbose template is the scissors line followed by its own comment; only then does
+    # Git drop what follows. A line starting with `#` cannot be a trailer, so it needs no filter.
+    message=$(awk '
+      held != "" { if ($0 == "# Do not modify or remove the line above.") exit; print held; held = "" }
+      /^# -+ >8 -+$/ { held = $0; next }
+      { print }
+      END { if (held != "") print held }' "$file") ||
+      { printf '%s: refused: cannot read %s\n' "$me" "$file" >&2; exit 2; }
+    found=$(printf '%s\n' "$message" | scan)
     [[ -z $found ]] && exit 0
     {
       printf '%s: refused (ASD-V0-560): this commit message credits an AI agent as a GitHub co-author:\n' "$me"
@@ -148,15 +159,24 @@ for rev in "$base" "$head"; do
   git rev-parse --verify --quiet --end-of-options "$rev^{commit}" > /dev/null ||
     { printf '%s: refused: %s does not name a commit here; pass the batch base explicitly (make batch-precheck DOGFOOD_BASE=<sha>, or %s <base-sha> [head])\n' "$me" "$rev" "$0" >&2; exit 2; }
 done
+# Fail closed: a range Git cannot enumerate, or a message it cannot read, is never "clean".
+if ! shas=$(git rev-list --reverse "$base..$head"); then
+  printf '%s: refused: git rev-list %s..%s failed, so the range was not checked; fetch the missing history (git fetch --unshallow, or fetch the base) and rerun\n' "$me" "$base" "$head" >&2
+  exit 2
+fi
 bad=0
-while IFS= read -r sha; do
-  found=$(git show -s --format=%B "$sha" | scan)
+for sha in $shas; do
+  if ! message=$(git show -s --format=%B "$sha"); then
+    printf '%s: refused: git show could not read the message of %s, so the range was not checked\n' "$me" "$sha" >&2
+    exit 2
+  fi
+  found=$(printf '%s\n' "$message" | scan)
   [[ -z $found ]] && continue
   ((bad == 0)) && printf '%s: refused (ASD-V0-560): %s..%s has commits crediting an AI agent as a GitHub co-author:\n' "$me" "$base" "$head"
   bad=$((bad + 1))
   printf '  %s %s\n' "$sha" "$(git show -s --format=%s "$sha")"
   printf '%s\n' "$found" | while IFS=$'\t' read -r reason trailer; do printf '    %s  (%s)\n' "$trailer" "$reason"; done
-done < <(git rev-list --reverse "$base..$head")
+done
 ((bad == 0)) && { printf '%s: no AI co-author trailer in %s..%s\n' "$me" "$base" "$head"; exit 0; }
 # The rewrite runs a copy of this script taken outside the checkout: the commits being rewritten
 # may predate it, so the checkout's own copy can be absent while the rebase runs.

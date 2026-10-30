@@ -2,7 +2,8 @@
 # Tests for script/check-ai-coauthor-trailers.sh (ASD-V0-560, V1-3227) on a fixture repository:
 # AI co-author trailers are refused naming the commit (also in the --batch form batch-precheck runs), human co-authors (one named Claude) pass,
 # the printed rebase recovery clears the range, --message ignores comment and scissors lines, and
-# --install-hook refuses the trailer before the commit exists without replacing a foreign hook.
+# --install-hook refuses the trailer before the commit exists without replacing a foreign hook,
+# and a Git failure fails closed.
 set -uo pipefail
 export LC_ALL=C
 script=$(cd "$(dirname "$0")" && pwd)
@@ -30,8 +31,16 @@ base=$(printf 'base\n' | commit)
 "$check" --batch no-such-base > "$tmp/out" 2>&1
 [[ $? == 2 ]] || fail "--batch with an unresolvable explicit base did not refuse: $(cat "$tmp/out")"
 
-# 2. Human co-authors pass, including a person named Claude with a personal address.
-printf 'human\n\nCo-authored-by: Ada Lovelace <ada@example.org>\nCo-authored-by: Claude Monet <claude@monet.fr>\nCo-authored-by: Claude <claude@example.org>\n' | commit > /dev/null
+# 2. Human co-authors pass, including people named Claude with personal or GitHub no-reply
+# addresses whose login merely starts with an agent name, and --strip keeps their credit.
+humans='Co-authored-by: Ada Lovelace <ada@example.org>
+Co-authored-by: Claude Monet <claude@monet.fr>
+Co-authored-by: Claude <claude@example.org>
+Co-authored-by: Claude Smith <123+claude-smith@users.noreply.github.com>
+Co-authored-by: Claude Haiku <haiku@example.org>
+Co-authored-by: Cody Pilot <456+copilotfan@users.noreply.github.com>'
+printf 'human\n\n%s\n' "$humans" | commit > /dev/null
+[[ $(printf '%s\n' "$humans" | "$check" --strip) == "$humans" ]] || fail "--strip dropped a human co-author"
 printf 'mentions the rule in prose: no Co-Authored-By: Claude trailer is allowed\n' | commit > /dev/null
 "$check" "$base" HEAD > "$tmp/out" 2>&1 || fail "human co-authors refused: $(cat "$tmp/out")"
 
@@ -43,7 +52,8 @@ forms=(
   'Co-authored-by: claude[bot] <209825114+claude[bot]@users.noreply.github.com>'
   'Co-authored-by: Someone <198982749+Copilot@users.noreply.github.com>'
   'Co-authored-by: Claude Code <dev@example.org>'
-  'Co-authored-by: ChatGPT <x@example.org>'
+  'Co-authored-by: Claude Sonnet 5 <dev@example.org>'
+  'Co-authored-by: chatgpt-codex-connector[bot] <199175422+chatgpt-codex-connector[bot]@users.noreply.github.com>'
   'Co-authored-by: Claude'
 )
 for form in "${forms[@]}"; do
@@ -79,9 +89,16 @@ bash -c "$recovery" > "$tmp/rebase" 2>&1 || fail "recovery failed: $(cat "$tmp/r
 [[ $(git rev-list --count --merges "$base..HEAD") == 1 ]] || fail "the recovery dropped the merge"
 git log --format=%B "$base..HEAD" | grep -qx 'Co-authored-by: Ada Lovelace <ada@example.org>' || fail "human co-author dropped"
 
-# 5. --message ignores comment lines and everything below the scissors line.
-printf 'subject\n# Co-Authored-By: Claude <noreply@anthropic.com>\n# ------------------------ >8 ------------------------\nCo-Authored-By: Claude <noreply@anthropic.com>\n' > "$tmp/msg"
-"$check" --message "$tmp/msg" > "$tmp/out" 2>&1 || fail "comment and scissors lines checked: $(cat "$tmp/out")"
+# 5. --message: a comment line is no trailer; below a scissors line Git keeps the text (commit -F,
+# verbatim cleanup) unless its own verbose template follows, so only that case is skipped.
+scissors='# ------------------------ >8 ------------------------'
+printf 'subject\n# Co-Authored-By: Claude <noreply@anthropic.com>\n' > "$tmp/msg"
+"$check" --message "$tmp/msg" > "$tmp/out" 2>&1 || fail "comment line checked: $(cat "$tmp/out")"
+printf 'subject\n%s\nCo-Authored-By: Claude <noreply@anthropic.com>\n' "$scissors" > "$tmp/msg"
+"$check" --message "$tmp/msg" > "$tmp/out" 2>&1
+[[ $? == 1 ]] || fail "a trailer below a bare scissors line (kept by commit -F) was accepted: $(cat "$tmp/out")"
+printf 'subject\n%s\n# Do not modify or remove the line above.\n# Everything below it will be ignored.\n Co-Authored-By: Claude <noreply@anthropic.com>\n' "$scissors" > "$tmp/msg"
+"$check" --message "$tmp/msg" > "$tmp/out" 2>&1 || fail "Git's verbose diff below its template was checked: $(cat "$tmp/out")"
 printf 'subject\n\nCo-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>\n' > "$tmp/msg"
 "$check" --message "$tmp/msg" > "$tmp/out" 2>&1
 [[ $? == 1 ]] && grep -q 'delete that Co-authored-by line' "$tmp/out" || fail "--message: $(cat "$tmp/out")"
@@ -96,9 +113,29 @@ printf 'x\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n' | git co
   fail "the hook let an AI trailer commit"
 [[ $(git rev-parse HEAD) == "$before" ]] || fail "a commit was made"
 grep -q 'refused (ASD-V0-560)' "$tmp/out" || fail "hook refusal: $(cat "$tmp/out")"
+printf 'x\n%s\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>\n' "$scissors" > "$tmp/msg"
+git commit -q --allow-empty -F "$tmp/msg" > "$tmp/out" 2>&1 && fail "the hook let commit -F keep a trailer below a scissors line"
+[[ $(git rev-parse HEAD) == "$before" ]] || fail "a commit was made through the scissors line"
+# git commit -v: a diff context line that looks like a trailer is below Git's template; not refused.
+printf 'a\nCo-Authored-By: Claude <noreply@anthropic.com>\nb\n' > notes.txt && git add notes.txt && git commit -q -m notes
+printf 'A\nCo-Authored-By: Claude <noreply@anthropic.com>\nb\n' > notes.txt && git add notes.txt
+GIT_EDITOR=true git commit -q -v -e -m 'edit notes' > "$tmp/out" 2>&1 || fail "the hook refused a verbose diff context line: $(cat "$tmp/out")"
 printf 'x\n\nCo-authored-by: Ada Lovelace <ada@example.org>\n' | git commit -q --allow-empty -F - > "$tmp/out" 2>&1 || fail "hook refused a human: $(cat "$tmp/out")"
 printf '#!/bin/sh\nexit 0\n' > "$(git rev-parse --git-path hooks/commit-msg)"
 "$check" --install-hook > "$tmp/out" 2>&1 && fail "a foreign hook was replaced"
 grep -q 'already exists and is not this hook' "$tmp/out" || fail "foreign hook: $(cat "$tmp/out")"
+
+# 7. Fail closed: a Git failure while enumerating the range or reading a message exits 2 naming
+# the cause, never "no AI co-author trailer".
+real_git=$(command -v git)
+mkdir -p "$tmp/stub"
+for verb in rev-list show; do
+  printf '#!/bin/sh\n[ "$1" = %s ] && { echo "fatal: stub failure" >&2; exit 128; }\nexec %q "$@"\n' "$verb" "$real_git" > "$tmp/stub/git"
+  chmod +x "$tmp/stub/git"
+  PATH="$tmp/stub:$PATH" "$check" "$base" HEAD > "$tmp/out" 2>&1
+  [[ $? == 2 ]] || fail "a failing git $verb did not fail closed: $(cat "$tmp/out")"
+  grep -q "refused: git $verb" "$tmp/out" || fail "the git $verb failure was not named: $(cat "$tmp/out")"
+  grep -q 'no AI co-author trailer' "$tmp/out" && fail "a failing git $verb reported a clean range"
+done
 
 printf 'check-ai-coauthor-trailers_test: ok\n'

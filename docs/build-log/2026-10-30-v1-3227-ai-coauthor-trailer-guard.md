@@ -65,3 +65,26 @@ explicit batch-precheck step would run twice and can be dropped.
 
 Follow the spec's Failure and rollback section. An installed hook is removed with
 `rm "$(git rev-parse --git-path hooks/commit-msg)"`.
+
+## Review fix
+
+The independent Codex review of `93b9f5b08..f2f0f1b36` found three P2 defects in the script, all
+fixed with regression tests in `script/check-ai-coauthor-trailers_test.sh`:
+
+- **Over-broad agent match.** Substring matching on a GitHub no-reply login or a name refused
+  `Claude Smith <123+claude-smith@users.noreply.github.com>`, and `--strip` deleted that human
+  credit. The rule now matches only known identities: exact no-reply logins (`claude`, `claude[bot]`,
+  `copilot`, `copilot[bot]`, `chatgpt-codex-connector[bot]`) and exact names, with model names
+  requiring a version. Bare ChatGPT, Codex and Copilot names are no longer matched; a commit using one
+  needs an AI address to be caught. Negative cases: Claude Smith, Claude Haiku with a personal
+  address, login `copilotfan`, all kept by `--strip`.
+- **Scissors bypass.** `--message` dropped everything below a bare scissors line, but `git commit -F`
+  and verbatim cleanup record it, so a trailer there passed the hook and landed. The scissors line is
+  now honoured only when Git's own `-v` template follows it, and `#` lines are no longer skipped. The
+  test that enshrined the bypass now expects a refusal; the hook refuses `git commit -F` with one and
+  still accepts `git commit -v` whose diff context quotes a trailer.
+- **Unchecked Git failure.** A `git rev-list` failure inside process substitution was ignored, so a
+  shallow or missing base reported the range clean. `rev-list` and each `git show` are now checked and
+  fail closed with exit 2 naming the command and the fetch remedy; a stub `git` exiting 128 proves it.
+
+Each fix was mutation-checked: reverting it fails the matching new case.
