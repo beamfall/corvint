@@ -17,7 +17,7 @@ const expectedCLISHA256 = "ee3e08d632e08abf83574d41bdaebf10e88d0d71bd17bf49e4688
 const expectedCodeSHA256 = "72f6b27260b64923278468d94a0ac83f0ce32038803e0b6c05072eddf7d046a9";
 const expectedBrowserSHA256 = "77d8278b1ac9d0687fad4e817ea83023ede09b1deef36e1864b49ba194ac9634";
 const expectedNpmSHA256 = "8e5f6f3429f8cdbe693cdc29904e9d5a7b127a494bd15c804bd54c7403bfcbe7";
-const expectedVersions = { node: "v24.11.1", npm: "11.6.2", vscode: "1.137.0", vitest: "5.0.0", playwright: "1.64.0", testElectron: "3.1.0" };
+const expectedVersions = { node: "v24.11.1", npm: "11.6.2", vscode: "1.137.0", vitest: "5.0.3", playwright: "1.64.0", testElectron: "3.1.0" };
 const isolatedProfileSettings = `${JSON.stringify({
   "telemetry.telemetryLevel": "off",
   "update.mode": "none",

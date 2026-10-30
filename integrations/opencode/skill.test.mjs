@@ -27,7 +27,10 @@ test("AHI-176 unreadable, oversized or ambiguous skill text is refused, not gues
   const dir = mkdtempSync(path.join(tmpdir(), "corvint-skill-"));t.after(() => rmSync(dir, { recursive: true, force: true }))
   const body = "---\nname: corvint\ndescription: d\n---\n# Body\n"
   assert.ok(parseSkill(body, "/x"))
-  for (const text of [undefined, "# no frontmatter\n", body.replace("\n", "\r\n"), "---\nname: other\ndescription: d\n---\nbody\n", "---\nname: corvint\nname: corvint\ndescription: d\n---\nbody\n", "---\nname: corvint\ndescription: d\nextra: x\n---\nbody\n", "---\nname: corvint\ndescription: d\n---\n\n", body + "x".repeat(16_384)])
+  // A mixed newline fixture is intentionally malformed, not normalized input.
+  const mixedNewlines = "---\r\nname: corvint\ndescription: d\n---\n# Body\n"
+  assert.ok(mixedNewlines.includes("\r\n") && mixedNewlines.includes("corvint\n"))
+  for (const text of [undefined, "# no frontmatter\n", mixedNewlines, "---\nname: other\ndescription: d\n---\nbody\n", "---\nname: corvint\nname: corvint\ndescription: d\n---\nbody\n", "---\nname: corvint\ndescription: d\nextra: x\n---\nbody\n", "---\nname: corvint\ndescription: d\n---\n\n", body + "x".repeat(16_384)])
     assert.equal(parseSkill(text, "/x"), undefined, JSON.stringify(text)?.slice(0, 80))
   assert.equal(loadBundledSkill(path.join(dir, "missing.md")), undefined)
   assert.equal(loadBundledSkill(dir), undefined)

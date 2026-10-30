@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "packageManager": "npm@12.2.1",
+  "engines": {"node": "^22.22.2 || ^24.15.0 || >=26.0.0", "npm": "12.2.1"},
   "license": "Apache-2.0",
   "scripts": {"build": "bun build.mjs", "test": "node --test *.test.mjs"},
   "dependencies": {"@earendil-works/pi-coding-agent": "0.85.1"},
@@ -11,6 +13,7 @@
     "@earendil-works/chord": "0.85.1",
     "@earendil-works/pi-ai": "0.85.1",
     "@earendil-works/pi-agent-core": "0.85.1",
-    "@earendil-works/pi-tui": "0.85.1"
+    "@earendil-works/pi-tui": "0.85.1",
+    "@earendil-works/pi-coding-agent": {"undici": "8.12.2"}
   }
 }

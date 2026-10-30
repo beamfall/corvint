@@ -30,7 +30,6 @@ DOGFOOD_CHANGE = re.compile(r"(\bmake\b[^;&|\n]*\bdogfood-change\b|dogfood-chang
 DOGFOOD_FINISH = re.compile(r"(\bmake\b[^;&|\n]*\bdogfood-finish\b|dogfood-finish\.sh)")
 READ_ONLY = re.compile(r"^\s*(grep|rg|sed|cat|head|tail|less|echo|printf|git (log|show|grep|diff))\b")
 POLL = re.compile(r"(\bsleep\s+[0-9]|\buntil\b[^\n]*\bdo\b|\bwhile\b[^\n]*\bdo\b|--watch\b|\bgh run watch\b|\btail -f\b)")
-GIT_WRITE = re.compile(r"^\s*(?:\w+=\S*\s+)*git(?:\s+-[cC]\s+\S+|\s+--?[\w-]+(?:=\S+)?)*\s+(commit|push)\b")
 DOGFOOD_ANY = re.compile(r"(\bmake\b[^;&|\n]*\bdogfood-(change|finish|check|seal)\b|dogfood-(change|finish|check|seal)\.sh)")
 SPLIT = re.compile(r"&&|\|\||;|\||\n")
 TIMEOUT = re.compile(r"Command timed out after (?:(?P<m>\d+)m )?(?P<s>\d+)s|timed out at (?P<a>\d+)s|did not complete within its (?P<b>\d+)s timeout")
@@ -78,6 +77,33 @@ def invokes(pattern, command):
     return sum(1 for part in SPLIT.split(command) if pattern.search(part) and not READ_ONLY.search(part))
 
 
+def invokes_git_write(command):
+    """Count Git writes without backtracking across overlapping option/operand forms."""
+    count = 0
+    for part in SPLIT.split(command):
+        if READ_ONLY.search(part):
+            continue
+        words = part.split()
+        index = 0
+        while index < len(words) and re.fullmatch(r"\w+=\S*", words[index]):
+            index += 1
+        if index == len(words) or words[index] != "git":
+            continue
+        index += 1
+        while index < len(words):
+            word = words[index]
+            option, separator, operand = word.partition("=")
+            if word in ("-c", "-C"):
+                index += 2  # These options consume exactly one operand.
+            elif re.fullmatch(r"--?[\w-]+", option) and (not separator or operand):
+                index += 1
+            else:
+                break
+        if index < len(words) and re.match(r"(?:commit|push)\b", words[index]):
+            count += 1
+    return count
+
+
 def go_test_packages(command):
     """The ./ package operands of each `go test` part, one list per part."""
     out = []
@@ -121,7 +147,7 @@ def scan(path):
                         row["bashCalls"] += 1
                         row["dogfoodChange"] += invokes(DOGFOOD_CHANGE, cmd)
                         row["dogfoodFinish"] += invokes(DOGFOOD_FINISH, cmd)
-                        row["lane"] = row["lane"] or bool(invokes(GIT_WRITE, cmd) or invokes(DOGFOOD_ANY, cmd))
+                        row["lane"] = row["lane"] or bool(invokes_git_write(cmd) or invokes(DOGFOOD_ANY, cmd))
                 elif block.get("type") == "tool_result" and block.get("tool_use_id") in calls:
                     name, cmd, started = calls.pop(block["tool_use_id"])
                     secs = (t - started).total_seconds() if t and started else 0.0

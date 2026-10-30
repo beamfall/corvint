@@ -373,8 +373,8 @@ function loadReporterWithBrowser(qualified) {
   fakeRequire.resolve = name => name === 'playwright' ? 'playwright' : require.resolve(name);
   fakeRequire.cache = require.cache;
   const browser = {platform: 'darwin', arch: 'arm64', nodeVersion: process.version, browserType: 'chromium', browserVersion: 'v', channel: '', executableSource: 'playwright-bundled', executableName: 'chromium-headless-shell', executablePath: '/b/chrome-headless-shell', executableSha256: 'd', browserRevision: '1248', manifestBrowserVersion: 'm', headlessShellAvailable: true};
-  const stub = `bundledBrowserIdentity = () => (${JSON.stringify(qualified)} ? ${JSON.stringify(browser)} : null); qualifiedBundledIdentity = () => ${JSON.stringify(qualified)};`;
-  return vm.runInThisContext(`(function(require,module,exports,__filename,__dirname){${source}\n${stub}\nreturn module.exports;})`, {filename})(fakeRequire, module, module.exports, filename, __dirname);
+  const stub = 'bundledBrowserIdentity = () => (qualified ? browser : null); qualifiedBundledIdentity = () => qualified;';
+  return vm.runInThisContext(`(function(require,module,exports,__filename,__dirname,qualified,browser){${source}\n${stub}\nreturn module.exports;})`, {filename})(fakeRequire, module, module.exports, filename, __dirname, qualified, browser);
 }
 
 function builtinRegistration() {

@@ -98,7 +98,7 @@ func newDriver(protected bool) (driver, time.Duration, error) {
 	if err != nil {
 		return nil, 0, fmt.Errorf("CORVINT_PI_TUI_FIRST: %w", err)
 	}
-	return &protectedDriver{first: first}, 40 * time.Second, nil
+	return &protectedDriver{first: first, expected: os.Getenv("CORVINT_PI_TUI_EXPECT")}, 40 * time.Second, nil
 }
 
 // start runs argv as the session leader of a new 30x100 PTY.
@@ -282,6 +282,7 @@ func (d *plain) step(s *session) error {
 // protectedDriver prompts, reloads, prompts, replaces the session, prompts, then ends the TUI.
 type protectedDriver struct {
 	first      int
+	expected   string
 	phase      int
 	sent       bool
 	readyAt    time.Time
@@ -303,7 +304,7 @@ func (d *protectedDriver) step(s *session) error {
 		d.responseAt = time.Now()
 	}
 	// A displayed token precedes agent_settled. Wait past the bounded Stop child deadline.
-	ready := !d.responseAt.IsZero() && time.Since(d.responseAt) > 2200*time.Millisecond
+	ready := !d.responseAt.IsZero() && time.Since(d.responseAt) > 2200*time.Millisecond && (d.expected == "" || s.seen(d.expected))
 	switch {
 	case d.phase == 0 && ready:
 		return d.advance(s, "/reload\r")

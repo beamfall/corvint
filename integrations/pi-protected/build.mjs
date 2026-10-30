@@ -5,6 +5,7 @@ import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {run} from './process.mjs';
 import {PROTECTED_PI_VERSION} from './host-version.mjs';
+import {fixedImageImport} from './fixed-image-import.mjs';
 const here=dirname(fileURLToPath(import.meta.url)),root=resolve(here,'../..');
 const sdk=join(here,'node_modules/@earendil-works/pi-coding-agent');
 const out=join(here,'build'),release=join(out,'release');
@@ -66,7 +67,7 @@ async function main(){
   b.onLoad({filter:/^image-worker$/,namespace:'corvint'},()=>({contents:`export default ${JSON.stringify(worker)}`,loader:'js'}));
   b.onLoad({filter:/\/utils\/image-resize\.js$/},()=>({contents:readFileSync(join(here,'image-resize.mjs'),'utf8'),loader:'js',resolveDir:here}));
  }};
- const source=await bundle(join(here,'runtime.ts'),[basePlugin,mainPlugin],banner,{CORVINT_CONSUMER_SHA256:JSON.stringify(consumerSHA256)});
+ const source=await bundle(join(here,'runtime.ts'),[basePlugin,fixedImageImport(sdk,here),mainPlugin],banner,{CORVINT_CONSUMER_SHA256:JSON.stringify(consumerSHA256)});
  const main=join(out,'runtime.cjs'),blob=join(out,'runtime.blob'),binary=join(release,'pi-protected');
  writeFileSync(main,source);
  writeFileSync(join(out,'sea.json'),JSON.stringify({main,output:blob,disableExperimentalSEAWarning:true,useCodeCache:true,execArgvExtension:'none',execArgv:['--disable-sigusr1','--openssl-config=/dev/null','--']}));

@@ -88,7 +88,7 @@ async function configure(command, enabled) {
 }
 
 function unitCommand() {
-  return [process.env.CORVINT_JS_PROVIDER, "unit", "--dir", root, "--config", path.join(root, "vitest.config.js"), "--package-json", "package.json", "--lockfile", "package-lock.json", "--runner-version", "5.0.0", "--test-file", "unit.test.js"];
+  return [process.env.CORVINT_JS_PROVIDER, "unit", "--dir", root, "--config", path.join(root, "vitest.config.js"), "--package-json", "package.json", "--lockfile", "package-lock.json", "--runner-version", "5.0.3", "--test-file", "unit.test.js"];
 }
 
 function e2eCommand() {
