@@ -19,6 +19,9 @@ viper for untouched-repository-v1), and recorded runs, decision 0432 and the 1.0
 specification cite that digest. Changing one header would require re-sealing preregistrations
 after runs were recorded against them, which weakens the frozen evidence (AGENTS.md invariant 1).
 `LICENSING.md` already states these files are Apache-2.0 regardless of the historical line.
+The orchestrator confirmed this on 2026-10-30: the two harness exemptions are intentional and
+permanent for the v0/v1 preregistrations, no preregistration is re-sealed, and any future relicense
+of those harness bytes needs a new preregistration, not an edit.
 
 `script/check-license-headers.sh` now exempts only the two harnesses and the notice directory;
 `script/check-license-headers_test.sh` proves a former header in the converted cw-trial fixture

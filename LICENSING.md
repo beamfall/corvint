@@ -27,7 +27,8 @@ holding those copies, and a recipient may keep using such a copy under its origi
   evidence pins their exact bytes: `benchmarks/daily-loop-v0/harness.py` and
   `benchmarks/untouched-repository-v1/harness.py`. Each harness refuses to run unless its own
   digest matches the `harnessSha256` sealed in its preregistrations, which recorded runs and the
-  1.0 release specification also cite.
+  1.0 release specification also cite. These two exemptions are intentional and permanent for those
+  preregistrations; relicensing the harness bytes needs a new preregistration, not an edit.
   The frozen corpus notice fixtures under
   `internal/cem/corpusbinding/testdata/public-root-history/notices/` quote the former policy text and
   are byte-pinned by the corpus binding tests.
