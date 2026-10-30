@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: Apache-2.0
 """Freeze the V1-0319 Beamfall roadmap-ticket-to-diff task set (git only; runs no Corvint)."""
 import json, re, subprocess, sys
 

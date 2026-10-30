@@ -14,7 +14,7 @@ import (
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: corvint-update check|apply|rollback --component core|tasks [--allow-network] [--bin-dir PATH] [--state-dir PATH] [--refresh-index ROOT]... [--restart-service PROGRAM] [--post-switch CMD]... [--hook-timeout D] [--hook-attempts N] [--drain-timeout D] [--start-timeout D]")
+		fmt.Fprintln(os.Stderr, "usage: corvint-update check|apply|rollback --component core|tasks [--allow-network] [--github-token-env NAME] [--bin-dir PATH] [--state-dir PATH] [--refresh-index ROOT]... [--restart-service PROGRAM] [--post-switch CMD]... [--hook-timeout D] [--hook-attempts N] [--drain-timeout D] [--start-timeout D]")
 		os.Exit(2)
 	}
 	home, err := os.UserHomeDir()
@@ -28,6 +28,7 @@ func main() {
 	fs.StringVar(&c.BinDir, "bin-dir", filepath.Join(home, ".local/bin"), "existing managed binary directory")
 	fs.StringVar(&c.StateDir, "state-dir", filepath.Join(home, ".local/share/corvint/updates"), "private recovery state directory")
 	fs.BoolVar(&c.AllowNetwork, "allow-network", false, "explicitly allow official release requests")
+	fs.StringVar(&c.TokenEnv, "github-token-env", "", "authenticate release API requests to api.github.com with the token in this environment variable (never sent to download hosts)")
 	fs.Func("refresh-index", "after a Core switch, also refresh this checkout's index snapshot (repeatable)", func(root string) error {
 		c.RefreshRoots = append(c.RefreshRoots, root)
 		return nil
