@@ -293,7 +293,7 @@ func boundaryDecodeJSString(raw string) (string, bool) {
 			return "", false
 		case 'x':
 			v, ok := hex(i+1, i+3)
-			if !ok {
+			if !ok || v > 0xFF {
 				return "", false
 			}
 			units, i = append(units, uint16(v)), i+2
@@ -317,7 +317,7 @@ func boundaryDecodeJSString(raw string) (string, bool) {
 				continue
 			}
 			v, ok := hex(i+1, i+5)
-			if !ok {
+			if !ok || v > 0xFFFF {
 				return "", false
 			}
 			units, i = append(units, uint16(v)), i+4
