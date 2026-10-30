@@ -114,6 +114,10 @@ func TestAFPV0680CompoundStatementBodyIsAnImport(t *testing.T) {
 		"indented":               "def f():\n    if x: import b\n",
 		"continued body":         "if x: from pkg import (\n    early,\n    b,\n)\n",
 		"async with":             "async def f():\n    pass\nasync with ctx(): import b\n",
+		"semicolon in a string":  "if \";\" in value: import b\n",
+		"semicolon in a triple":  "if v == \"\"\"a;\"b\"\"\": import b\n",
+		"escaped quote":          "if v == 'it\\'s;': import b\n",
+		"open triple string":     "x = \"\"\"; import b\ndone\"\"\"\n",
 	}
 	for name, importer := range importers {
 		t.Run(name, func(t *testing.T) {
@@ -126,6 +130,14 @@ func TestAFPV0680CompoundStatementBodyIsAnImport(t *testing.T) {
 				dirty = "pkg/b.py"
 			}
 			got, plan := selectedFor(t, files, dirty)
+			if name == "open triple string" {
+				// The import may be string text: no edge, but the frontier.
+				_, flags := scanImports("tests/test_x.py", importer)
+				if !flags[FrontierConditionalImport] {
+					t.Fatalf("flags=%v, want %s", flags, FrontierConditionalImport)
+				}
+				return
+			}
 			if !slices.Contains(got, "tests/test_x.py") {
 				t.Fatalf("selected=%v unknown=%+v, want tests/test_x.py", got, plan.Unknown)
 			}
@@ -140,6 +152,8 @@ func TestAFPV0680CompoundStatementBodyIsAnImport(t *testing.T) {
 		"print(\"if x: import b\")\n",
 		"value = {\"if\": 1}\n",
 		"iffy: int = 1\n",
+		"x = \"a;import b\"\n",
+		"x = 1  # ; import b\n",
 	} {
 		refs, flags := scanImports("tests/test_x.py", text)
 		if len(refs) != 0 || len(flags) != 0 {

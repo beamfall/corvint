@@ -240,6 +240,12 @@ func resolveRef(ref importRef, moduleNames map[string][]string) ([]string, bool)
 // edges, so a string that merely looks like an open import never hides the
 // imports after it. A reference already read from the file is not repeated.
 //
+// Semicolons inside string literals (single, double or triple quoted, with
+// escapes) and in a comment do not separate statements, so `if ";" in v: import
+// b` keeps its header; a line that ends inside a string literal and mentions
+// `import` raises the conditional-import flag, since its statements are not
+// known (V1-3044 review).
+//
 // A statement can also be the body of a compound statement on the same line
 // (`if x: import a`, `try: import a`, `except ImportError: import b`, `def f():
 // import a`): the header up to its colon is skipped and the body is read as an
@@ -275,7 +281,12 @@ func scanImports(owner, text string) ([]importRef, map[string]bool) {
 			}
 			continue
 		}
-		has, compound := hasImportStatement(trimmed)
+		has, compound, ambiguous := hasImportStatement(trimmed)
+		if ambiguous && strings.Contains(trimmed, "import") && index > continued {
+			// A string literal still open at the end of the line hides where
+			// its statements end, so an import it may hide is a frontier.
+			flags[FrontierConditionalImport] = true
+		}
 		if !has {
 			continue
 		}
@@ -285,7 +296,8 @@ func scanImports(owner, text string) ([]importRef, map[string]bool) {
 		statement, next := joinContinuation(lines, index)
 		continued = max(continued, next)
 		for _, text := range []string{statement, trimmed} {
-			for _, piece := range strings.Split(text, ";") {
+			pieces, _ := splitStatements(text)
+			for _, piece := range pieces {
 				piece, _, ok := importStatement(strings.TrimSpace(piece))
 				if !ok {
 					continue
@@ -304,15 +316,65 @@ func scanImports(owner, text string) ([]importRef, map[string]bool) {
 }
 
 // hasImportStatement reports whether any semicolon-separated statement of the
-// line is an import, and whether one is the body of a compound statement.
-func hasImportStatement(trimmed string) (has, compound bool) {
-	for _, piece := range strings.Split(trimmed, ";") {
+// line is an import, whether one is the body of a compound statement, and
+// whether the line ends inside a string literal, so its statements are not
+// known.
+func hasImportStatement(trimmed string) (has, compound, ambiguous bool) {
+	pieces, ambiguous := splitStatements(trimmed)
+	for _, piece := range pieces {
 		if _, inBody, ok := importStatement(strings.TrimSpace(piece)); ok {
 			has = true
 			compound = compound || inBody
 		}
 	}
-	return has, compound
+	return has, compound, ambiguous
+}
+
+// splitStatements splits a line at the semicolons that separate statements:
+// those outside string literals (single, double and triple quoted, with
+// backslash escapes) and before a `#` comment. ambiguous is true when the line
+// ends inside a string literal; the text after its opening quote is then the
+// last piece.
+func splitStatements(line string) (pieces []string, ambiguous bool) {
+	start := 0
+	for index := 0; index < len(line); index++ {
+		switch line[index] {
+		case '"', '\'':
+			end, closed := stringEnd(line, index)
+			if !closed {
+				return append(pieces, line[start:]), true
+			}
+			index = end
+		case '#':
+			return append(pieces, line[start:index]), false
+		case ';':
+			pieces = append(pieces, line[start:index])
+			start = index + 1
+		}
+	}
+	return append(pieces, line[start:]), false
+}
+
+// stringEnd returns the index of the closing quote of the string literal that
+// opens at line[open], a single or triple quote, and whether it closes on the
+// line. A backslash escapes the next character, as it does for tokenizing even
+// in a raw string.
+func stringEnd(line string, open int) (int, bool) {
+	quote := line[open]
+	delimiter := line[open : open+1]
+	if strings.HasPrefix(line[open:], strings.Repeat(string(quote), 3)) {
+		delimiter = line[open : open+3]
+	}
+	for index := open + len(delimiter); index < len(line); index++ {
+		if line[index] == '\\' {
+			index++
+			continue
+		}
+		if strings.HasPrefix(line[index:], delimiter) {
+			return index + len(delimiter) - 1, true
+		}
+	}
+	return len(line) - 1, false
 }
 
 // compoundKeywords open a compound statement whose body may follow its header
@@ -349,17 +411,13 @@ func compoundBody(piece string) (string, bool) {
 	}
 	depth := 0
 	for index := 0; index < len(piece); index++ {
-		switch char := piece[index]; char {
+		switch piece[index] {
 		case '(', '[', '{':
 			depth++
 		case ')', ']', '}':
 			depth--
 		case '"', '\'':
-			for index++; index < len(piece) && piece[index] != char; index++ {
-				if piece[index] == '\\' {
-					index++
-				}
-			}
+			index, _ = stringEnd(piece, index)
 		case ':':
 			if depth == 0 && (index+1 == len(piece) || piece[index+1] != '=') {
 				return strings.TrimSpace(piece[index+1:]), true

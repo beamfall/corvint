@@ -29,3 +29,11 @@ A piece that starts with a compound keyword is now read as follows:
 ## Rollback
 
 Revert the commit. The scanner then ignores these imports again.
+
+## Review fix (Codex review of the lane, 2026-10-30)
+
+The first version split every line on each `;`, so `if ";" in value: import b` lost its header before
+`compoundBody` ran, and no edge was emitted. Statements are now split only outside string literals
+(single, double and triple quoted, with escapes) and before a `#` comment. A line that ends inside
+a string literal and mentions `import` raises `python:conditional-import`. Four new cases in
+`TestAFPV0680CompoundStatementBodyIsAnImport` fail when the split reverts to `strings.Split`.
