@@ -318,7 +318,7 @@ AHI-249	docs/specs/agent-harness-integration-v0.md	(experimental under the stand
 AHI-340	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-10-28); V1-2911; GitHub	standing	2026-10-28; V1-2911; #1917
 AHI-174	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2346) Amendmen	standing	2026-10-11; V1-2346
 AHI-245	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-10-27); beamfall/corvint	standing	2026-10-27; #1936
-AHI-246	docs/specs/agent-harness-integration-v0.md	(5) Reload-before-step: `extend` retries only a thrown reload and has no race	unrecorded	-
+AHI-246	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-10-27); beamfall/corvint	standing	2026-10-27; #1936
 AHI-248	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-10-11); V1-2972) A well-	standing	2026-10-11; V1-2972
 AHI-175	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2346) Full Ope	standing	2026-10-11; V1-2346
 AHI-176	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2346) At plugi	standing	2026-10-11; V1-2346
@@ -3219,9 +3219,9 @@ DCI-V1-024	docs/specs/documentation-corpus-inventory-v1.md	Amending `DCI-V1-011`
 DCI-V1-025	docs/specs/documentation-corpus-inventory-v1.md	Amending `DCI-V1-004`. A further checkout that `gitauth` refuses keeps that	unrecorded	-
 DCI-V1-026	docs/specs/documentation-corpus-inventory-v1.md	Derivation `10` (`DCX-V1-471`) names `DCI-V1-021..024`: an artifact of	unrecorded	-
 DCI-V1-027	docs/specs/documentation-corpus-inventory-v1.md	Amending `DCI-V1-009` and `DCI-V1-022`. `prd`, `sbx` and `eph` join the closed	unrecorded	-
-DCI-V1-030	docs/specs/documentation-corpus-inventory-v1.md	Acceptance: `TestDCIV1027DeployWordsAndShortEnvironments`.	unrecorded	-
 DCI-V1-028	docs/specs/documentation-corpus-inventory-v1.md	Amending `DCI-V1-022`. `repository_inventory.environment_words`, when present,	unrecorded	-
 DCI-V1-029	docs/specs/documentation-corpus-inventory-v1.md	Amending `DCI-V1-009`, `DCI-V1-022` and `DCI-V1-023`.	unrecorded	-
+DCI-V1-030	docs/specs/documentation-corpus-inventory-v1.md	Derivation `11` (`DCX-V1-471`) names `DCI-V1-027..029`: an artifact of	unrecorded	-
 DCS-V1-400	docs/specs/documentation-corpus-search-ranking-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-	standing	2026-10-11; #1597; V1-2470
 DCS-V1-401	docs/specs/documentation-corpus-search-ranking-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-	standing	2026-10-11; #1597; V1-2470
 DCS-V1-402	docs/specs/documentation-corpus-search-ranking-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1597; V1-	standing	2026-10-11; #1597; V1-2470
@@ -5892,6 +5892,8 @@ SRG-V0-044	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the
 SRG-V0-045	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0515) Every	standing	2026-10-11; V1-0515
 SRG-V0-046	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2859) Whe	standing	2026-10-11; V1-2859
 SRG-V0-047	docs/specs/spec-requirement-index-generator-v0.md	(proposed; V1-2867; experimental under the standing lane auto-accept) When a	standing	V1-2867
+SRG-V0-547	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)	standing	2026-10-11; V1-3049
+SRG-V0-548	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)	standing	2026-10-11; V1-3049
 STA-V0-001	docs/specs/spec-toolchain-adapters-v0.md	One manifest, `interop/spec-toolchains/versions.json`, records the supported ups	unrecorded	-
 STA-V0-002	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob	unrecorded	-
 STA-V0-003	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-delta` reads one OpenSpec delta file.	unrecorded	-

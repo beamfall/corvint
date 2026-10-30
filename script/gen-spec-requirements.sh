@@ -247,7 +247,7 @@ push @reads, 'docs/specs/README.md'
     if ($mode eq 'readme' || $mode eq 'all') && $tracked{'docs/specs/README.md'};
 my $blobs = index_blobs(@reads);
 
-my (%best, %header);
+my (%best, %header, %definitions);
 for my $file (sort @specs) {
     my $blob = $blobs->{$file};
     # Every mode reads the header: SRG-V0-040 bounds the claim even where only the TSV is printed.
@@ -264,11 +264,26 @@ for my $file (sort @specs) {
     };
     my $line_number = 0;
     my $previous_blank = 1;
+    my ($fence, $continues) = ('', 0);
     for my $line (split /^/, $blob) {
         ++$line_number;
         # SRG-V0-003: unmarked definitions start paragraphs, not wrapped prose.
         my $definition_boundary = $previous_blank || $line =~ /^\s*(?:[-*]\s+|\*\*|`)/;
+        # SRG-V0-548: under RDG-V0-023 (script/check-requirement-definitions.sh, whose fence
+        # tracking this mirrors) an unbulleted line that directly follows a non-blank, non-heading
+        # line outside a fence continues that paragraph or list item, so a marked id that starts it
+        # may be a wrapped citation such as `ID`. ending a sentence. Such a line still ranks 0, but
+        # after every unwrapped rank 0 line, and it is never counted as a second definition.
+        my $wrapped = $continues && $line !~ /^\s*[-*]\s/ ? 1 : 0;
         $previous_blank = $line =~ /^\s*$/;
+        my ($run, $rest) = $line =~ /^ {0,3}(`{3,}|~{3,})(.*?)\r?\n?\z/ ? ($1, $2) : ('', '');
+        if ($fence ne '') {
+            $fence = '' if $run ne '' && substr($run, 0, 1) eq substr($fence, 0, 1)
+                && length($run) >= length($fence) && $rest =~ /\A[ \t]*\z/;
+        } elsif ($run ne '' && !($run =~ /^`/ && $rest =~ /`/)) {
+            $fence = $run;
+        }
+        $continues = $fence eq '' && $run eq '' && $line =~ /\S/ && $line !~ /^ {0,3}#/;
 
         while ($line =~ /\b([A-Z][A-Z0-9-]*-[0-9]{3})\b/g) {
             my $id = $1;
@@ -279,7 +294,9 @@ for my $file (sort @specs) {
                      : $line =~ /^\s*\|\s*`?$quoted`?(?:\s|\||\.)/ ? 1
                      : 2;
             next if $rank > 1;
-            my $key = join("\0", sprintf('%d', $rank), $file, sprintf('%09d', $line_number));
+            push @{$definitions{$id}}, "$file:$line_number"
+                if $rank == 0 && !$wrapped && !grep { $_ eq "$file:$line_number" } @{$definitions{$id} // []};
+            my $key = join("\0", sprintf('%d', $rank), $rank == 0 ? $wrapped : 0, $file, sprintf('%09d', $line_number));
             next if exists $best{$id} && $best{$id}{key} le $key;
 
             my $title = $line;
@@ -333,6 +350,17 @@ for my $file (sort @specs) {
     utf8::decode($claim);
     length($claim) <= 160
         or die "$file: the Agent digest Claim is " . length($claim) . " characters; the limit is 160\n";
+}
+# SRG-V0-547 (V1-3049): a requirement ID defined by more than one rank 0 line, in one spec or
+# across specs, is refused in every mode, naming every definition, instead of keeping the first
+# and silently dropping the rest. Two lanes that each define the same ID collide here.
+{
+    my @duplicate = grep { @{$definitions{$_}} > 1 } sort keys %definitions;
+    if (@duplicate) {
+        print STDERR "$_: defined more than once: @{$definitions{$_}}\n" for @duplicate;
+        die "a requirement ID must have exactly one definition line across docs/specs; renumber or "
+            . "remove the extra definitions, then rerun make spec-requirements (SRG-V0-547)\n";
+    }
 }
 {
     my @near = grep { $best{$_}{near_miss} ne '' } sort keys %best;
