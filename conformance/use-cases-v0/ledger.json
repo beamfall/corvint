@@ -254,7 +254,7 @@
         },
         "implementation": {
           "path": "conformance/use-cases-v0/receipts/UC-EVIDENCE-CARRYING-COMPLETION/implementation.json",
-          "sha256": "ffc10689b790b178275058b34fc5d648ec6f9d60be6c44f12d003491022e4a79"
+          "sha256": "9c716ae36dbd0a9f86f4b385a802e9bcedd67b2b8d1c244ec91fd07330afffe2"
         },
         "sealed-benchmark": {
           "path": "benchmarks/daily-loop-v0/receipts/run-002/UC-EVIDENCE-CARRYING-COMPLETION.json",

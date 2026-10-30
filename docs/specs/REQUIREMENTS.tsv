@@ -6266,6 +6266,7 @@ TSA-V0-003	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-004	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) A comment-only mention of an import	standing	2026-10-11; V1-1587
 TSA-V0-005	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) The JSON output (schema	standing	2026-10-11; V1-1587
 TSA-V0-871	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587 AC6, 2026-10-30) The `--format lines`	standing	2026-10-11; V1-1587; 2026-10-30
+TSA-V0-870	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191, 2026-10-30) Every lin	standing	2026-10-11; V1-1930; #1191; 2026-10-30
 TSA-V0-006	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1698 / GitHub #1082) A shared constant is	standing	2026-10-11; V1-1698; #1082
 TSA-V0-007	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1698 / GitHub #1082) A reached read of a	standing	2026-10-11; V1-1698; #1082
 TSA-V0-646	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; decision 0552; V1-1478) A spec's literal key	standing	2026-10-11; decision 0552; V1-1478
@@ -6403,7 +6404,6 @@ TSA-V0-161	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-162	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) A Markdown, YAML or	standing	2026-10-11; V1-1930; #1191
 TSA-V0-163	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) A comment	standing	2026-10-11; V1-1930; #1191
 TSA-V0-164	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) Proposing the one val	standing	2026-10-11; V1-1930; #1191
-TSA-V0-870	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191, 2026-10-30) Every lin	standing	2026-10-11; V1-1930; #1191; 2026-10-30
 TSA-V0-165	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1919 / GitHub #1185) `CLEANUP-HANDLE-OUTLI	standing	2026-10-11; V1-1919; #1185
 TSA-V0-166	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1919 / GitHub #1185) The rule MUST read a	standing	2026-10-11; V1-1919; #1185
 TSA-V0-167	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1919 / GitHub #1185) A registry or handle	standing	2026-10-11; V1-1919; #1185

@@ -88,6 +88,15 @@ baseline is running every setup project for every spec, reviewing by eye, and gr
   provider integration: the hand-off is the line list. Non-goals: generating provider config or
   running the provider. Failure mode: a provider that cannot take a path list falls back to running
   every setup file, which is the safe superset. Rollback: none needed; the contract adds no code.
+- `TSA-V0-870`: (standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191, 2026-10-30) Every line a
+  justified `EITHER-OR-OUTCOME` annotation exempts (TSA-V0-163, TSA-V0-308) MUST be reported, not
+  silently dropped: the file's validity record carries an `exemptions` entry naming the rule, the
+  exempted `path:line` and the annotation's own reason, for a JS/TS line (same line or the line
+  above), a Markdown or YAML contract comment and a JSON sibling member. A reasonless or
+  other-rule annotation exempts nothing and records nothing. An exemption is not a finding and
+  changes no axis. Non-goals: judging the reason's truth. Rollback: drop the `exemptions` member;
+  it is omitted when empty and nothing reads it.
+
 - `TSA-V0-006`: (standing auto-accept, 2026-10-11; V1-1698 / GitHub #1082) A shared constant is an
   exported object literal (`export const|let|var NAME [: T] = {`, `export default {`, or a local
   object constant exported through `export { NAME [as ALIAS] }`). An import of it is followed through
@@ -2114,14 +2123,6 @@ committed source; nothing reads a database, a network or a run. Each finding cit
 - `TSA-V0-164`: (standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) Proposing the one value
   a passing receipt observed is NOT_PRODUCED: no receipt records assertion operands, so the
   message names the accepted values only and never guesses which one is correct.
-- `TSA-V0-870`: (standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191, 2026-10-30) Every line a
-  justified `EITHER-OR-OUTCOME` annotation exempts (TSA-V0-163, TSA-V0-308) MUST be reported, not
-  silently dropped: the file's validity record carries an `exemptions` entry naming the rule, the
-  exempted `path:line` and the annotation's own reason, for a JS/TS line (same line or the line
-  above), a Markdown or YAML contract comment and a JSON sibling member. A reasonless or
-  other-rule annotation exempts nothing and records nothing. An exemption is not a finding and
-  changes no axis. Non-goals: judging the reason's truth. Rollback: drop the `exemptions` member;
-  it is omitted when empty and nothing reads it.
 - `TSA-V0-165`: (standing auto-accept, 2026-10-11; V1-1919 / GitHub #1185) `CLEANUP-HANDLE-OUTLIVED`
   MUST be an advisory finding on a cleanup closure registered on a registry whose fixture the file
   declares with a longer literal scope (`{ scope: 'worker' }`) when the closure captures a
