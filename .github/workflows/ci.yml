@@ -392,7 +392,9 @@ jobs:
     # that runs this suite on the combined tree, so its own race shards never start. go-product
     # below passes with a notice (V1-2265); the label never lands a PR untested, because every
     # merge goes through the merge queue, whose run ignores the label and tests in full.
-    if: ${{ always() && !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') }}
+    # CIN-V0-007 (V1-2902): on a passed docs-plan DOCS or REUSE decision no shard runs a tests
+    # step, so no shard job starts; go-product accepts that skip only for that decision.
+    if: ${{ always() && !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && !(needs.docs-plan.result == 'success' && (needs.docs-plan.outputs.mode == 'DOCS' || needs.docs-plan.outputs.mode == 'REUSE')) }}
     # Partition the complete runtime package universe using advisory measured costs. An
     # admitted Corvint selection recorded with the PARTITION placement intersects those same
     # disjoint partitions, so mixed full fallbacks cannot omit selected packages. One recorded
@@ -1537,7 +1539,12 @@ jobs:
             echo "$msg" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          test "$SHARDS_RESULT" = success
+          # CIN-V0-007: shards skipped at job level only for a passed DOCS or REUSE decision.
+          if [ "$SHARDS_RESULT" = skipped ] && [ "$DOCS_RESULT" = success ] && { [ "$DOCS_MODE" = DOCS ] || [ "$DOCS_MODE" = REUSE ]; }; then
+            echo "CIN-V0-007: no go-product shard started (docs-plan $DOCS_MODE)."
+          else
+            test "$SHARDS_RESULT" = success
+          fi
           # AFP-V0-080: only a main push whose queue run passed go-static on this commit skips it.
           if [ "$GITHUB_EVENT_NAME" = push ] && [ "$STATIC_REUSE" = REUSE ] && [ "$STATIC_RESULT" = skipped ]; then
             echo 'go-static reused from the merge-queue run of this commit (AFP-V0-080).'
