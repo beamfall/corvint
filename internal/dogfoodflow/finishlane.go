@@ -286,12 +286,19 @@ func verifyRefusalLine(path string) int {
 	if path == "" || err != nil {
 		return 0
 	}
+	line, _ := refusedVerifyLine(data)
+	return line
+}
+
+// refusedVerifyLine returns the 1-based number and text of the first line of
+// data that the recorder refuses, or 0 and "" when every line is admitted.
+func refusedVerifyLine(data []byte) (int, string) {
 	for index, line := range strings.Split(string(data), "\n") {
 		if strings.TrimLeft(line, " \t\n\v\f\r") != "" && validateVerify(verifyLineArguments(line)) != nil {
-			return index + 1
+			return index + 1, line
 		}
 	}
-	return 0
+	return 0, ""
 }
 
 // line writes one step line to stdout.

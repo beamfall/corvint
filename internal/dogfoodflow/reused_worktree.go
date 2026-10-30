@@ -25,17 +25,23 @@ var staleOCMPatterns = []string{".corvint/change.ocm.[0-9][0-9][0-9].json", ".co
 // The run first retires that state itself (DCW-V0-406): it moves the sidecars,
 // byte-preserved, into a new directory under the Git directory and quarantines
 // the stranded traces with migrate-traces --apply and the digest of the dry run
-// it just made, then continues. It refuses only when something is still stale
-// after that, naming the exact manual recovery. Nothing is deleted. A trace
-// store that cannot be evaluated is left to the steps that already report it.
+// it just made, then continues. That apply runs only when the dry-run plan
+// holds nothing but stranded traces: a plan that would also rekey reachable
+// tree-keyed legacy traces is left to the operator. It refuses only when
+// something is still stale after that, naming the exact manual recovery.
+// Nothing is deleted. A trace store that cannot be evaluated is left to the
+// steps that already report it.
 func (f *flow) requireFreshWorktree(base, gitDir string) {
-	stranded, digest := f.strandedTraces()
+	stranded, digest, legacy := f.strandedTraces()
 	stale := f.staleOCMSidecars(base)
 	if len(stranded) == 0 && len(stale) == 0 {
 		return
 	}
+	if legacy > 0 {
+		digest = ""
+	}
 	f.retireStaleState(base, gitDir, stranded, digest, stale)
-	stranded, digest = f.strandedTraces()
+	stranded, digest, legacy = f.strandedTraces()
 	stale = f.staleOCMSidecars(base)
 	if len(stranded) == 0 && len(stale) == 0 {
 		return
@@ -52,6 +58,9 @@ func (f *flow) requireFreshWorktree(base, gitDir string) {
 		aside := gitDir + "/corvint/stale-ocm"
 		f.say("  fix: mkdir -p %s && mv %s %s/\n", shellQuote(aside), strings.Join(quoteAll(stale), " "), shellQuote(aside))
 	}
+	if len(stranded) > 0 && legacy > 0 {
+		f.say("  the same migration plan also rekeys %d reachable tree-keyed legacy trace(s), so it was not applied automatically (DCW-V0-406)\n", legacy)
+	}
 	if len(stranded) > 0 {
 		f.say("  fix: corvint migrate-traces --apply --plan-digest %s (the digest of corvint migrate-traces --dry-run now; it quarantines the stranded traces byte-preserved)\n", digest)
 	}
@@ -60,20 +69,22 @@ func (f *flow) requireFreshWorktree(base, gitDir string) {
 }
 
 // strandedTraces returns the revisions the worktree-local trace store names
-// that HEAD does not reach, with the dry-run plan digest that retires them; a
-// store that cannot be evaluated yields none.
-func (f *flow) strandedTraces() ([]string, string) {
+// that HEAD does not reach, with the dry-run plan digest that retires them and
+// the number of reachable legacy traces that same plan would rekey; a store
+// that cannot be evaluated yields none.
+func (f *flow) strandedTraces() ([]string, string, int) {
 	result, err := tracemigraterepo.Evaluate(f.ctx, f.root, tracemigraterepo.Options{})
 	if err != nil {
-		return nil, ""
+		return nil, "", 0
 	}
-	return result.StrandedRevisions, result.PlanDigest
+	return result.StrandedRevisions, result.PlanDigest, len(result.Entries)
 }
 
 // retireStaleState moves each stale sidecar into a fresh directory under
 // <git-dir>/corvint/stale-ocm, so no earlier aside is overwritten, and applies
-// the trace migration whose dry-run digest is digest. Each retirement it
-// completes is printed; one that fails is left for the caller's refusal.
+// the trace migration whose dry-run digest is digest, unless digest is empty.
+// Each retirement it completes is printed; one that fails or is skipped is
+// left for the caller's refusal.
 func (f *flow) retireStaleState(base, gitDir string, stranded []string, digest string, stale []string) {
 	if len(stale) > 0 {
 		parent := filepath.Join(gitDir, "corvint", "stale-ocm")
@@ -88,7 +99,7 @@ func (f *flow) retireStaleState(base, gitDir string, stranded []string, digest s
 			f.say("%s: RETIRE stale sidecar %s moved to %s/ (DCW-V0-406)\n", f.prefix, name, filepath.ToSlash(aside))
 		}
 	}
-	if len(stranded) > 0 {
+	if len(stranded) > 0 && digest != "" {
 		if _, err := tracemigraterepo.Evaluate(f.ctx, f.root, tracemigraterepo.Options{Apply: true, PlanDigest: &digest}); err == nil {
 			for _, revision := range stranded {
 				f.say("%s: RETIRE stale trace %s quarantined byte-preserved to .context-corvint/legacy-traces/ by migrate-traces --apply --plan-digest %s (DCW-V0-406, LTPM-V0-012)\n", f.prefix, revision, digest)

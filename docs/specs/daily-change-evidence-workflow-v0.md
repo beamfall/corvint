@@ -2010,9 +2010,11 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `finish-lane` and `inputs-check` refusal MUST print, after the `REFUSE` line, one `fix:` line
   naming the file, the line and that quoted form instead of the grammar remediation, and the
   `dogfood-change` `local-outcome` hint MUST name the same form. Every other refused line keeps
-  the `DCW-V0-170` remediation. Non-goals: admitting the unquoted form, which a shell would read
+  the `DCW-V0-170` remediation. The fix line MUST be built from one read of the verify file, so
+  a file replaced or truncated meanwhile yields no hint rather than a panic. Non-goals: admitting the unquoted form, which a shell would read
   as a pipe. Evidence: `TestDCWV0403UnquotedRunAlternationRefusesInOneLine` (exact two-line
-  stderr, the hint, the quoted form reaching prepare, a grouped regex keeping the grammar hint).
+  stderr, the hint, the quoted form reaching prepare, a grouped regex keeping the grammar hint),
+  `TestDCWV0403QuoteFixReadsTheVerifyFileOnce` (a FIFO that is empty on every later open).
   Rollback: remove `unquotedRunAlternation`, `quotedRunFix` and their two call sites.
 - `DCW-V0-404`: (experimental under the standing lane auto-accept; V1-3118; refines `DCW-V0-161`
   and `DCW-V0-381`) A drafted row MUST be anchored only by a BASE line carrying a requirement ID
@@ -2043,7 +2045,9 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   first retire it themselves, before any prepare or bind: each stale sidecar moves, byte-preserved,
   into a new directory under `<git-dir>/corvint/stale-ocm/` (never overwriting an earlier one), and
   the stranded traces are quarantined by `corvint migrate-traces --apply` with the plan digest of
-  the dry run just made (`LTPM-V0-012`). Each completed retirement MUST print one
+  the dry run just made (`LTPM-V0-012`). That apply MUST run only when the dry-run plan holds
+  stranded traces alone: a plan that would also rekey a reachable tree-keyed legacy trace is not
+  applied, and the refusal adds one line naming how many legacy traces it would rekey. Each completed retirement MUST print one
   `RETIRE stale sidecar` or `RETIRE stale trace` line naming the item and where it went, and the
   run then continues. The run MUST re-evaluate afterwards and refuse `reused-worktree-state` with
   the `DCW-V0-396` recovery lines only for what is still stale. Nothing is deleted. Design: the
@@ -2054,6 +2058,8 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   cannot be evaluated is left to the steps that report it, as before. Non-goals: deleting
   anything, retiring state other than the `DCW-V0-396` items, or a flag to keep the old refusal.
   Evidence: `TestFinishLaneDCWV0406RetiresAStaleSidecarAndContinues`,
+  `TestFinishLaneDCWV0406LeavesAMixedTracePlanToTheOperator` (stranded, reachable-legacy and
+  canonical traces: no trace moves, the refusal names the legacy count),
   `TestFinishLaneDCWV0396RefusesAStaleSidecarBeforePrepare` (an unwritable aside directory still
   refuses), `TestDogfoodDCWV0044WorktreeLanesRunConcurrently` (lane B's commit in lane A's
   worktree: the stranded trace lands in `.context-corvint/legacy-traces/`, the sidecar moves, and
@@ -2375,10 +2381,10 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-397` (experimental under the standing lane auto-accept; V1-2981) | `internal/dogfoodflow/regenerated.go` `regenerated`, `replay`; `batch.go` `regeneratedCommit`, `verifyCoverage`; `TestBatchCheckDCWV0397AcceptsRegeneratedCommits` | implemented; focused tests PASS |
 | `DCW-V0-398` (experimental under the standing lane auto-accept; V1-3214) | `internal/dogfoodflow/change.go` `regeneratedPath`, `citationPlanMismatch`; `TestChangeDCWV0398CitesRegeneratedHunksOnly` | implemented; focused tests PASS |
 | `DCW-V0-402` (experimental under the standing lane auto-accept; V1-3226) | `internal/dogfoodflow/change.go` `unknownRelationRow`, `RelationChoices`; `TestDCWV0379InputsCheckRefusesEachPlanAndManifestDefect` (relation tests), `TestDCWV0402RelationListMatchesDocsAndCite` | implemented; focused test PASS |
-| `DCW-V0-403` (experimental under the standing lane auto-accept; V1-3131) | `internal/dogfoodflow/verify_argv.go` `unquotedRunAlternation`, `quotedRunFix`; `finishlane.go` `requireVerifyInput`; `change.go` `fixHint`; `TestDCWV0403UnquotedRunAlternationRefusesInOneLine` | implemented; focused test PASS |
+| `DCW-V0-403` (experimental under the standing lane auto-accept; V1-3131) | `internal/dogfoodflow/verify_argv.go` `unquotedRunAlternation`, `quotedRunFix`; `finishlane.go` `requireVerifyInput`; `change.go` `fixHint`; `TestDCWV0403UnquotedRunAlternationRefusesInOneLine`, `TestDCWV0403QuoteFixReadsTheVerifyFileOnce` | implemented; focused tests PASS |
 | `DCW-V0-404` (experimental under the standing lane auto-accept; V1-3118) | `internal/dogfoodflow/propose.go` `hunkFamilies`, `hunkText`, `dominantFamilies`, `relevantRequirementLine`; `TestProposeCitationsDCWV0404AnchorsToTheHunksRequirementFamily`, `TestDCWV0404FallbackFamilyCountsEveryOtherEdit`, `TestProposeCitationsDCWV0381SkipsDataAndPartialPaths` | implemented; focused test PASS; draft relevance 9/17 to 17/17 on this lane's diff |
 | `DCW-V0-405` (experimental under the standing lane auto-accept; V1-3231) | `internal/dogfoodflow/finishlane.go` `accept`, `noteKey`; `TestDCWV0405FinishLanePrintsEachNoteOnce`, `TestDCWV0405StoppedPassOmitsPrintedNotes` | implemented; focused test PASS |
-| `DCW-V0-406` (experimental under the standing lane auto-accept; V1-3211) | `internal/dogfoodflow/reused_worktree.go` `requireFreshWorktree`, `retireStaleState`, `strandedTraces`; `TestFinishLaneDCWV0406RetiresAStaleSidecarAndContinues`, `TestFinishLaneDCWV0396RefusesAStaleSidecarBeforePrepare`, `TestDogfoodDCWV0044WorktreeLanesRunConcurrently` | implemented; focused tests PASS |
+| `DCW-V0-406` (experimental under the standing lane auto-accept; V1-3211) | `internal/dogfoodflow/reused_worktree.go` `requireFreshWorktree`, `retireStaleState`, `strandedTraces`; `TestFinishLaneDCWV0406RetiresAStaleSidecarAndContinues`, `TestFinishLaneDCWV0406LeavesAMixedTracePlanToTheOperator`, `TestFinishLaneDCWV0396RefusesAStaleSidecarBeforePrepare`, `TestDogfoodDCWV0044WorktreeLanesRunConcurrently` | implemented; focused tests PASS |
 | `DCW-V0-359` (experimental under the standing lane auto-accept; V1-2858) | `script/heavy.sh` `keep_written`, `copy_back`, `fetch`; `script/lane-scripts_test.sh` copy-back fixtures | implemented; shell test PASS |
 | `DCW-V0-373` (experimental under the standing lane auto-accept; V1-2883) | `internal/cem/gitrun/gitrun.go` `ScaledOperations`, `ScaleForRecords`; `internal/cem/gitauth/repo.go` `ScaleBudgetForRecords`; `internal/cem/workflow/commands.go` `resumeStableCandidate`; `internal/cem/verify/stable.go` `StableOptions.ScaledOperations`; `internal/cem/cli/cli.go` `--scaled-operations`; `internal/dogfoodflow/scaled.go`; `internal/lrfrepo/adapter.go` `acceptedStable`; `TestScaledOperationsGrowWithMapRecords`, `TestDCWV0373ScaledOperationsIsOptIn`, `TestDCWV0373StatusRetriesOnlyResourceLimit`, `TestDCWV0373CheckScaledStatusNeedsBothVerifiers` | implemented; focused tests PASS |
 | `DCW-V0-374` (experimental under the standing lane auto-accept; V1-2883) | `cmd/corvint/dogfood_record.go` `runDogfoodAggregateRecord`; `internal/tracerecordrepo/aggregate_outcome.go` `AggregateExpectedFor`; `internal/dogfoodflow/change.go` `localOutcome`, `AggregateMarkerPresent`; `TestDCWV0374OverLimitOutcomeLearnsNothing`, `TestDCWV0374LocalOutcomeAdmitsOptedInAggregate`, `TestDCWV0374UnenrolledAggregateReceiptIsNotAMarker` | implemented; focused tests PASS |

@@ -22,14 +22,18 @@ var unquotedRunAlternation = regexp.MustCompile(`^([A-Za-z0-9_./:@=+, -]+) -run 
 
 // quotedRunFix names the first refused line of the verify file at path and
 // its admitted quoted form when that line is an unquoted -run alternation,
-// and returns "" otherwise (DCW-V0-403).
+// and returns "" otherwise (DCW-V0-403). It reads the file once, so the line
+// it names is the line it rewrites even when the file changes meanwhile.
 func quotedRunFix(path string) string {
-	line := verifyRefusalLine(path)
 	data, err := readPrefix(path, maxVerifyFileBytes)
-	if line == 0 || err != nil {
+	if path == "" || err != nil {
 		return ""
 	}
-	match := unquotedRunAlternation.FindStringSubmatch(strings.TrimSpace(strings.Split(string(data), "\n")[line-1]))
+	line, text := refusedVerifyLine(data)
+	if line == 0 {
+		return ""
+	}
+	match := unquotedRunAlternation.FindStringSubmatch(strings.TrimSpace(text))
 	if match == nil {
 		return ""
 	}
