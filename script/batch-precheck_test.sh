@@ -762,6 +762,9 @@ if [[ $(uname -s) == Linux && $(stat -f -c %T /dev/shm 2> /dev/null) == tmpfs ]]
   [[ $(sort -u "$tmp/step-tmpdirs") == "$tmp/xdg/corvint-tmp" ]] || fail "steps kept the tmpfs TMPDIR: $(sort -u "$tmp/step-tmpdirs")"
   [[ $(stat -c %a "$tmp/xdg/corvint-tmp") == 700 ]] || fail "step TMPDIR mode $(stat -c %a "$tmp/xdg/corvint-tmp")"
   : > "$tmp/step-tmpdirs"
+  (unset BATCH_PRECHECK_TMPDIR XDG_CACHE_HOME HOME; TMPDIR=/dev/shm CORVINT_GOCACHE=$tmp/gocache frun) || fail "a run without HOME failed: $(cat "$tmp/out")"
+  [[ $(sort -u "$tmp/step-tmpdirs") == /dev/shm ]] || fail "without HOME the TMPDIR was not kept: $(sort -u "$tmp/step-tmpdirs")"
+  : > "$tmp/step-tmpdirs"
   mkdir -p "$tmp/disk-tmp"
   if [[ $(stat -f -c %T "$tmp/disk-tmp") != tmpfs ]]; then
     (unset BATCH_PRECHECK_TMPDIR; TMPDIR=$tmp/disk-tmp XDG_CACHE_HOME=$tmp/xdg2 frun) || fail "disk TMPDIR run failed: $(cat "$tmp/out")"

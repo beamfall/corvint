@@ -651,13 +651,18 @@ receipt=$(receipt_path) || exit 2
 # (default /tmp) that is a tmpfs or ramfs is replaced by ${XDG_CACHE_HOME:-$HOME/.cache}/corvint-tmp,
 # with one printed line. The directory is created mode 0700 when missing.
 tmpfs_dir() { [[ $(uname -s) == Linux ]] && case $(stat -f -c %T "$1" 2> /dev/null) in tmpfs | ramfs) true ;; *) false ;; esac; }
-step_tmp=${BATCH_PRECHECK_TMPDIR:-}
-if [[ -z $step_tmp ]] && tmpfs_dir "${TMPDIR:-/tmp}"; then
-  step_tmp=${XDG_CACHE_HOME:-$HOME/.cache}/corvint-tmp
+# Entries of that default directory older than a day, left by killed steps, are removed first,
+# since nothing resets it as a reboot resets a tmpfs. With neither XDG_CACHE_HOME nor HOME set, the
+# tmpfs TMPDIR is kept. A relative BATCH_PRECHECK_TMPDIR is made absolute, since steps change directory.
+step_tmp=${BATCH_PRECHECK_TMPDIR:-} cache_home=${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}
+if [[ -z $step_tmp && -n $cache_home ]] && tmpfs_dir "${TMPDIR:-/tmp}"; then
+  step_tmp=$cache_home/corvint-tmp
   printf 'batch-precheck: TMPDIR %s is RAM-backed; steps use %s (BATCH_PRECHECK_TMPDIR chooses another)\n' "${TMPDIR:-/tmp}" "$step_tmp"
+  [[ -d $step_tmp ]] && find "$step_tmp" -mindepth 1 -maxdepth 1 -mmin +1440 -exec /bin/rm -rf {} + 2> /dev/null
 fi
 if [[ -n $step_tmp ]]; then
-  (umask 077 && mkdir -p "$step_tmp") || { printf 'batch-precheck: cannot create TMPDIR %s\n' "$step_tmp" >&2; exit 2; }
+  (umask 077 && mkdir -p "$step_tmp") && step_tmp=$(cd "$step_tmp" && pwd) ||
+    { printf 'batch-precheck: cannot create TMPDIR %s\n' "$step_tmp" >&2; exit 2; }
   export TMPDIR=$step_tmp
 fi
 # A TMPDIR with less than BATCH_PRECHECK_MIN_TMP_KIB (4 GiB) free warns before any step runs:

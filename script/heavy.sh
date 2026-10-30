@@ -310,8 +310,8 @@ origin_key() {
 # `URL<TAB>BASEREF`. A plain clone of a local checkout (`git clone ~/corvint scratch`) has a local
 # path as its origin, whose `main` may be an unrelated lineage, so when origin is a local repository
 # that itself has an origin, that repository's origin URL and its `origin/main` commit stand in, one
-# hop only. Otherwise origin and `origin/main`. Fails, with the reason on stdout, when TOP has no
-# origin.
+# hop only. Otherwise origin and `origin/main`. Fails, with the reason and its recovery on stdout,
+# when TOP has no origin, or that repository has no origin/main or its commit is not in TOP.
 upstream() {
   local top=$1 url path up ref
   url=$(git -C "$top" remote get-url origin 2> /dev/null) || { printf 'no origin remote\n'; return 1; }
@@ -319,8 +319,11 @@ upstream() {
   if [[ $path == /* || $path == .* ]] && [[ $path != *:* ]]; then
     [[ $path == /* ]] || path=$top/$path
     if up=$(git -C "$path" remote get-url origin 2> /dev/null) && [[ -n $up ]]; then
-      ref=$(git -C "$path" rev-parse -q --verify 'refs/remotes/origin/main^{commit}' 2> /dev/null) || ref=
-      printf '%s\t%s\n' "$up" "${ref:-origin/main}"
+      ref=$(git -C "$path" rev-parse -q --verify 'refs/remotes/origin/main^{commit}' 2> /dev/null) ||
+        { printf 'the source checkout %s has no origin/main; run git -C %s fetch origin\n' "$path" "$path"; return 1; }
+      git -C "$top" cat-file -e "$ref^{commit}" 2> /dev/null ||
+        { printf 'base %s (origin/main of %s) is not in this clone; run git fetch %s refs/remotes/origin/main\n' "$ref" "$path" "$path"; return 1; }
+      printf '%s\t%s\n' "$up" "$ref"
       return 0
     fi
   fi
@@ -363,7 +366,7 @@ offload() {
   rel=${rel%/}
   head=$(git -C "$top" rev-parse HEAD 2> /dev/null) || { offload_unavailable 'no HEAD commit'; return 97; }
   git -C "$top" cat-file -e "$ref^{commit}" 2> /dev/null ||
-    { offload_unavailable "base $ref is not in this clone; run git fetch origin"; return 97; }
+    { offload_unavailable "base $ref is not in this clone; run git fetch origin main"; return 97; }
   base=$(git -C "$top" merge-base HEAD "$ref" 2> /dev/null) ||
     { offload_unavailable "HEAD shares no history with $ref (a pre-snapshot lineage?); base the branch on origin/main"; return 97; }
   t=$(mktemp -d "${TMPDIR:-/tmp}/heavy-offload.XXXXXX") || return 97

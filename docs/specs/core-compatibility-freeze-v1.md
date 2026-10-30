@@ -334,7 +334,8 @@ no N-1, and each later release's N-1 is the previous release published in it; se
   N-1: when no tag precedes the candidate and every published release of the repository is the
   candidate or a descendant, both report FIRST_RELEASE, not applicable, in the log, a notice and the
   step summary, never a silent pass or skip. (V1-3203, 2026-10-30) Left unset, the Makefile's
-  `CORE_N1_TAG` default is that same selector's tag for `HEAD`, so pre-release tags count; when no
+  `CORE_N1_TAG` default is that same selector's tag for `HEAD`, so pre-release tags count, and the selector ranks a final release above its pre-releases
+  (`versionsort.suffix=-`), which also governs `script/core-n1-source.sh`; when no
   release tag precedes `HEAD`, `make core-n1-replay` prints `NOT_APPLICABLE FIRST_RELEASE` and exits
   0 rather than failing on an empty tag, a selector refusal exits 2, and an explicit empty
   `CORE_N1_TAG=` is still refused (`script/core-n1-replay-default_test.sh`). A predecessor that exists but cannot be selected,

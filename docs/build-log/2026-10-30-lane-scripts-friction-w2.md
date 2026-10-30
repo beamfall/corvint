@@ -37,6 +37,16 @@ first-release and citation-replace branches (merge `8a692b79d`).
   `HEAVY_LOCAL_REASON` is unchanged. LANE-ORCHESTRATION section 2 documents the fallback: the clone's
   own `script/heavy.sh`, with host settings in `HEAVY_CONFIG`.
 
+## Independent review
+
+One review of the diff found: the selector's `--sort=-v:refname` without `versionsort.suffix`
+ranked `v1.0.0-rc.x` above `v1.0.0` (fixed in `script/select-previous-release.sh` with
+`-c versionsort.suffix=-`, and tested with both on one commit); `corvint-tmp` never emptied (now a
+day-old sweep of the default directory); an unset `HOME` (the tmpfs TMPDIR is kept; the precheck
+already needs `HOME` or `CORVINT_GOCACHE` for its Go cache); a relative `BATCH_PRECHECK_TMPDIR`
+(made absolute); a source checkout without `origin/main` falling back to the clone's own `main`,
+and a fetch advice that a `--no-local` clone could not follow (both now name the recovery).
+
 ## Evidence
 
 - `script/core-n1-replay-default_test.sh` (new, in `make install-lifecycle-test`): no tag,
@@ -48,12 +58,16 @@ first-release and citation-replace branches (merge `8a692b79d`).
   `FAIL case "2. A fixture repository, workflow and packages." line 117` with the output tail.
 - `script/lane-scripts_test.sh`: 28 groups PASS; the plain-clone offload case fails against the
   parent commit's `script/heavy.sh` (it ran locally).
-- `make capability-catalog-check` repeated under concurrent load: recorded in the lane report.
+- V1-3206 under load: three concurrent cold `batch-precheck` runs (ledger off, 24 cold builds at
+  once) passed 9/9 steps each with `/tmp` usage flat; then 12 `make capability-catalog-check` runs,
+  four at a time, beside a fourth cold batch-precheck, all passed (load average 55).
+- A `git clone --no-local` of this worktree resolves the hop (base present) and attempts the
+  offload; `go vet` through `script/heavy.sh` ran locally after the unreachable host, as before.
 
 ## Limits
 
-NOT_OBSERVED: the ticket bodies (the four tickets are not in this host's Tasks projection); the
-original failing catalog-check log (batch-precheck kept only the FLAKY line). The tmpfs cause is
+The ticket bodies were relayed by the orchestrator (this host has no Tasks journal). NOT_OBSERVED:
+the original failing catalog-check log (batch-precheck kept only the FLAKY line). The tmpfs cause is
 inferred from the same run's `no space left on device` and was not reproduced by filling `/tmp`,
 because that would break other lanes. The double build's own disk use is unchanged.
 

@@ -410,6 +410,12 @@ hvp() { (cd "$off/plain/${1:-sub}" && shift && env PATH="$off/bin:$PATH" TMPDIR=
 out=$(HEAVY_REMOTE_HOST=box hvp sub go test -run X ./... 2> "$off/err")
 [[ $out == 'where=remote dir=sub'* ]] && ! grep -q 'offload unavailable' "$off/err" ||
   fail "heavy.sh did not offload from a plain clone of a local checkout: $out $(cat "$off/err")"
+# A source checkout without origin/main names its recovery rather than bundling over its own main.
+g -C "$off/lc" update-ref -d refs/remotes/origin/main
+out=$(HEAVY_REMOTE_HOST=box hvp sub go test -run X ./... 2> "$off/err")
+[[ $out == 'where=local'* ]] && grep -qx "heavy.sh: offload unavailable from this checkout: the source checkout $off/lc has no origin/main; run git -C $off/lc fetch origin" "$off/err" ||
+  fail "a source without origin/main did not name its recovery: $out $(cat "$off/err")"
+g -C "$off/lc" fetch -q origin || fail "fixture refetch failed"
 g -C "$off/plain" checkout -q --orphan unrelated && g -C "$off/plain" commit -qm unrelated || fail "orphan commit failed"
 out=$(HEAVY_REMOTE_HOST=box hvp sub go test -run X ./... 2> "$off/err")
 [[ $out == 'where=local'* ]] && grep -q '^heavy.sh: offload unavailable from this checkout: HEAD shares no history with [0-9a-f]\{40\} (a pre-snapshot lineage?); base the branch on origin/main$' "$off/err" &&

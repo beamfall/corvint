@@ -67,6 +67,12 @@ grep -q ' build -trimpath -o .*/corvint ./cmd/corvint$' "$scratch/go-invoked" ||
 grep -q " test -run ^(TestCoreVerbsEmitTheFrozenProfiles|TestCoreRefusalsKeepTheFrozenEnvelope)\$ ./cmd/corvint\$" "$scratch/go-invoked" ||
   fail 'replay tests not run'
 
+case_name='a final release outranks its pre-release on the same commit'
+git tag v1.0.0 v1.0.0-rc.3
+run 0
+grep -Fqx 'core-n1-replay: CORE_N1_TAG=v1.0.0, the newest release tag before HEAD' "$scratch/err" || fail 'v1.0.0 not selected over v1.0.0-rc.3'
+git tag -d v1.0.0 >/dev/null
+
 case_name='an explicit tag wins'
 run 0 CORE_N1_TAG=v0.8.1
 grep -Fq 'newest release tag' "$scratch/err" && fail 'selector ran'
