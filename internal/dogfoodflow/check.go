@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/dogfoodocm"
 	"github.com/Beamfall/corvint/internal/dogfoodoperation"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/tracerecordrepo"
@@ -65,6 +66,9 @@ type AggregateCheckCapture struct {
 }
 
 type check struct {
+	sealed                                     bool
+	sealedTarget                               string
+	cemPath                                    string
 	aggregateCapture                           *AggregateCheckStage
 	aggregateSavedStdout, aggregateSavedStderr io.Writer
 	aggregate                                  *AggregateReport
@@ -128,7 +132,7 @@ func Seal(ctx context.Context, options CheckOptions, stdout, stderr io.Writer) (
 }
 
 func newCheck(ctx context.Context, prefix string, options CheckOptions, stdout, stderr io.Writer) *check {
-	return &check{flow: flow{ctx: ctx, prefix: prefix, root: options.Root, stderr: stderr}, options: options, stdout: stdout}
+	return &check{flow: flow{ctx: ctx, prefix: prefix, root: options.Root, stderr: stderr}, options: options, stdout: stdout, cemPath: ".corvint/change.cem.json"}
 }
 
 func (c *check) seal() int {
@@ -206,6 +210,15 @@ func (c *check) run() int {
 	c.requireRoot()
 	c.base = c.gitValue("rev-parse", c.options.Base+"^{commit}")
 	c.target = c.gitValue("rev-parse", "HEAD^{commit}")
+	c.cemPath = ".corvint/change.cem.json"
+	if c.sealed {
+		binding, err := ResolveSealBinding(c.ctx, c.root, c.target)
+		if err != nil {
+			c.refuse("sealed-binding-required")
+		}
+		c.sealedTarget = c.target
+		c.target, c.cemPath = binding.EvidenceTarget, binding.MapPath
+	}
 	c.gitDir = c.gitValue("rev-parse", "--absolute-git-dir")
 	c.acquireOperation()
 	c.enableAggregateCapture()
@@ -222,6 +235,9 @@ func (c *check) run() int {
 	if markerErr != nil {
 		c.refuse("aggregate-enrollment-required")
 	}
+	if marker && c.sealed {
+		c.refuse("sealed-aggregate-unsupported")
+	}
 	if marker {
 		report = c.checkReport()
 	}
@@ -234,16 +250,44 @@ func (c *check) run() int {
 	if report == nil {
 		report = c.checkReport()
 	}
+	if c.sealed {
+		var shape struct {
+			Steps []struct{ Name, Status, Reason string } `json:"steps"`
+		}
+		if json.Unmarshal(report, &shape) != nil {
+			c.refuse("sealed-context-replay-unsupported")
+		}
+		for _, name := range []string{"coordination-time-impact", "coordination-time-query"} {
+			count := 0
+			for _, step := range shape.Steps {
+				if step.Name == name {
+					count++
+					if step.Status != "PRODUCED" || step.Reason != "none" {
+						c.refuse("sealed-context-replay-unsupported")
+					}
+				}
+			}
+			if count != 1 {
+				c.refuse("sealed-context-replay-unsupported")
+			}
+		}
+	}
 	c.admitOutputChange()
 	abstention := c.checkContextAbstention(report)
 	queryTask, queryAbstention := c.checkQueryAbstention(report)
+	if c.sealed && (abstention || queryAbstention) {
+		c.refuse("sealed-context-replay-unsupported")
+	}
 	c.resolveVerifiers()
 	// A pass bound to this BASE, HEAD and every input stands; anything else
 	// reruns the verifiers (DCW-V0-347).
-	if c.reusePass() {
+	if !c.sealed && c.reusePass() {
 		return 0
 	}
-	passed := c.capturePass()
+	passed := func() {}
+	if !c.sealed {
+		passed = c.capturePass()
+	}
 	if abstention {
 		c.verifyAbstention()
 	}
@@ -252,6 +296,14 @@ func (c *check) run() int {
 	}
 	code := c.verifyBinding(report)
 	if code == 0 {
+		if c.sealed {
+			current := c.gitValue("rev-parse", "HEAD^{commit}")
+			binding, err := ResolveSealBinding(c.ctx, c.root, current)
+			if err != nil || current != c.sealedTarget || binding.EvidenceTarget != c.target || binding.MapPath != c.cemPath {
+				c.refuse("sealed-binding-drift")
+			}
+			c.requireCleanChange()
+		}
 		passed()
 	}
 	return code
@@ -702,7 +754,7 @@ func missingLines(report []byte) []string {
 // verifyBinding verifies the OCM aggregate (DCW-V0-160), requires the verifiers to agree on the
 // CEM policy, records their identities in the report and prints the results.
 func (c *check) verifyBinding(report []byte) int {
-	if !isRegular(c.root + "/.corvint/change.cem.json") {
+	if !isRegular(c.root + "/" + c.cemPath) {
 		c.fail("cem-map-missing", missingLines(report)...)
 	}
 	intentSnapshot := c.root + "/.corvint/change.ocm-intents"
@@ -735,7 +787,7 @@ func (c *check) verifyBinding(report []byte) int {
 	}
 	// The committed map carries each reason an author recorded for a hunk kept
 	// unknown, so the check admits them as the change did (DCW-V0-019).
-	reasoned, allowance := c.flow.reasonedUnknowns(c.root+"/.corvint/change.cem.json", intents, bootstrap > 0)
+	reasoned, allowance := c.flow.reasonedUnknowns(c.root+"/"+c.cemPath, intents, bootstrap > 0)
 	policyMatches := bytes.Contains(report, []byte(`  ,"dogfoodPolicy": {"bootstrapUnknown": `+strconv.Itoa(bootstrap)+`, "maximumUnknownAfterBootstrap": 0}`))
 	if c.aggregate != nil {
 		policyMatches = c.aggregate.DogfoodPolicy.BootstrapUnknown == bootstrap && c.aggregate.DogfoodPolicy.MaximumUnknownAfterBootstrap == 0
@@ -751,7 +803,9 @@ func (c *check) verifyBinding(report []byte) int {
 		c.fail("deferred-intent-kept", "  paths="+strings.Join(kept, ","),
 			"  fix: a scope is either kept in the intent manifest or recorded as deferred; rebind without one of them (DCW-V0-371)")
 	}
-	cem, agreed := c.verifyStatus(statusArguments(c.root, c.base, c.target, bootstrap+allowance, deferrals)...)
+	args := statusArguments(c.root, c.base, c.target, bootstrap+allowance, deferrals)
+	args[3] = c.cemPath
+	cem, agreed := c.verifyStatus(args...)
 	if !agreed {
 		_ = c.record(false, bootstrap)
 		c.fail("verifier-disagreement")
@@ -783,7 +837,7 @@ func (c *check) verifyBinding(report []byte) int {
 	}
 	var coverage *changeCoverage
 	if !noIntent {
-		coverage = c.changeCoverage(c.root+"/.corvint/change.cem.json", intents)
+		coverage = c.changeCoverage(c.root+"/"+c.cemPath, intents)
 	}
 	fmt.Fprintf(c.stdout, "%s\n", checkSummary(cemLine, ocmLine, noIntent, reasoned, coverage, c.baseIndependence(), detail))
 	if note := coverage.unlinkedNote(); note != "" {
@@ -884,7 +938,20 @@ func summaryInt(value *int) string {
 // comparison with the aggregate `dogfood change` published, which the change's
 // own executable computed, stays the second computation of it.
 func (c *check) verifyOCM(aggregate string) []byte {
-	ocm := c.verify(c.options.TreeVerifier, "dogfood-ocm", "status", "--expected-base", c.base, "--target", c.target)
+	var ocm verification
+	if c.sealed {
+		result, err := dogfoodocm.Status(c.ctx, dogfoodocm.Options{Root: c.root, CEMPath: c.cemPath, ExpectedBase: c.base, Target: c.target})
+		if err != nil {
+			c.fail("ocm-policy")
+		}
+		raw, err := json.Marshal(result)
+		if err != nil {
+			c.fail("ocm-policy")
+		}
+		ocm = verification{stdout: append(raw, '\n')}
+	} else {
+		ocm = c.verify(c.options.TreeVerifier, "dogfood-ocm", "status", "--expected-base", c.base, "--target", c.target)
+	}
 	if ocm.status != 0 {
 		reason, _ := firstCapture(codePattern, ocm.stderr)
 		if reason == "" {
@@ -903,6 +970,24 @@ func (c *check) verifyOCM(aggregate string) []byte {
 // record replaces the report's single dogfoodCheck line with the verifier
 // identities and their agreement.
 func (c *check) record(agreed bool, bootstrap int) error {
+	if c.sealed {
+		// The parent report remains immutable provenance. A continuation records
+		// this actual verifier comparison separately at the current seal.
+		raw, err := json.Marshal(struct {
+			Profile        string `json:"profile"`
+			Target         string `json:"target"`
+			EvidenceTarget string `json:"evidenceTarget"`
+			Map            string `json:"map"`
+			BaseVerifier   string `json:"baseVerifierSha256"`
+			TreeVerifier   string `json:"treeVerifierSha256"`
+			OutputsAgree   bool   `json:"outputsAgree"`
+		}{"corvint-sealed-check/0", c.sealedTarget, c.target, c.cemPath, c.baseSHA, c.treeSHA, agreed})
+		if err != nil {
+			return err
+		}
+		return writePrivate(c.evidence+"/dogfood-sealed-check.json", append(raw, '\n'))
+	}
+
 	if c.aggregate != nil {
 		value := *c.aggregate
 		result := &AggregateCheckResult{BaseVerifierSHA256: "sha256:" + c.baseSHA, TreeVerifierSHA256: "sha256:" + c.treeSHA, BootstrapUnknown: bootstrap, OutputsAgree: agreed}

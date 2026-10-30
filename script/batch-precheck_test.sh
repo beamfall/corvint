@@ -24,7 +24,7 @@ export CORVINT_GATE_LEDGER=off
 # that fails when CI gains a step batch-precheck cannot run.
 (cd "$script/.." && "$pre" --sync-check) > "$tmp/out" 2>&1 || fail "checkout out of sync: $(cat "$tmp/out")"
 (cd "$script/.." && "$pre" --list) > "$tmp/out" 2>&1 || fail "checkout --list: $(cat "$tmp/out")"
-grep -q '^make use-case-receipts-check$' "$tmp/out" || fail "derived doc-gates miss use-case-receipts-check: $(cat "$tmp/out")"
+grep -qx 'make doc-gates' "$tmp/out" || fail "derived doc-gates miss shared target: $(cat "$tmp/out")"
 grep -q '^batch-drift (' "$tmp/out" || fail "no batch-drift step: $(cat "$tmp/out")"
 grep -qx 'make host-adapter-node-test' "$tmp/out" || fail "no host-adapter-node-test step: $(cat "$tmp/out")"
 

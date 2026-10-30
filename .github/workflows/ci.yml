@@ -84,17 +84,9 @@ jobs:
         with:
           cache: false
           go-version: "1.27.3"
-      - name: Host package versions (AHI-020)
+      - name: Shared documentation gates (including host versions and use-case pins)
         if: needs.doc-gates-reuse.outputs.mode != 'REUSE'
-        run: make -s host-package-versions-check host-package-versions-test
-      - name: Documentation gate steps
-        if: needs.doc-gates-reuse.outputs.mode != 'REUSE'
-        run: make -s spec-requirements-check requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check line-citations-check error-code-ownership-check unbounded-readers-check test-read-scopes-check test-commands-check
-      - name: Use-case receipt pins (run script/repin-use-case-receipts.sh on failure)
-        if: needs.doc-gates-reuse.outputs.mode != 'REUSE'
-        run: |
-          make -s use-case-receipts-check use-case-receipts-test
-          go run ./conformance/use-cases-v0
+        run: make -s doc-gates
 
   doc-gates-record:
     # AFP-V0-670, AFP-V0-671: the only evidence the doc-gates-reuse decision accepts. It runs in a

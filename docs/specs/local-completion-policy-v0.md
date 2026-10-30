@@ -11,6 +11,7 @@ Authoritative inputs: `docs/DOGFOOD.md`, `docs/decisions/0009-harness-authority-
 - Status: accepted direction (owner selected decision 0009 option 2 in the 2026-09-06 Codex dogfood repair task); LCP-V0-008/009 Pi tuple accepted (decision 0452; V1-0506)/implemented
 - Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881). `LCP-V0-017` (envelope `ok` mirrors the exit status) is accepted by decision 0465 (V1-1012). `LCP-V0-018` (plan intent refusals name the rule) is accepted by decision 0472 (V1-1043). `LCP-V0-019` proposes reuse of immutable facts inside one enrolled event while re-reading private inputs and cleanliness (V1-1124; accepted, decision 0508). `LCP-V0-033` (snapshot read overlapping the opening status read) is accepted under the owner's lane auto-acceptance (V1-1524, V1-2144). `LCP-V0-034` (named prompt-bounds refusal code) is accepted under the same auto-acceptance (V1-1976). `LCP-V0-036` (base-ancestry probes refuse a grafted or shallow checkout with `ancestry-rewritten`) is accepted under the same auto-acceptance (V1-1757). `LCP-V0-037` (begin refuses an intent without numbered requirements) is accepted under the owner's standing auto-accept (V1-0680). `LCP-V0-038` (cancel of an active enrollment requires `--reason`) is accepted under the owner's standing auto-accept (2026-10-11) (V1-2177).
 - Blocked on: current-change canonical verification, report acknowledgment, strict outcome qualification and installed-hook validation, recorded separately; complete host-version matrix NOT_RUN.
+- `LCP-V0-040` adds strict sealed continuation with separate current and evidence targets; aggregate and context-abstention continuation remain unsupported.
 - Read next: Requirements; Failure modes; Acceptance evidence and traceability.
 
 ## User and job
@@ -465,6 +466,41 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   drop `selector`, `anchorIdentifiers` and `crowded` in
   `internal/contextindex/local_completion_context.go`.
 
+
+- `LCP-V0-040`: (owner-requested V1-1894 repair, 2026-10-30) A legacy enrolled change
+  MAY complete after the required seal without restoring the shared CEM or moving HEAD. This
+  amends `LCP-V0-002`, `LCP-V0-003`, `LCP-V0-020` and decision 0534 disposition 2 only for
+  the strictly proved seal continuation below; other later commits retain stale completion. The
+  continuation MUST derive exactly one parent from the current immutable commit, prove that its
+  entire change is deletion of the parent's regular CEM and addition of the identical blob and
+  mode at `.corvint/changes/<parent>.cem.json`, and reject merges, descendants, another file or
+  mode change, rewritten ancestry, and a present shared working-tree map. The completion
+  `target` remains the actual seal; additive `evidenceTarget` names the parent. Public CEM/OCM
+  verification MUST retain that parent target and the original base, using the archive bytes.
+  The original reviewed report set, its review digest, retained successful observations and
+  logs, OCM/intent/map bindings, and parent coordinator/outcome MUST remain verifiable. The
+  preserved observations MUST each match the enrollment's retained observation and qualify at
+  the parent under the original frozen check policy. They MUST NOT substitute for the latest
+  selected checks: those must independently qualify at the actual seal, including after a
+  later failed, cancelled, timed-out or screened attempt. A continuation MUST produce and require
+  review of a new exact report set naming both commits, the archive and original reviewed set,
+  while retaining the original report set verbatim. Recovery MUST execute the real strict
+  checker without a cached-pass shortcut; it verifies the parent evidence while rechecking the
+  same clean seal before and after. Its comparison is recorded separately as
+  `corvint-sealed-check/0`, never by rewriting the parent's coordinator report. The terminal
+  binds this comparison plus actual checker exit/logs and the new report set. Status and host
+  events validate these inputs read-only; repeated successful finish writes no outcome or state.
+  Non-goals: aggregate-profile continuation, automatic reuse of parent checks at a seal, generic
+  historical-target execution, missing evidence repair, or new harness authority. The initial
+  continuation supports exactly one PRODUCED/none query and impact step and refuses context
+  abstention/deadline replay that would otherwise execute against a different HEAD; existing
+  stray or malformed abstention evidence still refuses. Missing or drifted prior evidence,
+  checks, logs, reports, owner, plan, archive, outcome or current tree cannot publish success.
+  The optional private `sealedContinuation` state is additive for this runtime; older runtimes
+  cannot read it and must not be used to finish that enrollment. Rollback: revert the repair and
+  retain the affected enrollment and sealed tree for a compatible runtime; never delete its
+  evidence or reverse the seal to manufacture success.
+
 ## Non-goals and simpler baseline
 
 The baseline is the documented agent-driven DOGFOOD loop. This slice removes orchestration gaps and
@@ -658,6 +694,8 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-037 | `Begin` in `internal/localcompletion/lifecycle.go`; `IntentRequirementsRefusal` in `internal/lrfrepo/ocm.go` | `TestEnrollmentRefusesIntentWithoutNumberedRequirements_LCPV0037` (`internal/localcompletion/lifecycle_test.go`: no section, no IDs and a duplicate ID are refused with the `ocm prepare` code 16 times without state.json, then a valid plan enrolls; fails without the change) |
 | LCP-V0-038 | `Cancel` in `internal/localcompletion/lifecycle.go`; `CancelReasonError` in `internal/localcompletion/types.go`; `--reason` in `cmd/corvint/local_completion.go` | `TestCancelActiveEnrollmentRequiresReason` (`internal/localcompletion/lifecycle_test.go`: a bare cancel of an active enrollment refuses with the check and observation counts and unchanged state, a reasoned cancel closes it, a repeat bare cancel succeeds; fails without the check); `TestDogfoodCancelActiveEnrollmentRequiresReason` (`cmd/corvint/local_completion_test.go`: exit 2 envelope names `--reason TEXT` and the fresh-worktree route, status stays active, `cancel --reason` echoes `cancelReason`); V1-0953 staged route: `TestStagedBeginAfterSatisfiedStageRefusesAndKeepsIt` (`internal/localcompletion/lifecycle_test.go`: a stage-2 begin after a satisfied stage refuses `prior-completion-stale` and keeps the stage-1 state bytes) and `TestDogfoodPriorCompletionStaleNamesStagedRoute` |
 | LCP-V0-039 | `selector`, `explicitPaths`, `anchorIdentifiers`, `crowded` and `pathCandidates` in `internal/contextindex/local_completion_context.go` | `TestDogfoodPromptLCPV0039ProseIsNotAnAnchor` (`internal/contextindex/local_completion_context_test.go`: a path among URL, number, version, slash-prose, markup and status-word noise resolves alone; absolute and slash-stripped root paths rebase; prose-only prompts abstain; backticked, missing-path and qualified cases keep their outcome; 129 `main.go` files and two crowded base names count ambiguous without refusing); frozen `TestDogfoodPromptFrozenAnchors`, `TestDogfoodPromptMentionAnchors` and `TestDogfoodPromptLCPV0035KeepsFirstAnchorsInOrder` unchanged |
+
+| LCP-V0-040 | `TestLocalCompletionRealEvidenceWorkflow` sealed completion and positive-first drift/checker controls; `TestLocalCompletionSealedBinding` exact rename, source/map/name/mode/symlink/multi-parent/descendant controls; `TestLocalCompletionSealedReportCancellation` caller cancellation reaches canonical-fixture seal validation |
 
 ## Rollout, rollback and remaining gates
 

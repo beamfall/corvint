@@ -44,6 +44,7 @@ type IntentPointer struct {
 }
 
 type Evaluation struct {
+	EvidenceTarget  string             `json:"evidenceTarget,omitempty"`
 	Lifecycle       string             `json:"lifecycle"`
 	Owner           string             `json:"owner,omitempty"`
 	Satisfied       bool               `json:"satisfied"`
@@ -125,19 +126,20 @@ type terminal struct {
 }
 
 type state struct {
-	AggregateOutcome *aggregateState `json:"aggregateOutcome,omitempty"`
-	Session          string          `json:"session"`
-	Lifecycle        string          `json:"lifecycle"`
-	Plan             Plan            `json:"plan"`
-	PlanDigest       string          `json:"planDigest"`
-	IntentPointers   []IntentPointer `json:"intentPointers"`
-	Observations     []observation   `json:"observations"`
-	ReportSet        *reportSet      `json:"reportSet"`
-	Review           string          `json:"review"`
-	Terminal         *terminal       `json:"terminal"`
-	Coordination     []artifact      `json:"coordination"`
-	Executables      []string        `json:"executables"`
-	Generation       string          `json:"generation"`
+	Sealed           *sealedContinuation `json:"sealedContinuation,omitempty"`
+	AggregateOutcome *aggregateState     `json:"aggregateOutcome,omitempty"`
+	Session          string              `json:"session"`
+	Lifecycle        string              `json:"lifecycle"`
+	Plan             Plan                `json:"plan"`
+	PlanDigest       string              `json:"planDigest"`
+	IntentPointers   []IntentPointer     `json:"intentPointers"`
+	Observations     []observation       `json:"observations"`
+	ReportSet        *reportSet          `json:"reportSet"`
+	Review           string              `json:"review"`
+	Terminal         *terminal           `json:"terminal"`
+	Coordination     []artifact          `json:"coordination"`
+	Executables      []string            `json:"executables"`
+	Generation       string              `json:"generation"`
 }
 
 func HashSession(raw string) string {

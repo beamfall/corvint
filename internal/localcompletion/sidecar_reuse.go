@@ -43,7 +43,11 @@ func (repo *repository) stableSidecarReuse(ctx context.Context, saved *state, ob
 	if !fullObjectID.MatchString(saved.Plan.Base) || !fullObjectID.MatchString(snap.target) {
 		return reuseIDsNotFull, ""
 	}
-	raw, err := readFile(filepath.Join(repo.auth.Root, filepath.FromSlash(wire.ExcludedCEMPath)), wire.MaxMapBytes)
+	mapPath := wire.ExcludedCEMPath
+	if saved.Sealed != nil && snap.target == saved.Sealed.Binding.EvidenceTarget {
+		mapPath = saved.Sealed.Binding.MapPath
+	}
+	raw, err := readFile(filepath.Join(repo.auth.Root, filepath.FromSlash(mapPath)), wire.MaxMapBytes)
 	if err != nil {
 		return reuseSidecarUnavailable, ""
 	}
