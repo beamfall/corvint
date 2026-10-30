@@ -5484,14 +5484,15 @@ none of which the planner selects (V1-3146).
 - **AFP-V0-928:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3148;
   amends AFP-V0-201) `corvint affected` SHALL accept `--format json|text` once. `json`, the default,
   writes the unchanged document. `text` SHALL write the `affected-plan/1` plan as lines: `affected
-  <summary.line> revision=SHA [base=SHA]`; `tiers <summary>` when tiers exist; one `selected UNIT
+  <summary.line> revision=SHA [base=SHA]`; `warning TEXT` when the receipt carries the AFP-V0-044 /
+  AFP-V0-356 warning; `tiers <summary>` when tiers exist; one `selected UNIT
   tests=N WITNESS [<- DIRTY_PATH] [via A > B] [glob G]` line per selection in plan order, the chain
   read through `viaLinks`; one `narrowed UNIT through UNIT` line per ADN-V0-005 exclusion; one
   `unknown REASON DETAIL [hint TEXT]` line per plan unknown; `excluded COUNT DIGEST`; one `check KIND
   COMMAND` line per advice check, the advisory command followed by `provider.go.packages` single-
   quoted; and one `advice-unknown TEXT` line per advice unknown. A value that is empty or holds a
   control character SHALL be Go-quoted, so one line is one decision. Any other value, a missing value
-  or a repetition SHALL be refused with `invalid-arguments` naming the accepted values and every
+  or a repetition (even of two accepted values) SHALL be refused with `invalid-arguments` naming the accepted values and every
   accepted option (the AFP-V0-201 message shape), and `text` SHALL be refused with `--full` or
   `--playwright-config`. The text form restates the receipt and never changes the selection.
 - **AFP-V0-929:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3152)
@@ -5966,7 +5967,7 @@ stream truncated by the runner lists the unfinished packages and `no package-lev
 | AFP-V0-814 | `Reused`, `reused` and `reuse` in `.github/forward-rows/narrow.jq`; the summary line of `.github/forward-rows/narrow.sh`; `select_` in `mq-narrow.sh` | the reuse cases of `TestAFPV0098SupersetGuard` (an applied reuse narrows with `reused`; not applied, no record, a miscount, a base that is no commit id, an overlap, a non-list and no list are FULL) in `tools/ci-forward-row/narrowing_test.go`; `TestAFPV0813MergeQueueReusesTheNarrowedRecordOfAMovedBase` |
 | AFP-V0-815 | the `comm` sets of `reuse_` in `.github/forward-rows/mq-narrow.sh` | `TestAFPV0813MergeQueueReusesTheNarrowedRecordOfAMovedBase` (S = a b c, Rs = a b, D = b runs b and c and reuses a; D empty reuses a and b and runs c) |
 | AFP-V0-816 | `refuse` in `mq-narrow.sh`; the help probe of the docs-plan reuse step in `.github/workflows/ci.yml` | the refusal cases of `TestAFPV0813MergeQueueReusesTheNarrowedRecordOfAMovedBase` (no or a malformed offer, another head, another first parent, a base off the history, a tree mismatch, a `.github/` delta, a non-ASCII `.github/` path, FALLBACK on either range, an UNKNOWN `.plan.scope` under a `run` verdict on either range and a failing delta planner keep the whole selection and name the reason; the non-ASCII and UNKNOWN-scope cases failed before the review fix and pass after it); `TestAFPV0170ReuseStepRefusesForgedArtifacts` failed before the probe fix and passes after it |
-| AFP-V0-928 | `affectedFormatValues`, `affectedFormatRefusal` and the `--format` branch of `parseAffectedOptions`, the text branch of `runAffected` in `cmd/corvint/affected.go`; `renderAffectedText`, `affectedTextVia`, `textWord` in `cmd/corvint/affected_text.go` | `TestAFPV0928AffectedFormatRefusesOtherValuesWithAcceptedOptions`, `TestAFPV0928AffectedFormatTextRestatesThePlan` |
+| AFP-V0-928 | `affectedFormatValues`, `affectedFormatRefusal` and the `--format` branch of `parseAffectedOptions`, the text branch of `runAffected` in `cmd/corvint/affected.go`; `renderAffectedText`, `affectedTextVia`, `textWord` in `cmd/corvint/affected_text.go` | `TestAFPV0928AffectedFormatRefusesOtherValuesWithAcceptedOptions` (a repeated `--format` included), `TestAFPV0928AffectedFormatTextRestatesThePlan`; the text cases of `TestAffectedMixedRangeWarning` and `TestAFPV0356MixedNamesGloballyExcludedPath` |
 | AFP-V0-929 | the `hints` map of `frontierUnknowns` and `unownedFrontierHint` in `internal/liveverify/affected/select.go` | `TestUnownedOnlyFrontierCarriesItsHint_AFPV0929` |
 | AFP-V0-930 | `planAffectedGraph`, `affectedPlanInputs`, `affectedGoAdditiveAt` in `cmd/corvint/affected.go`; their calls in `compileAffectedGraph` and `snapshotReviewAffected` | `TestRepositoryGuidanceSnapshotPlanSharesTheAffectedTail_AFPV0930` (fails on base: both declared packages selected) |
 | AFP-V0-931 | `namesResolvedPath`, `climbingAnchors` and the composition term of `resolvingReaders` in `internal/gateselect/readers.go` | the `modroot` cases of `TestSelectPackagesNarrowsSealedChangeEvidenceReaders` (fail on base); the `loose` and `climb` cases of `TestSelectStructuralTakesSealedEvidenceReadersFromThePlan_ADNV0011` |

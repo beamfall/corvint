@@ -884,7 +884,8 @@ text line ("scope=UNKNOWN dirty=5 selected=1 excluded=0 unknown=3
 UNOWNED_DIRTY_PATH=3"), so a reader needs neither the plan nor a JSON tool
 to learn what was decided; it never changes the selection.
 --format text (AFP-V0-928) writes the same affected-plan/1 plan as lines
-instead of JSON: "affected <summary.line> revision=SHA [base=SHA]", one
+instead of JSON: "affected <summary.line> revision=SHA [base=SHA]", a
+"warning TEXT" line when the plan read unpinned worktree content, one
 "selected UNIT tests=N WITNESS <- DIRTY_PATH [via A > B]" line per selection,
 one "unknown REASON DETAIL [hint TEXT]" line per plan unknown, the exclusion
 count and digest, and one "check KIND COMMAND" line per advice check with the

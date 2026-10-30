@@ -433,7 +433,9 @@ func (r *Runner) drift(ctx context.Context, planned SourceIdentity) string {
 // from the repository root), so it is resolved against Root, never against
 // the caller's working directory; a bare name is looked up on PATH.
 func (r *Runner) discover(ctx context.Context, invocation Planned, deadline time.Time) (string, string, error) {
-	name, versionArgs, env := invocation.Argv[0], []string{"--version"}, invocation.Env
+	// The probes run with the launch's cache (STR-V0-174), so a declared
+	// cache the caller replaced cannot fail discovery first.
+	name, versionArgs, env := invocation.Argv[0], []string{"--version"}, GoCacheOverride(invocation.Env, r.Environ)
 	if name == "go" {
 		versionArgs = []string{"env", "GOVERSION"}
 	}

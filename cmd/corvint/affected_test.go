@@ -452,7 +452,7 @@ func TestAffectedRejectsNonRepositoryAndExtraArguments(t *testing.T) {
 // accepted option instead of the generic unrecognized-arguments message.
 func TestAFPV0928AffectedFormatRefusesOtherValuesWithAcceptedOptions(t *testing.T) {
 	t.Parallel()
-	for _, arguments := range [][]string{{"affected", "--format=table"}, {"affected", "--full", "--format"}, {"affected", "--format", "yaml"}} {
+	for _, arguments := range [][]string{{"affected", "--format=table"}, {"affected", "--full", "--format"}, {"affected", "--format", "yaml"}, {"affected", "--format", "json", "--format", "text"}} {
 		var stdout, stderr bytes.Buffer
 		if code := runContext(context.Background(), append([]string{"--root", t.TempDir()}, arguments...), strings.NewReader(""), &stdout, &stderr); code != 2 {
 			t.Fatalf("%q must exit 2, got %d: %s", arguments, code, stderr.String())
@@ -470,7 +470,7 @@ func TestAFPV0928AffectedFormatRefusesOtherValuesWithAcceptedOptions(t *testing.
 			}
 		}
 	}
-	for _, arguments := range [][]string{{"affected", "--format", "json", "--format", "json"}, {"affected", "--format", "text", "--full"}} {
+	for _, arguments := range [][]string{{"affected", "--format", "text", "--full"}} {
 		var stdout, stderr bytes.Buffer
 		if code := runContext(context.Background(), append([]string{"--root", t.TempDir()}, arguments...), strings.NewReader(""), &stdout, &stderr); code != 2 || !strings.Contains(stderr.String(), "invalid-arguments") {
 			t.Fatalf("%q must be refused with invalid-arguments, got %d: %s", arguments, code, stderr.String())

@@ -288,12 +288,18 @@ var affectedFormatValues = []string{"json", "text"}
 // affectedFormatRefusal names why a --format value is refused, the values
 // accepted, and every option `affected` accepts (AFP-V0-201, AFP-V0-928).
 func affectedFormatRefusal(value string) error {
+	return affectedFormatRefusalFor("got " + pythonRepr(value))
+}
+
+// affectedFormatRefusalFor is affectedFormatRefusal with the fault stated by
+// the caller, such as a second --format (AFP-V0-928).
+func affectedFormatRefusalFor(fault string) error {
 	names := []string{"--format", "--full", "--no-cache", "--require-clean"}
 	for name := range affectedOptionNames {
 		names = append(names, name)
 	}
 	sort.Strings(names)
-	return argumentError("affected --format accepts " + strings.Join(affectedFormatValues, " or ") + ", got " + pythonRepr(value) + ": json writes one JSON document (affected-plan/1, or affected-plan/0 with --full), text the affected-plan/1 plan as lines; accepted options: " + strings.Join(names, ", "))
+	return argumentError("affected --format accepts " + strings.Join(affectedFormatValues, " or ") + ", " + fault + ": json writes one JSON document (affected-plan/1, or affected-plan/0 with --full), text the affected-plan/1 plan as lines; accepted options: " + strings.Join(names, ", "))
 }
 
 // parseAffectedOptions reads the flags after `affected`. `--base` must
@@ -349,7 +355,7 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 			}
 			index++
 			if invocation.Format != "" {
-				return affectedInvocation{}, argumentError("--format may be given once")
+				return affectedInvocation{}, affectedFormatRefusalFor("given more than once (it may be given once)")
 			}
 			if !slices.Contains(affectedFormatValues, value) {
 				return affectedInvocation{}, affectedFormatRefusal(value)

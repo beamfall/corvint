@@ -6,7 +6,8 @@ import (
 )
 
 // renderAffectedText is the `--format text` form of an affected-plan/1
-// receipt (AFP-V0-928): the summary line, one `selected` line per unit with
+// receipt (AFP-V0-928): the summary line, the receipt warning when it has
+// one, one `selected` line per unit with
 // the reason it was selected, one `unknown` line per plan unknown, and the
 // advice checks with their runnable command. It restates the receipt and
 // never changes the selection; one line is one decision (textWord).
@@ -17,6 +18,11 @@ func renderAffectedText(receipt affectedCompactReceipt) string {
 		fmt.Fprintf(&out, " base=%s", receipt.Range.Base)
 	}
 	out.WriteString("\n")
+	// The AFP-V0-044 / AFP-V0-356 warning that the plan read unpinned
+	// worktree content, with its recovery, as the JSON receipt carries it.
+	if receipt.Warning != "" {
+		fmt.Fprintf(&out, "warning %s\n", textWord(receipt.Warning))
+	}
 	if receipt.Tiers != nil {
 		fmt.Fprintf(&out, "tiers %s\n", receipt.Tiers.Summary)
 	}

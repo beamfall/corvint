@@ -25,6 +25,7 @@ import (
 // fails, or blocks on the gateFake FIFO: "slow" passes once released, "sleep"
 // first starts a grandchild, and "slowenv" blocks in the version probe.
 const fakeGo = `#!/bin/sh
+[ "$FAKE_MODE" = cache ] && [ "$GOCACHE" != "$FAKE_DIR/lane" ] && exit 1
 case "$1" in env|list) echo "$1" >> "$FAKE_DIR/probes";; esac
 case "$1" in
 env) [ "$FAKE_MODE" = noversion ] && exit 1; [ "$FAKE_MODE" = slowenv ] && { read gate < "$FAKE_DIR/gate.$(wc -l < "$FAKE_DIR/probes" | tr -d ' ')"; exit 1; }; echo go1.27.1; exit 0;;
@@ -205,6 +206,25 @@ func TestSTRV0004RunnerDiscoveryRefusals(t *testing.T) {
 		if receipt.Result != ResultIncomplete || receipt.Incomplete[0] != reason {
 			t.Fatalf("%s: %s %v", mode, receipt.Result, receipt.Incomplete)
 		}
+	}
+}
+
+// STR-V0-174 (V1-3155): a CORVINT_GOCACHE the caller sets replaces the
+// declared GOCACHE for the discovery probes as for the launch, so a declared
+// cache the probes cannot use is no false INCOMPLETE; the receipt records the
+// cache that ran. Without the override every probe fails ("cache" mode).
+func TestSTRV0174DiscoveryAndLaunchUseCorvintGocache(t *testing.T) {
+	runner, m, digest, dir := runnerFixture(t, "cache")
+	runner.Declared.GoEnv = []string{"GOCACHE=/nonexistent/declared", "GOTOOLCHAIN=local"}
+	if receipt := runner.Execute(context.Background(), m, digest, 0); receipt.Result != ResultIncomplete {
+		t.Fatalf("declared cache: %s %v", receipt.Result, receipt.Incomplete)
+	}
+	runner, m, digest, dir = runnerFixture(t, "cache")
+	runner.Declared.GoEnv = []string{"GOCACHE=/nonexistent/declared", "GOTOOLCHAIN=local"}
+	runner.Environ = append(runner.Environ, "CORVINT_GOCACHE="+filepath.Join(dir, "lane"))
+	receipt := runner.Execute(context.Background(), m, digest, 0)
+	if receipt.Result != ResultPass || !slices.Contains(receipt.Invocations[0].Env, "GOCACHE="+filepath.Join(dir, "lane")) {
+		t.Fatalf("CORVINT_GOCACHE: %s %v %+v", receipt.Result, receipt.Incomplete, receipt.Invocations)
 	}
 }
 
