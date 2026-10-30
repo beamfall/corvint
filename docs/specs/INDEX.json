@@ -4147,7 +4147,7 @@
     "reqPrefix": "TSP-V0",
     "intent": "experimental under the owner's standing lane auto-accept (2026-10-11; V1-3160); TSP-V0-001 amends AFP-V0-580",
     "delivery": "experimental",
-    "claim": "build-constraint frontiers bear only on own files; declared gated locators and verified shell callers stop widening every plan.",
+    "claim": "frontiers bear only where they can; gated locators and verified shell callers stop widening plans; Go source edits run only reaching tests.",
     "dependsOn": [],
     "supersededBy": null,
     "closableToday": false,

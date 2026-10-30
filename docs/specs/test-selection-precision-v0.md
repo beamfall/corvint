@@ -5,15 +5,15 @@ Date: 2026-10-30
 Requirement prefix: `TSP-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3160); TSP-V0-001 amends AFP-V0-580
 Delivery status: experimental
-Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896). These requirements narrow
+Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806. These requirements narrow
 when the [affected plan](affected-plan-v0.md) names a unit frontier; that spec's Requirements
 section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 
 ## Agent digest
-- Claim: build-constraint frontiers bear only on own files; declared gated locators and verified shell callers stop widening every plan.
+- Claim: frontiers bear only where they can; gated locators and verified shell callers stop widening plans; Go source edits run only reaching tests.
 - Status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3160); TSP-V0-001 amends AFP-V0-580.
-- Exists: `FrontierBearsOnOwnFiles` in `internal/liveverify/affected/unit.go`; `ownFilesBear` in `internal/liveverify/affected/select.go`; `observeDirectory` in `internal/liveverify/affected/golang/golang.go`; `applyGatedLocators` in `internal/liveverify/affected/golang/gatedlocators.go`; `applyForeignCallers` in `internal/liveverify/affected/shell/callers.go`; tests named in the traceability table.
-- Blocked on: nothing; Open questions names the residual shell frontier.
+- Exists: `FrontierBearsOnOwnFiles` in `internal/liveverify/affected/unit.go`; `ownFilesBear` in `internal/liveverify/affected/select.go`; `observeDirectory` in `internal/liveverify/affected/golang/golang.go`; `applyGatedLocators` in `internal/liveverify/affected/golang/gatedlocators.go`; `applyForeignCallers` in `internal/liveverify/affected/shell/callers.go`; `testSourceSlice` in `cmd/corvint/test_source_slices.go`; tests named in the traceability table.
+- Blocked on: nothing; Open questions names the residual shell frontier and the source-and-test slice.
 - Read next: Requirements; Failure modes; Open questions.
 
 ## Intent and scope
@@ -96,6 +96,23 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   keeps the frontier. A plan with the declaration dirty SHALL name `shell:foreign-callers-changed`.
   The repository's declaration SHALL be checked by a test that fails on any tracked file naming a
   declared script, other than prose and data (`.md`, `.json`, `.tsv`), that is not listed.
+- **TSP-V0-006:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2806)
+  `corvint test` SHALL slice a Go package the plan selects by `DIRECT_SOURCE_CHANGE` to the test
+  functions that can reach what changed, and otherwise SHALL keep it whole with a reason naming the
+  missing proof. Slicing SHALL require that the package's own dirty paths are existing non-test `.go`
+  files present at base, that none of its test files is dirty, that the plan of the other dirty
+  paths does not select it (at most 16 such plans), that its directory holds no assembly, C or other
+  non-Go source, that no file names `go:linkname` or imports `"C"`, and that every file parses. Each
+  changed file with its receiver-less functions other than `init` removed SHALL equal base token for
+  token, comments included; the changed names are the functions whose text differs, added or
+  removed. No file of the package SHALL write a changed name other than as a call's callee or its
+  own declaration; no variable initializer, `init` or `TestMain` SHALL reach a changed name; and no
+  changed name SHALL reach a package variable. Reach is the closure over top-level declarations by
+  identifier, where a method is also reached by its receiver type's name and a selector qualified
+  by an unshadowed import name is no use. Every test function of an external (`_test` package) file
+  SHALL be kept, and each internal one whose closure holds a changed name. A package with every
+  test kept SHALL stay whole; one with none SHALL run `-run ^$` (build and vet only). Dependents of
+  the package SHALL stay whole. The base SHALL be read in the same two Git processes as STR-V0-072.
 
 ## Non-goals
 
@@ -138,6 +155,15 @@ scanned. A declared script stays an unbounded reader when it is one, so its call
 selected on every plan; that is the declared price of the narrowing. Each graph build reads every
 candidate file once more for the scan. Undeclared non-test shell scripts keep the frontier, so a
 plan that reaches one still bears it.
+(7) TSP-V0-006: reach is lexical over identifiers, so it over-approximates (any declaration of a
+name is reached, a field shares a method's name) and never sees reflection, `unsafe` or a function
+reached through an interface method of the same name declared elsewhere; a changed function is
+never a value, so it cannot travel into another package or an interface. Like STR-V0-063, a skipped
+test is assumed independent of the kept ones except through package variables, which a changed
+function may not reach: a test that observes a changed function only through files, the
+environment or another process it starts is missed. The slice keeps external tests whole because a
+package they import may call the changed function. A package whose source and own test files both
+changed stays whole (44 of 57 such packages on 29 replayed commits).
 
 ## Open questions
 
@@ -155,6 +181,10 @@ stays as it was:
    verified declaration. The frontier still bears through the undeclared non-test shell scripts
    that read a dirty path by a literal path (the `docs/specs/**` checkers and the CEM scripts under
    `script/`); declaring them would make many Go packages that only name them dependents.
+3. TSP-V0-006 keeps a package whole when its own test files changed with its source, the common
+   shape of a real commit. Combining it with STR-V0-063 (the tests of the changed test files plus
+   the tests reaching the changed functions, each under its own proof) is the next lever; it needs
+   STR-V0-063's shared-helper rules applied to the union and is not designed here.
 
 ## Acceptance evidence and traceability
 
@@ -168,6 +198,7 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | TSP-V0-003 | `readGatedLocators`, `applyGatedLocators` and `carriesLiteral` in `internal/liveverify/affected/golang/gatedlocators.go`; their call in `internal/liveverify/affected/golang/golang.go`; `gatedLocatorsChanged` in `internal/liveverify/affected/readers.go` and its call in `internal/liveverify/affected/select.go`; `.corvint/gated-root-locators.json` | `TestGatedRootLocators_TSP_V0_003` in `internal/liveverify/affected/golang/gatedlocators_test.go` (undeclared: the dependent is selected on an unrelated change; declared: it is not and the plan is `BOUNDED`, the locator's own tests stay selected and a change to the locator still selects it; a gate not carried, a package that is not a locator or not present, a relative gate, an unknown member and unparsed JSON each name the invalid frontier and keep it selected; a dirty declaration is `UNKNOWN`); `TestRootLocatorGated_TSP_V0_003` in `internal/authoritystore/gated_locator_test.go` |
 | TSP-V0-004 | `freshDirectorySource`, `makesDirectory` and `onlyExpanded` in `internal/liveverify/affected/shell/fresh.go`; block identity and separators in `parse` in `internal/liveverify/affected/shell/lex.go`; `plainAt` and the source case of `observe` in `internal/liveverify/affected/shell/shell.go` | `TestFreshTemporaryDirectorySourceIsBounded_TSP_V0_004` in `internal/liveverify/affected/shell/shell_test.go` (a heavy.sh-shaped `serve` is bounded; another value, a second assignment, a `for`, `read`, `local` or `unset` rebinding, `${w:=}`, a `local w=` declaration, another function, a subshell, an `if` arm, `&&`, a pipeline, an inner pipeline, a dynamic, `..` or empty rest, `mktemp` without `-d` or with `-u`, a prefix assignment, an `ENVFILE` source, a source between, a second fresh source, a source before the assignment and backquotes each stay dynamic) |
 | TSP-V0-005 | `readForeignCallers`, `applyForeignCallers` and `foreignCallersComplete` in `internal/liveverify/affected/shell/callers.go` and their call in `internal/liveverify/affected/shell/shell.go`; `Unit.Callers` in `internal/liveverify/affected/unit.go`; `callerEdges` in `internal/liveverify/affected/graph.go`; `foreignCallersChanged` in `internal/liveverify/affected/readers.go`; `.corvint/shell-foreign-callers.json` | `TestForeignCallerDeclaration_TSP_V0_005` in `internal/liveverify/affected/shell/callers_test.go` (declared: the frontier is gone, the plan on an unrelated change is `BOUNDED` and selects the caller, test-file caller and upstream dependents' tests but not a mention's; undeclared keeps it bearing; an unlisted Go, shell, Make, Python or workflow caller or mention, a stale caller or mention, unsorted lists, a script that is no unit, an empty reason, a bad profile, an unknown member, unparsed JSON and a file both caller and mention each name the invalid frontier and keep it bearing; a dirty declaration is `UNKNOWN`); `TestRepositoryShellForeignCallersComplete_TSP_V0_005` in `internal/liveverify/affected/shell_callers_repo_test.go`; `TestBatchReplayDeclaredRuntimeReaders_V12941` frontier floor in `internal/liveverify/affected/replay_v12941_test.go` |
+| TSP-V0-006 | `testSourceEligibles`, `testSourceEligible`, `testSourceSlice`, `testSourcePlainFunctions`, `testSourceValueUse`, `testSourceQualifiers` and `testSourceDeclOf` in `cmd/corvint/test_source_slices.go`; their call and the shared base read in `testGoSlices` in `cmd/corvint/test_slices.go`; the TSP-V0-006 verdict line in `testVerdict` in `cmd/corvint/test.go` | `TestTSPV0006DryRunSlicesSourceChanges` in `cmd/corvint/test_source_slices_tspv0006_unix_test.go` (a called function, a doc comment, a function a method calls and an added function slice to the reaching and external tests; a function no test reaches builds only; every test reaching, an own test file, a value use, a package variable reached, initialization reaching, a method, an import, a variable, a comment outside functions, a dependency also changed, a new file, an assembly file, `go:linkname` and cgo stay whole; the importer stays whole); `TestTSPV0006PlainFunctionsAndQualifiers` in `cmd/corvint/test_source_slices_tspv0006_test.go`; `TestSTRV0072SliceWalksDoNotGrowWithPackages` (two Git processes with a source change present); the mutation check in `docs/build-log/2026-10-30-v1-2806-source-slices.md` |
 
 ## Rollback
 
@@ -179,4 +210,6 @@ root locator again and its dependents are followed on every dirty path. TSP-V0-0
 `freshDirectorySource` return false; every such source is then dynamic again, as before.
 TSP-V0-005: delete `.corvint/shell-foreign-callers.json` (a change that itself plans `UNKNOWN`) or
 make `applyForeignCallers` return at once; every script then carries the frontier again and the
-`Callers` edges are empty.
+`Callers` edges are empty. TSP-V0-006: in `testGoSlices`, stop collecting `sources` (leave every
+`DIRECT_SOURCE_CHANGE` selection on the `reason` path); every such package then runs whole with its
+original reason. No stored state depends on it.
