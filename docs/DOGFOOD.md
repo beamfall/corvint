@@ -129,9 +129,11 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    If that commit is gone for good, `corvint migrate-traces --dry-run` lists it in
    `stranded_revisions`, and `corvint migrate-traces --apply --plan-digest DIGEST` moves the trace,
    byte-preserved, to `.context-corvint/legacy-traces/` (LTPM-V0-012). `dogfood change` and
-   `finish-lane` check this before they prepare anything and refuse `reused-worktree-state` with
-   those exact commands, also naming ignored `.corvint/change.ocm*` sidecars older than BASE to
-   move aside (`DCW-V0-396`). The trace store, the `<git-dir>/corvint/` evidence and the operation lock belong to one worktree: lanes that share a
+   `finish-lane` check this before they prepare anything, along with ignored `.corvint/change.ocm*`
+   sidecars older than BASE (`DCW-V0-396`), and retire both themselves: the trace by that apply,
+   the sidecars moved under `<git-dir>/corvint/stale-ocm/`, each printed as a `RETIRE` line
+   (`DCW-V0-406`). Only what cannot be retired refuses `reused-worktree-state` with those exact
+   commands. The trace store, the `<git-dir>/corvint/` evidence and the operation lock belong to one worktree: lanes that share a
    repository each run in their own `git worktree add` worktree or clone, and can then change,
    check and seal at the same time; switching one worktree between lanes strands the first lane's
    traces the same way (`DCW-V0-044`, proposed).
@@ -240,7 +242,7 @@ produces `"complete": true` or `dogfood-check: PASS`.
 | Unsupported | run from a subdirectory of the worktree (reproduced for V1-0236) | `REFUSE not-repository-root` (exit 2) | `REFUSE not-repository-root` (exit 2) |
 | Unsupported | intent without exactly one `## Requirements` heading | `ocm-prepare-001: invalid-requirements-section`, `ocm-aggregate: intent-scope-drift` | NOT_OBSERVED |
 | Drift | OCM map marked or linked without a rerun | not applicable | `FAIL intent-scope-drift`, `fix:` reruns `dogfood-change` |
-| Rewritten | amend or rebase after a recorded pass, or another lane run in the same worktree | before any prepare, `REFUSE reused-worktree-state` (exit 2) naming each stranded trace and each ignored OCM sidecar older than BASE, with the `mv` and `corvint migrate-traces --apply --plan-digest` recovery lines (`DCW-V0-396`); a trace stranded mid-run still reports `coordination-time-query: unsupported-query-trace-state`, `local-outcome: record-failed` and a `local trace store:` line; restoring the commit as an ancestor, or quarantining the trace with `corvint migrate-traces`, clears it | not reached |
+| Rewritten | amend or rebase after a recorded pass, or another lane run in the same worktree | before any prepare, each stranded trace is quarantined by `corvint migrate-traces --apply` and each ignored OCM sidecar older than BASE is moved under `<git-dir>/corvint/stale-ocm/`, one `RETIRE` line each (`DCW-V0-406`); what cannot be retired refuses `reused-worktree-state` (exit 2) with the `mv` and `corvint migrate-traces --apply --plan-digest` recovery lines (`DCW-V0-396`); a trace stranded mid-run still reports `coordination-time-query: unsupported-query-trace-state`, `local-outcome: record-failed` and a `local trace store:` line; restoring the commit as an ancestor, or quarantining the trace with `corvint migrate-traces`, clears it | not reached |
 | Sealed | check on the seal commit, or a change containing a modified or unverifiable seal | `REFUSE sealed-cem-in-change`, one line per refused path | `REFUSE sealed-head` |
 | Undeclared | `DOGFOOD_OUTPUT_CHANGE` names a requirement `REQUIREMENTS.tsv` at `HEAD` lacks, or whose spec `BASE..HEAD` does not modify, or is set for an enrolled aggregate check (`DCW-V0-047`; reproduced by `TestCheckDCWV0047DeclaredOutputChange` for V1-1279, the aggregate case NOT_OBSERVED) | not applicable | `REFUSE output-change-requirement-unknown`, `output-change-not-in-diff` or `output-change-aggregate-unsupported` (exit 2) before any verifier runs; without the variable an output change still fails `verifier-disagreement` |
 
@@ -1149,7 +1151,7 @@ are shared. A different session must use its own worktree or wait for explicit c
 
 A linked Git worktree is a supported checkout for the loop; it is run at that worktree's top level
 like any other and does not refuse. The loop resolves its private evidence and session directory
-with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:150@8a79d4fb`), which for a linked
+with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:153@8a79d4fb`), which for a linked
 worktree (whose `.git` is a file) is that worktree's own directory under the main repository's
 `.git/worktrees/NAME`, so sessions and evidence stay per worktree.
 The `.corvint/` outputs live in the worktree root. Repository-wide Git state (objects, refs, and

@@ -536,11 +536,12 @@ func TestDCWV0405StoppedPassOmitsPrintedNotes(t *testing.T) {
 	}
 }
 
-// DCW-V0-396 (V1-3211): finish-lane refuses a reused worktree's ignored OCM
-// sidecar older than BASE before it prepares or binds anything, and names the
-// move that clears it.
-func TestFinishLaneDCWV0396RefusesAStaleSidecarBeforePrepare(t *testing.T) {
-	root := t.TempDir()
+// staleSidecarLane commits a base and a change, then leaves an ignored OCM
+// status sidecar dated 1990, before BASE; run runs finish-lane there with steps
+// that fail and returns its exit code, step calls and stderr.
+func staleSidecarLane(t *testing.T) (root, stale string, run func() (int, int, string)) {
+	t.Helper()
+	root = t.TempDir()
 	testGit(t, root, "init", "-q")
 	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("a\n"), 0o666); err != nil {
 		t.Fatal(err)
@@ -555,7 +556,7 @@ func TestFinishLaneDCWV0396RefusesAStaleSidecarBeforePrepare(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, ".git", "info", "exclude"), []byte(".corvint/change.ocm*\n"), 0o666); err != nil {
 		t.Fatal(err)
 	}
-	stale := filepath.Join(root, ".corvint", "change.ocm-status.json")
+	stale = filepath.Join(root, ".corvint", "change.ocm-status.json")
 	if err := os.MkdirAll(filepath.Dir(stale), 0o777); err != nil {
 		t.Fatal(err)
 	}
@@ -574,7 +575,7 @@ func TestFinishLaneDCWV0396RefusesAStaleSidecarBeforePrepare(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	run := func() (int, int, string) {
+	run = func() (int, int, string) {
 		calls := 0
 		steps := Runner{Path: "corvint", Run: func(context.Context, string, []string, io.Writer, io.Writer) int {
 			calls++
@@ -586,6 +587,21 @@ func TestFinishLaneDCWV0396RefusesAStaleSidecarBeforePrepare(t *testing.T) {
 			t.Fatal(err)
 		}
 		return code, calls, stderr.String()
+	}
+	return root, stale, run
+}
+
+// DCW-V0-396 (V1-3211): finish-lane refuses a reused worktree's ignored OCM
+// sidecar older than BASE that it cannot retire, before it prepares or binds
+// anything, and names the move that clears it.
+func TestFinishLaneDCWV0396RefusesAStaleSidecarBeforePrepare(t *testing.T) {
+	root, stale, run := staleSidecarLane(t)
+	// A file where the aside directory belongs makes the retirement fail.
+	if err := os.MkdirAll(filepath.Join(root, ".git", "corvint"), 0o777); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".git", "corvint", "stale-ocm"), nil, 0o666); err != nil {
+		t.Fatal(err)
 	}
 	code, calls, out := run()
 	if code != 2 || calls != 0 || !strings.HasPrefix(out, "dogfood-finish-lane: REFUSE reused-worktree-state\n") ||
@@ -599,5 +615,27 @@ func TestFinishLaneDCWV0396RefusesAStaleSidecarBeforePrepare(t *testing.T) {
 	}
 	if _, calls, out := run(); calls == 0 || strings.Contains(out, "reused-worktree-state") {
 		t.Fatalf("a fresh sidecar was refused: calls=%d stderr=%q", calls, out)
+	}
+}
+
+// TestFinishLaneDCWV0406RetiresAStaleSidecarAndContinues (V1-3211): the stale
+// sidecar moves, byte-preserved, into a new directory under the Git directory,
+// the move is printed, and the run goes on to its steps without refusing.
+func TestFinishLaneDCWV0406RetiresAStaleSidecarAndContinues(t *testing.T) {
+	root, stale, run := staleSidecarLane(t)
+	_, calls, out := run()
+	if calls == 0 || strings.Contains(out, "REFUSE reused-worktree-state") ||
+		!strings.HasPrefix(out, "dogfood-finish-lane: RETIRE stale sidecar .corvint/change.ocm-status.json moved to ") {
+		t.Fatalf("step calls=%d stderr=%q, want the sidecar retired and the steps run", calls, out)
+	}
+	if _, err := os.Lstat(stale); !os.IsNotExist(err) {
+		t.Fatalf("the stale sidecar is still in place: %v", err)
+	}
+	moved, _ := filepath.Glob(filepath.Join(root, ".git", "corvint", "stale-ocm", "*", "change.ocm-status.json"))
+	if len(moved) != 1 {
+		t.Fatalf("moved sidecars = %q, want one", moved)
+	}
+	if data, err := os.ReadFile(moved[0]); err != nil || string(data) != "{}\n" {
+		t.Fatalf("moved sidecar = %q, %v", data, err)
 	}
 }
