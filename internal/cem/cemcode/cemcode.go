@@ -235,7 +235,7 @@ var registered = []string{
 	ExcludedArtifactMismatch, UnsupportedObjectAlternates, RepositoryObjectUnavailable,
 	GitReadFailed, UnknownHunkID, MissingEvidence, InvalidSpan, SpanOutOfRange,
 	InvalidLineRange, LineRangeOutOfRange, CiteSpanNotStable, GitDiffFailed, GitDiffTimeout,
-	CiteSelfModifiedAuthority, NotAProducerMap,
+	CiteSelfModifiedAuthority, NotAProducerMap, HunkDigestMismatch,
 	GitCancelled, GitTimeout, GitOutputExceeded, GitBudgetExceeded, GitStartFailed, GitExitFailure,
 	UnsupportedRepositoryAttributes, MapUnavailable, PatchUnavailable, PublishFailed, MapLocked,
 	MetadataOnlyChangeUnsupported,
