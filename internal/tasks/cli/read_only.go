@@ -19,11 +19,11 @@ const ReadOnlyEnv = "CORVINT_TASKS_READ_ONLY"
 // store lock and write nothing under the store (TM-V0-008).
 var readOnlyVerbs = map[string]bool{
 	"version": true, "--version": true, "roadmap": true, "critical-path": true, "pending": true, "doctor": true,
-	"queue status": true, "program show": true, "attempt show": true, "plan preview": true, "plan batches": true,
+	"queue status": true, "queue snapshot": true, "program show": true, "attempt show": true, "plan preview": true, "plan batches": true,
 	"policy show": true, "pool status": true, "dispatch status": true, "defects list": true, "source contains": true,
 	"receipt audit": true, "receipt get": true, "receipt path": true, "archive verify": true, "gate list": true, "gate show": true, "gate history": true,
 	"release list": true, "release show": true, "release readiness": true,
-	"ticket list": true, "ticket search": true, "ticket show": true, "ticket blockers": true, "ticket closeout-debt": true, "ticket export": true,
+	"ticket list": true, "ticket search": true, "ticket show": true, "ticket blockers": true, "ticket closeout-debt": true, "ticket export": true, "ticket similar": true, "ticket digest": true,
 	"ticket note show": true, "ticket note history": true, "ticket know-how list": true,
 	"ticket escalation list": true, "ticket escalation show": true, "ticket escalation history": true,
 	"ticket obligations show": true, "ticket obligations plan": true, "ticket obligations boundary": true, "ticket obligations worklist": true,

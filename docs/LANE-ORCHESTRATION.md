@@ -655,3 +655,58 @@ result instead. The orchestrator reads every list in the round it arrives, dedup
 `corvint-tasks ticket search --text`, files the new items (labels `agent-memory` plus the
 category) or adds the `+1` context to the existing ticket, and asks a lane whose report arrived
 cut off to resend its list by SendMessage.
+
+## 12. Friction dedupe and lanes without a journal (TCL-V0-001 to TCL-V0-012)
+
+A lane report ends with a Friction section, and before 2026-10-30 the orchestrator deduplicated
+each item by hand: that day's round of 27 items held 13 duplicates of open tickets, each found by
+repeated `ticket search` calls. The duplicate check in
+[Corvint Tasks CLI V0](specs/corvint-tasks-cli-v0.md) replaces those searches.
+
+Charter. The orchestrator pastes a recent digest into each charter and gives a remote lane the
+full digest file:
+
+```sh
+corvint-tasks ticket digest --since 2026-10-23 --format text > digest.txt   # paste into the brief
+corvint-tasks ticket digest --format text > digest-full.txt                 # every OPEN agent-memory ticket
+```
+
+The full digest of every open `agent-memory` ticket was 1,070 lines (120 KB) on 2026-10-30, too
+large for a brief; a one-week `--since` window was 263 lines (33 KB). The digest header names the
+intent tree digest it was printed from.
+
+Lane. For each friction item, a lane matches the item against the digest, with no store and no
+journal:
+
+```sh
+corvint-tasks ticket similar --digest digest.txt --text 'heavy.sh ignores unstaged files'
+```
+
+An item that matches an open ticket is reported as `+1 V1-NNNN <one-line context>`; only an item
+with no match is written out in full. The digest holds titles only, so the offline match is weaker
+than the store's (11 of 13 still-open duplicates at rank 3 or better in the 2026-10-30 round,
+against 14 of 15 for the store); a lane that is unsure reports both the item and its best match.
+
+Orchestrator. A `+1` line is recorded on the existing ticket, never as a new one:
+
+```sh
+corvint-tasks ticket recur V1-NNNN --context 'lane w4: <context>' --request-id <lane>-friction-<n>
+```
+
+Each new item takes one `ticket similar --text` call. `ticket create` runs the same check and
+refuses a likely duplicate with `DUPLICATE_ID`, naming the candidates; file it anyway with
+`--not-duplicate-of V1-NNNN` (repeatable) once the candidates are confirmed different.
+
+Lanes without a journal. A lane host whose checkout has no Tasks journal (for example Unraid)
+reads the queue from a snapshot the orchestrator exports on the owning host:
+
+```sh
+corvint-tasks queue snapshot --out queue-snapshot.json                      # on the owning host
+CORVINT_TASKS_SNAPSHOT=queue-snapshot.json corvint-tasks ticket show V1-3223 # on the lane host
+```
+
+Under `CORVINT_TASKS_SNAPSHOT` only `ticket search`, `ticket show`, `ticket export`,
+`ticket similar`, `ticket digest`, `roadmap` and `queue status` run. Every file and the tree digest
+are verified first, and every result names the snapshot's host, primary worktree, `producedAt` and
+journal sequence. Any other verb, every write included, is refused `UNSUPPORTED` before any read,
+naming the owning store and the command to run there.

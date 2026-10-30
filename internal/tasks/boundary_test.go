@@ -88,6 +88,11 @@ func importViolation(rel, path string) string {
 	if rel == "internal/tasks/store/know_how_symbols.go" && path == modulePrefix+"internal/contextindex" {
 		return ""
 	}
+	// The duplicate check (decision 0397's V1-3237 addendum) ranks with the
+	// context compiler's BM25 through this one file.
+	if rel == "internal/tasks/similar/terms.go" && path == modulePrefix+"internal/contextindex" {
+		return ""
+	}
 	if tasksSide && !strings.HasPrefix(path, tasksPrefix) {
 		return "Tasks imports no Core package"
 	}
@@ -145,6 +150,8 @@ func TestImportViolationControls(t *testing.T) {
 		{"internal/tasks/mutation/know_how.go", modulePrefix + "internal/gitstatus"},
 		{"internal/tasks/store/know_how.go", modulePrefix + "internal/contextindex"},
 		{"internal/tasks/store/know_how_symbols.go", modulePrefix + "internal/gitstatus"},
+		{"internal/tasks/similar/similar.go", modulePrefix + "internal/contextindex"},
+		{"internal/tasks/similar/terms.go", modulePrefix + "internal/gitstatus"},
 		{"internal/tasks/obligation/report.go", modulePrefix + "internal/secretscreen"},
 		{"internal/tasks/obligation/expected_fail.go", modulePrefix + "internal/gitstatus"},
 	}
@@ -169,6 +176,7 @@ func TestImportViolationControls(t *testing.T) {
 		{"internal/tasks/mutation/know_how.go", modulePrefix + "internal/secretscreen"},
 		{"internal/tasks/mutation/know_how_test.go", modulePrefix + "internal/secretscreen"},
 		{"internal/tasks/store/know_how_symbols.go", modulePrefix + "internal/contextindex"},
+		{"internal/tasks/similar/terms.go", modulePrefix + "internal/contextindex"},
 		{"internal/tasks/obligation/expected_fail.go", modulePrefix + "internal/secretscreen"},
 		{"internal/tasks/cli/doctor.go", modulePrefix + "internal/groupreap"},
 		{"internal/tasks/store/gate_reap_waitid.go", modulePrefix + "internal/groupreap"},
