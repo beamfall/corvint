@@ -433,6 +433,14 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 	if constrained {
 		unitFrontier = []string{FrontierBuildConstraint}
 		frontierBears = affected.FrontierBearsOnOwnFiles
+		// A symlinked .go file compiles a target outside this directory that
+		// the walk never listed, so the unit's own files are not all here:
+		// the frontier bears on every plan, as it does when the directory
+		// cannot be listed (TSP-V0-002).
+		links, err := root.LinkedEntries(directory, func(name string) bool { return strings.HasSuffix(name, ".go") })
+		if err != nil || len(links) > 0 {
+			frontierBears = ""
+		}
 	}
 	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathGlobs: globSlice(globs), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: reads.locatesRoot, Frontier: unitFrontier, FrontierBears: frontierBears}, importPaths, testImportPaths, command, patterns, nil
 }

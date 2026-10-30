@@ -40,6 +40,14 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   dependents through the same union edges; and one test run compiles one host variant whichever
   packages it selects, so naming the frontier for a change outside the directory added
   unreached packages to the run without exercising any other variant.
+- **TSP-V0-002:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3160)
+  A disk walk drops a symbolic link, though Go compiles a symlinked `.go` file's target, so a
+  package's own files need not all be in its directory. The Go plugin SHALL therefore NOT declare
+  `OWN_FILES` on a constrained package whose directory has a symlinked `.go` entry, or whose
+  directory it cannot list; its frontier then bears whenever the package is reached, as before
+  TSP-V0-001. `Source.LinkedEntries` SHALL list a directory's symlinked entries, record the
+  directory unfollowed for the graph cache, and answer none on an immutable tree source, whose walk
+  already refuses every non-regular entry.
 
 ## Non-goals
 
@@ -88,6 +96,7 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | TSP-V0-001 | `FrontierBearsOnOwnFiles` and `validFrontierBears` in `internal/liveverify/affected/unit.go`; `ownFilesBear` and its two call sites in `internal/liveverify/affected/select.go`; `observeDirectory` in `internal/liveverify/affected/golang/golang.go` | `TestBuildConstraintFrontierBearsOnOwnFiles_TSP_V0_001` (a dirty plain file, variant, absent variant or non-Go file in the directory, alone or with another path, and a root or ancestor file the package reads, bears and stays `UNKNOWN`; a dirty package the variant imports, a named data path and an unrelated package do not, the variant's tests stay selected, and the imported package's plan is `BOUNDED`), the narrowing, V1-0289 and V1-1818 cases in `internal/liveverify/affected/golang/golang_test.go` |
+| TSP-V0-002 | `LinkedEntries` in `internal/liveverify/affected/source.go`; `observeDirectory` in `internal/liveverify/affected/golang/golang.go` | `TestBuildConstraintFrontierSymlinkedSource_TSP_V0_002` (a constrained package reached through an imported package, with a dirty symlink target outside its directory: the frontier bears and the plan is `UNKNOWN` with the link, and is not named without it) in `internal/liveverify/affected/golang/golang_test.go` |
 
 ## Rollback
 

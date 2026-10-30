@@ -982,6 +982,48 @@ func TestBuildConstraintFrontierBearsOnOwnFiles_TSP_V0_001(t *testing.T) {
 	}
 }
 
+// TSP-V0-002: a constrained package with a symlinked .go file compiles a
+// target outside its directory, so a change to that target is a change to the
+// package's own files: once the package is reached, its build-constraint
+// frontier bears whatever directories the dirty paths are in. The same package
+// without the link narrows as TSP-V0-001 says.
+func TestBuildConstraintFrontierSymlinkedSource_TSP_V0_002(t *testing.T) {
+	files := map[string]string{
+		"go.mod":                    "module example.test/m\n",
+		"pkg/pkg.go":                "//go:build linux\n\npackage pkg\n\nimport _ \"example.test/m/dep\"\n",
+		"pkg/pkg_test.go":           "package pkg\n",
+		"dep/dep.go":                "package dep\n",
+		"shared/common.go":          "package pkg\n",
+		"consumer/consumer.go":      "package consumer\n\nimport _ \"example.test/m/pkg\"\n",
+		"consumer/consumer_test.go": "package consumer\n",
+	}
+	dirty := []string{"dep/dep.go", "shared/common.go"}
+	for _, linked := range []bool{false, true} {
+		root := t.TempDir()
+		writeFiles(t, root, files)
+		if linked {
+			if err := os.Symlink(filepath.Join("..", "shared", "common.go"), filepath.Join(root, "pkg", "common.go")); err != nil {
+				t.Skipf("symlink: %v", err)
+			}
+		}
+		graph, err := affected.Build(context.Background(), root, golang.New())
+		if err != nil {
+			t.Fatal(err)
+		}
+		plan := affected.Select(graph, dirty)
+		if !slices.Contains(plan.SelectedTests(), "consumer/consumer_test.go") {
+			t.Errorf("linked %v: tests %v; want the consumer reached through pkg", linked, plan.SelectedTests())
+		}
+		got := slices.Contains(plan.Unknown, affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: golang.FrontierBuildConstraint})
+		if got != linked {
+			t.Errorf("linked %v: build-constraint frontier %v, want %v (unknown %v)", linked, got, linked, plan.Unknown)
+		}
+		if linked && plan.Scope != affected.ScopeUnknown {
+			t.Errorf("linked: scope %s, want %s", plan.Scope, affected.ScopeUnknown)
+		}
+	}
+}
+
 // AFP-V0-580: a file name is a variant exactly when go/build's goodOSArchFile
 // would constrain it.
 func TestPlatformSuffixMatchesGoBuild_AFP_V0_580(t *testing.T) {
