@@ -113,6 +113,11 @@
 # prints `running on HOST OS/ARCH GOVERSION at HEAD [+wip] tree=TREE dirty=N`. A local run of an
 # offloadable command prints `running locally at HEAD tree=TREE dirty=N` (tree=unknown when Git
 # cannot compute it).
+# Any clone (ASD-V0-056, V1-3202): when origin is a local repository with an origin of its own (a
+# plain `git clone` of a lane checkout), that origin's URL and that repository's origin/main stand in
+# for origin and origin/main, one hop only. A checkout that cannot offload (no Git checkout, no
+# origin, the base missing, or no history shared with it) prints `heavy.sh: offload unavailable from
+# this checkout: REASON` once and runs locally, unretried.
 # When the host is unreachable or the remote cannot reproduce the tree (exit 97, or ssh's 255), the
 # offload is retried once after HEAVY_REMOTE_RETRY seconds; if that also fails, one stderr line says
 # so and the command runs locally under the local semaphore. A failure to prepare the payload here is
@@ -301,6 +306,27 @@ origin_key() {
   printf '%s\n' "$u" | tr '[:upper:]' '[:lower:]'
 }
 
+# upstream TOP: the effective origin of the checkout at TOP (ASD-V0-056, V1-3202), as
+# `URL<TAB>BASEREF`. A plain clone of a local checkout (`git clone ~/corvint scratch`) has a local
+# path as its origin, whose `main` may be an unrelated lineage, so when origin is a local repository
+# that itself has an origin, that repository's origin URL and its `origin/main` commit stand in, one
+# hop only. Otherwise origin and `origin/main`. Fails, with the reason on stdout, when TOP has no
+# origin.
+upstream() {
+  local top=$1 url path up ref
+  url=$(git -C "$top" remote get-url origin 2> /dev/null) || { printf 'no origin remote\n'; return 1; }
+  path=${url#file://}
+  if [[ $path == /* || $path == .* ]] && [[ $path != *:* ]]; then
+    [[ $path == /* ]] || path=$top/$path
+    if up=$(git -C "$path" remote get-url origin 2> /dev/null) && [[ -n $up ]]; then
+      ref=$(git -C "$path" rev-parse -q --verify 'refs/remotes/origin/main^{commit}' 2> /dev/null) || ref=
+      printf '%s\t%s\n' "$up" "${ref:-origin/main}"
+      return 0
+    fi
+  fi
+  printf '%s\torigin/main\n' "$url"
+}
+
 # tree_identity TOP INDEX: the content identity of TOP's working tree as Git would commit it (HEAD
 # plus staged, unstaged and untracked non-ignored changes) into heavy_tree, and the number of paths
 # where it differs from HEAD into heavy_dirty. INDEX is a scratch index file (a copy of the real
@@ -319,19 +345,27 @@ tree_identity() {
   [[ -n $heavy_tree ]]
 }
 
+# offload_unavailable REASON: the one stderr line naming why this checkout cannot offload.
+offload_unavailable() { printf 'heavy.sh: offload unavailable from this checkout: %s\n' "$1" >&2; }
+
 # offload COMMAND...: run a go test, go vet or (with heavy_build set to the remote's maximum load) a
 # build on HEAVY_REMOTE_HOST at this checkout's exact tree. Returns the command's status, or 97 when
 # the remote cannot run it.
 offload() {
-  local top rel head base origin t size t0 t1 tree back wip=
+  local top rel head base ref origin t size t0 t1 tree back wip=
   t0=$(heavy_now)
   heavy_noretry=1 # cleared once the payload is ready: only a remote failure is retried
-  top=$(git rev-parse --show-toplevel 2> /dev/null) || return 97
-  origin=$(git -C "$top" remote get-url origin 2> /dev/null) || return 97
+  # ASD-V0-056 (V1-3202): a checkout that cannot offload says why, once, before the local run.
+  top=$(git rev-parse --show-toplevel 2> /dev/null) || { offload_unavailable 'not a Git checkout'; return 97; }
+  origin=$(upstream "$top") || { offload_unavailable "$origin"; return 97; }
+  ref=${origin#*$'\t'} origin=${origin%%$'\t'*}
   rel=$(git -C "$PWD" rev-parse --show-prefix 2> /dev/null) || return 97
   rel=${rel%/}
-  head=$(git -C "$top" rev-parse HEAD 2> /dev/null) || return 97
-  base=$(git -C "$top" merge-base HEAD origin/main 2> /dev/null) || return 97
+  head=$(git -C "$top" rev-parse HEAD 2> /dev/null) || { offload_unavailable 'no HEAD commit'; return 97; }
+  git -C "$top" cat-file -e "$ref^{commit}" 2> /dev/null ||
+    { offload_unavailable "base $ref is not in this clone; run git fetch origin"; return 97; }
+  base=$(git -C "$top" merge-base HEAD "$ref" 2> /dev/null) ||
+    { offload_unavailable "HEAD shares no history with $ref (a pre-snapshot lineage?); base the branch on origin/main"; return 97; }
   t=$(mktemp -d "${TMPDIR:-/tmp}/heavy-offload.XXXXXX") || return 97
   heavy_tmp=$t # removed by main, or by its EXIT trap when the wrapper is interrupted
   if [[ $head != "$base" ]]; then
@@ -733,7 +767,8 @@ build_map() {
 ci_repo() {
   local r=${HEAVY_CI_REPO-} u
   if [[ -z $r ]]; then
-    u=$(git remote get-url origin 2> /dev/null) || return 0
+    u=$(upstream "$(git rev-parse --show-toplevel 2> /dev/null)") || return 0
+    u=${u%%$'\t'*}
     case $u in *github.com[:/]*) r=$(origin_key "$u") ;; *) return 0 ;; esac
   fi
   [[ $r == off ]] || printf '%s\n' "$r"

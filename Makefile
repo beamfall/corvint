@@ -549,6 +549,7 @@ install-lifecycle-test:
 	@script/check-install-lifecycle_test.sh
 	@script/select-previous-release_test.sh
 	@script/core-n1-source_test.sh
+	@script/core-n1-replay-default_test.sh
 
 hostile-regressions-check:
 	@script/check-hostile-regressions.sh
@@ -586,15 +587,26 @@ public-release-check:
 	@script/public-release-check
 
 # core-n1-replay is the opt-in CCF-V1-007 N-1 replay and is not a `make gate` prerequisite. It
-# builds CORE_N1_TAG, by default the newest release tag before HEAD, from `git archive` and runs
-# every frozen Core mode under it beside this build (TestCoreVerbsEmitTheFrozenProfiles), then each
-# Core verb's refusal under it (TestCoreRefusalsKeepTheFrozenEnvelope, CCF-V1-010).
-CORE_N1_TAG ?= $(shell git describe --tags --abbrev=0 --match 'v[0-9]*' --exclude '*-*' HEAD^ 2>/dev/null)
+# builds CORE_N1_TAG from `git archive` and runs every frozen Core mode under it beside this build
+# (TestCoreVerbsEmitTheFrozenProfiles), then each Core verb's refusal under it
+# (TestCoreRefusalsKeepTheFrozenEnvelope, CCF-V1-010). Left unset, the tag is the one
+# script/select-previous-release.sh picks for HEAD, the same selector script/core-n1-source.sh uses,
+# so pre-release tags count (V1-3203); when no release tag precedes HEAD it reports NOT_APPLICABLE
+# FIRST_RELEASE and exits 0, and a selector refusal exits 2. An empty CORE_N1_TAG= is refused.
+CORE_N1_TAG_GIVEN = $(if $(filter undefined,$(origin CORE_N1_TAG)),,1)
 
 core-n1-replay:
-	@test -n "$(CORE_N1_TAG)" || { echo "CORE_N1_TAG is required" >&2; exit 2; }
-	@tmp=$$(mktemp -d) && trap 'rm -rf "$$tmp"' EXIT && mkdir "$$tmp/src" && \
-	git archive -o "$$tmp/src.tar" "$(CORE_N1_TAG)" && tar -x -C "$$tmp/src" -f "$$tmp/src.tar" && \
+	@tag='$(CORE_N1_TAG)'; \
+	if [ -z '$(CORE_N1_TAG_GIVEN)' ]; then \
+	  code=0; tag=$$(script/select-previous-release.sh "$$(git rev-parse HEAD)") || code=$$?; \
+	  case $$code in \
+	    0) echo "core-n1-replay: CORE_N1_TAG=$$tag, the newest release tag before HEAD" >&2 ;; \
+	    3) echo "core-n1-replay: NOT_APPLICABLE FIRST_RELEASE: no release tag precedes HEAD; the N-1 checks are not applicable"; exit 0 ;; \
+	    *) echo "core-n1-replay: previous release selection refused (exit $$code); pass CORE_N1_TAG=<tag>" >&2; exit 2 ;; \
+	  esac; \
+	elif [ -z "$$tag" ]; then echo "CORE_N1_TAG is required" >&2; exit 2; fi; \
+	tmp=$$(mktemp -d) && trap 'rm -rf "$$tmp"' EXIT && mkdir "$$tmp/src" && \
+	git archive -o "$$tmp/src.tar" "$$tag" && tar -x -C "$$tmp/src" -f "$$tmp/src.tar" && \
 	(cd "$$tmp/src" && GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -o "$$tmp/corvint" ./cmd/corvint) && \
 	CORVINT_CORE_N1_BINARY="$$tmp/corvint" $(GO_TEST_COMMAND) -run '^(TestCoreVerbsEmitTheFrozenProfiles|TestCoreRefusalsKeepTheFrozenEnvelope)$$' ./cmd/corvint
 

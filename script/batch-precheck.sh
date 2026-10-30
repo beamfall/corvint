@@ -644,6 +644,22 @@ cleanup() {
 
 receipt=$(receipt_path) || exit 2
 /bin/rm -f "$receipt"
+# Step scratch stays off a RAM-backed TMPDIR (ASD-V0-055, V1-3205, V1-3206): on a Linux host /tmp
+# is often a tmpfs, and batch-drift's cold double builds alone can fill it while the parallel steps
+# compile there, so a step fails with no space left on device and passes on its rerun.
+# BATCH_PRECHECK_TMPDIR, when set, is the TMPDIR of the run and of every step; otherwise a TMPDIR
+# (default /tmp) that is a tmpfs or ramfs is replaced by ${XDG_CACHE_HOME:-$HOME/.cache}/corvint-tmp,
+# with one printed line. The directory is created mode 0700 when missing.
+tmpfs_dir() { [[ $(uname -s) == Linux ]] && case $(stat -f -c %T "$1" 2> /dev/null) in tmpfs | ramfs) true ;; *) false ;; esac; }
+step_tmp=${BATCH_PRECHECK_TMPDIR:-}
+if [[ -z $step_tmp ]] && tmpfs_dir "${TMPDIR:-/tmp}"; then
+  step_tmp=${XDG_CACHE_HOME:-$HOME/.cache}/corvint-tmp
+  printf 'batch-precheck: TMPDIR %s is RAM-backed; steps use %s (BATCH_PRECHECK_TMPDIR chooses another)\n' "${TMPDIR:-/tmp}" "$step_tmp"
+fi
+if [[ -n $step_tmp ]]; then
+  (umask 077 && mkdir -p "$step_tmp") || { printf 'batch-precheck: cannot create TMPDIR %s\n' "$step_tmp" >&2; exit 2; }
+  export TMPDIR=$step_tmp
+fi
 # A TMPDIR with less than BATCH_PRECHECK_MIN_TMP_KIB (4 GiB) free warns before any step runs:
 # compiler, test and sort spills there fail with no space left on device (ASD-V0-054).
 tmp_kib=$(df -Pk "${TMPDIR:-/tmp}" 2> /dev/null | awk 'NR == 2 { print $4 }')
@@ -785,6 +801,8 @@ for ((i = 1; i <= n; i++)); do
     hr=$(host_resource "$dir/$i.first.log")
     printf 'batch-precheck: FLAKY %s: attempt 1 failed rc=%s (%ss)%s%s; attempt 2 passed (%ss)\n' \
       "$name" "$rc" "$secs" "${first:+, failing: $first}" "${hr:+, host-resource: $hr}" "$resecs"
+    # The first attempt's own lines name the cause a FLAKY pass would otherwise lose (ASD-V0-055).
+    tail -n 20 "$dir/$i.first.log" 2> /dev/null | sed 's/^/  | attempt 1: /'
   else
     printf '%s %s\n' "$rerc" $((secs + resecs)) > "$dir/$i.rc"
     again=$(failing_tests "$dir/$i.log")
