@@ -384,14 +384,29 @@ func (l *finishLane) pass(name, citations string) (int, *change, []byte) {
 // rebind runs every step (DCW-V0-115).
 var passScopes = map[string]passScope{"prepare": passPrepare, "bind": passBind, "rebind": passFull}
 
-// accept keeps an accepted pass's NOTE lines, each once per run.
+// accept keeps an accepted pass's NOTE lines, each once per run. A later
+// pass repeats a note with only its target or counts changed, so a note is
+// keyed by its name, status and reason (DCW-V0-405).
 func (l *finishLane) accept(output []byte) {
 	for _, text := range textLines(output) {
-		if strings.HasPrefix(text, "dogfood-change: NOTE ") && !l.notes[text] {
-			l.notes[text] = true
+		if !strings.HasPrefix(text, "dogfood-change: NOTE ") {
+			continue
+		}
+		if key := noteKey(text); !l.notes[key] {
+			l.notes[key] = true
 			l.say("%s\n", text)
 		}
 	}
+}
+
+// noteKey is a NOTE line's first five fields: the prefix, NOTE, the step
+// name, its status and its reason.
+func noteKey(text string) string {
+	fields := strings.Fields(text)
+	if len(fields) > 5 {
+		fields = fields[:5]
+	}
+	return strings.Join(fields, " ")
 }
 
 // stop ends the run at step: the step's own output is printed unchanged, then

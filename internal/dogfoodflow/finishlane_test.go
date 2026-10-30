@@ -500,3 +500,22 @@ func TestFinishLaneDCWV0378DigestsOnlyRegularFiles(t *testing.T) {
 		t.Fatalf("fileDigest(regular) = %x, %v", digest, present)
 	}
 }
+
+// TestDCWV0405FinishLanePrintsEachNoteOnce (V1-3231): the bind and rebind
+// passes repeat the guarding-tests note with only the target changed; the run
+// prints it once, while a note with another reason still prints.
+func TestDCWV0405FinishLanePrintsEachNoteOnce(t *testing.T) {
+	var stderr bytes.Buffer
+	lane := &finishLane{flow: flow{ctx: context.Background(), prefix: "dogfood-finish-lane", stderr: &stderr}, notes: map[string]bool{}}
+	guarding := func(target string) string {
+		return "dogfood-change: NOTE guarding-tests NOT_PRODUCED guarding-tests-not-run hunks=13: to cite an observed guarding test, run corvint cem verify --target " + target + " --guarding-tests\n"
+	}
+	absent := "dogfood-change: NOTE prechange-query NOT_OBSERVED agent-receipt-absent\n"
+	lane.accept([]byte(guarding("t0") + absent))
+	lane.accept([]byte("dogfood-change: PASS\n" + guarding("t1") + absent))
+	lane.accept([]byte(guarding("t2") + "dogfood-change: NOTE prechange-query NOT_OBSERVED agent-receipt-malformed\n"))
+	want := guarding("t0") + absent + "dogfood-change: NOTE prechange-query NOT_OBSERVED agent-receipt-malformed\n"
+	if stderr.String() != want {
+		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
+	}
+}
