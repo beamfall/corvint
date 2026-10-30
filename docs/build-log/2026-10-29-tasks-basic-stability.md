@@ -25,14 +25,16 @@ The file date follows the ticket's declared path; the runs were taken on 2026-10
 
 ## Qualification runs
 
-Both runs used commit `82427862b7ed54b1a9f25dc72254a0f4991da3e7` (tree
-`7a3158528062cd90e5072852db82417a67167cc5`, clean) and `go1.27.3`. Each built its own binary and ran
-its own suite, and each ended `QUALIFIED cases=30`.
+Both runs used commit `8b0b2d1515797d843573824244e15353ffaca996` (tree
+`82f65ce22702a63c9f44b4f8bf5b870605cacf62`, clean), the script after the review fixes below, and
+`go1.27.3`. Each built its own binary and ran its own suite, and each ended `QUALIFIED cases=30` with
+every case on `taskman-command-result/0`. An earlier pair of runs at `82427862b`, before the fixes,
+also ended `QUALIFIED`; they are superseded.
 
 | Tuple | Host | Binary sha256 | Suite run sha256 (elapsed) | `results.jsonl` sha256 |
 |---|---|---|---|---|
-| darwin/arm64 | the Mac, via `script/heavy.sh` (local slot) | `d578fc8b49553d7acd91620d8eb61a54c23df8c871162a9361b83534bb59772e` | `acc22d8a286a106d005302310f327a44d7763c1fb49185735c8eaf8c129ce09b` (43.4 s) | `104346be53b1619cc32e90fd057b38fa8b2ea7e945ff8e1cc10fc81f27fa0532` |
-| linux/amd64 | WSL lane host, a clean clone of the same commit | `5a1891fa4879e98d28b0dc5c75c875c2e17c8c929a120e6d4939c89435f0d209` | `14867cff0d75035e5a3432772daec9571674563a0579f5a29795571633fe72b0` (16.0 s) | `68641149c050d3d2b3e915f5e79bf415bad57a44e58891a2c830e3ce7cd3a617` |
+| darwin/arm64 | the Mac, via `script/heavy.sh` (local slot) | `80d44c35504750607355158c7f686f7fddb3e88498aa6c88dc7b34397bab3a28` | `179f7d7ab41fb36d4681e3ae97f96eeeb422a519a51e3b78e78b04f80da88b90` (37.2 s) | `4e2e3b41517454346f1d93b061d6f6efde7bb78e5236625605c9007b1b490e87` |
+| linux/amd64 | WSL lane host, a clean clone of the same commit | `afe07735bfa9bf46e65b4c644e48e07eaacdefd1abb92a47431e261281b6dff3` | `b920706c3af39fc68f5b10baad0c0f392bc1744a4faef6a59224efcf34f62ca5` (16.0 s) | `8aecb8dadfdc2c73be9666f931c00972858b62a2d354d6c9529e13b665497769` |
 
 Both suite runs passed all five CAL-V0-019 tests and had no failure event:
 `ConcurrentCollidingClaimsAdmitOne`, `RacingLeaseVerbsLeaveOneConsistentHead`,
@@ -42,7 +44,8 @@ Both suite runs passed all five CAL-V0-019 tests and had no failure event:
 The binary's `version` reports `0.0.0-tcp01-unverified+build.0`, verification `NOT_RUN`. That is the
 source-build label. The binary's identity is its sha256.
 
-The 30 cases, in order, with the observed outcome and codes, were the same on both tuples:
+The 30 cases, in order, with the observed outcome and codes, were the same on both tuples. Every `OK`
+case exited 0 and every other case exited 1:
 
 | # | Case | Outcome | Codes |
 |---:|---|---|---|
@@ -74,7 +77,8 @@ The 30 cases, in order, with the observed outcome and codes, were the same on bo
 | 30 | `receipt-audit` | OK | |
 
 `script/qualify-tasks-basic_test.sh` proves the script's own refusals and its fault injection
-(TBS-V1-458, TBS-V1-459). It passed on darwin/arm64 in about 8 s. It checks five things:
+(TBS-V1-458, TBS-V1-459). It is the `qualify-tasks-basic-test` gate step and passed on
+darwin/arm64. It checks six things:
 
 - A missing or non-empty `OUT_DIR` exits 2.
 - A suite run that lacks `KilledWriterRecovers` fails before any lifecycle case.
@@ -83,6 +87,8 @@ The 30 cases, in order, with the observed outcome and codes, were the same on bo
 - `QUALIFY_TASKS_BASIC_TAMPER=claim-replay` fails exactly that case with exit 1.
 - In the tampered run, the two reachability cases (`init-nonfixture`, `claim-before-cutover`) still
   pass.
+- A binary whose refusals exit 0, and one whose envelopes name another profile, each fail
+  `claim-before-cutover` and end with exit 1.
 
 ## Review fixes
 
