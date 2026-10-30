@@ -412,7 +412,7 @@ jobs:
     # deciding driver (--mode plan), gate-affected-select and trusted narrow.sh are built from.
     # It narrows nothing alone: AFP-V0-098 also needs a MET verdict and CORVINT_PR_NARROWING=on.
     env:
-      CORVINT_PR_TOOL_SOURCE: "b609ca4b266e63ccbf08954edd99a2a914213e47"
+      CORVINT_PR_TOOL_SOURCE: "93b9f5b08ce841875c9c81d17905908d91346f99"
       # AFP-V0-047: the reviewed origin/main commit the shadow `corvint test` planner is built
       # from. It only plans (--dry-run) and never decides, executes or narrows, so it is pinned
       # apart from CORVINT_PR_TOOL_SOURCE: that pin builds the deciding driver, which only plans
@@ -420,7 +420,7 @@ jobs:
       # the shadow. AFP-V0-603 (V1-3067, owner ci-control-plane OK 2026-10-28): never older than
       # CORVINT_PR_TOOL_SOURCE, or the shadow runs older selection rules than the driver and the
       # AFP-V0-098 superset rule records FULL on every batch.
-      CORVINT_TEST_SHADOW_SOURCE: "b609ca4b266e63ccbf08954edd99a2a914213e47"
+      CORVINT_TEST_SHADOW_SOURCE: "93b9f5b08ce841875c9c81d17905908d91346f99"
       # AFP-V0-030: the forward-evidence epoch. Advanced to 1 when `corvint test` joined the
       # shadow (STR-V0-012 step 3), so no earlier row counts toward the AFP-V0-029 bar. The
       # first shadow rows of this epoch come from the AFP-V0-047 shadow pin above. Must equal
