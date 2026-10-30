@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // DCW-V0-061: only a one-parent commit titled as the bind commit that changes
@@ -532,5 +533,71 @@ func TestDCWV0405StoppedPassOmitsPrintedNotes(t *testing.T) {
 	}
 	if want := note + "dogfood-change: FAIL not-complete\n"; stderr.String() != want {
 		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
+	}
+}
+
+// DCW-V0-396 (V1-3211): finish-lane refuses a reused worktree's ignored OCM
+// sidecar older than BASE before it prepares or binds anything, and names the
+// move that clears it.
+func TestFinishLaneDCWV0396RefusesAStaleSidecarBeforePrepare(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("a\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "add", "a.txt")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("b\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	testGit(t, root, "commit", "-q", "-am", "change")
+	if err := os.WriteFile(filepath.Join(root, ".git", "info", "exclude"), []byte(".corvint/change.ocm*\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	stale := filepath.Join(root, ".corvint", "change.ocm-status.json")
+	if err := os.MkdirAll(filepath.Dir(stale), 0o777); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(stale, []byte("{}\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Unix(631152000, 0)
+	if err := os.Chtimes(stale, old, old); err != nil {
+		t.Fatal(err)
+	}
+	scratch := t.TempDir()
+	plan := filepath.Join(scratch, "cites.tsv")
+	verify := filepath.Join(scratch, "verify.txt")
+	for path, data := range map[string]string{plan: "1\ta.txt\t1:1\tspecification\n", verify: "go test -count=1 -run TestA ./internal/a\n"} {
+		if err := os.WriteFile(path, []byte(data), 0o666); err != nil {
+			t.Fatal(err)
+		}
+	}
+	run := func() (int, int, string) {
+		calls := 0
+		steps := Runner{Path: "corvint", Run: func(context.Context, string, []string, io.Writer, io.Writer) int {
+			calls++
+			return 1
+		}}
+		var stdout, stderr bytes.Buffer
+		code, err := FinishLane(context.Background(), FinishLaneOptions{Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan, VerifyFile: verify, Outcome: "passed"}}, &stdout, &stderr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return code, calls, stderr.String()
+	}
+	code, calls, out := run()
+	if code != 2 || calls != 0 || !strings.HasPrefix(out, "dogfood-finish-lane: REFUSE reused-worktree-state\n") ||
+		!strings.Contains(out, "  stale sidecar: .corvint/change.ocm-status.json is ignored and was last written before BASE ") ||
+		!strings.Contains(out, "/corvint/stale-ocm && mv .corvint/change.ocm-status.json ") {
+		t.Fatalf("exit=%d step calls=%d stderr=%q, want REFUSE reused-worktree-state before any step", code, calls, out)
+	}
+	// A sidecar written after BASE was committed is this lane's own.
+	if err := os.Chtimes(stale, time.Now(), time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if _, calls, out := run(); calls == 0 || strings.Contains(out, "reused-worktree-state") {
+		t.Fatalf("a fresh sidecar was refused: calls=%d stderr=%q", calls, out)
 	}
 }

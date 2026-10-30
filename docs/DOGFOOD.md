@@ -128,8 +128,10 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    `local-outcome: record-failed`, both reading `local trace store contains unreachable revision`).
    If that commit is gone for good, `corvint migrate-traces --dry-run` lists it in
    `stranded_revisions`, and `corvint migrate-traces --apply --plan-digest DIGEST` moves the trace,
-   byte-preserved, to `.context-corvint/legacy-traces/` (LTPM-V0-012). The trace store, the
-   `<git-dir>/corvint/` evidence and the operation lock belong to one worktree: lanes that share a
+   byte-preserved, to `.context-corvint/legacy-traces/` (LTPM-V0-012). `dogfood change` and
+   `finish-lane` check this before they prepare anything and refuse `reused-worktree-state` with
+   those exact commands, also naming ignored `.corvint/change.ocm*` sidecars older than BASE to
+   move aside (`DCW-V0-396`). The trace store, the `<git-dir>/corvint/` evidence and the operation lock belong to one worktree: lanes that share a
    repository each run in their own `git worktree add` worktree or clone, and can then change,
    check and seal at the same time; switching one worktree between lanes strands the first lane's
    traces the same way (`DCW-V0-044`, proposed).
@@ -238,7 +240,7 @@ produces `"complete": true` or `dogfood-check: PASS`.
 | Unsupported | run from a subdirectory of the worktree (reproduced for V1-0236) | `REFUSE not-repository-root` (exit 2) | `REFUSE not-repository-root` (exit 2) |
 | Unsupported | intent without exactly one `## Requirements` heading | `ocm-prepare-001: invalid-requirements-section`, `ocm-aggregate: intent-scope-drift` | NOT_OBSERVED |
 | Drift | OCM map marked or linked without a rerun | not applicable | `FAIL intent-scope-drift`, `fix:` reruns `dogfood-change` |
-| Rewritten | amend or rebase after a recorded pass, or another lane run in the same worktree | `coordination-time-query: unsupported-query-trace-state`, `local-outcome: record-failed` and a `local trace store:` line; restoring the commit as an ancestor, or quarantining the trace with `corvint migrate-traces`, clears it | not reached |
+| Rewritten | amend or rebase after a recorded pass, or another lane run in the same worktree | before any prepare, `REFUSE reused-worktree-state` (exit 2) naming each stranded trace and each ignored OCM sidecar older than BASE, with the `mv` and `corvint migrate-traces --apply --plan-digest` recovery lines (`DCW-V0-396`); a trace stranded mid-run still reports `coordination-time-query: unsupported-query-trace-state`, `local-outcome: record-failed` and a `local trace store:` line; restoring the commit as an ancestor, or quarantining the trace with `corvint migrate-traces`, clears it | not reached |
 | Sealed | check on the seal commit, or a change containing a modified or unverifiable seal | `REFUSE sealed-cem-in-change`, one line per refused path | `REFUSE sealed-head` |
 | Undeclared | `DOGFOOD_OUTPUT_CHANGE` names a requirement `REQUIREMENTS.tsv` at `HEAD` lacks, or whose spec `BASE..HEAD` does not modify, or is set for an enrolled aggregate check (`DCW-V0-047`; reproduced by `TestCheckDCWV0047DeclaredOutputChange` for V1-1279, the aggregate case NOT_OBSERVED) | not applicable | `REFUSE output-change-requirement-unknown`, `output-change-not-in-diff` or `output-change-aggregate-unsupported` (exit 2) before any verifier runs; without the variable an output change still fails `verifier-disagreement` |
 
@@ -624,6 +626,14 @@ prints a `fix:` line saying that no change can be sealed on a `BASE` that does n
 (`DCW-V0-332`). Recover as for a conflict in step 2: rebase the later constituent's own work commits
 onto the batch head, fix the build there, bind, check and seal it again with `BASE=<batch head>`,
 then merge it. Do not fix the build in a direct batch commit, which fails `unbound-commits`.
+
+Regenerated commits. A one-parent commit whose tree equals what `script/batch-regen.sh` produces
+from its parent passes as `derivation=regenerated` with a `NOTE COMMIT` line: the batch-regen
+commit (`ASD-V0-033`) and a lane's post-seal receipt or line-citation repin. Batch-check replays the
+parent's script in a private clone outside the repository; a commit with any hand-edited hunk
+does not reproduce and stays `unbound-commits` with `NOT_REPRODUCED tree-differs`. A repin commit
+inside a lane's own range needs no hand citation rows for the paths it alone changes
+(`DCW-V0-397`, `DCW-V0-398`).
 
 The check is read-only: it writes no object, ref, index, worktree file, trace or ledger, runs no
 repository-configured filter, hook or merge driver (a configuration Core's hardened status cannot

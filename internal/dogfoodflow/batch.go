@@ -467,7 +467,7 @@ func (b *batch) verifyCoverage() {
 		case len(parents) == 0:
 			b.failure("unbound-commits", commit)
 		case len(parents) == 1:
-			if (!b.constituents[parents[0]] || !b.isSealCommit(commit)) && !b.archivesInherited(parents[0], commit) && !b.isMigrationCommit(parents[0], commit) {
+			if (!b.constituents[parents[0]] || !b.isSealCommit(commit)) && !b.archivesInherited(parents[0], commit) && !b.isMigrationCommit(parents[0], commit) && !b.regeneratedCommit(parents[0], commit) {
 				b.failure("unbound-commits", commit)
 			}
 		case len(parents) > 2:
@@ -477,6 +477,23 @@ func (b *batch) verifyCoverage() {
 		}
 	}
 	b.mergedForward(merges)
+}
+
+// regeneratedCommit accepts a one-parent commit that is exactly the output of
+// script/batch-regen.sh replayed on its parent (DCW-V0-397): the batch-regen
+// commit and a lane's post-seal receipt or line-citation repin. It prints one
+// NOTE either way, so an unbound commit names why its replay did not match.
+func (b *batch) regeneratedCommit(parent, commit string) bool {
+	result := b.regenerated(parent, commit)
+	if result.ok {
+		b.derived["regenerated"]++
+		b.print("%s: NOTE COMMIT %s derivation=regenerated mode=%s (DCW-V0-397)\n", b.prefix, commit, result.mode)
+		return true
+	}
+	if !result.silent {
+		b.print("%s: NOTE COMMIT %s regeneration NOT_REPRODUCED %s (DCW-V0-397)\n", b.prefix, commit, result.reason)
+	}
+	return false
 }
 
 // mergedForward finds, for a range whose unbound commits a merge brought in

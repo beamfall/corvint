@@ -5471,6 +5471,40 @@ traceability row, which fail the four acceptance cases without the rule; on the
 `lanes/gh2006-2009` tree the check reports its `.github/workflows` record stale. Rollback: delete
 `tools/test-read-scopes-check/temp_root.go` and the `exempt` term in `check`.
 
+### Go builds of repository source are dependency reads (AFP-V0-840; V1-3210)
+
+Intent (orchestrator lane request, 2026-10-30; V1-3210): at d92b0a2a5 `tools/compat-trial` tests
+built the tool and its fixtures with `procgroup.Spec{Argv: []string{goPath, "build", ..., "."}}`
+and `"./fixtures/" + variant`, and the tool newly imported `internal/archivepath`; the check
+covered only `go list` commands (AFP-V0-051 (8)), so it passed and the confined CI shard denied
+the read (fixed by de68fce5f).
+
+- **AFP-V0-840:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3210;
+  extends AFP-V0-051 (8)) When a test file of a declared package spells a go command as the
+  string-slice `Argv` of a `procgroup.Spec` literal or as the arguments of `exec.Command` or
+  `exec.CommandContext`, whose go binary is a `"go"` literal or an identifier or selected field
+  whose name contains `go` in any case (such as `goPath`), directly followed by a literal verb
+  `build`, `run`, `vet`, `test` or `install`, the check SHALL list its targets with `go list -deps`
+  and exit 1, naming the package, the test file and the directory, for every repository directory
+  of a non-standard package they load that is not the package directory, below it, or under a
+  declared directory entry. A target is a literal `.` or one starting with `./` or `../`, resolved
+  as in AFP-V0-051 (8); a `+` concatenation whose leftmost literal starts so stands for the
+  `/...` pattern of that literal's directory (`"./fixtures/" + variant` is `./fixtures/...`); the
+  value after `-o` is never one; a command with no positional argument, only flags, builds `.`.
+  A directory at or below a path the package records in `.corvint/test-read-scope-literals.json`
+  is not reported and keeps that record in use, for a build the confined shard never runs.
+
+Non-goals: a target held in a variable, a file name such as `main.go`, an import path, a command
+built through any other helper, or a string slice that is no `procgroup.Spec` `Argv` (expected
+plans and argv data that tests compare) is not seen; the Landlock wrapper stays the enforcement.
+Failure modes: (1) a missed build shape fails later in the confined shard, as before; (2) a build
+that runs only off the confined shard (a darwin-only or opt-in live test) is reported until its
+directories are declared or recorded. Acceptance evidence: the test in the traceability row; the
+check run against d92b0a2a5 exits 1 naming `tools/compat-trial` and `internal/archivepath`, and the
+current tree, with the `conformance/go-live-test-v0` darwin-only provider build's directories
+declared, exits 0. Rollback: delete `goBuildTargets`, `specArgv`, `goBinary`, `buildTarget`,
+`recordedAbove` and the `built` finding, and the `/...` suffix handling in `dependencyDirectories`.
+
 ### Frame metadata and embedded JavaScript (V1-2758, V1-2898)
 
 - `AFP-V0-810`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2758)
@@ -5856,6 +5890,7 @@ stream truncated by the runner lists the unfinished packages and `no package-lev
 | AFP-V0-815 | the `comm` sets of `reuse_` in `.github/forward-rows/mq-narrow.sh` | `TestAFPV0813MergeQueueReusesTheNarrowedRecordOfAMovedBase` (S = a b c, Rs = a b, D = b runs b and c and reuses a; D empty reuses a and b and runs c) |
 | AFP-V0-816 | `refuse` in `mq-narrow.sh`; the help probe of the docs-plan reuse step in `.github/workflows/ci.yml` | the refusal cases of `TestAFPV0813MergeQueueReusesTheNarrowedRecordOfAMovedBase` (no or a malformed offer, another head, another first parent, a base off the history, a tree mismatch, a `.github/` delta, a non-ASCII `.github/` path, FALLBACK on either range, an UNKNOWN `.plan.scope` under a `run` verdict on either range and a failing delta planner keep the whole selection and name the reason; the non-ASCII and UNKNOWN-scope cases failed before the review fix and pass after it); `TestAFPV0170ReuseStepRefusesForgedArtifacts` failed before the probe fix and passes after it |
 | AFP-V0-828 | `tempRootOnly`, `tempRooted`, `tempRootScan`, `packageNames`, `localNames` and `importAliases` in `tools/test-read-scopes-check/temp_root.go`; the `exempt` term in `check` | `TestTempRootOnlyLiteralsAreNoRepositoryRead_V1_3137` (five accepted shapes and twenty-five refusals), `TestTempRootOnlyRefusesAnUnparsableFile_V1_3137` |
+| AFP-V0-840 | `goBuildTargets`, `specArgv`, `goBinary`, `buildTarget` and `recordedAbove` in `tools/test-read-scopes-check/main.go`; the `built` finding in `check` and `run`; the `/...` suffix in `dependencyDirectories` | `TestGoBuildDependencyOutsideScopeFails_V1_3210` (`tools/test-read-scopes-check/main_test.go`: undeclared build dependency, undeclared `./fixtures/`+variant dependency, declared, recorded, parent-file entry only; a non-`Spec` slice is data); the check against d92b0a2a5 exits 1 naming `tools/compat-trial` and `internal/archivepath`, and the current tree exits 0 |
 | AFP-V0-760 | `list_names`, `list_names_read` and `list_names_keep` in `.github/forward-rows/names.sh` | `TestAFPV0760ListNamesSplitsATruncatedPage` (a split page of 100 lists the same names, `pages_read` and `exhausted` as a clean listing; a split last page; the page budget bounds a split page; a listing of exactly 200; an unreadable page of 25 names the limit after three tries 5 s and 10 s apart); `TestAFPV0097VerdictAcceptance` (a truncated page of 100 read as pages of 25 gives MET; its unreadable page of 25 gives FULL with the named limit); live measurement in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-v1-3084-artifact-page-split.md`; hosted verdict `NOT_OBSERVED` |
 | AFP-V0-600 | `embedPatterns`, `embedArguments`, `embedTargets`, `embeddable` in `internal/liveverify/affected/golang/embed.go`; `resolveEmbeds` and the `observeDirectory` embed patterns in `golang/golang.go`; `Unit.EmbedFiles` in `internal/liveverify/affected/unit.go`; `Graph.embedded`, `digestUnit` in `graph.go`; `cachedUnit` in `graphcache.go`; `seed`, `claimantsOf` and `namedGoReadData` in `select.go` | `TestEmbedPatternsReadOnlyDirectives_AFPV0600`, `TestEmbedTargetsResolveAsTheGoCommand_AFPV0600`, `TestEmbeddedFilesAreOwnedByTheEmbeddingPackage_AFPV0600` (`golang/embed_test.go`); `TestEmbeddedFileIsAttributedToItsPackage_AFPV0600`, `TestEmbedLeavesForeignReadersOpen_AFPV0600`, `TestEmbedFilesAreDigestedValidatedAndCached_AFPV0600` (`ownership_test.go`); measured counts in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-affected-embed-readscope-ownership.md` |
 | AFP-V0-601 | `goReadData`, `namedGoReadData`, `confinedReaders` and `driverInput` in `internal/liveverify/affected/select.go`, called from `seed` | `TestGoReadDataIsAttributedToItsReader_AFPV0601` (`ownership_test.go`: read-scope entry, declared subtree, read-scoped package subtree, hosted fixture, declared documentation, unattributed and root-scope paths), `TestEmbeddedDriverInputStaysUnowned_AFPV0601`, `TestUnconfinedReaderKeepsReadDataUnowned_AFPV0601` (`ownership_test.go`); `TestEmbeddedFilesAreOwnedByTheEmbeddingPackage_AFPV0600` (`golang/embed_test.go`: unconfined then declared readers); `TestTestdataIsFixtureDataNotAPackage_AFPV0008` (`golang/golang_test.go`); measured counts in the build-log entry |

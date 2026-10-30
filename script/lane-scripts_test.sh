@@ -844,6 +844,19 @@ HEAVY_REMOTE=0 pv go vet ./x 2> "$pol/err"
 [[ $? == 2 ]] && grep -q '^heavy.sh: refused: HEAVY_REMOTE=0 without HEAVY_LOCAL_REASON' "$pol/err" &&
   grep -Eq "^$d pwd=$pol reason=refused-local cmd=go vet \./x\$" "$pol/fb.log" ||
   fail "heavy.sh ran HEAVY_REMOTE=0 go vet without HEAVY_LOCAL_REASON"
+# ASD-V0-060 (V1-3213): the documented lane test recipe (docs/LANE-ORCHESTRATION.md section 2) is
+# `set -o pipefail; script/heavy.sh ... 2>&1 | tail -n N && git commit ...`. A refusing heavy.sh piped
+# through tail must fail the step under it, the unprotected form passes (the hazard), and the
+# one-line REFUSED marker reaches stdout so the tail shows it even without 2>&1.
+rm -f "$pol/committed"
+(set -o pipefail; HEAVY_REMOTE=0 pv go vet ./x 2>&1 | tail -n 5 > "$pol/tail.out" && : > "$pol/committed")
+rc=$?
+[[ $rc != 0 && ! -e $pol/committed ]] && grep -q '^heavy.sh: REFUSED local-reason-missing' "$pol/tail.out" ||
+  fail "pipefail recipe did not fail on a refusing heavy.sh (rc=$rc): $(cat "$pol/tail.out")"
+(set +o pipefail; HEAVY_REMOTE=0 pv go vet ./x 2> /dev/null | tail -n 5 > "$pol/tail.out" && : > "$pol/committed")
+[[ $? == 0 && -e $pol/committed ]] && grep -q '^heavy.sh: REFUSED local-reason-missing' "$pol/tail.out" ||
+  fail "unprotected pipe did not show the documented hazard or the stdout REFUSED marker"
+rm -f "$pol/committed"
 HEAVY_REMOTE=0 HEAVY_LOCAL_REASON='darwin syscall' pv go vet ./x 2> /dev/null || fail "heavy.sh refused HEAVY_LOCAL_REASON"
 HEAVY_REMOTE=0 pv go build ./x 2> /dev/null || fail "heavy.sh applied HEAVY_LOCAL_REASON to go build"
 s0=$SECONDS
