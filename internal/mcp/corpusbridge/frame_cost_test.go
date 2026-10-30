@@ -15,8 +15,9 @@ import (
 func TestFrameCostEncodesPathAsJSON(t *testing.T) {
 	receipt := []byte(`{"ok":true}` + "\n")
 	cost := func(quotedPath string) int {
-		text, _ := json.Marshal(repoenvelope.EscapeHidden(`{"path":` + quotedPath + `,"receipt":` + string(receipt) + `}`))
-		return len(hostilePath) + len(receipt) + 32 + len(text)
+		row := `{"path":` + quotedPath + `,"receipt":` + string(receipt) + `}`
+		text, _ := json.Marshal(repoenvelope.EscapeHidden(row))
+		return len(row) + 10 + len(text)
 	}
 	encoded, err := json.Marshal(hostilePath, json.Deterministic(true))
 	if err != nil {

@@ -224,3 +224,93 @@ func TestDeclaredNestedSandboxPackageFails_V1_2952(t *testing.T) {
 		}
 	}
 }
+
+// V1-3210: a declared package whose test builds repository source with go, the
+// tools/compat-trial shape at d92b0a2a5 (procgroup.Spec{Argv: []string{goPath,
+// "build", ...}} and "./fixtures/"+variant importing internal/archivepath),
+// fails the check when a module package the build loads lies outside its
+// scope, and passes once that directory is declared. A string slice that is
+// no procgroup.Spec Argv is data (resolving its ./absent target would exit 2),
+// and a recorded path keeps a build quiet.
+func TestGoBuildDependencyOutsideScopeFails_V1_3210(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go tool unavailable")
+	}
+	test := "package main\n\nimport (\n\t\"os/exec\"\n\t\"testing\"\n\n\t\"example.test/m/internal/procgroup\"\n)\n\n" +
+		"func TestBuilds(t *testing.T) {\n\tgoPath, _ := exec.LookPath(\"go\")\n\tvariant := \"a\"\n" +
+		"\t_ = procgroup.Spec{Argv: []string{goPath, \"build\", \"-o\", \"./out\", \".\"}}\n" +
+		"\t_ = procgroup.Spec{Argv: []string{goPath, \"build\", \"./fixtures/\" + variant}}\n" +
+		"\t_ = []string{\"go\", \"test\", \"./absent\"}\n}\n"
+	const head = `{"profile":"corvint-test-read-scope-literals/0","literals":`
+	for name, c := range map[string]struct {
+		entries, literals string
+		code              int
+		want, never       string
+	}{
+		"undeclared":         {`"go.mod","internal/hidden/","internal/procgroup/"`, "", 1, "package tools/trial: tools/trial/runner_test.go builds repository source with go, which reads internal/archivepath, outside its entries in .corvint/test-read-scopes.json; declare the directory there (AFP-V0-023)", "reads internal/hidden"},
+		"fixture undeclared": {`"go.mod","internal/archivepath/","internal/procgroup/"`, "", 1, "which reads internal/hidden, outside", "reads internal/archivepath"},
+		"declared":           {`"go.mod","internal/archivepath/","internal/hidden/","internal/procgroup/"`, "", 0, "test-read-scopes-check: ok", "builds repository source"},
+		"recorded":           {`"go.mod","internal/hidden/","internal/procgroup/"`, head + `{"tools/trial":{"internal/archivepath":"a build the confined shard never runs"}}}`, 0, "test-read-scopes-check: ok", "which no test file of the package names"},
+		"parent entry only":  {`"go.mod","internal/archivepath/x.json","internal/hidden/","internal/procgroup/"`, "", 1, "which reads internal/archivepath, outside", "reads internal/hidden"},
+	} {
+		files := map[string]string{
+			"go.mod":                         "module example.test/m\n\ngo 1.27\n",
+			"internal/procgroup/p.go":        "package procgroup\n\ntype Spec struct{ Argv []string }\n",
+			"internal/archivepath/a.go":      "package archivepath\n",
+			"internal/archivepath/x.json":    "{}\n",
+			"internal/hidden/h.go":           "package hidden\n",
+			"tools/trial/main.go":            "package main\n\nimport _ \"example.test/m/internal/archivepath\"\n\nfunc main() {}\n",
+			"tools/trial/runner_test.go":     test,
+			"tools/trial/fixtures/a/main.go": "package main\n\nimport _ \"example.test/m/internal/hidden\"\n\nfunc main() {}\n",
+			".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"tools/trial":[` + c.entries + `]}}`,
+		}
+		if c.literals != "" {
+			files[literalsPath] = c.literals
+		}
+		var stdout, stderr bytes.Buffer
+		code := run(writeRepository(t, files), &stdout, &stderr)
+		output := stdout.String() + stderr.String()
+		if code != c.code || !strings.Contains(output, c.want) || strings.Contains(output, c.never) {
+			t.Errorf("%s: code=%d want %d; output %q lacks %q or reports %q", name, code, c.code, output, c.want, c.never)
+		}
+	}
+}
+
+// V1-3210 review: `go test` and `go vet` also load the imports of the target's
+// test files, and the separate value of a flag such as -tags is no target, so
+// a flags-only `go build -tags x` still builds the package itself.
+func TestGoTestDependencyAndFlagValues_V1_3210(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go tool unavailable")
+	}
+	test := "package main\n\nimport (\n\t\"os/exec\"\n\t\"testing\"\n)\n\n" +
+		"func TestBuilds(t *testing.T) {\n" +
+		"\t_ = exec.Command(\"go\", \"build\", \"-tags\", \"feature\")\n" +
+		"\t_ = exec.Command(\"go\", \"test\", \"-count\", \"1\", \"./fixture\")\n}\n"
+	for name, c := range map[string]struct {
+		entries     string
+		code        int
+		want, never string
+	}{
+		"test-only import undeclared": {`"go.mod","internal/built/"`, 1, "which reads internal/testonly, outside", "reads internal/built"},
+		"flags-only build undeclared": {`"go.mod","internal/testonly/"`, 1, "which reads internal/built, outside", "reads internal/testonly"},
+		"declared":                    {`"go.mod","internal/built/","internal/testonly/"`, 0, "test-read-scopes-check: ok", "builds repository source"},
+	} {
+		files := map[string]string{
+			"go.mod":                         "module example.test/m\n\ngo 1.27\n",
+			"internal/built/b.go":            "package built\n",
+			"internal/testonly/o.go":         "package testonly\n",
+			"tools/trial/main.go":            "package main\n\nimport _ \"example.test/m/internal/built\"\n\nfunc main() {}\n",
+			"tools/trial/runner_test.go":     test,
+			"tools/trial/fixture/f.go":       "package fixture\n",
+			"tools/trial/fixture/f_test.go":  "package fixture\n\nimport _ \"example.test/m/internal/testonly\"\n",
+			".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"tools/trial":[` + c.entries + `]}}`,
+		}
+		var stdout, stderr bytes.Buffer
+		code := run(writeRepository(t, files), &stdout, &stderr)
+		output := stdout.String() + stderr.String()
+		if code != c.code || !strings.Contains(output, c.want) || strings.Contains(output, c.never) {
+			t.Errorf("%s: code=%d want %d; output %q lacks %q or reports %q", name, code, c.code, output, c.want, c.never)
+		}
+	}
+}

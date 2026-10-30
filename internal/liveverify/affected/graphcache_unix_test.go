@@ -104,7 +104,7 @@ func TestAFPV0390CacheDirectoryReplacementCannotRedirectWrites(t *testing.T) {
 func TestAFPV0392FIFOEntryCannotBlock(t *testing.T) {
 	pinnable(t)
 	root := graphCacheFixture(t)
-	dir := t.TempDir()
+	dir := privateCacheDir(t)
 	if _, outcome := buildCached(t, root, dir, graphCacheIdentity); !outcome.Stored {
 		t.Fatalf("seed entry not stored: %+v", outcome)
 	}

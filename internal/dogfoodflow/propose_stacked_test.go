@@ -12,8 +12,8 @@ import (
 // seal's CEM, .corvint/changes/<bind>.cem.json, as a new hunk no BASE line can
 // anchor. Each such hunk gets a cite row on a stable BASE line of
 // docs/DOGFOOD.md that defines the sealed path, a different line per sealed
-// file, instead of an unknown row the bind loop must rewrite; the code hunks
-// keep their own stable spans, and the rows are keyed by the current patch's
+// file, instead of an unknown row the bind loop must rewrite; the code hunks,
+// whose file the change modifies, are unknown (DCW-V0-393), and the rows are keyed by the current patch's
 // hunk IDs.
 func TestProposeCitationsDCWV0385CitesPriorSealOnStackedRepair(t *testing.T) {
 	root := t.TempDir()
@@ -79,8 +79,13 @@ func TestProposeCitationsDCWV0385CitesPriorSealOnStackedRepair(t *testing.T) {
 			}
 		}
 		if unknownRow(fields) {
-			t.Errorf("hunk of %s drafted unknown: %q\n%s", mapped, row, errText)
+			if mapped != "pkg/code.go" {
+				t.Errorf("hunk of %s drafted unknown: %q\n%s", mapped, row, errText)
+			}
 			continue
+		}
+		if mapped == "pkg/code.go" {
+			t.Errorf("hunk of the modified pkg/code.go cites a span: %q", row)
 		}
 		if spans[fields[1]+":"+fields[2]] {
 			t.Errorf("span %s:%s cited twice:\n%s", fields[1], fields[2], out)

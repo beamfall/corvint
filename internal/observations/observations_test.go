@@ -6,19 +6,17 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"io"
 	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 )
 
 func TestAppendRotatesAndNeverPersistsTaskText(t *testing.T) {
@@ -855,25 +853,9 @@ func TestUnsupportedByDesignCodeIsReportedSeparately(t *testing.T) {
 // the code of its failing CEM command, so every code registered in cemcode
 // (map-locked included) must be an admitted dogfood-step reason (SOL-V0-008).
 func TestDogfoodReasonAdmitsEveryRegisteredCEMCode(t *testing.T) {
-	file, err := parser.ParseFile(token.NewFileSet(), filepath.Join("..", "cem", "cemcode", "cemcode.go"), nil, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var codes []string
-	ast.Inspect(file, func(node ast.Node) bool {
-		declaration, ok := node.(*ast.GenDecl)
-		if ok && declaration.Tok == token.CONST {
-			for _, spec := range declaration.Specs {
-				for _, value := range spec.(*ast.ValueSpec).Values {
-					code, _ := strconv.Unquote(value.(*ast.BasicLit).Value)
-					codes = append(codes, code)
-				}
-			}
-		}
-		return true
-	})
+	codes := cemcode.Registered()
 	if len(codes) < 50 {
-		t.Fatalf("parsed %d cemcode codes, want the full registry", len(codes))
+		t.Fatalf("read %d cemcode codes, want the full registry", len(codes))
 	}
 	for _, code := range codes {
 		row := Event{Kind: "dogfood-step", Step: "cem-cite", Status: "NOT_PRODUCED", Reason: code}

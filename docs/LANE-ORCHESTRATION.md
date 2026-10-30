@@ -51,6 +51,17 @@ are lane defaults for a 12-core host whose lanes each run `-p 4` tests; the disp
 script/heavy.sh env GOTOOLCHAIN=local go test -count=1 -timeout 30m -run '^TestName$' ./internal/pkg
 ```
 
+Lane test recipe (ASD-V0-060, V1-3213): when the output is piped, start the step with
+`set -o pipefail;` so a refusing `heavy.sh` fails the step and a following `&& git commit` never runs:
+
+```sh
+set -o pipefail; script/heavy.sh env GOTOOLCHAIN=local go test -count=1 -run '^TestName$' ./internal/pkg 2>&1 | tail -n 40 && git commit ...
+```
+
+Without `pipefail` the pipeline status is `tail`'s, so a refusal (exit 2) is lost and the commit goes in
+with no test run. A refusal prints `heavy.sh: REFUSED <reason> (exit 2)` on stdout too, so the tail shows it.
+Other docs cite this paragraph instead of repeating it.
+
 `script/heavy.sh` is a host-wide counting semaphore: `HEAVY_SLOTS` commands run at once (default
 CPUs/4, so 3 on 12 CPUs), the rest wait quietly and print `heavy.sh: slot N/M after Ss` when
 admitted. Each admitted command gets `GOFLAGS=-p=HEAVY_P` (default CPUs/slots) unless `GOFLAGS`
@@ -82,6 +93,13 @@ could remove a live owner's slot when two waiters reclaimed the same dead slot a
 not see each other's slots. `make lane-scripts-test` runs the serialisation check (two concurrent
 commands with `HEAVY_SLOTS=1` never overlap), the killed-wrapper, dead-owner and group-signal
 checks.
+
+From any clone, scratch or plain, the entry point is that clone's own `script/heavy.sh`; there is
+no other copy to find. Put the host's settings (`HEAVY_SLOTS`, `HEAVY_LOCK_DIR`, `HEAVY_REMOTE_HOST`
+and the rest) in `HEAVY_CONFIG` (default `~/.config/corvint/heavy.env`) rather than a lane's
+environment, so every clone on the host shares one semaphore and one remote. A plain `git clone` of a
+lane checkout offloads as that checkout's origin at its `origin/main` (ASD-V0-056). A checkout that
+cannot offload prints `heavy.sh: offload unavailable from this checkout: REASON` and runs locally.
 
 ### Offload to a Linux host (ASD-V0-028)
 
@@ -270,7 +288,10 @@ The charter or the lane's first step fixes every dogfood input before work start
 - `OUTCOME`: `passed`, `failed` or `blocked`.
 
 Write the `CITATIONS`, `INTENTS` and `VERIFY` files into a directory only this lane writes, outside
-the tree: `"$(git rev-parse --absolute-git-dir)/corvint/lane-inputs/"` is unique per worktree. A
+the tree: `"$(git rev-parse --absolute-git-dir)/corvint/lane-inputs/"` is unique per worktree. Build a
+lane-local `corvint` there too (`go build -o "$(git rev-parse --absolute-git-dir)/corvint/bin/corvint"
+./cmd/corvint`), never into `./bin/`: that path is not ignored, so finish-lane refuses the
+untracked binary as `dirty-worktree` (`DCW-V0-397` now names it). A
 shared path such as `/tmp/cites.tsv` lets another lane overwrite the plan between prepare and bind;
 finish-lane hashes every supplied input file before prepare and refuses
 `REFUSE input-changed-during-run step=<step>` naming each changed file (`DCW-V0-378`), instead of the

@@ -644,6 +644,33 @@ cleanup() {
 
 receipt=$(receipt_path) || exit 2
 /bin/rm -f "$receipt"
+# Step scratch stays off a RAM-backed TMPDIR (ASD-V0-055, V1-3205, V1-3206): on a Linux host /tmp
+# is often a tmpfs, and batch-drift's cold double builds alone can fill it while the parallel steps
+# compile there, so a step fails with no space left on device and passes on its rerun.
+# BATCH_PRECHECK_TMPDIR, when set, is the TMPDIR of the run and of every step; otherwise a TMPDIR
+# (default /tmp) that is a tmpfs or ramfs is replaced by ${XDG_CACHE_HOME:-$HOME/.cache}/corvint-tmp,
+# with one printed line. The directory is created mode 0700 when missing.
+tmpfs_dir() { [[ $(uname -s) == Linux ]] && case $(stat -f -c %T "$1" 2> /dev/null) in tmpfs | ramfs) true ;; *) false ;; esac; }
+# Entries of that default directory older than a day, left by killed steps, are removed first,
+# since nothing resets it as a reboot resets a tmpfs. With neither XDG_CACHE_HOME nor HOME set, the
+# tmpfs TMPDIR is kept. A relative BATCH_PRECHECK_TMPDIR is made absolute, since steps change directory.
+step_tmp=${BATCH_PRECHECK_TMPDIR:-} cache_home=${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}
+if [[ -z $step_tmp && -n $cache_home ]] && tmpfs_dir "${TMPDIR:-/tmp}"; then
+  step_tmp=$cache_home/corvint-tmp
+  printf 'batch-precheck: TMPDIR %s is RAM-backed; steps use %s (BATCH_PRECHECK_TMPDIR chooses another)\n' "${TMPDIR:-/tmp}" "$step_tmp"
+  [[ -d $step_tmp ]] && find "$step_tmp" -mindepth 1 -maxdepth 1 -mmin +1440 -exec /bin/rm -rf {} + 2> /dev/null
+fi
+if [[ -n $step_tmp ]]; then
+  (umask 077 && mkdir -p "$step_tmp") && step_tmp=$(cd "$step_tmp" && pwd) ||
+    { printf 'batch-precheck: cannot create TMPDIR %s\n' "$step_tmp" >&2; exit 2; }
+  export TMPDIR=$step_tmp
+fi
+# A TMPDIR with less than BATCH_PRECHECK_MIN_TMP_KIB (4 GiB) free warns before any step runs:
+# compiler, test and sort spills there fail with no space left on device (ASD-V0-054).
+tmp_kib=$(df -Pk "${TMPDIR:-/tmp}" 2> /dev/null | awk 'NR == 2 { print $4 }')
+if [[ $tmp_kib =~ ^[0-9]+$ ]] && ((tmp_kib < ${BATCH_PRECHECK_MIN_TMP_KIB:-4194304})); then
+  printf 'batch-precheck: WARN low-tmp-space avail=%sKiB under %s; steps may fail with no space left on device: set TMPDIR to a directory with room\n' "$tmp_kib" "${TMPDIR:-/tmp}"
+fi
 dir=$(mktemp -d "${TMPDIR:-/tmp}/batch-precheck.XXXXXX") || exit 2
 trap cleanup EXIT
 trap 'cleanup; exit 129' HUP
@@ -748,6 +775,15 @@ failing_tests() {
     awk 'NF && !seen[$0]++' | head -n 20 | paste -sd , - | sed 's/,/, /g'
 }
 
+# host_resource LOG prints, trimmed, the first line of LOG naming an exhausted host resource: a full
+# disk, a quota, exhausted memory or file descriptors. Such a failure says nothing about the change,
+# so it is named host-resource, never introduced, and a FLAKY pass names it; the step still fails
+# (ASD-V0-054).
+host_resource() {
+  grep -m 1 -i -E 'no space left on device|disk quota exceeded|cannot allocate memory|out of memory|too many open files' "$1" 2> /dev/null |
+    sed -E 's/^[[:space:]|]+//' | cut -c 1-200
+}
+
 # ASD-V0-046 (V1-3122): each failed step reruns once, one at a time, before anything is classified.
 # A pass on the rerun is FLAKY: counted passed, with both attempts named. A second failure keeps the
 # rerun's log for the --base comparison and the report; attempt 1's log stays beside it.
@@ -767,13 +803,17 @@ for ((i = 1; i <= n; i++)); do
     flaky=$((flaky + 1))
     flakes+=("$name")
     printf '0 %s flaky\n' $((secs + resecs)) > "$dir/$i.rc"
-    printf 'batch-precheck: FLAKY %s: attempt 1 failed rc=%s (%ss)%s; attempt 2 passed (%ss)\n' \
-      "$name" "$rc" "$secs" "${first:+, failing: $first}" "$resecs"
+    hr=$(host_resource "$dir/$i.first.log")
+    printf 'batch-precheck: FLAKY %s: attempt 1 failed rc=%s (%ss)%s%s; attempt 2 passed (%ss)\n' \
+      "$name" "$rc" "$secs" "${first:+, failing: $first}" "${hr:+, host-resource: $hr}" "$resecs"
+    # The first attempt's own lines name the cause a FLAKY pass would otherwise lose (ASD-V0-055).
+    tail -n 20 "$dir/$i.first.log" 2> /dev/null | sed 's/^/  | attempt 1: /'
   else
     printf '%s %s\n' "$rerc" $((secs + resecs)) > "$dir/$i.rc"
     again=$(failing_tests "$dir/$i.log")
-    printf 'batch-precheck: FAIL %s: attempt 1 rc=%s (%ss)%s; attempt 2 rc=%s (%ss)%s\n' \
-      "$name" "$rc" "$secs" "${first:+, failing: $first}" "$rerc" "$resecs" "${again:+, failing: $again}"
+    hr=$(host_resource "$dir/$i.log")
+    printf 'batch-precheck: FAIL %s: attempt 1 rc=%s (%ss)%s; attempt 2 rc=%s (%ss)%s%s\n' \
+      "$name" "$rc" "$secs" "${first:+, failing: $first}" "$rerc" "$resecs" "${again:+, failing: $again}" "${hr:+, host-resource: $hr}"
   fi
 done
 
@@ -785,7 +825,12 @@ if [[ -n $base ]]; then
     [[ $rc == 0 ]] && continue
     line=$(sed -n "${i}p" "$dir/steps")
     name=${line%%$'\t'*}
-    if at_base "${line#*$'\t'}" "$dir/$i.log"; then
+    # The base rerun would exhaust the same resource, so it is not run (ASD-V0-054).
+    hr=$(host_resource "$dir/$i.log")
+    if [[ -n $hr ]]; then
+      printf 'batch-precheck: FAIL %s (%ss) host-resource: %s; not compared with %s: free disk or memory (TMPDIR=%s) and rerun\n' \
+        "$name" "$secs" "$hr" "$base" "${TMPDIR:-/tmp}"
+    elif at_base "${line#*$'\t'}" "$dir/$i.log"; then
       : > "$dir/$i.warn"
       printf 'batch-precheck: WARN %s (%ss) base-present: fails the same way at %s\n' "$name" "$secs" "$base"
       tail -n 40 "$dir/$i.log" | sed 's/^/  | /'

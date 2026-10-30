@@ -55,17 +55,13 @@ docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md	docs/specs/harness-authority-re
 docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md	docs/specs/harness-authority-relation-v0.md:233
 docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md	internal/gokernel/harness.go:186-187
 docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md	internal/gokernel/harness.go:398-401
-docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md	internal/gokernel/repository.go:32-40
-docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md	internal/gokernel/repository.go:44-52
 docs/specs/agent-harness-integration-v0.md	internal/gokernel/harness.go:361
 docs/specs/agent-harness-integration-v0.md	internal/gokernel/harness.go:376
 docs/specs/agent-harness-integration-v0.md	internal/gokernel/harness.go:458
 docs/specs/agent-harness-integration-v0.md	internal/gokernel/harness.go:466
 docs/specs/agent-harness-integration-v0.md	internal/gokernel/harness.go:73
 docs/specs/agent-harness-integration-v0.md	internal/gokernel/repository.go:150
-docs/specs/agent-harness-integration-v0.md	internal/gokernel/repository.go:165
 docs/specs/agent-harness-integration-v0.md	internal/gokernel/repository.go:167
-docs/specs/agent-harness-integration-v0.md	internal/gokernel/repository.go:178
 docs/specs/agent-harness-integration-v0.md	internal/gokernel/repository.go:192
 docs/specs/agent-harness-integration-v0.md	internal/gokernel/repository.go:215
 docs/specs/agent-harness-integration-v0.md	internal/gokernel/repository.go:240

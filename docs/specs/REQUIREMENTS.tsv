@@ -266,8 +266,12 @@ AFP-V0-815	docs/specs/affected-plan-v0.md	(experimental under the owner's standi
 AFP-V0-816	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3100)	standing	2026-10-11; V1-3100
 AFP-V0-760	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3084;	standing	2026-10-11; V1-3084
 AFP-V0-828	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3137;	standing	2026-10-11; V1-3137
+AFP-V0-840	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3207;	standing	2026-10-11; V1-3207
+AFP-V0-841	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3201)	standing	2026-10-11; V1-3201
+AFP-V0-847	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3210;	standing	2026-10-11; V1-3210
 AFP-V0-810	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2758)	standing	2026-10-11; V1-2758
 AFP-V0-811	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2898)	standing	2026-10-11; V1-2898
+AFP-V0-846	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3216)	standing	2026-10-11; V1-3216
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
 AHI-003	docs/specs/agent-harness-integration-v0.md	On session/task start, the adapter MUST resolve repository identity, exact Git	unrecorded	-
@@ -902,6 +906,7 @@ CAP-V0-047	docs/specs/capability-catalog-v0.md	(accepted under the owner's stand
 CAP-V0-048	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685) Every ot	standing	2026-10-11; V1-2685
 CAP-V0-049	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685) A root	standing	2026-10-11; V1-2685
 CAP-V0-050	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2685) `AGENTS.	standing	2026-10-11; V1-2685
+CAP-V0-060	docs/specs/capability-catalog-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3212) When the	standing	2026-10-11; V1-3212
 CEM-CB-001	docs/specs/cem-0.2-canonical-binding.md	`cem/0.1` MUST remain the existing closed five-field profile. Its schema,	unrecorded	-
 CEM-CB-002	docs/specs/cem-0.2-canonical-binding.md	canonical binding MUST use a new exact profile identifier, `cem/0.2`. A `cem/0.2	unrecorded	-
 CEM-CB-003	docs/specs/cem-0.2-canonical-binding.md	`cem/0.2` evidence, hunk, identity, disposition, canonical JSON, size, count, pa	unrecorded	-
@@ -1168,6 +1173,8 @@ CEM-V1-690	docs/specs/cem-stable-v1.md	(experimental under the standing lane aut
 CEM-V1-691	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2996)) native drift classi	standing	V1-2996
 CEM-V1-692	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2991)) `--hunk-revert` and	standing	V1-2991
 CEM-V1-693	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2995)) a reverted run is `	standing	V1-2995
+CEM-V1-694	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3168)) `cem cite --replace	standing	V1-3168
+CEM-V1-695	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3168)) `cem mark	standing	V1-3168
 CEM-V1-011	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Reject missing, duplicate, unknown or es	owner	decision 0546; 2026-10-20
 CEM-V1-012	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Publish the candidate schema and algorit	owner	decision 0546; 2026-10-20
 CEM-V1-013	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Never translate candidate spec labels to	owner	decision 0546; 2026-10-20
@@ -1767,6 +1774,10 @@ ASD-V0-050	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-051	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-29; V1-3136) Under th	standing	2026-10-29; V1-3136
 ASD-V0-052	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-29; V1-3135) `docs/LA	standing	2026-10-29; V1-3135
 ASD-V0-053	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-29; V1-2552; refines	standing	2026-10-29; V1-2552
+ASD-V0-054	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3168 lane fric	standing	2026-10-30; V1-3168
+ASD-V0-055	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3205, V1-3206	standing	2026-10-30; V1-3205; V1-3206
+ASD-V0-056	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3202 lane fric	standing	2026-10-30; V1-3202
+ASD-V0-060	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept; V1-3213; refines `ASD-V0-014`	standing	V1-3213
 CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and	unrecorded	-
 CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow	unrecorded	-
 CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom	unrecorded	-
@@ -2940,6 +2951,18 @@ DCW-V0-386	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-387	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3141; refines `DCW-V0-379`	standing	V1-3141
 DCW-V0-388	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3130; amends `DCW-V0-112`	standing	V1-3130
 DCW-V0-389	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3118; extends `DCW-V0-381`	standing	V1-3118
+DCW-V0-390	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3168; amends `DCW-V0-117`)	standing	V1-3168
+DCW-V0-391	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3168) Before any cite or	standing	V1-3168
+DCW-V0-392	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3168) An entry whose hunk	standing	V1-3168
+DCW-V0-393	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3144; amends `DCW-V0-150`	standing	V1-3144
+DCW-V0-394	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3204; amends `DCW-V0-150`	standing	V1-3204
+DCW-V0-395	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3209) A hunk of a file abs	standing	V1-3209
+DCW-V0-397	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; sec-res-w2 lane friction; ref	standing	-
+DCW-V0-396	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3216; refines `DCW-V0-022`	standing	V1-3216
+DCW-V0-400	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3211; refines `DCW-V0-044`	standing	V1-3211
+DCW-V0-401	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2981; refines `DCW-V0-039`	standing	V1-2981
+DCW-V0-398	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3214; refines `DCW-V0-341`	standing	V1-3214
+DCW-V0-399	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3218; refines `DCW-V0-349`	standing	V1-3218
 DCW-V0-170	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2344) When	standing	2026-10-11; V1-2344
 DCW-V0-171	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2171) A	standing	2026-10-11; V1-2171
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-

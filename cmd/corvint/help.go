@@ -873,6 +873,11 @@ operator may copy into a Go live-test provider bundle. plan.excluded is
 once with its count, and digest is the SHA-256 of the full exclusion list.
 An advisory check with arguments="provider.go.packages" runs its command with
 each of those packages appended, single-quoted.
+degradations, present only when it applies, names self-binary-stale: inside
+its own repository this binary was built from a commit whose Go source differs
+from HEAD, so the plan may not be the one current source gives, or
+self-binary-unverified when that comparison could not complete; stderr repeats
+it with the rebuild command (AFP-V0-846).
 tiers (when anything is selected) ranks every selected unit without changing
 the selection: 0 changed packages, 1 direct importers and same-parent
 siblings below a top-level directory, 2 the rest; summary is "tier0=N tier1=N tier2=N". A lane
@@ -1381,11 +1386,13 @@ Usage:
     [--spec cem/1.0] [--non-regular unknown] [--path-policy base]
   corvint [--root PATH] cem cite --map MAP --hunk SELECTOR --evidence-path PATH
     (--bytes START:END | --lines START:END) --relation RELATION [--output MAP]
+    [--replace --expected-hunk-digest DIGEST]
   corvint [--root PATH] cem cite --map MAP --hunk SELECTOR --evidence-path PATH
     (--bytes START:END | --lines START:END) --relation RELATION
     --paired-output DOC --paired-range NAME=BASE..HEAD --paired-root ABS
   corvint [--root PATH] cem mark --map MAP --hunk SELECTOR
     --disposition unknown|mechanical --reason REASON [--output MAP]
+    [--expected-hunk-digest DIGEST]
   corvint [--root PATH] cem status --map MAP --expected-base REV --target REV
     --artifacts DIR [OPTIONS]
   corvint [--root PATH] cem status --map MAP --paired DOC --paired-root ABS
@@ -1427,7 +1434,14 @@ Actions:
            ancestor of HEAD), and the citation is added to the separate
            document DOC bound to the map's change; the map is never written,
            so --output is refused.
+           --replace --expected-hunk-digest DIGEST (given together) first drops
+           the hunk's earlier citations, only while DIGEST is the hunk's current
+           cem-hunk-state/1 digest; a stale digest refuses hunk-digest-mismatch
+           and nothing is written, and every other hunk is kept (CEM-V1-694).
+           dogfood change prints the digest in its recites-cited-hunk fix line.
   mark     Record an explicit unknown or byte-verifiable mechanical disposition.
+           --expected-hunk-digest DIGEST refuses the mark unless DIGEST is the
+           hunk's current digest (CEM-V1-695).
   status   Local completion check; verify is the equivalent machine/CI surface;
            report renders the optional human view. All three verify identically.
            report writes $GIT_DIR/corvint/cem-review.md unless --output names
@@ -1965,7 +1979,11 @@ checks, then commits the CEM rename to .corvint/changes/COMMIT.cem.json. Steps a
 verifiers run as this executable unless an option names another one; this binary
 never builds or version-checks one. DOGFOOD_TASK, DOGFOOD_VERIFY,
 DOGFOOD_VERIFY_FILE, DOGFOOD_OUTCOME, DOGFOOD_INTENTS_FILE, DOGFOOD_CITATIONS,
-DOGFOOD_OCM_LINKS and DOGFOOD_EXCEPTION keep their script meanings. For check and
+DOGFOOD_OCM_LINKS and DOGFOOD_EXCEPTION keep their script meanings.
+DOGFOOD_CITATION_REPLACE=HUNK_ID=DIGEST[,...] lets the plan replace the earlier
+citations of each named, already cited hunk, and only those; the digest is the one
+the citation-plan-recites-cited-hunk fix line prints, so a stale one cites
+nothing (DCW-V0-390..392). For check and
 seal, DOGFOOD_OUTPUT_CHANGE=REQUIREMENT-ID declares a change whose cem status output
 differs from the base verifier's by construction: admitted only when HEAD's
 docs/specs/REQUIREMENTS.tsv maps the ID to a spec BASE..HEAD modifies, it runs the
@@ -1997,11 +2015,12 @@ sealed change the range adds, verifies each sealed CEM against its own base, and
 re-derives each merge result; it reports what it cannot prove (DCW-V0-039).
 
 propose-citations is read-only. It prints, on stdout, a draft citation plan with
-one row per hunk of .corvint/change.cem.json still owed a row: a BASE line next to
-the hunk (its enclosing heading or declaration) that no hunk edits and the change
-leaves unique, or an unknown row. With no prepared map it drafts one row per hunk
-of the canonical BASE..HEAD patch, keyed by full hunk ID, so no probe bind pass is
-needed (DCW-V0-350). The draft is labelled PROPOSED on stderr; review it and write
+one row per hunk of .corvint/change.cem.json still owed a row: a BASE line of a
+file the change leaves untouched that names the hunk's path, or an unknown row; it
+never cites a file the change adds or modifies (DCW-V0-393). With no usable map
+(missing, unreadable or for another BASE) it drafts one row per hunk of the
+canonical BASE..HEAD patch, keyed by full hunk ID, so no probe bind pass is needed
+(DCW-V0-350, DCW-V0-394). The draft is labelled PROPOSED on stderr; review it and write
 it to the DOGFOOD_CITATIONS file yourself (DCW-V0-150).
 `
 

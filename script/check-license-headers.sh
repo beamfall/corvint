@@ -7,7 +7,8 @@ set -eu
 #   1. No non-Markdown file outside the historical records carries an `SPDX-License-Identifier`
 #      expression naming the former AGPL terms. Historical records are `docs/build-log/**`,
 #      `docs/decisions/**`, `.taskman/**` and `.corvint/**`; they quote former terms as evidence.
-#      The four frozen-evidence files `LICENSING.md` names keep their byte-pinned historical line.
+#      The four frozen-evidence files `LICENSING.md` names keep their byte-pinned historical line, and
+#      the frozen public-root-history notice fixtures quote the former terms as historical text.
 #   2. Every non-Markdown file under `examples/` carries exactly `SPDX-License-Identifier: Apache-2.0`,
 #      with no further licence expression, in its first five lines.
 
@@ -26,6 +27,7 @@ IFS='
 former=$(git grep -l -I -E "$former_pattern" -- . ':(exclude)*.md' \
     ':(exclude)docs/build-log/' ':(exclude)docs/decisions/' ':(exclude).taskman/' ':(exclude).corvint/' \
     ':(exclude)benchmarks/daily-loop-v0/harness.py' ':(exclude)benchmarks/untouched-repository-v1/harness.py' \
+    ':(exclude)internal/cem/corpusbinding/testdata/public-root-history/notices/' \
     ':(exclude)internal/postmergehost/testdata/paired-author/author/main.go' \
     ':(exclude)tools/cw-trial/testdata/beamfall-roadmap-v1/build_roadmap_set.py') || true
 for path in $former; do

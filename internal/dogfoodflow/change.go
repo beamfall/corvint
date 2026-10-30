@@ -35,7 +35,11 @@ type ChangeOptions struct {
 	Outcome             string
 	IntentsFile         string
 	Citations           string
-	OCMLinks            string
+	// CitationReplace is DOGFOOD_CITATION_REPLACE: HUNK_ID=DIGEST entries
+	// naming the cited hunks whose earlier citations the plan replaces
+	// (DCW-V0-390).
+	CitationReplace string
+	OCMLinks        string
 	// AggregateOverLimit lets a change whose admitted paths exceed the 200-path
 	// learning bound record the complete nonlearning aggregate receipt instead of
 	// refusing admitted-path-limit (DCW-V0-374). Local completion leaves it off:
@@ -91,8 +95,18 @@ type change struct {
 	linkPlanRows         int
 	uniformHunks         int
 	uniformSpan          string
-	// recitedHunk names the cited hunk a plan row would change (DCW-V0-117).
-	recitedHunk string
+	// recitedHunk names the cited hunk a plan row would change (DCW-V0-117),
+	// and recitedDigest its current expected-old digest (DCW-V0-390).
+	recitedHunk   string
+	recitedDigest string
+	// replaceDigests and replaceSelectors are the admitted
+	// DOGFOOD_CITATION_REPLACE entries, by hunk ID and by plan selector;
+	// replaceApplied and replaceReplayed name the hunks this run replaced or
+	// found already replaced (DCW-V0-390, DCW-V0-392).
+	replaceDigests   map[string]string
+	replaceSelectors map[string]string
+	replaceApplied   []string
+	replaceReplayed  []string
 	// staleBinding names the row whose hunk moved since the citation-plan
 	// binding was recorded against an earlier map (DCW-V0-066).
 	staleBinding string
@@ -112,6 +126,9 @@ type change struct {
 	// citationFailedMap is the map the failing cite command read: the staged
 	// citation map after the first row (DCW-V0-068).
 	citationFailedMap string
+	// nested marks a finish-lane pass, whose run already checked the
+	// worktree for an earlier lane's state (DCW-V0-400).
+	nested bool
 	// scope narrows a finish-lane pass to the steps its decision reads
 	// (DCW-V0-115); a standalone change run is always passFull.
 	scope passScope
@@ -151,6 +168,10 @@ func (c *change) run() int {
 	}
 	c.base = c.gitValue("rev-parse", c.options.Base+"^{commit}")
 	c.target = c.gitValue("rev-parse", "HEAD^{commit}")
+	// finish-lane checks once before its first pass; its passes skip it.
+	if !c.nested {
+		c.requireFreshWorktree(c.base, c.gitDir)
+	}
 	task := c.options.Task
 	if task == "" {
 		task = "Dogfood change from " + c.base[:12] + " to HEAD"
@@ -767,9 +788,15 @@ func (c *change) citeStep() {
 	_ = os.Chmod(citeOutput, 0o600)
 	status, reason := "PRODUCED", "none"
 	plan, shape := c.planShape()
+	replaceRefusal := ""
+	if shape == "" {
+		replaceRefusal = c.resolveCitationReplace(plan)
+	}
 	switch {
 	case shape != "":
 		status, reason = "NOT_PRODUCED", shape
+	case replaceRefusal != "":
+		status, reason = "NOT_PRODUCED", replaceRefusal
 	case c.recitesCitedHunk(plan):
 		status, reason = "NOT_PRODUCED", "citation-plan-recites-cited-hunk"
 	case c.citationCount > 1 && exists(c.path(c.citationStage)):
@@ -785,7 +812,15 @@ func (c *change) citeStep() {
 		cited := citedHunks(c.path(".corvint/change.cem.json"))
 		before, _ := readPrefix(c.path(".corvint/change.cem.json"), maxPlanBytes)
 		status, reason = c.cite(withRows(plan, c.sealCiteRows), citeOutput)
-		c.citedOver = cited > 0 && status == "PRODUCED"
+		c.citedOver = cited > 0 && status == "PRODUCED" && len(c.replaceApplied) == 0
+		if status == "PRODUCED" {
+			for _, id := range c.replaceApplied {
+				c.say("dogfood-change: NOTE cem-cite replaced hunk=%s expected-digest=%s: only this hunk's earlier citations were replaced by the plan's rows for it; every other hunk kept its citations (DCW-V0-390)\n", id, c.replaceDigests[id])
+			}
+		}
+		for _, id := range c.replaceReplayed {
+			c.say("dogfood-change: NOTE cem-cite replace-already-applied hunk=%s: it already holds exactly the plan's rows for it, so the plan replays (DCW-V0-392)\n", id)
+		}
 		c.keepMapEncoding(before)
 		if status == "PRODUCED" && c.publishUnknownReasons() != nil {
 			status, reason = "NOT_PRODUCED", "unknown-reasons-not-recorded"
@@ -934,67 +969,31 @@ func (c *change) uniformPlan(plan []byte) bool {
 // (DCW-V0-117). The row and hunk are kept for the fix hint. A row whose span
 // this check cannot resolve is left to cem cite.
 func (c *change) recitesCitedHunk(plan []byte) bool {
-	data, err := readPrefix(c.path(".corvint/change.cem.json"), maxPlanBytes)
-	if err != nil {
+	m, ok := c.readCitationMap()
+	if !ok {
 		return false
 	}
-	var cem struct {
-		Evidence []struct {
-			ID   string `json:"id"`
-			Path string `json:"path"`
-			Span struct {
-				Start int64 `json:"start"`
-				End   int64 `json:"end"`
-			} `json:"span"`
-		} `json:"evidence"`
-		Hunks []struct {
-			ID    string `json:"id"`
-			Basis []struct {
-				EvidenceID string `json:"evidenceId"`
-				Relation   string `json:"relation"`
-			} `json:"basis"`
-		} `json:"hunks"`
-	}
-	if json.Unmarshal(data, &cem) != nil {
-		return false
-	}
-	evidence := map[string]string{}
-	for _, record := range cem.Evidence {
-		evidence[record.ID] = fmt.Sprintf("%s\x00%d:%d", record.Path, record.Span.Start, record.Span.End)
-	}
-	blobs := map[string][]byte{}
+	evidence, blobs := m.evidenceKeys(), map[string][]byte{}
 	for index, line := range readLines(plan) {
 		fields := strings.SplitN(line, "\t", 4)
 		if len(fields) != 4 {
 			continue
 		}
-		hunk := -1
-		for position, candidate := range cem.Hunks {
-			if candidate.ID == fields[0] || strconv.Itoa(position+1) == fields[0] {
-				hunk = position
-				break
-			}
-		}
-		// A hunk with no basis carries no earlier citation to join.
-		if hunk < 0 || len(cem.Hunks[hunk].Basis) == 0 {
+		hunk := m.hunkIndex(fields[0])
+		// A hunk with no basis carries no earlier citation to join, and a
+		// hunk DOGFOOD_CITATION_REPLACE names is replaced (DCW-V0-390).
+		if hunk < 0 || len(m.Hunks[hunk].Basis) == 0 {
 			continue
 		}
-		recited := unknownRow(fields)
-		if !recited {
-			span, resolved := c.baseLineSpan(blobs, fields[1], fields[2])
-			if !resolved {
-				continue
-			}
-			recited = true
-			for _, basis := range cem.Hunks[hunk].Basis {
-				if basis.Relation == fields[3] && evidence[basis.EvidenceID] == fields[1]+"\x00"+span {
-					recited = false
-					break
-				}
-			}
+		if _, replaced := c.replaceDigests[m.Hunks[hunk].ID]; replaced {
+			continue
 		}
-		if recited {
-			c.citationFailedRow, c.recitedHunk = index+1, cem.Hunks[hunk].ID
+		held, resolved := c.rowHeld(m, evidence, blobs, hunk, fields)
+		if unknownRow(fields) {
+			held = false
+		}
+		if resolved && !held {
+			c.citationFailedRow, c.recitedHunk, c.recitedDigest = index+1, m.Hunks[hunk].ID, m.hunkDigest(hunk)
 			return true
 		}
 	}
@@ -1085,12 +1084,14 @@ func citedHunks(mapPath string) int {
 func (c *change) cite(plan []byte, citeOutput string) (string, string) {
 	citeMap := ".corvint/change.cem.json"
 	c.citationStageOwned = c.citationCount > 1
+	replaced := map[string]bool{}
 	for index, line := range readLines(plan) {
 		fields := strings.SplitN(line, "\t", 4)
 		args := []string{"cem", "cite", "--map", citeMap, "--hunk", fields[0], "--evidence-path", fields[1], "--lines", fields[2], "--relation", fields[3]}
 		if unknownRow(fields) {
 			args = []string{"cem", "mark", "--map", citeMap, "--hunk", fields[0], "--disposition", "unknown", "--reason", fields[2]}
 		}
+		args = append(args, c.replaceArgs(fields, replaced)...)
 		if c.citationCount > 1 {
 			destination := c.citationStage
 			if index+1 == c.citationCount {
@@ -1612,6 +1613,10 @@ func (c *change) citationPlanMismatch(plan []byte) string {
 	if len(records) > 0 {
 		recordCitation = c.authorityCitation(deferralAuthorityAnchor)
 	}
+	// A hunk on a path whose whole BASE..HEAD change is one commit that
+	// replays as regenerated is cited against the DCW-V0-401 bullet at BASE
+	// (DCW-V0-398, V1-3214).
+	regenCitation := c.authorityCitation(regenerationAuthorityAnchor)
 	seals := []string{}
 	for index, hunk := range hunks {
 		if hunk["disposition"] != "unknown" || recordedUnknownReasons[hunk["reason"]] || named[strconv.Itoa(index+1)] || named[hunk["id"]] {
@@ -1622,6 +1627,8 @@ func (c *change) citationPlanMismatch(plan []byte) string {
 			seals = append(seals, hunk["id"]+"\t"+citation)
 		case recordCitation != "" && records[hunk["id"]]:
 			seals = append(seals, hunk["id"]+"\t"+recordCitation)
+		case regenCitation != "" && c.regeneratedPath(hunk["path"]):
+			seals = append(seals, hunk["id"]+"\t"+regenCitation)
 		}
 	}
 	if len(textLines(plan))+len(seals) <= 256 {
@@ -1760,7 +1767,26 @@ const (
 	sealAuthority           = "docs/specs/daily-change-evidence-workflow-v0.md"
 	sealAuthorityAnchor     = "- `DCW-V0-042`:"
 	deferralAuthorityAnchor = "- `DCW-V0-372`:"
+	// regenerationAuthorityAnchor is the DCW-V0-401 requirement a regenerated
+	// hunk is cited against (DCW-V0-398).
+	regenerationAuthorityAnchor = "- `DCW-V0-401`:"
 )
+
+// regeneratedPath reports whether path's whole BASE..HEAD change is one
+// non-merge commit that replays as regenerated from its parent (DCW-V0-398):
+// then BASE holds that parent's bytes of path and HEAD that commit's, so every
+// hunk on path is generated. A path any other commit also touches, or whose
+// one commit has a hand edit anywhere, still owes its citation rows.
+func (c *change) regeneratedPath(path string) bool {
+	listing, status, bounded := c.boundedGit("rev-list", "--full-history", c.base+"..HEAD", "--", path)
+	commits := nonEmpty(strings.Split(listing, "\n"))
+	if status != 0 || !bounded || len(commits) != 1 {
+		return false
+	}
+	// Path limiting rewrites --parents, so the real parents are read apart.
+	parents := nonEmpty(strings.Split(c.gitValue("rev-parse", commits[0]+"^@"), "\n"))
+	return len(parents) == 1 && c.regenerated(parents[0], commits[0]).ok
+}
 
 // sealCitation cites the DCW-V0-042 bullet (DCW-V0-341).
 func (c *change) sealCitation() string {
@@ -2126,7 +2152,9 @@ var fixHints = []struct{ pattern, hint string }{
 	{"cem-cite:invalid-citation-plan", "each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows; a hunk kept unknown takes ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE, REASON being insufficient-evidence or conflicting-evidence and NOTE a one-line reason (DCW-V0-019)"},
 	{"cem-cite:citation-plan-map-mismatch", "the plan does not match the map prepared for HEAD: a row names an ordinal past its hunks or is not a canonical ordinal, or an unknown hunk is unnamed (often because a later commit re-prepared the map); or a row's ordinal now names another hunk than when this plan was first cited (a later commit added or removed a hunk before it); rewrite DOGFOOD_CITATIONS from the current .corvint/change.cem.json, naming every unknown hunk except the hunk of an intent spec absent at BASE, by a citation or by an ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE row"},
 	{"cem-cite:citation-plan-uniform", "the plan cites one span for every hunk: hunks={uniformHunks} span={uniformSpan}; cite, per hunk, the BASE lines that hunk depends on or implements (its caller, contract, test or spec section), or keep a hunk unknown with ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE; one span may serve several hunks, never every hunk of a multi-hunk non-chore change; for example 1<TAB>docs/specs/x-v0.md<TAB>40:44<TAB>specification for a spec hunk and 2<TAB>internal/x/x.go<TAB>120:126<TAB>dependency for the code hunk that implements it; corvint dogfood propose-citations {base} prints a per-hunk draft to review and write to the plan (DCW-V0-048, DCW-V0-150)"},
-	{"cem-cite:citation-plan-recites-cited-hunk", "plan row {row} would change hunk {recitedHunk}, which .corvint/change.cem.json already cites; cem cite only adds evidence, so nothing was cited or marked; to replace the earlier citations, delete .corvint/change.cem.json and rerun corvint dogfood change {base} with the whole corrected plan; a staged plan names only hunks still unknown (DCW-V0-117)"},
+	{"cem-cite:citation-plan-recites-cited-hunk", "plan row {row} would change hunk {recitedHunk}, which .corvint/change.cem.json already cites; cem cite only adds evidence, so nothing was cited or marked; to replace only that hunk's earlier citations with this plan's rows for it, keeping every other hunk's citations, rerun DOGFOOD_CITATION_REPLACE={recitedHunk}={recitedDigest} corvint dogfood change {base} with the same plan (DCW-V0-390); a staged plan otherwise names only hunks still unknown (DCW-V0-117)"},
+	{"cem-cite:citation-replace-digest-mismatch", "DOGFOOD_CITATION_REPLACE expects an earlier state of hunk {recitedHunk}: the map changed since the digest was read, so nothing was cited or marked; reread the map and, if the replacement is still wanted, rerun DOGFOOD_CITATION_REPLACE={recitedHunk}={recitedDigest} corvint dogfood change {base} (DCW-V0-391)"},
+	{"cem-cite:citation-replace-invalid", "DOGFOOD_CITATION_REPLACE takes at most 16 comma- or space-separated HUNK_ID=DIGEST entries, each naming by full hunk ID, once, a hunk of .corvint/change.cem.json that the plan names, with its 64-hex digest from the citation-plan-recites-cited-hunk fix line; nothing was cited or marked (DCW-V0-391)"},
 	{"cem-cite:unknown-reasons-not-recorded", "the unknown rows of DOGFOOD_CITATIONS could not be kept in {evidence}/cem-unknown-reasons.tsv (or its .next file): before citing (an occupied path, or notes over 16 MiB) nothing was cited; after citing the map has changed and earlier notes are kept; remove whatever occupies the path and rerun the same plan, which replays idempotently (DCW-V0-046)"},
 	{"cem-cite:invalid-arguments", "plan row {row}{rowValues}: RELATION must be one of call-site, decision, dependency, implementation, incident, specification or test-claim, and START:END a line span of the cited file; any file present at BASE may be cited, code and tests as well as specs (DCW-V0-041)"},
 	{"cem-cite:missing-evidence", "plan row {row} cites a path that is not a regular file at BASE; cite a source, test or spec file that exists at BASE, since a file this change adds cannot be evidence for itself (DCW-V0-041)"},
@@ -2396,7 +2424,7 @@ func (c *change) fixHint(row step) string {
 			matched = len(value) >= len(prefix)+len(suffix) && strings.HasPrefix(value, prefix) && strings.HasSuffix(value, suffix)
 		}
 		if matched {
-			return strings.NewReplacer("{evidence}", c.evidence, "{base}", c.base, "{step}", row.name, "{map}", c.path(c.failedMap()), "{row}", strconv.Itoa(c.citationFailedRow), "{rowValues}", c.rowValues(), "{citationRows}", strconv.Itoa(c.citationCount), "{linkRows}", strconv.Itoa(c.linkObservedRows), "{uniformHunks}", strconv.Itoa(c.uniformHunks), "{uniformSpan}", c.uniformSpan, "{recitedHunk}", c.recitedHunk).Replace(entry.hint)
+			return strings.NewReplacer("{evidence}", c.evidence, "{base}", c.base, "{step}", row.name, "{map}", c.path(c.failedMap()), "{row}", strconv.Itoa(c.citationFailedRow), "{rowValues}", c.rowValues(), "{citationRows}", strconv.Itoa(c.citationCount), "{linkRows}", strconv.Itoa(c.linkObservedRows), "{uniformHunks}", strconv.Itoa(c.uniformHunks), "{uniformSpan}", c.uniformSpan, "{recitedHunk}", c.recitedHunk, "{recitedDigest}", c.recitedDigest).Replace(entry.hint)
 		}
 	}
 	return ""
@@ -2493,7 +2521,7 @@ func (c *change) reportFailures() int {
 	// cem cite only adds evidence and prepare resumes a matching map, so a
 	// corrected plan joins the earlier plan's citations (DCW-V0-019).
 	if c.citedOver {
-		c.say("  cem-cite: the plan was added to citations the map already carried and never replaces them; to correct an earlier plan, delete .corvint/change.cem.json and rerun corvint dogfood change %s (docs/DOGFOOD.md step 4)\n", c.base)
+		c.say("  cem-cite: the plan was added to citations the map already carried and never replaces them; to correct one hunk's earlier citations, rerun with the DOGFOOD_CITATION_REPLACE entry the refusal names, or delete .corvint/change.cem.json and rerun corvint dogfood change %s (docs/DOGFOOD.md step 4)\n", c.base)
 	}
 	query := readFile(c.evidence + "/coordination-time-query.stderr")
 	// The authority-start refusal is selected by the task wording, not by the

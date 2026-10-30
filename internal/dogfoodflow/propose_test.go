@@ -75,10 +75,10 @@ func numbered(prefix string, count int) string {
 
 // DCW-V0-150 (V1-2283): propose-citations prints one draft row per owed hunk
 // of the prepared map, in worklist order. Each cite row names one BASE line
-// that no hunk's old range (context included) covers and whose text occurs
-// once after the change, preferring the enclosing heading of a document and
-// the enclosing declaration of code; a file absent at BASE and a governing
-// file the change edits get unknown rows. Hunks already cited or kept
+// of a file the change leaves untouched that names the hunk's path, and no
+// two rows share a span; the hunk's own modified file is never cited, so a
+// hunk with no such anchor, a file absent at BASE and a governing file the
+// change edits get unknown rows (DCW-V0-393). Hunks already cited or kept
 // unknown with a recorded reason get none. The draft is not uniform, passes
 // the plan grammar, is labelled PROPOSED, and nothing is written.
 func TestProposeCitationsDCWV0150DraftsPerHunkPlan(t *testing.T) {
@@ -89,6 +89,8 @@ func TestProposeCitationsDCWV0150DraftsPerHunkPlan(t *testing.T) {
 	writeTree(t, root, map[string]string{
 		"docs/specs/x-v0.md": spec, "internal/x/x.go": code, "AGENTS.md": "# Agents\n\n" + numbered("rule", 8),
 		"docs/decisions/0001-x.md": "# 0001 X\n\n## Decision\n\n" + numbered("decided", 10),
+		// The one file the change leaves untouched: it names two changed paths.
+		"docs/specs/README.md": "# Specs\n\n- docs/specs/x-v0.md is the X contract.\n- internal/x/x.go implements it.\n",
 	})
 	testGit(t, root, "add", ".")
 	testGit(t, root, "commit", "-q", "-m", "base")
@@ -108,8 +110,10 @@ func TestProposeCitationsDCWV0150DraftsPerHunkPlan(t *testing.T) {
 	// row; both are real patch hunks, so the map is not stale (DCW-V0-382).
 	all := diffHunks(t, root, base)
 	hunks, ordinals := []proposeHunk{}, []int{}
+	changed := map[string]bool{}
 	settled := 0
 	for index, hunk := range all {
+		changed[hunk.Path] = true
 		if hunk.Path == "internal/x/x.go" && hunk.OldRange.Start < 20 {
 			all[index].Disposition, all[index].Reason = []string{"supported", "unknown"}[settled], []string{"evidence-backed", "insufficient-evidence"}[settled]
 			settled++
@@ -142,6 +146,7 @@ func TestProposeCitationsDCWV0150DraftsPerHunkPlan(t *testing.T) {
 		t.Fatalf("draft has %d rows for %d owed hunks:\n%s", len(rows), len(hunks), plan)
 	}
 	byPath := map[string]string{}
+	spans := map[string]bool{}
 	for index, row := range rows {
 		fields := strings.Split(row, "\t")
 		if !nonEmptyFields(row, 4) || fields[0] != strconv.Itoa(ordinals[index]) {
@@ -155,40 +160,35 @@ func TestProposeCitationsDCWV0150DraftsPerHunkPlan(t *testing.T) {
 			byPath[hunk.Path] += "unknown;"
 			continue
 		}
+		if changed[fields[1]] {
+			t.Errorf("row %q cites a file the change modifies", row)
+		}
 		start, end, _ := strings.Cut(fields[2], ":")
 		first, _ := strconv.Atoi(start)
 		last, _ := strconv.Atoi(end)
-		if fields[1] != hunk.Path || first != last {
-			t.Fatalf("row %q does not cite one line of its own hunk's file %s", row, hunk.Path)
+		baseLines := splitRecords([]byte(testGit(t, root, "show", base+":"+fields[1]) + "\n"))
+		if first != last || first < 1 || first > len(baseLines) {
+			t.Fatalf("row %q does not cite one BASE line (%d lines)", row, len(baseLines))
 		}
-		baseLines := splitRecords([]byte(testGit(t, root, "show", base+":"+hunk.Path) + "\n"))
-		if first < 1 || first > len(baseLines) {
-			t.Fatalf("row %q does not resolve at BASE (%d lines)", row, len(baseLines))
+		if !strings.Contains(string(baseLines[first-1]), hunk.Path) {
+			t.Errorf("row %q cites %q, which does not name %s", row, baseLines[first-1], hunk.Path)
 		}
-		for _, other := range hunks {
-			if other.Path == hunk.Path && first >= other.OldRange.Start && first < other.OldRange.Start+other.OldRange.Count {
-				t.Errorf("row %q cites a line inside a hunk's old range %+v", row, other.OldRange)
-			}
+		if spans[fields[1]+":"+fields[2]] {
+			t.Errorf("row %q repeats a span", row)
 		}
-		after := []byte(testGit(t, root, "show", "HEAD:"+hunk.Path) + "\n")
-		if spanOccurrences(after, baseLines[first-1]) != 1 {
-			t.Errorf("row %q cites %q, which does not occur exactly once after the change", row, baseLines[first-1])
-		}
-		byPath[hunk.Path] += fields[3] + ":" + strings.TrimSpace(string(baseLines[first-1])) + ";"
+		spans[fields[1]+":"+fields[2]] = true
+		byPath[hunk.Path] += fields[1] + ";"
 	}
 	for name, want := range map[string]string{
-		"docs/specs/x-v0.md":       "specification:## Requirements;specification:",
-		"internal/x/x.go":          "dependency:func B() int {;",
+		"docs/specs/x-v0.md":       "docs/specs/README.md;unknown;",
+		"internal/x/x.go":          "docs/specs/README.md;",
 		"AGENTS.md":                "unknown;",
 		"internal/x/new.go":        "unknown;",
-		"docs/decisions/0001-x.md": "decision:## Decision;",
+		"docs/decisions/0001-x.md": "unknown;",
 	} {
-		if !strings.HasPrefix(byPath[name], want) {
-			t.Errorf("%s rows = %q; want prefix %q", name, byPath[name], want)
+		if byPath[name] != want {
+			t.Errorf("%s rows = %q; want %q", name, byPath[name], want)
 		}
-	}
-	if strings.Count(byPath["docs/specs/x-v0.md"], "## Requirements") != 1 {
-		t.Errorf("two hunks of one section share one span: %q", byPath["docs/specs/x-v0.md"])
 	}
 	mapHunkRows := []map[string]string{}
 	for range all {
@@ -207,16 +207,15 @@ func TestProposeCitationsDCWV0150DraftsPerHunkPlan(t *testing.T) {
 func TestProposeCitationsDCWV0150NeverDraftsUniformPlan(t *testing.T) {
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
-	// Only the heading is unique: every other line repeats, so both hunks
-	// can only cite it.
+	// One untouched line names the changed file, so only one hunk can cite it.
 	file := "# Only\n" + strings.Repeat("same\n", 20)
-	writeTree(t, root, map[string]string{"a.md": file})
+	writeTree(t, root, map[string]string{"docs/alpha.md": file, "index.md": "See docs/alpha.md.\n"})
 	testGit(t, root, "add", ".")
 	testGit(t, root, "commit", "-q", "-m", "base")
 	base := testGit(t, root, "rev-parse", "HEAD")
 	lines := strings.SplitAfter(file, "\n")
 	lines[9], lines[18] = "changed one\n", "changed two\n"
-	writeTree(t, root, map[string]string{"a.md": strings.Join(lines, "")})
+	writeTree(t, root, map[string]string{"docs/alpha.md": strings.Join(lines, "")})
 	testGit(t, root, "commit", "-q", "-am", "change")
 	hunks := diffHunks(t, root, base)
 	if len(hunks) != 2 {
@@ -228,9 +227,9 @@ func TestProposeCitationsDCWV0150NeverDraftsUniformPlan(t *testing.T) {
 	if code, err := ProposeCitations(context.Background(), ProposeOptions{Root: root, Base: base}, &stdout, &stderr); code != 0 || err != nil {
 		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
 	}
-	want := "1\ta.md\t1:1\tspecification\n2\tunknown\tinsufficient-evidence\tproposed: no second stable span was found near this hunk\n"
-	if stdout.String() != want {
-		t.Errorf("draft = %q; want %q", stdout.String(), want)
+	rows := textLines(stdout.Bytes())
+	if len(rows) != 2 || !strings.HasPrefix(rows[0], "1\tindex.md\t1:1\t") || !strings.HasPrefix(rows[1], "2\tunknown\tinsufficient-evidence\tproposed: ") {
+		t.Errorf("draft = %q; want one cite of index.md:1 and one unknown row", stdout.String())
 	}
 }
 
@@ -300,10 +299,10 @@ func TestProposeCitationsDCWV0350DraftsHunkIDTemplateWithoutMap(t *testing.T) {
 	}
 }
 
-// DCW-V0-150: an unreadable map or a map prepared against another BASE
-// refuses with a fix line and prints no draft; a missing map drafts the
-// DCW-V0-350 template instead.
-func TestProposeCitationsDCWV0150RefusesWithoutMatchingMap(t *testing.T) {
+// DCW-V0-394 (V1-3204): a missing map, an unreadable map and a map prepared
+// against another BASE all draft the DCW-V0-350 template from the canonical
+// patch, keyed by hunk ID, so committing before the first dogfood change works.
+func TestProposeCitationsDCWV0394DraftsWithoutUsableMap(t *testing.T) {
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
 	writeTree(t, root, map[string]string{"a.txt": "a\n"})
@@ -321,12 +320,90 @@ func TestProposeCitationsDCWV0150RefusesWithoutMatchingMap(t *testing.T) {
 	if code, out, errText := run(); code != 0 || out != "" || !strings.Contains(errText, "PROPOSED rows=0 hunks=0 base="+base+" map=NOT_PREPARED keyed=hunk-id") {
 		t.Errorf("missing map, empty change: code=%d stdout=%q stderr=%q", code, out, errText)
 	}
-	writeTree(t, root, map[string]string{".corvint/change.cem.json": "not json"})
-	if code, out, errText := run(); code != 2 || out != "" || !strings.Contains(errText, "REFUSE map-unavailable") || !strings.Contains(errText, "fix: run corvint dogfood change "+base) {
-		t.Errorf("unreadable map: code=%d stdout=%q stderr=%q", code, out, errText)
+	// Commit first, then propose: the committed hunk is drafted by its ID.
+	writeTree(t, root, map[string]string{"a.txt": "a changed\n"})
+	testGit(t, root, "commit", "-q", "-am", "change")
+	hunkRow := regexp.MustCompile(`^hunk:sha256:[0-9a-f]{64}\tunknown\tinsufficient-evidence\tproposed: \S`)
+	for _, state := range []struct{ name, document, note string }{
+		{"UNREADABLE", "not json", "NOTE map-unreadable"},
+		{"OTHER_BASE", `{"baseRevision": "` + strings.Repeat("0", 40) + `", "hunks": []}`, "NOTE map-base-mismatch"},
+	} {
+		writeTree(t, root, map[string]string{".corvint/change.cem.json": state.document})
+		code, out, errText := run()
+		rows := textLines([]byte(out))
+		if code != 0 || len(rows) != 1 || !hunkRow.MatchString(rows[0]) || !strings.Contains(errText, state.note) ||
+			!strings.Contains(errText, "PROPOSED rows=1 hunks=1 base="+base+" map="+state.name+" keyed=hunk-id") || strings.Contains(errText, "REFUSE") {
+			t.Errorf("%s map: code=%d stdout=%q stderr=%q", state.name, code, out, errText)
+		}
 	}
-	writeTree(t, root, map[string]string{".corvint/change.cem.json": `{"baseRevision": "` + strings.Repeat("0", 40) + `", "hunks": []}`})
-	if code, out, errText := run(); code != 2 || out != "" || !strings.Contains(errText, "REFUSE map-base-mismatch") {
-		t.Errorf("other base: code=%d stdout=%q stderr=%q", code, out, errText)
+}
+
+// DCW-V0-393 (V1-3144): a draft never cites a file the change adds or
+// modifies, even a specification or test that names the hunk's path; with no
+// untouched anchor every hunk gets an unknown row, and an added file's row
+// names the runner receipt that carries it to the verdict gate (DCW-V0-395).
+func TestProposeCitationsDCWV0393NeverCitesChangedPaths(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	spec := "# P v0\n\n## Requirements\n\n- internal/p/p.go answers.\n" + numbered("requirement", 10)
+	writeTree(t, root, map[string]string{"docs/specs/p-v0.md": spec, "internal/p/p.go": "package p\n\nfunc P() int { return 1 }\n"})
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	writeTree(t, root, map[string]string{
+		"docs/specs/p-v0.md":   spec + "- internal/p/p_test.go proves internal/p/p.go.\n",
+		"internal/p/p.go":      "package p\n\nfunc P() int { return 2 }\n",
+		"internal/p/p_test.go": "package p\n\n// Tests internal/p/p.go.\n",
+	})
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "change")
+	var stdout, stderr bytes.Buffer
+	if code, err := ProposeCitations(context.Background(), ProposeOptions{Root: root, Base: base}, &stdout, &stderr); code != 0 || err != nil {
+		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
+	}
+	rows := textLines(stdout.Bytes())
+	if len(rows) != 3 {
+		t.Fatalf("draft has %d rows; want 3:\n%s", len(rows), stdout.String())
+	}
+	for _, row := range rows {
+		fields := strings.Split(row, "\t")
+		if !unknownRow(fields) || !reasonedUnknownRow(fields) {
+			t.Errorf("row %q cites a changed file; want an unknown row", row)
+		}
+	}
+	if !strings.Contains(stdout.String(), "internal/p/p_test.go is absent at BASE") || !strings.Contains(stdout.String(), "runner receipt") {
+		t.Errorf("the added file's row does not name the runner receipt:\n%s", stdout.String())
+	}
+}
+
+// DCW-V0-393: the changed-path inventory comes from git's name list, so a
+// mode-only change to a file the patch parser rejects still keeps that file
+// out of the draft.
+func TestProposeCitationsDCWV0393ModeOnlyChangeIsChanged(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	testGit(t, root, "config", "core.fileMode", "true")
+	writeTree(t, root, map[string]string{
+		"docs/specs/p-v0.md": "# P v0\n\n- internal/p/p.go answers.\n",
+		"internal/p/p.go":    "package p\n\nfunc P() int { return 1 }\n",
+	})
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	writeTree(t, root, map[string]string{"internal/p/p.go": "package p\n\nfunc P() int { return 2 }\n"})
+	testGit(t, root, "commit", "-q", "-am", "change")
+	document, err := json.Marshal(map[string]any{"baseRevision": base, "hunks": diffHunks(t, root, base)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeTree(t, root, map[string]string{".corvint/change.cem.json": string(document)})
+	testGit(t, root, "update-index", "--chmod=+x", "docs/specs/p-v0.md")
+	testGit(t, root, "commit", "-q", "-m", "mode-only contract change")
+	var stdout, stderr bytes.Buffer
+	if code, err := ProposeCitations(context.Background(), ProposeOptions{Root: root, Base: base}, &stdout, &stderr); code != 0 || err != nil {
+		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
+	}
+	if strings.Contains(stdout.String(), "\tdocs/specs/p-v0.md\t") {
+		t.Errorf("draft cites a file the change made executable:\n%s", stdout.String())
 	}
 }

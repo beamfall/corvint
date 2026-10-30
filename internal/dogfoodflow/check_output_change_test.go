@@ -250,7 +250,9 @@ func TestCheckDCWV0160ComputesOCMStatusOnce(t *testing.T) {
 		var stdout, stderr bytes.Buffer
 		c := newCheck(context.Background(), "dogfood-check", CheckOptions{Root: root, BaseVerifier: baseVerifier, TreeVerifier: tree, Override: &override}, &stdout, &stderr)
 		c.base, c.target, c.outputChange = strings.Repeat("a", 40), strings.Repeat("b", 40), declared
-		c.report, c.evidence = reportPath, t.TempDir()
+		// The report is staged in the Git directory; an unset one staged it in the package
+		// directory and left an untracked file in the source tree.
+		c.report, c.evidence, c.gitDir = reportPath, t.TempDir(), root
 		var line []byte
 		code, err := boundary(c.ctx, func() int {
 			c.resolveVerifiers()

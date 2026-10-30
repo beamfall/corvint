@@ -46,6 +46,9 @@ type proposal struct {
 	// draft taken from the canonical patch before any map exists has no map
 	// order to number against (DCW-V0-350).
 	keyByID bool
+	// changed holds every path BASE..HEAD adds, modifies or deletes; a draft
+	// never cites one (DCW-V0-393).
+	changed map[string]bool
 }
 
 // spanLine is one line of a BASE file.
@@ -65,8 +68,10 @@ type proposedHunk struct {
 }
 
 // ProposeCitations prints, on stdout, a draft citation plan with one row per
-// hunk of .corvint/change.cem.json that still owes a row: a stable BASE span
-// next to the hunk, or an unknown row where none is found. It is read-only:
+// hunk of .corvint/change.cem.json that still owes a row, or of the canonical
+// BASE..HEAD patch when no usable map is prepared (DCW-V0-350, DCW-V0-394): a
+// stable BASE span of a file the change leaves untouched that anchors the hunk,
+// or an unknown row where none is found (DCW-V0-393). It is read-only:
 // it writes no plan, map or evidence, and the draft is accepted only when the
 // lane reviews it and writes it to its DOGFOOD_CITATIONS file (DCW-V0-150).
 func ProposeCitations(ctx context.Context, options ProposeOptions, stdout, stderr io.Writer) (int, error) {
@@ -89,19 +94,18 @@ func (p *proposal) run() int {
 	if _, err := os.Lstat(mapPath); errors.Is(err, fs.ErrNotExist) {
 		return p.template("NOT_PREPARED")
 	}
+	// A map this draft cannot use is not refused: the canonical patch drafts
+	// the plan without it, so a lane that commits before its first prepare
+	// needs no extra dogfood change (DCW-V0-394).
 	data, err := readPrefix(mapPath, maxPlanBytes)
-	if err != nil {
-		p.say("%s: REFUSE map-unavailable\n  fix: run corvint dogfood change %s first to prepare .corvint/change.cem.json\n", p.prefix, p.options.Base)
-		p.exit(2)
-	}
 	baseRevision, hunks, ok := preparedHunks(data)
-	if !ok {
-		p.say("%s: REFUSE map-unavailable\n  fix: run corvint dogfood change %s first to prepare .corvint/change.cem.json\n", p.prefix, p.options.Base)
-		p.exit(2)
+	if err != nil || !ok {
+		p.say("%s: NOTE map-unreadable\n  .corvint/change.cem.json is not a readable map, so the draft is keyed by the current patch's hunk IDs; the bind does not replace an unreadable map, so remove it (or git restore a committed one) before dogfood change BASE (DCW-V0-394)\n", p.prefix)
+		return p.template("UNREADABLE")
 	}
 	if baseRevision != p.base {
-		p.say("%s: REFUSE map-base-mismatch\n  map baseRevision=%s BASE=%s\n  fix: pass the BASE the map was prepared against, or rerun corvint dogfood change BASE\n", p.prefix, baseRevision, p.base)
-		p.exit(2)
+		p.say("%s: NOTE map-base-mismatch\n  map baseRevision=%s BASE=%s, so the draft is keyed by the current patch's hunk IDs against BASE; dogfood change BASE prepares a fresh map when it binds (DCW-V0-394)\n", p.prefix, baseRevision, p.base)
+		return p.template("OTHER_BASE")
 	}
 	if p.mapStale(hunks) {
 		p.say("%s: NOTE map-stale\n  .corvint/change.cem.json no longer matches the canonical BASE..HEAD patch (a commit followed its prepare), so its ordinals would name other hunks and its ranges miss new edits; drafting hunk-ID rows from the current patch instead (DCW-V0-382)\n", p.prefix)
@@ -196,7 +200,7 @@ func (p *proposal) template(mapState string) int {
 	p.keyByID = true
 	rows, notes := p.draft(hunks)
 	p.say("%s: PROPOSED rows=%d hunks=%d base=%s map=%s keyed=hunk-id\n", p.prefix, len(rows), len(hunks), p.base, mapState)
-	p.say("  no map is prepared, so the hunks come from the canonical BASE..HEAD patch and each row is keyed by its full hunk ID, valid in any map order; no probe bind pass is needed, and the bind's plan precheck still judges every row (DCW-V0-350)\n")
+	p.say("  no usable map is prepared, so the hunks come from the canonical BASE..HEAD patch and each row is keyed by its full hunk ID, valid in any map order; no probe bind pass is needed, and the bind's plan precheck still judges every row (DCW-V0-350)\n")
 	p.say("  this draft is not a plan: review every row, replace each with the evidence the hunk really depends on or implements, then write it to the DOGFOOD_CITATIONS file; nothing is cited until dogfood change runs with that file (DCW-V0-150)\n")
 	p.printDraft(hunks, rows, notes)
 	return 0
@@ -243,12 +247,27 @@ func editedRanges(hunks []proposedHunk) map[string][][2]int {
 func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 	edited := editedRanges(hunks)
 	owed := []proposedHunk{}
+	p.changed = map[string]bool{}
 	for _, hunk := range hunks {
+		p.changed[hunk.path] = true
 		if hunk.disposition == "unknown" && !recordedUnknownReasons[hunk.reason] {
 			owed = append(owed, hunk)
 		}
 	}
+	// The inventory is git's name list, not the parsed patch, so a mode-only
+	// change still counts; without it no file is provably untouched, so the
+	// draft cites nothing (DCW-V0-393).
+	names, status, bounded := p.boundedGit("diff", "--name-only", "-z", "--no-renames", "--end-of-options", p.base, p.target, "--")
+	for _, name := range strings.Split(names, "\x00") {
+		if name != "" {
+			p.changed[name] = true
+		}
+	}
 	p.prepareAnchors(owed)
+	if status != 0 || !bounded {
+		p.matches = map[string][]spanLine{}
+		p.changed[sealContract] = true
+	}
 	used := map[string]bool{}
 	rows, notes := []string{}, []string{}
 	cited := 0
@@ -298,43 +317,16 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 	if row, cite := p.anchoredProposal(hunk, ordinal, edited, used); row != "" {
 		return row, cite, ""
 	}
-	fellBack := "no stable BASE line names " + hunk.path + " or defines a requirement ID the hunk adds"
+	// A draft cites only files the change leaves untouched (LANE-ORCHESTRATION
+	// §3): the hunk's own file is modified, so no nearby line of it is drafted,
+	// and a hunk with no anchor elsewhere is unknown (DCW-V0-393).
+	missing := "no stable BASE line of a file this change leaves untouched names " + hunk.path + " or defines a requirement ID the hunk adds"
 	if _, ok := p.blob(p.base, hunk.path); !ok {
-		return unknownProposal(ordinal, hunk.path+" is absent at BASE and "+fellBack+"; name the BASE contract this new file implements"), "", ""
+		// An added file has no BASE line of its own; it reaches the verdict
+		// gate through a cite row plus a passed runner receipt (DCW-V0-395).
+		return unknownProposal(ordinal, hunk.path+" is absent at BASE and "+missing+"; name the BASE contract this new file implements, and bind a passed runner receipt for it (CEM-V1-606)"), "", ""
 	}
-	lines := p.baseLines(hunk.path)
-	if len(lines) == 0 {
-		return unknownProposal(ordinal, hunk.path+" is empty at BASE"), "", ""
-	}
-	anchor := min(max(hunk.oldStart, 1), len(lines))
-	relation, preferred := proposalRelation(hunk.path)
-	candidates := []int{}
-	for line := anchor; line >= 1; line-- {
-		if preferred(string(lines[line-1])) {
-			candidates = append(candidates, line)
-		}
-	}
-	for distance := 1; distance <= len(lines); distance++ {
-		candidates = append(candidates, anchor-distance, anchor+hunk.oldCount+distance-1)
-	}
-	// A span another row already cites is never reused: identical rows give
-	// a reviewer nothing to tell the hunks apart (DCW-V0-382).
-	taken := false
-	for _, line := range candidates {
-		cite := fmt.Sprintf("%s:%d:%d", hunk.path, line, line)
-		if !p.stable(hunk.path, line, edited) {
-			continue
-		}
-		if used[cite] {
-			taken = true
-			continue
-		}
-		return fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, hunk.path, line, line, relation), cite, fellBack
-	}
-	if taken {
-		return unknownProposal(ordinal, "no second stable span was found near this hunk"), "", ""
-	}
-	return unknownProposal(ordinal, "no BASE line of "+hunk.path+" both outside every hunk and unique after the change"), "", ""
+	return unknownProposal(ordinal, missing+"; the change modifies "+hunk.path+", so its own lines are not proposed; name the BASE contract the hunk depends on or implements"), "", ""
 }
 
 // sealContract is the BASE document whose lines define the sealed CEM path
@@ -348,13 +340,13 @@ const sealContract = "docs/DOGFOOD.md"
 // seal gets a distinct span. It returns "" for any other hunk, a sealed file
 // already present at BASE, or when no such line is stable.
 func (p *proposal) sealedProposal(hunk proposedHunk, ordinal string, edited map[string][][2]int, used map[string]bool) (string, string, string) {
-	if !sealedCEMPath.MatchString(hunk.path) {
+	if !sealedCEMPath.MatchString(hunk.path) || p.changed[sealContract] {
 		return "", "", ""
 	}
 	if _, atBase := p.blob(p.base, hunk.path); atBase {
 		return "", "", ""
 	}
-	relation, _ := proposalRelation(sealContract)
+	relation := proposalRelation(sealContract)
 	for index, text := range p.baseLines(sealContract) {
 		line := index + 1
 		cite := fmt.Sprintf("%s:%d:%d", sealContract, line, line)
@@ -397,7 +389,7 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 		if index >= definitions && !p.basenames && !namesWholePath(text, anchorPath(derived)) {
 			continue
 		}
-		relation, _ := proposalRelation(candidate.path)
+		relation := proposalRelation(candidate.path)
 		return fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, candidate.path, candidate.line, candidate.line, relation), cite
 	}
 	return "", ""
@@ -417,6 +409,9 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 			for _, hunk := range parsed.Hunks {
 				p.derived[hunk.ID] = hunk
 				p.derived[rangeKey(hunk.DisplayPath, hunk.OldRange.Start, hunk.OldRange.Count)] = hunk
+				if p.changed != nil {
+					p.changed[hunk.DisplayPath], p.changed[anchorPath(hunk)] = true, true
+				}
 			}
 		}
 	}
@@ -465,7 +460,7 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 		name, rest, named := strings.Cut(strings.TrimPrefix(record, p.base+":"), "\x00")
 		number, text, numbered := strings.Cut(rest, "\x00")
 		line, err := strconv.Atoi(number)
-		if !named || !numbered || err != nil || line < 1 || workflow.GoverningInstructionPath(name) || strings.HasPrefix(name, ".corvint/") || bookkeepingPath(name) || !p.basenames && dataPath(name) {
+		if !named || !numbered || err != nil || line < 1 || workflow.GoverningInstructionPath(name) || strings.HasPrefix(name, ".corvint/") || bookkeepingPath(name) || !p.basenames && (dataPath(name) || p.changed[name]) {
 			continue
 		}
 		for _, pattern := range sorted {
@@ -474,21 +469,11 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 			}
 		}
 	}
-	// For a draft, files the change leaves untouched first; then
-	// specifications, then other documents; git grep's path order within
-	// each (DCW-V0-381).
-	changed := map[string]bool{}
-	for _, hunk := range p.derived {
-		changed[anchorPath(hunk)] = true
-	}
-	rank := func(name string) int {
-		if !p.basenames && changed[name] {
-			return 3 + documentRank(name)
-		}
-		return documentRank(name)
-	}
+	// Specifications first, then other documents; git grep's path order
+	// within each (DCW-V0-381). A draft has already dropped every path the
+	// change touches (DCW-V0-393).
 	for _, found := range p.matches {
-		sort.SliceStable(found, func(i, j int) bool { return rank(found[i].path) < rank(found[j].path) })
+		sort.SliceStable(found, func(i, j int) bool { return documentRank(found[i].path) < documentRank(found[j].path) })
 	}
 	return complete
 }
@@ -629,30 +614,18 @@ func (p *proposal) baseLines(name string) [][]byte {
 	return p.lines[name]
 }
 
-// proposalRelation names the relation a draft row uses for path and the lines
-// preferred as its anchor: the enclosing heading of a document, the enclosing
-// declaration of source code.
-func proposalRelation(name string) (string, func(string) bool) {
-	heading := func(line string) bool { return strings.HasPrefix(line, "#") }
+// proposalRelation names the relation a draft row uses for path.
+func proposalRelation(name string) string {
 	switch {
 	case strings.HasPrefix(name, "docs/decisions/") || strings.HasPrefix(name, "docs/build-log/"):
-		return "decision", heading
+		return "decision"
 	case strings.EqualFold(path.Ext(name), ".md"):
-		return "specification", heading
+		return "specification"
 	case strings.HasSuffix(name, "_test.go") || strings.HasSuffix(name, "_test.sh"):
-		return "test-claim", declaration
+		return "test-claim"
 	default:
-		return "dependency", declaration
+		return "dependency"
 	}
-}
-
-func declaration(line string) bool {
-	for _, prefix := range []string{"func ", "type ", "var ", "const ", "def ", "class "} {
-		if strings.HasPrefix(line, prefix) {
-			return true
-		}
-	}
-	return strings.HasSuffix(strings.TrimRight(line, "\n"), "() {")
 }
 
 func unknownProposal(ordinal, note string) string {

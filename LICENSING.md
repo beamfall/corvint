@@ -28,8 +28,11 @@ holding those copies, and a recipient may keep using such a copy under its origi
   `benchmarks/untouched-repository-v1/harness.py` (preregistered harness digests),
   `internal/postmergehost/testdata/paired-author/author/main.go` (fixture digest) and
   `tools/cw-trial/testdata/beamfall-roadmap-v1/build_roadmap_set.py` (task-set provenance digest).
+  The frozen corpus notice fixtures under
+  `internal/cem/corpusbinding/testdata/public-root-history/notices/` quote the former policy text and
+  are byte-pinned by the corpus binding tests.
   Like every other Corvint file, they are licensed under Apache-2.0; `make license-headers-check`
-  admits that historical line in exactly these paths.
+  admits that historical line in exactly these paths and that directory.
 - Historical records, such as build-log entries, accepted decisions, task-store tickets, sealed
   change evidence and recorded results, quote the former terms as evidence and are not notices.
 

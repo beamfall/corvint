@@ -439,6 +439,22 @@ type CiteOptions struct {
 	Lines        string // START:END one-based inclusive line span
 	Relation     string
 	Output       string // optional root-relative output; empty rewrites in place
+	// Replace drops the hunk's earlier citations before attaching this one,
+	// only while ExpectedHunkDigest is the hunk's current wire.HunkDigest
+	// (CEM-V1-694, CEM-V1-695).
+	Replace            bool
+	ExpectedHunkDigest string
+}
+
+// requireHunkDigest refuses a guarded replacement whose expected-old digest
+// is not the hunk's current one, before anything is written (CEM-V1-694).
+func requireHunkDigest(document *wire.Map, index int, expected string) error {
+	if current := wire.DocumentHunkDigest(document, index); expected != current {
+		return cemcode.New(cemcode.HunkDigestMismatch,
+			"hunk %s has changed since its expected digest was read: expected %s, current %s; nothing was written, so reread the map and retry with the current digest",
+			document.Hunks[index].ID, expected, current)
+	}
+	return nil
 }
 
 // Cite compiles the requested span into the normative byte span and records
@@ -491,6 +507,14 @@ func (s *Session) Cite(ctx context.Context, options CiteOptions) (map[string]any
 	if err := s.requireCiteSpanStable(ctx, document, options.EvidencePath, entry.OID, blob, span); err != nil {
 		return nil, err
 	}
+	if options.Replace {
+		if err := requireHunkDigest(document, index, options.ExpectedHunkDigest); err != nil {
+			return nil, err
+		}
+		// Every check that can refuse this row has passed; only the publish
+		// below can still fail, and it leaves the input map intact.
+		document.Hunks[index].Basis = nil
+	}
 	spanDigest := sha256.Sum256(blob[span.Start:span.End])
 	record := wire.Evidence{
 		BlobOid: entry.OID, Path: options.EvidencePath, Span: span,
@@ -499,6 +523,9 @@ func (s *Session) Cite(ctx context.Context, options CiteOptions) (map[string]any
 	record.ID = wire.EvidenceIdentity(record.BlobOid, record.Path, record.Span, record.SpanSha256)
 	if err := attachEvidence(document, index, record, options.Relation); err != nil {
 		return nil, err
+	}
+	if options.Replace {
+		pruneEvidence(document)
 	}
 	output, err := s.writeMap(document, options.MapPath, options.Output)
 	if err != nil {
@@ -935,6 +962,9 @@ type MarkOptions struct {
 	Disposition string
 	Reason      string
 	Output      string
+	// ExpectedHunkDigest, when set, refuses the mark unless it is the hunk's
+	// current wire.HunkDigest (CEM-V1-695).
+	ExpectedHunkDigest string
 }
 
 // Mark records an explicit unknown or mechanical disposition and prunes
@@ -955,6 +985,11 @@ func (s *Session) Mark(ctx context.Context, options MarkOptions) (map[string]any
 		(options.Disposition == "mechanical" && wire.MechanicalReason(options.Reason))
 	if !valid {
 		return nil, invalidArguments("mark accepts unknown or mechanical dispositions with their registered reasons")
+	}
+	if options.ExpectedHunkDigest != "" {
+		if err := requireHunkDigest(document, index, options.ExpectedHunkDigest); err != nil {
+			return nil, err
+		}
 	}
 	hunk := &document.Hunks[index]
 	hunk.Disposition, hunk.Reason, hunk.Basis = options.Disposition, options.Reason, nil

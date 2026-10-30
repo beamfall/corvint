@@ -2284,9 +2284,9 @@ there, which is the whole of what the row asserts.
 | `malformed-corvint-output` | `cmd/corvint/host_adapter.go:686@2c724e09` | Claude adapter: the `harness event` stdout is not JSON; the degraded `systemMessage` names this reason |
 | `project-root-unavailable` | `cmd/corvint/host_adapter.go:337@2100b4c9` | Claude adapter: the project root (`CLAUDE_PROJECT_DIR`, else the working directory) cannot be made absolute; the degraded `systemMessage` names this reason |
 | `qualification-in-progress` | `internal/opencodequalification/record.go:433` | AHI-032: the producer atomically writes the active record as `INCOMPLETE` after preserving any previous record; integration support stays `UNQUALIFIED` until complete passing evidence replaces it |
-| `repository-identity-malformed` | `internal/gokernel/repository.go:178` | "Git object identity is malformed" |
+| `repository-identity-malformed` | `internal/gokernel/repository.go:179@3a35602c` | "Git object identity is malformed" |
 | `repository-probe-cancelled` | `internal/gokernel/repository.go:167` | "Git repository probe was cancelled" |
-| `repository-probe-timeout` | `internal/gokernel/repository.go:165` | "Git repository probe exceeded its 10-second deadline" |
+| `repository-probe-timeout` | `internal/gokernel/repository.go:166@cac16f24` | "Git repository probe exceeded its 10-second deadline" |
 | `repository-probe-too-large` | `internal/gokernel/repository.go:150` | "Git output exceeds its byte limit" |
 | `repository-profile-malformed` | `internal/gokernel/repository.go:270` | "Git profile path is not valid UTF-8" |
 | `repository-status-malformed` | `internal/gokernel/repository.go:215` | "Git status output is malformed" |

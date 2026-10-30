@@ -400,6 +400,40 @@ out=$(HEAVY_REMOTE_HOST=box hv go test ./... 2> "$off/err")
 [[ $out == 'where=local'* ]] && grep -q 'is not a clone of' "$off/err" || fail "heavy.sh offloaded to a clone of another origin: $out"
 g -C "$off/rhome/corvint" remote set-url origin "$off/origin.git"
 [[ $(tr '\n' ' ' < "$off/ssh.log") == 'flaky flaky box box ' ]] || fail "heavy.sh ssh calls: $(cat "$off/ssh.log")"
+# ASD-V0-056 (V1-3202): a plain clone of a local checkout offloads as that checkout's origin, at
+# that checkout's origin/main base, rather than at the local main it cloned (here an unpushed
+# commit the remote cannot have); a checkout that cannot offload names why before its local run.
+g clone -q "$off/lc" "$off/plain" 2> /dev/null || fail "plain clone failed"
+mkdir -p "$off/plain/sub" && printf 'plain\n' > "$off/plain/sub/untracked.txt"
+hvp() { (cd "$off/plain/${1:-sub}" && shift && env PATH="$off/bin:$PATH" TMPDIR="$off/ltmp" HEAVY_REMOTE_SSH="$off/bin/ssh" \
+  HEAVY_REMOTE_SHELL='bash -s' HEAVY_SLOTS=1 HEAVY_REMOTE_RETRY=0 HEAVY_FALLBACK_LOG="$off/fallback.log" "$heavy" "$@"); }
+out=$(HEAVY_REMOTE_HOST=box hvp sub go test -run X ./... 2> "$off/err")
+[[ $out == 'where=remote dir=sub'* ]] && ! grep -q 'offload unavailable' "$off/err" ||
+  fail "heavy.sh did not offload from a plain clone of a local checkout: $out $(cat "$off/err")"
+# A source checkout without origin/main names its recovery rather than bundling over its own main.
+g -C "$off/lc" update-ref -d refs/remotes/origin/main
+out=$(HEAVY_REMOTE_HOST=box hvp sub go test -run X ./... 2> "$off/err")
+[[ $out == 'where=local'* ]] && grep -qx "heavy.sh: offload unavailable from this checkout: the source checkout $off/lc has no origin/main; run git -C $off/lc fetch origin" "$off/err" ||
+  fail "a source without origin/main did not name its recovery: $out $(cat "$off/err")"
+g -C "$off/lc" fetch -q origin || fail "fixture refetch failed"
+g -C "$off/plain" checkout -q --orphan unrelated && g -C "$off/plain" commit -qm unrelated || fail "orphan commit failed"
+out=$(HEAVY_REMOTE_HOST=box hvp sub go test -run X ./... 2> "$off/err")
+[[ $out == 'where=local'* ]] && grep -q '^heavy.sh: offload unavailable from this checkout: HEAD shares no history with [0-9a-f]\{40\} (a pre-snapshot lineage?); base the branch on origin/main$' "$off/err" &&
+  grep -q '^heavy.sh: offload to box unavailable; running locally (logged)$' "$off/err" ||
+  fail "an unrelated lineage did not name why it ran locally: $out $(cat "$off/err")"
+g -C "$off/plain" remote remove origin
+out=$(HEAVY_REMOTE_HOST=box hvp sub go test -run X ./... 2> "$off/err")
+[[ $out == 'where=local'* ]] && grep -qx 'heavy.sh: offload unavailable from this checkout: no origin remote' "$off/err" ||
+  fail "a clone without origin did not name why it ran locally: $out $(cat "$off/err")"
+mkdir -p "$off/nogit"
+out=$(cd "$off/nogit" && env PATH="$off/bin:$PATH" TMPDIR="$off/ltmp" GIT_CEILING_DIRECTORIES="$off" HEAVY_REMOTE_SSH="$off/bin/ssh" HEAVY_SLOTS=1 \
+  HEAVY_REMOTE_RETRY=0 HEAVY_FALLBACK_LOG="$off/fallback.log" HEAVY_REMOTE_HOST=box "$heavy" go test -run X ./... 2> "$off/err")
+[[ $out == 'where=local'* ]] && grep -qx 'heavy.sh: offload unavailable from this checkout: not a Git checkout' "$off/err" ||
+  fail "a directory outside Git did not name why it ran locally: $out $(cat "$off/err")"
+# HEAVY_LOCAL_REASON rules are unchanged from a plain clone: HEAVY_REMOTE=0 still needs a reason.
+HEAVY_REMOTE_HOST=box HEAVY_REMOTE=0 hvp sub go test -run X ./... > /dev/null 2> "$off/err"
+[[ $? == 2 ]] || fail "HEAVY_REMOTE=0 without HEAVY_LOCAL_REASON ran from a plain clone: $(cat "$off/err")"
+/bin/rm -rf "$off/plain" "$off/nogit"
 # ASD-V0-038 (V1-2904): a local run uses the Makefile's cache unless the caller set GOCACHE.
 out=$(unset GOCACHE CORVINT_GOCACHE; HEAVY_REMOTE_HOST= hv go test ./... 2> /dev/null)$'\n'$(unset GOCACHE
   CORVINT_GOCACHE=/x/c HEAVY_REMOTE_HOST= hv go test ./... 2> /dev/null)$'\n'$(GOCACHE=/y/c HEAVY_REMOTE_HOST= hv go test ./... 2> /dev/null)
@@ -844,6 +878,19 @@ HEAVY_REMOTE=0 pv go vet ./x 2> "$pol/err"
 [[ $? == 2 ]] && grep -q '^heavy.sh: refused: HEAVY_REMOTE=0 without HEAVY_LOCAL_REASON' "$pol/err" &&
   grep -Eq "^$d pwd=$pol reason=refused-local cmd=go vet \./x\$" "$pol/fb.log" ||
   fail "heavy.sh ran HEAVY_REMOTE=0 go vet without HEAVY_LOCAL_REASON"
+# ASD-V0-060 (V1-3213): the documented lane test recipe (docs/LANE-ORCHESTRATION.md section 2) is
+# `set -o pipefail; script/heavy.sh ... 2>&1 | tail -n N && git commit ...`. A refusing heavy.sh piped
+# through tail must fail the step under it, the unprotected form passes (the hazard), and the
+# one-line REFUSED marker reaches stdout so the tail shows it even without 2>&1.
+rm -f "$pol/committed"
+(set -o pipefail; HEAVY_REMOTE=0 pv go vet ./x 2>&1 | tail -n 5 > "$pol/tail.out" && : > "$pol/committed")
+rc=$?
+[[ $rc != 0 && ! -e $pol/committed ]] && grep -q '^heavy.sh: REFUSED local-reason-missing' "$pol/tail.out" ||
+  fail "pipefail recipe did not fail on a refusing heavy.sh (rc=$rc): $(cat "$pol/tail.out")"
+(set +o pipefail; HEAVY_REMOTE=0 pv go vet ./x 2> /dev/null | tail -n 5 > "$pol/tail.out" && : > "$pol/committed")
+[[ $? == 0 && -e $pol/committed ]] && grep -q '^heavy.sh: REFUSED local-reason-missing' "$pol/tail.out" ||
+  fail "unprotected pipe did not show the documented hazard or the stdout REFUSED marker"
+rm -f "$pol/committed"
 HEAVY_REMOTE=0 HEAVY_LOCAL_REASON='darwin syscall' pv go vet ./x 2> /dev/null || fail "heavy.sh refused HEAVY_LOCAL_REASON"
 HEAVY_REMOTE=0 pv go build ./x 2> /dev/null || fail "heavy.sh applied HEAVY_LOCAL_REASON to go build"
 s0=$SECONDS

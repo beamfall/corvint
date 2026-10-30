@@ -107,9 +107,22 @@
       ".corvint/work-queue-policy.json"
     ],
     "conformance/go-live-test-v0": [
+      "cmd/corvint-go-test-provider/",
       "go.mod",
       "internal/cem/",
-      "internal/liveverify/"
+      "internal/gitstatus/",
+      "internal/gotestrun/",
+      "internal/groupreap/",
+      "internal/jstestprovider/",
+      "internal/liveverify/",
+      "internal/procgroup/",
+      "internal/runhygiene/",
+      "internal/secretscreen/",
+      "internal/stepnegation/",
+      "internal/taskprojection/",
+      "internal/tcq/",
+      "internal/testevidence/",
+      "internal/testvalidity/"
     ],
     "conformance/host-lifecycle-v1": [
       "cmd/corvint/host_adapter.go",

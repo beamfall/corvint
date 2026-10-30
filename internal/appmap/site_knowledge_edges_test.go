@@ -248,3 +248,32 @@ func TestSKHV0_113_BasePathRouterRelativeLinks(t *testing.T) {
 		}
 	}
 }
+
+// V1-3199, SKH-V0-111: a scheme hidden behind leading whitespace or an embedded tab or newline,
+// and a scheme without an authority (blob:, file:), is not an in-app link.
+func TestSKHV0_111_ObfuscatedSchemesAreNotInApp(t *testing.T) {
+	for _, href := range []string{" javascript:alert(1)", "\x01javascript:alert(1)", "java\tscript:alert(1)", "java\nscript:alert(1)",
+		"blob:https://app.example/1", "file:///etc/passwd", "FILE:/etc/passwd", " mailto:a@b", "/\\evil.example/x", "\\\\evil.example/x"} {
+		if !skExternal(href) {
+			t.Errorf("in-app: %q", href)
+		}
+	}
+	for _, href := range []string{"/orders", "orders/1", "./orders", "/orders?next=javascript:x", "?q=a:b"} {
+		if skExternal(href) {
+			t.Errorf("not in-app: %q", href)
+		}
+	}
+	for _, line := range []string{`<a href=" javascript:alert(1)">x</a>`, "<a href=\"java\tscript:alert(1)\">x</a>",
+		`<a href="blob:https://app.example/1">x</a>`, `<a href="file:///etc/passwd">x</a>`,
+		`<a href="&#x6A;avascript:alert(1)">x</a>`, `<a href="javascript&colon;alert(1)">x</a>`, `<a href="java&#9;script:alert(1)">x</a>`} {
+		if s := templateLinks(line); len(s) != 0 {
+			t.Errorf("template link read in-app: %q %+v", line, s)
+		}
+	}
+	for _, line := range []string{`  redirect_to " javascript:alert(1)"`, "  redirect_to \"java\tscript:alert(1)\"", `  redirect_to "blob:https://app.example/1"`, `  redirect_to "file:///etc/passwd"`} {
+		code := []string{line}
+		if s := rubyLinks(code, code); len(s) != 0 {
+			t.Errorf("ruby link read in-app: %q %+v", line, s)
+		}
+	}
+}

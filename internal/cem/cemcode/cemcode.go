@@ -185,6 +185,10 @@ const (
 	// links, artifacts or provenance (CEM-V1-342, V1-2102). The spec is
 	// supported, so unsupported-spec misnamed it.
 	NotAProducerMap = "not-a-producer-map"
+
+	// HunkDigestMismatch refuses a guarded citation replacement whose
+	// --expected-hunk-digest is not the hunk's current digest (CEM-V1-694).
+	HunkDigestMismatch = "hunk-digest-mismatch"
 )
 
 // Typed bounded-runner codes.
@@ -215,3 +219,28 @@ const (
 	BundleOutputRefused  = "bundle-output-refused"  // RCB-V0-005: output relative, existing, or inside a worktree or Git directory
 	BundleMapUncommitted = "bundle-map-uncommitted" // RCB-V0-004: the target does not commit the map
 )
+
+// registered lists every code constant above. TestRegisteredListsEveryCode
+// compares it with the constants in this file, so a new code fails this
+// package's own tests until it is listed here; packages that admit registered
+// codes read Registered instead of copying them (V1-3215).
+var registered = []string{
+	InvalidJSON, NotAnObject, MissingField, UnknownField, UnsupportedSpec, InvalidField,
+	InvalidExcludedPath, PathTraversal, PatchDigestMismatch, BaseRevisionMismatch,
+	FabricatedEvidenceID, UncitedHunk, UnsupportedWithoutBasis, UnprovenMechanical,
+	OrphanEvidence, EvidenceUnavailable, EvidenceDrift,
+	BinaryPatch, MalformedPatch, ExtraHunkPayload, DiffMetadataMismatch, UnsupportedTreeMode,
+	TooManyLines, BaseMismatch,
+	InvalidArguments, ExpectedBaseRequired, TargetRequired, ExcludedPathNotFile,
+	ExcludedArtifactMismatch, UnsupportedObjectAlternates, RepositoryObjectUnavailable,
+	GitReadFailed, UnknownHunkID, MissingEvidence, InvalidSpan, SpanOutOfRange,
+	InvalidLineRange, LineRangeOutOfRange, CiteSpanNotStable, GitDiffFailed, GitDiffTimeout,
+	CiteSelfModifiedAuthority, NotAProducerMap, HunkDigestMismatch,
+	GitCancelled, GitTimeout, GitOutputExceeded, GitBudgetExceeded, GitStartFailed, GitExitFailure,
+	UnsupportedRepositoryAttributes, MapUnavailable, PatchUnavailable, PublishFailed, MapLocked,
+	MetadataOnlyChangeUnsupported,
+	BundleOutputRefused, BundleMapUncommitted,
+}
+
+// Registered returns every registered code, in declaration order.
+func Registered() []string { return append([]string(nil), registered...) }

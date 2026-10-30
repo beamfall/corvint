@@ -241,6 +241,9 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		emitError(stderr, affectedGitExecutableRefusal())
 		return 2
 	}
+	if freshness := selfBinaryStale(ctx, root); freshness.Code != "" {
+		_, _ = fmt.Fprintf(stderr, "corvint-test: DEGRADED %s: %s\n", freshness.Code, freshness.Detail)
+	}
 	receiptFlag := "--receipt"
 	if options.receipt == "" && !options.dryRun {
 		// The default destination passes the same guard as a supplied one,
