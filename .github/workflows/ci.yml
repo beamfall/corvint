@@ -740,7 +740,8 @@ jobs:
         # from CORVINT_TEST_SHADOW_SOURCE, outside the tested checkout, plans this shard with the
         # ci profile and universe placement and prints its argv; --dry-run runs nothing but Git.
         # The Go tests step below keeps executing the full shard, and its result alone counts.
-        # selection.json is this shard's retained S (corvint-pr-selection/0) for the forward rows.
+        # selection.json is this shard's retained S (corvint-pr-selection/0) for the forward rows,
+        # stamped with this run's own CORVINT_PR_FORWARD_EPOCH, which names its rows (CIN-V0-001).
         if: github.event_name == 'pull_request' && env.CORVINT_TEST_SHADOW_SOURCE != '' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE'
         continue-on-error: true
         timeout-minutes: 5
@@ -775,7 +776,7 @@ jobs:
             --arg toolSource "$CORVINT_TEST_SHADOW_SOURCE" --arg toolDigest "sha256:$(sha256sum "$shadow" | cut -d' ' -f1)" \
             --arg pr "$PR_NUMBER" --arg head "$PR_HEAD" --arg base "$PR_BASE" --arg target "$TESTED_MERGE" \
             --arg tree "$shadow_tree" --arg runId "$GITHUB_RUN_ID" --arg runAttempt "$GITHUB_RUN_ATTEMPT" \
-            --arg shard "$SHARD" --arg shards "$SHARDS" --arg exit "$status" \
+            --arg shard "$SHARD" --arg shards "$SHARDS" --arg exit "$status" --arg forwardEpoch "$CORVINT_PR_FORWARD_EPOCH" \
             -f .github/forward-rows/selection.jq > "$d/selection.json"
           jq -c '{scope, exit, selected: (.selected | length), manifestDigest, incomplete}' "$d/selection.json"
       - name: Retain corvint test shadow plan
