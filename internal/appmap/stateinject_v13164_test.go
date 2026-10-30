@@ -18,6 +18,8 @@ func TestAMAPV0650PlainFunctionSpreadRebuildBlocks(t *testing.T) {
 		"const arrow block":    "export const go = (i) => { return [...i, 0]; };\n" + caller,
 		"function expression":  "export const go = function (i) { return [...i, 0]; };\n" + caller,
 		"later parameter":      "export function go(a, i) { return [a, ...i, 0] }\nconst annotation = go(1, data);\nannotation.pop();\nregister(annotation);\n",
+		"typed return":         "export function go(i: string[]): string[] { return [...i, '0'] }\n" + caller,
+		"typed arrow return":   "export const go = (i: string[]): Array<string> => [...i, '0'];\n" + caller,
 		"nested arrow":         "export function go(i) { const f = () => [...i, 0]; return f() }\n" + caller,
 		"parameter member":     "export function go(t) { return [...t.deps, 0] }\nconst annotation = go(data);\nannotation.pop();\nregister(annotation);\n",
 	} {

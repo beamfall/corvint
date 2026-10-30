@@ -397,7 +397,7 @@ func computedAnnotations(toks []token, exempt bool, quiet map[int]bool) []int {
 // parameterSpread reports whether an element of the array literal opening at toks[i] spreads a name
 // (`...p`, `...p.deps`) that a parameter list enclosing the literal binds (AMAP-V0-650): the list of
 // a function, method or arrow whose body holds the literal, read as every `(...)` before a `{` and
-// every list or single name before an arrow. The literal then copies its caller's elements, so a
+// every list or single name before an arrow, directly or through a return type. The literal then copies its caller's elements, so a
 // caller that pops its plain last element and pushes a function registers a rebuilt annotation, as
 // a method's spread parameter does (AMAP-V0-426). Any other parenthesized list before a `{` (an
 // `if` condition) is read as a parameter list too, which can only keep the literal judged.
@@ -419,18 +419,28 @@ func parameterSpread(toks []token, elems [][2]int, i int) bool {
 		}
 		return false
 	}
+	// list returns the `(` and `)` of a parameter list that ends just before toks[at], directly
+	// or through a return type (`): T[] {`, `): T =>`).
+	list := func(at int) (int, int, bool) {
+		for c := at - 1; c > 0 && at-c <= 64; c-- {
+			if isPunct(toks[c], ")") && (c == at-1 || next(toks, c+1, ":") && typeEnd(toks, c+2) == at) {
+				o := openParen(toks, c)
+				return o, c, o >= 0
+			}
+		}
+		return 0, 0, false
+	}
 	for h := i; h > 0; h = enclosingOpen(toks, h) {
 		switch {
 		case h > 2 && isPunct(toks[h-1], ">") && toks[h-1].glued && isPunct(toks[h-2], "="):
-			if l := h - 3; toks[l].kind == tokIdent && names[toks[l].text] {
+			if l := h - 3; toks[l].kind == tokIdent && names[toks[l].text] && !next(toks, l-1, ":") {
 				return true
-			} else if isPunct(toks[l], ")") {
-				if o := openParen(toks, l); o >= 0 && binds(o, l) {
-					return true
-				}
 			}
-		case isPunct(toks[h], "{") && isPunct(toks[h-1], ")"):
-			if o := openParen(toks, h-1); o >= 0 && binds(o, h-1) {
+			if o, c, ok := list(h - 2); ok && binds(o, c) {
+				return true
+			}
+		case isPunct(toks[h], "{"):
+			if o, c, ok := list(h); ok && binds(o, c) {
 				return true
 			}
 		}
