@@ -16,7 +16,7 @@ The owner calls:
 1. **SRG-V0 stays proposed on `SRG-V0-005`.** `make spec-requirements-check` and
    `make spec-requirements-test` exit 0, and generating from cwd `/` reproduces the committed index.
    `SRG-V0-001`'s index-enumeration defect is repaired. `SRG-V0-005` requires titles of at most 80
-   characters, but `script/gen-spec-requirements.sh:297@ec359190` truncates undecoded bytes. A scratch fixture
+   characters, but `script/gen-spec-requirements.sh:314@ec359190` truncates undecoded bytes. A scratch fixture
    title containing `é` came out at 75 characters, ending in an invalid UTF-8 byte.
 2. **GAG-V0 stays proposed on `GAG-V0-006`.** `make go-archive-gate-test` exits 0, and
    `make go-archive-gate` exits 0 at `3c41cad3` (`targets=5 verdict=PASS`, 5m10s). `GAG-V0-007`'s
