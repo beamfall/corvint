@@ -53,6 +53,9 @@ type affectedReceipt struct {
 	Revision string           `json:"revision"`
 	Tool     string           `json:"tool"`
 	Warning  string           `json:"warning,omitempty"`
+	// Degradations names conditions that make this receipt less trustworthy
+	// than current source would, such as self-binary-stale (AFP-V0-846).
+	Degradations []string `json:"degradations,omitempty"`
 }
 
 // affectedRange records the committed half of the dirty set (AFP-V0-010).
@@ -680,6 +683,9 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 	} else {
 		receipt, err = compileAffected(ctx, invocation)
 	}
+	if err == nil {
+		receipt = degradeStaleAffected(ctx, invocation.Root, receipt, stderr)
+	}
 	if err == nil && !invocation.Full {
 		receipt, err = compactAffectedReceipt(receipt)
 	}
@@ -696,6 +702,22 @@ func runAffected(ctx context.Context, invocation affectedInvocation, stdout, std
 		return 2
 	}
 	return 0
+}
+
+// degradeStaleAffected adds self-binary-stale or self-binary-unverified to an
+// affected-plan/1 receipt and prints it on stderr when this binary is stale
+// for root, or could not be compared with it (AFP-V0-846).
+func degradeStaleAffected(ctx context.Context, root string, receipt any, stderr io.Writer) any {
+	freshness := selfBinaryStale(ctx, root)
+	if freshness.Code == "" {
+		return receipt
+	}
+	_, _ = fmt.Fprintf(stderr, "corvint: DEGRADED %s: %s\n", freshness.Code, freshness.Detail)
+	if full, ok := receipt.(affectedReceipt); ok {
+		full.Degradations = append(full.Degradations, freshness.Code)
+		return full
+	}
+	return receipt
 }
 
 func compilePlaywrightAffected(ctx context.Context, invocation affectedInvocation) (playwrightAffectedReceipt, error) {

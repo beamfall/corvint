@@ -872,6 +872,11 @@ operator may copy into a Go live-test provider bundle. plan.excluded is
 once with its count, and digest is the SHA-256 of the full exclusion list.
 An advisory check with arguments="provider.go.packages" runs its command with
 each of those packages appended, single-quoted.
+degradations, present only when it applies, names self-binary-stale: inside
+its own repository this binary was built from a commit whose Go source differs
+from HEAD, so the plan may not be the one current source gives, or
+self-binary-unverified when that comparison could not complete; stderr repeats
+it with the rebuild command (AFP-V0-846).
 tiers (when anything is selected) ranks every selected unit without changing
 the selection: 0 changed packages, 1 direct importers and same-parent
 siblings below a top-level directory, 2 the rest; summary is "tier0=N tier1=N tier2=N". A lane

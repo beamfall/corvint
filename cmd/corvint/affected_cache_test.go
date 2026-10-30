@@ -243,7 +243,12 @@ func TestAFPV0397RepeatedPathCallOnALargeRubyTreeReusesTheGraph(t *testing.T) {
 	} {
 		affectedGit(t, root, arguments...)
 	}
+	// t.TempDir is 0777 less the umask, group-writable under umask 0002,
+	// and the cache refuses a directory others may write (V1-3217).
 	cache := t.TempDir()
+	if err := os.Chmod(cache, 0o700); err != nil {
+		t.Fatal(err)
+	}
 	started := time.Now()
 	_, cold, stderr, code := runAffectedCLI(t, root, "--path", "app/models/thing5.rb", "--cache", cache)
 	coldElapsed := time.Since(started)
