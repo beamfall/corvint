@@ -549,6 +549,87 @@ func TestLexiconClosingTagAndParentBackslash_AFPV0505(t *testing.T) {
 	}
 }
 
+// AFP-V0-840 (V1-3207): a path literal selects a reader only when it names
+// the changed path or a directory holding it. A bare or prefixed file name
+// (`source.sh`, `foo-source.sh`) is not `core-n1-source.sh`, and the
+// HTML-escaped closing tag `&lt;/script&gt;` is the lone name `script`, not
+// the directory `script/`; the full path and a `../script/` directory prefix
+// still select.
+func TestPathLiteralBoundary_AFPV0840(t *testing.T) {
+	t.Parallel()
+	tokens, err := golang.FilePathTokens("p.go", []byte("package p\n\nvar _ = []string{\"&lt;/script&gt;\", \"&LT;/b&gt;\"}\n"), "example.test/m")
+	if want := "[lt script gt LT b gt]"; err != nil || fmt.Sprint(tokens) != want {
+		t.Errorf("tokens = %v (%v), want %s", tokens, err, want)
+	}
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":                   "module example.test/m\n",
+		"script/core-n1-source.sh": "#!/bin/sh\n",
+		"bare/bare.go":             "package bare\n",
+		"bare/bare_test.go":        "package bare\n\nvar name = \"source.sh\"\n",
+		"prefix/prefix.go":         "package prefix\n",
+		"prefix/prefix_test.go":    "package prefix\n\nvar name = \"foo-source.sh\"\n",
+		"escaped/escaped.go":       "package escaped\n",
+		"escaped/escaped_test.go":  "package escaped\n\nvar page = \"&lt;script&gt;x&lt;/script&gt;\"\n",
+		"full/full.go":             "package full\n",
+		"full/full_test.go":        "package full\n\nvar path = \"../script/core-n1-source.sh\"\n",
+		"dir/dir.go":               "package dir\n",
+		"dir/dir_test.go":          "package dir\n\nvar scripts = \"../script/\"\n",
+	})
+	graph, err := affected.Build(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"script/core-n1-source.sh"})
+	if got, want := fmt.Sprint(plan.SelectedTests()), "[dir/dir_test.go full/full_test.go]"; got != want {
+		t.Errorf("script/core-n1-source.sh selected %s, want %s", got, want)
+	}
+	for _, selection := range plan.Selected {
+		if selection.Witness.Kind != affected.WitnessPathLiteralReader {
+			t.Errorf("%s witness = %+v, want %s", selection.UnitID, selection.Witness, affected.WitnessPathLiteralReader)
+		}
+	}
+}
+
+// AFP-V0-841 (V1-3201): a change to a build-constrained test file, here only
+// its `//go:build` line, selects the owning package's tests as any test-file
+// change does: no package imports a test file, and the constraint changes
+// only which platforms compile it. The platforms the plan did not build stay
+// the retained go:build-constraint-variants unknown, never an unbounded
+// fan-out to other packages.
+func TestBuildConstrainedTestFileSelectsOwner_AFPV0841(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	writeFiles(t, root, map[string]string{
+		"go.mod":                       "module example.test/m\n",
+		"fifo/fifo.go":                 "package fifo\n\nfunc Make() {}\n",
+		"fifo/fifo_test.go":            "package fifo\n",
+		"fifo/draft_fifo_unix_test.go": "//go:build darwin || freebsd || linux || netbsd || openbsd\n\npackage fifo\n",
+		"user/user.go":                 "package user\n\nimport \"example.test/m/fifo\"\n\nfunc Use() { fifo.Make() }\n",
+		"user/user_test.go":            "package user\n",
+		"other/other.go":               "package other\n",
+		"other/other_test.go":          "package other\n",
+	})
+	graph, err := affected.Build(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"fifo/draft_fifo_unix_test.go"})
+	if got, want := fmt.Sprint(plan.SelectedTests()), "[fifo/draft_fifo_unix_test.go fifo/fifo_test.go]"; got != want {
+		t.Errorf("build-constrained test change selected %s, want %s", got, want)
+	}
+	if len(plan.Selected) != 1 || plan.Selected[0].Witness.Kind != affected.WitnessDirectTest {
+		t.Errorf("selected %+v, want only the owning package by DIRECT_TEST_CHANGE", plan.Selected)
+	}
+	retained := false
+	for _, unknown := range plan.Unknown {
+		retained = retained || unknown.Detail == golang.FrontierBuildConstraint
+	}
+	if !retained || plan.Scope != affected.ScopeUnknown {
+		t.Errorf("unknown = %+v, scope %s; want the %s platform set retained", plan.Unknown, plan.Scope, golang.FrontierBuildConstraint)
+	}
+}
+
 // AFP-V0-810 (V1-2758): frame metadata is not a file read, even in a
 // logging package importing net/http and logrus as navidrome does.
 func TestFrameMetadataDoesNotReadFiles_AFPV0810(t *testing.T) {
