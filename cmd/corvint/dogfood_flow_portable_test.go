@@ -522,7 +522,7 @@ func TestDogfoodChangeNamesVerifySyntaxRemediation(t *testing.T) {
 	if err := os.WriteFile(verify, []byte("go test ./fixture -run ^TestAnswer$\ngo test ./fixture -run '^Test[A-C]'\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	fix := "\n  local-outcome: unsupported-verify-syntax\n    fix: each DOGFOOD_VERIFY_FILE line is one command of ASCII letters, digits and _./:@=+, - only, with no quotes, ^, $, |, parentheses or other shell syntax, except one quoted -run alternation of test names such as -run 'TestA|TestB' (DCW-V0-384); write -run TestName instead of -run '^TestName$'; a command that needs quotes or regular-expression syntax, such as a split -run '^Test[A-C]' group, goes in a script committed with the change and is listed as sh path/to/script.sh (DCW-V0-065)\n"
+	fix := "\n  local-outcome: unsupported-verify-syntax\n    fix: each DOGFOOD_VERIFY_FILE line is one command of ASCII letters, digits and _./:@=+, - only, with no quotes, ^, $, |, parentheses or other shell syntax, except one quoted -run alternation of test names such as -run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (DCW-V0-384, DCW-V0-801); write -run TestName instead of -run '^TestName$'; a command that needs quotes or regular-expression syntax, such as a split -run '^Test[A-C]' group, goes in a script committed with the change and is listed as sh path/to/script.sh (DCW-V0-065)\n"
 	inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_OUTCOME=passed", "DOGFOOD_VERIFY_FILE=" + verify}
 	// Bind the sidecar to verify the post-commit refusal as well.
 	run.exec(t, root, inputs, "dogfood", "change", base)
@@ -560,7 +560,7 @@ func TestDogfoodChangeDCWV0034VerifySyntaxBeforeBinding(t *testing.T) {
 	run := portableDogfoodRunner(t)
 	root, base := portableDogfoodRepo(t)
 	verify := filepath.Join(t.TempDir(), "verify")
-	command := "go test ./fixture -run '^(A|B)$'"
+	command := "go test ./fixture -run '^(A|[B])$'"
 	if err := os.WriteFile(verify, []byte(command+"\n"), 0644); err != nil {
 		t.Fatal(err)
 	}

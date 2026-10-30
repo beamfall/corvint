@@ -108,7 +108,7 @@ func TestFinishLaneDCWV0067NamesTheInterruptedStep(t *testing.T) {
 		return 1
 	}}
 	var stdout, stderr bytes.Buffer
-	_, err := FinishLane(ctx, FinishLaneOptions{Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan}}, &stdout, &stderr)
+	_, err := FinishLane(ctx, FinishLaneOptions{Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan, Verify: "go version", Outcome: "passed"}}, &stdout, &stderr)
 	if !errors.Is(err, ErrInterrupted) {
 		t.Fatalf("FinishLane error = %v, want ErrInterrupted", err)
 	}
@@ -136,7 +136,7 @@ func TestFinishLaneDCWV0067NamesTheInterruptedStep(t *testing.T) {
 	}
 	stdout.Reset()
 	stderr.Reset()
-	if _, err = FinishLane(ctx, FinishLaneOptions{Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan}}, &stdout, &stderr); !errors.Is(err, ErrInterrupted) {
+	if _, err = FinishLane(ctx, FinishLaneOptions{Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan, Verify: "go version", Outcome: "passed"}}, &stdout, &stderr); !errors.Is(err, ErrInterrupted) {
 		t.Fatalf("second FinishLane error = %v, want ErrInterrupted", err)
 	}
 	if out := stdout.String(); !strings.HasPrefix(out, "dogfood-finish-lane: prepare INTERRUPTED\ndogfood-finish-lane: NOT_PRODUCED rows=") || strings.Contains(out, "rows=0") || !strings.Contains(out, "\n  prepare ") {
@@ -217,7 +217,7 @@ func TestFinishLaneDCWV0068NamesTheUnreadableMap(t *testing.T) {
 		return 1
 	}}
 	var stdout, stderr bytes.Buffer
-	code, err := FinishLane(context.Background(), FinishLaneOptions{Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan}}, &stdout, &stderr)
+	code, err := FinishLane(context.Background(), FinishLaneOptions{Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan, Verify: "go version", Outcome: "passed"}}, &stdout, &stderr)
 	if err != nil || code == 0 {
 		t.Fatalf("FinishLane = (%d, %v), want a failing exit", code, err)
 	}
@@ -319,7 +319,8 @@ func TestFinishLaneDCWV0092RefusesVerifySyntaxBeforePrepare(t *testing.T) {
 	}{
 		{name: "quoted-run-regex", verifyFile: write("quoted.txt", []byte("go test -count=1 -run '^TestA$' ./internal/a\n")), reason: "unsupported-verify-syntax"},
 		{name: "env-quoted", verify: "go test -run \"TestA\" ./internal/a", reason: "unsupported-verify-syntax"},
-		{name: "quoted-run-anchored-alternation", verifyFile: write("alternation.txt", []byte("go test -count=1 -run '^(TestA|TestB)$' ./internal/a\n")), reason: "unsupported-verify-syntax"},
+		{name: "quoted-run-class-alternation", verifyFile: write("alternation.txt", []byte("go test -count=1 -run '^(TestA|Test[B])$' ./internal/a\n")), reason: "unsupported-verify-syntax"},
+		{name: "unquoted-run-alternation", verifyFile: write("unquoted.txt", []byte("go test -count=1 ./internal/b\ngo test -count=1 -run TestA|TestB ./internal/a\n")), reason: "unsupported-verify-syntax"},
 		{name: "over-bound", verifyFile: write("big.txt", bytes.Repeat([]byte("\n"), maxVerifyFileBytes+1)), reason: "verify-file-over-bound"},
 		{name: "unavailable", verifyFile: filepath.Join(scratch, "missing.txt"), reason: "verify-file-unavailable"},
 	} {
@@ -338,6 +339,16 @@ func TestFinishLaneDCWV0092RefusesVerifySyntaxBeforePrepare(t *testing.T) {
 				t.Fatalf("exit=%d step calls=%d stdout=%q stderr=%q, want exit 2 before any step", code, calls, stdout.String(), stderr.String())
 			}
 			out := stderr.String()
+			// DCW-V0-801 reconciled with DCW-V0-403 at batch integration: a
+			// verify file whose line is an unquoted -run alternation gets the
+			// one-line DCW-V0-403 fix naming that line's admitted quoted form.
+			if tc.name == "unquoted-run-alternation" {
+				fix := "  fix: --verify " + tc.verifyFile + " line 2: quote the -run alternation as one word: go test -count=1 -run 'TestA|TestB' ./internal/a (DCW-V0-403), then rerun corvint dogfood finish-lane --base " + base + "\n"
+				if out != "dogfood-finish-lane: REFUSE unsupported-verify-syntax\n"+fix {
+					t.Fatalf("stderr = %q, want the one-line quoted-form fix", out)
+				}
+				return
+			}
 			if !strings.HasPrefix(out, "dogfood-finish-lane: REFUSE "+tc.reason+"\n") || !strings.Contains(out, "  fix: pass a readable verify file of at most 65536 bytes") {
 				t.Fatalf("stderr = %q, want REFUSE %s with a fix line", out, tc.reason)
 			}
@@ -347,11 +358,14 @@ func TestFinishLaneDCWV0092RefusesVerifySyntaxBeforePrepare(t *testing.T) {
 			// DCW-V0-170 (V1-2344): the refusal names the accepted form for a
 			// quoted -run alternation: one command per test name, or a script.
 			if tc.reason == "unsupported-verify-syntax" {
-				for _, want := range []string{"accepted form:", "-run 'TestA|TestB' is admitted as one argv word (DCW-V0-384)", "-run '^TestA$', is refused even inside quotes", "go test -run TestA ./pkg, then go test -run TestB ./pkg", "sh path/to/script.sh"} {
+				for _, want := range []string{"accepted form:", "-run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (single or double quotes, or attached as -run='TestA|TestB'), is admitted as one argv word (DCW-V0-384, DCW-V0-801)", "a single anchored name such as -run '^TestA$' or any other quoted regex is refused", "go test -run TestA ./pkg, then go test -run TestB ./pkg", "sh path/to/script.sh"} {
 					if !strings.Contains(out, want) {
 						t.Fatalf("stderr = %q, want accepted-form hint %q", out, want)
 					}
 				}
+			}
+			if strings.Contains(out, "quoted form:") {
+				t.Fatalf("stderr = %q, want no quoted form for %s", out, tc.name)
 			}
 		})
 	}
@@ -363,7 +377,7 @@ func TestFinishLaneDCWV0092RefusesVerifySyntaxBeforePrepare(t *testing.T) {
 		return 1
 	}}
 	var stdout, stderr bytes.Buffer
-	good := write("good.txt", []byte("go test -count=1 -run TestA ./internal/a\ngo test -count=1 -run 'TestA|TestB' ./internal/a\n"))
+	good := write("good.txt", []byte("go test -count=1 -run TestA ./internal/a\ngo test -count=1 -run 'TestA|TestB' ./internal/a\ngo test -count=1 -run '^(TestA|TestB)$' ./internal/a\ngo test -run=\"^TestA$|^TestB$\" ./internal/a\n"))
 	if _, err := FinishLane(context.Background(), FinishLaneOptions{Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan, VerifyFile: good, Outcome: "passed"}}, &stdout, &stderr); err != nil {
 		t.Fatal(err)
 	}
@@ -398,7 +412,7 @@ func TestFinishLaneDCWV0115PreparePassRunsOnlyCEMPrepare(t *testing.T) {
 		return 1
 	}}
 	var stdout, stderr bytes.Buffer
-	code, err := FinishLane(context.Background(), FinishLaneOptions{Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan}}, &stdout, &stderr)
+	code, err := FinishLane(context.Background(), FinishLaneOptions{Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan, Verify: "go version", Outcome: "passed"}}, &stdout, &stderr)
 	if err != nil || code == 0 || !strings.Contains(stdout.String(), "dogfood-finish-lane: prepare FAIL") {
 		t.Fatalf("code=%d err=%v stdout=%q stderr=%q", code, err, stdout.String(), stderr.String())
 	}
@@ -463,7 +477,7 @@ func TestFinishLaneDCWV0378RefusesAnInputChangedDuringTheRun(t *testing.T) {
 				return 1
 			}}
 			var stdout, stderr bytes.Buffer
-			code, err := FinishLane(context.Background(), FinishLaneOptions{Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan, IntentsFile: intents}}, &stdout, &stderr)
+			code, err := FinishLane(context.Background(), FinishLaneOptions{Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan, IntentsFile: intents, Verify: "go version", Outcome: "passed"}}, &stdout, &stderr)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -705,5 +719,79 @@ func TestDCWV0405StoppedPassOmitsPrintedNotes(t *testing.T) {
 	}
 	if want := note + "dogfood-change: FAIL not-complete\n"; stderr.String() != want {
 		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
+	}
+}
+
+// TestFinishLaneDCWV0800RefusesMissingOutcomeInputsBeforePrepare pins V1-3269:
+// a run with citations and intents but no verification command or outcome,
+// the non-lane path where make dogfood-finish requires neither, is refused by
+// the inputs pre-flight and by finish-lane before any step runs, naming every
+// missing input, and HEAD and the worktree stay as they were.
+func TestFinishLaneDCWV0800RefusesMissingOutcomeInputsBeforePrepare(t *testing.T) {
+	for _, tc := range []struct {
+		name, verify, outcome, missing string
+		preflight                      bool
+	}{
+		{name: "finish-both", missing: "--verify,--outcome"},
+		{name: "preflight-both", missing: "--verify,--outcome", preflight: true},
+		{name: "finish-outcome", verify: "go version", missing: "--outcome"},
+		{name: "preflight-verify", outcome: "passed", missing: "--verify", preflight: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			testGit(t, root, "init", "-q")
+			if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("a\n"), 0o666); err != nil {
+				t.Fatal(err)
+			}
+			testGit(t, root, "add", "a.txt")
+			testGit(t, root, "commit", "-q", "-m", "base")
+			base := testGit(t, root, "rev-parse", "HEAD")
+			if err := os.WriteFile(filepath.Join(root, "a.txt"), []byte("b\n"), 0o666); err != nil {
+				t.Fatal(err)
+			}
+			testGit(t, root, "commit", "-q", "-am", "change")
+			head := testGit(t, root, "rev-parse", "HEAD")
+			plan := filepath.Join(t.TempDir(), "cites.tsv")
+			intents := filepath.Join(t.TempDir(), "intents.txt")
+			if err := os.WriteFile(plan, []byte("1\ta.txt\t1:1\tspecification\n"), 0o666); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(intents, []byte("docs/specs/a.md\n"), 0o666); err != nil {
+				t.Fatal(err)
+			}
+			var ran []string
+			steps := Runner{Path: "corvint", Run: func(_ context.Context, _ string, args []string, _ io.Writer, _ io.Writer) int {
+				ran = append(ran, strings.Join(args, " "))
+				return 0
+			}}
+			var stdout, stderr bytes.Buffer
+			options := ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan, IntentsFile: intents, Verify: tc.verify, Outcome: tc.outcome}
+			code, err := FinishLane(context.Background(), FinishLaneOptions{Change: options, Preflight: tc.preflight}, &stdout, &stderr)
+			if err != nil || code != 2 {
+				t.Fatalf("FinishLane = (%d, %v), want exit 2; stdout=%q stderr=%q", code, err, stdout.String(), stderr.String())
+			}
+			prefix := "dogfood-finish-lane"
+			if tc.preflight {
+				prefix = "dogfood-inputs-check"
+			}
+			for _, want := range []string{
+				prefix + ": REFUSE outcome-input-not-provided missing=" + tc.missing + "\n",
+				"--verify FILE (or DOGFOOD_VERIFY_FILE", "--outcome passed|failed|blocked (or DOGFOOD_OUTCOME)",
+				"VERIFY=<verify.txt> OUTCOME=passed|failed|blocked", "nothing was prepared, bound or committed",
+			} {
+				if !strings.Contains(stderr.String(), want) {
+					t.Errorf("stderr lacks %q:\n%s", want, stderr.String())
+				}
+			}
+			if len(ran) != 0 || strings.Contains(stdout.String(), "prepare") {
+				t.Fatalf("steps ran before the refusal: %q stdout=%q", ran, stdout.String())
+			}
+			if got := testGit(t, root, "rev-parse", "HEAD"); got != head {
+				t.Fatalf("HEAD moved from %s to %s", head, got)
+			}
+			if status := testGit(t, root, "status", "--porcelain", "--untracked-files=all"); status != "" {
+				t.Fatalf("worktree changed: %q", status)
+			}
+		})
 	}
 }

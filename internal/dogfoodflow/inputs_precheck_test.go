@@ -45,6 +45,14 @@ func preflightRun(t *testing.T, root string, options ChangeOptions) (int, string
 	t.Helper()
 	var labels []string
 	options.Root = root
+	// DCW-V0-800: the pre-flight refuses before prepare without both outcome
+	// inputs, so the cases that test later refusals supply them.
+	if options.Verify == "" && options.VerifyFile == "" {
+		options.Verify = "go version"
+	}
+	if options.Outcome == "" {
+		options.Outcome = "passed"
+	}
 	options.Steps = Runner{Path: "corvint", Run: func(ctx context.Context, root string, args []string, stdout, stderr io.Writer) int {
 		labels = append(labels, strings.Join(args, " "))
 		if len(args) > 0 && args[0] == "cem" {
@@ -91,12 +99,12 @@ func assertNothingBound(t *testing.T, root, head string, labels []string) {
 
 // TestDCWV0380InputsCheckRefusesVerifySyntaxBeforeAnyStep (V1-2970): a `|` in
 // the verify file is refused by name and line before any step runs. The
-// alternation is anchored and grouped, a form DCW-V0-384 still refuses.
+// alternation holds a character class, a form DCW-V0-801 still refuses.
 func TestDCWV0380InputsCheckRefusesVerifySyntaxBeforeAnyStep(t *testing.T) {
 	root, base := preflightRepository(t, nil)
 	head := testGit(t, root, "rev-parse", "HEAD")
 	plan := writeInput(t, "1\tpre.go\t3:3\timplementation\n2\tpre.go\t20:20\timplementation\n")
-	verify := writeInput(t, "go test -run TestA ./pre\ngo test -run '^(TestA|TestB)$' ./pre\n")
+	verify := writeInput(t, "go test -run TestA ./pre\ngo test -run '^(TestA|Test[B])$' ./pre\n")
 	code, stdout, stderr, labels := preflightRun(t, root, ChangeOptions{Base: base, Citations: plan, VerifyFile: verify})
 	if code != 2 || len(labels) != 0 {
 		t.Fatalf("code=%d steps=%q stdout=%q stderr=%q", code, labels, stdout, stderr)

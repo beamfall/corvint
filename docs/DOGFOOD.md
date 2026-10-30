@@ -412,6 +412,24 @@ keeps its own route below:
 output; a host missing it gets a `REFUSE unsupported-environment-missing-rg` line instead of a
 misleading failure partway through the run.
 
+First-run order (`DCW-V0-802`). Each command needs only the inputs named here, so supply them in
+this order:
+
+1. Commit the change. `corvint dogfood propose-citations BASE_SHA > draft.tsv` needs only `BASE_SHA`
+   and that committed `HEAD`: no prepared map, `DOGFOOD_INTENTS_FILE`, `DOGFOOD_VERIFY_FILE` or
+   `DOGFOOD_OUTCOME`. When it refuses `patch-unavailable reason=<code>`, `cem prepare` refuses the
+   same patch with that code, so do not run `dogfood change` first: make every changed path a
+   regular file with a textual hunk (no empty, mode-only, binary or symbolic-link change), commit,
+   and rerun it.
+2. Review the draft into `cites.tsv`. Write `intents.txt` (one owning spec path per line,
+   `LC_ALL=C sort -u`) and `verify.txt` (one verification command per line), and choose
+   `OUTCOME=passed|failed|blocked`.
+3. `make dogfood-inputs-check BASE=BASE_SHA CITATIONS=cites.tsv INTENTS=intents.txt VERIFY=verify.txt OUTCOME=passed`
+   checks every input and binds nothing. A missing `VERIFY` or `OUTCOME` is refused there as
+   `outcome-input-not-provided missing=--verify,--outcome` before prepare, not after the bind commit
+   (`DCW-V0-800`).
+4. `make dogfood-finish` (or `make dogfood-closeout`) with the same variables.
+
 The default is one command. Write the citation plan (one row per hunk; before any map exists,
 `corvint dogfood propose-citations BASE` drafts it keyed by full hunk ID, so no probe run is
 needed, `DCW-V0-350`), then run
