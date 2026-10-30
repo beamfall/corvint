@@ -789,7 +789,10 @@ the test that pins its behavior (`test-claim`), and give one hunk several rows t
 and its requirement, for example `3	internal/x/x.go	40:52	implementation` and
 `3	docs/specs/x.md	12:14	specification` (`DCW-V0-041`). A file the change itself adds
 cannot be its own evidence: it refuses `cem-cite: missing-evidence`, and an unregistered relation
-refuses `cem-cite: invalid-arguments`; both print a `fix:` line naming the plan row. A hunk no row
+refuses `dogfood-inputs-precheck cem-cite citation-plan-relation-unknown` before any CEM write,
+naming the row and printing the full relation list; both print a `fix:` line naming the plan row.
+`tests` is not a relation: test evidence takes `test-claim`, because the basis relations are the
+frozen CEM wire set (`DCW-V0-402`). A hunk no row
 cites stays `unknown` with reason `no-evidence`. A hunk that no base evidence supports may instead
 stay `unknown` on purpose: the row `HUNK<TAB>unknown<TAB>REASON<TAB>NOTE` runs `cem mark` with
 `REASON` (`insufficient-evidence` or `conflicting-evidence`), so the map and the sealed map record

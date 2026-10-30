@@ -129,6 +129,15 @@ func TestDCWV0379InputsCheckRefusesEachPlanAndManifestDefect(t *testing.T) {
 			want: []string{"FAIL dogfood-inputs-precheck cem-cite citation-plan-uniform input=", " rows=all hunks=2 span=", "prepare dogfood-inputs-precheck NOT_PRODUCED citation-plan-uniform"},
 		},
 		{
+			// DCW-V0-402 (V1-3226): an unregistered relation refuses the whole
+			// plan before any cite and names the full allowed list.
+			name: "relation tests",
+			plan: "1\tpre.go\t3:3\timplementation\n2\tpre.go\t20:20\ttests\n",
+			want: []string{"FAIL dogfood-inputs-precheck cem-cite citation-plan-relation-unknown input=", ` row 2 relation="tests"`,
+				"one of call-site, decision, dependency, implementation, incident, specification, test-claim;", "takes test-claim (tests is not a relation)",
+				"prepare dogfood-inputs-precheck NOT_PRODUCED citation-plan-relation-unknown"},
+		},
+		{
 			name: "ordinal past the map",
 			plan: "1\tpre.go\t3:3\timplementation\n3\tpre.go\t20:20\timplementation\n",
 			want: []string{"FAIL dogfood-inputs-precheck cem-cite citation-plan-map-mismatch input=", " row 2 ordinal 3 is past the prepared map's 2 hunks", "prepare dogfood-inputs-precheck NOT_PRODUCED citation-plan-map-mismatch"},

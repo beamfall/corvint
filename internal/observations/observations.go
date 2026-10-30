@@ -573,7 +573,7 @@ func validDogfoodReason(value string) bool {
 		return false
 	}
 	switch value {
-	case "cem-map-not-produced", "cem-map-stable-unsupported", "citation-plan-map-mismatch", "citation-plan-not-provided", "citation-plan-recites-cited-hunk", "citation-plan-uniform",
+	case "cem-map-not-produced", "cem-map-stable-unsupported", "citation-plan-map-mismatch", "citation-plan-not-provided", "citation-plan-recites-cited-hunk", "citation-plan-relation-unknown", "citation-plan-uniform",
 		"citation-plan-unavailable", "citation-plan-row-limit-exceeded", "ocm-link-plan-row-limit-exceeded", "citation-stage-cleanup-failed", "citation-stage-exists", "empty-citation-plan", "guarding-tests-not-run",
 		"intent-manifest-over-bound", "intent-scope-drift", "invalid-citation-plan",
 		"invalid-record-admission-output", "missing-intent-scope", "no-source-paths", "none",

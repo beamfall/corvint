@@ -106,6 +106,9 @@ type change struct {
 	// mismatchDetail names the plan row or owed hunk that made
 	// citationPlanMismatch refuse, for the inputs precheck (DCW-V0-379).
 	mismatchDetail string
+	// relationDetail names the first plan row whose RELATION is not a
+	// registered basis relation (DCW-V0-402).
+	relationDetail string
 	// deferrals are the plan's deferred rows, which run cem defer instead of
 	// citing a hunk (DCW-V0-370).
 	deferrals []deferral
@@ -899,6 +902,8 @@ func (c *change) planShape() ([]byte, string) {
 		return plan, "citation-plan-row-limit-exceeded"
 	case !valid:
 		return plan, "invalid-citation-plan"
+	case c.unknownRelationRow(plan):
+		return plan, "citation-plan-relation-unknown"
 	case mismatch != "":
 		return plan, mismatch
 	// Appended sealed-hunk rows count toward uniformity, so they cannot
@@ -1240,6 +1245,8 @@ func (c *change) precheckInputs() int {
 			input += fmt.Sprintf(" rows=all hunks=%d span=%s", c.uniformHunks, c.uniformSpan)
 		case c.mismatchDetail != "" && (reason == "citation-plan-map-mismatch" || reason == "empty-citation-plan"):
 			input += " " + c.mismatchDetail
+		case reason == "citation-plan-relation-unknown":
+			input += " " + c.relationDetail
 		}
 		return c.refuseInput(step{"cem-cite", "NOT_PRODUCED", reason}, input)
 	}
@@ -1374,6 +1381,28 @@ func (c *change) validateCitationPlan() (plan []byte, valid bool) {
 		}
 	}
 	return plan, true
+}
+
+// unknownRelationRow reports, and keeps for the refusal, the first cite row
+// whose RELATION is not one of the frozen basis relations cem cite admits, so
+// the whole plan is refused before any cite with the full allowed list rather
+// than one cite step's argument error (DCW-V0-402). Unknown rows carry a reason
+// in that field and are not checked here.
+func (c *change) unknownRelationRow(plan []byte) bool {
+	for index, line := range textLines(plan) {
+		fields := strings.Split(line, "\t")
+		if len(fields) == 4 && !unknownRow(fields) && !wire.Relations[fields[3]] {
+			c.relationDetail = fmt.Sprintf("row %d relation=%s", index+1, strconv.Quote(fields[3]))
+			return true
+		}
+	}
+	return false
+}
+
+// RelationChoices lists the registered basis relations in byte order: the one
+// list the citation-plan refusal and docs/DOGFOOD.md name (DCW-V0-402).
+func RelationChoices() []string {
+	return slices.Sorted(maps.Keys(wire.Relations))
 }
 
 // unknownRow reports a plan row that keeps its hunk unknown instead of citing
@@ -2124,6 +2153,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"cem-cite:empty-citation-plan", "DOGFOOD_CITATIONS names an empty file but .corvint/change.cem.json still has unknown hunks; write one row per unknown hunk (corvint dogfood propose-citations {base} prints a per-hunk draft to review and write there), or unset DOGFOOD_CITATIONS to prepare the map without citing (DCW-V0-150)"},
 	{"cem-cite:citation-plan-row-limit-exceeded", "DOGFOOD_CITATIONS row limit=256 observed={citationRows}; use explicit staged plans of at most 256 rows on the same CEM (docs/DOGFOOD.md Staged binding of one oversized commit)"},
 	{"cem-cite:invalid-citation-plan", "each row is ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION in worklist order, LF-terminated, at most 256 rows; a hunk kept unknown takes ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE, REASON being insufficient-evidence or conflicting-evidence and NOTE a one-line reason (DCW-V0-019)"},
+	{"cem-cite:citation-plan-relation-unknown", "RELATION, the fourth field of a cite row, is one of {relations}; a test file or test case cited as evidence takes test-claim (tests is not a relation); fix that row and every other, then rerun (DCW-V0-402)"},
 	{"cem-cite:citation-plan-map-mismatch", "the plan does not match the map prepared for HEAD: a row names an ordinal past its hunks or is not a canonical ordinal, or an unknown hunk is unnamed (often because a later commit re-prepared the map); or a row's ordinal now names another hunk than when this plan was first cited (a later commit added or removed a hunk before it); rewrite DOGFOOD_CITATIONS from the current .corvint/change.cem.json, naming every unknown hunk except the hunk of an intent spec absent at BASE, by a citation or by an ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE row"},
 	{"cem-cite:citation-plan-uniform", "the plan cites one span for every hunk: hunks={uniformHunks} span={uniformSpan}; cite, per hunk, the BASE lines that hunk depends on or implements (its caller, contract, test or spec section), or keep a hunk unknown with ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE; one span may serve several hunks, never every hunk of a multi-hunk non-chore change; for example 1<TAB>docs/specs/x-v0.md<TAB>40:44<TAB>specification for a spec hunk and 2<TAB>internal/x/x.go<TAB>120:126<TAB>dependency for the code hunk that implements it; corvint dogfood propose-citations {base} prints a per-hunk draft to review and write to the plan (DCW-V0-048, DCW-V0-150)"},
 	{"cem-cite:citation-plan-recites-cited-hunk", "plan row {row} would change hunk {recitedHunk}, which .corvint/change.cem.json already cites; cem cite only adds evidence, so nothing was cited or marked; to replace the earlier citations, delete .corvint/change.cem.json and rerun corvint dogfood change {base} with the whole corrected plan; a staged plan names only hunks still unknown (DCW-V0-117)"},
@@ -2386,6 +2416,11 @@ func (c *change) fixHint(row step) string {
 	if value == "ocm-aggregate:missing-intent-scope" && c.manifestIssue != "" {
 		return "DOGFOOD_INTENTS_FILE " + c.options.IntentsFile + ": " + c.manifestIssue + "; " + intentScopeHint
 	}
+	if value == "local-outcome:unsupported-verify-syntax" {
+		if fix := quotedRunFix(c.options.VerifyFile); fix != "" {
+			return "DOGFOOD_VERIFY_FILE " + fix
+		}
+	}
 	if value == "cem-cite:cite-span-not-stable" && c.citeSpanUnaligned {
 		return strings.ReplaceAll(citeSpanUnalignedHint, "{row}", strconv.Itoa(c.citationFailedRow))
 	}
@@ -2396,7 +2431,7 @@ func (c *change) fixHint(row step) string {
 			matched = len(value) >= len(prefix)+len(suffix) && strings.HasPrefix(value, prefix) && strings.HasSuffix(value, suffix)
 		}
 		if matched {
-			return strings.NewReplacer("{evidence}", c.evidence, "{base}", c.base, "{step}", row.name, "{map}", c.path(c.failedMap()), "{row}", strconv.Itoa(c.citationFailedRow), "{rowValues}", c.rowValues(), "{citationRows}", strconv.Itoa(c.citationCount), "{linkRows}", strconv.Itoa(c.linkObservedRows), "{uniformHunks}", strconv.Itoa(c.uniformHunks), "{uniformSpan}", c.uniformSpan, "{recitedHunk}", c.recitedHunk).Replace(entry.hint)
+			return strings.NewReplacer("{evidence}", c.evidence, "{base}", c.base, "{step}", row.name, "{map}", c.path(c.failedMap()), "{row}", strconv.Itoa(c.citationFailedRow), "{rowValues}", c.rowValues(), "{citationRows}", strconv.Itoa(c.citationCount), "{linkRows}", strconv.Itoa(c.linkObservedRows), "{uniformHunks}", strconv.Itoa(c.uniformHunks), "{uniformSpan}", c.uniformSpan, "{recitedHunk}", c.recitedHunk, "{relations}", strings.Join(RelationChoices(), ", ")).Replace(entry.hint)
 		}
 	}
 	return ""

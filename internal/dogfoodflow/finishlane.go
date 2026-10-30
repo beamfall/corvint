@@ -255,6 +255,13 @@ func (l *finishLane) requireVerifyInput() {
 		return
 	}
 	l.say("%s: REFUSE %s\n", l.prefix, reason)
+	if fix := quotedRunFix(l.options.Change.VerifyFile); reason == "unsupported-verify-syntax" && fix != "" {
+		// DCW-V0-403: an unquoted -run alternation gets one line naming its
+		// admitted quoted form, not the grammar remediation.
+		l.say("  fix: --verify %s, then rerun corvint dogfood finish-lane --base %s\n", fix, l.options.Change.Base)
+		l.exit(2)
+		return
+	}
 	if line := verifyRefusalLine(l.options.Change.VerifyFile); detail != "" && line > 0 {
 		l.say("  input: --verify %s line %d\n", l.options.Change.VerifyFile, line)
 	}
