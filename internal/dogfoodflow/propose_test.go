@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/workflow"
 )
 
@@ -328,5 +329,85 @@ func TestProposeCitationsDCWV0150RefusesWithoutMatchingMap(t *testing.T) {
 	writeTree(t, root, map[string]string{".corvint/change.cem.json": `{"baseRevision": "` + strings.Repeat("0", 40) + `", "hunks": []}`})
 	if code, out, errText := run(); code != 2 || out != "" || !strings.Contains(errText, "REFUSE map-base-mismatch") {
 		t.Errorf("other base: code=%d stdout=%q stderr=%q", code, out, errText)
+	}
+}
+
+// TestProposeCitationsDCWV0802NamesWhyThePatchIsUnavailable pins V1-3279: a
+// map-free draft whose canonical patch cem/1.0 cannot represent refuses with
+// the code cem prepare refuses the same patch with, never advises running
+// dogfood change first, and names the first-run order and the inputs each
+// later command needs; a patch over the read bound names the split.
+func TestProposeCitationsDCWV0802NamesWhyThePatchIsUnavailable(t *testing.T) {
+	for _, tc := range []struct {
+		name, reason string
+		change       func(t *testing.T, root string)
+		limit        int
+	}{
+		{name: "empty-file", reason: "metadata-only-change-unsupported", change: func(t *testing.T, root string) {
+			writeTree(t, root, map[string]string{"a.md": "# Title\n\nbody amended\n", "empty.txt": ""})
+		}},
+		{name: "mode-only", reason: "metadata-only-change-unsupported", change: func(t *testing.T, root string) {
+			if err := os.Chmod(filepath.Join(root, "a.md"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{name: "over-bound", reason: "patch-over-bound", limit: 64, change: func(t *testing.T, root string) {
+			writeTree(t, root, map[string]string{"a.md": "# Title\n\n" + numbered("body amended", 20)})
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			testGit(t, root, "init", "-q")
+			testGit(t, root, "config", "core.fileMode", "true")
+			writeTree(t, root, map[string]string{"a.md": "# Title\n\nbody\n"})
+			testGit(t, root, "add", ".")
+			testGit(t, root, "commit", "-q", "-m", "base")
+			base := testGit(t, root, "rev-parse", "HEAD")
+			tc.change(t, root)
+			testGit(t, root, "add", ".")
+			testGit(t, root, "commit", "-q", "-m", "change")
+			status := testGit(t, root, "status", "--porcelain", "--untracked-files=all", "--ignored")
+
+			var stdout, stderr bytes.Buffer
+			run := &proposal{
+				flow:    flow{ctx: context.Background(), prefix: "dogfood-propose-citations", root: root, stderr: &stderr, gitOutputLimit: tc.limit},
+				options: ProposeOptions{Root: root, Base: base}, stdout: &stdout, blobs: map[string][]byte{}, lines: map[string][][]byte{},
+			}
+			if code, err := boundary(context.Background(), run.run, func() {}); err != nil || code != 2 {
+				t.Fatalf("ProposeCitations = %d, %v, want exit 2\n%s", code, err, stderr.String())
+			}
+			if stdout.Len() != 0 {
+				t.Fatalf("a refused draft printed rows: %q", stdout.String())
+			}
+			for _, want := range []string{
+				"dogfood-propose-citations: REFUSE patch-unavailable reason=" + tc.reason + "\n",
+				"propose-citations is the first command of the closeout and needs only BASE and a committed HEAD; no prepared map, DOGFOOD_INTENTS_FILE, DOGFOOD_VERIFY_FILE or DOGFOOD_OUTCOME",
+				"make dogfood-inputs-check BASE=" + base + " CITATIONS=plan.tsv INTENTS=<intents.txt> VERIFY=<verify.txt> OUTCOME=passed|failed|blocked",
+				"then rerun corvint dogfood propose-citations " + base + "\n",
+			} {
+				if !strings.Contains(stderr.String(), want) {
+					t.Errorf("stderr lacks %q:\n%s", want, stderr.String())
+				}
+			}
+			if strings.Contains(stderr.String(), "run corvint dogfood change") {
+				t.Errorf("the refusal advises dogfood change first, which refuses the same patch:\n%s", stderr.String())
+			}
+			if after := testGit(t, root, "status", "--porcelain", "--untracked-files=all", "--ignored"); after != status {
+				t.Fatalf("the refusal wrote files: %q -> %q", status, after)
+			}
+			if tc.limit != 0 {
+				return
+			}
+			// cem prepare, which dogfood change runs, refuses the same patch
+			// with the same code, so the refusal's advice is the only route.
+			session, err := workflow.Open(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = session.Prepare(context.Background(), workflow.PrepareOptions{Base: base, Target: testGit(t, root, "rev-parse", "HEAD")})
+			if code := cemcode.CodeOf(err); code != tc.reason {
+				t.Fatalf("cem prepare = %v (code %q), want %s", err, code, tc.reason)
+			}
+		})
 	}
 }

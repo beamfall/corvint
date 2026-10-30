@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/patch"
 	"github.com/Beamfall/corvint/internal/cem/verify"
 	"github.com/Beamfall/corvint/internal/cem/workflow"
@@ -46,6 +47,11 @@ type proposal struct {
 	// draft taken from the canonical patch before any map exists has no map
 	// order to number against (DCW-V0-350).
 	keyByID bool
+	// moves maps each side of a file the change moves, the deleted BASE path
+	// and the added path, to that move; moveCites holds the one span both
+	// sides of a move cite, by BASE path (DCW-V0-803).
+	moves     map[string]movedFile
+	moveCites map[string]movedCite
 }
 
 // spanLine is one line of a BASE file.
@@ -137,15 +143,33 @@ func (p *proposal) printDraft(hunks []proposedHunk, rows, notes []string) {
 // canonicalPatch reads and parses the canonical BASE..HEAD patch the map is
 // derived from, or reports it unreadable within its bound.
 func (p *proposal) canonicalPatch() (*patch.Patch, bool) {
+	parsed, _, _ := p.readCanonicalPatch()
+	return parsed, parsed != nil
+}
+
+// readCanonicalPatch reads and parses the canonical patch, or names why it
+// cannot: the reason is git-diff-failed, patch-over-bound, or the cem/1.0
+// code cem prepare refuses the same patch with, and detail is that refusal's
+// message (DCW-V0-802).
+func (p *proposal) readCanonicalPatch() (parsed *patch.Patch, reason, detail string) {
 	raw, status, bounded := p.boundedGit(p.canonicalDiffArguments()...)
-	if status != 0 || !bounded {
-		return nil, false
-	}
-	if raw == "" {
-		return new(patch.Patch), true
+	switch {
+	case !bounded:
+		return nil, "patch-over-bound", fmt.Sprintf("the BASE..HEAD patch exceeds %d bytes", maxGitOutputBytes)
+	case status != 0:
+		return nil, "git-diff-failed", fmt.Sprintf("git diff BASE HEAD exited %d", status)
+	case raw == "":
+		return new(patch.Patch), "", ""
 	}
 	parsed, err := patch.Parse([]byte(raw))
-	return parsed, err == nil
+	if err != nil {
+		reason = cemcode.CodeOf(err)
+		if reason == "" {
+			reason = "patch-unparsable"
+		}
+		return nil, reason, err.Error()
+	}
+	return parsed, "", ""
 }
 
 // mapStale reports whether the prepared map's hunks, by path and BASE range,
@@ -184,10 +208,9 @@ func (p *proposal) mapStale(hunks []proposedHunk) bool {
 // as owed; the bind and its plan precheck (DCW-V0-019, DCW-V0-335) still judge
 // every row against the map they prepare.
 func (p *proposal) template(mapState string) int {
-	parsed, ok := p.canonicalPatch()
-	if !ok {
-		p.say("%s: REFUSE patch-unavailable\n  the canonical BASE..HEAD patch could not be read within its bound, so no draft is printed\n  fix: run corvint dogfood change %s first to prepare .corvint/change.cem.json, then rerun this command\n", p.prefix, p.options.Base)
-		p.exit(2)
+	parsed, reason, detail := p.readCanonicalPatch()
+	if parsed == nil {
+		p.refusePatchUnavailable(reason, detail)
 	}
 	hunks := make([]proposedHunk, len(parsed.Hunks))
 	for index, hunk := range parsed.Hunks {
@@ -200,6 +223,29 @@ func (p *proposal) template(mapState string) int {
 	p.say("  this draft is not a plan: review every row, replace each with the evidence the hunk really depends on or implements, then write it to the DOGFOOD_CITATIONS file; nothing is cited until dogfood change runs with that file (DCW-V0-150)\n")
 	p.printDraft(hunks, rows, notes)
 	return 0
+}
+
+// refusePatchUnavailable refuses a map-free draft whose canonical patch
+// cannot be read or parsed (DCW-V0-802). cem prepare derives the map from the
+// same patch with the same parser, so running dogfood change first cannot
+// help: the refusal names why, what to change, and the first-run order, in
+// which propose-citations is the first command and needs only BASE and a
+// committed HEAD.
+func (p *proposal) refusePatchUnavailable(reason, detail string) {
+	base := p.options.Base
+	p.say("%s: REFUSE patch-unavailable reason=%s\n", p.prefix, reason)
+	p.say("  %s; no draft is printed and nothing was written\n", detail)
+	switch reason {
+	case "git-diff-failed":
+		p.say("  fix: make BASE a commit of this repository that HEAD contains (git merge-base --is-ancestor %s HEAD), then rerun corvint dogfood propose-citations %s\n", base, base)
+	case "patch-over-bound":
+		p.say("  fix: cem prepare refuses a patch this large as well, so dogfood change cannot run first; split the change into smaller commits on separate branches, then rerun corvint dogfood propose-citations %s\n", base)
+	default:
+		p.say("  fix: cem prepare refuses this patch with the same code, so dogfood change and dogfood finish-lane cannot run first; make every changed path a regular file with a textual hunk (give an empty file content, revert a mode-only change, drop a binary file or symbolic link), commit, then rerun corvint dogfood propose-citations %s\n", base)
+	}
+	p.say("  prerequisite: propose-citations is the first command of the closeout and needs only BASE and a committed HEAD; no prepared map, DOGFOOD_INTENTS_FILE, DOGFOOD_VERIFY_FILE or DOGFOOD_OUTCOME (DCW-V0-350)\n")
+	p.say("  next: write the reviewed draft to plan.tsv, then make dogfood-inputs-check BASE=%s CITATIONS=plan.tsv INTENTS=<intents.txt> VERIFY=<verify.txt> OUTCOME=passed|failed|blocked, then make dogfood-finish with the same inputs (docs/DOGFOOD.md §4 first-run order)\n", base)
+	p.exit(2)
 }
 
 // preparedHunks reads a prepared map's base revision and its hunks in map order,
@@ -293,6 +339,9 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 		return unknownProposal(ordinal, hunk.path+" is a bookkeeping record (DCW-V0-333); name the BASE contract the record describes"), "", ""
 	}
 	if row, cite, note := p.sealedProposal(hunk, ordinal, edited, used); row != "" {
+		return row, cite, note
+	}
+	if row, cite, note := p.movedProposal(hunk, ordinal, edited, used); row != "" {
 		return row, cite, note
 	}
 	if row, cite := p.anchoredProposal(hunk, ordinal, edited, used); row != "" {
@@ -421,6 +470,15 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 		}
 	}
 	patterns := map[string]bool{}
+	if !p.basenames {
+		// Only drafts pair moves; the check's anchor search is unchanged.
+		p.moves = movedFiles(p.derived)
+		for _, move := range p.moves {
+			for _, term := range move.terms() {
+				patterns[term] = true
+			}
+		}
+	}
 	for _, hunk := range owed {
 		derived := p.derivedHunk(hunk)
 		if name := anchorPath(derived); name != "" {

@@ -154,6 +154,7 @@ func (l *finishLane) run() int {
 		l.line("seal SKIP already-sealed sealed=.corvint/changes/%s.cem.json", bind)
 		return 0
 	}
+	l.requireOutcomeInputs()
 	if l.options.Preflight {
 		// The pre-flight checks the inputs the bind pass reads; from the
 		// bind commit on that pass has run, so there is nothing to check.
@@ -261,12 +262,39 @@ func (l *finishLane) requireVerifyInput() {
 	if detail != "" {
 		l.say("  %s\n", oneLine(detail))
 	}
-	l.say("  fix: pass a readable verify file of at most %d bytes with one shell-free command per line (no quotes, globs or operators), then rerun corvint dogfood finish-lane --base %s\n", maxVerifyFileBytes, l.options.Change.Base)
+	l.say("  fix: pass a readable verify file of at most %d bytes with one shell-free command per line (no globs or operators, and no quotes except around one -run alternation), then rerun corvint dogfood finish-lane --base %s\n", maxVerifyFileBytes, l.options.Change.Base)
 	if reason == "unsupported-verify-syntax" {
-		// DCW-V0-170, amended by DCW-V0-384: name the admitted quoted -run
-		// alternation and the accepted forms for any other quoted regex.
-		l.say("  accepted form: one quoted -run alternation of test names such as -run 'TestA|TestB' is admitted as one argv word (DCW-V0-384); any other quoted -run regex, such as -run '^TestA$', is refused even inside quotes; write one command per test name (go test -run TestA ./pkg, then go test -run TestB ./pkg), use a shared name prefix (-run TestA matches TestA*), or commit a script and list it as sh path/to/script.sh\n")
+		// DCW-V0-170, amended by DCW-V0-384 and DCW-V0-801: name the admitted
+		// quoted -run alternation, the line's own quoted form when only the
+		// quotes are missing, and the accepted forms for any other regex.
+		for _, suggestion := range quotedRunSuggestions(l.options.Change) {
+			l.say("  quoted form: %s\n", suggestion)
+		}
+		l.say("  accepted form: one quoted -run alternation of test names, -run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (single or double quotes, or attached as -run='TestA|TestB'), is admitted as one argv word (DCW-V0-384, DCW-V0-801); an unquoted alternation, a single anchored name such as -run '^TestA$' or any other quoted regex is refused; write one command per test name (go test -run TestA ./pkg, then go test -run TestB ./pkg), use a shared name prefix (-run TestA matches TestA*), or commit a script and list it as sh path/to/script.sh\n")
 	}
+	l.exit(2)
+}
+
+// requireOutcomeInputs refuses, before prepare and before any bind or commit,
+// a run without a verification command or an outcome: the rebind's
+// local-outcome row records both, so without them it can only refuse
+// outcome-input-not-provided after the bind commit exists (DCW-V0-800). The
+// refusal names both inputs, as the rebind's fix line does.
+func (l *finishLane) requireOutcomeInputs() {
+	verify, _ := verifyInput(l.options.Change)
+	var missing []string
+	if len(verify) == 0 {
+		missing = append(missing, "--verify")
+	}
+	if l.options.Change.Outcome == "" {
+		missing = append(missing, "--outcome")
+	}
+	if len(missing) == 0 {
+		return
+	}
+	l.say("%s: REFUSE outcome-input-not-provided missing=%s\n", l.prefix, strings.Join(missing, ","))
+	l.say("  fix: pass --verify FILE (or DOGFOOD_VERIFY_FILE, one verification command per line) and --outcome passed|failed|blocked (or DOGFOOD_OUTCOME); make dogfood-finish takes them as VERIFY=<verify.txt> OUTCOME=passed|failed|blocked; then rerun corvint dogfood finish-lane --base %s\n", l.options.Change.Base)
+	l.say("  the rebind records the local outcome from both inputs; nothing was prepared, bound or committed\n")
 	l.exit(2)
 }
 

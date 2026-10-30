@@ -56,7 +56,7 @@ func TestFinishLaneDCWV0335PrepareRefusesUnstableCiteSpanBeforeBind(t *testing.T
 			return 1
 		}}
 		var stdout, stderr bytes.Buffer
-		code, err := FinishLane(context.Background(), FinishLaneOptions{Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan}}, &stdout, &stderr)
+		code, err := FinishLane(context.Background(), FinishLaneOptions{Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan, Verify: "go version", Outcome: "passed"}}, &stdout, &stderr)
 		if err != nil || code == 0 {
 			t.Fatalf("%s: code=%d err=%v stdout=%q stderr=%q", tc.name, code, err, stdout.String(), stderr.String())
 		}
