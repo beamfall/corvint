@@ -38,6 +38,7 @@ type options struct {
 	partitionDigest                                                                                                  string
 	profile, evidence, dockerContext, trusted, containerMode                                                         string
 	mode, root, base, head, target, planner, selector, source, out, qualification, qualificationSHA, corpus, runtime string
+	prior                                                                                                            string
 	// seedCache is nil outside this package's tests. A test sets it to fill
 	// the build cache that resetPrivateRuntime has just emptied, so fixture
 	// executions do not each recompile the race standard library (V1-2740).
@@ -97,7 +98,7 @@ type receipt struct {
 
 func main() {
 	var o options
-	flag.StringVar(&o.mode, "mode", "run", "run, plan, freeze, shadow, or qualify")
+	flag.StringVar(&o.mode, "mode", "run", "run, plan, prior, freeze, shadow, or qualify")
 	flag.StringVar(&o.root, "root", ".", "tested repository")
 	flag.StringVar(&o.base, "base", "", "event base OID")
 	flag.StringVar(&o.head, "head", "", "event PR head OID")
@@ -113,7 +114,8 @@ func main() {
 	flag.StringVar(&o.runtime, "runtime", "/tmp/corvint-pr-tests-runtime", "exclusive fixed runtime layout (must not already exist)")
 	flag.IntVar(&o.row, "row", 0, "one indexed frozen row (1..200), exclusive with --rows")
 	flag.StringVar(&o.profile, "container-profile", "", "trusted read-only inspected container profile")
-	flag.StringVar(&o.evidence, "evidence", "", "retained rows directory for qualify")
+	flag.StringVar(&o.evidence, "evidence", "", "retained rows directory for qualify, or one run's output directories for prior")
+	flag.StringVar(&o.prior, "prior", "", "plan mode: prior-run record whose passes rerun.json reuses (TSP-V0-007)")
 	flag.StringVar(&o.dockerContext, "docker-context", "", "explicit Docker context for container launcher")
 	flag.StringVar(&o.trusted, "trusted", "", "read-only directory of frozen Linux trusted binaries")
 	flag.StringVar(&o.containerMode, "container-mode", "shadow", "container operation: run, freeze, shadow, qualify")
@@ -173,7 +175,7 @@ func dispatch(ctx context.Context, o options) (code int, err error) {
 		return 2, err
 	}
 	o.out = out
-	if o.mode != "qualify" {
+	if o.mode != "qualify" && o.mode != "prior" {
 		if !filepath.IsAbs(o.runtime) {
 			return 2, errors.New("runtime must be absolute")
 		}
@@ -188,7 +190,7 @@ func dispatch(ctx context.Context, o options) (code int, err error) {
 	if err = realExternalDirectory(root, out); err != nil {
 		return 2, err
 	}
-	if o.mode != "qualify" {
+	if o.mode != "qualify" && o.mode != "prior" {
 		if err = os.Mkdir(o.runtime, 0700); err != nil {
 			return 2, fmt.Errorf("refusing existing runtime: %w", err)
 		}
@@ -211,6 +213,8 @@ func dispatch(ctx context.Context, o options) (code int, err error) {
 		return runPR(ctx, o)
 	case "plan":
 		return planOnly(ctx, o)
+	case "prior":
+		return 0, buildPrior(o)
 	default:
 		return 2, errors.New("unknown mode")
 	}
@@ -707,26 +711,41 @@ func plan(ctx context.Context, o options, id identity, merge bool) selection {
 		return s
 	}
 	s.Tree = tree
-	raw, err := capture(ctx, o, o.planner, "affected", "--base", o.base)
+	packages, planSHA, auditSHA, reason := selectSince(ctx, o, o.base, "")
+	s.PlanSHA, s.AuditSHA = planSHA, auditSHA
+	if reason != "" {
+		s.Reason = reason
+		return s
+	}
+	check, err := topology(ctx, o, merge)
+	if err != nil || check != tree {
+		s.Reason = "source drift after planning"
+		return s
+	}
+	s.Packages = packages
+	return s
+}
+
+// selectSince runs the trusted planner against base at the checked-out target and the
+// trusted selector on its receipt, writing <prefix>plan.json and <prefix>selector.txt.
+// A non-empty reason means the caller must run the whole universe.
+func selectSince(ctx context.Context, o options, base, prefix string) (packages []string, planSHA, auditSHA, reason string) {
+	raw, err := capture(ctx, o, o.planner, "affected", "--base", base)
 	if err != nil {
-		s.Reason = "planner failed: " + err.Error()
-		return s
+		return nil, planSHA, auditSHA, "planner failed: " + err.Error()
 	}
-	path := filepath.Join(o.out, "plan.json")
+	path := filepath.Join(o.out, prefix+"plan.json")
 	if err = os.WriteFile(path, []byte(raw), 0600); err != nil {
-		s.Reason = err.Error()
-		return s
+		return nil, planSHA, auditSHA, err.Error()
 	}
-	s.PlanSHA, _ = digestFile(path)
+	planSHA, _ = digestFile(path)
 	var r receipt
-	if err = json.Unmarshal([]byte(raw), &r); err != nil || (r.Profile != "affected-plan/1" && r.Profile != "affected-plan/0") || r.Tool != "affected" || !r.OK || r.Mutates || r.Revision != o.target || r.Range.Base != o.base || r.Plan.Dirty == nil || r.Provider.Go.State == "" {
-		s.Reason = "malformed or mismatched planner receipt"
-		return s
+	if err = json.Unmarshal([]byte(raw), &r); err != nil || (r.Profile != "affected-plan/1" && r.Profile != "affected-plan/0") || r.Tool != "affected" || !r.OK || r.Mutates || r.Revision != o.target || r.Range.Base != base || r.Plan.Dirty == nil || r.Provider.Go.State == "" {
+		return nil, planSHA, auditSHA, "malformed or mismatched planner receipt"
 	}
 	moduleData, err := os.ReadFile(filepath.Join(o.root, "go.mod"))
 	if err != nil {
-		s.Reason = err.Error()
-		return s
+		return nil, planSHA, auditSHA, err.Error()
 	}
 	module := ""
 	for _, line := range strings.Split(string(moduleData), "\n") {
@@ -737,44 +756,32 @@ func plan(ctx context.Context, o options, id identity, merge bool) selection {
 		}
 	}
 	if !packageName.MatchString(module) {
-		s.Reason = "invalid root module"
-		return s
+		return nil, planSHA, auditSHA, "invalid root module"
 	}
 	audit, err := capture(ctx, o, o.selector, path, module, o.root)
 	if err != nil {
-		s.Reason = "selector failed: " + err.Error()
-		return s
+		return nil, planSHA, auditSHA, "selector failed: " + err.Error()
 	}
-	auditPath := filepath.Join(o.out, "selector.txt")
+	auditPath := filepath.Join(o.out, prefix+"selector.txt")
 	if err = os.WriteFile(auditPath, []byte(audit), 0600); err != nil {
-		s.Reason = err.Error()
-		return s
+		return nil, planSHA, auditSHA, err.Error()
 	}
-	s.AuditSHA, _ = digestFile(auditPath)
+	auditSHA, _ = digestFile(auditPath)
 	lines := strings.Split(audit, "\n")
 	verdict := strings.Fields(lines[len(lines)-1])
 	if len(verdict) < 2 || verdict[0] != "run" {
-		s.Reason = "selector: " + lines[len(lines)-1]
-		return s
+		return nil, planSHA, auditSHA, "selector: " + lines[len(lines)-1]
 	}
-	packages := verdict[1:]
+	packages = verdict[1:]
 	if len(packages) > 4091 {
-		s.Reason = "selection exceeds argv bound"
-		return s
+		return nil, planSHA, auditSHA, "selection exceeds argv bound"
 	}
 	for _, p := range packages {
 		if !packageName.MatchString(p) || strings.Contains(p, "..") || (p != module && !strings.HasPrefix(p, module+"/")) {
-			s.Reason = "invalid executable package argument"
-			return s
+			return nil, planSHA, auditSHA, "invalid executable package argument"
 		}
 	}
-	check, err := topology(ctx, o, merge)
-	if err != nil || check != tree {
-		s.Reason = "source drift after planning"
-		return s
-	}
-	s.Packages = packages
-	return s
+	return packages, planSHA, auditSHA, ""
 }
 func runPR(ctx context.Context, o options) (int, error) {
 	if err := prepareCache(o); err != nil {
@@ -804,6 +811,7 @@ func runPR(ctx context.Context, o options) (int, error) {
 // narrowing gate compares it with the shadow selection and decides itself.
 func planOnly(ctx context.Context, o options) (int, error) {
 	id, err := toolIdentity(ctx, o)
+	idOK := err == nil
 	s := selection{Schema: schema, EventBase: o.base, Base: o.base, Head: o.head, Target: o.target, Identity: id, Packages: []string{"./..."}}
 	if err != nil {
 		s.Reason = "tool profile unavailable: " + err.Error()
@@ -814,7 +822,15 @@ func planOnly(ctx context.Context, o options) (int, error) {
 		return 130, ctx.Err()
 	}
 	s.Shard, s.Shards = o.shard, o.shards
-	return 0, writeJSON(filepath.Join(o.out, "selection.json"), s)
+	if err = writeJSON(filepath.Join(o.out, "selection.json"), s); err != nil || o.prior == "" {
+		return 0, err
+	}
+	// TSP-V0-007: rerun.json is a second, separate selection; selection.json above is unchanged.
+	r := rerun(ctx, o, id, idOK, s)
+	if ctx.Err() != nil {
+		return 130, ctx.Err()
+	}
+	return 0, writeJSON(filepath.Join(o.out, "rerun.json"), r)
 }
 func execute(ctx context.Context, o options, s selection) (int, error) {
 	current, identityErr := toolIdentity(ctx, o)

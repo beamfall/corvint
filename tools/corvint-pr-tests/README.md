@@ -29,6 +29,12 @@ the deciding `selection.json` to `--out` and executes nothing. It needs no quali
 pull-request narrowing gate (`.github/forward-rows/narrow.sh`) compares it with the shadow
 `corvint test --dry-run` selection and narrows only when it is a superset.
 
+`--mode prior --evidence RUN_DIR` (TSP-V0-007) writes `prior.json` from one completed run's shard
+output directories: the packages that passed whole in its tested merge. `--mode plan --prior
+prior.json` then also writes `rerun.json`: the packages that did not pass there plus those the
+planner selects for the change since, or `./...` with a reason. `selection.json` is unchanged; CI
+does not consume `rerun.json` yet.
+
 Freeze and measure before the full historical campaign:
 
 ```sh

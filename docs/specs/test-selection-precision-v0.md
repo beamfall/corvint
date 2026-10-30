@@ -5,15 +5,15 @@ Date: 2026-10-30
 Requirement prefix: `TSP-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3160); TSP-V0-001 amends AFP-V0-580
 Delivery status: experimental
-Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806. These requirements narrow
+Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050. These requirements narrow
 when the [affected plan](affected-plan-v0.md) names a unit frontier; that spec's Requirements
 section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 
 ## Agent digest
-- Claim: frontiers bear only where they can; gated locators and verified shell callers stop widening plans; Go source edits run only reaching tests.
+- Claim: frontiers bear only where they can; declared locators and shell callers stop widening plans; Go edits run reaching tests; PR reruns reuse passes.
 - Status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3160); TSP-V0-001 amends AFP-V0-580.
-- Exists: `FrontierBearsOnOwnFiles` in `internal/liveverify/affected/unit.go`; `ownFilesBear` in `internal/liveverify/affected/select.go`; `observeDirectory` in `internal/liveverify/affected/golang/golang.go`; `applyGatedLocators` in `internal/liveverify/affected/golang/gatedlocators.go`; `applyForeignCallers` in `internal/liveverify/affected/shell/callers.go`; `testSourceSlice` in `cmd/corvint/test_source_slices.go`; tests named in the traceability table.
-- Blocked on: nothing; Open questions names the residual shell frontier and the source-and-test slice.
+- Exists: `FrontierBearsOnOwnFiles` in `internal/liveverify/affected/unit.go`; `ownFilesBear` in `internal/liveverify/affected/select.go`; `observeDirectory` in `internal/liveverify/affected/golang/golang.go`; `applyGatedLocators` in `internal/liveverify/affected/golang/gatedlocators.go`; `applyForeignCallers` in `internal/liveverify/affected/shell/callers.go`; `testSourceSlice` in `cmd/corvint/test_source_slices.go`; `rerun` and `buildPrior` in `tools/corvint-pr-tests/rerun.go`; tests named in the traceability table.
+- Blocked on: TSP-V0-007's CI wiring (a `.github` change, Open question 4); Open questions names the residual shell frontier and the source-and-test slice.
 - Read next: Requirements; Failure modes; Open questions.
 
 ## Intent and scope
@@ -113,6 +113,21 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   SHALL be kept, and each internal one whose closure holds a changed name. A package with every
   test kept SHALL stay whole; one with none SHALL run `-run ^$` (build and vet only). Dependents of
   the package SHALL stay whole. The base SHALL be read in the same two Git processes as STR-V0-072.
+- **TSP-V0-007:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3050)
+  `corvint-pr-tests --mode prior --evidence DIR` SHALL write `prior.json`
+  (`corvint-pr-tests-prior/0`) from one completed run's output directories: the PR head, tested
+  merge, tree and identity (shard count cleared) on which every directory agrees and which each
+  observed, and the packages with a package-level `pass` event, no `fail` event and no slice in any
+  directory. It SHALL refuse evidence with no or more than 64 directories, an execution error, an
+  unreadable event or disagreeing directories. `--mode plan --prior FILE` SHALL write `rerun.json`
+  (`corvint-pr-tests-rerun/0`) beside an unchanged `selection.json`: the packages of `go list ./...`
+  at the tested merge M1 that the record does not list as passed, plus the selector's `run` set for
+  the planner's `affected --base M0` at M1, where M0 is the record's tested merge. It SHALL instead
+  name `./...` and a reason when the tool profile or the deciding plan's topology failed, the record
+  is unreadable, malformed or carries an unknown field, its identity differs, M0 does not resolve to
+  the recorded tree or its second parent is not the recorded head, that head is not an ancestor of
+  the current head, M0..M1 changes a `.github` path, the planner or selector fails or gives no `run`
+  verdict, the universe is unavailable, or the source drifts after planning.
 
 ## Non-goals
 
@@ -164,6 +179,12 @@ function may not reach: a test that observes a changed function only through fil
 environment or another process it starts is missed. The slice keeps external tests whole because a
 package they import may call the changed function. A package whose source and own test files both
 changed stays whole (44 of 57 such packages on 29 replayed commits).
+(8) TSP-V0-007: a package's prior pass is reused only when the planner does not select it for
+M0..M1, so a missed reader in that delta is missed as it is in the deciding plan; a test that passed
+at M0 by chance (flaky, time or network dependent) is not rerun; a record is only as trustworthy as
+the run that produced it, which executed PR code, so a run able to forge its own go.json could mark a
+package passed; the FULL merge-queue run is the backstop for all three. Packages the prior run did
+not execute, ran in slices, or skipped (no test files) are never reused.
 
 ## Open questions
 
@@ -185,6 +206,13 @@ stays as it was:
    shape of a real commit. Combining it with STR-V0-063 (the tests of the changed test files plus
    the tests reaching the changed functions, each under its own proof) is the next lever; it needs
    STR-V0-063's shared-helper rules applied to the union and is not designed here.
+4. TSP-V0-007 is not wired into CI: `.github/workflows/ci.yml` must keep each PR run's shard output
+   directories, fetch the previous run's tested merge for the same PR, build the record with
+   `--mode prior` and pass `--prior`, and the narrowing gate must decide from `rerun.json` (its
+   superset check against the shadow selection unchanged, its `.github` refusal applied to
+   M0..M1). Whether a record produced by a run of PR code may narrow a later run is an owner
+   decision. Intersecting `rerun.json` with the base-relative `selection.json` is also sound under
+   both proofs and would narrow further; it is not proposed here.
 
 ## Acceptance evidence and traceability
 
@@ -199,6 +227,7 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | TSP-V0-004 | `freshDirectorySource`, `makesDirectory` and `onlyExpanded` in `internal/liveverify/affected/shell/fresh.go`; block identity and separators in `parse` in `internal/liveverify/affected/shell/lex.go`; `plainAt` and the source case of `observe` in `internal/liveverify/affected/shell/shell.go` | `TestFreshTemporaryDirectorySourceIsBounded_TSP_V0_004` in `internal/liveverify/affected/shell/shell_test.go` (a heavy.sh-shaped `serve` is bounded; another value, a second assignment, a `for`, `read`, `local` or `unset` rebinding, `${w:=}`, a `local w=` declaration, another function, a subshell, an `if` arm, `&&`, a pipeline, an inner pipeline, a dynamic, `..` or empty rest, `mktemp` without `-d` or with `-u`, a prefix assignment, an `ENVFILE` source, a source between, a second fresh source, a source before the assignment and backquotes each stay dynamic) |
 | TSP-V0-005 | `readForeignCallers`, `applyForeignCallers` and `foreignCallersComplete` in `internal/liveverify/affected/shell/callers.go` and their call in `internal/liveverify/affected/shell/shell.go`; `Unit.Callers` in `internal/liveverify/affected/unit.go`; `callerEdges` in `internal/liveverify/affected/graph.go`; `foreignCallersChanged` in `internal/liveverify/affected/readers.go`; `.corvint/shell-foreign-callers.json` | `TestForeignCallerDeclaration_TSP_V0_005` in `internal/liveverify/affected/shell/callers_test.go` (declared: the frontier is gone, the plan on an unrelated change is `BOUNDED` and selects the caller, test-file caller and upstream dependents' tests but not a mention's; undeclared keeps it bearing; an unlisted Go, shell, Make, Python or workflow caller or mention, a stale caller or mention, unsorted lists, a script that is no unit, an empty reason, a bad profile, an unknown member, unparsed JSON and a file both caller and mention each name the invalid frontier and keep it bearing; a dirty declaration is `UNKNOWN`); `TestRepositoryShellForeignCallersComplete_TSP_V0_005` in `internal/liveverify/affected/shell_callers_repo_test.go`; `TestBatchReplayDeclaredRuntimeReaders_V12941` frontier floor in `internal/liveverify/affected/replay_v12941_test.go` |
 | TSP-V0-006 | `testSourceEligibles`, `testSourceEligible`, `testSourceSlice`, `testSourcePlainFunctions`, `testSourceValueUse`, `testSourceQualifiers` and `testSourceDeclOf` in `cmd/corvint/test_source_slices.go`; their call and the shared base read in `testGoSlices` in `cmd/corvint/test_slices.go`; the TSP-V0-006 verdict line in `testVerdict` in `cmd/corvint/test.go` | `TestTSPV0006DryRunSlicesSourceChanges` in `cmd/corvint/test_source_slices_tspv0006_unix_test.go` (a called function, a doc comment, a function a method calls and an added function slice to the reaching and external tests; a function no test reaches builds only; every test reaching, an own test file, a value use, a package variable reached, initialization reaching, a method, an import, a variable, a comment outside functions, a dependency also changed, a new file, an assembly file, `go:linkname` and cgo stay whole; the importer stays whole); `TestTSPV0006PlainFunctionsAndQualifiers` in `cmd/corvint/test_source_slices_tspv0006_test.go`; `TestSTRV0072SliceWalksDoNotGrowWithPackages` (two Git processes with a source change present); the mutation check in `docs/build-log/2026-10-30-v1-2806-source-slices.md` |
+| TSP-V0-007 | `readPrior`, `rerun`, `buildPrior` and `readPriorEvents` in `tools/corvint-pr-tests/rerun.go`; `selectSince` and the `--prior` branch of `planOnly` in `tools/corvint-pr-tests/main.go` | `TestTSPV0007RerunReusesPriorPasses` in `tools/corvint-pr-tests/rerun_tspv0007_test.go` (the fixed package alone reruns while the base-relative selection keeps both; nothing passed, everything passed and one passed; a missing, malformed, unknown-field, other-schema or invalid-package record, another identity, tree, unresolvable merge or head, a rewritten head, a planner failure, a non-`run` verdict, an unavailable tool profile, a refused plan and a `.github` delta each run `./...`); `TestTSPV0007PriorRecordFromRunEvidence` (only whole-package passes no directory contradicts; no directories, another merge, an unobserved merge, another identity, an execution error, an unreadable or missing event stream each refuse); the replay in `docs/build-log/2026-10-30-v1-3050-pr-rerun-reuse.md` |
 
 ## Rollback
 
@@ -212,4 +241,5 @@ TSP-V0-005: delete `.corvint/shell-foreign-callers.json` (a change that itself p
 make `applyForeignCallers` return at once; every script then carries the frontier again and the
 `Callers` edges are empty. TSP-V0-006: in `testGoSlices`, stop collecting `sources` (leave every
 `DIRECT_SOURCE_CHANGE` selection on the `reason` path); every such package then runs whole with its
-original reason. No stored state depends on it.
+original reason. No stored state depends on it. TSP-V0-007: stop passing `--prior`; `rerun.json` is then
+not written and only `selection.json` decides, as before.
