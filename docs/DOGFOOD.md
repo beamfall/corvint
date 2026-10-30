@@ -427,6 +427,11 @@ with the same inputs: the input checks and prepare pass alone, which bind and co
 leave no map, so a `|` in the verify file, a uniform plan, a stale ordinal, a cite of a span the
 change edits or an empty file exits naming the file and line before any bind work (`DCW-V0-380`).
 Run it alone, with the same variables, as `make dogfood-inputs-check` while writing the inputs.
+It also refuses `reused-worktree-state` for a trace or OCM sidecar an earlier lane left in a reused
+worktree and prints the `corvint migrate-traces --apply` recovery (`DCW-V0-396`). Before the first
+bind, also run `make doc-gates` on the working tree: it is the doc-gate list closeout and CI run, so
+a spec whose Agent digest `Status` no longer repeats its header `Status`, a stale
+`REQUIREMENTS.tsv` or a missing read scope fails there, before any bind (`DCW-V0-399`).
 Take the ordinals from `corvint dogfood propose-citations BASE` (the prepared map's order), never
 from `git diff -U0`. A few checks need the bind's own state and stay with the bind:
 `recites-cited-hunk`, `citation-stage-exists` and `unknown-reasons-not-recorded`.
@@ -1146,7 +1151,7 @@ are shared. A different session must use its own worktree or wait for explicit c
 
 A linked Git worktree is a supported checkout for the loop; it is run at that worktree's top level
 like any other and does not refuse. The loop resolves its private evidence and session directory
-with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:147@8a79d4fb`), which for a linked
+with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:150@8a79d4fb`), which for a linked
 worktree (whose `.git` is a file) is that worktree's own directory under the main repository's
 `.git/worktrees/NAME`, so sessions and evidence stay per worktree.
 The `.corvint/` outputs live in the worktree root. Repository-wide Git state (objects, refs, and

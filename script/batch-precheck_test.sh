@@ -28,6 +28,13 @@ grep -qx 'make doc-gates' "$tmp/out" || fail "derived doc-gates miss shared targ
 grep -q '^batch-drift (' "$tmp/out" || fail "no batch-drift step: $(cat "$tmp/out")"
 grep -qx 'make host-adapter-node-test' "$tmp/out" || fail "no host-adapter-node-test step: $(cat "$tmp/out")"
 
+# 1c. DCW-V0-399 (V1-3218): the lane's pre-bind `make doc-gates` reaches ./internal/specindex,
+# whose TestIndexCoversSpecsAndHeaders refuses an Agent digest Status that drifts from the header.
+(cd "$script/.." && make -n --no-print-directory doc-gates) > "$tmp/out" 2>&1 || fail "make -n doc-gates: $(cat "$tmp/out")"
+grep -q '\./internal/specindex' "$tmp/out" || fail "doc-gates no longer runs ./internal/specindex"
+grep -q 'TestIndexCoversSpecsAndHeaders' "$script/../internal/specindex/index_test.go" || fail "specindex header/digest check missing"
+grep -q 'make doc-gates' "$script/../docs/DOGFOOD.md" || fail "lane recipe no longer runs make doc-gates before the bind"
+
 # 1b. ASD-V0-044 (V1-3062): that step catches a Pi adapter version bump that leaves the
 # docs/specs/pi-workflow-v0.md capability tuple behind. On a copy of the adapter, its spec and the
 # native literal, the tuple set to the package version passes PWV-V0-011 and a stale version

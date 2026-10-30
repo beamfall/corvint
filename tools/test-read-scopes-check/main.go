@@ -317,6 +317,18 @@ func goListTargets(name string, body []byte) ([]string, error) {
 // confined run reads every in-repository package they load (AFP-V0-840).
 var goBuildVerbs = []string{"build", "run", "vet", "test", "install"}
 
+// goTestVerbs also compile the package's test files, so their targets load the
+// imports of _test.go files too.
+var goTestVerbs = []string{"vet", "test"}
+
+// goValueFlags are the go command flags whose value, when not joined by "=",
+// is the next argument, so it is never a package target.
+var goValueFlags = []string{
+	"-asmflags", "-bench", "-benchtime", "-buildmode", "-C", "-compiler", "-count", "-covermode",
+	"-coverpkg", "-coverprofile", "-cpu", "-exec", "-gcflags", "-ldflags", "-mod", "-modfile", "-o",
+	"-overlay", "-p", "-parallel", "-pgo", "-pkgdir", "-run", "-skip", "-tags", "-timeout", "-toolexec",
+}
+
 // goBuildTargets returns the package patterns of every go command a test file
 // spells as the string-slice Argv of a procgroup.Spec literal or as the
 // arguments of exec.Command or exec.CommandContext, whose go binary is a "go"
@@ -324,16 +336,16 @@ var goBuildVerbs = []string{"build", "run", "vet", "test", "install"}
 // goPath, followed by a literal verb in goBuildVerbs (V1-3210). A target is a
 // literal "." or one starting with "./" or "../", or a concatenation whose
 // leftmost literal starts so, such as "./fixtures/"+variant, which stands for
-// the directories below its prefix ("./fixtures/..."); the value after "-o" is
-// never one. A command with no positional argument, only flags, builds the
-// package itself; a positional argument the file does not spell as a target,
-// such as a variable or a file name, is a target the check cannot see.
-func goBuildTargets(name string, body []byte) ([]string, error) {
+// the directories below its prefix ("./fixtures/..."); the separate value of a
+// flag in goValueFlags, such as "-o" or "-tags", is never one. A command with
+// no positional argument, only flags, builds the package itself; a positional argument the file does not spell as a target,
+// such as a variable or a file name, is a target the check cannot see. The
+// targets of a verb in goTestVerbs are returned apart, as tests.
+func goBuildTargets(name string, body []byte) (builds, tests []string, err error) {
 	file, err := parser.ParseFile(token.NewFileSet(), name, body, parser.SkipObjectResolution)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	var targets []string
 	ast.Inspect(file, func(node ast.Node) bool {
 		var arguments []ast.Expr
 		switch node := node.(type) {
@@ -358,25 +370,29 @@ func goBuildTargets(name string, body []byte) ([]string, error) {
 			if !goBinary(arguments[index]) || !ok || !slices.Contains(goBuildVerbs, verb) {
 				continue
 			}
-			positional, output := false, false
+			targets := &builds
+			if slices.Contains(goTestVerbs, verb) {
+				targets = &tests
+			}
+			positional, value := false, false
 			for _, argument := range arguments[index+2:] {
-				value, literal := stringLiteral(argument)
-				if !output && !(literal && strings.HasPrefix(value, "-")) {
+				text, literal := stringLiteral(argument)
+				if !value && !(literal && strings.HasPrefix(text, "-")) {
 					positional = true
 					if target, ok := buildTarget(argument); ok {
-						targets = append(targets, target)
+						*targets = append(*targets, target)
 					}
 				}
-				output = literal && value == "-o"
+				value = !value && literal && slices.Contains(goValueFlags, "-"+strings.TrimLeft(text, "-"))
 			}
 			if !positional {
-				targets = append(targets, ".")
+				*targets = append(*targets, ".")
 			}
 			break
 		}
 		return true
 	})
-	return targets, nil
+	return builds, tests, nil
 }
 
 // specArgv returns the elements of the string-slice literal a
@@ -485,8 +501,9 @@ func stringLiteral(expression ast.Expr) (string, bool) {
 // Those directories are what a confined `go list` must read. A target resolves
 // against the package directory, where `go test` runs, or, when no directory
 // is there, against the root, where a test that sets the command's Dir to the
-// root runs it; a target that is neither is an error, not a silent pass.
-func dependencyDirectories(root, directory string, targets []string) ([]string, error) {
+// root runs it; a target that is neither is an error, not a silent pass. With
+// test, the imports of the targets' test files are loaded too.
+func dependencyDirectories(root, directory string, targets []string, test bool) ([]string, error) {
 	var resolved []string
 	for _, target := range targets {
 		// A "/..." pattern resolves at its directory and keeps the suffix.
@@ -507,7 +524,11 @@ func dependencyDirectories(root, directory string, targets []string) ([]string, 
 		}
 		resolved = append(resolved, "./"+found)
 	}
-	command := exec.Command("go", append([]string{"list", "-deps", "-f", "{{if not .Standard}}{{.Dir}}{{end}}"}, resolved...)...)
+	arguments := []string{"list", "-deps", "-f", "{{if not .Standard}}{{.Dir}}{{end}}"}
+	if test {
+		arguments = append(arguments, "-test")
+	}
+	command := exec.Command("go", append(arguments, resolved...)...)
 	command.Dir = root
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
@@ -613,7 +634,7 @@ func check(root string) ([]finding, []string, error) {
 				return nil, nil, fmt.Errorf("%s: %w", file, err)
 			}
 			if len(targets) > 0 {
-				dependencies, err := dependencyDirectories(root, directory, targets)
+				dependencies, err := dependencyDirectories(root, directory, targets, false)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -623,12 +644,18 @@ func check(root string) ([]finding, []string, error) {
 					}
 				}
 			}
-			builds, err := goBuildTargets(file, body)
+			builds, tests, err := goBuildTargets(file, body)
 			if err != nil {
 				return nil, nil, fmt.Errorf("%s: %w", file, err)
 			}
-			if len(builds) > 0 {
-				dependencies, err := dependencyDirectories(root, directory, builds)
+			for _, group := range []struct {
+				targets []string
+				test    bool
+			}{{builds, false}, {tests, true}} {
+				if len(group.targets) == 0 {
+					continue
+				}
+				dependencies, err := dependencyDirectories(root, directory, group.targets, group.test)
 				if err != nil {
 					return nil, nil, err
 				}

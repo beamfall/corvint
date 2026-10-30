@@ -275,3 +275,42 @@ func TestGoBuildDependencyOutsideScopeFails_V1_3210(t *testing.T) {
 		}
 	}
 }
+
+// V1-3210 review: `go test` and `go vet` also load the imports of the target's
+// test files, and the separate value of a flag such as -tags is no target, so
+// a flags-only `go build -tags x` still builds the package itself.
+func TestGoTestDependencyAndFlagValues_V1_3210(t *testing.T) {
+	if _, err := exec.LookPath("go"); err != nil {
+		t.Skip("go tool unavailable")
+	}
+	test := "package main\n\nimport (\n\t\"os/exec\"\n\t\"testing\"\n)\n\n" +
+		"func TestBuilds(t *testing.T) {\n" +
+		"\t_ = exec.Command(\"go\", \"build\", \"-tags\", \"feature\")\n" +
+		"\t_ = exec.Command(\"go\", \"test\", \"-count\", \"1\", \"./fixture\")\n}\n"
+	for name, c := range map[string]struct {
+		entries     string
+		code        int
+		want, never string
+	}{
+		"test-only import undeclared": {`"go.mod","internal/built/"`, 1, "which reads internal/testonly, outside", "reads internal/built"},
+		"flags-only build undeclared": {`"go.mod","internal/testonly/"`, 1, "which reads internal/built, outside", "reads internal/testonly"},
+		"declared":                    {`"go.mod","internal/built/","internal/testonly/"`, 0, "test-read-scopes-check: ok", "builds repository source"},
+	} {
+		files := map[string]string{
+			"go.mod":                         "module example.test/m\n\ngo 1.27\n",
+			"internal/built/b.go":            "package built\n",
+			"internal/testonly/o.go":         "package testonly\n",
+			"tools/trial/main.go":            "package main\n\nimport _ \"example.test/m/internal/built\"\n\nfunc main() {}\n",
+			"tools/trial/runner_test.go":     test,
+			"tools/trial/fixture/f.go":       "package fixture\n",
+			"tools/trial/fixture/f_test.go":  "package fixture\n\nimport _ \"example.test/m/internal/testonly\"\n",
+			".corvint/test-read-scopes.json": `{"profile":"corvint-test-read-scopes/0","packages":{"tools/trial":[` + c.entries + `]}}`,
+		}
+		var stdout, stderr bytes.Buffer
+		code := run(writeRepository(t, files), &stdout, &stderr)
+		output := stdout.String() + stderr.String()
+		if code != c.code || !strings.Contains(output, c.want) || strings.Contains(output, c.never) {
+			t.Errorf("%s: code=%d want %d; output %q lacks %q or reports %q", name, code, c.code, output, c.want, c.never)
+		}
+	}
+}

@@ -17,6 +17,7 @@ import (
 const fakeBatchRegen = `#!/bin/bash
 root=${BATCH_REGEN_ROOT:-$PWD}
 cd "$root" || exit 2
+[ -z "${BATCH_REGEN_STEPS:-}" ] || exit 3
 git rev-parse HEAD > receipt.txt
 [ "$1" = --mechanical ] && exit 0
 wc -l < a.txt | tr -d ' ' > count.txt
@@ -58,6 +59,16 @@ func (r *batchRepo) regenerate(mode, subject string) string {
 // a repin commit with a hand edit beside it stays unbound and says why.
 func TestBatchCheckDCWV0397AcceptsRegeneratedCommits(t *testing.T) {
 	repo := regenRepo(t)
+	// The checker's own overrides never reach the replayed script: a step
+	// override would make the fake script fail, and a startup file would write
+	// into the checked repository.
+	leaked := filepath.Join(repo.root, "leaked")
+	startup := filepath.Join(t.TempDir(), "startup.sh")
+	if err := os.WriteFile(startup, []byte("touch '"+leaked+"'\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("BATCH_REGEN_STEPS", "forged\tsteps")
+	t.Setenv("BASH_ENV", startup)
 	repo.lane("lane-a", "a.txt", "a1\nA2\na3\n", "")
 	repinA := repo.regenerate("mechanical", "repin use-case receipts after the seal")
 	repo.batch(repinA)
@@ -73,6 +84,9 @@ func TestBatchCheckDCWV0397AcceptsRegeneratedCommits(t *testing.T) {
 	}
 	if code != 0 || strings.Contains(stderr, "unbound-commits") {
 		t.Fatalf("exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	if _, err := os.Stat(leaked); !os.IsNotExist(err) {
+		t.Fatalf("the replay ran the checker's BASH_ENV in the checked repository: %v", err)
 	}
 
 	// A repin with one hand-edited hunk is not a regeneration.
@@ -119,5 +133,28 @@ func TestChangeDCWV0398CitesRegeneratedHunksOnly(t *testing.T) {
 		if hand && (reason != "citation-plan-map-mismatch" || cited != "" || !strings.Contains(c.mismatchDetail, `path="receipt.txt"`)) {
 			t.Fatalf("hand edit: reason=%q detail=%q rows=%q", reason, c.mismatchDetail, cited)
 		}
+	}
+}
+
+// DCW-V0-398: a merge that takes a path from a branch that regenerated it from
+// an older parent is not a regenerated path: the listing keeps the merge, so
+// the path's change is not one regenerated commit.
+func TestChangeDCWV0398RefusesAMergedRegeneration(t *testing.T) {
+	repo := regenRepo(t)
+	fork := repo.base
+	repo.write("receipt.txt", "hand\n")
+	repo.base = repo.commit("base edits the receipt")
+	testGit(t, repo.root, "checkout", "-q", "-b", "side", fork)
+	repo.regenerate("mechanical", "repin receipts")
+	testGit(t, repo.root, "checkout", "-q", "main")
+	testGit(t, repo.root, "merge", "-q", "--no-edit", "-X", "theirs", "side")
+	var stderr bytes.Buffer
+	c := &change{flow: flow{ctx: context.Background(), prefix: "dogfood-change", root: repo.root, stderr: &stderr, base: repo.base}}
+	var regeneratedPath bool
+	if code, err := boundary(context.Background(), func() int {
+		regeneratedPath = c.regeneratedPath("receipt.txt")
+		return 0
+	}, func() {}); err != nil || code != 0 || regeneratedPath {
+		t.Fatalf("regeneratedPath=%v code=%d err=%v\n%s", regeneratedPath, code, err, stderr.String())
 	}
 }

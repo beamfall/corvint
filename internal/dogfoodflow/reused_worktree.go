@@ -3,7 +3,9 @@ package dogfoodflow
 
 import (
 	"os"
+	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -14,7 +16,9 @@ import (
 
 // staleOCMPatterns names the ignored OCM sidecars a dogfood run writes beside
 // the change map: the numbered maps, their status and the intents list.
-var staleOCMPatterns = []string{".corvint/change.ocm.[0-9][0-9][0-9].json", ".corvint/change.ocm-status.json", ".corvint/change.ocm-intents"}
+// The patterns match basenames read from .corvint, so a worktree path holding
+// glob syntax cannot hide them.
+var staleOCMPatterns = []string{"change.ocm.[0-9][0-9][0-9].json", "change.ocm-status.json", "change.ocm-intents"}
 
 // requireFreshWorktree refuses, before any prepare or bind, a worktree whose
 // private dogfood state was left by an earlier lane at the same path
@@ -65,19 +69,23 @@ func (f *flow) staleOCMSidecars(base string) []string {
 	}
 	committed := time.Unix(seconds, 0)
 	var stale []string
-	for _, pattern := range staleOCMPatterns {
-		matches, _ := filepath.Glob(filepath.Join(f.root, filepath.FromSlash(pattern)))
-		for _, match := range matches {
-			info, err := os.Lstat(match)
-			if err != nil || !info.Mode().IsRegular() || !info.ModTime().Before(committed) {
-				continue
-			}
-			name := filepath.ToSlash(strings.TrimPrefix(match, f.root+string(filepath.Separator)))
-			if f.gitSucceeds("ls-files", "--error-unmatch", "--", name) || !f.gitSucceeds("check-ignore", "-q", "--", name) {
-				continue
-			}
-			stale = append(stale, name)
+	entries, _ := os.ReadDir(filepath.Join(f.root, ".corvint"))
+	for _, entry := range entries {
+		if !slices.ContainsFunc(staleOCMPatterns, func(pattern string) bool {
+			matched, _ := path.Match(pattern, entry.Name())
+			return matched
+		}) {
+			continue
 		}
+		info, err := entry.Info()
+		if err != nil || !info.Mode().IsRegular() || !info.ModTime().Before(committed) {
+			continue
+		}
+		name := ".corvint/" + entry.Name()
+		if f.gitSucceeds("ls-files", "--error-unmatch", "--", name) || !f.gitSucceeds("check-ignore", "-q", "--", name) {
+			continue
+		}
+		stale = append(stale, name)
 	}
 	sort.Strings(stale)
 	return stale

@@ -2,7 +2,6 @@
 package dogfoodflow
 
 import (
-	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/procgroup"
 )
 
 // batchRegenSubject is the subject script/batch-regen.sh commits under
@@ -17,7 +17,8 @@ import (
 const batchRegenSubject = "chore(batch): regenerate derived files (make batch-regen, ASD-V0-033)"
 
 // regenerationReplayLimit bounds how many commits one run replays, and
-// regenerationReplayTimeout bounds each replay (DCW-V0-397).
+// regenerationReplayTimeout bounds each commit's replay, every mode together
+// (DCW-V0-397).
 const (
 	regenerationReplayLimit   = 8
 	regenerationReplayTimeout = 15 * time.Minute
@@ -66,9 +67,11 @@ func (f *flow) replay(parent, commit string) regeneration {
 	if !f.gitSucceeds("cat-file", "-e", parent+":script/batch-regen.sh") {
 		return regeneration{reason: "no-batch-regen-script", silent: true}
 	}
-	// No regeneration step writes Go source, so such a commit is not replayed.
+	// A regeneration step writes only the Go source its parent's scripts name,
+	// such as the Pi adapter literal a host package bump repins, so a commit
+	// changing any other Go file is not replayed.
 	for _, path := range nonEmpty(strings.Split(f.gitValue("diff-tree", "-r", "--no-commit-id", "--name-only", "--no-renames", parent, commit), "\n")) {
-		if strings.HasSuffix(path, ".go") {
+		if strings.HasSuffix(path, ".go") && !f.gitSucceeds("grep", "-q", "-F", "-e", path, parent, "--", "script/") {
 			return regeneration{reason: "go-source-changed", silent: true}
 		}
 	}
@@ -77,35 +80,54 @@ func (f *flow) replay(parent, commit string) regeneration {
 	if f.gitValue("show", "-s", "--format=%s", commit) == batchRegenSubject {
 		modes = append(modes, "--no-commit")
 	}
-	scratch, err := os.MkdirTemp("", "corvint-regen-replay-")
+	// The scratch parent is checked before anything is created in it: no
+	// replay writes inside the worktree or its Git directories.
+	temporary, err := filepath.EvalSymlinks(os.TempDir())
+	if err != nil {
+		return regeneration{reason: "scratch-unavailable"}
+	}
+	for _, protected := range []string{f.root, f.gitValue("rev-parse", "--absolute-git-dir"), f.gitValue("rev-parse", "--path-format=absolute", "--git-common-dir")} {
+		if resolved, err := filepath.EvalSymlinks(protected); err == nil && strings.HasPrefix(temporary+string(filepath.Separator), resolved+string(filepath.Separator)) {
+			return regeneration{reason: "scratch-inside-worktree"}
+		}
+	}
+	scratch, err := os.MkdirTemp(temporary, "corvint-regen-replay-")
 	if err != nil {
 		return regeneration{reason: "scratch-unavailable"}
 	}
 	defer os.RemoveAll(scratch)
-	if resolved, err := filepath.EvalSymlinks(scratch); err == nil {
-		scratch = resolved
-	}
-	if root, err := filepath.EvalSymlinks(f.root); err == nil && strings.HasPrefix(scratch+string(filepath.Separator), root+string(filepath.Separator)) {
-		return regeneration{reason: "scratch-inside-worktree"}
-	}
 	clone := filepath.Join(scratch, "replay")
 	objects := f.gitValue("rev-parse", "--path-format=absolute", "--git-path", "objects")
 	if f.replayGit(scratch, "init", "-q", "--template=", clone) != nil ||
 		os.WriteFile(filepath.Join(clone, ".git", "objects", "info", "alternates"), []byte(objects+"\n"), 0o600) != nil {
 		return regeneration{reason: "scratch-unavailable"}
 	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		return regeneration{reason: "bash-unavailable"}
+	}
+	deadline := time.Now().Add(regenerationReplayTimeout)
+	environment := replayEnvironment(os.Environ(), clone, scratch)
 	for _, mode := range modes {
 		if f.replayGit(clone, "checkout", "-q", "-f", "--detach", parent) != nil || f.replayGit(clone, "clean", "-q", "-f", "-d", "-x") != nil {
 			return regeneration{reason: "checkout-failed"}
 		}
-		ctx, cancel := context.WithTimeout(f.ctx, regenerationReplayTimeout)
-		script := exec.CommandContext(ctx, "bash", "script/batch-regen.sh", mode)
-		script.Dir = clone
-		script.Env = append(withoutGitEnvironment(os.Environ()), "BATCH_REGEN_ROOT="+clone, "GIT_CEILING_DIRECTORIES="+scratch)
-		failed := script.Run() != nil
-		cancel()
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			return regeneration{reason: "timeout"}
+		}
+		// The script runs in its own process group, so a timeout or an
+		// interruption also stops the builds and tests it started.
+		run := procgroup.Run(f.ctx, procgroup.Spec{
+			Argv: []string{bash, "script/batch-regen.sh", mode}, Dir: clone, Env: environment,
+			Timeout: remaining, ShutdownTimeout: 5 * time.Second,
+			OutputLimit: 64 << 10, OverflowPolicy: procgroup.OverflowTruncate,
+		})
 		f.checkpoint()
-		if failed {
+		if run.TimedOut {
+			return regeneration{reason: "timeout"}
+		}
+		if run.Err != nil || !run.ExitObserved || run.ExitStatus != 0 {
 			continue
 		}
 		if f.replayGit(clone, "add", "-A") != nil {
@@ -134,14 +156,20 @@ func (f *flow) replayOutput(dir string, args ...string) (string, error) {
 	return chomp(string(output)), err
 }
 
-// withoutGitEnvironment drops every GIT_* variable, so the replayed script's
-// Git commands address the replay clone and never the checked repository.
-func withoutGitEnvironment(environment []string) []string {
-	kept := make([]string, 0, len(environment))
+// replayEnvironment is the replayed script's environment: every GIT_*
+// variable is dropped, so its Git commands address the replay clone and never
+// the checked repository, with no global or system Git configuration; every
+// BATCH_REGEN_* override, such as BATCH_REGEN_STEPS replacing the steps, and
+// the BASH_ENV and ENV startup files are dropped, so only the parent's own
+// script decides what is regenerated.
+func replayEnvironment(environment []string, clone, scratch string) []string {
+	kept := make([]string, 0, len(environment)+5)
 	for _, entry := range environment {
-		if !strings.HasPrefix(entry, "GIT_") {
+		name, _, _ := strings.Cut(entry, "=")
+		if !strings.HasPrefix(name, "GIT_") && !strings.HasPrefix(name, "BATCH_REGEN_") && name != "BASH_ENV" && name != "ENV" {
 			kept = append(kept, entry)
 		}
 	}
-	return kept
+	return append(kept, "BATCH_REGEN_ROOT="+clone, "GIT_CEILING_DIRECTORIES="+scratch,
+		"GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
 }
