@@ -99,9 +99,11 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
 4. Write the citation plan from the prepared map. The hunk count is
    `python3 -c "import json; print(len(json.load(open('.corvint/change.cem.json'))['hunks']))"`.
    `corvint dogfood propose-citations $BASE > plan.tsv` prints a draft with one row per owed hunk,
-   each citing a unique base line near that hunk or leaving it `unknown` (`DCW-V0-150`); it is not
-   a plan until you have checked that every cited line is the evidence the hunk relies on. Run
-   before any map exists, it drafts one row per hunk of the canonical `BASE..HEAD` patch, keyed by
+   each citing a base line of a file the change leaves untouched that names that hunk's path, or
+   leaving it `unknown`; it never cites a file the diff adds or modifies (`DCW-V0-150`,
+   `DCW-V0-393`). It is not a plan until you have checked that every cited line is the evidence
+   the hunk relies on. Run before any map exists, or with an unreadable or other-base map
+   (`DCW-V0-394`), it drafts one row per hunk of the canonical `BASE..HEAD` patch, keyed by
    full hunk ID and labelled `map=NOT_PREPARED keyed=hunk-id`; ID keys survive a later commit
    reordering hunks, and the bind's plan precheck still judges every row (`DCW-V0-350`).
    A plan written for an earlier map, such as nine rows kept after a later commit added a tenth

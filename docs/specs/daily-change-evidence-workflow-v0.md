@@ -1168,8 +1168,10 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   evidence for the hunk is the reviewer's to correct; a path with no unique line yields an
   unknown row. Evidence: `TestProposeCitationsDCWV0150DraftsPerHunkPlan`,
   `TestProposeCitationsDCWV0150NeverDraftsUniformPlan`,
-  `TestProposeCitationsDCWV0150RefusesWithoutMatchingMap`, `TestChangeDCWV0048RefusesUniformPlan`.
-  Rollback: revert the command and the hint text; plans are written by hand again.
+  `TestProposeCitationsDCWV0394DraftsWithoutUsableMap`, `TestChangeDCWV0048RefusesUniformPlan`.
+  Rollback: revert the command and the hint text; plans are written by hand again. Amended by
+  `DCW-V0-393` (no changed path is cited, so the same-file line rule above no longer drafts) and
+  `DCW-V0-394` (an unusable map drafts the `DCW-V0-350` template instead of refusing).
 - `DCW-V0-151`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1442) When
   `script/dogfood-finish.sh` is interrupted (`INT` or `TERM`) while it builds the tree or base
   binary, it MUST print `dogfood-finish-lane: STEP INTERRUPTED` and
@@ -1539,7 +1541,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `DCW-V0-335` precheck, never silently dropped. Evidence:
   `TestProposeCitationsDCWV0350DraftsHunkIDTemplateWithoutMap` (the template keys equal the hunk IDs
   a real `cem prepare` then records, and nothing is written);
-  `TestProposeCitationsDCWV0150RefusesWithoutMatchingMap` (empty change, unreadable map, other
+  `TestProposeCitationsDCWV0394DraftsWithoutUsableMap` (empty change, unreadable map, other
   BASE). Rollback: restore the `map-unavailable` refusal for a missing map.
 - `DCW-V0-351`: (experimental under the standing lane auto-accept; V1-2827) When
   `script/dogfood-change_test.sh` stops on a failing assertion, it MUST print to stderr one
@@ -1965,6 +1967,45 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `TestChangeDCWV0390ReplacesOnlyTheNamedCitedHunk` (replay rows),
   `TestDogfoodCitationReplaceCorrectsOneHunkOfAnAppliedStage` (bound map replays to exit 0 and
   `dogfood check` PASS with `hunks=3 supported=3`). Rollback: as `DCW-V0-390`.
+- `DCW-V0-393`: (experimental under the standing lane auto-accept; V1-3144; amends `DCW-V0-150`
+  and `DCW-V0-381`) A `propose-citations` draft MUST NOT cite any path the `BASE..HEAD` change
+  adds, modifies or deletes, including a specification, decision or test the change edits and the
+  hunk's own file (docs/LANE-ORCHESTRATION.md section 3: the plan cites only files the diff does
+  not modify). A cite row comes only from a `CEM-V1-081` anchor in a file the change leaves
+  untouched (a BASE line naming the hunk path or its basename of at least 6 bytes, or defining a
+  requirement ID the hunk adds), the governing-instruction rule or the sealed-contract rule when
+  `docs/DOGFOOD.md` is untouched; otherwise the row MUST be `unknown` `insufficient-evidence`
+  with a `proposed:` note naming the missing anchor. The draft no longer falls back to a nearby
+  line of the hunk's own file. Intent: a lane that pastes the draft never binds the change's own
+  text as its evidence. Non-goals: changing the check's anchor tiers, the bind's plan precheck or
+  what a reviewer may cite by hand. Failure modes: more `unknown` rows where only the changed file
+  named the hunk; the reviewer names the BASE contract. Evidence:
+  `TestProposeCitationsDCWV0393NeverCitesChangedPaths`,
+  `TestProposeCitationsDCWV0150DraftsPerHunkPlan`, `TestProposeCitationsDCWV0161DraftsAnchoredRows`,
+  `TestProposeCitationsDCWV0333SkipsBookkeepingPaths`,
+  `TestProposeCitationsDCWV0385CitesPriorSealOnStackedRepair`.
+  Rollback: revert `propose.go` `changed` and restore the same-file fallback.
+- `DCW-V0-394`: (experimental under the standing lane auto-accept; V1-3204; amends `DCW-V0-150`
+  and `DCW-V0-350`) When `.corvint/change.cem.json` exists but is unreadable or not a map, or
+  records a base revision other than `BASE`, `propose-citations` MUST NOT refuse: it prints `NOTE
+  map-unreadable` or `NOTE map-base-mismatch` and drafts the `DCW-V0-350` template from the
+  canonical patch, keyed by full hunk ID, labelled `map=UNREADABLE` or `map=OTHER_BASE`, exit 0.
+  The unreadable note says the bind does not replace an invalid map, so it must be removed or
+  restored before `dogfood change`. Intent: committing before the first `dogfood change` needs no
+  extra prepare. Non-goals: writing or repairing the map; changing `dogfood change`'s own
+  refusals. Failure modes: the patch itself is unreadable, which still refuses
+  `patch-unavailable`. Evidence: `TestProposeCitationsDCWV0394DraftsWithoutUsableMap`. Rollback:
+  restore the two refusals.
+- `DCW-V0-395`: (experimental under the standing lane auto-accept; V1-3209) A hunk of a file absent
+  at `BASE` has no BASE line of its own and MUST NOT be anchored by its own HEAD text (circular,
+  and forbidden by `DCW-V0-393`) nor exempted from the anchor tiers. It is anchored only by an
+  existing `CEM-V1-081` BASE anchor in an untouched file; otherwise it reaches the verdict gate
+  through a cite row plus a passed runner receipt (`CEM-V1-606`, `CEM-V1-607`). The draft's
+  unknown note for such a hunk MUST say the file is absent at BASE and name the runner receipt.
+  Non-goals: changing the check, the verdict gate or the anchor definition. Failure modes: an added
+  file with neither an anchor nor a receipt stays below anchored, as before. Evidence:
+  `TestProposeCitationsDCWV0393NeverCitesChangedPaths` (added test file row); decision recorded in
+  `docs/build-log/2026-10-30-propose-citations-changed-paths.md`. Rollback: revert the note text.
 - `DCW-V0-170`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2344) When
   `dogfood finish-lane` refuses a verify input as `unsupported-verify-syntax` (`DCW-V0-092`), it
   MUST also print an `accepted form:` line that names the common quoted `-run 'TestA|TestB'`
@@ -2238,7 +2279,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-113` (accepted, owner lane auto-acceptance 2026-10-11; V1-2266) | `internal/dogfoodflow/change.go` `admitSealedCEMs`, `fixHint`, `stackedPredecessorHint`; `TestChangeDCWV0113StackedPredecessorBindsAgainstItsSeal` (bound at the shared base, each aggregate bound refusal names the merged seal's bind and seal commits and the route, another reason does not; bound at the seal commit, no sealed CEM is admitted and only the lane's path changes; the sealed stacked lane's merge batch passes with each change verified against its own base) | implemented; the #1442 lane reproduced in a fixture only |
 | `DCW-V0-114` (accepted, owner lane auto-acceptance 2026-10-11; V1-1724) | `internal/dogfoodflow/change.go` `cite`, `probeCitationRows`, `reportFailures`; `TestChangeDCWV0114ReportsEveryRefusedCiteRow` (two refused rows and an admitted row and an unknown row in one plan: both refusals are reported in one pass, the map is unchanged and no probe or stage output remains) | implemented |
 | `DCW-V0-117` (accepted under the owner's standing auto-accept (2026-10-11); V1-2267) | `internal/dogfoodflow/change.go` `recitesCitedHunk`, `baseLineSpan`, `citeStep`; `TestChangeDCWV0117RefusesARowThatRecitesACitedHunk` (a replay by ordinal or hunk ID and a staged plan naming only the unknown hunk cite; a corrected span, a corrected relation and an unknown row for a supported hunk refuse with no cite or mark and name the hunk; fails without the check); `TestChangeDCWV0117StagedSecondPlanIsAddedToCitations` (V1-2294: the staged second plan cites over the earlier plan's map and prints the added-to-citations note; fails when `citedOver` requires two earlier citations); `TestDogfoodChangeNamesDeleteWhenACorrectedPlanJoinsEarlierCitations` (built binary: the corrected plan is refused and the uncommitted map keeps one citation) | implemented |
-| `DCW-V0-150` (accepted under the owner's standing auto-accept (2026-10-11); V1-2283, V1-2214) | `internal/dogfoodflow/propose.go` `ProposeCitations`, `draft`, `propose`; `internal/dogfoodflow/change.go` `fixHints`; `TestProposeCitationsDCWV0150DraftsPerHunkPlan` (fixture from real diff headers: rows resolve at BASE outside every hunk range and stay unique after the change; governing and new paths are unknown; worktree unchanged); `TestProposeCitationsDCWV0150NeverDraftsUniformPlan`; `TestProposeCitationsDCWV0150RefusesWithoutMatchingMap`; `TestChangeDCWV0048RefusesUniformPlan` (example and command in the fix line); replay of #1457 (26-hunk map, 25 distinct cite rows bind, build log 2026-10-21) | implemented |
+| `DCW-V0-150` (accepted under the owner's standing auto-accept (2026-10-11); V1-2283, V1-2214) | `internal/dogfoodflow/propose.go` `ProposeCitations`, `draft`, `propose`; `internal/dogfoodflow/change.go` `fixHints`; `TestProposeCitationsDCWV0150DraftsPerHunkPlan` (fixture from real diff headers: rows resolve at BASE outside every hunk range and stay unique after the change; governing and new paths are unknown; worktree unchanged); `TestProposeCitationsDCWV0150NeverDraftsUniformPlan`; `TestProposeCitationsDCWV0394DraftsWithoutUsableMap`; `TestChangeDCWV0048RefusesUniformPlan` (example and command in the fix line); replay of #1457 (26-hunk map, 25 distinct cite rows bind, build log 2026-10-21) | implemented |
 | `DCW-V0-151` (accepted under the owner's standing auto-accept (2026-10-11); V1-1442) | `script/dogfood-finish.sh` `dogfood_finish_interrupted`; `script/dogfood-cache_test.sh` (INT during the tree build exits 130, TERM during the base build exits 143, both print the step and `NOT_PRODUCED rows=0` and never start the flow; fails without the traps) | implemented |
 | `DCW-V0-160` (accepted under the owner's standing auto-accept (2026-10-11); V1-2274) | `internal/dogfoodflow/check.go` `verifyOCM`; `TestCheckDCWV0160ComputesOCMStatusOnce` (base, tree and override verifiers: one tree `dogfood-ocm status` run, none by base or override, with and without a `DCW-V0-047` declaration, also when the base would refuse; a refusing tree verifier fails its code; a drifted published aggregate fails `intent-scope-drift`; fails without the change) | implemented |
 | `DCW-V0-161` (accepted under the owner's standing auto-accept (2026-10-11); V1-2355, V1-2343) | `internal/dogfoodflow/propose.go` `anchoredProposal`, `prepareAnchors`, `draft`; `internal/cem/verify/support.go` `SpanAnchors`; `TestProposeCitationsDCWV0161DraftsAnchoredRows` (fails without the change); `TestCEMV1081DirectDependencyIsNotAnAnchor` (V1-2343 refuted as a defect) | implemented |
@@ -2260,7 +2301,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-347` (experimental under the standing lane auto-accept; V1-2810) | `internal/dogfoodflow/check_reuse.go` `passInputs`, `reusePass`, `capturePass`; `script/dogfood-seal.sh`; `TestDCWV0347SealReusesOnlyABoundPass` | implemented; focused tests PASS; end-to-end seal time NOT_MEASURED |
 | `DCW-V0-348` (experimental under the standing lane auto-accept; V1-2805, V1-1773) | `script/pre-push-dogfood-seal.sh`; `make pre-push-dogfood-seal-test` (`script/pre-push-dogfood-seal_test.sh`) | implemented; shell test PASS; CI job NOT_PRODUCED (needs `.github`) |
 | `DCW-V0-349` (V1-1894) | `Makefile` `dogfood-closeout`/`doc-gates`; `script/batch-precheck_test.sh` | shared CI gate definition; live closeout evidence retained with the repair |
-| `DCW-V0-350` (experimental under the standing lane auto-accept; V1-2810) | `internal/dogfoodflow/propose.go` `template`, `keyByID`; `TestProposeCitationsDCWV0350DraftsHunkIDTemplateWithoutMap`, `TestProposeCitationsDCWV0150RefusesWithoutMatchingMap` | implemented; focused tests PASS |
+| `DCW-V0-350` (experimental under the standing lane auto-accept; V1-2810) | `internal/dogfoodflow/propose.go` `template`, `keyByID`; `TestProposeCitationsDCWV0350DraftsHunkIDTemplateWithoutMap`, `TestProposeCitationsDCWV0394DraftsWithoutUsableMap` | implemented; focused tests PASS |
 | `DCW-V0-351` (experimental under the standing lane auto-accept; V1-2827) | `script/dogfood-change_test.sh` `report_failed_case`; `cmd/corvint/go_only_cutover_test.go` `shellTestFailure`; `TestDCWV0351ShellTestFailureNamesTheFailingCase`, `TestGoOnlyContextAbstentionRemainsClosed` | implemented; focused tests PASS |
 | `DCW-V0-352` (experimental under the standing lane auto-accept; V1-2835) | `script/gen-spec-requirements.sh` `--all` warning block; `script/gen-spec-requirements_test.sh` | implemented; shell test PASS |
 | `DCW-V0-353` (experimental under the standing lane auto-accept; V1-2836) | `script/check-line-citations.sh` fix line after the failure block; `script/check-line-citations_test.sh` | implemented; shell test PASS |
@@ -2284,6 +2325,9 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-390` (experimental under the standing lane auto-accept; V1-3168) | `internal/dogfoodflow/citation_replace.go` `resolveCitationReplace`, `replaceArgs`; `change.go` `citeStep`, `recitesCitedHunk`, `cite`; `TestChangeDCWV0390ReplacesOnlyTheNamedCitedHunk` (only the first row for the named hunk carries `--replace` and the digest; the recites refusal names the entry); `TestDogfoodCitationReplaceCorrectsOneHunkOfAnAppliedStage` (built binary: after two applied stages, a one-hunk correction is refused with the entry, the rerun replaces hunk 1 only and hunks 2 and 3 keep their basis bytes, with no map deletion) | implemented; focused tests PASS |
 | `DCW-V0-391` (experimental under the standing lane auto-accept; V1-3168) | `resolveCitationReplace`; `TestChangeDCWV0390ReplacesOnlyTheNamedCitedHunk` (stale, malformed, digest-less, unknown, ordinal, duplicate, over-bound and unplanned entries refuse with no cite or mark); `TestDogfoodCitationReplaceCorrectsOneHunkOfAnAppliedStage` (stale digest leaves the map bytes intact) | implemented; focused tests PASS |
 | `DCW-V0-392` (experimental under the standing lane auto-accept; V1-3168) | `rowsAlreadyApplied`; `TestChangeDCWV0390ReplacesOnlyTheNamedCitedHunk`; `TestDogfoodCitationReplaceCorrectsOneHunkOfAnAppliedStage` (committed map replays to exit 0 and `dogfood check` PASS) | implemented; focused tests PASS |
+| `DCW-V0-393` (experimental under the standing lane auto-accept; V1-3144) | `internal/dogfoodflow/propose.go` `changed`, `prepareAnchors`, `sealedProposal`, `propose`; `TestProposeCitationsDCWV0393NeverCitesChangedPaths`, `TestProposeCitationsDCWV0150DraftsPerHunkPlan` | implemented; focused tests PASS |
+| `DCW-V0-394` (experimental under the standing lane auto-accept; V1-3204) | `internal/dogfoodflow/propose.go` `run`, `template`; `TestProposeCitationsDCWV0394DraftsWithoutUsableMap` | implemented; focused tests PASS |
+| `DCW-V0-395` (experimental under the standing lane auto-accept; V1-3209) | `internal/dogfoodflow/propose.go` `propose`; `TestProposeCitationsDCWV0393NeverCitesChangedPaths`; build log 2026-10-30 | implemented; focused tests PASS |
 | `DCW-V0-359` (experimental under the standing lane auto-accept; V1-2858) | `script/heavy.sh` `keep_written`, `copy_back`, `fetch`; `script/lane-scripts_test.sh` copy-back fixtures | implemented; shell test PASS |
 | `DCW-V0-373` (experimental under the standing lane auto-accept; V1-2883) | `internal/cem/gitrun/gitrun.go` `ScaledOperations`, `ScaleForRecords`; `internal/cem/gitauth/repo.go` `ScaleBudgetForRecords`; `internal/cem/workflow/commands.go` `resumeStableCandidate`; `internal/cem/verify/stable.go` `StableOptions.ScaledOperations`; `internal/cem/cli/cli.go` `--scaled-operations`; `internal/dogfoodflow/scaled.go`; `internal/lrfrepo/adapter.go` `acceptedStable`; `TestScaledOperationsGrowWithMapRecords`, `TestDCWV0373ScaledOperationsIsOptIn`, `TestDCWV0373StatusRetriesOnlyResourceLimit`, `TestDCWV0373CheckScaledStatusNeedsBothVerifiers` | implemented; focused tests PASS |
 | `DCW-V0-374` (experimental under the standing lane auto-accept; V1-2883) | `cmd/corvint/dogfood_record.go` `runDogfoodAggregateRecord`; `internal/tracerecordrepo/aggregate_outcome.go` `AggregateExpectedFor`; `internal/dogfoodflow/change.go` `localOutcome`, `AggregateMarkerPresent`; `TestDCWV0374OverLimitOutcomeLearnsNothing`, `TestDCWV0374LocalOutcomeAdmitsOptedInAggregate`, `TestDCWV0374UnenrolledAggregateReceiptIsNotAMarker` | implemented; focused tests PASS |

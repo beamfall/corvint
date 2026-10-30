@@ -2009,11 +2009,12 @@ sealed change the range adds, verifies each sealed CEM against its own base, and
 re-derives each merge result; it reports what it cannot prove (DCW-V0-039).
 
 propose-citations is read-only. It prints, on stdout, a draft citation plan with
-one row per hunk of .corvint/change.cem.json still owed a row: a BASE line next to
-the hunk (its enclosing heading or declaration) that no hunk edits and the change
-leaves unique, or an unknown row. With no prepared map it drafts one row per hunk
-of the canonical BASE..HEAD patch, keyed by full hunk ID, so no probe bind pass is
-needed (DCW-V0-350). The draft is labelled PROPOSED on stderr; review it and write
+one row per hunk of .corvint/change.cem.json still owed a row: a BASE line of a
+file the change leaves untouched that names the hunk's path, or an unknown row; it
+never cites a file the change adds or modifies (DCW-V0-393). With no usable map
+(missing, unreadable or for another BASE) it drafts one row per hunk of the
+canonical BASE..HEAD patch, keyed by full hunk ID, so no probe bind pass is needed
+(DCW-V0-350, DCW-V0-394). The draft is labelled PROPOSED on stderr; review it and write
 it to the DOGFOOD_CITATIONS file yourself (DCW-V0-150).
 `
 
