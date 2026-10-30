@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: Apache-2.0
 """Exercise Git-write classification through the transcript reader and public CLI."""
 import importlib.util
 import json
