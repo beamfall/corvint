@@ -81,6 +81,13 @@ baseline is running every setup project for every spec, reviewing by eye, and gr
   `inputDigest` (`sha256:` over the sorted path and blob of every file read, the registries and the
   application-map manifests), deterministic across calls. `--format lines` MUST print only the setup
   paths, one per line, usable as a test provider's setup project list.
+- `TSA-V0-871`: (standing auto-accept, 2026-10-11; V1-1587 AC6, 2026-10-30) The `--format lines`
+  output MUST be passable unchanged to a test provider so that a run executes only those setup
+  files: a Playwright setup project whose `testMatch` is built from the listed paths runs the
+  selected setup files and no other, and an ALL result hands it every setup file. Corvint adds no
+  provider integration: the hand-off is the line list. Non-goals: generating provider config or
+  running the provider. Failure mode: a provider that cannot take a path list falls back to running
+  every setup file, which is the safe superset. Rollback: none needed; the contract adds no code.
 - `TSA-V0-006`: (standing auto-accept, 2026-10-11; V1-1698 / GitHub #1082) A shared constant is an
   exported object literal (`export const|let|var NAME [: T] = {`, `export default {`, or a local
   object constant exported through `export { NAME [as ALIAS] }`). An import of it is followed through
@@ -2107,6 +2114,14 @@ committed source; nothing reads a database, a network or a run. Each finding cit
 - `TSA-V0-164`: (standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191) Proposing the one value
   a passing receipt observed is NOT_PRODUCED: no receipt records assertion operands, so the
   message names the accepted values only and never guesses which one is correct.
+- `TSA-V0-870`: (standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191, 2026-10-30) Every line a
+  justified `EITHER-OR-OUTCOME` annotation exempts (TSA-V0-163, TSA-V0-308) MUST be reported, not
+  silently dropped: the file's validity record carries an `exemptions` entry naming the rule, the
+  exempted `path:line` and the annotation's own reason, for a JS/TS line (same line or the line
+  above), a Markdown or YAML contract comment and a JSON sibling member. A reasonless or
+  other-rule annotation exempts nothing and records nothing. An exemption is not a finding and
+  changes no axis. Non-goals: judging the reason's truth. Rollback: drop the `exemptions` member;
+  it is omitted when empty and nothing reads it.
 - `TSA-V0-165`: (standing auto-accept, 2026-10-11; V1-1919 / GitHub #1185) `CLEANUP-HANDLE-OUTLIVED`
   MUST be an advisory finding on a cleanup closure registered on a registry whose fixture the file
   declares with a longer literal scope (`{ scope: 'worker' }`) when the closure captures a
@@ -2225,7 +2240,8 @@ persisted.
 | TSA-V0-161 | `internal/testsource/validity_either_or.go` | `TestEitherOrOutcomeForms`, `TestEitherOrOutcomeNegatives`, `TestEitherOrOutcomeReviewCases` | experimental |
 | TSA-V0-162 | `internal/testsource/validity_either_or.go`, `internal/testsource/validity.go` | `TestEitherOrOutcomeContract` | experimental |
 | TSA-V0-163 | `internal/testsource/validity_either_or.go` | `TestEitherOrOutcomeAnnotation`, `TestEitherOrOutcomeContract`, `TestEitherOrOutcomeReviewCases` | experimental |
-| TSA-V0-164 | none | NOT_PRODUCED | gap |
+| TSA-V0-164 | `eoMessage` in `internal/testsource/validity_either_or.go` (names the accepted values, proposes none); `AssertionOperandRecord` in `internal/jstestprovider/assertion_operands.go` records operand sizes only (LPCV-V0-120), so no receipt carries the observed value | `TestEitherOrOutcomeProposesNoValue` (without a receipt: every accepted value named, no value proposed or guessed); the with-receipt proposal stays NOT_PRODUCED because no receipt observes an operand value | experimental |
+| TSA-V0-870 | `RuleExemption` in `internal/testvalidity/source_rules_outcome.go`; `eoAllowed`, `eoAnnotation`, `eoContractFindings` in `internal/testsource/validity_either_or.go`; `eoJSONAllowed` in `validity_crossfile.go`; `ValidityReport.Exemptions`, `SourceValidityFile.Exemptions` | `TestEitherOrOutcomeExemptionRetainsReason` (JS/TS above and same line, Markdown, YAML and JSON annotations each retain rule, location and reason in the report and the file JSON; reasonless and other-rule annotations record nothing) | experimental |
 | TSA-V0-165 | `internal/testsource/validity_cleanup_handle.go` | `TestCleanupHandleOutlivedInTest`, `TestCleanupHandleOutlivedShadowed` | experimental |
 | TSA-V0-166 | `internal/testsource/validity_cleanup_handle.go`, `internal/testsource/validity.go` | `TestCleanupHandleOutlivedInTest`, `TestCleanupHandleOutlivedFixtureFile` | experimental |
 | TSA-V0-167 | `internal/testsource/validity_cleanup_handle.go` | `TestCleanupHandleOutlivedAbstains` | experimental |
@@ -3574,7 +3590,9 @@ function's return is not. The exact-text rule names the locator for a split at t
 a missing helper, a fourth hop and non-literal options. Each NOT_PRODUCED reason is produced with
 no finding. A change on a later line of a multi-line assertion or locator is in scope. A malformed
 imported module is uncertain, and an aggregate over the shared read budget refuses. A CLI run joins a synthetic Playwright report.
-No live qualification on a real suite or real Playwright run was performed.
+No live qualification on a real suite was performed. The setup-select provider hand-off
+(TSA-V0-871) was run once against a real `@playwright/test` 1.61.1 on a fixture repository
+(2026-10-30); the other rules have no real Playwright run.
 
 ## Delivery
 
@@ -3585,6 +3603,7 @@ No live qualification on a real suite or real Playwright run was performed.
 | TSA-V0-003 | `internal/contextindex/setup_select.go` | `TestSelectSetupAll`, `TestSelectSetupUniverseIncludesUnindexedFiles` | experimental |
 | TSA-V0-004 | `internal/contextindex/setup_select.go` | `TestSelectSetupClosure` | experimental |
 | TSA-V0-005 | `internal/contextindex/setup_select.go`, `cmd/corvint/tests.go` | `TestSelectSetupDigest`, `TestTestsCLI` | experimental |
+| TSA-V0-871 | `runTestsSetupSelect` in `cmd/corvint/tests.go` (`--format lines`) | `TestTestsSetupSelectProviderHandoffLive` in `cmd/corvint/tests_setup_select_handoff_live_test.go`: a real `@playwright/test` 1.61.1 run (Node 22, Mac, 2026-10-30) whose setup project is built from the line list executes only `setup/scenario_a.setup.ts` for a spec reaching `SHARED.scenario_a`, and both setup files for an ALL selection; skips `NOT_RUN` without `CORVINT_PLAYWRIGHT_MODULES` | experimental |
 | TSA-V0-006 | `internal/contextindex/setup_shared.go`, `internal/contextindex/setup_select.go` | `TestSelectSetupSharedConstantKeys`, `TestSelectSetupSharedConstantReviewForms` | experimental |
 | TSA-V0-007 | `internal/contextindex/setup_shared.go` | `TestSelectSetupSharedConstantFailsClosed`, `TestSelectSetupSharedConstantReviewForms`, `TestSelectSetupSharedConstantOpenSetups` | experimental |
 | TSA-V0-646 | `internal/contextindex/setup_select.go`, `internal/contextindex/registry_dialect.go` | `TestSelectSetupRegistryKeyInSubstitution` | experimental |

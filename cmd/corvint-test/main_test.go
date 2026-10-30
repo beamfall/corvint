@@ -513,6 +513,26 @@ func TestCCEV0088HarvestManifestFlag(t *testing.T) {
 	}
 }
 
+// CCE-V0-310: `e2e harvest --source DIR` reaches the site-knowledge IR, and a source the IR cannot
+// read refuses with e2e-site-knowledge-unavailable.
+func TestCCEV0310HarvestSourceFlag(t *testing.T) {
+	root, _, _ := fixture(t)
+	rev := gitTest(t, root, "rev-parse", "HEAD")
+	var out bytes.Buffer
+	if err := run(context.Background(), []string{"e2e", "harvest", "--root", root, "--rev", rev, "--source", "e2e"}, &out); err != nil {
+		t.Fatal(err)
+	}
+	var doc changee2e.Proposals
+	if err := json.Unmarshal(out.Bytes(), &doc); err != nil || len(doc.Proposals) == 0 {
+		t.Fatalf("%v %s", err, out.Bytes())
+	}
+	var r *changee2e.Refusal
+	err := run(context.Background(), []string{"e2e", "harvest", "--root", root, "--rev", rev, "--source", "no-such-dir"}, &bytes.Buffer{})
+	if !errors.As(err, &r) || r.Code != "e2e-site-knowledge-unavailable" {
+		t.Fatalf("unreadable source: %v", err)
+	}
+}
+
 // CCE-V0-134: every map-reading verb binds --repo, --manifest-repo and --repo-revision. In a
 // two-repository layout catalog, harvest and obligations record the test root's pin (stated
 // when --repo-revision names it); compile and prove run across both trees; a revision for an
