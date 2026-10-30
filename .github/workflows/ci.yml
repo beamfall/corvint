@@ -7,7 +7,8 @@ on:
   # proven narrowed selection of the same range (REUSE, AFP-V0-046, AFP-V0-734). While
   # CORVINT_MQ_NARROWING is on, a FULL entry on main may still narrow its shards to the trusted
   # selection of the whole queue range under the pull requests' MET verdict (AFP-V0-730..733);
-  # a narrowed entry records no tested tree, so the main push of its commit runs in full.
+  # a narrowed entry records its tree as a narrowed record (CIN-V0-005, V1-3158), and while
+  # CORVINT_MQ_NARROWING stays on the main push of that same commit reuses it.
   merge_group:
     types: [checks_requested]
   push:
@@ -211,6 +212,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REUSE_SHARDS: "8"
+          MQ_NARROWING: ${{ vars.CORVINT_MQ_NARROWING }}
         run: |
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           src="$GITHUB_WORKSPACE/source"
@@ -242,6 +244,12 @@ jobs:
           if [ "$GITHUB_EVENT_NAME" = merge_group ] && help=$("$RUNNER_TEMP/ci-reuse-plan" -h 2>&1 || true) && grep -q '^  -base ' <<< "$help"; then
             base_args=(--base "$base")
           fi
+          # CIN-V0-005 (V1-3158): while CORVINT_MQ_NARROWING is on, a main push also admits the
+          # narrowed record of this same commit's merge-queue run for its own first parent, never a
+          # pull-request run's; with the variable off it reuses only a full record.
+          if [ "$GITHUB_EVENT_NAME" = push ] && [ "$MQ_NARROWING" = on ]; then
+            base_args=(--base "$(git -C "$src" rev-parse --verify -q "$GITHUB_SHA^1")")
+          fi
           d="$RUNNER_TEMP/ci-reuse"
           mkdir -p "$d/jobs" "$d/logs"
           api="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions"
@@ -261,7 +269,7 @@ jobs:
               get "$api/runs/$id/jobs?filter=latest&per_page=100" "$d/jobs/$id.json" || continue
               # Only a passed record job has a log; a skipped one would answer 404 (V1-3051).
               # AFP-V0-734: a merge-queue entry also reads the narrowed-record job's log.
-            for job in $(jq -r --arg event "$GITHUB_EVENT_NAME" '.jobs[]? | select((.name == "ci-tested-tree-record" or ($event == "merge_group" and .name == "ci-narrowed-tree-record")) and .conclusion == "success") | .id | select(type == "number")' "$d/jobs/$id.json" | head -n 4); do
+            for job in $(jq -r --arg base "${base_args[*]}" '.jobs[]? | select((.name == "ci-tested-tree-record" or ($base != "" and .name == "ci-narrowed-tree-record")) and .conclusion == "success") | .id | select(type == "number")' "$d/jobs/$id.json" | head -n 4); do
                 get "$api/jobs/$job/logs" "$d/logs/$job.txt" || true
               done
             done
@@ -1304,9 +1312,11 @@ jobs:
     # ci-tested-tree-record it runs no repository code and persists no credentials, and only
     # ci.yml changes what it prints. A merge-queue entry reuses that run only when its own tree
     # and first parent equal the record's (tools/ci-reuse-plan), so the selection covered the
-    # same range; a main push never reuses it. Any mismatch prints no record; it never fails CI.
+    # same range. CIN-V0-005 (V1-3158): a narrowed merge-queue run prints the same line, its
+    # first parent being the entry's base_sha, and only the main push of that same commit reuses
+    # it, while CORVINT_MQ_NARROWING is on. Any mismatch prints no record; it never fails CI.
     needs: [docs-plan, narrowing-verdict, go-product-shard, go-product]
-    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.go-product.result == 'success' && needs.go-product-shard.result == 'success' && needs.narrowing-verdict.outputs.verdict == 'MET' && !(needs.go-product-shard.outputs.full0 == 'FULL' && needs.go-product-shard.outputs.full1 == 'FULL' && needs.go-product-shard.outputs.full2 == 'FULL' && needs.go-product-shard.outputs.full3 == 'FULL' && needs.go-product-shard.outputs.full4 == 'FULL' && needs.go-product-shard.outputs.full5 == 'FULL' && needs.go-product-shard.outputs.full6 == 'FULL' && needs.go-product-shard.outputs.full7 == 'FULL') && needs.docs-plan.result == 'success' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE' }}
+    if: ${{ !cancelled() && (github.event_name == 'pull_request' || github.event_name == 'merge_group') && needs.go-product.result == 'success' && needs.go-product-shard.result == 'success' && needs.narrowing-verdict.outputs.verdict == 'MET' && !(needs.go-product-shard.outputs.full0 == 'FULL' && needs.go-product-shard.outputs.full1 == 'FULL' && needs.go-product-shard.outputs.full2 == 'FULL' && needs.go-product-shard.outputs.full3 == 'FULL' && needs.go-product-shard.outputs.full4 == 'FULL' && needs.go-product-shard.outputs.full5 == 'FULL' && needs.go-product-shard.outputs.full6 == 'FULL' && needs.go-product-shard.outputs.full7 == 'FULL') && needs.docs-plan.result == 'success' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     env:
@@ -1320,7 +1330,7 @@ jobs:
       - name: Record the tested tree and the selection base
         env:
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
-          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          EVENT_BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
         run: |
           set -eu
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
@@ -1328,12 +1338,12 @@ jobs:
             echo 'AFP-V0-734: the tested commit is not a two-parent merge; no tree is recorded.'
             exit 0
           fi
-          if [ "$head" != "$PR_HEAD" ]; then
+          if [ "$GITHUB_EVENT_NAME" = pull_request ] && [ "$head" != "$PR_HEAD" ]; then
             echo 'AFP-V0-734: the tested merge does not name the pull-request head; no tree is recorded.'
             exit 0
           fi
           base=$(git rev-parse --verify -q "$GITHUB_SHA^1")
-          if [ "$base" != "$PR_BASE" ]; then
+          if [ -z "$EVENT_BASE" ] || [ "$base" != "$EVENT_BASE" ]; then
             echo 'AFP-V0-734: the tested merge is not built on the base its selection covered; no tree is recorded.'
             exit 0
           fi
