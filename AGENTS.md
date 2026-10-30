@@ -1,0 +1,154 @@
+# Corvint agent contract
+
+Corvint is a local-first, proof-carrying context compiler for software agents.
+
+## Delivery and context
+
+- Prove the smallest useful end-to-end result early and finish required integration and verification.
+  Reuse accepted decisions; add work only for the request or an observed blocker.
+- Read only the task's applicable context route and original evidence. Keep procedural details in
+  the linked contracts; do not preload every spec, backlog, feature or skill.
+- Use focused checks while building, one independent review, and the required final gate. Reuse
+  evidence only under its binding rules; repeat for changed inputs, failure or an explicit mandate.
+- Record evidence as work completes. Avoid duplicate reports, status-only handoffs and administrative
+  closeout rounds. When process delays delivery, simplify it without weakening gates or approvals.
+- Choose task-fit effort; reserve deeper reasoning for uncertain design, authority, evidence
+  bindings, concurrency or security. Instruction tuning is a hypothesis until measured; missing
+  telemetry stays `NOT_OBSERVED`.
+
+## Product invariants
+
+1. Evidence is pinned to immutable Git content and always explains its inclusion.
+2. Missing evidence produces uncertainty or abstention, never invented certainty.
+3. Project-owned authority outranks syntax, history, and learned task traces.
+4. Read commands do not mutate repository or trace state. The only exceptions are two bounded,
+   private, local ledgers under `.corvint/` (`self-observations.jsonl`, and `unplanned-reads.jsonl`
+   while the operator marker `.corvint/unplanned-reads.enabled` exists). Their writers are defined by
+   `SOL-V0-001`, `SOL-V0-007` and `SOL-V0-010`; neither is ever an input to ranking, evidence, or
+   authority, nor to learning except through the operator-invoked
+   `corvint eval --learn-slot-weights` step, whose output reaches ranking only after the frozen
+   held-out gate admits it (`LTA-V0-009` to `LTA-V0-012`). Outside the repository, `affected` may
+   also write one bounded, private user-cache directory, `os.UserCacheDir()/corvint/affected`, of
+   derived graph entries admitted by `AFP-V0-436` to `AFP-V0-439`; it is never repository, Git,
+   trace or `.corvint/` state and never an input to ranking, evidence, authority or learning.
+5. Learning is explicit, local, bounded, secret-screened, and evaluation-gated.
+6. Corvint integrates with existing specs and agents; it does not require a new spec language.
+7. The default local product remains one native-Go binary with no account, network dependency,
+   mutable/external database service, hosted service, embeddings, permanent daemon, UI, or broad
+   language rewrite. An immutable embedded index encoding is derived state, not a database, and still
+   needs the benchmark/format gate. Anything outside that boundary needs its own accepted profile on
+   the same transport-neutral immutable index contract and cannot silently broaden the local path:
+   see `docs/specs/deployment-neutral-index-platform-v0.md`,
+   `docs/specs/go-production-kernel-migration-v0.md` (hot-path language moves need exact parity and
+   staged rollback), and decision 0081 / `docs/specs/local-admin-console-v0.md` (optional,
+   operator-started, loopback-only console with no authority).
+8. Substantive capabilities are spec-driven. Record the human-owned intent, numbered requirements,
+   non-goals, failure modes, acceptance evidence, and rollback before calling implementation done.
+   Generated or inferred documentation can propose intent but cannot accept or govern it.
+
+## Spec-driven development
+
+Follow `docs/SPEC-DRIVEN-DEVELOPMENT.md`. Every active build slice has one entry in
+`docs/specs/README.md` and one executable spec or explicitly cited product contract. Keep requirement
+IDs stable, trace implemented requirements to tests or measured evidence, and update the spec in the
+same change when behavior or a wire contract changes. A prototype may precede an accepted technical
+contract only while it is labelled experimental and cannot be promoted or advertised as delivered.
+
+Record material design decisions, independent findings, failed evaluations, and promotion evidence
+as one new file per entry, `docs/build-log/YYYY-MM-DD-<slug>.md` (decision 0423). Entries, CEMs, closed
+tickets and dated results from before 1.0 live in the `beamfall/corvint-history` archive (decision
+0587, `docs/build-log/README.md`). Search headings or IDs and read only matching entries. Document contracts and decisions,
+not a narration of individual code lines.
+
+## Dogfood Corvint
+
+For Corvint development, select applicable existing feature routes from `docs/SELF-DEVELOPMENT.md`;
+retain actual use evidence and explicit exclusions without weakening the existing gates.
+
+Substantive Corvint work must follow `docs/DOGFOOD.md`: use Corvint to collect pre-change context, bind
+the delivered diff to a CEM, inspect the reviewer report, run the relevant frozen evaluations, and
+record the explicit local outcome. Corvint self-use is product evidence and friction discovery, never
+a substitute for independent interoperability or external outcome validation.
+
+For substantive work, at change start run `make dogfood-change BASE=<sha>`. Final binding and checking are post-commit:
+follow `docs/DOGFOOD.md` §4, commit the CEM, then rerun `dogfood-change` and `dogfood-check` from
+a clean worktree against the same base, and finish with `make dogfood-seal BASE=<sha>`, which moves
+the checked CEM out of the shared tracked path. Keep every `NOT_PRODUCED` reason visible.
+
+## Repository etiquette
+
+### Standing publication approval
+
+For requested Corvint issue work, automatically push verified task branches to this repository's
+configured origin and open or update ready (non-draft) pull requests, including stacked PRs; a
+machine PreToolUse hook refuses draft PR creation. This is an explicit exception to the
+outward-action confirmation rule; no additional approval is required. Publish only task-owned
+commits after the required checks and review, preserving recorded limits and uncertainty. After
+opening a task PR, also arm GitHub auto-merge with the merge-commit method, never squash or rebase
+(decision 0319); the owner approved this default on 2026-09-27 (beamfall/corvint#310). If arming is
+refused, leave it for the owner. Merging by hand, force-pushing, deleting remote branches, and
+publishing releases still require explicit approval.
+
+Base every branch and worktree on `origin/main`. The pre-snapshot private lineage (local `main` in some
+checkouts) has no merge base with it and must never be merged or cherry-picked wholesale; see
+`docs/decisions/0331-clean-public-history-2026-09-22.md`.
+
+## Verify
+
+Use `corvint affected --base FULL_SHA` before running tests for a change. During implementation and
+repair, run the selected units plus any checks needed to resolve retained unknowns; do not rerun the
+exhaustive gate after each repair. Run the exhaustive commands below only once at the terminal
+boundary when repository or release policy requires them. If the owner explicitly waives that gate,
+retain it as `NOT_RUN` with the affected-plan unknowns instead of implying equivalent coverage.
+For scoped issue work, the owner's standing preference is focused tests, the capability-specific live
+qualification when applicable, and independent review. Do not start `make gate` unless the owner asks
+for it or a governing release policy explicitly requires repository-wide validation.
+
+```sh
+test "$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.3"
+GOTOOLCHAIN=local go test -count=1 -timeout 30m ./...
+GOTOOLCHAIN=local go vet ./...
+(cd interop/cem01-go && GOTOOLCHAIN=local go test -count=1 -timeout 30m ./... && GOTOOLCHAIN=local go vet ./...)
+```
+
+`-timeout 30m` matches `GO_TEST_TIMEOUT` in the Makefile: it is a per-package hang detector, not
+a performance budget (decision 0082). Go's 600s default is too tight to use here, because
+`cmd/corvint` alone takes roughly 591s on an otherwise quiet host and panics under any load.
+
+Before each push, run the local twin of the CI Windows vet step (AFP-V0-054), which type-checks
+test files for `GOOS=windows` as CI does. Run `make windows-vet` only when the change touches a
+`.go`, `go.mod` or `go.sum` file.
+
+```sh
+make windows-vet
+```
+
+## Agent routing
+
+Use the matching row in `docs/AGENT-ROUTES.md` for a bounded route from question to original evidence.
+What Corvint can do (every command, binary and MCP tool, with maturity and refusals): `docs/CAPABILITIES.md`.
+New functionality ships with its help and its catalog entry: every new subcommand, flag, binary or MCP
+tool needs `--help` text (usage, required inputs, an example), its command-tree snapshot
+(`make capability-catalog`) and its `docs/CAPABILITIES.md` row; `tools/capabilities-check` enforces
+it (CAP-V0-040 to CAP-V0-050). The LLM entry point is the root `llms.txt`.
+Spec questions: read `docs/specs/INDEX.json` or the target spec's Agent digest first. Look up
+requirement IDs in `docs/specs/REQUIREMENTS.tsv`; open a full spec body only after the digest points
+to a section. Backlog questions: the local roadmap is the Corvint task store `.taskman/`, read with
+`corvint-tasks queue status`, `roadmap`, `ticket search --label agent-memory`, and `ticket show`;
+file new bugs, fixes, test gaps, optimizations, ideas and open questions as tickets (label
+`agent-memory` plus `bugs|fixes|tests|optimizations|ideas|questions`, priority per
+`docs/TICKET-PRIORITY.md`), never as Markdown entries
+under `docs/agent-memory/`, which stays only as a redirect.
+
+Ticket-backed work is finished only after its acceptance evidence is retained, the required
+integration is complete, and the native completion write succeeds. Use `submit`, `gate run`, and
+`complete` when the installed Tasks runtime and queue policy support them. Use `complete-manual`
+only for an explicitly evidenced manual disposition, never to bypass a failed gate. Read back
+`ticket show` and run `receipt audit` before reporting completion. If landing, qualification, or
+the completion write remains blocked, keep the ticket open and name the remaining closeout step
+in the handoff. A PR merge or CEM seal alone does not complete the ticket.
+
+Corvint is Apache-2.0 across the whole repository (decision 0586); `LICENSING.md` is the authority.
+New files carry `SPDX-License-Identifier: Apache-2.0` where they carry a header. Preserve third-party
+notices and provenance when publishing or extracting source; releases published before decision 0586
+keep their original terms.

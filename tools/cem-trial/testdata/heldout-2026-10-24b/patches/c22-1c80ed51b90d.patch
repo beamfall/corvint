@@ -1,0 +1,244 @@
+diff --git a/internal/server/events.go b/internal/server/events.go
+index 1df63c2b7..8096c99d1 100644
+--- a/internal/server/events.go
++++ b/internal/server/events.go
+@@ -281,18 +281,20 @@ func resumeCursor(r *http.Request) int64 {
+ // an id: line (the resume cursor), an event: type, and a single JSON data:
+ // line. The payload is the event's own JSON, wrapped so the kind and subject
+ // travel with it.
++type sseEventEnvelope struct {
++	Kind          string          `json:"kind"`
++	AggregateType string          `json:"aggregateType"`
++	AggregateID   string          `json:"aggregateID"`
++	OccurredAt    time.Time       `json:"occurredAt"`
++	Payload       json.RawMessage `json:"payload"`
++}
++
+ func writeSSEEvent(w http.ResponseWriter, event store.OutboxEvent) error {
+ 	payload := event.Payload
+ 	if len(payload) == 0 {
+ 		payload = []byte("{}")
+ 	}
+-	data, err := json.Marshal(struct {
+-		Kind          string          `json:"kind"`
+-		AggregateType string          `json:"aggregateType"`
+-		AggregateID   string          `json:"aggregateID"`
+-		OccurredAt    time.Time       `json:"occurredAt"`
+-		Payload       json.RawMessage `json:"payload"`
+-	}{
++	data, err := json.Marshal(sseEventEnvelope{
+ 		Kind:          event.Kind,
+ 		AggregateType: event.AggregateType,
+ 		AggregateID:   event.AggregateID,
+diff --git a/internal/server/server.go b/internal/server/server.go
+index 42ccd4640..fcfe5156f 100644
+--- a/internal/server/server.go
++++ b/internal/server/server.go
+@@ -501,7 +501,7 @@ func applyCORS(w http.ResponseWriter, r *http.Request) bool {
+ 	w.Header().Set("Access-Control-Allow-Credentials", "true")
+ 	if r.Method == http.MethodOptions {
+ 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+-		w.Header().Set("Access-Control-Allow-Headers", auth.CSRFHeader+", Content-Type")
++		w.Header().Set("Access-Control-Allow-Headers", auth.CSRFHeader+", Content-Type, Authorization")
+ 	}
+ 	return true
+ }
+diff --git a/internal/server/v1.go b/internal/server/v1.go
+index eaa9589db..99b7e3bfe 100644
+--- a/internal/server/v1.go
++++ b/internal/server/v1.go
+@@ -16,7 +16,6 @@ import (
+ 	"time"
+ 
+ 	"github.com/beamfall/core/internal/auth"
+-	"github.com/beamfall/core/internal/reveal"
+ 	"github.com/beamfall/core/internal/store"
+ )
+ 
+@@ -52,15 +51,34 @@ type V1Store interface {
+ // each read handler reports the surface unavailable (503) rather than serving
+ // an unfiltered read, exactly like the SSE stream's nil-store posture.
+ func (s *Server) mountV1() {
+-	s.handle(http.MethodGet, "/v1/libraries", reveal.ContentJSON, s.v1Libraries)
+-	s.handle(http.MethodGet, "/v1/libraries/{libraryID}/media", reveal.ContentJSON, s.v1LibraryMedia)
+-	s.handle(http.MethodGet, "/v1/media/{mediaID}", reveal.ContentJSON, s.v1Media)
+-	s.handle(http.MethodGet, "/v1/sessions", reveal.ContentJSON, s.v1Sessions)
+-	s.handle(http.MethodPost, "/v1/playback-control", reveal.ContentJSON, s.v1PlaybackControl)
+-	s.handle(http.MethodPost, "/v1/scans", reveal.ContentJSON, s.v1Scan)
+-	s.handle(http.MethodGet, "/v1/backups/{libraryID}/status", reveal.ContentJSON, s.v1BackupStatus)
+-	s.handle(http.MethodPost, "/v1/backups/media", reveal.ContentJSON, s.v1BackupMedia)
+-	s.handle(http.MethodGet, "/v1/events", reveal.EventFanout, s.v1EventStream)
++	for _, route := range v1RouteContracts {
++		s.handle(route.Method, route.Pattern, route.RevealClass, s.v1Handler(route.OperationID))
++	}
++}
++
++func (s *Server) v1Handler(operationID string) http.HandlerFunc {
++	switch operationID {
++	case "listLibraries":
++		return s.v1Libraries
++	case "listLibraryMedia":
++		return s.v1LibraryMedia
++	case "getMedia":
++		return s.v1Media
++	case "listSessions":
++		return s.v1Sessions
++	case "playbackControl":
++		return s.v1PlaybackControl
++	case "scanLibrary":
++		return s.v1Scan
++	case "getBackupStatus":
++		return s.v1BackupStatus
++	case "backupMedia":
++		return s.v1BackupMedia
++	case "subscribeEvents":
++		return s.v1EventStream
++	default:
++		panic("unknown /v1 operation: " + operationID)
++	}
+ }
+ 
+ func (s *Server) v1EventStream(w http.ResponseWriter, r *http.Request) {
+@@ -108,6 +126,10 @@ type v1LibrarySummary struct {
+ 	Restricted bool   `json:"restricted"`
+ }
+ 
++type v1LibrariesResponse struct {
++	Libraries []v1LibrarySummary `json:"libraries"`
++}
++
+ func (s *Server) v1Libraries(w http.ResponseWriter, r *http.Request) {
+ 	scope, ok := s.v1Scope(w, r, store.ScopeReadCatalog)
+ 	if !ok {
+@@ -130,7 +152,7 @@ func (s *Server) v1Libraries(w http.ResponseWriter, r *http.Request) {
+ 			Restricted: library.IsRestricted,
+ 		})
+ 	}
+-	writeJSON(w, http.StatusOK, map[string]any{"libraries": out})
++	writeJSON(w, http.StatusOK, v1LibrariesResponse{Libraries: out})
+ }
+ 
+ // v1MediaItem is the wire shape for a Media row on the /v1/ catalog surface.
+@@ -145,6 +167,10 @@ type v1MediaItem struct {
+ 	DurationSeconds int    `json:"durationSeconds,omitempty"`
+ }
+ 
++type v1LibraryMediaResponse struct {
++	Media []v1MediaItem `json:"media"`
++}
++
+ func (s *Server) v1LibraryMedia(w http.ResponseWriter, r *http.Request) {
+ 	scope, ok := s.v1Scope(w, r, store.ScopeReadCatalog)
+ 	if !ok {
+@@ -174,12 +200,13 @@ func (s *Server) v1LibraryMedia(w http.ResponseWriter, r *http.Request) {
+ 	out := make([]v1MediaItem, 0, len(items))
+ 	for _, item := range items {
+ 		out = append(out, v1MediaItem{
+-			ID:      string(item.ID),
+-			Title:   item.Title,
+-			Summary: item.Summary,
++			ID:        string(item.ID),
++			LibraryID: string(libraryID),
++			Title:     item.Title,
++			Summary:   item.Summary,
+ 		})
+ 	}
+-	writeJSON(w, http.StatusOK, map[string]any{"media": out})
++	writeJSON(w, http.StatusOK, v1LibraryMediaResponse{Media: out})
+ }
+ 
+ // v1MediaPageLimit bounds the /v1/libraries/{id}/media feed page. SourceItems
+@@ -234,6 +261,10 @@ type v1SessionItem struct {
+ 	DurationSeconds int    `json:"durationSeconds,omitempty"`
+ }
+ 
++type v1SessionsResponse struct {
++	Sessions []v1SessionItem `json:"sessions"`
++}
++
+ func (s *Server) v1Sessions(w http.ResponseWriter, r *http.Request) {
+ 	scope, ok := s.v1Scope(w, r, store.ScopeReadSessions)
+ 	if !ok {
+@@ -269,7 +300,7 @@ func (s *Server) v1Sessions(w http.ResponseWriter, r *http.Request) {
+ 			DurationSeconds: session.DurationSeconds,
+ 		})
+ 	}
+-	writeJSON(w, http.StatusOK, map[string]any{"sessions": out})
++	writeJSON(w, http.StatusOK, v1SessionsResponse{Sessions: out})
+ }
+ 
+ type v1PlaybackControlRequest struct {
+@@ -277,6 +308,11 @@ type v1PlaybackControlRequest struct {
+ 	Command   string `json:"command"`
+ }
+ 
++type v1PlaybackControlResponse struct {
++	SessionID string `json:"sessionID"`
++	Command   string `json:"command"`
++}
++
+ func (s *Server) v1PlaybackControl(w http.ResponseWriter, r *http.Request) {
+ 	defer r.Body.Close()
+ 	r.Body = http.MaxBytesReader(w, r.Body, maxControlBody)
+@@ -350,7 +386,7 @@ func (s *Server) v1PlaybackControl(w http.ResponseWriter, r *http.Request) {
+ 		writeError(w, http.StatusInternalServerError, "playback control failed")
+ 		return
+ 	}
+-	writeJSON(w, http.StatusAccepted, map[string]any{"sessionID": string(sessionID), "command": command})
++	writeJSON(w, http.StatusAccepted, v1PlaybackControlResponse{SessionID: string(sessionID), Command: command})
+ }
+ 
+ // v1ScanRequest is the POST /v1/scans body: a Library to scan and an optional
+@@ -361,6 +397,10 @@ type v1ScanRequest struct {
+ 	Root      string `json:"root"`
+ }
+ 
++type v1ScanResponse struct {
++	JobIDs []string `json:"jobIDs"`
++}
++
+ func (s *Server) v1Scan(w http.ResponseWriter, r *http.Request) {
+ 	defer r.Body.Close()
+ 	r.Body = http.MaxBytesReader(w, r.Body, maxControlBody)
+@@ -427,7 +467,7 @@ func (s *Server) v1Scan(w http.ResponseWriter, r *http.Request) {
+ 		}
+ 		jobIDs = append(jobIDs, string(jobID))
+ 	}
+-	writeJSON(w, http.StatusAccepted, map[string]any{"jobIDs": jobIDs})
++	writeJSON(w, http.StatusAccepted, v1ScanResponse{JobIDs: jobIDs})
+ }
+ 
+ func stringInSlice(needle string, haystack []string) bool {
+diff --git a/tools/wire-contract/main.go b/tools/wire-contract/main.go
+index 122e55d47..a49a27967 100644
+--- a/tools/wire-contract/main.go
++++ b/tools/wire-contract/main.go
+@@ -1,8 +1,8 @@
+ // Command wire-contract emits the versioned wire-contract snapshot (ORG-10,
+ // ADR-0002): a single deterministic JSON document consolidating the hand-rolled
+-// dispatcher's schema — the flat top-level field manifest (effect/tier, H23-A)
+-// and the reflected nested result shapes (H23-B) — stamped with a release
+-// version, via graph.BuildWireContract(). It is the pinned wire contract a
++// dispatcher's schema — the flat top-level field manifest (effect/tier, H23-A),
++// the reflected nested result shapes (H23-B), and the stable /v1 REST + SSE
++// surface — stamped with a release version. It is the pinned wire contract a
+ // release ships so a client built against release vX can diff the exact field
+ // set and result shapes it was compiled against.
+ //
+@@ -25,14 +25,14 @@ import (
+ 	"fmt"
+ 	"os"
+ 
+-	"github.com/beamfall/core/internal/graph"
++	"github.com/beamfall/core/tools/wire-contract/contract"
+ )
+ 
+ func main() {
+ 	version := flag.String("version", "", "release version to stamp into the contract (e.g. v1.2.3); empty for the unversioned drift-gate baseline")
+ 	flag.Parse()
+ 
+-	pretty, err := json.MarshalIndent(graph.BuildWireContract(*version), "", "  ")
++	pretty, err := json.MarshalIndent(contract.Build(*version), "", "  ")
+ 	if err != nil {
+ 		fmt.Fprintln(os.Stderr, "wire-contract:", err)
+ 		os.Exit(1)

@@ -1,0 +1,195 @@
+package wire
+
+import (
+	"errors"
+	"fmt"
+	"syscall"
+)
+
+// Closed detail codes (SPEC §11). Only these strings may appear in a
+// taskman-command-result/0 or taskman-outcome/0 codes array.
+const CodeAdjudication = "ADJUDICATION"
+const CodeAdoptUnsupportedField = "ADOPT_UNSUPPORTED_FIELD"
+const CodeApprovalMissing = "APPROVAL_MISSING"
+const CodeApprovalRevoked = "APPROVAL_REVOKED"
+const CodeAttemptLive = "ATTEMPT_LIVE"
+const CodeBootFenced = "BOOT_FENCED"
+const CodeBootTimeout = "BOOT_TIMEOUT"
+const CodeBudgetExceeded = "BUDGET_EXCEEDED"
+const CodeBudgetUnknown = "BUDGET_UNKNOWN"
+const CodeCapabilityUnavailable = "CAPABILITY_UNAVAILABLE"
+const CodeCemMissing = "CEM_MISSING"
+
+// CodeCommitNotIntegrated accompanies STALE_TREE when complete's commit is
+// reachable from neither the intent branch nor its remote-tracking upstream
+// (CAL-V0-017, V1-1081), separating it from a commit tree mismatch.
+const CodeCommitNotIntegrated = "COMMIT_NOT_INTEGRATED"
+const CodeContaminated = "CONTAMINATED"
+const CodeCoverageUnknown = "COVERAGE_UNKNOWN"
+const CodeCutoverInProgress = "CUTOVER_IN_PROGRESS"
+const CodeCutoverMissing = "CUTOVER_MISSING"
+const CodeCycle = "CYCLE"
+const CodeDependencyMissing = "DEPENDENCY_MISSING"
+const CodeDependencyUnsatisfied = "DEPENDENCY_UNSATISFIED"
+const CodeDevelopmentMode = "DEVELOPMENT_MODE"
+const CodeDirtyWorktree = "DIRTY_WORKTREE"
+const CodeDocsMissing = "DOCS_MISSING"
+const CodeDuplicateID = "DUPLICATE_ID"
+const CodeEffectOwned = "EFFECT_OWNED"
+const CodeEscalationPending = "ESCALATION_PENDING"
+const CodeExternalUnbounded = "EXTERNAL_UNBOUNDED"
+const CodeFenced = "FENCED"
+const CodeGateFailed = "GATE_FAILED"
+const CodeGateStale = "GATE_STALE"
+const CodeGateUnknown = "GATE_UNKNOWN"
+const CodeHandoff = "HANDOFF"
+const CodeIndependenceUnverified = "INDEPENDENCE_UNVERIFIED"
+const CodeIntentBranchMismatch = "INTENT_BRANCH_MISMATCH"
+const CodeIntentDiverged = "INTENT_DIVERGED"
+const CodeInvalidPriority = "INVALID_PRIORITY"
+const CodeJournalForked = "JOURNAL_FORKED"
+const CodeJournalSaturated = "JOURNAL_SATURATED"
+const CodeLimitExceeded = "LIMIT_EXCEEDED"
+const CodeLockTimeout = "LOCK_TIMEOUT"
+
+// CodeLoopDetected names the CAL-V0-102 derived no-progress loop hold of an
+// opt-in loopDetection policy (TCP-00 amendment A23).
+const CodeLoopDetected = "LOOP_DETECTED"
+const CodeMalformed = "MALFORMED"
+
+// CodeMilestoneRequired refuses a CREATE without a milestone, or a REFINE
+// that clears one, under the CAL-V0-195 policy opt-in.
+const CodeMilestoneRequired = "MILESTONE_REQUIRED"
+const CodeMissingEvidence = "MISSING_EVIDENCE"
+const CodeMissingGate = "MISSING_GATE"
+const CodeNoexec = "NOEXEC"
+const CodeOcmMissing = "OCM_MISSING"
+const CodeOutOfScope = "OUT_OF_SCOPE"
+const CodePaused = "PAUSED"
+const CodePlanStale = "PLAN_STALE"
+
+// CodeProvenanceUnverified refuses a know-how write whose attempt or
+// generation is not proved by the native attempt ledger (KHN-V0-008).
+const CodeProvenanceUnverified = "PROVENANCE_UNVERIFIED"
+
+// CodePoolMemberRecoveryStalled refuses a pool acquire or claim when every
+// eligible pool member is QUARANTINED with a stalled recovery (PSR-V0-263).
+const CodePoolMemberRecoveryStalled = "POOL_MEMBER_RECOVERY_STALLED"
+
+// CodePrerequisiteUnsatisfied names a stage-scoped execution prerequisite
+// (CAL-V0-099) that blocks a claim or plan for a listed stage.
+const CodePrerequisiteUnsatisfied = "PREREQUISITE_UNSATISFIED"
+const CodeQuiescenceUnproved = "QUIESCENCE_UNPROVED"
+const CodeRedoPending = "REDO_PENDING"
+const CodeRequestIDConflict = "REQUEST_ID_CONFLICT"
+const CodeResourceCollision = "RESOURCE_COLLISION"
+
+// CodeResourceExhausted reports transient descriptor exhaustion (CAL-V0-215).
+const CodeResourceExhausted = "RESOURCE_EXHAUSTED"
+const CodeRestored = "RESTORED"
+const CodeRestoreIncomplete = "RESTORE_INCOMPLETE"
+const CodeRetryExhausted = "RETRY_EXHAUSTED"
+const CodeReviewIncomplete = "REVIEW_INCOMPLETE"
+const CodeReviewRejected = "REVIEW_REJECTED"
+const CodeReviewReturned = "REVIEW_RETURNED"
+
+// CodeSecretDetected refuses a know-how write whose free text, route or path
+// matches the shared secret screen (KHN-V0-010); it replaces the MALFORMED
+// refusal with the KNOWHOW_SECRET_DETECTED detail prefix.
+const CodeSecretDetected = "SECRET_DETECTED"
+const CodeSignalRefusedIdentity = "SIGNAL_REFUSED_IDENTITY"
+const CodeSnapshotMoved = "SNAPSHOT_MOVED"
+const CodeStalePolicy = "STALE_POLICY"
+const CodeStaleTicket = "STALE_TICKET"
+const CodeStaleTree = "STALE_TREE"
+const CodeSupervisorLost = "SUPERVISOR_LOST"
+const CodeSurvivors = "SURVIVORS"
+const CodeTicketHeld = "TICKET_HELD"
+const CodeTicketState = "TICKET_STATE"
+const CodeUncertainEffect = "UNCERTAIN_EFFECT"
+const CodeUninitialized = "UNINITIALIZED"
+const CodeUnpublished = "UNPUBLISHED"
+const CodeUnresolvedFinding = "UNRESOLVED_FINDING"
+const CodeUnsupported = "UNSUPPORTED"
+const CodeUnsupportedFilesystem = "UNSUPPORTED_FILESYSTEM"
+const CodeUnsupportedVersion = "UNSUPPORTED_VERSION"
+
+// Codes is the closed §11 set.
+var Codes = []string{
+	CodeAdjudication, CodeAdoptUnsupportedField, CodeApprovalMissing, CodeApprovalRevoked,
+	CodeAttemptLive, CodeBootFenced, CodeBootTimeout, CodeBudgetExceeded, CodeBudgetUnknown,
+	CodeCapabilityUnavailable, CodeCemMissing, CodeCommitNotIntegrated, CodeContaminated, CodeCoverageUnknown,
+	CodeCutoverInProgress, CodeCutoverMissing, CodeCycle, CodeDependencyMissing,
+	CodeDependencyUnsatisfied, CodeDevelopmentMode, CodeDirtyWorktree, CodeDocsMissing,
+	CodeDuplicateID, CodeEffectOwned, CodeEscalationPending, CodeExternalUnbounded, CodeFenced, CodeGateFailed,
+	CodeGateStale, CodeGateUnknown, CodeHandoff, CodeIndependenceUnverified, CodeIntentBranchMismatch,
+	CodeIntentDiverged, CodeInvalidPriority, CodeJournalForked, CodeJournalSaturated,
+	CodeLimitExceeded, CodeLockTimeout, CodeLoopDetected, CodeMalformed, CodeMilestoneRequired, CodeMissingEvidence, CodeMissingGate,
+	CodeNoexec, CodeOcmMissing, CodeOutOfScope, CodePaused, CodePlanStale, CodePoolMemberRecoveryStalled, CodePrerequisiteUnsatisfied, CodeProvenanceUnverified,
+	CodeQuiescenceUnproved, CodeRedoPending, CodeRequestIDConflict, CodeResourceCollision, CodeResourceExhausted,
+	CodeRestored, CodeRestoreIncomplete, CodeRetryExhausted, CodeReviewIncomplete,
+	CodeReviewRejected, CodeReviewReturned, CodeSecretDetected, CodeSignalRefusedIdentity, CodeSnapshotMoved, CodeStalePolicy,
+	CodeStaleTicket, CodeStaleTree, CodeSupervisorLost, CodeSurvivors, CodeTicketHeld,
+	CodeTicketState, CodeUncertainEffect, CodeUninitialized, CodeUnpublished,
+	CodeUnresolvedFinding, CodeUnsupported, CodeUnsupportedFilesystem, CodeUnsupportedVersion,
+}
+
+var codeSet = func() map[string]bool {
+	m := make(map[string]bool, len(Codes))
+	for _, c := range Codes {
+		m[c] = true
+	}
+	return m
+}()
+
+// IsCode reports whether s is a member of the closed §11 set.
+func IsCode(s string) bool { return codeSet[s] }
+
+// Error is a stable, actionable failure: a closed §11 code, the location in
+// the document (a JSON-pointer-like path or a byte offset) and a message.
+type Error struct {
+	Code  string
+	Where string
+	Msg   string
+	// NotRetryable marks an error from a call that already ran a program or
+	// committed a step a same-request retry would not finish; its result is
+	// never retryable whatever the code (CAL-V0-078). See WithoutRetry.
+	NotRetryable bool
+}
+
+func (e *Error) Error() string {
+	if e.Where == "" {
+		return e.Code + ": " + e.Msg
+	}
+	return e.Code + ": " + e.Where + ": " + e.Msg
+}
+
+// Errorf builds an Error. The code must be a §11 code; anything else is a
+// programming error and is reported as MALFORMED so it can never leak an
+// unknown code onto the wire. The parameter is not named `code`: Corvint's
+// error-code ownership ratchet matches callees by name (ECO-V0-001), so that
+// name would make every fmt.Errorf literal in the module an emitted code.
+func Errorf(detailCode, where, format string, args ...interface{}) *Error {
+	if !IsCode(detailCode) {
+		detailCode = CodeMalformed
+	}
+	return &Error{Code: detailCode, Where: where, Msg: fmt.Sprintf(format, args...)}
+}
+
+// CodeOf returns the §11 code carried by err or by any error it wraps, or
+// RESOURCE_EXHAUSTED for EMFILE/ENFILE (CAL-V0-215), MALFORMED for any other
+// error, or "" for nil. Wrapping with %w keeps the
+// code (CAL-V0-131).
+func CodeOf(err error) string {
+	if err == nil {
+		return ""
+	}
+	var e *Error
+	if errors.As(err, &e) {
+		return e.Code
+	}
+	if errors.Is(err, syscall.EMFILE) || errors.Is(err, syscall.ENFILE) {
+		return CodeResourceExhausted
+	}
+	return CodeMalformed
+}

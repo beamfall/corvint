@@ -1,0 +1,3 @@
+{"version":8,"type":"context-options","origin":"library","browserName":"","playwrightVersion":"1.64.0","options":{"baseURL":"http://app.test"},"platform":"linux","wallTime":1792000000000,"monotonicTime":100.5,"sdkLanguage":"javascript","contextId":"request-context@a1"}
+{"type":"before","callId":"wcuw@670","startTime":101.2,"class":"APIRequestContext","method":"fetch","params":{"url":"http://app.test/api/login","method":"POST","jsonData":"<redacted-in-fixture>"},"stepId":"pw:api@11"}
+{"type":"after","callId":"wcuw@670","endTime":140.8,"result":{}}

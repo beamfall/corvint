@@ -1,0 +1,21 @@
+package cases
+
+func control(ch chan int) int {
+	n := 0
+outer:
+	for {
+		select {
+		case v := <-ch:
+			if v < 0 {
+				break outer
+			}
+			n += v
+		default:
+			goto done
+		}
+	}
+done:
+	return n
+}
+
+func useControl() int { return control(nil) }

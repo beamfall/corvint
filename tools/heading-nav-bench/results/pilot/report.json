@@ -1,0 +1,286 @@
+{
+  "answer_correctness": "NOT_OBSERVED",
+  "authority_errors": "NOT_OBSERVED",
+  "budget_bytes": 6000,
+  "build_wall_ns": 11268719958,
+  "builder": {
+    "version": "corvint-evidence-corpus/1",
+    "revision": "unrecorded",
+    "engine": "native-contextindex/corvint-evidence-corpus/1/go1.27.1"
+  },
+  "builder_limitation": "experimental harness source may be uncommitted; no immutable harness attestation; corpus builder identity does not attest harness",
+  "corpus_sha256": "992d262ac547f440507c021f6f0ac11fd5566e657cb875ca0d9a4bbab9a9763c",
+  "fixture_sha256": "d2076ac447ba490883cee12c6075f69df5179b00ab438ade63b9c357e48b6a8b",
+  "limitations": [
+    "gold is used only for validation and post-retrieval scoring",
+    "all gold spans are treated as critical; recall requires full-span union coverage; zero denominator is undefined",
+    "flat Markdown parser is deliberately incomplete; heading labels alone are not read evidence",
+    "lexical policy is deterministic and is not an LLM navigation trial"
+  ],
+  "profile": "heading-navigation-report/0",
+  "results": [
+    {
+      "case": "generated-authority",
+      "arm": "baseline",
+      "packet_bytes": 5989,
+      "recall_numerator": 1,
+      "recall_denominator": 2,
+      "recall_defined": true,
+      "critical_misses": [
+        {
+          "path": "docs/specs/source-documentation-draft-v0.md",
+          "start": 27,
+          "end": 34
+        }
+      ],
+      "wall_ns": 5388333
+    },
+    {
+      "case": "generated-authority",
+      "arm": "heading",
+      "packet_bytes": 5943,
+      "recall_numerator": 1,
+      "recall_denominator": 2,
+      "recall_defined": true,
+      "critical_misses": [
+        {
+          "path": "docs/specs/source-documentation-draft-v0.md",
+          "start": 27,
+          "end": 34
+        }
+      ],
+      "wall_ns": 10811875
+    },
+    {
+      "case": "offline-core",
+      "arm": "baseline",
+      "packet_bytes": 5925,
+      "recall_numerator": 0,
+      "recall_denominator": 1,
+      "recall_defined": true,
+      "critical_misses": [
+        {
+          "path": "docs/specs/deployment-neutral-index-platform-v0.md",
+          "start": 131,
+          "end": 133
+        }
+      ],
+      "wall_ns": 4302417
+    },
+    {
+      "case": "offline-core",
+      "arm": "heading",
+      "packet_bytes": 6000,
+      "recall_numerator": 1,
+      "recall_denominator": 1,
+      "recall_defined": true,
+      "critical_misses": [],
+      "wall_ns": 10676125
+    },
+    {
+      "case": "outcome-vs-retrieval",
+      "arm": "baseline",
+      "packet_bytes": 5982,
+      "recall_numerator": 0,
+      "recall_denominator": 2,
+      "recall_defined": true,
+      "critical_misses": [
+        {
+          "path": "docs/specs/retrieval-eval-comparability-v0.md",
+          "start": 61,
+          "end": 65
+        },
+        {
+          "path": "docs/specs/documentation-corpus-v1.md",
+          "start": 62,
+          "end": 69
+        }
+      ],
+      "wall_ns": 4189291
+    },
+    {
+      "case": "outcome-vs-retrieval",
+      "arm": "heading",
+      "packet_bytes": 5936,
+      "recall_numerator": 1,
+      "recall_denominator": 2,
+      "recall_defined": true,
+      "critical_misses": [
+        {
+          "path": "docs/specs/retrieval-eval-comparability-v0.md",
+          "start": 61,
+          "end": 65
+        }
+      ],
+      "wall_ns": 10186959
+    },
+    {
+      "case": "observed-holdout",
+      "arm": "baseline",
+      "packet_bytes": 5955,
+      "recall_numerator": 0,
+      "recall_denominator": 1,
+      "recall_defined": true,
+      "critical_misses": [
+        {
+          "path": "docs/specs/retrieval-eval-comparability-v0.md",
+          "start": 66,
+          "end": 70
+        }
+      ],
+      "wall_ns": 4019209
+    },
+    {
+      "case": "observed-holdout",
+      "arm": "heading",
+      "packet_bytes": 5965,
+      "recall_numerator": 1,
+      "recall_denominator": 1,
+      "recall_defined": true,
+      "critical_misses": [],
+      "wall_ns": 10111750
+    },
+    {
+      "case": "license-exception",
+      "arm": "baseline",
+      "packet_bytes": 5967,
+      "recall_numerator": 1,
+      "recall_denominator": 2,
+      "recall_defined": true,
+      "critical_misses": [
+        {
+          "path": "docs/decisions/0002-future-publication-transition.md",
+          "start": 83,
+          "end": 92
+        }
+      ],
+      "wall_ns": 4252500
+    },
+    {
+      "case": "license-exception",
+      "arm": "heading",
+      "packet_bytes": 5985,
+      "recall_numerator": 2,
+      "recall_denominator": 2,
+      "recall_defined": true,
+      "critical_misses": [],
+      "wall_ns": 10570292
+    },
+    {
+      "case": "build-log-correction",
+      "arm": "baseline",
+      "packet_bytes": 5950,
+      "recall_numerator": 0,
+      "recall_denominator": 1,
+      "recall_defined": true,
+      "critical_misses": [
+        {
+          "path": "docs/decisions/0423-rc1-delegated-answers-a7-a10-2026-09-26.md",
+          "start": 19,
+          "end": 28
+        }
+      ],
+      "wall_ns": 4142750
+    },
+    {
+      "case": "build-log-correction",
+      "arm": "heading",
+      "packet_bytes": 5991,
+      "recall_numerator": 0,
+      "recall_denominator": 1,
+      "recall_defined": true,
+      "critical_misses": [
+        {
+          "path": "docs/decisions/0423-rc1-delegated-answers-a7-a10-2026-09-26.md",
+          "start": 19,
+          "end": 28
+        }
+      ],
+      "wall_ns": 10025125
+    },
+    {
+      "case": "typed-misses",
+      "arm": "baseline",
+      "packet_bytes": 5980,
+      "recall_numerator": 0,
+      "recall_denominator": 2,
+      "recall_defined": true,
+      "critical_misses": [
+        {
+          "path": "docs/specs/documentation-corpus-v1.md",
+          "start": 79,
+          "end": 82
+        },
+        {
+          "path": "docs/specs/documentation-corpus-v1.md",
+          "start": 86,
+          "end": 94
+        }
+      ],
+      "wall_ns": 4058958
+    },
+    {
+      "case": "typed-misses",
+      "arm": "heading",
+      "packet_bytes": 5911,
+      "recall_numerator": 0,
+      "recall_denominator": 2,
+      "recall_defined": true,
+      "critical_misses": [
+        {
+          "path": "docs/specs/documentation-corpus-v1.md",
+          "start": 79,
+          "end": 82
+        },
+        {
+          "path": "docs/specs/documentation-corpus-v1.md",
+          "start": 86,
+          "end": 94
+        }
+      ],
+      "wall_ns": 9957958
+    },
+    {
+      "case": "unsupported-authentication",
+      "arm": "baseline",
+      "packet_bytes": 5916,
+      "recall_numerator": 1,
+      "recall_denominator": 2,
+      "recall_defined": true,
+      "critical_misses": [
+        {
+          "path": "docs/specs/documentation-corpus-v1.md",
+          "start": 467,
+          "end": 473
+        }
+      ],
+      "wall_ns": 3957833
+    },
+    {
+      "case": "unsupported-authentication",
+      "arm": "heading",
+      "packet_bytes": 5973,
+      "recall_numerator": 1,
+      "recall_denominator": 2,
+      "recall_defined": true,
+      "critical_misses": [
+        {
+          "path": "docs/specs/documentation-corpus-v1.md",
+          "start": 467,
+          "end": 473
+        }
+      ],
+      "wall_ns": 10272958
+    }
+  ],
+  "revision": "85cb2889444ad41ac001876fca2b0000c76a09a7",
+  "unsupported_answers": "NOT_OBSERVED",
+  "wall_ns": 11388328792,
+  "harness_source_sha256": {
+    "tools/heading-nav-bench/main.go": "f39b2f9d9fff3fef29388d999f1ecf4086197d35e7b784f10c9fb67fc47a243b",
+    "tools/heading-nav-bench/main_test.go": "7a09074c1634071d376546cc633e55e27ba47df7c617618bc4710b49152eac1c",
+    "tools/heading-nav-bench/testdata/pilot.json": "d2076ac447ba490883cee12c6075f69df5179b00ab438ade63b9c357e48b6a8b",
+    "tools/heading-nav-bench/testdata/reader-prompt.txt": "cfad0bcec72bab4c458b361b2c328571e40cf09bb9cf0e02077d1671ccd2fbef",
+    "tools/heading-nav-bench/testdata/rubric.json": "0885d7eab00488b7bd422df312f52e3fc44019d64ede576a47c3141da3d1b8d4"
+  }
+}

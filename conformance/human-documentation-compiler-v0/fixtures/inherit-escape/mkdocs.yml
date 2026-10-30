@@ -1,0 +1,5 @@
+INHERIT: ../outside.yml
+site_name: Escaping inherited config
+theme:
+  name: material
+

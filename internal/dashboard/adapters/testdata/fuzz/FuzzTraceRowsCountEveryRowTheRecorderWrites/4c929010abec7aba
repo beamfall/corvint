@@ -1,0 +1,6 @@
+go test fuzz v1
+string("\xed\xb2\x98")
+string("0")
+string("")
+string("0")
+byte('\x00')

@@ -1,0 +1,179 @@
+diff --git a/internal/auth/auth.go b/internal/auth/auth.go
+index 79bc51a01..396569fc4 100644
+--- a/internal/auth/auth.go
++++ b/internal/auth/auth.go
+@@ -71,6 +71,17 @@ type Scope struct {
+ 	// is then empty. Token scopes are ops-class: manager role,
+ 	// hidden-world visibility, no Profile.
+ 	APITokenID string
++	// APIKeyID is set when the request authenticated with a scoped developer
++	// API key (ADR-0040 §2.2, Bearer bfk_…) instead of a session or admin
++	// token. APIScopes then carries the key's closed-vocabulary scope set;
++	// per-route enforcement checks it via HasAPIScope. A scoped key may be
++	// Profile-bound (ProfileID set, LibraryIDs/Certification resolved from
++	// that Profile so the Reveal contract filters reads exactly as for a
++	// session) or admin-scoped (no Profile, manager-class). Like the admin
++	// token, a scoped key is never a standing Reveal — Revealed stays false,
++	// so restricted content never reaches a key that cannot Reveal it.
++	APIKeyID   string
++	APIScopes  []store.APIScope
+ 	SessionID  store.SessionID
+ 	DeviceID   store.DeviceID
+ 	DeviceRole store.DeviceRole
+@@ -147,12 +158,17 @@ func (s *Service) certificationConstraints(ceilings []store.ProfileCertification
+ 	return constraints
+ }
+ 
+-// ScopeFromRequest resolves HTTP credentials into a Scope. A Bearer API
+-// token (ADR-0013 §5) wins when present; then the X-Beamfall-* headers;
+-// then the browser cookie credential (ADR-0012 §5).
++// ScopeFromRequest resolves HTTP credentials into a Scope. A Bearer credential
++// wins when present — a scoped developer key (ADR-0040, bfk_ prefix) routes to
++// the scoped-key path, anything else to the admin API token (ADR-0013 §5); then
++// the X-Beamfall-* headers; then the browser cookie credential (ADR-0012 §5).
+ func (s *Service) ScopeFromRequest(ctx context.Context, r *http.Request) (Scope, error) {
+ 	if bearer, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer "); ok {
+-		return s.ScopeFromAPIToken(ctx, strings.TrimSpace(bearer))
++		token := strings.TrimSpace(bearer)
++		if strings.HasPrefix(token, store.ScopedKeyPrefix) {
++			return s.ScopeFromScopedKey(ctx, token)
++		}
++		return s.ScopeFromAPIToken(ctx, token)
+ 	}
+ 	sessionID := store.SessionID(r.Header.Get("X-Beamfall-Session"))
+ 	if sessionID == "" {
+@@ -205,6 +221,66 @@ func (s *Service) ScopeFromAPIToken(ctx context.Context, token string) (Scope, e
+ 	}, nil
+ }
+ 
++// ScopeFromScopedKey resolves a scoped developer API key (ADR-0040 §2.2,
++// Bearer bfk_…) into a Scope carrying the key's closed-vocabulary scope set.
++// Per-route enforcement reads APIScopes via HasAPIScope; this method only
++// authenticates the credential and resolves visibility, it does not itself
++// reject on scope (a route declares the scope it needs).
++//
++// A Profile-bound key resolves that Profile and inherits its Library grants and
++// certification ceilings, so the Reveal contract (ADR-0004) filters reads for
++// the key exactly as it does for a session of that Profile — a Profile-bound
++// key sees only its own Profile's content. Like the admin token
++// (ScopeFromAPIToken), a scoped key is never a standing Reveal: Revealed stays
++// false, so restricted content never reaches a caller who cannot Reveal it. An
++// admin-scoped key (no Profile binding) is manager-class with no Library
++// restriction, mirroring the admin token's ops-class visibility.
++func (s *Service) ScopeFromScopedKey(ctx context.Context, key string) (Scope, error) {
++	verified, err := s.store.VerifyScopedAPIKey(ctx, key, s.now())
++	if err != nil {
++		return Scope{}, err
++	}
++	scope := Scope{
++		APIKeyID:   verified.ID,
++		APIScopes:  verified.Scopes,
++		DeviceRole: store.DeviceRoleManager,
++	}
++	if verified.ProfileID == "" {
++		return scope, nil
++	}
++	profile, err := s.store.Profile(ctx, verified.ProfileID)
++	if err != nil {
++		return Scope{}, err
++	}
++	scope.DeviceRole = ""
++	scope.ProfileID = profile.ID
++	scope.Profile = profile.Kind
++	scope.LibraryIDs = profile.Library
++	scope.Certification = s.certificationConstraints(profile.CertificationCeilings)
++	return scope, nil
++}
++
++// HasAPIScope reports whether a scoped-key Scope carries the given API scope.
++// It is false for any non-scoped-key Scope (a session or admin token carries no
++// APIScopes), so a route that gates on an API scope rejects credentials that are
++// not scoped keys at all — the scope vocabulary is the developer-key surface.
++func (s Scope) HasAPIScope(scope store.APIScope) bool {
++	for _, have := range s.APIScopes {
++		if have == scope {
++			return true
++		}
++	}
++	return false
++}
++
++// IsScopedKey reports whether the Scope was authenticated by a scoped developer
++// API key. Per-route enforcement applies the API-scope check only to scoped-key
++// callers; a session- or admin-token-authenticated request keeps its existing
++// authorization path untouched.
++func (s Scope) IsScopedKey() bool {
++	return s.APIKeyID != ""
++}
++
+ // Scope resolves a session identifier into a Scope.
+ func (s *Service) Scope(ctx context.Context, sessionID store.SessionID) (Scope, error) {
+ 	return s.scope(ctx, sessionID, "", "")
+diff --git a/internal/server/events.go b/internal/server/events.go
+index ab65b8074..51bbcd938 100644
+--- a/internal/server/events.go
++++ b/internal/server/events.go
+@@ -52,13 +52,23 @@ func (s *Server) SetEvents(events EventStore) {
+ // the client disconnects.
+ func (s *Server) eventStream(w http.ResponseWriter, r *http.Request) {
+ 	// Gate the handshake: an invalid session is rejected with a 401 before any
+-	// stream headers are written. The resolved Scope is intentionally not kept —
+-	// the event loop below re-derives it every poll so reveal/revocation/expiry
++	// stream headers are written. The resolved Scope is checked once for the
++	// events-subscribe API scope (ADR-0040 §2.4) but otherwise not kept — the
++	// event loop below re-derives it every poll so reveal/revocation/expiry
+ 	// changes take effect immediately, never against this connect-time snapshot.
+-	if _, err := s.auth.ScopeFromRequest(r.Context(), r); err != nil {
++	scope, err := s.auth.ScopeFromRequest(r.Context(), r)
++	if err != nil {
+ 		writeError(w, http.StatusUnauthorized, "invalid session")
+ 		return
+ 	}
++	// Per-route scope enforcement (ADR-0040 §2.2): a scoped developer key must
++	// carry events-subscribe to open the SSE stream. Session- and admin-token-
++	// authenticated callers carry no API scopes and are unaffected — their
++	// existing session/Reveal gating is the whole authorization for them.
++	if scope.IsScopedKey() && !scope.HasAPIScope(store.ScopeEventsSubscribe) {
++		writeError(w, http.StatusForbidden, "API key missing required scope: events-subscribe")
++		return
++	}
+ 	if s.events == nil {
+ 		writeError(w, http.StatusServiceUnavailable, "event stream unavailable")
+ 		return
+diff --git a/internal/store/scoped_keys.go b/internal/store/scoped_keys.go
+index d78972841..95a8b96e9 100644
+--- a/internal/store/scoped_keys.go
++++ b/internal/store/scoped_keys.go
+@@ -33,10 +33,11 @@ var apiScopeVocabulary = map[APIScope]bool{
+ 	ScopePlaybackControl: true,
+ }
+ 
+-// scopedKeyPrefix makes a leaked key greppable by secret scanners and keeps it
++// ScopedKeyPrefix makes a leaked key greppable by secret scanners and keeps it
+ // distinct from the ADR-0013 admin api_token prefix (bft_). Format:
+-// bfk_<16 hex id>_<64 hex secret>.
+-const scopedKeyPrefix = "bfk_"
++// bfk_<16 hex id>_<64 hex secret>. Exported so the HTTP auth seam can route a
++// Bearer credential to the scoped-key path on prefix alone, before any parse.
++const ScopedKeyPrefix = "bfk_"
+ 
+ var errInvalidScopedKey = errors.New("invalid API key")
+ 
+@@ -93,7 +94,7 @@ func (s *Store) CreateScopedAPIKey(ctx context.Context, name string, scopes []AP
+ 		return ScopedAPIKey{}, "", err
+ 	}
+ 	return ScopedAPIKey{ID: id, Name: name, Scopes: normalized, ProfileID: profileID, CreatedAt: now},
+-		scopedKeyPrefix + id + "_" + secret, nil
++		ScopedKeyPrefix + id + "_" + secret, nil
+ }
+ 
+ // ScopedAPIKeys lists every key row, newest first — list metadata only
+@@ -232,7 +233,7 @@ func splitScopes(stored string) []APIScope {
+ // shape as the admin token but a distinct prefix so the two credential
+ // families never collide.
+ func parseScopedKey(key string) (id, secret string, ok bool) {
+-	rest, found := strings.CutPrefix(key, scopedKeyPrefix)
++	rest, found := strings.CutPrefix(key, ScopedKeyPrefix)
+ 	if !found {
+ 		return "", "", false
+ 	}

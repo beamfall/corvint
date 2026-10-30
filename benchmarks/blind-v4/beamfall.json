@@ -1,0 +1,226 @@
+{
+  "schemaVersion": 1,
+  "commit": "5dbd4ed6eae441ee4b7434aa709a014583d7a54f",
+  "cases": [
+    {
+      "id": "beamfall-skip-detection-confidence-gate",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "We're evaluating whether to add a low-confidence review queue for skip-segment detection instead of quietly dropping fingerprint matches that fall below the auto-apply bar. Before touching this, show me the decision that set the drop-vs-surface policy, the code that enforces the confidence threshold, and a test proving a too-short shared match actually gets dropped.",
+      "limit": 6,
+      "budget_bytes": 4096,
+      "rationale": "The auto-apply/drop policy is pinned by ADR-0048 Decision 5, enforced by the fingerprintAutoApplyThreshold gate in internal/skipdetect/skipdetect.go, and regression-proven by TestFingerprintLowConfidenceDropped — a canonical doc+implementation+test triad a retrieval tool must surface together.",
+      "ground_truth": [
+        {"path": "docs/adr/0048-skip-segments-auto-skip-and-detection.md", "line": 142, "contains": "Auto-apply above a confidence threshold; below it, drop (don't surface) for v1."},
+        {"path": "internal/skipdetect/skipdetect.go", "line": 415, "contains": "func recapFromMatches(matches []reverseMatch, openingWindows int, cue recapCue) (segment, bool) {"},
+        {"path": "internal/skipdetect/skipdetect_test.go", "line": 442, "contains": "func TestFingerprintLowConfidenceDropped(t *testing.T) {"}
+      ],
+      "expected": {
+        "must_include": [
+          "path:docs/adr/0048-skip-segments-auto-skip-and-detection.md",
+          "symbol:internal/skipdetect/skipdetect.go:recapFromMatches",
+          "test:internal/skipdetect/skipdetect_test.go"
+        ],
+        "critical": [
+          "path:docs/adr/0048-skip-segments-auto-skip-and-detection.md",
+          "symbol:internal/skipdetect/skipdetect.go:recapFromMatches"
+        ],
+        "relevant": [
+          "symbol:internal/skipdetect/skipdetect_test.go:TestFingerprintLowConfidenceDropped"
+        ],
+        "must_exclude": [
+          "path:internal/skipdetect/podcast_ad.go"
+        ]
+      }
+    },
+    {
+      "id": "beamfall-reverse-proxy-known-proxies-fail-closed",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "A self-hoster asked us to support running Beamfall behind their nginx reverse proxy without breaking IP-based rate limiting. I want to add a known-proxies CIDR allowlist, but first confirm the security posture the team decided on for validating those CIDRs, the code path that actually rejects unsafe ranges, and the regression test that locks the fail-closed default in place.",
+      "limit": 6,
+      "budget_bytes": 4096,
+      "rationale": "ADR-0186 decided known-proxies must be a fail-closed, operator-enumerated allowlist; internal/server/proxy.go's ParseKnownProxies is the one place that enforces it, and TestParseKnownProxiesFailsClosed is the regression test — a triad spanning the authoritative decision, its enforcement, and its proof.",
+      "ground_truth": [
+        {"path": "docs/adr/0186-reverse-proxy-base-url-and-known-proxies.md", "line": 65, "contains": "A single server-wide `known-proxies` env/flag (living in `internal/server` alongside `requestIsLAN`"},
+        {"path": "internal/server/proxy.go", "line": 23, "contains": "func ParseKnownProxies(value string, allowBroad bool) (*KnownProxies, error) {"},
+        {"path": "internal/server/proxy.go", "line": 38, "contains": "CIDR %s is public or over-broad; set BEAMFALL_ALLOW_BROAD_KNOWN_PROXIES=true only after reviewing the trust boundary"},
+        {"path": "internal/server/reverse_proxy_test.go", "line": 12, "contains": "func TestParseKnownProxiesFailsClosed(t *testing.T) {"}
+      ],
+      "expected": {
+        "must_include": [
+          "path:docs/adr/0186-reverse-proxy-base-url-and-known-proxies.md",
+          "symbol:internal/server/proxy.go:ParseKnownProxies",
+          "test:internal/server/reverse_proxy_test.go"
+        ],
+        "critical": [
+          "path:docs/adr/0186-reverse-proxy-base-url-and-known-proxies.md",
+          "symbol:internal/server/proxy.go:ParseKnownProxies"
+        ],
+        "relevant": [
+          "symbol:internal/server/reverse_proxy_test.go:TestParseKnownProxiesFailsClosed"
+        ],
+        "must_exclude": [
+          "path:internal/proxytee/proxytee.go"
+        ]
+      }
+    },
+    {
+      "id": "beamfall-webhook-retry-dead-letter",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "We need to raise the webhook retry budget for flaky integration endpoints without breaking the eventual dead-letter guarantee. Show me the decision that pins webhook delivery as outbox-driven, at-least-once, with dead-letter visibility, the retry loop that actually walks MaxAttempts with exponential backoff, and the test proving an exhausted delivery lands in the dead-letter.",
+      "limit": 6,
+      "budget_bytes": 4096,
+      "rationale": "ADR-0169 §2 decided webhook delivery is Console-configured, outbox-driven, at-least-once with dead-letter visibility; internal/webhook/webhook.go's deliverTo attempt loop is the enforcement, and TestRetryThenDeadLetter is the regression proof.",
+      "ground_truth": [
+        {"path": "docs/adr/0169-automation-substrate-events-and-integrations.md", "line": 71, "contains": "Console: endpoint, event filter, secret, retry policy — delivered outbox-driven, at-least-once,"},
+        {"path": "internal/webhook/webhook.go", "line": 310, "contains": "func (e *Emitter) deliverTo(ctx context.Context, ep Endpoint, event store.OutboxEvent, body []byte) error {"},
+        {"path": "internal/webhook/webhook.go", "line": 314, "contains": "for attempt := 1; attempt <= e.cfg.MaxAttempts; attempt++ {"},
+        {"path": "internal/webhook/webhook_test.go", "line": 165, "contains": "func TestRetryThenDeadLetter(t *testing.T) {"}
+      ],
+      "expected": {
+        "must_include": [
+          "path:docs/adr/0169-automation-substrate-events-and-integrations.md",
+          "symbol:internal/webhook/webhook.go:deliverTo",
+          "test:internal/webhook/webhook_test.go"
+        ],
+        "critical": [
+          "path:docs/adr/0169-automation-substrate-events-and-integrations.md",
+          "symbol:internal/webhook/webhook.go:deliverTo"
+        ],
+        "relevant": [
+          "symbol:internal/webhook/webhook_test.go:TestRetryThenDeadLetter"
+        ],
+        "must_exclude": [
+          "path:internal/webhook/diagnostic.go"
+        ]
+      }
+    },
+    {
+      "id": "beamfall-trickplay-manifest-wire-authority",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "The mobile client team wants to parse trickplay.json's on-disk fields directly instead of waiting on a playbackInfo trickplay manifest, since internal/genassets already emits camelCase JSON. Before I greenlight reading that file as the client contract, confirm whether that's actually still true today, and if not, what supersedes it.",
+      "limit": 6,
+      "budget_bytes": 4096,
+      "rationale": "internal/genassets/genassets.go's TrickplayManifest struct comment still literally says \"the JSON index clients consume\", citing the now-superseded ADR-0033 §6 — but ADR-0187 Decision 4 explicitly demotes trickplay.json to an internal artifact and moves the client contract to the normalized playbackInfo.trickplay field. This is the authority-over-naming trap: the code's own naming and comment argue the opposite of the governing decision.",
+      "ground_truth": [
+        {"path": "docs/adr/0187-trickplay-spec-reconciliation-0033-0185.md", "line": 71, "contains": "at the `playbackInfo` boundary and are no longer a client-facing contract."},
+        {"path": "internal/genassets/genassets.go", "line": 69, "contains": "type TrickplayManifest struct {"},
+        {"path": "internal/genassets/genassets.go", "line": 67, "contains": "TrickplayManifest is the JSON index clients consume (ADR-0033 §6): interval,"},
+        {"path": "internal/playback/playback.go", "line": 369, "contains": "json:\"trickplay,omitempty\""}
+      ],
+      "expected": {
+        "must_include": [
+          "path:docs/adr/0187-trickplay-spec-reconciliation-0033-0185.md",
+          "symbol:internal/genassets/genassets.go:TrickplayManifest",
+          "path:internal/playback/playback.go"
+        ],
+        "critical": [
+          "path:docs/adr/0187-trickplay-spec-reconciliation-0033-0185.md"
+        ],
+        "relevant": [
+          "symbol:internal/genassets/genassets.go:TrickplayManifest",
+          "path:internal/playback/playback.go"
+        ],
+        "must_exclude": [
+          "path:docs/adr/0185-trickplay-scrubbing-preview-thumbnails.md"
+        ]
+      }
+    },
+    {
+      "id": "beamfall-stream-token-ttl-impact",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "impact",
+      "text": "We're considering shortening the Stream Token max lifetime from 7 days to reduce the exposure window after a credential compromise. Before changing the constant, show me every place in the codebase that assumes today's MaxStreamTokenTTL value, especially any invalidation-retention floor derived from it.",
+      "limit": 8,
+      "budget_bytes": 4096,
+      "rationale": "MaxStreamTokenTTL is a single constant in internal/streamtoken with several independent downstream consumers: the compat-refusal invalidation retention floor wired in internal/server, and the same durability invariant re-checked separately in internal/capabilities and internal/conformance. An impact query must surface all of them, not just the definition site, or a change would silently violate the durability invariant in an unreviewed package.",
+      "ground_truth": [
+        {"path": "internal/streamtoken/streamtoken.go", "line": 231, "contains": "func (s *Service) Issue(ctx context.Context, grant Grant) (string, error) {"},
+        {"path": "internal/server/compat_streamtoken_adapter.go", "line": 38, "contains": "streamtoken.MaxStreamTokenTTL,"},
+        {"path": "internal/capabilities/clientcompat_durability_test.go", "line": 296, "contains": "retentionFloor := streamtoken.MaxStreamTokenTTL + InvalidationSafetyMargin"},
+        {"path": "internal/conformance/compat_decision_durability_test.go", "line": 638, "contains": "retentionFloor := streamtoken.MaxStreamTokenTTL + capabilities.InvalidationSafetyMargin"}
+      ],
+      "expected": {
+        "must_include": [
+          "symbol:internal/streamtoken/streamtoken.go:Issue",
+          "path:internal/server/compat_streamtoken_adapter.go",
+          "path:internal/capabilities/clientcompat_durability_test.go",
+          "path:internal/conformance/compat_decision_durability_test.go"
+        ],
+        "critical": [
+          "symbol:internal/streamtoken/streamtoken.go:Issue",
+          "path:internal/conformance/compat_decision_durability_test.go"
+        ],
+        "relevant": [
+          "path:internal/server/compat_streamtoken_adapter.go",
+          "path:internal/capabilities/clientcompat_durability_test.go"
+        ],
+        "must_exclude": [
+          "path:internal/streamtoken/circle.go"
+        ]
+      }
+    },
+    {
+      "id": "beamfall-podcast-ad-host-read-exclusion",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "Podcast episodes are getting inserted ads classified correctly, but a listener reported that a host-read sponsor segment got auto-skipped too. Show me where the audio-ad calibration decides whether a detected segment is safe to admit, and confirm host-read segments are excluded from auto-apply even at high classifier confidence.",
+      "limit": 6,
+      "budget_bytes": 4096,
+      "rationale": "ADR-0193 stores the inserted-vs-host-read distinction as an internal flavor, never a public marker kind, and internal/skipdetect/podcast_ad.go's admits() hard-excludes FlavorHostRead regardless of confidence, proven by TestAudioAdHostReadNeverAdmitted. The general skip-segment detector (skipdetect.go) handles an unrelated intro/recap/credits vocabulary and must not be conflated with podcast ad classification despite living in the same package.",
+      "ground_truth": [
+        {"path": "docs/adr/0193-podcast-ad-skip-detection-and-training-tooling.md", "line": 78, "contains": "the marker means to a viewer — so it is stored as an internal **flavor** (`inserted` | `host-read`)"},
+        {"path": "internal/skipdetect/podcast_ad.go", "line": 286, "contains": "func (c AudioAdCalibration) admits(candidate AudioAdCandidate) (bool, error) {"},
+        {"path": "internal/skipdetect/podcast_ad.go", "line": 297, "contains": "if c.Flavor == store.FlavorHostRead {"},
+        {"path": "internal/skipdetect/podcast_ad_test.go", "line": 177, "contains": "func TestAudioAdHostReadNeverAdmitted(t *testing.T) {"}
+      ],
+      "expected": {
+        "must_include": [
+          "path:docs/adr/0193-podcast-ad-skip-detection-and-training-tooling.md",
+          "symbol:internal/skipdetect/podcast_ad.go:admits",
+          "test:internal/skipdetect/podcast_ad_test.go"
+        ],
+        "critical": [
+          "symbol:internal/skipdetect/podcast_ad.go:admits",
+          "test:internal/skipdetect/podcast_ad_test.go"
+        ],
+        "relevant": [
+          "path:docs/adr/0193-podcast-ad-skip-detection-and-training-tooling.md"
+        ],
+        "must_exclude": [
+          "path:internal/skipdetect/skipdetect.go"
+        ]
+      }
+    },
+    {
+      "id": "beamfall-k8s-helm-autoscaler-abstention",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "We want to ship a first-party Kubernetes Helm chart for Beamfall Core with a HorizontalPodAutoscaler so our EKS-hosted deployment can autoscale transcode worker pods under load. Point me at the existing Helm chart or Kubernetes manifests so I can add the HPA alongside them.",
+      "limit": 4,
+      "budget_bytes": 1024,
+      "rationale": "Beamfall's packaging surface is Docker Compose, TrueNAS, and Unraid only (packaging/compose, packaging/truenas, packaging/unraid); there is no Kubernetes manifest, Helm chart, or autoscaler definition anywhere in the tree, and ADR-0013 (operations and packaging) does not describe an elastic, pod-based deployment model. A retrieval tool must abstain rather than invent a plausible-looking chart location.",
+      "ground_truth": [],
+      "expected": {
+        "state": "OUT_OF_SCOPE",
+        "must_include": [],
+        "critical": [],
+        "relevant": [],
+        "must_exclude": [
+          "path:packaging/compose/compose.cpu.yml",
+          "path:packaging/truenas/docker-compose.yaml"
+        ]
+      }
+    }
+  ]
+}

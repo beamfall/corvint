@@ -1,0 +1,186 @@
+name: CI control plane
+
+# Runs from the default branch after each PR CI run (decisions 0320 and 0390, AFP-V0-016). A
+# pull_request workflow runs the PR's own copy of ci.yml, so a PR could set its own narrowing pins.
+# This check reads only GitHub metadata, never checks out or runs PR code, and posts
+# `ci-control-plane` on the PR head: failure when the PR changes anything under `.github/`, success
+# otherwise. The main ruleset requires it and has no bypass actor, so such a PR merges only after
+# an admin posts a `ci-control-plane` success status on the exact reviewed head SHA.
+# AFP-V0-171 (V1-1847): a CI rerun on that same head does not overwrite the admin's success; the
+# job posts nothing while the newest `ci-control-plane` status there is a success by a user.
+#
+# A merge-queue entry (AFP-V0-026) is a commit GitHub builds from pull requests that each passed
+# this check on their own head before they could be queued. The required context must also
+# report on that commit or the queue never merges, so the second job posts `success` on it,
+# only for a `merge_group` run whose branch is a queue branch of `main`.
+#
+# The forward-rows job (AFP-V0-047) records one AFP-V0-029 forward row per completed merge-queue
+# or pull-request run, as an artifact only. It holds `actions: read` and `contents: read`, posts
+# no status, reads small artifacts with gh and jq, and runs only `.github/forward-rows` from this
+# default-branch commit, never code of the tested commit. Nothing reads the rows to narrow tests
+# before V1-0812.
+#
+# AFP-V0-079 (V1-1778): the two status jobs run for every completed CI run of their event,
+# cancelled ones included: GitHub can cancel a run after go-product passed (while optional jobs
+# still ran), and skipping it would leave a head with no ci-control-plane status and nothing left
+# to post one. Neither status depends on the CI conclusion, and a superseded pull-request head
+# posts nothing because no open PR has it at its head. The two jobs share one concurrency group
+# per event and head SHA, so a newer completion for the same head replaces a queued or running
+# one: both would post the same status. The forward-rows job keeps one run per completed run
+# that succeeded or failed; a cancelled run is never a forward row.
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+jobs:
+  control-plane:
+    if: github.event.workflow_run.event == 'pull_request'
+    concurrency:
+      group: ci-control-plane-pull_request-${{ github.event.workflow_run.head_sha }}
+      cancel-in-progress: true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Report whether the PR changes the trusted CI definition
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD: ${{ github.event.workflow_run.head_sha }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          set -euo pipefail
+          prs=$(gh api --paginate "repos/$REPO/pulls?state=open&per_page=100" \
+            --jq ".[] | select(.head.sha == \"$HEAD\") | .number")
+          if [ -z "$prs" ]; then
+            echo "ci-control-plane: no open PR at $HEAD; no status posted"
+            exit 0
+          fi
+          while read -r number; do
+            changed=$(gh api "repos/$REPO/pulls/$number" --jq .changed_files)
+            state=success
+            description="PR changes nothing under .github/"
+            # The files API lists at most 3000 files; a larger PR cannot be proved clean.
+            if [ "$changed" -gt 3000 ]; then
+              state=failure
+              description="PR changes more files than the files API lists"
+            else
+              # A failed listing stops the job, so no status is posted and the merge stays blocked.
+              files=$(gh api --paginate "repos/$REPO/pulls/$number/files?per_page=100" \
+                --jq '.[] | .filename, (.previous_filename // empty)')
+              touched=$(grep -c '^\.github/' <<<"$files" || true)
+              if [ "$touched" -gt 0 ]; then
+                state=failure
+                description="PR changes $touched path(s) under .github/; merge needs an admin-posted ci-control-plane status on this SHA"
+              fi
+            fi
+            if [ "$state" = failure ]; then
+              # AFP-V0-171 (V1-1847): a CI rerun on a head whose newest ci-control-plane status
+              # is a success posted by a user (an admin review, not this job's bot) keeps it. A
+              # new head has no such status and still gets failure. The listing is newest first;
+              # a failed listing stops the job, so nothing is posted and the merge stays blocked.
+              latest=$(gh api "repos/$REPO/commits/$HEAD/statuses?per_page=100" \
+                --jq '[.[] | select(.context == "ci-control-plane")][0] // {} | "\(.state // "") \(.creator.type // "")"')
+              if [ "$latest" = "success User" ]; then
+                echo "ci-control-plane: #$number keeps the user-posted success on $HEAD; no status posted"
+                continue
+              fi
+            fi
+            echo "ci-control-plane: #$number $state: $description"
+            gh api -X POST "repos/$REPO/statuses/$HEAD" -f state="$state" \
+              -f context=ci-control-plane -f description="$description" -f target_url="$RUN_URL" >/dev/null
+          done <<<"$prs"
+
+  merge-group:
+    if: github.event.workflow_run.event == 'merge_group'
+    concurrency:
+      group: ci-control-plane-merge_group-${{ github.event.workflow_run.head_sha }}
+      cancel-in-progress: true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Report the control-plane context on the merge-queue commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          HEAD: ${{ github.event.workflow_run.head_sha }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          set -euo pipefail
+          # Anything else posts nothing, so the queue entry stays blocked.
+          case "$BRANCH" in
+            gh-readonly-queue/main/pr-*) ;;
+            *) echo "ci-control-plane: $BRANCH is not a merge-queue branch of main; no status posted"; exit 0 ;;
+          esac
+          gh api -X POST "repos/$REPO/statuses/$HEAD" -f state=success \
+            -f context=ci-control-plane -f description="merge-queue entry; each queued PR passed this check on its own head" \
+            -f target_url="$RUN_URL" >/dev/null
+          echo "ci-control-plane: success posted on merge-queue commit $HEAD"
+
+  forward-rows:
+    if: >-
+      (github.event.workflow_run.event == 'merge_group' || github.event.workflow_run.event == 'pull_request') &&
+      (github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+    env:
+      # Must equal the go-product-shard matrix length and CORVINT_PR_FORWARD_EPOCH in ci.yml.
+      FORWARD_SHARDS: "8"
+      FORWARD_EPOCH: "1"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # The default-branch commit this workflow_run runs from, not the tested commit.
+          ref: ${{ github.sha }}
+          path: trusted
+          # AFP-V0-481: .github/cishards holds package-costs.json, which prices the row's shadow cost.
+          sparse-checkout: |
+            .github/forward-rows
+            .github/cishards
+          persist-credentials: false
+      - name: Classify the run's forward row
+        id: row
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          EVENT: ${{ github.event.workflow_run.event }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          PR_BASE_SHA: ${{ github.event.workflow_run.pull_requests[0].base.sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+        run: sh trusted/.github/forward-rows/collect.sh
+      - name: Retain the forward row
+        if: steps.row.outputs.name != ''
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.row.outputs.name }}
+          path: ${{ runner.temp }}/forward-row/row.json
+          if-no-files-found: error
+      - name: Retain the forward row's shadow cost name (AFP-V0-483, advisory)
+        # The same row.json under a name that carries the selectors' cost shares and misses, so the
+        # bar aggregates them from names alone. It never feeds the bar status or the kill switch.
+        if: steps.row.outputs.cost != ''
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.row.outputs.cost }}
+          path: ${{ runner.temp }}/forward-row/row.json
+          if-no-files-found: ignore
+      - name: Count the epoch's latest rows against the shadow bar (V1-0811)
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: sh trusted/.github/forward-rows/bar.sh

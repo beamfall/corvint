@@ -1,0 +1,72 @@
+{
+  "profile": "corvint-test-read-scope-literals/0",
+  "literals": {
+    "internal/analyzercap": {
+      "docs/specs/analyzer-candidate-profiles.md": "named inside an expected diagnostic message; the test reads no file"
+    },
+    "internal/cemcandidate": {
+      "artifacts/runner-plan-0.json": "a path inside the test's temporary assembly output and fixture case root; the repository's artifacts/ file is not read",
+      "artifacts/runner-receipt-0.json": "a path inside the test's temporary assembly output and fixture case root; the repository's artifacts/ file is not read",
+      "artifacts/runner-plan-1.json": "a path inside the test's temporary assembly output and fixture case root; the repository's artifacts/ file is not read",
+      "artifacts/runner-receipt-1.json": "a path inside the test's temporary assembly output and fixture case root; the repository's artifacts/ file is not read"
+    },
+    "internal/changee2e": {
+      "docs/specs/application-map-v0.md": "named inside the expected e2e-map-unavailable refusal text; the test reads no file",
+      "docs/E2E-ADOPTION.md": "named inside the expected e2e-map-unavailable refusal text; the test reads no file"
+    },
+    "internal/doccorpus": {
+      ".github/workflows/ci.yml": "a path written into a temporary fixture repository the inventory rules read; the repository's own workflows are not read"
+    },
+    "internal/gateselect": {
+      ".corvint/changes": "a sealed-CEM selection fixture path matched against fixture values; nothing is read",
+      ".corvint/documentation-paths.json": "a documentation declaration written into a temporary fixture repository; the repository's own declaration is not read",
+      ".corvint/test-read-scopes.json": "a read-scope declaration written into a temporary fixture repository; the repository's own declaration is not read",
+      ".taskman/queue.json": "a task-state selection fixture path matched against fixture values; nothing is read",
+      ".taskman/tickets/V1-0001.json": "a task-state selection fixture path matched against fixture values; nothing is read",
+      "docs/specs": "a selection fixture value matched against fixture paths; nothing is read",
+      "docs/specs/INDEX.json": "a path written into a temporary fixture repository and named in the fixture plan's dirty set; the repository's spec index is not read",
+      "docs/specs/gate-ledger-v0.md": "a selection fixture path matched against fixture values; nothing is read"
+    },
+    "internal/liveverify/affected/shell": {
+      "docs/specs/README.md": "a path inside the test's temporary fixture repository root; the repository's docs file is not read",
+      "docs/README.md": "a path inside the test's temporary fixture repository root; the repository's docs file is not read"
+    },
+    "internal/localcompletion": {
+      "script/dogfood-check.sh": "an argv fixture classified as a command name; the script is never read"
+    },
+    "internal/observations": {
+      "docs/decisions/0015-impact-without-go-module-2026-09-01.md": "a decision reference copied into the expected report line; the file is never read"
+    },
+    "internal/playwrightminimize": {
+      "internal/jstestprovider/testdata/application-attestation": "read only by the live Docker qualification, which skips unless CORVINT_MINIMIZER_LIVE_QUALIFICATION=1 and never runs in the confined shard"
+    },
+    "internal/specindex": {
+      "cmd/corvint/main.go": "a read-scope control path passed to the InReadScope predicate; the file is never read"
+    },
+    "internal/taskman": {
+      "artifacts/runner-plan-0.json": "a path committed into the test's temporary fixture repository and named by its fixture map; the repository's artifacts/ file is not read",
+      "artifacts/runner-receipt-0.json": "a path committed into the test's temporary fixture repository and named by its fixture map; the repository's artifacts/ file is not read",
+      "artifacts/runner-receipt-1.json": "a path committed into the test's temporary fixture repository and named by its fixture map; the repository's artifacts/ file is not read",
+      "docs/specs": "a scope-verdict fixture key; nothing is read",
+      "internal/tasks/store/lease_gate.go": "a scope-verdict fixture key; nothing is read"
+    },
+    "internal/tasks/intent": {
+      "docs/specs/INDEX.json": "a reservations.sharedPaths policy value decoded in memory; nothing is read",
+      "docs/specs/README.md": "a reservations.sharedPaths policy value decoded in memory; nothing is read",
+      "docs/specs/REQUIREMENTS.tsv": "a reservations.sharedPaths policy value decoded in memory; nothing is read"
+    },
+    "internal/tasks/store": {
+      ".corvint/changes": "a shared reservation or claim-scope directory key in a temporary task store; the repository directory is not read",
+      "docs/build-log": "a claim scope key written into a temporary fixture repository",
+      "docs/specs": "a claim-scope directory key in a temporary task store; the repository directory is not read",
+      "docs/specs/INDEX.json": "a shared reservation or claim-scope path in a temporary task store; the repository file is not read",
+      "docs/specs/README.md": "a shared reservation or claim-scope path in a temporary task store; the repository file is not read",
+      "docs/specs/REQUIREMENTS.tsv": "a shared reservation or claim-scope path in a temporary task store; the repository file is not read"
+    },
+    "tools/gate-ledger": {
+      ".corvint/test-read-scopes.json": "a read-scope declaration written into a temporary fixture repository; the repository's own declaration is not read",
+      "internal/gateselect/select_test.go": "a file written into a temporary fixture repository",
+      "tools/gate-affected-select/main_test.go": "a file written into a temporary fixture repository"
+    }
+  }
+}

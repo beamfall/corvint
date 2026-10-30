@@ -1,0 +1,86 @@
+[
+  {
+    "operation": "allowed",
+    "expected_code": "",
+    "expected_path": "",
+    "expected_exit": 0
+  },
+  {
+    "operation": "guard",
+    "expected_code": "GUARDED_WRITE",
+    "expected_path": "allowed/guard",
+    "expected_exit": 1
+  },
+  {
+    "operation": "outside edit",
+    "expected_code": "OUT_OF_SCOPE_WRITE",
+    "expected_path": "outside",
+    "expected_exit": 1
+  },
+  {
+    "operation": "outside add",
+    "expected_code": "OUT_OF_SCOPE_WRITE",
+    "expected_path": "new",
+    "expected_exit": 1
+  },
+  {
+    "operation": "ignored",
+    "expected_code": "OUT_OF_SCOPE_WRITE",
+    "expected_path": "ignored",
+    "expected_exit": 1
+  },
+  {
+    "operation": "delete",
+    "expected_code": "OUT_OF_SCOPE_WRITE",
+    "expected_path": "outside",
+    "expected_exit": 1
+  },
+  {
+    "operation": "rename",
+    "expected_code": "OUT_OF_SCOPE_WRITE",
+    "expected_path": "renamed",
+    "expected_exit": 1
+  },
+  {
+    "operation": "mode",
+    "expected_code": "OUT_OF_SCOPE_WRITE",
+    "expected_path": "outside",
+    "expected_exit": 1
+  },
+  {
+    "operation": "symlink",
+    "expected_code": "OUT_OF_SCOPE_WRITE",
+    "expected_path": "link",
+    "expected_exit": 1
+  },
+  {
+    "operation": "empty directory",
+    "expected_code": "OUT_OF_SCOPE_WRITE",
+    "expected_path": "empty",
+    "expected_exit": 1
+  },
+  {
+    "operation": "scope anchor",
+    "expected_code": "SCOPE_ANCESTOR_CHANGED",
+    "expected_path": "allowed",
+    "expected_exit": 1
+  },
+  {
+    "operation": "index",
+    "expected_code": "INDEX_CHANGED",
+    "expected_path": ".git/index",
+    "expected_exit": 1
+  },
+  {
+    "operation": "commit",
+    "expected_code": "COMMIT_CHANGED",
+    "expected_path": ".git/HEAD",
+    "expected_exit": 1
+  },
+  {
+    "operation": "admin",
+    "expected_code": "ADMIN_CHANGED",
+    "expected_path": "git/config",
+    "expected_exit": 1
+  }
+]

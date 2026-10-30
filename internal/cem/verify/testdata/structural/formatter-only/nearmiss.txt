@@ -1,0 +1,9 @@
+package fixture
+
+import "fmt"
+
+func greet(name string) string {
+	return fmt.Sprintf("hi %s", name)
+}
+
+var count = 3

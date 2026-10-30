@@ -1,0 +1,42 @@
+diff --git a/tools/regen-fixtures/main.go b/tools/regen-fixtures/main.go
+index a4760da93..9d8c978b6 100644
+--- a/tools/regen-fixtures/main.go
++++ b/tools/regen-fixtures/main.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"path/filepath"
++	"strings"
+ 	"time"
+ 
+ 	"github.com/beamfall/core/internal/ffmpeg"
+@@ -54,7 +55,12 @@ func run() error {
+ 		return err
+ 	}
+ 	for i := range m.Fixtures {
+-		data, err := os.ReadFile(filepath.Join("internal/ffmpeg/testdata", m.Fixtures[i].Path))
++		path, err := fixturePath("internal/ffmpeg/testdata", m.Fixtures[i].Path)
++		if err != nil {
++			return err
++		}
++		// #nosec G304 -- fixturePath rejects non-basename and escaping paths.
++		data, err := os.ReadFile(path)
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -83,3 +89,15 @@ func run() error {
+ 	}
+ 	return os.Rename(tmpPath, manifestPath)
+ }
++
++func fixturePath(root, name string) (string, error) {
++	if name == "" || name != filepath.Base(name) {
++		return "", fmt.Errorf("unsafe fixture path %q", name)
++	}
++	path := filepath.Join(root, name)
++	rel, err := filepath.Rel(root, path)
++	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
++		return "", fmt.Errorf("fixture path %q escapes %q", name, root)
++	}
++	return path, nil
++}

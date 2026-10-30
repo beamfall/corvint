@@ -1,0 +1,35 @@
+{
+  "files": [
+    {
+      "content": "module example.test/rootpkg\n\ngo 1.27.0\n",
+      "mode": "0644",
+      "path": "go.mod",
+      "type": "file"
+    },
+    {
+      "content": "package rootpkg\n\nfunc LoggerName() string { return \"logger\" }\n",
+      "mode": "0644",
+      "path": "logger.go",
+      "type": "file"
+    },
+    {
+      "content": "package rootpkg\n\nfunc TestLoggerName() {}\n",
+      "mode": "0644",
+      "path": "logger_test.go",
+      "type": "file"
+    },
+    {
+      "content": "package main\n\nimport \"example.test/rootpkg\"\n\nfunc main() { _ = rootpkg.LoggerName() }\n",
+      "mode": "0644",
+      "path": "cmd/tool/main.go",
+      "type": "file"
+    },
+    {
+      "content": "features: []\n",
+      "mode": "0644",
+      "path": "testing/features.yaml",
+      "type": "file"
+    }
+  ],
+  "format": "atlas-cli-parity-fixture/0"
+}

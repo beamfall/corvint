@@ -1,0 +1,22 @@
+{
+  "schema": "application-flow-intent/1",
+  "flow_id": "check-slot-status",
+  "revision": 1,
+  "kind": "ui",
+  "actor": "club admin",
+  "preconditions": [],
+  "steps": [
+    {"step_id": "read-status", "action": "read the slot status"}
+  ],
+  "outcomes": [
+    {"outcome_id": "status-shown", "behavior": "slot status is shown", "matcher": "toHaveText", "locator": "slot-status", "value": "Open"}
+  ],
+  "variations": [],
+  "links": [],
+  "navigation": {
+    "precondition_flows": ["book-tee-time"],
+    "steps": [
+      {"step_id": "read-status", "state": "/clubs/{clubId}/teesheets", "locator": {"test_id": "slot-status"}, "expect": ["status-shown"]}
+    ]
+  }
+}

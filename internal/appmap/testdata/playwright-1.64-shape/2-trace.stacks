@@ -1,0 +1,1 @@
+{"files":["/ci/repo/e2e/pages/login.ts","/ci/repo/e2e/specs/login.spec.ts"],"stacks":[["wcuw@690",[[0,5,9,"LoginPage.open"],[1,8,9,""]]],["wcuw@692",[[0,12,11,"LoginPage.signIn"],[1,9,9,""]]]]}

@@ -1,0 +1,277 @@
+diff --git a/internal/app/app.go b/internal/app/app.go
+index 9cf25c25b..f204130bc 100644
+--- a/internal/app/app.go
++++ b/internal/app/app.go
+@@ -232,11 +232,12 @@ func hardwareAccelReport(result ffmpeg.HWAccelResult) config.HardwareAccelReport
+ }
+ 
+ // New wires the server capabilities. A nil logger defaults to slog.Default();
+-// bundles are the activated plugin set (ADR-0003) — invalid bundles fail boot.
++// bundles are the executable-owned plugin set (ADR-0003) — invalid bundles fail boot.
+ // The optional Hooks value carries compiled plugin-module behavior from the
+ // executable composition root; callers that need only declarative bundles may
+ // omit it. More than one Hooks value is invalid.
+ func New(ctx context.Context, cfg config.Config, logger *slog.Logger, bundles []plugin.Bundle, hookValues ...Hooks) (*App, error) {
++	executableBundles := append([]plugin.Bundle(nil), bundles...)
+ 	hooks, err := resolveHooks(hookValues)
+ 	if err != nil {
+ 		return nil, err
+@@ -285,6 +286,22 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger, bundles []
+ 		return nil, err
+ 	}
+ 	jobWake := newJobWake()
++	inventory, err := plugin.OpenInventory(filepath.Join(cfg.DataDir, "plugins", "inventory"), executableBundles)
++	if err != nil {
++		_ = st.Close()
++		return nil, err
++	}
++	bundles, applied, inventoryWarning := inventory.Apply()
++	if inventoryWarning != nil {
++		if applied {
++			logger.Warn("staged plugin inventory applied but cleanup failed", "error", inventoryWarning)
++		} else {
++			logger.Warn("staged plugin inventory rejected; retaining last-good", "error", inventoryWarning)
++		}
++	}
++	if applied {
++		logger.Info("staged plugin inventory applied")
++	}
+ 	// Enforce the Console's plugin-activation overrides (migration 0035): the
+ 	// `setpluginactive` mutation persists a per-bundle active/inactive override
+ 	// keyed on the plugin Bundle ID, and the Console reads it back — but a
+@@ -297,18 +314,14 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger, bundles []
+ 		_ = st.Close()
+ 		return nil, err
+ 	}
+-	if len(overrides) > 0 {
+-		active := bundles[:0:0]
+-		for _, b := range bundles {
+-			if state, has := overrides[string(b.ID)]; has && !state {
+-				logger.Info("plugin deactivated by Console override; skipping bundle", "plugin", string(b.ID))
+-				continue
+-			}
+-			active = append(active, b)
+-		}
+-		bundles = active
++	bundles = activePluginBundles(bundles, overrides, logger)
++	executableBundles = activePluginBundles(executableBundles, overrides, logger)
++	plugins, err := plugin.NewInventoryRegistry(bundles, executablePluginIDs(executableBundles))
++	if err != nil {
++		_ = st.Close()
++		return nil, err
+ 	}
+-	plugins, err := plugin.NewBuiltinRegistry(bundles)
++	executablePlugins, err := plugin.NewBuiltinRegistry(executableBundles)
+ 	if err != nil {
+ 		_ = st.Close()
+ 		return nil, err
+@@ -469,7 +482,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger, bundles []
+ 	// Compiled filename-parser hooks, keyed by active plugin ID (ADR-0044).
+ 	// Hook implementations live in first-party plugin modules; Core only wires
+ 	// hooks for bundles admitted by plugin.NewRegistry above.
+-	parsers := scanParsers(plugins, hooks.Parsers)
++	parsers := scanParsers(executablePlugins, hooks.Parsers)
+ 	// PIPE-1 (ADR-0003 §4): scan triggers auto-identify per imported item through
+ 	// this adapter. identifyService is constructed below (it needs scrapeEngine,
+ 	// also built below), so the adapter holds a pointer set after construction; a
+@@ -483,10 +496,10 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger, bundles []
+ 	// extension VALUES are plugin data declared by the bundle; Core reads them
+ 	// off the registry and never names one.
+ 	interactiveSidecarExts := plugins.InteractiveSidecarExts()
+-	localExtractors := scanLocalExtractors(plugins, hooks.LocalExtractors)
++	localExtractors := scanLocalExtractors(executablePlugins, hooks.LocalExtractors)
+ 	// Plugin-owned local metadata mappers are validated against each activated
+ 	// bundle and adapted into scan's shape-neutral hook, keyed by plugin ID.
+-	metadataHydrators := newHydrationAdapters(plugins, st, hooks.HydrationMappers)
++	metadataHydrators := newHydrationAdapters(executablePlugins, st, hooks.HydrationMappers)
+ 	scanHandler := scanHandlerWithWorkerGovernor(st, observingProber{inner: ffmpegRunner, observability: observabilityController}, ffmpegRunner, parsers, interactiveSidecarExts, autoIdentifier, localExtractors, metadataHydrators, resourceGovernor, artworkService)
+ 	// First-party EmbeddingProvider seam (ADR-0041, ENR-1). The flag records
+ 	// operator intent and is read at process start. The bundled provider contains
+@@ -690,15 +703,15 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger, bundles []
+ 	// Scrobble-import match relations (ADR-0098 area 1): read the plugin-owned
+ 	// relation slugs off the activated bundles so the generic matcher confirms
+ 	// artist/album without hardcoding a music relation name.
+-	scrobbleSelectors := scrobbleRelationSelectors(plugins)
+-	jobRegistry.Register(migrate.JobKind, migrate.Handler(st, migrationSourceResolver{plugins: plugins, factories: hooks.MigrationSourceFactories}, migrate.WithResumePolicyResolver(migrationResumePolicyResolver{store: st, plugins: plugins}), migrate.WithScrobbleRelationSelectors(scrobbleSelectors)))
++	scrobbleSelectors := scrobbleRelationSelectors(executablePlugins)
++	jobRegistry.Register(migrate.JobKind, migrate.Handler(st, migrationSourceResolver{plugins: executablePlugins, factories: hooks.MigrationSourceFactories}, migrate.WithResumePolicyResolver(migrationResumePolicyResolver{store: st, plugins: executablePlugins}), migrate.WithScrobbleRelationSelectors(scrobbleSelectors)))
+ 	identifyService := identify.NewService(scrapeEngine, plugins, st)
+ 	identifyService.SetArtwork(scrapeEngine, artworkService)
+ 	identifyService.SetArtworkCandidates(st)
+ 	identifyService.SetFields(st)
+ 	identifyService.SetEntities(st)
+ 	identifyService.SetFingerprints(st)
+-	registerIdentifyScorers(identifyService, plugins, hooks.IdentifyScorers)
++	registerIdentifyScorers(identifyService, executablePlugins, hooks.IdentifyScorers)
+ 	// Wire PIPE-1's scan-time pipeline: the Unmatched queue (below-threshold
+ 	// parking) + the FREEZE-3 import match-pin (rescan respects an operator fix),
+ 	// then hand the configured service to the scan adapter created above.
+@@ -888,7 +901,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger, bundles []
+ 		updateOpts = append(updateOpts, updatecheck.WithBaseURL(baseURL))
+ 	}
+ 	graphUpdateChecker := updateCheckAdapter{service: updatecheck.New(updateOpts...)}
+-	graphFeedSearcher := activeFeedSearcher(plugins, hooks.FeedSearcher, scrapeEngine, secretFiles{dir: filepath.Join(cfg.DataDir, "secrets")})
++	graphFeedSearcher := activeFeedSearcher(executablePlugins, hooks.FeedSearcher, scrapeEngine, secretFiles{dir: filepath.Join(cfg.DataDir, "secrets")})
+ 	// Remote access (ADR-0012 §1 direct HTTPS + ACME; ADR-0018/0025 self-hosted
+ 	// relay carrier). Both paths are off by default (LAN-only). The relay token
+ 	// lives in <DataDir>/secrets/relay-token (0600, invariant 5).
+@@ -1103,7 +1116,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger, bundles []
+ 		}
+ 		return "", "", errors.New("encrypted media object identity unavailable")
+ 	})
+-	registerOfflinePackResolvers(offlinePacks, st, plugins, hooks.OfflinePackResolvers)
++	registerOfflinePackResolvers(offlinePacks, st, executablePlugins, hooks.OfflinePackResolvers)
+ 	jobRegistry.Register(offlinepack.BuildJobKind, func(ctx context.Context, job store.Job) (jobs.Result, error) {
+ 		_, err := offlinePacks.HandleBuildJob(ctx, job.Payload)
+ 		return jobs.Result{}, err
+@@ -1152,7 +1165,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger, bundles []
+ 	// kind). Dormant unless the operator has activated an adapter in
+ 	// <DataDir>/scrobble-adapters.json. When active, the graph handler's
+ 	// WatchedObserver feeds it and Run drains its queue.
+-	scrobbleDispatcher, err := buildScrobbleDispatcher(cfg, st, logger, plugins, hooks.ScrobbleAdapters)
++	scrobbleDispatcher, err := buildScrobbleDispatcher(cfg, st, logger, executablePlugins, hooks.ScrobbleAdapters)
+ 	if err != nil {
+ 		_ = st.Close()
+ 		return nil, err
+@@ -1161,7 +1174,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger, bundles []
+ 	// enabled, verified worker out-of-process. nil (dormant) unless an operator has
+ 	// installed a worker through the Console lifecycle flow; Run starts its
+ 	// supervision goroutine only then.
+-	integrationMgr, err := buildIntegrationManager(ctx, st, plugins, secretFiles{dir: filepath.Join(cfg.DataDir, "secrets")}, integrationController, logger, cfg.IntegrationWorkerHardeningShimPath)
++	integrationMgr, err := buildIntegrationManager(ctx, st, executablePlugins, secretFiles{dir: filepath.Join(cfg.DataDir, "secrets")}, integrationController, logger, cfg.IntegrationWorkerHardeningShimPath)
+ 	if err != nil {
+ 		_ = st.Close()
+ 		return nil, err
+@@ -1176,7 +1189,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger, bundles []
+ 		// and the richer-outbound-metadata resolver (artist/album + MBIDs from the
+ 		// activated Music plugin's declared relations/fields).
+ 		graphHandler.SetScrobbleStatusSource(scrobbleStatusSource{dispatcher: scrobbleDispatcher})
+-		graphHandler.SetOutboundMetadataResolver(newScrobbleMetadataResolver(st, plugins))
++		graphHandler.SetOutboundMetadataResolver(newScrobbleMetadataResolver(st, executablePlugins))
+ 	}
+ 	return &App{
+ 		cfg:                    cfg,
+@@ -1220,6 +1233,26 @@ func (subtitleSidecarGuard) Guard(format string, raw []byte) error {
+ 	return subtitleingest.Guard(format, raw)
+ }
+ 
++func activePluginBundles(bundles []plugin.Bundle, overrides map[string]bool, logger *slog.Logger) []plugin.Bundle {
++	active := make([]plugin.Bundle, 0, len(bundles))
++	for _, bundle := range bundles {
++		if state, has := overrides[string(bundle.ID)]; has && !state {
++			logger.Info("plugin deactivated by Console override; skipping bundle", "plugin", string(bundle.ID))
++			continue
++		}
++		active = append(active, bundle)
++	}
++	return active
++}
++
++func executablePluginIDs(bundles []plugin.Bundle) map[plugin.ID]bool {
++	ids := make(map[plugin.ID]bool, len(bundles))
++	for _, bundle := range bundles {
++		ids[bundle.ID] = true
++	}
++	return ids
++}
++
+ func seedProfileVersion(profile string) string {
+ 	switch store.SeedProfile(profile) {
+ 	case store.SeedProfileAcceptance:
+diff --git a/internal/plugin/catalog.go b/internal/plugin/catalog.go
+index c5d37cfd2..5ed228b19 100644
+--- a/internal/plugin/catalog.go
++++ b/internal/plugin/catalog.go
+@@ -2,6 +2,7 @@ package plugin
+ 
+ import (
+ 	"context"
++	"crypto/ed25519"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+@@ -56,7 +57,7 @@ func (c *CatalogConsumer) Check(ctx context.Context, installed []ID) (CatalogAva
+ 	if err != nil {
+ 		return filterCatalog(cached, installed, cachedRaw != nil), errors.Join(cacheErr, err)
+ 	}
+-	candidate, err := catalogindex.ParseAndVerify(candidateRaw, c.roots.Registries, 0)
++	candidate, err := catalogindex.ParseAndVerify(candidateRaw, c.registryKeys(), 0)
+ 	if err != nil {
+ 		return filterCatalog(cached, installed, cachedRaw != nil), errors.Join(cacheErr, fmt.Errorf("%w: %v", ErrCatalogCorrupt, err))
+ 	}
+@@ -80,7 +81,7 @@ func (c *CatalogConsumer) loadCache() ([]byte, catalogindex.Index, error) {
+ 	if err != nil {
+ 		return nil, catalogindex.Index{}, fmt.Errorf("read plugin catalog cache: %w", err)
+ 	}
+-	index, err := catalogindex.ParseAndVerify(raw, c.roots.Registries, 0)
++	index, err := catalogindex.ParseAndVerify(raw, c.registryKeys(), 0)
+ 	if err != nil {
+ 		return nil, catalogindex.Index{}, fmt.Errorf("%w: cached index: %v", ErrCatalogCorrupt, err)
+ 	}
+@@ -117,3 +118,13 @@ func filterCatalog(index catalogindex.Index, installed []ID, stale bool) Catalog
+ 	}
+ 	return CatalogAvailability{Entries: catalogindex.Filter(index, ids), Stale: stale}
+ }
++
++// registryKeys projects the release-bundled registry trust roots onto the
++// verification-key map the SDK catalog verifier consumes.
++func (c *CatalogConsumer) registryKeys() map[string]ed25519.PublicKey {
++	keys := make(map[string]ed25519.PublicKey, len(c.roots.Registries))
++	for id, root := range c.roots.Registries {
++		keys[id] = root.PublicKey
++	}
++	return keys
++}
+diff --git a/internal/plugin/plugin.go b/internal/plugin/plugin.go
+index 310672152..909b56928 100644
+--- a/internal/plugin/plugin.go
++++ b/internal/plugin/plugin.go
+@@ -128,12 +128,38 @@ func NewBuiltinRegistry(bundles []Bundle) (*Registry, error) {
+ 	return newRegistry(bundles, loadPathBuiltin)
+ }
+ 
++// NewInventoryRegistry validates and activates the inventory-derived bundle
++// set. Bundles whose ID is in executableIDs keep builtin standing; every other
++// bundle activates through the sideload path, so inventory contents can never
++// grant first-party standing.
++func NewInventoryRegistry(bundles []Bundle, executableIDs map[ID]bool) (*Registry, error) {
++	return newRegistryWithPaths(bundles, func(id ID) pluginLoadPath {
++		if executableIDs[id] {
++			return loadPathBuiltin
++		}
++		return loadPathSideloaded
++	})
++}
++
+ func newRegistry(bundles []Bundle, path pluginLoadPath) (*Registry, error) {
++	return newRegistryWithPaths(bundles, func(ID) pluginLoadPath { return path })
++}
++
++func newRegistryWithPaths(bundles []Bundle, pathFor func(ID) pluginLoadPath) (*Registry, error) {
++	normalized := append([]Bundle(nil), bundles...)
++	for i := range normalized {
++		if normalized[i].Version == "" {
++			normalized[i].Version = "0.0.0"
++		}
++	}
++	if err := sdk.ValidateBundles(normalized); err != nil {
++		return nil, err
++	}
+ 	r := &Registry{
+ 		bundles:  map[ID]Bundle{},
+ 		standing: map[ID]PluginStanding{},
+ 	}
+-	for _, bundle := range bundles {
++	for _, bundle := range normalized {
+ 		if err := Validate(bundle); err != nil {
+ 			return nil, err
+ 		}
+@@ -148,7 +174,7 @@ func newRegistry(bundles []Bundle, path pluginLoadPath) (*Registry, error) {
+ 		trust := AssessPluginTrust(nil, nil, PluginTrustRoots{}, nil)
+ 		r.bundles[bundle.ID] = owned
+ 		r.standing[bundle.ID] = PluginStanding{
+-			Provenance: derivePluginProvenance(path, trust.State),
++			Provenance: derivePluginProvenance(pathFor(bundle.ID), trust.State),
+ 			TrustState: trust.State,
+ 		}
+ 		r.order = append(r.order, bundle.ID)

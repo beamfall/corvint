@@ -1,0 +1,346 @@
+diff --git a/internal/ffmpeg/ffmpeg.go b/internal/ffmpeg/ffmpeg.go
+index 057eab328..42030d9fd 100644
+--- a/internal/ffmpeg/ffmpeg.go
++++ b/internal/ffmpeg/ffmpeg.go
+@@ -52,6 +52,61 @@ type Probe struct {
+ 	// Tags are the container-level format tags (title, artist, album, …),
+ 	// keys lowercased.
+ 	Tags map[string]string
++	// Streams is the full per-stream inventory captured at scan (ADR-0010 §4):
++	// every stream's type, codec, profile, language, default/forced flags,
++	// channel layout, bit depth, and HDR fields. Track menus, subtitle
++	// conversion, and the HDR decision table all read from here. Indexed in
++	// ffprobe stream order.
++	Streams []ProbeStream
++	// FontAttachments lists the muxed font attachments (ADR-0010 §4/§5: libass
++	// renders ASS with fonts pulled from attachments). Each attachment also
++	// appears in Streams as a stream of type "attachment".
++	FontAttachments []FontAttachment
++}
++
++// ProbeStream is one stream of a probed media file — the per-stream inventory
++// row ADR-0010 §4 persists at scan. Zero values mean "ffprobe did not report
++// this field" (e.g. BitDepth 0, empty ChannelLayout).
++type ProbeStream struct {
++	// Type is the ffprobe codec_type: "video", "audio", "subtitle",
++	// "attachment", or "data".
++	Type string
++	// Codec is the ffprobe codec_name (e.g. "hevc", "truehd",
++	// "hdmv_pgs_subtitle").
++	Codec string
++	// Profile is the codec profile (e.g. "Main 10", "High"); "" when absent.
++	Profile string
++	// Language is the BCP-47-ish ISO-639 language tag from the stream tags
++	// ("eng", "spa"); "" when untagged.
++	Language string
++	// Default and Forced mirror the ffprobe disposition flags.
++	Default bool
++	Forced  bool
++	// Channels and ChannelLayout describe audio streams (e.g. 8, "7.1").
++	Channels      int
++	ChannelLayout string
++	// BitDepth is the coded sample bit depth (bits_per_raw_sample, falling
++	// back to bits_per_sample); 0 when unreported.
++	BitDepth int
++	// ColorTransfer and ColorPrimaries carry the HDR transfer characteristics
++	// (e.g. "smpte2084" for PQ/HDR10, "arib-std-b67" for HLG) and color
++	// primaries (e.g. "bt2020"); "" when absent. The HDR decision table reads
++	// these alongside DoViProfile (ADR-0010 §4).
++	ColorTransfer  string
++	ColorPrimaries string
++	// DoViProfile is the Dolby Vision profile (5/7/8) from the stream's DOVI
++	// configuration record side data; 0 when the stream carries no DV.
++	// DoViBLCompatID is the base-layer signal compatibility ID (e.g. 6 =
++	// HDR10-compatible), used to tell profile-8.1 from 8.4 etc.
++	DoViProfile    int
++	DoViBLCompatID int
++}
++
++// FontAttachment is one muxed font attachment (ADR-0010 §4): libass pulls
++// these to render ASS subtitles with full fidelity on the libmpv rung.
++type FontAttachment struct {
++	Filename string
++	MimeType string
+ }
+ 
+ // Runner invokes the FFmpeg binaries.
+@@ -439,10 +494,24 @@ type probeDocument struct {
+ 		Tags       map[string]string `json:"tags"`
+ 	} `json:"format"`
+ 	Streams []struct {
+-		CodecType string `json:"codec_type"`
+-		CodecName string `json:"codec_name"`
+-		Width     int    `json:"width"`
+-		Height    int    `json:"height"`
++		CodecType        string            `json:"codec_type"`
++		CodecName        string            `json:"codec_name"`
++		Profile          string            `json:"profile"`
++		Width            int               `json:"width"`
++		Height           int               `json:"height"`
++		Channels         int               `json:"channels"`
++		ChannelLayout    string            `json:"channel_layout"`
++		BitsPerRawSample string            `json:"bits_per_raw_sample"`
++		BitsPerSample    int               `json:"bits_per_sample"`
++		ColorTransfer    string            `json:"color_transfer"`
++		ColorPrimaries   string            `json:"color_primaries"`
++		Disposition      map[string]int    `json:"disposition"`
++		Tags             map[string]string `json:"tags"`
++		SideDataList     []struct {
++			SideDataType string `json:"side_data_type"`
++			DVProfile    int    `json:"dv_profile"`
++			DVBLCompatID int    `json:"dv_bl_signal_compatibility_id"`
++		} `json:"side_data_list"`
+ 	} `json:"streams"`
+ }
+ 
+@@ -466,6 +535,32 @@ func parseProbe(data []byte, path string) (Probe, error) {
+ 				probe.AudioCodec = stream.CodecName
+ 			}
+ 		}
++		ps := ProbeStream{
++			Type:           stream.CodecType,
++			Codec:          stream.CodecName,
++			Profile:        cleanProfile(stream.Profile),
++			Language:       stream.Tags["language"],
++			Default:        stream.Disposition["default"] == 1,
++			Forced:         stream.Disposition["forced"] == 1,
++			Channels:       stream.Channels,
++			ChannelLayout:  stream.ChannelLayout,
++			BitDepth:       bitDepthFrom(stream.BitsPerRawSample, stream.BitsPerSample),
++			ColorTransfer:  stream.ColorTransfer,
++			ColorPrimaries: stream.ColorPrimaries,
++		}
++		for _, side := range stream.SideDataList {
++			if side.DVProfile > 0 {
++				ps.DoViProfile = side.DVProfile
++				ps.DoViBLCompatID = side.DVBLCompatID
++			}
++		}
++		probe.Streams = append(probe.Streams, ps)
++		if stream.CodecType == "attachment" && isFontMime(stream.Tags["mimetype"]) {
++			probe.FontAttachments = append(probe.FontAttachments, FontAttachment{
++				Filename: stream.Tags["filename"],
++				MimeType: stream.Tags["mimetype"],
++			})
++		}
+ 	}
+ 	if len(doc.Format.Tags) > 0 {
+ 		probe.Tags = make(map[string]string, len(doc.Format.Tags))
+@@ -485,6 +580,46 @@ func parseProbe(data []byte, path string) (Probe, error) {
+ 	return probe, nil
+ }
+ 
++// cleanProfile normalises ffprobe's profile field: ffprobe emits "unknown"
++// (lowercase) for streams with no meaningful profile, which is noise we store
++// as "".
++func cleanProfile(profile string) string {
++	if profile == "unknown" {
++		return ""
++	}
++	return profile
++}
++
++// bitDepthFrom reads the coded sample bit depth. ffprobe reports
++// bits_per_raw_sample as a string on video streams (e.g. "10" for Main 10) and
++// bits_per_sample as a number on audio/PCM streams; either may be absent (0/"").
++func bitDepthFrom(raw string, perSample int) int {
++	if raw != "" {
++		if n, err := strconv.Atoi(raw); err == nil && n > 0 {
++			return n
++		}
++	}
++	return perSample
++}
++
++// isFontMime reports whether an attachment's MIME type is a font (ADR-0010 §4:
++// only font attachments matter — libass renders ASS with them). Covers the
++// common embedded-subtitle font types muxers emit.
++func isFontMime(mime string) bool {
++	switch strings.ToLower(mime) {
++	case "application/x-truetype-font",
++		"application/x-font-ttf",
++		"application/font-sfnt",
++		"font/ttf",
++		"font/otf",
++		"font/sfnt",
++		"application/vnd.ms-opentype",
++		"application/x-font-otf":
++		return true
++	}
++	return false
++}
++
+ // containerFrom maps ffprobe's comma-separated format_name (e.g.
+ // "mov,mp4,m4a,3gp,3g2,mj2") to the single container word the capability
+ // profiles speak. A file extension that names a member of the probed family
+diff --git a/internal/scan/scan.go b/internal/scan/scan.go
+index e80881d86..6a2a32178 100644
+--- a/internal/scan/scan.go
++++ b/internal/scan/scan.go
+@@ -390,6 +390,12 @@ func scanFromCheckpoint(ctx context.Context, st *store.Store, prober Prober, gra
+ 				imported.DurationSecondsHint = probe.DurationSeconds
+ 				imported.VideoWidthHint = probe.VideoWidth
+ 				imported.VideoHeightHint = probe.VideoHeight
++				// Per-stream inventory (ADR-0010 §4): map the probe onto the
++				// store's domain-agnostic stream rows. Only this full-probe
++				// branch fills them — the cheap-triple fast-path never re-probes,
++				// so it leaves these nil and the stored inventory untouched.
++				imported.Streams = streamsFromProbe(probe.Streams)
++				imported.FontAttachments = fontsFromProbe(probe.FontAttachments)
+ 				hasVideo = probe.HasVideo
+ 				hasAudio = probe.AudioCodec != ""
+ 				probeTags = probe.Tags
+@@ -596,3 +602,42 @@ func containerFromPath(path string) string {
+ 	}
+ 	return ext
+ }
++
++// streamsFromProbe maps the ffmpeg per-stream inventory onto the store's
++// domain-agnostic stream rows (ADR-0010 §4). The slice index is the stream
++// index (ffprobe order). A non-empty probe always returns a non-nil slice so
++// the store full-replaces; an empty probe returns an empty (non-nil) slice so
++// a file that genuinely has no streams clears any stale inventory.
++func streamsFromProbe(streams []ffmpeg.ProbeStream) []store.MediaFileStream {
++	out := make([]store.MediaFileStream, len(streams))
++	for i, s := range streams {
++		out[i] = store.MediaFileStream{
++			Index:          i,
++			Type:           s.Type,
++			Codec:          s.Codec,
++			Profile:        s.Profile,
++			Language:       s.Language,
++			Default:        s.Default,
++			Forced:         s.Forced,
++			Channels:       s.Channels,
++			ChannelLayout:  s.ChannelLayout,
++			BitDepth:       s.BitDepth,
++			ColorTransfer:  s.ColorTransfer,
++			ColorPrimaries: s.ColorPrimaries,
++			DoViProfile:    s.DoViProfile,
++			DoViBLCompatID: s.DoViBLCompatID,
++		}
++	}
++	return out
++}
++
++// fontsFromProbe maps the probe's font attachments onto store rows. Returns a
++// non-nil (possibly empty) slice for the same full-replace reason as
++// streamsFromProbe.
++func fontsFromProbe(fonts []ffmpeg.FontAttachment) []store.MediaFileFontAttachment {
++	out := make([]store.MediaFileFontAttachment, len(fonts))
++	for i, f := range fonts {
++		out[i] = store.MediaFileFontAttachment{Filename: f.Filename, MimeType: f.MimeType}
++	}
++	return out
++}
+diff --git a/internal/store/sqlite.go b/internal/store/sqlite.go
+index 52a9352d0..7ae94dfef 100644
+--- a/internal/store/sqlite.go
++++ b/internal/store/sqlite.go
+@@ -1890,6 +1890,43 @@ func upsertMediaFileTx(ctx context.Context, tx *sql.Tx, file MediaFile, now time
+ 	return nil
+ }
+ 
++// replaceMediaFileInventoryTx full-replaces the per-stream inventory and font
++// attachments for one content fingerprint (ADR-0010 §4). Delete-then-insert,
++// not upsert: a re-probe is a full rescan, so a stream the new probe no longer
++// reports must disappear, and stream order/identity always reflects the latest
++// probe. Called only when the caller actually probed (non-nil slices).
++func replaceMediaFileInventoryTx(ctx context.Context, tx *sql.Tx, fingerprint string, streams []MediaFileStream, attachments []MediaFileFontAttachment) error {
++	if _, err := tx.ExecContext(ctx, "DELETE FROM media_file_stream WHERE content_fingerprint = ?", fingerprint); err != nil {
++		return err
++	}
++	for _, stream := range streams {
++		if _, err := tx.ExecContext(ctx, `
++			INSERT INTO media_file_stream(
++			  content_fingerprint, stream_index, stream_type, codec, profile, language,
++			  is_default, is_forced, channels, channel_layout, bit_depth,
++			  color_transfer, color_primaries, dovi_profile, dovi_bl_compat_id)
++			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
++		`, fingerprint, stream.Index, stream.Type, stream.Codec, stream.Profile, stream.Language,
++			boolInt(stream.Default), boolInt(stream.Forced), stream.Channels, stream.ChannelLayout, stream.BitDepth,
++			stream.ColorTransfer, stream.ColorPrimaries, stream.DoViProfile, stream.DoViBLCompatID); err != nil {
++			return err
++		}
++	}
++	if _, err := tx.ExecContext(ctx, "DELETE FROM media_file_font_attachment WHERE content_fingerprint = ?", fingerprint); err != nil {
++		return err
++	}
++	for _, att := range attachments {
++		if _, err := tx.ExecContext(ctx, `
++			INSERT INTO media_file_font_attachment(content_fingerprint, filename, mime_type)
++			VALUES (?, ?, ?)
++			ON CONFLICT(content_fingerprint, filename) DO UPDATE SET mime_type = excluded.mime_type
++		`, fingerprint, att.Filename, att.MimeType); err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
+ // importMediaFileSQL returns created=true when the upsert inserted a new Media
+ // row (no row with this id existed before), so the caller can emit media.created
+ // vs media.updated. Existence is read inside the same tx as the upsert so the
+@@ -1989,6 +2026,16 @@ func (s *Store) importMediaFileSQL(ctx context.Context, imported ImportMediaFile
+ 	if err := upsertMediaFileTx(ctx, tx, file, now); err != nil {
+ 		return Media{}, MediaFile{}, false, err
+ 	}
++	// Per-stream inventory (ADR-0010 §4): a probe full-replaces the stored
++	// inventory for this content fingerprint (re-probe = full rescan, no partial
++	// backfill). A probe-less re-scan carries nil slices and skips this entirely,
++	// leaving the stored inventory intact — the same empty-never-clobbers posture
++	// as the fingerprint hashes.
++	if imported.Streams != nil || imported.FontAttachments != nil {
++		if err := replaceMediaFileInventoryTx(ctx, tx, imported.ContentFingerprint, imported.Streams, imported.FontAttachments); err != nil {
++			return Media{}, MediaFile{}, false, err
++		}
++	}
+ 	// The row may have kept an identified title over the imported one —
+ 	// return the stored truth, not the request.
+ 	if err := tx.QueryRowContext(ctx, "SELECT title FROM media WHERE id = ?", media.ID).Scan(&media.Title); err != nil {
+diff --git a/internal/store/store.go b/internal/store/store.go
+index f3dd5863c..410fd167f 100644
+--- a/internal/store/store.go
++++ b/internal/store/store.go
+@@ -350,6 +350,41 @@ type ImportMediaFile struct {
+ 	// recorded" and never match a real stat.
+ 	SizeBytes int64
+ 	ModTime   time.Time
++	// Streams and FontAttachments are the per-stream inventory captured at the
++	// probe (ADR-0010 §4). When non-nil, the import full-replaces the stored
++	// inventory for this content fingerprint (a re-probe is a full rescan, no
++	// partial backfill); a nil slice (a probe-less re-scan) leaves the stored
++	// inventory untouched, like the empty-never-clobbers hashes above.
++	Streams         []MediaFileStream
++	FontAttachments []MediaFileFontAttachment
++}
++
++// MediaFileStream is one stream of a media file's per-stream inventory
++// (ADR-0010 §4). The fields mirror ffmpeg.ProbeStream; scan maps the probe
++// onto these so the store stays free of an ffmpeg import. Generic container
++// shape, never domain vocabulary (invariant #1).
++type MediaFileStream struct {
++	Index          int
++	Type           string
++	Codec          string
++	Profile        string
++	Language       string
++	Default        bool
++	Forced         bool
++	Channels       int
++	ChannelLayout  string
++	BitDepth       int
++	ColorTransfer  string
++	ColorPrimaries string
++	DoViProfile    int
++	DoViBLCompatID int
++}
++
++// MediaFileFontAttachment is one muxed font attachment captured at scan
++// (ADR-0010 §4): libass renders ASS subtitles with these fonts.
++type MediaFileFontAttachment struct {
++	Filename string
++	MimeType string
+ }
+ 
+ // MediaFingerprints are the content-identity values the scrape engine

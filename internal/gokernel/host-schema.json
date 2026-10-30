@@ -1,0 +1,14 @@
+{
+  "version": "0",
+  "degradationPolicy": {
+    "match": "subset-of-recognised",
+    "onUnrecognised": "refuse"
+  },
+  "hosts": [
+    {"name": "claude-code"},
+    {"name": "codex"},
+    {"name": "gemini-cli"},
+    {"name": "opencode"},
+    {"name": "pi"}
+  ]
+}

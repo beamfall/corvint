@@ -1,0 +1,520 @@
+# Spec requirement index generator V0
+
+Owner: Russell Lewis
+Date: 2026-09-12
+Requirement prefix: `SRG-V0`
+Intent status: accepted (history: REQUIREMENTS.tsv acceptance columns and docs/build-log)
+Delivery status: implemented
+Authoritative inputs: `../../AGENTS.md` invariant 8, `../SPEC-DRIVEN-DEVELOPMENT.md` "Required
+capability-spec shape", `decision-number-gate-v0.md` (whose drift rule pins that a gate must
+measure what a fresh clone contains), `requirement-definition-gate-v0.md` (the consumer that
+reads every row this generator emits), and `../agent-memory/fixes.md` (which lists the gate
+scripts still without an owning spec).
+
+## Agent digest
+- Claim: One generator derives, from the staged specs, the requirement index with each requirement's acceptance mode and the INDEX.json and README.md status rows.
+- Status: accepted (history: REQUIREMENTS.tsv acceptance columns and docs/build-log) / implemented
+- Exists: `script/gen-spec-requirements.sh` (the index, `--index`, `--readme`, `--all DIR` for all three in one pass, and the uncommitted `--lines` locator view), `script/spec-acceptance-audit.sh`, `make` targets `spec-requirements`, `spec-requirements-check` and `spec-requirements-test` (the last two in `make gate`) and `spec-acceptance-audit` (a report).
+- Blocked on: nothing for this gate. Decision 0105 withheld acceptance on `SRG-V0-005`; its amendment (2026-09-12) accepted the spec once character truncation landed with evidence. SRG-V0-009..018 are `standing` until the owner reads them back.
+- Read next: Verified current state; Requirements; Trust boundary, limits, and failure modes.
+
+## Human intent and scope
+
+`docs/specs/REQUIREMENTS.tsv` is the repository's lookup from a requirement id to the file that
+defines it; the defining line is derived on demand (SRG-V0-015, SRG-V0-017). `AGENTS.md` routes agents to it before opening any spec body, and
+`requirement-definition-gate-v0.md` reads every row it emits to prove no id survives as a table
+row alone. The index is therefore load-bearing for agent routing and for a second gate, and it is
+generated rather than hand-maintained so that a spec edit cannot silently desynchronise it.
+
+`script/gen-spec-requirements.sh` is that generator. It prints the whole index to stdout;
+`spec-requirements-check` regenerates it into a temporary file and byte-compares that against the
+committed `docs/specs/REQUIREMENTS.tsv`, so the gate fails whenever the committed index does not
+match what the current spec corpus would produce. With `--index` and `--readme` the same script
+projects the spec headers onto `docs/specs/INDEX.json` and the `docs/specs/README.md` spec table,
+and `make spec-requirements` writes all three.
+
+Two lanes adding requirements to one spec used to conflict at four shared insertion points: the
+header `Intent status:` tail, the Agent digest `Status:` line, the INDEX.json and README.md rows,
+and the generated TSV (V1-1346). And since the owner's standing auto-accept of 2026-10-11 every lane
+writes `accepted` for its own requirements, so the header word no longer separates intent the owner
+read from intent an agent wrote (V1-1347). SRG-V0-009..013 move status history out of the header,
+generate the rows, and record a closed acceptance mode per requirement with an audit of the
+requirements the owner has not read back. They are 1.0 scope under `PRS-V1-018` clauses (c) and
+(d) in `corvint-1.0-product-and-release-v1.md`.
+
+Affected user: an agent or engineer adding, renaming, or moving a requirement id. Measurable job:
+for the spec corpus a fresh clone contains, emit exactly one row per requirement id naming the
+highest-ranked definition site, deterministically, so that the committed index is reproducible
+from the sources alone.
+
+The owner instruction of 2026-09-07 places repository gate tooling in scope for AGENTS.md
+invariant 8. This spec discharges that for the requirement-index generator only.
+
+## Verified current state
+
+At `0ec169f1` the generator is wired into `make gate` through `spec-requirements-check`, and that
+target passes: the committed `docs/specs/REQUIREMENTS.tsv` is byte-identical to a fresh
+regeneration.
+
+SRG-V0-001 is met as of this commit. The generator derives its input set from
+`git ls-files -z -- docs/specs` and reads each file's bytes as `:<path>` through one pipelined
+`git cat-file --batch` (`index_blobs` in `script/gen-spec-requirements.sh`, SRG-V0-018), so neither an untracked spec, a tracked spec deleted from
+the worktree alone, nor an unstaged edit can change the index a fresh clone reproduces. Before
+this commit the enumeration was the worktree glob `sort glob('docs/specs/*.md')`, the same class
+of defect that `decision-number-gate-v0.md` pins in its drift rule and that
+`check-decision-numbers.sh` was repaired for: the gate must measure the set a fresh clone
+contains (`Makefile:14`), and a worktree glob does not.
+
+The defect was reproduced at `5b496119` in both directions, and both directions are now covered by
+`script/gen-spec-requirements_test.sh`. An untracked `docs/specs/*.md` file holding a requirement
+id added a row to the generated index and made `spec-requirements-check` fail locally although a
+fresh clone of the same commit passed. The inverse was the harmful direction: regenerating the
+index in a worktree carrying an untracked or not-yet-staged spec and committing the resulting
+`REQUIREMENTS.tsv` produced an index no fresh clone could reproduce, so the gate failed for
+everyone else at a commit whose author saw it pass. A tracked spec deleted from the worktree but
+not staged was likewise dropped. Regenerating at this commit reproduced the committed
+`REQUIREMENTS.tsv` byte for byte, so the repair moved no row.
+
+At `523fa4ce` (the base of V1-1346 and V1-1347) the generator's `--index` and `--readme` output was
+byte-identical to the committed `docs/specs/INDEX.json` and `docs/specs/README.md`, so projecting
+the headers moved no byte, and the regenerated `REQUIREMENTS.tsv` kept the first four columns of
+all 3,780 rows. Of those rows 247 were `owner`, 20 `standing` and 3,513 `unrecorded`; a further 52
+`unrecorded` requirements in five specs carried a standing marker after their text rather than
+before it, which the audit names as `UNPARSED_STANDING`.
+
+No requirement below diverges from the implementation.
+
+## Requirements
+
+- `SRG-V0-001`: The generator MUST derive its input set from the paths Git reports as tracked
+  under `docs/specs/` matching `*.md`, not from a worktree directory listing, so that an untracked
+  file contributes no row and a tracked file deleted from the worktree alone still contributes its
+  rows. It MUST exclude `docs/specs/README.md`, which is the index of specs rather than a spec.
+- `SRG-V0-002`: (accepted, decision 0506) The generator MUST recognise a requirement id as a token matching an uppercase
+  letter followed by uppercase letters, digits, and hyphens, then a hyphen and exactly three
+  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:273@86a5b2d6`). An id with a suffix
+  that is not exactly three digits MUST NOT be indexed. Matching the token alone MUST NOT
+  establish a definition; the occurrence MUST also meet SRG-V0-003.
+- `SRG-V0-003`: (accepted, decision 0506) The generator MUST classify each occurrence of an id into exactly one of three
+  ranks: rank 0 when the line begins with the id, optionally preceded by a list bullet and
+  optionally wrapped in bold or backticks, and followed either by a period and whitespace or by a
+  colon; rank 1 when the line begins with a table cell holding the id; rank 2 otherwise. It MUST
+  discard every rank 2 occurrence, so a passing mention of an id in prose never becomes its
+  indexed location. An unmarked definition (no list bullet, bold, or backtick prefix) MUST
+  begin a paragraph: the first line of the file or a line following a blank line. A wrapped
+  prose continuation MUST NOT become rank 0 merely because its first token matches the ID
+  pattern and separator. Marked definitions and table-cell ranking remain unchanged.
+- `SRG-V0-004`: Among retained occurrences of one id the generator MUST select exactly one
+  winner, ordering by rank ascending, then by file path ascending, then by line number ascending
+  with the number zero-padded so the comparison is numeric rather than lexical. The first
+  occurrence in that order MUST win and a later equal-ranked occurrence MUST NOT displace it.
+- `SRG-V0-005`: For a rank 0 winner the generator MUST strip the leading bullet, emphasis,
+  backticks, id, and its period or colon separator from the title; for a rank 1 winner it MUST
+  retain the line as found. In both cases it MUST collapse every tab, carriage return, and newline
+  to a single space, trim leading and trailing whitespace, truncate the result to at most 80
+  characters, and trim any trailing whitespace the truncation exposes.
+- `SRG-V0-006`: The generator MUST write to stdout a single header line `id`, `file`, `line`,
+  `title` separated by tabs, followed by one tab-separated row per indexed id, ordered by id under
+  a collation that does not vary with the caller's locale. Each row MUST carry the winner's
+  repository-relative path and its one-based line number. Amended by SRG-V0-009, which appends
+  the columns `acceptance` and `acceptedBy` after `title`, and by SRG-V0-015, under which this
+  id-ordered, line-bearing layout is the uncommitted `--lines` view and the committed index has no
+  line column.
+- `SRG-V0-007`: The generator MUST write no file, mutate no repository state, and produce
+  identical output regardless of the working directory it is invoked from, resolving its own
+  location to find the repository root first. Amended by SRG-V0-018: `--all DIR` writes its three
+  named files into the directory its caller names, and nothing else.
+- `SRG-V0-008`: `spec-requirements-check` MUST regenerate the index and byte-compare it against
+  the committed `docs/specs/REQUIREMENTS.tsv`, failing on any difference, and MUST remove its
+  temporary file on normal exit and on interrupt. `docs/specs/REQUIREMENTS.tsv` MUST be
+  regenerated whole by this generator and MUST NOT be hand-edited. SRG-V0-012 extends the
+  comparison to `docs/specs/INDEX.json` and `docs/specs/README.md`.
+- `SRG-V0-009`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1347) For every
+  rank 0 winner the generator MUST derive a closed acceptance mode from the leading parenthetical of
+  its stripped, untruncated definition text: from an opening parenthesis at the start of that text
+  to its balanced closing parenthesis, or to the end of the line when none closes. The mode MUST be
+  `standing` when the parenthetical holds the word `standing`; otherwise `owner` when, once every
+  phrase negating `accepted`, `approved` or `owner decision` with `not` or `never` is removed (up to
+  the nearest `;` or `,` and across any inner parenthesis), it holds `accepted`, `approved` or
+  `owner decision` together with a decision number (`decision NNNN`) or an ISO date;
+  otherwise, and for every rank 1 winner and every definition with no leading parenthetical,
+  `unrecorded`, which inherits the spec header's intent status. `acceptedBy` MUST list the
+  decision numbers (as `decision NNNN`), ISO dates, ticket ids (`V<n>-NNNN`) and issue numbers
+  (`#N`) the parenthetical names, in order of first appearance and without repeats, joined by
+  `; `, or `-` when it names none or the mode is `unrecorded`. The header MUST append `acceptance`
+  and `acceptedBy` after `title`, so the first four columns of every row are unchanged.
+- `SRG-V0-010`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1347)
+  `script/spec-acceptance-audit.sh` (`make spec-acceptance-audit`) MUST list the requirements of one
+  mode, `standing` unless `--acceptance owner` or `--acceptance unrecorded` is given, grouped by spec
+  with a count per spec and totals for all three modes. It MUST report each spec whose INDEX.json
+  delivery status begins with `validated` and that holds a `standing` requirement as
+  `NOT_PROMOTABLE`, and MUST count, naming them in the `standing` listing, the `unrecorded`
+  requirements whose definition block holds an `accepted under ... standing` marker outside its
+  leading parenthetical as `UNPARSED_STANDING`. It MUST exit 0 whatever it finds, 2 for a mode
+  outside the closed set, and 1 for an unreadable or malformed input, including a row whose id, file
+  or line is malformed. A `standing` marker MUST become `owner` only through an edit to the marker
+  in the same commit as the build-log Owner acceptances entry that records the owner's read-back; a
+  lane MUST NOT write an `owner` marker for its own requirement. Amended by SRG-V0-017: a committed
+  row has no line, so the listed `file:line` takes the line from the `--lines` view, and a row the
+  staged specs no longer define is malformed input.
+- `SRG-V0-011`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1346) A spec
+  header's `Intent status:` and its Agent digest `Status:` MUST hold the current status only,
+  optionally followed by the pointer `(history: REQUIREMENTS.tsv acceptance columns and
+  docs/build-log)`. A change that accepts or amends requirements MUST record that in each
+  requirement's marker and its build-log entry rather than by appending to the header. Existing
+  header tails stay until a change touches that header.
+- `SRG-V0-012`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1346)
+  `make spec-requirements` MUST regenerate `docs/specs/REQUIREMENTS.tsv`, `docs/specs/INDEX.json`
+  and the `docs/specs/README.md` spec table from the staged specs, copying nothing unless all three
+  regenerate, and `spec-requirements-check` MUST compare all three and fail when any differs. The
+  projection MUST take each spec's intent and delivery status from its header and its claim from its
+  Agent digest; MUST keep the value of every other INDEX.json field (written in one canonical
+  layout), every other README.md cell, the tail of each README.md description after its
+  one-sentence claim, and every byte outside the table unchanged;
+  MUST append an entry and a row built from the header for a tracked spec that has neither; and
+  MUST refuse a header value holding a table pipe or control character, a claim that is not one
+  sentence ending in `.`, `?` or `!`, and an INDEX.json entry that is malformed, duplicated or
+  names an untracked spec. Where the rows already agree with the headers the output MUST be
+  byte-identical to the committed files.
+- `SRG-V0-013`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1346) Two changes
+  from one base that each add one requirement to the same spec and run `make spec-requirements`
+  MUST conflict, if at all, only inside that spec's requirement list and the REQUIREMENTS.tsv rows;
+  the header, the Agent digest, INDEX.json and README.md MUST merge cleanly. The TSV conflict MUST be
+  resolved by resolving the spec and regenerating, never by hand, and a change on another spec MUST
+  merge with no conflict. `script/spec-requirements-conflict_test.sh` MUST show this through the
+  real `make` target. Extended by SRG-V0-016.
+- `SRG-V0-014`: (accepted under the owner's standing auto-accept (2026-10-15); V1-1409) A spec whose
+  `Delivery status:` header holds more than one word (a qualified delivery) MUST have its Agent
+  digest `Status:` carry that header text verbatim, followed by nothing or by a sentence boundary
+  (`.`). Anything else after it, a `;`, `,` or further words, is a stale or truncated header and
+  `TestIndexCoversSpecsAndHeaders` MUST fail. A one-word header (`experimental`, `deferred`) may be
+  elaborated in the digest `Status:` after the word. Elaboration after a qualified header starts a
+  new sentence.
+- `SRG-V0-015`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1525) The
+  committed `docs/specs/REQUIREMENTS.tsv` MUST carry the header `id`, `file`, `title`,
+  `acceptance`, `acceptedBy` and no line column, with one row per indexed id ordered by file path
+  ascending, then by the winner's line ascending, then by id, under a collation that does not vary
+  with the caller's locale. `script/gen-spec-requirements.sh --lines` MUST print the derived
+  locator view: the SRG-V0-006 header with the SRG-V0-009 columns, one row per indexed id ordered by
+  id, each with its winner's line. The view MUST NOT be committed, and `spec-requirements-check`
+  MUST NOT compare it. An edit that only shifts a spec's lines therefore rewrites no committed row.
+- `SRG-V0-016`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1525) Two changes
+  from one base that each run `make spec-requirements` MUST merge in either order with no textual
+  conflict in `REQUIREMENTS.tsv`, `INDEX.json` or `README.md`, and each merged generated file MUST
+  equal its regeneration, when the changes add requirements to different specs, or add requirements
+  to one spec whose new rows are separated in the committed order by at least one row neither
+  change adds, or when one only edits prose that leaves every indexed field (`id`, `file`,
+  `title`, `acceptance`, `acceptedBy`) of every row unchanged. This holds even where each change
+  shifts the other's definition lines. `script/spec-requirements-conflict_test.sh` MUST show each
+  case through the real `make` target. The guarantee does not cover these cases:
+  - New rows that land next to each other in the committed order, for example two changes that
+    both append to one section, or one that appends at a section's end while the other inserts at
+    the next section's start with no row between.
+  - Two new specs.
+  - An edit that changes an indexed field next to another change's new row. For example, a
+    reflow that keeps a requirement's meaning but changes its first line, and so its title.
+    `script/spec-requirements-conflict_test.sh` shows that case as an expected conflict.
+
+  Each such conflict is resolved by resolving and staging the spec, then running
+  `make spec-requirements-resolve` (SRG-V0-041), which regenerates the index as SRG-V0-013 states.
+- `SRG-V0-017`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1525) A reader
+  that needs a requirement's line MUST take it from the spec, never from the committed index. Go
+  readers MUST use `specindex.DefinitionLine`, which applies the SRG-V0-003 and SRG-V0-004 ranks
+  to the winner's file: its first rank 0 line, else its first rank 1 line. Shell readers MUST use
+  the `--lines` view, and MUST join on both the id and the file: a committed row whose file is not
+  the one the view defines its id in is stale input, never a citation of the row's file at the
+  other file's line. Go readers MUST parse the index through `specindex.ParseIndex`, which reads
+  both the committed layout and a line-bearing one, so that an index pinned before SRG-V0-015 still
+  resolves. An id that its spec no longer defines MUST surface as stale input: a console gap, a
+  compaction-kernel refusal, a roadmap link with no line, or an audit exit 1. It MUST NOT be given
+  an invented line. These readers are the console clause lookup, the compaction kernel (from the
+  pinned spec blob), the roadmap evidence links, `script/spec-coverage-audit` and
+  `script/spec-acceptance-audit.sh`.
+- `SRG-V0-018`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1641) `--all DIR`
+  MUST write `REQUIREMENTS.tsv`, `INDEX.json` and `README.md` into the existing directory DIR from
+  one enumeration and one read of the staged specs, each byte-identical to what the default,
+  `--index` and `--readme` modes print for the same Git index. It MUST build all three before
+  writing any, so a refused projection writes nothing, and MUST exit 2 when DIR is not given or
+  does not exist. `spec-requirements` and `spec-requirements-check` MUST generate through one
+  `--all` invocation. Every mode MUST read its index blobs through one `git cat-file --batch`
+  co-process with the requests pipelined, written by a separate writer while the replies are read,
+  never one synchronous request per file. A path the batch cannot frame or serve as a blob falls
+  back to the one-shot `git cat-file blob` read, which fails as the per-file read did. SRG-V0-001
+  is unchanged: the input is still the Git index alone.
+- `SRG-V0-040`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2141) Every
+  generator mode MUST refuse an Agent digest Claim longer than 160 characters, the bound the
+  `internal/specindex` INDEX test enforces, naming the spec path and the claim's character length, so
+  `make spec-requirements` fails at the first spec step rather than at `spec-requirements-check`.
+- `SRG-V0-041`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1758) During a
+  merge, `make spec-requirements-resolve` (`script/spec-requirements-resolve.sh`) MUST exit 1 and
+  name the paths when any unmerged path is not `docs/specs/REQUIREMENTS.tsv`, `INDEX.json` or
+  `README.md`, or when no path is unmerged. Otherwise it MUST restart each unmerged generated file
+  from the current branch's side, regenerate all three from the staged specs exactly as
+  `make spec-requirements` does, and stage them, so the merged files equal a fresh generation. This
+  is the one-command resolution for the SRG-V0-016 limits: two changes that append adjacent rows to
+  one section (after the conflicted spec is resolved and staged) and two changes that each add a
+  new spec. `script/spec-requirements-conflict_test.sh` MUST show both cases, the second merged in
+  both orders. Non-goal: it does not merge a conflicted spec, and a new spec from the other side
+  gets the INDEX.json entry and README.md row its header derives, so hand-set fields of that entry
+  are re-applied by hand. Rollback: delete the script and the target; the manual
+  take-a-side-and-regenerate resolution is unchanged.
+- `SRG-V0-042`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2160) Every
+  generator mode MUST refuse, before writing anything, a rank 0 winning definition whose text opens
+  with an acceptance note SRG-V0-009 would misread, printing `<file>:<line>: <id>: <reason>` for
+  each and then the accepted forms. The near misses are: a leading parenthetical that names an
+  auto-acceptance (`auto-accept`, `auto-acceptance`) but does not classify as `standing`; a leading
+  parenthetical that affirms `accepted`, `approved` or `owner decision` (after the negation rule)
+  but records no decision number or date, so it classifies as `unrecorded`; and an unparenthesized
+  leading `accepted` or `approved` followed by `,`, `:`, `by`, `under`, `on`, `(` or a date, which
+  the reader never sees. A leading adjective such as "Accepted closed inputs" and a note anywhere
+  but the start of the definition are not near misses, except the trailing `Status:` note of
+  SRG-V0-044 (the audit's `UNPARSED_STANDING` still reports a trailing standing note). The accepted forms are listed in
+  `docs/SPEC-DRIVEN-DEVELOPMENT.md`. Non-goal: no new acceptance form is accepted, and no note is
+  rewritten. Rollback: delete `acceptance_near_miss` and its refusal block; the misread notes
+  silently classify again.
+- `SRG-V0-043`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2146) In every
+  README row SRG-V0-012 projects, a requirement range written right after the Contract cell's link,
+  as `PREFIX-NNN` or `PREFIX-NNN..MMM` and followed only by the cell end or a `;`, MUST be rewritten
+  to the lowest and highest ids of that prefix the spec defines (one id prints alone), so
+  `spec-requirements-check` fails when a row's range disagrees with REQUIREMENTS.tsv. A range whose
+  prefix the spec defines no id of MUST be refused naming the spec and the prefix. A row with no
+  range keeps none, and the range is a span: it does not list gaps. Rollback: delete the range
+  block in `readme_text`; the ranges become hand-kept again.
+- `SRG-V0-044`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2309) The
+  SRG-V0-042 refusal MUST also name a rank 0 winning definition whose definition line carries a
+  trailing `Status: (accepted ...)` or `Status: (approved ...)` note, with the reason that the note
+  trails the definition as `Status: (...)` and is not read, because SRG-V0-009 reads only the
+  leading parenthetical and such a definition otherwise classifies as `unrecorded`. Non-goal: a
+  note on a wrapped continuation line is not seen, since the reader keeps only the definition line;
+  no note is rewritten. Rollback: delete the trailing-note branch of `acceptance_near_miss`; the
+  trailing notes silently classify as `unrecorded` again.
+- `SRG-V0-045`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0515) Every
+  spec-metadata input of the index/digest/README contract check `TestIndexCoversSpecsAndHeaders`
+  (`docs/specs/INDEX.json`, `docs/specs/README.md`, `docs/specs/REQUIREMENTS.tsv` and every spec an
+  INDEX.json entry names) MUST lie in the declared read scope of `internal/specindex` under the
+  `InReadScope` predicate `corvint affected` applies, so a change to that metadata alone selects
+  the check. The check MUST stay one function over a repository root and MUST fail a fixture whose
+  217-character INDEX claim neither the Agent digest nor the README row carries, on length, digest
+  and README, and pass the aligned fixture. `spec-requirements-check` byte-compares the generated
+  files and then runs the same package; the generator comparison alone is a requirements check, not
+  evidence that this contract passed. Selection uncertainty stays explicit: a plan whose
+  `plan.scope` is `UNKNOWN` keeps its unknowns. Non-goal: no selector rule changes; this pins the
+  declaration and the check. Rollback: delete `internal/specindex/selection_test.go` and its
+  `.corvint/test-read-scopes.json` and `.corvint/test-read-scope-literals.json` entries;
+  `checkIndex` may stay as the test body.
+- `SRG-V0-046`: (accepted under the owner's standing lane auto-accept (2026-10-11); V1-2859) When
+  an SRG-V0-042 near miss (an auto-acceptance without `standing`, or an affirmed note with no
+  decision number or date) has a leading parenthetical still open at the end of the definition
+  line, the refusal MUST give that as its reason instead: only the definition line is read, so a
+  decision number, date or `standing` on a later line is not seen, and the note must close on the
+  id's line, with the example `(accepted by the owner, owner chat YYYY-MM-DD; V1-NNNN)`. The
+  no-anchor reason MUST give the examples `(accepted, decision NNNN; V1-NNNN)` and
+  `(accepted YYYY-MM-DD; V1-NNNN)`, and the closing line of the refusal MUST also show that a longer
+  clause may carry the anchor, as in `(accepted by the owner, amending X-V0-001 (owner chat,
+  YYYY-MM-DD); V1-NNNN)`. A dated owner-chat note nested in a longer clause and closed on the id's
+  line classifies as `owner` with its date and ticket, unchanged. Non-goals: the reader still keeps
+  only the definition line (SRG-V0-044), no new acceptance form is accepted, no note is rewritten,
+  and no definition that passed before is refused. Failure modes: a wrapped note that already
+  classifies as `standing` or `owner` from its first line is no near miss and keeps the anchors of
+  that line only. Falsifier: a wrapped near miss refused with the no-anchor or auto-acceptance reason,
+  or a nested dated note on one line that is refused or not `owner`. Rollback: delete the
+  open-note branch and the examples in `acceptance_near_miss` and the refusal block; the earlier
+  reasons return.
+- `SRG-V0-047`: (proposed; V1-2867; experimental under the standing lane auto-accept) When a
+  spec's Agent digest `- Status:` value does not contain both its header `Intent status:` and
+  `Delivery status:` values, `TestIndexCoversSpecsAndHeaders` (and so `spec-requirements-check`)
+  MUST report one finding that quotes the digest field and both header fields, each prefixed with
+  its `path:line`, and states that these fields are edited together. Non-goal: the agreement rule
+  itself, the generator and the other digest findings are unchanged. Failure mode: a header the
+  check cannot find reports line 0 beside the existing missing-header finding. Rollback: revert
+  `statusDriftMessage` and `headerLine` in `internal/specindex/index_test.go` and delete
+  `internal/specindex/status_drift_test.go`; the check reports the previous one-line message.
+
+## Non-goals and simpler baseline
+
+The simpler baseline is a hand-maintained index, which desynchronises on the first spec edit and
+is what generation exists to prevent. A second baseline is indexing every occurrence of an id
+rather than one winner; that produces several rows per id and destroys the one-lookup contract
+`AGENTS.md` routes agents through. The generator does not validate that an id's prefix matches its
+spec's declared requirement prefix, that ids are contiguous or gap-free, that a requirement is
+traced to a test, or that a cited id exists at all. It does not read Git history, and it does not
+parse Markdown structurally beyond the line-shape ranks in SRG-V0-003.
+
+The acceptance mode records what a requirement's marker says, not who read it: an owner read-back
+is evidenced by the build-log entry the promoting commit adds, and the audit is a report, not a
+gate. The projection derives no title, prefix, dependency or implementation list from a spec;
+those INDEX.json fields and the README.md Scope, Contract and description-tail cells stay
+hand-owned, because six of the 202 INDEX.json titles differ from their spec's H1 and 144 specs
+declare no `Requirement prefix:`, so a generated prefix would be a guess from the first id.
+
+## Trust boundary, limits, and failure modes
+
+The spec corpus is the only input and it is trusted repository content; the generator never reads
+anything outside `docs/specs/*.md` and never executes content it reads. It spawns one `perl`
+interpreter and performs no write, except that `--all DIR` writes its three outputs into the
+directory its caller names (SRG-V0-018).
+
+Enumeration is the boundary that matters here, and the answer to the fresh-clone question is yes:
+the generator measures the Git index, so a dirty worktree cannot change its output in either
+direction and `git add` is what publishes a spec to the index. A `spec-requirements-check` failure
+is therefore unambiguous: it is real drift between the committed index and the staged spec corpus,
+not local untracked files.
+
+One narrower limit remains. Ranking by file path ascending means an id defined in two specs is
+attributed to whichever path sorts first, which is stable but arbitrary, and
+`requirement-definition-gate-v0.md` is the gate that rejects that duplication rather than this
+generator.
+
+Title truncation at 80 characters is lossy by design and the index is a locator, not a
+requirement text; a consumer that needs the full clause MUST open the cited file at its
+definition line (SRG-V0-017).
+
+| Failure | Behavior |
+|---|---|
+| No tracked spec holds any id matching the pattern | header line only, exit 0 |
+| An id appears only in prose (rank 2) | not indexed at all; `requirement-definition-gate-v0.md` is what catches a row with no definition |
+| An id appears in both a definition line and a table row | the definition line wins regardless of file or line order |
+| An id appears in two definition lines in different files | the lexically first path wins; the duplicate is reported by `requirement-definitions-check`, not here |
+| An untracked spec file is present in the worktree | it is not in the Git index, so it contributes no row and `spec-requirements-check` is unaffected |
+| A tracked spec is deleted from the worktree but not staged | its bytes still come from the Git index, so its rows are unchanged |
+| The committed index differs from a regeneration | `spec-requirements-check` fails with `cmp` output naming the first differing byte |
+| INDEX.json or README.md differs from the projection | `spec-requirements-check` fails the same way and names all three files |
+| A spec lacks `Intent status:` or `Delivery status:` | `--index` and `--readme` exit non-zero naming the spec; `make spec-requirements` copies nothing |
+| A header value holds a `\|` or control character, or a digest claim is not one sentence | refused, naming the spec, because the README.md cell or claim boundary could not be rebuilt |
+| INDEX.json has a duplicate, malformed or untracked entry | refused, naming the entry |
+| INDEX.json is hand-edited into another valid JSON layout or escape form | its values are kept and written back in the one canonical layout, so `spec-requirements-check` fails until it is regenerated |
+| A new tracked spec has no INDEX.json entry or README.md row | one is appended from the header: H1 title, declared or first rank 0 prefix, no dependencies |
+| A new tracked spec has a superseded Agent digest, with no `Claim` | refused, naming the spec; its INDEX.json entry and README.md row are added by hand once, and only its statuses are projected after that |
+| A README.md description is hand-edited so that its first sentence holds an abbreviation such as `Dr.` | the old claim is cut at the abbreviation and the rest is kept as the tail; the mis-split shows in the regenerated README.md diff |
+| Two lanes each add a new spec | both append at the end of INDEX.json and the README.md table and conflict there; `make spec-requirements-resolve` takes this side and regenerates (SRG-V0-041) |
+| Two lanes change the same spec's header status | a real conflict in the header, INDEX.json and README.md, resolved by the people who disagree |
+| A marker's parenthetical never closes | it runs to the end of the line |
+| A negation spans an inner parenthesis, as in `(not (yet) accepted, decision 0478)` | the negated phrase is removed whole and the mode is `unrecorded` |
+| A standing marker follows the requirement text instead of leading it | the requirement is `unrecorded`; the audit counts and names it as `UNPARSED_STANDING` |
+| A spec with `validated` delivery holds a `standing` requirement | the audit prints `NOT_PROMOTABLE` and still exits 0 |
+| A REQUIREMENTS.tsv row has five columns but a malformed id or file | the audit exits 1 naming the line |
+| A committed row names an id its spec no longer defines (a stale index) | the console reports a gap, the compaction kernel refuses with `unsupported-kernel-requirement`, a roadmap link keeps its file and title with no line, and the audit exits 1; `spec-requirements-check` fails on the stale index |
+| A reader is handed an index pinned before SRG-V0-015, with a line column | `specindex.ParseIndex` reads the line from that column, so a kernel or console over an old revision still resolves |
+| Two lanes add requirements whose rows land next to each other in the committed order | a conflict between those rows of `REQUIREMENTS.tsv` only; resolve the spec and regenerate (SRG-V0-013) |
+| One lane reflows a requirement so its first line, and so its title, changes, and another inserts a requirement right after it | a conflict between those rows of `REQUIREMENTS.tsv`, even when the spec merges cleanly; a reflow is not a prose-only edit under SRG-V0-016; resolve the spec and regenerate (SRG-V0-013) |
+| A committed row names a different file than the one the staged specs define its id in | the acceptance audit exits 1 naming both files, instead of citing the row's file at the other file's line |
+| A change touches only INDEX.json, a spec's Agent digest or the README table | `corvint affected` selects `internal/specindex`, whose `TestIndexCoversSpecsAndHeaders` fails on a claim over 160 characters or one the digest and README do not carry (SRG-V0-045) |
+| The `internal/specindex` read scope is narrowed so a spec-metadata input leaves it | `TestSRGV0045SpecMetadataStaysInSelectedScope` fails naming the input and the scope |
+| An author edits a spec's header Intent status but not its Agent digest Status, or the reverse | `spec-requirements-check` names the digest `- Status:` line and both header status lines as `path:line` and says to edit them together (SRG-V0-047) |
+| An agent needs a requirement's line | `rg -n -F` on the id in the row's file, or `script/gen-spec-requirements.sh --lines` |
+
+## Acceptance criteria and testing matrix
+
+Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requirements-test` in
+`make gate`, plus the `spec-requirements-check` invocation over the live spec corpus.
+
+| Requirement | Evidence |
+|---|---|
+| SRG-V0-001 | `MET` at `0ec169f1`: `script/gen-spec-requirements_test.sh` asserts an untracked spec, a worktree-only deletion, and an unstaged edit all leave the index unchanged while a staged edit changes it, and that `docs/specs/README.md` is excluded |
+| SRG-V0-002, SRG-V0-003 | the id regex and the three rank patterns in `script/gen-spec-requirements.sh`; `script/gen-spec-requirements_test.sh` case 5 rejects wrapped prose and preserves marked, paragraph-start and table definitions |
+| SRG-V0-004 | the zero-padded sort key and the `le` comparison that keeps the first winner; deterministic regeneration at `5b496119` |
+| SRG-V0-005 | `MET`: the title is decoded as UTF-8 around the `substr` cut, so truncation counts characters; `script/gen-spec-requirements_test.sh` case 4 requires a 90-character `é` title to come out as exactly 80 characters (it failed at 40 characters, 80 bytes, before the repair). Decision 0105 recorded the byte-truncation defect; regeneration lengthened ten committed rows whose titles carry a multibyte character before the cut. A title that is not valid UTF-8 cannot be decoded and is still cut by byte |
+| SRG-V0-006 | `make spec-requirements-check` passing at `5b496119` against the committed index |
+| SRG-V0-007 | the script's root resolution and read-only body; no write path exists in the script |
+| SRG-V0-008 | the `spec-requirements-check` recipe and its `gate` membership; the temporary file trap on `EXIT INT TERM` |
+| SRG-V0-009 | `script/gen-spec-requirements_test.sh` case 6: standing, owner by decision and by date, a negated "not accepted", a negation across an inner parenthesis, a negated owner decision, an unbalanced marker, no marker, no anchor, a table row and an anchor past the title cut; `TestRequirementsAcceptanceColumns` checks the header and the closed modes over the committed index |
+| SRG-V0-010 | `script/gen-spec-requirements_test.sh` case 8: the standing listing, `UNPARSED_STANDING`, `NOT_PROMOTABLE` with exit 0, the `unrecorded` listing, the refused mode (exit 2), a TSV without the acceptance columns and a five-column row with an empty id (exit 1 each); the live counts in the V1-1346/V1-1347 build-log entry |
+| SRG-V0-011 | this spec's own header and digest, the worked example; `TestIndexCoversSpecsAndHeaders` still requires the digest `Status:` to hold both statuses |
+| SRG-V0-012 | `script/gen-spec-requirements_test.sh` case 7: projection, kept fields and cells, appended entry and row, fixed point and the refused two-sentence claim; byte-identical `--index` and `--readme` output at `523fa4ce` |
+| SRG-V0-013 | `script/spec-requirements-conflict_test.sh`: the conflicted paths are exactly the spec and `REQUIREMENTS.tsv`, every marker sits in the requirement list or between new TSV rows, regeneration resolves the TSV, and a lane on another spec merges cleanly |
+| SRG-V0-014 | `TestDeliveryClauseConvention` (rule table with the stale-prefix case) and `TestIndexCoversSpecsAndHeaders` over every spec |
+| SRG-V0-015 | `TestSRGV0015IndexOrderedByDefinitionPosition` over the committed index; `script/gen-spec-requirements_test.sh` case 9: the committed header, definition order within a spec, file order, the id-ordered `--lines` view, and a line shift that leaves the committed index byte for byte. At the V1-1525 base the regenerated `--lines` view was byte-identical to the previous committed index |
+| SRG-V0-016 | `script/spec-requirements-conflict_test.sh`: lanes on two sections of one spec, a prose-only lane against each, and a lane on another spec merge in both orders with every generated file equal to its regeneration. Against the base generator three of those four pairs conflicted in `REQUIREMENTS.tsv`. A title-changing reflow against a row inserted after it conflicts in `REQUIREMENTS.tsv` only, in both orders, and regenerates to both rows (the recorded limit) |
+| SRG-V0-017 | `TestSRGV0017DefinitionLineLocatesEveryRow` (every committed row), `TestSRGV0017DefinitionLineFollowsGeneratorRanks`, `TestSRGV0017ParseIndexReadsBothLayouts`, `TestSRGV0017SpecLookupLocatesCommittedLayout`, `TestSRGV0017KernelLocatesCommittedLayoutLines`, `TestSRGV0017RoadmapLocatesCommittedLayoutLines`, `TestSRGV0017LoadRequirementsReadsBothLayouts`; `script/spec-acceptance-audit.sh` output byte-identical before and after for all three modes; `script/gen-spec-requirements_test.sh` case 8: a row naming another file than its staged definition makes the audit exit 1 |
+| SRG-V0-018 | `script/gen-spec-requirements_test.sh` case 10: `--all` output equals each mode's output byte for byte, a refused projection leaves DIR empty, a missing or absent DIR exits 2, and a newline path and a gitlink entry take the one-shot fallback beside the batch. On the live corpus at `f3ca7224` the `--all` files were byte-identical to the three-pass output and the committed files; the V1-1641 build-log entry holds the before and after timings |
+| SRG-V0-040 | `script/gen-spec-requirements_test.sh`: a 165-character claim fails `--all` with `<path>: the Agent digest Claim is 165 characters; the limit is 160` and leaves DIR empty, and the TSV, `--lines`, `--index` and `--readme` modes refuse it with the same message (the TSV mode now reads spec headers too) |
+| SRG-V0-042 | `script/gen-spec-requirements_test.sh` case 11: an auto-acceptance without `standing`, an affirmed note without an anchor and an unparenthesized note are each refused with line, id, reason and the accepted forms, while the exact standing and owner forms and the adjective "Accepted" pass; the test fails against the generator without the refusal. 74 near misses on main at `ef2a01db` were rewritten to the exact forms in the same change (V1-2160 build log) |
+| SRG-V0-043 | `script/gen-spec-requirements_test.sh` case 7: a stale `ONE-V0-001..009` becomes `ONE-V0-001`, a range before `;` is rewritten with the tail kept, and an undefined prefix is refused; 13 drifted rows on main were regenerated by `make spec-requirements` |
+| SRG-V0-041 | `script/spec-requirements-conflict_test.sh`: the target refuses while the one-section spec is still conflicted and resolves the TSV once it is staged; two new specs conflict only in generated files and resolve in both merge orders to the fresh generation with both specs indexed |
+| SRG-V0-045 | `TestSRGV0045SpecMetadataStaysInSelectedScope` over the committed `.corvint/test-read-scopes.json` and INDEX.json; `TestSRGV0045IndexCheckWitnesses`: the mismatched fixture reports exactly the length, digest and README findings, the aligned one none; on the repository, an INDEX-only 217-character claim is selected by `corvint affected` and fails `TestIndexCoversSpecsAndHeaders` with the same three findings, and the aligned claim in all three files is selected and passes (V1-0515 PR evidence) |
+| SRG-V0-047 | `TestSRGV0047StatusDriftNamesBothFieldsWithLines`: a fixture whose digest Status says `accepted` under an `Intent status: proposed` header yields exactly one finding, pinned byte for byte, naming `fixture-v0.md:7`, `:3` and `:4` and saying to edit the fields together |
+| SRG-V0-044 | `script/gen-spec-requirements_test.sh` case 11: a definition line ending in `Status: (accepted, decision 0481; GitHub #715).` is refused with its line and id; the case fails on the pre-change generator |
+| SRG-V0-046 | `script/gen-spec-requirements_test.sh` case 11: `NEAR-008`, an owner-chat note whose date wraps to the next line, is refused as still open at the end of the definition line with the closed-note example, the no-anchor reason and closing line carry their examples, and `NEAR-009`, the same note nested and closed on one line, classifies as `owner` with `2026-10-27; V1-2763`; the open-note and example cases fail on the pre-change generator |
+
+## Traceability
+
+| Requirement | Implementation | Evidence |
+|---|---|---|
+| SRG-V0-001 | the `git ls-files`/`git cat-file --batch` enumeration and the `README.md` skip in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `spec-requirements-check` |
+| SRG-V0-002 | the bounded id regex in `script/gen-spec-requirements.sh` | `spec-requirements-check` |
+| SRG-V0-003 | the period, colon, and table-cell rank patterns and the rank 2 discard | `spec-requirements-check` |
+| SRG-V0-004 | the composite sort key and its comparison in `script/gen-spec-requirements.sh` | `spec-requirements-check` |
+| SRG-V0-005 | the title substitutions and the UTF-8-decoded `substr` truncation | `spec-requirements-test`; `spec-requirements-check` |
+| SRG-V0-006 | the header and the sorted emission loop | `spec-requirements-check` |
+| SRG-V0-007 | the `root=$(...)`/`cd` prelude and the stdout-only body | code inspection |
+| SRG-V0-008 | the `Makefile` `spec-requirements-check` target and its listing in the `gate` target | `make gate` membership |
+| SRG-V0-009 | `acceptance` and the six-column emission in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `TestRequirementsAcceptanceColumns` |
+| SRG-V0-010 | `script/spec-acceptance-audit.sh` and the `spec-acceptance-audit` target | `spec-requirements-test` |
+| SRG-V0-011 | `docs/SPEC-DRIVEN-DEVELOPMENT.md` Status model; this spec's header | `TestIndexCoversSpecsAndHeaders` |
+| SRG-V0-012 | the `--index` and `--readme` modes and the `spec-requirements` and `spec-requirements-check` recipes | `spec-requirements-test`; `spec-requirements-check` |
+| SRG-V0-013 | `script/spec-requirements-conflict_test.sh` | `spec-requirements-test` |
+| SRG-V0-014 | `internal/specindex` tests | `TestIndexCoversSpecsAndHeaders` |
+| SRG-V0-015 | the `tsv` and `lines` emission blocks in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `TestSRGV0015IndexOrderedByDefinitionPosition` |
+| SRG-V0-016 | `script/spec-requirements-conflict_test.sh` | `spec-requirements-test` |
+| SRG-V0-017 | `internal/specindex/requirements.go`; `internal/console/spec.go`; `internal/compactionkernel/kernel.go`; `internal/dashboard/roadmap/requirements.go`; `script/spec-coverage-audit/main.go`; `script/spec-acceptance-audit.sh` | `TestSRGV0017DefinitionLineLocatesEveryRow`; `TestSRGV0017ParseIndexReadsBothLayouts`; `TestSRGV0017DefinitionLineFollowsGeneratorRanks`; `TestSRGV0017SpecLookupLocatesCommittedLayout`; `TestSRGV0017KernelLocatesCommittedLayoutLines`; `TestSRGV0017RoadmapLocatesCommittedLayoutLines`; `TestSRGV0017LoadRequirementsReadsBothLayouts`; `spec-requirements-test` |
+| SRG-V0-018 | `index_blobs`, the `--all` mode in `script/gen-spec-requirements.sh` and `SPEC_GENERATE` in the `Makefile` | `spec-requirements-test`; `spec-requirements-check` |
+| SRG-V0-040 | the claim-length loop before the TSV and `--lines` exits in `script/gen-spec-requirements.sh` | `spec-requirements-test` |
+| SRG-V0-041 | `script/spec-requirements-resolve.sh` and the `spec-requirements-resolve` target in the `Makefile` | `spec-requirements-test` |
+| SRG-V0-042 | `acceptance_near_miss` and the refusal block before the TSV exit in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `spec-requirements-check` |
+| SRG-V0-043 | the Contract-cell range block in `readme_text` in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `spec-requirements-check` |
+| SRG-V0-044 | the trailing `Status:` branch of `acceptance_near_miss` in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `spec-requirements-check` |
+| SRG-V0-046 | the open-note branch and the examples in `acceptance_near_miss`, and the refusal block, in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `spec-requirements-check` |
+| SRG-V0-045 | the `internal/specindex` entry in `.corvint/test-read-scopes.json`; `checkIndex` in `internal/specindex/index_test.go` | `TestSRGV0045SpecMetadataStaysInSelectedScope`; `TestSRGV0045IndexCheckWitnesses`; `spec-requirements-check` |
+| SRG-V0-047 | `statusDriftMessage` and `headerLine` in `internal/specindex/index_test.go` | `TestSRGV0047StatusDriftNamesBothFieldsWithLines`; `spec-requirements-check` |
+
+## Rollout, rollback, and drift
+
+This document is ownership over an existing generator. The SRG-V0-001 repair landed with it:
+the worktree glob became the tracked-path enumeration, and regenerating the index reproduced the
+committed `REQUIREMENTS.tsv` byte for byte, so no row moved. Rollback restores the glob and drops
+`script/gen-spec-requirements_test.sh` and its `make` target, which reinstates the fresh-clone
+divergence and is therefore not a rollback anyone should take.
+
+Requirements SRG-V0-009..013 roll back as one revert of their commit: the generator returns to
+four columns and one mode, the audit and conflict test go, and `make spec-requirements`
+regenerates the four-column index. INDEX.json and README.md then become hand-maintained again,
+which is safe because the projection left their bytes unchanged at its base. The two strict
+readers relaxed to accept extra columns (`script/spec-coverage-audit` and the OCM spec test in
+`internal/lrfrepo`) keep working with four.
+
+Requirements SRG-V0-015..017 roll back as one revert of their commit (decision 0543). The generator
+then prints the line column in id order again, `make spec-requirements` regenerates it, and the
+readers return to reading that column. No state outside the repository changes. The revert
+restores the line-number conflicts that decision 0543 records.
+
+SRG-V0-018 rolls back as one revert of its commit: `SPEC_GENERATE` returns to three generator
+invocations and the reader to one synchronous batch request per file. Every mode's output is
+unchanged by the revert, so no generated file moves.
+
+SRG-V0-047 rolls back as one revert of its commit: only the wording of one test finding changes,
+so no generated file moves.
+
+Drift rule: enumeration MUST measure the Git index, never a worktree listing, for the same reason
+`decision-number-gate-v0.md` pins it. A future change that reintroduces a directory listing,
+adds a filesystem walk, or reads untracked files re-opens exactly the fresh-clone divergence
+recorded above. A change to any rank pattern in SRG-V0-003 silently moves cited lines for existing
+ids, so it MUST be landed together with a regenerated index in the same commit. A change to the
+acceptance rule in SRG-V0-009 can move rows between modes, so it MUST land with the regenerated
+index and the audit counts before and after in its build-log entry.
+
+## Unresolved
+
+SRG-V0-001 as implemented does both: it enumerates tracked paths and reads blob content, so a
+tracked file with unstaged edits is indexed at its staged content rather than its worktree
+content. The reference is the Git index and not `HEAD`, which is the polarity
+`script/check-line-citations.sh` already uses, so a spec staged for addition in the same change as
+the regenerated index resolves. What is still not decided is whether the reference should instead
+be `HEAD`, which would make the index exactly reproducible from a commit alone but would stop a
+spec and its index row landing in one commit. The same question applies to the sibling
+tracked-path gates and should be answered for all of them together, not here.
+
+Three questions stay open after SRG-V0-009..013. Whether the 52 trailing standing markers should be
+moved to the front of their lines, which would make them `standing`, is a change to five other
+specs and belongs to their owners. Whether old header tails should be cut back to the current
+status is the same kind of edit. Whether `NOT_PROMOTABLE` should fail a gate is for the owner to
+decide once the standing backlog has been read back.

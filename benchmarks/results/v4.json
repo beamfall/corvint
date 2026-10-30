@@ -1,0 +1,787 @@
+{
+  "aggregate": {
+    "abstention_accuracy": 1.0,
+    "budget_compliance": 1.0,
+    "cases": 26,
+    "critical_evidence_misses": 0,
+    "critical_evidence_total": 23,
+    "exact_search_baseline": {
+      "abstention_accuracy": 0.2,
+      "query_cases": 19,
+      "top5_success": 0.421053
+    },
+    "latency_ms": 79304.116,
+    "public_repositories": 4,
+    "recall": 1.0,
+    "repositories": 5,
+    "serialized_result_byte_weighted_precision": 0.92918,
+    "top5_task_success": 1.0
+  },
+  "corvint_commit": "working-tree:306767f937aa930763d2ac76a780184aa17e3a291d19ac3d85c9e742f5e548f3",
+  "manifest_sha256": "4d337719928d581ceb68aed8cced1eec66786ffc6c1e34d476d7f3bc9e0f3de8",
+  "repositories": [
+    {
+      "corvint": {
+        "cases": [
+          {
+            "budget_bytes": null,
+            "expected_state": null,
+            "id": "exact-feature-pairing",
+            "missing": [],
+            "packet_bytes": 5600,
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "budget_bytes": null,
+            "expected_state": null,
+            "id": "natural-language-session-revocation",
+            "missing": [],
+            "packet_bytes": 7159,
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "budget_bytes": null,
+            "expected_state": null,
+            "id": "ambiguous-reveal-navigation",
+            "missing": [],
+            "packet_bytes": 11747,
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "budget_bytes": null,
+            "expected_state": null,
+            "id": "impact-auth-test",
+            "missing": [],
+            "packet_bytes": 10957,
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "budget_bytes": null,
+            "expected_state": null,
+            "id": "impact-auth-production-bounded",
+            "missing": [],
+            "packet_bytes": 21242,
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "budget_bytes": null,
+            "expected_state": "OUT_OF_SCOPE",
+            "id": "agent-tooling-abstains-product-noise",
+            "missing": [],
+            "packet_bytes": 1947,
+            "state": "OUT_OF_SCOPE",
+            "state_matches": true,
+            "unexpected": []
+          }
+        ],
+        "metrics": {
+          "abstention_accuracy": 1.0,
+          "abstention_cases": 1,
+          "abstention_hits": 1,
+          "advisory_results": 0,
+          "authoritative_results": 35,
+          "budget_compliance": 1.0,
+          "budget_overflows": 0,
+          "budgeted_cases": 0,
+          "cases": 6,
+          "critical_evidence_misses": 0,
+          "critical_evidence_overflows": 0,
+          "critical_evidence_total": 5,
+          "latency_ms": 57364.718,
+          "must_exclude_total": 1,
+          "must_exclude_violations": 0,
+          "must_read_hits": 9,
+          "must_read_total": 9,
+          "packet_bytes": 58652,
+          "passed_trace_count": 0,
+          "recall": 1.0,
+          "relevant_result_bytes": 49132,
+          "serialized_result_byte_weighted_precision": 0.977751,
+          "top5_task_hits": 6,
+          "top5_task_success": 1.0,
+          "top5_task_total": 6,
+          "total_result_bytes": 50250,
+          "trace_replay_recall": 0.0,
+          "trace_replay_tasks": 0,
+          "trace_replay_top5_success": 0.0,
+          "trace_state": "absent"
+        },
+        "revision": "2a1e79c4efe8a4870b5b7b72179a553b472af3d8",
+        "state": "READY"
+      },
+      "baseline": {
+        "abstention_accuracy": 0.0,
+        "abstention_cases": 1,
+        "abstention_hits": 0,
+        "cases": [
+          {
+            "id": "natural-language-session-revocation",
+            "top5_hit": false,
+            "top5_paths": [
+              "docs/plans/roadmap/20-audit-2026-06-30-specialized-per-repo-audit-remedi.md",
+              "docs/plans/roadmap/07-milestone-2-post-parity-features.md",
+              "docs/plans/roadmap/05-milestone-1-launch-blocking.md",
+              "artifacts/plans/roadmap-archive-2026-06-24.md",
+              "artifacts/plans/roadmap-completed-archive-2026-06-29.md"
+            ]
+          },
+          {
+            "id": "ambiguous-reveal-navigation",
+            "top5_hit": false,
+            "top5_paths": [
+              "internal/graph/graph.go",
+              "internal/store/store.go",
+              "internal/graph/graph_test.go",
+              "docs/plans/roadmap/07-milestone-2-post-parity-features.md",
+              "artifacts/plans/roadmap-archive-2026-06-24.md"
+            ]
+          },
+          {
+            "id": "agent-tooling-abstains-product-noise",
+            "top5_hit": false,
+            "top5_paths": [
+              "script/context_corvint_learning_test.py",
+              "docs/plans/roadmap/07-milestone-2-post-parity-features.md",
+              "script/context_corvint_test.py",
+              "script/context_corvint_intent.py",
+              "testing/context-retrieval-goldens.json"
+            ]
+          }
+        ],
+        "latency_ms": 1475.21,
+        "query_cases": 3,
+        "top5_hits": 0,
+        "top5_success": 0.0
+      },
+      "commit": "6e82abd857c77c0ca250b6c4a8f5e1c86684a535",
+      "corpus_sha256": "b75ca759a42803acfbcc7e5d5c6d535d1161634854798b679f0ae9ed22bcf78a",
+      "id": "beamfall",
+      "language": "Go and TypeScript",
+      "public": false,
+      "url": "https://github.com/beamfall/core.git"
+    },
+    {
+      "corvint": {
+        "cases": [
+          {
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "flask-load-dotenv",
+            "missing": [],
+            "packet_bytes": 1183,
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "flask-ensure-sync",
+            "missing": [],
+            "packet_bytes": 1521,
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "flask-cookie-session",
+            "missing": [],
+            "packet_bytes": 1919,
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "flask-session-impact",
+            "missing": [],
+            "packet_bytes": 4468,
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "budget_bytes": 8000,
+            "expected_state": "OUT_OF_SCOPE",
+            "id": "flask-kubernetes-abstention",
+            "missing": [],
+            "packet_bytes": 840,
+            "state": "OUT_OF_SCOPE",
+            "state_matches": true,
+            "unexpected": []
+          }
+        ],
+        "metrics": {
+          "abstention_accuracy": 1.0,
+          "abstention_cases": 1,
+          "abstention_hits": 1,
+          "advisory_results": 0,
+          "authoritative_results": 13,
+          "budget_compliance": 1.0,
+          "budget_overflows": 0,
+          "budgeted_cases": 5,
+          "cases": 5,
+          "critical_evidence_misses": 0,
+          "critical_evidence_overflows": 0,
+          "critical_evidence_total": 4,
+          "latency_ms": 4975.005,
+          "must_exclude_total": 0,
+          "must_exclude_violations": 0,
+          "must_read_hits": 6,
+          "must_read_total": 6,
+          "packet_bytes": 9931,
+          "passed_trace_count": 0,
+          "recall": 1.0,
+          "relevant_result_bytes": 6269,
+          "serialized_result_byte_weighted_precision": 1.0,
+          "top5_task_hits": 5,
+          "top5_task_success": 1.0,
+          "top5_task_total": 5,
+          "total_result_bytes": 6269,
+          "trace_replay_recall": 0.0,
+          "trace_replay_tasks": 0,
+          "trace_replay_top5_success": 0.0,
+          "trace_state": "absent"
+        },
+        "revision": "a8da09a58146cd39bc2956bfa5d2f468bf592166",
+        "state": "READY"
+      },
+      "baseline": {
+        "abstention_accuracy": 0.0,
+        "abstention_cases": 1,
+        "abstention_hits": 0,
+        "cases": [
+          {
+            "id": "flask-load-dotenv",
+            "top5_hit": true,
+            "top5_paths": [
+              "src/flask/cli.py",
+              "src/flask/app.py",
+              "src/flask/helpers.py",
+              "src/flask/config.py",
+              "src/flask/sansio/scaffold.py"
+            ]
+          },
+          {
+            "id": "flask-ensure-sync",
+            "top5_hit": true,
+            "top5_paths": [
+              "src/flask/app.py",
+              "src/flask/ctx.py",
+              "src/flask/helpers.py",
+              "src/flask/typing.py",
+              "src/flask/sansio/app.py"
+            ]
+          },
+          {
+            "id": "flask-cookie-session",
+            "top5_hit": true,
+            "top5_paths": [
+              "src/flask/sessions.py",
+              "src/flask/sansio/app.py",
+              "tests/test_basic.py",
+              "src/flask/app.py",
+              "src/flask/ctx.py"
+            ]
+          },
+          {
+            "id": "flask-kubernetes-abstention",
+            "top5_hit": false,
+            "top5_paths": [
+              "src/flask/helpers.py",
+              "tests/test_helpers.py",
+              "src/flask/app.py",
+              "src/flask/views.py",
+              "src/flask/templating.py"
+            ]
+          }
+        ],
+        "latency_ms": 32.221,
+        "query_cases": 4,
+        "top5_hits": 3,
+        "top5_success": 0.75
+      },
+      "commit": "d318b683471101618febed18996405ad26462110",
+      "corpus_sha256": "11320b3c285fc0721d28c7beffe2fd270f6fa932814d7cbfc3acb1560db601fb",
+      "id": "flask",
+      "language": "Python",
+      "public": true,
+      "url": "https://github.com/pallets/flask.git"
+    },
+    {
+      "corvint": {
+        "cases": [
+          {
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "cobra-execute-command",
+            "missing": [],
+            "packet_bytes": 2418,
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "cobra-bash-completion",
+            "missing": [],
+            "packet_bytes": 2916,
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "cobra-active-help",
+            "missing": [],
+            "packet_bytes": 1852,
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "cobra-active-help-impact",
+            "missing": [],
+            "packet_bytes": 4419,
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "budget_bytes": 8000,
+            "expected_state": "OUT_OF_SCOPE",
+            "id": "cobra-image-abstention",
+            "missing": [],
+            "packet_bytes": 817,
+            "state": "OUT_OF_SCOPE",
+            "state_matches": true,
+            "unexpected": []
+          }
+        ],
+        "metrics": {
+          "abstention_accuracy": 1.0,
+          "abstention_cases": 1,
+          "abstention_hits": 1,
+          "advisory_results": 0,
+          "authoritative_results": 24,
+          "budget_compliance": 1.0,
+          "budget_overflows": 0,
+          "budgeted_cases": 5,
+          "cases": 5,
+          "critical_evidence_misses": 0,
+          "critical_evidence_overflows": 0,
+          "critical_evidence_total": 4,
+          "latency_ms": 2262.989,
+          "must_exclude_total": 0,
+          "must_exclude_violations": 0,
+          "must_read_hits": 6,
+          "must_read_total": 6,
+          "packet_bytes": 12422,
+          "passed_trace_count": 0,
+          "recall": 1.0,
+          "relevant_result_bytes": 7305,
+          "serialized_result_byte_weighted_precision": 0.813656,
+          "top5_task_hits": 5,
+          "top5_task_success": 1.0,
+          "top5_task_total": 5,
+          "total_result_bytes": 8978,
+          "trace_replay_recall": 0.0,
+          "trace_replay_tasks": 0,
+          "trace_replay_top5_success": 0.0,
+          "trace_state": "absent"
+        },
+        "revision": "5a3b2c8e9af4c74e607a0a55e7910c1edb5d266f",
+        "state": "READY"
+      },
+      "baseline": {
+        "abstention_accuracy": 0.0,
+        "abstention_cases": 1,
+        "abstention_hits": 0,
+        "cases": [
+          {
+            "id": "cobra-execute-command",
+            "top5_hit": true,
+            "top5_paths": [
+              "command.go",
+              "command_test.go",
+              "site/content/user_guide.md",
+              "completions_test.go",
+              "completions.go"
+            ]
+          },
+          {
+            "id": "cobra-bash-completion",
+            "top5_hit": true,
+            "top5_paths": [
+              "completions_test.go",
+              "site/content/completions/_index.md",
+              "completions.go",
+              "bash_completionsV2.go",
+              "bash_completions.go"
+            ]
+          },
+          {
+            "id": "cobra-active-help",
+            "top5_hit": false,
+            "top5_paths": [
+              "site/content/active_help.md",
+              "completions.go",
+              "site/content/user_guide.md",
+              "bash_completionsV2.go",
+              "zsh_completions.go"
+            ]
+          },
+          {
+            "id": "cobra-image-abstention",
+            "top5_hit": false,
+            "top5_paths": [
+              "site/content/completions/_index.md",
+              ".github/workflows/test.yml",
+              "site/content/user_guide.md",
+              "README.md",
+              "bash_completions_test.go"
+            ]
+          }
+        ],
+        "latency_ms": 34.423,
+        "query_cases": 4,
+        "top5_hits": 2,
+        "top5_success": 0.5
+      },
+      "commit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "corpus_sha256": "66c50dcedc78e619c0249ed08fc1bcfb67c1dfe86ee52648224e318237dba9d1",
+      "id": "cobra",
+      "language": "Go",
+      "public": true,
+      "url": "https://github.com/spf13/cobra.git"
+    },
+    {
+      "corvint": {
+        "cases": [
+          {
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "zod-from-json-schema",
+            "missing": [],
+            "packet_bytes": 3179,
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "zod-treeify-errors",
+            "missing": [],
+            "packet_bytes": 1945,
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "zod-discriminated-union",
+            "missing": [],
+            "packet_bytes": 2798,
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "zod-memoizer-impact",
+            "missing": [],
+            "packet_bytes": 3413,
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "budget_bytes": 8000,
+            "expected_state": "OUT_OF_SCOPE",
+            "id": "zod-network-abstention",
+            "missing": [],
+            "packet_bytes": 824,
+            "state": "OUT_OF_SCOPE",
+            "state_matches": true,
+            "unexpected": []
+          }
+        ],
+        "metrics": {
+          "abstention_accuracy": 1.0,
+          "abstention_cases": 1,
+          "abstention_hits": 1,
+          "advisory_results": 0,
+          "authoritative_results": 17,
+          "budget_compliance": 1.0,
+          "budget_overflows": 0,
+          "budgeted_cases": 5,
+          "cases": 5,
+          "critical_evidence_misses": 0,
+          "critical_evidence_overflows": 0,
+          "critical_evidence_total": 5,
+          "latency_ms": 9747.765,
+          "must_exclude_total": 0,
+          "must_exclude_violations": 0,
+          "must_read_hits": 7,
+          "must_read_total": 7,
+          "packet_bytes": 12159,
+          "passed_trace_count": 0,
+          "recall": 1.0,
+          "relevant_result_bytes": 7016,
+          "serialized_result_byte_weighted_precision": 0.814393,
+          "top5_task_hits": 5,
+          "top5_task_success": 1.0,
+          "top5_task_total": 5,
+          "total_result_bytes": 8615,
+          "trace_replay_recall": 0.0,
+          "trace_replay_tasks": 0,
+          "trace_replay_top5_success": 0.0,
+          "trace_state": "absent"
+        },
+        "revision": "1f8fe962ebac8d3898be3f0eed07a2f2bba571e2",
+        "state": "READY"
+      },
+      "baseline": {
+        "abstention_accuracy": 0.0,
+        "abstention_cases": 1,
+        "abstention_hits": 0,
+        "cases": [
+          {
+            "id": "zod-from-json-schema",
+            "top5_hit": false,
+            "top5_paths": [
+              "packages/zod/src/v4/core/schemas.ts",
+              "packages/zod/src/v3/types.ts",
+              "packages/zod/src/v4/classic/schemas.ts",
+              "packages/zod/src/v4/classic/tests/to-json-schema.test.ts",
+              "pnpm-lock.yaml"
+            ]
+          },
+          {
+            "id": "zod-treeify-errors",
+            "top5_hit": false,
+            "top5_paths": [
+              "packages/docs-v3/home.md",
+              "packages/zod/src/v4/core/compile.ts",
+              "wiki/compile-plan.md",
+              "packages/zod/src/v4/classic/tests/to-json-schema.test.ts",
+              "packages/zod/src/v4/classic/tests/discriminated-unions.test.ts"
+            ]
+          },
+          {
+            "id": "zod-discriminated-union",
+            "top5_hit": true,
+            "top5_paths": [
+              "packages/bench/compile-matrix.ts",
+              "packages/zod/src/v4/core/schemas.ts",
+              "packages/zod/src/v3/types.ts",
+              "packages/zod/src/v4/classic/schemas.ts",
+              "packages/zod/src/v4/mini/schemas.ts"
+            ]
+          },
+          {
+            "id": "zod-network-abstention",
+            "top5_hit": false,
+            "top5_paths": [
+              "pnpm-lock.yaml",
+              "packages/docs-v3/home.md",
+              "packages/docs-v3/README_KO.md",
+              "packages/docs/components/ecosystem.tsx",
+              "packages/docs/pnpm-lock.yaml"
+            ]
+          }
+        ],
+        "latency_ms": 441.784,
+        "query_cases": 4,
+        "top5_hits": 1,
+        "top5_success": 0.25
+      },
+      "commit": "e516c3baf22615e20934116abebfed6c000222c2",
+      "corpus_sha256": "6f203373c218cf16349a1403a5367c0cf61d40110e435fe51bc979d3bf30e06b",
+      "id": "zod",
+      "language": "TypeScript",
+      "public": true,
+      "url": "https://github.com/colinhacks/zod.git"
+    },
+    {
+      "corvint": {
+        "cases": [
+          {
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "execa-kill-descendants",
+            "missing": [],
+            "packet_bytes": 2362,
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "execa-normalize-parameters",
+            "missing": [],
+            "packet_bytes": 2973,
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "execa-max-buffer",
+            "missing": [],
+            "packet_bytes": 2920,
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "budget_bytes": 12000,
+            "expected_state": null,
+            "id": "execa-kill-impact",
+            "missing": [],
+            "packet_bytes": 3451,
+            "state": "READY",
+            "state_matches": true,
+            "unexpected": []
+          },
+          {
+            "budget_bytes": 8000,
+            "expected_state": "OUT_OF_SCOPE",
+            "id": "execa-database-abstention",
+            "missing": [],
+            "packet_bytes": 829,
+            "state": "OUT_OF_SCOPE",
+            "state_matches": true,
+            "unexpected": []
+          }
+        ],
+        "metrics": {
+          "abstention_accuracy": 1.0,
+          "abstention_cases": 1,
+          "abstention_hits": 1,
+          "advisory_results": 0,
+          "authoritative_results": 19,
+          "budget_compliance": 1.0,
+          "budget_overflows": 0,
+          "budgeted_cases": 5,
+          "cases": 5,
+          "critical_evidence_misses": 0,
+          "critical_evidence_overflows": 0,
+          "critical_evidence_total": 5,
+          "latency_ms": 4953.639,
+          "must_exclude_total": 0,
+          "must_exclude_violations": 0,
+          "must_read_hits": 7,
+          "must_read_total": 7,
+          "packet_bytes": 12535,
+          "passed_trace_count": 0,
+          "recall": 1.0,
+          "relevant_result_bytes": 7530,
+          "serialized_result_byte_weighted_precision": 0.834072,
+          "top5_task_hits": 5,
+          "top5_task_success": 1.0,
+          "top5_task_total": 5,
+          "total_result_bytes": 9028,
+          "trace_replay_recall": 0.0,
+          "trace_replay_tasks": 0,
+          "trace_replay_top5_success": 0.0,
+          "trace_state": "absent"
+        },
+        "revision": "f8ab67228ee0a417058f9bc2282945f915f64f39",
+        "state": "READY"
+      },
+      "baseline": {
+        "abstention_accuracy": 1.0,
+        "abstention_cases": 1,
+        "abstention_hits": 1,
+        "cases": [
+          {
+            "id": "execa-kill-descendants",
+            "top5_hit": false,
+            "top5_paths": [
+              "docs/api.md",
+              "docs/termination.md",
+              "test/terminate/kill-descendants.js",
+              "types/arguments/options.d.ts",
+              "test/pipe/methods.js"
+            ]
+          },
+          {
+            "id": "execa-normalize-parameters",
+            "top5_hit": false,
+            "top5_paths": [
+              "test/arguments/command-resolution.js",
+              "lib/pipe/pipe-arguments.js",
+              "lib/methods/main-async.js",
+              "lib/methods/main-sync.js",
+              "types/arguments/options.d.ts"
+            ]
+          },
+          {
+            "id": "execa-max-buffer",
+            "top5_hit": true,
+            "top5_paths": [
+              "test/io/max-buffer.js",
+              "docs/api.md",
+              "test/io/iterate.js",
+              "docs/termination.md",
+              "lib/io/max-buffer.js"
+            ]
+          },
+          {
+            "id": "execa-database-abstention",
+            "top5_hit": true,
+            "top5_paths": []
+          }
+        ],
+        "latency_ms": 225.536,
+        "query_cases": 4,
+        "top5_hits": 2,
+        "top5_success": 0.5
+      },
+      "commit": "8017b279e19347efaf2587711c2d57dbd4330740",
+      "corpus_sha256": "d54f700f2dfa49eb19b01d4042e95816734e8697e704028b246aff346c1a48d0",
+      "id": "execa",
+      "language": "JavaScript",
+      "public": true,
+      "url": "https://github.com/sindresorhus/execa.git"
+    }
+  ],
+  "schema_version": 1,
+  "v4_release": {
+    "blocked_by": [],
+    "checks": {
+      "abstention": true,
+      "budget_compliance": true,
+      "five_repositories": true,
+      "four_public_repositories": true,
+      "precision": true,
+      "top5_success": true,
+      "twenty_five_cases": true,
+      "zero_critical_misses": true
+    },
+    "ready": true
+  }
+}

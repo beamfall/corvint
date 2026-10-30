@@ -1,0 +1,1292 @@
+package contextindex
+
+import (
+	"errors"
+	"fmt"
+	"path"
+	"sort"
+	"strings"
+	"unicode"
+	"unicode/utf8"
+
+	"github.com/Beamfall/corvint/internal/projectprofile"
+)
+
+type rankedResult struct {
+	score, order          int
+	key                   string
+	result                map[string]any
+	testConvention        bool
+	broadModuleRootImport bool
+	caller                bool
+}
+
+func Impact(index *Index, paths []string, limit int) (map[string]any, error) {
+	result, _, _, err := impact(index, paths, limit, rubyImpactRequested(paths)) // a Ruby path selects the syntax profile (NGI-V0-033)
+	return result, err
+}
+
+// ImpactSyntax adds the versioned non-Go syntax frontier. Impact retains the
+// immutable historical path receipt; this profile does not assert runtime closure.
+func ImpactSyntax(index *Index, paths []string, limit int) (map[string]any, error) {
+	result, _, _, err := impact(index, paths, limit, true)
+	return result, err
+}
+
+// impact compiles the path impact receipt and also returns its omitted-caller
+// disclosures and the index view its coverage was computed over, so EvalImpact
+// can carry both through its budget compilation.
+func impact(index *Index, paths []string, limit int, syntaxFrontier bool) (map[string]any, []string, *Index, error) {
+	cleaned, err := cleanImpactRequest(paths, limit)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	// Decision 0015: only rule (a) resolves through the Go module path, so
+	// the slash-qualified module is a precondition for `.go` paths alone;
+	// `.py` and web paths are admitted in any Git repository, as the oracle
+	// admits them.
+	if needsGoModule(cleaned) && (index.Module == "" || !strings.Contains(index.Module, "/")) {
+		return nil, nil, nil, &Error{Code: "unsupported-impact-repository", Message: "native Go impact requires a slash-qualified Go module for .go paths"}
+	}
+	tracked := make(map[string]struct{}, len(index.Sources)+len(index.Exclusions))
+	for value := range index.Sources {
+		tracked[value] = struct{}{}
+	}
+	for _, exclusion := range index.Exclusions {
+		tracked[exclusion.Path] = struct{}{}
+	}
+	missing := make([]string, 0)
+	for _, value := range cleaned {
+		if !contains(tracked, value) {
+			missing = append(missing, value)
+		}
+	}
+	if len(missing) != 0 {
+		return nil, nil, nil, &Error{Message: untrackedImpactMessage(index, missing), Cause: ErrImpactPathsUntracked}
+	}
+	forbidden := make([]string, 0)
+	for _, value := range cleaned {
+		if _, ok := index.Sources[value]; !ok {
+			forbidden = append(forbidden, value)
+		}
+	}
+	if len(forbidden) != 0 {
+		result, err := receipt(index, "impact", map[string]any{"paths": cleaned, "limit": limit}, nil, limit, "OUT_OF_SCOPE")
+		if err == nil && syntaxFrontier {
+			err = attachNonGoImpactUnknowns(result, index, cleaned, 0, nil, nil)
+		}
+		return result, nil, index, err
+	}
+
+	if syntaxFrontier && rubyImpactRequested(cleaned) {
+		index = index.withRubyTests() // NGI-V0-063
+	}
+	ranked := make([]rankedResult, 0)
+	related := make(map[string]struct{})
+	// carried holds the keys a changed path's own markers carry;
+	// importerCarriers names, for each key, the first importing test that
+	// carried it, so a key only such a test carries says so (V1-0263).
+	carried := make(map[string]struct{})
+	importerCarriers := make(map[string]string)
+	// V1-0054: built once per call rather than rescanned per changed path (up to
+	// maxImpactPaths) or per ranked record. dirIndex answers "which tracked paths
+	// share this directory" and sortedPaths lets an ADR-document prefix lookup
+	// binary-search instead of scanning every source.
+	dirIndex := dirPathIndex(index)
+	sortedPaths := sortedSourcePaths(index)
+	goCallers := make(map[string]goCaller)
+	// The alias arm of rule (c) (GPK-V0-077, proposed) resolves every bare
+	// web specifier once per call, and only when a web path asks for it.
+	var webGraph *webImportGraph
+	webChanged := 0
+	// The declared string-key registry dialect (NGI-V0-007 to NGI-V0-011)
+	// is read once, and only under the syntax profile: the historical
+	// default receipt keeps its bytes.
+	var registries *registryDialect
+	var registryGraph *webImportGraph
+	registryUnknowns := map[string][]any{}
+	// Ruby autoload-convention constants (NGI-V0-016 to NGI-V0-021, NGI-V0-033
+	// to NGI-V0-039) are indexed once, under the syntax profile a Ruby path selects.
+	var rubyConstants *rubyAutoload
+	typeOnlyKinds := make(map[string]map[string]bool)
+	for _, changedPath := range cleaned {
+		source := index.Sources[changedPath]
+		ranked = append(ranked, rankedResult{score: 1000, order: 0, key: changedPath, result: map[string]any{
+			"kind": "path", "id": changedPath, "score": 1000,
+			"summary": "direct changed path", "evidence": []any{evidence(
+				changedPath, 1, source.BlobHash, "requested changed path", "authoritative", "git-tree",
+			)},
+		}})
+		for _, document := range index.Documents {
+			references := stringsField(document.Fields["references"])
+			if document.Path == changedPath || stringIn(references, changedPath) {
+				relation := "is the changed document"
+				if document.Path != changedPath {
+					relation = "explicitly references changed path " + changedPath
+				}
+				result := documentResult(index, document, 825, relation)
+				noteEvidenceTruncated(result, 1+len(references)-maxEvidence)
+				ranked = append(ranked, rankedResult{score: 825, order: 1, key: document.Path, result: result})
+			}
+		}
+		for key, markers := range index.Markers {
+			for _, marker := range markers {
+				if marker.Path == changedPath {
+					related[key] = struct{}{}
+					carried[key] = struct{}{}
+					break
+				}
+			}
+		}
+		packageReferences := samePackageReferencesWithDirIndex(index, changedPath, true, dirIndex)
+		testReferences := make(map[string]packageReference)
+		if syntaxFrontier && NonGoImpactLanguage(changedPath) != "" {
+			if registries == nil {
+				registries = loadRegistryDialect(index)
+			}
+			if registries.declared() {
+				// Registries and the modules they bind often live under a
+				// test tree, so this reads test paths too. Its own graph
+				// keeps the bare-import disclosure to the stage above.
+				if registryGraph == nil {
+					registryGraph = webGraph
+					if registryGraph == nil {
+						registryGraph = buildWebImportGraph(index)
+					}
+				}
+				importers := sortImporters(append(reverseImporters(index, changedPath), registryGraph.importers[changedPath]...))
+				rows, unknowns := registries.impact(index, changedPath, importers)
+				ranked = append(ranked, rows...)
+				registryUnknowns[changedPath] = unknowns
+			}
+		}
+		if syntaxFrontier && NonGoImpactLanguage(changedPath) == "ruby" {
+			if rubyConstants == nil {
+				rubyConstants = loadRubyAutoload(index)
+			}
+			rows, unknowns := rubyConstants.impact(index, changedPath)
+			ranked = append(ranked, rows...)
+			registryUnknowns[changedPath] = append(registryUnknowns[changedPath], unknowns...)
+		}
+		for _, reference := range packageReferences {
+			if index.isTest(reference.path) {
+				testReferences[reference.path] = reference
+			}
+		}
+		packageMarkers := make(map[string][]markerRelation)
+		if strings.HasSuffix(changedPath, ".go") && !index.isTest(changedPath) {
+			parent, stem := path.Dir(changedPath), strings.TrimSuffix(path.Base(changedPath), ".go")
+			tests := make([]string, 0)
+			for _, candidate := range dirIndex[parent] {
+				if strings.HasSuffix(candidate, "_test.go") {
+					tests = append(tests, candidate)
+				}
+			}
+			sort.Strings(tests)
+			for _, testPath := range tests {
+				exact := path.Base(testPath) == stem+"_test.go"
+				score, confidence := 550, "medium"
+				if exact {
+					score, confidence = 825, "high"
+				}
+				testSource := index.Sources[testPath]
+				testEvidence := []any{evidence(testPath, 1, testSource.BlobHash,
+					"same-package test for "+changedPath, confidence, "test-convention")}
+				truncated := 0
+				if reference, ok := testReferences[testPath]; ok {
+					if !exact {
+						score += min(reference.count, 274)
+					}
+					referenceRows := packageReferenceEvidence(index, changedPath, reference)
+					kept := min(len(referenceRows), maxEvidence-len(testEvidence))
+					testEvidence = append(testEvidence, referenceRows[:kept]...)
+					truncated = reference.count - kept
+				}
+				result := map[string]any{
+					"kind": "test", "id": testPath, "score": score,
+					"summary":  "same-package test affected by " + changedPath,
+					"evidence": testEvidence,
+				}
+				noteEvidenceTruncated(result, truncated)
+				ranked = append(ranked, rankedResult{score: score, order: 1, key: testPath, testConvention: true, result: result})
+			}
+			changedKeys := make(map[string]struct{}, len(related))
+			for key := range related {
+				changedKeys[key] = struct{}{}
+			}
+			for key, markers := range index.Markers {
+				for _, marker := range markers {
+					if index.isTest(marker.Path) && path.Dir(marker.Path) == parent && markerCredited(marker.Path, key, stem+"_test.go", changedKeys, testReferences) {
+						packageMarkers[marker.Path] = append(packageMarkers[marker.Path], markerRelation{key, marker})
+						related[key] = struct{}{}
+					}
+				}
+			}
+		}
+		markerPaths := make([]string, 0, len(packageMarkers))
+		for markerPath := range packageMarkers {
+			markerPaths = append(markerPaths, markerPath)
+		}
+		sort.Strings(markerPaths)
+		for _, testPath := range markerPaths {
+			items := packageMarkers[testPath]
+			sort.Slice(items, func(left, right int) bool {
+				return markerRelationLess(index, items[left], items[right])
+			})
+			truncated := len(items) - maxEvidence
+			if len(items) > maxEvidence {
+				items = items[:maxEvidence]
+			}
+			testEvidence := make([]any, 0, len(items))
+			for _, item := range items {
+				kind, id := splitRelation(item.key)
+				testEvidence = append(testEvidence, evidence(item.marker.Path, item.marker.Line, item.marker.BlobHash,
+					"same-package test carries "+kind+":"+id, "high", "test-marker"))
+			}
+			result := map[string]any{
+				"kind": "test", "id": testPath, "score": 850,
+				"summary":  "same-package marked test affected by " + changedPath,
+				"evidence": testEvidence,
+			}
+			noteEvidenceTruncated(result, truncated)
+			ranked = append(ranked, rankedResult{score: 850, order: 1, key: testPath, result: result})
+		}
+		if !index.isTest(changedPath) {
+			exported := exportedGoNames(index, changedPath)
+			importers := reverseImporters(index, changedPath)
+			webPath := webSuffixes[strings.ToLower(pythonPathSuffix(changedPath))]
+			if webPath {
+				if webGraph == nil {
+					webGraph = buildWebImportGraph(index)
+				}
+				webChanged++
+				if aliased := webGraph.importers[changedPath]; len(aliased) != 0 {
+					importers = sortImporters(append(append([]importer(nil), importers...), aliased...))
+				}
+			}
+			for _, importer := range importers {
+				importerMarkers := markerKeysForPath(index, importer.path)
+				if index.isTest(importer.path) && countKind(importerMarkers, "feature") <= 1 && countKind(importerMarkers, "scenario") <= 1 {
+					for _, key := range importerMarkers {
+						related[key] = struct{}{}
+						if _, named := importerCarriers[key]; !named {
+							importerCarriers[key] = "test " + importer.path + " importing changed " + changedPath
+						}
+					}
+				}
+				line, loaded := importEvidenceLine(index.Sources[importer.path], importer.imported)
+				if !loaded {
+					continue
+				}
+				recordGoCaller(goCallers, index, changedPath, importer, line)
+				score := 700
+				if index.isTest(importer.path) {
+					score = 650
+				}
+				importerSource := index.Sources[importer.path]
+				summary, confidence := "directly imports package/module containing "+changedPath, "high"
+				if webPath && webTypeOnlyImport(importerSource, importer.imported, typeOnlyKinds) {
+					// A type-only edge is erased at compile time: the importer
+					// type-checks against the changed path but does not run it
+					// (GPK-V0-079, proposed), so it ranks below every runtime edge.
+					score -= 100
+					summary, confidence = "type-only import of module containing "+changedPath+" (no runtime dependency)", "medium"
+				}
+				ranked = append(ranked, rankedResult{score: score, order: 1, key: importer.path,
+					broadModuleRootImport: broadModuleRootImporter(index, changedPath, importer),
+					caller:                score == 700 && namesAny(importerSource, exported), result: map[string]any{
+						"kind": "reverse-import", "id": importer.path, "score": score,
+						"summary": summary,
+						"evidence": []any{evidence(importer.path, line, importerSource.BlobHash,
+							"imports "+importer.imported, confidence, "syntax")},
+					}})
+			}
+		}
+		for _, reference := range packageReferences {
+			if index.isTest(reference.path) {
+				continue
+			}
+			result := map[string]any{
+				"kind": "reference", "id": reference.path, "score": 775,
+				"summary":  "same-package code references declarations from " + changedPath,
+				"evidence": packageReferenceEvidence(index, changedPath, reference),
+			}
+			noteEvidenceTruncated(result, reference.count-len(reference.matches))
+			ranked = append(ranked, rankedResult{score: 775, order: 1, key: reference.path, result: result})
+		}
+	}
+	// A changed path that calls another changed path is already a direct row.
+	for _, changedPath := range cleaned {
+		delete(goCallers, changedPath)
+	}
+	relatedKeys := keys(related)
+	for _, key := range relatedKeys {
+		kind, identifier := splitRelation(key)
+		records := index.Features
+		if kind == "scenario" {
+			records = index.Scenarios
+		}
+		if record, ok := records[identifier]; ok {
+			carrier := "changed path"
+			if importerCarrier, ok := importerCarriers[key]; ok && !contains(carried, key) {
+				carrier = importerCarrier
+			}
+			result, truncated := recordResultWithSortedPaths(index, record, 800, carrier+" carries "+kind+":"+identifier, sortedPaths)
+			noteEvidenceTruncated(result, truncated)
+			withholdUnverifiedADRAuthority(result)
+			ranked = append(ranked, rankedResult{score: 800, order: 1, key: key, result: result})
+		}
+	}
+	sort.SliceStable(ranked, func(left, right int) bool {
+		if ranked[left].score != ranked[right].score {
+			return ranked[left].score > ranked[right].score
+		}
+		if ranked[left].order != ranked[right].order {
+			return ranked[left].order < ranked[right].order
+		}
+		return ranked[left].key < ranked[right].key
+	})
+	ranked = reserveTestConventionTail(ranked)
+	deduplicated := make([]map[string]any, 0, len(ranked))
+	seen := make(map[string]map[string]any)
+	callers := make(map[string]bool)
+	for _, item := range ranked {
+		key := fmt.Sprintf("%s:%s", item.result["kind"], item.result["id"])
+		callers[key] = callers[key] || item.caller
+		if existing, ok := seen[key]; ok {
+			mergeEvidence(existing, item.result)
+			continue
+		}
+		seen[key] = item.result
+		deduplicated = append(deduplicated, item.result)
+	}
+	deduplicated = reserveCallerRows(deduplicated, callers, limit)
+	disclosures := omittedCallerDisclosures(deduplicated, goCallers, limit)
+	capImpactRows(deduplicated[:min(len(deduplicated), limit)])
+	unresolvedImports := 0
+	if webGraph != nil && webGraph.unresolved != 0 && (syntaxFrontier || webManifestIndexed(index)) {
+		// GPK-V0-080 (proposed): a bare specifier that names no repository
+		// file and no declared package may name any changed path, so every
+		// web reverse-import answer here is incomplete, not complete-and-empty.
+		unresolvedImports = webGraph.unresolved
+		disclosures = append(disclosures, fmt.Sprintf(
+			"reverse-import results for %d changed paths are incomplete: %d bare import specifiers in %d sources resolve to no repository file or declared package",
+			webChanged, webGraph.unresolved, webGraph.sources))
+	}
+	// A mapped Ruby path has a named reverse-reference rule (NGI-V0-036), so
+	// the coverage it is compiled under withholds the profile gap for it.
+	index = index.withRubyMapped(cleaned, rubyConstants)
+	result, err := receipt(index, "impact", map[string]any{"paths": cleaned, "limit": limit}, deduplicated, limit, "", disclosures...)
+	if err == nil && syntaxFrontier {
+		// The Ruby reading (nil when no Ruby path was requested) supplies the
+		// ruby_autoload block and withholds reverse-import-rule-unavailable
+		// from each path it maps (NGI-V0-019, NGI-V0-036): the convention
+		// resolves those paths' reverse references.
+		err = attachNonGoImpactUnknowns(result, index, cleaned, unresolvedImports, registryUnknowns, rubyConstants)
+	}
+	return result, disclosures, index, err
+}
+
+// Per-result row caps for the path impact receipt (MCPV0-031, proposed). A
+// result keeps its first rows, which carry its inclusion reason, and names how
+// many it carried past the cap, so an omission stays visible rather than
+// reading as absent evidence.
+const (
+	maxImpactEvidenceRows  = 4
+	maxImpactReferenceRows = 4
+)
+
+// capImpactRows bounds each emitted result's evidence and references lists in
+// place and records the count of the rest as evidence_omitted and
+// references_omitted. The keys appear only when something was omitted.
+func capImpactRows(results []map[string]any) {
+	for _, result := range results {
+		if rows := anySlice(result["evidence"]); len(rows) > maxImpactEvidenceRows {
+			result["evidence"] = rows[:maxImpactEvidenceRows:maxImpactEvidenceRows]
+			result["evidence_omitted"] = len(rows) - maxImpactEvidenceRows
+		}
+		if references, ok := result["references"].([]string); ok && len(references) > maxImpactReferenceRows {
+			result["references"] = references[:maxImpactReferenceRows:maxImpactReferenceRows]
+			result["references_omitted"] = len(references) - maxImpactReferenceRows
+		}
+	}
+}
+
+// reserveTestConventionTail keeps same-package convention tests ahead of broad
+// consumers of a module's root package. Those consumers remain ranked normally
+// when they name the changed file or one of its declarations.
+func reserveTestConventionTail(ranked []rankedResult) []rankedResult {
+	firstBroad := len(ranked)
+	for index, item := range ranked {
+		if item.broadModuleRootImport {
+			firstBroad = index
+			break
+		}
+	}
+	if firstBroad == len(ranked) {
+		return ranked
+	}
+	broad := make([]rankedResult, 0)
+	remainder := make([]rankedResult, 0, len(ranked))
+	lastTest := -1
+	testAfterBroad := false
+	for index, item := range ranked {
+		if item.broadModuleRootImport {
+			broad = append(broad, item)
+			continue
+		}
+		remainder = append(remainder, item)
+		if item.testConvention {
+			lastTest = len(remainder) - 1
+			testAfterBroad = testAfterBroad || index > firstBroad
+		}
+	}
+	if !testAfterBroad {
+		return ranked
+	}
+	result := make([]rankedResult, 0, len(ranked))
+	result = append(result, remainder[:lastTest+1]...)
+	result = append(result, broad...)
+	return append(result, remainder[lastTest+1:]...)
+}
+
+// reserveCallerRows keeps limit/10 rows inside the limit for cross-package
+// callers: non-test reverse importers whose code names an exported
+// declaration of a changed Go file (GPK-V0-070). Callers already inside the
+// limit count toward the quota; a moved caller displaces the lowest included
+// rows, never a requested path row. Scores are unchanged.
+func reserveCallerRows(results []map[string]any, callers map[string]bool, limit int) []map[string]any {
+	quota := limit / 10
+	if len(results) <= limit || quota == 0 {
+		return results
+	}
+	for _, result := range results[:limit] {
+		if callers[fmt.Sprintf("%s:%s", result["kind"], result["id"])] {
+			quota--
+		}
+	}
+	paths := 0
+	for paths < limit && results[paths]["kind"] == "path" {
+		paths++
+	}
+	quota = min(quota, limit-paths)
+	moved := make([]map[string]any, 0, max(quota, 0))
+	rest := make([]map[string]any, 0, len(results)-limit)
+	for _, result := range results[limit:] {
+		if len(moved) < quota && callers[fmt.Sprintf("%s:%s", result["kind"], result["id"])] {
+			moved = append(moved, result)
+			continue
+		}
+		rest = append(rest, result)
+	}
+	if len(moved) == 0 {
+		return results
+	}
+	cut := limit - len(moved)
+	reordered := make([]map[string]any, 0, len(results))
+	reordered = append(reordered, results[:cut]...)
+	reordered = append(reordered, moved...)
+	reordered = append(reordered, results[cut:limit]...)
+	return append(reordered, rest...)
+}
+
+// exportedGoNames lists the exported declarations of a non-test Go file.
+func exportedGoNames(index *Index, changedPath string) []string {
+	if !strings.HasSuffix(changedPath, ".go") {
+		return nil
+	}
+	declared := make(map[string]struct{})
+	for _, symbol := range index.Symbols {
+		first, _ := utf8.DecodeRuneInString(symbol.Name)
+		if symbol.Path == changedPath && unicode.IsUpper(first) {
+			declared[symbol.Name] = struct{}{}
+		}
+	}
+	return keys(declared)
+}
+
+// namesAny reports whether a Go source's code, outside comments and
+// strings, names one of the given identifiers as a whole word.
+func namesAny(source Source, names []string) bool {
+	text, valid, loaded := source.Text()
+	if !loaded || !valid || len(names) == 0 {
+		return false
+	}
+	for _, line := range goCodeLines(text) {
+		for _, name := range names {
+			if strings.Contains(line, "."+name) && containsPythonWord(line, name) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func broadModuleRootImporter(index *Index, changedPath string, importer importer) bool {
+	if !strings.HasSuffix(changedPath, goImpactSuffix) || path.Dir(changedPath) != "." ||
+		index.Module == "" || importer.imported != index.Module {
+		return false
+	}
+	text, valid, loaded := index.Sources[importer.path].Text()
+	if !loaded || !valid {
+		return true
+	}
+	if strings.Contains(text, changedPath) {
+		return false
+	}
+	for _, symbol := range index.Symbols {
+		if symbol.Path == changedPath && containsPythonWord(text, symbol.Name) {
+			return false
+		}
+	}
+	return true
+}
+
+type markerRelation struct {
+	key    string
+	marker Marker
+}
+
+func markerRelationLess(index *Index, left, right markerRelation) bool {
+	leftFirst, rightFirst := index.Markers[left.key][0], index.Markers[right.key][0]
+	if leftFirst.Path != rightFirst.Path {
+		return leftFirst.Path < rightFirst.Path
+	}
+	if leftFirst.Line != rightFirst.Line {
+		return leftFirst.Line < rightFirst.Line
+	}
+	if leftFirst.Column != rightFirst.Column {
+		return leftFirst.Column < rightFirst.Column
+	}
+	if left.key != right.key {
+		return left.key < right.key
+	}
+	if left.marker.Line != right.marker.Line {
+		return left.marker.Line < right.marker.Line
+	}
+	return left.marker.Column < right.marker.Column
+}
+
+// needsGoModule reports whether any changed path resolves by the Go rule.
+func needsGoModule(paths []string) bool {
+	for _, value := range paths {
+		if strings.HasSuffix(value, ".go") {
+			return true
+		}
+	}
+	return false
+}
+
+// ErrImpactPathsUntracked is the Cause of the uncoded refusal impact returns
+// when a requested path is not tracked at the indexed revision. The refusal
+// keeps no Code, so `impact` and the MCP bridge bytes are unchanged; a caller
+// that must classify it, such as the harness file-change event (V1-0450),
+// reads it through IsImpactPathsUntracked.
+var ErrImpactPathsUntracked = errors.New("impact paths are not tracked at the indexed revision")
+
+// IsImpactPathsUntracked reports whether err is impact's untracked-path
+// refusal.
+func IsImpactPathsUntracked(err error) bool {
+	var failure *Error
+	return errors.As(err, &failure) && failure.Cause == ErrImpactPathsUntracked
+}
+
+// untrackedImpactMessage keeps the `impact paths are not tracked at revision
+// <tree>: ` prefix callers key on (the MCP bridge's NOT_TRACKED_AT_REVISION),
+// and says what that revision is -- a tree, of the working-tree snapshot when
+// the worktree is dirty -- and the next step (V1-2080).
+func untrackedImpactMessage(index *Index, missing []string) string {
+	label := "tree of commit " + index.CommitRevision
+	if len(index.DirtyPaths) != 0 {
+		label = "working-tree snapshot tree over commit " + index.CommitRevision
+	}
+	if index.CommitRevision == "" {
+		label = "working-tree snapshot tree with no commit"
+	}
+	step := "stage the path with `git add` or commit it"
+	if len(missing) > 1 {
+		step = "stage the paths with `git add` or commit them"
+	}
+	return fmt.Sprintf("impact paths are not tracked at revision %s (%s): %s; %s, then rerun impact",
+		index.Revision, label, strings.Join(missing, ", "), step)
+}
+
+func cleanImpactPath(value string) (string, error) {
+	if value == "" {
+		return "", &Error{Message: "impact paths must be non-empty strings"}
+	}
+	if utf8.RuneCountInString(value) > maxPathChars {
+		return "", &Error{Message: fmt.Sprintf("impact path exceeds %d characters", maxPathChars)}
+	}
+	if !repositoryRelative(value) || path.Clean(value) != value || strings.HasPrefix(value, "../") {
+		return "", &Error{Message: fmt.Sprintf("impact path must be normalized and repository-relative: %q", value)}
+	}
+	return value, nil
+}
+
+func evidence(file string, line int, blob, reason, confidence, authority string) map[string]any {
+	return map[string]any{"path": file, "line": line, "blob_hash": blob, "reason": reason,
+		"confidence": confidence, "authority": authority}
+}
+
+// documentAuthority maps a document record to its AGENTS.md invariant-3 authority
+// label and the confidence that label carries. `impact` and the authority trigger
+// index share it so that one document cannot rank one way inside a packet and
+// another way inside a trigger.
+func documentAuthority(record Record) (authority, confidence string) {
+	status, _ := record.Fields["status"].(string)
+	binding := status == "accepted" || status == "approved" || status == "current" || status == "active" || strings.HasPrefix(status, "partially-superseded-by:")
+	authority = "repository-spec"
+	switch {
+	case record.Kind == "instructions":
+		authority, binding = "project-instructions", !openSpecChangePath(record.Path)
+	case record.Kind == "decision" && binding:
+		authority = "accepted-decision"
+	case record.Kind == "decision":
+		authority = "non-binding-decision"
+	case binding:
+		authority = "accepted-spec"
+	}
+	confidence = "medium"
+	if binding {
+		confidence = "authoritative"
+	}
+	return authority, confidence
+}
+
+func documentResultFields(index *Index, record Record, score int, reason string) map[string]any {
+	status, _ := record.Fields["status"].(string)
+	authority, confidence := documentAuthority(record)
+	resultEvidence := []any{evidence(record.Path, record.Line, record.BlobHash, reason, confidence, authority)}
+	references := stringsField(record.Fields["references"])
+	for _, referenced := range references {
+		if len(resultEvidence) >= maxEvidence {
+			break
+		}
+		source := index.Sources[referenced]
+		resultEvidence = append(resultEvidence, evidence(referenced, 1, source.BlobHash,
+			"explicitly referenced by "+record.Path, "high", "document-reference"))
+	}
+	return map[string]any{"kind": record.Kind, "id": record.ID, "score": score,
+		"title": stringValue(record.Fields["title"]), "summary": stringValue(record.Fields["summary"]),
+		"status": status, "references": references, "evidence": resultEvidence}
+}
+
+// documentResult is the document result with the upstream lifecycle carried
+// beside Corvint's label when the index recorded one (STA-V0-007).
+func documentResult(index *Index, record Record, score int, reason string) map[string]any {
+	result := documentResultFields(index, record, score, reason)
+	if native, ok := record.Fields["native_state"].(string); ok && native != "" {
+		result["native_state"] = native
+	}
+	return result
+}
+
+// UnverifiedContractAuthority is the authority label `impact` emits for a
+// governing decision it cannot resolve from a revision the caller did not
+// author.  `CF-V0-031` (ratified 2026-08-29) permits exactly two dispositions
+// for such a surface: gain a caller-independent revision, or report its
+// accepted-authority labels as unverified.  `Impact(index, paths, limit)` has
+// no base revision and no diff -- `paths` is the change set the caller
+// *declares* -- so it takes the second, unconditionally.  A guard keyed on
+// `paths` would close nothing, which `CF-V0-025` forbids asserting: the cited
+// decision reaches `recordResult` through a ledger record's `adr:` field, so an
+// actor that authors the decision in its own change set need only omit the
+// path.  Withholding for every citation is the only disposition that does not
+// depend on the caller's own declaration.
+const UnverifiedContractAuthority = "unverified-contract"
+
+// UnverifiedLedgerAuthority is the counterpart label for a canonical ledger
+// record the caller's own change set declares.  `range impact` does have a
+// caller-independent base, so it withholds only where the ledger file is
+// genuinely inside the computed change set -- a scoped refusal, not a blanket
+// one.
+const UnverifiedLedgerAuthority = "unverified-ledger"
+
+// SyntaxAuthority is the weakest evidence label a citation can carry: the host
+// language's grammar found the symbol, and no project-owned document says it is
+// the answer.  Product invariant 3 ranks it below every project-owned
+// authority, so `setCoverage` treats a packet made only of it as uncorroborated.
+const SyntaxAuthority = "syntax"
+
+// withholdUnverifiedADRAuthority downgrades the accepted-authority labels an
+// ADR citation would otherwise confer on an `impact` result, per
+// `CF-V0-031`.  `setCoverage` names each withheld citation in
+// `coverage.uncertainty`, so the abstention is explicit rather than a silent
+// drop.  The citation itself, its path, and its blob hash are unchanged: the
+// evidence is still reported, only its authority is withheld.
+func withholdUnverifiedADRAuthority(result map[string]any) {
+	for _, item := range mapsFromAny(result["evidence"]) {
+		switch item["authority"] {
+		case "accepted-contract", "partially-superseded-contract":
+			item["authority"], item["confidence"] = UnverifiedContractAuthority, "low"
+		}
+	}
+}
+
+// recordResult renders a feature/scenario as a ranked evidence record.
+// recordResultWithSortedPaths is the same computation with the index's source
+// paths supplied pre-sorted, so a caller ranking many records (Impact, up to
+// maxImpactPaths changed paths) builds that slice once instead of once per ADR
+// ID per record (V1-0054).
+func recordResult(index *Index, record Record, score int, reason string) map[string]any {
+	result, _ := recordResultWithSortedPaths(index, record, score, reason, nil)
+	return result
+}
+
+// recordResultWithSortedPaths also returns how many evidence rows the
+// maxEvidence ceiling dropped: a governing ADR, a marker past the reserved
+// limit, a composing scenario, or the final slice (MCPV0-112).
+func recordResultWithSortedPaths(index *Index, record Record, score int, reason string, sortedPaths []string) (map[string]any, int) {
+	truncated := 0
+	resultEvidence := []any{evidence(record.Path, record.Line, record.BlobHash, reason, "authoritative", "canonical-ledger")}
+	adrOutput, adrIDs := recordSequence(record.Fields["adr"], true)
+	for _, adrValue := range adrIDs {
+		adr := pythonString(adrValue)
+		prefix := ""
+		if adrPrefix := projectprofile.ByID(index.ProfileID).ADRPrefix; adrPrefix != "" {
+			prefix = adrPrefix + adr + "-"
+		}
+		matches := adrDocumentMatches(index, sortedPaths, prefix)
+		sort.Strings(matches)
+		if len(matches) != 0 && len(resultEvidence) >= maxEvidence {
+			truncated++
+		}
+		if len(matches) != 0 && len(resultEvidence) < maxEvidence {
+			source := index.Sources[matches[0]]
+			status := ""
+			if document, ok := index.Documents[source.Path]; ok {
+				status = stringValue(document.Fields["status"])
+			}
+			partial := strings.HasPrefix(status, "partially-superseded-by:")
+			binding := status == "accepted" || partial
+			authority, confidence := "non-binding-adr", "low"
+			if partial {
+				authority, confidence = "partially-superseded-contract", "authoritative"
+			} else if binding {
+				authority, confidence = "accepted-contract", "authoritative"
+			}
+			resultEvidence = append(resultEvidence, evidence(source.Path, 1, source.BlobHash,
+				"ADR-"+adr+" governs "+record.Kind+":"+record.ID, confidence, authority))
+		}
+	}
+	markers := index.Markers[record.Kind+":"+record.ID]
+	markerLimit := maxEvidence - 1
+	if len(markers) < markerLimit {
+		markerLimit = len(markers)
+	}
+	truncated += len(markers) - markerLimit
+	for _, marker := range markers[:markerLimit] {
+		confidence, authority := "medium", "source-marker"
+		if index.isTest(marker.Path) {
+			confidence, authority = "high", "test-marker"
+		}
+		resultEvidence = append(resultEvidence, evidence(marker.Path, marker.Line, marker.BlobHash,
+			"exact "+record.Kind+":"+record.ID+" marker", confidence, authority))
+	}
+	if record.Kind == "feature" {
+		full := false
+		for _, scenario := range sortedRecords(index.Scenarios) {
+			if pythonContains(scenario.Fields["features"], record.ID) {
+				if full {
+					truncated++
+					continue
+				}
+				resultEvidence = append(resultEvidence, evidence(scenario.Path, scenario.Line, scenario.BlobHash,
+					"scenario:"+scenario.ID+" composes feature:"+record.ID, "high", "canonical-ledger"))
+				full = len(resultEvidence) >= maxEvidence
+			}
+		}
+	}
+	truncated += max(len(resultEvidence)-maxEvidence, 0)
+	return map[string]any{"kind": record.Kind, "id": record.ID, "score": score,
+		"area": valueOr(record.Fields["area"], ""), "summary": truncateRunes(pythonString(valueOr(record.Fields["summary"], "")), 500),
+		"status": valueOr(record.Fields["status"], ""), "adr": adrOutput,
+		"applies": recordSequenceValue(record.Fields["applies"]), "evidence": resultEvidence[:min(len(resultEvidence), maxEvidence)]}, truncated
+}
+
+// adrDocumentMatches returns the tracked `.md` paths naming the ADR prefix, in
+// no particular order (the caller sorts). With sortedPaths supplied it binary
+// searches the prefix range instead of scanning every source path.
+func adrDocumentMatches(index *Index, sortedPaths []string, prefix string) []string {
+	if prefix == "" {
+		return nil
+	}
+	matches := make([]string, 0)
+	if sortedPaths == nil {
+		for sourcePath := range index.Sources {
+			if strings.HasPrefix(sourcePath, prefix) && strings.HasSuffix(sourcePath, ".md") {
+				matches = append(matches, sourcePath)
+			}
+		}
+		return matches
+	}
+	for i := sort.SearchStrings(sortedPaths, prefix); i < len(sortedPaths) && strings.HasPrefix(sortedPaths[i], prefix); i++ {
+		if strings.HasSuffix(sortedPaths[i], ".md") {
+			matches = append(matches, sortedPaths[i])
+		}
+	}
+	return matches
+}
+
+// sortedSourcePaths returns every index.Sources path, sorted, so a caller that
+// needs several prefix lookups over the same index (Impact, once per call)
+// builds the slice once instead of once per lookup.
+func sortedSourcePaths(index *Index) []string {
+	paths := make([]string, 0, len(index.Sources))
+	for sourcePath := range index.Sources {
+		paths = append(paths, sourcePath)
+	}
+	sort.Strings(paths)
+	return paths
+}
+
+// dirPathIndex maps each directory to the index.Sources paths under it, so a
+// caller that needs several same-directory lookups over the same index
+// (Impact, once per call) builds the map once instead of scanning every
+// source per lookup.
+func dirPathIndex(index *Index) map[string][]string {
+	dirs := make(map[string][]string)
+	for sourcePath := range index.Sources {
+		dir := path.Dir(sourcePath)
+		dirs[dir] = append(dirs[dir], sourcePath)
+	}
+	return dirs
+}
+
+func recordSequence(value any, wrapString bool) (any, []any) {
+	if pythonFalse(value) {
+		return []any{}, nil
+	}
+	if text, ok := value.(string); ok && wrapString {
+		items := []any{text}
+		return items, items
+	}
+	switch typed := value.(type) {
+	case []any:
+		return typed, typed
+	case []string:
+		items := make([]any, len(typed))
+		for index, item := range typed {
+			items[index] = item
+		}
+		return typed, items
+	default:
+		return value, []any{value}
+	}
+}
+
+func recordSequenceValue(value any) any {
+	if pythonFalse(value) {
+		return []any{}
+	}
+	return value
+}
+
+func pythonFalse(value any) bool {
+	switch typed := value.(type) {
+	case nil:
+		return true
+	case string:
+		return typed == ""
+	case bool:
+		return !typed
+	case int:
+		return typed == 0
+	case int64:
+		return typed == 0
+	case []any:
+		return len(typed) == 0
+	case []string:
+		return len(typed) == 0
+	default:
+		return false
+	}
+}
+
+func pythonString(value any) string {
+	switch typed := value.(type) {
+	case nil:
+		return "None"
+	case string:
+		return typed
+	case bool:
+		if typed {
+			return "True"
+		}
+		return "False"
+	case pythonInteger:
+		return string(typed)
+	default:
+		return fmt.Sprint(typed)
+	}
+}
+
+func pythonContains(value any, wanted string) bool {
+	switch typed := value.(type) {
+	case string:
+		return strings.Contains(typed, wanted)
+	case []any:
+		for _, item := range typed {
+			if text, ok := item.(string); ok && text == wanted {
+				return true
+			}
+		}
+	case []string:
+		return stringIn(typed, wanted)
+	}
+	return false
+}
+
+func isTestPath(value string) bool {
+	name := strings.ToLower(path.Base(value))
+	wrapped := "/" + strings.ToLower(value) + "/"
+	return strings.HasPrefix(name, "test_") || strings.HasSuffix(name, "_test.go") || strings.HasSuffix(name, "_test.py") || strings.HasSuffix(name, "_test.sh") ||
+		strings.Contains(name, ".test.") || strings.Contains(name, ".spec.") || strings.Contains(wrapped, "/test/") || strings.Contains(wrapped, "/tests/")
+}
+
+// importer is one resolved reverse-import edge: the source that imports the
+// changed path, and the specifier it named it by. The resolution rules that
+// produce these live in reverseimports.go.
+type importer struct{ path, imported string }
+
+// importEvidenceLine reports the 1-based line of the statement that imports
+// the specifier. It reports false when the source is unreadable or no line can
+// be shown to import it, so a caller never cites a line the source does not
+// support (invariant 2). A Python relative import rarely spells its resolved
+// module, so Python lines come from the grammar's own import facts.
+func importEvidenceLine(source Source, imported string) (int, bool) {
+	text, valid, loaded := source.Text()
+	if !loaded || !valid {
+		return 0, false
+	}
+	if strings.HasSuffix(source.Path, ".py") {
+		line := pythonImportLine(source.Path, text, imported)
+		return line, line > 0
+	}
+	leaf := imported
+	if index := strings.LastIndexAny(leaf, "./"); index >= 0 {
+		leaf = leaf[index+1:]
+	}
+	for index, line := range strings.Split(text, "\n") {
+		if strings.Contains(line, imported) || (strings.Contains(line, "import") && containsPythonWord(line, leaf)) {
+			return index + 1, true
+		}
+	}
+	return 0, false
+}
+
+type nameMatch struct {
+	line int
+	name string
+}
+type packageReference struct {
+	path    string
+	matches []nameMatch
+	count   int
+}
+
+// samePackageReferences scans every source in changedPath's directory for
+// lines that reference a name changedPath declares. samePackageReferencesWithDirIndex
+// is the same computation with the index's directory->paths map supplied, so
+// a caller scanning many changed paths (Impact, up to maxImpactPaths) builds
+// that map once instead of once per changed path (V1-0054).
+func samePackageReferences(index *Index, changedPath string, includeTests bool) []packageReference {
+	return samePackageReferencesWithDirIndex(index, changedPath, includeTests, nil)
+}
+
+func samePackageReferencesWithDirIndex(index *Index, changedPath string, includeTests bool, dirIndex map[string][]string) []packageReference {
+	if !strings.HasSuffix(changedPath, ".go") || isTestPath(changedPath) {
+		return nil
+	}
+	declared := make(map[string]struct{})
+	for _, symbol := range index.Symbols {
+		if symbol.Path == changedPath && utf8.RuneCountInString(symbol.Name) >= 4 {
+			declared[symbol.Name] = struct{}{}
+		}
+	}
+	// A name declared twice (two methods named String, repeated init) is one
+	// name, as the oracle's set is: each matching code line is one pair.
+	names := keys(declared)
+	parent := path.Dir(changedPath)
+	candidates := dirIndex[parent]
+	if dirIndex == nil {
+		for candidate := range index.Sources {
+			if path.Dir(candidate) == parent {
+				candidates = append(candidates, candidate)
+			}
+		}
+	}
+	result := make([]packageReference, 0)
+	for _, candidate := range candidates {
+		if candidate == changedPath || (!includeTests && isTestPath(candidate)) || !strings.HasSuffix(candidate, ".go") {
+			continue
+		}
+		source := index.Sources[candidate]
+		text, valid, loaded := source.Text()
+		if !loaded || !valid {
+			continue
+		}
+		matches := make([]nameMatch, 0)
+		for lineIndex, line := range goCodeLines(text) {
+			for _, name := range names {
+				if containsPythonWord(line, name) {
+					matches = append(matches, nameMatch{lineIndex + 1, name})
+				}
+			}
+		}
+		if len(matches) != 0 {
+			count := len(matches)
+			if len(matches) > maxEvidence {
+				matches = matches[:maxEvidence]
+			}
+			result = append(result, packageReference{candidate, matches, count})
+		}
+	}
+	sort.Slice(result, func(left, right int) bool { return result[left].path < result[right].path })
+	return result
+}
+
+func packageReferenceEvidence(index *Index, changedPath string, reference packageReference) []any {
+	source := index.Sources[reference.path]
+	result := make([]any, 0, len(reference.matches))
+	for _, match := range reference.matches {
+		result = append(result, evidence(reference.path, match.line, source.BlobHash,
+			"references "+match.name+" declared by "+changedPath, "medium", "syntax"))
+	}
+	return result
+}
+
+func containsPythonWord(value, word string) bool {
+	if word == "" {
+		return false
+	}
+	for offset := 0; offset <= len(value)-len(word); {
+		relative := strings.Index(value[offset:], word)
+		if relative < 0 {
+			return false
+		}
+		start := offset + relative
+		end := start + len(word)
+		leftWord := false
+		if start != 0 {
+			character, _ := utf8.DecodeLastRuneInString(value[:start])
+			leftWord = isPythonWordRune(character)
+		}
+		rightWord := false
+		if end != len(value) {
+			character, _ := utf8.DecodeRuneInString(value[end:])
+			rightWord = isPythonWordRune(character)
+		}
+		if !leftWord && !rightWord {
+			return true
+		}
+		offset = start + 1
+	}
+	return false
+}
+
+func goCodeLines(text string) []string {
+	lines := strings.Split(text, "\n")
+	result := make([]string, 0, len(lines))
+	inBlock, inRaw := false, false
+	for _, line := range lines {
+		var output strings.Builder
+		for index := 0; index < len(line); {
+			if inBlock {
+				end := strings.Index(line[index:], "*/")
+				if end < 0 {
+					index = len(line)
+					continue
+				}
+				inBlock, index = false, index+end+2
+				continue
+			}
+			if inRaw {
+				end := strings.IndexByte(line[index:], '`')
+				if end < 0 {
+					index = len(line)
+					continue
+				}
+				inRaw, index = false, index+end+1
+				continue
+			}
+			if strings.HasPrefix(line[index:], "//") {
+				break
+			}
+			if strings.HasPrefix(line[index:], "/*") {
+				inBlock, index = true, index+2
+				continue
+			}
+			character := line[index]
+			if character == '`' {
+				inRaw, index = true, index+1
+				continue
+			}
+			if character == '"' || character == '\'' {
+				quote := character
+				index++
+				for index < len(line) {
+					if line[index] == '\\' {
+						index += 2
+					} else if line[index] == quote {
+						index++
+						break
+					} else {
+						index++
+					}
+				}
+				continue
+			}
+			output.WriteByte(character)
+			index++
+		}
+		result = append(result, output.String())
+	}
+	return result
+}
+
+// markerCredited reports whether a same-package test marker relates to the
+// change (GPK-V0-070): the test is the changed file's exact twin, references
+// a name the changed file declares, or the changed file carries the same key.
+func markerCredited(testPath, key, twin string, changedKeys map[string]struct{}, testReferences map[string]packageReference) bool {
+	if path.Base(testPath) == twin {
+		return true
+	}
+	if _, ok := testReferences[testPath]; ok {
+		return true
+	}
+	_, ok := changedKeys[key]
+	return ok
+}
+
+func markerKeysForPath(index *Index, file string) []string {
+	result := make([]string, 0)
+	for key, markers := range index.Markers {
+		for _, marker := range markers {
+			if marker.Path == file {
+				result = append(result, key)
+				break
+			}
+		}
+	}
+	sort.Strings(result)
+	return result
+}
+
+func countKind(keys []string, kind string) int {
+	count := 0
+	for _, key := range keys {
+		if strings.HasPrefix(key, kind+":") {
+			count++
+		}
+	}
+	return count
+}
+
+func splitRelation(value string) (string, string) {
+	parts := strings.SplitN(value, ":", 2)
+	if len(parts) != 2 {
+		return "", ""
+	}
+	return parts[0], parts[1]
+}
+
+func mergeEvidence(existing, candidate map[string]any) {
+	existingEvidence := anySlice(existing["evidence"])
+	truncated := 0
+	if count, ok := candidate[evidenceTruncatedKey].(int); ok {
+		truncated = count
+	}
+	for _, raw := range anySlice(candidate["evidence"]) {
+		item := raw.(map[string]any)
+		key := evidenceIdentity(item)
+		if containsEvidence(existingEvidence, key) {
+			continue
+		}
+		if len(existingEvidence) < maxEvidence {
+			existingEvidence = append(existingEvidence, item)
+		} else {
+			truncated++
+		}
+	}
+	existing["evidence"] = existingEvidence
+	noteEvidenceTruncated(existing, truncated)
+}
+
+// evidenceTruncatedKey names the count of rows a result's builder dropped at
+// the per-result maxEvidence ceiling, before the MCPV0-031 display cap counts
+// its own cut as evidence_omitted. The key appears only when a row was
+// dropped (MCPV0-112, V1-1003).
+const evidenceTruncatedKey = "evidence_truncated"
+
+func noteEvidenceTruncated(result map[string]any, dropped int) {
+	if dropped <= 0 {
+		return
+	}
+	previous, _ := result[evidenceTruncatedKey].(int)
+	result[evidenceTruncatedKey] = previous + dropped
+}
+
+// evidenceTruncatedDisclosure is the coverage line naming the maxEvidence
+// ceiling's cut across the emitted results, so it is never read as the packet
+// budget's or the result limit's (MCPV0-112). setCoverage derives it from the
+// results each budget trial keeps, so a result the budget drops takes its
+// count with it.
+func evidenceTruncatedDisclosure(results []map[string]any) string {
+	rows, carriers := 0, 0
+	for _, result := range results {
+		if count, ok := result[evidenceTruncatedKey].(int); ok && count > 0 {
+			rows += count
+			carriers++
+		}
+	}
+	if rows == 0 {
+		return ""
+	}
+	return fmt.Sprintf("%d evidence rows in %d results omitted by the per-result evidence ceiling of %d", rows, carriers, maxEvidence)
+}
+
+type evidenceKey struct {
+	path   string
+	line   int
+	reason string
+}
+
+func evidenceIdentity(item map[string]any) evidenceKey {
+	line, _ := item["line"].(int)
+	return evidenceKey{path: stringValue(item["path"]), line: line, reason: stringValue(item["reason"])}
+}
+
+func containsEvidence(items []any, wanted evidenceKey) bool {
+	for _, raw := range items {
+		if evidenceIdentity(raw.(map[string]any)) == wanted {
+			return true
+		}
+	}
+	return false
+}
+
+func anySlice(value any) []any {
+	if result, ok := value.([]any); ok {
+		return result
+	}
+	return nil
+}
+
+func stringIn(values []string, wanted string) bool {
+	for _, value := range values {
+		if value == wanted {
+			return true
+		}
+	}
+	return false
+}
+
+func stringValue(value any) string { result, _ := value.(string); return result }
+func valueOr(value any, fallback any) any {
+	if value == nil {
+		return fallback
+	}
+	return value
+}

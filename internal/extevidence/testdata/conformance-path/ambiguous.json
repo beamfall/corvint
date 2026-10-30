@@ -1,0 +1,44 @@
+{
+  "schema": "{{SCHEMA}}",
+  "provider": {
+    "id": "mockdocs",
+    "revision": "2026-09-18.4"
+  },
+  "repositories": [
+    {
+      "id": "application",
+      "origin": "{{APP_ORIGIN}}",
+      "revision": "{{APP_REVISION}}",
+      "role": "application"
+    },
+    {
+      "id": "e2e",
+      "origin": "{{E2E_ORIGIN}}",
+      "revision": "{{E2E_REVISION}}",
+      "role": "test"
+    },
+    {
+      "id": "e2e-mirror",
+      "origin": "{{E2E_ORIGIN}}",
+      "revision": "{{E2E_REVISION}}",
+      "role": "test"
+    }
+  ],
+  "entities": [],
+  "relations": [
+    {
+      "from": {
+        "repository": "{{TEST_REPO}}",
+        "path": "{{TEST_PATH}}"
+      },
+      "to": {
+        "repository": "{{SOURCE_REPO}}",
+        "path": "{{SOURCE_PATH}}"
+      },
+      "type": "{{TYPE}}",
+      "evidence": "{{EVIDENCE}}",
+      "rule": "e2e-run",
+      "reference": "ci/e2e/7"
+    }
+  ]
+}

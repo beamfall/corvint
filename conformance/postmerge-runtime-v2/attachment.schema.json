@@ -1,0 +1,183 @@
+{
+  "$id": "urn:corvint:new-e2e-attachment:2",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifacts": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "bytes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "request",
+              "report",
+              "body",
+              "provider",
+              "hook",
+              "control",
+              "plan",
+              "approval",
+              "scope",
+              "host",
+              "process",
+              "log",
+              "input",
+              "draft-content",
+              "canonical-requests",
+              "attestation-output"
+            ]
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "sha256",
+          "bytes"
+        ],
+        "type": "object"
+      },
+      "maxItems": 8192,
+      "type": "array"
+    },
+    "canonical_request_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "decision_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "draft_commit": {
+      "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+      "type": "string"
+    },
+    "edges": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "from": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "pointer": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "relation": {
+            "enum": [
+              "hash-preimage",
+              "embedded-bytes",
+              "native-reference",
+              "same-product",
+              "same-test",
+              "same-draft",
+              "process-birth",
+              "scope-content",
+              "canonical-request"
+            ]
+          },
+          "to": {
+            "maxLength": 4096,
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "pointer",
+          "to",
+          "relation"
+        ],
+        "type": "object"
+      },
+      "maxItems": 32768,
+      "type": "array"
+    },
+    "execution_id": {
+      "pattern": "^[a-z][a-z0-9-]{0,63}$",
+      "type": "string"
+    },
+    "limitations": {
+      "items": {
+        "maxLength": 4096,
+        "type": "string"
+      },
+      "maxItems": 64,
+      "type": "array"
+    },
+    "product_commit": {
+      "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+      "type": "string"
+    },
+    "profile": {
+      "const": "corvint-new-e2e-attachment/2"
+    },
+    "roots": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "canonical_requests": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "host": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "process": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "report": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "request": {
+          "maxLength": 4096,
+          "type": "string"
+        }
+      },
+      "required": [
+        "request",
+        "report",
+        "body",
+        "host",
+        "process",
+        "canonical_requests"
+      ],
+      "type": "object"
+    },
+    "test_commit": {
+      "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "profile",
+    "execution_id",
+    "decision_sha256",
+    "canonical_request_sha256",
+    "product_commit",
+    "test_commit",
+    "draft_commit",
+    "artifacts",
+    "edges",
+    "roots",
+    "limitations"
+  ],
+  "type": "object"
+}

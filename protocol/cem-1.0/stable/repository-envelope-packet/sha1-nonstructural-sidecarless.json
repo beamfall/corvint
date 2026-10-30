@@ -1,0 +1,182 @@
+{
+  "spec": "cem/1.0",
+  "baseRevision": "bff36ef7f94a44f0b43dd71ba7125e0185f01fe1",
+  "patchSha256": "dddf62289eeaf758ec96a683f1a655eaa86fa58354c4de5a637215152814aa97",
+  "excludedPath": ".corvint/change.cem.json",
+  "evidence": [
+    {
+      "id": "evidence:sha256:88b6a51668e594464e0afab9f198c7cabf93a7f8383d33f4ec5ea93cbe451a49",
+      "blobOid": "36e5ee3e49a2a60b602d0c7f2ce5453280af1066",
+      "path": "policy.txt",
+      "span": {
+        "start": 0,
+        "end": 32
+      },
+      "spanSha256": "27ca4c714957dabf72c09efce72e0dc4f91f79ad60424c7d79c3e720048bc700"
+    }
+  ],
+  "hunks": [
+    {
+      "id": "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06",
+      "path": "app.txt",
+      "oldRange": {
+        "start": 1,
+        "count": 1
+      },
+      "newRange": {
+        "start": 1,
+        "count": 1
+      },
+      "disposition": "supported",
+      "reason": "evidence-backed",
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:88b6a51668e594464e0afab9f198c7cabf93a7f8383d33f4ec5ea93cbe451a49",
+          "relation": "specification"
+        }
+      ],
+      "coverage": {
+        "profileSha256": "7b7da874904c49a58e0681ec474493e14dfc7f7c178d8d3bf28b0b1cb786c8db",
+        "testRun": "fixture only; execution NOT_OBSERVED",
+        "mode": "set",
+        "state": "covered",
+        "covered": [
+          {
+            "start": 1,
+            "count": 1
+          }
+        ]
+      },
+      "discriminates": {
+        "treeRevision": "45721f1cb4ce430d59e4a495898186c60b5bec49",
+        "selectionSha256": "6df0e4f9bce145ee9f405bd1d1e56b2307c17a9d79cf78377b89c5d219a71876",
+        "mutants": 3,
+        "killed": 1,
+        "survived": 1,
+        "survivors": [
+          {
+            "operator": "literal",
+            "line": 1,
+            "description": "manufactured survivor; one uncompiled residual retained"
+          }
+        ],
+        "bounds": {
+          "maxHunks": 2,
+          "maxMutants": 3,
+          "wallTimeSeconds": 10
+        },
+        "state": "survived",
+        "detail": "caller metadata only"
+      }
+    },
+    {
+      "id": "hunk:sha256:518c76a323798521fc7b04ad14193a76f5497f6eee6ad03ed25f240a3fcc1773",
+      "path": "sort.go",
+      "oldRange": {
+        "start": 1,
+        "count": 7
+      },
+      "newRange": {
+        "start": 1,
+        "count": 7
+      },
+      "disposition": "unknown",
+      "reason": "no-evidence",
+      "basis": [],
+      "coverage": {
+        "profileSha256": "7b7da874904c49a58e0681ec474493e14dfc7f7c178d8d3bf28b0b1cb786c8db",
+        "testRun": "fixture only; execution NOT_OBSERVED",
+        "mode": "set",
+        "state": "uncovered",
+        "covered": []
+      },
+      "discriminates": {
+        "treeRevision": "45721f1cb4ce430d59e4a495898186c60b5bec49",
+        "selectionSha256": "6df0e4f9bce145ee9f405bd1d1e56b2307c17a9d79cf78377b89c5d219a71876",
+        "mutants": 0,
+        "killed": 0,
+        "survived": 0,
+        "survivors": [],
+        "bounds": {
+          "maxHunks": 2,
+          "maxMutants": 3,
+          "wallTimeSeconds": 10
+        },
+        "state": "not-run",
+        "detail": "caller metadata only"
+      }
+    }
+  ],
+  "criterionBindings": [
+    {
+      "id": "criterion:sha256:970fc5ac39d2a0839e75b4133ebc942ead3abf7d1e820c105fe7967718745e66",
+      "ticketId": "ticket:example:queue:stable-proof",
+      "acceptanceRevision": "1",
+      "criterionIndex": 0,
+      "acceptanceSha256": "bd59e0c342f0bec062052f0818389ff7ac371e3420b6181c46e117e9c1447a84",
+      "criterionSha256": "75ae7545c29eff293a38281845ac46384b9fcbebf583f718a9e46061baf828fd",
+      "captureSha256": "ebca95cdb46a7e19d0dac17a0675513d1af0c4b12eba7c6dff19482bfb9489ac",
+      "verificationSha256": "d9d2e6f3726e86ebe8815c2b48ecfe99464ac59633e6bbebeff1ef18c0ffc2e0",
+      "claimTicketSha256": "4d93fcc16166576abc7069666c0115e90a0a4e117a0b37619916677bd65c9e92",
+      "snapshotHeadReceiptSha256": "7b4f50e2e0526446dc5a6e9f166c425237b01110530f021d6581f7e60d0ec47f",
+      "snapshotHeadArtifactSha256": "0bd3c09704141ac2f0d882421a2195d3518d2022584915370dc9928ccf976b78"
+    }
+  ],
+  "runnerReceipts": [
+    {
+      "sha256": "c68fcfbc1cf2b0bd56b97e10e236c2459a13a68eb841ee1e8a8f4e67fc9454d4",
+      "profile": "corvint-test-runner-receipt/0",
+      "planSha256": "1f857ef8d57256362a120738396374c424fd7c3612016279eabfde0b86dfc263",
+      "sourceGitBinding": "NOT_OBSERVED",
+      "executionAuthority": "CALLER_OBSERVED",
+      "dependencyClosure": "NOT_OBSERVED",
+      "authentication": "NOT_OBSERVED"
+    }
+  ],
+  "criterionLinks": [
+    {
+      "criterionId": "criterion:sha256:970fc5ac39d2a0839e75b4133ebc942ead3abf7d1e820c105fe7967718745e66",
+      "hunkIds": [
+        "hunk:sha256:e4321d308c1625258ebeb739d317cf47c9d4b28291be46203144c6e7cac5be06"
+      ],
+      "evidenceIds": [
+        "evidence:sha256:88b6a51668e594464e0afab9f198c7cabf93a7f8383d33f4ec5ea93cbe451a49"
+      ],
+      "runnerReceiptSha256s": [
+        "c68fcfbc1cf2b0bd56b97e10e236c2459a13a68eb841ee1e8a8f4e67fc9454d4"
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "kind": "tasks-capture",
+      "path": "tasks-capture.json",
+      "sha256": "ebca95cdb46a7e19d0dac17a0675513d1af0c4b12eba7c6dff19482bfb9489ac"
+    },
+    {
+      "kind": "tasks-verification",
+      "path": "tasks-verification.json",
+      "sha256": "d9d2e6f3726e86ebe8815c2b48ecfe99464ac59633e6bbebeff1ef18c0ffc2e0"
+    },
+    {
+      "kind": "tasks-claimed-ticket",
+      "path": "tasks-claimed-ticket.json",
+      "sha256": "4d93fcc16166576abc7069666c0115e90a0a4e117a0b37619916677bd65c9e92"
+    },
+    {
+      "kind": "tasks-snapshot-head-receipt",
+      "path": "tasks-snapshot-head-receipt.json",
+      "sha256": "0bd3c09704141ac2f0d882421a2195d3518d2022584915370dc9928ccf976b78"
+    },
+    {
+      "kind": "runner-plan",
+      "path": "runner-plan.json",
+      "sha256": "1f857ef8d57256362a120738396374c424fd7c3612016279eabfde0b86dfc263"
+    },
+    {
+      "kind": "runner-receipt",
+      "path": "runner-receipt.json",
+      "sha256": "c68fcfbc1cf2b0bd56b97e10e236c2459a13a68eb841ee1e8a8f4e67fc9454d4"
+    }
+  ]
+}

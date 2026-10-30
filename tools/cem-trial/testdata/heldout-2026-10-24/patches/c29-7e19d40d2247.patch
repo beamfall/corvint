@@ -1,0 +1,290 @@
+diff --git a/internal/app/integration_worker.go b/internal/app/integration_worker.go
+index 7a073aa11..025f154e7 100644
+--- a/internal/app/integration_worker.go
++++ b/internal/app/integration_worker.go
+@@ -161,8 +161,13 @@ func IntegrationHostDeps(st *store.Store, secrets secretFiles) integrationhost.D
+ 		Profiles: st,
+ 		Secrets:  secrets,
+ 		Audit:    st,
+-		Status:   integrationStatusWriter{st: st},
+-		Linker:   integrationProfileLinker{st: st},
++		// Empty first-party-trust set: no first-party Integration Worker ships in
++		// v1, so declared-outbound is grantable but never *carriable* for a
++		// third-party plugin until the SSRF-hardened proxy adapter lands (PLUGIN-8
++		// follow-ups). The Outbound seam stays nil (dormant) for the same reason.
++		Trust:  integrationhost.TrustSet{},
++		Status: integrationStatusWriter{st: st},
++		Linker: integrationProfileLinker{st: st},
+ 	}
+ }
+ 
+diff --git a/internal/integrationhost/hostapi.go b/internal/integrationhost/hostapi.go
+index bb51289ef..0c48f6d7c 100644
+--- a/internal/integrationhost/hostapi.go
++++ b/internal/integrationhost/hostapi.go
+@@ -2,6 +2,7 @@ package integrationhost
+ 
+ import (
+ 	"context"
++	"encoding/json"
+ 	"errors"
+ 	"fmt"
+ 	"time"
+@@ -29,8 +30,11 @@ type Deps struct {
+ 	Ingest   IngestRequester
+ 	FileMut  FileMutationRequester
+ 	Outbound OutboundProxy
+-	Status   StatusWriter
+-	Linker   ProfileLinker
++	// Trust gates outbound *execution* on first-party trust. A nil source denies
++	// all (deny-all fail-closed), matching the production empty-set posture.
++	Trust  FirstPartyTrust
++	Status StatusWriter
++	Linker ProfileLinker
+ }
+ 
+ // StatusWriter records a worker's status / dead-letter write (status-write
+@@ -291,14 +295,74 @@ func (h *Host) LinkProfile(ctx context.Context, profileID store.ProfileID, ref s
+ 	return h.deps.Linker.LinkProfile(ctx, h.pluginID, profileID, ref)
+ }
+ 
+-// AllowOutbound reports whether a host is in the plugin's declared outbound
+-// allowlist (proxy-cooperation; see OutboundProxy).
+-func (h *Host) AllowOutbound(ctx context.Context, target string) (bool, error) {
++// Outbound size budgets. maxOutboundBodyBytes is a cheap early-out on the request
++// body; maxOutboundFrameBytes caps the fully-marshalled response payload (headers
++// included) below maxFrameBytes, leaving envelope headroom so a large-header +
++// near-cap-body response is refused before it can overflow a wire frame.
++const (
++	maxOutboundBodyBytes  = 512 << 10 // 512 KiB request body: outbound is small control/API traffic
++	maxOutboundFrameBytes = 768 << 10 // marshalled response cap, safely under maxFrameBytes (1 MiB)
++)
++
++// RequestOutbound carries one operator-declared outbound HTTP call for the worker
++// through the enforced Host proxy. The worker never dials directly: the Host
++// performs the fetch via the Outbound seam, which owns the ADR-0012 §9 SSRF +
++// allowlist enforcement (see OutboundProxy). This method is the single chokepoint
++// every outbound call funnels through, so its gates are the real guarantees.
++//
++// Fail-closed order: authorize the declared-outbound grant; require the Outbound
++// seam (nil ⇒ dormant permission-denied); require first-party trust (a nil/empty
++// TrustSet ⇒ refused regardless of how the grant was approved — a preexisting row,
++// a store back door, or a Lifecycle adapter can never enable third-party outbound);
++// require a ledger (nil Audit ⇒ denied; the audit row is written *before* the proxy
++// is invoked, and an append error aborts the call, so Outbound never runs on an
++// unledgered path); cap the request body; then delegate and validate the
++// fully-marshalled response size before returning.
++func (h *Host) RequestOutbound(ctx context.Context, req OutboundRequest) (OutboundResponse, error) {
+ 	if _, err := h.authorize(ctx, PermDeclaredOutbound); err != nil {
+-		return false, err
++		return OutboundResponse{}, err
+ 	}
+ 	if h.deps.Outbound == nil {
+-		return false, nil
++		return OutboundResponse{}, fmt.Errorf("%w: declared-outbound unavailable", ErrPermissionDenied)
++	}
++	if !h.isFirstParty() {
++		return OutboundResponse{}, fmt.Errorf("%w: declared-outbound is first-party-trusted-only until the SSRF-hardened executor lands", ErrPermissionDenied)
++	}
++	if h.deps.Audit == nil {
++		return OutboundResponse{}, fmt.Errorf("%w: outbound requires an audit ledger", ErrPermissionDenied)
++	}
++	if len(req.Body) > maxOutboundBodyBytes {
++		return OutboundResponse{}, fmt.Errorf("integrationhost: outbound request body too large (%d)", len(req.Body))
++	}
++	// Ledger first: the plugin-attributed audit row (no URL/host/header/body — they
++	// may carry secrets, invariant 5) must be written before the proxy is invoked.
++	if err := h.deps.Audit.AppendActivity(ctx, store.ActivityEntry{
++		Action:     store.ActivityPluginOutboundRequest,
++		OccurredAt: h.now().UTC(),
++		TargetType: "plugin",
++		TargetID:   h.pluginID,
++	}); err != nil {
++		return OutboundResponse{}, err
++	}
++	resp, err := h.deps.Outbound.RequestOutbound(ctx, h.pluginID, req)
++	if err != nil {
++		return OutboundResponse{}, err
++	}
++	marshalled, marshalErr := json.Marshal(resp)
++	if marshalErr != nil {
++		return OutboundResponse{}, fmt.Errorf("integrationhost: outbound response marshal failed: %w", marshalErr)
++	}
++	if len(marshalled) > maxOutboundFrameBytes {
++		return OutboundResponse{}, fmt.Errorf("integrationhost: outbound response too large (%d)", len(marshalled))
++	}
++	return resp, nil
++}
++
++// isFirstParty reports whether this Host's plugin is first-party-trusted. A nil
++// trust source denies all (fail-closed), matching the production empty-set.
++func (h *Host) isFirstParty() bool {
++	if h.deps.Trust == nil {
++		return false
+ 	}
+-	return h.deps.Outbound.AllowOutbound(h.pluginID, target), nil
++	return h.deps.Trust.IsFirstParty(h.pluginID)
+ }
+diff --git a/internal/integrationhost/permission.go b/internal/integrationhost/permission.go
+index 561a004d2..42610c5e0 100644
+--- a/internal/integrationhost/permission.go
++++ b/internal/integrationhost/permission.go
+@@ -71,7 +71,7 @@ var ErrPermissionVocabularyDiverged = errors.New("integrationhost: permission vo
+ // asserts this map covers the closed vocabulary exactly, so a declared-but-
+ // undispatched permission (the CAUDIT-7 defect) fails the gate.
+ var permissionDispatch = map[string]string{
+-	PermDeclaredOutbound:    methodAllowOutbound,
++	PermDeclaredOutbound:    methodRequestOutbound,
+ 	PermReadCatalog:         methodReadCatalog,
+ 	PermEventSubscribe:      methodSubscribeEvents,
+ 	PermPluginSecret:        methodGetSecret, // also methodSetSecret; one method per kind suffices
+diff --git a/internal/integrationhost/protocol.go b/internal/integrationhost/protocol.go
+index 884f3945a..5aa0c322b 100644
+--- a/internal/integrationhost/protocol.go
++++ b/internal/integrationhost/protocol.go
+@@ -45,8 +45,8 @@ type hostRequest struct {
+ 	Payload   json.RawMessage     `json:"payload,omitempty"`
+ 	RunAfter  *time.Time          `json:"runAfter,omitempty"`
+ 	LibraryID string              `json:"libraryID,omitempty"`
+-	Host      string              `json:"host,omitempty"`
+ 	FileMut   FileMutationRequest `json:"fileMutation,omitempty"`
++	Outbound  OutboundRequest     `json:"outbound,omitempty"`
+ }
+ 
+ // hostResponse is the supervisor's reply. Err is the permission-denied (or other)
+@@ -68,7 +68,7 @@ const (
+ 	methodEnqueueJob          = "enqueue-job"
+ 	methodRequestIngest       = "request-ingest"
+ 	methodRequestFileMutation = "request-file-mutation"
+-	methodAllowOutbound       = "allow-outbound"
++	methodRequestOutbound     = "request-outbound"
+ 	methodWriteStatus         = "write-status"
+ 	methodLinkProfile         = "link-profile"
+ )
+@@ -237,9 +237,9 @@ func (s *Supervisor) dispatch(ctx context.Context, req hostRequest) hostResponse
+ 	case methodRequestFileMutation:
+ 		err := s.host.RequestFileMutation(ctx, req.FileMut)
+ 		return jsonResp(struct{}{}, err)
+-	case methodAllowOutbound:
+-		ok, err := s.host.AllowOutbound(ctx, req.Host)
+-		return jsonResp(ok, err)
++	case methodRequestOutbound:
++		resp, err := s.host.RequestOutbound(ctx, req.Outbound)
++		return jsonResp(resp, err)
+ 	case methodWriteStatus:
+ 		err := s.host.WriteStatus(ctx, req.Kind, req.Value)
+ 		return jsonResp(struct{}{}, err)
+diff --git a/internal/integrationhost/seams.go b/internal/integrationhost/seams.go
+index c9de23379..2bc92cf5e 100644
+--- a/internal/integrationhost/seams.go
++++ b/internal/integrationhost/seams.go
+@@ -84,22 +84,81 @@ type FileMutationRequest struct {
+ 	Detail string
+ }
+ 
+-// OutboundProxy allows only operator-declared outbound hosts (declared-outbound
+-// permission). v1 is proxy-cooperation: the host enforces the allowlist for
+-// calls routed through it. A native worker retains direct socket access, so OS
+-// network confinement is deferred (see optimizations.md). The proxy method
+-// honors the allowlist; that is what v1 tests assert.
++// OutboundRequest is one outbound HTTP call a worker asks the Host to perform on
++// its behalf (declared-outbound permission). Pure data: the worker never dials a
++// socket through this path — the Host carries the traffic. Method/URL/Header/Body
++// are the request shape; the proxy implementation validates them against the
++// plugin's declared allowlist and the SSRF contract below before dialing.
++type OutboundRequest struct {
++	Method string
++	URL    string
++	Header map[string][]string
++	Body   []byte
++}
++
++// OutboundResponse is the Host's reply for a carried outbound call. Pure data.
++type OutboundResponse struct {
++	StatusCode int
++	Header     map[string][]string
++	Body       []byte
++}
++
++// OutboundProxy carries operator-declared outbound HTTP for a worker
++// (declared-outbound permission). Unlike the removed advisory ask-then-dial
++// method, the worker never opens its own socket through this path: it hands the
++// Host an OutboundRequest and the Host performs the fetch. Once a real adapter is
++// wired, outbound is therefore enforced by construction, not cooperation. The
++// seam is nil-by-default (dormant ⇒ permission-denied), exactly like the
++// ingest/file-mutation/jobs Core-handoff seams, because the declared-outbound
++// allowlist source does not exist yet (see the re-ticketed follow-ups).
++//
++// ADR-0012 §9 SSRF contract (binding obligation of any RequestOutbound adapter).
++// On every request, including after each redirect, the enforced proxy MUST:
++//   - pin scheme+host to the plugin's declared-outbound allowlist and fail closed
++//     if the resolved host is not declared;
++//   - deny private, link-local, loopback, and cloud-metadata (169.254.169.254) IP
++//     ranges;
++//   - use a DNS-rebinding-safe dialer (resolve once, then dial the vetted IP);
++//   - refuse cross-host redirects; and
++//   - apply time and response-size caps.
+ //
+-// TODO(PLUG-3): OS-level network confinement for native workers is currently
+-// advisory-only — a worker can bypass the allowlist via direct socket access.
+-// Remediation path: implement OS sandbox confinement (e.g. Linux seccomp-BPF
+-// network filter or macOS sandbox profile) that blocks all outbound sockets
+-// except those the host explicitly proxies, making declared-outbound
++// This ticket delivers the seam shape, the Host enforcement gate, and this
++// contract as the seam's documented obligation and interface; the concrete
++// hardened http.Client adapter (and the allowlist source it needs) are re-ticketed
++// follow-ups. Until they land, declared-outbound is grantable but first-party-
++// trusted-only for execution (see FirstPartyTrust and Host.RequestOutbound).
++//
++// TODO(PLUG-3): OS-level network confinement for native workers is separate and
++// still deferred — a native worker retains direct OS socket access outside this
++// proxy path. Remediation path: implement OS sandbox confinement (e.g. Linux
++// seccomp-BPF network filter or macOS sandbox profile) that blocks all outbound
++// sockets except those the host explicitly proxies, making declared-outbound
+ // enforcement hard rather than cooperative. Track as a post-v1 security
+ // hardening item; gate removal of this TODO on a passing OS-confinement
+ // integration test for each supported platform.
+ type OutboundProxy interface {
+-	// AllowOutbound reports whether host is in the plugin's declared outbound
+-	// allowlist. The actual request is made by the host on the worker's behalf.
+-	AllowOutbound(pluginID, host string) bool
++	// RequestOutbound performs the fetch on the worker's behalf, enforcing the
++	// declared allowlist and the ADR-0012 §9 SSRF contract above server-side. The
++	// worker never dials directly through this path.
++	RequestOutbound(ctx context.Context, pluginID string, req OutboundRequest) (OutboundResponse, error)
++}
++
++// FirstPartyTrust reports whether a plugin is a first-party Integration Worker.
++// It is the injectable source of truth the outbound-execution gate consults: an
++// operator may still grant declared-outbound to any plugin (ADR-0058 §29), but
++// carrying arbitrary outbound traffic safely requires the SSRF-hardened executor,
++// which exists only for first-party plugins for now. So Host.RequestOutbound
++// executes only for a first-party-trusted plugin until that executor lands. The
++// production wiring supplies an empty set (no first-party Integration Worker ships
++// in v1) ⇒ every third-party plugin is refused; the source is injectable so a
++// first-party plugin (or a test) can actually carry outbound.
++type FirstPartyTrust interface {
++	IsFirstParty(pluginID string) bool
+ }
++
++// TrustSet is a set of first-party plugin ids implementing FirstPartyTrust. The
++// empty (or nil) set denies all — the fail-closed production posture.
++type TrustSet map[string]bool
++
++// IsFirstParty reports whether pluginID is in the trusted set. Empty/nil ⇒ false.
++func (t TrustSet) IsFirstParty(pluginID string) bool { return t[pluginID] }
+diff --git a/internal/store/activity.go b/internal/store/activity.go
+index 57262cf7a..20e521e3f 100644
+--- a/internal/store/activity.go
++++ b/internal/store/activity.go
+@@ -86,6 +86,10 @@ const (
+ 	// write made through the Integration Host API. TargetID is the plugin id;
+ 	// the target Profile is recorded separately in ProfileID.
+ 	ActivityPluginProfileLink = "plugin.profile_link"
++	// ActivityPluginOutboundRequest audits an Integration Worker outbound HTTP
++	// call carried through the enforced Host proxy. TargetID is the plugin id; the
++	// URL/host/headers/body are never written to the row (they may carry secrets).
++	ActivityPluginOutboundRequest = "plugin.outbound_request"
+ 	// ActivityPluginDeadLetterRetry audits an operator-requested dead-letter
+ 	// retry lifecycle action.
+ 	ActivityPluginDeadLetterRetry = "plugin.dead_letter_retry"

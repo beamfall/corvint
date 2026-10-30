@@ -1,0 +1,5 @@
+# STR-V0-058 adapter capability manifest pin lock (V1-2026). Append-only:
+# one "version digest" row per shipped manifest version, never edited or
+# removed. TestSTRV0058PinTableMatchesLock refuses a pin table that edits or
+# drops a row recorded here, and a pin that is not appended here.
+corvint-test-adapter/0 sha256:4378e5864ff8bce9f1ee4f01540134197dff5e39ff424f5d06418fa0a3e1066b

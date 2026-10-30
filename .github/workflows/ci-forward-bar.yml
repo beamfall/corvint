@@ -1,0 +1,59 @@
+name: CI forward bar
+
+# AFP-V0-097 (V1-0812): the trusted whole-epoch AFP-V0-029 verdict that alone lets a pull request
+# narrow its Go shards. It runs only from main, on a schedule or a manual dispatch, reads the
+# epoch's forward-row artifact names with gh and jq, runs only `.github/forward-rows` from this
+# main commit, and retains `afp-shadow-bar-epoch-<N>` holding verdict.json (status MET, NOT MET or
+# NOT ESTABLISHED, the counts, the epoch start, this run's id and attempt, and the main SHA). The
+# pull-request side (accept.sh in ci.yml's narrowing-verdict job) takes the newest such artifact
+# and narrows only when it came from this workflow on main, says MET, is at most 7 days old and
+# names the current epoch; anything else runs full CI. A main push does not trigger it: listing
+# the whole epoch costs up to 400 artifact-API pages, and the 6-hour schedule keeps a verdict
+# fresh well inside the 7-day bound. Narrowing stays off unless the repository variable
+# CORVINT_PR_NARROWING is `on`.
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: ci-forward-bar
+  cancel-in-progress: false
+
+jobs:
+  verdict:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    # V1-2707: up to VERDICT_PAGES (400) artifact pages at 2-8 s each, plus page retries.
+    timeout-minutes: 45
+    permissions:
+      actions: read
+      contents: read
+    env:
+      # Must equal CORVINT_PR_FORWARD_EPOCH in ci.yml and FORWARD_EPOCH in ci-control-plane.yml.
+      FORWARD_EPOCH: "1"
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          path: trusted
+          sparse-checkout: .github/forward-rows
+          persist-credentials: false
+      - name: Compute the whole-epoch shadow-bar verdict
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: sh trusted/.github/forward-rows/verdict.sh
+      - name: Retain the verdict
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          # The epoch in the name must equal FORWARD_EPOCH above.
+          name: afp-shadow-bar-epoch-1
+          path: ${{ runner.temp }}/afp-shadow-bar/verdict.json
+          if-no-files-found: error
+          retention-days: 8

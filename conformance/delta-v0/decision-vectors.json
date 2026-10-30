@@ -1,0 +1,122 @@
+[
+  {
+    "name": "no-op",
+    "record": {
+      "schema": "corvint-delta/0",
+      "base": "1111111111111111111111111111111111111111",
+      "head": "2222222222222222222222222222222222222222",
+      "tree": "3333333333333333333333333333333333333333",
+      "build": "163",
+      "changedPathDigest": "4444444444444444444444444444444444444444444444444444444444444444",
+      "changedPaths": [],
+      "inputDigests": [],
+      "documentation": [],
+      "tests": [],
+      "runFullSuite": false,
+      "mandatoryChecksRequired": true,
+      "gaps": [],
+      "denominators": {
+        "lexicalFlows": 0,
+        "affectedUnits": 0,
+        "runtime": "unknown",
+        "complete": true
+      },
+      "workKeys": [],
+      "unknowns": [],
+      "decision": "no-op"
+    }
+  },
+  {
+    "name": "docs-only",
+    "record": {
+      "schema": "corvint-delta/0",
+      "base": "1111111111111111111111111111111111111111",
+      "head": "2222222222222222222222222222222222222222",
+      "tree": "3333333333333333333333333333333333333333",
+      "build": "163",
+      "changedPathDigest": "4444444444444444444444444444444444444444444444444444444444444444",
+      "changedPaths": [
+        "README.md"
+      ],
+      "inputDigests": [],
+      "documentation": [],
+      "tests": [],
+      "runFullSuite": false,
+      "mandatoryChecksRequired": true,
+      "gaps": [],
+      "denominators": {
+        "lexicalFlows": 0,
+        "affectedUnits": 0,
+        "runtime": "unknown",
+        "complete": true
+      },
+      "workKeys": [],
+      "unknowns": [],
+      "decision": "docs-only"
+    }
+  },
+  {
+    "name": "tests-needed",
+    "record": {
+      "schema": "corvint-delta/0",
+      "base": "1111111111111111111111111111111111111111",
+      "head": "2222222222222222222222222222222222222222",
+      "tree": "3333333333333333333333333333333333333333",
+      "build": "163",
+      "changedPathDigest": "4444444444444444444444444444444444444444444444444444444444444444",
+      "changedPaths": [
+        "src/a.js"
+      ],
+      "inputDigests": [],
+      "documentation": [],
+      "tests": [],
+      "runFullSuite": true,
+      "mandatoryChecksRequired": true,
+      "gaps": [],
+      "denominators": {
+        "lexicalFlows": 0,
+        "affectedUnits": 0,
+        "runtime": "unknown",
+        "complete": true
+      },
+      "workKeys": [],
+      "unknowns": [],
+      "decision": "tests-needed"
+    }
+  },
+  {
+    "name": "findings",
+    "record": {
+      "schema": "corvint-delta/0",
+      "base": "1111111111111111111111111111111111111111",
+      "head": "2222222222222222222222222222222222222222",
+      "tree": "3333333333333333333333333333333333333333",
+      "build": "163",
+      "changedPathDigest": "4444444444444444444444444444444444444444444444444444444444444444",
+      "changedPaths": [
+        "src/a.js"
+      ],
+      "inputDigests": [],
+      "documentation": [],
+      "tests": [],
+      "runFullSuite": true,
+      "mandatoryChecksRequired": true,
+      "gaps": [],
+      "denominators": {
+        "lexicalFlows": 0,
+        "affectedUnits": 0,
+        "runtime": "unknown",
+        "complete": false
+      },
+      "workKeys": [],
+      "unknowns": [
+        {
+          "code": "provider-coverage-missing",
+          "count": 1,
+          "digest": "5555555555555555555555555555555555555555555555555555555555555555"
+        }
+      ],
+      "decision": "findings"
+    }
+  }
+]

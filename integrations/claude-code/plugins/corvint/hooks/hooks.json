@@ -1,0 +1,135 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "corvint",
+            "args": [
+              "adapter",
+              "claude-code",
+              "session-start"
+            ],
+            "timeout": 2,
+            "statusMessage": "Loading Corvint repository context"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "corvint",
+            "args": [
+              "adapter",
+              "claude-code",
+              "user-prompt"
+            ],
+            "timeout": 2,
+            "statusMessage": "Finding Corvint evidence for this prompt"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "corvint",
+            "args": [
+              "adapter",
+              "claude-code",
+              "post-tool"
+            ],
+            "timeout": 2,
+            "statusMessage": "Noting the edit for Corvint"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "corvint",
+            "args": [
+              "adapter",
+              "claude-code",
+              "stop"
+            ],
+            "timeout": 2,
+            "statusMessage": "Checking the Corvint change workflow"
+          },
+          {
+            "type": "command",
+            "command": "corvint",
+            "args": [
+              "adapter",
+              "claude-code",
+              "stop-done-list"
+            ],
+            "timeout": 10,
+            "statusMessage": "Listing the tests this change still owes"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "corvint",
+            "args": [
+              "adapter",
+              "claude-code",
+              "session-end"
+            ],
+            "timeout": 1,
+            "statusMessage": "Closing the Corvint session"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "corvint",
+            "args": [
+              "adapter",
+              "claude-code",
+              "pre-compact"
+            ],
+            "timeout": 2,
+            "statusMessage": "Saving Corvint evidence before compaction"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "corvint",
+            "args": [
+              "adapter",
+              "claude-code",
+              "post-compact"
+            ],
+            "timeout": 2,
+            "statusMessage": "Checking Corvint evidence after compaction"
+          }
+        ]
+      }
+    ]
+  }
+}

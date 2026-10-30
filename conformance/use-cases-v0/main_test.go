@@ -1,0 +1,410 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"github.com/Beamfall/corvint/internal/contextindex"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+type fixture struct {
+	t      *testing.T
+	root   string
+	ledger map[string]any
+}
+
+func newFixture(t *testing.T) *fixture {
+	t.Helper()
+	raw, err := os.ReadFile("testdata/ledger-v0.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := &fixture{t: t, root: t.TempDir()}
+	if err = json.Unmarshal(raw, &f.ledger); err != nil {
+		t.Fatal(err)
+	}
+	return f
+}
+func (f *fixture) write(p string, raw []byte) {
+	f.t.Helper()
+	p = filepath.Join(f.root, p)
+	if err := os.MkdirAll(filepath.Dir(p), 0700); err != nil {
+		f.t.Fatal(err)
+	}
+	if err := os.WriteFile(p, raw, 0600); err != nil {
+		f.t.Fatal(err)
+	}
+}
+func (f *fixture) row(i int) map[string]any { return f.ledger["useCases"].([]any)[i].(map[string]any) }
+func (f *fixture) save() {
+	raw, err := json.Marshal(f.ledger)
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	f.write("ledger.json", raw)
+}
+func (f *fixture) check(want ...string) map[string]any {
+	f.t.Helper()
+	f.save()
+	r := validate(f.root, "ledger.json")
+	if len(want) == 0 {
+		if r["valid"] != true {
+			f.t.Fatal(r)
+		}
+	} else {
+		if r["valid"] != false {
+			f.t.Fatal("unexpected promotion", r)
+		}
+		raw, _ := json.Marshal(r["errors"])
+		for _, w := range want {
+			if !strings.Contains(string(raw), w) {
+				f.t.Fatalf("missing %s: %s", w, raw)
+			}
+		}
+	}
+	return r
+}
+func (f *fixture) receipt(class string) map[string]any {
+	id := "UC-AI-CODING"
+	subjects := []any{}
+	subject := func(name string) string {
+		p := "evidence/" + class + "/" + name
+		raw := []byte(class + ":" + name + "\n")
+		if strings.HasSuffix(class, "-dogfood") {
+			raw = []byte(`{"context":{"state":"READY"},"ok":true,"tool":"` + class + `"}`)
+		}
+		f.write(p, raw)
+		d := digest(raw)
+		subjects = append(subjects, map[string]any{"path": p, "sha256": d})
+		return d
+	}
+	a := map[string]any{}
+	switch class {
+	case "contract":
+		a["requirementIds"] = []string{"UCV0-001"}
+	case "implementation":
+		a["entrypoints"] = []string{"corvint use-case run"}
+	case "hostile-tests":
+		a["cases"] = []string{"abstention", "hostile", "negative"}
+	case "corvint-dogfood", "beamfall-dogfood":
+		a["outcome"] = "PASS"
+		a["repository"] = strings.TrimSuffix(class, "-dogfood")
+	case "sealed-benchmark":
+		a["outcome"] = "PASS"
+		for _, name := range []string{"preregistration", "corpus", "result"} {
+			a[name+"Sha256"] = subject(name)
+		}
+	}
+	if class != "sealed-benchmark" {
+		subject("subject")
+	}
+	r := map[string]any{"attestation": a, "evidenceClass": class, "repositoryRevision": strings.Repeat("a", 40), "result": "PASS", "spec": evidenceProfile, "subjects": subjects, "useCaseId": id}
+	f.bind(class, r)
+	return r
+}
+func (f *fixture) bind(class string, r map[string]any) {
+	raw, err := json.Marshal(r)
+	if err != nil {
+		f.t.Fatal(err)
+	}
+	p := "evidence/" + class + "/receipt.json"
+	f.write(p, raw)
+	f.row(0)["evidence"].(map[string]any)[class] = map[string]any{"path": p, "sha256": digest(raw)}
+}
+func TestUCV0LedgerAndPromotion(t *testing.T) {
+	f := newFixture(t)
+	rows := f.ledger["useCases"].([]any)
+	if len(rows) != 19 {
+		t.Fatal(len(rows))
+	}
+	for i, r := range rows {
+		m := r.(map[string]any)
+		if m["id"] != useCaseIDs[i] || m["status"] != "specified" || m["claim"] != "UNPROVEN" || len(m["evidence"].(map[string]any)) != 0 {
+			t.Fatal(m)
+		}
+	}
+	result := f.check()
+	raw, err := contextindex.CanonicalJSON(result)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"claimCounts":{"UNPROVEN":19,"VERIFIED":0},"evidenceCount":0,"ledgerSha256":"` + str(result["ledgerSha256"]) + `","profile":"corvint-use-case-conformance-result/0","statusCounts":{"experimental":0,"specified":19,"verified":0},"useCaseCount":19,"valid":true}`
+	if string(raw) != want {
+		t.Fatalf("noncanonical %s", raw)
+	}
+	f.row(0)["status"] = "verified"
+	f.row(0)["claim"] = "VERIFIED"
+	missing := []string{}
+	for _, class := range evidenceClasses {
+		missing = append(missing, "verified-missing-evidence:"+class)
+	}
+	f.check(missing...)
+	f.row(0)["status"] = "experimental"
+	f.row(0)["claim"] = "UNPROVEN"
+	f.check("experimental-missing-evidence:contract", "experimental-missing-evidence:implementation")
+	f.receipt("contract")
+	f.receipt("implementation")
+	f.check()
+	for _, class := range evidenceClasses {
+		f.receipt(class)
+	}
+	f.row(0)["status"] = "verified"
+	f.row(0)["claim"] = "VERIFIED"
+	result = f.check()
+	if result["evidenceCount"] != 6 || result["claimCounts"].(map[string]any)["VERIFIED"] != 1 {
+		t.Fatal(result)
+	}
+}
+func TestUCV0HostileEvidence(t *testing.T) {
+	for _, tc := range []struct {
+		name, want string
+		mutate     func(*fixture, map[string]any)
+	}{
+		{"receipt-tamper", "receipt-digest-mismatch", func(f *fixture, r map[string]any) { f.write("evidence/contract/receipt.json", []byte("changed")) }},
+		{"subject-tamper", "subject-digest-mismatch", func(f *fixture, r map[string]any) { f.write("evidence/contract/subject", []byte("changed")) }},
+		{"traversal", "invalid-path", func(f *fixture, r map[string]any) {
+			f.row(0)["evidence"].(map[string]any)["contract"].(map[string]any)["path"] = "../receipt.json"
+		}},
+		{"symlink", "symlink", func(f *fixture, r map[string]any) {
+			if err := os.Symlink(filepath.Join(f.root, "evidence/contract/receipt.json"), filepath.Join(f.root, "link")); err != nil {
+				t.Fatal(err)
+			}
+			f.row(0)["evidence"].(map[string]any)["contract"].(map[string]any)["path"] = "link"
+		}},
+		{"reuse", "duplicate-receipt-reuse", func(f *fixture, r map[string]any) {
+			f.row(1)["evidence"].(map[string]any)["contract"] = f.row(0)["evidence"].(map[string]any)["contract"]
+		}},
+		{"class", "evidence-class-mismatch", func(f *fixture, r map[string]any) { r["evidenceClass"] = "implementation"; f.bind("contract", r) }},
+		{"extra", "extra-field:unexpected", func(f *fixture, r map[string]any) { f.ledger["unexpected"] = true }},
+		{"oversize", "file-too-large", func(f *fixture, r map[string]any) { f.write("evidence/contract/subject", make([]byte, maxFileBytes+1)) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			r := f.receipt("contract")
+			f.check()
+			tc.mutate(f, r)
+			f.check(tc.want)
+		})
+	}
+	for _, tc := range []struct {
+		class, key string
+		value      any
+		want       string
+	}{{"hostile-tests", "cases", []string{"hostile", "negative"}, "incomplete-hostile-cases"}, {"sealed-benchmark", "resultSha256", strings.Repeat("f", 64), "unbound-benchmark-seal"}, {"contract", "requirementIds", []string{"invalid"}, "invalid-requirement-id"}, {"corvint-dogfood", "repository", "beamfall", "repository-mismatch"}, {"beamfall-dogfood", "outcome", "UNPROVEN", "outcome-not-pass"}} {
+		t.Run(tc.want, func(t *testing.T) {
+			f := newFixture(t)
+			r := f.receipt(tc.class)
+			r["attestation"].(map[string]any)[tc.key] = tc.value
+			f.bind(tc.class, r)
+			f.check(tc.want)
+		})
+	}
+	t.Run("colliding-seals", func(t *testing.T) {
+		f := newFixture(t)
+		r := f.receipt("sealed-benchmark")
+		a := r["attestation"].(map[string]any)
+		a["resultSha256"] = a["corpusSha256"]
+		f.bind("sealed-benchmark", r)
+		f.check("colliding-benchmark-seal")
+	})
+	t.Run("duplicate-json", func(t *testing.T) {
+		f := newFixture(t)
+		f.save()
+		p := filepath.Join(f.root, "ledger.json")
+		raw, _ := os.ReadFile(p)
+		f.write("ledger.json", []byte(strings.Replace(string(raw), "{", `{"spec":"duplicate",`, 1)))
+		r := validate(f.root, "ledger.json")
+		raw, _ = json.Marshal(r)
+		if !strings.Contains(string(raw), "ledger:duplicate-key:spec") {
+			t.Fatal(string(raw))
+		}
+	})
+}
+
+// UCV0-013: a new closed job set cannot silently redefine historical /0 admission.
+func TestUCV0ProfileMigration(t *testing.T) {
+	t.Run("UCV0-013 profile migration", testUCV0ProfileMigration)
+}
+
+func testUCV0ProfileMigration(t *testing.T) {
+	legacy := newFixture(t)
+	legacy.check()
+	raw, err := os.ReadFile("ledger.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The canonical ledger validates in the repository tree, where its receipts live (decision 0373).
+	tree := validate("../..", "conformance/use-cases-v0/ledger.json")
+	// V1-0011 promoted the three Core rows; V1-0341 (UCV0-014/015) returned consequence and completion to experimental.
+	if tree["valid"] != true || tree["useCaseCount"] != 22 || tree["claimCounts"].(map[string]any)["UNPROVEN"] != 21 || tree["claimCounts"].(map[string]any)["VERIFIED"] != 1 {
+		t.Fatal(tree)
+	}
+	current := newFixture(t)
+	if err := json.Unmarshal(raw, &current.ledger); err != nil {
+		t.Fatal(err)
+	}
+	for i := len(useCaseIDs); i < len(current.ledger["useCases"].([]any)); i++ {
+		row := current.row(i)
+		row["status"], row["claim"], row["evidence"] = "specified", "UNPROVEN", map[string]any{}
+	}
+	result := current.check()
+	if result["useCaseCount"] != 22 || result["claimCounts"].(map[string]any)["UNPROVEN"] != 22 || result["evidenceCount"] != 0 {
+		t.Fatal(result)
+	}
+	rows := current.ledger["useCases"].([]any)
+	oldRows := legacy.ledger["useCases"].([]any)
+	for i, old := range oldRows {
+		a, _ := json.Marshal(old)
+		b, _ := json.Marshal(rows[i])
+		if string(a) != string(b) {
+			t.Fatalf("historical row %d changed", i)
+		}
+	}
+	current.ledger["spec"] = legacyProfile
+	current.check("unknown-id", "unexpected-use-case-count")
+	legacy.ledger["spec"] = profile
+	legacy.check("missing-use-case:UC-TASK-ORIENTATION", "missing-use-case:UC-CHANGE-CONSEQUENCE", "missing-use-case:UC-EVIDENCE-CARRYING-COMPLETION")
+	legacy.ledger["spec"] = "corvint-use-case-conformance/2"
+	legacy.check("wrong-spec")
+	current.ledger["spec"] = profile
+	for i := len(useCaseIDs); i < len(rows); i++ {
+		row := current.row(i)
+		row["status"], row["claim"] = "verified", "VERIFIED"
+		missing := []string{}
+		for _, class := range evidenceClasses {
+			missing = append(missing, "use-case:"+str(row["id"])+":verified-missing-evidence:"+class)
+		}
+		current.check(missing...)
+		row["status"], row["claim"] = "specified", "UNPROVEN"
+	}
+}
+
+// UCV0-016 (V1-0216): a contract receipt pins its cited clauses, not the whole spec file.
+func TestUCV0ClausePins(t *testing.T) {
+	const spec = "# Spec\n\n- `UCV0-001`: First clause\n  continues here.\n- `UCV0-002`: Second clause.\n\nTrailing prose.\n"
+	first := []any{map[string]any{"id": "UCV0-001", "text": "- `UCV0-001`: First clause\n  continues here."}}
+	second := []any{map[string]any{"id": "UCV0-002", "text": "- `UCV0-002`: Second clause."}}
+	missing := []any{map[string]any{"id": "UCV0-003", "text": "- `UCV0-003`: absent"}}
+	for _, tc := range []struct {
+		name, edited, want string
+		clauses            []any
+	}{
+		{"unrelated-spec-edit", strings.Replace(spec, "Trailing prose.", "Edited prose.", 1), "", first},
+		{"clause-edit", strings.Replace(spec, "continues here.", "continues elsewhere.", 1), "clause-drift:UCV0-001", first},
+		{"clause-duplicated", spec + "- `UCV0-001`: again\n", "clause-definitions-2:UCV0-001", first},
+		{"clause-missing", spec, "clause-definitions-0:UCV0-003", missing},
+		{"clause-coverage", spec, "clause-coverage-mismatch", second},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			f.write("docs/spec.md", []byte(spec))
+			raw, _ := json.Marshal(map[string]any{"clauses": tc.clauses, "profile": clausesProfile, "spec": "docs/spec.md"})
+			f.write("evidence/contract/clauses.json", raw)
+			r := f.receipt("contract")
+			r["subjects"] = []any{map[string]any{"path": "evidence/contract/clauses.json", "sha256": digest(raw)}}
+			f.bind("contract", r)
+			f.write("docs/spec.md", []byte(tc.edited))
+			if tc.want == "" {
+				f.check()
+				return
+			}
+			f.check(tc.want)
+		})
+	}
+}
+
+// UCV0-014 (V1-0341): a verified row's dogfood PASS is derived from its retained reports, not the token.
+func TestUCV0DerivedDogfoodOutcome(t *testing.T) {
+	const change = `{"complete":true,"dogfoodCheck":{"outputsAgree":true},"ocmStatus":{"aggregate":{"coverage":{"linked":%d,"total":4,"unknown":%d}}},"profile":"corvint-dogfood-change/0"}`
+	for _, tc := range []struct{ name, report, want string }{
+		{"ready-packet", `{"context":{"abstention":{"active":false},"state":"READY"},"ok":true,"tool":"query"}`, ""},
+		{"linked-change-report", fmt.Sprintf(change, 4, 0), ""},
+		{"token-only", "free text\n", "verified-unsupported-outcome"},
+		{"abstaining-packet", `{"context":{"abstention":{"active":true},"state":"READY"},"ok":true,"tool":"query"}`, "verified-unsupported-outcome"},
+		{"failed-packet", `{"context":{"state":"READY"},"ok":false,"tool":"impact"}`, "verified-unsupported-outcome"},
+		{"unknown-coverage-report", fmt.Sprintf(change, 0, 4), "verified-unsupported-outcome"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			for _, class := range evidenceClasses {
+				f.receipt(class)
+			}
+			r := f.receipt("beamfall-dogfood")
+			f.write("evidence/beamfall-dogfood/subject", []byte(tc.report))
+			r["subjects"].([]any)[0].(map[string]any)["sha256"] = digest([]byte(tc.report))
+			f.bind("beamfall-dogfood", r)
+			f.row(0)["status"], f.row(0)["claim"] = "experimental", "UNPROVEN"
+			f.check()
+			f.row(0)["status"], f.row(0)["claim"] = "verified", "VERIFIED"
+			if tc.want == "" {
+				f.check()
+				return
+			}
+			f.check("use-case:UC-AI-CODING:evidence:beamfall-dogfood:receipt:" + tc.want)
+		})
+	}
+}
+
+// TestUCV0217DigestStatusMatchesLedger: UCV0-217 (V1-0303). The spec's Agent
+// digest states each job status the ledger holds: every row that is not
+// `specified`/`UNPROVEN` is named in a digest clause carrying its own
+// `status`/`CLAIM`, and the remaining count of `specified`/`UNPROVEN` rows is
+// spelled out, so a ledger change without the digest change fails here.
+func TestUCV0217DigestStatusMatchesLedger(t *testing.T) {
+	raw, err := os.ReadFile("ledger.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ledger struct {
+		UseCases []struct{ ID, Status, Claim string } `json:"useCases"`
+	}
+	if err := json.Unmarshal(raw, &ledger); err != nil {
+		t.Fatal(err)
+	}
+	spec, err := os.ReadFile("../../docs/specs/use-case-conformance-v0.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var exists string
+	for _, line := range strings.Split(string(spec), "\n") {
+		if strings.HasPrefix(line, "- Exists: ") {
+			exists = line
+			break
+		}
+	}
+	if exists == "" {
+		t.Fatal("use-case-conformance-v0.md has no Agent digest Exists line")
+	}
+	clauses := strings.Split(exists, ";")
+	specified := 0
+	for _, row := range ledger.UseCases {
+		if row.Status == "specified" && row.Claim == "UNPROVEN" {
+			specified++
+			continue
+		}
+		named := false
+		for _, clause := range clauses {
+			if strings.Contains(clause, "`"+row.ID+"`") {
+				named = true
+				if want := fmt.Sprintf("`%s`/`%s`", row.Status, row.Claim); !strings.Contains(clause, want) {
+					t.Errorf("digest clause %q names %s without the ledger's %s", strings.TrimSpace(clause), row.ID, want)
+				}
+			}
+		}
+		if !named {
+			t.Errorf("digest does not name %s (%s/%s)", row.ID, row.Status, row.Claim)
+		}
+	}
+	words := []string{"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+		"eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen",
+		"twenty", "twenty-one", "twenty-two"}
+	if specified >= len(words) {
+		t.Fatalf("%d specified rows exceed the spelled-out count table", specified)
+	}
+	if want := fmt.Sprintf("the other %s jobs stay `specified`/`UNPROVEN`", words[specified]); !strings.Contains(exists, want) {
+		t.Errorf("digest does not say %q", want)
+	}
+}

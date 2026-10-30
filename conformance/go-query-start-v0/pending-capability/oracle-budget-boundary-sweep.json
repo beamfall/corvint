@@ -1,0 +1,1126 @@
+{
+  "absent_inventory": {
+    "budget_bytes": 1216,
+    "context": {
+      "abstention": {
+        "active": false,
+        "reason": "none"
+      },
+      "coverage": {
+        "advisory_results": 0,
+        "authoritative_results": 0,
+        "budget_bytes": 1216,
+        "critical": [],
+        "critical_missing": [],
+        "included_results": 0,
+        "omitted_results": 4,
+        "packet_bytes": 1052,
+        "requested_results": 4,
+        "uncertainty": [
+          "4 ranked results omitted by packet budget"
+        ],
+        "within_budget": true
+      },
+      "exclusions": {
+        "count": 1,
+        "samples_omitted_by_budget": 1
+      },
+      "freshness": {
+        "mixed_path_count": 1,
+        "mixed_paths_omitted_by_budget": 1,
+        "mixed_paths_sha256": "a967f264e0e8318fa9735bc38043c69d3436e4a11d528f6d35222e35e1763554",
+        "scope": "git",
+        "state": "mixed-worktree"
+      },
+      "learning": {
+        "advisory_candidates": 2,
+        "history_digest": "707ed8589a2338ebe63ce88d69cc63368d9ce9652fabccf2923a2f372dd26f71",
+        "history_tip": "06a6a0988f5178a8c1ae902bdad6df71c74c858c",
+        "local_trace_count": 0,
+        "local_trace_state": "blocked-mixed-worktree"
+      },
+      "mode": "query",
+      "request": {
+        "budget_bytes": 1216,
+        "limit": 8,
+        "text": "bound json parsing and index"
+      },
+      "results": [],
+      "revision": "19835316e5c3d93483f493ab33c354289cdff576",
+      "schema_version": 1,
+      "state": "BUDGETED",
+      "verification": [
+        "make gate"
+      ]
+    }
+  },
+  "envelope_floor": {
+    "admitted_budget_bytes": 1919,
+    "context": {
+      "abstention": {
+        "active": false,
+        "reason": "none"
+      },
+      "coverage": {
+        "advisory_results": 0,
+        "authoritative_results": 0,
+        "budget_bytes": 1919,
+        "critical": [],
+        "critical_missing": [],
+        "included_results": 0,
+        "omitted_results": 4,
+        "packet_bytes": 1919,
+        "requested_results": 4,
+        "uncertainty": [
+          "4 ranked results omitted by packet budget"
+        ],
+        "within_budget": true
+      },
+      "exclusions": {
+        "count": 1,
+        "samples_omitted_by_budget": 1
+      },
+      "freshness": {
+        "mixed_path_count": 1,
+        "mixed_paths_omitted_by_budget": 1,
+        "mixed_paths_sha256": "a967f264e0e8318fa9735bc38043c69d3436e4a11d528f6d35222e35e1763554",
+        "scope": "git",
+        "state": "mixed-worktree"
+      },
+      "learning": {
+        "advisory_candidates": 2,
+        "history_digest": "707ed8589a2338ebe63ce88d69cc63368d9ce9652fabccf2923a2f372dd26f71",
+        "history_tip": "06a6a0988f5178a8c1ae902bdad6df71c74c858c",
+        "local_trace_count": 0,
+        "local_trace_state": "blocked-mixed-worktree"
+      },
+      "mode": "query",
+      "request": {
+        "budget_bytes": 1919,
+        "limit": 8,
+        "text": "bound json parsing and index"
+      },
+      "results": [],
+      "revision": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "schema_version": 1,
+      "state": "BUDGETED",
+      "verification": [
+        "git diff --check"
+      ]
+    },
+    "error": "budget_bytes=1918 cannot contain the structured Corvint envelope",
+    "input_revision_override": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "refused_budget_bytes": 1918
+  },
+  "input": "internal/contextindex/testdata/oracle-budgeted-omission-input.json",
+  "projectFiles": [
+    "go.mod",
+    "pyproject.toml",
+    "setup.py"
+  ],
+  "vectors": [
+    {
+      "budget_bytes": 1496,
+      "context": {
+        "abstention": {
+          "active": false,
+          "reason": "none"
+        },
+        "coverage": {
+          "advisory_results": 0,
+          "authoritative_results": 0,
+          "budget_bytes": 1496,
+          "critical": [],
+          "critical_missing": [],
+          "included_results": 0,
+          "omitted_results": 4,
+          "packet_bytes": 1059,
+          "requested_results": 4,
+          "uncertainty": [
+            "4 ranked results omitted by packet budget"
+          ],
+          "within_budget": true
+        },
+        "exclusions": {
+          "count": 1,
+          "samples_omitted_by_budget": 1
+        },
+        "freshness": {
+          "mixed_path_count": 1,
+          "mixed_paths_omitted_by_budget": 1,
+          "mixed_paths_sha256": "a967f264e0e8318fa9735bc38043c69d3436e4a11d528f6d35222e35e1763554",
+          "scope": "git",
+          "state": "mixed-worktree"
+        },
+        "learning": {
+          "advisory_candidates": 2,
+          "history_digest": "707ed8589a2338ebe63ce88d69cc63368d9ce9652fabccf2923a2f372dd26f71",
+          "history_tip": "06a6a0988f5178a8c1ae902bdad6df71c74c858c",
+          "local_trace_count": 0,
+          "local_trace_state": "blocked-mixed-worktree"
+        },
+        "mode": "query",
+        "request": {
+          "budget_bytes": 1496,
+          "limit": 8,
+          "text": "bound json parsing and index"
+        },
+        "results": [],
+        "revision": "19835316e5c3d93483f493ab33c354289cdff576",
+        "schema_version": 1,
+        "state": "BUDGETED",
+        "verification": [
+          "git diff --check"
+        ]
+      }
+    },
+    {
+      "budget_bytes": 1497,
+      "context": {
+        "abstention": {
+          "active": false,
+          "reason": "none"
+        },
+        "coverage": {
+          "advisory_results": 0,
+          "authoritative_results": 0,
+          "budget_bytes": 1497,
+          "critical": [],
+          "critical_missing": [],
+          "included_results": 1,
+          "omitted_results": 3,
+          "packet_bytes": 1494,
+          "requested_results": 4,
+          "uncertainty": [
+            "all results are syntax matches; no project-owned authority corroborates the task",
+            "3 ranked results omitted by packet budget"
+          ],
+          "within_budget": true
+        },
+        "exclusions": {
+          "count": 1,
+          "samples_omitted_by_budget": 1
+        },
+        "freshness": {
+          "mixed_path_count": 1,
+          "mixed_paths_omitted_by_budget": 1,
+          "mixed_paths_sha256": "a967f264e0e8318fa9735bc38043c69d3436e4a11d528f6d35222e35e1763554",
+          "scope": "git",
+          "state": "mixed-worktree"
+        },
+        "learning": {
+          "advisory_candidates": 2,
+          "history_digest": "707ed8589a2338ebe63ce88d69cc63368d9ce9652fabccf2923a2f372dd26f71",
+          "history_tip": "06a6a0988f5178a8c1ae902bdad6df71c74c858c",
+          "local_trace_count": 0,
+          "local_trace_state": "blocked-mixed-worktree"
+        },
+        "mode": "query",
+        "request": {
+          "budget_bytes": 1497,
+          "limit": 8,
+          "text": "bound json parsing and index"
+        },
+        "results": [
+          {
+            "evidence": [
+              {
+                "authority": "syntax",
+                "blob_hash": "a4b0e69c00a95de2c4bd3d3d3a82daf75ab6502e",
+                "confidence": "medium",
+                "line": 121,
+                "path": "integrations/opencode/src/index.js",
+                "reason": "declaration/path strongly matches query vocabulary"
+              }
+            ],
+            "id": "integrations/opencode/src/index.js:bound",
+            "kind": "symbol",
+            "name": "bound",
+            "score": 176,
+            "summary": "const declaration"
+          }
+        ],
+        "revision": "19835316e5c3d93483f493ab33c354289cdff576",
+        "schema_version": 1,
+        "state": "BUDGETED",
+        "verification": [
+          "git diff --check"
+        ]
+      }
+    },
+    {
+      "budget_bytes": 1524,
+      "context": {
+        "abstention": {
+          "active": false,
+          "reason": "none"
+        },
+        "coverage": {
+          "advisory_results": 0,
+          "authoritative_results": 0,
+          "budget_bytes": 1524,
+          "critical": [],
+          "critical_missing": [],
+          "included_results": 1,
+          "omitted_results": 3,
+          "packet_bytes": 1494,
+          "requested_results": 4,
+          "uncertainty": [
+            "all results are syntax matches; no project-owned authority corroborates the task",
+            "3 ranked results omitted by packet budget"
+          ],
+          "within_budget": true
+        },
+        "exclusions": {
+          "count": 1,
+          "samples_omitted_by_budget": 1
+        },
+        "freshness": {
+          "mixed_path_count": 1,
+          "mixed_paths_omitted_by_budget": 1,
+          "mixed_paths_sha256": "a967f264e0e8318fa9735bc38043c69d3436e4a11d528f6d35222e35e1763554",
+          "scope": "git",
+          "state": "mixed-worktree"
+        },
+        "learning": {
+          "advisory_candidates": 2,
+          "history_digest": "707ed8589a2338ebe63ce88d69cc63368d9ce9652fabccf2923a2f372dd26f71",
+          "history_tip": "06a6a0988f5178a8c1ae902bdad6df71c74c858c",
+          "local_trace_count": 0,
+          "local_trace_state": "blocked-mixed-worktree"
+        },
+        "mode": "query",
+        "request": {
+          "budget_bytes": 1524,
+          "limit": 8,
+          "text": "bound json parsing and index"
+        },
+        "results": [
+          {
+            "evidence": [
+              {
+                "authority": "syntax",
+                "blob_hash": "a4b0e69c00a95de2c4bd3d3d3a82daf75ab6502e",
+                "confidence": "medium",
+                "line": 121,
+                "path": "integrations/opencode/src/index.js",
+                "reason": "declaration/path strongly matches query vocabulary"
+              }
+            ],
+            "id": "integrations/opencode/src/index.js:bound",
+            "kind": "symbol",
+            "name": "bound",
+            "score": 176,
+            "summary": "const declaration"
+          }
+        ],
+        "revision": "19835316e5c3d93483f493ab33c354289cdff576",
+        "schema_version": 1,
+        "state": "BUDGETED",
+        "verification": [
+          "git diff --check"
+        ]
+      }
+    },
+    {
+      "budget_bytes": 1525,
+      "context": {
+        "abstention": {
+          "active": false,
+          "reason": "none"
+        },
+        "coverage": {
+          "advisory_results": 0,
+          "authoritative_results": 0,
+          "budget_bytes": 1525,
+          "critical": [],
+          "critical_missing": [],
+          "included_results": 1,
+          "omitted_results": 3,
+          "packet_bytes": 1522,
+          "requested_results": 4,
+          "uncertainty": [
+            "all results are syntax matches; no project-owned authority corroborates the task",
+            "3 ranked results omitted by packet budget"
+          ],
+          "within_budget": true
+        },
+        "exclusions": {
+          "count": 1,
+          "samples_omitted_by_budget": 1
+        },
+        "freshness": {
+          "mixed_path_count": 1,
+          "mixed_paths_omitted_by_budget": 1,
+          "mixed_paths_sha256": "a967f264e0e8318fa9735bc38043c69d3436e4a11d528f6d35222e35e1763554",
+          "scope": "git",
+          "state": "mixed-worktree"
+        },
+        "learning": {
+          "advisory_candidates": 2,
+          "history_digest": "707ed8589a2338ebe63ce88d69cc63368d9ce9652fabccf2923a2f372dd26f71",
+          "history_tip": "06a6a0988f5178a8c1ae902bdad6df71c74c858c",
+          "local_trace_count": 0,
+          "local_trace_state": "blocked-mixed-worktree"
+        },
+        "mode": "query",
+        "request": {
+          "budget_bytes": 1525,
+          "limit": 8,
+          "text": "bound json parsing and index"
+        },
+        "results": [
+          {
+            "evidence": [
+              {
+                "authority": "syntax",
+                "blob_hash": "366184525663f4c92137f27f5b14b91c6364b214",
+                "confidence": "medium",
+                "line": 83,
+                "path": "internal/contextindex/index.go",
+                "reason": "declaration/path strongly matches query vocabulary"
+              }
+            ],
+            "id": "internal/contextindex/index.go:Index",
+            "kind": "symbol",
+            "name": "Index",
+            "score": 200,
+            "summary": "type declaration"
+          }
+        ],
+        "revision": "19835316e5c3d93483f493ab33c354289cdff576",
+        "schema_version": 1,
+        "state": "BUDGETED",
+        "verification": [
+          "go test ./internal/contextindex/...",
+          "git diff --check"
+        ]
+      }
+    },
+    {
+      "budget_bytes": 1877,
+      "context": {
+        "abstention": {
+          "active": false,
+          "reason": "none"
+        },
+        "coverage": {
+          "advisory_results": 0,
+          "authoritative_results": 0,
+          "budget_bytes": 1877,
+          "critical": [],
+          "critical_missing": [],
+          "included_results": 1,
+          "omitted_results": 3,
+          "packet_bytes": 1522,
+          "requested_results": 4,
+          "uncertainty": [
+            "all results are syntax matches; no project-owned authority corroborates the task",
+            "3 ranked results omitted by packet budget"
+          ],
+          "within_budget": true
+        },
+        "exclusions": {
+          "count": 1,
+          "samples_omitted_by_budget": 1
+        },
+        "freshness": {
+          "mixed_path_count": 1,
+          "mixed_paths_omitted_by_budget": 1,
+          "mixed_paths_sha256": "a967f264e0e8318fa9735bc38043c69d3436e4a11d528f6d35222e35e1763554",
+          "scope": "git",
+          "state": "mixed-worktree"
+        },
+        "learning": {
+          "advisory_candidates": 2,
+          "history_digest": "707ed8589a2338ebe63ce88d69cc63368d9ce9652fabccf2923a2f372dd26f71",
+          "history_tip": "06a6a0988f5178a8c1ae902bdad6df71c74c858c",
+          "local_trace_count": 0,
+          "local_trace_state": "blocked-mixed-worktree"
+        },
+        "mode": "query",
+        "request": {
+          "budget_bytes": 1877,
+          "limit": 8,
+          "text": "bound json parsing and index"
+        },
+        "results": [
+          {
+            "evidence": [
+              {
+                "authority": "syntax",
+                "blob_hash": "366184525663f4c92137f27f5b14b91c6364b214",
+                "confidence": "medium",
+                "line": 83,
+                "path": "internal/contextindex/index.go",
+                "reason": "declaration/path strongly matches query vocabulary"
+              }
+            ],
+            "id": "internal/contextindex/index.go:Index",
+            "kind": "symbol",
+            "name": "Index",
+            "score": 200,
+            "summary": "type declaration"
+          }
+        ],
+        "revision": "19835316e5c3d93483f493ab33c354289cdff576",
+        "schema_version": 1,
+        "state": "BUDGETED",
+        "verification": [
+          "go test ./internal/contextindex/...",
+          "git diff --check"
+        ]
+      }
+    },
+    {
+      "budget_bytes": 1878,
+      "context": {
+        "abstention": {
+          "active": false,
+          "reason": "none"
+        },
+        "coverage": {
+          "advisory_results": 0,
+          "authoritative_results": 0,
+          "budget_bytes": 1878,
+          "critical": [],
+          "critical_missing": [],
+          "included_results": 2,
+          "omitted_results": 2,
+          "packet_bytes": 1875,
+          "requested_results": 4,
+          "uncertainty": [
+            "all results are syntax matches; no project-owned authority corroborates the task",
+            "2 ranked results omitted by packet budget"
+          ],
+          "within_budget": true
+        },
+        "exclusions": {
+          "count": 1,
+          "samples_omitted_by_budget": 1
+        },
+        "freshness": {
+          "mixed_path_count": 1,
+          "mixed_paths_omitted_by_budget": 1,
+          "mixed_paths_sha256": "a967f264e0e8318fa9735bc38043c69d3436e4a11d528f6d35222e35e1763554",
+          "scope": "git",
+          "state": "mixed-worktree"
+        },
+        "learning": {
+          "advisory_candidates": 2,
+          "history_digest": "707ed8589a2338ebe63ce88d69cc63368d9ce9652fabccf2923a2f372dd26f71",
+          "history_tip": "06a6a0988f5178a8c1ae902bdad6df71c74c858c",
+          "local_trace_count": 0,
+          "local_trace_state": "blocked-mixed-worktree"
+        },
+        "mode": "query",
+        "request": {
+          "budget_bytes": 1878,
+          "limit": 8,
+          "text": "bound json parsing and index"
+        },
+        "results": [
+          {
+            "evidence": [
+              {
+                "authority": "syntax",
+                "blob_hash": "366184525663f4c92137f27f5b14b91c6364b214",
+                "confidence": "medium",
+                "line": 83,
+                "path": "internal/contextindex/index.go",
+                "reason": "declaration/path strongly matches query vocabulary"
+              }
+            ],
+            "id": "internal/contextindex/index.go:Index",
+            "kind": "symbol",
+            "name": "Index",
+            "score": 200,
+            "summary": "type declaration"
+          },
+          {
+            "evidence": [
+              {
+                "authority": "syntax",
+                "blob_hash": "a4b0e69c00a95de2c4bd3d3d3a82daf75ab6502e",
+                "confidence": "medium",
+                "line": 121,
+                "path": "integrations/opencode/src/index.js",
+                "reason": "declaration/path strongly matches query vocabulary"
+              }
+            ],
+            "id": "integrations/opencode/src/index.js:bound",
+            "kind": "symbol",
+            "name": "bound",
+            "score": 176,
+            "summary": "const declaration"
+          }
+        ],
+        "revision": "19835316e5c3d93483f493ab33c354289cdff576",
+        "schema_version": 1,
+        "state": "BUDGETED",
+        "verification": [
+          "go test ./internal/contextindex/...",
+          "git diff --check"
+        ]
+      }
+    },
+    {
+      "budget_bytes": 2328,
+      "context": {
+        "abstention": {
+          "active": false,
+          "reason": "none"
+        },
+        "coverage": {
+          "advisory_results": 0,
+          "authoritative_results": 0,
+          "budget_bytes": 2328,
+          "critical": [],
+          "critical_missing": [],
+          "included_results": 2,
+          "omitted_results": 2,
+          "packet_bytes": 1875,
+          "requested_results": 4,
+          "uncertainty": [
+            "all results are syntax matches; no project-owned authority corroborates the task",
+            "2 ranked results omitted by packet budget"
+          ],
+          "within_budget": true
+        },
+        "exclusions": {
+          "count": 1,
+          "samples_omitted_by_budget": 1
+        },
+        "freshness": {
+          "mixed_path_count": 1,
+          "mixed_paths_omitted_by_budget": 1,
+          "mixed_paths_sha256": "a967f264e0e8318fa9735bc38043c69d3436e4a11d528f6d35222e35e1763554",
+          "scope": "git",
+          "state": "mixed-worktree"
+        },
+        "learning": {
+          "advisory_candidates": 2,
+          "history_digest": "707ed8589a2338ebe63ce88d69cc63368d9ce9652fabccf2923a2f372dd26f71",
+          "history_tip": "06a6a0988f5178a8c1ae902bdad6df71c74c858c",
+          "local_trace_count": 0,
+          "local_trace_state": "blocked-mixed-worktree"
+        },
+        "mode": "query",
+        "request": {
+          "budget_bytes": 2328,
+          "limit": 8,
+          "text": "bound json parsing and index"
+        },
+        "results": [
+          {
+            "evidence": [
+              {
+                "authority": "syntax",
+                "blob_hash": "366184525663f4c92137f27f5b14b91c6364b214",
+                "confidence": "medium",
+                "line": 83,
+                "path": "internal/contextindex/index.go",
+                "reason": "declaration/path strongly matches query vocabulary"
+              }
+            ],
+            "id": "internal/contextindex/index.go:Index",
+            "kind": "symbol",
+            "name": "Index",
+            "score": 200,
+            "summary": "type declaration"
+          },
+          {
+            "evidence": [
+              {
+                "authority": "syntax",
+                "blob_hash": "a4b0e69c00a95de2c4bd3d3d3a82daf75ab6502e",
+                "confidence": "medium",
+                "line": 121,
+                "path": "integrations/opencode/src/index.js",
+                "reason": "declaration/path strongly matches query vocabulary"
+              }
+            ],
+            "id": "integrations/opencode/src/index.js:bound",
+            "kind": "symbol",
+            "name": "bound",
+            "score": 176,
+            "summary": "const declaration"
+          }
+        ],
+        "revision": "19835316e5c3d93483f493ab33c354289cdff576",
+        "schema_version": 1,
+        "state": "BUDGETED",
+        "verification": [
+          "go test ./internal/contextindex/...",
+          "git diff --check"
+        ]
+      }
+    },
+    {
+      "budget_bytes": 2329,
+      "context": {
+        "abstention": {
+          "active": false,
+          "reason": "none"
+        },
+        "coverage": {
+          "advisory_results": 1,
+          "authoritative_results": 0,
+          "budget_bytes": 2329,
+          "critical": [],
+          "critical_missing": [],
+          "included_results": 3,
+          "omitted_results": 1,
+          "packet_bytes": 2326,
+          "requested_results": 4,
+          "uncertainty": [
+            "all results are syntax matches; no project-owned authority corroborates the task",
+            "learned path relationships are advisory",
+            "1 ranked results omitted by packet budget"
+          ],
+          "within_budget": true
+        },
+        "exclusions": {
+          "count": 1,
+          "samples_omitted_by_budget": 1
+        },
+        "freshness": {
+          "mixed_path_count": 1,
+          "mixed_paths_omitted_by_budget": 1,
+          "mixed_paths_sha256": "a967f264e0e8318fa9735bc38043c69d3436e4a11d528f6d35222e35e1763554",
+          "scope": "git",
+          "state": "mixed-worktree"
+        },
+        "learning": {
+          "advisory_candidates": 2,
+          "history_digest": "707ed8589a2338ebe63ce88d69cc63368d9ce9652fabccf2923a2f372dd26f71",
+          "history_tip": "06a6a0988f5178a8c1ae902bdad6df71c74c858c",
+          "local_trace_count": 0,
+          "local_trace_state": "blocked-mixed-worktree"
+        },
+        "mode": "query",
+        "request": {
+          "budget_bytes": 2329,
+          "limit": 8,
+          "text": "bound json parsing and index"
+        },
+        "results": [
+          {
+            "evidence": [
+              {
+                "authority": "syntax",
+                "blob_hash": "366184525663f4c92137f27f5b14b91c6364b214",
+                "confidence": "medium",
+                "line": 83,
+                "path": "internal/contextindex/index.go",
+                "reason": "declaration/path strongly matches query vocabulary"
+              }
+            ],
+            "id": "internal/contextindex/index.go:Index",
+            "kind": "symbol",
+            "name": "Index",
+            "score": 200,
+            "summary": "type declaration"
+          },
+          {
+            "evidence": [
+              {
+                "authority": "syntax",
+                "blob_hash": "a4b0e69c00a95de2c4bd3d3d3a82daf75ab6502e",
+                "confidence": "medium",
+                "line": 121,
+                "path": "integrations/opencode/src/index.js",
+                "reason": "declaration/path strongly matches query vocabulary"
+              }
+            ],
+            "id": "integrations/opencode/src/index.js:bound",
+            "kind": "symbol",
+            "name": "bound",
+            "score": 176,
+            "summary": "const declaration"
+          },
+          {
+            "evidence": [
+              {
+                "authority": "git-history",
+                "blob_hash": "840e559d12e248d83ecb0319a277f31fc25384cc",
+                "confidence": "advisory",
+                "line": 1,
+                "path": "internal/contextindex/git.go",
+                "reason": "commit ee3198f7840f matched 2 task terms: perf: deduplicate context index blob batch parsing"
+              }
+            ],
+            "id": "internal/contextindex/git.go",
+            "kind": "learned-path",
+            "score": 160,
+            "summary": "advisory path associated with successful task history"
+          }
+        ],
+        "revision": "19835316e5c3d93483f493ab33c354289cdff576",
+        "schema_version": 1,
+        "state": "BUDGETED",
+        "verification": [
+          "go test ./internal/contextindex/...",
+          "git diff --check"
+        ]
+      }
+    },
+    {
+      "budget_bytes": 2703,
+      "context": {
+        "abstention": {
+          "active": false,
+          "reason": "none"
+        },
+        "coverage": {
+          "advisory_results": 1,
+          "authoritative_results": 0,
+          "budget_bytes": 2703,
+          "critical": [],
+          "critical_missing": [],
+          "included_results": 3,
+          "omitted_results": 1,
+          "packet_bytes": 2326,
+          "requested_results": 4,
+          "uncertainty": [
+            "all results are syntax matches; no project-owned authority corroborates the task",
+            "learned path relationships are advisory",
+            "1 ranked results omitted by packet budget"
+          ],
+          "within_budget": true
+        },
+        "exclusions": {
+          "count": 1,
+          "samples_omitted_by_budget": 1
+        },
+        "freshness": {
+          "mixed_path_count": 1,
+          "mixed_paths_omitted_by_budget": 1,
+          "mixed_paths_sha256": "a967f264e0e8318fa9735bc38043c69d3436e4a11d528f6d35222e35e1763554",
+          "scope": "git",
+          "state": "mixed-worktree"
+        },
+        "learning": {
+          "advisory_candidates": 2,
+          "history_digest": "707ed8589a2338ebe63ce88d69cc63368d9ce9652fabccf2923a2f372dd26f71",
+          "history_tip": "06a6a0988f5178a8c1ae902bdad6df71c74c858c",
+          "local_trace_count": 0,
+          "local_trace_state": "blocked-mixed-worktree"
+        },
+        "mode": "query",
+        "request": {
+          "budget_bytes": 2703,
+          "limit": 8,
+          "text": "bound json parsing and index"
+        },
+        "results": [
+          {
+            "evidence": [
+              {
+                "authority": "syntax",
+                "blob_hash": "366184525663f4c92137f27f5b14b91c6364b214",
+                "confidence": "medium",
+                "line": 83,
+                "path": "internal/contextindex/index.go",
+                "reason": "declaration/path strongly matches query vocabulary"
+              }
+            ],
+            "id": "internal/contextindex/index.go:Index",
+            "kind": "symbol",
+            "name": "Index",
+            "score": 200,
+            "summary": "type declaration"
+          },
+          {
+            "evidence": [
+              {
+                "authority": "syntax",
+                "blob_hash": "a4b0e69c00a95de2c4bd3d3d3a82daf75ab6502e",
+                "confidence": "medium",
+                "line": 121,
+                "path": "integrations/opencode/src/index.js",
+                "reason": "declaration/path strongly matches query vocabulary"
+              }
+            ],
+            "id": "integrations/opencode/src/index.js:bound",
+            "kind": "symbol",
+            "name": "bound",
+            "score": 176,
+            "summary": "const declaration"
+          },
+          {
+            "evidence": [
+              {
+                "authority": "git-history",
+                "blob_hash": "840e559d12e248d83ecb0319a277f31fc25384cc",
+                "confidence": "advisory",
+                "line": 1,
+                "path": "internal/contextindex/git.go",
+                "reason": "commit ee3198f7840f matched 2 task terms: perf: deduplicate context index blob batch parsing"
+              }
+            ],
+            "id": "internal/contextindex/git.go",
+            "kind": "learned-path",
+            "score": 160,
+            "summary": "advisory path associated with successful task history"
+          }
+        ],
+        "revision": "19835316e5c3d93483f493ab33c354289cdff576",
+        "schema_version": 1,
+        "state": "BUDGETED",
+        "verification": [
+          "go test ./internal/contextindex/...",
+          "git diff --check"
+        ]
+      }
+    },
+    {
+      "budget_bytes": 2704,
+      "context": {
+        "abstention": {
+          "active": false,
+          "reason": "none"
+        },
+        "coverage": {
+          "advisory_results": 2,
+          "authoritative_results": 0,
+          "budget_bytes": 2704,
+          "critical": [],
+          "critical_missing": [],
+          "included_results": 4,
+          "omitted_results": 0,
+          "packet_bytes": 2704,
+          "requested_results": 4,
+          "uncertainty": [
+            "all results are syntax matches; no project-owned authority corroborates the task",
+            "learned path relationships are advisory"
+          ],
+          "within_budget": true
+        },
+        "exclusions": {
+          "count": 1,
+          "samples_omitted_by_budget": 1
+        },
+        "freshness": {
+          "mixed_path_count": 1,
+          "mixed_paths_omitted_by_budget": 1,
+          "mixed_paths_sha256": "a967f264e0e8318fa9735bc38043c69d3436e4a11d528f6d35222e35e1763554",
+          "scope": "git",
+          "state": "mixed-worktree"
+        },
+        "learning": {
+          "advisory_candidates": 2,
+          "history_digest": "707ed8589a2338ebe63ce88d69cc63368d9ce9652fabccf2923a2f372dd26f71",
+          "history_tip": "06a6a0988f5178a8c1ae902bdad6df71c74c858c",
+          "local_trace_count": 0,
+          "local_trace_state": "blocked-mixed-worktree"
+        },
+        "mode": "query",
+        "request": {
+          "budget_bytes": 2704,
+          "limit": 8,
+          "text": "bound json parsing and index"
+        },
+        "results": [
+          {
+            "evidence": [
+              {
+                "authority": "syntax",
+                "blob_hash": "366184525663f4c92137f27f5b14b91c6364b214",
+                "confidence": "medium",
+                "line": 83,
+                "path": "internal/contextindex/index.go",
+                "reason": "declaration/path strongly matches query vocabulary"
+              }
+            ],
+            "id": "internal/contextindex/index.go:Index",
+            "kind": "symbol",
+            "name": "Index",
+            "score": 200,
+            "summary": "type declaration"
+          },
+          {
+            "evidence": [
+              {
+                "authority": "syntax",
+                "blob_hash": "a4b0e69c00a95de2c4bd3d3d3a82daf75ab6502e",
+                "confidence": "medium",
+                "line": 121,
+                "path": "integrations/opencode/src/index.js",
+                "reason": "declaration/path strongly matches query vocabulary"
+              }
+            ],
+            "id": "integrations/opencode/src/index.js:bound",
+            "kind": "symbol",
+            "name": "bound",
+            "score": 176,
+            "summary": "const declaration"
+          },
+          {
+            "evidence": [
+              {
+                "authority": "git-history",
+                "blob_hash": "840e559d12e248d83ecb0319a277f31fc25384cc",
+                "confidence": "advisory",
+                "line": 1,
+                "path": "internal/contextindex/git.go",
+                "reason": "commit ee3198f7840f matched 2 task terms: perf: deduplicate context index blob batch parsing"
+              }
+            ],
+            "id": "internal/contextindex/git.go",
+            "kind": "learned-path",
+            "score": 160,
+            "summary": "advisory path associated with successful task history"
+          },
+          {
+            "evidence": [
+              {
+                "authority": "git-history",
+                "blob_hash": "3dae5a2c77a84481a6d3f83c91ca110c69375d6d",
+                "confidence": "advisory",
+                "line": 1,
+                "path": "internal/contextindex/git_test.go",
+                "reason": "commit ee3198f7840f matched 2 task terms: perf: deduplicate context index blob batch parsing"
+              }
+            ],
+            "id": "internal/contextindex/git_test.go",
+            "kind": "learned-path",
+            "score": 160,
+            "summary": "advisory path associated with successful task history"
+          }
+        ],
+        "revision": "19835316e5c3d93483f493ab33c354289cdff576",
+        "schema_version": 1,
+        "state": "STALE_INDEX",
+        "verification": [
+          "go test ./internal/contextindex/...",
+          "git diff --check"
+        ]
+      }
+    },
+    {
+      "budget_bytes": 2705,
+      "context": {
+        "abstention": {
+          "active": false,
+          "reason": "none"
+        },
+        "coverage": {
+          "advisory_results": 2,
+          "authoritative_results": 0,
+          "budget_bytes": 2705,
+          "critical": [],
+          "critical_missing": [],
+          "included_results": 4,
+          "omitted_results": 0,
+          "packet_bytes": 2704,
+          "requested_results": 4,
+          "uncertainty": [
+            "all results are syntax matches; no project-owned authority corroborates the task",
+            "learned path relationships are advisory"
+          ],
+          "within_budget": true
+        },
+        "exclusions": {
+          "count": 1,
+          "samples_omitted_by_budget": 1
+        },
+        "freshness": {
+          "mixed_path_count": 1,
+          "mixed_paths_omitted_by_budget": 1,
+          "mixed_paths_sha256": "a967f264e0e8318fa9735bc38043c69d3436e4a11d528f6d35222e35e1763554",
+          "scope": "git",
+          "state": "mixed-worktree"
+        },
+        "learning": {
+          "advisory_candidates": 2,
+          "history_digest": "707ed8589a2338ebe63ce88d69cc63368d9ce9652fabccf2923a2f372dd26f71",
+          "history_tip": "06a6a0988f5178a8c1ae902bdad6df71c74c858c",
+          "local_trace_count": 0,
+          "local_trace_state": "blocked-mixed-worktree"
+        },
+        "mode": "query",
+        "request": {
+          "budget_bytes": 2705,
+          "limit": 8,
+          "text": "bound json parsing and index"
+        },
+        "results": [
+          {
+            "evidence": [
+              {
+                "authority": "syntax",
+                "blob_hash": "366184525663f4c92137f27f5b14b91c6364b214",
+                "confidence": "medium",
+                "line": 83,
+                "path": "internal/contextindex/index.go",
+                "reason": "declaration/path strongly matches query vocabulary"
+              }
+            ],
+            "id": "internal/contextindex/index.go:Index",
+            "kind": "symbol",
+            "name": "Index",
+            "score": 200,
+            "summary": "type declaration"
+          },
+          {
+            "evidence": [
+              {
+                "authority": "syntax",
+                "blob_hash": "a4b0e69c00a95de2c4bd3d3d3a82daf75ab6502e",
+                "confidence": "medium",
+                "line": 121,
+                "path": "integrations/opencode/src/index.js",
+                "reason": "declaration/path strongly matches query vocabulary"
+              }
+            ],
+            "id": "integrations/opencode/src/index.js:bound",
+            "kind": "symbol",
+            "name": "bound",
+            "score": 176,
+            "summary": "const declaration"
+          },
+          {
+            "evidence": [
+              {
+                "authority": "git-history",
+                "blob_hash": "840e559d12e248d83ecb0319a277f31fc25384cc",
+                "confidence": "advisory",
+                "line": 1,
+                "path": "internal/contextindex/git.go",
+                "reason": "commit ee3198f7840f matched 2 task terms: perf: deduplicate context index blob batch parsing"
+              }
+            ],
+            "id": "internal/contextindex/git.go",
+            "kind": "learned-path",
+            "score": 160,
+            "summary": "advisory path associated with successful task history"
+          },
+          {
+            "evidence": [
+              {
+                "authority": "git-history",
+                "blob_hash": "3dae5a2c77a84481a6d3f83c91ca110c69375d6d",
+                "confidence": "advisory",
+                "line": 1,
+                "path": "internal/contextindex/git_test.go",
+                "reason": "commit ee3198f7840f matched 2 task terms: perf: deduplicate context index blob batch parsing"
+              }
+            ],
+            "id": "internal/contextindex/git_test.go",
+            "kind": "learned-path",
+            "score": 160,
+            "summary": "advisory path associated with successful task history"
+          }
+        ],
+        "revision": "19835316e5c3d93483f493ab33c354289cdff576",
+        "schema_version": 1,
+        "state": "STALE_INDEX",
+        "verification": [
+          "go test ./internal/contextindex/...",
+          "git diff --check"
+        ]
+      }
+    }
+  ]
+}

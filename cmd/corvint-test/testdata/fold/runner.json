@@ -1,0 +1,177 @@
+{
+  "schema": "corvint-test-fold-golden/0",
+  "group": "runner",
+  "old": "corvint-test-runner",
+  "new": "corvint-test runner",
+  "request": {
+    "runner": "go-test",
+    "root": "/fold-fixture/src",
+    "project": "example.invalid/fold",
+    "reportDir": "/fold-fixture/reports",
+    "timeoutSeconds": 60,
+    "inputFiles": {
+      "go.mod": "0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "expectedTests": [
+      "example.invalid/fold::TestPass"
+    ]
+  },
+  "cases": [
+    {
+      "name": "no-args",
+      "args": [],
+      "text": true,
+      "exit": 2,
+      "stdout": "",
+      "stderr": "usage: corvint-test-runner \u003ccommand\u003e [flags] (experimental runner companion)\n\ncommands:\n  runners    list runner profile IDs as JSON (no executable pin)\n  profiles   alias of runners (no executable pin)\n  plan       derive a plan; requires --executable and --executable-sha256\n  run        execute an approved plan; requires --executable and --executable-sha256\n\nRun \"corvint-test-runner \u003ccommand\u003e --help\" for its flags.\n"
+    },
+    {
+      "name": "help",
+      "args": [
+        "--help"
+      ],
+      "text": true,
+      "exit": 0,
+      "stdout": "usage: corvint-test-runner \u003ccommand\u003e [flags] (experimental runner companion)\n\ncommands:\n  runners    list runner profile IDs as JSON (no executable pin)\n  profiles   alias of runners (no executable pin)\n  plan       derive a plan; requires --executable and --executable-sha256\n  run        execute an approved plan; requires --executable and --executable-sha256\n\nRun \"corvint-test-runner \u003ccommand\u003e --help\" for its flags.\n",
+      "stderr": ""
+    },
+    {
+      "name": "runners",
+      "args": [
+        "runners"
+      ],
+      "exit": 0,
+      "stdout": "[\"android-junit\",\"appium\",\"appium-uiautomator2-wdio\",\"ava\",\"bats\",\"boost-test-junit\",\"bun-test\",\"cargo-bin\",\"cargo-doctest\",\"cargo-integration\",\"cargo-test\",\"catch2\",\"cmocka-xml\",\"ctest\",\"cypress\",\"deno-test\",\"detox\",\"dotnet-mtp-mstest\",\"dotnet-mtp-nunit\",\"dotnet-mtp-xunit\",\"dotnet-vstest-mstest\",\"dotnet-vstest-nunit\",\"dotnet-vstest-xunit\",\"espresso\",\"ginkgo-v2\",\"go-test\",\"googletest\",\"gradle-junit\",\"html-behavior\",\"jasmine\",\"jest\",\"junit-platform\",\"junit4\",\"kotest\",\"kotlin-test\",\"maven-surefire\",\"minitest\",\"mocha\",\"nextest\",\"nightwatch\",\"node-test\",\"pgtap\",\"playwright\",\"pytest\",\"rails-test\",\"robolectric\",\"rspec\",\"shader-behavior\",\"shellspec\",\"sql-pgtap\",\"sql-sqllogictest-sqlite\",\"sqllogictest\",\"storybook-test-runner\",\"storybook-vitest\",\"structured-data-behavior\",\"swift-testing\",\"swift-xctest\",\"test-unit\",\"testcafe\",\"testng\",\"uiautomator\",\"unittest\",\"vitest\",\"webdriverio\",\"xcode-xctest\"]\n",
+      "stderr": ""
+    },
+    {
+      "name": "profiles",
+      "args": [
+        "profiles"
+      ],
+      "exit": 0,
+      "stdout": "[\"android-junit\",\"appium\",\"appium-uiautomator2-wdio\",\"ava\",\"bats\",\"boost-test-junit\",\"bun-test\",\"cargo-bin\",\"cargo-doctest\",\"cargo-integration\",\"cargo-test\",\"catch2\",\"cmocka-xml\",\"ctest\",\"cypress\",\"deno-test\",\"detox\",\"dotnet-mtp-mstest\",\"dotnet-mtp-nunit\",\"dotnet-mtp-xunit\",\"dotnet-vstest-mstest\",\"dotnet-vstest-nunit\",\"dotnet-vstest-xunit\",\"espresso\",\"ginkgo-v2\",\"go-test\",\"googletest\",\"gradle-junit\",\"html-behavior\",\"jasmine\",\"jest\",\"junit-platform\",\"junit4\",\"kotest\",\"kotlin-test\",\"maven-surefire\",\"minitest\",\"mocha\",\"nextest\",\"nightwatch\",\"node-test\",\"pgtap\",\"playwright\",\"pytest\",\"rails-test\",\"robolectric\",\"rspec\",\"shader-behavior\",\"shellspec\",\"sql-pgtap\",\"sql-sqllogictest-sqlite\",\"sqllogictest\",\"storybook-test-runner\",\"storybook-vitest\",\"structured-data-behavior\",\"swift-testing\",\"swift-xctest\",\"test-unit\",\"testcafe\",\"testng\",\"uiautomator\",\"unittest\",\"vitest\",\"webdriverio\",\"xcode-xctest\"]\n",
+      "stderr": ""
+    },
+    {
+      "name": "runners-help",
+      "args": [
+        "runners",
+        "--help"
+      ],
+      "text": true,
+      "exit": 0,
+      "stdout": "usage: corvint-test-runner runners\n\nLists the runner profile IDs as JSON. No executable pin is needed.\n",
+      "stderr": ""
+    },
+    {
+      "name": "plan-help",
+      "args": [
+        "plan",
+        "--help"
+      ],
+      "text": true,
+      "exit": 0,
+      "stdout": "usage: corvint-test-runner plan [flags]\n\nflags:\n  -approve string\n    \texact canonical plan SHA256\n  -executable string\n    \tindependently trusted absolute executable\n  -executable-sha256 string\n    \tindependently pinned executable SHA256\n  -experimental\n    \tadmit experimental execution\n  -out string\n    \tNEW output JSON file; default stdout\n  -plan string\n    \tpreviously reviewed plan JSON\n  -request string\n    \tbounded request JSON\n  -tools string\n    \tindependently trusted auxiliary Tool map JSON\n  -trusted-local\n    \tadmit execution of trusted local tests\n",
+      "stderr": ""
+    },
+    {
+      "name": "run-help",
+      "args": [
+        "run",
+        "-h"
+      ],
+      "text": true,
+      "exit": 0,
+      "stdout": "usage: corvint-test-runner run [flags]\n\nflags:\n  -approve string\n    \texact canonical plan SHA256\n  -executable string\n    \tindependently trusted absolute executable\n  -executable-sha256 string\n    \tindependently pinned executable SHA256\n  -experimental\n    \tadmit experimental execution\n  -out string\n    \tNEW output JSON file; default stdout\n  -plan string\n    \tpreviously reviewed plan JSON\n  -request string\n    \tbounded request JSON\n  -tools string\n    \tindependently trusted auxiliary Tool map JSON\n  -trusted-local\n    \tadmit execution of trusted local tests\n",
+      "stderr": ""
+    },
+    {
+      "name": "unknown-command",
+      "args": [
+        "bogus"
+      ],
+      "text": true,
+      "exit": 2,
+      "stdout": "",
+      "stderr": "unknown command \"bogus\"\nusage: corvint-test-runner \u003ccommand\u003e [flags] (experimental runner companion)\n\ncommands:\n  runners    list runner profile IDs as JSON (no executable pin)\n  profiles   alias of runners (no executable pin)\n  plan       derive a plan; requires --executable and --executable-sha256\n  run        execute an approved plan; requires --executable and --executable-sha256\n\nRun \"corvint-test-runner \u003ccommand\u003e --help\" for its flags.\n"
+    },
+    {
+      "name": "repeated-flag",
+      "args": [
+        "plan",
+        "--request",
+        "a",
+        "--request",
+        "b"
+      ],
+      "text": true,
+      "exit": 2,
+      "stdout": "",
+      "stderr": "repeated flag request\n"
+    },
+    {
+      "name": "plan-missing-pins",
+      "args": [
+        "plan",
+        "--request",
+        "@DIR@/req.json"
+      ],
+      "text": true,
+      "exit": 1,
+      "stdout": "",
+      "stderr": "runner refused: independent executable identity required: missing --executable and --executable-sha256\n"
+    },
+    {
+      "name": "plan",
+      "args": [
+        "plan",
+        "--request",
+        "@DIR@/req.json",
+        "--executable",
+        "/fold-fixture/go",
+        "--executable-sha256",
+        "1111111111111111111111111111111111111111111111111111111111111111"
+      ],
+      "exit": 0,
+      "stdout": "{\"profile\":\"corvint-test-runner-plan/0\",\"request\":{\"expectedTests\":[\"example.invalid/fold::TestPass\"],\"target\":\"\",\"inputFiles\":{\"go.mod\":\"0000000000000000000000000000000000000000000000000000000000000000\"},\"runner\":\"go-test\",\"root\":\"/fold-fixture/src\",\"executable\":\"/fold-fixture/go\",\"executableSha256\":\"1111111111111111111111111111111111111111111111111111111111111111\",\"selectors\":null,\"project\":\"example.invalid/fold\",\"config\":\"\",\"configSha256\":\"\",\"reporter\":\"\",\"reporterSha256\":\"\",\"reportFiles\":null,\"tools\":null,\"reportDir\":\"/fold-fixture/reports\",\"timeoutSeconds\":60},\"invocation\":{\"outcomeNeutralExitCodes\":null,\"successExitCodes\":[0],\"failureExitCodes\":[1],\"argv\":[\"test\",\"-json\",\"-count=1\",\"example.invalid/fold\"],\"phases\":null,\"files\":null,\"reportPaths\":null,\"reportPatterns\":null,\"environment\":{\"GOPROXY\":\"off\",\"GOSUMDB\":\"off\",\"GOTOOLCHAIN\":\"local\"},\"format\":\"go-test\"}}\n",
+      "stderr": "planSha256: a0eb9ba2fa7e037e1f0703c90482a945cfea93c953b619dc0c7a2df12724d4b2\n"
+    },
+    {
+      "name": "run-without-admissions",
+      "args": [
+        "run",
+        "--plan",
+        "@DIR@/req.json",
+        "--executable",
+        "/fold-fixture/go",
+        "--executable-sha256",
+        "1111111111111111111111111111111111111111111111111111111111111111"
+      ],
+      "text": true,
+      "exit": 1,
+      "stdout": "",
+      "stderr": "runner refused: experimental and trusted-local admissions required\n"
+    },
+    {
+      "name": "run-plan-not-a-plan",
+      "args": [
+        "run",
+        "--plan",
+        "@DIR@/req.json",
+        "--approve",
+        "1111111111111111111111111111111111111111111111111111111111111111",
+        "--executable",
+        "/fold-fixture/go",
+        "--executable-sha256",
+        "1111111111111111111111111111111111111111111111111111111111111111",
+        "--experimental",
+        "--trusted-local"
+      ],
+      "text": true,
+      "exit": 1,
+      "stdout": "",
+      "stderr": "runner refused: unknown field \"runner\"\n"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+diff --git a/t.txt b/t.txt
+index 78981922613b2afb6025042ff6bd878ac1994e85..61780798228d17af2d34fce4cfbdf35556832472 100644
+--- a/t.txt
++++ b/t.txt
+@@ -1 +1 @@
+-a
++b
+diff --git a/z.empty b/z.empty
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391

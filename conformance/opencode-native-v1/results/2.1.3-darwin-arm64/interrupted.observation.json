@@ -1,0 +1,990 @@
+{
+  "scope": "observed-pid-start-identities",
+  "interval_ms": 20,
+  "processes": [
+    {
+      "pid": 72900,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:22 2026",
+      "state": "SN"
+    },
+    {
+      "pid": 72906,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:22 2026",
+      "state": "?N"
+    },
+    {
+      "pid": 72911,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:22 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 72915,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:22 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 72922,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:22 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 72926,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:22 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 72930,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:22 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 72937,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:22 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 72945,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:22 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 72954,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:22 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 72956,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:22 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 72973,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:22 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 72977,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:22 2026",
+      "state": "SN"
+    },
+    {
+      "pid": 72978,
+      "parent_pid": 72977,
+      "start": "Sat Oct 24 01:32:22 2026",
+      "state": "UN"
+    },
+    {
+      "pid": 72997,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:22 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73000,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73005,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73010,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "SN"
+    },
+    {
+      "pid": 73015,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73019,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73020,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73024,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73027,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73031,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73034,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73036,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73038,
+      "parent_pid": 73010,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RNs"
+    },
+    {
+      "pid": 73041,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73043,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73046,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73050,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73051,
+      "parent_pid": 73038,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "ZN"
+    },
+    {
+      "pid": 73053,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73056,
+      "parent_pid": 73038,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RNs"
+    },
+    {
+      "pid": 73057,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73060,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73063,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73066,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73070,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73073,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73075,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73079,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73081,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73085,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73089,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73090,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73093,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73097,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73099,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73102,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73105,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:23 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73109,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73110,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73113,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73117,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73120,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73123,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73125,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73127,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73131,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73134,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73136,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73139,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73142,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73144,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73147,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73150,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73154,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73156,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73160,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73163,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73165,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73168,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73172,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73174,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73177,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73179,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73182,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73185,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73188,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73191,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73193,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73197,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73199,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73203,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73205,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73207,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:24 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73210,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73213,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73216,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73218,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73222,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73224,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73227,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73230,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73232,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73236,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73239,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73242,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73244,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73246,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73250,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73253,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73255,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73258,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73260,
+      "parent_pid": 73038,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "ZN"
+    },
+    {
+      "pid": 73261,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73264,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73267,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73270,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73273,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73277,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73279,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73281,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73288,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73312,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73315,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73317,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73321,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73323,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73326,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73331,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73334,
+      "parent_pid": 73038,
+      "start": "Sat Oct 24 01:32:25 2026",
+      "state": "RNs"
+    },
+    {
+      "pid": 73337,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73340,
+      "parent_pid": 73038,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "SNs"
+    },
+    {
+      "pid": 73343,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73349,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73356,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73361,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73365,
+      "parent_pid": 73038,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RNs"
+    },
+    {
+      "pid": 73367,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73370,
+      "parent_pid": 73340,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "SN"
+    },
+    {
+      "pid": 73371,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73373,
+      "parent_pid": 73340,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73376,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73378,
+      "parent_pid": 73038,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "SNs"
+    },
+    {
+      "pid": 73380,
+      "parent_pid": 73340,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73381,
+      "parent_pid": 73378,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "SN"
+    },
+    {
+      "pid": 73382,
+      "parent_pid": 73378,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73383,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73385,
+      "parent_pid": 73340,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73387,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73389,
+      "parent_pid": 73378,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73390,
+      "parent_pid": 73340,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73391,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73395,
+      "parent_pid": 73378,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73396,
+      "parent_pid": 73340,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73404,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73406,
+      "parent_pid": 73340,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73407,
+      "parent_pid": 73378,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73411,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73414,
+      "parent_pid": 73340,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73415,
+      "parent_pid": 73378,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73421,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73424,
+      "parent_pid": 73378,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73425,
+      "parent_pid": 73340,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73426,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73429,
+      "parent_pid": 73340,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73430,
+      "parent_pid": 73378,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73431,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73438,
+      "parent_pid": 73340,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    },
+    {
+      "pid": 73439,
+      "parent_pid": 73378,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "UN"
+    },
+    {
+      "pid": 73442,
+      "parent_pid": 72898,
+      "start": "Sat Oct 24 01:32:26 2026",
+      "state": "RN"
+    }
+  ],
+  "absent": true,
+  "failures": [],
+  "limitations": [
+    "fast detachment and reparenting between snapshots can remain unobserved; this is not full OS containment",
+    "PID start identity resolution is platform-dependent; no universal adversarial containment claim"
+  ]
+}

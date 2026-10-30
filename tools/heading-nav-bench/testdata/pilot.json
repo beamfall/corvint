@@ -1,0 +1,136 @@
+{
+  "profile": "heading-navigation-fixture/0",
+  "revision": "85cb2889444ad41ac001876fca2b0000c76a09a7",
+  "timestamp": "2026-09-29T13:00:00Z",
+  "paths": [
+    "docs/decisions/0002-future-publication-transition.md",
+    "docs/decisions/0423-rc1-delegated-answers-a7-a10-2026-09-26.md",
+    "docs/specs/deployment-neutral-index-platform-v0.md",
+    "docs/specs/documentation-corpus-v1.md",
+    "docs/specs/retrieval-eval-comparability-v0.md",
+    "docs/specs/source-documentation-draft-v0.md"
+  ],
+  "cases": [
+    {
+      "id": "generated-authority",
+      "query": "Can a generated documentation draft or an imported provider claim labelled reviewed become accepted project intent? Explain the trust boundary for both.",
+      "gold": [
+        {
+          "path": "docs/specs/documentation-corpus-v1.md",
+          "start": 54,
+          "end": 57
+        },
+        {
+          "path": "docs/specs/source-documentation-draft-v0.md",
+          "start": 27,
+          "end": 34
+        }
+      ],
+      "answer_notes": "No. Generated claims cannot acquire verified/reviewed trust; imported review is attributed, not authenticated intent. The draft copies owner digest without accepting generated text as intent. Must distinguish proposed/experimental contract from delivered qualification."
+    },
+    {
+      "id": "offline-core",
+      "query": "Does the promoted local indexing and query binary require a language model account, network service, Python interpreter or daemon? What external executable remains required?",
+      "gold": [
+        {
+          "path": "docs/specs/deployment-neutral-index-platform-v0.md",
+          "start": 131,
+          "end": 133
+        }
+      ],
+      "answer_notes": "No to all four; Git remains required. This is the accepted platform requirement, not evidence that umbrella platform delivery is complete."
+    },
+    {
+      "id": "outcome-vs-retrieval",
+      "query": "If retrieval metrics are good and a corpus contains test declarations, can we report that a downstream task passed? What observation is required?",
+      "gold": [
+        {
+          "path": "docs/specs/retrieval-eval-comparability-v0.md",
+          "start": 61,
+          "end": 65
+        },
+        {
+          "path": "docs/specs/documentation-corpus-v1.md",
+          "start": 62,
+          "end": 69
+        }
+      ],
+      "answer_notes": "No. REC downstream outcome needs recorded passed/failed and nonempty evidence, not inference from retrieval. Test declarations differ from exact retained run observations; semantic adequacy not established."
+    },
+    {
+      "id": "observed-holdout",
+      "query": "Why does the retrieval evaluation heldout partition fail to establish generalization, even with deterministic assignment?",
+      "gold": [
+        {
+          "path": "docs/specs/retrieval-eval-comparability-v0.md",
+          "start": 66,
+          "end": 70
+        }
+      ],
+      "answer_notes": "Every v0 row was observed during development before assignment. Stable partition only; blind claim needs first-run registration. Cite body, not just heading."
+    },
+    {
+      "id": "license-exception",
+      "query": "Do the Apache notices on the frontier command files allow every new command source file to use Apache? Where should a future Apache protocol file go?",
+      "gold": [
+        {
+          "path": "docs/decisions/0002-future-publication-transition.md",
+          "start": 34,
+          "end": 36
+        },
+        {
+          "path": "docs/decisions/0002-future-publication-transition.md",
+          "start": 83,
+          "end": 92
+        }
+      ],
+      "answer_notes": "No blanket cmd exception. Three named frontier files only. Future Apache protocol/spec material belongs protocol/**; explicit amendment required for exception. This is the accepted decision at frozen revision, not legal advice."
+    },
+    {
+      "id": "build-log-correction",
+      "query": "Where should we record a new build decision, and how should we correct a build-log entry that has already merged?",
+      "gold": [
+        {
+          "path": "docs/decisions/0423-rc1-delegated-answers-a7-a10-2026-09-26.md",
+          "start": 19,
+          "end": 28
+        }
+      ],
+      "answer_notes": "New docs/build-log/YYYY-MM-DD-<slug>.md, required heading format, old docs/BUILD-LOG.md closed. A correction is a new entry naming original; no edit after merge."
+    },
+    {
+      "id": "typed-misses",
+      "query": "For the documentation corpus read interface, how should a valid search with no matches differ from unavailable capability or stale source evidence?",
+      "gold": [
+        {
+          "path": "docs/specs/documentation-corpus-v1.md",
+          "start": 79,
+          "end": 82
+        },
+        {
+          "path": "docs/specs/documentation-corpus-v1.md",
+          "start": 86,
+          "end": 94
+        }
+      ],
+      "answer_notes": "Separate valid-filter no-match/not-found from absent/unsupported/unavailable and stale. Capabilities validated by declarations; freshness overlay/rederive immutable source; bounded deterministic lexical reads preserve misses and limitations."
+    },
+    {
+      "id": "unsupported-authentication",
+      "query": "Which cryptographic signature algorithm authenticates human review labels imported by documentation providers? Give the specified algorithm, or say the corpus does not establish one.",
+      "gold": [
+        {
+          "path": "docs/specs/documentation-corpus-v1.md",
+          "start": 54,
+          "end": 57
+        },
+        {
+          "path": "docs/specs/documentation-corpus-v1.md",
+          "start": 467,
+          "end": 473
+        }
+      ],
+      "answer_notes": "No algorithm established; imported review labels remain attributed declarations, human-review authentication excluded. Do not invent signature algorithm. This is a deliberate unsupported-conclusion probe."
+    }
+  ]
+}

@@ -1,0 +1,1545 @@
+package cli
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"io/fs"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"slices"
+	"sort"
+	"strconv"
+	"strings"
+	"syscall"
+	"time"
+
+	"github.com/Beamfall/corvint/internal/tasks/dispatch"
+	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
+	"github.com/Beamfall/corvint/internal/tasks/store"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
+	"github.com/Beamfall/corvint/internal/tasks/transaction"
+	"github.com/Beamfall/corvint/internal/tasks/wire"
+)
+
+// dispatchCommand routes `dispatch`, `dispatch status` and `dispatch unpark`
+// (CAL-V0-052), and `dispatch recover-reader` (CAL-V0-226).
+func dispatchCommand(env Env, args []string) *wire.Result {
+	if len(args) > 0 && (args[0] == "status" || args[0] == "unpark") {
+		return dispatchAux(env, args[0], args[1:])
+	}
+	if len(args) > 0 && args[0] == "recover-reader" {
+		return dispatchRecoverReader(env, args[1:])
+	}
+	if len(args) > 0 && args[0] == "upgrade" {
+		return dispatchUpgrade(env, args[1:]) // DSG-V0-007
+	}
+	if len(args) > 0 && args[0] == "salvage" {
+		return dispatchSalvage(env, args[1:]) // ATR-V0-126
+	}
+	cmd := []string{"dispatch"}
+	values, err := dispatchFlags(env.Cwd, args, map[string]bool{"--program": true, "--config": true, "--ticks": true}, map[string]bool{"--once": true})
+	if err != "" {
+		return usage(cmd, err)
+	}
+	ticks := 0
+	if _, once := values["--once"]; once {
+		if values["--ticks"] != "" {
+			return usage(cmd, "--once and --ticks are exclusive")
+		}
+		ticks = 1
+	} else if values["--ticks"] != "" {
+		n, e := strconv.Atoi(values["--ticks"])
+		if e != nil || n < 1 || n > 1000000 {
+			return usage(cmd, "--ticks must be 1..1000000")
+		}
+		ticks = n
+	}
+	c, raw, res := dispatchConfig(cmd, values)
+	if res != nil {
+		return res
+	}
+	repo, e := intent.Resolve(env.Cwd)
+	if e != nil {
+		return errorResult(cmd, e)
+	}
+	// Workers claim through the store at workRoot; heal and reap act on
+	// this one. They must be the same store.
+	if work, e := intent.Resolve(c.WorkRoot); e != nil || work.StateDir != repo.StateDir {
+		return usage(cmd, "workRoot must resolve to the same task store as the dispatcher's working directory")
+	}
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+	defer func() { cancel() }()
+	// The queue plans with the applied configuration's pools, which a
+	// reload may change (CAL-V0-127).
+	var d *dispatch.Dispatcher
+	q := newDispatchQueue(env, c)
+	q.pools = func() []string { return d.Config.TicketPools() }
+	d, e = dispatch.Open(values["--program"], c, q, env.Stderr)
+	if e != nil {
+		return dispatchReaderError(cmd, e)
+	}
+	// ATR-V0-102: a worker's context hook runs this executable.
+	if exe, err := os.Executable(); err == nil {
+		d.HookCommand = []string{exe, "dispatch", "context-hook"}
+	}
+	d.ResolveCommit = store.ResolveCommit // ERG-V0-028
+	d.ListCommits = store.CommitsSince    // ATR-V0-351
+	d.WatchConfig(func() ([]byte, fs.FileInfo, error) {
+		return intent.ReadFileWithInfo(values["--config"], dispatch.MaxConfig)
+	}, func() (fs.FileInfo, error) { return os.Lstat(values["--config"]) }, raw)
+	// DSG-V0-011: this run accepts a handover to a requested build, which
+	// starts with the same arguments.
+	if err := d.EnableUpgrade(append([]string{"dispatch"}, args...)); err != nil {
+		_, _ = fmt.Fprintln(env.Stderr, "upgrade handover unavailable for this run:", err)
+	}
+	runErr := d.Run(ctx, ticks)
+	for errors.Is(runErr, dispatch.ErrUpgradeRequested) && ctx.Err() == nil {
+		// Handover returns only when this image keeps running; it reset the
+		// stop signals, so they are taken again for the resumed run.
+		// The next context is registered before the old one is checked, so
+		// a stop arriving in between reaches at least one of them.
+		_ = d.Handover(ctx)
+		next, nextCancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+		if ctx.Err() != nil {
+			nextCancel()
+			runErr = nil
+			break
+		}
+		cancel()
+		ctx, cancel = next, nextCancel
+		runErr = d.Run(ctx, ticks)
+	}
+	if errors.Is(runErr, dispatch.ErrUpgradeRequested) {
+		runErr = nil // stopped with a request pending; the next start discards it
+	}
+	closeErr := d.Close()
+	o := wire.NewObject()
+	o.Set("profile", wire.String("taskman-dispatch-run/0"))
+	o.Set("program", wire.String(values["--program"]))
+	o.Set("stateDir", wire.String(dispatch.ProgramDir(c, values["--program"])))
+	o.Set("workersRunning", wire.String(strconv.Itoa(d.Running())))
+	o.Set("lastEventSeq", wire.String(strconv.FormatUint(d.LastEvent(), 10)))
+	o.Set("interrupted", wire.Bool(ctx.Err() != nil))
+	containment, quarantined, diagnostic := dispatch.ReaderContainment(dispatch.ProgramDir(c, values["--program"]), values["--program"])
+	o.Set("readerContainment", wire.String(containment))
+	o.Set("readerQuarantined", wire.Bool(quarantined))
+	o.Set("readerDiagnostic", wire.String(diagnostic))
+	out := &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{{Kind: wire.KindObject, Obj: o}}}
+	for _, e := range []error{runErr, closeErr} {
+		if e != nil {
+			out.Outcome, out.Codes = wire.OutcomeError, []string{wire.CodeOf(e)}
+			if errors.Is(e, dispatch.ErrReaderQuiescence) {
+				out.Codes = []string{wire.CodeQuiescenceUnproved}
+			}
+			out.Warnings = append(out.Warnings, prose(e.Error()))
+		}
+	}
+	return out
+}
+
+// dispatchRecoverReader is the operator recovery of a quarantined reader
+// (CAL-V0-226): the attestation is recorded before the marker is removed,
+// and a running dispatcher for the program refuses it.
+func dispatchRecoverReader(env Env, args []string) *wire.Result {
+	cmd := []string{"dispatch", "recover-reader"}
+	values, bad := dispatchFlags(env.Cwd, args, map[string]bool{"--program": true, "--config": true, "--reason": true, "--evidence": true, "--request-id": true}, nil)
+	if bad != "" {
+		return usage(cmd, bad)
+	}
+	reason, err := wire.ParseProse("--reason", values["--reason"], 1, 4096)
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	evidence, err := wire.ParseIdentifier("--evidence", values["--evidence"])
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	requestID, err := mutation.ParseRequestID("--request-id", values["--request-id"])
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	c, _, res := dispatchConfig(cmd, values)
+	if res != nil {
+		return res
+	}
+	rec, replayed, err := dispatch.RecoverReader(c, values["--program"], dispatch.ReaderRecoveryRequest{RequestID: requestID, Reason: reason, Evidence: evidence}, time.Now())
+	if err != nil {
+		return errorResult(cmd, err)
+	}
+	o := wire.NewObject()
+	o.Set("profile", wire.String("taskman-dispatch-reader-recover/0"))
+	o.Set("program", wire.String(rec.Program))
+	o.Set("kind", wire.String(rec.Kind))
+	o.Set("requestId", wire.String(rec.RequestID))
+	o.Set("run", wire.String(rec.Run))
+	o.Set("markerSha256", wire.String(rec.MarkerSHA256))
+	o.Set("recordedAt", wire.String(rec.RecordedAt))
+	o.Set("replayed", wire.Bool(replayed))
+	containment, quarantined, diagnostic := dispatch.ReaderContainment(dispatch.ProgramDir(c, values["--program"]), values["--program"])
+	o.Set("readerContainment", wire.String(containment))
+	o.Set("readerQuarantined", wire.Bool(quarantined))
+	o.Set("readerDiagnostic", wire.String(diagnostic))
+	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{wire.ObjectValue(o)}}
+}
+
+func dispatchReaderError(cmd []string, err error) *wire.Result {
+	if errors.Is(err, dispatch.ErrReaderQuiescence) {
+		return errorResult(cmd, wire.Errorf(wire.CodeQuiescenceUnproved, "reader", "%v", err))
+	}
+	return errorResult(cmd, err)
+}
+
+// dispatchFlags parses the dispatch flags and resolves --config with
+// commandPath, so every later read, watch and stat names one file.
+func dispatchFlags(cwd string, args []string, valued, bare map[string]bool) (map[string]string, string) {
+	values := map[string]string{}
+	for i := 0; i < len(args); i++ {
+		f := args[i]
+		if _, dup := values[f]; dup {
+			return nil, "repeated dispatch flag " + f
+		}
+		switch {
+		case bare[f]:
+			values[f] = ""
+		case valued[f] && i+1 < len(args):
+			values[f] = args[i+1]
+			i++
+		default:
+			return nil, "unknown or incomplete dispatch flag " + f
+		}
+	}
+	if values["--program"] == "" || values["--config"] == "" {
+		return nil, "dispatch requires --program and --config"
+	}
+	if !dispatch.ValidName(values["--program"]) {
+		return nil, "program name must match [a-z][a-z0-9-]{0,23}"
+	}
+	values["--config"] = commandPath(cwd, values["--config"])
+	return values, ""
+}
+
+// commandPath is the one rule for a file-path flag (CAL-V0-225): a relative
+// path is joined to the command's working directory, and the result is
+// cleaned lexically, so `..` is resolved against the spelled path before any
+// filesystem access. The safe open then refuses a symlink in every component
+// of that cleaned path, so the file read is the one the cleaned path names.
+func commandPath(cwd, path string) string {
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(cwd, path)
+	}
+	return filepath.Clean(path)
+}
+
+func dispatchConfig(cmd []string, values map[string]string) (*dispatch.Config, []byte, *wire.Result) {
+	raw, e := intent.ReadFile(values["--config"], dispatch.MaxConfig)
+	if e != nil {
+		return nil, nil, errorResult(cmd, e)
+	}
+	c, e := dispatch.DecodeConfig(raw)
+	if e != nil {
+		return nil, nil, usage(cmd, e.Error())
+	}
+	return c, raw, nil
+}
+
+// dispatchAuxConfig reads the configuration for status and unpark. Status
+// alone tolerates a file DecodeConfig refuses (CAL-V0-127): it recovers the
+// state directory, reads the ledger, and reports the file as INVALID, so a
+// reload refusal the running dispatcher recorded stays visible. The returned
+// configuration then carries only the state directory.
+func dispatchAuxConfig(cmd []string, verb string, values map[string]string) (*dispatch.Config, *wire.Result, *wire.Object) {
+	raw, e := intent.ReadFile(values["--config"], dispatch.MaxConfig)
+	if e != nil {
+		return nil, errorResult(cmd, e), nil
+	}
+	c, e := dispatch.DecodeConfig(raw)
+	if e == nil {
+		return c, nil, nil
+	}
+	dir, ok := dispatch.ConfigStateDir(raw)
+	if verb != "status" || !ok {
+		return nil, usage(cmd, e.Error()), nil
+	}
+	sum := sha256.Sum256(raw)
+	o := wire.NewObject()
+	o.Set("state", wire.String("INVALID"))
+	o.Set("sha256", wire.String(hex.EncodeToString(sum[:])))
+	o.Set("reason", wire.String(prose(e.Error())))
+	return &dispatch.Config{StateDir: dir}, nil, o
+}
+
+// dispatchAux is `dispatch status` (a pure read of the dispatcher's own
+// files; it never opens the native store) and `dispatch unpark` (a request
+// file the running dispatcher consumes on its next tick).
+func dispatchAux(env Env, verb string, args []string) *wire.Result {
+	cmd := []string{"dispatch", verb}
+	valued := map[string]bool{"--program": true, "--config": true, "--events": true, "--worker": true}
+	if verb == "unpark" {
+		valued = map[string]bool{"--program": true, "--config": true, "--key": true}
+	}
+	values, err := dispatchFlags(env.Cwd, args, valued, nil)
+	if err != "" {
+		return usage(cmd, err)
+	}
+	c, res, invalid := dispatchAuxConfig(cmd, verb, values)
+	if res != nil {
+		return res
+	}
+	dir := dispatch.ProgramDir(c, values["--program"])
+	if verb == "unpark" {
+		key := values["--key"]
+		if key == "" || len(key) > 512 {
+			return usage(cmd, "unpark requires --key (a ticket ID or lane:POOL/MEMBER)")
+		}
+		raw, _ := json.Marshal(dispatch.UnparkRequest{Unpark: key})
+		sum := sha256.Sum256([]byte(key))
+		path := filepath.Join(dir, "requests", hex.EncodeToString(sum[:8])+".json")
+		if e := os.MkdirAll(filepath.Dir(path), 0o700); e != nil {
+			return errorResult(cmd, e)
+		}
+		if e := os.WriteFile(path+".tmp", raw, 0o600); e != nil {
+			return errorResult(cmd, e)
+		}
+		if e := os.Rename(path+".tmp", path); e != nil {
+			return errorResult(cmd, e)
+		}
+		o := wire.NewObject()
+		o.Set("profile", wire.String("taskman-dispatch-unpark/0"))
+		o.Set("key", wire.String(key))
+		o.Set("request", wire.String(path))
+		return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{{Kind: wire.KindObject, Obj: o}}}
+	}
+	n := 20
+	if values["--events"] != "" {
+		v, e := strconv.Atoi(values["--events"])
+		if e != nil || v < 0 || v > 1000 {
+			return usage(cmd, "--events must be 0..1000")
+		}
+		n = v
+	}
+	l, e := dispatch.LoadLedger(dir, values["--program"])
+	if e != nil {
+		return errorResult(cmd, e)
+	}
+	events, e := dispatch.ReadEvents(dir, n)
+	if e != nil {
+		return errorResult(cmd, e)
+	}
+	now := time.Now()
+	status := dispatchStatusValueFor(c, dir, l, events, now, dispatchBudgetTickets(env, c))
+	// ATR-V0-056: one worker's context notice, read from its record.
+	if id := values["--worker"]; id != "" {
+		var w *dispatch.Worker
+		for _, x := range l.Workers {
+			if x.ID == id {
+				w = x
+			}
+		}
+		if w == nil {
+			return usage(cmd, "--worker names no worker of this program's ledger")
+		}
+		status.Obj.Set("contextNotice", dispatchContextNoticeValue(dir, w, now))
+	}
+	if invalid != nil {
+		// Escalation, pressure caps and the retry policy come from a file
+		// that does not decode: the views are kept, the policy is UNKNOWN.
+		status.Obj.Set("configFile", wire.ObjectValue(invalid))
+		if ir, ok := status.Obj.Get("infrastructureRetry"); ok {
+			ir.Obj.Set("policy", wire.String(dispatch.StateUnknown))
+		}
+	}
+	// CAL-V0-150: additive and present only while the dispatcher tracks a
+	// detached run; each run's state is read, never written.
+	if runs, ok := dispatchDetachedRuns(env, dir); ok {
+		status.Obj.Set("detachedRuns", runs)
+	}
+	// SERVICE500-008: additive and present only when this program's
+	// installed user service binds this dispatcher state root.
+	if svc, ok := serviceHost().DispatchService(values["--program"], c.StateDir); ok {
+		status.Obj.Set("service", wire.ObjectValue(svc))
+	}
+	// CAL-V0-290: each shadowed role is also a result warning.
+	var warnings []string
+	for _, s := range c.RoleShadows() {
+		warnings = append(warnings, prose(s.Message()))
+	}
+	if invalid != nil {
+		// ATR-V0-134: the view is kept, but a file a restart would refuse
+		// fails the command, so a script can gate on the exit code.
+		reason, _ := invalid.Get("reason")
+		warnings = append(warnings, prose("dispatch config file is INVALID; a restart would refuse it: "+reason.Str))
+		return &wire.Result{Command: cmd, Outcome: wire.OutcomeError, Codes: []string{wire.CodeMalformed}, Items: []wire.Value{status}, Warnings: warnings}
+	}
+	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{status}, Warnings: warnings}
+}
+
+// dispatchRoleShadowsValue is the CAL-V0-290 status view of the shadowed
+// roles of the configuration file, in role order.
+func dispatchRoleShadowsValue(shadows []dispatch.RoleShadow) wire.Value {
+	rows := make([]wire.Value, 0, len(shadows))
+	for _, s := range shadows {
+		o := wire.NewObject()
+		o.Set("role", wire.String(s.Role))
+		o.Set("priority", wire.String(strconv.Itoa(s.Priority)))
+		o.Set("shadowedBy", wire.String(s.ShadowedBy))
+		o.Set("shadowedByPriority", wire.String(strconv.Itoa(s.ShadowedByPriority)))
+		rows = append(rows, wire.ObjectValue(o))
+	}
+	return wire.Array(rows...)
+}
+
+func dispatchStatusValue(c *dispatch.Config, dir string, l *dispatch.Ledger, events []dispatch.Event, now time.Time) wire.Value {
+	return dispatchStatusValueFor(c, dir, l, events, now, nil)
+}
+
+// dispatchStatusValueFor is the status view with the observed tickets that
+// resolve each ticket's ATR-V0-087 effective budget limit.
+func dispatchStatusValueFor(c *dispatch.Config, dir string, l *dispatch.Ledger, events []dispatch.Event, now time.Time, tickets []dispatch.Ticket) wire.Value {
+	if c == nil {
+		// ATR-V0-162: no configuration renders as an empty one, the same
+		// fallback dispatchAuxConfig gives the production callers.
+		c = &dispatch.Config{StateDir: dir}
+	}
+	str := wire.String
+	ts := func(t time.Time) wire.Value { return str(t.UTC().Format(time.RFC3339)) }
+	sweeps := []wire.Value{}
+	keysSweep := make([]string, 0, len(l.PoolSweeps))
+	for key := range l.PoolSweeps {
+		keysSweep = append(keysSweep, key)
+	}
+	sort.Strings(keysSweep)
+	for _, key := range keysSweep {
+		r := l.PoolSweeps[key]
+		o := wire.NewObject().Set("requestId", str(r.RequestID)).Set("pool", str(r.Pool)).Set("member", str(r.Member)).Set("allocation", str(r.Allocation)).Set("phase", str(r.Phase)).Set("receiptSeq", str(r.Result.ReceiptSeq)).Set("evidence", str(r.Result.Evidence)).Set("reason", str(r.Reason))
+		sweeps = append(sweeps, wire.ObjectValue(o))
+	}
+	workers := []wire.Value{}
+	for _, w := range l.Workers {
+		o := wire.NewObject()
+		o.Set("worker", str(w.ID))
+		o.Set("role", str(w.Role))
+		o.Set("slot", str(strconv.Itoa(w.Slot)))
+		o.Set("key", str(w.Key))
+		o.Set("pid", str(strconv.Itoa(w.PID)))
+		o.Set("processes", str(strconv.Itoa(len(w.Members))))
+		o.Set("state", str(w.State))
+		o.Set("started", ts(w.Started))
+		o.Set("lastActive", ts(w.LastActive))
+		o.Set("context", dispatchWorkerContextValue(dir, w, now))
+		b := dispatch.WorkerBuild(dir, w.ID) // DSG-V0-010
+		o.Set("build", wire.ObjectValue(wire.NewObject().Set("executable", str(b.Path)).Set("sha256", str(b.ID()))))
+		if v := dispatchContextDeliveryValue(c, dir, w); v != nil {
+			o.Set("contextDelivery", *v)
+		}
+		if w.Model != "" {
+			o.Set("tier", str(strconv.Itoa(w.Tier)))
+			o.Set("model", str(w.Model))
+		}
+		if w.Effort != "" {
+			o.Set("effort", str(w.Effort))
+		}
+		o.Set("usage", dispatchWorkerUsageValue(w.Usage))
+		if k := w.Keeper; k != nil {
+			// CAL-V0-316: present only for a keepLease role's worker.
+			ko := wire.NewObject().Set("state", str(k.State)).Set("attempt", str(k.Attempt)).Set("generation", str(k.Generation)).Set("reason", str(k.Reason)).Set("lastAction", str(k.LastAction)).Set("renewals", str(strconv.Itoa(k.Renewals))).Set("heartbeats", str(strconv.Itoa(k.Heartbeats))).Set("failing", wire.Bool(k.Failing))
+			if !k.Due.IsZero() {
+				ko.Set("due", ts(k.Due))
+			}
+			if !k.LastKept.IsZero() {
+				ko.Set("lastKept", ts(k.LastKept))
+			}
+			o.Set("keeper", wire.ObjectValue(ko))
+		}
+		if h := dispatch.ReadPoolHold(dir, w.ID); h != nil {
+			// ATR-V0-123: the allocation the dispatcher holds for this
+			// worker's attempt; present only once it acquired one.
+			o.Set("poolHold", wire.ObjectValue(wire.NewObject().Set("state", str(h.State)).Set("attempt", str(h.Attempt)).Set("generation", str(h.Generation)).Set("pool", str(h.Pool)).Set("member", str(h.Member)).Set("allocation", str(h.Allocation)).Set("acquired", ts(h.Acquired))))
+		}
+		workers = append(workers, wire.Value{Kind: wire.KindObject, Obj: o})
+	}
+	keys := make([]string, 0, len(l.Backoff))
+	for k := range l.Backoff {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	parked, cooling := []string{}, []wire.Value{}
+	for _, k := range keys {
+		b := l.Backoff[k]
+		if b.Parked {
+			parked = append(parked, k)
+		} else if b.CooldownUntil.After(now) {
+			o := wire.NewObject()
+			o.Set("key", str(k))
+			o.Set("until", ts(b.CooldownUntil))
+			o.Set("noProgressRuns", str(strconv.Itoa(b.NoProgress)))
+			cooling = append(cooling, wire.Value{Kind: wire.KindObject, Obj: o})
+		}
+	}
+	evs := []wire.Value{}
+	for _, e := range events {
+		o := wire.NewObject()
+		o.Set("seq", str(strconv.FormatUint(e.Seq, 10)))
+		o.Set("at", str(e.At))
+		o.Set("kind", str(e.Kind))
+		o.Set("message", str(prose(e.Message)))
+		evs = append(evs, wire.Value{Kind: wire.KindObject, Obj: o})
+	}
+	o := wire.NewObject()
+	o.Set("profile", str("taskman-dispatch-status/0"))
+	o.Set("program", str(l.Program))
+	o.Set("stateDir", str(dir))
+	o.Set("dispatcherRunning", str(dispatch.OwnerState(dir)))
+	containment, quarantined, diagnostic := dispatch.ReaderContainment(dir, l.Program)
+	o.Set("readerContainment", str(containment))
+	o.Set("readerQuarantined", wire.Bool(quarantined))
+	o.Set("readerDiagnostic", str(diagnostic))
+	if len(sweeps) > 0 {
+		o.Set("poolSweeps", wire.Array(sweeps...))
+	}
+	o.Set("workers", wire.Value{Kind: wire.KindArray, Arr: workers})
+	o.Set("upgrade", dispatchUpgradeStatusValue(dir, l))
+	o.Set("parked", wire.Strings(parked))
+	o.Set("cooling", wire.Value{Kind: wire.KindArray, Arr: cooling})
+	if churn := dispatchSessionChurnValue(dir, now); churn != nil {
+		o.Set("shortSessions", *churn)
+	}
+	if exhausted := dispatchContextExhaustedValue(dir); exhausted != nil {
+		o.Set("contextExhausted", *exhausted)
+	}
+	if slept := dispatchHostSleepValue(dir); slept != nil {
+		o.Set("hostSleep", *slept)
+	}
+	if held := dispatchEscalationPending(l); len(held) > 0 {
+		o.Set("escalationPending", wire.Value{Kind: wire.KindArray, Arr: held})
+	}
+	if open := dispatchEscalationRequests(l, now); len(open) > 0 {
+		o.Set("escalationRequests", wire.Value{Kind: wire.KindArray, Arr: open})
+	}
+	if held := dispatchLoopDetected(l); len(held) > 0 {
+		o.Set("loopDetected", wire.Value{Kind: wire.KindArray, Arr: held})
+	}
+	if rows, omitted := l.StallRows(); len(rows) > 0 {
+		o.Set("sessionsSinceStatusChange", dispatchStallValue(c, rows, omitted))
+	}
+	if l.Seen != nil && len(l.Seen.Obligations) > 0 {
+		o.Set("obligations", dispatchObligationsValue(l.Seen.Obligations))
+	}
+	if c.Escalates() {
+		o.Set("escalation", dispatchEscalationValue(c, l))
+	}
+	if len(l.InfraRetry) > 0 {
+		o.Set("infrastructureRetry", dispatchInfraRetryValue(c, l))
+	}
+	if l.Pressure != nil {
+		o.Set("pressure", dispatchPressureValue(l.Pressure, c.Pressure))
+	}
+	if c.WorkState != nil || l.WorkState != nil {
+		o.Set("workState", dispatchWorkStateValue(c, l.WorkState, now))
+	}
+	dispatchSignalsValue(o, dir, l.Program)
+	if l.Config != nil {
+		o.Set("config", dispatchConfigRecordValue(l.Config))
+	}
+	o.Set("budget", dispatchBudgetValue(c, l, now, tickets))
+	if shadows := c.RoleShadows(); len(shadows) > 0 {
+		o.Set("roleShadows", dispatchRoleShadowsValue(shadows))
+	}
+	o.Set("lastEventSeq", str(strconv.FormatUint(l.EventSeq, 10)))
+	o.Set("events", wire.Value{Kind: wire.KindArray, Arr: evs})
+	return wire.Value{Kind: wire.KindObject, Obj: o}
+}
+
+// dispatchSignalsValue adds the DSG-V0-006 view of the latest queue
+// observation: unmatchedWorkStates while a tick deferred NO_ROLE_MATCH
+// tickets, and idleWithCapacity while an idle streak runs. A missing or
+// unreadable observation adds neither; doctor reports the unreadable one.
+func dispatchSignalsValue(o *wire.Object, dir, program string) {
+	raw, err := readBounded(filepath.Join(dir, dispatch.AdmissionFile), dispatch.MaxAdmissionBytes)
+	if err != nil {
+		return
+	}
+	rec, err := dispatch.DecodeAdmission(raw, program)
+	if err != nil {
+		return
+	}
+	str := wire.String
+	if len(rec.UnmatchedStates) > 0 {
+		rows := make([]wire.Value, 0, len(rec.UnmatchedStates))
+		for _, u := range rec.UnmatchedStates {
+			rows = append(rows, wire.ObjectValue(wire.NewObject().Set("state", str(u.State)).Set("tickets", str(strconv.Itoa(u.Tickets))).Set("example", str(u.Example))))
+		}
+		o.Set("unmatchedWorkStates", wire.Array(rows...))
+	}
+	if rec.IdleSince != nil {
+		rows := make([]wire.Value, 0, len(rec.IdleDeferred))
+		for _, c := range rec.IdleDeferred {
+			rows = append(rows, wire.ObjectValue(wire.NewObject().Set("reason", str(c.Reason)).Set("tickets", str(strconv.Itoa(c.Tickets)))))
+		}
+		o.Set("idleWithCapacity", wire.ObjectValue(wire.NewObject().Set("since", str(rec.IdleSince.UTC().Format(time.RFC3339))).Set("ticks", str(strconv.Itoa(rec.IdleTicks))).Set("observedAt", str(rec.At.UTC().Format(time.RFC3339))).Set("deferred", wire.Array(rows...))))
+	}
+}
+
+// dispatchWorkStateValue is the CAL-V0-270 health of the work-state reader:
+// health OK, FAILING or NOT_OBSERVED (configured, never read), and once
+// read ok, since, lastError ("NONE" before any failure), failedTicks,
+// escalated and launchesHeld, with the configured thresholds.
+func dispatchWorkStateValue(c *dispatch.Config, h *dispatch.WorkStateHealth, now time.Time) wire.Value {
+	str := wire.String
+	o := wire.NewObject()
+	health := "NOT_OBSERVED"
+	if h != nil {
+		health = "FAILING"
+		if h.OK {
+			health = "OK"
+		}
+	}
+	o.Set("health", str(health))
+	if h != nil {
+		last := h.LastError
+		if last == "" {
+			last = "NONE"
+		}
+		o.Set("ok", wire.Bool(h.OK))
+		o.Set("since", str(h.Since.UTC().Format(time.RFC3339)))
+		o.Set("lastError", str(prose(last)))
+		o.Set("failedTicks", str(strconv.Itoa(h.FailedTicks)))
+		o.Set("escalated", wire.Bool(h.Escalated))
+		o.Set("launchesHeld", wire.Bool(dispatch.WorkStateHoldsLaunches(c, h)))
+		// CAL-V0-276: state events still show each ticket's last known work
+		// state, which is stale while this holds.
+		o.Set("stale", wire.Bool(dispatch.WorkStateStale(c, h, now)))
+	}
+	escalate, hold, timeout, stale := "NONE", "NONE", "NONE", "NONE"
+	if w := c.WorkState; w != nil {
+		escalate = strconv.Itoa(w.EscalateAfter())
+		if w.HoldLaunchesAfterTicks > 0 {
+			hold = strconv.Itoa(w.HoldLaunchesAfterTicks)
+		}
+		if w.Kind == "command" {
+			timeout = strconv.Itoa(int(w.Timeout() / time.Second))
+		}
+		stale = strconv.Itoa(int(w.StaleAfter(c.TickSeconds) / time.Second))
+	}
+	o.Set("escalateAfterTicks", str(escalate))
+	o.Set("holdLaunchesAfterTicks", str(hold))
+	o.Set("timeoutSeconds", str(timeout))
+	o.Set("staleAfterSeconds", str(stale))
+	return wire.ObjectValue(o)
+}
+
+// dispatchWorkerUsageValue is a running worker's CAL-V0-157 token account so
+// far: a lower bound while it runs, and UNKNOWN, never 0, when nothing was
+// read or its role declares no usage format.
+func dispatchWorkerUsageValue(u *dispatch.WorkerUsage) wire.Value {
+	o := wire.NewObject()
+	format, state := "NONE", u.State(false)
+	if u != nil {
+		format = u.Format
+	}
+	if state == dispatch.UsagePartial {
+		state = dispatch.UsageRunning
+	}
+	o.Set("format", wire.String(format))
+	o.Set("state", wire.String(state))
+	in, out, total := dispatch.UsageUnknown, dispatch.UsageUnknown, dispatch.UsageUnknown
+	if state != dispatch.UsageUnknown {
+		in, out, total = strconv.FormatUint(u.Input, 10), strconv.FormatUint(u.Output, 10), strconv.FormatUint(u.Input+u.Output, 10)
+	}
+	o.Set("inputTokens", wire.String(in))
+	o.Set("outputTokens", wire.String(out))
+	o.Set("tokens", wire.String(total))
+	return wire.ObjectValue(o)
+}
+
+// dispatchWorkerContextValue is a running worker's ATR-V0-032 context
+// estimate, its age, the highest recorded crossing and the thresholds the
+// dispatcher last applied, all from its record: the configuration file may
+// be invalid or not yet reloaded (ATR-V0-039). An unread or unknown value is
+// UNKNOWN, never 0.
+func dispatchWorkerContextValue(dir string, w *dispatch.Worker, now time.Time) wire.Value {
+	unknown := dispatch.UsageUnknown
+	none := dispatch.ContextNone
+	tokens, at, age, level := unknown, unknown, unknown, none
+	warn, handoff, hard := none, none, none
+	if w.Usage != nil && (w.Usage.Format == "claude-code" || w.Usage.Format == "opencode") {
+		warn, handoff, hard = unknown, unknown, unknown
+		switch r, err := dispatch.ReadContextRecord(dir, w.ID); {
+		case err == nil:
+			tokens, at, level = r.Tokens, r.ObservedAt, r.Level
+			warn, handoff, hard = r.WarnTokens, r.HandoffTokens, r.HardTokens
+			if t, e := time.Parse(time.RFC3339, r.ObservedAt); e == nil {
+				age = strconv.FormatInt(max(0, int64(now.Sub(t)/time.Second)), 10)
+			}
+		case !errors.Is(err, fs.ErrNotExist):
+			level = unknown
+		}
+	}
+	o := wire.NewObject()
+	o.Set("tokens", wire.String(tokens))
+	o.Set("observedAt", wire.String(at))
+	o.Set("ageSeconds", wire.String(age))
+	o.Set("level", wire.String(level))
+	o.Set("warnTokens", wire.String(warn))
+	o.Set("handoffTokens", wire.String(handoff))
+	o.Set("hardTokens", wire.String(hard))
+	return wire.ObjectValue(o)
+}
+
+// dispatchContextNoticeValue is the ATR-V0-056 notice of worker w: its
+// ATR-V0-032 context view, the record file and the recorded crossings
+// (empty when the record is absent or does not read).
+func dispatchContextNoticeValue(dir string, w *dispatch.Worker, now time.Time) wire.Value {
+	v := dispatchWorkerContextValue(dir, w, now)
+	v.Obj.Set("worker", wire.String(w.ID))
+	v.Obj.Set("file", wire.String(dispatch.ContextRecordPath(dir, w.ID)))
+	crossings := []wire.Value{}
+	if lvl, _ := v.Obj.Get("level"); lvl.Str != dispatch.ContextNone && lvl.Str != dispatch.UsageUnknown {
+		if r, err := dispatch.ReadContextRecord(dir, w.ID); err == nil {
+			for _, c := range r.Crossings {
+				o := wire.NewObject()
+				o.Set("level", wire.String(c.Level))
+				o.Set("threshold", wire.String(c.Threshold))
+				o.Set("tokens", wire.String(c.Tokens))
+				o.Set("at", wire.String(c.At))
+				crossings = append(crossings, wire.ObjectValue(o))
+			}
+		}
+	}
+	v.Obj.Set("crossings", wire.Array(crossings...))
+	return v
+}
+
+// dispatchBudgetValue is the CAL-V0-158 view of the rolling window: each
+// role's spend and, with a ticket budget, each ticket's; the limits ("NONE"
+// when unset), the hold in force and when the window releases it. Observed
+// tokens are a lower bound while any session is PARTIAL or RUNNING, and
+// sessions with an UNKNOWN total are counted apart, never as 0 tokens.
+//
+// With ticketBudget overrides, a ticket scope's limits are its ATR-V0-087
+// effective limit and `selector` names what set it (ATR-V0-088): DEFAULT,
+// ticket:ID, label:NAME or kind:KIND. A ticket whose labels and kind the
+// store did not supply resolves by its key alone and is marked with
+// `selectorObserved` false. Without overrides the view is unchanged.
+func dispatchBudgetValue(c *dispatch.Config, l *dispatch.Ledger, now time.Time, tickets []dispatch.Ticket) wire.Value {
+	str := wire.String
+	limit := func(n uint64) wire.Value {
+		if n == 0 {
+			return str("NONE")
+		}
+		return str(strconv.FormatUint(n, 10))
+	}
+	scopes := []wire.Value{}
+	overrides := c.TicketBudget != nil && len(c.TicketBudget.Overrides) > 0
+	observed := map[string]bool{}
+	for _, t := range tickets {
+		observed[t.ID] = true
+	}
+	for _, s := range dispatch.SpendReportFor(c, l, now, tickets) {
+		o := wire.NewObject().Set("scope", str(s.Scope)).Set("name", str(s.Name))
+		if overrides && s.Scope == dispatch.ScopeTicket {
+			// NONE: a recorded hold whose ticket no override selects under a
+			// ticketBudget with no default limit (ATR-V0-085).
+			sel := s.Selector
+			if sel == "" {
+				sel = "NONE"
+			}
+			o.Set("selector", str(sel))
+			o.Set("selectorObserved", wire.Bool(observed[s.Name]))
+		}
+		o.Set("sessions", str(strconv.Itoa(s.Sessions)))
+		o.Set("observedTokens", str(strconv.FormatUint(s.Tokens, 10)))
+		o.Set("partialSessions", str(strconv.Itoa(s.Partial)))
+		o.Set("runningSessions", str(strconv.Itoa(s.Running)))
+		o.Set("unknownSessions", str(strconv.Itoa(s.Unknown)))
+		var b dispatch.Budget
+		if s.Budget != nil {
+			b = *s.Budget
+		}
+		o.Set("sessionsPerDay", limit(uint64(b.SessionsPerDay)))
+		o.Set("tokensPerDay", limit(b.TokensPerDay))
+		held, resets := "NONE", "NONE"
+		if h := s.Hold; h != nil {
+			held, resets = h.Limit, h.ResetsAt.UTC().Format(time.RFC3339)
+		}
+		o.Set("held", str(held))
+		o.Set("resetsAt", str(resets))
+		scopes = append(scopes, wire.ObjectValue(o))
+	}
+	o := wire.NewObject()
+	o.Set("windowSeconds", str(strconv.Itoa(int(dispatch.BudgetWindow.Seconds()))))
+	truncated, from := "NONE", "NONE"
+	if r := l.Budget; r != nil {
+		cutoff := now.Add(-dispatch.BudgetWindow)
+		if r.Truncated.After(cutoff) {
+			truncated = r.Truncated.UTC().Format(time.RFC3339)
+		}
+		if r.HistoryFrom.After(cutoff) {
+			from = r.HistoryFrom.UTC().Format(time.RFC3339)
+		}
+	}
+	o.Set("historyTruncatedThrough", str(truncated))
+	o.Set("historyFrom", str(from))
+	o.Set("scopes", wire.Array(scopes...))
+	return wire.ObjectValue(o)
+}
+
+// dispatchConfigRecordValue is the CAL-V0-127 view of this run's reload
+// outcome: the applied file's digest and the newest refused change, if any.
+func dispatchConfigRecordValue(r *dispatch.ConfigRecord) wire.Value {
+	o := wire.NewObject()
+	o.Set("appliedSha256", wire.String(r.AppliedSha256))
+	o.Set("appliedAt", wire.String(r.AppliedAt.UTC().Format(time.RFC3339)))
+	if f := r.Refused; f != nil {
+		x := wire.NewObject()
+		sum := f.Sha256
+		if sum == "" {
+			sum = dispatch.StateUnknown
+		}
+		x.Set("sha256", wire.String(sum))
+		x.Set("at", wire.String(f.At.UTC().Format(time.RFC3339)))
+		x.Set("reason", wire.String(prose(f.Reason)))
+		o.Set("refused", wire.Value{Kind: wire.KindObject, Obj: x})
+	} else {
+		o.Set("refused", wire.String("NONE"))
+	}
+	return wire.Value{Kind: wire.KindObject, Obj: o}
+}
+
+// dispatchInfraRetryValue is the ESC-V0-007 view: a dispatcher observation
+// of each ticket's infrastructure retry episode, apart from parked keys and
+// native requests. The policy is ABSENT when the configuration has none;
+// its recorded episodes are then inert but keep their debt.
+func dispatchInfraRetryValue(c *dispatch.Config, l *dispatch.Ledger) wire.Value {
+	labels := map[string]string{dispatch.InfraExhausted: "INFRA_RETRY_EXHAUSTED", dispatch.InfraDisabled: "INFRA_RETRY_DISABLED", dispatch.InfraNativeExhausted: "NATIVE_RETRY_EXHAUSTED"}
+	keys := make([]string, 0, len(l.InfraRetry))
+	for k := range l.InfraRetry {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	episodes := make([]wire.Value, 0, len(keys))
+	for _, k := range keys {
+		e := l.InfraRetry[k]
+		o := wire.NewObject()
+		o.Set("ticket", wire.String(k))
+		o.Set("acceptanceRevision", wire.String(e.AcceptanceRevision))
+		state := e.State
+		if label, ok := labels[state]; ok {
+			state = label
+		}
+		o.Set("state", wire.String(state))
+		o.Set("sessions", wire.String(strconv.Itoa(e.Sessions)))
+		o.Set("charged", wire.String(strconv.Itoa(e.Charged)))
+		o.Set("limit", wire.String(strconv.Itoa(e.Limit)))
+		o.Set("cooldownUntil", wire.String(e.CooldownUntil.UTC().Format("2006-01-02T15:04:05Z")))
+		if e.Launch != "" {
+			o.Set("launch", wire.String(e.Launch))
+		}
+		episodes = append(episodes, wire.Value{Kind: wire.KindObject, Obj: o})
+	}
+	o := wire.NewObject()
+	o.Set("source", wire.String("DISPATCHER_OBSERVATION"))
+	o.Set("policy", wire.String(map[bool]string{true: "PRESENT", false: "ABSENT"}[c.InfrastructureRetry != nil]))
+	o.Set("episodes", wire.Value{Kind: wire.KindArray, Arr: episodes})
+	return wire.Value{Kind: wire.KindObject, Obj: o}
+}
+
+// dispatchEscalationValue is the CAL-V0-057 ladder view: per ticket, the
+// no-progress streak and the tier and model each laddered role launches next.
+func dispatchEscalationValue(c *dispatch.Config, l *dispatch.Ledger) wire.Value {
+	keys := make([]string, 0, len(l.Escalation))
+	for k := range l.Escalation {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	out := []wire.Value{}
+	for _, k := range keys {
+		e := l.Escalation[k]
+		roles := []wire.Value{}
+		for i := range c.Roles {
+			r := &c.Roles[i]
+			if len(r.Escalate) == 0 {
+				continue
+			}
+			tier := dispatch.LaunchTier(r, e)
+			o := wire.NewObject()
+			o.Set("role", wire.String(r.Name))
+			o.Set("tier", wire.String(strconv.Itoa(tier)))
+			o.Set("model", wire.String(r.ModelAt(tier)))
+			roles = append(roles, wire.Value{Kind: wire.KindObject, Obj: o})
+		}
+		o := wire.NewObject()
+		o.Set("key", wire.String(k))
+		o.Set("streak", wire.String(strconv.Itoa(e.Streak)))
+		o.Set("roles", wire.Value{Kind: wire.KindArray, Arr: roles})
+		out = append(out, wire.Value{Kind: wire.KindObject, Obj: o})
+	}
+	return wire.Value{Kind: wire.KindArray, Arr: out}
+}
+
+// dispatchPressureValue is the CAL-V0-068 status view: the recorded level
+// and dwell, the newest sample's observed inputs (UNKNOWN when unobserved),
+// the active non-exempt cap under the given configuration, and held work.
+func dispatchPressureValue(r *dispatch.PressureRecord, pc *dispatch.PressureConfig) wire.Value {
+	str := wire.String
+	num := func(x float64, ok bool) wire.Value {
+		if !ok {
+			return str(dispatch.StateUnknown)
+		}
+		return str(strconv.FormatFloat(x, 'f', 3, 64))
+	}
+	s := r.Sample
+	o := wire.NewObject()
+	o.Set("level", str(strconv.Itoa(r.State.Level)))
+	o.Set("reason", str(dispatch.PressureReasonText(r.State)))
+	o.Set("pendingLevel", str(strconv.Itoa(r.State.PendingLevel)))
+	o.Set("pendingTicks", str(strconv.Itoa(r.State.PendingTicks)))
+	sample := "OBSERVED"
+	if r.State.Unknown {
+		sample = dispatch.StateUnknown
+	}
+	o.Set("sample", str(sample))
+	sampledAt := dispatch.StateUnknown
+	if !s.SampledAt.IsZero() {
+		sampledAt = s.SampledAt.UTC().Format(time.RFC3339)
+	}
+	o.Set("sampledAt", str(sampledAt))
+	source := dispatch.StateUnknown
+	if s.Source != "" {
+		source = prose(s.Source)
+	}
+	o.Set("source", str(source))
+	o.Set("loadAverage", num(s.LoadAverage, s.LoadKnown))
+	cpus := dispatch.StateUnknown
+	if s.CPUKnown && s.CPUs > 0 {
+		cpus = strconv.Itoa(s.CPUs)
+	}
+	o.Set("cpus", str(cpus))
+	o.Set("loadPerCpu", num(s.LoadPerCPU()))
+	o.Set("swapFraction", num(s.SwapFraction()))
+	swapUsed, swapTotal := dispatch.StateUnknown, dispatch.StateUnknown
+	if s.SwapKnown {
+		swapUsed, swapTotal = strconv.FormatUint(s.SwapUsedBytes, 10), strconv.FormatUint(s.SwapTotalBytes, 10)
+	}
+	o.Set("swapUsedBytes", str(swapUsed))
+	o.Set("swapTotalBytes", str(swapTotal))
+	memory := dispatch.StateUnknown
+	if x, ok := s.MemoryPressure(); ok {
+		memory = strconv.Itoa(x)
+	}
+	o.Set("memoryPressureLevel", str(memory))
+	o.Set("cpuUtilization", num(s.CPUUtilizationFraction()))
+	problems := make([]string, 0, len(s.Problems))
+	for _, p := range s.Problems {
+		problems = append(problems, prose(p))
+	}
+	o.Set("problems", wire.Strings(problems))
+	limit := "NONE"
+	if r.State.Level > 0 {
+		limit = dispatch.StateUnknown
+		if pc != nil {
+			limit = strconv.Itoa(pc.LevelCaps[strconv.Itoa(r.State.Level)])
+		}
+	}
+	o.Set("cap", str(limit))
+	held := []wire.Value{}
+	for _, h := range r.Held {
+		x := wire.NewObject()
+		x.Set("role", str(h.Role))
+		x.Set("key", str(h.Key))
+		held = append(held, wire.Value{Kind: wire.KindObject, Obj: x})
+	}
+	o.Set("held", wire.Value{Kind: wire.KindArray, Arr: held})
+	return wire.Value{Kind: wire.KindObject, Obj: o}
+}
+
+// dispatchQueue is the native store boundary of the dispatcher: one pure
+// read per observation and the existing fenced release/reap transactions.
+// dispatchQueue observes and heals the store for one dispatcher. pools
+// returns the applied config's TicketPools at each observation; nil plans as
+// plan preview does.
+type dispatchQueue struct {
+	env   Env
+	pools func() []string
+	// reviews carries the review binding fold across this dispatcher's
+	// ticks (CAL-V0-138); nil folds from receipt 1 on every observation.
+	reviews *store.ReviewFold
+	// ledgers carries obligation ledger folds across ticks (TOL-V0-123);
+	// nil folds every OPEN or HELD ledger on every observation.
+	ledgers *ledgerFoldCache
+}
+
+// newDispatchQueue is the queue of a dispatcher running config c, with its
+// ticket pools; `dispatch` and `service run` share it (CAL-V0-142).
+func newDispatchQueue(env Env, c *dispatch.Config) dispatchQueue {
+	return dispatchQueue{env: env, pools: c.TicketPools, reviews: &store.ReviewFold{}, ledgers: &ledgerFoldCache{}}
+}
+
+func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, error) {
+	obs := &dispatch.Observation{}
+	_, err := withStore(q.env, func(rc *readCtx) error {
+		in, _, err := planInput(rc)
+		if err != nil {
+			return err
+		}
+		if q.pools != nil {
+			in.ClaimablePools = q.pools() // pool tickets no role can claim never use the window (CAL-V0-097)
+		}
+		in.Now = wire.Timestamp(time.Now().UTC().Format("2006-01-02T15:04:05Z")) // PSR-V0-267: stall age
+		ledgers := observeLedgers(rc, &in, q.ledgers)
+		obs.Tickets = dispatchTickets(in)
+		for i := range obs.Tickets {
+			if v, ok := ledgers[obs.Tickets[i].ID]; ok && obs.Tickets[i].Obligations != nil {
+				obs.Tickets[i].Obligations.Unblocks, obs.Tickets[i].Obligations.Unknown = v.unblocks, v.unknown
+			}
+		}
+		obs.ProgressSignal = in.Policy.ProgressSignal // ATR-V0-084
+		// CAL-V0-105: the dispatcher replans this same in-memory snapshot with
+		// the tickets its work state holds; no store read or write happens.
+		obs.Replan = func(held, budgetHeld map[string]bool) map[string]dispatch.PlanView {
+			replan := in
+			replan.WorkStateHeld, replan.BudgetHeld = held, budgetHeld
+			out := map[string]dispatch.PlanView{}
+			for _, e := range transaction.PriorityFirst(replan).Entries {
+				out[e.Ticket.TicketID.Raw] = dispatch.PlanView{State: e.State, Reason: e.Reason}
+			}
+			return out
+		}
+		// ATR-V0-341: a cwd role's {worktree} may name the ticket worktree
+		// the policy declares; the lookup runs Git only, at launch.
+		if in.Policy != nil && in.Policy.Worktrees != nil {
+			repo, wt := rc.repo, in.Policy.Worktrees
+			obs.TicketWorktree = func(local string) string {
+				p, _ := store.LookupTicketWorktree(repo, wt, local)
+				return p
+			}
+		}
+		for i := range obs.Tickets {
+			if r, _ := in.Tickets.Get(obs.Tickets[i].ID); r.Escalations != nil {
+				observeEscalations(rc.repo, in.Queue.QueueID.Raw, r, &obs.Tickets[i])
+			}
+		}
+		// The review binding fold runs once, and only when a gate exists; a
+		// fold that refuses leaves every gate unobserved (ERG-V0-009).
+		var fold *transaction.ExternalReviewReceiptAudit
+		folded := false
+		for i := range obs.Tickets {
+			r, _ := in.Tickets.Get(obs.Tickets[i].ID)
+			obs.Tickets[i].OperatorNote = dispatchOperatorNote(rc, r)
+			// ERG-V0-009: a gate set that cannot be read stays unobserved
+			// (every gate UNKNOWN) instead of failing the whole observation.
+			if len(r.ExternalReviews) > 0 && !folded {
+				folded = true
+				if q.reviews != nil {
+					fold, _ = q.reviews.Fold(rc.repo, rc.snap.Head.LastSeq.Uint64())
+				} else {
+					fold, _ = store.FoldExternalReviews(rc.repo, rc.snap.Head.LastSeq.Uint64(), nil)
+				}
+			}
+			if len(r.ExternalReviews) == 0 || fold != nil {
+				if gates, err := externalReviewGateViews(rc.repo, r, in.Policy, fold); err == nil {
+					obs.Tickets[i].Gates, obs.Tickets[i].GatesObserved = gates, true
+				}
+			}
+		}
+		for _, a := range in.Attempts {
+			x := dispatch.Attempt{ID: a.AttemptID, Ticket: a.TicketID.Raw, Phase: a.Phase, Stage: a.Stage, Generation: string(a.Generation), Live: a.Live(), Gates: len(a.GateResults), Reviews: len(a.Reviews)}
+			if a.CandidateTreeOid != nil {
+				x.Candidate = *a.CandidateTreeOid
+			}
+			x.HandoffEvidence = snapshot.LatestHandoffEvidence(a) // ATR-V0-084
+			x.Branch = a.Branch                                   // ERG-V0-028
+			if a.WorktreePath != nil {
+				x.Worktree = *a.WorktreePath
+			}
+			if a.Cause != nil {
+				x.Cause = *a.Cause
+			}
+			if a.PoolAllocation != nil {
+				x.Pool, x.Member = a.PoolAllocation.PoolID, a.PoolAllocation.MemberID
+			}
+			if a.Lease != nil {
+				x.Holder = a.Lease.Holder
+				if t, e := time.Parse("2006-01-02T15:04:05Z", string(a.Lease.ExpiresAt)); e == nil {
+					x.LeaseExpires = t
+				}
+			}
+			obs.Attempts = append(obs.Attempts, x)
+		}
+		sort.Slice(obs.Attempts, func(i, j int) bool { return obs.Attempts[i].ID < obs.Attempts[j].ID })
+		if in.Pools != nil {
+			for _, m := range in.Pools.Entries {
+				configured := false
+				if pool := in.Policy.Pool(m.PoolID); pool != nil {
+					configured = pool.MemberConfig[m.MemberID].SafeReuse != nil
+				}
+				obs.Members = append(obs.Members, dispatch.Member{Pool: m.PoolID, Member: m.MemberID, State: m.State, Holder: m.Holder, Attempt: m.AttemptID, Queue: in.Queue.QueueID.Raw, Allocation: string(m.AllocationID), Definition: string(m.DefinitionSha256), SafeReuse: configured, Owned: m.Sweep != nil, Changed: string(m.ChangedSeq)})
+			}
+		}
+		// PSR-V0-140: each declared pool's FREE members, for the launch
+		// room; a member any state entry names is not free.
+		if in.Policy != nil && in.Pools != nil {
+			obs.PoolFree, obs.PoolFreeMembers = map[string]int{}, map[string][]string{}
+			occupied := map[string]bool{}
+			for _, m := range in.Pools.Entries {
+				occupied[m.PoolID+"\x00"+m.MemberID] = true
+			}
+			for _, pool := range in.Policy.Pools {
+				free := []string{}
+				for _, m := range pool.Members {
+					if !occupied[pool.ID+"\x00"+m] {
+						free = append(free, m)
+					}
+				}
+				sort.Strings(free)
+				obs.PoolFree[pool.ID], obs.PoolFreeMembers[pool.ID] = len(free), free
+				// PSR-V0-265: a pool no launch can be admitted to until an
+				// operator repairs its members.
+				if in.Pools.MembersStalled(pool.ID, pool.Members, time.Now().UTC()) {
+					if obs.PoolStalled == nil {
+						obs.PoolStalled = map[string]bool{}
+					}
+					obs.PoolStalled[pool.ID] = true
+				}
+			}
+		}
+		return nil
+	})
+	return obs, err
+}
+
+func (q dispatchQueue) Release(ctx context.Context, a dispatch.Attempt, evidence, requestID string) error {
+	args := []string{"--attempt", a.ID, "--generation", a.Generation, "--reason", wire.CodeHandoff, "--request-id", requestID}
+	if evidence != "" {
+		args = append(args, "--evidence", evidence)
+	}
+	return leaseOutcome(leaseCommand(q.quiet(), "release", args))
+}
+
+func (q dispatchQueue) Reap(ctx context.Context, a dispatch.Attempt, requestID string) error {
+	return leaseOutcome(leaseCommand(q.quiet(), "reap", []string{"--attempt", a.ID, "--generation", a.Generation, "--request-id", requestID}))
+}
+
+// ReapExpired is the CAL-V0-191 reap fenced on the observed lease expiry.
+func (q dispatchQueue) ReapExpired(ctx context.Context, a dispatch.Attempt, requestID string) (bool, error) {
+	expires := a.LeaseExpires.UTC().Format("2006-01-02T15:04:05Z")
+	return reapedOutcome(leaseCommand(q.quiet(), "reap", []string{"--attempt", a.ID, "--generation", a.Generation, "--lease-expires-at", expires, "--request-id", requestID}))
+}
+
+// Renew is the CAL-V0-313 keeper renewal, fenced on the bound generation; a
+// current-generation renew also records the heartbeat (CAL-V0-231).
+func (q dispatchQueue) Renew(ctx context.Context, a dispatch.Attempt, minutes int, requestID string) (bool, error) {
+	return keeperOutcome(leaseCommand(q.quiet(), "renew", []string{"--attempt", a.ID, "--generation", a.Generation, "--lease-minutes", strconv.Itoa(minutes), "--request-id", requestID}))
+}
+
+// Heartbeat is the CAL-V0-313 keeper heartbeat, which never extends the lease.
+func (q dispatchQueue) Heartbeat(ctx context.Context, a dispatch.Attempt, requestID string) (bool, error) {
+	return keeperOutcome(leaseCommand(q.quiet(), "attempt heartbeat", []string{"--attempt", a.ID, "--generation", a.Generation, "--request-id", requestID}))
+}
+
+// keeperOutcome marks a FENCED refusal with dispatch.ErrFenced (CAL-V0-314)
+// and reports whether the store replayed an earlier write (CAL-V0-318).
+func keeperOutcome(r *wire.Result) (bool, error) {
+	if err := leaseOutcome(r); err != nil {
+		if slices.Contains(r.Codes, wire.CodeFenced) {
+			return false, fmt.Errorf("%w: %w", dispatch.ErrFenced, err)
+		}
+		return false, err
+	}
+	if len(r.Items) == 0 || r.Items[0].Obj == nil {
+		return false, fmt.Errorf("keeper result has no item")
+	}
+	replayed, _ := r.Items[0].Obj.Get("replayed")
+	return replayed.Bool, nil
+}
+
+// reapedOutcome reports whether a per-attempt reap moved its attempt: a
+// fresh receipt or the replay of one. A completed reap without either is
+// the no-change answer for an attempt that is no longer live.
+func reapedOutcome(r *wire.Result) (bool, error) {
+	if err := leaseOutcome(r); err != nil {
+		return false, err
+	}
+	if len(r.Items) == 0 || r.Items[0].Obj == nil {
+		return false, fmt.Errorf("reap result has no item")
+	}
+	o := r.Items[0].Obj
+	receipt, _ := o.Get("receipt")
+	replayed, _ := o.Get("replayed")
+	return receipt.Str != "" || replayed.Bool, nil
+}
+
+func (q dispatchQueue) quiet() Env {
+	env := q.env
+	env.Stdout, env.Stderr = io.Discard, io.Discard
+	return env
+}
+
+func leaseOutcome(r *wire.Result) error {
+	if r.Outcome == wire.OutcomeOK {
+		return nil
+	}
+	return fmt.Errorf("%s %s: %s", r.Outcome, strings.Join(r.Codes, ","), strings.Join(r.Warnings, "; "))
+}
+
+// dispatchEscalationPending lists, by ticket, the request IDs of each
+// ESC-V0-006 hold in the dispatcher's last native observation. The hold is
+// kept apart from the plan reason, so a ticket first blocked by another
+// reason still shows it; status reads no native store, and both the roster
+// and the native claim path enforce the hold themselves.
+func dispatchEscalationPending(l *dispatch.Ledger) []wire.Value {
+	if l.Seen == nil {
+		return nil
+	}
+	ids := make([]string, 0, len(l.Seen.Escalations))
+	for id := range l.Seen.Escalations {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	held := []wire.Value{}
+	for _, id := range ids {
+		x := wire.NewObject()
+		x.Set("ticket", wire.String(id))
+		x.Set("requests", wire.Strings(l.Seen.Escalations[id]))
+		held = append(held, wire.Value{Kind: wire.KindObject, Obj: x})
+	}
+	return held
+}
+
+// dispatchEscalationRequests lists, sorted by ticket then request, each
+// current OPEN escalation request in the dispatcher's last native
+// observation with its kind, original OPEN time, a nonnegative age that is
+// clockUncertain when the local clock is behind that time, and whether it
+// is an ESC-V0-006 hold (ESC-V0-009). A ticket whose material could not be
+// validated shows UNKNOWN material and no request. It reads only the
+// dispatcher's ledger: no native store, no evidence and no write.
+func dispatchEscalationRequests(l *dispatch.Ledger, now time.Time) []wire.Value {
+	if l.Seen == nil {
+		return nil
+	}
+	ids := make([]string, 0, len(l.Seen.Requests)+len(l.Seen.RequestsUnknown))
+	for id := range l.Seen.Requests {
+		ids = append(ids, id)
+	}
+	ids = append(ids, l.Seen.RequestsUnknown...)
+	sort.Strings(ids)
+	out := []wire.Value{}
+	for _, id := range ids {
+		rs, known := l.Seen.Requests[id]
+		if !known {
+			out = append(out, wire.ObjectValue(wire.NewObject().Set("ticket", wire.String(id)).Set("material", wire.String("UNKNOWN"))))
+			continue
+		}
+		for _, r := range rs {
+			x := wire.NewObject().Set("ticket", wire.String(id)).Set("requestId", wire.String(r.RequestID)).Set("kind", wire.String(r.Kind))
+			x.Set("holds", wire.Bool(slices.Contains(l.Seen.Escalations[id], r.RequestID)))
+			x.Set("recordedAt", wire.String(r.RecordedAt))
+			setEscalationAge(x, r.RecordedAt, now)
+			out = append(out, wire.ObjectValue(x))
+		}
+	}
+	return out
+}
+
+// dispatchLoopDetected lists, by ticket, each CAL-V0-102 LOOP_DETECTED hold
+// in the dispatcher's last native observation, kept apart from the plan
+// reason like the ESC-V0-006 hold.
+func dispatchLoopDetected(l *dispatch.Ledger) []wire.Value {
+	if l.Seen == nil {
+		return nil
+	}
+	ids := make([]string, 0, len(l.Seen.Loops))
+	for id := range l.Seen.Loops {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	held := []wire.Value{}
+	for _, id := range ids {
+		h := l.Seen.Loops[id]
+		x := wire.NewObject()
+		x.Set("ticket", wire.String(id))
+		x.Set("signal", wire.String(h.Signal))
+		x.Set("acceptanceRevision", wire.String(h.AcceptanceRevision))
+		x.Set("generations", wire.Strings(h.Generations))
+		held = append(held, wire.Value{Kind: wire.KindObject, Obj: x})
+	}
+	return held
+}
+
+// dispatchOperatorNote reads a noted ticket's current note for the
+// {operatorNote} launch placeholder (ON-V0-011): nil when never noted, and
+// an unresolvable event is UNAVAILABLE with its code, never no note. It
+// reads only the referenced event and writes nothing.
+func dispatchOperatorNote(rc *readCtx, r *ticket.Record) *dispatch.NoteView {
+	ref := r.OperatorNote
+	if ref == nil {
+		return nil
+	}
+	n := &dispatch.NoteView{State: "UNAVAILABLE", Revision: string(ref.Revision), Head: string(ref.Head)}
+	event, request, err := store.ReadOperatorNote(rc.repo, r.TicketID, *ref)
+	if err != nil {
+		n.Code = noteErrCode(err)
+		return n
+	}
+	n.State, n.RecordedAt, n.ActorID, n.ActorRole = "CLEARED", string(event.RecordedAt), event.ActorID, event.ActorRole
+	if ref.Current != nil {
+		n.State, n.Text = "CURRENT", request.Text
+	}
+	return n
+}
+
+// observeEscalations validates one ticket's escalation material and records
+// the holders of its current infrastructure requests (ESC-V0-007) and the
+// kind and original OPEN time of each current OPEN request (ESC-V0-009).
+// Material that cannot be validated leaves the ticket's binding UNKNOWN,
+// never progress (ESC-V0-008), and names no request.
+func observeEscalations(repo *intent.Repository, queueID string, r *ticket.Record, t *dispatch.Ticket) {
+	m := loadEscalations(repo, queueID, r)
+	if m.err != nil {
+		t.EscalationUnknown = true
+		return
+	}
+	for _, ref := range r.Escalations.Entries {
+		if ref.AcceptanceRevision != r.AcceptanceRevision || (ref.State != "OPEN" && ref.State != "ANSWERED") {
+			continue
+		}
+		if ref.Kind != "infrastructure" && ref.State != "OPEN" {
+			continue
+		}
+		origin, err := ticket.DecodeEscalationEvent(m.blobs[ref.OriginSha256])
+		if err != nil {
+			t.EscalationUnknown, t.Infrastructure, t.OpenRequests = true, nil, nil
+			return
+		}
+		if ref.Kind == "infrastructure" {
+			t.Infrastructure = append(t.Infrastructure, origin.Source.Holder)
+		}
+		if ref.State == "OPEN" {
+			t.OpenRequests = append(t.OpenRequests, dispatch.OpenRequest{RequestID: ref.RequestID, Kind: ref.Kind, RecordedAt: string(origin.RecordedAt)})
+		}
+	}
+	sort.Strings(t.Infrastructure)
+	sort.Slice(t.OpenRequests, func(i, j int) bool { return t.OpenRequests[i].RequestID < t.OpenRequests[j].RequestID })
+}
+
+// dispatchTickets is the ticket half of the native observation: each
+// ticket's plan state and primary reason, plus its ESC-V0-006 hold derived
+// apart from that reason, so a hold behind another blocker still reaches the
+// roster and status.
+func dispatchTickets(in transaction.PlanInput) []dispatch.Ticket {
+	planned := map[string]transaction.PlanEntry{}
+	for _, e := range transaction.PriorityFirst(in).Entries {
+		planned[e.Ticket.TicketID.Raw] = e
+	}
+	var out []dispatch.Ticket
+	for _, id := range in.Tickets.IDs() {
+		r, _ := in.Tickets.Get(id)
+		t := dispatch.Ticket{ID: r.TicketID.Raw, Local: r.TicketID.Local, Status: r.Status, Priority: r.Priority, Kind: r.Kind, Revision: string(r.Revision), Order: uint64(r.Order.Int()), Labels: r.Labels, RequiresPool: r.RequiresPool, AcceptanceRevision: string(r.AcceptanceRevision)}
+		// ESC-V0-008: a typed-only control write is not work progress, so
+		// the work revision stands in while it is the latest write.
+		if e := r.Escalations; e != nil && e.LastControlTicketRevision == r.Revision {
+			t.Revision = string(e.WorkRevision)
+		}
+		if e, ok := planned[id]; ok {
+			t.Plan, t.PlanReason = e.State, e.Reason
+		}
+		t.EscalationPending = r.EscalationPending()
+		if h := transaction.LoopHoldOf(in.Attempts, r, in.Policy); h != nil {
+			t.Loop = &dispatch.LoopHold{Signal: h.Signal, AcceptanceRevision: string(h.AcceptanceRevision), Generations: h.Generations}
+		}
+		if o := r.ObligationsRef; o != nil {
+			t.Obligations = &dispatch.ObligationsView{Witnessed: o.Counts.Witnessed, Total: o.Counts.Total, CoreWitnessed: o.Counts.CoreWitnessed,
+				CoreTotal: o.Counts.CoreTotal, HighWaterRevision: string(o.HighWater.AcceptanceRevision), HighWater: o.HighWater.Witnessed}
+		}
+		t.NextStage = dispatch.StateNone
+		if s := transaction.NextStage(in.Attempts, r); s.Kind == wire.KindString {
+			t.NextStage = s.Str
+		}
+		out = append(out, t)
+	}
+	return out
+}
+
+// dispatchObligationsValue lists, by ticket, the TOL-V0-017
+// "witnessed/total" of each ledger ticket in the dispatcher's last native
+// observation.
+func dispatchObligationsValue(seen map[string]string) wire.Value {
+	ids := make([]string, 0, len(seen))
+	for id := range seen {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	items := make([]wire.Value, 0, len(ids))
+	for _, id := range ids {
+		items = append(items, wire.ObjectValue(wire.NewObject().Set("ticket", wire.String(id)).Set("witnessed", wire.String(seen[id]))))
+	}
+	return wire.Array(items...)
+}
+
+// dispatchStallValue renders the CAL-V0-185 advisory counts: tickets with at
+// least one finished session since their native status last changed, most
+// sessions first, at most 64, with the configured threshold (null when
+// unset) and whether each count reached it. Nothing here holds or blocks.
+func dispatchStallValue(c *dispatch.Config, rows []dispatch.StallView, omitted int) wire.Value {
+	threshold := wire.Null()
+	if c != nil && c.StalledAfterSessions != nil {
+		threshold = wire.String(strconv.Itoa(*c.StalledAfterSessions))
+	}
+	items := make([]wire.Value, 0, len(rows))
+	for _, r := range rows {
+		stalled := c != nil && c.StalledAfterSessions != nil && r.Sessions >= *c.StalledAfterSessions
+		items = append(items, wire.ObjectValue(wire.NewObject().Set("ticket", wire.String(r.Ticket)).Set("status", wire.String(r.Status)).Set("sessions", wire.String(strconv.Itoa(r.Sessions))).Set("stalled", wire.Bool(stalled))))
+	}
+	return wire.ObjectValue(wire.NewObject().Set("threshold", threshold).Set("tickets", wire.Array(items...)).Set("omitted", wire.String(strconv.Itoa(omitted))))
+}
+
+// dispatchSessionChurnValue is the ATR-V0-061 short-session streak of each
+// ticket, present only while the record exists; an unreadable record is
+// UNKNOWN.
+// dispatchHostSleepValue is the ATR-V0-065 hostSleep member: the last
+// recorded suspend gap and the number kept, nil without a record, and
+// UNKNOWN with the reason when the record does not read.
+func dispatchHostSleepValue(dir string) *wire.Value {
+	rec, err := dispatch.ReadHostSleep(dispatch.HostSleepPath(dir))
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		v := wire.ObjectValue(wire.NewObject().Set("state", wire.String(dispatch.StateUnknown)).Set("reason", wire.String(prose(err.Error()))))
+		return &v
+	}
+	g := rec.Gaps[len(rec.Gaps)-1]
+	last := wire.NewObject().Set("from", wire.String(g.From)).Set("to", wire.String(g.To)).Set("seconds", wire.String(strconv.Itoa(g.Seconds)))
+	v := wire.ObjectValue(wire.NewObject().Set("lastGap", wire.ObjectValue(last)).Set("gaps", wire.String(strconv.Itoa(len(rec.Gaps)))))
+	return &v
+}
+
+// dispatchContextDeliveryValue is a worker's ATR-V0-103 contextDelivery
+// member, nil for a role whose usage format reports no context figure or a
+// role the applied configuration no longer names.
+func dispatchContextDeliveryValue(c *dispatch.Config, dir string, w *dispatch.Worker) *wire.Value {
+	if c == nil {
+		return nil
+	}
+	for i := range c.Roles {
+		r := &c.Roles[i]
+		if r.Name != w.Role {
+			continue
+		}
+		var host *dispatch.Host
+		if h, ok := c.Hosts[w.Host]; ok {
+			host = &h
+		}
+		mode, delivered, ok := dispatch.ContextDelivery(dir, w.ID, r.UsageFormat, host)
+		if !ok {
+			return nil
+		}
+		v := wire.ObjectValue(wire.NewObject().Set("mode", wire.String(mode)).Set("delivered", wire.Strings(delivered)))
+		return &v
+	}
+	return nil
+}
+
+// dispatchContextExhaustedValue is the ATR-V0-107 contextExhausted member:
+// each ticket and role's run of hard stops, nil without a record, and
+// UNKNOWN with the reason when the record does not read.
+func dispatchContextExhaustedValue(dir string) *wire.Value {
+	rec, err := dispatch.ReadContextExhausted(dispatch.ContextExhaustedPath(dir))
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		v := wire.ObjectValue(wire.NewObject().Set("state", wire.String(dispatch.StateUnknown)).Set("reason", wire.String(prose(err.Error()))))
+		return &v
+	}
+	rows := []wire.Value{}
+	for _, e := range rec.Entries {
+		rows = append(rows, wire.ObjectValue(wire.NewObject().Set("key", wire.String(e.Key)).Set("role", wire.String(e.Role)).Set("hardStops", wire.String(strconv.Itoa(e.HardStops))).Set("state", wire.String(e.State)).Set("lastWorker", wire.String(e.LastWorker)).Set("lastAt", wire.String(e.LastAt))))
+	}
+	v := wire.Array(rows...)
+	return &v
+}
+
+func dispatchSessionChurnValue(dir string, now time.Time) *wire.Value {
+	rec, err := dispatch.ReadSessionChurn(dispatch.SessionChurnPath(dir))
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		v := wire.ObjectValue(wire.NewObject().Set("state", wire.String(dispatch.StateUnknown)).Set("reason", wire.String(prose(err.Error()))))
+		return &v
+	}
+	keys := make([]string, 0, len(rec.Tickets))
+	for k := range rec.Tickets {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	rows := []wire.Value{}
+	for _, k := range keys {
+		s := rec.Tickets[k]
+		o := wire.NewObject().Set("key", wire.String(k)).Set("sessions", wire.String(strconv.Itoa(s.Streak))).Set("medianSeconds", wire.String(strconv.Itoa(s.MedianSeconds()))).Set("firstSeen", wire.String(s.FirstSeen)).Set("lastEnd", wire.String(s.LastEnd)).Set("held", wire.Bool(s.Held(now))).Set("reason", wire.String(dispatch.ChurnReason))
+		if s.HoldUntil != "" {
+			o.Set("holdUntil", wire.String(s.HoldUntil))
+		}
+		rows = append(rows, wire.ObjectValue(o))
+	}
+	v := wire.Array(rows...)
+	return &v
+}
+
+// dispatchBudgetTickets reads each ticket's ID, local key, kind and labels
+// from the native store, only when ticketBudget overrides need them to
+// resolve an effective limit (ATR-V0-088). A store that cannot be read
+// leaves every ticket unobserved: status then resolves by key alone and
+// says so, never guessing a label or kind.
+func dispatchBudgetTickets(env Env, c *dispatch.Config) []dispatch.Ticket {
+	if c.TicketBudget == nil || len(c.TicketBudget.Overrides) == 0 {
+		return nil
+	}
+	var out []dispatch.Ticket
+	if _, err := withInventoryStore(env, func(rc *readCtx) error {
+		out = out[:0]
+		for _, id := range rc.store.Inventory.Sorted() {
+			r, _ := rc.store.Inventory.Get(id)
+			out = append(out, dispatch.Ticket{ID: r.TicketID.Raw, Local: r.TicketID.Local, Kind: r.Kind, Labels: r.Labels})
+		}
+		return nil
+	}); err != nil {
+		return nil
+	}
+	return out
+}
+
+// dispatchUpgradeStatusValue is the status `upgrade` member (DSG-V0-010,
+// DSG-V0-011): the handover protocol this build accepts, the last recorded
+// handover phase, whether a request waits, and the distinct builds the
+// recorded workers run.
+func dispatchUpgradeStatusValue(dir string, l *dispatch.Ledger) wire.Value {
+	str := wire.String
+	o := wire.NewObject().Set("handover", str(dispatch.HandoverProtocol))
+	st, err := dispatch.ReadUpgradeState(dir)
+	switch {
+	case err == nil:
+		o.Set("phase", str(st.Phase)).Set("build", str(st.Build)).Set("sha256", str(st.Sha256)).Set("from", str(st.From)).Set("fromSha256", str(st.FromSha256)).Set("at", str(st.At)).Set("detail", str(prose0(st.Detail)))
+	case errors.Is(err, fs.ErrNotExist):
+		o.Set("phase", str("NONE"))
+	default:
+		o.Set("phase", str(dispatch.StateUnknown)).Set("detail", str(prose(err.Error())))
+	}
+	_, reqErr := os.Lstat(dispatch.UpgradeRequestPath(dir))
+	o.Set("requestPending", wire.Bool(reqErr == nil))
+	builds := []string{}
+	for id := range dispatch.LiveBuilds(dir, l) {
+		builds = append(builds, id)
+	}
+	sort.Strings(builds)
+	o.Set("workerBuilds", wire.Strings(builds))
+	return wire.ObjectValue(o)
+}

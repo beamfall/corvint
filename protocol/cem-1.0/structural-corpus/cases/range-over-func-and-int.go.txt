@@ -1,0 +1,28 @@
+package cases
+
+import (
+	"iter"
+	"slices"
+)
+
+func count(n int) iter.Seq[int] {
+	return func(yield func(int) bool) {
+		for i := range n {
+			if !yield(i) {
+				return
+			}
+		}
+	}
+}
+
+func collect() []int { return slices.Collect(count(3)) }
+
+func pairs(m map[string]int) iter.Seq2[string, int] {
+	return func(yield func(string, int) bool) {
+		for k, v := range m {
+			if !yield(k, v) {
+				return
+			}
+		}
+	}
+}

@@ -1,0 +1,53 @@
+{
+  "advice": {
+    "checks": [],
+    "note": "advice is static; no check was executed; mandatory checks remain required whatever the advisory list says",
+    "status": "PLAN_ONLY",
+    "unknown": [
+      "NO_REPOSITORY_GATE_DECLARED: no Makefile gate target or AGENTS.md Verify block"
+    ]
+  },
+  "mutates": false,
+  "ok": true,
+  "plan": {
+    "dirty": [],
+    "excluded": {
+      "count": 1,
+      "digest": "affected-excluded:sha256:48788b555e9190156b3a4ffda68b10820c5eb55165a85f712def5cab12a06ec5",
+      "groups": [
+        {
+          "count": 1,
+          "invalidation": "NEW_DEPENDENCY_EDGE_OR_DIRTY_PATH",
+          "reason": "NO_DEPENDENCY_PATH_TO_DIRTY_UNIT",
+          "universe": "affected-graph:sha256:03f13ebd2bc818635f33e99e37789b95a55a5935a4cc20721b6f6d6e473fba17"
+        }
+      ]
+    },
+    "graphDigest": "affected-graph:sha256:03f13ebd2bc818635f33e99e37789b95a55a5935a4cc20721b6f6d6e473fba17",
+    "scope": "BOUNDED",
+    "selected": [],
+    "unknown": []
+  },
+  "profile": "affected-plan/1",
+  "provider": {
+    "go": {
+      "packages": [],
+      "state": "EMPTY_SELECTION"
+    }
+  },
+  "range": {
+    "base": "",
+    "paths": []
+  },
+  "revision": "<varies:string>",
+  "summary": {
+    "dirty": 0,
+    "excluded": 1,
+    "line": "scope=BOUNDED dirty=0 selected=0 excluded=1 unknown=0",
+    "scope": "BOUNDED",
+    "selected": 0,
+    "unknown": 0,
+    "unknownByReason": {}
+  },
+  "tool": "affected"
+}

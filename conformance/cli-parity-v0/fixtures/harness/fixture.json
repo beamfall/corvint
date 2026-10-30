@@ -1,0 +1,41 @@
+{
+  "format": "atlas-cli-parity-fixture/0",
+  "files": [
+    {
+      "path": ".gitignore",
+      "type": "file",
+      "mode": "0644",
+      "content": ".context-atlas/\n"
+    },
+    {
+      "path": "AGENTS.md",
+      "type": "file",
+      "mode": "0644",
+      "content": "# Project instructions\n\nThe roadmap is the only active work queue.\nRun `make orient`, then `script/context-packet.sh --ticket ID`.\nUse `script/roadmap.sh` and run the required workflow gates.\n"
+    },
+    {
+      "path": "go.mod",
+      "type": "file",
+      "mode": "0644",
+      "content": "module example.test/harness\n\ngo 1.27.0\n"
+    },
+    {
+      "path": "pkg/sample.go",
+      "type": "file",
+      "mode": "0644",
+      "content": "package sample\n\nfunc StableValue() string { return \"clean\" }\n"
+    },
+    {
+      "path": "script/context-packet.sh",
+      "type": "file",
+      "mode": "0755",
+      "content": "#!/bin/sh\nexit 0\n"
+    },
+    {
+      "path": "script/roadmap.sh",
+      "type": "file",
+      "mode": "0755",
+      "content": "#!/bin/sh\nexit 0\n"
+    }
+  ]
+}

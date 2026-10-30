@@ -1,0 +1,14 @@
+{
+  "clauses": [
+    {
+      "id": "DCW-V0-002",
+      "text": "- `DCW-V0-002`: The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,\n  and `UC-EVIDENCE-CARRYING-COMPLETION`. All existing jobs and claims MUST remain unchanged.\n  Their closed ledger migration MUST satisfy `UCV0-013`."
+    },
+    {
+      "id": "DCW-V0-003",
+      "text": "- `DCW-V0-003`: Task orientation MUST locate governing intent and original revision-pinned evidence,\n  or preserve explicit omissions/abstention. Inferred context MUST NOT become accepted authority."
+    }
+  ],
+  "profile": "corvint-use-case-clauses/0",
+  "spec": "docs/specs/daily-change-evidence-workflow-v0.md"
+}

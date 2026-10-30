@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "suite_id": "atlas-v4-blind-heldout-v4",
+  "partition": "heldout-v4",
+  "target_version": "V4",
+  "frozen_at": "2026-09-02",
+  "first_observed_at": null,
+  "authoring": "five independent subagent sessions that never ran Atlas or read its source; ground truth verified by git show at each pin; benchmarks/run.py validate_cases passed for every file before freezing",
+  "repositories": [
+    {
+      "id": "beamfall",
+      "url": "https://github.com/beamfall/core.git",
+      "commit": "5dbd4ed6eae441ee4b7434aa709a014583d7a54f",
+      "language": "Go and TypeScript",
+      "public": false,
+      "cases": "benchmarks/blind-v4/beamfall.json",
+      "cases_sha256": "e58d1ba5cd6e886b46277e42013a674eb825e2c78976731d946bbed17476678f",
+      "case_count": 7
+    },
+    {
+      "id": "flask",
+      "url": "https://github.com/pallets/flask.git",
+      "commit": "d318b683471101618febed18996405ad26462110",
+      "language": "Python",
+      "public": true,
+      "cases": "benchmarks/blind-v4/flask.json",
+      "cases_sha256": "085bef5bb187f759035e43b4f5064365e78ff58ba81b585851b2724a9da08df4",
+      "case_count": 6
+    },
+    {
+      "id": "cobra",
+      "url": "https://github.com/spf13/cobra.git",
+      "commit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "language": "Go",
+      "public": true,
+      "cases": "benchmarks/blind-v4/cobra.json",
+      "cases_sha256": "157e498da4089ab7ec84a7a3fd0ecf416447fd7584f2dd46e24b27abfb4e34c7",
+      "case_count": 6
+    },
+    {
+      "id": "zod",
+      "url": "https://github.com/colinhacks/zod.git",
+      "commit": "e516c3baf22615e20934116abebfed6c000222c2",
+      "language": "TypeScript",
+      "public": true,
+      "cases": "benchmarks/blind-v4/zod.json",
+      "cases_sha256": "b807872398530e3708248d070540f23f16a630c42763885ded0faeb17238e134",
+      "case_count": 6
+    },
+    {
+      "id": "execa",
+      "url": "https://github.com/sindresorhus/execa.git",
+      "commit": "8017b279e19347efaf2587711c2d57dbd4330740",
+      "language": "JavaScript",
+      "public": true,
+      "cases": "benchmarks/blind-v4/execa.json",
+      "cases_sha256": "a56f7eba67b1358ab5fe90d979e76513411d2bc77ce4c2499cb3076d32a85eb8",
+      "case_count": 6
+    }
+  ]
+}

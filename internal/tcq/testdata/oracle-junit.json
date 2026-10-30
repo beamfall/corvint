@@ -1,0 +1,301 @@
+{
+ "executionKey": "b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f",
+ "grammar": {
+  "bom-declaration": {
+   "keyed": 1,
+   "raw": "\ufeff<?xml version=\"1.0\" encoding=\"utf-8\"?><testsuite name=\"s\"><testcase file=\"pkg/a_test.go\" name=\"t\"/></testsuite>",
+   "unkeyed": 0
+  },
+  "comment": {
+   "keyed": 1,
+   "raw": "<testsuite name=\"s\"><!-- c --><testcase file=\"pkg/a_test.go\" name=\"t\"/></testsuite>",
+   "unkeyed": 0
+  },
+  "doctype": {
+   "error": "invalid-junit",
+   "raw": "<!DOCTYPE x><testsuite name=\"s\"><testcase file=\"pkg/a_test.go\" name=\"t\"/></testsuite>"
+  },
+  "empty": {
+   "error": "invalid-junit",
+   "raw": ""
+  },
+  "entity": {
+   "error": "invalid-junit",
+   "raw": "<!ENTITY x \"y\"><testsuite name=\"s\"/>"
+  },
+  "namespace": {
+   "error": "invalid-junit",
+   "raw": "<ns:testsuite xmlns:ns=\"urn:x\"><testcase name=\"t\"/></ns:testsuite>"
+  },
+  "nested-suites": {
+   "keyed": 1,
+   "raw": "<testsuites><testsuite name=\"a\"><testsuite name=\"b\"><testcase file=\"pkg/a_test.go\" name=\"t\"/></testsuite></testsuite></testsuites>",
+   "unkeyed": 0
+  },
+  "properties": {
+   "keyed": 1,
+   "raw": "<testsuite name=\"s\"><properties><property name=\"p\" value=\"v\"/></properties><testcase file=\"pkg/a_test.go\" name=\"t\"/></testsuite>",
+   "unkeyed": 0
+  },
+  "second-pi": {
+   "error": "invalid-junit",
+   "raw": "<?xml version=\"1.0\"?><?php x?><testsuite name=\"s\"/>"
+  },
+  "suites-with-testcase": {
+   "error": "invalid-junit",
+   "raw": "<testsuites><testcase name=\"t\"/></testsuites>"
+  },
+  "unclosed": {
+   "error": "invalid-junit",
+   "raw": "<testsuite name=\"s\">"
+  },
+  "unknown-root": {
+   "error": "invalid-junit",
+   "raw": "<bogus/>"
+  }
+ },
+ "status": {
+  "backslash-path": {
+   "hasNonPassing": false,
+   "observationRows": "[{\"executionKeySha256\":\"b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f\",\"id\":\"test-row:sha256:a8e25eae68a84852686cdcd33c0f4fd7f696c119c03a1bf0e077801f89f9a99c\",\"status\":\"PASSED\"}]",
+   "raw": "<testsuite name=\"s\"><testcase file=\"pkg\\a_test.go\" name=\"t\"/></testsuite>",
+   "rows": [
+    {
+     "executionKey": "b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f",
+     "id": "test-row:sha256:a8e25eae68a84852686cdcd33c0f4fd7f696c119c03a1bf0e077801f89f9a99c",
+     "status": "PASSED"
+    }
+   ],
+   "unkeyed": 0
+  },
+  "dot-slash-path": {
+   "hasNonPassing": false,
+   "observationRows": "[{\"executionKeySha256\":\"b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f\",\"id\":\"test-row:sha256:a5c63144a82812337bdddf380b0bb6efcbbf656712dff4394aa587d56d958c2d\",\"status\":\"PASSED\"}]",
+   "raw": "<testsuite name=\"s\"><testcase file=\"./pkg/a_test.go\" name=\"t\"/></testsuite>",
+   "rows": [
+    {
+     "executionKey": "b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f",
+     "id": "test-row:sha256:a5c63144a82812337bdddf380b0bb6efcbbf656712dff4394aa587d56d958c2d",
+     "status": "PASSED"
+    }
+   ],
+   "unkeyed": 0
+  },
+  "empty-name": {
+   "hasNonPassing": false,
+   "observationRows": "[]",
+   "raw": "<testsuite name=\"s\"><testcase file=\"pkg/a_test.go\" name=\"\"/></testsuite>",
+   "rows": [],
+   "unkeyed": 1
+  },
+  "error": {
+   "hasNonPassing": true,
+   "observationRows": "[{\"executionKeySha256\":\"b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f\",\"id\":\"test-row:sha256:5eb13a3ee1d294b9aeea79e8e70ea24ae49de3a04f6554a288ded0ae5ab9073f\",\"status\":\"ERROR\"}]",
+   "raw": "<testsuite name=\"s\"><testcase file=\"pkg/a_test.go\" name=\"t\"><error/></testcase></testsuite>",
+   "rows": [
+    {
+     "executionKey": "b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f",
+     "id": "test-row:sha256:5eb13a3ee1d294b9aeea79e8e70ea24ae49de3a04f6554a288ded0ae5ab9073f",
+     "status": "ERROR"
+    }
+   ],
+   "unkeyed": 0
+  },
+  "failure": {
+   "hasNonPassing": true,
+   "observationRows": "[{\"executionKeySha256\":\"b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f\",\"id\":\"test-row:sha256:28b2012e08755d76cd0485220d344022f69a5369412dd629151fb70ac19a981b\",\"status\":\"FAILED\"}]",
+   "raw": "<testsuite name=\"s\"><testcase file=\"pkg/a_test.go\" name=\"t\"><failure/></testcase></testsuite>",
+   "rows": [
+    {
+     "executionKey": "b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f",
+     "id": "test-row:sha256:28b2012e08755d76cd0485220d344022f69a5369412dd629151fb70ac19a981b",
+     "status": "FAILED"
+    }
+   ],
+   "unkeyed": 0
+  },
+  "failure-status": {
+   "hasNonPassing": true,
+   "observationRows": "[{\"executionKeySha256\":\"b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f\",\"id\":\"test-row:sha256:45bd9048f897bb6d5820bddc43a9c6bd6a4444466772936ea052815abf5ec028\",\"status\":\"FAILED\"}]",
+   "raw": "<testsuite name=\"s\"><testcase file=\"pkg/a_test.go\" name=\"t\" status=\"failed\"><failure/></testcase></testsuite>",
+   "rows": [
+    {
+     "executionKey": "b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f",
+     "id": "test-row:sha256:45bd9048f897bb6d5820bddc43a9c6bd6a4444466772936ea052815abf5ec028",
+     "status": "FAILED"
+    }
+   ],
+   "unkeyed": 0
+  },
+  "failure-with-run": {
+   "error": "invalid-junit",
+   "raw": "<testsuite name=\"s\"><testcase file=\"pkg/a_test.go\" name=\"t\" status=\"run\"><failure/></testcase></testsuite>"
+  },
+  "nested-testcase": {
+   "error": "invalid-junit",
+   "raw": "<testsuite name=\"s\"><testcase file=\"pkg/a_test.go\" name=\"t\"><testcase name=\"u\"/></testcase></testsuite>"
+  },
+  "no-name": {
+   "hasNonPassing": false,
+   "observationRows": "[]",
+   "raw": "<testsuite name=\"s\"><testcase file=\"pkg/a_test.go\"/></testsuite>",
+   "rows": [],
+   "unkeyed": 1
+  },
+  "no-terminal-bare": {
+   "hasNonPassing": false,
+   "observationRows": "[{\"executionKeySha256\":\"b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f\",\"id\":\"test-row:sha256:a27b453ebf2abcd6c870dc1174fc12de5ecef89a9283b239e10183bad5eb2d5c\",\"status\":\"PASSED\"}]",
+   "raw": "<testsuite name=\"s\"><testcase file=\"pkg/a_test.go\" name=\"t\"/></testsuite>",
+   "rows": [
+    {
+     "executionKey": "b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f",
+     "id": "test-row:sha256:a27b453ebf2abcd6c870dc1174fc12de5ecef89a9283b239e10183bad5eb2d5c",
+     "status": "PASSED"
+    }
+   ],
+   "unkeyed": 0
+  },
+  "no-terminal-disabled-true": {
+   "hasNonPassing": false,
+   "observationRows": "[{\"executionKeySha256\":\"b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f\",\"id\":\"test-row:sha256:225fff1c82f610563765f3208363e220d1157cc2b0c94dda00a7c47038488811\",\"status\":\"SKIPPED\"}]",
+   "raw": "<testsuite name=\"s\"><testcase file=\"pkg/a_test.go\" name=\"t\" disabled=\"true\"/></testsuite>",
+   "rows": [
+    {
+     "executionKey": "b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f",
+     "id": "test-row:sha256:225fff1c82f610563765f3208363e220d1157cc2b0c94dda00a7c47038488811",
+     "status": "SKIPPED"
+    }
+   ],
+   "unkeyed": 0
+  },
+  "no-terminal-notrun": {
+   "hasNonPassing": false,
+   "observationRows": "[{\"executionKeySha256\":\"b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f\",\"id\":\"test-row:sha256:924044e634d3ac78caccbf74cba7439b431e44e9457f90f64a3105d97bcab529\",\"status\":\"SKIPPED\"}]",
+   "raw": "<testsuite name=\"s\"><testcase file=\"pkg/a_test.go\" name=\"t\" status=\"notrun\"/></testsuite>",
+   "rows": [
+    {
+     "executionKey": "b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f",
+     "id": "test-row:sha256:924044e634d3ac78caccbf74cba7439b431e44e9457f90f64a3105d97bcab529",
+     "status": "SKIPPED"
+    }
+   ],
+   "unkeyed": 0
+  },
+  "no-terminal-passed": {
+   "hasNonPassing": false,
+   "observationRows": "[{\"executionKeySha256\":\"b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f\",\"id\":\"test-row:sha256:192dd99a33b7be012d44305af960588710d68cdba7e0efa937e9b912e98ed8f7\",\"status\":\"PASSED\"}]",
+   "raw": "<testsuite name=\"s\"><testcase file=\"pkg/a_test.go\" name=\"t\" status=\"passed\"/></testsuite>",
+   "rows": [
+    {
+     "executionKey": "b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f",
+     "id": "test-row:sha256:192dd99a33b7be012d44305af960588710d68cdba7e0efa937e9b912e98ed8f7",
+     "status": "PASSED"
+    }
+   ],
+   "unkeyed": 0
+  },
+  "no-terminal-run": {
+   "hasNonPassing": false,
+   "observationRows": "[{\"executionKeySha256\":\"b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f\",\"id\":\"test-row:sha256:61ae8a25eebf9f24802a51a50b1513952c005033d6b6d20e95a2f8f30f0b7174\",\"status\":\"PASSED\"}]",
+   "raw": "<testsuite name=\"s\"><testcase file=\"pkg/a_test.go\" name=\"t\" status=\"run\"/></testsuite>",
+   "rows": [
+    {
+     "executionKey": "b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f",
+     "id": "test-row:sha256:61ae8a25eebf9f24802a51a50b1513952c005033d6b6d20e95a2f8f30f0b7174",
+     "status": "PASSED"
+    }
+   ],
+   "unkeyed": 0
+  },
+  "no-terminal-skipped-attr": {
+   "hasNonPassing": false,
+   "observationRows": "[{\"executionKeySha256\":\"b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f\",\"id\":\"test-row:sha256:9694e80cdc7ebf595d27c74f2cfc59cee18c437656e036461af6126d3e8f2132\",\"status\":\"SKIPPED\"}]",
+   "raw": "<testsuite name=\"s\"><testcase file=\"pkg/a_test.go\" name=\"t\" status=\"skipped\"/></testsuite>",
+   "rows": [
+    {
+     "executionKey": "b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f",
+     "id": "test-row:sha256:9694e80cdc7ebf595d27c74f2cfc59cee18c437656e036461af6126d3e8f2132",
+     "status": "SKIPPED"
+    }
+   ],
+   "unkeyed": 0
+  },
+  "repeated-terminal": {
+   "error": "invalid-junit",
+   "raw": "<testsuite name=\"s\"><testcase file=\"pkg/a_test.go\" name=\"t\"><failure/><failure/></testcase></testsuite>"
+  },
+  "skipped-child": {
+   "hasNonPassing": false,
+   "observationRows": "[{\"executionKeySha256\":\"b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f\",\"id\":\"test-row:sha256:c35ff02c57106e9728f8c06dc30ed16cea389e439dabf5a12fa89dc880c3a7fa\",\"status\":\"SKIPPED\"}]",
+   "raw": "<testsuite name=\"s\"><testcase file=\"pkg/a_test.go\" name=\"t\"><skipped/></testcase></testsuite>",
+   "rows": [
+    {
+     "executionKey": "b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f",
+     "id": "test-row:sha256:c35ff02c57106e9728f8c06dc30ed16cea389e439dabf5a12fa89dc880c3a7fa",
+     "status": "SKIPPED"
+    }
+   ],
+   "unkeyed": 0
+  },
+  "skipped-child-disabled": {
+   "hasNonPassing": false,
+   "observationRows": "[{\"executionKeySha256\":\"b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f\",\"id\":\"test-row:sha256:3eb2c4ec1520477398437a50b6f4fc8aa48c00f3ce1e8cc8d3f97ad8fac219da\",\"status\":\"SKIPPED\"}]",
+   "raw": "<testsuite name=\"s\"><testcase file=\"pkg/a_test.go\" name=\"t\" disabled=\"true\"><skipped/></testcase></testsuite>",
+   "rows": [
+    {
+     "executionKey": "b3b94259d0d6f6bf93b2ef2d0b6de744781f0bd0dfe9af77fed665e882a7d12f",
+     "id": "test-row:sha256:3eb2c4ec1520477398437a50b6f4fc8aa48c00f3ce1e8cc8d3f97ad8fac219da",
+     "status": "SKIPPED"
+    }
+   ],
+   "unkeyed": 0
+  },
+  "terminal-grandchild": {
+   "error": "invalid-junit",
+   "raw": "<testsuite name=\"s\"><testcase file=\"pkg/a_test.go\" name=\"t\"><properties><failure/></properties></testcase></testsuite>"
+  },
+  "two-terminals": {
+   "error": "invalid-junit",
+   "raw": "<testsuite name=\"s\"><testcase file=\"pkg/a_test.go\" name=\"t\"><failure/><error/></testcase></testsuite>"
+  },
+  "unkeyed-absolute": {
+   "hasNonPassing": false,
+   "observationRows": "[]",
+   "raw": "<testsuite name=\"s\"><testcase file=\"/etc/passwd\" name=\"t\"/></testsuite>",
+   "rows": [],
+   "unkeyed": 1
+  },
+  "unkeyed-dotdot": {
+   "hasNonPassing": false,
+   "observationRows": "[]",
+   "raw": "<testsuite name=\"s\"><testcase file=\"pkg/../pkg/a_test.go\" name=\"t\"/></testsuite>",
+   "rows": [],
+   "unkeyed": 1
+  },
+  "unkeyed-no-file": {
+   "hasNonPassing": false,
+   "observationRows": "[]",
+   "raw": "<testsuite name=\"s\"><testcase name=\"t\"/></testsuite>",
+   "rows": [],
+   "unkeyed": 1
+  },
+  "unkeyed-symlink-mode": {
+   "hasNonPassing": false,
+   "observationRows": "[]",
+   "raw": "<testsuite name=\"s\"><testcase file=\"pkg/link_test.go\" name=\"t\"/></testsuite>",
+   "rows": [],
+   "unkeyed": 1
+  },
+  "unkeyed-untracked": {
+   "hasNonPassing": false,
+   "observationRows": "[]",
+   "raw": "<testsuite name=\"s\"><testcase file=\"pkg/missing_test.go\" name=\"t\"/></testsuite>",
+   "rows": [],
+   "unkeyed": 1
+  },
+  "unknown-child": {
+   "error": "invalid-junit",
+   "raw": "<testsuite name=\"s\"><testcase file=\"pkg/a_test.go\" name=\"t\"><bogus/></testcase></testsuite>"
+  }
+ }
+}

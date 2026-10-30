@@ -1,0 +1,8 @@
+site_name: Symlink escape canary
+site_url: https://corvint.example.invalid/symlink-escape/
+docs_dir: docs-link
+theme:
+  name: material
+plugins:
+  - search
+

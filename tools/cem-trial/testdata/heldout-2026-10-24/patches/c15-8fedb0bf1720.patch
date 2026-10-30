@@ -1,0 +1,467 @@
+diff --git a/internal/app/app.go b/internal/app/app.go
+index c79da8573..5d21a12fe 100644
+--- a/internal/app/app.go
++++ b/internal/app/app.go
+@@ -887,24 +887,40 @@ func (a *App) Run(ctx context.Context) error {
+ 		}
+ 	}
+ 
+-	// Self-hosted relay carrier (ADR-0018/0025): dial OUT and register the
+-	// public host. SCAFFOLDING — the carrier registration frame is a
+-	// placeholder until the beamfall-relay binary defines the SniTun-contract
+-	// wire, so this establishes and authenticates the outbound transport but
+-	// does not yet carry inbound traffic. It runs in the background and never
+-	// blocks or fails boot; the Console reads the honest connection state. The
+-	// carrier token is resolved from a 0600 secret here and never logged.
++	// Self-hosted relay carrier (ADR-0018/0025): dial OUT, register the public
++	// host, and carry inbound relayed connections byte-blind. The relay opens
++	// one yamux stream per inbound public client; the carrier splices each to a
++	// loopback TLS listener that terminates the client's TLS against the
++	// server's own certificate (ADR-0018 sec 1/sec 2) and serves the same app
++	// handler, so the relay forwards raw bytes and never sees plaintext. It runs
++	// in the background and never blocks or fails boot; the Console reads the
++	// honest connection state. The carrier token is resolved from a 0600 secret
++	// in RelayClient and never logged.
++	//
++	// Carrying inbound client TLS requires the server's own cert. That lives
++	// only on the direct-HTTPS (autocert) path; a LAN-only server has no such
++	// identity, so the relay path cannot terminate inbound TLS and the carrier
++	// stays honestly off rather than splicing plaintext.
+ 	if a.relay != nil {
+-		go func() {
+-			conn, err := a.relay.Connect(ctx)
+-			if err != nil {
+-				a.logger.Warn("relay carrier connect failed", "endpoint", a.relay.Endpoint(), "error", err)
+-				return
+-			}
+-			a.logger.Info("relay carrier connected", "endpoint", a.relay.Endpoint(), "publicHost", a.relay.PublicHost())
+-			<-ctx.Done()
+-			_ = conn.Close()
+-		}()
++		if tlsConfig == nil {
++			a.logger.Warn("relay endpoint configured but no server certificate (enable direct HTTPS / set --public-domain): relay carrier cannot terminate inbound TLS and is disabled",
++				"endpoint", a.relay.Endpoint())
++		} else if backendLn, lerr := tls.Listen("tcp", "127.0.0.1:0", tlsConfig); lerr != nil {
++			a.logger.Warn("relay carrier backend listener failed", "error", lerr)
++		} else {
++			defer backendLn.Close()
++			go func() {
++				bsrv := &http.Server{
++					Handler:           handler,
++					ReadHeaderTimeout: 5 * time.Second,
++					ReadTimeout:       60 * time.Second,
++					IdleTimeout:       120 * time.Second,
++				}
++				_ = bsrv.Serve(backendLn)
++			}()
++			a.relay.SetBackendAddr(backendLn.Addr().String())
++			go a.runRelayCarrier(ctx)
++		}
+ 	}
+ 
+ 	a.logger.Info("server starting", "addr", a.cfg.Addr)
+@@ -933,6 +949,49 @@ func (a *App) Run(ctx context.Context) error {
+ 	}
+ }
+ 
++// runRelayCarrier owns the self-hosted relay carrier lifecycle (ADR-0018/0025):
++// dial + register + carry, and on carrier loss re-dial with bounded exponential
++// backoff until the context is cancelled. The relay token is re-presented on
++// every reconnect, so a service-side cancellation propagates in minutes
++// (ADR-0018 §5). RelayConnected is only ever set while a yamux session is live
++// and carrying — a dropped carrier reverts the Console state, so the status is
++// truthful rather than reporting a connection that forwards nothing.
++func (a *App) runRelayCarrier(ctx context.Context) {
++	const (
++		backoffMin = time.Second
++		backoffMax = 60 * time.Second
++	)
++	backoff := backoffMin
++	for {
++		if ctx.Err() != nil {
++			return
++		}
++		session, err := a.relay.Connect(ctx)
++		if err != nil {
++			a.logger.Warn("relay carrier connect failed", "endpoint", a.relay.Endpoint(), "error", err)
++		} else {
++			a.logger.Info("relay carrier connected", "endpoint", a.relay.Endpoint(), "publicHost", a.relay.PublicHost())
++			backoff = backoffMin
++			if cerr := a.relay.Carry(ctx, session); cerr != nil {
++				a.logger.Warn("relay carrier session ended", "endpoint", a.relay.Endpoint(), "error", cerr)
++			}
++		}
++		if ctx.Err() != nil {
++			return
++		}
++		timer := time.NewTimer(backoff)
++		select {
++		case <-ctx.Done():
++			timer.Stop()
++			return
++		case <-timer.C:
++		}
++		if backoff *= 2; backoff > backoffMax {
++			backoff = backoffMax
++		}
++	}
++}
++
+ func listenPort(addr net.Addr) int {
+ 	if tcpAddr, ok := addr.(*net.TCPAddr); ok {
+ 		return tcpAddr.Port
+diff --git a/internal/remoteaccess/relay.go b/internal/remoteaccess/relay.go
+index 6634abb31..46bb7caff 100644
+--- a/internal/remoteaccess/relay.go
++++ b/internal/remoteaccess/relay.go
+@@ -5,6 +5,7 @@ import (
+ 	"crypto/tls"
+ 	"errors"
+ 	"fmt"
++	"io"
+ 	"net"
+ 	"os"
+ 	"path/filepath"
+@@ -12,6 +13,8 @@ import (
+ 	"sync"
+ 	"time"
+ 
++	"github.com/hashicorp/yamux"
++
+ 	"github.com/beamfall/core/internal/config"
+ )
+ 
+@@ -28,8 +31,9 @@ const (
+ 	RelayDisconnected RelayState = "disconnected"
+ 	// RelayConnecting: an outbound dial / registration is in flight.
+ 	RelayConnecting RelayState = "connecting"
+-	// RelayConnected: the outbound carrier is established and the host is
+-	// registered with the relay.
++	// RelayConnected: the outbound carrier is established, the host is
++	// registered with the relay, and the yamux session is live and accepting
++	// inbound relayed streams — i.e. the tunnel actually forwards traffic.
+ 	RelayConnected RelayState = "connected"
+ 	// RelayError: the last dial or registration attempt failed; LastError
+ 	// carries the reason (never the token).
+@@ -37,26 +41,26 @@ const (
+ )
+ 
+ // RelayClient dials OUT to a self-hosted relay (ADR-0018/0025), authenticates
+-// with the carrier token, and registers this server's public host so the relay
+-// forwards inbound connections byte-blind. The token is resolved from a 0600
+-// secret at dial time and held only in memory for the dial — never logged,
+-// never placed in config (invariant 5).
++// with the carrier token, registers this server's public host, then carries
++// inbound relayed connections byte-blind: the relay opens one yamux stream per
++// inbound public client and the client splices each stream to the local server.
++// The token is resolved from a 0600 secret at dial time and held only in memory
++// for the carrier — never logged, never placed in config (invariant 5).
+ //
+-// REALITY (honest scope, this wave):
+-//   - Real and exercised: config gating, the 0600 secret resolution + refusal
+-//     of group/other-readable files, the outbound TLS 1.3 dial to the endpoint,
+-//     connection-state tracking, and never logging the token/bytes.
+-//   - Scaffolding, NOT a working carrier: the registration frame wire format
+-//     and the byte-forwarding loop are placeholders. No `beamfall-relay` binary
+-//     exists yet to define the SniTun-contract handshake (TLS 1.3 + yamux + SNI
+-//     peek, ADR-0018 §1), so register() sends a documented placeholder frame and
+-//     does not multiplex or forward inbound connections. When the relay binary
+-//     lands, register()/carry() get the real frames; the surrounding lifecycle,
+-//     secret handling, and state machine stay.
++// Client TLS terminates on THIS server (ADR-0018 §1/§2): the relay forwards raw
++// bytes, so each yamux stream carries a pristine client ClientHello that the
++// local backend (a loopback TLS listener fronting the app, wired by the caller)
++// terminates against the server's own certificate. The relay holds no keys and
++// sees no plaintext.
+ type RelayClient struct {
+ 	cfg       config.RelayConfig
+ 	secretDir string
+ 	dial      dialFunc
++	// backendAddr is the loopback address inbound relayed streams are spliced
++	// to (the server's own TLS-terminating listener). Empty means the carry
++	// has no local target and Carry refuses to start — set by the caller once
++	// the listener address is known.
++	backendAddr string
+ 
+ 	mu        sync.Mutex
+ 	state     RelayState
+@@ -86,6 +90,15 @@ func NewRelayClient(ra config.RemoteAccessConfig, secretDir string) (*RelayClien
+ // relayTokenFile is the fixed secret name under secretDir (invariant 5).
+ const relayTokenFile = "relay-token"
+ 
++// SetBackendAddr sets the loopback address inbound relayed streams are spliced
++// to (the server's own TLS-terminating listener). The caller wires this once
++// the local listener is bound, before starting the carry. It is not a secret.
++func (c *RelayClient) SetBackendAddr(addr string) {
++	c.mu.Lock()
++	c.backendAddr = addr
++	c.mu.Unlock()
++}
++
+ // Endpoint returns the configured relay carrier address (no secret).
+ func (c *RelayClient) Endpoint() string { return c.cfg.Endpoint }
+ 
+@@ -107,16 +120,13 @@ func (c *RelayClient) setState(s RelayState, errMsg string) {
+ 	c.mu.Unlock()
+ }
+ 
+-// Connect performs one dial + register attempt. It resolves the carrier token,
+-// dials the relay over TLS 1.3, and registers the public host. On success the
+-// state is RelayConnected and the carrier net.Conn is returned for the caller's
+-// carry loop; on any failure the state is RelayError with a token-free reason.
+-//
+-// This is the REAL outbound-dial + secret-handling path. The registration frame
+-// it writes is the documented placeholder (see register) until the relay binary
+-// defines the wire — so against a real relay this connects and authenticates the
+-// transport but does not yet carry inbound traffic.
+-func (c *RelayClient) Connect(ctx context.Context) (net.Conn, error) {
++// Connect performs one dial + register + multiplexer-start attempt. It resolves
++// the carrier token, dials the relay over TLS 1.3, writes the hello frame,
++// reads the relay's ack, and starts the yamux client over the same carrier. On
++// success the state is RelayConnected and the live session is returned for the
++// caller's Carry loop; on any failure the state is RelayError with a token-free
++// reason.
++func (c *RelayClient) Connect(ctx context.Context) (*yamux.Session, error) {
+ 	if c.cfg.PublicHost == "" {
+ 		err := errors.New("relay endpoint set but no public host to register (set --relay-public-host or --public-domain)")
+ 		c.setState(RelayError, err.Error())
+@@ -139,54 +149,186 @@ func (c *RelayClient) Connect(ctx context.Context) (net.Conn, error) {
+ 		c.setState(RelayError, sanitizeDialError(err, token))
+ 		return nil, fmt.Errorf("dialing relay: %w", err)
+ 	}
+-	if err := c.register(conn, token); err != nil {
++	session, err := c.register(conn, token)
++	if err != nil {
+ 		_ = conn.Close()
+ 		c.setState(RelayError, "registration failed")
+ 		return nil, fmt.Errorf("relay registration: %w", err)
+ 	}
+ 	c.setState(RelayConnected, "")
+-	return conn, nil
++	return session, nil
+ }
+ 
+-// register authenticates the carrier and registers the public host.
++// register authenticates the carrier, registers the public host, and starts the
++// yamux multiplexer (ADR-0018 §1). It writes the length-prefixed JSON hello
++// frame (carrier token + the public host as the routed hostname), reads the
++// relay's ack, and on acceptance upgrades the same TLS carrier to a yamux
++// client session. A non-ack frame (e.g. error, or a bad version the relay
++// refused) is a rejected carrier. The token rides the encrypted carrier and is
++// never logged here or elsewhere.
++func (c *RelayClient) register(conn net.Conn, token []byte) (*yamux.Session, error) {
++	// Bound the handshake so a silent or slow relay cannot pin the dial
++	// goroutine forever; cleared before yamux (which carries no deadline).
++	_ = conn.SetDeadline(time.Now().Add(10 * time.Second))
++	hello := relayFrame{Type: relayFrameHello, Hello: &relayHello{
++		Version:   relayProtoVersion,
++		Token:     token,
++		Hostnames: []string{c.cfg.PublicHost},
++	}}
++	if err := writeRelayFrame(conn, hello); err != nil {
++		return nil, err
++	}
++	frame, err := readRelayFrame(conn)
++	if err != nil {
++		return nil, err
++	}
++	if frame.Type != relayFrameAck {
++		if frame.Type == relayFrameError && frame.Error != "" {
++			return nil, fmt.Errorf("relay rejected carrier: %s", frame.Error)
++		}
++		return nil, errors.New("relay rejected carrier")
++	}
++	_ = conn.SetDeadline(time.Time{})
++	session, err := yamux.Client(conn, relayYamuxConfig())
++	if err != nil {
++		return nil, fmt.Errorf("start yamux client: %w", err)
++	}
++	return session, nil
++}
++
++// Carry serves inbound relayed streams for a live session: the relay opens one
++// yamux stream per inbound public client connection, and Carry splices each to
++// the local backend (the server's loopback TLS listener) bidirectionally. It
++// blocks until the session ends (relay loss, carrier tear-down) or ctx is
++// cancelled, then marks the carrier disconnected so the Console state is honest
++// — RelayConnected only ever reflects a session that is actually forwarding.
+ //
+-// SCAFFOLDING: the frame below is a placeholder, not the ADR-0018 SniTun-contract
+-// handshake (no relay binary defines that wire yet). It writes a single
+-// length-free line so a real dial against a stub listener completes a write; it
+-// does NOT establish yamux multiplexing or SNI routing. The token is written to
+-// the (TLS-encrypted) carrier only — never logged. When the relay binary lands,
+-// this becomes the real authenticated registration frame.
+-func (c *RelayClient) register(conn net.Conn, token string) error {
+-	_ = conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+-	defer conn.SetWriteDeadline(time.Time{})
+-	// Placeholder registration line: REGISTER <public-host> <token>\n. The
+-	// token rides the encrypted carrier; it is never logged here or elsewhere.
+-	frame := "REGISTER " + c.cfg.PublicHost + " " + token + "\n"
+-	if _, err := conn.Write([]byte(frame)); err != nil {
++// Carry takes ownership of the session and closes it on return.
++func (c *RelayClient) Carry(ctx context.Context, session *yamux.Session) error {
++	c.mu.Lock()
++	backend := c.backendAddr
++	c.mu.Unlock()
++	if backend == "" {
++		_ = session.Close()
++		err := errors.New("relay carry has no local backend address")
++		c.setState(RelayError, err.Error())
+ 		return err
+ 	}
+-	return nil
++
++	// Tear the session down on ctx cancel so the blocking Accept unblocks.
++	done := make(chan struct{})
++	defer close(done)
++	go func() {
++		select {
++		case <-ctx.Done():
++			_ = session.Close()
++		case <-done:
++		}
++	}()
++
++	var wg sync.WaitGroup
++	var carryErr error
++	for {
++		stream, err := session.Accept()
++		if err != nil {
++			if ctx.Err() != nil {
++				carryErr = nil
++			} else {
++				carryErr = err
++			}
++			break
++		}
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			c.handleStream(ctx, stream, backend)
++		}()
++	}
++	wg.Wait()
++	_ = session.Close()
++	// The carrier is no longer forwarding. Reflect that honestly: a clean
++	// ctx-driven exit is a disconnect; an unexpected session loss is an error.
++	if ctx.Err() != nil {
++		c.setState(RelayDisconnected, "")
++	} else {
++		msg := "relay carrier session ended"
++		if carryErr != nil {
++			msg = "relay carrier session ended: " + carryErr.Error()
++		}
++		c.setState(RelayError, msg)
++	}
++	return carryErr
++}
++
++// handleStream splices one inbound relayed stream to a fresh local backend
++// connection. The stream carries the remote client's raw TLS bytes; the backend
++// (the server's own TLS-terminating loopback listener) completes the handshake
++// against the server's certificate, so the relay never sees plaintext. Both
++// directions are copied until EOF; each half-closes its destination's write
++// side so a one-sided close does not truncate the still-active direction.
++func (c *RelayClient) handleStream(ctx context.Context, stream net.Conn, backend string) {
++	defer stream.Close()
++	local, err := new(net.Dialer).DialContext(ctx, "tcp", backend)
++	if err != nil {
++		// No token, no payload, no relayed-connection detail in the state.
++		c.setState(c.currentState(), "")
++		return
++	}
++	defer local.Close()
++
++	finished := make(chan struct{}, 2)
++	go func() {
++		_, _ = io.Copy(local, stream)
++		if cw, ok := local.(interface{ CloseWrite() error }); ok {
++			_ = cw.CloseWrite()
++		}
++		finished <- struct{}{}
++	}()
++	go func() {
++		_, _ = io.Copy(stream, local)
++		if cw, ok := stream.(interface{ CloseWrite() error }); ok {
++			_ = cw.CloseWrite()
++		}
++		finished <- struct{}{}
++	}()
++	for i := 0; i < 2; i++ {
++		select {
++		case <-ctx.Done():
++			return
++		case <-finished:
++		}
++	}
++}
++
++// currentState reads the state under the lock (used by handleStream to avoid
++// clobbering RelayConnected on a transient backend dial miss).
++func (c *RelayClient) currentState() RelayState {
++	c.mu.Lock()
++	defer c.mu.Unlock()
++	return c.state
+ }
+ 
+ // resolveToken reads the carrier token from <secretDir>/relay-token. It refuses
+ // a group/other-readable file (invariant 5) and an empty file. The returned
+ // error never contains the token's contents — only the path and the problem.
+-func (c *RelayClient) resolveToken() (string, error) {
++// The token is opaque bytes (the relay passes them to its verifier seam); the
++// trailing newline a 0600 secret file commonly carries is trimmed.
++func (c *RelayClient) resolveToken() ([]byte, error) {
+ 	path := filepath.Join(c.secretDir, relayTokenFile)
+ 	info, err := os.Stat(path)
+ 	if err != nil {
+-		return "", fmt.Errorf("relay token unavailable: %w", err)
++		return nil, fmt.Errorf("relay token unavailable: %w", err)
+ 	}
+ 	if info.Mode().Perm()&0o077 != 0 {
+-		return "", fmt.Errorf("relay token file %s must be mode 0600 — refusing group/other-accessible secret", path)
++		return nil, fmt.Errorf("relay token file %s must be mode 0600 — refusing group/other-accessible secret", path)
+ 	}
+ 	data, err := os.ReadFile(path)
+ 	if err != nil {
+-		return "", err
++		return nil, err
+ 	}
+-	token := strings.TrimSpace(string(data))
+-	if token == "" {
+-		return "", fmt.Errorf("relay token file %s is empty", path)
++	token := []byte(strings.TrimSpace(string(data)))
++	if len(token) == 0 {
++		return nil, fmt.Errorf("relay token file %s is empty", path)
+ 	}
+ 	return token, nil
+ }
+@@ -212,10 +354,25 @@ func dialTLS13(ctx context.Context, endpoint string) (net.Conn, error) {
+ // sanitizeDialError returns the dial error string with any accidental
+ // occurrence of the token redacted. Dial errors carry network detail, not
+ // secrets, but this is belt-and-suspenders for the byte-blindness invariant.
+-func sanitizeDialError(err error, token string) string {
++func sanitizeDialError(err error, token []byte) string {
+ 	msg := err.Error()
+-	if token != "" {
+-		msg = strings.ReplaceAll(msg, token, "[redacted]")
++	if len(token) > 0 {
++		msg = strings.ReplaceAll(msg, string(token), "[redacted]")
+ 	}
+ 	return msg
+ }
++
++// relayYamuxConfig returns the carrier-session multiplexer config. It MUST
++// match the relay node's config (ADR-0018 §1) so window-size and keep-alive
++// expectations agree end to end: a session-wide write timeout long enough to
++// ride out a stalled player without tearing down the whole carrier, a stream
++// window sized for the bandwidth-delay product of a high-bitrate remux, keepalive
++// on so a dead carrier is reaped, and yamux's own stderr logging suppressed.
++func relayYamuxConfig() *yamux.Config {
++	cfg := yamux.DefaultConfig()
++	cfg.ConnectionWriteTimeout = 30 * time.Second
++	cfg.MaxStreamWindowSize = 1024 * 1024 // 1 MiB (BDP headroom for 40 Mbps / 50 ms RTT)
++	cfg.EnableKeepAlive = true
++	cfg.LogOutput = io.Discard
++	return cfg
++}

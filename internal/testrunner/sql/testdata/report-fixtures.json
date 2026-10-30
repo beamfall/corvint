@@ -1,0 +1,90 @@
+{
+  "pgtap/fail.stderr": {
+    "base64": "",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "pgtap/fail.stdout": {
+    "base64": "MS4uMQpub3Qgb2sgMSAtIFNRTCBlcXVhbGl0eQojIEZhaWxlZCB0ZXN0IDE6ICJTUUwgZXF1YWxpdHkiCiMgICAgICAgICBoYXZlOiAxCiMgICAgICAgICB3YW50OiAyCiMgTG9va3MgbGlrZSB5b3UgZmFpbGVkIDEgdGVzdCBvZiAxCg==",
+    "sha256": "fcdd71ab0a27ff60bc91b9f06b32c839012cb5d9048eefb0f5d6123bff920615"
+  },
+  "pgtap/infra.stderr": {
+    "base64": "cHNxbDovcHJpdmF0ZS90bXAvY2VtMTAtYnVpbGQvc3FsL2xpdmUtcGd0YXAvY2FzZXMvaW5mcmEuc3FsOjE6IEVSUk9SOiAgZGl2aXNpb24gYnkgemVybwo=",
+    "sha256": "deb71895b6c88f11153c072534ae6ad146eeeac701f8a1bb6de9c53c51fcc404"
+  },
+  "pgtap/infra.stdout": {
+    "base64": "MS4uMQo=",
+    "sha256": "74aeffb67ad621dec5c906d8aaa8628fe101c8ba926689f913704cfc06105939"
+  },
+  "pgtap/pass.stderr": {
+    "base64": "",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "pgtap/pass.stdout": {
+    "base64": "MS4uMQpvayAxIC0gU1FMIGVxdWFsaXR5Cg==",
+    "sha256": "4d13bd7efad8de99e52ffd157b26dfdec7257c157ab6963e462d11e9dca613b6"
+  },
+  "pgtap/skip.stderr": {
+    "base64": "",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "pgtap/skip.stdout": {
+    "base64": "MS4uMQpvayAxICMgU0tJUCBTUUxfU0tJUAo=",
+    "sha256": "e0798a37b24c0968faaa0d2b866c2b163f4d045bcd9a034bc17b255ce320ca77"
+  },
+  "pgtap/zero.stderr": {
+    "base64": "cHNxbDovcHJpdmF0ZS90bXAvY2VtMTAtYnVpbGQvc3FsL2xpdmUtcGd0YXAvY2FzZXMvemVyby5zcWw6MTogRVJST1I6ICAjIE5vIHRlc3RzIHJ1biEKQ09OVEVYVDogIFBML3BnU1FMIGZ1bmN0aW9uIF9maW5pc2goaW50ZWdlcixpbnRlZ2VyLGludGVnZXIsYm9vbGVhbikgbGluZSAxMiBhdCBSQUlTRQpTUUwgZnVuY3Rpb24gImZpbmlzaCIgc3RhdGVtZW50IDEK",
+    "sha256": "c1e5d3bc34c4b845760955a53629dca493440ecea1169ec913bca6e41edb6a83"
+  },
+  "pgtap/zero.stdout": {
+    "base64": "",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "sqlite/connect.stderr": {
+    "base64": "L3ByaXZhdGUvdG1wL2NlbTEwLWJ1aWxkL3NxbC9zcWxpdGUtc2x0L3NyYy9zcWxsb2dpY3Rlc3Q6IHVuYWJsZSB0byBjb25uZWN0IHRvIGRhdGFiYXNlCg==",
+    "sha256": "88478292b02ab6c98299754cc72abd5eae8c86b7a6c7188845305fb81af5ddc0"
+  },
+  "sqlite/connect.stdout": {
+    "base64": "",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "sqlite/fail.stderr": {
+    "base64": "MSBlcnJvcnMgb3V0IG9mIDEgdGVzdHMgaW4gY2FzZS5zbHQgLSAwIHNraXBwZWQuCg==",
+    "sha256": "e27d0e0180cfc7939d865b32de782a4a552b0f4c1120a00d1b9c30aa4129aa3b"
+  },
+  "sqlite/fail.stdout": {
+    "base64": "Y2FzZS5zbHQ6NDogd3JvbmcgcmVzdWx0IC0gZXhwZWN0ZWQgWzJdIGdvdCBbMV0K",
+    "sha256": "8331e90cac55e4169aeb795c5a6f67ce106e2ea626984e29af51106d3aa96aa7"
+  },
+  "sqlite/infra.stderr": {
+    "base64": "Y2FzZS5zbHQ6MTogcXVlcnkgZmFpbGVkCjEgZXJyb3JzIG91dCBvZiAxIHRlc3RzIGluIGNhc2Uuc2x0IC0gMCBza2lwcGVkLgo=",
+    "sha256": "73c9fdcd47f0cb2884969be52e9d55b9cde199c959e6bef95cd2b54a29d3f160"
+  },
+  "sqlite/infra.stdout": {
+    "base64": "",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "sqlite/pass.stderr": {
+    "base64": "MCBlcnJvcnMgb3V0IG9mIDEgdGVzdHMgaW4gY2FzZS5zbHQgLSAwIHNraXBwZWQuCg==",
+    "sha256": "888fbb5edff9e70a5c01cf60c5e527a1f06ff99052fe44a18bee0782e25d88f2"
+  },
+  "sqlite/pass.stdout": {
+    "base64": "",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "sqlite/skip.stderr": {
+    "base64": "MCBlcnJvcnMgb3V0IG9mIDAgdGVzdHMgaW4gY2FzZS5zbHQgLSAxIHNraXBwZWQuCg==",
+    "sha256": "46de2f231b7a63ea521c79b1ebdc474d8f0dd1934d56a2cd786a1dc67063e53e"
+  },
+  "sqlite/skip.stdout": {
+    "base64": "",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "sqlite/zero.stderr": {
+    "base64": "MCBlcnJvcnMgb3V0IG9mIDAgdGVzdHMgaW4gY2FzZS5zbHQgLSAwIHNraXBwZWQuCg==",
+    "sha256": "7831a89ed78725c3d4bb80684b7945d28f79b6d4c407d7da3adea4217f9983ae"
+  },
+  "sqlite/zero.stdout": {
+    "base64": "",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

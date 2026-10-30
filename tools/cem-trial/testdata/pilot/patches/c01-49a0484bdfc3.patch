@@ -1,0 +1,173 @@
+diff --git a/cmd/beamfall/scan.go b/cmd/beamfall/scan.go
+index 211dd19af..58fa73d96 100644
+--- a/cmd/beamfall/scan.go
++++ b/cmd/beamfall/scan.go
+@@ -9,6 +9,7 @@ import (
+ 	"time"
+ 
+ 	"github.com/beamfall/core/internal/config"
++	"github.com/beamfall/core/internal/ffmpeg"
+ 	"github.com/beamfall/core/internal/jobs"
+ 	scanpkg "github.com/beamfall/core/internal/scan"
+ 	"github.com/beamfall/core/internal/store"
+@@ -58,7 +59,7 @@ func scan(ctx context.Context, args []string, stdout io.Writer) error {
+ 	defer st.Close()
+ 	if runOne {
+ 		registry := jobs.NewRegistry(st, "beamfall-cli")
+-		registry.Register(scanpkg.JobKind, scanpkg.Handler(st))
++		registry.Register(scanpkg.JobKind, scanpkg.Handler(st, ffmpeg.New()))
+ 		claimed, err := registry.RunOne(ctx, []store.JobClass{store.JobClassBackground}, time.Now().UTC())
+ 		if err != nil {
+ 			return err
+@@ -91,7 +92,7 @@ func scan(ctx context.Context, args []string, stdout io.Writer) error {
+ 		return nil
+ 	}
+ 
+-	result, err := scanpkg.Scan(ctx, st, scanpkg.Request{
++	result, err := scanpkg.Scan(ctx, st, ffmpeg.New(), scanpkg.Request{
+ 		LibraryID: store.LibraryID(libraryID),
+ 		Root:      root,
+ 	})
+diff --git a/internal/app/app.go b/internal/app/app.go
+index bd259c12c..859d70baf 100644
+--- a/internal/app/app.go
++++ b/internal/app/app.go
+@@ -11,6 +11,7 @@ import (
+ 
+ 	"github.com/beamfall/core/internal/auth"
+ 	"github.com/beamfall/core/internal/config"
++	"github.com/beamfall/core/internal/ffmpeg"
+ 	"github.com/beamfall/core/internal/graph"
+ 	"github.com/beamfall/core/internal/jobs"
+ 	"github.com/beamfall/core/internal/manifest"
+@@ -51,7 +52,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger) (*App, err
+ 	}
+ 	jobRegistry := jobs.NewRegistry(st, "beamfall-server")
+ 	jobRegistry.SetLogger(logger)
+-	jobRegistry.Register(scanpkg.JobKind, scanpkg.Handler(st))
++	jobRegistry.Register(scanpkg.JobKind, scanpkg.Handler(st, ffmpeg.New()))
+ 	if _, err := jobRegistry.Resume(ctx, time.Now()); err != nil {
+ 		_ = st.Close()
+ 		return nil, err
+diff --git a/internal/playback/playback.go b/internal/playback/playback.go
+index 6c875d236..22ca3ac2a 100644
+--- a/internal/playback/playback.go
++++ b/internal/playback/playback.go
+@@ -106,7 +106,12 @@ func (s *Service) Info(ctx context.Context, scope auth.Scope, req InfoRequest) (
+ 	if err != nil {
+ 		return InfoResponse{}, err
+ 	}
+-	expiresAt := s.now().Add(5 * time.Minute).UTC()
++	// The token must outlive the playback it authorizes: AVPlayer keeps making
++	// range requests against the same URL for the whole runtime (plus pauses and
++	// seeks). Revocation and relock are enforced live on every byte request via
++	// the session scope, so a long expiry only bounds URL replay, not access.
++	tokenLifetime := max(time.Hour, 2*time.Duration(media.DurationSeconds)*time.Second)
++	expiresAt := s.now().Add(tokenLifetime).UTC()
+ 	token, err := s.tokens.Issue(streamtoken.Grant{
+ 		Target:     streamtoken.TargetMediaDirect,
+ 		MediaID:    media.ID,
+diff --git a/internal/scan/scan.go b/internal/scan/scan.go
+index adb5b4ce4..9403fd039 100644
+--- a/internal/scan/scan.go
++++ b/internal/scan/scan.go
+@@ -12,10 +12,18 @@ import (
+ 	"strings"
+ 	"time"
+ 
++	"github.com/beamfall/core/internal/ffmpeg"
+ 	"github.com/beamfall/core/internal/jobs"
+ 	"github.com/beamfall/core/internal/store"
+ )
+ 
++// Prober is scan's slice of the FFmpeg seam (ADR-0016: interface at the
++// consumer). A nil Prober, or a probe failure, falls back to path-derived
++// metadata so scanning works on machines without FFmpeg.
++type Prober interface {
++	Probe(ctx context.Context, path string) (ffmpeg.Probe, error)
++}
++
+ const JobKind store.JobKind = "scan"
+ 
+ const scanJobFileBatchSize = 100
+@@ -93,18 +101,18 @@ func NewJob(req JobRequest) (store.Job, error) {
+ 	}, nil
+ }
+ 
+-func Handler(st *store.Store) jobs.Handler {
++func Handler(st *store.Store, prober Prober) jobs.Handler {
+ 	return func(ctx context.Context, job store.Job) (jobs.Result, error) {
+ 		req, err := requestFromJobPayload(job.Payload)
+ 		if err != nil {
+ 			return jobs.Result{}, err
+ 		}
+-		return runScanJob(ctx, st, job, req)
++		return runScanJob(ctx, st, prober, job, req)
+ 	}
+ }
+ 
+ // Scan walks a Library root and imports regular files by content fingerprint.
+-func Scan(ctx context.Context, st *store.Store, req Request) (Result, error) {
++func Scan(ctx context.Context, st *store.Store, prober Prober, req Request) (Result, error) {
+ 	if st == nil {
+ 		return Result{}, errors.New("store is required")
+ 	}
+@@ -115,17 +123,17 @@ func Scan(ctx context.Context, st *store.Store, req Request) (Result, error) {
+ 		return Result{}, errors.New("scan root is required")
+ 	}
+ 
+-	return scanFromCheckpoint(ctx, st, req, jobCheckpoint{}, nil)
++	return scanFromCheckpoint(ctx, st, prober, req, jobCheckpoint{}, nil)
+ }
+ 
+-func runScanJob(ctx context.Context, st *store.Store, job store.Job, req Request) (jobs.Result, error) {
++func runScanJob(ctx context.Context, st *store.Store, prober Prober, job store.Job, req Request) (jobs.Result, error) {
+ 	checkpoint, err := checkpointFromJob(job.Checkpoint)
+ 	if err != nil {
+ 		return jobs.Result{}, err
+ 	}
+ 	var latest []byte
+ 	filesThisRun := 0
+-	result, err := scanFromCheckpoint(ctx, st, req, checkpoint, func(checkpoint jobCheckpoint, progress store.JobProgress) error {
++	result, err := scanFromCheckpoint(ctx, st, prober, req, checkpoint, func(checkpoint jobCheckpoint, progress store.JobProgress) error {
+ 		data, err := marshalScanCheckpoint(checkpoint)
+ 		if err != nil {
+ 			return err
+@@ -165,7 +173,7 @@ func runScanJob(ctx context.Context, st *store.Store, job store.Job, req Request
+ 	}, time.Now().UTC())
+ }
+ 
+-func scanFromCheckpoint(ctx context.Context, st *store.Store, req Request, checkpoint jobCheckpoint, progress func(jobCheckpoint, store.JobProgress) error) (Result, error) {
++func scanFromCheckpoint(ctx context.Context, st *store.Store, prober Prober, req Request, checkpoint jobCheckpoint, progress func(jobCheckpoint, store.JobProgress) error) (Result, error) {
+ 	result := Result{
+ 		FilesSeen:     checkpoint.FilesSeen,
+ 		MediaImported: checkpoint.MediaImported,
+@@ -194,14 +202,26 @@ func scanFromCheckpoint(ctx context.Context, st *store.Store, req Request, check
+ 		if err != nil {
+ 			return err
+ 		}
+-		media, _, err := st.ImportMediaFile(ctx, store.ImportMediaFile{
++		imported := store.ImportMediaFile{
+ 			LibraryID:          req.LibraryID,
+ 			Path:               path,
+ 			Title:              titleFromPath(path),
+ 			Container:          containerFromPath(path),
+ 			Codec:              "h264",
+ 			ContentFingerprint: fingerprint,
+-		})
++		}
++		if prober != nil {
++			if probe, probeErr := prober.Probe(ctx, path); probeErr == nil {
++				if probe.Container != "" {
++					imported.Container = probe.Container
++				}
++				if probe.VideoCodec != "" {
++					imported.Codec = probe.VideoCodec
++				}
++				imported.DurationSecondsHint = probe.DurationSeconds
++			}
++		}
++		media, _, err := st.ImportMediaFile(ctx, imported)
+ 		if err != nil {
+ 			return err
+ 		}

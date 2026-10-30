@@ -1,0 +1,144 @@
+diff --git a/internal/app/app.go b/internal/app/app.go
+index 9be0c8607..18d4faa82 100644
+--- a/internal/app/app.go
++++ b/internal/app/app.go
+@@ -2396,10 +2396,10 @@ func (o scrobbleWatchedObserver) Watched(t graph.WatchedTransition) {
+ 		Year:        t.Year,
+ 		ExternalIDs: ids,
+ 		Music: scrobble.MusicMetadata{
+-			Artist:      t.Music.Artist,
+-			Album:       t.Music.Album,
+-			ArtistMBID:  t.Music.ArtistMBID,
+-			ReleaseMBID: t.Music.ReleaseMBID,
++			Artist:      t.Audio.ContributorName,
++			Album:       t.Audio.ReleaseName,
++			ArtistMBID:  t.Audio.ContributorMBID,
++			ReleaseMBID: t.Audio.ReleaseMBID,
+ 		},
+ 		WatchedAt: t.WatchedAt,
+ 	})
+@@ -2518,20 +2518,20 @@ func newScrobbleMetadataResolver(st *store.Store, plugins *plugin.Registry) *scr
+ // fail closed and silently empty every lookup.
+ var metadataLibraryFilter = store.LibraryFilter{AllLibraries: true, Revealed: true}
+ 
+-func (r *scrobbleMetadataResolver) ResolveOutboundMusicMetadata(ctx context.Context, mediaID store.MediaID) graph.OutboundMusicMetadata {
++func (r *scrobbleMetadataResolver) ResolveOutboundAudioMetadata(ctx context.Context, mediaID store.MediaID) graph.OutboundAudioMetadata {
+ 	if r == nil || r.store == nil {
+-		return graph.OutboundMusicMetadata{}
++		return graph.OutboundAudioMetadata{}
+ 	}
+-	var md graph.OutboundMusicMetadata
++	var md graph.OutboundAudioMetadata
+ 	// Artist: the Media's related Artist entity (display name + MBID). Best-
+ 	// effort: any miss leaves the field empty and the submission degrades.
+ 	if artist, ok := r.firstRelatedEntity(ctx, mediaID, r.selectors.artistRelation); ok {
+-		md.Artist = artist.Title
+-		md.ArtistMBID = entityFieldText(artist, r.selectors.artistMBIDField)
++		md.ContributorName = artist.Title
++		md.ContributorMBID = entityFieldText(artist, r.selectors.artistMBIDField)
+ 	}
+ 	// Album: the Media's related Album entity (display name + release MBID).
+ 	if album, ok := r.firstRelatedEntity(ctx, mediaID, r.selectors.albumRelation); ok {
+-		md.Album = album.Title
++		md.ReleaseName = album.Title
+ 		md.ReleaseMBID = entityFieldText(album, r.selectors.releaseMBIDField)
+ 	}
+ 	return md
+diff --git a/internal/graph/graph.go b/internal/graph/graph.go
+index df2fbeee3..3b0d4d154 100644
+--- a/internal/graph/graph.go
++++ b/internal/graph/graph.go
+@@ -191,28 +191,28 @@ type WatchedTransition struct {
+ 	Title       string
+ 	Year        int
+ 	ExternalIDs []store.MediaExternalID
+-	// Music carries optional richer outbound metadata (ADR-0098 area 7) the
+-	// scrobble plugin attaches to audio submissions: artist/album display names
+-	// plus MusicBrainz ids. It is resolved by the OutboundMetadataResolver seam
+-	// (nil → empty) and is named by SHAPE, not domain — a video transition
++	// Audio carries optional richer outbound metadata (ADR-0098 area 7) the
++	// scrobble plugin attaches to audio submissions: contributor/release display
++	// names plus MusicBrainz ids. It is resolved by the OutboundMetadataResolver
++	// seam (nil → empty) and is named by SHAPE, not domain — a video transition
+ 	// leaves it zero and the plugin's adapters degrade when it is absent.
+-	Music     OutboundMusicMetadata
++	Audio     OutboundAudioMetadata
+ 	WatchedAt time.Time
+ }
+ 
+-// OutboundMusicMetadata is the generic richer-metadata carrier the watched
++// OutboundAudioMetadata is the generic richer-metadata carrier the watched
+ // transition hands to the scrobble plugin (ADR-0098 area 7). Core names no
+ // domain concept here: it is the resolver's job (composition root, driven by
+ // the activated Music plugin's declared relations/fields) to fill these from
+ // generic Entity/relation/external-ID reads. All fields are optional.
+-type OutboundMusicMetadata struct {
+-	Artist      string
+-	Album       string
+-	ArtistMBID  string
+-	ReleaseMBID string
++type OutboundAudioMetadata struct {
++	ContributorName string
++	ReleaseName     string
++	ContributorMBID string
++	ReleaseMBID     string
+ }
+ 
+-// OutboundMetadataResolver resolves the richer outbound music metadata for a
++// OutboundMetadataResolver resolves the richer outbound audio metadata for a
+ // watched Media (ADR-0098 area 7). It is an interface-at-consumer seam
+ // (ADR-0016): the composition root supplies it using the activated Music
+ // plugin's declared relation/field/scheme selectors, so Core hardcodes no
+@@ -221,7 +221,7 @@ type OutboundMusicMetadata struct {
+ // the submission degrades, never failing the playback report. Nil resolver (the
+ // default) means no enrichment, preserving the pre-MUSIC-7 behavior.
+ type OutboundMetadataResolver interface {
+-	ResolveOutboundMusicMetadata(ctx context.Context, mediaID store.MediaID) OutboundMusicMetadata
++	ResolveOutboundAudioMetadata(ctx context.Context, mediaID store.MediaID) OutboundAudioMetadata
+ }
+ 
+ type LibraryMutationObserver interface {
+@@ -263,7 +263,7 @@ type Handler struct {
+ 	// Integration Plugin (ADR-0049 §2.7). Nil (the default) leaves the playback
+ 	// path unchanged — the plugin is off.
+ 	watchedObserver WatchedObserver
+-	// outboundMetadata resolves richer outbound music metadata for a watched
++	// outboundMetadata resolves richer outbound audio metadata for a watched
+ 	// audio Media (ADR-0098 area 7). Nil (the default) → no enrichment.
+ 	outboundMetadata OutboundMetadataResolver
+ 	// scrobbleStatus exposes the Scrobble Integration Plugin's read-only status
+@@ -541,7 +541,7 @@ func (h *Handler) SetWatchedObserver(observer WatchedObserver) {
+ 	h.watchedObserver = observer
+ }
+ 
+-// SetOutboundMetadataResolver wires the richer-outbound-music-metadata resolver
++// SetOutboundMetadataResolver wires the richer-outbound-audio-metadata resolver
+ // (ADR-0098 area 7). Nil leaves submissions un-enriched (metadata degrades).
+ func (h *Handler) SetOutboundMetadataResolver(resolver OutboundMetadataResolver) {
+ 	h.outboundMetadata = resolver
+@@ -4877,12 +4877,13 @@ func (h *Handler) notifyWatched(ctx context.Context, profileID store.ProfileID,
+ 	if err != nil {
+ 		externalIDs = nil
+ 	}
+-	// Richer outbound metadata (ADR-0098 area 7): resolve artist/album + MBIDs
++	// Richer outbound metadata (ADR-0098 area 7): resolve contributor/release +
++	// MBIDs
+ 	// for audio Media only. Best-effort — a nil resolver or a miss yields the
+ 	// zero value and the submission degrades, never failing the playback report.
+-	var music OutboundMusicMetadata
++	var audio OutboundAudioMetadata
+ 	if h.outboundMetadata != nil && media.Class == store.MediaClassAudio {
+-		music = h.outboundMetadata.ResolveOutboundMusicMetadata(ctx, media.ID)
++		audio = h.outboundMetadata.ResolveOutboundAudioMetadata(ctx, media.ID)
+ 	}
+ 	h.watchedObserver.Watched(WatchedTransition{
+ 		ProfileID:   profileID,
+@@ -4892,7 +4893,7 @@ func (h *Handler) notifyWatched(ctx context.Context, profileID store.ProfileID,
+ 		Title:       media.Title,
+ 		Year:        media.Year,
+ 		ExternalIDs: externalIDs,
+-		Music:       music,
++		Audio:       audio,
+ 		WatchedAt:   time.Now().UTC(),
+ 	})
+ }

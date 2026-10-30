@@ -1,0 +1,7 @@
+TASK beamfall-harness-user-prompt corpus=beamfall revision=fa3b1e7fe5bc6c10e4b09b2729f364780f567a48
+ARGV harness event --host claude-code --host-version 1.0.0 --surface plugin --adapter-version 0.1.0 --event user-prompt --input -
+ORACLE exit=0 duration=11181.8ms stdout-bytes=5543 stdout-sha256=7d18ce2eafd164a6b1cf5f92e6569bb224f88988c74ea3d3cc5397c9e54df6ff
+CANDIDATE exit=0 duration=999.0ms stdout-bytes=5641 stdout-sha256=cddea558337c499a3f71637000c52a0f0be099a7b8afcd119c7770488b5364a0
+STDOUT differs at 2 member(s)
+$.context.coverage.packet_bytes  oracle=4844  candidate=4942
+$.context.coverage.uncertainty  length  oracle=0 candidate=1

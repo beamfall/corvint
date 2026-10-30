@@ -1,0 +1,3 @@
+* -text
+# Parallel decision rows union-merge; check-decision-numbers fails closed on a duplicate or missing row (DNG-V0-009).
+docs/decisions/README.md merge=union

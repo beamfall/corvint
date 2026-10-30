@@ -1,0 +1,3506 @@
+{
+  "base": "dd8cc0ca918a80faaa041c98a783de11550b2bcc",
+  "note": "Lexical private preparation, not the admitted repository generator. Gate A checks inventory against actual Go types; future implementation uses Go AST/schema tests, rejects drift.",
+  "producerPreparedCommit": "e5d777cbd1202dbffb88ce114956b304035bd5c5",
+  "producerPreparedPatchSha256": "da35448e8644051b63a562f05b80b8a083fc73df924d28785449b67ce983f6e9",
+  "qualification": "NOT_OBSERVED",
+  "reachableTypes": {
+    "behaviorfalsify.Approval": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Schema",
+          "optional": false,
+          "type": "string",
+          "wire": "schema"
+        },
+        {
+          "go": "PlanDigest",
+          "optional": false,
+          "type": "string",
+          "wire": "plan_digest"
+        },
+        {
+          "go": "Method",
+          "optional": false,
+          "type": "string",
+          "wire": "method"
+        },
+        {
+          "go": "Digest",
+          "optional": false,
+          "type": "string",
+          "wire": "digest"
+        }
+      ],
+      "line": 31,
+      "package": "behaviorfalsify",
+      "source": "internal/behaviorfalsify/receipt.go"
+    },
+    "behaviorfalsify.Artifact": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Path",
+          "optional": false,
+          "type": "string",
+          "wire": "path"
+        },
+        {
+          "go": "SHA256",
+          "optional": false,
+          "type": "string",
+          "wire": "sha256"
+        }
+      ],
+      "line": 135,
+      "package": "behaviorfalsify",
+      "source": "internal/behaviorfalsify/types.go"
+    },
+    "behaviorfalsify.AttemptResult": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Attempt",
+          "optional": false,
+          "type": "int",
+          "wire": "attempt"
+        },
+        {
+          "go": "Status",
+          "optional": false,
+          "type": "Status",
+          "wire": "status"
+        },
+        {
+          "go": "Reasons",
+          "optional": false,
+          "type": "[]string",
+          "wire": "reasons"
+        },
+        {
+          "go": "Receipt",
+          "optional": true,
+          "type": "*HookReceipt",
+          "wire": "receipt"
+        },
+        {
+          "go": "HookProcess",
+          "optional": false,
+          "type": "ProcessEvidence",
+          "wire": "hook_process"
+        },
+        {
+          "go": "CleanupProcess",
+          "optional": false,
+          "type": "ProcessEvidence",
+          "wire": "cleanup_process"
+        },
+        {
+          "go": "WorkspaceBefore",
+          "optional": false,
+          "type": "string",
+          "wire": "workspace_before"
+        },
+        {
+          "go": "WorkspaceAfter",
+          "optional": false,
+          "type": "string",
+          "wire": "workspace_after"
+        },
+        {
+          "go": "RetainedArtifacts",
+          "optional": false,
+          "type": "[]Artifact",
+          "wire": "retained_artifacts"
+        }
+      ],
+      "line": 176,
+      "package": "behaviorfalsify",
+      "source": "internal/behaviorfalsify/types.go"
+    },
+    "behaviorfalsify.Command": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Path",
+          "optional": false,
+          "type": "string",
+          "wire": "path"
+        },
+        {
+          "go": "ExecutableSHA256",
+          "optional": false,
+          "type": "string",
+          "wire": "executable_sha256"
+        }
+      ],
+      "line": 70,
+      "package": "behaviorfalsify",
+      "source": "internal/behaviorfalsify/types.go"
+    },
+    "behaviorfalsify.ControlResult": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "ID",
+          "optional": false,
+          "type": "string",
+          "wire": "id"
+        },
+        {
+          "go": "Kind",
+          "optional": false,
+          "type": "ControlKind",
+          "wire": "kind"
+        },
+        {
+          "go": "Ordinal",
+          "optional": false,
+          "type": "int",
+          "wire": "ordinal"
+        },
+        {
+          "go": "Status",
+          "optional": false,
+          "type": "Status",
+          "wire": "status"
+        },
+        {
+          "go": "Reasons",
+          "optional": false,
+          "type": "[]string",
+          "wire": "reasons"
+        },
+        {
+          "go": "Attempts",
+          "optional": false,
+          "type": "[]AttemptResult",
+          "wire": "attempts"
+        }
+      ],
+      "line": 188,
+      "package": "behaviorfalsify",
+      "source": "internal/behaviorfalsify/types.go"
+    },
+    "behaviorfalsify.ControlSpec": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "ID",
+          "optional": false,
+          "type": "string",
+          "wire": "id"
+        },
+        {
+          "go": "Kind",
+          "optional": false,
+          "type": "ControlKind",
+          "wire": "kind"
+        },
+        {
+          "go": "Disposition",
+          "optional": false,
+          "type": "string",
+          "wire": "disposition"
+        },
+        {
+          "go": "Definition",
+          "optional": false,
+          "type": "map[string]string",
+          "wire": "definition"
+        },
+        {
+          "go": "Hook",
+          "optional": true,
+          "type": "*Command",
+          "wire": "hook"
+        },
+        {
+          "go": "UnrelatedCriteria",
+          "optional": false,
+          "type": "[]string",
+          "wire": "unrelated_criteria"
+        },
+        {
+          "go": "RequiredSetup",
+          "optional": false,
+          "type": "[]string",
+          "wire": "required_setup"
+        }
+      ],
+      "line": 75,
+      "package": "behaviorfalsify",
+      "source": "internal/behaviorfalsify/types.go"
+    },
+    "behaviorfalsify.CriterionObservation": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "CriterionID",
+          "optional": false,
+          "type": "string",
+          "wire": "criterion_id"
+        },
+        {
+          "go": "AssertionID",
+          "optional": true,
+          "type": "string",
+          "wire": "assertion_id"
+        },
+        {
+          "go": "State",
+          "optional": false,
+          "type": "string",
+          "wire": "state"
+        },
+        {
+          "go": "FailureKind",
+          "optional": true,
+          "type": "string",
+          "wire": "failure_kind"
+        }
+      ],
+      "line": 123,
+      "package": "behaviorfalsify",
+      "source": "internal/behaviorfalsify/types.go"
+    },
+    "behaviorfalsify.EvidenceReceipt": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Schema",
+          "optional": false,
+          "type": "string",
+          "wire": "schema"
+        },
+        {
+          "go": "PlanPreimage",
+          "optional": false,
+          "type": "[]byte",
+          "wire": "plan_preimage"
+        },
+        {
+          "go": "Approval",
+          "optional": false,
+          "type": "Approval",
+          "wire": "approval"
+        },
+        {
+          "go": "Tool",
+          "optional": false,
+          "type": "ToolIdentity",
+          "wire": "tool"
+        },
+        {
+          "go": "RawAttempts",
+          "optional": false,
+          "type": "[]RawAttempt",
+          "wire": "raw_attempts"
+        },
+        {
+          "go": "Report",
+          "optional": false,
+          "type": "Report",
+          "wire": "report"
+        },
+        {
+          "go": "Unsupported",
+          "optional": false,
+          "type": "[]string",
+          "wire": "unsupported"
+        },
+        {
+          "go": "Digest",
+          "optional": false,
+          "type": "string",
+          "wire": "digest"
+        }
+      ],
+      "line": 50,
+      "package": "behaviorfalsify",
+      "source": "internal/behaviorfalsify/receipt.go"
+    },
+    "behaviorfalsify.HookReceipt": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Schema",
+          "optional": false,
+          "type": "string",
+          "wire": "schema"
+        },
+        {
+          "go": "PlanDigest",
+          "optional": false,
+          "type": "string",
+          "wire": "plan_digest"
+        },
+        {
+          "go": "PerturbationSHA256",
+          "optional": false,
+          "type": "string",
+          "wire": "perturbation_sha256"
+        },
+        {
+          "go": "Target",
+          "optional": false,
+          "type": "TargetIdentity",
+          "wire": "target"
+        },
+        {
+          "go": "Runner",
+          "optional": false,
+          "type": "RunnerIdentity",
+          "wire": "runner"
+        },
+        {
+          "go": "Attempt",
+          "optional": false,
+          "type": "int",
+          "wire": "attempt"
+        },
+        {
+          "go": "Retry",
+          "optional": false,
+          "type": "int",
+          "wire": "retry"
+        },
+        {
+          "go": "NativeReceiptSHA256",
+          "optional": false,
+          "type": "string",
+          "wire": "native_receipt_sha256"
+        },
+        {
+          "go": "TestOutcome",
+          "optional": false,
+          "type": "string",
+          "wire": "test_outcome"
+        },
+        {
+          "go": "TargetObservation",
+          "optional": false,
+          "type": "CriterionObservation",
+          "wire": "target_observation"
+        },
+        {
+          "go": "Unrelated",
+          "optional": false,
+          "type": "[]CriterionObservation",
+          "wire": "unrelated"
+        },
+        {
+          "go": "Setup",
+          "optional": false,
+          "type": "[]SetupObservation",
+          "wire": "setup"
+        },
+        {
+          "go": "Infrastructure",
+          "optional": true,
+          "type": "*InfrastructureFailure",
+          "wire": "infrastructure"
+        },
+        {
+          "go": "Artifacts",
+          "optional": false,
+          "type": "[]Artifact",
+          "wire": "artifacts"
+        }
+      ],
+      "line": 145,
+      "package": "behaviorfalsify",
+      "source": "internal/behaviorfalsify/types.go"
+    },
+    "behaviorfalsify.InfrastructureFailure": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Reason",
+          "optional": false,
+          "type": "string",
+          "wire": "reason"
+        },
+        {
+          "go": "Detail",
+          "optional": true,
+          "type": "string",
+          "wire": "detail"
+        }
+      ],
+      "line": 140,
+      "package": "behaviorfalsify",
+      "source": "internal/behaviorfalsify/types.go"
+    },
+    "behaviorfalsify.MutationScore": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Defined",
+          "optional": false,
+          "type": "bool",
+          "wire": "defined"
+        },
+        {
+          "go": "Killed",
+          "optional": false,
+          "type": "int",
+          "wire": "killed"
+        },
+        {
+          "go": "Denominator",
+          "optional": false,
+          "type": "int",
+          "wire": "denominator"
+        }
+      ],
+      "line": 197,
+      "package": "behaviorfalsify",
+      "source": "internal/behaviorfalsify/types.go"
+    },
+    "behaviorfalsify.Plan": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Schema",
+          "optional": false,
+          "type": "string",
+          "wire": "schema"
+        },
+        {
+          "go": "Request",
+          "optional": false,
+          "type": "Request",
+          "wire": "request"
+        },
+        {
+          "go": "Controls",
+          "optional": false,
+          "type": "[]PlannedControl",
+          "wire": "planned_controls"
+        },
+        {
+          "go": "WorkspaceSHA256",
+          "optional": false,
+          "type": "string",
+          "wire": "workspace_sha256"
+        },
+        {
+          "go": "Digest",
+          "optional": false,
+          "type": "string",
+          "wire": "digest"
+        }
+      ],
+      "line": 106,
+      "package": "behaviorfalsify",
+      "source": "internal/behaviorfalsify/types.go"
+    },
+    "behaviorfalsify.PlannedControl": {
+      "embeds": [
+        "behaviorfalsify.ControlSpec"
+      ],
+      "fields": [
+        {
+          "go": "ID",
+          "optional": false,
+          "type": "string",
+          "wire": "id"
+        },
+        {
+          "go": "Kind",
+          "optional": false,
+          "type": "ControlKind",
+          "wire": "kind"
+        },
+        {
+          "go": "Disposition",
+          "optional": false,
+          "type": "string",
+          "wire": "disposition"
+        },
+        {
+          "go": "Definition",
+          "optional": false,
+          "type": "map[string]string",
+          "wire": "definition"
+        },
+        {
+          "go": "Hook",
+          "optional": true,
+          "type": "*Command",
+          "wire": "hook"
+        },
+        {
+          "go": "UnrelatedCriteria",
+          "optional": false,
+          "type": "[]string",
+          "wire": "unrelated_criteria"
+        },
+        {
+          "go": "RequiredSetup",
+          "optional": false,
+          "type": "[]string",
+          "wire": "required_setup"
+        },
+        {
+          "go": "Ordinal",
+          "optional": false,
+          "type": "int",
+          "wire": "ordinal"
+        },
+        {
+          "go": "PerturbationSHA256",
+          "optional": false,
+          "type": "string",
+          "wire": "perturbation_sha256"
+        }
+      ],
+      "line": 100,
+      "package": "behaviorfalsify",
+      "source": "internal/behaviorfalsify/types.go"
+    },
+    "behaviorfalsify.ProcessEvidence": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Exit",
+          "optional": false,
+          "type": "int",
+          "wire": "exit"
+        },
+        {
+          "go": "Started",
+          "optional": false,
+          "type": "bool",
+          "wire": "started"
+        },
+        {
+          "go": "Completed",
+          "optional": false,
+          "type": "bool",
+          "wire": "completed"
+        },
+        {
+          "go": "Cancelled",
+          "optional": false,
+          "type": "bool",
+          "wire": "cancelled"
+        },
+        {
+          "go": "TimedOut",
+          "optional": false,
+          "type": "bool",
+          "wire": "timed_out"
+        },
+        {
+          "go": "Overflow",
+          "optional": false,
+          "type": "bool",
+          "wire": "overflow"
+        },
+        {
+          "go": "OwnedCleanup",
+          "optional": false,
+          "type": "bool",
+          "wire": "owned_cleanup"
+        },
+        {
+          "go": "DescendantsGone",
+          "optional": false,
+          "type": "bool",
+          "wire": "descendants_gone"
+        },
+        {
+          "go": "StdoutSHA256",
+          "optional": false,
+          "type": "string",
+          "wire": "stdout_sha256"
+        },
+        {
+          "go": "StderrSHA256",
+          "optional": false,
+          "type": "string",
+          "wire": "stderr_sha256"
+        },
+        {
+          "go": "Error",
+          "optional": true,
+          "type": "string",
+          "wire": "error"
+        }
+      ],
+      "line": 162,
+      "package": "behaviorfalsify",
+      "source": "internal/behaviorfalsify/types.go"
+    },
+    "behaviorfalsify.RawAttempt": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "ControlID",
+          "optional": false,
+          "type": "string",
+          "wire": "control_id"
+        },
+        {
+          "go": "Ordinal",
+          "optional": false,
+          "type": "int",
+          "wire": "ordinal"
+        },
+        {
+          "go": "Attempt",
+          "optional": false,
+          "type": "int",
+          "wire": "attempt"
+        },
+        {
+          "go": "HookBytes",
+          "optional": false,
+          "type": "[]byte",
+          "wire": "hook_bytes"
+        },
+        {
+          "go": "HookSHA256",
+          "optional": false,
+          "type": "string",
+          "wire": "hook_sha256"
+        },
+        {
+          "go": "NativeBytes",
+          "optional": false,
+          "type": "[]byte",
+          "wire": "native_bytes"
+        },
+        {
+          "go": "NativeSHA256",
+          "optional": false,
+          "type": "string",
+          "wire": "native_sha256"
+        },
+        {
+          "go": "Omissions",
+          "optional": false,
+          "type": "[]string",
+          "wire": "omissions"
+        }
+      ],
+      "line": 39,
+      "package": "behaviorfalsify",
+      "source": "internal/behaviorfalsify/receipt.go"
+    },
+    "behaviorfalsify.Report": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Schema",
+          "optional": false,
+          "type": "string",
+          "wire": "schema"
+        },
+        {
+          "go": "PlanDigest",
+          "optional": false,
+          "type": "string",
+          "wire": "plan_digest"
+        },
+        {
+          "go": "Results",
+          "optional": false,
+          "type": "[]ControlResult",
+          "wire": "results"
+        },
+        {
+          "go": "Counts",
+          "optional": false,
+          "type": "map[Status]int",
+          "wire": "counts"
+        },
+        {
+          "go": "Requested",
+          "optional": false,
+          "type": "int",
+          "wire": "requested"
+        },
+        {
+          "go": "Supported",
+          "optional": false,
+          "type": "int",
+          "wire": "supported"
+        },
+        {
+          "go": "Executed",
+          "optional": false,
+          "type": "int",
+          "wire": "executed"
+        },
+        {
+          "go": "CompleteVocabulary",
+          "optional": false,
+          "type": "bool",
+          "wire": "complete_vocabulary"
+        },
+        {
+          "go": "MutationScore",
+          "optional": false,
+          "type": "MutationScore",
+          "wire": "mutation_score"
+        },
+        {
+          "go": "CoverageGaps",
+          "optional": false,
+          "type": "[]string",
+          "wire": "coverage_gaps"
+        },
+        {
+          "go": "Fallback",
+          "optional": false,
+          "type": "string",
+          "wire": "fallback"
+        },
+        {
+          "go": "Limitations",
+          "optional": false,
+          "type": "[]string",
+          "wire": "limitations"
+        },
+        {
+          "go": "Digest",
+          "optional": false,
+          "type": "string",
+          "wire": "digest"
+        }
+      ],
+      "line": 203,
+      "package": "behaviorfalsify",
+      "source": "internal/behaviorfalsify/types.go"
+    },
+    "behaviorfalsify.RepositoryRoots": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Application",
+          "optional": false,
+          "type": "string",
+          "wire": "application"
+        },
+        {
+          "go": "Test",
+          "optional": false,
+          "type": "string",
+          "wire": "test"
+        },
+        {
+          "go": "Documentation",
+          "optional": false,
+          "type": "string",
+          "wire": "documentation"
+        }
+      ],
+      "line": 64,
+      "package": "behaviorfalsify",
+      "source": "internal/behaviorfalsify/types.go"
+    },
+    "behaviorfalsify.Request": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Target",
+          "optional": false,
+          "type": "TargetIdentity",
+          "wire": "target"
+        },
+        {
+          "go": "Runner",
+          "optional": false,
+          "type": "RunnerIdentity",
+          "wire": "runner"
+        },
+        {
+          "go": "Controls",
+          "optional": false,
+          "type": "[]ControlSpec",
+          "wire": "controls"
+        },
+        {
+          "go": "Cleanup",
+          "optional": false,
+          "type": "Command",
+          "wire": "cleanup"
+        },
+        {
+          "go": "DisposableRoot",
+          "optional": false,
+          "type": "string",
+          "wire": "disposable_root"
+        },
+        {
+          "go": "Repositories",
+          "optional": false,
+          "type": "RepositoryRoots",
+          "wire": "repositories"
+        },
+        {
+          "go": "MarkerSHA256",
+          "optional": false,
+          "type": "string",
+          "wire": "marker_sha256"
+        },
+        {
+          "go": "DeclaredEnvKeys",
+          "optional": false,
+          "type": "[]string",
+          "wire": "declared_env_keys"
+        },
+        {
+          "go": "Attempts",
+          "optional": false,
+          "type": "int",
+          "wire": "attempts"
+        },
+        {
+          "go": "TimeoutSeconds",
+          "optional": false,
+          "type": "int",
+          "wire": "timeout_seconds"
+        },
+        {
+          "go": "WallClockSeconds",
+          "optional": false,
+          "type": "int",
+          "wire": "wall_clock_seconds"
+        },
+        {
+          "go": "ExternalState",
+          "optional": false,
+          "type": "string",
+          "wire": "external_state"
+        }
+      ],
+      "line": 85,
+      "package": "behaviorfalsify",
+      "source": "internal/behaviorfalsify/types.go"
+    },
+    "behaviorfalsify.RunnerIdentity": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Runner",
+          "optional": false,
+          "type": "string",
+          "wire": "runner"
+        },
+        {
+          "go": "RunnerVersion",
+          "optional": false,
+          "type": "string",
+          "wire": "runner_version"
+        },
+        {
+          "go": "Browser",
+          "optional": false,
+          "type": "string",
+          "wire": "browser"
+        },
+        {
+          "go": "BrowserVersion",
+          "optional": false,
+          "type": "string",
+          "wire": "browser_version"
+        },
+        {
+          "go": "ConfigFile",
+          "optional": false,
+          "type": "string",
+          "wire": "config_file"
+        },
+        {
+          "go": "ConfigSHA256",
+          "optional": false,
+          "type": "string",
+          "wire": "config_sha256"
+        },
+        {
+          "go": "EnvironmentSHA256",
+          "optional": false,
+          "type": "string",
+          "wire": "environment_sha256"
+        }
+      ],
+      "line": 54,
+      "package": "behaviorfalsify",
+      "source": "internal/behaviorfalsify/types.go"
+    },
+    "behaviorfalsify.SetupObservation": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "ID",
+          "optional": false,
+          "type": "string",
+          "wire": "id"
+        },
+        {
+          "go": "State",
+          "optional": false,
+          "type": "string",
+          "wire": "state"
+        }
+      ],
+      "line": 130,
+      "package": "behaviorfalsify",
+      "source": "internal/behaviorfalsify/types.go"
+    },
+    "behaviorfalsify.TargetIdentity": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "ContractID",
+          "optional": false,
+          "type": "string",
+          "wire": "contract_id"
+        },
+        {
+          "go": "ContractSHA256",
+          "optional": false,
+          "type": "string",
+          "wire": "contract_sha256"
+        },
+        {
+          "go": "CriterionID",
+          "optional": false,
+          "type": "string",
+          "wire": "criterion_id"
+        },
+        {
+          "go": "AssertionID",
+          "optional": false,
+          "type": "string",
+          "wire": "assertion_id"
+        },
+        {
+          "go": "ApplicationRevision",
+          "optional": false,
+          "type": "string",
+          "wire": "application_revision"
+        },
+        {
+          "go": "TestRevision",
+          "optional": false,
+          "type": "string",
+          "wire": "test_revision"
+        },
+        {
+          "go": "DocumentationRevision",
+          "optional": false,
+          "type": "string",
+          "wire": "documentation_revision"
+        },
+        {
+          "go": "ContractFile",
+          "optional": false,
+          "type": "string",
+          "wire": "contract_file"
+        },
+        {
+          "go": "TestID",
+          "optional": false,
+          "type": "string",
+          "wire": "test_id"
+        },
+        {
+          "go": "TestFile",
+          "optional": false,
+          "type": "string",
+          "wire": "test_file"
+        },
+        {
+          "go": "TestLine",
+          "optional": false,
+          "type": "int",
+          "wire": "test_line"
+        },
+        {
+          "go": "TestTitle",
+          "optional": false,
+          "type": "string",
+          "wire": "test_title"
+        },
+        {
+          "go": "Project",
+          "optional": false,
+          "type": "string",
+          "wire": "project"
+        }
+      ],
+      "line": 38,
+      "package": "behaviorfalsify",
+      "source": "internal/behaviorfalsify/types.go"
+    },
+    "behaviorfalsify.ToolIdentity": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Name",
+          "optional": false,
+          "type": "string",
+          "wire": "name"
+        },
+        {
+          "go": "Version",
+          "optional": false,
+          "type": "string",
+          "wire": "version"
+        },
+        {
+          "go": "Revision",
+          "optional": false,
+          "type": "string",
+          "wire": "revision"
+        },
+        {
+          "go": "Executable",
+          "optional": false,
+          "type": "string",
+          "wire": "executable_sha256"
+        },
+        {
+          "go": "SourceDirty",
+          "optional": false,
+          "type": "bool",
+          "wire": "source_dirty"
+        }
+      ],
+      "line": 23,
+      "package": "behaviorfalsify",
+      "source": "internal/behaviorfalsify/receipt.go"
+    },
+    "jstestprovider.Anchor": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "File",
+          "optional": false,
+          "type": "string",
+          "wire": "file"
+        },
+        {
+          "go": "Line",
+          "optional": false,
+          "type": "int",
+          "wire": "line"
+        }
+      ],
+      "line": 38,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.AppBuildIdentity": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Digest",
+          "optional": false,
+          "type": "string",
+          "wire": "digest"
+        },
+        {
+          "go": "Unknown",
+          "optional": false,
+          "type": "bool",
+          "wire": "unknown"
+        },
+        {
+          "go": "Reason",
+          "optional": true,
+          "type": "string",
+          "wire": "reason"
+        }
+      ],
+      "line": 134,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.ApplicationArtifactIdentity": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Kind",
+          "optional": false,
+          "type": "string",
+          "wire": "kind"
+        },
+        {
+          "go": "Digest",
+          "optional": false,
+          "type": "string",
+          "wire": "digest"
+        }
+      ],
+      "line": 268,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.ApplicationAttestation": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Profile",
+          "optional": false,
+          "type": "string",
+          "wire": "profile"
+        },
+        {
+          "go": "Repository",
+          "optional": false,
+          "type": "ApplicationRepositoryIdentity",
+          "wire": "repository"
+        },
+        {
+          "go": "Build",
+          "optional": false,
+          "type": "ApplicationArtifactIdentity",
+          "wire": "build"
+        },
+        {
+          "go": "Configuration",
+          "optional": false,
+          "type": "ApplicationArtifactIdentity",
+          "wire": "configuration"
+        },
+        {
+          "go": "Instance",
+          "optional": false,
+          "type": "ApplicationInstanceIdentity",
+          "wire": "instance"
+        },
+        {
+          "go": "Health",
+          "optional": false,
+          "type": "ApplicationHealth",
+          "wire": "health"
+        }
+      ],
+      "line": 251,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.ApplicationAttestationExpectation": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Repository",
+          "optional": false,
+          "type": "ApplicationRepositoryExpectation",
+          "wire": "repository"
+        },
+        {
+          "go": "Build",
+          "optional": false,
+          "type": "ApplicationArtifactIdentity",
+          "wire": "build"
+        },
+        {
+          "go": "Configuration",
+          "optional": false,
+          "type": "ApplicationArtifactIdentity",
+          "wire": "configuration"
+        },
+        {
+          "go": "InstanceKind",
+          "optional": false,
+          "type": "string",
+          "wire": "instanceKind"
+        }
+      ],
+      "line": 231,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.ApplicationAttestationObservation": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "OutputDigest",
+          "optional": false,
+          "type": "string",
+          "wire": "outputDigest"
+        },
+        {
+          "go": "Attestation",
+          "optional": false,
+          "type": "ApplicationAttestation",
+          "wire": "attestation"
+        }
+      ],
+      "line": 246,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.ApplicationAttestationProviderIdentity": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Profile",
+          "optional": false,
+          "type": "string",
+          "wire": "profile"
+        },
+        {
+          "go": "Argv",
+          "optional": false,
+          "type": "[]string",
+          "wire": "argv"
+        },
+        {
+          "go": "ExecutablePath",
+          "optional": false,
+          "type": "string",
+          "wire": "executablePath"
+        },
+        {
+          "go": "ExecutableDigest",
+          "optional": false,
+          "type": "string",
+          "wire": "executableDigest"
+        },
+        {
+          "go": "ConfigPath",
+          "optional": false,
+          "type": "string",
+          "wire": "configPath"
+        },
+        {
+          "go": "ConfigDigest",
+          "optional": false,
+          "type": "string",
+          "wire": "configDigest"
+        },
+        {
+          "go": "Environment",
+          "optional": false,
+          "type": "map[string]string",
+          "wire": "environment"
+        }
+      ],
+      "line": 221,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.ApplicationAttestationReceipt": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Provider",
+          "optional": false,
+          "type": "ApplicationAttestationProviderIdentity",
+          "wire": "provider"
+        },
+        {
+          "go": "Expectation",
+          "optional": false,
+          "type": "ApplicationAttestationExpectation",
+          "wire": "expectation"
+        },
+        {
+          "go": "Before",
+          "optional": true,
+          "type": "*ApplicationAttestationObservation",
+          "wire": "before"
+        },
+        {
+          "go": "After",
+          "optional": true,
+          "type": "*ApplicationAttestationObservation",
+          "wire": "after"
+        },
+        {
+          "go": "Failures",
+          "optional": false,
+          "type": "[]string",
+          "wire": "failures"
+        }
+      ],
+      "line": 213,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.ApplicationHealth": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "State",
+          "optional": false,
+          "type": "string",
+          "wire": "state"
+        },
+        {
+          "go": "Detail",
+          "optional": true,
+          "type": "string",
+          "wire": "detail"
+        }
+      ],
+      "line": 279,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.ApplicationInstanceIdentity": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Kind",
+          "optional": false,
+          "type": "string",
+          "wire": "kind"
+        },
+        {
+          "go": "ID",
+          "optional": false,
+          "type": "string",
+          "wire": "id"
+        },
+        {
+          "go": "StartGeneration",
+          "optional": false,
+          "type": "string",
+          "wire": "startGeneration"
+        }
+      ],
+      "line": 273,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.ApplicationRepositoryExpectation": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "RootCommit",
+          "optional": false,
+          "type": "string",
+          "wire": "rootCommit"
+        },
+        {
+          "go": "Revision",
+          "optional": false,
+          "type": "string",
+          "wire": "revision"
+        },
+        {
+          "go": "Tree",
+          "optional": false,
+          "type": "string",
+          "wire": "tree"
+        },
+        {
+          "go": "DirtyPolicy",
+          "optional": false,
+          "type": "string",
+          "wire": "dirtyPolicy"
+        },
+        {
+          "go": "DirtyDigest",
+          "optional": true,
+          "type": "string",
+          "wire": "dirtyDigest"
+        }
+      ],
+      "line": 238,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.ApplicationRepositoryIdentity": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "RootCommit",
+          "optional": false,
+          "type": "string",
+          "wire": "rootCommit"
+        },
+        {
+          "go": "Revision",
+          "optional": false,
+          "type": "string",
+          "wire": "revision"
+        },
+        {
+          "go": "Tree",
+          "optional": false,
+          "type": "string",
+          "wire": "tree"
+        },
+        {
+          "go": "DirtyState",
+          "optional": false,
+          "type": "string",
+          "wire": "dirtyState"
+        },
+        {
+          "go": "DirtyDigest",
+          "optional": true,
+          "type": "string",
+          "wire": "dirtyDigest"
+        }
+      ],
+      "line": 260,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.Attempt": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "State",
+          "optional": false,
+          "type": "ExecutionState",
+          "wire": "state"
+        },
+        {
+          "go": "Retry",
+          "optional": false,
+          "type": "int",
+          "wire": "retry"
+        },
+        {
+          "go": "FailureKind",
+          "optional": false,
+          "type": "string",
+          "wire": "failureKind"
+        },
+        {
+          "go": "Steps",
+          "optional": true,
+          "type": "[]BrowserStep",
+          "wire": "steps"
+        }
+      ],
+      "line": 193,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.AttemptDetail": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "State",
+          "optional": false,
+          "type": "ExecutionState",
+          "wire": "state"
+        },
+        {
+          "go": "Retry",
+          "optional": false,
+          "type": "int",
+          "wire": "retry"
+        },
+        {
+          "go": "DurationMS",
+          "optional": false,
+          "type": "float64",
+          "wire": "durationMs"
+        },
+        {
+          "go": "FailureMessage",
+          "optional": true,
+          "type": "string",
+          "wire": "failureMessage"
+        },
+        {
+          "go": "Anchor",
+          "optional": true,
+          "type": "*Anchor",
+          "wire": "anchor"
+        },
+        {
+          "go": "Artifacts",
+          "optional": true,
+          "type": "[]FailureArtifact",
+          "wire": "artifacts"
+        }
+      ],
+      "line": 72,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.BrowserStep": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Title",
+          "optional": false,
+          "type": "string",
+          "wire": "title"
+        },
+        {
+          "go": "Category",
+          "optional": true,
+          "type": "string",
+          "wire": "category"
+        },
+        {
+          "go": "Metadata",
+          "optional": true,
+          "type": "map[string]string",
+          "wire": "metadata"
+        },
+        {
+          "go": "Error",
+          "optional": true,
+          "type": "string",
+          "wire": "error"
+        },
+        {
+          "go": "Attachments",
+          "optional": true,
+          "type": "[]FailureArtifact",
+          "wire": "attachments"
+        },
+        {
+          "go": "Steps",
+          "optional": true,
+          "type": "[]BrowserStep",
+          "wire": "steps"
+        },
+        {
+          "go": "Redacted",
+          "optional": true,
+          "type": "bool",
+          "wire": "redacted"
+        }
+      ],
+      "line": 83,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.ExecutionSchedule": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Workers",
+          "optional": false,
+          "type": "int",
+          "wire": "workers"
+        },
+        {
+          "go": "Starts",
+          "optional": false,
+          "type": "[]ExecutionStart",
+          "wire": "starts"
+        }
+      ],
+      "line": 167,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.ExecutionStart": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "FullName",
+          "optional": false,
+          "type": "string",
+          "wire": "fullName"
+        },
+        {
+          "go": "File",
+          "optional": false,
+          "type": "string",
+          "wire": "file"
+        },
+        {
+          "go": "Line",
+          "optional": false,
+          "type": "int",
+          "wire": "line"
+        },
+        {
+          "go": "Project",
+          "optional": false,
+          "type": "string",
+          "wire": "project"
+        },
+        {
+          "go": "Retry",
+          "optional": false,
+          "type": "int",
+          "wire": "retry"
+        },
+        {
+          "go": "Retries",
+          "optional": false,
+          "type": "int",
+          "wire": "retries"
+        },
+        {
+          "go": "Worker",
+          "optional": false,
+          "type": "int",
+          "wire": "worker"
+        },
+        {
+          "go": "FullyParallel",
+          "optional": false,
+          "type": "bool",
+          "wire": "fullyParallel"
+        }
+      ],
+      "line": 172,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.ExternalLifecycle": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "ReadyURL",
+          "optional": false,
+          "type": "string",
+          "wire": "readyUrl"
+        },
+        {
+          "go": "DeclaredAppIdentity",
+          "optional": false,
+          "type": "string",
+          "wire": "declaredAppIdentity"
+        },
+        {
+          "go": "Ownership",
+          "optional": false,
+          "type": "string",
+          "wire": "ownership"
+        },
+        {
+          "go": "CleanupResponsibility",
+          "optional": false,
+          "type": "string",
+          "wire": "cleanupResponsibility"
+        },
+        {
+          "go": "ServerDescendants",
+          "optional": false,
+          "type": "string",
+          "wire": "serverDescendants"
+        },
+        {
+          "go": "ReadyAtStart",
+          "optional": false,
+          "type": "bool",
+          "wire": "readyAtStart"
+        },
+        {
+          "go": "ReadyAtPublish",
+          "optional": false,
+          "type": "bool",
+          "wire": "readyAtPublish"
+        },
+        {
+          "go": "RunnerDescendantsGone",
+          "optional": false,
+          "type": "bool",
+          "wire": "runnerDescendantsGone"
+        },
+        {
+          "go": "InputsUnchanged",
+          "optional": false,
+          "type": "bool",
+          "wire": "inputsUnchanged"
+        },
+        {
+          "go": "ConfigOverride",
+          "optional": false,
+          "type": "string",
+          "wire": "configOverride"
+        }
+      ],
+      "line": 200,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.FailureArtifact": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Name",
+          "optional": false,
+          "type": "string",
+          "wire": "name"
+        },
+        {
+          "go": "Path",
+          "optional": false,
+          "type": "string",
+          "wire": "path"
+        }
+      ],
+      "line": 46,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.FreshCommandBinding": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Expected",
+          "optional": false,
+          "type": "FreshCommandIdentity",
+          "wire": "expected"
+        },
+        {
+          "go": "Before",
+          "optional": true,
+          "type": "*FreshCommandIdentity",
+          "wire": "before"
+        },
+        {
+          "go": "After",
+          "optional": true,
+          "type": "*FreshCommandIdentity",
+          "wire": "after"
+        }
+      ],
+      "line": 28,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/freshness.go"
+    },
+    "jstestprovider.FreshCommandIdentity": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Argv",
+          "optional": false,
+          "type": "[]string",
+          "wire": "argv"
+        },
+        {
+          "go": "ExecutableDigest",
+          "optional": false,
+          "type": "string",
+          "wire": "executableDigest"
+        },
+        {
+          "go": "EntrypointDigest",
+          "optional": false,
+          "type": "string",
+          "wire": "entrypointDigest"
+        }
+      ],
+      "line": 22,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/freshness.go"
+    },
+    "jstestprovider.FreshDependencyManifest": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Roots",
+          "optional": false,
+          "type": "[]string",
+          "wire": "roots"
+        },
+        {
+          "go": "Files",
+          "optional": false,
+          "type": "map[string]string",
+          "wire": "files"
+        }
+      ],
+      "line": 26,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/freshness_dependencies.go"
+    },
+    "jstestprovider.FreshDependencyObservation": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Files",
+          "optional": false,
+          "type": "map[string]string",
+          "wire": "files"
+        },
+        {
+          "go": "Failures",
+          "optional": false,
+          "type": "[]string",
+          "wire": "failures"
+        }
+      ],
+      "line": 30,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/freshness_dependencies.go"
+    },
+    "jstestprovider.FreshProcessIdentity": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "PID",
+          "optional": false,
+          "type": "int",
+          "wire": "pid"
+        },
+        {
+          "go": "Start",
+          "optional": false,
+          "type": "string",
+          "wire": "start"
+        }
+      ],
+      "line": 34,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/freshness.go"
+    },
+    "jstestprovider.FreshServeObservation": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "URL",
+          "optional": false,
+          "type": "string",
+          "wire": "url"
+        },
+        {
+          "go": "Process",
+          "optional": false,
+          "type": "FreshProcessIdentity",
+          "wire": "process"
+        },
+        {
+          "go": "Body",
+          "optional": false,
+          "type": "[]byte",
+          "wire": "body"
+        },
+        {
+          "go": "ServerImports",
+          "optional": false,
+          "type": "map[string]string",
+          "wire": "serverImports"
+        },
+        {
+          "go": "ObserverImports",
+          "optional": false,
+          "type": "map[string]string",
+          "wire": "observerImports"
+        }
+      ],
+      "line": 41,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/freshness.go"
+    },
+    "jstestprovider.FreshnessBinding": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Dependencies",
+          "optional": false,
+          "type": "*FreshDependencyManifest",
+          "wire": "dependencies"
+        },
+        {
+          "go": "DependencyDigest",
+          "optional": false,
+          "type": "string",
+          "wire": "dependencyDigest"
+        },
+        {
+          "go": "DependenciesBefore",
+          "optional": true,
+          "type": "*FreshDependencyObservation",
+          "wire": "dependenciesBefore"
+        },
+        {
+          "go": "DependenciesAfter",
+          "optional": true,
+          "type": "*FreshDependencyObservation",
+          "wire": "dependenciesAfter"
+        },
+        {
+          "go": "Mutation",
+          "optional": true,
+          "type": "*ResponseMutationDefinition",
+          "wire": "mutation"
+        },
+        {
+          "go": "ServerInputDigest",
+          "optional": false,
+          "type": "string",
+          "wire": "serverInputDigest"
+        },
+        {
+          "go": "ProductExpected",
+          "optional": false,
+          "type": "ApplicationRepositoryIdentity",
+          "wire": "productExpected"
+        },
+        {
+          "go": "TestExpected",
+          "optional": false,
+          "type": "ApplicationRepositoryIdentity",
+          "wire": "testExpected"
+        },
+        {
+          "go": "ProductBefore",
+          "optional": true,
+          "type": "*ApplicationRepositoryIdentity",
+          "wire": "productBefore"
+        },
+        {
+          "go": "ProductAfter",
+          "optional": true,
+          "type": "*ApplicationRepositoryIdentity",
+          "wire": "productAfter"
+        },
+        {
+          "go": "ArtifactPath",
+          "optional": false,
+          "type": "string",
+          "wire": "artifactPath"
+        },
+        {
+          "go": "Source",
+          "optional": false,
+          "type": "[]byte",
+          "wire": "source"
+        },
+        {
+          "go": "SourceDigest",
+          "optional": false,
+          "type": "string",
+          "wire": "sourceDigest"
+        },
+        {
+          "go": "ArtifactBefore",
+          "optional": false,
+          "type": "string",
+          "wire": "artifactBefore"
+        },
+        {
+          "go": "ArtifactAfter",
+          "optional": false,
+          "type": "string",
+          "wire": "artifactAfter"
+        },
+        {
+          "go": "DocumentURL",
+          "optional": false,
+          "type": "string",
+          "wire": "documentUrl"
+        },
+        {
+          "go": "Leader",
+          "optional": true,
+          "type": "*FreshProcessIdentity",
+          "wire": "leader"
+        },
+        {
+          "go": "ServedBefore",
+          "optional": true,
+          "type": "*FreshServeObservation",
+          "wire": "servedBefore"
+        },
+        {
+          "go": "ServedAfter",
+          "optional": true,
+          "type": "*FreshServeObservation",
+          "wire": "servedAfter"
+        },
+        {
+          "go": "Runner",
+          "optional": false,
+          "type": "FreshCommandBinding",
+          "wire": "runner"
+        },
+        {
+          "go": "Server",
+          "optional": false,
+          "type": "FreshCommandBinding",
+          "wire": "server"
+        },
+        {
+          "go": "Observer",
+          "optional": false,
+          "type": "FreshCommandBinding",
+          "wire": "observer"
+        },
+        {
+          "go": "ObserverConfigBefore",
+          "optional": false,
+          "type": "string",
+          "wire": "observerConfigBefore"
+        },
+        {
+          "go": "ObserverConfigAfter",
+          "optional": false,
+          "type": "string",
+          "wire": "observerConfigAfter"
+        },
+        {
+          "go": "EnvironmentBefore",
+          "optional": false,
+          "type": "map[string]string",
+          "wire": "environmentBefore"
+        },
+        {
+          "go": "EnvironmentAfter",
+          "optional": false,
+          "type": "map[string]string",
+          "wire": "environmentAfter"
+        },
+        {
+          "go": "IdentityAfter",
+          "optional": true,
+          "type": "*Identity",
+          "wire": "identityAfter"
+        },
+        {
+          "go": "ServerDescendants",
+          "optional": true,
+          "type": "*procgroup.DescendantObservation",
+          "wire": "serverDescendants"
+        },
+        {
+          "go": "ServerGone",
+          "optional": true,
+          "type": "*bool",
+          "wire": "serverGone"
+        },
+        {
+          "go": "Failures",
+          "optional": false,
+          "type": "[]string",
+          "wire": "failures"
+        }
+      ],
+      "line": 49,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/freshness.go"
+    },
+    "jstestprovider.FreshnessConfig": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Dependencies",
+          "optional": false,
+          "type": "*FreshDependencyManifest",
+          "wire": "dependencies"
+        },
+        {
+          "go": "DependencyDigest",
+          "optional": false,
+          "type": "string",
+          "wire": "dependencyDigest"
+        },
+        {
+          "go": "Mutation",
+          "optional": true,
+          "type": "*ResponseMutationDefinition",
+          "wire": "mutation"
+        },
+        {
+          "go": "ProductDir",
+          "optional": false,
+          "type": "string",
+          "wire": "productDir"
+        },
+        {
+          "go": "ProductExpected",
+          "optional": false,
+          "type": "ApplicationRepositoryIdentity",
+          "wire": "productExpected"
+        },
+        {
+          "go": "TestExpected",
+          "optional": false,
+          "type": "ApplicationRepositoryIdentity",
+          "wire": "testExpected"
+        },
+        {
+          "go": "ArtifactPath",
+          "optional": false,
+          "type": "string",
+          "wire": "artifactPath"
+        },
+        {
+          "go": "SourceDigest",
+          "optional": false,
+          "type": "string",
+          "wire": "sourceDigest"
+        },
+        {
+          "go": "DocumentURL",
+          "optional": false,
+          "type": "string",
+          "wire": "documentUrl"
+        },
+        {
+          "go": "Runner",
+          "optional": false,
+          "type": "FreshCommandIdentity",
+          "wire": "runner"
+        },
+        {
+          "go": "Server",
+          "optional": false,
+          "type": "FreshCommandIdentity",
+          "wire": "server"
+        },
+        {
+          "go": "Observer",
+          "optional": false,
+          "type": "FreshCommandIdentity",
+          "wire": "observer"
+        },
+        {
+          "go": "ObserverConfigFile",
+          "optional": false,
+          "type": "string",
+          "wire": "observerConfigFile"
+        },
+        {
+          "go": "ObserverConfigDigest",
+          "optional": false,
+          "type": "string",
+          "wire": "observerConfigDigest"
+        }
+      ],
+      "line": 23,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/freshness_run.go"
+    },
+    "jstestprovider.Identity": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "ConfigInputDigests",
+          "optional": true,
+          "type": "map[string]string",
+          "wire": "configInputDigests"
+        },
+        {
+          "go": "TestFileDigests",
+          "optional": false,
+          "type": "map[string]string",
+          "wire": "testFileDigests"
+        },
+        {
+          "go": "ConfigFile",
+          "optional": false,
+          "type": "string",
+          "wire": "configFile"
+        },
+        {
+          "go": "ConfigDigest",
+          "optional": false,
+          "type": "string",
+          "wire": "configDigest"
+        },
+        {
+          "go": "PackageDigest",
+          "optional": false,
+          "type": "string",
+          "wire": "packageDigest"
+        },
+        {
+          "go": "NodeVersion",
+          "optional": false,
+          "type": "string",
+          "wire": "nodeVersion"
+        },
+        {
+          "go": "RunnerName",
+          "optional": false,
+          "type": "string",
+          "wire": "runnerName"
+        },
+        {
+          "go": "RunnerVersion",
+          "optional": false,
+          "type": "string",
+          "wire": "runnerVersion"
+        },
+        {
+          "go": "Environment",
+          "optional": false,
+          "type": "map[string]string",
+          "wire": "environment"
+        },
+        {
+          "go": "Argv",
+          "optional": false,
+          "type": "[]string",
+          "wire": "argv"
+        }
+      ],
+      "line": 115,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.InfrastructureFailure": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Reason",
+          "optional": false,
+          "type": "string",
+          "wire": "reason"
+        },
+        {
+          "go": "Detail",
+          "optional": false,
+          "type": "string",
+          "wire": "detail"
+        }
+      ],
+      "line": 107,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.ProjectIdentity": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Name",
+          "optional": false,
+          "type": "string",
+          "wire": "name"
+        },
+        {
+          "go": "Browser",
+          "optional": false,
+          "type": "string",
+          "wire": "browser"
+        },
+        {
+          "go": "Device",
+          "optional": false,
+          "type": "string",
+          "wire": "device"
+        },
+        {
+          "go": "Use",
+          "optional": false,
+          "type": "json.RawMessage",
+          "wire": "use"
+        },
+        {
+          "go": "ConfigDigest",
+          "optional": false,
+          "type": "string",
+          "wire": "configDigest"
+        }
+      ],
+      "line": 185,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.Receipt": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Freshness",
+          "optional": true,
+          "type": "*FreshnessBinding",
+          "wire": "freshness"
+        },
+        {
+          "go": "DescendantObservation",
+          "optional": true,
+          "type": "*procgroup.DescendantObservation",
+          "wire": "descendantObservation"
+        },
+        {
+          "go": "RunnerResources",
+          "optional": true,
+          "type": "*procgroup.ResourceUsage",
+          "wire": "runnerResources"
+        },
+        {
+          "go": "Schedule",
+          "optional": true,
+          "type": "*ExecutionSchedule",
+          "wire": "schedule"
+        },
+        {
+          "go": "Profile",
+          "optional": true,
+          "type": "string",
+          "wire": "profile"
+        },
+        {
+          "go": "SensitiveInputPolicy",
+          "optional": true,
+          "type": "*SensitiveInputPolicy",
+          "wire": "sensitiveInputPolicy"
+        },
+        {
+          "go": "External",
+          "optional": true,
+          "type": "*ExternalLifecycle",
+          "wire": "external"
+        },
+        {
+          "go": "ApplicationAttestation",
+          "optional": true,
+          "type": "*ApplicationAttestationReceipt",
+          "wire": "applicationAttestation"
+        },
+        {
+          "go": "TestRepositoryAtStart",
+          "optional": true,
+          "type": "*ApplicationRepositoryIdentity",
+          "wire": "testRepositoryAtStart"
+        },
+        {
+          "go": "TestRepositoryAtPublish",
+          "optional": true,
+          "type": "*ApplicationRepositoryIdentity",
+          "wire": "testRepositoryAtPublish"
+        },
+        {
+          "go": "Kind",
+          "optional": false,
+          "type": "string",
+          "wire": "kind"
+        },
+        {
+          "go": "Identity",
+          "optional": false,
+          "type": "Identity",
+          "wire": "identity"
+        },
+        {
+          "go": "AppBuildAtStart",
+          "optional": false,
+          "type": "AppBuildIdentity",
+          "wire": "appBuildAtStart"
+        },
+        {
+          "go": "AppBuildAtPublish",
+          "optional": false,
+          "type": "AppBuildIdentity",
+          "wire": "appBuildAtPublish"
+        },
+        {
+          "go": "StaleAppBuild",
+          "optional": false,
+          "type": "bool",
+          "wire": "staleAppBuild"
+        },
+        {
+          "go": "Tests",
+          "optional": false,
+          "type": "[]TestOutcome",
+          "wire": "tests"
+        },
+        {
+          "go": "Infrastructure",
+          "optional": true,
+          "type": "*InfrastructureFailure",
+          "wire": "infrastructure"
+        },
+        {
+          "go": "Cancelled",
+          "optional": false,
+          "type": "bool",
+          "wire": "cancelled"
+        },
+        {
+          "go": "ServerDescendantsGone",
+          "optional": true,
+          "type": "*bool",
+          "wire": "serverDescendantsGone"
+        }
+      ],
+      "line": 144,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.ResponseMutationDefinition": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "ArtifactPath",
+          "optional": false,
+          "type": "string",
+          "wire": "artifactPath"
+        },
+        {
+          "go": "SourceSHA256",
+          "optional": false,
+          "type": "string",
+          "wire": "sourceSha256"
+        },
+        {
+          "go": "From",
+          "optional": false,
+          "type": "string",
+          "wire": "from"
+        },
+        {
+          "go": "To",
+          "optional": false,
+          "type": "string",
+          "wire": "to"
+        },
+        {
+          "go": "MutantSHA256",
+          "optional": false,
+          "type": "string",
+          "wire": "mutantSha256"
+        }
+      ],
+      "line": 14,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/freshness_mutation.go"
+    },
+    "jstestprovider.SensitiveInputPolicy": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "AdditionalActionPatterns",
+          "optional": true,
+          "type": "[]string",
+          "wire": "additionalActionPatterns"
+        },
+        {
+          "go": "AdditionalSensitiveFields",
+          "optional": true,
+          "type": "[]string",
+          "wire": "additionalSensitiveFields"
+        }
+      ],
+      "line": 95,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "jstestprovider.TestOutcome": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "ImportedFiles",
+          "optional": true,
+          "type": "map[string]string",
+          "wire": "importedFiles"
+        },
+        {
+          "go": "ID",
+          "optional": true,
+          "type": "string",
+          "wire": "id"
+        },
+        {
+          "go": "Project",
+          "optional": true,
+          "type": "*ProjectIdentity",
+          "wire": "project"
+        },
+        {
+          "go": "Attempts",
+          "optional": true,
+          "type": "[]Attempt",
+          "wire": "attempts"
+        },
+        {
+          "go": "Name",
+          "optional": false,
+          "type": "string",
+          "wire": "name"
+        },
+        {
+          "go": "FullName",
+          "optional": false,
+          "type": "string",
+          "wire": "fullName"
+        },
+        {
+          "go": "State",
+          "optional": false,
+          "type": "ExecutionState",
+          "wire": "state"
+        },
+        {
+          "go": "Retries",
+          "optional": false,
+          "type": "int",
+          "wire": "retries"
+        },
+        {
+          "go": "DurationMS",
+          "optional": false,
+          "type": "float64",
+          "wire": "durationMs"
+        },
+        {
+          "go": "Anchor",
+          "optional": true,
+          "type": "*Anchor",
+          "wire": "anchor"
+        },
+        {
+          "go": "FailureMessage",
+          "optional": true,
+          "type": "string",
+          "wire": "failureMessage"
+        },
+        {
+          "go": "Artifacts",
+          "optional": true,
+          "type": "[]FailureArtifact",
+          "wire": "artifacts"
+        },
+        {
+          "go": "AttemptDetails",
+          "optional": true,
+          "type": "[]AttemptDetail",
+          "wire": "attemptDetails"
+        }
+      ],
+      "line": 53,
+      "package": "jstestprovider",
+      "source": "internal/jstestprovider/receipt.go"
+    },
+    "procgroup.DescendantObservation": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Scope",
+          "optional": false,
+          "type": "string",
+          "wire": "scope"
+        },
+        {
+          "go": "IntervalMS",
+          "optional": false,
+          "type": "int",
+          "wire": "interval_ms"
+        },
+        {
+          "go": "Processes",
+          "optional": false,
+          "type": "[]ObservedProcess",
+          "wire": "processes"
+        },
+        {
+          "go": "Absent",
+          "optional": false,
+          "type": "bool",
+          "wire": "absent"
+        },
+        {
+          "go": "Failures",
+          "optional": false,
+          "type": "[]string",
+          "wire": "failures"
+        },
+        {
+          "go": "Limitations",
+          "optional": false,
+          "type": "[]string",
+          "wire": "limitations"
+        }
+      ],
+      "line": 37,
+      "package": "procgroup",
+      "source": "internal/procgroup/descendants.go"
+    },
+    "procgroup.ObservedProcess": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "PID",
+          "optional": false,
+          "type": "int",
+          "wire": "pid"
+        },
+        {
+          "go": "ParentPID",
+          "optional": false,
+          "type": "int",
+          "wire": "parent_pid"
+        },
+        {
+          "go": "Start",
+          "optional": false,
+          "type": "string",
+          "wire": "start"
+        },
+        {
+          "go": "State",
+          "optional": false,
+          "type": "string",
+          "wire": "state"
+        }
+      ],
+      "line": 30,
+      "package": "procgroup",
+      "source": "internal/procgroup/descendants.go"
+    },
+    "procgroup.ResourceUsage": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "UserCPUNs",
+          "optional": false,
+          "type": "int64",
+          "wire": "UserCPUNs"
+        },
+        {
+          "go": "SystemCPUNs",
+          "optional": false,
+          "type": "int64",
+          "wire": "SystemCPUNs"
+        },
+        {
+          "go": "MaxRSSBytes",
+          "optional": false,
+          "type": "int64",
+          "wire": "MaxRSSBytes"
+        }
+      ],
+      "line": 112,
+      "package": "procgroup",
+      "source": "internal/procgroup/process.go"
+    },
+    "testacceptance.Assessment": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "ID",
+          "optional": false,
+          "type": "string",
+          "wire": "id"
+        },
+        {
+          "go": "Verdict",
+          "optional": false,
+          "type": "string",
+          "wire": "verdict"
+        },
+        {
+          "go": "Reasons",
+          "optional": false,
+          "type": "[]string",
+          "wire": "reasons"
+        },
+        {
+          "go": "Validity",
+          "optional": false,
+          "type": "testvalidity.Projection",
+          "wire": "validity"
+        },
+        {
+          "go": "Repeats",
+          "optional": false,
+          "type": "RepeatSummary",
+          "wire": "repeats"
+        },
+        {
+          "go": "Cleanup",
+          "optional": false,
+          "type": "string",
+          "wire": "cleanup"
+        },
+        {
+          "go": "Order",
+          "optional": false,
+          "type": "OrderEvidence",
+          "wire": "order"
+        }
+      ],
+      "line": 108,
+      "package": "testacceptance",
+      "source": "internal/testacceptance/types.go"
+    },
+    "testacceptance.Cleanup": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "OwnedGroup",
+          "optional": false,
+          "type": "bool",
+          "wire": "owned_group"
+        },
+        {
+          "go": "Status",
+          "optional": false,
+          "type": "string",
+          "wire": "status"
+        },
+        {
+          "go": "Qualification",
+          "optional": false,
+          "type": "string",
+          "wire": "qualification"
+        },
+        {
+          "go": "Descendants",
+          "optional": true,
+          "type": "*procgroup.DescendantObservation",
+          "wire": "descendants"
+        },
+        {
+          "go": "Cancelled",
+          "optional": false,
+          "type": "bool",
+          "wire": "cancelled"
+        },
+        {
+          "go": "TimedOut",
+          "optional": false,
+          "type": "bool",
+          "wire": "timed_out"
+        }
+      ],
+      "line": 78,
+      "package": "testacceptance",
+      "source": "internal/testacceptance/types.go"
+    },
+    "testacceptance.Command": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Argv",
+          "optional": false,
+          "type": "[]string",
+          "wire": "argv"
+        },
+        {
+          "go": "EntrypointSHA256",
+          "optional": true,
+          "type": "string",
+          "wire": "entrypoint_sha256"
+        },
+        {
+          "go": "ExecutableSHA256",
+          "optional": false,
+          "type": "string",
+          "wire": "executable_sha256"
+        }
+      ],
+      "line": 28,
+      "package": "testacceptance",
+      "source": "internal/testacceptance/types.go"
+    },
+    "testacceptance.Control": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Evidence",
+          "optional": true,
+          "type": "*behaviorfalsify.EvidenceReceipt",
+          "wire": "evidence"
+        },
+        {
+          "go": "ID",
+          "optional": false,
+          "type": "string",
+          "wire": "id"
+        },
+        {
+          "go": "PlanDigest",
+          "optional": true,
+          "type": "string",
+          "wire": "plan_digest"
+        },
+        {
+          "go": "ReceiptDigest",
+          "optional": true,
+          "type": "string",
+          "wire": "receipt_digest"
+        },
+        {
+          "go": "Status",
+          "optional": false,
+          "type": "string",
+          "wire": "status"
+        },
+        {
+          "go": "Unsupported",
+          "optional": false,
+          "type": "[]string",
+          "wire": "unsupported"
+        },
+        {
+          "go": "Cleanup",
+          "optional": false,
+          "type": "Cleanup",
+          "wire": "cleanup"
+        }
+      ],
+      "line": 99,
+      "package": "testacceptance",
+      "source": "internal/testacceptance/types.go"
+    },
+    "testacceptance.File": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Path",
+          "optional": false,
+          "type": "string",
+          "wire": "path"
+        },
+        {
+          "go": "SHA256",
+          "optional": false,
+          "type": "string",
+          "wire": "sha256"
+        }
+      ],
+      "line": 24,
+      "package": "testacceptance",
+      "source": "internal/testacceptance/types.go"
+    },
+    "testacceptance.FreshnessOptions": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Provider",
+          "optional": false,
+          "type": "jstestprovider.FreshnessConfig",
+          "wire": "provider"
+        },
+        {
+          "go": "Attestation",
+          "optional": false,
+          "type": "Command",
+          "wire": "attestation"
+        },
+        {
+          "go": "AttestationConfiguration",
+          "optional": false,
+          "type": "File",
+          "wire": "attestation_configuration"
+        }
+      ],
+      "line": 63,
+      "package": "testacceptance",
+      "source": "internal/testacceptance/types.go"
+    },
+    "testacceptance.OrderEvidence": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Status",
+          "optional": false,
+          "type": "string",
+          "wire": "status"
+        },
+        {
+          "go": "RequestedFileOrder",
+          "optional": false,
+          "type": "string",
+          "wire": "requested_file_order"
+        },
+        {
+          "go": "OriginalState",
+          "optional": false,
+          "type": "string",
+          "wire": "original_state"
+        },
+        {
+          "go": "ReversedState",
+          "optional": false,
+          "type": "string",
+          "wire": "reversed_state"
+        },
+        {
+          "go": "IsolatedStates",
+          "optional": false,
+          "type": "[]string",
+          "wire": "isolated_states"
+        }
+      ],
+      "line": 130,
+      "package": "testacceptance",
+      "source": "internal/testacceptance/types.go"
+    },
+    "testacceptance.RepeatSummary": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Passed",
+          "optional": false,
+          "type": "int",
+          "wire": "passed"
+        },
+        {
+          "go": "Failed",
+          "optional": false,
+          "type": "int",
+          "wire": "failed"
+        },
+        {
+          "go": "Other",
+          "optional": false,
+          "type": "int",
+          "wire": "other"
+        },
+        {
+          "go": "MinDurationMS",
+          "optional": true,
+          "type": "*float64",
+          "wire": "min_duration_ms"
+        },
+        {
+          "go": "MaxDurationMS",
+          "optional": true,
+          "type": "*float64",
+          "wire": "max_duration_ms"
+        }
+      ],
+      "line": 120,
+      "package": "testacceptance",
+      "source": "internal/testacceptance/types.go"
+    },
+    "testacceptance.Report": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Verdict",
+          "optional": false,
+          "type": "string",
+          "wire": "verdict"
+        },
+        {
+          "go": "Reasons",
+          "optional": false,
+          "type": "[]string",
+          "wire": "reasons"
+        },
+        {
+          "go": "Schema",
+          "optional": false,
+          "type": "string",
+          "wire": "schema"
+        },
+        {
+          "go": "RequestDigest",
+          "optional": false,
+          "type": "string",
+          "wire": "request_digest"
+        },
+        {
+          "go": "Product",
+          "optional": false,
+          "type": "Repository",
+          "wire": "product"
+        },
+        {
+          "go": "TestRepository",
+          "optional": false,
+          "type": "Repository",
+          "wire": "test_repository"
+        },
+        {
+          "go": "Environment",
+          "optional": false,
+          "type": "string",
+          "wire": "environment"
+        },
+        {
+          "go": "Build",
+          "optional": false,
+          "type": "string",
+          "wire": "build"
+        },
+        {
+          "go": "ExecutableSHA256",
+          "optional": false,
+          "type": "string",
+          "wire": "executable_sha256"
+        },
+        {
+          "go": "Runs",
+          "optional": false,
+          "type": "[]Run",
+          "wire": "runs"
+        },
+        {
+          "go": "Controls",
+          "optional": false,
+          "type": "[]Control",
+          "wire": "controls"
+        },
+        {
+          "go": "Assessments",
+          "optional": false,
+          "type": "[]Assessment",
+          "wire": "assessments"
+        },
+        {
+          "go": "Unknowns",
+          "optional": false,
+          "type": "[]string",
+          "wire": "unknowns"
+        },
+        {
+          "go": "Body",
+          "optional": false,
+          "type": "string",
+          "wire": "body"
+        }
+      ],
+      "line": 137,
+      "package": "testacceptance",
+      "source": "internal/testacceptance/types.go"
+    },
+    "testacceptance.Repository": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Root",
+          "optional": false,
+          "type": "string",
+          "wire": "root"
+        },
+        {
+          "go": "Commit",
+          "optional": false,
+          "type": "string",
+          "wire": "commit"
+        },
+        {
+          "go": "Tree",
+          "optional": false,
+          "type": "string",
+          "wire": "tree"
+        }
+      ],
+      "line": 19,
+      "package": "testacceptance",
+      "source": "internal/testacceptance/types.go"
+    },
+    "testacceptance.Request": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Freshness",
+          "optional": true,
+          "type": "*FreshnessOptions",
+          "wire": "freshness"
+        },
+        {
+          "go": "Schema",
+          "optional": false,
+          "type": "string",
+          "wire": "schema"
+        },
+        {
+          "go": "Product",
+          "optional": false,
+          "type": "Repository",
+          "wire": "product"
+        },
+        {
+          "go": "TestRepository",
+          "optional": false,
+          "type": "Repository",
+          "wire": "test_repository"
+        },
+        {
+          "go": "Inputs",
+          "optional": false,
+          "type": "[]File",
+          "wire": "inputs"
+        },
+        {
+          "go": "Tests",
+          "optional": false,
+          "type": "[]Test",
+          "wire": "tests"
+        },
+        {
+          "go": "Config",
+          "optional": false,
+          "type": "string",
+          "wire": "config"
+        },
+        {
+          "go": "Package",
+          "optional": false,
+          "type": "string",
+          "wire": "package"
+        },
+        {
+          "go": "Lockfile",
+          "optional": false,
+          "type": "string",
+          "wire": "lockfile"
+        },
+        {
+          "go": "Runner",
+          "optional": false,
+          "type": "Command",
+          "wire": "runner"
+        },
+        {
+          "go": "Server",
+          "optional": false,
+          "type": "Command",
+          "wire": "server"
+        },
+        {
+          "go": "ReadyURL",
+          "optional": false,
+          "type": "string",
+          "wire": "ready_url"
+        },
+        {
+          "go": "AppBuildDir",
+          "optional": false,
+          "type": "string",
+          "wire": "app_build_dir"
+        },
+        {
+          "go": "RunnerVersion",
+          "optional": false,
+          "type": "string",
+          "wire": "runner_version"
+        },
+        {
+          "go": "Environment",
+          "optional": false,
+          "type": "string",
+          "wire": "environment"
+        },
+        {
+          "go": "Repeat",
+          "optional": false,
+          "type": "int",
+          "wire": "repeat"
+        },
+        {
+          "go": "TimeoutSeconds",
+          "optional": false,
+          "type": "int",
+          "wire": "timeout_seconds"
+        }
+      ],
+      "line": 43,
+      "package": "testacceptance",
+      "source": "internal/testacceptance/types.go"
+    },
+    "testacceptance.Row": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "ID",
+          "optional": false,
+          "type": "string",
+          "wire": "id"
+        },
+        {
+          "go": "ObservedID",
+          "optional": true,
+          "type": "string",
+          "wire": "observed_id"
+        },
+        {
+          "go": "State",
+          "optional": false,
+          "type": "jstestprovider.ExecutionState",
+          "wire": "state"
+        },
+        {
+          "go": "DurationMS",
+          "optional": false,
+          "type": "float64",
+          "wire": "duration_ms"
+        },
+        {
+          "go": "Retries",
+          "optional": false,
+          "type": "int",
+          "wire": "retries"
+        },
+        {
+          "go": "Attempts",
+          "optional": false,
+          "type": "int",
+          "wire": "attempts"
+        },
+        {
+          "go": "Validity",
+          "optional": false,
+          "type": "testvalidity.Projection",
+          "wire": "validity"
+        },
+        {
+          "go": "IdentityUnknown",
+          "optional": false,
+          "type": "[]string",
+          "wire": "identity_unknown"
+        }
+      ],
+      "line": 68,
+      "package": "testacceptance",
+      "source": "internal/testacceptance/types.go"
+    },
+    "testacceptance.Run": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "NativeReceipt",
+          "optional": true,
+          "type": "[]byte",
+          "wire": "native_receipt"
+        },
+        {
+          "go": "Kind",
+          "optional": false,
+          "type": "string",
+          "wire": "kind"
+        },
+        {
+          "go": "Ordinal",
+          "optional": false,
+          "type": "int",
+          "wire": "ordinal"
+        },
+        {
+          "go": "TestID",
+          "optional": true,
+          "type": "string",
+          "wire": "test_id"
+        },
+        {
+          "go": "RequestedFiles",
+          "optional": false,
+          "type": "[]string",
+          "wire": "requested_files"
+        },
+        {
+          "go": "ObservedSchedule",
+          "optional": true,
+          "type": "*jstestprovider.ExecutionSchedule",
+          "wire": "observed_schedule"
+        },
+        {
+          "go": "ReceiptSHA256",
+          "optional": true,
+          "type": "string",
+          "wire": "receipt_sha256"
+        },
+        {
+          "go": "Rows",
+          "optional": false,
+          "type": "[]Row",
+          "wire": "rows"
+        },
+        {
+          "go": "Reasons",
+          "optional": false,
+          "type": "[]string",
+          "wire": "reasons"
+        },
+        {
+          "go": "Cleanup",
+          "optional": false,
+          "type": "Cleanup",
+          "wire": "cleanup"
+        },
+        {
+          "go": "NodeVersion",
+          "optional": true,
+          "type": "string",
+          "wire": "node_version"
+        }
+      ],
+      "line": 86,
+      "package": "testacceptance",
+      "source": "internal/testacceptance/types.go"
+    },
+    "testacceptance.Test": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "ID",
+          "optional": false,
+          "type": "string",
+          "wire": "id"
+        },
+        {
+          "go": "File",
+          "optional": false,
+          "type": "string",
+          "wire": "file"
+        },
+        {
+          "go": "Line",
+          "optional": false,
+          "type": "int",
+          "wire": "line"
+        },
+        {
+          "go": "Title",
+          "optional": false,
+          "type": "string",
+          "wire": "title"
+        },
+        {
+          "go": "Project",
+          "optional": false,
+          "type": "string",
+          "wire": "project"
+        },
+        {
+          "go": "ControlCommand",
+          "optional": true,
+          "type": "*Command",
+          "wire": "control_command"
+        },
+        {
+          "go": "Control",
+          "optional": true,
+          "type": "*behaviorfalsify.Plan",
+          "wire": "control"
+        },
+        {
+          "go": "Tool",
+          "optional": true,
+          "type": "*behaviorfalsify.ToolIdentity",
+          "wire": "tool"
+        }
+      ],
+      "line": 33,
+      "package": "testacceptance",
+      "source": "internal/testacceptance/types.go"
+    },
+    "testvalidity.Axis": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "State",
+          "optional": false,
+          "type": "string",
+          "wire": "state"
+        },
+        {
+          "go": "Reason",
+          "optional": false,
+          "type": "string",
+          "wire": "reason"
+        },
+        {
+          "go": "Anchors",
+          "optional": false,
+          "type": "[]string",
+          "wire": "anchors"
+        }
+      ],
+      "line": 89,
+      "package": "testvalidity",
+      "source": "internal/testvalidity/projection.go"
+    },
+    "testvalidity.Projection": {
+      "embeds": [],
+      "fields": [
+        {
+          "go": "Association",
+          "optional": false,
+          "type": "Axis",
+          "wire": "association"
+        },
+        {
+          "go": "Hygiene",
+          "optional": false,
+          "type": "Axis",
+          "wire": "hygiene"
+        },
+        {
+          "go": "Freshness",
+          "optional": false,
+          "type": "Axis",
+          "wire": "freshness"
+        },
+        {
+          "go": "Execution",
+          "optional": false,
+          "type": "Axis",
+          "wire": "execution"
+        },
+        {
+          "go": "Strength",
+          "optional": false,
+          "type": "Axis",
+          "wire": "strength"
+        }
+      ],
+      "line": 97,
+      "package": "testvalidity",
+      "source": "internal/testvalidity/projection.go"
+    }
+  },
+  "sources": [
+    {
+      "commit": "dd8cc0ca918a80faaa041c98a783de11550b2bcc",
+      "path": "internal/testacceptance/types.go",
+      "sha256": "9c7735106b862e37024d041e6d601484f65a82c327fb13b2a36d494494703804",
+      "snapshot": "/private/tmp/corvint-395-preflight-20261003/positive-v2-executable/source-pins/internal__testacceptance__types.go"
+    },
+    {
+      "commit": "dd8cc0ca918a80faaa041c98a783de11550b2bcc",
+      "path": "internal/jstestprovider/receipt.go",
+      "sha256": "8346bdcb114346159bf786d97eb37dc6a008cc80cafe87617f1ddb88d1eab723",
+      "snapshot": "/private/tmp/corvint-395-preflight-20261003/positive-v2-executable/source-pins/internal__jstestprovider__receipt.go"
+    },
+    {
+      "commit": "dd8cc0ca918a80faaa041c98a783de11550b2bcc",
+      "path": "internal/jstestprovider/freshness.go",
+      "sha256": "934532463f4d1bee9e442a4c686076f8de3c57908c095ac24eb9614a86470969",
+      "snapshot": "/private/tmp/corvint-395-preflight-20261003/positive-v2-executable/source-pins/internal__jstestprovider__freshness.go"
+    },
+    {
+      "commit": "dd8cc0ca918a80faaa041c98a783de11550b2bcc",
+      "path": "internal/jstestprovider/freshness_dependencies.go",
+      "sha256": "17d9fe700a7bd07cdccc2b9d2a936119f3418175eb942b894bfd8133a722e2ae",
+      "snapshot": "/private/tmp/corvint-395-preflight-20261003/positive-v2-executable/source-pins/internal__jstestprovider__freshness_dependencies.go"
+    },
+    {
+      "commit": "dd8cc0ca918a80faaa041c98a783de11550b2bcc",
+      "path": "internal/jstestprovider/freshness_mutation.go",
+      "sha256": "02669849c9998b0ed6d7b1437bf93587f5c1ed3efdce619d7763c13168fe1783",
+      "snapshot": "/private/tmp/corvint-395-preflight-20261003/positive-v2-executable/source-pins/internal__jstestprovider__freshness_mutation.go"
+    },
+    {
+      "commit": "dd8cc0ca918a80faaa041c98a783de11550b2bcc",
+      "path": "internal/jstestprovider/freshness_run.go",
+      "sha256": "9fd7aa1958f32adfe6d5dddae125205e67d492945259be11ee11b8f9bf5b1bbe",
+      "snapshot": "/private/tmp/corvint-395-preflight-20261003/positive-v2-executable/source-pins/internal__jstestprovider__freshness_run.go"
+    },
+    {
+      "commit": "dd8cc0ca918a80faaa041c98a783de11550b2bcc",
+      "path": "internal/behaviorfalsify/types.go",
+      "sha256": "4d9e1567f83a7fc5fdd37960a753cb31886f48df6305edc529dfa69795b114ed",
+      "snapshot": "/private/tmp/corvint-395-preflight-20261003/positive-v2-executable/source-pins/internal__behaviorfalsify__types.go"
+    },
+    {
+      "commit": "dd8cc0ca918a80faaa041c98a783de11550b2bcc",
+      "path": "internal/behaviorfalsify/receipt.go",
+      "sha256": "ee026261621735145de4466d390e62d4b6780a1770729c436c45dc9c8b60d2c5",
+      "snapshot": "/private/tmp/corvint-395-preflight-20261003/positive-v2-executable/source-pins/internal__behaviorfalsify__receipt.go"
+    },
+    {
+      "commit": "dd8cc0ca918a80faaa041c98a783de11550b2bcc",
+      "path": "internal/procgroup/descendants.go",
+      "sha256": "ef5c3483164845bc90a1b17a831900824d3fffd5c93b570d8802b44f627db5c8",
+      "snapshot": "/private/tmp/corvint-395-preflight-20261003/positive-v2-executable/source-pins/internal__procgroup__descendants.go"
+    },
+    {
+      "commit": "dd8cc0ca918a80faaa041c98a783de11550b2bcc",
+      "path": "internal/procgroup/process.go",
+      "sha256": "a9cac66fb181b77dccd91c9cd9cbc00d54b71506c67ee23b388ff99cfb42d86b",
+      "snapshot": "/private/tmp/corvint-395-preflight-20261003/positive-v2-executable/source-pins/internal__procgroup__process.go"
+    },
+    {
+      "commit": "dd8cc0ca918a80faaa041c98a783de11550b2bcc",
+      "path": "internal/testvalidity/projection.go",
+      "sha256": "2b44e287189fe7c350d60cfb4b66fb8c8db32167280d277ddc3274021df8abbb",
+      "snapshot": "/private/tmp/corvint-395-preflight-20261003/positive-v2-executable/source-pins/internal__testvalidity__projection.go"
+    }
+  ],
+  "status": "PRIVATE_SCHEMA_PROPOSAL_NOT_IMPLEMENTED"
+}

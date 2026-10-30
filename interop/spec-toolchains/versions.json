@@ -1,0 +1,31 @@
+{
+  "profile": "corvint-spec-toolchain-versions/0",
+  "supportPolicy": "Corvint supports only the releases listed here (STA-V0-001). Every other version is untested and must be reported as untested, never as supported.",
+  "toolchains": [
+    {
+      "name": "openspec",
+      "version": "1.14.3",
+      "source": {
+        "kind": "npm",
+        "package": "@fission-ai/openspec",
+        "tarball": "https://registry.npmjs.org/@fission-ai/openspec/-/openspec-1.14.3.tgz"
+      },
+      "tarballSha256": "f7a4eaf9199036713edf331f1a781abebc4ed9bd3fbf5a8aa549f482749e14c2",
+      "npmIntegrity": "sha512-ALFW1d5bSm6t27Kmcle93SDFuqUc8fLwy5ZdBfIiNffo0Yk9AEOJxw6xDqBv38eMM7l7TeOZBB/7C08luxYGfg==",
+      "checked": "2026-10-18"
+    },
+    {
+      "name": "spec-kit",
+      "version": "1.2.1",
+      "source": {
+        "kind": "git-tag",
+        "repository": "github/spec-kit",
+        "tag": "v1.2.1",
+        "archive": "https://github.com/github/spec-kit/archive/9dca9bf42a031765ee5e5f2371137f2f26967e11.tar.gz"
+      },
+      "commit": "9dca9bf42a031765ee5e5f2371137f2f26967e11",
+      "archiveSha256": "c416d6ab6af39aa03af35d0704ed620b43d8927852a06fc3dd87e61e396ff07e",
+      "checked": "2026-10-18"
+    }
+  ]
+}

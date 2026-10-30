@@ -1,0 +1,117 @@
+diff --git a/internal/server/v1.go b/internal/server/v1.go
+index 0ca30fa3e..8248cedb8 100644
+--- a/internal/server/v1.go
++++ b/internal/server/v1.go
+@@ -423,7 +423,11 @@ func (s *Server) v1Scan(w http.ResponseWriter, r *http.Request) {
+ 	writeJSON(w, http.StatusAccepted, map[string]any{"jobIDs": jobIDs})
+ }
+ 
+-const maxBackupUploadBody = 64 << 20
++const (
++	maxBackupUploadBody   = 64 << 20
++	maxBackupImagePixels  = 100_000_000
++	backupSecurePhaseName = "backup secure phase"
++)
+ 
+ type v1BackupStatusResponse struct {
+ 	LibraryID  string `json:"libraryID"`
+@@ -449,6 +453,9 @@ func (s *Server) v1BackupStatus(w http.ResponseWriter, r *http.Request) {
+ 		writeError(w, http.StatusBadRequest, "libraryID is required")
+ 		return
+ 	}
++	if !s.v1BackupLibraryAllowed(w, r, scope, libraryID) {
++		return
++	}
+ 	policy, err := s.v1.BackupIngestStatus(r.Context(), scope.ProfileID, libraryID)
+ 	if err != nil {
+ 		writeError(w, http.StatusInternalServerError, "backup status read failed")
+@@ -479,6 +486,10 @@ func (s *Server) v1BackupMedia(w http.ResponseWriter, r *http.Request) {
+ 		writeError(w, http.StatusServiceUnavailable, "backup ingest unavailable")
+ 		return
+ 	}
++	if s.backupEncryptor == nil {
++		writeError(w, http.StatusServiceUnavailable, backupSecurePhaseName+" unavailable")
++		return
++	}
+ 	if scope.ProfileID == "" {
+ 		writeError(w, http.StatusForbidden, "backup scope must be profile-bound")
+ 		return
+@@ -492,6 +503,9 @@ func (s *Server) v1BackupMedia(w http.ResponseWriter, r *http.Request) {
+ 		writeError(w, http.StatusBadRequest, "libraryID is required")
+ 		return
+ 	}
++	if !s.v1BackupLibraryAllowed(w, r, scope, libraryID) {
++		return
++	}
+ 	file, header, err := r.FormFile("file")
+ 	if err != nil {
+ 		writeError(w, http.StatusBadRequest, "file is required")
+@@ -510,10 +524,15 @@ func (s *Server) v1BackupMedia(w http.ResponseWriter, r *http.Request) {
+ 	class := store.MediaClass(strings.TrimSpace(r.FormValue("class")))
+ 	contentType := header.Header.Get("Content-Type")
+ 	if class == store.MediaClassImage || strings.HasPrefix(contentType, "image/") {
+-		if _, _, err := image.DecodeConfig(bytes.NewReader(body)); err != nil {
++		cfg, _, err := image.DecodeConfig(bytes.NewReader(body))
++		if err != nil {
+ 			writeError(w, http.StatusBadRequest, "image decode rejected upload")
+ 			return
+ 		}
++		if cfg.Width <= 0 || cfg.Height <= 0 || int64(cfg.Width) > maxBackupImagePixels/int64(cfg.Height) {
++			writeError(w, http.StatusBadRequest, "image dimensions exceed backup limit")
++			return
++		}
+ 		if class == "" {
+ 			class = store.MediaClassImage
+ 		}
+@@ -551,6 +570,21 @@ func (s *Server) v1BackupMedia(w http.ResponseWriter, r *http.Request) {
+ 	})
+ }
+ 
++func (s *Server) v1BackupLibraryAllowed(w http.ResponseWriter, r *http.Request, scope auth.Scope, libraryID store.LibraryID) bool {
++	libraries, err := s.v1.Libraries(r.Context(), scope.LibraryFilter())
++	if err != nil {
++		writeError(w, http.StatusInternalServerError, "library read failed")
++		return false
++	}
++	for _, library := range libraries {
++		if library.ID == libraryID {
++			return true
++		}
++	}
++	writeError(w, http.StatusNotFound, "unknown library")
++	return false
++}
++
+ func backupContainerFromFilename(filename string) string {
+ 	ext := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(filepath.Ext(filename))), ".")
+ 	if ext == "" {
+diff --git a/internal/store/backup_ingest.go b/internal/store/backup_ingest.go
+index 83e283289..7e7a3783f 100644
+--- a/internal/store/backup_ingest.go
++++ b/internal/store/backup_ingest.go
+@@ -163,6 +163,7 @@ func (s *Store) BackupIngest(ctx context.Context, req BackupIngestRequest) (Back
+ 	defer wipeAndRemove(tmpPath)
+ 
+ 	ciphertextPath := s.backupIngestCiphertextPath(req.LibraryID, fingerprint)
++	deduplicated := false
+ 	if _, err := os.Stat(ciphertextPath); errors.Is(err, os.ErrNotExist) {
+ 		if err := os.MkdirAll(filepath.Dir(ciphertextPath), 0o700); err != nil {
+ 			return BackupIngestResult{}, err
+@@ -172,6 +173,8 @@ func (s *Store) BackupIngest(ctx context.Context, req BackupIngestRequest) (Back
+ 		}
+ 	} else if err != nil {
+ 		return BackupIngestResult{}, err
++	} else {
++		deduplicated = true
+ 	}
+ 
+ 	media, file, err := s.ImportMediaFile(ctx, ImportMediaFile{
+@@ -191,7 +194,7 @@ func (s *Store) BackupIngest(ctx context.Context, req BackupIngestRequest) (Back
+ 	return BackupIngestResult{
+ 		Media:        media,
+ 		File:         file,
+-		Deduplicated: file.Path == ciphertextPath,
++		Deduplicated: deduplicated,
+ 		Fingerprint:  "sha256:" + fingerprint,
+ 	}, nil
+ }

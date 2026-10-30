@@ -1,0 +1,1323 @@
+{
+  "$defs": {
+    "AbsenceSweepDocumentV2": {
+      "additionalProperties": false,
+      "properties": {
+        "boot_id_bytes": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": "string"
+        },
+        "execution_id": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "namespace_link_bytes": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": "string"
+        },
+        "pid_directory_bytes": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": "string"
+        },
+        "processes": {
+          "items": {
+            "$ref": "#/$defs/SweepProcessV2"
+          },
+          "maxItems": 4096,
+          "type": "array"
+        },
+        "profile": {
+          "const": "postmerge-absence-sweep/2"
+        },
+        "read_failures": {
+          "items": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "maxItems": 4096,
+          "type": "array"
+        }
+      },
+      "required": [
+        "profile",
+        "execution_id",
+        "boot_id_bytes",
+        "namespace_link_bytes",
+        "pid_directory_bytes",
+        "processes",
+        "read_failures"
+      ],
+      "type": "object"
+    },
+    "AbsenceSweepV2": {
+      "additionalProperties": false,
+      "properties": {
+        "boot_id_bytes": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": "string"
+        },
+        "namespace_link_bytes": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": "string"
+        },
+        "observer_invocation": {
+          "$ref": "#/$defs/ArtifactRefV2"
+        },
+        "observer_stdout": {
+          "$ref": "#/$defs/ArtifactRefV2"
+        },
+        "pid_directory_bytes": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": "string"
+        },
+        "processes": {
+          "items": {
+            "$ref": "#/$defs/SweepProcessV2"
+          },
+          "maxItems": 4096,
+          "type": "array"
+        },
+        "read_failures": {
+          "items": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "maxItems": 4096,
+          "type": "array"
+        }
+      },
+      "required": [
+        "observer_invocation",
+        "observer_stdout",
+        "boot_id_bytes",
+        "namespace_link_bytes",
+        "pid_directory_bytes",
+        "processes",
+        "read_failures"
+      ],
+      "type": "object"
+    },
+    "ArtifactRefV2": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "id": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "sha256",
+        "bytes"
+      ],
+      "type": "object"
+    },
+    "CleanupFactsV2": {
+      "additionalProperties": false,
+      "properties": {
+        "absent": {
+          "type": "boolean"
+        },
+        "cancelled": {
+          "type": "boolean"
+        },
+        "derived_state": {
+          "enum": [
+            "observed-absent",
+            "unknown",
+            "survivors"
+          ]
+        },
+        "descendants_present": {
+          "type": "boolean"
+        },
+        "failures": {
+          "items": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "maxItems": 4096,
+          "type": "array"
+        },
+        "interval_ms": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "limitations": {
+          "items": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "maxItems": 4096,
+          "type": "array"
+        },
+        "owned_group": {
+          "type": "boolean"
+        },
+        "qualification": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "scope": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "owned-process-group",
+            "descendant-cleanup-unsupported",
+            "ancestor-process-group"
+          ]
+        },
+        "timed_out": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "owned_group",
+        "status",
+        "derived_state",
+        "descendants_present",
+        "absent",
+        "qualification",
+        "cancelled",
+        "timed_out",
+        "scope",
+        "interval_ms",
+        "failures",
+        "limitations"
+      ],
+      "type": "object"
+    },
+    "CleanupJoinV2": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_id": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "context_index": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "facts": {
+          "$ref": "#/$defs/CleanupFactsV2"
+        },
+        "pointer": {
+          "maxLength": 4096,
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_id",
+        "pointer",
+        "context_index",
+        "facts"
+      ],
+      "type": "object"
+    },
+    "EnvironmentV2": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "value": {
+          "maxLength": 4096,
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "value"
+      ],
+      "type": "object"
+    },
+    "GraphBindingV2": {
+      "additionalProperties": false,
+      "properties": {
+        "contexts": {
+          "items": {
+            "$ref": "#/$defs/RunContextV2"
+          },
+          "maxItems": 4096,
+          "type": "array"
+        },
+        "draft_commit": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "execution_id": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "product_commit": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "profile": {
+          "const": "postmerge-native-graph-binding/2"
+        },
+        "report": {
+          "$ref": "#/$defs/ArtifactRefV2"
+        },
+        "request": {
+          "$ref": "#/$defs/ArtifactRefV2"
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/SourceBindingV2"
+          },
+          "maxItems": 4096,
+          "type": "array"
+        },
+        "test_commit": {
+          "maxLength": 4096,
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile",
+        "execution_id",
+        "request",
+        "report",
+        "product_commit",
+        "test_commit",
+        "draft_commit",
+        "sources",
+        "contexts"
+      ],
+      "type": "object"
+    },
+    "HostTupleV2": {
+      "additionalProperties": false,
+      "properties": {
+        "architecture": {
+          "enum": [
+            "amd64",
+            "arm64"
+          ]
+        },
+        "image_manifest_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "kernel_release": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "launcher_policy_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "os": {
+          "const": "linux"
+        }
+      },
+      "required": [
+        "os",
+        "architecture",
+        "kernel_release",
+        "image_manifest_sha256",
+        "launcher_policy_sha256"
+      ],
+      "type": "object"
+    },
+    "ImplementationV2": {
+      "additionalProperties": false,
+      "properties": {
+        "observer_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "source_commit": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "source_tree": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "supervisor_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "verifier_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_commit",
+        "source_tree",
+        "verifier_sha256",
+        "observer_sha256",
+        "supervisor_sha256"
+      ],
+      "type": "object"
+    },
+    "InvocationV2": {
+      "additionalProperties": false,
+      "properties": {
+        "argv": {
+          "items": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "maxItems": 4096,
+          "type": "array"
+        },
+        "context_index": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "environment": {
+          "items": {
+            "$ref": "#/$defs/EnvironmentV2"
+          },
+          "maxItems": 4096,
+          "type": "array"
+        },
+        "executable": {
+          "$ref": "#/$defs/ArtifactRefV2"
+        },
+        "execution_id": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "launch_index": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "profile": {
+          "const": "postmerge-owned-invocation/2"
+        },
+        "purpose": {
+          "enum": [
+            "host-supervisor",
+            "workflow-root",
+            "assessment-worker",
+            "runner",
+            "server",
+            "observer",
+            "attestor",
+            "control-hook",
+            "cleanup-hook",
+            "playwright-worker",
+            "browser-main",
+            "browser-zygote",
+            "browser-renderer",
+            "browser-gpu",
+            "browser-utility"
+          ]
+        },
+        "stdin_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile",
+        "execution_id",
+        "purpose",
+        "executable",
+        "argv",
+        "environment",
+        "stdin_sha256",
+        "context_index",
+        "launch_index"
+      ],
+      "type": "object"
+    },
+    "LogicalProcessV2": {
+      "additionalProperties": false,
+      "properties": {
+        "birth_distinct_from": {
+          "items": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "maxItems": 4096,
+          "type": "array"
+        },
+        "node": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "maxLength": 4096,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "role": {
+          "enum": [
+            "host-supervisor",
+            "workflow-root",
+            "assessment-worker",
+            "runner",
+            "server",
+            "observer",
+            "attestor",
+            "control-hook",
+            "cleanup-hook",
+            "playwright-worker",
+            "browser-main",
+            "browser-zygote",
+            "browser-renderer",
+            "browser-gpu",
+            "browser-utility"
+          ]
+        },
+        "run_kind": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "run_ordinal": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "state": {
+          "maxLength": 4096,
+          "type": "string"
+        }
+      },
+      "required": [
+        "node",
+        "role",
+        "run_kind",
+        "run_ordinal",
+        "parent",
+        "state",
+        "birth_distinct_from"
+      ],
+      "type": "object"
+    },
+    "NativeProcessReferenceV2": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_id": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "capture_index": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "context_index": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "enum": [
+            "fresh-process",
+            "app-instance",
+            "descendant"
+          ]
+        },
+        "pointer": {
+          "maxLength": 4096,
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_id",
+        "pointer",
+        "kind",
+        "context_index",
+        "capture_index"
+      ],
+      "type": "object"
+    },
+    "ObservationPolicyV2": {
+      "additionalProperties": false,
+      "properties": {
+        "capture_limit": {
+          "maximum": 16384,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "limitations": {
+          "items": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "maxItems": 4096,
+          "type": "array"
+        },
+        "process_limit": {
+          "maximum": 4096,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "profile": {
+          "const": "linux-procfs-birth-command/0"
+        },
+        "require_final_independent_sweep": {
+          "const": true
+        },
+        "require_paired_stat": {
+          "const": true
+        },
+        "scope": {
+          "const": "observed-owned-process-tree"
+        },
+        "target_interval_ms": {
+          "const": 20
+        }
+      },
+      "required": [
+        "profile",
+        "scope",
+        "target_interval_ms",
+        "capture_limit",
+        "process_limit",
+        "require_paired_stat",
+        "require_final_independent_sweep",
+        "limitations"
+      ],
+      "type": "object"
+    },
+    "OwnedLaunchV2": {
+      "additionalProperties": false,
+      "properties": {
+        "cancelled": {
+          "type": "boolean"
+        },
+        "completed": {
+          "type": "boolean"
+        },
+        "context_index": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "executed_capture_index": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "index": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "invocation": {
+          "$ref": "#/$defs/ArtifactRefV2"
+        },
+        "parent_capture_index": {
+          "anyOf": [
+            {
+              "maximum": 9223372036854775807,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "purpose": {
+          "enum": [
+            "host-supervisor",
+            "workflow-root",
+            "assessment-worker",
+            "runner",
+            "server",
+            "observer",
+            "attestor",
+            "control-hook",
+            "cleanup-hook",
+            "playwright-worker",
+            "browser-main",
+            "browser-zygote",
+            "browser-renderer",
+            "browser-gpu",
+            "browser-utility"
+          ]
+        },
+        "retirement_capture_index": {
+          "anyOf": [
+            {
+              "maximum": 9223372036854775807,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "start_capture_index": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "stdin": {
+          "$ref": "#/$defs/ArtifactRefV2"
+        },
+        "timed_out": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "index",
+        "context_index",
+        "purpose",
+        "invocation",
+        "stdin",
+        "parent_capture_index",
+        "start_capture_index",
+        "executed_capture_index",
+        "retirement_capture_index",
+        "completed",
+        "cancelled",
+        "timed_out"
+      ],
+      "type": "object"
+    },
+    "ProcCaptureV2": {
+      "additionalProperties": false,
+      "properties": {
+        "boot_id_bytes": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": "string"
+        },
+        "cmdline": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": "string"
+        },
+        "cmdline_after": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": "string"
+        },
+        "executable": {
+          "$ref": "#/$defs/ArtifactRefV2"
+        },
+        "executable_after": {
+          "$ref": "#/$defs/ArtifactRefV2"
+        },
+        "executable_link_after_bytes": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": "string"
+        },
+        "executable_link_bytes": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": "string"
+        },
+        "exit_code": {
+          "anyOf": [
+            {
+              "maximum": 255,
+              "minimum": -1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "exit_signal": {
+          "anyOf": [
+            {
+              "maximum": 128,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "index": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "namespace_device": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "namespace_inode": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "namespace_link_bytes": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": "string"
+        },
+        "native_start_output": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": "string"
+        },
+        "native_start_tool": {
+          "$ref": "#/$defs/ArtifactRefV2"
+        },
+        "phase": {
+          "enum": [
+            "start-barrier",
+            "during-run",
+            "retirement",
+            "final-sweep"
+          ]
+        },
+        "stat_after": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": "string"
+        },
+        "stat_before": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": "string"
+        }
+      },
+      "required": [
+        "index",
+        "phase",
+        "boot_id_bytes",
+        "namespace_link_bytes",
+        "namespace_device",
+        "namespace_inode",
+        "stat_before",
+        "cmdline",
+        "cmdline_after",
+        "executable_link_bytes",
+        "executable_link_after_bytes",
+        "executable",
+        "executable_after",
+        "stat_after",
+        "native_start_output",
+        "native_start_tool",
+        "exit_code",
+        "exit_signal"
+      ],
+      "type": "object"
+    },
+    "ProcessPolicyV2": {
+      "additionalProperties": false,
+      "properties": {
+        "host": {
+          "$ref": "#/$defs/HostTupleV2"
+        },
+        "implementation": {
+          "$ref": "#/$defs/ImplementationV2"
+        },
+        "observation": {
+          "$ref": "#/$defs/ObservationPolicyV2"
+        },
+        "profile": {
+          "const": "postmerge-process-policy/2"
+        },
+        "rules": {
+          "items": {
+            "$ref": "#/$defs/RoleRuleV2"
+          },
+          "maxItems": 32,
+          "type": "array"
+        }
+      },
+      "required": [
+        "profile",
+        "implementation",
+        "host",
+        "rules",
+        "observation"
+      ],
+      "type": "object"
+    },
+    "ProcessProofV2": {
+      "additionalProperties": false,
+      "properties": {
+        "captures": {
+          "items": {
+            "$ref": "#/$defs/ProcCaptureV2"
+          },
+          "maxItems": 16384,
+          "type": "array"
+        },
+        "cleanup": {
+          "items": {
+            "$ref": "#/$defs/CleanupJoinV2"
+          },
+          "maxItems": 4096,
+          "type": "array"
+        },
+        "execution_id": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "final_sweep": {
+          "$ref": "#/$defs/AbsenceSweepV2"
+        },
+        "graph_binding_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "launches": {
+          "items": {
+            "$ref": "#/$defs/OwnedLaunchV2"
+          },
+          "maxItems": 4096,
+          "type": "array"
+        },
+        "native_references": {
+          "items": {
+            "$ref": "#/$defs/NativeProcessReferenceV2"
+          },
+          "maxItems": 16384,
+          "type": "array"
+        },
+        "policy_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "profile": {
+          "const": "postmerge-process-proof/2"
+        },
+        "trusted_start_invocation": {
+          "$ref": "#/$defs/ArtifactRefV2"
+        },
+        "trusted_start_stdout": {
+          "$ref": "#/$defs/ArtifactRefV2"
+        }
+      },
+      "required": [
+        "profile",
+        "execution_id",
+        "policy_sha256",
+        "graph_binding_sha256",
+        "trusted_start_invocation",
+        "trusted_start_stdout",
+        "captures",
+        "launches",
+        "native_references",
+        "final_sweep",
+        "cleanup"
+      ],
+      "type": "object"
+    },
+    "ProcessQualificationV2": {
+      "additionalProperties": false,
+      "properties": {
+        "cases": {
+          "items": {
+            "$ref": "#/$defs/QualificationCaseV2"
+          },
+          "maxItems": 10,
+          "type": "array"
+        },
+        "host": {
+          "$ref": "#/$defs/HostTupleV2"
+        },
+        "implementation": {
+          "$ref": "#/$defs/ImplementationV2"
+        },
+        "limitations": {
+          "items": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "maxItems": 4096,
+          "type": "array"
+        },
+        "policy_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "profile": {
+          "const": "postmerge-process-qualification/2"
+        }
+      },
+      "required": [
+        "profile",
+        "policy_sha256",
+        "implementation",
+        "host",
+        "cases",
+        "limitations"
+      ],
+      "type": "object"
+    },
+    "QualificationCaseV2": {
+      "additionalProperties": false,
+      "properties": {
+        "graph_bindings": {
+          "items": {
+            "$ref": "#/$defs/ArtifactRefV2"
+          },
+          "maxItems": 2,
+          "minItems": 1,
+          "type": "array"
+        },
+        "harness_invocation": {
+          "$ref": "#/$defs/ArtifactRefV2"
+        },
+        "harness_stdout": {
+          "$ref": "#/$defs/ArtifactRefV2"
+        },
+        "id": {
+          "enum": [
+            "owned-launch-joins",
+            "two-fresh-births",
+            "cleanup-grandchild-interruption",
+            "independent-absence",
+            "legacy-samples-refused",
+            "roles-ambiguous-refused",
+            "graph-substitution-refused",
+            "pid-reuse-refused",
+            "schedule-order-preserved",
+            "role-witness-order-invariant"
+          ]
+        },
+        "policy": {
+          "$ref": "#/$defs/ArtifactRefV2"
+        },
+        "proofs": {
+          "items": {
+            "$ref": "#/$defs/ArtifactRefV2"
+          },
+          "maxItems": 2,
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "graph_bindings",
+        "policy",
+        "proofs",
+        "harness_invocation",
+        "harness_stdout"
+      ],
+      "type": "object"
+    },
+    "RoleRuleV2": {
+      "additionalProperties": false,
+      "properties": {
+        "derivation": {
+          "enum": [
+            "owned-launch/0",
+            "playwright-node-worker/0",
+            "chromium-switch-role/0"
+          ]
+        },
+        "executable": {
+          "$ref": "#/$defs/ArtifactRefV2"
+        },
+        "forbidden_switches": {
+          "items": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "maxItems": 32,
+          "type": "array"
+        },
+        "launch_purpose": {
+          "enum": [
+            "host-supervisor",
+            "workflow-root",
+            "assessment-worker",
+            "runner",
+            "server",
+            "observer",
+            "attestor",
+            "control-hook",
+            "cleanup-hook",
+            "playwright-worker",
+            "browser-main",
+            "browser-zygote",
+            "browser-renderer",
+            "browser-gpu",
+            "browser-utility"
+          ]
+        },
+        "parent_role": {
+          "enum": [
+            "host-supervisor",
+            "workflow-root",
+            "assessment-worker",
+            "runner",
+            "server",
+            "observer",
+            "attestor",
+            "control-hook",
+            "cleanup-hook",
+            "playwright-worker",
+            "browser-main",
+            "browser-zygote",
+            "browser-renderer",
+            "browser-gpu",
+            "browser-utility",
+            "outside"
+          ]
+        },
+        "required_switches": {
+          "items": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "maxItems": 32,
+          "type": "array"
+        },
+        "role": {
+          "enum": [
+            "host-supervisor",
+            "workflow-root",
+            "assessment-worker",
+            "runner",
+            "server",
+            "observer",
+            "attestor",
+            "control-hook",
+            "cleanup-hook",
+            "playwright-worker",
+            "browser-main",
+            "browser-zygote",
+            "browser-renderer",
+            "browser-gpu",
+            "browser-utility"
+          ]
+        },
+        "slot": {
+          "enum": [
+            "main",
+            "default",
+            "sandboxed",
+            "unsandboxed",
+            "network",
+            "storage"
+          ]
+        }
+      },
+      "required": [
+        "role",
+        "derivation",
+        "executable",
+        "launch_purpose",
+        "parent_role",
+        "slot",
+        "required_switches",
+        "forbidden_switches"
+      ],
+      "type": "object"
+    },
+    "RunContextV2": {
+      "additionalProperties": false,
+      "properties": {
+        "attempt_ordinal": {
+          "anyOf": [
+            {
+              "maximum": 9223372036854775807,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "control_index": {
+          "anyOf": [
+            {
+              "maximum": 9223372036854775807,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "control_ordinal": {
+          "anyOf": [
+            {
+              "maximum": 9223372036854775807,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "run_index": {
+          "anyOf": [
+            {
+              "maximum": 9223372036854775807,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "run_kind": {
+          "enum": [
+            "workflow",
+            "repeat",
+            "probe-original",
+            "probe-reversed",
+            "probe-isolated",
+            "control"
+          ]
+        },
+        "run_ordinal": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "test_ids": {
+          "items": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "maxItems": 4096,
+          "type": "array"
+        }
+      },
+      "required": [
+        "run_index",
+        "run_kind",
+        "run_ordinal",
+        "test_ids",
+        "control_index",
+        "control_ordinal",
+        "attempt_ordinal"
+      ],
+      "type": "object"
+    },
+    "SourceBindingV2": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact": {
+          "$ref": "#/$defs/ArtifactRefV2"
+        },
+        "kind": {
+          "enum": [
+            "request",
+            "report",
+            "provider",
+            "hook",
+            "control",
+            "attestation-output",
+            "producer-job"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "artifact"
+      ],
+      "type": "object"
+    },
+    "SweepProcessV2": {
+      "additionalProperties": false,
+      "properties": {
+        "pid": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "stat_bytes": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": "string"
+        }
+      },
+      "required": [
+        "pid",
+        "stat_bytes"
+      ],
+      "type": "object"
+    },
+    "TrustedStartV2": {
+      "additionalProperties": false,
+      "properties": {
+        "execution_id": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "host_tuple_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "observer_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "policy_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "profile": {
+          "const": "postmerge-trusted-start/2"
+        },
+        "request_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "root_capture_index": {
+          "maximum": 9223372036854775807,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "supervisor_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile",
+        "execution_id",
+        "policy_sha256",
+        "request_sha256",
+        "supervisor_sha256",
+        "observer_sha256",
+        "host_tuple_sha256",
+        "root_capture_index"
+      ],
+      "type": "object"
+    }
+  },
+  "$ref": "#/$defs/ProcessPolicyV2",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

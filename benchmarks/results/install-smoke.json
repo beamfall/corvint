@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-08-22",
+  "environment": {
+    "architecture": "arm64",
+    "macOS": "26.6.2",
+    "python": "3.9.6"
+  },
+  "wheel": {
+    "name": "context_corvint-0.4.0a0-py3-none-any.whl",
+    "sha256": "ead55c9911557effde55577af1c3c10300b8d14d1bd1af4e6044958795908ea5"
+  },
+  "version": "Corvint 0.4.0a0",
+  "installSeconds": 2.45,
+  "firstUsefulQuerySeconds": 0.46,
+  "cemVerifySeconds": 0.7,
+  "totalSeconds": 3.61,
+  "queryReady": true,
+  "cemValid": true,
+  "notes": "Fresh venv, no-dependency local wheel install, pinned Flask query, and CEM conformance verification. Wheel file is a local build artifact, not committed."
+}

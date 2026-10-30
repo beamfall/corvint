@@ -1,0 +1,24 @@
+===== candidate: corvint feature =====
+{"code": "invalid-arguments", "error": "the following arguments are required: feature_id", "ok": false}
+rc=2
+
+===== candidate: corvint eval =====
+{"error": "impact paths are not tracked at revision 323b3f0610dc35478bf1593d8d8f41ac22e61d16: internal/auth/auth_test.go", "ok": false}
+rc=2
+
+===== candidate: corvint help feature =====
+{"code": "invalid-arguments", "error": "unknown help topic", "ok": false}
+rc=2
+
+===== candidate: corvint help eval =====
+{"code": "invalid-arguments", "error": "unknown help topic", "ok": false}
+rc=2
+
+===== candidate: corvint feature --id x --limit 1 =====
+{"code": "invalid-arguments", "error": "unrecognized arguments: --id", "ok": false}
+rc=2
+
+===== candidate: corvint eval --corpus x =====
+{"code": "invalid-arguments", "error": "unrecognized arguments: --corpus", "ok": false}
+rc=2
+

@@ -1,0 +1,18 @@
+{
+  "base": {
+    "docs/ids.md": "The CEM-SM-0070 migration is tracked separately.\n- `CEM-SM-007`: the check runs first.\nParsing lives in src/gamma.go today.\n",
+    "src/alpha.go": "package p\n\nvar a = 1\n",
+    "src/beta.go": "package p\n\nvar b = 1\n",
+    "src/delta.txt": "alpha beta\n",
+    "src/eps.go": "package p\n\nfunc e() {\n}\n",
+    "src/gamma.go": "package p\n\nfunc g(value int) int {\n\treturn value\n}\n"
+  },
+  "target": {
+    "docs/ids.md": "The CEM-SM-0070 migration is tracked separately.\n- `CEM-SM-007`: the check runs first.\nParsing lives in src/gamma.go today.\n",
+    "src/alpha.go": "package p\n\nvar a = 1\nx // `CEM-SM-007`\n",
+    "src/beta.go": "package p\n\nvar b = 1\n// `CEM-SM-007`\n",
+    "src/delta.txt": "alpha  beta\n",
+    "src/eps.go": "package p\n\nfunc e() {\n\tcheck() // CEM-SM-007\n}\n",
+    "src/gamma.go": "package p\n\nfunc g(value int) int {\n\treturn compute(value)\n}\n"
+  }
+}

@@ -1,0 +1,1124 @@
+// Package mutation implements the taskman-mutation/0 envelope of SPEC §3.3,
+// its operation-specific closed payloads, the taskman-outcome/0 result, the
+// pure post-record computation of every §3.3 operation (TM-V0-003, TM-V0-005),
+// the request-ID replay rule of TM-V0-006 against an explicit index, and the
+// §3.3 ADOPT_FILE composition (R2 F3, AS-35).
+//
+// The package is pure: it depends on internal/wire, internal/ticket and
+// internal/intent only. It reads no file, takes no lock, consults no clock and
+// draws no randomness. Every fact it needs (the canonical record, the queue
+// manifest, the policy, the inventory, attempt liveness, the request index,
+// the logical timestamp and the trusted actor binding) is an explicit input,
+// and every result is an explicit output: a Plan carrying the outcome, the
+// planned post record and, for CREATE, the planned queue manifest. A Plan is
+// never a receipt. Nothing here is durable, and a Plan with outcome COMPLETED
+// means "this mutation would commit as the following post record"; the
+// journal commit (receipt, request index entry, intent-file projection) is
+// TCP-02/TCP-02b work and is the only thing that makes a mutation real.
+//
+// Security boundary (owner-requested expert panel). The envelope's
+// actor.role and actor.id are untrusted data supplied by whoever wrote the
+// envelope; they are not authentication. Apply and Adopt therefore require a
+// separate trusted Binding in the Context that names the role and id of the
+// invoking principal, and refuse UNAUTHORIZED when the binding is absent or
+// the envelope actor differs from it in either field. The binding is never
+// derived from the envelope, from ticket text, from the policy or from any
+// registration; it must be furnished by the caller's authority layer. This
+// library can validate a binding it is given; it cannot authenticate the
+// process that supplies it, and in particular it cannot distinguish two
+// processes running under the same UID. There is no default OWNER binding and
+// no privileged entry point: an empty Binding fails closed. The runtime
+// enforcement profile that decides who may furnish which binding remains
+// qualification work outside this package.
+package mutation
+
+import (
+	"strings"
+
+	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
+	"github.com/Beamfall/corvint/internal/tasks/wire"
+)
+
+// Profile is the mutation envelope profile (§3.3).
+const Profile = "taskman-mutation/0"
+
+// Operation names (§3.3).
+const (
+	OpCreate          = "CREATE"
+	OpRefine          = "REFINE"
+	OpPrioritize      = "PRIORITIZE"
+	OpSetDependencies = "SET_DEPENDENCIES"
+	OpSetGates        = "SET_GATES"
+	OpSetEffects      = "SET_EFFECTS"
+	OpHold            = "HOLD"
+	OpReleaseHold     = "RELEASE_HOLD"
+	OpReopen          = "REOPEN"
+	OpArchive         = "ARCHIVE"
+	OpRestore         = "RESTORE"
+	OpCompleteManual  = "COMPLETE_MANUAL"
+	OpGrantApproval   = "GRANT_APPROVAL"
+	OpRevokeApproval  = "REVOKE_APPROVAL"
+	// OpAttachEvidence records evidence digests and a reason on an OPEN
+	// ticket without changing its acceptance (TEA-V0-001).
+	OpAttachEvidence = "ATTACH_EVIDENCE"
+	// OpKnowHowAdd records one know-how note, or supersedes an active one,
+	// on a live native home ticket; OpKnowHowRetract withdraws one
+	// (KHN-V0-003). Neither changes acceptance.
+	OpKnowHowAdd     = "KNOWHOW_ADD"
+	OpKnowHowRetract = "KNOWHOW_RETRACT"
+	// OpKnowHowReconfirm re-pins a STALE active note's anchors to a later
+	// commit (KHN-V0-018). It changes no text, active set or acceptance.
+	OpKnowHowReconfirm = "KNOWHOW_RECONFIRM"
+)
+
+// Actor is the envelope's untrusted actor claim. It is compared against the
+// trusted Binding of the Context and never used on its own.
+type Actor struct {
+	ID   string
+	Role string
+}
+
+// Envelope is a decoded taskman-mutation/0.
+type Envelope struct {
+	RequestID        string
+	Actor            Actor
+	QueueID          wire.QueueID
+	TargetID         *wire.TicketID // nil only for CREATE
+	ExpectedRevision *wire.Count    // nil only for CREATE
+	Operation        string
+	Payload          Payload
+	IssuedAt         wire.Timestamp
+	// Raw is the exact envelope bytes as decoded (canonical body plus LF).
+	// The TM-V0-006 request digest is the SHA-256 of these bytes.
+	Raw []byte
+}
+
+// Sha256 is the SHA-256 of the canonical mutation bytes (TM-V0-006).
+func (e *Envelope) Sha256() wire.Digest { return wire.Sum(e.Raw) }
+
+// Payload is one operation's closed payload (§3.3 table).
+type Payload interface {
+	operation() string
+}
+
+// CreatePayload is the CREATE payload: the full record minus the fields the
+// tool derives (ticketId, revision, acceptanceRevision, previousRecordSha256,
+// status, archivedFrom, completion, holds, approvals, createdAt, updatedAt,
+// updatedBy, shadowOverlay), plus an optional localToken.
+type CreatePayload struct {
+	RequiredRoles      map[string][]string
+	RequiresPool       string
+	LocalToken         *string
+	Title              string
+	Body               *string
+	Kind               string
+	Owner              *string
+	Milestone          *string
+	Priority           string
+	Order              wire.Count
+	Labels             []string
+	Dependencies       []ticket.Dependency
+	AcceptanceCriteria []string
+	RequirementRefs    []string
+	Source             ticket.Source
+	Effects            ticket.Effects
+	Capabilities       []string
+	RequiredGates      []string
+	ExecutionClass     string
+	DueDate            *string
+	EstimateMinutes    *wire.Count
+	Supersedes         *wire.TicketID
+	SupersededBy       *wire.TicketID
+}
+
+func (*CreatePayload) operation() string { return OpCreate }
+
+// RefineFields are the keys a REFINE payload may carry (§3.3), sorted.
+var RefineFields = []string{
+	"acceptanceCriteria", "body", "dueDate", "estimateMinutes", "executionPrerequisites", "kind", "labels",
+	"milestone", "owner", "requirementRefs", "requiredRoles", "requiresPool", "supersedes", "title",
+}
+
+// RefinePayload is a non-empty subset of RefineFields. Present names the
+// keys carried; a typed field is meaningful only when its key is present.
+type RefinePayload struct {
+	// ExecutionPrerequisites replaces the record's set (CAL-V0-099); nil
+	// (from a null value) clears it.
+	ExecutionPrerequisites []ticket.Prerequisite
+	RequiredRoles          map[string][]string
+	RequiresPool           *string
+	Present                map[string]bool
+	Title                  string
+	Body                   *string
+	Kind                   string
+	Owner                  *string
+	Milestone              *string
+	Labels                 []string
+	AcceptanceCriteria     []string
+	RequirementRefs        []string
+	DueDate                *string
+	EstimateMinutes        *wire.Count
+	Supersedes             *wire.TicketID
+}
+
+func (*RefinePayload) operation() string { return OpRefine }
+
+// Has reports whether the payload carries the key.
+func (p *RefinePayload) Has(key string) bool { return p.Present[key] }
+
+// Keys returns the present keys in sorted order.
+func (p *RefinePayload) Keys() []string {
+	var out []string
+	for _, k := range RefineFields {
+		if p.Present[k] {
+			out = append(out, k)
+		}
+	}
+	return out
+}
+
+// PrioritizePayload is {priority, order}.
+type PrioritizePayload struct {
+	Priority string
+	Order    wire.Count
+}
+
+func (*PrioritizePayload) operation() string { return OpPrioritize }
+
+// SetDependenciesPayload is the full replacement of dependencies.
+type SetDependenciesPayload struct {
+	Dependencies []ticket.Dependency
+}
+
+func (*SetDependenciesPayload) operation() string { return OpSetDependencies }
+
+// SetGatesPayload is the full replacement of requiredGates.
+type SetGatesPayload struct {
+	RequiredGates []string
+}
+
+func (*SetGatesPayload) operation() string { return OpSetGates }
+
+// SetEffectsPayload is the full replacement of effects, capabilities and
+// executionClass.
+type SetEffectsPayload struct {
+	Effects        ticket.Effects
+	Capabilities   []string
+	ExecutionClass string
+}
+
+func (*SetEffectsPayload) operation() string { return OpSetEffects }
+
+// HoldPayload is {holdId, reason}. The hold's actor and placedAt are never
+// taken from the payload: they come from the trusted Binding and the logical
+// timestamp of the Context.
+type HoldPayload struct {
+	HoldID string
+	Reason string
+	// Condition is the optional SCC-V0-010 condition, stored on the hold.
+	Condition *ticket.HoldCondition
+}
+
+func (*HoldPayload) operation() string { return OpHold }
+
+// ReleaseHoldPayload is {holdId}.
+type ReleaseHoldPayload struct {
+	HoldID string
+}
+
+func (*ReleaseHoldPayload) operation() string { return OpReleaseHold }
+
+// ReasonPayload is {reason} for REOPEN, ARCHIVE and RESTORE.
+type ReasonPayload struct {
+	Op     string
+	Reason string
+}
+
+func (p *ReasonPayload) operation() string { return p.Op }
+
+// CompleteManualPayload is {reason, evidence}.
+type CompleteManualPayload struct {
+	Reason   string
+	Evidence []wire.Digest
+}
+
+func (*CompleteManualPayload) operation() string { return OpCompleteManual }
+
+// GrantApprovalPayload is a grant minus revoked and grantedAt. The grant's
+// actor must equal the trusted Binding id.
+type GrantApprovalPayload struct {
+	GrantID        string
+	Actor          string
+	Operation      string
+	TargetRevision wire.Count
+	Scope          []string
+}
+
+func (*GrantApprovalPayload) operation() string { return OpGrantApproval }
+
+// RevokeApprovalPayload is {grantId, reason}.
+type RevokeApprovalPayload struct {
+	GrantID string
+	Reason  string
+}
+
+func (*RevokeApprovalPayload) operation() string { return OpRevokeApproval }
+
+// AttachEvidencePayload is {evidence, reason} (TEA-V0-001): 1..16 sorted
+// unique digests and a nonblank reason of at most 512 bytes. The entry's
+// actor, time and acceptance revision come from the writer, never from here.
+type AttachEvidencePayload struct {
+	Evidence []wire.Digest
+	Reason   string
+}
+
+func (*AttachEvidencePayload) operation() string { return OpAttachEvidence }
+
+// KnowHowAddPayload is the KNOWHOW_ADD payload (KHN-V0-003): the note text,
+// its pinned file anchors and the writer's HEAD commit, optional route
+// tokens, an optional superseded note with its reason, and writer-asserted
+// provenance. Actor, time and seq come from the writer, never from here.
+type KnowHowAddPayload struct {
+	Text         string
+	Anchors      []ticket.KnowHowAnchor
+	Routes       []string
+	Commit       string
+	Supersedes   *wire.Count
+	Reason       *string
+	Attempt      *string
+	Generation   *wire.Size
+	EvidencePath *string
+	// Repository is the optional alias of the repository the anchors are
+	// pinned in (KHN-V0-025); "" means the key is absent, which keeps the
+	// payload's earlier bytes.
+	Repository string
+}
+
+func (*KnowHowAddPayload) operation() string { return OpKnowHowAdd }
+
+// KnowHowRetractPayload is {note, reason} (KHN-V0-003).
+type KnowHowRetractPayload struct {
+	Note   wire.Count
+	Reason string
+}
+
+func (*KnowHowRetractPayload) operation() string { return OpKnowHowRetract }
+
+// KnowHowReconfirmPayload is {note, anchors, commit, attempt, generation}
+// (KHN-V0-018): the note's anchors re-pinned at commit, with the same paths
+// and symbols in the same order, and writer-asserted provenance. Actor,
+// time and seq come from the writer, never from here.
+type KnowHowReconfirmPayload struct {
+	Note       wire.Count
+	Anchors    []ticket.KnowHowAnchor
+	Commit     string
+	Attempt    *string
+	Generation *wire.Size
+}
+
+func (*KnowHowReconfirmPayload) operation() string { return OpKnowHowReconfirm }
+
+var envelopeKeys = []string{
+	"profile", "requestId", "actor", "queueId", "targetId", "expectedRevision", "operation", "payload", "issuedAt",
+}
+
+// createKeys is the closed CREATE payload without the optional localToken.
+var createKeys = []string{
+	"title", "body", "kind", "owner", "milestone", "priority", "order", "labels", "dependencies",
+	"acceptanceCriteria", "requirementRefs", "source", "effects", "capabilities", "requiredGates",
+	"executionClass", "dueDate", "estimateMinutes", "supersedes", "supersededBy",
+}
+
+// PayloadKeys is each operation's closed payload key set, which decodePayload
+// enforces and help prints. CREATE also takes an optional localToken, and
+// REFINE takes a non-empty subset of its keys.
+var PayloadKeys = map[string][]string{
+	OpCreate:          createKeys,
+	OpRefine:          RefineFields,
+	OpPrioritize:      {"priority", "order"},
+	OpSetDependencies: {"dependencies"},
+	OpSetGates:        {"requiredGates"},
+	OpSetEffects:      {"effects", "capabilities", "executionClass"},
+	OpHold:            {"holdId", "reason"},
+	OpReleaseHold:     {"holdId"},
+	OpReopen:          {"reason"},
+	OpArchive:         {"reason"},
+	OpRestore:         {"reason"},
+	OpCompleteManual:  {"reason", "evidence"},
+	OpGrantApproval:   {"grantId", "actor", "operation", "targetRevision", "scope"},
+	OpRevokeApproval:  {"grantId", "reason"},
+	OpAttachEvidence:  {"evidence", "reason"},
+	OpKnowHowAdd:      {"anchors", "attempt", "commit", "evidencePath", "generation", "reason", "routes", "supersedes", "text"},
+	OpKnowHowRetract:  {"note", "reason"},
+	OpNoteSet:         {"text", "supersedes"},
+	OpNoteClear:       {"supersedes"},
+	OpReviewRecord:    {"request"},
+	OpReviewResubmit:  {"request"},
+	// KHN-V0-018.
+	OpKnowHowReconfirm: {"anchors", "attempt", "commit", "generation", "note"},
+	// TOL-V0-005, TOL-V0-007, TOL-V0-008.
+	ticket.OpObligationsSeed:    {"obligations", "prefix"},
+	ticket.OpObligationsSet:     {"changes"},
+	ticket.OpObligationsWitness: {"attempt", "commit", "credits", "declaration", "generation", "playwrightVersion", "reportSha256", "source"},
+}
+
+// Decode parses and validates one mutation envelope (canonical bytes with
+// trailing LF, ≤256 KiB). Every key is checked against the closed schema of
+// §3.3, the payload against the closed table for its operation, and the
+// nullity rule for targetId/expectedRevision. Decoding trusts nothing: the
+// actor claim is carried through for comparison with the Binding by Apply.
+func Decode(data []byte) (*Envelope, error) {
+	if len(data) > wire.MaxMutationEnvelopeBytes {
+		return nil, wire.Errorf(wire.CodeLimitExceeded, "/", "mutation envelope larger than %d bytes", wire.MaxMutationEnvelopeBytes)
+	}
+	v, err := wire.Parse(data)
+	if err != nil {
+		return nil, err
+	}
+	r := wire.NewReader(v, "/")
+	if err := wire.ProfileVersion("/profile", v, Profile); err != nil {
+		return nil, err
+	}
+	r.Closed(envelopeKeys...)
+	if err := r.Err(); err != nil {
+		return nil, err
+	}
+	if err := wire.CheckProfile("/profile", r.Field("profile").String(), Profile); err != nil {
+		return nil, err
+	}
+	env := &Envelope{Raw: append([]byte(nil), data...)}
+	env.RequestID = readRequestID(r.Field("requestId"))
+	actor := r.Field("actor")
+	actor.Closed("id", "role")
+	env.Actor.ID = actor.Field("id").Label()
+	env.Actor.Role = actor.Field("role").Enum(intent.Roles...)
+	env.QueueID = r.Field("queueId").QueueID()
+	tid := r.Field("targetId")
+	if !tid.IsNull() {
+		id := tid.TicketID()
+		env.TargetID = &id
+	}
+	env.ExpectedRevision = r.Field("expectedRevision").CountOrNull()
+	env.Operation = r.Field("operation").Enum(intent.Operations...)
+	env.IssuedAt = r.Field("issuedAt").Timestamp()
+	if err := r.Err(); err != nil {
+		return nil, err
+	}
+	// §3.3: targetId/expectedRevision are null only for CREATE.
+	if env.Operation == OpCreate {
+		if env.TargetID != nil {
+			return nil, wire.Errorf(wire.CodeMalformed, "/targetId", "CREATE carries a null targetId")
+		}
+		if env.ExpectedRevision != nil {
+			return nil, wire.Errorf(wire.CodeMalformed, "/expectedRevision", "CREATE carries a null expectedRevision")
+		}
+	} else {
+		if env.TargetID == nil {
+			return nil, wire.Errorf(wire.CodeMalformed, "/targetId", "%s requires a targetId", env.Operation)
+		}
+		if env.ExpectedRevision == nil && !IsNoteOperation(env.Operation) && !IsReviewOperation(env.Operation) {
+			return nil, wire.Errorf(wire.CodeMalformed, "/expectedRevision", "%s requires an expectedRevision", env.Operation)
+		}
+		if env.TargetID.QueueID() != env.QueueID.Raw {
+			return nil, wire.Errorf(wire.CodeMalformed, "/targetId", "target %s is outside queue %s", env.TargetID.Raw, env.QueueID.Raw)
+		}
+	}
+	p, err := decodePayload(env.Operation, r.Field("payload"))
+	if err != nil {
+		return nil, err
+	}
+	env.Payload = p
+	return env, nil
+}
+
+// CanonicalPayload validates a caller-supplied payload for op against the
+// closed §3.3 table and sorts, in place, exactly the arrays that table reads
+// as sets (labels, requirementRefs, capabilities, requiredGates, touchPaths,
+// resources, evidence, scope). Ordered arrays such as acceptanceCriteria and
+// dependencies keep their order. It is the CLI input boundary (V1-0750): the
+// returned value is re-encoded canonically into the envelope, which Decode
+// then checks strictly, so the wire rule and digests are unchanged.
+func CanonicalPayload(op string, v wire.Value) (wire.Value, error) {
+	// Two passes: a set of objects that themselves hold a set (the
+	// executionPrerequisites stages, CAL-V0-099) is sorted before its inner
+	// sets are, so the second pass re-sorts the outer set by the final
+	// canonical bytes. The second pass is a no-op for every other payload.
+	for pass := 0; pass < 2; pass++ {
+		if _, err := decodePayload(op, wire.NewSetSortingReader(v, "/payload")); err != nil {
+			return wire.Value{}, err
+		}
+	}
+	return v, nil
+}
+
+// PayloadEffects is the effects a valid CREATE or SET_EFFECTS payload
+// declares; ok is false for any other operation or an invalid payload. It
+// lets a caller describe committed effects without re-reading the store
+// (CAL-V0-192).
+func PayloadEffects(op string, v wire.Value) (ticket.Effects, bool) {
+	if op != OpCreate && op != OpSetEffects {
+		return ticket.Effects{}, false
+	}
+	p, err := decodePayload(op, wire.NewReader(v, "/payload"))
+	if err != nil {
+		return ticket.Effects{}, false
+	}
+	switch x := p.(type) {
+	case *CreatePayload:
+		return x.Effects, true
+	case *SetEffectsPayload:
+		return x.Effects, true
+	}
+	return ticket.Effects{}, false
+}
+
+// readRequestID validates an Identifier bounded to the §1 requestId limit.
+func readRequestID(r *wire.Reader) string {
+	s := r.Identifier()
+	if r.Err() == nil && len(s) > wire.MaxRequestIDBytes {
+		r.Fail(wire.CodeLimitExceeded, "requestId longer than %d bytes", wire.MaxRequestIDBytes)
+	}
+	return s
+}
+
+// ParseRequestID validates a request ID supplied outside an envelope (the
+// ADOPT_FILE request).
+func ParseRequestID(where, s string) (string, error) {
+	id, err := wire.ParseIdentifier(where, s)
+	if err != nil {
+		return "", err
+	}
+	if len(id) > wire.MaxRequestIDBytes {
+		return "", wire.Errorf(wire.CodeLimitExceeded, where, "requestId longer than %d bytes", wire.MaxRequestIDBytes)
+	}
+	return id, nil
+}
+
+func decodePayload(op string, r *wire.Reader) (Payload, error) {
+	var p Payload
+	switch op {
+	case OpCreate:
+		p = readCreate(r)
+	case OpRefine:
+		p = readRefine(r)
+	case OpPrioritize:
+		r.Closed(PayloadKeys[op]...)
+		p = &PrioritizePayload{Priority: readPriority(r.Field("priority")), Order: r.Field("order").Count()}
+	case OpSetDependencies:
+		r.Closed(PayloadKeys[op]...)
+		p = &SetDependenciesPayload{Dependencies: readDependencies(r.Field("dependencies"))}
+	case OpSetGates:
+		r.Closed(PayloadKeys[op]...)
+		p = &SetGatesPayload{RequiredGates: readGates(r.Field("requiredGates"))}
+	case OpSetEffects:
+		r.Closed(PayloadKeys[op]...)
+		p = &SetEffectsPayload{
+			Effects:        readEffects(r.Field("effects")),
+			Capabilities:   readCapabilities(r.Field("capabilities")),
+			ExecutionClass: r.Field("executionClass").Enum(ticket.ExecutionClasses...),
+		}
+	case OpHold:
+		r.Closed(wire.OptionalKeys(r.Value(), PayloadKeys[op], "condition")...)
+		hp := &HoldPayload{HoldID: r.Field("holdId").Label(), Reason: r.Field("reason").Prose(0, wire.MaxProseBytes)}
+		if wire.Has(r.Value(), "condition") {
+			hp.Condition = ticket.ReadHoldCondition(r.Field("condition"))
+		}
+		p = hp
+	case OpReleaseHold:
+		r.Closed(PayloadKeys[op]...)
+		p = &ReleaseHoldPayload{HoldID: r.Field("holdId").Label()}
+	case OpReopen, OpArchive, OpRestore:
+		r.Closed(PayloadKeys[op]...)
+		p = &ReasonPayload{Op: op, Reason: r.Field("reason").Prose(0, wire.MaxProseBytes)}
+	case OpCompleteManual:
+		r.Closed(PayloadKeys[op]...)
+		cm := &CompleteManualPayload{Reason: r.Field("reason").Prose(0, wire.MaxProseBytes), Evidence: []wire.Digest{}}
+		for _, e := range r.Field("evidence").Array(-1, false) {
+			cm.Evidence = append(cm.Evidence, e.Digest())
+		}
+		p = cm
+	case OpGrantApproval:
+		r.Closed(PayloadKeys[op]...)
+		g := &GrantApprovalPayload{}
+		g.GrantID = r.Field("grantId").Label()
+		g.Actor = r.Field("actor").Label()
+		g.Operation = r.Field("operation").Enum(ticket.ApprovalOps...)
+		g.TargetRevision = r.Field("targetRevision").Count()
+		g.Scope = nonNil(r.Field("scope").Strings(-1, false, (*wire.Reader).Identifier))
+		p = g
+	case OpRevokeApproval:
+		r.Closed(PayloadKeys[op]...)
+		p = &RevokeApprovalPayload{GrantID: r.Field("grantId").Label(), Reason: r.Field("reason").Prose(0, wire.MaxProseBytes)}
+	case OpAttachEvidence:
+		r.Closed(PayloadKeys[op]...)
+		p = &AttachEvidencePayload{Evidence: ticket.ReadEvidenceDigests(r.Field("evidence")), Reason: ticket.ReadEvidenceReason(r.Field("reason"))}
+	case OpKnowHowAdd:
+		repository := ""
+		if wire.Has(r.Value(), "repository") {
+			r.Closed(append([]string{"repository"}, PayloadKeys[op]...)...)
+			repository = ticket.ReadKnowHowRepository(r.Field("repository"))
+		} else {
+			r.Closed(PayloadKeys[op]...)
+		}
+		k := &KnowHowAddPayload{
+			Repository:   repository,
+			Text:         ticket.ReadKnowHowText(r.Field("text")),
+			Anchors:      ticket.ReadKnowHowAnchors(r.Field("anchors")),
+			Routes:       ticket.ReadKnowHowRoutes(r.Field("routes")),
+			Commit:       r.Field("commit").OID(),
+			Supersedes:   r.Field("supersedes").CountOrNull(),
+			Attempt:      r.Field("attempt").StringOrNull((*wire.Reader).Identifier),
+			Generation:   r.Field("generation").SizeOrNull(),
+			EvidencePath: r.Field("evidencePath").StringOrNull(ticket.ReadKnowHowFile),
+		}
+		k.Reason = r.Field("reason").StringOrNull(ticket.ReadKnowHowReason)
+		if r.Err() == nil && (k.Supersedes == nil) != (k.Reason == nil) {
+			r.Field("reason").Fail(wire.CodeMalformed, "reason is required exactly when supersedes names a note")
+		}
+		if r.Err() == nil && repository != "" {
+			if why := ticket.KnowHowRepositoryRefusal(repository, k.Anchors); why != "" {
+				r.Field("anchors").Fail(wire.CodeMalformed, "%s", why)
+			}
+		}
+		p = k
+	case OpKnowHowRetract:
+		r.Closed(PayloadKeys[op]...)
+		p = &KnowHowRetractPayload{Note: r.Field("note").Count(), Reason: ticket.ReadKnowHowReason(r.Field("reason"))}
+	case OpKnowHowReconfirm:
+		r.Closed(PayloadKeys[op]...)
+		p = &KnowHowReconfirmPayload{
+			Note:       r.Field("note").Count(),
+			Anchors:    ticket.ReadKnowHowAnchors(r.Field("anchors")),
+			Commit:     r.Field("commit").OID(),
+			Attempt:    r.Field("attempt").StringOrNull((*wire.Reader).Identifier),
+			Generation: r.Field("generation").SizeOrNull(),
+		}
+	case OpNoteSet, OpNoteClear:
+		p = readNote(op, r)
+	case OpReviewRecord, OpReviewResubmit:
+		p = readReview(op, r)
+	case ticket.OpObligationsSeed, ticket.OpObligationsSet, ticket.OpObligationsWitness:
+		p = readObligations(op, r)
+	default:
+		return nil, wire.Errorf(wire.CodeMalformed, r.Where(), "unknown operation %q", op)
+	}
+	if err := r.Err(); err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+func readCreate(r *wire.Reader) *CreatePayload {
+	keys := createKeys
+	hasLocal := false
+	if v := r.Value(); v.Kind == wire.KindObject && v.Obj != nil {
+		if _, ok := v.Obj.Get("localToken"); ok {
+			hasLocal = true
+			keys = append(append([]string{}, createKeys...), "localToken")
+		}
+	}
+	r.Closed(wire.OptionalKeys(r.Value(), keys, "requiresPool", "requiredRoles")...)
+	p := &CreatePayload{}
+	if wire.Has(r.Value(), "requiredRoles") {
+		p.RequiredRoles = ticket.ReadStageRoles(r.Field("requiredRoles"))
+	}
+	if wire.Has(r.Value(), "requiresPool") {
+		p.RequiresPool = r.Field("requiresPool").Label()
+	}
+	if hasLocal {
+		lt := r.Field("localToken")
+		s := lt.String()
+		if lt.Err() == nil {
+			if _, err := wire.ParseToken(lt.Where(), s, wire.MaxLocalTokenBytes); err != nil {
+				lt.Fail(wire.CodeOf(err), "%v", err)
+			}
+		}
+		p.LocalToken = &s
+	}
+	p.Title = r.Field("title").Prose(1, wire.MaxTitleBytes)
+	p.Body = r.Field("body").ProseOrNull(wire.MaxBodyBytes)
+	p.Kind = r.Field("kind").Enum(ticket.Kinds...)
+	p.Owner = r.Field("owner").LabelOrNull()
+	p.Milestone = r.Field("milestone").LabelOrNull()
+	p.Priority = readPriority(r.Field("priority"))
+	p.Order = r.Field("order").Count()
+	p.Labels = readLabels(r.Field("labels"))
+	p.Dependencies = readDependencies(r.Field("dependencies"))
+	p.AcceptanceCriteria = readCriteria(r.Field("acceptanceCriteria"))
+	p.RequirementRefs = readRequirementRefs(r.Field("requirementRefs"))
+	p.Source = readSource(r.Field("source"))
+	p.Effects = readEffects(r.Field("effects"))
+	p.Capabilities = readCapabilities(r.Field("capabilities"))
+	p.RequiredGates = readGates(r.Field("requiredGates"))
+	p.ExecutionClass = r.Field("executionClass").Enum(ticket.ExecutionClasses...)
+	p.DueDate = readDueDate(r.Field("dueDate"))
+	p.EstimateMinutes = r.Field("estimateMinutes").CountOrNull()
+	p.Supersedes = readTicketOrNull(r.Field("supersedes"))
+	p.SupersededBy = readTicketOrNull(r.Field("supersededBy"))
+	return p
+}
+
+func readRefine(r *wire.Reader) *RefinePayload {
+	v := r.Value()
+	if v.Kind != wire.KindObject || v.Obj == nil {
+		r.Fail(wire.CodeMalformed, "expected object, got %s", v.Kind)
+		return nil
+	}
+	allowed := map[string]bool{}
+	for _, k := range RefineFields {
+		allowed[k] = true
+	}
+	present := []string{}
+	for _, k := range v.Obj.SortedKeys() {
+		if !allowed[k] {
+			r.Fail(wire.CodeMalformed, "REFINE payload carries unknown key %q", k)
+			return nil
+		}
+		present = append(present, k)
+	}
+	if len(present) == 0 {
+		r.Fail(wire.CodeMalformed, "REFINE payload carries no field")
+		return nil
+	}
+	r.Closed(present...)
+	p := &RefinePayload{Present: map[string]bool{}}
+	for _, k := range present {
+		p.Present[k] = true
+		f := r.Field(k)
+		switch k {
+		case "executionPrerequisites":
+			if !f.IsNull() {
+				p.ExecutionPrerequisites = ticket.ReadPrerequisites(f)
+			}
+		case "requiredRoles":
+			if !f.IsNull() {
+				p.RequiredRoles = ticket.ReadStageRoles(f)
+			}
+		case "requiresPool":
+			p.RequiresPool = f.LabelOrNull()
+		case "title":
+			p.Title = f.Prose(1, wire.MaxTitleBytes)
+		case "body":
+			p.Body = f.ProseOrNull(wire.MaxBodyBytes)
+		case "kind":
+			p.Kind = f.Enum(ticket.Kinds...)
+		case "owner":
+			p.Owner = f.LabelOrNull()
+		case "milestone":
+			p.Milestone = f.LabelOrNull()
+		case "labels":
+			p.Labels = readLabels(f)
+		case "acceptanceCriteria":
+			p.AcceptanceCriteria = readCriteria(f)
+		case "requirementRefs":
+			p.RequirementRefs = readRequirementRefs(f)
+		case "dueDate":
+			p.DueDate = readDueDate(f)
+		case "estimateMinutes":
+			p.EstimateMinutes = f.CountOrNull()
+		case "supersedes":
+			p.Supersedes = readTicketOrNull(f)
+		}
+	}
+	return p
+}
+
+func nonNil(ss []string) []string {
+	if ss == nil {
+		return []string{}
+	}
+	return ss
+}
+
+func readPriority(r *wire.Reader) string {
+	s := r.String()
+	if r.Err() != nil {
+		return ""
+	}
+	for _, p := range ticket.Priorities {
+		if p == s {
+			return s
+		}
+	}
+	r.Fail(wire.CodeInvalidPriority, "priority %q not in {P0|P1|P2|P3}", s)
+	return ""
+}
+
+func readLabels(r *wire.Reader) []string {
+	return nonNil(r.Strings(wire.MaxLabels, false, (*wire.Reader).Label))
+}
+
+func readCriteria(r *wire.Reader) []string {
+	return nonNil(r.Strings(wire.MaxAcceptanceCriteria, true, func(c *wire.Reader) string {
+		return c.Prose(0, wire.MaxCriterionBytes)
+	}))
+}
+
+func readRequirementRefs(r *wire.Reader) []string {
+	return nonNil(r.Strings(wire.MaxRequirementRefs, false, (*wire.Reader).Identifier))
+}
+
+func readCapabilities(r *wire.Reader) []string {
+	return nonNil(r.Strings(wire.MaxCapabilities, false, (*wire.Reader).Identifier))
+}
+
+func readGates(r *wire.Reader) []string {
+	return nonNil(r.Strings(wire.MaxRequiredGates, false, (*wire.Reader).Label))
+}
+
+func readDependencies(r *wire.Reader) []ticket.Dependency {
+	out := []ticket.Dependency{}
+	for _, d := range r.Array(wire.MaxDependencies, true) {
+		d.Closed("ticketId", "obligation", "gateId")
+		out = append(out, ticket.Dependency{
+			TicketID:   d.Field("ticketId").TicketID(),
+			Obligation: d.Field("obligation").Enum(ticket.Obligations...),
+			GateID:     d.Field("gateId").LabelOrNull(),
+		})
+	}
+	return out
+}
+
+func readSource(r *wire.Reader) ticket.Source {
+	r.Closed("kind", "sourceQueueId", "sourceItemId", "sourceRevisionSha256")
+	return ticket.Source{
+		Kind:                 r.Field("kind").Enum(ticket.SourceKinds...),
+		SourceQueueID:        r.Field("sourceQueueId").Identifier(),
+		SourceItemID:         r.Field("sourceItemId").StringOrNull((*wire.Reader).Identifier),
+		SourceRevisionSha256: r.Field("sourceRevisionSha256").DigestOrNull(),
+	}
+}
+
+func readEffects(r *wire.Reader) ticket.Effects {
+	r.Closed(wire.OptionalKeys(r.Value(), wire.TicketEffectsKeys, wire.TicketEffectsOptionalKeys...)...)
+	e := ticket.Effects{Resources: []ticket.Resource{}}
+	e.Coverage = r.Field("coverage").Enum(ticket.Coverages...)
+	e.TouchPaths = nonNil(r.Field("touchPaths").Strings(wire.MaxTouchPaths, false, (*wire.Reader).Path))
+	for _, rs := range r.Field("resources").Array(wire.MaxResources, false) {
+		rs.Closed("class", "key")
+		res := ticket.Resource{Class: rs.Field("class").Enum(ticket.ResourceClasses...), Key: rs.Field("key").Identifier()}
+		if res.Class == "PATH" && rs.Err() == nil {
+			if _, err := wire.ParsePath(rs.Field("key").Where(), res.Key); err != nil {
+				rs.Field("key").Fail(wire.CodeOf(err), "PATH resource key: %v", err)
+			}
+		}
+		e.Resources = append(e.Resources, res)
+	}
+	e.ExternalUnbounded = r.Field("externalUnbounded").Bool()
+	e.VerdictPaths = ticket.ReadVerdictPaths(r, e.TouchPaths)
+	return e
+}
+
+func readDueDate(r *wire.Reader) *string {
+	if r.Err() != nil || r.IsNull() {
+		return nil
+	}
+	s := r.String()
+	if r.Err() == nil {
+		if _, err := wire.ParseDate(r.Where(), s); err != nil {
+			r.Fail(wire.CodeMalformed, "%v", err)
+			return nil
+		}
+	}
+	return &s
+}
+
+func readTicketOrNull(r *wire.Reader) *wire.TicketID {
+	if r.Err() != nil || r.IsNull() {
+		return nil
+	}
+	id := r.TicketID()
+	if r.Err() != nil {
+		return nil
+	}
+	return &id
+}
+
+// Value renders the envelope as a canonical wire value. It is the inverse of
+// Decode for a decoded envelope and lets tests and the CLI build envelopes
+// from typed payloads.
+func (e *Envelope) Value() wire.Value {
+	o := wire.NewObject()
+	o.Set("profile", wire.String(Profile))
+	o.Set("requestId", wire.String(e.RequestID))
+	a := wire.NewObject()
+	a.Set("id", wire.String(e.Actor.ID))
+	a.Set("role", wire.String(e.Actor.Role))
+	o.Set("actor", wire.ObjectValue(a))
+	o.Set("queueId", wire.String(e.QueueID.Raw))
+	if e.TargetID == nil {
+		o.Set("targetId", wire.Null())
+	} else {
+		o.Set("targetId", wire.String(e.TargetID.Raw))
+	}
+	if e.ExpectedRevision == nil {
+		o.Set("expectedRevision", wire.Null())
+	} else {
+		o.Set("expectedRevision", wire.String(string(*e.ExpectedRevision)))
+	}
+	o.Set("operation", wire.String(e.Operation))
+	o.Set("payload", PayloadValue(e.Payload))
+	o.Set("issuedAt", wire.String(string(e.IssuedAt)))
+	return wire.ObjectValue(o)
+}
+
+// PayloadValue renders a payload as its closed wire object.
+func PayloadValue(p Payload) wire.Value {
+	o := wire.NewObject()
+	switch p := p.(type) {
+	case *CreatePayload:
+		if p.RequiredRoles != nil {
+			o.Set("requiredRoles", ticket.StageRolesValue(p.RequiredRoles))
+		}
+		if p.RequiresPool != "" {
+			o.Set("requiresPool", wire.String(p.RequiresPool))
+		}
+		if p.LocalToken != nil {
+			o.Set("localToken", wire.String(*p.LocalToken))
+		}
+		o.Set("title", wire.String(p.Title))
+		o.Set("body", wire.StringOrNull(p.Body))
+		o.Set("kind", wire.String(p.Kind))
+		o.Set("owner", wire.StringOrNull(p.Owner))
+		o.Set("milestone", wire.StringOrNull(p.Milestone))
+		o.Set("priority", wire.String(p.Priority))
+		o.Set("order", wire.String(string(p.Order)))
+		o.Set("labels", wire.Strings(p.Labels))
+		o.Set("dependencies", dependenciesValue(p.Dependencies))
+		o.Set("acceptanceCriteria", wire.Strings(p.AcceptanceCriteria))
+		o.Set("requirementRefs", wire.Strings(p.RequirementRefs))
+		o.Set("source", sourceValue(p.Source))
+		o.Set("effects", effectsValue(p.Effects))
+		o.Set("capabilities", wire.Strings(p.Capabilities))
+		o.Set("requiredGates", wire.Strings(p.RequiredGates))
+		o.Set("executionClass", wire.String(p.ExecutionClass))
+		o.Set("dueDate", wire.StringOrNull(p.DueDate))
+		o.Set("estimateMinutes", countOrNull(p.EstimateMinutes))
+		o.Set("supersedes", ticketOrNull(p.Supersedes))
+		o.Set("supersededBy", ticketOrNull(p.SupersededBy))
+	case *RefinePayload:
+		for _, k := range p.Keys() {
+			switch k {
+			case "executionPrerequisites":
+				if len(p.ExecutionPrerequisites) == 0 {
+					o.Set(k, wire.Null())
+				} else {
+					o.Set(k, ticket.PrerequisitesValue(p.ExecutionPrerequisites))
+				}
+			case "requiredRoles":
+				if p.RequiredRoles == nil {
+					o.Set(k, wire.Null())
+				} else {
+					o.Set(k, ticket.StageRolesValue(p.RequiredRoles))
+				}
+			case "requiresPool":
+				o.Set(k, wire.StringOrNull(p.RequiresPool))
+			case "title":
+				o.Set(k, wire.String(p.Title))
+			case "body":
+				o.Set(k, wire.StringOrNull(p.Body))
+			case "kind":
+				o.Set(k, wire.String(p.Kind))
+			case "owner":
+				o.Set(k, wire.StringOrNull(p.Owner))
+			case "milestone":
+				o.Set(k, wire.StringOrNull(p.Milestone))
+			case "labels":
+				o.Set(k, wire.Strings(p.Labels))
+			case "acceptanceCriteria":
+				o.Set(k, wire.Strings(p.AcceptanceCriteria))
+			case "requirementRefs":
+				o.Set(k, wire.Strings(p.RequirementRefs))
+			case "dueDate":
+				o.Set(k, wire.StringOrNull(p.DueDate))
+			case "estimateMinutes":
+				o.Set(k, countOrNull(p.EstimateMinutes))
+			case "supersedes":
+				o.Set(k, ticketOrNull(p.Supersedes))
+			}
+		}
+	case *PrioritizePayload:
+		o.Set("priority", wire.String(p.Priority))
+		o.Set("order", wire.String(string(p.Order)))
+	case *SetDependenciesPayload:
+		o.Set("dependencies", dependenciesValue(p.Dependencies))
+	case *SetGatesPayload:
+		o.Set("requiredGates", wire.Strings(p.RequiredGates))
+	case *SetEffectsPayload:
+		o.Set("effects", effectsValue(p.Effects))
+		o.Set("capabilities", wire.Strings(p.Capabilities))
+		o.Set("executionClass", wire.String(p.ExecutionClass))
+	case *HoldPayload:
+		o.Set("holdId", wire.String(p.HoldID))
+		o.Set("reason", wire.String(p.Reason))
+		if p.Condition != nil {
+			o.Set("condition", p.Condition.Value())
+		}
+	case *ReleaseHoldPayload:
+		o.Set("holdId", wire.String(p.HoldID))
+	case *ReasonPayload:
+		o.Set("reason", wire.String(p.Reason))
+	case *CompleteManualPayload:
+		o.Set("reason", wire.String(p.Reason))
+		ev := make([]string, len(p.Evidence))
+		for i, d := range p.Evidence {
+			ev[i] = string(d)
+		}
+		o.Set("evidence", wire.Strings(ev))
+	case *GrantApprovalPayload:
+		o.Set("grantId", wire.String(p.GrantID))
+		o.Set("actor", wire.String(p.Actor))
+		o.Set("operation", wire.String(p.Operation))
+		o.Set("targetRevision", wire.String(string(p.TargetRevision)))
+		o.Set("scope", wire.Strings(p.Scope))
+	case *RevokeApprovalPayload:
+		o.Set("grantId", wire.String(p.GrantID))
+		o.Set("reason", wire.String(p.Reason))
+	case *AttachEvidencePayload:
+		o.Set("evidence", ticket.DigestsValue(p.Evidence))
+		o.Set("reason", wire.String(p.Reason))
+	case *KnowHowAddPayload:
+		o.Set("text", wire.String(p.Text))
+		o.Set("anchors", ticket.KnowHowAnchorsValue(p.Anchors))
+		routes := p.Routes
+		if routes == nil {
+			routes = []string{}
+		}
+		o.Set("routes", wire.Strings(routes))
+		o.Set("commit", wire.String(p.Commit))
+		o.Set("supersedes", countOrNull(p.Supersedes))
+		o.Set("reason", wire.StringOrNull(p.Reason))
+		o.Set("attempt", wire.StringOrNull(p.Attempt))
+		if p.Generation == nil {
+			o.Set("generation", wire.Null())
+		} else {
+			o.Set("generation", wire.String(string(*p.Generation)))
+		}
+		o.Set("evidencePath", wire.StringOrNull(p.EvidencePath))
+		if p.Repository != "" {
+			o.Set("repository", wire.String(p.Repository))
+		}
+	case *KnowHowRetractPayload:
+		o.Set("note", wire.String(string(p.Note)))
+		o.Set("reason", wire.String(p.Reason))
+	case *KnowHowReconfirmPayload:
+		o.Set("note", wire.String(string(p.Note)))
+		o.Set("anchors", ticket.KnowHowAnchorsValue(p.Anchors))
+		o.Set("commit", wire.String(p.Commit))
+		o.Set("attempt", wire.StringOrNull(p.Attempt))
+		if p.Generation == nil {
+			o.Set("generation", wire.Null())
+		} else {
+			o.Set("generation", wire.String(string(*p.Generation)))
+		}
+	case *NotePayload:
+		if p.Op == OpNoteSet {
+			o.Set("text", wire.String(p.Text))
+		}
+		o.Set("supersedes", countOrNull(p.Supersedes))
+	case *ReviewPayload:
+		o.Set("request", p.Request)
+	case *ObligationsPayload:
+		return p.value()
+	}
+	return wire.ObjectValue(o)
+}
+
+func dependenciesValue(deps []ticket.Dependency) wire.Value {
+	out := make([]wire.Value, 0, len(deps))
+	for _, d := range deps {
+		do := wire.NewObject()
+		do.Set("ticketId", wire.String(d.TicketID.Raw))
+		do.Set("obligation", wire.String(d.Obligation))
+		do.Set("gateId", wire.StringOrNull(d.GateID))
+		out = append(out, wire.ObjectValue(do))
+	}
+	return wire.Array(out...)
+}
+
+func sourceValue(s ticket.Source) wire.Value {
+	so := wire.NewObject()
+	so.Set("kind", wire.String(s.Kind))
+	so.Set("sourceQueueId", wire.String(s.SourceQueueID))
+	so.Set("sourceItemId", wire.StringOrNull(s.SourceItemID))
+	if s.SourceRevisionSha256 == nil {
+		so.Set("sourceRevisionSha256", wire.Null())
+	} else {
+		so.Set("sourceRevisionSha256", wire.String(string(*s.SourceRevisionSha256)))
+	}
+	return wire.ObjectValue(so)
+}
+
+func effectsValue(e ticket.Effects) wire.Value {
+	eo := wire.NewObject()
+	eo.Set("coverage", wire.String(e.Coverage))
+	eo.Set("touchPaths", wire.Strings(e.TouchPaths))
+	res := make([]wire.Value, 0, len(e.Resources))
+	for _, r := range e.Resources {
+		ro := wire.NewObject()
+		ro.Set("class", wire.String(r.Class))
+		ro.Set("key", wire.String(r.Key))
+		res = append(res, wire.ObjectValue(ro))
+	}
+	eo.Set("resources", wire.Array(res...))
+	eo.Set("externalUnbounded", wire.Bool(e.ExternalUnbounded))
+	ticket.SetVerdictPaths(eo, e.VerdictPaths)
+	return wire.ObjectValue(eo)
+}
+
+func countOrNull(c *wire.Count) wire.Value {
+	if c == nil {
+		return wire.Null()
+	}
+	return wire.String(string(*c))
+}
+
+func ticketOrNull(t *wire.TicketID) wire.Value {
+	if t == nil {
+		return wire.Null()
+	}
+	return wire.String(t.Raw)
+}
+
+// Operator-note operations (ON-V0-003). Their envelope may carry a null
+// expectedRevision; their payload never carries actor, time or history.
+const (
+	OpNoteSet   = "NOTE_SET"
+	OpNoteClear = "NOTE_CLEAR"
+)
+
+// IsNoteOperation reports whether op is NOTE_SET or NOTE_CLEAR.
+func IsNoteOperation(op string) bool { return op == OpNoteSet || op == OpNoteClear }
+
+// NotePayload is {text,supersedes} for NOTE_SET and {supersedes} for
+// NOTE_CLEAR. Supersedes nil is the unconstrained write; "0" means never noted.
+type NotePayload struct {
+	Op         string
+	Text       string
+	Supersedes *wire.Count
+}
+
+func (p *NotePayload) operation() string { return p.Op }
+
+func readNote(op string, r *wire.Reader) *NotePayload {
+	r.Closed(PayloadKeys[op]...)
+	p := &NotePayload{Op: op}
+	if op == OpNoteSet {
+		p.Text = r.Field("text").Prose(1, ticket.MaxOperatorNoteTextBytes)
+		if r.Err() == nil && strings.TrimSpace(p.Text) == "" {
+			r.Fail(wire.CodeMalformed, "note text must contain non-whitespace prose")
+		}
+	}
+	p.Supersedes = r.Field("supersedes").CountOrNull()
+	return p
+}
+
+// DeclaresDerivedEvent names the operations that may carry Plan.DerivedEvent:
+// NOTE_SET and NOTE_CLEAR (ON-V0-006), REVIEW_RECORD and REVIEW_RESUBMIT,
+// whose event the receipt audit binds to its ticket post (ERG-V0-009), and
+// the OBLIGATIONS_* ledger writes (TOL-V0-002, TOL-V0-013). Before another
+// operation is added here, its redo and receipt audit must bind its event.
+func DeclaresDerivedEvent(op string) bool {
+	return IsNoteOperation(op) || IsReviewOperation(op) || ticket.IsObligationOperation(op)
+}

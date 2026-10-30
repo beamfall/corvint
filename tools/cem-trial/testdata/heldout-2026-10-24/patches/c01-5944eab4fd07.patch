@@ -1,0 +1,203 @@
+diff --git a/internal/graph/graph.go b/internal/graph/graph.go
+index 5c914e46f..fd1fde136 100644
+--- a/internal/graph/graph.go
++++ b/internal/graph/graph.go
+@@ -139,6 +139,13 @@ func (h *Handler) execute(ctx context.Context, scope auth.Scope, req request) re
+ 		}
+ 		data["sourceItems"] = items
+ 	}
++	if strings.Contains(query, "reportplayback") {
++		result, err := h.reportPlayback(ctx, scope, req)
++		if err != nil {
++			return response{Errors: []graphError{{Message: err.Error()}}}
++		}
++		data["reportPlayback"] = result
++	}
+ 	if strings.Contains(query, "scanlibrary") {
+ 		if scope.DeviceRole != store.DeviceRoleManager {
+ 			return response{Errors: []graphError{{Message: "manager role required"}}}
+@@ -181,8 +188,9 @@ func (h *Handler) sourceItems(ctx context.Context, scope auth.Scope, req request
+ 		return []SourceItem{}, nil
+ 	}
+ 	items, err := h.store.SourceItems(ctx, scope.LibraryFilter(), store.SourceQuery{
+-		Kind:  sourceKind(req),
+-		Limit: 50,
++		Kind:      sourceKind(req),
++		Limit:     50,
++		ProfileID: scope.ProfileID,
+ 	})
+ 	if err != nil {
+ 		return nil, err
+@@ -269,6 +277,63 @@ func (h *Handler) scanLibrary(ctx context.Context, scope auth.Scope, req request
+ 	return h.jobInfo(ctx, scope, created), nil
+ }
+ 
++// PlaybackReport echoes the stored engagement state after reportPlayback.
++type PlaybackReport struct {
++	MediaID         string `json:"mediaID"`
++	PositionSeconds int    `json:"positionSeconds"`
++	Watched         bool   `json:"watched"`
++}
++
++// reportPlayback records the session Profile's playback position for a Media
++// item it can currently see (the engagement write is reveal-gated the same
++// way the read is).
++func (h *Handler) reportPlayback(ctx context.Context, scope auth.Scope, req request) (PlaybackReport, error) {
++	mediaID, _ := req.Variables["mediaID"].(string)
++	mediaID = strings.TrimSpace(mediaID)
++	if mediaID == "" {
++		return PlaybackReport{}, errors.New("mediaID is required")
++	}
++	positionSeconds := intVariable(req, "positionSeconds")
++	durationSeconds := intVariable(req, "durationSeconds")
++	finished, _ := req.Variables["finished"].(bool)
++	media, err := h.store.Media(ctx, store.MediaID(mediaID), scope.LibraryFilter())
++	if err != nil {
++		return PlaybackReport{}, errors.New("unknown media")
++	}
++	if durationSeconds <= 0 {
++		durationSeconds = media.DurationSeconds
++	}
++	if err := h.store.UpsertPlaybackProgress(ctx, store.PlaybackProgress{
++		ProfileID:       scope.ProfileID,
++		MediaID:         media.ID,
++		PositionSeconds: positionSeconds,
++		DurationSeconds: durationSeconds,
++	}, finished); err != nil {
++		return PlaybackReport{}, err
++	}
++	progress, _, err := h.store.PlaybackProgressFor(ctx, scope.ProfileID, media.ID)
++	if err != nil {
++		return PlaybackReport{}, err
++	}
++	return PlaybackReport{
++		MediaID:         string(media.ID),
++		PositionSeconds: progress.PositionSeconds,
++		Watched:         progress.Watched,
++	}, nil
++}
++
++// intVariable reads a numeric GraphQL variable (JSON numbers decode as float64).
++func intVariable(req request, name string) int {
++	switch value := req.Variables[name].(type) {
++	case float64:
++		return int(value)
++	case int:
++		return value
++	default:
++		return 0
++	}
++}
++
+ // redactedJobError replaces operational text withheld from unrevealed sessions.
+ const redactedJobError = "error withheld — reveal required"
+ 
+@@ -351,6 +416,7 @@ func requiresScope(query string) bool {
+ 		strings.Contains(query, "sourceitems") ||
+ 		strings.Contains(query, "currentsession") ||
+ 		strings.Contains(query, "scanlibrary") ||
++		strings.Contains(query, "reportplayback") ||
+ 		containsJobQuery(query)
+ }
+ 
+diff --git a/internal/manifest/manifest.go b/internal/manifest/manifest.go
+index f4dd83b7a..778cf9285 100644
+--- a/internal/manifest/manifest.go
++++ b/internal/manifest/manifest.go
+@@ -116,6 +116,15 @@ func (s *Service) Document(ctx context.Context, scope auth.Scope) (Document, err
+ 			{
+ 				ID: "layout-home",
+ 				Sections: []Section{
++					{
++						ID:          "continue",
++						Kind:        "shelf",
++						Title:       "Continue Watching",
++						ArtworkSlot: "poster",
++						Source: SourceSpec{
++							Kind: "continue-watching",
++						},
++					},
+ 					{
+ 						ID:          "recent",
+ 						Kind:        "shelf",
+diff --git a/internal/playback/playback.go b/internal/playback/playback.go
+index cbfc35b4a..b2b55d005 100644
+--- a/internal/playback/playback.go
++++ b/internal/playback/playback.go
+@@ -48,6 +48,9 @@ type StreamChoice struct {
+ // Timeline describes the canonical playback timeline.
+ type Timeline struct {
+ 	DurationSeconds int `json:"durationSeconds"`
++	// PositionSeconds is the Profile's resume point; zero when unwatched,
++	// watched, or unknown.
++	PositionSeconds int `json:"positionSeconds,omitempty"`
+ }
+ 
+ // Service owns playbackInfo decisions.
+@@ -96,6 +99,10 @@ func (s *Service) Info(ctx context.Context, scope auth.Scope, req InfoRequest) (
+ 	if err != nil {
+ 		return InfoResponse{}, err
+ 	}
++	timeline := Timeline{DurationSeconds: media.DurationSeconds}
++	if progress, ok, err := s.store.PlaybackProgressFor(ctx, scope.ProfileID, media.ID); err == nil && ok && !progress.Watched {
++		timeline.PositionSeconds = progress.PositionSeconds
++	}
+ 	// The token must outlive the playback it authorizes: AVPlayer keeps making
+ 	// range requests against the same URL for the whole runtime (plus pauses and
+ 	// seeks). Revocation and relock are enforced live on every byte request via
+@@ -130,7 +137,7 @@ func (s *Service) Info(ctx context.Context, scope auth.Scope, req InfoRequest) (
+ 					ExpiresAt: expiresAt.Format(time.RFC3339),
+ 				},
+ 			},
+-			Timeline: Timeline{DurationSeconds: media.DurationSeconds},
++			Timeline: timeline,
+ 		}, nil
+ 	}
+ 
+@@ -155,7 +162,7 @@ func (s *Service) Info(ctx context.Context, scope auth.Scope, req InfoRequest) (
+ 				ExpiresAt: expiresAt.Format(time.RFC3339),
+ 			},
+ 		},
+-		Timeline: Timeline{DurationSeconds: media.DurationSeconds},
++		Timeline: timeline,
+ 	}, nil
+ }
+ 
+diff --git a/internal/store/store.go b/internal/store/store.go
+index f374a16ec..b859a4535 100644
+--- a/internal/store/store.go
++++ b/internal/store/store.go
+@@ -127,8 +127,9 @@ type ImportMediaFile struct {
+ 
+ // SourceQuery describes a bounded manifest Source request.
+ type SourceQuery struct {
+-	Kind  string
+-	Limit int
++	Kind      string
++	Limit     int
++	ProfileID ProfileID
+ }
+ 
+ // SourceItem is one generic item returned to hydrate a manifest Section.
+@@ -554,7 +555,7 @@ func (s *Store) ImportMediaFile(ctx context.Context, imported ImportMediaFile) (
+ 
+ // SourceItems returns visible Media rows for a bounded manifest Source.
+ func (s *Store) SourceItems(ctx context.Context, filter LibraryFilter, query SourceQuery) ([]SourceItem, error) {
+-	if query.Kind != "" && query.Kind != "recently-added" {
++	if query.Kind != "" && query.Kind != "recently-added" && query.Kind != "continue-watching" {
+ 		return []SourceItem{}, nil
+ 	}
+ 
+@@ -567,6 +568,12 @@ func (s *Store) SourceItems(ctx context.Context, filter LibraryFilter, query Sou
+ 	if limit <= 0 {
+ 		limit = 50
+ 	}
++	if query.Kind == "continue-watching" {
++		if query.ProfileID == "" {
++			return []SourceItem{}, nil
++		}
++		return s.continueWatchingSQL(ctx, query.ProfileID, filter, limit)
++	}
+ 	return s.sourceItemsSQL(ctx, filter, limit)
+ }
+ 

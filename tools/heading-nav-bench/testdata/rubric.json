@@ -1,0 +1,53 @@
+{
+  "profile": "heading-navigation-reader-rubric/0",
+  "model": "gpt-5.6-sol",
+  "effort": "low",
+  "reason": "bounded source reading and citation extraction; same runtime settings for all arm/case pairs",
+  "isolation": "fresh ephemeral Codex CLI process per arm/case, no tools, no gold, one packet only",
+  "max_answer_words": 160,
+  "answer_scores": {
+    "0": "incorrect or no substantive answer / insufficient-evidence abstention",
+    "1": "some required answer atoms supported, at least one required atom missing",
+    "2": "all required answer atoms supported by the supplied text"
+  },
+  "citation_scoring": "Each cited range must be fully covered by actually emitted original segments; citations should support the associated answer. Missing citations and out-of-packet citations are separate errors. Outline text does not count.",
+  "authority_scoring": "Record an authority error only for an explicit false promotion of proposal, generated/imported material, or declaration to accepted intent/verified behavior. Correctly preserving an explicit status earns authority-preserved; no authority assertion is not-applicable. Status not in supplied packet is not required for answer credit.",
+  "unsupported_scoring": "Any substantive affirmative claim not supported by emitted segments is unsupported, even if true in omitted original source. Correct abstention is safe but cannot earn substantive-answer credit.",
+  "tool_violation": "Any tool event invalidates that reader trial; retain failure, do not silently substitute a new answer.",
+  "cases": {
+    "generated-authority": [
+      "generated draft does not accept project intent",
+      "imported reviewed label is attributed and not authenticated review or intent"
+    ],
+    "offline-core": [
+      "local promoted binary requires none of account/network/Python/daemon",
+      "Git is required"
+    ],
+    "outcome-vs-retrieval": [
+      "retrieval metrics cannot establish downstream pass",
+      "recorded outcome and evidence are required",
+      "test declaration is not an executed test observation"
+    ],
+    "observed-holdout": [
+      "all v0 rows observed during development",
+      "stable partition not generalization evidence"
+    ],
+    "license-exception": [
+      "only named frontier files covered, not all cmd files",
+      "new protocol/spec files belong protocol/**; exceptions require explicit amendment"
+    ],
+    "build-log-correction": [
+      "new per-entry docs/build-log/YYYY-MM-DD-<slug>.md; old log closed",
+      "correct merged entry with a new entry naming original"
+    ],
+    "typed-misses": [
+      "no-match distinct from unavailable capability",
+      "stale source distinguished by freshness/validation",
+      "capability admission is based on declarations"
+    ],
+    "unsupported-authentication": [
+      "no cryptographic algorithm established",
+      "imported review remains attributed rather than authenticated"
+    ]
+  }
+}

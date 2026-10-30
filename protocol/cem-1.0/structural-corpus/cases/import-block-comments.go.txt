@@ -1,0 +1,18 @@
+package cases
+
+import (
+	// strings is first
+	"strings"
+	"fmt" // trailing
+	/* block */ "os"
+
+	"errors"
+	"bytes"
+)
+
+func use() error {
+	fmt.Println(strings.ToUpper("x"), os.Args, bytes.MinRead)
+	return errors.New("x")
+}
+
+func use2() error { return use() }

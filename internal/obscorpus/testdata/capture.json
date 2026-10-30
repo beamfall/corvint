@@ -1,0 +1,27 @@
+[
+  {
+    "name": "complete",
+    "raw": {"identity": "session-7:turn-3", "revision": "0123456789abcdef0123456789abcdef01234567", "inputTokens": 1200, "outputTokens": 350, "latencyMillis": 840},
+    "want": {"status": "OBSERVED", "identity": {"status": "OBSERVED", "value": "session-7:turn-3"}, "revision": {"status": "OBSERVED", "value": "0123456789abcdef0123456789abcdef01234567"}, "inputTokens": {"status": "OBSERVED", "value": 1200}, "outputTokens": {"status": "OBSERVED", "value": 350}, "latencyMillis": {"status": "OBSERVED", "value": 840}}
+  },
+  {
+    "name": "observed-zero-stays-zero",
+    "raw": {"identity": "turn-4", "revision": "0123456789abcdef0123456789abcdef01234567", "inputTokens": 0, "outputTokens": 0, "latencyMillis": 0},
+    "want": {"status": "OBSERVED", "identity": {"status": "OBSERVED", "value": "turn-4"}, "revision": {"status": "OBSERVED", "value": "0123456789abcdef0123456789abcdef01234567"}, "inputTokens": {"status": "OBSERVED", "value": 0}, "outputTokens": {"status": "OBSERVED", "value": 0}, "latencyMillis": {"status": "OBSERVED", "value": 0}}
+  },
+  {
+    "name": "missing-telemetry-is-not-observed",
+    "raw": {"identity": "turn-5", "revision": "", "inputTokens": null, "outputTokens": null, "latencyMillis": null},
+    "want": {"status": "OBSERVED", "identity": {"status": "OBSERVED", "value": "turn-5"}, "revision": {"status": "NOT_OBSERVED", "reason": "not-reported"}, "inputTokens": {"status": "NOT_OBSERVED", "reason": "not-reported"}, "outputTokens": {"status": "NOT_OBSERVED", "reason": "not-reported"}, "latencyMillis": {"status": "NOT_OBSERVED", "reason": "not-reported"}}
+  },
+  {
+    "name": "mutable-revision-and-out-of-bounds-counts",
+    "raw": {"identity": "turn-6", "revision": "HEAD", "inputTokens": -1, "outputTokens": 10000001, "latencyMillis": 3600001},
+    "want": {"status": "OBSERVED", "identity": {"status": "OBSERVED", "value": "turn-6"}, "revision": {"status": "NOT_OBSERVED", "reason": "revision-not-immutable"}, "inputTokens": {"status": "NOT_OBSERVED", "reason": "out-of-bounds"}, "outputTokens": {"status": "NOT_OBSERVED", "reason": "out-of-bounds"}, "latencyMillis": {"status": "NOT_OBSERVED", "reason": "out-of-bounds"}}
+  },
+  {
+    "name": "missing-identity-binds-nothing",
+    "raw": {"identity": "", "revision": "0123456789abcdef0123456789abcdef01234567", "inputTokens": 10, "outputTokens": 10, "latencyMillis": 10},
+    "want": {"status": "NOT_OBSERVED", "reason": "identity-not-observed", "identity": {"status": "NOT_OBSERVED", "reason": "identity-not-observed"}, "revision": {"status": "NOT_OBSERVED", "reason": "identity-not-observed"}, "inputTokens": {"status": "NOT_OBSERVED", "reason": "identity-not-observed"}, "outputTokens": {"status": "NOT_OBSERVED", "reason": "identity-not-observed"}, "latencyMillis": {"status": "NOT_OBSERVED", "reason": "identity-not-observed"}}
+  }
+]

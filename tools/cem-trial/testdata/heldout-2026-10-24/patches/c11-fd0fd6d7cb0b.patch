@@ -1,0 +1,446 @@
+diff --git a/internal/playback/playback.go b/internal/playback/playback.go
+index f1b94a472..10a982c5e 100644
+--- a/internal/playback/playback.go
++++ b/internal/playback/playback.go
+@@ -95,6 +95,11 @@ type InfoResponse struct {
+ 	StreamTokenRequired bool           `json:"streamTokenRequired"`
+ 	Streams             []StreamChoice `json:"streams"`
+ 	Timeline            Timeline       `json:"timeline"`
++	// Parts is the negotiated Version's ordered Parts (ADR-0009 §2), which play
++	// back-to-back as one timeline. A single-file item carries one Part; clients
++	// that ignore it play the first (primary) Part as today. Omitted when the
++	// item is unavailable.
++	Parts []PartInfo `json:"parts,omitempty"`
+ 	// Next is the ahead-of-time decision for the declared next queue item.
+ 	// Omitted whenever the next item cannot be served — an item the scope
+ 	// cannot see is indistinguishable from an unknown ID (Reveal contract).
+@@ -142,7 +147,9 @@ type NextInfo struct {
+ 	Decision   string         `json:"decision"`
+ 	Streams    []StreamChoice `json:"streams"`
+ 	Timeline   Timeline       `json:"timeline"`
+-	Assets     *AssetsInfo    `json:"assets,omitempty"`
++	// Parts mirrors InfoResponse.Parts for the declared next item (ADR-0009 §2).
++	Parts  []PartInfo  `json:"parts,omitempty"`
++	Assets *AssetsInfo `json:"assets,omitempty"`
+ }
+ 
+ // StreamChoice is one playable stream option.
+@@ -222,6 +229,19 @@ type decision struct {
+ 	streams  []StreamChoice
+ 	timeline Timeline
+ 	assets   *AssetsInfo
++	// parts is the chosen Version's ordered Parts (ADR-0009 §2). A single-file
++	// Version yields one Part; multi-Part Versions present back-to-back as one
++	// timeline. Empty for unavailable items.
++	parts []PartInfo
++}
++
++// PartInfo is one ordered Part of the negotiated Version. Parts play
++// sequentially as a single timeline (ADR-0009 §2). ContentFingerprint is the
++// file-plane identity of the Part's bytes; Ordinal is its 0-based timeline
++// position.
++type PartInfo struct {
++	Ordinal            int    `json:"ordinal"`
++	ContentFingerprint string `json:"contentFingerprint"`
+ }
+ 
+ // Info validates the request and returns the current playback decision.
+@@ -247,6 +267,7 @@ func (s *Service) Info(ctx context.Context, scope auth.Scope, req InfoRequest) (
+ 		StreamTokenRequired: true,
+ 		Streams:             main.streams,
+ 		Timeline:            main.timeline,
++		Parts:               main.parts,
+ 		TrackPreferences:    trackPreferences(policy),
+ 		Assets:              main.assets,
+ 	}
+@@ -266,6 +287,7 @@ func (s *Service) Info(ctx context.Context, scope auth.Scope, req InfoRequest) (
+ 				Decision:   next.verdict,
+ 				Streams:    next.streams,
+ 				Timeline:   next.timeline,
++				Parts:      next.parts,
+ 				Assets:     next.assets,
+ 			}
+ 		}
+@@ -287,10 +309,19 @@ func (s *Service) decide(ctx context.Context, scope auth.Scope, mediaID, suffix
+ 	if progress, ok, err := s.store.PlaybackProgressFor(ctx, scope.ProfileID, media.ID); err == nil && ok && !progress.Watched {
+ 		timeline.PositionSeconds = progress.PositionSeconds
+ 	}
+-	file, err := s.store.PrimaryMediaFile(ctx, media.ID, scope.LibraryFilter())
++	// 1:N files (ADR-0009 §2): fetch every available file, group into Versions
++	// (alternate encodes) and Parts (timeline segments), then negotiate the best
++	// Version for this client BEFORE choosing a stream. A single-file Media
++	// yields one Version with one Part, so the negotiation is a no-op there and
++	// existing behaviour is unchanged.
++	files, err := s.store.MediaFilesForMedia(ctx, media.ID, scope.LibraryFilter())
+ 	if err != nil {
+ 		return decision{media: media, verdict: "unavailable", reason: "media-file-unavailable", streams: []StreamChoice{}, timeline: timeline}, nil
+ 	}
++	file, streams, parts, err := s.negotiateVersion(ctx, media, files, profile)
++	if err != nil {
++		return decision{}, err
++	}
+ 	restricted, err := s.store.LibraryRestricted(ctx, media.LibraryID)
+ 	if err != nil {
+ 		return decision{}, err
+@@ -323,15 +354,6 @@ func (s *Service) decide(ctx context.Context, scope auth.Scope, mediaID, suffix
+ 	// would refuse to start (ADR-0010: never promise what cannot be served).
+ 	transcodeRefusal := s.transcodeRefusal(ctx, scope, media.ID, policy)
+ 
+-	// The richer profile (ADR-0010 §1) reasons over the persisted per-stream
+-	// inventory (PLAY-1): codec profile, HDR format, and audio channels live on
+-	// the streams, not on the Media row. A probe-less file yields no streams and
+-	// falls back to the container+codec floor.
+-	streams, err := s.store.MediaFileStreams(ctx, file.ContentFingerprint)
+-	if err != nil {
+-		return decision{}, err
+-	}
+-
+ 	if canDirectPlay(media, streams, profile) {
+ 		grant.Target = streamtoken.TargetMediaDirect
+ 		token, err := s.tokens.Issue(grant)
+@@ -362,12 +384,13 @@ func (s *Service) decide(ctx context.Context, scope auth.Scope, mediaID, suffix
+ 			verdict:  "direct-play",
+ 			streams:  streams,
+ 			timeline: timeline,
++			parts:    parts,
+ 			assets:   assets,
+ 		}, nil
+ 	}
+ 
+ 	if transcodeRefusal != "" {
+-		return decision{media: media, verdict: "unavailable", reason: transcodeRefusal, streams: []StreamChoice{}, timeline: timeline, assets: assets}, nil
++		return decision{media: media, verdict: "unavailable", reason: transcodeRefusal, streams: []StreamChoice{}, timeline: timeline, parts: parts, assets: assets}, nil
+ 	}
+ 
+ 	// Audio-only transcode (ADR-0010 §5, "the single biggest transcode-cost
+@@ -387,6 +410,7 @@ func (s *Service) decide(ctx context.Context, scope auth.Scope, mediaID, suffix
+ 			reason:   "audio-transcode-only",
+ 			streams:  []StreamChoice{hls},
+ 			timeline: timeline,
++			parts:    parts,
+ 			assets:   assets,
+ 		}, nil
+ 	}
+@@ -403,10 +427,77 @@ func (s *Service) decide(ctx context.Context, scope auth.Scope, mediaID, suffix
+ 		reason:   "requires-transcode",
+ 		streams:  []StreamChoice{hls},
+ 		timeline: timeline,
++		parts:    parts,
+ 		assets:   assets,
+ 	}, nil
+ }
+ 
++// negotiateVersion picks the best Version for the client among a Media's
++// available files (ADR-0009 §2), returning the chosen Version's primary file
++// (its first Part), that file's stream inventory, and the Version's ordered
++// Parts. files is ordered by (VersionLabel, PartOrdinal), so consecutive files
++// with the same label are one Version's Parts in timeline order.
++//
++// Selection: prefer the first Version (in label order) whose primary Part
++// direct-plays for this capability profile — direct-play beats transcode, and
++// negotiating it BEFORE transcode is the whole point (a 1080p SDR Version
++// direct-plays where the 4K HDR sibling would force a tone-map transcode). If
++// no Version direct-plays, fall back to the first Version, which is the default
++// ("" label) when present — identical to the pre-1:N primary-file choice.
++//
++// A single-file Media has one Version with one Part, so this returns that file
++// unchanged: existing behaviour is preserved.
++func (s *Service) negotiateVersion(ctx context.Context, media store.Media, files []store.MediaFile, profile CapabilityProfile) (store.MediaFile, []store.MediaFileStream, []PartInfo, error) {
++	versions := groupVersions(files)
++	// Default to the first Version (label order: "" sorts first), with its
++	// primary Part's streams — the honest transcode fallback.
++	chosen := versions[0]
++	chosenStreams, err := s.store.MediaFileStreams(ctx, chosen[0].ContentFingerprint)
++	if err != nil {
++		return store.MediaFile{}, nil, nil, err
++	}
++	if !canDirectPlay(media, chosenStreams, profile) {
++		// Look for a Version whose primary Part the client can play as-is.
++		for _, version := range versions {
++			streams, err := s.store.MediaFileStreams(ctx, version[0].ContentFingerprint)
++			if err != nil {
++				return store.MediaFile{}, nil, nil, err
++			}
++			if canDirectPlay(media, streams, profile) {
++				chosen, chosenStreams = version, streams
++				break
++			}
++		}
++	}
++	// A single-Part Version is the pre-1:N shape (one file): emit no Parts array,
++	// so its playbackInfo stays byte-identical to before — clients ignore the
++	// absent field and play the primary stream as today (no wire-contract churn,
++	// no regression). Only a genuinely multi-Part Version surfaces the timeline.
++	if len(chosen) < 2 {
++		return chosen[0], chosenStreams, nil, nil
++	}
++	parts := make([]PartInfo, len(chosen))
++	for i, part := range chosen {
++		parts[i] = PartInfo{Ordinal: part.PartOrdinal, ContentFingerprint: part.ContentFingerprint}
++	}
++	return chosen[0], chosenStreams, parts, nil
++}
++
++// groupVersions splits a (VersionLabel, PartOrdinal)-ordered file list into
++// Versions, each a slice of its Parts in timeline order. Consecutive files
++// sharing a VersionLabel are one Version.
++func groupVersions(files []store.MediaFile) [][]store.MediaFile {
++	var versions [][]store.MediaFile
++	for i, file := range files {
++		if i > 0 && file.VersionLabel == files[i-1].VersionLabel {
++			versions[len(versions)-1] = append(versions[len(versions)-1], file)
++			continue
++		}
++		versions = append(versions, []store.MediaFile{file})
++	}
++	return versions
++}
++
+ // transcodeRefusal returns the honest reason no transcode can start for this
+ // (Profile, Media) right now, or "" when one could: the Profile's transcode
+ // gate and stream cap, then server admission control (ADR-0010 §6 — checked
+diff --git a/internal/store/sqlite.go b/internal/store/sqlite.go
+index caf74ecda..f45f84098 100644
+--- a/internal/store/sqlite.go
++++ b/internal/store/sqlite.go
+@@ -844,9 +844,9 @@ func insertSeedCatalog(ctx context.Context, tx *sql.Tx, seed seedData) error {
+ 	}
+ 	for _, file := range seed.mediaFiles {
+ 		if _, err := tx.ExecContext(ctx,
+-			`INSERT INTO media_file(content_fingerprint, media_id, path, last_seen_at_ms)
+-			 VALUES (?, ?, ?, ?)`,
+-			file.ContentFingerprint, file.MediaID, file.Path, timeToMillis(time.Date(2026, 6, 12, 12, 0, 0, 0, time.UTC)),
++			`INSERT INTO media_file(id, content_fingerprint, media_id, path, last_seen_at_ms)
++			 VALUES (?, ?, ?, ?, ?)`,
++			file.ContentFingerprint, file.ContentFingerprint, file.MediaID, file.Path, timeToMillis(time.Date(2026, 6, 12, 12, 0, 0, 0, time.UTC)),
+ 		); err != nil {
+ 			return err
+ 		}
+@@ -1340,11 +1340,17 @@ func (s *Store) visibleMediaBatchSQL(ctx context.Context, ids []MediaID, filter
+ func (s *Store) primaryMediaFileSQL(ctx context.Context, id MediaID) (MediaFile, error) {
+ 	var file MediaFile
+ 	var lastSeen int64
++	// A Media may now have many files (Versions x Parts, ADR-0009 §2); the
++	// primary is the first in (version_label, part_ordinal) order — the default
++	// Version's first Part — so the choice is deterministic, not whichever row
++	// SQLite returns first.
+ 	err := s.catalogR.QueryRowContext(ctx, `
+-		SELECT media_id, path, content_fingerprint, oshash, phash, last_seen_at_ms
++		SELECT media_id, path, content_fingerprint, version_label, part_ordinal, oshash, phash, last_seen_at_ms
+ 		FROM media_file
+ 		WHERE media_id = ? AND missing_at_ms IS NULL
+-	`, id).Scan(&file.MediaID, &file.Path, &file.ContentFingerprint, &file.OSHash, &file.PHash, &lastSeen)
++		ORDER BY version_label, part_ordinal
++		LIMIT 1
++	`, id).Scan(&file.MediaID, &file.Path, &file.ContentFingerprint, &file.VersionLabel, &file.PartOrdinal, &file.OSHash, &file.PHash, &lastSeen)
+ 	if errors.Is(err, sql.ErrNoRows) {
+ 		return MediaFile{}, errors.New("media file not found")
+ 	}
+@@ -1355,6 +1361,38 @@ func (s *Store) primaryMediaFileSQL(ctx context.Context, id MediaID) (MediaFile,
+ 	return file, nil
+ }
+ 
++// mediaFilesForMediaSQL reads every available file for a Media, ordered into
++// Versions (by label) and Parts (by ordinal) — see MediaFilesForMedia.
++func (s *Store) mediaFilesForMediaSQL(ctx context.Context, id MediaID) ([]MediaFile, error) {
++	rows, err := s.catalogR.QueryContext(ctx, `
++		SELECT media_id, path, content_fingerprint, version_label, part_ordinal, oshash, phash, last_seen_at_ms
++		FROM media_file
++		WHERE media_id = ? AND missing_at_ms IS NULL
++		ORDER BY version_label, part_ordinal
++	`, id)
++	if err != nil {
++		return nil, err
++	}
++	defer rows.Close()
++	var files []MediaFile
++	for rows.Next() {
++		var file MediaFile
++		var lastSeen int64
++		if err := rows.Scan(&file.MediaID, &file.Path, &file.ContentFingerprint, &file.VersionLabel, &file.PartOrdinal, &file.OSHash, &file.PHash, &lastSeen); err != nil {
++			return nil, err
++		}
++		file.LastSeenAt = millisToTime(lastSeen)
++		files = append(files, file)
++	}
++	if err := rows.Err(); err != nil {
++		return nil, err
++	}
++	if len(files) == 0 {
++		return nil, errors.New("media file not found")
++	}
++	return files, nil
++}
++
+ // mediaFingerprintsSQL joins the Media row's probed duration with its primary
+ // file's fingerprint hashes. The LEFT JOIN keeps a Media item whose file went
+ // missing resolvable — the duration may still drive a {duration} lookup.
+@@ -1869,8 +1907,8 @@ func upsertMediaFileTx(ctx context.Context, tx *sql.Tx, file MediaFile, now time
+ 		return err
+ 	}
+ 	if _, err := tx.ExecContext(ctx, `
+-		INSERT INTO media_file(content_fingerprint, media_id, path, oshash, phash, size_bytes, mtime_ms, missing_at_ms, last_seen_at_ms)
+-		VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?)
++		INSERT INTO media_file(id, content_fingerprint, media_id, path, oshash, phash, size_bytes, mtime_ms, missing_at_ms, last_seen_at_ms)
++		VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
+ 		ON CONFLICT(content_fingerprint) DO UPDATE SET
+ 		  media_id = excluded.media_id,
+ 		  path = excluded.path,
+@@ -1884,7 +1922,7 @@ func upsertMediaFileTx(ctx context.Context, tx *sql.Tx, file MediaFile, now time
+ 		  mtime_ms = CASE WHEN excluded.mtime_ms = 0 THEN media_file.mtime_ms ELSE excluded.mtime_ms END,
+ 		  missing_at_ms = NULL,
+ 		  last_seen_at_ms = excluded.last_seen_at_ms
+-	`, file.ContentFingerprint, file.MediaID, file.Path, file.OSHash, file.PHash, file.SizeBytes, timeToMillis(file.ModTime), timeToMillis(now)); err != nil {
++	`, file.ContentFingerprint, file.ContentFingerprint, file.MediaID, file.Path, file.OSHash, file.PHash, file.SizeBytes, timeToMillis(file.ModTime), timeToMillis(now)); err != nil {
+ 		return err
+ 	}
+ 	return nil
+@@ -2080,6 +2118,54 @@ func (s *Store) importMediaFileSQL(ctx context.Context, imported ImportMediaFile
+ 	return media, file, created, nil
+ }
+ 
++// addMediaFileVersionSQL inserts an additional file for an existing Media at a
++// Version/Part slot (ADR-0009 §2). Unlike upsertMediaFileTx (the import path,
++// which only ever writes the default slot), this honours file.VersionLabel and
++// file.PartOrdinal, so a Media can hold many files. ON CONFLICT(content_
++// fingerprint) refreshes a re-scan of the same bytes in place — the same
++// content-identity keying as the import upsert. Optional per-stream inventory
++// is full-replaced for the fingerprint like the import path.
++func (s *Store) addMediaFileVersionSQL(ctx context.Context, file MediaFile, streams []MediaFileStream) error {
++	tx, err := s.catalogW.BeginTx(ctx, nil)
++	if err != nil {
++		return err
++	}
++	defer tx.Rollback()
++
++	var one int
++	err = tx.QueryRowContext(ctx, "SELECT 1 FROM media WHERE id = ?", file.MediaID).Scan(&one)
++	if errors.Is(err, sql.ErrNoRows) {
++		return errors.New("media not found")
++	}
++	if err != nil {
++		return err
++	}
++	if _, err := tx.ExecContext(ctx, `
++		INSERT INTO media_file(id, content_fingerprint, media_id, path, version_label, part_ordinal, oshash, phash, size_bytes, mtime_ms, missing_at_ms, last_seen_at_ms)
++		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)
++		ON CONFLICT(content_fingerprint) DO UPDATE SET
++		  media_id = excluded.media_id,
++		  path = excluded.path,
++		  version_label = excluded.version_label,
++		  part_ordinal = excluded.part_ordinal,
++		  oshash = CASE WHEN excluded.oshash = '' THEN media_file.oshash ELSE excluded.oshash END,
++		  phash = CASE WHEN excluded.phash = '' THEN media_file.phash ELSE excluded.phash END,
++		  size_bytes = CASE WHEN excluded.size_bytes = 0 THEN media_file.size_bytes ELSE excluded.size_bytes END,
++		  mtime_ms = CASE WHEN excluded.mtime_ms = 0 THEN media_file.mtime_ms ELSE excluded.mtime_ms END,
++		  missing_at_ms = NULL,
++		  last_seen_at_ms = excluded.last_seen_at_ms
++	`, file.ContentFingerprint, file.ContentFingerprint, file.MediaID, file.Path, file.VersionLabel, file.PartOrdinal,
++		file.OSHash, file.PHash, file.SizeBytes, timeToMillis(file.ModTime), timeToMillis(file.LastSeenAt)); err != nil {
++		return err
++	}
++	if streams != nil {
++		if err := replaceMediaFileInventoryTx(ctx, tx, file.ContentFingerprint, streams, nil); err != nil {
++			return err
++		}
++	}
++	return tx.Commit()
++}
++
+ // updateMediaMetadataSQL applies the non-nil MediaMetadata fields. The title
+ // FTS index stays current through the 0006 UPDATE OF title trigger; summary
+ // and year are deliberately outside FTS (0011).
+diff --git a/internal/store/store.go b/internal/store/store.go
+index 6e694bb41..429ca4aad 100644
+--- a/internal/store/store.go
++++ b/internal/store/store.go
+@@ -305,6 +305,14 @@ type MediaFile struct {
+ 	MediaID            MediaID
+ 	Path               string
+ 	ContentFingerprint string
++	// VersionLabel names the Version (alternate encode) this file belongs to
++	// (ADR-0009 §2). "" is the default Version — every single-file Media's lone
++	// file. Files that share a (MediaID, VersionLabel) form one Version;
++	// playback negotiates the best Version for the client before transcode.
++	VersionLabel string
++	// PartOrdinal orders the Parts of one Version into a single timeline
++	// (0, 1, 2, …). 0 is the sole Part of a single-file Version.
++	PartOrdinal int
+ 	// OSHash is the OpenSubtitles-style 64-bit content hash as a lowercase
+ 	// 16-hex string; "" until a scan computes it (ADR-0027 D2 §7).
+ 	OSHash string
+@@ -1301,7 +1309,11 @@ func (s *Store) MediaFileFingerprintByPath(ctx context.Context, path string) (St
+ 	return fp, nil
+ }
+ 
+-// PrimaryMediaFile returns the file backing a visible Media item.
++// PrimaryMediaFile returns the file backing a visible Media item. With 1:N
++// files (ADR-0009 §2 Versions/Parts) this is the first available file in
++// (VersionLabel, PartOrdinal) order — the default Version's first Part. It is
++// the backstop for callers that don't negotiate a Version (fingerprint lookups,
++// asset routing); playback uses MediaFilesForMedia to pick the best Version.
+ func (s *Store) PrimaryMediaFile(ctx context.Context, id MediaID, filter LibraryFilter) (MediaFile, error) {
+ 	s.mu.RLock()
+ 	defer s.mu.RUnlock()
+@@ -1314,6 +1326,24 @@ func (s *Store) PrimaryMediaFile(ctx context.Context, id MediaID, filter Library
+ 	return s.primaryMediaFileSQL(ctx, id)
+ }
+ 
++// MediaFilesForMedia returns every available file backing a visible Media item,
++// ordered by (VersionLabel, PartOrdinal) — so files group into Versions and the
++// Parts of each Version are in timeline order (ADR-0009 §2). A single-file
++// Media returns one file (default Version "", PartOrdinal 0), identical to
++// PrimaryMediaFile. Playback negotiates the best Version for the client over
++// this set before deciding direct-play vs transcode.
++func (s *Store) MediaFilesForMedia(ctx context.Context, id MediaID, filter LibraryFilter) ([]MediaFile, error) {
++	s.mu.RLock()
++	defer s.mu.RUnlock()
++	if err := s.guardLocked(); err != nil {
++		return nil, err
++	}
++	if _, err := s.visibleMediaSQL(ctx, id, filter); err != nil {
++		return nil, err
++	}
++	return s.mediaFilesForMediaSQL(ctx, id)
++}
++
+ // MediaFingerprints returns the content-identity values for one Media item's
+ // primary file (scraper variable substitution, ADR-0027 D2 §7). This is a
+ // server-internal read like MediaLibrary — visibility gating belongs to the
+@@ -1393,6 +1423,36 @@ func (s *Store) ImportMediaFile(ctx context.Context, imported ImportMediaFile) (
+ 	return media, file, nil
+ }
+ 
++// AddMediaFileVersion attaches an additional file to an existing Media as a
++// Version and/or Part (ADR-0009 §2): file.VersionLabel names the alternate
++// encode (a non-"" label is a distinct Version to negotiate), file.PartOrdinal
++// orders it within that Version's timeline. The default (VersionLabel "",
++// PartOrdinal 0) slot belongs to ImportMediaFile's primary file; this is the
++// write path for the second-and-later files of a 1:N Media. streams is the
++// optional per-stream inventory for the file's bytes (nil leaves none).
++// Server-internal like ImportMediaFile: the caller resolves visibility.
++func (s *Store) AddMediaFileVersion(ctx context.Context, mediaID MediaID, file MediaFile, streams []MediaFileStream) error {
++	if mediaID == "" {
++		return errors.New("media ID is required")
++	}
++	if file.Path == "" {
++		return errors.New("media file path is required")
++	}
++	if file.ContentFingerprint == "" {
++		return errors.New("content fingerprint is required")
++	}
++	s.mu.RLock()
++	defer s.mu.RUnlock()
++	if err := s.guardLocked(); err != nil {
++		return err
++	}
++	file.MediaID = mediaID
++	if file.LastSeenAt.IsZero() {
++		file.LastSeenAt = time.Now().UTC()
++	}
++	return s.addMediaFileVersionSQL(ctx, file, streams)
++}
++
+ // UpdateMediaMetadata applies a partial descriptive-metadata write to one
+ // Media row. Server-internal (like ImportMediaFile): visibility gating
+ // belongs to the calling surface, which must have already resolved the Media

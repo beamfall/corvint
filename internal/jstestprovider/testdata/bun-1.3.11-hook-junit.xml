@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="bun test" tests="1" assertions="0" failures="1" skipped="0" time="0.011179">
+  <testsuite name="test/hook.test.ts" file="test/hook.test.ts" tests="1" assertions="0" failures="1" skipped="0" time="0">
+    <testsuite name="db" file="test/hook.test.ts" line="3" tests="1" assertions="0" failures="1" skipped="0" time="0">
+      <testcase name="(unnamed)" classname="db" time="0.000111" file="test/hook.test.ts" assertions="0">
+        <failure type="AssertionError" />
+      </testcase>
+    </testsuite>
+  </testsuite>
+</testsuites>

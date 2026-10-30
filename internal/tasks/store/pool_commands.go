@@ -1,0 +1,501 @@
+package store
+
+import (
+	"context"
+	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/journal"
+	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
+	"github.com/Beamfall/corvint/internal/tasks/transaction"
+	"github.com/Beamfall/corvint/internal/tasks/wire"
+	"os"
+	"slices"
+	"strings"
+	"time"
+)
+
+func poolSnapshot(ctx context.Context, repo *intent.Repository) (*intent.Policy, *snapshot.PoolState, error) {
+	proof, e := readLeaseProof(ctx, repo)
+	if e != nil {
+		return nil, nil, e
+	}
+	p, e := intent.DecodePolicy(proof.Records["intent/policy.json"].Raw)
+	if e != nil {
+		return nil, nil, e
+	}
+	q, e := intent.DecodeQueue(proof.Records["intent/queue.json"].Raw)
+	if e != nil {
+		return nil, nil, e
+	}
+	state := &snapshot.PoolState{QueueID: q.QueueID}
+	if raw := proof.Records["pools.json"].Raw; len(raw) > 0 {
+		state, e = snapshot.DecodePools(raw)
+	}
+	return p, state, e
+}
+func poolSource(root string) (string, string, error) {
+	return poolSourceWith(gitOutput, root)
+}
+
+func poolSourceWith(git gitRunner, root string) (string, string, error) {
+	rev, e := resolveObjectWith(git, root, "HEAD", "commit")
+	if e != nil {
+		return "", "", e
+	}
+	tree, e := resolveObjectWith(git, root, rev, "tree")
+	if e != nil {
+		return "", "", e
+	}
+	status, e := git(root, "status", "--porcelain", "--untracked-files=all", "--", ".", ":(exclude).taskman")
+	if e != nil {
+		return "", "", e
+	}
+	if len(status) != 0 {
+		return "", "", wire.Errorf(wire.CodeDirtyWorktree, "pool command", "repository command inputs must be clean outside .taskman")
+	}
+	return rev, tree, nil
+}
+func poolConfig(root string, ref *intent.ConfigRef) error {
+	return poolConfigWith(gitOutput, root, ref)
+}
+
+func poolConfigWith(git gitRunner, root string, ref *intent.ConfigRef) error {
+	if ref == nil {
+		return nil
+	}
+	raw, e := git(root, "ls-tree", "-z", ref.Revision, "--", ref.Path)
+	if e != nil {
+		return e
+	}
+	parts := strings.SplitN(strings.TrimSuffix(string(raw), "\x00"), "\t", 2)
+	if len(parts) != 2 || parts[1] != ref.Path {
+		return wire.Errorf(wire.CodeMissingEvidence, "configRef", "exact immutable file absent")
+	}
+	fields := strings.Fields(parts[0])
+	if len(fields) != 3 || (fields[0] != "100644" && fields[0] != "100755") || fields[1] != "blob" || fields[2] != ref.Blob {
+		return wire.Errorf(wire.CodeMissingEvidence, "configRef", "regular immutable blob differs")
+	}
+	return nil
+}
+func poolFacts(ctx context.Context, repo *intent.Repository, choice LeaseChoice) claimObserver {
+	return poolFactsWith(ctx, repo, choice, &identityProbe{}, false)
+}
+
+// poolFactsWith is poolFacts over a shared identity probe. A locked observer
+// is the one the writer route calls under the writer lock: it never runs the
+// identity command (PSR-V0-168).
+func poolFactsWith(ctx context.Context, repo *intent.Repository, choice LeaseChoice, probe *identityProbe, locked bool) claimObserver {
+	return func(proof *journal.Result, in *transaction.Input) (transaction.LeaseFacts, error) {
+		f := transaction.LeaseFacts{Pool: choice.pool}
+		l := choice.Lease
+		if l.Verb == transaction.LeasePoolReport {
+			f.Pool.Detail = choice.PoolDetail
+		}
+		if l.Verb == transaction.LeasePoolSafe && choice.pool.Identity == nil {
+			// PSR-V0-083: the guarded member's identity, observed against
+			// the state this transaction decides on.
+			observe := func() ([]byte, error) { return probe.facts(ctx, repo, choice, in.Policy, in.Pools) }
+			if locked {
+				observe = func() ([]byte, error) { return probe.locked(choice, in.Policy, in.Pools) }
+			}
+			raw, e := observe()
+			if e != nil {
+				return f, e
+			}
+			f.Pool.Identity = raw
+		}
+		if l.Verb == transaction.LeasePoolPrepare || l.Verb == transaction.LeasePoolCleanup || l.Verb == transaction.LeasePoolOperate {
+			rev, _, e := poolSource(leaseRoot(repo, choice))
+			if e != nil {
+				return f, e
+			}
+			// PSR-V0-012: a pinned cwd that does not match refuses before
+			// any preparation or cleanup ownership is recorded.
+			p, e := intent.DecodePolicy(in.Policy)
+			if e != nil {
+				return f, e
+			}
+			kind := "health"
+			if l.Verb == transaction.LeasePoolCleanup {
+				kind = "cleanup"
+			}
+			if l.Verb == transaction.LeasePoolOperate {
+				// PSR-V0-160: an undeclared operation has no command; the
+				// planner refuses it typed before anything runs.
+				kind = l.Operation
+			}
+			if _, _, e = poolCommandDir(context.Background(), poolMemberCommand(p, l.Member, kind), leaseRoot(repo, choice)); e != nil {
+				return f, e
+			}
+			// The probe keeps poolRunnerIdentity's fixed bounds and ignores
+			// the caller's cancellation; only a package test's lifted
+			// observation bound changes them (V1-1324).
+			probe, cancel := context.WithTimeout(context.WithoutCancel(ctx), sweepObservationBound(ctx, time.Second))
+			identity, e := poolRunnerIdentityContext(probe, os.Getpid())
+			cancel()
+			if e != nil {
+				return f, e
+			}
+			f.Pool.RunnerPID = wire.CountOf(int64(os.Getpid()))
+			f.Pool.RunnerStarted = identity
+			f.Pool.Revision = rev
+		}
+		if l.Verb == transaction.LeasePoolAcquire {
+			p, e := intent.DecodePolicy(in.Policy)
+			if e != nil {
+				return f, e
+			}
+			// CAL-V0-199: the pooled-claim source and pin checks.
+			if e := poolAdmissionSource(leaseRoot(repo, choice), choice.pool.Observation, p, l.Pool); e != nil {
+				return f, e
+			}
+		}
+		if l.Verb == transaction.LeasePoolRecover {
+			state, e := snapshot.DecodePools(in.Pools)
+			if e != nil {
+				return f, e
+			}
+			for _, en := range state.Entries {
+				if en.MemberID == l.Member && string(en.AllocationID) == l.Allocation {
+					identity, e := poolRecordedIdentity(int(en.RunnerPID.Int()), en.RunnerStarted)
+					if e != nil {
+						return f, e
+					}
+					f.Pool.RunnerGone = identity == "" || identity != en.RunnerStarted
+				}
+			}
+		}
+		return f, nil
+	}
+}
+func poolClock() wire.Timestamp {
+	return wire.Timestamp(time.Now().UTC().Format("2006-01-02T15:04:05Z"))
+}
+func poolChildID(id, phase string) string {
+	return "pool-" + string(wire.Sum([]byte(id + "\x00" + phase)))[:48]
+}
+func runPool(ctx context.Context, repo *intent.Repository, choice LeaseChoice, en snapshot.PoolEntry, def *intent.PoolCommand) ([]byte, error) {
+	root := leaseRoot(repo, choice)
+	rev, tree, e := poolSource(root)
+	if e != nil {
+		return nil, e
+	}
+	if rev != en.CommandRevision {
+		return nil, wire.Errorf(wire.CodeStaleTree, "pool", "prepared source revision changed")
+	}
+	if e = poolConfig(root, en.ConfigRef); e != nil {
+		return nil, e
+	}
+	env, _ := gateEnvironment(def.Env)
+	if en.Operation != nil && en.Operation.Source != nil {
+		// PSR-V0-163: retarget learns its target pair from the receipt.
+		env = append(env, PoolTargetSourceEnv+"="+en.Operation.Source.String())
+	}
+	// PSR-V0-012: a pin that moved after preparation runs nothing and is
+	// recorded as a failed observation, so the member is quarantined.
+	class, clean, output := "", true, wire.Sum(nil)
+	dir, guard, e := poolCommandDir(ctx, def, root)
+	if e != nil {
+		class = sweepSourceClass(e)
+	} else {
+		class, clean, output = executePoolGuarded(ctx, def, dir, env, guard)
+		_, _, e = poolCommandDir(context.WithoutCancel(ctx), def, root)
+		class = poolPostClass(class, class == "EXIT_ZERO", e)
+	}
+	after, afterTree, e := poolSource(root)
+	if e != nil || after != rev || afterTree != tree {
+		class = "SOURCE_CHANGED"
+	}
+	observation := snapshot.PoolObservation{AllocationID: en.AllocationID, DefinitionSha256: en.DefinitionSha256, Kind: en.CommandKind, Revision: rev, Tree: tree, Class: class, Passed: class == "EXIT_ZERO" && clean, GroupClean: clean, OutputSha256: output, EnvironmentSha256: wire.Sum([]byte(strings.Join(env, "\x00")))}
+	return observation.Encode(), nil
+}
+func observePool(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, en snapshot.PoolEntry, raw []byte) (*Report, error) {
+	choice.RequestID = poolChildID(choice.RequestID, "observe")
+	choice.Lease = transaction.LeaseRequest{Verb: transaction.LeasePoolObserve, Member: en.MemberID, Allocation: string(en.AllocationID)}
+	choice.pool.Observation = raw
+	return leaseOnce(WithClock(ctx, poolClock), repo, actor, choice, poolClock())
+}
+
+// poolPreparedFault, when set by a package test, fails PoolCommand right after
+// its preparation or cleanup receipt commits; it is nil in production.
+var poolPreparedFault func() error
+
+// PoolCommand explicitly probes a free member or cleans a quarantined allocation.
+// The preparation receipt precedes execution; replay never repeats execution.
+// A pending receipt it settles first is reported as Redone (CAL-V0-261).
+func PoolCommand(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, kind string) (*Report, error) {
+	redone, e := settleLease(ctx, repo)
+	if e != nil {
+		return &Report{}, e
+	}
+	report, e := poolCommand(ctx, repo, actor, choice, kind)
+	if redone && report != nil {
+		report.Redone = true
+	}
+	return report, e
+}
+
+func poolCommand(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, kind string) (*Report, error) {
+	p, state, e := poolSnapshot(ctx, repo)
+	if e != nil {
+		return &Report{}, e
+	}
+	var en snapshot.PoolEntry
+	var def *intent.PoolCommand
+	if kind == "health" {
+		for _, pool := range p.Pools {
+			for _, m := range pool.Members {
+				if m == choice.Lease.Member {
+					choice.Lease.Pool = pool.ID
+					def = pool.MemberConfig[m].Health
+				}
+			}
+		}
+		choice.Lease.Verb = transaction.LeasePoolPrepare
+		choice.Lease.Holder = actor.ID
+		choice.Lease.Evidence = string(wire.Sum([]byte(choice.QueueID + ":" + choice.RequestID)))
+	} else {
+		choice.Lease.Verb = transaction.LeasePoolCleanup
+		for _, entry := range state.Entries {
+			if entry.MemberID == choice.Lease.Member && string(entry.AllocationID) == choice.Lease.Allocation {
+				en = entry
+				def = p.Pool(entry.PoolID).MemberConfig[entry.MemberID].Cleanup
+			}
+		}
+	}
+	if def == nil {
+		return &Report{}, wire.Errorf(wire.CodeUnsupported, "pool command", "no configured command")
+	}
+	report, e := leaseOnce(WithClock(ctx, poolClock), repo, actor, choice, poolClock())
+	if report.Receipt != "" {
+		// The receipt may commit before a post/head write fails (CAL-V0-215).
+		report.Unretryable = true
+	}
+	if e != nil || report.Kind != "Transaction" {
+		return report, e
+	}
+	// The preparation or cleanup receipt is committed. A same-request retry
+	// replays it and neither runs the program nor records an observation, so
+	// from here no result is retryable (CAL-V0-078).
+	report.Unretryable = true
+	if poolPreparedFault != nil {
+		if e = poolPreparedFault(); e != nil {
+			return report, e
+		}
+	}
+	_, state, e = poolSnapshot(ctx, repo)
+	if e != nil {
+		return report, e
+	}
+	for _, entry := range state.Entries {
+		if entry.MemberID == choice.Lease.Member {
+			en = entry
+		}
+	}
+	raw, e := runPool(ctx, repo, choice, en, def)
+	if e != nil {
+		return report, e
+	}
+	observed, e := observePool(context.WithoutCancel(ctx), repo, actor, choice, en, raw)
+	if observed == nil {
+		observed = &Report{}
+	}
+	observed.Unretryable = true
+	return observed, e
+}
+
+// healthPrepareHook, when set by a test, runs before each health preparation.
+var healthPrepareHook func(member string)
+
+func healthClaim(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, initial *Report) (*Report, error) {
+	return healthClaimWith(ctx, repo, actor, choice, initial, func(c LeaseChoice) (*Report, error) {
+		return leaseOnce(WithClock(ctx, poolClock), repo, actor, c, poolClock())
+	})
+}
+func healthClaimWith(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice, initial *Report, execute func(LeaseChoice) (*Report, error)) (result *Report, err error) {
+	unretryable := initial != nil && initial.Unretryable
+	defer func() {
+		if unretryable {
+			if result == nil {
+				result = &Report{}
+			}
+			result.Unretryable = true
+		}
+	}()
+	report := initial
+	holder, stage := choice.Lease.Holder, choice.Lease.Stage
+	if choice.Lease.Verb == transaction.LeasePoolAcquire {
+		// CAL-V0-199: an acquire prepares for the attempt's own holder and stage.
+		proof, e := readLeaseProof(ctx, repo)
+		if e != nil {
+			return report, e
+		}
+		a, _ := lockedAttempt(proof, choice.Lease.AttemptID)
+		if !acquirePreparable(a) {
+			return report, nil
+		}
+		holder, stage = a.Lease.Holder, a.Stage
+	}
+	for round := 0; round < intent.MaxPoolMembers; round++ {
+		p, state, e := poolSnapshot(ctx, repo)
+		if e != nil {
+			return report, e
+		}
+		if e := transaction.CheckPoolExclusions(choice.Lease.Pool, choice.Lease.ExcludeMembers, p); e != nil {
+			return report, e
+		}
+		pool := p.Pool(choice.Lease.Pool)
+		if pool == nil {
+			return report, nil
+		}
+		busy := map[string]bool{}
+		for _, en := range state.Entries {
+			busy[en.MemberID] = true
+		}
+		excluded := choice.Lease.ExcludeMembers
+		var authors *transaction.AuthorExclusion
+		if choice.Lease.ExcludeAuthors != "" {
+			// CAL-V0-098: probe only what the model's own derivation leaves
+			// eligible; preparation rederives it before committing.
+			if report == nil || report.AuthorExclusion == nil {
+				return report, nil
+			}
+			authors = report.AuthorExclusion
+			excluded = authors.Excluded
+		}
+		member := ""
+		for _, m := range transaction.OrderedPoolMembers(pool, stage, excluded) {
+			if !busy[m] {
+				member = m
+				break
+			}
+		}
+		if member == "" {
+			return report, nil
+		}
+		def := pool.MemberConfig[member].Health
+		if def == nil {
+			return execute(choice)
+		}
+		prep := choice
+		prep.RequestID = poolChildID(choice.RequestID, member)
+		prep.Lease = transaction.LeaseRequest{Verb: transaction.LeasePoolPrepare, Pool: pool.ID, Member: member, Holder: holder, Stage: stage, Evidence: string(transaction.PoolClaimBinding(&choice.Lease, state.QueueID))}
+		if authors != nil {
+			// CAL-V0-107: preparation covers an unrecorded generation only
+			// when the claim's caller supplied explicit members.
+			prep.Lease.TicketID, prep.Lease.ExcludeAuthors, prep.Lease.ExcludeMembers = authors.TicketID, choice.Lease.ExcludeAuthors, choice.Lease.ExcludeMembers
+		}
+		if healthPrepareHook != nil {
+			healthPrepareHook(member)
+		}
+		prepared, e := leaseOnce(WithClock(ctx, poolClock), repo, actor, prep, poolClock())
+		// Replay cannot finish automatic health after its receipt commits.
+		// Preserve that prohibition across all later reports (CAL-V0-215).
+		unretryable = unretryable || prepared.Unretryable || prepared.Receipt != ""
+		if e != nil {
+			return prepared, e
+		}
+		if prepared.Kind != "Transaction" && authors != nil {
+			// The derivation drifted if a fresh claim now excludes this member.
+			fresh, e := execute(choice)
+			if e != nil || !fresh.Outcome.HasCode(wire.CodeQuiescenceUnproved) {
+				return fresh, e
+			}
+			if fresh.AuthorExclusion != nil && slices.Contains(fresh.AuthorExclusion.Excluded, member) {
+				report = fresh
+				continue
+			}
+			report = fresh
+		}
+		if prepared.Kind != "Transaction" {
+			report.Detail = "health preparation unavailable: " + prepared.Detail + "; replay never executes it again"
+			return report, nil
+		}
+		_, state, e = poolSnapshot(ctx, repo)
+		if e != nil {
+			return prepared, e
+		}
+		var en snapshot.PoolEntry
+		for _, x := range state.Entries {
+			if x.MemberID == member {
+				en = x
+			}
+		}
+		raw, e := runPool(ctx, repo, choice, en, def)
+		if e != nil {
+			return prepared, e
+		}
+		observation, e := snapshot.DecodePoolObservation(raw)
+		if e != nil {
+			return prepared, e
+		}
+		if observation.Passed {
+			choice.pool = transaction.PoolFacts{AllocationID: en.AllocationID, Observation: raw}
+			claimed, e := execute(choice)
+			if e == nil && claimed.Outcome.Outcome == mutation.OutcomeCompleted {
+				return claimed, nil
+			}
+			_, cleanupErr := observePool(context.WithoutCancel(ctx), repo, actor, prep, en, raw)
+			if e != nil {
+				return claimed, e
+			}
+			if cleanupErr != nil {
+				return claimed, cleanupErr
+			}
+			return claimed, nil
+		}
+		if _, e = observePool(context.WithoutCancel(ctx), repo, actor, prep, en, raw); e != nil {
+			return prepared, e
+		}
+		if ctx.Err() != nil {
+			report.Kind = "Refused"
+			report.Outcome.Outcome = mutation.OutcomeBlocked
+			report.Outcome.Codes = []string{wire.CodeQuiescenceUnproved}
+			report.Detail = "health interrupted; bound observation recorded and member quarantined"
+			return report, nil
+		}
+		report, e = execute(choice)
+		if e != nil || !report.Outcome.HasCode(wire.CodeQuiescenceUnproved) {
+			return report, e
+		}
+	}
+	return report, wire.Errorf(wire.CodeLimitExceeded, "pool", "member probe bound")
+}
+
+// acquirePreparable reports whether an acquire's QUIESCENCE_UNPROVED refusal
+// asks for health preparation. A supervised attempt's refusal is the
+// attempt-verb guard instead, so the acquire probes and quarantines nothing.
+func acquirePreparable(a *snapshot.Attempt) bool {
+	return a != nil && a.Lease != nil && a.Supervision == nil
+}
+
+// poolAdmissionSource is the pooled-admission source check a claim and an
+// acquire share: a prepared observation still matches the command source,
+// and every member's pinned config is current.
+func poolAdmissionSource(root string, observation []byte, policy *intent.Policy, poolID string) error {
+	return poolAdmissionSourceWith(gitOutput, root, observation, policy, poolID)
+}
+
+func poolAdmissionSourceWith(git gitRunner, root string, observation []byte, policy *intent.Policy, poolID string) error {
+	if len(observation) > 0 {
+		o, e := snapshot.DecodePoolObservation(observation)
+		if e != nil {
+			return e
+		}
+		rev, tree, e := poolSourceWith(git, root)
+		if e != nil {
+			return e
+		}
+		if rev != o.Revision || tree != o.Tree {
+			return wire.Errorf(wire.CodeStaleTree, "pool claim", "command source changed before admission")
+		}
+	}
+	if pool := policy.Pool(poolID); pool != nil {
+		for _, member := range pool.Members {
+			if e := poolConfigWith(git, root, pool.MemberConfig[member].ConfigRef); e != nil {
+				return e
+			}
+		}
+	}
+	return nil
+}

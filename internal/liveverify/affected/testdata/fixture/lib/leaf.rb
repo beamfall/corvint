@@ -1,0 +1,3 @@
+require "mid"
+
+LEAF = MID

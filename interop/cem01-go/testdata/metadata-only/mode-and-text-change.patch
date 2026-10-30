@@ -1,0 +1,9 @@
+diff --git a/mc.sh b/mc.sh
+old mode 100644
+new mode 100755
+index 587be6b4c3f93f93c489c0111bba5596147a26cb..975fbec8256d3e8a3797e7a3611380f27c49f4ac
+--- a/mc.sh
++++ b/mc.sh
+@@ -1 +1 @@
+-x
++y

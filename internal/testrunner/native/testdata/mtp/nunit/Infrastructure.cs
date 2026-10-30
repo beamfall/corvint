@@ -1,0 +1,1 @@
+using NUnit.Framework; namespace MtpProbe; public class InfrastructureProbe { [OneTimeSetUp] public void Setup()=>throw new System.InvalidOperationException("MTP_SETUP"); [Test] public void Blocked(){} }

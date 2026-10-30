@@ -1,0 +1,1190 @@
+{
+  "name": "beamfall-roadmap-v1",
+  "partition": "unseen",
+  "repository": "Beamfall/core",
+  "tip": "02835b1be8a2c6989ea2f4b74dbf6ec0163c2b35",
+  "source": "tools/cw-trial/testdata/beamfall-roadmap-v1/build_roadmap_set.py over Beamfall/core first-parent history at tip (V1-0319)",
+  "population": 247,
+  "excluded": {
+    "gold-out-of-bounds": 17,
+    "no-entry": 242,
+    "no-resolving-commit": 336,
+    "not-core": 1694,
+    "observed": 1
+  },
+  "sampling_rule": "first-parent 'roadmap: check off ID' commits oldest first whose checked-off entry names Primary Repo beamfall; resolving commits = non-merge commits whose subject starts with 'ID ' (not 'roadmap:'); base = first parent of the earliest in topological order, an ancestor of every resolving commit; gold = non-binary paths those commits touched that exist at base, outside docs/plans/roadmap/, 1..40 paths, kind by cw-trial isTestPath; text = the checked-off entry's one checkbox line as written before check-off (its sub-bullets, such as Allowed Paths, are withheld); LCRES-15 and COREAPI-AUDIT-0822-3 excluded as panel-observed; select index floor(i*N/n) for i in 0..n-1",
+  "gold_paths": 181,
+  "tasks": [
+    {
+      "id": "roadmap:ORG-8",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "b66522e44489660f6846cae5b04ba95ae1eaea56",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**ORG-8 — Apply design-system.md authority status.** UF-15: binding contract self-labeled \"draft v0.1\". **Primary Repo** beamfall · **Repo** beamfall · **Size** S · **Launch-blocking** no · **Depends** DEC-3.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "docs/design-system.md"
+        ]
+      },
+      "source": {
+        "ticket": "ORG-8",
+        "checkoff_commit": "0d56f0ecfff8dec5fae02b785a7312eef9fc362d",
+        "resolving_commits": [
+          "fd9beb98d4b83d92d5228c20ffc854052cecc104"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:AUDIT-CONTRACTS-12",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "9c32219640c31b67698157a9308c5eec4f91514f",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**AUDIT-CONTRACTS-12 — Clean up registry schema drift and check-drift.js hygiene issues.** `design-tokens` consumers use `surface`/`governanceStatus` instead of `role` (RS-5); `mgmt-parity` knownDrift uses `reason` instead of `description` (RS-8); `webAnalogs` is an undocumented mgmt-parity-only field (RS-10); a stray newline-comma sits at `registry.json:311-312` (RS-6/DG-8/CC-9/WVB); `check-drift.js` has a dead `execSync` import and a phantom `--check` flag documented but not implemented (DG-3/DG-5, CC-4); android's Kotlin conformance test parses JSON via regex instead of a parser (WVB, DV). **Primary Repo** beamfall · **Repo** beamfall + beamfall-android-ui · **Size** S · **Review** required · **Launch-blocking** no · **Depends** none.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          ".agent-evidence/RESULT.md"
+        ]
+      },
+      "source": {
+        "ticket": "AUDIT-CONTRACTS-12",
+        "checkoff_commit": "8a59ec65a0ee94439d9c2b99bc04c65aea838318",
+        "resolving_commits": [
+          "fde9a9373fc3bb761f9e3e854da84ac9b48e493e"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:ABPARITY-1-CLIENTS-WEB",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "821a672e598098b340e68b2ca888053129435687",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**ABPARITY-1-CLIENTS-WEB — Web client sends eventTimeMS on playback progress reports.** JIT-split from ABPARITY-1-CLIENTS (Apple slice merged @beamfall-apple-ui e2c49a3). Extend the Web client to send a monotonic per-device `eventTimeMS` on the `reportPlayback` mutation (non-decreasing source clamped against wall-clock set-backs, mirroring the Apple PlaybackEventClock), so cross-device resume exercises the server latest-event-time-wins guard. **Primary Repo** beamfall · **Repo** beamfall (repo corrected 2026-07-06: the web Viewer/player lives in `internal/web/app`, not the beamfall-web portal repo) · **ADR** 0011 · **Context Class** Client platform work · **Fanout Lane** beamfall:web · **Size** S · **Review** required · **Launch-blocking** no · **Depends** —.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "test-file": [
+          "internal/web/app/src/areas/viewer/player/usePlayer.test.tsx"
+        ],
+        "source-file": [
+          "internal/web/app/src/areas/viewer/player/usePlayer.ts",
+          "internal/web/app/src/lib/graphql/types.ts",
+          "internal/web/app/src/lib/graphql/viewer.ts"
+        ]
+      },
+      "source": {
+        "ticket": "ABPARITY-1-CLIENTS-WEB",
+        "checkoff_commit": "d6de3ef94030398225ccba7b3cc48e8ab74d58de",
+        "resolving_commits": [
+          "a0834899d142b9be024063bec7ff9a711e85e44c",
+          "0ffaa2826775d4a30ee26862b12467b9939ac5ae"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:NGAUDIT-D2",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "91ea03d3bb4070b29523bc0c1fa8443eb5ae6c85",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**NGAUDIT-D2 — Amend ADR-0039 to a Beamfall-operated blind push proxy before any APNs entitlement exists.** APS-02: ADR-0039 §2.5's \"operator-configured\" APNs/FCM credentials means distributing Beamfall's team-scoped .p8 signing key to every self-hosted operator — i.e., publishing it: anyone could push arbitrary notifications to every install, and revocation breaks push for all operators at once; the panel's resolution is the minimal blind proxy, since ADR-0039's own payload rule (opaque event IDs, no titles) already answers the privacy objection. **Primary Repo** beamfall · **Repo** beamfall, beamfall-cloud · **Size** M · **Review** required · **Launch-blocking** yes · **Depends** none.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "docs/adr/0039-parental-extension-request-and-push-notifications.md"
+        ]
+      },
+      "source": {
+        "ticket": "NGAUDIT-D2",
+        "checkoff_commit": "9f5086cb5e4c7df915853125d32f90567285ca90",
+        "resolving_commits": [
+          "de7ff08dd9dcf9ea1a2be52132acacf9db42f411"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:PODPAR-6",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "a393639989237f5cfd7a021cd5bdc6824a039b5b",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**PODPAR-6 — Timestamped-episode share.** ADR-0154 §B2: a timestamped share (deep link to `episode@offset`) honoring Reveal and rendering no acquisition-adjacent surface on App Store binaries (invariant 8); audio-clip export stays deferred per §B2. **Primary Repo** beamfall · **Repo** beamfall · **ADR** 0154 · **Context Class** Roadmap ticket work · **Fanout Lane** beamfall:ticket · **Size** S · **Review** auto · **Launch-blocking** no · **Depends** none.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "internal/web/app/src/areas/viewer/pages/PlayerPage.tsx",
+          "internal/web/app/src/areas/viewer/player/PlayerTransport.tsx",
+          "internal/web/app/src/areas/viewer/player/usePlayer.ts",
+          "internal/web/app/src/strings.ts"
+        ],
+        "test-file": [
+          "internal/web/app/src/areas/viewer/player/PlayerTransport.test.tsx",
+          "internal/web/app/src/areas/viewer/player/usePlayer.test.tsx"
+        ]
+      },
+      "source": {
+        "ticket": "PODPAR-6",
+        "checkoff_commit": "548d5a6c618cd18bb155cce6c2b827a7dc7a6cfc",
+        "resolving_commits": [
+          "c60d056e28fa9d685c16ecf8d1122169e065f85f"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:TVC-21",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "864e989a742e2f20810bcc974a8d94e02b5a8c1e",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**TVC-21 — Extend the ADR-0132 static gate to BrightScript and web wrappers.** ADR-0156 §6: the firewall static gate scans Swift/native sources today; add banned-term scanning for beamfall-roku BrightScript and the webOS/Tizen wrapper packages. **Primary Repo** beamfall · **Repo** beamfall · **ADR** 0156, 0132 · **Context Class** Roadmap ticket work · **Fanout Lane** beamfall:ticket · **Size** S · **Review** auto · **Launch-blocking** no · **Depends** none.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "tools/gate/gate.sh"
+        ]
+      },
+      "source": {
+        "ticket": "TVC-21",
+        "checkoff_commit": "b35e3f9a71566a47581b0bb364aeaedf517bd463",
+        "resolving_commits": [
+          "df89309bc7798f4a6826ef4eaf97ab2d4f0ee01c"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:NGAUDIT-X-QUIC-CORE",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "b65a0291e5b4e712ea46afa0c4079e2d2a954503",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**NGAUDIT-X-QUIC-CORE — beamfall consumer of NGAUDIT-X-QUIC.** Implement QUIC carrier client in relayproto.go; pin new vectors; run relayproto_conformance_test.go. ADR-0122 Amendment C contract decomposition (consumer half). **Primary Repo** beamfall · **Repo** beamfall · **ADR** 0122 · **Context Class** Cross-repo contract governance · **Fanout Lane** beamfall:contracts · **Size** S · **Review** required · **Depends** NGAUDIT-X-QUIC.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "go.mod",
+          "go.sum",
+          "internal/config/config.go",
+          "internal/remoteaccess/relay.go",
+          "internal/remoteaccess/relayproto.go",
+          "internal/remoteaccess/testdata/relay_vectors_v1.json"
+        ],
+        "test-file": [
+          "internal/config/remoteaccess_test.go",
+          "internal/remoteaccess/relayproto_conformance_test.go",
+          "internal/remoteaccess/remoteaccess_test.go"
+        ]
+      },
+      "source": {
+        "ticket": "NGAUDIT-X-QUIC-CORE",
+        "checkoff_commit": "645aa09d6d9dd67750ca1ce1d8da64a60300ee3d",
+        "resolving_commits": [
+          "239382399a4d3700e1403cb1a15da924fb35ff50"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:GCR-017-A-PREFLIGHT-R5",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "06dee1ccbb60d9d10753052c7ad3a705d62e4356",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**GCR-017-A-PREFLIGHT-R5 — Prove the shipping certification-demo path with complete literal commands and wire oracles.** **Primary Repo** beamfall · **Repo** beamfall · **ADR** 0001,0012,0015,0091,0097,0132 · **Context Class** Store-review demo security/conformance · **Fanout Lane** beamfall:agent-safe · **Size** M · **Review** required · **Launch-blocking** yes · **Depends** STORE-1, STORE-2, TVC-23, GCR-017-A-PREFLIGHT-R6.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "script/cert-demo-server-smoke_test.sh",
+          "script/cert-demo-server_test.sh"
+        ]
+      },
+      "source": {
+        "ticket": "GCR-017-A-PREFLIGHT-R5",
+        "checkoff_commit": "9681b43e72ae03cc92508990ab72afb30825a829",
+        "resolving_commits": [
+          "58eaed900fbe06c4e7cedd7431d1fb4594b105fc"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:GCR-TOOLING-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "c199bdb20de2edb7024073f63a3df7a4aee0c580",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**GCR-TOOLING-1 — Restored GCR governance/tooling batch: closure resolver, evidence topology, plugin lifecycle state.** Consolidated restoration; full member specs in `artifacts/plans/roadmap-retired-2026-07-19.md` § \"from 29-gap-closure-register-gcr.md\". **Primary Repo** beamfall · **Repo** beamfall · **Context Class** Governance / tooling · **Fanout Lane** beamfall:ticket · **Size** L · **Complexity** XL · **Review** required · **Launch-blocking** no · **Depends** —.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "script/scope-check.py"
+        ],
+        "test-file": [
+          "script/scope_check_test.py"
+        ]
+      },
+      "source": {
+        "ticket": "GCR-TOOLING-1",
+        "checkoff_commit": "344e7c45ee67207db3b44ffe7741490926726ec4",
+        "resolving_commits": [
+          "a194e6a09e6ce8fbe6af5067575311f8431b1f66",
+          "0c277f2c94c37ab4e53a7793105e6954f86ce545"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:VIEWERSPLIT-0",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "52df6a209f3e473fe06c6a3e0531142af5818f49",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**VIEWERSPLIT-0 — Draft the launch-day open-viewer repo stub and fix the milestone.** ADR-0210 §5: the launch-day artifact's *contents* (README naming exactly what opens per ADR-0210 §4, LICENSE decision incl. the libmpv build-variant SPDX note, CLA text carrying explicit perpetual irrevocable relicense/sublicense rights, publish record) must exist and be ADR-conformant before the operator can publish. **Split 2026-07-29:** creating and publishing the public repository moved to VIEWERSPLIT-0B — this ticket previously mixed agent-completable drafting with an outward operator action and so could not satisfy its own Verify. **Primary Repo** beamfall · **Repo** beamfall · **ADR** 0210 · **Context Class** Roadmap ticket work · **Fanout Lane** beamfall:docs · **Size** S · **Review** required · **Launch-blocking** yes.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "artifacts/viewer-split/PUBLISH-RECORD.md",
+          "artifacts/viewer-split/README-draft.md"
+        ]
+      },
+      "source": {
+        "ticket": "VIEWERSPLIT-0",
+        "checkoff_commit": "0c11eb238806a7719ca1a621514eb2cb65b992f9",
+        "resolving_commits": [
+          "1d8b2c68ba758141855e53f950ee19ce722b1c11",
+          "578c907f33b6f4dbbb8873aafe70a50533a977af"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:GCR-019-C",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "f39aed2c5e7ffaa230dbace97699f96ccc3527c4",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**GCR-019-C — Projection-rebuild determinism from the frozen base.** **GCR** GCR-019 · **Gate** schema-freeze · **Severity** P0 · **Primary Repo** beamfall · **Repo** beamfall · **ADR** 0011,0104 · **Context Class** Roadmap ticket work · **Fanout Lane** beamfall:agent-safe · **Size** M · **Review** auto · **Launch-blocking** yes · **Depends** GCR-019-A.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "internal/store/engagement.go",
+          "internal/store/engagement_event.go",
+          "internal/store/sqlite.go"
+        ]
+      },
+      "source": {
+        "ticket": "GCR-019-C",
+        "checkoff_commit": "c53c00eaa4113936d2ad8c8d42010a3c0004cafa",
+        "resolving_commits": [
+          "67c7735fb6a81d25631f53258f67be57d0b75a0c"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:SUBT-PIN-OFFSET-WRITE-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "0d23d2ab6acec0a9b5b0f824ef29d4bfb0fbc1ef",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**SUBT-PIN-OFFSET-WRITE-1 — Land the write paths for the subtitle series pin and the offset nudge; both features currently ship as read-only halves.** Found 2026-07-24 by independent review of SUBT-SERVER-1 at head `f148e440`: `internal/store/subtitle_choice.go:76` (`PutSubtitleChoice`), `internal/store/subtitle_offset.go:24` (`PutSubtitleOffset`) and `:90` (`PruneSubtitleOffsets`) have **zero non-test callers** anywhere in the tree — a repo-wide grep over `internal/graph`, `internal/server` and `internal/app` returns nothing for `SubtitleChoice`/`SubtitleOffset`. Consequence: a viewer who picks a subtitle track or nudges the offset has nothing that persists the choice, so `resolveSubtitles` (`internal/playback/subtitle_resolver.go:262`) always takes the no-pin branch and `applySubtitleOffset` (`internal/mediahttp/mediahttp.go:536`) always reads 0. SUBSYS-2's pin and SUBSYS-13's nudge are therefore inert in production despite their store and apply halves being built and tested. SUBT-SERVER-1's RESULT.md disclosed only that the offset *wire field* was deferred, which understated the gap — this ticket carries the actual mutation surface. Do: add the write route(s) that persist a pin and an offset nudge for the requesting profile, wire `PruneSubtitleOffsets` to a scheduled job so nudge rows cannot accumulate unbounded once writes exist, and cover each with a round-trip test that writes then reads back through the resolver rather than through the store directly. If exposing the offset *value* on `playbackInfo` is required, that half belongs to SUBT-OFFSET-WIRE-1 and its wire-contract publish — do not perform a producer schema addition here. Reconsider `PruneSubtitleOffsets`' policy while wiring it: it currently deletes by age alone (`subtitle_offset.go:90-102`), so a viewer who nudged a long-running series a year ago and returns to it silently loses the correction; the justification comment at `:85-89` argues only for reaping *orphans*, which is not what the query does. **Primary Repo** beamfall · **Repo** beamfall · **ADR** 0194 · **Context Class** Subtitle server core · **Fanout Lane** beamfall:subtitle · **Size** M · **Complexity** M · **Review** required · **Launch-blocking** yes · **Depends** SUBT-SERVER-1.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "internal/app/app.go",
+          "internal/jobs/subtitle_offset_prune.go",
+          "internal/mediahttp/mediahttp.go",
+          "internal/mediahttp/subtitle_write.go",
+          "internal/store/subtitle_offset.go"
+        ],
+        "test-file": [
+          "internal/app/app_test.go",
+          "internal/jobs/subtitle_offset_prune_test.go",
+          "internal/mediahttp/subtitle_write_test.go",
+          "internal/store/subtitle_offset_test.go"
+        ]
+      },
+      "source": {
+        "ticket": "SUBT-PIN-OFFSET-WRITE-1",
+        "checkoff_commit": "55c92ce7a85689de73c32ef66634e056e0ddd32f",
+        "resolving_commits": [
+          "f1ac62880206ecd26f03366b5b4fed1a5c773728",
+          "40eebecd9da0ba42df90ee16cbc20ccc0c73b84b",
+          "e28a83c0dc329f5a1433c5cb040edd93613d6f83",
+          "482682f33ed2ad229b32b392b62bc3d09527c15a",
+          "36bcbb9ab8018defa2b1d4e8685e2cff29c9b0d2",
+          "1b9aedc686b17f3484c277dcaee170d2bc902d23"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:VIEWERSPLIT-0B",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "c7b1382ab18371608c2e53f376f4ea6b892892b7",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**VIEWERSPLIT-0B — Create and publish the public open-viewer repository (operator action).** ADR-0210 §5: carved out of VIEWERSPLIT-0 on 2026-07-29 because that ticket mixed agent-completable drafting with an outward action reserved to the operator, so it could never satisfy its own Verify. The drafts exist and are gate-green; no public repo is published yet. **Primary Repo** beamfall · **Repo** beamfall · **ADR** 0210 · **Context Class** Roadmap ticket work · **Fanout Lane** beamfall:docs · **Size** S · **Review** required · **Launch-blocking** yes · **Depends** VIEWERSPLIT-0.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "artifacts/viewer-split/PUBLISH-RECORD.md"
+        ]
+      },
+      "source": {
+        "ticket": "VIEWERSPLIT-0B",
+        "checkoff_commit": "feb0a06a6336cdd2c72e7942c4503e78826c8f83",
+        "resolving_commits": [
+          "a6efbc4cb3b2b6f869f64117f5ca56782d6bcc80"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:GATEDELTA-PROMOTE-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "8ff7309b19813ccf15ef2f84f4969258c9d2b67a",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**GATEDELTA-PROMOTE-1 — Promote the fleet delta gate into core `script/` with tests.** `~/.agents/fleet/gate-delta.sh` (orchestrator-only v1, 2026-08-02) classifies a lane diff vs main fail-closed (docs/evidence → adr-lint; internal/web/app-only → web suite + embedding Go packages; else full gate) so repair-round re-finishes stop paying the full 25-70min gate; merges still always pay the full canonical gate because the receipt command differs from the merge gate. Promote it to `script/gate-delta.sh` so codex builders can use it, with a classification test covering fail-closed behavior on unknown paths and the go:embed web coupling. **Primary Repo** beamfall · **Repo** beamfall · **Context Class** Tooling / gates · **Size** S · **Review** auto · **Launch-blocking** yes · **Allowed Paths** `script/gate-delta.sh`, `script/gate-delta_test.sh`, `script/roadmap.sh`, `script/roadmap_sh_test.sh` · **Forbidden Paths** applied migration edits, ADR bodies, entitlement/account code, `tools/gate/**`.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "script/roadmap.sh",
+          "script/roadmap_sh_test.sh"
+        ]
+      },
+      "source": {
+        "ticket": "GATEDELTA-PROMOTE-1",
+        "checkoff_commit": "57dcd810b2cbd6c2c6618fd16f125c207cd867c5",
+        "resolving_commits": [
+          "6372b4b9449dd770cd411615f5aeac3abf4310b5",
+          "7201c085cb294bedbf8170e32bd41066c2053284",
+          "f27e3096e4cdd8439ffe9f8ec48573e62217360c"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:SUBT-SERVER-CAST-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "1d6e869a89fb2b8a0dec1d84ea415c06b724fb17",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**SUBT-SERVER-CAST-1 — Cast/AirPlay route change mints a NEW session carrying the receiver capability profile, with the Cast byte route failing closed (ADR-0194 §6, ADR-0161).** Restores SUBSYS-19 and SUBSYS-20, which SUBT-SERVER-1 built green in isolation on 2026-07-24 and then deliberately reverted rather than land a partial. Blocker recorded at revert time: the byte layer holds only the signed grant, so the receiver-capability axis must live inside the token; adding it changes every issued token string, which drifts `internal/conformance/testdata/playback-info.golden.json`. That diff was verified as **token strings only — no structural field change** — but regenerating conformance goldens is owned by SUBT-CONFORMANCE-1, so this work was originally ordered after that ticket. **Charter amended 2026-08-04 (operator):** SUBT-CONFORMANCE-1 has landed and cannot regenerate a golden derived from code that ships here, so the derived regeneration happens in this lane. Publishing wire contract 1.10.0 for the new optional fields regenerates the corpus playback-info fixtures, the playback-info golden, the corpus manifest/version, the goldens SHA-256 manifest, and the appstore-tagged contract. Derived artifacts land atomically with the contract that generates them; hand-edited goldens remain forbidden. Do: a cast/AirPlay route change produces a NEW playback session (not a mutation of the existing one) whose grant carries the receiver capability profile resolved through the ADR-0161 quirks-DB selectors; the Cast byte-serving route fails CLOSED when the receiver profile is absent, unresolved, or does not authorise the requested track (SUBSYS-20's trust boundary — never serve bytes on an unverified receiver assumption). Reference implementation shape from the reverted work: capability-fingerprinted `SessionKey`, `Grant.ProfileCapability`, 4 receiver tests + 4 cast trust-boundary tests, all previously green. **Primary Repo** beamfall · **Repo** beamfall · **ADR** 0194, 0161 · **Context Class** Subtitle server core · **Fanout Lane** beamfall:subtitle · **Size** M · **Complexity** L · **Review** required · **Launch-blocking** yes · **Depends** SUBT-SERVER-1, SUBT-CONFORMANCE-1.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "internal/mediahttp/mediahttp.go",
+          "internal/playback/playback.go",
+          "internal/playback/quirks.go",
+          "internal/playback/sessions.go",
+          "internal/streamtoken/streamtoken.go"
+        ]
+      },
+      "source": {
+        "ticket": "SUBT-SERVER-CAST-1",
+        "checkoff_commit": "2bc1e618cf3144f899244ce2c2ab8f03763b58e0",
+        "resolving_commits": [
+          "12d87eca45c40e431a0220743c40d88c32b8852e"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:CORE-FEATUREREG-ACCOUNT-CTA-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "0ed2e7e735de453b81f354f261d4c952654c3f76",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**CORE-FEATUREREG-ACCOUNT-CTA-1 — `account-cta` ships in Web's UI catalog but is absent from Core's feature registry, so design-system's traceability gate fails and no design-system lane can go green.** `beamfall-web` main `6d8f052` (`AUDIT0728-NC-WEB-PRODUCTION-HONESTY-1`, commit `65a31bc`) added the feature id `account-cta` to `ui-catalog/manifest.json:9` for the marketing home entry, but never registered it in Core's `testing/features.yaml`. `beamfall-design-system`'s `docs/ui-catalog/feature_traceability.py --check` fails `UNREGISTERED catalog feature ids absent from pinned Core feature registry: account-cta: 1 entries`, taking the `ui-catalog` gate stage and therefore design-system `make gate` down. Confirmed the id is absent from Core's registry both at design-system's pinned commit `356fdf57` and at Core main — `git diff 356fdf57..HEAD -- testing/features.yaml` is empty — so this is a missing registration, not a stale consumer pin. Registration is a four-line entry alongside the sibling marketing features `home-route` (`testing/features.yaml:960`), `hero-headline` (`:954`) and `privacy-pledge-band` (`:1104`), all `area: marketing`, `adr: [\"0024\"]`, `applies: [web]`. **Primary Repo** beamfall · **Repo** beamfall · **Context Class** Cross-repo feature traceability · **Fanout Lane** beamfall:ticket · **Size** S · **Complexity** S · **Review** required · **Launch-blocking** yes · **Depends** GATE-SECRETSCAN-APPLE-CORPUS-1.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "testing/features.yaml"
+        ]
+      },
+      "source": {
+        "ticket": "CORE-FEATUREREG-ACCOUNT-CTA-1",
+        "checkoff_commit": "9b8a8be35797425f84b03774cb25b3e9c6f4b7ac",
+        "resolving_commits": [
+          "800885e548a6a5dad3ce2bdb0015cfb8353046c7"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:RELEASE-UPDATE-MANIFEST-PUBLISHER-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "7070f1f346c88cc8e3003e13bcd178efeec65f51",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**RELEASE-UPDATE-MANIFEST-PUBLISHER-1 — Stop a failed update check from reading as \"up to date\".** `internal/updatecheck/updatecheck.go:47-51` records that no publisher exists for the update manifest host. An operator who opts into update checks gets a silent fetch failure indistinguishable from \"you are up to date\" — a dark signal reading green, the worst failure mode for a security fix. Either stand up the publisher or make an unreachable/absent manifest a distinct visible state. Decide which, with reasoning, before building. Do NOT leave the silent-success path reachable under any condition. **Primary Repo** beamfall · **Repo** beamfall · **Context Class** Release engineering · **Fanout Lane** beamfall:ticket · **Size** M · **Review** required · **Launch-blocking** yes · **Mockup** N/A · **Depends** —\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "internal/updatecheck/updatecheck.go"
+        ]
+      },
+      "source": {
+        "ticket": "RELEASE-UPDATE-MANIFEST-PUBLISHER-1",
+        "checkoff_commit": "d8af97b158a3f24e334634999e5ba5d9122090bd",
+        "resolving_commits": [
+          "1c513d33ec58671c1d69c77fc135bf0d4ed3297b"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:TOOL-CONSOLIDATE-METADATA-FROZEN-LITERALS-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "1c30986ad73127d44f4d5436ebf31cb61997c0f7",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**TOOL-CONSOLIDATE-METADATA-FROZEN-LITERALS-1 — `roadmap_consolidate_metadata_test.py` frozen Allowed-Paths literals red core main on every sanctioned `apply-paths`.** Broke twice on 2026-08-08 alone: the HANDSHAKE-0063-APPLOWER-1 literal went stale against operator commit 3e6ec6896 (fixed a108be53d), then the HANDSHAKE-0063-FILTERS-RESOLVER-1 literal went stale against the sanctioned grant widening f0e3c9e94 (fixed c1fce0e65). The test hand-freezes per-ticket reservation sets that `script/roadmap.sh apply-paths` legitimately mutates, so every grant edit to a frozen ticket reds every full core gate until someone hand-syncs the fixture. **Do:** stop freezing live tickets' sets — either derive the expected reservations from the shard at test time (asserting only the consolidation-derivation invariants: dedupe, per-repo split, no character-tokenization), or scope the frozen literals to synthetic fixture tickets that `apply-paths` can never touch. Keep the character-tokenization regression case. **Gate** make gate · **Severity** P2 · **Primary Repo** beamfall · **Repo** beamfall · **Size** S · **Review** auto · **Launch-blocking** no · **Depends** —. **Verify:** `[auto]` test passes; then a synthetic `apply-paths`-style edit to a live ticket's Allowed Paths leaves it green while the tokenization/dedup regression cases still red.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "test-file": [
+          "script/roadmap_consolidate_metadata_test.py"
+        ]
+      },
+      "source": {
+        "ticket": "TOOL-CONSOLIDATE-METADATA-FROZEN-LITERALS-1",
+        "checkoff_commit": "5bfb0ef1f04b6eb2b7da3d0f4596a85bf4acd189",
+        "resolving_commits": [
+          "e7486f22ae22c27ec44807ef94e767ee44a6a74b"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:GCR-008-B6-ACQ-SURFACE-STORE-ASSERT-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "8bfb13d2abd9d20157506990f1e1c762fdc815b1",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**GCR-008-B6-ACQ-SURFACE-STORE-ASSERT-1 — Per-binary acquisition-surface assertion beyond vocabulary matching.** **GCR** GCR-017 · **Gate** store-review · **Severity** P1 · **Primary Repo** beamfall · **Repo** beamfall · **ADR** 0002,0020,0050 · **Context Class** Roadmap ticket work · **Fanout Lane** beamfall:gates · **Size** S · **Review** required · **Launch-blocking** no · **Depends** —.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "script/app-store-firewall-static-check_test.sh"
+        ]
+      },
+      "source": {
+        "ticket": "GCR-008-B6-ACQ-SURFACE-STORE-ASSERT-1",
+        "checkoff_commit": "09ee2f8e54838b834bba436f9d1951e02992bdbc",
+        "resolving_commits": [
+          "09da44e3db0dfb3a8edf3e661d433193e184f08a"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:HANDSHAKE-0063-BUILD-PROVENANCE-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "614474903f8fd469220aac6fcda42cc1dc3e97ee",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**HANDSHAKE-0063-BUILD-PROVENANCE-1 — Fail closed on unknown, mismatched, or rolled-back client builds.** **Primary Repo** beamfall · **Repo** beamfall · **ADR** 0063 · **Context Class** Compatibility handshake · **Fanout Lane** beamfall:handshake · **Size** L · **Review** required · **Launch-blocking** no · **Depends** HANDSHAKE-0063-CAPABILITIES-RELAND-1.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "docs/adr/0063-server-authoritative-client-compatibility.md",
+          "internal/capabilities/clientcompat.go",
+          "internal/conformance/testdata/client-compat-decisions.golden.json",
+          "internal/server/compat_enforcement.go",
+          "internal/server/compat_handshake.go",
+          "internal/server/compat_policy.go"
+        ],
+        "test-file": [
+          "internal/capabilities/clientcompat_test.go",
+          "internal/conformance/client_compat_test.go",
+          "internal/server/compat_test.go"
+        ]
+      },
+      "source": {
+        "ticket": "HANDSHAKE-0063-BUILD-PROVENANCE-1",
+        "checkoff_commit": "8a218b0a3654fd5cf0c5fdfb1c0f99c57c6a4dec",
+        "resolving_commits": [
+          "bd7e0b6e8f74727990d80d47cea94443097d7a28",
+          "952717913d0fc5c68fb6cd7dd180943755b6cf05",
+          "79bbf6a8e7e1ddf8db428f90a142a92decf32f11"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:GCR-002-C",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "5ab69c7607ece732ead7e40d1608f61475f65425",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**GCR-002-C — Record named-owner sign-offs in the matrix.** **GCR** GCR-002 · **Gate** private-alpha · **Severity** P0 · **Primary Repo** beamfall · **Repo** beamfall · **ADR** 0019,0026 · **Context Class** Roadmap ticket work · **Fanout Lane** beamfall:approval-required · **Size** S · **Review** required · **Launch-blocking** yes · **Depends** GCR-002-B.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "docs/governance/gap-closure-register.md",
+          "docs/release/launch-sequencing.md"
+        ]
+      },
+      "source": {
+        "ticket": "GCR-002-C",
+        "checkoff_commit": "7bbef9248c3f73e61cf26dcf4f35c667c6b0df17",
+        "resolving_commits": [
+          "95be2bbdc91fd7e6265596de19b497f65e066910"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:HANDSHAKE-0063-COMPAT-DECISION-DURABILITY-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "b9279c89db1ec785c04f6ee8a3c0461970105ec4",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**HANDSHAKE-0063-COMPAT-DECISION-DURABILITY-1 — Persist compatibility decisions so a revoked subject stays revoked across a server restart, closing the last path by which a pre-binding stream token outlives its invalidation.** Raised by the `application-security-cryptographer` lens in `HANDSHAKE-0063-STREAM-TOKEN-BINDING-1` review r2 and split out because no change to the token-verify path can fix it. That slice binds the compat decision into stream-token mint/verify and additionally checks *unstamped* (pre-binding) grants against the resolver, rejecting them when the subject's decision resolves to an error — so an invalidated subject's already-issued tokens stop serving **while the server stays up**. The residual is architectural and predates the slice: the registry is in-memory, constructed empty at `internal/server/compat_policy.go:119` (`registry: capabilities.NewRegistry()`), and `internal/server/compat_streamtoken_adapter.go:47-48` maps `capabilities.ErrNoDecision` to `(\"\", false, nil)` — no error. After a restart or upgrade, therefore, every subject resolves as \"no decision\", which the verify path accepts, and an unexpired pre-binding token becomes usable again for as long as the signing key stays active. With decisions held only in memory this is not fixable at the verify seam: nothing can distinguish \"this subject never had a decision\" from \"this subject was invalidated and we forgot\" — the information is gone. Rejecting every unstamped token instead is not the answer either; post-restart nothing is stamped, so it would kill all in-flight playback at every restart and rollout. **Primary Repo** beamfall · **Repo** beamfall · **ADR** 0063 · **Context Class** Client compatibility handshake · **Fanout Lane** beamfall:contracts · **Size** M · **Complexity** L · **Review** required · **Launch-blocking** no · **Depends** HANDSHAKE-0063-STREAM-TOKEN-BINDING-1.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "internal/capabilities/clientcompat_binding.go",
+          "internal/server/compat_policy.go",
+          "internal/server/compat_streamtoken_adapter.go",
+          "internal/store/schema_freeze.go",
+          "internal/store/storetest/storetest.go"
+        ],
+        "test-file": [
+          "internal/capabilities/clientcompat_test.go",
+          "internal/conformance/client_compat_test.go"
+        ]
+      },
+      "source": {
+        "ticket": "HANDSHAKE-0063-COMPAT-DECISION-DURABILITY-1",
+        "checkoff_commit": "947e5a5fbe64460b52ac9739006a37dbc881a12e",
+        "resolving_commits": [
+          "57595de480b9c13fe754976d130d8dfa056c47dc"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:DOC-RELEASE-CHECKLIST-SIGNER-CLAIM-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "c776f33e5392781510389b57e6bc7589050e21b4",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**DOC-RELEASE-CHECKLIST-SIGNER-CLAIM-1 — Make the signer-independence claim honest: the validator does not check it, and the checklist reads as if it does.** `docs/store/release-checklist.md:71-74` lists four \"required named approvals\" (release lead, store submitter, legal/policy reviewer, localization reviewer per locale). Read in sequence this reads as four separate people, and it has already been relied on that way. The validator does not agree: `script/store-release-evidence.py` never compares signer names — the dedupe key is `(role, scope, locale)` at `:217` and `valid_person_name` at `:174-178` rejects only placeholder strings. One person can sign all four roles and the packet validates, which was confirmed by re-running the project's own fixture with a single name in every role (exit 0). Either the doc or the code is wrong and right now the doc is the one that misleads. Make the actual guarantee explicit in the checklist, and have the validator PRINT what it observed — a `SIGNER_INDEPENDENCE distinct_signers=M/4` line — plus an opt-in `--require-distinct-signers` flag for the day there is more than one human. Do NOT make distinctness required by default: that would block the only operator the project has, and a control that blocks every release is not a control. The point is to stop the record from being silently ambiguous about who attested what. **Primary Repo** beamfall · **Repo** beamfall · **Context Class** Release engineering · **Fanout Lane** beamfall:ticket · **Size** S · **Review** required · **Launch-blocking** no · **Mockup** N/A · **Depends** —\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "docs/store/release-checklist.md",
+          "script/store-release-evidence.py"
+        ],
+        "test-file": [
+          "script/test_store_release_evidence.py"
+        ]
+      },
+      "source": {
+        "ticket": "DOC-RELEASE-CHECKLIST-SIGNER-CLAIM-1",
+        "checkoff_commit": "91490aba8505dea8ee3e837989eaf812d90f2eaa",
+        "resolving_commits": [
+          "a0f6522f439e9d82c603a045d932a7643fa833dd"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:RELEASE-EVIDENCE-TESTS-GATE-WIRE-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "eae1b211885e725978c2db1714df3470311b6bbb",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**RELEASE-EVIDENCE-TESTS-GATE-WIRE-1 — Wire the store-release-evidence test suites into the canonical gate and split the oversized module.** `script/test_store_release_evidence.py` (17 new receipt tests from RELEASE-EVIDENCE-UPLOAD-RECEIPT-1) and `script/store_release_evidence_test.py` (15 locale-scope tests from RELEASE-EVIDENCE-LOCALE-SCOPE-1) are referenced by nothing in `tools/gate/gate.sh` or the Makefile, so none of these proofs are gate-enforced. Wire both into the gate's support-orchestration test step. Also: `script/store-release-evidence.py` is now ~24KB (over the 20KB guidance) — split the per-store receipt readers into their own module without changing behavior. **Primary Repo** beamfall · **Repo** beamfall · **Context Class** Gate wiring / release tooling · **Size** S · **Review** auto · **Launch-blocking** yes · **Depends** RELEASE-EVIDENCE-UPLOAD-RECEIPT-1, RELEASE-EVIDENCE-LOCALE-SCOPE-1.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "script/store-release-evidence.py",
+          "tools/gate/gate.sh"
+        ]
+      },
+      "source": {
+        "ticket": "RELEASE-EVIDENCE-TESTS-GATE-WIRE-1",
+        "checkoff_commit": "d182ac694ac5a64d1bef3d7f101d09a793b13d6b",
+        "resolving_commits": [
+          "bc29e21708716af735f219594e61531555b479f9"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:RMFAN-REVIEW-OVERLAP-GATE-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "dfb43acb99d752bbae9e86e49c3d30ea0a750e5d",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**RMFAN-REVIEW-OVERLAP-GATE-1 — let review-export run head-bound while the finish gate is still running.** Today a receipt binds only at phase=gate_green, so a core ticket pays the 25-70min gate and the 30-60min expert review strictly serially. Allow review-export to emit a packet bound to the lane head at phase=active-with-recorded-finish-in-flight (or equivalent), with apply-verdict refusing unless the finish later lands green at the SAME head — fail-closed: any head mismatch or red gate discards the verdict. Halves core wall-clock per reviewed ticket. **Primary Repo** beamfall · **Repo** beamfall · **Context Class** Roadmap ticket work · **Fanout Lane** beamfall:agent-safe · **Size** M · **Complexity** L · **Review** required · **Launch-blocking** no · **Depends** —.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "script/roadmap.sh",
+          "script/roadmap_lib.py",
+          "script/roadmap_sh_test.sh"
+        ]
+      },
+      "source": {
+        "ticket": "RMFAN-REVIEW-OVERLAP-GATE-1",
+        "checkoff_commit": "b0cde06bac391c6b3b5b6908e88c9cbc19813635",
+        "resolving_commits": [
+          "a0b659bfab9e3df2455d1f006e599ba97304aa46"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:WEB-CONSOLE-ABORT-THREADING-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "96c96cda64a9f2523422589f7862f1f3fca4d95f",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**WEB-CONSOLE-ABORT-THREADING-1 — Thread useAsync's AbortSignal through the common Console fetchers.** **Primary Repo** beamfall · **Repo** beamfall · **ADR** 0100 · **Context Class** Roadmap ticket work · **Fanout Lane** beamfall:agent-safe · **Size** S · **Review** required · **Launch-blocking** no · **Depends** TECHDUR-WEB-2.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "test-file": [
+          "internal/web/app/src/areas/console/AdminGateAbort.test.tsx"
+        ]
+      },
+      "source": {
+        "ticket": "WEB-CONSOLE-ABORT-THREADING-1",
+        "checkoff_commit": "f0f7a189a95b4dd4547d6d0bf6374772ba44ed45",
+        "resolving_commits": [
+          "980998a0bc0bb05ef7a7c7129db225d39e921ef0"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:REVIEW-RECEIPT-REBIND-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "1b8c6c894b94497063c0cb116bd911fa95b200f2",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**REVIEW-RECEIPT-REBIND-1 — Retain review receipts across diff-preserving rebases at review-export time.** **Primary Repo** beamfall · **Repo** beamfall · **Context Class** Roadmap tooling · **Fanout Lane** beamfall:build · **Size** S · **Complexity** M · **Review** required · **Launch-blocking** no · **Depends** —.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "script/roadmap.sh",
+          "script/roadmap_sh_test.sh"
+        ]
+      },
+      "source": {
+        "ticket": "REVIEW-RECEIPT-REBIND-1",
+        "checkoff_commit": "3fd19c46f604dcd87a0e6ca8ee671d28395cca89",
+        "resolving_commits": [
+          "1e3266131841bba917586878329a2d62450e21b6"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:WEB-E2E-A11Y-SETTLE-FRAMES-2",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "55ca0660cefd726e4e86e8bc8e66e2c2d6da8ae5",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**WEB-E2E-A11Y-SETTLE-FRAMES-2 — `a11y-browser.spec.ts` runs axe before the surface finishes painting, producing intermittent colour-contrast violations.** The spec gates only on `toBeVisible()` before calling `expectNoAxeViolations(page)`. Playwright resolves `toBeVisible()` as soon as the element has a non-empty bounding box, which for the Viewer focus-section buttons is mid-transition — axe then samples half-faded foreground/background pairs and reports contrast violations that do not exist in the settled UI. The repo already owns the correct wait: `settleFrames(page)` in `internal/web/app/e2e/lib/visual-parity.ts` (two `requestAnimationFrame` ticks, 2000ms stall rejection), used by `manage.spec.ts` and `player.spec.ts` but not by this spec. — Do: `await settleFrames(page)` immediately before `expectNoAxeViolations(page)`, for all three surfaces (the race is not Viewer-specific — the Viewer merely hits it most often). Do not weaken any axe assertion, do not add retries, and do not relax the violation set. — Verify: the spec runs 20x consecutively green (`--repeat-each=20`), AND the assertion still bites — temporarily introduce a real contrast regression in the surface styling and confirm the spec reds on it. Record both in `.agent-evidence/WEB-E2E-A11Y-SETTLE-FRAMES-2-r1.txt`. **Primary Repo** beamfall · **Repo** beamfall · **Context Class** Web E2E · **Fanout Lane** beamfall:ticket · **Size** S · **Complexity** S · **Review** auto · **Launch-blocking** no · **Depends** — · **Allowed Paths** `internal/web/app/e2e/a11y-browser.spec.ts`, `.agent-evidence/**` · **Forbidden Paths** `internal/web/app/e2e/lib/visual-parity.ts`, product code.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "test-file": [
+          "internal/web/app/e2e/a11y-browser.spec.ts"
+        ]
+      },
+      "source": {
+        "ticket": "WEB-E2E-A11Y-SETTLE-FRAMES-2",
+        "checkoff_commit": "adda057bf407a6fd686a1817d1df542a22e683a3",
+        "resolving_commits": [
+          "d213c4ce45c48ab90a9796ee00100e7b6a3055d8"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:GCR-012-H-METRICS-DOCS-FOLLOWUP-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "47bd6c796093deb1129bcea93c386a38152eb345",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**GCR-012-H-METRICS-DOCS-FOLLOWUP-1 — Fix two operator-facing defects the /metrics credential change left in the runbooks.** `GCR-012-H-METRICS-LOOPBACK-TRUST-1` made `/metrics` require a bearer token unconditionally, breaking every existing uncredentialed local scrape on upgrade. Its Gate B panel confirmed the mechanism but recorded two documentation defects it could not fix in scope. **(a) Least privilege.** `docs/security/runbooks/metrics.md:68-70` recommends, as the *preferred* remedy for a scraper running as a different user, bind-mounting `<data-dir>/secrets` read-only into the scraper's container. That directory is the process-wide secret store, not a metrics-only one: library-encryption key material (`internal/app/app.go:762`), the relay carrier token (`app.go:948`), subscription secrets (`app.go:756`), scraper credentials (`app.go:458`) and the integration manager's secrets (`app.go:1148`) all resolve to it. An operator following the recommended option grants a metrics scraper read access to every server secret when it needs exactly one file. **(b) Upgrade path.** `docs/security/runbooks/upgrade-test.md:10` and `docs/security/runbooks/rollback.md:11` still instruct a bare `/metrics` health check with no bearer and no pointer to the credential — they were outside the P0's Allowed Paths. Neither asserts loopback works, so this is not contradicting text; the defect is that an operator following the upgrade procedure meets a 403 at the verification step with the correction living in a runbook they were never sent to. The repo also has no CHANGELOG or release-notes surface, so the runbooks are the only pre-upgrade channel for a change that breaks an existing workflow. **Primary Repo** beamfall · **Repo** beamfall · **Context Class** Operator documentation · **Fanout Lane** beamfall:docs · **Size** S · **Complexity** S · **Review** required · **Launch-blocking** no · **Depends** —.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "docs/security/runbooks/metrics.md",
+          "docs/security/runbooks/rollback.md",
+          "docs/security/runbooks/upgrade-test.md"
+        ]
+      },
+      "source": {
+        "ticket": "GCR-012-H-METRICS-DOCS-FOLLOWUP-1",
+        "checkoff_commit": "e2011260ec338c23fa383a0b837e9ec2db7973ba",
+        "resolving_commits": [
+          "8dd11b48f03f7e00c0b274b6a227f1c31d5bc81f"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:PODAD-2-JOB-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "fba2c91d05ebe04c2da89725d71985bc44c7ac48",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**PODAD-2-JOB-1 — Per-episode podcast-ad job, registry composition, and production wiring.** Complete PODAD-2 only after its feature, provenance, and loader prerequisites land. The registry/model may be absent; that state is inert and creates no child jobs. `RMFAN-PODAD-SUCCESSOR-CORRECTIONS-1` is a temporary prerequisite while that roadmap-contract repair is pending; drop it once that ticket closes. **Primary Repo** beamfall · **Repo** beamfall · **ADR** 0193, 0048, 0179, 0013 · **Context Class** Detection / generation job · **Fanout Lane** beamfall:ticket · **Size** M · **Complexity** XL · **Review** required · **Launch-blocking** no · **Depends** PODAD-1, GCR-TOOLING-1, NGAUDIT-B10-DETECT-SURFACE, PODAD-2-FOUNDATION-1, PODAD-2-PROVENANCE-1, MODELREG-PODAD-1, RMFAN-PODAD-SUCCESSOR-CORRECTIONS-1.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "internal/app/app.go",
+          "internal/store/podcast_ad_detection.go"
+        ],
+        "test-file": [
+          "internal/store/podcast_ad_detection_test.go"
+        ]
+      },
+      "source": {
+        "ticket": "PODAD-2-JOB-1",
+        "checkoff_commit": "a27c3f1cf13a844fb74efbe2c26f75551825d83a",
+        "resolving_commits": [
+          "28ba0a88269355b20eeb5c43b4d224e2084feca3",
+          "0bab20249bbfe5f95d7e6b609d51c8ecd6b43285"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:GCR-037-D-CANARY",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "cf85932cf698a5d1426df70cd7fdcc24f52e606d",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**GCR-037-D-CANARY — Decide whether Beamfall publishes a warrant canary, and either publish it with a named refresh owner or record the decision not to.** Split out of `GCR-037-C` on 2026-08-06 because it is an operator decision, not build work, and it was blocking the VDP behind it. The question raised was whether an open-source project needs a canary at all. Being open source is not what decides it: a canary speaks to whether the party OPERATING a service can be compelled by a demand it is gagged from disclosing, and Beamfall operates services — `beamfall-cloud` holds accounts, entitlements and Play billing, the relay carries user traffic under a byte-blindness claim (`GCR-021`), and `GCR-020` handles encrypted-library backup and recovery-key response. Compulsion lands on that operator and is invisible in a public repo, so source availability does not answer it. Open source arguably makes a canary MORE informative, since users can already verify the code and the canary covers only what code review cannot reach. **Gate** security-review · **Severity** P0 · **Primary Repo** beamfall · **Repo** beamfall · **ADR** 0167 · **Context Class** Roadmap ticket work · **Fanout Lane** beamfall:approval-required · **Size** S · **Complexity** S · **Review** human · **Launch-blocking** no · **Depends** —.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "docs/governance/gap-closure-register.md",
+          "docs/release/evidence/account-security.md"
+        ]
+      },
+      "source": {
+        "ticket": "GCR-037-D-CANARY",
+        "checkoff_commit": "26e2cab6cd8142b2088fa8ee835758df6ac37cc9",
+        "resolving_commits": [
+          "ca18cc58b834de2bb0613e5e2203e5e7f5c69fda",
+          "d6c5457df8ffda6b05e4e7d15b467cb1ce75267f"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:GATE-SLOWORCH-SPEED-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "a3584db635341a70c5c2d721fb106381305a5b6f",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**GATE-SLOWORCH-SPEED-1 — Make the slow-orchestration suite itself fast: remove wall-clock sleeps and shard the cases, target ≤ 5 min per gate.** **Primary Repo** beamfall · **Repo** beamfall · **Context Class** Gate infrastructure · **Fanout Lane** beamfall:build · **Size** M · **Complexity** M · **Review** required · **Launch-blocking** no · **Depends** —.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "script/roadmap.sh",
+          "script/roadmap_dispatch_test.sh",
+          "script/roadmap_finish_test.sh",
+          "script/roadmap_sh_test.sh",
+          "tools/gate/gate.sh"
+        ]
+      },
+      "source": {
+        "ticket": "GATE-SLOWORCH-SPEED-1",
+        "checkoff_commit": "db4994c16f67f468604b97afa85f321f7c251c20",
+        "resolving_commits": [
+          "de6af8064b1d6ecbb955b0e7b3348eec45a1de46",
+          "14d74c843145a813eb543e251cce211c333d6349",
+          "81d5d8666e6c68670e81c531751002df54e7b436",
+          "bf009bcf0d51b4efdf41666208e2f4aa55c7f3a6",
+          "c191b872c78601957f09f37ee1478baf98efda1e",
+          "5b47197c8e5a42ec2bc4571cfde875e5777b9f89",
+          "015722cb5593e1e5e52f9d891e9d84618ad8e567",
+          "6ca0d3a4060aae08e590211a03061b50900d6f23"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:HANDSHAKE-0063-DEVICE-SURFACE-NATIVE-ROLLOUT-3",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "727aa8762bc13e13fa597828de6cbb60a8f527af",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**HANDSHAKE-0063-DEVICE-SURFACE-NATIVE-ROLLOUT-3 — Persisted device-surface + catalog migration for native-client Compatibility Handshake rollout (operator sign-off recorded 2026-08-17; supersedes -1 and -2).** **Primary Repo** beamfall · **Repo** beamfall · **Context Class** Client compatibility handshake · **Fanout Lane** beamfall:contracts · **Size** M · **Complexity** L · **Review** required · **Launch-blocking** yes · **Depends** HANDSHAKE-0063-CAPABILITIES-1.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "internal/capabilities/clientcompat.go",
+          "internal/capabilities/provenance.go",
+          "internal/server/compat_enforcement.go",
+          "internal/server/compat_handshake.go",
+          "internal/server/server.go",
+          "internal/store/schema_freeze_catalog.go",
+          "internal/store/sqlite.go",
+          "internal/store/store.go",
+          "testing/backup-fixtures/1.0.0/.schema-digest",
+          "testing/backup-fixtures/1.0.0/beamfall-20260814T001611.011576000Z/receipt.json",
+          "testing/backup-fixtures/1.0.0/expectations.json",
+          "testing/backup-fixtures/1.0.0/fixture.json",
+          "testing/backup-fixtures/seed-schema.json"
+        ],
+        "test-file": [
+          "internal/capabilities/provenance_test.go",
+          "internal/conformance/client_compat_test.go",
+          "internal/conformance/compat_decision_durability_test.go",
+          "internal/server/compat_test.go"
+        ]
+      },
+      "source": {
+        "ticket": "HANDSHAKE-0063-DEVICE-SURFACE-NATIVE-ROLLOUT-3",
+        "checkoff_commit": "c8f17dd7485afde0ad6b9381ed404d827b755ca5",
+        "resolving_commits": [
+          "e835e6fc4efac5376e4f1a526542daae4a974b7e",
+          "558355824df603bd853521b8a76221f868da19cd",
+          "3ae7cf7f879813d0451dc85d20c20e3247d3aaa6",
+          "3b63b61f3e8e6ca80445f4cd098e4dfb33d832ff",
+          "6ce9e303c7aafaf8e76a09430b005858dadc226c"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:SUBT-CONFORMANCE-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "63267d4d559c618542636cd5e0229d3d7b2e7d61",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**SUBT-CONFORMANCE-1 — Restored subtitle conformance: golden selection corpus + per-kit resolver runners (ADR-0194 §3).** Consolidated restoration: SUBSYS-3 (15-case subtitle-selection golden fixture corpus, 7 competitor regressions, byte-pinned) → SUBSYS-4 (Kotlin/Swift/TS resolver-conformance runners consuming the vendored corpus in each kit's in-gate smoke lane). Full member specs in `artifacts/plans/roadmap-retired-2026-07-19.md` § \"from 40-world-class-subtitle-system-adr-0194-2026-07-08.md\". **Decomposed 2026-08-07:** the third member `RELREV-8-ACTIVATE` was split out to `RELREV-8-ACTIVATE-1`. It demanded a client-core-wire discovery matrix whose two unproven rows live in `beamfall-android-ui`'s endpoint/discovery sources, which this ticket's Allowed Paths never covered — so the member could not be brought to PASS from inside this root, and a correct member ledger could only ever score it PARTIAL. The matrix itself stays here in `docs/release/evidence/conformance-gate-wiring.md` as delivered evidence; closing its PARTIAL rows is `RELREV-8-ACTIVATE-1`'s job. **Primary Repo** beamfall · **Repo** beamfall, beamfall-android-ui, beamfall-apple-ui, beamfall-web · **ADR** 0194, 0018, 0025, 0046, 0122 · **Context Class** Conformance · **Fanout Lane** beamfall:conformance · **Size** L · **Complexity** L · **Review** required · **Launch-blocking** yes · **Depends** SUBSYS-1, SUBT-SERVER-1.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "docs/release/evidence/conformance-gate-wiring.md"
+        ]
+      },
+      "source": {
+        "ticket": "SUBT-CONFORMANCE-1",
+        "checkoff_commit": "ccbefd6924a3f7a481d0b8c1bb612f853e88d76a",
+        "resolving_commits": [
+          "b2983be382b63106947b6a4deae7dcc64c712c76"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:TRUST-LAUNCH-SPLIT-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "845f81d6395526b428657b4dd815d276e1422852",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**TRUST-LAUNCH-SPLIT-1 — Launch-safe trust slice: factual claims register + community health files (no counsel-gated wording).** Split 2026-08-18 out of TRUSTCERT-CHAIN-1 (moved post-release; legal-compliance-counsel panel H5, `~/.agents/fleet/run/expert-panel-0818/legal.md`): TRUST-1's versioned claims register with epistemic-scope tags and OSS-6's health files are safe to ship without counsel BECAUSE they are bounded, falsifiable statements of verification actually performed — never warranties, forward promises, pledges, or a Manifest. OSS-4 (Manifest), CERT-4 (badge/trademark), TRUST-3 (warrant canary), TRUST-5 (audit contract) stay in the post-release chain. **Primary Repo** beamfall · **Repo** beamfall · **ADR** 0197 (posture unchanged; nothing new published) · **Context Class** Roadmap ticket work · **Fanout Lane** beamfall:docs · **Size** S · **Complexity** M · **Review** required · **Launch-blocking** yes · **Depends** —.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          ".github/workflows/gate.yml",
+          "CONTRIBUTING.md",
+          "README.md",
+          "SECURITY.md"
+        ]
+      },
+      "source": {
+        "ticket": "TRUST-LAUNCH-SPLIT-1",
+        "checkoff_commit": "2afef34f0dfbfc62e14923a9e64b8b3a61f956ac",
+        "resolving_commits": [
+          "55885af13e1583ad24e18ee27a247848847cc749",
+          "afacc5eee614ae4a9b77231676626c2ce32e79e2",
+          "f54f688f56f904193803b9e4ab9a0f3839d438f1",
+          "3401d15254828a8cebe4f57febbbac35b5426074"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:AUDITFIX-RUNTIME-SANDBOX",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "befdd106810b7061c28d04ee407907d845cc48f4",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**AUDITFIX-RUNTIME-SANDBOX — Fail closed for local-inference process confinement.** Audit finding: local inference execution can start without a complete least-privilege confinement policy on supported hosts. **Primary Repo** beamfall · **Repo** beamfall · **Context Class** Local inference sandbox security · **Fanout Lane** beamfall:runtime-security · **Size** L · **Review** required · **Launch-blocking** yes · **Depends** AUDITFIX-20260819-CURRENT-DIFF.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "cmd/beamfall/confine_linux.go",
+          "cmd/beamfall/confine_other.go",
+          "cmd/beamfall/no_network_linux.go",
+          "cmd/beamfall/no_network_other.go",
+          "cmd/beamfall/shim_runtime_unix.go",
+          "internal/integrationhost/local_inference.go"
+        ],
+        "test-file": [
+          "cmd/beamfall/confine_linux_test.go",
+          "cmd/beamfall/local_inference_shim_test.go",
+          "internal/integrationhost/local_inference_test.go"
+        ]
+      },
+      "source": {
+        "ticket": "AUDITFIX-RUNTIME-SANDBOX",
+        "checkoff_commit": "64c7f474d00eaeb660fa6e1031530642409acb98",
+        "resolving_commits": [
+          "ce288e2d3af1f966c0bcc6bca3323fbabac48edf",
+          "5f50260917fae745e682c81200e73182d5be2ca5",
+          "efee2efd180f479248f81741fb2c7103a50c168f",
+          "372088d20f6aa87221d49a90d2a82382d99135a9",
+          "7545376e5c4d6cb3ff30e59951f8a4fea82e205a",
+          "9c87ddf79f48d9ec10e1fe44e26d274d5713d95f"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:SECAUDIT-20260817-RETENTION-KEEP-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "97a5c38654235dacf338fc70bdb17e67cf5c3204",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**SECAUDIT-20260817-RETENTION-KEEP-1 — Make retention rescue per-Profile and object-authorized as ADR-0051 requires.** The current viewer mutation ignores `auth.Scope` and writes a global candidate/operator hold, allowing unknown, hidden, or cross-Library IDs to create retention state; ADR-0051 instead defines viewer rescue as a per-Profile Favorite-class `keep`, with operator hold distinct. **Primary Repo** beamfall · **Repo** beamfall · **ADR** 0051 · **Context Class** Auth / sessions / Reveal / privacy · **Fanout Lane** beamfall:retention-auth · **Size** M · **Complexity** XL · **Review** required (human sign-off before merge if schema/goldens change) · **Launch-blocking** yes · **Depends** —.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "internal/graph/graph_dispatch.go",
+          "internal/graph/graph_retention.go",
+          "internal/store/retention_rules.go"
+        ],
+        "test-file": [
+          "internal/graph/graph_retention_test.go",
+          "internal/store/retention_rules_test.go"
+        ]
+      },
+      "source": {
+        "ticket": "SECAUDIT-20260817-RETENTION-KEEP-1",
+        "checkoff_commit": "c30d96e74c3b15448f3758248b6a1b12fe32a9c4",
+        "resolving_commits": [
+          "1425450326704cd3b95ec9400ef8dd55712d74c2"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:AUDITFIX-TLS-MUX",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "0f655b3c7557d8512f2360f76219fb803d987260",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**AUDITFIX-TLS-MUX — Remove TLS listener/multiplexer shutdown and routing races.** Audit finding: TLS accept/mux ownership admits close/reload interleavings that can misroute or strand connections. **Primary Repo** beamfall · **Repo** beamfall · **Context Class** Network transport lifecycle · **Fanout Lane** beamfall:network · **Size** M · **Review** required · **Launch-blocking** yes · **Depends** AUDITFIX-RUNTIME-SHUTDOWN.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "internal/remoteaccess/tlsmux.go"
+        ]
+      },
+      "source": {
+        "ticket": "AUDITFIX-TLS-MUX",
+        "checkoff_commit": "6866b134704249cacd0029b4409f6fe0892925b9",
+        "resolving_commits": [
+          "7147b67920c3952349b984f1dca1f3f2151bf6cd",
+          "48b0cdc7d831a32d6253dc0e185aa92c69697f84",
+          "affc24cda2b871be4dc421580d896e8ed76c77b5"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:AUDITFIX-INGEST-DURABILITY",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "f6ffcc823601bbe835a6f3c3e33538e0520515f9",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**AUDITFIX-INGEST-DURABILITY — Make ingest receipts, GUID identity, and publication crash-durable.** Audit findings: ingest publication can acknowledge before file/directory fsync; receipt identity can drift from the exact source GUID; crash boundaries can duplicate or lose handoff state. **Primary Repo** beamfall · **Repo** beamfall · **Context Class** Ingest durability and identity · **Fanout Lane** beamfall:ingest · **Size** L · **Review** required · **Launch-blocking** yes · **Depends** AUDITFIX-JOB-LEASE.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "internal/ingest/ingest.go"
+        ],
+        "test-file": [
+          "internal/ingest/ingest_test.go"
+        ]
+      },
+      "source": {
+        "ticket": "AUDITFIX-INGEST-DURABILITY",
+        "checkoff_commit": "120a7f8e27325e56ce8046fe32f7cc4c9dba6bab",
+        "resolving_commits": [
+          "b5e0b3b72427d384de8571e2c7a3829bcfc6e2d4",
+          "33a5e12130b1e7573cc7d7bcd59d366de3c5345d",
+          "54b243af00dc499d580f0741312e1f7f88391703"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:GCR-017-DEMORUNBOOK-2",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "2f63f9912eb8e0a75f23720ac2fd63a974acf54d",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**GCR-017-DEMORUNBOOK-2 — Land the demo-server runbook repair that GCR-017-DEMORUNBOOK-1 was checked off without landing.** `GCR-017-DEMORUNBOOK-1` was marked `[x]` on core main at `2cbbd85a4` (2026-08-18), but its reopened repair never merged: commit `8d5734998` on `run/GCR-017-DEMORUNBOOK-1` is still the only unlanded commit, and `git show main:docs/store/demo-server-runbook.md` contains ZERO occurrences of `Restart=always` and ZERO of `acme-terms-accepted` while the lane's copy contains both. The diff is docs-only, one file, +288/−105. Gate B cannot recover the original ticket: `review-export` reports `skip GCR-017-DEMORUNBOOK-1: already checked off` and writes 0 packets, so `bf-review.sh` refuses to spawn a reviewer with nothing to read — the checked-off flag is structural, not transient, so retrying that ticket can never work. The operator follows this runbook to stand up the demo server, which starts the 72h window that gates the P0 store-review epic GCR-017, so the unlanded state is launch-blocking in effect. **Primary Repo** beamfall · **Repo** beamfall · **Context Class** Roadmap ticket work · **Fanout Lane** beamfall:ticket · **Size** S · **Review** auto · **Launch-blocking** no · **Depends** —.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "docs/store/demo-server-runbook.md"
+        ]
+      },
+      "source": {
+        "ticket": "GCR-017-DEMORUNBOOK-2",
+        "checkoff_commit": "35e708823d5dad1542c4385048856e610625f3ae",
+        "resolving_commits": [
+          "d90d1f8ca1d6ab4ea812fc874c8d3a26f0edae10"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:GATE-SECRETSCAN-LOGREQ-CANARY-ALLOWLIST-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "903f7b384e9d42a2d1449bf9d8a3ba2ea142d9a3",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**GATE-SECRETSCAN-LOGREQ-CANARY-ALLOWLIST-1 — Allowlist the stream-token canary that `AUDITFIX-20260820-LOGREQ-TOKEN-PATH-REDACTION-1`'s regression test must contain.** That lane's test proves a stream token is no longer written to the log on ordinary 403/404 responses, which requires a token-shaped literal in the test to assert against — a canary literal (value `canary-stream-token-0xDEAD`, declared at `internal/server/server_test.go:246`). `tools/gate/secret-scan.py` flags it under rule `credential-assignment`, and train preflight dropped the lane on 2026-08-20 (`DROP … train preflight failed: secret-scan`). The value is a canary, not a credential: it names itself as one and matches nothing issued by this system. `credential-assignment` is allowlistable (only `private-key` and `private-key-pgp` are in `NON_ALLOWLISTABLE_RULES`). This ticket is DELIBERATELY separate from the LOGREQ lane: that lane has already passed Gate B, and adding a commit to it would move the branch and unbind its review receipt, costing a full re-review and re-gate for a one-line change in a file that lane does not own. **Primary Repo** beamfall · **Repo** beamfall · **Context Class** Gate tooling · **Fanout Lane** beamfall:tooling · **Size** XS · **Review** required · **Launch-blocking** no · **Depends** —.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "tools/gate/secret-scan-allowlist.txt"
+        ]
+      },
+      "source": {
+        "ticket": "GATE-SECRETSCAN-LOGREQ-CANARY-ALLOWLIST-1",
+        "checkoff_commit": "29e9bb2261b14cd36cfaca9cff98bfb0994dd477",
+        "resolving_commits": [
+          "f74db6f9bde1a9cec5fc534a0d04c6c4d539a62a"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:REVIEW-MISSING-PACKET-FAILOPEN-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "0b1ec0517a28154876d42373f22256523e20239c",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**REVIEW-MISSING-PACKET-FAILOPEN-1 — A Gate B reviewer returns PASS when the review packet does not exist.** `scripts/bf-review.sh:23` points the reviewer at `$WS/review-export/$T.md` and asks for a verdict. When `review-export` writes zero packets — which it does legitimately, e.g. `skip GCR-019-B: no committed diff on run/GCR-019-B` — the file is absent, yet codex still returned `verdict=PASS pass=2/2` on 2026-07-31 having read nothing. Only `apply-verdict` stopped it, and incidentally: it rejected the run for `missing review packet`, not because the verdict was unfounded. A stale or truncated packet would satisfy that check and the fabricated PASS would land. Make the reviewer step fail closed: have `bf-review.sh` assert the packet exists and is non-empty before invoking the reviewer, and instruct the reviewer to emit an explicit ERROR verdict rather than PASS when it cannot read the packet. Then prove the guard bites by running it against a ticket with no committed diff. **Primary Repo** beamfall · **Repo** beamfall · **Context Class** roadmap tooling · **Allowed Paths** `scripts/bf-review.sh`, `script/roadmap.sh`, `.agent-evidence/**` · **Forbidden Paths** verdict schema loosening; anything that reduces what apply-verdict validates.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          ".agent-evidence/REVIEW-MISSING-PACKET-FAILOPEN-1-repair-r1-test.txt"
+        ]
+      },
+      "source": {
+        "ticket": "REVIEW-MISSING-PACKET-FAILOPEN-1",
+        "checkoff_commit": "9fe0f0cdc215ad6b6a0de39ab728125f8147bb7a",
+        "resolving_commits": [
+          "3a7ca4efd7b90292c49b38dcee78cb1274e95aca"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:SECAUDIT-20260817-DEPLOY-DIGEST-PINS-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "1b3b0aa41eee5fb6bfc028daabe779d066747d53",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**SECAUDIT-20260817-DEPLOY-DIGEST-PINS-1 — Publish and consume immutable digest-pinned deployment manifests.** Compose, TrueNAS, and Unraid defaults select mutable `stable`/channel tags; release-time signing does not make runtime tag resolution immutable. **Primary Repo** beamfall · **Repo** beamfall · **Context Class** Operations / jobs / scheduler / packaging · **Fanout Lane** beamfall:release-security · **Size** M · **Complexity** L · **Review** required · **Launch-blocking** yes · **Depends** —.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          ".github/workflows/release.yml",
+          "Makefile",
+          "packaging/compose/README.md",
+          "packaging/compose/compose.cpu.yml",
+          "packaging/compose/compose.intel-vaapi.yml",
+          "packaging/compose/compose.nvidia.yml",
+          "packaging/truenas/README.md",
+          "packaging/truenas/docker-compose.yaml",
+          "packaging/unraid/beamfall-core.xml",
+          "script/check-release-workflow-pins.py"
+        ],
+        "test-file": [
+          "script/check_release_workflow_pins_test.py"
+        ]
+      },
+      "source": {
+        "ticket": "SECAUDIT-20260817-DEPLOY-DIGEST-PINS-1",
+        "checkoff_commit": "d98d46e0a7b0f31472b33d903d217da174dd07f8",
+        "resolving_commits": [
+          "68c3854c71c196b1b93d22f443ad43fcb81d793b"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:SECAUDIT-20260817-BACKUP-DESCRIPTOR-TOCTOU-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "61dbc5d8e010426fc5f96db789e5a6977e9335f5",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**SECAUDIT-20260817-BACKUP-DESCRIPTOR-TOCTOU-1 — Archive backup inputs from validated no-follow descriptors.** Backup set creation walks and rejects symlinks, then reopens pathnames later, allowing a concurrent symlink replacement to include an outside readable file. **Primary Repo** beamfall · **Repo** beamfall · **ADR** 0192 · **Context Class** Backup/restore hardening · **Fanout Lane** beamfall:backup-security · **Size** M · **Complexity** XL · **Review** required · **Launch-blocking** yes · **Depends** —.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "internal/backup/set.go"
+        ],
+        "test-file": [
+          "internal/backup/set_test.go"
+        ]
+      },
+      "source": {
+        "ticket": "SECAUDIT-20260817-BACKUP-DESCRIPTOR-TOCTOU-1",
+        "checkoff_commit": "39c8f1debbd60245a59badf747d9741fca884ccc",
+        "resolving_commits": [
+          "a03bec539e894cdc21849dc13343d1a3f69c75e0",
+          "a2b55acf093795b84594fa975b30ca57108c51a3",
+          "a890a62426fb81b6a0a471c415f77164406e6ebd",
+          "e980fdfb28b95059f24142d5971d1f4d173b906e"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:GCR-017-RELEASE-KEY-PIN-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "b64f8e7bdeb9c5fe680db0f329f9b51a49a6380e",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**GCR-017-RELEASE-KEY-PIN-1 — Re-pin the release trust anchor to the operator-held signing key.** **Primary Repo** beamfall · **Repo** beamfall · **ADR** 0013 · **Context Class** Release trust anchor / supply chain · **Fanout Lane** beamfall:agent-safe · **Size** S · **Review** required · **Launch-blocking** yes · **Depends** —.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "internal/release/key.go"
+        ],
+        "test-file": [
+          "internal/release/release_test.go"
+        ]
+      },
+      "source": {
+        "ticket": "GCR-017-RELEASE-KEY-PIN-1",
+        "checkoff_commit": "2d13390e555a9cd45ac4785493d99ea1d6b4b2c8",
+        "resolving_commits": [
+          "3b8cc21a5d168fbe30db4f959954a7d39f9d4cb5",
+          "0e50173a7e07b0591c405c9544c8859e920a8e24"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:WEB-A11Y-SECONDARY-TEXT-TOKEN-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "5bd92eeb51df3f3f8ba17790e6b33168ff81a723",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**WEB-A11Y-SECONDARY-TEXT-TOKEN-1 — Fix `--text-secondary` itself, and gate the token rather than two call sites.** `WEB-A11Y-FOCUS-CARD-CONTRAST-1` cleared the ADR-0100 gate by moving `[data-register=\"viewer\"] .bf-card-title` and `.bf-card-sub` off `--text-secondary` onto `--text-primary` (`internal/web/app/src/components/chrome/chrome.css:484,497`). That unblocked core's gate but has two costs. First, the token itself was since raised — `internal/web/app/src/styles/tokens.css:61` now sets `--mist-200: #d9e7ec`, which computes to 14.76:1 on the `#0e1317` viewer background, so the original AA failure (`#687176`, 3.74:1) is already fixed; what remains unasserted is that *nothing gates the token*, so a future regression in it would not fail the build. Second, title and sub now resolve to the same colour, flattening the intended visual hierarchy to size and weight alone. Raise the on-dark secondary token (or add a conformant secondary-on-dark token) to at least 4.5:1, restore the two card selectors to secondary, and extend the a11y assertion so the token's conformance is what the gate checks — not two hand-picked selectors. Coordinate the value with `beamfall-design-system` mockups before landing. **Primary Repo** beamfall · **Repo** beamfall · **Context Class** Roadmap ticket work · **Size** S · **Review** required · **Launch-blocking** no.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "test-file": [
+          "internal/web/app/e2e/a11y-browser.spec.ts"
+        ],
+        "source-file": [
+          "internal/web/app/src/components/chrome/chrome.css"
+        ]
+      },
+      "source": {
+        "ticket": "WEB-A11Y-SECONDARY-TEXT-TOKEN-1",
+        "checkoff_commit": "faf0c6d3a089b27054d26439ec5690af9ccf61cc",
+        "resolving_commits": [
+          "fbdc9d0cb712bb3145a9f992d3ede18e74a708b0",
+          "6edd61ab5a6e989c53df66b36c2ee1de58463acf",
+          "85a8709676dd3829ea84c313726e05576c2ab50f"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:AGENTCTX-ATLAS-DIRTY-RATE-INSTRUMENTATION-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "f9ca9d144c882f58d058ac13ddad6f2ebb9c655e",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**AGENTCTX-ATLAS-DIRTY-RATE-INSTRUMENTATION-1 — Measure dirty-at-query-time rate before freezing overlay scope.** Atlas decision 0003 promotes the dirty-worktree overlay to product-critical but orders measurement first: instrument the dogfood routes to record, on every routed query, whether the checkout was dirty at query time (a boolean plus tracked/untracked dirty-file counts — never file names or contents), so two weeks of live fleet data establish the real dirty-at-query-time rate before overlay scope is frozen. Today's routes are all clean-HEAD orientation calls, which is consistent with agents simply not asking mid-edit because the answer would be stale — this measurement decides. **Primary Repo** beamfall · **Repo** beamfall · **Context Class** Token saving audit / docs audit · **Fanout Lane** beamfall:agent-tooling · **Size** S · **Complexity** S · **Review** required · **Launch-blocking** no · **Depends** — · **Allowed Paths** `Makefile`, `script/bf_tools.py`, `script/bf_tools_test.py`, `script/atlas-dogfood-ensure.sh`, `script/atlas-dogfood-ensure_test.py`, `tools/atlas-documentation-runtime/**`, `testing/atlas-documentation/**`, `docs/agent-workflows/agent-efficiency-policy.md` · **Forbidden Paths** file-name or content logging, task-text or secret logging, product code, ADR bodies, CONTEXT.md, roadmap shards except through roadmap tooling, network services, generated/vendor/build output.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "docs/agent-workflows/agent-efficiency-policy.md",
+          "script/atlas-dogfood-ensure.sh",
+          "tools/atlas-documentation-runtime/atlas_runtime.py",
+          "tools/atlas-documentation-runtime/diagnostics.py"
+        ],
+        "test-file": [
+          "script/atlas-dogfood-ensure_test.py",
+          "script/bf_tools_test.py",
+          "tools/atlas-documentation-runtime/diagnostics_test.py"
+        ]
+      },
+      "source": {
+        "ticket": "AGENTCTX-ATLAS-DIRTY-RATE-INSTRUMENTATION-1",
+        "checkoff_commit": "8be7bcb4f4ba73d68f06e116e092c327bd78916d",
+        "resolving_commits": [
+          "b6591ef1193bf785d5b25d8e66a17f9380a43e52",
+          "2dcc65c537a9336958ea0663ec7d516972285e92"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:WEBUI-MANAGE-DATA-SAFETY-1",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "1d3099a09ef2d0c19e52bd74e88a63d1bbd7b126",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**WEBUI-MANAGE-DATA-SAFETY-1 — Manage writes the wrong record's identity and applies destructive batches without a real confirmation.** Found in the 2026-08-22 web audit (`AUDIT-2026-08-22-web-manager-viewer.md` in beamfall-workspace); every item verified at source. (1) `internal/web/app/src/areas/manage/pages/UnmatchedPage.tsx:195` renders `<FixMatchPanel item={activeItem}>` with no `key`, and the panel keeps `candidates`/`selectedID`/`diff` in `useState` (`unmatched/FixMatchPanel.tsx:31-34`) that only resets inside `onSearch` — preview a candidate for row A, click row B, press Apply, and `fixMatch({mediaID: B, candidateID: A's})` writes A's metadata onto B with no preview shown for B. `unmatched/RecordInbox.tsx:88` has the same unkeyed `CreateMediaForm` (A's title submitted with B's `recordID`). (2) `UnmatchedPage.tsx:83` \"Clear queue\" runs `Promise.all(items.map(dismissUnmatched))` with no confirmation and, on partial failure, skips `setItems([])` so rows the server already dismissed stay visible. (3) `BulkOpsPage.tsx:154-155,282,382` gate Apply only on input validity and the confirm dialog body reads `{changes?.length ?? 0} affected` — skipping Preview yields \"0 affected\" and `organizeApply` moves every file in the library. (4) `CollectionsPage.tsx:221-222` reorders with two sequential `updateCollection` writes and no rollback; `:517-519` optimistic member reorder never restores on failure; `:703` smart-collection delete has no confirm and no restore path while the manual row beside it is `AlertDialog`-gated; `:154-170` `load` lacks the load-generation guard `SubscriptionsPage.tsx:76` uses. (5) `RenamePage.tsx:221` batch rename fires with no confirm; `MarkersPage.tsx:231` draft state never resyncs after an ↑/↓ swap so the next Save reverts the reorder; `NavOverridePage.tsx:123-134` read-modify-write with no in-flight lock drops the first of two quick toggles; `CurationPage.tsx:325` index keys on reorderable rows and `:128` swallows the post-mutation reload error; `unmatched/RecordInbox.tsx:52` `if (error) return null` hides the section with no message; `unmatched/SuppressionPanel.tsx:138-144` reset bypasses the shared `suppressionTarget()` builder. **Primary Repo** beamfall · **Repo** beamfall · **Context Class** Core Web UI / Console / Manage / Viewer · **Fanout Lane** beamfall:webapp · **Size** M · **Complexity** M · **Review** required · **Launch-blocking** yes · **Depends** —.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "internal/web/app/src/areas/manage/pages/BulkOpsPage.tsx",
+          "internal/web/app/src/areas/manage/pages/CollectionsPage.tsx",
+          "internal/web/app/src/areas/manage/pages/CurationPage.tsx",
+          "internal/web/app/src/areas/manage/pages/MarkersPage.tsx",
+          "internal/web/app/src/areas/manage/pages/NavOverridePage.tsx",
+          "internal/web/app/src/areas/manage/pages/RenamePage.tsx",
+          "internal/web/app/src/areas/manage/pages/UnmatchedPage.tsx",
+          "internal/web/app/src/areas/manage/pages/unmatched/RecordInbox.tsx",
+          "internal/web/app/src/areas/manage/pages/unmatched/SuppressionPanel.tsx"
+        ],
+        "test-file": [
+          "internal/web/app/src/areas/manage/pages/CollectionsPage.test.tsx",
+          "internal/web/app/src/areas/manage/pages/MarkersPage.test.tsx",
+          "internal/web/app/src/areas/manage/pages/RenamePage.test.tsx",
+          "internal/web/app/src/areas/manage/pages/UnmatchedPage.test.tsx"
+        ]
+      },
+      "source": {
+        "ticket": "WEBUI-MANAGE-DATA-SAFETY-1",
+        "checkoff_commit": "23f42a15edf75e78483ade0329f773f12542b13e",
+        "resolving_commits": [
+          "1108b950d0b33af9c337d6d86c690ed67d8087ca",
+          "610d054b6a988a5ff929f8715d62d0c73ee59a8f"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:COREAPI-AUDIT-0822-4",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "5dbd4ed6eae441ee4b7434aa709a014583d7a54f",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**COREAPI-AUDIT-0822-4 — `/v1/backups/media` must classify unrecognised ingest failures as 500 without echoing the raw error.** Core API production-readiness audit 2026-08-22 (P1, distsys + parent-verified). The default branch at `internal/server/v1.go:712` answers `writeError(w, r, http.StatusBadRequest, err.Error())` for every error `BackupIngest` does not map, and `internal/store/backup_ingest.go:198-231` reaches it on `os.MkdirAll`/`os.CreateTemp`/`os.Rename`/fsync faults. A transient disk problem therefore tells a phone-backup client \"malformed request, do not retry\" so the photo is dropped, and the body carries absolute data-directory paths from `*os.PathError`/`*os.LinkError`. Suggested fix: default to `writeErrorCause(..., http.StatusInternalServerError, \"backup ingest failed\", err)`; answer 400 only for `store.ValidationError` (or an explicit sentinel set); update `docs/api/openapi.json` responses for both backup operations. **Primary Repo** beamfall · **Repo** beamfall · **Context Class** Roadmap ticket work · **Fanout Lane** beamfall:ticket · **Size** S · **Complexity** S · **Review** required · **Launch-blocking** yes · **Depends** —.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "docs/api/llms-full.txt",
+          "docs/api/openapi.json",
+          "docs/api/reference.md",
+          "internal/server/v1.go"
+        ],
+        "test-file": [
+          "internal/server/v1_test.go"
+        ]
+      },
+      "source": {
+        "ticket": "COREAPI-AUDIT-0822-4",
+        "checkoff_commit": "ecc0387195238b3e4caa3ba6c9b677fb9512fdca",
+        "resolving_commits": [
+          "46075ad05a2a328d982615bdf67f6825d32e6eab",
+          "9138ee04b5e64bfcef5aca355a060695072d63a3",
+          "79c73e8d92cc8c44e8560887c684ad8e51862f99"
+        ]
+      }
+    },
+    {
+      "id": "roadmap:COREAPI-AUDIT-0822-2",
+      "kind": "retrieval",
+      "repo": "Beamfall/core",
+      "base_commit": "ef273ab4e8c1173ebc14afba802c21b74b3fec51",
+      "text": "The roadmap ticket below was resolved in this repository. Which existing file(s) must change to resolve it?\n\nTicket:\n**COREAPI-AUDIT-0822-2 — Wire `OpenDecryptReader` into the mediahttp encrypted-bytes adapter so encrypted-library direct play streams in production.** Core API production-readiness audit 2026-08-22 (P0, playback + parent-verified). `internal/mediahttp/mediahttp.go:1432` type-asserts `EncryptedByteReadSeeker` (`mediahttp.go:75`), but the production adapter `appLibEncryptDBCipher` passed at `internal/app/app.go:878` implements only `DecryptBytes`/`EncryptFile`/`EncryptObjectFile`/`UnsealDBFile`/`SealDBFile` (`app.go:3550-3581`); only the test fake (`mediahttp_test.go:486`) satisfies the interface, which is why the suite is green. In production every Range request on an encrypted library answers 416 (`mediahttp.go:1441`) so AVPlayer/hls.js/browsers cannot play, and a no-Range GET falls to `DecryptBytes` → `io.ReadAll` of the whole decrypted file (`app.go:3560`). `appEncryptedContentSource` (`app.go:3520`) already implements the method for offlinepack. Suggested fix: add `OpenDecryptReader` to `appLibEncryptDBCipher` (delegating to `libencrypt.Manager.OpenDecryptReader`, `internal/libencrypt/lifecycle.go:274`) and add compile-time `var _ mediahttp.EncryptedByteReadSeeker = appLibEncryptDBCipher{}` assertions; add a conformance rule that every optional interface mediahttp probes is satisfied by the composition-root adapter. **Primary Repo** beamfall · **Repo** beamfall · **Context Class** Playback / stream tokens / bytes · **Fanout Lane** beamfall:ticket · **Size** S · **Complexity** M · **Review** required · **Launch-blocking** yes · **Depends** —.\n\nReport each source path as a claim of kind source-file and each test path as a claim of kind test-file.",
+      "gold": {
+        "source-file": [
+          "internal/app/app.go"
+        ]
+      },
+      "source": {
+        "ticket": "COREAPI-AUDIT-0822-2",
+        "checkoff_commit": "b48f6c467387e0aff477908e316afdfc45ed7971",
+        "resolving_commits": [
+          "336a4b9d7626596f89ed640a456464fcb9be9804",
+          "b023d8b34ed41f18dfdbaf0ccab50ebb51a5d82d",
+          "ca3331d2328a11656d040a5778ae63da3381c08c",
+          "40786d2a3ccb1c266692c2c86d63877e7d2e6b45"
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+def allowed():
+    return True

@@ -1,0 +1,105 @@
+//go:build !windows
+
+package releasegate
+
+import (
+	"bytes"
+	"context"
+	"errors"
+	"io"
+	"os"
+	"os/exec"
+	"sync"
+	"syscall"
+	"time"
+
+	"github.com/Beamfall/corvint/internal/groupreap"
+)
+
+func runGitProcess(ctx context.Context, identity gitIdentity, root string, limit int, input []byte, args ...string) ([]byte, error) {
+	commandArgs := []string{"--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "core.untrackedCache=false", "-c", "core.excludesFile=", "-c", "credential.helper=", "-c", "submodule.recurse=false", "-C", root}
+	commandArgs = append(commandArgs, args...)
+	command := exec.Command(identity.path, commandArgs...)
+	command.Env = sanitizedGitEnvironment()
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	command.Stdin = bytes.NewReader(input)
+	stdout, stderr := &limitBuffer{limit: limit}, &limitBuffer{limit: 64 << 10}
+	stdoutRead, stdoutWrite, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
+	defer stdoutRead.Close()
+	stderrRead, stderrWrite, err := os.Pipe()
+	if err != nil {
+		_ = stdoutWrite.Close()
+		return nil, err
+	}
+	defer stderrRead.Close()
+	command.Stdout, command.Stderr = stdoutWrite, stderrWrite
+	if err := command.Start(); err != nil {
+		_ = stdoutWrite.Close()
+		_ = stderrWrite.Close()
+		return nil, errors.New("sanitized Git command failed to start")
+	}
+	var copied sync.WaitGroup
+	copied.Add(2)
+	go func() { _, _ = io.Copy(stdout, stdoutRead); copied.Done() }()
+	go func() { _, _ = io.Copy(stderr, stderrRead); copied.Done() }()
+	done := make(chan error, 1)
+	// Git may exit while a hostile descendant retains its process group.
+	// groupreap.Wait kills that group on every terminal path before the reap.
+	go func() { done <- groupreap.Wait(command) }()
+	var runErr error
+	select {
+	case err := <-done:
+		runErr = err
+	case <-ctx.Done():
+		// Stop kills only the leader where waitid is available; groupreap.Wait
+		// then sweeps the group before the reap (V1-0373).
+		_ = groupreap.Stop(command)
+		<-done
+		runErr = ctx.Err()
+	}
+	_ = stdoutWrite.Close()
+	_ = stderrWrite.Close()
+	copied.Wait()
+	if !processGroupGone(command.Process.Pid) {
+		return nil, errors.New("sanitized Git descendant did not disappear")
+	}
+	if runErr != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, errors.New("sanitized Git command failed")
+	}
+	if stdout.exceeded || stderr.exceeded {
+		return nil, errors.New("Git output exceeds release gate bound")
+	}
+	return stdout.Bytes(), nil
+}
+
+// groupProbe is syscall.Kill; tests observe that processGroupGone sends
+// signal 0 only.
+var groupProbe = syscall.Kill
+
+// processGroupGone runs after groupreap.Wait has SIGKILLed the group while the
+// leader was unreaped and then reaped it, so it sends signal 0 only and grants
+// no kill authority (PGO-V0-001). After the reap the numeric group ID can name
+// a reused group; that can only make the group look present and refuse the
+// command, never accept it (V1-1036).
+func processGroupGone(pgid int) bool {
+	deadline := time.Now().Add(time.Second)
+	for {
+		err := groupProbe(-pgid, 0)
+		if errors.Is(err, syscall.ESRCH) {
+			return true
+		}
+		if err != nil && !errors.Is(err, syscall.EPERM) {
+			return false
+		}
+		if time.Now().After(deadline) {
+			return false
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}

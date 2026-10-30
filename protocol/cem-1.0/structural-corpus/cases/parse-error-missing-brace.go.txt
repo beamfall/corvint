@@ -1,0 +1,6 @@
+package cases
+
+func broken() {
+	if true {
+		return
+}

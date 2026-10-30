@@ -1,0 +1,164 @@
+{
+  "adapter": {
+    "adapterVersion": "0.1.0",
+    "host": "claude-code",
+    "hostVersion": "1.0.0",
+    "surface": "cli"
+  },
+  "context": {
+    "coverage": {
+      "advisory_results": 0,
+      "authoritative_results": 2,
+      "budget_bytes": 5952,
+      "critical": [
+        "path:src/context_corvint_harness.py"
+      ],
+      "critical_missing": [],
+      "included_results": 2,
+      "omitted_results": 0,
+      "packet_bytes": 3012,
+      "requested_results": 2,
+      "uncertainty": [],
+      "within_budget": true
+    },
+    "exclusions": {
+      "count": 1,
+      "samples_omitted_by_budget": 1
+    },
+    "freshness": {
+      "mixed_path_count": 0,
+      "scope": "git",
+      "state": "fresh"
+    },
+    "mode": "impact",
+    "request": {
+      "budget_bytes": 5952,
+      "limit": 10,
+      "paths": [
+        "src/context_corvint_harness.py"
+      ]
+    },
+    "results": [
+      {
+        "evidence": [
+          {
+            "authority": "git-tree",
+            "blob_hash": "40d8825e83cbc08793312ef87ff6532ce5e59bc1",
+            "confidence": "authoritative",
+            "line": 1,
+            "path": "src/context_corvint_harness.py",
+            "reason": "requested changed path"
+          }
+        ],
+        "id": "src/context_corvint_harness.py",
+        "kind": "path",
+        "score": 1000,
+        "summary": "direct changed path"
+      },
+      {
+        "evidence": [
+          {
+            "authority": "repository-spec",
+            "blob_hash": "8d0f306ef04935673a104ee516d76006cecab4fe",
+            "confidence": "medium",
+            "line": 1,
+            "path": "docs/specs/agent-harness-integration-v0.md",
+            "reason": "explicitly references changed path src/context_corvint_harness.py"
+          },
+          {
+            "authority": "document-reference",
+            "blob_hash": "dd108d4ae8bcd631c3cfc34e0195671cb7cedb40",
+            "confidence": "high",
+            "line": 1,
+            "path": "conformance/harness-event-v0/common-logical-interaction.json",
+            "reason": "explicitly referenced by docs/specs/agent-harness-integration-v0.md"
+          },
+          {
+            "authority": "document-reference",
+            "blob_hash": "d5970b17c008db5f222ad9eef06ed30039165c19",
+            "confidence": "high",
+            "line": 1,
+            "path": "docs/PRODUCT.md",
+            "reason": "explicitly referenced by docs/specs/agent-harness-integration-v0.md"
+          },
+          {
+            "authority": "document-reference",
+            "blob_hash": "c3213cfd6682221e2fb5cc6f5765262c5848e741",
+            "confidence": "high",
+            "line": 1,
+            "path": "docs/TECHNICAL-BRAIN.md",
+            "reason": "explicitly referenced by docs/specs/agent-harness-integration-v0.md"
+          },
+          {
+            "authority": "document-reference",
+            "blob_hash": "8052b15357d768fc11cf6a39f333d2c89b36bc67",
+            "confidence": "high",
+            "line": 1,
+            "path": "docs/specs/cem-0.2-canonical-binding.md",
+            "reason": "explicitly referenced by docs/specs/agent-harness-integration-v0.md"
+          },
+          {
+            "authority": "document-reference",
+            "blob_hash": "f9c1963dbad848d11874858e2630304c27eb5f6e",
+            "confidence": "high",
+            "line": 1,
+            "path": "src/corvint_cli.py",
+            "reason": "explicitly referenced by docs/specs/agent-harness-integration-v0.md"
+          },
+          {
+            "authority": "document-reference",
+            "blob_hash": "40d8825e83cbc08793312ef87ff6532ce5e59bc1",
+            "confidence": "high",
+            "line": 1,
+            "path": "src/context_corvint_harness.py",
+            "reason": "explicitly referenced by docs/specs/agent-harness-integration-v0.md"
+          }
+        ],
+        "id": "docs/specs/agent-harness-integration-v0.md",
+        "kind": "spec",
+        "references": [
+          "conformance/harness-event-v0/common-logical-interaction.json",
+          "docs/PRODUCT.md",
+          "docs/TECHNICAL-BRAIN.md",
+          "docs/specs/cem-0.2-canonical-binding.md",
+          "src/corvint_cli.py",
+          "src/context_corvint_harness.py"
+        ],
+        "score": 825,
+        "status": "",
+        "summary": "Owner: Russell Lewis",
+        "title": "Agent Harness Integration V0"
+      }
+    ],
+    "revision": "323b3f0610dc35478bf1593d8d8f41ac22e61d16",
+    "schema_version": 1,
+    "state": "READY",
+    "verification": [
+      "python -m pytest",
+      "git diff --check"
+    ]
+  },
+  "degradations": [
+    "frontier-authority-unavailable"
+  ],
+  "event": "file-change",
+  "input": {
+    "changedPathCount": 1,
+    "observedEvidenceCount": 0,
+    "sessionBound": true,
+    "verificationCount": 0
+  },
+  "mutates": false,
+  "ok": true,
+  "profile": "corvint-harness-event/0",
+  "receiptId": "harness-receipt:sha256:d8166859f44b50f246f7ba130a9e4a3b0ac7c5fc3119a0d01d26566487efc71d",
+  "repository": {
+    "commitRevision": "8ead5940a24193c550cbc503ed20b767686b8f02",
+    "dirtyPathCount": 0,
+    "dirtyPathsSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "objectFormat": "sha1",
+    "treeRevision": "323b3f0610dc35478bf1593d8d8f41ac22e61d16",
+    "worktreeState": "clean"
+  },
+  "support": "FALLBACK"
+}

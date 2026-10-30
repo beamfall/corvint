@@ -1,0 +1,528 @@
+# Test Consolidation Planner V0 — fewer focused tests for a set of flow variations
+
+Owner: Russell Lewis
+Date: 2026-10-08
+Requirement prefix: `TCN-V0`
+Intent status: accepted (decision 0457; V1-1023); TCN-V0-013..016 accepted under the owner's standing auto-accept (2026-10-11; V1-2093; GitHub #1320; V1-1031)
+Delivery status: experimental
+Authoritative inputs: owner request [issue 681](https://github.com/beamfall/corvint/issues/681)
+(native ticket V1-1023), `AGENTS.md` invariants 1, 2, 4, 7 and 8,
+`docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/specs/application-map-v0.md` (AMAP-V0 screens, element
+IDs and freshness), `docs/specs/application-map-scenario-planner-v0.md` (AMSP-V0 sessions and
+setup scenarios), `docs/specs/application-flow-understanding-v1.md` (AFU-V1 flow, variation and
+declared test-link vocabulary) and `docs/specs/live-proof-carrying-verification-v0.md`
+(LPCV-V0-047..053, the `corvint-test-validity/0` document read as test witnesses); owner issue
+[#1320](https://github.com/beamfall/corvint/issues/1320) (native ticket V1-2093) for the step-local
+precondition channel TCN-V0-013..015; native ticket V1-1031 for the synthetic-only `REUSED`
+narrowing in TCN-V0-016.
+
+## Agent digest
+- Claim: A read-only planner could group variations sharing fixture state, screen and user into fewer focused tests, as a fail-closed checkable table with reasons.
+- Status: accepted (decision 0457; V1-1023); TCN-V0-013..016 accepted under the owner's standing auto-accept (2026-10-11; V1-2093; GitHub #1320; V1-1031); experimental. GitHub #681 is the V0 request. Acceptance settles intent only.
+- Exists: `internal/testplan`, `corvint test-plan consolidate|check` and, with `--consolidation`, `corvint-corpus-mcp` tool `corvint.consolidate_tests`; TCN-V0-001..016 each have passing focused tests (Deterministic acceptance and traceability).
+- Blocked on: owner-run qualification on the adopter's labelled variation set (`NOT_RUN`); a lane qualification on this repository's console tests ran (44 variations, 31 new tests; Repository qualification); `REUSED` is synthetic-only in V0 (TCN-V0-016).
+- Read next: Requirements; Grouping algorithm; Implementation notes; Owner questions.
+
+## User and measurable job
+
+An agent asked to cover a matrix of flow variations tends to write one end-to-end test per matrix
+row. Each such test repeats data setup, sign-in and navigation, so authoring time and lane time
+grow linearly with the number of rows. The owner reports, from the adopter workspace behind issues
+657 and 660 (figures as stated in issue 681, not reproduced here): 133 flows, 3,614 core matrix
+rows, and 6,355 matrix-row proposals of `NEW TEST REQUIRED`. The application map (AMAP-V0) and the
+scenario planner (AMSP-V0) already know the shared setup, screen and route of each step, so the
+grouping can be computed instead of judged per agent.
+
+The job: given a set of variations with their anchors, and the existing test witnesses, produce
+deterministically
+
+1. the groups of variations that share a fixture state, a screen and a user, each to be written as
+   the ordered steps of one test, in an order where no step depends on an earlier step passing;
+2. the variations that need their own test, each with a closed reason code;
+3. the variations an existing passing test already witnesses (reuse, no new test);
+4. the variations that duplicate another (same action and assertion in the same context);
+5. the variations the planner cannot place because an anchor is missing or stale (abstention);
+
+and print it as a compact table that can be pasted into a plan and checked fail-closed later.
+
+The issue's goal is the minimum number of tests. V0 promises a deterministic, conservative
+consolidation that never places dependent steps in one test; exact minimisation is a set-partition
+problem, so V0 does not claim the global minimum (TCN-V0-007).
+
+Measured outcome (proposed promotion metric): on a labelled variation set, the number of new tests
+the plan proposes versus the one-test-per-row baseline, with every input variation accounted for
+exactly once.
+
+## Verified current state
+
+At `2a93b5a1` (origin/main):
+
+- AMAP-V0 (`internal/appmap`) compiles per-app maps whose screens have IDs `screen:<app>:<state>`,
+  route templates, steps `step:<flow_id>/<step_id>` and Git-anchored freshness (FRESH, STALE,
+  UNKNOWN). It serves single-flow projections.
+- AMSP-V0 (`internal/appmap/plan.go`) composes one plan for a multi-step request: one session per
+  app, one setup scenario per session, `stay`/`goto` navigation. It does not take a variation
+  matrix and never groups variations across tests.
+- AFU-V1 flow intents carry `variations` (`variation_id`, `preconditions`, `steps`, `outcomes`,
+  `projects`) and declared, reviewed or inferred `test` links with test keys; `flows coverage`
+  (AFU-V1-049..053) reports per-row PROVEN, MISSING_TEST and similar statuses. Nothing proposes how
+  missing rows should be grouped into tests.
+- `corvint test-validity` (LPCV-V0-051/053) emits `corvint-test-validity/0`: per test `id`,
+  `name`, optional `project` and a five-axis projection (association, hygiene, freshness,
+  execution, strength). It does not carry AFU-V1 test keys.
+- No `test-plan` command, no `consolidate_tests` MCP tool and no `TCN` requirement exist.
+
+## Definitions
+
+- **Variation**: one input row, identified by a caller-stable `variation_id` (the AFU-V1 unit when
+  the row comes from a flow intent).
+- **Context**: the tuple `(spec, app, setup, screen, user, org)` of a variation. `spec` is the
+  repository-relative test file the variation's test belongs in (for example AMSP-V0
+  `draft.proposed_path` or the AMAP-V0 closest asserting spec); `setup` is the fixture state
+  identifier (for example the AMSP-V0 session setup scenario path); `screen` is the AMAP-V0 screen
+  element ID where the variation's own action starts; `user` is the acting role (the AFU-V1 actor);
+  `org` is the tenant or organisation, empty when the application has one.
+- **Fact**: one `key=value` string describing fixture state. `requires` are facts the setup must
+  provide for the variation; `changes` are facts the variation leaves different from the setup;
+  `step_facts` are facts the step establishes and tears down itself, such as a stubbed network
+  response, a mocked clock or a viewport size (TCN-V0-013).
+- **Step**: one variation placed inside a test. A step starts on its context screen; returning to
+  that screen after an earlier step is navigation, not a dependency.
+- **Depends on**: step B depends on step A when A changes the key of a fact B requires. A plan
+  order is **independent** when no step depends on an earlier step.
+- **Witness**: an existing test, identified in a `corvint-test-validity/0` document, that the
+  variation declares as its test and whose projection reads associated, eligible, current and
+  passed.
+- **Duplicate**: two variations with the same context, the same `requires`, the same ordered
+  `action` and the same `assertion` set (and, by TCN-V0-005 and TCN-V0-015, the same `changes`,
+  `destructive` and step facts).
+
+## Requirements
+
+Requirements TCN-V0-001..012 are accepted as written (decision 0457; V1-1023; GitHub #681); and
+requirements TCN-V0-013..016 are accepted under the owner's standing auto-accept of 2026-10-11 (V1-2093; GitHub #1320; V1-1031).
+
+- `TCN-V0-001`: The planner MUST be a read-only local projection. `corvint test-plan consolidate
+  --input FILE [--tests FILE]... [--map FILE]... [--revision REV] [--max-steps N]
+  [--format table|json]` MUST read only its named files and, with `--map`, Git at the evaluated
+  revision; it MUST write only stdout (and a coded refusal on stderr), run no test or browser, open
+  no network connection, persist no state and generate no test code. The default format is
+  `table`. Exit 0 means a plan was produced, whether `COMPLETE` or `INCOMPLETE`; invalid arguments
+  or input exit 2 with nothing on stdout. Plan `authority` MUST always be `candidate`.
+  (accepted (decision 0457; V1-1023))
+- `TCN-V0-002`: The input MUST be one closed `test-consolidation-input/0` JSON document of at most
+  8 MiB with members `schema`, optional `revision` (the full object ID the anchors were read at) and
+  `variations` (1..8192 entries). A variation is a closed object with `variation_id` and optional
+  `flow_id`, and the anchors `spec`, `app`, `route`, `screen`, `setup`, `user`, `org`, `action`
+  (1..64 ordered element IDs), `assertion` (1..64 element IDs, a set), `requires` and `changes`
+  (0..64 facts each, sets), `destructive` (boolean) and `witnesses` (0..16 objects
+  `{test_id, project?, basis}` with `basis` `declared` or `reviewed`). Identifiers MUST match
+  `[A-Za-z0-9._:/@{}=+-]{1,256}`, except that `org` may also be the empty string (an application
+  with one organisation); `spec` MUST be a canonical repository-relative path with no empty, `.` or
+  `..` segment and no whitespace or `|`. A fact MUST be `<key>=<value>`, split at its first `=`,
+  with a non-empty key of at most 128 bytes; one `requires` or `changes` set naming the same key
+  twice is contradictory. An unknown or duplicate member, trailing data, a repeated
+  `variation_id`, an identifier outside the charset, a malformed or contradictory fact set, a
+  `basis` of `inferred`, or a bound overrun MUST refuse with `test-plan-invalid-input`. Of the
+  other members, `flow_id` and `route` are optional, an absent `witnesses` means none, and any
+  other member that is absent or `null` is a missing anchor (TCN-V0-003), not a refusal. Empty
+  `requires` and `changes` arrays and `destructive: false` are explicit declarations, never
+  defaults. Input order MUST NOT affect any output byte. (accepted (decision 0457; V1-1023))
+- `TCN-V0-003`: A variation MUST be abstained, never grouped, isolated, reused or deduplicated,
+  when any of `spec`, `app`, `screen`, `setup`, `user`, `org`, `action`, `assertion`,
+  `requires`, `changes` or `destructive` is missing (reason `missing-anchor`, naming each missing
+  member), so an undeclared effect is never treated as no effect. With `--map` (1..8 AMAP-V0 maps, decoded
+  and refused as `appmap-invalid-map`), the `screen` MUST be a screen of the map whose app equals
+  the variation's `app` and, when `route` is present, its template MUST equal `route`; otherwise
+  the variation is abstained `unresolved-screen` or `route-mismatch`. Each such screen's lineage
+  freshness MUST be evaluated by the AMAP-V0 rule at `--revision` (default `HEAD`): STALE abstains
+  `stale-anchor`, UNKNOWN abstains `anchor-unknown`. Without `--map` the plan MUST report
+  `anchor_validation: NOT_RUN` and every variation's anchors as `caller` basis. A plan with any
+  abstained variation reads `INCOMPLETE`; otherwise `COMPLETE`. (accepted (decision 0457; V1-1023))
+- `TCN-V0-004`: Reuse MUST be decided only from `--tests` files (0..8), each one original provider
+  document of the kind `corvint test-validity --receipt` accepts (LPCV-V0-051), read through the
+  same safe reader and bounds and projected through the shared `internal/testvaliditydoc` builder,
+  never trusting a carried projection. A `corvint-test-validity/0` output document carries no
+  provider observations and MUST be refused, as any undecodable input is, with
+  `invalid-test-validity-receipt`. A witness `{test_id, project}` matches a projected test whose
+  `id` equals `test_id` and, when `project` is given, whose project name equals it. Freshness MUST
+  NOT be taken from the receipt's own currency: it MUST be recomputed by the LPCV-V0-053 binding
+  rule, comparing the document's bound digests with the content at the evaluated revision
+  (default `HEAD`; uncommitted changes to a bound path make it `UNKNOWN`). A variation is
+  `REUSED` only when at least one declared witness matches, every matching test across all
+  documents reads association `ASSOCIATED`, hygiene `ELIGIBLE`, recomputed freshness `CURRENT` and
+  execution `PASSED`, and each matching document is an `e2e` JavaScript document (a completed Go session is
+  `tier:"preview"` and never witnesses). Otherwise each witness is reported with one of
+  `witness-not-found`, `witness-not-passed`, `witness-stale` (recomputed `STALE`),
+  `witness-unbound` (recomputed `UNKNOWN`, or a bound identity that cannot be recomputed),
+  `witness-not-associated`, `witness-ineligible`, `witness-conflicting` (matching tests disagree)
+  or `witness-preview`, and
+  the variation continues to planning. A reused variation MUST keep every qualifying witness,
+  sorted by `test_id` then project, each with its unchanged five-axis projection (LPCV-V0-047);
+  the first is the one the table names. Reuse states that a passing witness exists, not that the
+  test is adequate (LPCV-V0-048), and its strength state stays visible in the table.
+  (accepted (decision 0457; V1-1023))
+- `TCN-V0-005`: Among non-abstained variations, duplicates MUST be classed by equal context, equal
+  `requires`, equal `changes`, equal `destructive`, equal ordered `action` and equal `assertion`
+  set. Each class keeps one representative: the smallest `variation_id` (byte order) among members
+  that are `REUSED`, else the smallest overall. Every other member reads `DUPLICATE` of that
+  representative and needs no test of its own; a duplicate of a reused representative is reported
+  as such. Variations whose action and assertion match but whose context or any state or safety
+  declaration differs MUST NOT be classed as duplicates, so no declared effect is discarded.
+  (accepted (decision 0457; V1-1023))
+- `TCN-V0-006`: The remaining variations (not abstained, reused or duplicate) MUST be partitioned
+  by context. A variation with `destructive` true MUST be placed in its own test with reason
+  `destructive-change`. The others are grouped by TCN-V0-007. Every test MUST carry exactly one
+  reason, chosen in this order: `destructive-change`; `conflicting-state` when TCN-V0-007 left the
+  variation alone because of a requires conflict or a cycle; for any other one-step test,
+  `different-user-or-org` when another variation placed in a new test shares its `spec`, `app`,
+  `setup` and `screen` but differs in `user` or `org`, else `unique-context`; and `-` for a test
+  with two or more steps. (accepted (decision 0457; V1-1023))
+- `TCN-V0-007`: Within one context the variations MUST be split into compatible sets, each with an
+  independent order. Variations are visited in `variation_id` byte order and each joins the first
+  set none of whose members requires a different value for a key it requires, else opens a new
+  set. Within a set, B MUST precede A whenever A changes a key B requires (a variation changing a
+  key it itself requires adds no edge). While the precedence graph has a cycle, the greatest
+  `variation_id` in each strongly connected component of more than one node is removed; removed
+  variations are planned again, as a further set, by this same rule. The order of a set is the
+  topological order that always takes the smallest available `variation_id`. A variation that ends
+  alone in its set only because of a requires conflict or a removal reads `conflicting-state`.
+  More than 1,048,576 precedence edges in one input MUST refuse with `test-plan-bound-exceeded`.
+  This is a deterministic, conservative consolidation: it never places dependent steps in one test,
+  but it is not guaranteed to reach the global minimum number of tests, which is a set-partition
+  problem without a known efficient exact algorithm. (accepted (decision 0457; V1-1023))
+- `TCN-V0-008`: Each set's ordered steps MUST be cut into consecutive tests of at most `--max-steps`
+  steps (2..32, default 8); every cut test keeps the independent order. Tests MUST be numbered
+  `T001`, `T002`, ... after sorting by `spec`, then by the smallest `variation_id` they contain.
+  The same input bytes, provider-document bytes, map bytes, revision and options MUST give the same
+  output bytes on every run and host, whatever the order of the files and of the witnesses.
+  (accepted (decision 0457; V1-1023))
+- `TCN-V0-009`: `--format json` MUST print one closed `test-consolidation-plan/0` document: `schema`,
+  `input_digest` (`sha256:` of the canonical input: variations sorted by ID, set members sorted,
+  compact JSON), `tests_digest` (`sha256:` over the sorted SHA-256 digests of the `--tests` files,
+  or `none`), `maps_digest` (`sha256:` over the sorted AMAP-V0 map digests, or `none`),
+  `maps[]{app, map_digest}`, `evaluated_revision` (the full object ID whenever `--map` or
+  `--tests` is given, else `none`),
+  `anchor_validation` (`VALIDATED`|`NOT_RUN`), `authority` (`candidate`), `status`, `max_steps`,
+  `counts{variations, new_tests, grouped, isolated, reused, duplicates, abstained,
+  baseline_one_per_row}`, `tests[]{test, spec, context, steps[]{order, variation_id}, reason}`,
+  `reused[]{variation_id, witnesses[]{test_id, project, projection}}`,
+  `duplicates[]{variation_id, duplicate_of}`, `abstained[]{variation_id, reason, missing[]}`,
+  `witness_rejections[]{variation_id, test_id, reason}` and `table_digest`. Every input variation
+  MUST appear exactly once among test steps, `reused`, `duplicates` and `abstained`, and
+  `baseline_one_per_row` equals the number of input variations. Output over 8 MiB MUST refuse with
+  `test-plan-bound-exceeded`, never truncate. (accepted (decision 0457; V1-1023))
+- `TCN-V0-010`: `--format table` MUST print exactly: one header line `<!-- corvint
+  test-consolidation-table/0 input=<input_digest> tests=<tests_digest> maps=<maps_digest>
+  revision=<evaluated_revision> anchors=<VALIDATED|NOT_RUN> max-steps=<N>
+  status=<COMPLETE|INCOMPLETE> -->`, the line `| test | spec | variation ids | isolated reason |`,
+  the line `| --- | --- | --- | --- |`, then one row per new test in test order (`| T001 | <spec> |
+  <ids in step order joined by ", "> | <reason> |`), then one row per reused variation
+  (`| REUSE <test_id>[@<project>] | <spec> | <id> | reused strength=<strength state> |`, naming the
+  first witness), per duplicate (`| DUPLICATE <representative id> | <spec> | <id> | duplicate |`)
+  and per abstained variation (`| ABSTAIN | <spec or -> | <id> | <reason> |`), each block sorted by
+  variation ID. Lines end with LF; no field is escaped because TCN-V0-002 excludes `|` and control
+  characters from every printed value and whitespace from every identifier. `table_digest` is the
+  SHA-256 of these bytes. (accepted (decision 0457; V1-1023))
+- `TCN-V0-011`: `corvint test-plan check --plan FILE --input FILE [--tests FILE]... [--map FILE]...
+  [--revision REV] [--max-steps N]` MUST locate exactly one header line of TCN-V0-010 in FILE
+  (at most 8 MiB; a Markdown plan may surround the table), take the table as the header and the
+  following lines up to the first line that does not start with `|`, recompute the plan from the
+  other arguments, and compare bytes after removing trailing spaces and tabs from each line. The
+  header binds the input, provider documents, maps and evaluated revision, so a plan checked
+  against different evidence fails even when its rows are unchanged. It MUST exit 0 only when the
+  bytes match and the recomputed status is `COMPLETE`. It MUST exit 1 with `test-plan-mismatch`
+  (naming the first differing line, or a missing or extra variation ID) when they differ, with
+  `test-plan-incomplete` when they match but the plan has abstained variations, and with
+  `test-plan-header-missing` when FILE has no header or more than one; it exits 2 for invalid
+  arguments or input. Its `max-steps` and the header's MUST agree, and an edited, reordered, added
+  or dropped row MUST fail. (accepted (decision 0457; V1-1023))
+- `TCN-V0-012`: When the owner accepts an MCP surface, it MUST be the read-only, idempotent,
+  non-destructive, closed-world tool `corvint.consolidate_tests` on `corvint-corpus-mcp`, listed
+  only when that server is started with `--consolidation`; `corvint-mcp` and its frozen MCP
+  2026-07-28 V0 tool set MUST NOT change. The tool takes the input document inline (at most
+  1 MiB), optional `tests` and `maps` as root-confined repository-relative paths (at most 8 each),
+  optional `max_steps`, `format` and `plan` (a table string to check, at most 1 MiB), decoded
+  strictly; it returns the CLI's exact bytes in the untrusted-data envelope with the plan object
+  as `structuredContent`, and refuses with `test-plan-bound-exceeded` rather than exceed the
+  1 MiB message cap. (accepted (decision 0457; V1-1023))
+- `TCN-V0-013`: The TCN-V0-002 variation object MUST additionally admit the optional member
+  `step_facts`: 0..64 facts with the TCN-V0-002 fact syntax and bounds, a set, naming state the
+  step establishes and tears down itself. An absent member and an empty array are the same
+  declaration (no step facts) with the same canonical input; `null`, a malformed fact, one key
+  twice or a bound overrun MUST refuse with `test-plan-invalid-input`. Step facts MUST NOT create a
+  requires conflict (TCN-V0-007 compatible sets), MUST NOT create a precedence edge with any
+  `requires` or `changes` fact of any variation. Non-empty step facts MUST be part of the canonical
+  input, sorted, as member `step_facts` after `changes`, so they change `input_digest` and with it
+  the table header and `table_digest`; no plan member is added. When adding step facts leaves every
+  TCN-V0-005 duplicate class unchanged, they MUST NOT change abstention, reuse, isolation reasons,
+  step order or test numbering, and every other table and JSON plan byte MUST stay as it would be
+  without them. Step facts can split a duplicate class (TCN-V0-015): a variation that was a
+  duplicate becomes a planned variation, so rows, counts and isolation reasons then follow the
+  rules of TCN-V0-005..012 for the new classes and this invariance does not apply. Input order MUST NOT
+  affect any output byte.
+  (accepted under the owner's standing auto-accept (2026-10-11; V1-2093))
+- `TCN-V0-014`: A variation naming one fact key in both `requires` and `step_facts`, whatever the
+  values, MUST refuse with `test-plan-invalid-input`. The same key in the `requires` of one
+  variation and the `step_facts` of another is valid. (accepted under the owner's standing
+  auto-accept (2026-10-11; V1-2093))
+- `TCN-V0-015`: Step facts MUST be a member of the TCN-V0-005 duplicate class key: two variations
+  that differ only in their step facts MUST NOT be classed as duplicates, and absent and empty step
+  facts compare equal. Splitting a class this way changes the plan as any distinct variation does;
+  it is the one exception to the TCN-V0-013 output invariance. (accepted under the owner's
+  standing auto-accept (2026-10-11; V1-2093))
+- `TCN-V0-016`: In V0 `REUSED` is synthetic-only: no provider document a real run emits yields a
+  witness that meets TCN-V0-004, and the planner MUST NOT relax a TCN-V0-004 rule to reach it. The
+  qualified external Playwright profiles are the only JavaScript receipts that may carry a test
+  `id` and project, and their recomputed freshness is always `UNKNOWN`
+  (`retained-external-app-lifecycle-unverifiable`, LPCV-V0-053); an unprofiled receipt carrying an
+  `id` and a `corvint-playwright-freshness/0` receipt are refused with
+  `invalid-test-validity-receipt`; a completed Go session projects tests without an `id`; a Ruby
+  document is not a JavaScript `e2e` document. Every real witness therefore reads a rejection
+  reason and its variation is planned. A maintained test MUST drive real provider documents
+  through `Run`, not synthetic projections, and show that none reaches `REUSED`. A provider that
+  can bind its app lifecycle to the evaluated revision needs its own requirement before this
+  narrowing is lifted. (accepted under the owner's standing auto-accept (2026-10-11; V1-1031))
+
+## Grouping algorithm (informative restatement of TCN-V0-003..008)
+
+```text
+validate input (002) -> abstain missing/unresolved/stale anchors (003)
+  -> reuse from provider-document witnesses (004)
+  -> duplicate classes, representative kept (005)
+  -> isolate destructive (006)
+  -> per context: first-fit compatible sets, then cycle removal and re-planning (007)
+  -> independent topological order, smallest id first (007)
+  -> cut at max-steps, number T001.. (008) -> plan (009) -> table (010)
+```
+
+Worked example. Variations `V1..V5` share `(tests/e2e/teesheet.spec.ts, admin, scenarios/club.ts,
+screen:admin:club.teesheet, club-admin, club-a)`. `V2` changes `slot.42` which `V4` requires, so
+`V4` precedes `V2`; `V5` is destructive; `V3` has a passing witness; `V6` is `V1`'s duplicate.
+
+```text
+<!-- corvint test-consolidation-table/0 input=sha256:… tests=sha256:… maps=sha256:… revision=… anchors=VALIDATED max-steps=8 status=COMPLETE -->
+| test | spec | variation ids | isolated reason |
+| --- | --- | --- | --- |
+| T001 | tests/e2e/teesheet.spec.ts | V1, V4, V2 | - |
+| T002 | tests/e2e/teesheet.spec.ts | V5 | destructive-change |
+| REUSE teesheet-book@chromium | tests/e2e/teesheet.spec.ts | V3 | reused strength=NOT_MEASURED |
+| DUPLICATE V1 | tests/e2e/teesheet.spec.ts | V6 | duplicate |
+```
+
+Six rows of the baseline become two new tests. Had `V4` required `slot.42=booked` while `V1`
+required `slot.42=free`, `V4` would open a second compatible set and become its own test with
+`conflicting-state`.
+
+## Input derivation (informative)
+
+V0 takes an explicit input document so that the grouping rules can be reviewed and tested apart
+from derivation. The intended sources are: `variation_id`, `flow_id`, `user` (actor), `requires`
+(variation preconditions as facts) and `witnesses` (declared or reviewed `test` links) from AFU-V1
+flow intents; `screen`, `route` and `action` element IDs from AMAP-V0 map steps; `setup` and `spec`
+from an AMSP-V0 plan's session setup and draft path. `changes` and `destructive` have no compiled
+source today and are caller-declared. A later requirement may derive the whole document from
+`--flows DIR --map FILE...` (owner question 1).
+
+## Non-goals and simpler baseline
+
+- No test generation, drafting, editing or execution; AMSP-V0 `--draft` remains the drafting
+  surface. No write to the repository, the task store or `.corvint/`.
+- No inference of side effects: `changes` and `destructive` are declared, never guessed.
+- No ranking, learning, network access, service or persisted state.
+- No change to AFU-V1 coverage statuses, AMSP-V0 plans or the test-validity document.
+- No claim that a reused or grouped test is adequate; strength stays as measured (LPCV-V0-048).
+- Simpler baseline: one test per matrix row (`baseline_one_per_row`), or an agent grouping rows by
+  judgement. The plan reports its count beside the baseline so the saving is visible.
+
+## Trust boundary, limits and failure modes
+
+- Input documents, test-validity documents and maps are untrusted data. Identifiers are matched,
+  never executed; printed values are restricted to a charset that needs no escaping.
+- Failure modes and their outcomes:
+  - a missing anchor: `ABSTAIN missing-anchor`, plan `INCOMPLETE`, check exits 1;
+  - a screen not in the map, a route mismatch, a STALE or UNKNOWN anchor: `ABSTAIN` with the
+    reason;
+  - an undeclared side effect (a `changes` fact the caller omitted): the order may be wrong. The
+    planner cannot detect this; the plan's `anchor_validation` and `authority: candidate` keep it a
+    proposal, and per-variation outcome evidence for the written test (AFU-V1-049..051
+    `flows coverage`) is the check (fail-open by necessity, labelled);
+  - a step that fails at run time stops the later steps of a Playwright test, so their variations
+    are unobserved in that run, though never wrongly passed; the planner caps steps per test
+    (`--max-steps`) to bound this;
+  - a failing, stale, unbound, ineligible or conflicting witness: no reuse, reason reported; an
+    old passing receipt never witnesses a changed test or application;
+  - a provider document of an unrecognised kind, a `corvint-test-validity/0` output document, or
+    one over its bound: refused as by LPCV-V0-051;
+  - an undeclared step fact (a stub the caller omitted from `step_facts`): absent means no step
+    facts (TCN-V0-013), so two variations differing only in that stub may class as duplicates and
+    nothing shows the stub. The planner cannot detect this (fail-open by necessity, labelled, the
+    same class as an omitted `changes` fact); a step that does not tear its stub down is likewise
+    undetected;
+  - two requires on one key with different values: the later variation opens or joins another
+    compatible set, and reads `conflicting-state` if it ends alone;
+  - a dependency cycle: the greatest ID of each cycle is re-planned in a further set, repeated until
+    acyclic;
+  - several qualifying witnesses: all kept in JSON, the first by `test_id` then project named in
+    the table;
+  - an input, edge or output bound overrun: refused, never truncated;
+  - a pasted table edited, reordered, extended or shortened: check exits 1 `test-plan-mismatch`;
+  - a pasted table with no or two headers: check exits 1 `test-plan-header-missing`.
+- Limits: 8 MiB input, 8192 variations (the AFU-V1-052 row bound), 64 action, assertion, requires,
+  changes and step_facts entries each, 16 witnesses per variation, 8 provider documents of 4 MiB, 8 maps,
+  1,048,576 precedence edges, 8 MiB output. A test ID or project name outside the TCN-V0-002
+  charset (for example a project name with a space) cannot be named as a witness in V0.
+- The plan is not guaranteed minimal: compatible-set assignment is first-fit, cycle removal is
+  greedy and `--max-steps` cuts long sets (TCN-V0-007, TCN-V0-008).
+
+### Proposed owned error codes
+
+| Code | Meaning |
+| --- | --- |
+| `test-plan-invalid-input` | The input is not a closed bounded `test-consolidation-input/0` document (TCN-V0-002). |
+| `test-plan-invalid-arguments` | A flag is unknown, repeated where single, out of range or combined illegally. |
+| `test-plan-bound-exceeded` | The edge or output bound was exceeded (TCN-V0-007, TCN-V0-009, TCN-V0-012). |
+| `test-plan-mismatch` | A checked table differs from the recomputed plan (TCN-V0-011). |
+| `test-plan-incomplete` | A checked table matches but the plan has abstained variations (TCN-V0-011). |
+| `test-plan-header-missing` | A checked file has no table header or more than one (TCN-V0-011). |
+
+AMAP-V0 `appmap-invalid-map` and LPCV-V0-051 `invalid-test-validity-receipt` are reused for their
+own inputs.
+
+## Deterministic acceptance and traceability
+
+Evidence is the focused tests below (`internal/testplan`, `cmd/corvint`, `cmd/corvint-corpus-mcp`,
+2026-10-08). Every input is synthetic or the committed AMAP-V0 fixture.
+
+| Requirement | Evidence |
+| --- | --- |
+| TCN-V0-001 | `TestTestPlanConsolidateIsReadOnly` (every repository byte, the Git index and `.corvint/` unchanged; stdout equals the library plan; `authority: candidate`), `TestTestPlanRefusesInvalidUse` (exit 2, empty stdout, coded refusal), `TestTestPlanRefusesFIFO` (a FIFO input or plan is refused, not waited on), `TestRunArgumentRefusals`, `TestTestPlanHelp`. No network: the package opens no socket by construction; not exercised dynamically. |
+| TCN-V0-002 | `TestDecodeInputRefusals` (every refusal and bound, a malformed fact, one key twice, duplicate members, depth), `TestDecodeInputMissingAnchorsAreNotRefusals`, `TestInputOrderDoesNotChangeOutput` (25 permutations and a re-encoded document). |
+| TCN-V0-003 | `TestMapValidationAbstains` (placed, `route-mismatch`, `unresolved-screen`, `missing-anchor`, `stale-anchor` at `HEAD` and placed at the older revision), `TestMapUnknownLineageAbstains`, `TestAnchorsNotRunWithoutMap`, `TestMapRefusals`. |
+| TCN-V0-004 | `TestWitnessVerdicts` (every rejection reason, a Go session and a JavaScript unit document as `witness-preview`, a conflicting pair), `TestWitnessesKeptSorted`, `TestBoundFreshnessAtRevision` (CURRENT, STALE, older revision, absent, outside the worktree, `.git`, relative, symlink, uncommitted and untracked bound paths), `TestBoundFreshnessIndexFlagsAndFilters` (assume-unchanged and skip-worktree edits read `UNKNOWN`; a configured clean filter never runs), `TestProviderDocumentRefusals` (a `corvint-test-validity/0` output document and file-order independence). |
+| TCN-V0-005 | `TestDuplicateClasses` (including fact values that hold a newline or NUL). |
+| TCN-V0-006 | `TestIsolationReasons`. |
+| TCN-V0-007 | `TestPrecedenceOrderAndSets` (`x=0`, `x=1`, `x=1` give two tests), `TestCycleReplanned`, `TestEdgeBoundRefuses`. |
+| TCN-V0-008 | `TestMaxStepsCutAndNumbering`, `TestInputOrderDoesNotChangeOutput`. |
+| TCN-V0-009 | `TestGoldenWorkedExample` (`testdata/worked-example.json`), `TestConsoleQualificationGolden` (the repository qualification below: counts and status), `TestEveryVariationAccountedOnce` (40 random inputs), `TestOutputBoundRefuses`. |
+| TCN-V0-010 | `TestGoldenWorkedExample` (`testdata/worked-example.table`, the worked example above), `TestConsoleQualificationGolden` (`testdata/console-qualification.table`, digest-pinned and checked against its own plan). |
+| TCN-V0-011 | `TestCheck` (exact table inside Markdown; edited, reordered, added, dropped and changed rows; edited header; missing and doubled header; max-steps, revision and map disagreement; `INCOMPLETE`), `TestTestPlanCheckExitCodes`. |
+| TCN-V0-012 | `TestTCNV0012CorpusMCPConsolidateTests` (strict decoding, listing gated by `--consolidation`, root confinement, byte parity with the library plan the CLI prints, check mode, the one-message bound); `TestRunWithinConfinesReads` (an escaping link, a parent replaced by an outside link, a FIFO and `..` are refused at read time; a link inside the root is read); `TestToolsExposeOnlyDeliveredClosedReadSurface` and the unchanged `cmd/corvint-mcp` keep the `corvint-mcp` tool list. |
+| TCN-V0-013 | `TestStepFactsNeverConflictOrOrder` (different values of one step-fact key share a test; no edge from a `changes` fact to a step fact; table and JSON equal the plan without step facts apart from `input_digest`, the header and `table_digest`; the same values as `requires` read `conflicting-state`), `TestStepFactsDecoding` (absent equals empty, sorted set, canonical member, every refusal and bound), `TestInputOrderDoesNotChangeOutput` (step facts permuted). |
+| TCN-V0-014 | `TestStepFactKeyAlsoRequiredRefuses` (equal and different values refuse; the key across variations is valid). |
+| TCN-V0-015 | `TestStepFactsInDuplicateKey` (differing step facts are not duplicates; equal, absent and empty ones class), `TestStepFactsSplitDuplicateChangesPlan` (a step fact on one of two identical variations turns a duplicate into a planned variation; the plan changes beyond its digests). |
+| TCN-V0-016 | `TestRealProviderDocumentsNeverReuse` (a canonical qualified external Playwright receipt bound to a committed spec reads freshness `UNKNOWN` with `retained-external-app-lifecycle-unverifiable` and is rejected; a completed Go session reads `witness-not-found`; an unprofiled receipt with an `id` and a freshness-profile receipt are refused; `REUSED` stays empty). |
+
+Owner-run qualification (solo-closable): run the planner on the adopter's labelled variation set
+(issue 681 cites 3,614 core rows over 133 flows) and record new tests versus
+`baseline_one_per_row`, abstentions by reason, and, for a sample of grouped tests written and run,
+the test-level `corvint test-validity` projection plus per-variation outcome evidence from the
+`flows coverage` report (AFU-V1-049..051), with the written test declared as each grouped variation's test.
+`corvint test-validity` alone is test-level and cannot show that each step's assertion ran. Until
+that run it stays `NOT_RUN`.
+
+Repository qualification (V1-1023 lane, 2026-10-16): 44 variations labelled from the HTTP-route
+subtests of this repository's console tests (`internal/console`, at `a0b4c4108`) produce 31 new
+tests against `baseline_one_per_row` 44 (19 grouped, 25 isolated, 0 reused, 0 duplicates, 0
+abstained; `COMPLETE`, `anchors=NOT_RUN`); the check refused every edited, reordered, dropped and
+`INCOMPLETE` case. Input and table are pinned by `TestConsoleQualificationGolden`; selection rule,
+digests and the table excerpt are in
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-16-v1-1023-1024-console-qualification.md`. It is the lane's own labelled
+set, not the adopter's; it exercises neither `--map` nor `--tests`, and no grouped test was written
+or run, so it does not meet the promotion criteria below.
+
+### Implementation notes (V1-1023, 2026-10-08)
+
+Choices the requirements left open, made by the implementation and open to owner review:
+
+- The edge bound counts every precedence edge examined for one input, including re-examination
+  after cycle removal.
+- `witness-preview` applies to any matching document that is not a JavaScript `e2e` document (a
+  Go session or a JavaScript unit document).
+- An abstract or unresolvable map screen abstains `unresolved-screen`.
+- `witness_rejections` carries exactly the TCN-V0-009 members `{variation_id, test_id, reason}`. It
+  is sorted by variation, `test_id` and then the declared project, which is not serialized, so two
+  rejections of one test ID under different projects differ only in order. Witnesses of reused and
+  duplicate variations are still evaluated.
+- `evaluated_revision` is set only with `--map` or `--tests`; `--revision` alone is refused.
+- Bound-path freshness compares each bound digest with the blob at the evaluated revision. A bound
+  path outside the worktree (`retained-bound-path-outside-worktree`), with uncommitted or untracked
+  changes (`retained-bound-path-uncommitted`), or not a readable regular blob reads `UNKNOWN`; a
+  path absent at the revision or with a different digest is `STALE`, and `STALE` wins. An index
+  entry marked assume-unchanged or skip-worktree also reads `retained-bound-path-uncommitted`,
+  because status cannot see its edits. The worktree status runs through `gitstatus.Status` on
+  private metadata, so no repository-defined clean or process filter runs; a repository that
+  status refuses to observe (for example one configuring such a filter) refuses
+  `test-plan-invalid-arguments`. Duplicate classes compare an unambiguous encoding of every
+  member, so a fact value holding a separator cannot merge two different fact sets.
+- `--input` and `--plan` are opened non-blocking, so a FIFO is refused as not a regular file.
+- `witnesses: null` is refused, so an absent list (none) and a null one are never conflated.
+- `conflicting-state` is a variation alone in its compatible set while its context has more
+  than one member.
+- A passing `check` prints the recomputed table on stdout; the MCP tool's check mode returns the
+  same bytes.
+- The MCP tool (interpretations accepted by decision 0466) takes `input` and `plan` as JSON
+  strings, so the input document is decoded strictly byte for byte; `tests` and `maps` are local names resolved, after symbolic links, to a target
+  inside the server root (else `test-plan-invalid-arguments`), and that target is read through an
+  `os.Root`, which refuses any path leaving the root at the moment of the open. It takes
+  no revision (always `HEAD`), and refuses with `test-plan-bound-exceeded` when the framed text and
+  its structured copy exceed one MCP message less 4 KiB for the JSON-RPC envelope.
+- Only the JSON output bound is reachable in practice; the table is always smaller than the input.
+
+### Implementation notes (V1-2093, 2026-10-20)
+
+- `step_facts` is optional, so an absent member means no step facts, not a missing anchor. Issue
+  #1320 also suggested treating an omitted member as a missing anchor; that would abstain every
+  existing input and change the TCN-V0-003 anchor list, so V0 keeps it optional and labels the
+  omitted stub as a fail-open case (Trust boundary).
+- A key in both `changes` and `step_facts` of one variation is not refused; TCN-V0-014 covers
+  `requires` only, as the issue proposed.
+- The page-state view (`GroupByPageState`, ANL-V0-012) does not read step facts, so variations that
+  differ only in a step fact can share one page-state group there; that view is governed by its own
+  spec and is unchanged by this slice.
+
+Known limit: `REUSED` is synthetic-only in V0 (TCN-V0-016, V1-1031). A qualified external
+JavaScript profile always reads freshness `UNKNOWN` (`retained-external-app-lifecycle-unverifiable`)
+and needs a full Playwright tuple; Go tests carry no `id`; and an unprofiled receipt with an `id` is
+refused. Reuse is exercised through synthetic projections in `TestWitnessVerdicts`, and
+`TestRealProviderDocumentsNeverReuse` drives the real documents through `Run`. Lifting the
+narrowing needs a provider whose app lifecycle can be bound to the evaluated revision.
+
+## Rollout, rollback and compatibility
+
+The slice is additive. Rollback removes the `test-plan` command and its help text, the planner
+package and its tests, the optional `--consolidation` flag and tool of `corvint-corpus-mcp`, and
+this spec's index rows. No stored state or wire of another spec changes, so nothing migrates. A
+pasted table becomes unverifiable after rollback, which is the intended fail-closed outcome.
+
+## Promotion and kill criteria (proposed)
+
+- Promote to `implemented` when every TCN-V0 row above has passing executable evidence and one
+  independent review is retained.
+- Promote to `validated` only after the owner-run qualification shows fewer new tests than the
+  baseline with every variation accounted for, and the sampled grouped tests show passing
+  per-variation outcome evidence (AFU-V1-049..051) with no failure traced to an order dependency.
+- Kill or rework if, on the owner's set, grouping saves less than 20 % of tests against the
+  baseline, or sampled grouped tests fail because of an order dependency the declared facts did
+  not reveal.
+
+## Owner questions
+
+Resolved on 2026-10-08 (decision 0457): the owner accepted TCN-V0-001..012 as written, which settles
+each question below by the position the requirements take. The list is retained as history.
+
+1. Should V0 derive the input itself from `--flows DIR --map FILE...` (and an AMSP-V0 plan),
+   instead of taking a caller-assembled document? Derivation removes agent judgement from the
+   input; it needs a rule for a variation's start screen and for `changes`.
+2. Should the surface be the new root verb `corvint test-plan` named in issue 681, or a subcommand
+   of the existing `corvint flows` family (for example `flows consolidate`), which adds no root
+   verb?
+3. Should a destructive variation be allowed as the last step of a group instead of always being
+   isolated?
+4. Is the conservative duplicate rule (same context and requires, not only same action and
+   assertion) the intended one?
+5. How should witnesses join tests: on exact `corvint-test-validity/0` test `id` (V0), or through
+   AFU-V1 test keys once test-validity carries them? Should AFU-V1-051 `PROVEN` coverage rows also
+   count as witnesses?
+6. Is the default of 8 steps per test, and the range 2..32, right for focused tests?
+7. Should the MCP tool (TCN-V0-012) be built in V0 at all, or wait for CLI qualification?

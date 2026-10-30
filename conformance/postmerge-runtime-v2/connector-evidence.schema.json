@@ -1,0 +1,459 @@
+{
+  "$defs": {
+    "descendants": {
+      "additionalProperties": false,
+      "properties": {
+        "Absent": {
+          "type": "boolean"
+        },
+        "Failures": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "IntervalMS": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "Limitations": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "Processes": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/logical-process"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "Scope": {
+          "maxLength": 4096,
+          "type": "string"
+        }
+      },
+      "required": [
+        "Scope",
+        "IntervalMS",
+        "Processes",
+        "Absent",
+        "Failures",
+        "Limitations"
+      ],
+      "type": "object"
+    },
+    "git-draft": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+          "type": "string"
+        },
+        "files": {
+          "items": {
+            "$ref": "#/$defs/git-file"
+          },
+          "maxItems": 20000,
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "docs",
+            "tests",
+            "corpus"
+          ]
+        },
+        "parent": {
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+          "type": "string"
+        },
+        "tree": {
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "commit",
+        "tree",
+        "parent",
+        "files"
+      ],
+      "type": "object"
+    },
+    "git-file": {
+      "additionalProperties": false,
+      "properties": {
+        "blob": {
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+          "type": "string"
+        },
+        "bytes": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "mode": {
+          "enum": [
+            "100644",
+            "100755",
+            "120000",
+            "160000"
+          ]
+        },
+        "path": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "mode",
+        "blob",
+        "sha256",
+        "bytes"
+      ],
+      "type": "object"
+    },
+    "host-policy": {
+      "additionalProperties": false,
+      "properties": {
+        "implementation_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "logical_mounts": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "pattern": "^[a-z][a-z0-9-]{0,63}$",
+                "type": "string"
+              },
+              "path": {
+                "maxLength": 4096,
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "path"
+            ],
+            "type": "object"
+          },
+          "maxItems": 8,
+          "type": "array"
+        },
+        "policy_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "profile": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "qualification_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile",
+        "policy_sha256",
+        "implementation_sha256",
+        "qualification_sha256",
+        "logical_mounts"
+      ],
+      "type": "object"
+    },
+    "log-fact": {
+      "additionalProperties": false,
+      "properties": {
+        "consumer": {
+          "const": "retained-uninterpreted-success-log/0"
+        },
+        "state": {
+          "enum": [
+            "absent",
+            "empty",
+            "present"
+          ]
+        }
+      },
+      "required": [
+        "state",
+        "consumer"
+      ],
+      "type": "object"
+    },
+    "logical-process": {
+      "additionalProperties": false,
+      "properties": {
+        "birth_distinct_from": {
+          "items": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "maxItems": 256,
+          "type": "array"
+        },
+        "node": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "parent": {
+          "anyOf": [
+            {
+              "maxLength": 4096,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "role": {
+          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+          "type": "string"
+        },
+        "run_kind": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "run_ordinal": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "state": {
+          "maxLength": 4096,
+          "type": "string"
+        }
+      },
+      "required": [
+        "node",
+        "role",
+        "run_kind",
+        "run_ordinal",
+        "parent",
+        "state",
+        "birth_distinct_from"
+      ],
+      "type": "object"
+    },
+    "measurement": {
+      "additionalProperties": false,
+      "properties": {
+        "rule": {
+          "const": "native-elapsed-no-acceptance-rule/0"
+        },
+        "state": {
+          "enum": [
+            "absent",
+            "null",
+            "zero",
+            "measured",
+            "unknown"
+          ]
+        },
+        "thresholds": {
+          "items": {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          "maxItems": 32,
+          "type": "array"
+        }
+      },
+      "required": [
+        "state",
+        "rule",
+        "thresholds"
+      ],
+      "type": "object"
+    },
+    "native-seal": {
+      "additionalProperties": false,
+      "properties": {
+        "profile": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "verified": {
+          "const": true
+        }
+      },
+      "required": [
+        "profile",
+        "verified"
+      ],
+      "type": "object"
+    },
+    "pinned-json-bytes": {
+      "contentEncoding": "base64",
+      "maxLength": 1048576,
+      "type": "string"
+    },
+    "rendering": {
+      "additionalProperties": false,
+      "properties": {
+        "present": {
+          "type": "boolean"
+        },
+        "renderer": {
+          "const": "testacceptance.renderBody/1"
+        },
+        "verified": {
+          "const": true
+        }
+      },
+      "required": [
+        "present",
+        "renderer",
+        "verified"
+      ],
+      "type": "object"
+    },
+    "semantic-link": {
+      "additionalProperties": false,
+      "properties": {
+        "node": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "node",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "tool": {
+      "additionalProperties": false,
+      "properties": {
+        "build": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "config_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "executable_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "role": {
+          "pattern": "^[a-z][a-z0-9-]{0,63}$",
+          "type": "string"
+        },
+        "runtime": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "source_commit": {
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+          "type": "string"
+        },
+        "source_tree": {
+          "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "role",
+        "source_commit",
+        "source_tree",
+        "executable_sha256",
+        "build",
+        "runtime",
+        "config_sha256"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "urn:corvint:connector-evidence:2",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "attachment_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "canonical_request_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "decision_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "decision_url": {
+      "maxLength": 4096,
+      "type": "string"
+    },
+    "draft": {
+      "$ref": "#/$defs/git-draft"
+    },
+    "execution_id": {
+      "pattern": "^[a-z][a-z0-9-]{0,63}$",
+      "type": "string"
+    },
+    "product_commit": {
+      "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+      "type": "string"
+    },
+    "profile": {
+      "const": "postmerge-connector-evidence/2"
+    },
+    "test_commit": {
+      "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "profile",
+    "decision_url",
+    "decision_sha256",
+    "attachment_sha256",
+    "execution_id",
+    "canonical_request_sha256",
+    "draft",
+    "product_commit",
+    "test_commit"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "commit": "8017b279e19347efaf2587711c2d57dbd4330740",
+  "original_frozen_sha256": "a17b0437ff10bd97f43706ced7123db878ed94164490413687610c65033bf938",
+  "cases": [{
+    "id": "execa-strip-final-newline",
+    "partition": "heldout-v3",
+    "target_version": "V4",
+    "first_observed_at": "2026-08-22",
+    "mode": "query",
+    "text": "How does Execa's `stripFinalNewline` option behave by default, for per-file-descriptor settings and combined `all` output, and for object-mode output? Retrieve the public option contract, the focused implementation, and its direct positive and negative tests.",
+    "limit": 8,
+    "budget_bytes": 10000,
+    "rationale": "This triangulates public docs, focused implementation, and direct tests under a budget while explicitly excluding Execa's max-buffer neighborhood.",
+    "ground_truth": [
+      {"path": "docs/api.md", "line": 1006, "contains": "### options.stripFinalNewline"},
+      {"path": "docs/api.md", "line": 1009, "contains": "_Default:_ `true`"},
+      {"path": "lib/io/strip-newline.js", "line": 5, "contains": "export const stripNewline ="},
+      {"path": "lib/io/strip-newline.js", "line": 10, "contains": "fdNumber === 'all'"},
+      {"path": "lib/io/strip-newline.js", "line": 11, "contains": "stripFinalNewline[1] || stripFinalNewline[2]"},
+      {"path": "test/io/strip-newline.js", "line": 27, "contains": "test('stripFinalNewline: false with stdout, fd-specific'"},
+      {"path": "test/io/strip-newline.js", "line": 53, "contains": "test('stripFinalNewline is not used in objectMode'"}
+    ],
+    "expected": {
+      "must_include": [
+        "path:docs/api.md",
+        "symbol:lib/io/strip-newline.js:stripNewline",
+        "test:test/io/strip-newline.js"
+      ],
+      "critical": [
+        "path:docs/api.md",
+        "symbol:lib/io/strip-newline.js:stripNewline",
+        "test:test/io/strip-newline.js"
+      ],
+      "relevant": [
+        "path:docs/api.md",
+        "symbol:lib/io/strip-newline.js:stripNewline",
+        "test:test/io/strip-newline.js"
+      ],
+      "must_exclude": [
+        "path:lib/io/max-buffer.js",
+        "test:test/io/max-buffer.js",
+        "path:lib/return/message.js"
+      ]
+    }
+  }]
+}

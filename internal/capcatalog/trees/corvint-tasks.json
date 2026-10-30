@@ -1,0 +1,4391 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-tasks",
+  "helpJson": "corvint-tasks help --json",
+  "source": "corvint-tasks command help (internal/tasks/cli)",
+  "dispatchSources": [
+    "cmd/corvint-tasks",
+    "internal/tasks/cli"
+  ],
+  "globalFlags": [
+    "--verbose",
+    "--version"
+  ],
+  "internalEntryPoints": [
+    {
+      "word": "lane-leader",
+      "reason": "lane leader process the dispatcher starts for itself (cmd/corvint-tasks)"
+    },
+    {
+      "word": "--directory",
+      "reason": "lane-leader option the dispatcher passes"
+    },
+    {
+      "word": "--capsule",
+      "reason": "lane-leader option the dispatcher passes"
+    },
+    {
+      "word": "--supervise",
+      "reason": "run option the detached launcher passes to its own supervisor process"
+    }
+  ],
+  "nodes": [
+    {
+      "path": [
+        "admit"
+      ],
+      "command": "corvint-tasks admit",
+      "summary": "",
+      "usage": [
+        "corvint-tasks admit --program ID --config FILE [--role implementer|reviewer|integrator] [--count N] [--ticket ID] [--host codex|claude-code|opencode] [--grant ID] [--question SHA256] [--revision N] [--answer TEXT]"
+      ],
+      "flags": [
+        "--answer",
+        "--config",
+        "--count",
+        "--grant",
+        "--host",
+        "--program",
+        "--question",
+        "--revision",
+        "--role",
+        "--ticket"
+      ],
+      "required": [
+        "--program ID",
+        "--config FILE"
+      ],
+      "example": "corvint-tasks admit --program ID --config FILE",
+      "help": "corvint-tasks admit --help"
+    },
+    {
+      "path": [
+        "answer"
+      ],
+      "command": "corvint-tasks answer",
+      "summary": "",
+      "usage": [
+        "corvint-tasks answer --program ID --config FILE [--role implementer|reviewer|integrator] [--count N] [--ticket ID] [--host codex|claude-code|opencode] [--grant ID] [--question SHA256] [--revision N] [--answer TEXT]"
+      ],
+      "flags": [
+        "--answer",
+        "--config",
+        "--count",
+        "--grant",
+        "--host",
+        "--program",
+        "--question",
+        "--revision",
+        "--role",
+        "--ticket"
+      ],
+      "required": [
+        "--program ID",
+        "--config FILE"
+      ],
+      "example": "corvint-tasks answer --program ID --config FILE",
+      "help": "corvint-tasks answer --help"
+    },
+    {
+      "path": [
+        "archive"
+      ],
+      "command": "corvint-tasks archive",
+      "summary": "",
+      "usage": [
+        "corvint-tasks archive export [--staging DIR]",
+        "corvint-tasks archive restore (execution NOT_RUN)",
+        "corvint-tasks archive verify [FILE|-]"
+      ],
+      "flags": [
+        "--staging"
+      ],
+      "required": [],
+      "example": "corvint-tasks archive export",
+      "help": "corvint-tasks archive --help"
+    },
+    {
+      "path": [
+        "archive",
+        "export"
+      ],
+      "command": "corvint-tasks archive export",
+      "summary": "",
+      "usage": [
+        "corvint-tasks archive export [--staging DIR]"
+      ],
+      "flags": [
+        "--staging"
+      ],
+      "required": [],
+      "example": "corvint-tasks archive export",
+      "help": "corvint-tasks archive export --help"
+    },
+    {
+      "path": [
+        "archive",
+        "restore"
+      ],
+      "command": "corvint-tasks archive restore",
+      "summary": "",
+      "usage": [
+        "corvint-tasks archive restore (execution NOT_RUN)"
+      ],
+      "flags": [],
+      "required": [],
+      "example": "corvint-tasks archive restore",
+      "help": "corvint-tasks archive restore --help"
+    },
+    {
+      "path": [
+        "archive",
+        "verify"
+      ],
+      "command": "corvint-tasks archive verify",
+      "summary": "",
+      "usage": [
+        "corvint-tasks archive verify [FILE|-]"
+      ],
+      "flags": [],
+      "required": [],
+      "example": "corvint-tasks archive verify",
+      "help": "corvint-tasks archive verify --help"
+    },
+    {
+      "path": [
+        "attempt"
+      ],
+      "command": "corvint-tasks attempt",
+      "summary": "",
+      "usage": [
+        "corvint-tasks attempt heartbeat --attempt ID --generation G --request-id ID [--timing] [--lock-wait SECONDS] [--role ROLE]",
+        "corvint-tasks attempt show <attemptId> [--summary | --fields KEY[.SUB],...]"
+      ],
+      "flags": [
+        "--attempt",
+        "--fields",
+        "--generation",
+        "--lock-wait",
+        "--request-id",
+        "--role",
+        "--summary",
+        "--timing"
+      ],
+      "required": [],
+      "example": "corvint-tasks attempt heartbeat --attempt ID --generation G --request-id ID",
+      "help": "corvint-tasks attempt --help"
+    },
+    {
+      "path": [
+        "attempt",
+        "heartbeat"
+      ],
+      "command": "corvint-tasks attempt heartbeat",
+      "summary": "",
+      "usage": [
+        "corvint-tasks attempt heartbeat --attempt ID --generation G --request-id ID [--timing] [--lock-wait SECONDS] [--role ROLE]"
+      ],
+      "flags": [
+        "--attempt",
+        "--generation",
+        "--lock-wait",
+        "--request-id",
+        "--role",
+        "--timing"
+      ],
+      "required": [
+        "--attempt ID",
+        "--generation G",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks attempt heartbeat --attempt ID --generation G --request-id ID",
+      "help": "corvint-tasks attempt heartbeat --help"
+    },
+    {
+      "path": [
+        "attempt",
+        "show"
+      ],
+      "command": "corvint-tasks attempt show",
+      "summary": "",
+      "usage": [
+        "corvint-tasks attempt show <attemptId> [--summary | --fields KEY[.SUB],...]"
+      ],
+      "flags": [
+        "--fields",
+        "--summary"
+      ],
+      "required": [
+        "<attemptId>"
+      ],
+      "example": "corvint-tasks attempt show <attemptId>",
+      "help": "corvint-tasks attempt show --help"
+    },
+    {
+      "path": [
+        "cancel"
+      ],
+      "command": "corvint-tasks cancel",
+      "summary": "",
+      "usage": [
+        "corvint-tasks cancel --program ID --config FILE [--role implementer|reviewer|integrator] [--count N] [--ticket ID] [--host codex|claude-code|opencode] [--grant ID] [--question SHA256] [--revision N] [--answer TEXT]"
+      ],
+      "flags": [
+        "--answer",
+        "--config",
+        "--count",
+        "--grant",
+        "--host",
+        "--program",
+        "--question",
+        "--revision",
+        "--role",
+        "--ticket"
+      ],
+      "required": [
+        "--program ID",
+        "--config FILE"
+      ],
+      "example": "corvint-tasks cancel --program ID --config FILE",
+      "help": "corvint-tasks cancel --help"
+    },
+    {
+      "path": [
+        "claim"
+      ],
+      "command": "corvint-tasks claim",
+      "summary": "",
+      "usage": [
+        "corvint-tasks claim (<ticketId|local> | --next) --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH... | --scope-from-diff REV] [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--share-allocation DIGEST] [--repo ALIAS=ROOT]... [--timing] [--lock-wait SECONDS] [--role ROLE] [--detach [--wait SECONDS]]"
+      ],
+      "flags": [
+        "--base",
+        "--branch",
+        "--detach",
+        "--exclude-authors",
+        "--exclude-member",
+        "--holder",
+        "--lease-minutes",
+        "--lock-wait",
+        "--next",
+        "--pool",
+        "--repo",
+        "--request-id",
+        "--role",
+        "--scope",
+        "--scope-from-diff",
+        "--share-allocation",
+        "--stage",
+        "--timing",
+        "--wait"
+      ],
+      "required": [
+        "--holder LABEL",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks claim --holder LABEL --request-id ID",
+      "help": "corvint-tasks claim --help"
+    },
+    {
+      "path": [
+        "complete"
+      ],
+      "command": "corvint-tasks complete",
+      "summary": "",
+      "usage": [
+        "corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID [--role ROLE]"
+      ],
+      "flags": [
+        "--attempt",
+        "--commit",
+        "--generation",
+        "--request-id",
+        "--role"
+      ],
+      "required": [
+        "--attempt ID",
+        "--generation G",
+        "--request-id ID",
+        "--commit OID"
+      ],
+      "example": "corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID",
+      "help": "corvint-tasks complete --help"
+    },
+    {
+      "path": [
+        "config"
+      ],
+      "command": "corvint-tasks config",
+      "summary": "",
+      "usage": [
+        "corvint-tasks config (execution NOT_RUN)"
+      ],
+      "flags": [],
+      "required": [],
+      "example": "corvint-tasks config",
+      "help": "corvint-tasks config --help"
+    },
+    {
+      "path": [
+        "criterion-binding"
+      ],
+      "command": "corvint-tasks criterion-binding",
+      "summary": "",
+      "usage": [
+        "corvint-tasks criterion-binding capture --ticket ID --attempt ID",
+        "corvint-tasks criterion-binding verify (canonical capture on stdin)"
+      ],
+      "flags": [
+        "--attempt",
+        "--ticket"
+      ],
+      "required": [],
+      "example": "corvint-tasks criterion-binding capture --ticket ID --attempt ID",
+      "help": "corvint-tasks criterion-binding --help"
+    },
+    {
+      "path": [
+        "criterion-binding",
+        "capture"
+      ],
+      "command": "corvint-tasks criterion-binding capture",
+      "summary": "",
+      "usage": [
+        "corvint-tasks criterion-binding capture --ticket ID --attempt ID"
+      ],
+      "flags": [
+        "--attempt",
+        "--ticket"
+      ],
+      "required": [
+        "--ticket ID",
+        "--attempt ID"
+      ],
+      "example": "corvint-tasks criterion-binding capture --ticket ID --attempt ID",
+      "help": "corvint-tasks criterion-binding capture --help"
+    },
+    {
+      "path": [
+        "criterion-binding",
+        "verify"
+      ],
+      "command": "corvint-tasks criterion-binding verify",
+      "summary": "",
+      "usage": [
+        "corvint-tasks criterion-binding verify (canonical capture on stdin)"
+      ],
+      "flags": [],
+      "required": [],
+      "example": "corvint-tasks criterion-binding verify",
+      "help": "corvint-tasks criterion-binding verify --help"
+    },
+    {
+      "path": [
+        "critical-path"
+      ],
+      "command": "corvint-tasks critical-path",
+      "summary": "",
+      "usage": [
+        "corvint-tasks critical-path <ticketId|local>"
+      ],
+      "flags": [],
+      "required": [
+        "<ticketId|local>"
+      ],
+      "example": "corvint-tasks critical-path <ticketId|local>",
+      "help": "corvint-tasks critical-path --help"
+    },
+    {
+      "path": [
+        "cutover"
+      ],
+      "command": "corvint-tasks cutover",
+      "summary": "",
+      "usage": [
+        "corvint-tasks cutover [--execution] --decision REF [--qualification FILE]"
+      ],
+      "flags": [
+        "--decision",
+        "--execution",
+        "--qualification"
+      ],
+      "required": [
+        "--decision REF"
+      ],
+      "example": "corvint-tasks cutover --decision REF",
+      "help": "corvint-tasks cutover --help"
+    },
+    {
+      "path": [
+        "defects"
+      ],
+      "command": "corvint-tasks defects",
+      "summary": "",
+      "usage": [
+        "corvint-tasks defects add --title TEXT --location TEXT --evidence REF [--severity LOW|MEDIUM|HIGH|CRITICAL] [--status SUSPECTED|CONFIRMED|NOT_A_BUG|DUPLICATE] [--category PRODUCT|ENVIRONMENT] [--duplicate-of ID]",
+        "corvint-tasks defects list [--status STATUS] [--category CATEGORY]",
+        "corvint-tasks defects update <defectId> [--title TEXT] [--location TEXT] [--evidence REF] [--severity LOW|MEDIUM|HIGH|CRITICAL] [--status SUSPECTED|CONFIRMED|NOT_A_BUG|DUPLICATE] [--category PRODUCT|ENVIRONMENT] [--duplicate-of ID]"
+      ],
+      "flags": [
+        "--category",
+        "--duplicate-of",
+        "--evidence",
+        "--location",
+        "--severity",
+        "--status",
+        "--title"
+      ],
+      "required": [],
+      "example": "corvint-tasks defects add --title TEXT --location TEXT --evidence REF",
+      "help": "corvint-tasks defects --help"
+    },
+    {
+      "path": [
+        "defects",
+        "add"
+      ],
+      "command": "corvint-tasks defects add",
+      "summary": "",
+      "usage": [
+        "corvint-tasks defects add --title TEXT --location TEXT --evidence REF [--severity LOW|MEDIUM|HIGH|CRITICAL] [--status SUSPECTED|CONFIRMED|NOT_A_BUG|DUPLICATE] [--category PRODUCT|ENVIRONMENT] [--duplicate-of ID]"
+      ],
+      "flags": [
+        "--category",
+        "--duplicate-of",
+        "--evidence",
+        "--location",
+        "--severity",
+        "--status",
+        "--title"
+      ],
+      "required": [
+        "--title TEXT",
+        "--location TEXT",
+        "--evidence REF"
+      ],
+      "example": "corvint-tasks defects add --title TEXT --location TEXT --evidence REF",
+      "help": "corvint-tasks defects add --help"
+    },
+    {
+      "path": [
+        "defects",
+        "list"
+      ],
+      "command": "corvint-tasks defects list",
+      "summary": "",
+      "usage": [
+        "corvint-tasks defects list [--status STATUS] [--category CATEGORY]"
+      ],
+      "flags": [
+        "--category",
+        "--status"
+      ],
+      "required": [],
+      "example": "corvint-tasks defects list",
+      "help": "corvint-tasks defects list --help"
+    },
+    {
+      "path": [
+        "defects",
+        "update"
+      ],
+      "command": "corvint-tasks defects update",
+      "summary": "",
+      "usage": [
+        "corvint-tasks defects update <defectId> [--title TEXT] [--location TEXT] [--evidence REF] [--severity LOW|MEDIUM|HIGH|CRITICAL] [--status SUSPECTED|CONFIRMED|NOT_A_BUG|DUPLICATE] [--category PRODUCT|ENVIRONMENT] [--duplicate-of ID]"
+      ],
+      "flags": [
+        "--category",
+        "--duplicate-of",
+        "--evidence",
+        "--location",
+        "--severity",
+        "--status",
+        "--title"
+      ],
+      "required": [
+        "<defectId>"
+      ],
+      "example": "corvint-tasks defects update <defectId>",
+      "help": "corvint-tasks defects update --help"
+    },
+    {
+      "path": [
+        "dispatch"
+      ],
+      "command": "corvint-tasks dispatch",
+      "summary": "",
+      "usage": [
+        "corvint-tasks dispatch --program ID --config FILE [--once | --ticks N]"
+      ],
+      "flags": [
+        "--config",
+        "--once",
+        "--program",
+        "--ticks"
+      ],
+      "required": [
+        "--program ID",
+        "--config FILE"
+      ],
+      "example": "corvint-tasks dispatch --program ID --config FILE",
+      "help": "corvint-tasks dispatch --help"
+    },
+    {
+      "path": [
+        "dispatch",
+        "context-hook"
+      ],
+      "command": "corvint-tasks dispatch context-hook",
+      "summary": "",
+      "usage": [
+        "corvint-tasks dispatch context-hook"
+      ],
+      "flags": [],
+      "required": [],
+      "example": "corvint-tasks dispatch context-hook",
+      "help": "corvint-tasks dispatch context-hook --help"
+    },
+    {
+      "path": [
+        "dispatch",
+        "recover-reader"
+      ],
+      "command": "corvint-tasks dispatch recover-reader",
+      "summary": "",
+      "usage": [
+        "corvint-tasks dispatch recover-reader --program ID --config FILE --reason TEXT --evidence REF --request-id ID"
+      ],
+      "flags": [
+        "--config",
+        "--evidence",
+        "--program",
+        "--reason",
+        "--request-id"
+      ],
+      "required": [
+        "--program ID",
+        "--config FILE",
+        "--reason TEXT",
+        "--evidence REF",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks dispatch recover-reader --program ID --config FILE --reason TEXT --evidence REF --request-id ID",
+      "help": "corvint-tasks dispatch recover-reader --help"
+    },
+    {
+      "path": [
+        "dispatch",
+        "salvage"
+      ],
+      "command": "corvint-tasks dispatch salvage",
+      "summary": "",
+      "usage": [
+        "corvint-tasks dispatch salvage --program ID --config FILE --attempt ATTEMPT"
+      ],
+      "flags": [
+        "--attempt",
+        "--config",
+        "--program"
+      ],
+      "required": [
+        "--program ID",
+        "--config FILE",
+        "--attempt ATTEMPT"
+      ],
+      "example": "corvint-tasks dispatch salvage --program ID --config FILE --attempt ATTEMPT",
+      "help": "corvint-tasks dispatch salvage --help"
+    },
+    {
+      "path": [
+        "dispatch",
+        "status"
+      ],
+      "command": "corvint-tasks dispatch status",
+      "summary": "",
+      "usage": [
+        "corvint-tasks dispatch status --program ID --config FILE [--events N] [--worker ID]"
+      ],
+      "flags": [
+        "--config",
+        "--events",
+        "--program",
+        "--worker"
+      ],
+      "required": [
+        "--program ID",
+        "--config FILE"
+      ],
+      "example": "corvint-tasks dispatch status --program ID --config FILE",
+      "help": "corvint-tasks dispatch status --help"
+    },
+    {
+      "path": [
+        "dispatch",
+        "unpark"
+      ],
+      "command": "corvint-tasks dispatch unpark",
+      "summary": "",
+      "usage": [
+        "corvint-tasks dispatch unpark --program ID --config FILE --key TICKET|lane:POOL/MEMBER"
+      ],
+      "flags": [
+        "--config",
+        "--key",
+        "--program"
+      ],
+      "required": [
+        "--program ID",
+        "--config FILE",
+        "--key TICKET|lane:POOL/MEMBER"
+      ],
+      "example": "corvint-tasks dispatch unpark --program ID --config FILE --key TICKET",
+      "help": "corvint-tasks dispatch unpark --help"
+    },
+    {
+      "path": [
+        "dispatch",
+        "upgrade"
+      ],
+      "command": "corvint-tasks dispatch upgrade",
+      "summary": "",
+      "usage": [
+        "corvint-tasks dispatch upgrade --program ID --config FILE --check NEW_BUILD"
+      ],
+      "flags": [
+        "--check",
+        "--config",
+        "--program"
+      ],
+      "required": [
+        "--program ID",
+        "--config FILE",
+        "--check NEW_BUILD"
+      ],
+      "example": "corvint-tasks dispatch upgrade --program ID --config FILE --check NEW_BUILD",
+      "help": "corvint-tasks dispatch upgrade --help"
+    },
+    {
+      "path": [
+        "doctor"
+      ],
+      "command": "corvint-tasks doctor",
+      "summary": "",
+      "usage": [
+        "corvint-tasks doctor [--refresh] [--plugins DIR] | corvint-tasks doctor --line"
+      ],
+      "flags": [
+        "--line",
+        "--plugins",
+        "--refresh"
+      ],
+      "required": [
+        "--line"
+      ],
+      "example": "corvint-tasks doctor | corvint-tasks doctor --line",
+      "help": "corvint-tasks doctor --help"
+    },
+    {
+      "path": [
+        "drain"
+      ],
+      "command": "corvint-tasks drain",
+      "summary": "",
+      "usage": [
+        "corvint-tasks drain --program ID --config FILE [--role implementer|reviewer|integrator] [--count N] [--ticket ID] [--host codex|claude-code|opencode] [--grant ID] [--question SHA256] [--revision N] [--answer TEXT]"
+      ],
+      "flags": [
+        "--answer",
+        "--config",
+        "--count",
+        "--grant",
+        "--host",
+        "--program",
+        "--question",
+        "--revision",
+        "--role",
+        "--ticket"
+      ],
+      "required": [
+        "--program ID",
+        "--config FILE"
+      ],
+      "example": "corvint-tasks drain --program ID --config FILE",
+      "help": "corvint-tasks drain --help"
+    },
+    {
+      "path": [
+        "gate"
+      ],
+      "command": "corvint-tasks gate",
+      "summary": "",
+      "usage": [
+        "corvint-tasks gate history <ticketId|local> --gate GATE [--cursor SHA256] [--limit N]",
+        "corvint-tasks gate list",
+        "corvint-tasks gate packet <ticketId|local> [--commit REV] [--source PATH|NAME [--config FILE]] [--max-bytes 4096..262144] [--checkpoint NOTE]",
+        "corvint-tasks gate record <ticketId|local> --gate GATE (--verdict PASS|RETURN | --from-acceptance REPORT) --subject-receipt SEQ --expected-generation N --expected-revision N --request-id ID [--reason CODE:TEXT] [--candidate-evidence SHA256:BYTES] [--evidence LABEL=SHA256:BYTES] [--reviewer-attempt ID] [--issued-at TS] [--role OWNER|OPERATOR|REVIEWER]",
+        "corvint-tasks gate resubmit <ticketId|local> --gate GATE --author-attempt ID --subject-receipt SEQ --expected-generation N --expected-revision N --reason CODE:TEXT --request-id ID [--prior-return SHA256] [--candidate-evidence SHA256:BYTES] [--evidence LABEL=SHA256:BYTES] [--issued-at TS] [--role OWNER|OPERATOR|WORKER] [--refuse-repeat N [--remediation REF]]",
+        "corvint-tasks gate run --attempt ID --generation G --request-id ID --gate GATE [--worktree DIR | --ci-run FILE] [--role ROLE]",
+        "corvint-tasks gate show <gateId>",
+        "corvint-tasks gate state <ticketId|local>"
+      ],
+      "flags": [
+        "--attempt",
+        "--author-attempt",
+        "--candidate-evidence",
+        "--checkpoint",
+        "--ci-run",
+        "--commit",
+        "--config",
+        "--cursor",
+        "--evidence",
+        "--expected-generation",
+        "--expected-revision",
+        "--from-acceptance",
+        "--gate",
+        "--generation",
+        "--issued-at",
+        "--limit",
+        "--max-bytes",
+        "--prior-return",
+        "--reason",
+        "--refuse-repeat",
+        "--remediation",
+        "--request-id",
+        "--reviewer-attempt",
+        "--role",
+        "--source",
+        "--subject-receipt",
+        "--verdict",
+        "--worktree"
+      ],
+      "required": [],
+      "example": "corvint-tasks gate history <ticketId|local> --gate GATE",
+      "help": "corvint-tasks gate --help"
+    },
+    {
+      "path": [
+        "gate",
+        "history"
+      ],
+      "command": "corvint-tasks gate history",
+      "summary": "",
+      "usage": [
+        "corvint-tasks gate history <ticketId|local> --gate GATE [--cursor SHA256] [--limit N]"
+      ],
+      "flags": [
+        "--cursor",
+        "--gate",
+        "--limit"
+      ],
+      "required": [
+        "<ticketId|local>",
+        "--gate GATE"
+      ],
+      "example": "corvint-tasks gate history <ticketId|local> --gate GATE",
+      "help": "corvint-tasks gate history --help"
+    },
+    {
+      "path": [
+        "gate",
+        "list"
+      ],
+      "command": "corvint-tasks gate list",
+      "summary": "",
+      "usage": [
+        "corvint-tasks gate list"
+      ],
+      "flags": [],
+      "required": [],
+      "example": "corvint-tasks gate list",
+      "help": "corvint-tasks gate list --help"
+    },
+    {
+      "path": [
+        "gate",
+        "packet"
+      ],
+      "command": "corvint-tasks gate packet",
+      "summary": "",
+      "usage": [
+        "corvint-tasks gate packet <ticketId|local> [--commit REV] [--source PATH|NAME [--config FILE]] [--max-bytes 4096..262144] [--checkpoint NOTE]"
+      ],
+      "flags": [
+        "--checkpoint",
+        "--commit",
+        "--config",
+        "--max-bytes",
+        "--source"
+      ],
+      "required": [
+        "<ticketId|local>"
+      ],
+      "example": "corvint-tasks gate packet <ticketId|local>",
+      "help": "corvint-tasks gate packet --help"
+    },
+    {
+      "path": [
+        "gate",
+        "record"
+      ],
+      "command": "corvint-tasks gate record",
+      "summary": "",
+      "usage": [
+        "corvint-tasks gate record <ticketId|local> --gate GATE (--verdict PASS|RETURN | --from-acceptance REPORT) --subject-receipt SEQ --expected-generation N --expected-revision N --request-id ID [--reason CODE:TEXT] [--candidate-evidence SHA256:BYTES] [--evidence LABEL=SHA256:BYTES] [--reviewer-attempt ID] [--issued-at TS] [--role OWNER|OPERATOR|REVIEWER]"
+      ],
+      "flags": [
+        "--candidate-evidence",
+        "--evidence",
+        "--expected-generation",
+        "--expected-revision",
+        "--from-acceptance",
+        "--gate",
+        "--issued-at",
+        "--reason",
+        "--request-id",
+        "--reviewer-attempt",
+        "--role",
+        "--subject-receipt",
+        "--verdict"
+      ],
+      "required": [
+        "<ticketId|local>",
+        "--gate GATE",
+        "--subject-receipt SEQ",
+        "--expected-generation N",
+        "--expected-revision N",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks gate record <ticketId|local> --gate GATE --verdict PASS --subject-receipt SEQ --expected-generation N --expected-revision N --request-id ID",
+      "help": "corvint-tasks gate record --help"
+    },
+    {
+      "path": [
+        "gate",
+        "resubmit"
+      ],
+      "command": "corvint-tasks gate resubmit",
+      "summary": "",
+      "usage": [
+        "corvint-tasks gate resubmit <ticketId|local> --gate GATE --author-attempt ID --subject-receipt SEQ --expected-generation N --expected-revision N --reason CODE:TEXT --request-id ID [--prior-return SHA256] [--candidate-evidence SHA256:BYTES] [--evidence LABEL=SHA256:BYTES] [--issued-at TS] [--role OWNER|OPERATOR|WORKER] [--refuse-repeat N [--remediation REF]]"
+      ],
+      "flags": [
+        "--author-attempt",
+        "--candidate-evidence",
+        "--evidence",
+        "--expected-generation",
+        "--expected-revision",
+        "--gate",
+        "--issued-at",
+        "--prior-return",
+        "--reason",
+        "--refuse-repeat",
+        "--remediation",
+        "--request-id",
+        "--role",
+        "--subject-receipt"
+      ],
+      "required": [
+        "<ticketId|local>",
+        "--gate GATE",
+        "--author-attempt ID",
+        "--subject-receipt SEQ",
+        "--expected-generation N",
+        "--expected-revision N",
+        "--reason CODE:TEXT",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks gate resubmit <ticketId|local> --gate GATE --author-attempt ID --subject-receipt SEQ --expected-generation N --expected-revision N --reason CODE:TEXT --request-id ID",
+      "help": "corvint-tasks gate resubmit --help"
+    },
+    {
+      "path": [
+        "gate",
+        "run"
+      ],
+      "command": "corvint-tasks gate run",
+      "summary": "",
+      "usage": [
+        "corvint-tasks gate run --attempt ID --generation G --request-id ID --gate GATE [--worktree DIR | --ci-run FILE] [--role ROLE]"
+      ],
+      "flags": [
+        "--attempt",
+        "--ci-run",
+        "--gate",
+        "--generation",
+        "--request-id",
+        "--role",
+        "--worktree"
+      ],
+      "required": [
+        "--attempt ID",
+        "--generation G",
+        "--request-id ID",
+        "--gate GATE"
+      ],
+      "example": "corvint-tasks gate run --attempt ID --generation G --request-id ID --gate GATE",
+      "help": "corvint-tasks gate run --help"
+    },
+    {
+      "path": [
+        "gate",
+        "show"
+      ],
+      "command": "corvint-tasks gate show",
+      "summary": "",
+      "usage": [
+        "corvint-tasks gate show <gateId>"
+      ],
+      "flags": [],
+      "required": [
+        "<gateId>"
+      ],
+      "example": "corvint-tasks gate show <gateId>",
+      "help": "corvint-tasks gate show --help"
+    },
+    {
+      "path": [
+        "gate",
+        "state"
+      ],
+      "command": "corvint-tasks gate state",
+      "summary": "",
+      "usage": [
+        "corvint-tasks gate state <ticketId|local>"
+      ],
+      "flags": [],
+      "required": [
+        "<ticketId|local>"
+      ],
+      "example": "corvint-tasks gate state <ticketId|local>",
+      "help": "corvint-tasks gate state --help"
+    },
+    {
+      "path": [
+        "health"
+      ],
+      "command": "corvint-tasks health",
+      "summary": "",
+      "usage": [
+        "corvint-tasks health --member ID [--stage STAGE] --request-id ID [--role ROLE]"
+      ],
+      "flags": [
+        "--member",
+        "--request-id",
+        "--role",
+        "--stage"
+      ],
+      "required": [
+        "--member ID",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks health --member ID --request-id ID",
+      "help": "corvint-tasks health --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-tasks help",
+      "summary": "",
+      "usage": [
+        "corvint-tasks help [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-tasks help",
+      "help": "corvint-tasks help --help"
+    },
+    {
+      "path": [
+        "import"
+      ],
+      "command": "corvint-tasks import",
+      "summary": "",
+      "usage": [
+        "corvint-tasks import --file PATH [--role OWNER|OPERATOR]"
+      ],
+      "flags": [
+        "--file",
+        "--role"
+      ],
+      "required": [
+        "--file PATH"
+      ],
+      "example": "corvint-tasks import --file PATH",
+      "help": "corvint-tasks import --help"
+    },
+    {
+      "path": [
+        "import",
+        "amend-map"
+      ],
+      "command": "corvint-tasks import amend-map",
+      "summary": "",
+      "usage": [
+        "corvint-tasks import amend-map --request-id ID --expected-map-sha256 SHA256 --file PATH [--role OWNER]"
+      ],
+      "flags": [
+        "--expected-map-sha256",
+        "--file",
+        "--request-id",
+        "--role"
+      ],
+      "required": [
+        "--request-id ID",
+        "--expected-map-sha256 SHA256",
+        "--file PATH"
+      ],
+      "example": "corvint-tasks import amend-map --request-id ID --expected-map-sha256 SHA256 --file PATH",
+      "help": "corvint-tasks import amend-map --help"
+    },
+    {
+      "path": [
+        "init"
+      ],
+      "command": "corvint-tasks init",
+      "summary": "",
+      "usage": [
+        "corvint-tasks init [--role ROLE] [--request-id ID]"
+      ],
+      "flags": [
+        "--request-id",
+        "--role"
+      ],
+      "required": [],
+      "example": "corvint-tasks init",
+      "help": "corvint-tasks init --help"
+    },
+    {
+      "path": [
+        "journal"
+      ],
+      "command": "corvint-tasks journal",
+      "summary": "",
+      "usage": [
+        "corvint-tasks journal seal",
+        "corvint-tasks journal unseal"
+      ],
+      "flags": [],
+      "required": [],
+      "example": "corvint-tasks journal seal",
+      "help": "corvint-tasks journal --help"
+    },
+    {
+      "path": [
+        "journal",
+        "seal"
+      ],
+      "command": "corvint-tasks journal seal",
+      "summary": "",
+      "usage": [
+        "corvint-tasks journal seal"
+      ],
+      "flags": [],
+      "required": [],
+      "example": "corvint-tasks journal seal",
+      "help": "corvint-tasks journal seal --help"
+    },
+    {
+      "path": [
+        "journal",
+        "unseal"
+      ],
+      "command": "corvint-tasks journal unseal",
+      "summary": "",
+      "usage": [
+        "corvint-tasks journal unseal"
+      ],
+      "flags": [],
+      "required": [],
+      "example": "corvint-tasks journal unseal",
+      "help": "corvint-tasks journal unseal --help"
+    },
+    {
+      "path": [
+        "lane-leader"
+      ],
+      "command": "corvint-tasks lane-leader",
+      "summary": "",
+      "usage": [
+        "corvint-tasks lane-leader --directory DIR --capsule FILE"
+      ],
+      "flags": [
+        "--capsule",
+        "--directory"
+      ],
+      "required": [
+        "--directory DIR",
+        "--capsule FILE"
+      ],
+      "example": "corvint-tasks lane-leader --directory DIR --capsule FILE",
+      "help": "corvint-tasks lane-leader --help"
+    },
+    {
+      "path": [
+        "pause"
+      ],
+      "command": "corvint-tasks pause",
+      "summary": "",
+      "usage": [
+        "corvint-tasks pause --request-id ID [--role OWNER|OPERATOR]"
+      ],
+      "flags": [
+        "--request-id",
+        "--role"
+      ],
+      "required": [
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks pause --request-id ID",
+      "help": "corvint-tasks pause --help"
+    },
+    {
+      "path": [
+        "pending"
+      ],
+      "command": "corvint-tasks pending",
+      "summary": "",
+      "usage": [
+        "corvint-tasks pending"
+      ],
+      "flags": [],
+      "required": [],
+      "example": "corvint-tasks pending",
+      "help": "corvint-tasks pending --help"
+    },
+    {
+      "path": [
+        "plan"
+      ],
+      "command": "corvint-tasks plan",
+      "summary": "",
+      "usage": [
+        "corvint-tasks plan batches [--max-group-size N] [--shared-path PATH]...",
+        "corvint-tasks plan preview [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--selected-only] [--summary | --fields KEY[.SUB],...]",
+        "corvint-tasks plan record (execution NOT_RUN)"
+      ],
+      "flags": [
+        "--exclude-authors",
+        "--exclude-member",
+        "--fields",
+        "--max-group-size",
+        "--pool",
+        "--selected-only",
+        "--shared-path",
+        "--stage",
+        "--summary"
+      ],
+      "required": [],
+      "example": "corvint-tasks plan batches",
+      "help": "corvint-tasks plan --help"
+    },
+    {
+      "path": [
+        "plan",
+        "batches"
+      ],
+      "command": "corvint-tasks plan batches",
+      "summary": "",
+      "usage": [
+        "corvint-tasks plan batches [--max-group-size N] [--shared-path PATH]..."
+      ],
+      "flags": [
+        "--max-group-size",
+        "--shared-path"
+      ],
+      "required": [],
+      "example": "corvint-tasks plan batches",
+      "help": "corvint-tasks plan batches --help"
+    },
+    {
+      "path": [
+        "plan",
+        "preview"
+      ],
+      "command": "corvint-tasks plan preview",
+      "summary": "",
+      "usage": [
+        "corvint-tasks plan preview [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--selected-only] [--summary | --fields KEY[.SUB],...]"
+      ],
+      "flags": [
+        "--exclude-authors",
+        "--exclude-member",
+        "--fields",
+        "--pool",
+        "--selected-only",
+        "--stage",
+        "--summary"
+      ],
+      "required": [],
+      "example": "corvint-tasks plan preview",
+      "help": "corvint-tasks plan preview --help"
+    },
+    {
+      "path": [
+        "plan",
+        "record"
+      ],
+      "command": "corvint-tasks plan record",
+      "summary": "",
+      "usage": [
+        "corvint-tasks plan record (execution NOT_RUN)"
+      ],
+      "flags": [],
+      "required": [],
+      "example": "corvint-tasks plan record",
+      "help": "corvint-tasks plan record --help"
+    },
+    {
+      "path": [
+        "policy"
+      ],
+      "command": "corvint-tasks policy",
+      "summary": "",
+      "usage": [
+        "corvint-tasks policy show",
+        "corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH [--role OWNER|OPERATOR]"
+      ],
+      "flags": [
+        "--expected-policy-version",
+        "--file",
+        "--request-id",
+        "--role"
+      ],
+      "required": [],
+      "example": "corvint-tasks policy show",
+      "help": "corvint-tasks policy --help"
+    },
+    {
+      "path": [
+        "policy",
+        "show"
+      ],
+      "command": "corvint-tasks policy show",
+      "summary": "",
+      "usage": [
+        "corvint-tasks policy show"
+      ],
+      "flags": [],
+      "required": [],
+      "example": "corvint-tasks policy show",
+      "help": "corvint-tasks policy show --help"
+    },
+    {
+      "path": [
+        "policy",
+        "update"
+      ],
+      "command": "corvint-tasks policy update",
+      "summary": "",
+      "usage": [
+        "corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH [--role OWNER|OPERATOR]"
+      ],
+      "flags": [
+        "--expected-policy-version",
+        "--file",
+        "--request-id",
+        "--role"
+      ],
+      "required": [
+        "--request-id ID",
+        "--expected-policy-version N",
+        "--file PATH"
+      ],
+      "example": "corvint-tasks policy update --request-id ID --expected-policy-version N --file PATH",
+      "help": "corvint-tasks policy update --help"
+    },
+    {
+      "path": [
+        "pool"
+      ],
+      "command": "corvint-tasks pool",
+      "summary": "",
+      "usage": [
+        "corvint-tasks pool acquire --attempt ID --generation G --pool ID --request-id ID [--source REV:TREE] [--exclude-member ID]... [--exclude-authors[=all]] [--lock-wait SECONDS] [--role ROLE] [--detach [--wait SECONDS]]",
+        "corvint-tasks pool cleanup --member ID --allocation SHA256 --request-id ID [--role ROLE]",
+        "corvint-tasks pool confirm-safe --member ID --allocation SHA256 --evidence REF --reason TEXT --request-id ID [--lock-wait SECONDS] [--role ROLE]",
+        "corvint-tasks pool hold --pool ID --member ID --holder ID --lease-minutes N --reason TEXT --request-id ID [--role ROLE]",
+        "corvint-tasks pool hold release --member ID --allocation SHA256 --request-id ID [--role ROLE]",
+        "corvint-tasks pool hold renew --member ID --allocation SHA256 --lease-minutes N --request-id ID [--role ROLE]",
+        "corvint-tasks pool observe --member ID --kind health|cleanup --result FAILED --detail-file FILE --request-id ID [--allocation SHA256] [--role ROLE]",
+        "corvint-tasks pool operate --pool ID --member ID --operation provision|refresh|reset|retarget|teardown --request-id ID [--allocation SHA256] [--source REV:TREE] [--role OWNER|OPERATOR]",
+        "corvint-tasks pool recover --member ID --allocation SHA256 --reason TEXT --request-id ID [--role ROLE]",
+        "corvint-tasks pool release --attempt ID --generation G --allocation SHA256 --request-id ID [--lock-wait SECONDS] [--role ROLE]",
+        "corvint-tasks pool status [--pool ID] [--member ID]",
+        "corvint-tasks pool sweep --request-id ID --timeout-seconds N [--member ID] [--role OWNER|OPERATOR]",
+        "corvint-tasks pool wait --pool ID --ttl-seconds N --request-id ID (--attempt ID --generation G | --ticket ID --holder LABEL) [--lock-wait SECONDS] [--role ROLE]"
+      ],
+      "flags": [
+        "--allocation",
+        "--attempt",
+        "--detach",
+        "--detail-file",
+        "--evidence",
+        "--exclude-authors",
+        "--exclude-member",
+        "--generation",
+        "--holder",
+        "--kind",
+        "--lease-minutes",
+        "--lock-wait",
+        "--member",
+        "--operation",
+        "--pool",
+        "--reason",
+        "--request-id",
+        "--result",
+        "--role",
+        "--source",
+        "--ticket",
+        "--timeout-seconds",
+        "--ttl-seconds",
+        "--wait"
+      ],
+      "required": [],
+      "example": "corvint-tasks pool acquire --attempt ID --generation G --pool ID --request-id ID",
+      "help": "corvint-tasks pool --help"
+    },
+    {
+      "path": [
+        "pool",
+        "acquire"
+      ],
+      "command": "corvint-tasks pool acquire",
+      "summary": "",
+      "usage": [
+        "corvint-tasks pool acquire --attempt ID --generation G --pool ID --request-id ID [--source REV:TREE] [--exclude-member ID]... [--exclude-authors[=all]] [--lock-wait SECONDS] [--role ROLE] [--detach [--wait SECONDS]]"
+      ],
+      "flags": [
+        "--attempt",
+        "--detach",
+        "--exclude-authors",
+        "--exclude-member",
+        "--generation",
+        "--lock-wait",
+        "--pool",
+        "--request-id",
+        "--role",
+        "--source",
+        "--wait"
+      ],
+      "required": [
+        "--attempt ID",
+        "--generation G",
+        "--pool ID",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks pool acquire --attempt ID --generation G --pool ID --request-id ID",
+      "help": "corvint-tasks pool acquire --help"
+    },
+    {
+      "path": [
+        "pool",
+        "cleanup"
+      ],
+      "command": "corvint-tasks pool cleanup",
+      "summary": "",
+      "usage": [
+        "corvint-tasks pool cleanup --member ID --allocation SHA256 --request-id ID [--role ROLE]"
+      ],
+      "flags": [
+        "--allocation",
+        "--member",
+        "--request-id",
+        "--role"
+      ],
+      "required": [
+        "--member ID",
+        "--allocation SHA256",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks pool cleanup --member ID --allocation SHA256 --request-id ID",
+      "help": "corvint-tasks pool cleanup --help"
+    },
+    {
+      "path": [
+        "pool",
+        "confirm-safe"
+      ],
+      "command": "corvint-tasks pool confirm-safe",
+      "summary": "",
+      "usage": [
+        "corvint-tasks pool confirm-safe --member ID --allocation SHA256 --evidence REF --reason TEXT --request-id ID [--lock-wait SECONDS] [--role ROLE]"
+      ],
+      "flags": [
+        "--allocation",
+        "--evidence",
+        "--lock-wait",
+        "--member",
+        "--reason",
+        "--request-id",
+        "--role"
+      ],
+      "required": [
+        "--member ID",
+        "--allocation SHA256",
+        "--evidence REF",
+        "--reason TEXT",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks pool confirm-safe --member ID --allocation SHA256 --evidence REF --reason TEXT --request-id ID",
+      "help": "corvint-tasks pool confirm-safe --help"
+    },
+    {
+      "path": [
+        "pool",
+        "hold"
+      ],
+      "command": "corvint-tasks pool hold",
+      "summary": "",
+      "usage": [
+        "corvint-tasks pool hold --pool ID --member ID --holder ID --lease-minutes N --reason TEXT --request-id ID [--role ROLE]"
+      ],
+      "flags": [
+        "--holder",
+        "--lease-minutes",
+        "--member",
+        "--pool",
+        "--reason",
+        "--request-id",
+        "--role"
+      ],
+      "required": [
+        "--pool ID",
+        "--member ID",
+        "--holder ID",
+        "--lease-minutes N",
+        "--reason TEXT",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks pool hold --pool ID --member ID --holder ID --lease-minutes N --reason TEXT --request-id ID",
+      "help": "corvint-tasks pool hold --help"
+    },
+    {
+      "path": [
+        "pool",
+        "hold",
+        "release"
+      ],
+      "command": "corvint-tasks pool hold release",
+      "summary": "",
+      "usage": [
+        "corvint-tasks pool hold release --member ID --allocation SHA256 --request-id ID [--role ROLE]"
+      ],
+      "flags": [
+        "--allocation",
+        "--member",
+        "--request-id",
+        "--role"
+      ],
+      "required": [
+        "--member ID",
+        "--allocation SHA256",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks pool hold release --member ID --allocation SHA256 --request-id ID",
+      "help": "corvint-tasks pool hold release --help"
+    },
+    {
+      "path": [
+        "pool",
+        "hold",
+        "renew"
+      ],
+      "command": "corvint-tasks pool hold renew",
+      "summary": "",
+      "usage": [
+        "corvint-tasks pool hold renew --member ID --allocation SHA256 --lease-minutes N --request-id ID [--role ROLE]"
+      ],
+      "flags": [
+        "--allocation",
+        "--lease-minutes",
+        "--member",
+        "--request-id",
+        "--role"
+      ],
+      "required": [
+        "--member ID",
+        "--allocation SHA256",
+        "--lease-minutes N",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks pool hold renew --member ID --allocation SHA256 --lease-minutes N --request-id ID",
+      "help": "corvint-tasks pool hold renew --help"
+    },
+    {
+      "path": [
+        "pool",
+        "observe"
+      ],
+      "command": "corvint-tasks pool observe",
+      "summary": "",
+      "usage": [
+        "corvint-tasks pool observe --member ID --kind health|cleanup --result FAILED --detail-file FILE --request-id ID [--allocation SHA256] [--role ROLE]"
+      ],
+      "flags": [
+        "--allocation",
+        "--detail-file",
+        "--kind",
+        "--member",
+        "--request-id",
+        "--result",
+        "--role"
+      ],
+      "required": [
+        "--member ID",
+        "--kind health|cleanup",
+        "--result FAILED",
+        "--detail-file FILE",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks pool observe --member ID --kind health --result FAILED --detail-file FILE --request-id ID",
+      "help": "corvint-tasks pool observe --help"
+    },
+    {
+      "path": [
+        "pool",
+        "operate"
+      ],
+      "command": "corvint-tasks pool operate",
+      "summary": "",
+      "usage": [
+        "corvint-tasks pool operate --pool ID --member ID --operation provision|refresh|reset|retarget|teardown --request-id ID [--allocation SHA256] [--source REV:TREE] [--role OWNER|OPERATOR]"
+      ],
+      "flags": [
+        "--allocation",
+        "--member",
+        "--operation",
+        "--pool",
+        "--request-id",
+        "--role",
+        "--source"
+      ],
+      "required": [
+        "--pool ID",
+        "--member ID",
+        "--operation provision|refresh|reset|retarget|teardown",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks pool operate --pool ID --member ID --operation provision --request-id ID",
+      "help": "corvint-tasks pool operate --help"
+    },
+    {
+      "path": [
+        "pool",
+        "recover"
+      ],
+      "command": "corvint-tasks pool recover",
+      "summary": "",
+      "usage": [
+        "corvint-tasks pool recover --member ID --allocation SHA256 --reason TEXT --request-id ID [--role ROLE]"
+      ],
+      "flags": [
+        "--allocation",
+        "--member",
+        "--reason",
+        "--request-id",
+        "--role"
+      ],
+      "required": [
+        "--member ID",
+        "--allocation SHA256",
+        "--reason TEXT",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks pool recover --member ID --allocation SHA256 --reason TEXT --request-id ID",
+      "help": "corvint-tasks pool recover --help"
+    },
+    {
+      "path": [
+        "pool",
+        "release"
+      ],
+      "command": "corvint-tasks pool release",
+      "summary": "",
+      "usage": [
+        "corvint-tasks pool release --attempt ID --generation G --allocation SHA256 --request-id ID [--lock-wait SECONDS] [--role ROLE]"
+      ],
+      "flags": [
+        "--allocation",
+        "--attempt",
+        "--generation",
+        "--lock-wait",
+        "--request-id",
+        "--role"
+      ],
+      "required": [
+        "--attempt ID",
+        "--generation G",
+        "--allocation SHA256",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks pool release --attempt ID --generation G --allocation SHA256 --request-id ID",
+      "help": "corvint-tasks pool release --help"
+    },
+    {
+      "path": [
+        "pool",
+        "status"
+      ],
+      "command": "corvint-tasks pool status",
+      "summary": "",
+      "usage": [
+        "corvint-tasks pool status [--pool ID] [--member ID]"
+      ],
+      "flags": [
+        "--member",
+        "--pool"
+      ],
+      "required": [],
+      "example": "corvint-tasks pool status",
+      "help": "corvint-tasks pool status --help"
+    },
+    {
+      "path": [
+        "pool",
+        "sweep"
+      ],
+      "command": "corvint-tasks pool sweep",
+      "summary": "",
+      "usage": [
+        "corvint-tasks pool sweep --request-id ID --timeout-seconds N [--member ID] [--role OWNER|OPERATOR]"
+      ],
+      "flags": [
+        "--member",
+        "--request-id",
+        "--role",
+        "--timeout-seconds"
+      ],
+      "required": [
+        "--request-id ID",
+        "--timeout-seconds N"
+      ],
+      "example": "corvint-tasks pool sweep --request-id ID --timeout-seconds N",
+      "help": "corvint-tasks pool sweep --help"
+    },
+    {
+      "path": [
+        "pool",
+        "wait"
+      ],
+      "command": "corvint-tasks pool wait",
+      "summary": "",
+      "usage": [
+        "corvint-tasks pool wait --pool ID --ttl-seconds N --request-id ID (--attempt ID --generation G | --ticket ID --holder LABEL) [--lock-wait SECONDS] [--role ROLE]"
+      ],
+      "flags": [
+        "--attempt",
+        "--generation",
+        "--holder",
+        "--lock-wait",
+        "--pool",
+        "--request-id",
+        "--role",
+        "--ticket",
+        "--ttl-seconds"
+      ],
+      "required": [
+        "--pool ID",
+        "--ttl-seconds N",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks pool wait --pool ID --ttl-seconds N --request-id ID --attempt ID --generation G",
+      "help": "corvint-tasks pool wait --help"
+    },
+    {
+      "path": [
+        "preflight"
+      ],
+      "command": "corvint-tasks preflight",
+      "summary": "",
+      "usage": [
+        "corvint-tasks preflight <ticketId|local> [--commit OID] [--path PREFIX ...] [--plan PATH] [--deep --gate GATE ... | --cache [--fresh]] [--refuse-repeat N [--remediation REF]]"
+      ],
+      "flags": [
+        "--cache",
+        "--commit",
+        "--deep",
+        "--fresh",
+        "--gate",
+        "--path",
+        "--plan",
+        "--refuse-repeat",
+        "--remediation"
+      ],
+      "required": [
+        "<ticketId|local>"
+      ],
+      "example": "corvint-tasks preflight <ticketId|local>",
+      "help": "corvint-tasks preflight --help"
+    },
+    {
+      "path": [
+        "program"
+      ],
+      "command": "corvint-tasks program",
+      "summary": "",
+      "usage": [
+        "corvint-tasks program cleanup --program ID --config FILE",
+        "corvint-tasks program show"
+      ],
+      "flags": [
+        "--config",
+        "--program"
+      ],
+      "required": [],
+      "example": "corvint-tasks program cleanup --program ID --config FILE",
+      "help": "corvint-tasks program --help"
+    },
+    {
+      "path": [
+        "program",
+        "cleanup"
+      ],
+      "command": "corvint-tasks program cleanup",
+      "summary": "",
+      "usage": [
+        "corvint-tasks program cleanup --program ID --config FILE"
+      ],
+      "flags": [
+        "--config",
+        "--program"
+      ],
+      "required": [
+        "--program ID",
+        "--config FILE"
+      ],
+      "example": "corvint-tasks program cleanup --program ID --config FILE",
+      "help": "corvint-tasks program cleanup --help"
+    },
+    {
+      "path": [
+        "program",
+        "show"
+      ],
+      "command": "corvint-tasks program show",
+      "summary": "",
+      "usage": [
+        "corvint-tasks program show"
+      ],
+      "flags": [],
+      "required": [],
+      "example": "corvint-tasks program show",
+      "help": "corvint-tasks program show --help"
+    },
+    {
+      "path": [
+        "qualify"
+      ],
+      "command": "corvint-tasks qualify",
+      "summary": "",
+      "usage": [
+        "corvint-tasks qualify --config FILE --spec PATH [--spec PATH ...] --base REV --out DIR --request-id ID [--commit OID] [--pool POOL --attempt ID --generation G]"
+      ],
+      "flags": [
+        "--attempt",
+        "--base",
+        "--commit",
+        "--config",
+        "--generation",
+        "--out",
+        "--pool",
+        "--request-id",
+        "--spec"
+      ],
+      "required": [
+        "--config FILE",
+        "--spec PATH",
+        "--base REV",
+        "--out DIR",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks qualify --config FILE --spec PATH --base REV --out DIR --request-id ID",
+      "help": "corvint-tasks qualify --help"
+    },
+    {
+      "path": [
+        "queue"
+      ],
+      "command": "corvint-tasks queue",
+      "summary": "",
+      "usage": [
+        "corvint-tasks queue status [--retries] [--summary | --fields KEY[.SUB],...]"
+      ],
+      "flags": [
+        "--fields",
+        "--retries",
+        "--summary"
+      ],
+      "required": [],
+      "example": "corvint-tasks queue status",
+      "help": "corvint-tasks queue --help"
+    },
+    {
+      "path": [
+        "queue",
+        "status"
+      ],
+      "command": "corvint-tasks queue status",
+      "summary": "",
+      "usage": [
+        "corvint-tasks queue status [--retries] [--summary | --fields KEY[.SUB],...]"
+      ],
+      "flags": [
+        "--fields",
+        "--retries",
+        "--summary"
+      ],
+      "required": [],
+      "example": "corvint-tasks queue status",
+      "help": "corvint-tasks queue status --help"
+    },
+    {
+      "path": [
+        "reap"
+      ],
+      "command": "corvint-tasks reap",
+      "summary": "",
+      "usage": [
+        "corvint-tasks reap --request-id ID [--attempt ID --generation G [--lease-expires-at T]] [--role ROLE]"
+      ],
+      "flags": [
+        "--attempt",
+        "--generation",
+        "--lease-expires-at",
+        "--request-id",
+        "--role"
+      ],
+      "required": [
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks reap --request-id ID",
+      "help": "corvint-tasks reap --help"
+    },
+    {
+      "path": [
+        "receipt"
+      ],
+      "command": "corvint-tasks receipt",
+      "summary": "",
+      "usage": [
+        "corvint-tasks receipt audit [--witness-receipts]",
+        "corvint-tasks receipt compact [--dry-run]",
+        "corvint-tasks receipt get SHA256",
+        "corvint-tasks receipt path SHA256",
+        "corvint-tasks receipt prune [--dry-run]",
+        "corvint-tasks receipt put FILE",
+        "corvint-tasks receipt replay (execution NOT_RUN)",
+        "corvint-tasks receipt retire --archive FILE [--dry-run]",
+        "corvint-tasks receipt show (execution NOT_RUN)",
+        "corvint-tasks receipt unretire --archive FILE"
+      ],
+      "flags": [
+        "--archive",
+        "--dry-run",
+        "--witness-receipts"
+      ],
+      "required": [],
+      "example": "corvint-tasks receipt audit",
+      "help": "corvint-tasks receipt --help"
+    },
+    {
+      "path": [
+        "receipt",
+        "audit"
+      ],
+      "command": "corvint-tasks receipt audit",
+      "summary": "",
+      "usage": [
+        "corvint-tasks receipt audit [--witness-receipts]"
+      ],
+      "flags": [
+        "--witness-receipts"
+      ],
+      "required": [],
+      "example": "corvint-tasks receipt audit",
+      "help": "corvint-tasks receipt audit --help"
+    },
+    {
+      "path": [
+        "receipt",
+        "compact"
+      ],
+      "command": "corvint-tasks receipt compact",
+      "summary": "",
+      "usage": [
+        "corvint-tasks receipt compact [--dry-run]"
+      ],
+      "flags": [
+        "--dry-run"
+      ],
+      "required": [],
+      "example": "corvint-tasks receipt compact",
+      "help": "corvint-tasks receipt compact --help"
+    },
+    {
+      "path": [
+        "receipt",
+        "get"
+      ],
+      "command": "corvint-tasks receipt get",
+      "summary": "",
+      "usage": [
+        "corvint-tasks receipt get SHA256"
+      ],
+      "flags": [],
+      "required": [
+        "SHA256"
+      ],
+      "example": "corvint-tasks receipt get SHA256",
+      "help": "corvint-tasks receipt get --help"
+    },
+    {
+      "path": [
+        "receipt",
+        "path"
+      ],
+      "command": "corvint-tasks receipt path",
+      "summary": "",
+      "usage": [
+        "corvint-tasks receipt path SHA256"
+      ],
+      "flags": [],
+      "required": [
+        "SHA256"
+      ],
+      "example": "corvint-tasks receipt path SHA256",
+      "help": "corvint-tasks receipt path --help"
+    },
+    {
+      "path": [
+        "receipt",
+        "prune"
+      ],
+      "command": "corvint-tasks receipt prune",
+      "summary": "",
+      "usage": [
+        "corvint-tasks receipt prune [--dry-run]"
+      ],
+      "flags": [
+        "--dry-run"
+      ],
+      "required": [],
+      "example": "corvint-tasks receipt prune",
+      "help": "corvint-tasks receipt prune --help"
+    },
+    {
+      "path": [
+        "receipt",
+        "put"
+      ],
+      "command": "corvint-tasks receipt put",
+      "summary": "",
+      "usage": [
+        "corvint-tasks receipt put FILE"
+      ],
+      "flags": [],
+      "required": [
+        "FILE"
+      ],
+      "example": "corvint-tasks receipt put FILE",
+      "help": "corvint-tasks receipt put --help"
+    },
+    {
+      "path": [
+        "receipt",
+        "replay"
+      ],
+      "command": "corvint-tasks receipt replay",
+      "summary": "",
+      "usage": [
+        "corvint-tasks receipt replay (execution NOT_RUN)"
+      ],
+      "flags": [],
+      "required": [],
+      "example": "corvint-tasks receipt replay",
+      "help": "corvint-tasks receipt replay --help"
+    },
+    {
+      "path": [
+        "receipt",
+        "retire"
+      ],
+      "command": "corvint-tasks receipt retire",
+      "summary": "",
+      "usage": [
+        "corvint-tasks receipt retire --archive FILE [--dry-run]"
+      ],
+      "flags": [
+        "--archive",
+        "--dry-run"
+      ],
+      "required": [
+        "--archive FILE"
+      ],
+      "example": "corvint-tasks receipt retire --archive FILE",
+      "help": "corvint-tasks receipt retire --help"
+    },
+    {
+      "path": [
+        "receipt",
+        "show"
+      ],
+      "command": "corvint-tasks receipt show",
+      "summary": "",
+      "usage": [
+        "corvint-tasks receipt show (execution NOT_RUN)"
+      ],
+      "flags": [],
+      "required": [],
+      "example": "corvint-tasks receipt show",
+      "help": "corvint-tasks receipt show --help"
+    },
+    {
+      "path": [
+        "receipt",
+        "unretire"
+      ],
+      "command": "corvint-tasks receipt unretire",
+      "summary": "",
+      "usage": [
+        "corvint-tasks receipt unretire --archive FILE"
+      ],
+      "flags": [
+        "--archive"
+      ],
+      "required": [
+        "--archive FILE"
+      ],
+      "example": "corvint-tasks receipt unretire --archive FILE",
+      "help": "corvint-tasks receipt unretire --help"
+    },
+    {
+      "path": [
+        "reconcile"
+      ],
+      "command": "corvint-tasks reconcile",
+      "summary": "",
+      "usage": [
+        "corvint-tasks reconcile inspect <ticketId>",
+        "corvint-tasks reconcile intent (--keep-journal | --adopt-file) --request-id ID --target TICKET|RELEASE --file FILE|- [--canonical-sha256 SHA256] [--role OWNER|OPERATOR]"
+      ],
+      "flags": [
+        "--adopt-file",
+        "--canonical-sha256",
+        "--file",
+        "--keep-journal",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [],
+      "example": "corvint-tasks reconcile inspect <ticketId>",
+      "help": "corvint-tasks reconcile --help"
+    },
+    {
+      "path": [
+        "reconcile",
+        "inspect"
+      ],
+      "command": "corvint-tasks reconcile inspect",
+      "summary": "",
+      "usage": [
+        "corvint-tasks reconcile inspect <ticketId>"
+      ],
+      "flags": [],
+      "required": [
+        "<ticketId>"
+      ],
+      "example": "corvint-tasks reconcile inspect <ticketId>",
+      "help": "corvint-tasks reconcile inspect --help"
+    },
+    {
+      "path": [
+        "reconcile",
+        "intent"
+      ],
+      "command": "corvint-tasks reconcile intent",
+      "summary": "",
+      "usage": [
+        "corvint-tasks reconcile intent (--keep-journal | --adopt-file) --request-id ID --target TICKET|RELEASE --file FILE|- [--canonical-sha256 SHA256] [--role OWNER|OPERATOR]"
+      ],
+      "flags": [
+        "--adopt-file",
+        "--canonical-sha256",
+        "--file",
+        "--keep-journal",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [
+        "--request-id ID",
+        "--target TICKET|RELEASE",
+        "--file FILE|-"
+      ],
+      "example": "corvint-tasks reconcile intent --keep-journal --request-id ID --target TICKET --file FILE",
+      "help": "corvint-tasks reconcile intent --help"
+    },
+    {
+      "path": [
+        "release"
+      ],
+      "command": "corvint-tasks release",
+      "summary": "",
+      "usage": [
+        "corvint-tasks release --attempt ID --generation G --request-id ID [--reason CODE] [--evidence LOCAL_REF] [--handoff-to STAGE [--handoff-reason CODE]] [--lane-untouched] [--timing] [--lock-wait SECONDS] [--role ROLE]"
+      ],
+      "flags": [
+        "--attempt",
+        "--evidence",
+        "--generation",
+        "--handoff-reason",
+        "--handoff-to",
+        "--lane-untouched",
+        "--lock-wait",
+        "--reason",
+        "--request-id",
+        "--role",
+        "--timing"
+      ],
+      "required": [
+        "--attempt ID",
+        "--generation G",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks release --attempt ID --generation G --request-id ID",
+      "help": "corvint-tasks release --help"
+    },
+    {
+      "path": [
+        "release",
+        "candidate"
+      ],
+      "command": "corvint-tasks release candidate",
+      "summary": "",
+      "usage": [
+        "corvint-tasks release candidate --request-id ID --target RELEASE [--expected-revision N] (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE]"
+      ],
+      "flags": [
+        "--expected-revision",
+        "--issued-at",
+        "--payload",
+        "--payload-stdin",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [
+        "--request-id ID",
+        "--target RELEASE"
+      ],
+      "example": "corvint-tasks release candidate --request-id ID --target RELEASE --payload JSON",
+      "help": "corvint-tasks release candidate --help"
+    },
+    {
+      "path": [
+        "release",
+        "create"
+      ],
+      "command": "corvint-tasks release create",
+      "summary": "",
+      "usage": [
+        "corvint-tasks release create --request-id ID --target RELEASE [--expected-revision N] (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE]"
+      ],
+      "flags": [
+        "--expected-revision",
+        "--issued-at",
+        "--payload",
+        "--payload-stdin",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [
+        "--request-id ID",
+        "--target RELEASE"
+      ],
+      "example": "corvint-tasks release create --request-id ID --target RELEASE --payload JSON",
+      "help": "corvint-tasks release create --help"
+    },
+    {
+      "path": [
+        "release",
+        "list"
+      ],
+      "command": "corvint-tasks release list",
+      "summary": "",
+      "usage": [
+        "corvint-tasks release list"
+      ],
+      "flags": [],
+      "required": [],
+      "example": "corvint-tasks release list",
+      "help": "corvint-tasks release list --help"
+    },
+    {
+      "path": [
+        "release",
+        "promote"
+      ],
+      "command": "corvint-tasks release promote",
+      "summary": "",
+      "usage": [
+        "corvint-tasks release promote --request-id ID --target RELEASE [--expected-revision N] (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE]"
+      ],
+      "flags": [
+        "--expected-revision",
+        "--issued-at",
+        "--payload",
+        "--payload-stdin",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [
+        "--request-id ID",
+        "--target RELEASE"
+      ],
+      "example": "corvint-tasks release promote --request-id ID --target RELEASE --payload JSON",
+      "help": "corvint-tasks release promote --help"
+    },
+    {
+      "path": [
+        "release",
+        "readiness"
+      ],
+      "command": "corvint-tasks release readiness",
+      "summary": "",
+      "usage": [
+        "corvint-tasks release readiness RELEASE"
+      ],
+      "flags": [],
+      "required": [
+        "RELEASE"
+      ],
+      "example": "corvint-tasks release readiness RELEASE",
+      "help": "corvint-tasks release readiness --help"
+    },
+    {
+      "path": [
+        "release",
+        "record-gate"
+      ],
+      "command": "corvint-tasks release record-gate",
+      "summary": "",
+      "usage": [
+        "corvint-tasks release record-gate --request-id ID --target RELEASE [--expected-revision N] (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE]"
+      ],
+      "flags": [
+        "--expected-revision",
+        "--issued-at",
+        "--payload",
+        "--payload-stdin",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [
+        "--request-id ID",
+        "--target RELEASE"
+      ],
+      "example": "corvint-tasks release record-gate --request-id ID --target RELEASE --payload JSON",
+      "help": "corvint-tasks release record-gate --help"
+    },
+    {
+      "path": [
+        "release",
+        "show"
+      ],
+      "command": "corvint-tasks release show",
+      "summary": "",
+      "usage": [
+        "corvint-tasks release show RELEASE"
+      ],
+      "flags": [],
+      "required": [
+        "RELEASE"
+      ],
+      "example": "corvint-tasks release show RELEASE",
+      "help": "corvint-tasks release show --help"
+    },
+    {
+      "path": [
+        "release",
+        "update"
+      ],
+      "command": "corvint-tasks release update",
+      "summary": "",
+      "usage": [
+        "corvint-tasks release update --request-id ID --target RELEASE [--expected-revision N] (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE]"
+      ],
+      "flags": [
+        "--expected-revision",
+        "--issued-at",
+        "--payload",
+        "--payload-stdin",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [
+        "--request-id ID",
+        "--target RELEASE"
+      ],
+      "example": "corvint-tasks release update --request-id ID --target RELEASE --payload JSON",
+      "help": "corvint-tasks release update --help"
+    },
+    {
+      "path": [
+        "relocate"
+      ],
+      "command": "corvint-tasks relocate",
+      "summary": "",
+      "usage": [
+        "corvint-tasks relocate --from OLD --request-id ID [--role OWNER|OPERATOR] [--dispatch-config FILE]"
+      ],
+      "flags": [
+        "--dispatch-config",
+        "--from",
+        "--request-id",
+        "--role"
+      ],
+      "required": [
+        "--from OLD",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks relocate --from OLD --request-id ID",
+      "help": "corvint-tasks relocate --help"
+    },
+    {
+      "path": [
+        "renew"
+      ],
+      "command": "corvint-tasks renew",
+      "summary": "",
+      "usage": [
+        "corvint-tasks renew --attempt ID --generation G --request-id ID [--lease-minutes N] [--timing] [--lock-wait SECONDS] [--role ROLE]"
+      ],
+      "flags": [
+        "--attempt",
+        "--generation",
+        "--lease-minutes",
+        "--lock-wait",
+        "--request-id",
+        "--role",
+        "--timing"
+      ],
+      "required": [
+        "--attempt ID",
+        "--generation G",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks renew --attempt ID --generation G --request-id ID",
+      "help": "corvint-tasks renew --help"
+    },
+    {
+      "path": [
+        "resume"
+      ],
+      "command": "corvint-tasks resume",
+      "summary": "",
+      "usage": [
+        "corvint-tasks resume --program ID --config FILE [--role implementer|reviewer|integrator] [--count N] [--ticket ID] [--host codex|claude-code|opencode] [--grant ID] [--question SHA256] [--revision N] [--answer TEXT]"
+      ],
+      "flags": [
+        "--answer",
+        "--config",
+        "--count",
+        "--grant",
+        "--host",
+        "--program",
+        "--question",
+        "--revision",
+        "--role",
+        "--ticket"
+      ],
+      "required": [
+        "--program ID",
+        "--config FILE"
+      ],
+      "example": "corvint-tasks resume --program ID --config FILE",
+      "help": "corvint-tasks resume --help"
+    },
+    {
+      "path": [
+        "retry"
+      ],
+      "command": "corvint-tasks retry",
+      "summary": "",
+      "usage": [
+        "corvint-tasks retry --program ID --config FILE [--role implementer|reviewer|integrator] [--count N] [--ticket ID] [--host codex|claude-code|opencode] [--grant ID] [--question SHA256] [--revision N] [--answer TEXT]"
+      ],
+      "flags": [
+        "--answer",
+        "--config",
+        "--count",
+        "--grant",
+        "--host",
+        "--program",
+        "--question",
+        "--revision",
+        "--role",
+        "--ticket"
+      ],
+      "required": [
+        "--program ID",
+        "--config FILE"
+      ],
+      "example": "corvint-tasks retry --program ID --config FILE",
+      "help": "corvint-tasks retry --help"
+    },
+    {
+      "path": [
+        "roadmap"
+      ],
+      "command": "corvint-tasks roadmap",
+      "summary": "",
+      "usage": [
+        "corvint-tasks roadmap [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]"
+      ],
+      "flags": [
+        "--count",
+        "--facets",
+        "--fields",
+        "--limit",
+        "--offset",
+        "--summary"
+      ],
+      "required": [],
+      "example": "corvint-tasks roadmap",
+      "help": "corvint-tasks roadmap --help"
+    },
+    {
+      "path": [
+        "run"
+      ],
+      "command": "corvint-tasks run",
+      "summary": "",
+      "usage": [
+        "corvint-tasks run --program ID --config FILE [--role implementer|reviewer|integrator] [--count N] [--ticket ID] [--host codex|claude-code|opencode] [--grant ID] [--question SHA256] [--revision N] [--answer TEXT]",
+        "corvint-tasks run --attempt ID --generation G --timeout SECONDS [--lease-minutes N] [--role ROLE] [--detach] -- COMMAND...",
+        "corvint-tasks run --attach --attempt ID [--run RUN] [--wait SECONDS]"
+      ],
+      "flags": [
+        "--answer",
+        "--attach",
+        "--attempt",
+        "--config",
+        "--count",
+        "--detach",
+        "--generation",
+        "--grant",
+        "--host",
+        "--lease-minutes",
+        "--program",
+        "--question",
+        "--revision",
+        "--role",
+        "--run",
+        "--ticket",
+        "--timeout",
+        "--wait"
+      ],
+      "required": [],
+      "example": "corvint-tasks run --program ID --config FILE",
+      "help": "corvint-tasks run --help"
+    },
+    {
+      "path": [
+        "run-batch"
+      ],
+      "command": "corvint-tasks run-batch",
+      "summary": "",
+      "usage": [
+        "corvint-tasks run-batch <ticketId|local> --config FILE --spec PATH [--spec PATH ...] --out DIR --request-id ID [--commit OID] [--ids ID,...] [--pool POOL --attempt ID --generation G] [--role OWNER|OPERATOR|WORKER] [--refuse-repeat N [--remediation REF]]"
+      ],
+      "flags": [
+        "--attempt",
+        "--commit",
+        "--config",
+        "--generation",
+        "--ids",
+        "--out",
+        "--pool",
+        "--refuse-repeat",
+        "--remediation",
+        "--request-id",
+        "--role",
+        "--spec"
+      ],
+      "required": [
+        "<ticketId|local>",
+        "--config FILE",
+        "--spec PATH",
+        "--out DIR",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks run-batch <ticketId|local> --config FILE --spec PATH --out DIR --request-id ID",
+      "help": "corvint-tasks run-batch --help"
+    },
+    {
+      "path": [
+        "service"
+      ],
+      "command": "corvint-tasks service",
+      "summary": "",
+      "usage": [
+        "corvint-tasks service install --program ID --config SERVICE_JSON --request-id ID [--replace]",
+        "corvint-tasks service resume --program ID --request-id ID",
+        "corvint-tasks service run --program ID --manifest FILE",
+        "corvint-tasks service run-helper --program ID --manifest FILE --helper ID",
+        "corvint-tasks service status --program ID",
+        "corvint-tasks service stop --program ID --request-id ID [--drain]",
+        "corvint-tasks service uninstall --program ID --request-id ID"
+      ],
+      "flags": [
+        "--config",
+        "--drain",
+        "--helper",
+        "--manifest",
+        "--program",
+        "--replace",
+        "--request-id"
+      ],
+      "required": [],
+      "example": "corvint-tasks service install --program ID --config SERVICE_JSON --request-id ID",
+      "help": "corvint-tasks service --help"
+    },
+    {
+      "path": [
+        "service",
+        "install"
+      ],
+      "command": "corvint-tasks service install",
+      "summary": "",
+      "usage": [
+        "corvint-tasks service install --program ID --config SERVICE_JSON --request-id ID [--replace]"
+      ],
+      "flags": [
+        "--config",
+        "--program",
+        "--replace",
+        "--request-id"
+      ],
+      "required": [
+        "--program ID",
+        "--config SERVICE_JSON",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks service install --program ID --config SERVICE_JSON --request-id ID",
+      "help": "corvint-tasks service install --help"
+    },
+    {
+      "path": [
+        "service",
+        "resume"
+      ],
+      "command": "corvint-tasks service resume",
+      "summary": "",
+      "usage": [
+        "corvint-tasks service resume --program ID --request-id ID"
+      ],
+      "flags": [
+        "--program",
+        "--request-id"
+      ],
+      "required": [
+        "--program ID",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks service resume --program ID --request-id ID",
+      "help": "corvint-tasks service resume --help"
+    },
+    {
+      "path": [
+        "service",
+        "run"
+      ],
+      "command": "corvint-tasks service run",
+      "summary": "",
+      "usage": [
+        "corvint-tasks service run --program ID --manifest FILE"
+      ],
+      "flags": [
+        "--manifest",
+        "--program"
+      ],
+      "required": [
+        "--program ID",
+        "--manifest FILE"
+      ],
+      "example": "corvint-tasks service run --program ID --manifest FILE",
+      "help": "corvint-tasks service run --help"
+    },
+    {
+      "path": [
+        "service",
+        "run-helper"
+      ],
+      "command": "corvint-tasks service run-helper",
+      "summary": "",
+      "usage": [
+        "corvint-tasks service run-helper --program ID --manifest FILE --helper ID"
+      ],
+      "flags": [
+        "--helper",
+        "--manifest",
+        "--program"
+      ],
+      "required": [
+        "--program ID",
+        "--manifest FILE",
+        "--helper ID"
+      ],
+      "example": "corvint-tasks service run-helper --program ID --manifest FILE --helper ID",
+      "help": "corvint-tasks service run-helper --help"
+    },
+    {
+      "path": [
+        "service",
+        "status"
+      ],
+      "command": "corvint-tasks service status",
+      "summary": "",
+      "usage": [
+        "corvint-tasks service status --program ID"
+      ],
+      "flags": [
+        "--program"
+      ],
+      "required": [
+        "--program ID"
+      ],
+      "example": "corvint-tasks service status --program ID",
+      "help": "corvint-tasks service status --help"
+    },
+    {
+      "path": [
+        "service",
+        "stop"
+      ],
+      "command": "corvint-tasks service stop",
+      "summary": "",
+      "usage": [
+        "corvint-tasks service stop --program ID --request-id ID [--drain]"
+      ],
+      "flags": [
+        "--drain",
+        "--program",
+        "--request-id"
+      ],
+      "required": [
+        "--program ID",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks service stop --program ID --request-id ID",
+      "help": "corvint-tasks service stop --help"
+    },
+    {
+      "path": [
+        "service",
+        "uninstall"
+      ],
+      "command": "corvint-tasks service uninstall",
+      "summary": "",
+      "usage": [
+        "corvint-tasks service uninstall --program ID --request-id ID"
+      ],
+      "flags": [
+        "--program",
+        "--request-id"
+      ],
+      "required": [
+        "--program ID",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks service uninstall --program ID --request-id ID",
+      "help": "corvint-tasks service uninstall --help"
+    },
+    {
+      "path": [
+        "slots"
+      ],
+      "command": "corvint-tasks slots",
+      "summary": "",
+      "usage": [
+        "corvint-tasks slots acquire --attempt ID --generation G --slots ID --request-id ID [--count N | --exclusive] [--class LABEL] [--lock-wait SECONDS] [--role ROLE]",
+        "corvint-tasks slots release --attempt ID --generation G --slots ID --request-id ID [--lock-wait SECONDS] [--role ROLE]"
+      ],
+      "flags": [
+        "--attempt",
+        "--class",
+        "--count",
+        "--exclusive",
+        "--generation",
+        "--lock-wait",
+        "--request-id",
+        "--role",
+        "--slots"
+      ],
+      "required": [],
+      "example": "corvint-tasks slots acquire --attempt ID --generation G --slots ID --request-id ID",
+      "help": "corvint-tasks slots --help"
+    },
+    {
+      "path": [
+        "slots",
+        "acquire"
+      ],
+      "command": "corvint-tasks slots acquire",
+      "summary": "",
+      "usage": [
+        "corvint-tasks slots acquire --attempt ID --generation G --slots ID --request-id ID [--count N | --exclusive] [--class LABEL] [--lock-wait SECONDS] [--role ROLE]"
+      ],
+      "flags": [
+        "--attempt",
+        "--class",
+        "--count",
+        "--exclusive",
+        "--generation",
+        "--lock-wait",
+        "--request-id",
+        "--role",
+        "--slots"
+      ],
+      "required": [
+        "--attempt ID",
+        "--generation G",
+        "--slots ID",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks slots acquire --attempt ID --generation G --slots ID --request-id ID",
+      "help": "corvint-tasks slots acquire --help"
+    },
+    {
+      "path": [
+        "slots",
+        "release"
+      ],
+      "command": "corvint-tasks slots release",
+      "summary": "",
+      "usage": [
+        "corvint-tasks slots release --attempt ID --generation G --slots ID --request-id ID [--lock-wait SECONDS] [--role ROLE]"
+      ],
+      "flags": [
+        "--attempt",
+        "--generation",
+        "--lock-wait",
+        "--request-id",
+        "--role",
+        "--slots"
+      ],
+      "required": [
+        "--attempt ID",
+        "--generation G",
+        "--slots ID",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks slots release --attempt ID --generation G --slots ID --request-id ID",
+      "help": "corvint-tasks slots release --help"
+    },
+    {
+      "path": [
+        "source"
+      ],
+      "command": "corvint-tasks source",
+      "summary": "",
+      "usage": [
+        "corvint-tasks source contains <rev> <commit> [<commit> ...]"
+      ],
+      "flags": [],
+      "required": [],
+      "example": "corvint-tasks source contains <rev> <commit>",
+      "help": "corvint-tasks source --help"
+    },
+    {
+      "path": [
+        "source",
+        "contains"
+      ],
+      "command": "corvint-tasks source contains",
+      "summary": "",
+      "usage": [
+        "corvint-tasks source contains <rev> <commit> [<commit> ...]"
+      ],
+      "flags": [],
+      "required": [
+        "<rev>",
+        "<commit>"
+      ],
+      "example": "corvint-tasks source contains <rev> <commit>",
+      "help": "corvint-tasks source contains --help"
+    },
+    {
+      "path": [
+        "submit"
+      ],
+      "command": "corvint-tasks submit",
+      "summary": "",
+      "usage": [
+        "corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID [--lock-wait SECONDS] [--role ROLE]"
+      ],
+      "flags": [
+        "--attempt",
+        "--generation",
+        "--lock-wait",
+        "--request-id",
+        "--role",
+        "--tree"
+      ],
+      "required": [
+        "--attempt ID",
+        "--generation G",
+        "--request-id ID",
+        "--tree OID"
+      ],
+      "example": "corvint-tasks submit --attempt ID --generation G --request-id ID --tree OID",
+      "help": "corvint-tasks submit --help"
+    },
+    {
+      "path": [
+        "ticket"
+      ],
+      "command": "corvint-tasks ticket",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket answer --target TICKET --text TEXT [--request REQUEST --expected-request-revision N] [--expected-revision N] --request-id ID [--role ROLE]",
+        "corvint-tasks ticket archive --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
+        "corvint-tasks ticket attach-evidence --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
+        "corvint-tasks ticket batch-close --pr N --prs FILE --runs FILE [--repo OWNER/NAME] [--seal LOCAL=COMMIT,...] [--ci-run FILE] [--manual] [--dry-run] [--issued-at TS] [--role OWNER|OPERATOR]",
+        "corvint-tasks ticket batch-delivered --pr N --prs FILE [--runs FILE]",
+        "corvint-tasks ticket blockers <ticketId|local>",
+        "corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]",
+        "corvint-tasks ticket complete-manual --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
+        "corvint-tasks ticket create --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE]",
+        "corvint-tasks ticket create --template [--skeleton]",
+        "corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE|-] [--ref REF] [--since REV] [--limit N]",
+        "corvint-tasks ticket escalate --attempt ID --claim-receipt SEQ|RECEIPT --kind decision|infrastructure|scope|blocked --question TEXT [--options A,B] [--supersedes REQUEST --expected-request-revision N] [--blocked-by TICKET [--gate GATE]] [--expected-revision N] --request-id ID [--role ROLE]",
+        "corvint-tasks ticket escalation history <ticketId|local> <requestId> [--limit 1..50] [--cursor EVENT_SHA256]",
+        "corvint-tasks ticket escalation list [--kind KIND] [--state OPEN|ANSWERED|SUPERSEDED] [--target TICKET] [--program NAME] [--limit 1..50] [--cursor ORIGIN_SHA256]",
+        "corvint-tasks ticket escalation show <ticketId|local> <requestId>",
+        "corvint-tasks ticket export [--offset N] [--limit N]",
+        "corvint-tasks ticket grant-approval --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
+        "corvint-tasks ticket hold --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL ...] [--expected-revision N] [--issued-at TS] [--role ROLE]",
+        "corvint-tasks ticket know-how add <ticketId|local> --request-id ID --expected-revision N (--text TEXT | --text-stdin) (--anchor PATH | --symbol PATH#NAME) [--anchor PATH ...] [--symbol PATH#NAME ...] [--route TOKEN ...] [--commit OID] [--supersedes N --reason TEXT] [--attempt ID] [--generation G] [--evidence-path PATH] [--repo ALIAS=ROOT] [--issued-at TS] [--role OWNER|OPERATOR|WORKER] [--refuse-repeat N [--remediation REF]]",
+        "corvint-tasks ticket know-how list [--path PATH ...] [--repo ALIAS=ROOT ...] [--ticket <ticketId|local>] [--limit 1..200]",
+        "corvint-tasks ticket know-how reconfirm <ticketId|local> --request-id ID --expected-revision N --note N [--commit OID] [--repo ALIAS=ROOT] [--attempt ID] [--generation G] [--issued-at TS] [--role OWNER|OPERATOR]",
+        "corvint-tasks ticket know-how retract <ticketId|local> --request-id ID --expected-revision N --note N --reason TEXT [--issued-at TS] [--role OWNER|OPERATOR]",
+        "corvint-tasks ticket list [--status S[,S...]] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
+        "corvint-tasks ticket note clear <ticketId|local> --request-id ID [--supersedes N] [--expected-revision N] [--issued-at TS] [--role OWNER|OPERATOR]",
+        "corvint-tasks ticket note history <ticketId|local> [--limit 1..50] [--cursor CURSOR]",
+        "corvint-tasks ticket note set <ticketId|local>... --request-id ID (--text TEXT | --text-stdin) [--supersedes N] [--expected-revision N] [--issued-at TS] [--role OWNER|OPERATOR]",
+        "corvint-tasks ticket note show <ticketId|local>",
+        "corvint-tasks ticket obligations boundary --target <ticketId|local>",
+        "corvint-tasks ticket obligations capability --path PATH [--repository NAME] [--contains TEXT]",
+        "corvint-tasks ticket obligations plan --target <ticketId|local> --plan FILE [--legacy-cases FILE] [--witnesses]",
+        "corvint-tasks ticket obligations qualify-version (--print-fixture | --from-playwright-report FILE)",
+        "corvint-tasks ticket obligations seed --target <ticketId|local> --expected-revision N --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role OWNER|OPERATOR]",
+        "corvint-tasks ticket obligations set --target <ticketId|local> --expected-revision N --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role OWNER|OPERATOR]",
+        "corvint-tasks ticket obligations show --target <ticketId|local> [--legacy-cases FILE]",
+        "corvint-tasks ticket obligations witness --target <ticketId|local> --expected-revision N --request-id ID --commit OID (--from-playwright-report FILE [--ids ID,...] [--post-check LOG --post-check-status N] [--retain] | --declared ID,... --manifest-sha256 SHA256 --test-id TEXT --reason TEXT | --reviewed ID --review FILE [--exclude-author ID,...]) [--attempt ID --generation G] [--test-commit OID] [--environment-tree OID] [--evidence-ref TEXT] [--test-title TEXT] [--test-repository NAME] [--issued-at TS] [--role OWNER|OPERATOR|WORKER] [--refuse-repeat N [--remediation REF]]",
+        "corvint-tasks ticket obligations worklist [--target <ticketId|local>] [--rank priority,nearest,age] [--next K]",
+        "corvint-tasks ticket prioritize --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
+        "corvint-tasks ticket refine --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
+        "corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payload JSON) [--issued-at TS] [--role ROLE]",
+        "corvint-tasks ticket release-hold --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
+        "corvint-tasks ticket reopen --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
+        "corvint-tasks ticket restore --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
+        "corvint-tasks ticket revoke-approval --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
+        "corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
+        "corvint-tasks ticket set-dependencies --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
+        "corvint-tasks ticket set-effects --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
+        "corvint-tasks ticket set-gates --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
+        "corvint-tasks ticket show <ticketId|local> [--summary | --fields KEY[.SUB],...]"
+      ],
+      "flags": [
+        "--anchor",
+        "--attempt",
+        "--batch",
+        "--blocked-by",
+        "--ci-run",
+        "--claim-receipt",
+        "--commit",
+        "--contains",
+        "--count",
+        "--cursor",
+        "--declared",
+        "--dry-run",
+        "--environment-tree",
+        "--evidence-path",
+        "--evidence-ref",
+        "--exclude-author",
+        "--expected-request-revision",
+        "--expected-revision",
+        "--facets",
+        "--fields",
+        "--from-playwright-report",
+        "--gate",
+        "--generation",
+        "--ids",
+        "--issued-at",
+        "--kind",
+        "--label",
+        "--legacy-cases",
+        "--limit",
+        "--manifest-sha256",
+        "--manual",
+        "--milestone",
+        "--next",
+        "--note",
+        "--offset",
+        "--options",
+        "--owner",
+        "--path",
+        "--payload",
+        "--payload-stdin",
+        "--plan",
+        "--post-check",
+        "--post-check-status",
+        "--pr",
+        "--print-fixture",
+        "--priority",
+        "--program",
+        "--prs",
+        "--question",
+        "--rank",
+        "--reason",
+        "--ref",
+        "--refuse-repeat",
+        "--remediation",
+        "--repo",
+        "--repository",
+        "--request",
+        "--request-id",
+        "--retain",
+        "--review",
+        "--reviewed",
+        "--role",
+        "--route",
+        "--runs",
+        "--seal",
+        "--since",
+        "--skeleton",
+        "--state",
+        "--status",
+        "--summary",
+        "--supersedes",
+        "--symbol",
+        "--target",
+        "--template",
+        "--test-commit",
+        "--test-id",
+        "--test-repository",
+        "--test-title",
+        "--text",
+        "--text-stdin",
+        "--ticket",
+        "--witnesses"
+      ],
+      "required": [],
+      "example": "corvint-tasks ticket answer --target TICKET --text TEXT --request-id ID",
+      "help": "corvint-tasks ticket --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "answer"
+      ],
+      "command": "corvint-tasks ticket answer",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket answer --target TICKET --text TEXT [--request REQUEST --expected-request-revision N] [--expected-revision N] --request-id ID [--role ROLE]"
+      ],
+      "flags": [
+        "--expected-request-revision",
+        "--expected-revision",
+        "--request",
+        "--request-id",
+        "--role",
+        "--target",
+        "--text"
+      ],
+      "required": [
+        "--target TICKET",
+        "--text TEXT",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks ticket answer --target TICKET --text TEXT --request-id ID",
+      "help": "corvint-tasks ticket answer --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "archive"
+      ],
+      "command": "corvint-tasks ticket archive",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket archive --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]"
+      ],
+      "flags": [
+        "--expected-revision",
+        "--issued-at",
+        "--payload",
+        "--payload-stdin",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks ticket archive --request-id ID --payload JSON",
+      "help": "corvint-tasks ticket archive --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "attach-evidence"
+      ],
+      "command": "corvint-tasks ticket attach-evidence",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket attach-evidence --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]"
+      ],
+      "flags": [
+        "--expected-revision",
+        "--issued-at",
+        "--payload",
+        "--payload-stdin",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks ticket attach-evidence --request-id ID --payload JSON",
+      "help": "corvint-tasks ticket attach-evidence --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "batch-close"
+      ],
+      "command": "corvint-tasks ticket batch-close",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket batch-close --pr N --prs FILE --runs FILE [--repo OWNER/NAME] [--seal LOCAL=COMMIT,...] [--ci-run FILE] [--manual] [--dry-run] [--issued-at TS] [--role OWNER|OPERATOR]"
+      ],
+      "flags": [
+        "--ci-run",
+        "--dry-run",
+        "--issued-at",
+        "--manual",
+        "--pr",
+        "--prs",
+        "--repo",
+        "--role",
+        "--runs",
+        "--seal"
+      ],
+      "required": [
+        "--pr N",
+        "--prs FILE",
+        "--runs FILE"
+      ],
+      "example": "corvint-tasks ticket batch-close --pr N --prs FILE --runs FILE",
+      "help": "corvint-tasks ticket batch-close --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "batch-delivered"
+      ],
+      "command": "corvint-tasks ticket batch-delivered",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket batch-delivered --pr N --prs FILE [--runs FILE]"
+      ],
+      "flags": [
+        "--pr",
+        "--prs",
+        "--runs"
+      ],
+      "required": [
+        "--pr N",
+        "--prs FILE"
+      ],
+      "example": "corvint-tasks ticket batch-delivered --pr N --prs FILE",
+      "help": "corvint-tasks ticket batch-delivered --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "blockers"
+      ],
+      "command": "corvint-tasks ticket blockers",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket blockers <ticketId|local>"
+      ],
+      "flags": [],
+      "required": [
+        "<ticketId|local>"
+      ],
+      "example": "corvint-tasks ticket blockers <ticketId|local>",
+      "help": "corvint-tasks ticket blockers --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "closeout-debt"
+      ],
+      "command": "corvint-tasks ticket closeout-debt",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]"
+      ],
+      "flags": [
+        "--limit",
+        "--ref",
+        "--since"
+      ],
+      "required": [],
+      "example": "corvint-tasks ticket closeout-debt",
+      "help": "corvint-tasks ticket closeout-debt --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "complete-manual"
+      ],
+      "command": "corvint-tasks ticket complete-manual",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket complete-manual --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]"
+      ],
+      "flags": [
+        "--expected-revision",
+        "--issued-at",
+        "--payload",
+        "--payload-stdin",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks ticket complete-manual --request-id ID --payload JSON",
+      "help": "corvint-tasks ticket complete-manual --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "create"
+      ],
+      "command": "corvint-tasks ticket create",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket create --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE]",
+        "corvint-tasks ticket create --template [--skeleton]"
+      ],
+      "flags": [
+        "--issued-at",
+        "--payload",
+        "--payload-stdin",
+        "--request-id",
+        "--role",
+        "--skeleton",
+        "--template"
+      ],
+      "required": [],
+      "example": "corvint-tasks ticket create --request-id ID --payload JSON",
+      "help": "corvint-tasks ticket create --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "delivery-screen"
+      ],
+      "command": "corvint-tasks ticket delivery-screen",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE|-] [--ref REF] [--since REV] [--limit N]"
+      ],
+      "flags": [
+        "--limit",
+        "--prs",
+        "--ref",
+        "--since"
+      ],
+      "required": [
+        "<ticketId|local>..."
+      ],
+      "example": "corvint-tasks ticket delivery-screen <ticketId|local>...",
+      "help": "corvint-tasks ticket delivery-screen --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "escalate"
+      ],
+      "command": "corvint-tasks ticket escalate",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket escalate --attempt ID --claim-receipt SEQ|RECEIPT --kind decision|infrastructure|scope|blocked --question TEXT [--options A,B] [--supersedes REQUEST --expected-request-revision N] [--blocked-by TICKET [--gate GATE]] [--expected-revision N] --request-id ID [--role ROLE]"
+      ],
+      "flags": [
+        "--attempt",
+        "--blocked-by",
+        "--claim-receipt",
+        "--expected-request-revision",
+        "--expected-revision",
+        "--gate",
+        "--kind",
+        "--options",
+        "--question",
+        "--request-id",
+        "--role",
+        "--supersedes"
+      ],
+      "required": [
+        "--attempt ID",
+        "--claim-receipt SEQ|RECEIPT",
+        "--kind decision|infrastructure|scope|blocked",
+        "--question TEXT",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks ticket escalate --attempt ID --claim-receipt SEQ --kind decision --question TEXT --request-id ID",
+      "help": "corvint-tasks ticket escalate --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "escalation"
+      ],
+      "command": "corvint-tasks ticket escalation",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket escalation history <ticketId|local> <requestId> [--limit 1..50] [--cursor EVENT_SHA256]",
+        "corvint-tasks ticket escalation list [--kind KIND] [--state OPEN|ANSWERED|SUPERSEDED] [--target TICKET] [--program NAME] [--limit 1..50] [--cursor ORIGIN_SHA256]",
+        "corvint-tasks ticket escalation show <ticketId|local> <requestId>"
+      ],
+      "flags": [
+        "--cursor",
+        "--kind",
+        "--limit",
+        "--program",
+        "--state",
+        "--target"
+      ],
+      "required": [],
+      "example": "corvint-tasks ticket escalation history <ticketId|local> <requestId>",
+      "help": "corvint-tasks ticket escalation --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "escalation",
+        "history"
+      ],
+      "command": "corvint-tasks ticket escalation history",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket escalation history <ticketId|local> <requestId> [--limit 1..50] [--cursor EVENT_SHA256]"
+      ],
+      "flags": [
+        "--cursor",
+        "--limit"
+      ],
+      "required": [
+        "<ticketId|local>",
+        "<requestId>"
+      ],
+      "example": "corvint-tasks ticket escalation history <ticketId|local> <requestId>",
+      "help": "corvint-tasks ticket escalation history --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "escalation",
+        "list"
+      ],
+      "command": "corvint-tasks ticket escalation list",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket escalation list [--kind KIND] [--state OPEN|ANSWERED|SUPERSEDED] [--target TICKET] [--program NAME] [--limit 1..50] [--cursor ORIGIN_SHA256]"
+      ],
+      "flags": [
+        "--cursor",
+        "--kind",
+        "--limit",
+        "--program",
+        "--state",
+        "--target"
+      ],
+      "required": [],
+      "example": "corvint-tasks ticket escalation list",
+      "help": "corvint-tasks ticket escalation list --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "escalation",
+        "show"
+      ],
+      "command": "corvint-tasks ticket escalation show",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket escalation show <ticketId|local> <requestId>"
+      ],
+      "flags": [],
+      "required": [
+        "<ticketId|local>",
+        "<requestId>"
+      ],
+      "example": "corvint-tasks ticket escalation show <ticketId|local> <requestId>",
+      "help": "corvint-tasks ticket escalation show --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "export"
+      ],
+      "command": "corvint-tasks ticket export",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket export [--offset N] [--limit N]"
+      ],
+      "flags": [
+        "--limit",
+        "--offset"
+      ],
+      "required": [],
+      "example": "corvint-tasks ticket export",
+      "help": "corvint-tasks ticket export --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "grant-approval"
+      ],
+      "command": "corvint-tasks ticket grant-approval",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket grant-approval --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]"
+      ],
+      "flags": [
+        "--expected-revision",
+        "--issued-at",
+        "--payload",
+        "--payload-stdin",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks ticket grant-approval --request-id ID --payload JSON",
+      "help": "corvint-tasks ticket grant-approval --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "hold"
+      ],
+      "command": "corvint-tasks ticket hold",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket hold --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL ...] [--expected-revision N] [--issued-at TS] [--role ROLE]"
+      ],
+      "flags": [
+        "--expected-revision",
+        "--issued-at",
+        "--payload",
+        "--payload-stdin",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks ticket hold --request-id ID --payload JSON",
+      "help": "corvint-tasks ticket hold --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "know-how"
+      ],
+      "command": "corvint-tasks ticket know-how",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket know-how add <ticketId|local> --request-id ID --expected-revision N (--text TEXT | --text-stdin) (--anchor PATH | --symbol PATH#NAME) [--anchor PATH ...] [--symbol PATH#NAME ...] [--route TOKEN ...] [--commit OID] [--supersedes N --reason TEXT] [--attempt ID] [--generation G] [--evidence-path PATH] [--repo ALIAS=ROOT] [--issued-at TS] [--role OWNER|OPERATOR|WORKER] [--refuse-repeat N [--remediation REF]]",
+        "corvint-tasks ticket know-how list [--path PATH ...] [--repo ALIAS=ROOT ...] [--ticket <ticketId|local>] [--limit 1..200]",
+        "corvint-tasks ticket know-how reconfirm <ticketId|local> --request-id ID --expected-revision N --note N [--commit OID] [--repo ALIAS=ROOT] [--attempt ID] [--generation G] [--issued-at TS] [--role OWNER|OPERATOR]",
+        "corvint-tasks ticket know-how retract <ticketId|local> --request-id ID --expected-revision N --note N --reason TEXT [--issued-at TS] [--role OWNER|OPERATOR]"
+      ],
+      "flags": [
+        "--anchor",
+        "--attempt",
+        "--commit",
+        "--evidence-path",
+        "--expected-revision",
+        "--generation",
+        "--issued-at",
+        "--limit",
+        "--note",
+        "--path",
+        "--reason",
+        "--refuse-repeat",
+        "--remediation",
+        "--repo",
+        "--request-id",
+        "--role",
+        "--route",
+        "--supersedes",
+        "--symbol",
+        "--text",
+        "--text-stdin",
+        "--ticket"
+      ],
+      "required": [],
+      "example": "corvint-tasks ticket know-how add <ticketId|local> --request-id ID --expected-revision N --text TEXT --anchor PATH",
+      "help": "corvint-tasks ticket know-how --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "know-how",
+        "add"
+      ],
+      "command": "corvint-tasks ticket know-how add",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket know-how add <ticketId|local> --request-id ID --expected-revision N (--text TEXT | --text-stdin) (--anchor PATH | --symbol PATH#NAME) [--anchor PATH ...] [--symbol PATH#NAME ...] [--route TOKEN ...] [--commit OID] [--supersedes N --reason TEXT] [--attempt ID] [--generation G] [--evidence-path PATH] [--repo ALIAS=ROOT] [--issued-at TS] [--role OWNER|OPERATOR|WORKER] [--refuse-repeat N [--remediation REF]]"
+      ],
+      "flags": [
+        "--anchor",
+        "--attempt",
+        "--commit",
+        "--evidence-path",
+        "--expected-revision",
+        "--generation",
+        "--issued-at",
+        "--reason",
+        "--refuse-repeat",
+        "--remediation",
+        "--repo",
+        "--request-id",
+        "--role",
+        "--route",
+        "--supersedes",
+        "--symbol",
+        "--text",
+        "--text-stdin"
+      ],
+      "required": [
+        "<ticketId|local>",
+        "--request-id ID",
+        "--expected-revision N"
+      ],
+      "example": "corvint-tasks ticket know-how add <ticketId|local> --request-id ID --expected-revision N --text TEXT --anchor PATH",
+      "help": "corvint-tasks ticket know-how add --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "know-how",
+        "list"
+      ],
+      "command": "corvint-tasks ticket know-how list",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket know-how list [--path PATH ...] [--repo ALIAS=ROOT ...] [--ticket <ticketId|local>] [--limit 1..200]"
+      ],
+      "flags": [
+        "--limit",
+        "--path",
+        "--repo",
+        "--ticket"
+      ],
+      "required": [],
+      "example": "corvint-tasks ticket know-how list",
+      "help": "corvint-tasks ticket know-how list --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "know-how",
+        "reconfirm"
+      ],
+      "command": "corvint-tasks ticket know-how reconfirm",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket know-how reconfirm <ticketId|local> --request-id ID --expected-revision N --note N [--commit OID] [--repo ALIAS=ROOT] [--attempt ID] [--generation G] [--issued-at TS] [--role OWNER|OPERATOR]"
+      ],
+      "flags": [
+        "--attempt",
+        "--commit",
+        "--expected-revision",
+        "--generation",
+        "--issued-at",
+        "--note",
+        "--repo",
+        "--request-id",
+        "--role"
+      ],
+      "required": [
+        "<ticketId|local>",
+        "--request-id ID",
+        "--expected-revision N",
+        "--note N"
+      ],
+      "example": "corvint-tasks ticket know-how reconfirm <ticketId|local> --request-id ID --expected-revision N --note N",
+      "help": "corvint-tasks ticket know-how reconfirm --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "know-how",
+        "retract"
+      ],
+      "command": "corvint-tasks ticket know-how retract",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket know-how retract <ticketId|local> --request-id ID --expected-revision N --note N --reason TEXT [--issued-at TS] [--role OWNER|OPERATOR]"
+      ],
+      "flags": [
+        "--expected-revision",
+        "--issued-at",
+        "--note",
+        "--reason",
+        "--request-id",
+        "--role"
+      ],
+      "required": [
+        "<ticketId|local>",
+        "--request-id ID",
+        "--expected-revision N",
+        "--note N",
+        "--reason TEXT"
+      ],
+      "example": "corvint-tasks ticket know-how retract <ticketId|local> --request-id ID --expected-revision N --note N --reason TEXT",
+      "help": "corvint-tasks ticket know-how retract --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "list"
+      ],
+      "command": "corvint-tasks ticket list",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket list [--status S[,S...]] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]"
+      ],
+      "flags": [
+        "--count",
+        "--facets",
+        "--fields",
+        "--limit",
+        "--offset",
+        "--status",
+        "--summary"
+      ],
+      "required": [],
+      "example": "corvint-tasks ticket list",
+      "help": "corvint-tasks ticket list --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "note"
+      ],
+      "command": "corvint-tasks ticket note",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket note clear <ticketId|local> --request-id ID [--supersedes N] [--expected-revision N] [--issued-at TS] [--role OWNER|OPERATOR]",
+        "corvint-tasks ticket note history <ticketId|local> [--limit 1..50] [--cursor CURSOR]",
+        "corvint-tasks ticket note set <ticketId|local>... --request-id ID (--text TEXT | --text-stdin) [--supersedes N] [--expected-revision N] [--issued-at TS] [--role OWNER|OPERATOR]",
+        "corvint-tasks ticket note show <ticketId|local>"
+      ],
+      "flags": [
+        "--cursor",
+        "--expected-revision",
+        "--issued-at",
+        "--limit",
+        "--request-id",
+        "--role",
+        "--supersedes",
+        "--text",
+        "--text-stdin"
+      ],
+      "required": [],
+      "example": "corvint-tasks ticket note clear <ticketId|local> --request-id ID",
+      "help": "corvint-tasks ticket note --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "note",
+        "clear"
+      ],
+      "command": "corvint-tasks ticket note clear",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket note clear <ticketId|local> --request-id ID [--supersedes N] [--expected-revision N] [--issued-at TS] [--role OWNER|OPERATOR]"
+      ],
+      "flags": [
+        "--expected-revision",
+        "--issued-at",
+        "--request-id",
+        "--role",
+        "--supersedes"
+      ],
+      "required": [
+        "<ticketId|local>",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks ticket note clear <ticketId|local> --request-id ID",
+      "help": "corvint-tasks ticket note clear --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "note",
+        "history"
+      ],
+      "command": "corvint-tasks ticket note history",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket note history <ticketId|local> [--limit 1..50] [--cursor CURSOR]"
+      ],
+      "flags": [
+        "--cursor",
+        "--limit"
+      ],
+      "required": [
+        "<ticketId|local>"
+      ],
+      "example": "corvint-tasks ticket note history <ticketId|local>",
+      "help": "corvint-tasks ticket note history --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "note",
+        "set"
+      ],
+      "command": "corvint-tasks ticket note set",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket note set <ticketId|local>... --request-id ID (--text TEXT | --text-stdin) [--supersedes N] [--expected-revision N] [--issued-at TS] [--role OWNER|OPERATOR]"
+      ],
+      "flags": [
+        "--expected-revision",
+        "--issued-at",
+        "--request-id",
+        "--role",
+        "--supersedes",
+        "--text",
+        "--text-stdin"
+      ],
+      "required": [
+        "<ticketId|local>...",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks ticket note set <ticketId|local>... --request-id ID --text TEXT",
+      "help": "corvint-tasks ticket note set --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "note",
+        "show"
+      ],
+      "command": "corvint-tasks ticket note show",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket note show <ticketId|local>"
+      ],
+      "flags": [],
+      "required": [
+        "<ticketId|local>"
+      ],
+      "example": "corvint-tasks ticket note show <ticketId|local>",
+      "help": "corvint-tasks ticket note show --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "obligations"
+      ],
+      "command": "corvint-tasks ticket obligations",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket obligations boundary --target <ticketId|local>",
+        "corvint-tasks ticket obligations capability --path PATH [--repository NAME] [--contains TEXT]",
+        "corvint-tasks ticket obligations plan --target <ticketId|local> --plan FILE [--legacy-cases FILE] [--witnesses]",
+        "corvint-tasks ticket obligations qualify-version (--print-fixture | --from-playwright-report FILE)",
+        "corvint-tasks ticket obligations seed --target <ticketId|local> --expected-revision N --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role OWNER|OPERATOR]",
+        "corvint-tasks ticket obligations set --target <ticketId|local> --expected-revision N --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role OWNER|OPERATOR]",
+        "corvint-tasks ticket obligations show --target <ticketId|local> [--legacy-cases FILE]",
+        "corvint-tasks ticket obligations witness --target <ticketId|local> --expected-revision N --request-id ID --commit OID (--from-playwright-report FILE [--ids ID,...] [--post-check LOG --post-check-status N] [--retain] | --declared ID,... --manifest-sha256 SHA256 --test-id TEXT --reason TEXT | --reviewed ID --review FILE [--exclude-author ID,...]) [--attempt ID --generation G] [--test-commit OID] [--environment-tree OID] [--evidence-ref TEXT] [--test-title TEXT] [--test-repository NAME] [--issued-at TS] [--role OWNER|OPERATOR|WORKER] [--refuse-repeat N [--remediation REF]]",
+        "corvint-tasks ticket obligations worklist [--target <ticketId|local>] [--rank priority,nearest,age] [--next K]"
+      ],
+      "flags": [
+        "--attempt",
+        "--commit",
+        "--contains",
+        "--declared",
+        "--environment-tree",
+        "--evidence-ref",
+        "--exclude-author",
+        "--expected-revision",
+        "--from-playwright-report",
+        "--generation",
+        "--ids",
+        "--issued-at",
+        "--legacy-cases",
+        "--manifest-sha256",
+        "--next",
+        "--path",
+        "--payload",
+        "--payload-stdin",
+        "--plan",
+        "--post-check",
+        "--post-check-status",
+        "--print-fixture",
+        "--rank",
+        "--reason",
+        "--refuse-repeat",
+        "--remediation",
+        "--repository",
+        "--request-id",
+        "--retain",
+        "--review",
+        "--reviewed",
+        "--role",
+        "--target",
+        "--test-commit",
+        "--test-id",
+        "--test-repository",
+        "--test-title",
+        "--witnesses"
+      ],
+      "required": [],
+      "example": "corvint-tasks ticket obligations boundary --target <ticketId|local>",
+      "help": "corvint-tasks ticket obligations --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "obligations",
+        "boundary"
+      ],
+      "command": "corvint-tasks ticket obligations boundary",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket obligations boundary --target <ticketId|local>"
+      ],
+      "flags": [
+        "--target"
+      ],
+      "required": [
+        "--target <ticketId|local>"
+      ],
+      "example": "corvint-tasks ticket obligations boundary --target <ticketId|local>",
+      "help": "corvint-tasks ticket obligations boundary --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "obligations",
+        "capability"
+      ],
+      "command": "corvint-tasks ticket obligations capability",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket obligations capability --path PATH [--repository NAME] [--contains TEXT]"
+      ],
+      "flags": [
+        "--contains",
+        "--path",
+        "--repository"
+      ],
+      "required": [
+        "--path PATH"
+      ],
+      "example": "corvint-tasks ticket obligations capability --path PATH",
+      "help": "corvint-tasks ticket obligations capability --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "obligations",
+        "plan"
+      ],
+      "command": "corvint-tasks ticket obligations plan",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket obligations plan --target <ticketId|local> --plan FILE [--legacy-cases FILE] [--witnesses]"
+      ],
+      "flags": [
+        "--legacy-cases",
+        "--plan",
+        "--target",
+        "--witnesses"
+      ],
+      "required": [
+        "--target <ticketId|local>",
+        "--plan FILE"
+      ],
+      "example": "corvint-tasks ticket obligations plan --target <ticketId|local> --plan FILE",
+      "help": "corvint-tasks ticket obligations plan --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "obligations",
+        "qualify-version"
+      ],
+      "command": "corvint-tasks ticket obligations qualify-version",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket obligations qualify-version (--print-fixture | --from-playwright-report FILE)"
+      ],
+      "flags": [
+        "--from-playwright-report",
+        "--print-fixture"
+      ],
+      "required": [],
+      "example": "corvint-tasks ticket obligations qualify-version --print-fixture",
+      "help": "corvint-tasks ticket obligations qualify-version --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "obligations",
+        "seed"
+      ],
+      "command": "corvint-tasks ticket obligations seed",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket obligations seed --target <ticketId|local> --expected-revision N --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role OWNER|OPERATOR]"
+      ],
+      "flags": [
+        "--expected-revision",
+        "--issued-at",
+        "--payload",
+        "--payload-stdin",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [
+        "--target <ticketId|local>",
+        "--expected-revision N",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks ticket obligations seed --target <ticketId|local> --expected-revision N --request-id ID --payload JSON",
+      "help": "corvint-tasks ticket obligations seed --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "obligations",
+        "set"
+      ],
+      "command": "corvint-tasks ticket obligations set",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket obligations set --target <ticketId|local> --expected-revision N --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role OWNER|OPERATOR]"
+      ],
+      "flags": [
+        "--expected-revision",
+        "--issued-at",
+        "--payload",
+        "--payload-stdin",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [
+        "--target <ticketId|local>",
+        "--expected-revision N",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks ticket obligations set --target <ticketId|local> --expected-revision N --request-id ID --payload JSON",
+      "help": "corvint-tasks ticket obligations set --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "obligations",
+        "show"
+      ],
+      "command": "corvint-tasks ticket obligations show",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket obligations show --target <ticketId|local> [--legacy-cases FILE]"
+      ],
+      "flags": [
+        "--legacy-cases",
+        "--target"
+      ],
+      "required": [
+        "--target <ticketId|local>"
+      ],
+      "example": "corvint-tasks ticket obligations show --target <ticketId|local>",
+      "help": "corvint-tasks ticket obligations show --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "obligations",
+        "witness"
+      ],
+      "command": "corvint-tasks ticket obligations witness",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket obligations witness --target <ticketId|local> --expected-revision N --request-id ID --commit OID (--from-playwright-report FILE [--ids ID,...] [--post-check LOG --post-check-status N] [--retain] | --declared ID,... --manifest-sha256 SHA256 --test-id TEXT --reason TEXT | --reviewed ID --review FILE [--exclude-author ID,...]) [--attempt ID --generation G] [--test-commit OID] [--environment-tree OID] [--evidence-ref TEXT] [--test-title TEXT] [--test-repository NAME] [--issued-at TS] [--role OWNER|OPERATOR|WORKER] [--refuse-repeat N [--remediation REF]]"
+      ],
+      "flags": [
+        "--attempt",
+        "--commit",
+        "--declared",
+        "--environment-tree",
+        "--evidence-ref",
+        "--exclude-author",
+        "--expected-revision",
+        "--from-playwright-report",
+        "--generation",
+        "--ids",
+        "--issued-at",
+        "--manifest-sha256",
+        "--post-check",
+        "--post-check-status",
+        "--reason",
+        "--refuse-repeat",
+        "--remediation",
+        "--request-id",
+        "--retain",
+        "--review",
+        "--reviewed",
+        "--role",
+        "--target",
+        "--test-commit",
+        "--test-id",
+        "--test-repository",
+        "--test-title"
+      ],
+      "required": [
+        "--target <ticketId|local>",
+        "--expected-revision N",
+        "--request-id ID",
+        "--commit OID"
+      ],
+      "example": "corvint-tasks ticket obligations witness --target <ticketId|local> --expected-revision N --request-id ID --commit OID --from-playwright-report FILE [--ids ID,...] [--post-check LOG --post-check-status N] [--retain]",
+      "help": "corvint-tasks ticket obligations witness --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "obligations",
+        "worklist"
+      ],
+      "command": "corvint-tasks ticket obligations worklist",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket obligations worklist [--target <ticketId|local>] [--rank priority,nearest,age] [--next K]"
+      ],
+      "flags": [
+        "--next",
+        "--rank",
+        "--target"
+      ],
+      "required": [],
+      "example": "corvint-tasks ticket obligations worklist",
+      "help": "corvint-tasks ticket obligations worklist --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "prioritize"
+      ],
+      "command": "corvint-tasks ticket prioritize",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket prioritize --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]"
+      ],
+      "flags": [
+        "--expected-revision",
+        "--issued-at",
+        "--payload",
+        "--payload-stdin",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks ticket prioritize --request-id ID --payload JSON",
+      "help": "corvint-tasks ticket prioritize --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "refine"
+      ],
+      "command": "corvint-tasks ticket refine",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket refine --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
+        "corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payload JSON) [--issued-at TS] [--role ROLE]"
+      ],
+      "flags": [
+        "--batch",
+        "--expected-revision",
+        "--issued-at",
+        "--payload",
+        "--payload-stdin",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks ticket refine --request-id ID --payload JSON",
+      "help": "corvint-tasks ticket refine --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "release-hold"
+      ],
+      "command": "corvint-tasks ticket release-hold",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket release-hold --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]"
+      ],
+      "flags": [
+        "--expected-revision",
+        "--issued-at",
+        "--payload",
+        "--payload-stdin",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks ticket release-hold --request-id ID --payload JSON",
+      "help": "corvint-tasks ticket release-hold --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "reopen"
+      ],
+      "command": "corvint-tasks ticket reopen",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket reopen --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]"
+      ],
+      "flags": [
+        "--expected-revision",
+        "--issued-at",
+        "--payload",
+        "--payload-stdin",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks ticket reopen --request-id ID --payload JSON",
+      "help": "corvint-tasks ticket reopen --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "restore"
+      ],
+      "command": "corvint-tasks ticket restore",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket restore --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]"
+      ],
+      "flags": [
+        "--expected-revision",
+        "--issued-at",
+        "--payload",
+        "--payload-stdin",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks ticket restore --request-id ID --payload JSON",
+      "help": "corvint-tasks ticket restore --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "revoke-approval"
+      ],
+      "command": "corvint-tasks ticket revoke-approval",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket revoke-approval --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]"
+      ],
+      "flags": [
+        "--expected-revision",
+        "--issued-at",
+        "--payload",
+        "--payload-stdin",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks ticket revoke-approval --request-id ID --payload JSON",
+      "help": "corvint-tasks ticket revoke-approval --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "search"
+      ],
+      "command": "corvint-tasks ticket search",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]"
+      ],
+      "flags": [
+        "--count",
+        "--facets",
+        "--fields",
+        "--kind",
+        "--label",
+        "--limit",
+        "--milestone",
+        "--offset",
+        "--owner",
+        "--priority",
+        "--status",
+        "--summary",
+        "--text"
+      ],
+      "required": [],
+      "example": "corvint-tasks ticket search",
+      "help": "corvint-tasks ticket search --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "set-dependencies"
+      ],
+      "command": "corvint-tasks ticket set-dependencies",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket set-dependencies --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]"
+      ],
+      "flags": [
+        "--expected-revision",
+        "--issued-at",
+        "--payload",
+        "--payload-stdin",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks ticket set-dependencies --request-id ID --payload JSON",
+      "help": "corvint-tasks ticket set-dependencies --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "set-effects"
+      ],
+      "command": "corvint-tasks ticket set-effects",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket set-effects --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]"
+      ],
+      "flags": [
+        "--expected-revision",
+        "--issued-at",
+        "--payload",
+        "--payload-stdin",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks ticket set-effects --request-id ID --payload JSON",
+      "help": "corvint-tasks ticket set-effects --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "set-gates"
+      ],
+      "command": "corvint-tasks ticket set-gates",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket set-gates --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]"
+      ],
+      "flags": [
+        "--expected-revision",
+        "--issued-at",
+        "--payload",
+        "--payload-stdin",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks ticket set-gates --request-id ID --payload JSON",
+      "help": "corvint-tasks ticket set-gates --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "show"
+      ],
+      "command": "corvint-tasks ticket show",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket show <ticketId|local> [--summary | --fields KEY[.SUB],...]"
+      ],
+      "flags": [
+        "--fields",
+        "--summary"
+      ],
+      "required": [
+        "<ticketId|local>"
+      ],
+      "example": "corvint-tasks ticket show <ticketId|local>",
+      "help": "corvint-tasks ticket show --help"
+    },
+    {
+      "path": [
+        "unpause"
+      ],
+      "command": "corvint-tasks unpause",
+      "summary": "",
+      "usage": [
+        "corvint-tasks unpause --request-id ID [--role OWNER|OPERATOR]"
+      ],
+      "flags": [
+        "--request-id",
+        "--role"
+      ],
+      "required": [
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks unpause --request-id ID",
+      "help": "corvint-tasks unpause --help"
+    },
+    {
+      "path": [
+        "version"
+      ],
+      "command": "corvint-tasks version",
+      "summary": "",
+      "usage": [
+        "corvint-tasks version (alias --version)"
+      ],
+      "flags": [
+        "--version"
+      ],
+      "required": [],
+      "example": "corvint-tasks version",
+      "help": "corvint-tasks version --help"
+    },
+    {
+      "path": [
+        "widen"
+      ],
+      "command": "corvint-tasks widen",
+      "summary": "",
+      "usage": [
+        "corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository) [--role ROLE]"
+      ],
+      "flags": [
+        "--attempt",
+        "--generation",
+        "--request-id",
+        "--role",
+        "--scope",
+        "--whole-repository"
+      ],
+      "required": [
+        "--attempt ID",
+        "--generation G",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks widen --attempt ID --generation G --request-id ID --scope PATH...",
+      "help": "corvint-tasks widen --help"
+    },
+    {
+      "path": [
+        "worktree"
+      ],
+      "command": "corvint-tasks worktree",
+      "summary": "",
+      "usage": [
+        "corvint-tasks worktree ensure <ticketId|local> [--path PATH]"
+      ],
+      "flags": [
+        "--path"
+      ],
+      "required": [],
+      "example": "corvint-tasks worktree ensure <ticketId|local>",
+      "help": "corvint-tasks worktree --help"
+    },
+    {
+      "path": [
+        "worktree",
+        "ensure"
+      ],
+      "command": "corvint-tasks worktree ensure",
+      "summary": "",
+      "usage": [
+        "corvint-tasks worktree ensure <ticketId|local> [--path PATH]"
+      ],
+      "flags": [
+        "--path"
+      ],
+      "required": [
+        "<ticketId|local>"
+      ],
+      "example": "corvint-tasks worktree ensure <ticketId|local>",
+      "help": "corvint-tasks worktree ensure --help"
+    }
+  ]
+}

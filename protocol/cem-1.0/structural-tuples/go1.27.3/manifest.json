@@ -1,0 +1,12 @@
+{
+  "profile": "cem-structural-tuple-manifest/1",
+  "tuple": "go1.27.3",
+  "license": "Apache-2.0 public specifications/data only; no native code",
+  "files": [
+    {
+      "path": "TUPLE.json",
+      "sha256": "89feb67d18b99be1a93644a85551378fcd3662d3a97b527ca6d049ee32753041",
+      "bytes": 6314
+    }
+  ]
+}

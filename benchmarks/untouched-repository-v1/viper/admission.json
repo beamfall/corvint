@@ -1,0 +1,156 @@
+{
+  "decision": "0555",
+  "status": "NO_PRIOR_USE_FOUND_WITHIN_SEARCHED_SCOPE",
+  "repository": "https://github.com/spf13/viper.git",
+  "pin": "528f7416c4b56a4948673984b190bf8713f0c3c4",
+  "tree": "fffffa7740143511f55b4dadf559f8cbcb6ea6f8",
+  "sourceObservation": {
+    "method": "git ls-remote --symref HEAD (refs/heads/master) advertised before corpus derivation and re-observed unchanged at clone time; no candidate output",
+    "shallow": false
+  },
+  "checkedCurrentMetadata": [
+    {
+      "path": "benchmarks/manifest.json",
+      "sha256": "4d337719928d581ceb68aed8cced1eec66786ffc6c1e34d476d7f3bc9e0f3de8",
+      "containsViper": false
+    },
+    {
+      "path": "benchmarks/blind-v4-manifest.json",
+      "sha256": "a6c7439f3ed181d93165ee1839353ae2eca3bea38ef8fc6a0323300763a039c7",
+      "containsViper": false
+    },
+    {
+      "path": "benchmarks/blind-v3-manifest.json",
+      "sha256": "4fb67a876e35090f3fd454099311963fdbe82df1aab63d042c345503bb32a10d",
+      "containsViper": false
+    },
+    {
+      "path": "benchmarks/blind-v2-manifest.json",
+      "sha256": "1365eec079f861d8abe03123afdeefa4bd9da23f51bb2c7efce4366f553c87b1",
+      "containsViper": false
+    },
+    {
+      "path": "benchmarks/selfuse-batch/source-views-manifest.json",
+      "sha256": "e1f75c2dcbbb0cdcf3a68ccce1bfcc5c3fc4551a4a97f6006756c408183b5e94",
+      "containsViper": false
+    },
+    {
+      "path": "benchmarks/daily-loop-v0/preregistration.json",
+      "sha256": "ee94b7ca16c3f3a88ffe253483bdeb0d0f21c1a7de710126244dcec34f20dc96",
+      "containsViper": false
+    },
+    {
+      "path": "benchmarks/untouched-repository-v1/preregistration.json",
+      "sha256": "27625e854faf7dfb2379f59d38c7c082aeea19758e744874a52b20f200551e29",
+      "containsViper": false
+    },
+    {
+      "path": "benchmarks/untouched-repository-v1/cobra/preregistration.json",
+      "sha256": "9631e4ce822d4d17443e5c3bfe98e82c4685a70d6289f854ae5b8c730b98e5a4",
+      "containsViper": false
+    },
+    {
+      "path": "benchmarks/untouched-repository-v1/corvint/preregistration.json",
+      "sha256": "5e44a9efe6bf86189e166c516962db5fe921d40ab63c9ae5a76c25eac721543b",
+      "containsViper": false
+    },
+    {
+      "path": "benchmarks/untouched-repository-v1/urfave/preregistration.json",
+      "sha256": "eedf799f9444014e64f1bab1cf5d3296ea06f784e4e88930d385a990b230a185",
+      "containsViper": false
+    },
+    {
+      "path": "benchmarks/untouched-repository-v1/urfave/admission.json",
+      "sha256": "94388e34124489473deff43b0dab013e52c7ae95404aedc99209b07fe26ee59f",
+      "containsViper": false
+    },
+    {
+      "path": "conformance/perf-v0/packet-5-retry-2-manifest.json",
+      "sha256": "8dcd649d30dd9ffd212facc91c91aba0871e4425ed6b15ca5949d566a5918c6f",
+      "containsViper": false
+    },
+    {
+      "path": "conformance/perf-v0/seven-command-manifest.json",
+      "sha256": "cb864b4ec22d5f6541823e9bf93a466072439772175b11567d2e950efaa018e8",
+      "containsViper": false
+    },
+    {
+      "path": "conformance/perf-v0/manifest.json",
+      "sha256": "2849f32346b74d211dd8a089ec0f29c0366fc38289f63b13d42b1a9e85672d2f",
+      "containsViper": false
+    },
+    {
+      "path": "conformance/perf-v0/packet-5-manifest.json",
+      "sha256": "594ccd4e31002d42311a983baef11a2fe5ed7f5e728f7c8255f717ad36cf9cb4",
+      "containsViper": false
+    },
+    {
+      "path": "conformance/perf-v0/packet-5-retry-manifest.json",
+      "sha256": "3cff9ac726a88063606b28f411d06c2940709325d1a6845d9c526e37f0b4c837",
+      "containsViper": false
+    },
+    {
+      "path": "conformance/go-query-start-v0/manifest.json",
+      "sha256": "63aedbe55e3ec570532a2a72fb6af2bbd4bb5fe975629a869ecd2d3c594cebab",
+      "containsViper": false
+    },
+    {
+      "path": "tools/cw-trial/testdata/heldout-v1/manifest.json",
+      "sha256": "a7ee90901df31912f8855a4efc00f365a9c3978217dff0d1d862f43210b23483",
+      "containsViper": false
+    },
+    {
+      "path": ".agent-evidence/decision-0427-tickets/2-blind-v7.json",
+      "sha256": "f3bab81c350e8bcc015734c0e3f536d79d06e5a071332ab34812f86a22ceb997",
+      "containsViper": false
+    },
+    {
+      "path": "benchmarks/README.md",
+      "sha256": "43c300d47e6b6443c9cdf58adef9ab74b53944eeb41c2885773e2cf7875cdd83",
+      "containsViper": false
+    },
+    {
+      "path": "tools/retrieval-bench/README.md",
+      "sha256": "7963f62f50fdac5f9d59f4d51a8023f516fb3d595f39fbdfb44fbd5416aa9e3f",
+      "containsViper": false
+    }
+  ],
+  "trackedTree": {
+    "revision": "368b80d438669f618ac4cf1884ac19dd65fbc4a5",
+    "method": "git grep -i -l viper over every tracked path at origin/main",
+    "matchingFiles": 0
+  },
+  "history": {
+    "sourceHead": "5a354090d49455fb4e657ccea66a89a87f9cef52",
+    "refInventorySha256": "33b8925fc40d37389c79ea3de4fe8868eefa371c1d30a040fcc0ba583ead4d5f",
+    "refCount": 1790,
+    "method": "git log --all -i -G viper -- benchmarks docs conformance tools/retrieval-bench .corvint README.md in the primary checkout (ref inventory: sorted 'objectname refname' lines of git for-each-ref)",
+    "matchingCommits": 1,
+    "matchingCommitsExcludingSelectionRecord": 0,
+    "selectionRecordCommit": "a4ce7beccd239492c75a0c3a322563b03b3c0920"
+  },
+  "localLedgers": {
+    "method": "case-insensitive grep for viper in the primary checkout's .corvint/self-observations.jsonl, evidence-reach.json, test-read-scopes.json, dogfood-report.json, .corvint/changes, history-backups and test-evidence; .corvint/unplanned-reads.jsonl does not exist",
+    "matchingFiles": 0
+  },
+  "untrackedBenchmarkAndDocs": {
+    "method": "grep -i viper over untracked and ignored files under benchmarks/, docs/ and .corvint/ in the primary checkout (676 ignored files)",
+    "matchingFiles": 0
+  },
+  "retainedResultsMatchingFiles": 0,
+  "arbRepositoryIdentityMatches": 0,
+  "arbFoldMapSha256": "8d439eb6f7cb2471e90ee905684a0054bce49462859d52db01031f7cabc8f004",
+  "localDirectories": {
+    "method": "find -maxdepth 4 -iname '*viper*' under ~/projects and /private/tmp/claude-501, and for ARB dataset or .corvint-benchmark-cache directories under the home directory, before the viper clone",
+    "matches": 0
+  },
+  "limitations": [
+    "No agent transcripts or sealed case bodies searched",
+    "No unreachable/deleted Git objects or unrecorded private experiments observed",
+    "The Windows benchmark host and other machines were not searched",
+    "Repository selection remains conditional on absence of contrary evidence; a later actual-use hit stops admission"
+  ],
+  "notAQualification": true,
+  "candidateExecution": "NOT_RUN",
+  "publication": "NOT_RUN"
+}

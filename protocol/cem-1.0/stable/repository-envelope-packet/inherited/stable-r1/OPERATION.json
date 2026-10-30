@@ -1,0 +1,413 @@
+{
+  "profile": "cem-stable-operation-proposal/1",
+  "status": "PROPOSED_EXPERIMENTAL_NOT_IMPLEMENTED",
+  "command": "IMPLEMENTATION verify-stable --repository ABS_DIR --map ABS_FILE --expected-base FULL_OID --target FULL_OID --artifacts ABS_DIR",
+  "nativeCLIProposal": "corvint cem verify-stable with the same five options; a future exact cem/1.0 read dispatcher may call this path only when explicit artifact-root context is supplied. Existing cem verify defaults remain unchanged in the first slice.",
+  "argvPolicy": "Exactly five distinct named options, each once in any order; no positional fallback, stdin, patch override, implicit artifacts root or authority flags. Duplicate or unknown flag is invalid-arguments before reads. Missing expected-base/target/artifacts discovered after wire/reference checks, in that order.",
+  "verificationMode": "canonical-and-reference-integrity",
+  "resultProfile": "cem-stable-verification/1",
+  "resultKeys": [
+    "profile",
+    "spec",
+    "verificationMode",
+    "outcome",
+    "accept",
+    "stage",
+    "code",
+    "issueCodes",
+    "assurance",
+    "expectedBase",
+    "targetRevision",
+    "mapSha256",
+    "patchSha256",
+    "sidecar",
+    "drift",
+    "hunks",
+    "references",
+    "artifactChecks",
+    "axes",
+    "runtime",
+    "repositoryEnvelope"
+  ],
+  "stages": [
+    {
+      "stage": "arguments",
+      "codes": [
+        "invalid-arguments"
+      ],
+      "exit": 2,
+      "rule": "Reject malformed, unknown or repeated flag syntax and extra operands before reads. --artifacts is the required explicit root option; no patch override, implicit artifact root, authority-upgrade flags or additional artifact-discovery options. Missing independent authority arguments are checked after valid wire/reference graph."
+    },
+    {
+      "stage": "input",
+      "codes": [
+        "map-unavailable"
+      ],
+      "exit": 2,
+      "rule": "Read original map with 4MiB limit into one stable private copy; above limit native map-unavailable. Outcome UNSUPPORTED."
+    },
+    {
+      "stage": "wire",
+      "codes": [
+        "invalid-json",
+        "unsupported-spec",
+        "missing-field",
+        "unknown-field",
+        "invalid-field",
+        "invalid-excluded-path"
+      ],
+      "exit": 2,
+      "rule": "Outcome REJECT. Duplicate keys and illegal numeric lexemes/overflow are invalid-json; boolean wrong field type is invalid-field. Observed precedence: strict JSON before profile; unsupported-spec before missing/unknown keys; missing-field before unknown-field. Wire validation precedes absent expected-base/target. Preserve nested field precedence as pinned cases, not speculative total ordering."
+    },
+    {
+      "stage": "references",
+      "codes": [
+        "invalid-criterion-identity",
+        "duplicate-reference",
+        "unresolved-reference",
+        "reference-coherence",
+        "artifact-role-closure"
+      ],
+      "issueCodes": [],
+      "exit": 2,
+      "rule": "REJECT: closed shape already decoded; evaluate binding identities/uniqueness/coherence, runner uniqueness, link resolution/basis membership, then exact role closure in that order. No filesystem or native authority inference."
+    },
+    {
+      "stage": "authority-arguments",
+      "codes": [
+        "expected-base-required",
+        "target-required",
+        "invalid-arguments",
+        "artifacts-required"
+      ],
+      "exit": 2,
+      "rule": "Expected base then target then artifact-root presence required after wire/references. Both OIDs full lowercase same format; all three roots/paths absolute. Always require explicit artifact root even for empty references."
+    },
+    {
+      "stage": "runtime",
+      "codes": [
+        "unsupported-structural-runtime",
+        "unsupported-process-containment"
+      ],
+      "exit": 2,
+      "rule": "No structural runtime is qualified by this proposed contract. Prototype may expose exact go1.27.1 with EXPERIMENTAL_TUPLE_PENDING_FULL_CORPUS under recorded opt-in development scope only. Stable release admission needs pinned corpus/toolchain evidence. Unsupported tuple is explicit; no weakened proof fallback."
+    },
+    {
+      "stage": "repository",
+      "codes": [
+        "repository-object-unavailable",
+        "unsupported-object-alternates",
+        "git-read-failed",
+        "unsupported-resource-limit",
+        "unsupported-repository-envelope",
+        "unsupported-tree-mode",
+        "unsupported-patch-inventory",
+        "git-timeout",
+        "verification-timeout",
+        "git-diff-failed"
+      ],
+      "exit": 2,
+      "rule": "Operational unsupported/resource errors remain distinct from invalid evidence. Prototype primary-clean-config-bounded/1 is an explicit limited envelope, not native equivalence. Linked worktrees, ordinary clone config, process descendants, SHA256 and platform qualifications remain separately recorded until proven."
+    },
+    {
+      "stage": "binding",
+      "codes": [],
+      "issueCodes": [
+        "base-revision-mismatch",
+        "excluded-path-not-file",
+        "excluded-artifact-mismatch"
+      ],
+      "exit": 1,
+      "rule": "Outcome REJECT; assurance structural-only. Base mismatch precedes target-resolution failure/sidecar checks; sidecar mismatch precedes map patch-digest comparison."
+    },
+    {
+      "stage": "verification",
+      "codes": [
+        "verification-timeout"
+      ],
+      "issueCodes": [
+        "diff-header",
+        "diff-metadata-mismatch",
+        "duplicate-file-group",
+        "duplicate-hunk-id",
+        "duplicate-new-path",
+        "duplicate-old-path",
+        "empty-input",
+        "evidence-unavailable",
+        "fabricated-evidence-id",
+        "file-header",
+        "hunk-header",
+        "hunk-order",
+        "hunk-payload",
+        "hunk-range",
+        "invalid-field",
+        "metadata",
+        "metadata-repeat",
+        "new-cursor",
+        "newline-marker",
+        "patch",
+        "patch-context",
+        "patch-digest-mismatch",
+        "patch-hunk-count",
+        "patch-top-level",
+        "path",
+        "short-hunk",
+        "surplus-hunk-payload",
+        "too-many-lines",
+        "unchanged-hunk",
+        "unproven-mechanical",
+        "unsupported-tree-mode",
+        "zero-hunks"
+      ],
+      "exit": 1,
+      "rule": "Outcome REJECT; assurance canonical. Observed order patch digest before hunk mapping before evidence before structural proof before drift. Exact additional inherited codes require frozen coverage, not remapping to examples. Inherited public patch parser/simulator defensive codes are admitted explicitly; the 104 observed native cases do not qualify all of these paths. Simulation deadline can instead produce operational UNSUPPORTED/code verification-timeout with null assurance (exit 2)."
+    },
+    {
+      "stage": "drift",
+      "codes": [],
+      "issueCodes": [
+        "evidence-drift"
+      ],
+      "exit": 1,
+      "rule": "Outcome REJECT; assurance canonical; preserve every computed sorted evidence drift record. Mechanical failure observed before drift."
+    },
+    {
+      "stage": "artifacts",
+      "codes": [
+        "artifact-unavailable",
+        "artifact-resource-limit",
+        "verification-timeout"
+      ],
+      "issueCodes": [
+        "artifact-digest-mismatch",
+        "artifact-changed-during-verification"
+      ],
+      "exit": null,
+      "rule": "UNSUPPORTED/code/exit2 for inability to obtain bounded rooted original bytes; REJECT/issueCodes/exit1 for observed digest/byte change. Read all declared artifacts before final re-read, retain no success until both complete passes match. No artifact execution or native semantic decoding."
+    },
+    {
+      "stage": "complete",
+      "codes": [],
+      "issueCodes": [],
+      "exit": 0,
+      "rule": "Outcome ACCEPT; assurance canonical. Unknown hunks and caller uncovered/survived witnesses remain valid states."
+    }
+  ],
+  "resultSemantics": {
+    "accept": "true only when both canonical change and complete declared artifact-reference checks succeed. false on REJECT, null on UNSUPPORTED. No aggregate complete/satisfied/native-authority boolean exists.",
+    "spec": "Operation identity, not evidence invalid input contained this profile.",
+    "assurance": "Preserves corrected 0.3 provenance meaning, not acceptance. canonical once independent canonical derivation succeeds; operational failure clears assurance; individual axes retain only checks actually completed.",
+    "axes": "All keys always emitted; fixed NOT_OBSERVED authority/execution/adequacy fields never upgraded by low-level verify-stable. Companion observations use separate versioned results and bind this exact result/input; no rewriting this result. The axisTransitions table is normative, including failure states.",
+    "hunks": "Full decoded hunk objects, preserving all coverage/discrimination members, order, values and optional absence. [] before complete wire and references are validated.",
+    "references": "Full decoded four arrays after closed wire/reference validation; otherwise four empty arrays. No unknown data silently discarded.",
+    "artifactChecks": "Empty until both complete bounded read passes match; then full map order with raw digest/length. A partial verified prefix cannot count as complete closure.",
+    "sidecar": "NOT_CHECKED before target authentication; ABSENT if absent; EXACT only for regular100644 target sidecar equal to input raw bytes; no recoding before comparison.",
+    "drift": "All six native fields, including validated baseBlobOid in all states; sorted evidenceId; null target semantics retained.",
+    "runtime": "goVersion actual runtime string. QUALIFIED_EXACT_TUPLE permitted only with a published matching profile/corpus receipt, none supplied here. Source floor Go1.24 is separate from structural runtime qualification.",
+    "repositoryEnvelope": "Exact implementation-admitted envelope ID published alongside resource/process constraints; never merely native. Prototype primary-clean-config-bounded/1 limitations retained.",
+    "referenceIntegrity": "EMPTY_REFERENCE_SET when all four arrays empty and full change verification succeeds; REFERENCE_INTEGRITY_ONLY only after every nonempty declared role closes and both read passes succeed.",
+    "failureProvenance": "Expected base and target echo supplied option strings or null from arguments parsing; mapSha256 is null until bounded map read completes, then exact original digest even on wire failure. patchSha256 is null until canonical patch derivation completes, then its actual digest. runtime reports actual version; qualification NOT_REQUIRED until structural runtime is required, then admitted experimental/qualified tuple or UNSUPPORTED. repositoryEnvelope names the selected implementation envelope even before repository reads. No fabricated sidecar/drift/hunk progress on early failure."
+  },
+  "encoding": "One UTF-8 JSON object plus LF; closed keys; arrays never null. No elapsed times, PIDs, absolute local paths or Git stderr. Retain raw input SHA256; output ordering deterministic.",
+  "exitSemantics": {
+    "0": "ACCEPT of canonical/reference integrity only",
+    "1": "REJECT with verifier issueCodes after valid wire/reference graph",
+    "2": "Top-level malformed wire/reference REJECT, or operational UNSUPPORTED; inspect outcome and code"
+  },
+  "noGitOnlyFallback": "No mode flag. An API returning a change projection must use an explicitly named non-gate inspection view and cannot emit this success profile without artifact verification.",
+  "intentionalABIDifferences": [
+    "Exact cem/1.0 only; separate old0.x and candidate dispatch remain unchanged.",
+    "Duplicate flags rejected even if generic historical CLI chooses last value.",
+    "Always explicit artifact-root context."
+  ],
+  "openQualification": [
+    "Gate A and independent review before implementation",
+    "P0 corrected corpus and runtime qualification",
+    "Stable native/portable/CLI vertical proof",
+    "All19 consumer families and two later additions",
+    "Actual supported runner/platform/lifecycle matrices",
+    "Independent external consumer and matched external outcome evidence",
+    "Governing release gates and explicit promotion"
+  ],
+  "coreRootPolicy": "Core global --root is optional, at most once, absolute, and lexically clean. If present, mandatory --repository must be present and equal after lexical clean (no filesystem resolution, case folding or symlink alias equivalence); otherwise arguments/invalid-arguments before any read. Matching global root is redundant. Inferred cwd/root never substitutes for or overrides --repository. Duplicate root and any other global option on this command are invalid-arguments. The portable ABI has no global root option. Missing --repository or --map is arguments/invalid-arguments before reads; missing independent base/target/artifacts follows the existing authority-arguments stage.",
+  "axisTransitions": {
+    "axes": [
+      "changeIntegrity",
+      "referenceIntegrity",
+      "structuralProof",
+      "coverageValidation",
+      "discriminationValidation"
+    ],
+    "table": [
+      {
+        "event": "initial",
+        "values": [
+          "NOT_CHECKED",
+          "NOT_CHECKED",
+          "NOT_CHECKED",
+          "NOT_CHECKED",
+          "NOT_CHECKED"
+        ]
+      },
+      {
+        "event": "wire-complete",
+        "values": [
+          "KEEP",
+          "KEEP",
+          "KEEP",
+          "WIRE_OR_ABSENT",
+          "WIRE_OR_ABSENT"
+        ]
+      },
+      {
+        "event": "references-rejected",
+        "values": [
+          "NOT_CHECKED",
+          "FAILED",
+          "NOT_CHECKED",
+          "KEEP",
+          "KEEP"
+        ]
+      },
+      {
+        "event": "authority-arguments-rejected",
+        "values": [
+          "NOT_CHECKED",
+          "NOT_CHECKED",
+          "NOT_CHECKED",
+          "KEEP",
+          "KEEP"
+        ]
+      },
+      {
+        "event": "unsupported-structural-runtime",
+        "values": [
+          "NOT_CHECKED",
+          "NOT_CHECKED",
+          "UNSUPPORTED_RUNTIME",
+          "KEEP",
+          "KEEP"
+        ]
+      },
+      {
+        "event": "repository-or-process-unavailable",
+        "values": [
+          "NOT_CHECKED",
+          "NOT_CHECKED",
+          "NOT_CHECKED",
+          "KEEP",
+          "KEEP"
+        ]
+      },
+      {
+        "event": "binding-or-canonical-rejected",
+        "values": [
+          "FAILED",
+          "NOT_CHECKED",
+          "NOT_CHECKED",
+          "KEEP",
+          "KEEP"
+        ]
+      },
+      {
+        "event": "structural-rejected",
+        "values": [
+          "FAILED",
+          "NOT_CHECKED",
+          "FAILED",
+          "KEEP",
+          "KEEP"
+        ]
+      },
+      {
+        "event": "structural-incomplete-operational",
+        "values": [
+          "NOT_CHECKED",
+          "NOT_CHECKED",
+          "NOT_CHECKED",
+          "KEEP",
+          "KEEP"
+        ]
+      },
+      {
+        "event": "structural-complete",
+        "values": [
+          "KEEP",
+          "KEEP",
+          "PROVEN_OR_NOT_REQUIRED",
+          "KEEP",
+          "KEEP"
+        ]
+      },
+      {
+        "event": "drift-rejected",
+        "values": [
+          "FAILED",
+          "NOT_CHECKED",
+          "KEEP",
+          "KEEP",
+          "KEEP"
+        ]
+      },
+      {
+        "event": "canonical-complete",
+        "values": [
+          "VERIFIED",
+          "NOT_CHECKED",
+          "KEEP",
+          "KEEP",
+          "KEEP"
+        ]
+      },
+      {
+        "event": "artifact-unavailable-or-resource",
+        "values": [
+          "VERIFIED",
+          "NOT_CHECKED",
+          "KEEP",
+          "KEEP",
+          "KEEP"
+        ]
+      },
+      {
+        "event": "artifact-observed-mismatch",
+        "values": [
+          "VERIFIED",
+          "FAILED",
+          "KEEP",
+          "KEEP",
+          "KEEP"
+        ]
+      },
+      {
+        "event": "empty-success",
+        "values": [
+          "VERIFIED",
+          "EMPTY_REFERENCE_SET",
+          "KEEP",
+          "KEEP",
+          "KEEP"
+        ]
+      },
+      {
+        "event": "nonempty-success",
+        "values": [
+          "VERIFIED",
+          "REFERENCE_INTEGRITY_ONLY",
+          "KEEP",
+          "KEEP",
+          "KEEP"
+        ]
+      }
+    ],
+    "rules": [
+      "Initialize all five to NOT_CHECKED; failed/incomplete wire leaves all five unchanged. All thirteen other axes are always NOT_OBSERVED.",
+      "KEEP means retain current value. WIRE_OR_ABSENT means WIRE_VALIDATED_ONLY if any hunk contains that optional witness, otherwise ABSENT, independently per axis. Transition only after whole closed wire succeeds, even if later reference graph rejects.",
+      "PROVEN_OR_NOT_REQUIRED means PROVEN_DECLARED_FILE_PREDICATES only after every declared mechanical hunk predicate succeeds; NOT_REQUIRED when there are no mechanical claims. A failed predicate sets FAILED; an operational stop with unchecked suffix leaves NOT_CHECKED, even if a prefix passed. Runtime rejection occurs only if structural runtime is required; no claims require no structural tuple.",
+      "Reference graph validation alone never upgrades referenceIntegrity. Reference rejection sets FAILED; unavailable bytes/resource/timeouts do not assert mismatch. Observed digest/byte mismatch sets FAILED. Empty-reference success is assigned only after complete canonical change verification. Nonempty success additionally requires both complete artifact passes.",
+      "changeIntegrity is VERIFIED only after canonical mapping, evidence, all structural checks and drift succeed. Binding/canonical/structural/drift rejection sets FAILED. Operational interruption before completion keeps NOT_CHECKED. Once VERIFIED it survives later artifact failure; operational failure still clears assurance.",
+      "The stage order is unchanged. Any operational stop after structural-complete retains its completed structural value. A drift operational stop retains completed structuralProof but changeIntegrity remains NOT_CHECKED. No aggregate proof from a checked prefix.",
+      "Complete wire followed by invalid references preserves witness-validation axes, but hunks/references stay empty until both wire and graph validate. Failure outputs retain no artifactChecks prefix."
+    ]
+  }
+}

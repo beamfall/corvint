@@ -1,0 +1,920 @@
+{
+ "profile": "corvint-v0415-swebench-pro-paired/0",
+ "ticket": "V1-0415",
+ "date": "2026-10-25",
+ "preregistration": {
+  "path": "benchmarks/results/v0415-swebench-pro-paired-prereg.md",
+  "sha256": "7bf0e9972ac84e6e1719090b3c135cba9171b4c4f995b71c60f88e07087949af",
+  "commit": "dd4f1f626cfdea5c678bdbc41667df9b29e1d46c",
+  "committed_before_first_agent_session": true
+ },
+ "dataset": {
+  "name": "ScaleAI/SWE-bench_Pro",
+  "revision": "2d52cb3df914a3fcf80c7f66738b3a88ae37fc50",
+  "files": [
+   {
+    "name": "data/default/test-00000-of-00001.parquet",
+    "url": "https://huggingface.co/datasets/ScaleAI/SWE-bench_Pro/resolve/2d52cb3df914a3fcf80c7f66738b3a88ae37fc50/data/default/test-00000-of-00001.parquet",
+    "bytes": 6511689,
+    "sha256": "1067f72c1f43bbc578276888625db3b836cebb535546c9eaf824c5d5dd104a7f"
+   },
+   {
+    "name": "README.md",
+    "url": "https://huggingface.co/datasets/ScaleAI/SWE-bench_Pro/resolve/2d52cb3df914a3fcf80c7f66738b3a88ae37fc50/README.md",
+    "bytes": 9812,
+    "sha256": "243f51de326a4502f0e353eb3e25cb712c465e78d80e15cdaac4db70e5a9b83f"
+   }
+  ],
+  "tasks": 642,
+  "ordered_jsonl_sha256": "c2656e4b5763165f6e7b218227507d43dd7c85ac8c6fdd61f2d8f12b1440cffb"
+ },
+ "harness": {
+  "repo": "https://github.com/scaleapi/SWE-bench_Pro-os.git",
+  "commit": "66f92766bba642462d4bbe5479e83f91f9211862",
+  "release": "v2.0.0",
+  "grader": "local docker mirror of v2/tasks/<id>/tests/test.sh with the patch-replay apply chain; 4 CPUs, 8 GB",
+  "controls": {
+   "gold_resolved": "10/10",
+   "empty_patch_pair_p01": {
+    "resolved": false,
+    "reward": 0
+   }
+  }
+ },
+ "agent": {
+  "harness": "OpenCode v2.1.3 (opencode run --standalone --auto)",
+  "model": "anthropic/claude-opus-5-5",
+  "steps": 50,
+  "wall_clock_seconds": 570,
+  "denied_tools": [
+   "shell",
+   "webfetch",
+   "websearch"
+  ],
+  "pair_sessions_concurrent": true,
+  "pairs_sequential": true
+ },
+ "arms": {
+  "on": {
+   "adapter": "integrations/opencode/src at 866a7fd52a3cd979f9fd038ecfa998e15111421c (tree 894e23eef521b7a36282936fc641dafbf20b456a, adapter 0.7.19)",
+   "corvint_binary_sha256": "9c8e01e19febd78e56b49f8355f41e4c39dc4c27278d2fb6b62429706cd0e111",
+   "corvint_version": "1.0.0-rc.3 (build 0)",
+   "index": "prebuilt with corvint --root <repo> index, 0-1 s per repository, outside the agent budget"
+  },
+  "off": {
+   "adapter": null
+  }
+ },
+ "subset": {
+  "rule": "first 10 of sha256('v0415:'+instance_id) order whose gold patch resolves",
+  "admitted": 10,
+  "skipped_gold_failures": []
+ },
+ "totals": {
+  "on": {
+   "resolved": 9,
+   "cost_usd": 3.1017,
+   "input": 278,
+   "output": 51152,
+   "cache_read": 2757492,
+   "cache_write": 244852,
+   "wall_seconds": 801,
+   "corvint_tool_calls": 0,
+   "n": 10,
+   "resolve_rate": 0.9,
+   "cost_per_resolved_usd": 0.3446
+  },
+  "off": {
+   "resolved": 9,
+   "cost_usd": 2.6304,
+   "input": 252,
+   "output": 46659,
+   "cache_read": 2079179,
+   "cache_write": 199231,
+   "wall_seconds": 666,
+   "corvint_tool_calls": 0,
+   "n": 10,
+   "resolve_rate": 0.9,
+   "cost_per_resolved_usd": 0.2923
+  }
+ },
+ "paired": {
+  "on_only": [],
+  "off_only": [],
+  "both": 9,
+  "neither": [
+   "p05"
+  ]
+ },
+ "pairs": [
+  {
+   "pair": "p01",
+   "instance_id": "instance_gravitational__teleport-1330415d33a27594c948a36d9d7701f496229e9f",
+   "image": {
+    "ref": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_gravitational__teleport-1330415d33a27594c948a36d9d7701f496229e9f",
+    "manifest_digest": "sha256:ea4ac40e3b69d25b124f57da010f338cf6f009d508a4eaa8f0aac0da473c20a8",
+    "config_digest": "sha256:6ce2ca4ce568d30ec95ee01c221299fdab411a41e390b8ae48fca2cd9e124b8d",
+    "compressed_bytes": 2495220554,
+    "layers": 24
+   },
+   "source_snapshot": {
+    "git_archive_sha256": "2763fe489677707f83d600955a5d125c19ce344899b630b8da0580478d27be72",
+    "workdir": "/app",
+    "image_head": "bb69574e02bd62e5ccd3cebb25e1c992641afb2a",
+    "dirty_paths": 0
+   },
+   "gold": {
+    "resolved": true,
+    "grade_seconds": 16.8
+   },
+   "arms": {
+    "on": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 7575,
+     "patch_sha256": "0256da4ed88e6c8c0416cc0276bd5949c1a0832ca7968f73eddac7a04fd7134e",
+     "grade_seconds": 17.0,
+     "agent_rc": 0,
+     "wall_seconds": 79,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.327869,
+     "tokens": {
+      "input": 24,
+      "output": 6134,
+      "cache_read": 212390,
+      "cache_write": 27875
+     },
+     "messages": 13,
+     "tool_calls": {
+      "edit": 9,
+      "grep": 4,
+      "read": 3
+     },
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 14286
+    },
+    "off": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 8299,
+     "patch_sha256": "fbf3a6cc9aaa0ec3014f70d8eb3e0c0dea88c57250930139a0cb63d4add4eb1e",
+     "grade_seconds": 13.2,
+     "agent_rc": 0,
+     "wall_seconds": 58,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.247803,
+     "tokens": {
+      "input": 20,
+      "output": 5309,
+      "cache_read": 147913,
+      "cache_write": 18684
+     },
+     "messages": 11,
+     "tool_calls": {
+      "edit": 5,
+      "grep": 7,
+      "read": 2
+     },
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 11297
+    }
+   }
+  },
+  {
+   "pair": "p02",
+   "instance_id": "instance_ansible__ansible-e0c91af45fa9af575d10fd3e724ebc59d2b2d6ac-v30a923fb5c164d6cd18280c02422f75e611e8fb2",
+   "image": {
+    "ref": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_ansible__ansible-e0c91af45fa9af575d10fd3e724ebc59d2b2d6ac-v30a923fb5c164d6cd18280c02422f75e611e8fb2",
+    "manifest_digest": "sha256:26c5322a32a20a2eb67fbb3570d214e02da35df4465d75ac580314c2037f9520",
+    "config_digest": "sha256:b5303de8fcd6052b0a667030592283415a8949af15076bac9cebc84f0546a095",
+    "compressed_bytes": 747450162,
+    "layers": 18
+   },
+   "source_snapshot": {
+    "git_archive_sha256": "7f065a2c2ac90e25050ea3e17efeefbc7c5fe993a09bc929ea46a089973fbb14",
+    "workdir": "/app",
+    "image_head": "5d15af3a9563271615fa1d0f5a99a175bfe41a9f",
+    "dirty_paths": 0
+   },
+   "gold": {
+    "resolved": true,
+    "grade_seconds": 49.5
+   },
+   "arms": {
+    "on": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 6457,
+     "patch_sha256": "002bf632cb2fb04676927d23e229321224391702e7565d7a38a5901d7438ea43",
+     "grade_seconds": 96.9,
+     "agent_rc": 0,
+     "wall_seconds": 46,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.181533,
+     "tokens": {
+      "input": 26,
+      "output": 2792,
+      "cache_read": 162918,
+      "cache_write": 17449
+     },
+     "messages": 14,
+     "tool_calls": {
+      "edit": 5,
+      "grep": 5,
+      "read": 5,
+      "write": 2
+     },
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 10791
+    },
+    "off": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 6327,
+     "patch_sha256": "050e4f1477bf0a5b5905b763041ee43d69a146ceaf25570f29d365535707529a",
+     "grade_seconds": 56.9,
+     "agent_rc": 0,
+     "wall_seconds": 42,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.154294,
+     "tokens": {
+      "input": 26,
+      "output": 2946,
+      "cache_read": 144750,
+      "cache_write": 11588
+     },
+     "messages": 14,
+     "tool_calls": {
+      "edit": 5,
+      "grep": 4,
+      "read": 5,
+      "write": 3
+     },
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 7605
+    }
+   }
+  },
+  {
+   "pair": "p03",
+   "instance_id": "instance_qutebrowser__qutebrowser-394bfaed6544c952c6b3463751abab3176ad4997-vafb3e8e01b31319c66c4e666b8a3b1d8ba55db24",
+   "image": {
+    "ref": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_qutebrowser__qutebrowser-394bfaed6544c952c6b3463751abab3176ad4997-vafb3e8e01b31319c66c4e666b8a3b1d8ba55db24",
+    "manifest_digest": "sha256:11e155a26b8c46a864b1c90392b7a916ac0a46f0aa36c69d2ce3ae8d18620674",
+    "config_digest": "sha256:0f04cb470ec03a3b2be4571a64f9dd803ffdeea49022b26665a45ec6a8b867c2",
+    "compressed_bytes": 779395664,
+    "layers": 18
+   },
+   "source_snapshot": {
+    "git_archive_sha256": "a49394a06a61591ed6cd40e0eb1e129f44b70fe41b5cfaa9008235515c28c19d",
+    "workdir": "/app",
+    "image_head": "d1164925c55f2417f1c3130b0196830bc2a3d25d",
+    "dirty_paths": 0
+   },
+   "gold": {
+    "resolved": true,
+    "grade_seconds": 16.1
+   },
+   "arms": {
+    "on": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 15274,
+     "patch_sha256": "dc6a81dcf3a0aa12e7be317fd08c49fea4bef22eb65dfa2d8b863053a3e1b373",
+     "grade_seconds": 14.5,
+     "agent_rc": 0,
+     "wall_seconds": 168,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.672401,
+     "tokens": {
+      "input": 56,
+      "output": 12965,
+      "cache_read": 707260,
+      "cache_write": 39961
+     },
+     "messages": 29,
+     "tool_calls": {
+      "edit": 13,
+      "grep": 9,
+      "read": 8,
+      "write": 1
+     },
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 13220
+    },
+    "off": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 15800,
+     "patch_sha256": "174d97379131b10f9336f665622a1069707efa5c3099a9bef2b20d87e8041e6a",
+     "grade_seconds": 14.9,
+     "agent_rc": 0,
+     "wall_seconds": 102,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.385017,
+     "tokens": {
+      "input": 30,
+      "output": 8650,
+      "cache_read": 265137,
+      "cache_write": 23778
+     },
+     "messages": 16,
+     "tool_calls": {
+      "edit": 5,
+      "grep": 5,
+      "read": 4,
+      "write": 1
+     },
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 9817
+    }
+   }
+  },
+  {
+   "pair": "p04",
+   "instance_id": "instance_ansible__ansible-395e5e20fab9cad517243372fa3c3c5d9e09ab2a-v7eee2454f617569fd6889f2211f75bc02a35f9f8",
+   "image": {
+    "ref": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_ansible__ansible-395e5e20fab9cad517243372fa3c3c5d9e09ab2a-v7eee2454f617569fd6889f2211f75bc02a35f9f8",
+    "manifest_digest": "sha256:764c65f536098c68457927874cb22a79cce526161a21ad4d17faa1232fdf323c",
+    "config_digest": "sha256:a3bbca9b15c4da35b421da5a6aaffd6abf45902d94f5c5b47e76c41ddfc2d37c",
+    "compressed_bytes": 716936603,
+    "layers": 18
+   },
+   "source_snapshot": {
+    "git_archive_sha256": "27c0984e57dd9010f20c7dfd1fc3c864102b150f412f6124795d6ed1839a22e6",
+    "workdir": "/app",
+    "image_head": "cd64e0b070f8630e1dcc021e594ed42ea7afe304",
+    "dirty_paths": 0
+   },
+   "gold": {
+    "resolved": true,
+    "grade_seconds": 39.2
+   },
+   "arms": {
+    "on": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 33304,
+     "patch_sha256": "c71ddee6858205d413d721eeba259e0ebcf33f0289d05c8cfecc4e908c096ca4",
+     "grade_seconds": 63.5,
+     "agent_rc": 0,
+     "wall_seconds": 107,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.469217,
+     "tokens": {
+      "input": 38,
+      "output": 7841,
+      "cache_read": 544148,
+      "cache_write": 36527
+     },
+     "messages": 20,
+     "tool_calls": {
+      "edit": 27,
+      "execute": 1,
+      "grep": 6,
+      "read": 7,
+      "write": 1
+     },
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 11962
+    },
+    "off": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 32790,
+     "patch_sha256": "9c6fa1bef9509d15f1aa48e577ed5b54e45bc7086517137efad7c2e1d1fe910a",
+     "grade_seconds": 49.4,
+     "agent_rc": 0,
+     "wall_seconds": 96,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.450162,
+     "tokens": {
+      "input": 36,
+      "output": 7349,
+      "cache_read": 470664,
+      "cache_write": 34537
+     },
+     "messages": 19,
+     "tool_calls": {
+      "edit": 24,
+      "execute": 2,
+      "glob": 1,
+      "grep": 6,
+      "read": 5,
+      "write": 1
+     },
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 8934
+    }
+   }
+  },
+  {
+   "pair": "p05",
+   "instance_id": "instance_flipt-io__flipt-f36bd61fb1cee4669de1f00e59da462bfeae8765",
+   "image": {
+    "ref": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_flipt-io__flipt-f36bd61fb1cee4669de1f00e59da462bfeae8765",
+    "manifest_digest": "sha256:c17497ca811b80dbab277a3ba02eb70379bc56269ee855588b0ed234382bab31",
+    "config_digest": "sha256:14a9cea2bbb55b98fbcdab94b7f54dbc739794b72abc81933e28e4b304cdd177",
+    "compressed_bytes": 1587006125,
+    "layers": 21
+   },
+   "source_snapshot": {
+    "git_archive_sha256": "7741fdfc067c75c0bd88d740d797d483c7c95e49b19a4cb9b930c04ba83af358",
+    "workdir": "/app",
+    "image_head": "54e188b64f0dda5a1ab9caf8425f94dac3d08f40",
+    "dirty_paths": 0
+   },
+   "gold": {
+    "resolved": true,
+    "grade_seconds": 30.8
+   },
+   "arms": {
+    "on": {
+     "resolved": false,
+     "reward": 0,
+     "apply_rc": 0,
+     "patch_bytes": 6142,
+     "patch_sha256": "ea4977bd1dfe2dbc9c0f61598dde1872a94695afeba3bda8ed5700ff02b09768",
+     "grade_seconds": 34.4,
+     "agent_rc": 0,
+     "wall_seconds": 107,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.277531,
+     "tokens": {
+      "input": 20,
+      "output": 4146,
+      "cache_read": 148655,
+      "cache_write": 19284
+     },
+     "messages": 11,
+     "tool_calls": {
+      "edit": 4,
+      "glob": 2,
+      "grep": 2,
+      "read": 4,
+      "write": 1
+     },
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 12042
+    },
+    "off": {
+     "resolved": false,
+     "reward": 0,
+     "apply_rc": 0,
+     "patch_bytes": 7155,
+     "patch_sha256": "3b0b17b189a3f35ce2044c6539bb1942b24c3237532c0e496d1f3e51ae1dbc51",
+     "grade_seconds": 31.6,
+     "agent_rc": 0,
+     "wall_seconds": 117,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.313675,
+     "tokens": {
+      "input": 24,
+      "output": 4503,
+      "cache_read": 160593,
+      "cache_write": 19448
+     },
+     "messages": 13,
+     "tool_calls": {
+      "edit": 5,
+      "execute": 1,
+      "glob": 2,
+      "grep": 2,
+      "read": 6,
+      "write": 1
+     },
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 8688
+    }
+   }
+  },
+  {
+   "pair": "p06",
+   "instance_id": "instance_navidrome__navidrome-8d56ec898e776e7e53e352cb9b25677975787ffc",
+   "image": {
+    "ref": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_navidrome__navidrome-8d56ec898e776e7e53e352cb9b25677975787ffc",
+    "manifest_digest": "sha256:e1547fcc5315c2eca1e05d09c02912c01e1b47a7133110669fc0f0cf5dd767ad",
+    "config_digest": "sha256:b7b6b53c47191ccbcd7336f9e83af1231b9525e43839bdbb3a7ee1b080a86693",
+    "compressed_bytes": 1150028633,
+    "layers": 27
+   },
+   "source_snapshot": {
+    "git_archive_sha256": "c667965391dc391da657a6f297fa8d23823453385eed541b951c1e1c0eb426c4",
+    "workdir": "/app",
+    "image_head": "5064cb2a46e4b7ca6a834b3c48a409eec8ca1830",
+    "dirty_paths": 0
+   },
+   "gold": {
+    "resolved": true,
+    "grade_seconds": 15.7
+   },
+   "arms": {
+    "on": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 4309,
+     "patch_sha256": "18813aa2c598f55023c13e4ff3dd61b800a190f8cb78c55eab2496d25e228e43",
+     "grade_seconds": 18.9,
+     "agent_rc": 0,
+     "wall_seconds": 83,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.314395,
+     "tokens": {
+      "input": 30,
+      "output": 4500,
+      "cache_read": 303877,
+      "cache_write": 26520
+     },
+     "messages": 16,
+     "tool_calls": {
+      "edit": 9,
+      "grep": 4,
+      "read": 6
+     },
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 11632
+    },
+    "off": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 2645,
+     "patch_sha256": "46ce9aadcc74c40d8621da38ed2dcf6acdc9eda7c984be62036b58ed231d3f00",
+     "grade_seconds": 13.7,
+     "agent_rc": 0,
+     "wall_seconds": 36,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.189284,
+     "tokens": {
+      "input": 22,
+      "output": 2719,
+      "cache_read": 145857,
+      "cache_write": 17901
+     },
+     "messages": 12,
+     "tool_calls": {
+      "edit": 6,
+      "grep": 2,
+      "read": 5
+     },
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 7991
+    }
+   }
+  },
+  {
+   "pair": "p07",
+   "instance_id": "instance_flipt-io__flipt-c1728053367c753688f114ec26e703c8fdeda125",
+   "image": {
+    "ref": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_flipt-io__flipt-c1728053367c753688f114ec26e703c8fdeda125",
+    "manifest_digest": "sha256:000203ab948b2b1ec3f09e0fa2abb1f07b574d5e4196e7563dd2bc586d918032",
+    "config_digest": "sha256:b36ca1f067ef6fbd3b225e2b8a74b767fac88c3752c5461c60fa8388dcc95f9a",
+    "compressed_bytes": 1763578095,
+    "layers": 21
+   },
+   "source_snapshot": {
+    "git_archive_sha256": "c9ce8e8c0483ee0547fb94970110c23c61c3104be21a09b9318989c390777a63",
+    "workdir": "/app",
+    "image_head": "775da4fe5fcbc163ab01fd9a809fdbddd9a87ebd",
+    "dirty_paths": 0
+   },
+   "gold": {
+    "resolved": true,
+    "grade_seconds": 26.8
+   },
+   "arms": {
+    "on": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 3911,
+     "patch_sha256": "f283a53786d0acbace3ab5fb2eb776c4d4ab651566a38495c2685189705a182c",
+     "grade_seconds": 37.7,
+     "agent_rc": 0,
+     "wall_seconds": 78,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.192599,
+     "tokens": {
+      "input": 22,
+      "output": 3055,
+      "cache_read": 134154,
+      "cache_write": 13796
+     },
+     "messages": 12,
+     "tool_calls": {
+      "edit": 1,
+      "glob": 1,
+      "grep": 4,
+      "read": 3,
+      "write": 4
+     },
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 11387
+    },
+    "off": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 5515,
+     "patch_sha256": "004b4422b13b580c8b2759b5482d5c17a19273ac719623a48560d54fecf72aea",
+     "grade_seconds": 29.4,
+     "agent_rc": 0,
+     "wall_seconds": 73,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.244724,
+     "tokens": {
+      "input": 28,
+      "output": 4376,
+      "cache_read": 196183,
+      "cache_write": 17127
+     },
+     "messages": 15,
+     "tool_calls": {
+      "edit": 4,
+      "glob": 2,
+      "grep": 5,
+      "read": 3,
+      "write": 5
+     },
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 8310
+    }
+   }
+  },
+  {
+   "pair": "p08",
+   "instance_id": "instance_gravitational__teleport-2bb3bbbd8aff1164a2353381cb79e1dc93b90d28-vee9b09fb20c43af7e520f57e9239bbcf46b7113d",
+   "image": {
+    "ref": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_gravitational__teleport-2bb3bbbd8aff1164a2353381cb79e1dc93b90d28-vee9b09fb20c43af7e520f57e9239bbcf46b7113d",
+    "manifest_digest": "sha256:529ac390e8a4488db6efc56f46fad6e112894cf78e9166549fc48203c5dd1130",
+    "config_digest": "sha256:684dea76e8bebc991c57d2efe2946837b2cfaabd7206481e08adb9d2d85ac972",
+    "compressed_bytes": 3412557250,
+    "layers": 21
+   },
+   "source_snapshot": {
+    "git_archive_sha256": "c9daae60310853fdccb9695b7cf41398ba3f2cb34c4a33c6c58b38f7b004b138",
+    "workdir": "/app",
+    "image_head": "040ec6d3b264d152a674718eb5a0864debb68470",
+    "dirty_paths": 0
+   },
+   "gold": {
+    "resolved": true,
+    "grade_seconds": 85.6
+   },
+   "arms": {
+    "on": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 3038,
+     "patch_sha256": "eaf664aac52e72283cb98c9fe6e639aa387ef9472dd7ce585f3f937cc84baf7f",
+     "grade_seconds": 98.2,
+     "agent_rc": 0,
+     "wall_seconds": 33,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.1521,
+     "tokens": {
+      "input": 12,
+      "output": 2353,
+      "cache_read": 71785,
+      "cache_write": 16495
+     },
+     "messages": 7,
+     "tool_calls": {
+      "edit": 5,
+      "read": 2
+     },
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 11245
+    },
+    "off": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 3176,
+     "patch_sha256": "75b20e72cb08e574cfd3ff42d4c9985d3babf75ac0485ecc9af32e6e1a39be55",
+     "grade_seconds": 109.9,
+     "agent_rc": 0,
+     "wall_seconds": 30,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.140307,
+     "tokens": {
+      "input": 14,
+      "output": 2707,
+      "cache_read": 65655,
+      "cache_write": 13072
+     },
+     "messages": 8,
+     "tool_calls": {
+      "edit": 6,
+      "grep": 1,
+      "read": 3
+     },
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 7769
+    }
+   }
+  },
+  {
+   "pair": "p09",
+   "instance_id": "instance_internetarchive__openlibrary-7f7e53aa4cf74a4f8549a5bcd4810c527e2f6d7e-v13642507b4fc1f8d234172bf8129942da2c2ca26",
+   "image": {
+    "ref": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_internetarchive__openlibrary-7f7e53aa4cf74a4f8549a5bcd4810c527e2f6d7e-v13642507b4fc1f8d234172bf8129942da2c2ca26",
+    "manifest_digest": "sha256:75c96587aba806fd489db6589e62467981f081e3ac5204ce1a9349d031f8cbb1",
+    "config_digest": "sha256:3ab96efaae9b6bae2ba9a811ad35438c40a0571792a535d9a9675aa59284a588",
+    "compressed_bytes": 874106349,
+    "layers": 22
+   },
+   "source_snapshot": {
+    "git_archive_sha256": "4e31dc2a0dd7b085d5d3dcc40335367d3b57751e7d31cdb2408e021e78811131",
+    "workdir": "/app",
+    "image_head": "630221ab686c64e75a2ce253c893c033e4814b2e",
+    "dirty_paths": 0
+   },
+   "gold": {
+    "resolved": true,
+    "grade_seconds": 4.8
+   },
+   "arms": {
+    "on": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 3234,
+     "patch_sha256": "45d3805be1159328ded80f86434e2a99f123009e7dc2dcfc65f5ed2dd681062c",
+     "grade_seconds": 13.0,
+     "agent_rc": 0,
+     "wall_seconds": 35,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.146344,
+     "tokens": {
+      "input": 8,
+      "output": 2279,
+      "cache_read": 32761,
+      "cache_write": 14296
+     },
+     "messages": 5,
+     "tool_calls": {
+      "edit": 1,
+      "read": 4
+     },
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 11899
+    },
+    "off": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 3612,
+     "patch_sha256": "60aaa9702c88741a219fea527965925e7e27a06484ed6164ade797570c3ae836",
+     "grade_seconds": 9.4,
+     "agent_rc": 0,
+     "wall_seconds": 37,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.140797,
+     "tokens": {
+      "input": 14,
+      "output": 2889,
+      "cache_read": 62628,
+      "cache_write": 10995
+     },
+     "messages": 8,
+     "tool_calls": {
+      "edit": 2,
+      "grep": 2,
+      "read": 4
+     },
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 8258
+    }
+   }
+  },
+  {
+   "pair": "p10",
+   "instance_id": "instance_gravitational__teleport-326fd1d7be87b03998dbc53bc706fdef90f5065c-v626ec2a48416b10a88641359a169d99e935ff037",
+   "image": {
+    "ref": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_gravitational__teleport-326fd1d7be87b03998dbc53bc706fdef90f5065c-v626ec2a48416b10a88641359a169d99e935ff037",
+    "manifest_digest": "sha256:a14327a65f9d53b521750d872ad9bf3541e4d3c382ce0cb9562fbbbcfe4dfb77",
+    "config_digest": "sha256:bd6ec516674c0b4fb848c734f5236ceb27d496f10dba1f3abf1c867c813d334a",
+    "compressed_bytes": 2586615096,
+    "layers": 24
+   },
+   "source_snapshot": {
+    "git_archive_sha256": "8c17a15ac96fdd73c48f97122ee9102c79acc2be01813b9eb2800051e56a9bcc",
+    "workdir": "/app",
+    "image_head": "b1e4f1e0324f7e89d1c3c49070a05a243bfddf99",
+    "dirty_paths": 0
+   },
+   "gold": {
+    "resolved": true,
+    "grade_seconds": 90.6
+   },
+   "arms": {
+    "on": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 10992,
+     "patch_sha256": "eee662ef9ae193a6339e16c3546c74662141384be6bf69269fce28af6aedca58",
+     "grade_seconds": 98.2,
+     "agent_rc": 0,
+     "wall_seconds": 65,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.367742,
+     "tokens": {
+      "input": 42,
+      "output": 5087,
+      "cache_read": 439544,
+      "cache_write": 32649
+     },
+     "messages": 22,
+     "tool_calls": {
+      "edit": 15,
+      "execute": 1,
+      "grep": 9,
+      "read": 7
+     },
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 11797
+    },
+    "off": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 10874,
+     "patch_sha256": "76ede00f25a49bcf4caac3b2eb194b635ea64781bde8c7dcc4aa795678b38440",
+     "grade_seconds": 99.9,
+     "agent_rc": 0,
+     "wall_seconds": 75,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.364377,
+     "tokens": {
+      "input": 38,
+      "output": 5211,
+      "cache_read": 419799,
+      "cache_write": 32101
+     },
+     "messages": 20,
+     "tool_calls": {
+      "edit": 15,
+      "execute": 1,
+      "grep": 9,
+      "read": 7
+     },
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 8128
+    }
+   }
+  }
+ ],
+ "observations": [
+  "The on-arm agent made zero calls to Corvint tools (corvint_context, corvint_expand, corvint_record_outcome, corvint_status) in all 10 sessions. The plugin was loaded: its tools, skill and context envelope added about 3.4k first-step prompt tokens, and it recorded session-start, user-prompt and file-change events with support FALLBACK.",
+  "OpenCode code-mode 'execute' was available in both arms; its sandbox exposed no file or shell tools and every observed call returned a no-op value. No shell call was attempted.",
+  "No session reached the step or wall-clock limit; all 20 exited 0 within 30-168 s."
+ ],
+ "deviations": [
+  "Agent ran on the macOS host without a shell, not in the task container.",
+  "570 s wall clock instead of 50 minutes (none of the sessions came near it).",
+  "Local docker.exe grader mirror instead of Harbor or Modal; up to 4 CPUs and 8 GB.",
+  "N = 10 of 642."
+ ],
+ "spend_usd": {
+  "trial_sessions": 5.7321,
+  "hard_stop": 130,
+  "hard_stop_reached": false
+ },
+ "not_run": [],
+ "limits": [
+  "N = 10 cannot detect small effects; no significance claim.",
+  "Both arms resolved 9 of 10, so the trial is a null result for resolve rate on this subset."
+ ]
+}

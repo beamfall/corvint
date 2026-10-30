@@ -1,0 +1,137 @@
+{
+  "profile": "corvint-harness-logical-interaction/0",
+  "boundaryCases": [
+    {
+      "case": "oversize-prompt",
+      "input": {"taskCharacter": "x", "taskCharacterCount": 2001},
+      "expected": {
+        "corvintInvoked": false,
+        "code": "prompt-over-query-bound",
+        "hosts": ["claude-code", "codex", "gemini-cli", "opencode"]
+      }
+    },
+    {
+      "case": "over-bound-prompt-anchor-query",
+      "input": {"promptSegments": [
+        {"text": "  Fix `prompt-over-query-bound` in cmd/corvint/host_adapter.go: normalizeAdapterInput and MAX_TASK_BYTES per AHI-016. ", "repeat": 1},
+        {"text": "please look at why the hook keeps degrading, e.g. version 1.25 fails. ", "repeat": 40},
+        {"text": "Also AGENTS.md, then normalizeAdapterInput again.\n", "repeat": 1}
+      ]},
+      "expected": {
+        "corvintInvoked": true,
+        "task": "prompt-over-query-bound cmd/corvint/host_adapter.go normalizeAdapterInput MAX_TASK_BYTES AHI-016 AGENTS.md",
+        "disclosure": "Corvint prompt bound (trusted adapter disclosure): the prompt has 2965 characters and 2965 bytes, over the 2000-character/16384-byte query bound. Retrieval used only a derived query of 6 distinct explicit anchors (backtick spans, paths, identifiers, requirement IDs) copied verbatim from the prompt, 106 characters long. The rest of the prompt was not queried; this context makes no claim about it and may omit evidence the full prompt would select.\n",
+        "hosts": ["claude-code", "codex", "gemini-cli", "opencode"]
+      }
+    },
+    {
+      "case": "over-bound-prompt-unicode-and-unclosed-span",
+      "input": {"promptSegments": [
+        {"text": "Überprüfe 🙂 `x` und `", "repeat": 1},
+        {"text": "y", "repeat": 130},
+        {"text": "` dann file_name.py, camelCase, and/or v1.25 src/ CORVINT-V0-001 `CORVINT-V0-001` ", "repeat": 1},
+        {"text": "héllo wörld 🙂 ", "repeat": 150}
+      ]},
+      "expected": {
+        "corvintInvoked": true,
+        "task": "x  dann file_name.py, camelCase, and/or v1.25 src/ CORVINT-V0-001  CORVINT-V0-001",
+        "disclosure": "Corvint prompt bound (trusted adapter disclosure): the prompt has 2332 characters and 3087 bytes, over the 2000-character/16384-byte query bound. Retrieval used only a derived query of 3 distinct explicit anchors (backtick spans, paths, identifiers, requirement IDs) copied verbatim from the prompt, 81 characters long. The rest of the prompt was not queried; this context makes no claim about it and may omit evidence the full prompt would select.\n",
+        "hosts": ["claude-code", "codex", "gemini-cli", "opencode"]
+      }
+    },
+    {
+      "case": "over-bound-prompt-anchor-set-over-bound",
+      "input": {"promptSegments": [
+        {"text": "anchor_{n}_item ", "repeat": 300}
+      ]},
+      "expected": {
+        "corvintInvoked": false,
+        "code": "prompt-over-query-bound",
+        "hosts": ["claude-code", "codex", "gemini-cli", "opencode"]
+      }
+    },
+    {
+      "case": "oversize-prompt-keeps-byte-order-mark",
+      "input": {"taskCharacter": "x", "taskCharacterCount": 2000, "promptSegments": [
+        {"text": "\uFEFF", "repeat": 1}
+      ]},
+      "expected": {
+        "corvintInvoked": false,
+        "code": "prompt-over-query-bound",
+        "hosts": ["claude-code", "codex", "gemini-cli", "opencode"]
+      }
+    },
+    {
+      "case": "over-bound-prompt-trims-next-line",
+      "input": {"promptSegments": [
+        {"text": "\u0085\u0085Fix `x` in cmd/corvint/prompt_bound.go. ", "repeat": 1},
+        {"text": "please look at why the hook keeps degrading, e.g. version 1.25 fails. ", "repeat": 40},
+        {"text": "\u0085", "repeat": 1}
+      ]},
+      "expected": {
+        "corvintInvoked": true,
+        "task": "x cmd/corvint/prompt_bound.go",
+        "disclosure": "Corvint prompt bound (trusted adapter disclosure): the prompt has 2839 characters and 2839 bytes, over the 2000-character/16384-byte query bound. Retrieval used only a derived query of 2 distinct explicit anchors (backtick spans, paths, identifiers, requirement IDs) copied verbatim from the prompt, 29 characters long. The rest of the prompt was not queried; this context makes no claim about it and may omit evidence the full prompt would select.\n",
+        "hosts": ["claude-code", "codex", "gemini-cli", "opencode"]
+      }
+    }
+  ],
+  "events": [
+    {
+      "event": "session-start",
+      "expected": {
+        "claude-code": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e"},
+        "codex": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e"},
+        "gemini-cli": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e"},
+        "opencode": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e"},
+        "pi": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e"}
+      }
+    },
+    {
+      "event": "user-prompt",
+      "expected": {
+        "claude-code": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e", "task": "inspect the parser"},
+        "codex": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e", "task": "inspect the parser"},
+        "gemini-cli": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e", "task": "inspect the parser"},
+        "opencode": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e", "task": "inspect the parser"},
+        "pi": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e", "task": "inspect the parser"}
+      }
+    },
+    {
+      "event": "file-change",
+      "expected": {
+        "claude-code": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e", "paths": ["src/parser.py"]},
+        "gemini-cli": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e", "paths": ["src/parser.py"]},
+        "opencode": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e", "paths": ["src/parser.py"]}
+      }
+    },
+    {
+      "event": "post-tool",
+      "expected": {
+        "claude-code": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e", "observedEvidenceHandles": [], "changedPaths": ["src/parser.py"], "verification": []},
+        "opencode": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e", "observedEvidenceHandles": [], "changedPaths": ["src/parser.py"], "verification": []},
+        "pi": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e", "observedEvidenceHandles": [], "changedPaths": ["src/parser.py"], "verification": []}
+      }
+    },
+    {
+      "event": "stop",
+      "expected": {
+        "claude-code": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e", "stopHookActive": false, "changedPaths": []},
+        "codex": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e", "stopHookActive": false, "changedPaths": []},
+        "gemini-cli": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e", "stopHookActive": false, "changedPaths": []},
+        "opencode": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e", "stopHookActive": false, "changedPaths": []},
+        "pi": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e", "stopHookActive": false, "changedPaths": []}
+      }
+    },
+    {
+      "event": "session-end",
+      "expected": {
+        "claude-code": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e", "openedPaths": [], "changedPaths": [], "verification": []},
+        "codex": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e", "openedPaths": [], "changedPaths": [], "verification": []},
+        "gemini-cli": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e", "openedPaths": [], "changedPaths": [], "verification": []},
+        "opencode": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e", "openedPaths": [], "changedPaths": [], "verification": []},
+        "pi": {"sessionIdSha256": "c6af1c7af957da216593479acab5b582b6fbd26295622a3cb8f6e0cd72106e1e", "openedPaths": [], "changedPaths": [], "verification": []}
+      }
+    }
+  ]
+}

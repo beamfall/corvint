@@ -1,0 +1,99 @@
+{
+  "profile": "cem-citation-measure-vectors/1",
+  "note": "Library-level citation vectors (V1-1331, V1-1332, V1-1335). Each case is the input of the CEM-V1-082 block computation after verification passed: evidence records with their bound span bytes, and map hunks with their hunk path, whether the hunk deletes the whole file, the added line payloads (each with its LF), the disposition and the basis entries. A consumer computes the block from these inputs alone and must reproduce `citation` byte for byte. The values came from the native verifier. `deletion-same-path` cannot occur in an ACCEPT, because a cited file the change deletes is evidence drift; it pins the hunk path rule at the computation itself.",
+  "cases": [
+    {
+      "name": "fan-out-one",
+      "description": "three supported hunks cite three distinct evidence records: maxFanOut 1 and concentratedHunks 0 (V1-1331)",
+      "evidence": [
+        {"id": "evidence:a", "path": "SPEC.md", "span": "- `CVM-001`: parse MUST reject an empty header.\n"},
+        {"id": "evidence:b", "path": "SPEC.md", "span": "- `CVM-002`: render MUST emit one line per record.\n"},
+        {"id": "evidence:c", "path": "SPEC.md", "span": "- `CVM-003`: encode MUST escape tabs.\n"}
+      ],
+      "hunks": [
+        {"id": "hunk:1", "path": "parse.go", "deleted": false, "disposition": "supported", "added": ["\tif header == \"\" { // CVM-001\n"], "basis": [["evidence:a", "specification"]]},
+        {"id": "hunk:2", "path": "render.go", "deleted": false, "disposition": "supported", "added": ["\tfmt.Fprintln(out, record)\n"], "basis": [["evidence:b", "specification"]]},
+        {"id": "hunk:3", "path": "encode.go", "deleted": false, "disposition": "supported", "added": ["\tfield = strings.ReplaceAll(field, \"\\t\", \"\\\\t\")\n"], "basis": [["evidence:c", "specification"]]}
+      ],
+      "citation": "{\"profile\":\"cem-citation-support/0\",\"hunks\":[{\"hunkId\":\"hunk:1\",\"tier\":\"anchored\",\"anchors\":[\"id\"],\"annotation\":false},{\"hunkId\":\"hunk:2\",\"tier\":\"cited\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:3\",\"tier\":\"cited\",\"anchors\":[],\"annotation\":false}],\"hunksByClass\":{\"held\":0,\"mechanical-proved\":0,\"anchored\":1,\"cited\":2,\"unknown\":0},\"annotationHunks\":0,\"distinctEvidence\":3,\"evidenceFanOut\":[[\"evidence:a\",1],[\"evidence:b\",1],[\"evidence:c\",1]],\"maxFanOut\":1,\"samePathCitations\":0,\"concentratedHunks\":0,\"invariant\":false,\"specificity\":1}"
+    },
+    {
+      "name": "fan-out-two",
+      "description": "all three hunks cite evidence:a and one also cites evidence:b: maxFanOut 3 and the two hunks citing only evidence:a are concentrated",
+      "evidence": [
+        {"id": "evidence:a", "path": "AGENTS.md", "span": "Keep changes small and tested.\n"},
+        {"id": "evidence:b", "path": "SPEC.md", "span": "- `CVM-002`: render MUST emit one line per record.\n"}
+      ],
+      "hunks": [
+        {"id": "hunk:1", "path": "parse.go", "deleted": false, "disposition": "supported", "added": ["\tif header == \"\" {\n"], "basis": [["evidence:a", "constraint"]]},
+        {"id": "hunk:2", "path": "render.go", "deleted": false, "disposition": "supported", "added": ["\tfmt.Fprintln(out, record)\n"], "basis": [["evidence:a", "constraint"], ["evidence:b", "specification"]]},
+        {"id": "hunk:3", "path": "encode.go", "deleted": false, "disposition": "supported", "added": ["\treturn strconv.Quote(field)\n"], "basis": [["evidence:a", "constraint"]]}
+      ],
+      "citation": "{\"profile\":\"cem-citation-support/0\",\"hunks\":[{\"hunkId\":\"hunk:1\",\"tier\":\"cited\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:2\",\"tier\":\"cited\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:3\",\"tier\":\"cited\",\"anchors\":[],\"annotation\":false}],\"hunksByClass\":{\"held\":0,\"mechanical-proved\":0,\"anchored\":0,\"cited\":3,\"unknown\":0},\"annotationHunks\":0,\"distinctEvidence\":2,\"evidenceFanOut\":[[\"evidence:a\",3],[\"evidence:b\",1]],\"maxFanOut\":3,\"samePathCitations\":0,\"concentratedHunks\":2,\"invariant\":false,\"specificity\":0}"
+    },
+    {
+      "name": "short-code-hunks",
+      "description": "short code lines made of former stop terms are not annotation; an ID comment and a prose-only line still are (V1-1335)",
+      "evidence": [],
+      "hunks": [
+        {"id": "hunk:1", "path": "count.go", "deleted": false, "disposition": "unknown", "added": ["\treturn value - 1\n"], "basis": []},
+        {"id": "hunk:2", "path": "flag.go", "deleted": false, "disposition": "unknown", "added": ["\treturn true\n"], "basis": []},
+        {"id": "hunk:3", "path": "loop.py", "deleted": false, "disposition": "unknown", "added": ["while self.ok:\n"], "basis": []},
+        {"id": "hunk:4", "path": "note.go", "deleted": false, "disposition": "unknown", "added": ["x // `CEM-SM-007`\n"], "basis": []},
+        {"id": "hunk:5", "path": "README.md", "deleted": false, "disposition": "unknown", "added": ["They must also have these.\n", "\n"], "basis": []}
+      ],
+      "citation": "{\"profile\":\"cem-citation-support/0\",\"hunks\":[{\"hunkId\":\"hunk:1\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:2\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:3\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:4\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":true},{\"hunkId\":\"hunk:5\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":true}],\"hunksByClass\":{\"held\":0,\"mechanical-proved\":0,\"anchored\":0,\"cited\":0,\"unknown\":5},\"annotationHunks\":2,\"distinctEvidence\":0,\"evidenceFanOut\":[],\"maxFanOut\":0,\"samePathCitations\":0,\"concentratedHunks\":0,\"invariant\":true,\"specificity\":0}"
+    },
+    {
+      "name": "stop-list-complete",
+      "description": "one prose line of all 39 annotation stop terms in mixed case is annotation; a list missing any term, or compared without lowercasing, reads it as code (CEM-V1-081, V1-1335)",
+      "evidence": [],
+      "hunks": [
+        {"id": "hunk:1", "path": "NOTES.md", "deleted": false, "disposition": "unknown", "added": ["ALSO Been build CHANGE Changed changes CLAIM Dist docs DOCUMENT Documentation evidence GENERATED Have hunk MUST Only packages REPORT Reports requirement REQUIREMENTS Shall should SIDECAR Sources supported TESTING Tests that THEIR There these THEY Those vendor VENDORED Which will.\n"], "basis": []}
+      ],
+      "citation": "{\"profile\":\"cem-citation-support/0\",\"hunks\":[{\"hunkId\":\"hunk:1\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":true}],\"hunksByClass\":{\"held\":0,\"mechanical-proved\":0,\"anchored\":0,\"cited\":0,\"unknown\":1},\"annotationHunks\":1,\"distinctEvidence\":0,\"evidenceFanOut\":[],\"maxFanOut\":0,\"samePathCitations\":0,\"concentratedHunks\":0,\"invariant\":true,\"specificity\":0}"
+    },
+    {
+      "name": "removed-terms-single",
+      "description": "each of the 21 terms V1-1335 removed from the stop list, alone on a code line, is not annotation; restoring any one of them makes its hunk annotation",
+      "evidence": [],
+      "hunks": [
+        {"id": "hunk:1", "path": "w01.go", "deleted": false, "disposition": "unknown", "added": ["\terror\n"], "basis": []},
+        {"id": "hunk:2", "path": "w02.go", "deleted": false, "disposition": "unknown", "added": ["\tfalse\n"], "basis": []},
+        {"id": "hunk:3", "path": "w03.go", "deleted": false, "disposition": "unknown", "added": ["\tfrom\n"], "basis": []},
+        {"id": "hunk:4", "path": "w04.go", "deleted": false, "disposition": "unknown", "added": ["\tinclude\n"], "basis": []},
+        {"id": "hunk:5", "path": "w05.go", "deleted": false, "disposition": "unknown", "added": ["\tinto\n"], "basis": []},
+        {"id": "hunk:6", "path": "w06.go", "deleted": false, "disposition": "unknown", "added": ["\tpackage\n"], "basis": []},
+        {"id": "hunk:7", "path": "w07.go", "deleted": false, "disposition": "unknown", "added": ["\tprint\n"], "basis": []},
+        {"id": "hunk:8", "path": "w08.go", "deleted": false, "disposition": "unknown", "added": ["\treturn\n"], "basis": []},
+        {"id": "hunk:9", "path": "w09.go", "deleted": false, "disposition": "unknown", "added": ["\tself\n"], "basis": []},
+        {"id": "hunk:10", "path": "w10.go", "deleted": false, "disposition": "unknown", "added": ["\tsource\n"], "basis": []},
+        {"id": "hunk:11", "path": "w11.go", "deleted": false, "disposition": "unknown", "added": ["\tstring\n"], "basis": []},
+        {"id": "hunk:12", "path": "w12.go", "deleted": false, "disposition": "unknown", "added": ["\ttest\n"], "basis": []},
+        {"id": "hunk:13", "path": "w13.go", "deleted": false, "disposition": "unknown", "added": ["\tthen\n"], "basis": []},
+        {"id": "hunk:14", "path": "w14.go", "deleted": false, "disposition": "unknown", "added": ["\tthis\n"], "basis": []},
+        {"id": "hunk:15", "path": "w15.go", "deleted": false, "disposition": "unknown", "added": ["\ttrue\n"], "basis": []},
+        {"id": "hunk:16", "path": "w16.go", "deleted": false, "disposition": "unknown", "added": ["\tunknown\n"], "basis": []},
+        {"id": "hunk:17", "path": "w17.go", "deleted": false, "disposition": "unknown", "added": ["\tvalue\n"], "basis": []},
+        {"id": "hunk:18", "path": "w18.go", "deleted": false, "disposition": "unknown", "added": ["\twhen\n"], "basis": []},
+        {"id": "hunk:19", "path": "w19.go", "deleted": false, "disposition": "unknown", "added": ["\twhere\n"], "basis": []},
+        {"id": "hunk:20", "path": "w20.go", "deleted": false, "disposition": "unknown", "added": ["\twhile\n"], "basis": []},
+        {"id": "hunk:21", "path": "w21.go", "deleted": false, "disposition": "unknown", "added": ["\twith\n"], "basis": []}
+      ],
+      "citation": "{\"profile\":\"cem-citation-support/0\",\"hunks\":[{\"hunkId\":\"hunk:1\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:10\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:11\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:12\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:13\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:14\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:15\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:16\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:17\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:18\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:19\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:2\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:20\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:21\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:3\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:4\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:5\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:6\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:7\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:8\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:9\",\"tier\":\"unknown\",\"anchors\":[],\"annotation\":false}],\"hunksByClass\":{\"held\":0,\"mechanical-proved\":0,\"anchored\":0,\"cited\":0,\"unknown\":21},\"annotationHunks\":0,\"distinctEvidence\":0,\"evidenceFanOut\":[],\"maxFanOut\":0,\"samePathCitations\":0,\"concentratedHunks\":0,\"invariant\":true,\"specificity\":0}"
+    },
+    {
+      "name": "deletion-same-path",
+      "description": "a whole-file deletion hunk compares samePathCitations against its base path; a modified hunk against its post-image path (V1-1332)",
+      "evidence": [
+        {"id": "evidence:a", "path": "legacy.txt", "span": "legacy record format\n"},
+        {"id": "evidence:b", "path": "parse.go", "span": "func Parse(header string) error {\n"}
+      ],
+      "hunks": [
+        {"id": "hunk:1", "path": "legacy.txt", "deleted": true, "disposition": "supported", "added": [], "basis": [["evidence:a", "context"]]},
+        {"id": "hunk:2", "path": "parse.go", "deleted": false, "disposition": "supported", "added": ["\tif header == \"\" {\n"], "basis": [["evidence:b", "context"]]}
+      ],
+      "citation": "{\"profile\":\"cem-citation-support/0\",\"hunks\":[{\"hunkId\":\"hunk:1\",\"tier\":\"cited\",\"anchors\":[],\"annotation\":false},{\"hunkId\":\"hunk:2\",\"tier\":\"cited\",\"anchors\":[],\"annotation\":false}],\"hunksByClass\":{\"held\":0,\"mechanical-proved\":0,\"anchored\":0,\"cited\":2,\"unknown\":0},\"annotationHunks\":0,\"distinctEvidence\":2,\"evidenceFanOut\":[[\"evidence:a\",1],[\"evidence:b\",1]],\"maxFanOut\":1,\"samePathCitations\":2,\"concentratedHunks\":0,\"invariant\":false,\"specificity\":0}"
+    }
+  ]
+}

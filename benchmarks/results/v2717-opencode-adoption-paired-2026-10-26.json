@@ -1,0 +1,1072 @@
+{
+ "profile": "corvint-v2717-opencode-adoption-paired/0",
+ "ticket": "V1-2717",
+ "date": "2026-10-26",
+ "preregistration": {
+  "path": "benchmarks/results/v2717-opencode-adoption-paired-prereg.md",
+  "commit": "c93efbb15cdb701023a26c174bae51bae022d3e7",
+  "sha256_at_commit": "147a4547e5a025cb046bf77fb5de5206eb7a9c1fc4a4febbfdb0a489517d02b2",
+  "sha256_now": "147a4547e5a025cb046bf77fb5de5206eb7a9c1fc4a4febbfdb0a489517d02b2",
+  "committed_before_first_trial_session": true
+ },
+ "baseline": {
+  "receipt": "benchmarks/results/v2717-swebench-pro-paired-2026-10-26.json",
+  "adapter": "0.7.22",
+  "on": {
+   "resolved": 9,
+   "cost_usd": 2.8783,
+   "cost_per_resolved_usd": 0.3198
+  },
+  "off": {
+   "resolved": 9,
+   "cost_usd": 2.5099,
+   "cost_per_resolved_usd": 0.2789
+  },
+  "corvint_tool_calls": 0,
+  "first_step_prompt_tokens_delta": 1314
+ },
+ "reuses": {
+  "from": "benchmarks/results/v0415-swebench-pro-paired-2026-10-25.json",
+  "items": [
+   "dataset pins",
+   "harness pins",
+   "admitted subset and source snapshots",
+   "pulled images (no new pulls)",
+   "gold controls"
+  ]
+ },
+ "agent": {
+  "harness": "OpenCode v2.1.3 (opencode run --standalone --auto)",
+  "model": "anthropic/claude-opus-5-5",
+  "steps": 50,
+  "wall_clock_seconds": 570,
+  "denied_tools": [
+   "shell",
+   "webfetch",
+   "websearch"
+  ],
+  "pair_sessions_concurrent": false,
+  "arm_order": "on first in odd pairs, off first in even pairs; pairs p01..p10 in order"
+ },
+ "arms": {
+  "on": {
+   "adapter": "integrations/opencode at c93efbb (0.7.23, AHI-211): corvint_context direct, other three tools in the Code Mode catalog; explained candidate frame only for confident packets",
+   "corvint_binary_sha256": "2da2789d838fc815232d5bb85d7c5b6cf803a8cdfab24d7c3ea54bb25cd50713",
+   "corvint_version": "1.0.0-rc.3 (build 0), built from c93efbb",
+   "index": "prebuilt with corvint --root <repo> index, outside the agent budget"
+  },
+  "off": {
+   "adapter": null
+  }
+ },
+ "subset": {
+  "rule": "the 10 pairs V1-0415 admitted",
+  "admitted": 10,
+  "skipped_gold_failures": []
+ },
+ "pairs": [
+  {
+   "pair": "p01",
+   "instance_id": "instance_gravitational__teleport-1330415d33a27594c948a36d9d7701f496229e9f",
+   "image": {
+    "ref": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_gravitational__teleport-1330415d33a27594c948a36d9d7701f496229e9f",
+    "manifest_digest": "sha256:ea4ac40e3b69d25b124f57da010f338cf6f009d508a4eaa8f0aac0da473c20a8",
+    "config_digest": "sha256:6ce2ca4ce568d30ec95ee01c221299fdab411a41e390b8ae48fca2cd9e124b8d",
+    "compressed_bytes": 2495220554,
+    "layers": 24
+   },
+   "source_snapshot": {
+    "git_archive_sha256": "2763fe489677707f83d600955a5d125c19ce344899b630b8da0580478d27be72",
+    "workdir": "/app",
+    "image_head": "bb69574e02bd62e5ccd3cebb25e1c992641afb2a",
+    "dirty_paths": 0
+   },
+   "gold": {
+    "resolved": true,
+    "grade_seconds": 16.8
+   },
+   "arms": {
+    "on": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 8902,
+     "patch_sha256": "7e4c7541c3e7164a4bbb77d0518c896d1d99b50315b2506cfc236716121e1c40",
+     "grade_seconds": 21.1,
+     "agent_rc": 0,
+     "wall_seconds": 67,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.270528,
+     "tokens": {
+      "input": 20,
+      "output": 5471,
+      "cache_read": 158488,
+      "cache_write": 21238
+     },
+     "messages": 11,
+     "tool_calls": {
+      "edit": 6,
+      "grep": 4,
+      "read": 2
+     },
+     "direct_corvint_tool_calls": 0,
+     "codemode_corvint_calls": 0,
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 12475
+    },
+    "off": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 7707,
+     "patch_sha256": "e9abce2739088cbb16a14122ef3e827f6250375ac973ce1fdef7279cec494f2d",
+     "grade_seconds": 21.0,
+     "agent_rc": 0,
+     "wall_seconds": 62,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.250931,
+     "tokens": {
+      "input": 20,
+      "output": 5367,
+      "cache_read": 150978,
+      "cache_write": 18935
+     },
+     "messages": 11,
+     "tool_calls": {
+      "edit": 8,
+      "grep": 6,
+      "read": 2
+     },
+     "direct_corvint_tool_calls": 0,
+     "codemode_corvint_calls": 0,
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 11299
+    }
+   }
+  },
+  {
+   "pair": "p02",
+   "instance_id": "instance_ansible__ansible-e0c91af45fa9af575d10fd3e724ebc59d2b2d6ac-v30a923fb5c164d6cd18280c02422f75e611e8fb2",
+   "image": {
+    "ref": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_ansible__ansible-e0c91af45fa9af575d10fd3e724ebc59d2b2d6ac-v30a923fb5c164d6cd18280c02422f75e611e8fb2",
+    "manifest_digest": "sha256:26c5322a32a20a2eb67fbb3570d214e02da35df4465d75ac580314c2037f9520",
+    "config_digest": "sha256:b5303de8fcd6052b0a667030592283415a8949af15076bac9cebc84f0546a095",
+    "compressed_bytes": 747450162,
+    "layers": 18
+   },
+   "source_snapshot": {
+    "git_archive_sha256": "7f065a2c2ac90e25050ea3e17efeefbc7c5fe993a09bc929ea46a089973fbb14",
+    "workdir": "/app",
+    "image_head": "5d15af3a9563271615fa1d0f5a99a175bfe41a9f",
+    "dirty_paths": 0
+   },
+   "gold": {
+    "resolved": true,
+    "grade_seconds": 49.5
+   },
+   "arms": {
+    "on": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 6337,
+     "patch_sha256": "6f09d76951651f0170082cb8767cf66254e049ca1661fff2d0737f1814cbe385",
+     "grade_seconds": 47.3,
+     "agent_rc": 0,
+     "wall_seconds": 40,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.154809,
+     "tokens": {
+      "input": 20,
+      "output": 2781,
+      "cache_read": 118871,
+      "cache_write": 13791
+     },
+     "messages": 11,
+     "tool_calls": {
+      "edit": 6,
+      "grep": 4,
+      "read": 6,
+      "write": 2
+     },
+     "direct_corvint_tool_calls": 0,
+     "codemode_corvint_calls": 0,
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 8821
+    },
+    "off": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 6700,
+     "patch_sha256": "0e72b77bcdde21d8ab9f6de1bd66d6cbe2c9b8e92077a437d6e3224867892eec",
+     "grade_seconds": 47.2,
+     "agent_rc": 0,
+     "wall_seconds": 44,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.160616,
+     "tokens": {
+      "input": 26,
+      "output": 3213,
+      "cache_read": 147760,
+      "cache_write": 11820
+     },
+     "messages": 14,
+     "tool_calls": {
+      "edit": 5,
+      "execute": 1,
+      "grep": 3,
+      "read": 5,
+      "write": 3
+     },
+     "direct_corvint_tool_calls": 0,
+     "codemode_corvint_calls": 0,
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 7607
+    }
+   }
+  },
+  {
+   "pair": "p03",
+   "instance_id": "instance_qutebrowser__qutebrowser-394bfaed6544c952c6b3463751abab3176ad4997-vafb3e8e01b31319c66c4e666b8a3b1d8ba55db24",
+   "image": {
+    "ref": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_qutebrowser__qutebrowser-394bfaed6544c952c6b3463751abab3176ad4997-vafb3e8e01b31319c66c4e666b8a3b1d8ba55db24",
+    "manifest_digest": "sha256:11e155a26b8c46a864b1c90392b7a916ac0a46f0aa36c69d2ce3ae8d18620674",
+    "config_digest": "sha256:0f04cb470ec03a3b2be4571a64f9dd803ffdeea49022b26665a45ec6a8b867c2",
+    "compressed_bytes": 779395664,
+    "layers": 18
+   },
+   "source_snapshot": {
+    "git_archive_sha256": "a49394a06a61591ed6cd40e0eb1e129f44b70fe41b5cfaa9008235515c28c19d",
+    "workdir": "/app",
+    "image_head": "d1164925c55f2417f1c3130b0196830bc2a3d25d",
+    "dirty_paths": 0
+   },
+   "gold": {
+    "resolved": true,
+    "grade_seconds": 16.1
+   },
+   "arms": {
+    "on": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 20705,
+     "patch_sha256": "097193ab7a5e3a2230156b4fb62ad5d60021e7232d958131e09a4e9739060c70",
+     "grade_seconds": 9.8,
+     "agent_rc": 0,
+     "wall_seconds": 180,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.68534,
+     "tokens": {
+      "input": 50,
+      "output": 14619,
+      "cache_read": 612801,
+      "cache_write": 40528
+     },
+     "messages": 26,
+     "tool_calls": {
+      "edit": 15,
+      "execute": 2,
+      "grep": 5,
+      "read": 11,
+      "write": 1
+     },
+     "direct_corvint_tool_calls": 0,
+     "codemode_corvint_calls": 1,
+     "corvint_tool_calls": 1,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 10298
+    },
+    "off": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 20454,
+     "patch_sha256": "2992560277ceb6ba94e5244756bc45c724b76073f8261446e5e8c70c64583164",
+     "grade_seconds": 18.4,
+     "agent_rc": 0,
+     "wall_seconds": 168,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.677781,
+     "tokens": {
+      "input": 62,
+      "output": 13493,
+      "cache_read": 773139,
+      "cache_write": 35005
+     },
+     "messages": 32,
+     "tool_calls": {
+      "edit": 12,
+      "execute": 1,
+      "grep": 13,
+      "read": 8,
+      "write": 1
+     },
+     "direct_corvint_tool_calls": 0,
+     "codemode_corvint_calls": 0,
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 9819
+    }
+   }
+  },
+  {
+   "pair": "p04",
+   "instance_id": "instance_ansible__ansible-395e5e20fab9cad517243372fa3c3c5d9e09ab2a-v7eee2454f617569fd6889f2211f75bc02a35f9f8",
+   "image": {
+    "ref": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_ansible__ansible-395e5e20fab9cad517243372fa3c3c5d9e09ab2a-v7eee2454f617569fd6889f2211f75bc02a35f9f8",
+    "manifest_digest": "sha256:764c65f536098c68457927874cb22a79cce526161a21ad4d17faa1232fdf323c",
+    "config_digest": "sha256:a3bbca9b15c4da35b421da5a6aaffd6abf45902d94f5c5b47e76c41ddfc2d37c",
+    "compressed_bytes": 716936603,
+    "layers": 18
+   },
+   "source_snapshot": {
+    "git_archive_sha256": "27c0984e57dd9010f20c7dfd1fc3c864102b150f412f6124795d6ed1839a22e6",
+    "workdir": "/app",
+    "image_head": "cd64e0b070f8630e1dcc021e594ed42ea7afe304",
+    "dirty_paths": 0
+   },
+   "gold": {
+    "resolved": true,
+    "grade_seconds": 39.2
+   },
+   "arms": {
+    "on": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 32533,
+     "patch_sha256": "28d96cc2cf16e229b3c0ac2bce4ce75f40faee720c04ea20505634e49eeee59f",
+     "grade_seconds": 36.4,
+     "agent_rc": 0,
+     "wall_seconds": 107,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.526882,
+     "tokens": {
+      "input": 42,
+      "output": 8720,
+      "cache_read": 617270,
+      "cache_write": 39588
+     },
+     "messages": 23,
+     "tool_calls": {
+      "edit": 27,
+      "execute": 1,
+      "glob": 1,
+      "grep": 7,
+      "read": 7,
+      "write": 1
+     },
+     "direct_corvint_tool_calls": 0,
+     "codemode_corvint_calls": 0,
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 10159
+    },
+    "off": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 33398,
+     "patch_sha256": "05ced28dc4151e07e25696d3e9266b882186e2ecc86e2753f873ea5e92e9d950",
+     "grade_seconds": 36.4,
+     "agent_rc": 0,
+     "wall_seconds": 90,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.475953,
+     "tokens": {
+      "input": 36,
+      "output": 8866,
+      "cache_read": 471222,
+      "cache_write": 35673
+     },
+     "messages": 19,
+     "tool_calls": {
+      "edit": 30,
+      "execute": 1,
+      "grep": 5,
+      "read": 5,
+      "write": 1
+     },
+     "direct_corvint_tool_calls": 0,
+     "codemode_corvint_calls": 0,
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 8936
+    }
+   }
+  },
+  {
+   "pair": "p05",
+   "instance_id": "instance_flipt-io__flipt-f36bd61fb1cee4669de1f00e59da462bfeae8765",
+   "image": {
+    "ref": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_flipt-io__flipt-f36bd61fb1cee4669de1f00e59da462bfeae8765",
+    "manifest_digest": "sha256:c17497ca811b80dbab277a3ba02eb70379bc56269ee855588b0ed234382bab31",
+    "config_digest": "sha256:14a9cea2bbb55b98fbcdab94b7f54dbc739794b72abc81933e28e4b304cdd177",
+    "compressed_bytes": 1587006125,
+    "layers": 21
+   },
+   "source_snapshot": {
+    "git_archive_sha256": "7741fdfc067c75c0bd88d740d797d483c7c95e49b19a4cb9b930c04ba83af358",
+    "workdir": "/app",
+    "image_head": "54e188b64f0dda5a1ab9caf8425f94dac3d08f40",
+    "dirty_paths": 0
+   },
+   "gold": {
+    "resolved": true,
+    "grade_seconds": 30.8
+   },
+   "arms": {
+    "on": {
+     "resolved": false,
+     "reward": 0,
+     "apply_rc": 0,
+     "patch_bytes": 6248,
+     "patch_sha256": "ed79d918c88c79969373f30045b7372903c6d6e07299d545545e5db94bfb47fe",
+     "grade_seconds": 27.0,
+     "agent_rc": 0,
+     "wall_seconds": 68,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.245368,
+     "tokens": {
+      "input": 22,
+      "output": 4062,
+      "cache_read": 153976,
+      "cache_write": 16829
+     },
+     "messages": 12,
+     "tool_calls": {
+      "edit": 6,
+      "glob": 1,
+      "grep": 2,
+      "read": 5,
+      "write": 1
+     },
+     "direct_corvint_tool_calls": 0,
+     "codemode_corvint_calls": 0,
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 9888
+    },
+    "off": {
+     "resolved": false,
+     "reward": 0,
+     "apply_rc": 0,
+     "patch_bytes": 6273,
+     "patch_sha256": "c7d7a269908f6b6ed17307ba24f8ea469f055a980bf547bb3e44a7c35cbaaaf4",
+     "grade_seconds": 26.9,
+     "agent_rc": 0,
+     "wall_seconds": 69,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.247805,
+     "tokens": {
+      "input": 22,
+      "output": 4641,
+      "cache_read": 141259,
+      "cache_write": 16865
+     },
+     "messages": 12,
+     "tool_calls": {
+      "edit": 6,
+      "glob": 1,
+      "grep": 2,
+      "read": 5,
+      "write": 1
+     },
+     "direct_corvint_tool_calls": 0,
+     "codemode_corvint_calls": 0,
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 8690
+    }
+   }
+  },
+  {
+   "pair": "p06",
+   "instance_id": "instance_navidrome__navidrome-8d56ec898e776e7e53e352cb9b25677975787ffc",
+   "image": {
+    "ref": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_navidrome__navidrome-8d56ec898e776e7e53e352cb9b25677975787ffc",
+    "manifest_digest": "sha256:e1547fcc5315c2eca1e05d09c02912c01e1b47a7133110669fc0f0cf5dd767ad",
+    "config_digest": "sha256:b7b6b53c47191ccbcd7336f9e83af1231b9525e43839bdbb3a7ee1b080a86693",
+    "compressed_bytes": 1150028633,
+    "layers": 27
+   },
+   "source_snapshot": {
+    "git_archive_sha256": "c667965391dc391da657a6f297fa8d23823453385eed541b951c1e1c0eb426c4",
+    "workdir": "/app",
+    "image_head": "5064cb2a46e4b7ca6a834b3c48a409eec8ca1830",
+    "dirty_paths": 0
+   },
+   "gold": {
+    "resolved": true,
+    "grade_seconds": 15.7
+   },
+   "arms": {
+    "on": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 2699,
+     "patch_sha256": "1d5067b5d37c789a33c078d46343d050861be7c4d4a80ed51e7ca28138c7405e",
+     "grade_seconds": 13.0,
+     "agent_rc": 0,
+     "wall_seconds": 40,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.187757,
+     "tokens": {
+      "input": 20,
+      "output": 2620,
+      "cache_read": 138759,
+      "cache_write": 18409
+     },
+     "messages": 11,
+     "tool_calls": {
+      "edit": 5,
+      "grep": 4,
+      "read": 3
+     },
+     "direct_corvint_tool_calls": 0,
+     "codemode_corvint_calls": 0,
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 9177
+    },
+    "off": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 4271,
+     "patch_sha256": "08956377f67ba298242d322480e1f600a01a6554d9a51fe3dc7d6f9a5619d1b5",
+     "grade_seconds": 16.8,
+     "agent_rc": 0,
+     "wall_seconds": 66,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.282891,
+     "tokens": {
+      "input": 34,
+      "output": 4856,
+      "cache_read": 282698,
+      "cache_write": 21443
+     },
+     "messages": 18,
+     "tool_calls": {
+      "edit": 9,
+      "grep": 6,
+      "read": 7
+     },
+     "direct_corvint_tool_calls": 0,
+     "codemode_corvint_calls": 0,
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 7993
+    }
+   }
+  },
+  {
+   "pair": "p07",
+   "instance_id": "instance_flipt-io__flipt-c1728053367c753688f114ec26e703c8fdeda125",
+   "image": {
+    "ref": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_flipt-io__flipt-c1728053367c753688f114ec26e703c8fdeda125",
+    "manifest_digest": "sha256:000203ab948b2b1ec3f09e0fa2abb1f07b574d5e4196e7563dd2bc586d918032",
+    "config_digest": "sha256:b36ca1f067ef6fbd3b225e2b8a74b767fac88c3752c5461c60fa8388dcc95f9a",
+    "compressed_bytes": 1763578095,
+    "layers": 21
+   },
+   "source_snapshot": {
+    "git_archive_sha256": "c9ce8e8c0483ee0547fb94970110c23c61c3104be21a09b9318989c390777a63",
+    "workdir": "/app",
+    "image_head": "775da4fe5fcbc163ab01fd9a809fdbddd9a87ebd",
+    "dirty_paths": 0
+   },
+   "gold": {
+    "resolved": true,
+    "grade_seconds": 26.8
+   },
+   "arms": {
+    "on": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 4988,
+     "patch_sha256": "de47c2d1ab2de42d469ea2146c114d6445d8d074f55a8681d9e5c26b6cd1f0ef",
+     "grade_seconds": 28.0,
+     "agent_rc": 0,
+     "wall_seconds": 57,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.213386,
+     "tokens": {
+      "input": 20,
+      "output": 3635,
+      "cache_read": 127503,
+      "cache_write": 15469
+     },
+     "messages": 11,
+     "tool_calls": {
+      "edit": 4,
+      "glob": 1,
+      "grep": 3,
+      "read": 1,
+      "write": 4
+     },
+     "direct_corvint_tool_calls": 0,
+     "codemode_corvint_calls": 0,
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 9522
+    },
+    "off": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 4317,
+     "patch_sha256": "82cb8e455595850c4cf56300c6bacb8946e28b34472aa07961672884947cb18d",
+     "grade_seconds": 27.8,
+     "agent_rc": 0,
+     "wall_seconds": 51,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.186539,
+     "tokens": {
+      "input": 14,
+      "output": 2944,
+      "cache_read": 61790,
+      "cache_write": 13717
+     },
+     "messages": 8,
+     "tool_calls": {
+      "edit": 1,
+      "execute": 1,
+      "glob": 1,
+      "grep": 2,
+      "read": 1,
+      "write": 4
+     },
+     "direct_corvint_tool_calls": 0,
+     "codemode_corvint_calls": 0,
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 8312
+    }
+   }
+  },
+  {
+   "pair": "p08",
+   "instance_id": "instance_gravitational__teleport-2bb3bbbd8aff1164a2353381cb79e1dc93b90d28-vee9b09fb20c43af7e520f57e9239bbcf46b7113d",
+   "image": {
+    "ref": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_gravitational__teleport-2bb3bbbd8aff1164a2353381cb79e1dc93b90d28-vee9b09fb20c43af7e520f57e9239bbcf46b7113d",
+    "manifest_digest": "sha256:529ac390e8a4488db6efc56f46fad6e112894cf78e9166549fc48203c5dd1130",
+    "config_digest": "sha256:684dea76e8bebc991c57d2efe2946837b2cfaabd7206481e08adb9d2d85ac972",
+    "compressed_bytes": 3412557250,
+    "layers": 21
+   },
+   "source_snapshot": {
+    "git_archive_sha256": "c9daae60310853fdccb9695b7cf41398ba3f2cb34c4a33c6c58b38f7b004b138",
+    "workdir": "/app",
+    "image_head": "040ec6d3b264d152a674718eb5a0864debb68470",
+    "dirty_paths": 0
+   },
+   "gold": {
+    "resolved": true,
+    "grade_seconds": 85.6
+   },
+   "arms": {
+    "on": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 2993,
+     "patch_sha256": "3d5bda07056f7129f1acba7ff54842ea087e68697dfbd57bcc0a5d8ac7d0be9a",
+     "grade_seconds": 86.9,
+     "agent_rc": 0,
+     "wall_seconds": 39,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.159242,
+     "tokens": {
+      "input": 14,
+      "output": 2910,
+      "cache_read": 75579,
+      "cache_write": 14190
+     },
+     "messages": 8,
+     "tool_calls": {
+      "edit": 7,
+      "grep": 1,
+      "read": 3
+     },
+     "direct_corvint_tool_calls": 0,
+     "codemode_corvint_calls": 0,
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 8935
+    },
+    "off": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 3106,
+     "patch_sha256": "5632fd3faf9617b93ef9e880684cb532285b1d609cad94d0e9ac9148443ca826",
+     "grade_seconds": 91.3,
+     "agent_rc": 0,
+     "wall_seconds": 32,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.147239,
+     "tokens": {
+      "input": 12,
+      "output": 2725,
+      "cache_read": 54107,
+      "cache_write": 14198
+     },
+     "messages": 7,
+     "tool_calls": {
+      "edit": 6,
+      "grep": 1,
+      "read": 2
+     },
+     "direct_corvint_tool_calls": 0,
+     "codemode_corvint_calls": 0,
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 7771
+    }
+   }
+  },
+  {
+   "pair": "p09",
+   "instance_id": "instance_internetarchive__openlibrary-7f7e53aa4cf74a4f8549a5bcd4810c527e2f6d7e-v13642507b4fc1f8d234172bf8129942da2c2ca26",
+   "image": {
+    "ref": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_internetarchive__openlibrary-7f7e53aa4cf74a4f8549a5bcd4810c527e2f6d7e-v13642507b4fc1f8d234172bf8129942da2c2ca26",
+    "manifest_digest": "sha256:75c96587aba806fd489db6589e62467981f081e3ac5204ce1a9349d031f8cbb1",
+    "config_digest": "sha256:3ab96efaae9b6bae2ba9a811ad35438c40a0571792a535d9a9675aa59284a588",
+    "compressed_bytes": 874106349,
+    "layers": 22
+   },
+   "source_snapshot": {
+    "git_archive_sha256": "4e31dc2a0dd7b085d5d3dcc40335367d3b57751e7d31cdb2408e021e78811131",
+    "workdir": "/app",
+    "image_head": "630221ab686c64e75a2ce253c893c033e4814b2e",
+    "dirty_paths": 0
+   },
+   "gold": {
+    "resolved": true,
+    "grade_seconds": 4.8
+   },
+   "arms": {
+    "on": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 4120,
+     "patch_sha256": "ea23a9161402312e22b74ba02552a0e407d1f187fe2981f1805315b3a11eb06b",
+     "grade_seconds": 6.5,
+     "agent_rc": 0,
+     "wall_seconds": 53,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.19743,
+     "tokens": {
+      "input": 18,
+      "output": 3467,
+      "cache_read": 102417,
+      "cache_write": 15439
+     },
+     "messages": 10,
+     "tool_calls": {
+      "edit": 1,
+      "grep": 4,
+      "read": 6
+     },
+     "direct_corvint_tool_calls": 0,
+     "codemode_corvint_calls": 0,
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 8739
+    },
+    "off": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 4401,
+     "patch_sha256": "9d1aa0f6c616d059d6e31c0df5932a91f5a6c8e9c7b44705890213d3499d70f0",
+     "grade_seconds": 10.4,
+     "agent_rc": 0,
+     "wall_seconds": 48,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.181672,
+     "tokens": {
+      "input": 18,
+      "output": 3473,
+      "cache_read": 97852,
+      "cache_write": 12678
+     },
+     "messages": 10,
+     "tool_calls": {
+      "edit": 2,
+      "glob": 1,
+      "grep": 3,
+      "read": 4
+     },
+     "direct_corvint_tool_calls": 0,
+     "codemode_corvint_calls": 0,
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 8260
+    }
+   }
+  },
+  {
+   "pair": "p10",
+   "instance_id": "instance_gravitational__teleport-326fd1d7be87b03998dbc53bc706fdef90f5065c-v626ec2a48416b10a88641359a169d99e935ff037",
+   "image": {
+    "ref": "ghcr.io/scaleapi/swe-bench_pro-v2:instance_gravitational__teleport-326fd1d7be87b03998dbc53bc706fdef90f5065c-v626ec2a48416b10a88641359a169d99e935ff037",
+    "manifest_digest": "sha256:a14327a65f9d53b521750d872ad9bf3541e4d3c382ce0cb9562fbbbcfe4dfb77",
+    "config_digest": "sha256:bd6ec516674c0b4fb848c734f5236ceb27d496f10dba1f3abf1c867c813d334a",
+    "compressed_bytes": 2586615096,
+    "layers": 24
+   },
+   "source_snapshot": {
+    "git_archive_sha256": "8c17a15ac96fdd73c48f97122ee9102c79acc2be01813b9eb2800051e56a9bcc",
+    "workdir": "/app",
+    "image_head": "b1e4f1e0324f7e89d1c3c49070a05a243bfddf99",
+    "dirty_paths": 0
+   },
+   "gold": {
+    "resolved": true,
+    "grade_seconds": 90.6
+   },
+   "arms": {
+    "on": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 10715,
+     "patch_sha256": "44e4b697c2687a25af1fa30488409edda0a4a92d5259ee8e98e7e786137b577d",
+     "grade_seconds": 99.8,
+     "agent_rc": 0,
+     "wall_seconds": 68,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.303741,
+     "tokens": {
+      "input": 46,
+      "output": 5283,
+      "cache_read": 389759,
+      "cache_write": 22129
+     },
+     "messages": 24,
+     "tool_calls": {
+      "edit": 15,
+      "execute": 1,
+      "grep": 9,
+      "read": 9
+     },
+     "direct_corvint_tool_calls": 0,
+     "codemode_corvint_calls": 0,
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 9298
+    },
+    "off": {
+     "resolved": true,
+     "reward": 1,
+     "apply_rc": 0,
+     "patch_bytes": 10977,
+     "patch_sha256": "0bccdaffb4496a57d943ffc5a02db32a90c42d00ebb449e0c42d73df4aab8da9",
+     "grade_seconds": 100.1,
+     "agent_rc": 0,
+     "wall_seconds": 59,
+     "hit_step_or_wall_limit": false,
+     "cost_usd": 0.278166,
+     "tokens": {
+      "input": 34,
+      "output": 4760,
+      "cache_read": 254698,
+      "cache_write": 24374
+     },
+     "messages": 18,
+     "tool_calls": {
+      "edit": 14,
+      "grep": 7,
+      "read": 9
+     },
+     "direct_corvint_tool_calls": 0,
+     "codemode_corvint_calls": 0,
+     "corvint_tool_calls": 0,
+     "shell_calls": 0,
+     "first_step_prompt_tokens": 8130
+    }
+   }
+  }
+ ],
+ "totals": {
+  "on": {
+   "resolved": 9,
+   "cost_usd": 2.9445,
+   "input": 272,
+   "output": 53568,
+   "cache_read": 2495423,
+   "cache_write": 217610,
+   "wall_seconds": 719,
+   "corvint_tool_calls": 1,
+   "n": 10,
+   "resolve_rate": 0.9,
+   "cost_per_resolved_usd": 0.3272,
+   "mean_first_step_prompt_tokens": 9731.2,
+   "sessions_with_corvint_call": 1,
+   "codemode_corvint_calls": 1,
+   "direct_corvint_tool_calls": 0
+  },
+  "off": {
+   "resolved": 9,
+   "cost_usd": 2.8896,
+   "input": 278,
+   "output": 54338,
+   "cache_read": 2435503,
+   "cache_write": 204708,
+   "wall_seconds": 689,
+   "corvint_tool_calls": 0,
+   "n": 10,
+   "resolve_rate": 0.9,
+   "cost_per_resolved_usd": 0.3211,
+   "mean_first_step_prompt_tokens": 8681.7,
+   "sessions_with_corvint_call": 0,
+   "codemode_corvint_calls": 0,
+   "direct_corvint_tool_calls": 0
+  }
+ },
+ "paired": {
+  "on_only": [],
+  "off_only": [],
+  "both": 9,
+  "neither": [
+   "p05"
+  ]
+ },
+ "cost_ratio_on_over_off": 1.019,
+ "first_step_prompt_tokens_delta_on_minus_off": 1049.5,
+ "hypotheses": {
+  "H1_corvint_calls_gt_0": {
+   "met": true,
+   "observed": 1,
+   "direct": 0,
+   "codemode": 1,
+   "sessions_with_call": "1/10",
+   "note": "the only call was tools.corvint_status() inside an execute part in p03-on; corvint_context was never called"
+  },
+  "H2a_standing_overhead_le_500": {
+   "met": true,
+   "pre_trial": 479,
+   "post_trial": 479
+  },
+  "H2b_mean_per_pair_first_step_delta_le_1200": {
+   "met": true,
+   "observed": 1049.5
+  },
+  "H3_cost_per_resolve_no_worse": {
+   "met": false,
+   "on": 0.3272,
+   "off": 0.3211
+  },
+  "V1_2717_pass": {
+   "rule": "(H1 or H2a) and H3",
+   "met": false
+  }
+ },
+ "secondary_harder_half": {
+  "pairs": [
+   "p04",
+   "p03",
+   "p10",
+   "p05",
+   "p07"
+  ],
+  "arms": {
+   "on": {
+    "cost_usd": 1.9747,
+    "resolved": 4,
+    "corvint_tool_calls": 1,
+    "cost_per_resolved_usd": 0.4937
+   },
+   "off": {
+    "cost_usd": 1.8662,
+    "resolved": 4,
+    "corvint_tool_calls": 0,
+    "cost_per_resolved_usd": 0.4666
+   }
+  },
+  "H1_met": true,
+  "H3_met": false
+ },
+ "smoke_sessions_first_step_prompt_tokens": {
+  "v2717b-smoke-off": {
+   "what": "plugin absent",
+   "first_step_prompt_tokens": 6926,
+   "cost_usd": 0.039886
+  },
+  "v2717b-smoke722-on": {
+   "what": "adapter 0.7.22 (pre-change)",
+   "first_step_prompt_tokens": 8011,
+   "cost_usd": 0.052211
+  },
+  "v2717b-smokeA-on": {
+   "what": "design variant A (first lane design: corvint_context direct, three tools in Code Mode)",
+   "first_step_prompt_tokens": 7489,
+   "cost_usd": 0.048461
+  },
+  "v2717b-smokeB-on": {
+   "what": "design variant B (A with trimmed descriptions)",
+   "first_step_prompt_tokens": 7443,
+   "cost_usd": 0.048871
+  },
+  "v2717b-smokeE-on": {
+   "what": "design variant E (minimal descriptions; the frozen candidate differs by small description edits)",
+   "first_step_prompt_tokens": 7397,
+   "cost_usd": 0.048601
+  },
+  "v2717b-smokeG-on": {
+   "what": "frozen 0.7.23 candidate (pre-trial H2a)",
+   "first_step_prompt_tokens": 7405,
+   "cost_usd": 0.048541
+  },
+  "v2717b-post-smoke-off": {
+   "what": "plugin absent, same day after the trial",
+   "first_step_prompt_tokens": 6926,
+   "cost_usd": 0.040666
+  },
+  "v2717b-post-smoke-on": {
+   "what": "frozen 0.7.23, after the trial (post-trial H2a)",
+   "first_step_prompt_tokens": 7405,
+   "cost_usd": 0.028617
+  }
+ },
+ "grading_notes": [
+  "All 20 patches applied (apply_rc 0) on the local docker mirror of the V2 verifier on the Windows box (swebp_v2_eval.py)."
+ ],
+ "observations": [
+  "Corvint calls in the on arm: 1 (1 Code Mode, 0 direct) in 10 sessions.",
+  "Both arms resolved 9 and 9 of 10; neither: ['p05']. Resolve rate is a null result on this subset.",
+  "Total cost on/off 2.9445/2.8896 USD (ratio 1.019); mean first-step prompt tokens 9731.2 vs 8681.7 (+1049.5).",
+  "Against the 0.7.22 baseline the on-over-off cost gap fell from +14.7% to +1.9% and the first-step delta from +1314 to +1049.5."
+ ],
+ "deviations": [
+  "Arms of a pair ran sequentially (preregistered), not concurrently as in V1-0415 and the 0.7.22 rerun.",
+  "Agent ran on the macOS host without a shell, not in the task container; 570 s wall clock; local docker grader mirror; N = 10 of 642."
+ ],
+ "spend_usd": {
+  "trial_sessions": 5.8341,
+  "smoke_and_design_sessions": 0.4954,
+  "total": 6.3295,
+  "hard_stop": 60,
+  "hard_stop_reached": false
+ },
+ "not_run": [
+  "Official Harbor/Modal grading",
+  "A larger, harder preregistered set (needs new images: downloads and owner approval)"
+ ],
+ "limits": [
+  "N = 10 cannot detect small effects; no significance claim.",
+  "Both arms resolved 9 of 10, so this set cannot show resolve-rate usefulness in either direction.",
+  "Smoke attribution is one session per configuration; first-step prompt tokens are deterministic for a fixed prompt and config, observed equal across repeated off runs (6926)."
+ ]
+}

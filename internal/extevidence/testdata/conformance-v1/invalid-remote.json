@@ -1,0 +1,7 @@
+{
+  "schema": "external-evidence-provider/1",
+  "provider": {"id": "mockdocs", "revision": "2026-09-18.2"},
+  "repositories": [{"id": "application", "origin": "{{APP_ORIGIN}}", "remote": "https://token@example.test/acme/application.git", "revision": "{{APP_REVISION}}"}],
+  "entities": [],
+  "relations": []
+}

@@ -1,0 +1,32 @@
+{
+  "profile": "corvint-protected-root/1",
+  "admission": null,
+  "keyClass": null,
+  "rootId": null,
+  "publicKey": null,
+  "epoch": null,
+  "generation": null,
+  "repositoryId": null,
+  "repositoryRoot": null,
+  "policySHA256": null,
+  "audience": null,
+  "authorityUid": null,
+  "authorityGid": null,
+  "readerUid": null,
+  "revoked": true,
+  "checks": [],
+  "consumer": {
+    "path": null,
+    "sha256": null
+  },
+  "git": {
+    "path": null,
+    "sha256": null
+  },
+  "adapter": {
+    "path": null,
+    "sha256": null
+  },
+  "hostQualification": null,
+  "remediationAllowed": false
+}

@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo=$(cd "$(dirname "$0")/.." && pwd)
+parent=$(mktemp -d "${TMPDIR:-/tmp}/corvint-release-gate.XXXXXX")
+
+cleanup() {
+  chmod -R u+w "$parent" 2>/dev/null || :
+  rm -rf "$parent"
+}
+
+# A signal trap that returns lets the script resume and report success, so each signal exits 128+N
+# and the EXIT trap cleans up.
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+chmod 0700 "$parent"
+for directory in home tmp gotmp gocache; do
+  mkdir "$parent/$directory"
+  chmod 0700 "$parent/$directory"
+done
+
+export HOME="$parent/home"
+export TMPDIR="$parent/tmp"
+export GOTMPDIR="$parent/gotmp"
+export GOCACHE="$parent/gocache"
+export GOENV=off
+export GOFLAGS=-mod=readonly
+export GOPROXY=off
+export GOSUMDB=off
+export GOTOOLCHAIN=local
+
+cd "$repo"
+git_dir=$(git rev-parse --absolute-git-dir)
+witness="$git_dir/corvint/release-go-archive-report.json"
+# GAG-V0-007: `archive` records the witness best-effort, so a failed write would otherwise leave an
+# earlier run's witness for the status check below to read. Removing it first means the check can
+# only ever read a witness this run recorded; an unrecorded one makes archive-status fail.
+rm -f "$witness"
+go run ./conformance/release-artifact-v0 archive \
+  --revision HEAD --output "$parent/corvint-go-release"
+
+expected=(
+  SHA256SUMS
+  corvint_darwin_amd64.tar.gz
+  corvint_darwin_arm64.tar.gz
+  corvint_linux_amd64.tar.gz
+  corvint_linux_arm64.tar.gz
+  corvint_windows_amd64.zip
+  verification-report.json
+)
+for name in "${expected[@]}"; do
+  test -f "$parent/corvint-go-release/$name"
+done
+# GAG-V0-006 closed set: every top-level entry of any type counts, so an extra directory or symlink
+# fails; the regular-file count still fails an expected name that `test -f` accepted via a symlink.
+test "$(find "$parent/corvint-go-release" -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ')" = "${#expected[@]}"
+test "$(find "$parent/corvint-go-release" -mindepth 1 -maxdepth 1 -type f | wc -l | tr -d ' ')" = "${#expected[@]}"
+revision=$(git rev-parse --verify 'HEAD^{commit}')
+tree=$(git rev-parse --verify 'HEAD^{tree}')
+status=$(go run ./conformance/release-artifact-v0 archive-status \
+  --witness "$witness" --revision "$revision" --tree "$tree")
+test "$status" = PASS

@@ -1,0 +1,174 @@
+{
+  "schemaVersion": 1,
+  "description": "Frozen deterministic Atlas MVP retrieval cases. Selector keys are kind:id.",
+  "cases": [
+    {
+      "id": "exact-feature-pairing",
+      "mode": "feature",
+      "feature_id": "pairing-enroll",
+      "limit": 5,
+      "budget_bytes": 12000,
+      "expected": {
+        "must_include": ["feature:pairing-enroll"],
+        "critical": ["feature:pairing-enroll"],
+        "relevant": [
+          "feature:pairing-enroll",
+          "symbol:internal/auth/auth.go:ScopeWithDeviceCredential",
+          "symbol:internal/store/store.go:CreatePairingCode",
+          "symbol:internal/pairing/pairing.go:enrollBackoff",
+          "symbol:internal/pairing/pairing.go:EnrollRequest",
+          "symbol:internal/pairing/pairing.go:EnrollResponse"
+        ]
+      }
+    },
+    {
+      "id": "natural-language-session-revocation",
+      "mode": "query",
+      "text": "session expiry device revocation enforcement",
+      "limit": 10,
+      "budget_bytes": 14000,
+      "expected": {
+        "must_include": ["feature:session-lifecycle"],
+        "critical": ["feature:session-lifecycle"],
+        "relevant": [
+          "feature:session-lifecycle",
+          "feature:device-promotion",
+          "feature:stream-token",
+          "scenario:pair-auth-bypass",
+          "scenario:pairing-admin-session-cross-surface",
+          "decision:docs/adr/0012-remote-access-and-auth-hardening.md",
+          "symbol:internal/auth/auth.go:ScopeWithDeviceCredential",
+          "symbol:internal/auth/auth.go:Scope",
+          "symbol:internal/auth/auth.go:ScopeFromRequest",
+          "symbol:internal/auth/auth.go:scopeFromCookies"
+        ]
+      }
+    },
+    {
+      "id": "ambiguous-reveal-navigation",
+      "mode": "query",
+      "text": "restricted profile reveal navigation",
+      "limit": 10,
+      "budget_bytes": 18000,
+      "expected": {
+        "must_include": ["feature:reveal-unlock", "feature:navigation-manifest"],
+        "critical": ["feature:reveal-unlock"],
+        "relevant": [
+          "feature:reveal-unlock",
+          "feature:navigation-manifest",
+          "feature:profile-switch",
+          "scenario:restricted-reveal-playback",
+          "scenario:reveal-leak-to-child",
+          "decision:docs/adr/0004-profiles-and-per-profile-customization.md",
+          "symbol:internal/store/reveal.go:ErrRevealPINMismatch",
+          "symbol:internal/store/reveal.go:hashRevealPINArgon2",
+          "symbol:internal/graph/system_surface_disclosure.go:navigationManifest",
+          "symbol:internal/graph/system_surface_disclosure.go:NavigationManifestResponse",
+          "symbol:internal/manifest/manifest.go:NavigationNode"
+        ]
+      }
+    },
+    {
+      "id": "impact-auth-test",
+      "mode": "impact",
+      "paths": ["internal/auth/auth_test.go"],
+      "limit": 10,
+      "budget_bytes": 18000,
+      "expected": {
+        "must_include": [
+          "path:internal/auth/auth_test.go",
+          "feature:session-lifecycle"
+        ],
+        "critical": ["feature:session-lifecycle"],
+        "relevant": [
+          "path:internal/auth/auth_test.go",
+          "feature:access-schedules",
+          "feature:admin-session",
+          "feature:session-lifecycle",
+          "reverse-import:internal/app/app.go",
+          "reverse-import:internal/app/server_graph_handler.go",
+          "reverse-import:internal/beam/beam.go",
+          "reverse-import:internal/compat/jellyfin.go",
+          "reverse-import:internal/graph/graph.go",
+          "reverse-import:internal/graph/graph_access.go"
+        ]
+      }
+    },
+    {
+      "id": "impact-auth-production-bounded",
+      "mode": "impact",
+      "paths": ["internal/auth/auth.go"],
+      "limit": 10,
+      "budget_bytes": 30000,
+      "expected": {
+        "must_include": [
+          "path:internal/auth/auth.go",
+          "feature:session-lifecycle",
+          "reverse-import:internal/app/app.go"
+        ],
+        "critical": ["feature:session-lifecycle"],
+        "relevant": [
+          "path:internal/auth/auth.go",
+          "test:internal/auth/auth_test.go",
+          "feature:access-schedules",
+          "feature:admin-session",
+          "feature:hls-transcode",
+          "feature:library-health",
+          "feature:relock",
+          "feature:scan-pipeline",
+          "feature:session-lifecycle",
+          "reverse-import:internal/app/app.go",
+          "reverse-import:internal/app/server_graph_handler.go",
+          "reverse-import:internal/beam/beam.go",
+          "reverse-import:internal/compat/jellyfin.go",
+          "reverse-import:internal/graph/graph.go"
+        ]
+      }
+    },
+    {
+      "id": "blind-beamfall-immediate-hard-delete-abstention",
+      "partition": "development-after-blind-v1",
+      "origin_partition": "blind-v1",
+      "first_observation": "Atlas returned READY with adjacent deletion and retention records; the product contract was then corrected to return NEEDS_WIDENING with the nearest negative claim.",
+      "mode": "query",
+      "text": "find the GraphQL mutation and Store method that permanently hard-delete one specific Media item immediately after confirmation while bypassing trash retention",
+      "limit": 5,
+      "budget_bytes": 16000,
+      "rationale": "A blind reviewer selected this repository-plausible negative before seeing Atlas code or output. The first blind run exposed that empty OUT_OF_SCOPE was less truthful than the repository's explicit non-capability; this frozen development regression now requires an unknown frontier with nearest claims.",
+      "ground_truth": [
+        {"path": "internal/store/trash.go", "line": 191, "contains": "PurgeTrashedBefore"},
+        {"path": "internal/graph/graph.go", "line": 3285, "contains": "func (h *Handler) purgeTrash"},
+        {"path": "testing/scenarios.yaml", "line": 88, "contains": "id: audited-delete-bypass"},
+        {"path": "testing/features.yaml", "line": 305, "contains": "id: trash-review"}
+      ],
+      "expected": {
+        "state": "NEEDS_WIDENING",
+        "must_include": [
+          "scenario:audited-delete-bypass",
+          "feature:trash-review"
+        ],
+        "critical": ["scenario:audited-delete-bypass"],
+        "must_exclude": [
+          "symbol:internal/store/trash.go:PurgeTrashedBefore",
+          "symbol:internal/graph/graph.go:purgeTrash"
+        ],
+        "relevant": [
+          "scenario:audited-delete-bypass",
+          "feature:trash-review"
+        ]
+      }
+    },
+    {
+      "id": "agent-tooling-abstains-product-noise",
+      "mode": "query",
+      "text": "atlas semantic embeddings federation",
+      "limit": 8,
+      "budget_bytes": 8000,
+      "expected": {
+        "state": "OUT_OF_SCOPE",
+        "must_exclude": ["feature:queue-next-up"],
+        "relevant": []
+      }
+    }
+  ]
+}

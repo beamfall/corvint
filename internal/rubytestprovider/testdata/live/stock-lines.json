@@ -1,0 +1,90 @@
+{
+  "profile": "corvint-ruby-test-provider/0",
+  "runner": "rspec",
+  "runnerVersion": "3.13.6",
+  "projectDirectory": ".",
+  "command": [
+    "docker",
+    "run",
+    "--rm",
+    "--network",
+    "none",
+    "-v",
+    ".:/work",
+    "-w",
+    "/work",
+    "corvint-rspec-qual:2026-10-20",
+    "rspec",
+    "--format",
+    "json",
+    "--out",
+    ".corvint/rspec/e53d2984e8bb098e.json",
+    "spec/widget_spec.rb:10"
+  ],
+  "objectFormat": "sha1",
+  "repositoryBefore": {
+    "rootCommit": "598d40de42baa1f353d323f71a79857ab9976413",
+    "revision": "598d40de42baa1f353d323f71a79857ab9976413",
+    "tree": "937ec548675ed1b3cc120a9c9d819d6f71f1b5ae",
+    "dirtyState": "clean"
+  },
+  "repositoryAfter": {
+    "rootCommit": "598d40de42baa1f353d323f71a79857ab9976413",
+    "revision": "598d40de42baa1f353d323f71a79857ab9976413",
+    "tree": "937ec548675ed1b3cc120a9c9d819d6f71f1b5ae",
+    "dirtyState": "clean"
+  },
+  "helperBasis": "conventional-paths",
+  "helperSet": "sha256:f6f5fe0ee07aa3a1f17160c7af62998d431730fad5fee73c27cf6b7259fe2d10",
+  "helpers": [
+    {
+      "path": "spec/support/shared.rb",
+      "blob": "5f676f62ade3aafe4d71659a4a58e1088c39438f"
+    }
+  ],
+  "examples": [
+    {
+      "id": "spec/support/shared.rb:2",
+      "rspecId": "./spec/widget_spec.rb[1:2:1]",
+      "file": "spec/support/shared.rb",
+      "line": 2,
+      "description": "Widget behaves like a priced item has a positive price",
+      "status": "passed",
+      "specBlob": "5f676f62ade3aafe4d71659a4a58e1088c39438f",
+      "helpers": "sha256:f6f5fe0ee07aa3a1f17160c7af62998d431730fad5fee73c27cf6b7259fe2d10",
+      "sharedExampleAbsent": "not-reported"
+    }
+  ],
+  "summary": {
+    "examples": 1,
+    "failures": 0,
+    "pending": 0,
+    "errorsOutsideOfExamples": 0
+  },
+  "exitStatus": 0,
+  "junit": {
+    "state": "NOT_REQUESTED"
+  },
+  "selection": [
+    {
+      "selector": "spec/widget_spec.rb:10",
+      "kind": "line",
+      "outcome": "UNATTRIBUTED"
+    }
+  ],
+  "runtime": {
+    "basis": "exec-prefix-probe",
+    "ruby": {
+      "value": "3.4.11"
+    },
+    "bundler": {
+      "value": "2.6.9"
+    },
+    "probeContainer": {
+      "value": "10c728169e9149f43661a7964d4be04c3672ff65705e76add0c711be90850ee7"
+    },
+    "image": {
+      "unknown": "not-observable-inside-prefix"
+    }
+  }
+}

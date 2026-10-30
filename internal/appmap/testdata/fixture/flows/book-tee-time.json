@@ -1,0 +1,26 @@
+{
+  "schema": "application-flow-intent/1",
+  "flow_id": "book-tee-time",
+  "revision": 1,
+  "kind": "ui",
+  "actor": "club admin",
+  "preconditions": ["club has open slots"],
+  "steps": [
+    {"step_id": "open-teesheets", "action": "open the tee sheet"},
+    {"step_id": "select-slot", "action": "select an open slot"},
+    {"step_id": "book", "action": "book the slot"}
+  ],
+  "outcomes": [
+    {"outcome_id": "booked", "behavior": "slot shows as booked", "matcher": "toHaveText", "locator": "slot-status", "value": "Booked"}
+  ],
+  "variations": [],
+  "links": [],
+  "navigation": {
+    "precondition_flows": [],
+    "steps": [
+      {"step_id": "open-teesheets", "state": "/home", "locator": {"test_id": "nav-teesheets"}, "expect": []},
+      {"step_id": "select-slot", "state": "/clubs/{clubId}/teesheets", "locator": {"test_id": "slot"}, "expect": []},
+      {"step_id": "book", "state": "/clubs/{clubId}/teesheets", "locator": {"role": "button", "name": "Book"}, "expect": ["booked"]}
+    ]
+  }
+}

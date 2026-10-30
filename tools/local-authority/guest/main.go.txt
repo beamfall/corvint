@@ -1,0 +1,49 @@
+package main
+
+import (
+	"encoding/json"
+	"github.com/corvint-context/corvint/internal/wp3codec"
+	"io"
+	"os"
+)
+
+type Request struct {
+	Op    string
+	Input []byte
+}
+type Answer struct {
+	Output   []byte
+	Rejected bool
+}
+
+func main() {
+	data, err := io.ReadAll(io.LimitReader(os.Stdin, 65537))
+	if err != nil || len(data) > 65536 {
+		os.Exit(2)
+	}
+	var requests []Request
+	if json.Unmarshal(data, &requests) != nil {
+		os.Exit(2)
+	}
+	answers := make([]Answer, 0, len(requests))
+	for _, r := range requests {
+		var out []byte
+		var err error
+		switch r.Op {
+		case "encode":
+			var v wp3codec.Value
+			v, err = wp3codec.Parse(r.Input)
+			if err == nil {
+				out, err = wp3codec.Encode(v)
+			}
+		case "verify":
+			err = wp3codec.Verify(r.Input)
+		default:
+			os.Exit(2)
+		}
+		answers = append(answers, Answer{Output: out, Rejected: err != nil})
+	}
+	if json.NewEncoder(os.Stdout).Encode(answers) != nil {
+		os.Exit(2)
+	}
+}

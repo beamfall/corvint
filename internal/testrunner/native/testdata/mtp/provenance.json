@@ -1,0 +1,244 @@
+{
+  "profile": "experimental-mtp-native-fixtures/0",
+  "sdk": "10.0.401",
+  "runtime": "10.0.12",
+  "platform": "osx-arm64",
+  "reportExtension": "Microsoft.Testing.Extensions.TrxReport 2.4.1",
+  "frameworks": {
+    "nunit": "NUnit 5.0.0 / NUnit3TestAdapter 6.3.0",
+    "mstest": "MSTest.Sdk 4.4.1",
+    "xunit": "xunit.v3.mtp-v2 4.0.1"
+  },
+  "cases": {
+    "pass": 0,
+    "fail": 2,
+    "skip": 0,
+    "zero": 8,
+    "mixed2": 2,
+    "infra": 2
+  },
+  "limits": [
+    "Task-local SDK archive verified against Microsoft published SHA512; no system installation",
+    "Fixtures are native captured output, not external outcome qualification",
+    "TRX does not prove failure cause or retry absence",
+    "No restore/runtime dependency closure proof"
+  ],
+  "files": [
+    {
+      "file": "nunit/pass.trx",
+      "sha256": "dd56d876fb49f15aa9293b630c9411286c90fc9609bcaeab3cb2f2667dccc8b2"
+    },
+    {
+      "file": "nunit/pass.stdout",
+      "sha256": "8acc2afe5e9e9071d14d1342eafb4debb7d12cb71f55844d49e68faa2c8e5dc4"
+    },
+    {
+      "file": "nunit/pass.stderr",
+      "sha256": "8b060cced30c13d612496b7b510df56e4908f179ba811e8064801e6c4e0f753c"
+    },
+    {
+      "file": "nunit/fail.trx",
+      "sha256": "10dd59909b67952fabd829b3f0e37cb9d419f296bac079674db8ccd896e2c847"
+    },
+    {
+      "file": "nunit/fail.stdout",
+      "sha256": "983546219569f878a3d7fd9d4cb2120b94519a6448d698a0656fefb6a8a1b57e"
+    },
+    {
+      "file": "nunit/fail.stderr",
+      "sha256": "8b060cced30c13d612496b7b510df56e4908f179ba811e8064801e6c4e0f753c"
+    },
+    {
+      "file": "nunit/skip.trx",
+      "sha256": "976795f8439ee032fa3a634f501c7f41823db6c58cc42bd0b3f62135487b9ddd"
+    },
+    {
+      "file": "nunit/skip.stdout",
+      "sha256": "08d84ffab33666b26540d1b74247a50a36ee756f73310415fa4e231778a5d65c"
+    },
+    {
+      "file": "nunit/skip.stderr",
+      "sha256": "8b060cced30c13d612496b7b510df56e4908f179ba811e8064801e6c4e0f753c"
+    },
+    {
+      "file": "nunit/zero.trx",
+      "sha256": "e02e7c6b6ea92c92c19eee4c838f35e62e384d6c0557ee4839287e8e6b75451c"
+    },
+    {
+      "file": "nunit/zero.stdout",
+      "sha256": "0f612f3394270dde4dafdccfe50595c6d151b0b4335a359dfdb7cf3976439b2a"
+    },
+    {
+      "file": "nunit/zero.stderr",
+      "sha256": "8b060cced30c13d612496b7b510df56e4908f179ba811e8064801e6c4e0f753c"
+    },
+    {
+      "file": "nunit/mixed2.trx",
+      "sha256": "d9f7dca78397870327bd85b1a457d01507920dd59a61a6251c4887542f1bba71"
+    },
+    {
+      "file": "nunit/mixed2.stdout",
+      "sha256": "f1b2a1f49b6dcb550eacf5d36eaada1f6d03ba883da6deac990fac83f43cd9c8"
+    },
+    {
+      "file": "nunit/mixed2.stderr",
+      "sha256": "8b060cced30c13d612496b7b510df56e4908f179ba811e8064801e6c4e0f753c"
+    },
+    {
+      "file": "nunit/infra.trx",
+      "sha256": "5a789d1c92bc0738b015290b8875f14a3ef23e290699f3b888c4137f727af566"
+    },
+    {
+      "file": "nunit/infra.stdout",
+      "sha256": "4766ce361f1cda35f69399dae0d2b27e2bca8b6a982511239b894b103590891d"
+    },
+    {
+      "file": "nunit/infra.stderr",
+      "sha256": "8b060cced30c13d612496b7b510df56e4908f179ba811e8064801e6c4e0f753c"
+    },
+    {
+      "file": "mstest/pass.trx",
+      "sha256": "3e17a8919e1885ed5c6bbffad9d1cb831ebdac5e1127c83c7885f338315441a9"
+    },
+    {
+      "file": "mstest/pass.stdout",
+      "sha256": "3748ec2eb9c27716175d9ce21261b177b5c84d6d27ec21cd02a0c2d03a17fa59"
+    },
+    {
+      "file": "mstest/pass.stderr",
+      "sha256": "8b060cced30c13d612496b7b510df56e4908f179ba811e8064801e6c4e0f753c"
+    },
+    {
+      "file": "mstest/fail.trx",
+      "sha256": "bd37f1a47bfd6e6d1c5bd81f903ef66504ecac40c117d5ac88c08aff56fff429"
+    },
+    {
+      "file": "mstest/fail.stdout",
+      "sha256": "a9ec21b257c1e4c23b66544112b4e248cea7a6fcdee44a528f30fb47b47bc429"
+    },
+    {
+      "file": "mstest/fail.stderr",
+      "sha256": "8b060cced30c13d612496b7b510df56e4908f179ba811e8064801e6c4e0f753c"
+    },
+    {
+      "file": "mstest/skip.trx",
+      "sha256": "fe331e1c1f0adf41f7db4f9ea885cf1c1389c7a1edd16328191afe9068c339a7"
+    },
+    {
+      "file": "mstest/skip.stdout",
+      "sha256": "84c27f22fc4a71d2e6404bbe415de06204d026a2f58554aa56f0fcb447f19da2"
+    },
+    {
+      "file": "mstest/skip.stderr",
+      "sha256": "8b060cced30c13d612496b7b510df56e4908f179ba811e8064801e6c4e0f753c"
+    },
+    {
+      "file": "mstest/zero.trx",
+      "sha256": "5e1938924e01570ad4832b0e47532c6495be1f3c1e38adc6c0841ff351cc1a37"
+    },
+    {
+      "file": "mstest/zero.stdout",
+      "sha256": "40585f59be2c5c9ddee9ad0872d0fd9b55d2da5333a68058a8f1527d9ef75517"
+    },
+    {
+      "file": "mstest/zero.stderr",
+      "sha256": "8b060cced30c13d612496b7b510df56e4908f179ba811e8064801e6c4e0f753c"
+    },
+    {
+      "file": "mstest/mixed2.trx",
+      "sha256": "c857ef4bf676fd42e66cbac3904ca6cbc81ba06a22b79bdbc3d6a6eec4a26519"
+    },
+    {
+      "file": "mstest/mixed2.stdout",
+      "sha256": "bd3ff8f49587b3d2fe9a09d4ac5f486614092700b6607ffdf9ea814db684cce8"
+    },
+    {
+      "file": "mstest/mixed2.stderr",
+      "sha256": "8b060cced30c13d612496b7b510df56e4908f179ba811e8064801e6c4e0f753c"
+    },
+    {
+      "file": "mstest/infra.trx",
+      "sha256": "f25763c2fbae8fd9600af5e039d931e0acb2e15b83f991398c8c3bf41fa89047"
+    },
+    {
+      "file": "mstest/infra.stdout",
+      "sha256": "35b3a5890ec760dfc9012667625b60fa246df51abe655973913af0c756b82c35"
+    },
+    {
+      "file": "mstest/infra.stderr",
+      "sha256": "8b060cced30c13d612496b7b510df56e4908f179ba811e8064801e6c4e0f753c"
+    },
+    {
+      "file": "xunit/pass.trx",
+      "sha256": "8b2c6bc4bd0202922353cedd58eb5bfbb3b9a70ec95fe4357b3a0336deffe34e"
+    },
+    {
+      "file": "xunit/pass.stdout",
+      "sha256": "b986ffb7de1ec4839988b358cec17b466f951a45f6ddb881d53c08a96cd22aab"
+    },
+    {
+      "file": "xunit/pass.stderr",
+      "sha256": "8b060cced30c13d612496b7b510df56e4908f179ba811e8064801e6c4e0f753c"
+    },
+    {
+      "file": "xunit/fail.trx",
+      "sha256": "de1405bd99110a2486d0a0e020646175f31f40d384d1ed2d474d97f67c524efc"
+    },
+    {
+      "file": "xunit/fail.stdout",
+      "sha256": "cb01b6ff71fb90e9dad1f672bd71393c5aef05f1339973cd0e6a4b4b4754aca0"
+    },
+    {
+      "file": "xunit/fail.stderr",
+      "sha256": "8b060cced30c13d612496b7b510df56e4908f179ba811e8064801e6c4e0f753c"
+    },
+    {
+      "file": "xunit/skip.trx",
+      "sha256": "9d4cd929dff448825f19d7bb436fc46f7cb222a396c533022f404ca17b567d65"
+    },
+    {
+      "file": "xunit/skip.stdout",
+      "sha256": "c929e3ec8d8a27aca2fe33d7656697948ec060bf8e7b262ac0e2644e4a9a664d"
+    },
+    {
+      "file": "xunit/skip.stderr",
+      "sha256": "8b060cced30c13d612496b7b510df56e4908f179ba811e8064801e6c4e0f753c"
+    },
+    {
+      "file": "xunit/zero.trx",
+      "sha256": "2b906971fe56104a5ea8cfa1942b82dd778a05c2b34a3d3778d6c1a1728b1e62"
+    },
+    {
+      "file": "xunit/zero.stdout",
+      "sha256": "a8e4e944443377b16a4cb20c188732df62045c42da1e5766324d8a8ff8570ea1"
+    },
+    {
+      "file": "xunit/zero.stderr",
+      "sha256": "8b060cced30c13d612496b7b510df56e4908f179ba811e8064801e6c4e0f753c"
+    },
+    {
+      "file": "xunit/mixed2.trx",
+      "sha256": "29d7bc3c22281c6bf65cb15724b2114bc1b57654e1a9c7d3a6c2dfd06972a84f"
+    },
+    {
+      "file": "xunit/mixed2.stdout",
+      "sha256": "1ea6b1fc139ae568dce0d2ec450e51f4f189b67c5b1bbb39dcaba0d3e6d487c2"
+    },
+    {
+      "file": "xunit/mixed2.stderr",
+      "sha256": "8b060cced30c13d612496b7b510df56e4908f179ba811e8064801e6c4e0f753c"
+    },
+    {
+      "file": "xunit/infra.trx",
+      "sha256": "31326bda6e17a711df4920a7785d5c818a9c996b0a1df8e85a673d490309dfe4"
+    },
+    {
+      "file": "xunit/infra.stdout",
+      "sha256": "bb012d15b5bade51df04f614343a6f51b41668a0ba3a14b49d04c7383d2a8c06"
+    },
+    {
+      "file": "xunit/infra.stderr",
+      "sha256": "8b060cced30c13d612496b7b510df56e4908f179ba811e8064801e6c4e0f753c"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "profile": "corvint-test-commands/0",
+  "go": {
+    "env": {
+      "GOCACHE": "/tmp/corvint-go-build-cache",
+      "GOTOOLCHAIN": "local"
+    },
+    "flags": ["-p", "1", "-timeout", "30m", "-count=1"]
+  },
+  "languages": {
+    "dotnet": {"none": "no make gate step, script/gate-affected.sh, tools/corvint-pr-tests or CI job runs a .NET suite; the only C# source is a tools/beamfall-shadow fixture and the repository has no .NET project"},
+    "kotlin": {"none": "no make gate step, script/gate-affected.sh, tools/corvint-pr-tests or CI job runs a Kotlin suite; the only Kotlin sources are internal/analyzerkotlinandroid testdata fixtures and the repository has no Gradle project"},
+    "python": {"none": "no make gate step, script/gate-affected.sh, tools/corvint-pr-tests or CI job runs a Python suite; Python files are benchmark and qualification scripts, runner reporters and affected-graph testdata fixtures, and the repository has no pytest or unittest configuration"},
+    "ruby": {"none": "no make gate step, script/gate-affected.sh, tools/corvint-pr-tests or CI job runs a Ruby suite; Ruby files are a runner reporter and affected-graph testdata fixtures, and the repository has no Gemfile or Rakefile"},
+    "rust": {"none": "no make gate step, script/gate-affected.sh, tools/corvint-pr-tests or CI job runs a Rust suite; the only Rust sources are internal/liveverify/affected testdata fixtures and the repository has no root Cargo workspace"},
+    "shell": ["make", "shell-test"],
+    "swift": {"none": "no make gate step, script/gate-affected.sh, tools/corvint-pr-tests or CI job runs a Swift suite; the only Swift sources are internal/analyzerswift testdata fixtures and the repository has no root Swift package"},
+    "typescript": ["make", "host-adapter-test"]
+  }
+}

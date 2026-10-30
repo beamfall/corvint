@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8"><title>Corvint fixture</title></head>
+  <body>
+    <button id="increment" type="button">Increment</button>
+    <output id="count">0</output>
+    <script>
+      const count = document.querySelector("#count");
+      document.querySelector("#increment").addEventListener("click", () => {
+        count.textContent = String(Number(count.textContent) + 1);
+      });
+    </script>
+  </body>
+</html>

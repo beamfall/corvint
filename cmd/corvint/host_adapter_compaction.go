@@ -1,0 +1,305 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os/exec"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+)
+
+// Claude Code compaction hooks (decision 0340, AHI-026 to AHI-030). PreCompact emits one pin
+// line that the host joins verbatim into the compactor's custom instructions (verified against
+// Claude Code 2.1.267); PostCompact reads the pin the summary preserved, verifies it against the
+// immutable object store with one hermetic cat-file, and reports the verdict to the user. The
+// host shows PostCompact stdout to the user only, so the model-facing packet re-emission stays
+// the compact SessionStart receipt (AHI-003). Neither event writes anything: the only write on
+// this path is the SOL-V0-010 degradation row the shared adapter path already records.
+const (
+	compactionPinProfile     = "corvint-compaction-pin/0"
+	compactionReportProfile  = "corvint-compaction-report/0"
+	compactionPinInstruction = "Corvint compaction pin: preserve the following line verbatim in the summary so Corvint can re-pin its evidence after compaction.\n"
+	// compactionPinUnavailable is what a degraded pre-compact emits in place of a pin, so the
+	// summary can tell post-compact that no pin was emitted rather than dropped (AHI-057).
+	compactionPinUnavailable = "Corvint compaction pin: preserve the following line verbatim in the summary; Corvint could not pin its evidence for this compaction.\n" + compactionPinProfile + " unavailable\n"
+	// A pin names at most this many paths and this many path bytes; the rest count as elided.
+	compactionPinPathLimit = 24
+	compactionPinByteLimit = 1500
+	compactionGitDeadline  = 500 * time.Millisecond
+	// adapterPlainStdoutKey marks an adapter output the host consumes as raw stdout text
+	// (the compactor's custom instructions, the PostCompact user display) rather than hook JSON.
+	adapterPlainStdoutKey = "corvintPlainStdout"
+)
+
+// compactionTriggers is the closed PreCompact/PostCompact trigger set the host documents.
+var compactionTriggers = map[string]bool{"manual": true, "auto": true}
+
+// compactionPinPathPattern admits the project-relative paths a pin may name: no leading dash,
+// no whitespace or comma (the pin's own separators), and no `..` segment (checked separately).
+var compactionPinPathPattern = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9._/+@~-]*$`)
+
+// compactionPinPattern recovers a pin line from the untrusted compaction summary.
+var compactionPinPattern = regexp.MustCompile(`corvint-compaction-pin/0\s+revision=([0-9a-f]{40,64})\s+tracked=([0-9]+)\s+untracked=([0-9]+)\s+paths=(\S*)\s+elided=([0-9]+)`)
+
+// compactionPinUnavailablePattern recovers the line a degraded pre-compact emits instead of a pin.
+var compactionPinUnavailablePattern = regexp.MustCompile(`corvint-compaction-pin/0\s+unavailable\b`)
+
+// compactionPinShapePattern finds a pin-shaped line, valid or not: the profile followed by a pin's
+// first field or the unavailable word. The last one decides; it is validated only after it is found.
+var compactionPinShapePattern = regexp.MustCompile(`corvint-compaction-pin/0\s+(?:revision=|unavailable\b)`)
+
+// compactionBlock is the receipt's context.compaction block the compact SessionStart carries.
+type compactionBlock struct {
+	Revision string `json:"revision"`
+	Request  struct {
+		Paths []string `json:"paths"`
+	} `json:"request"`
+	Rehydration struct {
+		Tracked   int `json:"trackedDirtyPathCount"`
+		Untracked int `json:"untrackedDirtyPathCount"`
+	} `json:"rehydration"`
+}
+
+type compactionPin struct {
+	Revision  string
+	Tracked   int
+	Untracked int
+	Elided    int
+	Paths     []string
+}
+
+func runClaudeCompactionEvent(ctx context.Context, root, event string, normalized, payload map[string]any) map[string]any {
+	trigger, _ := payload["trigger"].(string)
+	if !compactionTriggers[trigger] {
+		return degradedAdapterOutput("invalid-compaction-trigger")
+	}
+	if event == "post-compact" {
+		return runClaudePostCompact(ctx, root, normalized, payload)
+	}
+	block, reason := compactionBlockFor(ctx, root, normalized)
+	if reason != "" {
+		return withDeadlineRemediation(root, reason, withSnapshotRemediation(ctx, root, event, reason, degradedAdapterOutput(reason)))
+	}
+	return map[string]any{adapterPlainStdoutKey: compactionPinInstruction + compactionPinLine(block)}
+}
+
+func runClaudePostCompact(ctx context.Context, root string, normalized, payload map[string]any) map[string]any {
+	summary, _ := payload["compact_summary"].(string)
+	// The host's cached replacement compaction reports an empty summary: there is nothing to
+	// verify, and no summary dropped the pin.
+	if summary == "" {
+		return map[string]any{adapterPlainStdoutKey: ""}
+	}
+	// A pre-compact that degraded emitted no pin, only the unavailable line; when that line is the
+	// summary's last pin-shaped line, nothing was dropped and the loss is not the summary's (AHI-057).
+	if compactionPinNotEmitted(summary) {
+		return degradedAdapterOutput("compaction-pin-not-emitted")
+	}
+	pin, ok := parseCompactionPin(summary)
+	if !ok {
+		return degradedAdapterOutput("compaction-pin-not-preserved")
+	}
+	revisionMissing, missing, reason := compactionPinMissing(ctx, root, pin)
+	if reason != "" {
+		return degradedAdapterOutput(reason)
+	}
+	if revisionMissing {
+		return degradedAdapterOutput("compaction-pin-revision-unavailable")
+	}
+	block, reason := compactionBlockFor(ctx, root, normalized)
+	if reason != "" {
+		return withDeadlineRemediation(root, reason, withSnapshotRemediation(ctx, root, "post-compact", reason, degradedAdapterOutput(reason)))
+	}
+	return map[string]any{adapterPlainStdoutKey: compactionReportLine(pin, missing, block)}
+}
+
+// compactionBlockFor rebuilds the compact SessionStart receipt's compaction block at the current
+// revision through the same read-only dogfood event AHI-003 uses.
+func compactionBlockFor(ctx context.Context, root string, normalized map[string]any) (compactionBlock, string) {
+	input := map[string]any{"sessionIdSha256": normalized["sessionIdSha256"], "startSource": "compact"}
+	result, reason := invokeDogfoodEvent(ctx, root, "claude-code", "session-start", input, adapterOutputLimit)
+	if reason != "" {
+		return compactionBlock{}, reason
+	}
+	if !claudeDegradationsRecognised(result) {
+		return compactionBlock{}, "corvint-degradations-unrecognised"
+	}
+	contextBlock, _ := result["context"].(map[string]any)
+	raw, err := json.Marshal(contextBlock["compaction"])
+	var block compactionBlock
+	if err != nil || json.Unmarshal(raw, &block) != nil {
+		return compactionBlock{}, "compaction-block-unavailable"
+	}
+	// A clean, untracked-only or over-budget worktree has no impact block and so no revision of
+	// its own; the pin then names the revision of the prompt packet the same index compiled.
+	if block.Revision == "" {
+		block.Revision, _ = contextBlock["revision"].(string)
+	}
+	if !validGitObjectID(block.Revision) {
+		return compactionBlock{}, "compaction-block-unavailable"
+	}
+	return block, ""
+}
+
+func compactionPinLine(block compactionBlock) string {
+	named := []string{}
+	// Tracked paths an over-budget block counts but does not list are elided too.
+	elided, size := max(block.Rehydration.Tracked-len(block.Request.Paths), 0), 0
+	for _, path := range block.Request.Paths {
+		size += len(path) + 1
+		if !compactionPinPathAdmitted(path) || len(named) == compactionPinPathLimit || size > compactionPinByteLimit {
+			elided++
+			continue
+		}
+		named = append(named, path)
+	}
+	return fmt.Sprintf("%s revision=%s tracked=%d untracked=%d paths=%s elided=%d", compactionPinProfile, block.Revision, block.Rehydration.Tracked, block.Rehydration.Untracked, strings.Join(named, ","), elided)
+}
+
+func compactionPinPathAdmitted(path string) bool {
+	if !compactionPinPathPattern.MatchString(path) {
+		return false
+	}
+	for _, segment := range strings.Split(path, "/") {
+		if segment == ".." {
+			return false
+		}
+	}
+	return true
+}
+
+// lastCompactionPinShape returns the summary from its last pin-shaped line on, or "" when it has none.
+func lastCompactionPinShape(summary string) string {
+	shapes := compactionPinShapePattern.FindAllStringIndex(summary, -1)
+	if len(shapes) == 0 {
+		return ""
+	}
+	return summary[shapes[len(shapes)-1][0]:]
+}
+
+// parseCompactionPin takes the summary's last pin-shaped line, which must be a whole pin: an
+// earlier pin carried forward does not stand in for a later one the summary truncated. The
+// summary is untrusted repository-adjacent text: every field is re-validated and a malformed pin
+// counts as absent.
+func parseCompactionPin(summary string) (compactionPin, bool) {
+	last := lastCompactionPinShape(summary)
+	match := compactionPinPattern.FindStringSubmatch(last)
+	if match == nil || !strings.HasPrefix(last, match[0]) {
+		return compactionPin{}, false
+	}
+	pin := compactionPin{Revision: match[1], Paths: []string{}}
+	counts := []*int{&pin.Tracked, &pin.Untracked, &pin.Elided}
+	for index, field := range []string{match[2], match[3], match[5]} {
+		value, err := strconv.Atoi(field)
+		if err != nil {
+			return compactionPin{}, false
+		}
+		*counts[index] = value
+	}
+	for _, path := range strings.Split(match[4], ",") {
+		if path == "" {
+			continue
+		}
+		if !compactionPinPathAdmitted(path) {
+			return compactionPin{}, false
+		}
+		pin.Paths = append(pin.Paths, path)
+	}
+	if !validGitObjectID(pin.Revision) || len(pin.Paths) > compactionPinPathLimit {
+		return compactionPin{}, false
+	}
+	return pin, true
+}
+
+// compactionPinNotEmitted reports whether the summary's last pin-shaped line, found before any
+// validation, is the unavailable line a degraded pre-compact emits. A later compaction's missing
+// pin is then not hidden behind an earlier pin the summary carried forward, and an emitted pin,
+// even one the summary mangled, is not hidden behind an earlier unavailable line.
+func compactionPinNotEmitted(summary string) bool {
+	location := compactionPinUnavailablePattern.FindStringIndex(lastCompactionPinShape(summary))
+	return location != nil && location[0] == 0
+}
+
+// compactionPinMissing verifies the pinned tree and each pinned path against the object store
+// with one bounded, hermetic cat-file --batch-check. It reads objects only.
+func compactionPinMissing(ctx context.Context, root string, pin compactionPin) (bool, []string, string) {
+	gitExecutable, err := exec.LookPath("git")
+	if err != nil {
+		return false, nil, "git-unavailable"
+	}
+	queries := []string{pin.Revision + "^{tree}"}
+	for _, path := range pin.Paths {
+		queries = append(queries, pin.Revision+":"+path)
+	}
+	deadline, cancel := context.WithTimeout(ctx, compactionGitDeadline)
+	defer cancel()
+	command := hermeticGitCommand(deadline, gitExecutable, root, "cat-file", "--batch-check")
+	command.Stdin = strings.NewReader(strings.Join(queries, "\n") + "\n")
+	output, err := command.Output()
+	lines := strings.Split(strings.TrimSuffix(string(output), "\n"), "\n")
+	if err != nil || len(lines) != len(queries) {
+		return false, nil, "compaction-pin-verification-unavailable"
+	}
+	if strings.HasSuffix(lines[0], " missing") {
+		return true, nil, ""
+	}
+	missing := []string{}
+	for index, line := range lines[1:] {
+		if strings.HasSuffix(line, " missing") || strings.HasSuffix(line, " ambiguous") {
+			missing = append(missing, pin.Paths[index])
+		}
+	}
+	return false, missing, ""
+}
+
+// compactionReportLine is the user-visible PostCompact verdict: which pinned paths rehydrate
+// from the pinned tree, which do not (by name where pinned, by count where the pin elided them
+// or they were untracked), and whether the pin still matches the current revision.
+func compactionReportLine(pin compactionPin, missing []string, block compactionBlock) string {
+	rehydrated := len(pin.Paths) - len(missing)
+	drift := "matches"
+	if block.Revision != pin.Revision {
+		drift = "moved to " + block.Revision
+	}
+	named := "none"
+	if len(missing) > 0 {
+		named = strings.Join(missing, ",")
+	}
+	return fmt.Sprintf("%s pinned=%s current=%s rehydrated=%d non-rehydratable=%s elided=%d untracked=%d current-dirty=%d", compactionReportProfile, pin.Revision, drift, rehydrated, named, pin.Elided, pin.Untracked, block.Rehydration.Tracked)
+}
+
+// compactionDisclosure is the trusted line a compact SessionStart carries on every host (AHI-030):
+// it names where pin verification runs and that this packet is the model-facing rehydration, so a
+// host that silently ignores the PreCompact/PostCompact registration still shows the gap.
+const compactionDisclosure = "Corvint compaction (trusted adapter guidance): PreCompact/PostCompact pin verification is registered for Claude Code 2.1.267 and reports to the user only; this SessionStart(source=compact) packet is the model-facing rehydration, and on a host without those hook events it is the only one.\n"
+
+func compactSessionDisclosure(event string, normalized map[string]any) string {
+	if event != "session-start" || normalized["startSource"] != "compact" {
+		return ""
+	}
+	return compactionDisclosure
+}
+
+// compactionPlainOutput makes every Claude Code compaction output plain stdout text. The host
+// joins PreCompact stdout into the compactor's instructions and shows PostCompact stdout to the
+// user, reading neither as hook JSON, so a degradation is its systemMessage frame text and any
+// other output without text is empty. A PreCompact output without text emitted no pin, so its
+// text starts with the unavailable line (AHI-057). The systemMessage field stays for the
+// SOL-V0-010 reason.
+func compactionPlainOutput(arguments []string, output map[string]any) map[string]any {
+	if len(arguments) != 2 || arguments[0] != "claude-code" || (arguments[1] != "pre-compact" && arguments[1] != "post-compact") {
+		return output
+	}
+	if _, ok := output[adapterPlainStdoutKey]; ok {
+		return output
+	}
+	text, _ := output["systemMessage"].(string)
+	if arguments[1] == "pre-compact" {
+		text = compactionPinUnavailable + text
+	}
+	output[adapterPlainStdoutKey] = text
+	return output
+}

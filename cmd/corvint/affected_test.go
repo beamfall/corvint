@@ -1,0 +1,1338 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io/fs"
+	"maps"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"reflect"
+	"slices"
+	"sort"
+	"strings"
+	"testing"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
+)
+
+// treeDigest hashes every regular file under root except .git, ignored files
+// included, so a write into ignored trace state is detected too.
+func treeDigest(t *testing.T, root string) string {
+	t.Helper()
+	hash := sha256.New()
+	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if entry.IsDir() {
+			if entry.Name() == ".git" {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		body, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		relative, _ := filepath.Rel(root, path)
+		hash.Write([]byte(relative))
+		hash.Write([]byte{0})
+		hash.Write(body)
+		hash.Write([]byte{0})
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return hex.EncodeToString(hash.Sum(nil))
+}
+
+// affectedFixtureRepository copies the selector's multi-language fixture into
+// a fresh Git repository with one commit.
+func affectedFixtureRepository(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	source := filepath.Join("..", "..", "internal", "liveverify", "affected", "testdata", "fixture")
+	err := filepath.WalkDir(source, func(path string, entry fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		relative, _ := filepath.Rel(source, path)
+		target := filepath.Join(root, relative)
+		if entry.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		body, readErr := os.ReadFile(path)
+		if readErr != nil {
+			return readErr
+		}
+		return os.WriteFile(target, body, 0o644)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, arguments := range [][]string{
+		{"init", "-q"}, {"config", "user.email", "corvint@example.test"}, {"config", "user.name", "Corvint Test"},
+		// A commit must not spawn detached auto maintenance: it outlives the
+		// fixture command and its .git writes race TempDir cleanup and digests.
+		{"config", "maintenance.auto", "false"}, {"config", "gc.auto", "0"},
+		{"add", "."}, {"commit", "-qm", "fixture"},
+	} {
+		affectedGit(t, root, arguments...)
+	}
+	return root
+}
+
+func affectedGit(t *testing.T, root string, arguments ...string) string {
+	t.Helper()
+	command := exec.Command("git", arguments...)
+	command.Dir = root
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v: %v\n%s", arguments, err, output)
+	}
+	return string(output)
+}
+
+func runAffectedCLI(t *testing.T, root string, options ...string) (map[string]any, []byte, string, int) {
+	t.Helper()
+	var stdout, stderr bytes.Buffer
+	code := runContext(context.Background(), append([]string{"--root", root, "affected"}, options...), strings.NewReader(""), &stdout, &stderr)
+	var receipt map[string]any
+	if code == 0 {
+		if err := json.Unmarshal(stdout.Bytes(), &receipt); err != nil {
+			t.Fatalf("stdout is not JSON: %v\n%s", err, stdout.String())
+		}
+	}
+	return receipt, stdout.Bytes(), stderr.String(), code
+}
+
+func TestAffectedCleanTreeSelectsNothingAndWritesNothing(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	if err := os.MkdirAll(filepath.Join(root, ".corvint"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".corvint", "self-observations.jsonl"), []byte("{\"kind\":\"event\"}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte(".corvint/\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	affectedGit(t, root, "add", ".gitignore")
+	affectedGit(t, root, "commit", "-qm", "ignore")
+	before := treeDigest(t, root)
+	receipt, _, stderr, code := runAffectedCLI(t, root)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	if receipt["tool"] != "affected" || receipt["profile"] != affectedCompactProfile || receipt["mutates"] != false || receipt["ok"] != true {
+		t.Fatalf("receipt envelope: %v", receipt)
+	}
+	plan := receipt["plan"].(map[string]any)
+	if len(plan["selected"].([]any)) != 0 || plan["excluded"].(map[string]any)["count"].(float64) == 0 {
+		t.Fatalf("clean tree must select nothing and exclude every unit: %v", plan)
+	}
+	goProvider := receipt["provider"].(map[string]any)["go"].(map[string]any)
+	if len(goProvider["packages"].([]any)) != 0 || goProvider["state"] != providerStateEmpty {
+		t.Fatalf("clean tree must yield an EMPTY_SELECTION projection: %v", goProvider)
+	}
+	if after := treeDigest(t, root); after != before {
+		t.Fatal("affected wrote into the repository or its ignored state")
+	}
+}
+
+// TestAffectedEmptyDiffIsABoundedEmptyPlan_V1_2126: on a clean checkout of the
+// multi-language fixture, with no base and with --base at HEAD, no path
+// changed, so no plugin takes part: the plan is BOUNDED with no unknown and the
+// advice names no Go gap and, with no repository declaration, no mandatory
+// check. A dirty path still reports itself and its plugins' frontiers.
+func TestAffectedEmptyDiffIsABoundedEmptyPlan_V1_2126(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	head := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+	for _, options := range [][]string{nil, {"--base", head}} {
+		receipt, _, stderr, code := runAffectedCLI(t, root, options...)
+		if code != 0 {
+			t.Fatalf("%v: exit %d: %s", options, code, stderr)
+		}
+		plan := receipt["plan"].(map[string]any)
+		if plan["scope"] != "BOUNDED" || len(plan["unknown"].([]any)) != 0 || len(plan["dirty"].([]any)) != 0 || len(plan["selected"].([]any)) != 0 {
+			t.Fatalf("%v: empty diff plan = scope %v unknown %v dirty %v selected %v, want a BOUNDED empty plan", options, plan["scope"], plan["unknown"], plan["dirty"], plan["selected"])
+		}
+		advice := receipt["advice"].(map[string]any)
+		for _, line := range advice["unknown"].([]any) {
+			if strings.HasPrefix(line.(string), "NO_ADVISORY_GO_COMMAND") || strings.HasPrefix(line.(string), "PLAN_UNKNOWN") {
+				t.Fatalf("%v: advice unknown %q on an empty diff", options, line)
+			}
+		}
+		for _, check := range advice["checks"].([]any) {
+			if kind := check.(map[string]any)["kind"]; kind != "advisory" {
+				t.Fatalf("%v: %v check %v with no repository declaration", options, kind, check)
+			}
+		}
+	}
+	core := filepath.Join(root, "core", "core.go")
+	body, err := os.ReadFile(core)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(core, append(body, []byte("\n// edited\n")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	receipt, _, stderr, code := runAffectedCLI(t, root, "--base", head)
+	if code != 0 {
+		t.Fatalf("dirty: exit %d: %s", code, stderr)
+	}
+	plan := receipt["plan"].(map[string]any)
+	if dirty := plan["dirty"].([]any); len(dirty) != 1 || dirty[0] != "core/core.go" || len(plan["selected"].([]any)) == 0 {
+		t.Fatalf("a dirty worktree over an empty committed diff must report its dirty path: dirty %v selected %v", plan["dirty"], plan["selected"])
+	}
+}
+
+func TestAffectedUnreadableSubtreeFailsClosed(t *testing.T) {
+	t.Parallel()
+	if os.Geteuid() == 0 {
+		t.Skip("root ignores directory permissions")
+	}
+	root := affectedFixtureRepository(t)
+	locked := filepath.Join(root, "leaf")
+	if err := os.Chmod(locked, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
+	_, _, stderr, code := runAffectedCLI(t, root)
+	if code != 2 || !strings.Contains(stderr, "unsupported-affected-graph") {
+		t.Fatalf("unreadable subtree must fail closed, got exit %d: %s", code, stderr)
+	}
+}
+
+func TestAffectedDirtyGoSourceSelectsDependentsAsProviderPackages(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	corePath := filepath.Join(root, "core", "core.go")
+	body, err := os.ReadFile(corePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(corePath, append(body, []byte("\n// edited\n")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	receipt, first, stderr, code := runAffectedCLI(t, root)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	plan := receipt["plan"].(map[string]any)
+	selected := plan["selected"].([]any)
+	if len(selected) == 0 {
+		t.Fatalf("editing core/core.go must select at least the core unit: %v", plan)
+	}
+	witnessed := false
+	for _, item := range selected {
+		selection := item.(map[string]any)
+		witness := selection["witness"].(map[string]any)
+		if witness["dirtyPath"] == "core/core.go" {
+			witnessed = true
+		}
+	}
+	if !witnessed {
+		t.Fatalf("every selection must carry a witness naming the dirty path: %v", selected)
+	}
+	goProvider := receipt["provider"].(map[string]any)["go"].(map[string]any)
+	packages := goProvider["packages"].([]any)
+	if len(packages) == 0 || goProvider["state"] != providerStateRunnable {
+		t.Fatalf("Go selections must become a RUNNABLE provider projection: %v", goProvider)
+	}
+	for _, item := range packages {
+		importPath := item.(string)
+		if !strings.HasPrefix(importPath, "example.com/fixture") || strings.Contains(importPath, "...") {
+			t.Fatalf("provider package is not an exact fixture import path: %q", importPath)
+		}
+	}
+	_, second, _, _ := runAffectedCLI(t, root)
+	if !bytes.Equal(first, second) {
+		t.Fatalf("plan is not byte-identical across runs:\n%s\n%s", first, second)
+	}
+}
+
+func TestAffectedUnownedDirtyPathIsUnknownScope(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	if err := os.WriteFile(filepath.Join(root, "notes.txt"), []byte("scratch\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	receipt, _, stderr, code := runAffectedCLI(t, root)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	plan := receipt["plan"].(map[string]any)
+	if plan["scope"] != "UNKNOWN" {
+		t.Fatalf("an unowned dirty path must leave scope UNKNOWN: %v", plan)
+	}
+	found := false
+	for _, item := range plan["unknown"].([]any) {
+		if item.(map[string]any)["reason"] == "UNOWNED_DIRTY_PATH" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected UNOWNED_DIRTY_PATH unknown: %v", plan["unknown"])
+	}
+}
+
+// AFP-V0-021: a changed document selects the package whose test names it by
+// literal, as PATH_LITERAL_READER, and stays UNOWNED_DIRTY_PATH; a document
+// no literal names selects nothing and stays unknown too.
+func TestAffectedDocumentSelectsThePackageThatNamesIt(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	for relative, body := range map[string]string{
+		"core/guide_test.go": "package core\n\nconst guide = \"docs/guide.md\"\n",
+		"docs/guide.md":      "guide\n",
+	} {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, relative)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, relative), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "document reader")
+	for _, relative := range []string{"docs/guide.md", "docs/unread.md"} {
+		if err := os.WriteFile(filepath.Join(root, relative), []byte("edited\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	receipt, first, stderr, code := runAffectedCLI(t, root, "--full")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	plan := receipt["plan"].(map[string]any)
+	selected := fmt.Sprint(plan["selected"])
+	if want := "[map[tests:[core/core_test.go core/guide_test.go] unitId:go:example.com/fixture/core witness:map[dirtyPath:docs/guide.md kind:PATH_LITERAL_READER via:[go:example.com/fixture/core]]]]"; selected != want {
+		t.Fatalf("selected=%s\nwant    %s", selected, want)
+	}
+	unknown := fmt.Sprint(plan["unknown"])
+	if plan["scope"] != "UNKNOWN" || !strings.Contains(unknown, "map[detail:docs/guide.md reason:UNOWNED_DIRTY_PATH] map[detail:docs/unread.md reason:UNOWNED_DIRTY_PATH]") {
+		t.Fatalf("both documents must stay unknown: scope=%v unknown=%s", plan["scope"], unknown)
+	}
+	if packages := fmt.Sprint(receipt["provider"]); !strings.Contains(packages, "packages:[example.com/fixture/core] state:RUNNABLE") {
+		t.Fatalf("provider=%s", packages)
+	}
+	if _, second, _, _ := runAffectedCLI(t, root, "--full"); !bytes.Equal(first, second) {
+		t.Fatalf("plan is not byte-identical across runs:\n%s\n%s", first, second)
+	}
+}
+
+// AFP-V0-088: in a repository with a Corvint Tasks store, a dirty projection
+// that no package names is task state with a stated reason and leaves scope
+// BOUNDED; a projection file a Go test names by literal still selects that
+// package and keeps its UNOWNED_DIRTY_PATH entry. The default compact receipt
+// and the --full receipt both carry plan.nonSource.
+func TestAffectedTaskStoreProjectionIsTaskState_AFPV0088(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	for relative, body := range map[string]string{
+		".taskman/policy.json":          "{}\n",
+		".taskman/queue.json":           "{}\n",
+		".taskman/tickets/V1-0001.json": "{}\n",
+		"core/policy_test.go":           "package core\n\nconst policy = \".taskman/policy.json\"\n",
+	} {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, relative)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, relative), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "tasks store")
+	edit := func(relative string) {
+		if err := os.WriteFile(filepath.Join(root, relative), []byte("{\"edited\":true}\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	edit(".taskman/queue.json")
+	edit(".taskman/tickets/V1-0001.json")
+	receipt, _, stderr, code := runAffectedCLI(t, root)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	plan := receipt["plan"].(map[string]any)
+	reason := "Corvint Tasks store projection written by corvint-tasks; no unit's path literal or declared read scope names it, so it is task state, not a build or test input"
+	want := "[map[class:TASK_STORE_PROJECTION paths:[.taskman/queue.json .taskman/tickets/V1-0001.json] reason:" + reason + "]]"
+	if plan["scope"] != "BOUNDED" || fmt.Sprint(plan["unknown"]) != "[]" || fmt.Sprint(plan["selected"]) != "[]" || fmt.Sprint(plan["nonSource"]) != want {
+		t.Fatalf("an unread projection must be task state: scope=%v unknown=%v selected=%v nonSource=%v", plan["scope"], plan["unknown"], plan["selected"], plan["nonSource"])
+	}
+	edit(".taskman/policy.json")
+	receipt, _, stderr, code = runAffectedCLI(t, root, "--full")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	plan = receipt["plan"].(map[string]any)
+	if want := "[map[tests:[core/core_test.go core/policy_test.go] unitId:go:example.com/fixture/core witness:map[dirtyPath:.taskman/policy.json kind:PATH_LITERAL_READER via:[go:example.com/fixture/core]]]]"; fmt.Sprint(plan["selected"]) != want {
+		t.Fatalf("the reader of a projection file must be selected: %v", plan["selected"])
+	}
+	// The read path is unowned as before, so every plugin's frontier bears on
+	// the plan again (V1-0289); the unread projection added none above.
+	unknown := fmt.Sprint(plan["unknown"])
+	if plan["scope"] != "UNKNOWN" || strings.Count(unknown, "UNOWNED_DIRTY_PATH") != 1 || !strings.Contains(unknown, "map[detail:.taskman/policy.json reason:UNOWNED_DIRTY_PATH]") || !strings.Contains(fmt.Sprint(plan["nonSource"]), "paths:[.taskman/queue.json .taskman/tickets/V1-0001.json]") {
+		t.Fatalf("a read projection file stays unknown: scope=%v unknown=%v nonSource=%v", plan["scope"], plan["unknown"], plan["nonSource"])
+	}
+}
+
+// AFP-V0-020: an edited Go package with no _test.go file is named in
+// plan.unknown and leaves scope UNKNOWN instead of being omitted.
+func TestAffectedUntestedGoPackageIsUnknownScope(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	source := filepath.Join(root, "untested", "untested.go")
+	if err := os.MkdirAll(filepath.Dir(source), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(source, []byte("package untested\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "untested package")
+	if err := os.WriteFile(source, []byte("package untested\n\nconst Value = 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	receipt, _, stderr, code := runAffectedCLI(t, root)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	plan := receipt["plan"].(map[string]any)
+	if plan["scope"] != "UNKNOWN" {
+		t.Fatalf("an edited package without tests must leave scope UNKNOWN: %v", plan)
+	}
+	found := false
+	for _, item := range plan["unknown"].([]any) {
+		entry := item.(map[string]any)
+		if entry["reason"] == "NO_SELECTABLE_TEST" && entry["detail"] == "go:example.com/fixture/untested" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("expected NO_SELECTABLE_TEST for go:example.com/fixture/untested: %v", plan["unknown"])
+	}
+}
+
+func TestAffectedRejectsNonRepositoryAndExtraArguments(t *testing.T) {
+	t.Parallel()
+	var stdout, stderr bytes.Buffer
+	if code := runContext(context.Background(), []string{"--root", t.TempDir(), "affected"}, strings.NewReader(""), &stdout, &stderr); code != 2 {
+		t.Fatalf("non-repository must exit 2, got %d: %s", code, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "not a Git repository") {
+		t.Fatalf("unexpected stderr: %s", stderr.String())
+	}
+	stderr.Reset()
+	root := affectedFixtureRepository(t)
+	if code := runContext(context.Background(), []string{"--root", root, "affected", "--limit", "3"}, strings.NewReader(""), &stdout, &stderr); code != 2 {
+		t.Fatalf("extra arguments must exit 2, got %d", code)
+	}
+	if !strings.Contains(stderr.String(), "unrecognized arguments") {
+		t.Fatalf("unexpected stderr: %s", stderr.String())
+	}
+}
+
+// TestAFPV0201AffectedFormatIsRefusedWithAcceptedOptions pins the specific
+// --format refusal: it names the single JSON output and every accepted option
+// instead of the generic unrecognized-arguments message (V1-2348).
+func TestAFPV0201AffectedFormatIsRefusedWithAcceptedOptions(t *testing.T) {
+	t.Parallel()
+	for _, arguments := range [][]string{{"affected", "--format", "json"}, {"affected", "--format=table"}, {"affected", "--full", "--format"}} {
+		var stdout, stderr bytes.Buffer
+		if code := runContext(context.Background(), append([]string{"--root", t.TempDir()}, arguments...), strings.NewReader(""), &stdout, &stderr); code != 2 {
+			t.Fatalf("%q must exit 2, got %d: %s", arguments, code, stderr.String())
+		}
+		var refusal struct{ Code, Error string }
+		if err := json.Unmarshal(stderr.Bytes(), &refusal); err != nil {
+			t.Fatalf("%q: stderr is not one JSON refusal: %v: %s", arguments, err, stderr.String())
+		}
+		if refusal.Code != "invalid-arguments" || strings.Contains(refusal.Error, "unrecognized arguments") || !strings.Contains(refusal.Error, "affected has no --format option") {
+			t.Fatalf("%q: refusal is not the specific --format message: %+v", arguments, refusal)
+		}
+		for _, option := range []string{"--base", "--full", "--path", "--provider", "--require-clean", "--selection-profile", "--snapshot"} {
+			if !strings.Contains(refusal.Error, option) {
+				t.Fatalf("%q: refusal does not name accepted option %s: %s", arguments, option, refusal.Error)
+			}
+		}
+	}
+}
+
+func TestAffectedHelpTopicsAreWired(t *testing.T) {
+	t.Parallel()
+	for _, arguments := range [][]string{{"help", "affected"}, {"affected", "--help"}} {
+		topic, requested, err := parseHelpInvocation(arguments)
+		if err != nil || !requested || topic != "affected" {
+			t.Fatalf("%v: topic=%q requested=%v err=%v", arguments, topic, requested, err)
+		}
+	}
+	if !strings.Contains(rootHelp, "affected") || !strings.Contains(helpText("affected"), "affected-plan/0") {
+		t.Fatal("affected help is not registered")
+	}
+	// V1-2073 (AFP-V0-010): plan.dirty is the committed range plus the
+	// worktree set, so the help must say a clean worktree still lists them.
+	if !strings.Contains(helpText("affected"), "a clean\nworktree still lists its committed range paths there") {
+		t.Fatal("affected help does not explain committed range paths in plan.dirty")
+	}
+}
+
+// affectedChecks returns the advice checks of a receipt.
+func affectedChecks(t *testing.T, receipt map[string]any) []map[string]any {
+	t.Helper()
+	advice, ok := receipt["advice"].(map[string]any)
+	if !ok {
+		t.Fatalf("receipt has no advice member: %v", receipt)
+	}
+	if advice["status"] != "PLAN_ONLY" || !strings.Contains(advice["note"].(string), "mandatory checks remain required") {
+		t.Fatalf("advice envelope: %v", advice)
+	}
+	checks := []map[string]any{}
+	for _, item := range advice["checks"].([]any) {
+		checks = append(checks, item.(map[string]any))
+	}
+	return checks
+}
+
+func affectedAdviceUnknown(t *testing.T, receipt map[string]any) []string {
+	t.Helper()
+	lines := []string{}
+	for _, item := range receipt["advice"].(map[string]any)["unknown"].([]any) {
+		lines = append(lines, item.(string))
+	}
+	return lines
+}
+
+func writeAffectedGateDeclarations(t *testing.T, root string) {
+	t.Helper()
+	makefile := ".PHONY: gate\ngate: go-test\n\t@true\n\ngo-test:\n\t@true\n"
+	if err := os.WriteFile(filepath.Join(root, "Makefile"), []byte(makefile), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	agents := "# Contract\n\nProse.\n\n## Verify\n\n```sh\nGOTOOLCHAIN=local go test -count=1 ./...\n$ GOTOOLCHAIN=local go vet ./...\n```\n"
+	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte(agents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	affectedGit(t, root, "add", ".")
+	affectedGit(t, root, "commit", "-qm", "declare the gate")
+}
+
+// AFP-V0-009: the mandatory gate the repository declares comes first, in source
+// order, and the advisory Go command follows it.
+func TestAffectedAdviceJoinsMandatoryGateAndAdvisoryPackages(t *testing.T) {
+	t.Parallel()
+	t.Run("AFP-V0-009 mandatory first then advisory", func(t *testing.T) {
+		root := affectedFixtureRepository(t)
+		writeAffectedGateDeclarations(t, root)
+		corePath := filepath.Join(root, "core", "core.go")
+		body, err := os.ReadFile(corePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(corePath, append(body, []byte("\n// edited\n")...), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		receipt, _, stderr, code := runAffectedCLI(t, root)
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, stderr)
+		}
+		checks := affectedChecks(t, receipt)
+		if len(checks) != 4 {
+			t.Fatalf("expected three mandatory checks and one advisory: %v", checks)
+		}
+		expected := []string{"make gate", "GOTOOLCHAIN=local go test -count=1 ./...", "GOTOOLCHAIN=local go vet ./..."}
+		for index, command := range expected {
+			if checks[index]["command"] != command || checks[index]["kind"] != adviceKindMandatory {
+				t.Fatalf("mandatory check %d is %v, want %q", index, checks[index], command)
+			}
+		}
+		if checks[0]["source"] != "Makefile" || checks[1]["source"] != "AGENTS.md" {
+			t.Fatalf("mandatory checks must cite their declaring file: %v", checks)
+		}
+		advisory := checks[3]
+		if advisory["kind"] != adviceKindAdvisory || advisory["source"] != adviceSourcePlan {
+			t.Fatalf("last check must be the advisory plan command: %v", advisory)
+		}
+		// AFP-V0-038: the default names provider.go.packages; --full spells them out.
+		resolved := resolveCompactAdvice(t, receipt).(map[string]any)["checks"].([]any)[3].(map[string]any)
+		if advisory["arguments"] != affectedAdvisoryArguments || !strings.HasPrefix(resolved["command"].(string), "GOTOOLCHAIN=local go test -count=1 'example.com/fixture") {
+			t.Fatalf("advisory command must run the selected packages: %v", advisory)
+		}
+		if !strings.Contains(advisory["reason"].(string), "dirty path") {
+			t.Fatalf("advisory reason must name the selection and the dirty paths: %v", advisory)
+		}
+	})
+}
+
+// AFP-V0-009: a repository that declares no gate says so in the unknown
+// frontier rather than inventing a mandatory check.
+func TestAffectedAdviceReportsNoDeclaredGate(t *testing.T) {
+	t.Parallel()
+	t.Run("AFP-V0-009 no repository gate declared", func(t *testing.T) {
+		root := affectedFixtureRepository(t)
+		receipt, _, stderr, code := runAffectedCLI(t, root)
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, stderr)
+		}
+		for _, check := range affectedChecks(t, receipt) {
+			if check["kind"] == adviceKindMandatory {
+				t.Fatalf("no declaration exists, so no mandatory check may appear: %v", check)
+			}
+		}
+		unknown := affectedAdviceUnknown(t, receipt)
+		if !slices.Contains(unknown, adviceNoGateUnknown) {
+			t.Fatalf("expected the NO_REPOSITORY_GATE_DECLARED unknown: %v", unknown)
+		}
+		if !slices.IsSorted(unknown) {
+			t.Fatalf("advice unknown must be sorted: %v", unknown)
+		}
+	})
+}
+
+// AFP-V0-009: an unowned dirty path keeps the mandatory gate, states its
+// unknown, and never proposes anything derived from an exclusion (AFP-V0-004).
+func TestAffectedAdviceKeepsMandatoryGateAndNeverAdvisesExclusions(t *testing.T) {
+	t.Parallel()
+	t.Run("AFP-V0-009 unknown scope keeps the mandatory gate", func(t *testing.T) {
+		root := affectedFixtureRepository(t)
+		writeAffectedGateDeclarations(t, root)
+		if err := os.WriteFile(filepath.Join(root, "notes.txt"), []byte("scratch\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		receipt, _, stderr, code := runAffectedCLI(t, root, "--full")
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, stderr)
+		}
+		plan := receipt["plan"].(map[string]any)
+		if plan["scope"] != "UNKNOWN" {
+			t.Fatalf("an unowned dirty path must leave scope UNKNOWN: %v", plan)
+		}
+		checks := affectedChecks(t, receipt)
+		mandatory := 0
+		for _, check := range checks {
+			if check["kind"] == adviceKindMandatory {
+				mandatory++
+			}
+		}
+		if mandatory != 3 {
+			t.Fatalf("every declared mandatory check survives an UNKNOWN scope: %v", checks)
+		}
+		excluded := plan["excluded"].([]any)
+		if len(excluded) == 0 {
+			t.Fatal("fixture must exclude at least one unit for this assertion to bite")
+		}
+		for _, item := range excluded {
+			unitID := item.(map[string]any)["unitId"].(string)
+			for _, check := range checks {
+				if strings.Contains(check["command"].(string), strings.TrimPrefix(unitID, "go:")) {
+					t.Fatalf("check %v is derived from the exclusion %q", check, unitID)
+				}
+			}
+		}
+		unknown := affectedAdviceUnknown(t, receipt)
+		if !slices.Contains(unknown, "NO_ADVISORY_GO_COMMAND: provider.go.state is "+providerStateEmpty) {
+			t.Fatalf("a non-RUNNABLE projection must name its state: %v", unknown)
+		}
+		found := false
+		for _, line := range unknown {
+			found = found || strings.HasPrefix(line, "UNOWNED_DIRTY_PATH: ")
+		}
+		if !found {
+			t.Fatalf("the plan frontier must be projected into advice.unknown: %v", unknown)
+		}
+	})
+}
+
+// AFP-V0-009: the receipt carries exactly the closed member list of AFP-V0-003
+// and stays byte-identical across runs (AFP-V0-005).
+func TestAffectedReceiptMembersAreClosedAndByteStable(t *testing.T) {
+	t.Parallel()
+	t.Run("AFP-V0-009 canonical members and byte identity", func(t *testing.T) {
+		root := affectedFixtureRepository(t)
+		writeAffectedGateDeclarations(t, root)
+		receipt, first, stderr, code := runAffectedCLI(t, root)
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, stderr)
+		}
+		members := []string{}
+		for member := range receipt {
+			members = append(members, member)
+		}
+		sort.Strings(members)
+		want := []string{"advice", "mutates", "ok", "plan", "profile", "provider", "range", "revision", "summary", "tool"}
+		if !slices.Equal(members, want) {
+			t.Fatalf("receipt members are %v, want %v", members, want)
+		}
+		adviceMembers := []string{}
+		for member := range receipt["advice"].(map[string]any) {
+			adviceMembers = append(adviceMembers, member)
+		}
+		sort.Strings(adviceMembers)
+		if !slices.Equal(adviceMembers, []string{"checks", "note", "status", "unknown"}) {
+			t.Fatalf("advice members are %v", adviceMembers)
+		}
+		if rangeMember := receipt["range"].(map[string]any); rangeMember["base"] != "" || len(rangeMember["paths"].([]any)) != 0 {
+			t.Fatalf("worktree-only range must be empty, got %v", rangeMember)
+		}
+		adviceRaw := extractJSONObject(t, first, "advice")
+		var adviceGeneric map[string]any
+		if err := json.Unmarshal(adviceRaw, &adviceGeneric); err != nil {
+			t.Fatalf("advice is not valid JSON: %v\n%s", err, adviceRaw)
+		}
+		var buf bytes.Buffer
+		encoder := json.NewEncoder(&buf)
+		encoder.SetEscapeHTML(false)
+		if err := encoder.Encode(adviceGeneric); err != nil {
+			t.Fatal(err)
+		}
+		resorted := bytes.TrimSuffix(buf.Bytes(), []byte{'\n'})
+		if !bytes.Equal(adviceRaw, resorted) {
+			t.Fatalf("advice key order is not alphabetical:\nraw:      %s\nresorted: %s", adviceRaw, resorted)
+		}
+		_, second, _, _ := runAffectedCLI(t, root)
+		if !bytes.Equal(first, second) {
+			t.Fatalf("advice is not byte-identical across runs:\n%s\n%s", first, second)
+		}
+	})
+}
+
+// extractJSONObject returns the raw bytes of the object value of key inside
+// raw, by scanning brace depth rather than reformatting — so the result
+// reflects the exact key order the producer emitted.
+func extractJSONObject(t *testing.T, raw []byte, key string) []byte {
+	t.Helper()
+	marker := []byte(`"` + key + `":{`)
+	start := bytes.Index(raw, marker)
+	if start < 0 {
+		t.Fatalf("key %q not found in %s", key, raw)
+	}
+	start += len(marker) - 1
+	depth, inString, escaped := 0, false, false
+	for index := start; index < len(raw); index++ {
+		character := raw[index]
+		if inString {
+			switch {
+			case escaped:
+				escaped = false
+			case character == '\\':
+				escaped = true
+			case character == '"':
+				inString = false
+			}
+			continue
+		}
+		switch character {
+		case '"':
+			inString = true
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return raw[start : index+1]
+			}
+		}
+	}
+	t.Fatalf("unbalanced object for key %q in %s", key, raw)
+	return nil
+}
+
+// AFP-V0-009: the per-file read bound truncates rather than failing, and a
+// declaration inside the bound is still found.
+func TestAffectedAdviceBoundsTheDeclarationRead(t *testing.T) {
+	t.Parallel()
+	t.Run("AFP-V0-009 bounded declaration read", func(t *testing.T) {
+		root := affectedFixtureRepository(t)
+		padding := strings.Repeat("# padding padding padding padding padding padding\n", 6500)
+		makefile := "gate:\n\t@true\n" + padding + "late:\n\t@true\n"
+		if len(makefile) < 300<<10 {
+			t.Fatalf("fixture Makefile is %d bytes, want more than 300 KiB", len(makefile))
+		}
+		if err := os.WriteFile(filepath.Join(root, "Makefile"), []byte(makefile), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		receipt, _, stderr, code := runAffectedCLI(t, root)
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, stderr)
+		}
+		checks := affectedChecks(t, receipt)
+		if len(checks) == 0 || checks[0]["command"] != "make gate" {
+			t.Fatalf("a gate target inside the read bound must still be found: %v", checks)
+		}
+		if body, truncated, _ := readAdviceSource(filepath.Join(root, "Makefile"), adviceMaxSourceBytes); len(body) != adviceMaxSourceBytes || !truncated {
+			t.Fatalf("the read is not bounded at %d bytes: %d (truncated=%v)", adviceMaxSourceBytes, len(body), truncated)
+		}
+	})
+}
+
+// AFP-V0-009: an advisory package path carrying a shell metacharacter must
+// not break a paste of the advisory command into a shell.
+func TestShellQuoteJoinEscapesMetacharacters(t *testing.T) {
+	t.Parallel()
+	t.Run("AFP-V0-009 shell quoting", func(t *testing.T) {
+		got := shellQuoteJoin([]string{"pkg;rm -rf /", "pkg's/path"})
+		want := `'pkg;rm -rf /' 'pkg'\''s/path'`
+		if got != want {
+			t.Fatalf("shellQuoteJoin = %s, want %s", got, want)
+		}
+	})
+}
+
+// AFP-V0-009: a Makefile whose only gate target sits past the 256 KiB read
+// bound must not be found, and the truncated read must be named rather than
+// silently reported as no gate declared.
+func TestAffectedAdviceTruncatedMandatoryDeclarationSuppressesNoGate(t *testing.T) {
+	t.Parallel()
+	t.Run("AFP-V0-009 truncated mandatory declaration", func(t *testing.T) {
+		root := affectedFixtureRepository(t)
+		padding := strings.Repeat("# padding padding padding padding padding padding\n", 6500)
+		makefile := padding + "gate:\n\t@true\n"
+		if len(makefile) < 300<<10 {
+			t.Fatalf("fixture Makefile is %d bytes, want more than 300 KiB", len(makefile))
+		}
+		if err := os.WriteFile(filepath.Join(root, "Makefile"), []byte(makefile), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		receipt, _, stderr, code := runAffectedCLI(t, root)
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, stderr)
+		}
+		for _, check := range affectedChecks(t, receipt) {
+			if check["kind"] == adviceKindMandatory {
+				t.Fatalf("a gate target past the read bound must not be found: %v", check)
+			}
+		}
+		unknown := affectedAdviceUnknown(t, receipt)
+		want := fmt.Sprintf("MANDATORY_DECLARATION_TRUNCATED: Makefile exceeded %d bytes", adviceMaxSourceBytes)
+		if !slices.Contains(unknown, want) {
+			t.Fatalf("expected the truncated unknown: %v", unknown)
+		}
+		if slices.Contains(unknown, adviceNoGateUnknown) {
+			t.Fatalf("a truncated source must never coexist with NO_REPOSITORY_GATE_DECLARED: %v", unknown)
+		}
+	})
+}
+
+// AFP-V0-009: an AGENTS.md Verify fence declaring more than 16 commands is
+// capped at 16 mandatory entries, and the drop is named in unknown.
+func TestAffectedAdviceCapsMandatoryChecksAtSixteen(t *testing.T) {
+	t.Parallel()
+	t.Run("AFP-V0-009 mandatory checks capped at sixteen", func(t *testing.T) {
+		root := affectedFixtureRepository(t)
+		lines := make([]string, 20)
+		for index := range lines {
+			lines[index] = fmt.Sprintf("cmd%02d", index)
+		}
+		agents := "## Verify\n\n```sh\n" + strings.Join(lines, "\n") + "\n```\n"
+		if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte(agents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		receipt, _, stderr, code := runAffectedCLI(t, root)
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, stderr)
+		}
+		mandatory := 0
+		for _, check := range affectedChecks(t, receipt) {
+			if check["kind"] == adviceKindMandatory {
+				mandatory++
+			}
+		}
+		if mandatory != adviceMaxMandatoryChecks {
+			t.Fatalf("expected %d mandatory entries, got %d", adviceMaxMandatoryChecks, mandatory)
+		}
+		unknown := affectedAdviceUnknown(t, receipt)
+		want := fmt.Sprintf("MANDATORY_DECLARATION_CAPPED: AGENTS.md declared more than %d commands", adviceMaxMandatoryChecks)
+		if !slices.Contains(unknown, want) {
+			t.Fatalf("expected the capped unknown: %v", unknown)
+		}
+	})
+}
+
+// AFP-V0-009: a comment line inside a Verify fence contributes no command.
+func TestAffectedAdviceSkipsCommentsInVerifyFence(t *testing.T) {
+	t.Parallel()
+	t.Run("AFP-V0-009 verify fence comment skipped", func(t *testing.T) {
+		root := affectedFixtureRepository(t)
+		agents := "## Verify\n\n```sh\n# comment\nGOTOOLCHAIN=local go test -count=1 ./...\nGOTOOLCHAIN=local go vet ./...\n```\n"
+		if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte(agents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		receipt, _, stderr, code := runAffectedCLI(t, root)
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, stderr)
+		}
+		mandatory := 0
+		for _, check := range affectedChecks(t, receipt) {
+			if check["kind"] == adviceKindMandatory {
+				mandatory++
+			}
+		}
+		if mandatory != 2 {
+			t.Fatalf("a comment line inside the fence must not become a check, got %d mandatory entries", mandatory)
+		}
+	})
+}
+
+// AFP-V0-009 (V1-0342): only a heading that is exactly "Verify" declares
+// checks; another heading naming verify is reported, shell comments are
+// removed, and a command that launches a program or backgrounds itself is
+// advisory, listed after the mandatory entries.
+func TestAffectedAdviceTakesOnlyTheExactVerifyHeading_V1_0342(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		agents  string
+		want    []string
+		unknown []string
+	}{
+		{
+			agents:  "## Build / run / verify\n\n```bash\nswift build                     # compile\nswift run VideoMoverCoreChecks  # the test gate\n```\n",
+			want:    []string{},
+			unknown: []string{`MANDATORY_DECLARATION_UNRECOGNIZED: AGENTS.md heading "Build / run / verify" is not "Verify", so its commands are not checks`, adviceNoGateUnknown},
+		},
+		{
+			agents: "### verify\n\n```sh\nswift build   # compile\nopen dist/App.app  # launch the app\n./serve.sh &\ngo test ./... && echo \"a # b\"\necho 'x #y' # tail\necho a#b\n```\n",
+			want: []string{
+				"mandatory swift build", `mandatory go test ./... && echo "a # b"`, "mandatory echo 'x #y'", "mandatory echo a#b",
+				"advisory open dist/App.app", "advisory ./serve.sh &",
+			},
+			unknown: []string{},
+		},
+	}
+	for index, tc := range cases {
+		root := affectedFixtureRepository(t)
+		if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte(tc.agents), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		receipt, _, stderr, code := runAffectedCLI(t, root)
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, stderr)
+		}
+		got := []string{}
+		for _, check := range affectedChecks(t, receipt) {
+			if check["source"] == "AGENTS.md" {
+				got = append(got, fmt.Sprint(check["kind"], " ", check["command"]))
+			}
+		}
+		if !slices.Equal(got, tc.want) {
+			t.Errorf("case %d: AGENTS.md checks = %q, want %q", index, got, tc.want)
+		}
+		declared := []string{}
+		for _, line := range affectedAdviceUnknown(t, receipt) {
+			if strings.HasPrefix(line, "MANDATORY_") || line == adviceNoGateUnknown {
+				declared = append(declared, line)
+			}
+		}
+		if !slices.Equal(declared, tc.unknown) {
+			t.Errorf("case %d: declaration unknowns = %q, want %q", index, declared, tc.unknown)
+		}
+	}
+}
+
+// AFP-V0-010: `--base FULL_COMMIT_ID` joins the committed tree diff
+// base..HEAD to the worktree dirty set, records it under range, and fails
+// closed on a base that is not a full commit id in this repository.
+func TestAffectedBaseRangeJoinsCommittedPathsAndFailsClosed(t *testing.T) {
+	t.Parallel()
+	t.Run("AFP-V0-010 committed range selects with a clean worktree", func(t *testing.T) {
+		root := affectedFixtureRepository(t)
+		base := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
+		corePath := filepath.Join(root, "core", "core.go")
+		body, err := os.ReadFile(corePath)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(corePath, append(body, []byte("\n// committed edit\n")...), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		affectedGit(t, root, "commit", "-qam", "edit core")
+		var stdout, stderr bytes.Buffer
+		if code := runContext(context.Background(), []string{"--root", root, "affected", "--base", base}, strings.NewReader(""), &stdout, &stderr); code != 0 {
+			t.Fatalf("exit %d: %s", code, stderr.String())
+		}
+		var receipt map[string]any
+		if err := json.Unmarshal(stdout.Bytes(), &receipt); err != nil {
+			t.Fatal(err)
+		}
+		rangeMember := receipt["range"].(map[string]any)
+		if rangeMember["base"] != base || !slices.Equal(anyStrings(rangeMember["paths"]), []string{"core/core.go"}) {
+			t.Fatalf("range=%v", rangeMember)
+		}
+		plan := receipt["plan"].(map[string]any)
+		if !slices.Equal(anyStrings(plan["dirty"]), []string{"core/core.go"}) {
+			t.Fatalf("plan.dirty=%v must carry the committed path", plan["dirty"])
+		}
+		packages := anyStrings(receipt["provider"].(map[string]any)["go"].(map[string]any)["packages"])
+		if !slices.Contains(packages, "example.com/fixture/core") || !slices.Contains(packages, "example.com/fixture/leaf") {
+			t.Fatalf("packages=%v", packages)
+		}
+	})
+	t.Run("AFP-V0-010 malformed or unknown base exits 2", func(t *testing.T) {
+		root := affectedFixtureRepository(t)
+		for _, tc := range []struct{ base, code string }{
+			{"main", "invalid-arguments"},
+			{strings.Repeat("0", 40), "unsupported-affected-revision"},
+		} {
+			var stdout, stderr bytes.Buffer
+			if code := runContext(context.Background(), []string{"--root", root, "affected", "--base", tc.base}, strings.NewReader(""), &stdout, &stderr); code != 2 {
+				t.Fatalf("base %q must exit 2, got %d", tc.base, code)
+			}
+			if !strings.Contains(stderr.String(), tc.code) || stdout.Len() != 0 {
+				t.Fatalf("base %q: stderr=%s stdout=%s", tc.base, stderr.String(), stdout.String())
+			}
+		}
+	})
+}
+
+// anyValues is the decoded JSON array of values.
+func anyValues(values []string) []any {
+	out := make([]any, 0, len(values))
+	for _, value := range values {
+		out = append(out, value)
+	}
+	return out
+}
+
+func anyStrings(value any) []string {
+	items, _ := value.([]any)
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		out = append(out, item.(string))
+	}
+	return out
+}
+
+// AFP-V0-035: the default affected-plan/1 document is the affected-plan/0
+// document with each selection's test files replaced by their count and the
+// exclusions replaced by a count, a digest of the full list's bytes, and
+// groups that state each reason, universe and invalidation once; `--full`
+// still emits affected-plan/0.
+func TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	appendFile(t, filepath.Join(root, "leaf", "leaf.go"), "\n// dirty\n")
+	compact, _, stderr, code := runAffectedCLI(t, root)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	full, fullRaw, stderr, code := runAffectedCLI(t, root, "--full")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	assertAffectedCompactSummarizesFull(t, compact, full, fullRaw)
+	for _, arguments := range [][]string{{"--full", "--full"}, {"--full=true"}, {"--full", "--playwright-config", "playwright.config.ts"}} {
+		if _, err := parseAffectedOptions(arguments); err == nil {
+			t.Fatalf("%v must be refused", arguments)
+		}
+	}
+}
+
+// assertAffectedCompactSummarizesFull checks that a default affected-plan/1
+// document is the AFP-V0-035 projection of the --full document.
+func assertAffectedCompactSummarizesFull(t *testing.T, compact, full map[string]any, fullRaw []byte) {
+	t.Helper()
+	if compact["profile"] != affectedCompactProfile || full["profile"] != affectedProfile {
+		t.Fatalf("profiles: default %v, --full %v", compact["profile"], full["profile"])
+	}
+	for _, member := range []string{"mutates", "ok", "provider", "range", "revision", "snapshot", "tool"} {
+		if !reflect.DeepEqual(compact[member], full[member]) {
+			t.Fatalf("%s differs: %v != %v", member, compact[member], full[member])
+		}
+	}
+	if resolved := resolveCompactAdvice(t, compact); !reflect.DeepEqual(resolved, full["advice"]) {
+		t.Fatalf("advice does not resolve to the full advice:\n%v\n%v", resolved, full["advice"])
+	}
+	compactPlan, fullPlan := compact["plan"].(map[string]any), full["plan"].(map[string]any)
+	for _, member := range []string{"graphDigest", "dirty", "scope", "unknown", "frontierSites"} {
+		if !reflect.DeepEqual(compactPlan[member], fullPlan[member]) {
+			t.Fatalf("plan.%s differs", member)
+		}
+	}
+	compactSelected, fullSelected := compactPlan["selected"].([]any), fullPlan["selected"].([]any)
+	if len(fullSelected) == 0 || len(compactSelected) != len(fullSelected) {
+		t.Fatalf("selected: %d compact, %d full", len(compactSelected), len(fullSelected))
+	}
+	chains := affectedSelectedVia(t, compact)
+	for index, item := range compactSelected {
+		got, want := item.(map[string]any), fullSelected[index].(map[string]any)
+		witness := maps.Clone(got["witness"].(map[string]any))
+		delete(witness, "viaLength")
+		witness["via"] = anyValues(chains[got["unitId"].(string)])
+		if _, listed := got["tests"]; listed || got["unitId"] != want["unitId"] || !reflect.DeepEqual(witness, want["witness"]) ||
+			int(got["testCount"].(float64)) != len(want["tests"].([]any)) {
+			t.Fatalf("selection %d: %v vs %v", index, got, want)
+		}
+	}
+	var document struct {
+		Plan struct {
+			Excluded json.RawMessage `json:"excluded"`
+		} `json:"plan"`
+	}
+	if err := json.Unmarshal(fullRaw, &document); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(document.Plan.Excluded)
+	summary, fullExcluded := compactPlan["excluded"].(map[string]any), fullPlan["excluded"].([]any)
+	if len(fullExcluded) == 0 || int(summary["count"].(float64)) != len(fullExcluded) || summary["digest"] != affectedExcludedDigestPrefix+hex.EncodeToString(sum[:]) {
+		t.Fatalf("excluded summary %v does not bind the %d full exclusions", summary, len(fullExcluded))
+	}
+	groups := summary["groups"].([]any)
+	group := groups[0].(map[string]any)
+	if len(groups) != 1 || int(group["count"].(float64)) != len(fullExcluded) || group["universe"] != fullPlan["graphDigest"] ||
+		group["reason"] != "NO_DEPENDENCY_PATH_TO_DIRTY_UNIT" || group["invalidation"] != "NEW_DEPENDENCY_EDGE_OR_DIRTY_PATH" {
+		t.Fatalf("groups must state the shared exclusion values once: %v", groups)
+	}
+}
+
+// resolveCompactAdvice rebuilds the affected-plan/0 advice from a default
+// document: a check with arguments gets each provider.go.packages entry
+// appended, single-quoted (AFP-V0-038).
+func resolveCompactAdvice(t *testing.T, compact map[string]any) any {
+	t.Helper()
+	encoded, err := json.Marshal(compact["advice"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var advice map[string]any
+	if err := json.Unmarshal(encoded, &advice); err != nil {
+		t.Fatal(err)
+	}
+	packages := []string{}
+	for _, value := range compact["provider"].(map[string]any)["go"].(map[string]any)["packages"].([]any) {
+		packages = append(packages, value.(string))
+	}
+	for _, item := range advice["checks"].([]any) {
+		check := item.(map[string]any)
+		if check["arguments"] == nil {
+			continue
+		}
+		if check["arguments"] != affectedAdvisoryArguments {
+			t.Fatalf("unknown arguments reference %v", check["arguments"])
+		}
+		check["command"] = check["command"].(string) + " " + shellQuoteJoin(packages)
+		delete(check, "arguments")
+	}
+	// AFP-V0-155: the PLAN_UNKNOWN count line stands for every plan.unknown
+	// "reason: detail" line, which the default keeps whole in plan.unknown.
+	planUnknown, _ := compact["plan"].(map[string]any)["unknown"].([]any)
+	reference := fmt.Sprintf(affectedPlanUnknownReference, len(planUnknown))
+	if lines, ok := advice["unknown"].([]any); ok && slices.Contains(lines, any(reference)) {
+		resolved := []string{}
+		for _, line := range lines {
+			if line != reference {
+				resolved = append(resolved, line.(string))
+			}
+		}
+		for _, item := range planUnknown {
+			entry := item.(map[string]any)
+			resolved = append(resolved, entry["reason"].(string)+": "+entry["detail"].(string))
+		}
+		values := []any{}
+		for _, line := range sortedUniqueStrings(resolved) {
+			values = append(values, line)
+		}
+		advice["unknown"] = values
+	}
+	return advice
+}
+
+// AFP-V0-155 (V1-1005): the default advice.unknown names the plan.unknown
+// entries by one count line instead of repeating each, keeps every
+// advice-specific line, and resolves to the --full advice.
+func TestAFPV0155CompactAdviceDoesNotRepeatPlanUnknown(t *testing.T) {
+	planUnknown := []affected.Unknown{{Reason: "LANGUAGE_FRONTIER", Detail: "python:dynamic-import"}, {Reason: "UNOWNED_DIRTY_PATH", Detail: "docs/x.md"}}
+	full := []string{"LANGUAGE_FRONTIER: python:dynamic-import", "NO_ADVISORY_GO_COMMAND: provider.go.state is EMPTY_SELECTION", "UNOWNED_DIRTY_PATH: docs/x.md"}
+	got := compactAffectedAdvice(affectedAdvice{Unknown: full}, nil, planUnknown).Unknown
+	want := []string{"NO_ADVISORY_GO_COMMAND: provider.go.state is EMPTY_SELECTION", fmt.Sprintf(affectedPlanUnknownReference, 2)}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("compact advice.unknown = %q, want %q", got, want)
+	}
+	if got := compactAffectedAdvice(affectedAdvice{Unknown: full[1:2]}, nil, nil).Unknown; !reflect.DeepEqual(got, full[1:2]) {
+		t.Fatalf("advice-only unknown changed: %q", got)
+	}
+}
+
+func TestAFPV0038CompactAdviceReferencesProviderPackages(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	appendFile(t, filepath.Join(root, "leaf", "leaf.go"), "\n// dirty\n")
+	compact, compactRaw, stderr, code := runAffectedCLI(t, root)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	full, _, stderr, code := runAffectedCLI(t, root, "--full")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	packages := compact["provider"].(map[string]any)["go"].(map[string]any)["packages"].([]any)
+	if len(packages) == 0 {
+		t.Fatal("fixture selected no Go package")
+	}
+	referenced := 0
+	for _, item := range compact["advice"].(map[string]any)["checks"].([]any) {
+		check := item.(map[string]any)
+		if check["arguments"] != nil {
+			referenced++
+			if check["command"] != adviceAdvisoryGoTest || check["kind"] != adviceKindAdvisory || check["source"] != adviceSourcePlan {
+				t.Fatalf("referenced check %v", check)
+			}
+		}
+	}
+	adviceRaw, _ := json.Marshal(compact["advice"])
+	if referenced != 1 || bytes.Contains(adviceRaw, []byte(packages[0].(string))) || !bytes.Contains(compactRaw, []byte(packages[0].(string))) {
+		t.Fatalf("the package list must appear only in provider.go.packages: %s", compactRaw)
+	}
+	if !reflect.DeepEqual(resolveCompactAdvice(t, compact), full["advice"]) {
+		t.Fatal("compact advice does not resolve to the --full advice")
+	}
+	// A command that is not exactly the prefix plus the quoted packages is
+	// kept whole, and a package path with a quote still round-trips.
+	quoted := []string{"example.com/it's"}
+	advice := affectedAdvice{Checks: []affectedCheck{
+		{Command: adviceAdvisoryGoTest + " " + shellQuoteJoin(quoted), Kind: adviceKindAdvisory, Source: adviceSourcePlan},
+		{Command: adviceAdvisoryGoTest + " 'other'", Kind: adviceKindAdvisory, Source: adviceSourcePlan},
+		{Command: "make gate", Kind: adviceKindMandatory, Source: adviceMakefileName},
+	}}
+	checks := compactAffectedAdvice(advice, quoted, nil).Checks
+	if checks[0].Command != adviceAdvisoryGoTest || checks[0].Arguments != affectedAdvisoryArguments ||
+		checks[1].Command != advice.Checks[1].Command || checks[1].Arguments != "" || checks[2].Command != "make gate" || checks[2].Arguments != "" {
+		t.Fatalf("compact checks %+v", checks)
+	}
+}
+
+// AFP-V0-009 (decision 0531, V1-0682): a sentence of the AGENTS.md Verify
+// section that names a declared command in backticks and states a condition
+// labels that command conditional, with the sentence in its reason. Anything
+// else, an unscoped project included, stays mandatory.
+func TestAffectedAdviceLabelsScopedGateConditional_V1_0682(t *testing.T) {
+	t.Parallel()
+	makefile := ".PHONY: gate\ngate:\n\t@true\n"
+	scope := "Do not start `make gate` unless the owner asks for it or a governing release policy explicitly requires repository-wide validation."
+	wrapped := "Use focused tests. Do not start `make gate` unless the owner asks\nfor it or a governing release policy explicitly requires repository-wide validation.\n"
+	fence := "```sh\nGOTOOLCHAIN=local go vet ./...\n```\n"
+	cases := []struct {
+		name, agents string
+		want         []string
+		reason       string
+	}{
+		{name: "scoped", agents: "## Verify\n\n" + wrapped + "\n" + fence,
+			want: []string{"conditional make gate", "mandatory GOTOOLCHAIN=local go vet ./..."}, reason: scope},
+		{name: "unscoped", agents: "## Verify\n\nRun `make gate` before merging.\n\n" + fence,
+			want: []string{"mandatory make gate", "mandatory GOTOOLCHAIN=local go vet ./..."}},
+		{name: "outside Verify", agents: "## Etiquette\n\n" + wrapped + "\n## Verify\n\n" + fence,
+			want: []string{"mandatory make gate", "mandatory GOTOOLCHAIN=local go vet ./..."}},
+		{name: "names a Verify command", agents: "## Verify\n\nRun `GOTOOLCHAIN=local go vet ./...` only when Go files change.\n\n" + fence,
+			want: []string{"mandatory make gate", "conditional GOTOOLCHAIN=local go vet ./..."}, reason: "Run `GOTOOLCHAIN=local go vet ./...` only when Go files change."},
+		{name: "no AGENTS.md", want: []string{"mandatory make gate"}},
+		{name: "only the scoped gate", agents: "## Verify\n\n" + wrapped,
+			want: []string{"conditional make gate"}, reason: scope},
+		{name: "parenthesized only if", agents: "## Verify\n\nRun `make gate` (only if release validation is requested).\n\n" + fence,
+			want: []string{"conditional make gate", "mandatory GOTOOLCHAIN=local go vet ./..."}, reason: "Run `make gate` (only if release validation is requested)."},
+		{name: "separate list items", agents: "## Verify\n\n- Always run `make gate`\n- Run `make lint` only if lint configuration changes\n\n" + fence,
+			want: []string{"mandatory make gate", "mandatory GOTOOLCHAIN=local go vet ./..."}},
+		{name: "tilde fence example", agents: "## Verify\n\n~~~text\nRun `make gate` only if requested.\n~~~\n\n" + fence,
+			want: []string{"mandatory make gate", "mandatory GOTOOLCHAIN=local go vet ./..."}},
+	}
+	for _, tc := range cases {
+		root := t.TempDir()
+		files := map[string]string{"Makefile": makefile}
+		if tc.agents != "" {
+			files["AGENTS.md"] = tc.agents
+		}
+		writeAffectedFiles(t, root, files)
+		advice := compileAffectedAdvice(root, nil, affected.Plan{}, affectedGoProvider{State: providerStateEmpty})
+		got := []string{}
+		for _, check := range advice.Checks {
+			got = append(got, check.Kind+" "+check.Command)
+			if check.Kind == adviceKindConditional && check.Reason != fmt.Sprintf(adviceConditionalReason, check.Source, tc.reason) {
+				t.Errorf("%s: conditional reason = %q, want the sentence %q", tc.name, check.Reason, tc.reason)
+			}
+		}
+		if !slices.Equal(got, tc.want) {
+			t.Errorf("%s: declared checks = %q, want %q", tc.name, got, tc.want)
+		}
+		if slices.Contains(advice.Unknown, adviceNoGateUnknown) {
+			t.Errorf("%s: a scoped gate is still a declared gate", tc.name)
+		}
+	}
+	// The wire carries the label and the quoted condition end to end.
+	root := affectedFixtureRepository(t)
+	writeAffectedFiles(t, root, map[string]string{"Makefile": makefile, "AGENTS.md": "## Verify\n\n" + wrapped})
+	receipt, _, stderr, code := runAffectedCLI(t, root)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	first := affectedChecks(t, receipt)[0]
+	if first["kind"] != adviceKindConditional || first["command"] != "make gate" || first["reason"] != fmt.Sprintf(adviceConditionalReason, "Makefile", scope) {
+		t.Fatalf("receipt check = %v, want the conditional make gate quoting %q", first, scope)
+	}
+}
+
+// AFP-V0-196 (V1-2071): an inline **Verify:** line in a repository without a
+// Makefile declares its code spans as mandatory checks with the line reason,
+// so `affected` no longer reports NO_REPOSITORY_GATE_DECLARED; a span after
+// other text on the line is not a check.
+func TestAFPV0196AffectedInlineVerifyIsMandatory(t *testing.T) {
+	t.Parallel()
+	root := affectedFixtureRepository(t)
+	agents := "# Agents\n\nUse the docs toolchain. **Verify:** `npm run build` (Tasks gate id `build`).\n"
+	if err := os.WriteFile(filepath.Join(root, "AGENTS.md"), []byte(agents), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	receipt, _, stderr, code := runAffectedCLI(t, root)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, stderr)
+	}
+	got := []string{}
+	for _, check := range affectedChecks(t, receipt) {
+		if check["source"] == "AGENTS.md" {
+			got = append(got, fmt.Sprint(check["kind"], " ", check["command"], " | ", check["reason"]))
+		}
+	}
+	want := []string{"mandatory npm run build | " + adviceAgentsLineReason}
+	if !slices.Equal(got, want) {
+		t.Fatalf("AGENTS.md checks = %q, want %q", got, want)
+	}
+	if unknown := fmt.Sprint(receipt["advice"].(map[string]any)["unknown"]); strings.Contains(unknown, "NO_REPOSITORY_GATE_DECLARED") {
+		t.Fatalf("an inline Verify line is a declaration: %s", unknown)
+	}
+}
+
+// AFP-V0-381: the default projection keeps the plan's repository frontier
+// site count unchanged.
+func TestAFPV0381CompactPlanKeepsFrontierSites(t *testing.T) {
+	t.Parallel()
+	sites := map[string]int{"ruby:conditional-load": 1, "ruby:dynamic-load": 18}
+	full := affectedReceipt{Plan: affected.Plan{Selected: []affected.Selection{}, Excluded: []affected.Exclusion{}, Unknown: []affected.Unknown{}, FrontierSites: sites}}
+	compact, err := compactAffected(full)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(compact.Plan.FrontierSites, sites) {
+		t.Fatalf("frontierSites=%v want %v", compact.Plan.FrontierSites, sites)
+	}
+}
+
+// AFP-V0-560: the default projection keeps the plan's frontier exclusion
+// record unchanged, so a left-out frontier is never dropped silently.
+func TestAFPV0560CompactPlanKeepsFrontierExcluded(t *testing.T) {
+	t.Parallel()
+	excluded := []affected.FrontierExclusion{{Language: "typescript", Reason: affected.FrontierExclusionReason, Frontier: []string{"typescript:dynamic-import:a.mjs:1 `import`"}, Units: []string{"typescript:node-test:a.test.mjs"}}}
+	full := affectedReceipt{Plan: affected.Plan{Selected: []affected.Selection{}, Excluded: []affected.Exclusion{}, Unknown: []affected.Unknown{}, FrontierExcluded: excluded}}
+	compact, err := compactAffected(full)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(compact.Plan.FrontierExcluded, excluded) {
+		t.Fatalf("frontierExcluded=%v want %v", compact.Plan.FrontierExcluded, excluded)
+	}
+}

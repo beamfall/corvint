@@ -1,0 +1,106 @@
+{
+  "profile": "corvint-cem-metadata-only-vectors/0",
+  "note": "V1-0609 reproductions (Git 2.54 canonical diff argv) and near misses. code is the parse refusal; stableIssue is the frozen stable-profile issue code, unchanged from before V1-0609 (CEM-V1-300..302).",
+  "cases": [
+    {
+      "name": "empty-file-creation",
+      "patch": "empty-file-creation.patch",
+      "nativeCode": "metadata-only-change-unsupported",
+      "portableCode": "metadata-only-change-unsupported",
+      "nativeStableIssue": "malformed-patch",
+      "portableStableIssue": "file-header",
+      "kind": "empty-file-creation",
+      "path": "new.empty"
+    },
+    {
+      "name": "empty-file-deletion",
+      "patch": "empty-file-deletion.patch",
+      "nativeCode": "metadata-only-change-unsupported",
+      "portableCode": "metadata-only-change-unsupported",
+      "nativeStableIssue": "malformed-patch",
+      "portableStableIssue": "file-header",
+      "kind": "empty-file-deletion",
+      "path": "gone.empty"
+    },
+    {
+      "name": "mode-only",
+      "patch": "mode-only.patch",
+      "nativeCode": "metadata-only-change-unsupported",
+      "portableCode": "metadata-only-change-unsupported",
+      "nativeStableIssue": "malformed-patch",
+      "portableStableIssue": "unsupported-tree-mode",
+      "kind": "mode-only",
+      "path": "m.sh"
+    },
+    {
+      "name": "mixed-empty-creation-then-text",
+      "patch": "mixed-empty-creation-then-text.patch",
+      "nativeCode": "metadata-only-change-unsupported",
+      "portableCode": "metadata-only-change-unsupported",
+      "nativeStableIssue": "malformed-patch",
+      "portableStableIssue": "metadata",
+      "kind": "empty-file-creation",
+      "path": "new.empty"
+    },
+    {
+      "name": "mixed-text-then-empty-creation",
+      "patch": "mixed-text-then-empty-creation.patch",
+      "nativeCode": "metadata-only-change-unsupported",
+      "portableCode": "metadata-only-change-unsupported",
+      "nativeStableIssue": "malformed-patch",
+      "portableStableIssue": "file-header",
+      "kind": "empty-file-creation",
+      "path": "z.empty"
+    },
+    {
+      "name": "mode-and-text-change",
+      "patch": "mode-and-text-change.patch",
+      "nativeCode": "malformed-patch",
+      "portableCode": "unsupported-tree-mode",
+      "nativeStableIssue": "malformed-patch",
+      "portableStableIssue": "unsupported-tree-mode",
+      "kind": null,
+      "path": null
+    },
+    {
+      "name": "near-miss-asymmetric-path",
+      "patch": "near-miss-asymmetric-path.patch",
+      "nativeCode": "malformed-patch",
+      "portableCode": "file-header",
+      "nativeStableIssue": "malformed-patch",
+      "portableStableIssue": "file-header",
+      "kind": null,
+      "path": null
+    },
+    {
+      "name": "near-miss-create-without-index",
+      "patch": "near-miss-create-without-index.patch",
+      "nativeCode": "malformed-patch",
+      "portableCode": "file-header",
+      "nativeStableIssue": "malformed-patch",
+      "portableStableIssue": "file-header",
+      "kind": null,
+      "path": null
+    },
+    {
+      "name": "near-miss-mode-symlink",
+      "patch": "near-miss-mode-symlink.patch",
+      "nativeCode": "malformed-patch",
+      "portableCode": "unsupported-tree-mode",
+      "nativeStableIssue": "malformed-patch",
+      "portableStableIssue": "unsupported-tree-mode",
+      "kind": null,
+      "path": null
+    },
+    {
+      "name": "near-miss-mode-unchanged",
+      "patch": "near-miss-mode-unchanged.patch",
+      "nativeCode": "malformed-patch",
+      "portableCode": "unsupported-tree-mode",
+      "nativeStableIssue": "malformed-patch",
+      "portableStableIssue": "unsupported-tree-mode",
+      "kind": null,
+      "path": null
+    }
+  ]
+}

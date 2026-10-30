@@ -1,0 +1,262 @@
+{
+  "type": "object",
+  "properties": {
+    "profile": {
+      "const": "corvint-intake/0"
+    },
+    "base": {
+      "type": "string",
+      "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"
+    },
+    "head": {
+      "type": "string",
+      "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$"
+    },
+    "intent": {
+      "enum": [
+        "FIX",
+        "FEATURE",
+        "REFACTOR",
+        "DOCS",
+        "TEST",
+        "MAINTENANCE",
+        "UNKNOWN"
+      ]
+    },
+    "claimed_behaviours": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "enum": [
+              "ADD",
+              "CHANGE",
+              "REMOVE",
+              "UNKNOWN"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4096,
+            "description": "Literal repository path: no absolute/traversal/pathspec/control/Git-metadata segments; must exist at a trusted base/head pin."
+          }
+        },
+        "required": [
+          "kind",
+          "path"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 1024,
+      "uniqueItems": true
+    },
+    "flags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+      },
+      "maxItems": 1024,
+      "uniqueItems": true
+    },
+    "migrations_claimed": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 1000000
+    },
+    "tests_claimed": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 4096,
+        "description": "Literal repository path: no absolute/traversal/pathspec/control/Git-metadata segments; must exist at a trusted base/head pin."
+      },
+      "maxItems": 1024,
+      "uniqueItems": true
+    },
+    "description_vs_diff": {
+      "enum": [
+        "ALIGNED",
+        "PARTIAL",
+        "CONFLICTED",
+        "UNKNOWN"
+      ]
+    },
+    "concerns": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "INSTRUCTION_ATTEMPT",
+          "OUTWARD_ACTION",
+          "SECRET_REFERENCE",
+          "MISSING_EVIDENCE",
+          "CONFLICTED_CLAIM"
+        ]
+      },
+      "maxItems": 5,
+      "uniqueItems": true
+    },
+    "work_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+          },
+          "alignment": {
+            "enum": [
+              "ALIGNED",
+              "PARTIAL",
+              "CONFLICTED",
+              "UNKNOWN"
+            ]
+          },
+          "acceptance_criteria": {
+            "type": "object",
+            "properties": {
+              "met": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "unmet": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "unknown": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              }
+            },
+            "required": [
+              "met",
+              "unmet",
+              "unknown"
+            ],
+            "additionalProperties": false
+          },
+          "concerns": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "INSTRUCTION_ATTEMPT",
+                "OUTWARD_ACTION",
+                "SECRET_REFERENCE",
+                "MISSING_EVIDENCE",
+                "CONFLICTED_CLAIM"
+              ]
+            },
+            "maxItems": 5,
+            "uniqueItems": true
+          },
+          "parent_review": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,63}$"
+                  },
+                  "alignment": {
+                    "enum": [
+                      "ALIGNED",
+                      "PARTIAL",
+                      "CONFLICTED",
+                      "UNKNOWN"
+                    ]
+                  },
+                  "acceptance_criteria": {
+                    "type": "object",
+                    "properties": {
+                      "met": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1000000
+                      },
+                      "unmet": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1000000
+                      },
+                      "unknown": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1000000
+                      }
+                    },
+                    "required": [
+                      "met",
+                      "unmet",
+                      "unknown"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "concerns": {
+                    "type": "array",
+                    "items": {
+                      "enum": [
+                        "INSTRUCTION_ATTEMPT",
+                        "OUTWARD_ACTION",
+                        "SECRET_REFERENCE",
+                        "MISSING_EVIDENCE",
+                        "CONFLICTED_CLAIM"
+                      ]
+                    },
+                    "maxItems": 5,
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "id",
+                  "alignment",
+                  "acceptance_criteria",
+                  "concerns"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "alignment",
+          "acceptance_criteria",
+          "concerns",
+          "parent_review"
+        ],
+        "additionalProperties": false
+      },
+      "maxItems": 256,
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "profile",
+    "base",
+    "head",
+    "intent",
+    "claimed_behaviours",
+    "flags",
+    "migrations_claimed",
+    "tests_claimed",
+    "description_vs_diff",
+    "concerns",
+    "work_items"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "corvint-intake/0",
+  "title": "Closed vocabulary intake (experimental)",
+  "$comment": "Apache-2.0. Shape schema only: Go validator additionally verifies immutable paths and unique work-item IDs. All claims are untrusted reader claims, never authority."
+}

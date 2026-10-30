@@ -1,0 +1,1 @@
+{"deferredIntents":[{"baseBlobOid":"08fa9b4f5095dc6db3ae99bee89fe66b95a1179e","obligationCount":256,"path":"docs/specs/corvint-tasks-agent-leases-v0.md","reason":"the spec is at the 256 OCM obligation bound; its CAL-V0-016 amendment (V1-3008, V1-3009) binds through its trace row tests and the hunk citations here"}],"profile":"cem-deferred-intents/0"}

@@ -1,0 +1,27 @@
+{
+  "attestation": {
+    "corpusSha256": "412058c23a20d0b6eb643ac591180f340b63b53a75c68a93977b7625b554cde2",
+    "outcome": "FAIL",
+    "preregistrationSha256": "73f178f8b1bcaaa57115c2ee9389f3a57fa3d889ee6e8a50035edeec3ae04b9d",
+    "resultSha256": "70e452d219ade1041dd4a05b8f762f858c44af5bd57627c2813d7389b1c2c29f"
+  },
+  "evidenceClass": "sealed-benchmark",
+  "repositoryRevision": "1894b9e5c992d69a7cbefa4b305485494e5622c4",
+  "result": "FAIL",
+  "spec": "corvint-use-case-evidence/0",
+  "subjects": [
+    {
+      "path": "benchmarks/daily-loop-v0/preregistration.json",
+      "sha256": "73f178f8b1bcaaa57115c2ee9389f3a57fa3d889ee6e8a50035edeec3ae04b9d"
+    },
+    {
+      "path": "benchmarks/daily-loop-v0/corpus.json",
+      "sha256": "412058c23a20d0b6eb643ac591180f340b63b53a75c68a93977b7625b554cde2"
+    },
+    {
+      "path": "benchmarks/daily-loop-v0/runs/run-001.json",
+      "sha256": "70e452d219ade1041dd4a05b8f762f858c44af5bd57627c2813d7389b1c2c29f"
+    }
+  ],
+  "useCaseId": "UC-CHANGE-CONSEQUENCE"
+}

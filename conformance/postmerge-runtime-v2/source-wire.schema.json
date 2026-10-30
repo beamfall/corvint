@@ -1,0 +1,3889 @@
+{
+  "$defs": {
+    "behaviorfalsify.Approval": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "method": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "plan_digest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "schema": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema",
+        "plan_digest",
+        "method",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "behaviorfalsify.Artifact": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "behaviorfalsify.AttemptResult": {
+      "additionalProperties": false,
+      "properties": {
+        "attempt": {
+          "type": "integer"
+        },
+        "cleanup_process": {
+          "$ref": "#/$defs/behaviorfalsify.ProcessEvidence"
+        },
+        "hook_process": {
+          "$ref": "#/$defs/behaviorfalsify.ProcessEvidence"
+        },
+        "reasons": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/behaviorfalsify.HookReceipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retained_artifacts": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/behaviorfalsify.Artifact"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "workspace_after": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "workspace_before": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "attempt",
+        "status",
+        "reasons",
+        "hook_process",
+        "cleanup_process",
+        "workspace_before",
+        "workspace_after",
+        "retained_artifacts"
+      ],
+      "type": "object"
+    },
+    "behaviorfalsify.Command": {
+      "additionalProperties": false,
+      "properties": {
+        "executable_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "path": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "executable_sha256"
+      ],
+      "type": "object"
+    },
+    "behaviorfalsify.ControlResult": {
+      "additionalProperties": false,
+      "properties": {
+        "attempts": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/behaviorfalsify.AttemptResult"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "ordinal": {
+          "type": "integer"
+        },
+        "reasons": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "ordinal",
+        "status",
+        "reasons",
+        "attempts"
+      ],
+      "type": "object"
+    },
+    "behaviorfalsify.ControlSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "definition": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "disposition": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "hook": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/behaviorfalsify.Command"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "required_setup": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unrelated_criteria": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "disposition",
+        "definition",
+        "unrelated_criteria",
+        "required_setup"
+      ],
+      "type": "object"
+    },
+    "behaviorfalsify.CriterionObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "assertion_id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "criterion_id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "failure_kind": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "state": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "criterion_id",
+        "state"
+      ],
+      "type": "object"
+    },
+    "behaviorfalsify.EvidenceReceipt": {
+      "additionalProperties": false,
+      "properties": {
+        "approval": {
+          "$ref": "#/$defs/behaviorfalsify.Approval"
+        },
+        "digest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "plan_preimage": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "raw_attempts": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/behaviorfalsify.RawAttempt"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "report": {
+          "$ref": "#/$defs/behaviorfalsify.Report"
+        },
+        "schema": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "tool": {
+          "$ref": "#/$defs/behaviorfalsify.ToolIdentity"
+        },
+        "unsupported": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema",
+        "plan_preimage",
+        "approval",
+        "tool",
+        "raw_attempts",
+        "report",
+        "unsupported",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "behaviorfalsify.HookReceipt": {
+      "additionalProperties": false,
+      "properties": {
+        "artifacts": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/behaviorfalsify.Artifact"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attempt": {
+          "type": "integer"
+        },
+        "infrastructure": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/behaviorfalsify.InfrastructureFailure"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "native_receipt_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "perturbation_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "plan_digest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "retry": {
+          "type": "integer"
+        },
+        "runner": {
+          "$ref": "#/$defs/behaviorfalsify.RunnerIdentity"
+        },
+        "schema": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "setup": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/behaviorfalsify.SetupObservation"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "target": {
+          "$ref": "#/$defs/behaviorfalsify.TargetIdentity"
+        },
+        "target_observation": {
+          "$ref": "#/$defs/behaviorfalsify.CriterionObservation"
+        },
+        "test_outcome": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "unrelated": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/behaviorfalsify.CriterionObservation"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema",
+        "plan_digest",
+        "perturbation_sha256",
+        "target",
+        "runner",
+        "attempt",
+        "retry",
+        "native_receipt_sha256",
+        "test_outcome",
+        "target_observation",
+        "unrelated",
+        "setup",
+        "artifacts"
+      ],
+      "type": "object"
+    },
+    "behaviorfalsify.InfrastructureFailure": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "type": "object"
+    },
+    "behaviorfalsify.MutationScore": {
+      "additionalProperties": false,
+      "properties": {
+        "defined": {
+          "type": "boolean"
+        },
+        "denominator": {
+          "type": "integer"
+        },
+        "killed": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "defined",
+        "killed",
+        "denominator"
+      ],
+      "type": "object"
+    },
+    "behaviorfalsify.Plan": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "planned_controls": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/behaviorfalsify.PlannedControl"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request": {
+          "$ref": "#/$defs/behaviorfalsify.Request"
+        },
+        "schema": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "workspace_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema",
+        "request",
+        "planned_controls",
+        "workspace_sha256",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "behaviorfalsify.PlannedControl": {
+      "additionalProperties": false,
+      "properties": {
+        "definition": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "disposition": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "hook": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/behaviorfalsify.Command"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "ordinal": {
+          "type": "integer"
+        },
+        "perturbation_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "required_setup": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unrelated_criteria": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "disposition",
+        "definition",
+        "unrelated_criteria",
+        "required_setup",
+        "ordinal",
+        "perturbation_sha256"
+      ],
+      "type": "object"
+    },
+    "behaviorfalsify.ProcessEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "cancelled": {
+          "type": "boolean"
+        },
+        "completed": {
+          "type": "boolean"
+        },
+        "descendants_gone": {
+          "type": "boolean"
+        },
+        "error": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "exit": {
+          "type": "integer"
+        },
+        "overflow": {
+          "type": "boolean"
+        },
+        "owned_cleanup": {
+          "type": "boolean"
+        },
+        "started": {
+          "type": "boolean"
+        },
+        "stderr_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "stdout_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "timed_out": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "exit",
+        "started",
+        "completed",
+        "cancelled",
+        "timed_out",
+        "overflow",
+        "owned_cleanup",
+        "descendants_gone",
+        "stdout_sha256",
+        "stderr_sha256"
+      ],
+      "type": "object"
+    },
+    "behaviorfalsify.RawAttempt": {
+      "additionalProperties": false,
+      "properties": {
+        "attempt": {
+          "type": "integer"
+        },
+        "control_id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "hook_bytes": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "hook_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "native_bytes": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "native_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "omissions": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ordinal": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "control_id",
+        "ordinal",
+        "attempt",
+        "hook_bytes",
+        "hook_sha256",
+        "native_bytes",
+        "native_sha256",
+        "omissions"
+      ],
+      "type": "object"
+    },
+    "behaviorfalsify.Report": {
+      "additionalProperties": false,
+      "properties": {
+        "complete_vocabulary": {
+          "type": "boolean"
+        },
+        "counts": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "coverage_gaps": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "digest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "executed": {
+          "type": "integer"
+        },
+        "fallback": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "limitations": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mutation_score": {
+          "$ref": "#/$defs/behaviorfalsify.MutationScore"
+        },
+        "plan_digest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "requested": {
+          "type": "integer"
+        },
+        "results": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/behaviorfalsify.ControlResult"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "supported": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema",
+        "plan_digest",
+        "results",
+        "counts",
+        "requested",
+        "supported",
+        "executed",
+        "complete_vocabulary",
+        "mutation_score",
+        "coverage_gaps",
+        "fallback",
+        "limitations",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "behaviorfalsify.RepositoryRoots": {
+      "additionalProperties": false,
+      "properties": {
+        "application": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "documentation": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "test": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "application",
+        "test",
+        "documentation"
+      ],
+      "type": "object"
+    },
+    "behaviorfalsify.Request": {
+      "additionalProperties": false,
+      "properties": {
+        "attempts": {
+          "type": "integer"
+        },
+        "cleanup": {
+          "$ref": "#/$defs/behaviorfalsify.Command"
+        },
+        "controls": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/behaviorfalsify.ControlSpec"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "declared_env_keys": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "disposable_root": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "external_state": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "marker_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "repositories": {
+          "$ref": "#/$defs/behaviorfalsify.RepositoryRoots"
+        },
+        "runner": {
+          "$ref": "#/$defs/behaviorfalsify.RunnerIdentity"
+        },
+        "target": {
+          "$ref": "#/$defs/behaviorfalsify.TargetIdentity"
+        },
+        "timeout_seconds": {
+          "type": "integer"
+        },
+        "wall_clock_seconds": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "target",
+        "runner",
+        "controls",
+        "cleanup",
+        "disposable_root",
+        "repositories",
+        "marker_sha256",
+        "declared_env_keys",
+        "attempts",
+        "timeout_seconds",
+        "wall_clock_seconds",
+        "external_state"
+      ],
+      "type": "object"
+    },
+    "behaviorfalsify.RunnerIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "browser": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "browser_version": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "config_file": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "config_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "environment_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "runner": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "runner_version": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "runner",
+        "runner_version",
+        "browser",
+        "browser_version",
+        "config_file",
+        "config_sha256",
+        "environment_sha256"
+      ],
+      "type": "object"
+    },
+    "behaviorfalsify.SetupObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "state": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "state"
+      ],
+      "type": "object"
+    },
+    "behaviorfalsify.TargetIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "application_revision": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "assertion_id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "contract_file": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "contract_id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "contract_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "criterion_id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "documentation_revision": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "project": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "test_file": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "test_id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "test_line": {
+          "type": "integer"
+        },
+        "test_revision": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "test_title": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "contract_id",
+        "contract_sha256",
+        "criterion_id",
+        "assertion_id",
+        "application_revision",
+        "test_revision",
+        "documentation_revision",
+        "contract_file",
+        "test_id",
+        "test_file",
+        "test_line",
+        "test_title",
+        "project"
+      ],
+      "type": "object"
+    },
+    "behaviorfalsify.ToolIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "executable_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "revision": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "source_dirty": {
+          "type": "boolean"
+        },
+        "version": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "revision",
+        "executable_sha256",
+        "source_dirty"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.Anchor": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "line": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "file",
+        "line"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.AppBuildIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "unknown": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "digest",
+        "unknown"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.ApplicationArtifactIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.ApplicationAttestation": {
+      "additionalProperties": false,
+      "properties": {
+        "build": {
+          "$ref": "#/$defs/jstestprovider.ApplicationArtifactIdentity"
+        },
+        "configuration": {
+          "$ref": "#/$defs/jstestprovider.ApplicationArtifactIdentity"
+        },
+        "health": {
+          "$ref": "#/$defs/jstestprovider.ApplicationHealth"
+        },
+        "instance": {
+          "$ref": "#/$defs/jstestprovider.ApplicationInstanceIdentity"
+        },
+        "profile": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "repository": {
+          "$ref": "#/$defs/jstestprovider.ApplicationRepositoryIdentity"
+        }
+      },
+      "required": [
+        "profile",
+        "repository",
+        "build",
+        "configuration",
+        "instance",
+        "health"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.ApplicationAttestationExpectation": {
+      "additionalProperties": false,
+      "properties": {
+        "build": {
+          "$ref": "#/$defs/jstestprovider.ApplicationArtifactIdentity"
+        },
+        "configuration": {
+          "$ref": "#/$defs/jstestprovider.ApplicationArtifactIdentity"
+        },
+        "instanceKind": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "repository": {
+          "$ref": "#/$defs/jstestprovider.ApplicationRepositoryExpectation"
+        }
+      },
+      "required": [
+        "repository",
+        "build",
+        "configuration",
+        "instanceKind"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.ApplicationAttestationObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "attestation": {
+          "$ref": "#/$defs/jstestprovider.ApplicationAttestation"
+        },
+        "outputDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "outputDigest",
+        "attestation"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.ApplicationAttestationProviderIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "argv": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "configDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "configPath": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "environment": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "executableDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "executablePath": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "profile": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "profile",
+        "argv",
+        "executablePath",
+        "executableDigest",
+        "configPath",
+        "configDigest",
+        "environment"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.ApplicationAttestationReceipt": {
+      "additionalProperties": false,
+      "properties": {
+        "after": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.ApplicationAttestationObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "before": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.ApplicationAttestationObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expectation": {
+          "$ref": "#/$defs/jstestprovider.ApplicationAttestationExpectation"
+        },
+        "failures": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provider": {
+          "$ref": "#/$defs/jstestprovider.ApplicationAttestationProviderIdentity"
+        }
+      },
+      "required": [
+        "provider",
+        "expectation",
+        "failures"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.ApplicationHealth": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "state": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "state"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.ApplicationInstanceIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "startGeneration": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "startGeneration"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.ApplicationRepositoryExpectation": {
+      "additionalProperties": false,
+      "properties": {
+        "dirtyDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "dirtyPolicy": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "revision": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "rootCommit": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "tree": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "rootCommit",
+        "revision",
+        "tree",
+        "dirtyPolicy"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.ApplicationRepositoryIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "dirtyDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "dirtyState": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "revision": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "rootCommit": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "tree": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "rootCommit",
+        "revision",
+        "tree",
+        "dirtyState"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.Attempt": {
+      "additionalProperties": false,
+      "properties": {
+        "failureKind": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "retry": {
+          "type": "integer"
+        },
+        "state": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "steps": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/jstestprovider.BrowserStep"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "state",
+        "retry",
+        "failureKind"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.AttemptDetail": {
+      "additionalProperties": false,
+      "properties": {
+        "anchor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.Anchor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "artifacts": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/jstestprovider.FailureArtifact"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "durationMs": {
+          "type": "number"
+        },
+        "failureMessage": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "retry": {
+          "type": "integer"
+        },
+        "state": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "retry",
+        "durationMs"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.BrowserStep": {
+      "additionalProperties": false,
+      "properties": {
+        "attachments": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/jstestprovider.FailureArtifact"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "category": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "error": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "redacted": {
+          "type": "boolean"
+        },
+        "steps": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/jstestprovider.BrowserStep"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "title": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "title"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.ExecutionSchedule": {
+      "additionalProperties": false,
+      "properties": {
+        "starts": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/jstestprovider.ExecutionStart"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "workers": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "workers",
+        "starts"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.ExecutionStart": {
+      "additionalProperties": false,
+      "properties": {
+        "file": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "fullName": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "fullyParallel": {
+          "type": "boolean"
+        },
+        "line": {
+          "type": "integer"
+        },
+        "project": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "retries": {
+          "type": "integer"
+        },
+        "retry": {
+          "type": "integer"
+        },
+        "worker": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "fullName",
+        "file",
+        "line",
+        "project",
+        "retry",
+        "retries",
+        "worker",
+        "fullyParallel"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.ExternalLifecycle": {
+      "additionalProperties": false,
+      "properties": {
+        "cleanupResponsibility": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "configOverride": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "declaredAppIdentity": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "inputsUnchanged": {
+          "type": "boolean"
+        },
+        "ownership": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "readyAtPublish": {
+          "type": "boolean"
+        },
+        "readyAtStart": {
+          "type": "boolean"
+        },
+        "readyUrl": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "runnerDescendantsGone": {
+          "type": "boolean"
+        },
+        "serverDescendants": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "readyUrl",
+        "declaredAppIdentity",
+        "ownership",
+        "cleanupResponsibility",
+        "serverDescendants",
+        "readyAtStart",
+        "readyAtPublish",
+        "runnerDescendantsGone",
+        "inputsUnchanged",
+        "configOverride"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.FailureArtifact": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "path": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "path"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.FreshCommandBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "after": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.FreshCommandIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "before": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.FreshCommandIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expected": {
+          "$ref": "#/$defs/jstestprovider.FreshCommandIdentity"
+        }
+      },
+      "required": [
+        "expected"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.FreshCommandIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "argv": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "entrypointDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "executableDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "argv",
+        "executableDigest",
+        "entrypointDigest"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.FreshDependencyManifest": {
+      "additionalProperties": false,
+      "properties": {
+        "files": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "roots": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "roots",
+        "files"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.FreshDependencyObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "failures": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "files": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "files",
+        "failures"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.FreshProcessIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "pid": {
+          "type": "integer"
+        },
+        "start": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "pid",
+        "start"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.FreshServeObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "observerImports": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "process": {
+          "$ref": "#/$defs/jstestprovider.FreshProcessIdentity"
+        },
+        "serverImports": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "url": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "url",
+        "process",
+        "body",
+        "serverImports",
+        "observerImports"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.FreshnessBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "artifactAfter": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "artifactBefore": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "artifactPath": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "dependencies": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.FreshDependencyManifest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dependenciesAfter": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.FreshDependencyObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dependenciesBefore": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.FreshDependencyObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dependencyDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "documentUrl": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "environmentAfter": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "environmentBefore": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "failures": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "identityAfter": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.Identity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "leader": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.FreshProcessIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "mutation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.ResponseMutationDefinition"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observer": {
+          "$ref": "#/$defs/jstestprovider.FreshCommandBinding"
+        },
+        "observerConfigAfter": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "observerConfigBefore": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "productAfter": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.ApplicationRepositoryIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "productBefore": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.ApplicationRepositoryIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "productExpected": {
+          "$ref": "#/$defs/jstestprovider.ApplicationRepositoryIdentity"
+        },
+        "runner": {
+          "$ref": "#/$defs/jstestprovider.FreshCommandBinding"
+        },
+        "servedAfter": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.FreshServeObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "servedBefore": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.FreshServeObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "server": {
+          "$ref": "#/$defs/jstestprovider.FreshCommandBinding"
+        },
+        "serverDescendants": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/procgroup.DescendantObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "serverGone": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "serverInputDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "source": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "sourceDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "testExpected": {
+          "$ref": "#/$defs/jstestprovider.ApplicationRepositoryIdentity"
+        }
+      },
+      "required": [
+        "dependencies",
+        "dependencyDigest",
+        "serverInputDigest",
+        "productExpected",
+        "testExpected",
+        "artifactPath",
+        "source",
+        "sourceDigest",
+        "artifactBefore",
+        "artifactAfter",
+        "documentUrl",
+        "runner",
+        "server",
+        "observer",
+        "observerConfigBefore",
+        "observerConfigAfter",
+        "environmentBefore",
+        "environmentAfter",
+        "failures"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.FreshnessConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "artifactPath": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "dependencies": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.FreshDependencyManifest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "dependencyDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "documentUrl": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "mutation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.ResponseMutationDefinition"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observer": {
+          "$ref": "#/$defs/jstestprovider.FreshCommandIdentity"
+        },
+        "observerConfigDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "observerConfigFile": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "productDir": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "productExpected": {
+          "$ref": "#/$defs/jstestprovider.ApplicationRepositoryIdentity"
+        },
+        "runner": {
+          "$ref": "#/$defs/jstestprovider.FreshCommandIdentity"
+        },
+        "server": {
+          "$ref": "#/$defs/jstestprovider.FreshCommandIdentity"
+        },
+        "sourceDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "testExpected": {
+          "$ref": "#/$defs/jstestprovider.ApplicationRepositoryIdentity"
+        }
+      },
+      "required": [
+        "dependencies",
+        "dependencyDigest",
+        "productDir",
+        "productExpected",
+        "testExpected",
+        "artifactPath",
+        "sourceDigest",
+        "documentUrl",
+        "runner",
+        "server",
+        "observer",
+        "observerConfigFile",
+        "observerConfigDigest"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.Identity": {
+      "additionalProperties": false,
+      "properties": {
+        "argv": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "configDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "configFile": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "configInputDigests": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "environment": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "nodeVersion": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "packageDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "runnerName": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "runnerVersion": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "testFileDigests": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "testFileDigests",
+        "configFile",
+        "configDigest",
+        "packageDigest",
+        "nodeVersion",
+        "runnerName",
+        "runnerVersion",
+        "environment",
+        "argv"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.InfrastructureFailure": {
+      "additionalProperties": false,
+      "properties": {
+        "detail": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason",
+        "detail"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.ProjectIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "browser": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "configDigest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "device": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "use": {
+          "$ref": "#/$defs/pinned-project-use"
+        }
+      },
+      "required": [
+        "name",
+        "browser",
+        "device",
+        "use",
+        "configDigest"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.Receipt": {
+      "additionalProperties": false,
+      "properties": {
+        "appBuildAtPublish": {
+          "$ref": "#/$defs/jstestprovider.AppBuildIdentity"
+        },
+        "appBuildAtStart": {
+          "$ref": "#/$defs/jstestprovider.AppBuildIdentity"
+        },
+        "applicationAttestation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.ApplicationAttestationReceipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cancelled": {
+          "type": "boolean"
+        },
+        "descendantObservation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/procgroup.DescendantObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "external": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.ExternalLifecycle"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "freshness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.FreshnessBinding"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "identity": {
+          "$ref": "#/$defs/jstestprovider.Identity"
+        },
+        "infrastructure": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.InfrastructureFailure"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "profile": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "runnerResources": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/procgroup.ResourceUsage"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schedule": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.ExecutionSchedule"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sensitiveInputPolicy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.SensitiveInputPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "serverDescendantsGone": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "staleAppBuild": {
+          "type": "boolean"
+        },
+        "testRepositoryAtPublish": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.ApplicationRepositoryIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "testRepositoryAtStart": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.ApplicationRepositoryIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tests": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/jstestprovider.TestOutcome"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "identity",
+        "appBuildAtStart",
+        "appBuildAtPublish",
+        "staleAppBuild",
+        "tests",
+        "cancelled"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.ResponseMutationDefinition": {
+      "additionalProperties": false,
+      "properties": {
+        "artifactPath": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "from": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "mutantSha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "sourceSha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "to": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifactPath",
+        "sourceSha256",
+        "from",
+        "to",
+        "mutantSha256"
+      ],
+      "type": "object"
+    },
+    "jstestprovider.SensitiveInputPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "additionalActionPatterns": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "additionalSensitiveFields": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "jstestprovider.TestOutcome": {
+      "additionalProperties": false,
+      "properties": {
+        "anchor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.Anchor"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "artifacts": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/jstestprovider.FailureArtifact"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attemptDetails": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/jstestprovider.AttemptDetail"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attempts": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/jstestprovider.Attempt"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "durationMs": {
+          "type": "number"
+        },
+        "failureMessage": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "fullName": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "importedFiles": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxProperties": 4096,
+              "propertyNames": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "name": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "project": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.ProjectIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retries": {
+          "type": "integer"
+        },
+        "state": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "fullName",
+        "state",
+        "retries",
+        "durationMs"
+      ],
+      "type": "object"
+    },
+    "pinned-project-use": {
+      "description": "Only an exact manifest-pinned JSON preimage is admissible; the manifest provides its closed nested schema. This static source schema preserves the native RawMessage passthrough, not admission authority."
+    },
+    "procgroup.DescendantObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "absent": {
+          "type": "boolean"
+        },
+        "failures": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "interval_ms": {
+          "type": "integer"
+        },
+        "limitations": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "processes": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/procgroup.ObservedProcess"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scope": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "scope",
+        "interval_ms",
+        "processes",
+        "absent",
+        "failures",
+        "limitations"
+      ],
+      "type": "object"
+    },
+    "procgroup.ObservedProcess": {
+      "additionalProperties": false,
+      "properties": {
+        "parent_pid": {
+          "type": "integer"
+        },
+        "pid": {
+          "type": "integer"
+        },
+        "start": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "state": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "pid",
+        "parent_pid",
+        "start",
+        "state"
+      ],
+      "type": "object"
+    },
+    "procgroup.ResourceUsage": {
+      "additionalProperties": false,
+      "properties": {
+        "MaxRSSBytes": {
+          "type": "integer"
+        },
+        "SystemCPUNs": {
+          "type": "integer"
+        },
+        "UserCPUNs": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "UserCPUNs",
+        "SystemCPUNs",
+        "MaxRSSBytes"
+      ],
+      "type": "object"
+    },
+    "testacceptance.Assessment": {
+      "additionalProperties": false,
+      "properties": {
+        "cleanup": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "order": {
+          "$ref": "#/$defs/testacceptance.OrderEvidence"
+        },
+        "reasons": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "repeats": {
+          "$ref": "#/$defs/testacceptance.RepeatSummary"
+        },
+        "validity": {
+          "$ref": "#/$defs/testvalidity.Projection"
+        },
+        "verdict": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "verdict",
+        "reasons",
+        "validity",
+        "repeats",
+        "cleanup",
+        "order"
+      ],
+      "type": "object"
+    },
+    "testacceptance.Cleanup": {
+      "additionalProperties": false,
+      "properties": {
+        "cancelled": {
+          "type": "boolean"
+        },
+        "descendants": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/procgroup.DescendantObservation"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "owned_group": {
+          "type": "boolean"
+        },
+        "qualification": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "status": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "timed_out": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "owned_group",
+        "status",
+        "qualification",
+        "cancelled",
+        "timed_out"
+      ],
+      "type": "object"
+    },
+    "testacceptance.Command": {
+      "additionalProperties": false,
+      "properties": {
+        "argv": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "entrypoint_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "executable_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "argv",
+        "executable_sha256"
+      ],
+      "type": "object"
+    },
+    "testacceptance.Control": {
+      "additionalProperties": false,
+      "properties": {
+        "cleanup": {
+          "$ref": "#/$defs/testacceptance.Cleanup"
+        },
+        "evidence": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/behaviorfalsify.EvidenceReceipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "plan_digest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "receipt_digest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "status": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "unsupported": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "status",
+        "unsupported",
+        "cleanup"
+      ],
+      "type": "object"
+    },
+    "testacceptance.File": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "testacceptance.FreshnessOptions": {
+      "additionalProperties": false,
+      "properties": {
+        "attestation": {
+          "$ref": "#/$defs/testacceptance.Command"
+        },
+        "attestation_configuration": {
+          "$ref": "#/$defs/testacceptance.File"
+        },
+        "provider": {
+          "$ref": "#/$defs/jstestprovider.FreshnessConfig"
+        }
+      },
+      "required": [
+        "provider",
+        "attestation",
+        "attestation_configuration"
+      ],
+      "type": "object"
+    },
+    "testacceptance.OrderEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "isolated_states": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "original_state": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "requested_file_order": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "reversed_state": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "status": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "status",
+        "requested_file_order",
+        "original_state",
+        "reversed_state",
+        "isolated_states"
+      ],
+      "type": "object"
+    },
+    "testacceptance.RepeatSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "failed": {
+          "type": "integer"
+        },
+        "max_duration_ms": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "min_duration_ms": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "other": {
+          "type": "integer"
+        },
+        "passed": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "passed",
+        "failed",
+        "other"
+      ],
+      "type": "object"
+    },
+    "testacceptance.Report": {
+      "additionalProperties": false,
+      "properties": {
+        "assessments": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/testacceptance.Assessment"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "body": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "build": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "controls": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/testacceptance.Control"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "environment": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "executable_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "product": {
+          "$ref": "#/$defs/testacceptance.Repository"
+        },
+        "reasons": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "request_digest": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "runs": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/testacceptance.Run"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "schema": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "test_repository": {
+          "$ref": "#/$defs/testacceptance.Repository"
+        },
+        "unknowns": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "verdict": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "verdict",
+        "reasons",
+        "schema",
+        "request_digest",
+        "product",
+        "test_repository",
+        "environment",
+        "build",
+        "executable_sha256",
+        "runs",
+        "controls",
+        "assessments",
+        "unknowns",
+        "body"
+      ],
+      "type": "object"
+    },
+    "testacceptance.Repository": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "root": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "tree": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "root",
+        "commit",
+        "tree"
+      ],
+      "type": "object"
+    },
+    "testacceptance.Request": {
+      "additionalProperties": false,
+      "properties": {
+        "app_build_dir": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "config": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "environment": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "freshness": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/testacceptance.FreshnessOptions"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "inputs": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/testacceptance.File"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lockfile": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "package": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "product": {
+          "$ref": "#/$defs/testacceptance.Repository"
+        },
+        "ready_url": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "repeat": {
+          "type": "integer"
+        },
+        "runner": {
+          "$ref": "#/$defs/testacceptance.Command"
+        },
+        "runner_version": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "schema": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "server": {
+          "$ref": "#/$defs/testacceptance.Command"
+        },
+        "test_repository": {
+          "$ref": "#/$defs/testacceptance.Repository"
+        },
+        "tests": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/testacceptance.Test"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timeout_seconds": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema",
+        "product",
+        "test_repository",
+        "inputs",
+        "tests",
+        "config",
+        "package",
+        "lockfile",
+        "runner",
+        "server",
+        "ready_url",
+        "app_build_dir",
+        "runner_version",
+        "environment",
+        "repeat",
+        "timeout_seconds"
+      ],
+      "type": "object"
+    },
+    "testacceptance.Row": {
+      "additionalProperties": false,
+      "properties": {
+        "attempts": {
+          "type": "integer"
+        },
+        "duration_ms": {
+          "type": "number"
+        },
+        "id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "identity_unknown": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observed_id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "retries": {
+          "type": "integer"
+        },
+        "state": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "validity": {
+          "$ref": "#/$defs/testvalidity.Projection"
+        }
+      },
+      "required": [
+        "id",
+        "state",
+        "duration_ms",
+        "retries",
+        "attempts",
+        "validity",
+        "identity_unknown"
+      ],
+      "type": "object"
+    },
+    "testacceptance.Run": {
+      "additionalProperties": false,
+      "properties": {
+        "cleanup": {
+          "$ref": "#/$defs/testacceptance.Cleanup"
+        },
+        "kind": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "native_receipt": {
+          "contentEncoding": "base64",
+          "maxLength": 22369624,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "node_version": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "observed_schedule": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/jstestprovider.ExecutionSchedule"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ordinal": {
+          "type": "integer"
+        },
+        "reasons": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "receipt_sha256": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "requested_files": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rows": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/testacceptance.Row"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "test_id": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "ordinal",
+        "requested_files",
+        "rows",
+        "reasons",
+        "cleanup"
+      ],
+      "type": "object"
+    },
+    "testacceptance.Test": {
+      "additionalProperties": false,
+      "properties": {
+        "control": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/behaviorfalsify.Plan"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "control_command": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/testacceptance.Command"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "file": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "line": {
+          "type": "integer"
+        },
+        "project": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "tool": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/behaviorfalsify.ToolIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "file",
+        "line",
+        "title",
+        "project"
+      ],
+      "type": "object"
+    },
+    "testvalidity.Axis": {
+      "additionalProperties": false,
+      "properties": {
+        "anchors": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 1048576,
+                "type": "string"
+              },
+              "maxItems": 4096,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "maxLength": 1048576,
+          "type": "string"
+        },
+        "state": {
+          "maxLength": 1048576,
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "reason",
+        "anchors"
+      ],
+      "type": "object"
+    },
+    "testvalidity.Projection": {
+      "additionalProperties": false,
+      "properties": {
+        "association": {
+          "$ref": "#/$defs/testvalidity.Axis"
+        },
+        "execution": {
+          "$ref": "#/$defs/testvalidity.Axis"
+        },
+        "freshness": {
+          "$ref": "#/$defs/testvalidity.Axis"
+        },
+        "hygiene": {
+          "$ref": "#/$defs/testvalidity.Axis"
+        },
+        "strength": {
+          "$ref": "#/$defs/testvalidity.Axis"
+        }
+      },
+      "required": [
+        "association",
+        "hygiene",
+        "freshness",
+        "execution",
+        "strength"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/testacceptance.Request"
+    },
+    {
+      "$ref": "#/$defs/testacceptance.Report"
+    },
+    {
+      "$ref": "#/$defs/jstestprovider.Receipt"
+    },
+    {
+      "$ref": "#/$defs/behaviorfalsify.EvidenceReceipt"
+    }
+  ]
+}

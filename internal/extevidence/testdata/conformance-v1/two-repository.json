@@ -1,0 +1,25 @@
+{
+  "schema": "external-evidence-provider/1",
+  "provider": {"id": "mockdocs", "revision": "2026-09-18.2"},
+  "repositories": [
+    {"id": "application", "origin": "{{APP_ORIGIN}}", "remote": "example.test/acme/application", "revision": "{{APP_REVISION}}", "role": "application"},
+    {"id": "e2e", "origin": "{{E2E_ORIGIN}}", "revision": "{{E2E_REVISION}}", "tree": "{{E2E_TREE}}", "role": "test"},
+    {"id": "handbook", "revision": "2026-09-18", "role": "documentation"}
+  ],
+  "entities": [
+    {"id": "cap-account", "kind": "capability", "summary": "Account management capability."},
+    {"id": "surface-account", "kind": "surface", "summary": "The account settings route."},
+    {"id": "journey-account", "kind": "journey", "summary": "A user edits their account."}
+  ],
+  "relations": [
+    {"from": {"repository": "application", "path": "pkg/main.go"}, "to": {"provider": "mockdocs", "entity": "cap-account"}, "type": "implements", "evidence": "declared", "rule": "capability-map", "reference": "docs/capabilities.md#account"},
+    {"from": {"provider": "mockdocs", "entity": "cap-account"}, "to": {"provider": "mockdocs", "entity": "surface-account"}, "type": "navigates", "evidence": "inferred", "rule": "route-graph", "reference": "docs/routes.md#account"},
+    {"from": {"repository": "application", "path": "pkg/main_test.go"}, "to": {"provider": "mockdocs", "entity": "cap-account"}, "type": "verifies", "evidence": "observed", "rule": "unit-run", "reference": "ci/unit/1"},
+    {"from": {"repository": "e2e", "path": "tests/account.spec.ts"}, "to": {"provider": "mockdocs", "entity": "cap-account"}, "type": "verifies", "evidence": "observed", "rule": "e2e-run", "reference": "ci/e2e/7"},
+    {"from": {"repository": "e2e", "path": "tests/journey.spec.ts"}, "to": {"provider": "mockdocs", "entity": "surface-account"}, "type": "asserts", "evidence": "declared", "rule": "journey-map", "reference": "docs/journeys.md#account"},
+    {"from": {"repository": "e2e", "path": "tests/removed.spec.ts"}, "to": {"provider": "mockdocs", "entity": "cap-account"}, "type": "covers", "evidence": "declared", "rule": "coverage-map", "reference": "docs/coverage.md#account"},
+    {"from": {"repository": "handbook", "path": "account.md"}, "to": {"provider": "mockdocs", "entity": "cap-account"}, "type": "covers", "evidence": "declared", "rule": "handbook-map", "reference": "handbook/account"},
+    {"from": {"repository": "contracts", "path": "account.proto"}, "to": {"provider": "mockdocs", "entity": "cap-account"}, "type": "requires", "evidence": "declared", "rule": "contract-map", "reference": "contracts/account"},
+    {"from": {"repository": "application", "path": "pkg/main.go"}, "to": {"repository": "e2e", "path": "tests/account.spec.ts"}, "type": "candidate", "evidence": "inferred", "rule": "name-match", "reference": "heuristics/1"}
+  ]
+}

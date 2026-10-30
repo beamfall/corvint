@@ -1,0 +1,519 @@
+# Corvint 1.0 product and release scope V1
+
+Owner: Russell Lewis
+Date: 2026-09-22
+Requirement prefix: `PRS-V1`
+Status: accepted (decision 0373, 2026-09-23; scope expanded by decision 0426, 2026-09-28)
+Intent status: accepted (decisions 0373 and 0426, V1-0001 and V1-0461; PRS-V1-018 accepted (owner instruction 2026-10-13, V1-1344..V1-1348 at milestone v1-0))
+Delivery status: partial; expanded 1.0 qualification pending
+Authoritative inputs: `../../AGENTS.md` invariants 1-8, `public-release-v0.md` (the 0.6 local-workflow
+scope, `PUB-V0-001..026` and the 2026-09-16 Core release scope amendment),
+`../decisions/0332-verified-local-workflow-scope-2026-09-22.md`, `daily-change-evidence-workflow-v0.md`,
+`agent-harness-integration-v0.md`, `../../integrations/compatibility.json`, `../RELEASE-NOTES.md`
+(0.7.0 build 46), task-store tickets V1-0001..V1-0021.
+
+## Agent digest
+- Claim: 1.0 requires Core change evidence, Flows, navigation, docs, MCP, automatic docs, PRS-V1-018 SDD improvements and the Tasks Beamfall takeover.
+- Status: accepted (decisions 0373 and 0426, V1-0001 and V1-0461; PRS-V1-018 accepted (owner instruction 2026-10-13, V1-1344..V1-1348 at milestone v1-0)) / partial; expanded 1.0 qualification pending
+- Exists: this spec, decision 0373 with the eleven owner answers, and the prospective amendment section in `public-release-v0.md`; the candidate reader and installer admit a Core-only profile (V1-0125), and `corvint-release-candidate` assembles one when `-companion-dir` is omitted (V1-0229). windows/amd64 is UNSUPPORTED for 1.0 and fails closed with typed refusals (decision 0559, `PRS-V1-021`, `PRS-V1-022`); native Windows qualification is post-1.0 and CI windows-vet stays.
+- Blocked on: V1-0019 external validation and V1-0020 qualification of the next candidate. `1.0.0-rc.1` (build 163, `b967f6bb`) is published as a prerelease with V1-0019 run-001 as a known issue (decision 0425): orientation FAIL on go-chi/chi (3 of 20) and beamfall/core (1 of 20), consequence and completion PASS on both, and the Corvint run aborted (V1-0431..V1-0433). The next run uses spf13/viper (decision 0555): urfave/cli (decision 0432), which replaced the cobra pin already scored in development, stopped counting as held out once the V1-0859 and V1-0431 fixes were derived from its rc.2 misses (decision 0539); the native linux/amd64 host is a GitHub-hosted `ubuntu-24.04` runner (decision 0420).
+- Read next: Expanded 1.0 product scope; Classification of shipped surfaces; Externally dependent gates.
+
+## Human intent
+
+The owner asked for a 1.0 whose stability promise covers one thing that works end to end on the
+owner's own machines: the local change-evidence loop. Earlier release scope (`public-release-v0.md`)
+bundled optional companions, formal host authority and editor qualification into the release
+path. Decision 0332 already cut those from the 0.6 milestone only. Decision 0373 makes that
+cut permanent for 1.0, names every shipped surface's classification, and turns the gates that
+need third parties into explicit owner choices rather than silent blockers.
+
+Decision 0373 (2026-09-23) accepts every clause. `public-release-v0.md` carries the prospective
+1.0 amendment, decision 0332 keeps governing the 0.6 milestone, and the task-store release criteria
+are reconciled to this spec. Acceptance of scope is not delivery, qualification or promotion.
+
+## Expanded 1.0 product scope
+
+Decision 0426 records the owner's 2026-09-28 instruction to deliver Flows, navigation,
+documentation and MCP, to have Corvint Tasks fully take over Beamfall's roadmap, and to provide
+automatic documentation by 1.0. These are required product outcomes even where independently
+packaged. Their previous optional release placement is superseded for stable 1.0 promotion.
+Core's binary boundary, artifact independence and compatibility promises remain unchanged.
+
+The expanded release is tracked by V1-0461..0465 and the existing Flows tickets V1-0249 and
+V1-0252..0255.
+
+**Amendment 2026-10-22 (V1-0461 criterion 1, V1-0464).** The owner moved the takeover's
+prerequisite V1-0398 to milestone v1-0 on 2026-10-22, and V1-0464 already carries milestone v1-0, so
+the reason for the 2026-10-21 deferral no longer holds. `PRS-V1-014` and `PRS-V1-016` are again
+stable 1.0 promotion requirements (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-22-bf-1022q-beamfall-takeover.md`).
+Decision 0544 records ADR-0227 in Beamfall core-history as the accepted activation of the Core
+cutover; the remaining 1.0 evidence is consumer rewiring and legacy writer fencing (in review as
+beamfall/core-history#45), actual production native completion with readback and receipt audit,
+and the concrete owner authority switch, which still needs explicit owner approval. Until those are
+retained, stable 1.0 makes no claim that Tasks has replaced Beamfall's roadmap writers. The
+2026-10-21 paragraph below is kept as history.
+
+**Amendment 2026-10-21 (V1-0461 criterion 3, superseded 2026-10-22).** Under the owner's 2026-10-20 delegation of the 1.0
+feature cut, the Beamfall roadmap takeover (V1-0464, `PRS-V1-014` and `PRS-V1-016`) moved post-1.0
+because its prerequisite V1-0398 is post-1.0
+(`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-21-v1-0461-criterion-3-post-1-0.md`). Stable 1.0 makes no claim that Tasks
+replaces Beamfall's roadmap writers; `corvint-tasks` stays a companion with its own qualification.
+**Amendment 2026-10-22 (V1-0398).** The owner moved V1-0398 into 1.0 on 2026-10-22. Its writer
+for import-mapped non-fixture queues is specified by CTS-V0-014 to CTS-V0-017 in
+`corvint-tasks-store-init-v0.md` (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-22-tw-1022m.md`). That removes the
+prerequisite named above but does not by itself move the Beamfall roadmap takeover back into 1.0.
+Decision 0544 item 2 still records the accepted Core cutover deviations, but no longer places that
+activation inside the 1.0 promotion. The text below describes the deferred direction, kept for
+the post-1.0 work. Native claims and gates alone do not establish full Tasks takeover: independent
+candidate review, multi-repository integration, original history/provenance, legacy writer fencing,
+consumer migration, recovery retaining native writes and actual production completion are required.
+The final production authority switch still needs the concrete owner approval required by standing
+instructions. Technical review/identity profiles remain proposals until separately accepted.
+
+Automatic documentation covers developer references and user-facing flow documentation. The first
+profile must compose existing source/corpus and flow evidence into useful, reviewable updates,
+preserve human prose, expose uncertainty and stale claims, and prove safe explicit apply and
+idempotency. Source extraction is not observed behavior or accepted intent. Full HDC renderer,
+offline and generalized behavior-inference claims require their own evidence and are not implied.
+
+Unrelated consoles, editors, additional host authority, learning research, broad language coverage
+and hosted services can remain deferred unless a required workflow demonstrates a dependency.
+
+## Core definition
+
+Core is the set of surfaces that 1.0 promises to keep stable, N-1 readable and qualified on the Core
+platforms. It is exactly:
+
+1. The local change-evidence loop: `init`, `adopt`, `index`, `query`, `context`, `impact`,
+   `affected` and `prove`, run by one native Go binary against a local Git repository with no
+   account, network, hosted service, database service, embeddings or daemon (invariant 7).
+2. The proof wire: the CEM (`cem`), OCM (`ocm`) and change-frontier (`frontier`) profiles frozen
+   by V1-0013, with canonical conformance vectors and the in-repo second consumer run by
+   `make interop-gate`. (accepted 2026-09-26, decision 0424; from decision 0398) That second
+   consumer, `interop/cem01-go`, covers `cem/0.1` only; `cem/0.2`, OCM and frontier are
+   single-implementation at 1.0, held by their canonical vectors alone, and 1.0 claims no second
+   consumer and no interoperability for them (`PRS-V1-007`). Amended by decision 0525 §6 (V1-0595, decision
+   0546): `cem/0.x` is retired, and `interop/cem01-go` now verifies `cem/1.0` only. OCM and
+   frontier stay single-implementation, and 1.0 claims no independent CEM consumer
+   (`CEM-V1-008`).
+3. The dogfood loop: `dogfood` (and the internal `dogfood-record` and `dogfood-ocm` verbs it runs)
+   producing a retained, explicit local outcome bound to a CEM.
+4. The three Core jobs accepted by decision 0332: `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`
+   and `UC-EVIDENCE-CARRYING-COMPLETION`. Every other headline job stays literally `UNPROVEN`.
+5. The native release artifact, its reproducibility report, `SHA256SUMS`, and the install,
+   upgrade, uninstall and recovery lifecycle of `stable-operations-v0.md`.
+
+## Companions
+
+A companion ships separately or alongside Core and carries its own qualification and version.
+Core-only candidate assembly needs no companion input. Decision 0426 makes the selected Flows,
+documentation and MCP outcomes prerequisites for whole-product stable 1.0 promotion; its Tasks
+takeover outcome is deferred post-1.0 (amendment 2026-10-21).
+Companion packaging alone does not qualify a capability. Companion list:
+
+- Local admin console (`corvint-console`) and dashboard snapshot (`corvint-dashboard-snapshot`).
+- Corvint Tasks (`corvint-tasks`, in-tree separate companion binary (decision 0397)) and its roadmap.
+- MCP servers: `corvint-mcp`, `corvint-docs-mcp`, `corvint-test-validity-mcp`.
+- Test providers: `corvint-js-test-provider`, `corvint-go-test-provider`, the experimental
+  `corvint-ruby-test-provider`, and `corvint test-validity`.
+- Automatic documentation: `corvint docs` drafting, watch and apply.
+- Remote evidence provider (`corvint-remote-provider`): needs network consent, so it is outside the
+  default local product by invariant 7.
+- Host integrations other than the Core CLI rows in "Supported platforms and hosts": the Gemini
+  CLI extension, the OpenCode plugin, the Pi extension, `corvint harness event` and `corvint pi-tool`.
+- Formal host FULL or protected authority for any host (see "Externally dependent gates").
+- The combined companion bundle `/2` or `/3` (`corvint-companion-release`, `corvint-public-release-check`)
+  and its installed qualification (`PUB-V0-020`, ticket V1-0004).
+
+## Supported platforms and hosts
+
+| Target | Proposed 1.0 label | Evidence today (0.7.0 build 46) |
+|---|---|---|
+| darwin/arm64 native binary | Core | Archive built twice byte-identically; install lifecycle and hostile matrix passed on darwin/arm64. |
+| linux/amd64 native binary | Core, pending native evidence | Archive built and reproducible; install lifecycle `NOT_RUN`. Core label needs a native run (owner question 4). |
+| linux/arm64 native binary | FALLBACK | Archive built; lifecycle `NOT_RUN`; 0.6.0 notes record environment-dependent native test failures. |
+| darwin/amd64 native binary | FALLBACK | Archive built; lifecycle `NOT_RUN`. |
+| windows/amd64 | UNSUPPORTED (fails closed, decision 0559) | Producer emits a zip that is not a qualified target; `PUB-V0-022` keeps Windows out of the candidate. Every subsystem without a qualified Windows implementation refuses with a typed reason (`PRS-V1-021`); native qualification (V1-2441) is post-1.0. |
+
+FALLBACK means the archive is published and checksummed but carries no platform qualification and
+no stability promise beyond Core's wire contracts. A FALLBACK platform can become Core only with its
+own retained install-lifecycle and focused-test evidence.
+
+Host rows use the existing tuple `(host, surface, host version, adapter version, OS)`. Every tuple
+in `integrations/compatibility.json` is FALLBACK today. Proposed 1.0 host scope:
+
+| Host tuple | Proposed 1.0 label | Reason |
+|---|---|---|
+| Plain CLI on a Core platform | Core | The loop is fully usable from a shell with no host adapter. |
+| Codex CLI via the Codex plugin (`corvint adapter codex`), exact version | Core row at FALLBACK (decision 0373, question 5: yes) | Decision 0332 precedent: local Codex use qualified on an exact version without FULL authority. |
+| Claude Code via the Claude Code plugin (`corvint adapter claude-code`), exact version | Core row at FALLBACK (decision 0373, question 5: yes) | Same precedent; installed lifecycle already ran on Claude Code 2.1.267. |
+| Gemini CLI, OpenCode, Pi | Companion, FALLBACK | No retained installed-loop evidence that Core could own. |
+| Codex Desktop, protected Pi, `/Library/CorvintAuthority` hook trees | post-1.0 | Need formal FULL authority the host API does not currently supply to Core. |
+| VS Code extension | deferred | `vscode-extension-v0.md` is deferred. |
+
+## Classification of shipped surfaces
+
+Labels: Core (stability promise), companion (own qualification; optional unless marked required
+1.0 by decision 0426), experimental (shipped,
+no promise, labelled or hidden by V1-0007), deferred (not shipped for 1.0, direction kept),
+rejected (will not ship as specified), post-1.0 (intended after 1.0, no 1.0 claim).
+
+| Surface | Label | One-line reason |
+|---|---|---|
+| `corvint init`, `adopt` | Core | First-run inventory and receipt; loop entry (V1-0008). |
+| `corvint index` | Core | Deterministic immutable snapshot every Core read depends on. |
+| `corvint query` | Core | Cited retrieval over the pinned snapshot. |
+| `corvint context` | Core | Task context packet; `UC-TASK-ORIENTATION`. |
+| `corvint impact`, `affected` | Core | Change consequence and verification selection; `UC-CHANGE-CONSEQUENCE`. The `affected --selection-profile e2e-safe` value is Core too (decision 0385, `AFU-V1-019..024`). |
+| `corvint prove` | Core | Proof over pinned evidence; `UC-EVIDENCE-CARRYING-COMPLETION`. |
+| `corvint cem`, `ocm`, `frontier` | Core | The proof wire to be frozen by V1-0013. |
+| `corvint dogfood`, internal `dogfood-record`, `dogfood-ocm` | Core | Retained local outcome of the dogfood loop. |
+| `corvint adapter` (codex, claude-code, claude-source-handoff) | Core (decision 0373, question 5: yes) | Thin host entry for the two Core host rows. |
+| `corvint --version`, `help` | Core | Identity and discovery of the Core verbs. |
+| `corvint docs` (`nav`, `draft`, `consume`, `maintain --preview\|--apply [--watch]`, `flows generate\|check\|finalize`; `corpus` is listed as experimental below) | required 1.0 companion | Bounded automatic developer documentation (`SDD-V0-007..011`, `source-documentation-draft-v0.md`) and generated flow documentation (`AFU-V1-043..048`) under decision 0426; there is no separate `watch` or `apply` verb. Run evidence on this repository: `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-21-v1-0461-docs-flows-e2e.md`. Broader historical watch, renderer and offline promises require separate qualification. |
+| `corvint test-validity` | companion | Test-provider profile; decision 0332 companion. |
+| `corvint harness event`, `pi-tool` | companion | Entry points for non-Core hosts. |
+| `corvint witness`, `batch`, `obligations` | experimental | Accepted directions with experimental delivery; not part of the Core loop. |
+| `corvint eval`, `lrf`, `calibrate` | experimental | Evaluation and ranking research surfaces. |
+| `corvint record`, `migrate-traces`, `migration-ratchet` | experimental | Learning and trace migration stay evaluation-gated (invariant 5). |
+| `corvint work`, `observations`, `prove-observe`, internal `dogfood-observe` | experimental | Observation ledgers; never inputs to ranking or authority (invariant 4). |
+| `corvint features`, `overview`, `review` | experimental | First-use guidance already labelled experimental (`PUB-V0-017`). |
+| `corvint flows` | required 1.0 companion (decisions 0385, 0426) | Flow map, gaps, impact, safe navigation (`flows navigate`) and evidence-bound docs (`flows docs`, `flows docs maintain`) (`AFU-V1`); `flows docs maintain` follows the experimental `flow-document-maintenance-v0.md` contract (decision 0451). Exact-candidate qualification remains required. |
+| `corvint depsource`, `necessity`, `surprise`, `answerability`, `kernel`, `lease`, `reads`, `skill-export` | experimental | Help text already labels them experimental. |
+| `corvint feature` | experimental | Legacy parity verb kept for the Go kernel migration. |
+| Internal `authority-event`, `qualified-event`, `native-hook`, `frontier-next`, `plan-fixture`, `source-view`, `docs corpus` | experimental | Protected-authority, planning, source-view and corpus prototypes. |
+| `corvint-console`, `corvint-dashboard-snapshot` | companion | Optional operator console with no authority (decision 0081). |
+| `corvint-tasks` | companion | Native task store with its own qualification. The full Beamfall roadmap replacement of decision 0426 (`PRS-V1-014`, `PRS-V1-016`, V1-0464) is a stable 1.0 requirement again (amendment 2026-10-22); no takeover claim until its production completion and owner switch are retained. |
+| `corvint-mcp`, `corvint-docs-mcp` | required 1.0 companion | Native-parity Flows and documentation tools with compiled-process conformance (decision 0426). |
+| `corvint-test-validity-mcp` | companion | Optional test-validity host surface with its own qualification. |
+| `corvint-js-test-provider`, `corvint-go-test-provider` | companion | Test providers qualify under `/2` or `/3`, not Core. |
+| `corvint-ruby-test-provider` | experimental companion | Ships in bundle `/3` (`CRB-V0-020`); preview RSpec provider (`LPCV-V0-090..095`), usage smoke only, RSpec execution not qualified. |
+| `corvint-remote-provider` | companion | Network consent places it outside the default local product. |
+| `corvint-release-candidate`, `corvint-release-install` | Core | Core candidate assembly and install (`PUB-V0-022..026`). |
+| `corvint-companion-release`, `corvint-public-release-check` | companion | Build and qualify the companion bundle (`/3` written, `/2` still read). |
+| `corvint-release-gate` | experimental | Self-described experimental offline evidence gate. |
+| `corvint-corpus-mcp`, `corvint-behavior-falsify`, `corvint-playwright-minimize`, `corvint-web-flows`, `corvint-pulse`, `corvint-work-queue` | experimental | Prototypes with proposed or experimental specs. |
+| `corvint-analyzer-*` external analyzer binaries and `corvint-go-toolchain-receipt` | deferred | Analyzer candidate profiles are deferred; Core analysis is the in-binary kernel. |
+| `corvint-analyzer-structured-data` | rejected | Its candidate spec is rejected as specified. |
+| Claude Code plugin, Codex plugin trees | Core (decision 0373, question 5: yes) | Carry the hooks for the two Core host rows. |
+| Codex `authority-hooks`, `qualified-hooks`, `qualified-direct-hooks` proposed trees | post-1.0 | Require formal host authority. |
+| Gemini CLI extension, OpenCode plugin, Pi extension | companion | FALLBACK hosts outside Core. |
+| `integrations/pi-protected` | experimental | Protected Pi runtime is an accepted direction with experimental delivery. |
+| `extensions/vscode` | deferred | `vscode-extension-v0.md` is deferred. |
+| `integrations/testfixture` | none (test-only) | Test fixture tree; never shipped. |
+| DeepSeek Harness plugin | post-1.0 | A committed product goal that is not shipped. |
+| Hosted service, embeddings, permanent daemon, database service in the default binary | rejected | Invariant 7. |
+
+## Externally dependent gates
+
+Each gate below needs something the owner cannot produce alone today. For each, the disposition
+accepted by decision 0373 and the amendment it requires are stated.
+
+### V1-0014: independent proof producers and consumers
+
+- Today: the task-store v1-0 criterion and V1-0021 require that independent interoperability
+  passes. Only the in-repo second consumer (`interop/cem01-go`, `make interop-gate`) exists.
+- Proposed disposition: post-1.0. Corvint 1.0 MUST NOT claim that CEM, OCM or frontier are
+  interoperable. Core keeps the frozen wire, canonical vectors and `make interop-gate`.
+- Amendment required: none to `PUB-V0` requirements, which do not require independent producers.
+  After acceptance, the coordinator amends the task-store v1-0 release criterion and the V1-0021
+  acceptance criterion to replace "independent interoperability passes" with "the frozen wire's
+  canonical vectors and in-repo second consumer pass; no interoperability claim" (decision 0398,
+  accepted 2026-09-26 by decision 0424: that consumer covers `cem/0.1` only, Core item 2). V1-0015,
+  which depends on V1-0014, is already COMPLETED; its recorded dependency edge stays and is moot for
+  the Core path (the store refuses `set-dependencies` on completed tickets).
+
+### V1-0019: untouched-repository validation
+
+- Today: the three Core workflows must pass on Corvint, Beamfall and at least one untouched
+  external repository, with cases frozen before execution.
+- Proposed disposition: keep as a Core blocker, in an owner-closable form. The owner selects one
+  public repository not used in Corvint development, freezes the cases before execution, and runs
+  them. No third party is needed.
+- Amendment required: add to `public-release-v0.md` (0.6 local-workflow scope, extended to 1.0)
+  one sentence: "The 1.0 Core candidate additionally requires the three Core jobs on one
+  owner-selected untouched public repository with cases frozen before execution." The ticket
+  type of V1-0019 changes from EXTERNAL to MANUAL.
+- Frozen cases: one harness, `benchmarks/untouched-repository-v1/harness.py`, runs the three Core
+  jobs on each PRS-V1-008 repository from its own preregistration. It computes the
+  preregistration digest from the file and refuses to run when it differs from the sealed
+  `preregistration.sha256` or from `--prereg-sha256`.
+  - go-chi/chi (decision 0422), held out for run-001: pinned at
+    `3d1777a1ef8881f7d1da0b02c76ca8f0a29cd2bc` in `benchmarks/untouched-repository-v1/`,
+    preregistration digest `27625e854faf7dfb2379f59d38c7c082aeea19758e744874a52b20f200551e29`.
+    Decision 0425 keeps run-001 as evidence and does not rerun it, so its preregistration keeps
+    harness `f24533a1`.
+  - spf13/cobra (decision 0425), originally reserved for the `1.0.0-rc.2` run but disqualified
+    from repository-level untouched admission by decision 0432: pinned at
+    `adbc8813901bba65827259daa8e22ff94ec1f30e` in `benchmarks/untouched-repository-v1/cobra/`,
+    preregistration digest `9631e4ce822d4d17443e5c3bfe98e82c4685a70d6289f854ae5b8c730b98e5a4`.
+    Its original corpus and seal remain unchanged; retained development results already scored
+    that exact repository pin. New cases do not erase that prior use.
+  - urfave/cli (owner selection, decision 0432): pinned at
+    `7389061eb0182169c496021a09729735ac2b797b` in `benchmarks/untouched-repository-v1/urfave/`,
+    preregistration digest `eedf799f9444014e64f1bab1cf5d3296ea06f784e4e88930d385a990b230a185`,
+    corpus digest `b9cf140717e58ab1656111dd962240e37866fa0b4356402a221d4d33a5ed48cc`. The existing harness
+    derives 20 first-parent cases with no new exclusions; 20 are orientation-eligible and 18 are
+    consequence-eligible. Independent preregistration review and public integration must precede
+    execution. No Corvint output or qualification result exists from this preparation.
+  - spf13/viper (owner-delegated selection, decision 0555), the held-out repository for the next
+    run: pinned at `528f7416c4b56a4948673984b190bf8713f0c3c4` in
+    `benchmarks/untouched-repository-v1/viper/`, preregistration digest
+    `e2d6a26a77a0d3a1488dccc4d9f897e11fdef738c4409957b605092769e2be5e`, corpus digest
+    `3d39b9338c5a8b00f64062892a12d6786a116936ad2ce4b1ff440c80444b8f65`, target `1.0.0-rc.3`.
+    The unchanged harness derives 20 first-parent cases with no new exclusions: 20 are
+    orientation-eligible and 13 are consequence-eligible. The selection was recorded before any
+    corpus derivation. An independent review preceded the seal. No Corvint output exists.
+  - Corvint, a development repository: pinned at the first `1.0.0-rc.1` candidate commit
+    `94ca556f52c0349c0a48e0c3a3274f8a0b5e6db3` in `benchmarks/untouched-repository-v1/corvint/`,
+    with loop target `a5a7412c91857773ccc3e61bf197bc22725ac57c`. Preregistration digest
+    `5e44a9efe6bf86189e166c516962db5fe921d40ab63c9ae5a76c25eac721543b` supersedes `58d68a6f`
+    by its deviation 1 (V1-0432, V1-0433). Task-store, dogfood, build-log and generated index
+    paths are never critical.
+  - beamfall/core, a private development repository: pinned at
+    `e8655b084d1658087004af8f7b235ea4e7675dff`, over the 20 most recent first-parent commits that
+    change a `.go` file. Its preregistration, corpus, runs and receipts stay in the owner's local
+    release evidence. This spec publishes its preregistration digest before any run, and its
+    outcomes after: `c91b3a3cb4b3b769a7bc8c3caf050df399566544833699e08bd54588d30b2697` supersedes
+    `867f51a01609d1587122d4186775f2557bcf4ec5c064ec12004edf3de8d35a40` by its deviation 1
+    (V1-0432).
+- Run-001 on `1.0.0-rc.1` (`b967f6bbe33c5eba367a07d7eeb2bd1e372e9162`, build 163) failed; by
+  decision 0425 it is a known issue of that prerelease and V1-0019 gates 1.0 final.
+  - go-chi/chi: orientation FAIL (3 treatment-only critical misses in 20, all test files, V1-0431),
+    consequence PASS (0 in 19), completion PASS (12 informative, none false-complete). Result
+    `benchmarks/untouched-repository-v1/runs/run-001.json`, sha256
+    `3a518374754dc757a0e140ac859b9b29d7bd0a6b6ad6473b87081ffac515843a`.
+  - beamfall/core: orientation FAIL (1 in 20), consequence PASS (0 in 20), completion PASS
+    (12 informative, none false-complete). Private result sha256
+    `43fbcdfd0800724b8944caaca3ed6a65dd5cf3d2433ac7706efa0e8c751b3f8b`.
+  - Corvint: aborted before scoring (V1-0432, V1-0433); only
+    `benchmarks/untouched-repository-v1/corvint/runs/run-001.started.json` exists.
+  - urfave/cli replaces the ineligible cobra selection for the next run (decision 0432), with
+    independently reviewed cases sealed and published first. The retained Corvint, Beamfall,
+    cobra and prospective urfave preregistrations name
+    `1.0.0-rc.2` and harness `b67cc95abd92ffffeef9bf1bccfce4d0316e270716d6cd065948e802994f9eb2`.
+
+### Host FULL and authority tuples
+
+- Today: the 2026-09-16 Core release scope amendment says Codex CLI and Desktop, Claude Code,
+  Gemini CLI and Pi "still require exact runtime FULL/authority evidence" and that missing
+  "required exact runtime FULL" evidence blocks release. V1-0005 and V1-0016 carry this.
+- Proposed disposition: move formal FULL and protected authority to post-1.0 (or to a companion
+  host profile). Core claims the plain CLI and (question 5: yes) installed Codex CLI and
+  Claude Code at FALLBACK on exact versions. Tuples whose host API cannot supply authority stay
+  FALLBACK or UNSUPPORTED and do not block Core.
+- Amendment required: in `public-release-v0.md`, extend the 0.6 local-workflow scope sentence
+  "For that milestone only, it supersedes conflicting prerequisites that require optional
+  companions or formal FULL host authority" to cover the 1.0 Core candidate, and state that the
+  2026-09-16 clause "still require exact runtime FULL/authority evidence" binds only a companion
+  host profile, not the Core release.
+
+### Companion installed qualification (`PUB-V0-020`, V1-0004)
+
+- Today: `PUB-V0-020` and the 2026-09-16 amendment make the `/2` installed run (JS unit and E2E,
+  Go foreground, test-validity MCP, docs, Tasks roadmap, named-browser console) Core installed
+  qualification.
+- Proposed disposition: move to companion. Core installed qualification becomes the native archive
+  lifecycle of `stable-operations-v0.md` plus the three Core jobs run on the exact installed bytes.
+- Amendment required: `PUB-V0-004`, `-005`, `-006`, `-009`, `-010` and `-020`, `PUB-V0-022`'s
+  companion input, and the 2026-09-16 clause "missing core installed ... evidence blocks release"
+  bind only the companion profile for 1.0. The existing combined manifest reader and installer do
+  not admit a Core-only packet, so a Core-only candidate path is an implementation follow-up under
+  V1-0007 or V1-0018.
+
+## Requirements
+
+- `PRS-V1-001`: Corvint 1.0 Core MUST be exactly the surfaces labelled Core in this spec: the local
+  change-evidence loop, the CEM/OCM/frontier proof wire, the dogfood loop, the three Core jobs of
+  decision 0332, and the native release artifact and its lifecycle.
+- `PRS-V1-002`: Only Core surfaces carry the 1.0 stability promise (frozen contracts, N-1 readers
+  or deterministic migrations). Companion, experimental, deferred, rejected and post-1.0 surfaces
+  MUST NOT be described as stable in release notes, help or product docs.
+- `PRS-V1-003`: Every gate on the Core critical path to 1.0 MUST be closable by the owner without a
+  third party, or be explicitly kept by an owner answer in "Decisions the owner must make".
+- `PRS-V1-004`: Core platforms MUST be darwin/arm64 and linux/amd64 native binaries. A Core
+  platform needs retained native install-lifecycle and focused-test evidence on the candidate
+  bytes; without it the platform is reported FALLBACK, never Core. Windows MUST stay UNSUPPORTED.
+- `PRS-V1-005`: A Core release candidate MUST NOT require companion input. Companions keep their
+  own qualification and version and can be released separately. This assembly independence does
+  not waive the whole-product stable-promotion requirements in PRS-V1-013..017.
+- `PRS-V1-006`: Core host scope MUST be the plain CLI, plus the exact-version Codex CLI and Claude
+  Code rows at FALLBACK when owner question 5 is answered yes. Formal FULL or protected authority for
+  any host MUST NOT block Core.
+- `PRS-V1-007`: Corvint 1.0 MUST NOT claim CEM, OCM or frontier interoperability unless V1-0014
+  passes with at least one non-Corvint producer and two independent consumers.
+- `PRS-V1-008`: The 1.0 Core candidate MUST pass the three Core jobs on Corvint, Beamfall and one
+  owner-selected untouched public repository, with cases frozen before execution.
+- `PRS-V1-009`: Core installed qualification MUST be the native archive lifecycle of
+  `stable-operations-v0.md` plus the three Core jobs on the exact installed bytes. It MUST NOT
+  depend on the companion bundle `/2`.
+- `PRS-V1-010`: Any new shipped verb, binary or integration tree MUST be added to the
+  classification table with one label and a one-line reason in the same change that ships it.
+- `PRS-V1-011`: This spec amends `public-release-v0.md` prospectively for the 1.0 Core candidate. It
+  MUST NOT rewrite historical alpha, 0.5, 0.6 or 0.7 evidence, which keeps its original meaning.
+- `PRS-V1-012`: This spec has no authority until a numbered decision records the owner's
+  acceptance and answers. Until then `public-release-v0.md`, decision 0332 and the task-store
+  release criteria govern.
+
+- `PRS-V1-013`: Stable 1.0 MUST include qualified Flows, safe application navigation,
+  evidence-bound flow documentation and the corresponding MCP tools under their owning AFU
+  contract. Missing observers and unavailable production integrations remain explicit gaps.
+- `PRS-V1-014`: Stable 1.0 requirement (restored by amendment 2026-10-22 after the 2026-10-21
+  deferral, V1-0464). Tasks MUST replace Beamfall's active roadmap workflow through native ticket
+  mutation, claims/leases, independent candidate review and repair, actual gates, single- and
+  multi-repository integration, completion and consumer migration. Preserve history and original
+  evidence; imported manual completions MUST NOT be relabelled newly verified execution.
+- `PRS-V1-015`: Automatic developer and user-facing flow documentation MUST use revision-pinned
+  sources and observations, retain citations and uncertainty, preserve human prose, detect drift,
+  preview updates, support safe explicit apply and repeat no-ops, and retain rollback evidence.
+  Generated output MUST NOT accept intent or publish itself.
+- `PRS-V1-016`: Stable 1.0 requirement (restored by amendment 2026-10-22 after the 2026-10-21
+  deferral, V1-0464). Before Beamfall production activation, the migration MUST reconcile active work,
+  fence legacy writers, qualify real gates and process cleanup, and rehearse recovery that retains
+  post-cutover native writes. The final concrete switch requires owner approval. Stable promotion
+  additionally requires actual production native completion, ticket readback and receipt audit.
+- `PRS-V1-017`: The expanded capabilities MUST retain exact-candidate acceptance evidence and
+  honest delivery labels before stable promotion. Existing Core job, platform, compatibility and
+  release gates remain required. Product-scope acceptance MUST NOT imply acceptance of an
+  experimental technical contract, runtime qualification, authentication or broader renderer claims.
+- `PRS-V1-018`: Stable 1.0 MUST ship five spec-driven development improvements (owner instruction
+  2026-10-13; tickets V1-1344..V1-1348 at milestone v1-0, on which the release gate V1-0020 depends):
+  (a) a `record` citation class for evidence-record changes, reported by the citation baseline tool
+  apart from `change` (V1-1344); (b) a dogfood-check OCM coverage line that, when present, counts
+  only the requirement IDs the bound change cites or traces (V1-1345); (c) spec header rows
+  (the Agent digest status and the `INDEX.json` and `README.md` rows) generated by
+  `make spec-requirements`, with intent-status history kept outside the header (V1-1346); (d) a
+  recorded acceptance mode per requirement (standing approval or owner read-back) carried by
+  `REQUIREMENTS.tsv`, with one audit command listing the requirements the owner never read back
+  (V1-1347); (e) one `dogfood finish-lane` command that takes a committed branch plus a citation
+  plan from BASE to a sealed, checked tree (V1-1348). Delivery of each clause stays NOT_QUALIFIED
+  until its ticket retains the clause's acceptance evidence and completes natively.
+- `PRS-V1-019`: The root module and `interop/cem01-go` MUST type-check (`go vet ./...`, CGO
+  disabled) for GOOS=freebsd, openbsd, netbsd and solaris on amd64, and `make cross-vet` MUST run
+  those checks. A package whose platform code is implemented only for qualified platforms carries a
+  fallback that refuses the operation (or, for a test, a build constraint that excludes the
+  platform); the darwin, linux and windows builds do not change. These checks do not qualify the
+  platforms (`PRS-V1-004`) and run no native test (V1-0393).
+- `PRS-V1-020`: `corvint --version --json` (also after `--root PATH`) MUST print one canonical JSON
+  object with profile `corvint-version/1`, `tool` `corvint`, the release `version`, the `build`
+  (omitted when unstamped, and `commit`, `commitState`, `release` and `displayVersion`, as amended
+  by `PUB-V0-050..052`, V1-2839), the
+  sorted `commands` the binary dispatches and the `harnessHosts` its adapter schema admits, so a
+  plugin or script detects binary skew before it calls a verb instead of meeting a parse failure.
+  Plain `--version` keeps its text line; any further argument is an argument error. Plugin trees
+  consuming the identity are a separate host-qualified change (V1-0300).
+- `PRS-V1-021`: windows/amd64 is UNSUPPORTED for 1.0 and MUST fail closed (decision 0559). A
+  subsystem whose qualified implementation is not built for the running platform MUST refuse before
+  it opens, reads or writes anything, with a stable reason naming the platform limit, and MUST NOT
+  return a partial, guessed or misattributed result or hang. Each such refusal is listed with its
+  source in `internal/testplatform.PlatformRefusals`, which a drift test keeps verbatim, and a test
+  on that platform skips only on that exact refusal. Native Windows qualification (V1-2441) is
+  post-1.0; the CI windows-vet step stays and qualifies nothing. Failure modes: an untyped error, a
+  misattributed cause (V1-2487) or an unbounded wait (V1-2492) on Windows is a `PRS-V1-021` defect.
+  Rollback: a superseding owner decision that qualifies the platform.
+- `PRS-V1-022`: Off darwin and linux, every docs corpus input read (`ReadCorpusFile`,
+  `StatCorpusFile` and the streamed read) MUST refuse before it opens the input root with code
+  `corpus-platform-unsupported` and message `docs corpus reads are unsupported on this platform`,
+  never `corpus-input-unavailable`; the CLI keeps exit 2. The receipt reader refuses every file,
+  directory and top-directory open with `testvaliditydoc.ErrPlatformUnsupported` (`receipt reads are
+  unsupported on this platform`), and retained-evidence discovery reports that text as its
+  `invalid-test-evidence-location` reason. darwin and linux reads are unchanged (V1-2484). Rollback:
+  remove `platformRefusal` in `internal/doccorpus/encoding.go`; the code then reverts to
+  `corpus-input-unavailable`.
+
+## Decisions the owner must make
+
+Answered on 2026-09-23: yes to all eleven, recorded with notes in
+`../decisions/0373-corvint-1.0-scope-ratified-2026-09-23.md`. The linux/amd64 host (question 4)
+is a GitHub-hosted `ubuntu-24.04` runner (decision 0420), and the untouched repository (question 8)
+is `github.com/go-chi/chi` (decision 0422). The questions stay as asked.
+
+1. Accept the Core definition (`PRS-V1-001`) and the companion list as written?
+2. Accept the classification table as the 1.0 disposition of every shipped surface (`PRS-V1-010`)?
+3. Make darwin/arm64 a Core platform and linux/arm64 and darwin/amd64 FALLBACK (`PRS-V1-004`)?
+4. Make linux/amd64 the second Core platform, given that you can supply a native linux/amd64 host
+   for the lifecycle run? (If no, should linux/arm64, where native runs have occurred, take its
+   place?)
+5. Keep installed Codex CLI and Claude Code local use at FALLBACK on exact versions as Core host
+   rows (`PRS-V1-006`, decision 0332 precedent)?
+6. Move formal host FULL and protected authority off the Core path to post-1.0 or a companion
+   profile, with the `public-release-v0.md` amendment stated above?
+7. Move V1-0014 independent interoperability to post-1.0 and withhold any interoperability claim
+   from 1.0 (`PRS-V1-007`)?
+8. Keep V1-0019 as a Core blocker in the owner-closable form (one owner-selected untouched public
+   repository, cases frozen first) (`PRS-V1-008`)?
+9. Move `PUB-V0-020` and V1-0004 (companion `/2` installed qualification) to the companion profile
+   (`PRS-V1-009`)?
+10. Amend `public-release-v0.md` prospectively rather than supersede it (`PRS-V1-011`)?
+11. Record acceptance in a new numbered decision, after which the coordinator amends the task-store
+    v1-0 criteria and V1-0019, V1-0021 and V1-0015 to match?
+
+## Non-goals
+
+- Delivering anything. Accepted scope is not qualification, a candidate, or promotion.
+- Changing any `PUB-V0` requirement text; the amendment is prose in `public-release-v0.md`, like the
+  2026-09-16 Core release scope amendment.
+- Promoting any host, platform or companion, or rewriting historical evidence.
+- Adding a new spec language, runtime, service or dependency.
+- Choosing the untouched repository for V1-0019 or the linux/amd64 host.
+- Implementing the Core-only candidate path; that is a follow-up once accepted.
+
+## Failure modes
+
+- A shipped surface missing from the classification table: default to experimental and treat it as
+  a `PRS-V1-010` violation to fix before the candidate freeze.
+- A Core platform without native evidence at candidate freeze: the platform is reported FALLBACK
+  and the release notes say so (`PRS-V1-004`).
+- An owner answer of "no" on questions 6, 7 or 9: the current `public-release-v0.md` rule stays a
+  Core blocker, and V1-0018 must list it as an open blocker rather than drop it.
+- Release notes or help describing a non-Core surface as stable: a `PRS-V1-002` defect.
+
+## Acceptance evidence
+
+- V1-0393 compile-only regression checks: vet the CEM publisher, isolated Swift candidate and
+  experimental SQL-native analyzer on FreeBSD, OpenBSD, NetBSD and Solaris/amd64; retain the
+  Darwin/Linux/Windows vet baseline and host package tests. Refusing read fallbacks on other
+  platforms preserve `PRS-V1-004`: these checks do not qualify platforms or reopen deferred
+  analyzers. Evidence: `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-10-xplat-help.md`.
+- Owner acceptance: `../decisions/0373-corvint-1.0-scope-ratified-2026-09-23.md` answers every
+  question above and references this spec. Status: PRODUCED (2026-09-23).
+- Document consistency: the focused-docs gate passes with this spec, its `INDEX.json` row, its
+  `README.md` row and regenerated `REQUIREMENTS.tsv`.
+- Classification completeness: every top-level `corvint` verb, `cmd/` binary, `integrations/` tree and
+  `extensions/` tree present at the base commit appears in the classification table. Checked by
+  review at acceptance; a mechanical check is a follow-up for V1-0002 or V1-0007.
+
+## Traceability
+
+| Requirement | Evidence | Status |
+|---|---|---|
+| `PRS-V1-001..012` | Decision 0373 | PRODUCED (2026-09-23) |
+| `PRS-V1-013`, `PRS-V1-015`, `PRS-V1-017` | Decision 0426; V1-0461..0463, V1-0465 and V1-0249/V1-0252..0255; docs and flow-doc run on this repository (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-21-v1-0461-docs-flows-e2e.md`) | Owner scope recorded; local end-to-end run retained for docs maintain and flow docs; exact-candidate qualification pending |
+| `PRS-V1-014`, `PRS-V1-016` | V1-0464; decision 0544; beamfall/core-history#45; `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-22-bf-1022q-beamfall-takeover.md` | Restored to 1.0 (2026-10-22); activation recorded, consumer rewire in review; production completion and owner switch NOT_PRODUCED |
+| `PRS-V1-018` | Owner instruction 2026-10-13; V1-1344..V1-1348 at milestone v1-0 (V1-0020 dependencies) | Owner scope recorded; each clause NOT_QUALIFIED until its ticket retains acceptance evidence and completes natively |
+| `PRS-V1-010` | Review of this table against the base commit's verbs, binaries and trees | review only |
+| `PRS-V1-002` | N-1 upgrade: 0.7.0 archive to 0.8.0 `upgrade-b` and `rollback-a` under `SOP-V0-003` (`stable-operations-v0.md`, V1-0190) | PASS on darwin/arm64, darwin/amd64 (Rosetta 2), linux/arm64 (container); linux/amd64 emulated only |
+| `PRS-V1-005` | Core-only assembly with no companion or Tasks input (`TestPRSV1005CoreOnlyAssemblyNeedsNoCompanion`, V1-0229) and its reader and installer (`TestPRSV1005CoreOnlyCandidateVerifiesAndInstalls`, V1-0125); the companion assembler requires `-source-root` and, since decision 0397, takes no `-tasks-root` (`TestEmptyRootsRefuseBeforeExecution`) | PASS (unit); real assembly and install on a scratch alpha commit, darwin/arm64; linux `NOT_RUN` |
+| `PRS-V1-004` | Native install lifecycle on each Core platform | darwin/arm64 retained for 0.7.0; linux/amd64 `NOT_RUN` |
+| `PRS-V1-006` | Host lifecycle qualification, nine cases per tuple (`host-lifecycle-qualification-v1.md`, V1-0016) | PASS for plain CLI, Codex CLI 0.153.2 and Claude Code 2.1.267 on darwin/arm64 with 0.8.0, all FALLBACK; linux `NOT_RUN` |
+| `PRS-V1-007` | V1-0014 | `NOT_RUN` |
+| `PRS-V1-019` | `make cross-vet` freebsd/openbsd/netbsd/solaris amd64 lines; `TestReadTargetOnceOtherRefusesRegularFile` (compiled by the cross vet); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-21-portwire-1021x-xplat-wire.md` (V1-0393) | PASS (cross vet, 2026-10-21); native BSD/Solaris execution `NOT_RUN` |
+| `PRS-V1-020` | `TestPRSV1020VersionJSONNamesVerbsAndHosts` (V1-0300) | PASS (unit); no plugin tree reads it yet |
+| `PRS-V1-021` | Decision 0559; `TestPlatformRefusalsMatchTheirSources`, `TestDocsCorpusAndReceiptRefusalsSkipOnlyOnWindows` (V1-2485) | Owner scope recorded; V1-2487 and V1-2492 remain open rule-2 defects |
+| `PRS-V1-022` | `TestPRSV1022CorpusReadsRefuseAnUnsupportedPlatformWithATypedCode`, `TestPRSV1022ReceiptPlatformRefusalMatchesTheQualifiedPlatforms`, `TestPRSV1022UnqualifiedPlatformRefusesEveryReceiptOpen` (windows-tagged, type-checked by `make windows-vet`) (V1-2484) | PASS (unit, linux/WSL2); native Windows execution `NOT_RUN` |
+| `PRS-V1-008` | V1-0019 run-001 on `1.0.0-rc.1` (`b967f6bb`), `benchmarks/untouched-repository-v1/runs/run-001.json` | FAIL: orientation on go-chi/chi (3 of 20) and beamfall/core (1 of 20); Corvint aborted; known issue of `1.0.0-rc.1` (decision 0425) |
+
+## Sections not applicable to a scope spec
+
+- Simpler baseline: not applicable; this spec selects scope and does not add a mechanism.
+- Trust boundary and resource limits: not applicable; every named surface keeps its owning spec's limits.
+- Rollout, compatibility and drift rules: not applicable; the owning contracts and `CCF-V1` carry them.
+- Promotion or kill criteria: not applicable; acceptance is the owner decision `PRS-V1-012` records.
+
+## Rollback
+
+Delete this file, its `INDEX.json` entry and its `README.md` row, regenerate `REQUIREMENTS.tsv`,
+and remove the "1.0 Core scope amendment" section in `public-release-v0.md` and the pointer sentence
+in `../PRODUCT.md`. Decision 0373 and ticket V1-0001 depend on this spec; that decision's rollback
+section governs reverting the acceptance.

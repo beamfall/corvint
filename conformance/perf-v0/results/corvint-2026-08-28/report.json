@@ -1,0 +1,577 @@
+{
+  "format": "corvint-perf-v0/1",
+  "outcome": "insufficient_evidence",
+  "preregisteredRun": true,
+  "startedAt": "2026-08-28T19:31:57Z",
+  "finishedAt": "2026-08-28T19:43:50Z",
+  "machine": {
+    "goos": "darwin",
+    "goarch": "arm64",
+    "logicalCpus": 12,
+    "goToolchainVersion": "go1.27.0",
+    "pythonVersion": "Python 3.9.6"
+  },
+  "preregistration": {
+    "registeredAt": "2026-08-28T00:00:00Z",
+    "warmupSamples": 5,
+    "measuredSamples": 100,
+    "percentileEstimator": "nearest-rank",
+    "bootstrapResamples": 10000,
+    "bootstrapConfidence": 0.95,
+    "bootstrapSeed": 20260828,
+    "sampleTimeoutMilliseconds": 30000,
+    "interleave": "alternating-per-sample"
+  },
+  "validity": {
+    "requireEqualStdout": true,
+    "requireEqualStderr": true,
+    "requireEqualExitStatus": true,
+    "requireCorpusUnchanged": true,
+    "requireCacheStableDuringMeasurement": true,
+    "forbidTimeouts": true,
+    "forbidFailures": true,
+    "minimumMeasuredSamples": 100,
+    "requirePreregisteredSampleCounts": true
+  },
+  "thresholds": {
+    "nonQueryHarnessP95Milliseconds": 100,
+    "portableProductCapMilliseconds": 250,
+    "queryP95Milliseconds": 500,
+    "nonQueryOracleImprovementFraction": 0.5,
+    "otherCommandRegressionFraction": 0.1
+  },
+  "sanitizedEnvironmentSha256": "86aeb4acda008af78f42f3f6ba8c86b69b522e00d5266efd5cc510b0bead37e0",
+  "oracleSource": {
+    "revision": "58a2806e4b621ebd13a439ff661b8d0d875133b8",
+    "treeSha256": "04e7ab1ded4b6f121412a1ee55d22977c473c3e5fd5d88702a1fec349aa14429",
+    "unchangedAfterRun": true,
+    "resolvedCommand": "/Applications/Xcode.app/Contents/Developer/usr/bin/python3 -m corvint_cli"
+  },
+  "candidate": {
+    "package": "/private/tmp/corvint-perf-v0-2552641507/corvint",
+    "builtFromRevision": "58a2806e4b621ebd13a439ff661b8d0d875133b8",
+    "binarySha256": "d24c96a575d9b615726820e5ea34e7bb9ee18deb0ea4547e8cf106f572fd4372",
+    "buildCommand": "GOTOOLCHAIN=local CGO_ENABLED=0 go build -o \u003cworkspace\u003e/corvint ./cmd/corvint"
+  },
+  "corpora": [
+    {
+      "id": "corvint",
+      "state": "MEASURED",
+      "repositoryPath": ".",
+      "revision": "58a2806e4b621ebd13a439ff661b8d0d875133b8",
+      "treeRevision": "9d90828ef284f2758b5badcd34c67acdea4e0852",
+      "sourceWorktreeClean": false,
+      "runDigestBefore": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "runDigestAfter": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      }
+    },
+    {
+      "id": "beamfall",
+      "state": "NOT_RUN",
+      "reason": "beamfall-not-pinned-to-a-clean-revision: the repository is under continuous concurrent write by a live agent fleet, so it cannot hold the same revision, cache state, and unchanged-repository predicates GPK-V0-016 requires for the duration of a run. Enabling this corpus needs only a pinned clean revision in the revision field, which work item W12 (GPK-V0-022) provides.",
+      "repositoryPath": "~/projects/beamfall-workspace/beamfall",
+      "sourceWorktreeClean": false
+    }
+  ],
+  "tasks": [
+    {
+      "id": "harness-session-start",
+      "corpus": "corvint",
+      "class": "non-query-harness",
+      "command": "harness",
+      "argv": [
+        "harness",
+        "event",
+        "--host",
+        "claude-code",
+        "--host-version",
+        "1.0.0",
+        "--surface",
+        "plugin",
+        "--adapter-version",
+        "0.1.0",
+        "--event",
+        "session-start",
+        "--input",
+        "-"
+      ],
+      "state": "valid",
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 345.474583,
+        "p95Milliseconds": 366.68825,
+        "maxMilliseconds": 390.345583,
+        "p95LowerBoundMilliseconds": 359.089291,
+        "p95UpperBoundMilliseconds": 384.1515,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 26034176,
+        "peakResidentMaxBytes": 26230784
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 99.125,
+        "p95Milliseconds": 117.028458,
+        "maxMilliseconds": 137.102083,
+        "p95LowerBoundMilliseconds": 106.160791,
+        "p95UpperBoundMilliseconds": 120.292916,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 9355264,
+        "peakResidentMaxBytes": 9486336
+      },
+      "agreedStdoutSha256": "e798dc848ed520b2293382636712c3d31191a58b83c427354b72c9fcf6816637",
+      "agreedExitStatus": 0,
+      "corpusDigestBefore": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "cacheDigestBefore": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "cacheDigestAfter": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "harness-stop",
+      "corpus": "corvint",
+      "class": "non-query-harness",
+      "command": "harness",
+      "argv": [
+        "harness",
+        "event",
+        "--host",
+        "claude-code",
+        "--host-version",
+        "1.0.0",
+        "--surface",
+        "plugin",
+        "--adapter-version",
+        "0.1.0",
+        "--event",
+        "stop",
+        "--input",
+        "-"
+      ],
+      "state": "valid",
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 348.240291,
+        "p95Milliseconds": 387.590667,
+        "maxMilliseconds": 425.668083,
+        "p95LowerBoundMilliseconds": 373.7135,
+        "p95UpperBoundMilliseconds": 398.6575,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 26099712,
+        "peakResidentMaxBytes": 26312704
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 101.488083,
+        "p95Milliseconds": 107.32825,
+        "maxMilliseconds": 120.410625,
+        "p95LowerBoundMilliseconds": 106.766584,
+        "p95UpperBoundMilliseconds": 113.568958,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 9404416,
+        "peakResidentMaxBytes": 9486336
+      },
+      "agreedStdoutSha256": "1a01b0330ed258604cd408722ec42a37f918dd63f4a7ddd005aa9bfdb7a46e51",
+      "agreedExitStatus": 0,
+      "corpusDigestBefore": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "cacheDigestBefore": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "cacheDigestAfter": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "harness-post-tool",
+      "corpus": "corvint",
+      "class": "non-query-harness",
+      "command": "harness",
+      "argv": [
+        "harness",
+        "event",
+        "--host",
+        "claude-code",
+        "--host-version",
+        "1.0.0",
+        "--surface",
+        "plugin",
+        "--adapter-version",
+        "0.1.0",
+        "--event",
+        "post-tool",
+        "--input",
+        "-"
+      ],
+      "state": "valid",
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 347.821042,
+        "p95Milliseconds": 376.4005,
+        "maxMilliseconds": 442.855,
+        "p95LowerBoundMilliseconds": 370.463917,
+        "p95UpperBoundMilliseconds": 382.58775,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 26001408,
+        "peakResidentMaxBytes": 26214400
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 101.24775,
+        "p95Milliseconds": 113.038375,
+        "maxMilliseconds": 138.751708,
+        "p95LowerBoundMilliseconds": 108.072875,
+        "p95UpperBoundMilliseconds": 119.101625,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 9322496,
+        "peakResidentMaxBytes": 9453568
+      },
+      "agreedStdoutSha256": "64fa48c35f9d90bfb6b92ead0b97e7a943550fc0037ade91ec192a7d14497549",
+      "agreedExitStatus": 0,
+      "corpusDigestBefore": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "cacheDigestBefore": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "cacheDigestAfter": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "id": "query-authority-start",
+      "corpus": "corvint",
+      "class": "query",
+      "command": "query",
+      "argv": [
+        "query",
+        "--task",
+        "Identify the active work queue, required workflow gates, and minimum context needed to safely take the next roadmap ticket",
+        "--limit",
+        "1"
+      ],
+      "state": "valid",
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 1165.536208,
+        "p95Milliseconds": 1256.914791,
+        "maxMilliseconds": 1317.04675,
+        "p95LowerBoundMilliseconds": 1234.104916,
+        "p95UpperBoundMilliseconds": 1273.320917,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 190562304,
+        "peakResidentMaxBytes": 191070208
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 414.552875,
+        "p95Milliseconds": 453.407791,
+        "maxMilliseconds": 514.654458,
+        "p95LowerBoundMilliseconds": 439.526916,
+        "p95UpperBoundMilliseconds": 489.410333,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 14712832,
+        "peakResidentMaxBytes": 15007744
+      },
+      "agreedStdoutSha256": "31d1f56e638dcc5c20a0154d01e8209088c4ff5dbca8586aa13bf38534fd3561",
+      "agreedExitStatus": 0,
+      "corpusDigestBefore": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "cacheDigestBefore": "283cab28758896f4bfc0e031b18b15b4796561b690272f9f4746e0e84d90845d",
+      "cacheDigestAfter": "283cab28758896f4bfc0e031b18b15b4796561b690272f9f4746e0e84d90845d"
+    },
+    {
+      "id": "init-inventory",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "init",
+      "argv": [
+        "init"
+      ],
+      "state": "valid",
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 561.309417,
+        "p95Milliseconds": 603.591167,
+        "maxMilliseconds": 625.600042,
+        "p95LowerBoundMilliseconds": 583.548958,
+        "p95UpperBoundMilliseconds": 615.423583,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 68616192,
+        "peakResidentMaxBytes": 69124096
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 269.679209,
+        "p95Milliseconds": 286.382417,
+        "maxMilliseconds": 318.521583,
+        "p95LowerBoundMilliseconds": 278.490709,
+        "p95UpperBoundMilliseconds": 292.664292,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 60948480,
+        "peakResidentMaxBytes": 63832064
+      },
+      "agreedStdoutSha256": "ee5803cfb828c882b0924fe1f94da09a15c1f7132bd3b93d89ef0fb478269fd1",
+      "agreedExitStatus": 0,
+      "corpusDigestBefore": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "cacheDigestBefore": "283cab28758896f4bfc0e031b18b15b4796561b690272f9f4746e0e84d90845d",
+      "cacheDigestAfter": "283cab28758896f4bfc0e031b18b15b4796561b690272f9f4746e0e84d90845d"
+    },
+    {
+      "id": "adopt-inventory",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "adopt",
+      "argv": [
+        "adopt"
+      ],
+      "state": "valid",
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 560.84025,
+        "p95Milliseconds": 599.9095,
+        "maxMilliseconds": 624.524375,
+        "p95LowerBoundMilliseconds": 593.5375,
+        "p95UpperBoundMilliseconds": 615.099625,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 68665344,
+        "peakResidentMaxBytes": 69058560
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 272.263959,
+        "p95Milliseconds": 294.47375,
+        "maxMilliseconds": 310.61475,
+        "p95LowerBoundMilliseconds": 287.122416,
+        "p95UpperBoundMilliseconds": 302.004458,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 61145088,
+        "peakResidentMaxBytes": 64733184
+      },
+      "agreedStdoutSha256": "faf18d59a8a0dea346c82178a31e7d1753891a5813f8fd2b9881ddda7b6bac44",
+      "agreedExitStatus": 0,
+      "corpusDigestBefore": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "cacheDigestBefore": "283cab28758896f4bfc0e031b18b15b4796561b690272f9f4746e0e84d90845d",
+      "cacheDigestAfter": "283cab28758896f4bfc0e031b18b15b4796561b690272f9f4746e0e84d90845d"
+    },
+    {
+      "id": "impact-path",
+      "corpus": "corvint",
+      "class": "other-command",
+      "command": "impact",
+      "argv": [
+        "impact",
+        "cmd/corvint/main.go",
+        "--limit",
+        "10"
+      ],
+      "state": "insufficient_evidence",
+      "invalidityReasons": [
+        "unequal-stdout"
+      ],
+      "measuredSamplesPerRuntime": 100,
+      "oracle": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 1285.470584,
+        "p95Milliseconds": 1330.523625,
+        "maxMilliseconds": 1348.764417,
+        "p95LowerBoundMilliseconds": 1319.99975,
+        "p95UpperBoundMilliseconds": 1341.199416,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 190349312,
+        "peakResidentMaxBytes": 191021056
+      },
+      "candidate": {
+        "samples": 100,
+        "failures": 0,
+        "p50Milliseconds": 798.8625,
+        "p95Milliseconds": 846.812667,
+        "maxMilliseconds": 873.35575,
+        "p95LowerBoundMilliseconds": 824.261417,
+        "p95UpperBoundMilliseconds": 853.519917,
+        "peakResidentKind": "measured",
+        "peakResidentP95Bytes": 67207168,
+        "peakResidentMaxBytes": 67682304
+      },
+      "agreedStdoutSha256": "825c9e0eb19cc09446e4e678a98cfe0382ad8fcf29672c7ead559f70294804a0",
+      "agreedExitStatus": 0,
+      "corpusDigestBefore": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "corpusDigestAfter": {
+        "worktreeSha256": "86d255186499ee5d01b4e0be24623e7a842754ef9e7b45542e3f2aaea8154748",
+        "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "headTree": "9d90828ef284f2758b5badcd34c67acdea4e0852"
+      },
+      "cacheDigestBefore": "283cab28758896f4bfc0e031b18b15b4796561b690272f9f4746e0e84d90845d",
+      "cacheDigestAfter": "283cab28758896f4bfc0e031b18b15b4796561b690272f9f4746e0e84d90845d"
+    }
+  ],
+  "gpkV0017Criteria": [
+    {
+      "criterion": "GPK-V0-017(a)",
+      "scope": "harness-session-start",
+      "verdict": "FAIL",
+      "required": "candidate p95 \u003c= 100ms reference cap and \u003c= 250ms portable cap",
+      "observed": "candidate p95 117.0ms (95% CI 106.2-120.3ms)"
+    },
+    {
+      "criterion": "GPK-V0-017(c)",
+      "scope": "harness-session-start",
+      "verdict": "PASS",
+      "required": "candidate p95 \u003c= 50% of oracle p95 (183.3ms)",
+      "observed": "candidate p95 117.0ms vs oracle p95 366.7ms"
+    },
+    {
+      "criterion": "GPK-V0-017(a)",
+      "scope": "harness-stop",
+      "verdict": "FAIL",
+      "required": "candidate p95 \u003c= 100ms reference cap and \u003c= 250ms portable cap",
+      "observed": "candidate p95 107.3ms (95% CI 106.8-113.6ms)"
+    },
+    {
+      "criterion": "GPK-V0-017(c)",
+      "scope": "harness-stop",
+      "verdict": "PASS",
+      "required": "candidate p95 \u003c= 50% of oracle p95 (193.8ms)",
+      "observed": "candidate p95 107.3ms vs oracle p95 387.6ms"
+    },
+    {
+      "criterion": "GPK-V0-017(a)",
+      "scope": "harness-post-tool",
+      "verdict": "FAIL",
+      "required": "candidate p95 \u003c= 100ms reference cap and \u003c= 250ms portable cap",
+      "observed": "candidate p95 113.0ms (95% CI 108.1-119.1ms)"
+    },
+    {
+      "criterion": "GPK-V0-017(c)",
+      "scope": "harness-post-tool",
+      "verdict": "PASS",
+      "required": "candidate p95 \u003c= 50% of oracle p95 (188.2ms)",
+      "observed": "candidate p95 113.0ms vs oracle p95 376.4ms"
+    },
+    {
+      "criterion": "GPK-V0-017(b)",
+      "scope": "query-authority-start",
+      "verdict": "PASS",
+      "required": "candidate p95 \u003c= 500ms",
+      "observed": "candidate p95 453.4ms (95% CI 439.5-489.4ms)"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "init-inventory:p95",
+      "verdict": "PASS",
+      "required": "candidate p95 \u003c= 664.0ms (oracle +10%)",
+      "observed": "candidate 286.4ms vs oracle 603.6ms"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "init-inventory:peak-resident",
+      "verdict": "PASS",
+      "required": "candidate peak-resident \u003c= 72.0MiB (oracle +10%)",
+      "observed": "candidate 58.1MiB vs oracle 65.4MiB"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "adopt-inventory:p95",
+      "verdict": "PASS",
+      "required": "candidate p95 \u003c= 659.9ms (oracle +10%)",
+      "observed": "candidate 294.5ms vs oracle 599.9ms"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "adopt-inventory:peak-resident",
+      "verdict": "PASS",
+      "required": "candidate peak-resident \u003c= 72.0MiB (oracle +10%)",
+      "observed": "candidate 58.3MiB vs oracle 65.5MiB"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "impact-path:p95",
+      "verdict": "NOT_RUN",
+      "required": "candidate p95 \u003c= 1463.6ms (oracle +10%)",
+      "observed": "measurement invalid: unequal-stdout"
+    },
+    {
+      "criterion": "GPK-V0-017(d)",
+      "scope": "impact-path:peak-resident",
+      "verdict": "NOT_RUN",
+      "required": "candidate peak-resident \u003c= 199.7MiB (oracle +10%)",
+      "observed": "measurement invalid: unequal-stdout"
+    },
+    {
+      "criterion": "GPK-V0-016",
+      "scope": "corpus:beamfall",
+      "verdict": "NOT_RUN",
+      "required": "measured on a pinned clean revision",
+      "observed": "beamfall-not-pinned-to-a-clean-revision: the repository is under continuous concurrent write by a live agent fleet, so it cannot hold the same revision, cache state, and unchanged-repository predicates GPK-V0-016 requires for the duration of a run. Enabling this corpus needs only a pinned clean revision in the revision field, which work item W12 (GPK-V0-022) provides."
+    }
+  ]
+}

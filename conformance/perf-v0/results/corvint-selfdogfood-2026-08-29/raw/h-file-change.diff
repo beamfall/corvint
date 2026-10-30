@@ -1,0 +1,78 @@
+--- h-file-change.oracle.pretty.json	2026-08-29 08:33:23
++++ h-file-change.cand.pretty.json	2026-08-29 08:33:23
+@@ -8,16 +8,16 @@
+   "context": {
+     "coverage": {
+       "advisory_results": 0,
+-      "authoritative_results": 5,
++      "authoritative_results": 2,
+       "budget_bytes": 5952,
+       "critical": [
+         "path:src/context_corvint_harness.py"
+       ],
+       "critical_missing": [],
+-      "included_results": 5,
++      "included_results": 2,
+       "omitted_results": 0,
+-      "packet_bytes": 4104,
+-      "requested_results": 5,
++      "packet_bytes": 3012,
++      "requested_results": 2,
+       "uncertainty": [],
+       "within_budget": true
+     },
+@@ -128,54 +128,6 @@
+         "status": "",
+         "summary": "Owner: Russell Lewis",
+         "title": "Agent Harness Integration V0"
+-      },
+-      {
+-        "evidence": [
+-          {
+-            "authority": "syntax",
+-            "blob_hash": "f9c1963dbad848d11874858e2630304c27eb5f6e",
+-            "confidence": "high",
+-            "line": 17,
+-            "path": "src/corvint_cli.py",
+-            "reason": "imports context_corvint_harness"
+-          }
+-        ],
+-        "id": "src/corvint_cli.py",
+-        "kind": "reverse-import",
+-        "score": 700,
+-        "summary": "directly imports package/module containing src/context_corvint_harness.py"
+-      },
+-      {
+-        "evidence": [
+-          {
+-            "authority": "syntax",
+-            "blob_hash": "cab45a0117cc7d9ad3ecc22fa1dbe486c6dd8f8f",
+-            "confidence": "high",
+-            "line": 14,
+-            "path": "tests/test_context_corvint_harness.py",
+-            "reason": "imports context_corvint_harness"
+-          }
+-        ],
+-        "id": "tests/test_context_corvint_harness.py",
+-        "kind": "reverse-import",
+-        "score": 650,
+-        "summary": "directly imports package/module containing src/context_corvint_harness.py"
+-      },
+-      {
+-        "evidence": [
+-          {
+-            "authority": "syntax",
+-            "blob_hash": "f148dc222e149e50d7e4bf7555e8cf424ada8993",
+-            "confidence": "high",
+-            "line": 14,
+-            "path": "tests/test_harness_protocol_equivalence.py",
+-            "reason": "imports context_corvint_harness"
+-          }
+-        ],
+-        "id": "tests/test_harness_protocol_equivalence.py",
+-        "kind": "reverse-import",
+-        "score": 650,
+-        "summary": "directly imports package/module containing src/context_corvint_harness.py"
+       }
+     ],
+     "revision": "323b3f0610dc35478bf1593d8d8f41ac22e61d16",

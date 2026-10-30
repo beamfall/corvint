@@ -1,0 +1,42 @@
+diff --git a/internal/integrationhost/hostapi.go b/internal/integrationhost/hostapi.go
+index 0c48f6d7c..a720a53d9 100644
+--- a/internal/integrationhost/hostapi.go
++++ b/internal/integrationhost/hostapi.go
+@@ -326,7 +326,7 @@ func (h *Host) RequestOutbound(ctx context.Context, req OutboundRequest) (Outbou
+ 		return OutboundResponse{}, fmt.Errorf("%w: declared-outbound unavailable", ErrPermissionDenied)
+ 	}
+ 	if !h.isFirstParty() {
+-		return OutboundResponse{}, fmt.Errorf("%w: declared-outbound is first-party-trusted-only until the SSRF-hardened executor lands", ErrPermissionDenied)
++		return OutboundResponse{}, fmt.Errorf("%w: declared-outbound is first-party-trusted-only until trust-state authorization lands", ErrPermissionDenied)
+ 	}
+ 	if h.deps.Audit == nil {
+ 		return OutboundResponse{}, fmt.Errorf("%w: outbound requires an audit ledger", ErrPermissionDenied)
+diff --git a/internal/integrationhost/seams.go b/internal/integrationhost/seams.go
+index 2bc92cf5e..b6aa1b6ad 100644
+--- a/internal/integrationhost/seams.go
++++ b/internal/integrationhost/seams.go
+@@ -109,8 +109,8 @@ type OutboundResponse struct {
+ // Host an OutboundRequest and the Host performs the fetch. Once a real adapter is
+ // wired, outbound is therefore enforced by construction, not cooperation. The
+ // seam is nil-by-default (dormant ⇒ permission-denied), exactly like the
+-// ingest/file-mutation/jobs Core-handoff seams, because the declared-outbound
+-// allowlist source does not exist yet (see the re-ticketed follow-ups).
++// ingest/file-mutation/jobs Core-handoff seams. HardenedOutboundProxy is the
++// production adapter; plugin.OutboundAllowlist is its manifest-owned source.
+ //
+ // ADR-0012 §9 SSRF contract (binding obligation of any RequestOutbound adapter).
+ // On every request, including after each redirect, the enforced proxy MUST:
+@@ -122,11 +122,8 @@ type OutboundResponse struct {
+ //   - refuse cross-host redirects; and
+ //   - apply time and response-size caps.
+ //
+-// This ticket delivers the seam shape, the Host enforcement gate, and this
+-// contract as the seam's documented obligation and interface; the concrete
+-// hardened http.Client adapter (and the allowlist source it needs) are re-ticketed
+-// follow-ups. Until they land, declared-outbound is grantable but first-party-
+-// trusted-only for execution (see FirstPartyTrust and Host.RequestOutbound).
++// Declared-outbound remains first-party-trusted-only at the Host authorization
++// layer until the separate trust-state migration retires that temporary gate.
+ //
+ // TODO(PLUG-3): OS-level network confinement for native workers is separate and
+ // still deferred — a native worker retains direct OS socket access outside this

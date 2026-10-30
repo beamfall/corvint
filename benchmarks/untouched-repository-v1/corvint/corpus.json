@@ -1,0 +1,639 @@
+{
+  "cases": [
+    {
+      "branchTip": "122e3d3e4e7b847ad46faa5382a8dfd7fa055b1e",
+      "changedFiles": 10,
+      "commit": "94ca556f52c0349c0a48e0c3a3274f8a0b5e6db3",
+      "consequence": {
+        "critical": [
+          "github.com/Beamfall/corvint/internal/contextindex",
+          "github.com/Beamfall/corvint/internal/tasks/cli",
+          "github.com/Beamfall/corvint/internal/tasks/fixture",
+          "github.com/Beamfall/corvint/internal/tasks/intent"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "docs/specs/core-compatibility-freeze-v1.md",
+          "docs/specs/corvint-tasks-store-init-v0.md",
+          "docs/specs/task-context-packet-v0.md",
+          "internal/contextindex/analyzer_schema.go",
+          "internal/contextindex/analyzer_schema_test.go",
+          "internal/contextindex/taskcontext.go",
+          "internal/contextindex/taskcontext_test.go",
+          "internal/tasks/cli/init_test.go",
+          "internal/tasks/fixture/fixture.go",
+          "internal/tasks/intent/worktree.go"
+        ],
+        "eligible": true
+      },
+      "parent": "fc594fa6ecfcd7bb138bef97b4acb88aeffe0df2",
+      "task": "Resolve a symlinked ancestor of the repository in corvint-tasks (V1-0331)"
+    },
+    {
+      "branchTip": "b2eac9c48e9119e5273d8b39939ddd4731cfb8f3",
+      "changedFiles": 13,
+      "commit": "fc594fa6ecfcd7bb138bef97b4acb88aeffe0df2",
+      "consequence": {
+        "critical": [
+          "github.com/Beamfall/corvint/cmd/corvint",
+          "github.com/Beamfall/corvint/internal/dogfoodflow",
+          "github.com/Beamfall/corvint/internal/trace",
+          "github.com/Beamfall/corvint/internal/tracemigraterepo",
+          "github.com/Beamfall/corvint/internal/tracerecordrepo"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "cmd/corvint/help.go",
+          "cmd/corvint/migrate_traces.go",
+          "cmd/corvint/migrate_traces_test.go",
+          "docs/DOGFOOD.md",
+          "docs/SPEC-TOOLCHAIN-INTEGRATION.md",
+          "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
+          "docs/specs/local-trace-producer-migration-v0.md",
+          "internal/dogfoodflow/change.go",
+          "internal/trace/migration.go",
+          "internal/trace/migration_test.go",
+          "internal/tracemigraterepo/adapter.go",
+          "internal/tracerecordrepo/grafts_reviewer_test.go",
+          "script/dogfood-change_test.sh"
+        ],
+        "eligible": true
+      },
+      "parent": "f5bb28535b6a32c848bcf5be3873bb3b18040e57",
+      "task": "Quarantine a trace stranded by an amend or rebase through migrate-traces (V1-0144)"
+    },
+    {
+      "branchTip": "b1708901470e93e2b520e362336507beada9f542",
+      "changedFiles": 2,
+      "commit": "f5bb28535b6a32c848bcf5be3873bb3b18040e57",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [],
+        "eligible": false
+      },
+      "parent": "f451a34fa4eb1bfe4b2c8c223db214d4e087c168",
+      "task": "owner-dispatched hosted release-gate workflow (decision 0415)"
+    },
+    {
+      "branchTip": "c9d92c3f2103ca5944818a767b0e653068121644",
+      "changedFiles": 16,
+      "commit": "f451a34fa4eb1bfe4b2c8c223db214d4e087c168",
+      "consequence": {
+        "critical": [
+          "github.com/Beamfall/corvint/cmd/corvint",
+          "github.com/Beamfall/corvint/conformance",
+          "github.com/Beamfall/corvint/examples/evidence-provider/v0/conformance"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "README.md",
+          "cmd/corvint/host_adapter.go",
+          "cmd/corvint/host_adapter_experimental.go",
+          "cmd/corvint/host_adapter_javascript_test.go",
+          "cmd/corvint/host_adapter_test.go",
+          "cmd/corvint/local_completion_event_test.go",
+          "docs/decisions/0161-claude-adapter-quiet-notices-2026-09-12.md",
+          "docs/decisions/0188-ahi-golden-events-are-cross-host-identical-2026-09-13.md",
+          "docs/specs/agent-harness-integration-v0.md",
+          "docs/specs/falsifiable-packet-v0.md",
+          "docs/specs/local-completion-policy-v0.md",
+          "docs/specs/unplanned-read-events-v0.md",
+          "examples/evidence-provider/v0/conformance/main.go",
+          "examples/evidence-provider/v0/conformance/main_test.go",
+          "script/cem-recipes_test.sh"
+        ],
+        "eligible": true
+      },
+      "parent": "f7f586bd3d1d9ab1c45771e036c23c0a71b66512",
+      "task": "a blocked Stop names its unmet categories and the status argv (V1-0298)"
+    },
+    {
+      "branchTip": "0d6326a91329baa3b218238fc1a33528e60401dd",
+      "changedFiles": 9,
+      "commit": "f7f586bd3d1d9ab1c45771e036c23c0a71b66512",
+      "consequence": {
+        "critical": [
+          "github.com/Beamfall/corvint/cmd/corvint",
+          "github.com/Beamfall/corvint/internal/observations",
+          "github.com/Beamfall/corvint/tools/retrieval-bench"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "cmd/corvint/host_adapter_compaction.go",
+          "cmd/corvint/host_adapter_compaction_test.go",
+          "docs/specs/agent-harness-integration-v0.md",
+          "docs/specs/self-observation-ledger-v0.md",
+          "internal/observations/observations.go",
+          "internal/observations/observations_test.go",
+          "tools/retrieval-bench/README.md",
+          "tools/retrieval-bench/main.go",
+          "tools/retrieval-bench/main_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "c3697d64d5ec34018a96b93c3424379e9001c213",
+      "task": "refuse a base_commit that is not a hex Git object id (V1-0165)"
+    },
+    {
+      "branchTip": "cacc0312becda90e569ce4615553026675a2ec28",
+      "changedFiles": 4,
+      "commit": "c3697d64d5ec34018a96b93c3424379e9001c213",
+      "consequence": {
+        "critical": [
+          "github.com/Beamfall/corvint/internal/tasks/cli",
+          "github.com/Beamfall/corvint/internal/tasks/mutation"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "internal/tasks/cli/cli.go",
+          "internal/tasks/cli/mutate.go",
+          "internal/tasks/cli/mutate_test.go",
+          "internal/tasks/mutation/mutation.go"
+        ],
+        "eligible": true
+      },
+      "parent": "7a731973cdf97c2745cce0143b04813608c00f48",
+      "task": "corvint-tasks: accept a local ticket ID for --target and name each mutation's payload keys in --help (V1-0329)"
+    },
+    {
+      "branchTip": "857eeb4dd75aa3e9fcc982bd876534cf4191d235",
+      "changedFiles": 11,
+      "commit": "7a731973cdf97c2745cce0143b04813608c00f48",
+      "consequence": {
+        "critical": [
+          "github.com/Beamfall/corvint/cmd/corvint",
+          "github.com/Beamfall/corvint/internal/localcompletion",
+          "github.com/Beamfall/corvint/internal/observations"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "cmd/corvint/host_adapter.go",
+          "cmd/corvint/local_completion_event.go",
+          "cmd/corvint/local_completion_event_test.go",
+          "cmd/corvint/qualified_lifecycle.go",
+          "cmd/corvint/qualified_lifecycle_test.go",
+          "docs/specs/local-completion-policy-v0.md",
+          "docs/specs/self-observation-ledger-v0.md",
+          "internal/localcompletion/lifecycle.go",
+          "internal/localcompletion/lifecycle_test.go",
+          "internal/localcompletion/types.go",
+          "internal/observations/observations_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "d867347d71bc14d3a08c2d029be1525cbcb1d154",
+      "task": "a Git probe expiry reports the event time bound (V1-0396); widen the ledger concurrency hang detectors (V1-0395)"
+    },
+    {
+      "branchTip": "a613cc6b24eb730983449f85558ad629f3cf9a84",
+      "changedFiles": 2,
+      "commit": "d867347d71bc14d3a08c2d029be1525cbcb1d154",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          "docs/specs/proof-carrying-context-optimization-v0.md"
+        ],
+        "eligible": true
+      },
+      "parent": "6946f76c52c9fc9577fbd1d698a0b4b4c24ea78d",
+      "task": "add unsealed daily-loop V1 harness revision (V1-0382, V1-0369, V1-0161, V1-0162)"
+    },
+    {
+      "branchTip": "551bedbaa8eb36ea7ac4daa104a13469d3f10ea9",
+      "changedFiles": 1,
+      "commit": "6946f76c52c9fc9577fbd1d698a0b4b4c24ea78d",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          "README.md"
+        ],
+        "eligible": true
+      },
+      "parent": "4ef44db3403008380c11c0e43f276af1bac34459",
+      "task": "scope the abstention claim to what the status table supports (V1-0344)"
+    },
+    {
+      "branchTip": "146d126ccc9155328cde4e9c13030dfe91ca7f76",
+      "changedFiles": 1,
+      "commit": "4ef44db3403008380c11c0e43f276af1bac34459",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          ".github/workflows/ci.yml"
+        ],
+        "eligible": true
+      },
+      "parent": "87e10444ad158ea285987fd4f334432b4e6908fb",
+      "task": "run go-product tests as four shards behind the go-product required check (V1-0357)"
+    },
+    {
+      "branchTip": "54e0c5171f5da07441180fc876784c5c79017ca0",
+      "changedFiles": 141,
+      "commit": "87e10444ad158ea285987fd4f334432b4e6908fb",
+      "consequence": {
+        "critical": [
+          "github.com/Beamfall/corvint/cmd/corvint",
+          "github.com/Beamfall/corvint/cmd/corvint-companion-release",
+          "github.com/Beamfall/corvint/cmd/corvint-readiness-record",
+          "github.com/Beamfall/corvint/integrations/testfixture",
+          "github.com/Beamfall/corvint/internal/appflows",
+          "github.com/Beamfall/corvint/internal/cem/cli",
+          "github.com/Beamfall/corvint/internal/cem/gitrun",
+          "github.com/Beamfall/corvint/internal/companionrelease",
+          "github.com/Beamfall/corvint/internal/console",
+          "github.com/Beamfall/corvint/internal/contextindex",
+          "github.com/Beamfall/corvint/internal/doccompiler",
+          "github.com/Beamfall/corvint/internal/dogfoodflow",
+          "github.com/Beamfall/corvint/internal/gitstatus",
+          "github.com/Beamfall/corvint/internal/gokernel",
+          "github.com/Beamfall/corvint/internal/groupreap",
+          "github.com/Beamfall/corvint/internal/liveverify/mutate",
+          "github.com/Beamfall/corvint/internal/lrfrepo",
+          "github.com/Beamfall/corvint/internal/lspprovider",
+          "github.com/Beamfall/corvint/internal/mcp/bridge",
+          "github.com/Beamfall/corvint/internal/observations",
+          "github.com/Beamfall/corvint/internal/releasecandidate",
+          "github.com/Beamfall/corvint/internal/releasegate",
+          "github.com/Beamfall/corvint/internal/slotlearn",
+          "github.com/Beamfall/corvint/internal/taskman",
+          "github.com/Beamfall/corvint/internal/tasks/store",
+          "github.com/Beamfall/corvint/internal/touchsurprise",
+          "github.com/Beamfall/corvint/tools/retrieval-bench"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "Makefile",
+          "README.md",
+          "cmd/corvint-companion-release/flags_test.go",
+          "cmd/corvint/cem_test.go",
+          "cmd/corvint/core_freeze_test.go",
+          "cmd/corvint/dogfood_flow_portable_test.go",
+          "cmd/corvint/lrf_test.go",
+          "cmd/corvint/main_test.go",
+          "cmd/corvint/record_test.go",
+          "cmd/corvint/work_executable_binding.go",
+          "docs/DOGFOOD.md",
+          "docs/INSTALL.md",
+          "docs/README.md",
+          "docs/RELEASE-RUNBOOK.md",
+          "docs/decisions/0039-go-declaration-set-2026-09-03.md",
+          "docs/decisions/0142-untracked-path-allowance-2026-09-12.md",
+          "docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md",
+          "docs/specs/FRONTIER-DECISION-BRIEF-2026-08-29.md",
+          "docs/specs/affected-plan-v0.md",
+          "docs/specs/agent-harness-integration-v0.md",
+          "docs/specs/application-flow-understanding-v1.md",
+          "docs/specs/authority-trigger-index-v0.md",
+          "docs/specs/cem-pilot-kit.md",
+          "docs/specs/core-compatibility-freeze-v1.md",
+          "docs/specs/corvint-1.0-product-and-release-v1.md",
+          "docs/specs/daily-change-evidence-workflow-v0.md",
+          "docs/specs/documentation-citation-gate-v0.md",
+          "docs/specs/expert-audit-followup-v0.md",
+          "docs/specs/external-evidence-provider-v0.md",
+          "docs/specs/falsifiable-packet-v0.md",
+          "docs/specs/go-only-cutover-v0.md",
+          "docs/specs/go-production-kernel-migration-v0.md",
+          "docs/specs/human-documentation-compiler-v0.md",
+          "docs/specs/index-snapshot-v0.md",
+          "docs/specs/learned-trace-admission-v0.md",
+          "docs/specs/lexical-relevance-floor-v0.md",
+          "docs/specs/mcp-server-2026-07-28-v0.md",
+          "docs/specs/native-cem-adapter.md",
+          "docs/specs/public-release-v0.md",
+          "docs/specs/self-observation-ledger-v0.md",
+          "docs/specs/stable-readiness-record-v1.md",
+          "docs/specs/task-context-packet-v0.md",
+          "docs/specs/touch-set-surprise-v0.md",
+          "docs/specs/traceability-test-gate-v0.md",
+          "docs/specs/use-case-conformance-v0.md",
+          "integrations/compatibility.json",
+          "integrations/gemini-cli/compatibility.json",
+          "integrations/gemini-cli/gemini-extension.json",
+          "integrations/gemini-cli/hooks/corvint-hook.mjs",
+          "integrations/host-adapters.test.mjs",
+          "integrations/opencode/package.json",
+          "integrations/opencode/src/runtime.js",
+          "integrations/testfixture/main.go",
+          "internal/appflows/intent_test.go",
+          "internal/appflows/tree.go",
+          "internal/cem/cli/cli_test.go",
+          "internal/cem/gitrun/gitrun.go",
+          "internal/cem/gitrun/gitrun_unix.go",
+          "internal/cem/gitrun/gitrun_windows.go",
+          "internal/cem/gitrun/session.go",
+          "internal/companionrelease/exported_current_test.go",
+          "internal/console/render.go",
+          "internal/console/server.go",
+          "internal/contextindex/analyzer_schema.go",
+          "internal/contextindex/analyzer_schema_test.go",
+          "internal/contextindex/authority_trigger.go",
+          "internal/contextindex/authority_trigger_test.go",
+          "internal/contextindex/blob_shards_open.go",
+          "internal/contextindex/blob_shards_open_test.go",
+          "internal/contextindex/blob_shards_open_unsupported.go",
+          "internal/contextindex/build_cost.go",
+          "internal/contextindex/git_status_test.go",
+          "internal/contextindex/parse.go",
+          "internal/contextindex/parse_test.go",
+          "internal/contextindex/ppr.go",
+          "internal/contextindex/ppr_test.go",
+          "internal/contextindex/slot_weights.go",
+          "internal/contextindex/slot_weights_test.go",
+          "internal/contextindex/snapshot.go",
+          "internal/contextindex/taskcontext.go",
+          "internal/contextindex/taskcontext_test.go",
+          "internal/doccompiler/process.go",
+          "internal/doccompiler/process_other.go",
+          "internal/doccompiler/process_unix.go",
+          "internal/doccompiler/process_windows.go",
+          "internal/dogfoodflow/change.go",
+          "internal/dogfoodflow/check.go",
+          "internal/dogfoodflow/check_test.go",
+          "internal/dogfoodflow/flow.go",
+          "internal/gitstatus/read_other.go",
+          "internal/gitstatus/status.go",
+          "internal/gitstatus/status_test.go",
+          "internal/gokernel/harness_test.go",
+          "internal/gokernel/process_other.go",
+          "internal/gokernel/process_unix.go",
+          "internal/gokernel/process_unix_test.go",
+          "internal/gokernel/process_waitid.go",
+          "internal/gokernel/process_waitid_other.go",
+          "internal/gokernel/process_windows.go",
+          "internal/gokernel/repository.go",
+          "internal/liveverify/mutate/gotest.go",
+          "internal/liveverify/mutate/process_other.go",
+          "internal/liveverify/mutate/process_unix.go",
+          "internal/liveverify/mutate/shared.go",
+          "internal/lrfrepo/adapter.go",
+          "internal/lspprovider/provider.go",
+          "internal/lspprovider/provider_test.go",
+          "internal/mcp/bridge/flows_test.go",
+          "internal/observations/observations.go",
+          "internal/releasecandidate/candidate.go",
+          "internal/releasecandidate/operations_posix_test.go",
+          "internal/releasecandidate/operations_test.go",
+          "internal/releasecandidate/readiness.go",
+          "internal/releasecandidate/readiness_test.go",
+          "internal/releasegate/git_unix.go",
+          "internal/slotlearn/slotlearn.go",
+          "internal/slotlearn/slotlearn_test.go",
+          "internal/taskman/process_unix.go",
+          "internal/tasks/store/release.go",
+          "internal/tasks/store/store_test.go",
+          "internal/touchsurprise/git.go",
+          "internal/touchsurprise/touchsurprise_test.go",
+          "script/check-line-citations.sh",
+          "script/check-line-citations_test.sh",
+          "script/check-traceability-tests.sh",
+          "script/check-traceability-tests_test.sh",
+          "script/local-console-release-gate",
+          "tools/retrieval-bench/README.md",
+          "tools/retrieval-bench/main_test.go",
+          "tools/retrieval-bench/stats.go"
+        ],
+        "eligible": false
+      },
+      "parent": "3cd473ba9d859e44aeeaae4822d6c29410638574",
+      "task": "add the corvint-readiness-record command (SRR-V1-012)"
+    },
+    {
+      "branchTip": "6610d03a5bcaffe6b5fedb778b9845a832e7940a",
+      "changedFiles": 12,
+      "commit": "f4e6c9130107fe81abc5425ca823a603373c974d",
+      "consequence": {
+        "critical": [
+          "github.com/Beamfall/corvint/internal/contextindex",
+          "github.com/Beamfall/corvint/internal/gokernel",
+          "github.com/Beamfall/corvint/internal/tracerecordrepo"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "internal/contextindex/analyzer_schema_test.go",
+          "internal/contextindex/git.go",
+          "internal/contextindex/git_execution_unix_test.go",
+          "internal/contextindex/process_other.go",
+          "internal/contextindex/process_unix.go",
+          "internal/contextindex/process_windows.go",
+          "internal/gokernel/process_other.go",
+          "internal/gokernel/process_unix.go",
+          "internal/gokernel/process_windows.go",
+          "internal/gokernel/repository.go",
+          "internal/tracerecordrepo/adapter.go",
+          "internal/tracerecordrepo/adapter_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "4c6072666fcdfa8ae91463ba9a8cf9eab6864e81",
+      "task": "bound the Git pipe drain as a hang detector, not a one-second budget (V1-0390)"
+    },
+    {
+      "branchTip": "bec90bc0e6873beda516d63b5ffba199162c0250",
+      "changedFiles": 3,
+      "commit": "4c6072666fcdfa8ae91463ba9a8cf9eab6864e81",
+      "consequence": {
+        "critical": [
+          "github.com/Beamfall/corvint/cmd/corvint",
+          "github.com/Beamfall/corvint/internal/dogfoodflow"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "cmd/corvint/dogfood_flow_portable_test.go",
+          "docs/specs/daily-change-evidence-workflow-v0.md",
+          "internal/dogfoodflow/change.go"
+        ],
+        "eligible": true
+      },
+      "parent": "5a0e10aa87eca52862db664f6d8235c1ebf5532f",
+      "task": "keep a committed CEM map's bytes when a rerun cites nothing new (V1-0386)"
+    },
+    {
+      "branchTip": "d450cbcfad11a8848c13a3f6de965724d3955a5d",
+      "changedFiles": 6,
+      "commit": "5a0e10aa87eca52862db664f6d8235c1ebf5532f",
+      "consequence": {
+        "critical": [
+          "github.com/Beamfall/corvint/internal/cem/workflow",
+          "github.com/Beamfall/corvint/internal/dogfoodflow"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "docs/specs/cem-0.3-structural-mechanical.md",
+          "docs/specs/daily-change-evidence-workflow-v0.md",
+          "internal/cem/workflow/commands.go",
+          "internal/cem/workflow/workflow_test.go",
+          "internal/dogfoodflow/change.go",
+          "internal/dogfoodflow/change_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "57f06a6a4ff5a999674ed54c87537a232277a1ac",
+      "task": "decode the dogfood citation map as JSON, not by its indent-2 layout (V1-0383)"
+    },
+    {
+      "branchTip": "b131e310c1d37d35dbcde72e81a6e844c2ff58a9",
+      "changedFiles": 7,
+      "commit": "57f06a6a4ff5a999674ed54c87537a232277a1ac",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          "AGENTS.md",
+          "ROADMAP.md",
+          "docs/DOGFOOD.md",
+          "docs/README.md",
+          "docs/SELF-DEVELOPMENT.md",
+          "docs/SPEC-DRIVEN-DEVELOPMENT.md"
+        ],
+        "eligible": true
+      },
+      "parent": "b29d35e53a535723624c692aa98b00692a6a8d04",
+      "task": "decision 0423, one build-log file per entry (V1-0358)"
+    },
+    {
+      "branchTip": "ac26471a9578d6f9d3623b062fb1f521127badaa",
+      "changedFiles": 3,
+      "commit": "b29d35e53a535723624c692aa98b00692a6a8d04",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          "LICENSING.md",
+          "conformance/release-artifact-v0/manifest.json",
+          "docs/decisions/0002-future-publication-transition.md"
+        ],
+        "eligible": true
+      },
+      "parent": "d22b9ef015e67a3387fe2acc03e52217c1d82097",
+      "task": "record the owner-approved Apache-2.0 exception for the frontier files"
+    },
+    {
+      "branchTip": "46f8a6e48cf276a850a1b38f105b955e4f2321f3",
+      "changedFiles": 7,
+      "commit": "d22b9ef015e67a3387fe2acc03e52217c1d82097",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          "docs/specs/agent-harness-integration-v0.md",
+          "docs/specs/core-compatibility-freeze-v1.md",
+          "docs/specs/corvint-1.0-product-and-release-v1.md",
+          "docs/specs/go-production-kernel-migration-v0.md",
+          "docs/specs/index-snapshot-v0.md",
+          "docs/specs/stable-readiness-record-v1.md"
+        ],
+        "eligible": true
+      },
+      "parent": "57c4978099723bbe331edecbbb344fc2701cc871",
+      "task": "record decision 0422 (owner answers A1 to A6)"
+    },
+    {
+      "branchTip": "95948e4aaeeda9e67907683d5f2aed9c2658d8d6",
+      "changedFiles": 2,
+      "commit": "57c4978099723bbe331edecbbb344fc2701cc871",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          "Makefile",
+          "docs/RELEASE-RUNBOOK.md"
+        ],
+        "eligible": true
+      },
+      "parent": "2ae988a332ebbacea3c0372b03f7a495a3bf1e54",
+      "task": "fail step 8 when a tee'd gate fails (V1-0375)"
+    },
+    {
+      "branchTip": "33c473996bd012d571cbae5206f6920e659aca97",
+      "changedFiles": 7,
+      "commit": "2ae988a332ebbacea3c0372b03f7a495a3bf1e54",
+      "consequence": {
+        "critical": [
+          "github.com/Beamfall/corvint/cmd/corvint",
+          "github.com/Beamfall/corvint/internal/gokernel",
+          "github.com/Beamfall/corvint/internal/liveverify/session"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "cmd/corvint/local_completion_event_test.go",
+          "cmd/corvint/read_only_verbs_test.go",
+          "internal/gokernel/repository.go",
+          "internal/liveverify/session/session_test.go",
+          "script/dogfood-bind-range_test.sh",
+          "script/dogfood-change_test.sh",
+          "script/dogfood-seal.sh"
+        ],
+        "eligible": true
+      },
+      "parent": "d479a884cb2dfcd29a30574c35f7647b7efa51ad",
+      "task": "read pipefail assertions from here-strings and bound the snapshot-refresh case by a hang guard"
+    }
+  ],
+  "excluded": [
+    {
+      "commit": "3cd473ba9d859e44aeeaae4822d6c29410638574",
+      "rule": "E2-empty-diff"
+    }
+  ],
+  "head": "94ca556f52c0349c0a48e0c3a3274f8a0b5e6db3",
+  "module": "github.com/Beamfall/corvint",
+  "pathExclusions": {
+    "files": [
+      "docs/BUILD-LOG.md",
+      "docs/decisions/README.md",
+      "docs/specs/INDEX.json",
+      "docs/specs/README.md",
+      "docs/specs/REQUIREMENTS.tsv"
+    ],
+    "prefixes": [
+      ".corvint/",
+      ".taskman/",
+      "docs/build-log/"
+    ]
+  },
+  "profile": "corvint-untouched-repository-corpus/0",
+  "window": 20
+}

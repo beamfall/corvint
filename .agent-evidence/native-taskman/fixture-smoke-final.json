@@ -1,0 +1,37 @@
+{
+  "status": "PASS",
+  "scope": "real native fixture integration only",
+  "candidateSha256": "b2ccd89a1f0b63c3a5d4a02cefbc9c326919053c1c488d1833e1397bd6acaef3",
+  "executorSha256": "e023fd042084a63bb77c51fa8e7ad35e58c19c7d68a9b1cbc825a4b764e7fa4c",
+  "sourceAndStoreFilesUnchanged": 57,
+  "byteIdenticalReplay": true,
+  "planSha256": "4bda236882393bd7799d7af645b430c671e2b3628dde93ce03a1a513720de9c6",
+  "source": {
+    "commit": "0aaec283cd6903b878d5771c6cc5db8aad0cc83b",
+    "id": "repository-source:sha256:727b148691604d6ad0bbe235efbec58a0ac210bd80b1161de1c9c41af1811476",
+    "materializationSha256": "4cc79ded5b37b1263aa2e132054c0e00aeccbe701e00ad122639e040d04e3c06",
+    "objectFormat": "sha1",
+    "statusSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "tree": "a71f01f7e2e332012edbc4d182d375b8280c61e8"
+  },
+  "snapshot": {
+    "barrier": null,
+    "headReceiptSha256": "74d82099bb320bf07a8ae8dede55aad40d08831f802104e361147ea9c763116a",
+    "headSeq": "4",
+    "intentTreeSha256": "9faf6ec1d1aca59ee7d6d0d8429ecaee037bb1d7656b80311c5bfcea9555a703",
+    "pendingRedo": false,
+    "primaryWorktreeSha256": "51e8e372f1eb6603f44222a363cfa704c88f81d24b055fa8c817e582e0aa7005"
+  },
+  "states": [
+    "SELECTED",
+    "DEFERRED",
+    "DEFERRED"
+  ],
+  "reasons": [
+    "DEVELOPMENT_MODE",
+    "RESOURCE_COLLISION",
+    "RESOURCE_COLLISION"
+  ],
+  "reservations": "explicit fixture observations only",
+  "GP": "NOT_RUN"
+}

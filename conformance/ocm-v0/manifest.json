@@ -1,0 +1,114 @@
+{
+  "schema": "corvint.ocm-v0-conformance/1",
+  "spec": "docs/specs/ocm-v0-dogfood.md",
+  "profile": "ocm/0.1-experimental",
+  "derivation": "Every valid and produced vector is the byte output of the real `ocm prepare`, `ocm link`, and `ocm mark` producers over the deterministic seed universe in universe.go; producer_test.go re-derives them on every run. Every hostile vector is one minimal edit of a produced map, and every fixture case is one perturbation of a produced map, with the refusal code read off the wire profile's failure-code table. A drift in any frozen byte or code is a wire change and is recorded in the OCM spec before the data is refrozen (OCM-V0-014).",
+  "vectors": [
+    "valid-prepared-all-unassessed",
+    "valid-linked-and-no-test-claim",
+    "valid-unknown-insufficient-evidence",
+    "valid-unknown-conflicting-evidence",
+    "valid-both-linked-claims-sorted",
+    "hostile-unknown-top-level-member",
+    "hostile-wrong-spec",
+    "hostile-truncated-file",
+    "hostile-not-an-object",
+    "hostile-empty-object",
+    "hostile-duplicate-json-key",
+    "hostile-whitespace-not-canonical",
+    "hostile-unsorted-keys-not-canonical",
+    "hostile-missing-terminal-newline",
+    "hostile-missing-required-member",
+    "hostile-duplicate-obligation-id",
+    "hostile-invalid-obligation-id",
+    "hostile-malformed-hunk-reference",
+    "hostile-fabricated-claim-id",
+    "hostile-unsorted-claims",
+    "hostile-invalid-target-revision",
+    "hostile-invalid-cem-digest",
+    "hostile-empty-intent-span",
+    "hostile-oversize-map",
+    "hostile-too-many-obligations"
+  ],
+  "fixtures": [
+    "cem-and-target-binding",
+    "disposition-witnesses",
+    "every-unknown-reason",
+    "intent-scope-drift",
+    "obligation-order-and-set"
+  ],
+  "coverage": [
+    {
+      "clause": "Wire profile: valid minimal map (empty claims, every obligation unknown/unassessed)",
+      "cases": ["valid-prepared-all-unassessed", "obligation-order-and-set/valid"]
+    },
+    {
+      "clause": "Wire profile: disposition `linked` with reason `change-and-test-linked` and non-empty references",
+      "cases": ["valid-linked-and-no-test-claim", "valid-both-linked-claims-sorted", "disposition-witnesses/valid", "disposition-witnesses/linked-empty-references", "disposition-witnesses/linked-wrong-reason", "disposition-witnesses/unsupported-disposition"]
+    },
+    {
+      "clause": "Wire profile: disposition `unknown` with empty references and each admitted reason",
+      "cases": ["valid-prepared-all-unassessed", "valid-linked-and-no-test-claim", "valid-unknown-insufficient-evidence", "valid-unknown-conflicting-evidence", "every-unknown-reason/valid", "disposition-witnesses/unknown-with-references", "disposition-witnesses/unknown-wrong-reason"]
+    },
+    {
+      "clause": "Wire profile: canonical JSON (sorted members, no insignificant whitespace, one terminal LF) and round-trip identity",
+      "cases": ["valid-prepared-all-unassessed", "valid-linked-and-no-test-claim", "valid-unknown-insufficient-evidence", "valid-unknown-conflicting-evidence", "hostile-whitespace-not-canonical", "hostile-unsorted-keys-not-canonical", "hostile-missing-terminal-newline"]
+    },
+    {
+      "clause": "Wire profile: closed object, all fields required, duplicate keys invalid",
+      "cases": ["hostile-unknown-top-level-member", "hostile-missing-required-member", "hostile-empty-object", "hostile-duplicate-json-key"]
+    },
+    {
+      "clause": "Wire profile: `spec` value, full target OID, CEM digests, non-empty spans",
+      "cases": ["hostile-wrong-spec", "hostile-invalid-target-revision", "hostile-invalid-cem-digest", "hostile-empty-intent-span"]
+    },
+    {
+      "clause": "Wire profile: malformed JSON and non-object documents refuse with the fixed JSON failure profile",
+      "cases": ["hostile-truncated-file", "hostile-not-an-object"]
+    },
+    {
+      "clause": "Wire profile: obligation IDs match the requirement regex and are unique",
+      "cases": ["hostile-invalid-obligation-id", "hostile-duplicate-obligation-id"]
+    },
+    {
+      "clause": "Wire profile: claims sorted and unique by content-derived ID; references well-formed",
+      "cases": ["valid-both-linked-claims-sorted", "hostile-unsorted-claims", "hostile-fabricated-claim-id", "hostile-malformed-hunk-reference"]
+    },
+    {
+      "clause": "Wire profile: limits (1 MiB map, 256 obligations)",
+      "cases": ["hostile-oversize-map", "hostile-too-many-obligations"]
+    },
+    {
+      "clause": "OCM-V0-004 / OCM-V0-005: references resolve to supported CEM hunks and present claims anchored on the exact obligation",
+      "cases": ["disposition-witnesses/dangling-hunk-reference", "disposition-witnesses/dangling-claim-reference", "disposition-witnesses/claim-anchored-on-other-obligation"]
+    },
+    {
+      "clause": "OCM-V0-003: obligations equal the scope's requirement list in order",
+      "cases": ["obligation-order-and-set/swapped-order", "obligation-order-and-set/dropped-row", "obligation-order-and-set/surplus-row", "obligation-order-and-set/renamed-row"]
+    },
+    {
+      "clause": "OCM-V0-002 / OCM-V0-006: CEM digest and target binding",
+      "cases": ["cem-and-target-binding/stale-map-digest", "cem-and-target-binding/stale-patch-digest", "cem-and-target-binding/absent-target-object", "disposition-witnesses/caller-target-successor"]
+    },
+    {
+      "clause": "OCM-V0-015: the pinned intent scope re-derives exactly from the target blob; a relocated span, a stale digest or blob, and an absent path refuse",
+      "cases": ["intent-scope-drift/stable", "intent-scope-drift/relocated-span", "intent-scope-drift/stale-span-digest", "intent-scope-drift/stale-blob", "intent-scope-drift/deleted-intent-path"]
+    }
+  ],
+  "states": [
+    {"state": "stable", "cases": ["intent-scope-drift/stable", "disposition-witnesses/valid", "valid-linked-and-no-test-claim"]},
+    {"state": "relocated", "cases": ["intent-scope-drift/relocated-span"]},
+    {"state": "stale", "cases": ["intent-scope-drift/stale-span-digest", "intent-scope-drift/stale-blob", "cem-and-target-binding/stale-map-digest", "cem-and-target-binding/stale-patch-digest", "disposition-witnesses/caller-target-successor"]},
+    {"state": "ambiguous", "cases": ["hostile-duplicate-obligation-id", "hostile-duplicate-json-key"]},
+    {"state": "deleted", "cases": ["intent-scope-drift/deleted-intent-path", "cem-and-target-binding/absent-target-object"]},
+    {"state": "unknown", "cases": ["every-unknown-reason/valid", "valid-prepared-all-unassessed", "valid-unknown-insufficient-evidence", "valid-unknown-conflicting-evidence"]}
+  ],
+  "artifactSha256": {
+    "fixtures/cem-and-target-binding/case.json": "0b4d6b2f907636a932d06a39882f524cf886d4ec1369cde5dba786b5e9f1e551",
+    "fixtures/disposition-witnesses/case.json": "248849b98e28a4f45044d3026df8f2061ad0f4070c79fddb1f6324440754db36",
+    "fixtures/every-unknown-reason/case.json": "e2c2e266fa4eaf65bdee6458b0d5da3c57d9712ff65aa76e3e898155f33ddb81",
+    "fixtures/intent-scope-drift/case.json": "7e956eaa5eb3f8efd90eb8845b588de4894aea7994ae5e5d442a2deb52fc687b",
+    "fixtures/obligation-order-and-set/case.json": "65e6904977480cbb3b6b68ac52c1dda7d415d29678eb3b39c6f101c5853a7c86",
+    "vectors/structural.json": "4f839942270cc1d47554482d1190e95f490ebd97ee3ca2ad6deba9b60d922f5a"
+  }
+}

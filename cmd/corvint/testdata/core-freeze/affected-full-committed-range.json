@@ -1,0 +1,107 @@
+{
+  "advice": {
+    "checks": [
+      {
+        "command": "<varies:string>",
+        "kind": "advisory",
+        "reason": "prints the selected focused test argv for this plan and runs nothing; run the selected units, not the whole suite",
+        "source": "affected-plan"
+      },
+      {
+        "command": "GOTOOLCHAIN=local go test -count=1 'example.test/cli/pkg'",
+        "kind": "advisory",
+        "reason": "the plan selected 1 unit(s) over 5 dirty path(s), so these packages are the plausible first pass",
+        "source": "affected-plan"
+      },
+      {
+        "command": "GOTOOLCHAIN=local go vet ./...",
+        "kind": "advisory",
+        "reason": "go.mod changed the requirements of module example.test/cli, which no package unit owns, so this type-checks every package and test of the module and runs nothing; behaviour under the new requirements still needs the module's tests",
+        "source": "affected-plan"
+      }
+    ],
+    "note": "advice is static; no check was executed; mandatory checks remain required whatever the advisory list says",
+    "status": "PLAN_ONLY",
+    "unknown": [
+      "NO_REPOSITORY_GATE_DECLARED: no Makefile gate target or AGENTS.md Verify block",
+      "UNOWNED_DIRTY_PATH: go.mod",
+      "UNOWNED_DIRTY_PATH: testing/features.yaml",
+      "UNOWNED_DIRTY_PATH: testing/scenarios.yaml"
+    ]
+  },
+  "mutates": false,
+  "ok": true,
+  "plan": {
+    "dirty": [
+      "go.mod",
+      "pkg/main.go",
+      "pkg/main_test.go",
+      "testing/features.yaml",
+      "testing/scenarios.yaml"
+    ],
+    "excluded": [],
+    "goAdditive": [
+      {
+        "paths": [
+          "pkg/main.go",
+          "pkg/main_test.go"
+        ],
+        "reason": "BASE_UNREADABLE",
+        "state": "FALLBACK",
+        "unit": "go:example.test/cli/pkg"
+      }
+    ],
+    "graphDigest": "affected-graph:sha256:03f13ebd2bc818635f33e99e37789b95a55a5935a4cc20721b6f6d6e473fba17",
+    "scope": "UNKNOWN",
+    "selected": [
+      {
+        "tests": [
+          "pkg/main_test.go"
+        ],
+        "unitId": "go:example.test/cli/pkg",
+        "witness": {
+          "dirtyPath": "pkg/main.go",
+          "kind": "DIRECT_SOURCE_CHANGE",
+          "via": [
+            "go:example.test/cli/pkg"
+          ]
+        }
+      }
+    ],
+    "unknown": [
+      {
+        "detail": "go.mod",
+        "reason": "UNOWNED_DIRTY_PATH"
+      },
+      {
+        "detail": "testing/features.yaml",
+        "reason": "UNOWNED_DIRTY_PATH"
+      },
+      {
+        "detail": "testing/scenarios.yaml",
+        "reason": "UNOWNED_DIRTY_PATH"
+      }
+    ]
+  },
+  "profile": "affected-plan/0",
+  "provider": {
+    "go": {
+      "packages": [
+        "example.test/cli/pkg"
+      ],
+      "state": "RUNNABLE"
+    }
+  },
+  "range": {
+    "base": "<varies:string>",
+    "paths": [
+      "go.mod",
+      "pkg/main.go",
+      "pkg/main_test.go",
+      "testing/features.yaml",
+      "testing/scenarios.yaml"
+    ]
+  },
+  "revision": "<varies:string>",
+  "tool": "affected"
+}

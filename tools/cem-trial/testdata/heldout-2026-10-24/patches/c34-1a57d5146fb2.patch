@@ -1,0 +1,184 @@
+diff --git a/script/roadmap_lib.py b/script/roadmap_lib.py
+index 429a1acea..3d6c00848 100644
+--- a/script/roadmap_lib.py
++++ b/script/roadmap_lib.py
+@@ -4,13 +4,14 @@
+ Best-effort ready-queue + check-off over the ADR-derived master roadmap. The
+ hard safety net is the merge-time rebase+regate in roadmap.sh — `next` only
+ *suggests* an order, so a slightly-wrong dep read costs a wasted claim, never a
+-bad merge. Subcommands: next, show, block, criteria, checkoff, repo, root-repo,
+-deps, repos.
++bad merge. Subcommands: next, show, ticket-facts, block, criteria, checkoff,
++repo, root-repo, deps, repos.
+ """
+ import contextlib
+ import json
+ import os
+ import re
++import shlex
+ import sqlite3
+ import subprocess
+ import sys
+@@ -1609,6 +1610,102 @@ def cmd_review(path, ticket):
+     return 1
+ 
+ 
++def root_repo_details(ticket, requested_id):
++    """Return the existing root-repo command's value, exit code, and error."""
++    primary = normalized_repos(ticket.get('primary_repo', ''))
++    if primary:
++        return primary[0], 0, ''
++    repos = normalized_repos(ticket.get('repo', ''))
++    if len(repos) > 1:
++        return '', 3, (
++            f'{requested_id}: multi-repo ticket requires **Primary Repo** before begin/merge'
++        )
++    if not repos:
++        return '', 3, (
++            f'{requested_id}: no runnable workspace repo; add **Primary Repo** for an existing repo'
++        )
++    return repos[0], 0, ''
++
++
++def ticket_owning_shard(path, ticket):
++    source = resolve_source(path)
++    if os.path.isdir(source):
++        source_file = ticket.get('source_file', '')
++        return os.path.join(source, source_file) if source_file else ''
++    return os.path.abspath(source)
++
++
++def ticket_facts(path, requested_ids):
++    """Resolve ticket facts for one or more ids with exactly one roadmap parse."""
++    tickets, _ = parse(path)
++    by_id = {ticket_id: ticket for ticket in tickets for ticket_id in ticket['ids']}
++    rows = []
++    for requested_id in requested_ids:
++        ticket = by_id.get(requested_id)
++        if ticket is None:
++            rows.append({
++                'ticket': requested_id,
++                'status': '',
++                'review': '',
++                'primary_repo': '',
++                'owning_shard': '',
++                'exists': False,
++                'root_repo_rc': 1,
++                'root_repo_error': f'{requested_id}: not found',
++            })
++            continue
++        primary_repo, root_repo_rc, root_repo_error = root_repo_details(ticket, requested_id)
++        rows.append({
++            'ticket': requested_id,
++            'status': ticket['status'],
++            'review': review_decision(ticket),
++            'primary_repo': primary_repo,
++            'owning_shard': ticket_owning_shard(path, ticket),
++            'exists': True,
++            'root_repo_rc': root_repo_rc,
++            'root_repo_error': root_repo_error,
++        })
++    return rows
++
++
++def cmd_ticket_facts(path, requested_ids, shell_output=False, tsv_output=False):
++    rows = ticket_facts(path, requested_ids)
++    if shell_output:
++        if len(rows) != 1:
++            print('ticket-facts: --shell requires exactly one ticket', file=sys.stderr)
++            return 2
++        row = rows[0]
++        values = {
++            'TICKET_FACTS_TICKET': row['ticket'],
++            'TICKET_FACTS_STATUS': row['status'],
++            'TICKET_FACTS_REVIEW': row['review'],
++            'TICKET_FACTS_PRIMARY_REPO': row['primary_repo'],
++            'TICKET_FACTS_OWNING_SHARD': row['owning_shard'],
++            'TICKET_FACTS_EXISTS': '1' if row['exists'] else '0',
++            'TICKET_FACTS_ROOT_REPO_RC': str(row['root_repo_rc']),
++            'TICKET_FACTS_ROOT_REPO_ERROR': row['root_repo_error'],
++        }
++        for key, value in values.items():
++            print(f'{key}={shlex.quote(value)}')
++        return 0
++    if tsv_output:
++        for row in rows:
++            print('\t'.join([
++                row['ticket'], row['status'], row['review'], row['primary_repo'],
++                row['owning_shard'], '1' if row['exists'] else '0',
++            ]))
++        return 0
++    public_rows = [{
++        'status': row['status'],
++        'review': row['review'],
++        'primary_repo': row['primary_repo'],
++        'owning_shard': row['owning_shard'],
++        'exists': row['exists'],
++    } for row in rows]
++    print_json(public_rows[0] if len(public_rows) == 1 else public_rows)
++    return 0
++
++
+ def cmd_repos(path):
+     tickets, _ = parse(path)
+     seen = set()
+@@ -2096,25 +2193,12 @@ def cmd_root_repo(path, ticket):
+     for t in tickets:
+         if ticket not in t['ids']:
+             continue
+-        primary = normalized_repos(t.get('primary_repo', ''))
+-        if primary:
+-            print(primary[0])
+-            return 0
+-        repos = normalized_repos(t.get('repo', ''))
+-        if len(repos) > 1:
+-            print(
+-                f'{ticket}: multi-repo ticket requires **Primary Repo** before begin/merge',
+-                file=sys.stderr,
+-            )
+-            return 3
+-        if not repos:
+-            print(
+-                f'{ticket}: no runnable workspace repo; add **Primary Repo** for an existing repo',
+-                file=sys.stderr,
+-            )
+-            return 3
+-        print(repos[0] if repos else 'beamfall')
+-        return 0
++        repo, rc, error = root_repo_details(t, ticket)
++        if error:
++            print(error, file=sys.stderr)
++        else:
++            print(repo)
++        return rc
+     print(f'{ticket}: not found', file=sys.stderr)
+     return 1
+ 
+@@ -2211,7 +2295,7 @@ def cmd_claims(_path, state, now, stale_after, preclaim_after, inventory=False):
+ 
+ def main(argv):
+     if len(argv) < 3:
+-        print('usage: roadmap_lib.py <next|jobs|show|block|criteria|checkoff|add|repo|root-repo|review|deps|dep-cycles|unblocks|repos|lint|metrics|export-md|init-db|import-md|migrate-packets> <roadmap> [args]', file=sys.stderr)
++        print('usage: roadmap_lib.py <next|jobs|show|ticket-facts|block|criteria|checkoff|add|repo|root-repo|review|deps|dep-cycles|unblocks|repos|lint|metrics|export-md|init-db|import-md|migrate-packets> <roadmap> [args]', file=sys.stderr)
+         return 2
+     cmd, path = argv[1], argv[2]
+     if cmd == 'claims':
+@@ -2293,6 +2377,18 @@ def main(argv):
+         json_output = '--json' in argv[4:]
+         brief_output = '--brief' in argv[4:]
+         return cmd_show(path, argv[3], json_output, brief_output)
++    if cmd == 'ticket-facts':
++        rest = argv[3:]
++        shell_output = '--shell' in rest
++        tsv_output = '--tsv' in rest
++        tickets = [arg for arg in rest if arg not in ('--shell', '--tsv')]
++        if not tickets:
++            print('ticket-facts: ticket required', file=sys.stderr)
++            return 2
++        if shell_output and tsv_output:
++            print('ticket-facts: --shell and --tsv are mutually exclusive', file=sys.stderr)
++            return 2
++        return cmd_ticket_facts(path, tickets, shell_output, tsv_output)
+     if cmd == 'block':
+         if len(argv) < 4:
+             print('block: ticket required', file=sys.stderr)

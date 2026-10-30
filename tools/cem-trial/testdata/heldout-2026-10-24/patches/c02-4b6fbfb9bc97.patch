@@ -1,0 +1,297 @@
+diff --git a/internal/app/app.go b/internal/app/app.go
+index 18d0cb5ca..cb780869d 100644
+--- a/internal/app/app.go
++++ b/internal/app/app.go
+@@ -117,7 +117,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger, bundles []
+ 	surfaces.Register(reveal.Surface{ID: "Query.currentSession", Class: reveal.ContentJSON})
+ 	surfaces.Register(reveal.Surface{ID: "Query.jobs", Class: reveal.Aggregate})
+ 	surfaces.Register(reveal.Surface{ID: "Query.job", Class: reveal.Aggregate})
+-	graphHandler := graph.NewHandler(manifests, authService, st)
++	graphHandler := graph.NewHandler(manifests, authService, st, plugins)
+ 	srv := server.New(manifests, playbackInfo, pairingService, graphHandler, mediaHTTP, authService, st)
+ 	for _, surface := range srv.Surfaces() {
+ 		surfaces.Register(surface)
+diff --git a/internal/graph/graph.go b/internal/graph/graph.go
+index 2e13c1133..f46d3ea2b 100644
+--- a/internal/graph/graph.go
++++ b/internal/graph/graph.go
+@@ -11,6 +11,7 @@ import (
+ 
+ 	"github.com/beamfall/core/internal/auth"
+ 	"github.com/beamfall/core/internal/manifest"
++	"github.com/beamfall/core/internal/plugin"
+ 	"github.com/beamfall/core/internal/scan"
+ 	"github.com/beamfall/core/internal/store"
+ )
+@@ -67,11 +68,12 @@ type Handler struct {
+ 	manifest *manifest.Service
+ 	auth     *auth.Service
+ 	store    *store.Store
++	plugins  *plugin.Registry
+ }
+ 
+-// NewHandler creates a GraphQL handler.
+-func NewHandler(manifests *manifest.Service, authService *auth.Service, st *store.Store) *Handler {
+-	return &Handler{manifest: manifests, auth: authService, store: st}
++// NewHandler creates a GraphQL handler. plugins may be nil (no overrides).
++func NewHandler(manifests *manifest.Service, authService *auth.Service, st *store.Store, plugins *plugin.Registry) *Handler {
++	return &Handler{manifest: manifests, auth: authService, store: st, plugins: plugins}
+ }
+ 
+ // ServeHTTP implements the starter GraphQL JSON-over-HTTP contract.
+@@ -548,7 +550,7 @@ func (h *Handler) reportPlayback(ctx context.Context, scope auth.Scope, req requ
+ 		MediaID:         media.ID,
+ 		PositionSeconds: positionSeconds,
+ 		DurationSeconds: durationSeconds,
+-	}, finished, media.Class); err != nil {
++	}, finished, h.resumePolicy(ctx, media)); err != nil {
+ 		return PlaybackReport{}, err
+ 	}
+ 	progress, _, err := h.store.PlaybackProgressFor(ctx, scope.ProfileID, media.ID)
+@@ -562,6 +564,21 @@ func (h *Handler) reportPlayback(ctx context.Context, scope auth.Scope, req requ
+ 	}, nil
+ }
+ 
++// resumePolicy resolves the declarative resume eligibility for one Media item
++// (ADR-0029 §7): the class default, overridden by the owning Library's plugin
++// engagement posture when one is declared.
++func (h *Handler) resumePolicy(ctx context.Context, media store.Media) store.ResumePolicy {
++	policy := store.ResumePolicy{Class: media.Class}
++	pluginID, err := h.store.LibraryPluginID(ctx, media.LibraryID)
++	if err != nil || pluginID == "" {
++		return policy
++	}
++	if bundle, ok := h.plugins.Bundle(plugin.ID(pluginID)); ok {
++		policy.Override = bundle.Engagement.ResumeMedia
++	}
++	return policy
++}
++
+ // intVariable reads a numeric GraphQL variable (JSON numbers decode as float64).
+ func intVariable(req request, name string) int {
+ 	switch value := req.Variables[name].(type) {
+diff --git a/internal/plugin/firstparty/podcasts/bundle.go b/internal/plugin/firstparty/podcasts/bundle.go
+index bce995a2c..fc923eda5 100644
+--- a/internal/plugin/firstparty/podcasts/bundle.go
++++ b/internal/plugin/firstparty/podcasts/bundle.go
+@@ -20,6 +20,10 @@ func Bundle() plugin.Bundle {
+ 		DisplayName:  "Podcasts",
+ 		MediaLabel:   "Episode",
+ 		MediaClasses: []string{"audio"},
++		// Podcast episodes resume mid-play — the one place the audio
++		// no-resume default is wrong (ADR-0029 §7: resume eligibility is
++		// declarative, not a class convention).
++		Engagement: plugin.Engagement{ResumeMedia: boolPtr(true)},
+ 		EntityKinds: []plugin.EntityKind{
+ 			{
+ 				// The feed/program. Children are episodes (Media) in
+@@ -73,11 +77,8 @@ func Bundle() plugin.Bundle {
+ 				Source:      plugin.SourceSpec{Kind: "recently-added"},
+ 			},
+ 			{
+-				// NOTE: the core engagement projection currently makes
+-				// all audio-class Media non-resumable (ADR-0029 §7), so
+-				// this section is empty until resume eligibility is
+-				// per-bundle/per-kind. Declared anyway: it is the
+-				// correct contract for podcasts.
++				// Backed by the Engagement.ResumeMedia override above:
++				// podcast audio stores resume positions.
+ 				ID:          "continue-listening",
+ 				Kind:        "shelf",
+ 				Title:       "Continue Listening",
+@@ -145,3 +146,7 @@ func Bundle() plugin.Bundle {
+ 		},
+ 	}
+ }
++
++func boolPtr(value bool) *bool {
++	return &value
++}
+diff --git a/internal/plugin/plugin.go b/internal/plugin/plugin.go
+index f7957e946..b1b57f605 100644
+--- a/internal/plugin/plugin.go
++++ b/internal/plugin/plugin.go
+@@ -19,7 +19,7 @@ type ID string
+ var Archetypes = []string{"person", "container", "category"}
+ 
+ // ArtworkSlots is the fixed artwork slot vocabulary (ADR-0003 §3).
+-var ArtworkSlots = []string{"poster", "backdrop", "thumb", "logo"}
++var ArtworkSlots = []string{"poster", "backdrop", "thumb", "logo", "portrait"}
+ 
+ // SectionKinds is the fixed Section vocabulary (ADR-0003 §7): compiled client
+ // primitives, parameterized by card style, artwork slot, label, source.
+@@ -52,9 +52,30 @@ type Bundle struct {
+ 	MediaLabel string
+ 	// MediaClasses this plugin's Libraries hold ("video", "audio").
+ 	MediaClasses []string
+-	EntityKinds  []EntityKind
+-	Layout       LayoutSpec
+-	Scrapers     []ScraperSpec
++	// LibraryDefaults seeds new Libraries bound to this plugin (a Manager
++	// can still override per Library).
++	LibraryDefaults LibraryDefaults
++	// Engagement declares the plugin's engagement posture.
++	Engagement  Engagement
++	EntityKinds []EntityKind
++	Layout      LayoutSpec
++	Scrapers    []ScraperSpec
++}
++
++// LibraryDefaults are the creation-time defaults for plugin-bound Libraries.
++type LibraryDefaults struct {
++	// Restricted Libraries live behind the Reveal contract by default
++	// (the adult plugin's normal posture, ADR-0027).
++	Restricted bool
++}
++
++// Engagement is the bundle's declarative engagement posture (ADR-0029 §7:
++// resume eligibility is a property, not a media-class convention — music
++// audio never resumes, podcast audio always does).
++type Engagement struct {
++	// ResumeMedia overrides the class default (video resumes, audio does
++	// not) for Media in this plugin's Libraries. Nil keeps the default.
++	ResumeMedia *bool
+ }
+ 
+ // EntityKind is a declared kind: name + archetype + field schema + relations
+@@ -67,6 +88,11 @@ type EntityKind struct {
+ 	// OrderedChildren marks container kinds whose children carry a defined
+ 	// play order (play-next semantics).
+ 	OrderedChildren bool
++	// Hierarchical marks kinds whose instances form a parent/child tree
++	// (depth-aware rollups).
++	Hierarchical bool
++	// ArtworkSlots lists the slots instances of this kind carry.
++	ArtworkSlots []string
+ }
+ 
+ // FieldSpec is one declared field on an Entity Kind.
+@@ -75,8 +101,13 @@ type FieldSpec struct {
+ 	Type string
+ }
+ 
++// MediaKindName is the reserved relation target naming the wire entity
++// itself: relations run between Entities and Media (ADR-0003 §2).
++const MediaKindName = "media"
++
+ // RelationSpec is a declared relation between kinds. Cast/credit-style links
+-// are relations with attributes, never entities (ADR-0003 §2).
++// are relations with attributes, never entities (ADR-0003 §2). ToKind names
++// a declared kind or MediaKindName.
+ type RelationSpec struct {
+ 	Name       string
+ 	ToKind     string
+@@ -115,8 +146,9 @@ type ScraperSpec struct {
+ 	// AuthRef names the config/secret-store entry holding credentials.
+ 	AuthRef string
+ 	// LookupTemplate builds the per-item request: path (http-json), GraphQL
+-	// query body (http-graphql), or feed URL template (rss). {id} and
+-	// {query} are the only substitutions.
++	// query body (http-graphql), or feed URL template (rss). Substitutions:
++	// {id}, {query}, and the fingerprint variables {phash}, {oshash},
++	// {duration} (ADR-0027 §7 — content-identity lookups).
+ 	LookupTemplate string
+ 	// FieldMap maps core field names (title, summary, year, …) to response
+ 	// paths (dotted JSON path, GraphQL selection path, or RSS element).
+@@ -170,9 +202,17 @@ func Validate(bundle Bundle) error {
+ 				return fmt.Errorf("plugin %s: kind %q field %q uses unknown type %q", bundle.ID, kind.Name, field.Name, field.Type)
+ 			}
+ 		}
++		for _, slot := range kind.ArtworkSlots {
++			if !contains(ArtworkSlots, slot) {
++				return fmt.Errorf("plugin %s: kind %q uses unknown artwork slot %q", bundle.ID, kind.Name, slot)
++			}
++		}
+ 	}
+ 	for _, kind := range bundle.EntityKinds {
+ 		for _, relation := range kind.Relations {
++			if relation.ToKind == MediaKindName {
++				continue // relations to the wire entity are always legal
++			}
+ 			if !kinds[relation.ToKind] {
+ 				return fmt.Errorf("plugin %s: kind %q relation %q targets undeclared kind %q", bundle.ID, kind.Name, relation.Name, relation.ToKind)
+ 			}
+diff --git a/internal/store/engagement.go b/internal/store/engagement.go
+index 258ef315f..e028868a8 100644
+--- a/internal/store/engagement.go
++++ b/internal/store/engagement.go
+@@ -29,12 +29,29 @@ const playedThreshold = 0.8
+ // resumeFloorSeconds hides barely-started playback from Continue Watching.
+ const resumeFloorSeconds = 10
+ 
++// ResumePolicy is the declarative resume-eligibility input (ADR-0029 §7):
++// the class default (video resumes, audio does not), optionally overridden by
++// the owning plugin's declared engagement posture (podcasts: audio resumes).
++type ResumePolicy struct {
++	Class MediaClass
++	// Override, when non-nil, replaces the class default.
++	Override *bool
++}
++
++// Eligible resolves the policy.
++func (p ResumePolicy) Eligible() bool {
++	if p.Override != nil {
++		return *p.Override
++	}
++	return p.Class != MediaClassAudio
++}
++
+ // UpsertPlaybackProgress records playback for a Profile. Crossing the class
+ // threshold (or an explicit finished report) marks the item watched, clears
+ // the resume point, and counts a play. Resume eligibility is declarative
+-// (ADR-0029 §7): audio-class media never stores a resume position, so it can
+-// never surface in Continue Watching on any client.
+-func (s *Store) UpsertPlaybackProgress(ctx context.Context, progress PlaybackProgress, finished bool, class MediaClass) error {
++// (ADR-0029 §7): non-eligible media never stores a resume position, so it
++// can never surface in Continue Watching on any client.
++func (s *Store) UpsertPlaybackProgress(ctx context.Context, progress PlaybackProgress, finished bool, policy ResumePolicy) error {
+ 	if progress.ProfileID == "" || progress.MediaID == "" {
+ 		return errors.New("profile ID and media ID are required")
+ 	}
+@@ -42,11 +59,10 @@ func (s *Store) UpsertPlaybackProgress(ctx context.Context, progress PlaybackPro
+ 		return errors.New("playback position must not be negative")
+ 	}
+ 	threshold := watchedThreshold
+-	resumeEligible := true
+-	if class == MediaClassAudio {
++	if policy.Class == MediaClassAudio {
+ 		threshold = playedThreshold
+-		resumeEligible = false
+ 	}
++	resumeEligible := policy.Eligible()
+ 	watched := finished
+ 	if progress.DurationSeconds > 0 &&
+ 		float64(progress.PositionSeconds) >= threshold*float64(progress.DurationSeconds) {
+diff --git a/internal/store/store.go b/internal/store/store.go
+index c31a58fab..35d39545a 100644
+--- a/internal/store/store.go
++++ b/internal/store/store.go
+@@ -444,6 +444,28 @@ func (s *Store) Libraries(ctx context.Context, filter LibraryFilter) ([]Library,
+ 	return libraries, nil
+ }
+ 
++// LibraryPluginID returns the plugin a Library is bound to, or "" when the
++// Library is unbound or unknown.
++func (s *Store) LibraryPluginID(ctx context.Context, id LibraryID) (string, error) {
++	if id == "" {
++		return "", errors.New("library ID is required")
++	}
++	s.mu.RLock()
++	defer s.mu.RUnlock()
++	if err := s.guardLocked(); err != nil {
++		return "", err
++	}
++	var pluginID sql.NullString
++	err := s.catalogR.QueryRowContext(ctx, "SELECT plugin_id FROM library WHERE id = ?", id).Scan(&pluginID)
++	if errors.Is(err, sql.ErrNoRows) {
++		return "", nil
++	}
++	if err != nil {
++		return "", err
++	}
++	return pluginID.String, nil
++}
++
+ // LibraryRestricted reports whether a Library is flagged restricted.
+ func (s *Store) LibraryRestricted(ctx context.Context, id LibraryID) (bool, error) {
+ 	if id == "" {

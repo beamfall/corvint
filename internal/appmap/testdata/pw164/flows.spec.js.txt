@@ -1,0 +1,30 @@
+const { test, expect, request } = require('@playwright/test');
+async function serve(page) {
+  await page.route('http://app.test/**', async (route) => {
+    const u = new URL(route.request().url());
+    if (u.pathname.startsWith('/api/')) return route.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true}' });
+    const body = u.pathname === '/members'
+      ? '<h1>Members</h1><script>fetch("/api/members")</script>'
+      : '<h1>Home</h1><a href="/members">Members</a>';
+    return route.fulfill({ status: 200, contentType: 'text/html', body });
+  });
+}
+test('single context', async ({ page }) => {
+  await serve(page);
+  await page.goto('http://app.test/');
+  await page.getByRole('link', { name: 'Members' }).click();
+  await expect(page.getByRole('heading', { name: 'Members' })).toBeVisible();
+});
+test('multi context', async ({ page, browser }) => {
+  const api = await request.newContext();
+  await api.dispose();
+  const ctx = await browser.newContext();
+  const other = await ctx.newPage();
+  await serve(other);
+  await other.goto('http://app.test/members');
+  await serve(page);
+  await page.goto('http://app.test/');
+  await page.getByRole('link', { name: 'Members' }).click();
+  await expect(page.getByRole('heading', { name: 'Members' })).toBeVisible();
+  await ctx.close();
+});

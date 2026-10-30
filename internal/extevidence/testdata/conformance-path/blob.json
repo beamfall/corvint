@@ -1,0 +1,39 @@
+{
+  "schema": "{{SCHEMA}}",
+  "provider": {
+    "id": "mockdocs",
+    "revision": "2026-09-18.4"
+  },
+  "repositories": [
+    {
+      "id": "application",
+      "origin": "{{APP_ORIGIN}}",
+      "revision": "{{APP_REVISION}}",
+      "role": "application"
+    },
+    {
+      "id": "e2e",
+      "origin": "{{E2E_ORIGIN}}",
+      "revision": "{{E2E_REVISION}}",
+      "role": "test"
+    }
+  ],
+  "entities": [],
+  "relations": [
+    {
+      "from": {
+        "repository": "e2e",
+        "path": "tests/account.spec.ts",
+        "blob": "1111111111111111111111111111111111111111"
+      },
+      "to": {
+        "repository": "application",
+        "path": "pkg/main.go"
+      },
+      "type": "verifies",
+      "evidence": "observed",
+      "rule": "e2e-run",
+      "reference": "ci/e2e/7"
+    }
+  ]
+}

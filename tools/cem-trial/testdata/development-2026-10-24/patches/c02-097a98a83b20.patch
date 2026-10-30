@@ -1,0 +1,455 @@
+diff --git a/internal/app/app.go b/internal/app/app.go
+index db3066137..71d6b1102 100644
+--- a/internal/app/app.go
++++ b/internal/app/app.go
+@@ -59,6 +59,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger, bundles []
+ 	}
+ 	st, err := store.Open(ctx, cfg.DataDir, store.Options{
+ 		SeedDevelopmentData: cfg.SeedDevelopmentData,
++		SeedProfile:         store.SeedProfile(cfg.SeedProfile),
+ 		AllowNetworkDataDir: cfg.AllowNetworkDataDir,
+ 	})
+ 	if err != nil {
+diff --git a/internal/config/config.go b/internal/config/config.go
+index 89853f9d2..bac053385 100644
+--- a/internal/config/config.go
++++ b/internal/config/config.go
+@@ -21,6 +21,7 @@ type Config struct {
+ 	DataDir             string
+ 	StreamTokenKey      []byte
+ 	SeedDevelopmentData bool
++	SeedProfile         string
+ 	AllowNetworkDataDir bool
+ 	// TranscodeCap is the per-server concurrent-transcode cap (ADR-0010 §6
+ 	// admission control; ADR-0013 resource governance).
+@@ -63,6 +64,9 @@ func Load(args []string, lookupEnv func(string) (string, bool)) (Config, error)
+ 		}
+ 		cfg.SeedDevelopmentData = seed
+ 	}
++	if value, ok := lookupEnv("BEAMFALL_SEED"); ok && value != "" {
++		cfg.SeedProfile = value
++	}
+ 	if value, ok := lookupEnv("BEAMFALL_ALLOW_NETWORK_DATA_DIR"); ok && value != "" {
+ 		allow, err := strconv.ParseBool(value)
+ 		if err != nil {
+@@ -84,6 +88,7 @@ func Load(args []string, lookupEnv func(string) (string, bool)) (Config, error)
+ 	fs.StringVar(&cfg.Addr, "addr", cfg.Addr, "listen address")
+ 	fs.StringVar(&cfg.DataDir, "data-dir", cfg.DataDir, "data directory")
+ 	fs.BoolVar(&cfg.SeedDevelopmentData, "seed-development-data", cfg.SeedDevelopmentData, "seed deterministic development catalog and credentials")
++	fs.StringVar(&cfg.SeedProfile, "seed", cfg.SeedProfile, "seed profile: development or demo")
+ 	fs.BoolVar(&cfg.AllowNetworkDataDir, "allow-network-data-dir", cfg.AllowNetworkDataDir, "allow SQLite data directory on a network filesystem")
+ 	fs.IntVar(&cfg.TranscodeCap, "transcode-cap", cfg.TranscodeCap, "maximum concurrent transcode sessions")
+ 	if err := fs.Parse(args); err != nil {
+@@ -119,6 +124,11 @@ func validate(cfg Config) (Config, error) {
+ 	if cfg.TranscodeCap < 1 {
+ 		return Config{}, errors.New("transcode-cap must be at least 1")
+ 	}
++	switch cfg.SeedProfile {
++	case "", "development", "demo":
++	default:
++		return Config{}, fmt.Errorf("unknown seed profile %q", cfg.SeedProfile)
++	}
+ 	return cfg, nil
+ }
+ 
+diff --git a/internal/store/sqlite.go b/internal/store/sqlite.go
+index f3b696745..b82e6c7b8 100644
+--- a/internal/store/sqlite.go
++++ b/internal/store/sqlite.go
+@@ -30,9 +30,18 @@ var eventsMigrations embed.FS
+ // Options controls durable store opening.
+ type Options struct {
+ 	SeedDevelopmentData bool
++	SeedProfile         SeedProfile
+ 	AllowNetworkDataDir bool
+ }
+ 
++// SeedProfile selects an optional boot-time catalog seed.
++type SeedProfile string
++
++const (
++	SeedProfileDevelopment SeedProfile = "development"
++	SeedProfileDemo        SeedProfile = "demo"
++)
++
+ // Open creates or opens the durable Beamfall store under dataDir.
+ func Open(ctx context.Context, dataDir string, opts Options) (*Store, error) {
+ 	if dataDir == "" {
+@@ -72,8 +81,8 @@ func Open(ctx context.Context, dataDir string, opts Options) (*Store, error) {
+ 		_ = st.Close()
+ 		return nil, err
+ 	}
+-	if opts.SeedDevelopmentData {
+-		if err := st.seedDevelopmentData(ctx); err != nil {
++	if profile := opts.resolvedSeedProfile(); profile != "" {
++		if err := st.seedData(ctx, profile); err != nil {
+ 			_ = st.Close()
+ 			return nil, err
+ 		}
+@@ -90,6 +99,16 @@ func Open(ctx context.Context, dataDir string, opts Options) (*Store, error) {
+ 	return st, nil
+ }
+ 
++func (opts Options) resolvedSeedProfile() SeedProfile {
++	if opts.SeedProfile != "" {
++		return opts.SeedProfile
++	}
++	if opts.SeedDevelopmentData {
++		return SeedProfileDevelopment
++	}
++	return ""
++}
++
+ // openSQLiteWriter returns the single-writer handle for one database file
+ // (ADR-0011 §1: one write connection, BEGIN IMMEDIATE, WAL).
+ func openSQLiteWriter(path string) (*sql.DB, error) {
+@@ -305,11 +324,22 @@ func migrationChecksumInDB(ctx context.Context, db queryRower, name string) (str
+ 
+ // seedData is the small domain-agnostic development catalog for the first app handshake.
+ type seedData struct {
+-	libraries []Library
+-	profiles  []Profile
+-	devices   []Device
+-	sessions  []Session
+-	media     []Media
++	libraries   []Library
++	profiles    []Profile
++	devices     []Device
++	sessions    []Session
++	media       []Media
++	mediaFiles  []MediaFile
++	mediaFields []seedMediaFields
++	entities    []Entity
++	relations   []EntityRelation
++	markers     []Marker
++	progress    []PlaybackProgress
++}
++
++type seedMediaFields struct {
++	mediaID MediaID
++	fields  []MediaField
+ }
+ 
+ // seedRevealPINHash gives seeded adult profiles the development reveal PIN
+@@ -378,7 +408,93 @@ func developmentSeed() seedData {
+ 	}
+ }
+ 
+-func (s *Store) seedDevelopmentData(ctx context.Context) error {
++func demoSeed(dataDir string) seedData {
++	seedTime := time.Date(2026, 6, 12, 12, 0, 0, 0, time.UTC)
++	mediaRows := []Media{
++		{ID: "media-demo-bunny", LibraryID: "library-demo-open", Title: "Big Buck Bunny", Summary: "A bright short with broad appeal.", Year: 2008, DurationSeconds: 596, Container: "mp4", Codec: "h264", Class: MediaClassVideo, VideoWidth: 1920, VideoHeight: 1080},
++		{ID: "media-demo-sintel", LibraryID: "library-demo-open", Title: "Sintel", Summary: "A compact fantasy journey.", Year: 2010, DurationSeconds: 888, Container: "mp4", Codec: "h264", Class: MediaClassVideo, VideoWidth: 1920, VideoHeight: 1080},
++		{ID: "media-demo-steel", LibraryID: "library-demo-open", Title: "Tears of Steel", Summary: "Science fiction with a city-scale finale.", Year: 2012, DurationSeconds: 734, Container: "mp4", Codec: "h264", Class: MediaClassVideo, VideoWidth: 3840, VideoHeight: 2160},
++		{ID: "media-demo-spring", LibraryID: "library-demo-open", Title: "Spring", Summary: "A pastoral animated short.", Year: 2019, DurationSeconds: 466, Container: "mp4", Codec: "h264", Class: MediaClassVideo, VideoWidth: 1920, VideoHeight: 1080},
++		{ID: "media-demo-charge", LibraryID: "library-demo-open", Title: "Charge", Summary: "A kinetic open production sample.", Year: 2022, DurationSeconds: 492, Container: "mp4", Codec: "h264", Class: MediaClassVideo, VideoWidth: 1920, VideoHeight: 1080},
++		{ID: "media-demo-caminandes", LibraryID: "library-demo-open", Title: "Caminandes", Summary: "A brisk comedy shelf item.", Year: 2013, DurationSeconds: 90, Container: "mp4", Codec: "h264", Class: MediaClassVideo, VideoWidth: 1280, VideoHeight: 720},
++		{ID: "media-demo-series-1", LibraryID: "library-demo-open", Title: "Open Sequence One", Summary: "The first ordered child for next-up demos.", Year: 2024, DurationSeconds: 600, Container: "mp4", Codec: "h264", Class: MediaClassVideo, VideoWidth: 1280, VideoHeight: 720},
++		{ID: "media-demo-series-2", LibraryID: "library-demo-open", Title: "Open Sequence Two", Summary: "The second ordered child for next-up demos.", Year: 2024, DurationSeconds: 610, Container: "mp4", Codec: "h264", Class: MediaClassVideo, VideoWidth: 1280, VideoHeight: 720},
++		{ID: "media-demo-orbit", LibraryID: "library-demo-archive", Title: "Orbital Sunrise", Summary: "Public-domain space footage sample.", Year: 2021, DurationSeconds: 360, Container: "mp4", Codec: "h264", Class: MediaClassVideo, VideoWidth: 1920, VideoHeight: 1080},
++		{ID: "media-demo-aurora", LibraryID: "library-demo-archive", Title: "Aurora Pass", Summary: "Calm atmospheric footage for browse variety.", Year: 2020, DurationSeconds: 420, Container: "mp4", Codec: "h264", Class: MediaClassVideo, VideoWidth: 1920, VideoHeight: 1080},
++		{ID: "media-demo-guarded-1", LibraryID: "library-demo-guarded", Title: "Quiet Meadow", Summary: "Innocuous restricted sample for Reveal demos.", Year: 2022, DurationSeconds: 300, Container: "mp4", Codec: "h264", Class: MediaClassVideo, VideoWidth: 1280, VideoHeight: 720},
++		{ID: "media-demo-guarded-2", LibraryID: "library-demo-guarded", Title: "Forest Creek", Summary: "Second restricted sample for policy demos.", Year: 2023, DurationSeconds: 320, Container: "mp4", Codec: "h264", Class: MediaClassVideo, VideoWidth: 1280, VideoHeight: 720},
++	}
++	return seedData{
++		libraries: []Library{
++			{ID: "library-demo-open", Title: "Open Demo"},
++			{ID: "library-demo-archive", Title: "Space Archive"},
++			{ID: "library-demo-guarded", Title: "Family Controls", IsRestricted: true},
++		},
++		profiles: []Profile{
++			{ID: "profile-demo-default", Name: "Demo", Kind: ProfileAdult, Library: []LibraryID{"library-demo-open", "library-demo-archive", "library-demo-guarded"}},
++			{ID: "profile-demo-managed", Name: "Managed Demo", Kind: ProfileManaged, Library: []LibraryID{"library-demo-open", "library-demo-archive"}},
++		},
++		devices: []Device{
++			{ID: "device-demo-tv", Name: "Demo TV", Role: DeviceRoleViewer, SecretHash: HashDeviceSecret("demo-viewer-secret")},
++			{ID: "device-demo-manager", Name: "Demo Manager", Role: DeviceRoleManager, SecretHash: HashDeviceSecret("demo-manager-secret")},
++		},
++		sessions: []Session{
++			{ID: "session-demo-viewer", DeviceID: "device-demo-tv", ProfileID: "profile-demo-default"},
++			{ID: "session-demo-revealed", DeviceID: "device-demo-tv", ProfileID: "profile-demo-default", Revealed: true},
++			{ID: "session-demo-managed", DeviceID: "device-demo-tv", ProfileID: "profile-demo-managed"},
++			{ID: "session-demo-manager", DeviceID: "device-demo-manager", ProfileID: "profile-demo-default"},
++		},
++		media:      mediaRows,
++		mediaFiles: demoMediaFiles(dataDir, mediaRows),
++		mediaFields: []seedMediaFields{
++			{"media-demo-bunny", []MediaField{{Name: "format", Type: EntityFieldText, Text: "short"}, {Name: "tone", Type: EntityFieldText, Text: "Comedy"}}},
++			{"media-demo-caminandes", []MediaField{{Name: "format", Type: EntityFieldText, Text: "short"}, {Name: "tone", Type: EntityFieldText, Text: "Comedy"}}},
++			{"media-demo-sintel", []MediaField{{Name: "format", Type: EntityFieldText, Text: "feature"}, {Name: "tone", Type: EntityFieldText, Text: "Adventure"}}},
++			{"media-demo-steel", []MediaField{{Name: "format", Type: EntityFieldText, Text: "feature"}, {Name: "tone", Type: EntityFieldText, Text: "Science"}}},
++			{"media-demo-series-1", []MediaField{{Name: "format", Type: EntityFieldText, Text: "serial"}}},
++			{"media-demo-series-2", []MediaField{{Name: "format", Type: EntityFieldText, Text: "serial"}}},
++		},
++		entities: []Entity{
++			{ID: "entity-demo-comedy", LibraryID: "library-demo-open", Kind: "category", Title: "Comedy"},
++			{ID: "entity-demo-science", LibraryID: "library-demo-open", Kind: "category", Title: "Science"},
++			{ID: "entity-demo-sequence", LibraryID: "library-demo-open", Kind: "container", Title: "Open Sequence"},
++			{ID: "entity-demo-space", LibraryID: "library-demo-archive", Kind: "category", Title: "Space"},
++		},
++		relations: []EntityRelation{
++			{FromEntityID: "entity-demo-comedy", Name: "tagged", ToMediaID: "media-demo-bunny"},
++			{FromEntityID: "entity-demo-comedy", Name: "tagged", ToMediaID: "media-demo-caminandes"},
++			{FromEntityID: "entity-demo-science", Name: "tagged", ToMediaID: "media-demo-steel"},
++			{FromEntityID: "entity-demo-space", Name: "tagged", ToMediaID: "media-demo-orbit"},
++			{FromEntityID: "entity-demo-space", Name: "tagged", ToMediaID: "media-demo-aurora"},
++			{FromEntityID: "entity-demo-sequence", Name: "contains", ToMediaID: "media-demo-series-1", SortOrder: intPtr(1)},
++			{FromEntityID: "entity-demo-sequence", Name: "contains", ToMediaID: "media-demo-series-2", SortOrder: intPtr(2)},
++		},
++		markers: []Marker{
++			{ID: "marker-demo-sintel-intro", MediaID: "media-demo-sintel", Title: "Opening", StartSeconds: 12, SegmentKind: "intro", Tags: []string{"arrival"}, CreatedAt: seedTime, UpdatedAt: seedTime},
++			{ID: "marker-demo-sintel-turn", MediaID: "media-demo-sintel", Title: "Turning Point", StartSeconds: 360, Tags: []string{"story"}, CreatedAt: seedTime, UpdatedAt: seedTime},
++			{ID: "marker-demo-bunny-credits", MediaID: "media-demo-bunny", StartSeconds: 550, SegmentKind: "credits", Tags: []string{"credits"}, CreatedAt: seedTime, UpdatedAt: seedTime},
++		},
++		progress: []PlaybackProgress{
++			{ProfileID: "profile-demo-default", MediaID: "media-demo-sintel", PositionSeconds: 240, DurationSeconds: 888, Watched: false, PlayCount: 0, UpdatedAt: seedTime.Add(3 * time.Minute)},
++			{ProfileID: "profile-demo-default", MediaID: "media-demo-series-1", PositionSeconds: 0, DurationSeconds: 600, Watched: true, PlayCount: 1, UpdatedAt: seedTime.Add(2 * time.Minute)},
++			{ProfileID: "profile-demo-default", MediaID: "media-demo-bunny", PositionSeconds: 0, DurationSeconds: 596, Watched: true, PlayCount: 3, UpdatedAt: seedTime.Add(time.Minute)},
++		},
++	}
++}
++
++func demoMediaFiles(dataDir string, media []Media) []MediaFile {
++	files := make([]MediaFile, 0, len(media))
++	for _, item := range media {
++		files = append(files, MediaFile{
++			MediaID:            item.ID,
++			Path:               filepath.Join(dataDir, "seed-media", "demo", string(item.ID)+".mp4"),
++			ContentFingerprint: "seed-demo-" + string(item.ID),
++		})
++	}
++	return files
++}
++
++func (s *Store) seedData(ctx context.Context, profile SeedProfile) error {
+ 	var count int
+ 	if err := s.catalogW.QueryRowContext(ctx, "SELECT COUNT(*) FROM profile").Scan(&count); err != nil {
+ 		return err
+@@ -386,19 +502,41 @@ func (s *Store) seedDevelopmentData(ctx context.Context) error {
+ 	if count > 0 {
+ 		return nil
+ 	}
+-	seed := developmentSeed()
++	var seed seedData
++	switch profile {
++	case SeedProfileDevelopment:
++		seed = developmentSeed()
++	case SeedProfileDemo:
++		seed = demoSeed(s.dataDir)
++	default:
++		return fmt.Errorf("unknown seed profile %q", profile)
++	}
++	if err := ensureSeedMediaFiles(seed.mediaFiles); err != nil {
++		return err
++	}
+ 	tx, err := s.catalogW.BeginTx(ctx, nil)
+ 	if err != nil {
+ 		return err
+ 	}
+-	if err := insertSeed(ctx, tx, seed); err != nil {
++	if err := insertSeedCatalog(ctx, tx, seed); err != nil {
+ 		_ = tx.Rollback()
+ 		return err
+ 	}
+-	return tx.Commit()
++	if err := tx.Commit(); err != nil {
++		return err
++	}
++	eventsTx, err := s.eventsW.BeginTx(ctx, nil)
++	if err != nil {
++		return err
++	}
++	if err := insertSeedEvents(ctx, eventsTx, seed); err != nil {
++		_ = eventsTx.Rollback()
++		return err
++	}
++	return eventsTx.Commit()
+ }
+ 
+-func insertSeed(ctx context.Context, tx *sql.Tx, seed seedData) error {
++func insertSeedCatalog(ctx context.Context, tx *sql.Tx, seed seedData) error {
+ 	for _, library := range seed.libraries {
+ 		if _, err := tx.ExecContext(ctx,
+ 			"INSERT INTO library(id, title, plugin_id, is_restricted) VALUES (?, ?, ?, ?)",
+@@ -441,15 +579,178 @@ func insertSeed(ctx context.Context, tx *sql.Tx, seed seedData) error {
+ 	}
+ 	for _, media := range seed.media {
+ 		if _, err := tx.ExecContext(ctx,
+-			"INSERT INTO media(id, library_id, title, duration_seconds, container, codec, video_width, video_height, media_class) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'video')",
+-			media.ID, media.LibraryID, media.Title, media.DurationSeconds, media.Container, media.Codec, media.VideoWidth, media.VideoHeight,
++			`INSERT INTO media(id, library_id, title, summary, year, duration_seconds, container, codec, media_class, video_width, video_height)
++			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
++			media.ID, media.LibraryID, media.Title, nullString(media.Summary), nullableInt(media.Year), media.DurationSeconds, media.Container, media.Codec, seedMediaClass(media.Class), media.VideoWidth, media.VideoHeight,
++		); err != nil {
++			return err
++		}
++	}
++	for _, file := range seed.mediaFiles {
++		if _, err := tx.ExecContext(ctx,
++			`INSERT INTO media_file(content_fingerprint, media_id, path, last_seen_at_ms)
++			 VALUES (?, ?, ?, ?)`,
++			file.ContentFingerprint, file.MediaID, file.Path, timeToMillis(time.Date(2026, 6, 12, 12, 0, 0, 0, time.UTC)),
+ 		); err != nil {
+ 			return err
+ 		}
+ 	}
++	for _, fields := range seed.mediaFields {
++		if err := validateMediaFields(fields.fields); err != nil {
++			return err
++		}
++		if err := insertMediaFields(ctx, tx, fields.mediaID, fields.fields); err != nil {
++			return err
++		}
++	}
++	for _, entity := range seed.entities {
++		if err := insertSeedEntity(ctx, tx, entity); err != nil {
++			return err
++		}
++	}
++	for _, relation := range seed.relations {
++		if err := insertSeedRelation(ctx, tx, relation); err != nil {
++			return err
++		}
++	}
++	for _, marker := range seed.markers {
++		if err := insertSeedMarker(ctx, tx, marker); err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
++func insertSeedEvents(ctx context.Context, tx *sql.Tx, seed seedData) error {
++	for _, progress := range seed.progress {
++		if _, err := tx.ExecContext(ctx, `
++			INSERT INTO playback_progress(profile_id, media_id, position_seconds, duration_seconds, watched, updated_at_ms, play_count, last_played_at_ms)
++			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
++		`, progress.ProfileID, progress.MediaID, progress.PositionSeconds, progress.DurationSeconds, boolInt(progress.Watched), timeToMillis(progress.UpdatedAt), progress.PlayCount, timeToMillis(progress.UpdatedAt)); err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
++func ensureSeedMediaFiles(files []MediaFile) error {
++	for _, file := range files {
++		if err := os.MkdirAll(filepath.Dir(file.Path), 0o700); err != nil {
++			return err
++		}
++		if _, err := os.Stat(file.Path); errors.Is(err, os.ErrNotExist) {
++			if err := os.WriteFile(file.Path, nil, 0o600); err != nil {
++				return err
++			}
++		} else if err != nil {
++			return err
++		}
++	}
+ 	return nil
+ }
+ 
++func insertSeedEntity(ctx context.Context, tx *sql.Tx, entity Entity) error {
++	if _, err := tx.ExecContext(ctx,
++		`INSERT INTO entity(id, library_id, kind, title) VALUES (?, ?, ?, ?)`,
++		entity.ID, entity.LibraryID, entity.Kind, entity.Title,
++	); err != nil {
++		return err
++	}
++	for _, field := range entity.Fields {
++		var table string
++		var value any
++		switch field.Type {
++		case EntityFieldText, EntityFieldURL:
++			table, value = "entity_field_text", field.Text
++		case EntityFieldNumber:
++			table, value = "entity_field_real", field.Number
++		case EntityFieldFlag:
++			table, value = "entity_field_int", boolInt(field.Flag)
++		case EntityFieldDate:
++			table, value = "entity_field_date", timeToMillis(field.Date.UTC())
++		default:
++			return errors.New("unknown entity field type " + string(field.Type))
++		}
++		column := "value"
++		if table == "entity_field_date" {
++			column = "value_ms"
++		}
++		if _, err := tx.ExecContext(ctx, `
++			INSERT INTO `+table+`(entity_id, kind, field, field_type, `+column+`) VALUES (?, ?, ?, ?, ?)
++		`, entity.ID, entity.Kind, field.Name, field.Type, value); err != nil {
++			return err
++		}
++	}
++	_, err := tx.ExecContext(ctx, `INSERT INTO entity_fts(entity_id, title, fields) VALUES (?, ?, '')`, entity.ID, entity.Title)
++	return err
++}
++
++func insertSeedRelation(ctx context.Context, tx *sql.Tx, relation EntityRelation) error {
++	var attributes any
++	if len(relation.Attributes) > 0 {
++		data, err := json.Marshal(relation.Attributes)
++		if err != nil {
++			return err
++		}
++		attributes = string(data)
++	}
++	var sortOrder any
++	if relation.SortOrder != nil {
++		sortOrder = *relation.SortOrder
++	}
++	if relation.ToEntityID != "" {
++		_, err := tx.ExecContext(ctx,
++			`INSERT INTO entity_relation(from_entity_id, relation, to_entity_id, attributes, sort_order) VALUES (?, ?, ?, ?, ?)`,
++			relation.FromEntityID, relation.Name, relation.ToEntityID, attributes, sortOrder,
++		)
++		return err
++	}
++	_, err := tx.ExecContext(ctx,
++		`INSERT INTO entity_relation(from_entity_id, relation, to_media_id, attributes, sort_order) VALUES (?, ?, ?, ?, ?)`,
++		relation.FromEntityID, relation.Name, relation.ToMediaID, attributes, sortOrder,
++	)
++	return err
++}
++
++func insertSeedMarker(ctx context.Context, tx *sql.Tx, marker Marker) error {
++	if marker.CreatedAt.IsZero() {
++		marker.CreatedAt = time.Date(2026, 6, 12, 12, 0, 0, 0, time.UTC)
++	}
++	if marker.UpdatedAt.IsZero() {
++		marker.UpdatedAt = marker.CreatedAt
++	}
++	if err := validateMarker(&marker); err != nil {
++		return err
++	}
++	if _, err := tx.ExecContext(ctx, `
++		INSERT INTO marker(id, media_id, title, start_seconds, end_seconds, segment_kind, created_at_ms, updated_at_ms)
++		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
++	`, marker.ID, marker.MediaID, marker.Title, marker.StartSeconds,
++		nullFloat(marker.EndSeconds), nullString(marker.SegmentKind),
++		marker.CreatedAt.UnixMilli(), marker.UpdatedAt.UnixMilli()); err != nil {
++		return err
++	}
++	return insertMarkerTags(ctx, tx, marker.ID, marker.Tags)
++}
++
++func intPtr(value int) *int {
++	return &value
++}
++
++func nullableInt(value int) any {
++	if value == 0 {
++		return nil
++	}
++	return value
++}
++
++func seedMediaClass(class MediaClass) MediaClass {
++	if class == "" {
++		return MediaClassVideo
++	}
++	return class
++}
++
+ func loadLibraries(ctx context.Context, db *sql.DB) ([]Library, error) {
+ 	rows, err := db.QueryContext(ctx, "SELECT id, title, plugin_id, is_restricted, preview_clips_enabled FROM library ORDER BY rowid")
+ 	if err != nil {

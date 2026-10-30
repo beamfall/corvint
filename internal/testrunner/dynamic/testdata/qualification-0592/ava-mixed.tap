@@ -1,0 +1,26 @@
+TAP version 13
+ok 1 - skip # SKIP
+not ok 2 - todo # TODO
+ok 3 - pass
+not ok 4 - fail
+  ---
+    name: AssertionError
+    assertion: t.is()
+    details:
+      'Difference (- actual, + expected):': |-
+        - 1
+        + 2
+    message: ''
+    at: >-
+      ExecutionContext.is
+      (file:///private/tmp/cem10-build/toolchains-2026-10-17/ava/node_modules/ava/lib/assert.js:310:16)
+  ...
+ok 5 - param 1
+ok 6 - param 2
+
+1..6
+# tests 5
+# pass 3
+# skip 1
+# fail 2
+

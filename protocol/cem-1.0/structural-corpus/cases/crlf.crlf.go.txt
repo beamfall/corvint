@@ -1,0 +1,16 @@
+package cases
+
+import (
+	"os"
+	"fmt"
+)
+
+var raw = `line one
+line two
+`
+
+func crlf() {
+	fmt.Println(os.Args, raw)
+}
+
+func useCRLF() { crlf() }

@@ -1,0 +1,28 @@
+{
+  "id": "every-unknown-reason",
+  "obligations": [
+    {
+      "id": "CONF-V0-001",
+      "disposition": "unknown",
+      "reason": "insufficient-evidence"
+    },
+    {
+      "id": "CONF-V0-002",
+      "disposition": "unknown",
+      "reason": "conflicting-evidence"
+    }
+  ],
+  "note": "The two unknown reasons the other fixtures do not carry, both produced by `ocm mark`.",
+  "cases": [
+    {
+      "id": "valid",
+      "note": "insufficient-evidence and conflicting-evidence rows verify as unknown.",
+      "ops": [],
+      "expect": {
+        "state": "ready-for-review",
+        "linked": 0,
+        "unknown": 2
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "profile": "corvint-network-evidence/0",
+  "run": "ci-2",
+  "revision": "0123456789abcdef0123456789abcdef01234567",
+  "tests": [
+    {
+      "file": "tests/home.spec.ts",
+      "title": "home > shows banner",
+      "outcome": "passed",
+      "requests": [
+        {"url": "http://127.0.0.1:3002/", "resourceType": "document", "status": 200, "durationMs": 45, "followUps": 2}
+      ]
+    },
+    {
+      "file": "tests/catalog.spec.ts",
+      "title": "catalog > renders the micro-frontend",
+      "outcome": "failed",
+      "requests": [
+        {"url": "http://127.0.0.1:3002/catalog", "resourceType": "document", "status": 200, "durationMs": 52, "followUps": 3},
+        {"url": "https://cdn.jsdelivr.example/npm/catalog-mfe@1/+esm", "resourceType": "module", "status": 200, "durationMs": 15300, "followUps": 0},
+        {"url": "https://assets.example-cdn.test/app.3f9a1c.js", "resourceType": "script", "status": 200, "durationMs": 21, "followUps": 0}
+      ]
+    }
+  ]
+}

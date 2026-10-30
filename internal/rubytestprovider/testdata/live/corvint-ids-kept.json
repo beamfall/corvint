@@ -1,0 +1,101 @@
+{
+  "profile": "corvint-ruby-test-provider/0",
+  "runner": "rspec",
+  "runnerVersion": "3.13.6",
+  "projectDirectory": ".",
+  "command": [
+    "docker",
+    "run",
+    "--network",
+    "none",
+    "-v",
+    ".:/work",
+    "-w",
+    "/work",
+    "corvint-rspec-qual:2026-10-20",
+    "rspec",
+    "--require",
+    "./.corvint/rspec/d5ea2fe37499107e-formatter.rb",
+    "--format",
+    "CorvintRSpecJsonFormatter",
+    "--out",
+    ".corvint/rspec/d5ea2fe37499107e.json",
+    "spec/widget_spec.rb[1:2]"
+  ],
+  "objectFormat": "sha1",
+  "repositoryBefore": {
+    "rootCommit": "598d40de42baa1f353d323f71a79857ab9976413",
+    "revision": "598d40de42baa1f353d323f71a79857ab9976413",
+    "tree": "937ec548675ed1b3cc120a9c9d819d6f71f1b5ae",
+    "dirtyState": "clean"
+  },
+  "repositoryAfter": {
+    "rootCommit": "598d40de42baa1f353d323f71a79857ab9976413",
+    "revision": "598d40de42baa1f353d323f71a79857ab9976413",
+    "tree": "937ec548675ed1b3cc120a9c9d819d6f71f1b5ae",
+    "dirtyState": "clean"
+  },
+  "helperBasis": "conventional-paths",
+  "helperSet": "sha256:f6f5fe0ee07aa3a1f17160c7af62998d431730fad5fee73c27cf6b7259fe2d10",
+  "helpers": [
+    {
+      "path": "spec/support/shared.rb",
+      "blob": "5f676f62ade3aafe4d71659a4a58e1088c39438f"
+    }
+  ],
+  "examples": [
+    {
+      "id": "spec/support/shared.rb:2",
+      "rspecId": "./spec/widget_spec.rb[1:2:1]",
+      "file": "spec/support/shared.rb",
+      "line": 2,
+      "description": "Widget behaves like a priced item has a positive price",
+      "status": "passed",
+      "specBlob": "5f676f62ade3aafe4d71659a4a58e1088c39438f",
+      "helpers": "sha256:f6f5fe0ee07aa3a1f17160c7af62998d431730fad5fee73c27cf6b7259fe2d10",
+      "sharedExample": {
+        "origin": "spec/support/shared.rb:2",
+        "includedAt": [
+          "spec/widget_spec.rb:10"
+        ]
+      }
+    }
+  ],
+  "summary": {
+    "examples": 1,
+    "failures": 0,
+    "pending": 0,
+    "errorsOutsideOfExamples": 0
+  },
+  "exitStatus": 0,
+  "junit": {
+    "state": "NOT_REQUESTED"
+  },
+  "selection": [
+    {
+      "selector": "spec/widget_spec.rb[1:2]",
+      "kind": "id",
+      "outcome": "MATCHED",
+      "matched": 1
+    }
+  ],
+  "runtime": {
+    "basis": "exec-prefix-probe",
+    "ruby": {
+      "value": "3.4.11"
+    },
+    "bundler": {
+      "value": "2.6.9"
+    },
+    "probeContainer": {
+      "value": "bac0aae884e753328d73512b51d47734de9b4b0c8be2d5faae072112bf04aeb6"
+    },
+    "image": {
+      "value": "sha256:b4202eef8ad08df2c18d7d38008a02910377d5f37943c54b13a9827a83b532db"
+    },
+    "runContainer": {
+      "value": "d64e2bf6cdc72babdd48507f6bb4d20d47cede6d1b486f75329a1bfa2f736619"
+    }
+  },
+  "formatter": "corvint-rspec-json/0"
+}

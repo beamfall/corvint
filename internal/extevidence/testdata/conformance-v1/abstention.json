@@ -1,0 +1,11 @@
+{
+  "schema": "external-evidence-provider/1",
+  "provider": {"id": "mockdocs", "revision": "2026-09-18.2"},
+  "repositories": [{"id": "application", "origin": "{{APP_ORIGIN}}", "revision": "{{APP_REVISION}}"}],
+  "entities": [{"id": "cap-account", "kind": "capability", "summary": "Account management capability."}],
+  "relations": [
+    {"from": {"repository": "application", "path": "pkg/main.go"}, "to": {"provider": "mockdocs", "entity": "cap-account"}, "type": "implements", "evidence": "learned", "rule": "model", "reference": "model/v3"},
+    {"from": {"repository": "application", "path": "pkg/main.go"}, "to": {"provider": "otherdocs", "entity": "cap-account"}, "type": "implements", "evidence": "declared", "rule": "cross-link", "reference": "docs/links.md"},
+    {"from": {"repository": "application", "path": "../escape.go"}, "to": {"provider": "mockdocs", "entity": "cap-account"}, "type": "implements", "evidence": "declared", "rule": "capability-map", "reference": "docs/capabilities.md"}
+  ]
+}

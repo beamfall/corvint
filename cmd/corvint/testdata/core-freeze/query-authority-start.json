@@ -1,0 +1,127 @@
+{
+  "context": {
+    "abstention": {
+      "active": false,
+      "reason": "none"
+    },
+    "coverage": {
+      "advisory_results": 0,
+      "authoritative_results": 1,
+      "budget_bytes": null,
+      "critical": [
+        "instructions:AGENTS.md"
+      ],
+      "critical_missing": [],
+      "included_results": 1,
+      "omitted_results": 0,
+      "packet_bytes": 2740,
+      "requested_results": 1,
+      "uncertainty": [
+        "no language-specific verification command is known for this repository"
+      ],
+      "within_budget": true
+    },
+    "exclusions": {
+      "count": 1,
+      "samples": []
+    },
+    "freshness": {
+      "mixed_path_count": 0,
+      "mixed_paths": [],
+      "revision": "033402f0d1c624b675144206a6b5c8d81a499435",
+      "scope": "git",
+      "state": "fresh"
+    },
+    "intent": {
+      "confidence": "high",
+      "id": "project-operations",
+      "matched_terms": [
+        "gate",
+        "gates",
+        "roadmap",
+        "ticket",
+        "workflow"
+      ]
+    },
+    "learning": {
+      "advisory_candidates": 1,
+      "history_commits_considered": 6,
+      "history_digest": "<varies:string>",
+      "history_tip": "<varies:string>",
+      "local_trace_count": 0,
+      "local_trace_state": "absent",
+      "matched_history_commits": 1,
+      "matched_local_traces": 0
+    },
+    "mode": "query",
+    "request": {
+      "limit": 1,
+      "text": "Identify the active work queue, required workflow gates, and minimum context needed to safely take the next roadmap ticket"
+    },
+    "results": [
+      {
+        "evidence": [
+          {
+            "authority": "project-instructions",
+            "blob_hash": "ce33c49bd8c2f768e9ba5c5554b999ccb16cb658",
+            "confidence": "authoritative",
+            "line": 5,
+            "path": "AGENTS.md",
+            "reason": "project instruction matches: gate, gates, required, roadmap, workflow"
+          },
+          {
+            "authority": "project-instructions",
+            "blob_hash": "ce33c49bd8c2f768e9ba5c5554b999ccb16cb658",
+            "confidence": "authoritative",
+            "line": 3,
+            "path": "AGENTS.md",
+            "reason": "project instruction matches: active, queue, roadmap, work"
+          },
+          {
+            "authority": "project-instructions",
+            "blob_hash": "ce33c49bd8c2f768e9ba5c5554b999ccb16cb658",
+            "confidence": "authoritative",
+            "line": 4,
+            "path": "AGENTS.md",
+            "reason": "project instruction matches: context, ticket"
+          },
+          {
+            "authority": "instruction-reference",
+            "blob_hash": "039e4d0069c5c26909f86c505b9de66182e6d1f3",
+            "confidence": "high",
+            "line": 1,
+            "path": "script/context-packet.sh",
+            "reason": "project instruction references script/context-packet.sh"
+          },
+          {
+            "authority": "instruction-reference",
+            "blob_hash": "039e4d0069c5c26909f86c505b9de66182e6d1f3",
+            "confidence": "high",
+            "line": 1,
+            "path": "script/roadmap.sh",
+            "reason": "project instruction references script/roadmap.sh"
+          }
+        ],
+        "id": "AGENTS.md",
+        "kind": "instructions",
+        "references": [
+          "script/context-packet.sh",
+          "script/roadmap.sh"
+        ],
+        "score": 420,
+        "status": "binding",
+        "summary": "Use `script/roadmap.sh` and run the required workflow gates. | The roadmap is the only active work queue. | Run `make orient`, then `script/context-packet.sh --ticket ID`.",
+        "title": "Project instructions"
+      }
+    ],
+    "revision": "033402f0d1c624b675144206a6b5c8d81a499435",
+    "schema_version": 1,
+    "state": "READY",
+    "verification": [
+      "git diff --check"
+    ]
+  },
+  "mutates": false,
+  "ok": true,
+  "tool": "query"
+}

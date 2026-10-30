@@ -1,0 +1,43 @@
+{
+  "profile": "cem-non-regular-case/1",
+  "nonRegularProfile": "cem-non-regular/1",
+  "baseRevision": "e587b4ad1578ad8e4430330f36c29c6cd24d1e11",
+  "targetRevision": "e58f6dfa9d6e7efb6b28477ac5d87a68eb01cd6d",
+  "map": "stable.json",
+  "artifactRoot": ".",
+  "mappedPaths": [
+    "app.txt",
+    "notes.txt"
+  ],
+  "nonRegular": [
+    {
+      "path": "config.txt",
+      "baseMode": "100644",
+      "targetMode": "120000",
+      "disposition": "unknown"
+    },
+    {
+      "path": "escape",
+      "baseMode": "absent",
+      "targetMode": "120000",
+      "disposition": "unknown"
+    }
+  ],
+  "cases": [
+    {
+      "name": "profile-opted-in",
+      "nonRegular": "unknown",
+      "outcome": "ACCEPT",
+      "stage": "complete",
+      "patchSha256": "3158b845c381fc1740fa8ca068427e24a04dec17d4a38e4a1e96e8932eeac33d"
+    },
+    {
+      "name": "plain-cem-1.0-reader",
+      "nonRegular": "",
+      "outcome": "REJECT",
+      "stage": "verification",
+      "issueCode": "patch-digest-mismatch",
+      "patchSha256": "11f380d6a4e2fa0009528da09c6bd99df4b4b9edb7fda80a9dd5245ff1c60346"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+host-lifecycle-v1	host=cli	surface=native	hostVersion=none	adapterVersion=none	os=darwin/arm64	corvint=Corvint 1.0.0-rc.1 (build 163)	source=b967f6bbe33c5eba367a07d7eeb2bd1e372e9162
+case	install	PASS	Corvint 1.0.0-rc.1 (build 163)
+case	discovery	PASS	root help lists the 12 CCF-V1-001 Core verbs
+case	context	PASS	tool=context schema_version=1
+case	expansion	PASS	query cites add.go at its HEAD blob
+case	change	PASS	impact on the edited add.go: tool=impact mode=impact; fixture unchanged afterwards
+case	frontier	PASS	unknown hunk yields frontier/0 OPEN, exit 1
+case	degradation	PASS	outside a Git repository: exit 2, ok=false code=invalid-arguments, nothing written
+case	upgrade	PASS	Corvint 0.8.1 (build 82) indexed; replaced by Corvint 1.0.0-rc.1 (build 163), index --if-stale rebuilt instead of reusing the N-1 snapshot; context succeeds
+case	uninstall	PASS	binary removed; fixture worktree unchanged
+SUMMARY	status=PASS	passed=9	failed=0	notRun=0

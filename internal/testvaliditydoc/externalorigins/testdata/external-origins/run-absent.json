@@ -1,0 +1,9 @@
+{
+  "profile": "corvint-network-evidence/0",
+  "run": "local-1",
+  "revision": "0123456789abcdef0123456789abcdef01234567",
+  "tests": [
+    {"file": "tests/home.spec.ts", "title": "home > shows banner", "outcome": "passed"},
+    {"file": "tests/catalog.spec.ts", "title": "catalog > renders the micro-frontend", "outcome": "failed"}
+  ]
+}

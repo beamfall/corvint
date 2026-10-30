@@ -1,0 +1,63 @@
+package main
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"syscall"
+	"testing"
+	"time"
+)
+
+func TestCancellationRetiresDescendant(t *testing.T) {
+	root := t.TempDir()
+	pidfile := filepath.Join(root, "pid")
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan Sample, 1)
+	go func() {
+		done <- sample(ctx, "/bin/sh", root, []string{"-c", "sleep 30 & echo $! > \"$1\"; wait", "sh", pidfile}, time.Minute)
+	}()
+	var raw []byte
+	for deadline := time.Now().Add(3 * time.Second); time.Now().Before(deadline); {
+		raw, _ = os.ReadFile(pidfile)
+		if len(raw) > 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if len(raw) == 0 {
+		t.Fatal("descendant did not start")
+	}
+	pid, e := strconv.Atoi(strings.TrimSpace(string(raw)))
+	if e != nil {
+		t.Fatal(e)
+	}
+	cancel()
+	select {
+	case s := <-done:
+		if s.Failure == "" {
+			t.Fatal("cancellation not reported")
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("runner did not exit")
+	}
+	for deadline := time.Now().Add(3 * time.Second); time.Now().Before(deadline); {
+		if syscall.Kill(pid, 0) == syscall.ESRCH {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("descendant survived")
+}
+func TestBootstrapIdentity(t *testing.T) {
+	p := make([]Pair, 100)
+	for i := range p {
+		p[i] = Pair{Baseline: Sample{WallNS: int64(i + 1)}, Candidate: Sample{WallNS: int64(i + 1)}}
+	}
+	if upper(p) != 0 {
+		t.Fatal("identical pairs")
+	}
+}

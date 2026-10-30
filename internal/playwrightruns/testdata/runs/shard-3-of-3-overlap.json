@@ -1,0 +1,221 @@
+{
+  "config": {
+    "argv": [
+      "/usr/local/bin/node",
+      "/work/node_modules/playwright/cli.js",
+      "test",
+      "--config=pw.config.js",
+      "--shard=3/3",
+      "--reporter=json"
+    ],
+    "configFile": "/work/pw.config.js",
+    "rootDir": "/work/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "corvintRunIdentity": {
+        "applicationRevision": "app-1",
+        "configDigest": "cfg-1",
+        "testFileBlobs": {
+          "a.spec.js": "blob-a",
+          "b.spec.js": "blob-b",
+          "c.spec.js": "blob-c"
+        }
+      },
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/work/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "corvintRunIdentity": {
+            "applicationRevision": "app-1",
+            "configDigest": "cfg-1",
+            "testFileBlobs": {
+              "a.spec.js": "blob-a",
+              "b.spec.js": "blob-b",
+              "c.spec.js": "blob-c"
+            }
+          },
+          "actualWorkers": 1
+        },
+        "id": "node",
+        "name": "node",
+        "testDir": "/work/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": {
+      "current": 3,
+      "total": 3
+    },
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.61.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "a.spec.js",
+      "file": "a.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "cart",
+          "file": "a.spec.js",
+          "line": 2,
+          "column": 6,
+          "specs": [
+            {
+              "title": "adds item",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "node",
+                  "projectName": "node",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 9,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-11T22:39:37.485Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "2addc3c3aecfedb30c84-7dab8ce19aca3317316d",
+              "file": "a.spec.js",
+              "line": 3,
+              "column": 3
+            },
+            {
+              "title": "removes item",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "node",
+                  "projectName": "node",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-11T22:39:37.531Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "2addc3c3aecfedb30c84-3105d9e161fb6d77e92d",
+              "file": "a.spec.js",
+              "line": 4,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "c.spec.js",
+      "file": "c.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "search",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "node",
+              "projectName": "node",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 4,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T22:39:39.357Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "dc0ff087a96da41e84eb-b3f24c3d79ca4be7bf63",
+          "file": "c.spec.js",
+          "line": 2,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-11T22:39:38.910Z",
+    "duration": 490.10699999999997,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

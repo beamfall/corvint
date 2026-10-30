@@ -1,0 +1,45 @@
+package jstestprovider
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+// NEA-V0-002 (V1-2644): the receipt binds the version of the node executable that runs the runner
+// when argv[0] is an absolute node path, not the node found on PATH.
+func TestNodeVersionBindsRunnerExecutable(t *testing.T) {
+	dir := t.TempDir()
+	fake := func(sub, version string) string {
+		bin := filepath.Join(dir, sub)
+		if err := os.MkdirAll(bin, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(bin, "node")
+		if err := os.WriteFile(path, []byte("#!/bin/sh\necho "+version+"\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	onPath, runner := fake("path", "v22.23.3"), fake("runner", "v24.11.1")
+	t.Setenv("PATH", filepath.Dir(onPath))
+	if got := nodeVersion(); got != "v22.23.3" {
+		t.Fatalf("PATH node = %q", got)
+	}
+	if got := nodeVersionFor([]string{runner, "cli.js"}); got != "v24.11.1" {
+		t.Fatalf("runner node = %q, want the runner's v24.11.1", got)
+	}
+	for _, argv := range [][]string{nil, {"npx", "playwright"}, {"node", "cli.js"}, {filepath.Join(filepath.Dir(runner), "npx")}} {
+		if got := nodeVersionFor(argv); got != "v22.23.3" {
+			t.Fatalf("%v: %q, want the PATH node", argv, got)
+		}
+	}
+	config := filepath.Join(dir, "config.cjs")
+	if err := os.WriteFile(config, []byte("module.exports={}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	identity, err := Config{ConfigFile: config}.identity([]string{runner, "cli.js"})
+	if err != nil || identity.NodeVersion != "v24.11.1" {
+		t.Fatalf("identity: %+v %v", identity, err)
+	}
+}

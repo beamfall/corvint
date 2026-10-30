@@ -1,0 +1,18 @@
+# Corvint read-only review profile for Codex CLI (AHI-206).
+#
+# Install: copy this file to "$CODEX_HOME/corvint-review.config.toml" (CODEX_HOME defaults to
+# ~/.codex). Codex layers it over the user config, but a trusted project's .codex/config.toml layers
+# over the profile, so always repeat the three keys as -c overrides (the README has the invocation):
+#   codex exec -p corvint-review -c 'sandbox_mode="read-only"' -c 'approval_policy="never"' \
+#     -c 'shell_environment_policy.set.CORVINT_TASKS_READ_ONLY="1"' PROMPT
+#
+# A read-only sandbox alone does not keep a review from writing the Corvint Tasks store: with an
+# approval policy that lets Codex escalate, an escalated command runs outside the sandbox
+# (V1-1237, V1-1441). This profile closes both doors the CLI controls: it never escalates, and it
+# sets CORVINT_TASKS_READ_ONLY so corvint-tasks refuses every non-read command UNSUPPORTED before it
+# opens the store (ATR-V0-212). It does not stop a write that bypasses the corvint-tasks CLI.
+sandbox_mode = "read-only"
+approval_policy = "never"
+
+[shell_environment_policy.set]
+CORVINT_TASKS_READ_ONLY = "1"

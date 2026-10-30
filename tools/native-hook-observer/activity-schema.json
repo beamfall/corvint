@@ -1,0 +1,327 @@
+{
+  "installedVersion": "0.153.4",
+  "items": {
+    "agentMessage": {
+      "fields": [
+        "delivery",
+        "id",
+        "memoryCitation",
+        "phase",
+        "questions",
+        "text",
+        "type"
+      ],
+      "required": [
+        "id",
+        "text",
+        "type"
+      ]
+    },
+    "collabAgentToolCall": {
+      "fields": [
+        "agentsStates",
+        "id",
+        "model",
+        "prompt",
+        "reasoningEffort",
+        "receiverThreadIds",
+        "senderThreadId",
+        "status",
+        "tool",
+        "type"
+      ],
+      "required": [
+        "agentsStates",
+        "id",
+        "receiverThreadIds",
+        "senderThreadId",
+        "status",
+        "tool",
+        "type"
+      ]
+    },
+    "commandExecution": {
+      "fields": [
+        "aggregatedOutput",
+        "command",
+        "commandActions",
+        "cwd",
+        "durationMs",
+        "exitCode",
+        "id",
+        "pluginId",
+        "processId",
+        "scriptPath",
+        "source",
+        "status",
+        "type"
+      ],
+      "required": [
+        "command",
+        "commandActions",
+        "cwd",
+        "id",
+        "status",
+        "type"
+      ],
+      "statuses": [
+        "inProgress",
+        "completed",
+        "failed",
+        "declined"
+      ]
+    },
+    "contextCompaction": {
+      "fields": [
+        "id",
+        "type"
+      ],
+      "required": [
+        "id",
+        "type"
+      ]
+    },
+    "dynamicToolCall": {
+      "fields": [
+        "arguments",
+        "contentItems",
+        "durationMs",
+        "id",
+        "namespace",
+        "status",
+        "success",
+        "tool",
+        "type"
+      ],
+      "required": [
+        "arguments",
+        "id",
+        "status",
+        "tool",
+        "type"
+      ],
+      "statuses": [
+        "inProgress",
+        "completed",
+        "failed"
+      ]
+    },
+    "enteredReviewMode": {
+      "fields": [
+        "id",
+        "review",
+        "type"
+      ],
+      "required": [
+        "id",
+        "review",
+        "type"
+      ]
+    },
+    "exitedReviewMode": {
+      "fields": [
+        "id",
+        "review",
+        "type"
+      ],
+      "required": [
+        "id",
+        "review",
+        "type"
+      ]
+    },
+    "fileChange": {
+      "fields": [
+        "changes",
+        "id",
+        "status",
+        "type"
+      ],
+      "required": [
+        "changes",
+        "id",
+        "status",
+        "type"
+      ],
+      "statuses": [
+        "inProgress",
+        "completed",
+        "failed",
+        "declined"
+      ]
+    },
+    "functionCallOutput": {
+      "fields": [
+        "id",
+        "name",
+        "namespace",
+        "output",
+        "type"
+      ],
+      "required": [
+        "id",
+        "name",
+        "output",
+        "type"
+      ]
+    },
+    "hookPrompt": {
+      "fields": [
+        "fragments",
+        "id",
+        "type"
+      ],
+      "required": [
+        "fragments",
+        "id",
+        "type"
+      ]
+    },
+    "imageGeneration": {
+      "fields": [
+        "failure",
+        "id",
+        "result",
+        "revisedPrompt",
+        "savedPath",
+        "status",
+        "transparentBackground",
+        "type"
+      ],
+      "required": [
+        "id",
+        "result",
+        "status",
+        "type"
+      ]
+    },
+    "imageView": {
+      "fields": [
+        "id",
+        "path",
+        "type"
+      ],
+      "required": [
+        "id",
+        "path",
+        "type"
+      ]
+    },
+    "mcpToolCall": {
+      "fields": [
+        "appContext",
+        "arguments",
+        "durationMs",
+        "error",
+        "id",
+        "mcpAppResourceUri",
+        "pluginId",
+        "readOnlyHint",
+        "result",
+        "server",
+        "status",
+        "tool",
+        "type"
+      ],
+      "required": [
+        "arguments",
+        "id",
+        "server",
+        "status",
+        "tool",
+        "type"
+      ],
+      "statuses": [
+        "inProgress",
+        "completed",
+        "failed"
+      ]
+    },
+    "plan": {
+      "fields": [
+        "id",
+        "text",
+        "type"
+      ],
+      "required": [
+        "id",
+        "text",
+        "type"
+      ]
+    },
+    "reasoning": {
+      "fields": [
+        "content",
+        "id",
+        "summary",
+        "type"
+      ],
+      "required": [
+        "id",
+        "type"
+      ]
+    },
+    "sleep": {
+      "fields": [
+        "durationMs",
+        "id",
+        "type"
+      ],
+      "required": [
+        "durationMs",
+        "id",
+        "type"
+      ]
+    },
+    "subAgentActivity": {
+      "fields": [
+        "agentPath",
+        "agentThreadId",
+        "id",
+        "kind",
+        "type"
+      ],
+      "required": [
+        "agentPath",
+        "agentThreadId",
+        "id",
+        "kind",
+        "type"
+      ]
+    },
+    "userMessage": {
+      "fields": [
+        "clientId",
+        "content",
+        "id",
+        "type"
+      ],
+      "required": [
+        "content",
+        "id",
+        "type"
+      ]
+    },
+    "webSearch": {
+      "fields": [
+        "action",
+        "id",
+        "query",
+        "results",
+        "type"
+      ],
+      "required": [
+        "id",
+        "query",
+        "type"
+      ]
+    }
+  },
+  "profile": "corvint-native-activity-schema/0-experimental",
+  "schemas": {
+    "ItemCompletedNotification": "69aba3fe5f72f38bf5c541e7e2c09de40778abe65ff969d9fc73372037812091",
+    "ItemStartedNotification": "c4c34f47db6326cd4841bae428f23d08eb285077ffad35be9772b928c65bb912",
+    "TurnCompletedNotification": "78af2a37391e8e669a4020cb58593e4d3e378756ced79d5fec72374fa69fb94b",
+    "TurnStartedNotification": "d4b59fd396cadfc2377f60c9f9f4c9367dca95362baadf7817c74e1b9c910c4d"
+  }
+}

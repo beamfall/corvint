@@ -1,0 +1,11 @@
+site_name: Markdown include escape canary
+site_url: https://corvint.example.invalid/include-escape/
+docs_dir: docs
+theme:
+  name: material
+plugins:
+  - search
+markdown_extensions:
+  - pymdownx.snippets:
+      check_paths: true
+

@@ -1,0 +1,109 @@
+{
+  "decision": "0427",
+  "status": "NO_PRIOR_USE_FOUND_WITHIN_SEARCHED_SCOPE",
+  "repository": "https://github.com/urfave/cli.git",
+  "pin": "7389061eb0182169c496021a09729735ac2b797b",
+  "tree": "7b3d3d699268a5e0a08afff798b9e09f6680c8da",
+  "sourceObservation": {
+    "method": "first public main HEAD advertisement, before corpus derivation; no candidate output",
+    "shallow": false
+  },
+  "checkedCurrentMetadata": [
+    {
+      "path": "benchmarks/manifest.json",
+      "sha256": "4d337719928d581ceb68aed8cced1eec66786ffc6c1e34d476d7f3bc9e0f3de8",
+      "containsUrfave": false
+    },
+    {
+      "path": "benchmarks/blind-v4-manifest.json",
+      "sha256": "a6c7439f3ed181d93165ee1839353ae2eca3bea38ef8fc6a0323300763a039c7",
+      "containsUrfave": false
+    },
+    {
+      "path": "benchmarks/blind-v3-manifest.json",
+      "sha256": "4fb67a876e35090f3fd454099311963fdbe82df1aab63d042c345503bb32a10d",
+      "containsUrfave": false
+    },
+    {
+      "path": "benchmarks/blind-v2-manifest.json",
+      "sha256": "1365eec079f861d8abe03123afdeefa4bd9da23f51bb2c7efce4366f553c87b1",
+      "containsUrfave": false
+    },
+    {
+      "path": "benchmarks/daily-loop-v0/preregistration.json",
+      "sha256": "ee94b7ca16c3f3a88ffe253483bdeb0d0f21c1a7de710126244dcec34f20dc96",
+      "containsUrfave": false
+    },
+    {
+      "path": "benchmarks/untouched-repository-v1/preregistration.json",
+      "sha256": "27625e854faf7dfb2379f59d38c7c082aeea19758e744874a52b20f200551e29",
+      "containsUrfave": false
+    },
+    {
+      "path": "benchmarks/untouched-repository-v1/cobra/preregistration.json",
+      "sha256": "9631e4ce822d4d17443e5c3bfe98e82c4685a70d6289f854ae5b8c730b98e5a4",
+      "containsUrfave": false
+    },
+    {
+      "path": "benchmarks/untouched-repository-v1/corvint/preregistration.json",
+      "sha256": "5e44a9efe6bf86189e166c516962db5fe921d40ab63c9ae5a76c25eac721543b",
+      "containsUrfave": false
+    },
+    {
+      "path": "conformance/perf-v0/packet-5-retry-2-manifest.json",
+      "sha256": "8dcd649d30dd9ffd212facc91c91aba0871e4425ed6b15ca5949d566a5918c6f",
+      "containsUrfave": false
+    },
+    {
+      "path": "conformance/perf-v0/seven-command-manifest.json",
+      "sha256": "cb864b4ec22d5f6541823e9bf93a466072439772175b11567d2e950efaa018e8",
+      "containsUrfave": false
+    },
+    {
+      "path": "conformance/perf-v0/manifest.json",
+      "sha256": "2849f32346b74d211dd8a089ec0f29c0366fc38289f63b13d42b1a9e85672d2f",
+      "containsUrfave": false
+    },
+    {
+      "path": "conformance/perf-v0/packet-5-manifest.json",
+      "sha256": "594ccd4e31002d42311a983baef11a2fe5ed7f5e728f7c8255f717ad36cf9cb4",
+      "containsUrfave": false
+    },
+    {
+      "path": "conformance/perf-v0/packet-5-retry-manifest.json",
+      "sha256": "3cff9ac726a88063606b28f411d06c2940709325d1a6845d9c526e37f0b4c837",
+      "containsUrfave": false
+    },
+    {
+      "path": "conformance/go-query-start-v0/manifest.json",
+      "sha256": "63aedbe55e3ec570532a2a72fb6af2bbd4bb5fe975629a869ecd2d3c594cebab",
+      "containsUrfave": false
+    },
+    {
+      "path": "benchmarks/README.md",
+      "sha256": "43c300d47e6b6443c9cdf58adef9ab74b53944eeb41c2885773e2cf7875cdd83",
+      "containsUrfave": false
+    },
+    {
+      "path": "tools/retrieval-bench/README.md",
+      "sha256": "824ba69f44458f842d3dd5f7005f3b1a40cfa5b969cccb4e9fd598f53027afa3",
+      "containsUrfave": false
+    }
+  ],
+  "history": {
+    "sourceHead": "5586e8e3beaf0bb6748ab8f52ff9c7c0c04aabdc",
+    "refInventorySha256": "8b4ad39e2b758effcb97791b47ae6ea3bf66c365a8f21db74e300c7e67c23940",
+    "method": "git log --all -G urfave over explicit manifest, preregistration, retained benchmark result, build-log and retrieval-plan paths",
+    "matchingCommits": 0
+  },
+  "retainedResultsMatchingFiles": 0,
+  "arbRepositoryIdentityMatches": 0,
+  "limitations": [
+    "No agent transcripts or sealed case bodies searched",
+    "No unreachable/deleted Git objects or unrecorded private experiments observed",
+    "Repository selection remains conditional on absence of contrary evidence; a later actual-use hit stops admission"
+  ],
+  "notAQualification": true,
+  "candidateExecution": "NOT_RUN",
+  "publication": "NOT_RUN"
+}

@@ -1,0 +1,13 @@
+{
+  "sourceCommit": "7caa4d1950a51a009928ea2d474e33a9ba074828",
+  "reviewCommit": "2596bc5881f38c31becdf2623ff8cc0475d50e66",
+  "base": "ad90d08cd020cadacac532e88fa94567006737d4",
+  "head": "363a2fd3423ee755f7eba72541f85c1bc6861fbb",
+  "tree": "b018681064b1f7a55eb5c1637c7102f40b3cb2d4",
+  "runner": "1.63.0",
+  "passed": 2,
+  "negativeControlsFailed": 2,
+  "ownedDescendantsGone": true,
+  "rawReportSHA256": "05e711b1c5a59bbea67d54fe6aa543090c4043ea80f2b504f661d76606edd911",
+  "selectionExit": 0
+}

@@ -1,0 +1,191 @@
+diff --git a/script/store-release-evidence.py b/script/store-release-evidence.py
+index 3564f8f17..02afadb2b 100644
+--- a/script/store-release-evidence.py
++++ b/script/store-release-evidence.py
+@@ -25,7 +25,8 @@ STORE_ARTIFACTS = {
+     "apple": {"privacy_manifest_audit", "privacy_form_capture"},
+     "play": {"data_safety_audit", "data_safety_form_capture"},
+ }
+-LOCALES_REQUIRING_HUMAN_REVIEW = {"fr-CA", "de", "es", "pt"}
++LAUNCH_LOCALE_CONTRACT = Path(__file__).resolve().parents[1] / "docs/release/launch-locales.json"
++LOCALE_TAG_RE = re.compile(r"^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8}){0,2}$")
+ STATEMENTS = {
+     "release_lead": "RELEASE_EVIDENCE_REVIEWED",
+     "store_submitter": "STORE_SUBMISSION_MATCHES_EVIDENCE",
+@@ -112,6 +113,53 @@ def safe_artifact(root: Path, artifact: Any, location: str) -> dict[str, str]:
+     return {"path": rel.as_posix(), "sha256": expected}
+ 
+ 
++def load_source_locale(path: Path) -> str:
++    """The review-exempt source locale, from the one file that defines the launch locale set.
++
++    `tools/gate/catalog-completeness.py` reads the same file, so the two gates
++    can no longer disagree about a locale the way the old pair of constants did
++    over `fr` and `fr-CA`. Only the source locale is consumed here: which
++    locales a release must be reviewed in is a property of the submission, so
++    the launch set governs the catalogs a build must contain, never the reviewer
++    roster this validator demands."""
++    try:
++        document = json.loads(path.read_text(encoding="utf-8"))
++    except (OSError, json.JSONDecodeError) as exc:
++        raise ContractError(f"launch locale contract: cannot read valid JSON from {path}: {exc}") from exc
++    doc = object_value(document, "launch locale contract")
++    launch = doc.get("launch_locales")
++    require(isinstance(launch, list) and launch, "launch locale contract: launch_locales must be a non-empty array")
++    tag = string_value(doc.get("source_locale"), "launch locale contract.source_locale")
++    require(tag in launch, "launch locale contract: source_locale must name a launch locale")
++    return tag
++
++
++def shipped_locales(root: Path, artifact: dict[str, str], location: str) -> list[str]:
++    """The locales a submission actually ships, read from its hashed localization artifact.
++
++    Deriving the set from artifact contents rather than from a module constant
++    is what makes the reviewer requirement provable: the artifact's SHA-256 is
++    already inside every attestation digest, so a submission cannot widen or
++    narrow the locales it claims to ship without invalidating every signature
++    over it."""
++    path = root / artifact["path"]
++    try:
++        document = json.loads(path.read_text(encoding="utf-8"))
++    except (OSError, json.JSONDecodeError) as exc:
++        raise ContractError(f"{location}: localization artifact must be JSON naming the shipped locales: {exc}") from exc
++    doc = object_value(document, location)
++    require(doc.get("schema_version") == 1, f"{location}.schema_version: expected 1")
++    locales = doc.get("shipped_locales")
++    require(isinstance(locales, list) and locales, f"{location}.shipped_locales: expected non-empty array")
++    accepted: list[str] = []
++    for index, entry in enumerate(locales):
++        tag = string_value(entry, f"{location}.shipped_locales[{index}]")
++        require(LOCALE_TAG_RE.fullmatch(tag) is not None, f"{location}.shipped_locales[{index}]: expected a BCP-47 locale tag")
++        require(tag not in accepted, f"{location}.shipped_locales: duplicate locale {tag}")
++        accepted.append(tag)
++    return sorted(accepted)
++
++
+ def validate_base(packet: Any, root: Path, now: datetime, max_age_days: int) -> tuple[dict[str, str], str, dict[str, Any]]:
+     doc = object_value(packet, "packet")
+     require(doc.get("schema_version") == 1, "schema_version: expected 1")
+@@ -129,8 +177,10 @@ def validate_base(packet: Any, root: Path, now: datetime, max_age_days: int) ->
+ 
+     submissions = doc.get("submissions")
+     require(isinstance(submissions, list) and submissions, "submissions: expected non-empty array")
++    source = load_source_locale(LAUNCH_LOCALE_CONTRACT)
+     digests: dict[str, str] = {}
+     normalized: dict[str, Any] = {}
++    shipped: dict[str, list[str]] = {}
+     identities: set[tuple[str, str, str]] = set()
+     for index, raw in enumerate(submissions):
+         location = f"submissions[{index}]"
+@@ -162,13 +212,28 @@ def validate_base(packet: Any, root: Path, now: datetime, max_age_days: int) ->
+             "store": store,
+             "version": version,
+         }
++        submission_locales = shipped_locales(
++            root, normalized_artifacts["localization"], f"{location}.artifacts.localization"
++        )
++        require(
++            source in submission_locales,
++            f"{location}.artifacts.localization: submission must ship the source locale {source}",
++        )
++        shipped[submission_id] = submission_locales
+         digests[submission_id] = canonical_sha256(normalized_submission)
+         normalized[submission_id] = normalized_submission
+ 
+     release_digest = canonical_sha256(
+         {"release": release, "submission_digests": {key: digests[key] for key in sorted(digests)}}
+     )
+-    return digests, release_digest, {"release_id": release_id, "git_sha": git_sha, "submissions": normalized, "doc": doc}
++    return digests, release_digest, {
++        "release_id": release_id,
++        "git_sha": git_sha,
++        "submissions": normalized,
++        "shipped": shipped,
++        "source_locale": source,
++        "doc": doc,
++    }
+ 
+ 
+ def valid_person_name(value: Any, location: str) -> str:
+@@ -211,7 +276,8 @@ def validate_attestations(
+             require(scope in digests, f"{location}.scope: expected submission id")
+             require(supplied_digest == digests[scope], f"{location}: submission evidence digest is stale or incorrect")
+             if role == "localization_reviewer":
+-                require(locale in LOCALES_REQUIRING_HUMAN_REVIEW, f"{location}.locale: expected one of {sorted(LOCALES_REQUIRING_HUMAN_REVIEW)}")
++                reviewable = [tag for tag in state["shipped"][scope] if tag != state["source_locale"]]
++                require(locale in reviewable, f"{location}.locale: {scope} ships {reviewable} for review, not {locale!r}")
+             else:
+                 require(not locale, f"{location}.locale: allowed only for localization_reviewer")
+         key = (role, scope, str(locale))
+@@ -223,7 +289,9 @@ def validate_attestations(
+     for submission_id in digests:
+         for role in ("store_submitter", "legal_policy"):
+             require((role, submission_id, "") in seen, f"human_attestations: missing {role} approval for {submission_id}")
+-        for locale in sorted(LOCALES_REQUIRING_HUMAN_REVIEW):
++        for locale in state["shipped"][submission_id]:
++            if locale == state["source_locale"]:
++                continue
+             require(
+                 ("localization_reviewer", submission_id, locale) in seen,
+                 f"human_attestations: missing localization_reviewer approval for {submission_id}/{locale}",
+@@ -274,7 +342,8 @@ def main(argv: list[str] | None = None) -> int:
+         return 1
+ 
+     for submission_id in sorted(digests):
+-        print(f"PASS machine evidence {submission_id} sha256={digests[submission_id]}")
++        locales = ",".join(state["shipped"][submission_id])
++        print(f"PASS machine evidence {submission_id} sha256={digests[submission_id]} ships={locales}")
+     for item in accepted:
+         suffix = f" locale={item['locale']}" if item["locale"] else ""
+         print(f"HUMAN_ATTESTED role={item['role']} scope={item['scope']}{suffix} name={json.dumps(item['name'])}")
+diff --git a/tools/gate/catalog-completeness.py b/tools/gate/catalog-completeness.py
+index 231766707..c28e62965 100755
+--- a/tools/gate/catalog-completeness.py
++++ b/tools/gate/catalog-completeness.py
+@@ -10,7 +10,27 @@ import sys
+ from pathlib import Path
+ 
+ 
+-LAUNCH_LANGUAGES = ("en", "fr", "de", "es", "pt")
++LAUNCH_LOCALE_CONTRACT = Path(__file__).resolve().parents[2] / "docs/release/launch-locales.json"
++
++
++def load_launch_locales(path: Path) -> tuple[str, ...]:
++    """The ADR-0034 launch locale set, read from the one file that defines it.
++
++    The tags are catalog identifiers: `fr` is the Quebec-French catalog that the
++    `fr-CA` display locale resolves to, so a catalog directory or key named
++    `fr-CA` is not a launch catalog. Reading fails closed rather than falling
++    back to a constant — a second copy of this list is how the two gates that
++    consume it drifted apart in the first place."""
++    document = json.loads(path.read_text(encoding="utf-8"))
++    locales = document["launch_locales"]
++    if not isinstance(locales, list) or not all(isinstance(tag, str) and tag for tag in locales):
++        raise ValueError(f"{path}: launch_locales must be a non-empty list of locale tags")
++    if document.get("source_locale") != locales[0]:
++        raise ValueError(f"{path}: source_locale must be the first launch locale")
++    return tuple(locales)
++
++
++LAUNCH_LANGUAGES = load_launch_locales(LAUNCH_LOCALE_CONTRACT)
+ 
+ 
+ def fail(message: str) -> None:
+@@ -125,7 +145,7 @@ def check_strings_directory(surface: str, path: Path) -> bool:
+     if not ok:
+         return False
+ 
+-    english_keys = set(catalogs["en"])
++    english_keys = set(catalogs[LAUNCH_LANGUAGES[0]])
+     for language, catalog in catalogs.items():
+         for key in sorted(english_keys - set(catalog)):
+             fail(f"{surface}/{language}: missing key {key!r}")
+@@ -162,7 +182,7 @@ def main() -> int:
+             ok = check_apple(surface, path) and ok
+ 
+     if ok:
+-        print("catalog-completeness: ok (en/fr/de/es/pt)")
++        print(f"catalog-completeness: ok ({'/'.join(LAUNCH_LANGUAGES)})")
+         return 0
+     return 1
+ 

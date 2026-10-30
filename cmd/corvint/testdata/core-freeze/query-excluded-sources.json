@@ -1,0 +1,140 @@
+{
+  "context": {
+    "abstention": {
+      "active": false,
+      "reason": "none"
+    },
+    "coverage": {
+      "advisory_results": 0,
+      "authoritative_results": 0,
+      "budget_bytes": null,
+      "critical": [],
+      "critical_missing": [],
+      "included_results": 1,
+      "omitted_results": 0,
+      "packet_bytes": 2874,
+      "requested_results": 1,
+      "uncertainty": [
+        "all results are syntax matches; no project-owned authority corroborates the task"
+      ],
+      "within_budget": true
+    },
+    "exclusions": {
+      "count": 6,
+      "samples": [
+        {
+          "path": "gen/values.go",
+          "reason": "generated path"
+        },
+        {
+          "path": "internal/store/migrate/migrate.go",
+          "reason": "protected path"
+        },
+        {
+          "path": "pkg/huge.go",
+          "reason": "source exceeds size bound"
+        },
+        {
+          "path": "pkg/model.go",
+          "reason": "git-lfs pointer, content not in the tree"
+        },
+        {
+          "path": "pkg/value_string.go",
+          "reason": "generated-file header excluded"
+        },
+        {
+          "path": "vendor/lib/lib.go",
+          "reason": "vendor/build excluded"
+        }
+      ]
+    },
+    "freshness": {
+      "mixed_path_count": 0,
+      "mixed_paths": [],
+      "revision": "af3c2553bc05e5525d1976f73079684310afce1b",
+      "scope": "git",
+      "state": "fresh"
+    },
+    "intent": {
+      "confidence": "default",
+      "id": "repository",
+      "matched_terms": []
+    },
+    "learning": {
+      "advisory_candidates": 0,
+      "history_commits_considered": 3,
+      "history_digest": "<varies:string>",
+      "history_tip": "<varies:string>",
+      "local_trace_count": 0,
+      "local_trace_state": "absent",
+      "matched_history_commits": 0,
+      "matched_local_traces": 0
+    },
+    "mode": "query",
+    "request": {
+      "limit": 10,
+      "text": "where is StableValue"
+    },
+    "results": [
+      {
+        "evidence": [
+          {
+            "authority": "syntax",
+            "blob_hash": "608fd2f8a1ee1bc6c9b373d3ec56823ee77b782d",
+            "confidence": "medium",
+            "line": 3,
+            "path": "pkg/main.go",
+            "reason": "declaration/path strongly matches query vocabulary"
+          }
+        ],
+        "id": "pkg/main.go:StableValue",
+        "kind": "symbol",
+        "name": "StableValue",
+        "score": 442,
+        "summary": "func declaration"
+      }
+    ],
+    "revision": "af3c2553bc05e5525d1976f73079684310afce1b",
+    "schema_version": 1,
+    "state": "READY",
+    "verification": [
+      "go test ./pkg/...",
+      "make gate"
+    ],
+    "widening": {
+      "disclosure": "widening rows fuse the task-context slot ranking with the lexical identifier channel over the same pinned revision (reciprocal rank fusion; each row's `fusion` names its rank in each list); they are lower-confidence candidates beneath results[] and this member is never authority evidence, whatever a row's own authority or trust labels say about its document (reserved governing rows are excluded); a row is carried only when its document names a task identifier by exact spelling, and rows below the fused-score cutoff are withheld and counted; widening yields packet budget to results[] first",
+      "lexical": {
+        "candidates": 2,
+        "identifiers": [
+          "StableValue"
+        ],
+        "terms": 3
+      },
+      "omitted_results": 0,
+      "profile": "task-context",
+      "ranking": {
+        "constant": 10,
+        "cutoff": {
+          "cap": 10,
+          "gap_ratio_percent": 70,
+          "relative_floor_percent": 50
+        },
+        "lexical_weight_percent": 100,
+        "lists": [
+          "task-context",
+          "lexical-identifier"
+        ],
+        "method": "rrf"
+      },
+      "results": [],
+      "state": "NO_CANDIDATES",
+      "withheld": {
+        "count": 1,
+        "reason": "1 row name no task identifier"
+      }
+    }
+  },
+  "mutates": false,
+  "ok": true,
+  "tool": "query"
+}

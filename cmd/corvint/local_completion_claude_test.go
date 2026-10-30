@@ -1,0 +1,251 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/localcompletion"
+
+	"github.com/Beamfall/corvint/internal/runtimeenv"
+)
+
+func TestClaudeNativeDogfoodLifecycle(t *testing.T) {
+	t.Parallel()
+	root := queryCLIRepository(t)
+	intent := commitLocalCompletionIntent(t, root)
+	base := strings.TrimSpace(gitOutput(t, root, "rev-parse", "HEAD"))
+	keyBytes := sha256.Sum256([]byte("corvint-local-completion-session/claude-code/0\x00native-session-é"))
+	key := hex.EncodeToString(keyBytes[:])
+	plan, err := json.Marshal(localcompletion.Plan{Base: base, Intents: []string{intent}, Checks: []localcompletion.Check{{ID: "unrun", Argv: []string{"false"}, TimeoutSeconds: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := localcompletion.Begin(context.Background(), root, key, plan); err != nil {
+		t.Fatal(err)
+	}
+	before := repositoryBytesDigest(t, root)
+	t.Run("LCP-V0-008 first and recursive Stop preserve unresolved enrollment", func(t *testing.T) {
+		for _, active := range []bool{false, true, true} {
+			output := runClaudeAdapterTest(lifecycleDeadlineContext(), t, root, "stop", map[string]any{"session_id": "native-session-é", "stop_hook_active": active})
+			if !active && output["decision"] != "block" {
+				t.Fatalf("first Stop did not block: %v", output)
+			}
+			// AHI-047: the block names its recovery argv but repeats no SessionStart guidance.
+			if reason := fmt.Sprint(output["reason"]); !active && (!strings.Contains(reason, "Next: ") || strings.Contains(reason, "workflow argv")) {
+				t.Fatalf("first Stop block reason: %q", reason)
+			}
+			if active && (output["decision"] != nil || !strings.Contains(fmt.Sprint(output["systemMessage"]), "unresolved")) {
+				t.Fatalf("recursive Stop did not release unresolved: %v", output)
+			}
+		}
+	})
+	// V1-0844: the rc.2 HLQ frontier symptom "enrolled incomplete Stop returned decision <nil>" is
+	// what this enrolled incomplete Stop returns when its event deadline passes after the
+	// evaluation already decided to block. The expiry is forced, so load cannot decide the outcome
+	// (decision 0082); the ten minutes are a hang detector.
+	t.Run("LCP-V0-008 HLQ-V1-009 an enrolled incomplete Stop past its deadline fails open with no decision", func(t *testing.T) {
+		parent, expire := workFinalInterruption("expired")
+		var evaluated map[string]any
+		ctx := liftedProbeBound(context.WithValue(parent, dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return 10 * time.Minute }))
+		ctx = context.WithValue(ctx, dogfoodEventReadKey{}, func(ctx context.Context, options options, input map[string]any) (map[string]any, error) {
+			result, err := dogfoodEvent(ctx, options, input)
+			if err != nil {
+				return nil, err
+			}
+			evaluated, _ = result["completion"].(map[string]any)
+			// The read returns its real blocking result after the deadline has passed, so only
+			// the production deadline enforcement can turn it into the fail-open.
+			expire()
+			<-ctx.Done()
+			return result, nil
+		})
+		output := runClaudeAdapterTest(ctx, t, root, "stop", map[string]any{"session_id": "native-session-é", "stop_hook_active": false})
+		if evaluated["decision"] != "block" {
+			t.Fatalf("the enrolled Stop evaluation did not decide to block: %v", evaluated)
+		}
+		notice, _ := output["systemMessage"].(string)
+		if _, decided := output["decision"]; decided || !strings.HasPrefix(notice, "Corvint FALLBACK degraded: corvint-event-rejected:dogfood-event-deadline; coding continues\n") {
+			t.Fatalf("expired enrolled Stop output %v", output)
+		}
+	})
+	t.Run("LCP-V0-002 native identity is isolated from explicit handoff", func(t *testing.T) {
+		otherKey := localcompletion.HashSession("native-session-é")
+		if key == otherKey {
+			t.Fatal("host session namespaces collided")
+		}
+		other, err := localcompletion.Evaluate(context.Background(), root, otherKey)
+		if err != nil || other.Satisfied || other.Lifecycle != "inactive" {
+			t.Fatalf("other native key consumed enrollment: %+v %v", other, err)
+		}
+		if _, err := localcompletion.Begin(context.Background(), root, otherKey, plan); err == nil {
+			t.Fatal("other native key replaced active owner")
+		}
+		otherRoot := queryCLIRepository(t)
+		wrongRoot, err := localcompletion.Evaluate(context.Background(), otherRoot, key)
+		if err != nil || wrongRoot.Satisfied || wrongRoot.Lifecycle != "inactive" {
+			t.Fatalf("wrong root adopted enrollment: %+v %v", wrongRoot, err)
+		}
+		for _, host := range []string{"codex", "claude-code"} {
+			args := dogfoodEventArguments("stop")
+			args[1], args[3] = host, dogfoodHostVersions[host]
+			var stdout, stderr bytes.Buffer
+			status := runLocalCompletionEvent(lifecycleDeadlineContext(), root, args, strings.NewReader(`{"sessionIdSha256":"`+key+`"}`), &stdout, &stderr)
+			if status != 0 || !bytes.Contains(stdout.Bytes(), []byte(`"decision":"block"`)) {
+				t.Fatalf("explicit key/root not resumable from %s: %d %s %s", host, status, &stdout, &stderr)
+			}
+		}
+	})
+	t.Run("LCP-V0-010 LCP-V0-011 AHI-046 anchorless prompt keeps scope and uncertainty in the receipt and injects nothing", func(t *testing.T) {
+		output := runClaudeAdapterTest(lifecycleDeadlineContext(), t, root, "user-prompt", map[string]any{"session_id": "native-session-é", "prompt": "what about it"})
+		if len(output) != 0 {
+			t.Fatalf("anchorless prompt injected context: %v", output)
+		}
+		result, reason := invokeDogfoodEvent(lifecycleDeadlineContext(), root, "claude-code", "user-prompt", map[string]any{"sessionIdSha256": key, "task": "what about it"}, adapterOutputLimit)
+		if reason != "" {
+			t.Fatal(reason)
+		}
+		raw, _ := json.Marshal(result)
+		if bytes.Contains(raw, []byte("what about it")) || !bytes.Contains(raw, []byte(`"explicit-task-anchor-required"`)) || !bytes.Contains(raw, []byte(`"declared_scope":[{`)) || !bytes.Contains(raw, []byte(`"coverage"`)) {
+			t.Fatalf("engine receipt lost privacy/scope/uncertainty: %s", raw)
+		}
+		if projection := hookContextProjection("user-prompt", result, false); projection != nil {
+			t.Fatalf("anchorless prompt projected %v", projection)
+		}
+	})
+	t.Run("AHI-045 AHI-047 anchored prompt injects the projection without guidance", func(t *testing.T) {
+		output := runClaudeAdapterTest(lifecycleDeadlineContext(), t, root, "user-prompt", map[string]any{"session_id": "native-session-é", "prompt": "Explain `AGENTS.md`"})
+		contextText, _ := claudeHookOutput(t, output)["additionalContext"].(string)
+		if strings.Contains(contextText, "workflow argv") || !strings.HasPrefix(contextText, untrustedDataPrefix) {
+			t.Fatalf("prompt context carries guidance or lacks the envelope: %s", contextText)
+		}
+		var projection map[string]any
+		if err := json.Unmarshal(envelopedProjection(t, contextText), &projection); err != nil {
+			t.Fatal(err)
+		}
+		evidence, _ := projection["task_evidence"].([]any)
+		policy, _ := projection["policy"].(map[string]any)
+		if projection["profile"] != hookContextProfile || len(evidence) == 0 || policy["lifecycle"] != "active" {
+			t.Fatalf("anchored prompt projection: %v", projection)
+		}
+		for _, dropped := range []string{"adapter", "repository", "requestSha256", "resultDigest", "frontier", "completion", "context", "coverage", "degradations"} {
+			if _, ok := projection[dropped]; ok {
+				t.Fatalf("projection carries %s: %v", dropped, projection)
+			}
+		}
+	})
+	t.Run("AHI-003 AHI-012 AHI-047 IDX-SNAP-V0-012 native startup resume clear compact stay read only", func(t *testing.T) {
+		for _, source := range []string{"startup", "resume", "clear", "compact"} {
+			output := runClaudeAdapterTest(lifecycleDeadlineContext(), t, root, "session-start", map[string]any{"session_id": "native-session-é", "source": source})
+			hook := claudeHookOutput(t, output)
+			contextText, _ := hook["additionalContext"].(string)
+			if hook["hookEventName"] != "SessionStart" || !strings.Contains(contextText, `"--session-key","`+key+`"`) {
+				t.Fatalf("main-thread %s start lacks the workflow argv: %v", source, output)
+			}
+			// A subagent SessionStart (agent_id present) takes the prompt rule: a clean tree with
+			// nothing actionable injects nothing, guidance included.
+			subagent := runClaudeAdapterTest(lifecycleDeadlineContext(), t, root, "session-start", map[string]any{"session_id": "native-session-é", "source": source, "agent_id": "a1b2c3", "agent_type": "general-purpose"})
+			if len(subagent) != 0 {
+				t.Fatalf("subagent %s start injected: %v", source, subagent)
+			}
+		}
+	})
+	t.Run("AHI-014 minimum identity and boolean Stop reject before core", func(t *testing.T) {
+		for _, payload := range []map[string]any{{}, {"session_id": 5}, {"session_id": "x", "stop_hook_active": 1}} {
+			output := runClaudeAdapterTest(lifecycleDeadlineContext(), t, root, "stop", payload)
+			if output["decision"] != nil || !strings.Contains(fmt.Sprint(output["systemMessage"]), "degraded") {
+				t.Fatalf("invalid identity indicated completion: %v", output)
+			}
+		}
+	})
+	t.Run("LCP-V0-009 AHI-009 host admission remains closed", func(t *testing.T) {
+		for _, field := range []int{1, 3, 5, 7} {
+			args := dogfoodEventArguments("stop")
+			args[1] = "claude-code"
+			args[field] = "unsupported"
+			var stdout, stderr bytes.Buffer
+			status := runLocalCompletionEvent(lifecycleDeadlineContext(), root, args, strings.NewReader(`{}`), &stdout, &stderr)
+			if status != 2 || stdout.Len() != 0 || (!strings.Contains(stderr.String(), "unsupported-dogfood-event-host") && !strings.Contains(stderr.String(), "invalid-dogfood-event-arguments")) {
+				t.Fatalf("unqualified tuple admitted: %v %d %s %s", args, status, &stdout, &stderr)
+			}
+		}
+	})
+	if after := repositoryBytesDigest(t, root); after != before {
+		t.Fatal("native hook events changed repository/Git entries, bytes or modes")
+	}
+	state, err := localcompletion.Evaluate(context.Background(), root, key)
+	if err != nil || state.Satisfied || state.Lifecycle != "active" {
+		t.Fatalf("read-only hooks completed or lost enrollment: %+v %v", state, err)
+	}
+}
+
+// lifecycleDeadlineContext lifts the event deadline for tests that verify
+// lifecycle semantics, not host latency; the production deadline stays pinned by
+// TestDogfoodEventDeadlineBelowDeclaredHostKill.
+func lifecycleDeadlineContext() context.Context {
+	return liftedProbeBound(context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return 10 * time.Minute }))
+}
+
+// liftedProbeBound also lifts the Git repository probe's fixed 10-second bound, which otherwise
+// stays the event's latency bound once its deadline is lifted: a loaded host expired it and turned
+// an enrolled Stop into the dogfood-event-deadline fallback (V1-1391, decision 0082). Its
+// classification stays pinned by the "LCP-V0-008 Git probe expiry" test.
+func liftedProbeBound(ctx context.Context) context.Context {
+	return gokernel.WithProbeBound(ctx, 10*time.Minute)
+}
+
+// adapterEnvContext supplies the adapter's process-boundary variables from env alone, so a
+// test neither calls t.Setenv nor sees the process environment.
+func adapterEnvContext(parent context.Context, env map[string]string) context.Context {
+	return context.WithValue(parent, adapterEnvKey{}, runtimeenv.Lookup(func(name string) (string, bool) {
+		value, present := env[name]
+		if name == "CORVINT_INDEX_AUTO_REFRESH" && !present {
+			return "0", true
+		}
+		return value, present
+	}))
+}
+
+func runClaudeAdapterTest(ctx context.Context, t *testing.T, root, event string, payload map[string]any) map[string]any {
+	t.Helper()
+	output := runClaudeAdapter(adapterEnvContext(ctx, map[string]string{"CLAUDE_PROJECT_DIR": root}), event, payload)
+	raw, err := json.Marshal(output)
+	if err != nil || len(raw)+1 > adapterOutputLimit {
+		t.Fatalf("native adapter output: %v %d", err, len(raw)+1)
+	}
+	return output
+}
+
+func claudeHookOutput(t *testing.T, output map[string]any) map[string]any {
+	t.Helper()
+	hook, ok := output["hookSpecificOutput"].(map[string]any)
+	if !ok {
+		t.Fatalf("native adapter output has no hookSpecificOutput: %v", output)
+	}
+	return hook
+}
+
+// commitLocalCompletionIntent commits an intent with a numbered Requirements
+// section, which dogfood begin requires (LCP-V0-037), and returns its path.
+func commitLocalCompletionIntent(t *testing.T, root string) string {
+	t.Helper()
+	const intent = "docs/specs/lcp-intent.md"
+	if err := os.MkdirAll(filepath.Join(root, "docs", "specs"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, intent), []byte("# Intent\n\n## Requirements\n\n- `FIXTURE-LCP-001`: preserve behavior.\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	gitOutput(t, root, "add", intent)
+	gitOutput(t, root, "commit", "-qm", "add intent fixture")
+	return intent
+}

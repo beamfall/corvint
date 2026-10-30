@@ -1,0 +1,48 @@
+{
+  "schema": "corvint.release-artifact-v0",
+  "toolchain": {
+    "goVersion": "go1.27.3",
+    "goModDirective": "1.27.3",
+    "forbiddenGoModDirective": "toolchain",
+    "gotoolchain": "local"
+  },
+  "profile": {
+    "package": "./cmd/corvint",
+    "modulePath": "github.com/Beamfall/corvint",
+    "binaryName": "corvint",
+    "buildFlags": ["-trimpath"],
+    "environment": {
+      "CGO_ENABLED": "0",
+      "GOENV": "off",
+      "GOTOOLCHAIN": "local",
+      "GOPROXY": "off",
+      "GOFLAGS": "-mod=readonly",
+      "GOSUMDB": "off"
+    }
+  },
+  "targets": [
+    {"goos": "darwin", "goarch": "amd64", "binarySuffix": ""},
+    {"goos": "darwin", "goarch": "arm64", "binarySuffix": ""},
+    {"goos": "linux", "goarch": "amd64", "binarySuffix": ""},
+    {"goos": "linux", "goarch": "arm64", "binarySuffix": ""},
+    {"goos": "windows", "goarch": "amd64", "binarySuffix": ".exe"}
+  ],
+  "legalFiles": [
+    {"path": "LICENSE", "sha256": "d43daf6ebba91f7ea294dedcd0da5fe6cf02ab611e36181c7e168a207e75457e"},
+    {"path": "LICENSE-APACHE-2.0", "sha256": "a55dcdf3a62566e48883e0c0caba22c65f8fe5431aed6437422ba447e60cd27b"},
+    {"path": "LICENSING.md", "sha256": "b7a89bd5b7be7bf2a3fb692bc7f07bcbe567c4fe00308930432a7a046a4d3a1f"},
+    {"path": "PROVENANCE.md", "sha256": "c692bbf85d374cb633e106c125dbe4448459f9fef91d57b8bab0d1bf980557f1"}
+  ],
+  "smoke": {
+    "versionArgument": "--version",
+    "expectedVersion": "Corvint 1.0.0-rc.3",
+    "queryTask": "Identify the active work queue, required workflow gates, and minimum context needed to safely take the next roadmap ticket",
+    "queryLimit": "1",
+    "expectedIntent": "project-operations",
+    "fixtureInstructions": "# Agents\n\nGate: run the repository gate before commit.\nQueue: the roadmap holds the active tickets.\n",
+    "crossCompileNotRunReason": "NOT_RUN: this host cannot execute the target. GPK-V0-018 states cross-compilation is not execution evidence; native conformance, filesystem-safety, process-cleanup, and read-nonmutation matrices remain owed on that operating system."
+  },
+  "pendingEvidence": [
+    "W10-performance-GPK-V0-016-017"
+  ]
+}

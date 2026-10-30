@@ -1,0 +1,641 @@
+package store_test
+
+import (
+	"context"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/Beamfall/corvint/internal/tasks/authority"
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
+	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
+	"github.com/Beamfall/corvint/internal/tasks/store"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
+	"github.com/Beamfall/corvint/internal/tasks/transaction"
+	"github.com/Beamfall/corvint/internal/tasks/wire"
+)
+
+// commandGate is a policy COMMAND gate running script under sh with no
+// environment, so scripts use builtins or absolute paths.
+func commandGate(id, script, timeout string, required bool) wire.Value {
+	return obj("gateId", str(id), "kind", str("COMMAND"), "argv", wire.Strings([]string{"sh", "-c", script}), "cwd", str("WORKTREE"),
+		"env", wire.Strings(nil), "timeoutSeconds", str(timeout), "expected", obj("exitCode", str("0"), "reducer", wire.Null()),
+		"evidence", wire.Strings(nil), "inputs", wire.Strings(nil), "sharedResource", wire.Null(), "reusable", wire.Bool(true), "required", wire.Bool(required))
+}
+
+func newGateStore(t *testing.T) *leaseStore {
+	t.Helper()
+	return newLeaseStore(t,
+		commandGate("verify", "printf ok", "30", true),
+		commandGate("fails", "printf no; exit 3", "30", false),
+		commandGate("slow", "/bin/sleep 5", "1", false),
+		commandGate("dirty", ": > junk", "30", false))
+}
+
+func gitOut(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	c := exec.Command("git", append([]string{"-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
+	c.Dir = dir
+	c.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
+	out, err := c.Output()
+	if err != nil {
+		var stderr []byte
+		if exit, ok := err.(*exec.ExitError); ok {
+			stderr = exit.Stderr
+		}
+		t.Fatalf("git %v: %v %s", args, err, stderr)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// commit writes each path with its own name as content, commits them, and
+// returns the commit and its tree.
+func (s *leaseStore) commit(t *testing.T, paths ...string) (string, string) {
+	t.Helper()
+	for _, p := range paths {
+		fixture.Write(t, filepath.Join(s.root, p), []byte(p))
+	}
+	gitRun(t, s.root, "add", "-A")
+	gitRun(t, s.root, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "-m", "change")
+	return gitOut(t, s.root, "rev-parse", "HEAD"), gitOut(t, s.root, "rev-parse", "HEAD^{tree}")
+}
+
+func submitOf(a *store.Report, tree string) transaction.LeaseRequest {
+	return transaction.LeaseRequest{Verb: transaction.LeaseSubmit, AttemptID: a.AttemptID, Generation: a.Generation, Tree: tree}
+}
+
+func gateOf(a *store.Report, gate string) transaction.LeaseRequest {
+	return transaction.LeaseRequest{Verb: transaction.LeaseGateRun, AttemptID: a.AttemptID, Generation: a.Generation, Gate: gate}
+}
+
+func completeOf(a *store.Report, commit string) transaction.LeaseRequest {
+	return transaction.LeaseRequest{Verb: transaction.LeaseComplete, AttemptID: a.AttemptID, Generation: a.Generation, Commit: commit}
+}
+
+// gate runs l in the checkout with the clock fixed at t0 plus minutes.
+func (s *leaseStore) gate(t *testing.T, requestID string, l transaction.LeaseRequest, minutes int) (*store.Report, error) {
+	t.Helper()
+	return s.gateWith(context.Background(), t, requestID, l, minutes)
+}
+
+// gateWith is gate under ctx, for a gate whose lock wait the test bounds.
+func (s *leaseStore) gateWith(ctx context.Context, t *testing.T, requestID string, l transaction.LeaseRequest, minutes int) (*store.Report, error) {
+	t.Helper()
+	at, err := time.Parse("2006-01-02T15:04:05Z", string(s.at(t, minutes)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	choice := store.LeaseChoice{QueueID: fixture.QueueID, RequestID: requestID, Root: s.root, Lease: l}
+	return store.GateRun(ctx, s.repo, operator(), choice, s.root, func() time.Time { return at })
+}
+
+func (s *leaseStore) passes(t *testing.T, requestID string, l transaction.LeaseRequest, minutes int) {
+	t.Helper()
+	report, err := s.gate(t, requestID, l, minutes)
+	if err != nil || report.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("gate %s: %+v %v", requestID, report, err)
+	}
+}
+
+func (s *leaseStore) evidence(t *testing.T, digest string) []byte {
+	t.Helper()
+	raw, err := os.ReadFile(filepath.Join(s.repo.StateDir, "evidence", digest))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return raw
+}
+
+// results decodes the attempt's gate results by gateId.
+func (s *leaseStore) results(t *testing.T, id string) map[string]*snapshot.GateResult {
+	t.Helper()
+	out := map[string]*snapshot.GateResult{}
+	for _, d := range s.attempt(t, id).GateResults {
+		g, err := snapshot.DecodeGateResult(s.evidence(t, d))
+		if err != nil {
+			t.Fatal(err)
+		}
+		out[g.GateID] = g
+	}
+	return out
+}
+
+func (s *leaseStore) record(t *testing.T, id string) *ticket.Record {
+	t.Helper()
+	full, err := wire.ParseTicketID("ticketId", id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(s.repo.PrimaryWorktree, intent.Dir, "tickets", full.Local+".json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec, err := ticket.Decode(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return rec
+}
+
+// submitted is a claim over dir/ at t0 plus minutes whose commit of
+// dir/a.go is submitted a minute later.
+func (s *leaseStore) submitted(t *testing.T, id, dir string, minutes int) (*store.Report, string) {
+	t.Helper()
+	claim := s.claim(t, "claim-"+id, id, minutes, dir+"/")
+	commit, tree := s.commit(t, dir+"/a.go")
+	if r := s.lease(t, "submit-"+id, submitOf(claim, tree), minutes+1, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("submit: %+v", r)
+	}
+	return claim, commit
+}
+
+// TestCALV0015_SubmitRecordsTheCandidateTree: submit moves the attempt to
+// BUILT at the tree, the same tree again is a no-op, a new tree replaces it,
+// and a stale generation is fenced.
+func TestCALV0015_SubmitRecordsTheCandidateTree(t *testing.T) {
+	t.Parallel()
+	s := newGateStore(t)
+	claim := s.claim(t, "claim-1", s.ticket(t, "one"), 0, "src/")
+	_, tree := s.commit(t, "src/a.go")
+	report := s.lease(t, "submit-1", submitOf(claim, tree), 1, nil)
+	a := s.attempt(t, claim.AttemptID)
+	if report.Outcome.Outcome != mutation.OutcomeCompleted || a.Phase != "BUILT" || a.CandidateTreeOid == nil || *a.CandidateTreeOid != tree || a.ScopeCheck != "WITHIN" {
+		t.Fatalf("submit: %+v %+v", report, a)
+	}
+	if again := s.lease(t, "submit-1", submitOf(claim, tree), 1, nil); again.Kind != "Replay" {
+		t.Fatalf("replay: %+v", again)
+	}
+	before := storeDigest(t, s.repo)
+	if same := s.lease(t, "submit-2", submitOf(claim, tree), 2, nil); same.Kind != "NoChange" || storeDigest(t, s.repo) != before {
+		t.Fatalf("same tree: %+v", same)
+	}
+	_, next := s.commit(t, "src/b.go")
+	s.lease(t, "submit-3", submitOf(claim, next), 3, nil)
+	if a := s.attempt(t, claim.AttemptID); *a.CandidateTreeOid != next {
+		t.Fatalf("resubmit: %+v", a)
+	}
+	stale := submitOf(claim, next)
+	stale.Generation = wire.SizeOf(claim.Generation.Uint64() + 1)
+	refusedWith(t, s.lease(t, "submit-stale", stale, 4, nil), mutation.OutcomeRevisionConflict, wire.CodeFenced)
+	auditOK(t, s.repo)
+}
+
+// TestCALV0024_SubmitOutsideTheScopeIsRefused: every path added, deleted
+// or modified outside the scope is named and nothing is written; a path
+// another change merged on the intent branch after the claim is not the
+// candidate's; WHOLE_REPOSITORY covers all.
+func TestCALV0024_SubmitOutsideTheScopeIsRefused(t *testing.T) {
+	t.Parallel()
+	s := newGateStore(t)
+	one, two := s.ticket(t, "one"), s.ticket(t, "two")
+	s.commit(t, "keep/old.go", "keep/mod.go")
+	claim := s.claim(t, "claim-1", one, 0, "src/a.go")
+	gitRun(t, s.root, "checkout", "-q", "-b", "agent")
+	gitRun(t, s.root, "rm", "-q", "keep/old.go")
+	fixture.Write(t, filepath.Join(s.root, "keep/mod.go"), []byte("changed"))
+	_, tree := s.commit(t, "src/a.go", "docs/x.md", "lib/y.go")
+	before := storeDigest(t, s.repo)
+	report := s.lease(t, "submit-1", submitOf(claim, tree), 1, nil)
+	refusedWith(t, report, mutation.OutcomeBlocked, wire.CodeOutOfScope)
+	if !strings.Contains(report.Detail, "docs/x.md keep/mod.go keep/old.go lib/y.go") || strings.Contains(report.Detail, "src/a.go") {
+		t.Fatalf("detail: %q", report.Detail)
+	}
+	if storeDigest(t, s.repo) != before {
+		t.Fatal("refused submit wrote")
+	}
+	gitRun(t, s.root, "checkout", "-q", "main")
+	s.commit(t, "other/z.go")
+	gitRun(t, s.root, "checkout", "-q", "-b", "rebased")
+	_, rebased := s.commit(t, "src/a.go")
+	if r := s.lease(t, "submit-2", submitOf(claim, rebased), 2, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("rebased submit: %+v", r)
+	}
+	s.lease(t, "release-1", releaseOf(claim), 3, nil)
+	whole := s.claim(t, "claim-2", two, 4)
+	if r := s.lease(t, "submit-3", submitOf(whole, tree), 5, nil); r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("whole repository submit: %+v", r)
+	}
+	auditOK(t, s.repo)
+}
+
+// TestCALV0016_GateRunRecordsEachResult: PASSED, FAILED, TIMEOUT and a run
+// that dirties the worktree are recorded with their output as evidence, and
+// a rerun of the same gate replaces its result.
+func TestCALV0016_GateRunRecordsEachResult(t *testing.T) {
+	t.Parallel()
+	s := newGateStore(t)
+	claim, _ := s.submitted(t, s.ticket(t, "one"), "src", 0)
+	s.passes(t, "gate-1", gateOf(claim, "verify"), 2)
+	a := s.attempt(t, claim.AttemptID)
+	g := s.results(t, claim.AttemptID)["verify"]
+	if a.Phase != "CHECKING" || g == nil || g.State != "PASSED" || g.OutcomeClass != "EXIT" || g.ExitCode.Int() != 0 || *g.ExecutedCwd != "WORKTREE" {
+		t.Fatalf("verify: %+v %+v", a, g)
+	}
+	if out := s.evidence(t, string(g.Evidence[0].Sha256)); string(out) != "ok" {
+		t.Fatalf("output: %q", out)
+	}
+	first := a.GateResults[0]
+	s.passes(t, "gate-2", gateOf(claim, "verify"), 3)
+	if again := s.attempt(t, claim.AttemptID).GateResults; len(again) != 1 || again[0] == first {
+		t.Fatalf("rerun did not replace: %v", again)
+	}
+	s.passes(t, "gate-3", gateOf(claim, "fails"), 4)
+	s.passes(t, "gate-4", gateOf(claim, "slow"), 5)
+	s.passes(t, "gate-5", gateOf(claim, "dirty"), 6)
+	results := s.results(t, claim.AttemptID)
+	for id, want := range map[string][2]string{"fails": {"FAILED", "EXIT"}, "slow": {"FAILED", "TIMEOUT"}, "dirty": {"BLOCKED", "EXIT"}} {
+		if g := results[id]; g == nil || g.State != want[0] || g.OutcomeClass != want[1] {
+			t.Fatalf("%s: %+v", id, g)
+		}
+	}
+	if results["fails"].ExitCode.Int() != 3 || *results["dirty"].PorcelainClean {
+		t.Fatalf("fails %+v dirty %+v", results["fails"], results["dirty"])
+	}
+	auditOK(t, s.repo)
+}
+
+// TestCALV0319_InterruptedGateRunRecordsItsResult: a gate run whose context
+// ends while the gate runs (the CLI's SIGINT/SIGTERM) stops the gate's
+// process group and still records the run as a FAILED result carrying the
+// output the gate printed before the interrupt, reports the interruption,
+// and stays unretryable (V1-2012).
+func TestCALV0319_InterruptedGateRunRecordsItsResult(t *testing.T) {
+	t.Parallel()
+	s := newLeaseStore(t, commandGate("chatty", "printf partial; /bin/sleep 30", "60", false))
+	claim, _ := s.submitted(t, s.ticket(t, "one"), "src", 0)
+	at, err := time.Parse("2006-01-02T15:04:05Z", string(s.at(t, 2)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	time.AfterFunc(2*time.Second, cancel)
+	started := time.Now()
+	choice := store.LeaseChoice{QueueID: fixture.QueueID, RequestID: "gate-interrupted", Root: s.root, Lease: gateOf(claim, "chatty")}
+	report, err := store.GateRun(ctx, s.repo, operator(), choice, s.root, func() time.Time { return at })
+	if err != nil || report.Outcome.Outcome != mutation.OutcomeCompleted || !report.GateInterrupted || !report.Unretryable {
+		t.Fatalf("interrupted gate run: %+v %v", report, err)
+	}
+	if elapsed := time.Since(started); elapsed > 20*time.Second {
+		t.Fatalf("the interrupt did not stop the gate: %s", elapsed)
+	}
+	g := s.results(t, claim.AttemptID)["chatty"]
+	if g == nil || g.State != "FAILED" || (g.OutcomeClass == "EXIT" && g.ExitCode.Int() == 0) {
+		t.Fatalf("interrupted result: %+v", g)
+	}
+	if out := s.evidence(t, string(g.Evidence[0].Sha256)); string(out) != "partial" {
+		t.Fatalf("output: %q", out)
+	}
+	auditOK(t, s.repo)
+}
+
+// TestCALV0319_CancelDuringPostRunObservationRecordsResult: a gate run
+// whose context ends after the program exits but while the post-run
+// worktree observation runs still observes under the interrupted-record
+// bound, records the run with its output, and reports the interruption,
+// rather than discarding the result. It sets a package hook, so it does
+// not run in parallel.
+func TestCALV0319_CancelDuringPostRunObservationRecordsResult(t *testing.T) {
+	s := newLeaseStore(t, commandGate("quick", "printf done", "60", false))
+	claim, _ := s.submitted(t, s.ticket(t, "one"), "src", 0)
+	at, err := time.Parse("2006-01-02T15:04:05Z", string(s.at(t, 2)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	restore := store.SetGateObserveFaultForTest(cancel)
+	defer restore()
+	choice := store.LeaseChoice{QueueID: fixture.QueueID, RequestID: "gate-observe-cancelled", Root: s.root, Lease: gateOf(claim, "quick")}
+	report, err := store.GateRun(ctx, s.repo, operator(), choice, s.root, func() time.Time { return at })
+	if err != nil || report.Outcome.Outcome != mutation.OutcomeCompleted || !report.GateInterrupted || !report.Unretryable {
+		t.Fatalf("gate run cancelled during observation: %+v %v", report, err)
+	}
+	g := s.results(t, claim.AttemptID)["quick"]
+	if g == nil || g.OutcomeClass != "EXIT" || g.ExitCode.Int() != 0 {
+		t.Fatalf("recorded result: %+v", g)
+	}
+	if out := s.evidence(t, string(g.Evidence[0].Sha256)); string(out) != "done" {
+		t.Fatalf("output: %q", out)
+	}
+	auditOK(t, s.repo)
+}
+
+// TestCALV0016_GateRunRefusesWithoutRunning: an unsubmitted attempt, a dirty
+// or moved worktree and an unknown gate are refused and record nothing.
+func TestCALV0016_GateRunRefusesWithoutRunning(t *testing.T) {
+	t.Parallel()
+	s := newGateStore(t)
+	claim := s.claim(t, "claim-1", s.ticket(t, "one"), 0, "src/")
+	before := storeDigest(t, s.repo)
+	report, err := s.gate(t, "gate-0", gateOf(claim, "verify"), 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	refusedWith(t, report, mutation.OutcomeBlocked, wire.CodeTicketState)
+	_, tree := s.commit(t, "src/a.go")
+	s.lease(t, "submit-1", submitOf(claim, tree), 1, nil)
+	before = storeDigest(t, s.repo)
+	fixture.Write(t, filepath.Join(s.root, "stray"), []byte("x"))
+	if _, err := s.gate(t, "gate-1", gateOf(claim, "verify"), 2); wire.CodeOf(err) != wire.CodeDirtyWorktree {
+		t.Fatalf("dirty: %v", err)
+	}
+	if err := os.Remove(filepath.Join(s.root, "stray")); err != nil {
+		t.Fatal(err)
+	}
+	s.commit(t, "src/b.go")
+	if _, err := s.gate(t, "gate-2", gateOf(claim, "verify"), 3); wire.CodeOf(err) != wire.CodeStaleTree {
+		t.Fatalf("moved: %v", err)
+	}
+	if _, err := s.gate(t, "gate-3", gateOf(claim, "absent"), 3); wire.CodeOf(err) != wire.CodeGateUnknown {
+		t.Fatalf("unknown gate: %v", err)
+	}
+	if storeDigest(t, s.repo) != before {
+		t.Fatal("refused gate run wrote")
+	}
+}
+
+// TestCALV0017_CompleteVerifiesTheTicket: a commit of the candidate on the
+// intent branch whose required gates passed completes the ticket VERIFIED,
+// ends the attempt COMPLETED and frees its reservation in one MANIFEST
+// receipt.
+func TestCALV0017_CompleteVerifiesTheTicket(t *testing.T) {
+	t.Parallel()
+	s := newGateStore(t)
+	id := s.ticket(t, "one")
+	claim, commit := s.submitted(t, id, "src", 0)
+	s.passes(t, "gate-1", gateOf(claim, "verify"), 2)
+	report := s.lease(t, "complete-1", completeOf(claim, commit), 3, nil)
+	if report.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("complete: %+v", report)
+	}
+	a := s.attempt(t, claim.AttemptID)
+	if a.Phase != "COMPLETED" || a.Quiescence != "FENCED" || a.ManifestSha256 == nil || len(s.entries(t)) != 0 {
+		t.Fatalf("attempt: %+v", a)
+	}
+	rec := s.record(t, id)
+	if rec.Status != ticket.StatusCompleted || rec.Completion == nil || rec.Completion.Kind != "VERIFIED" || *rec.Completion.ManifestSha256 != *a.ManifestSha256 || len(rec.Completion.Evidence) != 1 || string(rec.Completion.Evidence[0]) != a.GateResults[0] {
+		t.Fatalf("ticket: %+v", rec)
+	}
+	m, err := snapshot.DecodeManifest(s.evidence(t, string(*a.ManifestSha256)))
+	if err != nil || m.CandidateTreeOid != *a.CandidateTreeOid || len(m.GateResults) != 1 {
+		t.Fatalf("manifest: %+v %v", m, err)
+	}
+	raw, err := os.ReadFile(filepath.Join(s.repo.StateDir, "receipts", report.Receipt))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rc, err := snapshot.DecodeReceipt(raw); err != nil || rc.Kind != "MANIFEST" {
+		t.Fatalf("receipt: %+v %v", rc, err)
+	}
+	if again := s.lease(t, "complete-1", completeOf(claim, commit), 4, nil); again.Kind != "Replay" {
+		t.Fatalf("replay: %+v", again)
+	}
+	auditOK(t, s.repo)
+}
+
+// TestCALV0017_CompletionRefusals: each unmet §7.3 row refuses BLOCKED and
+// writes nothing.
+func TestCALV0017_CompletionRefusals(t *testing.T) {
+	t.Parallel()
+	s := newGateStore(t)
+	id := s.ticket(t, "one")
+	claim, commit := s.submitted(t, id, "src", 0)
+	tree := gitOut(t, s.root, "rev-parse", "HEAD^{tree}")
+	dangling := gitOut(t, s.root, "-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "user.useConfigOnly=true", "commit-tree", tree, "-p", commit, "-m", "off-branch")
+	before := storeDigest(t, s.repo)
+	refuse := func(requestID, commit, code string) {
+		t.Helper()
+		refusedWith(t, s.lease(t, requestID, completeOf(claim, commit), 3, nil), mutation.OutcomeBlocked, code)
+	}
+	refuse("complete-missing", commit, wire.CodeMissingGate)
+	refuse("complete-unreachable", dangling, wire.CodeStaleTree)
+	refuse("complete-base", gitOut(t, s.root, "rev-parse", commit+"~1"), wire.CodeStaleTree)
+	if storeDigest(t, s.repo) != before {
+		t.Fatal("refused completion wrote")
+	}
+	s.passes(t, "gate-1", gateOf(claim, "verify"), 2)
+	next, nextTree := s.commit(t, "src/b.go")
+	s.lease(t, "submit-2", submitOf(claim, nextTree), 2, nil)
+	refuse("complete-stale", next, wire.CodeGateStale)
+	hold, err := store.Mutate(context.Background(), s.repo, operator(), envelope("hold-1", mutation.OpHold, id, "1", obj("holdId", str("h"), "reason", str("wait"))), s.at(t, 3))
+	if err != nil || hold.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("hold: %+v %v", hold, err)
+	}
+	refuse("complete-held", next, wire.CodeTicketHeld)
+}
+
+// TestCALV0017_CompletionNeedsEveryRequiredGateAndApproval: a failed
+// ticket-required gate refuses GATE_FAILED, and an APPROVAL_REQUIRED ticket
+// without a COMPLETE grant refuses APPROVAL_MISSING.
+func TestCALV0017_CompletionNeedsEveryRequiredGateAndApproval(t *testing.T) {
+	t.Parallel()
+	s := newGateStore(t)
+	ids := map[string]string{}
+	for class, dir := range map[string]string{"APPROVAL_REQUIRED": "approve", "AUTONOMOUS": "plain"} {
+		payload := createPayload(dir)
+		payload.Obj.Set("requiredGates", wire.Strings([]string{"fails"}))
+		payload.Obj.Set("executionClass", str(class))
+		created := mutate(t, s.repo, envelope("create-"+dir, "CREATE", "", "", payload))
+		if created.Outcome.Outcome != mutation.OutcomeCompleted {
+			t.Fatalf("create %s: %+v", dir, created)
+		}
+		ids[dir] = created.Ticket
+	}
+	grant := obj("grantId", str("g"), "actor", str("tester"), "operation", str("RUN"), "targetRevision", str("1"), "scope", wire.Strings(nil))
+	if r := mutate(t, s.repo, envelope("grant-run", mutation.OpGrantApproval, ids["approve"], "1", grant)); r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("grant: %+v", r)
+	}
+	s.t0 = now(t)
+	approve, approveCommit := s.submitted(t, ids["approve"], "approve", 0)
+	refusedWith(t, s.lease(t, "complete-approve", completeOf(approve, approveCommit), 3, nil), mutation.OutcomeBlocked, wire.CodeApprovalMissing)
+	plain, commit := s.submitted(t, ids["plain"], "plain", 4)
+	s.passes(t, "gate-1", gateOf(plain, "verify"), 6)
+	s.passes(t, "gate-2", gateOf(plain, "fails"), 6)
+	refusedWith(t, s.lease(t, "complete-plain", completeOf(plain, commit), 7, nil), mutation.OutcomeBlocked, wire.CodeGateFailed)
+}
+
+// contendedRecordingWait is the caller lock wait of a gate whose recording the
+// test holds the store lock against.
+const contendedRecordingWait = 5 * time.Second
+
+// TestCALV0078_GateRunContentionAfterExecutionIsReported: a gate run whose
+// program already ran and whose recording then meets lock contention returns
+// LOCK_TIMEOUT with Unretryable set, so the CLI marks it not retryable (a retry
+// would run the program again). A refusal before the program starts does not.
+func TestCALV0078_GateRunContentionAfterExecutionIsReported(t *testing.T) {
+	t.Parallel()
+	// The markers live under .git so the worktree stays clean; argv is bounded.
+	s := newLeaseStore(t, commandGate("verify", ": > .git/r; while [ ! -e .git/h ]; do /bin/sleep 0.05; done; printf ok", "120", true))
+	ran, held := filepath.Join(s.root, ".git", "r"), filepath.Join(s.root, ".git", "h")
+	claim, _ := s.submitted(t, s.ticket(t, "one"), "src", 0)
+	if report, err := s.gate(t, "gate-0", gateOf(claim, "absent"), 1); wire.CodeOf(err) != wire.CodeGateUnknown || report == nil || report.Unretryable {
+		t.Fatalf("refused before running: %+v %v", report, err)
+	}
+	// Once the program has run, hold the store lock until the recording gives up.
+	locked := make(chan func() error, 1)
+	go func() {
+		for {
+			if _, err := os.Stat(ran); err == nil {
+				break
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
+		lock, err := authority.AcquireLock(context.Background(), s.repo, authority.LockOptions{})
+		if err != nil {
+			locked <- func() error { return err }
+			return
+		}
+		locked <- lock.Close
+		if err := os.WriteFile(held, nil, 0o600); err != nil {
+			t.Error(err)
+		}
+	}()
+	// The test holds the lock until the recording gives up, so the caller wait
+	// (CAL-V0-111) only sets how long that takes: the default 30 s idled a
+	// parallel slot for the whole wait (V1-0961). The wait is armed only for
+	// the recording; nothing contends before the program has run.
+	report, err := s.gateWith(store.WithLeaseLockWait(context.Background(), contendedRecordingWait), t, "gate-1", gateOf(claim, "verify"), 2)
+	if _, e := os.Stat(ran); e != nil {
+		t.Fatalf("program did not run: %v %v", e, err)
+	}
+	if e := (<-locked)(); e != nil {
+		t.Fatal(e)
+	}
+	if wire.CodeOf(err) != wire.CodeLockTimeout || report == nil || !report.Unretryable {
+		t.Fatalf("contended recording: %+v %v", report, err)
+	}
+	if results := s.results(t, claim.AttemptID); len(results) != 0 {
+		t.Fatalf("contended run recorded: %v", results)
+	}
+}
+
+// factsGate is a policy COMMAND gate that prints its arguments, which name the
+// TCB-V0-015 placeholders, one entry that only contains one, and a literal.
+func factsGate(id string) wire.Value {
+	argv := []string{"sh", "-c", `printf '%s|%s|%s|%s|%s' "$1" "$2" "$3" "$4" "$5"`, id, store.GateArgBaseCommit, store.GateArgCandidateCommit, store.GateArgTouchPaths, "x" + store.GateArgTouchPaths, "literal"}
+	return obj("gateId", str(id), "kind", str("COMMAND"), "argv", wire.Strings(argv), "cwd", str("WORKTREE"),
+		"env", wire.Strings(nil), "timeoutSeconds", str("30"), "expected", obj("exitCode", str("0"), "reducer", wire.Null()),
+		"evidence", wire.Strings([]string{"output"}), "inputs", wire.Strings(nil), "sharedResource", wire.Null(), "reusable", wire.Bool(false), "required", wire.Bool(true))
+}
+
+// TestTCBV0015_GateRunSubstitutesAttemptFacts: a whole-entry placeholder runs
+// as the attempt's base, the worktree HEAD commit or the claim-era
+// effects.touchPaths, a partial match runs as declared, and the substituted
+// argv joins the inputs digest while a declared argv keeps the old digest. A
+// ticket edited after the claim refuses STALE_TICKET before the gate runs.
+func TestTCBV0015_GateRunSubstitutesAttemptFacts(t *testing.T) {
+	t.Parallel()
+	s := newLeaseStore(t, factsGate("facts"), commandGate("verify", "printf ok", "30", true))
+	payload := createPayload("facts")
+	effects, _ := payload.Obj.Get("effects")
+	effects.Obj.Set("touchPaths", wire.Strings([]string{"docs/a.md", "src/"}))
+	created := mutate(t, s.repo, envelope("create-facts", mutation.OpCreate, "", "", payload))
+	if created.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("create: %+v", created)
+	}
+	s.t0 = now(t)
+	claim, commit := s.submitted(t, created.Ticket, "src", 0)
+	s.passes(t, "gate-facts", gateOf(claim, "facts"), 2)
+	s.passes(t, "gate-verify", gateOf(claim, "verify"), 3)
+	a := s.attempt(t, claim.AttemptID)
+	results := s.results(t, claim.AttemptID)
+	g := results["facts"]
+	touch := `["docs/a.md","src/"]`
+	if g == nil || g.State != "PASSED" {
+		t.Fatalf("facts: %+v", g)
+	}
+	want := a.BaseCommit + "|" + commit + "|" + touch + "|x" + store.GateArgTouchPaths + "|literal"
+	if out := string(s.evidence(t, string(g.Evidence[0].Sha256))); out != want {
+		t.Fatalf("output %q, want %q", out, want)
+	}
+	tree := *a.CandidateTreeOid
+	argv := []string{"sh", "-c", `printf '%s|%s|%s|%s|%s' "$1" "$2" "$3" "$4" "$5"`, "facts", a.BaseCommit, commit, touch, "x" + store.GateArgTouchPaths, "literal"}
+	if g.InputsSha256 != wire.Sum(wire.EncodeFile(obj("tree", str(tree), "inputs", wire.Array(), "argv", wire.Strings(argv)))) {
+		t.Fatalf("substituted inputs digest %s", g.InputsSha256)
+	}
+	if v := results["verify"]; v == nil || v.InputsSha256 != wire.Sum(wire.EncodeFile(obj("tree", str(tree), "inputs", wire.Array()))) {
+		t.Fatalf("declared inputs digest: %+v", v)
+	}
+	edited, err := store.Mutate(context.Background(), s.repo, operator(), envelope("edit-facts", mutation.OpPrioritize, created.Ticket, "1", obj("priority", str("P1"), "order", str("0"))), s.at(t, 4))
+	if err != nil || edited.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("edit: %+v %v", edited, err)
+	}
+	before := storeDigest(t, s.repo)
+	if report, err := s.gate(t, "gate-stale", gateOf(claim, "facts"), 5); wire.CodeOf(err) != wire.CodeStaleTicket || report.Unretryable {
+		t.Fatalf("edited ticket: %+v %v", report, err)
+	}
+	if storeDigest(t, s.repo) != before {
+		t.Fatal("a refused substitution changed the store")
+	}
+	auditOK(t, s.repo)
+}
+
+// cemVerdictGate is the TCB-V0-019 policy entry for command: the closed
+// corvint cem gate-verdict argv over the three TCB-V0-015 placeholders, with
+// PATH as its only environment, output evidence and no reuse.
+func cemVerdictGate(id string, command ...string) wire.Value {
+	argv := append(command, "cem", "gate-verdict", "--base", store.GateArgBaseCommit, "--candidate", store.GateArgCandidateCommit,
+		"--predicate", "touched-anchored", "--touch-paths", store.GateArgTouchPaths, "--portable-consumer", "/usr/local/libexec/cem01-go")
+	return obj("gateId", str(id), "kind", str("COMMAND"), "argv", wire.Strings(argv), "cwd", str("WORKTREE"),
+		"env", wire.Strings([]string{"PATH"}), "timeoutSeconds", str("1800"), "expected", obj("exitCode", str("0"), "reducer", wire.Null()),
+		"evidence", wire.Strings([]string{"output"}), "inputs", wire.Strings(nil), "sharedResource", wire.Null(), "reusable", wire.Bool(false), "required", wire.Bool(false))
+}
+
+// TestTCBV0019_CEMVerdictPolicyEntryRunsAsDeclared: the policy admits the
+// production cem-verdict entry, and the same entry shape run through stand-ins
+// for corvint's closed exit codes records PASSED on 0 (GRANT) and FAILED on 1
+// (REFUSE) with the substituted argv as the gate's output evidence.
+func TestTCBV0019_CEMVerdictPolicyEntryRunsAsDeclared(t *testing.T) {
+	t.Parallel()
+	standIn := func(exit string) []string {
+		return []string{"/bin/sh", "-c", `printf '%s\n' "$@"; exit ` + exit, "corvint"}
+	}
+	s := newLeaseStore(t)
+	// The policy permits the entry's one environment name, as the primary
+	// store's environment.allowedEnvKeys does.
+	v := fixture.PolicyValue()
+	v.Obj.Set("gates", wire.Array(cemVerdictGate("cem-verdict", "/usr/local/bin/corvint"),
+		cemVerdictGate("cem-verdict-grant", standIn("0")...), cemVerdictGate("cem-verdict-refuse", standIn("1")...)))
+	v.Obj.Set("environment", obj("allowedEnvKeys", wire.Strings([]string{"PATH"})))
+	v.Obj.Set("policyVersion", str("3"))
+	v.Obj.Set("capacity", obj("maxActiveAttempts", str("4"), "maxWorkersTotal", str("4"), "classes", wire.Array()))
+	budgets, _ := v.Obj.Get("budgets")
+	budgets.Obj.Set("requireEnforcedFields", wire.Strings(nil))
+	if r, err := store.PolicyUpdate(context.Background(), s.repo, operator(), policyRequest("policy-verdict", "2", wire.EncodeFile(v)), now(t)); err != nil || r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("policy: %+v %v", r, err)
+	}
+	payload := createPayload("verdict")
+	effects, _ := payload.Obj.Get("effects")
+	effects.Obj.Set("touchPaths", wire.Strings([]string{"src/"}))
+	created := mutate(t, s.repo, envelope("create-verdict", mutation.OpCreate, "", "", payload))
+	if created.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("create: %+v", created)
+	}
+	s.t0 = now(t)
+	claim, commit := s.submitted(t, created.Ticket, "src", 0)
+	s.passes(t, "gate-grant", gateOf(claim, "cem-verdict-grant"), 2)
+	s.passes(t, "gate-refuse", gateOf(claim, "cem-verdict-refuse"), 3)
+	a := s.attempt(t, claim.AttemptID)
+	results := s.results(t, claim.AttemptID)
+	want := strings.Join([]string{"cem", "gate-verdict", "--base", a.BaseCommit, "--candidate", commit, "--predicate", "touched-anchored",
+		"--touch-paths", `["src/"]`, "--portable-consumer", "/usr/local/libexec/cem01-go"}, "\n") + "\n"
+	for id, state := range map[string]string{"cem-verdict-grant": "PASSED", "cem-verdict-refuse": "FAILED"} {
+		g := results[id]
+		if g == nil || g.State != state || g.OutcomeClass != "EXIT" || len(g.Evidence) != 1 {
+			t.Fatalf("%s: %+v", id, g)
+		}
+		if out := string(s.evidence(t, string(g.Evidence[0].Sha256))); out != want {
+			t.Fatalf("%s output %q, want %q", id, out, want)
+		}
+	}
+	if results["cem-verdict-refuse"].ExitCode.Int() != 1 || results["cem-verdict"] != nil {
+		t.Fatalf("refuse %+v production %+v", results["cem-verdict-refuse"], results["cem-verdict"])
+	}
+	auditOK(t, s.repo)
+}

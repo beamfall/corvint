@@ -1,0 +1,8 @@
+site_name: Subprocess cleanup canary
+site_url: https://corvint.example.invalid/process-cleanup/
+docs_dir: docs
+theme:
+  name: material
+plugins:
+  - search
+

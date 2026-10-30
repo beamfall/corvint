@@ -1,0 +1,93 @@
+{
+  "id": "obligation-order-and-set",
+  "obligations": [
+    {
+      "id": "CONF-V0-001",
+      "disposition": "unknown",
+      "reason": "unassessed"
+    },
+    {
+      "id": "CONF-V0-002",
+      "disposition": "unknown",
+      "reason": "unassessed"
+    }
+  ],
+  "note": "The minimal prepared map. Each case breaks the closure between the obligations array and the intent scope's requirement list.",
+  "cases": [
+    {
+      "id": "valid",
+      "note": "Every row unknown/unassessed verifies.",
+      "ops": [],
+      "expect": {
+        "state": "ready-for-review",
+        "linked": 0,
+        "unknown": 2
+      }
+    },
+    {
+      "id": "swapped-order",
+      "note": "Both rows present, in reverse requirement order.",
+      "ops": [
+        {
+          "swap": [
+            "CONF-V0-001",
+            "CONF-V0-002"
+          ]
+        }
+      ],
+      "expect": {
+        "state": "invalid",
+        "code": "obligation-order-mismatch"
+      }
+    },
+    {
+      "id": "dropped-row",
+      "note": "One requirement has no row.",
+      "ops": [
+        {
+          "drop": "CONF-V0-002"
+        }
+      ],
+      "expect": {
+        "state": "invalid",
+        "code": "obligation-set-mismatch"
+      }
+    },
+    {
+      "id": "surplus-row",
+      "note": "A row for a requirement the scope does not declare.",
+      "ops": [
+        {
+          "append": {
+            "claimIds": [],
+            "disposition": "unknown",
+            "hunkIds": [],
+            "id": "CONF-V0-003",
+            "reason": "unassessed"
+          }
+        }
+      ],
+      "expect": {
+        "state": "invalid",
+        "code": "obligation-set-mismatch"
+      }
+    },
+    {
+      "id": "renamed-row",
+      "note": "Both rows present, one naming a requirement the scope does not declare.",
+      "ops": [
+        {
+          "set": {
+            "obligation": "CONF-V0-002",
+            "field": "id",
+            "value": "CONF-V0-003"
+          }
+        }
+      ],
+      "expect": {
+        "state": "invalid",
+        "code": "obligation-order-mismatch"
+      }
+    }
+  ]
+}

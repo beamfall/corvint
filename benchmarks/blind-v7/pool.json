@@ -1,0 +1,59 @@
+{
+  "profile": "corvint-blind-v7-pool/0",
+  "ticket": "V1-0835",
+  "partition": "heldout-v7",
+  "committedAt": "2026-10-25",
+  "pinnedAt": "2026-10-25T17:44:34Z",
+  "pinMethod": "git ls-remote --symref URL HEAD before any clone; each pin is the advertised default-branch head and stays fixed even if the branch moves",
+  "pool": [
+    {"id": "kong", "group": "go", "url": "https://github.com/alecthomas/kong.git", "branch": "master", "pin": "a60008c6dae2b98a1fbec12d1aebd43ac5ab76e0"},
+    {"id": "logrus", "group": "go", "url": "https://github.com/sirupsen/logrus.git", "branch": "master", "pin": "6ef0748d1177dadaeee9aa79ffef604570f487d7"},
+    {"id": "toml", "group": "go", "url": "https://github.com/BurntSushi/toml.git", "branch": "master", "pin": "d733fc535e4a9f3c454e421a87b90ade5d49bf31"},
+    {"id": "resty", "group": "go", "url": "https://github.com/go-resty/resty.git", "branch": "v3", "pin": "78dfc5c1dff969d4d30313f7fde8b0987c681135"},
+    {"id": "zerolog", "group": "go", "url": "https://github.com/rs/zerolog.git", "branch": "master", "pin": "20ca4734f29c37a6781c3c502442c349b306dee3"},
+    {"id": "marshmallow", "group": "python", "url": "https://github.com/marshmallow-code/marshmallow.git", "branch": "dev", "pin": "b762ea2d59ca52fe5df76b90de14bed7e5ec5607"},
+    {"id": "loguru", "group": "python", "url": "https://github.com/Delgan/loguru.git", "branch": "master", "pin": "bce5dfd3b435b1d1658507d7e095ad7a9919bf1c"},
+    {"id": "arrow", "group": "python", "url": "https://github.com/arrow-py/arrow.git", "branch": "master", "pin": "2224255c4acc594d734cef0bbc83360452a67983"},
+    {"id": "tinydb", "group": "python", "url": "https://github.com/msiemens/tinydb.git", "branch": "master", "pin": "edff96aeb2616402e9489d46e90a592c05565621"},
+    {"id": "tenacity", "group": "python", "url": "https://github.com/jd/tenacity.git", "branch": "main", "pin": "32ac68f0941319c0d2f4fb927f96e4ee29bb46c6"},
+    {"id": "pino", "group": "javascript", "url": "https://github.com/pinojs/pino.git", "branch": "main", "pin": "b29dbe97820630e7128e464c50263b427965ec99"},
+    {"id": "yargs", "group": "javascript", "url": "https://github.com/yargs/yargs.git", "branch": "main", "pin": "8021675da05763e13d9744aef953be65c0fd878f"},
+    {"id": "got", "group": "javascript", "url": "https://github.com/sindresorhus/got.git", "branch": "main", "pin": "05b4476913da39a47dd8e20d29e250f28b0a6dca"},
+    {"id": "koa", "group": "javascript", "url": "https://github.com/koajs/koa.git", "branch": "master", "pin": "a82feec38a7c28e14f4db7525b8f500801214a76"},
+    {"id": "immer", "group": "javascript", "url": "https://github.com/immerjs/immer.git", "branch": "main", "pin": "75a290e44ba14bd723c8ef8546b6559c8ef3ae88"}
+  ],
+  "priorUseCheck": {
+    "scope": "origin/main 866a7fd52: every tracked path (git grep -i -F OWNER/REPO), git log -i -F -G OWNER/REPO over benchmarks, docs, conformance, tools, .corvint and README.md, the primary checkout's .corvint ledgers, and the tracked dependency manifests (go.mod, go.sum, package-lock.json, requirements*.txt, pyproject.toml)",
+    "result": "no match for any of the fifteen; none is in the development manifest, the blind-v2..v4 manifests, the untouched-repository-v1 packets (chi, cobra, urfave, viper, corvint) or the 25-repository ARB v2 corpus",
+    "replaced": "tj/commander.js, python-attrs/attrs, fastapi/typer and Textualize/rich were drafted and dropped before pinning because tracked lock files install them (extensions/vscode, integrations/pi-protected, interop/spec-toolchains); encode/httpx was dropped because its name occurs in retained ARB result paths",
+    "limits": "agent transcripts, unreachable Git objects and unrecorded private experiments were not searched; the Windows host ~/bench held no v0835 directory and no corvint on PATH"
+  },
+  "coin": {
+    "repository": "https://github.com/golang/go.git",
+    "tag": "refs/tags/go1.27.4",
+    "publishedAtCommit": false,
+    "value": "the 40-hex lowercase commit id that `git ls-remote https://github.com/golang/go.git refs/tags/go1.27.4 'refs/tags/go1.27.4^{}'` reports for the peeled line when present, otherwise for the tag line",
+    "noSubstitute": "no other tag, date or source replaces this coin; until go1.27.4 is published the selection waits"
+  },
+  "selection": {
+    "rankKey": "lowercase hex SHA-256 of the ASCII bytes go1.27.4:COIN:ID (no newline)",
+    "rule": "rank all fifteen ids by rankKey ascending; take the lowest-ranked id of each group (go, python, javascript), then the two lowest-ranked ids not yet taken, regardless of group; the selected five are reported in rankKey order",
+    "command": "for id in $(jq -r '.pool[].id' benchmarks/blind-v7/pool.json); do printf '%s %s\\n' \"$(printf 'go1.27.4:%s:%s' \"$COIN\" \"$id\" | shasum -a 256 | cut -c1-64)\" \"$id\"; done | sort"
+  },
+  "authoring": {
+    "host": "Windows benchmark host, WSL2 Ubuntu, a new empty ~/bench/v0835/; the corvint binary is never installed or invoked there; only upstream source, git log and git grep",
+    "positiveCases": "about 30 (six per selected repository); task text of at most 15 words taken from an issue or commit subject, never a symbol name; expected files and symbols with revision-pinned ground_truth; 1 to 3 must_exclude decoys each with a one-line reason of one kind: nearest-name same-file sibling, adjacent declaration, or same-named symbol elsewhere",
+    "outOfScopeProbes": "10 (two per selected repository), expected OUT_OF_SCOPE; each is a within-repository near miss naming a feature the repository lacks beside ones it has, with the nearby real declarations as must_exclude; never a misspelling of a real behaviour and never a cross-repository transplant",
+    "validation": "before the preregistration digest, the frozen case files may be checked only for selector resolution and ground-truth lines (no evaluation, no retrieval output)"
+  },
+  "bars": {
+    "top5": "aggregate.top5_task_success minus aggregate.exact_search_baseline.top5_success is at least 0.10",
+    "mustExclude": "aggregate.must_exclude_violations is 0, counted over every emitted result of every case",
+    "abstentionPrecision": "at least 0.8: cases answered OUT_OF_SCOPE with zero results that were expected OUT_OF_SCOPE, over all cases answered OUT_OF_SCOPE with zero results; no such answer scores 0",
+    "abstentionRecall": "at least 0.7: expected-OUT_OF_SCOPE cases answered OUT_OF_SCOPE with zero results, over all expected-OUT_OF_SCOPE cases",
+    "latency": "for every repository, corvint.metrics.latency_ms divided by corvint.metrics.cases is at most 5000",
+    "verdict": "PASS iff all five hold on the single run"
+  },
+  "run": "exactly once, from a preregistration file (case digest, bars, pins, runner digest, one command) whose digest a decision records before the run; the report is committed unrepaired under benchmarks/results/ with partition heldout-v7",
+  "appeal": "one route: a second person may void one decoy as mis-authored before seeing any other output, after which that case is development; available and unexercised unless a second person invokes it"
+}

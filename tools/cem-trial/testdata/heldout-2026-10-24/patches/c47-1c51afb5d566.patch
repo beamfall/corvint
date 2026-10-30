@@ -1,0 +1,84 @@
+diff --git a/internal/capabilities/clientcompat_binding.go b/internal/capabilities/clientcompat_binding.go
+index 0a720a999..8a2716e8d 100644
+--- a/internal/capabilities/clientcompat_binding.go
++++ b/internal/capabilities/clientcompat_binding.go
+@@ -60,6 +60,7 @@ type Registry struct {
+ 	journalLoaded         bool
+ 	pending               pendingInvalidation
+ 	pendingRefusals       map[string]pendingRefusal
++	refusalRetryRunning   bool
+ 	invalidationRetention time.Duration
+ 	nextID                uint64
+ 	generation            int
+diff --git a/internal/capabilities/clientcompat_durability.go b/internal/capabilities/clientcompat_durability.go
+index 91e15d5a5..011f04f2d 100644
+--- a/internal/capabilities/clientcompat_durability.go
++++ b/internal/capabilities/clientcompat_durability.go
+@@ -52,6 +52,9 @@ const (
+ 	// InvalidationSafetyMargin keeps a tombstone live after the last token minted
+ 	// before that invalidation must have expired.
+ 	InvalidationSafetyMargin = 24 * time.Hour
++	// pendingRefusalRetryInterval bounds how long a recovered journal waits before
++	// the process retries a refusal that direct and staged writes both rejected.
++	pendingRefusalRetryInterval = 100 * time.Millisecond
+ )
+ 
+ // InvalidationRetentionFor derives the tombstone lifetime from the signer
+@@ -334,21 +337,54 @@ type pendingRefusal struct {
+ // row is durable — rehydration promotes it exactly like a staged generation
+ // batch — so the caller gets nil and may report the refusal outcome, while
+ // ensureInvalidations keeps retrying the promotion. If even staging fails, the
+-// refusal exists solely in memory: the caller gets the durability error (the
+-// refusal outcome is never reported), and unstagedRefusalDebtLocked fails every
+-// resolve and accept until a retry makes it durable.
++// caller gets the durability error and the process starts retrying through that
++// same flush. The exact contract is: restart forgets only state that was never
++// caller-visible; every caller-visible refusal has a durable row that precedes
++// it. The operator's 2026-08-11 "total-write-failure crash durability" follow-up
++// ticket owns the residual because no durable medium can record state while
++// every write is refused.
+ func (r *Registry) stagePendingRefusalLocked(entry Invalidation, cause error) error {
+ 	if r.pendingRefusals == nil {
+ 		r.pendingRefusals = make(map[string]pendingRefusal)
+ 	}
+ 	if stageErr := r.journal.StageInvalidation(context.Background(), entry); stageErr != nil {
+ 		r.pendingRefusals[entry.Subject] = pendingRefusal{entry: entry}
++		r.startPendingRefusalRetryLocked()
+ 		return errors.Join(ErrInvalidationJournalUnavailable, cause, stageErr)
+ 	}
+ 	r.pendingRefusals[entry.Subject] = pendingRefusal{entry: entry, staged: true}
+ 	return nil
+ }
+ 
++// startPendingRefusalRetryLocked starts one process-owned retry worker. The
++// worker reuses ensureInvalidations so background and caller-driven retries have
++// one ordering contract: stage first, then promote. It stops once rehabilitation
++// or a successful flush removes every pending refusal; while debt remains it
++// deliberately lives for the process, because stopping would restore the
++// caller-action dependency this retry closes.
++func (r *Registry) startPendingRefusalRetryLocked() {
++	if r.refusalRetryRunning {
++		return
++	}
++	r.refusalRetryRunning = true
++	go r.retryPendingRefusals()
++}
++
++func (r *Registry) retryPendingRefusals() {
++	ticker := time.NewTicker(pendingRefusalRetryInterval)
++	defer ticker.Stop()
++	for range ticker.C {
++		_ = r.ensureInvalidations(time.Now())
++		r.mu.Lock()
++		if len(r.pendingRefusals) == 0 {
++			r.refusalRetryRunning = false
++			r.mu.Unlock()
++			return
++		}
++		r.mu.Unlock()
++	}
++}
++
+ // flushPendingRefusalsLocked retries pending refusal tombstones on every
+ // resolve and accept until each one lands in the tombstone table. An unstaged
+ // entry is staged first — that write is what clears the fail-closed debt — and

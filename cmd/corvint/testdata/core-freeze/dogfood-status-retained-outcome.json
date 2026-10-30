@@ -1,0 +1,15 @@
+{
+  "claim": "caller-owned-selected-workflow-only",
+  "mutates": false,
+  "ok": true,
+  "policy": {
+    "intentPointers": [],
+    "intents": [],
+    "lifecycle": "inactive",
+    "noActionReason": "enrollment-inactive",
+    "satisfied": false,
+    "unmet": []
+  },
+  "profile": "corvint-local-completion/0",
+  "tool": "dogfood-status"
+}

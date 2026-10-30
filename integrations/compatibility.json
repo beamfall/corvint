@@ -1,0 +1,139 @@
+{
+  "profile": "corvint-harness-matrix/0",
+  "adapterProtocol": "corvint-harness-event/0",
+  "generatedAt": "2026-09-27",
+  "entries": [
+    {
+      "adapterVersion": "0.3.6",
+      "documentedAgainstHostVersion": "2.1.238",
+      "fullSupport": "external-dependent",
+      "host": "claude-code",
+      "hostVersion": "2.1.293",
+      "hostVersionEvidence": "installed-host-lifecycle",
+      "hostVersionEvidenceAdapterVersion": "0.3.1",
+      "lifecycleConformance": {
+        "corvint": "1.0.0-rc.2",
+        "profile": "host-lifecycle-qualification-v1",
+        "report": "conformance/host-lifecycle-v1/results/1.0.0-rc.2-darwin-arm64/claude-code.txt",
+        "result": "PASS"
+      },
+      "operatingSystem": "darwin-arm64",
+      "surface": "plugin",
+      "status": "FALLBACK",
+      "tier": "core",
+      "validation": "installed-lifecycle-plus-adapter-fixtures"
+    },
+    {
+      "adapterVersion": "0.2.11",
+      "documentedAgainstHostVersion": "0.149.0",
+      "fullSupport": "external-dependent",
+      "host": "codex",
+      "hostVersion": "0.153.2",
+      "hostVersionEvidence": "installed-host-lifecycle",
+      "hostVersionEvidenceAdapterVersion": "0.2.2",
+      "lifecycleConformance": {
+        "corvint": "1.0.0-rc.1",
+        "profile": "host-lifecycle-qualification-v1",
+        "report": "conformance/host-lifecycle-v1/results/1.0.0-rc.1-darwin-arm64/codex.txt",
+        "result": "PASS"
+      },
+      "operatingSystem": "darwin-arm64",
+      "surface": "plugin",
+      "status": "FALLBACK",
+      "tier": "core",
+      "validation": "installed-lifecycle-plus-adapter-fixtures"
+    },
+    {
+      "adapterVersion": "0.2.11",
+      "documentedAgainstHostVersion": "0.55.1",
+      "fullSupport": "external-dependent",
+      "host": "gemini-cli",
+      "hostVersion": "0.54.0",
+      "hostVersionEvidence": "native-static-validator-only",
+      "hostVersionEvidenceAdapterVersion": "0.1.0",
+      "lifecycleConformance": {
+        "profile": "host-lifecycle-qualification-v1",
+        "result": "NOT_RUN"
+      },
+      "operatingSystem": "macOS",
+      "surface": "extension",
+      "status": "FALLBACK",
+      "tier": "companion",
+      "validation": "native-static-plus-adapter-fixtures"
+    },
+    {
+      "adapterVersion": "0.7.35",
+      "documentedAgainstHostVersion": "2.1.3",
+      "fullSupport": "external-dependent",
+      "host": "opencode",
+      "hostVersion": "2.1.3",
+      "hostVersionEvidence": "opencode-native-integration/1 exact local qualification; task evidence retained",
+      "hostVersionEvidenceAdapterVersion": "0.7.18",
+      "hostForcedRuntime": {
+        "name": "node",
+        "versionRange": ">=20"
+      },
+      "lifecycleConformance": {
+        "profile": "host-lifecycle-qualification-v1",
+        "result": "NOT_RUN"
+      },
+      "operatingSystem": "darwin-linux",
+      "surface": "plugin",
+      "status": "FALLBACK",
+      "tier": "companion",
+      "validation": "adapter-fixtures-plus-exact-native-qualification"
+    },
+    {
+      "adapterVersion": "0.3.11",
+      "documentedAgainstHostVersion": "0.99.1",
+      "fullSupport": "external-dependent",
+      "host": "pi",
+      "hostVersion": "0.99.1",
+      "hostVersionEvidence": "offline-native-package-tools-tui-rpc-and-cleanup",
+      "hostVersionEvidenceAdapterVersion": "0.3.3",
+      "lifecycleConformance": {
+        "profile": "host-lifecycle-qualification-v1",
+        "result": "NOT_RUN"
+      },
+      "operatingSystem": "darwin-arm64",
+      "surface": "extension",
+      "status": "FALLBACK",
+      "tier": "companion",
+      "validation": "native-offline-fixtures; protected-qualification-not-run"
+    }
+  ],
+  "globalDegradations": [
+    "accepted-frontier-authority-unavailable",
+    "exact-expansion-command-unavailable"
+  ],
+  "receiptDegradationPolicy": {
+    "match": "subset-of-recognised",
+    "onUnrecognised": "refuse",
+    "note": "An adapter accepts any subset of the recognised codes, including the empty set, so that core closing a gap is never an adapter break. A code outside the set is a contract the adapter has not been validated against and MUST refuse loudly instead of silently disabling the surface.",
+    "recognised": [
+      "compaction-critical-evidence-overflow",
+      "compaction-dirty-set-over-budget",
+      "compaction-untracked-paths-not-rehydratable",
+      "frontier-authority-unavailable",
+      "host-version-unknown",
+      "outcome-persistence-unavailable"
+    ],
+    "conformingAdapters": [
+      "claude-code",
+      "codex",
+      "gemini-cli",
+      "opencode"
+    ],
+    "display": {
+      "rule": "name-every-code-or-signal-elision",
+      "note": "A receipt's degradation codes reach the user through a host-shaped message. That message MUST name every code the receipt carries, or state how many it left out. A short honest message is fine; one that looks complete while a code is missing is not, and the receipts that carry the most codes are exactly the ones where the omission costs the most. An adapter that renders the whole receipt (codex) or the whole list (opencode) conforms as it stands; an adapter that renders a bounded list (claude-code, gemini-cli) appends a \"+N more\" marker whenever the bound bites. The marker is a count derived from the list length, never code text, so it does not weaken the rule that an unrecognised code is named by the corvint invocation rather than interpolated into the session.",
+      "elisionMarker": "+N more",
+      "conformingAdapters": [
+        "claude-code",
+        "codex",
+        "gemini-cli",
+        "opencode"
+      ]
+    }
+  }
+}

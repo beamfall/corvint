@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "commit": "d318b683471101618febed18996405ad26462110",
+  "original_frozen_sha256": "350891c970f3b2b943efe3f04b190f307ec04c4c55448eda2a7b6394ba45e30d",
+  "cases": [{
+    "id": "flask-stream-with-context",
+    "partition": "heldout-v3",
+    "target_version": "V4",
+    "first_observed_at": "2026-08-22",
+    "mode": "query",
+    "text": "How does Flask keep request data available while streaming? Retrieve the user-facing specification, implementation, and direct tests that show whether `stream_with_context` can wrap an iterator or decorate a generator, whether it closes a wrapped iterator that defines `close()`, and what happens when there is no active request context.",
+    "limit": 8,
+    "budget_bytes": 18000,
+    "rationale": "This requires a compact docs-to-code-to-tests retrieval with positive, cleanup, and negative behavior, without touching Flask's native async-client theme.",
+    "ground_truth": [
+      {"path": "docs/patterns/streaming.rst", "line": 64, "contains": "Streaming with Context"},
+      {"path": "src/flask/helpers.py", "line": 63, "contains": "def stream_with_context("},
+      {"path": "src/flask/helpers.py", "line": 129, "contains": "'stream_with_context' can only be used when a request"},
+      {"path": "tests/test_helpers.py", "line": 242, "contains": "test_streaming_with_context_as_decorator"},
+      {"path": "tests/test_helpers.py", "line": 256, "contains": "test_streaming_with_context_and_custom_close"}
+    ],
+    "expected": {
+      "must_include": [
+        "path:docs/patterns/streaming.rst",
+        "symbol:src/flask/helpers.py:stream_with_context",
+        "test:tests/test_helpers.py"
+      ],
+      "critical": [
+        "path:docs/patterns/streaming.rst",
+        "symbol:src/flask/helpers.py:stream_with_context",
+        "test:tests/test_helpers.py"
+      ],
+      "relevant": [
+        "path:docs/patterns/streaming.rst",
+        "symbol:src/flask/helpers.py:stream_with_context",
+        "test:tests/test_helpers.py"
+      ],
+      "must_exclude": ["path:docs/templating.rst", "test:tests/test_testing.py"]
+    }
+  }]
+}

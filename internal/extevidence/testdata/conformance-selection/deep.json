@@ -1,0 +1,250 @@
+{
+  "schema": "external-evidence-provider/1",
+  "provider": {
+    "id": "mockdocs",
+    "revision": "2026-09-19.1"
+  },
+  "repositories": [
+    {
+      "id": "application",
+      "origin": "{{APP_ORIGIN}}",
+      "revision": "{{APP_REVISION}}",
+      "role": "application"
+    }
+  ],
+  "entities": [
+    {
+      "id": "cap-0",
+      "kind": "capability",
+      "summary": "Capability cap-0."
+    },
+    {
+      "id": "cap-1",
+      "kind": "capability",
+      "summary": "Capability cap-1."
+    },
+    {
+      "id": "cap-2",
+      "kind": "capability",
+      "summary": "Capability cap-2."
+    },
+    {
+      "id": "cap-3",
+      "kind": "capability",
+      "summary": "Capability cap-3."
+    },
+    {
+      "id": "cap-4",
+      "kind": "capability",
+      "summary": "Capability cap-4."
+    },
+    {
+      "id": "cap-5",
+      "kind": "capability",
+      "summary": "Capability cap-5."
+    },
+    {
+      "id": "cap-6",
+      "kind": "capability",
+      "summary": "Capability cap-6."
+    }
+  ],
+  "relations": [
+    {
+      "from": {
+        "repository": "application",
+        "path": "pkg/main.go"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-0"
+      },
+      "type": "implements",
+      "evidence": "declared",
+      "rule": "capability-map",
+      "reference": "ci/capability-map"
+    },
+    {
+      "from": {
+        "provider": "mockdocs",
+        "entity": "cap-0"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-1"
+      },
+      "type": "depends-on",
+      "evidence": "declared",
+      "rule": "dependency-map",
+      "reference": "ci/dependency-map"
+    },
+    {
+      "from": {
+        "provider": "mockdocs",
+        "entity": "cap-1"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-2"
+      },
+      "type": "depends-on",
+      "evidence": "declared",
+      "rule": "dependency-map",
+      "reference": "ci/dependency-map"
+    },
+    {
+      "from": {
+        "provider": "mockdocs",
+        "entity": "cap-2"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-3"
+      },
+      "type": "depends-on",
+      "evidence": "declared",
+      "rule": "dependency-map",
+      "reference": "ci/dependency-map"
+    },
+    {
+      "from": {
+        "provider": "mockdocs",
+        "entity": "cap-3"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-4"
+      },
+      "type": "depends-on",
+      "evidence": "declared",
+      "rule": "dependency-map",
+      "reference": "ci/dependency-map"
+    },
+    {
+      "from": {
+        "provider": "mockdocs",
+        "entity": "cap-4"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-5"
+      },
+      "type": "depends-on",
+      "evidence": "declared",
+      "rule": "dependency-map",
+      "reference": "ci/dependency-map"
+    },
+    {
+      "from": {
+        "provider": "mockdocs",
+        "entity": "cap-5"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-6"
+      },
+      "type": "depends-on",
+      "evidence": "declared",
+      "rule": "dependency-map",
+      "reference": "ci/dependency-map"
+    },
+    {
+      "from": {
+        "repository": "application",
+        "path": "pkg/main_test.go"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-0"
+      },
+      "type": "verifies",
+      "evidence": "observed",
+      "rule": "unit-run",
+      "reference": "ci/unit-run"
+    },
+    {
+      "from": {
+        "repository": "application",
+        "path": "pkg/main_test.go"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-1"
+      },
+      "type": "verifies",
+      "evidence": "observed",
+      "rule": "unit-run",
+      "reference": "ci/unit-run"
+    },
+    {
+      "from": {
+        "repository": "application",
+        "path": "pkg/main_test.go"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-2"
+      },
+      "type": "verifies",
+      "evidence": "observed",
+      "rule": "unit-run",
+      "reference": "ci/unit-run"
+    },
+    {
+      "from": {
+        "repository": "application",
+        "path": "pkg/main_test.go"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-3"
+      },
+      "type": "verifies",
+      "evidence": "observed",
+      "rule": "unit-run",
+      "reference": "ci/unit-run"
+    },
+    {
+      "from": {
+        "repository": "application",
+        "path": "pkg/main_test.go"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-4"
+      },
+      "type": "verifies",
+      "evidence": "observed",
+      "rule": "unit-run",
+      "reference": "ci/unit-run"
+    },
+    {
+      "from": {
+        "repository": "application",
+        "path": "pkg/main_test.go"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-5"
+      },
+      "type": "verifies",
+      "evidence": "observed",
+      "rule": "unit-run",
+      "reference": "ci/unit-run"
+    },
+    {
+      "from": {
+        "repository": "application",
+        "path": "pkg/main_test.go"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-6"
+      },
+      "type": "verifies",
+      "evidence": "observed",
+      "rule": "unit-run",
+      "reference": "ci/unit-run"
+    }
+  ]
+}

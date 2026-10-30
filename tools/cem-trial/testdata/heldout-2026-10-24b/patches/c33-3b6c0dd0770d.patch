@@ -1,0 +1,63 @@
+diff --git a/internal/artwork/artwork.go b/internal/artwork/artwork.go
+index b1ecb9eb0..b27def75a 100644
+--- a/internal/artwork/artwork.go
++++ b/internal/artwork/artwork.go
+@@ -33,6 +33,8 @@ const (
+ 	SlotThumb    = "thumb"
+ )
+ 
++const PreviewUnavailableField = "preview-unavailable"
++
+ // KnownSlots is the fixed Core artwork slot vocabulary. Plugins may emit
+ // newer slot names; Core ignores them until clients and serving paths know
+ // how to handle the shape.
+@@ -528,6 +530,21 @@ func (s *Service) GeneratePoster(ctx context.Context, id store.MediaID) error {
+ 	if err := os.MkdirAll(filepath.Dir(dst), 0o700); err != nil {
+ 		return err
+ 	}
++	if media.Class == store.MediaClassImage {
++		if s.scaler == nil {
++			return errors.New("no image scaler configured")
++		}
++		err := s.scaler.ScaleImage(ctx, file.Path, posterWidth, dst)
++		_ = s.store.UpsertMediaFields(ctx, id, []store.MediaField{{
++			Name: PreviewUnavailableField,
++			Type: store.EntityFieldFlag,
++			Flag: err != nil,
++		}})
++		if err != nil {
++			return fmt.Errorf("decoding image preview for %s: %w", id, err)
++		}
++		return nil
++	}
+ 	// A tenth of the way in skips title cards without seeking deep into long
+ 	// files; very short or unprobed media grabs near the start.
+ 	atSeconds := float64(media.DurationSeconds) / 10
+diff --git a/internal/scan/scan.go b/internal/scan/scan.go
+index 434eb2946..c0a45e9f8 100644
+--- a/internal/scan/scan.go
++++ b/internal/scan/scan.go
+@@ -160,6 +160,10 @@ var imageExtensions = map[string]bool{
+ 	"webp": true,
+ 	"heic": true,
+ 	"heif": true,
++	"cr2":  true,
++	"nef":  true,
++	"arw":  true,
++	"dng":  true,
+ 	"avif": true,
+ 	"bmp":  true,
+ 	"tif":  true,
+diff --git a/internal/store/path_picker.go b/internal/store/path_picker.go
+index 6c73668c8..c61f8a411 100644
+--- a/internal/store/path_picker.go
++++ b/internal/store/path_picker.go
+@@ -485,7 +485,7 @@ func previewPathPickerFolder(ctx context.Context, path string) (int, []string, b
+ 
+ func pathPickerLooksLikeMedia(name string) bool {
+ 	switch strings.ToLower(filepath.Ext(name)) {
+-	case ".mp4", ".m4v", ".mkv", ".mov", ".mp3", ".flac", ".m4a", ".jpg", ".jpeg", ".png", ".webp":
++	case ".mp4", ".m4v", ".mkv", ".mov", ".mp3", ".flac", ".m4a", ".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif", ".cr2", ".nef", ".arw", ".dng":
+ 		return true
+ 	default:
+ 		return false

@@ -1,0 +1,1 @@
+using Microsoft.VisualStudio.TestTools.UnitTesting; namespace MtpProbe; [TestClass] public class InfrastructureProbe { [ClassInitialize] public static void Setup(TestContext c)=>throw new System.InvalidOperationException("MTP_SETUP"); [TestMethod] public void Blocked(){} }

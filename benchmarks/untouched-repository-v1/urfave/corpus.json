@@ -1,0 +1,420 @@
+{
+  "cases": [
+    {
+      "branchTip": "bc3e33633b1439e1e1ada895033c684d722c0c7e",
+      "changedFiles": 2,
+      "commit": "7389061eb0182169c496021a09729735ac2b797b",
+      "consequence": {
+        "critical": [
+          "github.com/urfave/cli/v3"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "suggestions.go",
+          "suggestions_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "afa0a306aca344a64200a1d680bd8de46dfaad7b",
+      "task": "Use prefixFor so suggestions agree with help on rune count"
+    },
+    {
+      "branchTip": "a9b79a770acfc846e432d858ef453df34b13e112",
+      "changedFiles": 2,
+      "commit": "afa0a306aca344a64200a1d680bd8de46dfaad7b",
+      "consequence": {
+        "critical": [
+          "github.com/urfave/cli/v3"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "command_parse.go",
+          "command_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "8f8634d0e96d203db49477f7d7e0683528087c9d",
+      "task": "report a flag that needs an argument but is not last in a group"
+    },
+    {
+      "branchTip": "f4689eba62050175c47b273f87e0f315e79bff87",
+      "changedFiles": 2,
+      "commit": "8f8634d0e96d203db49477f7d7e0683528087c9d",
+      "consequence": {
+        "critical": [
+          "github.com/urfave/cli/v3"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "command_parse.go",
+          "command_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "c6c86ce0c17d5b57669fea19ff3cf60ab7943173",
+      "task": "reject a parent's Local flag inside a short option group"
+    },
+    {
+      "branchTip": "804a4c0acfe89db0880b38942b4bebc84173a529",
+      "changedFiles": 2,
+      "commit": "c6c86ce0c17d5b57669fea19ff3cf60ab7943173",
+      "consequence": {
+        "critical": [
+          "github.com/urfave/cli/v3"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "errors.go",
+          "errors_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "58ec406eff149315193d8632c08317f70f6deee1",
+      "task": "restore Unwrap on the error returned by Exit"
+    },
+    {
+      "branchTip": "1978edef8ffbac03161179776707979ca3b83b3d",
+      "changedFiles": 3,
+      "commit": "58ec406eff149315193d8632c08317f70f6deee1",
+      "consequence": {
+        "critical": [
+          "github.com/urfave/cli/v3"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "completion_partial_regression_test.go",
+          "help.go",
+          "help_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "d1d810845dbc6b7074c159f2ebb9bbb7a91619b6",
+      "task": "complete persistent flags in shell completion"
+    },
+    {
+      "branchTip": "f3bcf41b6c4fd01798acb26c6ab9e57bf526dccc",
+      "changedFiles": 2,
+      "commit": "d1d810845dbc6b7074c159f2ebb9bbb7a91619b6",
+      "consequence": {
+        "critical": [
+          "github.com/urfave/cli/v3"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "command_parse.go",
+          "command_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "19f06441ef1fb27b617d0160b85f9269f6459493",
+      "task": "handle a multi-byte flag at the end of a short option group"
+    },
+    {
+      "branchTip": "df51685d1fee17fb948aab42a816eb624b9a0fe0",
+      "changedFiles": 2,
+      "commit": "19f06441ef1fb27b617d0160b85f9269f6459493",
+      "consequence": {
+        "critical": [
+          "github.com/urfave/cli/v3"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "command_parse.go",
+          "command_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "e3f7e35fff660dfee418092358709ea6440cc839",
+      "task": "Keep argv after a bare \"-\" instead of dropping it."
+    },
+    {
+      "branchTip": "6756f5a23355d395efc6158574f67fe628b7465f",
+      "changedFiles": 2,
+      "commit": "e3f7e35fff660dfee418092358709ea6440cc839",
+      "consequence": {
+        "critical": [
+          "github.com/urfave/cli/v3"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "command_parse.go",
+          "command_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "4fa44ab9ea85ac65410c91c77efeb72a4e8517bc",
+      "task": "set BoolWithInverseFlag in a short option group"
+    },
+    {
+      "branchTip": "edef4dbe49048fbf28f7fe37a0aadcb1d331d281",
+      "changedFiles": 1,
+      "commit": "4fa44ab9ea85ac65410c91c77efeb72a4e8517bc",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          "mkdocs-requirements.txt"
+        ],
+        "eligible": true
+      },
+      "parent": "ae1fde92d52c18cb0e713172915a0b94f1c5daa3",
+      "task": "bump mkdocs-git-revision-date-localized-plugin"
+    },
+    {
+      "branchTip": "3b4e832cc97a6be6e440bd1cbf21bb60f57223f6",
+      "changedFiles": 3,
+      "commit": "ae1fde92d52c18cb0e713172915a0b94f1c5daa3",
+      "consequence": {
+        "critical": [
+          "github.com/urfave/cli/v3"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "command_parse.go",
+          "command_test.go",
+          "docs.go"
+        ],
+        "eligible": true
+      },
+      "parent": "277cbea35016fe8e389643ffe9f659ea2e9efe8b",
+      "task": "parse single-rune Unicode flags"
+    },
+    {
+      "branchTip": "db5032d8d71029dd4e1b1cd834eb0b9977754874",
+      "changedFiles": 10,
+      "commit": "277cbea35016fe8e389643ffe9f659ea2e9efe8b",
+      "consequence": {
+        "critical": [
+          "github.com/urfave/cli/v3"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "command.go",
+          "command_run.go",
+          "command_test.go",
+          "docs/v3/examples/flags/advanced.md",
+          "docs/v3/examples/subcommands/basics.md",
+          "flag.go",
+          "flag_bool_with_inverse.go",
+          "flag_impl.go",
+          "godoc-current.txt",
+          "testdata/godoc-v3.x.txt"
+        ],
+        "eligible": true
+      },
+      "parent": "b7cfd40630f5767e58b35d21137444af15722c5d",
+      "task": "add Deprecated field to flags and commands"
+    },
+    {
+      "branchTip": "9d86e5bc6fe381c3cf780b2deb3ddb917795a87e",
+      "changedFiles": 2,
+      "commit": "b7cfd40630f5767e58b35d21137444af15722c5d",
+      "consequence": {
+        "critical": [
+          "github.com/urfave/cli/v3"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "flag_bool_with_inverse.go",
+          "flag_bool_with_inverse_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "7885ee8216c71ecfafd59156c1ad6229586dbc9a",
+      "task": "Fix inverse bool flag counting with an external counter"
+    },
+    {
+      "branchTip": "197a707bedb96352c759cb223c7023f0ff1c6651",
+      "changedFiles": 2,
+      "commit": "7885ee8216c71ecfafd59156c1ad6229586dbc9a",
+      "consequence": {
+        "critical": [
+          "github.com/urfave/cli/v3"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "flag_map_impl.go",
+          "flag_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "9b981a04295de5121091c479f8a7a0476d2e8d38",
+      "task": "Trim the key of a map flag when TrimSpace is set"
+    },
+    {
+      "branchTip": "fe4c1c7aa30167d9c89bdb6e80cd30e304a68b60",
+      "changedFiles": 2,
+      "commit": "9b981a04295de5121091c479f8a7a0476d2e8d38",
+      "consequence": {
+        "critical": [
+          "github.com/urfave/cli/v3"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "command_parse.go",
+          "command_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "7fc67828d030c0892f7504df3ac29ce4a59979ba",
+      "task": "preserve whitespace in equals-form flag values"
+    },
+    {
+      "branchTip": "816e14f1594c4d5c6ba297c9ef0bbf173aae995f",
+      "changedFiles": 2,
+      "commit": "7fc67828d030c0892f7504df3ac29ce4a59979ba",
+      "consequence": {
+        "critical": [
+          "github.com/urfave/cli/v3"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "help.go"
+        ],
+        "eligible": true
+      },
+      "parent": "4c05a5cb71d9c95b596ea2ab33e3ad369f5b03a9",
+      "task": "complete child flags after positional arguments"
+    },
+    {
+      "branchTip": "0e4c02ef295438bcbf645c74c221ea1e5ea49ae3",
+      "changedFiles": 10,
+      "commit": "4c05a5cb71d9c95b596ea2ab33e3ad369f5b03a9",
+      "consequence": {
+        "critical": [
+          "github.com/urfave/cli/v3"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "command_setup.go",
+          "docs/v3/examples/flags/advanced.md",
+          "flag.go",
+          "flag_bool_with_inverse.go",
+          "flag_impl.go",
+          "flag_mutex.go",
+          "flag_mutex_test.go",
+          "godoc-current.txt",
+          "help_test.go",
+          "testdata/godoc-v3.x.txt"
+        ],
+        "eligible": true
+      },
+      "parent": "10eff35ab93bf963a779739b6315cab20d62224d",
+      "task": "Support custom FlagStringer for MutuallyExclusiveFlags"
+    },
+    {
+      "branchTip": "625ef955900211ca72709a9070c6e5daa2f5b654",
+      "changedFiles": 1,
+      "commit": "10eff35ab93bf963a779739b6315cab20d62224d",
+      "consequence": {
+        "critical": [],
+        "eligible": false
+      },
+      "orientation": {
+        "critical": [
+          "docs/v3/binary-size.md"
+        ],
+        "eligible": true
+      },
+      "parent": "72ca6b88802bbe74d24aa2d4a83a07bff4b0e2ea",
+      "task": "add go-size-analyzer, module version, and reflection"
+    },
+    {
+      "branchTip": "e8c2eb5631061dce43986b4c7a7f8b8e64e03243",
+      "changedFiles": 2,
+      "commit": "72ca6b88802bbe74d24aa2d4a83a07bff4b0e2ea",
+      "consequence": {
+        "critical": [
+          "github.com/urfave/cli/v3"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "flag_test.go",
+          "flag_timestamp.go"
+        ],
+        "eligible": true
+      },
+      "parent": "50812189740e4ef6939c4037b0ef37adc100ac29",
+      "task": "Fix a year-less timestamp layout losing January 1"
+    },
+    {
+      "branchTip": "93595d0c1a03d1a950241387c3242ff7115b54d6",
+      "changedFiles": 2,
+      "commit": "50812189740e4ef6939c4037b0ef37adc100ac29",
+      "consequence": {
+        "critical": [
+          "github.com/urfave/cli/v3"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "command_parse.go",
+          "command_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "69b39a411e1424d4fc3550a5d618cab5f20c5c7b",
+      "task": "preserve whitespace in positional arguments"
+    },
+    {
+      "branchTip": "a4b418ae28c49108073730624082b2da0354cfad",
+      "changedFiles": 2,
+      "commit": "69b39a411e1424d4fc3550a5d618cab5f20c5c7b",
+      "consequence": {
+        "critical": [
+          "github.com/urfave/cli/v3"
+        ],
+        "eligible": true
+      },
+      "orientation": {
+        "critical": [
+          "command.go",
+          "help_test.go"
+        ],
+        "eligible": true
+      },
+      "parent": "dfcc6ec88024dfce2c191036cc1b5611a1ec51d4",
+      "task": "show inherited persistent flags in help"
+    }
+  ],
+  "excluded": [],
+  "head": "7389061eb0182169c496021a09729735ac2b797b",
+  "module": "github.com/urfave/cli/v3",
+  "profile": "corvint-untouched-repository-corpus/0",
+  "window": 20
+}

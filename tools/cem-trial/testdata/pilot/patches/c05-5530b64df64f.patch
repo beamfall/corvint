@@ -1,0 +1,219 @@
+diff --git a/internal/web/app/e2e/lib/visual-parity.ts b/internal/web/app/e2e/lib/visual-parity.ts
+index 8c7ceb6d7..d3d588e2e 100644
+--- a/internal/web/app/e2e/lib/visual-parity.ts
++++ b/internal/web/app/e2e/lib/visual-parity.ts
+@@ -22,13 +22,17 @@ export async function openSelectState(
+   trigger: Locator,
+   selectedName: string,
+ ): Promise<void> {
+-  await trigger.click();
++  await trigger.focus();
++  await expect(trigger).toBeFocused();
++  await page.keyboard.press("Enter");
+   const listbox = page.getByRole("listbox");
+   await expect(listbox).toBeVisible();
+   const option = page.getByRole("option", { name: selectedName, exact: true });
+   await expectSelectedOption(option);
+-  await option.focus();
+-  await expect(option).toBeFocused();
++  await page.keyboard.press("ArrowDown");
++  await expect(listbox.locator("[data-highlighted]")).toHaveCount(1);
++  await page.keyboard.type(selectedName);
++  await expect(option).toHaveAttribute("data-highlighted", "");
+ }
+ 
+ export async function expectVisualParity(
+diff --git a/internal/web/app/e2e/manage.spec.ts b/internal/web/app/e2e/manage.spec.ts
+index 130132071..f7e1cb4f0 100644
+--- a/internal/web/app/e2e/manage.spec.ts
++++ b/internal/web/app/e2e/manage.spec.ts
+@@ -28,8 +28,16 @@ async function gotoManage(page: Page, route: string): Promise<void> {
+ }
+ 
+ async function selectAndReopen(page: Page, trigger: Locator, selectedName: string): Promise<void> {
+-  await trigger.click();
+-  await page.getByRole("option", { name: selectedName, exact: true }).click();
++  await trigger.focus();
++  await page.keyboard.press("Enter");
++  const option = page.getByRole("option", { name: selectedName, exact: true });
++  await page.keyboard.type(selectedName);
++  await expect(option).toHaveAttribute("data-highlighted", "");
++  await page.keyboard.press("ArrowUp");
++  await page.keyboard.press("ArrowDown");
++  await expect(option).toHaveAttribute("data-highlighted", "");
++  await page.keyboard.press("Enter");
++  await expect(page.getByRole("listbox")).toBeHidden();
+   await openSelectState(page, trigger, selectedName);
+ }
+ 
+diff --git a/internal/web/app/e2e/player.spec.ts b/internal/web/app/e2e/player.spec.ts
+index 3f0b53c98..3c2d860f6 100644
+--- a/internal/web/app/e2e/player.spec.ts
++++ b/internal/web/app/e2e/player.spec.ts
+@@ -111,13 +111,17 @@ async function openTransportState(
+   selectedName: string,
+ ): Promise<void> {
+   const trigger = transportTrigger(page, menuName);
+-  await trigger.click();
++  await trigger.focus();
++  await expect(trigger).toBeFocused();
++  await page.keyboard.press("Enter");
+   const listbox = page.getByRole("listbox", { name: menuName });
+   await expect(listbox).toBeVisible();
+   const option = listbox.getByRole("option", { name: selectedName, exact: true });
+   await expect(option).toHaveAttribute("aria-selected", "true");
+-  await option.focus();
+-  await expect(option).toBeFocused();
++  await page.keyboard.press("ArrowDown");
++  await expect(listbox.locator("[data-highlighted]")).toHaveCount(1);
++  await page.keyboard.type(selectedName);
++  await expect(option).toHaveAttribute("data-highlighted", "");
+ }
+ 
+ async function selectTransportState(
+@@ -126,11 +130,18 @@ async function selectTransportState(
+   selectedName: string,
+ ): Promise<void> {
+   const trigger = transportTrigger(page, menuName);
+-  await trigger.click();
++  await trigger.focus();
++  await page.keyboard.press("Enter");
+   const listbox = page.getByRole("listbox", { name: menuName });
+   await expect(listbox).toBeVisible();
+-  await listbox.getByRole("option", { name: selectedName, exact: true }).click();
+-  if (await listbox.isVisible()) await page.keyboard.press("Escape");
++  const option = listbox.getByRole("option", { name: selectedName, exact: true });
++  await page.keyboard.type(selectedName);
++  await expect(option).toHaveAttribute("data-highlighted", "");
++  await page.keyboard.press("ArrowUp");
++  await page.keyboard.press("ArrowDown");
++  await expect(option).toHaveAttribute("data-highlighted", "");
++  await page.keyboard.press("Enter");
++  await expect(listbox).toBeHidden();
+   await openTransportState(page, menuName, selectedName);
+ }
+ 
+@@ -153,15 +164,16 @@ async function openSharedSelectState(
+     return;
+   }
+ 
+-  await trigger.click();
++  await trigger.focus();
++  await expect(trigger).toBeFocused();
++  await page.keyboard.press("Enter");
+   const listbox = page.getByRole("listbox");
+   await expect(listbox).toBeVisible();
+   const option = page.getByRole("option", { name: selectedName, exact: true });
+-  await option.click();
+-  await trigger.click();
+-  await expect(option).toHaveAttribute("aria-selected", "true");
+-  await option.focus();
+-  await expect(option).toBeFocused();
++  await page.keyboard.press("ArrowDown");
++  await expect(listbox.locator("[data-highlighted]")).toHaveCount(1);
++  await page.keyboard.type(selectedName);
++  await expect(option).toHaveAttribute("data-highlighted", "");
+ }
+ 
+ async function closeSharedSelectPopup(page: Page): Promise<void> {
+@@ -223,7 +235,14 @@ test("visual parity covers every migrated player widget state", async ({
+   await expectVisualParity(page, testInfo, "player-volume-slider-focused-selected");
+ 
+   await selectTransportState(page, "Audio", "Spanish");
++  const audioListbox = page.getByRole("listbox", { name: "Audio" });
++  const visualAudioRows = page.locator(".bf-menu-visual .bf-menu-option");
++  await expect(visualAudioRows.filter({ hasText: "Spanish" })).toHaveClass(/is-focused/);
+   await expectVisualParity(page, testInfo, "player-audio-listbox-open-focused-selected");
++  const englishAudio = audioListbox.getByRole("option", { name: "English", exact: true });
++  await englishAudio.hover();
++  await expect(englishAudio).toHaveAttribute("data-highlighted", "");
++  await expect(visualAudioRows.filter({ hasText: "English" })).toHaveClass(/is-focused/);
+   await page.keyboard.press("Escape");
+ 
+   await selectTransportState(page, "Subtitles", "Spanish");
+diff --git a/internal/web/app/src/areas/viewer/player/TransportMenu.tsx b/internal/web/app/src/areas/viewer/player/TransportMenu.tsx
+index 91bd4dcb7..77698c7e8 100644
+--- a/internal/web/app/src/areas/viewer/player/TransportMenu.tsx
++++ b/internal/web/app/src/areas/viewer/player/TransportMenu.tsx
+@@ -1,4 +1,4 @@
+-import { useRef } from "react";
++import { type ComponentPropsWithRef, useCallback, useEffect, useState } from "react";
+ import { Select } from "@/components/ui/astryx-primitives";
+ import { useT } from "@/lib/i18n";
+ import type { TrackMenuOption } from "../lib/transport";
+@@ -9,6 +9,23 @@ export interface MenuRow<Id extends string = string> extends TrackMenuOption {
+   id: Id;
+ }
+ 
++function InteractiveRow({
++  highlighted,
++  rowID,
++  onHighlightedChange,
++  ...props
++}: ComponentPropsWithRef<"button"> & {
++  highlighted: boolean;
++  rowID: string;
++  onHighlightedChange: (rowID: string, highlighted: boolean) => void;
++}) {
++  useEffect(() => {
++    onHighlightedChange(rowID, highlighted);
++  }, [highlighted, onHighlightedChange, rowID]);
++
++  return <button {...props} />;
++}
++
+ export function TransportMenu({
+   label,
+   ariaLabel,
+@@ -27,7 +44,16 @@ export function TransportMenu({
+   onSelect: (id: string) => void;
+ }) {
+   const t = useT();
+-  const changed = useRef(false);
++  const [highlightedID, setHighlightedID] = useState<string | null>(null);
++  const mirrorHighlight = useCallback((rowID: string, highlighted: boolean) => {
++    setHighlightedID((current) => {
++      if (highlighted) return rowID;
++      return current === rowID ? null : current;
++    });
++  }, []);
++  useEffect(() => {
++    if (!open) setHighlightedID(null);
++  }, [open]);
+   const rows: MenuRow[] = options.length
+     ? options
+     : [
+@@ -47,7 +73,6 @@ export function TransportMenu({
+       onOpenChange={onOpenChange}
+       onValueChange={(value) => {
+         if (value === null) return;
+-        changed.current = true;
+         onSelect(String(value));
+       }}
+     >
+@@ -67,7 +92,8 @@ export function TransportMenu({
+                 tabIndex={-1}
+                 aria-selected={row.selected}
+                 disabled={row.disabled}
+-                className={`bf-menu-option${row.selected && changed.current ? " is-focused" : ""}`}
++                data-highlighted={row.id === highlightedID ? "" : undefined}
++                className={`bf-menu-option${row.id === highlightedID ? " is-focused" : ""}`}
+               >
+                 {row.label}
+                 {row.reason && <span className="bf-menu-reason">{row.reason}</span>}
+@@ -86,7 +112,14 @@ export function TransportMenu({
+                   value={row.id}
+                   disabled={row.disabled}
+                   nativeButton
+-                  render={<button type="button" />}
++                  render={(props, state) => (
++                    <InteractiveRow
++                      {...(props as ComponentPropsWithRef<"button">)}
++                      highlighted={state.highlighted}
++                      rowID={row.id}
++                      onHighlightedChange={mirrorHighlight}
++                    />
++                  )}
+                   className="bf-menu-option"
+                 >
+                   <Select.ItemText>{row.label}</Select.ItemText>

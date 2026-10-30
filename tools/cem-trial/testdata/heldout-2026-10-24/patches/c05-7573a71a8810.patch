@@ -1,0 +1,231 @@
+diff --git a/internal/plugin/plugin.go b/internal/plugin/plugin.go
+index d2cd80d57..aad8d8b74 100644
+--- a/internal/plugin/plugin.go
++++ b/internal/plugin/plugin.go
+@@ -30,6 +30,12 @@ var SectionKinds = []string{"hero", "shelf", "grid", "list", "info", "filter-bar
+ var SourceKinds = []string{
+ 	"recently-added",
+ 	"continue-watching",
++	// next-up (ADR-0028 §5): for each ordered container the Profile has
++	// engagement in, the first unwatched child in play-next order —
++	// deliberately a separate shelf from continue-watching (Plex's merged
++	// On Deck is the cautionary tale). Generic by construction: works for
++	// any container archetype, no domain vocabulary.
++	"next-up",
+ 	"recently-played",
+ 	"most-played",
+ 	"all-items",
+@@ -244,8 +250,9 @@ type SourceSpec struct {
+ 	// Bundle.MediaFields: declared text-field name → required value (the
+ 	// values are plugin data, never core vocabulary). Only the catalog
+ 	// feeds in FilterableSourceKinds accept filters — the engagement feeds
+-	// (continue-watching, recently-played, most-played) are per-Profile
+-	// event projections and the entity feeds are scoped by their entity,
++	// (continue-watching, next-up, recently-played, most-played) are
++	// per-Profile event projections and the entity feeds are scoped by
++	// their entity,
+ 	// not by Media fields.
+ 	FieldFilters map[string]string
+ }
+diff --git a/internal/store/engagement.go b/internal/store/engagement.go
+index f7f595882..6483ac880 100644
+--- a/internal/store/engagement.go
++++ b/internal/store/engagement.go
+@@ -4,7 +4,9 @@ import (
+ 	"context"
+ 	"database/sql"
+ 	"errors"
++	"sort"
+ 	"strconv"
++	"strings"
+ 	"time"
+ )
+ 
+@@ -202,6 +204,162 @@ func boolToInt(value bool) int {
+ 	return 0
+ }
+ 
++// nextUpSQL backs the "next-up" Source kind (ADR-0028 §5): for each ordered
++// container the Profile has engagement in, the first unwatched child in
++// play-next order — one item per container, containers ordered by recency of
++// the Profile's last engagement within them.
++//
++// Distinct from continue-watching by construction (the ADR's separate-shelves
++// ruling — Plex's merged On Deck is the cautionary tale): when a container's
++// frontier child is itself resumable (in progress past the resume floor), the
++// container yields nothing here — that child already lives on
++// continue-watching, and skipping past it would advance the shelf beyond what
++// the Profile has actually finished. Barely-started children (under the
++// resume floor) count as unwatched, mirroring continue-watching's floor, so
++// no item falls between the two shelves.
++//
++// Ordered containers are recognized by their data, never the manifest: a
++// relation row carrying a sort_order is the play-next seed (only
++// OrderedChildren container kinds get one written), which keeps the store
++// free of plugin-manifest knowledge and keeps unordered fan-out entities
++// (category-style relations) off the shelf.
++//
++// Engagement rows live in the events database and relations in the catalog,
++// so the composition happens here rather than in one SQL statement. Child
++// visibility (reveal, certification, trash, Library allowlist) rides on
++// mediaForEntitySQL's standard LibraryFilter funnel; a container hidden under
++// the filter is skipped whole.
++func (s *Store) nextUpSQL(ctx context.Context, profileID ProfileID, filter LibraryFilter, limit, offset int) ([]SourceItem, error) {
++	type progress struct {
++		watched    bool
++		inProgress bool
++		updatedAt  int64
++	}
++	rows, err := s.eventsR.QueryContext(ctx, `
++		SELECT media_id, watched, position_seconds, updated_at_ms
++		FROM playback_progress
++		WHERE profile_id = ?
++	`, profileID)
++	if err != nil {
++		return nil, err
++	}
++	defer rows.Close()
++	progressByMedia := map[MediaID]progress{}
++	for rows.Next() {
++		var mediaID MediaID
++		var watched, positionSeconds int
++		var updatedAt int64
++		if err := rows.Scan(&mediaID, &watched, &positionSeconds, &updatedAt); err != nil {
++			return nil, err
++		}
++		progressByMedia[mediaID] = progress{
++			watched:    watched != 0,
++			inProgress: watched == 0 && positionSeconds >= resumeFloorSeconds,
++			updatedAt:  updatedAt,
++		}
++	}
++	if err := rows.Err(); err != nil {
++		return nil, err
++	}
++	if len(progressByMedia) == 0 {
++		return []SourceItem{}, nil
++	}
++
++	// Engaged ordered containers, with the recency of the Profile's last
++	// engagement in each (catalog database; chunked IN over engaged Media).
++	engaged := make([]MediaID, 0, len(progressByMedia))
++	for id := range progressByMedia {
++		engaged = append(engaged, id)
++	}
++	sort.Slice(engaged, func(i, j int) bool { return engaged[i] < engaged[j] })
++	lastEngagedMs := map[EntityID]int64{}
++	const chunkSize = 500
++	for start := 0; start < len(engaged); start += chunkSize {
++		chunk := engaged[start:min(start+chunkSize, len(engaged))]
++		placeholders := make([]string, len(chunk))
++		args := make([]any, len(chunk))
++		for i, id := range chunk {
++			placeholders[i] = "?"
++			args[i] = id
++		}
++		relationRows, err := s.catalogR.QueryContext(ctx, `
++			SELECT from_entity_id, to_media_id
++			FROM entity_relation
++			WHERE sort_order IS NOT NULL AND to_media_id IN (`+strings.Join(placeholders, ", ")+`)
++		`, args...)
++		if err != nil {
++			return nil, err
++		}
++		for relationRows.Next() {
++			var containerID EntityID
++			var mediaID MediaID
++			if err := relationRows.Scan(&containerID, &mediaID); err != nil {
++				relationRows.Close()
++				return nil, err
++			}
++			if engagedAt := progressByMedia[mediaID].updatedAt; engagedAt > lastEngagedMs[containerID] {
++				lastEngagedMs[containerID] = engagedAt
++			}
++		}
++		if err := relationRows.Err(); err != nil {
++			relationRows.Close()
++			return nil, err
++		}
++		relationRows.Close()
++	}
++	containers := make([]EntityID, 0, len(lastEngagedMs))
++	for id := range lastEngagedMs {
++		containers = append(containers, id)
++	}
++	sort.Slice(containers, func(i, j int) bool {
++		if lastEngagedMs[containers[i]] != lastEngagedMs[containers[j]] {
++			return lastEngagedMs[containers[i]] > lastEngagedMs[containers[j]]
++		}
++		return containers[i] < containers[j]
++	})
++
++	// Per container, the frontier: the first visible child in play-next
++	// order the Profile has not watched. A frontier that is resumable
++	// belongs to continue-watching, so the container yields nothing. The
++	// same Media fronting two containers (a child in its container and in
++	// an ordered Collection) appears once, for the most recent.
++	items := []SourceItem{}
++	seen := map[MediaID]bool{}
++	for _, containerID := range containers {
++		children, err := s.mediaForEntitySQL(ctx, containerID, filter, -1, 0)
++		if err != nil {
++			continue // container hidden under the filter never reaches the wire
++		}
++		var frontier *SourceItem
++		for i := range children {
++			p, engaged := progressByMedia[children[i].ID]
++			if engaged && p.watched {
++				continue
++			}
++			if !engaged || !p.inProgress {
++				frontier = &children[i]
++			}
++			break
++		}
++		if frontier == nil || seen[frontier.ID] {
++			continue
++		}
++		seen[frontier.ID] = true
++		items = append(items, *frontier)
++		if len(items) >= offset+limit {
++			break
++		}
++	}
++	if offset >= len(items) {
++		return []SourceItem{}, nil
++	}
++	items = items[offset:]
++	if len(items) > limit {
++		items = items[:limit]
++	}
++	return items, nil
++}
++
+ // playedItemsSQL backs the recently-played and most-played Source kinds
+ // (ADR-0029 §7): engagement-projection-backed, reveal-filtered, generic.
+ func (s *Store) playedItemsSQL(ctx context.Context, profileID ProfileID, filter LibraryFilter, orderBy string, limit, offset int) ([]SourceItem, error) {
+diff --git a/internal/store/store.go b/internal/store/store.go
+index 04396c878..ac07009f4 100644
+--- a/internal/store/store.go
++++ b/internal/store/store.go
+@@ -822,7 +822,7 @@ func (s *Store) UpdateMediaMetadata(ctx context.Context, id MediaID, metadata Me
+ // SourceItems returns visible Media rows for a bounded manifest Source.
+ func (s *Store) SourceItems(ctx context.Context, filter LibraryFilter, query SourceQuery) ([]SourceItem, error) {
+ 	switch query.Kind {
+-	case "", "recently-added", "all-items", "continue-watching", "recently-played", "most-played", "entity-items", "entity-media":
++	case "", "recently-added", "all-items", "continue-watching", "next-up", "recently-played", "most-played", "entity-items", "entity-media":
+ 	default:
+ 		return []SourceItem{}, nil
+ 	}
+@@ -858,6 +858,11 @@ func (s *Store) SourceItems(ctx context.Context, filter LibraryFilter, query Sou
+ 			return []SourceItem{}, nil
+ 		}
+ 		return s.continueWatchingSQL(ctx, query.ProfileID, filter, limit, offset)
++	case "next-up":
++		if query.ProfileID == "" {
++			return []SourceItem{}, nil
++		}
++		return s.nextUpSQL(ctx, query.ProfileID, filter, limit, offset)
+ 	case "recently-played":
+ 		if query.ProfileID == "" {
+ 			return []SourceItem{}, nil

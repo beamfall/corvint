@@ -1,0 +1,35 @@
+{
+  "format": "atlas-cli-parity-fixture/0",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "type": "file",
+      "mode": "0644",
+      "content": "# Café release — ready 🙂\n\nTreat `docs/release-checklist.md` as the delivery authority.\nThe required workflow gates confirm the greeting package with `make verify-release`.\n"
+    },
+    {
+      "path": "docs/release-checklist.md",
+      "type": "file",
+      "mode": "0644",
+      "content": "# Delivery checklist\n\n1. Review the café greeting.\n2. Record approval — then celebrate 🙂.\n"
+    },
+    {
+      "path": "go.mod",
+      "type": "file",
+      "mode": "0644",
+      "content": "module example.test/paritygarden\n\ngo 1.27.0\n"
+    },
+    {
+      "path": "greeting/message.go",
+      "type": "file",
+      "mode": "0644",
+      "content": "package greeting\n\nconst ReleaseMessage = \"café — ready 🙂\"\n"
+    },
+    {
+      "path": "Makefile",
+      "type": "file",
+      "mode": "0644",
+      "content": "verify-release:\n\t@go test ./...\n"
+    }
+  ]
+}

@@ -1,0 +1,703 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"io"
+	"os"
+	"path/filepath"
+	"reflect"
+	"strings"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/localcompletion"
+)
+
+func dogfoodEventArguments(event string) []string {
+	return []string{"--host", "codex", "--host-version", "unknown", "--surface", "plugin", "--adapter-version", "0.1.0", "--event", event, "--input", "-", "--budget-bytes", "8000"}
+}
+
+// AHI-001: package releases do not change the native plugin event wire version.
+func TestAHI001AdapterWireVersion(t *testing.T) {
+	t.Parallel()
+	if adapterWireVersion != "0.1.0" {
+		t.Fatalf("adapter wire version = %q, want 0.1.0", adapterWireVersion)
+	}
+	root := queryCLIRepository(t)
+	ctx := context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
+	for _, host := range []string{"claude-code", "codex"} {
+		t.Run(host, func(t *testing.T) {
+			exact := options{host: host, hostVersion: dogfoodHostVersions[host], surface: "plugin", adapterVersion: "0.1.0"}
+			if !dogfoodEventHostAdmitted(exact) {
+				t.Fatal("existing wire version refused")
+			}
+			for _, version := range []string{"", "0.1.4", "0.2.3", "0.3.1", "0.2.4"} {
+				wrong := exact
+				wrong.adapterVersion = version
+				if dogfoodEventHostAdmitted(wrong) {
+					t.Fatalf("non-wire version %q admitted", version)
+				}
+			}
+			// Exercise the producer, argument parser, reader, and serialized receipt together.
+			result, reason := invokeDogfoodEvent(ctx, root, host, "stop", map[string]any{}, 8000)
+			if reason != "" {
+				t.Fatalf("native plugin event refused: %s", reason)
+			}
+			want := map[string]any{"host": host, "hostVersion": dogfoodHostVersions[host], "surface": "plugin", "adapterVersion": "0.1.0"}
+			if result["profile"] != "corvint-dogfood-event/0" || !reflect.DeepEqual(result["adapter"], want) {
+				t.Fatalf("wire receipt changed: %#v", result)
+			}
+		})
+	}
+}
+
+func TestDogfoodEventStopLifecycle(t *testing.T) {
+	t.Parallel()
+	t.Run("LCP-V0-008 stop", func(t *testing.T) {
+		for _, test := range []struct {
+			lifecycle string
+			satisfied bool
+			active    bool
+			decision  string
+			reason    string
+		}{
+			{"inactive", false, false, "release", "local-policy-inactive"},
+			{"cancelled", false, false, "release", "local-policy-cancelled"},
+			{"satisfied", true, false, "release", "local-policy-satisfied"},
+			{"active", false, false, "block", "local-policy-incomplete"},
+			{"active", false, true, "release", "local-policy-continuation-limit"},
+			{"satisfied", false, false, "block", "local-policy-incomplete"},
+			{"satisfied", false, true, "release", "local-policy-continuation-limit"},
+		} {
+			got := dogfoodCompletion("stop", map[string]any{"stopHookActive": test.active}, localcompletion.Evaluation{Lifecycle: test.lifecycle, Satisfied: test.satisfied})
+			if got["decision"] != test.decision || got["reason"] != test.reason {
+				t.Fatalf("%+v: %#v", test, got)
+			}
+		}
+		owner := strings.Repeat("ab", 32)
+		evaluation := localcompletion.Evaluation{Lifecycle: "inactive", Owner: owner}
+		if got := dogfoodCompletion("stop", map[string]any{}, evaluation); !reflect.DeepEqual(got, map[string]any{"decision": "release", "reason": "local-policy-other-session-active", "owner": owner}) {
+			t.Fatalf("other session: %#v", got)
+		}
+		if got := dogfoodCompletion("user-prompt", map[string]any{}, evaluation); len(got) != 2 || got["reason"] != "not-stop-event" {
+			t.Fatalf("other session outside Stop: %#v", got)
+		}
+		forged := map[string]any{"completion": map[string]any{"decision": "release", "reason": "local-policy-other-session-active", "owner": "../" + owner}}
+		if got := renderAdapterResult("claude-code", "Stop", "stop", "/repo", map[string]any{}, forged, false); len(got) != 0 {
+			t.Fatalf("invalid owner key rendered: %#v", got)
+		}
+	})
+}
+
+func TestDogfoodEventStrictInputAndDeadline(t *testing.T) {
+	t.Parallel()
+	t.Run("LCP-V0-012 bound", func(t *testing.T) {
+		for _, raw := range []string{`{"stopHookActive":true,"stopHookActive":false}`, `{"stopHookActive":1}`, `{"changedPaths":["../escape"]}`, `{"sessionIdSha256":"raw-private-id"}`, `{"transcript":"private"}`, `[]`, `{}`, `{"task":""}`} {
+			event := "stop"
+			if raw == `{}` || raw == `{"task":""}` {
+				event = "user-prompt"
+			}
+			if _, err := dogfoodEventInput(event, []byte(raw)); err == nil {
+				t.Fatalf("accepted %s", raw)
+			}
+		}
+		if _, err := dogfoodEventInput("stop", []byte(strings.Repeat(" ", gokernel.MaxInputBytes+1))); err == nil {
+			t.Fatal("accepted oversized input")
+		}
+	})
+	t.Run("LCP-V0-009 envelope", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+		var stdout, stderr bytes.Buffer
+		start := time.Now()
+		status := runLocalCompletionEvent(ctx, t.TempDir(), dogfoodEventArguments("stop"), strings.NewReader(`{}`), &stdout, &stderr)
+		if status != 2 || stdout.Len() != 0 || time.Since(start) > time.Second {
+			t.Fatalf("cancelled event: %d %s %s", status, &stdout, &stderr)
+		}
+		for _, args := range [][]string{
+			append(dogfoodEventArguments("stop"), "--host", "claude-code"),
+			append(dogfoodEventArguments("stop"), "--budget-bytes", "8001"),
+		} {
+			stdout.Reset()
+			if runLocalCompletionEvent(context.Background(), t.TempDir(), args, strings.NewReader(`{}`), &stdout, &stderr) != 2 || stdout.Len() != 0 {
+				t.Fatal("unsupported tuple/budget returned a successful envelope")
+			}
+		}
+	})
+	t.Run("LCP-V0-008 deadline", func(t *testing.T) {
+		root := queryCLIRepository(t)
+		expired := false
+		for deadline := time.Millisecond; deadline < time.Minute; deadline *= 2 {
+			ctx := context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return deadline })
+			var stdout, stderr bytes.Buffer
+			if runLocalCompletionEvent(ctx, root, dogfoodEventArguments("session-start"), strings.NewReader(`{}`), &stdout, &stderr) == 0 {
+				break
+			}
+			// The repository has no snapshot, so expiry in its in-memory build names that (AHI-031).
+			stale := strings.Contains(stderr.String(), `"dogfood-event-index-snapshot-stale"`)
+			if !stale && !strings.Contains(stderr.String(), `"dogfood-event-deadline"`) {
+				t.Fatalf("%s expiry was not reported as a time bound: %s", deadline, &stderr)
+			}
+			expired = expired || stale || strings.Contains(stderr.String(), `"dogfood-event-deadline"`)
+		}
+		if !expired {
+			t.Fatal("no deadline expired during the repository read")
+		}
+	})
+	t.Run("LCP-V0-008 expiry does not wait for an uncancellable read", func(t *testing.T) {
+		release := make(chan struct{})
+		defer close(release)
+		// The deadline expires only inside the read stage, so a loaded host cannot expire it during
+		// the input read instead (V1-1391, decision 0082); the minute is a hang detector.
+		parent, expire := workFinalInterruption("expired")
+		ctx := context.WithValue(parent, dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
+		// Like the in-memory index compile, this read never observes cancellation.
+		ctx = context.WithValue(ctx, dogfoodEventReadKey{}, func(context.Context, options, map[string]any) (map[string]any, error) {
+			expire()
+			<-release
+			return nil, errors.New("released")
+		})
+		root := queryCLIRepository(t)
+		returned := make(chan string, 1)
+		go func() {
+			var stdout, stderr bytes.Buffer
+			runLocalCompletionEvent(ctx, root, dogfoodEventArguments("session-start"), strings.NewReader(`{}`), &stdout, &stderr)
+			returned <- stderr.String()
+		}()
+		select {
+		case stderr := <-returned:
+			if !strings.Contains(stderr, `"dogfood-event-deadline"`) {
+				t.Fatalf("expired event was not reported as a time bound: %s", stderr)
+			}
+		case <-time.After(time.Minute): // hang detector, not a latency budget (decision 0082)
+			t.Fatal("expired event waited for a read that ignores cancellation")
+		}
+	})
+	t.Run("LCP-V0-008 expiry during the input read is the time bound", func(t *testing.T) {
+		// A host that holds stdin open past the deadline: the read fails with the expired
+		// context, which is the event's time bound, not unavailable input (V1-1391).
+		release := make(chan struct{})
+		defer close(release)
+		parent, expire := workFinalInterruption("expired")
+		ctx := context.WithValue(parent, dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
+		var stdout, stderr bytes.Buffer
+		status := runLocalCompletionEvent(ctx, queryCLIRepository(t), dogfoodEventArguments("session-start"), expiringReader{expire, release}, &stdout, &stderr)
+		if status != 2 || stdout.Len() != 0 || !strings.Contains(stderr.String(), `"dogfood-event-deadline"`) {
+			t.Fatalf("an input read that outlived the deadline was not reported as a time bound: %d %s", status, &stderr)
+		}
+	})
+	t.Run("LCP-V0-008 Git probe expiry", func(t *testing.T) {
+		// The Git probe's own bound can expire before a longer event deadline (V1-0396).
+		ctx := context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
+		ctx = context.WithValue(ctx, dogfoodEventReadKey{}, func(context.Context, options, map[string]any) (map[string]any, error) {
+			return nil, &gokernel.Error{Code: "repository-probe-timeout", Message: "Git repository probe exceeded its 10-second deadline"}
+		})
+		var stdout, stderr bytes.Buffer
+		if runLocalCompletionEvent(ctx, queryCLIRepository(t), dogfoodEventArguments("session-start"), strings.NewReader(`{}`), &stdout, &stderr) != 2 || !strings.Contains(stderr.String(), `"dogfood-event-deadline"`) {
+			t.Fatalf("an expired Git probe was not reported as a time bound: %s", &stderr)
+		}
+	})
+}
+
+// AHI-031: an event whose deadline expires in the in-memory build of a snapshot miss names the
+// stale snapshot, not the bare deadline; once the snapshot is refreshed the event needs no build.
+func TestDogfoodEventSnapshotMissExpiryNamesStaleSnapshot(t *testing.T) {
+	t.Parallel()
+	root := queryCLIRepository(t)
+	// The deadline expires only once the build starts, so a loaded host cannot expire the event
+	// before the miss (decision 0082); the minute is a hang detector. The Git probe's bound is
+	// lifted too, or host load expires it before the miss (V1-0969).
+	parent, expire := workFinalInterruption("expired")
+	ctx := context.WithValue(liftedProbeBound(parent), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute })
+	ctx = context.WithValue(ctx, dogfoodEventBuildKey{}, func(ctx context.Context, _, _ string) (*contextindex.Index, error) {
+		expire()
+		<-ctx.Done() // outlasts the event deadline, as the real build does on a large repository
+		return nil, ctx.Err()
+	})
+	var stdout, stderr bytes.Buffer
+	if runLocalCompletionEvent(ctx, root, dogfoodEventArguments("session-start"), strings.NewReader(`{}`), &stdout, &stderr) != 2 || !strings.Contains(stderr.String(), `"dogfood-event-index-snapshot-stale"`) {
+		t.Fatalf("snapshot-miss expiry did not name the stale snapshot: %s", &stderr)
+	}
+	stderr.Reset()
+	if runContext(context.Background(), []string{"--root", root, "index", "--if-stale"}, strings.NewReader(""), io.Discard, &stderr) != 0 {
+		t.Fatalf("index --if-stale: %s", &stderr)
+	}
+	// Lifted event and Git probe bounds and a refused build: this verifies the snapshot hit, not
+	// latency, so a loaded host cannot expire it (decision 0082, V1-0969).
+	refreshed := context.WithValue(lifecycleDeadlineContext(), dogfoodEventBuildKey{}, func(context.Context, string, string) (*contextindex.Index, error) {
+		return nil, errors.New("refreshed snapshot started a build")
+	})
+	if runLocalCompletionEvent(refreshed, root, dogfoodEventArguments("session-start"), strings.NewReader(`{}`), &stdout, &stderr) != 0 {
+		t.Fatalf("refreshed snapshot still degraded: %s", &stderr)
+	}
+}
+
+// staleSnapshotRepository is a repository whose explicit `index` run recorded its build cost and
+// whose tree then moved past that snapshot, so the next event misses.
+func staleSnapshotRepository(t *testing.T) string {
+	t.Helper()
+	root := queryCLIRepository(t)
+	runIndexForTest(t, root, false)
+	if _, recorded := contextindex.RecordedBuildCost(root); !recorded {
+		t.Fatal("index recorded no build cost")
+	}
+	if err := os.WriteFile(filepath.Join(root, "internal", "parser", "lexer.go"), []byte("package parser\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitFixture(t, root, "add", ".")
+	gitFixture(t, root, "commit", "-qm", "move the tree past the snapshot")
+	return root
+}
+
+// IDX-SNAP-V0-012, AHI-031: a snapshot miss whose recorded `index` build cost does not fit the
+// time left is decided from that record without starting the in-memory build; where the
+// recorded cost fits, as on a small repository, the miss still builds within the deadline.
+func TestDogfoodEventSnapshotMissUsesRecordedBuildCost(t *testing.T) {
+	t.Parallel()
+	// A minute, not the production deadline, and a lifted Git probe bound: these cases verify the
+	// decision, not latency (decision 0082, V1-0969).
+	deadline := liftedProbeBound(context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return time.Minute }))
+	t.Run("recorded cost outlasts the deadline", func(t *testing.T) {
+		t.Parallel()
+		root := staleSnapshotRepository(t)
+		if err := contextindex.RecordBuildCost(root, time.Hour); err != nil {
+			t.Fatal(err)
+		}
+		built := new(atomic.Bool)
+		ctx := context.WithValue(deadline, dogfoodEventBuildKey{}, func(ctx context.Context, _, _ string) (*contextindex.Index, error) {
+			built.Store(true)
+			<-ctx.Done()
+			return nil, ctx.Err()
+		})
+		var stdout, stderr bytes.Buffer
+		started := time.Now()
+		code := runLocalCompletionEvent(ctx, root, dogfoodEventArguments("session-start"), strings.NewReader(`{}`), &stdout, &stderr)
+		t.Logf("miss decided in %s", time.Since(started))
+		if code != 2 || !strings.Contains(stderr.String(), `"dogfood-event-index-snapshot-stale"`) || built.Load() {
+			t.Fatalf("miss was not decided from the recorded cost: code=%d built=%t %s", code, built.Load(), &stderr)
+		}
+		if cost, _ := contextindex.RecordedBuildCost(root); cost != time.Hour {
+			t.Fatalf("the hook rewrote the build-cost record: %s", cost)
+		}
+	})
+	t.Run("recorded cost fits the deadline", func(t *testing.T) {
+		t.Parallel()
+		root := staleSnapshotRepository(t)
+		// A fixed cost, not the fixture's measured one, so a loaded host cannot turn this into a skip.
+		if err := contextindex.RecordBuildCost(root, time.Millisecond); err != nil {
+			t.Fatal(err)
+		}
+		built := new(atomic.Bool)
+		ctx := context.WithValue(deadline, dogfoodEventBuildKey{}, func(ctx context.Context, root, subject string) (*contextindex.Index, error) {
+			built.Store(true)
+			return contextindex.BuildContext(ctx, root, subject)
+		})
+		var stdout, stderr bytes.Buffer
+		if code := runLocalCompletionEvent(ctx, root, dogfoodEventArguments("session-start"), strings.NewReader(`{}`), &stdout, &stderr); code != 0 || !built.Load() {
+			t.Fatalf("small-repository miss did not build: code=%d built=%t %s", code, built.Load(), &stderr)
+		}
+	})
+}
+
+func TestDogfoodEventDeadlineBelowDeclaredHostKill(t *testing.T) {
+	t.Parallel()
+	t.Run("LCP-V0-009 kill ordering", func(t *testing.T) {
+		root, err := filepath.Abs(filepath.Join("..", ".."))
+		if err != nil {
+			t.Fatal(err)
+		}
+		hookName := map[string]string{"session-start": "SessionStart", "user-prompt": "UserPromptSubmit", "stop": "Stop", "session-end": "SessionEnd"}
+		hooksPath := map[string]string{
+			"claude-code": filepath.Join(root, "integrations", "claude-code", "plugins", "corvint", "hooks", "hooks.json"),
+			"codex":       filepath.Join(root, "integrations", "codex", "plugins", "corvint", "hooks", "hooks.json"),
+		}
+		for host, path := range hooksPath {
+			raw, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var parsed struct {
+				Hooks map[string][]struct {
+					Hooks []struct {
+						Timeout float64 `json:"timeout"`
+					} `json:"hooks"`
+				} `json:"hooks"`
+			}
+			if err := json.Unmarshal(raw, &parsed); err != nil {
+				t.Fatal(err)
+			}
+			for event, name := range hookName {
+				entries, ok := parsed.Hooks[name]
+				if !ok || len(entries) == 0 || len(entries[0].Hooks) == 0 {
+					t.Fatalf("%s: no declared %s hook", host, name)
+				}
+				kill := time.Duration(entries[0].Hooks[0].Timeout * float64(time.Second))
+				if deadline := dogfoodEventDeadlineFor(host, event); deadline >= kill {
+					t.Fatalf("%s %s: deadline %s not strictly below declared host kill %s", host, event, deadline, kill)
+				}
+			}
+		}
+	})
+	// The test seams (dogfoodEventDeadlineKey, helperLiftedEventBounds) lift only their own
+	// contexts: an unseamed context keeps the production values (V1-0969).
+	t.Run("production deadline unchanged by the test seams", func(t *testing.T) {
+		for _, pair := range []struct {
+			host, event string
+			want        time.Duration
+		}{{"codex", "stop", 1600 * time.Millisecond}, {"claude-code", "user-prompt", 1600 * time.Millisecond}, {"claude-code", "session-end", 600 * time.Millisecond}} {
+			if got := dogfoodEventDeadlineOf(context.Background(), pair.host, pair.event); got != pair.want {
+				t.Fatalf("%s %s: production deadline %s, want %s", pair.host, pair.event, got, pair.want)
+			}
+		}
+	})
+}
+
+func TestDogfoodEventFailedPolicyReReadIsNotDrift(t *testing.T) {
+	t.Parallel()
+	t.Run("LCP-V0-008 failed policy re-read", func(t *testing.T) {
+		root := queryCLIRepository(t)
+		key := localcompletion.HashSession("reread-session")
+		corrupt := func(_ context.Context, _ options, _ map[string]any, _ localcompletion.Evaluation, _ map[string]any, _ gokernel.Repository, _ gokernel.Observation) (map[string]any, error) {
+			directory := filepath.Join(root, ".git", "corvint", "local-completion", key)
+			if err := os.MkdirAll(directory, 0700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(directory, "state.json"), []byte("{"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			return map[string]any{}, nil
+		}
+		input := map[string]any{"sessionIdSha256": key}
+		_, err := localEventRead(context.Background(), options{root: root, event: "session-start"}, input, dogfoodEventEnvelope, corrupt, "")
+		if err == nil {
+			t.Fatal("unreadable policy re-read accepted")
+		}
+		var kernelErr *gokernel.Error
+		if errors.As(err, &kernelErr) && kernelErr.Code == "dogfood-event-policy-drift" {
+			t.Fatalf("failed policy re-read labelled drift: %v", err)
+		}
+	})
+}
+
+func TestDogfoodEventGoPythonWireAndSession(t *testing.T) {
+	t.Run("LCP-V0-009 envelope", func(t *testing.T) {
+		repo := gokernel.Repository{CommitRevision: strings.Repeat("a", 40), TreeRevision: strings.Repeat("b", 40), ObjectFormat: "sha1", DirtyPathsSHA: dogfoodSHA([]byte("[]")), WorktreeState: "clean"}
+		options := options{host: "codex", hostVersion: "unknown", surface: "plugin", adapterVersion: "0.1.0", event: "stop"}
+		session := localcompletion.HashSession("native-session-é")
+		input := map[string]any{"sessionIdSha256": session, "stopHookActive": false, "changedPaths": []any{}}
+		result := dogfoodEventEnvelope(options, input, repo, localcompletion.Evaluation{Lifecycle: "active", Base: strings.Repeat("c", 40), Target: repo.CommitRevision, PlanDigest: strings.Repeat("d", 64), Unmet: []string{"selected-check-unverified:private-check"}})
+		encoded, err := dogfoodEventBytes(result, 8000)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if bytes.Contains(encoded, []byte("private-check")) {
+			t.Fatal("caller check ID leaked through automatic diagnostics")
+		}
+		if got := hashAdapterSession("corvint-local-completion-session/0", "native-session-é"); got != session {
+			t.Fatalf("adapter session digest=%s want=%s", got, session)
+		}
+		host := renderAdapterResult("codex", "Stop", "stop", "", input, result, false)
+		if host["decision"] != "block" || !strings.Contains(host["reason"].(string), "Frontier authority remains unavailable") {
+			t.Fatalf("native Stop output=%v", host)
+		}
+		// V1-0298: the block names the closed unmet categories and the status argv, never a caller check ID.
+		reason := host["reason"].(string)
+		if !strings.Contains(reason, "Unmet: selected-check-unverified.") || !strings.Contains(reason, `"dogfood","status","--session-key","`+session+`"`) || strings.Contains(reason, "private-check") {
+			t.Fatalf("native Stop reason=%q", reason)
+		}
+		var decoded map[string]any
+		if err := json.Unmarshal(encoded, &decoded); err != nil {
+			t.Fatal(err)
+		}
+		originalDigest := decoded["resultDigest"]
+		decoded["policy"].(map[string]any)["satisfied"] = true
+		changed, err := dogfoodEventBytes(decoded, 8000)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if bytes.Contains(changed, []byte(originalDigest.(string))) {
+			t.Fatal("result digest did not cover policy answer")
+		}
+		if _, err := dogfoodEventBytes(result, len(encoded)-1); err == nil {
+			t.Fatal("complete response budget excluded terminating LF")
+		}
+	})
+	t.Run("LCP-V0-002 enrollment", func(t *testing.T) {
+		t.Setenv("CODEX_THREAD_ID", "native-session-é")
+		key, err := localcompletion.SessionKey("")
+		if err != nil || key != localcompletion.HashSession("native-session-é") {
+			t.Fatalf("CLI session domain: %s %v", key, err)
+		}
+	})
+}
+
+func TestCodexHostAdapterNormalizesAndFramesNativeEvent(t *testing.T) {
+	root := queryCLIRepository(t)
+	t.Setenv("CODEX_THREAD_ID", "")
+	t.Setenv("CODEX_SESSION_ID", "")
+	payload := map[string]any{
+		"hook_event_name": "SessionStart", "cwd": root,
+		"session_id": "native-session-é", "source": "startup",
+		"transcript_path": "/private/transcript", "prompt": "private",
+	}
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stdout bytes.Buffer
+	if status := runContext(lifecycleDeadlineContext(), []string{"adapter", "codex"}, bytes.NewReader(raw), &stdout, io.Discard); status != 0 {
+		t.Fatalf("status=%d output=%s", status, &stdout)
+	}
+	if stdout.Len() > adapterOutputLimit || bytes.Contains(stdout.Bytes(), []byte("private/transcript")) || bytes.Contains(stdout.Bytes(), []byte(`"prompt":"private"`)) {
+		t.Fatalf("unbounded or private output: %s", &stdout)
+	}
+	var output map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &output); err != nil {
+		t.Fatal(err)
+	}
+	specific, ok := output["hookSpecificOutput"].(map[string]any)
+	if !ok {
+		t.Fatalf("host frame=%v", output)
+	}
+	contextText, ok := specific["additionalContext"].(string)
+	if !ok {
+		t.Fatalf("host frame=%v", output)
+	}
+	if specific["hookEventName"] != "SessionStart" || !strings.HasPrefix(contextText, untrustedDataPrefix) || !strings.HasSuffix(contextText, untrustedDataSuffix) {
+		t.Fatalf("host frame=%v", output)
+	}
+}
+
+func TestDogfoodEventReadOnlyEnrolledStopAndPrompt(t *testing.T) {
+	t.Parallel()
+	root := queryCLIRepository(t)
+	if err := os.MkdirAll(filepath.Join(root, "docs", "specs"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "docs", "specs", "event.md"), []byte("# Event specification\n\n## Requirements\n\n- `LCP-TEST-001`: Preserve an explicit requirement anchor.\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	gitOutput(t, root, "add", "docs/specs/event.md")
+	gitOutput(t, root, "commit", "-qm", "add requirement fixture")
+	key := localcompletion.HashSession("event-session")
+	base := strings.TrimSpace(gitOutput(t, root, "rev-parse", "HEAD"))
+	plan, err := json.Marshal(localcompletion.Plan{Base: base, Intents: []string{"docs/specs/event.md"}, Checks: []localcompletion.Check{{ID: "check", Argv: []string{"false"}, TimeoutSeconds: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := localcompletion.Begin(context.Background(), root, key, plan); err != nil {
+		t.Fatal(err)
+	}
+	t.Run("LCP-V0-003 readonly", func(t *testing.T) {
+		before := dogfoodPrivateFiles(t, root)
+		for _, test := range []struct{ event, input string }{
+			{"stop", `{"sessionIdSha256":"` + key + `","stopHookActive":false}`},
+			{"stop", `{"sessionIdSha256":"` + key + `","stopHookActive":true}`},
+			{"user-prompt", `{"sessionIdSha256":"` + key + `","task":"what about it"}`},
+			{"user-prompt", `{"sessionIdSha256":"` + key + `","task":"AGENTS.md"}`},
+			{"user-prompt", `{"sessionIdSha256":"` + key + `","task":"ParseToken"}`},
+			{"user-prompt", `{"sessionIdSha256":"` + key + `","task":"LCP-TEST-001"}`},
+			{"session-start", `{"sessionIdSha256":"` + key + `","startSource":"compact"}`},
+		} {
+			var stdout, stderr bytes.Buffer
+			if status := runLocalCompletionEvent(lifecycleDeadlineContext(), root, dogfoodEventArguments(test.event), strings.NewReader(test.input), &stdout, &stderr); status != 0 {
+				t.Fatalf("%s: %d %s", test.event, status, &stderr)
+			}
+			if stdout.Len() > 8000 || bytes.Contains(stdout.Bytes(), []byte("what about it")) {
+				t.Fatalf("unbounded or raw prompt output: %s", &stdout)
+			}
+			var result map[string]any
+			if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+				t.Fatal(err)
+			}
+			dogfoodNativeValidate(t, test.event, test.input, stdout.Bytes())
+			if test.event == "user-prompt" && !strings.Contains(test.input, "what about it") {
+				packet := result["context"].(map[string]any)
+				if len(packet["task_evidence"].([]any)) == 0 {
+					t.Fatalf("explicit anchor lost: %s %s", test.input, &stdout)
+				}
+			}
+			if result["policy"].(map[string]any)["satisfied"] != false {
+				t.Fatal("unverified workflow satisfied")
+			}
+		}
+		if !reflect.DeepEqual(before, dogfoodPrivateFiles(t, root)) {
+			t.Fatal("automatic events mutated private or repository state")
+		}
+	})
+	t.Run("LCP-V0-008 other session", func(t *testing.T) {
+		other := localcompletion.HashSession("cleared-session")
+		input := `{"sessionIdSha256":"` + other + `","stopHookActive":false}`
+		var stdout, stderr bytes.Buffer
+		if status := runLocalCompletionEvent(lifecycleDeadlineContext(), root, dogfoodEventArguments("stop"), strings.NewReader(input), &stdout, &stderr); status != 0 {
+			t.Fatalf("stop: %d %s", status, &stderr)
+		}
+		var result map[string]any
+		if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+			t.Fatal(err)
+		}
+		if want := map[string]any{"decision": "release", "reason": "local-policy-other-session-active", "owner": key}; !reflect.DeepEqual(result["completion"], want) {
+			t.Fatalf("completion=%v", result["completion"])
+		}
+		notice := renderAdapterResult("claude-code", "Stop", "stop", root, map[string]any{"sessionIdSha256": other}, result, false)
+		message, _ := notice["systemMessage"].(string)
+		if len(notice) != 1 || !strings.HasPrefix(message, otherSessionMsg) || !strings.Contains(message, `"--session-key","`+key+`"`) {
+			t.Fatalf("notice=%v", notice)
+		}
+	})
+	t.Run("LCP-V0-001 authority", func(t *testing.T) {
+		request := gokernel.EventRequest{Root: root, Host: "codex", HostVersion: "unknown", Surface: "plugin", AdapterVersion: "0.1.0", Event: "stop", Input: []byte(`{}`), BudgetBytes: 8000}
+		// The legacy harness reads carry the same lifted Git probe bound as the event between them:
+		// HandleEvent's fixed 10-second probe expired on a loaded host (V1-1393, decision 0082).
+		legacy := liftedProbeBound(context.Background())
+		before, err := gokernel.HandleEventContext(legacy, request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var stdout, stderr bytes.Buffer
+		if status := runLocalCompletionEvent(lifecycleDeadlineContext(), root, dogfoodEventArguments("stop"), strings.NewReader(`{"sessionIdSha256":"`+key+`"}`), &stdout, &stderr); status != 0 {
+			t.Fatalf("event: %d %s", status, &stderr)
+		}
+		after, err := gokernel.HandleEventContext(legacy, request)
+		if err != nil || !reflect.DeepEqual(before, after) {
+			t.Fatalf("legacy harness changed: %v", err)
+		}
+		frontier := after["frontier"].(map[string]any)
+		if frontier["state"] != "UNAVAILABLE" || frontier["shouldContinue"] != false {
+			t.Fatal("legacy authority changed")
+		}
+	})
+}
+
+func dogfoodNativeValidate(t *testing.T, event, input string, output []byte) {
+	t.Helper()
+	var result, normalized map[string]any
+	if err := json.Unmarshal(output, &result); err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal([]byte(input), &normalized); err != nil {
+		t.Fatal(err)
+	}
+	names := map[string]string{"user-prompt": "UserPromptSubmit", "session-start": "SessionStart", "stop": "Stop"}
+	native := renderAdapterResult("codex", names[event], event, "", normalized, result, false)
+	encoded, err := json.Marshal(native)
+	if err != nil || len(encoded)+1 > adapterOutputLimit {
+		t.Fatalf("native %s response: %v %d", event, err, len(encoded)+1)
+	}
+	if event != "stop" {
+		hook, framed := native["hookSpecificOutput"].(map[string]any)
+		if !framed {
+			// Only a prompt with nothing actionable may be silent (AHI-046).
+			if event != "user-prompt" || len(native) != 0 || hookContextProjection(event, result, false) != nil {
+				t.Fatalf("silent native %s response for an actionable receipt: %v", event, native)
+			}
+			return
+		}
+		context := hook["additionalContext"].(string)
+		if !strings.HasPrefix(context, untrustedDataPrefix) || !strings.HasSuffix(context, untrustedDataSuffix) {
+			t.Fatalf("untrusted-data framing missing: %s", context)
+		}
+	}
+}
+
+func dogfoodPrivateFiles(t *testing.T, root string) map[string]string {
+	t.Helper()
+	files := map[string]string{}
+	err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			return nil
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		files[path] = dogfoodSHA(raw)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return files
+}
+
+func TestPiLocalCompletionTuple(t *testing.T) {
+	t.Parallel()
+	exact := options{host: "pi", hostVersion: "0.99.1", surface: "extension", adapterVersion: piAdapterVersion}
+	if !dogfoodEventHostAdmitted(exact) {
+		t.Fatal("exact ordinary Pi tuple refused")
+	}
+	for _, wrong := range []options{
+		{host: "pi", hostVersion: "0.85.1", surface: "extension", adapterVersion: piAdapterVersion},
+		{host: "pi", hostVersion: "0.99.1", surface: "plugin", adapterVersion: piAdapterVersion},
+		{host: "pi", hostVersion: "0.99.1", surface: "extension", adapterVersion: "0.2.0"},
+		{host: "pi", hostVersion: "0.99.1", surface: "extension", adapterVersion: "0.3.2"}, // superseded (V1-2150)
+		{host: "pi", hostVersion: "0.99.1", surface: "extension", adapterVersion: "0.3.3"}, // superseded (decision 0556)
+		{host: "pi", hostVersion: "0.99.1", surface: "extension", adapterVersion: "0.3.4"}, // superseded (decision 0558)
+		{host: "pi", hostVersion: "0.99.1", surface: "extension", adapterVersion: "0.3.5"}, // never emitted; superseded (decision 0558)
+		{host: "pi", hostVersion: "0.99.1", surface: "extension", adapterVersion: "0.3.6"}, // superseded (V1-2854)
+		{host: "pi", hostVersion: "0.99.1", surface: "extension", adapterVersion: "0.3.7"}, // emitters never moved; superseded (V1-2854)
+		{host: "pi-protected", hostVersion: "0.99.1", surface: "extension", adapterVersion: piAdapterVersion},
+	} {
+		if dogfoodEventHostAdmitted(wrong) {
+			t.Fatalf("admitted %+v", wrong)
+		}
+	}
+	root := queryCLIRepository(t)
+	intent := commitLocalCompletionIntent(t, root)
+	base := strings.TrimSpace(gitOutput(t, root, "rev-parse", "HEAD"))
+	key := dogfoodSHA([]byte("corvint-local-completion-session/pi/0\x00native-session"))
+	plan, err := json.Marshal(localcompletion.Plan{Base: base, Intents: []string{intent}, Checks: []localcompletion.Check{{ID: "unrun", Argv: []string{"false"}, TimeoutSeconds: 1}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := localcompletion.Begin(context.Background(), root, key, plan); err != nil {
+		t.Fatal(err)
+	}
+	before := repositoryBytesDigest(t, root)
+	args := []string{"--host", "pi", "--host-version", "0.99.1", "--surface", "extension", "--adapter-version", piAdapterVersion, "--event", "stop", "--input", "-", "--budget-bytes", "8000"}
+	for _, active := range []bool{false, true, true} {
+		input, _ := json.Marshal(map[string]any{"sessionIdSha256": key, "stopHookActive": active, "changedPaths": []any{}})
+		var out, diagnostics bytes.Buffer
+		code := runLocalCompletionEvent(lifecycleDeadlineContext(), root, args, bytes.NewReader(input), &out, &diagnostics)
+		var receipt map[string]any
+		if code != 0 || json.Unmarshal(out.Bytes(), &receipt) != nil {
+			t.Fatalf("event %d %s %s", code, &out, &diagnostics)
+		}
+		decision := receipt["completion"].(map[string]any)["decision"]
+		if (!active && decision != "block") || (active && decision != "release") {
+			t.Fatalf("active=%t %s", active, &out)
+		}
+		if receipt["support"] != "FALLBACK" || receipt["mutates"] != false {
+			t.Fatal("local event broadened authority")
+		}
+	}
+	other, err := localcompletion.Evaluate(context.Background(), root, localcompletion.HashSession("native-session"))
+	if err != nil || other.Lifecycle != "inactive" {
+		t.Fatalf("legacy identity adopted Pi enrollment: %+v %v", other, err)
+	}
+	if after := repositoryBytesDigest(t, root); before != after {
+		t.Fatal("Pi automatic event mutated state")
+	}
+}
+
+// expiringReader is stdin from a host that holds it open past the event deadline: its read expires
+// the deadline, then blocks until released, ignoring cancellation.
+type expiringReader struct {
+	expire  func()
+	release <-chan struct{}
+}
+
+func (reader expiringReader) Read([]byte) (int, error) {
+	reader.expire()
+	<-reader.release
+	return 0, io.EOF
+}

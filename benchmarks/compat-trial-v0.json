@@ -1,0 +1,272 @@
+{
+  "schema_version": "compat-trial-preregistration-v0",
+  "status": "PREREGISTERED_NOT_RUN",
+  "authority": {
+    "requirements": "CTR-V0-001..010",
+    "decision": "docs/decisions/0052-owner-accepts-first-wave-proposals-and-authorises-build-2026-09-04.md",
+    "accepted_by": "coordinator:decision-0052"
+  },
+  "registry_kind": "labels-and-exclusions",
+  "runner_descriptor": "NOT_PRODUCED",
+  "scored_results": "NOT_RUN",
+  "partition": "pilot",
+  "source": "Twenty Corvint commits surfaced by the compatibility hunt; ten selected by the preregistered read-only single-invocation positive/control eligibility rules.",
+  "comparison_policy_ref": "docs/specs/compat-trial-v0.md#ctr-v0-002",
+  "resource_profile_ref": "benchmarks/compat-trial-v0.md#per-case-budgets",
+  "baseline_ref": "benchmarks/compat-baseline-v0.md",
+  "preregistration_ref": "benchmarks/compat-trial-v0.md",
+  "eligibility_rule": "Changes an implementation or dependency on a read-only CLI verb's reachable path; exercisable by one invocation with frozen argv and stdin; one coherent intent. A positive predicts different old/new bytes or exit status; a compatible control predicts exact equality despite the implementation change.",
+  "independent_intent_state": "NOT_PRODUCED",
+  "scoring_hold": "Every case requires a case-specific pre-run owner/spec/test-oracle accepted_intent_ref independent of the candidate-side fix.",
+  "holdout": {
+    "source": "CTR-V0-006 separate 40 new cases from at least four unrelated projects",
+    "state": "NOT_PRODUCED",
+    "cases_from_this_registry": 0
+  },
+  "case_registry": [
+    {
+      "id": "compat-pilot-001",
+      "partition": "development",
+      "candidate_commit": "dfd1d04de69eea4e3ccbd9816314d258f79e4f5e",
+      "base_commit": "c5639601e1634c62331062ac9d9550f1b2c007a6",
+      "descriptor_status": "NOT_PRODUCED",
+      "gold_ref": "#/gold/compat-pilot-001",
+      "accepted_intent_ref": "NOT_PRODUCED",
+      "evidence_refs": [
+        "git:dfd1d04de69eea4e3ccbd9816314d258f79e4f5e:cmd/corvint/help.go",
+        "git:dfd1d04de69eea4e3ccbd9816314d258f79e4f5e:cmd/corvint/help_test.go"
+      ]
+    },
+    {
+      "id": "compat-pilot-002",
+      "partition": "development",
+      "candidate_commit": "0c9421a175d97af38b29df479c9740688e036461",
+      "base_commit": "7c73dc6fde8e8f97f9f3daee510a643b19cd6fe4",
+      "descriptor_status": "NOT_PRODUCED",
+      "gold_ref": "#/gold/compat-pilot-002",
+      "accepted_intent_ref": "NOT_PRODUCED",
+      "evidence_refs": [
+        "git:0c9421a175d97af38b29df479c9740688e036461:cmd/corvint/main.go",
+        "git:0c9421a175d97af38b29df479c9740688e036461:cmd/corvint/main_test.go"
+      ]
+    },
+    {
+      "id": "compat-pilot-003",
+      "partition": "development",
+      "candidate_commit": "21a147c5b217bbf009b6b2956863e30804e21485",
+      "base_commit": "9ca903a4e02e654d3045e943a25a47facf22cf97",
+      "descriptor_status": "NOT_PRODUCED",
+      "gold_ref": "#/gold/compat-pilot-003",
+      "accepted_intent_ref": "NOT_PRODUCED",
+      "evidence_refs": [
+        "git:21a147c5b217bbf009b6b2956863e30804e21485:internal/liveverify/pyresolve/pyresolve.go",
+        "git:21a147c5b217bbf009b6b2956863e30804e21485:cmd/corvint/prove_python_test.go"
+      ]
+    },
+    {
+      "id": "compat-pilot-004",
+      "partition": "development",
+      "candidate_commit": "4ed3a3d7c8cb831ffb76022ff2e32dd4f852b0c0",
+      "base_commit": "21a147c5b217bbf009b6b2956863e30804e21485",
+      "descriptor_status": "NOT_PRODUCED",
+      "gold_ref": "#/gold/compat-pilot-004",
+      "accepted_intent_ref": "NOT_PRODUCED",
+      "evidence_refs": [
+        "git:4ed3a3d7c8cb831ffb76022ff2e32dd4f852b0c0:cmd/corvint/prove.go",
+        "git:4ed3a3d7c8cb831ffb76022ff2e32dd4f852b0c0:cmd/corvint/prove_mutate_test.go"
+      ]
+    },
+    {
+      "id": "compat-pilot-005",
+      "partition": "development",
+      "candidate_commit": "abcbcff24c1c8f0ba52f8bd85bdab880d07d896a",
+      "base_commit": "dbe5ed9997622b5795dffc09b6e7306689bcc9f6",
+      "descriptor_status": "NOT_PRODUCED",
+      "gold_ref": "#/gold/compat-pilot-005",
+      "accepted_intent_ref": "NOT_PRODUCED",
+      "evidence_refs": [
+        "git:abcbcff24c1c8f0ba52f8bd85bdab880d07d896a:internal/contextindex/index.go",
+        "git:abcbcff24c1c8f0ba52f8bd85bdab880d07d896a:internal/contextindex/generated_header_test.go"
+      ]
+    },
+    {
+      "id": "compat-pilot-006",
+      "partition": "development",
+      "candidate_commit": "1e51fe777061a5d241477d8b9bb405829bc4edad",
+      "base_commit": "2d7e318f3ef29972f4ca6539a7c49b21be2439a3",
+      "descriptor_status": "NOT_PRODUCED",
+      "run_condition": "A frozen standalone trigger must be produced; otherwise this case is unsupported and remains in the denominator.",
+      "gold_ref": "#/gold/compat-pilot-006",
+      "accepted_intent_ref": "NOT_PRODUCED",
+      "evidence_refs": [
+        "git:1e51fe777061a5d241477d8b9bb405829bc4edad:internal/contextindex/receipt.go",
+        "git:1e51fe777061a5d241477d8b9bb405829bc4edad:internal/contextindex/receipt_budget_test.go"
+      ]
+    },
+    {
+      "id": "compat-pilot-007",
+      "partition": "development",
+      "candidate_commit": "4f3dc7e63d8a67b79c06d45ac5dcf1a832acb67c",
+      "base_commit": "b5825edb61b40734a8000fe535c5715dc8117f57",
+      "descriptor_status": "NOT_PRODUCED",
+      "gold_ref": "#/gold/compat-pilot-007",
+      "accepted_intent_ref": "NOT_PRODUCED",
+      "evidence_refs": [
+        "git:4f3dc7e63d8a67b79c06d45ac5dcf1a832acb67c:cmd/corvint/taskcontext.go",
+        "git:4f3dc7e63d8a67b79c06d45ac5dcf1a832acb67c:cmd/corvint/perf_bench_test.go"
+      ]
+    },
+    {
+      "id": "compat-pilot-008",
+      "partition": "development",
+      "candidate_commit": "afb01320f3878ff4f620876db73ab3ee98129d21",
+      "base_commit": "8feba58168f99875ac94bd589d9e92a9afa9243e",
+      "descriptor_status": "NOT_PRODUCED",
+      "gold_ref": "#/gold/compat-pilot-008",
+      "accepted_intent_ref": "NOT_PRODUCED",
+      "evidence_refs": [
+        "git:afb01320f3878ff4f620876db73ab3ee98129d21:internal/contextindex/termtable.go",
+        "git:afb01320f3878ff4f620876db73ab3ee98129d21:internal/contextindex/termtable_test.go"
+      ]
+    },
+    {
+      "id": "compat-pilot-009",
+      "partition": "development",
+      "candidate_commit": "130a667b3b509bac8e64fa3577762f6635a4bc9a",
+      "base_commit": "8feba58168f99875ac94bd589d9e92a9afa9243e",
+      "descriptor_status": "NOT_PRODUCED",
+      "gold_ref": "#/gold/compat-pilot-009",
+      "accepted_intent_ref": "NOT_PRODUCED",
+      "evidence_refs": [
+        "git:130a667b3b509bac8e64fa3577762f6635a4bc9a:internal/contextindex/snapshot.go"
+      ]
+    },
+    {
+      "id": "compat-pilot-010",
+      "partition": "development",
+      "candidate_commit": "34a304956fe389498ddd36478e592fbc08f1d842",
+      "base_commit": "e01f1faa8fc656037bb6f81270c7393d12ab1376",
+      "descriptor_status": "NOT_PRODUCED",
+      "gold_ref": "#/gold/compat-pilot-010",
+      "accepted_intent_ref": "NOT_PRODUCED",
+      "evidence_refs": [
+        "git:34a304956fe389498ddd36478e592fbc08f1d842:internal/contextindex/eval_query.go",
+        "git:34a304956fe389498ddd36478e592fbc08f1d842:internal/contextindex/eval_query_precision_test.go"
+      ]
+    }
+  ],
+  "gold": {
+    "compat-pilot-001": {
+      "label": "intentional",
+      "critical": false,
+      "critical_basis": "none of CTR-V0-009(i)-(iii); help text",
+      "provenance": "coordinator call under decision 0052 from the cited immutable diff and test; no replay result",
+      "accepted_by": "coordinator:decision-0052"
+    },
+    "compat-pilot-002": {
+      "label": "defect",
+      "critical": false,
+      "critical_basis": "none of CTR-V0-009(i)-(iii); escaping/output representation",
+      "provenance": "coordinator call under decision 0052 from the cited immutable diff and test; no replay result",
+      "accepted_by": "coordinator:decision-0052"
+    },
+    "compat-pilot-003": {
+      "label": "defect",
+      "critical": true,
+      "critical_basis": "CTR-V0-009(i): selected evidence may cite content unavailable under the intended import resolution",
+      "provenance": "coordinator call under decision 0052 from the cited immutable diff and test; no replay result",
+      "accepted_by": "coordinator:decision-0052"
+    },
+    "compat-pilot-004": {
+      "label": "defect",
+      "critical": true,
+      "critical_basis": "CTR-V0-009(ii): verdict rows lacked the kind/id binding required to interpret their gate result",
+      "provenance": "coordinator call under decision 0052 from the cited immutable diff and test; no replay result",
+      "accepted_by": "coordinator:decision-0052"
+    },
+    "compat-pilot-005": {
+      "label": "defect",
+      "critical": true,
+      "critical_basis": "CTR-V0-009(i): selected evidence changes when a quoted marker incorrectly excludes source",
+      "provenance": "coordinator call under decision 0052 from the cited immutable diff and test; no replay result",
+      "accepted_by": "coordinator:decision-0052"
+    },
+    "compat-pilot-006": {
+      "label": "defect",
+      "critical": true,
+      "critical_basis": "CTR-V0-009(ii): a coverage disclosure could contradict the evidence actually selected",
+      "provenance": "coordinator call under decision 0052 from the cited immutable diff and test; no replay result",
+      "accepted_by": "coordinator:decision-0052"
+    },
+    "compat-pilot-007": {
+      "label": "compatible",
+      "critical": false,
+      "critical_basis": "none of CTR-V0-009(i)-(iii); profiling-disabled performance change",
+      "provenance": "coordinator call under decision 0052 from the cited immutable diff and test; no replay result",
+      "accepted_by": "coordinator:decision-0052"
+    },
+    "compat-pilot-008": {
+      "label": "compatible",
+      "critical": false,
+      "critical_basis": "none of CTR-V0-009(i)-(iii); internal parallelism and ordering preservation",
+      "provenance": "coordinator call under decision 0052 from the cited immutable diff and test; no replay result",
+      "accepted_by": "coordinator:decision-0052"
+    },
+    "compat-pilot-009": {
+      "label": "compatible",
+      "critical": false,
+      "critical_basis": "none of CTR-V0-009(i)-(iii); internal snapshot allocation change",
+      "provenance": "coordinator call under decision 0052 from the cited immutable diff; no replay result",
+      "accepted_by": "coordinator:decision-0052"
+    },
+    "compat-pilot-010": {
+      "label": "defect",
+      "critical": true,
+      "critical_basis": "CTR-V0-009(i): auxiliary-symbol pruning changes which evidence may be selected",
+      "provenance": "coordinator call under decision 0052 from the cited immutable diff and test; no replay result",
+      "accepted_by": "coordinator:decision-0052"
+    }
+  },
+  "exclusion_registry": [
+    {
+      "candidate_commit": "fa0ee115bbede60f8a677bbfa7d438c51af20cf2",
+      "reason": "writer-only optimization; no read-only CLI surface"
+    },
+    {
+      "candidate_commit": "f5c021696ccedb7c63f641c7f8503be243afa64f",
+      "reason": "tests-only; vacuous CLI control"
+    },
+    {
+      "candidate_commit": "32b14f302a54fc3928f3df8a090cf9469d974df9",
+      "reason": "harness-event snapshot internals; not a read-only CLI verb case"
+    },
+    {
+      "candidate_commit": "3530e898637ab9f16bf66130f56502a764586d9f",
+      "reason": "harness-event cache path; not a read-only CLI verb case"
+    },
+    {
+      "candidate_commit": "b5825edb61b40734a8000fe535c5715dc8117f57",
+      "reason": "multi-purpose 51-file wave; not one coherent accepted intent"
+    },
+    {
+      "candidate_commit": "2d7e318f3ef29972f4ca6539a7c49b21be2439a3",
+      "reason": "requires a multi-command make gate rather than one frozen CLI invocation"
+    },
+    {
+      "candidate_commit": "49dd28990b5f50cca12d99ed1abdb72286efb11c",
+      "reason": "mutation execution/export exceeds read-only replay"
+    },
+    {
+      "candidate_commit": "4e1acae75833ae9a5d5da68e58cdce9a4c1389b2",
+      "reason": "mutation-mode execution exceeds read-only replay"
+    },
+    {
+      "candidate_commit": "58939fded32f18ee298955670e3c714d5f0e4a6d",
+      "reason": "observation writer and ledger aggregation"
+    },
+    {
+      "candidate_commit": "74afb8a6387ca693b1c5be9010bc2dd51c997dcd",
+      "reason": "dogfood-record writer errors only"
+    }
+  ]
+}

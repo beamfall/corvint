@@ -1,0 +1,33 @@
+//go:build !darwin && !linux
+
+package groupreap
+
+import (
+	"os/exec"
+	"syscall"
+)
+
+// OwnerAvailable reports whether this platform has the unreaped-leader owner.
+func OwnerAvailable() bool { return false }
+
+func containLeader(*exec.Cmd) {}
+
+func defaultRetirementMode() RetirementMode { return RequirePreReapQuiet }
+
+func defaultPrimitives() Primitives {
+	return Primitives{
+		WaitExit:    func(int) error { return ErrOwnerUnavailable },
+		KillGroup:   func(int) error { return ErrOwnerUnavailable },
+		SignalGroup: func(int, syscall.Signal) error { return ErrOwnerUnavailable },
+		ProbeGroup:  func(int) (Probe, error) { return ProbeLive, ErrOwnerUnavailable },
+		QuietProof:  func(int) (Probe, error) { return ProbeLive, ErrOwnerUnavailable },
+		Reap:        func(*exec.Cmd) error { return ErrOwnerUnavailable },
+	}
+}
+
+// residueProof is WaitResidue's pre-reap observation, which this platform
+// never reaches: it has no waitid exit observation.
+var residueProof = func(leader int) (Probe, error) { return defaultPrimitives().QuietProof(leader) }
+
+// HeldGroupQuiet has no unreaped-leader observation here and proves nothing.
+func HeldGroupQuiet(int) (bool, error) { return false, ErrOwnerUnavailable }

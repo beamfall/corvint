@@ -1,0 +1,105 @@
+{
+  "owned": [
+    "src/app/services/pos_sync.rb"
+  ],
+  "subjects": [
+    {
+      "id": "fixture:flow:reservation-cancellation",
+      "kind": "use_case",
+      "path": "src/docs/reservations.md",
+      "name": "Reservation Cancellation"
+    },
+    {
+      "id": "fixture:section:reservation-cancellation-steps",
+      "kind": "document",
+      "path": "src/docs/reservations.md",
+      "name": "Reservation Cancellation steps for the front desk"
+    },
+    {
+      "id": "fixture:feature:reservation-calendar",
+      "kind": "capability",
+      "path": "src/docs/reservations.md",
+      "name": "Reservation calendar"
+    },
+    {
+      "id": "fixture:feature:reservation-reminders",
+      "kind": "capability",
+      "path": "src/docs/reservations.md",
+      "name": "Reservation reminders"
+    },
+    {
+      "id": "fixture:feature:reservation-deposits",
+      "kind": "capability",
+      "path": "src/docs/reservations.md",
+      "name": "Reservation deposits"
+    },
+    {
+      "id": "fixture:term:cancellation-fee",
+      "kind": "business_term",
+      "path": "src/docs/reservations.md",
+      "name": "Cancellation fee"
+    },
+    {
+      "id": "fixture:term:cancellation-cutoff",
+      "kind": "business_term",
+      "path": "src/docs/reservations.md",
+      "name": "Cancellation cut-off"
+    },
+    {
+      "id": "fixture:manual:lighting",
+      "kind": "document",
+      "path": "src/docs/manual.md",
+      "name": "Manual case: court lighting conditions"
+    },
+    {
+      "id": "fixture:manual:weather",
+      "kind": "document",
+      "path": "src/docs/manual.md",
+      "name": "Weather conditions closure"
+    },
+    {
+      "id": "fixture:manual:breaks",
+      "kind": "document",
+      "path": "src/docs/manual.md",
+      "name": "Breaks between sessions"
+    },
+    {
+      "id": "fixture:feature:pos-sync",
+      "kind": "capability",
+      "path": "src/docs/features.md",
+      "name": "POS sync dashboard"
+    },
+    {
+      "id": "fixture:feature:on-deck-controller",
+      "kind": "capability",
+      "path": "src/docs/features.md",
+      "name": "On Deck Controller"
+    },
+    {
+      "id": "fixture:feature:waitlist-notifier",
+      "kind": "capability",
+      "path": "src/docs/features.md",
+      "name": "Waitlist notifier"
+    }
+  ],
+  "claims": [
+    {
+      "id": "fixture:claim:1",
+      "subject": "fixture:flow:reservation-cancellation",
+      "path": "src/docs/reservations.md",
+      "text": "Cancelling a reservation releases the court and notifies the waitlist"
+    },
+    {
+      "id": "fixture:claim:2",
+      "subject": "fixture:flow:reservation-cancellation",
+      "path": "src/docs/reservations.md",
+      "text": "A cancellation more than a day ahead refunds the deposit"
+    },
+    {
+      "id": "fixture:claim:3",
+      "subject": "fixture:manual:weather",
+      "path": "src/docs/manual.md",
+      "text": "Courts close under storm conditions"
+    }
+  ]
+}

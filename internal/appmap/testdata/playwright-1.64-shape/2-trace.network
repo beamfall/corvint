@@ -1,0 +1,1 @@
+{"type":"resource-snapshot","snapshot":{"pageref":"page@c3p1","_monotonicTime":259.0,"request":{"method":"GET","url":"http://app.test/api/users/42","headers":[]},"response":{"status":200,"headers":[]}}}

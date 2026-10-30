@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-09-02",
+  "profile": "native-go",
+  "commit": "1c337896bad7d80a97a53658c1e838f07f381446",
+  "environment": {
+    "architecture": "arm64",
+    "macOS": "26.6.2",
+    "go": "go1.27.0 darwin/arm64",
+    "goToolchainMode": "local",
+    "host": "RussellacStudio.ts.net (Darwin 25.6.0)",
+    "cpuCount": 12,
+    "uptimeLoadAverages1_5_15": [7.18, 31.81, 44.28]
+  },
+  "goBuild": {
+    "command": "go build -o bin/corvint ./cmd/corvint",
+    "coldSeconds": 4.27,
+    "warmSeconds": 0.32,
+    "coldCacheNote": "GOCACHE and GOMODCACHE pointed at fresh empty scratch dirs for the cold run; module has no third-party deps (no go.sum), so no network was needed",
+    "coldWarmBinaryByteIdentical": true
+  },
+  "installSeconds": 4.27,
+  "firstUsefulQuery": {
+    "target": "flask-clone at d318b683471101618febed18996405ad26462110",
+    "command": "corvint --root CLONE query --task \"How does Flask keep request data available while streaming?\" --limit 8",
+    "coldSeconds": 0.42,
+    "warmSeconds": 0.44,
+    "coldWarmStdoutByteIdentical": true
+  },
+  "firstUsefulQuerySeconds": 0.42,
+  "totalSeconds": 4.69,
+  "index": {
+    "command": "corvint --root CLONE index",
+    "seconds": 0.1,
+    "resolvedCommit": "d318b683471101618febed18996405ad26462110",
+    "postIndexQuery1Seconds": 0.62,
+    "postIndexQuery2Seconds": 0.47,
+    "postIndexQueriesByteIdentical": true,
+    "postIndexByteIdenticalToPreIndexOutput": true
+  },
+  "goArchiveGate": {
+    "command": "script/go-archive-gate (run from a plain `git archive HEAD` export, no .git present)",
+    "exitCode": 1,
+    "lastLines": [
+      "release-artifact-v0 archive: private witness not recorded: verdict did not resolve an immutable revision",
+      "release-artifact-v0 archive: git rev-parse --absolute-git-dir: exit status 128: fatal: not a git repository (or any of the parent directories): .git",
+      "exit status 1"
+    ],
+    "note": "The script requires a real .git directory to resolve revision/tree; a bare `git archive` export has none, so it fails closed before assembling anything. It was not re-run against a real .git checkout as part of this evidence pass."
+  },
+  "queryReady": true,
+  "gateResults": {
+    "gate1CleanInstallUnder60sSeconds": {"value": 4.27, "boundSeconds": 60, "pass": true},
+    "gate7WarmQueryUnder1sByteIdentical": {"warmSeconds": 0.44, "boundSeconds": 1, "pass": true, "byteIdenticalToCold": true},
+    "gate8InstallPlusFirstQueryUnder60sSeconds": {"value": 4.69, "boundSeconds": 60, "pass": true}
+  },
+  "notes": "Native Go profile evidence for V4 release gates 1, 7, and 8, extending the Python-wheel install-smoke.json shape. Cold build used an export of the committed tree (git archive HEAD) with empty GOCACHE/GOMODCACHE; warm build reused those now-populated caches. Query timings are wall-clock `/usr/bin/time -p` real seconds against a private clone of the pinned Flask fixture (never touching the shared .corvint-benchmark-cache). No install script or release archive currently exists for the Go profile; this measures `go build` directly, not a packaged installer."
+}

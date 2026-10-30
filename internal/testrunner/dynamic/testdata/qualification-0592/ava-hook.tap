@@ -1,0 +1,20 @@
+TAP version 13
+not ok 1 - before hook
+  ---
+    name: AssertionError
+    details:
+      'Error thrown in test:': |-
+        Error {
+          message: 'setup failure',
+        }
+    message: Error thrown in test
+    at: >-
+      file:///private/tmp/cem10-build/dynamic-2026-10-17/ava/hook/src/a.test.mjs:1:47
+  ...
+# 1 test remaining in a.test.mjs
+
+1..1
+# tests 1
+# pass 0
+# fail 1
+

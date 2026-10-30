@@ -1,0 +1,373 @@
+// Package slotlearn turns the local read ledgers into negative labels for
+// context slot order and proposes bounded slot-weight traces that only the
+// frozen held-out gate may admit (learned-trace-admission-v0, LTA-V0-009..012).
+// It runs only from the explicit `corvint eval --learn-slot-weights` step; the
+// live context path never imports it.
+package slotlearn
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/evalrepo"
+	"github.com/Beamfall/corvint/internal/observations"
+	"github.com/Beamfall/corvint/internal/unplannedread"
+)
+
+const (
+	// MaxLabelPaths bounds the distinct negative-label paths kept.
+	MaxLabelPaths = 256
+	// MaxProposals bounds the slot-weight traces the gate scores.
+	MaxProposals = 4
+
+	ReasonNoLabels      = "no negative labels"
+	ReasonNoImprovement = "no held-out improvement"
+	ReasonNotRequested  = "improved; --admit not given"
+	ReasonAdmitted      = "admitted"
+
+	// ledgerProvenanceBytes bounds the ledger prefix hashed for provenance,
+	// equal to both bounded readers' file cap.
+	ledgerProvenanceBytes = 128 * 1024
+	notRun                = "NOT_RUN"
+)
+
+// ledgerNames are the two local ledgers labels are collected from, under
+// .corvint/ (product invariant 4).
+var ledgerNames = []string{"unplanned-reads.jsonl", "self-observations.jsonl"}
+
+// Labels are the negative labels: repository paths an agent needed that the
+// packet did not supply, each mapped to the slot that should have served it.
+type Labels struct {
+	Paths          []string
+	UnplannedPaths int
+	ObservedMisses int
+	PlannedReads   int
+	SkippedRows    int
+	// RejectedRows counts the rows either reader refused under its writer
+	// contract, and LedgerCut reports that either ledger exceeded its byte cap,
+	// so a label set read from a partial ledger is never presented as whole.
+	RejectedRows int
+	// RejectedReasons splits RejectedRows by ledger and closed reason.
+	RejectedReasons map[string]int
+	LedgerCut       bool
+	Truncated       bool
+	Classes         map[string]int
+}
+
+// ReadLabels reads both ledgers through their bounded readers. Unplanned
+// reads and observed misses are labels; planned re-reads are disclosed as a
+// count only, because the packet already carried those paths. A path that is
+// empty or not project-relative never becomes a label.
+func ReadLabels(root string) (Labels, error) {
+	unplanned, err := unplannedread.Read(root)
+	if err != nil {
+		return Labels{}, err
+	}
+	observed, err := observations.Read(root)
+	if err != nil {
+		return Labels{}, err
+	}
+	distinct := map[string]struct{}{}
+	for _, entry := range unplanned.TopPaths {
+		if unplannedread.ProjectRelative(entry.Path) {
+			distinct[entry.Path] = struct{}{}
+		}
+	}
+	for path := range observed.Misses {
+		if unplannedread.ProjectRelative(path) {
+			distinct[path] = struct{}{}
+		}
+	}
+	rejected, reasons := 0, map[string]int{}
+	for reason, count := range unplanned.Rejected {
+		rejected += count
+		reasons["unplanned-reads:"+reason] += count
+	}
+	for reason, count := range observed.Rejected {
+		rejected += count
+		reasons["self-observations:"+reason] += count
+	}
+	paths := make([]string, 0, len(distinct))
+	for path := range distinct {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	labels := Labels{
+		UnplannedPaths: len(unplanned.TopPaths), ObservedMisses: len(observed.Misses),
+		PlannedReads: unplanned.Planned, SkippedRows: unplanned.SkippedRows,
+		RejectedRows: rejected, RejectedReasons: reasons, LedgerCut: unplanned.Truncated || observed.Truncated,
+		Truncated: len(paths) > MaxLabelPaths, Paths: paths[:min(MaxLabelPaths, len(paths))],
+		Classes: map[string]int{},
+	}
+	for _, path := range labels.Paths {
+		labels.Classes[ServingSlot(path)]++
+	}
+	return labels, nil
+}
+
+// ServingSlot is the closed table from a missed path to the slot that serves
+// that kind of path: tests, prose (the packet's `documentation` relation,
+// by the same suffixes), other docs/ files (lexical), or a code definition.
+func ServingSlot(path string) string {
+	lower := strings.ToLower(filepath.ToSlash(path))
+	base := lower[strings.LastIndex(lower, "/")+1:]
+	switch {
+	case strings.HasSuffix(base, "_test.go"), strings.HasPrefix(base, "test_"),
+		strings.Contains(base, ".test."), strings.Contains(base, ".spec."),
+		strings.Contains("/"+lower, "/test/"), strings.Contains("/"+lower, "/tests/"):
+		return "test"
+	case strings.HasSuffix(base, ".md"), strings.HasSuffix(base, ".mdx"), strings.HasSuffix(base, ".rst"),
+		strings.HasSuffix(base, ".txt"):
+		return "documentation"
+	case strings.HasPrefix(lower, "docs/"):
+		return "lexical"
+	}
+	return "definition"
+}
+
+// Propose raises the most-missed serving slots by one and then two steps,
+// most frequent class first, at most MaxProposals traces.
+func Propose(classes map[string]int) []contextindex.SlotWeights {
+	names := make([]string, 0, len(classes))
+	for name := range classes {
+		names = append(names, name)
+	}
+	sort.Slice(names, func(left, right int) bool {
+		if classes[names[left]] != classes[names[right]] {
+			return classes[names[left]] > classes[names[right]]
+		}
+		return names[left] < names[right]
+	})
+	proposals := []contextindex.SlotWeights{}
+	for _, name := range names {
+		proposals = append(proposals, contextindex.SlotWeights{name: 1}, contextindex.SlotWeights{name: contextindex.SlotWeightMax})
+	}
+	return proposals[:min(MaxProposals, len(proposals))]
+}
+
+// Learn reads the labels, scores the proposals on the frozen held-out gate
+// and, only with admit and an improved proposal, writes the admitted trace.
+func Learn(ctx context.Context, root, goldenPath string, admit bool) (map[string]any, bool, error) {
+	labels, err := ReadLabels(root)
+	if err != nil {
+		return nil, false, err
+	}
+	result := map[string]any{"labels": labelsValue(labels), "split": splitValue(root, nil), "fixed_baseline": fixedBaseline(nil)}
+	if len(labels.Paths) == 0 {
+		result["decision"] = map[string]any{"admitted": false, "reason": ReasonNoLabels}
+		return result, false, nil
+	}
+	proposals := Propose(labels.Classes)
+	report, best, err := evalrepo.EvaluateSlotWeights(ctx, root, goldenPath, proposals)
+	if err != nil {
+		return nil, false, err
+	}
+	result["evaluation"] = report
+	result["split"], result["fixed_baseline"] = splitValue(root, report), fixedBaseline(report["baseline"])
+	decision := map[string]any{"admitted": false, "reason": ReasonNoImprovement}
+	result["decision"] = decision
+	if best < 0 {
+		return result, false, nil
+	}
+	decision["weights"] = proposals[best]
+	decision["reason"] = ReasonNotRequested
+	if !admit {
+		return result, false, nil
+	}
+	chosen := report["proposals"].([]any)[best].(map[string]any)
+	evaluation := map[string]any{
+		"goldens_sha256": report["goldens_sha256"], "revision": report["revision"],
+		"heldout_cases": report["heldout_cases"], "baseline": report["baseline"], "arm": chosen["arm"],
+		"delta": chosen["delta"],
+	}
+	if err := writeAdmitted(root, proposals[best], evaluation); err != nil {
+		return nil, false, err
+	}
+	decision["admitted"], decision["reason"], decision["path"] = true, ReasonAdmitted, contextindex.SlotWeightsPath
+	return result, true, nil
+}
+
+func labelsValue(labels Labels) map[string]any {
+	classes := map[string]any{}
+	for name, count := range labels.Classes {
+		classes[name] = count
+	}
+	return map[string]any{
+		"label_paths": len(labels.Paths), "unplanned_paths": labels.UnplannedPaths,
+		"observed_misses": labels.ObservedMisses, "planned_reads": labels.PlannedReads,
+		"skipped_rows": labels.SkippedRows, "rejected_rows": labels.RejectedRows, "ledger_cut": labels.LedgerCut,
+		"truncated": labels.Truncated, "classes": classes, "rejected_by_reason": rejectedReasons(labels.RejectedReasons),
+		"max_label_paths": MaxLabelPaths,
+	}
+}
+
+func rejectedReasons(reasons map[string]int) map[string]any {
+	value := map[string]any{}
+	for reason, count := range reasons {
+		value[reason] = count
+	}
+	return value
+}
+
+// splitValue records how one learning run keeps its three stages apart
+// (LTA-V0-018): labels come only from this repository's local ledgers, whose
+// provenance it pins; proposals are a function of the label classes alone and
+// see no golden; final evaluation is the frozen held-out goldens at the
+// index revision. Nothing here evaluates on another repository or a later
+// time window, so both splits are NOT_RUN and the learned order stays off the
+// promotion path.
+func splitValue(root string, report map[string]any) map[string]any {
+	evaluation := any(notRun + ": no proposal was scored")
+	if report != nil {
+		evaluation = map[string]any{
+			"goldens_sha256": report["goldens_sha256"], "revision": report["revision"],
+			"split_rule": report["split_rule"], "split": report["split"], "heldout_cases": report["heldout_cases"],
+		}
+	}
+	return map[string]any{
+		"label_collection": map[string]any{"source": "local .corvint read ledgers of this repository", "ledgers": ledgerProvenance(root)},
+		"proposal":         "Propose over the label classes only; no golden or evaluation result is an input",
+		"final_evaluation": evaluation,
+		"cross_repository": notRun + ": no other repository's held-out goldens are evaluated",
+		"cross_time":       notRun + ": no later time window is evaluated",
+		"promotion":        "experimental only: without cross-repository and cross-time evidence the learned order is not on the promotion path",
+	}
+}
+
+// fixedBaseline is the non-learning arm every proposal is scored against:
+// nil slot weights, the shipped default order (LTA-V0-018).
+func fixedBaseline(scores any) map[string]any {
+	if scores == nil {
+		scores = notRun + ": no proposal was scored"
+	}
+	return map[string]any{"arm": "nil slot weights (shipped default order)", "learns": false, "scores": scores}
+}
+
+// ledgerProvenance pins each ledger the labels were read from: its size, the
+// sha256 of the prefix the bounded readers read, and its modification time
+// as the end of the collection window. The ledgers are opened through the
+// repository root, never followed out of it, and never written.
+func ledgerProvenance(root string) []any {
+	rows := []any{}
+	tree, err := os.OpenRoot(root)
+	if err != nil {
+		return rows
+	}
+	defer tree.Close()
+	for _, name := range ledgerNames {
+		relative := filepath.Join(".corvint", name)
+		row := map[string]any{"path": filepath.ToSlash(relative), "state": "absent"}
+		rows = append(rows, row)
+		info, err := tree.Lstat(relative)
+		if err != nil || !info.Mode().IsRegular() {
+			continue
+		}
+		file, err := tree.Open(relative)
+		if err != nil {
+			row["state"] = "unreadable"
+			continue
+		}
+		digest := sha256.New()
+		read, err := io.Copy(digest, io.LimitReader(file, ledgerProvenanceBytes))
+		file.Close()
+		if err != nil {
+			row["state"] = "unreadable"
+			continue
+		}
+		row["state"], row["bytes"], row["hashed_bytes"] = "present", info.Size(), read
+		row["sha256"] = "sha256:" + hex.EncodeToString(digest.Sum(nil))
+		row["collected_through"] = info.ModTime().UTC().Format("2006-01-02T15:04:05Z")
+	}
+	return rows
+}
+
+// writeAdmitted replaces the admitted trace atomically, and re-decodes the
+// bytes it wrote through the live loader. Every write goes through the pinned
+// store directory, so a store symlinked or substituted after the check cannot
+// redirect it.
+func writeAdmitted(root string, weights contextindex.SlotWeights, evaluation map[string]any) error {
+	if err := makeStore(root); err != nil {
+		return err
+	}
+	store, err := contextindex.OpenSlotWeightsStore(root)
+	if err != nil {
+		return err
+	}
+	if store == nil {
+		return fmt.Errorf("%s vanished while it was opened", filepath.ToSlash(filepath.Dir(contextindex.SlotWeightsPath)))
+	}
+	defer store.Close()
+	weightValue := map[string]any{}
+	for relation, weight := range weights {
+		weightValue[relation] = weight
+	}
+	raw, err := evalrepo.Encode(map[string]any{"schemaVersion": 1, "weights": weightValue, "evaluation": evaluation})
+	if err != nil {
+		return err
+	}
+	if _, err := contextindex.DecodeSlotWeightsFile(raw); err != nil {
+		return err
+	}
+	temporary := ".slot-weights-" + rand.Text() + ".json"
+	file, err := store.OpenFile(temporary, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		return err
+	}
+	defer store.Remove(temporary)
+	if _, err := file.Write(raw); err != nil {
+		file.Close()
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	return store.Rename(temporary, filepath.Base(contextindex.SlotWeightsPath))
+}
+
+// makeStore creates the store directory inside the opened repository root;
+// an existing entry is left for OpenSlotWeightsStore to accept or refuse.
+func makeStore(root string) error {
+	repository, err := os.OpenRoot(root)
+	if err != nil {
+		return err
+	}
+	defer repository.Close()
+	err = repository.Mkdir(filepath.Dir(filepath.FromSlash(contextindex.SlotWeightsPath)), 0o755)
+	if err != nil && !os.IsExist(err) {
+		return err
+	}
+	return nil
+}
+
+// Reset removes the admitted trace so the context packet returns to the
+// default slot order. An absent trace is not an error. Removal goes through
+// the pinned store directory, so a symlinked or substituted store cannot
+// redirect it; a leaf symlink is removed, never followed.
+func Reset(root string) (bool, error) {
+	store, err := contextindex.OpenSlotWeightsStore(root)
+	if err != nil || store == nil {
+		return false, err
+	}
+	defer store.Close()
+	name := filepath.Base(contextindex.SlotWeightsPath)
+	info, err := store.Lstat(name)
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if info.IsDir() {
+		return false, fmt.Errorf("%s is a directory", contextindex.SlotWeightsPath)
+	}
+	return true, store.Remove(name)
+}

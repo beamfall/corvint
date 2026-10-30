@@ -1,0 +1,827 @@
+{
+  "base": "47c38a524803f36b98ec0f574902da261ed11731",
+  "constants_frozen": {
+    "cap": 10,
+    "gap_ratio_percent": 70,
+    "identifier_gate": "row carried only when its document names a task identifier by exact spelling",
+    "lexical_weight_percent": 100,
+    "relative_floor_percent": 50,
+    "rrf_k": 10,
+    "whole_identifier_field": "third BM25 field over the as-written identifier vocabulary with the standard term weight idf*(k1+1)/(1+k1) and no field multiplier; the preregistered 'weight 1 or 2' alternative was never implemented or run (the Amendment's 'implemented value of 2' misread the field index as a weight)"
+  },
+  "dataset": {
+    "baseline_receipt": "benchmarks/results/v0415-contextbench-full-2026-10-25.json",
+    "baseline_rows_jsonl_sha256": "758b0be36fbb720440956ccc8a9f0314486ba67a9f8600d66311879d1238fe71",
+    "revision": "c2855792b006af41c67202d33883fb9d46362853",
+    "scored_rows": 1132,
+    "source": "Contextbench/ContextBench"
+  },
+  "date": "2026-10-26",
+  "frozen_retrieval_evaluations": {
+    "base_vs_change": "byte-identical apart from latency: 31 cases over 5 repositories, recall 1, top5 1, critical misses 0, must-exclude violations 0, byte-weighted precision 0.79249 on both trees",
+    "command": "go run ./benchmarks/runner --checkout beamfall=<core-history clone at 6e82abd857c77c0ca250b6c4a8f5e1c86684a535> --cache <scratch> (public repositories fetched once with --prepare at the manifest commits)",
+    "enforce_v4": "exit 1 on both trees: blocked_by learned_trace_gate and precision, pre-existing at the base",
+    "reports": "not committed; the runner output is reproducible from the command"
+  },
+  "measured_reason_for_failure": [
+    "the confident tier alone is below the precision floor on held-out (0.2086) and full (0.2309) before any widening; every evaluated widening cutoff lowers precision further, so none of the evaluated configurations reaches 0.25 there (widening could only reach it with rows more precise than the confident tier, which no evaluated cutoff produced)",
+    "bm25:ident's precision on held-out (0.2528) and full (0.2993) rests on abstention scored as precision 1 (abstention 0.1964 / 0.2456; precision over answered rows 0.0702 / 0.0711); corvint abstains on 0.0449 / 0.0636 of rows and its precision over answered rows is 0.1529 / 0.1620",
+    "the fused, gated widening lifts coverage above bm25:ident on every split (held-out 0.2867 -> 0.4083 against 0.3857) and costs 0.018 precision on held-out",
+    "dev PASS did not transfer: the dev repos' confident tier is more precise (0.2689) than the held-out repos' (0.2086); the gap is between repository sets, not between widening settings"
+  ],
+  "metric_definitions": {
+    "abstention": "share of rows with an empty answer",
+    "answer": "confident results[] paths then widening row ids, distinct, capped at 20",
+    "coverage": "|answer \u2229 gold| / |gold| per row, mean over rows (file recall@20)",
+    "precision": "|answer \u2229 gold| / |answer| per row, 1 for an empty answer, mean over rows",
+    "precision_answered": "mean precision over answered rows only"
+  },
+  "post_measurement_code_changes": [
+    "review fix after the ContextBench runs: a reserved governing file (kind governing in the task-context results) is now excluded from the lexical channel as well as the structural list; it can only remove rows from the widening, never add any, so the recorded numbers are an upper bound on the widening rows the published code carries for the same inputs",
+    "review fix after the runs: the analyzer golden corpus gained .java/.css/.adoc files so the schema number moves and packs built before IDX-SNAP-V0-110 are rebuilt; the ContextBench runs built every index fresh, so this changes no measured number",
+    "review fix after the runs: the lexical channel refuses a request cancelled during its identifier scan (no measured effect)"
+  ],
+  "preregistration": {
+    "amendment": "identifier gate added after dev tuning and before the first held-out row; disclosed in the file's Amendment section",
+    "committed_before_tuning": "4d2a41fd62f9774a4865fd2b841bdf6da1962df4",
+    "file": "benchmarks/results/v2716-query-fusion-prereg-2026-10-26.md",
+    "split_receipt": "benchmarks/results/v2716-contextbench-split-2026-10-26.json"
+  },
+  "profile": "corvint-v2716-query-fusion-contextbench/0",
+  "run": {
+    "binaries": {
+      "built_from": "lane tree at 4d2a41fd62f9774a4865fd2b841bdf6da1962df4 plus the uncommitted GPK-V0-092 change that this receipt's commit carries",
+      "corvint_linux_amd64_md5": "36b358a7482e5f3e74d840544bcdab69",
+      "retrieval_bench_linux_amd64_md5": "73dc0722a3bdb2b056576a414e150c8f"
+    },
+    "harness": "tools/retrieval-bench --arms corvint,context --limit 20 over 4-row shards, each row's base commit materialised as a plain tree",
+    "host": "WSL2 Ubuntu on the Windows box (linux/amd64), 32 cores",
+    "per_row_exports": {
+      "committed": false,
+      "dev_sha256": "fc299c10d3030d19473e539bd462f008f4615d27fe1f7510ebbea4b94e5a7c8d",
+      "heldout_sha256": "f318870c6882db118f9275a36c7829f5357bce6a4647f4e2b9a3426857ee96e5",
+      "reason": "per-row exports (1132 rows with ranked paths and fused ranks) are retained in the lane scratchpad, not in the repository"
+    }
+  },
+  "splits": {
+    "dev": {
+      "bm25_ident": {
+        "abstention": 0.3294,
+        "answered": 281,
+        "coverage": 0.316,
+        "precision": 0.3783,
+        "precision_answered": 0.073,
+        "rows": 419
+      },
+      "confident_tier_only": {
+        "abstention": 0.0955,
+        "answered": 379,
+        "coverage": 0.2436,
+        "precision": 0.2689,
+        "precision_answered": 0.1917,
+        "rows": 419
+      },
+      "corvint_errors": {
+        "count": 0,
+        "ids": [],
+        "scored_as": "empty answer (coverage 0, precision 1), identical to the V1-0415 baseline rows"
+      },
+      "corvint_query": {
+        "abstention": 0.0955,
+        "answered": 379,
+        "coverage": 0.3476,
+        "precision": 0.2568,
+        "precision_answered": 0.1784,
+        "rows": 419
+      },
+      "criterion": "corvint coverage >= bm25:ident coverage on the same rows AND corvint precision >= 0.25",
+      "post_hoc_tightening_frontier": {
+        "configurations_meeting_criterion": 50,
+        "frontier": [
+          {
+            "cap": 10,
+            "coverage": 0.3476,
+            "floor_percent": 50,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2568
+          },
+          {
+            "cap": 8,
+            "coverage": 0.3441,
+            "floor_percent": 50,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2584
+          },
+          {
+            "cap": 10,
+            "coverage": 0.341,
+            "floor_percent": 60,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.26
+          },
+          {
+            "cap": 8,
+            "coverage": 0.3396,
+            "floor_percent": 60,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2601
+          },
+          {
+            "cap": 6,
+            "coverage": 0.3352,
+            "floor_percent": 50,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2605
+          },
+          {
+            "cap": 5,
+            "coverage": 0.3321,
+            "floor_percent": 50,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2624
+          },
+          {
+            "cap": 5,
+            "coverage": 0.3295,
+            "floor_percent": 60,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.263
+          },
+          {
+            "cap": 4,
+            "coverage": 0.328,
+            "floor_percent": 50,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2643
+          },
+          {
+            "cap": 4,
+            "coverage": 0.3264,
+            "floor_percent": 60,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2645
+          },
+          {
+            "cap": 3,
+            "coverage": 0.3229,
+            "floor_percent": 50,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2677
+          },
+          {
+            "cap": 3,
+            "coverage": 0.3095,
+            "floor_percent": 50,
+            "gap_percent": 90,
+            "min_identifiers": 1,
+            "precision": 0.2679
+          },
+          {
+            "cap": 5,
+            "coverage": 0.3047,
+            "floor_percent": 90,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2694
+          },
+          {
+            "cap": 4,
+            "coverage": 0.2995,
+            "floor_percent": 50,
+            "gap_percent": 70,
+            "min_identifiers": 2,
+            "precision": 0.27
+          },
+          {
+            "cap": 4,
+            "coverage": 0.2975,
+            "floor_percent": 70,
+            "gap_percent": 70,
+            "min_identifiers": 2,
+            "precision": 0.2702
+          },
+          {
+            "cap": 4,
+            "coverage": 0.297,
+            "floor_percent": 70,
+            "gap_percent": 80,
+            "min_identifiers": 2,
+            "precision": 0.2703
+          },
+          {
+            "cap": 5,
+            "coverage": 0.2964,
+            "floor_percent": 80,
+            "gap_percent": 70,
+            "min_identifiers": 2,
+            "precision": 0.2722
+          },
+          {
+            "cap": 3,
+            "coverage": 0.2938,
+            "floor_percent": 80,
+            "gap_percent": 70,
+            "min_identifiers": 2,
+            "precision": 0.2723
+          },
+          {
+            "cap": 5,
+            "coverage": 0.2909,
+            "floor_percent": 80,
+            "gap_percent": 90,
+            "min_identifiers": 2,
+            "precision": 0.2725
+          }
+        ],
+        "grid_size": 648,
+        "max_precision": {
+          "config": {
+            "cap": 5,
+            "floor_percent": 80,
+            "gap_percent": 90,
+            "min_identifiers": 2
+          },
+          "coverage": 0.2909,
+          "precision": 0.2725
+        },
+        "note": "offline over the runtime export; only tightenings of the frozen cutoff are reachable (cap, floor, gap, minimum identifiers named); reported for the record, constants unchanged"
+      },
+      "repos": 30,
+      "rows": 419,
+      "verdict": "PASS",
+      "widening_rows_carried": 1408
+    },
+    "full": {
+      "bm25_ident": {
+        "abstention": 0.2456,
+        "answered": 854,
+        "coverage": 0.3599,
+        "precision": 0.2993,
+        "precision_answered": 0.0711,
+        "rows": 1132
+      },
+      "confident_tier_only": {
+        "abstention": 0.0636,
+        "answered": 1060,
+        "coverage": 0.2707,
+        "precision": 0.2309,
+        "precision_answered": 0.1787,
+        "rows": 1132
+      },
+      "corvint_errors": {
+        "count": 6,
+        "ids": [
+          "Multi-SWE-Bench__java__maintenance__bugfix__0b6512c8",
+          "Multi-SWE-Bench__java__maintenance__bugfix__2bd87230",
+          "Multi-SWE-Bench__java__maintenance__bugfix__4d196265",
+          "Multi-SWE-Bench__java__maintenance__bugfix__6bd8aca7",
+          "Multi-SWE-Bench__java__maintenance__bugfix__7c19351d",
+          "Multi-SWE-Bench__java__maintenance__bugfix__fa49b08d"
+        ],
+        "scored_as": "empty answer (coverage 0, precision 1), identical to the V1-0415 baseline rows"
+      },
+      "corvint_query": {
+        "abstention": 0.0636,
+        "answered": 1060,
+        "coverage": 0.3858,
+        "precision": 0.2153,
+        "precision_answered": 0.162,
+        "rows": 1132
+      },
+      "criterion": "corvint coverage >= bm25:ident coverage on the same rows AND corvint precision >= 0.25",
+      "post_hoc_tightening_frontier": {
+        "configurations_meeting_criterion": 0,
+        "frontier": [
+          {
+            "cap": 10,
+            "coverage": 0.3858,
+            "floor_percent": 50,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2153
+          },
+          {
+            "cap": 8,
+            "coverage": 0.3815,
+            "floor_percent": 50,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2172
+          },
+          {
+            "cap": 10,
+            "coverage": 0.3782,
+            "floor_percent": 60,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2182
+          },
+          {
+            "cap": 8,
+            "coverage": 0.3768,
+            "floor_percent": 50,
+            "gap_percent": 80,
+            "min_identifiers": 1,
+            "precision": 0.2188
+          },
+          {
+            "cap": 10,
+            "coverage": 0.3753,
+            "floor_percent": 60,
+            "gap_percent": 80,
+            "min_identifiers": 1,
+            "precision": 0.2193
+          },
+          {
+            "cap": 6,
+            "coverage": 0.3735,
+            "floor_percent": 50,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2207
+          },
+          {
+            "cap": 6,
+            "coverage": 0.3715,
+            "floor_percent": 60,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2214
+          },
+          {
+            "cap": 6,
+            "coverage": 0.3691,
+            "floor_percent": 50,
+            "gap_percent": 80,
+            "min_identifiers": 1,
+            "precision": 0.2219
+          },
+          {
+            "cap": 6,
+            "coverage": 0.3687,
+            "floor_percent": 60,
+            "gap_percent": 80,
+            "min_identifiers": 1,
+            "precision": 0.2224
+          },
+          {
+            "cap": 8,
+            "coverage": 0.3678,
+            "floor_percent": 70,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.223
+          },
+          {
+            "cap": 6,
+            "coverage": 0.3675,
+            "floor_percent": 70,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2237
+          },
+          {
+            "cap": 8,
+            "coverage": 0.367,
+            "floor_percent": 70,
+            "gap_percent": 80,
+            "min_identifiers": 1,
+            "precision": 0.2238
+          },
+          {
+            "cap": 6,
+            "coverage": 0.3667,
+            "floor_percent": 70,
+            "gap_percent": 80,
+            "min_identifiers": 1,
+            "precision": 0.2245
+          },
+          {
+            "cap": 5,
+            "coverage": 0.3636,
+            "floor_percent": 70,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2246
+          },
+          {
+            "cap": 5,
+            "coverage": 0.3628,
+            "floor_percent": 70,
+            "gap_percent": 80,
+            "min_identifiers": 1,
+            "precision": 0.2254
+          },
+          {
+            "cap": 4,
+            "coverage": 0.3626,
+            "floor_percent": 50,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2268
+          },
+          {
+            "cap": 4,
+            "coverage": 0.3601,
+            "floor_percent": 70,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2276
+          },
+          {
+            "cap": 4,
+            "coverage": 0.3593,
+            "floor_percent": 70,
+            "gap_percent": 80,
+            "min_identifiers": 1,
+            "precision": 0.2283
+          },
+          {
+            "cap": 6,
+            "coverage": 0.3586,
+            "floor_percent": 80,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2296
+          },
+          {
+            "cap": 4,
+            "coverage": 0.3566,
+            "floor_percent": 80,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2304
+          },
+          {
+            "cap": 3,
+            "coverage": 0.3551,
+            "floor_percent": 50,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2311
+          },
+          {
+            "cap": 3,
+            "coverage": 0.3525,
+            "floor_percent": 70,
+            "gap_percent": 80,
+            "min_identifiers": 1,
+            "precision": 0.2318
+          },
+          {
+            "cap": 3,
+            "coverage": 0.352,
+            "floor_percent": 80,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2325
+          },
+          {
+            "cap": 4,
+            "coverage": 0.3478,
+            "floor_percent": 80,
+            "gap_percent": 90,
+            "min_identifiers": 1,
+            "precision": 0.2328
+          },
+          {
+            "cap": 3,
+            "coverage": 0.3435,
+            "floor_percent": 50,
+            "gap_percent": 90,
+            "min_identifiers": 1,
+            "precision": 0.2341
+          },
+          {
+            "cap": 5,
+            "coverage": 0.3389,
+            "floor_percent": 90,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2352
+          },
+          {
+            "cap": 2,
+            "coverage": 0.3378,
+            "floor_percent": 50,
+            "gap_percent": 80,
+            "min_identifiers": 1,
+            "precision": 0.2355
+          },
+          {
+            "cap": 2,
+            "coverage": 0.3322,
+            "floor_percent": 50,
+            "gap_percent": 90,
+            "min_identifiers": 1,
+            "precision": 0.2358
+          },
+          {
+            "cap": 3,
+            "coverage": 0.3181,
+            "floor_percent": 80,
+            "gap_percent": 90,
+            "min_identifiers": 2,
+            "precision": 0.2359
+          },
+          {
+            "cap": 2,
+            "coverage": 0.3156,
+            "floor_percent": 50,
+            "gap_percent": 100,
+            "min_identifiers": 1,
+            "precision": 0.2364
+          },
+          {
+            "cap": 1,
+            "coverage": 0.3002,
+            "floor_percent": 80,
+            "gap_percent": 70,
+            "min_identifiers": 2,
+            "precision": 0.2369
+          }
+        ],
+        "grid_size": 648,
+        "max_precision": {
+          "config": {
+            "cap": 1,
+            "floor_percent": 80,
+            "gap_percent": 70,
+            "min_identifiers": 2
+          },
+          "coverage": 0.3002,
+          "precision": 0.2369
+        },
+        "note": "offline over the runtime export; only tightenings of the frozen cutoff are reachable (cap, floor, gap, minimum identifiers named); reported for the record, constants unchanged"
+      },
+      "repos": 66,
+      "rows": 1132,
+      "verdict": "FAIL",
+      "widening_rows_carried": 4747
+    },
+    "heldout": {
+      "bm25_ident": {
+        "abstention": 0.1964,
+        "answered": 573,
+        "coverage": 0.3857,
+        "precision": 0.2528,
+        "precision_answered": 0.0702,
+        "rows": 713
+      },
+      "confident_tier_only": {
+        "abstention": 0.0449,
+        "answered": 681,
+        "coverage": 0.2867,
+        "precision": 0.2086,
+        "precision_answered": 0.1714,
+        "rows": 713
+      },
+      "corvint_errors": {
+        "count": 6,
+        "ids": [
+          "Multi-SWE-Bench__java__maintenance__bugfix__0b6512c8",
+          "Multi-SWE-Bench__java__maintenance__bugfix__2bd87230",
+          "Multi-SWE-Bench__java__maintenance__bugfix__4d196265",
+          "Multi-SWE-Bench__java__maintenance__bugfix__6bd8aca7",
+          "Multi-SWE-Bench__java__maintenance__bugfix__7c19351d",
+          "Multi-SWE-Bench__java__maintenance__bugfix__fa49b08d"
+        ],
+        "scored_as": "empty answer (coverage 0, precision 1), identical to the V1-0415 baseline rows"
+      },
+      "corvint_query": {
+        "abstention": 0.0449,
+        "answered": 681,
+        "coverage": 0.4083,
+        "precision": 0.1909,
+        "precision_answered": 0.1529,
+        "rows": 713
+      },
+      "criterion": "corvint coverage >= bm25:ident coverage on the same rows AND corvint precision >= 0.25",
+      "post_hoc_tightening_frontier": {
+        "configurations_meeting_criterion": 0,
+        "frontier": [
+          {
+            "cap": 10,
+            "coverage": 0.4083,
+            "floor_percent": 50,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.1909
+          },
+          {
+            "cap": 10,
+            "coverage": 0.4055,
+            "floor_percent": 50,
+            "gap_percent": 80,
+            "min_identifiers": 1,
+            "precision": 0.1933
+          },
+          {
+            "cap": 8,
+            "coverage": 0.4014,
+            "floor_percent": 50,
+            "gap_percent": 80,
+            "min_identifiers": 1,
+            "precision": 0.1954
+          },
+          {
+            "cap": 10,
+            "coverage": 0.3991,
+            "floor_percent": 60,
+            "gap_percent": 80,
+            "min_identifiers": 1,
+            "precision": 0.1957
+          },
+          {
+            "cap": 8,
+            "coverage": 0.397,
+            "floor_percent": 60,
+            "gap_percent": 80,
+            "min_identifiers": 1,
+            "precision": 0.1962
+          },
+          {
+            "cap": 6,
+            "coverage": 0.396,
+            "floor_percent": 50,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.1972
+          },
+          {
+            "cap": 6,
+            "coverage": 0.3949,
+            "floor_percent": 60,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.1979
+          },
+          {
+            "cap": 6,
+            "coverage": 0.3945,
+            "floor_percent": 50,
+            "gap_percent": 80,
+            "min_identifiers": 1,
+            "precision": 0.1992
+          },
+          {
+            "cap": 6,
+            "coverage": 0.3941,
+            "floor_percent": 60,
+            "gap_percent": 80,
+            "min_identifiers": 1,
+            "precision": 0.1998
+          },
+          {
+            "cap": 8,
+            "coverage": 0.3928,
+            "floor_percent": 70,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.201
+          },
+          {
+            "cap": 8,
+            "coverage": 0.3926,
+            "floor_percent": 70,
+            "gap_percent": 80,
+            "min_identifiers": 1,
+            "precision": 0.2022
+          },
+          {
+            "cap": 6,
+            "coverage": 0.3921,
+            "floor_percent": 70,
+            "gap_percent": 80,
+            "min_identifiers": 1,
+            "precision": 0.2028
+          },
+          {
+            "cap": 5,
+            "coverage": 0.3863,
+            "floor_percent": 70,
+            "gap_percent": 80,
+            "min_identifiers": 1,
+            "precision": 0.2035
+          },
+          {
+            "cap": 4,
+            "coverage": 0.383,
+            "floor_percent": 50,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2047
+          },
+          {
+            "cap": 4,
+            "coverage": 0.3824,
+            "floor_percent": 70,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2061
+          },
+          {
+            "cap": 4,
+            "coverage": 0.3822,
+            "floor_percent": 70,
+            "gap_percent": 80,
+            "min_identifiers": 1,
+            "precision": 0.2073
+          },
+          {
+            "cap": 6,
+            "coverage": 0.3809,
+            "floor_percent": 80,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2086
+          },
+          {
+            "cap": 4,
+            "coverage": 0.3786,
+            "floor_percent": 80,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2099
+          },
+          {
+            "cap": 3,
+            "coverage": 0.3737,
+            "floor_percent": 70,
+            "gap_percent": 80,
+            "min_identifiers": 1,
+            "precision": 0.2113
+          },
+          {
+            "cap": 3,
+            "coverage": 0.3732,
+            "floor_percent": 80,
+            "gap_percent": 70,
+            "min_identifiers": 1,
+            "precision": 0.2123
+          },
+          {
+            "cap": 4,
+            "coverage": 0.3683,
+            "floor_percent": 80,
+            "gap_percent": 90,
+            "min_identifiers": 1,
+            "precision": 0.2126
+          },
+          {
+            "cap": 3,
+            "coverage": 0.3634,
+            "floor_percent": 50,
+            "gap_percent": 90,
+            "min_identifiers": 1,
+            "precision": 0.2142
+          },
+          {
+            "cap": 2,
+            "coverage": 0.3603,
+            "floor_percent": 50,
+            "gap_percent": 80,
+            "min_identifiers": 1,
+            "precision": 0.2162
+          },
+          {
+            "cap": 2,
+            "coverage": 0.3544,
+            "floor_percent": 50,
+            "gap_percent": 90,
+            "min_identifiers": 1,
+            "precision": 0.2164
+          }
+        ],
+        "grid_size": 648,
+        "max_precision": {
+          "config": {
+            "cap": 2,
+            "floor_percent": 50,
+            "gap_percent": 90,
+            "min_identifiers": 1
+          },
+          "coverage": 0.3544,
+          "precision": 0.2164
+        },
+        "note": "offline over the runtime export; only tightenings of the frozen cutoff are reachable (cap, floor, gap, minimum identifiers named); reported for the record, constants unchanged"
+      },
+      "repos": 36,
+      "rows": 713,
+      "verdict": "FAIL",
+      "widening_rows_carried": 3339
+    }
+  },
+  "summary": "Preregistered ContextBench evaluation of corvint query with the GPK-V0-092 fused, identifier-gated widening. Dev PASS; held-out FAIL and full FAIL on the frozen criterion: coverage exceeds bm25:ident on every split, precision stays below 0.25 on held-out (0.1909) and full (0.2153). Reported as measured; the criterion, split and constants are unchanged.",
+  "ticket": "V1-2716"
+}

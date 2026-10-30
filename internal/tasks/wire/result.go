@@ -1,0 +1,307 @@
+package wire
+
+import "sort"
+
+// ProfileCommandResult is the stdout envelope of every corvint-tasks command (§3.3).
+const ProfileCommandResult = "taskman-command-result/0"
+
+// Outcomes of taskman-command-result/0.
+const (
+	OutcomeOK      = "OK"
+	OutcomeRefused = "REFUSED"
+	OutcomeError   = "ERROR"
+	OutcomeNotRun  = "NOT_RUN"
+)
+
+// UntrustedQueueData is the only legal member of the `untrusted` array.
+const UntrustedQueueData = "UNTRUSTED_QUEUE_DATA"
+
+// BarrierRef is the `snapshot.barrier` object.
+type BarrierRef struct {
+	Scope  string
+	Reason string
+}
+
+// Snapshot is the `snapshot` object of the envelope.
+type Snapshot struct {
+	HeadSeq               *Size
+	HeadReceiptSha256     *Digest
+	IntentTreeSha256      *Digest
+	PrimaryWorktreeSha256 *Digest
+	PendingRedo           bool
+	Barrier               *BarrierRef
+}
+
+// Page is the pagination object.
+type Page struct {
+	Offset    Count
+	Limit     Count
+	Total     *Count
+	Truncated bool
+}
+
+// Result is a taskman-command-result/0 document.
+type Result struct {
+	Command   []string
+	Outcome   string
+	Codes     []string
+	Snapshot  *Snapshot
+	Mutation  *Value // taskman-outcome/0 or nil (null)
+	Items     []Value
+	Page      *Page
+	Untrusted bool
+	Warnings  []string
+	// Facets, when non-nil, is the optional facet-count summary a filtering
+	// or paging read renders on request (amendment A26, CAL-V0-206). It is
+	// absent otherwise, so results without it keep their earlier bytes.
+	Facets *Value
+	// NotRetryable forces retryable false on a coded non-OK result whose
+	// command already ran an effect that a retry would repeat (CAL-V0-078).
+	NotRetryable bool
+	// MaxNodes, when positive, replaces MaxJSONNodes as the decoded-node
+	// bound Encode validates the envelope under. Only a verb whose one item
+	// grows with the store sets it, from its own documented per-entry bound,
+	// so the bound stays linear in the store's bounded size (CAL-V0-141).
+	MaxNodes int
+}
+
+func sizeOrNull(p *Size) Value {
+	if p == nil {
+		return Null()
+	}
+	return String(string(*p))
+}
+
+func digestOrNull(p *Digest) Value {
+	if p == nil {
+		return Null()
+	}
+	return String(string(*p))
+}
+
+func countOrNull(p *Count) Value {
+	if p == nil {
+		return Null()
+	}
+	return String(string(*p))
+}
+
+func sortedUniqueStrings(ss []string) []string {
+	out := make([]string, 0, len(ss))
+	seen := map[string]bool{}
+	for _, s := range ss {
+		if !seen[s] {
+			seen[s] = true
+			out = append(out, s)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// Value renders the envelope. Codes and warnings are non-semantic arrays and
+// are sorted; items keep their semantic order. A non-OK result with codes
+// carries the derived retryable member (CAL-V0-078); OK and uncoded results
+// keep their earlier bytes.
+func (r *Result) Value() Value {
+	o := NewObject()
+	o.Set("profile", String(ProfileCommandResult))
+	o.Set("command", Strings(r.Command))
+	o.Set("outcome", String(r.Outcome))
+	o.Set("codes", Strings(sortedUniqueStrings(r.Codes)))
+	if retryable, present := ResultRetryable(r.Outcome, r.Codes); present {
+		o.Set("retryable", Bool(retryable && !r.NotRetryable))
+	}
+	if r.Snapshot == nil {
+		o.Set("snapshot", Null())
+	} else {
+		s := NewObject()
+		s.Set("headSeq", sizeOrNull(r.Snapshot.HeadSeq))
+		s.Set("headReceiptSha256", digestOrNull(r.Snapshot.HeadReceiptSha256))
+		s.Set("intentTreeSha256", digestOrNull(r.Snapshot.IntentTreeSha256))
+		s.Set("primaryWorktreeSha256", digestOrNull(r.Snapshot.PrimaryWorktreeSha256))
+		s.Set("pendingRedo", Bool(r.Snapshot.PendingRedo))
+		if r.Snapshot.Barrier == nil {
+			s.Set("barrier", Null())
+		} else {
+			b := NewObject()
+			b.Set("scope", String(r.Snapshot.Barrier.Scope))
+			b.Set("reason", String(r.Snapshot.Barrier.Reason))
+			s.Set("barrier", ObjectValue(b))
+		}
+		o.Set("snapshot", ObjectValue(s))
+	}
+	if r.Mutation == nil {
+		o.Set("mutation", Null())
+	} else {
+		o.Set("mutation", *r.Mutation)
+	}
+	items := r.Items
+	if items == nil {
+		items = []Value{}
+	}
+	o.Set("items", Array(items...))
+	if r.Page == nil {
+		o.Set("page", Null())
+	} else {
+		p := NewObject()
+		p.Set("offset", String(string(r.Page.Offset)))
+		p.Set("limit", String(string(r.Page.Limit)))
+		p.Set("total", countOrNull(r.Page.Total))
+		p.Set("truncated", Bool(r.Page.Truncated))
+		o.Set("page", ObjectValue(p))
+	}
+	if r.Untrusted {
+		o.Set("untrusted", Strings([]string{UntrustedQueueData}))
+	} else {
+		o.Set("untrusted", Strings(nil))
+	}
+	o.Set("warnings", Strings(sortedUniqueStrings(r.Warnings)))
+	if r.Facets != nil {
+		o.Set("facets", *r.Facets)
+	}
+	return ObjectValue(o)
+}
+
+// Encode validates the envelope against its closed schema and the §1 size
+// bounds and returns the on-disk/transport bytes (canonical body plus LF).
+func (r *Result) Encode() ([]byte, error) {
+	if r.MaxNodes > MaxResultNodes {
+		return nil, Errorf(CodeLimitExceeded, "/", "decoded-node bound %d above %d", r.MaxNodes, MaxResultNodes)
+	}
+	v := r.Value()
+	if _, err := decodeResult(EncodeFile(v), ParseOptions{MaxNodes: r.MaxNodes}); err != nil {
+		return nil, err
+	}
+	itemBytes := 0
+	for _, it := range r.Items {
+		itemBytes += len(Encode(it)) + 1
+	}
+	if itemBytes > MaxListResultBytes {
+		return nil, Errorf(CodeLimitExceeded, "/items", "list result larger than %d bytes", MaxListResultBytes)
+	}
+	full := EncodeFile(v)
+	if len(full)-itemBytes > MaxCommandResultBytes {
+		return nil, Errorf(CodeLimitExceeded, "/", "command result envelope larger than %d bytes", MaxCommandResultBytes)
+	}
+	return full, nil
+}
+
+// DecodeResult parses and validates an envelope. Items are kept as opaque
+// values (their kind is verb-specific). The retryable member is optional so
+// earlier bytes still decode; when present it may be true only when every code
+// is retryable, and false there sets NotRetryable (CAL-V0-078).
+func DecodeResult(data []byte) (*Result, error) {
+	return decodeResult(data, ParseOptions{})
+}
+
+// MaxResultNodes caps every decoded-node bound an envelope is encoded or
+// decoded under: the plan preview bound of a full queue, MaxJSONNodes plus
+// 64 nodes per ticket (CAL-V0-141).
+const MaxResultNodes = MaxJSONNodes + 64*MaxTicketsPerQueue
+
+// DecodeResultLimit is DecodeResult under a caller's decoded-node bound, for
+// a consumer of a verb whose one item grows with the store (CAL-V0-141). It
+// refuses a bound outside 1..MaxResultNodes; DecodeResult keeps MaxJSONNodes.
+func DecodeResultLimit(data []byte, maxNodes int) (*Result, error) {
+	if maxNodes < 1 || maxNodes > MaxResultNodes {
+		return nil, Errorf(CodeLimitExceeded, "/", "decoded-node bound %d outside 1..%d", maxNodes, MaxResultNodes)
+	}
+	return decodeResult(data, ParseOptions{MaxNodes: maxNodes})
+}
+
+func decodeResult(data []byte, opts ParseOptions) (*Result, error) {
+	v, err := ParseWith(data, opts)
+	if err != nil {
+		return nil, err
+	}
+	rd := NewReader(v, "/")
+	if err := rd.Profile(ProfileCommandResult); err != nil {
+		return nil, err
+	}
+	rd.Closed(OptionalKeys(v, []string{"profile", "command", "outcome", "codes", "snapshot", "mutation", "items", "page", "untrusted", "warnings"}, "retryable", "facets")...)
+	if err := rd.Err(); err != nil {
+		return nil, err
+	}
+	res := &Result{}
+	rd.adopt(CheckProfile("/profile", rd.Field("profile").String(), ProfileCommandResult))
+	res.Command = rd.Field("command").Strings(-1, true, (*Reader).Identifier)
+	res.Outcome = rd.Field("outcome").Enum(OutcomeOK, OutcomeRefused, OutcomeError, OutcomeNotRun)
+	res.Codes = rd.Field("codes").Strings(-1, false, func(c *Reader) string {
+		s := c.String()
+		if c.st.err == nil && !IsCode(s) {
+			c.Fail(CodeMalformed, "unknown code %q", s)
+		}
+		return s
+	})
+	if Has(v, "retryable") {
+		got := rd.Field("retryable").Bool()
+		want, present := ResultRetryable(res.Outcome, res.Codes)
+		if rd.st.err == nil && !present {
+			rd.Field("retryable").Fail(CodeMalformed, "retryable is present only on a non-OK result with codes")
+		} else if rd.st.err == nil && got && !want {
+			rd.Field("retryable").Fail(CodeMalformed, "retryable is true but a code is not retryable")
+		}
+		res.NotRetryable = present && want && !got
+	}
+	sn := rd.Field("snapshot")
+	if !sn.IsNull() {
+		sn.Closed("headSeq", "headReceiptSha256", "intentTreeSha256", "primaryWorktreeSha256", "pendingRedo", "barrier")
+		s := &Snapshot{}
+		s.HeadSeq = sn.Field("headSeq").SizeOrNull()
+		s.HeadReceiptSha256 = sn.Field("headReceiptSha256").DigestOrNull()
+		s.IntentTreeSha256 = sn.Field("intentTreeSha256").DigestOrNull()
+		s.PrimaryWorktreeSha256 = sn.Field("primaryWorktreeSha256").DigestOrNull()
+		s.PendingRedo = sn.Field("pendingRedo").Bool()
+		b := sn.Field("barrier")
+		if !b.IsNull() {
+			b.Closed("scope", "reason")
+			s.Barrier = &BarrierRef{
+				Scope:  b.Field("scope").Enum("ADMISSION", "ALL"),
+				Reason: b.Field("reason").Enum("CUTOVER", "EMERGENCY", "DRAIN", "OPERATOR"),
+			}
+		}
+		res.Snapshot = s
+	}
+	m := rd.Field("mutation")
+	if !m.IsNull() {
+		mv := m.Value()
+		if mv.Kind != KindObject {
+			m.Fail(CodeMalformed, "mutation must be an object or null")
+		}
+		res.Mutation = &mv
+	}
+	for _, it := range rd.Field("items").Array(-1, true) {
+		if it.Value().Kind != KindObject {
+			it.Fail(CodeMalformed, "items must be objects")
+		}
+		res.Items = append(res.Items, it.Value())
+	}
+	pg := rd.Field("page")
+	if !pg.IsNull() {
+		pg.Closed("offset", "limit", "total", "truncated")
+		p := &Page{}
+		p.Offset = pg.Field("offset").Count()
+		p.Limit = pg.Field("limit").Count()
+		p.Total = pg.Field("total").CountOrNull()
+		p.Truncated = pg.Field("truncated").Bool()
+		res.Page = p
+	}
+	ut := rd.Field("untrusted").Strings(1, false, func(c *Reader) string { return c.Exact(UntrustedQueueData) })
+	res.Untrusted = len(ut) == 1
+	res.Warnings = rd.Field("warnings").Strings(-1, false, func(c *Reader) string { return c.Prose(1, MaxProseBytes) })
+	if Has(v, "facets") {
+		f := rd.Field("facets")
+		fv := f.Value()
+		if fv.Kind != KindObject {
+			f.Fail(CodeMalformed, "facets must be an object")
+		} else {
+			decodeFacets(f)
+		}
+		res.Facets = &fv
+	}
+	if err := rd.Err(); err != nil {
+		return nil, err
+	}
+	return res, nil
+}

@@ -1,0 +1,1649 @@
+// Command cem-trial is the external agent-harness dispatcher for the CEM
+// reviewer trial in docs/specs/cem-reviewer-trial-v0.md. It selects changes
+// from a local Git history, presents each change's source hunks to one agent
+// twice — once bare (control) and once with a cem/1.0 map, status worklist,
+// and report (treatment) — and scores how much of the change's own withheld
+// test-or-spec evidence each arm cited. It downloads nothing beyond the local
+// history it is given and writes only its own output tree.
+package main
+
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"io/fs"
+	"math"
+	"os"
+	"os/exec"
+	"os/signal"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strconv"
+	"strings"
+	"sync"
+	"syscall"
+	"time"
+
+	"github.com/Beamfall/corvint/internal/gokernel"
+	"github.com/Beamfall/corvint/internal/procgroup"
+)
+
+const (
+	profile            = "corvint-cem-trial/0"
+	notObserved        = "NOT_OBSERVED"
+	maxTasksFile       = 16 << 20
+	maxPatchBytes      = 64 << 10
+	maxReplyBytes      = 1 << 20
+	maxOutputBytes     = 8 << 20
+	maxErrorBytes      = 64 << 10
+	maxAgentErrorBytes = 2 << 10
+	maxArtefactSize    = 256 << 10
+	defaultTimeout     = 5 * time.Minute
+	corvintTimeout     = 2 * time.Minute
+	truncatedMarker    = "\n[TRUNCATED]"
+	mapRelative        = "change.cem.json"
+	reportRelative     = "cem-report.md"
+)
+
+var armNames = []string{"control", "treatment"}
+
+// skeleton is the one prompt both arms receive. Only the third field differs:
+// it is empty for control and carries the treatment prologue and its three
+// artefacts for treatment, so removing that block from a treatment prompt
+// reproduces the control prompt byte for byte (CRT-V0-005, CRT-V0-010).
+const skeleton = `You are reviewing one proposed change to a repository. Your working directory holds
+that repository checked out at the change's base revision, with its history. The change
+itself is not committed anywhere you can reach.
+
+For each numbered hunk of the change, name the existing evidence in the repository at this
+base revision that justifies it: a specification, a decision record, a test that claims the
+behaviour, an implementation, a call site, a dependency, or an incident record. Name the
+hunks you cannot justify instead of guessing.
+
+## Hunks
+
+%s
+
+## Patch
+
+` + "```diff\n%s\n```" + `
+%s
+## Reply
+
+End your reply with one fenced JSON block and nothing after it:
+
+` + "```json\n" +
+	`{"citations":[{"hunk":"N","path":"...","lines":"S:E","relation":"specification|decision|test-claim|implementation|call-site|dependency|incident","confidence":"certain|likely|unsure"}],"unknown":["N"]}` +
+	"\n```" + `
+
+Every "path" is a repository-relative path that exists at the base revision, every "lines" a
+one-based inclusive line range in that file. List in "unknown" the number of every hunk you
+could not justify.
+`
+
+// treatmentPrologue is the treatment arm's declared difference from control.
+// It is inserted whole, so the control prompt is this block removed.
+const treatmentPrologue = `
+## Change Evidence Map
+
+A cem/1.0 Change Evidence Map has already been built over the same hunks as the patch above.
+It lists them in the same order with a stable identifier and an explicit disposition, and it
+is the worklist you are completing: every hunk whose disposition is ` + "`unknown`" + ` still needs
+evidence.
+
+### Map
+
+` + "```json\n%s\n```" + `
+
+### Status worklist
+
+` + "```json\n%s\n```" + `
+
+### Report
+
+` + "```\n%s\n```" + `
+`
+
+// seededPrologue is the seeded arm's declared difference from control: the
+// treatment prologue, then the evidence `corvint context --subject` retrieved
+// at the base revision for each presented source file (CRT-V0-012). The 2026-09-04
+// pilot's treatment carried a map in which every hunk was `unknown` with no
+// evidence, so it measured a worklist's wording, not Corvint's evidence; this
+// arm carries the evidence and labels it a suggestion, never a citation.
+const seededPrologue = treatmentPrologue + `
+### Suggested evidence
+
+Corvint retrieved the candidates below mechanically at this base revision, running
+` + "`corvint context --task \"evidence for a change to PATH\" --subject PATH`" + ` for each file the
+patch touches. Nothing here is cited: a suggestion is a place to look, and a suggestion that does
+not justify a hunk must not be cited.
+
+` + "```json\n%s\n```" + `
+`
+
+// stemPrologue is the stem-worklist arm's declared difference from control
+// (CRT-V0-017): the naming-convention guesses `select` recorded for the
+// presented source files, with no Corvint map, retrieval or verifier. It is
+// the cheap baseline every map-carrying arm must beat; the 2026-10-24
+// held-out run's mechanical stem guesses missed less than every arm.
+const stemPrologue = `
+## Stem worklist
+
+The paths below are naming-convention guesses for tests of the files the patch touches, one
+per source file and language convention. A guess may not exist at this base revision, and a
+guess that does not justify a hunk must not be cited.
+
+%s
+`
+
+// stemWorklist renders the recorded stem guesses, one per line.
+func stemWorklist(paths []string) string {
+	if len(paths) == 0 {
+		return "(none)"
+	}
+	return "- " + strings.Join(paths, "\n- ")
+}
+
+// suggestionLimit bounds the rows `context --subject` returns per presented
+// source file; the subject's own row is dropped.
+const suggestionLimit = 8
+
+// suggestion is one row of the seeded arm's evidence, as the prologue renders
+// it and as the lane records it.
+type suggestion struct {
+	Subject  string `json:"subject"`
+	Path     string `json:"path"`
+	Relation string `json:"relation"`
+	Reason   string `json:"reason"`
+}
+
+type options struct {
+	tasks        string
+	history      string
+	corvintGo    string
+	arms         []string
+	repeats      int
+	agent        string
+	agentCommand string
+	model        string
+	effort       string
+	timeout      time.Duration
+	workers      int
+	output       string
+	seed         string
+	resume       bool
+	reuse        string
+	registration string
+}
+
+type agentResult struct {
+	reply      string
+	exitCode   any
+	tokens     any
+	toolCalls  any
+	stderrTail string
+	// replyTruncated and stdoutTruncated record a cut at a capture bound
+	// before the reply reached the record.
+	replyTruncated  bool
+	stdoutTruncated bool
+}
+
+type agent interface {
+	run(ctx context.Context, root, prompt string, timeout time.Duration) (agentResult, error)
+	identity(ctx context.Context) (map[string]any, error)
+}
+
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	os.Exit(run(ctx, os.Args[1:], os.Stdout, os.Stderr))
+}
+
+func run(ctx context.Context, arguments []string, stdout, stderr io.Writer) int {
+	if len(arguments) == 0 {
+		fmt.Fprintln(stderr, "cem-trial: usage: cem-trial select|run|score [flags]")
+		return 2
+	}
+	var document *report
+	var output string
+	var err error
+	switch arguments[0] {
+	case "select":
+		return selectChanges(ctx, arguments[1:], stdout, stderr)
+	case "run":
+		document, output, err = runTrial(ctx, arguments[1:])
+		if err == nil && output != "" {
+			defer os.Remove(checkpointPath(output))
+		}
+	case "score":
+		document, output, err = rescore(arguments[1:])
+	default:
+		err = fmt.Errorf("unknown command %q", arguments[0])
+	}
+	if err != nil {
+		fmt.Fprintln(stderr, "cem-trial:", err)
+		return 2
+	}
+	return write(document, output, stdout, stderr)
+}
+
+func write(document *report, output string, stdout, stderr io.Writer) int {
+	encoded, err := gokernel.CanonicalJSON(document)
+	if err != nil {
+		fmt.Fprintln(stderr, "cem-trial: cannot encode the report")
+		return 2
+	}
+	encoded = append(encoded, '\n')
+	if output == "" {
+		_, err = stdout.Write(encoded)
+	} else {
+		err = os.WriteFile(output, encoded, 0o644)
+	}
+	if err != nil {
+		fmt.Fprintln(stderr, "cem-trial: cannot write the report")
+		return 2
+	}
+	return 0
+}
+
+func parseRunOptions(arguments []string) (options, error) {
+	var configuration options
+	var arms string
+	flags := flag.NewFlagSet("cem-trial run", flag.ContinueOnError)
+	flags.SetOutput(io.Discard)
+	flags.StringVar(&configuration.tasks, "tasks", "", "task manifest JSON written by select")
+	flags.StringVar(&configuration.history, "history", "", "local Git repository holding the changes")
+	flags.StringVar(&configuration.corvintGo, "corvint", "", "corvint executable (required by the treatment arm)")
+	flags.StringVar(&arms, "arms", "control,treatment", "comma-separated arms to run")
+	flags.IntVar(&configuration.repeats, "repeats", 1, "invocations per change and arm")
+	flags.StringVar(&configuration.agent, "agent", "codex", "agent kind: codex or script")
+	flags.StringVar(&configuration.agentCommand, "agent-command", "", "script agent: executable given the prompt as its argument, replying on stdout")
+	flags.StringVar(&configuration.model, "model", "", "model id passed to codex -m (required for the codex agent)")
+	flags.StringVar(&configuration.effort, "effort", "", "codex model_reasoning_effort override")
+	flags.DurationVar(&configuration.timeout, "timeout", defaultTimeout, "per-invocation wall-clock limit")
+	flags.IntVar(&configuration.workers, "workers", 1, "concurrent changes (1 = sequential)")
+	flags.StringVar(&configuration.output, "output", "", "report path (default stdout)")
+	flags.StringVar(&configuration.seed, "seed", "", "seed for the per-change arm order")
+	flags.BoolVar(&configuration.resume, "resume", false, "reuse OUTPUT.partial.json, rerunning only lanes that never finished")
+	flags.StringVar(&configuration.reuse, "reuse", "", "reuse the finished lanes of a prior report with byte-identical prompts")
+	flags.StringVar(&configuration.registration, "registration", "", "committed registration file the run must match (required when the manifest partition is heldout)")
+	if err := flags.Parse(arguments); err != nil {
+		return configuration, err
+	}
+	if configuration.tasks == "" || configuration.history == "" || flags.NArg() != 0 {
+		return configuration, errors.New("usage: cem-trial run --tasks FILE --history DIR [--corvint PATH] [flags]")
+	}
+	configuration.arms = splitList(arms)
+	for _, name := range configuration.arms {
+		if name != "control" && name != "treatment" && name != "seeded" && name != "stem" {
+			return configuration, fmt.Errorf("unknown arm %q", name)
+		}
+	}
+	if len(configuration.arms) == 0 || configuration.repeats < 1 {
+		return configuration, errors.New("--arms must name at least one arm and --repeats at least 1")
+	}
+	if armsNeedCorvint(configuration.arms) && configuration.corvintGo == "" {
+		return configuration, errors.New("--corvint is required by the treatment and seeded arms")
+	}
+	if configuration.agent == "codex" && configuration.model == "" {
+		return configuration, errors.New("--model is required for the codex agent")
+	}
+	if configuration.agent == "script" && configuration.agentCommand == "" {
+		return configuration, errors.New("--agent-command is required for the script agent")
+	}
+	if configuration.resume && configuration.output == "" {
+		return configuration, errors.New("--resume needs --output to find the checkpoint")
+	}
+	if configuration.corvintGo != "" {
+		absolute, err := filepath.Abs(configuration.corvintGo)
+		if err != nil {
+			return configuration, err
+		}
+		configuration.corvintGo = absolute
+	}
+	return configuration, nil
+}
+
+func runTrial(ctx context.Context, arguments []string) (*report, string, error) {
+	configuration, err := parseRunOptions(arguments)
+	if err != nil {
+		return nil, "", err
+	}
+	set, raw, err := readManifest(configuration.tasks)
+	if err != nil {
+		return nil, "", err
+	}
+	runner, err := newAgent(configuration)
+	if err != nil {
+		return nil, "", err
+	}
+	identity, err := runner.identity(ctx)
+	if err != nil {
+		return nil, "", err
+	}
+	document := &report{
+		Profile: profile, Partition: set.Partition, Pilot: set.Partition == "pilot",
+		Repository: set.Repository, SelectionRule: set.SelectionRule, Population: set.Population,
+		Pairs: len(set.Tasks), Seed: configuration.seed, Model: modelOrNot(configuration),
+		Effort: valueOrNot(configuration.effort), ManifestSHA256: digestOf(string(raw)),
+		SkeletonSHA256: digestOf(skeleton), Arms: configuration.arms, Repeats: configuration.repeats,
+		Prologues: prologueIdentity(configuration.arms), Agent: identity,
+		CorvintGo: corvintIdentity(ctx, configuration), Changes: changeMetadata(set), Lanes: []*lane{},
+	}
+	if err := checkRegistration(ctx, configuration, document); err != nil {
+		return nil, "", err
+	}
+	prior, err := loadReuse(configuration, document)
+	if err != nil {
+		return nil, "", err
+	}
+	if configuration.resume {
+		// A missing checkpoint starts afresh; an unreadable one is refused
+		// rather than rerunning lanes it may already hold (CRT-V0-010).
+		checkpoint, err := loadReport(checkpointPath(configuration.output))
+		switch {
+		case errors.Is(err, fs.ErrNotExist):
+		case err != nil:
+			return nil, "", fmt.Errorf("--resume: %w", err)
+		default:
+			if err := registeredPrior(document, checkpoint, checkpointPath(configuration.output)); err != nil {
+				return nil, "", err
+			}
+			prior = prior.merge(checkpoint)
+		}
+	}
+	base := filepath.Dir(configuration.tasks)
+	lanes := plan(configuration, set)
+	for _, item := range lanes {
+		document.Lanes = append(document.Lanes, item.records...)
+	}
+	saver := newCheckpointer(document, configuration.output)
+	invokePending(ctx, configuration, runner, base, lanes, prior, saver)
+	finalize(document)
+	return document, configuration.output, nil
+}
+
+// changePlan is one change's lanes, in the seeded arm order.
+type changePlan struct {
+	task    task
+	records []*lane
+}
+
+// plan fixes every lane and the per-change arm order before the first
+// invocation: the order is a seeded shuffle recorded on each lane.
+func plan(configuration options, set *manifest) []changePlan {
+	plans := make([]changePlan, 0, len(set.Tasks))
+	for _, item := range set.Tasks {
+		order := shuffledArms(configuration.seed, item.ID, configuration.arms)
+		records := make([]*lane, 0, len(order)*configuration.repeats)
+		for _, name := range order {
+			for repeat := 1; repeat <= configuration.repeats; repeat++ {
+				records = append(records, &lane{
+					ID: item.ID, Arm: name, Repeat: repeat, ArmOrder: order,
+					ReplyState: "ABSENT", Citations: []citation{}, Unknown: []string{},
+					WallMs: notObserved, Tokens: notObserved, ExitCode: notObserved,
+				})
+			}
+		}
+		plans = append(plans, changePlan{task: item, records: records})
+	}
+	return plans
+}
+
+// shuffledArms orders the arms by a Fisher-Yates shuffle over a stream
+// derived from the seed and the change id, so the order is reproducible and
+// independent between changes.
+func shuffledArms(seed, id string, arms []string) []string {
+	order := append([]string(nil), arms...)
+	stream := seededStream(seed + "\x00" + id)
+	for index := len(order) - 1; index > 0; index-- {
+		pick := int(stream() % uint64(index+1))
+		order[index], order[pick] = order[pick], order[index]
+	}
+	return order
+}
+
+// seededStream is a counter-mode SHA-256 stream: deterministic, seed-derived,
+// and independent of the standard library's generator version.
+func seededStream(seed string) func() uint64 {
+	counter := 0
+	return func() uint64 {
+		sum := sha256.Sum256([]byte(seed + "\x00" + strconv.Itoa(counter)))
+		counter++
+		value := uint64(0)
+		for _, b := range sum[:8] {
+			value = value<<8 | uint64(b)
+		}
+		return value >> 1
+	}
+}
+
+// invokePending runs the planned changes, at most --workers at a time. Each
+// change owns one prep clone at its base revision and one disjoint lane clone
+// per arm, so no state crosses arms.
+func invokePending(ctx context.Context, configuration options, runner agent, base string, plans []changePlan, prior *reuseSource, saver *checkpointer) {
+	saver.save()
+	slots := make(chan struct{}, maxInt(configuration.workers, 1))
+	var group sync.WaitGroup
+	for _, item := range plans {
+		slots <- struct{}{}
+		group.Add(1)
+		go func(item changePlan) {
+			defer group.Done()
+			defer func() { <-slots }()
+			runChange(ctx, configuration, runner, base, item, prior, saver)
+			saver.save()
+		}(item)
+	}
+	group.Wait()
+}
+
+func runChange(ctx context.Context, configuration options, runner agent, base string, item changePlan, prior *reuseSource, saver *checkpointer) {
+	patch, err := readPatch(base, item.task)
+	if err != nil {
+		failLanes(item.records, err, saver)
+		return
+	}
+	prep, err := cloneAtBase(ctx, configuration.history, item.task.BaseCommit)
+	if err != nil {
+		failLanes(item.records, err, saver)
+		return
+	}
+	defer os.RemoveAll(prep)
+	if resolvable(ctx, prep, item.task.Commit) {
+		failLanes(item.records, fmt.Errorf("the clone resolves %s: the change leaked into its own base", item.task.Commit), saver)
+		return
+	}
+	artefacts, target, err := buildArtefacts(ctx, configuration, prep, patch, item.task.SourceFiles)
+	if err != nil && armsNeedCorvint(configuration.arms) {
+		failLanes(item.records, err, saver)
+		return
+	}
+	if target != nil {
+		defer os.RemoveAll(target.root)
+	}
+	prompts := map[string]string{}
+	for _, arm := range configuration.arms {
+		prompts[arm] = buildPrompt(arm, item.task, patch, artefacts)
+	}
+	suggested := suggestedPaths(artefacts["suggestions"])
+	for _, record := range item.records {
+		record.PromptSHA256 = digestOf(prompts[record.Arm])
+		record.PromptBytes = len(prompts[record.Arm])
+		if record.Arm == "seeded" {
+			record.Suggested = suggested
+		}
+		if prior.apply(record) {
+			continue
+		}
+		invokeLane(ctx, configuration, runner, prep, prompts[record.Arm], target, item.task, record, saver)
+		saver.save()
+	}
+}
+
+func failLanes(records []*lane, err error, saver *checkpointer) {
+	for _, record := range records {
+		assign(saver.lock(), func() { record.Error = err.Error() })
+	}
+}
+
+func invokeLane(ctx context.Context, configuration options, runner agent, prep, prompt string, target *mapTarget, item task, record *lane, saver *checkpointer) {
+	if err := ctx.Err(); err != nil {
+		assign(saver.lock(), func() { record.Error = err.Error() })
+		return
+	}
+	root, err := laneClone(ctx, prep)
+	if err != nil {
+		assign(saver.lock(), func() { record.Error = err.Error() })
+		return
+	}
+	defer os.RemoveAll(root)
+	started := time.Now()
+	result, runErr := runner.run(ctx, root, prompt, configuration.timeout)
+	wall := time.Since(started).Milliseconds()
+	assign(saver.lock(), func() {
+		record.StartedAt = started.UTC().Format(time.RFC3339Nano)
+		record.WallMs = wall
+		if runErr != nil {
+			record.Error = runErr.Error()
+			return
+		}
+		record.ExitCode, record.Tokens, record.ToolCalls = result.exitCode, result.tokens, result.toolCalls
+		record.Reply, record.ReplyTruncated = truncate(result.reply, maxReplyBytes)
+		record.ReplyTruncated = record.ReplyTruncated || result.replyTruncated
+		record.StdoutTruncated = result.stdoutTruncated
+		if code, ok := result.exitCode.(int); ok && code != 0 {
+			record.Error = agentExitError(code, result.stderrTail)
+		}
+	})
+	if runErr != nil || record.Error != "" || record.Arm == "control" || record.Arm == "stem" || configuration.corvintGo == "" {
+		return
+	}
+	citations, _ := extractCitations(record.Reply)
+	state, err := applyCitations(ctx, configuration, root, target, item, citations)
+	assign(saver.lock(), func() {
+		record.CEM = state
+		if err != nil {
+			record.Error = "cem measurement: " + err.Error()
+		}
+	})
+}
+
+// armsNeedCorvint holds when an arm carrying a map is run.
+func armsNeedCorvint(arms []string) bool {
+	return contains(arms, "treatment") || contains(arms, "seeded")
+}
+
+// targetMap is where `cem prepare` writes the candidate map in the target
+// clone; targetDate pins the synthetic target commit's dates so its object id,
+// and with it every artefact, is the same on every build (CRT-V0-005).
+const (
+	targetMap  = ".corvint/change.cem.json"
+	targetDate = "@946684800 +0000"
+	targetRoot = "<target-clone>"
+)
+
+// mapTarget is one change's cem/1.0 producer state. The presented patch is
+// committed as a synthetic target T on top of the base in a private clone of
+// the prep clone, so `cem prepare --base B --target T` derives the canonical
+// patch the map binds. No lane clones it: lanes clone the prep clone, which
+// cannot resolve T, and only the harness cites into it. pristine is the
+// prepared map, restored before each lane's citations are applied.
+type mapTarget struct {
+	root, base, target string
+	pristine           []byte
+}
+
+func (target *mapTarget) flags() []string {
+	return []string{"--map", targetMap, "--expected-base", target.base, "--target", target.target, "--artifacts", target.root}
+}
+
+// buildArtefacts produces the map-carrying arms' artefacts at the shipped
+// cem/1.0 wire (CRT-V0-005, CRT-V0-015): the prepared map, its `cem status`
+// envelope as the worklist, and its `cem report`, with the target clone's
+// absolute path replaced so the prompt is byte-stable across builds. The
+// returned target is the caller's to remove.
+func buildArtefacts(ctx context.Context, configuration options, root, patch string, sourceFiles []string) (map[string]string, *mapTarget, error) {
+	if configuration.corvintGo == "" {
+		return map[string]string{}, nil, nil
+	}
+	suggestions := ""
+	if contains(configuration.arms, "seeded") {
+		rows, err := suggestEvidence(ctx, configuration, root, sourceFiles)
+		if err != nil {
+			return nil, nil, err
+		}
+		encoded, err := json.MarshalIndent(rows, "", "  ")
+		if err != nil {
+			return nil, nil, err
+		}
+		suggestions, _ = truncate(string(encoded), maxArtefactSize)
+	}
+	target, err := prepareTarget(ctx, configuration, root, patch)
+	if err != nil {
+		return nil, nil, err
+	}
+	artefacts, err := renderArtefacts(ctx, configuration, target)
+	if err != nil {
+		_ = os.RemoveAll(target.root)
+		return nil, nil, err
+	}
+	artefacts["suggestions"] = strings.TrimSpace(suggestions)
+	return artefacts, target, nil
+}
+
+// prepareTarget commits the presented patch as T in a fresh clone of prep and
+// runs `cem prepare`. The map's hunks must be the presented patch's hunks in
+// the presented order, or a reply's hunk number would cite the wrong hunk.
+func prepareTarget(ctx context.Context, configuration options, prep, patch string) (*mapTarget, error) {
+	root, err := laneClone(ctx, prep)
+	if err != nil {
+		return nil, err
+	}
+	target, err := commitTarget(ctx, configuration, root, patch)
+	if err != nil {
+		_ = os.RemoveAll(root)
+		return nil, err
+	}
+	return target, nil
+}
+
+func commitTarget(ctx context.Context, configuration options, root, patch string) (*mapTarget, error) {
+	base, err := git(ctx, root, "rev-parse", "HEAD")
+	if err != nil {
+		return nil, fmt.Errorf("git rev-parse: %w", err)
+	}
+	scratch, err := os.MkdirTemp("", "corvint-cem-trial-patch-")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(scratch)
+	patchPath := filepath.Join(scratch, "change.patch")
+	if err := os.WriteFile(patchPath, []byte(patch), 0o644); err != nil {
+		return nil, err
+	}
+	if _, err := git(ctx, root, "apply", "--index", patchPath); err != nil {
+		return nil, fmt.Errorf("git apply: %w", err)
+	}
+	if _, err := gitWith(ctx, root, []string{"GIT_AUTHOR_DATE=" + targetDate, "GIT_COMMITTER_DATE=" + targetDate},
+		"commit", "-q", "--no-verify", "--no-gpg-sign", "-m", "cem-trial synthetic target"); err != nil {
+		return nil, fmt.Errorf("git commit: %w", err)
+	}
+	head, err := git(ctx, root, "rev-parse", "HEAD")
+	if err != nil {
+		return nil, fmt.Errorf("git rev-parse: %w", err)
+	}
+	if _, err := corvint(ctx, configuration, root, "cem", "prepare", "--base", base, "--target", head); err != nil {
+		return nil, fmt.Errorf("cem prepare: %w", err)
+	}
+	pristine, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(targetMap)))
+	if err != nil {
+		return nil, err
+	}
+	if err := alignedHunks(pristine, patch); err != nil {
+		return nil, err
+	}
+	return &mapTarget{root: root, base: base, target: head, pristine: pristine}, nil
+}
+
+func renderArtefacts(ctx context.Context, configuration options, target *mapTarget) (map[string]string, error) {
+	status, err := corvint(ctx, configuration, target.root, append([]string{"cem", "status"}, target.flags()...)...)
+	if err != nil {
+		return nil, fmt.Errorf("cem status: %w", err)
+	}
+	scratch, err := os.MkdirTemp("", "corvint-cem-trial-report-")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(scratch)
+	reportPath := filepath.Join(scratch, reportRelative)
+	if _, err := corvint(ctx, configuration, target.root, append(append([]string{"cem", "report"}, target.flags()...), "--output", reportPath)...); err != nil {
+		return nil, fmt.Errorf("cem report: %w", err)
+	}
+	rendered, err := os.ReadFile(reportPath)
+	if err != nil {
+		return nil, err
+	}
+	stable := func(text string) string {
+		text = strings.ReplaceAll(text, target.root, targetRoot)
+		if resolved, err := filepath.EvalSymlinks(target.root); err == nil {
+			text = strings.ReplaceAll(text, resolved, targetRoot)
+		}
+		text, _ = truncate(text, maxArtefactSize)
+		return strings.TrimSpace(text)
+	}
+	return map[string]string{"map": stable(string(target.pristine)), "status": stable(status), "report": stable(string(rendered))}, nil
+}
+
+// alignedHunks refuses a map whose hunks are not the presented patch's hunks,
+// in order, by path and by old and new start line.
+func alignedHunks(document []byte, patch string) error {
+	var envelope struct {
+		Hunks []struct {
+			Path     string `json:"path"`
+			OldRange struct {
+				Start int `json:"start"`
+			} `json:"oldRange"`
+			NewRange struct {
+				Start int `json:"start"`
+			} `json:"newRange"`
+		} `json:"hunks"`
+	}
+	if err := json.Unmarshal(document, &envelope); err != nil {
+		return fmt.Errorf("cem prepare: unreadable map: %w", err)
+	}
+	presented := patchHunks(patch)
+	if len(envelope.Hunks) != len(presented) {
+		return fmt.Errorf("cem prepare: the map holds %d hunks, the presented patch %d", len(envelope.Hunks), len(presented))
+	}
+	for index, want := range presented {
+		got := envelope.Hunks[index]
+		if got.Path != want.path || got.OldRange.Start != want.oldStart || got.NewRange.Start != want.newStart {
+			return fmt.Errorf("cem prepare: map hunk %d is %s -%d +%d, the presented hunk %s -%d +%d",
+				index+1, got.Path, got.OldRange.Start, got.NewRange.Start, want.path, want.oldStart, want.newStart)
+		}
+	}
+	return nil
+}
+
+type hunkHeader struct {
+	path               string
+	oldStart, newStart int
+}
+
+var hunkHeaderPattern = regexp.MustCompile(`^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@`)
+
+// patchHunks reads the hunk headers in the order hunkList numbers them. A
+// deleted file's hunks carry its old path.
+func patchHunks(patch string) []hunkHeader {
+	var hunks []hunkHeader
+	oldPath, path := "", ""
+	for _, line := range strings.Split(patch, "\n") {
+		switch {
+		case strings.HasPrefix(line, "--- a/"):
+			oldPath = strings.TrimPrefix(line, "--- a/")
+		case strings.HasPrefix(line, "+++ b/"):
+			path = strings.TrimPrefix(line, "+++ b/")
+		case strings.HasPrefix(line, "+++ /dev/null"):
+			path = oldPath
+		}
+		match := hunkHeaderPattern.FindStringSubmatch(line)
+		if match == nil {
+			continue
+		}
+		oldStart, _ := strconv.Atoi(match[1])
+		newStart, _ := strconv.Atoi(match[2])
+		hunks = append(hunks, hunkHeader{path: path, oldStart: oldStart, newStart: newStart})
+	}
+	return hunks
+}
+
+// suggestEvidence runs `corvint context --subject PATH` in the prep clone,
+// which holds the base revision alone, for each presented source file and
+// collects every row but the subject's own. The clone cannot resolve the
+// change, so a suggestion can only be evidence the agent could itself have
+// found at the base revision; gold among the suggestions is Corvint finding
+// the withheld test by its naming or import relations, which is the retrieval
+// the arm measures.
+func suggestEvidence(ctx context.Context, configuration options, root string, sourceFiles []string) ([]suggestion, error) {
+	rows := []suggestion{}
+	for _, subject := range sourceFiles {
+		raw, err := corvint(ctx, configuration, root, "context", "--task", "evidence for a change to "+subject, "--subject", subject, "--limit", strconv.Itoa(suggestionLimit))
+		if err != nil {
+			return nil, fmt.Errorf("context --subject %s: %w", subject, err)
+		}
+		var packet struct {
+			Results []struct {
+				Kind     string `json:"kind"`
+				ID       string `json:"id"`
+				Evidence []struct {
+					Reason string `json:"reason"`
+				} `json:"evidence"`
+			} `json:"results"`
+		}
+		if err := json.Unmarshal([]byte(raw), &packet); err != nil {
+			return nil, fmt.Errorf("context --subject %s: unreadable packet: %w", subject, err)
+		}
+		for _, result := range packet.Results {
+			if result.ID == "" || result.ID == subject {
+				continue
+			}
+			reason := ""
+			if len(result.Evidence) != 0 {
+				reason = result.Evidence[0].Reason
+			}
+			rows = append(rows, suggestion{Subject: subject, Path: result.ID, Relation: result.Kind, Reason: reason})
+		}
+	}
+	return rows, nil
+}
+
+// suggestedPaths is the sorted distinct paths of a rendered suggestions
+// block, recorded on each seeded lane so the scorer can read seed coverage
+// without the prompt.
+func suggestedPaths(rendered string) []string {
+	if strings.TrimSpace(rendered) == "" {
+		return nil
+	}
+	var rows []suggestion
+	if err := json.Unmarshal([]byte(rendered), &rows); err != nil {
+		return nil
+	}
+	seen := map[string]bool{}
+	paths := make([]string, 0, len(rows))
+	for _, row := range rows {
+		if !seen[row.Path] {
+			seen[row.Path] = true
+			paths = append(paths, row.Path)
+		}
+	}
+	sort.Strings(paths)
+	return paths
+}
+
+// applyCitations replays one lane's reply into a fresh copy of the change's
+// prepared cem/1.0 map: each citation is one `cem cite` on the reply's hunk
+// number, then `cem status` supplies the per-hunk dispositions and the
+// consumer-computed tiers, and `cem verify` the verdict. replay_ok is the
+// harness's own Git-only check in the lane clone (CRT-V0-007). A Corvint
+// command that ran and refused is a measurement; one that never produced a
+// verdict (cancellation, timeout, launch failure) is an error, which errors
+// the lane so it is neither scored as a verifier failure nor reused.
+func applyCitations(ctx context.Context, configuration options, laneRoot string, target *mapTarget, item task, citations []citation) (map[string]any, error) {
+	state := map[string]any{"counts": map[string]any{}, "state": notObserved, "verify_ok": notObserved, "replay_ok": notObserved, "cited": len(citations)}
+	if target == nil {
+		return state, nil
+	}
+	if err := os.WriteFile(filepath.Join(target.root, filepath.FromSlash(targetMap)), target.pristine, 0o600); err != nil {
+		return state, err
+	}
+	accepted := 0
+	for _, one := range citations {
+		_, err := corvint(ctx, configuration, target.root, "cem", "cite", "--map", targetMap,
+			"--hunk", one.Hunk, "--evidence-path", one.Path, "--lines", one.Lines, "--relation", one.Relation)
+		if err == nil {
+			accepted++
+		} else if !errors.Is(err, errCorvintExit) {
+			return state, fmt.Errorf("cem cite: %w", err)
+		}
+	}
+	state["accepted"] = accepted
+	raw, err := corvint(ctx, configuration, target.root, append([]string{"cem", "status"}, target.flags()...)...)
+	if err != nil && !errors.Is(err, errCorvintExit) {
+		return state, fmt.Errorf("cem status: %w", err)
+	}
+	if err == nil {
+		var envelope struct {
+			State  string `json:"state"`
+			Stable struct {
+				Hunks []struct {
+					Disposition string `json:"disposition"`
+				} `json:"hunks"`
+				Citation struct {
+					HunksByClass map[string]any `json:"hunksByClass"`
+				} `json:"citation"`
+			} `json:"stableVerification"`
+		}
+		if json.Unmarshal([]byte(raw), &envelope) == nil && len(envelope.Stable.Hunks) != 0 {
+			counts := map[string]any{"total": len(envelope.Stable.Hunks), "supported": 0, "mechanical": 0, "unknown": 0}
+			for _, hunk := range envelope.Stable.Hunks {
+				if value, ok := counts[hunk.Disposition].(int); ok {
+					counts[hunk.Disposition] = value + 1
+				}
+			}
+			state["counts"], state["state"] = counts, envelope.State
+			if envelope.Stable.Citation.HunksByClass != nil {
+				state["tiers"] = envelope.Stable.Citation.HunksByClass
+			}
+		}
+	}
+	raw, err = corvint(ctx, configuration, target.root, append([]string{"cem", "verify"}, target.flags()...)...)
+	if err != nil && !errors.Is(err, errCorvintExit) {
+		return state, fmt.Errorf("cem verify: %w", err)
+	}
+	state["verify_ok"] = err == nil && verifyAccepted(raw)
+	state["replay_ok"] = replayCitations(ctx, laneRoot, item.BaseCommit, citations)
+	if err := ctx.Err(); err != nil {
+		return state, err
+	}
+	return state, nil
+}
+
+// verifyAccepted holds for a `cem verify` envelope that is ok with a stable
+// ACCEPT outcome.
+func verifyAccepted(raw string) bool {
+	var envelope struct {
+		OK     bool `json:"ok"`
+		Stable struct {
+			Outcome string `json:"outcome"`
+		} `json:"stableVerification"`
+	}
+	return json.Unmarshal([]byte(raw), &envelope) == nil && envelope.OK && envelope.Stable.Outcome == "ACCEPT"
+}
+
+func corvint(ctx context.Context, configuration options, root string, arguments ...string) (string, error) {
+	stdout, exitCode, _, _, err := runCommand(ctx, root, corvintTimeout, configuration.corvintGo, append([]string{"--root", root}, arguments...)...)
+	if err != nil {
+		return "", err
+	}
+	if exitCode != 0 {
+		return string(stdout), fmt.Errorf("%w %d: %s", errCorvintExit, exitCode, strings.TrimSpace(string(stdout)))
+	}
+	return string(stdout), nil
+}
+
+// errCorvintExit marks a Corvint command that ran and exited non-zero, as
+// distinct from one that never produced output.
+var errCorvintExit = errors.New("corvint exited")
+
+func corvintIdentity(ctx context.Context, configuration options) map[string]any {
+	if configuration.corvintGo == "" {
+		return map[string]any{"version": notObserved, "sha256": notObserved}
+	}
+	identity := map[string]any{"path": configuration.corvintGo, "version": notObserved, "sha256": notObserved}
+	if data, err := os.ReadFile(configuration.corvintGo); err == nil {
+		sum := sha256.Sum256(data)
+		identity["sha256"] = hex.EncodeToString(sum[:])
+	}
+	if stdout, exitCode, _, _, err := runCommand(ctx, "", corvintTimeout, configuration.corvintGo, "--version"); err == nil && exitCode == 0 {
+		identity["version"] = strings.TrimSpace(string(stdout))
+	}
+	return identity
+}
+
+// buildPrompt renders the one skeleton. The control arm's third field is
+// empty, so the treatment prompt with its prologue block removed is the
+// control prompt byte for byte.
+func buildPrompt(arm string, item task, patch string, artefacts map[string]string) string {
+	extra := ""
+	switch arm {
+	case "treatment":
+		extra = fmt.Sprintf(treatmentPrologue, artefacts["map"], artefacts["status"], artefacts["report"])
+	case "seeded":
+		extra = fmt.Sprintf(seededPrologue, artefacts["map"], artefacts["status"], artefacts["report"], artefacts["suggestions"])
+	case "stem":
+		extra = fmt.Sprintf(stemPrologue, stemWorklist(item.StemBaseline))
+	}
+	return fmt.Sprintf(skeleton, hunkList(patch), patch, extra)
+}
+
+// hunkList numbers the patch's hunks in the order `cem begin` reads them, so
+// both arms name the same hunk by the same number.
+func hunkList(patch string) string {
+	var out strings.Builder
+	number, path := 0, ""
+	for _, line := range strings.Split(patch, "\n") {
+		if strings.HasPrefix(line, "+++ b/") {
+			path = strings.TrimPrefix(line, "+++ b/")
+		}
+		if !strings.HasPrefix(line, "@@ ") {
+			continue
+		}
+		number++
+		fmt.Fprintf(&out, "%d. %s %s\n", number, path, strings.TrimSpace(line))
+	}
+	if number == 0 {
+		return "(none)"
+	}
+	return strings.TrimRight(out.String(), "\n")
+}
+
+type citation struct {
+	Hunk       string `json:"hunk"`
+	Path       string `json:"path"`
+	Lines      string `json:"lines"`
+	Relation   string `json:"relation"`
+	Confidence string `json:"confidence"`
+}
+
+var fencePattern = regexp.MustCompile("(?s)```(?:[a-zA-Z0-9]*)\\n(.*?)```")
+
+// extractCitations finds the reply block: the last fenced block naming
+// "citations", or a reply that is itself one JSON object. EMPTY when the
+// reply holds only whitespace, ABSENT when there is no block, MALFORMED when
+// it does not parse; all three score as cited nothing.
+func extractCitations(reply string) ([]citation, string) {
+	if strings.TrimSpace(reply) == "" {
+		return nil, "EMPTY"
+	}
+	block, found := citationsBlock(reply)
+	if !found {
+		return nil, "ABSENT"
+	}
+	var envelope struct {
+		Citations []citation `json:"citations"`
+		Unknown   []string   `json:"unknown"`
+	}
+	if err := json.Unmarshal([]byte(block), &envelope); err != nil || envelope.Citations == nil {
+		return nil, "MALFORMED"
+	}
+	return envelope.Citations, "PRESENT"
+}
+
+func extractUnknown(reply string) []string {
+	block, found := citationsBlock(reply)
+	if !found {
+		return []string{}
+	}
+	var envelope struct {
+		Unknown []string `json:"unknown"`
+	}
+	if json.Unmarshal([]byte(block), &envelope) != nil || envelope.Unknown == nil {
+		return []string{}
+	}
+	return envelope.Unknown
+}
+
+func citationsBlock(reply string) (string, bool) {
+	matches := fencePattern.FindAllStringSubmatch(reply, -1)
+	for index := len(matches) - 1; index >= 0; index-- {
+		if strings.Contains(matches[index][1], `"citations"`) {
+			return matches[index][1], true
+		}
+	}
+	trimmed := strings.TrimSpace(reply)
+	if strings.HasPrefix(trimmed, "{") && strings.Contains(trimmed, `"citations"`) {
+		return trimmed, true
+	}
+	return "", false
+}
+
+// cloneAtBase builds a repository holding the base commit and its history and
+// nothing after it: a fetch of exactly that commit, never a shared clone,
+// which would carry the change's own objects. `.corvint/` is scrubbed.
+func cloneAtBase(ctx context.Context, history, base string) (string, error) {
+	root, err := os.MkdirTemp("", "corvint-cem-trial-")
+	if err != nil {
+		return "", err
+	}
+	fail := func(step string, err error) (string, error) {
+		_ = os.RemoveAll(root)
+		return "", fmt.Errorf("git %s: %w", step, err)
+	}
+	source, err := filepath.Abs(history)
+	if err != nil {
+		return fail("abs", err)
+	}
+	for _, arguments := range [][]string{
+		{"init", "-q"},
+		{"fetch", "-q", "--no-tags", source, base},
+		{"checkout", "-q", "--detach", "FETCH_HEAD"},
+	} {
+		if _, err := git(ctx, root, arguments...); err != nil {
+			return fail(arguments[0], err)
+		}
+	}
+	head, err := git(ctx, root, "rev-parse", "HEAD")
+	if err != nil || head != base {
+		return fail("rev-parse", fmt.Errorf("HEAD %q is not %s", head, base))
+	}
+	_ = os.RemoveAll(filepath.Join(root, ".corvint"))
+	return root, nil
+}
+
+// laneClone gives one arm its own working copy of the prep clone. It is a
+// plain local clone, never `--shared`: an alternates file would make the
+// repository one corvint refuses, and the copied objects stop at the base
+// commit either way.
+func laneClone(ctx context.Context, prep string) (string, error) {
+	root, err := os.MkdirTemp("", "corvint-cem-trial-lane-")
+	if err != nil {
+		return "", err
+	}
+	// The stable cem/1.0 verifier refuses a root reached through a symlink
+	// (macOS TMPDIR is one; V1-2519), so every lane works under its real path.
+	if resolved, err := filepath.EvalSymlinks(root); err == nil {
+		root = resolved
+	}
+	if _, err := git(ctx, root, "clone", "-q", "--no-checkout", prep, root); err != nil {
+		_ = os.RemoveAll(root)
+		return "", fmt.Errorf("git clone: %w", err)
+	}
+	if _, err := git(ctx, root, "checkout", "-q", "--detach", "HEAD"); err != nil {
+		_ = os.RemoveAll(root)
+		return "", fmt.Errorf("git checkout: %w", err)
+	}
+	_ = os.RemoveAll(filepath.Join(root, ".corvint"))
+	return root, nil
+}
+
+func resolvable(ctx context.Context, root, commit string) bool {
+	_, err := git(ctx, root, "cat-file", "-e", commit+"^{commit}")
+	return err == nil
+}
+
+func git(ctx context.Context, root string, arguments ...string) (string, error) {
+	return gitWith(ctx, root, nil, arguments...)
+}
+
+// gitWith is git with extra environment entries, which win over the defaults.
+func gitWith(ctx context.Context, root string, environment []string, arguments ...string) (string, error) {
+	command := exec.CommandContext(ctx, "git", append([]string{"--no-optional-locks", "-c", "core.quotepath=false"}, arguments...)...)
+	command.Dir = root
+	command.Env = append(append(os.Environ(),
+		"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1",
+		"GIT_AUTHOR_NAME=cem-trial", "GIT_AUTHOR_EMAIL=trial@localhost",
+		"GIT_COMMITTER_NAME=cem-trial", "GIT_COMMITTER_EMAIL=trial@localhost",
+	), environment...)
+	output, err := command.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
+func gitBytes(ctx context.Context, repo string, arguments ...string) ([]byte, error) {
+	command := exec.CommandContext(ctx, "git", append([]string{"-C", repo, "-c", "core.quotepath=false"}, arguments...)...)
+	var stdout, stderr bytes.Buffer
+	command.Stdout, command.Stderr = &stdout, &stderr
+	if err := command.Run(); err != nil {
+		return nil, fmt.Errorf("git %s: %w: %s", strings.Join(arguments, " "), err, strings.TrimSpace(stderr.String()))
+	}
+	return stdout.Bytes(), nil
+}
+
+func gitOutput(ctx context.Context, repo string, arguments ...string) (string, error) {
+	raw, err := gitBytes(ctx, repo, arguments...)
+	return string(raw), err
+}
+
+// codexAgent runs `codex exec` read-only inside the lane clone with stdin
+// closed and reads the reply from --output-last-message.
+type codexAgent struct {
+	model  string
+	effort string
+}
+
+func (runner codexAgent) arguments(root, replyPath, prompt string) []string {
+	arguments := []string{"exec", "--json", "--ephemeral", "-s", "read-only", "--skip-git-repo-check", "-C", root, "-m", runner.model}
+	if runner.effort != "" {
+		arguments = append(arguments, "-c", "model_reasoning_effort="+runner.effort)
+	}
+	return append(arguments, "-o", replyPath, prompt)
+}
+
+func (runner codexAgent) run(ctx context.Context, root, prompt string, timeout time.Duration) (agentResult, error) {
+	scratch, err := os.MkdirTemp("", "corvint-cem-trial-reply-")
+	if err != nil {
+		return agentResult{}, err
+	}
+	defer os.RemoveAll(scratch)
+	replyPath := filepath.Join(scratch, "reply.txt")
+	stdout, exitCode, stderrTail, overflow, err := runCommand(ctx, root, timeout, "codex", runner.arguments(root, replyPath, prompt)...)
+	if err != nil {
+		return agentResult{}, err
+	}
+	events := parseCodexEvents(stdout)
+	reply, readErr := readPrefix(replyPath, maxReplyBytes+1)
+	if readErr != nil {
+		reply = []byte(events.lastMessage)
+	}
+	result := agentResult{
+		reply: string(reply), exitCode: exitCode, tokens: events.tokens,
+		toolCalls: events.toolCalls, stderrTail: stderrTail,
+	}
+	if overflow {
+		// A cut event stream lost its tail, so its usage and tool counts are not observations.
+		result.stdoutTruncated, result.tokens, result.toolCalls = true, notObserved, notObserved
+		// Without a reply file the reply came from the cut stream, which may have lost the final message.
+		result.replyTruncated = readErr != nil
+	}
+	return result, nil
+}
+
+// readPrefix reads at most limit bytes of path, so a reply larger than the
+// reply bound is never allocated whole; truncate then records the cut.
+func readPrefix(path string, limit int64) ([]byte, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return io.ReadAll(io.LimitReader(file, limit))
+}
+
+func (runner codexAgent) identity(ctx context.Context) (map[string]any, error) {
+	version, err := exec.CommandContext(ctx, "codex", "--version").Output()
+	if err != nil {
+		return nil, fmt.Errorf("codex --version: %w", err)
+	}
+	effort := any(runner.effort)
+	if runner.effort == "" {
+		effort = notObserved
+	}
+	return map[string]any{
+		"kind": "codex", "version": strings.TrimSpace(string(version)),
+		"command": strings.Join(runner.arguments("ROOT", "REPLY", "PROMPT"), " "), "effort": effort,
+	}, nil
+}
+
+type codexEvents struct {
+	lastMessage string
+	tokens      any
+	toolCalls   int
+}
+
+var toolItemTypes = map[string]bool{"command_execution": true, "file_change": true, "mcp_tool_call": true, "web_search": true}
+
+func parseCodexEvents(stdout []byte) codexEvents {
+	result := codexEvents{tokens: notObserved}
+	for _, line := range bytes.Split(stdout, []byte{'\n'}) {
+		var event struct {
+			Type string `json:"type"`
+			Item struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			} `json:"item"`
+			Usage map[string]any `json:"usage"`
+		}
+		if json.Unmarshal(line, &event) != nil {
+			continue
+		}
+		if event.Type == "item.completed" && event.Item.Type == "agent_message" {
+			result.lastMessage = event.Item.Text
+		}
+		if event.Type == "item.completed" && toolItemTypes[event.Item.Type] {
+			result.toolCalls++
+		}
+		if event.Type == "turn.completed" && len(event.Usage) > 0 {
+			result.tokens = notObserved
+			if validUsage(event.Usage) {
+				result.tokens = event.Usage
+			}
+		}
+	}
+	return result
+}
+
+// validUsage admits a usage event only when every count is a finite,
+// non-negative number; anything else is not a token observation.
+func validUsage(usage map[string]any) bool {
+	for _, value := range usage {
+		number, numeric := value.(float64)
+		if !numeric || number < 0 || math.IsInf(number, 0) || math.IsNaN(number) {
+			return false
+		}
+	}
+	return true
+}
+
+// scriptAgent is any executable taking the prompt as its only argument and
+// replying on stdout: the fake agent that proves the pipeline.
+type scriptAgent struct{ command string }
+
+func (runner scriptAgent) run(ctx context.Context, root, prompt string, timeout time.Duration) (agentResult, error) {
+	stdout, exitCode, stderrTail, overflow, err := runCommand(ctx, root, timeout, runner.command, prompt)
+	if err != nil {
+		return agentResult{}, err
+	}
+	return agentResult{
+		reply: string(stdout), exitCode: exitCode, tokens: notObserved,
+		toolCalls: notObserved, stderrTail: stderrTail,
+		replyTruncated: overflow, stdoutTruncated: overflow,
+	}, nil
+}
+
+func (runner scriptAgent) identity(context.Context) (map[string]any, error) {
+	data, err := os.ReadFile(runner.command)
+	if err != nil {
+		return nil, fmt.Errorf("agent command: %w", err)
+	}
+	sum := sha256.Sum256(data)
+	return map[string]any{"kind": "script", "command": runner.command, "sha256": hex.EncodeToString(sum[:])}, nil
+}
+
+func newAgent(configuration options) (agent, error) {
+	switch configuration.agent {
+	case "codex":
+		return codexAgent{model: configuration.model, effort: configuration.effort}, nil
+	case "script":
+		absolute, err := filepath.Abs(configuration.agentCommand)
+		if err != nil {
+			return nil, err
+		}
+		return scriptAgent{command: absolute}, nil
+	}
+	return nil, fmt.Errorf("unknown agent %q", configuration.agent)
+}
+
+// runCommand runs one invocation with stdin closed, bounded output, and the
+// given timeout; a non-zero exit is returned as the exit code with stdout and
+// the bounded stderr, so the caller can say why the invocation failed.
+func runCommand(ctx context.Context, root string, timeout time.Duration, name string, arguments ...string) ([]byte, int, string, bool, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, 0, "", false, fmt.Errorf("%s: %v after %s", name, err, timeout)
+	}
+	if timeout <= 0 {
+		return nil, 0, "", false, fmt.Errorf("%s: %v after %s", name, context.DeadlineExceeded, timeout)
+	}
+	directory, err := filepath.Abs(root)
+	if err != nil {
+		return nil, 0, "", false, fmt.Errorf("%s: %v", name, err)
+	}
+	executable := name
+	if !filepath.IsAbs(executable) {
+		if strings.ContainsRune(executable, filepath.Separator) {
+			executable = filepath.Join(directory, executable)
+		} else {
+			executable, err = exec.LookPath(executable)
+			if err == nil {
+				executable, err = filepath.Abs(executable)
+			}
+			if err != nil {
+				return nil, 0, "", false, fmt.Errorf("%s: %v", name, err)
+			}
+		}
+	}
+	executable = filepath.Clean(executable)
+	observation := procgroup.Run(ctx, procgroup.Spec{
+		Argv: append([]string{executable}, arguments...), Dir: directory,
+		Env: os.Environ(), Timeout: timeout, ShutdownTimeout: 5 * time.Second,
+		OutputLimit: maxOutputBytes, StderrLimit: maxErrorBytes,
+		OverflowPolicy: procgroup.OverflowTruncate,
+	})
+	if observation.TimedOut {
+		return nil, 0, "", false, fmt.Errorf("%s: %v after %s", name, context.DeadlineExceeded, timeout)
+	}
+	if observation.Cancelled {
+		return nil, 0, "", false, fmt.Errorf("%s: %v after %s", name, ctx.Err(), timeout)
+	}
+	stderr := strings.TrimSpace(string(observation.Stderr))
+	if observation.Err != nil {
+		return nil, 0, "", false, fmt.Errorf("%s: %v: %s", name, observation.Err, stderr)
+	}
+	if !observation.ExitObserved || !observation.WaitCompleted ||
+		!observation.PipesDrained || !observation.OwnedProcessGroupCleanup {
+		return nil, 0, "", false, fmt.Errorf("%s: invocation cleanup or exit observation is incomplete", name)
+	}
+	return observation.Stdout, observation.ExitStatus, stderr, observation.StdoutOverflow, nil
+}
+
+func truncate(text string, limit int) (string, bool) {
+	if len(text) <= limit {
+		return text, false
+	}
+	return text[:limit] + truncatedMarker, true
+}
+
+func readBounded(path string, limit int64) ([]byte, error) {
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	data, err := io.ReadAll(io.LimitReader(file, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(data)) > limit {
+		return nil, fmt.Errorf("%s exceeds %d bytes", path, limit)
+	}
+	return data, nil
+}
+
+// readManifest reads the frozen set and refuses a patch whose bytes no longer
+// match the digest the manifest recorded at selection time (CRT-V0-001).
+func readManifest(path string) (*manifest, []byte, error) {
+	raw, err := readBounded(path, maxTasksFile)
+	if err != nil {
+		return nil, nil, err
+	}
+	var set manifest
+	if err := json.Unmarshal(raw, &set); err != nil {
+		return nil, nil, fmt.Errorf("%s: %w", path, err)
+	}
+	if set.Partition == "" || len(set.Tasks) == 0 {
+		return nil, nil, fmt.Errorf("%s: a manifest needs a partition and at least one change", path)
+	}
+	seen := map[string]bool{}
+	for _, item := range set.Tasks {
+		if seen[item.ID] {
+			return nil, nil, fmt.Errorf("%s: duplicate change id %q", path, item.ID)
+		}
+		seen[item.ID] = true
+	}
+	base := filepath.Dir(path)
+	for _, item := range set.Tasks {
+		patch, err := readPatch(base, item)
+		if err != nil {
+			return nil, nil, err
+		}
+		if digestOf(patch) != item.PatchSHA256 {
+			return nil, nil, fmt.Errorf("%s: the patch bytes no longer match patch_sha256", item.ID)
+		}
+	}
+	return &set, raw, nil
+}
+
+func readPatch(base string, item task) (string, error) {
+	path := item.PatchPath
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(base, filepath.FromSlash(path))
+	}
+	data, err := readBounded(path, maxPatchBytes)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+// changeMetadata carries the gold and the stem baseline into the report, so
+// the scorer never needs the manifest again.
+func changeMetadata(set *manifest) []changeMeta {
+	changes := make([]changeMeta, 0, len(set.Tasks))
+	for _, item := range set.Tasks {
+		changes = append(changes, changeMeta{
+			ID: item.ID, Commit: item.Commit, BaseCommit: item.BaseCommit,
+			PatchSHA256: item.PatchSHA256, HunkCount: item.HunkCount,
+			Gold: item.Gold.Paths, GoldSpans: goldSpansOf(item), StemBaseline: item.StemBaseline,
+		})
+	}
+	return changes
+}
+
+// goldSpansOf is the change's recorded secondary gold, never nil, so a report
+// distinguishes "no span recorded" (an older report, nil) from "no added line"
+// (CRT-V0-013).
+func goldSpansOf(item task) []span {
+	if item.Gold.Spans == nil {
+		return []span{}
+	}
+	return item.Gold.Spans
+}
+
+func prologueIdentity(arms []string) map[string]map[string]any {
+	result := map[string]map[string]any{}
+	for _, name := range arms {
+		text := ""
+		switch name {
+		case "treatment":
+			text = treatmentPrologue
+		case "seeded":
+			text = seededPrologue
+		case "stem":
+			text = stemPrologue
+		}
+		result[name] = map[string]any{"sha256": digestOf(text), "text": text}
+	}
+	return result
+}
+
+func digestOf(text string) string {
+	sum := sha256.Sum256([]byte(text))
+	return hex.EncodeToString(sum[:])
+}
+
+func splitList(value string) []string {
+	parts := []string{}
+	for _, item := range strings.Split(value, ",") {
+		if trimmed := strings.TrimSpace(item); trimmed != "" {
+			parts = append(parts, trimmed)
+		}
+	}
+	return parts
+}
+
+func contains(list []string, value string) bool {
+	for _, item := range list {
+		if item == value {
+			return true
+		}
+	}
+	return false
+}
+
+func maxInt(left, right int) int {
+	if left > right {
+		return left
+	}
+	return right
+}
+
+func modelOrNot(configuration options) string {
+	if configuration.agent == "script" {
+		return notObserved
+	}
+	return configuration.model
+}
+
+func valueOrNot(value string) string {
+	if value == "" {
+		return notObserved
+	}
+	return value
+}
+
+func sortedStrings(values map[string]bool) []string {
+	out := make([]string, 0, len(values))
+	for value := range values {
+		out = append(out, value)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// --- checkpointing and reuse ---
+
+func checkpointPath(output string) string { return output + ".partial.json" }
+
+type checkpointer struct {
+	guard    sync.Mutex
+	path     string
+	document *report
+}
+
+func newCheckpointer(document *report, output string) *checkpointer {
+	if output == "" {
+		return nil
+	}
+	return &checkpointer{path: checkpointPath(output), document: document}
+}
+
+func (saver *checkpointer) lock() *sync.Mutex {
+	if saver == nil {
+		return nil
+	}
+	return &saver.guard
+}
+
+func (saver *checkpointer) save() {
+	if saver == nil {
+		return
+	}
+	saver.guard.Lock()
+	defer saver.guard.Unlock()
+	snapshot := *saver.document
+	snapshot.Partial = true
+	encoded, err := gokernel.CanonicalJSON(&snapshot)
+	if err != nil {
+		return
+	}
+	temporary := saver.path + ".tmp"
+	if err := os.WriteFile(temporary, append(encoded, '\n'), 0o644); err != nil {
+		return
+	}
+	_ = os.Rename(temporary, saver.path)
+}
+
+func assign(guard *sync.Mutex, write func()) {
+	if guard != nil {
+		guard.Lock()
+		defer guard.Unlock()
+	}
+	write()
+}
+
+// reuseSource is a prior report's lanes keyed by change, arm, and repeat. A
+// reply is reused only for a byte-identical prompt, and only for a lane that
+// actually finished, so --resume reruns exactly what never completed.
+type reuseSource struct {
+	identity   string
+	lanes      map[string]*lane
+	identities map[string]string
+}
+
+func loadReuse(configuration options, run *report) (*reuseSource, error) {
+	if configuration.reuse == "" {
+		return nil, nil
+	}
+	document, err := loadReport(configuration.reuse)
+	if err != nil {
+		return nil, err
+	}
+	if document.Profile != profile || document.Model != modelOrNot(configuration) {
+		return nil, fmt.Errorf("%s: a reused report must share the profile and model of this run", configuration.reuse)
+	}
+	if err := registeredPrior(run, document, configuration.reuse); err != nil {
+		return nil, err
+	}
+	if err := reRegister(run, document, configuration.reuse); err != nil {
+		return nil, err
+	}
+	return newReuseSource(document), nil
+}
+
+func newReuseSource(document *report) *reuseSource {
+	source := &reuseSource{identity: document.ManifestSHA256, lanes: map[string]*lane{}, identities: map[string]string{}}
+	for _, item := range document.Lanes {
+		source.lanes[laneKey(item)] = item
+		// A lane a checkpoint already reused keeps the report it first ran in.
+		source.identities[laneKey(item)] = document.ManifestSHA256
+		if item.ReusedFrom != "" {
+			source.identities[laneKey(item)] = item.ReusedFrom
+		}
+	}
+	return source
+}
+
+func (source *reuseSource) merge(document *report) *reuseSource {
+	other := newReuseSource(document)
+	if source == nil {
+		return other
+	}
+	for key, item := range other.lanes {
+		if _, present := source.lanes[key]; !present {
+			source.lanes[key] = item
+			source.identities[key] = other.identities[key]
+		}
+	}
+	return source
+}
+
+func laneKey(item *lane) string {
+	return item.ID + "\x00" + item.Arm + "\x00" + strconv.Itoa(item.Repeat)
+}
+
+func (source *reuseSource) apply(record *lane) bool {
+	if source == nil {
+		return false
+	}
+	prior := source.lanes[laneKey(record)]
+	if prior == nil || laneFailed(prior) || prior.PromptSHA256 != record.PromptSHA256 || !observedNumber(prior.WallMs) {
+		return false
+	}
+	record.WallMs, record.ExitCode, record.Tokens, record.ToolCalls = prior.WallMs, prior.ExitCode, prior.Tokens, prior.ToolCalls
+	record.Reply, record.ReplyTruncated, record.CEM = prior.Reply, prior.ReplyTruncated, prior.CEM
+	record.StdoutTruncated, record.StartedAt = prior.StdoutTruncated, prior.StartedAt
+	record.ReusedFrom = source.identities[laneKey(record)]
+	return true
+}
+
+func observedNumber(value any) bool {
+	switch value.(type) {
+	case int64, float64, int:
+		return true
+	}
+	return false
+}
+
+func loadReport(path string) (*report, error) {
+	data, err := readBounded(path, maxOutputBytes)
+	if err != nil {
+		return nil, err
+	}
+	var document report
+	if err := json.Unmarshal(data, &document); err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
+	return &document, nil
+}
+
+// agentExitError describes a lane whose agent process exited non-zero: the
+// lane produced no observation, so it is errored rather than a total miss.
+func agentExitError(code int, stderrTail string) string {
+	message := fmt.Sprintf("agent exited %d", code)
+	if stderrTail == "" {
+		return message + " with no stderr"
+	}
+	if len(stderrTail) > maxAgentErrorBytes {
+		stderrTail = stderrTail[len(stderrTail)-maxAgentErrorBytes:]
+	}
+	return message + ": " + stderrTail
+}

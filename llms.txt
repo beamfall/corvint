@@ -1,0 +1,47 @@
+# Corvint
+
+> Corvint gives a coding agent Git-pinned evidence about a repository: what governs it, what a
+> change reaches (`corvint impact`), which tests the change needs (`corvint affected`), and what
+> each diff hunk rests on (Change Evidence Map, `cem/1.0`). Every answer names its Git blob,
+> authority and reason, and missing evidence is reported as unknown. Corvint Tasks
+> (`corvint-tasks`) is a local ticket queue with claims and gated completion, and stdio MCP
+> servers and host adapters expose the same receipts to agents. It is one local native-Go binary
+> with no account or network dependency. This file is the single entry point for an
+> LLM that has never seen Corvint. Every command, flag and MCP tool is reachable from the links
+> below, and `tools/capabilities-check` fails the tests when a new one ships without its help and
+> catalog entry (CAP-V0-040 to CAP-V0-050).
+
+## Start here
+
+- [Capability catalog](docs/CAPABILITIES.md): every `corvint` command, every binary built from
+  `cmd/` and every MCP tool, with the smallest call, maturity and refusals
+- `corvint help guide`: the task-indexed guide with runnable examples and the tracked
+  non-capabilities ([source](internal/capcatalog/AGENT-GUIDE.md))
+- `corvint help`: the compact verb index; `corvint COMMAND --help` (or `-h`) at any depth prints
+  that command's usage, flags, required inputs and an example and exits 0
+
+## Machine-readable catalogs
+
+- `corvint help --json`: the `corvint-capability-catalog/0` command catalog
+  ([snapshot](internal/capcatalog/catalog.json)); its `commandTrees` member links every command tree
+- `corvint help --tree`: corvint's `corvint-command-tree/0` tree, every subcommand at every depth
+  with its flags ([snapshot](internal/capcatalog/trees/corvint.json))
+- `corvint-tasks help --json`: the task store CLI's tree
+  ([snapshot](internal/capcatalog/trees/corvint-tasks.json))
+- `corvint-test help --json`: the test companion's tree
+  ([snapshot](internal/capcatalog/trees/corvint-test.json))
+
+## Adoption
+
+- [README quickstart](README.md#try-it-in-sixty-seconds) and [Install](docs/INSTALL.md)
+- [MCP server](docs/MCP-SERVER.md) and [Tasks for external agents](docs/TASKS-EXTERNAL-AGENTS.md)
+- [Change-compiled E2E adoption](docs/E2E-ADOPTION.md)
+- [Adopting a legacy repository](docs/LEGACY-ADOPTION.md)
+- [Spec toolchain integration](docs/SPEC-TOOLCHAIN-INTEGRATION.md)
+- [Host adapters and skills](integrations/README.md)
+
+## Optional
+
+- [Agent routes](docs/AGENT-ROUTES.md): bounded routes from a question to original evidence
+- [Specs index](docs/specs/INDEX.json) and [requirements](docs/specs/REQUIREMENTS.tsv)
+- [Capability catalog spec](docs/specs/capability-catalog-v0.md)

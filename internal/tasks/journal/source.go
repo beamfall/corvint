@@ -1,0 +1,397 @@
+// Package journal audits immutable experimental ledgers. It never writes,
+// locks, redoes, authenticates actors or qualifies execution.
+package journal
+
+import (
+	"errors"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/safeopen"
+	"github.com/Beamfall/corvint/internal/tasks/wire"
+)
+
+// Entry carries directory observations only, never a permission grant.
+type Entry struct {
+	Name string
+	Info os.FileInfo
+}
+
+// Source supplies bounded bytes and bounded directory metadata. Missing paths
+// must return os.ErrNotExist; nil, nil is a present empty file. Every other
+// error is preserved as a refusal.
+// List must stop at max+one listing chunk, before inspecting excess entries.
+// Implementations must forbid symlinks and nonregular files on Read.
+type Source interface {
+	Read(path string, max int) ([]byte, error)
+	List(path string, max int) (Listing, error)
+}
+
+// Native addresses private state and the intent root's .taskman using the
+// archive namespace. PrimaryWorktree names that root: the primary worktree,
+// or the linked intent worktree CTW-V0-002 selected. Paths are explicit read
+// inputs, not authority.
+type Native struct{ StateDir, PrimaryWorktree string }
+
+func (n Native) path(p string) (string, error) {
+	if !filepath.IsAbs(n.StateDir) || filepath.Clean(n.StateDir) != n.StateDir || !filepath.IsAbs(n.PrimaryWorktree) || filepath.Clean(n.PrimaryWorktree) != n.PrimaryWorktree {
+		return "", wire.Errorf(wire.CodeMalformed, p, "native source requires clean absolute roots")
+	}
+	if p != "." && (!filepath.IsLocal(p) || filepath.ToSlash(filepath.Clean(p)) != p || strings.Contains(p, "\\")) {
+		return "", wire.Errorf(wire.CodeMalformed, p, "unclean source path")
+	}
+	if p == "intent" {
+		return filepath.Join(n.PrimaryWorktree, intent.Dir), nil
+	}
+	if strings.HasPrefix(p, "intent/") {
+		return filepath.Join(n.PrimaryWorktree, intent.Dir, strings.TrimPrefix(p, "intent/")), nil
+	}
+	return filepath.Join(n.StateDir, p), nil
+}
+
+// Listing observes the directory itself from the same handle as Entries.
+// Missing DirectoryInfo is a refusal, including for an empty directory.
+type Listing struct {
+	DirectoryInfo os.FileInfo
+	Entries       []Entry
+}
+
+func (n Native) Read(p string, max int) (raw []byte, err error) {
+	s := newNativeRead(n)
+	defer func() { err = joinReadClose(err, s.close()) }()
+	return s.Read(p, max)
+}
+func (n Native) List(p string, max int) (out Listing, err error) {
+	s := newNativeRead(n)
+	defer func() { err = joinReadClose(err, s.close()) }()
+	return s.List(p, max)
+}
+
+// NativeSession is one bounded read session over a Native source: each
+// parent directory is opened and pinned once, so every later read beneath
+// it is one no-follow openat (CAL-V0-070) instead of a fresh root walk. A
+// session observes the directories it first opened; Close releases them.
+type NativeSession struct{ s *nativeRead }
+
+// Session starts a read session; the caller must Close it.
+func (n Native) Session() *NativeSession { return &NativeSession{newNativeRead(n)} }
+
+func (x *NativeSession) Read(p string, max int) ([]byte, error)  { return x.s.Read(p, max) }
+func (x *NativeSession) List(p string, max int) (Listing, error) { return x.s.List(p, max) }
+func (x *NativeSession) Close() error                            { return x.s.close() }
+
+// nativeRead lives for exactly one audit attempt. It retains every listed
+// no-follow parent; file reads never reopen the original absolute parent.
+// Each read parent is also pinned once as a descriptor, so a file read is one
+// no-follow openat beneath it (CAL-V0-070).
+type nativeRead struct {
+	native   Native
+	roots    map[string]*os.Root
+	dirs     map[string]*os.File
+	absent   map[string]bool
+	listed   map[string]os.FileInfo
+	closeErr error
+	physical *physicalReads
+}
+
+func newNativeRead(n Native) *nativeRead {
+	return &nativeRead{native: n, roots: map[string]*os.Root{}, dirs: map[string]*os.File{}, absent: map[string]bool{}, listed: map[string]os.FileInfo{}}
+}
+
+var afterReadNames func(string)  // deterministic enumeration/metadata race witness
+var afterNativeRead func(string) // per-file read witness (CAL-V0-189)
+// pinnedReads is false only in the CAL-V0-070 equivalence test, which compares
+// per-file InRoot opens with reads beneath a pinned parent descriptor.
+var pinnedReads = true
+var closeReadRoot = (*os.Root).Close
+var closeReadFile = (*os.File).Close
+
+func (s *nativeRead) close() error {
+	err := s.closeErr
+	for _, p := range sortedPaths(s.dirs) {
+		err = errors.Join(err, closeReadFile(s.dirs[p]))
+		delete(s.dirs, p)
+	}
+	for _, p := range sortedPaths(s.roots) {
+		err = errors.Join(err, closeReadRoot(s.roots[p]))
+		delete(s.roots, p)
+	}
+	return err
+}
+func moved(p string) error {
+	return wire.Errorf(wire.CodeSnapshotMoved, p, "previously observed identity disappeared or changed")
+}
+func (s *nativeRead) parent(p string) (*os.Root, error) {
+	if r := s.roots[p]; r != nil {
+		return r, nil
+	}
+	abs, e := s.native.path(p)
+	if e != nil {
+		return nil, e
+	}
+	var root *os.Root
+	if p == "." || p == "intent" {
+		root, e = safeopen.Root(abs)
+	} else {
+		parent, e2 := s.parent(filepath.ToSlash(filepath.Dir(p)))
+		if e2 != nil {
+			return nil, e2
+		}
+		root, e = safeopen.SubRoot(parent, filepath.Base(p))
+	}
+	if e != nil {
+		if os.IsNotExist(e) && s.listed[p] != nil {
+			return nil, moved(p)
+		}
+		return nil, e
+	}
+	s.roots[p] = root
+	return root, nil
+}
+func (s *nativeRead) binding(p string, root *os.Root) (err error) {
+	abs, e := s.native.path(p)
+	if e != nil {
+		return e
+	}
+	named, e := safeopen.Root(abs)
+	if os.IsNotExist(e) {
+		return moved(p)
+	}
+	if e != nil {
+		return e
+	}
+	defer func() { err = s.closed(err, closeReadRoot(named)) }()
+	a, e := named.Stat(".")
+	if e != nil {
+		return e
+	}
+	b, e := root.Stat(".")
+	if e != nil {
+		return e
+	}
+	if !os.SameFile(a, b) {
+		return moved(p)
+	}
+	return nil
+}
+func (s *nativeRead) List(p string, max int) (out Listing, err error) {
+	info, names, root, err := s.names(p, max)
+	if err != nil {
+		return out, err
+	}
+	out.DirectoryInfo = info
+	for _, name := range names {
+		info, e := root.Lstat(name)
+		if os.IsNotExist(e) {
+			return out, moved(p + "/" + name)
+		}
+		if e != nil {
+			return out, e
+		}
+		out.Entries = append(out.Entries, Entry{name, info})
+		child := name
+		if p != "." {
+			child = p + "/" + name
+		}
+		s.listed[child] = info
+	}
+	return out, nil
+}
+
+// Names is List without the per-entry lstat: the directory's own metadata
+// and its bounded child names, from the same no-follow handle. Children are
+// not recorded as listed, so a later Read of one does not compare identity.
+func (s *nativeRead) Names(p string, max int) (os.FileInfo, []string, error) {
+	info, names, _, err := s.names(p, max)
+	return info, names, err
+}
+
+// DirInfo is the directory metadata Names returns, from the same no-follow
+// handle and identity check, without listing the children. AuditForWriter's
+// second capture compares it with its first listing's (CAL-V0-224).
+func (s *nativeRead) DirInfo(p string) (info os.FileInfo, err error) {
+	dir, _, e := s.openDir(p)
+	if e != nil {
+		return nil, e
+	}
+	defer func() { err = s.closed(err, closeReadFile(dir)) }()
+	return s.dirStat(p, dir)
+}
+
+func (s *nativeRead) names(p string, max int) (info os.FileInfo, names []string, root *os.Root, err error) {
+	dir, root, e := s.openDir(p)
+	if e != nil {
+		return nil, nil, nil, e
+	}
+	defer func() { err = s.closed(err, closeReadFile(dir)) }()
+	info, e = s.dirStat(p, dir)
+	if e != nil {
+		return nil, nil, nil, e
+	}
+	names, e = intent.ReadDirNames(dir, p, p, max)
+	if e != nil {
+		return nil, nil, nil, e
+	}
+	if afterReadNames != nil {
+		afterReadNames(p)
+	}
+	return info, names, root, nil
+}
+
+// openDir opens directory p read-only without following links, after the
+// parent binding and absence checks every listing makes.
+func (s *nativeRead) openDir(p string) (*os.File, *os.Root, error) {
+	root, e := s.parent(p)
+	if os.IsNotExist(e) {
+		s.absent[p] = true
+		return nil, nil, e
+	}
+	if e != nil {
+		return nil, nil, e
+	}
+	if s.absent[p] {
+		return nil, nil, moved(p)
+	}
+	if e = s.binding(p, root); e != nil {
+		return nil, nil, e
+	}
+	dir, e := safeopen.InRoot(root, ".", os.O_RDONLY, 0, true)
+	if e != nil {
+		return nil, nil, e
+	}
+	return dir, root, nil
+}
+
+// dirStat is the open directory's metadata, refused as moved when p was
+// listed before as another file.
+func (s *nativeRead) dirStat(p string, dir *os.File) (os.FileInfo, error) {
+	info, e := dir.Stat()
+	if e != nil {
+		return nil, e
+	}
+	if old := s.listed[p]; old != nil && !os.SameFile(old, info) {
+		return nil, moved(p)
+	}
+	return info, nil
+}
+
+func (s *nativeRead) Read(p string, max int) ([]byte, error) {
+	raw, cleanup, err := s.readHeld(p, max)
+	return s.settle(p, raw, cleanup, err)
+}
+
+// settle is the bookkeeping of one readHeld result, made when the walk
+// reaches that read: the file's close error joins the read lifetime, and a
+// successful read is witnessed. A read made ahead of the walk (V1-1701) is
+// settled only if the walk reaches it, so a speculative read can neither
+// replace the refusal the walk reports first nor add a cleanup diagnostic the
+// sequential walk would not have.
+func (s *nativeRead) settle(p string, raw []byte, cleanup, err error) ([]byte, error) {
+	if cleanup != nil {
+		err = s.closed(err, cleanup)
+	}
+	if err == nil && s.physical != nil {
+		err = s.physical.add(p, raw)
+	}
+	if err == nil && afterNativeRead != nil {
+		afterNativeRead(p)
+	}
+	return raw, err
+}
+
+// readHeld is Read without its bookkeeping: the file's close error is
+// returned as cleanup, not recorded, until settle.
+func (s *nativeRead) readHeld(p string, max int) (raw []byte, cleanup, err error) {
+	if _, e := s.native.path(p); e != nil {
+		return nil, nil, e
+	}
+	dir := filepath.ToSlash(filepath.Dir(p))
+	root, e := s.parent(dir)
+	if e != nil {
+		return nil, nil, e
+	}
+	f, e := s.open(dir, root, filepath.Base(p))
+	if os.IsNotExist(e) && s.listed[p] != nil {
+		return nil, nil, moved(p)
+	}
+	if e != nil {
+		return nil, nil, e
+	}
+	defer func() { cleanup = closeReadFile(f) }()
+	st, e := f.Stat()
+	if e != nil {
+		return nil, nil, e
+	}
+	if !st.Mode().IsRegular() {
+		return nil, nil, wire.Errorf(wire.CodeUnsupportedFilesystem, p, "not a regular file")
+	}
+	if old := s.listed[p]; old != nil && !os.SameFile(old, st) {
+		return nil, nil, moved(p)
+	}
+	if max < 0 || st.Size() > int64(max) {
+		return nil, nil, wire.Errorf(wire.CodeLimitExceeded, p, "file exceeds bound")
+	}
+	raw, e = readAllSized(io.LimitReader(f, int64(max)+1), st.Size())
+	if e != nil {
+		return nil, nil, e
+	}
+	if len(raw) > max {
+		return nil, nil, wire.Errorf(wire.CodeLimitExceeded, p, "consumed bytes exceed bound")
+	}
+	return raw, nil, nil
+}
+
+// open is InRoot(root, name, O_RDONLY, 0, false) through the parent's pinned
+// descriptor: the same directory inode, final no-follow openat and errors.
+func (s *nativeRead) open(dir string, root *os.Root, name string) (*os.File, error) {
+	if !pinnedReads {
+		return safeopen.InRoot(root, name, os.O_RDONLY, 0, false)
+	}
+	d := s.dirs[dir]
+	if d == nil {
+		var e error
+		if d, e = safeopen.PinDir(root); e != nil {
+			return nil, e
+		}
+		s.dirs[dir] = d
+	}
+	return safeopen.InDir(d, name, os.O_RDONLY, 0)
+}
+
+// readAllSized is io.ReadAll that starts from the opened file's stat size
+// plus one byte (the caller has already refused a size above its bound), so
+// an unchanged file is read with one allocation and no regrowth. Bytes and
+// errors are exactly io.ReadAll's.
+func readAllSized(r io.Reader, size int64) ([]byte, error) {
+	if size < 0 {
+		size = 0
+	}
+	b := make([]byte, 0, size+1)
+	for {
+		if len(b) == cap(b) {
+			b = append(b, 0)[:len(b)]
+		}
+		n, err := r.Read(b[len(b):cap(b)])
+		b = b[:len(b)+n]
+		if err != nil {
+			if err == io.EOF {
+				err = nil
+			}
+			return b, err
+		}
+	}
+}
+
+func joinReadClose(primary, cleanup error) error {
+	if cleanup == nil {
+		return primary
+	}
+	return wire.Errorf(wire.CodeUnsupportedFilesystem, "read lifetime", "%v", errors.Join(primary, cleanup))
+}
+func (s *nativeRead) closed(primary, cleanup error) error {
+	s.closeErr = errors.Join(s.closeErr, cleanup)
+	return joinReadClose(primary, cleanup)
+}

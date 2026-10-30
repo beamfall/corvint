@@ -1,0 +1,294 @@
+{
+  "schemaVersion": 1,
+  "commit": "e516c3baf22615e20934116abebfed6c000222c2",
+  "cases": [
+    {
+      "id": "zod-codec-bidirectional-transform",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "Zod v4 introduced z.codec() for defining bidirectional transformations between two schemas, such as an ISO date string that decodes to a Date object and encodes back to a string. Show me how this differs from a one-way .transform(), where the codec factory itself lives, and how a direct test exercises both the decode and encode directions.",
+      "limit": 6,
+      "budget_bytes": 6000,
+      "rationale": "Triangulates the newer bidirectional-transform doc, the ZodCodec factory implementation, and a direct decode/encode round-trip test, distinguishing it from Zod's older one-way .transform().",
+      "ground_truth": [
+        {
+          "path": "packages/docs/content/codecs.mdx",
+          "line": 49,
+          "contains": "Codecs are a special type of schema that defines a *bi-directional transformation* between two other schemas."
+        },
+        {
+          "path": "packages/zod/src/v4/classic/schemas.ts",
+          "line": 2527,
+          "contains": "export function codec<const A extends core.SomeType, B extends core.SomeType = core.$ZodType>("
+        },
+        {
+          "path": "packages/zod/src/v4/classic/tests/codec.test.ts",
+          "line": 24,
+          "contains": "test(\"codec basic functionality\", () => {"
+        },
+        {
+          "path": "packages/zod/src/v4/classic/tests/codec.test.ts",
+          "line": 31,
+          "contains": "const decodedResult = z.decode(isoDateCodec, testIsoString);"
+        }
+      ],
+      "expected": {
+        "must_include": [
+          "path:packages/docs/content/codecs.mdx",
+          "symbol:packages/zod/src/v4/classic/schemas.ts:codec",
+          "test:packages/zod/src/v4/classic/tests/codec.test.ts"
+        ],
+        "critical": [
+          "symbol:packages/zod/src/v4/classic/schemas.ts:codec",
+          "test:packages/zod/src/v4/classic/tests/codec.test.ts"
+        ],
+        "relevant": [
+          "path:packages/docs/content/codecs.mdx",
+          "symbol:packages/zod/src/v4/classic/schemas.ts:codec",
+          "test:packages/zod/src/v4/classic/tests/codec.test.ts"
+        ],
+        "must_exclude": [
+          "symbol:packages/zod/src/v4/classic/schemas.ts:ZodTransform",
+          "symbol:packages/zod/src/v4/core/api.ts:_stringbool"
+        ]
+      }
+    },
+    {
+      "id": "zod-prettify-error-format",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "I want to print a validation failure as a clean multi-line string for a CLI tool or log line, something like a bulleted list of issue messages each with its path. Where does Zod document this human-readable formatter, where is it implemented, and what test locks in its exact output shape?",
+      "limit": 6,
+      "budget_bytes": 5000,
+      "rationale": "Bounds the search to the human-readable CLI-style formatter (prettifyError) rather than the structured tree/flat formatters, verified across doc, implementation, and snapshot test.",
+      "ground_truth": [
+        {
+          "path": "packages/docs/content/error-formatting.mdx",
+          "line": 93,
+          "contains": "## `z.prettifyError()`"
+        },
+        {
+          "path": "packages/docs/content/error-formatting.mdx",
+          "line": 95,
+          "contains": "The `z.prettifyError()` provides a human-readable string representation of the error."
+        },
+        {
+          "path": "packages/zod/src/v4/core/errors.ts",
+          "line": 531,
+          "contains": "export function prettifyError(error: StandardSchemaV1.FailureResult): string {"
+        },
+        {
+          "path": "packages/zod/src/v4/classic/tests/error-utils.test.ts",
+          "line": 450,
+          "contains": "test(\"z.prettifyError\", () => {"
+        }
+      ],
+      "expected": {
+        "must_include": [
+          "path:packages/docs/content/error-formatting.mdx",
+          "symbol:packages/zod/src/v4/core/errors.ts:prettifyError",
+          "test:packages/zod/src/v4/classic/tests/error-utils.test.ts"
+        ],
+        "critical": [
+          "symbol:packages/zod/src/v4/core/errors.ts:prettifyError",
+          "test:packages/zod/src/v4/classic/tests/error-utils.test.ts"
+        ],
+        "relevant": [
+          "path:packages/docs/content/error-formatting.mdx",
+          "symbol:packages/zod/src/v4/core/errors.ts:prettifyError",
+          "test:packages/zod/src/v4/classic/tests/error-utils.test.ts"
+        ],
+        "must_exclude": [
+          "symbol:packages/zod/src/v4/core/errors.ts:treeifyError",
+          "symbol:packages/zod/src/v4/core/errors.ts:flattenError"
+        ]
+      }
+    },
+    {
+      "id": "zod-file-mime-validation",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "Validate that an uploaded File object is under a certain byte size and restricted to specific MIME types like text/plain or application/json, rejecting anything else. Where's the public docs for File validation, the file schema factory, and a test that actually exercises the MIME allowlist?",
+      "limit": 6,
+      "budget_bytes": 5000,
+      "rationale": "Covers Zod's File schema across its dedicated doc section, the file() factory function, and a direct test that constructs a MIME-type allowlist rather than a generic passing/failing smoke test.",
+      "ground_truth": [
+        {
+          "path": "packages/docs/content/api.mdx",
+          "line": 2111,
+          "contains": "## Files"
+        },
+        {
+          "path": "packages/docs/content/api.mdx",
+          "line": 2122,
+          "contains": "fileSchema.mime(\"image/png\"); // MIME type"
+        },
+        {
+          "path": "packages/zod/src/v4/classic/schemas.ts",
+          "line": 2183,
+          "contains": "export function file(params?: string | core.$ZodFileParams): ZodFile {"
+        },
+        {
+          "path": "packages/zod/src/v4/classic/tests/file.test.ts",
+          "line": 9,
+          "contains": "const mimeCheck = z.file().mime([\"text/plain\", \"application/json\"]);"
+        }
+      ],
+      "expected": {
+        "must_include": [
+          "path:packages/docs/content/api.mdx",
+          "symbol:packages/zod/src/v4/classic/schemas.ts:file",
+          "test:packages/zod/src/v4/classic/tests/file.test.ts"
+        ],
+        "critical": [
+          "symbol:packages/zod/src/v4/classic/schemas.ts:file",
+          "test:packages/zod/src/v4/classic/tests/file.test.ts"
+        ],
+        "relevant": [
+          "path:packages/docs/content/api.mdx",
+          "symbol:packages/zod/src/v4/classic/schemas.ts:file",
+          "test:packages/zod/src/v4/classic/tests/file.test.ts"
+        ],
+        "must_exclude": [
+          "symbol:packages/zod/src/v4/classic/schemas.ts:set"
+        ]
+      }
+    },
+    {
+      "id": "zod-core-errors-impact",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "impact",
+      "text": "We're about to change how Zod's core error module reports issues -- specifically the shared errors.ts module under v4/core. Before touching it, show me everything inside the Zod package that would be affected downstream.",
+      "paths": [
+        "packages/zod/src/v4/core/errors.ts"
+      ],
+      "limit": 10,
+      "budget_bytes": 8000,
+      "rationale": "core/errors.ts is re-exported wholesale by core/index.ts and imported directly by parse.ts, so both a namespace re-export and a side-effect import must surface as forward references for this fan-out.",
+      "ground_truth": [
+        {
+          "path": "packages/zod/src/v4/core/index.ts",
+          "line": 3,
+          "contains": "export * from \"./errors.js\";"
+        },
+        {
+          "path": "packages/zod/src/v4/core/parse.ts",
+          "line": 2,
+          "contains": "import * as errors from \"./errors.js\";"
+        }
+      ],
+      "expected": {
+        "must_include": [
+          "path:packages/zod/src/v4/core/errors.ts",
+          "reverse-import:packages/zod/src/v4/core/index.ts",
+          "reverse-import:packages/zod/src/v4/core/parse.ts"
+        ],
+        "critical": [
+          "reverse-import:packages/zod/src/v4/core/index.ts"
+        ],
+        "relevant": [
+          "path:packages/zod/src/v4/core/errors.ts",
+          "reverse-import:packages/zod/src/v4/core/index.ts",
+          "reverse-import:packages/zod/src/v4/core/parse.ts"
+        ],
+        "must_exclude": []
+      }
+    },
+    {
+      "id": "zod-flatten-error-fields",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "I'm building a simple contact form and want field-level error messages for each input -- a shallow split of field errors versus form-level errors -- from a failed Zod validation. What produces that shallow field/form error split, and how is it implemented and tested?",
+      "limit": 6,
+      "budget_bytes": 5000,
+      "rationale": "The 'field-level errors' phrasing lexically matches the deprecated inferFlattenedErrors type alias in the v3 compat shim, but the actual current formatter is z.flattenError() in core/errors.ts; the compat alias is a type-only re-export with no runtime formatting logic and must not be surfaced as the answer.",
+      "ground_truth": [
+        {
+          "path": "packages/docs/content/error-formatting.mdx",
+          "line": 152,
+          "contains": "## `z.flattenError()`"
+        },
+        {
+          "path": "packages/docs/content/error-formatting.mdx",
+          "line": 154,
+          "contains": "use `z.flattenError()` to retrieve a clean, shallow error object."
+        },
+        {
+          "path": "packages/zod/src/v4/core/errors.ts",
+          "line": 323,
+          "contains": "export function flattenError<T>(error: $ZodError<T>): _FlattenedError<T>;"
+        },
+        {
+          "path": "packages/zod/src/v4/classic/tests/error-utils.test.ts",
+          "line": 840,
+          "contains": "const { fieldErrors } = z.flattenError(result.error!);"
+        }
+      ],
+      "expected": {
+        "must_include": [
+          "path:packages/docs/content/error-formatting.mdx",
+          "symbol:packages/zod/src/v4/core/errors.ts:flattenError",
+          "test:packages/zod/src/v4/classic/tests/error-utils.test.ts"
+        ],
+        "critical": [
+          "symbol:packages/zod/src/v4/core/errors.ts:flattenError",
+          "test:packages/zod/src/v4/classic/tests/error-utils.test.ts"
+        ],
+        "relevant": [
+          "path:packages/docs/content/error-formatting.mdx",
+          "symbol:packages/zod/src/v4/core/errors.ts:flattenError",
+          "test:packages/zod/src/v4/classic/tests/error-utils.test.ts"
+        ],
+        "must_exclude": [
+          "symbol:packages/zod/src/v4/classic/compat.ts:inferFlattenedErrors"
+        ]
+      }
+    },
+    {
+      "id": "zod-graphql-schema-abstention",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "Generate a GraphQL SDL type definition directly from a Zod schema, the way z.toJSONSchema() generates JSON Schema. Show me the built-in GraphQL schema conversion export. If Zod v4 doesn't ship this, say so plainly and don't treat the application/graphql MIME-type string as evidence that GraphQL schema generation exists.",
+      "limit": 5,
+      "budget_bytes": 3000,
+      "rationale": "Zod v4 has zero GraphQL SDL generation code; the sole textual hit for 'graphql' anywhere in source, docs, or README is an unrelated file-upload MIME-type literal in core/util.ts, which is exactly the kind of decoy a naive lexical matcher would misreport as support.",
+      "ground_truth": [
+        {
+          "path": "packages/zod/src/v4/core/util.ts",
+          "line": 43,
+          "contains": "| \"application/graphql\""
+        },
+        {
+          "path": "packages/docs/content/json-schema.mdx",
+          "line": 11,
+          "contains": "Zod supports native [JSON Schema](https://json-schema.org/) conversion."
+        }
+      ],
+      "negative_source_proof": {
+        "paths": [
+          "packages/zod/src",
+          "packages/docs/content",
+          "README.md",
+          "packages/zod/README.md"
+        ],
+        "case_insensitive_pattern": "graphql",
+        "expected_match_count": 1
+      },
+      "expected": {
+        "state": "OUT_OF_SCOPE",
+        "must_include": [],
+        "critical": [],
+        "relevant": [],
+        "must_exclude": [
+          "path:packages/zod/src/v4/core/util.ts"
+        ]
+      }
+    }
+  ]
+}

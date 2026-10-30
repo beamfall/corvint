@@ -1,0 +1,11 @@
+{
+  "candidateArchiveSha256": "15d059f1af7cbf9a2ab4aa9bb1b1f11afa1e00e79229365ce540c74f8493aad5",
+  "candidateBinarySha256": "baac338555524a741fe70327cd95d56b5abf0186cac0cc14e199239639053ebf",
+  "candidateVersion": "Corvint 1.0.0-rc.1 (build 163)",
+  "corpusSha256": "fdce0dec477a32662f986d63a34f3592ed5b9d4ec736dbb4a6881d936d6afd6e",
+  "harnessSha256": "f24533a1d2ededdb6e6ba3bf3151ffc91ff68e0114fb02a363cf0051720f8e15",
+  "preregistrationSha256": "58d68a6f5a2c3297683249a953da28c7e8efb5786f665776d0ad9165a56e74f6",
+  "profile": "corvint-untouched-repository-started/0",
+  "runId": "run-001",
+  "startedAt": "2026-09-27T22:42:07Z"
+}

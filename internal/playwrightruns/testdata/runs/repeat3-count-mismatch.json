@@ -1,0 +1,528 @@
+{
+  "config": {
+    "argv": [
+      "/usr/local/bin/node",
+      "/work/node_modules/playwright/cli.js",
+      "test",
+      "--config=pw.config.js",
+      "--repeat-each=3",
+      "--reporter=json"
+    ],
+    "configFile": "/work/pw.config.js",
+    "rootDir": "/work/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "corvintRunIdentity": {
+        "applicationRevision": "app-1",
+        "configDigest": "cfg-1",
+        "testFileBlobs": {
+          "a.spec.js": "blob-a",
+          "b.spec.js": "blob-b",
+          "c.spec.js": "blob-c"
+        }
+      },
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/work/test-results",
+        "repeatEach": 3,
+        "retries": 0,
+        "metadata": {
+          "corvintRunIdentity": {
+            "applicationRevision": "app-1",
+            "configDigest": "cfg-1",
+            "testFileBlobs": {
+              "a.spec.js": "blob-a",
+              "b.spec.js": "blob-b",
+              "c.spec.js": "blob-c"
+            }
+          },
+          "actualWorkers": 1
+        },
+        "id": "node",
+        "name": "node",
+        "testDir": "/work/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.61.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "a.spec.js",
+      "file": "a.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "cart",
+          "file": "a.spec.js",
+          "line": 2,
+          "column": 6,
+          "specs": [
+            {
+              "title": "adds item",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "node",
+                  "projectName": "node",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-11T22:39:35.174Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "2addc3c3aecfedb30c84-7dab8ce19aca3317316d",
+              "file": "a.spec.js",
+              "line": 3,
+              "column": 3
+            },
+            {
+              "title": "removes item",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "node",
+                  "projectName": "node",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-11T22:39:35.202Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "2addc3c3aecfedb30c84-3105d9e161fb6d77e92d",
+              "file": "a.spec.js",
+              "line": 4,
+              "column": 3
+            },
+            {
+              "title": "adds item",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "node",
+                  "projectName": "node",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 9,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m2\u001b[39m",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m2\u001b[39m\n    at /work/e2e/a.spec.js:3:85",
+                        "location": {
+                          "file": "/work/e2e/a.spec.js",
+                          "column": 85,
+                          "line": 3
+                        },
+                        "snippet": "  1 | const { test, expect } = require('playwright/test');\n  2 | test.describe('cart', () => {\n> 3 |   test('adds item', async () => { expect(test.info().repeatEachIndex === 1 ? 2 : 1).toBe(1); });\n    |                                                                                     ^\n  4 |   test('removes item', async () => { expect(1).toBe(1); });\n  5 | });\n  6 |"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "/work/e2e/a.spec.js",
+                            "column": 85,
+                            "line": 3
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m2\u001b[39m\n\n  1 | const { test, expect } = require('playwright/test');\n  2 | test.describe('cart', () => {\n> 3 |   test('adds item', async () => { expect(test.info().repeatEachIndex === 1 ? 2 : 1).toBe(1); });\n    |                                                                                     ^\n  4 |   test('removes item', async () => { expect(1).toBe(1); });\n  5 | });\n  6 |\n    at /work/e2e/a.spec.js:3:85"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-11T22:39:35.604Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "/work/test-results/a-cart-adds-item-node-repeat1/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "/work/e2e/a.spec.js",
+                        "column": 85,
+                        "line": 3
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "2addc3c3aecfedb30c84-9c8a445b5c55953d03cb",
+              "file": "a.spec.js",
+              "line": 3,
+              "column": 3
+            },
+            {
+              "title": "removes item",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "node",
+                  "projectName": "node",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 4,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-11T22:39:36.075Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "2addc3c3aecfedb30c84-642c06e9d6d668ad85de",
+              "file": "a.spec.js",
+              "line": 4,
+              "column": 3
+            },
+            {
+              "title": "removes item",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "node",
+                  "projectName": "node",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 1,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-11T22:39:36.575Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "2addc3c3aecfedb30c84-0c20184e43dddf528762",
+              "file": "a.spec.js",
+              "line": 4,
+              "column": 3
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "b.spec.js",
+      "file": "b.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "checkout",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "node",
+              "projectName": "node",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T22:39:35.216Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "003f4a38eb4c6bfb7c9a-db60a1bc73c904194067",
+          "file": "b.spec.js",
+          "line": 2,
+          "column": 1
+        },
+        {
+          "title": "checkout",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "node",
+              "projectName": "node",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 2,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T22:39:36.116Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "003f4a38eb4c6bfb7c9a-68bf6731e4038548d0b2",
+          "file": "b.spec.js",
+          "line": 2,
+          "column": 1
+        },
+        {
+          "title": "checkout",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "node",
+              "projectName": "node",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T22:39:36.584Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "003f4a38eb4c6bfb7c9a-ce8e001ae3fc3581cc99",
+          "file": "b.spec.js",
+          "line": 2,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "title": "c.spec.js",
+      "file": "c.spec.js",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "search",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "node",
+              "projectName": "node",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T22:39:35.223Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "dc0ff087a96da41e84eb-b3f24c3d79ca4be7bf63",
+          "file": "c.spec.js",
+          "line": 2,
+          "column": 1
+        },
+        {
+          "title": "search",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "node",
+              "projectName": "node",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T22:39:36.129Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "dc0ff087a96da41e84eb-ff4303c6ca4a08f0c112",
+          "file": "c.spec.js",
+          "line": 2,
+          "column": 1
+        },
+        {
+          "title": "search",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 30000,
+              "annotations": [],
+              "expectedStatus": "passed",
+              "projectId": "node",
+              "projectName": "node",
+              "results": [
+                {
+                  "workerIndex": 3,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 1,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-10-11T22:39:36.597Z",
+                  "annotations": [],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "dc0ff087a96da41e84eb-9859f32c169168895935",
+          "file": "c.spec.js",
+          "line": 2,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-11T22:39:34.842Z",
+    "duration": 1777.9709999999998,
+    "expected": 11,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}

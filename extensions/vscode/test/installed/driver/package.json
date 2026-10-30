@@ -1,0 +1,7 @@
+{
+  "name": "corvint-installed-qualification-driver",
+  "displayName": "Corvint Installed Qualification Driver",
+  "version": "1.0.0",
+  "private": true,
+  "engines": { "vscode": "^1.136.0" }
+}

@@ -1,0 +1,189 @@
+{
+  "schemaVersion": 1,
+  "commit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+  "cases": [
+    {
+      "id": "cobra-markdown-docgen-tree",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "I'm generating a docs site for my Cobra CLI and want Markdown files written to a directory, one per command, mirroring the whole command tree. What function do I call for that, and what does its test prove about which subcommands get their own page?",
+      "limit": 8,
+      "budget_bytes": 14000,
+      "rationale": "Links the docgen guide's minimal example to the `doc.GenMarkdownTree` recursive tree-walker and the test asserting the tree is written out completely, one file per visible command.",
+      "ground_truth": [
+        {"path": "site/content/docgen/md.md", "line": 20, "contains": "err := doc.GenMarkdownTree(cmd, \"/tmp\")"},
+        {"path": "doc/md_docs.go", "line": 125, "contains": "func GenMarkdownTree(cmd *cobra.Command, dir string) error {"},
+        {"path": "doc/md_docs_test.go", "line": 94, "contains": "func TestGenMdTree(t *testing.T) {"}
+      ],
+      "expected": {
+        "must_include": [
+          "path:site/content/docgen/md.md",
+          "symbol:doc/md_docs.go:GenMarkdownTree",
+          "test:doc/md_docs_test.go"
+        ],
+        "critical": [
+          "symbol:doc/md_docs.go:GenMarkdownTree",
+          "test:doc/md_docs_test.go"
+        ],
+        "relevant": [
+          "path:site/content/docgen/md.md",
+          "symbol:doc/md_docs.go:GenMarkdownTree",
+          "test:doc/md_docs_test.go"
+        ],
+        "must_exclude": ["path:doc/rest_docs.go"]
+      }
+    },
+    {
+      "id": "cobra-rest-docgen-tree",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "I need ReStructuredText output instead of Markdown for my Cobra CLI's generated docs, one file per command in the tree. Which function produces that, and what test proves the whole tree gets written out correctly?",
+      "limit": 8,
+      "budget_bytes": 14000,
+      "rationale": "Mirrors the Markdown tree-generation topic for its ReST sibling: the docgen guide's example, `doc.GenReSTTree`'s implementation, and its tree-completeness test.",
+      "ground_truth": [
+        {"path": "site/content/docgen/rest.md", "line": 20, "contains": "err := doc.GenReSTTree(cmd, \"/tmp\")"},
+        {"path": "doc/rest_docs.go", "line": 138, "contains": "func GenReSTTree(cmd *cobra.Command, dir string) error {"},
+        {"path": "doc/rest_docs_test.go", "line": 80, "contains": "func TestGenRSTTree(t *testing.T) {"}
+      ],
+      "expected": {
+        "must_include": [
+          "path:site/content/docgen/rest.md",
+          "symbol:doc/rest_docs.go:GenReSTTree",
+          "test:doc/rest_docs_test.go"
+        ],
+        "critical": [
+          "symbol:doc/rest_docs.go:GenReSTTree",
+          "test:doc/rest_docs_test.go"
+        ],
+        "relevant": [
+          "path:site/content/docgen/rest.md",
+          "symbol:doc/rest_docs.go:GenReSTTree",
+          "test:doc/rest_docs_test.go"
+        ],
+        "must_exclude": ["path:doc/md_docs.go"]
+      }
+    },
+    {
+      "id": "cobra-fish-completion-gen",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "Fish shell users of my Cobra CLI want tab completion. Which functions generate the fish completion script, how do I control whether flag and command descriptions are included, and is there a test that writes the completion script out to a file?",
+      "limit": 8,
+      "budget_bytes": 14000,
+      "rationale": "Ties the shell-completions guide's fish section (which documents the includeDesc parameter and the file-writing variant) to `GenFishCompletion`/`GenFishCompletionFile` and the test exercising the file-writing path.",
+      "ground_truth": [
+        {"path": "site/content/completions/_index.md", "line": 529, "contains": "command.GenFishCompletion"},
+        {"path": "fish_completions.go", "line": 276, "contains": "func (c *Command) GenFishCompletion(w io.Writer, includeDesc bool) error {"},
+        {"path": "fish_completions.go", "line": 284, "contains": "func (c *Command) GenFishCompletionFile(filename string, includeDesc bool) error {"},
+        {"path": "fish_completions_test.go", "line": 101, "contains": "func TestGenFishCompletionFile(t *testing.T) {"}
+      ],
+      "expected": {
+        "must_include": [
+          "path:site/content/completions/_index.md",
+          "symbol:fish_completions.go:GenFishCompletion",
+          "test:fish_completions_test.go"
+        ],
+        "critical": [
+          "symbol:fish_completions.go:GenFishCompletion",
+          "test:fish_completions_test.go"
+        ],
+        "relevant": [
+          "path:site/content/completions/_index.md",
+          "symbol:fish_completions.go:GenFishCompletion",
+          "symbol:fish_completions.go:GenFishCompletionFile",
+          "test:fish_completions_test.go"
+        ],
+        "must_exclude": ["path:zsh_completions.go", "path:bash_completions.go"]
+      }
+    },
+    {
+      "id": "cobra-group-validation-impact",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "impact",
+      "paths": ["command.go"],
+      "text": "A tracked change modifies `command.go` around how a subcommand's `GroupID` is checked against its parent's registered help groups. Retrieve the validation function, the call site that runs it before a command executes, and the tests confirming a missing group panics both at the root level and for a nested child command. Keep the impact set to the group-validation panic path, not general help-group text rendering.",
+      "limit": 8,
+      "budget_bytes": 14000,
+      "rationale": "`checkCommandGroups` is invoked from `ExecuteC` before dispatch and panics on an unregistered `GroupID`; the impact set should stay on the validation/panic path and its two precedence tests, not the separate group-label rendering in help/usage output or the unrelated flag-group feature.",
+      "ground_truth": [
+        {"path": "command.go", "line": 1117, "contains": "c.checkCommandGroups()"},
+        {"path": "command.go", "line": 1205, "contains": "func (c *Command) checkCommandGroups() {"},
+        {"path": "command_test.go", "line": 2051, "contains": "func TestWrongGroupFirstLevel(t *testing.T) {"},
+        {"path": "command_test.go", "line": 2069, "contains": "func TestWrongGroupNestedLevel(t *testing.T) {"}
+      ],
+      "expected": {
+        "must_include": [
+          "symbol:command.go:checkCommandGroups",
+          "test:command_test.go"
+        ],
+        "critical": [
+          "symbol:command.go:checkCommandGroups",
+          "test:command_test.go"
+        ],
+        "relevant": [
+          "path:command.go",
+          "symbol:command.go:checkCommandGroups",
+          "test:command_test.go"
+        ],
+        "must_exclude": ["path:flag_groups.go"]
+      }
+    },
+    {
+      "id": "cobra-suggestions-negative",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "When a Cobra CLI user mistypes a subcommand, the program sometimes prints 'Did you mean this?' with a nearby command name. I want to see the matching algorithm behind that — is it Levenshtein distance, a prefix check, or an explicit alias list — and confirm this typo-correction path is separate from shell tab-completion. Point me to the matching function and its test.",
+      "limit": 8,
+      "budget_bytes": 14000,
+      "rationale": "The word 'completion' in the prompt invites retrieving the shell tab-completion engine; the actual typo-suggestion logic is `Command.SuggestionsFor`/`findSuggestions` in command.go, unrelated to completions.go's shell scripts, so the negative selector checks the retriever isn't misled by the naming overlap.",
+      "ground_truth": [
+        {"path": "command.go", "line": 781, "contains": "func (c *Command) findSuggestions(arg string) string {"},
+        {"path": "command.go", "line": 863, "contains": "func (c *Command) SuggestionsFor(typedName string) []string {"},
+        {"path": "command_test.go", "line": 1431, "contains": "func TestSuggestions(t *testing.T) {"}
+      ],
+      "expected": {
+        "must_include": [
+          "symbol:command.go:SuggestionsFor",
+          "test:command_test.go"
+        ],
+        "critical": [
+          "symbol:command.go:SuggestionsFor",
+          "test:command_test.go"
+        ],
+        "relevant": [
+          "path:command.go",
+          "symbol:command.go:SuggestionsFor",
+          "symbol:command.go:findSuggestions",
+          "test:command_test.go"
+        ],
+        "must_exclude": ["path:completions.go"]
+      }
+    },
+    {
+      "id": "cobra-homebrew-abstention",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "I've built a CLI with Cobra and want to publish it as a Homebrew formula so macOS users can `brew install` it directly. Where in this repository is the Homebrew tap or formula generation handled?",
+      "limit": 8,
+      "budget_bytes": 8000,
+      "rationale": "Cobra generates shell completion scripts and command docs but has no code for building or publishing distribution packages like Homebrew formulas; that is an external packaging concern (e.g. goreleaser) with no implementation anywhere in this repository. The only 'Homebrew' hit is an unrelated comment about the bash-completion version shipped on Homebrew systems, not formula generation, so a correct system abstains instead of citing it.",
+      "ground_truth": [
+        {"path": "bash_completions.go", "line": 46, "contains": "# Homebrew on Macs have version 1.3 of bash-completion which doesn't include"}
+      ],
+      "expected": {
+        "state": "OUT_OF_SCOPE",
+        "must_include": [],
+        "critical": [],
+        "relevant": [],
+        "must_exclude": ["path:bash_completions.go"]
+      }
+    }
+  ]
+}

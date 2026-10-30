@@ -1,0 +1,8 @@
+ok  	github.com/Beamfall/corvint/internal/specindex	0.317s
+ok  	github.com/Beamfall/corvint/cmd/corvint	2.332s
+ok  	github.com/Beamfall/corvint/internal/analyzernativebridge	0.734s
+ok  	github.com/Beamfall/corvint/internal/behaviorfalsify	3.080s
+ok  	github.com/Beamfall/corvint/internal/liveverify/affected	4.408s
+ok  	github.com/Beamfall/corvint/internal/liveverify/gorunner	7.251s
+ok  	github.com/Beamfall/corvint/internal/liveverify/session	14.420s
+ok  	github.com/Beamfall/corvint/internal/playwrightminimize	0.825s

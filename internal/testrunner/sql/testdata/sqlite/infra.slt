@@ -1,0 +1,5 @@
+query I
+SELECT * FROM absent_relation
+----
+1
+

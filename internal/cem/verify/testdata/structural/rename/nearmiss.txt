@@ -1,0 +1,10 @@
+package fixture
+
+// total folds values into v.
+func total(values []int) int {
+	v := 0
+	for _, v := range values {
+		v += v
+	}
+	return v
+}

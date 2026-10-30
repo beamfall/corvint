@@ -1,0 +1,130 @@
+diff --git a/internal/offlinepack/http.go b/internal/offlinepack/http.go
+index 873164301..c53035273 100644
+--- a/internal/offlinepack/http.go
++++ b/internal/offlinepack/http.go
+@@ -159,7 +159,17 @@ func (h *HTTPHandlers) Content(w http.ResponseWriter, r *http.Request) {
+ 		http.Error(w, "media unavailable", http.StatusNotFound)
+ 		return
+ 	}
+-	f, err := os.Open(file.Path)
++	mediaRows, err := h.svc.store.VisibleMediaBatch(r.Context(), []store.MediaID{mediaID}, scope.PlaybackFilter())
++	if err != nil {
++		http.Error(w, "media unavailable", http.StatusInternalServerError)
++		return
++	}
++	media, ok := mediaRows[mediaID]
++	if !ok {
++		http.Error(w, "media unavailable", http.StatusNotFound)
++		return
++	}
++	f, err := h.svc.openContent(media.LibraryID, file.Path)
+ 	if err != nil {
+ 		status := http.StatusInternalServerError
+ 		if errors.Is(err, os.ErrNotExist) {
+@@ -169,7 +179,7 @@ func (h *HTTPHandlers) Content(w http.ResponseWriter, r *http.Request) {
+ 		return
+ 	}
+ 	defer f.Close()
+-	info, err := f.Stat()
++	info, err := os.Stat(file.Path)
+ 	if err != nil {
+ 		http.Error(w, "media file unavailable", http.StatusInternalServerError)
+ 		return
+diff --git a/internal/offlinepack/offlinepack.go b/internal/offlinepack/offlinepack.go
+index 6f910bb86..1203309a7 100644
+--- a/internal/offlinepack/offlinepack.go
++++ b/internal/offlinepack/offlinepack.go
+@@ -16,10 +16,12 @@
+ package offlinepack
+ 
+ import (
++	"bufio"
+ 	"context"
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
++	"io"
+ 	"os"
+ 	"time"
+ 
+@@ -89,6 +91,19 @@ type Store interface {
+ // Domain-agnostic — the seam names no music type.
+ type SealedPredicate func(libraryID store.LibraryID) bool
+ 
++// EncryptedContentSource opens libencrypt's shared seekable chunked-AEAD
++// plaintext view. The interface is satisfied by *libencrypt.Manager without
++// coupling the pack substrate to key ownership.
++type EncryptedContentSource interface {
++	OpenDecryptReader(libraryID, ciphertextPath string) (io.ReadSeekCloser, error)
++}
++
++// EncryptedPredicate reports whether a Library's file paths name libencrypt
++// ciphertext. Keeping this distinct from SealedPredicate matters: an Unsealed
++// encrypted Library may serve decrypted bytes, while a plain Library must still
++// be opened directly.
++type EncryptedPredicate func(libraryID store.LibraryID) bool
++
+ // Service builds and serves Offline Packs.
+ type Service struct {
+ 	store     Store
+@@ -96,6 +111,8 @@ type Service struct {
+ 	now       func() time.Time
+ 	resolvers map[string]TargetResolver
+ 	sealed    SealedPredicate
++	encrypted EncryptedPredicate
++	content   EncryptedContentSource
+ }
+ 
+ // NewService creates an Offline Pack service with the built-in generic "media"
+@@ -131,6 +148,51 @@ func (s *Service) SetSealed(sealed SealedPredicate) {
+ 	s.sealed = sealed
+ }
+ 
++// SetEncryptedContent wires encrypted Offline Pack byte reads to libencrypt's
++// shared chunked reader. Sequential readahead remains here, at the pack
++// consumer, rather than becoming policy in libencrypt.
++func (s *Service) SetEncryptedContent(source EncryptedContentSource, encrypted EncryptedPredicate) {
++	s.content = source
++	s.encrypted = encrypted
++}
++
++const contentReadaheadSize = 256 * 1024
++
++func (s *Service) openContent(libraryID store.LibraryID, path string) (io.ReadSeekCloser, error) {
++	if s.content == nil || s.encrypted == nil || !s.encrypted(libraryID) {
++		return os.Open(path) //nolint:gosec // authenticated store-owned media path
++	}
++	reader, err := s.content.OpenDecryptReader(string(libraryID), path)
++	if err != nil {
++		return nil, err
++	}
++	return newReadaheadReadSeekCloser(reader, contentReadaheadSize), nil
++}
++
++type readaheadReadSeekCloser struct {
++	src io.ReadSeekCloser
++	buf *bufio.Reader
++}
++
++func newReadaheadReadSeekCloser(src io.ReadSeekCloser, size int) *readaheadReadSeekCloser {
++	return &readaheadReadSeekCloser{src: src, buf: bufio.NewReaderSize(src, size)}
++}
++
++func (r *readaheadReadSeekCloser) Read(p []byte) (int, error) { return r.buf.Read(p) }
++
++func (r *readaheadReadSeekCloser) Seek(offset int64, whence int) (int64, error) {
++	if whence == io.SeekCurrent {
++		offset -= int64(r.buf.Buffered())
++	}
++	position, err := r.src.Seek(offset, whence)
++	if err == nil {
++		r.buf.Reset(r.src)
++	}
++	return position, err
++}
++
++func (r *readaheadReadSeekCloser) Close() error { return r.src.Close() }
++
+ // filter converts a caller scope into the store read policy with the caller's
+ // currently-Sealed Library IDs stamped on (LibraryFilter.SealedIDs). It
+ // enumerates the caller's visible Libraries and marks the sealed ones, mirroring

@@ -1,0 +1,9 @@
+{"version":"3.13.2","examples":[
+{"id":"./spec/controllers/users_controller_spec.rb[1:1]","description":"shows a user","full_description":"UsersController shows a user","status":"passed","file_path":"./spec/controllers/users_controller_spec.rb","line_number":4},
+{"id":"./spec/models/account_spec.rb[1:1]","description":"names its owner","full_description":"Account names its owner","status":"passed","file_path":"./spec/models/account_spec.rb","line_number":4},
+{"id":"./spec/models/user_spec.rb[1:1]","description":"strips the display name","full_description":"User strips the display name","status":"passed","file_path":"./spec/models/user_spec.rb","line_number":4},
+{"id":"./spec/requests/users_spec.rb[1:1]","description":"lists users","full_description":"users lists users","status":"passed","file_path":"./spec/requests/users_spec.rb","line_number":4},
+{"id":"./spec/services/greeter_spec.rb[1:1:1]","description":"greets by display name","full_description":"Greeter behaves like a greeter greets by display name","status":"passed","file_path":"./spec/services/greeter_spec.rb","line_number":4},
+{"id":"./spec/workers/welcome_worker_spec.rb[1:1]","description":"greets the user","full_description":"WelcomeWorker greets the user","status":"passed","file_path":"./spec/workers/welcome_worker_spec.rb","line_number":4}],
+"summary":{"duration":0.42,"example_count":6,"failure_count":0,"pending_count":0,"errors_outside_of_examples_count":0},
+"summary_line":"6 examples, 0 failures"}

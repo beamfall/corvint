@@ -1,0 +1,6 @@
+{
+  "profile": "corvint-test-nested-sandboxes/0",
+  "packages": {
+    "internal/liveverify/mutate": "its tests run cited tests inside a bubblewrap sandbox (FPK-V0-142); the AFP-V0-023 Landlock wrapper refuses it as nested (PR #1937 shard 0)"
+  }
+}

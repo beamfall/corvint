@@ -1,0 +1,46 @@
+# SPDX-License-Identifier: Apache-2.0
+# Corvint Spec Kit extension (STA-V0-008, docs/specs/spec-toolchain-adapters-v0.md).
+# Advisory and read-only: both commands only read and report Corvint output.
+schema_version: "1.0"
+
+extension:
+  id: corvint
+  name: "Corvint context and review"
+  version: "0.1.1"
+  description: "Read-only Corvint context before /speckit.implement and Corvint review after it"
+  author: "Beamfall"
+  repository: https://github.com/beamfall/corvint
+  license: Apache-2.0
+  effect: read-only
+
+requires:
+  speckit_version: ">=1.2.1,<2"
+  tools:
+    - name: corvint
+      required: true
+
+provides:
+  commands:
+    - name: speckit.corvint.context
+      file: commands/speckit.corvint.context.md
+      description: "Report Corvint task context for the feature's spec.md and plan.md (read-only)"
+    - name: speckit.corvint.review
+      file: commands/speckit.corvint.review.md
+      description: "Report Corvint affected tests and review advice for the working diff (read-only)"
+
+hooks:
+  before_implement:
+    command: speckit.corvint.context
+    optional: true
+    prompt: "Read Corvint context for this feature before implementing?"
+    description: "Advisory Corvint context; never blocks, edits or commits"
+  after_implement:
+    command: speckit.corvint.review
+    optional: true
+    prompt: "Read Corvint affected tests and review advice for this change?"
+    description: "Advisory Corvint review; never blocks, edits or commits"
+
+tags:
+  - "context"
+  - "review"
+  - "read-only"

@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "commit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+  "original_frozen_sha256": "4a37e240baff4b0fa3b8b4d410468189a12850f5574da9aca2bc529960eab215",
+  "cases": [{
+    "id": "cobra-zsh-no-description-impact",
+    "partition": "heldout-v3",
+    "target_version": "V4",
+    "first_observed_at": "2026-08-22",
+    "mode": "impact",
+    "paths": ["zsh_completions.go"],
+    "text": "A tracked change modifies `zsh_completions.go` around description handling. Retrieve the directly impacted API entry points, the shared hidden completion-request token they select, and the tests that distinguish Zsh completion generation with and without descriptions. Keep the impact set Zsh-specific.",
+    "limit": 8,
+    "budget_bytes": 12000,
+    "rationale": "The changed path selects a small, directly connected code-and-test neighborhood and resists broad completion or flag-group retrieval.",
+    "ground_truth": [
+      {"path": "zsh_completions.go", "line": 36, "contains": "func (c *Command) GenZshCompletionFileNoDesc(filename string) error"},
+      {"path": "zsh_completions.go", "line": 42, "contains": "func (c *Command) GenZshCompletionNoDesc(w io.Writer) error"},
+      {"path": "zsh_completions.go", "line": 90, "contains": "compCmd = ShellCompNoDescRequestCmd"},
+      {"path": "completions.go", "line": 34, "contains": "ShellCompNoDescRequestCmd = \"__completeNoDesc\""},
+      {"path": "completions_test.go", "line": 1591, "contains": "func TestCompleteNoDesCmdInZshScript(t *testing.T)"},
+      {"path": "completions_test.go", "line": 1607, "contains": "func TestCompleteCmdInZshScript(t *testing.T)"},
+      {"path": "completions_test.go", "line": 1621, "contains": "checkOmit(t, output, ShellCompNoDescRequestCmd)"}
+    ],
+    "expected": {
+      "must_include": [
+        "symbol:zsh_completions.go:GenZshCompletionNoDesc",
+        "symbol:zsh_completions.go:GenZshCompletionFileNoDesc",
+        "path:completions.go",
+        "test:completions_test.go"
+      ],
+      "critical": [
+        "symbol:zsh_completions.go:GenZshCompletionNoDesc",
+        "path:completions.go",
+        "test:completions_test.go"
+      ],
+      "relevant": [
+        "path:zsh_completions.go",
+        "symbol:zsh_completions.go:GenZshCompletionNoDesc",
+        "symbol:zsh_completions.go:GenZshCompletionFileNoDesc",
+        "path:completions.go",
+        "test:completions_test.go"
+      ],
+      "must_exclude": ["path:bash_completions.go", "path:fish_completions.go", "path:flag_groups.go"]
+    }
+  }]
+}

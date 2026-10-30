@@ -1,0 +1,27 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "corvint": {
+        "type": "local",
+        "command": [
+          "/absolute/bin/corvint-mcp",
+          "--root",
+          "/absolute/repository",
+          "--protocol-version",
+          "2025-11-25"
+        ]
+      },
+      "corvint-test-validity": {
+        "type": "local",
+        "command": [
+          "/absolute/bin/corvint-test-validity-mcp",
+          "--root",
+          "/absolute/repository",
+          "--protocol-version",
+          "2025-11-25"
+        ]
+      }
+    }
+  }
+}

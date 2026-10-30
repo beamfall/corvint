@@ -1,0 +1,1 @@
+using Xunit; namespace MtpProbe; public class BrokenFixture { public BrokenFixture()=>throw new System.InvalidOperationException("MTP_SETUP"); } public class InfrastructureProbe : IClassFixture<BrokenFixture> { [Fact] public void Blocked(){} }

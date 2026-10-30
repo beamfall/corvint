@@ -1,0 +1,93 @@
+diff --git a/internal/offlinepack/http.go b/internal/offlinepack/http.go
+index 53c6632e2..47897b80d 100644
+--- a/internal/offlinepack/http.go
++++ b/internal/offlinepack/http.go
+@@ -9,7 +9,6 @@ import (
+ 	"strings"
+ 
+ 	"github.com/beamfall/core/internal/auth"
+-	"github.com/beamfall/core/internal/observability"
+ 	"github.com/beamfall/core/internal/store"
+ )
+ 
+@@ -31,20 +30,20 @@ type Scoper interface {
+ type HTTPHandlers struct {
+ 	svc   *Service
+ 	auth  Scoper
+-	audit observability.AuditRecorder
++	audit AuditRecorder
+ }
+ 
+ func NewHTTPHandlers(svc *Service, scoper Scoper) *HTTPHandlers {
+ 	return &HTTPHandlers{
+ 		svc:   svc,
+ 		auth:  scoper,
+-		audit: observability.NewAuditLogger(nil),
++		audit: newSlogAuditRecorder(nil),
+ 	}
+ }
+ 
+-func (h *HTTPHandlers) SetAuditRecorder(recorder observability.AuditRecorder) {
++func (h *HTTPHandlers) SetAuditRecorder(recorder AuditRecorder) {
+ 	if recorder == nil {
+-		recorder = observability.NewAuditLogger(nil)
++		recorder = newSlogAuditRecorder(nil)
+ 	}
+ 	h.audit = recorder
+ }
+@@ -205,7 +204,7 @@ func (h *HTTPHandlers) Content(w http.ResponseWriter, r *http.Request) {
+ func (h *HTTPHandlers) Key(w http.ResponseWriter, r *http.Request) {
+ 	pack, scope, _, status, msg := h.authorize(r, "/api/pack/key/")
+ 	if status != http.StatusOK {
+-		h.writeKeyError(w, r, scope, status, msg, observability.AuditRefused)
++		h.writeKeyError(w, r, scope, status, msg, AuditRefused)
+ 		return
+ 	}
+ 	if !scope.Admin {
+@@ -215,15 +214,15 @@ func (h *HTTPHandlers) Key(w http.ResponseWriter, r *http.Request) {
+ 			scope,
+ 			http.StatusForbidden,
+ 			"offline pack key requires admin session",
+-			observability.AuditRefused,
++			AuditRefused,
+ 		)
+ 		return
+ 	}
+ 	if len(pack.WrappedCEK) != WrappedEnvelopeSize {
+-		h.writeKeyError(w, r, scope, http.StatusNotFound, "no key material", observability.AuditError)
++		h.writeKeyError(w, r, scope, http.StatusNotFound, "no key material", AuditError)
+ 		return
+ 	}
+-	if err := h.recordKeyAudit(r.Context(), scope, observability.AuditSuccess); err != nil {
++	if err := h.recordKeyAudit(r.Context(), scope, AuditSuccess); err != nil {
+ 		http.Error(w, "offline pack key audit unavailable", http.StatusServiceUnavailable)
+ 		return
+ 	}
+@@ -237,7 +236,7 @@ func (h *HTTPHandlers) writeKeyError(
+ 	scope auth.Scope,
+ 	status int,
+ 	message string,
+-	outcome observability.AuditOutcome,
++	outcome AuditOutcome,
+ ) {
+ 	if err := h.recordKeyAudit(r.Context(), scope, outcome); err != nil {
+ 		http.Error(w, "offline pack key audit unavailable", http.StatusServiceUnavailable)
+@@ -249,14 +248,14 @@ func (h *HTTPHandlers) writeKeyError(
+ func (h *HTTPHandlers) recordKeyAudit(
+ 	ctx context.Context,
+ 	scope auth.Scope,
+-	outcome observability.AuditOutcome,
++	outcome AuditOutcome,
+ ) error {
+ 	recorder := h.audit
+ 	if recorder == nil {
+-		recorder = observability.NewAuditLogger(nil)
++		recorder = newSlogAuditRecorder(nil)
+ 	}
+-	return recorder.RecordAudit(ctx, observability.AuditRecord{
+-		Actor: observability.AuditActor{
++	return recorder.RecordAudit(ctx, AuditRecord{
++		Actor: AuditActor{
+ 			Authenticated: scope.SessionID != "" || scope.APITokenID != "" || scope.APIKeyID != "",
+ 			SessionID:     string(scope.SessionID),
+ 			DeviceID:      string(scope.DeviceID),

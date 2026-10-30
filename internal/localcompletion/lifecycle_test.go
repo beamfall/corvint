@@ -1,0 +1,950 @@
+package localcompletion
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/Beamfall/corvint/internal/cem/cli"
+	"github.com/Beamfall/corvint/internal/cem/gitauth"
+	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/tracerecordrepo"
+)
+
+func localGit(t *testing.T, root string, args ...string) string {
+	t.Helper()
+	command := exec.Command("git", append([]string{"-C", root, "-c", "user.name=Local Fixture", "-c", "user.email=fixture@example.invalid"}, args...)...)
+	raw, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("git %v: %v %s", args, err, raw)
+	}
+	return strings.TrimSpace(string(raw))
+}
+
+func fixture(t *testing.T, argv []string) (string, string, Plan) {
+	t.Helper()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	localGit(t, root, "init", "-q", "-b", "main")
+	for name, body := range map[string]string{".gitignore": ".corvint/\n", "intent.md": "# Intent\n\n## Requirements\n\n- `FIXTURE-001`: preserve behavior.\n", "source.go": "package fixture\n"} {
+		if err = os.WriteFile(filepath.Join(root, name), []byte(body), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	localGit(t, root, "add", ".")
+	localGit(t, root, "commit", "-qm", "base")
+	plan := Plan{Base: localGit(t, root, "rev-parse", "HEAD"), Intents: []string{"intent.md"}, Checks: []Check{{ID: "test", Argv: argv, TimeoutSeconds: 5}}}
+	return root, HashSession(t.Name()), plan
+}
+
+func beginFixture(t *testing.T, root, key string, plan Plan) *repository {
+	t.Helper()
+	raw, _ := json.Marshal(plan)
+	result, err := Begin(context.Background(), root, key, raw)
+	if err != nil || result.Lifecycle != "active" {
+		t.Fatalf("begin: %#v %v", result, err)
+	}
+	repo, err := open(root, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = repo.load(); err != nil {
+		t.Fatal(err)
+	}
+	return repo
+}
+
+func hasUnmet(result Evaluation, prefix string) bool {
+	for _, value := range result.Unmet {
+		if strings.HasPrefix(value, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func TestEnrollmentAndReadOnlyPolicy(t *testing.T) {
+	t.Run("LCP-V0-002 enrollment", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"true"})
+		repo := beginFixture(t, root, key, plan)
+		raw, _ := json.Marshal(plan)
+		if _, err := Begin(context.Background(), root, HashSession("other"), raw); err == nil {
+			t.Fatal("second owner accepted")
+		}
+		unlock, err := repo.lock()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = Verify(context.Background(), root, key, "test"); err == nil {
+			t.Fatal("interleaving accepted")
+		}
+		unlock()
+		plan.Checks[0].Argv = []string{"false"}
+		raw, _ = json.Marshal(plan)
+		if _, err = Begin(context.Background(), root, key, raw); err == nil {
+			t.Fatal("plan replacement accepted")
+		}
+		saved, _ := repo.load()
+		if !filepath.IsAbs(saved.Executables[0]) {
+			t.Fatal("execution path not frozen")
+		}
+		// An interrupted two-file begin may retain state but no owner. Retrying
+		// the exact enrollment repairs ownership under the same mutation lock.
+		if err = os.Remove(filepath.Join(repo.directory, "owner")); err != nil {
+			t.Fatal(err)
+		}
+		raw, _ = json.Marshal(saved.Plan)
+		if _, err = Begin(context.Background(), root, key, raw); err != nil {
+			t.Fatal(err)
+		}
+		if err = repo.requireOwner(); err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("LCP-V0-003 readonly", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"true"})
+		result, err := Evaluate(context.Background(), root, key)
+		if err != nil || result.Lifecycle != "inactive" || result.Satisfied {
+			t.Fatalf("inactive: %#v %v", result, err)
+		}
+		if _, err = os.Stat(filepath.Join(root, ".git/corvint/local-completion")); !os.IsNotExist(err) {
+			t.Fatal("read created state")
+		}
+		repo := beginFixture(t, root, key, plan)
+		before, err := os.ReadFile(repo.local("state.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err = os.WriteFile(filepath.Join(root, "untracked"), []byte("preserve"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		result, err = Evaluate(context.Background(), root, key)
+		if err != nil || !hasUnmet(result, "uncommitted-work") {
+			t.Fatalf("dirty: %#v %v", result, err)
+		}
+		assertNextAction(t, result, key, "status")
+		repeated, err := Evaluate(context.Background(), root, key)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertNextAction(t, repeated, key, "status")
+		after, _ := os.ReadFile(repo.local("state.json"))
+		if string(before) != string(after) {
+			t.Fatal("status mutated state")
+		}
+		localGit(t, root, "add", "untracked")
+		localGit(t, root, "commit", "-qm", "preserve completed work")
+		result, err = Evaluate(context.Background(), root, key)
+		if err != nil {
+			t.Fatal(err)
+		}
+		assertNextAction(t, result, key, "verify", "--check", "test")
+		result, err = Cancel(context.Background(), root, key, "test cancel")
+		if err != nil || result.Lifecycle != "cancelled" || result.Satisfied {
+			t.Fatalf("cancel: %#v %v", result, err)
+		}
+		if _, err = os.Stat(filepath.Join(root, "untracked")); err != nil {
+			t.Fatal("lost work")
+		}
+		if len(result.NextActions) != 0 {
+			t.Fatal("cancelled enrollment suggests more work")
+		}
+	})
+}
+
+func TestInactiveKeyNamesActiveWorktreeOwner(t *testing.T) {
+	root, key, plan := fixture(t, []string{"true"})
+	other := HashSession("cleared-session")
+	result, err := Evaluate(context.Background(), root, other)
+	if err != nil || result.Owner != "" {
+		t.Fatalf("unenrolled worktree: %#v %v", result, err)
+	}
+	beginFixture(t, root, key, plan)
+	result, err = Evaluate(context.Background(), root, other)
+	if err != nil || result.Lifecycle != "inactive" || result.Satisfied || result.Owner != key {
+		t.Fatalf("active owner: %#v %v", result, err)
+	}
+	owned, err := Evaluate(context.Background(), root, key)
+	if err != nil || owned.Owner != "" {
+		t.Fatalf("the owner named itself: %#v %v", owned, err)
+	}
+	if _, err = Cancel(context.Background(), root, key, "test cancel"); err != nil {
+		t.Fatal(err)
+	}
+	result, err = Evaluate(context.Background(), root, other)
+	if err != nil || result.Owner != "" {
+		t.Fatalf("cancelled owner: %#v %v", result, err)
+	}
+}
+
+func TestEnrollmentRefusesIntentAbsentFromBase(t *testing.T) {
+	t.Run("LCP-V0-002 unresolvable intent", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"true"})
+		plan.Intents = []string{"docs/specs/never-committed.md"}
+		raw, _ := json.Marshal(plan)
+		if _, err := Begin(context.Background(), root, key, raw); err == nil || err.Error() != "intent-path-not-found" {
+			t.Fatalf("begin: %v", err)
+		}
+		// The refusal happens before repo.save writes state.json, so no
+		// enrollment record was ever produced: the session stays inactive.
+		if _, err := os.Stat(filepath.Join(root, ".git/corvint/local-completion", key, "state.json")); !os.IsNotExist(err) {
+			t.Fatal("refused enrollment recorded state.json")
+		}
+		evaluation, err := Evaluate(context.Background(), root, key)
+		if err != nil {
+			t.Fatalf("evaluate: %v", err)
+		}
+		if evaluation.Lifecycle != "inactive" {
+			t.Fatalf("evaluate: got lifecycle %q, want inactive", evaluation.Lifecycle)
+		}
+	})
+}
+
+func TestRefusedEnrollmentConsumesNoGeneration(t *testing.T) {
+	t.Run("LCP-V0-002 refusal leaves the generation bound intact", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"true"})
+		valid, _ := json.Marshal(plan)
+		plan.Intents = []string{"docs/specs/never-committed.md"}
+		refused, _ := json.Marshal(plan)
+		for attempt := 0; attempt < 16; attempt++ {
+			if _, err := Begin(context.Background(), root, key, refused); err == nil || err.Error() != "intent-path-not-found" {
+				t.Fatalf("begin attempt %d: %v", attempt, err)
+			}
+		}
+		if _, err := Begin(context.Background(), root, key, valid); err != nil {
+			t.Fatalf("valid begin after 16 refusals: %v", err)
+		}
+	})
+}
+
+func TestEnrollmentRefusesIntentWithoutNumberedRequirements_LCPV0037(t *testing.T) {
+	for _, test := range []struct{ name, body, code string }{
+		{"no section", "# Decision\n\nNo numbered requirements.\n", "invalid-requirements-section"},
+		{"no IDs", "# Intent\n\n## Requirements\n\n- prose only\n", "missing-requirements"},
+		{"duplicate ID", "# Intent\n\n## Requirements\n\n- `DUP-001`: a.\n- `DUP-001`: b.\n", "duplicate-requirement"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			root, key, plan := fixture(t, []string{"true"})
+			valid, _ := json.Marshal(plan)
+			if err := os.WriteFile(filepath.Join(root, "decision.md"), []byte(test.body), 0600); err != nil {
+				t.Fatal(err)
+			}
+			localGit(t, root, "add", "decision.md")
+			localGit(t, root, "commit", "-qm", "decision")
+			plan.Intents = []string{"decision.md"}
+			refused, _ := json.Marshal(plan)
+			// Refused before plan.json creates a generation directory, so the
+			// generation bound and the session lifecycle are untouched.
+			for attempt := 0; attempt < 16; attempt++ {
+				if _, err := Begin(context.Background(), root, key, refused); err == nil || err.Error() != test.code {
+					t.Fatalf("begin attempt %d: %v, want %s", attempt, err, test.code)
+				}
+			}
+			if _, err := os.Stat(filepath.Join(root, ".git/corvint/local-completion", key, "state.json")); !os.IsNotExist(err) {
+				t.Fatal("refused enrollment recorded state.json")
+			}
+			if _, err := Begin(context.Background(), root, key, valid); err != nil {
+				t.Fatalf("valid begin after refusals: %v", err)
+			}
+		})
+	}
+}
+
+func TestEnrollmentPinsSameChangeIntentAtHead(t *testing.T) {
+	t.Run("LCP-V0-002 intent absent from base resolves at enrollment HEAD", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"true"})
+		if err := os.WriteFile(filepath.Join(root, "proposed.md"), []byte("# Proposed\n\n## Requirements\n\n- `PROPOSED-001`: preserve behavior.\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		localGit(t, root, "add", "proposed.md")
+		localGit(t, root, "commit", "-qm", "propose intent")
+		head := localGit(t, root, "rev-parse", "HEAD")
+		plan.Intents = []string{"proposed.md"}
+		raw, _ := json.Marshal(plan)
+		result, err := Begin(context.Background(), root, key, raw)
+		if err != nil {
+			t.Fatalf("begin: %v", err)
+		}
+		want := IntentPointer{Path: "proposed.md", Revision: head, BlobHash: localGit(t, root, "rev-parse", head+":proposed.md")}
+		if len(result.IntentPointers) != 1 || result.IntentPointers[0] != want {
+			t.Fatalf("pointers: %#v, want %#v", result.IntentPointers, want)
+		}
+	})
+}
+
+func TestEnrollmentRefusesHeadNotDescendedFromBase(t *testing.T) {
+	t.Run("LCP-V0-002 unrelated history", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"true"})
+		// The orphan commit keeps the base tree, so only ancestry distinguishes it.
+		localGit(t, root, "checkout", "-q", "--orphan", "unrelated")
+		localGit(t, root, "commit", "-qm", "unrelated root")
+		raw, _ := json.Marshal(plan)
+		if _, err := Begin(context.Background(), root, key, raw); err == nil || err.Error() != "base-not-ancestor-of-target" {
+			t.Fatalf("begin: %v", err)
+		}
+		if _, err := os.Stat(filepath.Join(root, ".git/corvint/local-completion", key, "state.json")); !os.IsNotExist(err) {
+			t.Fatalf("refused enrollment recorded state.json: %v", err)
+		}
+	})
+}
+
+func TestFinishRefusesHeadMovedToUnrelatedHistory(t *testing.T) {
+	t.Run("LCP-V0-002 head moved after begin", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"true"})
+		beginFixture(t, root, key, plan)
+		// A valid enrollment already exists; move HEAD to an orphan commit that
+		// keeps the enrolled tree, so only ancestry distinguishes it from the base.
+		localGit(t, root, "checkout", "-q", "--orphan", "unrelated")
+		localGit(t, root, "commit", "-qm", "unrelated root")
+		before, err := os.ReadFile(filepath.Join(root, ".git/corvint/local-completion", key, "state.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		result, err := Finish(context.Background(), root, key, nil)
+		if err != nil {
+			t.Fatalf("finish: %v", err)
+		}
+		if !hasUnmet(result, "base-not-ancestor-of-target") || result.Satisfied {
+			t.Fatalf("finish: got %#v, want unmet base-not-ancestor-of-target and not satisfied", result)
+		}
+		after, err := os.ReadFile(filepath.Join(root, ".git/corvint/local-completion", key, "state.json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(before) != string(after) {
+			t.Fatal("finish wrote local state despite unrelated HEAD")
+		}
+		status, err := Evaluate(context.Background(), root, key)
+		if err != nil || !hasUnmet(status, "base-not-ancestor-of-target") || status.Satisfied {
+			t.Fatalf("status: %#v %v, want unmet base-not-ancestor-of-target and not satisfied", status, err)
+		}
+		assertNextAction(t, status, key, "status")
+	})
+}
+
+func TestActualVerificationAndSecretRefusal(t *testing.T) {
+	t.Run("LCP-V0-004 verification", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"printf", "%s", "literal $(touch should-not-exist)"})
+		repo := beginFixture(t, root, key, plan)
+		result, err := Verify(context.Background(), root, key, "test")
+		if err != nil || hasUnmet(result, "selected-check-unverified") {
+			t.Fatalf("verify: %#v %v", result, err)
+		}
+		saved, _ := repo.load()
+		observed := saved.Observations[0]
+		raw, _ := os.ReadFile(observed.Stdout.Path)
+		if string(raw) != "literal $(touch should-not-exist)" {
+			t.Fatalf("argv interpreted: %s", raw)
+		}
+		if err = os.WriteFile(observed.Stdout.Path, []byte("changed"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		result, err = Evaluate(context.Background(), root, key)
+		if err != nil || !hasUnmet(result, "selected-check-unverified") {
+			t.Fatal("changed log qualified")
+		}
+	})
+	t.Run("failed", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"false"})
+		beginFixture(t, root, key, plan)
+		result, err := Verify(context.Background(), root, key, "test")
+		if err != nil || !hasUnmet(result, "selected-check-unverified") {
+			t.Fatalf("failed check qualified: %#v %v", result, err)
+		}
+	})
+	t.Run("timeout", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"sleep", "5"})
+		plan.Checks[0].TimeoutSeconds = 1
+		repo := beginFixture(t, root, key, plan)
+		result, err := Verify(context.Background(), root, key, "test")
+		if err != nil || !hasUnmet(result, "selected-check-unverified") {
+			t.Fatalf("timeout qualified: %#v %v", result, err)
+		}
+		saved, loadErr := repo.load()
+		if loadErr != nil {
+			t.Fatal(loadErr)
+		}
+		if !saved.Observations[0].TimedOut {
+			t.Fatal("timeout lost")
+		}
+	})
+	t.Run("secret-plan", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"printf", "token=fixture-secret"})
+		raw, _ := json.Marshal(plan)
+		if _, err := Begin(context.Background(), root, key, raw); err == nil {
+			t.Fatal("secret plan stored")
+		}
+		if _, err := os.Stat(filepath.Join(root, ".git/corvint/local-completion")); !os.IsNotExist(err) {
+			t.Fatal("secret rejection wrote state")
+		}
+	})
+	t.Run("secret-log", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"sh", "-c", "printf '%s%s' 'tok' 'en=fixture-secret'"})
+		repo := beginFixture(t, root, key, plan)
+		result, err := Verify(context.Background(), root, key, "test")
+		if err != nil || !hasUnmet(result, "selected-check-unverified") {
+			t.Fatalf("secret output qualified: %#v %v", result, err)
+		}
+		saved, _ := repo.load()
+		if !saved.Observations[0].SecretScreened {
+			t.Fatal("missing explicit refusal")
+		}
+		filepath.WalkDir(repo.directory, func(name string, entry os.DirEntry, walkErr error) error {
+			if walkErr == nil && !entry.IsDir() {
+				raw, _ := os.ReadFile(name)
+				if strings.Contains(string(raw), "token=fixture-secret") {
+					t.Errorf("secret persisted: %s", name)
+				}
+			}
+			return walkErr
+		})
+	})
+	t.Run("go-verbose-pass-log", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"sh", "-c", "printf '%b%b' '--- PA' 'SS: TestExample (0.00s)\\n'"})
+		repo := beginFixture(t, root, key, plan)
+		result, err := Verify(context.Background(), root, key, "test")
+		if err != nil || hasUnmet(result, "selected-check-unverified") {
+			t.Fatalf("verbose Go pass output did not qualify: %#v %v", result, err)
+		}
+		saved, _ := repo.load()
+		if saved.Observations[0].SecretScreened {
+			t.Fatal("verbose Go pass marker was secret-screened")
+		}
+		output, err := os.ReadFile(saved.Observations[0].Stdout.Path)
+		if err != nil || string(output) != "--- PASS: TestExample (0.00s)\n" {
+			t.Fatalf("verbose Go pass output = %q, %v", output, err)
+		}
+	})
+	t.Run("go-verbose-pass-log-with-secret", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"sh", "-c", "printf '%b%b%b%b' '--- PA' 'SS: TestExample (0.00s)\\n' 'pa' 'ss: synthetic123\\n'"})
+		repo := beginFixture(t, root, key, plan)
+		result, err := Verify(context.Background(), root, key, "test")
+		if err != nil || !hasUnmet(result, "selected-check-unverified") {
+			t.Fatalf("real secret after verbose Go pass output qualified: %#v %v", result, err)
+		}
+		saved, _ := repo.load()
+		if !saved.Observations[0].SecretScreened {
+			t.Fatal("real secret after verbose Go pass marker was not screened")
+		}
+	})
+	t.Run("go-verbose-pass-log-with-embedded-secret", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"sh", "-c", "printf '\\055\\055\\055\\040\\120\\101\\123\\123\\072\\040\\124\\145\\163\\164\\105\\170\\141\\155\\160\\154\\145\\057\\160\\141\\163\\163\\075\\163\\171\\156\\164\\150\\145\\164\\151\\143\\061\\062\\063\\040\\050\\060\\056\\060\\060\\163\\051'"})
+		repo := beginFixture(t, root, key, plan)
+		result, err := Verify(context.Background(), root, key, "test")
+		if err != nil || !hasUnmet(result, "selected-check-unverified") {
+			t.Fatalf("secret in verbose Go pass test name qualified: %#v %v", result, err)
+		}
+		saved, _ := repo.load()
+		if !saved.Observations[0].SecretScreened {
+			t.Fatal("secret in verbose Go pass test name was not screened")
+		}
+	})
+	// LTA-V0-015: the same marker as a `go test -json` output event. The argv
+	// splits the marker so the plan itself is not secret-shaped.
+	jsonEvent := func(test, tail string) []string {
+		return []string{"sh", "-c", "printf '%s%s\\n' '{\"Action\":\"output\",\"Test\":\"" + test + "\",\"Output\":\"--- PA' 'SS: " + tail + " (0.00s)\\n\",\"OutputType\":\"frame\"}'"}
+	}
+	t.Run("go-json-pass-log", func(t *testing.T) {
+		root, key, plan := fixture(t, jsonEvent("TestExample", "TestExample"))
+		repo := beginFixture(t, root, key, plan)
+		result, err := Verify(context.Background(), root, key, "test")
+		if err != nil || hasUnmet(result, "selected-check-unverified") {
+			t.Fatalf("go test -json pass output did not qualify: %#v %v", result, err)
+		}
+		saved, _ := repo.load()
+		if saved.Observations[0].SecretScreened {
+			t.Fatal("go test -json pass event was secret-screened")
+		}
+		output, err := os.ReadFile(saved.Observations[0].Stdout.Path)
+		if err != nil || string(output) != `{"Action":"output","Test":"TestExample","Output":"--- PASS: TestExample (0.00s)\n","OutputType":"frame"}`+"\n" {
+			t.Fatalf("go test -json pass output = %q, %v", output, err)
+		}
+	})
+	t.Run("go-json-pass-log-with-embedded-secret", func(t *testing.T) {
+		root, key, plan := fixture(t, jsonEvent("TestExample/pa'ss=synthetic'123", "TestExample/pa'ss=synthetic'123"))
+		repo := beginFixture(t, root, key, plan)
+		result, err := Verify(context.Background(), root, key, "test")
+		if err != nil || !hasUnmet(result, "selected-check-unverified") {
+			t.Fatalf("secret in go test -json pass test name qualified: %#v %v", result, err)
+		}
+		saved, _ := repo.load()
+		if !saved.Observations[0].SecretScreened {
+			t.Fatal("secret in go test -json pass test name was not screened")
+		}
+	})
+}
+
+// TestCEMV1150StableSidecarGrantsNoReuse (CEM-V1-150, CEM-V1-208): without the
+// plan's allowCemSidecarOnlyReuse a committed cem/1.0 sidecar of the same
+// content, which the stable verifier accepts, still leaves the check
+// unverified until it runs again (fail closed); the grant path is CEM-V1-205.
+func TestCEMV1150StableSidecarGrantsNoReuse(t *testing.T) {
+	root, key, plan := fixture(t, []string{"true"})
+	os.WriteFile(filepath.Join(root, "source.go"), []byte("package fixture\nconst Answer = 42\n"), 0600)
+	localGit(t, root, "add", "source.go")
+	localGit(t, root, "commit", "-qm", "change")
+	beginFixture(t, root, key, plan)
+	if _, err := Verify(context.Background(), root, key, "test"); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr strings.Builder
+	if cli.Run(context.Background(), root, []string{"prepare", "--base", plan.Base, "--target", "HEAD"}, &stdout, &stderr) != 0 {
+		t.Fatalf("cem prepare: %s", stderr.String())
+	}
+	raw, err := os.ReadFile(filepath.Join(root, ".corvint", "change.cem.json"))
+	if err != nil || !strings.Contains(string(raw), `"spec":"cem/1.0"`) {
+		t.Fatalf("default prepare did not write cem/1.0: %v %.80s", err, raw)
+	}
+	localGit(t, root, "add", "-f", ".corvint/change.cem.json")
+	localGit(t, root, "commit", "-qm", "sidecar")
+	result, err := Evaluate(context.Background(), root, key)
+	if err != nil || !hasUnmet(result, "selected-check-unverified") || result.Checks[0].Qualified || result.Checks[0].ReuseRefused != "" {
+		t.Fatalf("stable sidecar granted reuse: %#v %v", result, err)
+	}
+}
+
+func TestReenrollmentPreservesCompletedGenerations(t *testing.T) {
+	root, key, plan := fixture(t, []string{"true"})
+	repo := beginFixture(t, root, key, plan)
+	if _, err := Verify(context.Background(), root, key, "test"); err != nil {
+		t.Fatal(err)
+	}
+	saved, err := repo.load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	originalLog := saved.Observations[0].Stdout
+	if _, err = Cancel(context.Background(), root, key, "test cancel"); err != nil {
+		t.Fatal(err)
+	}
+	// Explicit enrollment of the same cancelled plan starts a fresh bounded
+	// generation while leaving the original actual observation readable.
+	raw, _ := json.Marshal(plan)
+	result, err := Begin(context.Background(), root, key, raw)
+	if err != nil || result.Lifecycle != "active" || !hasUnmet(result, "selected-check-unverified") {
+		t.Fatalf("same-plan reenroll: %#v %v", result, err)
+	}
+	current, _ := repo.load()
+	if current.Generation == saved.Generation {
+		t.Fatal("reused prior generation")
+	}
+	if !artifactsCurrent([]artifact{originalLog}) {
+		t.Fatal("prior log changed")
+	}
+	if _, err = os.Stat(filepath.Join(repo.directory, key, saved.Generation, "state.json")); err != nil {
+		t.Fatal("history missing")
+	}
+	if _, err = Cancel(context.Background(), root, key, "test cancel"); err != nil {
+		t.Fatal(err)
+	}
+	plan.Checks[0].Argv = []string{"printf", "new"}
+	raw, _ = json.Marshal(plan)
+	result, err = Begin(context.Background(), root, key, raw)
+	if err != nil || result.Lifecycle != "active" {
+		t.Fatalf("revised plan: %#v %v", result, err)
+	}
+}
+
+func TestGenerationDirectoryBounds(t *testing.T) {
+	t.Run("LCP-V0-012 bound", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"true"})
+		repo := beginFixture(t, root, key, plan)
+		saved, err := repo.load()
+		if err != nil {
+			t.Fatal(err)
+		}
+		directory := filepath.Join(repo.directory, key)
+		for count := 2; count <= 15; count++ {
+			if err := os.Mkdir(filepath.Join(directory, "generation-"+strconv.Itoa(count)), 0700); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if next, err := repo.nextGeneration(saved.PlanDigest); err != nil || !strings.HasSuffix(next, "-016") {
+			t.Fatalf("last permitted generation: %q %v", next, err)
+		}
+		if err := repo.archiveGeneration(saved); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Mkdir(filepath.Join(directory, "generation-16"), 0700); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := repo.nextGeneration(saved.PlanDigest); err == nil || err.Error() != "enrollment-generation-bound-exceeded" {
+			t.Fatalf("seventeenth generation admitted: %v", err)
+		}
+		if err := repo.archiveGeneration(saved); err == nil || err.Error() != "enrollment-generation-bound-exceeded" {
+			t.Fatalf("archive ignored generation bound: %v", err)
+		}
+		// Non-directory entries also count against the enumeration budget.
+		if err := os.WriteFile(filepath.Join(directory, "unexpected"), nil, 0600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := repo.generationCount(); err == nil || err.Error() != "enrollment-generation-bound-exceeded" {
+			t.Fatalf("extra entry ignored: %v", err)
+		}
+	})
+}
+
+func TestOriginalReceiptsAreArchivedOrExplicitlySecretRefused(t *testing.T) {
+	root, key, plan := fixture(t, []string{"true"})
+	directory := filepath.Join(root, ".git/corvint")
+	os.MkdirAll(directory, 0700)
+	original := []byte(`{"task":"caller-owned prechange question"}`)
+	secret := []byte(`{"task":"token=fixture-secret"}`)
+	os.WriteFile(filepath.Join(directory, "prechange-query.json"), original, 0600)
+	os.WriteFile(filepath.Join(directory, "prechange-impact.json"), secret, 0600)
+	repo := beginFixture(t, root, key, plan)
+	archived, err := os.ReadFile(repo.local("initial-prechange-query.json"))
+	if err != nil || string(archived) != string(original) {
+		t.Fatal("original chronology lost")
+	}
+	if _, err = os.Stat(repo.local("initial-prechange-impact.json")); !os.IsNotExist(err) {
+		t.Fatal("secret duplicated")
+	}
+	refusal, err := os.ReadFile(repo.local("initial-prechange-impact.json.refusal.json"))
+	if err != nil || strings.Contains(string(refusal), "fixture-secret") || !strings.Contains(string(refusal), digest(secret)) {
+		t.Fatal("missing bounded refusal")
+	}
+	retained, _ := os.ReadFile(filepath.Join(directory, "prechange-impact.json"))
+	if string(retained) != string(secret) {
+		t.Fatal("original modified")
+	}
+}
+
+func TestNoSourceAdmissionDoesNotRequireTrace(t *testing.T) {
+	root, key, plan := fixture(t, []string{"true"})
+	beginFixture(t, root, key, plan)
+	os.WriteFile(filepath.Join(root, "image.png"), []byte{0, 1, 2, 3}, 0600)
+	localGit(t, root, "add", "image.png")
+	localGit(t, root, "commit", "-qm", "binary asset")
+	target := localGit(t, root, "rev-parse", "HEAD")
+	recorded, err := tracerecordrepo.RecordDogfood(context.Background(), root, plan.Base, target, tracerecordrepo.Input{Task: "fixture no source", Verification: []string{"true"}, Outcome: "passed"})
+	if err != nil || recorded.State != "no-source-paths" || recorded.Recorded != nil {
+		t.Fatalf("actual admission: %#v %v", recorded, err)
+	}
+	repo, _ := open(root, key)
+	saved, _ := repo.load()
+	snap, _ := repo.snapshot(context.Background())
+	evidence, _ := json.Marshal(map[string]any{"ok": true, "state": recorded.State, "base": recorded.Base, "target": recorded.Target, "admitted": recorded.Admitted})
+	writeFile(filepath.Join(root, ".git/corvint/local-outcome.json"), evidence)
+	report, _ := json.Marshal(map[string]any{"base": plan.Base, "target": target, "complete": true, "localOutcomeEvidenceSha256": "sha256:" + digest(evidence)})
+	writeFile(filepath.Join(root, ".corvint/dogfood-report.json"), report)
+	if err = repo.checkCoordinator(saved, snap, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = os.Stat(filepath.Join(root, ".context-corvint/traces")); !os.IsNotExist(err) {
+		t.Fatal("no-source created traces")
+	}
+}
+
+func TestContextAbstentionTerminalArtifactsRemainCurrent(t *testing.T) {
+	root, key, plan := fixture(t, []string{"true"})
+	repo := beginFixture(t, root, key, plan)
+	files := map[string][]byte{
+		filepath.Join(root, ".corvint/dogfood-report.json"):                          []byte(`{"contextAbstentionEvidenceSha256":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}`),
+		filepath.Join(root, ".corvint/change.ocm-status.json"):                       []byte("ocm\n"),
+		filepath.Join(root, ".git/corvint/local-outcome.json"):                       []byte("outcome\n"),
+		repo.local("final-check.stdout"):                                             []byte("stdout\n"),
+		repo.local("final-check.stderr"):                                             []byte("stderr\n"),
+		filepath.Join(root, ".git/corvint/coordination-time-impact-abstention.json"): []byte("artifact\n"),
+		filepath.Join(root, ".git/corvint/coordination-time-impact.argv"):            []byte("argv\x00"),
+		filepath.Join(root, ".git/corvint/coordination-time-impact.json"):            []byte{},
+		filepath.Join(root, ".git/corvint/coordination-time-impact.stderr"):          []byte("refusal\n"),
+	}
+	for name, raw := range files {
+		if err := writeFile(name, raw); err != nil {
+			t.Fatal(err)
+		}
+	}
+	paths := repo.terminalPaths()
+	if len(paths) != 9 {
+		t.Fatalf("terminal paths=%v", paths)
+	}
+	artifacts := make([]artifact, 0, len(paths))
+	for _, name := range paths {
+		item, err := artifactFor(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		artifacts = append(artifacts, item)
+	}
+	terminal := &terminal{Artifacts: artifacts}
+	if !repo.terminalCurrent(terminal) {
+		t.Fatal("fresh context evidence is not current")
+	}
+	for _, name := range paths[5:] {
+		original := files[name]
+		if err := writeFile(name, append(append([]byte{}, original...), 'x')); err != nil {
+			t.Fatal(err)
+		}
+		if repo.terminalCurrent(terminal) {
+			t.Fatalf("terminal remained current after %s drift", filepath.Base(name))
+		}
+		if err := writeFile(name, original); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestExecutionPhasesDoNotReuseExpiredGitReadBudgets(t *testing.T) {
+	root, key, plan := fixture(t, []string{"true"})
+	repo := beginFixture(t, root, key, plan)
+	expired, err := gitauth.Open(root, gitrun.NewBudget(1, time.Nanosecond))
+	if err != nil {
+		t.Fatal(err)
+	}
+	repo.auth = expired
+	if _, err = expired.Resolve(context.Background(), "HEAD"); err == nil {
+		t.Fatal("fixture budget was not expired")
+	}
+	snapshot, err := repo.snapshot(context.Background())
+	if err != nil || snapshot.target != plan.Base || !snapshot.clean {
+		t.Fatalf("next read phase inherited execution wall time: %#v %v", snapshot, err)
+	}
+}
+
+func TestMalformedNullScalarsCannotBecomeSuccessfulEvidence(t *testing.T) {
+	root, key, plan := fixture(t, []string{"true"})
+	repo := beginFixture(t, root, key, plan)
+	if _, err := Verify(context.Background(), root, key, "test"); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := os.ReadFile(repo.local("state.json"))
+	for _, field := range []string{"exit", "timedOut", "cancelled"} {
+		t.Run(field, func(t *testing.T) {
+			var object map[string]any
+			json.Unmarshal(raw, &object)
+			object["observations"].([]any)[0].(map[string]any)[field] = nil
+			changed, _ := json.Marshal(object)
+			os.WriteFile(repo.local("state.json"), changed, 0600)
+			if _, err := repo.load(); err == nil {
+				t.Fatal("null observation scalar accepted")
+			}
+		})
+	}
+	var object map[string]any
+	json.Unmarshal(raw, &object)
+	object["terminal"] = map[string]any{"reportSet": strings.Repeat("0", 64), "checkExit": nil, "artifacts": []any{}}
+	changed, _ := json.Marshal(object)
+	os.WriteFile(repo.local("state.json"), changed, 0600)
+	if _, err := repo.load(); err == nil {
+		t.Fatal("null terminal check exit accepted")
+	}
+}
+
+// TestScreenedCheckLogKeepsFailureLines covers V1-1014 (LCP-V0-031): a
+// secret-screened check log keeps its FAIL lines with each secret-shaped span
+// redacted, and the verify result names the failing test.
+func TestScreenedCheckLogKeepsFailureLines(t *testing.T) {
+	script := "printf '%s\\n%s%s\\n%s\\n' '--- FAIL: TestWidget (0.00s)' '    widget_test.go:9: tok' 'en=fixture-secret' 'FAIL'; exit 1"
+	root, key, plan := fixture(t, []string{"sh", "-c", script})
+	repo := beginFixture(t, root, key, plan)
+	result, err := Verify(context.Background(), root, key, "test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := result.Checks[0]
+	if !check.SecretScreened || check.Qualified || check.Exit != 1 {
+		t.Fatalf("screened failure qualified or lost its exit: %#v", check)
+	}
+	if len(check.FailedTests) != 1 || check.FailedTests[0] != "TestWidget" {
+		t.Fatalf("failed tests = %#v", check.FailedTests)
+	}
+	saved, err := repo.load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(saved.Observations[0].Stdout.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log := string(raw)
+	if strings.Contains(log, "fixture-secret") || !strings.HasPrefix(log, "log-secret-screened\n") || !strings.Contains(log, "--- FAIL: TestWidget") || !strings.Contains(log, "[REDACTED]") {
+		t.Fatalf("screened log = %q", log)
+	}
+	if !artifactsCurrent([]artifact{saved.Observations[0].Stdout, saved.Observations[0].Stderr}) {
+		t.Fatal("screened log digest does not match its bytes")
+	}
+
+	t.Run("unscreened failure names its test", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"sh", "-c", "printf '%s\\n' '    --- FAIL: TestOuter/inner (0.01s)' '--- FAIL: TestOuter (0.01s)'; exit 1"})
+		beginFixture(t, root, key, plan)
+		result, err := Verify(context.Background(), root, key, "test")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := result.Checks[0].FailedTests; len(got) != 2 || got[0] != "TestOuter/inner" || got[1] != "TestOuter" || result.Checks[0].SecretScreened {
+			t.Fatalf("failed tests = %#v", result.Checks[0])
+		}
+	})
+	t.Run("passing check names none", func(t *testing.T) {
+		root, key, plan := fixture(t, []string{"sh", "-c", "printf '%s\\n' '--- FAIL: TestNotRun (0.00s)'"})
+		beginFixture(t, root, key, plan)
+		result, err := Verify(context.Background(), root, key, "test")
+		if err != nil || !result.Checks[0].Qualified || result.Checks[0].FailedTests != nil {
+			t.Fatalf("passing check: %#v %v", result.Checks, err)
+		}
+	})
+	t.Run("truncated private key blocks keep only the marker", func(t *testing.T) {
+		// A header with no footer matches the screen as the header alone, so
+		// redaction would keep the key body (Codex review of V1-1014).
+		const body = "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC7fixturebody\n"
+		for name, header := range map[string]string{
+			"PEM":           "-----BEGIN RSA PRIV" + "ATE KEY-----\n",
+			"PEM lowercase": "-----begin ec priv" + "ate key-----\n",
+			"PGP":           "-----BEGIN PGP PRIV" + "ATE KEY BLOCK-----\n",
+		} {
+			for _, raw := range []string{
+				"--- FAIL: TestKey (0.00s)\n" + header + body,
+				header + body + "-----END RSA PRIV" + "ATE KEY-----\n--- FAIL: TestKey (0.00s)\n",
+			} {
+				if got := string(screenedLog([]byte(raw))); got != screenedLogMarker {
+					t.Fatalf("%s: screened log kept %q", name, got)
+				}
+			}
+		}
+	})
+	t.Run("bounds", func(t *testing.T) {
+		full := "token=fixture-secret\n" + strings.Repeat("-\n", (maxLogBytes-21)/2)
+		if got := string(screenedLog([]byte(full))); got != "log-secret-screened\n" {
+			t.Fatalf("over-bound redaction kept %d bytes", len(got))
+		}
+		var many bytes.Buffer
+		for index := 0; index < 40; index++ {
+			fmt.Fprintf(&many, "--- FAIL: TestCase%d (0.00s)\n", index)
+		}
+		fmt.Fprintf(&many, "--- FAIL: %s (0.00s)\n", strings.Repeat("x", maxFailedTestName+1))
+		if got := failedTestNames(many.Bytes()); len(got) != maxFailedTests || got[0] != "TestCase0" {
+			t.Fatalf("names = %#v", got)
+		}
+		if got := failedTestNames([]byte("--- FAIL: " + strings.Repeat("y", maxFailedTestName+1) + " (0.00s)\n")); got != nil {
+			t.Fatalf("over-long name kept: %#v", got)
+		}
+	})
+}
+
+func TestAncestryRewrittenCheckoutRefusesBaseProbe(t *testing.T) {
+	rewrites := map[string]func(t *testing.T, root string){
+		"grafts": func(t *testing.T, root string) {
+			head := strings.TrimSpace(localGit(t, root, "rev-parse", "HEAD"))
+			if err := os.MkdirAll(filepath.Join(root, ".git/info"), 0o700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(root, ".git/info/grafts"), []byte(head+"\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		},
+		"shallow": func(t *testing.T, root string) {
+			head := strings.TrimSpace(localGit(t, root, "rev-parse", "HEAD"))
+			if err := os.WriteFile(filepath.Join(root, ".git/shallow"), []byte(head+"\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		},
+	}
+	for name, rewrite := range rewrites {
+		t.Run("LCP-V0-036 begin refuses "+name, func(t *testing.T) {
+			root, key, plan := fixture(t, []string{"true"})
+			rewrite(t, root)
+			raw, _ := json.Marshal(plan)
+			if _, err := Begin(context.Background(), root, key, raw); err == nil || err.Error() != "ancestry-rewritten" {
+				t.Fatalf("begin: %v, want ancestry-rewritten", err)
+			}
+			if _, err := os.Stat(filepath.Join(root, ".git/corvint/local-completion", key, "state.json")); !os.IsNotExist(err) {
+				t.Fatalf("refused enrollment recorded state.json: %v", err)
+			}
+		})
+		t.Run("LCP-V0-036 status and finish refuse "+name+" after begin", func(t *testing.T) {
+			root, key, plan := fixture(t, []string{"true"})
+			beginFixture(t, root, key, plan)
+			rewrite(t, root)
+			statePath := filepath.Join(root, ".git/corvint/local-completion", key, "state.json")
+			before, err := os.ReadFile(statePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := Evaluate(context.Background(), root, key); err == nil || err.Error() != "ancestry-rewritten" {
+				t.Fatalf("status: %v, want ancestry-rewritten", err)
+			}
+			if result, err := Finish(context.Background(), root, key, nil); err == nil || err.Error() != "ancestry-rewritten" || result.Satisfied {
+				t.Fatalf("finish: %#v %v, want ancestry-rewritten", result, err)
+			}
+			after, err := os.ReadFile(statePath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(before) != string(after) {
+				t.Fatal("finish wrote local state in a rewritten-ancestry checkout")
+			}
+		})
+	}
+}
+
+// TestCancelActiveEnrollmentRequiresReason covers LCP-V0-038 (V1-2177): a bare
+// cancel of an active, unsatisfied enrollment is refused with the counts it
+// would close and leaves the enrollment active; a reason closes it.
+func TestCancelActiveEnrollmentRequiresReason(t *testing.T) {
+	root, key, plan := fixture(t, []string{"true"})
+	repo := beginFixture(t, root, key, plan)
+	before, _ := os.ReadFile(repo.local("state.json"))
+	_, err := Cancel(context.Background(), root, key, "")
+	var refusal *CancelReasonError
+	if err == nil || err.Error() != "cancel-reason-required" || !errors.As(err, &refusal) {
+		t.Fatalf("bare cancel of an active enrollment: %v", err)
+	}
+	if want := "closes 1 selected checks and 0 saved observations"; !strings.Contains(refusal.Detail(), want) {
+		t.Fatalf("detail %q lacks %q", refusal.Detail(), want)
+	}
+	if after, _ := os.ReadFile(repo.local("state.json")); !bytes.Equal(before, after) {
+		t.Fatal("refused cancel mutated the enrollment")
+	}
+	result, err := Cancel(context.Background(), root, key, "base moved; new worktree enrolled")
+	if err != nil || result.Lifecycle != "cancelled" {
+		t.Fatalf("cancel with a reason: %#v %v", result, err)
+	}
+	// A cancelled enrollment is no longer active, so a repeated bare cancel is not refused.
+	if _, err = Cancel(context.Background(), root, key, ""); err != nil {
+		t.Fatalf("repeat cancel: %v", err)
+	}
+}
+
+// TestStagedBeginAfterSatisfiedStageRefusesAndKeepsIt covers V1-0953: after a
+// satisfied stage-1 enrollment whose target is now an ancestor of HEAD, a
+// stage-2 begin in the same clone refuses prior-completion-stale (its remedy
+// names the fresh-worktree route) and leaves the stage-1 record untouched.
+func TestStagedBeginAfterSatisfiedStageRefusesAndKeepsIt(t *testing.T) {
+	root, key, plan := fixture(t, []string{"true"})
+	repo := beginFixture(t, root, key, plan)
+	saved, err := repo.load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved.Lifecycle = "satisfied"
+	if err = repo.save(saved); err != nil {
+		t.Fatal(err)
+	}
+	stage1, _ := os.ReadFile(repo.local("state.json"))
+	if err = os.WriteFile(filepath.Join(root, "stage2.go"), []byte("package fixture\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	localGit(t, root, "add", "stage2.go")
+	localGit(t, root, "commit", "-qm", "stage 2")
+	next := plan
+	next.Base = localGit(t, root, "rev-parse", "HEAD")
+	raw, _ := json.Marshal(next)
+	if _, err = Begin(context.Background(), root, key, raw); err == nil || err.Error() != "prior-completion-stale" {
+		t.Fatalf("stage-2 begin: %v, want prior-completion-stale", err)
+	}
+	if after, _ := os.ReadFile(repo.local("state.json")); !bytes.Equal(stage1, after) {
+		t.Fatal("refused stage-2 begin changed the stage-1 record")
+	}
+}

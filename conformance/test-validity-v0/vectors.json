@@ -1,0 +1,211 @@
+{
+  "version": "test-validity-v0",
+  "description": "Shared native test-validity projection vectors (roadmap IPR-06). Both the Go projector (internal/testvalidity) and the VS Code TypeScript mirror (extensions/vscode/src/testvalidity.ts) must produce exactly the 'expected' projection for each case's 'input'. No case's expected projection collapses its five axes into one boolean.",
+  "cases": [
+    {
+      "name": "empty-test",
+      "input": {
+        "claim": {
+          "associationState": "ASSOCIATED",
+          "hygieneState": "INELIGIBLE",
+          "reportState": "NOT_MATCHED",
+          "reasons": ["empty-body"],
+          "anchors": ["OBL-1", "CLM-1", "unit-empty"]
+        },
+        "execution": null,
+        "mutation": null
+      },
+      "expected": {
+        "association": { "state": "ASSOCIATED", "reason": "", "anchors": ["OBL-1", "CLM-1", "unit-empty"] },
+        "hygiene": { "state": "INELIGIBLE", "reason": "empty-body", "anchors": ["OBL-1", "CLM-1", "unit-empty"] },
+        "freshness": { "state": "UNKNOWN", "reason": "no-execution-report", "anchors": null },
+        "execution": { "state": "NOT_MATCHED", "reason": "", "anchors": ["OBL-1", "CLM-1", "unit-empty"] },
+        "strength": { "state": "NOT_MEASURED", "reason": "no-mutation-run", "anchors": null }
+      }
+    },
+    {
+      "name": "always-skipped-test",
+      "input": {
+        "claim": {
+          "associationState": "ASSOCIATED",
+          "hygieneState": "INELIGIBLE",
+          "reportState": "SKIPPED",
+          "reasons": ["unconditional-skip", "test-skipped"],
+          "anchors": ["OBL-2", "CLM-2", "unit-skip"]
+        },
+        "execution": null,
+        "mutation": null
+      },
+      "expected": {
+        "association": { "state": "ASSOCIATED", "reason": "", "anchors": ["OBL-2", "CLM-2", "unit-skip"] },
+        "hygiene": { "state": "INELIGIBLE", "reason": "unconditional-skip", "anchors": ["OBL-2", "CLM-2", "unit-skip"] },
+        "freshness": { "state": "UNKNOWN", "reason": "no-execution-report", "anchors": null },
+        "execution": { "state": "SKIPPED", "reason": "test-skipped", "anchors": ["OBL-2", "CLM-2", "unit-skip"] },
+        "strength": { "state": "NOT_MEASURED", "reason": "no-mutation-run", "anchors": null }
+      }
+    },
+    {
+      "name": "wrong-target",
+      "input": {
+        "claim": {
+          "associationState": "ASSOCIATED",
+          "hygieneState": "INELIGIBLE",
+          "reportState": "NOT_MATCHED",
+          "reasons": ["wrong-target", "test-not-matched"],
+          "anchors": ["OBL-3", "CLM-3", "unit-wrong"]
+        },
+        "execution": null,
+        "mutation": null
+      },
+      "expected": {
+        "association": { "state": "ASSOCIATED", "reason": "", "anchors": ["OBL-3", "CLM-3", "unit-wrong"] },
+        "hygiene": { "state": "INELIGIBLE", "reason": "wrong-target", "anchors": ["OBL-3", "CLM-3", "unit-wrong"] },
+        "freshness": { "state": "UNKNOWN", "reason": "no-execution-report", "anchors": null },
+        "execution": { "state": "NOT_MATCHED", "reason": "test-not-matched", "anchors": ["OBL-3", "CLM-3", "unit-wrong"] },
+        "strength": { "state": "NOT_MEASURED", "reason": "no-mutation-run", "anchors": null }
+      }
+    },
+    {
+      "name": "stale-execution",
+      "input": {
+        "claim": {
+          "associationState": "ASSOCIATED",
+          "hygieneState": "ELIGIBLE",
+          "reportState": "PASSED",
+          "reasons": [],
+          "anchors": ["OBL-4", "CLM-4", "unit-stale"]
+        },
+        "execution": { "outcome": "INCOMPLETE", "cause": "STALE", "currency": "STALE", "anchors": ["wei:stale-run"] },
+        "mutation": null
+      },
+      "expected": {
+        "association": { "state": "ASSOCIATED", "reason": "", "anchors": ["OBL-4", "CLM-4", "unit-stale"] },
+        "hygiene": { "state": "ELIGIBLE", "reason": "", "anchors": ["OBL-4", "CLM-4", "unit-stale"] },
+        "freshness": { "state": "STALE", "reason": "workspace-execution-identity-mismatch", "anchors": ["wei:stale-run"] },
+        "execution": { "state": "INFRASTRUCTURE", "reason": "STALE", "anchors": ["wei:stale-run"] },
+        "strength": { "state": "NOT_MEASURED", "reason": "no-mutation-run", "anchors": null }
+      }
+    },
+    {
+      "name": "unmatched-report",
+      "input": {
+        "claim": {
+          "associationState": "ASSOCIATED",
+          "hygieneState": "ELIGIBLE",
+          "reportState": "NOT_MATCHED",
+          "reasons": ["test-not-matched"],
+          "anchors": ["OBL-5", "CLM-5", "unit-unmatched"]
+        },
+        "execution": null,
+        "mutation": null
+      },
+      "expected": {
+        "association": { "state": "ASSOCIATED", "reason": "", "anchors": ["OBL-5", "CLM-5", "unit-unmatched"] },
+        "hygiene": { "state": "ELIGIBLE", "reason": "", "anchors": ["OBL-5", "CLM-5", "unit-unmatched"] },
+        "freshness": { "state": "UNKNOWN", "reason": "no-execution-report", "anchors": null },
+        "execution": { "state": "NOT_MATCHED", "reason": "test-not-matched", "anchors": ["OBL-5", "CLM-5", "unit-unmatched"] },
+        "strength": { "state": "NOT_MEASURED", "reason": "no-mutation-run", "anchors": null }
+      }
+    },
+    {
+      "name": "passing-reported-result",
+      "input": {
+        "claim": {
+          "associationState": "ASSOCIATED",
+          "hygieneState": "ELIGIBLE",
+          "reportState": "PASSED",
+          "reasons": [],
+          "anchors": ["OBL-6", "CLM-6", "unit-pass"]
+        },
+        "execution": { "outcome": "PASSED", "cause": "", "currency": "CURRENT", "anchors": ["wei:pass-run"] },
+        "mutation": null
+      },
+      "expected": {
+        "association": { "state": "ASSOCIATED", "reason": "", "anchors": ["OBL-6", "CLM-6", "unit-pass"] },
+        "hygiene": { "state": "ELIGIBLE", "reason": "", "anchors": ["OBL-6", "CLM-6", "unit-pass"] },
+        "freshness": { "state": "CURRENT", "reason": "", "anchors": ["wei:pass-run"] },
+        "execution": { "state": "PASSED", "reason": "", "anchors": ["wei:pass-run"] },
+        "strength": { "state": "NOT_MEASURED", "reason": "no-mutation-run", "anchors": null }
+      }
+    },
+    {
+      "name": "unsupported-input",
+      "input": { "claim": null, "execution": null, "mutation": null },
+      "expected": {
+        "association": { "state": "UNSUPPORTED", "reason": "no-input-supplied", "anchors": null },
+        "hygiene": { "state": "UNSUPPORTED", "reason": "no-input-supplied", "anchors": null },
+        "freshness": { "state": "UNSUPPORTED", "reason": "no-input-supplied", "anchors": null },
+        "execution": { "state": "UNSUPPORTED", "reason": "no-input-supplied", "anchors": null },
+        "strength": { "state": "UNSUPPORTED", "reason": "no-input-supplied", "anchors": null }
+      }
+    },
+    {
+      "name": "surviving-mutation",
+      "input": {
+        "claim": null,
+        "execution": null,
+        "mutation": { "verdict": "SURVIVED", "detail": "mutant at calc.go:42 survived every claimed test", "witness": null }
+      },
+      "expected": {
+        "association": { "state": "UNSUPPORTED", "reason": "no-association-input", "anchors": null },
+        "hygiene": { "state": "UNSUPPORTED", "reason": "no-association-input", "anchors": null },
+        "freshness": { "state": "UNKNOWN", "reason": "no-execution-report", "anchors": null },
+        "execution": { "state": "UNSUPPORTED", "reason": "no-execution-input", "anchors": null },
+        "strength": { "state": "SURVIVED", "reason": "mutant at calc.go:42 survived every claimed test", "anchors": null }
+      }
+    },
+    {
+      "name": "killed-mutation",
+      "input": {
+        "claim": null,
+        "execution": null,
+        "mutation": {
+          "verdict": "KILLED",
+          "detail": "mutant at calc.go:42 died under TestCalcAdd",
+          "witness": { "operator": "go-arith-flip", "start": 120, "end": 121, "killingTest": "TestCalcAdd" }
+        }
+      },
+      "expected": {
+        "association": { "state": "UNSUPPORTED", "reason": "no-association-input", "anchors": null },
+        "hygiene": { "state": "UNSUPPORTED", "reason": "no-association-input", "anchors": null },
+        "freshness": { "state": "UNKNOWN", "reason": "no-execution-report", "anchors": null },
+        "execution": { "state": "UNSUPPORTED", "reason": "no-execution-input", "anchors": null },
+        "strength": {
+          "state": "KILLED",
+          "reason": "witnessed-kill: mutant at calc.go:42 died under TestCalcAdd",
+          "anchors": ["go-arith-flip", "TestCalcAdd"]
+        }
+      }
+    },
+    {
+      "name": "skipped-reported-result",
+      "input": {
+        "claim": null,
+        "execution": { "outcome": "SKIPPED", "cause": "", "currency": "CURRENT", "anchors": ["go:fixture#TestSkip"] },
+        "mutation": null
+      },
+      "expected": {
+        "association": { "state": "UNSUPPORTED", "reason": "no-association-input", "anchors": null },
+        "hygiene": { "state": "UNSUPPORTED", "reason": "no-association-input", "anchors": null },
+        "freshness": { "state": "CURRENT", "reason": "", "anchors": ["go:fixture#TestSkip"] },
+        "execution": { "state": "SKIPPED", "reason": "test-skipped", "anchors": ["go:fixture#TestSkip"] },
+        "strength": { "state": "NOT_MEASURED", "reason": "no-mutation-run", "anchors": null }
+      }
+    },
+    {
+      "name": "skipped-with-cause-abstains",
+      "input": {
+        "claim": null,
+        "execution": { "outcome": "SKIPPED", "cause": "ASSERTION_OR_TEST", "currency": "CURRENT", "anchors": ["go:fixture#TestSkip"] },
+        "mutation": null
+      },
+      "expected": {
+        "association": { "state": "UNSUPPORTED", "reason": "no-association-input", "anchors": null },
+        "hygiene": { "state": "UNSUPPORTED", "reason": "no-association-input", "anchors": null },
+        "freshness": { "state": "CURRENT", "reason": "", "anchors": ["go:fixture#TestSkip"] },
+        "execution": { "state": "UNSUPPORTED", "reason": "unsupported-execution-outcome", "anchors": ["go:fixture#TestSkip"] },
+        "strength": { "state": "NOT_MEASURED", "reason": "no-mutation-run", "anchors": null }
+      }
+    }
+  ]
+}

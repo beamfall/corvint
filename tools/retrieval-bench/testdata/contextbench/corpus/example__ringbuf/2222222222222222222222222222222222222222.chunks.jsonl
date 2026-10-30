@@ -1,0 +1,3 @@
+{"kind": "file", "path": "README.md", "text": "# ringbuf\nA fixed-size FIFO buffer.\n"}
+{"kind": "file", "path": "ring.go", "text": "package ringbuf\n\n// Ring is a fixed-size FIFO buffer.\ntype Ring struct {\n\titems []int\n\thead  int\n}\n\n// Len reports the number of buffered items.\nfunc (r *Ring) Len() int { return len(r.items) - r.head }\n"}
+{"kind": "file", "path": "ring_test.go", "text": "package ringbuf\n\nimport \"testing\"\n\nfunc TestLenAfterWrap(t *testing.T) {}\n\n"}

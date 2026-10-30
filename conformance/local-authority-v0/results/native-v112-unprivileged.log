@@ -1,0 +1,42 @@
+=== RUN   TestCapsuleHashAndPathBoundary
+--- PASS: TestCapsuleHashAndPathBoundary (0.00s)
+=== RUN   TestEnrollmentCopyAnchorsDirectoryFD
+--- PASS: TestEnrollmentCopyAnchorsDirectoryFD (0.04s)
+=== RUN   TestMutableBundleSpecialFileRefused
+--- PASS: TestMutableBundleSpecialFileRefused (0.00s)
+=== RUN   TestReleaseRejectsPathAndModeSubstitution
+--- PASS: TestReleaseRejectsPathAndModeSubstitution (0.00s)
+=== RUN   TestAuthorityCommandsDefaultUnavailable
+--- PASS: TestAuthorityCommandsDefaultUnavailable (0.00s)
+=== RUN   TestAccountLedgerIdentity
+--- PASS: TestAccountLedgerIdentity (0.00s)
+=== RUN   TestDriverRejectsForgedVerdicts
+--- PASS: TestDriverRejectsForgedVerdicts (0.00s)
+=== RUN   TestSourceAdmission
+--- PASS: TestSourceAdmission (0.00s)
+=== RUN   TestRuntimeBounds
+--- PASS: TestRuntimeBounds (2.51s)
+=== RUN   TestForbiddenImport
+--- PASS: TestForbiddenImport (0.00s)
+=== RUN   TestOutputBound
+--- PASS: TestOutputBound (0.00s)
+=== RUN   TestRealPackageAndMutant
+    runner_test.go:146: bad=false receipt={"profile":"corvint-protected-execution/0","authority":"NONE","checkId":"wp3codec-canonical-v0","invocationId":"wp3codec-wasip1-go1.27-v0","nonce":"629ebc4c3374e49a73e1a425bddcb409e3c5a9c0f1d9fddeb417b214d8d36328","sourceSHA256":"ccc1f0fee4d7d3d411bdb8fb3ff53f07fd92c904c406019c6acbf3f78041cb52","recipeSHA256":"73445c1ab52686629461710eff882cfd22300d09070e363e8e7c57874d3d1f3c","wasmSHA256":"62003854f53b0de52145dba4d0841b1926ee3527d5ba0202cd9c2fa2e457d6b6","workerSHA256":"97e65dcbb117e28fdef724ec17ccfbca43a47e3771eca4b805f857a8dc51ed7c","driverSHA256":"bfb60fba810b60354735976988677f6059b520bc4f0597e694ac42e8b5223458","status":"PASS","cleanup":"OWNED_GROUP_REAPED"}
+    runner_test.go:146: bad=true receipt={"profile":"corvint-protected-execution/0","authority":"NONE","checkId":"wp3codec-canonical-v0","invocationId":"wp3codec-wasip1-go1.27-v0","nonce":"a606517ae410047ecdfa3d21b6335ebade7c40123a067a07f64713a96c1fe3e5","sourceSHA256":"9a3db15adb5ea21360090f99b8a177c06367e15dddf203f75509fe7c22860db1","recipeSHA256":"73445c1ab52686629461710eff882cfd22300d09070e363e8e7c57874d3d1f3c","wasmSHA256":"fa01518fe48825cfe07786259835fd1a195693268afff471ca6adda8d6da08d0","workerSHA256":"97e65dcbb117e28fdef724ec17ccfbca43a47e3771eca4b805f857a8dc51ed7c","driverSHA256":"bfb60fba810b60354735976988677f6059b520bc4f0597e694ac42e8b5223458","status":"FAIL","reason":"PLE-V0-005 canonical vectors assertion failed: escape","cleanup":"OWNED_GROUP_REAPED"}
+--- PASS: TestRealPackageAndMutant (6.57s)
+=== RUN   TestGuardianLossAndSignals
+=== RUN   TestGuardianLossAndSignals/interrupt
+=== RUN   TestGuardianLossAndSignals/terminated
+=== RUN   TestGuardianLossAndSignals/killed
+--- PASS: TestGuardianLossAndSignals (0.26s)
+    --- PASS: TestGuardianLossAndSignals/interrupt (0.09s)
+    --- PASS: TestGuardianLossAndSignals/terminated (0.09s)
+    --- PASS: TestGuardianLossAndSignals/killed (0.09s)
+=== RUN   TestSuperviseCancellation
+--- PASS: TestSuperviseCancellation (0.00s)
+=== RUN   TestIgnoredWASIOutputErrorStillFails
+--- PASS: TestIgnoredWASIOutputErrorStillFails (0.00s)
+=== RUN   TestTableAllocationBound
+--- PASS: TestTableAllocationBound (0.00s)
+PASS
+ok  	github.com/corvint-context/corvint/tools/local-authority	9.682s

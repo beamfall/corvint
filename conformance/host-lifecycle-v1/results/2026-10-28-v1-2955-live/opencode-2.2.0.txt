@@ -1,0 +1,8 @@
+host-lifecycle-v1-live	host=opencode	surface=plugin	hostVersion=2.2.0	adapterVersion=0.7.33	os=darwin/arm64	corvint=Corvint 1.0.0-rc.3.dev (commit aa3b6e4f0109e3d8f2f21101db9f0e60056df099, modified)	source=65bedac9b30a189932d29afb0b0a169b720c5e0d	provider=loopback
+case	dispatch	PASS	host exit=0 elapsed=1.599s dispatched=[user-prompt,stop] invocations=4
+case	timeout	PASS	host exit=0 elapsed=2.787s held=true released=false heldAlive=false
+case	cancellation	PASS	host exit=130 elapsed=840ms interrupted=true released=false heldAlive=false
+case	cleanup	PASS	all 5 recorded invocation processes exited
+verdict	installation	NOT_RUN	the live session loads the plugin from source by file URL; installation is qualified only by the nine-case run
+verdict	dispatch	PASS	live cases dispatch,timeout,cancellation,cleanup
+verdict	authority	FALLBACK	declared status FALLBACK; the host supplies no protected authority this harness can observe

@@ -1,0 +1,57 @@
+{
+  "authored_by": "agent without Corvint access",
+  "date": "2026-09-01",
+  "first_observation": {
+    "access": "none",
+    "corvint_commit": "15d1792b5879a7cc9ea69f4ade078723d96c4a9f",
+    "date": "2026-09-02",
+    "effort": "medium",
+    "limit": 20,
+    "model": "gpt-5.6-sol",
+    "note": "first observation; the set is development from this date",
+    "report": "benchmarks/results/cw-trial-heldout-v1-first-run.json",
+    "report_sha256": "265b5dc12f02b3bf43fa6f8879c44618df73437ed8da0fc193199234cb4488e7"
+  },
+  "name": "heldout-v1",
+  "partition": "held-out",
+  "per_language_counts": {
+    "config": 1,
+    "docs": 1,
+    "go": 24,
+    "java": 1,
+    "python": 16,
+    "rust": 6,
+    "typescript": 1
+  },
+  "per_mode_counts": {
+    "change": 30,
+    "retrieval": 20
+  },
+  "per_release_counts": {
+    "v2_comment2context": {
+      "count": 18,
+      "failed_verification": 0,
+      "population": 80
+    },
+    "v2_edit2ripple": {
+      "count": 12,
+      "failed_verification": 0,
+      "population": 58
+    },
+    "v2_trace2code": {
+      "count": 20,
+      "failed_verification": 0,
+      "population": 101
+    }
+  },
+  "replacements": [],
+  "sampling_rule": "Per release (quota trace2code=20, edit2ripple=12, comment2context=18): sort samples by (language, sample id) where language is the majority file-extension language of the gold paths plus the changed file (ties alphabetical); select index floor(i*N/n) for i in 0..n-1; verify every gold path is a kind:file row of corpus/<release>/OWNER__NAME/COMMIT.chunks.jsonl; on failure drop and take the next not-yet-selected sample in the same order. No difficulty judgement. Sources: released ARB v2_trace2code, v2_edit2ripple, v2_comment2context; v2_code2test and v2_abstention excluded (development).",
+  "sources": [
+    "v2_trace2code",
+    "v2_edit2ripple",
+    "v2_comment2context"
+  ],
+  "target_version": "falsifiable-packet-v0",
+  "task_count": 50,
+  "tasks_sha256": "8147b92429d915fd9e0818a028b688be86edf27b98f075c26268b6643def0d98"
+}

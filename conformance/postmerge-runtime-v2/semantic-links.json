@@ -1,0 +1,269 @@
+{
+  "acyclicOrder": [
+    "logical process facts (no semantic links)",
+    "attestation typed subtrees",
+    "provider typed receipts",
+    "hook typed receipts",
+    "nested control EvidenceReceipt",
+    "whole decision"
+  ],
+  "associationSchema": {
+    "additionalProperties": false,
+    "properties": {
+      "attempt_ordinal": {
+        "anyOf": [
+          {
+            "maximum": 9223372036854775807,
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "attestation_phase": {
+        "anyOf": [
+          {
+            "enum": [
+              "before",
+              "after"
+            ]
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "control_index": {
+        "anyOf": [
+          {
+            "maximum": 9223372036854775807,
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "control_ordinal": {
+        "anyOf": [
+          {
+            "maximum": 9223372036854775807,
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "draft_commit": {
+        "maxLength": 4096,
+        "type": "string"
+      },
+      "planned_control_id": {
+        "anyOf": [
+          {
+            "maxLength": 4096,
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "product_commit": {
+        "maxLength": 4096,
+        "type": "string"
+      },
+      "request_digest": {
+        "maxLength": 4096,
+        "type": "string"
+      },
+      "run_index": {
+        "anyOf": [
+          {
+            "maximum": 9223372036854775807,
+            "minimum": 0,
+            "type": "integer"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "run_kind": {
+        "maxLength": 4096,
+        "type": "string"
+      },
+      "run_ordinal": {
+        "maximum": 9223372036854775807,
+        "minimum": 0,
+        "type": "integer"
+      },
+      "test_commit": {
+        "maxLength": 4096,
+        "type": "string"
+      },
+      "test_ids": {
+        "items": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "maxItems": 32,
+        "type": "array"
+      }
+    },
+    "required": [
+      "request_digest",
+      "product_commit",
+      "test_commit",
+      "draft_commit",
+      "run_index",
+      "run_kind",
+      "run_ordinal",
+      "test_ids",
+      "control_index",
+      "planned_control_id",
+      "control_ordinal",
+      "attempt_ordinal",
+      "attestation_phase"
+    ],
+    "type": "object"
+  },
+  "linkWire": "closed {kind,locator,sha256}; kind/locator pair must match schema branch",
+  "locators": {
+    "attestation": "^/providers/(0|[1-9][0-9]*)/receipt/applicationAttestation/(before|after)/attestation$",
+    "control-evidence": "^/assessment/controls/(0|[1-9][0-9]*)/evidence$",
+    "hook": "^/hooks/(0|[1-9][0-9]*)/receipt$",
+    "provider": "^/providers/(0|[1-9][0-9]*)/receipt$"
+  },
+  "nodeDomain": "ASCII corvint-new-e2e-semantic-node/2 + NUL + wire.CanonicalValue(preimage)",
+  "preimage": {
+    "association": "full derived association per associationSchema",
+    "kind": "target kind enum",
+    "locator": "canonical literal pointer into exact decision",
+    "payload": "exact typed subtree at locator, not its containing wrapper/observation; contains already recomputed child links"
+  },
+  "profile": "postmerge-semantic-links/2",
+  "registryOrder": {
+    "attestations": "canonical nested before/after/attestation locators, no registry or containing-provider backlink",
+    "controls": "native report.Controls original order exactly matching request.Tests",
+    "hooks": "one per control/result/attempt in original nested order",
+    "providers": "one per native Report.Run in original array order, then one per control/result/attempt in original nested order"
+  },
+  "rows": [
+    {
+      "associationJoins": "Native request digest/product/test/draft commits exact; run/test/control indexes+ids+ordinals+attempt derived from native input/report; wrapper association exactly matches fixed context; baseline provider for this exact run I",
+      "multiplicity": "Exactly one provider per actual native run; native_receipt and receipt_sha256 target same locator",
+      "rawPreimage": "Base64 decoded exact run.NativeReceipt; Hash(native bytes)==run.ReceiptSHA256",
+      "source": "Report.runs[I].native_receipt",
+      "targetKind": "provider",
+      "targetLocator": "P=index of matching registry entry in native run order then control/result/attempt order; locator /providers/P/receipt",
+      "targetSchema": "sem.jstestprovider.Receipt"
+    },
+    {
+      "associationJoins": "Native request digest/product/test/draft commits exact; run/test/control indexes+ids+ordinals+attempt derived from native input/report; wrapper association exactly matches fixed context; same native run I",
+      "multiplicity": "Exactly same target as native_receipt",
+      "rawPreimage": "Same native byte preimage; testacceptance.Hash gives sha256:lowerhex",
+      "source": "Report.runs[I].receipt_sha256",
+      "targetKind": "provider",
+      "targetLocator": "P=index of matching registry entry in native run order then control/result/attempt order; locator /providers/P/receipt",
+      "targetSchema": "sem.jstestprovider.Receipt"
+    },
+    {
+      "associationJoins": "Native request digest/product/test/draft commits exact; run/test/control indexes+ids+ordinals+attempt derived from native input/report; wrapper association exactly matches fixed context; Control.ID==request.Tests[C].ID, plan/tool/complete attempt joins",
+      "multiplicity": "Exactly one nested evidence target per control C; target outside sibling receipt_digest",
+      "rawPreimage": "Original EvidenceReceipt with Digest emptied, behaviorfalsify marshalJSON no LF HTML escaping disabled; SHA256 prefixed sha256:, plus VerifyReceipt",
+      "source": "Report.controls[C].receipt_digest",
+      "targetKind": "control-evidence",
+      "targetLocator": "C=request/report control index; locator /assessment/controls/C/evidence",
+      "targetSchema": "sem.behaviorfalsify.EvidenceReceipt"
+    },
+    {
+      "associationJoins": "Native request digest/product/test/draft commits exact; run/test/control indexes+ids+ordinals+attempt derived from native input/report; wrapper association exactly matches fixed context; ControlID/Ordinal/Attempt full bijection; decoded hook==nested attempt receipt",
+      "multiplicity": "One hook per complete control/result/attempt tuple; repeated references same target allowed",
+      "rawPreimage": "Exact raw HookBytes; Hash==HookSHA256==Report.Results[K].Attempts[J].HookProcess.StdoutSHA256",
+      "source": "Evidence.raw_attempts[A].hook_bytes",
+      "targetKind": "hook",
+      "targetLocator": "H=index in controls/results/attempts native order; locator /hooks/H/receipt",
+      "targetSchema": "sem.behaviorfalsify.HookReceipt"
+    },
+    {
+      "associationJoins": "Native request digest/product/test/draft commits exact; run/test/control indexes+ids+ordinals+attempt derived from native input/report; wrapper association exactly matches fixed context; same RawAttempt tuple",
+      "multiplicity": "Same target as hook_bytes",
+      "rawPreimage": "Exact same HookBytes as previous row",
+      "source": "Evidence.raw_attempts[A].hook_sha256",
+      "targetKind": "hook",
+      "targetLocator": "H=index in controls/results/attempts native order; locator /hooks/H/receipt",
+      "targetSchema": "sem.behaviorfalsify.HookReceipt"
+    },
+    {
+      "associationJoins": "Native request digest/product/test/draft commits exact; run/test/control indexes+ids+ordinals+attempt derived from native input/report; wrapper association exactly matches fixed context; control-native provider for this exact tuple; full sameFreshClosure versus every baseline",
+      "multiplicity": "One provider per control/result/attempt tuple; target distinct from all baseline providers",
+      "rawPreimage": "Exact NativeBytes; hash==NativeSHA256==decodedHook.NativeReceiptSHA256",
+      "source": "Evidence.raw_attempts[A].native_bytes",
+      "targetKind": "provider",
+      "targetLocator": "P=index of matching registry entry in native run order then control/result/attempt order; locator /providers/P/receipt",
+      "targetSchema": "sem.jstestprovider.Receipt"
+    },
+    {
+      "associationJoins": "Native request digest/product/test/draft commits exact; run/test/control indexes+ids+ordinals+attempt derived from native input/report; wrapper association exactly matches fixed context; same RawAttempt tuple",
+      "multiplicity": "Same target as native_bytes",
+      "rawPreimage": "Exact same NativeBytes as previous row",
+      "source": "Evidence.raw_attempts[A].native_sha256",
+      "targetKind": "provider",
+      "targetLocator": "P=index of matching registry entry in native run order then control/result/attempt order; locator /providers/P/receipt",
+      "targetSchema": "sem.jstestprovider.Receipt"
+    },
+    {
+      "associationJoins": "Native request digest/product/test/draft commits exact; run/test/control indexes+ids+ordinals+attempt derived from native input/report; wrapper association exactly matches fixed context; hook target/runner/plan/perturbation/attempt matches approved control",
+      "multiplicity": "Same control-native target as RawAttempt native fields",
+      "rawPreimage": "Exact native bytes of corresponding RawAttempt; no inferred digest-only proof",
+      "source": "Hook.native_receipt_sha256 (registry and nested attempt receipt)",
+      "targetKind": "provider",
+      "targetLocator": "P=index of matching registry entry in native run order then control/result/attempt order; locator /providers/P/receipt",
+      "targetSchema": "sem.jstestprovider.Receipt"
+    },
+    {
+      "associationJoins": "Native request digest/product/test/draft commits exact; run/test/control indexes+ids+ordinals+attempt derived from native input/report; wrapper association exactly matches fixed context; this HookProcess only, not CleanupProcess or arbitrary equal log hash",
+      "multiplicity": "Same hook target as RawAttempt hook fields. CleanupProcess stdout uses log-fact only",
+      "rawPreimage": "Exact retained successful hook stdout==RawAttempt.HookBytes; native byte hash verified",
+      "source": "Evidence.Report.Results[K].Attempts[J].HookProcess.stdout_sha256",
+      "targetKind": "hook",
+      "targetLocator": "H=index in controls/results/attempts native order; locator /hooks/H/receipt",
+      "targetSchema": "sem.behaviorfalsify.HookReceipt"
+    },
+    {
+      "associationJoins": "Native request digest/product/test/draft commits exact; run/test/control indexes+ids+ordinals+attempt derived from native input/report; wrapper association exactly matches fixed context; Q before/after exact, provider identity+expectation and process birth join",
+      "multiplicity": "Exactly one target per present observation; before and after separate locators even if payload bytes equal",
+      "rawPreimage": "Exact retained attestation provider stdout; lowercase raw SHA256 matches native outputDigest; strict decode equals native Q.Attestation",
+      "source": "Provider.applicationAttestation.Q.outputDigest",
+      "targetKind": "attestation",
+      "targetLocator": "P=containing verified provider; Q=before|after; locator /providers/P/receipt/applicationAttestation/Q/attestation",
+      "targetSchema": "sem.jstestprovider.ApplicationAttestation"
+    },
+    {
+      "associationJoins": "Native request digest/product/test/draft commits exact; run/test/control indexes+ids+ordinals+attempt derived from native input/report; wrapper association exactly matches fixed context; artifact path/position and native report relation verified, no hash-equality inference alone",
+      "multiplicity": "Exactly one native artifact relation per qualified hook; duplicates/ambiguous matches block; all other artifact digests exact strings",
+      "rawPreimage": "Read exact artifact under declared disposable path; bytes equal RawAttempt.NativeBytes and hash==Hook.NativeReceiptSHA256",
+      "source": "Hook.artifacts[T].sha256 where artifact==this hook native receipt",
+      "targetKind": "provider",
+      "targetLocator": "P=index of matching registry entry in native run order then control/result/attempt order; locator /providers/P/receipt",
+      "targetSchema": "sem.jstestprovider.Receipt"
+    },
+    {
+      "associationJoins": "Native request digest/product/test/draft commits exact; run/test/control indexes+ids+ordinals+attempt derived from native input/report; wrapper association exactly matches fixed context; approved tuple and artifact path unique",
+      "multiplicity": "Same control-native target; other artifact digests exact strings",
+      "rawPreimage": "Exact retained artifact content, path+digest matches corresponding decoded Hook native artifact; bytes equal RawAttempt.NativeBytes",
+      "source": "AttemptResult.retained_artifacts[T].sha256 where artifact==this attempt native receipt",
+      "targetKind": "provider",
+      "targetLocator": "P=index of matching registry entry in native run order then control/result/attempt order; locator /providers/P/receipt",
+      "targetSchema": "sem.jstestprovider.Receipt"
+    }
+  ],
+  "status": "PRIVATE_REPAIR1_CONTRACT",
+  "unsupported": "Other link sources/kinds/locators, absent required target, alternate pointer spelling, nonbijective association or cycle blocks positive; no general resolver framework"
+}

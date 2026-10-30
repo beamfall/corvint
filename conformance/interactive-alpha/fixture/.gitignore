@@ -1,0 +1,4 @@
+.corvint/
+node_modules/
+test-results/
+.vitest/

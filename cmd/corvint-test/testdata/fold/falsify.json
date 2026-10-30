@@ -1,0 +1,375 @@
+{
+  "schema": "corvint-test-fold-golden/0",
+  "group": "falsify",
+  "old": "corvint-behavior-falsify",
+  "new": "corvint-test falsify",
+  "request": {
+    "schema": "corvint-browser-behavior-evidence/1",
+    "plan_preimage": "eyJzY2hlbWEiOiJjb3J2aW50LWJyb3dzZXItYmVoYXZpb3ItZmFsc2lmaWNhdGlvbi1wbGFuLzAiLCJyZXF1ZXN0Ijp7InRhcmdldCI6eyJjb250cmFjdF9pZCI6ImNvbnRyYWN0OmNoZWNrb3V0IiwiY29udHJhY3Rfc2hhMjU2Ijoic2hhMjU2OmI4NDM5Y2M1MTZkOGQ3ZGE5ZTBlMTRjOWI5MTE1ZjljOWViYTc1YTYyMTEwMTBhODliM2FhMmQ5YTFhODJjMmIiLCJjcml0ZXJpb25faWQiOiJjcml0ZXJpb246dG90YWwiLCJhc3NlcnRpb25faWQiOiJhc3NlcnRpb246dG90YWwiLCJhcHBsaWNhdGlvbl9yZXZpc2lvbiI6ImZlMzk5MWFiMGI4YWQ1NmZlMDFkZjQ5MzFiZWRkZjY5ZjhjNGZlZWIiLCJ0ZXN0X3JldmlzaW9uIjoiZmUzOTkxYWIwYjhhZDU2ZmUwMWRmNDkzMWJlZGRmNjlmOGM0ZmVlYiIsImRvY3VtZW50YXRpb25fcmV2aXNpb24iOiJmZTM5OTFhYjBiOGFkNTZmZTAxZGY0OTMxYmVkZGY2OWY4YzRmZWViIiwiY29udHJhY3RfZmlsZSI6ImRvY3Mvc3BlY3MvYnJvd3Nlci1iZWhhdmlvci1mYWxzaWZpY2F0aW9uLXYwLm1kIiwidGVzdF9pZCI6InRlc3Q6Y2hlY2tvdXQiLCJ0ZXN0X2ZpbGUiOiJpbnRlcm5hbC9qc3Rlc3Rwcm92aWRlci9leHRlcm5hbF90ZXN0LmdvIiwidGVzdF9saW5lIjoxMiwidGVzdF90aXRsZSI6ImNoZWNrb3V0IHRvdGFsIiwicHJvamVjdCI6ImNocm9taXVtIn0sInJ1bm5lciI6eyJydW5uZXIiOiJwbGF5d3JpZ2h0IiwicnVubmVyX3ZlcnNpb24iOiIxLjYzLjAiLCJicm93c2VyIjoiY2hyb21pdW0iLCJicm93c2VyX3ZlcnNpb24iOiIxNTMuMC44MDEwLjQ4IiwiY29uZmlnX2ZpbGUiOiJnby5tb2QiLCJjb25maWdfc2hhMjU2Ijoic2hhMjU2OjY2NDkwMjdlY2MyZGMwZTlkMzRkMDZhNmNlOWU4YTg1OTI1OTk3ZWZkNDIzOWY3YTUwZjIwNmE3Njc2NGIwMmYiLCJlbnZpcm9ubWVudF9zaGEyNTYiOiJzaGEyNTY6NDM4YzlmMTYxMDkwY2IwMzA4ODk5MWRhY2U4N2VjOTcwYjhhMDgyNTcxOWZjMWQ4NzExNTBhZTY1NzNjOTNlYyJ9LCJjb250cm9scyI6bnVsbCwiY2xlYW51cCI6eyJwYXRoIjoiL3Zhci9mb2xkZXJzL3pjL3diNHRkbTR4MGM5ZHBrbWtuOHJkZzlydzAwMDBnbi9UL2dvLWJ1aWxkMjE5NTQxNjU4Mi9iMDAxL2JlaGF2aW9yZmFsc2lmeS50ZXN0IiwiZXhlY3V0YWJsZV9zaGEyNTYiOiJzaGEyNTY6MzAwYzZhNThlZTllMGQ0OWI2ZDM2ODFlNDAxOTQ4ZmU2NzFiOGM1ZDY2OGY4NWZmYzk0Mzc4NTAyMGU3NjI0NCJ9LCJkaXNwb3NhYmxlX3Jvb3QiOiIvcHJpdmF0ZS92YXIvZm9sZGVycy96Yy93YjR0ZG00eDBjOWRwa21rbjhyZGc5cncwMDAwZ24vVC9UZXN0WlpGb2xkR2VuUmVjZWlwdDEyMDMyNDM2NzYvMDAxIiwicmVwb3NpdG9yaWVzIjp7ImFwcGxpY2F0aW9uIjoiL3ByaXZhdGUvdmFyL2ZvbGRlcnMvemMvd2I0dGRtNHgwYzlkcGtta244cmRnOXJ3MDAwMGduL1QvVGVzdFpaRm9sZEdlblJlY2VpcHQxMjAzMjQzNjc2LzAwMiIsInRlc3QiOiIvcHJpdmF0ZS92YXIvZm9sZGVycy96Yy93YjR0ZG00eDBjOWRwa21rbjhyZGc5cncwMDAwZ24vVC9UZXN0WlpGb2xkR2VuUmVjZWlwdDEyMDMyNDM2NzYvMDAyIiwiZG9jdW1lbnRhdGlvbiI6Ii9wcml2YXRlL3Zhci9mb2xkZXJzL3pjL3diNHRkbTR4MGM5ZHBrbWtuOHJkZzlydzAwMDBnbi9UL1Rlc3RaWkZvbGRHZW5SZWNlaXB0MTIwMzI0MzY3Ni8wMDIifSwibWFya2VyX3NoYTI1NiI6InNoYTI1NjpmYzFlYmY3Nzc1MzkzNjVhNDMyNDljM2RkZDBkMWJmOWEzZDlhZTc0ZjhmM2M4Y2Q4NTg5M2E2NjJlYTY4YzVmIiwiZGVjbGFyZWRfZW52X2tleXMiOlsiQ09SVklOVF9CRUhBVklPUl9URVNUX0hFTFBFUiJdLCJhdHRlbXB0cyI6MSwidGltZW91dF9zZWNvbmRzIjo1LCJ3YWxsX2Nsb2NrX3NlY29uZHMiOjMwLCJleHRlcm5hbF9zdGF0ZSI6Im5vbmUifSwicGxhbm5lZF9jb250cm9scyI6W3siaWQiOiJjb250cm9sIiwia2luZCI6Indyb25nLWV4cGVjdGVkLXZhbHVlIiwiZGlzcG9zaXRpb24iOiJydW4iLCJkZWZpbml0aW9uIjp7InNjZW5hcmlvIjoia2lsbGVkIn0sImhvb2siOnsicGF0aCI6Ii92YXIvZm9sZGVycy96Yy93YjR0ZG00eDBjOWRwa21rbjhyZGc5cncwMDAwZ24vVC9nby1idWlsZDIxOTU0MTY1ODIvYjAwMS9iZWhhdmlvcmZhbHNpZnkudGVzdCIsImV4ZWN1dGFibGVfc2hhMjU2Ijoic2hhMjU2OjMwMGM2YTU4ZWU5ZTBkNDliNmQzNjgxZTQwMTk0OGZlNjcxYjhjNWQ2NjhmODVmZmM5NDM3ODUwMjBlNzYyNDQifSwidW5yZWxhdGVkX2NyaXRlcmlhIjpbImNyaXRlcmlvbjp1bnJlbGF0ZWQiXSwicmVxdWlyZWRfc2V0dXAiOlsic2V0dXA6cGFnZSJdLCJvcmRpbmFsIjoxLCJwZXJ0dXJiYXRpb25fc2hhMjU2Ijoic2hhMjU2OjA1YjFmMDczMDVlYjU2NjdmMWQ5MzExNDg0ZTY2NzJlZTExYWE5MDM5MzE5ZmE3YTBhMzA0MzgxNzJlNzkzZjYifV0sIndvcmtzcGFjZV9zaGEyNTYiOiJzaGEyNTY6MzNkMWZkOWViYjNhYjBmOTQ1OTAzZmY4ZGQ4MGI2Y2RhNDUxNGFkNDFjYmFhMzQyOTcwNGMyZmFlNDE1ZDdkNSIsImRpZ2VzdCI6IiJ9",
+    "approval": {
+      "schema": "corvint-browser-behavior-approval/1",
+      "plan_digest": "sha256:6edfe27f26e9089215b935a0f38b01a8a503ed45ca1c6e3030775f340a9f7d56",
+      "method": "explicit-approve-plan",
+      "digest": "sha256:78fa16ec36224fb485cc778972c72b37b608292afb4bf20a9b1e8a494202631b"
+    },
+    "tool": {
+      "name": "corvint-behavior-falsify",
+      "version": "test",
+      "revision": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "executable_sha256": "sha256:c3a9dacf1e6fe0033c64e83db13445a8828e993ccce8aaf0dcc66957ad053af6",
+      "source_dirty": false
+    },
+    "raw_attempts": [
+      {
+        "control_id": "control",
+        "ordinal": 1,
+        "attempt": 1,
+        "hook_bytes": "eyJzY2hlbWEiOiJjb3J2aW50LWJyb3dzZXItYmVoYXZpb3ItY29udHJvbC1ydW4vMCIsInBsYW5fZGlnZXN0Ijoic2hhMjU2OjZlZGZlMjdmMjZlOTA4OTIxNWI5MzVhMGYzOGIwMWE4YTUwM2VkNDVjYTFjNmUzMDMwNzc1ZjM0MGE5ZjdkNTYiLCJwZXJ0dXJiYXRpb25fc2hhMjU2Ijoic2hhMjU2OjA1YjFmMDczMDVlYjU2NjdmMWQ5MzExNDg0ZTY2NzJlZTExYWE5MDM5MzE5ZmE3YTBhMzA0MzgxNzJlNzkzZjYiLCJ0YXJnZXQiOnsiY29udHJhY3RfaWQiOiJjb250cmFjdDpjaGVja291dCIsImNvbnRyYWN0X3NoYTI1NiI6InNoYTI1NjpiODQzOWNjNTE2ZDhkN2RhOWUwZTE0YzliOTExNWY5YzllYmE3NWE2MjExMDEwYTg5YjNhYTJkOWExYTgyYzJiIiwiY3JpdGVyaW9uX2lkIjoiY3JpdGVyaW9uOnRvdGFsIiwiYXNzZXJ0aW9uX2lkIjoiYXNzZXJ0aW9uOnRvdGFsIiwiYXBwbGljYXRpb25fcmV2aXNpb24iOiJmZTM5OTFhYjBiOGFkNTZmZTAxZGY0OTMxYmVkZGY2OWY4YzRmZWViIiwidGVzdF9yZXZpc2lvbiI6ImZlMzk5MWFiMGI4YWQ1NmZlMDFkZjQ5MzFiZWRkZjY5ZjhjNGZlZWIiLCJkb2N1bWVudGF0aW9uX3JldmlzaW9uIjoiZmUzOTkxYWIwYjhhZDU2ZmUwMWRmNDkzMWJlZGRmNjlmOGM0ZmVlYiIsImNvbnRyYWN0X2ZpbGUiOiJkb2NzL3NwZWNzL2Jyb3dzZXItYmVoYXZpb3ItZmFsc2lmaWNhdGlvbi12MC5tZCIsInRlc3RfaWQiOiJ0ZXN0OmNoZWNrb3V0IiwidGVzdF9maWxlIjoiaW50ZXJuYWwvanN0ZXN0cHJvdmlkZXIvZXh0ZXJuYWxfdGVzdC5nbyIsInRlc3RfbGluZSI6MTIsInRlc3RfdGl0bGUiOiJjaGVja291dCB0b3RhbCIsInByb2plY3QiOiJjaHJvbWl1bSJ9LCJydW5uZXIiOnsicnVubmVyIjoicGxheXdyaWdodCIsInJ1bm5lcl92ZXJzaW9uIjoiMS42My4wIiwiYnJvd3NlciI6ImNocm9taXVtIiwiYnJvd3Nlcl92ZXJzaW9uIjoiMTUzLjAuODAxMC40OCIsImNvbmZpZ19maWxlIjoiZ28ubW9kIiwiY29uZmlnX3NoYTI1NiI6InNoYTI1Njo2NjQ5MDI3ZWNjMmRjMGU5ZDM0ZDA2YTZjZTllOGE4NTkyNTk5N2VmZDQyMzlmN2E1MGYyMDZhNzY3NjRiMDJmIiwiZW52aXJvbm1lbnRfc2hhMjU2Ijoic2hhMjU2OjQzOGM5ZjE2MTA5MGNiMDMwODg5OTFkYWNlODdlYzk3MGI4YTA4MjU3MTlmYzFkODcxMTUwYWU2NTczYzkzZWMifSwiYXR0ZW1wdCI6MSwicmV0cnkiOjAsIm5hdGl2ZV9yZWNlaXB0X3NoYTI1NiI6InNoYTI1Njo1ODQwOTAzYmJiNDE3NzVjYWU4MjM0ZmEyY2Q3YjUwY2NhMTczMjQzYTIxYzIxOWY3NmNjODcyNTQwNmY0YzU2IiwidGVzdF9vdXRjb21lIjoiZmFpbGVkIiwidGFyZ2V0X29ic2VydmF0aW9uIjp7ImNyaXRlcmlvbl9pZCI6ImNyaXRlcmlvbjp0b3RhbCIsImFzc2VydGlvbl9pZCI6ImFzc2VydGlvbjp0b3RhbCIsInN0YXRlIjoiZmFpbGVkIiwiZmFpbHVyZV9raW5kIjoiYXNzZXJ0aW9uIn0sInVucmVsYXRlZCI6W3siY3JpdGVyaW9uX2lkIjoiY3JpdGVyaW9uOnVucmVsYXRlZCIsImFzc2VydGlvbl9pZCI6ImFzc2VydGlvbjpjcml0ZXJpb246dW5yZWxhdGVkIiwic3RhdGUiOiJwYXNzZWQifV0sInNldHVwIjpbeyJpZCI6InNldHVwOnBhZ2UiLCJzdGF0ZSI6InBhc3NlZCJ9XSwiYXJ0aWZhY3RzIjpbeyJwYXRoIjoiYXJ0aWZhY3QuanNvbiIsInNoYTI1NiI6InNoYTI1Njo1ODQwOTAzYmJiNDE3NzVjYWU4MjM0ZmEyY2Q3YjUwY2NhMTczMjQzYTIxYzIxOWY3NmNjODcyNTQwNmY0YzU2In1dfQo=",
+        "hook_sha256": "sha256:764ac481dfea1b19bf9d77812bf0e9d5d018ecf39fd7695fba3c0a339606835f",
+        "native_bytes": "eyJ0cmFjZSI6InN5bnRoZXRpYyJ9",
+        "native_sha256": "sha256:5840903bbb41775cae8234fa2cd7b50cca173243a21c219f76cc8725406f4c56",
+        "omissions": []
+      }
+    ],
+    "report": {
+      "schema": "corvint-browser-behavior-falsification-report/0",
+      "plan_digest": "sha256:6edfe27f26e9089215b935a0f38b01a8a503ed45ca1c6e3030775f340a9f7d56",
+      "results": [
+        {
+          "id": "control",
+          "kind": "wrong-expected-value",
+          "ordinal": 1,
+          "status": "killed",
+          "reasons": [
+            "every-attempt-killed"
+          ],
+          "attempts": [
+            {
+              "attempt": 1,
+              "status": "killed",
+              "reasons": [
+                "expected-assertion-failed"
+              ],
+              "receipt": {
+                "schema": "corvint-browser-behavior-control-run/0",
+                "plan_digest": "sha256:6edfe27f26e9089215b935a0f38b01a8a503ed45ca1c6e3030775f340a9f7d56",
+                "perturbation_sha256": "sha256:05b1f07305eb5667f1d9311484e6672ee11aa9039319fa7a0a30438172e793f6",
+                "target": {
+                  "contract_id": "contract:checkout",
+                  "contract_sha256": "sha256:b8439cc516d8d7da9e0e14c9b9115f9c9eba75a6211010a89b3aa2d9a1a82c2b",
+                  "criterion_id": "criterion:total",
+                  "assertion_id": "assertion:total",
+                  "application_revision": "fe3991ab0b8ad56fe01df4931beddf69f8c4feeb",
+                  "test_revision": "fe3991ab0b8ad56fe01df4931beddf69f8c4feeb",
+                  "documentation_revision": "fe3991ab0b8ad56fe01df4931beddf69f8c4feeb",
+                  "contract_file": "docs/specs/browser-behavior-falsification-v0.md",
+                  "test_id": "test:checkout",
+                  "test_file": "internal/jstestprovider/external_test.go",
+                  "test_line": 12,
+                  "test_title": "checkout total",
+                  "project": "chromium"
+                },
+                "runner": {
+                  "runner": "playwright",
+                  "runner_version": "1.63.0",
+                  "browser": "chromium",
+                  "browser_version": "153.0.8010.48",
+                  "config_file": "go.mod",
+                  "config_sha256": "sha256:6649027ecc2dc0e9d34d06a6ce9e8a85925997efd4239f7a50f206a76764b02f",
+                  "environment_sha256": "sha256:438c9f161090cb03088991dace87ec970b8a0825719fc1d871150ae6573c93ec"
+                },
+                "attempt": 1,
+                "retry": 0,
+                "native_receipt_sha256": "sha256:5840903bbb41775cae8234fa2cd7b50cca173243a21c219f76cc8725406f4c56",
+                "test_outcome": "failed",
+                "target_observation": {
+                  "criterion_id": "criterion:total",
+                  "assertion_id": "assertion:total",
+                  "state": "failed",
+                  "failure_kind": "assertion"
+                },
+                "unrelated": [
+                  {
+                    "criterion_id": "criterion:unrelated",
+                    "assertion_id": "assertion:criterion:unrelated",
+                    "state": "passed"
+                  }
+                ],
+                "setup": [
+                  {
+                    "id": "setup:page",
+                    "state": "passed"
+                  }
+                ],
+                "artifacts": [
+                  {
+                    "path": "artifact.json",
+                    "sha256": "sha256:5840903bbb41775cae8234fa2cd7b50cca173243a21c219f76cc8725406f4c56"
+                  }
+                ]
+              },
+              "hook_process": {
+                "exit": 0,
+                "started": true,
+                "completed": true,
+                "cancelled": false,
+                "timed_out": false,
+                "overflow": false,
+                "owned_cleanup": true,
+                "descendants_gone": true,
+                "stdout_sha256": "sha256:764ac481dfea1b19bf9d77812bf0e9d5d018ecf39fd7695fba3c0a339606835f",
+                "stderr_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              },
+              "cleanup_process": {
+                "exit": 0,
+                "started": true,
+                "completed": true,
+                "cancelled": false,
+                "timed_out": false,
+                "overflow": false,
+                "owned_cleanup": true,
+                "descendants_gone": true,
+                "stdout_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "stderr_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+              },
+              "workspace_before": "sha256:33d1fd9ebb3ab0f945903ff8dd80b6cda4514ad41cbaa3429704c2fae415d7d5",
+              "workspace_after": "sha256:33d1fd9ebb3ab0f945903ff8dd80b6cda4514ad41cbaa3429704c2fae415d7d5",
+              "retained_artifacts": [
+                {
+                  "path": "artifact.json",
+                  "sha256": "sha256:5840903bbb41775cae8234fa2cd7b50cca173243a21c219f76cc8725406f4c56"
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "counts": {
+        "infrastructure_failed": 0,
+        "invalid_control": 0,
+        "killed": 1,
+        "not_run": 0,
+        "not_supported": 0,
+        "survived": 0
+      },
+      "requested": 1,
+      "supported": 1,
+      "executed": 1,
+      "complete_vocabulary": false,
+      "mutation_score": {
+        "defined": true,
+        "killed": 1,
+        "denominator": 1
+      },
+      "coverage_gaps": null,
+      "fallback": "full-relevant-suite",
+      "limitations": [
+        "caller-owned hook semantics are not authenticated",
+        "results cover only the exact approved controls and never authorize suite narrowing",
+        "persistent external state is caller-declared absent, not independently sandboxed"
+      ],
+      "digest": "sha256:a354ae96c1afc99b6ee030789254d66467cf9e2f0154907ea519ac7901d3b30d"
+    },
+    "unsupported": [
+      "authenticated-operator-identity",
+      "authenticated-hook-semantics",
+      "independent-process-and-artifact-observation"
+    ],
+    "digest": "sha256:8a357b2af0e9c9b8a08e35dfc2dfba35921d5e5c7ed200e668b3868021ac4c23"
+  },
+  "cases": [
+    {
+      "name": "no-args",
+      "args": [],
+      "text": true,
+      "exit": 1,
+      "stdout": "",
+      "stderr": "usage: corvint-behavior-falsify \u003cplan|execute|execute-receipt|verify-receipt\u003e --experimental [--approve-plan sha256:...] \u003c input.json\n"
+    },
+    {
+      "name": "plan-without-experimental",
+      "args": [
+        "plan"
+      ],
+      "stdin": "{}",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "explicit --experimental required; positional arguments forbidden\n"
+    },
+    {
+      "name": "plan-positional",
+      "args": [
+        "plan",
+        "--experimental",
+        "extra"
+      ],
+      "stdin": "{}",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "explicit --experimental required; positional arguments forbidden\n"
+    },
+    {
+      "name": "plan-help",
+      "args": [
+        "plan",
+        "-h"
+      ],
+      "exit": 1,
+      "stdout": "",
+      "stderr": "Usage of plan:\n  -approve-plan string\n    \tauthorize execution of exactly this plan digest\n  -expected-plan string\n    \tpin the reviewed plan digest for offline receipt verification\n  -expected-tool string\n    \tpin the executing tool SHA-256 for offline receipt verification\n  -experimental\n    \tadmit the experimental falsification profile\nflag: help requested\n"
+    },
+    {
+      "name": "plan-unknown-flag",
+      "args": [
+        "plan",
+        "--experimental",
+        "--nope"
+      ],
+      "stdin": "{}",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "flag provided but not defined: -nope\nUsage of plan:\n  -approve-plan string\n    \tauthorize execution of exactly this plan digest\n  -expected-plan string\n    \tpin the reviewed plan digest for offline receipt verification\n  -expected-tool string\n    \tpin the executing tool SHA-256 for offline receipt verification\n  -experimental\n    \tadmit the experimental falsification profile\nflag provided but not defined: -nope\n"
+    },
+    {
+      "name": "plan-with-approval",
+      "args": [
+        "plan",
+        "--experimental",
+        "--approve-plan",
+        "sha256:00"
+      ],
+      "stdin": "{}",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "planning does not accept execution approval\n"
+    },
+    {
+      "name": "plan-with-pins",
+      "args": [
+        "plan",
+        "--experimental",
+        "--expected-plan",
+        "sha256:6edfe27f26e9089215b935a0f38b01a8a503ed45ca1c6e3030775f340a9f7d56"
+      ],
+      "stdin": "{}",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "verification pins require verify-receipt\n"
+    },
+    {
+      "name": "plan-unknown-field",
+      "args": [
+        "plan",
+        "--experimental"
+      ],
+      "stdin": "{\"unknown\":true}",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "json: unknown field \"unknown\"\n"
+    },
+    {
+      "name": "plan-trailing-json",
+      "args": [
+        "plan",
+        "--experimental"
+      ],
+      "stdin": "{} {}",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "trailing JSON\n"
+    },
+    {
+      "name": "execute-without-approval",
+      "args": [
+        "execute",
+        "--experimental"
+      ],
+      "stdin": "{}",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "explicit --approve-plan required\n"
+    },
+    {
+      "name": "execute-receipt-invalid-plan",
+      "args": [
+        "execute-receipt",
+        "--experimental",
+        "--approve-plan",
+        "sha256:00"
+      ],
+      "stdin": "{\"unknown\":true}",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "receipt-plan-invalid\n"
+    },
+    {
+      "name": "unknown-operation",
+      "args": [
+        "unknown",
+        "--experimental"
+      ],
+      "stdin": "{}",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "unknown operation \"unknown\"\n"
+    },
+    {
+      "name": "verify-receipt-without-pins",
+      "args": [
+        "verify-receipt",
+        "--experimental"
+      ],
+      "stdin": "@REQUEST@",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "verify-receipt requires --expected-plan and --expected-tool; execution approval is forbidden\n"
+    },
+    {
+      "name": "verify-receipt-with-approval",
+      "args": [
+        "verify-receipt",
+        "--experimental",
+        "--expected-plan",
+        "sha256:6edfe27f26e9089215b935a0f38b01a8a503ed45ca1c6e3030775f340a9f7d56",
+        "--expected-tool",
+        "sha256:c3a9dacf1e6fe0033c64e83db13445a8828e993ccce8aaf0dcc66957ad053af6",
+        "--approve-plan",
+        "sha256:00"
+      ],
+      "stdin": "@REQUEST@",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "verify-receipt requires --expected-plan and --expected-tool; execution approval is forbidden\n"
+    },
+    {
+      "name": "verify-receipt-wrong-tool",
+      "args": [
+        "verify-receipt",
+        "--experimental",
+        "--expected-plan",
+        "sha256:6edfe27f26e9089215b935a0f38b01a8a503ed45ca1c6e3030775f340a9f7d56",
+        "--expected-tool",
+        "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+      ],
+      "stdin": "@REQUEST@",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "receipt-invalid-control\n"
+    },
+    {
+      "name": "verify-receipt",
+      "args": [
+        "verify-receipt",
+        "--experimental",
+        "--expected-plan",
+        "sha256:6edfe27f26e9089215b935a0f38b01a8a503ed45ca1c6e3030775f340a9f7d56",
+        "--expected-tool",
+        "sha256:c3a9dacf1e6fe0033c64e83db13445a8828e993ccce8aaf0dcc66957ad053af6"
+      ],
+      "stdin": "@REQUEST@",
+      "exit": 0,
+      "stdout": "{\"schema\":\"corvint-browser-behavior-evidence-verification/1\",\"status\":\"verified-observation\",\"report\":{\"schema\":\"corvint-browser-behavior-falsification-report/0\",\"plan_digest\":\"sha256:6edfe27f26e9089215b935a0f38b01a8a503ed45ca1c6e3030775f340a9f7d56\",\"results\":[{\"id\":\"control\",\"kind\":\"wrong-expected-value\",\"ordinal\":1,\"status\":\"killed\",\"reasons\":[\"every-attempt-killed\"],\"attempts\":[{\"attempt\":1,\"status\":\"killed\",\"reasons\":[\"expected-assertion-failed\"],\"receipt\":{\"schema\":\"corvint-browser-behavior-control-run/0\",\"plan_digest\":\"sha256:6edfe27f26e9089215b935a0f38b01a8a503ed45ca1c6e3030775f340a9f7d56\",\"perturbation_sha256\":\"sha256:05b1f07305eb5667f1d9311484e6672ee11aa9039319fa7a0a30438172e793f6\",\"target\":{\"contract_id\":\"contract:checkout\",\"contract_sha256\":\"sha256:b8439cc516d8d7da9e0e14c9b9115f9c9eba75a6211010a89b3aa2d9a1a82c2b\",\"criterion_id\":\"criterion:total\",\"assertion_id\":\"assertion:total\",\"application_revision\":\"fe3991ab0b8ad56fe01df4931beddf69f8c4feeb\",\"test_revision\":\"fe3991ab0b8ad56fe01df4931beddf69f8c4feeb\",\"documentation_revision\":\"fe3991ab0b8ad56fe01df4931beddf69f8c4feeb\",\"contract_file\":\"docs/specs/browser-behavior-falsification-v0.md\",\"test_id\":\"test:checkout\",\"test_file\":\"internal/jstestprovider/external_test.go\",\"test_line\":12,\"test_title\":\"checkout total\",\"project\":\"chromium\"},\"runner\":{\"runner\":\"playwright\",\"runner_version\":\"1.63.0\",\"browser\":\"chromium\",\"browser_version\":\"153.0.8010.48\",\"config_file\":\"go.mod\",\"config_sha256\":\"sha256:6649027ecc2dc0e9d34d06a6ce9e8a85925997efd4239f7a50f206a76764b02f\",\"environment_sha256\":\"sha256:438c9f161090cb03088991dace87ec970b8a0825719fc1d871150ae6573c93ec\"},\"attempt\":1,\"retry\":0,\"native_receipt_sha256\":\"sha256:5840903bbb41775cae8234fa2cd7b50cca173243a21c219f76cc8725406f4c56\",\"test_outcome\":\"failed\",\"target_observation\":{\"criterion_id\":\"criterion:total\",\"assertion_id\":\"assertion:total\",\"state\":\"failed\",\"failure_kind\":\"assertion\"},\"unrelated\":[{\"criterion_id\":\"criterion:unrelated\",\"assertion_id\":\"assertion:criterion:unrelated\",\"state\":\"passed\"}],\"setup\":[{\"id\":\"setup:page\",\"state\":\"passed\"}],\"artifacts\":[{\"path\":\"artifact.json\",\"sha256\":\"sha256:5840903bbb41775cae8234fa2cd7b50cca173243a21c219f76cc8725406f4c56\"}]},\"hook_process\":{\"exit\":0,\"started\":true,\"completed\":true,\"cancelled\":false,\"timed_out\":false,\"overflow\":false,\"owned_cleanup\":true,\"descendants_gone\":true,\"stdout_sha256\":\"sha256:764ac481dfea1b19bf9d77812bf0e9d5d018ecf39fd7695fba3c0a339606835f\",\"stderr_sha256\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"},\"cleanup_process\":{\"exit\":0,\"started\":true,\"completed\":true,\"cancelled\":false,\"timed_out\":false,\"overflow\":false,\"owned_cleanup\":true,\"descendants_gone\":true,\"stdout_sha256\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"stderr_sha256\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"},\"workspace_before\":\"sha256:33d1fd9ebb3ab0f945903ff8dd80b6cda4514ad41cbaa3429704c2fae415d7d5\",\"workspace_after\":\"sha256:33d1fd9ebb3ab0f945903ff8dd80b6cda4514ad41cbaa3429704c2fae415d7d5\",\"retained_artifacts\":[{\"path\":\"artifact.json\",\"sha256\":\"sha256:5840903bbb41775cae8234fa2cd7b50cca173243a21c219f76cc8725406f4c56\"}]}]}],\"counts\":{\"infrastructure_failed\":0,\"invalid_control\":0,\"killed\":1,\"not_run\":0,\"not_supported\":0,\"survived\":0},\"requested\":1,\"supported\":1,\"executed\":1,\"complete_vocabulary\":false,\"mutation_score\":{\"defined\":true,\"killed\":1,\"denominator\":1},\"coverage_gaps\":null,\"fallback\":\"full-relevant-suite\",\"limitations\":[\"caller-owned hook semantics are not authenticated\",\"results cover only the exact approved controls and never authorize suite narrowing\",\"persistent external state is caller-declared absent, not independently sandboxed\"],\"digest\":\"sha256:a354ae96c1afc99b6ee030789254d66467cf9e2f0154907ea519ac7901d3b30d\"}}\n",
+      "stderr": ""
+    }
+  ]
+}

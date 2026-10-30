@@ -1,0 +1,8 @@
+site_name: False strict pass canary
+site_url: https://corvint.example.invalid/false-pass/
+docs_dir: docs
+theme:
+  name: material
+plugins:
+  - search
+

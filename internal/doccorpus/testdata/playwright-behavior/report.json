@@ -1,0 +1,744 @@
+{
+  "config": {
+    "argv": [
+      "/usr/local/bin/node",
+      "@ROOT@/node_modules/.bin/playwright",
+      "test",
+      "--reporter=json"
+    ],
+    "configFile": "@ROOT@/playwright.config.ts",
+    "rootDir": "@ROOT@/e2e",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 2
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "@ROOT@/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "alpha",
+        "name": "alpha",
+        "testDir": "@ROOT@/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "@ROOT@/test-results",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "beta",
+        "name": "beta",
+        "testDir": "@ROOT@/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.63.0",
+    "workers": 6,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "items.spec.ts",
+      "file": "items.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "items",
+          "file": "items.spec.ts",
+          "line": 6,
+          "column": 6,
+          "specs": [
+            {
+              "title": "lists items",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "corvint-behavior-fixture",
+                      "description": "seeded-items"
+                    },
+                    {
+                      "type": "corvint-behavior-event",
+                      "description": "{\"browser_context\":\"context-1\",\"page\":\"page-1\",\"frame\":\"main\",\"navigation\":\"main-frame\",\"parent_page\":\"\",\"behavior\":\"\",\"criterion\":\"\",\"matcher\":\"\",\"locator\":\"\",\"value\":\"\",\"passed\":true,\"sequence\":1,\"kind\":\"page\",\"id\":\"/items\"}"
+                    },
+                    {
+                      "type": "corvint-behavior-event",
+                      "description": "{\"browser_context\":\"context-1\",\"page\":\"page-1\",\"frame\":\"main\",\"navigation\":\"\",\"parent_page\":\"\",\"behavior\":\"list-items\",\"criterion\":\"items-visible\",\"matcher\":\"toHaveText\",\"locator\":\"#count\",\"value\":\"2\",\"passed\":true,\"sequence\":2,\"kind\":\"assertion\",\"id\":\"items-visible\"}"
+                    },
+                    {
+                      "type": "corvint-behavior-event",
+                      "description": "{\"browser_context\":\"context-1\",\"page\":\"page-1\",\"frame\":\"main\",\"navigation\":\"\",\"parent_page\":\"\",\"behavior\":\"\",\"criterion\":\"\",\"matcher\":\"\",\"locator\":\"\",\"value\":\"\",\"passed\":true,\"sequence\":3,\"kind\":\"negative-control\",\"id\":\"empty-hidden\"}"
+                    },
+                    {
+                      "type": "corvint-behavior-event",
+                      "description": "{\"browser_context\":\"context-1\",\"page\":\"page-1\",\"frame\":\"main\",\"navigation\":\"main-frame\",\"parent_page\":\"\",\"behavior\":\"\",\"criterion\":\"\",\"matcher\":\"\",\"locator\":\"\",\"value\":\"\",\"passed\":true,\"sequence\":4,\"kind\":\"page\",\"id\":\"/done\"}"
+                    },
+                    {
+                      "type": "corvint-behavior-cleanup",
+                      "description": "passed"
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "alpha",
+                  "projectName": "alpha",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 9,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-10T02:27:43.126Z",
+                      "annotations": [
+                        {
+                          "type": "corvint-behavior-fixture",
+                          "description": "seeded-items"
+                        },
+                        {
+                          "type": "corvint-behavior-event",
+                          "description": "{\"browser_context\":\"context-1\",\"page\":\"page-1\",\"frame\":\"main\",\"navigation\":\"main-frame\",\"parent_page\":\"\",\"behavior\":\"\",\"criterion\":\"\",\"matcher\":\"\",\"locator\":\"\",\"value\":\"\",\"passed\":true,\"sequence\":1,\"kind\":\"page\",\"id\":\"/items\"}"
+                        },
+                        {
+                          "type": "corvint-behavior-event",
+                          "description": "{\"browser_context\":\"context-1\",\"page\":\"page-1\",\"frame\":\"main\",\"navigation\":\"\",\"parent_page\":\"\",\"behavior\":\"list-items\",\"criterion\":\"items-visible\",\"matcher\":\"toHaveText\",\"locator\":\"#count\",\"value\":\"2\",\"passed\":true,\"sequence\":2,\"kind\":\"assertion\",\"id\":\"items-visible\"}"
+                        },
+                        {
+                          "type": "corvint-behavior-event",
+                          "description": "{\"browser_context\":\"context-1\",\"page\":\"page-1\",\"frame\":\"main\",\"navigation\":\"\",\"parent_page\":\"\",\"behavior\":\"\",\"criterion\":\"\",\"matcher\":\"\",\"locator\":\"\",\"value\":\"\",\"passed\":true,\"sequence\":3,\"kind\":\"negative-control\",\"id\":\"empty-hidden\"}"
+                        },
+                        {
+                          "type": "corvint-behavior-event",
+                          "description": "{\"browser_context\":\"context-1\",\"page\":\"page-1\",\"frame\":\"main\",\"navigation\":\"main-frame\",\"parent_page\":\"\",\"behavior\":\"\",\"criterion\":\"\",\"matcher\":\"\",\"locator\":\"\",\"value\":\"\",\"passed\":true,\"sequence\":4,\"kind\":\"page\",\"id\":\"/done\"}"
+                        },
+                        {
+                          "type": "corvint-behavior-cleanup",
+                          "description": "passed"
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "1959835f811e6269bcf2-21837f3c425da85aff36",
+              "file": "items.spec.ts",
+              "line": 7,
+              "column": 7
+            },
+            {
+              "title": "rejects empty item",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "alpha",
+                  "projectName": "alpha",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 4,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n    at @ROOT@/e2e/items.spec.ts:18:15",
+                        "location": {
+                          "file": "@ROOT@/e2e/items.spec.ts",
+                          "column": 15,
+                          "line": 18
+                        },
+                        "snippet": "  16 |\n  17 |   test('rejects empty item', async () => {\n> 18 |     expect(1).toBe(2);\n     |               ^\n  19 |   });\n  20 |\n  21 |   test.skip('archives item', async () => {});"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "@ROOT@/e2e/items.spec.ts",
+                            "column": 15,
+                            "line": 18
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n\n  16 |\n  17 |   test('rejects empty item', async () => {\n> 18 |     expect(1).toBe(2);\n     |               ^\n  19 |   });\n  20 |\n  21 |   test.skip('archives item', async () => {});\n    at @ROOT@/e2e/items.spec.ts:18:15"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-10T02:27:43.302Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "@ROOT@/test-results/items-items-rejects-empty-item-alpha/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "@ROOT@/e2e/items.spec.ts",
+                        "column": 15,
+                        "line": 18
+                      }
+                    },
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 7,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n    at @ROOT@/e2e/items.spec.ts:18:15",
+                        "location": {
+                          "file": "@ROOT@/e2e/items.spec.ts",
+                          "column": 15,
+                          "line": 18
+                        },
+                        "snippet": "  16 |\n  17 |   test('rejects empty item', async () => {\n> 18 |     expect(1).toBe(2);\n     |               ^\n  19 |   });\n  20 |\n  21 |   test.skip('archives item', async () => {});"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "@ROOT@/e2e/items.spec.ts",
+                            "column": 15,
+                            "line": 18
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n\n  16 |\n  17 |   test('rejects empty item', async () => {\n> 18 |     expect(1).toBe(2);\n     |               ^\n  19 |   });\n  20 |\n  21 |   test.skip('archives item', async () => {});\n    at @ROOT@/e2e/items.spec.ts:18:15"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 1,
+                      "startTime": "2026-10-10T02:27:45.713Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "@ROOT@/test-results/items-items-rejects-empty-item-alpha-retry1/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "@ROOT@/e2e/items.spec.ts",
+                        "column": 15,
+                        "line": 18
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "1959835f811e6269bcf2-769bf788668a3e5dd906",
+              "file": "items.spec.ts",
+              "line": 17,
+              "column": 7
+            },
+            {
+              "title": "archives item",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "@ROOT@/e2e/items.spec.ts",
+                        "line": 21,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "alpha",
+                  "projectName": "alpha",
+                  "results": [
+                    {
+                      "workerIndex": 5,
+                      "parallelIndex": 0,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-10T02:27:47.098Z",
+                      "annotations": [
+                        {
+                          "type": "skip",
+                          "location": {
+                            "file": "@ROOT@/e2e/items.spec.ts",
+                            "line": 21,
+                            "column": 8
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1959835f811e6269bcf2-c27e67d6ff41417b589b",
+              "file": "items.spec.ts",
+              "line": 21,
+              "column": 8
+            },
+            {
+              "title": "retries item",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "alpha",
+                  "projectName": "alpha",
+                  "results": [
+                    {
+                      "workerIndex": 5,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 14,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\n    at @ROOT@/e2e/items.spec.ts:24:31",
+                        "location": {
+                          "file": "@ROOT@/e2e/items.spec.ts",
+                          "column": 31,
+                          "line": 24
+                        },
+                        "snippet": "  22 |\n  23 |   test('retries item', async () => {\n> 24 |     expect(test.info().retry).toBe(1);\n     |                               ^\n  25 |   });\n  26 | });\n  27 |"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "@ROOT@/e2e/items.spec.ts",
+                            "column": 31,
+                            "line": 24
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\n\n  22 |\n  23 |   test('retries item', async () => {\n> 24 |     expect(test.info().retry).toBe(1);\n     |                               ^\n  25 |   });\n  26 | });\n  27 |\n    at @ROOT@/e2e/items.spec.ts:24:31"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-10T02:27:47.099Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "@ROOT@/test-results/items-items-retries-item-alpha/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "@ROOT@/e2e/items.spec.ts",
+                        "column": 31,
+                        "line": 24
+                      }
+                    },
+                    {
+                      "workerIndex": 6,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 103,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 1,
+                      "startTime": "2026-10-10T02:27:48.484Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "flaky"
+                }
+              ],
+              "id": "1959835f811e6269bcf2-9daac85beaf9e4289e19",
+              "file": "items.spec.ts",
+              "line": 23,
+              "column": 7
+            },
+            {
+              "title": "lists items",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "corvint-behavior-fixture",
+                      "description": "seeded-items"
+                    },
+                    {
+                      "type": "corvint-behavior-event",
+                      "description": "{\"browser_context\":\"context-1\",\"page\":\"page-1\",\"frame\":\"main\",\"navigation\":\"main-frame\",\"parent_page\":\"\",\"behavior\":\"\",\"criterion\":\"\",\"matcher\":\"\",\"locator\":\"\",\"value\":\"\",\"passed\":true,\"sequence\":1,\"kind\":\"page\",\"id\":\"/items\"}"
+                    },
+                    {
+                      "type": "corvint-behavior-event",
+                      "description": "{\"browser_context\":\"context-1\",\"page\":\"page-1\",\"frame\":\"main\",\"navigation\":\"\",\"parent_page\":\"\",\"behavior\":\"list-items\",\"criterion\":\"items-visible\",\"matcher\":\"toHaveText\",\"locator\":\"#count\",\"value\":\"2\",\"passed\":true,\"sequence\":2,\"kind\":\"assertion\",\"id\":\"items-visible\"}"
+                    },
+                    {
+                      "type": "corvint-behavior-event",
+                      "description": "{\"browser_context\":\"context-1\",\"page\":\"page-1\",\"frame\":\"main\",\"navigation\":\"\",\"parent_page\":\"\",\"behavior\":\"\",\"criterion\":\"\",\"matcher\":\"\",\"locator\":\"\",\"value\":\"\",\"passed\":true,\"sequence\":3,\"kind\":\"negative-control\",\"id\":\"empty-hidden\"}"
+                    },
+                    {
+                      "type": "corvint-behavior-event",
+                      "description": "{\"browser_context\":\"context-1\",\"page\":\"page-1\",\"frame\":\"main\",\"navigation\":\"main-frame\",\"parent_page\":\"\",\"behavior\":\"\",\"criterion\":\"\",\"matcher\":\"\",\"locator\":\"\",\"value\":\"\",\"passed\":true,\"sequence\":4,\"kind\":\"page\",\"id\":\"/done\"}"
+                    },
+                    {
+                      "type": "corvint-behavior-cleanup",
+                      "description": "passed"
+                    }
+                  ],
+                  "expectedStatus": "passed",
+                  "projectId": "beta",
+                  "projectName": "beta",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 150,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-10T02:27:43.287Z",
+                      "annotations": [
+                        {
+                          "type": "corvint-behavior-fixture",
+                          "description": "seeded-items"
+                        },
+                        {
+                          "type": "corvint-behavior-event",
+                          "description": "{\"browser_context\":\"context-1\",\"page\":\"page-1\",\"frame\":\"main\",\"navigation\":\"main-frame\",\"parent_page\":\"\",\"behavior\":\"\",\"criterion\":\"\",\"matcher\":\"\",\"locator\":\"\",\"value\":\"\",\"passed\":true,\"sequence\":1,\"kind\":\"page\",\"id\":\"/items\"}"
+                        },
+                        {
+                          "type": "corvint-behavior-event",
+                          "description": "{\"browser_context\":\"context-1\",\"page\":\"page-1\",\"frame\":\"main\",\"navigation\":\"\",\"parent_page\":\"\",\"behavior\":\"list-items\",\"criterion\":\"items-visible\",\"matcher\":\"toHaveText\",\"locator\":\"#count\",\"value\":\"2\",\"passed\":true,\"sequence\":2,\"kind\":\"assertion\",\"id\":\"items-visible\"}"
+                        },
+                        {
+                          "type": "corvint-behavior-event",
+                          "description": "{\"browser_context\":\"context-1\",\"page\":\"page-1\",\"frame\":\"main\",\"navigation\":\"\",\"parent_page\":\"\",\"behavior\":\"\",\"criterion\":\"\",\"matcher\":\"\",\"locator\":\"\",\"value\":\"\",\"passed\":true,\"sequence\":3,\"kind\":\"negative-control\",\"id\":\"empty-hidden\"}"
+                        },
+                        {
+                          "type": "corvint-behavior-event",
+                          "description": "{\"browser_context\":\"context-1\",\"page\":\"page-1\",\"frame\":\"main\",\"navigation\":\"main-frame\",\"parent_page\":\"\",\"behavior\":\"\",\"criterion\":\"\",\"matcher\":\"\",\"locator\":\"\",\"value\":\"\",\"passed\":true,\"sequence\":4,\"kind\":\"page\",\"id\":\"/done\"}"
+                        },
+                        {
+                          "type": "corvint-behavior-cleanup",
+                          "description": "passed"
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "1959835f811e6269bcf2-d18c13f7bb6d93b89eef",
+              "file": "items.spec.ts",
+              "line": 7,
+              "column": 7
+            },
+            {
+              "title": "rejects empty item",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "beta",
+                  "projectName": "beta",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "failed",
+                      "duration": 10,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n    at @ROOT@/e2e/items.spec.ts:18:15",
+                        "location": {
+                          "file": "@ROOT@/e2e/items.spec.ts",
+                          "column": 15,
+                          "line": 18
+                        },
+                        "snippet": "  16 |\n  17 |   test('rejects empty item', async () => {\n> 18 |     expect(1).toBe(2);\n     |               ^\n  19 |   });\n  20 |\n  21 |   test.skip('archives item', async () => {});"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "@ROOT@/e2e/items.spec.ts",
+                            "column": 15,
+                            "line": 18
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n\n  16 |\n  17 |   test('rejects empty item', async () => {\n> 18 |     expect(1).toBe(2);\n     |               ^\n  19 |   });\n  20 |\n  21 |   test.skip('archives item', async () => {});\n    at @ROOT@/e2e/items.spec.ts:18:15"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-10T02:27:43.555Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "@ROOT@/test-results/items-items-rejects-empty-item-beta/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "@ROOT@/e2e/items.spec.ts",
+                        "column": 15,
+                        "line": 18
+                      }
+                    },
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 1,
+                      "status": "failed",
+                      "duration": 30,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n    at @ROOT@/e2e/items.spec.ts:18:15",
+                        "location": {
+                          "file": "@ROOT@/e2e/items.spec.ts",
+                          "column": 15,
+                          "line": 18
+                        },
+                        "snippet": "  16 |\n  17 |   test('rejects empty item', async () => {\n> 18 |     expect(1).toBe(2);\n     |               ^\n  19 |   });\n  20 |\n  21 |   test.skip('archives item', async () => {});"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "@ROOT@/e2e/items.spec.ts",
+                            "column": 15,
+                            "line": 18
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m2\u001b[39m\nReceived: \u001b[31m1\u001b[39m\n\n  16 |\n  17 |   test('rejects empty item', async () => {\n> 18 |     expect(1).toBe(2);\n     |               ^\n  19 |   });\n  20 |\n  21 |   test.skip('archives item', async () => {});\n    at @ROOT@/e2e/items.spec.ts:18:15"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 1,
+                      "startTime": "2026-10-10T02:27:45.742Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "@ROOT@/test-results/items-items-rejects-empty-item-beta-retry1/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "@ROOT@/e2e/items.spec.ts",
+                        "column": 15,
+                        "line": 18
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "1959835f811e6269bcf2-b86543e10a57706dce7d",
+              "file": "items.spec.ts",
+              "line": 17,
+              "column": 7
+            },
+            {
+              "title": "archives item",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "@ROOT@/e2e/items.spec.ts",
+                        "line": 21,
+                        "column": 8
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "beta",
+                  "projectName": "beta",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 1,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-10T02:27:47.197Z",
+                      "annotations": [
+                        {
+                          "type": "skip",
+                          "location": {
+                            "file": "@ROOT@/e2e/items.spec.ts",
+                            "line": 21,
+                            "column": 8
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "1959835f811e6269bcf2-81f5e23c18db5361df13",
+              "file": "items.spec.ts",
+              "line": 21,
+              "column": 8
+            },
+            {
+              "title": "retries item",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "beta",
+                  "projectName": "beta",
+                  "results": [
+                    {
+                      "workerIndex": 4,
+                      "parallelIndex": 1,
+                      "status": "failed",
+                      "duration": 6,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\n    at @ROOT@/e2e/items.spec.ts:24:31",
+                        "location": {
+                          "file": "@ROOT@/e2e/items.spec.ts",
+                          "column": 31,
+                          "line": 24
+                        },
+                        "snippet": "  22 |\n  23 |   test('retries item', async () => {\n> 24 |     expect(test.info().retry).toBe(1);\n     |                               ^\n  25 |   });\n  26 | });\n  27 |"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "@ROOT@/e2e/items.spec.ts",
+                            "column": 31,
+                            "line": 24
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m1\u001b[39m\nReceived: \u001b[31m0\u001b[39m\n\n  22 |\n  23 |   test('retries item', async () => {\n> 24 |     expect(test.info().retry).toBe(1);\n     |                               ^\n  25 |   });\n  26 | });\n  27 |\n    at @ROOT@/e2e/items.spec.ts:24:31"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-10-10T02:27:47.198Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "@ROOT@/test-results/items-items-retries-item-beta/error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "@ROOT@/e2e/items.spec.ts",
+                        "column": 31,
+                        "line": 24
+                      }
+                    },
+                    {
+                      "workerIndex": 7,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 4,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 1,
+                      "startTime": "2026-10-10T02:27:48.673Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "flaky"
+                }
+              ],
+              "id": "1959835f811e6269bcf2-7c069548d1c6f9f9a0d1",
+              "file": "items.spec.ts",
+              "line": 23,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-10-10T02:27:41.005Z",
+    "duration": 7983.751,
+    "expected": 2,
+    "skipped": 2,
+    "unexpected": 2,
+    "flaky": 2
+  }
+}

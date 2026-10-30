@@ -1,0 +1,115 @@
+{
+  "profile": "cem-s0e-operation-origin-errors/1",
+  "status": "PROPOSED_REPAIR3_NOT_RUNTIME_QUALIFIED",
+  "precedence": [
+    "ownership-or-cleanup-failure",
+    "outer-cancellation-or-deadline",
+    "logical-operation-deadline",
+    "independently-complete-parser-or-identity-failure",
+    "stdout-overflow",
+    "stderr-overflow",
+    "launch-failure",
+    "child-nonzero",
+    "success"
+  ],
+  "outerExpiryCommitmentRule": {
+    "decision": "OPEN-QUESTIONS.json OQ-04, root decision C",
+    "returnedBeforeExpiry": "A logical-operation failure (git-timeout, unsupported-resource-limit or any other operation code) already returned to a verifier stage before outer cancellation or expiry stands; the later outer event only starts the emergency retirement allowance. Full-result case: per-op-timeout-returned-then-outer-expiry-in-teardown.",
+    "notReturnedBeforeExpiry": "Otherwise arbitration at the active checkpoint applies the precedence list: outer-cancellation-or-deadline outranks the operation cause and yields verification-timeout at that checkpoint. Full-result case: per-op-timeout-unreturned-then-outer-expiry-in-teardown.",
+    "ownership": "Failed or unobserved teardown is ownership-or-cleanup-failure, rank 1, in both branches: repository/unsupported-process-containment."
+  },
+  "operations": [
+    {
+      "operation": "resolve-commit",
+      "launchFailure": "git-read-failed",
+      "childNonzero": "git-read-failed",
+      "completeMissingWrongKindHashOrFraming": "repository-object-unavailable",
+      "localTruncationEOF": "not an independent parser cause; use originating overflow, deadline, cancellation or ownership failure",
+      "completeMalformedCanonicalPatch": "not applicable",
+      "publicStageForOperationalGitError": "repository"
+    },
+    {
+      "operation": "format-query",
+      "launchFailure": "git-read-failed",
+      "childNonzero": "git-read-failed",
+      "completeMissingWrongKindHashOrFraming": "repository-object-unavailable",
+      "localTruncationEOF": "not an independent parser cause; use originating overflow, deadline, cancellation or ownership failure",
+      "completeMalformedCanonicalPatch": "not applicable",
+      "publicStageForOperationalGitError": "repository"
+    },
+    {
+      "operation": "authenticated-path-lookup",
+      "launchFailure": "git-read-failed",
+      "childNonzero": "git-read-failed",
+      "completeMissingWrongKindHashOrFraming": "repository-object-unavailable",
+      "localTruncationEOF": "not an independent parser cause; use originating overflow, deadline, cancellation or ownership failure",
+      "completeMalformedCanonicalPatch": "not applicable",
+      "publicStageForOperationalGitError": "repository"
+    },
+    {
+      "operation": "canonical-diff-child",
+      "launchFailure": "git-diff-failed",
+      "childNonzero": "git-diff-failed",
+      "completeMissingWrongKindHashOrFraming": "repository-object-unavailable",
+      "localTruncationEOF": "not an independent parser cause; use originating overflow, deadline, cancellation or ownership failure",
+      "completeMalformedCanonicalPatch": "inherited semantic patch issue after canonical bytes, not a Git transport code",
+      "publicStageForOperationalGitError": "repository"
+    },
+    {
+      "operation": "canonical-root-pair",
+      "launchFailure": "git-diff-failed",
+      "childNonzero": "git-diff-failed",
+      "completeMissingWrongKindHashOrFraming": "repository-object-unavailable",
+      "localTruncationEOF": "not an independent parser cause; use originating overflow, deadline, cancellation or ownership failure",
+      "completeMalformedCanonicalPatch": "not applicable",
+      "publicStageForOperationalGitError": "repository"
+    },
+    {
+      "operation": "canonical-changed-level",
+      "launchFailure": "git-diff-failed",
+      "childNonzero": "git-diff-failed",
+      "completeMissingWrongKindHashOrFraming": "repository-object-unavailable",
+      "localTruncationEOF": "not an independent parser cause; use originating overflow, deadline, cancellation or ownership failure",
+      "completeMalformedCanonicalPatch": "not applicable",
+      "publicStageForOperationalGitError": "repository"
+    },
+    {
+      "operation": "canonical-proof-blobs",
+      "launchFailure": "git-diff-failed",
+      "childNonzero": "git-diff-failed",
+      "completeMissingWrongKindHashOrFraming": "repository-object-unavailable",
+      "localTruncationEOF": "not an independent parser cause; use originating overflow, deadline, cancellation or ownership failure",
+      "completeMalformedCanonicalPatch": "not applicable",
+      "publicStageForOperationalGitError": "repository"
+    },
+    {
+      "operation": "normal-blob",
+      "launchFailure": "git-read-failed",
+      "childNonzero": "repository-object-unavailable",
+      "completeMissingWrongKindHashOrFraming": "repository-object-unavailable",
+      "localTruncationEOF": "not an independent parser cause; use originating overflow, deadline, cancellation or ownership failure",
+      "completeMalformedCanonicalPatch": "not applicable",
+      "publicStageForOperationalGitError": "repository"
+    }
+  ],
+  "allOperationsOverride": {
+    "ownership": "repository/unsupported-process-containment",
+    "outerCancellationOrExpiry": "active checkpoint/verification-timeout",
+    "perOperationDeadline": "repository/git-timeout",
+    "countOrOutputCeiling": "repository/unsupported-resource-limit"
+  },
+  "normalBlobExamples": {
+    "missing": "repository-object-unavailable",
+    "corruptCompressedObjectChildExit": "repository-object-unavailable",
+    "wellFramedWrongTypedHash": "repository-object-unavailable",
+    "executableCannotStart": "git-read-failed"
+  },
+  "artifactFiles": {
+    "gitOperation": false,
+    "unreadableMissingWrongKind": "artifacts/artifact-unavailable",
+    "byteCeiling": "artifacts/artifact-resource-limit",
+    "digestOrBetweenPassChange": "inherited semantic REJECT, referenceIntegrity FAILED",
+    "cancel": "artifacts/verification-timeout"
+  },
+  "scope": "Normal blob means Git object body used for simulation, evidence, structural proof, drift or target sidecar. A base sidecar is only kind-checked; no base-sidecar body transaction is invented. External artifact files are not Git blobs."
+}

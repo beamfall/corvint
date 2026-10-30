@@ -1,0 +1,10 @@
+{"schema":"corvint-corpus-eval-cases/1","origin":"synthetic","cases":[
+{"id":"row1-exact-identifier","operation":"search","arguments":{"query":"logout_redirect_url","limit":1},"expect":{"subjects":["fixture:setting:logout"]},"tags":["row1"]},
+{"id":"row2-set-admin","operation":"claims","arguments":{"query":"set admin user","limit":1},"expect":{"claims":["fixture:claim:209"]},"tags":["row2"]},
+{"id":"row2-revoke-admin","operation":"claims","arguments":{"query":"revoke admin user","limit":1},"expect":{"claims":["fixture:claim:211"]},"tags":["row2"]},
+{"id":"row4-on-deck","operation":"search","arguments":{"query":"on deck","limit":1},"expect":{"subjects":["native:file:src/app/controllers/club/on_deck_controller.rb"]},"tags":["row4"]},
+{"id":"row5-sync-with-pos","operation":"search","arguments":{"query":"sync_with_pos","limit":1},"expect":{"subjects":["native:symbol:src/app/services/pos_sync.rb:2:sync_with_pos"]},"tags":["row5"]},
+{"id":"row5-push-orders-symbol","operation":"search","arguments":{"query":"push_orders","kind":"symbol","limit":1},"expect":{"subjects":["native:symbol:src/app/services/pos_sync.rb:6:push_orders"]},"tags":["row5"]},
+{"id":"row5-checkout-total","operation":"search","arguments":{"query":"checkout_total","limit":1},"expect":{"subjects":["native:symbol:src/app/models/cart.rb:2:checkout_total"]},"tags":["row5"]},
+{"id":"row5-checkout-total-claim","operation":"claims","arguments":{"query":"checkout_total","limit":1},"expect":{"claims":["native:symbol:src/app/models/cart.rb:2:checkout_total:declaration"]},"tags":["row5"]}
+]}

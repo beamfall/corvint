@@ -1,0 +1,65 @@
+{
+  "id": "cem-and-target-binding",
+  "obligations": [
+    {
+      "id": "CONF-V0-001",
+      "disposition": "linked"
+    },
+    {
+      "id": "CONF-V0-002",
+      "disposition": "unknown",
+      "reason": "no-test-claim"
+    }
+  ],
+  "note": "The produced map with its CEM binding or target altered.",
+  "cases": [
+    {
+      "id": "stale-map-digest",
+      "note": "The CEM map digest names another CEM.",
+      "ops": [
+        {
+          "cem": {
+            "field": "mapSha256",
+            "value": "0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        }
+      ],
+      "expect": {
+        "state": "invalid",
+        "code": "cem-map-digest-mismatch"
+      }
+    },
+    {
+      "id": "stale-patch-digest",
+      "note": "The CEM patch digest names another patch.",
+      "ops": [
+        {
+          "cem": {
+            "field": "patchSha256",
+            "value": "0000000000000000000000000000000000000000000000000000000000000000"
+          }
+        }
+      ],
+      "expect": {
+        "state": "invalid",
+        "code": "cem-patch-digest-mismatch"
+      }
+    },
+    {
+      "id": "absent-target-object",
+      "note": "The map binds a full OID the repository does not hold; the spec retains the repository-object failure ahead of the target comparison.",
+      "ops": [
+        {
+          "top": {
+            "field": "targetRevision",
+            "value": "0000000000000000000000000000000000000000"
+          }
+        }
+      ],
+      "expect": {
+        "state": "invalid",
+        "code": "repository-object-unavailable"
+      }
+    }
+  ]
+}

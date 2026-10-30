@@ -1,0 +1,970 @@
+{
+  "schema": "corvint-perf-budget/0",
+  "scale": "full",
+  "scenarios": [
+    {
+      "id": "cli-cold-read",
+      "samples": 3,
+      "targets": [
+        {
+          "metric": "p95_wall_ms",
+          "limit": 1000,
+          "status": "pending",
+          "profile": "experimental",
+          "pending_on": "GH #1598",
+          "reason": "GH #1598 target: cold CLI read under 1 s"
+        }
+      ],
+      "ceilings": [
+        {
+          "metric": "p95_wall_ms",
+          "limit": 35500,
+          "status": "enforced",
+          "reason": "regression ceiling: 3x the baseline p95 (11771 ms on a contended host), rounded up to 500 ms; not a product target"
+        },
+        {
+          "metric": "peak_rss_bytes",
+          "limit": 1610612736,
+          "status": "enforced",
+          "reason": "regression ceiling: 1.5x the baseline peak resident set (988 MiB), rounded up to 64 MiB; not a product target"
+        }
+      ]
+    },
+    {
+      "id": "cli-warm-read",
+      "samples": 5,
+      "targets": [
+        {
+          "metric": "p95_wall_ms",
+          "limit": 200,
+          "status": "pending",
+          "profile": "experimental",
+          "pending_on": "GH #1598",
+          "reason": "GH #1598 target: warm CLI read under 200 ms"
+        }
+      ],
+      "ceilings": [
+        {
+          "metric": "p95_wall_ms",
+          "limit": 35000,
+          "status": "enforced",
+          "reason": "regression ceiling: 3x the baseline p95 (11645 ms on a contended host), rounded up to 500 ms; not a product target"
+        },
+        {
+          "metric": "peak_rss_bytes",
+          "limit": 1543503872,
+          "status": "enforced",
+          "reason": "regression ceiling: 1.5x the baseline peak resident set (978 MiB), rounded up to 64 MiB; not a product target"
+        }
+      ]
+    },
+    {
+      "id": "mcp-first-call",
+      "samples": 3,
+      "targets": [
+        {
+          "metric": "p95_wall_ms",
+          "limit": 1000,
+          "status": "pending",
+          "profile": "experimental",
+          "pending_on": "GH #1598",
+          "reason": "GH #1598 target: corpus MCP first call under 1 s"
+        }
+      ],
+      "ceilings": [
+        {
+          "metric": "p95_wall_ms",
+          "limit": 28500,
+          "status": "enforced",
+          "reason": "regression ceiling: 3x the baseline p95 (9434 ms on a contended host), rounded up to 500 ms; not a product target"
+        },
+        {
+          "metric": "peak_rss_bytes",
+          "limit": 1543503872,
+          "status": "enforced",
+          "reason": "regression ceiling: 1.5x the baseline peak resident set (953 MiB), rounded up to 64 MiB; not a product target"
+        }
+      ]
+    },
+    {
+      "id": "mcp-warm-call",
+      "samples": 10,
+      "targets": [
+        {
+          "metric": "p95_wall_ms",
+          "limit": 100,
+          "status": "pending",
+          "profile": "experimental",
+          "pending_on": "GH #1598",
+          "reason": "GH #1598 target: corpus MCP warm call under 100 ms"
+        }
+      ],
+      "ceilings": [
+        {
+          "metric": "p95_wall_ms",
+          "limit": 2000,
+          "status": "enforced",
+          "reason": "regression ceiling: 3x the baseline p95 (625 ms on a contended host), rounded up to 500 ms; not a product target"
+        },
+        {
+          "metric": "peak_rss_bytes",
+          "limit": 1543503872,
+          "status": "enforced",
+          "reason": "regression ceiling: 1.5x the baseline peak resident set (950 MiB), rounded up to 64 MiB; not a product target"
+        }
+      ]
+    },
+    {
+      "id": "full-delta",
+      "samples": 3,
+      "targets": [],
+      "ceilings": [
+        {
+          "metric": "p95_wall_ms",
+          "limit": 22500,
+          "status": "enforced",
+          "reason": "regression ceiling: 3x the baseline p95 (7423 ms on a contended host), rounded up to 500 ms; not a product target"
+        },
+        {
+          "metric": "peak_rss_bytes",
+          "limit": 1879048192,
+          "status": "enforced",
+          "reason": "regression ceiling: 1.5x the baseline peak resident set (1162 MiB), rounded up to 64 MiB; not a product target"
+        }
+      ]
+    },
+    {
+      "id": "affected-path",
+      "samples": 5,
+      "targets": [
+        {
+          "metric": "p95_wall_ms",
+          "limit": 1000,
+          "status": "pending",
+          "profile": "core",
+          "pending_on": "GH #1601",
+          "reason": "GH #1601 target: warm affected --path under 1 s"
+        }
+      ],
+      "ceilings": [
+        {
+          "metric": "p95_wall_ms",
+          "limit": 37000,
+          "status": "enforced",
+          "reason": "regression ceiling: 3x the baseline p95 (12235 ms on a contended host), rounded up to 500 ms; not a product target"
+        },
+        {
+          "metric": "peak_rss_bytes",
+          "limit": 8254390272,
+          "status": "enforced",
+          "reason": "regression ceiling: 1.5x the baseline peak resident set (5244 MiB), rounded up to 64 MiB; not a product target"
+        }
+      ]
+    },
+    {
+      "id": "unchanged-delta",
+      "samples": 3,
+      "targets": [],
+      "ceilings": [
+        {
+          "metric": "p95_wall_ms",
+          "limit": 5500,
+          "status": "enforced",
+          "reason": "regression ceiling (PRB-V0-051): 2x the unchanged-delta baseline p95 (2510 ms, recorded 2026-10-23T15:39:25Z with corvint a86d5562 on an uncontended host), rounded up to 500 ms; a delta that rederives measured 6.0 to 7.8 s and exceeds it on that host; not a product target"
+        },
+        {
+          "metric": "peak_rss_bytes",
+          "limit": 1140850688,
+          "status": "enforced",
+          "reason": "regression ceiling: 1.5x the unchanged-delta baseline peak resident set (697 MiB), rounded up to 64 MiB; not a product target"
+        }
+      ]
+    },
+    {
+      "id": "index-cold-build",
+      "samples": 3,
+      "targets": [],
+      "ceilings": [
+        {
+          "metric": "p95_wall_ms",
+          "limit": 3000,
+          "status": "enforced",
+          "reason": "regression ceiling (PRB-V0-059): 3x the baseline p95 (987 ms, recorded 2026-10-28T13:18:29Z with corvint 8501edc5 on a contended host), rounded up to 500 ms; not a product target"
+        },
+        {
+          "metric": "peak_rss_bytes",
+          "limit": 268435456,
+          "status": "enforced",
+          "reason": "regression ceiling (PRB-V0-059): 1.5x the baseline peak resident set (148 MiB), rounded up to 64 MiB; not a product target"
+        }
+      ]
+    },
+    {
+      "id": "index-warm-build",
+      "samples": 5,
+      "targets": [],
+      "ceilings": [
+        {
+          "metric": "p95_wall_ms",
+          "limit": 500,
+          "status": "enforced",
+          "reason": "regression ceiling (PRB-V0-059): 3x the baseline p95 (49 ms, recorded 2026-10-28T13:18:29Z with corvint 8501edc5 on a contended host), rounded up to 500 ms; not a product target"
+        },
+        {
+          "metric": "peak_rss_bytes",
+          "limit": 134217728,
+          "status": "enforced",
+          "reason": "regression ceiling (PRB-V0-059): 1.5x the baseline peak resident set (44 MiB), rounded up to 64 MiB; not a product target"
+        }
+      ]
+    },
+    {
+      "id": "context-query",
+      "samples": 5,
+      "targets": [],
+      "ceilings": [
+        {
+          "metric": "p95_wall_ms",
+          "limit": 1000,
+          "status": "enforced",
+          "reason": "regression ceiling (PRB-V0-059): 3x the baseline p95 (262 ms, recorded 2026-10-28T13:18:29Z with corvint 8501edc5 on a contended host), rounded up to 500 ms; not a product target"
+        },
+        {
+          "metric": "peak_rss_bytes",
+          "limit": 134217728,
+          "status": "enforced",
+          "reason": "regression ceiling (PRB-V0-059): 1.5x the baseline peak resident set (64 MiB), rounded up to 64 MiB; not a product target"
+        }
+      ]
+    },
+    {
+      "id": "lifecycle-hook",
+      "samples": 5,
+      "targets": [],
+      "ceilings": [
+        {
+          "metric": "p95_wall_ms",
+          "limit": 1000,
+          "status": "enforced",
+          "reason": "regression ceiling (PRB-V0-059): 3x the baseline p95 (282 ms, recorded 2026-10-28T13:18:29Z with corvint 8501edc5 on a contended host), rounded up to 500 ms; not a product target"
+        },
+        {
+          "metric": "peak_rss_bytes",
+          "limit": 134217728,
+          "status": "enforced",
+          "reason": "regression ceiling (PRB-V0-059): 1.5x the baseline peak resident set (55 MiB), rounded up to 64 MiB; not a product target"
+        }
+      ]
+    },
+    {
+      "id": "affected-go",
+      "samples": 5,
+      "targets": [],
+      "ceilings": [
+        {
+          "metric": "p95_wall_ms",
+          "limit": 2000,
+          "status": "enforced",
+          "reason": "regression ceiling (PRB-V0-059): 3x the baseline p95 (552 ms, recorded 2026-10-28T13:18:29Z with corvint 8501edc5 on a contended host), rounded up to 500 ms; not a product target"
+        },
+        {
+          "metric": "peak_rss_bytes",
+          "limit": 134217728,
+          "status": "enforced",
+          "reason": "regression ceiling (PRB-V0-059): 1.5x the baseline peak resident set (60 MiB), rounded up to 64 MiB; not a product target"
+        }
+      ]
+    },
+    {
+      "id": "affected-ts",
+      "samples": 5,
+      "targets": [],
+      "ceilings": [
+        {
+          "metric": "p95_wall_ms",
+          "limit": 2500,
+          "status": "enforced",
+          "reason": "regression ceiling (PRB-V0-059): 3x the baseline p95 (692 ms, recorded 2026-10-28T13:18:29Z with corvint 8501edc5 on a contended host), rounded up to 500 ms; not a product target"
+        },
+        {
+          "metric": "peak_rss_bytes",
+          "limit": 134217728,
+          "status": "enforced",
+          "reason": "regression ceiling (PRB-V0-059): 1.5x the baseline peak resident set (57 MiB), rounded up to 64 MiB; not a product target"
+        }
+      ]
+    }
+  ],
+  "baseline": {
+    "recorded_at": "2026-10-23T03:08:27Z",
+    "revision": "dd0d09db57d08abd0786bd0ead3620a227f9f032+dirty",
+    "host": {
+      "goos": "darwin",
+      "goarch": "arm64",
+      "go_version": "go1.27.2",
+      "cores": 12,
+      "load_before": [
+        137.57,
+        92.21,
+        57.5
+      ],
+      "load_after": [
+        23.14,
+        60.52,
+        51.59
+      ],
+      "contended": true
+    },
+    "fixture": {
+      "generator": "corvint-perf-budget-fixture/1",
+      "scale": {
+        "name": "full",
+        "primary_pages": 7000,
+        "additional_repositories": 3,
+        "additional_pages": 1000,
+        "paragraphs_per_page": 6,
+        "claims_per_page": 10,
+        "changed_pages": 350,
+        "ruby_files": 20000
+      },
+      "previous_revision": "dcb598c346c4587d88b1bc025a7b7b9fb18085cf",
+      "revision": "e56cafcb7387abcd406091a44194941f5854adc1",
+      "inputs": 10000,
+      "records": 96350,
+      "artifact_bytes": 97045592,
+      "previous": "previous.json",
+      "previous_manifest": "previous-manifest.json",
+      "current": "corpus.json",
+      "manifest": "manifest.json",
+      "builder_sha256": "98cc7cbeca012313a3d13e86e52998e28327297db2515f11bbf36259864ebec0",
+      "search_query": "invoice ledger",
+      "get_id": "adapter-lib1:lib1-0",
+      "ruby_path": "app/models/model_00001.rb"
+    },
+    "scenarios": [
+      {
+        "id": "cli-cold-read",
+        "command": [
+          "corvint",
+          "--root",
+          "<fixture>/app",
+          "docs",
+          "corpus",
+          "search",
+          "--artifact",
+          "corpus.json",
+          "--query",
+          "invoice ledger"
+        ],
+        "samples": [
+          {
+            "wall_ms": 11771.29,
+            "peak_rss_bytes": 1027014656
+          },
+          {
+            "wall_ms": 10270.56,
+            "peak_rss_bytes": 1028521984
+          },
+          {
+            "wall_ms": 9559.4,
+            "peak_rss_bytes": 1036730368
+          }
+        ],
+        "p50_wall_ms": 10270.56,
+        "p95_wall_ms": 11771.29,
+        "peak_rss_bytes": 1036730368
+      },
+      {
+        "id": "cli-warm-read",
+        "command": [
+          "corvint",
+          "--root",
+          "<fixture>/app",
+          "docs",
+          "corpus",
+          "search",
+          "--artifact",
+          "corpus.json",
+          "--query",
+          "invoice ledger"
+        ],
+        "samples": [
+          {
+            "wall_ms": 7550.66,
+            "peak_rss_bytes": 1021394944
+          },
+          {
+            "wall_ms": 7321.28,
+            "peak_rss_bytes": 1025540096
+          },
+          {
+            "wall_ms": 7167.17,
+            "peak_rss_bytes": 920174592
+          },
+          {
+            "wall_ms": 11644.71,
+            "peak_rss_bytes": 994312192
+          },
+          {
+            "wall_ms": 9883.8,
+            "peak_rss_bytes": 1010139136
+          }
+        ],
+        "p50_wall_ms": 7550.66,
+        "p95_wall_ms": 11644.71,
+        "peak_rss_bytes": 1025540096
+      },
+      {
+        "id": "mcp-first-call",
+        "command": [
+          "corvint-corpus-mcp",
+          "--root",
+          "<fixture>/app",
+          "--artifact",
+          "corpus.json",
+          "--protocol-version",
+          "2025-11-25"
+        ],
+        "samples": [
+          {
+            "wall_ms": 9433.57,
+            "peak_rss_bytes": 996835328
+          },
+          {
+            "wall_ms": 8551.53,
+            "peak_rss_bytes": 980762624
+          },
+          {
+            "wall_ms": 6725.27,
+            "peak_rss_bytes": 999882752
+          }
+        ],
+        "p50_wall_ms": 8551.53,
+        "p95_wall_ms": 9433.57,
+        "peak_rss_bytes": 999882752
+      },
+      {
+        "id": "mcp-warm-call",
+        "command": [
+          "corvint-corpus-mcp",
+          "--root",
+          "<fixture>/app",
+          "--artifact",
+          "corpus.json",
+          "--protocol-version",
+          "2025-11-25"
+        ],
+        "samples": [
+          {
+            "wall_ms": 625.24,
+            "peak_rss_bytes": 996835328
+          },
+          {
+            "wall_ms": 130.66,
+            "peak_rss_bytes": 996835328
+          },
+          {
+            "wall_ms": 241.95,
+            "peak_rss_bytes": 996835328
+          },
+          {
+            "wall_ms": 107.49,
+            "peak_rss_bytes": 996835328
+          },
+          {
+            "wall_ms": 267.42,
+            "peak_rss_bytes": 996835328
+          },
+          {
+            "wall_ms": 107.42,
+            "peak_rss_bytes": 996835328
+          },
+          {
+            "wall_ms": 246.68,
+            "peak_rss_bytes": 996835328
+          },
+          {
+            "wall_ms": 107.72,
+            "peak_rss_bytes": 996835328
+          },
+          {
+            "wall_ms": 251.88,
+            "peak_rss_bytes": 996835328
+          },
+          {
+            "wall_ms": 115.53,
+            "peak_rss_bytes": 996835328
+          }
+        ],
+        "p50_wall_ms": 130.66,
+        "p95_wall_ms": 625.24,
+        "peak_rss_bytes": 996835328
+      },
+      {
+        "id": "full-delta",
+        "command": [
+          "corvint",
+          "--root",
+          "<fixture>/app",
+          "docs",
+          "corpus",
+          "delta",
+          "--previous",
+          "previous.json",
+          "--artifact",
+          "corpus.json",
+          "--limit",
+          "256"
+        ],
+        "samples": [
+          {
+            "wall_ms": 7423.44,
+            "peak_rss_bytes": 1139884032
+          },
+          {
+            "wall_ms": 6815.51,
+            "peak_rss_bytes": 1219444736
+          },
+          {
+            "wall_ms": 6944.78,
+            "peak_rss_bytes": 994934784
+          }
+        ],
+        "p50_wall_ms": 6944.78,
+        "p95_wall_ms": 7423.44,
+        "peak_rss_bytes": 1219444736
+      },
+      {
+        "id": "affected-path",
+        "command": [
+          "corvint",
+          "--root",
+          "<fixture>/ruby-app",
+          "affected",
+          "--path",
+          "app/models/model_00001.rb"
+        ],
+        "samples": [
+          {
+            "wall_ms": 11196.31,
+            "peak_rss_bytes": 5209554944
+          },
+          {
+            "wall_ms": 11832.93,
+            "peak_rss_bytes": 4945002496
+          },
+          {
+            "wall_ms": 12234.79,
+            "peak_rss_bytes": 5498912768
+          },
+          {
+            "wall_ms": 12085.68,
+            "peak_rss_bytes": 5294063616
+          },
+          {
+            "wall_ms": 12036.83,
+            "peak_rss_bytes": 5385797632
+          }
+        ],
+        "p50_wall_ms": 12036.83,
+        "p95_wall_ms": 12234.79,
+        "peak_rss_bytes": 5498912768
+      },
+      {
+        "id": "unchanged-delta",
+        "command": [
+          "corvint",
+          "--root",
+          "<fixture>/app",
+          "docs",
+          "corpus",
+          "delta",
+          "--previous",
+          "corpus.json",
+          "--artifact",
+          "corpus.json",
+          "--format",
+          "jsonl"
+        ],
+        "samples": [
+          {
+            "wall_ms": 2510.3,
+            "peak_rss_bytes": 677117952
+          },
+          {
+            "wall_ms": 1520.91,
+            "peak_rss_bytes": 729956352
+          },
+          {
+            "wall_ms": 1488.3,
+            "peak_rss_bytes": 711098368
+          }
+        ],
+        "p50_wall_ms": 1520.91,
+        "p95_wall_ms": 2510.3,
+        "peak_rss_bytes": 729956352,
+        "provenance": {
+          "recorded_at": "2026-10-23T15:39:25Z",
+          "executable_revision": "a86d556279bf004318b6fe8b0a039961fb4a2791",
+          "executable_sha256": "9763911a3c74527e6720849208451a8511b5ec13d998ce31c42599e5dbb3fde1",
+          "host": {
+            "goos": "darwin",
+            "goarch": "arm64",
+            "go_version": "go1.27.2",
+            "cores": 12,
+            "load_before": [
+              7.01,
+              11.49,
+              16.8
+            ],
+            "load_after": [
+              7.42,
+              10.55,
+              15.94
+            ],
+            "contended": false
+          }
+        }
+      },
+      {
+        "id": "index-cold-build",
+        "command": [
+          "corvint",
+          "--root",
+          "<fixture>/code-app",
+          "index"
+        ],
+        "samples": [
+          {
+            "wall_ms": 902.73,
+            "peak_rss_bytes": 141557760
+          },
+          {
+            "wall_ms": 987.37,
+            "peak_rss_bytes": 155500544
+          },
+          {
+            "wall_ms": 780.63,
+            "peak_rss_bytes": 143458304
+          }
+        ],
+        "p50_wall_ms": 902.73,
+        "p95_wall_ms": 987.37,
+        "peak_rss_bytes": 155500544,
+        "provenance": {
+          "recorded_at": "2026-10-28T13:18:29Z",
+          "executable_revision": "8501edc5357fbf2c39bf9002fd75038a8346f935",
+          "executable_sha256": "ef9977c4f43ab7e8eeac22f701c9f9c9c6948d72bfc83ea14d97e0a7607c1645",
+          "host": {
+            "goos": "darwin",
+            "goarch": "arm64",
+            "go_version": "go1.27.3",
+            "cores": 12,
+            "load_before": [
+              65.76,
+              67.33,
+              48.51
+            ],
+            "load_after": [
+              46.83,
+              62.77,
+              47.41
+            ],
+            "contended": true
+          }
+        }
+      },
+      {
+        "id": "index-warm-build",
+        "command": [
+          "corvint",
+          "--root",
+          "<fixture>/code-app",
+          "index",
+          "--if-stale"
+        ],
+        "samples": [
+          {
+            "wall_ms": 49.49,
+            "peak_rss_bytes": 46235648
+          },
+          {
+            "wall_ms": 48.46,
+            "peak_rss_bytes": 46530560
+          },
+          {
+            "wall_ms": 47.13,
+            "peak_rss_bytes": 46497792
+          },
+          {
+            "wall_ms": 47.88,
+            "peak_rss_bytes": 46399488
+          },
+          {
+            "wall_ms": 47.96,
+            "peak_rss_bytes": 45924352
+          }
+        ],
+        "p50_wall_ms": 47.96,
+        "p95_wall_ms": 49.49,
+        "peak_rss_bytes": 46530560,
+        "provenance": {
+          "recorded_at": "2026-10-28T13:18:29Z",
+          "executable_revision": "8501edc5357fbf2c39bf9002fd75038a8346f935",
+          "executable_sha256": "ef9977c4f43ab7e8eeac22f701c9f9c9c6948d72bfc83ea14d97e0a7607c1645",
+          "host": {
+            "goos": "darwin",
+            "goarch": "arm64",
+            "go_version": "go1.27.3",
+            "cores": 12,
+            "load_before": [
+              65.76,
+              67.33,
+              48.51
+            ],
+            "load_after": [
+              46.83,
+              62.77,
+              47.41
+            ],
+            "contended": true
+          }
+        }
+      },
+      {
+        "id": "context-query",
+        "command": [
+          "corvint",
+          "--root",
+          "<fixture>/code-app",
+          "context",
+          "--task",
+          "change Word0002 in pkg/p0002 so the invoice ledger word is reported",
+          "--subject",
+          "pkg/p0002/p0002.go",
+          "--lsp",
+          "off"
+        ],
+        "samples": [
+          {
+            "wall_ms": 243.53,
+            "peak_rss_bytes": 61259776
+          },
+          {
+            "wall_ms": 236.76,
+            "peak_rss_bytes": 60243968
+          },
+          {
+            "wall_ms": 261.91,
+            "peak_rss_bytes": 61784064
+          },
+          {
+            "wall_ms": 242.29,
+            "peak_rss_bytes": 60456960
+          },
+          {
+            "wall_ms": 262.09,
+            "peak_rss_bytes": 67256320
+          }
+        ],
+        "p50_wall_ms": 243.53,
+        "p95_wall_ms": 262.09,
+        "peak_rss_bytes": 67256320,
+        "provenance": {
+          "recorded_at": "2026-10-28T13:18:29Z",
+          "executable_revision": "8501edc5357fbf2c39bf9002fd75038a8346f935",
+          "executable_sha256": "ef9977c4f43ab7e8eeac22f701c9f9c9c6948d72bfc83ea14d97e0a7607c1645",
+          "host": {
+            "goos": "darwin",
+            "goarch": "arm64",
+            "go_version": "go1.27.3",
+            "cores": 12,
+            "load_before": [
+              65.76,
+              67.33,
+              48.51
+            ],
+            "load_after": [
+              46.83,
+              62.77,
+              47.41
+            ],
+            "contended": true
+          }
+        }
+      },
+      {
+        "id": "lifecycle-hook",
+        "command": [
+          "corvint",
+          "adapter",
+          "claude-code",
+          "user-prompt"
+        ],
+        "samples": [
+          {
+            "wall_ms": 274.32,
+            "peak_rss_bytes": 57540608
+          },
+          {
+            "wall_ms": 258.88,
+            "peak_rss_bytes": 57507840
+          },
+          {
+            "wall_ms": 277.43,
+            "peak_rss_bytes": 57114624
+          },
+          {
+            "wall_ms": 275.09,
+            "peak_rss_bytes": 57311232
+          },
+          {
+            "wall_ms": 282.33,
+            "peak_rss_bytes": 57737216
+          }
+        ],
+        "p50_wall_ms": 275.09,
+        "p95_wall_ms": 282.33,
+        "peak_rss_bytes": 57737216,
+        "provenance": {
+          "recorded_at": "2026-10-28T13:18:29Z",
+          "executable_revision": "8501edc5357fbf2c39bf9002fd75038a8346f935",
+          "executable_sha256": "ef9977c4f43ab7e8eeac22f701c9f9c9c6948d72bfc83ea14d97e0a7607c1645",
+          "host": {
+            "goos": "darwin",
+            "goarch": "arm64",
+            "go_version": "go1.27.3",
+            "cores": 12,
+            "load_before": [
+              65.76,
+              67.33,
+              48.51
+            ],
+            "load_after": [
+              46.83,
+              62.77,
+              47.41
+            ],
+            "contended": true
+          }
+        }
+      },
+      {
+        "id": "affected-go",
+        "command": [
+          "corvint",
+          "--root",
+          "<fixture>/code-app",
+          "affected",
+          "--path",
+          "pkg/p0002/p0002.go"
+        ],
+        "samples": [
+          {
+            "wall_ms": 552.44,
+            "peak_rss_bytes": 62947328
+          },
+          {
+            "wall_ms": 551.64,
+            "peak_rss_bytes": 57556992
+          },
+          {
+            "wall_ms": 503.26,
+            "peak_rss_bytes": 58769408
+          },
+          {
+            "wall_ms": 466.52,
+            "peak_rss_bytes": 57294848
+          },
+          {
+            "wall_ms": 466.67,
+            "peak_rss_bytes": 57737216
+          }
+        ],
+        "p50_wall_ms": 503.26,
+        "p95_wall_ms": 552.44,
+        "peak_rss_bytes": 62947328,
+        "provenance": {
+          "recorded_at": "2026-10-28T13:18:29Z",
+          "executable_revision": "8501edc5357fbf2c39bf9002fd75038a8346f935",
+          "executable_sha256": "ef9977c4f43ab7e8eeac22f701c9f9c9c6948d72bfc83ea14d97e0a7607c1645",
+          "host": {
+            "goos": "darwin",
+            "goarch": "arm64",
+            "go_version": "go1.27.3",
+            "cores": 12,
+            "load_before": [
+              65.76,
+              67.33,
+              48.51
+            ],
+            "load_after": [
+              46.83,
+              62.77,
+              47.41
+            ],
+            "contended": true
+          }
+        }
+      },
+      {
+        "id": "affected-ts",
+        "command": [
+          "corvint",
+          "--root",
+          "<fixture>/code-app",
+          "affected",
+          "--path",
+          "web/src/m00002.ts"
+        ],
+        "samples": [
+          {
+            "wall_ms": 467.38,
+            "peak_rss_bytes": 59768832
+          },
+          {
+            "wall_ms": 473.2,
+            "peak_rss_bytes": 57393152
+          },
+          {
+            "wall_ms": 471.8,
+            "peak_rss_bytes": 57491456
+          },
+          {
+            "wall_ms": 520.51,
+            "peak_rss_bytes": 56770560
+          },
+          {
+            "wall_ms": 691.97,
+            "peak_rss_bytes": 60080128
+          }
+        ],
+        "p50_wall_ms": 473.2,
+        "p95_wall_ms": 691.97,
+        "peak_rss_bytes": 60080128,
+        "provenance": {
+          "recorded_at": "2026-10-28T13:18:29Z",
+          "executable_revision": "8501edc5357fbf2c39bf9002fd75038a8346f935",
+          "executable_sha256": "ef9977c4f43ab7e8eeac22f701c9f9c9c6948d72bfc83ea14d97e0a7607c1645",
+          "host": {
+            "goos": "darwin",
+            "goarch": "arm64",
+            "go_version": "go1.27.3",
+            "cores": 12,
+            "load_before": [
+              65.76,
+              67.33,
+              48.51
+            ],
+            "load_after": [
+              46.83,
+              62.77,
+              47.41
+            ],
+            "contended": true
+          }
+        }
+      }
+    ]
+  }
+}

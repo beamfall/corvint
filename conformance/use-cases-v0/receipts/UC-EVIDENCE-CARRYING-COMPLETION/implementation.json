@@ -1,0 +1,41 @@
+{
+  "attestation": {
+    "entrypoints": [
+      "corvint cem",
+      "corvint ocm",
+      "corvint frontier",
+      "corvint dogfood"
+    ]
+  },
+  "evidenceClass": "implementation",
+  "repositoryRevision": "f6227b0fee6aab3f6cb76633263c4a45deded361",
+  "result": "PASS",
+  "spec": "corvint-use-case-evidence/0",
+  "subjects": [
+    {
+      "path": "cmd/corvint/main.go",
+      "sha256": "c1b50911fe98bc6038e8960635d22c3c73b8f22234ec3c4ac38358bf1c0e68c5"
+    },
+    {
+      "path": "cmd/corvint/cem_anchor.go",
+      "sha256": "fed480ee76a3179b6b97c3e9efeb0a00a2419d61434fe2caa69b2a2e6e81fc96"
+    },
+    {
+      "path": "cmd/corvint/ocm.go",
+      "sha256": "0fc17166b1f171cb11abe245a544f4d42adf87618d86bead231897ac69746218"
+    },
+    {
+      "path": "cmd/corvint/frontier.go",
+      "sha256": "3681e4c71e2a20b7414b22becbff1c36e2e4bdbee42299d2237ace7836bc6bb8"
+    },
+    {
+      "path": "cmd/corvint/dogfood_record.go",
+      "sha256": "6e74b80767409397f1a81f0f7031ceea76ccd516e48b644849279fa8e017ec6a"
+    },
+    {
+      "path": "cmd/corvint/local_completion.go",
+      "sha256": "5d32d94364434d4320b0bdcf9c2a0476537fb92538177ef69fce7602d3b39adb"
+    }
+  ],
+  "useCaseId": "UC-EVIDENCE-CARRYING-COMPLETION"
+}

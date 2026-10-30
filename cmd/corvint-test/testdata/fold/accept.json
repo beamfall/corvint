@@ -1,0 +1,335 @@
+{
+  "schema": "corvint-test-fold-golden/0",
+  "group": "accept",
+  "old": "corvint-tests-accept",
+  "new": "corvint-test accept",
+  "request": {
+    "schema": "corvint-new-e2e-request/0",
+    "product": {
+      "root": "@DIR@/repo",
+      "commit": "@COMMIT@",
+      "tree": "@TREE@"
+    },
+    "test_repository": {
+      "root": "@DIR@/repo",
+      "commit": "@COMMIT@",
+      "tree": "@TREE@"
+    },
+    "inputs": [
+      {
+        "path": "@DIR@/repo/package-lock.json",
+        "sha256": "@SHA256:package-lock.json@"
+      },
+      {
+        "path": "@DIR@/repo/package.json",
+        "sha256": "@SHA256:package.json@"
+      },
+      {
+        "path": "@DIR@/repo/playwright.config.js",
+        "sha256": "@SHA256:playwright.config.js@"
+      },
+      {
+        "path": "@DIR@/repo/server.js",
+        "sha256": "@SHA256:server.js@"
+      },
+      {
+        "path": "@DIR@/repo/tests/new.spec.js",
+        "sha256": "@SHA256:tests/new.spec.js@"
+      }
+    ],
+    "tests": [
+      {
+        "id": "new-one",
+        "file": "@DIR@/repo/tests/new.spec.js",
+        "line": 1,
+        "title": "new one",
+        "project": "chromium"
+      }
+    ],
+    "config": "@DIR@/repo/playwright.config.js",
+    "package": "@DIR@/repo/package.json",
+    "lockfile": "@DIR@/repo/package-lock.json",
+    "runner": {
+      "argv": [
+        "@DIR@/repo/bin/runner"
+      ],
+      "executable_sha256": "@SHA256:bin/runner@"
+    },
+    "server": {
+      "argv": [
+        "@DIR@/repo/bin/server",
+        "@DIR@/repo/server.js"
+      ],
+      "executable_sha256": "@SHA256:bin/server@"
+    },
+    "ready_url": "http://127.0.0.1:4173/",
+    "app_build_dir": "@DIR@/repo",
+    "runner_version": "1.64.0",
+    "environment": "fold-fixture",
+    "repeat": 2,
+    "timeout_seconds": 30
+  },
+  "fixture": {
+    "bad-request.json": "{\"schema\":\"corvint-new-e2e-request/0\"}\n",
+    "bin/runner": "#!/bin/sh\nexit 1\n",
+    "bin/server": "#!/bin/sh\nexit 1\n",
+    "package-lock.json": "{\"lockfileVersion\":3}\n",
+    "package.json": "{\"name\":\"fold-fixture\",\"private\":true}\n",
+    "playwright.config.js": "module.exports = {};\n",
+    "server.js": "\n",
+    "tests/new.spec.js": "test('new one', () =\u003e {});\n"
+  },
+  "cases": [
+    {
+      "name": "no-args",
+      "args": [],
+      "text": true,
+      "exit": 2,
+      "stdout": "",
+      "stderr": "usage: corvint-tests-accept plan|accept --plan FILE [--approve-plan DIGEST --new PATH... --repeat N --environment LABEL]\n"
+    },
+    {
+      "name": "unknown-command",
+      "args": [
+        "bogus"
+      ],
+      "text": true,
+      "exit": 2,
+      "stdout": "",
+      "stderr": "usage: corvint-tests-accept plan|accept --plan FILE [--approve-plan DIGEST --new PATH... --repeat N --environment LABEL]\n"
+    },
+    {
+      "name": "worker-extra",
+      "args": [
+        "worker",
+        "extra"
+      ],
+      "text": true,
+      "exit": 2,
+      "stdout": "",
+      "stderr": "usage: corvint-tests-accept plan|accept --plan FILE [--approve-plan DIGEST --new PATH... --repeat N --environment LABEL]\n"
+    },
+    {
+      "name": "worker-unsafe-environment",
+      "args": [
+        "worker"
+      ],
+      "stdin": "{}",
+      "exit": 2,
+      "stdout": "",
+      "stderr": "worker-environment-unsafe\n"
+    },
+    {
+      "name": "plan-help",
+      "args": [
+        "plan",
+        "-h"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "flags-invalid\n"
+    },
+    {
+      "name": "plan-unknown-flag",
+      "args": [
+        "plan",
+        "--nope"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "flags-invalid\n"
+    },
+    {
+      "name": "plan-positional",
+      "args": [
+        "plan",
+        "--plan",
+        "@DIR@/req.json",
+        "extra"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "flags-invalid\n"
+    },
+    {
+      "name": "plan-unreadable",
+      "args": [
+        "plan",
+        "--plan",
+        "@DIR@/missing.json"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "plan-unreadable\n"
+    },
+    {
+      "name": "plan-temp-root",
+      "args": [
+        "plan",
+        "--plan",
+        "@DIR@/req.json",
+        "--temp-root",
+        "/tmp"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "flags-invalid\n"
+    },
+    {
+      "name": "plan-undecodable",
+      "args": [
+        "plan",
+        "--plan",
+        "@DIR@/repo/package.json"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "input-shape\n"
+    },
+    {
+      "name": "plan-request-bound",
+      "args": [
+        "plan",
+        "--plan",
+        "@DIR@/repo/bad-request.json"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "request-bound\n"
+    },
+    {
+      "name": "plan",
+      "args": [
+        "plan",
+        "--plan",
+        "@DIR@/req.json"
+      ],
+      "exit": 0,
+      "stdout": "{\"digest\":\"@DIGEST@\",\"qualification\":\"experimental; provider per-test freshness UNKNOWN\"}\n",
+      "stderr": ""
+    },
+    {
+      "name": "accept-repeat-mismatch",
+      "args": [
+        "accept",
+        "--plan",
+        "@DIR@/req.json",
+        "--repeat",
+        "3",
+        "--environment",
+        "fold-fixture",
+        "--new",
+        "@DIR@/repo/tests/new.spec.js"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "selection-mismatch\n"
+    },
+    {
+      "name": "accept-environment-mismatch",
+      "args": [
+        "accept",
+        "--plan",
+        "@DIR@/req.json",
+        "--repeat",
+        "2",
+        "--environment",
+        "other",
+        "--new",
+        "@DIR@/repo/tests/new.spec.js"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "selection-mismatch\n"
+    },
+    {
+      "name": "accept-no-new",
+      "args": [
+        "accept",
+        "--plan",
+        "@DIR@/req.json",
+        "--repeat",
+        "2",
+        "--environment",
+        "fold-fixture"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "selection-mismatch\n"
+    },
+    {
+      "name": "accept-new-files-mismatch",
+      "args": [
+        "accept",
+        "--plan",
+        "@DIR@/req.json",
+        "--repeat",
+        "2",
+        "--environment",
+        "fold-fixture",
+        "--new",
+        "@DIR@/repo/other.spec.js"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "new-files-mismatch\n"
+    },
+    {
+      "name": "accept-approval-missing",
+      "args": [
+        "accept",
+        "--plan",
+        "@DIR@/req.json",
+        "--repeat",
+        "2",
+        "--environment",
+        "fold-fixture",
+        "--new",
+        "@DIR@/repo/tests/new.spec.js"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "request-approval-mismatch\n"
+    },
+    {
+      "name": "accept-approval-mismatch",
+      "args": [
+        "accept",
+        "--plan",
+        "@DIR@/req.json",
+        "--approve-plan",
+        "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "--repeat",
+        "2",
+        "--environment",
+        "fold-fixture",
+        "--new",
+        "@DIR@/repo/tests/new.spec.js"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "request-approval-mismatch\n"
+    },
+    {
+      "name": "accept-temp-root-invalid",
+      "args": [
+        "accept",
+        "--plan",
+        "@DIR@/req.json",
+        "--approve-plan",
+        "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+        "--temp-root",
+        "relative",
+        "--repeat",
+        "2",
+        "--environment",
+        "fold-fixture",
+        "--new",
+        "@DIR@/repo/tests/new.spec.js"
+      ],
+      "exit": 2,
+      "stdout": "",
+      "stderr": "request-approval-mismatch\n"
+    }
+  ]
+}

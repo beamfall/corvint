@@ -1,0 +1,171 @@
+{
+  "claimDefault": "UNPROVEN",
+  "evidenceClasses": [
+    "contract",
+    "implementation",
+    "hostile-tests",
+    "corvint-dogfood",
+    "beamfall-dogfood",
+    "sealed-benchmark"
+  ],
+  "spec": "corvint-use-case-conformance/0",
+  "statuses": [
+    "specified",
+    "experimental",
+    "verified"
+  ],
+  "useCases": [
+    {
+      "claim": "UNPROVEN",
+      "evidence": {},
+      "id": "UC-AI-CODING",
+      "job": "Use repository evidence to assist coding while preserving project authority and explicit unknowns.",
+      "status": "specified",
+      "title": "AI-assisted coding"
+    },
+    {
+      "claim": "UNPROVEN",
+      "evidence": {},
+      "id": "UC-AI-DEBUGGING",
+      "job": "Diagnose observed failures through witnessed causal paths, contradictions, and bounded unknowns.",
+      "status": "specified",
+      "title": "AI-assisted debugging"
+    },
+    {
+      "claim": "UNPROVEN",
+      "evidence": {},
+      "id": "UC-ENGINEERING-RESEARCH",
+      "job": "Answer engineering research questions with separated repository truth, external sources, inference, and uncertainty.",
+      "status": "specified",
+      "title": "Evidence-bound engineering research"
+    },
+    {
+      "claim": "UNPROVEN",
+      "evidence": {},
+      "id": "UC-PI-LIFECYCLE",
+      "job": "Discover, install, update, roll back, disable, and remove a native Pi extension without semantic drift.",
+      "status": "specified",
+      "title": "Pi extension discovery and updates"
+    },
+    {
+      "claim": "UNPROVEN",
+      "evidence": {},
+      "id": "UC-DEEPSEEK-HARNESS-LIFECYCLE",
+      "job": "Discover, install, update, roll back, disable, and remove a DeepSeek Harness plugin without semantic drift.",
+      "status": "specified",
+      "title": "DeepSeek Harness plugin discovery and updates"
+    },
+    {
+      "claim": "UNPROVEN",
+      "evidence": {},
+      "id": "UC-HUMAN-DOCUMENTATION",
+      "job": "Generate reviewable MkDocs or equivalent human documentation with evidence, conflicts, unknowns, and shipped deltas.",
+      "status": "specified",
+      "title": "Living human documentation"
+    },
+    {
+      "claim": "UNPROVEN",
+      "evidence": {},
+      "id": "UC-AUTOMATIC-E2E",
+      "job": "Discover critical journeys and generate, execute, and safely repair evidence-bound E2E tests.",
+      "status": "specified",
+      "title": "Automatic E2E verification"
+    },
+    {
+      "claim": "UNPROVEN",
+      "evidence": {},
+      "id": "UC-PR-MAINTENANCE-MERGE",
+      "job": "Keep a PR current, reverify drift, respect all holds, and merge only with a valid policy authorization receipt.",
+      "status": "specified",
+      "title": "PR maintenance and safe merge"
+    },
+    {
+      "claim": "UNPROVEN",
+      "evidence": {},
+      "id": "UC-CHANGE-BREAKAGE",
+      "job": "Show what a proposed or observed change can break and what remains outside the inspected frontier.",
+      "status": "specified",
+      "title": "Change breakage frontier"
+    },
+    {
+      "claim": "UNPROVEN",
+      "evidence": {},
+      "id": "UC-MISSING-TESTS",
+      "job": "Find unwitnessed behavioral obligations and write the smallest non-tautological candidate tests.",
+      "status": "specified",
+      "title": "Missing-test discovery and generation"
+    },
+    {
+      "claim": "UNPROVEN",
+      "evidence": {},
+      "id": "UC-MINIMUM-TESTS",
+      "job": "Run only the tests a change needs, explain every inclusion, and widen whenever exclusion is not justified.",
+      "status": "specified",
+      "title": "Minimum verification plan"
+    },
+    {
+      "claim": "UNPROVEN",
+      "evidence": {},
+      "id": "UC-ONBOARDING",
+      "job": "Get a new engineer to the first correct action with an authority-bound, revision-pinned context capsule.",
+      "status": "specified",
+      "title": "New-engineer onboarding"
+    },
+    {
+      "claim": "UNPROVEN",
+      "evidence": {},
+      "id": "UC-TICKET-ROUTING",
+      "job": "Route a ticket to the responsible team and reviewers using authority and consequence evidence rather than popularity.",
+      "status": "specified",
+      "title": "Ticket and team routing"
+    },
+    {
+      "claim": "UNPROVEN",
+      "evidence": {},
+      "id": "UC-CODE-REVIEW",
+      "job": "Review code against accepted intent, affected obligations, qualified tests, policy, and explicit unresolved risk.",
+      "status": "specified",
+      "title": "Proof-carrying code review"
+    },
+    {
+      "claim": "UNPROVEN",
+      "evidence": {},
+      "id": "UC-CODE-TO-SPEC",
+      "job": "Write a proposed behavioral specification from what code and tests demonstrably do without inventing owner intent.",
+      "status": "specified",
+      "title": "Code-to-spec compilation"
+    },
+    {
+      "claim": "UNPROVEN",
+      "evidence": {},
+      "id": "UC-REMOVAL-MIGRATION",
+      "job": "Plan removals and migrations across consumers, contracts, rollout stages, compatibility windows, and rollback obligations.",
+      "status": "specified",
+      "title": "Removal and migration planning"
+    },
+    {
+      "claim": "UNPROVEN",
+      "evidence": {},
+      "id": "UC-EXPLAIN-SHIPPED",
+      "job": "Explain what shipped from revision-bound change, verification, documentation, and unresolved-risk evidence.",
+      "status": "specified",
+      "title": "Shipped-change narration"
+    },
+    {
+      "claim": "UNPROVEN",
+      "evidence": {},
+      "id": "UC-INCIDENT-ORIENTATION",
+      "job": "Orient an incident responder with current runbooks, owners, recent changes, runtime observations, contradictions, and unknowns.",
+      "status": "specified",
+      "title": "Incident orientation"
+    },
+    {
+      "claim": "UNPROVEN",
+      "evidence": {},
+      "id": "UC-LIVE-PROOF-VERIFICATION",
+      "job": "Continuously derive affected obligations, execute the minimum witnessed checks, expose runtime evidence and unknown scope, and bind feedback to the exact worktree.",
+      "status": "specified",
+      "title": "Live Proof-Carrying Verification"
+    }
+  ]
+}

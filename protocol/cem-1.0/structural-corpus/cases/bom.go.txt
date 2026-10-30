@@ -1,0 +1,5 @@
+﻿package cases
+
+func bom() int { return 1 }
+
+func useBOM() int { return bom() }

@@ -1,0 +1,155 @@
+package cli
+
+import (
+	"bytes"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"testing"
+
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
+	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
+	"github.com/Beamfall/corvint/internal/tasks/wire"
+)
+
+// withProbedTree runs body with withStore decoding the probe's tree (on) or
+// reading it a third time through LoadExpecting (off).
+func withProbedTree(on bool, body func()) {
+	old := reuseProbedTree
+	reuseProbedTree = on
+	defer func() { reuseProbedTree = old }()
+	body()
+}
+
+func runBytes(cwd string, args ...string) []byte {
+	var out bytes.Buffer
+	Run(Env{Cwd: cwd, Args: args, Stdin: bytes.NewReader(nil), Stdout: &out, Stderr: &out})
+	return out.Bytes()
+}
+
+// observedAtField is queue status's wall-clock read time, which can tick
+// to the next second between the two runs a parity check compares.
+var observedAtField = regexp.MustCompile(`"observedAt":"[^"]*"`)
+
+var probedTreeReads = [][]string{
+	{"queue", "status"}, {"receipt", "audit"}, {"ticket", "list"}, {"ticket", "show", "A"},
+	{"ticket", "show", "Z"}, {"ticket", "blockers", "B"}, {"ticket", "search", "--text", "A"},
+	{"ticket", "export"}, {"roadmap"}, {"critical-path", "B"}, {"gate", "list"}, {"policy", "show"},
+	{"plan", "preview"},
+}
+
+// TM-V0-008 / CAL-V0-061: decoding the tree the first probe hashed gives
+// byte-identical envelopes to the third LoadExpecting pass it replaces, on a
+// clean store and on stores whose intent tree or journal is refused.
+func TestTMV0008_ProbedTreeReadParity(t *testing.T) {
+	for _, kind := range []string{"clean", "diverged-ticket", "malformed-ticket", "unexpected-entry", "queue-mismatch", "receipt-pending"} {
+		t.Run(kind, func(t *testing.T) {
+			r := fixture.TempRepo(t)
+			fixture.WriteState(t, r)
+			fixture.WriteIntent(t, r)
+			b := fixture.Ticket("B")
+			b.Dependencies = []ticket.Dependency{fixture.Dep("A")}
+			fixture.CommitPosts(t, r, "MUTATION", "", map[string][]byte{"intent/tickets/A.json": fixture.Ticket("A").Encode()})
+			fixture.CommitPosts(t, r, "MUTATION", "", map[string][]byte{"intent/tickets/B.json": b.Encode()})
+			switch kind {
+			case "diverged-ticket":
+				a := fixture.Ticket("A")
+				a.Title = "edited outside the journal"
+				fixture.Write(t, filepath.Join(r.IntentDir, intent.TicketsDir, "A.json"), a.Encode())
+			case "malformed-ticket":
+				fixture.Write(t, filepath.Join(r.IntentDir, intent.TicketsDir, "A.json"), []byte("{}\n"))
+			case "unexpected-entry":
+				fixture.Write(t, filepath.Join(r.IntentDir, "stray.json"), []byte("{}\n"))
+			case "queue-mismatch":
+				q := fixture.QueueValue()
+				q.Obj.Set("queueId", wire.String("01J00000000000000000000000"))
+				fixture.Write(t, filepath.Join(r.IntentDir, intent.QueueFile), wire.EncodeFile(q))
+			case "receipt-pending":
+				fixture.PlantReceipt(t, r, 4)
+			}
+			for _, args := range probedTreeReads {
+				var on, off []byte
+				withProbedTree(false, func() { off = runBytes(r.Root, args...) })
+				withProbedTree(true, func() { on = runBytes(r.Root, args...) })
+				if res, err := wire.DecodeResult(on); err == nil {
+					t.Logf("%v: %s %v", args, res.Outcome, res.Codes)
+				}
+				if !bytes.Equal(observedAtField.ReplaceAll(on, nil), observedAtField.ReplaceAll(off, nil)) {
+					t.Fatalf("%v differs:\n on  %s\n off %s", args, on, off)
+				}
+				if kind == "clean" && args[0] == "queue" {
+					if res, err := wire.DecodeResult(on); err != nil || res.Outcome != wire.OutcomeOK {
+						t.Fatalf("clean %v: %v %s", args, err, on)
+					}
+				}
+			}
+		})
+	}
+}
+
+// TM-V0-008: a commit between the body and the second probe still discards
+// the attempt and re-reads, with the probed tree as with the third pass.
+func TestTMV0008_ProbedTreeMovedSnapshotParity(t *testing.T) {
+	for _, on := range []bool{false, true} {
+		withProbedTree(on, func() {
+			r := fixture.TempRepo(t)
+			fixture.WriteState(t, r)
+			fixture.WriteIntent(t, r)
+			calls := 0
+			res := ticketShow(Env{Cwd: r.Root, afterRead: func() {
+				calls++
+				if calls == 1 {
+					fixture.CommitPosts(t, r, "MUTATION", "", map[string][]byte{"intent/tickets/A.json": fixture.Ticket("A").Encode()})
+				}
+			}}, []string{"A"}, true)
+			if calls != 2 || res.Outcome != wire.OutcomeOK || len(res.Items) != 1 || len(res.Warnings) != 0 {
+				t.Fatalf("probed=%v calls=%d result=%+v", on, calls, res)
+			}
+		})
+	}
+}
+
+// CAL-V0-140: the journal audit shares the first probe's tree, so a ticket
+// rewritten in place at the same size and time after the audit must still
+// be caught by the second probe and re-read, never reported from the
+// shared bytes.
+func TestCALV0140_SharedAuditTreeSameSizeRewriteRereads(t *testing.T) {
+	r := fixture.TempRepo(t)
+	fixture.WriteState(t, r)
+	fixture.WriteIntent(t, r)
+	fixture.CommitPosts(t, r, "MUTATION", "", map[string][]byte{"intent/tickets/A.json": fixture.Ticket("A").Encode()})
+	path := filepath.Join(r.IntentDir, intent.TicketsDir, "A.json")
+	calls := 0
+	res := queueStatus(Env{Cwd: r.Root, afterRead: func() {
+		calls++
+		if calls != 1 {
+			return
+		}
+		fi, err := os.Stat(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		a := fixture.Ticket("A")
+		a.Title = strings.Repeat("x", len(a.Title))
+		raw := a.Encode()
+		if int64(len(raw)) != fi.Size() {
+			t.Fatalf("rewrite is %d bytes, want %d", len(raw), fi.Size())
+		}
+		fixture.Write(t, path, raw)
+		if err := os.Chtimes(path, fi.ModTime(), fi.ModTime()); err != nil {
+			t.Fatal(err)
+		}
+	}}, nil)
+	if calls != 2 {
+		t.Fatalf("read ran %d times, want a re-read after the rewrite", calls)
+	}
+	tree, err := intent.TreeDigest(r.Root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Snapshot == nil || res.Snapshot.IntentTreeSha256 == nil || *res.Snapshot.IntentTreeSha256 != tree.Sha256 {
+		t.Fatalf("result %+v is not bound to the rewritten tree %s", res, tree.Sha256)
+	}
+}

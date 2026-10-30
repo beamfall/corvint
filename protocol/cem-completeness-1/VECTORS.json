@@ -1,0 +1,293 @@
+{
+  "profile": "cem-completeness-vectors/1",
+  "completenessProfile": "cem-completeness/1",
+  "artifactRoot": ".",
+  "vectors": [
+    {
+      "name": "complete-inventory",
+      "description": "the independent inventory lists exactly the two cited runs and the required tests they select and record",
+      "map": "maps/clean.json",
+      "inventory": "inventories/complete.json",
+      "mapProducer": "producer:cem-map",
+      "target": "f8cd50b5509eb7176a79ef4e0787904feb66af71",
+      "outcome": "PASS",
+      "independence": "INDEPENDENT",
+      "missing": [],
+      "notObserved": []
+    },
+    {
+      "name": "failed-retry-omitted",
+      "description": "go-test attempt 1 recorded TestGreetName FAILED; the map cites only the narrowed passing attempt 2",
+      "map": "maps/clean.json",
+      "inventory": "inventories/failed-retry-omitted.json",
+      "mapProducer": "producer:cem-map",
+      "target": "f8cd50b5509eb7176a79ef4e0787904feb66af71",
+      "outcome": "REFUSE",
+      "independence": "INDEPENDENT",
+      "missing": [
+        {
+          "reason": "failed-run-omitted",
+          "runner": "go-test",
+          "project": "example.com/greet",
+          "test": "example.com/greet::TestGreetName",
+          "receiptSha256": "98694330bf4545f9f3ef853003e3f6ed7872d0e39faa733c3992d054a3574c6a",
+          "attempt": 1,
+          "terminalOutcome": "FAILED"
+        }
+      ],
+      "notObserved": []
+    },
+    {
+      "name": "selection-narrowed",
+      "description": "the inventory requires TestGreetName; no cited go-test plan selects it",
+      "map": "maps/clean.json",
+      "inventory": "inventories/selection-narrowed.json",
+      "mapProducer": "producer:cem-map",
+      "target": "f8cd50b5509eb7176a79ef4e0787904feb66af71",
+      "outcome": "REFUSE",
+      "independence": "INDEPENDENT",
+      "missing": [
+        {
+          "reason": "selection-narrowed",
+          "runner": "go-test",
+          "project": "example.com/greet",
+          "test": "example.com/greet::TestGreetName"
+        }
+      ],
+      "notObserved": []
+    },
+    {
+      "name": "receipt-missing",
+      "description": "a passing go-test attempt 2 the inventory lists is not cited; its receipt is withheld/runner-receipt-0-repeat.json",
+      "map": "maps/clean.json",
+      "inventory": "inventories/receipt-missing.json",
+      "mapProducer": "producer:cem-map",
+      "target": "f8cd50b5509eb7176a79ef4e0787904feb66af71",
+      "outcome": "REFUSE",
+      "independence": "INDEPENDENT",
+      "missing": [
+        {
+          "reason": "receipt-missing",
+          "runner": "go-test",
+          "project": "example.com/greet",
+          "receiptSha256": "5936077a79447773ebf87312c846ed2a2863fa6cf45702ec2db1f8e87d3754d5",
+          "attempt": 2
+        }
+      ],
+      "notObserved": []
+    },
+    {
+      "name": "self-authored-complete",
+      "description": "the map producer wrote the inventory, so a matching inventory cannot pass",
+      "map": "maps/clean.json",
+      "inventory": "inventories/self-authored.json",
+      "mapProducer": "producer:cem-map",
+      "target": "f8cd50b5509eb7176a79ef4e0787904feb66af71",
+      "outcome": "NOT_OBSERVED",
+      "independence": "SELF_AUTHORED",
+      "missing": [],
+      "notObserved": [
+        {
+          "reason": "inventory-self-authored"
+        }
+      ]
+    },
+    {
+      "name": "self-authored-omission-still-refuses",
+      "description": "a self-authored inventory can refute its own map but never confirm it",
+      "map": "maps/clean.json",
+      "inventory": "inventories/self-authored-failed-retry-omitted.json",
+      "mapProducer": "producer:cem-map",
+      "target": "f8cd50b5509eb7176a79ef4e0787904feb66af71",
+      "outcome": "REFUSE",
+      "independence": "SELF_AUTHORED",
+      "missing": [
+        {
+          "reason": "failed-run-omitted",
+          "runner": "go-test",
+          "project": "example.com/greet",
+          "test": "example.com/greet::TestGreetName",
+          "receiptSha256": "98694330bf4545f9f3ef853003e3f6ed7872d0e39faa733c3992d054a3574c6a",
+          "attempt": 1,
+          "terminalOutcome": "FAILED"
+        }
+      ],
+      "notObserved": [
+        {
+          "reason": "inventory-self-authored"
+        }
+      ]
+    },
+    {
+      "name": "no-inventory",
+      "description": "without an inventory the profile never passes",
+      "map": "maps/clean.json",
+      "inventory": null,
+      "mapProducer": "producer:cem-map",
+      "target": "f8cd50b5509eb7176a79ef4e0787904feb66af71",
+      "outcome": "NOT_OBSERVED",
+      "independence": null,
+      "missing": [],
+      "notObserved": [
+        {
+          "reason": "inventory-not-supplied"
+        }
+      ]
+    },
+    {
+      "name": "map-producer-not-supplied",
+      "description": "without the map producer identity independence cannot be established",
+      "map": "maps/clean.json",
+      "inventory": "inventories/complete.json",
+      "mapProducer": "",
+      "target": "f8cd50b5509eb7176a79ef4e0787904feb66af71",
+      "outcome": "NOT_OBSERVED",
+      "independence": "NOT_OBSERVED",
+      "missing": [],
+      "notObserved": [
+        {
+          "reason": "inventory-independence-not-observed"
+        }
+      ]
+    },
+    {
+      "name": "target-not-supplied",
+      "description": "the map does not carry its target revision, so the caller must supply it",
+      "map": "maps/clean.json",
+      "inventory": "inventories/complete.json",
+      "mapProducer": "producer:cem-map",
+      "target": "",
+      "outcome": "NOT_OBSERVED",
+      "independence": "INDEPENDENT",
+      "missing": [],
+      "notObserved": [
+        {
+          "reason": "target-not-supplied"
+        }
+      ]
+    },
+    {
+      "name": "terminal-outcome-mismatch",
+      "description": "the inventory recorded TestGreetEmpty FAILED in the run whose cited receipt says PASSED",
+      "map": "maps/clean.json",
+      "inventory": "inventories/terminal-outcome-mismatch.json",
+      "mapProducer": "producer:cem-map",
+      "target": "f8cd50b5509eb7176a79ef4e0787904feb66af71",
+      "outcome": "REFUSE",
+      "independence": "INDEPENDENT",
+      "missing": [
+        {
+          "reason": "terminal-outcome-mismatch",
+          "runner": "go-test",
+          "project": "example.com/greet",
+          "test": "example.com/greet::TestGreetEmpty",
+          "receiptSha256": "5e0af7807953ff823e91bb5a8eea2b0681b11a7e46dfc7b3e05641c79a052d30",
+          "attempt": 1,
+          "terminalOutcome": "FAILED"
+        }
+      ],
+      "notObserved": []
+    },
+    {
+      "name": "source-identity-mismatch",
+      "description": "the inventory's run ran over a different greet.go than the cited plan names",
+      "map": "maps/clean.json",
+      "inventory": "inventories/source-identity-mismatch.json",
+      "mapProducer": "producer:cem-map",
+      "target": "f8cd50b5509eb7176a79ef4e0787904feb66af71",
+      "outcome": "REFUSE",
+      "independence": "INDEPENDENT",
+      "missing": [
+        {
+          "reason": "source-identity-mismatch",
+          "runner": "go-test",
+          "project": "example.com/greet",
+          "receiptSha256": "5e0af7807953ff823e91bb5a8eea2b0681b11a7e46dfc7b3e05641c79a052d30",
+          "attempt": 1,
+          "source": "inputFiles:greet.go"
+        }
+      ],
+      "notObserved": []
+    },
+    {
+      "name": "run-not-in-inventory",
+      "description": "the map cites a node-test run the independent inventory does not list",
+      "map": "maps/clean.json",
+      "inventory": "inventories/run-not-in-inventory.json",
+      "mapProducer": "producer:cem-map",
+      "target": "f8cd50b5509eb7176a79ef4e0787904feb66af71",
+      "outcome": "REFUSE",
+      "independence": "INDEPENDENT",
+      "missing": [
+        {
+          "reason": "run-not-in-inventory",
+          "runner": "node-test",
+          "project": "greet",
+          "receiptSha256": "e9b3b66be6cbd62723005bae4fd15b523045b025be8b0fb030225a865fea1734"
+        }
+      ],
+      "notObserved": []
+    },
+    {
+      "name": "failed-run-cited-complete",
+      "description": "completeness is not passing: the map cites the failed run the inventory lists",
+      "map": "maps/failed-labelled.json",
+      "inventory": "inventories/failed-run-cited.json",
+      "mapProducer": "producer:cem-map",
+      "target": "f8cd50b5509eb7176a79ef4e0787904feb66af71",
+      "outcome": "PASS",
+      "independence": "INDEPENDENT",
+      "missing": [],
+      "notObserved": []
+    },
+    {
+      "name": "failed-run-cited-opaque",
+      "description": "an opaque/0 row is never read as a runner receipt, so its selection is not observed",
+      "map": "maps/failed-opaque.json",
+      "inventory": "inventories/failed-run-cited.json",
+      "mapProducer": "producer:cem-map",
+      "target": "f8cd50b5509eb7176a79ef4e0787904feb66af71",
+      "outcome": "NOT_OBSERVED",
+      "independence": "INDEPENDENT",
+      "missing": [],
+      "notObserved": [
+        {
+          "reason": "receipt-opaque",
+          "receiptSha256": "98694330bf4545f9f3ef853003e3f6ed7872d0e39faa733c3992d054a3574c6a"
+        },
+        {
+          "reason": "selection-not-observed",
+          "runner": "go-test",
+          "project": "example.com/greet",
+          "test": "example.com/greet::TestGreetEmpty"
+        },
+        {
+          "reason": "selection-not-observed",
+          "runner": "go-test",
+          "project": "example.com/greet",
+          "test": "example.com/greet::TestGreetName"
+        }
+      ]
+    },
+    {
+      "name": "inventory-invalid",
+      "description": "two runs name the same receipt",
+      "map": "maps/clean.json",
+      "inventory": "inventories/invalid-duplicate-run.json",
+      "mapProducer": "producer:cem-map",
+      "target": "f8cd50b5509eb7176a79ef4e0787904feb66af71",
+      "outcome": "REFUSE",
+      "independence": "NOT_OBSERVED",
+      "missing": [
+        {
+          "reason": "inventory-invalid"
+        }
+      ],
+      "notObserved": [
+        {
+          "reason": "inventory-independence-not-observed"
+        }
+      ]
+    }
+  ]
+}

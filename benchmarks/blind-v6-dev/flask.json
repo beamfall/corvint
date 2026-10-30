@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "repository": "flask",
+  "commit": "d318b683471101618febed18996405ad26462110",
+  "cases": [
+    {
+      "id": "v6dev-flask-get-route-sibling",
+      "mode": "query",
+      "text": "register a view function that only answers GET requests with the route shortcut",
+      "limit": 10,
+      "budget_bytes": 12000,
+      "rationale": "Development reconstruction of the blind-v6 forbidden class scaffold.py:post (decision 0307): Scaffold.get is the shortcut; the post sibling shares its window but not the task.",
+      "ground_truth": [{"path": "src/flask/sansio/scaffold.py", "line": 296, "contains": "def get"}],
+      "expected": {
+        "must_include": ["symbol:src/flask/sansio/scaffold.py:get"],
+        "critical": ["symbol:src/flask/sansio/scaffold.py:get"],
+        "relevant": ["symbol:src/flask/sansio/scaffold.py:get", "symbol:src/flask/sansio/scaffold.py:_method_route"],
+        "must_exclude": ["symbol:src/flask/sansio/scaffold.py:post"]
+      }
+    },
+    {
+      "id": "v6dev-flask-dispatch-request-sibling",
+      "mode": "query",
+      "text": "dispatch the request to the matching HTTP method handler of a class based view",
+      "limit": 10,
+      "budget_bytes": 12000,
+      "rationale": "Development reconstruction of the blind-v6 forbidden class views.py:as_view (decision 0307): MethodView.dispatch_request selects the handler; as_view only wraps the class.",
+      "ground_truth": [{"path": "src/flask/views.py", "line": 182, "contains": "def dispatch_request"}],
+      "expected": {
+        "must_include": ["symbol:src/flask/views.py:dispatch_request"],
+        "critical": ["symbol:src/flask/views.py:dispatch_request"],
+        "relevant": ["symbol:src/flask/views.py:dispatch_request", "symbol:src/flask/views.py:MethodView"],
+        "must_exclude": ["symbol:src/flask/views.py:as_view"]
+      }
+    },
+    {
+      "id": "v6dev-flask-teardown-request-sibling",
+      "mode": "query",
+      "text": "call the teardown request functions after the response is finalized",
+      "limit": 10,
+      "budget_bytes": 12000,
+      "rationale": "Development reconstruction of the blind-v6 forbidden class app.py:do_teardown_appcontext (decision 0307): do_teardown_request owns request teardown; the app-context sibling does not.",
+      "ground_truth": [{"path": "src/flask/app.py", "line": 1423, "contains": "def do_teardown_request"}],
+      "expected": {
+        "must_include": ["symbol:src/flask/app.py:do_teardown_request"],
+        "critical": ["symbol:src/flask/app.py:do_teardown_request"],
+        "relevant": ["symbol:src/flask/app.py:do_teardown_request"],
+        "must_exclude": ["symbol:src/flask/app.py:do_teardown_appcontext"]
+      }
+    }
+  ]
+}

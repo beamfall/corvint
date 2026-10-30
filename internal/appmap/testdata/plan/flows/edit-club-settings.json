@@ -1,0 +1,24 @@
+{
+  "schema": "application-flow-intent/1",
+  "flow_id": "edit-club-settings",
+  "revision": 1,
+  "kind": "ui",
+  "actor": "club admin",
+  "preconditions": ["admin may edit the club"],
+  "steps": [
+    {"step_id": "toggle-reminders", "action": "toggle booking reminders"},
+    {"step_id": "save", "action": "save the club settings"}
+  ],
+  "outcomes": [
+    {"outcome_id": "saved", "behavior": "settings are saved", "matcher": "toHaveText", "locator": "settings-status", "value": "Saved"}
+  ],
+  "variations": [],
+  "links": [],
+  "navigation": {
+    "precondition_flows": [],
+    "steps": [
+      {"step_id": "toggle-reminders", "state": "/clubs/{clubId}/settings", "locator": {"test_id": "reminders"}, "expect": []},
+      {"step_id": "save", "state": "/clubs/{clubId}/settings", "locator": {"role": "button", "name": "Save"}, "expect": ["saved"]}
+    ]
+  }
+}

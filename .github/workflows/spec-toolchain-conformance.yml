@@ -1,0 +1,75 @@
+name: spec-toolchain-conformance
+
+# STA-V0-011 (docs/specs/spec-toolchain-adapters-v0.md): install the OpenSpec and Spec Kit
+# releases pinned in interop/spec-toolchains/versions.json with checksum verification, run their
+# validators, and assert that Corvint's derived obligations equal upstream's own view. It needs
+# the npm registry, GitHub and the Python package index, so it runs only when the forms, fixtures, integrations or pins
+# change, including the shared intent-form registry and dispatch (internal/lrfrepo/ocm_forms.go),
+# the Markdown section helpers (ocm.go), the envelope writer (ocm_write.go) and the
+# `ocm prepare --intent-form` command (cmd/corvint/ocm.go). It never runs on every pull request
+# (not on unrelated Makefile edits either) and is not part of make gate. It uses the runner's
+# preinstalled node, npm, python3 and jq; the script refuses versions below the pinned engines.
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/spec-toolchain-conformance.yml"
+      - "interop/spec-toolchains/**"
+      - "protocol/integrations/openspec/**"
+      - "protocol/integrations/speckit/**"
+      - "internal/lrfrepo/ocm_toolchain_forms*.go"
+      - "internal/lrfrepo/ocm_forms.go"
+      - "internal/lrfrepo/ocm.go"
+      - "internal/lrfrepo/ocm_write.go"
+      - "cmd/corvint/ocm.go"
+      - "internal/contextindex/toolchain_status*.go"
+      - "script/spec-toolchain-conformance.sh"
+      - "script/spec-toolchain-latest*.sh"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/spec-toolchain-conformance.yml"
+      - "interop/spec-toolchains/**"
+      - "protocol/integrations/openspec/**"
+      - "protocol/integrations/speckit/**"
+      - "internal/lrfrepo/ocm_toolchain_forms*.go"
+      - "internal/lrfrepo/ocm_forms.go"
+      - "internal/lrfrepo/ocm.go"
+      - "internal/lrfrepo/ocm_write.go"
+      - "cmd/corvint/ocm.go"
+      - "internal/contextindex/toolchain_status*.go"
+      - "script/spec-toolchain-conformance.sh"
+      - "script/spec-toolchain-latest*.sh"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  spec-toolchain-conformance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: "1.27.3"
+          cache: false
+      - name: Offline checks of the latest-release script
+        run: make spec-toolchain-latest-test
+      - name: Pinned upstream validators and obligation equality
+        run: |
+          test "$(go env GOVERSION)" = "go1.27.3"
+          make spec-toolchain-conformance

@@ -1,0 +1,189 @@
+package store
+
+import (
+	"context"
+	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/wire"
+	"strings"
+	"testing"
+)
+
+func TestCALV0062_StageEffortSelection(t *testing.T) {
+	c := ProgramConfig{Model: "pinned-model", Effort: "low", StageEfforts: map[string]string{"implement": "high", "review": "medium"}}
+	for stage, want := range map[string]string{"implement": "high", "review": "medium", "integrate": "low"} {
+		if got := c.StageEffort(stage); got != want {
+			t.Fatalf("%s effort %q, want %q", stage, got, want)
+		}
+	}
+	argv := strings.Join(codexStageArgv(c, "implement", ""), " ")
+	if argv != `exec --json --sandbox workspace-write --model pinned-model -c model_reasoning_effort="high" -c mcp_servers={} -` {
+		t.Fatalf("implement argv %s", argv)
+	}
+	argv = strings.Join(codexStageArgv(c, "review", "session-7"), " ")
+	if argv != `exec resume session-7 --json --model pinned-model -c model_reasoning_effort="medium" -c sandbox_mode="read-only" -c mcp_servers={} -` {
+		t.Fatalf("resumed review argv %s", argv)
+	}
+	argv = strings.Join(codexStageArgv(c, "integrate", ""), " ")
+	if !strings.Contains(argv, `model_reasoning_effort="low"`) || !strings.Contains(argv, "--sandbox read-only") {
+		t.Fatalf("integrate argv %s", argv)
+	}
+}
+
+func TestCALV0062_CheckProgramConfigEffort(t *testing.T) {
+	allow := &intent.SupervisionPolicy{Efforts: map[string][]string{"implement": {"high", "medium"}, "review": {"high", "low", "medium"}}}
+	base := ProgramConfig{Effort: "low", WallSeconds: 3600}
+	cases := []struct {
+		name   string
+		policy *intent.SupervisionPolicy
+		c      ProgramConfig
+		refuse string
+	}{
+		{"absent policy keeps low", nil, base, ""},
+		{"absent policy refuses medium", nil, ProgramConfig{Effort: "medium", WallSeconds: 60}, `effort "medium"`},
+		{"default effort outside implement allowlist", allow, base, `effort "low" for stage implement`},
+		{"allowed per-stage efforts", allow, ProgramConfig{Effort: "low", WallSeconds: 60, StageEfforts: map[string]string{"implement": "medium", "review": "high"}}, ""},
+		{"integrate falls back outside allowlist", allow, ProgramConfig{Effort: "medium", WallSeconds: 60, StageEfforts: map[string]string{"integrate": "medium"}}, `stage integrate`},
+		{"unknown stage", allow, ProgramConfig{Effort: "low", WallSeconds: 60, StageEfforts: map[string]string{"implement": "high", "repair": "high"}}, `unknown stage "repair"`},
+		{"unknown effort", allow, ProgramConfig{Effort: "low", WallSeconds: 60, StageEfforts: map[string]string{"implement": "xhigh"}}, `effort "xhigh"`},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			e := CheckProgramConfig(tc.c, tc.policy)
+			if tc.refuse == "" && e != nil {
+				t.Fatalf("refused: %v", e)
+			}
+			if tc.refuse != "" && (e == nil || !strings.Contains(e.Error(), tc.refuse)) {
+				t.Fatalf("want refusal %q, got %v", tc.refuse, e)
+			}
+		})
+	}
+}
+
+// TestCALV0062_StageRechecksCurrentPolicy proves an existing program whose
+// policy was narrowed is refused at stage launch, before any worktree, record
+// or host process (the workflow below has none to touch).
+func TestCALV0062_StageRechecksCurrentPolicy(t *testing.T) {
+	w := &Workflow{cfg: ProgramConfig{Effort: "medium", WallSeconds: 60}, policy: &intent.Policy{}}
+	if _, e := w.stage(context.Background(), "review"); e == nil || !strings.Contains(e.Error(), `effort "medium"`) {
+		t.Fatalf("narrowed policy reached launch: %v", e)
+	}
+	w.cfg = ProgramConfig{Effort: "low", WallSeconds: 7200}
+	if _, e := w.stage(context.Background(), "implement"); e == nil || !strings.Contains(e.Error(), "wallSeconds") {
+		t.Fatalf("narrowed wall reached launch: %v", e)
+	}
+}
+
+// TestCALV0089_StageRechecksContinuations proves every stage launch, not only
+// program admission, refuses a continuation policy that the host or the token
+// caps cannot support, before any record or host process.
+func TestCALV0089_StageRechecksContinuations(t *testing.T) {
+	for _, tc := range []struct {
+		host   string
+		policy *intent.Policy
+		refuse string
+	}{
+		{"claude-code", &intent.Policy{Supervision: &intent.SupervisionPolicy{Host: "claude-code", Continuations: wire.CountOf(2)}}, "reports its session only in its final result"},
+		{"", &intent.Policy{Supervision: &intent.SupervisionPolicy{Continuations: wire.CountOf(2)}, Lane: intent.LaneBudget{OutputTokens: wire.SizeOf(5)}}, "token usage of an interrupted turn"},
+		{"", &intent.Policy{Supervision: &intent.SupervisionPolicy{Continuations: wire.CountOf(2), InputTokens: wire.SizeOf(5)}}, "token usage of an interrupted turn"},
+	} {
+		w := &Workflow{cfg: ProgramConfig{Effort: "low", WallSeconds: 60, Host: tc.host}, policy: tc.policy}
+		if _, e := w.stage(context.Background(), "implement"); wire.CodeOf(e) != wire.CodeUnsupported || !strings.Contains(e.Error(), tc.refuse) {
+			t.Fatalf("host %q continuation policy reached launch: %v", tc.host, e)
+		}
+	}
+}
+
+func TestCALV0063_CheckProgramConfigStageWall(t *testing.T) {
+	long := &intent.SupervisionPolicy{StageWallMinutes: wire.CountOf(240)}
+	for _, tc := range []struct {
+		policy *intent.SupervisionPolicy
+		wall   int
+		ok     bool
+	}{
+		{nil, 0, false}, {nil, 1, true}, {nil, 3600, true}, {nil, 3601, false},
+		{&intent.SupervisionPolicy{}, 3601, false},
+		{long, 3601, true}, {long, 240 * 60, true}, {long, 240*60 + 1, false},
+	} {
+		e := CheckProgramConfig(ProgramConfig{Effort: "low", WallSeconds: tc.wall}, tc.policy)
+		if (e == nil) != tc.ok {
+			t.Fatalf("wall %d under %+v: %v", tc.wall, tc.policy, e)
+		}
+	}
+}
+
+// TestCALV0062_BaseEffortRequired proves the default effort must itself be a
+// supervised effort even when every stage overrides it.
+func TestCALV0062_BaseEffortRequired(t *testing.T) {
+	all := map[string]string{"implement": "low", "review": "low", "integrate": "low"}
+	for _, effort := range []string{"", "xhigh"} {
+		e := checkNewProgramConfig(ProgramConfig{Effort: effort, WallSeconds: 60, StageEfforts: all}, nil)
+		if e == nil || !strings.Contains(e.Error(), "is not a supervised effort") {
+			t.Fatalf("base effort %q accepted: %v", effort, e)
+		}
+		// A recorded program is re-checked without the base rule, so it is
+		// not stranded while every stage stays overridden.
+		if e = CheckProgramConfig(ProgramConfig{Effort: effort, WallSeconds: 60, StageEfforts: all}, nil); e != nil {
+			t.Fatalf("recorded base effort %q stranded: %v", effort, e)
+		}
+	}
+	if e := checkNewProgramConfig(ProgramConfig{Effort: "low", WallSeconds: 60, StageEfforts: all}, nil); e != nil {
+		t.Fatalf("low base refused: %v", e)
+	}
+	if e := CheckProgramConfig(ProgramConfig{Effort: "", WallSeconds: 60}, nil); e == nil {
+		t.Fatal("empty effort accepted for a stage it governs")
+	}
+}
+
+func TestCALV0071_CheckProgramConfigRepositories(t *testing.T) {
+	docs, site := "/work/docs", "/work/site"
+	policy := &intent.SupervisionPolicy{Repositories: map[string]wire.Digest{"docs": wire.Sum([]byte(docs)), "site": wire.Sum([]byte(site))}}
+	for _, tc := range []struct {
+		policy *intent.SupervisionPolicy
+		repos  []ProgramRepository
+		refuse string
+	}{
+		{policy, nil, ""},
+		{policy, []ProgramRepository{{Name: "docs", Checkout: docs}, {Name: "site", Checkout: site}}, ""},
+		{nil, []ProgramRepository{{Name: "docs", Checkout: docs}}, "not declared by policy"},
+		{policy, []ProgramRepository{{Name: "wiki", Checkout: docs}}, "not declared by policy"},
+		{policy, []ProgramRepository{{Name: "site", Checkout: site}, {Name: "docs", Checkout: docs}}, "sorted by unique name"},
+		{policy, []ProgramRepository{{Name: "docs", Checkout: docs}, {Name: "docs", Checkout: docs}}, "sorted by unique name"},
+		{policy, []ProgramRepository{{Name: "docs", Checkout: "work/docs"}}, "absolute clean path"},
+		{policy, []ProgramRepository{{Name: "docs", Checkout: "/work/../work/docs"}}, "absolute clean path"},
+		{policy, []ProgramRepository{{Name: "docs", Checkout: site}}, "differs from the policy path pin"},
+		{policy, []ProgramRepository{{Name: "docs", Checkout: docs, IntegrationBranch: "main"}}, ""},
+		{policy, []ProgramRepository{{Name: "docs", Checkout: docs, IntegrationBranch: "ma\nin"}}, "integrationBranch is not a branch label"},
+	} {
+		e := CheckProgramConfig(ProgramConfig{Effort: "low", WallSeconds: 60, Repositories: tc.repos}, tc.policy)
+		if tc.refuse == "" && e != nil {
+			t.Fatalf("%+v refused: %v", tc.repos, e)
+		}
+		if tc.refuse != "" && (e == nil || !strings.Contains(e.Error(), tc.refuse)) {
+			t.Fatalf("%+v: want %q, got %v", tc.repos, tc.refuse, e)
+		}
+	}
+}
+
+// TestCALV0071_WritableRoots proves only an implement stage gains the extra
+// repositories' sibling worktrees as sandbox writable roots, in sorted order
+// and before the prompt argument.
+func TestCALV0071_WritableRoots(t *testing.T) {
+	c := ProgramConfig{Model: "pinned-model", Effort: "low"}
+	extras := map[string]string{"site": "/w/implement-1@site", "docs": "/w/implement-1@docs"}
+	argv := strings.Join(withWritableRoots(codexStageArgv(c, "implement", ""), "implement", extras), " ")
+	if !strings.HasSuffix(argv, ` -c sandbox_workspace_write.writable_roots=["/w/implement-1@docs","/w/implement-1@site"] -`) {
+		t.Fatalf("implement argv %s", argv)
+	}
+	argv = strings.Join(withWritableRoots(codexStageArgv(c, "implement", "session-1"), "implement", extras), " ")
+	if !strings.HasPrefix(argv, "exec resume session-1 ") || !strings.Contains(argv, "writable_roots") {
+		t.Fatalf("resumed implement argv %s", argv)
+	}
+	for _, stage := range []string{"review", "integrate"} {
+		if argv := strings.Join(withWritableRoots(codexStageArgv(c, stage, ""), stage, extras), " "); strings.Contains(argv, "writable_roots") {
+			t.Fatalf("%s argv %s", stage, argv)
+		}
+	}
+	if got, want := withWritableRoots(codexStageArgv(c, "implement", ""), "implement", nil), codexStageArgv(c, "implement", ""); strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Fatal("single-repository argv changed")
+	}
+}

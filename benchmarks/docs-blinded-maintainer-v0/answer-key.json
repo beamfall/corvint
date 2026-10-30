@@ -1,0 +1,11 @@
+{
+  "profile": "corvint-docs-blinded-answer-key/0",
+  "answers": {
+    "q1": ["Preview"],
+    "q2": ["Apply"],
+    "q3": ["Watch"],
+    "q4": ["Selector"],
+    "q5": ["cmd/corvint", "internal/companionrelease"],
+    "q6": ["unknown"]
+  }
+}

@@ -1,0 +1,230 @@
+name: CEM release gate
+
+# AFP-V0-432 (V1-2580): `make cem-release-gate` on every pull request, merge-queue entry and main
+# push, in its own workflow rather than in ci.yml. Each host job runs the sealed suites and writes
+# its cem-release-run/1 record; the aggregate job judges readiness over both records (CEM-V1-612),
+# so each platform row is observed by its own host. The strict aggregate refuses (exit 3) while a
+# declared row stays unobserved: today only the independent-external-consumer row (V1-0014), which
+# no CI host can observe. This PR/main job judges with --ci-unobservable naming that row, so it fails
+# only on CI-observable rows and reports that one as a known blocker; its outcome and every release
+# path stay strict (V1-2736). Inside ci.yml a refusal would fail the whole CI run, and the
+# AFP-V0-080 static reuse and the tested-tree reuse accept only successful ci.yml runs. Not a
+# required check. AFP-V0-672 (V1-2987): a merge-queue entry or main push whose exact tree already
+# passed both host jobs and the aggregate skips their steps (cem-release-reuse, AFP-V0-670).
+
+on:
+  pull_request:
+  merge_group:
+    types: [checks_requested]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || (github.event_name == 'push' && github.sha) || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  cem-release-reuse:
+    # AFP-V0-670, AFP-V0-672 (V1-2987): decides whether the gate and readiness jobs may skip their
+    # steps. A merge-queue entry reuses a successful pull-request run of its second parent whose
+    # cem-release-record job printed this tree, this first parent and that head; a main push reuses
+    # a successful merge-queue run of this exact commit in which both host jobs and the aggregate
+    # passed. A commit that changes .github, any mismatch, or an unreadable listing or log leaves
+    # `mode` empty, and the gate runs in full. It never runs for a pull request.
+    if: github.event_name == 'merge_group' || github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    outputs:
+      mode: ${{ steps.find.outputs.mode }}
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Find a passed CEM release verdict for this tree
+        id: find
+        continue-on-error: true
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GATE: cem-release
+          WORKFLOW: cem-release-gate.yml
+          GATE_JOBS: '["cem-release-gate (ubuntu-24.04)","cem-release-gate (macos-15)","cem-release-readiness"]'
+          RECORD_JOB: cem-release-record
+        run: bash .github/gate-reuse/find.sh
+
+  cem-release-gate:
+    # AFP-V0-432 (V1-2580): `make cem-release-gate` (CEM-V1-600..605) on linux/amd64 and darwin/arm64.
+    # The target builds corvint and interop/cem01-go from this clean checkout into one private
+    # directory, runs the sealed suites over both binaries and writes this host's run record and
+    # outcome (CEM-V1-611, CEM-V1-613). The job passes when the target exits 0, or when it exits
+    # nonzero after writing both with every recorded runner row PASSED: every suite passed and
+    # only this host's readiness view refused, which the aggregate job judges again across hosts. A suite failure writes no record and fails
+    # the job. Its output, record and outcome are retained per platform. Not a required check; a
+    # ci:batched constituent never starts it (AFP-V0-081), as its batch pull request and queue entry
+    # run it. On a REUSE decision (AFP-V0-672) every step is skipped and the job concludes success.
+    needs: cem-release-reuse
+    if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        if: needs.cem-release-reuse.outputs.mode != 'REUSE'
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: needs.cem-release-reuse.outputs.mode != 'REUSE'
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: needs.cem-release-reuse.outputs.mode != 'REUSE'
+        with:
+          node-version: "24.11.1"
+      - name: CEM release suites and run record (fails on a suite failure)
+        if: needs.cem-release-reuse.outputs.mode != 'REUSE'
+        run: |
+          out="$RUNNER_TEMP/cem-release-gate"
+          mkdir -p "$out"
+          code=0
+          make cem-release-gate CEM_RELEASE_RECORD="$out/record.json" CEM_RELEASE_OUTCOME="$out/outcome.json" > "$out/output.txt" 2>&1 || code=$?
+          cat "$out/output.txt"
+          verdict=failed
+          if [ "$code" = 0 ]; then
+            verdict=ready
+          elif [ -s "$out/record.json" ] && [ -s "$out/outcome.json" ]; then
+            # The record's runner rows must all be PASSED: an envelope suite whose report is
+            # missing or short is recorded NOT_RUN, which is not a passing suite (CEM-V1-610).
+            rows=$(grep -o '"runner":{[^}]*}' "$out/record.json" | grep -Eo '"[^"]*":"[A-Z_]+"' || true)
+            if [ -n "$rows" ] && ! printf '%s\n' "$rows" | grep -vq '":"PASSED"$'; then
+              verdict=recorded
+            fi
+          fi
+          {
+            printf '### CEM release suites (AFP-V0-432)\n\nmake cem-release-gate exited %s; host verdict %s.\n\n```\n' "$code" "$verdict"
+            grep -E '^cem-release-suites: (readiness: (REFUSED|platform|external)|.*(PASS|FAIL))' "$out/output.txt" || true
+            printf '```\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$verdict" = failed ]; then
+            echo "::error::make cem-release-gate exited $code without a run record whose every runner row PASSED; the retained output names the failed or unrun suite."
+            exit "$code"
+          fi
+      - name: Retain the CEM release gate output
+        if: ${{ always() && needs.cem-release-reuse.outputs.mode != 'REUSE' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cem-release-gate-${{ matrix.os }}
+          path: ${{ runner.temp }}/cem-release-gate/
+          if-no-files-found: ignore
+
+  cem-release-readiness:
+    # AFP-V0-432 (V1-2580, V1-2736): judges release readiness over both hosts' run records of this
+    # revision (`cem-release-suites --aggregate`, CEM-V1-612) in the CI scope: --ci-unobservable
+    # attests the independent-external-consumer row (V1-0014), the declaration's one external row,
+    # which no CI host observes. The job fails with the tool's own nonzero exit (3 while any runner or
+    # platform row is not PASSED, 1 on a refused record set or attestation) and passes otherwise,
+    # naming that row NOT_OBSERVED as a known blocker in the summary and a warning annotation. The
+    # retained outcome stays the strict REFUSED verdict. Records are unauthenticated run output; a
+    # pass here is still not release support.
+    # On a REUSE decision (AFP-V0-672) every step is skipped and the job concludes success.
+    needs: [cem-release-reuse, cem-release-gate]
+    if: ${{ !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && needs.cem-release-gate.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        if: needs.cem-release-reuse.outputs.mode != 'REUSE'
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        if: needs.cem-release-reuse.outputs.mode != 'REUSE'
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: needs.cem-release-reuse.outputs.mode != 'REUSE'
+        with:
+          pattern: cem-release-gate-*
+          path: ${{ runner.temp }}/cem-release-records
+      - name: CEM release readiness across hosts, CI-observable rows (fails on any nonzero exit)
+        if: needs.cem-release-reuse.outputs.mode != 'REUSE'
+        run: |
+          records="$RUNNER_TEMP/cem-release-records"
+          out="$RUNNER_TEMP/cem-release-readiness"
+          mkdir -p "$out"
+          code=0
+          # The declaration's external rows, which no CI host observes; the tool refuses (exit 1)
+          # unless this is exactly READINESS.json's external set.
+          unobservable=independent-external-consumer
+          # Built, not `go run`: go run reports any nonzero exit as 1 and would hide the refusal's 3.
+          go build -o "$RUNNER_TEMP/cem-release-suites" ./tools/cem-release-suites
+          "$RUNNER_TEMP/cem-release-suites" --aggregate --readiness tools/cem-release-suites/READINESS.json --ci-unobservable "$unobservable" --outcome "$out/outcome.json" "$records/cem-release-gate-ubuntu-24.04/record.json" "$records/cem-release-gate-macos-15/record.json" > "$out/output.txt" 2>&1 || code=$?
+          cat "$out/output.txt"
+          {
+            printf '### CEM release readiness (AFP-V0-432)\n\ncem-release-suites --aggregate exited %s.\n\n```\n' "$code"
+            grep -E '^cem-release-suites: (aggregate|readiness): ' "$out/output.txt" || true
+            printf '```\n'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" != 0 ]; then
+            echo "::error::cem-release-suites --aggregate exited $code; the retained output names the refused row."
+          elif grep -q '^cem-release-suites: readiness: known blocker: ' "$out/output.txt"; then
+            echo "::warning::Release readiness stays REFUSED: external row $unobservable is NOT_OBSERVED, a known blocker no CI host observes (V1-0014). Every CI-observable row PASSED."
+            printf '\nKnown blocker: external row `%s` is NOT_OBSERVED (V1-0014); strict release readiness stays REFUSED.\n' "$unobservable" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$code"
+      - name: Retain the CEM release readiness output
+        if: ${{ always() && needs.cem-release-reuse.outputs.mode != 'REUSE' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cem-release-readiness
+          path: ${{ runner.temp }}/cem-release-readiness/
+          if-no-files-found: ignore
+
+  cem-release-record:
+    # AFP-V0-670, AFP-V0-672: the only evidence the cem-release-reuse decision accepts. It runs in a
+    # pull-request run only after both host jobs and the aggregate passed there, and prints the
+    # tested tree, the tested merge's first parent and the pull-request head as one fixed line to
+    # this job's own log. It runs no repository code (checkout, git and printf only) and persists no
+    # credentials, so no suite, build step or fork pull request in another job can write that log.
+    needs: [cem-release-gate, cem-release-readiness]
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && needs.cem-release-gate.result == 'success' && needs.cem-release-readiness.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Record the verified tree
+        id: record
+        env:
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -eu
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse --verify -q "$GITHUB_SHA^2")" = "$PR_HEAD"
+          base=$(git rev-parse --verify -q "$GITHUB_SHA^1")
+          tree=$(git rev-parse --verify -q "$GITHUB_SHA^{tree}")
+          printf 'corvint-ci-gate-tree/0 gate=cem-release tree=%s base=%s head=%s target=%s\n' "$tree" "$base" "$PR_HEAD" "$GITHUB_SHA"

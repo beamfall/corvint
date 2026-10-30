@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:context-corvint:cem:0.2",
+  "title": "Change Evidence Map 0.2",
+  "description": "Canonical-target-bound CEM with one fixed recursion exclusion.",
+  "$comment": "assurance is a verification-result field, not part of this six-field CEM wire object",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "spec",
+    "baseRevision",
+    "patchSha256",
+    "excludedPath",
+    "evidence",
+    "hunks"
+  ],
+  "properties": {
+    "spec": {"const": "cem/0.2"},
+    "baseRevision": {"$ref": "#/$defs/gitOid"},
+    "patchSha256": {"$ref": "#/$defs/sha256"},
+    "excludedPath": {"const": ".corvint/change.cem.json"},
+    "evidence": {
+      "type": "array",
+      "maxItems": 4096,
+      "items": {"$ref": "#/$defs/evidence"}
+    },
+    "hunks": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 2048,
+      "items": {"$ref": "#/$defs/hunk"}
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "gitOid": {
+      "type": "string",
+      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+    },
+    "path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^(?!/)(?!.*\\\\)(?!.*[\\u0000-\\u001f\\u007f])(?!\\.{1,2}(?:/|$))(?!.*\\/\\.{1,2}(?:/|$))[^/]+(?:/[^/]+)*$"
+    },
+    "span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+        "end": {"type": "integer", "minimum": 1, "maximum": 9007199254740991}
+      }
+    },
+    "range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "count"],
+      "properties": {
+        "start": {"type": "integer", "minimum": 0, "maximum": 9007199254740991},
+        "count": {"type": "integer", "minimum": 0, "maximum": 9007199254740991}
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "blobOid", "path", "span", "spanSha256"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^evidence:sha256:[0-9a-f]{64}$"},
+        "blobOid": {"$ref": "#/$defs/gitOid"},
+        "path": {"$ref": "#/$defs/path"},
+        "span": {"$ref": "#/$defs/span"},
+        "spanSha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "basis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evidenceId", "relation"],
+      "properties": {
+        "evidenceId": {"type": "string", "pattern": "^evidence:sha256:[0-9a-f]{64}$"},
+        "relation": {
+          "enum": [
+            "call-site",
+            "decision",
+            "dependency",
+            "implementation",
+            "incident",
+            "specification",
+            "test-claim"
+          ]
+        }
+      }
+    },
+    "hunk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "path",
+        "oldRange",
+        "newRange",
+        "disposition",
+        "reason",
+        "basis"
+      ],
+      "properties": {
+        "id": {"type": "string", "pattern": "^hunk:sha256:[0-9a-f]{64}$"},
+        "path": {"$ref": "#/$defs/path"},
+        "oldRange": {"$ref": "#/$defs/range"},
+        "newRange": {"$ref": "#/$defs/range"},
+        "disposition": {"enum": ["supported", "unknown", "mechanical"]},
+        "reason": {
+          "enum": [
+            "evidence-backed",
+            "no-evidence",
+            "insufficient-evidence",
+            "conflicting-evidence",
+            "whitespace-only",
+            "line-ending-only"
+          ]
+        },
+        "basis": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {"$ref": "#/$defs/basis"}
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"disposition": {"const": "supported"}}, "required": ["disposition"]},
+          "then": {
+            "properties": {
+              "basis": {"minItems": 1},
+              "reason": {"const": "evidence-backed"}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"disposition": {"const": "unknown"}}, "required": ["disposition"]},
+          "then": {
+            "properties": {
+              "basis": {"maxItems": 0},
+              "reason": {"enum": ["conflicting-evidence", "insufficient-evidence", "no-evidence"]}
+            }
+          }
+        },
+        {
+          "if": {"properties": {"disposition": {"const": "mechanical"}}, "required": ["disposition"]},
+          "then": {
+            "properties": {
+              "basis": {"maxItems": 0},
+              "reason": {"enum": ["line-ending-only", "whitespace-only"]}
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,210 @@
+diff --git a/internal/mediahttp/mediahttp.go b/internal/mediahttp/mediahttp.go
+index 8f525e4cf..e7d74f8e9 100644
+--- a/internal/mediahttp/mediahttp.go
++++ b/internal/mediahttp/mediahttp.go
+@@ -276,7 +276,15 @@ func (h *Handler) HLS(w http.ResponseWriter, r *http.Request) {
+ 	// artifacts under that rung, which is the byte-layer signal to seed the
+ 	// audio-copy rung (video copied, only audio transcoded) into the session.
+ 	audioCopy := playback.IsAudioCopyArtifact(name)
+-	path, err := h.hls.FilePath(r.Context(), key, file.Path, media.DurationSeconds, media.VideoWidth, media.VideoHeight, audioCopy, name)
++	// A foreground/interactive playhead ranks PriorityForeground for admission
++	// (ADR-0010 §6: higher-priority preempts lower). The byte layer has only the
++	// signed Stream Token grant, not the playbackInfo decision (same root cause
++	// as the audio-copy rung signal above), so the rank arrives as an additive,
++	// optional client header — absent means PriorityNormal, byte-identical to
++	// before. The session's rank is raise-only, so whichever request first
++	// asserts foreground keeps the session protected for the rest of its life.
++	priority := foregroundPriority(r)
++	path, err := h.hls.FilePathPriority(r.Context(), key, file.Path, media.DurationSeconds, media.VideoWidth, media.VideoHeight, audioCopy, priority, name)
+ 	if err != nil {
+ 		slog.Error("hls serve failed", "error", err.Error())
+ 		http.Error(w, "stream unavailable", http.StatusServiceUnavailable)
+@@ -291,6 +299,28 @@ func (h *Handler) HLS(w http.ResponseWriter, r *http.Request) {
+ 	http.ServeFile(w, r, path)
+ }
+ 
++// ForegroundHeader is the client signal that ranks an HLS byte request's
++// transcode session PriorityForeground (ADR-0010 §6). It joins the X-Beamfall-*
++// client-header family (see auth.CSRFHeader); any truthy value ("1"/"true")
++// asserts the foreground/interactive playhead, absent or anything else is the
++// PriorityNormal default. It is the byte-layer twin of InfoRequest.Foreground:
++// playbackInfo decides the advertised admission verdict from the request flag,
++// the byte route admits the real encode from this header, both declarations of
++// the same client intent at the two layers the Stream Token cannot bridge.
++const ForegroundHeader = "X-Beamfall-Foreground"
++
++// foregroundPriority maps the optional foreground header to an admission rank.
++// Absent (or non-truthy) is PriorityNormal, so a client that never sends it
++// behaves exactly as before.
++func foregroundPriority(r *http.Request) playback.Priority {
++	switch strings.ToLower(strings.TrimSpace(r.Header.Get(ForegroundHeader))) {
++	case "1", "true":
++		return playback.PriorityForeground
++	default:
++		return playback.PriorityNormal
++	}
++}
++
+ // Artwork serves an artwork derivative for a visible Media item. Unlike Direct
+ // it authenticates with the standard credential headers — clients control
+ // their image fetches, so no URL-carried token is needed, and the Media
+diff --git a/internal/playback/playback.go b/internal/playback/playback.go
+index 10a982c5e..4f4c7bcc6 100644
+--- a/internal/playback/playback.go
++++ b/internal/playback/playback.go
+@@ -23,6 +23,15 @@ type InfoRequest struct {
+ 	// and servable, the response carries its Stream Token ahead of time so
+ 	// gapless transitions need no extra round trip.
+ 	NextMediaID string `json:"nextMediaID,omitempty"`
++	// Foreground declares this playbackInfo as the client's foreground/
++	// interactive playhead, the signal that ranks the session PriorityForeground
++	// for admission control (ADR-0010 §6: higher-priority preempts lower). It is
++	// additive and optional — the zero value (absent) is PriorityNormal, so a
++	// client that never sets it behaves exactly as before (every session equal-
++	// priority, idle-only preemption). The transcode-refusal verdict below is
++	// computed at this rank, so playbackInfo never refuses a foreground start the
++	// server would actually admit by preempting a normal stream.
++	Foreground bool `json:"foreground,omitempty"`
+ }
+ 
+ // CapabilityProfile is the client's declared playback capability (ADR-0010 §1).
+@@ -256,7 +265,13 @@ func (s *Service) Info(ctx context.Context, scope auth.Scope, req InfoRequest) (
+ 	if err != nil {
+ 		return InfoResponse{}, err
+ 	}
+-	main, err := s.decide(ctx, scope, mediaID, "main", req.CapabilityProfile, policy)
++	// A foreground/interactive playhead ranks PriorityForeground for admission
++	// control (ADR-0010 §6); an unset flag is PriorityNormal, unchanged.
++	priority := PriorityNormal
++	if req.Foreground {
++		priority = PriorityForeground
++	}
++	main, err := s.decide(ctx, scope, mediaID, "main", req.CapabilityProfile, policy, priority)
+ 	if err != nil {
+ 		return InfoResponse{}, err
+ 	}
+@@ -279,7 +294,7 @@ func (s *Service) Info(ctx context.Context, scope auth.Scope, req InfoRequest) (
+ 		// Best-effort: any next item that cannot be served — unknown,
+ 		// outside the session scope, or with no playable file — is silently
+ 		// omitted; current playback is never affected.
+-		next, nextErr := s.decide(ctx, scope, nextID, "next", req.CapabilityProfile, policy)
++		next, nextErr := s.decide(ctx, scope, nextID, "next", req.CapabilityProfile, policy, priority)
+ 		if nextErr == nil && next.verdict != "unavailable" {
+ 			resp.Next = &NextInfo{
+ 				MediaID:    string(next.media.ID),
+@@ -299,8 +314,11 @@ func (s *Service) Info(ctx context.Context, scope auth.Scope, req InfoRequest) (
+ // transcode) for one media ID under the session scope. An unavailable
+ // verdict carries a reason; a media the scope cannot see is indistinguishable
+ // from an unknown ID (Reveal contract). suffix distinguishes stream IDs for
+-// the current ("main") vs declared next ("next") item.
+-func (s *Service) decide(ctx context.Context, scope auth.Scope, mediaID, suffix string, profile CapabilityProfile, policy store.Profile) (decision, error) {
++// the current ("main") vs declared next ("next") item. priority is the
++// admission rank the transcode-refusal check uses (ADR-0010 §6): a foreground
++// playhead may be admitted by preempting a normal stream, so the verdict it
++// receives matches what the byte layer would actually start at that rank.
++func (s *Service) decide(ctx context.Context, scope auth.Scope, mediaID, suffix string, profile CapabilityProfile, policy store.Profile, priority Priority) (decision, error) {
+ 	media, err := s.store.Media(ctx, store.MediaID(mediaID), scope.LibraryFilter())
+ 	if err != nil {
+ 		return decision{verdict: "unavailable", reason: "media-unavailable", streams: []StreamChoice{}}, nil
+@@ -352,7 +370,7 @@ func (s *Service) decide(ctx context.Context, scope auth.Scope, mediaID, suffix
+ 	// The transcode pipeline is policy- and admission-gated before it is
+ 	// offered anywhere. An honest verdict beats a stream that the server
+ 	// would refuse to start (ADR-0010: never promise what cannot be served).
+-	transcodeRefusal := s.transcodeRefusal(ctx, scope, media.ID, policy)
++	transcodeRefusal := s.transcodeRefusal(ctx, scope, media.ID, policy, priority)
+ 
+ 	if canDirectPlay(media, streams, profile) {
+ 		grant.Target = streamtoken.TargetMediaDirect
+@@ -373,7 +391,7 @@ func (s *Service) decide(ctx context.Context, scope auth.Scope, mediaID, suffix
+ 		// files too (the weak-WiFi case) — but only when the transcode could
+ 		// actually start right now.
+ 		if transcodeRefusal == "" {
+-			hls, err := s.hlsChoice(grant, suffix, media, expiresAt)
++			hls, err := s.hlsChoice(grant, suffix, media, profile, expiresAt)
+ 			if err != nil {
+ 				return decision{}, err
+ 			}
+@@ -417,7 +435,7 @@ func (s *Service) decide(ctx context.Context, scope auth.Scope, mediaID, suffix
+ 
+ 	// Fall to the server HLS transcode rung (ADR-0010): the session starts
+ 	// lazily on the first segment request.
+-	hls, err := s.hlsChoice(grant, suffix, media, expiresAt)
++	hls, err := s.hlsChoice(grant, suffix, media, profile, expiresAt)
+ 	if err != nil {
+ 		return decision{}, err
+ 	}
+@@ -502,8 +520,11 @@ func groupVersions(files []store.MediaFile) [][]store.MediaFile {
+ // (Profile, Media) right now, or "" when one could: the Profile's transcode
+ // gate and stream cap, then server admission control (ADR-0010 §6 — checked
+ // at start, so playbackInfo never advertises a transcode the server would
+-// refuse).
+-func (s *Service) transcodeRefusal(ctx context.Context, scope auth.Scope, mediaID store.MediaID, policy store.Profile) string {
++// refuse). priority is the admission rank the start would use: a foreground
++// newcomer (ADR-0010 §6) may preempt a strictly-lower-priority stream at
++// capacity, so checking admission at that rank keeps the verdict honest — a
++// foreground playhead is not refused for capacity it could actually claim.
++func (s *Service) transcodeRefusal(ctx context.Context, scope auth.Scope, mediaID store.MediaID, policy store.Profile, priority Priority) string {
+ 	if !policy.TranscodeAllowed {
+ 		return "transcode-disallowed"
+ 	}
+@@ -511,7 +532,7 @@ func (s *Service) transcodeRefusal(ctx context.Context, scope auth.Scope, mediaI
+ 		s.activeProfileTranscodes(ctx, scope, mediaID) >= *policy.MaxConcurrentStreams {
+ 		return "stream-limit-reached"
+ 	}
+-	if s.sessions != nil && !s.sessions.CanAdmit(SessionKey{SessionID: scope.SessionID, MediaID: mediaID}) {
++	if s.sessions != nil && !s.sessions.CanAdmitPriority(SessionKey{SessionID: scope.SessionID, MediaID: mediaID}, priority) {
+ 		return "transcode-capacity-reached"
+ 	}
+ 	return ""
+@@ -519,14 +540,19 @@ func (s *Service) transcodeRefusal(ctx context.Context, scope auth.Scope, mediaI
+ 
+ // hlsChoice builds the HLS stream option: a master-playlist URL plus the
+ // honest rendition inventory the master will advertise (ADR-0010 §8 — the
+-// rungs are derived from the source dimensions and never exceed them).
+-func (s *Service) hlsChoice(grant streamtoken.Grant, suffix string, media store.Media, expiresAt time.Time) (StreamChoice, error) {
++// rungs are derived from the source dimensions and the client's decode ceiling,
++// and never exceed either). profile carries the client's declared capability,
++// the one place the CapabilityProfile is in hand, so the advertised ladder is
++// clipped to what the client can actually decode (rungsForClient); a profile
++// that declares no per-codec ceiling falls back to source-only rungs exactly as
++// before (clientLadderCeiling returns 0).
++func (s *Service) hlsChoice(grant streamtoken.Grant, suffix string, media store.Media, profile CapabilityProfile, expiresAt time.Time) (StreamChoice, error) {
+ 	grant.Target = streamtoken.TargetMediaHLS
+ 	token, err := s.tokens.Issue(grant)
+ 	if err != nil {
+ 		return StreamChoice{}, err
+ 	}
+-	rungs := rungsFor(media.VideoWidth, media.VideoHeight)
++	rungs := rungsForClient(media.VideoWidth, media.VideoHeight, clientLadderCeiling(profile))
+ 	renditions := make([]RenditionInfo, 0, len(rungs))
+ 	for _, rung := range rungs {
+ 		renditions = append(renditions, RenditionInfo{ID: rung.ID, Height: rung.Height, Bandwidth: rung.Bandwidth})
+@@ -541,6 +567,28 @@ func (s *Service) hlsChoice(grant streamtoken.Grant, suffix string, media store.
+ 	}, nil
+ }
+ 
++// clientLadderCeiling is the decode-height ceiling the advertised transcode
++// ladder is clipped to (ADR-0010 §8: honest twice over — honest to the source
++// and to the client). It is the smallest non-zero VideoCodecCap.MaxHeight the
++// profile declares across its video codecs: the transcode may target any codec
++// the client supports, so the ladder must stay within the tightest decode bound
++// any of them imposes, never advertising a rung the client could not play on
++// some path. 0 — no VideoCodecs envelope, or every declared codec leaves
++// MaxHeight unset (no ceiling) — means "no client ceiling", so the ladder falls
++// back to source-only rungs, byte-identical to the prior rungsFor behaviour.
++func clientLadderCeiling(profile CapabilityProfile) int {
++	ceiling := 0
++	for _, c := range profile.VideoCodecs {
++		if c.MaxHeight <= 0 {
++			continue
++		}
++		if ceiling == 0 || c.MaxHeight < ceiling {
++			ceiling = c.MaxHeight
++		}
++	}
++	return ceiling
++}
++
+ // audioCopyChoice builds the HLS stream option for the audio-only-transcode
+ // case (ADR-0010 §5): the master advertises the single audio-copy rendition —
+ // video copied through, only audio transcoded — so there is no resolution

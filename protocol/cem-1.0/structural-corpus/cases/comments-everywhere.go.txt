@@ -1,0 +1,16 @@
+// header
+
+/* block before package */ package cases // after package
+
+import /* inline */ "fmt"
+
+// lead
+func /* in signature */ commented( /* param */ a int /* after */ ) /* result */ int {
+	// body
+	return a /* trailing expr */ + 1
+} // after func
+
+/*
+multi
+*/
+func next() { fmt.Println(commented(1)) }

@@ -1,0 +1,6 @@
+--- a/src/app.py
++++ b/src/app.py
+@@ -1,2 +1 @@
+-def allowed():
+-    return True
++def allowed(): return True

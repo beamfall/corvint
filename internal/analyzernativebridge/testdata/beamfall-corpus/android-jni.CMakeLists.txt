@@ -1,0 +1,43 @@
+# Beamfall libmpv rung — native build (ADR-0017 §3, Engine 2).
+#
+# This builds `libbeamfall_mpv.so`, the JNI bridge between LibmpvNativeBridge (Kotlin) and the mpv
+# client + render API. It links against a *vendored* `libmpv.so` and its headers.
+#
+# GATE SAFETY: the whole native build is opt-in. It compiles only when the vendored mpv headers are
+# present under cpp/mpv-dist/include AND the kit is built with -Pbeamfall.libmpv=true (which wires
+# externalNativeBuild in build.gradle.kts). Without those, this file produces no target and the kit
+# AAR ships with no libbeamfall_mpv.so / no libmpv.so, so LibmpvClient.isAvailable() stays false and
+# the default gate needs no NDK.
+
+cmake_minimum_required(VERSION 3.22.1)
+project(beamfall_mpv C)
+
+set(MPV_DIST "${CMAKE_CURRENT_SOURCE_DIR}/mpv-dist")
+set(MPV_INCLUDE "${MPV_DIST}/include")
+set(MPV_LIB "${MPV_DIST}/lib/${ANDROID_ABI}/libmpv.so")
+
+if(NOT EXISTS "${MPV_INCLUDE}/mpv/client.h")
+    message(WARNING
+        "Beamfall: vendored libmpv headers not found at ${MPV_INCLUDE}/mpv/client.h — "
+        "skipping native libmpv bridge. LibmpvClient.isAvailable() will remain false. "
+        "Run kit/scripts/build_libmpv.sh to populate cpp/mpv-dist, then rebuild with -Pbeamfall.libmpv=true.")
+    return()
+endif()
+
+add_library(beamfall_mpv SHARED beamfall_mpv.c)
+
+target_include_directories(beamfall_mpv PRIVATE "${MPV_INCLUDE}")
+
+find_library(log-lib log)
+find_library(egl-lib EGL)
+find_library(gles-lib GLESv2)
+
+# Import the vendored libmpv.so for the current ABI.
+add_library(mpv SHARED IMPORTED)
+set_target_properties(mpv PROPERTIES IMPORTED_LOCATION "${MPV_LIB}")
+
+target_link_libraries(beamfall_mpv
+    mpv
+    ${log-lib}
+    ${egl-lib}
+    ${gles-lib})

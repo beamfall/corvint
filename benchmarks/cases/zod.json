@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 1,
+  "repository": "colinhacks/zod",
+  "commit": "e516c3baf22615e20934116abebfed6c000222c2",
+  "cases": [
+    {
+      "id": "zod-from-json-schema",
+      "mode": "query",
+      "text": "convert JSON Schema into a Zod type",
+      "limit": 10,
+      "budget_bytes": 12000,
+      "rationale": "fromJSONSchema is the public conversion entry point and has a dedicated test suite.",
+      "ground_truth": [
+        {"path": "packages/zod/src/v4/classic/from-json-schema.ts", "line": 691, "contains": "function fromJSONSchema"},
+        {"path": "packages/zod/src/v4/classic/from-json-schema.ts", "line": 196, "contains": "function convertBaseSchema"},
+        {"path": "packages/zod/src/v4/classic/from-json-schema.ts", "line": 595, "contains": "function convertSchema"},
+        {"path": "packages/zod/src/v4/classic/tests/from-json-schema.test.ts", "line": 2, "contains": "fromJSONSchema"}
+      ],
+      "expected": {
+        "must_include": ["symbol:packages/zod/src/v4/classic/from-json-schema.ts:fromJSONSchema"],
+        "critical": ["symbol:packages/zod/src/v4/classic/from-json-schema.ts:fromJSONSchema"],
+        "relevant": [
+          "symbol:packages/zod/src/v4/classic/from-json-schema.ts:fromJSONSchema",
+          "symbol:packages/zod/src/v4/classic/from-json-schema.ts:convertBaseSchema",
+          "symbol:packages/zod/src/v4/classic/from-json-schema.ts:convertSchema"
+        ]
+      }
+    },
+    {
+      "id": "zod-treeify-errors",
+      "mode": "query",
+      "text": "build a nested property and item error tree from validation issues",
+      "limit": 10,
+      "budget_bytes": 12000,
+      "rationale": "treeifyError builds the nested property/item error tree described by $ZodErrorTree.",
+      "ground_truth": [
+        {"path": "packages/zod/src/v4/core/errors.ts", "line": 422, "contains": "function treeifyError"},
+        {"path": "packages/zod/src/v4/core/errors.ts", "line": 409, "contains": "type $ZodErrorTree"},
+        {"path": "packages/zod/src/v4/classic/tests/error-utils.test.ts", "line": 370, "contains": "treeifyError"}
+      ],
+      "expected": {
+        "must_include": ["symbol:packages/zod/src/v4/core/errors.ts:treeifyError"],
+        "critical": ["symbol:packages/zod/src/v4/core/errors.ts:treeifyError"],
+        "relevant": [
+          "symbol:packages/zod/src/v4/core/errors.ts:treeifyError",
+          "symbol:packages/zod/src/v4/core/errors.ts:$ZodErrorTree"
+        ]
+      }
+    },
+    {
+      "id": "zod-discriminated-union",
+      "mode": "query",
+      "text": "parse a Zod V4 discriminated union selected by an object key",
+      "limit": 10,
+      "budget_bytes": 12000,
+      "rationale": "The classic API delegates discriminated-union construction into the core implementation.",
+      "ground_truth": [
+        {"path": "packages/zod/src/v4/classic/schemas.ts", "line": 1804, "contains": "function discriminatedUnion"},
+        {"path": "packages/zod/src/v4/core/api.ts", "line": 1254, "contains": "function _discriminatedUnion"},
+        {"path": "packages/zod/src/v4/core/api.ts", "line": 1252, "contains": "$ZodDiscriminatedUnionParams"},
+        {"path": "packages/zod/src/v4/core/schemas.ts", "line": 2545, "contains": "$ZodDiscriminatedUnion"},
+        {"path": "packages/zod/src/v4/classic/schemas.ts", "line": 1796, "contains": "ZodDiscriminatedUnion"},
+        {"path": "packages/zod/src/v4/mini/schemas.ts", "line": 1144, "contains": "function discriminatedUnion"},
+        {"path": "packages/zod/src/v4/classic/tests/discriminated-unions.test.ts", "line": 35, "contains": "discriminatedUnion"}
+      ],
+      "expected": {
+        "must_include": [
+          "symbol:packages/zod/src/v4/classic/schemas.ts:discriminatedUnion",
+          "symbol:packages/zod/src/v4/core/schemas.ts:$ZodDiscriminatedUnion"
+        ],
+        "critical": [
+          "symbol:packages/zod/src/v4/classic/schemas.ts:discriminatedUnion",
+          "symbol:packages/zod/src/v4/core/schemas.ts:$ZodDiscriminatedUnion"
+        ],
+        "relevant": [
+          "symbol:packages/zod/src/v4/classic/schemas.ts:discriminatedUnion",
+          "symbol:packages/zod/src/v4/core/api.ts:_discriminatedUnion",
+          "symbol:packages/zod/src/v4/core/api.ts:$ZodDiscriminatedUnionParams",
+          "symbol:packages/zod/src/v4/mini/schemas.ts:discriminatedUnion",
+          "symbol:packages/zod/src/v4/classic/schemas.ts:ZodDiscriminatedUnion",
+          "symbol:packages/zod/src/v4/core/schemas.ts:$ZodDiscriminatedUnion"
+        ]
+      }
+    },
+    {
+      "id": "zod-memoizer-impact",
+      "mode": "impact",
+      "paths": ["packages/zod/src/v4/core/memoizer.ts"],
+      "limit": 10,
+      "budget_bytes": 12000,
+      "rationale": "The core compiler imports memoizer helpers and the core index re-exports them.",
+      "ground_truth": [
+        {"path": "packages/zod/src/v4/core/compile.ts", "line": 5, "contains": "memoizer.js"},
+        {"path": "packages/zod/src/v4/core/index.ts", "line": 5, "contains": "memoizer.js"}
+      ],
+      "expected": {
+        "must_include": [
+          "path:packages/zod/src/v4/core/memoizer.ts",
+          "reverse-import:packages/zod/src/v4/core/compile.ts",
+          "reverse-import:packages/zod/src/v4/core/index.ts"
+        ],
+        "critical": ["reverse-import:packages/zod/src/v4/core/compile.ts"],
+        "relevant": [
+          "path:packages/zod/src/v4/core/memoizer.ts",
+          "reverse-import:packages/zod/src/v4/core/compile.ts",
+          "reverse-import:packages/zod/src/v4/core/index.ts"
+        ]
+      }
+    },
+    {
+      "id": "blind-zod-v4-safe-parse-async",
+      "partition": "blind-v1",
+      "mode": "query",
+      "text": "trace the Zod V4 classic safe parse async wrapper to the core asynchronous implementation and ignore V3",
+      "limit": 7,
+      "budget_bytes": 20000,
+      "rationale": "A blind reviewer selected the classic and core implementations with a same-name V3 distractor before seeing Atlas output.",
+      "ground_truth": [
+        {"path": "packages/zod/src/v4/classic/parse.ts", "line": 29, "contains": "export const safeParseAsync:"},
+        {"path": "packages/zod/src/v4/classic/parse.ts", "line": 33, "contains": "core._safeParseAsync"},
+        {"path": "packages/zod/src/v4/core/parse.ts", "line": 93, "contains": "export const _safeParseAsync:"},
+        {"path": "packages/zod/src/v4/core/parse.ts", "line": 94, "contains": "async: true"},
+        {"path": "packages/zod/src/v4/core/parse.ts", "line": 95, "contains": "schema._zod.run"}
+      ],
+      "expected": {
+        "must_include": [
+          "symbol:packages/zod/src/v4/classic/parse.ts:safeParseAsync",
+          "symbol:packages/zod/src/v4/core/parse.ts:_safeParseAsync"
+        ],
+        "critical": [
+          "symbol:packages/zod/src/v4/classic/parse.ts:safeParseAsync",
+          "symbol:packages/zod/src/v4/core/parse.ts:_safeParseAsync"
+        ],
+        "relevant": [
+          "symbol:packages/zod/src/v4/classic/parse.ts:safeParseAsync",
+          "symbol:packages/zod/src/v4/core/parse.ts:_safeParseAsync"
+        ],
+        "must_exclude": []
+      }
+    },
+    {
+      "id": "zod-network-abstention",
+      "mode": "query",
+      "text": "open a TCP socket with reconnect backoff",
+      "limit": 8,
+      "budget_bytes": 8000,
+      "rationale": "Zod contains no TCP transport or reconnect implementation.",
+      "ground_truth": [],
+      "expected": {"state": "OUT_OF_SCOPE", "must_exclude": [], "relevant": []}
+    }
+  ]
+}

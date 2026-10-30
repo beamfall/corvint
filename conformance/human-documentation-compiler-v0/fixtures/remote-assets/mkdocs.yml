@@ -1,0 +1,15 @@
+site_name: Remote asset canary
+site_url: https://corvint.example.invalid/remote-assets/
+docs_dir: docs
+theme:
+  name: material
+plugins:
+  - search
+  - privacy:
+      assets: true
+      assets_fetch: true
+extra_css:
+  - https://remote.invalid/canary.css
+extra_javascript:
+  - https://remote.invalid/canary.js
+

@@ -1,0 +1,244 @@
+{
+  "spec": "docs/specs/change-frontier-v0.md",
+  "derivation": "hand-authored preimages; SHA-256 computed with a standalone script and cross-checked with shasum(1)",
+  "universes": [
+    {
+      "id": "A-spec-example",
+      "clause": "CF-V0-006",
+      "note": "The exact scope block printed in the CF-V0-018 valid-open example, projected into the CF-V0-006 preimage.",
+      "preimage": {
+        "baseRevision": "0000000000000000000000000000000000000000",
+        "excludedPath": ".corvint/change.cem.json",
+        "intent": {
+          "blobOid": "0000000000000000000000000000000000000000",
+          "path": "docs/specs/change-frontier-v0.md",
+          "span": {
+            "end": "1",
+            "start": "0"
+          },
+          "spanSha256": "0000000000000000000000000000000000000000000000000000000000000000"
+        },
+        "objectFormat": "sha1",
+        "patchSha256": "0000000000000000000000000000000000000000000000000000000000000000",
+        "targetRevision": "0000000000000000000000000000000000000000"
+      },
+      "preimageCodec": "{\"baseRevision\":\"0000000000000000000000000000000000000000\",\"excludedPath\":\".corvint/change.cem.json\",\"intent\":{\"blobOid\":\"0000000000000000000000000000000000000000\",\"path\":\"docs/specs/change-frontier-v0.md\",\"span\":{\"end\":\"1\",\"start\":\"0\"},\"spanSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"},\"objectFormat\":\"sha1\",\"patchSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"targetRevision\":\"0000000000000000000000000000000000000000\"}",
+      "domain": "corvint-frontier-universe/0",
+      "universeId": "frontier-universe:sha256:aaca2dc20e6228ee38ce056282d6918c9e14983ca2a20a216ec2e4f19d872461"
+    },
+    {
+      "id": "B-distinct",
+      "clause": "CF-V0-006",
+      "note": "Every field distinct, so a transposed field cannot hash equal.",
+      "preimage": {
+        "baseRevision": "1111111111111111111111111111111111111111111111111111111111111111",
+        "excludedPath": ".corvint/change.cem.json",
+        "intent": {
+          "blobOid": "4444444444444444444444444444444444444444444444444444444444444444",
+          "path": "src/app/handler.py",
+          "span": {
+            "end": "48",
+            "start": "12"
+          },
+          "spanSha256": "5555555555555555555555555555555555555555555555555555555555555555"
+        },
+        "objectFormat": "sha256",
+        "patchSha256": "3333333333333333333333333333333333333333333333333333333333333333",
+        "targetRevision": "2222222222222222222222222222222222222222222222222222222222222222"
+      },
+      "preimageCodec": "{\"baseRevision\":\"1111111111111111111111111111111111111111111111111111111111111111\",\"excludedPath\":\".corvint/change.cem.json\",\"intent\":{\"blobOid\":\"4444444444444444444444444444444444444444444444444444444444444444\",\"path\":\"src/app/handler.py\",\"span\":{\"end\":\"48\",\"start\":\"12\"},\"spanSha256\":\"5555555555555555555555555555555555555555555555555555555555555555\"},\"objectFormat\":\"sha256\",\"patchSha256\":\"3333333333333333333333333333333333333333333333333333333333333333\",\"targetRevision\":\"2222222222222222222222222222222222222222222222222222222222222222\"}",
+      "domain": "corvint-frontier-universe/0",
+      "universeId": "frontier-universe:sha256:a4e6118d5e92bf7e1e95b6ac952d77c30a592a92948e298c3d8346106ef410a7"
+    },
+    {
+      "id": "C-patch-changed",
+      "clause": "CF-V0-006",
+      "note": "B with only patchSha256 changed: a new patch identity MUST produce a new universe.",
+      "preimage": {
+        "baseRevision": "1111111111111111111111111111111111111111111111111111111111111111",
+        "excludedPath": ".corvint/change.cem.json",
+        "intent": {
+          "blobOid": "4444444444444444444444444444444444444444444444444444444444444444",
+          "path": "src/app/handler.py",
+          "span": {
+            "end": "48",
+            "start": "12"
+          },
+          "spanSha256": "5555555555555555555555555555555555555555555555555555555555555555"
+        },
+        "objectFormat": "sha256",
+        "patchSha256": "6666666666666666666666666666666666666666666666666666666666666666",
+        "targetRevision": "2222222222222222222222222222222222222222222222222222222222222222"
+      },
+      "preimageCodec": "{\"baseRevision\":\"1111111111111111111111111111111111111111111111111111111111111111\",\"excludedPath\":\".corvint/change.cem.json\",\"intent\":{\"blobOid\":\"4444444444444444444444444444444444444444444444444444444444444444\",\"path\":\"src/app/handler.py\",\"span\":{\"end\":\"48\",\"start\":\"12\"},\"spanSha256\":\"5555555555555555555555555555555555555555555555555555555555555555\"},\"objectFormat\":\"sha256\",\"patchSha256\":\"6666666666666666666666666666666666666666666666666666666666666666\",\"targetRevision\":\"2222222222222222222222222222222222222222222222222222222222222222\"}",
+      "domain": "corvint-frontier-universe/0",
+      "universeId": "frontier-universe:sha256:eaea29e232d093cec929964905a14b92c4c11dd597e68fe9279789c418ba8c6e"
+    },
+    {
+      "id": "D-intent-span-changed",
+      "clause": "CF-V0-006",
+      "note": "B with only intent span end changed: a new intent identity MUST produce a new universe.",
+      "preimage": {
+        "baseRevision": "1111111111111111111111111111111111111111111111111111111111111111",
+        "excludedPath": ".corvint/change.cem.json",
+        "intent": {
+          "blobOid": "4444444444444444444444444444444444444444444444444444444444444444",
+          "path": "src/app/handler.py",
+          "span": {
+            "end": "49",
+            "start": "12"
+          },
+          "spanSha256": "5555555555555555555555555555555555555555555555555555555555555555"
+        },
+        "objectFormat": "sha256",
+        "patchSha256": "3333333333333333333333333333333333333333333333333333333333333333",
+        "targetRevision": "2222222222222222222222222222222222222222222222222222222222222222"
+      },
+      "preimageCodec": "{\"baseRevision\":\"1111111111111111111111111111111111111111111111111111111111111111\",\"excludedPath\":\".corvint/change.cem.json\",\"intent\":{\"blobOid\":\"4444444444444444444444444444444444444444444444444444444444444444\",\"path\":\"src/app/handler.py\",\"span\":{\"end\":\"49\",\"start\":\"12\"},\"spanSha256\":\"5555555555555555555555555555555555555555555555555555555555555555\"},\"objectFormat\":\"sha256\",\"patchSha256\":\"3333333333333333333333333333333333333333333333333333333333333333\",\"targetRevision\":\"2222222222222222222222222222222222222222222222222222222222222222\"}",
+      "domain": "corvint-frontier-universe/0",
+      "universeId": "frontier-universe:sha256:ca8278c1541abdce599f01ce6eb8826a738475b569b0750cbe1d06d3ee2e9247"
+    }
+  ],
+  "items": [
+    {
+      "id": "A-spec-example/HUNK_BASIS",
+      "clause": "CF-V0-007",
+      "universe": "A-spec-example",
+      "kind": "HUNK_BASIS",
+      "subjectId": "hunk:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "universeId": "frontier-universe:sha256:aaca2dc20e6228ee38ce056282d6918c9e14983ca2a20a216ec2e4f19d872461",
+      "preimageCodec": "{\"kind\":\"HUNK_BASIS\",\"subjectId\":\"hunk:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"universeId\":\"frontier-universe:sha256:aaca2dc20e6228ee38ce056282d6918c9e14983ca2a20a216ec2e4f19d872461\"}",
+      "domain": "corvint-frontier-item/0",
+      "itemId": "frontier-item:sha256:1b2e19fb035ded6f9e10c35155dcada656ad648b859c2315955beef09041f821"
+    },
+    {
+      "id": "A-spec-example/INTENT_CHANGE",
+      "clause": "CF-V0-007",
+      "universe": "A-spec-example",
+      "kind": "INTENT_CHANGE",
+      "subjectId": "CF-V0-001",
+      "universeId": "frontier-universe:sha256:aaca2dc20e6228ee38ce056282d6918c9e14983ca2a20a216ec2e4f19d872461",
+      "preimageCodec": "{\"kind\":\"INTENT_CHANGE\",\"subjectId\":\"CF-V0-001\",\"universeId\":\"frontier-universe:sha256:aaca2dc20e6228ee38ce056282d6918c9e14983ca2a20a216ec2e4f19d872461\"}",
+      "domain": "corvint-frontier-item/0",
+      "itemId": "frontier-item:sha256:f159662950c64224574d388e35a5f1eb924d7e2f1c779ba098838b004f289af0"
+    },
+    {
+      "id": "A-spec-example/INTENT_TEST",
+      "clause": "CF-V0-007",
+      "universe": "A-spec-example",
+      "kind": "INTENT_TEST",
+      "subjectId": "CF-V0-001",
+      "universeId": "frontier-universe:sha256:aaca2dc20e6228ee38ce056282d6918c9e14983ca2a20a216ec2e4f19d872461",
+      "preimageCodec": "{\"kind\":\"INTENT_TEST\",\"subjectId\":\"CF-V0-001\",\"universeId\":\"frontier-universe:sha256:aaca2dc20e6228ee38ce056282d6918c9e14983ca2a20a216ec2e4f19d872461\"}",
+      "domain": "corvint-frontier-item/0",
+      "itemId": "frontier-item:sha256:cc2644eac194b5dd82286e66d2f596ea40dbeae1595918bae395e09f5ba6e03d"
+    },
+    {
+      "id": "B-distinct/HUNK_BASIS",
+      "clause": "CF-V0-007",
+      "universe": "B-distinct",
+      "kind": "HUNK_BASIS",
+      "subjectId": "hunk:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "universeId": "frontier-universe:sha256:a4e6118d5e92bf7e1e95b6ac952d77c30a592a92948e298c3d8346106ef410a7",
+      "preimageCodec": "{\"kind\":\"HUNK_BASIS\",\"subjectId\":\"hunk:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"universeId\":\"frontier-universe:sha256:a4e6118d5e92bf7e1e95b6ac952d77c30a592a92948e298c3d8346106ef410a7\"}",
+      "domain": "corvint-frontier-item/0",
+      "itemId": "frontier-item:sha256:c2e86384a23d85ddd8dfc1c9cc4146af6dc27c3d087000973fc427498e3cb271"
+    },
+    {
+      "id": "B-distinct/INTENT_CHANGE",
+      "clause": "CF-V0-007",
+      "universe": "B-distinct",
+      "kind": "INTENT_CHANGE",
+      "subjectId": "CF-V0-001",
+      "universeId": "frontier-universe:sha256:a4e6118d5e92bf7e1e95b6ac952d77c30a592a92948e298c3d8346106ef410a7",
+      "preimageCodec": "{\"kind\":\"INTENT_CHANGE\",\"subjectId\":\"CF-V0-001\",\"universeId\":\"frontier-universe:sha256:a4e6118d5e92bf7e1e95b6ac952d77c30a592a92948e298c3d8346106ef410a7\"}",
+      "domain": "corvint-frontier-item/0",
+      "itemId": "frontier-item:sha256:c74511a58c70341bd232120261d71542fb00638d818fc3b8042f448fe4951510"
+    },
+    {
+      "id": "B-distinct/INTENT_TEST",
+      "clause": "CF-V0-007",
+      "universe": "B-distinct",
+      "kind": "INTENT_TEST",
+      "subjectId": "CF-V0-001",
+      "universeId": "frontier-universe:sha256:a4e6118d5e92bf7e1e95b6ac952d77c30a592a92948e298c3d8346106ef410a7",
+      "preimageCodec": "{\"kind\":\"INTENT_TEST\",\"subjectId\":\"CF-V0-001\",\"universeId\":\"frontier-universe:sha256:a4e6118d5e92bf7e1e95b6ac952d77c30a592a92948e298c3d8346106ef410a7\"}",
+      "domain": "corvint-frontier-item/0",
+      "itemId": "frontier-item:sha256:2e1d7183ab9d449bc9577a14fdcae8eecfb8011637efe84fa285e8a7ab98680e"
+    },
+    {
+      "id": "C-patch-changed/HUNK_BASIS",
+      "clause": "CF-V0-007",
+      "universe": "C-patch-changed",
+      "kind": "HUNK_BASIS",
+      "subjectId": "hunk:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "universeId": "frontier-universe:sha256:eaea29e232d093cec929964905a14b92c4c11dd597e68fe9279789c418ba8c6e",
+      "preimageCodec": "{\"kind\":\"HUNK_BASIS\",\"subjectId\":\"hunk:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"universeId\":\"frontier-universe:sha256:eaea29e232d093cec929964905a14b92c4c11dd597e68fe9279789c418ba8c6e\"}",
+      "domain": "corvint-frontier-item/0",
+      "itemId": "frontier-item:sha256:0ee275b0ac4a24a1697defa2a81cad35b7926db618e9e96f0d063a58ce267ab7"
+    },
+    {
+      "id": "C-patch-changed/INTENT_CHANGE",
+      "clause": "CF-V0-007",
+      "universe": "C-patch-changed",
+      "kind": "INTENT_CHANGE",
+      "subjectId": "CF-V0-001",
+      "universeId": "frontier-universe:sha256:eaea29e232d093cec929964905a14b92c4c11dd597e68fe9279789c418ba8c6e",
+      "preimageCodec": "{\"kind\":\"INTENT_CHANGE\",\"subjectId\":\"CF-V0-001\",\"universeId\":\"frontier-universe:sha256:eaea29e232d093cec929964905a14b92c4c11dd597e68fe9279789c418ba8c6e\"}",
+      "domain": "corvint-frontier-item/0",
+      "itemId": "frontier-item:sha256:9db2092dd523b616d09b326b4ce3c48248690fbf658d6a64f60cfbec29fdd3e4"
+    },
+    {
+      "id": "C-patch-changed/INTENT_TEST",
+      "clause": "CF-V0-007",
+      "universe": "C-patch-changed",
+      "kind": "INTENT_TEST",
+      "subjectId": "CF-V0-001",
+      "universeId": "frontier-universe:sha256:eaea29e232d093cec929964905a14b92c4c11dd597e68fe9279789c418ba8c6e",
+      "preimageCodec": "{\"kind\":\"INTENT_TEST\",\"subjectId\":\"CF-V0-001\",\"universeId\":\"frontier-universe:sha256:eaea29e232d093cec929964905a14b92c4c11dd597e68fe9279789c418ba8c6e\"}",
+      "domain": "corvint-frontier-item/0",
+      "itemId": "frontier-item:sha256:c8a330c0251e4d5ebb6cd169cea1e890c8d55aba4178a3bc84af06163286fd83"
+    },
+    {
+      "id": "D-intent-span-changed/HUNK_BASIS",
+      "clause": "CF-V0-007",
+      "universe": "D-intent-span-changed",
+      "kind": "HUNK_BASIS",
+      "subjectId": "hunk:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "universeId": "frontier-universe:sha256:ca8278c1541abdce599f01ce6eb8826a738475b569b0750cbe1d06d3ee2e9247",
+      "preimageCodec": "{\"kind\":\"HUNK_BASIS\",\"subjectId\":\"hunk:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"universeId\":\"frontier-universe:sha256:ca8278c1541abdce599f01ce6eb8826a738475b569b0750cbe1d06d3ee2e9247\"}",
+      "domain": "corvint-frontier-item/0",
+      "itemId": "frontier-item:sha256:d1e0c7215f3c6f6aaf5554d12d2db9b9fb5b0508da33b53f56d61f086582bb93"
+    },
+    {
+      "id": "D-intent-span-changed/INTENT_CHANGE",
+      "clause": "CF-V0-007",
+      "universe": "D-intent-span-changed",
+      "kind": "INTENT_CHANGE",
+      "subjectId": "CF-V0-001",
+      "universeId": "frontier-universe:sha256:ca8278c1541abdce599f01ce6eb8826a738475b569b0750cbe1d06d3ee2e9247",
+      "preimageCodec": "{\"kind\":\"INTENT_CHANGE\",\"subjectId\":\"CF-V0-001\",\"universeId\":\"frontier-universe:sha256:ca8278c1541abdce599f01ce6eb8826a738475b569b0750cbe1d06d3ee2e9247\"}",
+      "domain": "corvint-frontier-item/0",
+      "itemId": "frontier-item:sha256:e868b56213fdaf5b407afbec57f2b5ecd5b3120677342785e9fd798e8154137a"
+    },
+    {
+      "id": "D-intent-span-changed/INTENT_TEST",
+      "clause": "CF-V0-007",
+      "universe": "D-intent-span-changed",
+      "kind": "INTENT_TEST",
+      "subjectId": "CF-V0-001",
+      "universeId": "frontier-universe:sha256:ca8278c1541abdce599f01ce6eb8826a738475b569b0750cbe1d06d3ee2e9247",
+      "preimageCodec": "{\"kind\":\"INTENT_TEST\",\"subjectId\":\"CF-V0-001\",\"universeId\":\"frontier-universe:sha256:ca8278c1541abdce599f01ce6eb8826a738475b569b0750cbe1d06d3ee2e9247\"}",
+      "domain": "corvint-frontier-item/0",
+      "itemId": "frontier-item:sha256:9b3521c165ea772af2ede318eb885ee2200df20ebe4476a1b1daa061397adc83"
+    }
+  ],
+  "frontierId": {
+    "clause": "CF-V0-019",
+    "note": "CF-V0-018 prints a zero placeholder for `id`. This is the real ID for that exact document: SHA-256 over the domain, one NUL, and codec(document without id).",
+    "documentWithoutIdCodec": "{\"frontierState\":\"OPEN\",\"inputs\":{\"cemSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"lrfSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"ocmSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"policy\":\"strict-v0\",\"tcqId\":\"tcq:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"testMode\":\"STATIC\"},\"items\":[{\"authorityClass\":\"CALLER_REPORTED\",\"id\":\"frontier-item:sha256:0000000000000000000000000000000000000000000000000000000000000000\",\"kind\":\"INTENT_TEST\",\"nextAction\":\"SUPPLY_TEST_OBSERVATION\",\"reasons\":[\"TEST_NOT_MATCHED\"],\"relatedIds\":[\"claim:sha256:0000000000000000000000000000000000000000000000000000000000000000\"],\"resolutionClass\":\"ACTIONABLE\",\"subjectId\":\"CF-V0-001\"}],\"profile\":\"frontier/0\",\"scope\":{\"baseRevision\":\"0000000000000000000000000000000000000000\",\"excludedPath\":\".corvint/change.cem.json\",\"intentBlobOid\":\"0000000000000000000000000000000000000000\",\"intentPath\":\"docs/specs/change-frontier-v0.md\",\"intentSpan\":{\"end\":\"1\",\"start\":\"0\"},\"intentSpanSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"objectFormat\":\"sha1\",\"patchSha256\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"targetRevision\":\"0000000000000000000000000000000000000000\"},\"universeId\":\"frontier-universe:sha256:0000000000000000000000000000000000000000000000000000000000000000\"}",
+    "domain": "corvint-frontier/0",
+    "frontierIdPlaceholderInSpec": "frontier:sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "frontierId": "frontier:sha256:dcae3d8420924649c4c5798a26ca6d3920e9e91e8e3d0a90f9773c85985fed9e"
+  }
+}

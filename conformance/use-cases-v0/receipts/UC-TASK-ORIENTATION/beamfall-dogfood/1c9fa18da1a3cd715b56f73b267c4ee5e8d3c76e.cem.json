@@ -1,0 +1,40 @@
+{
+  "baseRevision": "6a95ae32116718d55687da97efd9108b5174fe5e",
+  "evidence": [
+    {
+      "blobOid": "04196da6e436a94ef2520d2ed6071542ff5a512e",
+      "id": "evidence:sha256:6899df0f7c45e409e3a81387c98a8d134bb5d13a67286694925aca8b829cb21a",
+      "path": "docs/plugins/trust-roots.md",
+      "span": {
+        "end": 1639,
+        "start": 1029
+      },
+      "spanSha256": "d15da56127782eddefac3e0fab0cd7b04f2bb8de2a8434deb309801c98a15975"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:6899df0f7c45e409e3a81387c98a8d134bb5d13a67286694925aca8b829cb21a",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:b668e2643ae39677466799dfaad4ca95e8eeb25fad78911f592a54d6aedf5219",
+      "newRange": {
+        "count": 67,
+        "start": 202
+      },
+      "oldRange": {
+        "count": 6,
+        "start": 202
+      },
+      "path": "internal/plugin/trust_test.go",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "8afa6054d8e10e6851b0d8502ed7e764decef8469d991d8f2e19d5a0df7f8eee",
+  "spec": "cem/0.2"
+}

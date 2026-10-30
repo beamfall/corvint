@@ -1,0 +1,27 @@
+{
+  "attestation": {
+    "corpusSha256": "b9cf140717e58ab1656111dd962240e37866fa0b4356402a221d4d33a5ed48cc",
+    "outcome": "PASS",
+    "preregistrationSha256": "eedf799f9444014e64f1bab1cf5d3296ea06f784e4e88930d385a990b230a185",
+    "resultSha256": "862cec0fe3a0f3387de85d9144e83ce0f3799adcf46c1c96361d2cacae7675d8"
+  },
+  "evidenceClass": "sealed-benchmark",
+  "repositoryRevision": "b7b212050dd10811a4dc78e2ed118edce0e91775",
+  "result": "PASS",
+  "spec": "corvint-use-case-evidence/0",
+  "subjects": [
+    {
+      "path": "benchmarks/untouched-repository-v1/urfave/preregistration.json",
+      "sha256": "eedf799f9444014e64f1bab1cf5d3296ea06f784e4e88930d385a990b230a185"
+    },
+    {
+      "path": "benchmarks/untouched-repository-v1/urfave/corpus.json",
+      "sha256": "b9cf140717e58ab1656111dd962240e37866fa0b4356402a221d4d33a5ed48cc"
+    },
+    {
+      "path": "benchmarks/untouched-repository-v1/urfave/runs/run-001.json",
+      "sha256": "862cec0fe3a0f3387de85d9144e83ce0f3799adcf46c1c96361d2cacae7675d8"
+    }
+  ],
+  "useCaseId": "UC-CHANGE-CONSEQUENCE"
+}

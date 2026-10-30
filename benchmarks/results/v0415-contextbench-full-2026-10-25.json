@@ -1,0 +1,1075 @@
+{
+ "profile": "corvint-v0415-contextbench-full/0",
+ "ticket": "V1-0415",
+ "date": "2026-10-25",
+ "summary": "Full ContextBench run (1,132 scored rows, 66 repositories) through tools/retrieval-bench. corvint query has the highest file and line precision of the ranking arms but the lowest file and line recall (coverage); corvint context has the highest recall. Both use 1-3 percent of the bytes of the baselines' top-20 files. Reported unrepaired.",
+ "dataset": {
+  "name": "Contextbench/ContextBench",
+  "revision": "c2855792b006af41c67202d33883fb9d46362853",
+  "files": [
+   {
+    "name": "data/full.parquet",
+    "url": "https://huggingface.co/datasets/Contextbench/ContextBench/resolve/c2855792b006af41c67202d33883fb9d46362853/data/full.parquet",
+    "bytes": 26102607,
+    "sha256": "2f56535bdc73eb8a68bf4ebb49789d8e9cd4f219ea60df6290b85278aee61ca8"
+   },
+   {
+    "name": "README.md",
+    "url": "https://huggingface.co/datasets/Contextbench/ContextBench/resolve/c2855792b006af41c67202d33883fb9d46362853/README.md",
+    "bytes": 2064,
+    "sha256": "3c7114db888ac3d2fcdd8f42ad88b1ee894fe0d994795f89cf7c4917352126e6"
+   }
+  ],
+  "exported_rows": 1136,
+  "exported_jsonl_sha256": "c9ea7da74497d2bc162e8534e59cb2d8303df9d0c4f7da640d09e63e34b4b427",
+  "refused_rows": [
+   {
+    "id": "SWE-Bench-Pro__python__maintenance__bugfix__788af515",
+    "reason": "empty problem_statement; the adapter refuses a row with no query text"
+   }
+  ],
+  "scored_row_set": {
+   "rows": 1135,
+   "sorted_lines_sha256": "ac23423b7b52bbe85c33f980e8ece5ef624461ce1c430a6c4969fc6f1acf45ca"
+  },
+  "skipped_no_gold_unlabeled": [
+   "Multi-SWE-Bench__cpp__maintenance__bugfix__0fd29e35",
+   "Multi-SWE-Bench__javascript__maintenance__bugfix__3cd96c13",
+   "Multi-SWE-Bench__rust__maintenance__bugfix__0e4e102e"
+  ],
+  "scored_rows": 1132,
+  "scored_row_ids_sha256": "f8bffb21d2ae0bf0d427e838bd7225cbb3c4db0490b8485b575571f27ced3c15",
+  "repositories": 66
+ },
+ "repositories": {
+  "clones": 67,
+  "total_bytes": 12363432879,
+  "method": "git clone --bare into its own new empty directory on the Windows-box WSL2 host; refs_sha256 is sha256 of `git for-each-ref --format='%(objectname) %(refname)'`",
+  "list": [
+   {
+    "name": "BurntSushi__ripgrep",
+    "url": "https://github.com/BurntSushi/ripgrep.git",
+    "bytes": 6533411,
+    "refs_sha256": "71a51a5e0b83764d81055f7dac075cf9bfc85fa0b10f11c36418863dcc098508"
+   },
+   {
+    "name": "NodeBB__NodeBB",
+    "url": "https://github.com/NodeBB/NodeBB.git",
+    "bytes": 127497437,
+    "refs_sha256": "ca4048cc80bee1ce4b241654515aa35358a0d3318b12152904b20a3539a39d36"
+   },
+   {
+    "name": "Significant-Gravitas__AutoGPT",
+    "url": "https://github.com/Significant-Gravitas/AutoGPT.git",
+    "bytes": 622675533,
+    "refs_sha256": "a4071b10176748b94e70692b10e2038e16493222eaccb62b3ab707f415f0bf2d"
+   },
+   {
+    "name": "alibaba__fastjson2",
+    "url": "https://github.com/alibaba/fastjson2.git",
+    "bytes": 146755247,
+    "refs_sha256": "5993238d4577ee4a322b2fa00acdfc495d82c72ce940232ddcc7a1cb498cd018"
+   },
+   {
+    "name": "angular__angular",
+    "url": "https://github.com/angular/angular.git",
+    "bytes": 707393558,
+    "refs_sha256": "07cc9bed21998ea59efa1b16e4abcf4dc28a83cf19b694ab3a0fc9a1127f42db"
+   },
+   {
+    "name": "ansible__ansible",
+    "url": "https://github.com/ansible/ansible.git",
+    "bytes": 285879019,
+    "refs_sha256": "6131b56f1d75f6caa66c237b8b081d570ba1ba34626fe031e398981eab775afc"
+   },
+   {
+    "name": "anuraghazra__github-readme-stats",
+    "url": "https://github.com/anuraghazra/github-readme-stats.git",
+    "bytes": 8076461,
+    "refs_sha256": "696a150122db736c55cc13374d9d94d9068d5db003e626b6189a3e288e057f0e"
+   },
+   {
+    "name": "astropy__astropy",
+    "url": "https://github.com/astropy/astropy.git",
+    "bytes": 205141620,
+    "refs_sha256": "03e85f5ef8fb9f5d177ec59cb0793e29628eac64790059d60a925973c2cb72da"
+   },
+   {
+    "name": "axios__axios",
+    "url": "https://github.com/axios/axios.git",
+    "bytes": 30614531,
+    "refs_sha256": "bb473a3a6a2da29258f082d7f635410429bbddada76d88264f2dee07083b3a2b"
+   },
+   {
+    "name": "catchorg__Catch2",
+    "url": "https://github.com/catchorg/Catch2.git",
+    "bytes": 35970280,
+    "refs_sha256": "cf4ce612d67519be97bebcadd6da6bd6ed931091c5481fb756757127626d982c"
+   },
+   {
+    "name": "clap-rs__clap",
+    "url": "https://github.com/clap-rs/clap.git",
+    "bytes": 23112656,
+    "refs_sha256": "53a51a04abf8955073b991cdbccb228b7148c9afee44a939d304037456fdd4db"
+   },
+   {
+    "name": "cli__cli",
+    "url": "https://github.com/cli/cli.git",
+    "bytes": 87765483,
+    "refs_sha256": "3edb3e67cc50285b2e85d1e17183718b061b6938068ec163f775c6b071be8859"
+   },
+   {
+    "name": "coder__code-server",
+    "url": "https://github.com/coder/code-server.git",
+    "bytes": 57895222,
+    "refs_sha256": "2cc895b9bcb11f4e3f6d7450fcf87c0b9ce20a543be078e3f70a8b8fcee3dd36"
+   },
+   {
+    "name": "darkreader__darkreader",
+    "url": "https://github.com/darkreader/darkreader.git",
+    "bytes": 41345244,
+    "refs_sha256": "2feba4a984d9c0f1c95812666f5f90bcf1209fca6803b109d4a87fadbc1c20d9"
+   },
+   {
+    "name": "django__django",
+    "url": "https://github.com/django/django.git",
+    "bytes": 309379062,
+    "refs_sha256": "18a0f0147147165549bfa869f08e51869572cc98932b3a206ad31da092420158"
+   },
+   {
+    "name": "elastic__logstash",
+    "url": "https://github.com/elastic/logstash.git",
+    "bytes": 143777176,
+    "refs_sha256": "0612cb9302cd403b90ba7bcb07ce6f3c73e27315a600cba7291fcaaa28bc7840"
+   },
+   {
+    "name": "element-hq__element-web",
+    "url": "https://github.com/element-hq/element-web.git",
+    "bytes": 662238431,
+    "refs_sha256": "f78750069b67b4ad03c53d1e9aa3c2ad2de1ad2802b2c7fed5b4ccf721f6988a"
+   },
+   {
+    "name": "expressjs__express",
+    "url": "https://github.com/expressjs/express.git",
+    "bytes": 11490135,
+    "refs_sha256": "9c99b2982276088677241cc118c34108b410d5ff627882272e7c3b9a23e651c4"
+   },
+   {
+    "name": "facebook__zstd",
+    "url": "https://github.com/facebook/zstd.git",
+    "bytes": 43974660,
+    "refs_sha256": "b55920bb3d44987e0008ea735386e7e8d644b327907f48411e2ffebf7f8a03c7"
+   },
+   {
+    "name": "fasterxml__jackson-core",
+    "url": "https://github.com/fasterxml/jackson-core.git",
+    "bytes": 33223583,
+    "refs_sha256": "61d981e647ab4b53cf424e7bfaedf45ae4b79568e16d04f069d31d7ca1563553"
+   },
+   {
+    "name": "fasterxml__jackson-databind",
+    "url": "https://github.com/fasterxml/jackson-databind.git",
+    "bytes": 99960704,
+    "refs_sha256": "3a3f984c76218ac2768d892eca8470002bf04cc42544bbb8c067727427a845ec"
+   },
+   {
+    "name": "fasterxml__jackson-dataformat-xml",
+    "url": "https://github.com/fasterxml/jackson-dataformat-xml.git",
+    "bytes": 7743661,
+    "refs_sha256": "585b1eefc8c458ae71cce99b26af25d06ad480a76bd259baafc503228154d3a1"
+   },
+   {
+    "name": "flipt-io__flipt",
+    "url": "https://github.com/flipt-io/flipt.git",
+    "bytes": 113247624,
+    "refs_sha256": "b837922297c7807381840b0d6c08f660d93fe62095762ad85862bf754fee8250"
+   },
+   {
+    "name": "fmtlib__fmt",
+    "url": "https://github.com/fmtlib/fmt.git",
+    "bytes": 19837134,
+    "refs_sha256": "953374fa0aaffbb20358f949f0348c372deee3bb4f20c67f14255dc8756ae62b"
+   },
+   {
+    "name": "future-architect__vuls",
+    "url": "https://github.com/future-architect/vuls.git",
+    "bytes": 34371206,
+    "refs_sha256": "45f3db68390eebb0708e42c721521daa4e8d16398fffcfcbf7076e20ba2e165e"
+   },
+   {
+    "name": "google__gson",
+    "url": "https://github.com/google/gson.git",
+    "bytes": 20799941,
+    "refs_sha256": "b4751d071f093c1b13a56e60aa0a2c815786d0ccde181242cf297ffd20919d27"
+   },
+   {
+    "name": "googlecontainertools__jib",
+    "url": "https://github.com/googlecontainertools/jib.git",
+    "bytes": 19318883,
+    "refs_sha256": "0dbf1bb6acbe4a754d99b397eb22cdd35b40752585e06c4dcca09e1723f8687d"
+   },
+   {
+    "name": "gravitational__teleport",
+    "url": "https://github.com/gravitational/teleport.git",
+    "bytes": 1623910861,
+    "refs_sha256": "db0f9927a8d18d212515f74784d6e8ebf4cd021b34fe5e26c6cec0841622cee1"
+   },
+   {
+    "name": "grpc__grpc-go",
+    "url": "https://github.com/grpc/grpc-go.git",
+    "bytes": 47944355,
+    "refs_sha256": "0d62db2b21344199820a7f5095807afbb4a3955ae4f64e20788cb98d4947b19c"
+   },
+   {
+    "name": "huggingface__transformers",
+    "url": "https://github.com/huggingface/transformers.git",
+    "bytes": 571359994,
+    "refs_sha256": "e8a3c8e6a0236c59b2124677d8d2dcbba581827267a09147a85360bf4b6b3ac4"
+   },
+   {
+    "name": "iamkun__dayjs",
+    "url": "https://github.com/iamkun/dayjs.git",
+    "bytes": 6907187,
+    "refs_sha256": "ecbb2337389689f18aaa723775fa77b13e28bc240d825553241ce64faaf96c4d"
+   },
+   {
+    "name": "internetarchive__openlibrary",
+    "url": "https://github.com/internetarchive/openlibrary.git",
+    "bytes": 137842582,
+    "refs_sha256": "0702fea0a445b8d0167e8d3a392930c8e02551e16d52759f4f0f0aa1ecf5f4bd"
+   },
+   {
+    "name": "jqlang__jq",
+    "url": "https://github.com/jqlang/jq.git",
+    "bytes": 9174182,
+    "refs_sha256": "101d5c913d855dad568e045df2101be56d8590f9305df9f1c757f23f45be1010"
+   },
+   {
+    "name": "keras-team__keras",
+    "url": "https://github.com/keras-team/keras.git",
+    "bytes": 63368575,
+    "refs_sha256": "c978de49bd5faadb33153b22744793e0b0525e6e78d82abdf5214d50dabcca27"
+   },
+   {
+    "name": "langchain-ai__langchain",
+    "url": "https://github.com/langchain-ai/langchain.git",
+    "bytes": 638503806,
+    "refs_sha256": "99c90e9dc0ba21fbcd57522d4088220290df67120c093e5c3a0e0cd11b570c4c"
+   },
+   {
+    "name": "matplotlib__matplotlib",
+    "url": "https://github.com/matplotlib/matplotlib.git",
+    "bytes": 515689924,
+    "refs_sha256": "9f60f3159aeb49bebf7a5063101c15bc6b5deeb31f0a35a558d3f64469fcf594"
+   },
+   {
+    "name": "microsoft__vscode",
+    "url": "https://github.com/microsoft/vscode.git",
+    "bytes": 1695585457,
+    "refs_sha256": "711a5399b3c42a513f2434a6cb7e6017a9d53664f3fac8bccf8bacaf72001d27"
+   },
+   {
+    "name": "mockito__mockito",
+    "url": "https://github.com/mockito/mockito.git",
+    "bytes": 53996558,
+    "refs_sha256": "e6c60d749493764be7720161d1881175887237a149d5308a4cdf885746fdd2ea"
+   },
+   {
+    "name": "mui__material-ui",
+    "url": "https://github.com/mui/material-ui.git",
+    "bytes": 788893598,
+    "refs_sha256": "4c0135500dc293bb8678ac9b5627a7c72526c9d3f5b379042ef582635191c4fe"
+   },
+   {
+    "name": "mwaskom__seaborn",
+    "url": "https://github.com/mwaskom/seaborn.git",
+    "bytes": 56763886,
+    "refs_sha256": "52b047544f5b661e782db4648a3b9fc313375005bddc5b2a28c8eb70c8da9103"
+   },
+   {
+    "name": "navidrome__navidrome",
+    "url": "https://github.com/navidrome/navidrome.git",
+    "bytes": 76298428,
+    "refs_sha256": "ea0554290ac6029c3ab754a9797c694021fe34d985e541cfc609fe518d58dbdb"
+   },
+   {
+    "name": "nlohmann__json",
+    "url": "https://github.com/nlohmann/json.git",
+    "bytes": 326795647,
+    "refs_sha256": "adb4782a64dd5827694eba36d85c9a46f83830b7b3e432fb646a2cfb4e2e87db"
+   },
+   {
+    "name": "nushell__nushell",
+    "url": "https://github.com/nushell/nushell.git",
+    "bytes": 80046552,
+    "refs_sha256": "588b9b26aad2cd65230382ca4a013aeac4872c4a4e996eecf80f6527b3f91efe"
+   },
+   {
+    "name": "pallets__flask",
+    "url": "https://github.com/pallets/flask.git",
+    "bytes": 13536213,
+    "refs_sha256": "aade35dd5929b471fb8789fdfad125b2d7e817fd462345b400988035d2ea9340"
+   },
+   {
+    "name": "ponylang__ponyc",
+    "url": "https://github.com/ponylang/ponyc.git",
+    "bytes": 37867269,
+    "refs_sha256": "13aad58d603de57497bb4a262418a3d763d87a68cd0905f1e2f4fd1e87c34572"
+   },
+   {
+    "name": "prettier__prettier",
+    "url": "https://github.com/prettier/prettier.git",
+    "bytes": 191866599,
+    "refs_sha256": "36961010d7f02ee6ade56f58b522f6a3395b8aec9fe3df10131a02ab105bcd82"
+   },
+   {
+    "name": "psf__requests",
+    "url": "https://github.com/psf/requests.git",
+    "bytes": 14714313,
+    "refs_sha256": "8d70d5d79867657828dec6126580c23120e81895684dfd560232eccbce1a9391"
+   },
+   {
+    "name": "pydata__xarray",
+    "url": "https://github.com/pydata/xarray.git",
+    "bytes": 59490470,
+    "refs_sha256": "f47a6f5d5cee61133faeec0de168c0bfe040069cd109aa5f05fbcd0aaf1ece69"
+   },
+   {
+    "name": "pylint-dev__pylint",
+    "url": "https://github.com/pylint-dev/pylint.git",
+    "bytes": 46996195,
+    "refs_sha256": "ab242687e7771707fba1a7b85f270efb53e7a1c6fb91da174aef83ce42b2166b"
+   },
+   {
+    "name": "pytest-dev__pytest",
+    "url": "https://github.com/pytest-dev/pytest.git",
+    "bytes": 47806931,
+    "refs_sha256": "69937e7cb4cc5b45c0415180fbf7a9804fbff3fe15731000c00871569431c071"
+   },
+   {
+    "name": "qutebrowser__qutebrowser",
+    "url": "https://github.com/qutebrowser/qutebrowser.git",
+    "bytes": 70032108,
+    "refs_sha256": "5a859e67a3edfdc66bc00258567dc4eaf1aa4f83b0880d3ebb57c51fe08c5a3c"
+   },
+   {
+    "name": "rayon-rs__rayon",
+    "url": "https://github.com/rayon-rs/rayon.git",
+    "bytes": 4537156,
+    "refs_sha256": "f8862d86efb40c2e3de75cf2bef24c6c212c5bbb764eb904114403a6803baa98"
+   },
+   {
+    "name": "scikit-learn__scikit-learn",
+    "url": "https://github.com/scikit-learn/scikit-learn.git",
+    "bytes": 203018468,
+    "refs_sha256": "3326040feee36caba43ec2d3efd9b6c3f32770c196528c3e679a2ac01d3e8be6"
+   },
+   {
+    "name": "serverless__serverless",
+    "url": "https://github.com/serverless/serverless.git",
+    "bytes": 126819447,
+    "refs_sha256": "9a5bcd9972c21ba3010ec72035e8b2887755a881947566d73bcdc4e85f0bbe5b"
+   },
+   {
+    "name": "sharkdp__bat",
+    "url": "https://github.com/sharkdp/bat.git",
+    "bytes": 36952107,
+    "refs_sha256": "9221c99e52a1a9027ab3bba286baf24b6ac18412dd9b7ca0923118c055e961f6"
+   },
+   {
+    "name": "sharkdp__fd",
+    "url": "https://github.com/sharkdp/fd.git",
+    "bytes": 3014092,
+    "refs_sha256": "9375d541a4043b779881f4cfdfa00ecc35900ea5062a07b4dcee9c6781e7691c"
+   },
+   {
+    "name": "simdjson__simdjson",
+    "url": "https://github.com/simdjson/simdjson.git",
+    "bytes": 128954641,
+    "refs_sha256": "795a2fc6d50caf50e3070e88201641656f09a2df8b4027889e7a375f05610e0f"
+   },
+   {
+    "name": "sphinx-doc__sphinx",
+    "url": "https://github.com/sphinx-doc/sphinx.git",
+    "bytes": 117391645,
+    "refs_sha256": "79d9957d113d06087960d9b60b6058877bf75ecee99a5f42056a61e199ccde7b"
+   },
+   {
+    "name": "sveltejs__svelte",
+    "url": "https://github.com/sveltejs/svelte.git",
+    "bytes": 134258892,
+    "refs_sha256": "9224d1c67ace6a873b6b1378ce622eeee92d9de1e7fcfdfea052dd275bc3391d"
+   },
+   {
+    "name": "sympy__sympy",
+    "url": "https://github.com/sympy/sympy.git",
+    "bytes": 216384673,
+    "refs_sha256": "0edf2a910541d8588459647148cf87107136db5f7327b86aca944f1d2119f7d9"
+   },
+   {
+    "name": "tailwindlabs__tailwindcss",
+    "url": "https://github.com/tailwindlabs/tailwindcss.git",
+    "bytes": 117910596,
+    "refs_sha256": "d0308a6b3788b9d7bc6860292ba8b3880200e7fb59d42027f2b02339f8788321"
+   },
+   {
+    "name": "tokio-rs__bytes",
+    "url": "https://github.com/tokio-rs/bytes.git",
+    "bytes": 2719416,
+    "refs_sha256": "7761b6d170c71825483d7217b00db5ff2365ef6b61693f50319e757e95d45dd0"
+   },
+   {
+    "name": "tokio-rs__tokio",
+    "url": "https://github.com/tokio-rs/tokio.git",
+    "bytes": 20419094,
+    "refs_sha256": "be4ff56c684907fd375b1b9370c1ee4b475ac0c79da7c3da13f2155257093486"
+   },
+   {
+    "name": "tokio-rs__tracing",
+    "url": "https://github.com/tokio-rs/tracing.git",
+    "bytes": 10441911,
+    "refs_sha256": "7bd605807bf6b08a2c1e75a1d53591e25a1b28feee16b522d26558677dc3959e"
+   },
+   {
+    "name": "vuejs__core",
+    "url": "https://github.com/vuejs/core.git",
+    "bytes": 53341963,
+    "refs_sha256": "9b9e66a6b02627023c118b572c8a85e9e624d036f4aedd6f7e2a4e8be11472af"
+   },
+   {
+    "name": "yt-dlp__yt-dlp",
+    "url": "https://github.com/yt-dlp/yt-dlp.git",
+    "bytes": 70790566,
+    "refs_sha256": "8d4b47683c91a1863a868d7611b891fb696f6b02a1f08f5e9fe1ed3b87982c49"
+   },
+   {
+    "name": "zeromicro__go-zero",
+    "url": "https://github.com/zeromicro/go-zero.git",
+    "bytes": 35068620,
+    "refs_sha256": "01db8ca51eb1f9dc80c925566afda6ff34d18c2367f47abb7825ecbbacd5ab9e"
+   }
+  ]
+ },
+ "binaries": {
+  "corvint": {
+   "version": "Corvint 1.0.0-rc.3 (build 0)",
+   "sha256": "72d242abe7a19281faef7b45950a93f730fc62a31235b583b7c927daba19c42d",
+   "source_commit": "866a7fd52a3cd979f9fd038ecfa998e15111421c",
+   "note": "linux/amd64 source build of the lane base, not a release asset"
+  },
+  "retrieval_bench": {
+   "profile": "corvint-retrieval-bench/0",
+   "sha256": "bf915af074b5e1d03ea3ff7db45e5b0935672a7dde54783a3e1e37f594b26026",
+   "source_commit": "866a7fd52a3cd979f9fd038ecfa998e15111421c"
+  }
+ },
+ "run": {
+  "host": "Windows box WSL2 Ubuntu, offline local inputs (CEP-V0-003)",
+  "limit": 20,
+  "first_registered_at": "2026-10-25T17:52:56.500729931Z",
+  "last_registered_at": "2026-10-25T21:27:43.975446039Z",
+  "shards": 296,
+  "sharding": "rows split into 16-row shards, later 4-row shards and, for pending mui/material-ui shards that timed out at 480 s under host load, 1-row shards. Superseded shard files were moved aside unscored; the sorted scored row-set digest is unchanged. Each row was scored exactly once.",
+  "shard_samples_sha256": {
+   "s1-s4-111-0": "d650c7548c26746243a4dbdf7d54575d7207dc4ca530a652b2f147cf9c917499",
+   "s1-s4-111-1": "170d6336d6b5b0d605fe1330b563bd4cc28948e1e64d5dedb51e5bd5667b947d",
+   "s1-s4-111-2": "3a5e193df54541fc2eec60dff8445562c934291374b98827b382528772e7210f",
+   "s1-s4-111-3": "bca2ea9380200fdd778d96a114a055459153c244a47ddd2f362fd1a30c702840",
+   "s1-s4-112-0": "737e8f9c262bb72d842e51387084791d36a276697ad6aa39bcf153dece7b3e1d",
+   "s1-s4-112-1": "af20ef5a8ac6cc28ca4044fa8d39b3d57ebfab12ca47f060e9fc768e318fc3d1",
+   "s1-s4-112-2": "7133ab4c9a2cf329605127a0e7693fe00ea8b392e83ebbe731b9f8eb78d7d696",
+   "s1-s4-112-3": "ac57e54227dc54e78407a094cfccbacf7df6fc77a3d41709b266fae80252af0b",
+   "s1-s4-113-0": "144867f1fd900c7af41094fab4ca185decb4ed496dc6086c90dcbe7abd443973",
+   "s1-s4-113-1": "093292f92a370f4eb9a900970aa45877225b847efdb472c78b71994ebcebd7b9",
+   "s1-s4-113-2": "2b6952939a9c4b78f6f68ab4e5274a1b4a5220440402ecc4eb32c951e96fde7e",
+   "s1-s4-113-3": "26baf1cc31ca1e8fc77d19d5ca6c646ec0bf3e74ac895a40dda7360452b0000f",
+   "s1-s4-114-0": "d78601e2204c85d2def66ad7829bd42092708bc16aee2ba89bfc79c23068a08a",
+   "s1-s4-114-1": "a9aa62e993f69b01176e78ac3c12484e9dea300f1e9867731e076fa9590ea81e",
+   "s1-s4-114-2": "cbbdaad741576cd59f8eeaf6ef45cc2cfa784f193de4df303399ae011cb80be3",
+   "s1-s4-114-3": "86666f67cd9f17d9d32ee953cac56fe1d51c9bf883aa47021efc889d4ab935c4",
+   "s1-s4-115-0": "258209940a2feb34e224452607c2ac49f19c7288bac4802664eb70174dfb1664",
+   "s1-s4-115-1": "33572087b0340d1fc81a75c80e71ade9dc45c91d3cb17218031cae0fa2171a9a",
+   "s1-s4-115-2": "b5cac1a9fb084f25a78165a7a39905d99b5b5e10ae1a8903b1f398deb18dc662",
+   "s1-s4-115-3": "0bb78e92052e981cfef2bdb792a7b96e1414f0e4cc3f7940d22b3e25e0d312b1",
+   "s1-s4-116-0": "1425a2b47f01b3ca8809de4cc7a5704fbd2af0cfed74ecf2a7b3dc08c21db488",
+   "s1-s4-116-1": "c572e770857d9672768651eaf4b3890bd7b6f619a9565f16fff2967bce621667",
+   "s1-s4-116-2": "048e0b1a2b14daf18378552f73b079b0852bc4dbb3cb82215efd6bcfe3dd8233",
+   "s1-s4-116-3": "517c3d427200bb292a2fe7b593c8865f1542c2e4f59c4886e61fb0c20c0004b0",
+   "s1-s4-117-0": "75cec775a6ab1e2669c0fad5056e5091dd7f59775de75e17685e0a88daffe546",
+   "s1-s4-117-1": "6c3ba0ed56e566a572d940935f1c83ab869a95a20888e0214a632f720dc7e171",
+   "s1-s4-117-2": "ef230f3f37e76e95866ccdb85056f6847eabc7d13cd6abca82558d51eb2fb368",
+   "s1-s4-117-3": "9d52b0f95b99ab660d5a83a923cbbe01c55c9aa28a417a5a01c18539b985617b",
+   "s1-s4-118-0": "6249d999244bde538e6246c3c7e08ed902fc639a65250b683bc5cbbcfe57bb01",
+   "s1-s4-118-1": "7a4e99943a3275f4e7c23c88ffb9385a6176e31503e1ea1b8e01d61ae116df08",
+   "s1-s4-118-2": "bdd3c56bc5cd0a98e99376797fbee57cdfee962fe87ec51821541c947850bdeb",
+   "s1-s4-118-3": "53c990ab7441315ae7cd6f607c5fa2e83fa6320f26b3b117023dbaed966e258f",
+   "s1-s4-119-0": "0ec7e9cae7aba8e43b303d483b14ef37733a16226408c75933d758b7f16a808f",
+   "s1-s4-119-1": "e00047a85c970c122be1aff714ef8ed0b6605bbf7af9ab1526d7928b3fdba914",
+   "s1-s4-119-2": "e0bc8b446f7d8109dd6ac06adc0b61381daab73970620a4e71c57f297ef738b8",
+   "s1-s4-119-3": "15f3de20f5c5337f77f8cb3a2fbb7ea88146cc0757c200df0e4f2a79cc0f06d6",
+   "s1-s4-120-0": "cb7a1902c250ad8626e2f8c9ca841eb063fd4296bf0357ab94110d0c0239fb46",
+   "s1-s4-120-1": "b1047d81aef163b49018f89cfdbca6302981dc88c3a283a1a75b641837dfe91e",
+   "s1-s4-120-2": "7ea00af21d8f855aed00b78c29ea508c6f5e01f6cc7a70f888e1451faa2cab4e",
+   "s1-s4-120-3": "c7bcded26c0201b1e52594ddf2d6f6049315d6e2c1bab512341c6ce44d1e8d0d",
+   "s1-s4-121-0": "683ee0e1a97886176f471cf68b687d42df2a1b85301115fc3739645157816733",
+   "s1-s4-121-1": "55d8dd82d13011773f8ee6040ee328e3160c4d3fcfcd50bf8444cb87b36ffce1",
+   "s1-s4-121-2": "85b7dd98df8999b83ff8bbd74ce49dcdbcb0ad56f25f3ec305ee2c5c623a5bce",
+   "s1-s4-121-3": "da5586588e44927aa48fe79a9f1c2316f734b6eace5fc2705f16b502d3ad54a9",
+   "s1-s4-122-0": "beed56e4a362a24aced3003ae4bd81948ebedf57d8f142417373354aed9f8674",
+   "s1-s4-122-1": "64e52a69d799d227de6eb815941c87f4bfa5209b3db110b1a06baf9b8a3c0734",
+   "s1-s4-122-2": "a17c77b603930be3eea7f95ef2d0b3b62859de725939e8cd0777efd5d453aac6",
+   "s1-s4-122-3": "191ccc1ca9b95f3b16e58380decf1dfbb6a7c08c4ff153f9cd2bf0bfa41e27fa",
+   "s1-s4-124-0": "efa283b676795d8c2f2da501b0340a3ba9b3a5c3f9b061a9d734f275b8c4f00b",
+   "s1-s4-124-1": "03a56e16cc448f357f3e7f5a9088f4e24b2f533e5e597fb171d51e8ab44e8278",
+   "s1-s4-124-2": "505b8a82a145d67e1336a77cc3e22685eec96968254fc101e4883e7a17b1fefb",
+   "s1-s4-124-3": "fc90be7997de34b1b842096601aa130a989b932dc5bff17564e701d32ff147cd",
+   "s1-s4-125-0": "5ba80fb0adcb42506207cf76cfa05a5ce5a93e6c309cbbff55245a3513b422fa",
+   "s1-s4-125-1": "f27ed6c237d8d6c44f1c5e0c5e7a70ed567f83b621aaa907ada1e912ed71d459",
+   "s1-s4-125-2": "b513a96aff00c52ecda86756c210c49a7f331fa8cc6afed1fc57ca21978f5002",
+   "s1-s4-125-3": "1438b0d4c4446054d1e07d9a881c37fb3c25a2174aec9b5674eba1fa53bc7122",
+   "s1-s4-129-0": "ecd25f0087f9eedfc2c20fca9a2e10501c49d66930268ede42b05fc8b5017be9",
+   "s1-s4-129-1": "dc45c8e072cda51bcc2a31866c0036756603f119d1b4ae196098d00e424b6b75",
+   "s1-s4-129-2": "c5a0ef9b4f6a60df68a76a375c58f33cdf36f1d8fb437f2d87e9551a178f983b",
+   "s1-s4-129-3": "3924f3544337e2b356ed53ff2912a431d727d9af994e2a710df3c90805879772",
+   "s1-s4-130-0": "59b28afba49d8d7e33dd5b94e1f526dadc1a526678f1364498904b4b5a8eb4df",
+   "s1-s4-130-1": "ae24d4da73e993b9c88a7c9f7402fa6b91e74318b68c71006215fff613e94c1d",
+   "s1-s4-130-2": "4b95f8875361776b5b37378f23a5304dfd4fb22e093a512610781dd22445b2d3",
+   "s1-s4-130-3": "10959b82602493689c453b7653813778368f23c346f183429ddb9fcc84b69ffb",
+   "s4-000": "8dd3edfc137dba8292cf384860a37a57ccbe410f0f94e12a0702736825bf8a1e",
+   "s4-001": "7d8feee3da90cfd7ce98d7582da50bfb3a82b19af978aa04ee020b7604fa8e2d",
+   "s4-002": "e12f66b15d87c6a079c6004c9e1dbdf37f4c88abbb672ac1a2de2ebc58d77265",
+   "s4-003": "a7503e8b76188d8bf8e8868b71b5a4d714246afe4c60b485d3133e6c599f9355",
+   "s4-004": "8e81f2e48176bb99d86534855488eba477abc0bb67d7768d14255559e2e4f4d5",
+   "s4-005": "044ab74172feece168a1aa17b095daf2b824e120dc9aca84ce3915bd51e0f494",
+   "s4-006": "79ccb88808bd291f3990a77d2084d13f282ae51c22fd0496995fd54c6d35c6a8",
+   "s4-007": "28f1d586039901bb9e70364653879e5917248b2ae3dbeaef5ad5741610b811cd",
+   "s4-008": "d0f66119e99b20f5e8f72df0a3407515268a0a8a56ffc6e41a528b30f28fd0fd",
+   "s4-009": "01b7d001d4cc6950d81da9cf0e06387057e1e11fe8e3f3863523b0a006d41fa0",
+   "s4-010": "5010e1472049ed98d857fbbc54b78a185e910d340416d91ff174990023140f2f",
+   "s4-011": "c3882c38249def1c1e02ce1c31c63e7ef90db2c27c625deb2b97d1e857a49603",
+   "s4-012": "eb9a2d0376846f7c2798cd66846a276392af2ef74a9d3bdfe9924c01b5f97da1",
+   "s4-013": "5d5845eba8bc1c32e215e11be1cc7853753f5045ec78f2e59cf85708bf07b96b",
+   "s4-014": "d2e553d331d6bb23aa62561990f01f22890c772f4fe997909ff3457e35083d97",
+   "s4-015": "eeca655a94a2ae7a39e1ee501e0e071a6698b612ded4e1bfa64566297bd0fac2",
+   "s4-016": "f4525a9cd46dca7d2258e165afe407ef095c3cb72bc1d844f80456ca313b291e",
+   "s4-017": "5eb025d204eab406f031b2ce0a19f0cfde4dd6f791b7592469a91aa20354e4fa",
+   "s4-018": "28c48a5e59ec13ef788adef5705122ed9ba3191f7ddaae8af85004c1f521eed4",
+   "s4-019": "086c385d97630875a775840b619d83c0f58b880d00ce3e024de666dd8f4473ae",
+   "s4-020": "48aed70400a7442d9ff019ec18084f8f668f85ba910e23b9b4140ea9afd7add1",
+   "s4-021": "f9d0d4da40c14cb0833022b22ddabc3876ac53483bc49f5ef5ac0aa3f47cea4d",
+   "s4-022": "cef3c24e091031f7b5775347012b4fb4275e0ab0603950d1d030c54af5dbba39",
+   "s4-023": "a684d5a1c7367ffd7840143f750aa14f3bf615e53725648863fec0b1a48d71c8",
+   "s4-024": "9fc879d3f115d7d605a14a4afe2a16cc5c1cdda18f6043a2534b58e6760a6abd",
+   "s4-025": "96f402ad495f06215c161f3b40f6bd48f249bf595e7ab875e5b36be27d04b6f6",
+   "s4-026": "2e90437e3db731ce8ff1d56b7874b98d3e1800948e79ed8be5c832f0def08912",
+   "s4-027": "3adb71eb6b8ea6829e21a1b2276e0e5cfbd00be7e983867a31073e56f864167f",
+   "s4-028": "8572d946c34bd09991ad2cae3e07fb79baf3f98a0bab49b02bd9f4c75776e3eb",
+   "s4-029": "d79ec6c08984e09dfffa5495e171e45bb702d4d338edd7ab17ec547f1ac17ba6",
+   "s4-030": "b2efd740fb5bcc586fe2eab788a77097dfc3b35874fbb22b67005cac30e5aea5",
+   "s4-031": "017efd1ffb4d98ce38bcfdcaefaa9578e88c81872d02b689aff3b72c4a09498f",
+   "s4-032": "990bd3fb85bb32ad14ee28abf01292373c6fd977fc3e771fd92a3455cce71fa2",
+   "s4-033": "7c32320d3f8bd91a3c52c4cecb16a430af97db88b2007b945391d41dc2193f9f",
+   "s4-034": "e7876ae47936fa3d635fc4a3722fb27a2c5a9a77ac7ab20a862d3549d9542700",
+   "s4-035": "9fa5f3a4de15d750f06b9fb3f6c71c2b419eead2da16777cc8e62f547257a817",
+   "s4-036": "5c17fd949a618027638dd77fe9be735f0ecea8a5a0edf5910c9182198beb0169",
+   "s4-037": "4f2032d5fbb02b97c19079553e0a55879f113a79c954540ca53abf3cb51a6deb",
+   "s4-038": "ac46412dbb2233c6857016596cf3c60c83603b8d297953e10280a9b126dc70f3",
+   "s4-039": "df4e1d56907dff80b55ed4cc62ba8fcee0927f7be8319a2324ba7094d1e60bef",
+   "s4-040": "21dad9cae3428f2194b8c774930373b8275809258f07dd08f349ae10cda39339",
+   "s4-041": "f996f69131567071ff0174f8cbe9a2cce457016a3cb58bcf213715f8b2871b72",
+   "s4-042": "72515a5faacdc2bf724c5244290a7c33db7567cc74d527d6a9e3906d0e0e98b6",
+   "s4-043": "dbf1a0665c58570089e69b12f0f868d0cd00d3f7cb70b612ac6d723698d9d71b",
+   "s4-044": "b7ac301462f1d3b1faab6ede4ae21b71fce5ef98a261e180fa429d8280084c3c",
+   "s4-045": "e8dac40520483bec36c2f385f08d90a32c28fce0a976d609069e2731e7b49c59",
+   "s4-046": "ea20585dd6b9c1de55916ce028b5508015126bf9b6be961f8d4d7720503bcfc4",
+   "s4-047": "9d8c26a43656e14203a09969c3d0ef911967991af1b17f8390796ba85b91f08b",
+   "s4-048": "bce57996ce4ccd309235a64f11fb8bb7c6305b10dc6142b8e65e34ed4154d934",
+   "s4-049": "f0833e9a5b85c9403db04c74a98913eac3cad94e10fc44db7926b8e4610807cd",
+   "s4-050": "1930ebf8b9cb90189e0921633992cf3b96fe9b597550fbf7912f8bd9d247726b",
+   "s4-051": "b7d41bce9664c3684fc122c277a12d7db75f5bcaaea4c9c2b917de73a9a8fe59",
+   "s4-052": "2686b9ddd8fcbb74effdfea25014d8c85fba70b4ffd5b091a694c0439f47c869",
+   "s4-053": "3bd53c4c94b587edc9264ad43e0964f593ee0cac7f4fc99cc9b2ec36e068a911",
+   "s4-054": "0c30e433a638d5f4cf6eae824e8c299f1c425f27568824fa1d3e3df7d5b99a28",
+   "s4-055": "d6d4c407117c9abf8f857f3e290d664ab7bcb6a414be001b76d4344969f9ed6b",
+   "s4-056": "97bd1175addb790b68c19995f30b532bbd32eed59cd9437d2e0ba74254112bb4",
+   "s4-057": "412acd0d9c66ba0fe17cb1277aba75c144ab8f6f186a6be99fcbb55a5a5a45e3",
+   "s4-058": "271774000b5c6c24f9574a385f33929638ce6334bfd8e6b816855c3b54d631e7",
+   "s4-059": "c63aed8305753702d81ad2158a9bb8308942d00f81ff3656b9c8556852ecfb3f",
+   "s4-060": "41a21a40adf1aa83857096bc0b3679e6b9729dd287da63d151105331be15ff05",
+   "s4-061": "98e8c328e4a35811598e4023c63f42575114ba923ac8b541e5279d27f37583c2",
+   "s4-062": "025162bc95425a3fbda530d597b854c079076f18477b2d508ea0a5d27b309860",
+   "s4-063": "532774adbce713e72abc3774442c5ded3c5a245329e3a812e41294775cda199f",
+   "s4-064": "3bdfc3adc854739bccba88a241e18043d5b928c9e21c811b614650d24d54a892",
+   "s4-065": "84d56b4cdb66602d1959f2e22dee31a76b8ba3e9bcf88a1e03aa0c586b93f03b",
+   "s4-066": "56e7a609fabd6b689ea67b419d69cef4e81ce8d22e144c2d3cf8ae103e2e55d0",
+   "s4-067": "6bc5f4dcc620e42478068eeeead7173ba33025b74e0723d069fa06ce21df3d7c",
+   "s4-068": "ddfe46670c9f1a3ab68ee2e134ab6411f7e5bceec882944be9de09cc643d0ec5",
+   "s4-069": "41daa5d94c80dfc4957d5ca2ab3f67003f192ad6f43464395a071cf9757ddb2c",
+   "s4-070": "a8f126f98e6399b767ecd4a108aba252dc1f81db0c63809b8fca9f652bd0369d",
+   "s4-071": "3120a4c11010db17d13407b609daa0c285ac288f9d90dbcf3566a89170525853",
+   "s4-072": "f61d5d75c8d2610c42ade5773a0350d32fbe52b6605cc5d9d2ce5e8c2a4e7f9a",
+   "s4-073": "7aa1e2b07fb7ef4514adcc9987949608797825bc2672583a68bb1eb1b620bc8b",
+   "s4-074": "cb5e8bde43e71e528603f50f0768375e160f19c1c1126eaa0a8f1abad1ad35c8",
+   "s4-075": "2c6f593d96cdc5d0de43efcab3c85b1f4ec268311b339f683b6f5cba30a436bc",
+   "s4-076": "1954570f21af89173fd37e289758e345b067d255deb744687e0b18e266bb0866",
+   "s4-077": "39cc1344e0d2134a72e71746566fac1d9fe546497edad3e8d70eaac05b2fb7bd",
+   "s4-078": "5206bc55851d1e46776f063a4e0770c7e37b6379d04888675d4a5ad2be13dd3e",
+   "s4-079": "be8cc992606172b6a4ba63abdb2e96aef1481f16fd8b4646c46c76985919e937",
+   "s4-080": "02c0aa6c52d1cc399dd8ac0d5975ac87a953396d621d50f2a10345914f27a198",
+   "s4-081": "b7528b3805ae033c1b1da5109a0e8d8f82310d4186042d1f6539f70819c89c5b",
+   "s4-082": "742df1457318088782c25f5ca33e5d46764f031671d7a6362743aac62fddf4e9",
+   "s4-083": "17e7c6778898063e2e33d21d6eaafd6125c76a741df33d646e18b3dd60770810",
+   "s4-084": "084a70da4caf164dcf56ebfe50b100588844aac97d1d0acdcba20db479525ac6",
+   "s4-085": "9e77f1813079e14b7349b9fffe43e7dd593acaf49d12c0c214e4da279c355d5b",
+   "s4-086": "e05ee48a157d82f609ff2fdbf209184ec0f03a1cee60bd2b0cbc2444e3bd0393",
+   "s4-087": "945ce03d386fb03970b8129a19e6c7dcf2df07a7515e8a428940c1ab6b4c425b",
+   "s4-088": "aae1c057b7edebadf050e532fefc560fe6c7774d29cd9751769593f6cca8ba90",
+   "s4-089": "25d4cfbe8edd9bcd7f2a9eaaddd6af446f6fcb587be9f057b8d61a550472b843",
+   "s4-090": "db95d1d7611a628e190f3eeb5d165ee870ebc89c48d4a58f01d6b24f9ba57177",
+   "s4-091": "5ab3a7099005155b5899c36f5661e941a4f10680d1f97e33978021f11b868077",
+   "s4-092": "2f432f130edb0db6003094155ab45954add405a50c3e59659203635d8e534671",
+   "s4-093": "bd327834eaa94377443c55f8b22a32e3b737faa534e6eb72957878fa59d7e391",
+   "s4-094": "34c931d2d841c838a8d8dbde50a2b15ef67cfed5778ac2604c92438751c314ff",
+   "s4-095": "ff42725876edc9c90c891e7342edd846c92e68a9e4a461948f15a2264dd55835",
+   "s4-096": "2aa4e4498f9966c1d13ac7a5228d6e43da39321194218ac436471760a5185e30",
+   "s4-097": "bc9bd782855556b1321c688143abf20acab08ec494dc41cc25c3cf66b2362a87",
+   "s4-098": "a2d810751156b9990c9d7af7a15a758a1563a3ec3c7bb3b14745917a01e4cb0d",
+   "s4-099": "7f731fcc0a3921588f3f5e064d0e8f105a098435dabaac1f3cf78e69ad7d6c0a",
+   "s4-100": "0b6dd17c7fc3e2d56b3cc0b51da087be321b232ae44f3d0ed301081b8c5bca04",
+   "s4-101": "b56720157316b33d382847abc910bef0c90224d0d5bd6c760f2e0823fc84c080",
+   "s4-102": "546c6ac77986ef5a39a94e2902af3ff2789f32b0c1ddc15d72639532e5cfc26a",
+   "s4-103": "d8143a2467a2bc9c19782f2f0adf26f4d4437b32a583a9ef1c034f71050b584f",
+   "s4-104": "f483c74f5aa5bf9c1764ddbf926c60f0f26e443c96255ea310d806295ae3a756",
+   "s4-105": "86c52820ab63e2c0a42a792595063b4bc6b07ce01c04d7d9b41829637f85bdae",
+   "s4-106": "caebb51aa07468fb88fd18c566fd13ee69bc78dde60bda77ca3c42fc91f152da",
+   "s4-107": "90553960310dde26e40d3989f50c0c3b07317de091089aa993c24a96c60f03b1",
+   "s4-108": "b6c3cfab261fa8978c43fbfbd5485e6ca0cfc453659a88333e3d246d19c7deab",
+   "s4-109": "47f258a3f2dc2e78bc22baca9c9438401a4edd6c85b73d550063f2812674164d",
+   "s4-110": "91d9478475c8b0836e15b93cc67a09445cc51d8e16807cfaef96bb089904c27d",
+   "s4-123": "18bbd86a8e8bc26f5f514dd081cf7c3c98d1cd96d94e7e11c5e47e6c0cd54e36",
+   "s4-126": "8c82c8524d7e386807c9995e61c9aa5ddfff5103155d83247b20bafee686340c",
+   "s4-127": "c71130b04cc11aad2ee353030cc5ec675320cbde97220b8f0c2586d7f054828c",
+   "s4-128": "de22f9243444e8d8534ce9557cc5ab05fcf569731c99c73495beeaae2f273ddb",
+   "s4-131": "d30b87040b90adaf128ec903dbbf8c394a8f4aa27ffd7cf3d0cd5331b4b36419",
+   "s4-132": "c7f62dac42ae45028db5214a8ce7e14b566f1c014ab3e2040519d852564c89e7",
+   "s4-133": "6d61b19e9cc4a8ca5185dc37adbe12e212f81fe3f40283c803c50e5585b772f9",
+   "s4-134": "61c5db649bd073c67e11c2d31a63a1a310f39e0e57f8e18fb41a103c4239f606",
+   "s4-135": "8634d455cffa5e6ee10f971c8e2393e2a810233f44abff77243323262d601562",
+   "s4-136": "df507cf8eee0acd9d0d3e7cd01d6612e79e5a955da7a4193854528ccc3292be1",
+   "s4-137": "453e16b3d4f684e4d4fcef71fb40f48b6cbd2cf92be88c9ac4b5b4c6cd018d12",
+   "s4-138": "1fe43a2e1c1734080eb15b757955db4d5a01055447cdb6bd7011949cc48954d2",
+   "s4-139": "d76a4cbca3e0506a52ec10f6c7a0c284702e4df275b5e99215ea88fddc787065",
+   "s4-140": "fa5f3933d749f9f2d3fb653734adf9ac4d3dd65d932a36e4e9a5dcec92a48b36",
+   "s4-141": "aac9748ac3d7ef4ddcf152039a57ff8d3fafcf2cd5c11d03be7f33ee89003c60",
+   "s4-142": "1c505117041473de96e70f8d9a96fefb7be25dc4b573d7407ef79f4fa42b1f93",
+   "s4-143": "f77a1d0a2396384ac3a893db4949f01600a75dd5e83e3c72e6b725f0ba7630f0",
+   "s4-144": "d4d2d192107b8a2d259a342286564d39200ccd6752937abbb2236cdeb0b7cd05",
+   "s4-145": "4d7f269e7a35a8c219c81c2a8f7f7f06b7925b1d5d614312685dd83f5d13c055",
+   "s4-146": "016b4909856213b451e8ac547443982325bc442000f98c1942645d746a4329bf",
+   "s4-147": "3846a924ef89549cd3dafa42e82be262ec9abfb62d4eae14552a99034b27d77b",
+   "s4-148": "c0130cc8947c1a24fd0fcf775c6645896f0391a137748fdf947b0e3b5ef79167",
+   "s4-149": "899c84427a364f5fe1fa00e50c1117af3dc6d9900fe12f274670d84bad65964e",
+   "s4-150": "86a7bc03d78e50e30efdeacdf9f22ff53480ff39908398b7c398677e97c15f36",
+   "s4-151": "02b9003ba933e745db388197df4f0ba6f1c108558f2035f4d8cecc4595f364d3",
+   "s4-152": "d2d74530312c54b84e3e76266e9fa2c4d523fd79449f26656f4913400f4cfc7a",
+   "s4-153": "8cb3d71c438ac72d2f24f8ab6c47deb7e8950f5df3ed3f3d88f233a8ab6a58da",
+   "s4-154": "91b679d18fa985808def6f606e75cf662f75260a8c84897cd02b4e2808451581",
+   "s4-155": "24ba24ac5494e8f37e1671f92fa4d48762b8046e456ebcfd20648d000444f372",
+   "s4-156": "178a7f07e2f410548d68df75d3764d66b7a08d02d455300d93b9a5342b377457",
+   "s4-157": "fd44151b1ef6674572c4fa6f128c5559ecbdc81da13195beda0be76ff0c5cf6a",
+   "s4-158": "596bde81b759644229095fd4ebee390c5b0f4b41c15d481d8c3a2bccf7f62bc3",
+   "s4-159": "30346272f86b7708f10f81177621b496e94c64ec26a4b0dd3e24202810462dad",
+   "s4-160": "4a3e6fadcf11959a2ab2d74d2c92f84119cf7b34146073dcf5062b5e8fa5922c",
+   "s4-161": "5c014944a45068a46f373cb2a2c36a47c40ce96a311c21bb647b190c24df3102",
+   "s4-162": "e0951f1327cf3436ecea14a0a7d1f909cde1561972ce76b74e61b8dea84a30d5",
+   "s4-163": "4343f89b3e7ef0878905d209a622832308ea818a12706912f38d19b53ae54d6e",
+   "s4-164": "71df8ff8780afebe2d6d7e7711cad0e286f00c7ec88d40ad53181c7b6eabd3d0",
+   "s4-165": "a43982c7fb2d2fdb9062de2eec0b00332ee673e73191ecfac6e7df1e7d48a9dd",
+   "s4-166": "ccf85ee769c0c1e553c71b2f5c490c7321c86be00530af368f191e1a521cc8c4",
+   "s4-167": "e6abe051eb373e5930825c679eaddd9741d8457f7fa136bdde002aa458cdaf86",
+   "s4-168": "5ca9bf28f23300a5a155a46830c4c05b26ffc697d9b91175bece1e2531209165",
+   "s4-169": "883571c20845ff95612ab6d4a8238f791401167f444f4be384be08ef31a88501",
+   "s4-170": "e50b95415b3dc1408c947f60f621dc66455f113bce88a30a700ada998b94056c",
+   "s4-171": "ed2fc29a3b19b1331b0fbf85431d1bc4a9f2bc60b562e3786b27a1742b8db06b",
+   "s4-172": "a711d475d9290133da155fafc7aaf82211f1d1055ca25b4e5e36526d0386562e",
+   "s4-173": "5f7936c93931b9ce140e8fbb513509fb07767f5f315d4a06f0052b88ae866bc2",
+   "s4-174": "c82effb431925f42ec62790706cbe93025af03934e8ad648fb0b1d3c4e755ff5",
+   "s4-175": "398502567271b2b3cf5f4376aa4010d3c1cedbe80c4d697f60a6e8b355cff176",
+   "s4-176": "18ddb5eb8be224372546acf3b7e033c2760d2f09c0048e072a2ba72ab680adf1",
+   "s4-177": "fb6e5504edf0cf92aec6c2bb6e3afc9504edd500e1e7fd1a6584931dfced6696",
+   "s4-178": "60120bef453c23eb96246e2bc8124ef1aab6d9f2bcd385630d47b4124e7e7891",
+   "s4-179": "1b9c305e192f626119677c1b92738f491ceacb80518a27e892761c1980530867",
+   "s4-180": "450d0d6fa4088d2a47638d54cbf2c0ac8e950dbfb0b34361b404fa8d9f41f61e",
+   "s4-181": "dc17ef12f316398e515aa450393a202e7ef6684fb239ae2660b610d18b8bef11",
+   "s4-182": "a0eaa13768fcc2592822a7467b7914a267735895f7853acd1c8c6d80c2195aa4",
+   "s4-183": "e3038443d1dbf8790bac6ce4299c5000aacb041bdac8d8a7d4079998cd58317b",
+   "s4-184": "b96dc97b6cda02f78f3f4cf57c59558f185e2acf1302c8c5ae9489994ffb97ce",
+   "s4-185": "74c1cbc5d17a68e64c9ee1d8a4ce9c05f03818a446e07d599ce777fe1c6f6762",
+   "s4-186": "434943f935887b5d0562ace8fa7f85f04c096c42a745036aeb814c480fc84796",
+   "s4-187": "7f0e5a65bc2a49895f8aa6fea7137544132e1b69759b5816dc624a5301df01f8",
+   "s4-188": "a68dd94165a2155004adaa04a924ab7676dfa323440c3fbda9509e2328724012",
+   "s4-189": "fd2677b8fba53c87f9d8d98045122778fc265c8a4e350223215b36eb7de484a0",
+   "s4-190": "4ac0f9d0690679accf61abc9581e0b110eff37cab0863f86c468125e9ce6b2fb",
+   "s4-191": "a3518e30728468d7573424def6a7c3102cb4736ebe05f8153a90f96d9dafb711",
+   "s4-192": "5733e3099ec7f3b5a35c684887df0dfe90f37f258207e04668d85638f2af8263",
+   "s4-193": "6cca121f1f4c8b0111e44b34a193144e7fc6817421726622d88832bf3344e17b",
+   "s4-194": "7ff059193cf8bfe4b836e62938fe80b55fcd3d6501de2885b4684d7c6e7b4ce9",
+   "s4-195": "da763ef3364221b2a120d24e31e265623762fcd28eeeb097f29808cab9b3d5d3",
+   "s4-196": "cdd279f4b15c2d3c5296902b6a08704dfaa07255500616acdbb3bbbd3a115a2c",
+   "s4-197": "d660db47b2aaeda199da28e1df6300810b5b51fd5bacfd499a03f542f1a024f4",
+   "s4-198": "449fbf70222ddfd61773c94a4c92a3186907c0c5514cd4a52e5cf656ca64abf7",
+   "s4-199": "6e6f044435767a950bdce0403a309f29cbff296ffc7199ceedb78c524ced03ca",
+   "s4-200": "47a2e137d4d3540ae96917aaff04281ce83d0ceed5d80d5101820580f827f9cb",
+   "s4-201": "fa8eb26b2e24b6035e5de9912db4efcad551b5de28d28b8ae87bec6d2e39a740",
+   "s4-202": "6b45f221c9399939ebfe2b8b427f978d5eb550a79163dca0a1eb0a0863e456b3",
+   "s4-203": "ab4ff6e20f0a072b94a163e50a78d3d638bf06efdf0f5d5db5ba0058191404ac",
+   "s4-204": "85dcb20596d7b878669c0aad3205661bfd55cff701b32aa51f53926cc5ac249b",
+   "s4-205": "66609de365b2a8b25cb125da54b65bd73f4e4859482b90e30b00934a0301fbff",
+   "s4-206": "84baba2013f235e4a4a12699118cb158fcba8f43d3939636083d06f18dafe498",
+   "s4-207": "bc7a2db2c296cff90d46418c296698b20bc1806e20e27996e40ba2a802395bf0",
+   "s4-208": "e4f06ea80a837892271953b47055f5be156a8b2e68054815cf2cf556e936a6fb",
+   "s4-209": "73d68bdcdef3d0492eb2cbf9dee0f01e5d624b2b89b1a63ddd7a28cd47b9ce56",
+   "s4-210": "e1e3b87b9284655096f048143a9c9ec61d1927bf1863f247ca974ffecb2c89f3",
+   "s4-211": "aed9ed1c0e93a67fb1fda8415d2ff9db8fab482bd4b22f5ab2eb34d14e01d641",
+   "s4-212": "913b84e88c6c6c1d3e5d21fee70573e68a1cc017af4719df3d99c0800afa51ea",
+   "s4-213": "0e6cad5d7908081a63ee99056f21cb2a0deb7733b7c2ac5205831c67f1631786",
+   "s4-214": "2bdf87170a804630d8b0cc462b06b215143b9f98ea1b5c38b5e4b2f19f8fcc21",
+   "s4-215": "ee63a57f28f299b635e223fb92ef1227627f6dd66c1eddc061e76678623f642b",
+   "s4-216": "8682f6359b404e4f935d2e0d46b9ba3325cccea648f6a26dedf72c110d5d19c6",
+   "s4-217": "19367b2bcb2ce610a7ee0803fa5517c3bbcab7af8b48e4302f96a7c6aeb2ce5e",
+   "s4-218": "4a622d82ec6d08a3ff2a7ac290008ec86129d1ba3c03f73022bd783ace0495f5",
+   "s4-219": "98a09870a961de10592fe43876f582ebdc7a3859a659b8eb1ec077cdd0092b8f",
+   "s4-220": "698d8549e39d9c938ac39a8cad824ca6542cb23e120a9cc371043589735ecac3",
+   "s4-221": "15396d223273372b7f7110b5349a14581d9bc5dd4deb8c8754a8398344040c6c",
+   "s4-222": "52a162e16e3eabf3007753dcedd9f8a5adae03cb0767169d5f0016a8f04bdea6",
+   "s4-223": "0b02b096fedb0ebda51968e6e6e4dbf6089a359709d4a8d2163fe491b1bd2505",
+   "s4-224": "e74c4ecdfe4ba04a32599ce4fd35ab66fb8c63f07bf81f2e8ecd8425fa2aa672",
+   "s4-225": "be5f9d15d9252d50a89bc9be51848207b44f96b324af017e98873eb7710c2fa4",
+   "s4-226": "3e401cafb70cc8a9f103d5798802b0c18ec6107e13b9b1851b247880b2377b73",
+   "s4-227": "225b37fa26eef5b685f4e53eb83bfe27282b20be964fbc60c7198488a6e3a9f2",
+   "s4-228": "9e440ca6e5d18a444e92b9982d0e426fd76a4e8e1e978b7a48fee394a79871b5",
+   "s4-229": "743deba7d8dee1c1122082c32adae70970899a2dd37dc1ff446163223bbe6cdb",
+   "s4-230": "cefa77faeaff93a8676c163be3032f9822384ec3070a0676ebe2db21083ee9b8",
+   "s4-231": "440d3c9b2a5bfb1a7c257be10a20861128abe1dff56f473d8cc611a498182934",
+   "s4-232": "bbc028d4562ce7d9041d77d7d7faf7dae746fa1f680e4ee797d1dd15906ec47b",
+   "s4-233": "6ed6c716ae725f5498e152ea46996f32ebb5882af4bd542a9e8e97614e46ced9",
+   "s4-234": "3ca6b4b1c3f74c5f4468a7e06aea8afb1f195848efaea4056364e6775035eab5",
+   "s4-235": "f5c002f548d1617e5ec8130c73c899ef7cab6f56795fabc2bcb17acaf0461408",
+   "shard-000": "a5dbc42e59bb9f8bada4090c0a83d630cb4f0e4b8d89e0d52cbb7234c1cd6e2e",
+   "shard-003": "60db7781013dc080c5541477ae6b285585340024c66d11a9573f78a270ffe4dd",
+   "shard-004": "c55f7513fdeb12bae607dcf64407369a0e1cf3dd7034993d9a8f789c5c2c9431",
+   "shard-005": "1f56904ddb4b45103000fcaf901c0a18dc01ed53d50c47164709e9d7c45048d5",
+   "shard-006": "a4a94c6c77cda52c53b3644965a544861dc76460e10d8ccc2edc84b4789c607a",
+   "shard-007": "a94214e46442cb3eac9e0a3c886c25bcf3d782558d289da9d56990e144c96985",
+   "shard-008": "a9ed8417845d53ddba22c205651babd78102c8f175cbd195ce6f02fb8d38629b",
+   "shard-009": "d2bbc1d1204e71f2a7d8c4c4f8e824f88b81606ada67b1ba9aed739013e7a388",
+   "shard-010": "a674048369109215cae362acd37b66941aac2058a7f69792a3286c4cfdc8a254",
+   "shard-011": "a9bd8bde4963e242570ce4960a1c897783f9fd4769dd6aed723df3cd75505574",
+   "shard-012": "a7d7b1643d2bbe319b2d8d03117d67414eef176e456cec6abab3fceeb3abaf4c",
+   "shard-013": "2b39fd4e1ca722553b504c86e0cf524a0670b3a4842fe05b119c8460183d6a15"
+  }
+ },
+ "metric_definitions": {
+  "cb_file_coverage": "ContextBench file recall: gold files present in the arm's answer / gold files (CEP-V0-002)",
+  "cb_file_precision": "answer files that are gold / answer files",
+  "cb_line_coverage": "gold line spans covered by the answer's line spans / gold line spans",
+  "cb_line_precision": "answer lines inside gold spans / answer lines; a lower bound, because a ranking-only arm answers whole files",
+  "recall@k, precision@k, mrr@k, hit@k": "file-level ranking metrics over the top-20 list",
+  "abstained": "fraction of rows where the arm returned no answer",
+  "means": "unweighted means over rows; cb_* means cover error-free arm answers only (CEP-V0-002), itt_errors_as_zero scores errored rows as 0",
+  "bytes": "corvint and context: packet_bytes the adapter recorded; baselines: sum of `git cat-file -s` over the top-20 ranked paths at base_commit (paths absent at base_commit count 0, so baseline bytes are a lower bound)"
+ },
+ "arms": {
+  "bm25:all": {
+   "rows": 1132,
+   "errors": 0,
+   "n_cb_scored": 1132,
+   "cb_file_coverage": 0.374755,
+   "cb_file_precision": 0.05738,
+   "cb_line_coverage": 0.422281,
+   "cb_line_precision": 0.014296,
+   "recall@5": 0.200062,
+   "recall@10": 0.280638,
+   "recall@20": 0.374755,
+   "precision@k": 0.056496,
+   "mrr@k": 0.257744,
+   "hit@k": 0.610424,
+   "abstained": 0.000883,
+   "bytes_rows": 1132,
+   "bytes_mean": 719843,
+   "bytes_median": 627274,
+   "bytes_total": 814862011,
+   "bytes_source": "sum of git cat-file -s over top-20 ranked files at base_commit (0 when abstained)",
+   "bytes_unresolved_paths": 1740,
+   "wall_ms_median": 16.6,
+   "itt_errors_as_zero": {
+    "cb_file_coverage": 0.374755,
+    "cb_file_precision": 0.05738,
+    "cb_line_coverage": 0.422281,
+    "cb_line_precision": 0.014296
+   }
+  },
+  "bm25:ident": {
+   "rows": 1132,
+   "errors": 0,
+   "n_cb_scored": 1132,
+   "cb_file_coverage": 0.359895,
+   "cb_file_precision": 0.299251,
+   "cb_line_coverage": 0.392871,
+   "cb_line_precision": 0.260555,
+   "recall@5": 0.219389,
+   "recall@10": 0.288776,
+   "recall@20": 0.359895,
+   "precision@k": 0.053668,
+   "mrr@k": 0.277768,
+   "hit@k": 0.527385,
+   "abstained": 0.245583,
+   "bytes_rows": 1132,
+   "bytes_mean": 386921,
+   "bytes_median": 223175,
+   "bytes_total": 437994798,
+   "bytes_source": "sum of git cat-file -s over top-20 ranked files at base_commit (0 when abstained)",
+   "bytes_unresolved_paths": 1221,
+   "wall_ms_median": 2.3,
+   "itt_errors_as_zero": {
+    "cb_file_coverage": 0.359895,
+    "cb_file_precision": 0.299251,
+    "cb_line_coverage": 0.392871,
+    "cb_line_precision": 0.260555
+   }
+  },
+  "context": {
+   "rows": 1132,
+   "errors": 6,
+   "n_cb_scored": 1126,
+   "cb_file_coverage": 0.482561,
+   "cb_file_precision": 0.093472,
+   "cb_line_coverage": 0.536962,
+   "cb_line_precision": 0.034771,
+   "recall@5": 0.327795,
+   "recall@10": 0.384592,
+   "recall@20": 0.480003,
+   "precision@k": 0.071775,
+   "mrr@k": 0.390747,
+   "hit@k": 0.709364,
+   "abstained": 0.021201,
+   "bytes_rows": 1126,
+   "bytes_mean": 15839,
+   "bytes_median": 15853,
+   "bytes_total": 17834549,
+   "bytes_source": "packet_bytes",
+   "bytes_unresolved_paths": 0,
+   "wall_ms_median": 1268.0,
+   "itt_errors_as_zero": {
+    "cb_file_coverage": 0.480003,
+    "cb_file_precision": 0.092977,
+    "cb_line_coverage": 0.534116,
+    "cb_line_precision": 0.034587
+   }
+  },
+  "corvint": {
+   "rows": 1132,
+   "errors": 28,
+   "n_cb_scored": 1104,
+   "cb_file_coverage": 0.244892,
+   "cb_file_precision": 0.255296,
+   "cb_line_coverage": 0.282214,
+   "cb_line_precision": 0.152949,
+   "recall@5": 0.228226,
+   "recall@10": 0.238834,
+   "recall@20": 0.238834,
+   "precision@k": 0.148275,
+   "mrr@k": 0.336997,
+   "hit@k": 0.446996,
+   "abstained": 0.100707,
+   "bytes_rows": 1104,
+   "bytes_mean": 5519,
+   "bytes_median": 5548,
+   "bytes_total": 6093444,
+   "bytes_source": "packet_bytes",
+   "bytes_unresolved_paths": 0,
+   "wall_ms_median": 1344.7,
+   "itt_errors_as_zero": {
+    "cb_file_coverage": 0.238834,
+    "cb_file_precision": 0.248981,
+    "cb_line_coverage": 0.275233,
+    "cb_line_precision": 0.149166
+   }
+  },
+  "grep": {
+   "rows": 1132,
+   "errors": 0,
+   "n_cb_scored": 1132,
+   "cb_file_coverage": 0.318372,
+   "cb_file_precision": 0.04858,
+   "cb_line_coverage": 0.366448,
+   "cb_line_precision": 0.008284,
+   "recall@5": 0.141704,
+   "recall@10": 0.217844,
+   "recall@20": 0.318372,
+   "precision@k": 0.04858,
+   "mrr@k": 0.194609,
+   "hit@k": 0.568905,
+   "abstained": 0.0,
+   "bytes_rows": 1132,
+   "bytes_mean": 1449354,
+   "bytes_median": 1366748,
+   "bytes_total": 1640669269,
+   "bytes_source": "sum of git cat-file -s over top-20 ranked files at base_commit (0 when abstained)",
+   "bytes_unresolved_paths": 1743,
+   "wall_ms_median": 934.0,
+   "itt_errors_as_zero": {
+    "cb_file_coverage": 0.318372,
+    "cb_file_precision": 0.04858,
+    "cb_line_coverage": 0.366448,
+    "cb_line_precision": 0.008284
+   }
+  },
+  "grep-ident": {
+   "rows": 1132,
+   "errors": 0,
+   "n_cb_scored": 1132,
+   "cb_file_coverage": 0.357044,
+   "cb_file_precision": 0.390812,
+   "cb_line_coverage": 0.387097,
+   "cb_line_precision": 0.327411,
+   "recall@5": 0.257836,
+   "recall@10": 0.31392,
+   "recall@20": 0.357044,
+   "precision@k": 0.082508,
+   "mrr@k": 0.323851,
+   "hit@k": 0.523852,
+   "abstained": 0.308304,
+   "bytes_rows": 1132,
+   "bytes_mean": 463377,
+   "bytes_median": 203247,
+   "bytes_total": 524542284,
+   "bytes_source": "sum of git cat-file -s over top-20 ranked files at base_commit (0 when abstained)",
+   "bytes_unresolved_paths": 985,
+   "wall_ms_median": 2005.8,
+   "itt_errors_as_zero": {
+    "cb_file_coverage": 0.357044,
+    "cb_file_precision": 0.390812,
+    "cb_line_coverage": 0.387097,
+    "cb_line_precision": 0.327411
+   }
+  }
+ },
+ "paired_itt": {
+  "corvint_vs_bm25:all:cb_file_coverage": {
+   "wins": 169,
+   "losses": 465,
+   "ties": 498
+  },
+  "corvint_vs_bm25:all:cb_line_coverage": {
+   "wins": 204,
+   "losses": 476,
+   "ties": 452
+  },
+  "corvint_vs_bm25:ident:cb_file_coverage": {
+   "wins": 194,
+   "losses": 402,
+   "ties": 536
+  },
+  "corvint_vs_bm25:ident:cb_line_coverage": {
+   "wins": 211,
+   "losses": 406,
+   "ties": 515
+  },
+  "corvint_vs_grep:cb_file_coverage": {
+   "wins": 231,
+   "losses": 440,
+   "ties": 461
+  },
+  "corvint_vs_grep:cb_line_coverage": {
+   "wins": 270,
+   "losses": 447,
+   "ties": 415
+  },
+  "corvint_vs_grep-ident:cb_file_coverage": {
+   "wins": 194,
+   "losses": 387,
+   "ties": 551
+  },
+  "corvint_vs_grep-ident:cb_line_coverage": {
+   "wins": 209,
+   "losses": 396,
+   "ties": 527
+  },
+  "context_vs_bm25:all:cb_file_coverage": {
+   "wins": 410,
+   "losses": 145,
+   "ties": 577
+  },
+  "context_vs_bm25:all:cb_line_coverage": {
+   "wins": 426,
+   "losses": 155,
+   "ties": 551
+  },
+  "context_vs_bm25:ident:cb_file_coverage": {
+   "wins": 429,
+   "losses": 184,
+   "ties": 519
+  },
+  "context_vs_bm25:ident:cb_line_coverage": {
+   "wins": 445,
+   "losses": 193,
+   "ties": 494
+  },
+  "context_vs_grep:cb_file_coverage": {
+   "wins": 496,
+   "losses": 183,
+   "ties": 453
+  },
+  "context_vs_grep:cb_line_coverage": {
+   "wins": 510,
+   "losses": 198,
+   "ties": 424
+  },
+  "context_vs_grep-ident:cb_file_coverage": {
+   "wins": 423,
+   "losses": 164,
+   "ties": 545
+  },
+  "context_vs_grep-ident:cb_line_coverage": {
+   "wins": 438,
+   "losses": 166,
+   "ties": 528
+  }
+ },
+ "errors": {
+  "corvint": {
+   "total": 28,
+   "unsupported-query-authority (no unique root AGENTS.md)": 13,
+   "no index snapshot matches this tree": 7,
+   "unsupported-query-repository (index sources over the byte bound)": 6,
+   "Git repository index exceeded its deadline": 2
+  },
+  "context": {
+   "total": 6,
+   "unsupported-impact-repository": 6
+  }
+ },
+ "observations": [
+  "corvint query: file recall 0.245 and line recall 0.282, below every baseline (grep 0.318/0.366, bm25:all 0.375/0.422, grep-ident 0.357/0.387); file precision 0.255 is above grep and bm25:all but below grep-ident (0.391) and bm25:ident (0.299).",
+  "corvint query returns at most 12 files (median 4; 142 empty answers = 114 abstentions + 28 errors), so recall@10 equals recall@20 (0.239) and the top-20 budget is mostly unused.",
+  "corvint context: file recall 0.483 and line recall 0.537, the highest of all arms, with 15.8 KB mean packets against 387 KB to 1.45 MB of top-20 baseline files.",
+  "Paired on file recall, corvint query loses to every baseline (for example 169 wins, 465 losses, 498 ties against bm25:all); corvint context wins against every baseline (for example 410 wins, 145 losses, 577 ties against bm25:all)."
+ ],
+ "not_run": [
+  {
+   "item": "impact and affected arms",
+   "reason": "ContextBench rows carry no changed_file, so the change-anchored arms have no input"
+  },
+  {
+   "item": "latency qualification",
+   "reason": "the adapter records latency NOT_RUN (COLD_UNIQUE / NOT_APPLICABLE); the box ran at load average 50-120 from other work, so wall_ms medians are descriptive only"
+  }
+ ],
+ "limits": [
+  "CEP-V0-006 forbids committing report files and bench data; this receipt is an aggregate. Per-shard reports and row data stay on the measurement host.",
+  "CEP-V0-006: evidence, not promotion; no ranking default or product claim changes.",
+  "Line precision is a lower bound for every arm.",
+  "Baseline bytes are a lower bound: paths absent at base_commit are counted as 0 bytes."
+ ]
+}

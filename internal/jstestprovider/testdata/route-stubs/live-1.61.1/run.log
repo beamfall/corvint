@@ -1,0 +1,7 @@
+
+Running 3 tests using 1 worker
+
+[1/3] [alpha] › tests/stubs.spec.cjs:4:1 › stub is hit
+[2/3] [alpha] › tests/stubs.spec.cjs:10:1 › stub never matched but the test passes
+[3/3] [alpha] › tests/stubs.spec.cjs:17:1 › no browser fixture
+  3 passed (13.4s)

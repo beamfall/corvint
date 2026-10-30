@@ -1,0 +1,85 @@
+{
+  "schema": "external-evidence-provider/1",
+  "provider": {
+    "id": "mockdocs",
+    "revision": "2026-09-18.3"
+  },
+  "repositories": [
+    {
+      "id": "application",
+      "origin": "{{APP_ORIGIN}}",
+      "revision": "{{APP_REVISION}}",
+      "role": "application"
+    }
+  ],
+  "entities": [
+    {
+      "id": "cap-account",
+      "kind": "capability",
+      "summary": "Account management capability."
+    },
+    {
+      "id": "surface-account",
+      "kind": "surface",
+      "summary": "The account settings route."
+    }
+  ],
+  "relations": [
+    {
+      "from": {
+        "repository": "application",
+        "path": "pkg/main.go"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-account"
+      },
+      "type": "implements",
+      "evidence": "declared",
+      "rule": "capability-map",
+      "reference": "docs/capabilities.md#account"
+    },
+    {
+      "from": {
+        "repository": "application",
+        "path": "pkg/main_test.go"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "cap-account"
+      },
+      "type": "verifies",
+      "evidence": "observed",
+      "rule": "unit-run",
+      "reference": "ci/unit/1"
+    },
+    {
+      "from": {
+        "repository": "application",
+        "path": "pkg/main_test.go"
+      },
+      "to": {
+        "repository": "application",
+        "path": "pkg/main.go"
+      },
+      "type": "verifies",
+      "evidence": "declared",
+      "rule": "test-map",
+      "reference": "docs/tests.md"
+    },
+    {
+      "from": {
+        "repository": "application",
+        "path": "pkg/main.go"
+      },
+      "to": {
+        "provider": "mockdocs",
+        "entity": "surface-account"
+      },
+      "type": "acme:exercises",
+      "evidence": "declared",
+      "rule": "acme-map",
+      "reference": "acme/1"
+    }
+  ]
+}

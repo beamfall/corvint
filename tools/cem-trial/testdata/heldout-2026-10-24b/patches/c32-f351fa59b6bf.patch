@@ -1,0 +1,40 @@
+diff --git a/script/roadmap_lib.py b/script/roadmap_lib.py
+index 213a0d635..aab53d85b 100644
+--- a/script/roadmap_lib.py
++++ b/script/roadmap_lib.py
+@@ -41,9 +41,11 @@ TICKET_RE = re.compile(r'^\s*-\s*\[([ x~])\]\s*\*\*(.+?)\*\*(.*)$')
+ TICKET_OPEN_RE = re.compile(r'^\s*-\s*\[([ x~])\]\s*\*\*')
+ # A new block boundary (next ticket, heading, or rule) ends the current body.
+ BOUNDARY_RE = re.compile(r'^\s*(-\s*\[[ x~]\]|#{1,6}\s|---\s*$)')
+-# Any ticket id chain, including CLOUD-1/2, AV-7/AV-8, and multi-segment ids like WEB-APP-6A.
+-ID_CHAIN_RE = re.compile(r'\b[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+(?:/(?:[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+|[A-Z0-9]+))*\b')
+-FIELD_RE = lambda name: re.compile(r'\*\*' + name + r'\*\*\s*([^·\n]+)')
++# Any ticket id chain, including CLOUD-1/2, AV-7/AV-8, WEB-APP-6A, and FOO-3a.
++ID_SEGMENT_RE = r'[A-Z0-9]+[a-z]?'
++ID_CHAIN_RE = re.compile(r'\b[A-Z][A-Z0-9]*(?:-' + ID_SEGMENT_RE + r')+(?:/(?:[A-Z][A-Z0-9]*(?:-' + ID_SEGMENT_RE + r')+|' + ID_SEGMENT_RE + r'))*\b')
++FIELD_RE = lambda name: re.compile(r'\*\*' + name + r'\*\*\s+(.+?)(?=\s+·|\s+\*\*[A-Za-z][^*\n]*\*\*|\n|$)')
++ADR_ID_RE = re.compile(r'^ADR-\d+$')
+ REPO_TOKEN_RE = re.compile(r'\bbeamfall(?:-[A-Za-z0-9]+)*(?:/[A-Za-z0-9_-]+)?\b')
+ DEC10_REVIEW_RE = re.compile(r'\b(entitlement|irreversible\s+migration|migration|security|auth|secrets?)\b', re.I)
+ CONTEXT_RULES = [
+@@ -124,6 +126,11 @@ def expand_ids(text):
+     return out
+ 
+ 
++def expand_dep_ids(text):
++    """Extract ticket dependency ids. ADR references are metadata, not runnable tickets."""
++    return [tid for tid in expand_ids(text) if not ADR_ID_RE.match(tid)]
++
++
+ def field_value(match):
+     if not match:
+         return ''
+@@ -595,7 +602,7 @@ def parse_markdown(path):
+             # **Priority** low sinks a ready ticket below all normal ones (idle-capacity
+             # backfill); absent/anything-else = normal, so existing tickets are unchanged.
+             'priority': 'low' if field_value(priority_field).lower().startswith('low') else 'normal',
+-            'depends': expand_ids(dep_value) if dep_value else [],
++            'depends': expand_dep_ids(dep_value) if dep_value else [],
+             'line': i + 1,
+             'source_file': os.path.basename(path),
+             'ordinal': i + 1,

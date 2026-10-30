@@ -1,0 +1,123 @@
+diff --git a/cmd/covratchet/main.go b/cmd/covratchet/main.go
+index 83e5378ff..26e65b159 100644
+--- a/cmd/covratchet/main.go
++++ b/cmd/covratchet/main.go
+@@ -108,11 +108,7 @@ func measureCoverageWith(run coverageRunner) (*measurement, error) {
+ 	if err != nil {
+ 		return &measurement{Packages: results}, fmt.Errorf("go test -coverprofile ./... failed: %w\n%s", err, out)
+ 	}
+-	aggregate, err := parseAggregateCoverage(tmp.Name())
+-	if err != nil {
+-		return nil, err
+-	}
+-	lines, err := parsePackageLines(tmp.Name())
++	aggregate, lines, err := parseCoverageProfile(tmp.Name())
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -138,31 +134,40 @@ func parseCoverage(out []byte) (map[string]float64, error) {
+ 	return results, nil
+ }
+ 
+-func parseAggregateCoverage(path string) (float64, error) {
++func parseCoverageProfile(path string) (float64, map[string]int, error) {
++	// #nosec G304 -- path is the process-created temp profile from measureCoverageWith.
+ 	f, err := os.Open(path)
+ 	if err != nil {
+-		return 0, fmt.Errorf("read coverage profile: %w", err)
++		return 0, nil, fmt.Errorf("read coverage profile: %w", err)
+ 	}
+ 	defer f.Close()
+ 
+ 	var total, covered float64
++	files := map[string]int{}
+ 	scanner := bufio.NewScanner(f)
+ 	for scanner.Scan() {
+ 		line := scanner.Text()
++		match := profileLineRe.FindStringSubmatch(line)
++		if match != nil {
++			end, _ := strconv.Atoi(match[2])
++			if end > files[match[1]] {
++				files[match[1]] = end
++			}
++		}
+ 		if strings.HasPrefix(line, "mode:") {
+ 			continue
+ 		}
+ 		fields := strings.Fields(line)
+ 		if len(fields) != 3 {
+-			return 0, fmt.Errorf("parse coverage profile line %q", line)
++			return 0, nil, fmt.Errorf("parse coverage profile line %q", line)
+ 		}
+ 		stmts, err := strconv.ParseFloat(fields[1], 64)
+ 		if err != nil {
+-			return 0, fmt.Errorf("parse coverage statements %q: %w", fields[1], err)
++			return 0, nil, fmt.Errorf("parse coverage statements %q: %w", fields[1], err)
+ 		}
+ 		count, err := strconv.ParseFloat(fields[2], 64)
+ 		if err != nil {
+-			return 0, fmt.Errorf("parse coverage count %q: %w", fields[2], err)
++			return 0, nil, fmt.Errorf("parse coverage count %q: %w", fields[2], err)
+ 		}
+ 		total += stmts
+ 		if count > 0 {
+@@ -170,35 +175,10 @@ func parseAggregateCoverage(path string) (float64, error) {
+ 		}
+ 	}
+ 	if err := scanner.Err(); err != nil {
+-		return 0, fmt.Errorf("parse coverage profile: %w", err)
++		return 0, nil, fmt.Errorf("parse coverage profile: %w", err)
+ 	}
+ 	if total == 0 {
+-		return 0, fmt.Errorf("coverage profile has no statements")
+-	}
+-	return covered / total * 100, nil
+-}
+-
+-func parsePackageLines(path string) (map[string]int, error) {
+-	f, err := os.Open(path)
+-	if err != nil {
+-		return nil, fmt.Errorf("read coverage profile: %w", err)
+-	}
+-	defer f.Close()
+-
+-	files := map[string]int{}
+-	scanner := bufio.NewScanner(f)
+-	for scanner.Scan() {
+-		match := profileLineRe.FindStringSubmatch(scanner.Text())
+-		if match == nil {
+-			continue
+-		}
+-		end, _ := strconv.Atoi(match[2])
+-		if end > files[match[1]] {
+-			files[match[1]] = end
+-		}
+-	}
+-	if err := scanner.Err(); err != nil {
+-		return nil, fmt.Errorf("parse coverage profile: %w", err)
++		return 0, nil, fmt.Errorf("coverage profile has no statements")
+ 	}
+ 
+ 	packages := map[string]int{}
+@@ -211,7 +191,7 @@ func parsePackageLines(path string) (map[string]int, error) {
+ 		pkg := file[:separator]
+ 		packages[pkg] += lines
+ 	}
+-	return packages, nil
++	return covered / total * 100, packages, nil
+ }
+ 
+ func loadFloors(path string) (*floorFile, error) {
+diff --git a/tools/gate/slow_orchestration_cache.py b/tools/gate/slow_orchestration_cache.py
+index 5c9ac3c6d..4f3ae5167 100755
+--- a/tools/gate/slow_orchestration_cache.py
++++ b/tools/gate/slow_orchestration_cache.py
+@@ -491,7 +491,7 @@ def run_fresh(command: list[str]) -> int:
+ 
+ 
+ def run_cached(root: Path, spec: ClosureSpec, command: list[str]) -> int:
+-    if release_mode():
++    if release_mode() or os.environ.get("EXPLAIN") == "1":
+         return run_fresh(command)
+     try:
+         digest = stable_closure_hash(root, spec)

@@ -1,0 +1,9 @@
+site_name: Unknown plugin canary
+site_url: https://corvint.example.invalid/plugin-canary/
+docs_dir: docs
+theme:
+  name: material
+plugins:
+  - search
+  - corvint_untrusted_canary
+

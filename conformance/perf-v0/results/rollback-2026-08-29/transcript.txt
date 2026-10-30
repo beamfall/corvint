@@ -1,0 +1,510 @@
+GPK-V0-024 rollback proof — raw command transcript
+Date: 2026-08-29
+Repo under proof: /private/tmp/corvint-integration @ c4b3b255a4c0ef9b6b4736ea8436faf136a51a7c (branch integration/go-migration)
+Go candidate: /tmp/corvint-rb built via: go build -o /tmp/corvint-rb ./cmd/corvint
+Python oracle: PYTHONPATH=/private/tmp/corvint-integration/src python3 -m corvint_cli
+Subject repo: /tmp/rb-subject (scratch git repo, initial commit f36af124f67c5b40e27e2529beb8a814deb9881a)
+python3: Python 3.9.6
+go: go version go1.27.0 darwin/arm64
+
+==============================================================
+STEP: PY-1: Python init on virgin subject repo
+CWD: /tmp/rb-subject
+CMD: env PYTHONPATH=/private/tmp/corvint-integration/src python3 -m corvint_cli --root /tmp/rb-subject init
+--- stdout+stderr ---
+{"inventory":{"activation":"init","denominator":{"boundaryCounts":{"GENERATED_CANDIDATE":0,"VENDOR_CANDIDATE":0},"classificationCounts":{"EXCLUDED":0,"INCLUDED":5,"UNKNOWN":0,"UNSUPPORTED":0},"classifiedEntries":5,"inspectedBlobBytes":323,"inspectedEntries":5,"sourceClassCounts":{"ASSET":0,"CI":0,"CODE":3,"CONFIGURATION":1,"DOCUMENTATION":1,"E2E_TEST":0,"INCIDENT":0,"INSTRUCTIONS":0,"LOCKFILE":0,"MANIFEST":1,"OTHER_TEXT":0,"OWNERSHIP":0,"RUNBOOK":0,"SCHEMA":0,"SPECIFICATION":0,"TEST":0},"trackedEntries":5},"dirtyState":"CLEAN","gaps":[],"mechanicalResolvers":[{"admitted":2,"denominator":2,"name":"git-object-identity","rejected":0,"state":"EXHAUSTED","unresolved":0},{"admitted":5,"denominator":5,"name":"git-tree-inventory","rejected":0,"state":"EXHAUSTED","unresolved":0},{"admitted":5,"denominator":5,"name":"path-and-format-classification","rejected":0,"state":"EXHAUSTED","unresolved":0},{"admitted":5,"denominator":5,"name":"blob-format-inspection","rejected":0,"state":"EXHAUSTED","unresolved":0}],"model":{"callCount":0,"eligible":false,"inputTokens":0},"operationalState":"COMPLETE","profile":"genesis-inventory/0.1-experimental","receiptId":"genesis-inventory:sha256:6e697000eee26399d3e0adb55f45863154c408a11b99c9bfd4f90f15bff588f3","repository":{"authorityId":null,"composition":"LOCAL_ONLY","objectFormat":"sha1","revision":"f36af124f67c5b40e27e2529beb8a814deb9881a","tree":"7a5502ed800200265ea345b17c040930b2844056"},"sampleLimitPerClass":5,"samplesTruncated":false,"semanticFrontier":[{"count":0,"reason":"declared-source-absent","sourceClass":"INSTRUCTIONS"},{"count":1,"reason":"mechanical-inventory-only","sourceClass":"DOCUMENTATION"},{"count":0,"reason":"declared-source-absent","sourceClass":"SPECIFICATION"},{"count":0,"reason":"declared-source-absent","sourceClass":"TEST"},{"count":0,"reason":"declared-source-absent","sourceClass":"CI"},{"count":1,"reason":"mechanical-inventory-only","sourceClass":"MANIFEST"},{"count":0,"reason":"declared-source-absent","sourceClass":"OWNERSHIP"},{"count":1,"reason":"mechanical-inventory-only","sourceClass":"CONFIGURATION"},{"count":3,"reason":"mechanical-inventory-only","sourceClass":"CODE"}],"sourceSamples":{"CODE":[{"boundaries":[],"classification":"INCLUDED","path":"greet.go","pathSha256":"1dcfe9db52c39ad6efc3f97db1d94f1cc1d493a0c6d5a9b9b78728f431fa2836","reason":"tracked-text","roles":[]},{"boundaries":[],"classification":"INCLUDED","path":"main.go","pathSha256":"2873f79a86c0d8b3335cd7731b0ecf7dd4301eb19a82ef7a1cba7589b5252261","reason":"tracked-text","roles":["ENTRYPOINT_CANDIDATE"]},{"boundaries":[],"classification":"INCLUDED","path":"pkg/add.go","pathSha256":"dd3cdd46f4dbfaa266ce848d1959a777e85c18e4f8e0985510f5b3265812ed8b","reason":"tracked-text","roles":[]}],"CONFIGURATION":[{"boundaries":[],"classification":"INCLUDED","path":"go.mod","pathSha256":"33ef32bf6c23acb95f5902d7097b7a1d5128ca061167ec0716715b0b9eeaa5f6","reason":"tracked-text","roles":[]}],"DOCUMENTATION":[{"boundaries":[],"classification":"INCLUDED","path":"README.md","pathSha256":"b335630551682c19a781afebcf4d07bf978fb1f8ac04c6bf87428ed5106870f5","reason":"tracked-text","roles":[]}],"MANIFEST":[{"boundaries":[],"classification":"INCLUDED","path":"go.mod","pathSha256":"33ef32bf6c23acb95f5902d7097b7a1d5128ca061167ec0716715b0b9eeaa5f6","reason":"tracked-text","roles":[]}]},"summaryProfile":"genesis-inventory-summary/0.1-experimental","summaryReceiptId":"genesis-inventory-summary:sha256:4faa18a03b64fcc29952df667f2304825fcad73a6229b2768a431b86fd8b17ba"},"mutates":false,"ok":true,"tool":"init"}
+--- rc=0 ---
+### SNAPSHOT: AFTER-PY-INIT
+ab68e264fb8d849c  76  ./README.md
+481cd0711e078fe0  26  ./go.mod
+2c584aeeecf63dbf  72  ./greet.go
+050ee5f9c0997533  72  ./main.go
+0a65a1c2c81c26f5  77  ./pkg/add.go
+### git-status:
+### end
+==============================================================
+STEP: GO-1: Go init on virgin subject repo
+CWD: /tmp/rb-subject
+CMD: /tmp/corvint-rb --root /tmp/rb-subject init
+--- stdout+stderr ---
+{"inventory":{"activation":"init","denominator":{"boundaryCounts":{"GENERATED_CANDIDATE":0,"VENDOR_CANDIDATE":0},"classificationCounts":{"EXCLUDED":0,"INCLUDED":5,"UNKNOWN":0,"UNSUPPORTED":0},"classifiedEntries":5,"inspectedBlobBytes":323,"inspectedEntries":5,"sourceClassCounts":{"ASSET":0,"CI":0,"CODE":3,"CONFIGURATION":1,"DOCUMENTATION":1,"E2E_TEST":0,"INCIDENT":0,"INSTRUCTIONS":0,"LOCKFILE":0,"MANIFEST":1,"OTHER_TEXT":0,"OWNERSHIP":0,"RUNBOOK":0,"SCHEMA":0,"SPECIFICATION":0,"TEST":0},"trackedEntries":5},"dirtyState":"CLEAN","gaps":[],"mechanicalResolvers":[{"admitted":2,"denominator":2,"name":"git-object-identity","rejected":0,"state":"EXHAUSTED","unresolved":0},{"admitted":5,"denominator":5,"name":"git-tree-inventory","rejected":0,"state":"EXHAUSTED","unresolved":0},{"admitted":5,"denominator":5,"name":"path-and-format-classification","rejected":0,"state":"EXHAUSTED","unresolved":0},{"admitted":5,"denominator":5,"name":"blob-format-inspection","rejected":0,"state":"EXHAUSTED","unresolved":0}],"model":{"callCount":0,"eligible":false,"inputTokens":0},"operationalState":"COMPLETE","profile":"genesis-inventory/0.1-experimental","receiptId":"genesis-inventory:sha256:6e697000eee26399d3e0adb55f45863154c408a11b99c9bfd4f90f15bff588f3","repository":{"authorityId":null,"composition":"LOCAL_ONLY","objectFormat":"sha1","revision":"f36af124f67c5b40e27e2529beb8a814deb9881a","tree":"7a5502ed800200265ea345b17c040930b2844056"},"sampleLimitPerClass":5,"samplesTruncated":false,"semanticFrontier":[{"count":0,"reason":"declared-source-absent","sourceClass":"INSTRUCTIONS"},{"count":1,"reason":"mechanical-inventory-only","sourceClass":"DOCUMENTATION"},{"count":0,"reason":"declared-source-absent","sourceClass":"SPECIFICATION"},{"count":0,"reason":"declared-source-absent","sourceClass":"TEST"},{"count":0,"reason":"declared-source-absent","sourceClass":"CI"},{"count":1,"reason":"mechanical-inventory-only","sourceClass":"MANIFEST"},{"count":0,"reason":"declared-source-absent","sourceClass":"OWNERSHIP"},{"count":1,"reason":"mechanical-inventory-only","sourceClass":"CONFIGURATION"},{"count":3,"reason":"mechanical-inventory-only","sourceClass":"CODE"}],"sourceSamples":{"CODE":[{"boundaries":[],"classification":"INCLUDED","path":"greet.go","pathSha256":"1dcfe9db52c39ad6efc3f97db1d94f1cc1d493a0c6d5a9b9b78728f431fa2836","reason":"tracked-text","roles":[]},{"boundaries":[],"classification":"INCLUDED","path":"main.go","pathSha256":"2873f79a86c0d8b3335cd7731b0ecf7dd4301eb19a82ef7a1cba7589b5252261","reason":"tracked-text","roles":["ENTRYPOINT_CANDIDATE"]},{"boundaries":[],"classification":"INCLUDED","path":"pkg/add.go","pathSha256":"dd3cdd46f4dbfaa266ce848d1959a777e85c18e4f8e0985510f5b3265812ed8b","reason":"tracked-text","roles":[]}],"CONFIGURATION":[{"boundaries":[],"classification":"INCLUDED","path":"go.mod","pathSha256":"33ef32bf6c23acb95f5902d7097b7a1d5128ca061167ec0716715b0b9eeaa5f6","reason":"tracked-text","roles":[]}],"DOCUMENTATION":[{"boundaries":[],"classification":"INCLUDED","path":"README.md","pathSha256":"b335630551682c19a781afebcf4d07bf978fb1f8ac04c6bf87428ed5106870f5","reason":"tracked-text","roles":[]}],"MANIFEST":[{"boundaries":[],"classification":"INCLUDED","path":"go.mod","pathSha256":"33ef32bf6c23acb95f5902d7097b7a1d5128ca061167ec0716715b0b9eeaa5f6","reason":"tracked-text","roles":[]}]},"summaryProfile":"genesis-inventory-summary/0.1-experimental","summaryReceiptId":"genesis-inventory-summary:sha256:4faa18a03b64fcc29952df667f2304825fcad73a6229b2768a431b86fd8b17ba"},"mutates":false,"ok":true,"tool":"init"}
+--- rc=0 ---
+### SNAPSHOT: S1-after-GO-init
+ab68e264fb8d849c        76  ./README.md
+481cd0711e078fe0        26  ./go.mod
+2c584aeeecf63dbf        72  ./greet.go
+050ee5f9c0997533        72  ./main.go
+0a65a1c2c81c26f5        77  ./pkg/add.go
+### git-status:
+### end
+==============================================================
+STEP: GO-2: Go adopt
+CWD: /tmp/rb-subject
+CMD: /tmp/corvint-rb --root /tmp/rb-subject adopt
+--- stdout+stderr ---
+{"inventory":{"activation":"adopt","denominator":{"boundaryCounts":{"GENERATED_CANDIDATE":0,"VENDOR_CANDIDATE":0},"classificationCounts":{"EXCLUDED":0,"INCLUDED":5,"UNKNOWN":0,"UNSUPPORTED":0},"classifiedEntries":5,"inspectedBlobBytes":323,"inspectedEntries":5,"sourceClassCounts":{"ASSET":0,"CI":0,"CODE":3,"CONFIGURATION":1,"DOCUMENTATION":1,"E2E_TEST":0,"INCIDENT":0,"INSTRUCTIONS":0,"LOCKFILE":0,"MANIFEST":1,"OTHER_TEXT":0,"OWNERSHIP":0,"RUNBOOK":0,"SCHEMA":0,"SPECIFICATION":0,"TEST":0},"trackedEntries":5},"dirtyState":"CLEAN","gaps":[{"code":"HISTORY_NOT_SCANNED","count":1}],"mechanicalResolvers":[{"admitted":2,"denominator":2,"name":"git-object-identity","rejected":0,"state":"EXHAUSTED","unresolved":0},{"admitted":5,"denominator":5,"name":"git-tree-inventory","rejected":0,"state":"EXHAUSTED","unresolved":0},{"admitted":5,"denominator":5,"name":"path-and-format-classification","rejected":0,"state":"EXHAUSTED","unresolved":0},{"admitted":5,"denominator":5,"name":"blob-format-inspection","rejected":0,"state":"EXHAUSTED","unresolved":0}],"model":{"callCount":0,"eligible":false,"inputTokens":0},"operationalState":"PARTIAL","profile":"genesis-inventory/0.1-experimental","receiptId":"genesis-inventory:sha256:407379bd6886ce15cefd08fa4c8e5c9933ed03870e283d4dde85393f207e48db","repository":{"authorityId":null,"composition":"LOCAL_ONLY","objectFormat":"sha1","revision":"f36af124f67c5b40e27e2529beb8a814deb9881a","tree":"7a5502ed800200265ea345b17c040930b2844056"},"sampleLimitPerClass":5,"samplesTruncated":false,"semanticFrontier":[{"count":0,"reason":"declared-source-absent","sourceClass":"INSTRUCTIONS"},{"count":1,"reason":"mechanical-inventory-only","sourceClass":"DOCUMENTATION"},{"count":0,"reason":"declared-source-absent","sourceClass":"SPECIFICATION"},{"count":0,"reason":"declared-source-absent","sourceClass":"TEST"},{"count":0,"reason":"declared-source-absent","sourceClass":"CI"},{"count":1,"reason":"mechanical-inventory-only","sourceClass":"MANIFEST"},{"count":0,"reason":"declared-source-absent","sourceClass":"OWNERSHIP"},{"count":1,"reason":"mechanical-inventory-only","sourceClass":"CONFIGURATION"},{"count":3,"reason":"mechanical-inventory-only","sourceClass":"CODE"}],"sourceSamples":{"CODE":[{"boundaries":[],"classification":"INCLUDED","path":"greet.go","pathSha256":"1dcfe9db52c39ad6efc3f97db1d94f1cc1d493a0c6d5a9b9b78728f431fa2836","reason":"tracked-text","roles":[]},{"boundaries":[],"classification":"INCLUDED","path":"main.go","pathSha256":"2873f79a86c0d8b3335cd7731b0ecf7dd4301eb19a82ef7a1cba7589b5252261","reason":"tracked-text","roles":["ENTRYPOINT_CANDIDATE"]},{"boundaries":[],"classification":"INCLUDED","path":"pkg/add.go","pathSha256":"dd3cdd46f4dbfaa266ce848d1959a777e85c18e4f8e0985510f5b3265812ed8b","reason":"tracked-text","roles":[]}],"CONFIGURATION":[{"boundaries":[],"classification":"INCLUDED","path":"go.mod","pathSha256":"33ef32bf6c23acb95f5902d7097b7a1d5128ca061167ec0716715b0b9eeaa5f6","reason":"tracked-text","roles":[]}],"DOCUMENTATION":[{"boundaries":[],"classification":"INCLUDED","path":"README.md","pathSha256":"b335630551682c19a781afebcf4d07bf978fb1f8ac04c6bf87428ed5106870f5","reason":"tracked-text","roles":[]}],"MANIFEST":[{"boundaries":[],"classification":"INCLUDED","path":"go.mod","pathSha256":"33ef32bf6c23acb95f5902d7097b7a1d5128ca061167ec0716715b0b9eeaa5f6","reason":"tracked-text","roles":[]}]},"summaryProfile":"genesis-inventory-summary/0.1-experimental","summaryReceiptId":"genesis-inventory-summary:sha256:fee9250adae9dba355914f6a88a958a1c918966083396ec4f02b6c93edb14ee4"},"mutates":false,"ok":true,"tool":"adopt"}
+--- rc=0 ---
+### SNAPSHOT: S2-after-GO-adopt
+ab68e264fb8d849c        76  ./README.md
+481cd0711e078fe0        26  ./go.mod
+2c584aeeecf63dbf        72  ./greet.go
+050ee5f9c0997533        72  ./main.go
+0a65a1c2c81c26f5        77  ./pkg/add.go
+### git-status:
+### end
+==============================================================
+STEP: PY-2: Python adopt
+CWD: /tmp/rb-subject
+CMD: env PYTHONPATH=/private/tmp/corvint-integration/src python3 -m corvint_cli --root /tmp/rb-subject adopt
+--- stdout+stderr ---
+{"inventory":{"activation":"adopt","denominator":{"boundaryCounts":{"GENERATED_CANDIDATE":0,"VENDOR_CANDIDATE":0},"classificationCounts":{"EXCLUDED":0,"INCLUDED":5,"UNKNOWN":0,"UNSUPPORTED":0},"classifiedEntries":5,"inspectedBlobBytes":323,"inspectedEntries":5,"sourceClassCounts":{"ASSET":0,"CI":0,"CODE":3,"CONFIGURATION":1,"DOCUMENTATION":1,"E2E_TEST":0,"INCIDENT":0,"INSTRUCTIONS":0,"LOCKFILE":0,"MANIFEST":1,"OTHER_TEXT":0,"OWNERSHIP":0,"RUNBOOK":0,"SCHEMA":0,"SPECIFICATION":0,"TEST":0},"trackedEntries":5},"dirtyState":"CLEAN","gaps":[{"code":"HISTORY_NOT_SCANNED","count":1}],"mechanicalResolvers":[{"admitted":2,"denominator":2,"name":"git-object-identity","rejected":0,"state":"EXHAUSTED","unresolved":0},{"admitted":5,"denominator":5,"name":"git-tree-inventory","rejected":0,"state":"EXHAUSTED","unresolved":0},{"admitted":5,"denominator":5,"name":"path-and-format-classification","rejected":0,"state":"EXHAUSTED","unresolved":0},{"admitted":5,"denominator":5,"name":"blob-format-inspection","rejected":0,"state":"EXHAUSTED","unresolved":0}],"model":{"callCount":0,"eligible":false,"inputTokens":0},"operationalState":"PARTIAL","profile":"genesis-inventory/0.1-experimental","receiptId":"genesis-inventory:sha256:407379bd6886ce15cefd08fa4c8e5c9933ed03870e283d4dde85393f207e48db","repository":{"authorityId":null,"composition":"LOCAL_ONLY","objectFormat":"sha1","revision":"f36af124f67c5b40e27e2529beb8a814deb9881a","tree":"7a5502ed800200265ea345b17c040930b2844056"},"sampleLimitPerClass":5,"samplesTruncated":false,"semanticFrontier":[{"count":0,"reason":"declared-source-absent","sourceClass":"INSTRUCTIONS"},{"count":1,"reason":"mechanical-inventory-only","sourceClass":"DOCUMENTATION"},{"count":0,"reason":"declared-source-absent","sourceClass":"SPECIFICATION"},{"count":0,"reason":"declared-source-absent","sourceClass":"TEST"},{"count":0,"reason":"declared-source-absent","sourceClass":"CI"},{"count":1,"reason":"mechanical-inventory-only","sourceClass":"MANIFEST"},{"count":0,"reason":"declared-source-absent","sourceClass":"OWNERSHIP"},{"count":1,"reason":"mechanical-inventory-only","sourceClass":"CONFIGURATION"},{"count":3,"reason":"mechanical-inventory-only","sourceClass":"CODE"}],"sourceSamples":{"CODE":[{"boundaries":[],"classification":"INCLUDED","path":"greet.go","pathSha256":"1dcfe9db52c39ad6efc3f97db1d94f1cc1d493a0c6d5a9b9b78728f431fa2836","reason":"tracked-text","roles":[]},{"boundaries":[],"classification":"INCLUDED","path":"main.go","pathSha256":"2873f79a86c0d8b3335cd7731b0ecf7dd4301eb19a82ef7a1cba7589b5252261","reason":"tracked-text","roles":["ENTRYPOINT_CANDIDATE"]},{"boundaries":[],"classification":"INCLUDED","path":"pkg/add.go","pathSha256":"dd3cdd46f4dbfaa266ce848d1959a777e85c18e4f8e0985510f5b3265812ed8b","reason":"tracked-text","roles":[]}],"CONFIGURATION":[{"boundaries":[],"classification":"INCLUDED","path":"go.mod","pathSha256":"33ef32bf6c23acb95f5902d7097b7a1d5128ca061167ec0716715b0b9eeaa5f6","reason":"tracked-text","roles":[]}],"DOCUMENTATION":[{"boundaries":[],"classification":"INCLUDED","path":"README.md","pathSha256":"b335630551682c19a781afebcf4d07bf978fb1f8ac04c6bf87428ed5106870f5","reason":"tracked-text","roles":[]}],"MANIFEST":[{"boundaries":[],"classification":"INCLUDED","path":"go.mod","pathSha256":"33ef32bf6c23acb95f5902d7097b7a1d5128ca061167ec0716715b0b9eeaa5f6","reason":"tracked-text","roles":[]}]},"summaryProfile":"genesis-inventory-summary/0.1-experimental","summaryReceiptId":"genesis-inventory-summary:sha256:fee9250adae9dba355914f6a88a958a1c918966083396ec4f02b6c93edb14ee4"},"mutates":false,"ok":true,"tool":"adopt"}
+--- rc=0 ---
+### SNAPSHOT: S3-after-PY-adopt
+ab68e264fb8d849c        76  ./README.md
+481cd0711e078fe0        26  ./go.mod
+2c584aeeecf63dbf        72  ./greet.go
+050ee5f9c0997533        72  ./main.go
+0a65a1c2c81c26f5        77  ./pkg/add.go
+### git-status:
+### end
+==============================================================
+STEP: CMP-1: byte-compare Go vs Python init receipts
+CWD: /tmp/rb-subject
+CMD: cmp /tmp/rb-work/go-init.json /tmp/rb-work/py-init.json
+--- stdout+stderr ---
+--- rc=0 ---
+==============================================================
+STEP: CMP-2: byte-compare Go vs Python adopt receipts
+CWD: /tmp/rb-subject
+CMD: cmp /tmp/rb-work/go-adopt.json /tmp/rb-work/py-adopt.json
+--- stdout+stderr ---
+--- rc=0 ---
+==============================================================
+STEP: GO-3: Go query
+CWD: /tmp/rb-subject
+CMD: /tmp/corvint-rb --root /tmp/rb-subject query --task add two integers --limit 1
+--- stdout+stderr ---
+{"code": "unsupported-query-intent", "error": "native Go query currently supports only project-operations task orientation", "ok": false}
+--- rc=2 ---
+### SNAPSHOT: S4-after-GO-query
+ab68e264fb8d849c        76  ./README.md
+481cd0711e078fe0        26  ./go.mod
+2c584aeeecf63dbf        72  ./greet.go
+050ee5f9c0997533        72  ./main.go
+0a65a1c2c81c26f5        77  ./pkg/add.go
+### git-status:
+### end
+==============================================================
+STEP: GO-4: Go query (project-operations intent)
+CWD: /tmp/rb-subject
+CMD: /tmp/corvint-rb --root /tmp/rb-subject query --task orientation instructions and workflow gates for contributors --limit 1
+--- stdout+stderr ---
+{"context":{"abstention":{"active":false,"reason":"none"},"coverage":{"advisory_results":0,"authoritative_results":1,"budget_bytes":null,"critical":["instructions:AGENTS.md"],"critical_missing":[],"included_results":1,"omitted_results":0,"packet_bytes":2144,"requested_results":1,"uncertainty":[],"within_budget":true},"exclusions":{"count":0,"samples":[]},"freshness":{"mixed_path_count":0,"mixed_paths":[],"revision":"2a06df65a1e950d020803c35d5a76093a0e3a721","scope":"git","state":"fresh"},"intent":{"confidence":"high","id":"project-operations","matched_terms":["contributor","gate","gates","instruction","instructions","orientation","workflow"]},"learning":{"advisory_candidates":0,"history_commits_considered":2,"history_digest":"a2beddd48cd9e09283fa4735619d7adc775efc9b991be36164d3f76d2211b8be","history_tip":"02ee2e5a4b94bf9db56c3442ef45dfcc31c24700","local_trace_count":0,"local_trace_state":"absent","matched_history_commits":0,"matched_local_traces":0},"mode":"query","request":{"limit":1,"text":"orientation instructions and workflow gates for contributors"},"results":[{"evidence":[{"authority":"project-instructions","blob_hash":"331e683423cb7f260c8167ae9407b96eb986eb30","confidence":"authoritative","line":3,"path":"AGENTS.md","reason":"project instruction matches: contributor, contributors, instruction, instructions"},{"authority":"project-instructions","blob_hash":"331e683423cb7f260c8167ae9407b96eb986eb30","confidence":"authoritative","line":5,"path":"AGENTS.md","reason":"project instruction matches: workflow"},{"authority":"project-instructions","blob_hash":"331e683423cb7f260c8167ae9407b96eb986eb30","confidence":"authoritative","line":7,"path":"AGENTS.md","reason":"project instruction matches: gate"}],"id":"AGENTS.md","kind":"instructions","references":[],"score":366,"status":"binding","summary":"Instructions for contributors and agents working in this scratch repository. | ## Workflow | Run `go build ./...` before committing. The gate is `go test ./...`.","title":"AGENTS.md \u2014 rb-subject"}],"revision":"2a06df65a1e950d020803c35d5a76093a0e3a721","schema_version":1,"state":"READY","verification":["git diff --check"]},"mutates":false,"ok":true,"tool":"query"}
+--- rc=0 ---
+### SNAPSHOT: S5-after-GO-query-ok
+3e24c2566e177ce4       268  ./AGENTS.md
+ab68e264fb8d849c        76  ./README.md
+481cd0711e078fe0        26  ./go.mod
+2c584aeeecf63dbf        72  ./greet.go
+050ee5f9c0997533        72  ./main.go
+0a65a1c2c81c26f5        77  ./pkg/add.go
+### git-status:
+### end
+==============================================================
+STEP: PY-3: Python query (same task)
+CWD: /tmp/rb-subject
+CMD: env PYTHONPATH=/private/tmp/corvint-integration/src python3 -m corvint_cli --root /tmp/rb-subject query --task orientation instructions and workflow gates for contributors --limit 1
+--- stdout+stderr ---
+{"context":{"abstention":{"active":false,"reason":"none"},"coverage":{"advisory_results":0,"authoritative_results":1,"budget_bytes":null,"critical":["instructions:AGENTS.md"],"critical_missing":[],"included_results":1,"omitted_results":0,"packet_bytes":2144,"requested_results":1,"uncertainty":[],"within_budget":true},"exclusions":{"count":0,"samples":[]},"freshness":{"mixed_path_count":0,"mixed_paths":[],"revision":"2a06df65a1e950d020803c35d5a76093a0e3a721","scope":"git","state":"fresh"},"intent":{"confidence":"high","id":"project-operations","matched_terms":["contributor","gate","gates","instruction","instructions","orientation","workflow"]},"learning":{"advisory_candidates":0,"history_commits_considered":2,"history_digest":"a2beddd48cd9e09283fa4735619d7adc775efc9b991be36164d3f76d2211b8be","history_tip":"02ee2e5a4b94bf9db56c3442ef45dfcc31c24700","local_trace_count":0,"local_trace_state":"absent","matched_history_commits":0,"matched_local_traces":0},"mode":"query","request":{"limit":1,"text":"orientation instructions and workflow gates for contributors"},"results":[{"evidence":[{"authority":"project-instructions","blob_hash":"331e683423cb7f260c8167ae9407b96eb986eb30","confidence":"authoritative","line":3,"path":"AGENTS.md","reason":"project instruction matches: contributor, contributors, instruction, instructions"},{"authority":"project-instructions","blob_hash":"331e683423cb7f260c8167ae9407b96eb986eb30","confidence":"authoritative","line":5,"path":"AGENTS.md","reason":"project instruction matches: workflow"},{"authority":"project-instructions","blob_hash":"331e683423cb7f260c8167ae9407b96eb986eb30","confidence":"authoritative","line":7,"path":"AGENTS.md","reason":"project instruction matches: gate"}],"id":"AGENTS.md","kind":"instructions","references":[],"score":366,"status":"binding","summary":"Instructions for contributors and agents working in this scratch repository. | ## Workflow | Run `go build ./...` before committing. The gate is `go test ./...`.","title":"AGENTS.md \u2014 rb-subject"}],"revision":"2a06df65a1e950d020803c35d5a76093a0e3a721","schema_version":1,"state":"READY","verification":["git diff --check"]},"mutates":false,"ok":true,"tool":"query"}
+--- rc=0 ---
+### SNAPSHOT: S6-after-PY-query
+596f355b5754aa00      1848  ./.git/corvint-cache/2a06df65a1e950d020803c35d5a76093a0e3a721-d69892c4a386cbe6b3570c1956a766cd86fd146f001813b020b1c0e45b8903f8.json
+3e24c2566e177ce4       268  ./AGENTS.md
+ab68e264fb8d849c        76  ./README.md
+481cd0711e078fe0        26  ./go.mod
+2c584aeeecf63dbf        72  ./greet.go
+050ee5f9c0997533        72  ./main.go
+0a65a1c2c81c26f5        77  ./pkg/add.go
+### git-status:
+### end
+### SNAPSHOT: S7-after-harness-both
+596f355b5754aa00      1848  ./.git/corvint-cache/2a06df65a1e950d020803c35d5a76093a0e3a721-d69892c4a386cbe6b3570c1956a766cd86fd146f001813b020b1c0e45b8903f8.json
+3e24c2566e177ce4       268  ./AGENTS.md
+ab68e264fb8d849c        76  ./README.md
+481cd0711e078fe0        26  ./go.mod
+2c584aeeecf63dbf        72  ./greet.go
+050ee5f9c0997533        72  ./main.go
+0a65a1c2c81c26f5        77  ./pkg/add.go
+### git-status:
+### end
+==============================================================
+STEP: HARNESS session-start (Go then Python), input: {"sessionIdSha256":"fb5d1f7a455aa3f4e2e293c32be79b68082f53f2de1f7e393f692f65a3696c28","startSource":"startup"}
+CMD-GO: /tmp/corvint-rb --root /tmp/rb-subject harness event --host claude-code --host-version 1.2.3 --surface hook --adapter-version 0.1.0 --input - --event session-start < /tmp/rb-work/ev-session-start.json
+--- go rc=0 ---
+{"adapter":{"adapterVersion":"0.1.0","host":"claude-code","hostVersion":"1.2.3","surface":"hook"},"context":{"availableOperations":["file-change","user-prompt"],"profile":"generic","state":"READY"},"degradations":["frontier-authority-unavailable"],"event":"session-start","input":{"changedPathCount":0,"observedEvidenceCount":0,"sessionBound":true,"startSource":"startup","verificationCount":0},"mutates":false,"ok":true,"profile":"corvint-harness-event/0","receiptId":"harness-receipt:sha256:6cc61732a144a9bf35095a2573a5ff4301d7d12dcb26ce7d48998e1dbb1334cc","repository":{"commitRevision":"02ee2e5a4b94bf9db56c3442ef45dfcc31c24700","dirtyPathCount":0,"dirtyPathsSha256":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945","objectFormat":"sha1","treeRevision":"2a06df65a1e950d020803c35d5a76093a0e3a721","worktreeState":"clean"},"support":"FALLBACK"}
+--- py rc=0 ---
+{"adapter":{"adapterVersion":"0.1.0","host":"claude-code","hostVersion":"1.2.3","surface":"hook"},"context":{"availableOperations":["file-change","user-prompt"],"profile":"generic","state":"READY"},"degradations":["frontier-authority-unavailable"],"event":"session-start","input":{"changedPathCount":0,"observedEvidenceCount":0,"sessionBound":true,"startSource":"startup","verificationCount":0},"mutates":false,"ok":true,"profile":"corvint-harness-event/0","receiptId":"harness-receipt:sha256:6cc61732a144a9bf35095a2573a5ff4301d7d12dcb26ce7d48998e1dbb1334cc","repository":{"commitRevision":"02ee2e5a4b94bf9db56c3442ef45dfcc31c24700","dirtyPathCount":0,"dirtyPathsSha256":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945","objectFormat":"sha1","treeRevision":"2a06df65a1e950d020803c35d5a76093a0e3a721","worktreeState":"clean"},"support":"FALLBACK"}
+--- compare: BYTE-IDENTICAL ---
+==============================================================
+STEP: HARNESS session-start-compact (Go then Python), input: {"sessionIdSha256":"fb5d1f7a455aa3f4e2e293c32be79b68082f53f2de1f7e393f692f65a3696c28","startSource":"compact"}
+CMD-GO: /tmp/corvint-rb --root /tmp/rb-subject harness event --host claude-code --host-version 1.2.3 --surface hook --adapter-version 0.1.0 --input - --event session-start < /tmp/rb-work/ev-session-start-compact.json
+--- go rc=0 ---
+{"adapter":{"adapterVersion":"0.1.0","host":"claude-code","hostVersion":"1.2.3","surface":"hook"},"context":{"availableOperations":["file-change","user-prompt"],"profile":"generic","state":"READY"},"degradations":["frontier-authority-unavailable"],"event":"session-start","input":{"changedPathCount":0,"observedEvidenceCount":0,"sessionBound":true,"startSource":"compact","verificationCount":0},"mutates":false,"ok":true,"profile":"corvint-harness-event/0","receiptId":"harness-receipt:sha256:94f9e65420e35e22e4af4cbbff3360847390845d8f1781f4cca1f3a8fbabbe36","repository":{"commitRevision":"02ee2e5a4b94bf9db56c3442ef45dfcc31c24700","dirtyPathCount":0,"dirtyPathsSha256":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945","objectFormat":"sha1","treeRevision":"2a06df65a1e950d020803c35d5a76093a0e3a721","worktreeState":"clean"},"support":"FALLBACK"}
+--- py rc=0 ---
+{"adapter":{"adapterVersion":"0.1.0","host":"claude-code","hostVersion":"1.2.3","surface":"hook"},"context":{"availableOperations":["file-change","user-prompt"],"profile":"generic","state":"READY"},"degradations":["frontier-authority-unavailable"],"event":"session-start","input":{"changedPathCount":0,"observedEvidenceCount":0,"sessionBound":true,"startSource":"compact","verificationCount":0},"mutates":false,"ok":true,"profile":"corvint-harness-event/0","receiptId":"harness-receipt:sha256:94f9e65420e35e22e4af4cbbff3360847390845d8f1781f4cca1f3a8fbabbe36","repository":{"commitRevision":"02ee2e5a4b94bf9db56c3442ef45dfcc31c24700","dirtyPathCount":0,"dirtyPathsSha256":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945","objectFormat":"sha1","treeRevision":"2a06df65a1e950d020803c35d5a76093a0e3a721","worktreeState":"clean"},"support":"FALLBACK"}
+--- compare: BYTE-IDENTICAL ---
+==============================================================
+STEP: HARNESS post-tool (Go then Python), input: {"sessionIdSha256":"fb5d1f7a455aa3f4e2e293c32be79b68082f53f2de1f7e393f692f65a3696c28","observedEvidenceHandles":[],"changedPaths":["greet.go"],"verification":[]}
+CMD-GO: /tmp/corvint-rb --root /tmp/rb-subject harness event --host claude-code --host-version 1.2.3 --surface hook --adapter-version 0.1.0 --input - --event post-tool < /tmp/rb-work/ev-post-tool.json
+--- go rc=0 ---
+{"adapter":{"adapterVersion":"0.1.0","host":"claude-code","hostVersion":"1.2.3","surface":"hook"},"context":{"changedPathCount":1,"observedEvidenceCount":0,"verificationCount":0},"degradations":["frontier-authority-unavailable"],"event":"post-tool","input":{"changedPathCount":1,"observedEvidenceCount":0,"sessionBound":true,"verificationCount":0},"mutates":false,"ok":true,"profile":"corvint-harness-event/0","receiptId":"harness-receipt:sha256:4ca3b8fb6d7b9303ad600f094d4e8d111062ca8eff71c7a26bd684d3290d3c03","repository":{"commitRevision":"02ee2e5a4b94bf9db56c3442ef45dfcc31c24700","dirtyPathCount":0,"dirtyPathsSha256":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945","objectFormat":"sha1","treeRevision":"2a06df65a1e950d020803c35d5a76093a0e3a721","worktreeState":"clean"},"support":"FALLBACK"}
+--- py rc=0 ---
+{"adapter":{"adapterVersion":"0.1.0","host":"claude-code","hostVersion":"1.2.3","surface":"hook"},"context":{"changedPathCount":1,"observedEvidenceCount":0,"verificationCount":0},"degradations":["frontier-authority-unavailable"],"event":"post-tool","input":{"changedPathCount":1,"observedEvidenceCount":0,"sessionBound":true,"verificationCount":0},"mutates":false,"ok":true,"profile":"corvint-harness-event/0","receiptId":"harness-receipt:sha256:4ca3b8fb6d7b9303ad600f094d4e8d111062ca8eff71c7a26bd684d3290d3c03","repository":{"commitRevision":"02ee2e5a4b94bf9db56c3442ef45dfcc31c24700","dirtyPathCount":0,"dirtyPathsSha256":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945","objectFormat":"sha1","treeRevision":"2a06df65a1e950d020803c35d5a76093a0e3a721","worktreeState":"clean"},"support":"FALLBACK"}
+--- compare: BYTE-IDENTICAL ---
+==============================================================
+STEP: HARNESS stop (Go then Python), input: {"sessionIdSha256":"fb5d1f7a455aa3f4e2e293c32be79b68082f53f2de1f7e393f692f65a3696c28","stopHookActive":false,"changedPaths":["greet.go"]}
+CMD-GO: /tmp/corvint-rb --root /tmp/rb-subject harness event --host claude-code --host-version 1.2.3 --surface hook --adapter-version 0.1.0 --input - --event stop < /tmp/rb-work/ev-stop.json
+--- go rc=0 ---
+{"adapter":{"adapterVersion":"0.1.0","host":"claude-code","hostVersion":"1.2.3","surface":"hook"},"degradations":["frontier-authority-unavailable"],"event":"stop","frontier":{"reason":"frontier-authority-unavailable","shouldContinue":false,"state":"UNAVAILABLE"},"input":{"changedPathCount":1,"observedEvidenceCount":0,"sessionBound":true,"verificationCount":0},"mutates":false,"ok":true,"profile":"corvint-harness-event/0","receiptId":"harness-receipt:sha256:a1acb4a2de9a5a2fa58ae332260e1fae5dbdca51de405ea57345c7727e27ddc5","repository":{"commitRevision":"02ee2e5a4b94bf9db56c3442ef45dfcc31c24700","dirtyPathCount":0,"dirtyPathsSha256":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945","objectFormat":"sha1","treeRevision":"2a06df65a1e950d020803c35d5a76093a0e3a721","worktreeState":"clean"},"support":"FALLBACK"}
+--- py rc=0 ---
+{"adapter":{"adapterVersion":"0.1.0","host":"claude-code","hostVersion":"1.2.3","surface":"hook"},"degradations":["frontier-authority-unavailable"],"event":"stop","frontier":{"reason":"frontier-authority-unavailable","shouldContinue":false,"state":"UNAVAILABLE"},"input":{"changedPathCount":1,"observedEvidenceCount":0,"sessionBound":true,"verificationCount":0},"mutates":false,"ok":true,"profile":"corvint-harness-event/0","receiptId":"harness-receipt:sha256:a1acb4a2de9a5a2fa58ae332260e1fae5dbdca51de405ea57345c7727e27ddc5","repository":{"commitRevision":"02ee2e5a4b94bf9db56c3442ef45dfcc31c24700","dirtyPathCount":0,"dirtyPathsSha256":"4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945","objectFormat":"sha1","treeRevision":"2a06df65a1e950d020803c35d5a76093a0e3a721","worktreeState":"clean"},"support":"FALLBACK"}
+--- compare: BYTE-IDENTICAL ---
+### SNAPSHOT: S8-after-harness-valid
+596f355b5754aa00      1848  ./.git/corvint-cache/2a06df65a1e950d020803c35d5a76093a0e3a721-d69892c4a386cbe6b3570c1956a766cd86fd146f001813b020b1c0e45b8903f8.json
+3e24c2566e177ce4       268  ./AGENTS.md
+ab68e264fb8d849c        76  ./README.md
+481cd0711e078fe0        26  ./go.mod
+2c584aeeecf63dbf        72  ./greet.go
+050ee5f9c0997533        72  ./main.go
+0a65a1c2c81c26f5        77  ./pkg/add.go
+### git-status:
+### end
+==============================================================
+STEP: RT-1: GO record (Go writes the trace store first)
+CWD: /tmp/rb-subject
+CMD: /tmp/corvint-rb --root /tmp/rb-subject record --task improve the greeting helper --opened greet.go --changed greet.go --verify go build ./... --outcome passed
+--- stdout+stderr ---
+{"error": "repository changed before trace append: repository identity changed", "ok": false}
+--- rc=2 ---
+### SNAPSHOT: S9-after-GO-record
+596f355b5754aa00      1848  ./.git/corvint-cache/2a06df65a1e950d020803c35d5a76093a0e3a721-d69892c4a386cbe6b3570c1956a766cd86fd146f001813b020b1c0e45b8903f8.json
+3e24c2566e177ce4       268  ./AGENTS.md
+ab68e264fb8d849c        76  ./README.md
+481cd0711e078fe0        26  ./go.mod
+2c584aeeecf63dbf        72  ./greet.go
+050ee5f9c0997533        72  ./main.go
+0a65a1c2c81c26f5        77  ./pkg/add.go
+### git-status:
+### end
+==============================================================
+STEP: RT-1b: GO record retry (cwd=/tmp/rb-subject, no --root)
+CWD: /tmp/rb-subject
+CMD: /tmp/corvint-rb record --task improve the greeting helper --opened greet.go --changed greet.go --verify go build ./... --outcome passed
+--- stdout+stderr ---
+{"error": "repository changed before trace append: repository identity changed", "ok": false}
+--- rc=2 ---
+==============================================================
+STEP: RT-0: PY record (does the Python oracle accept the same invocation?)
+CWD: /tmp/rb-subject
+CMD: env PYTHONPATH=/private/tmp/corvint-integration/src python3 -m corvint_cli --root /tmp/rb-subject record --task improve the greeting helper --opened greet.go --changed greet.go --verify go build ./... --outcome passed
+--- stdout+stderr ---
+{"error": "repository changed while preparing trace", "ok": false}
+--- rc=2 ---
+NOTE: added .gitignore for .context-corvint/ (both runtimes refused 'repository identity/state changed' because creating the untracked trace store dirtied the tree). New HEAD: e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb
+==============================================================
+STEP: RT-1c: GO record (subject repo now gitignores .context-corvint/)
+CWD: /tmp/rb-subject
+CMD: /tmp/corvint-rb --root /tmp/rb-subject record --task improve the greeting helper --opened greet.go --changed greet.go --verify go build ./... --outcome passed
+--- stdout+stderr ---
+{"mutates":true,"ok":true,"store":"/private/tmp/rb-subject/.context-corvint/traces/e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb.jsonl","tool":"record","trace":{"changed_paths":["greet.go"],"opened_paths":["greet.go"],"outcome":"passed","revision":"e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb","schema_version":1,"task":"improve the greeting helper","trace_id":"8fd34994c34d65d4df7d894851d213c48121ee1ecc124fa3af72467821bc2b0c","verification":["go build ./..."]},"trace_id":"8fd34994c34d65d4df7d894851d213c48121ee1ecc124fa3af72467821bc2b0c"}
+--- rc=0 ---
+### SNAPSHOT: S10-after-GO-record
+e3b0c44298fc1c14         0  ./.context-corvint/traces/.trace-operation.lock
+0e6b1f279f538a49       300  ./.context-corvint/traces/e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb.jsonl
+596f355b5754aa00      1848  ./.git/corvint-cache/2a06df65a1e950d020803c35d5a76093a0e3a721-d69892c4a386cbe6b3570c1956a766cd86fd146f001813b020b1c0e45b8903f8.json
+88fb1ec635c8da6c        16  ./.gitignore
+3e24c2566e177ce4       268  ./AGENTS.md
+ab68e264fb8d849c        76  ./README.md
+481cd0711e078fe0        26  ./go.mod
+2c584aeeecf63dbf        72  ./greet.go
+050ee5f9c0997533        72  ./main.go
+0a65a1c2c81c26f5        77  ./pkg/add.go
+### git-status:
+### end
+/tmp/rb-subject/.context-corvint
+/tmp/rb-subject/.context-corvint/traces
+/tmp/rb-subject/.context-corvint/traces/.trace-operation.lock
+/tmp/rb-subject/.context-corvint/traces/e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb.jsonl
+{"changed_paths":["greet.go"],"opened_paths":["greet.go"],"outcome":"passed","revision":"e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb","schema_version":1,"task":"improve the greeting helper","trace_id":"8fd34994c34d65d4df7d894851d213c48121ee1ecc124fa3af72467821bc2b0c","verification":["go build ./..."]}
+==============================================================
+STEP: RT-2: PY record, SAME task -> must be idempotent on the Go-written row (proves Python consumed Go state unconverted)
+CWD: /tmp/rb-subject
+CMD: env PYTHONPATH=/private/tmp/corvint-integration/src python3 -m corvint_cli --root /tmp/rb-subject record --task improve the greeting helper --opened greet.go --changed greet.go --verify go build ./... --outcome passed
+--- stdout+stderr ---
+{"mutates":true,"ok":true,"store":"/private/tmp/rb-subject/.context-corvint/traces/e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb.jsonl","tool":"record","trace":{"changed_paths":["greet.go"],"opened_paths":["greet.go"],"outcome":"passed","revision":"e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb","schema_version":1,"task":"improve the greeting helper","trace_id":"8fd34994c34d65d4df7d894851d213c48121ee1ecc124fa3af72467821bc2b0c","verification":["go build ./..."]},"trace_id":"8fd34994c34d65d4df7d894851d213c48121ee1ecc124fa3af72467821bc2b0c"}
+--- rc=0 ---
+==============================================================
+STEP: RT-3: PY record, NEW task -> Python appends a second row after the Go row
+CWD: /tmp/rb-subject
+CMD: env PYTHONPATH=/private/tmp/corvint-integration/src python3 -m corvint_cli --root /tmp/rb-subject record --task extend the addition helper --opened pkg/add.go --changed pkg/add.go --verify go vet ./... --outcome failed
+--- stdout+stderr ---
+{"mutates":true,"ok":true,"store":"/private/tmp/rb-subject/.context-corvint/traces/e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb.jsonl","tool":"record","trace":{"changed_paths":["pkg/add.go"],"opened_paths":["pkg/add.go"],"outcome":"failed","revision":"e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb","schema_version":1,"task":"extend the addition helper","trace_id":"4d0f64ce3515e9904c8534b8a3863f2b32939b17f7a8b5ce9c4ffcfe5884dff1","verification":["go vet ./..."]},"trace_id":"4d0f64ce3515e9904c8534b8a3863f2b32939b17f7a8b5ce9c4ffcfe5884dff1"}
+--- rc=0 ---
+=== store now ===
+{"changed_paths":["greet.go"],"opened_paths":["greet.go"],"outcome":"passed","revision":"e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb","schema_version":1,"task":"improve the greeting helper","trace_id":"8fd34994c34d65d4df7d894851d213c48121ee1ecc124fa3af72467821bc2b0c","verification":["go build ./..."]}
+{"changed_paths":["pkg/add.go"],"opened_paths":["pkg/add.go"],"outcome":"failed","revision":"e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb","schema_version":1,"task":"extend the addition helper","trace_id":"4d0f64ce3515e9904c8534b8a3863f2b32939b17f7a8b5ce9c4ffcfe5884dff1","verification":["go vet ./..."]}
+==============================================================
+STEP: RT-4: GO record, SAME task as the Python row -> must be idempotent (Go consumes Python state unconverted)
+CWD: /tmp/rb-subject
+CMD: /tmp/corvint-rb --root /tmp/rb-subject record --task extend the addition helper --opened pkg/add.go --changed pkg/add.go --verify go vet ./... --outcome failed
+--- stdout+stderr ---
+{"mutates":true,"ok":true,"store":"/private/tmp/rb-subject/.context-corvint/traces/e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb.jsonl","tool":"record","trace":{"changed_paths":["pkg/add.go"],"opened_paths":["pkg/add.go"],"outcome":"failed","revision":"e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb","schema_version":1,"task":"extend the addition helper","trace_id":"4d0f64ce3515e9904c8534b8a3863f2b32939b17f7a8b5ce9c4ffcfe5884dff1","verification":["go vet ./..."]},"trace_id":"4d0f64ce3515e9904c8534b8a3863f2b32939b17f7a8b5ce9c4ffcfe5884dff1"}
+--- rc=0 ---
+TRACE FILE BYTE-UNCHANGED by Go idempotent record over Python row
+==============================================================
+STEP: RT-5: GO record, third task -> Go appends after the Python row
+CWD: /tmp/rb-subject
+CMD: /tmp/corvint-rb --root /tmp/rb-subject record --task document the entry point --opened main.go --changed main.go --verify go build ./... --outcome blocked
+--- stdout+stderr ---
+{"mutates":true,"ok":true,"store":"/private/tmp/rb-subject/.context-corvint/traces/e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb.jsonl","tool":"record","trace":{"changed_paths":["main.go"],"opened_paths":["main.go"],"outcome":"blocked","revision":"e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb","schema_version":1,"task":"document the entry point","trace_id":"4387bbe2735b7557d2a9140bd422e710a0fdd4b1503ee558d601a7e530238991","verification":["go build ./..."]},"trace_id":"4387bbe2735b7557d2a9140bd422e710a0fdd4b1503ee558d601a7e530238991"}
+--- rc=0 ---
+=== store now ===
+{"changed_paths":["greet.go"],"opened_paths":["greet.go"],"outcome":"passed","revision":"e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb","schema_version":1,"task":"improve the greeting helper","trace_id":"8fd34994c34d65d4df7d894851d213c48121ee1ecc124fa3af72467821bc2b0c","verification":["go build ./..."]}
+{"changed_paths":["pkg/add.go"],"opened_paths":["pkg/add.go"],"outcome":"failed","revision":"e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb","schema_version":1,"task":"extend the addition helper","trace_id":"4d0f64ce3515e9904c8534b8a3863f2b32939b17f7a8b5ce9c4ffcfe5884dff1","verification":["go vet ./..."]}
+{"changed_paths":["main.go"],"opened_paths":["main.go"],"outcome":"blocked","revision":"e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb","schema_version":1,"task":"document the entry point","trace_id":"4387bbe2735b7557d2a9140bd422e710a0fdd4b1503ee558d601a7e530238991","verification":["go build ./..."]}
+=== REVERSE ORDER on fresh subject /tmp/rb-subject2 (HEAD e3bb679a3519a973e370b11a044f62086ce1d5c7): Python writes FIRST ===
+==============================================================
+STEP: REV-1: PY record on virgin store
+CWD: /tmp/rb-subject2
+CMD: env PYTHONPATH=/private/tmp/corvint-integration/src python3 -m corvint_cli --root /tmp/rb-subject2 record --task improve the greeting helper --opened greet.go --changed greet.go --verify go build ./... --outcome passed
+--- stdout+stderr ---
+{"mutates":true,"ok":true,"store":"/private/tmp/rb-subject2/.context-corvint/traces/e3bb679a3519a973e370b11a044f62086ce1d5c7.jsonl","tool":"record","trace":{"changed_paths":["greet.go"],"opened_paths":["greet.go"],"outcome":"passed","revision":"e3bb679a3519a973e370b11a044f62086ce1d5c7","schema_version":1,"task":"improve the greeting helper","trace_id":"15f3997e3101fc179d2041b835db9f1acc3713700c1219989164026b9531291d","verification":["go build ./..."]},"trace_id":"15f3997e3101fc179d2041b835db9f1acc3713700c1219989164026b9531291d"}
+--- rc=0 ---
+.rw-------@   0 owner 29 Aug 08:34 .trace-operation.lock
+.rw-------@ 300 owner 29 Aug 08:34 e3bb679a3519a973e370b11a044f62086ce1d5c7.jsonl
+==============================================================
+STEP: REV-2: GO record SAME task -> idempotent over the Python-created store
+CWD: /tmp/rb-subject2
+CMD: /tmp/corvint-rb --root /tmp/rb-subject2 record --task improve the greeting helper --opened greet.go --changed greet.go --verify go build ./... --outcome passed
+--- stdout+stderr ---
+{"mutates":true,"ok":true,"store":"/private/tmp/rb-subject2/.context-corvint/traces/e3bb679a3519a973e370b11a044f62086ce1d5c7.jsonl","tool":"record","trace":{"changed_paths":["greet.go"],"opened_paths":["greet.go"],"outcome":"passed","revision":"e3bb679a3519a973e370b11a044f62086ce1d5c7","schema_version":1,"task":"improve the greeting helper","trace_id":"15f3997e3101fc179d2041b835db9f1acc3713700c1219989164026b9531291d","verification":["go build ./..."]},"trace_id":"15f3997e3101fc179d2041b835db9f1acc3713700c1219989164026b9531291d"}
+--- rc=0 ---
+REV: store BYTE-UNCHANGED by Go
+==============================================================
+STEP: REV-3: GO record NEW task -> Go appends into the Python-created store
+CWD: /tmp/rb-subject2
+CMD: /tmp/corvint-rb --root /tmp/rb-subject2 record --task extend the addition helper --opened pkg/add.go --changed pkg/add.go --verify go vet ./... --outcome failed
+--- stdout+stderr ---
+{"mutates":true,"ok":true,"store":"/private/tmp/rb-subject2/.context-corvint/traces/e3bb679a3519a973e370b11a044f62086ce1d5c7.jsonl","tool":"record","trace":{"changed_paths":["pkg/add.go"],"opened_paths":["pkg/add.go"],"outcome":"failed","revision":"e3bb679a3519a973e370b11a044f62086ce1d5c7","schema_version":1,"task":"extend the addition helper","trace_id":"98b50175b4820e1226bd522d9c18b700c629cbd5cd752dd760be7d8a3d5a5ca8","verification":["go vet ./..."]},"trace_id":"98b50175b4820e1226bd522d9c18b700c629cbd5cd752dd760be7d8a3d5a5ca8"}
+--- rc=0 ---
+==============================================================
+STEP: REV-4: PY record SAME task as Go row -> Python idempotent over Go row
+CWD: /tmp/rb-subject2
+CMD: env PYTHONPATH=/private/tmp/corvint-integration/src python3 -m corvint_cli --root /tmp/rb-subject2 record --task extend the addition helper --opened pkg/add.go --changed pkg/add.go --verify go vet ./... --outcome failed
+--- stdout+stderr ---
+{"mutates":true,"ok":true,"store":"/private/tmp/rb-subject2/.context-corvint/traces/e3bb679a3519a973e370b11a044f62086ce1d5c7.jsonl","tool":"record","trace":{"changed_paths":["pkg/add.go"],"opened_paths":["pkg/add.go"],"outcome":"failed","revision":"e3bb679a3519a973e370b11a044f62086ce1d5c7","schema_version":1,"task":"extend the addition helper","trace_id":"98b50175b4820e1226bd522d9c18b700c629cbd5cd752dd760be7d8a3d5a5ca8","verification":["go vet ./..."]},"trace_id":"98b50175b4820e1226bd522d9c18b700c629cbd5cd752dd760be7d8a3d5a5ca8"}
+--- rc=0 ---
+=== rb-subject2 store ===
+{"changed_paths":["greet.go"],"opened_paths":["greet.go"],"outcome":"passed","revision":"e3bb679a3519a973e370b11a044f62086ce1d5c7","schema_version":1,"task":"improve the greeting helper","trace_id":"15f3997e3101fc179d2041b835db9f1acc3713700c1219989164026b9531291d","verification":["go build ./..."]}
+{"changed_paths":["pkg/add.go"],"opened_paths":["pkg/add.go"],"outcome":"failed","revision":"e3bb679a3519a973e370b11a044f62086ce1d5c7","schema_version":1,"task":"extend the addition helper","trace_id":"98b50175b4820e1226bd522d9c18b700c629cbd5cd752dd760be7d8a3d5a5ca8","verification":["go vet ./..."]}
+==============================================================
+STEP: READ-1: GO query with a populated trace store present
+CWD: /tmp/rb-subject
+CMD: /tmp/corvint-rb --root /tmp/rb-subject query --task orientation instructions and workflow gates for contributors --limit 1
+--- stdout+stderr ---
+{"code": "unsupported-query-trace-state", "error": "native Go authority-start query requires an absent clean-tree local trace store", "ok": false}
+--- rc=2 ---
+==============================================================
+STEP: READ-2: PY query with the same populated trace store
+CWD: /tmp/rb-subject
+CMD: env PYTHONPATH=/private/tmp/corvint-integration/src python3 -m corvint_cli --root /tmp/rb-subject query --task orientation instructions and workflow gates for contributors --limit 1
+--- stdout+stderr ---
+{"context":{"abstention":{"active":false,"reason":"none"},"coverage":{"advisory_results":0,"authoritative_results":1,"budget_bytes":null,"critical":["instructions:AGENTS.md"],"critical_missing":[],"included_results":1,"omitted_results":0,"packet_bytes":2143,"requested_results":1,"uncertainty":[],"within_budget":true},"exclusions":{"count":0,"samples":[]},"freshness":{"mixed_path_count":0,"mixed_paths":[],"revision":"ef214a89604bcf0c9bfb482cc1dc8f84c20ffa34","scope":"git","state":"fresh"},"intent":{"confidence":"high","id":"project-operations","matched_terms":["contributor","gate","gates","instruction","instructions","orientation","workflow"]},"learning":{"advisory_candidates":0,"history_commits_considered":3,"history_digest":"52a09f7a731d1e113fccd99c7084fe8dcd141396e1d8962f50aeba4e2594d53c","history_tip":"e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb","local_trace_count":3,"local_trace_state":"ready","matched_history_commits":0,"matched_local_traces":0},"mode":"query","request":{"limit":1,"text":"orientation instructions and workflow gates for contributors"},"results":[{"evidence":[{"authority":"project-instructions","blob_hash":"331e683423cb7f260c8167ae9407b96eb986eb30","confidence":"authoritative","line":3,"path":"AGENTS.md","reason":"project instruction matches: contributor, contributors, instruction, instructions"},{"authority":"project-instructions","blob_hash":"331e683423cb7f260c8167ae9407b96eb986eb30","confidence":"authoritative","line":5,"path":"AGENTS.md","reason":"project instruction matches: workflow"},{"authority":"project-instructions","blob_hash":"331e683423cb7f260c8167ae9407b96eb986eb30","confidence":"authoritative","line":7,"path":"AGENTS.md","reason":"project instruction matches: gate"}],"id":"AGENTS.md","kind":"instructions","references":[],"score":366,"status":"binding","summary":"Instructions for contributors and agents working in this scratch repository. | ## Workflow | Run `go build ./...` before committing. The gate is `go test ./...`.","title":"AGENTS.md \u2014 rb-subject"}],"revision":"ef214a89604bcf0c9bfb482cc1dc8f84c20ffa34","schema_version":1,"state":"READY","verification":["git diff --check"]},"mutates":false,"ok":true,"tool":"query"}
+--- rc=0 ---
+==============================================================
+STEP: READ-3: GO migrate-traces --dry-run over the mixed-runtime store
+CWD: /tmp/rb-subject
+CMD: /tmp/corvint-rb --root /tmp/rb-subject migrate-traces --dry-run
+--- stdout+stderr ---
+{"candidate_trace_files":1,"entries":[],"legacy_trace_files":0,"mode":"dry-run","mutates":false,"ok":true,"plan_digest":"e1c7c00ebc5db78f35e8b91282d7227797ac794e082638c8d0f78a931b624440","repository":{"commit_revision":"e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb","tree_revision":"ef214a89604bcf0c9bfb482cc1dc8f84c20ffa34"},"tool":"migrate-traces","trace_rows":0}
+--- rc=0 ---
+==============================================================
+STEP: READ-4: PY migrate-traces --dry-run over the same store
+CWD: /tmp/rb-subject
+CMD: env PYTHONPATH=/private/tmp/corvint-integration/src python3 -m corvint_cli --root /tmp/rb-subject migrate-traces --dry-run
+--- stdout+stderr ---
+{"candidate_trace_files":1,"entries":[],"legacy_trace_files":0,"mode":"dry-run","mutates":false,"ok":true,"plan_digest":"e1c7c00ebc5db78f35e8b91282d7227797ac794e082638c8d0f78a931b624440","repository":{"commit_revision":"e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb","tree_revision":"ef214a89604bcf0c9bfb482cc1dc8f84c20ffa34"},"tool":"migrate-traces","trace_rows":0}
+--- rc=0 ---
+migrate-traces --dry-run: BYTE-IDENTICAL
+==============================================================
+STEP: WHEEL-1: install the Python wheel into a clean venv (simulates 'reinstall the last Python wheel')
+CWD: /tmp/rb-subject
+CMD: /tmp/rb-venv2/bin/python -m pip install -q /tmp/rb-wheels/context_corvint-0.4.0a0-py3-none-any.whl
+--- stdout+stderr ---
+WARNING: You are using pip version 21.2.4; however, version 26.0.1 is available.
+You should consider upgrading via the '/private/tmp/rb-venv2/bin/python -m pip install --upgrade pip' command.
+--- rc=0 ---
+==============================================================
+STEP: WHEEL-2: which corvint / version
+CWD: /tmp/rb-subject
+CMD: /tmp/rb-venv2/bin/corvint --version
+--- stdout+stderr ---
+Corvint 0.4.0a0
+--- rc=0 ---
+==============================================================
+STEP: WHEEL-3: wheel-installed corvint reads the mixed-runtime state written by Go (query)
+CWD: /tmp/rb-subject
+CMD: /tmp/rb-venv2/bin/corvint --root /tmp/rb-subject query --task orientation instructions and workflow gates for contributors --limit 1
+--- stdout+stderr ---
+{"context":{"abstention":{"active":false,"reason":"none"},"coverage":{"advisory_results":0,"authoritative_results":1,"budget_bytes":null,"critical":["instructions:AGENTS.md"],"critical_missing":[],"included_results":1,"omitted_results":0,"packet_bytes":2143,"requested_results":1,"uncertainty":[],"within_budget":true},"exclusions":{"count":0,"samples":[]},"freshness":{"mixed_path_count":0,"mixed_paths":[],"revision":"ef214a89604bcf0c9bfb482cc1dc8f84c20ffa34","scope":"git","state":"fresh"},"intent":{"confidence":"high","id":"project-operations","matched_terms":["contributor","gate","gates","instruction","instructions","orientation","workflow"]},"learning":{"advisory_candidates":0,"history_commits_considered":3,"history_digest":"52a09f7a731d1e113fccd99c7084fe8dcd141396e1d8962f50aeba4e2594d53c","history_tip":"e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb","local_trace_count":3,"local_trace_state":"ready","matched_history_commits":0,"matched_local_traces":0},"mode":"query","request":{"limit":1,"text":"orientation instructions and workflow gates for contributors"},"results":[{"evidence":[{"authority":"project-instructions","blob_hash":"331e683423cb7f260c8167ae9407b96eb986eb30","confidence":"authoritative","line":3,"path":"AGENTS.md","reason":"project instruction matches: contributor, contributors, instruction, instructions"},{"authority":"project-instructions","blob_hash":"331e683423cb7f260c8167ae9407b96eb986eb30","confidence":"authoritative","line":5,"path":"AGENTS.md","reason":"project instruction matches: workflow"},{"authority":"project-instructions","blob_hash":"331e683423cb7f260c8167ae9407b96eb986eb30","confidence":"authoritative","line":7,"path":"AGENTS.md","reason":"project instruction matches: gate"}],"id":"AGENTS.md","kind":"instructions","references":[],"score":366,"status":"binding","summary":"Instructions for contributors and agents working in this scratch repository. | ## Workflow | Run `go build ./...` before committing. The gate is `go test ./...`.","title":"AGENTS.md \u2014 rb-subject"}],"revision":"ef214a89604bcf0c9bfb482cc1dc8f84c20ffa34","schema_version":1,"state":"READY","verification":["git diff --check"]},"mutates":false,"ok":true,"tool":"query"}
+--- rc=0 ---
+==============================================================
+STEP: WHEEL-4: wheel-installed corvint record, SAME task as the last Go-written row -> idempotent, no migration
+CWD: /tmp/rb-subject
+CMD: /tmp/rb-venv2/bin/corvint --root /tmp/rb-subject record --task document the entry point --opened main.go --changed main.go --verify go build ./... --outcome blocked
+--- stdout+stderr ---
+{"mutates":true,"ok":true,"store":"/private/tmp/rb-subject/.context-corvint/traces/e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb.jsonl","tool":"record","trace":{"changed_paths":["main.go"],"opened_paths":["main.go"],"outcome":"blocked","revision":"e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb","schema_version":1,"task":"document the entry point","trace_id":"4387bbe2735b7557d2a9140bd422e710a0fdd4b1503ee558d601a7e530238991","verification":["go build ./..."]},"trace_id":"4387bbe2735b7557d2a9140bd422e710a0fdd4b1503ee558d601a7e530238991"}
+--- rc=0 ---
+first two rows byte-stable across all subsequent cross-runtime writes
+=== rows:        3 (unchanged by wheel-installed corvint idempotent record) ===
+=== cache inventory now ===
+/tmp/rb-subject/.git/corvint-cache/2a06df65a1e950d020803c35d5a76093a0e3a721-d69892c4a386cbe6b3570c1956a766cd86fd146f001813b020b1c0e45b8903f8.json
+/tmp/rb-subject/.git/corvint-cache/ef214a89604bcf0c9bfb482cc1dc8f84c20ffa34-d69892c4a386cbe6b3570c1956a766cd86fd146f001813b020b1c0e45b8903f8.json
+=== derive the runtime tag independently ===
+engine digest (sha256 of context_corvint_index.py + context_corvint_project.py bytes) = d69892c4a386cbe6b3570c1956a766cd86fd146f001813b020b1c0e45b8903f8
+==============================================================
+STEP: CACHE-1: delete the runtime-tagged derived cache and re-run
+CMD: rm -rf /tmp/rb-subject/.git/corvint-cache
+"/tmp/rb-subject/.git/corvint-cache": No such file or directory (os error 2)
+CACHE DELETION HARMLESS: query output BYTE-IDENTICAL with and without the derived cache
+=== cache regenerated? ===
+/tmp/rb-subject/.git/corvint-cache/ef214a89604bcf0c9bfb482cc1dc8f84c20ffa34-d69892c4a386cbe6b3570c1956a766cd86fd146f001813b020b1c0e45b8903f8.json
+=== record still works with cache deleted ===
+==============================================================
+STEP: CACHE-2: record after cache deletion (idempotent row still recognised -> cache is derived, not state)
+CWD: /tmp/rb-subject
+CMD: /tmp/rb-venv2/bin/corvint --root /tmp/rb-subject record --task document the entry point --opened main.go --changed main.go --verify go build ./... --outcome blocked
+--- stdout+stderr ---
+{"mutates":true,"ok":true,"store":"/private/tmp/rb-subject/.context-corvint/traces/e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb.jsonl","tool":"record","trace":{"changed_paths":["main.go"],"opened_paths":["main.go"],"outcome":"blocked","revision":"e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb","schema_version":1,"task":"document the entry point","trace_id":"4387bbe2735b7557d2a9140bd422e710a0fdd4b1503ee558d601a7e530238991","verification":["go build ./..."]},"trace_id":"4387bbe2735b7557d2a9140bd422e710a0fdd4b1503ee558d601a7e530238991"}
+--- rc=0 ---
+==============================================================
+STEP: CEM-1: GO cem prepare (writes .corvint/change.cem.json)
+CWD: /tmp/rb-subject
+CMD: /tmp/corvint-rb --root /tmp/rb-subject cem prepare --base 02ee2e5a4b94bf9db56c3442ef45dfcc31c24700 --target e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb
+--- stdout+stderr ---
+{"baseRevision":"02ee2e5a4b94bf9db56c3442ef45dfcc31c24700","map":"/private/tmp/rb-subject/.corvint/change.cem.json","mutates":true,"nextActions":[["corvint","cem","status","--map",".corvint/change.cem.json","--expected-base","02ee2e5a4b94bf9db56c3442ef45dfcc31c24700","--target","HEAD","--max-unknown","0","--max-mechanical","0"]],"nextHunk":{"disposition":"unknown","id":"hunk:sha256:aa0a1ad60e89698482cadc0b1c8b1fecf180b7b1c02fe1417c3b8abd97050371","newRange":{"count":1,"start":1},"next":"cite-or-mark","oldRange":{"count":0,"start":0},"path":".gitignore","reason":"no-evidence","selector":1},"ok":true,"patch":"/private/tmp/rb-subject/.git/corvint/change.patch","resumed":false,"targetRevision":"e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb","tool":"cem-prepare","worklist":[{"disposition":"unknown","id":"hunk:sha256:aa0a1ad60e89698482cadc0b1c8b1fecf180b7b1c02fe1417c3b8abd97050371","newRange":{"count":1,"start":1},"next":"cite-or-mark","oldRange":{"count":0,"start":0},"path":".gitignore","reason":"no-evidence","selector":1}]}
+--- rc=0 ---
+/tmp/rb-subject/.corvint/change.cem.json
+64c108508073b570f5e4ffbf044154bedbc64a961fcd94bd1ab52eceea65808f  /tmp/rb-subject/.corvint/change.cem.json
+==============================================================
+STEP: CEM-2: PY cem status over the Go-written map (Python reads Go CEM state)
+CWD: /tmp/rb-subject
+CMD: /tmp/rb-venv2/bin/corvint --root /tmp/rb-subject cem status --map .corvint/change.cem.json --expected-base 02ee2e5a4b94bf9db56c3442ef45dfcc31c24700 --target e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb
+--- stdout+stderr ---
+{"counts":{"mechanical":0,"supported":0,"total":1,"unknown":1},"excludedPath":".corvint/change.cem.json","map":"/private/tmp/rb-subject/.corvint/change.cem.json","mutates":false,"ok":true,"patch":null,"patchSource":"canonical-derived","policyIssues":[],"state":"ready-for-ci","tool":"cem-status","verification":{"assurance":"canonical","baseRevision":"02ee2e5a4b94bf9db56c3442ef45dfcc31c24700","drift":[],"evidenceTotal":0,"hunksTotal":1,"issues":[],"patchSha256":"991c3024dbd33c82efe7fda7d0af49b30a73e50f293eff713b78f79404c25f54","spec":"cem/0.2","targetRevision":"e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb","valid":true},"warnings":[],"worklist":[{"disposition":"unknown","id":"hunk:sha256:aa0a1ad60e89698482cadc0b1c8b1fecf180b7b1c02fe1417c3b8abd97050371","newRange":{"count":1,"start":1},"next":"cite-or-mark","oldRange":{"count":0,"start":0},"path":".gitignore","reason":"no-evidence","selector":1}]}
+--- rc=0 ---
+64c108508073b570f5e4ffbf044154bedbc64a961fcd94bd1ab52eceea65808f  /tmp/rb-subject/.corvint/change.cem.json
+==============================================================
+STEP: CEM-3: PY cem prepare from scratch (same base/target) for byte comparison
+CWD: /tmp/rb-subject
+CMD: /tmp/rb-venv2/bin/corvint --root /tmp/rb-subject cem prepare --base 02ee2e5a4b94bf9db56c3442ef45dfcc31c24700 --target e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb
+--- stdout+stderr ---
+{"baseRevision":"02ee2e5a4b94bf9db56c3442ef45dfcc31c24700","map":"/private/tmp/rb-subject/.corvint/change.cem.json","mutates":true,"nextActions":[["corvint","cem","status","--map",".corvint/change.cem.json","--expected-base","02ee2e5a4b94bf9db56c3442ef45dfcc31c24700","--target","HEAD","--max-unknown","0","--max-mechanical","0"]],"nextHunk":{"disposition":"unknown","id":"hunk:sha256:aa0a1ad60e89698482cadc0b1c8b1fecf180b7b1c02fe1417c3b8abd97050371","newRange":{"count":1,"start":1},"next":"cite-or-mark","oldRange":{"count":0,"start":0},"path":".gitignore","reason":"no-evidence","selector":1},"ok":true,"patch":"/private/tmp/rb-subject/.git/corvint/change.patch","resumed":false,"targetRevision":"e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb","tool":"cem-prepare","worklist":[{"disposition":"unknown","id":"hunk:sha256:aa0a1ad60e89698482cadc0b1c8b1fecf180b7b1c02fe1417c3b8abd97050371","newRange":{"count":1,"start":1},"next":"cite-or-mark","oldRange":{"count":0,"start":0},"path":".gitignore","reason":"no-evidence","selector":1}]}
+--- rc=0 ---
+64c108508073b570f5e4ffbf044154bedbc64a961fcd94bd1ab52eceea65808f  /tmp/rb-subject/.corvint/change.cem.json
+CEM MAP: Go-written and Python-written maps are BYTE-IDENTICAL
+==============================================================
+STEP: CEM-4: GO cem status over the Python-written map (reverse direction)
+CWD: /tmp/rb-subject
+CMD: /tmp/corvint-rb --root /tmp/rb-subject cem status --map .corvint/change.cem.json --expected-base 02ee2e5a4b94bf9db56c3442ef45dfcc31c24700 --target e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb
+--- stdout+stderr ---
+{"counts":{"mechanical":0,"supported":0,"total":1,"unknown":1},"excludedPath":".corvint/change.cem.json","map":"/private/tmp/rb-subject/.corvint/change.cem.json","mutates":false,"ok":true,"patch":null,"patchSource":"canonical-derived","policyIssues":[],"state":"ready-for-ci","tool":"cem-status","verification":{"assurance":"canonical","baseRevision":"02ee2e5a4b94bf9db56c3442ef45dfcc31c24700","drift":[],"evidenceTotal":0,"hunksTotal":1,"issues":[],"patchSha256":"991c3024dbd33c82efe7fda7d0af49b30a73e50f293eff713b78f79404c25f54","spec":"cem/0.2","targetRevision":"e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb","valid":true},"warnings":[],"worklist":[{"disposition":"unknown","id":"hunk:sha256:aa0a1ad60e89698482cadc0b1c8b1fecf180b7b1c02fe1417c3b8abd97050371","newRange":{"count":1,"start":1},"next":"cite-or-mark","oldRange":{"count":0,"start":0},"path":".gitignore","reason":"no-evidence","selector":1}]}
+--- rc=0 ---
+64c108508073b570f5e4ffbf044154bedbc64a961fcd94bd1ab52eceea65808f  /tmp/rb-subject/.corvint/change.cem.json
+==============================================================
+STEP: IMPACT-1: GO impact
+CWD: /tmp/rb-subject
+CMD: /tmp/corvint-rb --root /tmp/rb-subject impact greet.go
+--- stdout+stderr ---
+{"code": "unsupported-impact-repository", "error": "native Go impact requires a slash-qualified Go module", "ok": false}
+--- rc=2 ---
+==============================================================
+STEP: IMPACT-2: PY impact
+CWD: /tmp/rb-subject
+CMD: /tmp/rb-venv2/bin/corvint --root /tmp/rb-subject impact greet.go
+--- stdout+stderr ---
+{"context":{"coverage":{"advisory_results":0,"authoritative_results":2,"budget_bytes":null,"critical":["path:greet.go"],"critical_missing":[],"included_results":2,"omitted_results":0,"packet_bytes":1243,"requested_results":2,"uncertainty":[],"within_budget":true},"exclusions":{"count":0,"samples":[]},"freshness":{"mixed_path_count":1,"mixed_paths":[".corvint/change.cem.json"],"revision":"ef214a89604bcf0c9bfb482cc1dc8f84c20ffa34","scope":"git","state":"mixed-worktree"},"mode":"impact","request":{"limit":10,"paths":["greet.go"]},"results":[{"evidence":[{"authority":"git-tree","blob_hash":"c241e4cdb5b1a70cbf6de641fd4c23fff6e767f3","confidence":"authoritative","line":1,"path":"greet.go","reason":"requested changed path"}],"id":"greet.go","kind":"path","score":1000,"summary":"direct changed path"},{"evidence":[{"authority":"syntax","blob_hash":"3c6f53bc07509b2f412806d8e60fbef5acf81ed3","confidence":"medium","line":5,"path":"main.go","reason":"references Greet declared by greet.go"}],"id":"main.go","kind":"reference","score":775,"summary":"same-package code references declarations from greet.go"}],"revision":"ef214a89604bcf0c9bfb482cc1dc8f84c20ffa34","schema_version":1,"state":"STALE_INDEX","verification":["go test ./...","git diff --check"]},"mutates":false,"ok":true,"tool":"impact"}
+--- rc=0 ---
+=== user-level state? ===
+"~/.corvint": No such file or directory (os error 2)
+"~/.context-corvint": No such file or directory (os error 2)
+"~/.cache/corvint": No such file or directory (os error 2)
+"~/Library/Caches/corvint": No such file or directory (os error 2)
+"~/Library/Application Support/corvint": No such file or directory (os error 2)
+END-STATE: wheel-installed Python query output BYTE-IDENTICAL to the pre-Go-write baseline output (no format rewrite occurred)
+=== FINAL FULL INVENTORY (worktree + .git/corvint-cache + .context-corvint) ===
+/tmp/rb-subject
+/tmp/rb-subject/.context-corvint
+/tmp/rb-subject/.context-corvint/traces
+/tmp/rb-subject/.context-corvint/traces/.trace-operation.lock
+/tmp/rb-subject/.context-corvint/traces/e9dcc2d82ecbc67c44ba1bc9fe69d2273c8af3eb.jsonl
+/tmp/rb-subject/.git/corvint-cache
+/tmp/rb-subject/.git/corvint-cache/ef214a89604bcf0c9bfb482cc1dc8f84c20ffa34-d69892c4a386cbe6b3570c1956a766cd86fd146f001813b020b1c0e45b8903f8.json
+/tmp/rb-subject/.gitignore
+/tmp/rb-subject/AGENTS.md
+/tmp/rb-subject/README.md
+/tmp/rb-subject/go.mod
+/tmp/rb-subject/greet.go
+/tmp/rb-subject/main.go
+/tmp/rb-subject/pkg
+/tmp/rb-subject/pkg/add.go
+### git status:
+(clean)
+=== rb-subject2 final ===
+/tmp/rb-subject2
+/tmp/rb-subject2/.context-corvint
+/tmp/rb-subject2/.context-corvint/traces
+/tmp/rb-subject2/.context-corvint/traces/.trace-operation.lock
+/tmp/rb-subject2/.context-corvint/traces/e3bb679a3519a973e370b11a044f62086ce1d5c7.jsonl
+/tmp/rb-subject2/.gitignore
+/tmp/rb-subject2/AGENTS.md
+/tmp/rb-subject2/README.md
+/tmp/rb-subject2/go.mod
+/tmp/rb-subject2/greet.go
+/tmp/rb-subject2/main.go
+/tmp/rb-subject2/pkg
+/tmp/rb-subject2/pkg/add.go
+/tmp/rb-subject2/.git/corvint-cache
+/tmp/rb-subject2/.git/corvint-cache/ef214a89604bcf0c9bfb482cc1dc8f84c20ffa34-d69892c4a386cbe6b3570c1956a766cd86fd146f001813b020b1c0e45b8903f8.json
+=== CACHE-INTEROP on fresh /tmp/rb-subject3 ===
+==============================================================
+STEP: CACHE-3: PY query FIRST on a virgin repo (creates the Python-tagged derived cache)
+CWD: /tmp/rb-subject3
+CMD: /tmp/rb-venv2/bin/corvint --root /tmp/rb-subject3 query --task orientation instructions and workflow gates for contributors --limit 1
+--- stdout+stderr ---
+{"context":{"abstention":{"active":false,"reason":"none"},"coverage":{"advisory_results":0,"authoritative_results":1,"budget_bytes":null,"critical":["instructions:AGENTS.md"],"critical_missing":[],"included_results":1,"omitted_results":0,"packet_bytes":2144,"requested_results":1,"uncertainty":[],"within_budget":true},"exclusions":{"count":0,"samples":[]},"freshness":{"mixed_path_count":0,"mixed_paths":[],"revision":"ef214a89604bcf0c9bfb482cc1dc8f84c20ffa34","scope":"git","state":"fresh"},"intent":{"confidence":"high","id":"project-operations","matched_terms":["contributor","gate","gates","instruction","instructions","orientation","workflow"]},"learning":{"advisory_candidates":0,"history_commits_considered":1,"history_digest":"133b15d29fb9a77c31523a141952be08f77a2e60edde17747b0e3f83cfe63cb7","history_tip":"4b7307de8313f078df7a7fe9607b3426a1cccb2f","local_trace_count":0,"local_trace_state":"absent","matched_history_commits":0,"matched_local_traces":0},"mode":"query","request":{"limit":1,"text":"orientation instructions and workflow gates for contributors"},"results":[{"evidence":[{"authority":"project-instructions","blob_hash":"331e683423cb7f260c8167ae9407b96eb986eb30","confidence":"authoritative","line":3,"path":"AGENTS.md","reason":"project instruction matches: contributor, contributors, instruction, instructions"},{"authority":"project-instructions","blob_hash":"331e683423cb7f260c8167ae9407b96eb986eb30","confidence":"authoritative","line":5,"path":"AGENTS.md","reason":"project instruction matches: workflow"},{"authority":"project-instructions","blob_hash":"331e683423cb7f260c8167ae9407b96eb986eb30","confidence":"authoritative","line":7,"path":"AGENTS.md","reason":"project instruction matches: gate"}],"id":"AGENTS.md","kind":"instructions","references":[],"score":366,"status":"binding","summary":"Instructions for contributors and agents working in this scratch repository. | ## Workflow | Run `go build ./...` before committing. The gate is `go test ./...`.","title":"AGENTS.md \u2014 rb-subject"}],"revision":"ef214a89604bcf0c9bfb482cc1dc8f84c20ffa34","schema_version":1,"state":"READY","verification":["git diff --check"]},"mutates":false,"ok":true,"tool":"query"}
+--- rc=0 ---
+/tmp/rb-subject3/.git/corvint-cache/ef214a89604bcf0c9bfb482cc1dc8f84c20ffa34-d69892c4a386cbe6b3570c1956a766cd86fd146f001813b020b1c0e45b8903f8.json
+STEP: CACHE-4: GO query with the Python derived cache present
+{"context":{"abstention":{"active":false,"reason":"none"},"coverage":{"advisory_results":0,"authoritative_results":1,"budget_bytes":null,"critical":["instructions:AGENTS.md"],"critical_missing":[],"included_results":1,"omitted_results":0,"packet_bytes":2144,"requested_results":1,"uncertainty":[],"within_budget":true},"exclusions":{"count":0,"samples":[]},"freshness":{"mixed_path_count":0,"mixed_paths":[],"revision":"ef214a89604bcf0c9bfb482cc1dc8f84c20ffa34","scope":"git","state":"fresh"},"intent":{"confidence":"high","id":"project-operations","matched_terms":["contributor","gate","gates","instruction","instructions","orientation","workflow"]},"learning":{"advisory_candidates":0,"history_commits_considered":1,"history_digest":"133b15d29fb9a77c31523a141952be08f77a2e60edde17747b0e3f83cfe63cb7","history_tip":"4b7307de8313f078df7a7fe9607b3426a1cccb2f","local_trace_count":0,"local_trace_state":"absent","matched_history_commits":0,"matched_local_traces":0},"mode":"query","request":{"limit":1,"text":"orientation instructions and workflow gates for contributors"},"results":[{"evidence":[{"authority":"project-instructions","blob_hash":"331e683423cb7f260c8167ae9407b96eb986eb30","confidence":"authoritative","line":3,"path":"AGENTS.md","reason":"project instruction matches: contributor, contributors, instruction, instructions"},{"authority":"project-instructions","blob_hash":"331e683423cb7f260c8167ae9407b96eb986eb30","confidence":"authoritative","line":5,"path":"AGENTS.md","reason":"project instruction matches: workflow"},{"authority":"project-instructions","blob_hash":"331e683423cb7f260c8167ae9407b96eb986eb30","confidence":"authoritative","line":7,"path":"AGENTS.md","reason":"project instruction matches: gate"}],"id":"AGENTS.md","kind":"instructions","references":[],"score":366,"status":"binding","summary":"Instructions for contributors and agents working in this scratch repository. | ## Workflow | Run `go build ./...` before committing. The gate is `go test ./...`.","title":"AGENTS.md \u2014 rb-subject"}],"revision":"ef214a89604bcf0c9bfb482cc1dc8f84c20ffa34","schema_version":1,"state":"READY","verification":["git diff --check"]},"mutates":false,"ok":true,"tool":"query"}
+GO ignores the Python derived cache; outputs BYTE-IDENTICAL with the cache present
+cache files after Go run: 1
+==============================================================
+STEP: OCM-1: GO ocm status
+CWD: /tmp/rb-subject3
+CMD: /tmp/corvint-rb --root /tmp/rb-subject3 ocm status
+--- stdout+stderr ---
+{"code": "invalid-arguments", "error": "the following arguments are required: --map", "ok": false}
+--- rc=2 ---
+init --full-receipt: BYTE-IDENTICAL (    4577 bytes)
+adopt --full-receipt: BYTE-IDENTICAL (    4618 bytes)
+=== elapsed sanity: no state written by full-receipt runs ===
+/tmp/rb-subject3
+/tmp/rb-subject3/.gitignore
+/tmp/rb-subject3/AGENTS.md
+/tmp/rb-subject3/README.md
+/tmp/rb-subject3/go.mod
+/tmp/rb-subject3/greet.go
+/tmp/rb-subject3/main.go
+/tmp/rb-subject3/pkg
+/tmp/rb-subject3/pkg/add.go

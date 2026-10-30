@@ -1,0 +1,560 @@
+diff --git a/internal/mediahttp/mediahttp.go b/internal/mediahttp/mediahttp.go
+index 23437f6e9..d3369a7d4 100644
+--- a/internal/mediahttp/mediahttp.go
++++ b/internal/mediahttp/mediahttp.go
+@@ -7,6 +7,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"io/fs"
+ 	"log/slog"
+ 	"net/http"
+ 	"os"
+@@ -208,18 +209,44 @@ func (h *Handler) PurgeSubtitlesForFingerprint(fingerprint string) error {
+ 	if h.subtitleDir == "" || fingerprint == "" {
+ 		return nil
+ 	}
++	// The match and the removal both run through ONE descriptor on the cache
++	// directory. Globbing an absolute pattern and then removing each result names
++	// the directory once per match, so a directory re-pointed mid-purge would send
++	// the deletes somewhere the caller never inspected — and this purge deletes
++	// unconditionally.
++	root, err := os.OpenRoot(h.subtitleDir)
++	if err != nil {
++		if errors.Is(err, os.ErrNotExist) {
++			return nil
++		}
++		return err
++	}
++	defer root.Close()
++	if err := verifyRootUnreplaced(root, h.subtitleDir); err != nil {
++		return err
++	}
++	entries, err := fs.ReadDir(root.FS(), ".")
++	if err != nil {
++		if errors.Is(err, os.ErrNotExist) {
++			return nil
++		}
++		return err
++	}
+ 	// Trailing "*" also catches subtitleSidecarPath's/hardenExtractedWebVTT's
+ 	// in-flight ".vtt.staged"/".vtt.tmp" siblings (and any future derived
+ 	// suffix) rather than enumerating suffixes the purge would otherwise go
+ 	// blind to again.
+-	pattern := filepath.Join(h.subtitleDir, safeSubtitleFingerprint(fingerprint)+".*.vtt*")
+-	matches, err := filepath.Glob(pattern)
+-	if err != nil {
+-		return err
+-	}
++	pattern := safeSubtitleFingerprint(fingerprint) + ".*.vtt*"
+ 	var joined error
+-	for _, path := range matches {
+-		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
++	for _, entry := range entries {
++		matched, err := filepath.Match(pattern, entry.Name())
++		if err != nil {
++			return err
++		}
++		if !matched {
++			continue
++		}
++		if err := root.Remove(entry.Name()); err != nil && !errors.Is(err, os.ErrNotExist) {
+ 			joined = errors.Join(joined, err)
+ 		}
+ 	}
+@@ -344,61 +371,75 @@ func (h *Handler) Subtitles(w http.ResponseWriter, r *http.Request) {
+ 		http.Error(w, "subtitle unavailable", http.StatusNotFound)
+ 		return
+ 	}
+-	path, err := h.subtitleSidecarPath(r.Context(), file.ContentFingerprint, file.Path, streamIndex)
++	cached, err := h.subtitleSidecarPath(r.Context(), file.ContentFingerprint, file.Path, streamIndex)
+ 	if err != nil {
+ 		slog.Error("subtitle convert failed", "error", err.Error())
+ 		http.Error(w, "subtitle unavailable", http.StatusServiceUnavailable)
+ 		return
+ 	}
+-	f, err := os.Open(path)
+-	if err != nil {
+-		http.Error(w, "unknown subtitle", http.StatusNotFound)
+-		return
+-	}
+-	defer f.Close()
+-	info, err := f.Stat()
+-	if err != nil {
+-		http.Error(w, "subtitle unavailable", http.StatusInternalServerError)
++	// The cache member is re-derived from a descriptor on the subtitle cache
++	// directory and bound to its directory entry, so the conversion that just ran
++	// and the bytes now served name the same file even if the cache entry was
++	// replaced in between.
++	w.Header().Set("Content-Type", "text/vtt; charset=utf-8")
++	if err := serveRooted(w, r, name, cached, time.Time{}); err != nil {
++		http.Error(w, "unknown subtitle", rootScopeStatus(err))
+ 		return
+ 	}
+-	w.Header().Set("Content-Type", "text/vtt; charset=utf-8")
+-	http.ServeContent(w, r, name, info.ModTime(), f)
+ }
+ 
+-// subtitleSidecarPath returns the cached WebVTT path for a (fingerprint,
++// subtitleSidecarPath returns the cached WebVTT member for a (fingerprint,
+ // streamIndex), converting it on first request. The cache key embeds the
+ // content fingerprint, so two files that share content share the conversion
+ // and a re-scanned file with new content gets a fresh sidecar.
+ //
++// It returns a rootedPath rather than a flattened path so the serve step reads
++// the cache member through a descriptor on subtitleDir instead of re-walking the
++// name: the directory this function published into and the directory the bytes
++// come out of are then provably the same one.
++//
+ // The extraction lands on a staging path and is hardened into place, so the
+ // cache file only ever exists in its sanitised form: nothing under subtitleDir
+ // is servable until it has passed the ingest boundary, including for the
+ // lock-free cache-hit above.
+-func (h *Handler) subtitleSidecarPath(ctx context.Context, fingerprint, srcPath string, streamIndex int) (string, error) {
++func (h *Handler) subtitleSidecarPath(ctx context.Context, fingerprint, srcPath string, streamIndex int) (rootedPath, error) {
+ 	if fingerprint == "" {
+-		return "", errors.New("media file has no content fingerprint")
++		return rootedPath{}, errors.New("media file has no content fingerprint")
+ 	}
+ 	if err := os.MkdirAll(h.subtitleDir, 0o700); err != nil {
+-		return "", err
++		return rootedPath{}, err
++	}
++	member, err := newRootedPath(h.subtitleDir, fmt.Sprintf("%s.%d.vtt", safeSubtitleFingerprint(fingerprint), streamIndex))
++	if err != nil {
++		return rootedPath{}, err
+ 	}
+-	dst := filepath.Join(h.subtitleDir, fmt.Sprintf("%s.%d.vtt", safeSubtitleFingerprint(fingerprint), streamIndex))
+-	if regularFileExists(dst) {
+-		return dst, nil
++	if rootedRegularFileExists(member) {
++		return member, nil
+ 	}
+ 	h.subtitleMu.Lock()
+ 	defer h.subtitleMu.Unlock()
+-	if regularFileExists(dst) {
+-		return dst, nil
++	if rootedRegularFileExists(member) {
++		return member, nil
+ 	}
++	dst := member.String()
+ 	staged := dst + ".staged"
+ 	defer os.Remove(staged)
+ 	if err := h.subtitles.ExtractSubtitleToWebVTT(ctx, srcPath, streamIndex, staged); err != nil {
+-		return "", err
++		return rootedPath{}, err
+ 	}
+-	if err := hardenExtractedWebVTT(staged, dst); err != nil {
+-		return "", err
++	if err := hardenExtractedWebVTT(h.subtitleDir, staged, member); err != nil {
++		return rootedPath{}, err
+ 	}
+-	return dst, nil
++	return member, nil
++}
++
++// rootedRegularFileExists reports whether a rooted member currently resolves to
++// a regular file through a descriptor on its root. It replaces a bare os.Stat
++// cache probe: a stat that follows a symlink would report a cache HIT for an
++// entry whose bytes live outside the cache directory entirely.
++func rootedRegularFileExists(p rootedPath) bool {
++	_, err := statRooted(p)
++	return err == nil
+ }
+ 
+ // hardenExtractedWebVTT runs a freshly extracted muxed subtitle through the
+@@ -411,22 +452,52 @@ func (h *Handler) subtitleSidecarPath(ctx context.Context, fingerprint, srcPath
+ // ships). The pass is paid once, at cache-write time, rather than on every
+ // request — and a file that cannot be hardened is never published, so the
+ // failure is not cached and the next request retries the conversion.
+-func hardenExtractedWebVTT(staged, dst string) error {
+-	raw, err := readGuardedSidecar(staged, string(subtitleingest.FormatVTT))
++//
++// The publish is root-scoped: the sanitised bytes are written to a temp member
++// and renamed onto the cache name through ONE descriptor held on the cache
++// directory, so the write and the rename land in the directory that was checked
++// rather than in whatever the name resolves to at each step. O_EXCL is what makes
++// the final component fail closed — openat refuses an existing entry, symlink
++// included, so a planted link is never written through.
++func hardenExtractedWebVTT(cacheDir, staged string, dst rootedPath) error {
++	raw, err := readGuardedSidecar(rootedFile(staged), string(subtitleingest.FormatVTT))
++	if err != nil {
++		return err
++	}
++	root, err := os.OpenRoot(cacheDir)
+ 	if err != nil {
+ 		return err
+ 	}
+-	tmp := dst + ".tmp"
+-	// #nosec G304 G703 -- dst is composed by subtitleSidecarPath from the
+-	// subtitleDir the operator configured plus safeSubtitleFingerprint's
+-	// path-element-safe stem and an integer stream index; no request-controlled
+-	// segment reaches it, so tmp cannot name a file outside the cache directory.
+-	if err := os.WriteFile(tmp, []byte(subtitleingest.SanitizeWebVTT(string(raw))), 0o600); err != nil {
++	defer root.Close()
++	if err := verifyRootUnreplaced(root, cacheDir); err != nil {
++		return err
++	}
++	tmp := dst.rel + ".tmp"
++	if err := root.Remove(tmp); err != nil && !errors.Is(err, os.ErrNotExist) {
+ 		return err
+ 	}
+-	// #nosec G304 G703 -- same confinement: both operands are the cache paths
+-	// composed above, never a request-supplied name.
+-	return os.Rename(tmp, dst)
++	file, err := root.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
++	if err != nil {
++		return err
++	}
++	if _, err := file.WriteString(subtitleingest.SanitizeWebVTT(string(raw))); err != nil {
++		_ = file.Close()
++		_ = root.Remove(tmp)
++		return err
++	}
++	if err := file.Close(); err != nil {
++		_ = root.Remove(tmp)
++		return err
++	}
++	if err := verifyRootUnreplaced(root, cacheDir); err != nil {
++		_ = root.Remove(tmp)
++		return err
++	}
++	if err := root.Rename(tmp, dst.rel); err != nil {
++		_ = root.Remove(tmp)
++		return err
++	}
++	return nil
+ }
+ 
+ // parseSubtitleName parses a "<streamIndex>.vtt" sidecar name into its stream
+@@ -601,34 +672,28 @@ func (h *Handler) applySubtitleOffset(ctx context.Context, profileID store.Profi
+ 	return subtitleingest.ShiftWebVTT(body, offsetMS)
+ }
+ 
+-// sidecarFilePath resolves a recorded sidecar rel_path against the media file's
+-// own directory and confirms the result stays inside that directory (the
+-// path-escape guard, HARD CONSTRAINT). Returns the absolute on-disk path and
+-// true only when the join is confined; a rel_path that climbs out ("..") or is
+-// absolute returns false, so the byte route 404s without touching the filesystem.
+-func sidecarFilePath(mediaPath, relPath string) (string, bool) {
++// sidecarFilePath binds a recorded sidecar rel_path to the media file's own
++// directory as the containment root (the path-escape guard, HARD CONSTRAINT). It
++// returns the (root, member) pair and true only when the member name is a
++// non-escaping relative name; a rel_path that climbs out ("..") or is absolute
++// returns false, so the byte route 404s without touching the filesystem.
++//
++// It deliberately does NOT resolve the name to an absolute path. The previous
++// form checked containment with EvalSymlinks and then handed the RESOLVED string
++// to os.Open — two independent walks of the same name, with the whole gap between
++// them available for swapping any component. Returning the root instead means the
++// only walk that ever happens is openRooted's, from a held descriptor, with the
++// final component bound to the entry it checked.
++func sidecarFilePath(mediaPath, relPath string) (rootedPath, bool) {
+ 	dir := filepath.Dir(mediaPath)
+-	joined := filepath.Join(dir, relPath)
+-	// filepath.Join already cleans the path; re-confine by requiring the cleaned
+-	// result to live directly under (or be equal to a child of) the media dir.
+-	// A "../escape" rel_path cleans to a path outside dir and is rejected.
+-	rel, err := filepath.Rel(dir, joined)
+-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+-		return "", false
+-	}
+-	realDir, err := filepath.EvalSymlinks(dir)
+-	if err != nil {
+-		return "", false
++	if dir == "" || dir == "." {
++		return rootedPath{}, false
+ 	}
+-	realPath, err := filepath.EvalSymlinks(joined)
++	member, err := newRootedPath(dir, relPath)
+ 	if err != nil {
+-		return "", false
+-	}
+-	realRel, err := filepath.Rel(realDir, realPath)
+-	if err != nil || realRel == ".." || strings.HasPrefix(realRel, ".."+string(filepath.Separator)) || filepath.IsAbs(realRel) {
+-		return "", false
++		return rootedPath{}, false
+ 	}
+-	return realPath, true
++	return member, true
+ }
+ 
+ // readGuardedSidecar reads a sidecar caption file into memory bounded by its
+@@ -640,21 +705,12 @@ func sidecarFilePath(mediaPath, relPath string) (string, bool) {
+ // and the 8 MiB cap is finally consulted. The resident bytes then take the
+ // content half of the boundary — format whitelist, re-checked size, and the
+ // crafted-ASS scope limits (ADR-0194 §7).
+-func readGuardedSidecar(path, format string) ([]byte, error) {
+-	// #nosec G304 G703 -- path came from sidecarFilePath, the HARD-CONSTRAINT
+-	// escape guard: it re-confines the recorded rel_path to the media file's own
+-	// directory and re-checks after symlink resolution, so it can never name a
+-	// file outside that directory. The cache path variant is composed by the
+-	// handler itself under subtitleDir.
+-	f, err := os.Open(path)
++func readGuardedSidecar(p rootedPath, format string) ([]byte, error) {
++	f, info, err := openRooted(p)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	defer f.Close()
+-	info, err := f.Stat()
+-	if err != nil {
+-		return nil, err
+-	}
+ 	if err := subtitleingest.CheckSize(format, info.Size()); err != nil {
+ 		return nil, err
+ 	}
+@@ -674,8 +730,8 @@ func readGuardedSidecar(path, format string) ([]byte, error) {
+ // (readSidecarAsWebVTT) and the nudge write path (SetSubtitleOffset) both go
+ // through it, so a stored offset can never be keyed on a hash the serve path
+ // would not compute for the same track.
+-func readFingerprintedSidecar(path, format string) (raw []byte, fingerprint string, err error) {
+-	raw, err = readGuardedSidecar(path, format)
++func readFingerprintedSidecar(p rootedPath, format string) (raw []byte, fingerprint string, err error) {
++	raw, err = readGuardedSidecar(p, format)
+ 	if err != nil {
+ 		return nil, "", err
+ 	}
+@@ -689,25 +745,21 @@ func readFingerprintedSidecar(path, format string) (raw []byte, fingerprint stri
+ // serveRawSidecarFile streams a sidecar's bytes straight off the open file. It
+ // never buffers the payload, so a large file costs no server memory and range
+ // requests are served from disk.
+-func serveRawSidecarFile(w http.ResponseWriter, r *http.Request, name, path string) {
+-	// #nosec G304 -- path came from sidecarFilePath, the HARD-CONSTRAINT escape
+-	// guard: it re-confines the recorded rel_path to the media file's own
+-	// directory and re-checks after symlink resolution.
+-	f, err := os.Open(path)
+-	if err != nil {
++func serveRawSidecarFile(w http.ResponseWriter, r *http.Request, name string, p rootedPath) {
++	w.Header().Set("Content-Type", "application/octet-stream")
++	if err := serveRooted(w, r, name, p, time.Time{}); err != nil {
+ 		writeSidecarReadError(w, err)
+-		return
+ 	}
+-	defer f.Close()
+-	w.Header().Set("Content-Type", "application/octet-stream")
+-	http.ServeContent(w, r, name, time.Time{}, f)
+ }
+ 
+ // writeSidecarReadError maps a sidecar read failure onto its HTTP status: a
+ // missing file is indistinguishable from an unknown track (404), while a
+ // boundary rejection or I/O fault is an explicit refusal to serve (503).
+ func writeSidecarReadError(w http.ResponseWriter, err error) {
+-	if errors.Is(err, os.ErrNotExist) {
++	// A root-scoped refusal joins the missing-file arm on purpose: a rel_path
++	// pointing at a symlink, an escaped member, or a replaced directory must look
++	// exactly like a sidecar that was never recorded.
++	if errors.Is(err, os.ErrNotExist) || errors.Is(err, errRootScope) {
+ 		http.Error(w, "unknown subtitle", http.StatusNotFound)
+ 		return
+ 	}
+@@ -730,8 +782,8 @@ func writeSidecarReadError(w http.ResponseWriter, err error) {
+ // bytes (ADR-0194 §4 / SUBSYS-12) — which keys the viewer's persisted offset
+ // nudge. Hashing the source bytes (not the projection) is what makes the key
+ // survive a rename or remux and change only under a real content/timing edit.
+-func readSidecarAsWebVTT(path, format string) (body string, fingerprint string, err error) {
+-	raw, fingerprint, err := readFingerprintedSidecar(path, format)
++func readSidecarAsWebVTT(p rootedPath, format string) (body string, fingerprint string, err error) {
++	raw, fingerprint, err := readFingerprintedSidecar(p, format)
+ 	if err != nil {
+ 		return "", "", err
+ 	}
+@@ -901,7 +953,14 @@ func (h *Handler) HLS(w http.ResponseWriter, r *http.Request) {
+ 		w.Header().Set("Content-Type", "video/mp4")
+ 	}
+ 	w.Header().Set("Cache-Control", "no-store")
+-	http.ServeFile(w, r, path)
++	// The session engine hands back a member of its own work directory. Serving it
++	// through the root-scoped opener binds the bytes to that directory entry, so a
++	// segment replaced by a link between the engine's publish and this read is
++	// refused instead of streamed.
++	if err := serveRooted(w, r, name, rootedFile(path), time.Time{}); err != nil {
++		http.Error(w, "stream unavailable", rootScopeStatus(err))
++		return
++	}
+ }
+ 
+ func (h *Handler) servePrecomputedHLS(w http.ResponseWriter, r *http.Request, grant streamtoken.Grant, scope auth.Scope, library store.Library, name string) {
+@@ -910,12 +969,12 @@ func (h *Handler) servePrecomputedHLS(w http.ResponseWriter, r *http.Request, gr
+ 		http.Error(w, "stream unavailable", http.StatusNotFound)
+ 		return
+ 	}
+-	path, ok := precomputedHLSPath(rendition.Path, name)
++	member, ok := precomputedHLSPath(rendition.Path, name)
+ 	if !ok {
+ 		http.Error(w, "stream unavailable", http.StatusNotFound)
+ 		return
+ 	}
+-	info, err := os.Stat(path)
++	info, err := statRooted(member)
+ 	if err != nil {
+ 		http.Error(w, "stream unavailable", http.StatusNotFound)
+ 		return
+@@ -932,51 +991,62 @@ func (h *Handler) servePrecomputedHLS(w http.ResponseWriter, r *http.Request, gr
+ 	if library.Encrypted {
+ 		// The rendition file's immutable identity is the persisted rendition row
+ 		// id plus the member name within it — never the file path.
+-		h.serveLibraryFile(w, r, library, path, filepath.Base(path), w.Header().Get("Content-Type"), "stream unavailable",
++		h.serveLibraryFile(w, r, library, member.String(), filepath.Base(member.rel), w.Header().Get("Content-Type"), "stream unavailable",
+ 			encryptedClassGeneratedAsset, "playback-rendition/"+string(rendition.ID)+"/"+name)
+ 		return
+ 	}
+ 	if h.hotSegments != nil && !strings.HasSuffix(name, ".m3u8") {
+-		h.servePrecomputedHotSegment(w, r, path, rendition.ID, name, info.ModTime())
++		h.servePrecomputedHotSegment(w, r, member, rendition.ID, name, info.ModTime())
+ 		return
+ 	}
+ 	w.Header().Set("Cache-Control", "no-store")
+-	http.ServeFile(w, r, path)
++	if err := serveRooted(w, r, filepath.Base(member.rel), member, info.ModTime()); err != nil {
++		http.Error(w, "stream unavailable", rootScopeStatus(err))
++		return
++	}
+ }
+ 
+-func (h *Handler) servePrecomputedHotSegment(w http.ResponseWriter, r *http.Request, path string, renditionID store.PlaybackRenditionID, name string, modTime time.Time) {
++func (h *Handler) servePrecomputedHotSegment(w http.ResponseWriter, r *http.Request, member rootedPath, renditionID store.PlaybackRenditionID, name string, modTime time.Time) {
+ 	key := string(renditionID) + "/" + name
+ 	data, cachedModTime, hit, fanout, lease := h.hotSegments.begin(key)
+ 	defer lease.done()
+ 	w.Header().Set("Cache-Control", "no-store")
++	served := filepath.Base(member.rel)
+ 	if hit {
+-		http.ServeContent(w, r, filepath.Base(path), cachedModTime, bytes.NewReader(data))
++		http.ServeContent(w, r, served, cachedModTime, bytes.NewReader(data))
+ 		return
+ 	}
+ 	if fanout {
+-		data, err := os.ReadFile(path)
+-		if err == nil && h.hotSegments.store(key, data, modTime) {
+-			http.ServeContent(w, r, filepath.Base(path), modTime, bytes.NewReader(data))
+-			return
++		// The cache is filled from the bound descriptor, never from a second walk
++		// of the name: a segment swapped after the stat above cannot be the thing
++		// that gets memoised and then handed to every other waiter in the fan-out.
++		if file, _, err := openRooted(member); err == nil {
++			data, readErr := io.ReadAll(file)
++			_ = file.Close()
++			if readErr == nil && h.hotSegments.store(key, data, modTime) {
++				http.ServeContent(w, r, served, modTime, bytes.NewReader(data))
++				return
++			}
+ 		}
+ 	}
+-	http.ServeFile(w, r, path)
++	if err := serveRooted(w, r, served, member, modTime); err != nil {
++		http.Error(w, "stream unavailable", rootScopeStatus(err))
++		return
++	}
+ }
+ 
+-func precomputedHLSPath(root, name string) (string, bool) {
+-	if root == "" || name == "" || filepath.IsAbs(name) {
+-		return "", false
+-	}
+-	cleanName := filepath.Clean(filepath.FromSlash(name))
+-	if cleanName == "." || cleanName == ".." || strings.HasPrefix(cleanName, ".."+string(filepath.Separator)) {
+-		return "", false
+-	}
+-	path := filepath.Join(root, cleanName)
+-	rel, err := filepath.Rel(root, path)
+-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+-		return "", false
++// precomputedHLSPath binds a requested rendition member name to the rendition
++// directory as its containment root. The lexical checks below are a prefilter
++// only — they reject the obviously hostile name before any syscall — while the
++// containment itself is openRooted's descriptor-relative resolution of the
++// returned pair. Returning the root instead of a joined string is what keeps the
++// two from drifting: nothing downstream can re-derive the member any other way.
++func precomputedHLSPath(root, name string) (rootedPath, bool) {
++	member, err := newRootedPath(root, name)
++	if err != nil {
++		return rootedPath{}, false
+ 	}
+-	return path, true
++	return member, true
+ }
+ 
+ // ForegroundHeader is the client signal that ranks an HLS byte request's
+@@ -1214,8 +1284,15 @@ func (h *Handler) serveArtworkFile(w http.ResponseWriter, r *http.Request, libra
+ 	h.serveLibraryFile(w, r, library, path, filepath.Base(path), "image/jpeg", "unknown artwork", encryptedClassGeneratedAsset, immutableObjectID)
+ }
+ 
++// serveLibraryFile serves one server-derived library/asset member. The member is
++// resolved root-scoped against the directory it was derived in, so the entry that
++// is described (size, mod time, encrypted-plane lookup) and the entry whose bytes
++// go out are bound to the same inode. A member whose final component is a symlink
++// is refused here rather than followed — a generated-asset or artwork directory is
++// a server-owned tree, and a link appearing in one is a swap, not a layout.
+ func (h *Handler) serveLibraryFile(w http.ResponseWriter, r *http.Request, library store.Library, path, name, contentType, notFoundMessage, objectClass, immutableObjectID string) {
+-	info, err := os.Stat(path)
++	member := rootedFile(path)
++	info, err := statRooted(member)
+ 	if err != nil {
+ 		http.Error(w, notFoundMessage, http.StatusNotFound)
+ 		return
+@@ -1228,7 +1305,7 @@ func (h *Handler) serveLibraryFile(w http.ResponseWriter, r *http.Request, libra
+ 			http.Error(w, notFoundMessage, http.StatusNotFound)
+ 			return
+ 		}
+-		plain, err := h.encryptedBytes.DecryptBytes(library.ID, path, objectClass, immutableObjectID)
++		plain, err := h.encryptedBytes.DecryptBytes(library.ID, member.String(), objectClass, immutableObjectID)
+ 		if err != nil {
+ 			http.Error(w, notFoundMessage, http.StatusNotFound)
+ 			return
+@@ -1236,18 +1313,18 @@ func (h *Handler) serveLibraryFile(w http.ResponseWriter, r *http.Request, libra
+ 		http.ServeContent(w, r, name, info.ModTime(), bytes.NewReader(plain))
+ 		return
+ 	}
+-	f, err := os.Open(path)
+-	if err != nil {
++	if err := serveRooted(w, r, name, member, info.ModTime()); err != nil {
+ 		http.Error(w, notFoundMessage, http.StatusNotFound)
+ 		return
+ 	}
+-	defer f.Close()
+-	http.ServeContent(w, r, name, info.ModTime(), f)
+ }
+ 
++// regularFileExists reports whether path names a regular file, resolved through a
++// descriptor on its own directory rather than by re-walking the name. A cache
++// probe that followed a symlink would report a hit for content the server never
++// generated.
+ func regularFileExists(path string) bool {
+-	info, err := os.Stat(path)
+-	return err == nil && info.Mode().IsRegular()
++	return rootedRegularFileExists(rootedFile(path))
+ }
+ 
+ // Direct serves direct Media bytes for a signed token URL.
+@@ -1315,10 +1392,14 @@ func (h *Handler) Direct(w http.ResponseWriter, r *http.Request) {
+ 		http.ServeContent(w, r, filepath.Base(file.Path), file.ModTime, bytes.NewReader(plain))
+ 		return
+ 	}
+-	f, err := os.Open(file.Path)
++	// The cataloged path is opened root-scoped against its own directory and bound
++	// to that directory entry, so the file the catalog authorised and the file
++	// whose bytes leave the process are the same inode — a media name replaced by
++	// a link to an unauthorised file after the catalog lookup is refused.
++	f, info, err := openRooted(rootedFile(file.Path))
+ 	if err != nil {
+ 		status := http.StatusInternalServerError
+-		if errors.Is(err, os.ErrNotExist) {
++		if errors.Is(err, os.ErrNotExist) || errors.Is(err, errRootScope) {
+ 			status = http.StatusNotFound
+ 		}
+ 		if status >= http.StatusInternalServerError {
+@@ -1329,13 +1410,6 @@ func (h *Handler) Direct(w http.ResponseWriter, r *http.Request) {
+ 		return
+ 	}
+ 	defer f.Close()
+-	info, err := f.Stat()
+-	if err != nil {
+-		slog.Error("media byte serve failed", "status", http.StatusInternalServerError)
+-		slog.Debug("media byte serve failure detail", "error", redactMediaPathError(err, file.Path))
+-		http.Error(w, "media file unavailable", http.StatusInternalServerError)
+-		return
+-	}
+ 
+ 	http.ServeContent(w, r, info.Name(), info.ModTime(), f)
+ }

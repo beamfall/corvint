@@ -1,0 +1,714 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-test",
+  "helpJson": "corvint-test help --json",
+  "source": "cmd/corvint-test commandHelpText",
+  "dispatchSources": [
+    "cmd/corvint-test",
+    "internal/testrunner/cli",
+    "internal/behaviorfalsify/cli",
+    "internal/playwrightminimize/cli",
+    "internal/testacceptance/cli"
+  ],
+  "globalFlags": [],
+  "internalEntryPoints": [
+    {
+      "word": "worker",
+      "reason": "accept worker the accept group re-enters this executable as (CTF-V0-006)"
+    },
+    {
+      "word": "-help",
+      "reason": "single-dash help spelling the runner group accepts"
+    },
+    {
+      "word": "--gradle-user-home",
+      "reason": "argument of the pinned Gradle invocation the runner group compares, not a corvint-test option"
+    }
+  ],
+  "nodes": [
+    {
+      "path": [
+        "accept"
+      ],
+      "command": "corvint-test accept",
+      "summary": "Folded corvint-tests-accept: plan and accept new tests (CTF-V0)",
+      "usage": [
+        "corvint-test accept accept --plan FILE --approve-plan DIGEST --new PATH... --repeat N --environment LABEL [--temp-root DIR]",
+        "corvint-test accept plan --plan FILE"
+      ],
+      "flags": [
+        "--approve-plan",
+        "--environment",
+        "--new",
+        "--plan",
+        "--repeat",
+        "--temp-root"
+      ],
+      "required": [],
+      "example": "corvint-test accept accept --plan FILE --approve-plan DIGEST --new PATH... --repeat N --environment LABEL",
+      "help": "corvint-test accept --help"
+    },
+    {
+      "path": [
+        "accept",
+        "accept"
+      ],
+      "command": "corvint-test accept accept",
+      "summary": "Run an approved acceptance request against the new test files",
+      "usage": [
+        "corvint-test accept accept --plan FILE --approve-plan DIGEST --new PATH... --repeat N --environment LABEL [--temp-root DIR]"
+      ],
+      "flags": [
+        "--approve-plan",
+        "--environment",
+        "--new",
+        "--plan",
+        "--repeat",
+        "--temp-root"
+      ],
+      "required": [
+        "--plan FILE",
+        "--approve-plan DIGEST",
+        "--new PATH...",
+        "--repeat N",
+        "--environment LABEL"
+      ],
+      "example": "corvint-test accept accept --plan FILE --approve-plan DIGEST --new PATH... --repeat N --environment LABEL",
+      "help": "corvint-test accept accept --help"
+    },
+    {
+      "path": [
+        "accept",
+        "plan"
+      ],
+      "command": "corvint-test accept plan",
+      "summary": "Validate an acceptance request and print its digest",
+      "usage": [
+        "corvint-test accept plan --plan FILE"
+      ],
+      "flags": [
+        "--plan"
+      ],
+      "required": [
+        "--plan FILE"
+      ],
+      "example": "corvint-test accept plan --plan FILE",
+      "help": "corvint-test accept plan --help"
+    },
+    {
+      "path": [
+        "e2e"
+      ],
+      "command": "corvint-test e2e",
+      "summary": "Compile and prove change-scoped E2E scenarios from admitted, revision-pinned blocks (CCE-V0)",
+      "usage": [
+        "corvint-test e2e catalog --rev REV [--root DIR] [--manifest FILE] [--out FILE]",
+        "corvint-test e2e compile --base REV --head REV --out DIR [--root DIR] [--manifest FILE] [--coverage FILE] [--ledger FILE] [--module-graph] [--endpoint-source [ALIAS:]DIR]... [--rails-routes [ALIAS:]FILE]... [--openapi [ALIAS:]FILE]...",
+        "corvint-test e2e discriminate --base REV --head REV --app-dir DIR --test-command JSON [--root DIR] [--tests-dir DIR] [--rebuild-command JSON] [--verdict exit|provider] [--max-mutants N] [--wall-time D] [--run-timeout D] [--rebuild-timeout D] [--dir-match any|leading] [--exclude-dir NAME]... [--keep-dir NAME]... [--map FILE] [--out FILE]",
+        "corvint-test e2e harvest --rev REV [--root DIR] [--manifest FILE] [--out FILE]",
+        "corvint-test e2e how-accept --answer FILE [--write PATH] [--evidence FILE] [--oracle FILE]",
+        "corvint-test e2e how-evidence --answer FILE --prove FILE --validity FILE [--root DIR]",
+        "corvint-test e2e obligations --base REV --head REV [--root DIR] [--manifest FILE] [--coverage FILE] [--ledger FILE] [--module-graph] [--out FILE] [--endpoint-source [ALIAS:]DIR]... [--rails-routes [ALIAS:]FILE]... [--openapi [ALIAS:]FILE]... [--remedy-summary [--remedy-commits N]]",
+        "corvint-test e2e prove --base REV --head REV --out DIR [--root DIR] [--manifest FILE] [--coverage FILE] [--ledger FILE] [--module-graph] [--repeats N] [--node-modules DIR] [--node-bin FILE] [--package-json FILE] [--lockfile FILE] [--hosted-test FILE [--hosted-title TITLE]] [--record-coverage] [--oracle-acceptance FILE] [--endpoint-source [ALIAS:]DIR]... [--rails-routes [ALIAS:]FILE]... [--openapi [ALIAS:]FILE]...",
+        "corvint-test e2e shadow --window FILE [--root DIR] [--manifest FILE] [--out FILE]"
+      ],
+      "flags": [
+        "--answer",
+        "--app-dir",
+        "--base",
+        "--coverage",
+        "--dir-match",
+        "--endpoint-source",
+        "--evidence",
+        "--exclude-dir",
+        "--head",
+        "--hosted-test",
+        "--hosted-title",
+        "--keep-dir",
+        "--ledger",
+        "--lockfile",
+        "--manifest",
+        "--map",
+        "--max-mutants",
+        "--module-graph",
+        "--node-bin",
+        "--node-modules",
+        "--openapi",
+        "--oracle",
+        "--oracle-acceptance",
+        "--out",
+        "--package-json",
+        "--prove",
+        "--rails-routes",
+        "--rebuild-command",
+        "--rebuild-timeout",
+        "--record-coverage",
+        "--remedy-commits",
+        "--remedy-summary",
+        "--repeats",
+        "--rev",
+        "--root",
+        "--run-timeout",
+        "--test-command",
+        "--tests-dir",
+        "--validity",
+        "--verdict",
+        "--wall-time",
+        "--window",
+        "--write"
+      ],
+      "required": [],
+      "example": "corvint-test e2e catalog --rev REV",
+      "help": "corvint-test e2e --help"
+    },
+    {
+      "path": [
+        "e2e",
+        "catalog"
+      ],
+      "command": "corvint-test e2e catalog",
+      "summary": "Write the admitted block catalog of the application map at one revision",
+      "usage": [
+        "corvint-test e2e catalog --rev REV [--root DIR] [--manifest FILE] [--out FILE]"
+      ],
+      "flags": [
+        "--manifest",
+        "--out",
+        "--rev",
+        "--root"
+      ],
+      "required": [
+        "--rev REV"
+      ],
+      "example": "corvint-test e2e catalog --rev REV",
+      "help": "corvint-test e2e catalog --help"
+    },
+    {
+      "path": [
+        "e2e",
+        "compile"
+      ],
+      "command": "corvint-test e2e compile",
+      "summary": "Compile the change's scenarios into an output directory",
+      "usage": [
+        "corvint-test e2e compile --base REV --head REV --out DIR [--root DIR] [--manifest FILE] [--coverage FILE] [--ledger FILE] [--module-graph] [--endpoint-source [ALIAS:]DIR]... [--rails-routes [ALIAS:]FILE]... [--openapi [ALIAS:]FILE]..."
+      ],
+      "flags": [
+        "--base",
+        "--coverage",
+        "--endpoint-source",
+        "--head",
+        "--ledger",
+        "--manifest",
+        "--module-graph",
+        "--openapi",
+        "--out",
+        "--rails-routes",
+        "--root"
+      ],
+      "required": [
+        "--base REV",
+        "--head REV",
+        "--out DIR"
+      ],
+      "example": "corvint-test e2e compile --base REV --head REV --out DIR",
+      "help": "corvint-test e2e compile --help"
+    },
+    {
+      "path": [
+        "e2e",
+        "discriminate"
+      ],
+      "command": "corvint-test e2e discriminate",
+      "summary": "Mutate changed Ruby/TS/JS application hunks and record which external tests kill each mutant (CCE-V0-170..176, 236..238)",
+      "usage": [
+        "corvint-test e2e discriminate --base REV --head REV --app-dir DIR --test-command JSON [--root DIR] [--tests-dir DIR] [--rebuild-command JSON] [--verdict exit|provider] [--max-mutants N] [--wall-time D] [--run-timeout D] [--rebuild-timeout D] [--dir-match any|leading] [--exclude-dir NAME]... [--keep-dir NAME]... [--map FILE] [--out FILE]"
+      ],
+      "flags": [
+        "--app-dir",
+        "--base",
+        "--dir-match",
+        "--exclude-dir",
+        "--head",
+        "--keep-dir",
+        "--map",
+        "--max-mutants",
+        "--out",
+        "--rebuild-command",
+        "--rebuild-timeout",
+        "--root",
+        "--run-timeout",
+        "--test-command",
+        "--tests-dir",
+        "--verdict",
+        "--wall-time"
+      ],
+      "required": [
+        "--base REV",
+        "--head REV",
+        "--app-dir DIR",
+        "--test-command JSON"
+      ],
+      "example": "corvint-test e2e discriminate --base REV --head REV --app-dir DIR --test-command JSON",
+      "help": "corvint-test e2e discriminate --help"
+    },
+    {
+      "path": [
+        "e2e",
+        "harvest"
+      ],
+      "command": "corvint-test e2e harvest",
+      "summary": "Harvest candidate blocks from the application map at one revision",
+      "usage": [
+        "corvint-test e2e harvest --rev REV [--root DIR] [--manifest FILE] [--out FILE]"
+      ],
+      "flags": [
+        "--manifest",
+        "--out",
+        "--rev",
+        "--root"
+      ],
+      "required": [
+        "--rev REV"
+      ],
+      "example": "corvint-test e2e harvest --rev REV",
+      "help": "corvint-test e2e harvest --help"
+    },
+    {
+      "path": [
+        "e2e",
+        "how-accept"
+      ],
+      "command": "corvint-test e2e how-accept",
+      "summary": "Accept a site-knowledge stage 7 draft as a candidate test (SKH-V0 stage 8)",
+      "usage": [
+        "corvint-test e2e how-accept --answer FILE [--write PATH] [--evidence FILE] [--oracle FILE]"
+      ],
+      "flags": [
+        "--answer",
+        "--evidence",
+        "--oracle",
+        "--write"
+      ],
+      "required": [
+        "--answer FILE"
+      ],
+      "example": "corvint-test e2e how-accept --answer FILE",
+      "help": "corvint-test e2e how-accept --help"
+    },
+    {
+      "path": [
+        "e2e",
+        "how-evidence"
+      ],
+      "command": "corvint-test e2e how-evidence",
+      "summary": "Bind prove and validity reports to a site-knowledge answer (SKH-V0 stage 8)",
+      "usage": [
+        "corvint-test e2e how-evidence --answer FILE --prove FILE --validity FILE [--root DIR]"
+      ],
+      "flags": [
+        "--answer",
+        "--prove",
+        "--root",
+        "--validity"
+      ],
+      "required": [
+        "--answer FILE",
+        "--prove FILE",
+        "--validity FILE"
+      ],
+      "example": "corvint-test e2e how-evidence --answer FILE --prove FILE --validity FILE",
+      "help": "corvint-test e2e how-evidence --help"
+    },
+    {
+      "path": [
+        "e2e",
+        "obligations"
+      ],
+      "command": "corvint-test e2e obligations",
+      "summary": "List the E2E obligations a base..head change reaches",
+      "usage": [
+        "corvint-test e2e obligations --base REV --head REV [--root DIR] [--manifest FILE] [--coverage FILE] [--ledger FILE] [--module-graph] [--out FILE] [--endpoint-source [ALIAS:]DIR]... [--rails-routes [ALIAS:]FILE]... [--openapi [ALIAS:]FILE]... [--remedy-summary [--remedy-commits N]]"
+      ],
+      "flags": [
+        "--base",
+        "--coverage",
+        "--endpoint-source",
+        "--head",
+        "--ledger",
+        "--manifest",
+        "--module-graph",
+        "--openapi",
+        "--out",
+        "--rails-routes",
+        "--remedy-commits",
+        "--remedy-summary",
+        "--root"
+      ],
+      "required": [
+        "--base REV",
+        "--head REV"
+      ],
+      "example": "corvint-test e2e obligations --base REV --head REV",
+      "help": "corvint-test e2e obligations --help"
+    },
+    {
+      "path": [
+        "e2e",
+        "prove"
+      ],
+      "command": "corvint-test e2e prove",
+      "summary": "Compile and prove the change's scenarios, or prove one hosted Playwright test",
+      "usage": [
+        "corvint-test e2e prove --base REV --head REV --out DIR [--root DIR] [--manifest FILE] [--coverage FILE] [--ledger FILE] [--module-graph] [--repeats N] [--node-modules DIR] [--node-bin FILE] [--package-json FILE] [--lockfile FILE] [--hosted-test FILE [--hosted-title TITLE]] [--record-coverage] [--oracle-acceptance FILE] [--endpoint-source [ALIAS:]DIR]... [--rails-routes [ALIAS:]FILE]... [--openapi [ALIAS:]FILE]..."
+      ],
+      "flags": [
+        "--base",
+        "--coverage",
+        "--endpoint-source",
+        "--head",
+        "--hosted-test",
+        "--hosted-title",
+        "--ledger",
+        "--lockfile",
+        "--manifest",
+        "--module-graph",
+        "--node-bin",
+        "--node-modules",
+        "--openapi",
+        "--oracle-acceptance",
+        "--out",
+        "--package-json",
+        "--rails-routes",
+        "--record-coverage",
+        "--repeats",
+        "--root"
+      ],
+      "required": [
+        "--base REV",
+        "--head REV",
+        "--out DIR"
+      ],
+      "example": "corvint-test e2e prove --base REV --head REV --out DIR",
+      "help": "corvint-test e2e prove --help"
+    },
+    {
+      "path": [
+        "e2e",
+        "shadow"
+      ],
+      "command": "corvint-test e2e shadow",
+      "summary": "Evaluate a frozen shadow window (CCE-V0-011)",
+      "usage": [
+        "corvint-test e2e shadow --window FILE [--root DIR] [--manifest FILE] [--out FILE]"
+      ],
+      "flags": [
+        "--manifest",
+        "--out",
+        "--root",
+        "--window"
+      ],
+      "required": [
+        "--window FILE"
+      ],
+      "example": "corvint-test e2e shadow --window FILE",
+      "help": "corvint-test e2e shadow --help"
+    },
+    {
+      "path": [
+        "falsify"
+      ],
+      "command": "corvint-test falsify",
+      "summary": "Folded corvint-behavior-falsify: plan and execute behavior falsification (CTF-V0)",
+      "usage": [
+        "corvint-test falsify execute --experimental --approve-plan DIGEST",
+        "corvint-test falsify execute-receipt --experimental --approve-plan DIGEST",
+        "corvint-test falsify plan --experimental",
+        "corvint-test falsify verify-receipt --experimental --expected-plan DIGEST --expected-tool SHA256"
+      ],
+      "flags": [
+        "--approve-plan",
+        "--expected-plan",
+        "--expected-tool",
+        "--experimental"
+      ],
+      "required": [],
+      "example": "corvint-test falsify execute --experimental --approve-plan DIGEST",
+      "help": "corvint-test falsify --help"
+    },
+    {
+      "path": [
+        "falsify",
+        "execute"
+      ],
+      "command": "corvint-test falsify execute",
+      "summary": "Execute exactly the approved falsification plan read on stdin",
+      "usage": [
+        "corvint-test falsify execute --experimental --approve-plan DIGEST"
+      ],
+      "flags": [
+        "--approve-plan",
+        "--experimental"
+      ],
+      "required": [
+        "--experimental",
+        "--approve-plan DIGEST"
+      ],
+      "example": "corvint-test falsify execute --experimental --approve-plan DIGEST",
+      "help": "corvint-test falsify execute --help"
+    },
+    {
+      "path": [
+        "falsify",
+        "execute-receipt"
+      ],
+      "command": "corvint-test falsify execute-receipt",
+      "summary": "Execute the approved plan read on stdin and write its receipt",
+      "usage": [
+        "corvint-test falsify execute-receipt --experimental --approve-plan DIGEST"
+      ],
+      "flags": [
+        "--approve-plan",
+        "--experimental"
+      ],
+      "required": [
+        "--experimental",
+        "--approve-plan DIGEST"
+      ],
+      "example": "corvint-test falsify execute-receipt --experimental --approve-plan DIGEST",
+      "help": "corvint-test falsify execute-receipt --help"
+    },
+    {
+      "path": [
+        "falsify",
+        "plan"
+      ],
+      "command": "corvint-test falsify plan",
+      "summary": "Plan a falsification from the request JSON on stdin",
+      "usage": [
+        "corvint-test falsify plan --experimental"
+      ],
+      "flags": [
+        "--experimental"
+      ],
+      "required": [
+        "--experimental"
+      ],
+      "example": "corvint-test falsify plan --experimental",
+      "help": "corvint-test falsify plan --help"
+    },
+    {
+      "path": [
+        "falsify",
+        "verify-receipt"
+      ],
+      "command": "corvint-test falsify verify-receipt",
+      "summary": "Verify the falsification receipt on stdin offline",
+      "usage": [
+        "corvint-test falsify verify-receipt --experimental --expected-plan DIGEST --expected-tool SHA256"
+      ],
+      "flags": [
+        "--expected-plan",
+        "--expected-tool",
+        "--experimental"
+      ],
+      "required": [
+        "--experimental",
+        "--expected-plan DIGEST",
+        "--expected-tool SHA256"
+      ],
+      "example": "corvint-test falsify verify-receipt --experimental --expected-plan DIGEST --expected-tool SHA256",
+      "help": "corvint-test falsify verify-receipt --help"
+    },
+    {
+      "path": [
+        "help"
+      ],
+      "command": "corvint-test help",
+      "summary": "Print this binary's usage, or with --json its command tree",
+      "usage": [
+        "corvint-test help [--json]"
+      ],
+      "flags": [
+        "--json"
+      ],
+      "required": [],
+      "example": "corvint-test help",
+      "help": "corvint-test help --help"
+    },
+    {
+      "path": [
+        "minimize"
+      ],
+      "command": "corvint-test minimize",
+      "summary": "Folded corvint-playwright-minimize: plan and execute Playwright test minimization (CTF-V0)",
+      "usage": [
+        "corvint-test minimize execute --experimental --approve-plan DIGEST",
+        "corvint-test minimize plan --experimental"
+      ],
+      "flags": [
+        "--approve-plan",
+        "--experimental"
+      ],
+      "required": [],
+      "example": "corvint-test minimize execute --experimental --approve-plan DIGEST",
+      "help": "corvint-test minimize --help"
+    },
+    {
+      "path": [
+        "minimize",
+        "execute"
+      ],
+      "command": "corvint-test minimize execute",
+      "summary": "Execute exactly the approved minimization plan read on stdin",
+      "usage": [
+        "corvint-test minimize execute --experimental --approve-plan DIGEST"
+      ],
+      "flags": [
+        "--approve-plan",
+        "--experimental"
+      ],
+      "required": [
+        "--experimental",
+        "--approve-plan DIGEST"
+      ],
+      "example": "corvint-test minimize execute --experimental --approve-plan DIGEST",
+      "help": "corvint-test minimize execute --help"
+    },
+    {
+      "path": [
+        "minimize",
+        "plan"
+      ],
+      "command": "corvint-test minimize plan",
+      "summary": "Plan a minimization from the live request JSON on stdin",
+      "usage": [
+        "corvint-test minimize plan --experimental"
+      ],
+      "flags": [
+        "--experimental"
+      ],
+      "required": [
+        "--experimental"
+      ],
+      "example": "corvint-test minimize plan --experimental",
+      "help": "corvint-test minimize plan --help"
+    },
+    {
+      "path": [
+        "runner"
+      ],
+      "command": "corvint-test runner",
+      "summary": "Folded corvint-test-runner: plan and run pinned test runners (CTF-V0, TRE-V0)",
+      "usage": [
+        "corvint-test runner plan --executable PATH --executable-sha256 SHA256 --request FILE [--tools FILE] [--out FILE] [--experimental] [--trusted-local]",
+        "corvint-test runner profiles",
+        "corvint-test runner run --executable PATH --executable-sha256 SHA256 --plan FILE --approve SHA256 --out FILE --experimental --trusted-local [--tools FILE]",
+        "corvint-test runner runners"
+      ],
+      "flags": [
+        "--approve",
+        "--executable",
+        "--executable-sha256",
+        "--experimental",
+        "--out",
+        "--plan",
+        "--request",
+        "--tools",
+        "--trusted-local"
+      ],
+      "required": [],
+      "example": "corvint-test runner plan --executable PATH --executable-sha256 SHA256 --request FILE",
+      "help": "corvint-test runner --help"
+    },
+    {
+      "path": [
+        "runner",
+        "plan"
+      ],
+      "command": "corvint-test runner plan",
+      "summary": "Derive a runner plan from a bounded request",
+      "usage": [
+        "corvint-test runner plan --executable PATH --executable-sha256 SHA256 --request FILE [--tools FILE] [--out FILE] [--experimental] [--trusted-local]"
+      ],
+      "flags": [
+        "--executable",
+        "--executable-sha256",
+        "--experimental",
+        "--out",
+        "--request",
+        "--tools",
+        "--trusted-local"
+      ],
+      "required": [
+        "--executable PATH",
+        "--executable-sha256 SHA256",
+        "--request FILE"
+      ],
+      "example": "corvint-test runner plan --executable PATH --executable-sha256 SHA256 --request FILE",
+      "help": "corvint-test runner plan --help"
+    },
+    {
+      "path": [
+        "runner",
+        "profiles"
+      ],
+      "command": "corvint-test runner profiles",
+      "summary": "Alias of runners",
+      "usage": [
+        "corvint-test runner profiles"
+      ],
+      "flags": [],
+      "required": [],
+      "example": "corvint-test runner profiles",
+      "help": "corvint-test runner profiles --help"
+    },
+    {
+      "path": [
+        "runner",
+        "run"
+      ],
+      "command": "corvint-test runner run",
+      "summary": "Execute an approved runner plan",
+      "usage": [
+        "corvint-test runner run --executable PATH --executable-sha256 SHA256 --plan FILE --approve SHA256 --out FILE --experimental --trusted-local [--tools FILE]"
+      ],
+      "flags": [
+        "--approve",
+        "--executable",
+        "--executable-sha256",
+        "--experimental",
+        "--out",
+        "--plan",
+        "--tools",
+        "--trusted-local"
+      ],
+      "required": [
+        "--executable PATH",
+        "--executable-sha256 SHA256",
+        "--plan FILE",
+        "--approve SHA256",
+        "--out FILE",
+        "--experimental",
+        "--trusted-local"
+      ],
+      "example": "corvint-test runner run --executable PATH --executable-sha256 SHA256 --plan FILE --approve SHA256 --out FILE --experimental --trusted-local",
+      "help": "corvint-test runner run --help"
+    },
+    {
+      "path": [
+        "runner",
+        "runners"
+      ],
+      "command": "corvint-test runner runners",
+      "summary": "List the runner profile IDs as JSON; no executable pin is needed",
+      "usage": [
+        "corvint-test runner runners"
+      ],
+      "flags": [],
+      "required": [],
+      "example": "corvint-test runner runners",
+      "help": "corvint-test runner runners --help"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "internal/taskman/capture.go": "f4fe4b6754f47b024ee13087db033018919d0b99913fd0896cd17a7a7ab033e6",
+  "internal/taskman/capture_unix_test.go": "b2163b927e2a49117612bf5dccad099d78701d5a0c4d363218a8ada01e434c85",
+  "internal/taskman/decode.go": "119b72e56806dcb38250b01a61aaaecc11c7be58318a0f472e749f54370857d1",
+  "internal/taskman/json.go": "18f66da08ef2df6bdb2238089323d028f3037ef074d1aa9f4c196698882c6430",
+  "internal/taskman/planner.go": "ebc0b38af879a5db3ba2918cffee689d80cf84731425ea92b40d91b2b827586f",
+  "internal/taskman/planner_test.go": "211cc1c0bd89582f0802f31d5b2d634fd0ee87ba2b2838d78560829004d2cc85",
+  "internal/taskman/process_other.go": "2e09b9a72416f80a6814b3091553b81299c71294903221a9cfe58eec1cbd1f40",
+  "internal/taskman/process_unix.go": "f35c40bce9b353346205abf319049c5c122fff604922466e2c244be948cf84bd",
+  "internal/taskman/review_test.go": "82d9bc9e8f53deed5ea879d8dcbc89268289dcd0eca3a4a36814d513d5bc56d9",
+  "internal/taskman/testdata/audit.json": "8888fac6c8400ae1f1390901642dcdd264c304af8ab88bf54306a6bd9bae575b",
+  "internal/taskman/testdata/policy.json": "106a254ea118e5bdefebfffa99f2d474d4f9b5eb2bf2d4f7f50967db214339fe",
+  "internal/taskman/testdata/queue.json": "c361312a44b9670207319210573fce2d055d2e8f6be871ec636dd418fb089e0c",
+  "internal/taskman/testdata/status.json": "00dcf4b4abb454f1fe353c48603d184c9ac0e86b34839f1c334d1af13fd31f3a",
+  "internal/taskman/testdata/tickets.json": "e5d3cf6eeeb66d617564aa1467b4935519477866236423a16dc288cd46d69be2",
+  "cmd/corvint/work.go": "993f16e8bc5f1363c1fd2fce9e0ad5d237cc4afd964e10b56cebf9495c539f18",
+  "cmd/corvint/taskman_fixture.go": "15f4f52eae6449ccf0572bdacebd126bfb5b2800d6344e1f6e04733d668df037",
+  "cmd/corvint/taskman_fixture_test.go": "a5213e19afae1dcfc3e63d4b67d722a5b873622e0a1ed1f793e786ec63ad88ee"
+}

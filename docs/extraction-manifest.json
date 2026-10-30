@@ -1,0 +1,12 @@
+{
+  "source_repository": "github.com/beamfall/core",
+  "source_commit": "5bd92eeb51df3f3f8ba17790e6b33168ff81a723",
+  "files": {
+    "script/context_corvint.py": "965cd3cad06fea1b3622cf365a3e9e8351b9d2aa1bd69f5e6a0c99889ea78847",
+    "script/context_corvint_index.py": "81932462ea2e690a8eb861fd6f7caf6a96ec032db31e68ccf055266c6ae56478",
+    "script/context_corvint_intent.py": "c58d71ca3f685cb4c15d6be651e2d48d93580caa47d7dde59dfad73c044b3224",
+    "script/context_corvint_learning.py": "f33c50d576eb13ce199a43275c83e8aa1b7e8d1df3ba8c0afe56da1612b6aca6",
+    "script/context_corvint_trace.py": "1d8170bb429cd4caf40b1b87862256d466b69522e21ba89e083a2e300bd91c7d"
+  }
+}
+

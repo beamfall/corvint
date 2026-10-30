@@ -1,0 +1,16 @@
+{
+  "profile": "corvint-reader-admission-audit/0",
+  "rootId": null,
+  "epoch": null,
+  "generation": null,
+  "authorityUid": null,
+  "authorityGid": null,
+  "readerUid": null,
+  "readerName": null,
+  "authorityUUID": null,
+  "readerUUID": null,
+  "groupUUID": null,
+  "privilegeAuditSHA256": null,
+  "localDirectoryOnly": false,
+  "noOtherGroupPrivileges": false
+}

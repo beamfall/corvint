@@ -1,0 +1,55 @@
+{
+  "profile": "corvint-desktop-resource-provenance-observation/0-experimental",
+  "date": "2026-09-08",
+  "qualification": "UNQUALIFIED",
+  "appVersion": "26.901.51231",
+  "appBuild": "8109",
+  "framework": {
+    "path": "/Applications/Codex.app/Contents/Frameworks/Codex Framework.framework/Versions/152.0.7977.83/Codex Framework",
+    "sha256": "d6a0df29c859dd8ab37d81f602f548b4a17f004652997667f2b87e91cac3738c",
+    "staticCDHash": "1858fb29ea5529bc7a65caae7756b77963873f16",
+    "sentinelOffset": 219599922,
+    "wireHex": "0109303130303131303031",
+    "wireVersion": 1,
+    "wireLength": 9,
+    "fuses": {
+      "RunAsNode": false,
+      "EnableCookieEncryption": true,
+      "EnableNodeOptionsEnvironmentVariable": false,
+      "EnableNodeCliInspectArguments": false,
+      "EnableEmbeddedAsarIntegrityValidation": true,
+      "OnlyLoadAppFromAsar": true,
+      "LoadBrowserProcessSpecificV8Snapshot": false,
+      "GrantFileProtocolExtraPrivileges": false,
+      "WasmTrapHandlers": true
+    }
+  },
+  "asar": {
+    "sha256": "64fc2f27d2dddfa968acfacbe5e4e0328071bdc406351ff4a7d18f0b4692c83d",
+    "headerSHA256": "e2ab6e5985856e148ff78e79658e1241e9ab258d82453d201326bdd2e6779717",
+    "plistExpectedHeaderSHA256": "e2ab6e5985856e148ff78e79658e1241e9ab258d82453d201326bdd2e6779717",
+    "headerMatches": true
+  },
+  "codeSigning": {
+    "staticDeepStrictOutsideSandbox": "PASS",
+    "staticSandboxAttempt": "UNAVAILABLE_SECURITY_SERVICE; rerun outside sandbox passed",
+    "liveAppCDHash": "e2f41d8f6362b87345d4e5a9336d0dc36ec199fe",
+    "liveEngineCDHash": "864aa1693ffed7034fd3d1a723386b250aa1627d",
+    "liveFlagsHex": "22010311",
+    "liveHashesMatchStatic": true,
+    "liveFrameworkImage": "NOT_OBSERVED",
+    "retrospectiveLoadedJavaScript": "NOT_OBSERVED"
+  },
+  "sources": [
+    "https://github.com/electron/electron/blob/main/docs/tutorial/asar-integrity.md",
+    "https://github.com/electron/electron/blob/main/docs/tutorial/fuses.md",
+    "https://github.com/electron/fuses/blob/main/src/config.ts",
+    "https://github.com/apple-oss-distributions/xnu/blob/main/bsd/sys/codesign.h",
+    "https://developer.apple.com/documentation/security/seccodecheckvalidity(_:_:_:)"
+  ],
+  "localPrimaryHeaders": [
+    "Security.framework/Headers/SecCode.h:217-237",
+    "Security.framework/Headers/SecStaticCode.h:130-161"
+  ],
+  "changesMade": []
+}

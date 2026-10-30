@@ -1,0 +1,69 @@
+{
+  "artifactRoot": "../neutral-criterion",
+  "baseRevision": "467cbb73c1102cd7df0299cd74a6bef96ee3a9a4",
+  "cases": [
+    {
+      "code": "invalid-field",
+      "description": "hunks[1].basis[0].evidenceId names no evidence record. A hunk basis is resolved at the wire stage (CEM-V1-017), before any references check, so this is wire/invalid-field.",
+      "exit": 2,
+      "map": "cases/hunk-basis-unresolved.json",
+      "name": "hunk-basis-unresolved",
+      "outcome": "REJECT",
+      "result": "results/hunk-basis-unresolved.json",
+      "stage": "wire"
+    },
+    {
+      "code": "duplicate-reference",
+      "description": "hunks[0] appears a second time with the same ID. Hunk IDs are checked for repeats after runner receipt uniqueness and before any link is resolved, so this is references/duplicate-reference, not a later patch hunk count failure.",
+      "exit": 2,
+      "map": "cases/hunk-duplicated.json",
+      "name": "hunk-duplicated",
+      "outcome": "REJECT",
+      "result": "results/hunk-duplicated.json",
+      "stage": "references"
+    },
+    {
+      "code": "duplicate-reference",
+      "description": "criterionLinks[0].hunkIds holds the same unknown hunk ID twice. Uniqueness within each link array is checked before resolution, so this is references/duplicate-reference, not unresolved-reference.",
+      "exit": 2,
+      "map": "cases/link-ids-duplicated-unknown.json",
+      "name": "link-ids-duplicated-unknown",
+      "outcome": "REJECT",
+      "result": "results/link-ids-duplicated-unknown.json",
+      "stage": "references"
+    },
+    {
+      "code": "reference-coherence",
+      "description": "A second, well-formed criterion binding is declared but no criterion link names it. Every declared criterion must be used; an unused declaration is references/reference-coherence, checked after every link has resolved.",
+      "exit": 2,
+      "map": "cases/criterion-link-missing.json",
+      "name": "criterion-link-missing",
+      "outcome": "REJECT",
+      "result": "results/criterion-link-missing.json",
+      "stage": "references"
+    },
+    {
+      "code": "reference-coherence",
+      "description": "A second, well-formed runner receipt is declared but no criterion link names it. As for criteria, an unused runner receipt is references/reference-coherence.",
+      "exit": 2,
+      "map": "cases/runner-link-missing.json",
+      "name": "runner-link-missing",
+      "outcome": "REJECT",
+      "result": "results/runner-link-missing.json",
+      "stage": "references"
+    },
+    {
+      "code": "duplicate-reference",
+      "description": "The runner-plan artifact entry appears twice with the same path, digest and kind. A repeated artifact path or digest is references/duplicate-reference, checked before the artifact role closure.",
+      "exit": 2,
+      "map": "cases/artifact-duplicated.json",
+      "name": "artifact-duplicated",
+      "outcome": "REJECT",
+      "result": "results/artifact-duplicated.json",
+      "stage": "references"
+    }
+  ],
+  "profile": "cem-stable-reference-precedence/1",
+  "repository": "../neutral-criterion/repository.recipe.json",
+  "targetRevision": "1f181cd0843318b72bb6679cd19878c46eb95ada"
+}

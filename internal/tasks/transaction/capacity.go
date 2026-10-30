@@ -1,0 +1,934 @@
+package transaction
+
+import (
+	"crypto/sha256"
+	"fmt"
+	"math"
+	"path"
+	"sort"
+	"strings"
+
+	"github.com/Beamfall/corvint/internal/tasks/archive"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
+	"github.com/Beamfall/corvint/internal/tasks/wire"
+)
+
+const MaxReceipts uint64 = snapshot.MaxStageReceiptSeq
+const MaxJournalBytes uint64 = 4 * wire.GiB
+
+// Inventory privately owns complete supplied metadata, including actual state
+// directories (without the state root). It cannot verify physical existence or
+// authentication. Only regular retained files belong here; staging is separate.
+//
+// A summarized inventory (NewSummarizedInventory) additionally carries an
+// elided prefix: receipts and request index files a writer checkpoint already
+// audited, charged by count and cost without per-file metadata. Any question
+// that needs an elided file's metadata marks the inventory Incomplete; the
+// caller must then discard every result computed from it and use a complete
+// inventory instead (CAL-V0-117).
+type Inventory struct {
+	files  map[string]archive.FileEntry
+	dirs   map[string]bool
+	elided *Elided
+	miss   *bool
+	// incremental is set on an ImportSequence-owned complete inventory and on
+	// a summarized inventory, and on their capacity forks (CAL-V0-018,
+	// JSG-V0-003); see import_cost.go. A fork shares the maps and undoes its
+	// own changes on rollback.
+	incremental       *importCost
+	undoFiles         map[string]*archive.FileEntry
+	undoDirs          map[string]bool
+	reserveSimulation bool
+	// retired is the receipt count a retired prefix removed from the live
+	// store (JRT-V0-004): receipts 1..retired are absent by design.
+	retired uint64
+}
+
+// Elided summarizes the retained receipts 1..Receipts and the Requests request
+// index files that a writer checkpoint audited. FirstReceiptSha256 and
+// LastReceiptSha256 are receipts 1 and Receipts; ReceiptBytes is the receipts'
+// payload; Cost is the archive encoding cost of all elided files. HasRequest
+// reports whether a request path is one of the elided request files. The
+// caller owns the summary's truth; the inventory only checks its shape.
+type Elided struct {
+	Receipts           uint64
+	FirstReceiptSha256 wire.Digest
+	LastReceiptSha256  wire.Digest
+	ReceiptBytes       uint64
+	Requests           uint64
+	HasRequest         func(string) bool
+	Cost               archive.FileSetCost
+	// Intent, when set, also elides every live ticket and release record:
+	// a liveness write charges their count and cost without listing them
+	// (JSG-V0-001). Only a heartbeat or renew models such an inventory.
+	Intent *ElidedIntent
+}
+
+// ElidedIntent summarizes the live intent/tickets/ and intent/releases/
+// records: their counts, their archive cost, and their paths by lookup.
+type ElidedIntent struct {
+	Tickets, Releases int
+	Cost              archive.FileSetCost
+	Has               func(string) bool
+}
+
+// intentRecord reports a path an ElidedIntent covers.
+func intentRecord(p string) bool {
+	return strings.HasPrefix(p, "intent/tickets/") || strings.HasPrefix(p, "intent/releases/")
+}
+
+// NewSummarizedInventory is NewInventory with an elided prefix. files must not
+// list an elided path, and every bound is charged with the elided counts.
+func NewSummarizedInventory(files []archive.FileEntry, stateDirectories []string, elided Elided) (*Inventory, error) {
+	if elided.Receipts < 1 || elided.Receipts > MaxReceipts || elided.HasRequest == nil || elided.Cost.Files < 0 {
+		return nil, malformed("elided inventory summary")
+	}
+	n, e := add(elided.Receipts, elided.Requests)
+	if e != nil {
+		return nil, e
+	}
+	if uint64(elided.Cost.Files) != n || elided.ReceiptBytes > elided.Cost.PayloadBytes {
+		return nil, malformed("elided inventory cost")
+	}
+	if n > wire.MaxArchiveFiles || uint64(len(files)) > wire.MaxArchiveFiles-n {
+		return nil, limit("inventory entries")
+	}
+	inv, e := NewInventory(files, stateDirectories)
+	if e != nil {
+		return nil, e
+	}
+	if !inv.dirs["receipts"] || (elided.Requests > 0 && !inv.dirs["requests"]) {
+		return nil, malformed("elided inventory directory")
+	}
+	if in := elided.Intent; in != nil {
+		if in.Has == nil || in.Tickets < 0 || in.Releases < 0 || in.Tickets > wire.MaxTicketsPerQueue || in.Releases > wire.MaxReleasesPerQueue || in.Cost.Files != in.Tickets+in.Releases {
+			return nil, malformed("elided intent summary")
+		}
+		if uint64(in.Cost.Files) > wire.MaxArchiveFiles-n-uint64(len(files)) {
+			return nil, limit("inventory entries")
+		}
+		explicit := uint64(0)
+		for p, f := range inv.files {
+			if intentRecord(p) {
+				return nil, malformed("explicit intent record beside an elided intent summary")
+			}
+			if strings.HasPrefix(p, "intent/") {
+				explicit += f.Bytes.Uint64()
+			}
+		}
+		if total, e := add(explicit, in.Cost.PayloadBytes); e != nil || total > wire.MaxIntentTreeBytes {
+			return nil, limit("inventory scan/intent bounds")
+		}
+	}
+	scanned := uint64(len(inv.dirs)) + n
+	for p := range inv.files {
+		if seq, ok := receiptNumber(p); ok && seq <= elided.Receipts {
+			return nil, malformed("explicit receipt inside the elided prefix")
+		}
+		if strings.HasPrefix(p, "requests/") && elided.HasRequest(p) {
+			return nil, malformed("explicit request inside the elided prefix")
+		}
+		if !strings.HasPrefix(p, "intent/") {
+			scanned++
+		}
+	}
+	if scanned > wire.MaxArchiveScanEntries {
+		return nil, limit("inventory scan/intent bounds")
+	}
+	summary := elided
+	inv.elided = &summary
+	inv.miss = new(bool)
+	if inv.incremental, e = summarizedCost(inv, elided); e != nil {
+		return nil, e
+	}
+	for shard := 0; shard < 256; shard++ {
+		inv.advanceReserve(shard)
+	}
+	return inv, nil
+}
+
+// summarizedCost is the incremental cost of a summarized inventory: the
+// elided prefix and intent records charged from their summaries, as measure
+// charges them, and each explicit file measured once. A capacity fork then
+// measures only the entries its plan changes (JSG-V0-003).
+func summarizedCost(inv *Inventory, elided Elided) (*importCost, error) {
+	c := &importCost{encoding: elided.Cost}
+	c.cost.Files = uint64(elided.Cost.Files)
+	c.cost.ScannedEntries = uint64(elided.Cost.Files)
+	c.cost.JournalCount = elided.Receipts
+	c.cost.JournalBytes = elided.ReceiptBytes
+	if in := elided.Intent; in != nil {
+		var e error
+		if c.encoding, e = c.encoding.Add(in.Cost); e != nil {
+			return nil, e
+		}
+		c.cost.Files += uint64(in.Cost.Files)
+		c.cost.IntentBytes = in.Cost.PayloadBytes
+	}
+	for _, f := range inv.files {
+		if e := c.replace(f, false, f); e != nil {
+			return nil, e
+		}
+	}
+	return c, nil
+}
+
+// Incomplete reports whether a question needed an elided file's metadata.
+// Every result computed from the inventory, or from a clone, is then void.
+func (i *Inventory) Incomplete() bool { return i.miss != nil && *i.miss }
+
+// RetirePrefix records that the receipts below the lowest listed one were
+// retired with a sealed prefix (JRT-V0-004). The caller calls it only when
+// the store carries a seal; the inventory checks the shape and the journal
+// audit owns the seal's truth.
+func (i *Inventory) RetirePrefix() error {
+	if i.elided != nil || i.incremental != nil {
+		return malformed("retired prefix on a summarized inventory")
+	}
+	low := uint64(0)
+	for p := range i.files {
+		if n, ok := receiptNumber(p); ok && (low == 0 || n < low) {
+			low = n
+		}
+	}
+	if low < 2 {
+		return malformed("retired prefix without a retained anchor receipt")
+	}
+	i.retired = low - 1
+	return nil
+}
+
+// Summarized reports whether the inventory carries an elided prefix.
+func (i *Inventory) Summarized() bool { return i.elided != nil }
+
+func (i *Inventory) markMiss() {
+	if i.miss != nil {
+		*i.miss = true
+	}
+}
+
+// isElided reports whether p is a file in the elided prefix.
+func (i *Inventory) isElided(p string) bool {
+	if i.elided == nil {
+		return false
+	}
+	if seq, ok := receiptNumber(p); ok {
+		return seq <= i.elided.Receipts
+	}
+	if i.elided.Intent != nil && intentRecord(p) {
+		return i.elided.Intent.Has(p)
+	}
+	return strings.HasPrefix(p, "requests/") && i.elided.HasRequest(p)
+}
+
+// lookup returns p's metadata. An elided p is present without metadata: it
+// marks the inventory incomplete and returns a zero entry.
+func (i *Inventory) lookup(p string) (archive.FileEntry, bool) {
+	if f, ok := i.files[p]; ok {
+		return f, true
+	}
+	if i.isElided(p) {
+		i.markMiss()
+		return archive.FileEntry{}, true
+	}
+	return archive.FileEntry{}, false
+}
+
+func receiptNumber(p string) (uint64, bool) {
+	name, ok := strings.CutPrefix(p, "receipts/")
+	if !ok || len(name) != 17 || !strings.HasSuffix(name, ".json") {
+		return 0, false
+	}
+	var n uint64
+	for _, c := range name[:12] {
+		if c < '0' || c > '9' {
+			return 0, false
+		}
+		n = n*10 + uint64(c-'0')
+	}
+	return n, true
+}
+
+func NewInventory(files []archive.FileEntry, stateDirectories []string) (*Inventory, error) {
+	if len(files) > wire.MaxArchiveFiles || len(stateDirectories) > wire.MaxArchiveScanEntries {
+		return nil, limit("inventory entries")
+	}
+	inv := &Inventory{files: map[string]archive.FileEntry{}, dirs: map[string]bool{}}
+	for _, d := range stateDirectories {
+		if !directory(d) || inv.dirs[d] {
+			return nil, malformed("unknown/duplicate state directory")
+		}
+		inv.dirs[d] = true
+	}
+	for _, f := range files {
+		if _, ok := inv.files[f.Path]; ok {
+			return nil, malformed("duplicate inventory file")
+		}
+		bound, e := retainedBound(f.Path)
+		if e != nil {
+			return nil, e
+		}
+		n, e := wire.ParseSize(f.Path, string(f.Bytes))
+		if e != nil {
+			return nil, e
+		}
+		if n.Uint64() > bound {
+			return nil, limit(f.Path)
+		}
+		if _, e = wire.ParseDigest(f.Path, string(f.Sha256)); e != nil {
+			return nil, e
+		}
+		if strings.HasPrefix(f.Path, "evidence/") && f.Path != "evidence/"+string(f.Sha256) {
+			return nil, malformed("evidence metadata identity")
+		}
+		if strings.HasPrefix(f.Path, "pinned/") && f.Path != "pinned/"+string(f.Sha256)+".json" {
+			return nil, malformed("pinned metadata identity")
+		}
+		if !strings.HasPrefix(f.Path, "intent/") {
+			parent := path.Dir(f.Path)
+			if parent != "." && !inv.dirs[parent] {
+				return nil, malformed("missing scanned parent")
+			}
+		}
+		inv.files[f.Path] = f
+	}
+	for d := range inv.dirs {
+		parent := path.Dir(d)
+		if parent != "." && !inv.dirs[parent] {
+			return nil, malformed("missing directory parent")
+		}
+	}
+	scanned := uint64(len(inv.dirs))
+	var intentBytes, tickets uint64
+	for p, f := range inv.files {
+		if strings.HasPrefix(p, "intent/") {
+			var e error
+			intentBytes, e = add(intentBytes, f.Bytes.Uint64())
+			if e != nil {
+				return nil, e
+			}
+		} else {
+			scanned++
+		}
+		if strings.HasPrefix(p, "intent/tickets/") {
+			tickets++
+		}
+	}
+	if scanned > wire.MaxArchiveScanEntries || intentBytes > wire.MaxIntentTreeBytes || tickets > wire.MaxTicketsPerQueue {
+		return nil, limit("inventory scan/intent bounds")
+	}
+	return inv, nil
+}
+func directory(d string) bool {
+	switch d {
+	case "receipts", "requests", "evidence", "pinned", "attempts", "effects", "worktrees", "staging":
+		return true
+	}
+	if len(d) == 11 && strings.HasPrefix(d, "requests/") {
+		_, e := wire.ParseDigest(d, strings.Repeat(strings.TrimPrefix(d, "requests/"), 32))
+		return e == nil
+	}
+	return false
+}
+func retainedBound(p string) (uint64, error) {
+	if p == "head.json" {
+		return 4096, nil
+	}
+	if strings.HasPrefix(p, "receipts/") {
+		name := strings.TrimPrefix(p, "receipts/")
+		if len(name) != 17 || !strings.HasSuffix(name, ".json") {
+			return 0, malformed("receipt filename")
+		}
+		var n uint64
+		for _, c := range name[:12] {
+			if c < '0' || c > '9' {
+				return 0, malformed("receipt filename")
+			}
+			n = n*10 + uint64(c-'0')
+		}
+		if n < 1 || n > MaxReceipts {
+			return 0, limit("receipt number")
+		}
+		return wire.MaxReceiptFileBytes, nil
+	}
+	if strings.HasPrefix(p, "effects/") || strings.HasPrefix(p, "worktrees/") {
+		return 0, wire.Errorf(wire.CodeUnsupported, p, "outside no-runtime fixture subset")
+	}
+	n, e := snapshot.PostBound(p)
+	return uint64(n), e
+}
+
+// Files returns every listed file. A summarized inventory cannot list its
+// elided prefix, so the call marks it incomplete; use FilesUnder instead.
+func (i *Inventory) Files() []archive.FileEntry {
+	if i.elided != nil {
+		i.markMiss()
+	}
+	return i.explicitFiles()
+}
+
+// FilesUnder returns the listed files under prefix, sorted. It marks a
+// summarized inventory incomplete when prefix could cover an elided file.
+func (i *Inventory) FilesUnder(prefix string) []archive.FileEntry {
+	if i.elided != nil && (strings.HasPrefix(prefix, "receipts/") || strings.HasPrefix(prefix, "requests/") || strings.HasPrefix("receipts/", prefix) || strings.HasPrefix("requests/", prefix)) {
+		i.markMiss()
+	}
+	i.missElidedIntent(prefix)
+	out := []archive.FileEntry{}
+	for p, f := range i.files {
+		if strings.HasPrefix(p, prefix) {
+			out = append(out, f)
+		}
+	}
+	archive.SortFiles(out)
+	return out
+}
+
+// missElidedIntent marks the inventory incomplete when a listing under
+// prefix would include an elided intent record (JSG-V0-001).
+func (i *Inventory) missElidedIntent(prefix string) {
+	if i.elided != nil && i.elided.Intent != nil && (intentRecord(prefix) || strings.HasPrefix("intent/tickets/", prefix) || strings.HasPrefix("intent/releases/", prefix)) {
+		i.markMiss()
+	}
+}
+
+func (i *Inventory) explicitFiles() []archive.FileEntry {
+	out := make([]archive.FileEntry, 0, len(i.files))
+	for _, f := range i.files {
+		out = append(out, f)
+	}
+	archive.SortFiles(out)
+	return out
+}
+
+// Has reports whether the inventory holds a file at p, including an elided
+// file, whose presence the summary proves without its metadata.
+func (i *Inventory) Has(p string) bool {
+	_, ok := i.files[p]
+	return ok || i.isElided(p)
+}
+func (i *Inventory) Directories() []string {
+	out := make([]string, 0, len(i.dirs))
+	for d := range i.dirs {
+		out = append(out, d)
+	}
+	sort.Strings(out)
+	return out
+}
+func (i *Inventory) matches(p string, raw []byte) bool {
+	f, ok := i.lookup(p)
+	return ok && f.Sha256 == wire.Sum(raw) && f.Bytes.Uint64() == uint64(len(raw))
+}
+func (i *Inventory) clone() *Inventory {
+	if i.incremental != nil {
+		c := *i.incremental
+		return &Inventory{files: i.files, dirs: i.dirs, elided: i.elided, miss: i.miss, incremental: &c, undoFiles: map[string]*archive.FileEntry{}, undoDirs: map[string]bool{}, retired: i.retired}
+	}
+	out := &Inventory{files: map[string]archive.FileEntry{}, dirs: map[string]bool{}, elided: i.elided, miss: i.miss, retired: i.retired}
+	for p, f := range i.files {
+		out.files[p] = f
+	}
+	for d := range i.dirs {
+		out.dirs[d] = true
+	}
+	return out
+}
+func (i *Inventory) chain(h *snapshot.Head) error {
+	count := uint64(0)
+	for p := range i.files {
+		if strings.HasPrefix(p, "receipts/") {
+			count++
+		}
+	}
+	elided := i.retired
+	if i.elided != nil {
+		elided = i.elided.Receipts
+	}
+	count, e := add(count, elided)
+	if e != nil {
+		return e
+	}
+	if count != h.LastSeq.Uint64() {
+		return malformed("complete receipt inventory differs from head")
+	}
+	for n := elided + 1; n <= count; n++ {
+		name, _ := snapshot.ReceiptName(n)
+		if _, ok := i.files["receipts/"+name]; !ok {
+			return malformed("receipt gap/extra")
+		}
+	}
+	name, _ := snapshot.ReceiptName(count)
+	last := i.files["receipts/"+name].Sha256
+	if count == elided && i.elided != nil {
+		last = i.elided.LastReceiptSha256
+	}
+	if last != *h.LastReceiptSha256 {
+		return malformed("head receipt digest")
+	}
+	if h.VersionSha256 != wire.Sum([]byte(snapshot.VersionBytes)) || !i.matches("VERSION", []byte(snapshot.VersionBytes)) {
+		return malformed("VERSION binding")
+	}
+	if i.retired > 0 {
+		// Receipt 1 was retired with the prefix; the journal audit binds the
+		// retained anchor to the seal (JRT-V0-004).
+		return nil
+	}
+	first, _ := snapshot.ReceiptName(1)
+	genesis := i.files["receipts/"+first].Sha256
+	if elided > 0 {
+		genesis = i.elided.FirstReceiptSha256
+	}
+	if genesis != h.InitSha256 {
+		return malformed("genesis head binding")
+	}
+	return nil
+}
+func (i *Inventory) put(f archive.FileEntry, exclusive bool) error {
+	old, exists := i.lookup(f.Path)
+	if exists && exclusive {
+		if old == f {
+			return nil
+		}
+		return malformed("non-overwriting publication conflict")
+	}
+	if i.incremental != nil {
+		// An elided path exists without metadata: lookup marked the
+		// inventory incomplete, so the result is void and nothing is charged.
+		_, explicit := i.files[f.Path]
+		if i.undoFiles != nil {
+			if _, saved := i.undoFiles[f.Path]; !saved {
+				if explicit {
+					copy := old
+					i.undoFiles[f.Path] = &copy
+				} else {
+					i.undoFiles[f.Path] = nil
+				}
+			}
+		}
+		if explicit || !exists {
+			if err := i.incremental.replace(old, explicit, f); err != nil {
+				return err
+			}
+		}
+	}
+	i.files[f.Path] = f
+	if i.incremental != nil && !i.reserveSimulation {
+		i.updateReserve(f.Path)
+	}
+	if !strings.HasPrefix(f.Path, "intent/") {
+		for d := path.Dir(f.Path); d != "."; d = path.Dir(d) {
+			if i.undoDirs != nil {
+				if _, saved := i.undoDirs[d]; !saved {
+					i.undoDirs[d] = i.dirs[d]
+				}
+			}
+			i.dirs[d] = true
+		}
+	}
+	return nil
+}
+
+// remove deletes explicit file p, recording undo and uncharging it on an
+// incremental inventory.
+func (i *Inventory) remove(p string) error {
+	old, ok := i.files[p]
+	if !ok {
+		return nil
+	}
+	if i.incremental != nil {
+		if i.undoFiles != nil {
+			if _, saved := i.undoFiles[p]; !saved {
+				copy := old
+				i.undoFiles[p] = &copy
+			}
+		}
+		if err := i.incremental.remove(old); err != nil {
+			return err
+		}
+	}
+	delete(i.files, p)
+	return nil
+}
+func entry(a Artifact) archive.FileEntry {
+	return archive.FileEntry{Path: a.Target, Sha256: a.Sha256, Bytes: a.Bytes}
+}
+func bytesEntry(p string, b []byte) archive.FileEntry {
+	return archive.FileEntry{Path: p, Sha256: wire.Sum(b), Bytes: wire.SizeOf(uint64(len(b)))}
+}
+
+// Cost separates exact retained encoder cost from logical temporary/promised
+// bytes. Pending-head measurements are hypothetical redo envelopes, not exports.
+type Cost struct {
+	Files, ScannedEntries, PayloadBytes, ManifestBytes, TarBytes uint64
+	JournalCount, JournalBytes, EvidenceBytes, IntentBytes       uint64
+	TemporaryBytes, PromisedBytes                                uint64
+}
+type limits struct{ files, scan, manifest, tar, journalCount, journalBytes, evidence, intent uint64 }
+
+func hardLimits() limits {
+	return limits{wire.MaxArchiveFiles, wire.MaxArchiveScanEntries, wire.MaxArchiveManifestBytes, wire.MaxArchiveBytes, MaxReceipts, MaxJournalBytes, wire.MaxEvidenceStoreBytes, wire.MaxIntentTreeBytes}
+}
+func add(a, b uint64) (uint64, error) {
+	if b > math.MaxUint64-a {
+		return 0, limit("uint64 overflow")
+	}
+	return a + b, nil
+}
+func check(c Cost, l limits) error {
+	for _, v := range [][2]uint64{{c.Files, l.files}, {c.ScannedEntries, l.scan}, {c.ManifestBytes, l.manifest}, {c.TarBytes, l.tar}, {c.JournalCount, l.journalCount}, {c.JournalBytes, l.journalBytes}, {c.EvidenceBytes, l.evidence}, {c.IntentBytes, l.intent}} {
+		if v[0] > v[1] {
+			return limit("aggregate capacity")
+		}
+	}
+	_, e := add(c.TemporaryBytes, c.PromisedBytes)
+	return e
+}
+func journalReserve(c Cost, barrier bool, l limits) error {
+	if !barrier {
+		return check(c, l)
+	}
+	n, e := add(c.JournalCount, 1)
+	if e != nil {
+		return e
+	}
+	b, e := add(c.JournalBytes, UnpauseReceiptBytes)
+	if e != nil {
+		return e
+	}
+	if n > l.journalCount || b > l.journalBytes {
+		return limit("barrier lacks inside-hard-caps UNPAUSE reserve")
+	}
+	return check(c, l)
+}
+func measure(i *Inventory, h *snapshot.Head, temporary, promised, stageNames uint64) (Cost, error) {
+	if i.incremental != nil {
+		return i.incremental.measure(i, h, temporary, promised, stageNames)
+	}
+	c := Cost{TemporaryBytes: temporary, PromisedBytes: promised, ScannedEntries: uint64(len(i.dirs))}
+	var e error
+	var prefix archive.FileSetCost
+	if i.elided != nil {
+		// The elided receipts and request files are scanned, retained,
+		// archived entries charged from the summary (CAL-V0-117).
+		prefix = i.elided.Cost
+		c.ScannedEntries += uint64(prefix.Files)
+		c.JournalCount = i.elided.Receipts
+		c.JournalBytes = i.elided.ReceiptBytes
+		if in := i.elided.Intent; in != nil {
+			// Elided intent records are archived and count toward the
+			// intent bytes, but are not scanned state entries (JSG-V0-001).
+			if prefix, e = prefix.Add(in.Cost); e != nil {
+				return c, e
+			}
+			c.IntentBytes = in.Cost.PayloadBytes
+		}
+	}
+	intentHash := sha256.New()
+	files := i.explicitFiles()
+	entryMeasurements.Add(uint64(len(files)))
+	for _, f := range files {
+		n := f.Bytes.Uint64()
+		if strings.HasPrefix(f.Path, "intent/") {
+			c.IntentBytes, e = add(c.IntentBytes, n)
+			if e != nil {
+				return c, e
+			}
+			fmt.Fprintf(intentHash, "%s%c%s\n", strings.TrimPrefix(f.Path, "intent/"), byte(0), f.Sha256)
+		} else {
+			c.ScannedEntries, e = add(c.ScannedEntries, 1)
+			if e != nil {
+				return c, e
+			}
+		}
+		if strings.HasPrefix(f.Path, "receipts/") {
+			c.JournalCount++
+			c.JournalBytes, e = add(c.JournalBytes, n)
+			if e != nil {
+				return c, e
+			}
+		}
+		if strings.HasPrefix(f.Path, "evidence/") {
+			c.EvidenceBytes, e = add(c.EvidenceBytes, n)
+			if e != nil {
+				return c, e
+			}
+		}
+	}
+	c.ScannedEntries, e = add(c.ScannedEntries, stageNames)
+	if e != nil {
+		return c, e
+	}
+	if h == nil {
+		return c, malformed("measurement requires hypothetical head metadata")
+	}
+	last := *h.LastReceiptSha256
+	var barrier *wire.Digest
+	if f, ok := i.files["barrier.json"]; ok {
+		d := f.Sha256
+		barrier = &d
+	}
+	m := archive.Manifest{QueueID: h.QueueID, ExportedAtSeq: wire.SizeOf(c.JournalCount), HeadSha256: wire.Sum(wire.EncodeFile(h.Value())), VersionSha256: h.VersionSha256, BarrierSha256: barrier, PrimaryWorktree: h.PrimaryWorktree, IntentTreeSha256: wire.Digest(fmt.Sprintf("%x", intentHash.Sum(nil))), Files: files, ReceiptCount: wire.SizeOf(c.JournalCount), LastReceiptSha256: last, HeadGeneration: h.Generation, Complete: true}
+	enc, e := archive.MeasureManifestEncodingWith(&m, prefix)
+	if e != nil {
+		return c, e
+	}
+	c.Files = uint64(enc.Files)
+	c.PayloadBytes = enc.PayloadBytes
+	c.ManifestBytes = enc.ManifestBytes
+	c.TarBytes = enc.TarBytes
+	return c, nil
+}
+
+// Prefix is a bounded durable publication point. Before a listed durable point,
+// the preceding cost remains charged; shrink/unlink cannot finance its producer.
+type Prefix struct {
+	Step           string
+	Cost           Cost
+	AbortToUnpause *Cost
+}
+type Capacity struct {
+	Prefixes []Prefix
+	Final    *Inventory
+	Coverage Coverage
+}
+
+func CheckCapacity(p *Plan) (Capacity, error) { return checkCapacity(p, hardLimits()) }
+func checkCapacity(p *Plan, l limits) (Capacity, error) {
+	out := Capacity{Coverage: coverage()}
+	if p == nil {
+		return out, malformed("missing frozen plan")
+	}
+	h, e := snapshot.DecodeHead(p.head)
+	if e != nil {
+		return out, e
+	}
+	working := p.base.clone()
+	defer working.rollback()
+	working.stageDirectory()
+	baseHead := p.baseHead
+	if baseHead == nil {
+		baseHead = h
+	}
+	baseCost, e := measure(working, baseHead, 0, 0, 0)
+	if e != nil {
+		return out, e
+	}
+	_, barrierBefore := working.files["barrier.json"]
+	if e = journalReserve(baseCost, barrierBefore, l); e != nil {
+		return out, e
+	}
+	promised := uint64(0)
+	for _, a := range p.artifacts {
+		promised, e = add(promised, a.Bytes.Uint64())
+		if e != nil {
+			return out, e
+		}
+	}
+	temp, e := add(promised, 2*uint64(len(p.descriptor)))
+	if e != nil {
+		return out, e
+	}
+	stageNames := uint64(len(p.artifacts) + 2)
+	record := func(step string, precommit bool) error {
+		c, e := measure(working, h, temp, promised, stageNames)
+		if e != nil {
+			return e
+		}
+		if e = check(c, l); e != nil {
+			return e
+		}
+		pref := Prefix{Step: step, Cost: c}
+		if precommit && barrierBefore {
+			// All cleanup subsets are dominated by this maximal stage cost. After
+			// durable cleanup, UNPAUSE starts from these retained files, including
+			// every linked orphan and the unchanged old projection.
+			u, e := unpausePeak(working, baseHead, l)
+			if e != nil {
+				return e
+			}
+			pref.AbortToUnpause = &u
+		}
+		out.Prefixes = append(out.Prefixes, pref)
+		return nil
+	}
+	if e = record("descriptor-and-all-promised-artifacts", true); e != nil {
+		return out, e
+	}
+	// Evidence POST is the one cross-role dedup. All evidence publishes before
+	// receipt; only it may survive an abandoned preparation.
+	for _, a := range p.artifacts {
+		if !strings.HasPrefix(a.Target, "evidence/") {
+			continue
+		}
+		if e = working.put(entry(a), true); e != nil {
+			return out, e
+		}
+		if e = record("durable-link:"+a.Target, true); e != nil {
+			return out, e
+		}
+	}
+	for _, a := range p.artifacts {
+		if a.Role == "RECEIPT" {
+			if working.Has(a.Target) {
+				return out, malformed("receipt already linked")
+			}
+			if e = working.put(entry(a), true); e != nil {
+				return out, e
+			}
+		}
+	}
+	if e = record("durable-receipt-link", false); e != nil {
+		return out, e
+	}
+	// Additions before shrinking replacements/deletions covers the maximal
+	// retained peak even if a future publisher chooses a different post order.
+	ordered := []Artifact{}
+	for _, a := range p.artifacts {
+		if a.Role == "POST" && !strings.HasPrefix(a.Target, "evidence/") {
+			ordered = append(ordered, a)
+		}
+	}
+	sort.Slice(ordered, func(i, j int) bool {
+		fileI, _ := working.lookup(ordered[i].Target)
+		fileJ, _ := working.lookup(ordered[j].Target)
+		oldI := fileI.Bytes.Uint64()
+		oldJ := fileJ.Bytes.Uint64()
+		growI := ordered[i].Bytes.Uint64() >= oldI
+		growJ := ordered[j].Bytes.Uint64() >= oldJ
+		if growI != growJ {
+			return growI
+		}
+		return ordered[i].Target < ordered[j].Target
+	})
+	for _, a := range ordered {
+		if e = working.put(entry(a), strings.HasPrefix(a.Target, "requests/") || strings.HasPrefix(a.Target, "pinned/")); e != nil {
+			return out, e
+		}
+		if e = record("durable-post:"+a.Target, false); e != nil {
+			return out, e
+		}
+	}
+	if raw, ok := p.posts["barrier.json"]; ok && raw == nil {
+		if e = working.remove("barrier.json"); e != nil {
+			return out, e
+		}
+		if e = record("durable-barrier-unlink", false); e != nil {
+			return out, e
+		}
+	}
+	if e = working.put(bytesEntry("head.json", p.head), false); e != nil {
+		return out, e
+	}
+	if e = record("durable-head", false); e != nil {
+		return out, e
+	}
+	temp, promised, stageNames = 0, 0, 0
+	if e = record("durable-staging-cleanup", false); e != nil {
+		return out, e
+	}
+	finalCost := out.Prefixes[len(out.Prefixes)-1].Cost
+	_, barrierAfter := working.files["barrier.json"]
+	if e = journalReserve(finalCost, barrierAfter, l); e != nil {
+		return out, e
+	}
+	if barrierAfter {
+		u, e := unpausePeak(working, h, l)
+		if e != nil {
+			return out, e
+		}
+		out.Prefixes = append(out.Prefixes, Prefix{Step: "reserved-fresh-UNPAUSE", Cost: u})
+	}
+	if working.elided == nil || working.incremental == nil {
+		out.Final = working
+	}
+	// A summarized fork shares its base's maps and the deferred rollback
+	// restores them, so it has no final inventory to return.
+	return out, nil
+}
+
+// unpausePeak uses the codec-proved maximal receipt/index promises and exact
+// derived head encoding. Request paths all have equal wire/PAX size; choose an
+// absent shard if available, then an unoccupied fixed-length digest path.
+func unpausePeak(base *Inventory, h *snapshot.Head, l limits) (Cost, error) {
+	i := base.clone()
+	i.reserveSimulation = true
+	defer i.rollback()
+	i.stageDirectory()
+	c, e := measure(i, h, 0, 0, 0)
+	if e != nil {
+		return c, e
+	}
+	if e = journalReserve(c, true, l); e != nil {
+		return c, e
+	}
+	n, e := add(h.LastSeq.Uint64(), 1)
+	if e != nil {
+		return c, e
+	}
+	if n > MaxReceipts {
+		return c, limit("UNPAUSE sequence")
+	}
+	name, _ := snapshot.ReceiptName(n)
+	hash := wire.Sum([]byte("hypothetical reserved bytes; not authentication"))
+	if i.Has("receipts/" + name) {
+		return c, malformed("reserve receipt occupied")
+	}
+	if e = i.put(archive.FileEntry{Path: "receipts/" + name, Sha256: hash, Bytes: wire.SizeOf(UnpauseReceiptBytes)}, true); e != nil {
+		return c, e
+	}
+	shard := "00"
+	for x := 0; x < 256; x++ {
+		candidate := fmt.Sprintf("%02x", x)
+		if !i.dirs["requests/"+candidate] {
+			shard = candidate
+			break
+		}
+	}
+	requestPath := ""
+	if i.incremental != nil {
+		shardNumber := 0
+		fmt.Sscanf(shard, "%x", &shardNumber)
+		requestPath = "requests/" + shard + "/" + shard + fmt.Sprintf("%062x", i.incremental.reserveNext[shardNumber]) + ".json"
+	} else {
+		candidates := uint64(len(i.files))
+		if i.elided != nil {
+			candidates += i.elided.Requests
+		}
+		for x := uint64(0); x <= candidates; x++ {
+			candidate := "requests/" + shard + "/" + shard + fmt.Sprintf("%062x", x) + ".json"
+			if !i.Has(candidate) {
+				requestPath = candidate
+				break
+			}
+		}
+	}
+	if requestPath == "" {
+		return c, limit("reserve request path")
+	}
+	if e = i.put(archive.FileEntry{Path: requestPath, Sha256: hash, Bytes: wire.SizeOf(UnpauseIndexBytes)}, true); e != nil {
+		return c, e
+	}
+	next := *h
+	next.LastSeq = wire.SizeOf(n)
+	next.LastReceiptSha256 = &hash
+	head := wire.EncodeFile(next.Value())
+	if _, e = snapshot.DecodeHead(head); e != nil {
+		return c, e
+	}
+	// Charge the old barrier and whichever head is larger until replacement
+	// durability; this includes decimal head growth and never credits shrink.
+	old := i.files["head.json"]
+	if uint64(len(head)) >= old.Bytes.Uint64() {
+		if e = i.put(bytesEntry("head.json", head), false); e != nil {
+			return c, e
+		}
+	}
+	c, e = measure(i, &next, UnpauseTemporaryBytes, 6342, 5)
+	if e != nil {
+		return c, e
+	}
+	if e = check(c, l); e != nil {
+		return c, e
+	}
+	return c, nil
+}

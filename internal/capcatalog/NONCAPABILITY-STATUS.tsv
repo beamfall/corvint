@@ -1,0 +1,16 @@
+id	state	evidence
+#1571	closed	2026-10-23 by #1580 (DCP-V1-323 test-run association axis)
+#1573	closed	2026-10-23 by #1580 (DCP-V1-328 claim hits in docs_search)
+#1578	closed	2026-10-23 by #1581 (TJAA-V0-037); tsconfig paths residual is #1604
+#1579	closed	2026-10-23 by #1580 (DCP-V1-331 field weighting and kind filter)
+#1584	closed	2026-10-23 by #1592 (DCX-V1-340..347 claim mention check)
+#1585	closed	2026-10-23 by #1589 (DCX-V1-360..369 delta worklist)
+#1587	closed	2026-10-23 by #1595 (AFU-V1-112..119 per-test coverage ingest)
+#1604	open	2026-10-23 re-test on main-7b3a8e5 after #1616 still selects 0 specs
+CAP-V0-016	excludes	unknown catalog fields stay null with a reason, never hand-written
+CAP-V0-029	excludes	the guide is not a release-archive member
+DCP-V1-323	delivered	#1580
+DCP-V1-328	delivered	#1580
+DCP-V1-331	delivered	#1580
+DCW-V0-001	excludes	Core stays one native binary with no account, network or daemon
+WQO-V0-033	excludes	Core makes no network request, embedding or hosted-service call

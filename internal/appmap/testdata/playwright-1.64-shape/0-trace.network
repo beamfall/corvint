@@ -1,0 +1,1 @@
+{"type":"resource-snapshot","snapshot":{"_monotonicTime":101.3,"request":{"method":"POST","url":"http://app.test/api/login","headers":[{"name":"content-type","value":"application/json"}],"postData":{"mimeType":"application/json","text":"{\"user\":\"u\"}"}},"response":{"status":200,"headers":[{"name":"set-cookie","value":"sid=x"}],"content":{"size":2}}}}

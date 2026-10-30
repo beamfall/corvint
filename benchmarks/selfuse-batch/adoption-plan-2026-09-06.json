@@ -1,0 +1,10 @@
+{
+ "task": "Follow-on investigation, frozen before running: where does script/dogfood-change.sh invoke the pre-change query and the range impact, and which of those calls are path-impact operations that the accepted snapshot batch contract could answer at one snapshot?",
+ "expected_evidence": ["script/dogfood-change.sh", "cmd/corvint/batch.go", "docs/specs/snapshot-batch-v0.md", "docs/DOGFOOD.md"],
+ "views": [
+  {"id": "q-task", "verb": "query", "task": "where does script/dogfood-change.sh invoke the pre-change query and range impact, and which are path impact operations the snapshot batch contract could answer", "limit": 8},
+  {"id": "ctx-script", "verb": "context", "task": "dogfood-change.sh pre-change query and range impact invocation", "subject": "script/dogfood-change.sh", "limit": 8},
+  {"id": "imp-script", "verb": "impact", "paths": ["script/dogfood-change.sh"], "limit": 8},
+  {"id": "imp-batch", "verb": "impact", "paths": ["cmd/corvint/batch.go"], "limit": 8}
+ ]
+}

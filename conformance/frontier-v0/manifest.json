@@ -1,0 +1,347 @@
+{
+  "schema": "corvint.frontier-v0-conformance/1",
+  "spec": "docs/specs/change-frontier-v0.md",
+  "profile": "frontier/0",
+  "errorProfile": "frontier-error/0",
+  "derivation": "Every expectation in this suite is authored from the clause text in the spec above. No expectation was captured from, or verified against, internal/frontier. CF-V0-028 requires exactly this independence.",
+  "vectorFiles": [
+    "vectors/codec.json",
+    "vectors/identity.json"
+  ],
+  "retired": {
+    "decision": "0525 §1",
+    "requirement": "CEM-V1-217",
+    "reason": "frontier/0 was deleted with the cem/0.x wire (decision 0525 §1, CEM-V1-217): every case declared a universe built from a verified cem/0.2 or cem/0.1 map and invoked the frontier/0 entry point, and neither exists any more. Its stable successor is frontier-stable-view/0 (CEM-V1-126, V1-1304), which never produces a frontier document, so no case has a stable expectation to carry over; the stable route's refusals are tested in internal/frontier/stable_test.go and internal/frontierrepo/stable_test.go.",
+    "fixtures": [
+      {
+        "fixture": "aggregate-lrf-bound-is-resource-exhaustion",
+        "matrixRows": [
+          "aggregate LRF `relevance-bound-exceeded` result"
+        ],
+        "cases": [
+          "aggregate-bound-document",
+          "unsupported-lrf-context-passes-through"
+        ]
+      },
+      {
+        "fixture": "cem-unknown-reason-mapping",
+        "matrixRows": [
+          "each CEM unknown reason"
+        ],
+        "cases": [
+          "no-evidence",
+          "insufficient-evidence",
+          "conflicting-evidence"
+        ]
+      },
+      {
+        "fixture": "determinism-reordered-arrays-and-fresh-processes",
+        "matrixRows": [
+          "reordered caller arrays and two fresh processes"
+        ],
+        "cases": [
+          "reordered-caller-arrays",
+          "two-fresh-processes"
+        ]
+      },
+      {
+        "fixture": "dynamic-caller-reported-mode",
+        "matrixRows": [
+          "exact dynamic caller tuple"
+        ],
+        "cases": [
+          "complete-tuple"
+        ]
+      },
+      {
+        "fixture": "error-code-translation",
+        "matrixRows": [
+          "caught timeout, `MemoryError`, interruption, unknown upstream code, and uncatchable termination"
+        ],
+        "cases": [
+          "caught-timeout",
+          "memory-error",
+          "interruption-still-renderable",
+          "unknown-upstream-code",
+          "tcq-resource-exhausted",
+          "tcq-public-validation-error-passes-through",
+          "invalid-junit-passes-through",
+          "uncatchable-termination"
+        ]
+      },
+      {
+        "fixture": "existential-qualifying-basis-closes-hunk",
+        "matrixRows": [
+          "one qualifying and one rejected basis"
+        ],
+        "cases": [
+          "one-qualifying-one-rejected"
+        ]
+      },
+      {
+        "fixture": "forged-tcq-authority-rejected-upstream",
+        "matrixRows": [
+          "forged TCQ authority or unknown relation"
+        ],
+        "cases": [
+          "forged-authority-class",
+          "unknown-relation"
+        ]
+      },
+      {
+        "fixture": "hunk-reason-union-frozen-order",
+        "matrixRows": [
+          "broad, self-referential, and unrelated bases with no qualifier"
+        ],
+        "cases": [
+          "three-rejected-bases-no-qualifier"
+        ]
+      },
+      {
+        "fixture": "independent-implementation-vectors",
+        "matrixRows": [
+          "independent implementation"
+        ],
+        "cases": [
+          "hand-derived-canonical-vectors"
+        ]
+      },
+      {
+        "fixture": "inherited-revision-and-sidecar-failures",
+        "matrixRows": [
+          "missing/mismatched expected base or target; forged sidecar"
+        ],
+        "cases": [
+          "missing-expected-base",
+          "missing-target",
+          "mismatched-expected-base",
+          "mismatched-target",
+          "forged-sidecar"
+        ]
+      },
+      {
+        "fixture": "intent-test-reason-union-and-priority",
+        "matrixRows": [
+          "empty, skipped, unsupported, unassociated, ambiguous, failed, errored, and unmatched claim"
+        ],
+        "cases": [
+          "matrix-named-eight-diagnostics",
+          "every-mapped-diagnostic"
+        ]
+      },
+      {
+        "fixture": "lexical-candidate-nonclosing",
+        "matrixRows": [
+          "linked obligation with one or more lexical candidates"
+        ],
+        "cases": [
+          "one-candidate",
+          "multiple-candidates"
+        ]
+      },
+      {
+        "fixture": "linked-obligation-no-material-candidate",
+        "matrixRows": [
+          "linked obligation without material candidate"
+        ],
+        "cases": [
+          "two-referenced-hunks-no-candidate"
+        ]
+      },
+      {
+        "fixture": "local-subject-term-bound-abstention",
+        "matrixRows": [
+          "local CEM or OCM `subject-term-bound-exceeded` beside unrelated valid edges"
+        ],
+        "cases": [
+          "cem-local-abstention-beside-valid-hunk",
+          "ocm-local-abstention-beside-valid-obligation"
+        ]
+      },
+      {
+        "fixture": "new-identity-on-patch-or-intent-change",
+        "matrixRows": [
+          "patch or intent identity changed"
+        ],
+        "cases": [
+          "patch-identity-changed",
+          "intent-identity-changed"
+        ]
+      },
+      {
+        "fixture": "noncanonical-frontier-refusals",
+        "matrixRows": [
+          "OPEN with empty items, EMPTY with items, or any extra stop-decision field",
+          "decimal offset beyond the signed 64-bit range"
+        ],
+        "cases": [
+          "open-with-empty-items",
+          "empty-with-items",
+          "extra-stop-decision-field",
+          "retrieval-packet-term-in-wire",
+          "decimal-offset-beyond-int64-range"
+        ]
+      },
+      {
+        "fixture": "ocm-unknown-emits-no-test-item",
+        "matrixRows": [
+          "OCM unknown"
+        ],
+        "cases": [
+          "unassessed",
+          "no-test-claim",
+          "insufficient-evidence",
+          "conflicting-evidence"
+        ]
+      },
+      {
+        "fixture": "partial-dynamic-tuple",
+        "matrixRows": [
+          "partial command/observation/report tuple"
+        ],
+        "cases": [
+          "command-only",
+          "observation-only",
+          "report-only",
+          "command+observation",
+          "command+report",
+          "observation+report"
+        ]
+      },
+      {
+        "fixture": "passing-caller-report-stays-open",
+        "matrixRows": [
+          "exact passing TCQ caller report"
+        ],
+        "cases": [
+          "clean-target-passing-rows-exit-zero"
+        ]
+      },
+      {
+        "fixture": "privacy-canaries",
+        "matrixRows": [
+          "source, report, command, sibling, and exception canaries"
+        ],
+        "cases": [
+          "valid-open-result-carries-no-canary",
+          "invalid-input-error-carries-no-canary",
+          "sibling-repository-canary",
+          "human-mode-static-message"
+        ]
+      },
+      {
+        "fixture": "python-crlf-edge-processes",
+        "matrixRows": [
+          "empty, skipped, unsupported, unassociated, ambiguous, failed, errored, and unmatched claim"
+        ],
+        "cases": [
+          "python-crlf-edge-processes-beside-a-go-edge"
+        ]
+      },
+      {
+        "fixture": "python-grammar-edge-abstains",
+        "matrixRows": [
+          "empty, skipped, unsupported, unassociated, ambiguous, failed, errored, and unmatched claim"
+        ],
+        "cases": [
+          "python-post-3.9-edge-abstains-beside-a-go-edge"
+        ]
+      },
+      {
+        "fixture": "resource-limits",
+        "matrixRows": [
+          "every Frontier limit and limit plus one"
+        ],
+        "cases": [
+          "hunkItems-at-limit",
+          "hunkItems-at-limit-plus-one",
+          "intentChangeItems-at-limit",
+          "intentChangeItems-at-limit-plus-one",
+          "intentTestItems-at-limit",
+          "intentTestItems-at-limit-plus-one",
+          "totalItems-at-limit",
+          "totalItems-at-limit-plus-one",
+          "relatedIdsPerItem-at-limit",
+          "relatedIdsPerItem-at-limit-plus-one",
+          "reasonsPerItem-at-limit",
+          "reasonsPerItem-at-limit-plus-one",
+          "outputBytes-at-limit",
+          "outputBytes-at-limit-plus-one"
+        ]
+      },
+      {
+        "fixture": "shared-hunk-independent-obligations",
+        "matrixRows": [
+          "one hunk shared across obligations"
+        ],
+        "cases": [
+          "one-hunk-two-obligations"
+        ]
+      },
+      {
+        "fixture": "stable-identity-after-evidence-repair",
+        "matrixRows": [
+          "evidence maps repaired without patch/intent change"
+        ],
+        "cases": [
+          "before-repair",
+          "after-repair-same-universe"
+        ]
+      },
+      {
+        "fixture": "static-mode",
+        "matrixRows": [
+          "no dynamic tuple"
+        ],
+        "cases": [
+          "absent-tuple"
+        ]
+      },
+      {
+        "fixture": "supported-deletion-requires-profile",
+        "matrixRows": [
+          "supported deletion"
+        ],
+        "cases": [
+          "supported-deletion-hunk"
+        ]
+      },
+      {
+        "fixture": "unsupported-context-precedes-missing-revision",
+        "matrixRows": [
+          "CEM 0.1 or OCM bound to 0.1 plus missing expected base or target"
+        ],
+        "cases": [
+          "cem-0.1-and-missing-base",
+          "ocm-0.1-and-missing-target"
+        ]
+      },
+      {
+        "fixture": "unsupported-context-upstream-profile",
+        "matrixRows": [
+          "CEM 0.1 or OCM bound to 0.1"
+        ],
+        "cases": [
+          "cem-0.1-artifact",
+          "ocm-bound-to-cem-0.1",
+          "both-0.1"
+        ]
+      },
+      {
+        "fixture": "whitespace-and-line-ending-hunks-close",
+        "matrixRows": [
+          "verified whitespace-only or line-ending-only hunk"
+        ],
+        "cases": [
+          "whitespace-only",
+          "line-ending-only",
+          "supported-alone-does-not-close"
+        ]
+      }
+    ]
+  },
+  "artifactSha256": {
+    "vectors/codec.json": "a2ed9d3dc0411e8e61143956e9f38c4975afed6f10ea17eac4af5751142012da",
+    "vectors/identity.json": "56ac4f03e2ca393c9b0e36cee0e12062cb36ed847a0a2279f214e27e00fa69bb"
+  }
+}

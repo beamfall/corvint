@@ -1,0 +1,260 @@
+# Main Use-Case Conformance V0
+
+Owner: Russell Lewis
+Frozen: 2026-08-23
+Intent status: proposed overall; accepted daily-workflow scope and UCV0-013 (decision 0332) and UCV0-014 (decision 0424); UCV0-217 accepted under the owner's standing auto-accept (2026-10-11; V1-0303); UCV0-018 experimental under the standing lane auto-accept (2026-10-27; V1-2828); UCV0-019 experimental under the standing lane auto-accept (2026-10-29; V1-3124)
+Delivery status: experimental
+Authoritative inputs: `docs/PRODUCT.md`, `docs/DOGFOOD.md`,
+`docs/specs/applied-intelligence-breakthroughs-v0.md`,
+`docs/specs/agent-harness-integration-v0.md`
+
+## Agent digest
+- Claim: Headline Corvint jobs remain UNPROVEN until each has complete content-addressed promotion evidence.
+- Status: proposed overall; accepted daily-workflow scope and UCV0-013 (decision 0332) and UCV0-014 (decision 0424); UCV0-217 accepted under the owner's standing auto-accept (2026-10-11; V1-0303); UCV0-018 experimental under the standing lane auto-accept (2026-10-27; V1-2828); UCV0-019 experimental under the standing lane auto-accept (2026-10-29; V1-3124); experimental
+- Exists: `conformance/use-cases-v0/ledger.json` and deterministic validator; `UC-TASK-ORIENTATION` is `verified`/`VERIFIED` for releases including decision 0387, not for `0.8.1` (decision 0389); `UC-CHANGE-CONSEQUENCE` and `UC-EVIDENCE-CARRYING-COMPLETION` returned to `experimental`/`UNPROVEN` (V1-0341); the other nineteen jobs stay `specified`/`UNPROVEN`.
+- Blocked on: complete promotion receipts, Corvint and Beamfall dogfood, and sealed outcome benchmarks.
+- Read next: Verified current state; Status and claim model; Acceptance matrix.
+
+## User and job
+
+Corvint maintainers and adopters need one mechanically checked answer to a deceptively simple
+question: which headline jobs are merely described, which have executable experiments, and which
+have survived the complete product-evidence gate? A feature list, passing unit suite, or compelling
+demo must never silently become a claim that Corvint supports a job in production.
+
+The governed jobs are AI-assisted coding, debugging, and engineering research; Pi and DeepSeek
+Harness discovery/update lifecycles; MkDocs and other human documentation; automatic E2E testing;
+PR maintenance and policy-safe merge; change breakage; missing-test discovery and generation;
+minimum-test execution; onboarding; ticket/team routing; code review; code-to-spec extraction;
+removal and migration planning; shipped-change narration; incident orientation; and Live
+Proof-Carrying Verification. Decision 0332 adds the narrower daily-workflow jobs
+`UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`, and `UC-EVIDENCE-CARRYING-COMPLETION` under
+`daily-change-evidence-workflow-v0.md`; it does not narrow or promote any existing job.
+
+## Verified current state
+
+The canonical ledger is `conformance/use-cases-v0/ledger.json`; its deterministic validator is
+`conformance/use-cases-v0/main.go`. At this freeze every governed job is `specified` and `UNPROVEN`.
+Some Corvint primitives and harness adapters are executable, but foundations do not establish any
+complete job. No row currently has the six promotion receipts, Corvint plus Beamfall dogfood, or a
+sealed outcome benchmark required for `VERIFIED`.
+
+On 2026-09-23 (decision 0373 item 16) the three daily-workflow rows moved to `experimental` with
+`contract` and `implementation` receipts under `conformance/use-cases-v0/receipts/`; every claim
+stays `UNPROVEN`. Their sealed-benchmark receipts from run-001 record `FAIL` for orientation and
+consequence and `PASS` for completion; sealed run-002 (preregistration amendment 1, ticket V1-0202)
+records `PASS` for all three, and its receipts are bound to the rows. Ticket V1-0188 added a
+`hostile-tests` receipt per row, pinned to its entrypoint test file
+`cmd/corvint/usecase_hostile_*_test.go`. Ticket V1-0207 added a `corvint-dogfood` receipt per
+row, pinned to bind commit 8668f77b73eaf7b203abbb922aa1fe9cff8fd6c8 of the V1-0188 review-repair
+increment, which went through the `docs/DOGFOOD.md` daily path; each receipt's subjects are that
+commit's sealed CEM and a byte-identical copy of the retained daily-path artifact for the row
+(`prechange-query`, `prechange-impact`, `dogfood-report`) under
+`receipts/<useCaseId>/corvint-dogfood/`. Ticket V1-0216 replaced each Core contract receipt's
+whole-file pin of `daily-change-evidence-workflow-v0.md` with a clause extract,
+`receipts/<useCaseId>/contract/clauses.json`, that pins only the cited `DCW-V0` clauses
+(`UCV0-016`). Ticket V1-0184 bound a `beamfall-dogfood` receipt for
+`UC-CHANGE-CONSEQUENCE` and `UC-EVIDENCE-CARRYING-COMPLETION`, from the agent-run daily path on
+Beamfall's LCRES-15 change (bind commit 86fde0eb21d2e0fc41bfc06a4c06c9c3aef63e59, published on
+Beamfall/core branch `claude/corvint-dogfood-LCRES-15`, PR beamfall/core#31). Each receipt's
+subjects are that commit's sealed CEM and a byte-identical copy of the retained daily-path
+artifact for the row under `receipts/<useCaseId>/beamfall-dogfood/`; the consequence row's
+artifact is path impact over the intended files, named `prechange-impact` by convention, because
+the pre-edit range impact is empty by construction (ticket V1-0262). The owner accepted the
+Beamfall intent spec these receipts attest against (`docs/plugins/trust-roots.md`,
+`PTR-V0-001..004`) on 2026-09-25 in that same Beamfall PR #31 (commit
+6a95ae32116718d55687da97efd9108b5174fe5e, after the bind). `UC-TASK-ORIENTATION`'s
+`beamfall-dogfood` receipt comes from a later Beamfall change that adds tests for that spec (bind commit
+1c9fa18da1a3cd715b56f73b267c4ee5e8d3c76e, base 6a95ae32…, Beamfall/core branch
+`claude/corvint-dogfood-PTR-tests`, PR beamfall/core#32). Its subject is the retained
+`prechange-query` packet, which is `READY` with no abstention after `GPK-V0-066` (decision 0387),
+plus that commit's sealed CEM. The earlier LCRES-15 query had abstained with zero results
+(ticket V1-0260). All three Core rows hold one receipt from every evidence class. Ticket V1-0011 promoted them
+to `verified`/`VERIFIED` together (owner-accepted, decision 0389). The other nineteen rows remain `UNPROVEN`. The orientation
+row's Beamfall run used a build that includes `GPK-V0-066`, which the published 0.8.1 archive does not
+contain (0.8.1 abstains on that query, per V1-0260). Under `UCV0-012`, the `VERIFIED` claim
+therefore applies to releases that include decision 0387, not to 0.8.1.
+Ticket V1-0341 (panel D9) returned `UC-CHANGE-CONSEQUENCE` and `UC-EVIDENCE-CARRYING-COMPLETION`
+to `experimental`/`UNPROVEN` with all six receipts kept. The completion row's dogfood reports show
+zero of 13 and zero of 4 requirements linked, with the rest unknown, so `UCV0-014` rejects them
+(ticket V1-0273). The consequence row's Beamfall subject is the LCRES-15 impact packet that
+reproduces open ticket V1-0263 (`UCV0-015`). `UC-TASK-ORIENTATION` stays `verified`: its packets
+are `READY` with no abstention, and V1-0260's abstaining query is not one of its subjects.
+
+## Status and claim model
+
+- `specified`: a stable job and promotion boundary are recorded. It does not imply an executable
+  product path.
+- `experimental`: an executable product path exists, but one or more promotion obligations remain.
+- `verified`: the complete promotion evidence set is present, content-addressed, and accepted by
+  the conformance runner.
+- `UNPROVEN`: the mandatory claim for every `specified` or `experimental` row.
+- `VERIFIED`: permitted only for a `verified` row whose complete evidence set validates.
+
+`UNPROVEN` is the default. Unknown, missing, stale, malformed, mismatched, or inaccessible evidence
+cannot be interpreted as success.
+
+## Requirements
+
+- `UCV0-001`: The canonical ledger MUST contain exactly one row for every governed job named above,
+  with a stable ID, non-empty title and job, one status, one claim, and a closed evidence object.
+- `UCV0-002`: Status MUST be exactly `specified`, `experimental`, or `verified`. Claim MUST be
+  exactly `UNPROVEN` or `VERIFIED`. `specified` and `experimental` MUST be `UNPROVEN`; `verified`
+  MUST be `VERIFIED`.
+- `UCV0-003`: The promotion evidence classes are exactly `contract`, `implementation`,
+  `hostile-tests`, `corvint-dogfood`, `beamfall-dogfood`, and `sealed-benchmark`. A `verified` row
+  MUST have one receipt from every class. An `experimental` row MUST have at least `contract` and
+  `implementation` receipts; other partial evidence remains non-promoting.
+- `UCV0-004`: Every evidence reference MUST contain only a repository-relative receipt path and the
+  lowercase SHA-256 of its exact bytes. Absolute paths, traversal, symlinks, non-files, digest
+  mismatch, duplicate receipt reuse, and paths outside the repository MUST fail closed.
+- `UCV0-005`: Every referenced receipt MUST be closed JSON with profile
+  `corvint-use-case-evidence/0`; the same use-case ID and evidence class as its ledger edge; `PASS`;
+  one immutable 40- or 64-hex repository revision; and at least one independently hashed subject.
+  Subject paths and bytes obey the same containment and SHA-256 rules as receipts.
+- `UCV0-006`: A `contract` receipt MUST cite at least one stable requirement ID. An
+  `implementation` receipt MUST cite at least one executable entry point. A `hostile-tests` receipt
+  MUST attest distinct `negative`, `hostile`, and `abstention` cases. Dogfood receipts MUST identify
+  exactly `corvint` or `beamfall` as appropriate and attest a `PASS` outcome.
+- `UCV0-007`: A `sealed-benchmark` receipt MUST attest `PASS` and bind three distinct SHA-256
+  identities: a preregistration, a corpus, and a result. Equality, omission, or malformed identities
+  fail closed. Mechanical completeness does not replace independent review of benchmark quality.
+- `UCV0-008`: The runner MUST validate populated evidence even on an `UNPROVEN` row, so partial or
+  staged evidence cannot rot invisibly. It MUST produce deterministic canonical JSON and a non-zero
+  exit for any violation.
+- `UCV0-009`: The runner MUST NOT execute receipts, subjects, product code, test commands, hooks, or
+  network requests. It reads bounded local files only; successful conformance proves ledger and
+  evidence-envelope integrity, not the truth of arbitrary prose inside a subject.
+- `UCV0-010`: Promotion requires both Corvint self-dogfood and Beamfall dogfood. Evidence from one
+  repository, a synthetic fixture, unit conformance, or a benchmark alone cannot substitute for the
+  other evidence classes.
+- `UCV0-011`: Live Proof-Carrying Verification is a separately governed product job: on each edit it
+  must derive affected obligations, select witnessed checks, execute incrementally, expose runtime
+  evidence and explicit unknown scope, and bind the result to the exact worktree. A generic test
+  runner or static impact list does not satisfy it.
+- `UCV0-012`: No row may be advertised as supported or delivered from this ledger unless its claim
+  is `VERIFIED`. Consumers MUST display the literal claim rather than infer support from status,
+  receipt count, implementation presence, or neighboring rows.
+
+- `UCV0-013`: The canonical ledger profile MUST be `corvint-use-case-conformance/1`, containing
+  the historical nineteen IDs plus exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`, and
+  `UC-EVIDENCE-CARRYING-COMPLETION`. The reader MUST retain the historical closed nineteen-ID
+  `corvint-use-case-conformance/0` profile. New IDs in `/0`, missing IDs in `/1`, and unknown
+  profiles MUST fail visibly. Migration preserves every historical row and its evidence bytes;
+  it adds the new rows as `specified`/`UNPROVEN` with no evidence. Historical readers reject `/1`;
+  archives retain `/0` bytes instead of pretending forward compatibility. Evidence `/0` and
+  result `/0` schemas, the six evidence classes, and promotion requirements remain unchanged by
+  this migration; `UCV0-014` (accepted 2026-09-26, decision 0424; from decision 0398) and `UCV0-015`
+  (proposed, decision 0398) tighten promotion.
+- `UCV0-014`: (accepted 2026-09-26, decision 0424; from decision 0398; V1-0341) On a `verified` row,
+  the runner MUST derive each dogfood receipt's `PASS` from its retained report subjects instead of
+  trusting the attested token. At least one subject MUST be a recognized report, and every
+  recognized report MUST pass: a tool packet (non-empty `tool`) needs `ok` true, `context.state`
+  `READY` and no active `context.abstention`; a `corvint-dogfood-change/0` report needs `complete`
+  true, `dogfoodCheck.outputsAgree` true and zero `ocmStatus.aggregate.coverage.unknown`
+  (`DCW-V0-005`). Otherwise the receipt fails `verified-unsupported-outcome`. Rows that are not
+  `verified` keep the receipt bound and envelope-checked under `UCV0-008`.
+- `UCV0-015`: (proposed 2026-09-25, not accepted; decision 0398, V1-0341) A row MUST NOT be
+  `verified` while an open defect ticket's reproduction is one of its bound subjects; the row
+  returns to `experimental` with its receipts kept. A `VERIFIED` claim covers only the revisions
+  its receipts name. Before the stable release is accepted (V1-0021), every `verified` row MUST be
+  re-derived on the release-candidate bytes, or return to `experimental`.
+- `UCV0-016`: (proposed 2026-09-25, not accepted; V1-0216) A `contract` receipt MAY bind the
+  clauses it cites through a clause-extract subject instead of the whole spec file. An extract is
+  closed JSON with profile `corvint-use-case-clauses/0`, a repository-relative `spec` path, and a
+  non-empty `clauses` list of closed `{id, text}` objects. The runner MUST read the spec under the
+  receipt containment rules and require each `text` to equal the spec's single bullet line that
+  opens with the backticked ID and a colon, plus the indented continuation lines that follow it.
+  A changed clause MUST fail `clause-drift`; zero or several definitions MUST fail
+  `clause-definitions-N`. When a receipt binds any extract, the extracts MUST cover exactly its
+  attested `requirementIds`, else `clause-coverage-mismatch`. An edit elsewhere in the spec leaves
+  the receipt valid; the extract itself remains a whole-file subject under `UCV0-005`.
+- `UCV0-217`: (accepted 2026-10-21 under the owner's standing auto-accept of 2026-10-11; V1-0303)
+  The Agent digest `Exists:` line MUST state the job status the ledger holds: each row that is
+  not `specified`/`UNPROVEN` is named in a `;`-separated clause carrying its own
+  `` `status`/`CLAIM` ``, and the clause `the other N jobs stay `specified`/`UNPROVEN`` spells out
+  the count of the remaining rows. `docs/specs/INDEX.json` carries that line through the generated
+  digest, and the README states no per-job status. Non-goals: generating prose from the ledger, and
+  any change to the ledger or a row's claim. Falsifier: a ledger status or claim change without
+  the matching digest change passes. Rollback: remove `TestUCV0217DigestStatusMatchesLedger`.
+- `UCV0-018`: (experimental under the standing lane auto-accept (2026-10-27); V1-2828)
+  `script/repin-use-case-receipts.sh`, with or without `--check`, MUST also list each changed path
+  that no receipt pins, separately from the stale receipts: one count line naming the changed and
+  unpinned totals, then one `unpinned PATH` line per path. Changed paths are those
+  `git diff --name-only HEAD` names (worktree and index), or exactly the paths after
+  `--changed PATH...`. Pinned paths are the ledger, every receipt, every receipt subject, and the
+  `spec` of a `UCV0-016` clause extract. The listing is informational: the exit status stays that
+  of the stale and refusal checks, so `--check` still exits 1 only for a stale receipt and 0 with
+  unpinned paths listed. A failed diff is stated as not listed, never as no change. A refusal
+  prints no listing. Non-goals: untracked files, deciding which paths a receipt ought to pin, and
+  failing on an unpinned path. Falsifier: a changed path no receipt pins is absent from the
+  output, or a pinned subject is listed. Rollback: remove the listing block and `--changed` from
+  the script and cases 2 and 4 from `script/repin-use-case-receipts_test.sh`.
+- `UCV0-019`: (experimental under the standing lane auto-accept (2026-10-29); V1-3124)
+  When `script/repin-use-case-receipts.sh` refuses a receipt whose bytes left its ledger pin (a
+  hand edit, or a cherry-pick or merge that carried a repinned receipt without its ledger), the
+  refusal MUST name the newest of the last 50 commits touching that receipt whose blob has the
+  pinned digest, with the exact recovery
+  `git restore --source=REV -- 'PATH' && script/repin-use-case-receipts.sh`, PATH shell-quoted
+  (single quotes, each embedded quote as `'\''`) so a path with a space or quote stays one word;
+  with no such commit it
+  says so and asks for review. Nothing is restored automatically and the exit status is
+  unchanged. Non-goals: searching further back than 50 commits. Falsifier: a refusal for a
+  receipt whose pinned bytes a recent commit holds names no command. Rollback: remove
+  `pinned_recovery` and cases 7 to 9.
+
+## Trust boundary and failure behavior
+
+The ledger and receipt envelopes are caller-controlled local bytes. The runner treats all paths and
+JSON values as hostile, imposes a 1 MiB limit per JSON or subject file, rejects duplicate JSON keys,
+accepts no extra fields, follows no symlink, and performs no Git or subprocess operation. Invalid
+input emits no partial promotion result and exits non-zero. A valid ledger with nineteen
+`UNPROVEN` rows exits zero because honest incompleteness is a valid state.
+
+The runner proves only that the declared promotion packets are complete, internally bound, and
+content-addressed. Human acceptance, product value, benchmark independence, and external-market
+truth remain outside this mechanical boundary.
+
+## Non-goals and baseline
+
+This version does not implement any governed job, schedule work, choose commercial licensing,
+publish documentation, install plugins, execute tests, mutate PRs, or merge code. It does not allow
+receipt quantity to vote a row into `VERIFIED`.
+
+The simpler baseline is a Markdown feature matrix maintained by convention. It is rejected because
+status can drift, links can rot, partial tests can be mistaken for complete evidence, and no
+mechanism prevents an unsupported `verified` label.
+
+## Acceptance matrix
+
+The conformance tests MUST cover the honest all-unproven ledger, exact job coverage, canonical
+repeatability, a complete synthetic promotion packet, missing evidence, receipt and subject
+tampering, class/subject mismatch, duplicate reuse, traversal/symlink escape, missing hostile cases,
+and an incomplete or self-colliding benchmark seal.
+
+Promotion of this conformance mechanism from experimental requires an independent review of the
+closed schemas plus successful Corvint and Beamfall use in a real capability promotion. Roll back by
+removing the runner from promotion policy while retaining the ledger and receipts as historical
+evidence; never rewrite a failed receipt.
+
+## Traceability
+
+| Requirements | Implementation | Evidence |
+|---|---|---|
+| `UCV0-001..003`, `UCV0-012` | `conformance/use-cases-v0/ledger.json`, `main.go` | `conformance/use-cases-v0/main_test.go` |
+| `UCV0-004..010` | `conformance/use-cases-v0/main.go` | hostile and complete-packet tests |
+| `UCV0-013` | `conformance/use-cases-v0/main.go`, `ledger.json` | `TestUCV0ProfileMigration`; historical reader refusal |
+| `UCV0-014` (proposed) | `conformance/use-cases-v0/main.go` | `TestUCV0DerivedDogfoodOutcome` |
+| `UCV0-015` (proposed) | `conformance/use-cases-v0/ledger.json` | owner review; not mechanically checked |
+| `UCV0-016` (proposed) | `conformance/use-cases-v0/main.go`, `receipts/*/contract/clauses.json` | `TestUCV0ClausePins` |
+| `UCV0-217` | Agent digest of this spec, `conformance/use-cases-v0/ledger.json` | `TestUCV0217DigestStatusMatchesLedger` |
+| `UCV0-018` | `script/repin-use-case-receipts.sh` | `script/repin-use-case-receipts_test.sh` cases 1 to 4 (`make use-case-receipts-test`) |
+| `UCV0-019` | `script/repin-use-case-receipts.sh` `pinned_recovery` | `script/repin-use-case-receipts_test.sh` cases 7 to 9 (`make use-case-receipts-test`) |
+| `UCV0-011` | governed ledger row only | `UNPROVEN`; implementation and outcome evidence absent |
+
+## Unresolved decisions and kill criteria
+
+Before any real promotion, owner review must decide who may issue each evidence class and whether
+cryptographic signatures supplement local content addressing. If the mechanism permits one false
+`VERIFIED`, silently accepts tampering, or allows one evidence class to substitute for another,
+disable promotion immediately. Retain it as a read-only gap ledger until repaired.

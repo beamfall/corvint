@@ -1,0 +1,7 @@
+{
+  "profile": "corvint-external-origins-policy/0",
+  "environment": ["http://127.0.0.1:3002", "http://127.0.0.1:4010"],
+  "deterministic": [
+    {"origin": "https://assets.example-cdn.test", "reason": "pinned content-hashed assets"}
+  ]
+}

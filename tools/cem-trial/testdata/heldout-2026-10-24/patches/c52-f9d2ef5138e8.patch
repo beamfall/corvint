@@ -1,0 +1,230 @@
+diff --git a/script/roadmap_test_shard.py b/script/roadmap_test_shard.py
+index b2f7c805e..9a61c2bf4 100644
+--- a/script/roadmap_test_shard.py
++++ b/script/roadmap_test_shard.py
+@@ -408,6 +408,7 @@ def run_worker(
+     # The generated shard lives in scratch, so the suites' source-relative repo
+     # root would resolve there; pin it to the real checkout.
+     env["ROADMAP_TEST_SUITE_ROOT"] = str(root)
++    env["ROADMAP_TEST_KEEP_TMP"] = "1"
+     env["PYTHONPYCACHEPREFIX"] = env.get(
+         "PYTHONPYCACHEPREFIX", "/tmp/beamfall-pycache"
+     )
+@@ -416,9 +417,8 @@ def run_worker(
+ 
+     command: list[str] = []
+     if supervisor is not None:
+-        # The worker supervisor is the ownership boundary for the generated
+-        # shard. Tell each replayed suite not to insert a second guardian whose
+-        # teardown can overlap the worker's disarm.
++        # The worker supervisor is the ownership boundary. Tell replayed suites
++        # not to insert guardians whose teardown can overlap worker disarm.
+         for flag in SUITE_SUPERVISOR_FLAGS:
+             env[flag] = "1"
+         command += ["python3", str(supervisor), f"ROADMAP_TEST_SHARD_{worker_id}_SUPERVISED"]
+@@ -433,7 +433,8 @@ def run_worker(
+         text=True,
+     )
+     (workdir / "output.log").write_text(proc.stdout, encoding="utf-8")
+-    shutil.rmtree(tmpdir, ignore_errors=True)
++    if proc.returncode == 0:
++        shutil.rmtree(tmpdir, ignore_errors=True)
+     return proc.returncode, proc.stdout
+ 
+ 
+@@ -456,7 +457,6 @@ def main() -> int:
+     supervisor = None if args.no_supervisor else root / "script" / "test-process-supervisor.py"
+     if supervisor is not None and not supervisor.exists():
+         supervisor = None
+-
+     suites = {rel: load_suite(root, rel) for rel in args.suites}
+     ordered: list[Section] = []
+     for rel in args.suites:
+diff --git a/script/test-process-supervisor.py b/script/test-process-supervisor.py
+index 4ec920250..e99c5196f 100755
+--- a/script/test-process-supervisor.py
++++ b/script/test-process-supervisor.py
+@@ -23,6 +23,8 @@ from typing import Optional
+ TOKEN_ENV_PREFIX = "BEAMFALL_PROCESS_SUPERVISOR_TOKEN_"
+ SIGNAL_GRACE_ENV = "BEAMFALL_PROCESS_SUPERVISOR_SIGNAL_GRACE_SECONDS"
+ CAPACITY_LOCK_FD = "BEAMFALL_GATE_CAPACITY_FD"
++ORPHAN_INDETERMINATE_GRACE_SECONDS = 1.0
++SHARD_QUIESCENCE_GRACE_SECONDS = 1.0
+ ProcessIdentity = tuple[int, int]
+ 
+ 
+@@ -217,7 +219,7 @@ def process_identity(pid: int) -> Optional[ProcessIdentity]:
+ 
+ 
+ def preexisting_indeterminate_identities(token: str) -> Optional[frozenset[ProcessIdentity]]:
+-    """Snapshot exact protected same-UID identities before the child can exist."""
++    """Snapshot protected identities before the supervised child can exist."""
+     token_entry = f"{token_env_name(token)}={token}".encode()
+     identities: set[ProcessIdentity] = set()
+     try:
+@@ -243,9 +245,44 @@ def preexisting_indeterminate_identities(token: str) -> Optional[frozenset[Proce
+             if identity is None:
+                 return None
+             identities.add(identity)
++        else:
++            identity = process_identity(pid)
++            if identity is not None:
++                identities.add(identity)
+     return frozenset(identities)
+ 
+ 
++def descends_from_protected_process(
++    pid: int,
++    session_id: int,
++    protected: frozenset[ProcessIdentity],
++) -> Optional[bool]:
++    """Classify an unreadable process without mistaking concurrent peers for ours.
++
++    A candidate whose ancestry reaches the supervised session remains
++    indeterminate and therefore fail-closed. A candidate whose ancestry first
++    reaches a process that existed before our child is a concurrent peer and
++    cannot have inherited this invocation's new token. Reparented candidates
++    remain indeterminate because their lineage can no longer prove either case.
++    """
++    current = pid
++    seen: set[int] = set()
++    while current > 1 and current not in seen:
++        seen.add(current)
++        parent = process_parent_id(current)
++        if parent is None or parent <= 1:
++            return None
++        if parent == session_id:
++            return False
++        identity = process_identity(parent)
++        if identity is None:
++            return None
++        if identity in protected:
++            return True
++        current = parent
++    return None
++
++
+ def owned_process_ids(
+     session_id: Optional[int],
+     token: str,
+@@ -285,8 +322,13 @@ def owned_process_ids(
+                 found.append(pid)
+         elif token_match is None:
+             identity = process_identity(pid)
+-            if identity is None or identity not in preexisting_indeterminate:
+-                indeterminate = True
++            if identity is not None and identity in preexisting_indeterminate:
++                continue
++            if session_id is not None and descends_from_protected_process(
++                pid, session_id, preexisting_indeterminate
++            ) is True:
++                continue
++            indeterminate = True
+     return found, indeterminate
+ 
+ 
+@@ -375,13 +417,29 @@ def wait_owned_quiescent(
+     preexisting_indeterminate: frozenset[ProcessIdentity] = frozenset(),
+     grace_seconds: float = 0.15,
+ ) -> bool:
+-    """Allow normal child teardown/process-table retirement before declaring a leak."""
+-    deadline = time.monotonic() + grace_seconds
+-    while owned_alive(session_id, token, preexisting_indeterminate):
+-        if time.monotonic() >= deadline:
+-            return False
++    """Require sustained absence so a delayed descendant cannot race disarm."""
++    if grace_seconds <= 0:
++        return not owned_alive(session_id, token, preexisting_indeterminate)
++    deadline = time.monotonic() + grace_seconds * 3
++    quiet_since: Optional[float] = None
++    while time.monotonic() < deadline:
++        if owned_alive(session_id, token, preexisting_indeterminate):
++            quiet_since = None
++        elif quiet_since is None:
++            quiet_since = time.monotonic()
++        elif time.monotonic() - quiet_since >= grace_seconds:
++            return True
+         time.sleep(0.025)
+-    return True
++    return False
++
++
++def quiescence_grace_seconds(env_flag: str) -> float:
++    inherited_supervision = any(
++        name.startswith(TOKEN_ENV_PREFIX) for name in os.environ
++    )
++    if env_flag.startswith("ROADMAP_TEST_SHARD_") or inherited_supervision:
++        return SHARD_QUIESCENCE_GRACE_SECONDS
++    return 0.15
+ 
+ 
+ def owned_process_inventory(
+@@ -440,16 +498,47 @@ def guardian_main(
+     ):
+         return 0
+     reported = False
++    disarm_inventory = (
++        owned_process_inventory(session_id, token, preexisting_indeterminate)
++        if disarmed
++        else []
++    )
++    # The first quiescence window can end on a transient process-table result.
++    # A second complete empty snapshot proves there is nothing to reap. Concrete
++    # or indeterminate inventory still enters the fail-closed rejection path.
++    if disarmed and not disarm_inventory:
++        return 0
++    orphan_indeterminate_since: Optional[float] = None
+     while True:
+         reap_owned(session_id, token, preexisting_indeterminate, grace_seconds=0.1)
+         if not owned_alive(session_id, token, preexisting_indeterminate):
+             if disarmed:
+                 print(
+-                    "test process supervisor guardian rejected disarm with owned processes",
++                    "test process supervisor guardian rejected disarm with owned processes:\n"
++                    "PID PPID PGID SID COMMAND\n"
++                    + "\n".join(disarm_inventory),
+                     file=sys.stderr,
+                 )
+                 return 1
+             return 0
++        pids, indeterminate = owned_process_ids(
++            session_id, token, preexisting_indeterminate
++        )
++        group_exists = session_id is not None and group_alive(session_id)
++        if disarmed or pids or group_exists or not indeterminate:
++            orphan_indeterminate_since = None
++        elif orphan_indeterminate_since is None:
++            orphan_indeterminate_since = time.monotonic()
++        elif (
++            time.monotonic() - orphan_indeterminate_since
++            >= ORPHAN_INDETERMINATE_GRACE_SECONDS
++        ):
++            print(
++                "test process supervisor orphan guardian could not resolve "
++                f"indeterminate inventory; exiting failed (run_id={run_id})",
++                file=sys.stderr,
++            )
++            return 1
+         if not reported:
+             print(
+                 "test process supervisor guardian could not prove descendant "
+@@ -739,6 +828,7 @@ def main() -> int:
+         print(f"usage: {sys.argv[0]} ENV_FLAG COMMAND [ARG ...]", file=sys.stderr)
+         return 2
+     env_flag, command = sys.argv[1], sys.argv[2:]
++    quiescence_grace = quiescence_grace_seconds(env_flag)
+     env = os.environ.copy()
+     env[env_flag] = "1"
+     token = secrets.token_hex(24)
+@@ -846,7 +936,10 @@ def main() -> int:
+         cleanly_drained = (
+             not forwarded_signal
+             and wait_owned_quiescent(
+-                session_id, token, preexisting_indeterminate
++                session_id,
++                token,
++                preexisting_indeterminate,
++                grace_seconds=quiescence_grace,
+             )
+         )
+         cleanup_inventory = (

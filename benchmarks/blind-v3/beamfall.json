@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "commit": "6e82abd857c77c0ca250b6c4a8f5e1c86684a535",
+  "original_frozen_sha256": "adc5ade2e9e057565f28847f7486115f955955e0e9bf672f87d84d9f3536ef7a",
+  "cases": [{
+    "id": "beamfall-feature-offline-packs",
+    "partition": "heldout-v3",
+    "target_version": "V4",
+    "first_observed_at": "2026-08-22",
+    "mode": "feature",
+    "feature_id": "offline-packs",
+    "text": "Look up the exact canonical Beamfall feature ID `offline-packs`. Return only its canonical registry record: area, summary, governing ADR IDs, applicable targets, and implementation status. Do not infer broader implementation coverage from similarly named code or migrations.",
+    "limit": 4,
+    "budget_bytes": 3072,
+    "rationale": "Beamfall explicitly labels testing/features.yaml as its canonical feature scope list, so an exact ID lookup has a single authoritative answer and a deliberately tight budget.",
+    "ground_truth": [
+      {"path": "testing/features.yaml", "line": 255, "contains": "- id: offline-packs"},
+      {"path": "testing/features.yaml", "line": 256, "contains": "area: playback"},
+      {"path": "testing/features.yaml", "line": 257, "contains": "summary: Downloaded Offline Packs (the sanctioned at-rest exception)."},
+      {"path": "testing/features.yaml", "line": 258, "contains": "adr: [\"0023\"]"},
+      {"path": "testing/features.yaml", "line": 259, "contains": "applies: [iphone, ipad]"},
+      {"path": "testing/features.yaml", "line": 260, "contains": "status: planned"}
+    ],
+    "expected": {
+      "must_include": ["feature:offline-packs"],
+      "critical": ["feature:offline-packs"],
+      "relevant": ["feature:offline-packs"],
+      "must_exclude": [
+        "path:internal/offlinepack/offlinepack.go",
+        "path:internal/store/migrate/catalog/0083_offline_packs.sql",
+        "path:docs/adr/0090-android-offline-packs-notifications-and-local-privacy.md"
+      ]
+    }
+  }]
+}

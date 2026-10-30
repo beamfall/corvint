@@ -1,0 +1,1100 @@
+#!/usr/bin/env bash
+# Tests for the lane procedure scripts (docs/LANE-ORCHESTRATION.md): heavy.sh (ASD-V0-014, its
+# remote offload ASD-V0-028),
+# the dogfood-finish missing-input refusal (ASD-V0-015), lane-idle-check.sh (ASD-V0-017),
+# lane-clean.sh (ASD-V0-018), lane-guard.sh (ASD-V0-024),
+# install-local-bin.sh (ASD-V0-025), install-cem-verifiers.sh (TCB-V0-046),
+# wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043). No Go build runs.
+set -uo pipefail
+export LC_ALL=C
+# The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
+# (GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE, GIT_CONFIG_PARAMETERS..., as a Git hook exports) would
+# point them at the caller's repository and its remote instead of the fixtures.
+unset $(git rev-parse --local-env-vars)
+
+script=$(cd "$(dirname "$0")" && pwd)
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/corvint-lane-scripts-test.XXXXXX") || exit 1
+trap 'chmod -R u+rwx "$tmp" 2> /dev/null; /bin/rm -rf "$tmp"' EXIT
+# DCW-V0-358 (V1-2857): a failure is recorded with its group and line and the run goes on, so one
+# run reports every failing group. A group is the code up to its `ok`; `ok` counts it passed only
+# when it recorded no failure. `summary` lists the failing groups and returns 1 when there are any.
+passed=0 group=1 failures=$tmp/failures.log
+: > "$failures" || exit 1
+fail() {
+  local msg=$*
+  printf 'lane-scripts_test: FAIL %s\n' "$msg" >&2
+  msg=${msg//$'\n'/ } msg=${msg//$'\t'/ }
+  printf '%s\t%s\t%s\n' "$group" "${BASH_LINENO[0]}" "${msg:0:300}" >> "$failures"
+  return 1
+}
+ok() {
+  cut -f1 "$failures" | grep -qx "$group" || passed=$((passed + 1))
+  group=$((group + 1))
+}
+summary() {
+  [[ -s ${heavy_escapes-} ]] && printf 'lane-scripts_test: heavy.sh fixture runs refused by the lock-dir guard:\n%s\n' "$(cat "$heavy_escapes")" >&2
+  if [[ ! -s $failures ]]; then
+    printf 'lane-scripts_test: %d groups passed\n' "$passed"
+    return 0
+  fi
+  printf 'lane-scripts_test: %d groups passed, %d failed:\n' "$passed" "$(cut -f1 "$failures" | sort -un | wc -l | tr -d ' ')" >&2
+  awk -F '\t' '!seen[$1]++ { n[$1] = 0; order[++k] = $1; first[$1] = "line " $2 ": " $3 } { n[$1]++ }
+    END { for (i = 1; i <= k; i++) { g = order[i]; printf "  group %s: %s", g, first[g]; if (n[g] > 1) printf " (+%d more)", n[g] - 1; printf "\n" } }' "$failures" >&2
+  return 1
+}
+# DCW-V0-358: the runner checks itself first with three synthetic groups, the first and third failing.
+if [[ ${1-} == --runner-self-test ]]; then
+  fail 'synthetic one'
+  ok
+  ok
+  fail 'synthetic three'
+  fail 'synthetic three again'
+  ok
+  summary
+  exit
+fi
+self=$(bash "$script/${0##*/}" --runner-self-test 2>&1)
+self_rc=$?
+self_line=$(grep -n "^  fail 'synthetic one'" "$script/${0##*/}" | cut -d: -f1)
+self_want="lane-scripts_test: FAIL synthetic one
+lane-scripts_test: FAIL synthetic three
+lane-scripts_test: FAIL synthetic three again
+lane-scripts_test: 1 groups passed, 2 failed:
+  group 1: line $self_line: synthetic one
+  group 3: line $((self_line + 3)): synthetic three (+1 more)"
+[[ $self_rc == 1 && $self == "$self_want" ]] || { printf 'lane-scripts_test: FAIL the group runner self-test (exit %s):\n%s\n' "$self_rc" "$self" >&2; exit 1; }
+
+# ASD-V0-014: two concurrent commands with HEAVY_SLOTS=1 never overlap. No caller's heavy.sh
+# configuration or remote host reaches the fixtures.
+export HEAVY_LOCK_DIR=$tmp/slots HEAVY_CONFIG=$tmp/no-heavy-config
+# ASD-V0-030 policy is exercised in its own group; elsewhere fixtures run whole packages and the
+# host's real load never delays them.
+export HEAVY_WHOLE_REASON='lane-scripts-test fixture' HEAVY_MAX_LOAD=999999 HEAVY_SELECTION_LOG=$tmp/selection.log
+unset HEAVY_LOCAL_REASON HEAVY_LOAD_WAIT
+unset HEAVY_REMOTE_HOST HEAVY_REMOTE HEAVY_REMOTE_SHELL HEAVY_REMOTE_SSH HEAVY_REMOTE_CLONE HEAVY_REMOTE_ROOT \
+  HEAVY_REMOTE_SLOTS HEAVY_REMOTE_ENV HEAVY_REMOTE_TIMEOUT HEAVY_REMOTE_BUSY_PROCESS HEAVY_REMOTE_BUILD_MAX_LOAD \
+  HEAVY_BUILD_OFFLOAD HEAVY_CI_GH HEAVY_CI_STATUSES HEAVY_CI_TIMEOUT
+# ASD-V0-040: no fixture queries a real CI; the guard's own group sets a repository and a stub gh.
+export HEAVY_CI_REPO=off
+# DCW-V0-355 (V1-2853): every heavy.sh fixture run goes through $heavy, a guard that asks heavy.sh
+# for its lock dir (`--print-lock-dir`, DCW-V0-357: HEAVY_LOCK_DIR, else the HEAVY_CONFIG file, else
+# the shared /tmp/corvint-heavy-<uid>) and, following symlinks, refuses with exit 97 and a logged line
+# unless it lies inside $tmp. HEAVY_SLOTS=0 makes a heavy.sh without that flag refuse instead of
+# taking a slot. A fixture whose override is unset therefore cannot take a slot from real lanes;
+# the summary group fails on any logged refusal even when a fixture expected a nonzero exit.
+mkdir -p "$tmp/guard" || exit 1
+tmp_real=$(cd -P "$tmp" && pwd -P) || exit 1
+heavy=$tmp/guard/heavy.sh heavy_escapes=$tmp/guard/escapes.log
+cat > "$heavy" << GUARD
+#!/usr/bin/env bash
+lock=\$(HEAVY_SLOTS=0 "$script/heavy.sh" --print-lock-dir 2> /dev/null) && [[ -n \$lock ]] || lock='(heavy.sh --print-lock-dir failed)'
+[[ \$lock == /* ]] || lock=\$PWD/\$lock
+real=
+case /\$lock/ in
+*/../* | */./*) ;;
+*)
+  dir=\${lock%/} rest=
+  while [[ -n \$dir && ! -d \$dir ]]; do rest=/\${dir##*/}\$rest dir=\${dir%/*}; done
+  real=\$(cd -P "\${dir:-/}" && pwd -P)\$rest
+  ;;
+esac
+case \$real/ in "$tmp_real"/*) exec "$script/heavy.sh" "\$@" ;; esac
+printf 'lock=%s pwd=%s cmd=%s\n' "\$lock" "\$PWD" "\$*" >> "$heavy_escapes"
+printf 'lane-scripts_test guard: heavy.sh lock dir %s is outside %s\n' "\$lock" "$tmp_real" >&2
+exit 97
+GUARD
+chmod +x "$heavy" || exit 1
+# DCW-V0-355: the guard fires for an unset override, a config outside $tmp, and a symlink out of it;
+# heavy.sh never runs for any of them.
+env -u HEAVY_LOCK_DIR HEAVY_CONFIG="$tmp/no-heavy-config" "$heavy" sh -c ': > "$1/guard-ran"' _ "$tmp" 2> "$tmp/guard.err"
+[[ $? == 97 && ! -e $tmp/guard-ran ]] && grep -q "^lock=/tmp/corvint-heavy-$(id -u) " "$heavy_escapes" &&
+  grep -q 'is outside' "$tmp/guard.err" || fail "the lock-dir guard let an unset HEAVY_LOCK_DIR reach heavy.sh"
+printf 'export HEAVY_LOCK_DIR="/tmp/corvint-heavy-guard-probe"\n' > "$tmp/guard/heavy.env"
+env -u HEAVY_LOCK_DIR HEAVY_CONFIG="$tmp/guard/heavy.env" "$heavy" sh -c ': > "$1/guard-ran"' _ "$tmp" 2> /dev/null
+[[ $? == 97 && ! -e $tmp/guard-ran ]] && grep -q '^lock=/tmp/corvint-heavy-guard-probe ' "$heavy_escapes" ||
+  fail "the lock-dir guard let a config lock dir outside the test reach heavy.sh"
+ln -s / "$tmp/guard/out"
+HEAVY_LOCK_DIR=$tmp/guard/out/tmp/x "$heavy" sh -c ': > "$1/guard-ran"' _ "$tmp" 2> /dev/null
+[[ $? == 97 && ! -e $tmp/guard-ran && $(wc -l < "$heavy_escapes") == *3 ]] ||
+  fail "the lock-dir guard followed no symlink out of the test directory"
+HEAVY_LOCK_DIR=$tmp/guard/slots "$heavy" sh -c ': > "$1/guard-ran"' _ "$tmp" 2> /dev/null && [[ -e $tmp/guard-ran ]] ||
+  fail "the lock-dir guard refused a lock dir inside the test directory"
+: > "$heavy_escapes"
+# DCW-V0-357 (V1-2856): the dir --print-lock-dir names is the dir a run locks, from the environment,
+# from HEAVY_CONFIG, and relative to the working directory; an empty HEAVY_LOCK_DIR means the default.
+agree=$tmp/agree
+mkdir -p "$agree" || exit 1
+printf 'HEAVY_LOCK_DIR=%s\n' "$agree/cfg" > "$agree/heavy.env"
+for case in "env|HEAVY_LOCK_DIR=$agree/env|$agree/env|$agree/env" "config|HEAVY_CONFIG=$agree/heavy.env|$agree/cfg|$agree/cfg" \
+  "relative|HEAVY_LOCK_DIR=rel|rel|$agree/rel"; do
+  IFS='|' read -r name assign want where <<< "$case"
+  got=$(cd "$agree" && env -u HEAVY_LOCK_DIR "$assign" "$script/heavy.sh" --print-lock-dir 2> /dev/null)
+  [[ $got == "$want" ]] || fail "heavy.sh --print-lock-dir ($name) printed '$got', want '$want'"
+  (cd "$agree" && env -u HEAVY_LOCK_DIR "$assign" HEAVY_SLOTS=1 "$heavy" true 2> /dev/null) &&
+    [[ -e $where/slot1 ]] || fail "heavy.sh ($name) did not lock the dir --print-lock-dir named, $where"
+done
+got=$(HEAVY_LOCK_DIR='' HEAVY_CONFIG=$agree/heavy.env "$script/heavy.sh" --print-lock-dir 2> /dev/null)
+[[ $got == "/tmp/corvint-heavy-$(id -u)" ]] || fail "heavy.sh --print-lock-dir with an empty HEAVY_LOCK_DIR printed '$got'"
+"$script/heavy.sh" --print-lock-dir true > /dev/null 2> "$agree/err"
+[[ $? == 2 ]] && grep -q 'REFUSE invalid-arguments' "$agree/err" || fail "heavy.sh --print-lock-dir accepted a command"
+ok
+
+# ASD-V0-014: two concurrent commands with HEAVY_SLOTS=1 never overlap.
+probe='mkdir "$1/running" || exit 9; sleep 1; rmdir "$1/running"'
+HEAVY_SLOTS=1 "$heavy" sh -c "$probe" _ "$tmp" 2> "$tmp/a.err" &
+a=$!
+HEAVY_SLOTS=1 "$heavy" sh -c "$probe" _ "$tmp" 2> "$tmp/b.err" &
+b=$!
+wait "$a" || fail "heavy.sh first concurrent command overlapped (exit $?)"
+wait "$b" || fail "heavy.sh second concurrent command overlapped (exit $?)"
+grep -q '^heavy.sh: slot 1/1 after [1-9]' "$tmp/a.err" "$tmp/b.err" || fail "heavy.sh: no command waited for the slot"
+ok
+
+# ASD-V0-014: the command's exit status and -p bound pass through; an explicit -p is kept.
+HEAVY_SLOTS=1 "$heavy" sh -c 'exit 7' 2> /dev/null
+[[ $? == 7 ]] || fail "heavy.sh did not return the command's status"
+got=$(HEAVY_SLOTS=2 HEAVY_P=3 GOFLAGS= "$heavy" sh -c 'printf %s "$GOFLAGS"' 2> /dev/null)
+[[ $got == -p=3 ]] || fail "heavy.sh GOFLAGS=$got, want -p=3"
+got=$(HEAVY_SLOTS=2 HEAVY_P=3 GOFLAGS='-p=1 -mod=mod' "$heavy" sh -c 'printf %s "$GOFLAGS"' 2> /dev/null)
+[[ $got == '-p=1 -mod=mod' ]] || fail "heavy.sh overrode an explicit GOFLAGS -p: $got"
+# AHI-199 (V1-2440): the command runs at niceness 10 by default, HEAVY_NICE=0 keeps the caller's
+# priority, an invalid level is refused, and the Makefile heavy recipes carry the same prefix.
+want=$(ps -o nice= -p $$ | tr -d ' ')
+got=$(env -u HEAVY_NICE HEAVY_SLOTS=1 "$heavy" sh -c 'ps -o nice= -p $$' 2> /dev/null | tr -d ' ')
+[[ $got == $((want > 10 ? want : 10)) ]] || fail "heavy.sh default niceness $got, want 10 or the caller's higher $want"
+got=$(HEAVY_NICE=0 HEAVY_SLOTS=1 "$heavy" sh -c 'ps -o nice= -p $$' 2> /dev/null | tr -d ' ')
+[[ $got == "$want" ]] || fail "heavy.sh HEAVY_NICE=0 niceness $got, want the caller's $want"
+HEAVY_NICE=20 "$heavy" true 2> "$tmp/err"
+[[ $? == 2 ]] && grep -q 'REFUSE invalid-nice' "$tmp/err" || fail "heavy.sh accepted HEAVY_NICE=20"
+makefile="$script/../Makefile"
+grep -qx 'HEAVY_NICE ?= 10' "$makefile" || fail "Makefile HEAVY_NICE default is not 10"
+grep -q '^HEAVY_NICE_PREFIX = $(if $(filter-out 0,$(HEAVY_NICE)),' "$makefile" || fail "Makefile HEAVY_NICE=0 does not opt out"
+for recipe in 'GO_TEST_COMMAND = $(HEAVY_NICE_PREFIX) ' '	@$(HEAVY_NICE_PREFIX) env $(GATE_LEDGER) run $* ' \
+  '$(HEAVY_NICE_PREFIX) script/dogfood-change.sh ' '$(HEAVY_NICE_PREFIX) script/dogfood-check.sh '; do
+  grep -qF -- "$recipe" "$makefile" || fail "Makefile heavy recipe lacks the nice prefix: $recipe"
+done
+ok
+# ASD-V0-014 (V1-2384): the repository root go.mod's pinned release (a nested module's go line
+# does not override it) goes first on PATH when installed; without it the go on PATH runs and one
+# warning names it.
+pin=$tmp/gopin
+mkdir -p "$pin/mod/sub" "$pin/path" "$pin/home" "$pin/cache/golang.org/toolchain@v0.0.1-go1.99.1.tos-tarch/bin"
+printf 'module x\n\ngo 1.99.1\n' > "$pin/mod/go.mod"
+printf 'module x/sub\n\ngo 1.98.0\n' > "$pin/mod/sub/go.mod"
+git init -q "$pin/mod" || fail "git init"
+printf '#!/bin/sh\n[ "$2" = GOVERSION ] && echo go1.99.2 && [ $# -gt 2 ] && printf "%%s\\n" "%s" tos tarch\nexit 0\n' "$pin/cache" > "$pin/path/go"
+printf '#!/bin/sh\necho go1.99.1\n' > "$pin/cache/golang.org/toolchain@v0.0.1-go1.99.1.tos-tarch/bin/go"
+chmod +x "$pin/path/go" "$pin/cache/golang.org/toolchain@v0.0.1-go1.99.1.tos-tarch/bin/go"
+got=$(cd "$pin/mod/sub" && HOME=$pin/home PATH=$pin/path:$PATH HEAVY_SLOTS=1 "$heavy" go env GOVERSION 2> "$tmp/err")
+[[ $got == go1.99.1 ]] && ! grep -q pinned "$tmp/err" || fail "heavy.sh ran $got, want the pinned go1.99.1"
+/bin/rm -rf "$pin/cache/golang.org"
+got=$(cd "$pin/mod/sub" && HOME=$pin/home PATH=$pin/path:$PATH HEAVY_SLOTS=1 "$heavy" go env GOVERSION 2> "$tmp/err")
+[[ $got == go1.99.2 ]] && grep -q '^heavy.sh: pinned go1.99.1 not installed; running go1.99.2$' "$tmp/err" ||
+  fail "heavy.sh without the pinned go: ran $got, stderr $(cat "$tmp/err")"
+HEAVY_SLOTS=0 "$heavy" true 2> "$tmp/err"
+[[ $? == 2 ]] && grep -q 'REFUSE invalid-slots' "$tmp/err" || fail "heavy.sh accepted HEAVY_SLOTS=0"
+ok
+
+# ASD-V0-014: the slot covers the workload. Each case synchronises on a marker its own workload
+# writes once admitted. Killing only the wrapper keeps the slot until the workload exits; killing
+# wrapper and workload frees it at once; a forwarded TERM reaches the workload's whole group.
+wait_for() { for _ in $(seq 100); do [[ -s $1 ]] && return 0; sleep 0.1; done; fail "timed out waiting for $1"; }
+gone() { for _ in $(seq 50); do kill -0 "$1" 2> /dev/null || return 0; sleep 0.1; done; return 1; }
+HEAVY_SLOTS=1 "$heavy" sh -c 'echo $$ > "$1/w1.pid"; sleep 3' _ "$tmp" 2> /dev/null &
+holder=$!
+wait_for "$tmp/w1.pid"
+kill -9 "$holder" 2> /dev/null
+wait "$holder" 2> /dev/null
+busy() { perl -MFcntl=:flock -e 'open(my $f, ">>", $ARGV[0]) or exit 2; exit(flock($f, LOCK_EX | LOCK_NB) ? 1 : 0)' "$1"; }
+busy "$HEAVY_LOCK_DIR/slot1" || fail "heavy.sh slot freed while a killed wrapper's workload ran"
+HEAVY_SLOTS=1 "$heavy" true 2> /dev/null || fail "heavy.sh failed after a killed wrapper"
+gone "$(cat "$tmp/w1.pid")" || fail "heavy.sh slot reclaimed while the workload still ran"
+HEAVY_SLOTS=1 "$heavy" sh -c 'echo $$ > "$1/w2.pid"; exec sleep 30' _ "$tmp" 2> /dev/null &
+holder=$!
+wait_for "$tmp/w2.pid"
+kill -9 "$holder" "$(cat "$tmp/w2.pid")" 2> /dev/null
+wait "$holder" 2> /dev/null
+gone "$(cat "$tmp/w2.pid")" || fail "killed workload still running"
+start=$(date +%s)
+HEAVY_SLOTS=1 "$heavy" true 2> /dev/null || fail "heavy.sh failed after a killed owner"
+(($(date +%s) - start < 3)) || fail "heavy.sh waited on a dead owner's slot"
+HEAVY_SLOTS=1 "$heavy" sh -c 'sleep 30 & echo $! > "$1/g.pid"; wait' _ "$tmp" 2> /dev/null &
+holder=$!
+wait_for "$tmp/g.pid"
+kill -TERM "$holder"
+wait "$holder" 2> /dev/null
+gone "$(cat "$tmp/g.pid")" || { kill "$(cat "$tmp/g.pid")" 2> /dev/null; fail "heavy.sh did not forward TERM to the workload's group"; }
+ok
+# ASD-V0-028: a go test offloads to HEAVY_REMOTE_HOST at the checkout's exact tree (an unpushed
+# commit as a bundle, the uncommitted diff, untracked files, the working directory), returns its
+# status, admits through the remote flock semaphore, cleans up the remote, and falls back to a local
+# run when ssh fails or the remote clone cannot reproduce the tree. ssh is a stub running the remote
+# shell on this host with its own HOME and TMPDIR; go is a stub reporting where and on what it ran.
+off=$tmp/off
+mkdir -p "$off/bin" "$off/rhome" "$off/rtmp" "$off/ltmp"
+cat > "$off/bin/ssh" << SSH
+#!/usr/bin/env bash
+while [[ \$1 == -o ]]; do shift 2; done
+host=\$1; shift
+printf '%s\n' "\$host" >> "$off/ssh.log"
+[[ \$host == down ]] && exit 255
+if [[ \$host == flaky && ! -e $off/flaky.once ]]; then : > "$off/flaky.once"; exit 255; fi
+[[ \$host == hang ]] && { echo \$\$ > "$off/hang.pid"; exec sleep 30; }
+tee "$off/payload.last" | env -u GOCACHE -u GIT_CONFIG_GLOBAL -u XDG_CONFIG_HOME HOME="$off/rhome" TMPDIR="$off/rtmp" bash -c "\$*"
+SSH
+cat > "$off/bin/go" << GO
+#!/usr/bin/env bash
+if [[ \$1 == env ]]; then
+  shift
+  for a; do case \$a in GOOS) echo "\${GOOS:-stubos}" ;; GOARCH) echo "\${GOARCH:-stubarch}" ;; *) echo ;; esac; done
+  exit 0
+fi
+if [[ \$1 == build ]]; then
+  # ASD-V0-041: a build writes "built-WHERE GOOS/GOARCH" to its -o / -o= / NAME_BIN= output (DIR/ gets DIR/app).
+  case \$PWD in */off/rhome/.cache/corvint-heavy/wt/*) where=remote ;; *) where=local ;; esac
+  printf 'build where=%s\n' "\$where"
+  o= prev=
+  for a in "\$@"; do
+    case \$a in -exit=*) exit "\${a#-exit=}" ;; -o=*) o=\${a#-o=} ;; *BIN=*) o=\${a#*BIN=} ;; esac
+    [[ \$prev == -o ]] && o=\$a
+    prev=\$a
+  done
+  [[ -n \$o ]] || exit 0
+  [[ \$o == */ ]] && o=\${o}app
+  mkdir -p "\$(dirname "\$o")"
+  printf 'built-%s %s/%s\n' "\$where" "\${GOOS-}" "\${GOARCH-}" > "\$o"
+  exit 0
+fi
+[[ \$1 == test || \$1 == vet || \$1 == windows-vet ]] || exit 0
+case \$PWD in */off/rhome/.cache/corvint-heavy/wt/*) where=remote; printf '%s\n' "\$TMPDIR" > "$off/tmpdir.last"; : > "\$TMPDIR/leak" ;; *) where=local ;; esac
+printf 'where=%s dir=%s gocache=%s mark=%s\n' "\$where" "\${PWD##*/}" "\${GOCACHE-unset}" "\${FAKE_MARK-}"
+cat ../committed.txt ../wip.txt untracked.txt 2> /dev/null
+for a in "\$@"; do
+  case \$a in
+    -exit=*) exit "\${a#-exit=}" ;;
+    -probe) mkdir "$off/running" || exit 9; sleep 1; rmdir "$off/running" ;;
+    -write=*) mkdir -p "\$(dirname "\${a#-write=}")" && printf 'written-%s\n' "\$where" > "\${a#-write=}" ;;
+    -delete=*) /bin/rm -f "\${a#-delete=}" ;;
+    -localedit=*) printf 'local-edit\n' > "$off/lc/sub/\${a#-localedit=}" ;;
+  esac
+done
+GO
+printf '#!/usr/bin/env bash\nshift\nexec "$@"\n' > "$off/bin/timeout"
+chmod +x "$off/bin/ssh" "$off/bin/go" "$off/bin/timeout"
+/bin/cp -f "$off/bin/go" "$off/bin/make"
+g() { git -c user.name=t -c user.email=t@example.invalid -c init.defaultBranch=main "$@"; }
+g init -q --bare "$off/origin.git"
+g clone -q "$off/origin.git" "$off/lc" 2> /dev/null
+mkdir -p "$off/lc/sub"
+printf 'committed-base\n' > "$off/lc/committed.txt"
+printf 'wip-base\n' > "$off/lc/wip.txt"
+g -C "$off/lc" add -A && g -C "$off/lc" commit -qm base && g -C "$off/lc" push -q origin main 2> /dev/null ||
+  fail "offload fixture push failed"
+g clone -q "$off/origin.git" "$off/rhome/corvint" 2> /dev/null || fail "offload fixture remote clone failed"
+printf 'committed-unpushed\n' > "$off/lc/committed.txt"
+g -C "$off/lc" commit -qam unpushed || fail "offload fixture commit failed"
+printf 'wip-uncommitted\n' > "$off/lc/wip.txt"
+printf 'untracked\n' > "$off/lc/sub/untracked.txt"
+printf 'export FAKE_MARK=sourced\n' > "$off/rhome/go.env"
+# shellcheck disable=SC2088 # the remote expands ~
+hv() { (cd "$off/lc/sub" && env PATH="$off/bin:$PATH" TMPDIR="$off/ltmp" HEAVY_REMOTE_SSH="$off/bin/ssh" \
+  HEAVY_REMOTE_SHELL='bash -s' HEAVY_REMOTE_ENV='~/go.env' HEAVY_SLOTS=1 HEAVY_REMOTE_RETRY=0 \
+  HEAVY_FALLBACK_LOG="$off/fallback.log" "$heavy" "$@"); }
+out=$(HEAVY_REMOTE_HOST=box hv env GOCACHE=/no/such/cache go test -exit=0 ./... 2> "$off/err")
+# The local GOCACHE assignment is dropped; the remote Go cache defaults to the remote user cache dir,
+# never /tmp (V1-2691).
+[[ $out == "where=remote dir=sub gocache=$off/rhome/.cache/corvint-go-build-cache mark=sourced"$'\n''committed-unpushed'$'\n''wip-uncommitted'$'\n''untracked' ]] ||
+  fail "heavy.sh offload ran another tree: $out $(cat "$off/err")"
+# The header names the tested content: the Git tree of the working tree, computed here
+# independently in a copy of the checkout, and its 2 paths differing from HEAD.
+/bin/cp -R "$off/lc/." "$off/exp"
+want_tree=$(g -C "$off/exp" add -A && g -C "$off/exp" write-tree) || fail "expected tree"
+/bin/rm -rf "$off/exp"
+# The remote TMPDIR was a per-run directory under the remote root (not /tmp), removed with its leak.
+[[ $(cat "$off/tmpdir.last") == "$off/rhome/.cache/corvint-heavy/tmp/run."* && ! -e $(cat "$off/tmpdir.last") ]] ||
+  fail "heavy.sh remote TMPDIR $(cat "$off/tmpdir.last") is not a removed per-run directory under the remote root"
+grep -qE "^heavy.sh: running on .* at $(g -C "$off/lc" rev-parse HEAD) \+wip tree=$want_tree dirty=2\$" "$off/err" &&
+  grep -q '^heavy.sh: slot 1/' "$off/err" ||
+  fail "heavy.sh offload did not report the remote run, tested tree and slot: $(cat "$off/err")"
+# ASD-V0-031 (V1-2819): the remote prints its phase wall-clocks, and the first run creates the
+# slot's worktree at a fixed path that later runs reuse after resetting it to the tested tree.
+phase='^heavy.sh: phase receive=[0-9]+\.[0-9]s wait=[0-9]+\.[0-9]s prepare=[0-9]+\.[0-9]s run=[0-9]+\.[0-9]s worktree=heavy-slot1/'
+grep -qE "${phase}created\$" "$off/err" || fail "heavy.sh first offload phase line: $(cat "$off/err")"
+rwt=$off/rhome/.cache/corvint-heavy/wt/heavy-slot1
+printf 'stale\n' > "$rwt/wip.txt"
+printf 'stale\n' > "$rwt/sub/stale.txt"
+out=$(HEAVY_REMOTE_HOST=box hv go test -exit=5 ./... 2> "$off/err")
+[[ $? == 5 ]] || fail "heavy.sh offload did not return the remote command's status"
+[[ $out == *wip-uncommitted* && $out != *stale* && ! -e $rwt/sub/stale.txt ]] && grep -qE "${phase}reused\$" "$off/err" ||
+  fail "heavy.sh did not reset the reused worktree to the tested tree: $out $(cat "$off/err")"
+# ASD-V0-037 (V1-2905): each run names its runner by hash, and the offload line carries the remote's
+# phase line and the runner's short hash.
+sha=$( { shasum -a 256 "$script/heavy.sh" || sha256sum "$script/heavy.sh"; } 2> /dev/null | awk 'NR == 1 { print $1 }')
+grep -qx "heavy.sh: script sha256=$sha $script/heavy.sh" "$off/err" || fail "heavy.sh did not print its script hash: $(cat "$off/err")"
+grep -qE "^[0-9TZ:-]+ offload host=box pack=[0-9]+\.[0-9]s remote=[0-9]+\.[0-9]s rc=5 receive=[0-9]+\.[0-9]s wait=[0-9]+\.[0-9]s prepare=[0-9]+\.[0-9]s run=[0-9]+\.[0-9]s worktree=heavy-slot1/reused pwd=.*/lc/sub cmd=go test -exit=5 \./\.\.\. script=${sha:0:12}\$" "$tmp/selection.log" ||
+  fail "heavy.sh did not log the offload phases: $(cat "$tmp/selection.log")"
+wts() { g -C "$off/rhome/corvint" worktree list --porcelain | grep -c '^worktree '; }
+[[ $(wts) == 2 && -z $(g -C "$off/rhome/corvint" for-each-ref refs/heavy) && -z $(ls -A "$off/rtmp")$(ls -A "$off/ltmp") ]] ||
+  fail "heavy.sh offload left a worktree, ref or scratch directory: $(g -C "$off/rhome/corvint" worktree list; g -C "$off/rhome/corvint" for-each-ref refs/heavy; ls -A "$off/rtmp" "$off/ltmp")"
+# A worktree removed behind Git's back (or left unusable) is recreated at the same path.
+/bin/rm -rf "$rwt"
+out=$(HEAVY_REMOTE_HOST=box hv go test ./... 2> "$off/err")
+[[ $out == where=remote*wip-uncommitted* && $(wts) == 2 ]] && grep -qE "${phase}created\$" "$off/err" ||
+  fail "heavy.sh did not recreate a missing slot worktree: $out $(cat "$off/err"; g -C "$off/rhome/corvint" worktree list)"
+ok
+# V1-2552: an offload of packages holding darwin-only files says so, once on stderr and once in the
+# selection log, naming the count and first file; a package without any stays silent, and a
+# `//go:build darwin || linux` file is not darwin-only.
+mkdir -p "$off/lc/sub/mac" "$off/lc/sub/both"
+printf 'package mac\n' > "$off/lc/sub/mac/a_darwin_test.go"
+printf '//go:build darwin && cgo\n\npackage mac\n' > "$off/lc/sub/mac/b.go"
+printf '//go:build darwin || linux\n\npackage both\n' > "$off/lc/sub/both/c.go"
+HEAVY_REMOTE_HOST=box hv go test -run X ./... > /dev/null 2> "$off/err"
+grep -qx 'heavy.sh: offloading to box, which neither builds nor runs 2 darwin-only file(s), first ./mac/a_darwin_test.go; HEAVY_REMOTE=0 with HEAVY_LOCAL_REASON runs them here' "$off/err" &&
+  grep -qE '^[0-9TZ:-]+ darwin-only host=box n=2 first=\./mac/a_darwin_test\.go pwd=.*/lc/sub cmd=go test -run X \./\.\.\. script=' "$tmp/selection.log" ||
+  fail "heavy.sh offloaded darwin-only files silently: $(cat "$off/err") $(tail -n 3 "$tmp/selection.log")"
+HEAVY_REMOTE_HOST=box hv go test -run X ./both ./mac/missing > /dev/null 2> "$off/err"
+HEAVY_REMOTE_HOST=box hv go test -run X . >> /dev/null 2>> "$off/err"
+grep -q 'darwin-only' "$off/err" && fail "heavy.sh named darwin-only files outside the tested packages: $(cat "$off/err")"
+/bin/rm -rf "$off/lc/sub/mac" "$off/lc/sub/both"
+ok
+: > "$off/ssh.log"
+: > "$off/fallback.log"
+out=$(HEAVY_REMOTE_HOST=down hv go test ./... 2> "$off/err")
+[[ $out == 'where=local dir=sub'* ]] && grep -q '^heavy.sh: offload to down unavailable; retrying in 0s$' "$off/err" &&
+  grep -q '^heavy.sh: offload to down unavailable; running locally (logged)$' "$off/err" ||
+  fail "heavy.sh did not retry once and fall back to a local run when ssh failed: $out $(cat "$off/err")"
+grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]{8}Z pwd=.*/lc/sub reason=offload-unavailable cmd=go test \./\.\.\.$' "$off/fallback.log" ||
+  fail "heavy.sh did not log the local fallback: $(cat "$off/fallback.log")"
+# ASD-V0-037: a fallback is logged, and HEAVY_FALLBACK_ALERT fallbacks for one host with no
+# successful offload to it between them raise one alert; a successful offload ends the streak.
+[[ $(tr '\n' ' ' < "$off/ssh.log") == 'down down ' ]] || fail "heavy.sh ssh calls for down: $(cat "$off/ssh.log")"
+grep -Eq '^[0-9TZ:-]+ fallback host=down pwd=.*/lc/sub cmd=go test \./\.\.\. script=[0-9a-f]{12}$' "$tmp/selection.log" &&
+  ! grep -q 'ALERT' "$off/err" || fail "heavy.sh fallback line or premature alert: $(cat "$off/err" "$tmp/selection.log")"
+HEAVY_REMOTE_HOST=down HEAVY_FALLBACK_ALERT=2 hv go test ./... > /dev/null 2> "$off/err"
+grep -qx 'heavy.sh: ALERT remote-unavailable streak=2 host=down: the last 2 offloads ran locally; check the host (for a WSL box, script/wsl-keepalive-check.sh)' "$off/err" &&
+  grep -Eq '^[0-9TZ:-]+ alert remote-unavailable streak=2 host=down pwd=' "$tmp/selection.log" ||
+  fail "heavy.sh did not alert on a fallback streak: $(cat "$off/err")"
+HEAVY_REMOTE_HOST=down HEAVY_FALLBACK_ALERT=0 hv go test ./... > /dev/null 2> "$off/err"
+! grep -q 'ALERT' "$off/err" || fail "heavy.sh alerted with HEAVY_FALLBACK_ALERT=0"
+printf '2026-10-27T00:00:00Z offload host=down pack=0.1s remote=0.1s rc=1 pwd=/x cmd=go test ./x script=0\n' >> "$tmp/selection.log"
+HEAVY_REMOTE_HOST=down HEAVY_FALLBACK_ALERT=2 hv go test ./... > /dev/null 2> "$off/err"
+! grep -q 'ALERT' "$off/err" || fail "heavy.sh alert ignored a successful offload: $(cat "$off/err")"
+HEAVY_REMOTE_HOST=down HEAVY_FALLBACK_ALERT=x hv go test ./... > /dev/null 2> "$off/err"
+[[ $? == 2 ]] && grep -q 'REFUSE invalid-fallback-alert' "$off/err" || fail "heavy.sh accepted HEAVY_FALLBACK_ALERT=x"
+HEAVY_REMOTE_HOST=down HEAVY_FALLBACK_ALERT=101 hv go test ./... > /dev/null 2> "$off/err"
+[[ $? == 2 ]] && grep -q 'REFUSE invalid-fallback-alert' "$off/err" || fail "heavy.sh accepted HEAVY_FALLBACK_ALERT=101"
+# ASD-V0-037: while HEAVY_REMOTE_BUSY_PROCESS runs on the remote the offload is unavailable.
+printf '#!/bin/sh\n[ "$1" = -x ] && [ "$2" = busyjob ]\n' > "$off/bin/pgrep" && chmod +x "$off/bin/pgrep" || fail "pgrep stub"
+out=$(HEAVY_REMOTE_HOST=box HEAVY_REMOTE_BUSY_PROCESS=busyjob hv go test ./... 2> "$off/err")
+[[ $out == where=local* ]] && grep -q '^heavy.sh: remote .*: busy: busyjob is running$' "$off/err" ||
+  fail "heavy.sh offloaded while the busy process ran: $out $(cat "$off/err")"
+out=$(HEAVY_REMOTE_HOST=box HEAVY_REMOTE_BUSY_PROCESS=idlejob hv go test ./... 2> "$off/err")
+[[ $out == where=remote* ]] || fail "heavy.sh did not offload when the busy process was absent: $out $(cat "$off/err")"
+/bin/rm -f "$off/bin/pgrep"
+: > "$off/ssh.log"
+out=$(HEAVY_REMOTE_HOST=flaky hv go test ./... 2> "$off/err")
+[[ $out == where=remote* ]] && grep -q 'retrying in 0s' "$off/err" || fail "heavy.sh did not retry a failed offload: $out"
+g -C "$off/rhome/corvint" remote set-url origin https://example.invalid/other/repo.git
+out=$(HEAVY_REMOTE_HOST=box hv go test ./... 2> "$off/err")
+[[ $out == 'where=local'* ]] && grep -q 'is not a clone of' "$off/err" || fail "heavy.sh offloaded to a clone of another origin: $out"
+g -C "$off/rhome/corvint" remote set-url origin "$off/origin.git"
+[[ $(tr '\n' ' ' < "$off/ssh.log") == 'flaky flaky box box ' ]] || fail "heavy.sh ssh calls: $(cat "$off/ssh.log")"
+# ASD-V0-038 (V1-2904): a local run uses the Makefile's cache unless the caller set GOCACHE.
+out=$(unset GOCACHE CORVINT_GOCACHE; HEAVY_REMOTE_HOST= hv go test ./... 2> /dev/null)$'\n'$(unset GOCACHE
+  CORVINT_GOCACHE=/x/c HEAVY_REMOTE_HOST= hv go test ./... 2> /dev/null)$'\n'$(GOCACHE=/y/c HEAVY_REMOTE_HOST= hv go test ./... 2> /dev/null)
+[[ $(grep -o 'where=local dir=sub gocache=[^ ]*' <<< "$out" | tr '\n' ' ') == 'where=local dir=sub gocache=/tmp/corvint-go-build-cache where=local dir=sub gocache=/x/c where=local dir=sub gocache=/y/c ' ]] ||
+  fail "heavy.sh local Go cache: $out"
+ok
+# ASD-V0-028: go vet and make windows-vet offload too; other commands, HEAVY_REMOTE=0, a missing host
+# and a file-writing test run locally, and the offloadable ones among them are logged.
+out=$(HEAVY_REMOTE_HOST=box hv go vet ./... 2> /dev/null)$'\n'$(HEAVY_REMOTE_HOST=box hv make windows-vet 2> /dev/null)
+[[ $(grep -c '^where=remote dir=sub' <<< "$out") == 2 ]] || fail "heavy.sh did not offload go vet and make windows-vet: $out"
+: > "$off/ssh.log"
+: > "$off/fallback.log"
+out=$(hv go test ./... 2> /dev/null)$(HEAVY_REMOTE_HOST=box HEAVY_REMOTE=0 HEAVY_LOCAL_REASON='darwin only' hv go test ./... 2> /dev/null)
+out+=$(HEAVY_REMOTE_HOST=box HEAVY_BUILD_OFFLOAD=0 hv go build ./... 2> /dev/null)$(HEAVY_REMOTE_HOST=box hv go test -coverprofile=c.out ./... 2> /dev/null)
+out+=$(HEAVY_REMOTE_HOST=box hv env 'GOFLAGS=-count=1 -coverprofile=c.out' go test ./... 2> /dev/null)
+out+=$(HEAVY_REMOTE_HOST=box GOFLAGS=-cpuprofile=p.out hv go test ./... 2> /dev/null)
+[[ ! -s $off/ssh.log && $out != *remote* ]] || fail "heavy.sh offloaded without a host, with HEAVY_REMOTE=0, HEAVY_BUILD_OFFLOAD=0 or a file-writing test"
+[[ $(sed 's/.* reason=//' "$off/fallback.log" | tr '\n' ' ') == 'HEAVY_REMOTE=0 local_reason=darwin\ only cmd=go test ./... writes-files cmd=go test -coverprofile=c.out ./... writes-files cmd=env GOFLAGS=-count=1 -coverprofile=c.out go test ./... writes-files cmd=go test ./... ' ]] ||
+  fail "heavy.sh fallback log: $(cat "$off/fallback.log")"
+ok
+# ASD-V0-028: a TERM to the wrapper during an offload stops its ssh at once and exits 143.
+(cd "$off/lc/sub" && exec env PATH="$off/bin:$PATH" TMPDIR="$off/ltmp" HEAVY_REMOTE_SSH="$off/bin/ssh" \
+  HEAVY_REMOTE_HOST=hang HEAVY_REMOTE_RETRY=0 HEAVY_FALLBACK_LOG="$off/fallback.log" "$heavy" go test ./...) 2> /dev/null &
+wrapper=$!
+wait_for "$off/hang.pid"
+kill -TERM "$wrapper"
+wait "$wrapper"
+rc=$?
+gone "$(cat "$off/hang.pid")" || { kill "$(cat "$off/hang.pid")" 2> /dev/null; fail "heavy.sh left ssh running after TERM"; }
+[[ $rc == 143 && -z $(ls -A "$off/ltmp") ]] || fail "heavy.sh TERM during offload: exit $rc, scratch $(ls -A "$off/ltmp")"
+ok
+# ASD-V0-028: HEAVY_CONFIG supplies settings the environment leaves unset; the environment wins.
+printf '# lane host\nHEAVY_REMOTE_HOST=box\nHEAVY_REMOTE_SHELL="bash -s"\nNOT_HEAVY=1\n' > "$off/heavy.env"
+out=$(HEAVY_CONFIG=$off/heavy.env hv go test ./... 2> "$off/err")
+[[ $out == where=remote* ]] && grep -q 'ignoring config line .*NOT_HEAVY=1' "$off/err" || fail "heavy.sh ignored HEAVY_CONFIG: $out"
+out=$(HEAVY_CONFIG=$off/heavy.env HEAVY_REMOTE_HOST=down hv go test ./... 2> /dev/null)
+[[ $out == where=local* ]] || fail "heavy.sh HEAVY_CONFIG overrode the environment: $out"
+ok
+# ASD-V0-028: the remote semaphore admits HEAVY_REMOTE_SLOTS=1 commands one at a time.
+HEAVY_REMOTE_HOST=box HEAVY_REMOTE_SLOTS=1 hv go test -probe ./... > "$off/a.out" 2> "$off/a.err" &
+a=$!
+HEAVY_REMOTE_HOST=box HEAVY_REMOTE_SLOTS=1 hv go test -probe ./... > "$off/b.out" 2> "$off/b.err" &
+b=$!
+wait "$a" || fail "heavy.sh first remote command overlapped (exit $?)"
+wait "$b" || fail "heavy.sh second remote command overlapped (exit $?)"
+grep -q '^where=remote' "$off/a.out" && grep -q '^where=remote' "$off/b.out" || fail "heavy.sh slot test ran locally"
+grep -qE '^heavy.sh: phase .* wait=[1-9]' "$off/a.err" "$off/b.err" || fail "heavy.sh: no remote command waited for the slot"
+[[ -d $off/rhome/.cache/corvint-heavy/slots && -z $(ls -A "$off/rtmp") ]] || fail "heavy.sh remote slots or cleanup missing"
+ok
+# ASD-V0-028 (V1-2802): one small untracked file with no uncommitted diff still travels (its tar
+# is the same 10240 bytes as an empty one), and is labelled +wip; with no untracked file and no
+# diff, no untracked archive is sent and the run is not +wip.
+payload() { sed -n '/^main "\$@"; exit \$?$/,$p' "$off/payload.last" | tail -n +2 | base64 -d | tar -tf - | sort | tr '\n' ' '; }
+printf 'keep\n' > "$off/lc/sub/keep.txt"
+g -C "$off/lc" add sub/keep.txt && g -C "$off/lc" commit -qm wip wip.txt sub/keep.txt || fail "offload fixture wip commit failed"
+out=$(HEAVY_REMOTE_HOST=box hv go test ./... 2> "$off/err")
+[[ $out == *$'\n''untracked' ]] && grep -qE '^heavy.sh: running on .* \+wip tree=[0-9a-f]{40} dirty=1$' "$off/err" ||
+  fail "heavy.sh dropped a lone small untracked file: $out $(cat "$off/err")"
+[[ $(payload) == 'head.bundle meta.env untracked.tar wip.patch ' ]] || fail "heavy.sh payload with an untracked file: $(payload)"
+/bin/mv -f "$off/lc/sub/untracked.txt" "$off/untracked.keep"
+out=$(HEAVY_REMOTE_HOST=box hv go test ./... 2> "$off/err")
+[[ $out != *untracked* ]] && grep -qE '^heavy.sh: running on .* at [0-9a-f]{40} tree=[0-9a-f]{40} dirty=0$' "$off/err" ||
+  fail "heavy.sh clean tree offload: $out $(cat "$off/err")"
+[[ $(payload) == 'head.bundle meta.env wip.patch ' ]] || fail "heavy.sh sent an untracked archive for no untracked files: $(payload)"
+/bin/mv -f "$off/untracked.keep" "$off/lc/sub/untracked.txt"
+# A remote that rebuilds a different tree (here its global excludes hide the untracked file)
+# refuses to run, so the command runs locally; a local run names the tested tree too.
+printf 'untracked.txt\n' > "$off/rhome/ignore"
+g -C "$off/rhome/corvint" config --file "$off/rhome/.gitconfig" core.excludesFile "$off/rhome/ignore"
+out=$(HEAVY_REMOTE_HOST=box hv go test ./... 2> "$off/err")
+[[ $out == where=local* ]] && grep -q 'differs from the local tree' "$off/err" &&
+  grep -qE '^heavy.sh: running locally at [0-9a-f]{40} tree=[0-9a-f]{40} dirty=1$' "$off/err" ||
+  fail "heavy.sh ran on a remote whose tree differs: $out $(cat "$off/err")"
+/bin/rm -f "$off/rhome/.gitconfig" "$off/rhome/ignore"
+# DCW-V0-359 (V1-2858): checkout files a remote go test writes (an -update golden) are copied back,
+# deletions too, and the command's status returned, over a second ssh connection that a read-only
+# run never opens; a path edited here during the run blocks the whole copy-back with exit 96.
+conns() { wc -l < "$off/ssh.log" | tr -d ' '; }
+n0=$(conns)
+out=$(HEAVY_REMOTE_HOST=box hv go test ./... 2> "$off/err")
+[[ $out == where=remote* && $(conns) == $((n0 + 1)) ]] && ! grep -q 'copied back' "$off/err" ||
+  fail "heavy.sh read-only offload opened $(($(conns) - n0)) ssh connections: $out $(cat "$off/err")"
+n0=$(conns)
+HEAVY_REMOTE_HOST=box hv go test -write=keep.txt -write=new/golden.txt -delete=untracked.txt -exit=3 ./... > /dev/null 2> "$off/err"
+rc=$?
+[[ $rc == 3 && $(cat "$off/lc/sub/keep.txt") == written-remote && $(cat "$off/lc/sub/new/golden.txt") == written-remote &&
+  ! -e $off/lc/sub/untracked.txt && $(conns) == $((n0 + 2)) && -z $(ls -A "$off/rhome/.cache/corvint-heavy/out") ]] &&
+  grep -q '^heavy.sh: copied back sub/keep.txt$' "$off/err" && grep -q '^heavy.sh: copied back sub/new/golden.txt$' "$off/err" &&
+  grep -q '^heavy.sh: copied back the deletion of sub/untracked.txt$' "$off/err" ||
+  fail "heavy.sh did not copy back the checkout files a remote go test wrote (exit $rc): $(cat "$off/err")"
+g -C "$off/lc" checkout -q -- sub/keep.txt && /bin/rm -rf "$off/lc/sub/new" && printf 'untracked\n' > "$off/lc/sub/untracked.txt" ||
+  fail "offload fixture restore failed"
+HEAVY_REMOTE_HOST=box hv go test -write=new.txt -write=keep.txt -localedit=keep.txt ./... > /dev/null 2> "$off/err"
+rc=$?
+[[ $rc == 96 && $(cat "$off/lc/sub/keep.txt") == local-edit && ! -e $off/lc/sub/new.txt ]] &&
+  grep -q 'changed here meanwhile; nothing was copied back: sub/keep.txt. Rerun locally: HEAVY_REMOTE=0 ' "$off/err" ||
+  fail "heavy.sh copied back over a local edit made during the run (exit $rc): $(cat "$off/err")"
+g -C "$off/lc" checkout -q -- sub/keep.txt || fail "offload fixture restore failed"
+[[ -z $(hv go build ./... 2>&1 >/dev/null | grep 'running locally') ]] || fail "heavy.sh printed a tree for a non-offloadable command"
+[[ -z $(g -C "$off/lc" status --porcelain --untracked-files=no) ]] || fail "heavy.sh changed the real index"
+ok
+# ASD-V0-040 (V1-2983): while an Actions run of the CI repository is queued or in progress, or the
+# query fails, outlives HEAVY_CI_TIMEOUT or answers a non-number, an offloadable command runs
+# locally without ssh and is logged; an idle CI offloads. HEAVY_CI_REPO, HEAVY_CI_STATUSES and
+# HEAVY_CI_GH configure the query (from the environment or HEAVY_CONFIG); gh is a stub whose
+# CORVINT_SELF_HOSTED variable reads STUB_GH_SELF_HOSTED (default on).
+cat > "$off/bin/gh" << GH
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >> "$off/gh.log"
+case \${STUB_GH-} in fail) exit 1 ;; hang) exec sleep 30 ;; junk) echo busy; exit 0 ;; esac
+case " \$* " in *" variable get "*) case \${STUB_GH_VAR-} in fail) exit 1 ;; hang) exec sleep 30 ;; esac; echo "\${STUB_GH_SELF_HOSTED:-on}" ;;
+  *" --status queued "*) echo "\${STUB_GH_QUEUED:-0}" ;; *" --status in_progress "*) echo "\${STUB_GH_RUNNING:-0}" ;; *) echo 0 ;; esac
+GH
+chmod +x "$off/bin/gh" || fail "gh stub"
+: > "$off/ssh.log"
+: > "$off/fallback.log"
+: > "$off/gh.log"
+q='--limit 5 --json databaseId --jq length'
+v='variable get CORVINT_SELF_HOSTED --repo beamfall/corvint'
+out=$(HEAVY_CI_REPO=beamfall/corvint HEAVY_REMOTE_HOST=box hv go test ./... 2> "$off/err")
+[[ $out == where=remote* && $(cat "$off/gh.log") == "$v"$'\n'"run list --repo beamfall/corvint --status queued $q"$'\n'"run list --repo beamfall/corvint --status in_progress $q" ]] ||
+  fail "heavy.sh did not offload under an idle CI after querying both statuses: $out $(cat "$off/err" "$off/gh.log")"
+: > "$off/ssh.log"
+for c in STUB_GH_RUNNING=1 STUB_GH_QUEUED=2 STUB_GH=fail STUB_GH=junk 'STUB_GH=hang HEAVY_CI_TIMEOUT=1' HEAVY_CI_GH=$off/no-such-gh; do
+  # shellcheck disable=SC2086,SC2163 # each case is one or two assignments
+  out=$(export $c; HEAVY_CI_REPO=beamfall/corvint HEAVY_REMOTE_HOST=box hv go vet ./... 2> "$off/err")
+  [[ $out == where=local* ]] && grep -q '^heavy.sh: CI is running or unknown (repo=beamfall/corvint .*); not using box, running locally$' "$off/err" ||
+    fail "heavy.sh offloaded while CI ran or its query failed ($c): $out $(cat "$off/err")"
+done
+[[ ! -s $off/ssh.log ]] || fail "heavy.sh opened ssh while CI ran: $(cat "$off/ssh.log")"
+[[ $(sed 's/^[^ ]* pwd=[^ ]* reason=//' "$off/fallback.log" | tr '\n' '|') == 'ci-running repo=beamfall/corvint runs=1 cmd=go vet ./...|ci-running repo=beamfall/corvint runs=2 cmd=go vet ./...|'"$(printf 'ci-running repo=beamfall/corvint status=queued query-failed cmd=go vet ./...|%.0s' 1 2 3 4)" ]] ||
+  fail "heavy.sh CI fallback log: $(cat "$off/fallback.log")"
+[[ $(grep -cE '^[0-9TZ:-]+ ci-busy host=box repo=beamfall/corvint (runs=[12]|status=queued query-failed) pwd=.*/lc/sub cmd=go vet \./\.\.\. script=[0-9a-f]{12}$' "$tmp/selection.log") == 6 ]] ||
+  fail "heavy.sh CI selection log: $(grep ci-busy "$tmp/selection.log")"
+: > "$off/gh.log"
+out=$(STUB_GH_RUNNING=1 HEAVY_REMOTE_HOST=box hv go test ./... 2> /dev/null)
+[[ $out == where=remote* && ! -s $off/gh.log ]] || fail "heavy.sh queried CI with HEAVY_CI_REPO=off: $out $(cat "$off/gh.log")"
+# The repository and statuses come from heavy.env as well; unset, the repository is a GitHub origin's.
+printf 'HEAVY_CI_REPO=beamfall/corvint\nHEAVY_CI_STATUSES="waiting"\nHEAVY_CI_GUARD=on\n' > "$off/ci.env"
+out=$(unset HEAVY_CI_REPO; STUB_GH_QUEUED=1 HEAVY_CONFIG=$off/ci.env HEAVY_REMOTE_HOST=box hv go test ./... 2> /dev/null)
+[[ $out == where=remote* && $(cat "$off/gh.log") == "run list --repo beamfall/corvint --status waiting $q" ]] ||
+  fail "heavy.sh ignored the heavy.env CI query: $out $(cat "$off/gh.log")"
+: > "$off/gh.log"
+g -C "$off/lc" remote set-url origin https://github.com/Beamfall/Corvint.git
+out=$(unset HEAVY_CI_REPO; STUB_GH_RUNNING=1 HEAVY_REMOTE_HOST=box hv go test ./... 2> /dev/null)
+g -C "$off/lc" remote set-url origin "$off/origin.git"
+[[ $out == where=local* && $(sed -n 2p "$off/gh.log") == "run list --repo beamfall/corvint --status queued $q" ]] ||
+  fail "heavy.sh did not guard on the GitHub origin by default: $out $(cat "$off/gh.log")"
+for c in 'HEAVY_CI_STATUSES=bad;rm' 'HEAVY_CI_REPO=a b' HEAVY_CI_TIMEOUT=0 HEAVY_CI_GUARD=maybe; do
+  # shellcheck disable=SC2163 # c is one NAME=VALUE assignment
+  out=$(HEAVY_CI_REPO=beamfall/corvint; export "$c"; HEAVY_REMOTE_HOST=box hv go test ./... 2> "$off/err")
+  [[ $? == 2 ]] && grep -q '^heavy.sh: REFUSE invalid-ci-' "$off/err" || fail "heavy.sh accepted $c: $out $(cat "$off/err")"
+done
+ok
+# ASD-V0-040 (V1-2983, hosted runners): under HEAVY_CI_GUARD=auto a CORVINT_SELF_HOSTED variable of
+# off skips the run query and offloads while runs exist; any other answer, a failed or hung variable
+# query and HEAVY_CI_GUARD=on keep the guard; HEAVY_CI_GUARD=off asks nothing.
+: > "$off/ssh.log"
+: > "$off/gh.log"
+out=$(STUB_GH_RUNNING=1 STUB_GH_SELF_HOSTED=off HEAVY_CI_REPO=beamfall/corvint HEAVY_REMOTE_HOST=box hv go test ./... 2> "$off/err")
+[[ $out == where=remote* && $(cat "$off/gh.log") == "$v" ]] ||
+  fail "heavy.sh guarded while CI ran on hosted runners: $out $(cat "$off/err" "$off/gh.log")"
+: > "$off/gh.log"
+out=$(STUB_GH_RUNNING=1 HEAVY_CI_GUARD=off HEAVY_CI_REPO=beamfall/corvint HEAVY_REMOTE_HOST=box hv go test ./... 2> "$off/err")
+[[ $out == where=remote* && ! -s $off/gh.log ]] || fail "heavy.sh queried CI with HEAVY_CI_GUARD=off: $out $(cat "$off/gh.log")"
+: > "$off/gh.log"
+: > "$off/ssh.log"
+for c in STUB_GH_SELF_HOSTED=on STUB_GH_SELF_HOSTED=OFF STUB_GH_VAR=fail 'STUB_GH_VAR=hang HEAVY_CI_TIMEOUT=1' 'HEAVY_CI_GUARD=on STUB_GH_SELF_HOSTED=off'; do
+  # shellcheck disable=SC2086,SC2163 # each case is one or two assignments
+  out=$(export $c; STUB_GH_RUNNING=1 HEAVY_CI_REPO=beamfall/corvint HEAVY_REMOTE_HOST=box hv go vet ./... 2> "$off/err")
+  if [[ $out != where=local* ]] || ! grep -q '^heavy.sh: CI is running or unknown (repo=beamfall/corvint runs=1); not using box, running locally$' "$off/err"; then
+    fail "heavy.sh dropped the CI guard ($c): $out $(cat "$off/err")"
+  fi
+done
+[[ ! -s $off/ssh.log && $(grep -c '^variable get' "$off/gh.log") == 4 ]] ||
+  fail "heavy.sh variable queries or ssh under the guard: $(cat "$off/gh.log" "$off/ssh.log")"
+ok
+# ASD-V0-041 (V1-2983): a build cross-compiles on a quiet remote for this host's GOOS/GOARCH in one
+# try; an absolute output (-o P, -o=DIR/, NAME_BIN=P) is installed at P and a relative one at its
+# checkout path, over an existing file; a failing build returns its status. A busy remote, running
+# CI, a .. argument, a file-writing GOFLAGS or HEAVY_BUILD_OFFLOAD=0 builds locally.
+: > "$off/ssh.log"
+: > "$off/fallback.log"
+mkdir -p "$off/out"
+printf 'old\n' > "$off/out/abs-bin"
+bv() { HEAVY_REMOTE_HOST=box HEAVY_REMOTE_BUILD_MAX_LOAD=${MAXL:-999999} hv "$@"; }
+out=$(bv go build -o "$off/out/abs-bin" ./cmd 2> "$off/err")$'\n'$(bv go build -o="$off/out/dir/" ./cmd 2>> "$off/err")
+out+=$'\n'$(bv make build CORVINT_BIN="$off/out/mk-bin" 2>> "$off/err")$'\n'$(bv go build -o bin/tool ./cmd 2>> "$off/err")
+[[ $out == $'build where=remote\nbuild where=remote\nbuild where=remote\nbuild where=remote' ]] || fail "heavy.sh did not offload builds: $out $(cat "$off/err")"
+for f in out/abs-bin out/dir/app out/mk-bin lc/sub/bin/tool; do
+  [[ $(cat "$off/$f") == 'built-remote stubos/stubarch' ]] || fail "heavy.sh build output $f: $(cat "$off/$f") $(cat "$off/err")"
+done
+grep -q "^heavy.sh: copied back $off/out/abs-bin\$" "$off/err" && grep -q '^heavy.sh: copied back sub/bin/tool$' "$off/err" &&
+  grep -q '^heavy.sh: building for stubos/stubarch$' "$off/err" && [[ $(conns) == 8 ]] ||
+  fail "heavy.sh build copy-back: $(conns) ssh connections, $(cat "$off/err")"
+/bin/rm -rf "$off/lc/sub/bin"
+out=$(bv go build -exit=4 -o "$off/out/failed" ./cmd 2> "$off/err")
+[[ $? == 4 && $out == 'build where=remote' && ! -e $off/out/failed ]] || fail "heavy.sh failed remote build: $out $(cat "$off/err")"
+: > "$off/ssh.log"
+printf 'load1() { printf 50; }\n' >> "$off/rhome/go.env"
+out=$(MAXL=16 bv go build -o "$off/out/busy" ./cmd 2> "$off/err")
+printf 'export FAKE_MARK=sourced\n' > "$off/rhome/go.env"
+[[ $out == 'build where=local' && $(conns) == 1 && $(cat "$off/out/busy") == 'built-local /' ]] &&
+  grep -q '^heavy.sh: remote .*: busy: load 50 above 16; building locally$' "$off/err" &&
+  grep -q '^heavy.sh: building locally (remote busy or unavailable (rc=97))$' "$off/err" ||
+  fail "heavy.sh built on a busy remote or retried: $out $(conns) $(cat "$off/err")"
+out=$(STUB_GH_RUNNING=1 HEAVY_CI_REPO=beamfall/corvint bv go build ./cmd 2> "$off/err")$'\n'$(bv go build -o ../x ./cmd 2>> "$off/err")
+out+=$'\n'$(GOFLAGS=-cpuprofile=p.out bv go build ./cmd 2>> "$off/err")$'\n'$(HEAVY_BUILD_OFFLOAD=0 bv go build ./cmd 2>> "$off/err")
+/bin/rm -f "$off/lc/x"
+[[ $out == $'build where=local\nbuild where=local\nbuild where=local\nbuild where=local' && $(conns) == 1 ]] ||
+  fail "heavy.sh offloaded a build under CI, a .. argument, a writing GOFLAGS or HEAVY_BUILD_OFFLOAD=0: $out $(cat "$off/err")"
+[[ $(sed 's/^[^ ]* pwd=[^ ]* reason=//' "$off/fallback.log" | tr '\n' '|') == "build-local remote busy or unavailable (rc=97) cmd=go build -o $off/out/busy ./cmd|ci-running repo=beamfall/corvint runs=1 cmd=go build ./cmd|build-local an argument has a .. component cmd=go build -o ../x ./cmd|build-local GOFLAGS writes files cmd=go build ./cmd|" ]] ||
+  fail "heavy.sh build fallback log: $(cat "$off/fallback.log")"
+grep -q " build-local host=box reason=remote\\\\ busy\\\\ or\\\\ unavailable\\\\ \\\\(rc=97\\\\) pwd=.*/lc/sub cmd=go build -o $off/out/busy ./cmd script=" "$tmp/selection.log" ||
+  fail "heavy.sh build-local selection line: $(grep build-local "$tmp/selection.log")"
+[[ -z $(g -C "$off/lc" status --porcelain --untracked-files=no) ]] || fail "heavy.sh build changed the real index"
+ok
+unset HEAVY_LOCK_DIR
+
+# ASD-V0-043 (V1-2986): batch-review-packet.sh prints the reviewed revision, the paths changed by
+# more than one first-parent merge of BASE..HEAD, and corvint impact and dogfood batch-check for the
+# range, each bounded with its exit status; a timeout or missing corvint is named, HEAD must be the
+# checkout, and the checkout, index and refs are unchanged. corvint is a stub.
+rp=$tmp/review
+mkdir -p "$rp/bin"
+cat > "$rp/bin/corvint" << 'CV'
+#!/usr/bin/env bash
+[[ $1 == --version ]] && { echo 'Corvint stub'; exit 0; }
+[[ ${STUB_CORVINT-} == hang ]] && exec sleep 30
+printf 'args: %s\n' "$*"
+[[ " $* " == *" impact "* ]] && printf 'impact line %s\n' 1 2 3 4
+[[ " $* " == *" batch-check "* ]] && { echo 'obligation: unresolved'; exit 3; }
+exit 0
+CV
+chmod +x "$rp/bin/corvint"
+rg() { git -C "$rp/repo" -c user.name=t -c user.email=t@example.invalid "$@"; }
+git init -q -b main "$rp/repo" && printf '%s\n' 1 2 3 4 5 6 > "$rp/repo/shared.txt" && rg add shared.txt && rg commit -qm base ||
+  fail "packet fixture init"
+rbase=$(rg rev-parse HEAD)
+rg checkout -qb lane-a && printf 'a\n' > "$rp/repo/a.txt" && printf '%s\n' a 2 3 4 5 6 > "$rp/repo/shared.txt" && rg add -A && rg commit -qm a
+rg checkout -q main && rg checkout -qb lane-b "$rbase" && printf 'b\n' > "$rp/repo/b.txt" && rg add -A && rg commit -qm b
+printf '%s\n' 1 2 3 4 5 b > "$rp/repo/shared.txt" && rg commit -qam b2
+rg checkout -q main && rg merge -q --no-ff -m 'merge a' lane-a && rg merge -q --no-ff -m 'merge b' lane-b > /dev/null ||
+  fail "packet fixture merges"
+rhead=$(rg rev-parse HEAD)
+rstate() { rg status --porcelain --ignored; rg for-each-ref; rg rev-parse HEAD; rg ls-files -s | git hash-object --stdin; }
+before=$(rstate)
+packet() { (cd "$rp/repo" && CORVINT_BIN=$rp/bin/corvint "$script/batch-review-packet.sh" "$@" 2>&1); }
+out=$(packet "$rbase")
+rc=$?
+m=$(rg rev-list --first-parent --merges "$rbase..$rhead" | cut -c1-12 | tr '\n' ' ')
+[[ $rc == 0 && $out == *"reviewed: base=$rbase head=$rhead tree=$(rg rev-parse "$rhead^{tree}")"* &&
+  $out == *'commits=5 first-parent-merges=2 corvint=Corvint stub'* ]] || fail "packet header: $out"
+[[ $(sed -n '/^## Lane overlap/,/^$/p' <<< "$out" | sed 1d) == "shared.txt merges=2 ${m% }" ]] || fail "packet overlap: $out"
+[[ $out == *"## corvint impact --base $rbase"$'\n'"args: --root "*" impact --base $rbase"$'\n''impact line 1'* ]] &&
+  [[ $out == *$'impact line 4\nexit=0\n'* ]] || fail "packet impact section: $out"
+[[ $out == *"args: --root "*" dogfood batch-check --verifier $rp/bin/corvint $rbase"$'\nobligation: unresolved\nexit=3' ]] ||
+  fail "packet batch-check section: $out"
+out=$(BATCH_REVIEW_LINES=2 packet "$rbase" HEAD)
+[[ $out == *$'impact line 1\n... 3 more lines elided (BATCH_REVIEW_LINES=2)\nexit=0'* ]] || fail "packet bound: $out"
+out=$(STUB_CORVINT=hang BATCH_REVIEW_TIMEOUT=1 packet "$rbase")
+[[ $(grep -c '^exit=142 NOT_PRODUCED timeout after 1s' <<< "$out") == 2 ]] || fail "packet timeout: $out"
+out=$(cd "$rp/repo" && CORVINT_BIN=no-such-corvint-stub "$script/batch-review-packet.sh" "$rbase" 2>&1)
+[[ $out == *'corvint=NOT_PRODUCED'* && $(grep -c '^NOT_PRODUCED corvint-unavailable' <<< "$out") == 2 ]] || fail "packet without corvint: $out"
+out=$(packet "$rbase" lane-a)
+[[ $? == 2 && $out == *'REFUSE head-not-checked-out'* ]] || fail "packet accepted a HEAD other than the checkout: $out"
+out=$(rg checkout -q lane-b; packet "$(rg rev-parse lane-a)"; rg checkout -q main)
+[[ $out == *'REFUSE base-not-ancestor'* ]] || fail "packet accepted a base off the range: $out"
+out=$(BATCH_REVIEW_LINES=0 packet "$rbase")
+[[ $? == 2 && $out == *'REFUSE invalid-lines'* ]] || fail "packet accepted BATCH_REVIEW_LINES=0: $out"
+[[ $(rstate) == "$before" ]] || fail "batch-review-packet.sh changed the checkout, index or refs"
+ok
+
+# ASD-V0-015: every missing input is named at once, before any build.
+finish() { (cd "$tmp" && env -u CORVINT_BIN DOGFOOD_FINISH_LANE="$1" "$script/dogfood-finish.sh" "${@:2}" 2>&1); }
+out=$(finish '' '' '')
+[[ $out == *'REFUSE missing-inputs BASE CITATIONS'$'\n''fix: '* ]] || fail "finish refusal: $out"
+out=$(finish 1 '' '' '' '' '')
+[[ $out == *'REFUSE missing-inputs BASE CITATIONS INTENTS VERIFY OUTCOME'* ]] || fail "lane finish refusal: $out"
+: > "$tmp/plan.tsv"
+out=$(finish 1 0123 plan.tsv absent.txt absent.txt bogus)
+[[ $out == *'REFUSE missing-inputs BASE:not-full-sha INTENTS:unreadable VERIFY:unreadable OUTCOME:invalid'* ]] || fail "finish unusable inputs: $out"
+: > "$tmp/locked.txt" && chmod 000 "$tmp/locked.txt"
+out=$(finish 1 aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa plan.tsv locked.txt locked.txt passed)
+chmod 600 "$tmp/locked.txt"
+[[ $out == *'REFUSE missing-inputs INTENTS:unreadable VERIFY:unreadable'$'\n''fix: '* ]] || fail "finish accepted a file it cannot read: $out"
+[[ $out != *propose-citations* ]] || fail "finish named propose-citations although CITATIONS was usable: $out"
+# ASD-V0-045 (V1-3119): a missing plan names how to draft and pre-check it, and that nothing ran.
+sha=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+out=$(finish 1 "$sha" '' plan.tsv plan.tsv passed)
+[[ $out == *'REFUSE missing-inputs CITATIONS'$'\n'* && $out == *"corvint dogfood propose-citations $sha > plan.tsv"* &&
+  $out == *"make dogfood-inputs-check BASE=$sha CITATIONS=plan.tsv"* && $out == *'nothing was built, prepared or bound'* ]] ||
+  fail "finish refusal for a missing plan names no recovery: $out"
+ok
+
+# DCW-V0-090: a committed spec edit without regenerated indexes is refused before any build;
+# regenerating and committing clears it. The fixture has no build helper, so a passing check
+# stops at the missing dogfood-build-corvint.sh instead.
+fx=$tmp/specfix
+mkdir -p "$fx/script" "$fx/docs/specs"
+cp "$script/dogfood-finish.sh" "$script/gen-spec-requirements.sh" "$fx/script/"
+git -C "$fx" init -q -b main
+printf '# One spec\n\nIntent status: proposed\nDelivery status: not-started\n\n## Agent digest\n- Claim: One does the first thing.\n\n- ONE-V0-001: The first clause.\n' > "$fx/docs/specs/one.md"
+printf '[]\n' > "$fx/docs/specs/INDEX.json"
+printf '# Specs\n\n| Scope | Contract | Intent | Delivery | Binding evidence or next gate |\n| --- | --- | --- | --- | --- |\n' > "$fx/docs/specs/README.md"
+fxgit() { git -C "$fx" -c user.name=t -c user.email=t@example.invalid "$@"; }
+fxregen() { (cd "$fx" && git add -A && d=$(mktemp -d) && script/gen-spec-requirements.sh --all "$d" &&
+  cp "$d/REQUIREMENTS.tsv" "$d/INDEX.json" "$d/README.md" docs/specs/ && /bin/rm -rf "$d" && git add -A); }
+fxregen || fail "spec fixture generation"
+fxgit commit -qm base
+fxbase=$(fxgit rev-parse HEAD)
+printf -- '- ONE-V0-002: The second clause.\n' >> "$fx/docs/specs/one.md"
+fxgit commit -qam 'spec edit only'
+: > "$fx/plan.tsv"
+out=$(cd "$fx" && env -u CORVINT_BIN script/dogfood-finish.sh "$fxbase" plan.tsv 2>&1)
+[[ $? == 2 && $out == *'REFUSE spec-requirements-stale docs/specs/REQUIREMENTS.tsv'*'fix: '*'make spec-requirements'* ]] ||
+  fail "finish accepted a stale requirements index: $out"
+fxregen || fail "spec fixture regeneration"
+fxgit commit -qm regenerate
+out=$(cd "$fx" && env -u CORVINT_BIN script/dogfood-finish.sh "$fxbase" plan.tsv 2>&1)
+[[ $out != *spec-requirements-stale* && $out == *dogfood-build-corvint.sh* ]] || fail "finish refused regenerated indexes: $out"
+ok
+
+# ASD-V0-017: last activity from transcript timestamps or mtime; replay flags gaps.
+now=$(perl -MTime::Local -e 'print timegm(0, 0, 12, 18, 9, 2026)')
+mkdir -p "$tmp/lanes/busy" "$tmp/lanes/parked"
+printf '{"timestamp":"2026-10-18T11:50:00.000Z"}\n' > "$tmp/lanes/busy/t.jsonl"
+printf '{"timestamp":"2026-10-17T18:00:00Z"}\n{"timestamp":"2026-10-18T10:36:00Z"}\n' > "$tmp/lanes/parked/t.jsonl"
+"$script/lane-idle-check.sh" --now "$now" "$tmp/lanes/busy" > "$tmp/out"
+[[ $? == 0 ]] && grep -q '^LANE ACTIVE idle=10m last=2026-10-18T11:50:00Z ' "$tmp/out" || fail "idle-check active: $(cat "$tmp/out")"
+"$script/lane-idle-check.sh" --now "$now" "$tmp/lanes/busy" "$tmp/lanes/parked" > "$tmp/out"
+[[ $? == 1 ]] && grep -q '^LANE IDLE idle=84m last=2026-10-18T10:36:00Z ' "$tmp/out" || fail "idle-check idle: $(cat "$tmp/out")"
+"$script/lane-idle-check.sh" --gaps "$tmp/lanes" > "$tmp/out"
+[[ $? == 1 && $(wc -l < "$tmp/out") -eq 1 ]] &&
+  grep -q '^GAP idle=996m from=2026-10-17T18:00:00Z to=2026-10-18T10:36:00Z flagged=2026-10-17T18:30:00Z ' "$tmp/out" ||
+  fail "idle-check gaps: $(cat "$tmp/out")"
+: > "$tmp/lanes/out.log"
+perl -e 'utime $ARGV[0], $ARGV[0], $ARGV[1] or die' "$((now - 3600))" "$tmp/lanes/out.log"
+"$script/lane-idle-check.sh" --now "$now" --idle-minutes 90 "$tmp/lanes/out.log" | grep -q '^LANE ACTIVE idle=60m ' ||
+  fail "idle-check mtime"
+mkdir -p "$tmp/lanes3/offset" "$tmp/lanes3/locked" "$tmp/lanes3/odd"
+printf '{"timestamp":"2026-10-18T13:50:00.5+02:00"}\n' > "$tmp/lanes3/offset/t.jsonl"
+"$script/lane-idle-check.sh" --now "$now" "$tmp/lanes3/offset" > "$tmp/out"
+[[ $? == 0 ]] && grep -q '^LANE ACTIVE idle=10m last=2026-10-18T11:50:00Z ' "$tmp/out" || fail "idle-check offset: $(cat "$tmp/out")"
+printf '{"timestamp":"2026-10-18T11:59:00Z"}\n' > "$tmp/lanes3/locked/t.jsonl"
+chmod 000 "$tmp/lanes3/locked/t.jsonl"
+"$script/lane-idle-check.sh" --now "$now" "$tmp/lanes3/locked" > "$tmp/out"
+[[ $? == 1 ]] && grep -q '^LANE UNKNOWN idle=? last=? reason=unreadable:' "$tmp/out" || fail "idle-check unreadable: $(cat "$tmp/out")"
+"$script/lane-idle-check.sh" --gaps "$tmp/lanes3/locked" > "$tmp/out"
+[[ $? == 1 ]] && grep -q '^UNKNOWN reason=unreadable ' "$tmp/out" || fail "idle-check gaps unreadable: $(cat "$tmp/out")"
+chmod 600 "$tmp/lanes3/locked/t.jsonl"
+for v in '"yesterday"' 1760788740 '"2026-10-18 11:59"'; do
+  printf '{"timestamp":"2026-10-18T11:58:00Z"}\n{"timestamp":%s}\n' "$v" > "$tmp/lanes3/odd/t.jsonl"
+  "$script/lane-idle-check.sh" --now "$now" "$tmp/lanes3/odd" > "$tmp/out"
+  [[ $? == 1 ]] && grep -q '^LANE UNKNOWN idle=? last=? reason=unparsed-timestamp:' "$tmp/out" || fail "idle-check unparsed $v: $(cat "$tmp/out")"
+done
+ok
+
+# ASD-V0-018: only merged, clean, inactive checkouts are removed, and only with --apply.
+g() { git -c user.name=t -c user.email=t@example.invalid -c init.defaultBranch=main "$@"; }
+g init -q --bare "$tmp/origin.git"
+g clone -q "$tmp/origin.git" "$tmp/seed" 2> /dev/null
+g -C "$tmp/seed" commit -q --allow-empty -m base && g -C "$tmp/seed" push -q origin HEAD:main 2> /dev/null
+mkdir "$tmp/lanes2"
+for n in merged unmerged dirty active stash; do g clone -q "$tmp/origin.git" "$tmp/lanes2/$n" 2> /dev/null; done
+g -C "$tmp/lanes2/unmerged" commit -q --allow-empty -m unmerged
+printf x > "$tmp/lanes2/dirty/new.txt"
+printf x > "$tmp/lanes2/stash/f" && g -C "$tmp/lanes2/stash" add f && g -C "$tmp/lanes2/stash" stash -q
+g -C "$tmp/seed" worktree add -q "$tmp/lanes2/wt" 2> /dev/null
+g clone -q "$tmp/origin.git" "$tmp/lanes2/host" 2> /dev/null
+g -C "$tmp/lanes2/host" worktree add -q "$tmp/elsewhere/hostwt" 2> /dev/null
+g -C "$tmp/seed" fetch -q
+clean() { "$script/lane-clean.sh" --root "$tmp/lanes2" --repo "$tmp/seed" --active "$tmp/lanes2/active" "$@"; }
+# Dry runs only: a root that cannot be resolved, or /, is refused.
+mkdir "$tmp/sealed" && chmod 000 "$tmp/sealed"
+"$script/lane-clean.sh" --root "$tmp/sealed" --repo "$tmp/seed" > "$tmp/out" 2>&1
+[[ $? == 2 ]] && grep -q 'REFUSE root-unusable' "$tmp/out" || fail "lane-clean unresolved root: $(head -3 "$tmp/out")"
+chmod 700 "$tmp/sealed"
+"$script/lane-clean.sh" --root / --repo "$tmp/seed" > "$tmp/out" 2>&1
+[[ $? == 2 ]] && grep -q 'REFUSE root-unusable' "$tmp/out" || fail "lane-clean accepted --root /: $(head -3 "$tmp/out")"
+# A failing Git inspection never counts as clean (dry runs through a failing git shim).
+mkdir "$tmp/shim"
+printf '#!/bin/sh\nfor a in "$@"; do [ "$a" = "$LANE_TEST_FAIL_GIT" ] && exit 128; done\nexec "$LANE_TEST_REAL_GIT" "$@"\n' > "$tmp/shim/git"
+chmod +x "$tmp/shim/git"
+real_git=$(command -v git)
+for sub in stash:git-unreadable for-each-ref:git-unreadable worktree:has-worktrees; do
+  PATH=$tmp/shim:$PATH LANE_TEST_REAL_GIT=$real_git LANE_TEST_FAIL_GIT=${sub%%:*} clean > "$tmp/out"
+  grep -q "^KEEP ${sub#*:} .*/merged\$" "$tmp/out" || fail "lane-clean with failing git ${sub%%:*}: $(cat "$tmp/out")"
+done
+clean > "$tmp/out" || fail "lane-clean dry run failed"
+expect='KEEP active LANES/active
+KEEP dirty LANES/dirty
+KEEP has-worktrees LANES/host
+WOULD-REMOVE LANES/merged
+KEEP stash LANES/stash
+KEEP unmerged-head LANES/unmerged
+WOULD-REMOVE LANES/wt'
+real=$(cd "$tmp/lanes2" && pwd -P)
+[[ $(grep -v '^SUMMARY' "$tmp/out" | sed "s#$real#LANES#") == "$expect" ]] || fail "lane-clean dry run: $(cat "$tmp/out")"
+grep -q '^SUMMARY checkouts=7 keep=5 remove=2 applied=no ' "$tmp/out" || fail "lane-clean summary: $(tail -1 "$tmp/out")"
+[[ -d $tmp/lanes2/merged && -d $tmp/lanes2/wt ]] || fail "lane-clean dry run removed a checkout"
+clean --apply > "$tmp/out" || fail "lane-clean apply failed"
+[[ ! -e $tmp/lanes2/merged && ! -e $tmp/lanes2/wt ]] || fail "lane-clean --apply kept a merged checkout"
+for n in unmerged dirty active stash host; do [[ -d $tmp/lanes2/$n ]] || fail "lane-clean removed $n"; done
+[[ -z $(git -C "$tmp/seed" worktree list --porcelain | grep "lanes2/wt") ]] || fail "lane-clean left a worktree entry"
+[[ -d $tmp/elsewhere/hostwt ]] || fail "lane-clean removed a clone's linked worktree"
+ok
+
+# ASD-V0-030: a whole-package go test needs HEAVY_WHOLE_REASON and every go test is logged with the
+# prototype's fields; HEAVY_REMOTE=0 needs HEAVY_LOCAL_REASON; a local run waits out a high load.
+pol=$tmp/policy
+mkdir -p "$pol/bin" && printf '#!/bin/sh\nexit 0\n' > "$pol/bin/go" &&
+  printf '#!/bin/sh\n[ "$2" = vm.loadavg ] && printf "{ %%s 1.00 1.00 }\\n" "$STUB_LOAD"\n' > "$pol/bin/sysctl" &&
+  chmod +x "$pol/bin/go" "$pol/bin/sysctl" || fail "policy fixture setup failed"
+pv() { (cd "$pol" && env PATH="$pol/bin:$PATH" HEAVY_SELECTION_LOG="$pol/sel.log" HEAVY_FALLBACK_LOG="$pol/fb.log" \
+  HEAVY_LOCK_DIR="$pol/slots" STUB_LOAD="${STUB_LOAD:-1.00}" HEAVY_SLOTS=1 "$heavy" "$@"); }
+HEAVY_WHOLE_REASON= pv go test ./x 2> "$pol/err"
+[[ $? == 2 ]] && grep -q '^heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON' "$pol/err" ||
+  fail "heavy.sh ran a whole-package go test without HEAVY_WHOLE_REASON"
+HEAVY_WHOLE_REASON= pv env GOFLAGS=-count=1 go test -run 'TestA|TestB' ./x 2> /dev/null || fail "heavy.sh refused a -run go test"
+HEAVY_WHOLE_REASON= pv go test -run=TestA ./x 2> /dev/null || fail "heavy.sh refused a -run= go test"
+HEAVY_WHOLE_REASON='corvint FALLBACK x' pv go test ./x 2> /dev/null || fail "heavy.sh refused a go test with HEAVY_WHOLE_REASON"
+HEAVY_WHOLE_REASON= pv go vet ./x 2> /dev/null || fail "heavy.sh applied the selection rule to go vet"
+pv sh -c 'exit 3' 2> /dev/null
+[[ $? == 3 ]] || fail "heavy.sh did not return a local command's status"
+d='[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]{8}Z'
+pol=$(cd "$pol" && pwd)
+h=' script=[0-9a-f]{12}$'
+want=("^$d refused pwd=$pol cmd=go test \./x$h" "^$d selected pwd=$pol cmd=env GOFLAGS=-count=1 go test -run TestA\|TestB \./x$h"
+  "^$d selected pwd=$pol cmd=go test -run=TestA \./x$h" "^$d whole reason=corvint\\\\ FALLBACK\\\\ x pwd=$pol cmd=go test \./x$h")
+grep -v ' local wait=' "$pol/sel.log" > "$pol/sel.policy"
+[[ $(wc -l < "$pol/sel.policy" | tr -d ' ') == 4 ]] || fail "heavy.sh selection log: $(cat "$pol/sel.log")"
+for i in 0 1 2 3; do
+  sed -n "$((i + 1))p" "$pol/sel.policy" | grep -Eq "${want[$i]}" || fail "heavy.sh selection log line $((i + 1)): $(sed -n "$((i + 1))p" "$pol/sel.policy")"
+done
+# ASD-V0-037: every local run appends its slot wait, run wall time and status after it exits.
+l="local wait=[0-9]+\.[0-9]s run=[0-9]+\.[0-9]s"
+[[ $(grep -c ' local wait=' "$pol/sel.log") == 5 ]] &&
+  grep -Eq "^$d $l rc=0 pwd=$pol cmd=go vet \./x$h" "$pol/sel.log" &&
+  grep -Eq "^$d $l rc=3 pwd=$pol cmd=sh -c exit 3$h" "$pol/sel.log" || fail "heavy.sh local run lines: $(cat "$pol/sel.log")"
+HEAVY_REMOTE=0 pv go vet ./x 2> "$pol/err"
+[[ $? == 2 ]] && grep -q '^heavy.sh: refused: HEAVY_REMOTE=0 without HEAVY_LOCAL_REASON' "$pol/err" &&
+  grep -Eq "^$d pwd=$pol reason=refused-local cmd=go vet \./x\$" "$pol/fb.log" ||
+  fail "heavy.sh ran HEAVY_REMOTE=0 go vet without HEAVY_LOCAL_REASON"
+HEAVY_REMOTE=0 HEAVY_LOCAL_REASON='darwin syscall' pv go vet ./x 2> /dev/null || fail "heavy.sh refused HEAVY_LOCAL_REASON"
+HEAVY_REMOTE=0 pv go build ./x 2> /dev/null || fail "heavy.sh applied HEAVY_LOCAL_REASON to go build"
+s0=$SECONDS
+STUB_LOAD=50.00 HEAVY_MAX_LOAD=10 HEAVY_LOAD_WAIT=1 pv true 2> "$pol/err" || fail "heavy.sh load wait failed"
+((SECONDS - s0 >= 4)) && grep -q '^heavy.sh: waited [0-9]*s for host load 50 (HEAVY_MAX_LOAD=10)' "$pol/err" ||
+  fail "heavy.sh did not wait out a high load: $(cat "$pol/err")"
+STUB_LOAD=9.99 HEAVY_MAX_LOAD=9 pv true 2> "$pol/err" && ! grep -q waited "$pol/err" ||
+  fail "heavy.sh waited at a load whose integer part is within HEAVY_MAX_LOAD"
+HEAVY_MAX_LOAD=x pv true 2> "$pol/err"
+[[ $? == 2 ]] && grep -q 'REFUSE invalid-max-load' "$pol/err" || fail "heavy.sh accepted HEAVY_MAX_LOAD=x"
+ok
+# ASD-V0-024 (V1-1953): lane-guard.sh refuses real polling loops and unwrapped go test, but never
+# matches heredoc bodies, which are file content. Inputs are built as JSON by perl so the cases
+# carry real newlines.
+guard() { # guard CWD COMMAND -> prints the decision (empty when allowed)
+  perl -MJSON::PP -e 'print JSON::PP->new->encode({cwd => $ARGV[0], tool_input => {command => $ARGV[1]}})' "$1" "$2" |
+    "$script/lane-guard.sh"
+}
+denied() { [[ $(guard "$tmp" "$1") == *'"permissionDecision":"deny"'* ]]; }
+loop_body=$'while true; do\n  sleep 5\ndone'
+for cmd in \
+  "until gh pr view 1 --json state | grep -q MERGED; do sleep 30; done" \
+  "cd x && while ! test -f done; do sleep 1; done" \
+  "for i in \$(seq 1 20); do gh run view 1; sleep 30; done" \
+  "tail -f log | grep -m1 PASS" \
+  "go test ./internal/x" \
+  "cd lane && GOTOOLCHAIN=local go test -run TestA ./internal/x" \
+  "make build && env GOFLAGS=-p=4 go test ./cmd/corvint"; do
+  denied "$cmd" || fail "lane-guard allowed: $cmd"
+done
+for cmd in \
+  "cat > notes.sh <<'EOF'"$'\n'"$loop_body"$'\nEOF' \
+  "cat > t.sh <<EOF"$'\n'"$loop_body"$'\ngo test ./x\nEOF\nchmod +x t.sh' \
+  "cat <<-\"END\" > t.sh"$'\n\t'"until false; do sleep 1; done"$'\n\tEND' \
+  "script/heavy.sh env GOTOOLCHAIN=local go test -run TestA ./internal/x" \
+  "/private/tmp/cem10-build/heavy.sh env GOTOOLCHAIN=local go test -p 4 -run TestA ./internal/x" \
+  "git log --oneline -3" \
+  "grep -n 'while' script/x.sh"; do
+  out=$(guard "$tmp" "$cmd")
+  [[ -z $out ]] || fail "lane-guard refused file content or a wrapped command: $cmd -> $out"
+done
+# A command after the heredoc terminator is a command again.
+denied "cat > a.txt <<EOF"$'\nplain\nEOF\n'"until false; do sleep 2; done" || fail "lane-guard missed a loop after a heredoc"
+# A here-string is not a heredoc: its line stays a command.
+denied "until grep -q x <<< \"\$v\"; do sleep 1; done" || fail "lane-guard treated <<< as a heredoc"
+# LANE_GUARD_ROOTS scopes the guard; outside every root nothing is checked.
+[[ -z $(LANE_GUARD_ROOTS=/nonexistent-root guard "$tmp" "go test ./x") ]] || fail "lane-guard checked outside LANE_GUARD_ROOTS"
+LANE_GUARD_ROOTS=/nonexistent-root:$tmp denied "go test ./x" || fail "lane-guard skipped a cwd inside LANE_GUARD_ROOTS"
+[[ $(LANE_GUARD_HEAVY=/opt/heavy.sh guard "$tmp" "go test ./x") == *'through /opt/heavy.sh'* ]] || fail "lane-guard ignored LANE_GUARD_HEAVY"
+[[ -z $(printf 'not json' | "$script/lane-guard.sh") ]] || fail "lane-guard refused unparseable input"
+ok
+# ASD-V0-024: a subagent (agent_id set) may not start background work: a shell-level background &,
+# nohup/setsid/disown, run_in_background or a Monitor call. &&, redirections, quoted strings,
+# comments and heredoc bodies are not background work; an unterminated quote does not hide a &.
+# Without an agent_id none of this is checked.
+sub_guard() { # sub_guard COMMAND [TOOL [RUN_IN_BACKGROUND]] -> the decision
+  perl -MJSON::PP -e 'my %i = (command => $ARGV[1]); $i{run_in_background} = JSON::PP::true if $ARGV[3];
+    print JSON::PP->new->encode({cwd => $ARGV[0], agent_id => "a1", tool_name => $ARGV[2], tool_input => \%i})' \
+    "$tmp" "$1" "${2:-Bash}" "${3-}" | "$script/lane-guard.sh"
+}
+sub_denied() { [[ $(sub_guard "$@") == *'"permissionDecision":"deny"'*'no background work'* ]]; }
+for cmd in \
+  "make build &" \
+  "make build & echo started" \
+  "make build &"$'\n'"echo next" \
+  "(cd x; make build) &" \
+  "a && b & c" \
+  "nohup make build > log 2>&1" \
+  "setsid sh -c x" \
+  "make build; disown" \
+  "echo 'unterminated & still a command &" \
+  "cat > a.txt <<EOF"$'\nplain\nEOF\n'"make build &" \
+  'echo $((a & b)) &' \
+  'echo $((a & b' \
+  '((make build) & )' \
+  '((cd x; make build) &)' \
+  'echo $(( $(make build &) ))'; do
+  sub_denied "$cmd" || fail "lane-guard allowed subagent background work: $cmd"
+done
+sub_denied "make build" Bash 1 || fail "lane-guard allowed run_in_background"
+sub_denied "" Monitor || fail "lane-guard allowed a subagent Monitor call"
+for cmd in \
+  "make build && make test || echo failed" \
+  "go vet ./x > log 2>&1; cat log >&2; ls &> /dev/null; ls &>> l; exec 3<&0; exec 4>&-" \
+  "make build |& tee log" \
+  "echo 'a & b' \"c && d & e\" \\& x" \
+  "printf %s \$'tab\\t & here'" \
+  "ls # run me & later" \
+  "echo a#b" \
+  "git log --grep='nohup'" \
+  "cat > x_test.go <<'EOF'"$'\npackage x\n\nfunc f(p *T) bool { return p != nil && g(&p.v) }\n// it\'s & fine\nEOF\ngofmt -l x_test.go' \
+  "cat > a.sh <<EOF"$'\nmake build &\nnohup x\nEOF' \
+  'echo $((a & b)) && echo $(( (a & 0x0f) | c ))' \
+  '(( x = y & 3 )) || echo no' \
+  'n=$((n&1)); echo "$n"'; do
+  out=$(sub_guard "$cmd")
+  [[ -z $out ]] || fail "lane-guard refused a subagent command with no background work: $cmd -> $out"
+done
+[[ -z $(guard "$tmp" "make build &") ]] || fail "lane-guard checked background work without an agent_id"
+ok
+
+# ASD-V0-025 (V1-1979): install-local-bin.sh keeps a bounded rollback set and never prunes
+# backups it did not create.
+bin=$tmp/bin
+mkdir -p "$bin"
+printf 'v0\n' > "$tmp/v0"; printf 'v1\n' > "$tmp/v1"; printf 'v2\n' > "$tmp/v2"; printf 'v3\n' > "$tmp/v3"
+printf 'old\n' > "$bin/tool.bak-foreign"
+"$script/install-local-bin.sh" "$tmp/v0" "$bin/tool" > /dev/null || fail "install-local-bin first install failed"
+for v in v1 v2 v3; do
+  "$script/install-local-bin.sh" "$tmp/$v" "$bin/tool" > "$tmp/install.out" || fail "install-local-bin install $v failed"
+done
+[[ $(cat "$bin/tool") == v3 && -x $bin/tool ]] || fail "install-local-bin did not install v3"
+backups=$(cd "$bin" && /bin/ls tool.corvint-prev-* | tr '\n' ' ')
+[[ $backups == 'tool.corvint-prev-3 ' && $(cat "$bin/tool.corvint-prev-3") == v2 ]] || fail "install-local-bin kept unbounded backups: $backups"
+[[ -f $bin/tool.bak-foreign ]] || fail "install-local-bin pruned a foreign backup"
+grep -q '^REMOVED .*tool.corvint-prev-2$' "$tmp/install.out" || fail "install-local-bin did not report the pruned backup"
+"$script/install-local-bin.sh" --rollback "$bin/tool" > /dev/null || fail "install-local-bin rollback failed"
+[[ $(cat "$bin/tool") == v2 && $(cat "$bin/tool.corvint-prev-4") == v3 ]] || fail "install-local-bin rollback did not swap"
+"$script/install-local-bin.sh" --rollback "$bin/tool" > /dev/null || fail "install-local-bin second rollback failed"
+[[ $(cat "$bin/tool") == v3 ]] || fail "install-local-bin second rollback did not return"
+"$script/install-local-bin.sh" --keep 2 "$tmp/v1" "$bin/tool" > /dev/null || fail "install-local-bin --keep 2 failed"
+[[ $(cd "$bin" && /bin/ls tool.corvint-prev-* | wc -l | tr -d ' ') == 2 ]] || fail "install-local-bin ignored --keep 2"
+"$script/install-local-bin.sh" "$tmp/missing" "$bin/tool" 2> "$tmp/install.err" && fail "install-local-bin accepted a missing source"
+grep -q 'REFUSE source-unreadable' "$tmp/install.err" || fail "install-local-bin did not name the missing source"
+"$script/install-local-bin.sh" --keep 0 "$tmp/v1" "$bin/tool" 2> /dev/null && fail "install-local-bin accepted --keep 0"
+"$script/install-local-bin.sh" --rollback "$bin/none" 2> /dev/null && fail "install-local-bin rolled back without a backup"
+ok
+
+# TCB-V0-046 (V1-1761): install-cem-verifiers.sh builds corvint and cem01-go from the same clean
+# HEAD, refuses an unstamped build or a dirty checkout before installing, and --check names a
+# mismatched, modified or unrecorded pair the way the cem-verdict gate does. A stub GO records each
+# build and answers `version -m` from the stub binary's content.
+cem=$(cd "$tmp" && pwd)/cem-repo
+mkdir -p "$cem/script" "$cem/cmd/corvint" "$cem/interop/cem01-go" "$tmp/cem-bin"
+/bin/cp -f "$script/install-cem-verifiers.sh" "$script/install-local-bin.sh" "$cem/script/"
+printf 'package main\n' > "$cem/cmd/corvint/main.go"
+printf 'package main\n' > "$cem/interop/cem01-go/main.go"
+git -C "$cem" init -q && git -C "$cem" add -A &&
+  git -C "$cem" -c user.name=t -c user.email=t@t commit -qm one || fail "install-cem-verifiers fixture commit failed"
+cat > "$tmp/stub-go" << 'STUB'
+#!/usr/bin/env bash
+case $1 in
+  build)
+    out=''
+    while (($# > 0)); do [[ $1 == -o ]] && out=$2; shift; done
+    printf '%s %s %s/%s\n' "$PWD" "$GOTOOLCHAIN" "$GOOS" "$GOARCH" >> "$STUB_LOG"
+    printf 'stub-build %s %s %s %s\n' "${STUB_REV:-$(git rev-parse HEAD)}" "${STUB_MODIFIED:-false}" \
+      "${STUB_GOOS:-$GOOS}" "$GOARCH" > "$out"
+    ;;
+  version)
+    read -r tag rev modified goos goarch < "$3" 2> /dev/null && [[ $tag == stub-build ]] || exit 1
+    printf '%s: go1.27.3\n\tpath\tstub\n\tbuild\tGOARCH=%s\n\tbuild\tGOOS=%s\n\tbuild\tvcs=git\n\tbuild\tvcs.revision=%s\n\tbuild\tvcs.modified=%s\n' \
+      "$3" "$goarch" "$goos" "$rev" "$modified"
+    ;;
+  env) [[ $2 == GOHOSTOS && $3 == GOHOSTARCH ]] && printf 'tos\ntarch\n' || exit 9 ;;
+  *) exit 9 ;;
+esac
+STUB
+chmod +x "$tmp/stub-go"
+export STUB_LOG=$tmp/stub-go.log
+cemv() { GO=$tmp/stub-go "$cem/script/install-cem-verifiers.sh" "$@"; }
+head1=$(git -C "$cem" rev-parse HEAD)
+cemv --bin-dir "$tmp/cem-bin" > "$tmp/cemv.out" 2>&1 || fail "install-cem-verifiers install failed: $(cat "$tmp/cemv.out")"
+[[ $(tail -1 "$tmp/cemv.out") == "MATCH $head1" ]] || fail "install-cem-verifiers did not report the installed pair: $(cat "$tmp/cemv.out")"
+[[ $(cat "$STUB_LOG") == "$cem local tos/tarch"$'\n'"$cem/interop/cem01-go local tos/tarch" ]] || fail "install-cem-verifiers built from the wrong directories: $(cat "$STUB_LOG")"
+[[ $(cemv --check --bin-dir "$tmp/cem-bin") == "MATCH $head1" ]] || fail "install-cem-verifiers --check did not match a fresh pair"
+git -C "$cem" -c user.name=t -c user.email=t@t commit -q --allow-empty -m two
+head2=$(git -C "$cem" rev-parse HEAD)
+# A cross-compilation environment does not leak into the builds (Codex P2).
+: > "$STUB_LOG"
+GOOS=plan9 GOARCH=386 cemv --bin-dir "$tmp/cem-bin" > /dev/null 2>&1 || fail "install-cem-verifiers reinstall failed"
+[[ $(sort -u <<< "$(cut -d' ' -f3 "$STUB_LOG")") == tos/tarch ]] || fail "install-cem-verifiers cross-built: $(cat "$STUB_LOG")"
+[[ $(cemv --check --bin-dir "$tmp/cem-bin") == "MATCH $head2" ]] || fail "install-cem-verifiers did not install the new HEAD"
+[[ -f $tmp/cem-bin/corvint.corvint-prev-1 && -f $tmp/cem-bin/cem01-go.corvint-prev-1 ]] || fail "install-cem-verifiers kept no rollback backups"
+# A stale consumer (the V1-1761 observation), a modified build and an unrecorded build each fail.
+printf 'stub-build %s false\n' "$head1" > "$tmp/cem-bin/cem01-go"
+got=$(cemv --check --bin-dir "$tmp/cem-bin") && fail "install-cem-verifiers --check accepted a stale consumer"
+[[ $got == "MISMATCH corvint=$head2 cem01-go=$head1" ]] || fail "install-cem-verifiers stale consumer: $got"
+printf 'stub-build %s true\n' "$head2" > "$tmp/cem-bin/cem01-go"
+got=$(cemv --check --bin-dir "$tmp/cem-bin") && fail "install-cem-verifiers --check accepted a modified consumer"
+[[ $got == "MISMATCH corvint=$head2 cem01-go=$head2+modified" ]] || fail "install-cem-verifiers modified consumer: $got"
+printf '#!/bin/sh\n' > "$tmp/cem-bin/cem01-go"
+got=$(cemv --check --bin-dir "$tmp/cem-bin") && fail "install-cem-verifiers --check accepted an unrecorded consumer"
+[[ $got == "UNRECORDED corvint=$head2 cem01-go=-" ]] || fail "install-cem-verifiers unrecorded consumer: $got"
+/bin/rm -f "$tmp/cem-bin/cem01-go"
+cemv --check --bin-dir "$tmp/cem-bin" > /dev/null 2> "$tmp/cemv.err"
+[[ $? == 2 ]] && grep -q 'REFUSE missing-tool' "$tmp/cemv.err" || fail "install-cem-verifiers --check did not refuse a missing tool"
+# Refusals before any install: an untracked file, an unstamped build, bad arguments.
+/bin/cp -f "$tmp/cem-bin/corvint" "$tmp/corvint-before"
+: > "$STUB_LOG"
+printf 'x\n' > "$cem/untracked"
+cemv --bin-dir "$tmp/cem-bin" > /dev/null 2> "$tmp/cemv.err"
+[[ $? == 2 ]] && grep -q 'REFUSE uncommitted-changes' "$tmp/cemv.err" || fail "install-cem-verifiers installed from a dirty checkout"
+[[ ! -s $STUB_LOG ]] || fail "install-cem-verifiers built from a dirty checkout"
+/bin/rm -f "$cem/untracked"
+STUB_REV=$head1 cemv --bin-dir "$tmp/cem-bin" > /dev/null 2> "$tmp/cemv.err"
+[[ $? == 2 ]] && grep -q 'REFUSE build-not-stamped corvint' "$tmp/cemv.err" || fail "install-cem-verifiers installed a build of another revision"
+STUB_MODIFIED=true cemv --bin-dir "$tmp/cem-bin" > /dev/null 2> "$tmp/cemv.err"
+[[ $? == 2 ]] && grep -q 'REFUSE build-not-stamped' "$tmp/cemv.err" || fail "install-cem-verifiers installed a modified build"
+STUB_GOOS=other cemv --bin-dir "$tmp/cem-bin" > /dev/null 2> "$tmp/cemv.err"
+[[ $? == 2 ]] && grep -q "REFUSE build-not-host corvint targets 'other/tarch'" "$tmp/cemv.err" ||
+  fail "install-cem-verifiers installed a build for another target"
+cmp -s "$tmp/corvint-before" "$tmp/cem-bin/corvint" && [[ ! -e $tmp/cem-bin/cem01-go ]] || fail "a refused install-cem-verifiers run wrote the bin dir"
+cemv --keep 0 --bin-dir "$tmp/cem-bin" 2> /dev/null; [[ $? == 2 ]] || fail "install-cem-verifiers accepted --keep 0"
+cemv --bogus 2> /dev/null; [[ $? == 2 ]] || fail "install-cem-verifiers accepted an unknown argument"
+cemv --bin-dir "$tmp/no-such-dir" 2> /dev/null; [[ $? == 2 ]] || fail "install-cem-verifiers accepted a missing bin dir"
+unset STUB_LOG
+ok
+
+# ASD-V0-039 (V1-2888): wsl-keepalive-check.sh reports the distro's Windows-side holders from one
+# read-only query; no holder fails, a holder without the running task warns, an unreachable host
+# is its own status. A stub ssh prints the query's answer.
+ka=$tmp/keepalive && mkdir -p "$ka/bin" || fail "cannot create the keepalive fixture"
+cat > "$ka/bin/ssh" << 'STUB'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$KA_LOG"
+[[ -n ${KA_RC-} ]] && exit "$KA_RC"
+printf '%b' "$KA_OUT"
+STUB
+chmod +x "$ka/bin/ssh"
+kac() { PATH=$ka/bin:$PATH KA_LOG=$ka/ssh.log "$script/wsl-keepalive-check.sh" --host win@box "$@"; }
+out=$(KA_OUT='holder pid=36924 parent=2700 name=wsl.exe\r\ntask name=CorvintWslKeepAlive state=Running last-result=267009\r\nend\r\n' kac); rc=$?
+[[ $rc == 0 && $out == *$'holder pid=36924 parent=2700 name=wsl.exe\n'*'wsl-keepalive-check: OK holders=1 host=win@box distro=Ubuntu' && $out != *WARN* ]] ||
+  fail "keepalive check with a task-owned holder: rc=$rc out=$out"
+grep -q -- '-EncodedCommand ' "$ka/ssh.log" || fail "keepalive check did not send an encoded query: $(cat "$ka/ssh.log")"
+out=$(KA_OUT='task name=CorvintWslKeepAlive state=Ready last-result=1\nend\n' kac); rc=$?
+[[ $rc == 1 && $out == *'FAIL no-holder host=win@box distro=Ubuntu'* ]] || fail "keepalive check without a holder: rc=$rc out=$out"
+out=$(KA_OUT='holder pid=1 parent=2 name=wsl.exe\ntask name=CorvintWslKeepAlive state=missing\nend\n' kac); rc=$?
+[[ $rc == 0 && $out == *'WARN task-not-running host=win@box task=CorvintWslKeepAlive'* && $out == *'OK holders=1'* ]] ||
+  fail "keepalive check with an untasked holder: rc=$rc out=$out"
+out=$(KA_RC=255 kac 2>&1); rc=$?
+[[ $rc == 3 && $out == *'FAIL host-unreachable host=win@box rc=255'* ]] || fail "keepalive check of a down host: rc=$rc out=$out"
+out=$(KA_OUT='holder pid=1 parent=2 name=wsl.exe\n' kac 2>&1); rc=$?
+[[ $rc == 3 ]] || fail "keepalive check accepted a truncated answer: rc=$rc out=$out"
+out=$(KA_OUT='query-error\n' kac 2>&1); rc=$?
+[[ $rc == 3 && $out == *'FAIL query-error host=win@box'* && $out != *no-holder* ]] ||
+  fail "keepalive check read a query error as no holder: rc=$rc out=$out"
+kac --distro 'bad;name' 2> /dev/null; [[ $? == 2 ]] || fail "keepalive check accepted an invalid distro"
+kac --bogus 2> /dev/null; [[ $? == 2 ]] || fail "keepalive check accepted an unknown argument"
+ok
+
+# ASD-V0-014: no fixture outlives the run, so nothing can write after the summary line. Every
+# background job is reaped and no heavy.sh slot the fixtures used (local, remote stub, worktree) is
+# still held by a live process.
+wait
+for lock in "$tmp"/slots/slot* "$pol"/slots/slot* "$off"/rhome/.cache/corvint-heavy/slots/slot* \
+  "$off"/rhome/.cache/corvint-heavy/wt/slot*.lock; do
+  [[ -e $lock ]] || fail "fixture slot $lock was never created"
+  busy "$lock" && fail "a heavy.sh fixture outlived the test holding $lock (pid $(cat "$lock"))"
+done
+[[ ! -s $heavy_escapes ]] || fail "a heavy.sh fixture ran with a lock dir outside the test directory"
+ok
+
+summary

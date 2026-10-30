@@ -1,0 +1,92 @@
+{
+  "profile": "cem-stable-omission-case/1",
+  "repository": "../multi-runner",
+  "baseRevision": "d39fdcfe8330ebe1b7158e0fcc23020626d41947",
+  "targetRevision": "f8cd50b5509eb7176a79ef4e0787904feb66af71",
+  "notObservedAxes": [
+    "criterionAdequacy",
+    "criterionDiscrimination",
+    "executionAtCommit",
+    "runnerExecution",
+    "runnerReceiptSemantics",
+    "sourceInventoryCompleteness"
+  ],
+  "referenceIntegrity": "REFERENCE_INTEGRITY_ONLY",
+  "cases": [
+    {
+      "name": "a-failed-receipt-cited",
+      "case": "a",
+      "map": "failed-cited.json",
+      "artifactRoot": ".",
+      "omission": "none: the opaque receipt records TestGreetName FAILED and the map cites it",
+      "outcome": "ACCEPT",
+      "stage": "complete"
+    },
+    {
+      "name": "a-failed-receipt-labelled-runner",
+      "case": "a",
+      "map": "cases/failed-labelled.json",
+      "artifactRoot": ".",
+      "omission": "none: the same map with the receipt row relabelled corvint-test-runner-receipt/0",
+      "outcome": "ACCEPT",
+      "stage": "complete"
+    },
+    {
+      "name": "a-narrowed-inventory",
+      "case": "a",
+      "map": "../multi-runner/stable.json",
+      "artifactRoot": "../multi-runner",
+      "omission": "the go-test plan's expectedTests and selectors name only TestGreetEmpty although the target defines TestGreetName",
+      "outcome": "ACCEPT",
+      "stage": "complete"
+    },
+    {
+      "name": "b-failed-rerun-omitted-whole",
+      "case": "b",
+      "map": "../multi-runner/stable.json",
+      "artifactRoot": "../multi-runner",
+      "omission": "a failed run's receipt row, artifact and link digest are all left out, so the bytes equal a map with no failed run",
+      "outcome": "ACCEPT",
+      "stage": "complete"
+    },
+    {
+      "name": "b-receipt-row-omitted",
+      "case": "b",
+      "map": "../multi-runner/cases/receipt-dropped.json",
+      "artifactRoot": "../multi-runner",
+      "omission": "the node-test receipt row is left out while criterion 1 still names it",
+      "outcome": "REJECT",
+      "stage": "references",
+      "code": "unresolved-reference"
+    },
+    {
+      "name": "b-receipt-link-omitted",
+      "case": "b",
+      "map": "../multi-runner/cases/receipt-unlinked.json",
+      "artifactRoot": "../multi-runner",
+      "omission": "criterion 1's link digest is left out, so the node-test receipt covers no criterion",
+      "outcome": "REJECT",
+      "stage": "references",
+      "code": "reference-coherence"
+    },
+    {
+      "name": "b-receipt-artifact-omitted",
+      "case": "b",
+      "map": "../multi-runner/cases/receipt-artifact-dropped.json",
+      "artifactRoot": "../multi-runner",
+      "omission": "the node-test receipt artifact entry is left out",
+      "outcome": "REJECT",
+      "stage": "references",
+      "code": "artifact-role-closure"
+    },
+    {
+      "name": "c-selection-narrower-than-affected",
+      "case": "c",
+      "map": "../multi-runner/stable.json",
+      "artifactRoot": "../multi-runner",
+      "omission": "the map records no affected plan; corvint affected --base over the recipe selects unit go:example.com/greet whole, whose advisory go test has no -run filter and so runs TestGreetName, while the go-test plan selects only TestGreetEmpty",
+      "outcome": "ACCEPT",
+      "stage": "complete"
+    }
+  ]
+}

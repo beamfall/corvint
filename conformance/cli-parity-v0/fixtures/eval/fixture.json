@@ -1,0 +1,23 @@
+{
+  "format": "atlas-cli-parity-fixture/0",
+  "files": [
+    {
+      "path": ".atlas/eval.json",
+      "type": "file",
+      "mode": "0644",
+      "content": "{\n  \"schemaVersion\": 1,\n  \"description\": \"Synthetic deterministic eval corpus.\",\n  \"cases\": [\n    {\n      \"id\": \"doc-rule\",\n      \"mode\": \"query\",\n      \"text\": \"HTTPServer_v2\",\n      \"limit\": 5,\n      \"budget_bytes\": 12000,\n      \"expected\": {\n        \"must_include\": [],\n        \"critical\": [],\n        \"relevant\": []\n      }\n    }\n  ]\n}\n"
+    },
+    {
+      "path": "docs/rule.txt",
+      "type": "file",
+      "mode": "0644",
+      "content": "line1\nHTTPServer_v2 must be used here\n"
+    },
+    {
+      "path": "src/app.py",
+      "type": "file",
+      "mode": "0644",
+      "content": "import os\nHTTPServer_v2 = 1\n"
+    }
+  ]
+}

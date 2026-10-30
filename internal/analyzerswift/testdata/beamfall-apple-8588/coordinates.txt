@@ -1,0 +1,7 @@
+swift-language=6.3
+swiftpm-tools=6.0
+xcode-object-version=77
+apple-project-revision=8588cec3dedaef63bbff458e5e7c8bb6335de107
+apple-ui-revision=830a154d1d8f2f0b1b801a9a9a3b626bc74f6aa6
+source-blob=fde6d493b79e38efc92029c3e8a51cd2606463f3
+apple-ui-package-blob=33e29c099b140ff33449057930504f7b9c86ba94

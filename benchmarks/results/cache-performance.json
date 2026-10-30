@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "observedAt": "2026-08-22",
+  "repository": {
+    "name": "beamfall",
+    "revision": "6e82abd857c77c0ca250b6c4a8f5e1c86684a535"
+  },
+  "request": {
+    "mode": "query",
+    "task": "change session revocation",
+    "limit": 10
+  },
+  "environment": {
+    "architecture": "arm64",
+    "macOS": "26.6.2",
+    "python": "3.9.6"
+  },
+  "process": "one fresh Python process; one cold query followed by six warm queries",
+  "coldSeconds": 7.348234,
+  "warmSeconds": [0.495512, 0.468712, 0.467147, 0.457887, 0.463075, 0.472878],
+  "warmMeanSeconds": 0.470869,
+  "allWarmUnderOneSecond": true,
+  "byteIdentical": true,
+  "cacheBytes": 21501858
+}

@@ -1,0 +1,38 @@
+{
+  "schema": "e2e-block-declarations/0",
+  "inputs": [
+    {
+      "input_id": "input:slot-note",
+      "screen_id": "screen:admin:app.clubs.teesheets",
+      "locator": "slot-note",
+      "values": [
+        {
+          "value_id": "morning",
+          "value": "Morning",
+          "class": "valid"
+        },
+        {
+          "value_id": "blank",
+          "value": "",
+          "class": "invalid"
+        }
+      ]
+    }
+  ],
+  "fixtures": [
+    {
+      "fixture_id": "fixture:open-slots",
+      "satisfies": [
+        "club has open slots"
+      ],
+      "setup": {
+        "page_object": "file:e2e/pages/club.page.ts",
+        "method": "seedOpenSlots"
+      },
+      "cleanup": {
+        "page_object": "file:e2e/pages/club.page.ts",
+        "method": "cleanup"
+      }
+    }
+  ]
+}

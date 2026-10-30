@@ -1,0 +1,480 @@
+# Learned Trace Admission V0
+
+Owner: Russell Lewis
+Date: 2026-09-05
+Status: accepted
+Intent status: accepted (decision 0058)
+Delivery status: experimental
+Requirement prefix: `LTA-V0`
+Authoritative inputs: `docs/decisions/0058-learning-loop-evaluation-gate-and-retention-2026-09-05.md`;
+`docs/decisions/0037-release-owner-calls-2026-09-03.md` item 4; AGENTS.md invariant 5;
+`docs/specs/go-production-kernel-migration-v0.md` `GPK-V0-044`; and
+`docs/specs/local-trace-producer-migration-v0.md`. `LTA-V0-009` to `LTA-V0-012` were proposed by
+`docs/decisions/0368-ledger-negative-labels-for-slot-weights-2026-09-23.md` and accepted by
+decision 0373 (item 12) with experimental delivery; their output reaches ranking only through the
+frozen held-out gate.
+
+## Agent digest
+- Claim: Learned-path mechanism changes require a pinned two-arm gate, while `record` reclaims unchanged trace-store caps by deterministic whole-file eviction.
+- Status: accepted (decision 0058); experimental.
+- Exists: the local trace writer and reader, Python-parity learned-path query behavior, the baseline frozen-corpus evaluation arm, and the read-only `skill-export` projection of admitted `passed` rows to Agent Skills documents (decision 0349).
+- Blocked on: a first registered development run under both engines; blind-v4 remains sealed.
+- Read next: `LTA-V0-001`, `LTA-V0-002`, then `LTA-V0-003`; `LTA-V0-006` for the skill export; `LTA-V0-009` for ledger-labelled slot weights (decision 0368, accepted by 0373, experimental).
+
+## User and measurable job
+
+A maintainer must be able to measure whether enabling the learned trace path harms retrieval before
+changing its shipped scoring configuration. A local operator must also be able to keep recording
+within the existing bounded store without wall-clock-dependent or partial-row retention.
+
+Success is a reproducible baseline-versus-fixture report over the same pinned cases, an executable
+contamination refusal, and deterministic reclamation that never mutates stored rows. The evaluation
+admits or rejects the learned-path mechanism at build time; it does not admit a user's store or any
+individual row.
+
+## Verified current state
+
+At decision 0058's accepted base, `corvint eval` produced the baseline report but refused when a
+passed local trace existed, so the learned path had never been scored. The trace writer refused at
+the 1,000-row, 1,000-file, or 16 MiB store cap and reclaimed nothing. The writer and reader secret
+screens shared the assignment-pattern vocabulary, which did not include `credential`,
+`credentials`, `passphrase`, or `passwd`.
+
+## Requirements
+
+- `LTA-V0-001`: `corvint eval` MUST score a baseline arm and a second learned-trace arm over the
+  same pinned corpus and golden cases when the evaluation runner supplies the registered frozen
+  trace fixture. Its delta block MUST report, in order: critical evidence misses, which MUST NOT
+  rise; abstention accuracy and epistemic-state accuracy, which MUST NOT fall; development
+  serialized-result byte-weighted precision against the 0.80 floor under both engines; then
+  recall and top-five task success as informational metrics. A change smaller than two underlying
+  cases MUST be classified exactly `not distinguished`, never improved or regressed. An evaluation
+  without a fixture MUST retain the existing baseline bytes, and an unfixtured live store holding a
+  passed trace MUST retain its refusal. Learned-path score constants MAY change only after this gate
+  reports no harmful delta and the development precision floor holds under both engines.
+  Amendment (V1-0745, 2026-10-04): under `LTPM-V0-016`, `--exclude-producer` removes those
+  producers' traces from the traces a read admits. An excluded passed trace therefore does not
+  trigger the refusal, the report names the exclusion, and an empty store without an exclusion
+  keeps the baseline bytes.
+- `LTA-V0-002`: Before either scored arm runs, the evaluation MUST fail closed when any frozen
+  fixture trace has the same canonical task as a scored case or names the scored repository's
+  outcome commit as its revision. The fixture path and digest MUST be registered and verified; a
+  warning, omitted case, or post-score contamination label is insufficient.
+- `LTA-V0-003`: At an unchanged 1,000 rows, 1,000 files, or 16 MiB cap, `record` MUST reclaim space
+  only by deleting complete trace files and MUST order candidates deterministically as follows:
+  revisions unreachable from HEAD or outside the bounded ancestry window first; then reachable
+  files containing no `passed` row, farthest from HEAD first; then all remaining files, farthest
+  from HEAD first. Equal-distance candidates MUST use revision filename order. `record` MUST never
+  evict the file being appended to. If that file alone prevents admission, `record` MUST fail
+  closed with a recovery message. No read command may evict, and a below-cap store MUST be unchanged.
+- `LTA-V0-004`: The current writer screen (`internal/secretscreen.Pattern`, consumed by `record`
+  admission and by `query` history-candidate screening) MUST also match, in addition to the shapes
+  above: a bare assignment of the credential vocabulary whose value is single- or double-quoted,
+  consuming the complete lexical string under the same whole-value and unterminated-through-EOF
+  rules as the quoted JSON property; the bare `pass` vocabulary stem only when followed by an
+  assignment operator, except for the structural bare `PASS:` prefix on a complete Go verbose-test marker line shaped as
+  `[whitespace]--- PASS: TestName (seconds)`; all other text on that line, including the test name, remains screened. `whsec_`, `hf_`, `dop_v1_` and `xapp-` tokens at or above their length
+  floors, and Slack incoming-webhook URLs; an AWS access-key ID immediately followed by its
+  40-character secret, redacted together; and an `authorization` assignment whose value is an HTTP
+  scheme word (`basic`, `bearer`, `digest`, `negotiate`, `ntlm`, `token`) followed by a
+  space-separated credential, redacted together. Decision 0164 adds: an `account[_-]?key`
+  assignment (Azure `AccountKey=`); Google `ya29.` and `GOCSPX-`, Shopify `shpat_`/`shpss_`/`shpca_`
+  and GitLab `glrt-`/`gldt-` tokens at or above a 20-character floor; a credentialed URL whose
+  password contains a raw `@`, redacted through the last `@` before whitespace, `/`, `?`, `#` or a
+  quote, so the match never ends inside a later secret (the user part stops at the same characters,
+  so `https://host?x="a:b@c d"` is not a credentialed URL); URL userinfo with no password that carries a known vendor-token prefix at any length or is at least 32 letters
+  and digits (plain user names such as `git@` stay unmatched); a credential-vocabulary flag
+  (`--password`, `-token`, `--db-password`) followed by a separate argument, where a single- or
+  double-quoted argument is consumed as one complete lexical string (through EOF when unterminated)
+  and a bare argument ends at whitespace or an unescaped quote, so a following JSON property is never
+  cut in half; a bare or double-quoted argument starting with `$` is a variable reference and MUST
+  NOT match; a `-p` separate or
+  `=`-joined argument after `login`, `-u` or `--user` on the same line; and `curl -u`/`--user`
+  with a bare or whole quoted `user:password` pair, where the flag starts an argument (a `-u` inside a hyphenated host
+  such as `svc-users:8080` MUST NOT match). A flag argument counts only when it contains both a letter and a
+  digit, so commit prose such as `add --token flag`, `docker login -p value` and git's
+  `log -p HEAD~3` MUST NOT match. `record` MUST refuse such input and `query` MUST
+  drop such a history candidate. `StoredV1Pattern` and the dashboard readers MUST NOT gain these shapes. The
+  retired Python oracle's narrower screen is not a compatibility target (decision 0092).
+- `LTA-V0-005`: (numbered 2026-09-12 by decision 0093; text unchanged from the accepted
+  trust-boundary paragraph) An ordinary Go trace read distinguishes a candidate proven to predate the
+  bounded replay window from a revision that is unreachable from HEAD. The former has read-failure
+  kind `replay-window`, uses the diagnostic `candidate revision predates the bounded replay window`,
+  and discloses the number of ancestry rows truncated from the bounded probe. Repository query still
+  maps that kind to `unsupported-query-trace-state`, preserving `GPK-V0-044` semantics. Only `record`
+  may pass such a candidate into `LTA-V0-003`'s unreachable-first retention tier; below the cap it
+  remains a refusal.
+- `LTA-V0-006`: `corvint skill-export --out DIR` MUST be the only path that exports learned rules.
+  It MUST read the pinned trace store and the committed index through the ordinary trace reader,
+  MUST write only under the operator-named `DIR` and refuse a `DIR` inside the repository's
+  `.corvint` directory, and MUST NOT create or change repository or trace state. For the same
+  admitted rows it MUST produce byte-identical `SKILL.md` and `references/trace.md` files, one
+  directory per rule ordered by skill name, and a manifest that is byte-identical apart from `DIR`.
+- `LTA-V0-007`: An admitted learned rule is a stored row with outcome `passed` that the reader
+  re-validated (schema, revision, path, and stored-secret screens). Each exported skill MUST name
+  the admission evidence digest, `sha256:` over the exact row bytes the store holds
+  (`trace.Encode`), and the evaluation result verbatim. V0 records no per-row evaluation result
+  because `LTA-V0-001` admits the mechanism and never an individual row, so the value MUST be
+  exactly `NOT_RECORDED`; an export MUST NOT synthesize any other value. A `failed` or `blocked`
+  row, or a row whose digest does not re-validate, MUST NOT be exported.
+- `LTA-V0-008`: Each exported skill MUST load under the Agent Skills frontmatter contract that
+  Claude Code and Codex share: a `name` of 1 to 64 lowercase alphanumerics and single hyphens equal
+  to its directory name, a non-empty one-line `description` of at most 1,024 characters, a short
+  `SKILL.md` body, and the full paths and commands in `references/trace.md` (progressive
+  disclosure). The acceptance fixture is a Go parser shaped like a host loader; no real host runs.
+- `LTA-V0-009`: (decision 0368, accepted by 0373, experimental) `corvint eval --learn-slot-weights [--goldens FILE]
+  [--admit]` MUST be the only reader of `.corvint/unplanned-reads.jsonl` and
+  `.corvint/self-observations.jsonl` as labels, and only through their existing bounded readers
+  (128 KiB per ledger, 2 KiB per row). Its negative labels are the distinct paths of unplanned reads
+  and of `OBSERVED` file-change misses, sorted and capped at 256; a planned re-read is counted and
+  disclosed but is not a label, because the packet already carried that path. Each label maps
+  through a closed table to its serving slot (`test` for test-shaped paths; `documentation` for
+  `.md`, `.mdx`, `.rst` and `.txt` files, the suffixes the packet emits as `documentation` rows;
+  `lexical` for any other `docs/` path; otherwise `definition`), and at most four proposals raise the most-labelled slots by 1 and then
+  2. `context` and `query` MUST NOT open either ledger or depend on the learning package: their
+  bytes are identical with the ledgers present, absent or populated. (amended 2026-10-04, V1-0740)
+  Only rows the readers admit under their writer contracts (`URE-V0-005`, `SOL-V0-005`) supply
+  labels, and an empty or non-project-relative path is never a label. The labels report MUST
+  disclose `rejected_rows`, the rows both readers refused, and `ledger_cut`, whether either ledger
+  exceeded its byte cap, alongside `truncated`.
+- `LTA-V0-010`: (decision 0368, accepted by 0373, experimental) Each proposal MUST be scored against the default slot
+  order on the frozen golden's held-out split (`CaseSplit`) by the `context` packet over the
+  held-out `query` rows, counting critical misses, must-include hits and top-five hits over
+  path-bearing selectors (`symbol:PATH:NAME`, `file:PATH`). The report MUST carry the goldens
+  digest, revision, held-out case count, both arms and each delta. A proposal is `improved` only
+  when at least two more cases improve than regress and critical misses do not rise, `regressed`
+  when critical misses rise or at least two more cases regress, and otherwise `not distinguished`.
+  With no labels, or no `improved` proposal, the step MUST refuse admission, write nothing and say
+  why. It MUST fail when the repository revision changes during scoring.
+- `LTA-V0-011`: (decision 0368, accepted by 0373, experimental) Only `--admit` with an `improved` proposal MAY write
+  `.context-corvint/slot-weights.json` (schema 1: `weights` over the ten learnable slot relations,
+  each an integer in -2..2, plus the gate's evaluation block), atomically and at most 4,096 bytes,
+  only through the `.context-corvint` directory pinned inside the repository: a symlinked or
+  non-directory store is refused and nothing is written outside the repository.
+  The file is operator-owned local state: the loader checks its shape, not its provenance, so the
+  `evaluation` block MUST be an object carrying `goldens_sha256` (`sha256:` and 64 lowercase hex),
+  `revision` (40 or 64 lowercase hex) and both arm results, `baseline` and `arm`, each with integer
+  `critical_misses`, `must_include_hits` and `top5_hits`, as the gate writes them; a hand-written
+  block of that shape is accepted. When that file exists, `context` and `batch`'s `context`
+  operation (`SBQ-V0-003`) MUST stably move rows of higher-weighted relations ahead after
+  slot admission and before corroboration and truncation, and MUST disclose the file's path,
+  `sha256:` and weights as `learned_slot_weights`. Without the file the packet MUST be byte-identical
+  to the default order. A symlinked, oversized, malformed, unknown-relation or out-of-range file,
+  one whose `evaluation` block is absent or lacks that shape, or one under a symlinked or
+  non-directory `.context-corvint`, MUST fail `context` closed with a message naming the rollback
+  command, never fall back silently. `necessity`, `disagree` and
+  `touchsurprise` compile the unweighted `contextindex.TaskContext` packet and do not read the file.
+- `LTA-V0-012`: (decision 0368, accepted by 0373, experimental) `corvint eval --reset-slot-weights` MUST remove the
+  admitted file, report whether it removed one, succeed when none exists, and return `context` to
+  its default bytes. It takes no other argument. It MUST remove only through the `.context-corvint`
+  directory pinned inside the repository: a symlinked or non-directory store is refused and a store
+  substituted after pinning cannot redirect removal. A leaf symlink is removed, never followed.
+
+### Accepted amendment: schema-2 admission (2026-09-30, issue 408)
+
+- `LTA-V0-013`: Schema-2 verification defined by `LTPM-V0-013` MUST pass the shared
+  `secretscreen.MatchArgv` screen before writing and after reading. It applies the current writer
+  matcher to each decoded argument and the canonical JSON vector, plus credential flag/value
+  boundaries. Named password, token, API/access/private/account key, authorization and secret flags
+  (including existing dash/underscore forms) screen their nonempty `=VALUE` or following argument
+  as one value. Existing login/curl `-p`, curl `-u`/`--user`, bearer/JWT, AWS pair, vendor token,
+  credentialed URL, private key and assignment shapes apply. JSON escapes are decoded first.
+  Structural inspection MUST NOT produce stored/displayed/executable shell text. Arbitrary
+  base64/hex/percent decoding is out of scope; opaque payloads are detected only when a literal
+  governed shape remains visible. This is bounded pattern screening, not general secret discovery.
+  `StoredV1Pattern`, v1 stored-row acceptance and v1 identities MUST remain unchanged. A validated
+  v2 row is immediately eligible for the same task/outcome/path query and eval admission and
+  `passed` skill export as v1. Verification values MUST NOT affect learned ranking. Skill export
+  MUST label argv and render its canonical JSON inertly, including fence-like input. The existing
+  contamination, outcome, retention and evaluation gates remain in force.
+
+Acceptance: `TestLTAV0013TypedSecrets`, `TestTypedTraceFixtureAdmission`,
+`TestExportTypedArgv`, and the existing frozen v1 tests. Qualification limits remain explicit;
+local codec parity is not an external retrieval outcome measurement.
+
+### Proposed amendment: writer-screen prefilter (2026-10-04, ticket V1-0722, owner-directed)
+
+- `LTA-V0-014`: The writer screen MAY skip a top-level branch of `secretscreen.Pattern` for a text
+  only when a condition necessary for any substring of that text to match the branch is false, and
+  MUST then return exactly the matches `Pattern` returns for the same text, in the same order and
+  at the same byte offsets. A text holding a non-ASCII rune that case-folds to an ASCII letter
+  (U+212A, U+017F) MUST be screened with the complete pattern. The prefilter MUST NOT change
+  `Pattern`'s source text, `StoredV1Pattern`, or what `MatchString`, `Screen` and `MatchArgv`
+  report. It is an execution strategy only; a detector change still needs its own requirement.
+
+Acceptance: `TestLTAV0014PrefilterReturnsPatternMatches`, `TestLTAV0014GeneratedBranchTextsKeepTheirBranchLive`, `TestLTAV0014PatternSourceIsUnchanged`,
+`TestLTAV0014TextWithoutCandidatesSkipsThePattern`, the package `TestMain` observer, which
+compares every text any `internal/secretscreen` test screens with `Pattern` and with each branch
+alone, and `BenchmarkScreen` for the retained before and after.
+
+### Proposed amendment: Go JSON PASS event marker (2026-10-08, ticket V1-0687)
+
+- `LTA-V0-015`: The writer screen MUST treat the structural `PASS:` prefix inside one complete
+  `go test -json` output event line as it treats the plain `LTA-V0-004` Go verbose marker, and only
+  there. The line MUST be exactly `{`, an optional `"Time"` string of RFC 3339 characters,
+  `"Action":"output"`, an optional nonempty `"Package"` string, a `"Test"` string, and an
+  `"Output"` string holding optional leading spaces or `\t` escapes, `--- PASS: `, a test name, a
+  space, a parenthesised seconds value and a final `\n` (optionally preceded by `\r`), then an
+  optional `"OutputType":"frame"` and `}`, in that field order with no other field. Apart from
+  those structural Output escapes, no string in the line may hold a quote, a backslash escape or an
+  unescaped control character, the test names may not hold a space, and the Test field MUST equal
+  the marker's test name. Only the four `PASS` bytes and colon are neutralised, at unchanged byte
+  offsets; every other byte, including the test name, the Test and Package values, and every other
+  line, remains screened, so credential-shaped test names, arbitrary JSON values, other `Action` or
+  `OutputType` values, extra or reordered fields, escaped content and trailing Output text are
+  still matched. `Pattern`'s source text, `StoredV1Pattern` and the `LTA-V0-014` prefilter are
+  unchanged; there is no global exemption, so a local-completion check whose `go test -json` output
+  carries a credential stays `secretScreened` and unqualified.
+
+Acceptance: `TestLTAV0015GoJSONPassMarker` (a real go1.27.1 `go test -json` transcript and
+structural variants screen clean; credential-bearing events stay recognised but still match;
+malformed-structure cases are not recognised and still match), `TestActualVerificationAndSecretRefusal` subtests `go-json-pass-log` and
+`go-json-pass-log-with-embedded-secret`, plus a recorded live `corvint dogfood verify` of an
+unchanged `go test -json ./...` check (build log 2026-10-08-go-json-pass-screening).
+
+- `LTA-V0-016`: The writer screen's JWT-shaped branch MUST require compact-JWS header structure:
+  a word boundary, then a case-exact `ey` or `ew` (base64url of `{` followed by a quote or by
+  whitespace), at least eight more base64url characters, and two further dot-separated base64url
+  segments of at least ten characters each. A dotted identifier whose first segment is not
+  case-exact `ey`/`ew` (for example an adopter obligation alias such as
+  `CHECKOUT-REGRESSION.PAYMENT-FLOW.SAVED-CARD-RETRY-PATH-V2.R00001`, a lowercase dotted path, or a
+  word ending in `ey` such as `monkey-business.abcdefghij.abcdefghij`) MUST NOT match that branch.
+  Every real compact JWS (bare, in JSON, in a URL fragment, in prose, after a hyphen, and with a
+  spaced or newline header) MUST still be redacted, and a five-part JWE MUST still be hit.
+  `StoredV1Pattern` is unchanged, so schema-v1 rows keep their recorded classification, and the
+  `LTA-V0-014` dotted-triple prefilter stays a necessary condition (V1-1704).
+
+Acceptance: `TestLTAV0016JWTBranchRequiresHeaderStructure` (positives fully redacted, five-part JWE
+hit, negatives unmatched, the dotted alias still matched by `MatchStoredV1String`),
+`TestLTAV0014PatternSourceIsUnchanged` (re-pinned writer digest), and
+`TestTOLV0055`..`TestTOLV0059` in `internal/tasks/cli` with a dotted adopter alias.
+
+### Proposed amendment: sk- branch hyphenated words (2026-10-22, ticket V1-2418)
+
+- `LTA-V0-017`: The writer screen's `sk-` vendor branch MUST require, after a word boundary and
+  `sk-`, at least 20 consecutive characters from `[a-z0-9_]` (case-insensitive) within the
+  following `[a-z0-9_-]` run, and MUST still redact that whole run. A run of short hyphenated words
+  such as the build-log path `2026-10-22-sk-1022p-site-knowledge-setup.md` MUST NOT match that
+  branch; legacy, `sk-proj-` and `sk-ant-` shaped keys MUST still be redacted. Every writer match of
+  the branch is also a match of the previous branch with the same span, and `StoredV1Pattern` is
+  unchanged, so schema-v1 rows keep their recorded classification.
+
+Acceptance: `TestLTAV0017SKBranchNeedsAnUnhyphenatedRun` (key shapes redacted in prose and paths,
+hyphenated word runs unmatched, `MatchStoredV1String` still matching the original shape) and
+`TestLTAV0014PatternSourceIsUnchanged` (re-pinned writer digest).
+
+### Amendment: slot-learning splits and fixed baseline (2026-10-28, V1-2958)
+
+- `LTA-V0-018`: (V1-2958; accepted 2026-10-28 under the owner's standing lane-requirement
+  auto-accept; extends `LTA-V0-009`..`012`, experimental) Every `corvint eval --learn-slot-weights`
+  report MUST keep label collection, proposal and final evaluation apart and say so as `split`:
+  `label_collection` names the local `.corvint` ledgers of this repository and pins each one's
+  provenance (`state` absent, unreadable or present; for a present regular file its size, the
+  sha256 of the prefix the bounded readers read, at most 128 KiB, and its modification time as
+  `collected_through`), read through the repository root and never written; `proposal` states
+  that `Propose` sees only the label classes, never a golden or an evaluation result;
+  `final_evaluation` is the evaluated goldens' digest, revision, split rule, split and held-out
+  case count, or `NOT_RUN` when no proposal was scored; `cross_repository` and `cross_time` are
+  `NOT_RUN`, and `promotion` states that without them the learned order stays off the promotion
+  path. The report MUST carry `fixed_baseline`, the non-learning arm (nil slot weights, the
+  shipped default order, `learns: false`) with its held-out scores or `NOT_RUN`. `labels` MUST add
+  `rejected_by_reason` (the rejected rows by ledger and closed reason, summing to `rejected_rows`)
+  beside the existing `truncated` and `ledger_cut`. With no admitted trace, with live-read ledgers
+  present but nothing admitted, and after `Reset` of an admitted trace, the context packet MUST be
+  byte-identical to the shipped default. Live query reads reach learning only through this
+  operator-invoked step, and admission is unchanged. Limits: no other repository or later time
+  window is evaluated here and no held-out set was run for this change; if a later cross-repository
+  or cross-time evaluation shows the gain vanishing, the learned order leaves the promotion path.
+  Rollback: drop `splitValue`, `fixedBaseline`, `ledgerProvenance` and `Labels.RejectedReasons`.
+
+Acceptance: `TestLTAV0018LearnReportRecordsSplitProvenanceAndFixedBaseline` and
+`TestLTAV0018DefaultContextIsByteIdenticalWhenLearningIsAbsentOrReset`.
+
+### Proposed amendment: unterminated private keys and linear prefilter (2026-10-28, V1-2993, V1-2997)
+
+- `LTA-V0-019`: The writer screen's private-key branches MUST redact from a
+  `-----BEGIN ... PRIVATE KEY-----` or `-----BEGIN PGP PRIVATE KEY BLOCK-----` header through the end
+  of the screened value, so a block without its footer never leaves its base64 body unredacted.
+  Redacting through the end is the conservative choice: the screen cannot know where an unterminated
+  body stops. `StoredV1Pattern` keeps the header-only branches and is unchanged, so schema-v1 rows
+  keep their recorded classification; the writer source digest is re-pinned.
+- `LTA-V0-020`: The prefilter's credential-name scan MUST scan the lowered text's field-byte runs
+  once, test each run for the credential stems present in the text, and call the boundary check once
+  per run, so its cost is linear in the input rather than in input times stem occurrences. Its
+  candidate decisions MUST equal the previous per-occurrence scan's on every input.
+
+Acceptance: `TestLTAV0019UnterminatedPrivateKeyRedactsThroughEnd` (RSA, EC, OPENSSH, plain,
+ENCRYPTED, PGP and lowercase headers redact through the end with no body left; a terminated block
+followed by a footerless one keeps the text between them; the stored-v1 pattern still matches the
+header), `TestLTAV0020CredentialNameScanMatchesReference` (equal decisions to the per-occurrence
+reference over the differential corpus and adversarial cases),
+`TestLTAV0020RepeatedCredentialWordsScaleLinearly` (four times the input stays within eight times the
+time), and `TestLTAV0014PatternSourceIsUnchanged` (re-pinned writer digest).
+
+## Non-goals and simpler baseline
+
+The simpler baseline is the empty-trace evaluation arm and hard refusal at the existing store cap.
+V0 does not evaluate or admit an individual user's store or row, change trace schema v1, change the
+three caps, tune learned-path constants, authorize blind-v4 observation, add wall-clock retention,
+rewrite a row, change dashboard bytes, add `auth`, or add an entropy heuristic. The skill export
+(`LTA-V0-006` to `LTA-V0-008`) does not import skills, export `failed` or `blocked` rows, run a
+host, or record or synthesize a per-row evaluation result. The slot-weight step (`LTA-V0-009` to
+`LTA-V0-012`) adds no root verb, background learner, embedding, per-row weight, per-file boost or
+automatic admission; it does not weight `query`, the adapter prompt packet or reserved relations,
+and it does not read ledger rows beyond their existing readers' bounds.
+
+The current secret detector in `internal/secretscreen` and the shipped Python oracle includes
+`credential|credentials|passphrase|passwd`. The 2026-09-06 user-authorized audit repair also detects
+double-quoted JSON property names containing the existing credential vocabulary, followed by a
+colon and a value. For an ordinary double-quoted value, the match MUST consume the complete
+lexical string, including whitespace and backslash-escaped characters, so redaction cannot retain
+a credential tail. An unterminated quoted value consumes through absolute end of input, including
+newlines and a dangling backslash; the malformed remainder is conservatively redacted. Complete
+quoted values preserve following benign fields. Non-quoted values retain the existing non-whitespace match. This is a lexical
+screen, not a JSON parser or general secret discovery mechanism: escaped property names and
+decoding of encodings remain outside this bounded repair.
+
+The 2026-09-12 writer-screen repair extends only the Go writer (`internal/secretscreen.Pattern`),
+not `StoredV1Pattern` and not the since-retired Python oracle, closing four gaps: a bare (non-JSON) assignment
+whose value is single- or double-quoted now consumes the complete lexical string instead of
+truncating at an internal space, matching the same whole-value and benign-following-field guarantees
+as the quoted-JSON-property case above; the credential vocabulary gains a bare `pass` stem alongside
+`passphrase|passwd|password`; the vendor-token alternation gains `whsec_`, `hf_`, `dop_v1_`, and
+`xapp-` prefixes plus Slack incoming-webhook URLs (which carry no `@`, so the credentialed-URL rule
+does not reach them); and an AWS access-key ID (`akia|asia`) immediately followed by what is shaped
+like its paired 40-character secret access key redacts both together, where previously only the key
+ID was covered. `LTA-V0-004` states these four as a requirement. They stay out of the frozen
+stored-v1 matcher; the Python oracle that lacked them is retired (decision 0092).
+
+The dashboard adapter and frozen
+dashboard-snapshot reader remain unchanged until row-level read rejection is separately authorized,
+so a writer rejects those new assignments while either reader may still accept a previously stored
+row containing one. The shared parity corpus therefore has a stable common section on which all four
+copies agree and an explicit writer-only section for this accepted asymmetry; it must not disguise
+the asymmetry as four-way parity.
+
+Schema v1 has no writer-screen version marker, so Go and Python stored-row validation also retain
+the pre-expansion assignment vocabulary for every existing v1 row, including commit-named,
+tree-named, and unreachable retention candidates. Stored-v1 matchers retain the exact pre-expansion pattern, including its quoted-property gap;
+the writer rejects new quoted credential fields without retroactively invalidating an old row
+whose digest and all other v1 fields remain valid. The current detector also filters Git-history
+subjects and candidate paths at query time in Go and Python, and `Screen` redacts observation-ledger
+fields. Those existing consumers receive the same expansion; filtering a history candidate is not
+stored-trace rejection or a scoring-rule change. No read operation rewrites a historical row.
+
+## Trust boundary, limits, and failure modes
+
+The fixture is repository-owned, immutable input to a local evaluation. It grants no authority to
+trace contents. Fixture digest drift, task contamination, outcome-commit contamination, a changed
+repository revision, or a changed history fails the run before a delta is accepted. A real local
+store is never substituted for the fixture.
+
+Eviction occurs only inside the explicit `record` mutation boundary. An unreadable candidate,
+ancestry failure, unsafe file, malformed row, append-target-only overflow, or inability to establish
+the required order fails closed without partial-file rewriting. The existing reader, row, file, and
+byte bounds remain authoritative. Clarification (2026-09-13, bug hunt): interrupted-append recovery
+is part of that mutation boundary. After acquiring and confirming the trace-operation lock, `record`
+MUST revalidate repository stability before it removes a staged target, restores an eviction, or
+clears a published eviction; drift leaves those recovery bytes unchanged and refuses the append.
+
+The bounded replay-window read distinction is `LTA-V0-005`.
+
+Skill export fails closed with the existing read-failure codes on any trace read failure, and with
+`unsupported-query-trace-state` on a row that cannot be re-encoded or a skill-name collision; an
+unwritable `DIR` is an argument error. Because it writes only under `DIR`, no failure leaves
+partial repository or trace state. An exported directory is an operator-owned copy that grants no
+authority to its contents.
+
+The slot-weight gate inherits the frozen golden's reach: held-out rows with no path-bearing
+selector score zero in both arms and can only be `not distinguished`, so such a corpus refuses every
+proposal. Labels come from ledgers fed by the adapter prompt packet, not the `context` packet that
+is weighted; that mismatch is why the gate, not the labels, decides admission.
+
+## Acceptance evidence and testing matrix
+
+| Requirement | Deterministic acceptance evidence |
+|---|---|
+| `LTA-V0-001` | baseline output without a fixture remains byte-identical; a registered fixture emits both scored arms and the ordered delta; one-case metric changes render `not distinguished`; an unfixtured passed live store retains its refusal |
+| `LTA-V0-002` | exact-task and outcome-commit fixture contaminants each fail before scoring; registered fixture digest mismatch fails |
+| `LTA-V0-003` | a cap fixture evicts whole files in all three ancestry/outcome tiers, preserves the append target and unchanged row bytes, and fails with recovery guidance when only that target can be reclaimed; `TestAppendRepositoryDriftPreventsInterruptedRecoveryMutation` proves repository drift cannot mutate staged recovery bytes |
+| `LTA-V0-005` | a candidate older than the bounded replay window reads as kind `replay-window` with the exact diagnostic and truncated count, distinct from an unreachable revision |
+| `LTA-V0-006` | a store holding `passed`, `failed`, and `blocked` rows exports exactly one skill directory, the repository tree digest is unchanged, a second run into another `DIR` yields identical file bytes and manifest, and `--out` inside `.corvint`, a missing `--out`, or an unknown flag is refused |
+| `LTA-V0-007` | `SKILL.md` and `references/trace.md` both carry `sha256:` over `trace.Encode` bytes and `Evaluation: NOT_RECORDED`; a `failed` or `blocked` row and a row with a mismatched digest are refused |
+| `LTA-V0-008` | a loader-shaped parser reads the frontmatter, finds `name` equal to the directory within the 64-character `[a-z0-9-]` bound and a one-line `description` within 1,024 characters with control characters folded, and reloads the digest from the body |
+| `LTA-V0-009` | populated ledgers leave `context` and `query` bytes unchanged; `contextindex` does not depend on either ledger package or `slotlearn`; labels cap at 256 with planned re-reads excluded; `{}`, an escaping path, a negative byte count and an unknown kind never become labels, and the report discloses rejected rows and a cut ledger; proposals are at most four, deterministic and in range |
+| `LTA-V0-010` | a held-out golden with no improvement reports both arms and the delta, refuses admission and writes no file; no labels refuses before scoring; classification thresholds are unit-tested |
+| `LTA-V0-011` | nil weights leave the packet unchanged; weights reorder stably and disclose the trace; the loader refuses symlinked, oversized, malformed, unknown-relation, out-of-range and unevaluated files, and a file under a symlinked store directory, naming the rollback; `batch` `context` equals the weighted standalone packet |
+| `LTA-V0-012` | `eval --reset-slot-weights` removes the admitted file and the next `context` output equals the default bytes, including after a malformed file; a symlinked store is refused with the outside file byte-identical, a leaf symlink is removed without touching its target, and removal through the pinned store ignores a substituted directory |
+| `LTA-V0-014` | every parity fixture, its case, fold, split, JSON and base64 variants and every ordered fixture pair return `Pattern`'s matches, as do texts generated from each branch's own expression; each branch's necessary condition holds wherever that branch alone matches; a text with U+212A or U+017F uses the complete pattern; the writer pattern's source digest is pinned |
+| `LTA-V0-016` | real compact JWS forms (bare, JSON, URL fragment, prose, after a hyphen, spaced and newline headers) are fully redacted and a five-part JWE is hit; a dotted adopter alias, lowercase dotted text, a word ending in `ey`, an uppercased header, a module-like path, two segments and a short header do not match; the stored-v1 pattern still matches the alias |
+| `LTA-V0-015` | a recorded go1.27.1 `go test -json` transcript, top-level, subtest, indented, CRLF, time-less and package-less PASS events screen clean; a credential in the test name, Package value or a later line is still redacted while the marker stays recognised; a mismatched Test field, a non-`output` Action, a non-`frame` OutputType, an extra or reordered field, continued or prefixed Output, an escaped quote or `\u` sequence, a raw tab or NUL, leading text, another JSON value and an unterminated line are not recognised and still match; `dogfood verify` qualifies the clean event and screens the credential-bearing one |
+| `LTA-V0-017` | legacy, `sk-proj-` and `sk-ant-` shaped keys are redacted bare, in prose and in a path; hyphenated word runs such as `sk-1022p-site-knowledge-setup` and a 19-character run do not match; the stored-v1 pattern still matches the hyphenated run |
+| `LTA-V0-018` | a learning report with no ledgers records both splits and the final evaluation as `NOT_RUN`, both ledgers absent and the fixed nil-weights arm; a present ledger is pinned by size and sha256 without being changed; rejections by reason name their ledger and sum to `rejected_rows`; the context packet is byte-identical with no trace, with a live-read ledger present, and after `Reset`, and differs only under an admitted trace |
+| writer/stored-reader screen compatibility | one shared fixture corpus proves the four baseline patterns agree; new assignment-key and quoted-property cases reject in both writers while Go/Python stored-v1 validation and both dashboard readers retain their previous result; benign quoted properties remain admissible, Git-history screening uses the current detector, and ledger output redacts the synthetic value |
+
+Blind-v4 is not acceptance evidence for this spec. A first development result is first-observation
+evidence and must be registered before it is read; it cannot retroactively change these rules.
+
+## Rollout, maintenance, and drift
+
+Ship the frozen fixture and its digest with the evaluation runner, then run both engines against the
+development corpus. Keep the baseline and fixture on identical request, revision, and intent inputs.
+Any fixture edit changes its registered digest and requires a fresh contamination check and result.
+Any learned-path scoring or floor change requires a fresh `LTA-V0-001` report.
+
+`GPK-V0-044` continues to describe shipped Python-parity semantics. A Go/Python behavior difference
+must move the oracle in the same change or enter `conformance/divergence-register.md`; it is not
+repaired by silently changing the oracle after evaluation.
+
+## Traceability
+
+| Requirement | Implementation | Evidence |
+|---|---|---|
+| `LTA-V0-001` | `internal/evalrepo`, `cmd/corvint`, `benchmarks/run.py` | focused eval repository, CLI, and benchmark-runner tests |
+| `LTA-V0-002` | `internal/evalrepo`, frozen trace fixture registration | focused task-contamination, outcome-commit-contamination, and digest-drift tests; `TestTraceFixtureRefusesOverBoundFile` (a fixture over the 16 MiB trace-store bound is refused after bound+1 bytes) |
+| `LTA-V0-003` | `internal/trace`, `internal/tracerecordrepo` | focused cap-order, whole-file, append-target, and bounded-ancestry tests |
+| `LTA-V0-004` | `internal/secretscreen.Pattern`, consumed by `internal/trace` record admission and `internal/contextindex` `containsSecret` | `TestSecretPatternParityCorpus` (writer-only rows, stored-v1 non-match, and length-floor, bare-`pass` and hyphenated-host curl non-matches), `TestGoVerbosePassMarkerBoundary`, `TestScreenConsumesWholeQuotedAssignmentValue`, `TestScreenRedactsAWSSecretAdjacentToItsKeyID`, `TestScreenRedactsCredentialAfterAuthorizationScheme`, `TestScreenRedactsWholePasswordContainingAtSign`, `TestCredentialedURLPasswordStopsAtQueryFragmentOrQuote`, `TestLTAV0004RecordRefusesWriterOnlySecretShapes`, `TestSecretPatternMatchesHistorySecretShapes` |
+| `LTA-V0-005` | `internal/tracerecordrepo` | `TestReadBoundsTraceReplayWithoutRefusingLargeRepositories` (subtest `candidate outside bounded replay`) |
+| `LTA-V0-006` | `internal/skillexport`, `cmd/corvint/skill_export.go` | `TestExportProducesDeterministicBytes_LTA006`, `TestSkillExportWritesOnlyOperatorDirectory_LTA006`, `TestSkillExportInvocationFlags_LTA006` |
+| `LTA-V0-007` | `internal/skillexport` | `TestExportNamesAdmissionDigestAndEvaluation_LTA007` |
+| `LTA-V0-008` | `internal/skillexport` | `TestHostRoundTripLoadsExportedSkill_LTA008` |
+| `LTA-V0-009` | `internal/slotlearn`, `cmd/corvint/eval_slot_weights.go` | `TestLTAV0009LedgersNeverChangeContextOrQueryOutput`, `TestLTAV0009LiveContextPathCannotReachTheLedgers`, `TestLTAV0009LabelsAreBoundedAndPlannedReadsAreNotLabels`, `TestLTAV0009RowsOutsideTheWriterContractAreNotLabels`, `TestLTAV0009LedgerCutIsReported`, `TestLTAV0009ProposalsAreBoundedDeterministicAndInRange`, `TestLTAV0009ServingSlotTable` |
+| `LTA-V0-010` | `internal/evalrepo/slot_weights.go`, `internal/slotlearn` | `TestLTAV0010GateReportsTheDeltaAndRefusesWithoutImprovement`, `TestLTAV0010NoLabelsRefusesWithoutEvaluating`, `TestLTAV0010SlotDeltaClassification`, `TestLTAV0010SelectorPathsKeepOnlyPathBearingSelectors` |
+| `LTA-V0-011` | `internal/contextindex/slot_weights.go`, `internal/contextindex/taskcontext.go`, `cmd/corvint/taskcontext.go`, `internal/slotlearn` | `TestLTAV0011SlotWeightOrderIsIdentityByDefaultAndStable`, `TestLTAV0011WeightedPacketDisclosesTheTraceAndNilIsTaskContext`, `TestLTAV0011AdmittedSlotWeightsLoaderFailsClosed`, `TestBatchContextAppliesAdmittedSlotWeights`, `TestLTAV0011AdmitRefusesASymlinkedStoreAndWritesNothingOutside` |
+| `LTA-V0-012` | `internal/slotlearn`, `cmd/corvint/eval_slot_weights.go`, `internal/contextindex/slot_weights.go` | `TestLTAV0012ResetRestoresTheDefaultPacket`, `TestLTAV0012AdmittedTraceRoundTripsAndResetRestoresDefault`, `TestLTAV0012ResetRefusesASymlinkedStoreAndRemovesALeafLink`, `TestLTAV0012PinnedStoreIgnoresASubstitutedDirectory` |
+| `LTA-V0-018` | `internal/slotlearn/slotlearn.go` (`splitValue`, `fixedBaseline`, `ledgerProvenance`, `rejectedReasons`) | `TestLTAV0018LearnReportRecordsSplitProvenanceAndFixedBaseline`, `TestLTAV0018DefaultContextIsByteIdenticalWhenLearningIsAbsentOrReset` |
+| `LTA-V0-014` | `internal/secretscreen/prefilter.go` | `TestLTAV0014PrefilterReturnsPatternMatches`, `TestLTAV0014PatternSourceIsUnchanged`, `TestLTAV0014TextWithoutCandidatesSkipsThePattern`, `TestLTAV0014BareKeyFieldIsNoCandidate`, `FuzzLTAV0014PrefilterReturnsPatternMatches`, `BenchmarkScreen` |
+| `LTA-V0-016` | `internal/secretscreen/prefilter.go` (`writerJWTAlt`) | `TestLTAV0016JWTBranchRequiresHeaderStructure`, `TestLTAV0014PatternSourceIsUnchanged`, `TestTOLV0055_AliasLimit128` |
+| `LTA-V0-017` | `internal/secretscreen/prefilter.go` (`writerSKAlt`) | `TestLTAV0017SKBranchNeedsAnUnhyphenatedRun`, `TestLTAV0014PatternSourceIsUnchanged` |
+| `LTA-V0-019` | `internal/secretscreen/prefilter.go` (`writerPrivateKeyHeaderAlt`, `writerPGPPrivateKeyHeaderAlt`) | `TestLTAV0019UnterminatedPrivateKeyRedactsThroughEnd`, `TestLTAV0014PatternSourceIsUnchanged` |
+| `LTA-V0-020` | `internal/secretscreen/prefilter.go` (`afterCredentialName`, `runHoldsStem`) | `TestLTAV0020CredentialNameScanMatchesReference`, `TestLTAV0020RepeatedCredentialWordsScaleLinearly` |
+| `LTA-V0-015` | `internal/secretscreen/secretscreen.go` (`goJSONPassMarker`, `maskGoPassMarkers`), consumed by `internal/localcompletion` verify | `TestLTAV0015GoJSONPassMarker`, `TestActualVerificationAndSecretRefusal` (`go-json-pass-log`, `go-json-pass-log-with-embedded-secret`) |
+| writer/stored-reader screen compatibility | `internal/secretscreen`, `internal/trace`, `src/context_corvint_trace.py`, `internal/dashboard/adapters/trace.go`, `conformance/dashboard-snapshot-v0/trace_corpus.go` | `TestSecretPatternParityCorpus`, `TestQuotedCredentialsRejectNewRecordsButRetainStoredV1`, `TestSecretPatternMatchesHistorySecretShapes`, `TestAppendRedactsQuotedCredentialPath`, `TestScreenConsumesWholeQuotedAssignmentValue`, `TestScreenRedactsAWSSecretAdjacentToItsKeyID`, Python `SecretPatternParityTest` and `CorvintLearningTest.test_trace_inputs_fail_closed`; stored-v1 compatibility and intentional-asymmetry tests |
+
+## Rollback
+
+Remove the fixture registration and second arm, restoring the baseline-only report and live-store
+refusal; remove the eviction branch, restoring hard refusal at the cap; and revert both writer
+screen additions together. The reader copies remain unchanged. Rollback deletes no trace, rewrites
+no row, mutates no frozen partition, and requires no data migration. Removing the `skill-export`
+verb and `internal/skillexport` restores the prior binary; exported directories are operator-owned
+copies outside the repository and need no cleanup. For `LTA-V0-009` to `LTA-V0-012`, the operator
+rollback is `corvint eval --reset-slot-weights`; the code rollback removes `internal/slotlearn`,
+`cmd/corvint/eval_slot_weights.go`, `internal/evalrepo/slot_weights.go`,
+`internal/contextindex/slot_weights.go` and the three hooks, after which an admitted file is ignored
+and the ledgers return to being read by no learning path. For `LTA-V0-014`, make
+`writerMatches` call `Pattern` directly; no stored state depends on the prefilter. For `LTA-V0-015`,
+remove `goJSONPassMarker` and its loop in `maskGoPassMarkers`; `go test -json` PASS output is
+screened again and nothing stored depends on the recognition. For `LTA-V0-016`, restore the
+previous last writer alternative and the prior source digest; no stored state depends on it. For
+`LTA-V0-017`, drop the `writerSKAlt` substitution and restore the prior source digest; no stored
+state depends on it. For `LTA-V0-019`, drop the two private-key writer substitutions and restore the
+prior digest. For `LTA-V0-020`, restore the per-occurrence scan; nothing stored depends on either.
+
+## Unresolved decisions and promotion or kill criteria
+
+No product decision remains open inside this V0 charter. Promotion to implemented requires every
+acceptance row above to pass. Promotion to validated additionally requires the registered
+development gate under both engines; blind-v4 may be opened only under its separate preregistered
+condition. Kill or reverse the second arm if it cannot run locally without a network, daemon, or
+mutable external database, or if the arms alter request, revision, or intent inputs.

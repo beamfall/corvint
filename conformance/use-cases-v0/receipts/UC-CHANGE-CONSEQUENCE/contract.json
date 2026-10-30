@@ -1,0 +1,23 @@
+{
+  "attestation": {
+    "requirementIds": [
+      "DCW-V0-002",
+      "DCW-V0-004"
+    ]
+  },
+  "evidenceClass": "contract",
+  "repositoryRevision": "489701ca0b65f8e1a1d8287b0c28979ee8847d53",
+  "result": "PASS",
+  "spec": "corvint-use-case-evidence/0",
+  "subjects": [
+    {
+      "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/contract/clauses.json",
+      "sha256": "791ea3179db7753987c74e0192d1de21eb151552c015e4bae41118ffc448652d"
+    },
+    {
+      "path": "docs/decisions/0332-verified-local-workflow-scope-2026-09-22.md",
+      "sha256": "ec1bb851f515fece5cf2e46da4ad396c055c07e2bc002a567a05faf519611e90"
+    }
+  ],
+  "useCaseId": "UC-CHANGE-CONSEQUENCE"
+}

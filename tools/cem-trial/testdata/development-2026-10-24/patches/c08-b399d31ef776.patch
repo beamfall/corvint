@@ -1,0 +1,240 @@
+diff --git a/internal/graph/graph_identify.go b/internal/graph/graph_identify.go
+index 837a91e7a..b8e09833c 100644
+--- a/internal/graph/graph_identify.go
++++ b/internal/graph/graph_identify.go
+@@ -148,6 +148,14 @@ func (h *Handler) addMediaExternalID(ctx context.Context, scope auth.Scope, req
+ // Library filtered like every other mutation target.
+ func (h *Handler) fixMatch(ctx context.Context, scope auth.Scope, req request) (MediaInfo, error) {
+ 	mediaID := trimmedVariable(req, "mediaID")
++	recordID := trimmedVariable(req, "recordID")
++	importRunID := trimmedVariable(req, "importRunID")
++	if recordID != "" || importRunID != "" {
++		if mediaID == "" || recordID == "" || importRunID == "" {
++			return MediaInfo{}, clientError("mediaID, recordID, and importRunID are required")
++		}
++		return h.associateImportUnmatchedRecord(ctx, scope, mediaID, recordID, importRunID)
++	}
+ 	pluginID := trimmedVariable(req, "pluginID")
+ 	scraperID := trimmedVariable(req, "scraperID")
+ 	candidateID := trimmedVariable(req, "candidateID")
+@@ -187,6 +195,28 @@ func (h *Handler) fixMatch(ctx context.Context, scope auth.Scope, req request) (
+ 	return h.mediaInfo(ctx, scope, media)
+ }
+ 
++func (h *Handler) associateImportUnmatchedRecord(ctx context.Context, scope auth.Scope, mediaID, recordID, importRunID string) (MediaInfo, error) {
++	if !scope.Revealed {
++		return MediaInfo{}, clientError("unknown unmatched record")
++	}
++	filter := scope.LibraryFilter()
++	if _, err := h.store.Media(ctx, store.MediaID(mediaID), filter); err != nil {
++		return MediaInfo{}, clientError("unknown media")
++	}
++	ok, err := h.store.AssociateImportUnmatchedRecord(ctx, recordID, importRunID, store.MediaID(mediaID), filter, time.Now().UTC())
++	if err != nil {
++		return MediaInfo{}, err
++	}
++	if !ok {
++		return MediaInfo{}, clientError("unknown unmatched record")
++	}
++	media, err := h.store.Media(ctx, store.MediaID(mediaID), filter)
++	if err != nil {
++		return MediaInfo{}, clientError("unknown media")
++	}
++	return h.mediaInfo(ctx, scope, media)
++}
++
+ // FixMatchCandidateInfo is one SCORED Fix-Match candidate on the wire
+ // (METAPARITY-4, ADR-0068 §A). NGAUDIT-C4's identifySearch returns a bare pick
+ // list; parity needs the operator to see, per candidate, how confident the
+diff --git a/internal/graph/graph_wizard.go b/internal/graph/graph_wizard.go
+index 250eeafca..86f587625 100644
+--- a/internal/graph/graph_wizard.go
++++ b/internal/graph/graph_wizard.go
+@@ -318,19 +318,19 @@ func migrationDedupeKey(pluginID, importerID, libraryID, root, sourcePath string
+ // match-rate report rides on the job's progress). It is the same read as job(),
+ // scoped to the migration kind so the wizard's status view cannot be pointed at
+ // an unrelated job.
+-func (h *Handler) importStatus(ctx context.Context, scope auth.Scope, req request) (JobInfo, error) {
++func (h *Handler) importStatus(ctx context.Context, scope auth.Scope, req request) (ImportStatusInfo, error) {
+ 	id := trimmedVariable(req, "jobID")
+ 	if id == "" {
+-		return JobInfo{}, clientError("jobID is required")
++		return ImportStatusInfo{}, clientError("jobID is required")
+ 	}
+ 	job, err := h.store.Job(ctx, store.JobID(id))
+ 	if err != nil {
+-		return JobInfo{}, clientError(store.ErrJobNotFound.Error())
++		return ImportStatusInfo{}, clientError(store.ErrJobNotFound.Error())
+ 	}
+ 	if job.Kind != migrationJobKind {
+-		return JobInfo{}, clientError("not a migration job")
++		return ImportStatusInfo{}, clientError("not a migration job")
+ 	}
+-	return h.jobInfo(ctx, scope, job), nil
++	return h.importStatusInfo(ctx, scope, job)
+ }
+ 
+ // ScanEstimateInfo is the first-scan wizard's pre-scan projection on the wire
+diff --git a/internal/graph/nested_schema.go b/internal/graph/nested_schema.go
+index 3a905ceaf..e87a0b4f4 100644
+--- a/internal/graph/nested_schema.go
++++ b/internal/graph/nested_schema.go
+@@ -134,7 +134,7 @@ var resultTypes = map[string]any{
+ 	"setdevicerole":          DeviceInfo{},
+ 	"setupstate":             SetupState{},
+ 	"importers":              ImporterInfo{},
+-	"importstatus":           JobInfo{},
++	"importstatus":           ImportStatusInfo{},
+ 	"scanestimate":           ScanEstimateInfo{},
+ 	"savedfilters":           SavedFilterInfo{},
+ 	"collections":            CollectionInfo{},
+@@ -343,16 +343,25 @@ var fieldArguments = map[string][]NestedArgument{
+ 	"entitiesformedia": {{Name: "mediaID", Kind: "string"}, {Name: "relation", Kind: "string"}},
+ 	"entity":           {{Name: "id", Kind: "string"}},
+ 	"entityrelations":  {{Name: "entityID", Kind: "string"}, {Name: "relation", Kind: "string", Optional: true}},
+-	"media":            {{Name: "id", Kind: "string"}},
+-	"mediafields":      {{Name: "mediaID", Kind: "string"}},
+-	"mediafiles":       {{Name: "mediaID", Kind: "string"}},
+-	"mediaforentity":   {{Name: "entityID", Kind: "string"}},
+-	"mediarelations":   {{Name: "mediaID", Kind: "string"}, {Name: "relation", Kind: "string"}},
+-	"search":           {{Name: "query", Kind: "string", Optional: true}},
+-	"searchentities":   {{Name: "query", Kind: "string", Optional: true}},
+-	"searchfeeds":      {{Name: "query", Kind: "string"}},
+-	"searchresult":     {{Name: "mode", Kind: "string", Optional: true}, {Name: "query", Kind: "string", Optional: true}},
+-	"sourceitems":      sourceArguments(),
++	"fixmatch": {
++		{Name: "candidateID", Kind: "string", Optional: true},
++		{Name: "importRunID", Kind: "string", Optional: true},
++		{Name: "mediaID", Kind: "string"},
++		{Name: "pluginID", Kind: "string", Optional: true},
++		{Name: "recordID", Kind: "string", Optional: true},
++		{Name: "scraperID", Kind: "string", Optional: true},
++	},
++	"importstatus":   {{Name: "jobID", Kind: "string"}},
++	"media":          {{Name: "id", Kind: "string"}},
++	"mediafields":    {{Name: "mediaID", Kind: "string"}},
++	"mediafiles":     {{Name: "mediaID", Kind: "string"}},
++	"mediaforentity": {{Name: "entityID", Kind: "string"}},
++	"mediarelations": {{Name: "mediaID", Kind: "string"}, {Name: "relation", Kind: "string"}},
++	"search":         {{Name: "query", Kind: "string", Optional: true}},
++	"searchentities": {{Name: "query", Kind: "string", Optional: true}},
++	"searchfeeds":    {{Name: "query", Kind: "string"}},
++	"searchresult":   {{Name: "mode", Kind: "string", Optional: true}, {Name: "query", Kind: "string", Optional: true}},
++	"sourceitems":    sourceArguments(),
+ }
+ 
+ func sourceArguments() []NestedArgument {
+diff --git a/internal/store/unmatched_record.go b/internal/store/unmatched_record.go
+index 2fd35b527..a5bf3546d 100644
+--- a/internal/store/unmatched_record.go
++++ b/internal/store/unmatched_record.go
+@@ -188,6 +188,109 @@ func (s *Store) ResolveUnmatchedRecord(ctx context.Context, id string, resolvedM
+ 	return true, nil
+ }
+ 
++// AssociateImportUnmatchedRecord resolves one import record to an existing
++// Media, scoped to the run that surfaced it. The run predicate prevents a
++// stale status page from associating a record from another import. A retry of
++// the same association is idempotent; a different or unknown association is
++// rejected.
++func (s *Store) AssociateImportUnmatchedRecord(ctx context.Context, id, importRunID string, resolvedMediaID MediaID, filter LibraryFilter, now time.Time) (bool, error) {
++	if id == "" || importRunID == "" || resolvedMediaID == "" {
++		return false, errors.New("record ID, import run ID, and Media ID are required")
++	}
++	if now.IsZero() {
++		now = time.Now().UTC()
++	}
++	s.mu.RLock()
++	defer s.mu.RUnlock()
++	if err := s.guardLocked(); err != nil {
++		return false, err
++	}
++	var (
++		libraryID  sql.NullString
++		resolved   sql.NullInt64
++		associated sql.NullString
++	)
++	err := s.catalogR.QueryRowContext(ctx, `
++		SELECT library_id, resolved_at_ms, resolved_media_id
++		FROM unmatched_record
++		WHERE id = ? AND origin = ? AND import_run_id = ?
++	`, id, UnmatchedOriginImport, importRunID).Scan(&libraryID, &resolved, &associated)
++	if errors.Is(err, sql.ErrNoRows) {
++		return false, nil
++	}
++	if err != nil {
++		return false, err
++	}
++	if libraryID.Valid {
++		libraries, err := loadLibraries(ctx, s.catalogR)
++		if err != nil {
++			return false, err
++		}
++		visible := false
++		for _, library := range libraries {
++			if library.ID == LibraryID(libraryID.String) {
++				visible = libraryVisible(library, filter)
++				break
++			}
++		}
++		if !visible {
++			return false, nil
++		}
++	} else if !filter.AllLibraries {
++		return false, nil
++	}
++	if resolved.Valid {
++		return associated.Valid && MediaID(associated.String) == resolvedMediaID, nil
++	}
++	result, err := s.catalogW.ExecContext(ctx, `
++		UPDATE unmatched_record
++		SET resolved_at_ms = ?, resolved_media_id = ?
++		WHERE id = ? AND origin = ? AND import_run_id = ? AND resolved_at_ms IS NULL
++	`, timeToMillis(now.UTC()), string(resolvedMediaID), id, UnmatchedOriginImport, importRunID)
++	if err != nil {
++		return false, err
++	}
++	affected, err := result.RowsAffected()
++	if err != nil {
++		return false, err
++	}
++	if affected > 0 {
++		return true, nil
++	}
++	err = s.catalogR.QueryRowContext(ctx, `
++		SELECT resolved_media_id
++		FROM unmatched_record
++		WHERE id = ? AND origin = ? AND import_run_id = ?
++	`, id, UnmatchedOriginImport, importRunID).Scan(&associated)
++	if errors.Is(err, sql.ErrNoRows) {
++		return false, nil
++	}
++	if err != nil {
++		return false, err
++	}
++	return associated.Valid && MediaID(associated.String) == resolvedMediaID, nil
++}
++
++// UnmatchedRecordsForImportRun returns the visible pending import records for
++// exactly one run. Callers still receive the internal record shape; the graph
++// projection decides which path-free fields are safe for the wire.
++func (s *Store) UnmatchedRecordsForImportRun(ctx context.Context, importRunID string, filter LibraryFilter) ([]UnmatchedRecord, error) {
++	if importRunID == "" {
++		return nil, errors.New("import run ID is required")
++	}
++	records, err := s.UnmatchedRecords(ctx, filter)
++	if err != nil {
++		return nil, err
++	}
++	out := make([]UnmatchedRecord, 0, len(records))
++	for _, record := range records {
++		if record.Origin == UnmatchedOriginImport && record.ImportRunID == importRunID {
++			out = append(out, record)
++		}
++	}
++	return out, nil
++}
++
+ // UnmatchedRecords returns the pending Media-independent Unmatched Records the
+ // session may see, newest-queued first. A record carrying a Library is dropped
+ // when the filter hides it (the same reveal-and-Library posture UnmatchedItems

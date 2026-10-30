@@ -1,0 +1,106 @@
+{
+  "artifacts": [
+    {
+      "kind": "tasks-capture",
+      "path": ".GiT/tasks-capture.json",
+      "sha256": "eb00599e757b0f6be74bcadb5a80fdabcd8420f11c94cadf3824720c072465f4"
+    },
+    {
+      "kind": "tasks-verification",
+      "path": ".GiT/tasks-verification.json",
+      "sha256": "20db8c79a9dc42c92345e18dd92a582d4e56f83a9cdb0534dc2bf85660fe0d38"
+    },
+    {
+      "kind": "tasks-claimed-ticket",
+      "path": ".GiT/tasks-claimed-ticket.json",
+      "sha256": "b784b4d9fb27e12f6c43cbfc7d264f5f7b7ba556fb9612d71f59665f110818fc"
+    },
+    {
+      "kind": "runner-plan",
+      "path": ".GiT/runner-plan.json",
+      "sha256": "62667bd9e3e601f5e4097cd7b23da77c87829c569be32636c81798b4e697590b"
+    },
+    {
+      "kind": "runner-receipt",
+      "path": ".GiT/runner-receipt.json",
+      "sha256": "4a86ed9613ad3aa4c2a57149331205d9fa0ad57293561dc52d7ada7e2f1b8be4"
+    }
+  ],
+  "baseRevision": "37e772309d91e1c5cd08d053a305aea304409f50",
+  "criterionBindings": [
+    {
+      "acceptanceRevision": "1",
+      "acceptanceSha256": "d198e7f378466a382915c270af36607398739a12ea9f89f54064e80221ec6cb7",
+      "captureSha256": "eb00599e757b0f6be74bcadb5a80fdabcd8420f11c94cadf3824720c072465f4",
+      "claimTicketSha256": "b784b4d9fb27e12f6c43cbfc7d264f5f7b7ba556fb9612d71f59665f110818fc",
+      "criterionIndex": 0,
+      "criterionSha256": "27accaa103692eddc1aceb17610f3a086238ceefc8051ef467689faa3c692b1b",
+      "id": "criterion:sha256:ad3153ba5d7c870be9113bdcfd4ee37c8895648bf817e0cc9f28112db910ab40",
+      "snapshotHeadReceiptSha256": "a405b6e4c7f091c0948fca9fbb0640cca90b37d8b24cec1335bc8ed93d99e2c9",
+      "ticketId": "ticket:example:main:CEM-0001",
+      "verificationSha256": "20db8c79a9dc42c92345e18dd92a582d4e56f83a9cdb0534dc2bf85660fe0d38"
+    }
+  ],
+  "criterionLinks": [
+    {
+      "criterionId": "criterion:sha256:ad3153ba5d7c870be9113bdcfd4ee37c8895648bf817e0cc9f28112db910ab40",
+      "evidenceIds": [
+        "evidence:sha256:847ee691ada4329ef836c7ace3fad6faf23f176a9cb18d5714257594bba5e4b6"
+      ],
+      "hunkIds": [
+        "hunk:sha256:a98a33995b18206629f40346bdc9e4a85d608b5d722d4e7503229484e2fedfe6"
+      ],
+      "runnerReceiptSha256s": [
+        "4a86ed9613ad3aa4c2a57149331205d9fa0ad57293561dc52d7ada7e2f1b8be4"
+      ]
+    }
+  ],
+  "evidence": [
+    {
+      "blobOid": "fabe63dbd945a010ae7ef908bbd84582b1050b71",
+      "id": "evidence:sha256:847ee691ada4329ef836c7ace3fad6faf23f176a9cb18d5714257594bba5e4b6",
+      "path": "rule.txt",
+      "span": {
+        "end": 37,
+        "start": 0
+      },
+      "spanSha256": "2cd9a2fee55f9fb0a3130dce64893d05ba8d27a0ee81184476a2116746b47eac"
+    }
+  ],
+  "excludedPath": ".corvint/change.cem.json",
+  "hunks": [
+    {
+      "basis": [
+        {
+          "evidenceId": "evidence:sha256:847ee691ada4329ef836c7ace3fad6faf23f176a9cb18d5714257594bba5e4b6",
+          "relation": "specification"
+        }
+      ],
+      "disposition": "supported",
+      "id": "hunk:sha256:a98a33995b18206629f40346bdc9e4a85d608b5d722d4e7503229484e2fedfe6",
+      "newRange": {
+        "count": 1,
+        "start": 1
+      },
+      "oldRange": {
+        "count": 1,
+        "start": 1
+      },
+      "path": "app.txt",
+      "reason": "evidence-backed"
+    }
+  ],
+  "patchSha256": "d05ddf46e8bb0e27ee08c77f894961e12334a0be32563d77b155f808d703c399",
+  "runnerReceipts": [
+    {
+      "authentication": "NOT_OBSERVED",
+      "dependencyClosure": "NOT_OBSERVED",
+      "executionAuthority": "CALLER_OBSERVED",
+      "planSha256": "62667bd9e3e601f5e4097cd7b23da77c87829c569be32636c81798b4e697590b",
+      "profile": "corvint-test-runner-receipt/0",
+      "sha256": "4a86ed9613ad3aa4c2a57149331205d9fa0ad57293561dc52d7ada7e2f1b8be4",
+      "sourceGitBinding": "NOT_OBSERVED"
+    }
+  ],
+  "spec": "cem/1.0-experimental.1"
+}

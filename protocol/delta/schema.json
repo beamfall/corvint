@@ -1,0 +1,284 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://corvint.dev/protocol/delta/0/schema.json",
+  "$comment": "SPDX-License-Identifier: Apache-2.0. Proposed experimental profile; no execution or runtime coverage authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "enum": [
+        "corvint-delta/0"
+      ]
+    },
+    "base": {
+      "type": "string",
+      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+    },
+    "head": {
+      "type": "string",
+      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+    },
+    "tree": {
+      "type": "string",
+      "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$"
+    },
+    "build": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_.+\\-]{1,128}$"
+    },
+    "changedPathDigest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "changedPaths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "pattern": "^(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*[\\\\\\x00-\\x1f\\x7f])[^/]+(?:/[^/]+)*$"
+      },
+      "maxItems": 200000
+    },
+    "inputDigests": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      },
+      "maxItems": 33
+    },
+    "documentation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "pattern": "^(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*[\\\\\\x00-\\x1f\\x7f])[^/]+(?:/[^/]+)*$"
+              },
+              {
+                "enum": [
+                  ""
+                ]
+              }
+            ]
+          },
+          "state": {
+            "enum": [
+              "unchanged",
+              "stale",
+              "retired",
+              "added",
+              "unknown"
+            ]
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "state",
+          "digest"
+        ]
+      },
+      "maxItems": 4096
+    },
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!.*(?:^|/)\\.\\.?(?:/|$))(?!.*[\\\\\\x00-\\x1f\\x7f])[^/]+(?:/[^/]+)*$"
+          },
+          "repository": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "unit": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "origin": {
+            "enum": [
+              "in-repository",
+              "external"
+            ]
+          },
+          "confidence": {
+            "enum": [
+              "unscored"
+            ]
+          }
+        },
+        "required": [
+          "path",
+          "repository",
+          "unit",
+          "origin",
+          "confidence"
+        ]
+      },
+      "maxItems": 4096
+    },
+    "runFullSuite": {
+      "type": "boolean"
+    },
+    "mandatoryChecksRequired": {
+      "type": "boolean"
+    },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "kind": {
+            "enum": [
+              "missing-flow-assertion",
+              "missing-unit-assertion"
+            ]
+          },
+          "denominator": {
+            "enum": [
+              "lexical-flows",
+              "affected-units"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "denominator"
+        ]
+      },
+      "maxItems": 8192
+    },
+    "denominators": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "lexicalFlows": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "affectedUnits": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "runtime": {
+          "enum": [
+            "unknown"
+          ]
+        },
+        "complete": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "lexicalFlows",
+        "affectedUnits",
+        "runtime",
+        "complete"
+      ]
+    },
+    "workKeys": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      },
+      "maxItems": 4096
+    },
+    "unknowns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "enum": [
+              "immutable-graph-unavailable",
+              "affected-scope-incomplete",
+              "documentation-baseline-unavailable",
+              "documentation-baseline-invalid",
+              "documentation-incomplete",
+              "documentation-stale",
+              "flow-assertion-witness-unavailable",
+              "unit-assertion-witness-unavailable",
+              "provider-coverage-missing",
+              "provider-capture-unavailable",
+              "provider-bound-exceeded",
+              "external-coverage-incomplete",
+              "external-projection-incomplete",
+              "work-key-pattern-unconfigured",
+              "work-key-metadata-unavailable",
+              "work-key-invalid",
+              "observation-bound-exceeded",
+              "runtime-behaviour-unclassified"
+            ]
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "code",
+          "count",
+          "digest"
+        ]
+      },
+      "maxItems": 18
+    },
+    "decision": {
+      "enum": [
+        "no-op",
+        "docs-only",
+        "tests-needed",
+        "findings"
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "base",
+    "head",
+    "tree",
+    "build",
+    "changedPathDigest",
+    "changedPaths",
+    "inputDigests",
+    "documentation",
+    "tests",
+    "runFullSuite",
+    "mandatoryChecksRequired",
+    "gaps",
+    "denominators",
+    "workKeys",
+    "unknowns",
+    "decision"
+  ]
+}

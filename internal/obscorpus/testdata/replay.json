@@ -1,0 +1,35 @@
+{
+  "corpus": {
+    "subjects": [
+      {"id": "s-pass", "revision": "0123456789abcdef0123456789abcdef01234567"},
+      {"id": "s-fail", "revision": "0123456789abcdef0123456789abcdef01234567"},
+      {"id": "s-not-run", "revision": "0123456789abcdef0123456789abcdef01234567"},
+      {"id": "s-no-label", "revision": "0123456789abcdef0123456789abcdef01234567"},
+      {"id": "s-no-verifier", "revision": "0123456789abcdef0123456789abcdef01234567"},
+      {"id": "s-no-telemetry", "revision": "0123456789abcdef0123456789abcdef01234567"}
+    ],
+    "labels": {"s-pass": "accept", "s-fail": "accept", "s-not-run": "accept", "s-no-verifier": "reject", "s-no-telemetry": "accept"},
+    "evaluatorRevision": "fedcba9876543210fedcba9876543210fedcba98",
+    "scoringRule": "exact-label-match"
+  },
+  "sealId": "446a534476e1201e6ff9fd5f2087f571a29c0e1cf41a2a340a2df97f381bb090",
+  "results": [
+    {"sealId": "446a534476e1201e6ff9fd5f2087f571a29c0e1cf41a2a340a2df97f381bb090", "subjectId": "s-pass", "outcome": "accept", "telemetry": {"identity": "s-pass-turn-1", "revision": "0123456789abcdef0123456789abcdef01234567", "inputTokens": 900, "outputTokens": 120, "latencyMillis": 410}},
+    {"sealId": "446a534476e1201e6ff9fd5f2087f571a29c0e1cf41a2a340a2df97f381bb090", "subjectId": "s-fail", "outcome": "reject", "telemetry": {"identity": "s-fail-turn-1", "revision": "0123456789abcdef0123456789abcdef01234567", "inputTokens": 700, "outputTokens": 80, "latencyMillis": 300}},
+    {"sealId": "446a534476e1201e6ff9fd5f2087f571a29c0e1cf41a2a340a2df97f381bb090", "subjectId": "s-no-label", "outcome": "accept", "telemetry": {"identity": "s-no-label-turn-1", "revision": "0123456789abcdef0123456789abcdef01234567", "inputTokens": 1, "outputTokens": 1, "latencyMillis": 1}},
+    {"sealId": "446a534476e1201e6ff9fd5f2087f571a29c0e1cf41a2a340a2df97f381bb090", "subjectId": "s-no-verifier", "outcome": "", "telemetry": {"identity": "s-no-verifier-turn-1", "revision": "0123456789abcdef0123456789abcdef01234567", "inputTokens": 1, "outputTokens": 1, "latencyMillis": 1}},
+    {"sealId": "446a534476e1201e6ff9fd5f2087f571a29c0e1cf41a2a340a2df97f381bb090", "subjectId": "s-no-telemetry", "outcome": "accept", "telemetry": {"identity": "s-no-telemetry-turn-1", "revision": "0123456789abcdef0123456789abcdef01234567", "inputTokens": null, "outputTokens": 5, "latencyMillis": 5}}
+  ],
+  "want": {
+    "schema": "oca-replay/1", "sealId": "446a534476e1201e6ff9fd5f2087f571a29c0e1cf41a2a340a2df97f381bb090", "evidence": "owner-labelled", "authority": "none", "independentValidation": false,
+    "overall": "FAIL", "pass": 1, "fail": 1, "notRun": 1, "notObserved": 3, "denominator": 6,
+    "verdicts": [
+      {"subjectId": "s-fail", "verdict": "FAIL"},
+      {"subjectId": "s-no-label", "verdict": "NOT_OBSERVED", "reason": "label-missing"},
+      {"subjectId": "s-no-telemetry", "verdict": "NOT_OBSERVED", "reason": "telemetry-not-observed"},
+      {"subjectId": "s-no-verifier", "verdict": "NOT_OBSERVED", "reason": "verifier-result-missing"},
+      {"subjectId": "s-not-run", "verdict": "NOT_RUN", "reason": "result-missing"},
+      {"subjectId": "s-pass", "verdict": "PASS"}
+    ]
+  }
+}

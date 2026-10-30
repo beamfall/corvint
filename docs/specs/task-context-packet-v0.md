@@ -1,0 +1,1709 @@
+# Task-Context Packet V0
+
+Owner: Russell Lewis
+Date: 2026-09-02
+Requirement prefix: `TCP-V0`
+Intent status: proposed
+Delivery status: experimental
+Authoritative inputs: `docs/plans/BREAKTHROUGH-BET-2026-09-01.md` (the bet), `docs/decisions/0024-task-context-packet-2026-09-02.md`
+(the owner's instruction and the measured basis), `docs/decisions/0025-cochange-slot-2026-09-02.md`
+(the `cochange` slot), `docs/decisions/0026-pair-anywhere-medium-2026-09-02.md` (pair
+confidence), `docs/decisions/0033-term-table-2026-09-02.md` (whole-token terms from the term table),
+`docs/decisions/0035-reference-slot-2026-09-02.md` (the `reference` slot), `docs/specs/confidently-wrong-trial-v0.md` (the
+consumer), `docs/decisions/0065-documentation-is-searchable-evidence-with-its-own-placement-2026-09-05.md`
+(documentation admission and placement), `docs/decisions/0067-test-code-linking-in-the-context-packet-2026-09-05.md`
+(the `test` relation), `docs/specs/go-production-kernel-migration-v0.md` (the `impact` reverse-import rules this
+packet reuses), `docs/decisions/0346-packet-trust-class-2026-09-22.md` (the `trust` class on every
+evidence row), `docs/decisions/0369-context-recency-blame-opt-in-2026-09-23.md` (opt-in recency), `docs/decisions/0377-context-rank-fusion-trial-2026-09-24.md` (the rank-fusion trial), `AGENTS.md` invariants 1, 2, 3, 4, and 8.
+
+## Agent digest
+- Claim: `corvint context` lists the files to read for one task from relations a term search cannot express and keeps the task's own path out of the results.
+- Status: proposed/experimental; TCP-V0-065 and the TCP-V0-006 amendment are accepted, decision 0516 (V1-0315); TCP-V0-055..058 (authority screen, V1-0414) are accepted under the owner's standing auto-accept, recorded 2026-10-16. The bounded top-level `exclusions` member reports corpus gaps without changing ranking.
+- Exists: `internal/contextindex/taskcontext.go` (slots incl. `cochange`, decision 0025; `reference`, decision 0035; `test`, decision 0067), `cmd/corvint/taskcontext.go`, help topic `context`, the trial's `corvint` arm; `internal/contextindex/lookup.go` and `cmd/corvint/context_lookup.go` (TCP-V0-017 lookups, proposed); `internal/contextindex/trust.go` (TCP-V0-023 trust class, proposed); `cmd/corvint/context_summary.go` (TCP-V0-024 opt-in `--summary`/`--expand` views, experimental, owned by `experimental-source-views-v0`); `internal/contextindex/recency.go` and `blame.go` (TCP-V0-035..038 opt-in recency, blame and ownership, experimental); `internal/contextindex/identgraph.go` and `ppr.go` (TCP-V0-030..034 opt-in identifier-graph PageRank slot, `CORVINT_CONTEXT_GRAPH=on`, decision 0367); `internal/contextindex/span_rank.go` and `internal/contextindex/sufficiency.go` (TCP-V0-025..029 opt-in `CORVINT_CONTEXT_SPANS=on` line-budgeted spans and `coverage.sufficiency`, experimental, decision 0366); `cmd/corvint/context_lsp.go` and `internal/lspprovider` (TCP-V0-043..046 opt-in gopls `external` member under `CORVINT_CONTEXT_LSP=gopls`, experimental, decision 0371); `internal/contextindex/authority_screen.go` (TCP-V0-055..058 hidden-Unicode and self-modified-authority screen of reserved rows, accepted 2026-10-16 under the standing auto-accept, V1-0414).
+- Blocked on: a paired trial reading against `grep` on the held-out set; `prove` verdicts on these rows; owner review of the 2026-09-04 amendment TCP-V0-008..012 and of TCP-V0-047 (instruction-routed rows, V1-0186; idf floor and fenced-block rule, V1-0205 and V1-0206), which are implemented and experimental (`internal/contextindex/taskcontext.go`, tests in `internal/contextindex/taskcontext_widening_test.go` and `internal/contextindex/taskcontext_routed_test.go`) — it reserves governing instructions and task-named specs, narrows `definition` identifiers, and discloses unexamined scope and slot shortage in `coverage`, and the sentences marked (A) below belong to it. TCP-V0-048..050 (opt-in reciprocal rank fusion in place of the corroboration count, decision 0377, ticket V1-0219) are specified and not implemented. The 2026-10-06 amendment of TCP-V0-013 and TCP-V0-059..061 (merged documentation order, strength score, omission uncertainty; V1-0859, V1-0431) is tuned on the rc.2 cases and the 2026-10-06 replay of five merged pull requests of this repository, and awaits held-out validation on a newly frozen repository (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-06-v1-0859-orientation-misses.md`). TCP-V0-063 (record-data gate, V1-0859 and V1-0431, 2026-10-08) is proposed on the same development evidence and awaits the same validation (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-08-v1-0431-0859-orientation-ranking.md`).
+- Read next: [Go LSP usage](../LSP.md), Explicit Go semantic integration; Requirements; Non-goals; Failure modes.
+
+Wave 1: `TCP-V0-018` recipe is retired (0078); identifier terms (`019`) and named-test frames (`020`) failed promotion and remain proposed/off (0076/0077). `021` measures actual cold/hit state and refuses unequal paired results (0075). Decision 0079 repairs complete cold imports and deterministic test evidence.
+
+## Intent and scope
+
+The trial's first observation (`benchmarks/results/cw-trial-heldout-v1-first-run.json`) showed two
+defects in what the `corvint` arm handed the agent. Its packets held the gold as a result row for 6
+of 50 tasks against a term listing's 33, because `impact` walks reverse imports from a changed path
+and most gold files sit in a different relation to it (its test or source counterpart, a file the
+review comment names, a definition of an identifier the diff names, a sibling); and every `impact`
+packet ranked the changed path first as an authoritative result, which is the row the agent cited
+for the dominant confidently-wrong claim in every arm: naming the task's own file as the answer.
+
+The packet compiled here is the answer to both. It is Go-only and experimental: no Python oracle
+speaks it, `conformance/cli-parity-v0` does not cover it, and the `query` and `impact` wires are
+unchanged. The measured basis (decision 0024) is a reimplementation of these sources over the
+50-task corpus reaching gold in the top 20 for 42 tasks against grep's 33 with no task lost; that
+number is a ceiling estimate on a small set, not a promise.
+
+Affected user: an agent about to act on one task in one repository. Measurable job: name the files
+it must read, each with the relation that admitted it, without naming the task's own file.
+
+## Requirements
+
+- `TCP-V0-001`: `context` MUST be read-only. It builds one index over the committed tree and
+  writes no repository, trace, or ledger state on any path, including every error path; its wire
+  carries `"mutates": false`.
+- `TCP-V0-002`: The invocation is `corvint [--root PATH] context --task TEXT [--subject PATH]
+  [--limit N]`. `--task` is required, non-empty, and at most 32,000 characters (a review comment
+  with its diff hunk is the intended input, so the bound is wider than `query`'s); `--subject`
+  MUST name a path in the Git tree at the revision, whether indexed, excluded, or of a kind the
+  index does not read, else the command refuses;
+  `--limit` defaults to 20 and is bounded as `impact`'s limit is. Any other argument is refused.
+- `TCP-V0-003`: Results are files. Each result row carries `kind`, `id` (the path), `score`,
+  `summary`, `action` (one imperative sentence saying what to do with the file for this task,
+  fixed per relation and claiming only what the relation establishes: update the test
+  counterpart, read the source counterpart, open a named file, reconcile a named definition,
+  check an importer, open a file that names or is named by the subject, expect to touch a
+  co-changed file, scan a sibling for the task's
+  identifiers, read a code term match only if the terms are load-bearing, read a documentation
+  term match on the same condition; decision 0028 and decision 0065), and exactly
+  one evidence row (`path`, `line`, `blob_hash`, `reason`, `confidence`,
+  `authority`) whose `reason` states the relation that admitted it; `blob_hash` is empty for a
+  path the index did not read, and that row's `confidence` is downgraded to `low` and the row
+  gains an `evidence_gap` field naming why -- the same disclosure TCP-V0-005 makes for the
+  subject -- so an unpinned row never reports the relation's own higher confidence as if the
+  index had backed it (AGENTS.md invariant 2). A path appears at most once;
+  the first slot to admit it keeps it. (A) The reserved relations fix their own row fields so `rowAction` cannot fall through to the term-match
+  sentence: `governing` takes the action "read this project's standing instructions before changing anything", `authority` `project-instructions`,
+  and a fixed `score` of 1000; `spec-mentioned` takes "read the requirement clause this task names before changing its behavior", `authority`
+  `repository-spec`, and 900. Both sit above every lexical row, and after corroboration, reserved rows are placed first and duplicate ordinary rows for the same path are removed, preserving each reservation's fixed fields and sole evidence row while appending the removed rows' actual relation names (`mentioned`, `lexical`, or any other) to its `summary` in fixed slot order. One path still appears once, and TCP-V0-011 counts the dropped row as `withheld` for its own relation.
+- `TCP-V0-004`: The slots run in this order and each is capped at three rows before the lexical
+  fill: `pair` (the subject's test or source counterpart by stem, the same directory first, then a
+  mirrored test/source directory, then anywhere in the tree, or a member of its module directory;
+  a Go file only with a Go counterpart in its own directory, since a Go `_test.go` shares its
+  package directory and its language and neither a mirrored directory nor a module directory is
+  a Go convention, amended 2026-10-06 (V1-0859: the five-pull-request replay of this repository
+  carried eight `pair` rows naming a Go test of another package and two naming a JavaScript test
+  of a Go source, none of them gold);
+  `test-convention`, high, except that a counterpart found anywhere in the tree by stem alone is
+  medium, decision 0026), `mentioned`
+  (a tracked path the task names by full path or by an unambiguous basename, and that path's
+  counterparts; `task-text`, high; a task token equal to a tracked path names it whatever its
+  shape, such as `Dockerfile` or `.github/workflows/ci.yml`, while a basename resolves only when it
+  carries a dot after its first byte, so a bare word never names a file; amended 2026-09-26,
+  V1-0365), `definition` (a file whose indexed symbol defines an identifier
+  the task names: a backticked name, weighted three, or an unbackticked word shaped like code,
+  with an underscore, a digit, or camelCase, never a plain prose word; rarer definers first, names
+  with more than 50 definers ignored; `syntax`, high), `reverse-import` (the `impact` reverse-import rules applied
+  to the subject; `syntax`, high; plus, for a Swift subject under a SwiftPM `Sources/<module>/` or
+  `Tests/<module>/` layout, a Swift source in another module that has an `import <module>` line and
+  names a symbol the subject defines as a whole word, medium because the import names the module
+  rather than the file, decision 0030; the symbol is a type or function name at least four bytes
+  long that at most 50 sources name, never a `var` or `let` or `init`, `deinit` or `subscript`,
+  V1-0292), `reference` (a source that names, as a whole word in the
+  term table, a symbol at least four bytes long that the subject defines (`index.Symbols` with
+  `Path` equal to the subject), weighted by the symbol's rarity across sources; a name more than 50
+  sources use is a common word and admits nothing; rows are ordered by summed weight then path,
+  capped at three, and `score` is 600 plus ten times the weight, clamped to 799; `syntax`, medium,
+  decision 0035; naming the subject's stem, in either direction, was probed and admits nothing on
+  any set), `cochange` (a tracked path that changed in the same commits
+  as the subject among the last 200 non-merge commits behind the revision, a commit touching more
+  paths than the age-dependent cap ignored, and a grafted commit (a shallow clone's boundary or a
+  grafts entry, whose path list is a diff against a parent Git does not have) never counted (50 paths for a history of at most 50 commits, 8 for
+  one filling the 200-commit window, linear between), more shared commits first then path, capped
+  at five rather than three because gold is multi-file and the fourth and fifth rows still carried
+  gold in the measurement of decision 0025; `git-history`, medium at every count, since history
+  is a reason to read a file and not proof that it changes, decision 0025 as amended), `sibling`
+  (the subject's directory, then its parent subtree
+  where the task's identifiers appear as whole words, a sibling whose basename shares a term with
+  the subject's basename first (decision 0031), then by that identifier evidence; `directory`,
+  medium), then `lexical` (task terms present as whole tokens in the file or its path, ordered by
+  the BM25 score TCP-V0-014 defines, then distinct task terms, then path; `vocabulary`, low) to
+  the limit. A term
+  is a maximal ASCII alphanumeric run split where a lowercase letter meets an uppercase one,
+  lowercased, of at least two bytes; an identifier word is a maximal ASCII word run of at least
+  three bytes, as written. Both slots read the tree's term table (`TermTable`, built with the index
+  and carried in its snapshot) rather than each source's body, so a term matches a token and not
+  a substring (decision 0033). A path that a later slot
+  would also have admitted is corroborated: the packet then ranks rows by the number of
+  corroborating relations, slot order among equals, raises `score` by 50 per relation, and names
+  the relations in `summary` after "; also"; the evidence row stays the admitting relation's
+  (decision 0027). Without `--subject` the packet has the retrieval shape: `mentioned`,
+  `definition`, `test`, `lexical`. Outside the opt-in named-test frame, after final reservation
+  and ranking, `pair` rows are added for the selected lexical sources (amended 2026-10-01;
+  amended 2026-10-21, V1-2288, accepted under the owner's standing auto-accept of 2026-10-11):
+  their anchors are the selected non-test lexical sources, and the counterpart must satisfy the
+  existing naming convention. A counterpart already selected is retained, and a lexical
+  counterpart behind an unrelated lexical test the task matched more weakly than its source
+  (TCP-V0-014's BM25 order; a source admitted by a relation other than `lexical` counts as
+  stronger than every lexical test) is promoted in place to `pair` ahead of the first such test.
+  A counterpart not yet selected only fills unfilled budget: it never displaces a selected
+  lexical test, and one that does not fit is a named omission (TCP-V0-161). Every selected
+  source, governing row and other non-lexical row is retained and the packet never grows past
+  the limit. The 2026-10-01 displacement of weaker unrelated lexical tests was retired because
+  the frozen Agent Retrieval Bench v2 showed it costing code2test recall@20 (0.5116 to 0.4642)
+  and collapsing the abstention rate (0.1707 to 0.0366): the displaced rows were often the gold
+  test, and a packet that should abstain was filled. Remaining lexical rows retain their BM25 order; their public score remains a
+  relation weight, not the BM25 value reported in their evidence. Pair generators and budget
+  omissions are disclosed by TCP-V0-011; a subjectless pair relation is examined when lexical
+  anchors are scanned. The earlier three-counterpart cap and last-position victim rule were
+  retired (2026-10-01) because the go-chi/chi orientation corpus (now development) showed both failing: the
+  cap was spent on counterparts of weaker sources before the strongest source's turn (task
+  `record response status when flushing`), and the victim rule evicted the packet's strongest
+  lexical test when it was the only unprotected one left (task `Don't duplicate methods in
+  Allow: header for 405 responses`).
+  (A) The rows reserved by
+  TCP-V0-008, TCP-V0-009 and TCP-V0-047 precede this order and each costs one row of `--limit`, and TCP-V0-010 narrows which
+  identifiers the `definition` slot may use; the caps, weights and relative slot order above are otherwise unchanged.
+- `TCP-V0-005`: The subject is never a result. It is carried under `subject` with its path and a
+  `role` sentence saying it is the subject of the question and not one of its answers; every slot
+  skips it. When the index pinned the subject, `subject.blob_hash` names the pinned blob. When it
+  did not -- the subject was excluded (a forbidden path, a size bound, or a pin-time refusal) or
+  its suffix is not admitted for indexing -- `subject.evidence_gap` names why instead; exactly one
+  of `blob_hash` and `evidence_gap` is present, never neither and never both (AGENTS.md
+  invariant 2: a subject the index could not read must say so, not look like one it could).
+- `TCP-V0-006`: (amendment accepted, decision 0516 (V1-0315)) `state` is `READY` when at least one result exists and `NO_CANDIDATES` otherwise;
+  `coverage` reports the candidates admitted across slots, the results included, and the results
+  omitted by the limit. Unparsed-path samples remain absent; TCP-V0-065 adds a separate bounded
+  exclusion disclosure whose samples are gaps, never result rows. (A) TCP-V0-011 adds sample-free `coverage` members; the two `state` values are
+  unchanged. Its `critical` and `critical_missing` are exhaustive over a bounded reserved set (at most fifty `governing` plus three `spec-mentioned`
+  plus two `instruction-routed` rows), so they state completely what was reserved and what did not fit rather than sampling a larger unshown population.
+  Accepted amendment (AT-07, decision 0052): `included_results`, `omitted_results`, `candidates` and
+  the top-level `state` are computed before possession suppression and frozen; a new coverage
+  member `suppressed_results` carries the count removed by possession; when suppression removes
+  every result, `coverage.uncertainty` gains the line "N results suppressed by caller possession"
+  and `state` stays as computed (READY/BUDGETED), never NO_CANDIDATES. End of accepted amendment.
+- `TCP-V0-007`: Output is canonical JSON (`gokernel.CanonicalJSON`), byte-identical over an
+  identical tree, recent history (the 200 commits the `cochange` slot reads), task, subject, and
+  limit.
+- `TCP-V0-008`: (A) The governing generator establishes applicability independently of vocabulary.
+  With `--subject`, every tracked `AGENTS.md` and `CLAUDE.md` from the subject's directory
+  through the repository root is an applicable candidate, skipping the subject itself. Directories
+  are ordered closest first, with `AGENTS.md` before `CLAUDE.md` in each directory. Sibling,
+  descendant and similarly prefixed directories do not govern. Each readable candidate among
+  the first 50 reserves its own `governing` row with TCP-V0-003's fixed fields and one pinned
+  evidence row identifying its ancestor directory. The 50-candidate bound matches the maximum
+  packet limit: further candidates remain counted as withheld, with state `capped` and
+  `budget_shortage` `slots`. An unread candidate (source bound, absent indexed text or exclusion)
+  reserves nothing and leaves `governing` state `capped`; other readable ancestors remain
+  independently applicable, never substitutes for the missing authority.
+  Without a subject, or when no applicable ancestor `AGENTS.md`/`CLAUDE.md` remains, the original
+  single-row root fallback applies: rank eligible instruction paths by literal precedence
+  `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, `copilot-instructions.md`, `.github/copilot-instructions.md`,
+  then `.github/instructions/*.instructions.md` by path. Take only the first non-subject candidate;
+  if unread, reserve nothing and report `capped`, without substituting a lower-precedence file.
+  Subjectless project-operation queries retain this same root eligibility and MAY use a narrower
+  subset; subject-scoped ancestor admission does not make sibling instructions operational.
+  Governing rows precede every other relation after corroboration. Every reservation costs one
+  row of `--limit`; final-limit omissions appear exhaustively in `critical_missing`. Neither
+  vocabulary nor corroboration may reorder the governing precedence.
+- `TCP-V0-009`: (A) The implementation MUST build a definition-owner resolver; no existing helper carries ownership. A spec defines an id when its
+  body carries that id's clause line in the grammar `script/check-requirement-definitions.sh` uses: a list-leading, optionally bolded or backticked id
+  followed by a colon or a period. The pass reads exactly the tracked `docs/specs/*.md` paths at the captured tree, non-recursive, excluding
+  `README.md`, through the bounded reader `sourceTextBounded`, so a spec over `maxSourceBytes` defines nothing and is reported `unexamined`
+  `spec-mentioned` state `capped`. A task-side id token has the shape `[A-Z][A-Z0-9-]*-[0-9]{3}` bounded on both sides by a character outside
+  `[A-Za-z0-9_-]` or by the text boundary; the subject's own content is scanned for such tokens only when the subject is tracked, read, and under
+  `maxSourceBytes`. The pass runs only when at least one candidate id token or tracked `docs/specs/*.md` path appears in the task or subject;
+  otherwise it is skipped and its `unexamined` state is `not-applicable`. A match is admitted ONLY when a defining clause exists, so prose such as
+  `ISO-123` admits nothing. When several specs define the id, all are candidates in ascending path order, the first that fits the cap is admitted, and
+  its evidence `reason` names the matched id then `ambiguous-definition (N specs)`. A tracked `docs/specs/*.md` path the task names is admitted the
+  same way, its `reason` naming the path. Paths are deduplicated before the cap of three `spec-mentioned` rows. Title-term overlap alone MUST NOT
+  admit a `spec-mentioned` row — discovery relevance is not governing authority — scoped to this relation only: lexical admission of specs is
+  unchanged. Spec-mentioned rows are placed immediately after the governing rows and before every slot row; corroboration cannot outrank them.
+  `coverage` carries the receipt member `governance`: `reserved` when a governing row exists, else `spec-mentioned` when any spec-mentioned row
+  exists, else `unresolved`, which means no instruction file and no defining spec was found for this task, and never that none exists (invariant 2).
+- `TCP-V0-010`: (A) The implementation MUST build a definition-eligibility predicate applied inside the `definition` row generator only, as a filter
+  over the identifiers that generator consumes; it MUST NOT narrow the shared `taskIdentifiers` set, so `pair` ordering and the `sibling` slot's
+  identifier evidence are unchanged. An identifier is eligible when it is backticked in the task (the existing tests' `Other` and `Split` stay
+  eligible on that ground), camelCase, snake_case, or otherwise carries a digit or an underscore. Operationally: an identifier qualifies when backticked in the task or when it
+  contains an uppercase letter after its first character, an underscore, or a digit; an unbackticked lowercase-only identifier does not qualify.
+- `TCP-V0-011`: (A) `coverage` gains four members with fixed shapes. `critical` (what TCP-V0-008/009/047 reserved) and `critical_missing` (reserved
+  selectors present at the revision that did not fit) are arrays of `{"relation", "path"}` selectors sorted by relation then path, each exhaustive
+  over the bounded reserved set, so neither is a TCP-V0-006 sample. `unexamined` is an array of `{"relation", "state", "withheld"}` in TCP-V0-004's
+  fixed relation order with the three reserved relations first: `governing`, `spec-mentioned`, `instruction-routed`, `pair`, `mentioned`, `definition`, `reverse-import`,
+  `reference`, `cochange`, `sibling`, `test`, `lexical`, `documentation`; `state` is `examined`, `capped`, `empty-history`, `subject-absent` (the relation needs a
+  subject and the retrieval shape has none), `subject-symbols-incomplete` (amended 2026-09-12, invariant 2: `reference` only, when
+  `Index.Unparsed` records the subject with facts other than `imports` or `Index.ExtractionNotes` records it, so the slot read a
+  missing or partial symbol table for the subject; `withheld` is still counted), or `not-applicable`; `withheld` is an integer, or `null` when not counted. A task-named path or a selected non-test lexical source runs the
+  `pair` generator even without `--subject`, so that relation is `examined`, including when no counterpart is found. Its count includes counterparts
+  materialised through the mention slot under the same admission accounting; without a subject, a named path or a selected lexical source it remains `subject-absent` / `null`.
+  `withheld` is the candidates a
+  relation's existing generator materialised, minus every candidate admitted under any relation (a corroborated path is not withheld), minus the
+  subject, except a row dropped by TCP-V0-003's promote-in-place rule, which is withheld for its own relation. It MUST be measured from existing
+  generator output and MUST NOT widen generation. `budget_shortage` is `slots` for slot-cap or final-limit omissions; otherwise `work` when the
+  history window fills or a subject-containing commit exceeds the cochange path cap; otherwise `none`. `work` reports unexamined scope without
+  asserting that additional candidates exist, and history-read errors retain the existing failure behavior. A `--subject` packet at `--limit` 1
+  therefore carries the governing row alone and names every other reserved selector in `critical_missing`. `governance` is as TCP-V0-009 defines it.
+  `NO_CANDIDATES` MUST NOT be read as absence of evidence or as an answerability claim (invariant 2).
+- `TCP-V0-012`: (A) Before TCP-V0-008..011 leaves experimental these tests MUST exist and pass, over fixtures with these constraints: (a) a task whose
+  body **and path** vocabulary are disjoint from the instruction file still reserves it; (b) an equal-byte lexical control over a fixture retaining a
+  title-overlap decoy spec that MUST NOT be admitted as `spec-mentioned` (it may still appear through lexical), the decoy and the substituted id
+  sharing no token with any other fixture file, and where, with a limit admitting every generated row, removing the id or path mention loses exactly
+  the `spec-mentioned` rows under this projection: compare the remaining result paths and relations after projecting the defining-spec paths out
+  of both packets, and assert independently calculated coverage counts, reserved selectors and per-relation `withheld` values for each packet; (c) a `--limit` below a reserved set of at least two selectors names the exact missing selectors in
+  `critical_missing`, in TCP-V0-011's fixed order, with `budget_shortage` `slots`; (d) a prose-identifier control loses the three prose `definition`
+  rows and gains no new `definition` row, lexical refill of the freed slots being permitted; (e) two runs over identical pinned inputs (tree, history
+  window, task, subject, limit) are byte-identical (TCP-V0-007); (f) the subject is absent under both new relations in a fixture where it would itself
+  qualify as governing and as a defining spec (TCP-V0-005). This remains an AT-05 slice: whole-task cost and correctness under
+  `BRAIN-DOG-012/013/015/016` is a separate held-out obligation no test here discharges.
+- `TCP-V0-013`: (amended 2026-10-06, V1-0859; experimental) Documentation-suffix hits (`.md`,
+  `.mdx`, `.rst`, `.txt`) produced by the lexical generator carry the `documentation` relation and
+  name that class in their evidence reason. The lexical order of TCP-V0-014 is preserved inside
+  each class. The lexical fill places code rows until the packet holds five code rows (rows the
+  earlier slots took count toward those five; a code hit for the subject or for a path those
+  slots or a reservation already hold takes no head position), then the remaining code and the
+  documentation in one TCP-V0-014 order under TCP-V0-059's documentation share: a documentation
+  hit the share admits precedes every code hit it outscores and is not cut for being
+  documentation while a weaker code hit is carried; a documentation hit the share defers (past
+  its ceiling, or past its quota without outscoring the lead) follows every code hit, so the
+  share, not its strength, may cut it while a weaker code hit is carried, and TCP-V0-061 states
+  that class. The head never takes more than the positions the share's ceiling leaves to code
+  (`fill - ceil(fill / 2)`, `fill` being TCP-V0-059's), so at a small limit the head alone never
+  cuts a documentation hit the share admits; past the share, the head and the share together may
+  cut a stronger documentation hit while weaker code hits are carried (three code and six
+  stronger documentation hits at limit 6 carry the three code rows), which TCP-V0-061's limit
+  line counts. Both classes retain the lexical slot's
+  confidence, authority, token rules, and final-limit behavior; their score is TCP-V0-060's.
+  Before this amendment the fill placed at most two documentation rows after the head, then every
+  remaining code row, then the remaining documentation rows: eight of the fifteen public rc.2
+  untouched-repository orientation misses were documentation rows that outscored a carried code
+  row and were cut by that quota (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-06-v1-0859-orientation-misses.md`);
+  the quota survives as the floor of TCP-V0-059's gate.
+- `TCP-V0-014`: (accepted 2026-09-05 by decision 0066; experimental) The lexical slot scores every
+  source with BM25 (k1 1.2, b 0.3) over three fields and orders by that score descending, then
+  distinct task terms descending, then path: (a) body terms, with the inverse document frequency
+  `ln(1 + (N - n + 0.5) / (n + 0.5))` from the term's posting length `n` over `N` indexed sources,
+  the term frequency from the counted body postings, and the length normalisation from the
+  source's body token count against the mean; (b) path terms at term frequency one without length
+  normalisation; (c) whole identifiers the task names (an ASCII word with an inner camel-case
+  boundary or an underscore) matched as written against the identifier vocabulary, at term
+  frequency one. Task terms are TCP-V0-004's terms plus each such whole identifier lowercased,
+  minus a fixed list of English function and retrieval-phrasing words that has no per-repository
+  parameter. Document lengths are derived on first use from the counted postings; the snapshot
+  format is unchanged. The evidence reason names the distinct-term and occurrence counts, the
+  rarest matched term with its inverse document frequency, and the score. Falsifier (a decision
+  rule read from the `paired` section of a `tools/retrieval-bench` report over the development,
+  cross-fitted folds of `benchmarks/README.md`; a point estimate at or above a baseline with an
+  interval spanning zero is unresolved, never a pass): (1) on each Agent Retrieval Bench positive
+  subset the paired difference of the `context` arm minus the strongest of `grep`, `grep-ident`,
+  and `bm25:ident` in that cell must have a bootstrap 95% interval whose lower bound is above 0
+  on at least three subsets and at or above −0.02 on the fourth for recall@10, and at or above
+  −0.02 on every subset for recall@5 and MRR@20; (2) no repository with at least five samples in
+  a subset may show a mean recall@10 difference below −0.10 against that strongest baseline;
+  (3) on `v2_abstention` the arm abstains on at least 0.50 of the 50 natural no-gold samples with
+  Wilson lower bound at or above 0.35 while positive hit@20 stays within 0.05 of the accepted
+  value; (4) the run is registered (samples, `corvint`, and fold-map digests) before it
+  executes, and a rerun after a code change is a new registration; and (5) the blind-v3 query
+  cases' file-level critical misses must not exceed the previous order's. Any failed clause rolls
+  the order back to distinct terms, occurrences, then path.
+
+- `TCP-V0-015`: (proposed 2026-09-05 by decision 0067; experimental) In the retrieval shape (no
+  `--subject`) the packet carries a `test` relation: when it admits a code file, that file's test
+  counterpart becomes admissible, and when it admits a test, the source it exercises. The anchors
+  are every row the earlier slots admitted plus the lexical hits that would fill the packet to one
+  row short of the limit. A counterpart is bound by four deterministic signals derived at query
+  time from the existing tables, never from a new snapshot table: (a) the mirrored path/stem
+  `pair` reads (`pairRelation`, without the module-directory case, and for a Go file a Go
+  counterpart in its directory only, so a Go test of another package binds by an import edge, a
+  declared name or its test name alone); (b) an import edge from the
+  test to the source through `impact`'s reverse-import rules over `Imports`; (c) a whole-word
+  mention in the test of a name the source declares (at least four bytes, at most fifty
+  definers), weighted by the name's rarity over the identifier vocabulary `ln((N + 1) / n)` as
+  `reference` weights it, over names with at most five hundred postings; (d) a test name `Test<Name>`
+  or `test_<name>` among the test's indexed symbols, or `describe('<name>')` in its text, whose
+  camel-split tokens start with a declared name's tokens. Candidates order by the anchor's
+  packet position (the packet's own evidence order), then summed signal weight (a high `pair`
+  relation, an import edge and a test name weigh one each, a stem match elsewhere in the tree
+  one half, and each mention its inverse document frequency), then fired signals, then path;
+  at most one `test` row is
+  admitted (`test-convention`; high with two or more signals, else medium; score 650), placed
+  after the `definition` slot and before the lexical fill. TCP-V0-004 separately admits bounded
+  naming counterparts of selected lexical sources without broadening this multi-signal slot. The evidence reason is
+  `tests <anchor>: <signals>` or `is tested by <anchor>: <signals>` with the fired signals in the
+  order (a)-(d), the mention signal naming the rarest name and its inverse document frequency.
+  Equal-IDF witness names use lexical order, and mention weights accumulate in sorted
+  identifier order. Cold builds must retain the supported import edges the relation consumes,
+  including when no subject exists; cached and cold packet bytes must agree (decision 0079).
+  For a test anchor, signal (b) corroborates only its ten best source candidates; for a source
+  anchor, test import edges also generate candidates. Signal (d)'s `describe` form is read
+  only for the ten best candidates. TCP-V0-011's `withheld` counts the relation's candidates; with a subject the relation
+  is `not-applicable`. The `definition` slot (TCP-V0-010) additionally refuses a backticked
+  identifier that is on TCP-V0-014's English stop list, which gains `all`. Falsifier: on the
+  Agent Retrieval Bench the `context` arm's code2test hit@k and recall@20 must rise over the
+  TCP-V0-014 tree and edit2ripple recall@20 must stay at or above the grep arm's; either
+  failure removes the slot.
+  - (proposed, decision 0398; V1-0343) A link whose only fired signal is (c) is a candidate only
+    when it names two or more distinct declared names, or one name of two or more camel-split tokens
+    (`EncodeFrame`, `encode_frame`); one plain word such as `down` in a comment binds nothing. Such
+    a lexical-only test row's action says to check the test and update it only if it asserts on that
+    name, not to update it.
+- `TCP-V0-017`: (proposed 2026-09-05, not accepted; experimental) `context` offers three read-only
+  structural lookups over the index the packet reads, `corvint [--root PATH] context defs
+  IDENTIFIER [--limit N]`, `context refs IDENTIFIER [--limit N]`, and `context grep TERM...
+  [--limit N]`, so an agent iterates against the snapshot instead of a text search. Each answers
+  from the tree's snapshot when `corvint index` wrote one, else from one index build, writes
+  nothing on any path, and carries the packet's identity and evidence shape: `revision`,
+  `"mutates": false`, one evidence row per result naming path, line, blob hash, reason,
+  confidence, and authority, and a `coverage` count of candidates against the limit. (a) `defs`
+  lists the symbols whose name equals IDENTIFIER, then those equal ignoring case, each class
+  ordered by fewest definers of that name, then name, path, line; a row carries the symbol kind,
+  the declaration line, and the end line when the extractor reports one (0 otherwise, never
+  inferred). (b) `refs` lists the files that name IDENTIFIER as a whole word of the identifier
+  vocabulary or that import a file defining it under the reverse-import rules of `impact`,
+  excluding the defining files, with the whole-word count and first line; files that both name
+  and import come first, then name only, then import only, then count descending, then path.
+  (c) `grep` tokenises the terms as the body postings were tokenised, scores every source holding
+  a token with TCP-V0-014's BM25 over the body and path fields without the whole-identifier field
+  or the stop list, orders by score, distinct tokens, then path, and quotes at most five matching
+  lines per listed file with their line numbers; a file whose tokens occur only in its path
+  quotes no line and claims none (amended 2026-09-12, AGENTS.md invariant 2): its evidence row's
+  `line` is 0, never an inferred line 1, and its `reason` ends `; path-only match, no line`;
+  substring and regular-expression matching are not offered and belong to the n-gram posting lane. `--limit` defaults to 20 and is bounded as
+  TCP-V0-002's. An identifier or term that is empty or longer than 256 bytes is refused with
+  `unsupported-context-lookup-identifier` and exit status 2. Excluded paths never appear: the
+  modes read only `Symbols`, the term table, the import graph, and `Sources`, none of which
+  carries an excluded path. Falsifier: on a snapshot hit over this repository each mode completes
+  under 50 ms wall at n >= 10, output is byte-identical across runs, and the default
+  `context --task` output is byte-identical to the previous build. Measured 2026-09-05
+  (`docs/plans/context-lookup-verbs-2026-09-05.md`): the lookup work is 0.06-5.4 ms but the gob
+  snapshot decode is 67-75 ms, so the wall-time falsifier fails until a sectioned snapshot
+  (`IDX-SNAP-V0-014`) lands; the clause cannot be accepted before that.
+  rarest matched term with its inverse document frequency, and the score. Falsifier: on the
+  Agent Retrieval Bench positive subsets the `context` arm's recall@20 must be at or above the
+  grep arm's on every subset it answers, and the blind-v3 query cases' file-level critical misses
+  must not exceed the previous order's; either regression rolls the order back to distinct terms,
+  occurrences, then path.
+- `TCP-V0-016`: (accepted 2026-09-12 by decision 0068's amendment, amended by decision 0146;
+  experimental) The packet carries an
+  answerability verdict under `coverage.answerability` computed after the slots. (a) The task's
+  specific terms are its names: each backticked token (split on `.`, three bytes or more) and
+  each identifier whose form with outer underscores trimmed has an inner camel-case boundary or
+  an underscore, taken from the task with JSON escape sequences and JSON object keys treated as
+  whitespace; a name is specific when fewer sources carry it than the cut, one sixteenth of the
+  indexed sources and never below two. A source carries a name when it writes it as an
+  identifier, carries it lowercased as one body term, or has it in its path. Plain words are not
+  terms of the conjunction. A requirement ID the task writes that a tracked spec defines
+  (TCP-V0-009) is also a specific term, whose sources are its defining specs and whose tracked
+  count is their number; an ID no spec defines adds no term, so it neither invents support nor
+  withholds a row (amended for V1-2235 under the owner's standing auto-accept, 2026-10-11).
+  (b) A name is known when at least one indexed source carries it or
+  at least one tracked path contains it (a source the index does not read, such as `.java`,
+  still answers by path); the
+  conjunction is over the known names, a source's support is the count of them it carries, and
+  the required support is the smaller of the known count and two (every known name for two or
+  fewer, two for three or more); both are reported. (c) The slot rows are withheld in exactly one case: the task
+  writes two or more specific names, none is known (zero support anywhere), and no row was
+  admitted by one of the seven rescue relations `mentioned`, `pair`, `definition`,
+  `reverse-import`, `reference`, `cochange`, `sibling`: such a row is evidence of a locus that a
+  vocabulary absence cannot overrule (invariant 2), and the verdict is then `relations-answer`
+  with nothing withheld. The lexical fill, `documentation`, the reservations, a `test` row
+  (TCP-V0-015, which can derive from lexical anchors alone) and any unlisted kind rescue nothing.
+  A second case, a refuted name beside three or more known names no source carries two of
+  together, was measured on 2026-09-05 and withdrawn: it abstained on four `v2_trace2code`
+  positives whose joining source (`tests/test_options.py` in pallets/click) is over the index's
+  source size bound and so has no postings, an index gap rather than an absence. Reserved rows (TCP-V0-008,
+  TCP-V0-009, TCP-V0-047) stay; `state` follows TCP-V0-006 over the rows that remain, so a withheld packet
+  with no reserved row is `NO_CANDIDATES` and one with a governing row is `READY`; the admitted
+  rows stay counted under `coverage.candidates` and `omitted_results`. (d) `coverage.answerability`
+  carries `verdict` (`supported`, `not-withheld`, `no-specific-terms`, `relations-answer`, or
+  `unsupported-conjunction`). `supported` means at least one indexed source reaches `required`
+  support and carries `nearest_claims`: at most the first three best-supporting sources ordered by
+  path, each with `path`, `blob_hash`, and the names it `supports` and `lacks`. `not-withheld`
+  means the withholding rule did not fire but no indexed source reaches `required` support, as for
+  one unknown name or scattered known names that no source supports together; it carries
+  `nearest_claims: []` and makes no support claim. The other evidence is
+  `specific_terms` (each `term` with its indexed `sources` count and
+  its `tracked_paths` count), `known`, `required`, `support`,
+  `supporting_sources`, a `reason` sentence naming every name no source carries, and on
+  `unsupported-conjunction` `nearest_claims`: the first three withheld slot rows in packet
+  order, each with `path`, `blob_hash`, the names it `supports` (none, by construction) and the
+  names it `lacks`; `blob_hash` is empty for a path the index did not read, and that entry gains
+  the same `evidence_gap` field TCP-V0-003 defines for a result row (AGENTS.md invariant 2). A
+  withheld packet is an answerability claim about the index only through this member; the
+  `state` alone still is not one (TCP-V0-011). No number here is calibrated on a benchmark: the
+  cut is a fixed fraction and the pair is the smallest conjunction. Falsifier: on the Agent
+  Retrieval Bench `v2_abstention` release the `context` arm's `selective_success` on the
+  `natural_no_gold` stratum must exceed the arm's value without this verdict (0.0), while on
+  `v2_trace2code` and `v2_code2test` its `hit@k` and `recall@20` fall by no more than 0.01 and
+  its `abstained` rate on positives stays below 0.05; a miss on any of these withdraws the
+  withholding (the member may stay as disclosure). Status (decision 0068 amendment, 2026-09-12):
+  the whole-subset rule passed on development data only (natural 4/50, counterfactual 10/32, one
+  trace2code positive withheld); a post-run subgroup HOLD on that loss is uncleared, so the
+  verdict is not advertised as delivered abstention until a non-development qualification under
+  decision 0070 clears it. Decision 0078's 0/50 was measured on a tree that counted `test` rows as
+  a rescue, the defect the seven-kind list in (c) excludes.
+- `TCP-V0-018`: (retired 2026-09-05 by decision 0078) The experimental recipe R and every
+  extension are removed. `CORVINT_CONTEXT_RECIPE`, including former values `r`, `r+anchor`,
+  `r+doctail`, and their combinations, MUST NOT change the default context packet. The existing
+  default golden remains the byte-identity oracle. This stable ID is retained for the retirement
+  record and MUST NOT be reused for a successor. Historical positive development falsifiers
+  passed for `r+doctail`; the registered wave-1 no-gold comparison tied at zero success. Retirement
+  is administrative after failed promotion under decision 0070, not a new numerical falsification.
+  Evidence and blind-v4 `NOT_RUN` reasons are preserved in
+  `docs/plans/nextgen-r3-code-first-order-2026-09-05.md`. Reintroduction requires a new accepted
+  experiment contract.
+
+
+- `TCP-V0-019`: (proposed 2026-09-05, not accepted; experimental) With
+  `CORVINT_CONTEXT_TERMS=ident`, the lexical fields select identifiers from the task's string
+  values: valid JSON is decoded recursively, with object keys omitted and string values
+  traversed in sorted-key order; malformed JSON is plain text. Selected names are ASCII
+  identifiers of at least four characters with an inner underscore or a lowercase-to-uppercase
+  boundary, plus stems of code filenames with suffixes `go`, `py`, `rs`, `ts`, `tsx`, `js`,
+  `java`, `kt`, `rb`, `cs`, `cpp`, `c`, `h`. Lowercased exact names multiply body/path BM25
+  contributions by 3, their camel/snake-split terms by 1; duplicate terms keep their maximum
+  multiplier. Case-sensitive whole identifiers multiply the existing whole-word contribution
+  by 3, so an exact spelling is stronger evidence than its split parts or wrong-case form.
+  With no selected identifier, use TCP-V0-014's ordinary terms over the decoded values.
+  No field name, repository label, task-type label, or gold path is special-cased; identifier-shaped
+  scalar label values remain possible artifacts, disclosed in the plan. Structural slots,
+  reservations, explanation shape, snapshot and query/eval behavior are unchanged. Unset or
+  unknown values preserve the existing packet bytes. First-target falsifier: trace2code
+  recall@5 >= 0.502 and MRR >= 0.372, with code2test recall@5 >= 0.225; failure on any endpoint
+  falsifies this candidate. The plan `docs/plans/context-identifier-terms-2026-09-05.md` freezes
+  constants before fold A and B, requires preregistered sample/binary/source/patch/fold digests,
+  and labels all v2 results development. Promotion additionally requires decision 0070's full
+  paired ladder and clean-partition rule; passing these point targets alone cannot promote.
+  Measured 2026-09-05: the pooled first-target endpoints pass, but trace2code fold B loses
+  to `bm25:ident` with recall@5 difference -0.094595 (95% interval [-0.189189, -0.013514])
+  and MRR difference -0.095146 ([-0.174558, -0.018054]); both signs reverse fold A.
+  The frozen candidate is therefore falsified for promotion under decision 0070.
+  Rollback removes the flag and selector; the default order already stays unchanged.
+
+
+### Accepted bounded measurement amendment (decision 0075, 2026-09-05)
+
+- `TCP-V0-021`: `tools/retrieval-bench --snapshot-latency` MUST materialize a private copy once
+  per repository and base commit, explicitly index that copy once, and time matched `context`
+  calls with the snapshot absent and present for every selected sample. The cold call temporarily
+  moves an existing scratch snapshot outside the copy and restores it even on cancellation.
+  The bench MUST refuse dirty copies before or after a sample, differing cold/hit rankings,
+  failed commands, and unknown cache observations. Under `CORVINT_BENCH_SNAPSHOT_TRACE=1` only,
+  successful Go `context` calls disclose the actual loader hit boolean on stderr as
+  `corvint-bench-snapshot: hit=true` or `corvint-bench-snapshot: hit=false`; packet bytes and every
+  frozen wire remain unchanged. No diagnostic or malformed diagnostics mean `UNKNOWN`, never
+  an inferred hit. The bench records the hit `wall_ms`, matched `cold_wall_ms`, and separate
+  `OBSERVED_HIT` / `OBSERVED_MISS` distributions; indexing and copying are outside both spans.
+  Before the first retriever, it MUST exclusively create and sync a registration file containing
+  samples, target binary, bench binary, and frozen fold-map digests, selected sample IDs, arm
+  selection, limit, mode and relevant ranking/storage environment. Reusing a registration path
+  refuses the run. Registration and report paths MUST name distinct files; normalized paths,
+  symbolic-link aliases (including parent directories and dangling final links), and existing
+  same-file aliases MUST be refused before retrieval or writes and checked again before writing
+  the report. Changing either binary or the recorded environment during the run refuses the
+  final report. Input corpus/cache paths remain read-only; only scratch copies and explicit
+  registration/report paths are written. Child cancellation MUST reap the process group before
+  scratch cleanup. Falsifier: on an idle host (load average below 20), the registered full
+  `v2_code2test` run's observed-hit `context` wall p50 MUST be below 100 ms, with every matched
+  ranking unchanged. A missing observation, dirty copy, mismatched pair, or unmet latency target
+  prevents promotion; v2 ranking figures are development evidence only. Plan and remaining
+  evidence: `docs/plans/retrieval-bench-snapshot-hits-2026-09-05.md`.
+
+- `TCP-V0-020`: (proposed 2026-09-05, not accepted; experimental) Under
+  `CORVINT_CONTEXT_FRAME_RELATION=1`, in retrieval shape only, the first three distinct
+  sorted tracked test paths named by the task's existing mentioned-path rule anchor
+  an implementation-directed `test` pass. Indexed non-test, non-documentation sources
+  qualify through the existing mirrored-stem relation, the existing import resolution
+  rules restricted to the anchor's import map, or a whole identifier the test names
+  that the source declares (at least four bytes, at most fifty definers, at most five
+  hundred identifier postings). The existing weights apply: high stem one, distant
+  stem one half, import one, each identifier its `ln((N+1)/postings)` rarity.
+  Identifier contributions accumulate in sorted order. Candidates order by sorted
+  anchor position, summed signal weight, signal count, then path, with one candidate
+  per path. At most three rows enter before the mentioned and definition slots, with
+  the existing `test` row fields and evidence naming the anchor and actual signals.
+  The later one-row test pass is skipped on activated tasks; the single candidate set
+  feeds existing withheld accounting. More than three named tests marks the pass
+  `capped` and reports slot shortage. Final corroboration and governing/spec reservations
+  retain precedence; early admission is not an unconditional final-rank reservation.
+  Unset or unknown flags, explicit subjects, and tasks with no resolved named test
+  retain the previous behavior. There are no new persistent tables or read-side writes.
+  Falsifier: registered A-then-B development runs with frozen mechanism must reach
+  trace2code recall@5 at least 0.55 and code2test recall@5 at least 0.215 (baseline
+  0.225, loss at most 0.01); report recall@5/10/20 and MRR on both folds of all four
+  positive subsets against the full ladder. Promotion additionally requires decision
+  0070; v2_abstention is development because its earlier results changed withholding.
+  Blind-v4's separate decision-0037 run conditions cannot be bypassed. Plan and
+  preregistration: `docs/plans/context-frame-relation-2026-09-05.md`. Rollback: unset
+  the flag or remove the frame pass; default and frozen wires remain unchanged.
+
+- `TCP-V0-022`: (proposed 2026-09-22, not accepted; experimental; decision 0333; default
+  amended 2026-10-01, proposed) Unless `CORVINT_CONTEXT_ANCHORS=off`, the task's repository
+  anchors are a fourth lexical field matched verbatim; `off` restores the pre-amendment packet
+  bytes exactly, and `on` is accepted and means the default. The default moved because the
+  go-chi/chi orientation corpus (now development) task `Replace "interface{}" with "any"`
+  reaches five of its eight modified files without the field and all eight with it: the term
+  tokeniser reduces the quoted literal to the common word `interface`, and only the verbatim
+  field separates the files that write `interface{}` from the files that write the word.
+  An anchor is a literal of 4 to 256 bytes carrying at least one ASCII word run of
+  three bytes, taken from the task text (TCP-V0-019's decoded string values when the task is
+  valid JSON) by five classes tried in order, each consuming its spans before the next: `error`
+  (a double-quoted string, quotes stripped), `url` (`scheme://` up to whitespace or a closing
+  delimiter), `frame` (`path.ext:line`), `enum` (`Scope::Value`, one or more `::`), `config`
+  (a lowercase dotted key that is not a bare file name with a code, Markdown or data suffix).
+  Anchors keep text order, drop duplicate literals and stop at sixteen. A source carries an
+  anchor when the bytes occur in its bounded body (TCP-V0-014's size bound) with neither
+  word-shaped edge extended by a word byte; the candidates are the intersection of the `Words`
+  postings of the anchor's word runs, and an anchor with more than 512 candidates contributes
+  nothing. A carrying source is credited like a body term: idf from the number of carrying
+  sources, tf the occurrence count, the same k1 and b, tripled under TCP-V0-019's exact weight.
+  The credit lives inside the lexical slot: the row keeps kind `lexical` (or `documentation`),
+  TCP-V0-060's score and authority `vocabulary`, its reason is prefixed `anchor: ` + "`literal` xN" +
+  ` verbatim; `, and it can never precede a reserved TCP-V0-008/TCP-V0-009 row. No index,
+  snapshot or pack change; `off` preserves the pre-amendment packet bytes.
+  Falsifier: a registered `tools/retrieval-bench` run on `v2_code2test` and `v2_trace2code` with
+  the flag unset and `on` must lose at most 0.01 recall@5 on every fold and must report the
+  anchor-bearing samples as their own subset (`stratum:anchor-bearing`); promotion additionally
+  requires decision 0070's paired ladder. The 2026-09-23 run (V1-0084, `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md`) passed
+  the recall@5 falsifier; the field stays opt-in because the 0070 ladder is NOT_RUN and recall@10
+  and recall@20 losses were observed (`v2_trace2code` recall@20 0.7937 to 0.7591). A stricter bar,
+  no recall@20 loss on any of the four v2 subsets, was proposed after that run and is not yet the
+  governing rule. Rollback: unset the flag or remove the anchor field; the default wire never changed.
+
+- `TCP-V0-023`: (proposed 2026-09-22, not accepted; experimental; decision 0346) Every
+  `results[].evidence[]` row carries exactly one `trust` member, a string from the closed set
+  `project-authority`, `repository-content`, `repository-history`, `external-provider`,
+  `tool-output`, derived from the row's own `authority` label by the table below and from no
+  other input, so two rows with one label carry one class on every run. A label the table does
+  not name derives `tool-output`: an unlisted label is the least trusted class, never a more
+  trusted one by omission (invariant 2). A class is tainted when it is `external-provider` or
+  `tool-output`; content fetched from a provider or produced by a tool is read, never trusted,
+  however it is labelled. A reserved row (TCP-V0-008, TCP-V0-009) whose class is tainted
+  satisfies neither the `governance` receipt nor the `critical` selectors (TCP-V0-011) and is
+  named, in reservation order, in `coverage.governance_refused`, an always-present array of
+  `{relation, path, trust, reason}` objects; it stays in `results` with its class so the reader
+  sees what was set aside. No reserved generator emits a tainted label; since V1-0414 the array
+  also names rows TCP-V0-056 downgrades, and is otherwise empty. The change is additive: a consumer
+  decoding the previous row shape reads the same values, and the `query` and `impact` wires
+  (GPK-V0-002, `conformance/cli-parity-v0`) and the `external` section (`internal/extevidence`)
+  carry no `trust` member. The one table is `trustByAuthority` in `internal/contextindex/trust.go`;
+  `prove` reuses it (FPK-V0-032).
+
+  | `authority` label | `trust` |
+  |---|---|
+  | `project-instructions`, `instruction-reference`, `repository-spec`, `accepted-spec`, `accepted-decision`, `non-binding-decision`, `accepted-contract`, `partially-superseded-contract`, `document-reference`, `canonical-ledger`, `source-marker`, `test-marker` | `project-authority` |
+  | `syntax`, `git-tree`, `test-convention`, `task-text`, `directory`, `vocabulary`, `affected-selection`, `cem-supported`, `cem-mechanical`, `cem-unknown` | `repository-content` |
+  | `git-history` | `repository-history` |
+  | `external-provider` | `external-provider` |
+  | `unverified-contract`, `unverified-ledger`, `local-task-trace`, `generated-documentation`, and every label not listed | `tool-output` |
+- `TCP-V0-024`: (proposed 2026-09-23, not accepted; experimental; decision 0364) This amends the
+  TCP-V0-002 invocation with two opt-in views, whose behaviour `experimental-source-views-v0`
+  owns (`ESV-V0-008`, `ESV-V0-009`, `ESV-V0-010`):
+  - `--summary [--summary-bytes N]` adds a bounded projection to a `--task` invocation;
+  - `context --expand HANDLE [--max-bytes N]` replaces `--task` and accepts no other context flag.
+
+  `--summary-bytes` without `--summary`, and `--max-bytes` without `--expand`, are argument
+  errors. When neither `--summary` nor `--expand` is given, the command prints exactly the bytes
+  of TCP-V0-001..023: the packet, its members and its ranking are unchanged. Both views are read
+  commands: they write no repository, index, snapshot, trace or `.corvint/` state.
+- `TCP-V0-039`: (proposed 2026-09-23, not accepted; experimental; decision 0370) A file's role
+  line is derived only from its own doc comments in the pinned blob at the indexed revision, by a
+  fixed per-suffix rule, and is never generated. The candidate comments, in order: Go (`.go`), the
+  column-0 `//` run or `/* */` block ending on the line above the `package` clause, then the same
+  above each column-0 `func`, `type`, `var` or `const` line, with `//word:` and `//+build`
+  directive lines left out; Python (`.py`), the module docstring (the first statement after blank
+  and `#` lines, a string literal with an optional `r`/`u` prefix); Rust (`.rs`), the first
+  column-0 `//!` run, then the doc-marker comments; the doc-marker suffixes (`.js`, `.jsx`,
+  `.mjs`, `.cjs`, `.ts`, `.tsx`, `.java`, `.kt`, `.scala`, `.swift`, `.cs`, `.c`, `.h`, `.cc`,
+  `.cpp`, `.hpp`, `.php`, `.dart`), every column-0 `/** */` block and `///` run in file order.
+  Any other suffix has no role line. The line is the first candidate whose first paragraph (from
+  the first non-empty content line to an empty line, a `@tag` line or a code fence; Markdown
+  heading lines skipped; `@file`/`@fileoverview` keep their text) carries none of `copyright`,
+  `spdx-license-identifier`, `licensed under`, `code generated`, `do not edit` (case-insensitive)
+  and yields a first sentence (cut after the first `. `), whitespace collapsed, control characters
+  dropped, cut to at most 160 bytes on a rune boundary, that holds an ASCII word run of three
+  bytes. Only the first 64 KiB of a blob is read. The line carries the 1-based line range of its
+  comment. The same blob yields the same bytes on every run.
+- `TCP-V0-040`: (proposed 2026-09-23, not accepted; experimental; decision 0370) With
+  `CORVINT_CONTEXT_ROLES=on`, the role line is a fifth lexical field. After the body, path,
+  identifier and anchor (TCP-V0-022) fields are credited, the at most 512 sources with the highest
+  lexical score (ties by source id) are read within TCP-V0-014's size bound; for each whose role
+  line exists, every task term the line carries, tokenised as the body `Terms` table tokenises a
+  source, is credited once with its body idf times 1.0, the path field's form, before the lexical
+  order is taken. The credit lives inside the lexical slot: the row keeps kind `lexical`,
+  TCP-V0-060's score and authority `vocabulary`, and never precedes a reserved TCP-V0-008/TCP-V0-009 row. No index,
+  snapshot or pack change (the analyzer schema is unchanged). Unset or any other value preserves
+  the existing packet bytes.
+- `TCP-V0-041`: (proposed 2026-09-23, not accepted; experimental; decision 0370) A row the role
+  field credited names its source comment: its reason starts with `role: `, the Go-quoted line,
+  the comment's range as `(PATH:START-END)` with 1-based lines, ` matches `, the matched terms
+  sorted, each backquoted and joined by `, `, and `; `. A row the field did not credit carries no
+  `role:` prefix.
+- `TCP-V0-042`: (proposed 2026-09-23, not accepted; experimental; decision 0370) The field stays
+  opt-in unless a frozen `tools/retrieval-bench --arms context` run over `v2_code2test`,
+  `v2_comment2context`, `v2_edit2ripple` and `v2_trace2code`, with the flag unset and `on` and the
+  same binary, shows no recall@20 loss on any of the four; recall@5/10/20 and the losing cases are
+  recorded in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md`. The 2026-09-23 run (V1-0096) lost recall@20 on
+  `v2_comment2context` (0.5042 to 0.4938, four samples), so the field stays opt-in.
+
+- `TCP-V0-035`: (proposed 2026-09-23, not accepted; experimental; decision 0369) With
+  `CORVINT_CONTEXT_RECENCY=on`, the packet reads, from Git history reachable from the indexed
+  commit only (never the worktree, the clock or any other state), the committer time of each
+  commit in the `cochange` slot's window (the newest 200 non-merge commits, TCP-V0-004's
+  `readCoChangeHistory` bound, shallow boundary commits dropped) and each path's newest commit in
+  that window. A path's recency is `0.5^(age/90 days)`, where age is the indexed commit's committer
+  time minus the path's newest window commit's (a later-dated commit weighs 1). The lexical fill is
+  reordered by BM25 x (1 + 0.25 recency + 0.25 blame freshness, TCP-V0-036), code rows among the
+  positions code rows already hold and documentation rows among theirs, so TCP-V0-013's placement
+  and every other slot's order are kept. The `cochange` slot is reordered by its recency-weighted
+  count: each co-change commit it counted weighs its own decay. Every lexical row's reason gains
+  `; recency R (last commit D days before the indexed commit, 90-day half-life); <blame reason>;
+  rank bm25 x F`, and every `cochange` row's reason gains `; recency-weighted W (90-day
+  half-life)`, so each contributing feature is named. Both slots are reordered before their cap and
+  the limit apply, so which candidates the lexical and `cochange` slots admit can change: a recent
+  candidate below the cut can displace an older one. No admitted row's score, kind or authority
+  changes, and the reserved and syntax slots are untouched. An unset or other value preserves the
+  existing packet bytes (the recipe golden).
+- `TCP-V0-036`: (proposed 2026-09-23, not accepted; experimental; decision 0369) The blame
+  feature runs `git blame --porcelain` at the indexed commit on at most the first 10 lexical
+  candidates in BM25 order that the slot can still admit (not the subject, not a path an earlier
+  slot chose), limited to the window (`OLDEST..COMMIT` when the window holds 200 commits) and to 4
+  MiB of output. A line whose last change is a boundary commit (older than the window, a root
+  commit, or the full window's oldest commit, which Git marks as the range boundary) is outside
+  the window; freshness is the sum of the in-window lines'
+  decay over all lines. Beyond any bound the feature abstains and says so in the row reason:
+  `blame abstained (beyond the 10-file blame bound)`, `blame abstained (blame-unreadable)`, or the
+  history state. Recency abstains the same way: `recency abstained (no commit in the N-commit
+  window)` for a path the window never touched, `recency abstained (STATE)` when the history could
+  not be read (`no-indexed-commit`, `history-unreadable`). An abstaining feature contributes 0 to
+  the factor; it is never estimated.
+- `TCP-V0-037`: (proposed 2026-09-23, not accepted; experimental; decision 0369) The first tracked
+  file among `.github/CODEOWNERS`, `CODEOWNERS`, `docs/CODEOWNERS` at the indexed commit (256 KiB
+  bound) is read with GitHub's pattern rules: the last matching rule owns a path; `*`, `?` and
+  `**` as in gitignore; a leading or inner slash anchors the pattern; negations and bracket
+  ranges are not CODEOWNERS syntax and their lines are skipped. For each blamed row whose owning
+  rule names owners and whose in-window lines have authors, the owners are compared with those
+  authors' emails: an email owner exactly, a `@user` owner only against a GitHub noreply address,
+  a `@org/team` owner never. An owner matching any author agrees and reports nothing. Otherwise the
+  row is a disagreement, reported and never resolved: state `disagrees` when every owner is an
+  email, `unverifiable` when a handle or team could not be compared. The row reason gains
+  `; ownership STATE: CODEOWNERS names OWNERS, blame names AUTHOR`, and the entry is listed in
+  `coverage.recency.ownership` (TCP-V0-038). Neither side changes any row's order, authority or
+  admission: ownership is uncertainty, not a ranking input.
+- `TCP-V0-038`: (proposed 2026-09-23, not accepted; experimental; decision 0369) With the flag on,
+  `coverage` gains one `recency` member: `{state, half_life_days, window_commits, window_full,
+  blame_cap, blamed, codeowners, ownership}`, where `codeowners` is the file read or null and
+  `ownership` lists, in packet order, `{path, state, rule, rule_line, codeowners, blame_author,
+  blame_author_lines, reason}` for each TCP-V0-037 disagreement among the packet's rows. The
+  member is absent when the flag is unset. Promotion to default requires the frozen
+  `tools/retrieval-bench` `context` arm to lose no recall@20 on any subset with the flag on, on a
+  corpus whose snapshots carry history; the frozen releases rebuild each snapshot as one commit,
+  where every recency is 1 and every blame line is a root boundary, so they can show no
+  regression but cannot show a gain. `corvint eval` does not exercise `context`. The flag
+  therefore stays opt-in (decision 0369). Rollback: unset the flag, or delete the feature; the
+  default wire never changed.
+
+- `TCP-V0-030`: (proposed 2026-09-23, not accepted; experimental; decision 0367) The full
+  compile derives an identifier graph from the Git content at the indexed revision and stores
+  it beside the term table, as the `IdentGraph` member of the gob and sectioned snapshots and
+  the `vocab.identgraph` pack section; the change bumps `analyzerSchemaID` to
+  `corvint-analyzer/74`. Its nodes are the term table's source ids. An eligible name is an
+  indexed symbol name of 4 to 128 ASCII identifier bytes (the `langsymbols.go` identifier
+  classes) that is not lowercase letters only, defined by at most five sources and present as a
+  whole word (the `Words` postings) in at most fifty. For each eligible name, every naming
+  source other than a definer is joined to each definer. An edge is symmetric; its weight is the
+  number of eligible names joining the pair, and its label is the rarest of them (fewest naming
+  sources, then name order) with its direction: the source names it, or the source defines it.
+  Every value is an integer and names are visited in sorted order, so the encoding is
+  byte-deterministic and independent of symbol order. A decoded graph whose arrays, offsets,
+  labels or node count do not fit its term table is a load miss, never a panic.
+- `TCP-V0-031`: (proposed 2026-09-23, not accepted; experimental; decision 0367) With
+  `CORVINT_CONTEXT_GRAPH=on`, a `graph` slot runs after every other slot, corroboration and the
+  reserved rows. Its seeds are the task anchors: the subject, then the paths of the `mentioned`,
+  `pair`, `definition`, `reverse-import` and `reference` rows in packet order, deduplicated and
+  capped at sixteen. It ranks the non-seed sources within three hops of a seed by personalized
+  PageRank with restart 0.15, uniform over the seeds, by forward push to residual 1e-5 per unit
+  of weighted degree in a fixed FIFO order; ties go to the path. It admits at most five rows,
+  never the subject, a reserved row, a relation row, or a lexical or documentation row placed
+  before the last five positions under the limit; a lexical or documentation row from there on
+  that the graph also ranks is replaced by its graph row. The rows go to the last positions
+  under the limit that follow every relation row, so they displace only lexical and
+  documentation tail rows and never outrank a relation, a reserved row, or the TCP-V0-002
+  limit. A row has kind `graph`, score 250, confidence `low` and authority `syntax`, and
+  registers no corroboration. `coverage.unexamined` gains a `graph` relation, last.
+- `TCP-V0-032`: (proposed 2026-09-23, not accepted; experimental; decision 0367) A `graph`
+  row's reason names the seed and every hop from it:
+  ``graph from seed `SEED` (ANCHOR): HOP; HOP`` where ANCHOR is `subject` or the seed row's
+  kind, and each HOP is either ``` `A` defines `NAME`, which `B` names``` or
+  ``` `A` names `NAME`, which `B` defines```, over the shortest path breadth-first from the seeds
+  in seed order and CSR order. The evidence line is the definition line of the last hop's name
+  when the row defines it, else line 1. The action states that a graph hop is a ranking, not a
+  relation. `graph` rows do not count as TCP-V0-016 relations, so they never rescue an
+  unsupported conjunction, and the verdict withholds them with the other slot rows.
+- `TCP-V0-033`: (proposed 2026-09-23, not accepted; experimental; decision 0367) The graph is
+  bounded: a tree of more than 2^20 sources, or a build passing 2^21 directed arcs, stores a
+  `Bounded` graph with no edges, and the walk stops at 200,000 pushes. Beyond a bound, or with no
+  seed the graph carries, the slot abstains: it admits no row and its `unexamined` state is
+  `graph-bounded` or `no-seed`, never a partial ranking.
+- `TCP-V0-034`: (proposed 2026-09-23, not accepted; experimental; decision 0367) The slot is an
+  explicit opt-in. An unset, `off` or any other value of `CORVINT_CONTEXT_GRAPH` never consults
+  the graph, and the packet is byte-identical to the one before TCP-V0-030 (the recipe golden),
+  with no `graph` relation in `coverage`. On or off, `context` stays read-only (TCP-V0-001),
+  keeps its limit and result bounds, and keeps TCP-V0-016's abstention. Falsifier and gating:
+  the frozen `tools/retrieval-bench` `context` arm on all four positive subsets with the flag
+  unset and `on`; decision 0367 records the numbers and keeps the opt-in unless recall@20 does
+  not regress on any subset. Rollback: unset the flag; to remove the slot, delete `ppr.go`,
+  `identgraph.go`, their tests and hooks, and bump `analyzerSchemaID`.
+
+### Line-budgeted spans and evidence-set sufficiency (proposed 2026-09-23, decision 0366)
+
+- `TCP-V0-025`: (proposed 2026-09-23, not accepted; experimental; decision 0366) With
+  `CORVINT_CONTEXT_SPANS=on`, the packet gains one top-level `spans` member,
+  `{line_budget, lines_used, omitted, rows}`. Each row is `{role, path, start_line, end_line,
+  symbol, reason, confidence, blob_hash, authority, trust}`: an explicit 1-based inclusive line
+  range of one pinned source (`blob_hash` is the source's indexed blob, invariant 1), the reason
+  it was chosen, and `trust` derived from `authority` by TCP-V0-023's table. A `core` row comes
+  from a packet result row, in result rank order, skipping the reserved `governing`,
+  `spec-mentioned` and `instruction-routed` rows: first the declarations (`langsymbols.go` symbols) of the task's names
+  the file defines (TCP-V0-010-eligible identifiers by weight, then TCP-V0-016 names), at most
+  three per file, authority `syntax`, confidence `high`; else the first line naming the heaviest
+  task name as a whole word, widened to its enclosing declaration, `syntax`/`medium`; else the
+  earliest line carrying the most distinct task lexical terms, widened the same way,
+  `vocabulary`/`low`. A declaration ends at the grammar's end line when one is recorded, else the
+  line before the file's next symbol, else the file's end, with trailing blank lines trimmed; a
+  line with no enclosing declaration takes five lines either side. At most eight core rows.
+  An unset flag or any other value (`off`, `ON`, `unknown`) leaves the packet byte-identical to
+  the TCP-V0-001..024 packet: no `spans` member and no `coverage.sufficiency`.
+- `TCP-V0-026`: (proposed 2026-09-23, not accepted; experimental; decision 0366) After the core
+  rows, each core row whose symbol has at least four bytes yields at most two `call-site` rows:
+  the sources carrying the symbol as a whole identifier in the `Words` postings (none when more
+  than `contextMaxDefiners`+1 sources carry it, the definer included), ordered packet result rows
+  by rank, then the definer's reverse importers (the TCP-V0-004 `reverse-import` rule), then the
+  rest, each tier by path. A call site is a window of two lines either side of the first line in
+  that source naming the symbol whose window overlaps no core row. Its reason is "names `S` at
+  line L; `S` is declared by the core span P:S-E", authority `syntax`, confidence `medium`. A
+  call site is a lexical whole-word use, not a resolved call: a same-named symbol in another
+  scope is reported as a call site.
+- `TCP-V0-027`: (proposed 2026-09-23, not accepted; experimental; decision 0366) The declared
+  line budget is 240 lines. Core rows, then call-site rows, are taken in order; a candidate that
+  overlaps an already selected row is dropped silently, one that would take `lines_used` past
+  `line_budget` is counted in `omitted` and skipped, and no row exceeds 80 lines. The flag changes
+  no other packet byte: `results`, their order, `coverage.included_results`, the existing byte and
+  result bounds and every other member are those of the flag-off packet. Spans read only
+  size-bounded (TCP-V0-014) pinned index sources and the command stays a read command
+  (invariant 4); an unindexed, oversized or non-text source yields no span.
+- `TCP-V0-028`: (proposed 2026-09-23, not accepted; experimental; decision 0366) With the flag
+  on, `coverage.sufficiency` is `{verdict, scope, reason, anchors_total, missing_total, anchors,
+  missing}`, with `scope` always `task-anchors`. The task's anchors are its mentioned tracked paths (kind `path`) and its TCP-V0-016
+  specific names (kind `name`). A path anchor is `satisfied` when a selected span reads that path,
+  `insufficient` when the path is indexed but no span reads it, and `unknown` when it is not
+  indexed (with the evidence-gap reason). A name anchor is `satisfied` only when a selected span's
+  own lines, re-read from the pinned source with the range bounds-checked, carry the name as a
+  whole word, or the span's path carries it; `insufficient` when an indexed source or tracked
+  path names it but no span carries it; `unknown` when nothing indexed names it. The verdict is
+  `unknown` with no anchors, `insufficient` if any anchor is, else `unknown` if any anchor is,
+  else `satisfied`: missing evidence never reads as sufficient (invariant 2). `anchors` and
+  `missing` list at most sixteen entries each; the totals always count every anchor, and every
+  anchor that is not satisfied is named in `missing`. `satisfied` means the selected lines carry
+  the task's own anchors; it does not mean they answer the task, and the reason says so: "N of M
+  task anchors carried by the selected lines; not evidence the task is answered" (or, with no
+  anchors, that the task names none).
+- `TCP-V0-029`: (proposed 2026-09-23, not accepted; experimental; decision 0366) The evaluation
+  is `tools/retrieval-bench --arms context` over the frozen `v2_*` releases with the flag unset
+  and `on`, recording recall@5/10/20 per subset, plus two span metrics scored offline from the
+  `--context-packets` capture against each sample's `gold_spans` (a gold span is `{path,
+  start_line, end_line}`; a row covers it when the paths are equal and the ranges share a line):
+  - core-span recall: per positive sample with gold spans, the fraction of its gold spans that
+    some emitted span row covers, averaged over the subset's samples (a sample with no packet
+    scores 0);
+  - sufficiency precision: among samples whose verdict is `satisfied`, the fraction whose rows
+    cover every gold span (a `satisfied` verdict on a no-gold `v2_abstention` sample counts as
+    incorrect), reported with the number of `satisfied` samples.
+  The control is the flag-off packet read as a ±15-line window around each result's first
+  evidence line, in rank order, under the same 240-line budget. Falsifier: any subset's
+  recall@20 differing between flag off and on refutes TCP-V0-027; core-span recall below the
+  control on a subset, or sufficiency precision below the subset's base rate of fully covered
+  samples, is a losing case to record, and blocks promotion to default-on.
+
+- `TCP-V0-043`: (proposed 2026-09-23, not accepted; experimental; decision 0371) With
+  `CORVINT_CONTEXT_LSP=gopls`, a `--task` packet gains one `external` member: the section of
+  `EEP-V0-023` built from one in-process gopls expansion (`EEP-V0-024`, `EEP-V0-025`), plus a
+  `query` member naming the provider, the query digest, the seeds, the bounds, `queries_issued`,
+  `failed_queries`, `stopped` (empty, `query-budget` or `soft-deadline`), `outside_repository` and `omitted_rows`.
+  Unset, or any other value, prints exactly the bytes of `TCP-V0-001..024`. TCP-V0-051 adds an explicit selector and help without changing omission semantics.
+- `TCP-V0-044`: The `external` member is separate evidence, never a ranking input: `results`,
+  their order, `coverage`, `state` and every other member are byte-for-byte those of the same
+  invocation without the flag. The seeds are the subject, then the packet's `.go` result paths in
+  order (at most three, `EEP-V0-025`). Path relations are anchored on the seeds and the hop-one
+  files a relation starts from, each one names its hop origin in `relation.reference`, and the
+  section's list limit is the packet's `--limit`.
+- `TCP-V0-045`: When gopls is absent, the task names no usable Go seed, the session fails or
+  times out, or every issued query failed, the packet is the unchanged packet plus an `external` member whose one provider row
+  is `unavailable` with the `EEP-V0-026` reason, and the exit code is 0. That row is the packet's
+  visible coverage entry for the missing expansion; no partial relation is kept.
+- `TCP-V0-046`: The flag is measured before any promotion. A frozen `tools/retrieval-bench` run
+  of the `context` arm with the flag unset and with it set to `gopls`, on the same corpus and
+  sample bound, MUST show identical recall@5/10/20 on every subset, since `TCP-V0-044` keeps
+  `results` fixed, and MUST record the latency cost. gopls applies only to Go-module samples, so
+  every other subset is recorded as not applicable, never as a gain or a loss. The rate at which
+  the gold file appears among `external.path_relations` endpoints is reported as a diagnostic,
+  not as a retrieval claim. Letting these relations change `results` needs its own requirement
+  and decision 0070's paired ladder.
+- `TCP-V0-047`: When governing rows exist (TCP-V0-008), each governing file's text is split into
+  passages -- runs of non-blank lines, where a Markdown list item opens a new passage. A fenced
+  code block is literal text, not routing prose: its lines, fences included, end a passage and
+  belong to none; a fence closes only with the opening character, at least as long, and no info
+  string, as in CommonMark. A passage routes when it shares at least two distinct task terms (TCP-V0-004's
+  terms, the passage tokenised the same way) whose body idf `ln(1 + (N - n + 0.5) / (n + 0.5))`,
+  over N indexed sources of which n hold the term in their body, is at least 2.0. A term held
+  by more than about 13.5% of sources therefore never counts toward routing, and neither does a term
+  the body term table does not hold (such as a camelCase compound, which that table splits). Routing passages are
+  processed in governing-row order (closest directory first), then within each file ordered by the
+  summed body idf of those terms, highest first, then by line. The two-row cap is shared across all
+  governing files. Each backtick-quoted span in a routing passage that
+  is exactly an indexed source path, other than the subject and a path already reserved, is a
+  candidate in that order; the first two are reserved as `instruction-routed` rows after the
+  `spec-mentioned` rows and before every slot row, each costing one row of `--limit`, with the
+  action "Read this file: the governing instructions name it in a passage that shares this task's
+  terms, so the project routes work like this through it.", `authority` `instruction-reference`,
+  `confidence` `medium`, `score` 850, evidence line 1, `summary` "named by the governing
+  instructions for this task", and a `reason` that appends the file, line and the shared terms that count. A
+  candidate the cap turns away is `withheld` and makes `budget_shortage` `slots`; without a
+  governing row the relation is `not-applicable`. A path named only in a passage sharing fewer than
+  two such task terms reserves nothing: the row is project-authored routing matched to the task
+  (invariant 3), not a relevance ranking of instruction text. The rows are reserved in every other
+  respect (TCP-V0-003 promotion, TCP-V0-011 `critical`, TCP-V0-016 withdrawal). A frozen
+  `tools/retrieval-bench` `context` run before and after MUST show no recall@20 regression on any
+  subset.
+
+### Reciprocal rank fusion of relation rankings (proposed 2026-09-24, decision 0377)
+
+This amendment specifies an opt-in alternative to decision 0027's corroboration order and the
+reading that decides between them. Corroboration ranks rows by how many relations would have
+admitted the path; reciprocal rank fusion also weighs where each relation ranked it. Slot
+admission is not changed.
+
+- `TCP-V0-048`: (proposed 2026-09-24, not accepted; not implemented; decision 0377) With
+  `CORVINT_CONTEXT_RRF=on`, the step that ranks rows by their number of corroborating relations
+  (TCP-V0-004, decision 0027) instead ranks them by the fused score
+  `F(p) = sum over r of 1/(60 + rank_r(p))`, taken over the relation that admitted path `p` and
+  every relation that would also have admitted it. A relation is a candidate row's kind.
+  `rank_r(p)` is `p`'s 1-based position in relation `r`'s materialised candidate list with the
+  subject removed, among the positions `take` examined for `r` before its cap stopped it. Those
+  are the positions whose already-chosen paths decision 0027 records as corroborating, so both
+  orderings read the same relations for every path and differ only in weighting by rank. The
+  constant 60 is fixed before any reading and is not tuned on the evaluation sets. The sort is
+  descending by `F` and stable: rows with equal `F` keep their incoming order, which is slot order,
+  or the LTA-V0-011 slot-weight order when an admitted trace supplies one.
+- `TCP-V0-049`: (proposed 2026-09-24, not accepted; not implemented; decision 0377) With the
+  flag on, only that ordering changes. Slot admission, caps, relation membership, each row's single
+  evidence row, the `score` rise of 50 per corroborating relation, and the `summary` "; also"
+  list are the same as with corroboration. The reserved rows (TCP-V0-008, TCP-V0-009, TCP-V0-047)
+  and `graph` rows (TCP-V0-030..034) are placed after this step exactly as they are today. The
+  `--limit` truncation still follows the ordering, as it follows corroboration, so which admitted
+  rows survive the limit can change; that is the effect under measurement. Every ordered row's
+  `reason` gains `; rrf F (KIND@RANK, ...)`, listing the admitting relation first and then the
+  corroborating relations in the order `take` recorded them, with `F` to four decimals. An unset,
+  `off` or any other value preserves the existing packet bytes (the recipe golden). On or off,
+  `context` stays read-only (TCP-V0-001) and keeps TCP-V0-016's abstention.
+- `TCP-V0-050`: (proposed 2026-09-24, not accepted; not implemented; decision 0377) Two readings,
+  with the same binary and the flag unset and `on`, decide the flag, and both are recorded in
+  `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md`. (a) The frozen `tools/retrieval-bench --arms context` run over
+  `v2_code2test`, `v2_comment2context`, `v2_edit2ripple` and `v2_trace2code`, recording
+  recall@5/10/20 and the losing cases. (b) The offline gold-rank reading decision 0027 used: every
+  task in `tools/cw-trial/testdata/unseen-corvint-v2` (63 tasks, with the `unseen-corvint-v1`
+  subset of 34 also reported alone) is materialised at its base commit with history, as
+  `cw-trial run --history` does. Each task runs `context --task TEXT --subject CHANGED_FILE
+  --limit 20`, and its gold paths are counted at ranks 1-5, 6-10 and 11-20, and as absent. Both
+  arms read the same tasks, and the task file's sha256 is recorded. The flag stays opt-in or is
+  removed if (a) loses recall@20 on any subset, or if (b) places fewer gold paths in the top 20 on
+  either set. Default-on needs no recall@20 loss in (a), more gold at ranks 1-5 in (b) on both sets
+  with the top 20 not falling, decision 0070's paired ladder, and a separate owner decision.
+
+### Explicit Go semantic integration (V1-0476)
+
+Owner implementation authorization: 2026-09-29, “get it built”, following the proposed first
+Go CLI/agent milestone. The detailed extension remains proposed/experimental; broad usefulness
+and multi-language promotion are not inferred from that authorization.
+
+- `TCP-V0-051`: `context --task` accepts at most one `--lsp gopls|off` (including `--lsp=VALUE`).
+  Explicit selection overrides `CORVINT_CONTEXT_LSP`; omission preserves the legacy behavior.
+  Invalid values, duplicate selectors, and combinations with `--summary` or `--expand` refuse
+  before execution. `gopls` is resolved from an absolute PATH entry only. Missing/failing gopls
+  retains TCP-V0-045; no read installs software or fetches dependencies. Help and `docs/LSP.md`
+  describe setup, limits, evidence interpretation and the MCP profile.
+- `TCP-V0-052`: CLI and the explicit MCP descendant use one shared attachment. Before and after
+  enrichment, commit, tree, object format, status digest and dirty paths are compared with the
+  index observation. A mismatch withholds the packet (CLI exit 2; MCP repository-state abstention).
+  Cancellation propagates without emitting a success packet. Results, ordering and authority
+  remain unchanged; the only success addition is `external`. This is an observed stability
+  bracket, not an atomic filesystem snapshot or proof against change-and-revert interference.
+- `TCP-V0-053`: Required live qualification fails when gopls is missing. Compiled CLI and MCP
+  must produce identical packets on committed dependency-free module and go.work fixtures,
+  including specific definition/reference witnesses, unchanged off-mode packets and dirty-file
+  omission. Retain exact Go/gopls versions, binary digests, timing, bytes and fixture commits.
+  These synthetic observations do not establish retrieval gain or agent productivity; the
+  broader TCP-V0-046 promotion gate remains separate and unrun unless explicitly evidenced.
+- `TCP-V0-054`: (experimental, V1-0482) When Go LSP enrichment has an explicit task subject,
+  its `external.path_relations` MUST place relations touching that path in the bound root
+  repository before other admitted relations, matching either endpoint. Within each group the
+  existing deterministic total relation key MUST order the rows before the existing limit is
+  applied. A same-path endpoint in another repository MUST NOT receive subject priority.
+  Omission counts, endpoint verification, provenance, provider/query bounds and Core packet
+  results/ordering MUST remain unchanged. Without a subject, and for ordinary external-provider
+  projections, the existing order MUST remain unchanged. Priority does not guarantee retention
+  when subject relations themselves exceed the bound, and does not claim task-outcome gain.
+
+### Authority screen for reserved rows (V1-0414, accepted 2026-10-16)
+
+Threat: a reserved row inherits the project's top authority, so a poisoned instruction file
+inherits it too. The Rules File Backdoor hid instructions for coding agents in invisible Unicode
+inside rule files that human review shows as clean
+([pillar.security](https://www.pillar.security/blog/new-vulnerability-in-github-copilot-and-cursor-how-hackers-can-weaponize-code-agents)),
+and an `AGENTS.md` injection made OpenAI Codex CLI stage local credentials before the user's task
+([backslash.security](https://www.backslash.security/blog/openai-codex-injection-in-agents-md-exfiltrating-credentials)).
+An agent that edits the governing file of the change it is making can grant itself authority the
+same way. TCP-V0-055..058 are accepted under the owner's standing auto-accept of lane requirements
+(2026-10-11), recorded 2026-10-16 (V1-0414); implemented in `internal/contextindex/authority_screen.go`
+and `internal/cem/workflow/self_modified.go`. The `cem status` report is `CEM-V1-270`
+(`cem-stable-v1.md`) and the `cem cite` refusal `CEM-V1-114`.
+
+- `TCP-V0-055`: (accepted 2026-10-16 under the owner's standing auto-accept (2026-10-11); V1-0414)
+  Before reservation, every reserved row (TCP-V0-008
+  governing, TCP-V0-009 spec-mentioned, TCP-V0-047 instruction-routed) MUST be screened over the
+  bounded text of its pinned source for these code points, and for no others:
+  zero-width U+200B, U+200C, U+200D, U+2060..U+2064, and U+FEFF at any byte offset other than 0;
+  bidi-control U+202A..U+202E, U+2066..U+2069, U+200E, U+200F and U+061C;
+  tag U+E0000..U+E007F. A U+FEFF at byte offset 0 is an encoding signature and is exempt: the
+  leading byte order mark that Windows editors write hides nothing and would otherwise downgrade
+  ordinary files. A row holding any listed code point carries, on its sole evidence row, a
+  `warnings` array whose entry `{code:"hidden-unicode", classes, count, first_line,
+  first_code_point}` lists the present classes in the fixed order `zero-width`, `bidi-control`,
+  `tag`, the total count, and the one-based line and `U+XXXX` form of the first one. A reserved
+  path the bounded reader cannot hand back is not cleared by default: it carries
+  `{code:"hidden-unicode-unscreened", detail}` (invariant 2).
+- `TCP-V0-056`: (accepted 2026-10-16 under the owner's standing auto-accept (2026-10-11); V1-0414)
+  A row with any TCP-V0-055 or TCP-V0-057 warning is
+  downgraded: it stays in `results` inside the reserved block, so truncation cannot drop it, with
+  its relation, path and reason, but its `authority` becomes `downgraded-authority`, whose
+  TCP-V0-023 `trust` is `repository-content`; its `score` is 0, `confidence` `low`, its summary
+  `not project authority: <codes>`, and its `action` tells the reader to inspect the file, not
+  follow it. It is ordered after every clean reserved row, each group in reservation order. It
+  never satisfies `coverage.governance` or `coverage.critical`/`critical_missing`, is named in
+  `coverage.governance_refused` as `{relation, path, trust, reason, warnings}` where `warnings`
+  lists its codes, routes no TCP-V0-047 instruction paths, and is not recorded as governance by
+  the local dogfood prompt profile, which lists it among its unavailable selectors instead. A
+  packet with no downgraded row is byte-identical to the packet before this requirement.
+- `TCP-V0-057`: (accepted 2026-10-16 under the owner's standing auto-accept (2026-10-11); V1-0414)
+  The packet's diff under review is the working tree
+  against the indexed revision. A reserved row whose path the index records as modified there
+  (`Index.DirtyPaths`) carries `{code:"self-modified-authority", scope:"working-tree", detail}`
+  and is downgraded by TCP-V0-056 whatever its text, so a change cannot cite the governing file it
+  edits as authority for itself. For a committed change, `cem status` reports the same condition
+  by CEM-V1-270 (first specified as CEM-CB-026), using the same governing-instruction rule as
+  TCP-V0-008's `documentKind`.
+- `TCP-V0-058`: (accepted 2026-10-16 under the owner's standing auto-accept (2026-10-11); V1-0414)
+  The screen adds no input other than the pinned blob and
+  the index's dirty-path list, no option, no index, snapshot or pack field, no network read and
+  no runtime dependency; it never edits or strips the file. Every added packet member is additive
+  and appears only on a downgraded row or in `governance_refused`.
+- `TCP-V0-059`: (proposed 2026-10-06 and amended the same day with the gate, V1-0859;
+  experimental) Documentation share. In the merged order of TCP-V0-013, documentation takes at
+  most `ceil(fill / 2)` of the positions code hits compete for (the ceiling), `fill` being
+  `max(limit - taken - reserved, 0)` with `taken` the rows the earlier slots admitted and
+  `reserved` the TCP-V0-008, TCP-V0-009 and TCP-V0-047 rows none of those slots admitted, which
+  are reserved before the fill and prepended before the final truncation; and a documentation
+  hit takes one of those positions only through the gate: it outscores the lead, the strongest
+  code hit competing for the fill (a held row sets no lead; with no code hit every documentation
+  hit leads), or it is one of the first two documentation hits in TCP-V0-014 order that do not
+  (the quota, `contextDocumentationQuota`: the pre-amendment two-row rule kept as the floor).
+  The documentation hits past the ceiling or the gate follow every code hit, in TCP-V0-014
+  order, so when fewer code hits remain than positions the deferred tail fills the positions no
+  code hit takes and documentation then holds more than the share admitted (one code hit and
+  six documentation hits at limit 4 carry three documentation rows). A hit for the subject or
+  for a path an earlier slot admitted or a reservation holds keeps its strength position but
+  takes no share or fill position: the fill drops it as a duplicate or the reservation promotes
+  it in place. The half and the quota are chosen constants (`contextDocumentationShare`,
+  `contextDocumentationQuota`), not measured calibrations: BM25 over prose is not comparable
+  with BM25 over code (prose repeats a prose task's words densely, and `b` 0.3 rewards length),
+  so an unbounded merge fills a prose-heavy task's packet with documentation, and the half share
+  alone admitted generic documentation of this repository's prose-heavy tree ahead of the
+  changed code (the 2026-10-06 replay of five merged pull requests lost three gold code rows to
+  it, which the gate restores while no rc.2 development case carries fewer critical rows than
+  under the half share, 29 against 27 in total, although one case swaps a half-share
+  documentation row for two code rows); the rc.2 development cases that chose the half over a
+  four-row quota, a round-robin
+  and an unbounded merge, and the replay that chose the lead over a floor at the head's weakest
+  row, a one-third share and a closed-document exclusion, are in the build-log entry. The gate
+  reads the task as a documentation task when prose leads the code; a documentation hit past the
+  quota that does not lead is deferred however strong it is, which TCP-V0-061 states. The share
+  never widens the walk, reads no new input and changes no slot other than the lexical fill.
+  Falsifier: a held-out orientation run whose documentation misses become code misses under
+  this share, or whose gold documentation sits past the quota without outscoring the lead.
+- `TCP-V0-060`: (proposed 2026-10-06, V1-0431 criterion 1 and V1-0859; experimental) A lexical or
+  documentation row's `score` carries its match strength: `300 + round(299 * bm25 / strongest)`,
+  `strongest` being the walk's highest BM25 (TCP-V0-014's, after the TCP-V0-022 anchor and
+  TCP-V0-040 role credits), so the strongest lexical hit scores 599, every other hit its share
+  of the band, and no lexical row reaches the 600 tier of a relation row. The corroboration
+  credit applies unchanged. Under TCP-V0-035's opt-in reorder the row order may differ from the
+  score order by the recency factor. Before this amendment every lexical row scored a flat 300,
+  so a consumer reading the score could not tell a strong hit from a weak one.
+- `TCP-V0-061`: (proposed 2026-10-06, V1-0859; experimental) When the walk produced lexical hits
+  the packet does not carry, `coverage.uncertainty` (free text under CCF-V1-005, outside the
+  enumeration register, read by no reader and feeding no ranking) states, in this order: `N
+  code and M documentation rows the task matched lexically are omitted by the result limit L`;
+  and, only when documentation hits the fill did not carry outscore the weakest code row the
+  packet carries past TCP-V0-013's head, `K documentation rows that outscore a carried code row
+  are omitted by the documentation share (S of F lexical positions); the strongest is \`path\`
+  (bm25 X)`, `S` being the share's ceiling: the share's gate or ceiling, not the limit, kept
+  them out, since without the share they would hold that code row's position. A documentation hit the head or the limit displaced is counted in the
+  first line only, the head being TCP-V0-013's rule and not the share. Both lines are read from
+  the rows the packet carries, the head as a count of the fill's leading code positions read by
+  identity once the reorder and the reservations have placed them and before a later relation
+  can carry one of them under another kind, so that TCP-V0-035's reorder of each kind among its
+  positions (a recent hit may hold a head or a share position, and a code row the reorder moved
+  past the head is the comparison row) states what that packet omitted, and TCP-V0-004's `pair`
+  promotion of a head test moves no row into the head (the code row past it stays the
+  comparison row under whatever kind the packet carries it). A hit carried under another
+  relation is not omitted. When TCP-V0-016 withholds the ordinary rows, the withdrawn hits are stated as
+  `N code and M documentation rows the task matched lexically are withheld by the
+  \`unsupported-conjunction\` verdict, not by the result limit L`, after the first line when the
+  limit cut a reservation the task matched (the verdict withdraws no reservation, so that row is
+  omitted by the limit) and in its place otherwise; the share line is absent. With nothing
+  omitted the member is absent, so a packet that carried every hit keeps its bytes.
+- `TCP-V0-062`: (proposed (V1-0993), 2026-10-07; experimental) When `--task` is absent, exactly
+  one positional argument after `context` is the task, so `corvint context TEXT` and `corvint
+  context --task TEXT` with the same other flags write byte-identical stdout, stderr and exit
+  status. A positional given with `--task`, or more than one positional, is refused before any read
+  with exit 2 and `invalid-arguments`; the message names `--task` and carries the copyable example
+  `corvint context --task "fix the parser"`. Neither form still refuses with the unchanged
+  `the following arguments are required: --task`. A first positional that names a lookup mode
+  (`grep`, `defs`, `refs`) stays the lookup surface, and a positional counts as a task for the
+  `--expand` exclusion. Under `--corpus` the positional is the corpus search query as `--task` is.
+  Compatibility: additive under CCF-V1-006, since `context` is not a `cli-parity-v0` output and the
+  change only accepts an input that was refused; no packet member, identifier or enumeration moves.
+- `TCP-V0-063`: (proposed 2026-10-08, V1-0859 and V1-0431; experimental) A lexical hit whose path
+  ends, case-insensitively, in `.json`, `.jsonl`, `.ndjson`, `.csv` or `.tsv` is record data
+  (`isRecordDataSuffix`): structured records such as receipts, run outputs, fixtures, manifests
+  and task stores, whose short field-dense bodies BM25 at `b` 0.3 ranks above the code that
+  produces or reads them. YAML, TOML and XML stay code, since they commonly carry the build, CI
+  and project configuration a change edits. Record data keeps its kind `lexical`, its TCP-V0-060
+  score and its reason, but in TCP-V0-013's fill it takes no head position and no documentation
+  share position, and it counts as code only for TCP-V0-059's lead. It takes a merged position
+  when it outscores every other code hit competing for the fill (a held row sets no lead; with no
+  such code hit every record-data hit leads), or as one of the first two record-data hits in
+  TCP-V0-014 order that do not (`contextRecordDataQuota`, a chosen constant mirroring
+  `contextDocumentationQuota`, not a calibration); every other record-data hit follows every code
+  hit and every deferred documentation hit, in TCP-V0-014 order. A held record-data hit spends no
+  quota. TCP-V0-061's first line counts record data as code; when record-data hits the packet does
+  not carry outscore the weakest carried code hit that competed for the fill, a further line,
+  after the share line, states `K record-data rows that outscore a carried code row are omitted
+  by the record-data gate (Q admitted below the strongest code row); the strongest is \`path\`
+  (bm25 X)`, `Q` being the quota; it is absent when TCP-V0-016 withholds the ordinary rows. The
+  gate reads no new input, widens no walk and changes no slot other than the lexical fill. Under
+  TCP-V0-035 record data reorders only inside the positions the gate gave it, and the line reads
+  every record-data hit against the carried rows. Falsifier: a held-out orientation run whose gold record-data file the gate defers while a
+  weaker code row is carried, or whose critical rows carried fall against the TCP-V0-059 packet.
+  The development replay already shows one such deferral at limit 50 (`docs/specs/INDEX.json` in
+  pull request 557, behind two task-store records) against two code rows gained.
+- `TCP-V0-064`: (accepted 2026-10-08, decision 0470; V1-0485; experimental) `TaskContext` observes its request
+  context at fixed compile boundaries (before the pair slot, before the mention slots, before the
+  subject slots, after the co-change history join, per lexical term, after the lexical walk inside
+  the lexical fill, after the fill) and once more after the packet, spans and snapshot refusal are
+  complete. A context that has ended at any boundary returns the existing cancellation refusal
+  (`Git repository index was cancelled`, or its deadline form) and no packet; it never returns a
+  READY or abstaining packet. The co-change history and recency readers are joined before
+  `TaskContext` returns on every path, and the history error is read only after its reader is
+  joined. The slot generators between two adjacent boundaries run to completion, so the retirement
+  bound is the work between adjacent checks, not a constant; that worst case is not measured. An uncancelled request keeps its packet bytes.
+
+- `TCP-V0-065`: (accepted, decision 0516 (V1-0315); experimental) A task-context
+  packet with index exclusions carries a top-level `exclusions` object, separate from `results`
+  and `coverage`. Its `count` is the number of recorded index exclusion rows plus the index's
+  unsupported-suffix count, matching the impact receipt's population. Its `samples` is an array
+  of at most ten recorded exclusions, ordered by display path then reason, each with exactly
+  `path` and `reason`. Non-UTF-8 tracked paths retain IDX-SNAP-V0-024's UTF-8 display form and
+  `unsafe-or-non-utf8-path` reason, even when the task names neither that path nor a subject.
+  Unsupported-suffix exclusions contribute to the count but have no recorded row to sample;
+  the count can exceed the sample length. This is corpus-wide uncertainty about evidence the
+  index did not read, not an assertion that every excluded path is relevant to this task or that
+  the sample is exhaustive. Skipped non-blob entries and unparsed sources are outside this
+  population. When both exclusion counts are zero, the member is absent and packet bytes remain
+  identical. The disclosure is deterministic across repeated reads and snapshot reloads, does
+  not mutate the index, and changes no ranking, admission, result, coverage, state, limit or
+  schema version. It is additive for consumers that ignore unknown top-level members.
+  Acceptance evidence uses a committed Latin-1 tracked-path fixture without naming the excluded
+  path, both eager and snapshot-backed reads, more than ten constructed exclusions, a suffix-only
+  exclusion, old-consumer decoding, and frozen no-exclusion packet bytes. Rollback removes this
+  optional member and its assembly only; no index or snapshot migration is needed. Owner
+  acceptance remains unresolved regardless of passing local tests.
+- `TCP-V0-121`: (accepted under the owner's standing auto-accept (2026-10-11) (V1-2131)) Tasks
+  store projection files (`DIRTY-CACHE-017`, reason `task store projection`) are excluded by
+  policy, not a gap in what the index could read. They still count in the `exclusions` member's
+  `count`, but its `samples` order places every other reason first. Within each group, samples
+  keep the `TCP-V0-065` order of display path then reason. A repository with a Tasks store
+  therefore samples its real gaps (size bound, non-UTF-8, generated or protected paths) before
+  task state. This changes no count, ranking, member or packet without projection exclusions.
+- `TCP-V0-160`: (accepted under the owner's standing auto-accept (2026-10-11) (V1-0426)) `context
+  grep` screens the lines it quotes (`TCP-V0-017`). `internal/secretscreen` runs over the whole
+  file text, and a quoted line that a match overlaps has `text` `[REDACTED]` and `"redacted":
+  true`, keeping its `line` and `terms`. Clean lines and rows are unchanged. The packet itself
+  quotes no file text, so it needs no screen.
+- `TCP-V0-161`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2288) A
+  subjectless counterpart test that TCP-V0-004 cannot admit because the packet has no unfilled
+  budget is listed in an optional `coverage.omitted_pairs` member: `count` is the number of such
+  counterparts and `samples` holds at most ten `{path, reason}` objects in admission order, with
+  `reason` `paired test omitted: budget`. The member is present only when there is one (additive
+  under CCF-V1-006); it ranks nothing and changes no row. TCP-V0-011's `withheld` count for
+  `pair` still counts the same counterparts. Falsifier: the go-chi/chi orientation case `record
+  response status when flushing` no longer carries `middleware/wrap_writer_test.go` as a row, and
+  its packet must name that path here.
+  Projection files never rank as results because the index never reads them. Rollback: restore
+  the single path-then-reason order. Test:
+  `TestTaskContextKeepsTaskStoreProjectionsOutOfRankingAndBehindRealGaps`.
+- `TCP-V0-141`: (accepted under the owner's standing auto-accept (2026-10-11) (V1-1285)) The packet
+  `revision` is the tree of the captured commit, so a worktree with uncommitted tracked or
+  untracked paths answers from committed bytes. When the index records a non-empty dirty set,
+  `coverage.uncertainty` gains one line giving the dirty-path count, the captured commit and its
+  tree, and stating that uncommitted edits are not evidence. A clean worktree's packet bytes are
+  unchanged. The line changes no ranking, result, state or schema version. Rollback: remove the
+  line. Test: `TestTaskContextDisclosesDirtyWorktreeAgainstCommittedTree`.
+- `TCP-V0-150`: (accepted under the owner's standing auto-accept (2026-10-11) (V1-2127)) The
+  task packet's and the `context defs|refs|grep` envelope's `revision` stays the indexed tree
+  object id (the tree of the HEAD commit, also on a dirty worktree); consumers keep reading it
+  as a tree. Each also carries an optional top-level `commit` member, the full object id of the
+  HEAD commit the index observed, present whenever that commit is known (absent on an unborn
+  HEAD). `commit` is what `git show <rev>:<path>` and commit-ish consumers need; it changes no
+  ranking, row or other member. Rollback removes the member. Test:
+  `TestTaskContextCarriesHeadCommitBesideTreeRevision` and the regenerated
+  `context-recipe-default-golden.json` and core-freeze context goldens (additive under CCF-V1-006).
+- `TCP-V0-152`: (accepted under the owner's standing auto-accept (2026-10-11) (V1-1010, V1-1015;
+  V1-1285 abstention)) A task anchor no evidence resolves is disclosed as uncertainty in
+  `coverage.unresolved_anchors` `{"count", "samples": [{"anchor", "reason"}]}` (at most ten samples
+  in anchor order), present only when there is one: (a) a requirement id the task or subject names
+  for which no tracked spec has a defining clause (TCP-V0-009); (b) a ticket-shaped id, an id
+  token ending in four or more digits such as `V1-0523`, which no pass can resolve because the
+  index holds no Tasks ticket state (TCP-V0-121); (c) a code-shaped identifier the task names
+  (`definitionEligible`, at least four bytes, a lower-case letter, and an inner upper-case letter
+  or underscore) that no indexed declaration or struct field (TCP-V0-162) defines, such as an
+  interface method. The member changes no ranking, row, limit or answerability verdict;
+  resolving ticket anchors through ticket state would need its own requirement and frozen
+  evaluation. Rollback removes the member and the two compiler fields that feed it. Test:
+  `TestTaskContextDisclosesUnresolvedIDAnchors`.
+- `TCP-V0-162`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2262, V1-1015
+  follow-up) The index records each named field of a Go top-level struct type (kind `field`,
+  with its file, blob and line) in its own `Index.Fields` table, persisted by every snapshot
+  encoding (gob, sectioned, pack, blob facts and snapshot reuse). A parenthesized struct type
+  (`type T (struct{...})`) is the same struct. Embedded fields, `_`, the fields of a nested
+  anonymous struct and of a function-local type are not recorded, and a source the Go grammar
+  refuses records none. The `definition` slot (TCP-V0-010) reads a name's fields only when no
+  func, type or var declaration defines that name, so a declared name keeps its exact definer
+  set, `contextMaxDefiners` cut and rarity; a field-defined name then yields a `definition` row
+  at the field's line and is no longer a TCP-V0-152(c) anchor. A path the slot reaches through
+  several task names keeps its strongest match (highest weight times rarity, the first such name
+  on a tie) as its score and citation, whatever order the names are visited in. No other
+  consumer of the declaration table (`query`, `impact`, `context defs|refs`, features, symbol
+  windows, the identifier graph) reads fields. Falsifier: a task naming `ExpectedTests` on this
+  repository no longer carries `internal/testrunner/types.go` as a `definition` row, or the
+  frozen `tools/retrieval-bench --arms context` code2test recall@20/@10/@5 falls below the
+  base. Rollback: drop the table and the fallback, restore the analyzer schema. Tests:
+  `TestGoStructFieldsAreIndexedWithFileAndLine_TCPV0162`,
+  `TestTaskContextRetrievesTheStructFieldDefiner_TCPV0162` (decodes each encoding directly and
+  proves shard and snapshot reuse), `TestParenthesizedStructTypeFieldsAreIndexed_TCPV0162`,
+  `TestDefinitionRowKeepsTheStrongestMatchPerPath_TCPV0162`,
+  `TestStructFieldNeverJoinsADeclaredNamesDefiners_TCPV0162`.
+- `TCP-V0-163`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2953) The
+  packet's candidates form one typed union, and each result's existing `kind` names its member:
+  governing instructions (`governing`, `spec-mentioned`, `instruction-routed`), named-subject
+  relations (`mentioned`, `definition`, `reverse-import`, `reference`, `cochange`, `sibling`,
+  `graph`), paired tests (`pair`, `test`), `documentation`, and `lexical`. The wire is unchanged.
+  The authority label (and the `trust` class derived from it, TCP-V0-023) is an output, never an
+  input to a row's score or order: slot admission, BM25 lexical order, learned slot weights
+  (LTA-V0-011) and corroboration (decision 0027) read kind, task terms and supporting relations
+  only. Reserved governing rows keep their TCP-V0-009 positions; that is a relation-gated
+  reservation, not an authority credit. Non-goals: a new candidate-class wire member, and the
+  allocation-strategy comparison the 2026-10-28 audit proposes. Falsifier: a rendered kind outside
+  the union, or relabelling an irrelevant row with `project-instructions` or `repository-spec`
+  moving it above a relevant row. Rollback: remove the tests; no runtime change. Tests:
+  `TestTaskContextResultsNameTheirCandidateKind_TCPV0163`,
+  `TestTaskContextAuthorityLabelsDoNotOrderRows_TCPV0163`.
+
+## Non-goals and authority
+
+Forward imports of the subject, cross-directory definition-to-reference edges, and re-export
+following are measured gains (decision 0024) that this slice does not ship; multi-file co-change
+queries, confidence-pruned re-ranking of the syntax slots by history, and a commit-size cap tuned
+on mature repositories are the co-change follow-ups decision 0025 leaves open; they are the next
+slots, not implied ones. No falsifier or verdict is attached here: that is `prove`'s job, and
+embedding this packet in `prove` is a separate slice. This `context` profile does not govern or
+alter the `query` and `impact` wires; their independent `GPK-V0-055`/`GPK-V0-056` ranking
+corrections and registered Python divergences do not change these slots. The slot caps and weights
+are the measured values on one 50-task corpus; retuning them is a decision, not a drift. (A) TCP-V0-008..012 add no runtime model, no learned ranker, and no
+cross-request possession or memory of what a caller already holds: deduplication is of paths within one packet at one revision. They add no
+option to TCP-V0-002 and no byte budget; `budget_shortage` reports slot and work limits only.
+Markdown stays the only documentation kind `documentKind` classifies as `instructions`, `decision`,
+or `spec`, so only a Markdown file can own a `TCP-V0-008` governing row or a `TCP-V0-009`
+definition-owner row; widening to another documentation suffix is decision
+`0087-non-markdown-authority-2026-09-11.md`'s to make, not this packet's. TCP-V0-022 adds no
+anchor table to the index, snapshot or pack and no packet member; its five anchor shapes are fixed,
+not a grammar per language, and the bench's separate anchor-bearing subset is
+`tools/retrieval-bench`'s to add, not this packet's.
+
+TCP-V0-023 adds no input and no ranking change: the class is a function of the `authority`
+label alone, so it cannot disagree with the label and does not verify it; a row a forged packet
+labels `syntax` is `repository-content` by label. Stamping `trust` on the `query` and `impact`
+wires (held byte-exact by GPK-V0-002 and `conformance/cli-parity-v0`) and on the `external`
+section's rows is not this slice's to do.
+
+The role line (TCP-V0-039..042) adds no packet member, relation, index table or model: the role line is read from
+the blob, never summarised by a model or stored, and a file without a qualifying doc comment has
+none. Non-code suffixes, Ruby, shell and non-column-0 comments are out of scope, as is a role line
+for a source outside the 512 highest-scoring lexical candidates.
+
+TCP-V0-024 adds no packet member, ranking input or row. The summary is a projection of the exact
+default bytes, and expansion reads Git objects at the handle's pinned tree. Neither view changes
+`query`, `impact` or any `protocol/**` wire, and neither adds a root verb.
+
+The span amendment (TCP-V0-025..028) adds no index encoding, snapshot field, ranking input or result
+row: spans are chosen after the result rows are final and read only what the index already holds.
+They do not resolve calls (a call site is a whole-word use), do not choose results by span, and do
+not make `satisfied` a claim that the task is answered. Default-on, spans on the `query`/`impact`
+wires, and a caller-chosen line budget are not this slice's to do.
+The graph slot (TCP-V0-030..034) adds no language server, call graph, import resolution or
+embedding: an edge is a whole-word name match against an indexed definition, so a name shared by
+unrelated code joins them and a reference through an alias or a qualified import path that splits
+the name does not. The graph ranks; it is never a relation, never corroboration, and never evidence
+that a file is affected. Using it as a default slot, tuning its cap or restart, or seeding it from
+lexical rows is decision 0367's to reopen with a new evaluation, not this slice's.
+
+Operational note (V1-0051): `corvint context` and the generic harness-event dispatch it shares
+(`cmd/corvint/taskcontext.go`, `cmd/corvint/main.go`) write a local pprof CPU profile when the
+operator sets `CORVINT_CPUPROFILE=PATH` in the process environment (V1-1643: the code resolves the
+`CORVINT_` prefix through `internal/runtimeenv`; a bare `CPUPROFILE` is ignored). It is off by default, diagnostic only,
+and does not widen what either read-only path reads, returns, or mutates (AGENTS.md invariant 4). Amendment 2026-10-23
+(GitHub #1600): the knob, with the heap knob `CORVINT_MEMPROFILE`, now applies to every command at
+the binary's entry point and to every MCP server; `docs/specs/performance-profiling-and-read-budget-v0.md`
+(PRB-V0-001..012) owns it.
+
+The recency features (TCP-V0-035..038) add no index, snapshot or pack change, no clock read and
+no new root verb. They do not make recency a relation (a recent file is not admitted for being recent), do not rerank
+the syntax or reserved slots, and do not resolve ownership: mapping GitHub handles or teams to
+commit emails needs the host's account data, which this local packet does not read.
+
+The rank-fusion ordering (TCP-V0-048..050) adds no relation, index, snapshot or pack change and no
+new root verb. It does not fuse git recency as a channel: the frozen bench cannot measure recency
+(decision 0369), and that work waits on a history-preserving corpus (ticket V1-0221). It does not
+weight relations differently; learned relation weights are LTA-V0-009..012's.
+
+The authority screen (TCP-V0-055..058) is not a general Unicode policy: it has no allowlist for
+legitimate joiners such as the U+200D in emoji sequences or the U+200C some scripts need, so a
+governing file using them is downgraded and its owner must move that text out of the governing
+file or accept the warning. It does not screen homoglyphs, U+00AD soft hyphens, variation
+selectors or other format characters outside the named sets, does not screen ordinary rows,
+`query`/`impact` wires or `external` rows, and does not add a `--base` option: a committed range is
+`cem status`'s to report (CEM-V1-270). It does not change what CCF-V1-005 freezes; the
+`governance_refused` member keeps its name and type, and decision 0468 (V1-0653) registers its
+relation, trust and warning values under CCF-V1-007 (d). `AGENTS.override.md` and
+other names `documentKind` does not classify as `instructions` are outside the screen, as they are
+outside TCP-V0-008.
+
+## Failure modes
+
+- An untracked or absent subject: refused with an error naming the revision (TCP-V0-002). An
+  excluded or unread-kind subject is admitted without a blob hash and contributes no identifier
+  evidence; its pairing and sibling slots still work from the path alone.
+- A task naming an ambiguous basename: no `mentioned` row for it; the lexical fill may still
+  list the files.
+- A prose-heavy task over a documentation-heavy tree: documentation hits outscore most code
+  hits; the share (TCP-V0-059) holds them to half the fill when prose leads the code and to its
+  quota of two otherwise, and the documentation hits it deferred are stated in
+  `coverage.uncertainty` (TCP-V0-061); the packet does not claim the carried code rows are the
+  strongest matches.
+- A task whose words fill a record-rich tree's receipts, fixtures or task stores: record-data hits
+  outscore the code that writes or reads them; the gate (TCP-V0-063) carries those that outscore
+  every code hit and two more, defers the rest past the code, and states the deferred ones that
+  outscore a carried code row in `coverage.uncertainty`. A task whose gold is a record file the
+  gate deferred loses it to the limit before a weaker code row (the falsifier).
+- A repository whose grammar the index does not parse: `definition` and `reverse-import` are
+  empty for it (Swift excepted: its symbols are extracted and its module edge is the rule above,
+  so a Swift subject outside the SwiftPM layout has no `reverse-import` row) and the packet says
+  nothing about why; the consumer must not read absence as
+  evidence of absence (AGENTS.md invariant 2).
+- A subject with no commit among the last 200 (a new file, or a shallow clone, whose boundary
+  commit lists every path it holds and is not counted), or whose every
+  commit is a bulk sweep over the cap: the `cochange` slot is empty and the packet does
+  not say why; absence is not evidence that nothing co-changes (invariant 2).
+- A subject in a flat root directory: the `sibling` slot admits its root siblings; the parent
+  subtree rule does not apply.
+- A subject with no extracted symbol of four bytes or more (a grammar the index does not parse, a
+  data file): the `reference` slot is empty and the packet does not say why (invariant 2). A
+  subject a grammar refused or whose symbol walk stopped short is the exception: the index records
+  it, and TCP-V0-011 reports `reference` as `subject-symbols-incomplete`.
+- A task that pastes a trace naming symbols the tree does not yet define (an undefined-symbol
+  build failure, a test the fix adds): TCP-V0-016 counts them as refuted names; the packet still
+  answers while one known name remains, and is withheld when the trace names nothing the tree
+  carries and no rescue relation is admitted (one `v2_trace2code` positive, gin-gonic/gin, whose
+  trace names only the fix's new symbols). A task that is a
+  JSON document with label values (`source_type`) shaped like identifiers gains refuted names
+  the rule cannot tell from the task's own; only keys and escapes are stripped.
+- (A) An instruction file over the index's source size bound (`maxSourceBytes`), or listed in `Index.Exclusions`, is not read, so TCP-V0-008 reserves
+  nothing at all: the packet reports the `governing` relation's `unexamined` state as `capped` rather than omitting it silently. A tree with no
+  tracked instruction file and no defining spec for any id the task names reserves nothing and reports `governance` `unresolved`, which is not
+  evidence that it has none.
+- (TCP-V0-017) An identifier no grammar extracted (a language without a symbol walker, a
+  definition in an excluded or unread path): `defs` reports `NO_CANDIDATES`, `refs` lists no
+  importers, and neither says why; absence is not evidence of absence (invariant 2). A Go
+  reference inside the definer's own package has no import edge and ranks by whole-word count
+  only.
+- (TCP-V0-022) An anchor whose word runs are all under three bytes, or whose candidate
+  intersection exceeds 512 sources, is not verified and contributes nothing, and the packet does
+  not say so: the anchor field is a credit inside the lexical slot, not a relation, so a missing
+  anchor row is not evidence that the literal is absent (invariant 2). A quoted prose fragment is
+  an `error` anchor by shape; it rarely occurs verbatim and then only adds lexical credit.
+- (TCP-V0-023) A reserved row whose label derives a tainted class: `governance` reads as if the
+  row were absent (`unresolved` when it was the only governing row), `critical` omits it, and
+  `coverage.governance_refused` names its relation, path and class; the row itself stays in
+  `results`. An unlisted label is refused the same way as `tool-output`; the packet does not say
+  the label is unknown, so a new generator label must be added to the table to be trusted.
+- (TCP-V0-039..041) A file whose doc comment is absent, a licence or generator header, past the
+  64 KiB scan bound, or not column 0 has no role line, and a source outside the 512 highest
+  lexical candidates is not read for one; the packet does not say so, so a row without a `role:`
+  prefix is not evidence that the file states no role (invariant 2). A first sentence ending in an
+  abbreviation (`e.g. `) is cut early; a stale or wrong doc comment is credited as written, which
+  is why the credit stays inside the lexical slot and below every reserved authority row.
+- (TCP-V0-030..034) A common name joins unrelated files: the five-definer and fifty-reference
+  bounds and the prose-shaped-name rule drop it, and the rest are low-confidence rows whose
+  reason names the joining name. A task whose anchors the graph does not carry, or a graph past
+  its bound, admits no `graph` row and says `no-seed` or `graph-bounded`; the packet is then the
+  flag-off packet plus that receipt. A damaged `vocab.identgraph` section fails the load.
+- (TCP-V0-024) A view flag could leak into the default path and change its bytes.
+  `TestContextDefaultWireIsTheGolden` compares the default stdout with bytes captured from the base
+  binary (`1894b9e5`), and mixed or orphaned view flags are argument errors
+  (`TestParseContextViewArguments`).
+- (TCP-V0-025) The flag could leak into the default path. `TestContextSpansDefaultBytes` holds
+  the recipe golden for unset, `off`, `ON` and `unknown`.
+- (TCP-V0-025, TCP-V0-026) A declaration without a recorded end line is bounded by the next
+  symbol, so a span can include trailing comments or stop early in a file whose grammar records
+  no nested symbols; a call site can be a same-named use in another scope, or a comment. Rows say
+  which rule chose them (`reason`, `confidence`, `authority`), not that they are correct.
+- (TCP-V0-027) A long definition is clipped at 80 lines and a span that would overrun the budget
+  is dropped and counted in `omitted`, so the selected lines can miss the part that matters; the
+  row's range says exactly what was selected.
+- (TCP-V0-028) An anchor that is present only in an unindexed file, or that the change will add,
+  is `unknown`, and a name the task quotes loosely may never match; the verdict is then `unknown`
+  or `insufficient`, never `satisfied`. A path anchor is satisfied by any span on that path, even
+  one that misses the relevant lines.
+- (TCP-V0-035..038) A rebased or squashed history dates lines by the rewrite, so recency and
+  blame read the rewrite as recent; a snapshot history (one commit) makes every recency 1 and
+  every blame 0, so the flag reorders nothing. Both are reported, not corrected: the row reason
+  carries the ages and line counts. A path renamed within the window has its recency from the new
+  name only (`--no-renames`). A CODEOWNERS file over 256 KiB or unreadable reads as none
+  (`codeowners` null), so no disagreement is reported. A row an earlier, non-lexical slot already
+  admitted is never passed to blame at all (`unchosen`, recency.go:192), so it too carries no
+  ownership entry. Neither case's absence of an ownership entry is evidence of agreement
+  (invariant 2).
+- (TCP-V0-048..050) With constant 60 and slot caps of a few rows, `F` is dominated by the number
+  of relations, so fusion mostly reorders rows that only one relation admitted. There it discards
+  slot precedence: a lexical row at rank 1 (1/61) outranks a `pair` or `definition` row at rank 3
+  (1/63), although slot order encodes evidence strength. Because truncation follows the ordering,
+  such a row can push a relation row past `--limit`. Reading (a) catches that as a recall@20 loss,
+  and reading (b) as fewer gold paths in the top 20. A relation with a long list, such as the lexical fill,
+  adds only small terms for deep ranks, so it cannot outweigh a second relation.
+- (TCP-V0-043..045) The LSP flag could leak into the default path or reorder results. The same
+  golden holds for every value but `gopls`, and with `gopls` and a failing server the packet minus
+  `external` equals the golden (`TestContextLSPOffKeepsTheGoldenAndOnDegrades`). A gopls that
+  analyzes a modified working tree could cite bytes the index never pinned; such files are omitted
+  and counted (`TestExpandLiveGopls`). A hung gopls is killed with its process group at the 20 s
+  wall time and reported `unavailable`.
+
+- (TCP-V0-055..057) A hidden code point outside the named sets, a poisoned file that is not a
+  reserved row, or one past the bounded reader's limit that the governing generator already skips
+  is not flagged by this screen; absence of a `warnings` member is not evidence that a file is
+  benign (invariant 2). A legitimate joiner downgrades the file (a false positive the warning
+  names). A governing file modified in the working tree is downgraded even when the edit is
+  benign; a packet built from a clean checkout of the same commit is not, so the packet's
+  self-modification signal covers only uncommitted edits.
+
+## Acceptance evidence
+
+`internal/contextindex/taskcontext_test.go` (subject kept out, pair first, reverse importer and
+mentioned path admitted, retrieval shape, `NO_CANDIDATES`, untracked subject refused; TCP-V0-016's
+fixtures: names no source carries withhold the rows and name the nearest claims, a lexically
+derived `test` row does not rescue them, only the seven named relations count, a mentioned path
+overrules the absence, one source carrying the conjunction answers, all-but-one of three known
+names answers); `internal/contextindex/taskcontext_support_test.go`
+(`TestTaskContextReportsDeclaredRequiredSupport`: `required` is `min(known, 2)` from zero to four
+known names, and one unknown name answers `supported` with zero support and the no-conjunction
+reason);
+`TestTaskContextAdmitsFilesNamingASubjectSymbol` (a symbol reference corroborates an importer and
+admits a non-importer; the subject and a short symbol admit nothing);
+`internal/contextindex/termtable_test.go` (the tokeniser against the regex definition, whole-token
+lexical rows and whole-word identifier evidence, the table's layout and its snapshot encoding);
+`cmd/corvint/taskcontext_test.go` (invocation parsing, read-only run, subject absent from
+results); the trial's development rerun reading beside the first observation in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md`;
+`internal/contextindex/lookup_test.go` and `cmd/corvint/context_lookup_test.go` (TCP-V0-017,
+proposed: the order of each mode, excluded paths absent, the typed refusal, a read-only and
+byte-identical run).
+`internal/contextindex/ranking_regression_test.go` (recipe R, TCP-V0-018: the default path against
+its 2a76e40 golden and one ordering fixture per mechanism).
+`internal/contextindex/context_anchors_test.go` (TCP-V0-022, proposed: one table row per anchor
+class carried verbatim and not by its split tokens, the extraction bounds and whole-anchor rule,
+the `anchor:` reason behind the governing row, default bytes unchanged);
+`tools/retrieval-bench/main_test.go` `TestAnchorBearingSamplesFormTheirOwnStratum` (the bench's
+`anchor_bearing` flag and `stratum:anchor-bearing` mean) and the flag-off/flag-on run over the
+four v2 subsets recorded in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` (2026-09-23, V1-0084).
+`internal/contextindex/trust_test.go` (TCP-V0-023, proposed: the table is closed and
+deterministic and an unlisted label is `tool-output`; every packet row carries one class equal to
+its label's and the governing row is `project-authority`; a tainted reserved row satisfies neither
+`governance` nor `critical` and is named in `governance_refused`; the previous row shape decodes
+today's wire to the wire minus `trust`); the recipe golden of
+`internal/contextindex/ranking_regression_test.go` re-captured with only the `trust` member and
+the empty `governance_refused` array added.
+`internal/contextindex/rolesummary_test.go` (TCP-V0-039..041, proposed: two extractions equal
+and match `testdata/role-summary-golden.tsv` over one fixture per rule; the length, scan and
+candidate bounds; the `role:` reason with its comment range behind the governing row; default
+bytes equal the recipe golden with the flag unset, `off` or unknown); TCP-V0-042's frozen
+bench figures in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md`.
+`cmd/corvint/context_summary_test.go` (TCP-V0-024, experimental: default bytes equal the
+base-binary golden `cmd/corvint/testdata/context-default-wire.golden`; flag mixing refused; the
+summary and expansion evidence listed under ESV-V0-008..009).
+`internal/contextindex/span_rank_test.go` (TCP-V0-025..027, experimental: default bytes equal the
+recipe golden for every non-`on` flag value; the named definition is a core row with its explicit
+range, reason, authority and blob; a caller outside the core yields a call-site row naming the core
+range; rows stay under the budget and the per-row cap, a 3-line budget omits, the flag-on packet
+minus `spans` and `coverage.sufficiency` equals the flag-off packet, and the fixture repository is
+unchanged) and `internal/contextindex/sufficiency_test.go` (TCP-V0-028, table-driven: carried,
+absent, forged, out-of-range, inverted and other-path spans, an unindexed name, no anchors,
+satisfied plus unknown, and a tracked but unindexed path; a satisfied set never holds a
+non-satisfied anchor and every missing anchor is named). TCP-V0-029's measured on/off reading is
+the V1-0098 entry in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md`; its span scorer was never committed, so that reading is
+not independently reproducible from the repository (V1-0169).
+`internal/contextindex/recency_test.go` and `internal/contextindex/blame_test.go` (TCP-V0-035..038,
+proposed: default bytes equal the recipe golden for unset, `off` and other values; an equal-BM25
+recent source leads with the flag and both rows name recency, blame and the factor; recent
+co-changes outrank older, more frequent ones; the blame bound and every abstention reason; the
+porcelain parse and the window's oldest commit; GitHub pattern semantics; a `disagrees`, an
+`unverifiable` and an agreeing owner; the `coverage.recency` member and a no-commit abstention).
+The frozen bench and `corvint eval` readings, off and on, are in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` (V1-0089).
+Proposed TCP-V0-048..050 (not implemented) will be evidenced by `internal/contextindex` tests: the
+recipe golden is kept for unset, `off` and other values; a fixture in which a single-relation row
+at a better rank overtakes one at a worse rank; unchanged admission and the `; rrf` reason. Both
+readings, off and on, go in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` under V1-0219.
+
+`internal/contextindex/identgraph_test.go` and `internal/contextindex/ppr_test.go`
+(TCP-V0-030..034, proposed: the fixture's two-hop chain, direction labels and a node without
+edges; symbol-order independence and the round trip; damaged encodings refused; the node and
+definer bounds; the ranked rows after every relation row within the limit; the exact hop
+reason; `no-seed`, `graph-bounded` and a walk past its push bound abstaining; TCP-V0-016
+abstention unchanged; the recipe golden unchanged for an unset, `off` and unknown flag);
+`TestPackSnapshotDecodesEverySectionToTheGobValues` (the pack section decodes to the gob value);
+decision 0367 (the frozen evaluation with the flag unset and `on`).
+`cmd/corvint/context_lsp_test.go` (TCP-V0-043..045, experimental: every value but `gopls` keeps the
+golden bytes; a failing gopls adds only an unavailable `external` row), `internal/lspprovider`
+tests and `internal/extevidence/lsp_test.go` (EEP-V0-023..026), and the TCP-V0-046 frozen bench
+off/on reports recorded in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` under V1-0099.
+
+`internal/contextindex/authority_screen_test.go` (TCP-V0-055..057, accepted 2026-10-16:
+`TestHiddenUnicodeClassesAreExactlyTheSpecSets`, `TestScreenHiddenUnicodeReportsCountClassesAndFirstSite`,
+`TestTaskContextDowngradesAGoverningFileHidingUnicode`, `TestTaskContextDowngradesAGoverningFileHidingAnInvisibleOperator`,
+`TestTaskContextKeepsACleanGoverningFileAuthoritative`,
+`TestTaskContextDowngradesASpecMentionedRowHidingUnicode`,
+`TestTaskContextScreensContentRoutedByCleanInstructions`, `TestTaskContextOrdersScreenedReservationsEndToEnd`,
+`TestTaskContextReportsAGoverningFileTheWorkingTreeModifies`,
+`TestScreenPathDowngradesAnUnreadableRow`, `TestCEMGoverningInstructionRuleMatchesThePacket`); every
+existing packet golden is unchanged (TCP-V0-058).
+
+V1-0658 adds regression evidence for the existing experimental TCP-V0-055/056 contract,
+without changing its requirements or owner-acceptance status. A clean governing file routes to
+a poisoned target; a separate packet witness places clean reservations before poisoned ones.
+Individual deletion-mutation outcomes are recorded in
+[the mutation evidence](https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-10-mutation-authority-screen.md); ordinary passing
+tests alone do not establish mutation adequacy.
+
+`internal/contextindex/taskcontext_documentation_test.go` (TCP-V0-013 as amended, TCP-V0-059..061,
+experimental): `TestTaskContextDocumentationCompetesByStrength` reproduces the V1-0859 class on a
+small fixture (four documentation rows that outscore every code row, all carried at limit 10
+where the two-row quota cut two), `TestTaskContextDocumentationShareStatesTheOmittedClass` pins the
+half share, the shortened head, both uncertainty lines where the share displaced a documentation
+row, and the limit line alone where the head or the deferred tail did,
+`TestTaskContextPlacesDocumentationAfterFiveCodeRows` (`taskcontext_widening_test.go`) pins the
+gate (no documentation hit outscores the lead: the quota's two rows precede the weaker code rows
+and the two past the quota follow every code row although one outscores a carried code row), and
+`TestTaskContextLexicalScoreCarriesStrength` pins the score band,
+`TestTaskContextLexicalFillCountsOnlyOpenPositions` pins the fill accounting (a mentioned
+documentation row spends no share, a governing reservation is no fill position, withheld hits are
+stated as withheld), `TestTaskContextStatesAReservationTheLimitCutAsOmitted`
+(`taskcontext_routed_test.go`) the reservation the limit cut under the verdict and
+`TestTaskContextShareLineIsCountedThroughTheRecencyReorder` the carried-row reading under
+TCP-V0-035's opt-in reorder (a recent code hit promoted into the head leaves the limit line
+alone, a recent documentation hit promoted into the share leaves the share line naming the two
+hits it kept out, a held copy promoted into the head spends no position, and a weak recent code
+hit promoted into the head is not the share's comparison row, so the old hit it moved past the
+head leaves the limit line alone), and `TestTaskContextShareLineSurvivesPairPromotion` (a head
+test TCP-V0-004 promotes to `pair` keeps the head's four members, so the share line still names
+the documentation hit the code row past the head kept out);
+`TestTaskContextPlacesDocumentationAfterFiveCodeRows` is rewritten for the merged order. The recipe golden `testdata/context-recipe-default-golden.json` is regenerated: the
+same twelve rows, lexical scores by strength, `docs/guide.md` moved from the sixth to the tenth
+row and `docs/needle.md` from the sixth to the seventh (the mentioned `pkg/parser/parser.go` no
+longer counts toward the code head). The rc.2 untouched-repository cases on urfave/cli and Corvint
+are development evidence for this amendment
+(`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-06-v1-0859-orientation-misses.md`);
+the held-out validation that V1-0859 and V1-0431 require is a repository frozen after this change.
+
+TCP-V0-063 (V1-0859, V1-0431): `TestTaskContextRecordDataIsGatedLikeDocumentation`
+(`taskcontext_recorddata_test.go`) pins a record-data flood that no longer displaces weaker code
+and its gate line, a record-data hit that outscores every code hit keeping its position without
+spending the quota, deferred record data following the deferred documentation, YAML staying code,
+a held record-data path spending no quota, record data without competing code ranked by strength,
+and the gate line absent under TCP-V0-016's verdict; `TestTaskContextRecencyKeepsTheRecordDataGate`
+pins a recent record reordered only inside the record-data positions under TCP-V0-035, with the
+gate line read from the carried rows; `TestIsRecordDataSuffix` pins the class.
+Measured development evidence (rc.2 cases and the five-PR replay, before and after) is in
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-08-v1-0431-0859-orientation-ranking.md`; held-out validation is not run.
+
+TCP-V0-062 (V1-0993): `TestTaskContextPositionalTaskMatchesTheFlagBytes`
+(`taskcontext_positional_test.go`) compares `context TEXT`, with the positional before and after
+`--limit`, byte for byte with `context --task TEXT`; `TestTaskContextRefusesAmbiguousPositionalTasks`
+pins the refusal for both forms in either order and for two positionals, and keeps the neither-form
+refusal unchanged (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-07-v1-0993-context-positional-task.md`).
+
+TCP-V0-064 (V1-0485): `TestTaskContextCancellationNeverReturnsAPacket`
+(`taskcontext_cancel_test.go`) cancels the request at each boundary, with recency off and on,
+including inside the lexical fill where the defect returned READY on `f33ea8ef`; each returns the
+cancellation refusal with no surviving reader, and the uncancelled packet afterwards is
+byte-identical to the one before. `TestTaskContextPreCancelledRequestReturnsCancellation` covers a
+context cancelled before the call for the subject and retrieval shapes
+(`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-08-v1-0485-late-cancellation.md`).
+
+## Rollback
+
+Delete the two source files, their tests, the help topic, and the dispatch line in
+`cmd/corvint/main.go`; point the trial's `corvint` arm back at `impact`/`query`. No persisted state
+depends on this packet. TCP-V0-017's lookups roll back alone: delete
+`internal/contextindex/lookup.go`, `cmd/corvint/context_lookup.go`, their tests, the lookup
+dispatch block in `cmd/corvint/main.go`, and the help suffix in `cmd/corvint/help.go`.
+TCP-V0-022 rolls back alone: delete `internal/contextindex/context_anchors.go` and its test, the
+`anchors` fields and the anchor loop in `lexicalHits`, and the `field >= 2` widening in
+`queryTermGain`; the default wire never changed.
+TCP-V0-023 rolls back alone: delete `internal/contextindex/trust.go` and its test, the `trust`
+stamp in `packet` and the `governance_refused` member, point `governance` and `criticalSelectors`
+back at `compiler.reserved`, and re-capture the recipe golden.
+The role line (TCP-V0-039..042) rolls back alone: unset `CORVINT_CONTEXT_ROLES`, or delete
+`internal/contextindex/rolesummary.go`, its test and golden, and the `roles` field, the role
+credit loop and the `role` reason prefix in `taskcontext.go`; the default wire never changed.
+TCP-V0-024 rolls back alone to current packets. Follow the V1-0023 rollback in
+`experimental-source-views-v0` (Acceptance and rollback): delete `cmd/corvint/context_summary.go`,
+its test and golden, and the view flags, check and help paragraph in `cmd/corvint/taskcontext.go`.
+The default wire never changed.
+The span amendment (TCP-V0-025..029) rolls back alone: unset `CORVINT_CONTEXT_SPANS`, or delete
+`internal/contextindex/span_rank.go`, `internal/contextindex/sufficiency.go`, their tests, and the
+`attachSpans` call in `TaskContext`. The default wire never changed and no state persists.
+The recency features (TCP-V0-035..038) roll back alone: delete `internal/contextindex/recency.go`,
+`internal/contextindex/blame.go` and their tests, the `recency` field and its four hook lines in
+`internal/contextindex/taskcontext.go`; the default wire never changed.
+The rank-fusion ordering (TCP-V0-048..050) rolls back alone: unset `CORVINT_CONTEXT_RRF`; to
+remove it, delete its ordering function and tests and the per-relation rank record `take` keeps
+for it. The default wire never changed and no state persists.
+The graph slot (TCP-V0-030..034) rolls back alone: unset `CORVINT_CONTEXT_GRAPH`; to remove the
+slot, delete `internal/contextindex/identgraph.go`, `ppr.go` and their tests, the `IdentGraph`
+member, the `vocab.identgraph` section and the compile, `compile` and `rowAction` hooks, and bump
+`analyzerSchemaID`. The default wire never changed.
+The LSP member (TCP-V0-043..046) rolls back alone with EEP-V0-023..026: delete `cmd/corvint/context_lsp.go`, its
+test, `internal/lspprovider`, and the `attachLSPEvidence` call in `compileTaskContext`; the default
+wire never changed.
+
+The authority screen (TCP-V0-055..058) rolls back alone: delete
+`internal/contextindex/authority_screen.go` and its test, the `screenAuthority`/`demoteScreened`
+calls in `reservedRows` and `governingRow`, the `downgrade` field and its checks in
+`instructionRoutedRows`, `governanceRows`, `governanceRefused` and `addGovernance`, and the
+`screenedAction`/`withAuthorityWarnings` calls in `packet`; point `TrustClass` back at
+`trustByAuthority`. No state persists and clean packets never changed.
+
+The documentation share, strength score and omitted-class statement (TCP-V0-013 as amended and
+TCP-V0-059 to TCP-V0-061) roll back together: restore the unconditional two-row quota in
+`lexicalRows` (delete the ceiling, the lead and `contextDocumentationQuota`), the flat
+300 in its row literal and delete `lexicalScore`, `lexicalCoverage`, `heldPaths`,
+`reservedPositions`, the `lexicalDocumentation`, `lexicalHead`, `lexicalFill` and `lexicalShare`
+fields and `taskcontext_documentation_test.go`, move the reservation back into `reserve`, then
+re-capture
+the recipe golden. No state persists.
+
+The record-data gate (TCP-V0-063) rolls back alone: delete `isRecordDataSuffix`,
+`contextRecordDataQuota`, the `data` field of `lexicalHit`, the `lexicalCode`, `lexicalData` and
+`lexicalRecords` fields, the record-data branch and lead in `lexicalRows`, the record-data line in
+`lexicalCoverage`, the record-data class in `recencyLexical` and `taskcontext_recorddata_test.go`,
+and restore the `!item.documentation` head and count conditions. No state persists.
+
+The positional task (TCP-V0-062) rolls back alone: delete the positional collection, the switch
+before `checkContextViewArguments` and `contextPositionalTaskRefusal` in `cmd/corvint/taskcontext.go`,
+the `context` query override in `runCorpusIntegration`, and `taskcontext_positional_test.go`; a
+positional is then `unrecognized arguments` again. No state persists and no packet changed.
+
+The cancellation boundaries (TCP-V0-064) roll back alone: delete `stopped`, `join`, the
+`ctx`/`cancelled` compiler fields, the boundary checks and `taskcontext_cancel_test.go`. A late
+cancellation then returns its packet again; no state persists and no uncancelled packet changes.
+
+## Traceability
+
+| Requirement | Implementation | Test |
+|---|---|---|
+| TCP-V0-001 | `runTaskContext` (the tree's snapshot when `corvint index` wrote one, else one `contextindex.Build`; no writer, index-snapshot-v0) | `TestRunTaskContextIsReadOnlyAndKeepsTheSubjectOut` |
+| TCP-V0-002 | `parseTaskContextInvocation`, `TaskContext` (limit, task, subject checks) | `TestParseTaskContextInvocation`, `TestTaskContextRetrievalShapeAndNoCandidates` |
+| TCP-V0-003 | `taskContextCompiler.packet`, `rowAction`, `contextRow` | `TestTaskContextKeepsTheSubjectOutOfTheResults`, `TestTaskContextRowsCarryAnAction` |
+| TCP-V0-004 | `admitLexicalPairs`, `compile`, `corroborate`, `pairRows`, `pairRelation`, `isGoPath`, `pairConfidence`, `mentionRows`, `mentionedPaths`, `contextPathTokens`, `symbolRows`, `importerRows`, `referenceRows`, `subjectSymbols`, `readCoChangeHistory`, `dropGraftedCommits`, `cochangeCommitCap`, `cochangeRows`, `siblingRows`, `identifierEvidence`, `lexicalRows`, `buildTermTable`, `countTerms`, `scanWords` | `TestTaskContextKeepsTheSubjectOutOfTheResults`, `TestTaskContextAdmitsReverseImportersAndMentionedPaths`, `TestTaskContextAdmitsExplicitExtensionlessAndDotPrefixedPaths`, `TestTaskContextAdmitsFilesNamingASubjectSymbol`, `TestTaskContextAdmitsCoChangedPathsAndIgnoresBulkCommits`, `TestTaskContextCochangeSkipsTheShallowBoundaryCommit`, `TestCochangeCommitCapTightensWithRepositoryAge`, `TestTaskContextRanksCorroboratedRowsFirst`, `TestTaskContextRetrievalShapeAndNoCandidates`, `TestCountTermsMatchesTheRegexTokeniser`, `TestLexicalRowsMatchWholeTokensFromTheTable`, `TestIdentifierEvidenceCountsWholeWordsByWeight`, `TestContextEqualIDFTestEvidenceIsStable`, `TestRunTaskContextSubjectlessCounterparts`, `TestTaskContextSelectedLexicalPairs`, `TestTaskContextLexicalPairPromotion`, `TestPairRelationGoCounterpartsShareTheDirectory`, `TestCreditMirroredMatchesFullScan` |
+| TCP-V0-005 | `take` (subject skipped), `packet` (`subject` member), `subjectEvidenceGap` | `TestTaskContextKeepsTheSubjectOutOfTheResults`, `TestRunTaskContextIsReadOnlyAndKeepsTheSubjectOut`, `TestTaskContextRetrievalShapeAndNoCandidates` |
+| TCP-V0-006 | `packet` (`state`, `coverage`) | `TestTaskContextRetrievalShapeAndNoCandidates` |
+| TCP-V0-007 | `runTaskContext` (`gokernel.CanonicalJSON`) | `TestRunTaskContextIsReadOnlyAndKeepsTheSubjectOut` |
+| TCP-V0-008 | `taskContextCompiler.governingRows`, `ancestorInstructions`, `governingRow`, `instructionCandidates`, `instructionRank`, `projectOperationPath`, `readable`, `reserve`, `reservedRows` | `TestTaskContextReservesInstructionsForUnrelatedVocabulary` (falsifier a), `TestTaskContextKeepsTheSubjectOutUnderReservedRelations` (falsifier f), `TestTCPV0008NestedInstructionEligibilityIsShared`, `TestRunTaskContextReservesAncestorInstructions`, `TestTaskContextAncestorInstructions`, `TestTaskContextAncestorInstructionCap` |
+| TCP-V0-009 | `specMentionedRows`, `specPaths`, `specDefinitions`, `requirementIDs`, `requirementIDTokens`, `idBoundary`, `namedSpecPaths`, `governance` | `TestTaskContextAdmitsSpecsNamedByIdOrPath`, `TestTaskContextEqualByteLexicalControlLosesOnlySpecMentionedRows` (falsifier b) |
+| TCP-V0-010 | `definitionEligible` (applied in `symbolRows` only) | `TestTaskContextProseIdentifierControlAdmitsNoDefinitions` (falsifier d), `TestSymbolRowsDefinerCountsExact` |
+| TCP-V0-011 | `criticalSelectors`, `unexamined`, `withheld`, `budgetShortage`, `markRan`, `markState`, `markSubjectSymbols`, `subjectSymbolsIncomplete`, `pairRows`, `takeSlot`, `anyEligible`, `packet` (`coverage`) | `TestTaskContextReportsCriticalMissingAndSlotShortage` (falsifier c), `TestTaskContextReportsUnexaminedScopePerRelation`, `TestTaskContextReportsNamedPathPairScope`, `TestTaskContextReportsNamedPathPairSlotOmissions`, `TestTaskContextDisclosesAnUnparsedSubjectsSymbols`, `TestTaskContextSelectedLexicalPairs`, `TestTaskContextAncestorInstructions`, `TestTaskContextAncestorInstructionCap` |
+| TCP-V0-012 | `internal/contextindex/taskcontext_widening_test.go` | the six cases above plus `TestTaskContextAmendedPacketIsByteIdenticalAcrossRuns` (falsifier e) |
+| TCP-V0-013 | `lexicalRows`, `isDocumentationSuffix`, `contextRelationOrder` | `TestTaskContextPlacesDocumentationAfterFiveCodeRows`, `TestTaskContextDocumentationCompetesByStrength` |
+| TCP-V0-014 | `lexicalRows`, `taskLexicalTerms`, `TermTable.documentLengths` | `TestLexicalRowsMatchWholeTokensFromTheTable`, `TestLexicalRowsOrderByBM25AndAnswerWholeIdentifiers` |
+| TCP-V0-015 | `testRows`, `testAnchors`, `testLinker`, `testCandidate`, `testNameRemainder`, `nameTokens`, `definitionEligible` (stop-list rule) | `TestTaskContextLinksTestsByEachSignal`, `TestTaskContextReservesOneTestSlot`, `TestTaskContextDefinitionSlotSkipsBacktickedProse`, `TestContextColdBuildRetainsTestImportWinner`, `TestNameTokensMatchesRegexOracle`, `TestCreditMirroredMatchesFullScan`, `TestTaskContextRefusesAOnePlainWordTestLink` |
+| TCP-V0-017 | `LookupDefinitions`, `LookupReferences`, `countWholeWord`, `LookupGrep`, `grepScores`, `matchingLines`, `parseContextLookupInvocation`, `runContextLookup` | `TestLookupDefinitionsOrdersExactThenRarestCaseInsensitive`, `TestLookupReferencesExcludesDefinersAndRanksImportersFirst`, `TestLookupGrepRanksByBM25AndQuotesMatchingLines`, `TestLookupGrepCountsATokenInBodyAndPathOnce`, `TestLookupGrepPathOnlyHitClaimsNoLine`, `TestLookupNeverListsExcludedPathsAndRefusesBadIdentifiers`, `TestParseContextLookupInvocation`, `TestRunContextLookupIsReadOnlyAndDeterministic`, `TestRunContextLookupRefusesAnEmptyIdentifier` |
+| TCP-V0-016 | `taskNames`, `nameShaped`, `specificTerms`, `pathSources`, `trackedNaming`, `answer`, `relationRows`, `nearestClaims`, `withheldClaims`, `answerability.unsupported`, `answerability.packet`, `answerability.claimPackets`, `reservedOnly` | `TestTaskContextAbstainsOnAnUnsupportedConjunction`, `TestTaskContextReportsDeclaredRequiredSupport`, `TestTaskContextSupportedVerdictNamesItsSupport`, `TestTaskContextNotWithheldVerdictHasNoClaims`, `TestTaskContextCountsADefinedRequirementIDAsSpecificTerm_V1_2235` (a defined requirement ID is a supported term; an undefined one adds none) |
+| TCP-V0-018 | retired recipe; default `compile` and `lexicalRows` only; decision 0078 | `TestContextRecipeDefaultPathIsByteIdentical`, `TestContextRecipeRetiredFlagsAreIgnored` |
+| TCP-V0-019 | `configureContextTerms`, `contextQueryValues`, `selectContextTerms`, `queryTermGain`, `lexicalHits` | `TestContextIdentifierTermsValuesAndWeights`, `TestContextIdentifierTermsProseAndMalformedFallback`, `TestContextIdentifierTermsExactOutranksParts`, `TestContextIdentifierTermsDefaultBytes` |
+| TCP-V0-021 (accepted measurement) | `registerBeforeRun`, `prepareSnapshotSample`, `validateSnapshotPair`, `runTaskContext`, `ownProcessGroup` | `TestRegistrationOutputAliasesRefuseBeforeRetrievalOrWrites`, `TestRegistrationOutputAllowsDistinctFiles`, `TestSnapshotLatencyReusesCopiesAndRegistersBeforeRetrieval`, `TestSnapshotLatencyRestoresHiddenSnapshotOnCancellation`, `TestSnapshotLatencyRefusesUnknownOrDifferentRanking`, `TestBenchRejectsDirtySampleBeforeNextRetrieval`, `TestSnapshotIndexCancellationLeavesNoDescendant`, `TestBenchSnapshotTraceObservesHitWithoutChangingPacket` |
+| TCP-V0-020 | `frameRelationRows`, `namedTestFrames`, `frameCandidates`, `creditFrameIdentifiers` | `TestFrameRelationSignals`, `TestFrameRelationOrderingAndCoverage`, `TestFrameRelationScopeAndDeterminism` |
+| TCP-V0-022 | `configureContextAnchors`, `taskAnchors`, `anchorCandidates`, `countAnchor`, `anchorOccurrences`, `anchorReason`, `lexicalHits`, `queryTermGain` | `TestContextAnchorClassesMatchVerbatim`, `TestContextAnchorsExtractionBounds`, `TestContextAnchorsExplainAndNeverOutrankAuthority`, `TestContextAnchorsDefaultBytes` |
+| TCP-V0-023 | `trustByAuthority`, `TrustClass`, `TrustTainted`, `governanceRows`, `governanceRefused` (`internal/contextindex/trust.go`); the `trust` stamp in `taskContextCompiler.packet` | `TestTrustClassIsClosedAndDeterministic`, `TestTaskContextRowsCarryOneTrustClass`, `TestTaskContextGovernanceRefusesATaintedReservedRow`, `TestTaskContextWireIsAdditiveForAnOldConsumer`, `TestContextRecipeDefaultPathIsByteIdentical` (re-captured golden) |
+| TCP-V0-030 | `buildIdentGraph`, `identGraphDefiners`, `identGraphName`, `mergeIdentGraphArcs`, `identGraph.check`, `MarshalBinary`/`UnmarshalBinary` (`internal/contextindex/identgraph.go`); the `IdentGraph` member, `packSectionGraph` and the compile hooks | `TestIdentGraphIsDerivedDeterministicallyFromTheIndex`, `TestIdentGraphRefusesDamagedEncodings`, `TestIdentGraphNameEligibility`, `TestPackSnapshotDecodesEverySectionToTheGobValues`, `TestAnalyzerSchemaInputs` |
+| TCP-V0-031 | `placeGraphRows`, `graphFloor`, `graphHeld`, `takeGraph`, `graphCandidates`, `graphSeeds`, `personalizedPageRank`, `rankGraphNodes` (`internal/contextindex/ppr.go`) | `TestContextGraphSlotRanksFromTheTaskAnchors`, `TestPersonalizedPageRankScansEachDegreeOnce`, `TestPersonalizedPageRankMatchesTheUnmemoizedWalk` |
+| TCP-V0-032 | `graphHops`, `graphRow`, `graphLine`, `graphAction` | `TestContextGraphSlotRanksFromTheTaskAnchors` |
+| TCP-V0-033 | the `identGraphMaxNodes`/`identGraphMaxArcs` bounds and `boundedIdentGraph` in `buildIdentGraph`, the push bound in `personalizedPageRank`, the abstention states in `placeGraphRows` | `TestIdentGraphBounds`, `TestIdentGraphBoundedSnapshotReloads`, `TestContextGraphSlotAbstains` |
+| TCP-V0-034 | `configureContextGraph`, `contextRelations` | `TestContextGraphDefaultBytes`, `TestContextGraphSlotRanksFromTheTaskAnchors`, `TestContextGraphSlotAbstains` |
+| TCP-V0-039 | `extractRoleSummary`, `roleLine`, `firstParagraph`, `goRoleBlocks`, `commentAbove`, `pythonRoleBlocks`, `docstring`, `rustRoleBlocks`, `docMarkerBlocks`, `markerBlock` | `TestRoleSummaryExtractionIsCommentOnlyAndReproducible`, `TestRoleSummaryBounds` |
+| TCP-V0-040 | `configureContextRoles`, `roleHits`, `roleCandidates`, `roleTerms`, `lexicalHits` | `TestContextRolesExplainAndNeverOutrankAuthority`, `TestContextRolesDefaultBytes` |
+| TCP-V0-041 | `roleReason`, `lexicalRows` | `TestContextRolesExplainAndNeverOutrankAuthority` |
+| TCP-V0-042 | `tools/retrieval-bench` (unchanged); decision 0370 | frozen bench figures in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` |
+| TCP-V0-024 | `parseTaskContextInvocation`, `checkContextViewArguments`, `runTaskContext` (view dispatch); `summarizeContextPacket`, `runContextExpand` (`cmd/corvint/context_summary.go`) | `TestContextDefaultWireIsTheGolden`, `TestParseContextViewArguments`, `TestContextSummaryAndExpandAreReadOnly` |
+| TCP-V0-025 | `contextSpansEnabled`, `attachSpans`, `newSpanRanker`, `coreSpans`, `rowSpans`, `definitionSpans`, `namedLineSpan`, `termLineSpan`, `extent`, `enclosing`, `spanRanker.packet` (`internal/contextindex/span_rank.go`) | `TestContextSpansDefaultBytes`, `TestContextSpansCoreAndCallSite` |
+| TCP-V0-026 | `callSites`, `coreCallSites`, `orderCallers`, `callerKey`, `callSite` | `TestContextSpansCoreAndCallSite` |
+| TCP-V0-027 | `spanRanker.rank`, `coveredBy`, `spanRanker.lines`, `extent` (80-line clip) | `TestContextSpansBudgetAndBounds` |
+| TCP-V0-028 | `sufficiency`, `pathAnchor`, `nameAnchor`, `spanCarries`, `setVerdict`, `sufficiencyVerdict.packet` (`internal/contextindex/sufficiency.go`) | `TestContextSufficiency` |
+| TCP-V0-029 | `tools/retrieval-bench --arms context --context-packets` with the flag unset and `on`; the offline span scorer is a scratch script, not committed (NOT_PRODUCED, V1-0169) | measured reading in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` (V1-0098), not independently reproducible from the repository (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-21-v1-0169-tcp-v0-029-scorer-not-produced.md`) |
+| TCP-V0-035 | `startContextRecency`, `contextRecency.read`, `parse`, `decay`, `weight`, `reason`, `recencyLexical`, `reorderClass`, `recencyCochange` (`internal/contextindex/recency.go`) | `TestContextRecencyDefaultBytes`, `TestContextRecencyRanksRecentLexicalRowsAndNamesFeatures`, `TestContextRecencyCanChangeLexicalMembership`, `TestContextRecencyWeightsCochangeByAge` |
+| TCP-V0-036 | `blameHead`, `blamePath`, `parseBlame`, `touch`, `blameReason` (`internal/contextindex/blame.go`), `unchosen` (`recency.go`) | `TestContextRecencyBoundsBlameAndAbstains`, `TestContextRecencyWindowIsTheCochangeWindow`, `TestParseBlamePorcelainCountsLinesPerCommit` |
+| TCP-V0-037 | `codeOwners`, `parseCodeOwners`, `codeOwnersPattern`, `owning`, `checkOwners`, `ownerMatchesAny`, `ownership` | `TestCodeOwnersPatternFollowsGitHubSyntax`, `TestContextRecencyReportsCodeOwnersBlameDisagreement`, `TestContextRecencyBlamesOnlyRowsTheLexicalSlotCanAdmit` |
+| TCP-V0-038 | `recencyCoverage` | `TestContextRecencyCoverageMember` |
+| TCP-V0-048 | not implemented: fused ordering in place of `corroborate`'s count sort; per-relation ranks recorded by `take` | `TestContextRRFOrdersByFusedRank` (PLANNED) |
+| TCP-V0-049 | not implemented: flag gate and `; rrf` reason | `TestContextRRFDefaultKeepsTheGolden` (PLANNED), `TestContextRRFKeepsAdmissionAndNamesRanks` (PLANNED) |
+| TCP-V0-050 | `tools/retrieval-bench` `context` arm; the offline gold-rank reading (not implemented) | V1-0219 entry in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` (not yet recorded) |
+| TCP-V0-043 | `attachLSPEvidence`, `lspSeeds`, `committedText` (`cmd/corvint/context_lsp.go`); `compileTaskContext` | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestContextDefaultWireIsTheGolden` |
+| TCP-V0-044 | `attachLSPEvidence`, `extevidence.InlineSection`, `lspprovider.Expand` | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestExpandLiveGopls` |
+| TCP-V0-045 | `attachLSPEvidence`, `lspprovider.Expand` failure reasons | `TestContextLSPOffKeepsTheGoldenAndOnDegrades`, `TestExpandDegrades`, `TestExpandEveryQueryFailedIsUnavailable` |
+| TCP-V0-046 | `tools/retrieval-bench` `context` arm, flag unset and `gopls` | V1-0099 entry in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` (measured off/on parity and latency); V1-0168 correction in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-09-29-lsp-bench-snapshot-integrity.md` (no contributed relations on Caddy/etcd in that run; their release snapshots do not qualify semantic coverage) |
+| TCP-V0-047 | `instructionRoutedRows`, `routedPassages`, `instructionPassages`, `nextFence`, `reservedRelation`, `rowAction`, `coreSpans` | `TestTaskContextRoutesPathsTheGoverningInstructionsNameForTheTask`, `TestTaskContextCapsInstructionRoutedRows`, `TestContextSpansSkipInstructionRoutedRows`, `TestTaskContextRoutingIsNotApplicableWithoutAGoverningRow`, `TestTaskContextRoutingSkipsTheSubject`, `TestTaskContextOrdersRoutingPassagesByIDF`, `TestTaskContextRoutingPromotesAnExistingRow`, `TestTaskContextKeepsRoutedRowsWhenResultsAreWithheld`, `TestTaskContextRoutingIgnoresCommonTerms`, `TestTaskContextRoutingSkipsFencedCodeBlocks`, `TestTaskContextRoutingClosesFencesAsCommonMark`, `TestTaskContextRoutingSkipsCompoundsTheTableSplits`, `TestTaskContextRoutesFromAncestorInstructions`; V1-0186 and V1-0205 entries in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` (frozen bench before/after) |
+
+| TCP-V0-051 | `parseTaskContextInvocation`, `attachLSPEvidence`, `lspevidence.Executable` | `TestContextLSPExplicitSelection`, `TestContextLSPExecutableRefusesRelativePATH` |
+| TCP-V0-052 | `lspevidence.Attach`, `callContext` | `TestContextLSPDriftWithholdsPacket`, `TestContextLSPPinAndDrift` |
+| TCP-V0-053 | `script/qualify-lsp.py` | required live compiled CLI/MCP module and workspace qualification |
+| TCP-V0-054 | `lspevidence.Attach`, `extevidence.InlineTaskSection`, `addPathRelations` | `TestTaskPathRelationsSubjectBeforeBound`, `TestInlineTaskSectionBoundRootSubject`, `TestAttachLiveGoplsKeepsSubjectRelationsAtBound`; public development witnesses and live CLI/MCP parity |
+| TCP-V0-055 | `hiddenUnicodeClass`, `screenHiddenUnicode`, `screenPath` (`internal/contextindex/authority_screen.go`) | `TestHiddenUnicodeClassesAreExactlyTheSpecSets`, `TestScreenHiddenUnicodeReportsCountClassesAndFirstSite`, `TestTaskContextDowngradesAGoverningFileHidingAnInvisibleOperator`, `TestScreenPathDowngradesAnUnreadableRow` |
+| TCP-V0-056 | `screenAuthority`, `demoteScreened`, `authorityTrust`, `screenedAction`, `withAuthorityWarnings`, `governanceRefusalReason`; `reservedRows`, `instructionRoutedRows`, `governanceRows`, `governanceRefused`, `addGovernance` | `TestTaskContextDowngradesAGoverningFileHidingUnicode`, `TestTaskContextKeepsACleanGoverningFileAuthoritative`, `TestTaskContextDowngradesASpecMentionedRowHidingUnicode`, `TestTaskContextScreensContentRoutedByCleanInstructions`, `TestTaskContextOrdersScreenedReservationsEndToEnd` |
+| TCP-V0-057 | `screenPath` (`Index.DirtyPaths`); `workflow.GoverningInstructionPath` | `TestTaskContextReportsAGoverningFileTheWorkingTreeModifies`, `TestCEMGoverningInstructionRuleMatchesThePacket` |
+| TCP-V0-058 | `withAuthorityWarnings` (members only on downgraded rows) | `TestTaskContextKeepsACleanGoverningFileAuthoritative`, `TestTaskContextWireIsAdditiveForAnOldConsumer` |
+| TCP-V0-059 | `lexicalRows` (`contextDocumentationShare`, `contextDocumentationQuota`, `lexicalDocumentation`, `heldPaths`, `reservedPositions`) | `TestTaskContextDocumentationShareStatesTheOmittedClass`, `TestTaskContextDocumentationCompetesByStrength`, `TestTaskContextLexicalFillCountsOnlyOpenPositions`, `TestTaskContextPlacesDocumentationAfterFiveCodeRows` (the gate) |
+| TCP-V0-060 | `lexicalScore` (`contextLexicalBase`, `contextLexicalCeiling`) | `TestTaskContextLexicalScoreCarriesStrength`, `TestContextIdentifierTermsDefaultBytes` (regenerated golden) |
+| TCP-V0-061 | `lexicalCoverage` (`lexicalHead`, `recordLexicalTail`) | `TestTaskContextDocumentationShareStatesTheOmittedClass`, `TestTaskContextPlacesDocumentationAfterFiveCodeRows` (member absent), `TestTaskContextLexicalFillCountsOnlyOpenPositions`, `TestTaskContextKeepsRoutedRowsWhenResultsAreWithheld` (withheld line), `TestTaskContextStatesAReservationTheLimitCutAsOmitted` (reservation the limit cut) and `TestTaskContextShareLineIsCountedThroughTheRecencyReorder` (counted head, carried-row documentation and the comparison row past the head under TCP-V0-035's reorder) and `TestTaskContextShareLineSurvivesPairPromotion` (the head read by identity survives TCP-V0-004's `pair` promotion) |
+| TCP-V0-063 | `isRecordDataSuffix`, `lexicalRows` (`contextRecordDataQuota`, `lexicalData`, `lexicalRecords`), `lexicalCoverage` (`lexicalCode`), `recencyLexical` (`internal/contextindex/recency.go`) | `TestTaskContextRecordDataIsGatedLikeDocumentation`, `TestTaskContextRecencyKeepsTheRecordDataGate`, `TestIsRecordDataSuffix` |
+| TCP-V0-062 | `parseTaskContextInvocation` (`contextPositionalTaskRefusal`); `runCorpusIntegration` query | `TestTaskContextPositionalTaskMatchesTheFlagBytes` (positional form, byte parity with `--task`), `TestTaskContextRefusesAmbiguousPositionalTasks` (both forms, two positionals, neither form unchanged) |
+| TCP-V0-064 | `taskContext` (final guard, `join`), `stopped` (compile boundaries, `lexicalHits` per term, `lexicalRows`) | `TestTaskContextCancellationNeverReturnsAPacket`, `TestTaskContextPreCancelledRequestReturnsCancellation` |
+| TCP-V0-006 amendment / TCP-V0-065 (accepted, decision 0516 (V1-0315)) | `taskContextCompiler.packet`, `taskContextExclusions` | `TestTaskContextDisclosesNonUTF8Exclusions`, `TestTaskContextExclusionsAreBoundedAndAdditive`, `TestTaskContextExclusionsAbsentKeepsFrozenBytes`, `TestTaskContextExclusionsCountUnsupportedSuffixes` |
+| TCP-V0-121 (accepted, standing auto-accept, V1-2131) | `taskContextExclusions` | `TestTaskContextKeepsTaskStoreProjectionsOutOfRankingAndBehindRealGaps` |
+| TCP-V0-141 (accepted, standing auto-accept, V1-1285) | `worktreeCoverage` | `TestTaskContextDisclosesDirtyWorktreeAgainstCommittedTree` |
+| TCP-V0-150 (accepted, standing auto-accept, V1-2127) | `taskContextCompiler.packet`, `lookupEnvelope` | `TestTaskContextCarriesHeadCommitBesideTreeRevision`, `TestTaskContextExclusionsAbsentKeepsFrozenBytes` (regenerated golden), `TestCoreVerbsEmitTheFrozenProfiles` (context goldens) |
+| TCP-V0-152 (accepted, standing auto-accept, V1-1010/V1-1015) | `unresolvedAnchors`, `undeclaredAnchor` (`internal/contextindex/taskcontext_anchors.go`), `specMentionedRows`, `symbolRows` | `TestTaskContextDisclosesUnresolvedIDAnchors` |
+| TCP-V0-160 (accepted, standing auto-accept, V1-0426) | `matchingLines`, `spansOverlap` | `TestTCPV0160LookupGrepRedactsSecretLines` |
+| TCP-V0-004 amendment / TCP-V0-161 (accepted, standing auto-accept, V1-2288) | `admitLexicalPairs`, `omittedPairCoverage` | `TestTaskContextSelectedLexicalPairs`, `TestTaskContextLexicalPairPromotion`, `TestRunTaskContextSubjectlessCounterparts` |
+| TCP-V0-162 (accepted, standing auto-accept, V1-2262) | `goStructFieldNames`, `goSymbols` (`internal/contextindex/parse.go`), `eligibleDefiners`, `symbolRows`, `Index.Fields` persistence | `TestGoStructFieldsAreIndexedWithFileAndLine_TCPV0162`, `TestTaskContextRetrievesTheStructFieldDefiner_TCPV0162`, `TestParenthesizedStructTypeFieldsAreIndexed_TCPV0162`, `TestDefinitionRowKeepsTheStrongestMatchPerPath_TCPV0162`, `TestStructFieldNeverJoinsADeclaredNamesDefiners_TCPV0162`, `TestTaskContextDisclosesUnresolvedIDAnchors` |
+| TCP-V0-163 (accepted, standing auto-accept, V1-2953) | `contextRelationOrder`, `orderBySlotWeight`, `corroborate`, `renderRow` | `TestTaskContextResultsNameTheirCandidateKind_TCPV0163`, `TestTaskContextAuthorityLabelsDoNotOrderRows_TCPV0163` |

@@ -1,0 +1,260 @@
+diff --git a/internal/auth/auth.go b/internal/auth/auth.go
+index 9e66a2e7c..4a5bd858c 100644
+--- a/internal/auth/auth.go
++++ b/internal/auth/auth.go
+@@ -5,6 +5,7 @@ import (
+ 	"context"
+ 	"errors"
+ 	"net/http"
++	"strings"
+ 	"time"
+ 
+ 	"github.com/beamfall/core/internal/store"
+@@ -24,6 +25,11 @@ const (
+ 
+ // Scope is the authorization context used by read paths.
+ type Scope struct {
++	// APITokenID is set when the request authenticated with an admin API
++	// token (ADR-0013 §5) instead of a session; every session field below
++	// is then empty. Token scopes are ops-class: manager role,
++	// hidden-world visibility, no Profile.
++	APITokenID string
+ 	SessionID  store.SessionID
+ 	DeviceID   store.DeviceID
+ 	DeviceRole store.DeviceRole
+@@ -94,10 +100,13 @@ func (s *Service) certificationConstraints(ceilings []store.ProfileCertification
+ 	return constraints
+ }
+ 
+-// ScopeFromRequest resolves HTTP credentials into a Scope. The X-Beamfall-*
+-// headers are the primary credential; when absent it falls back to the
+-// browser cookie credential (ADR-0012 §5).
++// ScopeFromRequest resolves HTTP credentials into a Scope. A Bearer API
++// token (ADR-0013 §5) wins when present; then the X-Beamfall-* headers;
++// then the browser cookie credential (ADR-0012 §5).
+ func (s *Service) ScopeFromRequest(ctx context.Context, r *http.Request) (Scope, error) {
++	if bearer, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer "); ok {
++		return s.ScopeFromAPIToken(ctx, strings.TrimSpace(bearer))
++	}
+ 	sessionID := store.SessionID(r.Header.Get("X-Beamfall-Session"))
+ 	if sessionID == "" {
+ 		return s.scopeFromCookies(ctx, r)
+@@ -134,6 +143,21 @@ func (s *Service) scopeFromCookies(ctx context.Context, r *http.Request) (Scope,
+ 	return s.ScopeWithDeviceCredential(ctx, store.SessionID(session.Value), store.DeviceID(device.Value), secret.Value)
+ }
+ 
++// ScopeFromAPIToken resolves an admin API token into its ops-class Scope:
++// manager role for the ops surface, Revealed always false (the Reveal
++// contract is per-session and PIN-gated — a standing credential is never a
++// standing reveal), no Profile, no Library grants beyond the hidden world.
++func (s *Service) ScopeFromAPIToken(ctx context.Context, token string) (Scope, error) {
++	verified, err := s.store.VerifyAPIToken(ctx, token, s.now())
++	if err != nil {
++		return Scope{}, err
++	}
++	return Scope{
++		APITokenID: verified.ID,
++		DeviceRole: store.DeviceRoleManager,
++	}, nil
++}
++
+ // Scope resolves a session identifier into a Scope.
+ func (s *Service) Scope(ctx context.Context, sessionID store.SessionID) (Scope, error) {
+ 	return s.scope(ctx, sessionID, "", "")
+diff --git a/internal/graph/graph.go b/internal/graph/graph.go
+index e04c32bc8..6cf446d9e 100644
+--- a/internal/graph/graph.go
++++ b/internal/graph/graph.go
+@@ -582,6 +582,32 @@ func (h *Handler) execute(ctx context.Context, scope auth.Scope, req request, fi
+ 			data["updateSchedule"] = schedule
+ 		}
+ 	}
++	if fields["apitokens"] || fields["createapitoken"] || fields["revokeapitoken"] {
++		if scope.DeviceRole != store.DeviceRoleManager {
++			return response{Errors: []graphError{{Message: "manager role required"}}}
++		}
++		if fields["apitokens"] {
++			tokens, err := h.apiTokens(ctx)
++			if err != nil {
++				return graphFail("apiTokens", err)
++			}
++			data["apiTokens"] = tokens
++		}
++		if fields["createapitoken"] {
++			created, err := h.createAPIToken(ctx, scope, req)
++			if err != nil {
++				return graphFail("createApiToken", err)
++			}
++			data["createApiToken"] = created
++		}
++		if fields["revokeapitoken"] {
++			revoked, err := h.revokeAPIToken(ctx, scope, req)
++			if err != nil {
++				return graphFail("revokeApiToken", err)
++			}
++			data["revokeApiToken"] = revoked
++		}
++	}
+ 	if fields["activitylog"] {
+ 		entries, err := h.activityLog(ctx, scope, req)
+ 		if err != nil {
+@@ -1342,6 +1368,86 @@ const (
+ 	revealAttemptWindow = 5 * time.Minute
+ )
+ 
++// APITokenInfo is the wire shape for one admin API token (ADR-0013 §5) —
++// list metadata only; no secret material in any form.
++type APITokenInfo struct {
++	ID         string `json:"id"`
++	Name       string `json:"name"`
++	CreatedAt  string `json:"createdAt"`
++	LastUsedAt string `json:"lastUsedAt,omitempty"`
++	Revoked    bool   `json:"revoked"`
++}
++
++// CreatedAPITokenInfo carries the full token string exactly once, from the
++// create mutation's response. It is never queryable again.
++type CreatedAPITokenInfo struct {
++	Token string       `json:"token"`
++	Info  APITokenInfo `json:"info"`
++}
++
++func (h *Handler) apiTokens(ctx context.Context) ([]APITokenInfo, error) {
++	tokens, err := h.store.APITokens(ctx)
++	if err != nil {
++		return nil, err
++	}
++	infos := make([]APITokenInfo, 0, len(tokens))
++	for _, token := range tokens {
++		infos = append(infos, apiTokenInfo(token))
++	}
++	return infos, nil
++}
++
++func (h *Handler) createAPIToken(ctx context.Context, scope auth.Scope, req request) (CreatedAPITokenInfo, error) {
++	name := trimmedVariable(req, "name")
++	if name == "" {
++		return CreatedAPITokenInfo{}, clientError("name is required")
++	}
++	token, secret, err := h.store.CreateAPIToken(ctx, name, time.Now().UTC())
++	if err != nil {
++		return CreatedAPITokenInfo{}, err
++	}
++	if err := h.logActivity(ctx, scope, store.ActivityTokenCreate, "token", token.ID, ""); err != nil {
++		return CreatedAPITokenInfo{}, err
++	}
++	return CreatedAPITokenInfo{Token: secret, Info: apiTokenInfo(token)}, nil
++}
++
++func (h *Handler) revokeAPIToken(ctx context.Context, scope auth.Scope, req request) (APITokenInfo, error) {
++	id := trimmedVariable(req, "id")
++	if id == "" {
++		return APITokenInfo{}, clientError("id is required")
++	}
++	if err := h.store.RevokeAPIToken(ctx, id); err != nil {
++		return APITokenInfo{}, err
++	}
++	if err := h.logActivity(ctx, scope, store.ActivityTokenRevoke, "token", id, ""); err != nil {
++		return APITokenInfo{}, err
++	}
++	tokens, err := h.store.APITokens(ctx)
++	if err != nil {
++		return APITokenInfo{}, err
++	}
++	for _, token := range tokens {
++		if token.ID == id {
++			return apiTokenInfo(token), nil
++		}
++	}
++	return APITokenInfo{}, clientError("token not found")
++}
++
++func apiTokenInfo(token store.APIToken) APITokenInfo {
++	info := APITokenInfo{
++		ID:        token.ID,
++		Name:      token.Name,
++		CreatedAt: token.CreatedAt.UTC().Format(time.RFC3339),
++		Revoked:   token.Revoked,
++	}
++	if !token.LastUsedAt.IsZero() {
++		info.LastUsedAt = token.LastUsedAt.UTC().Format(time.RFC3339)
++	}
++	return info
++}
++
+ // logActivity appends one ADR-0012 §11 activity-log entry for the acting
+ // scope. The closed entry shape carries identifiers only — never a PIN,
+ // code, token, or path. Reveal/relock entries carry no target: they must
+@@ -1356,6 +1462,7 @@ func (h *Handler) logActivity(ctx context.Context, scope auth.Scope, action, tar
+ 		TargetType: targetType,
+ 		TargetID:   targetID,
+ 		LibraryID:  libraryID,
++		TokenID:    scope.APITokenID,
+ 	})
+ }
+ 
+@@ -2450,6 +2557,9 @@ var scopedFields = map[string]bool{
+ 	"job":                     true,
+ 	"schedules":               true,
+ 	"updateschedule":          true,
++	"apitokens":               true,
++	"createapitoken":          true,
++	"revokeapitoken":          true,
+ 	"activitylog":             true,
+ }
+ 
+diff --git a/internal/store/activity.go b/internal/store/activity.go
+index f65c37ca9..0fba80b72 100644
+--- a/internal/store/activity.go
++++ b/internal/store/activity.go
+@@ -19,6 +19,8 @@ const (
+ 	ActivityLibraryRoots        = "library.roots"
+ 	ActivityLibraryPreviewClips = "library.preview_clips"
+ 	ActivityScheduleUpdate      = "schedule.update"
++	ActivityTokenCreate         = "token.create"
++	ActivityTokenRevoke         = "token.revoke"
+ 	ActivityPairingCode         = "pairing.code"
+ 	ActivityEnroll              = "device.enroll"
+ 	ActivityEnrollDenied        = "enroll.denied"
+@@ -42,6 +44,9 @@ type ActivityEntry struct {
+ 	TargetType string
+ 	TargetID   string
+ 	LibraryID  LibraryID
++	// TokenID attributes mutations that arrived with an API token instead
++	// of a session (ADR-0013 §5).
++	TokenID string
+ }
+ 
+ // ActivityQuery scopes an activity-log read. Filter applies the caller's
+@@ -70,10 +75,10 @@ func (s *Store) AppendActivity(ctx context.Context, entry ActivityEntry) error {
+ 		return err
+ 	}
+ 	_, err := s.eventsW.ExecContext(ctx, `
+-		INSERT INTO activity_entry(occurred_at_ms, action, session_id, device_id, profile_id, target_type, target_id, library_id)
+-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
++		INSERT INTO activity_entry(occurred_at_ms, action, session_id, device_id, profile_id, target_type, target_id, library_id, token_id)
++		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+ 		timeToMillis(entry.OccurredAt), entry.Action, entry.SessionID, entry.DeviceID,
+-		entry.ProfileID, entry.TargetType, entry.TargetID, entry.LibraryID)
++		entry.ProfileID, entry.TargetType, entry.TargetID, entry.LibraryID, entry.TokenID)
+ 	return err
+ }
+ 
+@@ -119,7 +124,7 @@ func (s *Store) ActivityEntries(ctx context.Context, query ActivityQuery) ([]Act
+ 	}
+ 	args = append(args, limit, offset)
+ 	rows, err := s.eventsR.QueryContext(ctx, `
+-		SELECT id, occurred_at_ms, action, session_id, device_id, profile_id, target_type, target_id, library_id
++		SELECT id, occurred_at_ms, action, session_id, device_id, profile_id, target_type, target_id, library_id, token_id
+ 		FROM activity_entry
+ 		WHERE `+where+`
+ 		ORDER BY id DESC
+@@ -133,7 +138,7 @@ func (s *Store) ActivityEntries(ctx context.Context, query ActivityQuery) ([]Act
+ 		var entry ActivityEntry
+ 		var occurredAt int64
+ 		if err := rows.Scan(&entry.ID, &occurredAt, &entry.Action, &entry.SessionID,
+-			&entry.DeviceID, &entry.ProfileID, &entry.TargetType, &entry.TargetID, &entry.LibraryID); err != nil {
++			&entry.DeviceID, &entry.ProfileID, &entry.TargetType, &entry.TargetID, &entry.LibraryID, &entry.TokenID); err != nil {
+ 			return nil, err
+ 		}
+ 		entry.OccurredAt = millisToTime(occurredAt)

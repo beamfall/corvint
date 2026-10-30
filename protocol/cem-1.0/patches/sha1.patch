@@ -1,0 +1,7 @@
+diff --git a/app.txt b/app.txt
+index 90be1f3056c4f471f977a28497b8d4b392c55a02..294186e497a23bf3fbfde12aacc7f720f668fe9a 100644
+--- a/app.txt
++++ b/app.txt
+@@ -1 +1 @@
+-before
++after

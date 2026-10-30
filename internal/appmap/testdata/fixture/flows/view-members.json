@@ -1,0 +1,22 @@
+{
+  "schema": "application-flow-intent/1",
+  "flow_id": "view-members",
+  "revision": 1,
+  "kind": "ui",
+  "actor": "club admin",
+  "preconditions": [],
+  "steps": [
+    {"step_id": "open-members", "action": "open the member list"}
+  ],
+  "outcomes": [
+    {"outcome_id": "listed", "behavior": "members are listed", "matcher": "toBeVisible", "locator": "member-list", "value": "Members"}
+  ],
+  "variations": [],
+  "links": [],
+  "navigation": {
+    "precondition_flows": ["book-tee-time"],
+    "steps": [
+      {"step_id": "open-members", "state": "/clubs/{clubId}/members", "locator": {"test_id": "nav-members"}, "expect": ["listed"]}
+    ]
+  }
+}

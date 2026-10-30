@@ -1,0 +1,14 @@
+{
+  "alpha": 0.05,
+  "effort": "medium",
+  "hypotheses": [
+    "H1: the seeded arm's mean miss is lower than the control arm's (paired, change-weighted, two repeats averaged per change).",
+    "H2: the treatment arm's mean miss differs from the control arm's; treatment is the format control carrying the all-unknown cem/1.0 map."
+  ],
+  "model": "gpt-5.6-sol",
+  "n": 57,
+  "partition": "heldout",
+  "primary_metric": "miss",
+  "profile": "corvint-cem-trial-registration/0",
+  "scorer_sha256": "bc34a7fa937e65f8ba6137debfe50736c9b32a052d76ec98e04f96d92d2a5157"
+}

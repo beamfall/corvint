@@ -1,0 +1,577 @@
+{
+  "artifactRoot": ".",
+  "baseRevision": "55a331ed4fc60d5764198f206c8d4f9721ab95a1",
+  "cases": [
+    {
+      "citation": {
+        "annotationHunks": 0,
+        "concentratedHunks": 0,
+        "distinctEvidence": 2,
+        "evidenceFanOut": [
+          [
+            "evidence:sha256:512cfcdddc9043ee5d7a889448c1c8cfee758ff14d1aa70e9aafbc126eddd3ad",
+            1
+          ],
+          [
+            "evidence:sha256:9c6ad279a82176c4feff02d0b51a4b9847f6695747cc814492e59c03a48d22d4",
+            1
+          ]
+        ],
+        "hunks": [
+          {
+            "anchors": [
+              "id",
+              "path"
+            ],
+            "annotation": false,
+            "hunkId": "hunk:sha256:aa9222a34920b591beba13d439aac0bfe6526f0f7167adc6255d212ad18d0694",
+            "tier": "anchored"
+          },
+          {
+            "anchors": [
+              "id",
+              "path"
+            ],
+            "annotation": false,
+            "hunkId": "hunk:sha256:d335b764312c7f0e24670877e1a0b626142bf723bc9cae5a1e096eab2bd15eb8",
+            "tier": "anchored"
+          }
+        ],
+        "hunksByClass": {
+          "anchored": 2,
+          "cited": 0,
+          "held": 0,
+          "mechanical-proved": 0,
+          "unknown": 0
+        },
+        "invariant": false,
+        "maxFanOut": 1,
+        "profile": "cem-citation-support/0",
+        "samePathCitations": 0,
+        "specificity": 2
+      },
+      "code": null,
+      "description": "the unmodified map (control)",
+      "exit": 0,
+      "issueCodes": [],
+      "map": "stable.json",
+      "name": "clean",
+      "outcome": "ACCEPT",
+      "stage": "complete",
+      "tamper": "control"
+    },
+    {
+      "citation": null,
+      "code": null,
+      "description": "patchSha256 replaced by the digest of other bytes",
+      "exit": 1,
+      "issueCodes": [
+        "patch-digest-mismatch"
+      ],
+      "map": "cases/patch-digest-mismatch.json",
+      "name": "patch-digest-mismatch",
+      "outcome": "REJECT",
+      "stage": "verification",
+      "tamper": "PatchDigestMismatch"
+    },
+    {
+      "citation": null,
+      "code": null,
+      "description": "the first hunk's evidence ID is replaced by a well-formed ID that is not the digest of its record; the basis follows it",
+      "exit": 1,
+      "issueCodes": [
+        "fabricated-evidence-id"
+      ],
+      "map": "cases/fabricated-evidence-id.json",
+      "name": "fabricated-evidence-id",
+      "outcome": "REJECT",
+      "stage": "verification",
+      "tamper": "FabricatedEvidenceID"
+    },
+    {
+      "citation": null,
+      "code": null,
+      "description": "the first hunk's evidence span end is decreased by one byte; spanSha256 and the evidence ID are not recomputed",
+      "exit": 1,
+      "issueCodes": [
+        "fabricated-evidence-id"
+      ],
+      "map": "cases/span-end-edited.json",
+      "name": "span-end-edited",
+      "outcome": "REJECT",
+      "stage": "verification",
+      "tamper": "SpanRangeEdit"
+    },
+    {
+      "citation": null,
+      "code": null,
+      "description": "the first hunk's evidence span end is decreased by one byte and the evidence ID recomputed, but spanSha256 still hashes the old span",
+      "exit": 1,
+      "issueCodes": [
+        "fabricated-evidence-id"
+      ],
+      "map": "cases/span-hash-mismatch.json",
+      "name": "span-hash-mismatch",
+      "outcome": "REJECT",
+      "stage": "verification",
+      "tamper": "SpanRangeEdit"
+    },
+    {
+      "citation": {
+        "annotationHunks": 0,
+        "concentratedHunks": 0,
+        "distinctEvidence": 2,
+        "evidenceFanOut": [
+          [
+            "evidence:sha256:512cfcdddc9043ee5d7a889448c1c8cfee758ff14d1aa70e9aafbc126eddd3ad",
+            1
+          ],
+          [
+            "evidence:sha256:9fdc8339b5bb3ebb1ec8621b05798acef7c3e3a16da07d44cfabc50c33aa15c3",
+            1
+          ]
+        ],
+        "hunks": [
+          {
+            "anchors": [
+              "id",
+              "path"
+            ],
+            "annotation": false,
+            "hunkId": "hunk:sha256:aa9222a34920b591beba13d439aac0bfe6526f0f7167adc6255d212ad18d0694",
+            "tier": "anchored"
+          },
+          {
+            "anchors": [
+              "id",
+              "path"
+            ],
+            "annotation": false,
+            "hunkId": "hunk:sha256:d335b764312c7f0e24670877e1a0b626142bf723bc9cae5a1e096eab2bd15eb8",
+            "tier": "anchored"
+          }
+        ],
+        "hunksByClass": {
+          "anchored": 2,
+          "cited": 0,
+          "held": 0,
+          "mechanical-proved": 0,
+          "unknown": 0
+        },
+        "invariant": false,
+        "maxFanOut": 1,
+        "profile": "cem-citation-support/0",
+        "samePathCitations": 0,
+        "specificity": 2
+      },
+      "code": null,
+      "description": "the first hunk's evidence span end is decreased by one byte with spanSha256 and the evidence ID recomputed (a different, valid citation)",
+      "exit": 0,
+      "issueCodes": [],
+      "map": "cases/span-hash-recomputed.json",
+      "name": "span-hash-recomputed",
+      "outcome": "ACCEPT",
+      "stage": "complete",
+      "tamper": "SpanRangeEdit"
+    },
+    {
+      "citation": null,
+      "code": null,
+      "description": "the first hunk's evidence span is empty (start equals end), with spanSha256 and the evidence ID recomputed",
+      "exit": 1,
+      "issueCodes": [
+        "evidence-unavailable"
+      ],
+      "map": "cases/span-empty.json",
+      "name": "span-empty",
+      "outcome": "REJECT",
+      "stage": "verification",
+      "tamper": "InvalidSpan"
+    },
+    {
+      "citation": null,
+      "code": null,
+      "description": "the first hunk's evidence span start is after its end, with the evidence ID recomputed",
+      "exit": 1,
+      "issueCodes": [
+        "evidence-unavailable"
+      ],
+      "map": "cases/span-reversed.json",
+      "name": "span-reversed",
+      "outcome": "REJECT",
+      "stage": "verification",
+      "tamper": "InvalidSpan"
+    },
+    {
+      "citation": null,
+      "code": null,
+      "description": "the first hunk's evidence span end lies beyond its base blob, with the evidence ID recomputed",
+      "exit": 1,
+      "issueCodes": [
+        "evidence-unavailable"
+      ],
+      "map": "cases/span-out-of-range.json",
+      "name": "span-out-of-range",
+      "outcome": "REJECT",
+      "stage": "verification",
+      "tamper": "SpanOutOfRange"
+    },
+    {
+      "citation": null,
+      "code": null,
+      "description": "the second hunk and its only evidence record are removed, leaving a patch hunk the map does not cite",
+      "exit": 1,
+      "issueCodes": [
+        "patch-hunk-count"
+      ],
+      "map": "cases/hunk-dropped.json",
+      "name": "hunk-dropped",
+      "outcome": "REJECT",
+      "stage": "verification",
+      "tamper": "UncitedHunk"
+    },
+    {
+      "citation": null,
+      "code": "invalid-field",
+      "description": "the second hunk is removed and its evidence record is kept, now unreferenced",
+      "exit": 2,
+      "issueCodes": [],
+      "map": "cases/hunk-dropped-evidence-kept.json",
+      "name": "hunk-dropped-evidence-kept",
+      "outcome": "REJECT",
+      "stage": "wire",
+      "tamper": "UncitedHunk"
+    },
+    {
+      "citation": null,
+      "code": "invalid-field",
+      "description": "the first hunk's evidence record is removed while its basis still names it",
+      "exit": 2,
+      "issueCodes": [],
+      "map": "cases/evidence-dropped.json",
+      "name": "evidence-dropped",
+      "outcome": "REJECT",
+      "stage": "wire",
+      "tamper": "EvidenceDrop"
+    },
+    {
+      "citation": null,
+      "code": null,
+      "description": "the first hunk's old and new range starts are moved by three lines; its ID is not recomputed",
+      "exit": 1,
+      "issueCodes": [
+        "invalid-field"
+      ],
+      "map": "cases/hunk-ranges-moved.json",
+      "name": "hunk-ranges-moved",
+      "outcome": "REJECT",
+      "stage": "verification",
+      "tamper": "HunkRangeEdit"
+    },
+    {
+      "citation": null,
+      "code": null,
+      "description": "the last hex digit of the first hunk ID is changed",
+      "exit": 1,
+      "issueCodes": [
+        "invalid-field"
+      ],
+      "map": "cases/hunk-id-forged.json",
+      "name": "hunk-id-forged",
+      "outcome": "REJECT",
+      "stage": "verification",
+      "tamper": "HunkIdentity"
+    },
+    {
+      "citation": {
+        "annotationHunks": 0,
+        "concentratedHunks": 0,
+        "distinctEvidence": 2,
+        "evidenceFanOut": [
+          [
+            "evidence:sha256:512cfcdddc9043ee5d7a889448c1c8cfee758ff14d1aa70e9aafbc126eddd3ad",
+            1
+          ],
+          [
+            "evidence:sha256:9c6ad279a82176c4feff02d0b51a4b9847f6695747cc814492e59c03a48d22d4",
+            1
+          ]
+        ],
+        "hunks": [
+          {
+            "anchors": [
+              "id",
+              "path"
+            ],
+            "annotation": false,
+            "hunkId": "hunk:sha256:aa9222a34920b591beba13d439aac0bfe6526f0f7167adc6255d212ad18d0694",
+            "tier": "anchored"
+          },
+          {
+            "anchors": [
+              "id",
+              "path"
+            ],
+            "annotation": false,
+            "hunkId": "hunk:sha256:d335b764312c7f0e24670877e1a0b626142bf723bc9cae5a1e096eab2bd15eb8",
+            "tier": "anchored"
+          }
+        ],
+        "hunksByClass": {
+          "anchored": 2,
+          "cited": 0,
+          "held": 0,
+          "mechanical-proved": 0,
+          "unknown": 0
+        },
+        "invariant": false,
+        "maxFanOut": 1,
+        "profile": "cem-citation-support/0",
+        "samePathCitations": 0,
+        "specificity": 2
+      },
+      "code": null,
+      "description": "the hunk array is reversed",
+      "exit": 0,
+      "issueCodes": [],
+      "map": "cases/hunk-reorder.json",
+      "name": "hunk-reorder",
+      "outcome": "ACCEPT",
+      "stage": "complete",
+      "tamper": "HunkReorder"
+    },
+    {
+      "citation": {
+        "annotationHunks": 0,
+        "concentratedHunks": 0,
+        "distinctEvidence": 2,
+        "evidenceFanOut": [
+          [
+            "evidence:sha256:512cfcdddc9043ee5d7a889448c1c8cfee758ff14d1aa70e9aafbc126eddd3ad",
+            1
+          ],
+          [
+            "evidence:sha256:9c6ad279a82176c4feff02d0b51a4b9847f6695747cc814492e59c03a48d22d4",
+            1
+          ]
+        ],
+        "hunks": [
+          {
+            "anchors": [],
+            "annotation": false,
+            "hunkId": "hunk:sha256:aa9222a34920b591beba13d439aac0bfe6526f0f7167adc6255d212ad18d0694",
+            "tier": "cited"
+          },
+          {
+            "anchors": [],
+            "annotation": false,
+            "hunkId": "hunk:sha256:d335b764312c7f0e24670877e1a0b626142bf723bc9cae5a1e096eab2bd15eb8",
+            "tier": "cited"
+          }
+        ],
+        "hunksByClass": {
+          "anchored": 0,
+          "cited": 2,
+          "held": 0,
+          "mechanical-proved": 0,
+          "unknown": 0
+        },
+        "invariant": false,
+        "maxFanOut": 1,
+        "profile": "cem-citation-support/0",
+        "samePathCitations": 0,
+        "specificity": -2
+      },
+      "code": null,
+      "description": "the two hunks' evidence IDs are swapped: each hunk now cites the other hunk's requirement span",
+      "exit": 0,
+      "issueCodes": [],
+      "map": "cases/evidence-ids-swapped.json",
+      "name": "evidence-ids-swapped",
+      "outcome": "ACCEPT",
+      "stage": "complete",
+      "tamper": "EvidenceIDSwap"
+    },
+    {
+      "citation": {
+        "annotationHunks": 0,
+        "concentratedHunks": 1,
+        "distinctEvidence": 2,
+        "evidenceFanOut": [
+          [
+            "evidence:sha256:9c6ad279a82176c4feff02d0b51a4b9847f6695747cc814492e59c03a48d22d4",
+            2
+          ],
+          [
+            "evidence:sha256:512cfcdddc9043ee5d7a889448c1c8cfee758ff14d1aa70e9aafbc126eddd3ad",
+            1
+          ]
+        ],
+        "hunks": [
+          {
+            "anchors": [
+              "id",
+              "path"
+            ],
+            "annotation": false,
+            "hunkId": "hunk:sha256:aa9222a34920b591beba13d439aac0bfe6526f0f7167adc6255d212ad18d0694",
+            "tier": "anchored"
+          },
+          {
+            "anchors": [
+              "id",
+              "path"
+            ],
+            "annotation": false,
+            "hunkId": "hunk:sha256:d335b764312c7f0e24670877e1a0b626142bf723bc9cae5a1e096eab2bd15eb8",
+            "tier": "anchored"
+          }
+        ],
+        "hunksByClass": {
+          "anchored": 2,
+          "cited": 0,
+          "held": 0,
+          "mechanical-proved": 0,
+          "unknown": 0
+        },
+        "invariant": false,
+        "maxFanOut": 2,
+        "profile": "cem-citation-support/0",
+        "samePathCitations": 0,
+        "specificity": 1
+      },
+      "code": null,
+      "description": "the second hunk also cites the first hunk's evidence",
+      "exit": 0,
+      "issueCodes": [],
+      "map": "cases/extra-basis.json",
+      "name": "extra-basis",
+      "outcome": "ACCEPT",
+      "stage": "complete",
+      "tamper": "ExtraBasis"
+    },
+    {
+      "citation": null,
+      "code": "unknown-field",
+      "description": "a producer-written tier member is added to the first hunk",
+      "exit": 2,
+      "issueCodes": [],
+      "map": "cases/producer-tier-field.json",
+      "name": "producer-tier-field",
+      "outcome": "REJECT",
+      "stage": "wire",
+      "tamper": "ProducerTier"
+    },
+    {
+      "citation": null,
+      "code": null,
+      "description": "the first hunk is marked mechanical whitespace-only and its evidence removed; the hunk is not whitespace-only",
+      "exit": 1,
+      "issueCodes": [
+        "unproven-mechanical"
+      ],
+      "map": "cases/mechanical-unproven.json",
+      "name": "mechanical-unproven",
+      "outcome": "REJECT",
+      "stage": "verification",
+      "tamper": "MechanicalClaim"
+    },
+    {
+      "citation": null,
+      "code": "invalid-field",
+      "description": "the first hunk repeats its own (evidenceId, relation) basis pair",
+      "exit": 2,
+      "issueCodes": [],
+      "map": "cases/basis-pair-duplicated.json",
+      "name": "basis-pair-duplicated",
+      "outcome": "REJECT",
+      "stage": "wire",
+      "tamper": "BasisPairDuplicate"
+    },
+    {
+      "citation": {
+        "annotationHunks": 0,
+        "concentratedHunks": 0,
+        "distinctEvidence": 2,
+        "evidenceFanOut": [
+          [
+            "evidence:sha256:512cfcdddc9043ee5d7a889448c1c8cfee758ff14d1aa70e9aafbc126eddd3ad",
+            1
+          ],
+          [
+            "evidence:sha256:9c6ad279a82176c4feff02d0b51a4b9847f6695747cc814492e59c03a48d22d4",
+            1
+          ]
+        ],
+        "hunks": [
+          {
+            "anchors": [
+              "id",
+              "path"
+            ],
+            "annotation": false,
+            "hunkId": "hunk:sha256:aa9222a34920b591beba13d439aac0bfe6526f0f7167adc6255d212ad18d0694",
+            "tier": "anchored"
+          },
+          {
+            "anchors": [
+              "id",
+              "path"
+            ],
+            "annotation": false,
+            "hunkId": "hunk:sha256:d335b764312c7f0e24670877e1a0b626142bf723bc9cae5a1e096eab2bd15eb8",
+            "tier": "anchored"
+          }
+        ],
+        "hunksByClass": {
+          "anchored": 2,
+          "cited": 0,
+          "held": 0,
+          "mechanical-proved": 0,
+          "unknown": 0
+        },
+        "invariant": false,
+        "maxFanOut": 1,
+        "profile": "cem-citation-support/0",
+        "samePathCitations": 0,
+        "specificity": 2
+      },
+      "code": null,
+      "description": "the first hunk carries a discriminates witness whose mutants equal bounds.maxMutants (1 of 1, killed); the boundary is admitted",
+      "exit": 0,
+      "issueCodes": [],
+      "map": "cases/discrimination-at-bound.json",
+      "name": "discrimination-at-bound",
+      "outcome": "ACCEPT",
+      "stage": "complete",
+      "tamper": "DiscriminationAtBound"
+    },
+    {
+      "citation": null,
+      "code": "invalid-field",
+      "description": "the first hunk claims 1000000 mutants, all killed, under bounds.maxMutants 1",
+      "exit": 2,
+      "issueCodes": [],
+      "map": "cases/discrimination-mutants-over-bound.json",
+      "name": "discrimination-mutants-over-bound",
+      "outcome": "REJECT",
+      "stage": "wire",
+      "tamper": "DiscriminationBoundExceeded"
+    },
+    {
+      "citation": null,
+      "code": "invalid-field",
+      "description": "the first hunk claims survived 2 but describes one survivor",
+      "exit": 2,
+      "issueCodes": [],
+      "map": "cases/discrimination-survivors-inconsistent.json",
+      "name": "discrimination-survivors-inconsistent",
+      "outcome": "REJECT",
+      "stage": "wire",
+      "tamper": "DiscriminationSurvivorMismatch"
+    }
+  ],
+  "profile": "cem-stable-tamper-matrix/1",
+  "requirement": "CEM-V1-226",
+  "targetRevision": "edefd9a4b5c8859447727e10762fccbe53340038"
+}

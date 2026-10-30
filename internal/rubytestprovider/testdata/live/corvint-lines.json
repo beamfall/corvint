@@ -1,0 +1,126 @@
+{
+  "profile": "corvint-ruby-test-provider/0",
+  "runner": "rspec",
+  "runnerVersion": "3.13.6",
+  "projectDirectory": ".",
+  "command": [
+    "docker",
+    "run",
+    "--rm",
+    "--network",
+    "none",
+    "-v",
+    ".:/work",
+    "-w",
+    "/work",
+    "corvint-rspec-qual:2026-10-20",
+    "rspec",
+    "--require",
+    "./.corvint/rspec/c68f428d085b7d42-formatter.rb",
+    "--format",
+    "CorvintRSpecJsonFormatter",
+    "--out",
+    ".corvint/rspec/c68f428d085b7d42.json",
+    "spec/widget_spec.rb:7",
+    "spec/widget_spec.rb:10",
+    "spec/empty_spec.rb"
+  ],
+  "objectFormat": "sha1",
+  "repositoryBefore": {
+    "rootCommit": "598d40de42baa1f353d323f71a79857ab9976413",
+    "revision": "598d40de42baa1f353d323f71a79857ab9976413",
+    "tree": "937ec548675ed1b3cc120a9c9d819d6f71f1b5ae",
+    "dirtyState": "clean"
+  },
+  "repositoryAfter": {
+    "rootCommit": "598d40de42baa1f353d323f71a79857ab9976413",
+    "revision": "598d40de42baa1f353d323f71a79857ab9976413",
+    "tree": "937ec548675ed1b3cc120a9c9d819d6f71f1b5ae",
+    "dirtyState": "clean"
+  },
+  "helperBasis": "conventional-paths",
+  "helperSet": "sha256:f6f5fe0ee07aa3a1f17160c7af62998d431730fad5fee73c27cf6b7259fe2d10",
+  "helpers": [
+    {
+      "path": "spec/support/shared.rb",
+      "blob": "5f676f62ade3aafe4d71659a4a58e1088c39438f"
+    }
+  ],
+  "examples": [
+    {
+      "id": "spec/widget_spec.rb:7",
+      "rspecId": "./spec/widget_spec.rb[1:1]",
+      "file": "spec/widget_spec.rb",
+      "line": 7,
+      "description": "Widget keeps its price",
+      "status": "passed",
+      "specBlob": "6bba06312f700d1c2e9fb5f199c1b035ef3cfa8f",
+      "helpers": "sha256:f6f5fe0ee07aa3a1f17160c7af62998d431730fad5fee73c27cf6b7259fe2d10",
+      "sharedExampleAbsent": "not-shared"
+    },
+    {
+      "id": "spec/support/shared.rb:2",
+      "rspecId": "./spec/widget_spec.rb[1:2:1]",
+      "file": "spec/support/shared.rb",
+      "line": 2,
+      "description": "Widget behaves like a priced item has a positive price",
+      "status": "passed",
+      "specBlob": "5f676f62ade3aafe4d71659a4a58e1088c39438f",
+      "helpers": "sha256:f6f5fe0ee07aa3a1f17160c7af62998d431730fad5fee73c27cf6b7259fe2d10",
+      "sharedExample": {
+        "origin": "spec/support/shared.rb:2",
+        "includedAt": [
+          "spec/widget_spec.rb:10"
+        ]
+      }
+    }
+  ],
+  "summary": {
+    "examples": 2,
+    "failures": 0,
+    "pending": 0,
+    "errorsOutsideOfExamples": 0
+  },
+  "exitStatus": 0,
+  "junit": {
+    "state": "NOT_REQUESTED"
+  },
+  "selection": [
+    {
+      "selector": "spec/widget_spec.rb:7",
+      "kind": "line",
+      "outcome": "MATCHED",
+      "matched": 1
+    },
+    {
+      "selector": "spec/widget_spec.rb:10",
+      "kind": "line",
+      "outcome": "MATCHED",
+      "matched": 1
+    },
+    {
+      "selector": "spec/empty_spec.rb",
+      "kind": "path",
+      "outcome": "NO_EXAMPLE"
+    }
+  ],
+  "runtime": {
+    "basis": "exec-prefix-probe",
+    "ruby": {
+      "value": "3.4.11"
+    },
+    "bundler": {
+      "value": "2.6.9"
+    },
+    "probeContainer": {
+      "value": "6ce58b25e6929f7461ff7b1e8dda0b320e6549d0d4b850bb5f9b60967c60229b"
+    },
+    "image": {
+      "unknown": "container-not-inspectable"
+    },
+    "runContainer": {
+      "value": "77ec12144813a9e4603970751c269f8b7db1a10b8d7a5f13b7847d6d8fdad6bf"
+    }
+  },
+  "formatter": "corvint-rspec-json/0"
+}

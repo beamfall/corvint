@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "commit": "e516c3baf22615e20934116abebfed6c000222c2",
+  "cases": [{
+    "id": "zod.v4-readonly-freeze-claim.v1",
+    "partition": "heldout-v2",
+    "target_version": "V6",
+    "mode": "query",
+    "text": "Audit Zod 4's claim that readonly parsing freezes output across interpreted sync/async and AOT-compiled paths. Is freezing shallow or deep, and do tests directly prove compiled object freezing rather than only primitive validation?",
+    "limit": 8,
+    "budget_bytes": 30000,
+    "rationale": "A maintainer changing the compiler or readonly wrapper needs to know the actual contract and whether current tests substantiate it.",
+    "ground_truth": [
+      {"path": "packages/zod/src/v4/core/schemas.ts", "line": 4438, "contains": "export const $ZodReadonly"},
+      {"path": "packages/zod/src/v4/core/schemas.ts", "line": 4460, "contains": "function handleReadonlyResult"},
+      {"path": "packages/zod/src/v4/core/schemas.ts", "line": 4462, "contains": "Object.freeze(payload.value)"},
+      {"path": "packages/zod/src/v4/core/compile.ts", "line": 898, "contains": "Object.freeze(${innerOut})"},
+      {"path": "packages/zod/src/v4/classic/tests/readonly.test.ts", "line": 121, "contains": "test(\"object freezing\""},
+      {"path": "packages/zod/src/v4/core/tests/compile.test.ts", "line": 197, "contains": "test(\"readonly\""},
+      {"path": "packages/docs/content/api.mdx", "line": 3203, "contains": "result will be frozen with"},
+      {"path": "packages/zod/src/v4/classic/schemas.ts", "line": 2578, "contains": "export const ZodReadonly"},
+      {"path": "packages/zod/src/v4/core/tests/compile-differential.test.ts", "line": 243, "contains": "test(\"readonly\""}
+    ],
+    "expected": {
+      "critical": ["symbol:packages/zod/src/v4/core/schemas.ts:$ZodReadonly", "symbol:packages/zod/src/v4/core/schemas.ts:handleReadonlyResult", "path:packages/zod/src/v4/core/compile.ts"],
+      "must_include": ["test:packages/zod/src/v4/classic/tests/readonly.test.ts", "test:packages/zod/src/v4/core/tests/compile.test.ts", "path:packages/docs/content/api.mdx"],
+      "relevant": ["symbol:packages/zod/src/v4/classic/schemas.ts:ZodReadonly", "test:packages/zod/src/v4/core/tests/compile-differential.test.ts"],
+      "must_exclude": ["path:packages/zod/src/v3/types.ts", "test:packages/zod/src/v3/tests/readonly.test.ts"]
+    }
+  }]
+}

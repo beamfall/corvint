@@ -1,0 +1,81 @@
+{
+  "baseRevision": "d39fdcfe8330ebe1b7158e0fcc23020626d41947",
+  "producer": "producer:cem-map",
+  "profile": "cem-run-inventory/1",
+  "requiredTests": [
+    {
+      "id": "example.com/greet::TestGreetEmpty",
+      "project": "example.com/greet",
+      "runner": "go-test"
+    },
+    {
+      "id": "greet.test.mjs::greet names the caller",
+      "project": "greet",
+      "runner": "node-test"
+    },
+    {
+      "id": "greet.test.mjs::greet greets a stranger for an empty name",
+      "project": "greet",
+      "runner": "node-test"
+    }
+  ],
+  "runs": [
+    {
+      "attempt": 1,
+      "inputFiles": {
+        "greet.go": "0540c64566bdc430b91135791858588a6f8a4df3a6918b1064795b373d566645",
+        "greet_test.go": "d5f4ea0d3702c32761c152e02d1395fe7af31b7f7f68f412e705dddb082f7046"
+      },
+      "outcomes": [
+        {
+          "id": "example.com/greet::TestGreetEmpty",
+          "state": "PASSED"
+        },
+        {
+          "id": "example.com/greet::TestGreetName",
+          "state": "FAILED"
+        }
+      ],
+      "project": "example.com/greet",
+      "receiptSha256": "98694330bf4545f9f3ef853003e3f6ed7872d0e39faa733c3992d054a3574c6a",
+      "runner": "go-test"
+    },
+    {
+      "attempt": 2,
+      "inputFiles": {
+        "greet.go": "0540c64566bdc430b91135791858588a6f8a4df3a6918b1064795b373d566645",
+        "greet_test.go": "d5f4ea0d3702c32761c152e02d1395fe7af31b7f7f68f412e705dddb082f7046"
+      },
+      "outcomes": [
+        {
+          "id": "example.com/greet::TestGreetEmpty",
+          "state": "PASSED"
+        }
+      ],
+      "project": "example.com/greet",
+      "receiptSha256": "5e0af7807953ff823e91bb5a8eea2b0681b11a7e46dfc7b3e05641c79a052d30",
+      "runner": "go-test"
+    },
+    {
+      "attempt": 1,
+      "inputFiles": {
+        "greet.mjs": "14c85d6fc04fe5d2f69b9b935482d1acd9152b23e929835dff17ec1956b2a4f4",
+        "greet.test.mjs": "25813647d2480a2d8b3579441551856151775af2d292da0d2cf259ac99727eae"
+      },
+      "outcomes": [
+        {
+          "id": "greet.test.mjs::greet names the caller",
+          "state": "PASSED"
+        },
+        {
+          "id": "greet.test.mjs::greet greets a stranger for an empty name",
+          "state": "PASSED"
+        }
+      ],
+      "project": "greet",
+      "receiptSha256": "e9b3b66be6cbd62723005bae4fd15b523045b025be8b0fb030225a865fea1734",
+      "runner": "node-test"
+    }
+  ],
+  "targetRevision": "f8cd50b5509eb7176a79ef4e0787904feb66af71"
+}

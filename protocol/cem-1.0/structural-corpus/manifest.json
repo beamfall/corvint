@@ -1,0 +1,146 @@
+{
+  "profile": "cem-structural-corpus-manifest/1",
+  "license": "Apache-2.0 public specifications/data only; no native code",
+  "files": [
+    {
+      "path": "CORPUS.json",
+      "sha256": "bc0579b608d04cff9442a7c1f2bfd3b7300183cfb8e05a812b2e1557a5f5348d",
+      "bytes": 5431
+    },
+    {
+      "path": "CASES.observations.jsonl",
+      "sha256": "55792eadc0fbda5917f9c7142e314dff21d3b2626e666b5ea1552f63d08a9a41",
+      "bytes": 30031
+    },
+    {
+      "path": "QUALIFICATION.json",
+      "sha256": "c20e2c54d860ed7de3293436b18d4d39b0e385b4147fda8a372aadabe29064e3",
+      "bytes": 6303
+    },
+    {
+      "path": "cases/alignment.go.txt",
+      "sha256": "3f54bca014ec46d021183161eb19cd56751d176eeb97d38fa217205227396899",
+      "bytes": 392
+    },
+    {
+      "path": "cases/bom.go.txt",
+      "sha256": "e8d2de8b1f2d7051aff820c54945eaf86920d4749068d8953e440972e4acea5d",
+      "bytes": 82
+    },
+    {
+      "path": "cases/build-constraints.go.txt",
+      "sha256": "7285f840d9d368c6612826c01cb05c34a6529516037f37120cf318f306d38a50",
+      "bytes": 205
+    },
+    {
+      "path": "cases/builtins-min-max-clear.go.txt",
+      "sha256": "9a2e162325ee86eead39c43be2b780061cda600ea94e475f7c5882c917165a50",
+      "bytes": 217
+    },
+    {
+      "path": "cases/cgo-preamble.go.txt",
+      "sha256": "e4937044a2b6434f499add22222490f7f9e0be3d5ab8d2a864b43bca1056f728",
+      "bytes": 243
+    },
+    {
+      "path": "cases/comments-everywhere.go.txt",
+      "sha256": "6c23fa2af03e7acffdb352b3b2c362054a6097b6ee7a831b181d476268ab9d57",
+      "bytes": 305
+    },
+    {
+      "path": "cases/compiler-directives.go.txt",
+      "sha256": "7571392f8cbe7c655ba98d5cd1693014820d4daa822d24e3cea5e30f10bba8a3",
+      "bytes": 309
+    },
+    {
+      "path": "cases/crlf.crlf.go.txt",
+      "sha256": "e9a915bc13641bf65920e73d70cb185433f767bc3bbb0eef203adfb83e4a4caf",
+      "bytes": 142
+    },
+    {
+      "path": "cases/doc-comment-reformat.go.txt",
+      "sha256": "f321f301bb2f8591f14dfa147a9f46da4af21b0a4ea308440c801b71fde81bad",
+      "bytes": 347
+    },
+    {
+      "path": "cases/dot-blank-named-imports.go.txt",
+      "sha256": "c765caf8b18770a9444c50eae35dc8504565eb6cd617d65972a2ac9b55507697",
+      "bytes": 206
+    },
+    {
+      "path": "cases/generic-alias.go.txt",
+      "sha256": "ef092388d5827957fc5c234213a7bbdcf4baf747f4308ef8eb3bcaa1266e1379",
+      "bytes": 324
+    },
+    {
+      "path": "cases/generics-type-sets.go.txt",
+      "sha256": "da7e30dfacd0816b5d78ca9a340b8469410455db8d0798ef846b6d41aba84149",
+      "bytes": 332
+    },
+    {
+      "path": "cases/import-block-comments.go.txt",
+      "sha256": "4bac179ab934c8ba2ab0b154f2864787810e8f7cec02c3bbd9a69ec532ac48f1",
+      "bytes": 256
+    },
+    {
+      "path": "cases/labels-goto-select.go.txt",
+      "sha256": "f5d2930c363305d0a2a17d1410f374ad9df1fd83982a688f47d6e3118eb6abc5",
+      "bytes": 239
+    },
+    {
+      "path": "cases/line-directives.go.txt",
+      "sha256": "ce372745b872fa018d3b5dd737ac001af11f87a7d4297ea1f1c1c353c30e0f2b",
+      "bytes": 166
+    },
+    {
+      "path": "cases/literal-forms.go.txt",
+      "sha256": "690961f2bc8d8370f7366e8424ef516b5929ea45362fd571cdc29146ebebb34a",
+      "bytes": 320
+    },
+    {
+      "path": "cases/methods-and-embedding.go.txt",
+      "sha256": "69fff4d09dfcb747f1c1d706414811213d59433adc1dae491754f42ae6c95a41",
+      "bytes": 305
+    },
+    {
+      "path": "cases/no-trailing-newline.go.txt",
+      "sha256": "f663b6cb4201a1c0dd1b5ad405c7ca0b5a4531c926842002f9b4192795b560c2",
+      "bytes": 56
+    },
+    {
+      "path": "cases/package-only.go.txt",
+      "sha256": "4774abd86568727469cfc3f282f4788f47a43cb1a2ccdf6e7d72ce7aa3118597",
+      "bytes": 14
+    },
+    {
+      "path": "cases/parse-error-bad-token.go.txt",
+      "sha256": "301e6431fc819f51fd4b59da5e37387e7df9ad9787fddd027620b9832a25f1dc",
+      "bytes": 48
+    },
+    {
+      "path": "cases/parse-error-missing-brace.go.txt",
+      "sha256": "b7c4dc7873880dc9de47d71f102bea324d56dd9e8618259a726a5237fc0432c9",
+      "bytes": 53
+    },
+    {
+      "path": "cases/range-over-func-and-int.go.txt",
+      "sha256": "34cbf4f280899b28844ff1f92a45eadbff1bde78ef2e8aeaacc14ea2536bc2ef",
+      "bytes": 408
+    },
+    {
+      "path": "cases/scan-error-unterminated.go.txt",
+      "sha256": "20705f30d1ba347874ecd49e9b43d95251cde792902ab50abdad62e54bf7bb50",
+      "bytes": 54
+    },
+    {
+      "path": "cases/unformatted-spacing.go.txt",
+      "sha256": "7f4b2b675be140446de0a2f03acb247b8002a5730406307943bb93b18cb6225e",
+      "bytes": 141
+    },
+    {
+      "path": "cases/unicode-identifiers.go.txt",
+      "sha256": "8774a47f4056e9938a3fc45984694af3ce9b23776045cab3b25a05b3536671cd",
+      "bytes": 173
+    }
+  ]
+}

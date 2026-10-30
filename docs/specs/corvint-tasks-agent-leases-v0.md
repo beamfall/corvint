@@ -1,0 +1,8416 @@
+# Corvint Tasks agent leases V0
+
+Owner: Russell Lewis
+Date: 2026-09-27 (accepted the same day)
+Intent status: accepted (owner decision 2026-09-27)
+Delivery status: partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (V1-0436 import-only incremental sequence implemented with focused tests and a synthetic per-batch CPU profile; Beamfall re-measurement on a host below its CPU count NOT_RUN (host load)), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S19 CAL-V0-069 opt-in lease `--timing` phase breakdown and timed-out claim replay implemented with focused tests and independent review; live fleet timing and Linux NOT_RUN, native completion pending; S20 CAL-V0-070 one-pass Mutate and pinned journal reads implemented with focused equivalence tests and a before/after benchmark, writer checkpoint accepted as CAL-V0-115..119 (V1-0645); S21 CAL-V0-071..072 and 087..088 multi-repository programs (policy declarations, sibling worktrees, composite candidate, review and gate binding, designated per-repository integration with exactly-once recovery, per-repository Core context) implemented with focused and fake-host tests, undesignated changed repositories fail closed, live Codex qualification NOT_RUN; S21 CAL-V0-089 policy-bounded checkpointed stage continuation for Codex and OpenCode implemented with fake-host tests, Claude Code and token-capped policies refused `UNSUPPORTED`, live host qualification NOT_RUN; V1-0751 CTW-V0-012 (formerly CAL-V0-073) read-only CREATE payload template implemented with focused fixture tests; S22 CAL-V0-074..075 Claude Code supervised host with focused and fake-host tests, live Claude Code qualification NOT_RUN; S23 CAL-V0-076..077 OpenCode supervised host with focused and fake-host tests, live OpenCode qualification NOT_RUN; V1-0793 CAL-V0-079..081 read-only critical-path report implemented with focused fixture tests and independent review; V1-0788 CAL-V0-096 prior-generation stage and member, claim-result allocation and claim-event member implemented with focused tests; V1-0790 CAL-V0-082..085 recorded hand-off target and derived `nextStage` implemented with focused tests; S24 CAL-V0-097 resource-aware default selection implemented with focused tests, live dispatcher qualification NOT_RUN; V1-0784 CAL-V0-101 priority-yield admission implemented with focused and property tests, live qualification NOT_RUN; V1-0781 CAL-V0-095 experimental lock-free preparation-admission pressure in queue status with focused Darwin and Linux container tests; V1-0787 CAL-V0-099 stage-scoped execution prerequisites implemented with focused tests, live store qualification NOT_RUN; V1-0789 CAL-V0-098 review and integrate implement-author exclusion implemented with focused tests, live qualification NOT_RUN; V1-0780 CAL-V0-078 explicit result retryability implemented with focused wire and CLI tests; V1-0791 CAL-V0-102..103 opt-in no-progress loop detection hold implemented with focused tests and an N-1 digest, live dispatcher qualification NOT_RUN; V1-0772 CAL-V0-086 supervised stage worktree PathText bound, unproved-stop `SURVIVORS` and drain `EPERM` re-probe implemented with focused tests; V1-0851 CAL-V0-104 dispatcher worker-exit release retry and reap implemented with focused fake-queue tests, live dispatcher qualification NOT_RUN; V1-0853 CAL-V0-105 work-state-held tickets outside the dispatcher's selection window implemented with focused tests, live dispatcher qualification NOT_RUN; V1-0852 CAL-V0-107 caller-asserted author-exclusion cover implemented with focused tests, live qualification NOT_RUN; V1-0855 CAL-V0-108 cross-stage priority-admission order implemented with focused and property tests, live qualification NOT_RUN; V1-0854 CTW-V0-013 (formerly CAL-V0-106) chunked batch ticket refine implemented with focused tests, live 110-ticket qualification NOT_RUN; V1-0862 CAL-V0-109..110 Darwin kernel memory-pressure signal and recorded level reason implemented with focused tests and a live Darwin sample, live dispatcher saturation NOT_RUN; V1-0863 CAL-V0-111..113 caller-bounded lease lock wait, same-request HANDOFF replay after LOCK_TIMEOUT and no plain-release conversion implemented with focused tests, live fleet qualification NOT_RUN; CAL-V0-114 deterministic journal-audit refusal order implemented with focused tests; V1-0625 CAL-V0-120..121 policy heartbeat TTL and advisory stale-holder handoff implemented with focused tests, live fleet qualification NOT_RUN; V1-0645 CAL-V0-115..119 writer checkpoint accepted by decision 0439, implemented with focused tests and a synthetic before/after measurement, live fleet qualification NOT_RUN; V1-0888 CAL-V0-122..124 accepted by decision 0439 (issue 643) additive pool member and holderLiveness handoff compatibility and the policy update handoffFences preview implemented with focused tests, live fleet qualification NOT_RUN; V1-0891 CAL-V0-125..126 accepted by decision 0439, Linux CPU-utilisation signal and per-OS pressure signal selection implemented with focused tests, macOS CPU ticks NOT_DELIVERED (no cgo-free source), live Linux sampling NOT_RUN; V1-0890 CAL-V0-127..129 accepted by decision 0439, dispatcher configuration reload, cap 0 and lane minAgeSeconds implemented with focused tests, live dispatcher qualification NOT_RUN; V1-0889 CAL-V0-130..134 accepted by decision 0439, in-place binary upgrade with live attempts implemented with focused tests, live fleet upgrade NOT_RUN; V1-0893/V1-0894 CAL-V0-135..142 accepted by decision 0439 (pinned receipt fold, native process table, host exit poll backoff, dispatcher-carried review fold, idle dispatch tick, shared read captures, scaled plan preview node bound, service dispatcher pools) implemented with focused tests and local synthetic-store measurements, owner acceptance and live qualification pending; V1-0930 CAL-V0-143..144 (dispatcher worker log cap and finished worker directory retirement) accepted by decision 0440, implemented with focused tests; V1-0937 CAL-V0-155..161 (dispatcher role and ticket budgets, worker token accounting, declared effort, dispatch-state /2) accepted (decision 0441), implemented with focused tests, live dispatcher qualification NOT_RUN; V1-0936 CAL-V0-145..154 (dispatcher integration of detached attempt runs) accepted (decision 0441), implemented with focused tests on Darwin; V1-0935/V1-0941 CAL-V0-165..174 (compact agent output: `--fields`, `--summary`, opt-in `queue status --retries`, terse help, compact list items) accepted (decision 0441), implemented with focused tests and fixture byte measurements; V1-0954 CAL-V0-175..178 (shared dispatch prompt fragments) accepted (decision 0442), implemented with focused tests; V1-0966 CAL-V0-181..185 (queue throughput visibility) accepted (decision 0447), implemented with focused tests and a 15,133-receipt timing measurement; V1-0915 CAL-V0-189 (single intent read in the writer audit) proposed, implemented with focused tests and a synthetic measurement, owner acceptance pending; V1-0918 CAL-V0-190 (fast replays and writes without a transaction) proposed, implemented with focused tests and a synthetic measurement, owner acceptance pending; V1-0980 CAL-V0-187 (dispatch-state /2 upgrade over proven-gone workers) proposed, implemented with focused tests; V1-1016 CAL-V0-191 (running worker expired-lease reap) proposed, implemented with focused tests, live dispatcher qualification NOT_RUN; V1-1021 CAL-V0-192..193 (unbounded effects warning and serial-fallback deferral report, issue 679) proposed, implemented with focused tests and a scratch-store live check; V1-0672 CAL-V0-194 (a failed dispatcher tick ledger save fails the tick) proposed, implemented with focused tests, live dispatcher qualification NOT_RUN; V1-1026 CAL-V0-195..196 (milestone policy and unmilestoned count) accepted (decision 0459), implemented with focused tests; V1-1042 CAL-V0-198..204 (pool acquire and early return during a live attempt, issue 696) accepted (decision 0472), implemented with focused tests, live qualification NOT_RUN; V1-0827 CAL-V0-197 (`run --role` selects an answered wait only for its own stage) accepted (decision 0467), implemented with focused tests; V1-1045 CAL-V0-205 (pool confirm-safe on the writer checkpoint, issue 701) accepted (decision 0471), implemented with focused tests and a synthetic measurement, live qualification NOT_RUN; V1-0795 CAL-V0-210 (replacement-owner takeover of a dead owner's program whose attempt recorded a proved stop) accepted (decision 0473), implemented with focused tests, live host qualification NOT_RUN; owner request 2026-10-09 CAL-V0-206..209 (read facets, `--count` and release readiness membership counts) accepted (decision 0476), implemented with focused tests and a real-store read measurement, live qualification NOT_RUN; V1-1129 CAL-V0-215 (A28 retryable `RESOURCE_EXHAUSTED` for EMFILE/ENFILE, issue 769) accepted (decision 0519), implemented with focused tests; V1-1130 CAL-V0-216 (`--lock-wait` for claim, renew, submit and pool acquire, confirm-safe and release, issue 772) accepted (decision 0518), implemented with focused tests; V1-0887 CAL-V0-224 (liveness write work guard, issue 642) accepted under the owner's standing auto-accept (2026-10-11), a focused work-count test and a synthetic measurement, history-independent liveness cost residual; V1-1386 CAL-V0-225 (cwd-relative `--config`, issue 900) and V1-0710 CAL-V0-226..229 (sanctioned dispatch reader recovery: operator attestation and host-reboot proof, issue 899) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests, live dispatcher qualification NOT_RUN; V1-1320 CAL-V0-230 (superseded-generation renew fenced after re-claim) and V1-1313 CAL-V0-231 (renew records `lastHeartbeatAt`) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; V1-0887 CAL-V0-232 (an ordinary fast heartbeat or renew needs no history receipt) accepted under the owner's standing auto-accept (2026-10-11), focused test; the V1-0887 milliseconds-and-flat target remains an owner decision; V1-1415 CAL-V0-240..243 (a `reusable: true` command gate's PASS at a candidate tree satisfies the gate for another attempt at that tree without running it, audited) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests, live qualification NOT_RUN; V1-1321 stopped on CAL-V0-021; V1-1402 CAL-V0-236 (advisory warning on a superseded-generation replay) accepted under the owner's standing auto-accept (2026-10-11), focused tests; V1-1353 CAL-V0-260..262 (barrier, policy update, import, cutover, escalation and `attempt run` settle a held pending receipt; `health` and `pool cleanup` report the redo) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; V1-1518 CAL-V0-290 (lower role priority values win; shadowed-role warning in events and `dispatch status`) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; V1-1494 CAL-V0-263 and CAL-V0-265 (no complete-history audit under the preparation gate, prefix refresh when the journal moves, issue 967; the writer route for every lease verb declined by the owner) proposed, implemented with focused tests, a mutation check and an opt-in synthetic load harness, live fleet qualification NOT_RUN; CAL-V0-270..273 (dispatcher work-state reader health in the ledger and `dispatch status`, one escalation and one recovery event per failure episode, `workState: UNKNOWN` marks on charged runs, opt-in launch hold; V1-1510) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; CAL-V0-274 (a timed-out work-state read named as a timeout, one provider-level `UNAVAILABLE` event per outage; V1-1510) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; CAL-V0-275, 276 and 280 (configurable work-state read timeout, last known work states kept stale in the state-event baseline for a bounded window, no state event for a terminal ticket's work-state change; V1-1510) accepted by the owner (2026-10-16; #993 'you choose'), implemented with focused tests; V1-1511 CAL-V0-277..278 (renew-only liveness help and the effective `heartbeatTTLSeconds` in `policy show`, issue 982) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; V1-1526 CAL-V0-310 (unknown `--fields` key refusal lists the item keys and suggests `record.<key>`, issue 996) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; V1-1548 CAL-V0-311..318 (dispatcher per-role `keepLease` lease keeper, issue 1006) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests
+Authoritative inputs: native tickets V1-1090 (CAL-V0-024 exact-key refusal cause) and V1-1063 (CAL-V0-074 worker recovery usage), accepted by decision 0493; native ticket V1-1081 (CAL-V0-017 upstream reachability and `COMMIT_NOT_INTEGRATED`, accepted by decision 0539); native ticket V1-0795 (CAL-V0-210, accepted by decision 0473); owner chat request relayed 2026-10-09 ("how many tickets to 1.0" instantly, for every kind of search; CAL-V0-206..209, accepted by decision 0476); native ticket V1-1042 and owner request [issue 696](https://github.com/beamfall/corvint/issues/696) (CAL-V0-198..204, accepted by decision 0472); native ticket V1-1045 and owner request [issue 701](https://github.com/beamfall/corvint/issues/701) (CAL-V0-205, accepted by decision 0471); native ticket V1-0827 (CAL-V0-197, accepted by decision 0467); native ticket V1-1026 (CAL-V0-195..196, accepted by decision 0459); owner request [issue 674](https://github.com/beamfall/corvint/issues/674) and native ticket V1-1016 (CAL-V0-191, proposed); owner request [issue 656](https://github.com/beamfall/corvint/issues/656) and native ticket V1-0954 (CAL-V0-175..178, accepted by decision 0442); owner request [issue 651](https://github.com/beamfall/corvint/issues/651) and native tickets V1-0936 and V1-0858 (CAL-V0-145..154, accepted by decision 0441); owner request [issue 650](https://github.com/beamfall/corvint/issues/650), native tickets V1-0935 and V1-0941 (CAL-V0-165..174, accepted by decision 0441); native ticket V1-0645 and owner requests [issue 641](https://github.com/beamfall/corvint/issues/641) and [issue 642](https://github.com/beamfall/corvint/issues/642) (V1-0887) (CAL-V0-115..119, accepted by decision 0439); native ticket V1-0864 (CAL-V0-114); owner request [issue 643](https://github.com/beamfall/corvint/issues/643) (V1-0888 and V1-0882, CAL-V0-122..124, accepted by decision 0439); owner request [issue 644](https://github.com/beamfall/corvint/issues/644) (V1-0889, CAL-V0-130..134, accepted by decision 0439); native tickets V1-0893 and V1-0894 citing [issue 641](https://github.com/beamfall/corvint/issues/641) (CAL-V0-135..142, accepted by decision 0439); owner request [issue 637](https://github.com/beamfall/corvint/issues/637) (V1-0863, CAL-V0-111..113); owner request [issue 622](https://github.com/beamfall/corvint/issues/622) (V1-0851, CAL-V0-104); owner request [issue 624](https://github.com/beamfall/corvint/issues/624) (V1-0853, CAL-V0-105); owner request [issue 623](https://github.com/beamfall/corvint/issues/623) (V1-0852, CAL-V0-107); owner request [issue 626](https://github.com/beamfall/corvint/issues/626) (V1-0855, CAL-V0-108); owner request [issue 583](https://github.com/beamfall/corvint/issues/583) (V1-0784, CAL-V0-101); owner request [issue 584](https://github.com/beamfall/corvint/issues/584) with owner answer 2026-10-05 (D1) (CAL-V0-097); owner request [issue 482](https://github.com/beamfall/corvint/issues/482) (proposed CAL-V0-044/046 compatibility amendment);
+owner requests [issue 426](https://github.com/beamfall/corvint/issues/426),
+[issue 427](https://github.com/beamfall/corvint/issues/427), [issue 428](https://github.com/beamfall/corvint/issues/428),
+and [issue 430](https://github.com/beamfall/corvint/issues/430), explicitly commissioned 2026-10-01 (CAL-V0-048..051; issue 426 follow-up V1-0625, CAL-V0-120..121); owner request [issue 342](https://github.com/beamfall/corvint/issues/342),
+owner approval on 2026-09-30 of prospective handoff accounting for [issue 412](https://github.com/beamfall/corvint/issues/412) (CAL-V0-044),
+owner requests [issue 420](https://github.com/beamfall/corvint/issues/420),
+[issue 421](https://github.com/beamfall/corvint/issues/421) and
+[issue 422](https://github.com/beamfall/corvint/issues/422) (CAL-V0-045..047),
+owner request [issue 431](https://github.com/beamfall/corvint/issues/431) (CAL-V0-052..058),
+owner request [issue 499](https://github.com/beamfall/corvint/issues/499) (CAL-V0-052, 054, 055, 057 and 058 escalation ladder),
+owner request [issue 497](https://github.com/beamfall/corvint/issues/497) (CAL-V0-068),
+owner request [issue 494](https://github.com/beamfall/corvint/issues/494) (CAL-V0-069),
+owner request [issue 588](https://github.com/beamfall/corvint/issues/588) with owner answer 2026-10-05 (D8) (CAL-V0-079..081),
+owner comment of 2026-10-05 on [issue 494](https://github.com/beamfall/corvint/issues/494) (CAL-V0-095, ticket V1-0781),
+ticket V1-0780, the owner's follow-up to [issue 494](https://github.com/beamfall/corvint/issues/494) (CAL-V0-078),
+owner request [issue 494](https://github.com/beamfall/corvint/issues/494) (CAL-V0-069),
+owner request [issue 446](https://github.com/beamfall/corvint/issues/446) (CAL-V0-059..061),
+owner request [issue 354](https://github.com/beamfall/corvint/issues/354) (CAL-V0-062..063, 071..072; owner scope split 2026-10-04) and its split native tickets V1-0755 (CAL-V0-074..075) and V1-0756 (CAL-V0-076..077),
+owner request [issue 585](https://github.com/beamfall/corvint/issues/585) and native ticket V1-0787 with owner decision D4 (CAL-V0-099),
+owner request [issue 378](https://github.com/beamfall/corvint/issues/378),
+owner request [issue 586](https://github.com/beamfall/corvint/issues/586) part 1 (CAL-V0-096),
+owner request [issue 587](https://github.com/beamfall/corvint/issues/587) part 1 (CAL-V0-082..085),
+owner request [issue 587](https://github.com/beamfall/corvint/issues/587) part 2 with owner decision D8 (CAL-V0-102..103, ticket V1-0791),
+owner request [issue 586](https://github.com/beamfall/corvint/issues/586) part 2 (CAL-V0-098, ticket V1-0789),
+owner request [issue 623](https://github.com/beamfall/corvint/issues/623) (CAL-V0-107, ticket V1-0852),
+owner request [issue 626](https://github.com/beamfall/corvint/issues/626) (CAL-V0-108, ticket V1-0855),
+owner request [issue 625](https://github.com/beamfall/corvint/issues/625) (CTW-V0-013, formerly CAL-V0-106, ticket V1-0854), owner request [issue 636](https://github.com/beamfall/corvint/issues/636) (CAL-V0-109..110, ticket V1-0862), owner request [issue 646](https://github.com/beamfall/corvint/issues/646) (CAL-V0-125..126, ticket V1-0891, accepted by decision 0439), owner request [issue 645](https://github.com/beamfall/corvint/issues/645) (CAL-V0-127..129, ticket V1-0890, accepted by decision 0439),
+owner decision 2026-10-07 on native ticket V1-0979 (CAL-V0-186, proposed), owner request [issue 679](https://github.com/beamfall/corvint/issues/679) (CAL-V0-192..193, ticket V1-1021, proposed), owner request [issue 370](https://github.com/beamfall/corvint/issues/370), and
+owner choice on 2026-09-28 to quarantine environments until confirmed safe reuse; owner request [issue 336](https://github.com/beamfall/corvint/issues/336), the Corvint Tasks contract TCP-00 (`beamfall/corvint-tasks` `docs/SPEC.md`,
+§3.4, §4, §6 and §7.4), decision 0397 (corvint-tasks built in tree), decision 0423 A10,
+`docs/specs/corvint-tasks-store-init-v0.md`, tickets V1-0398, V1-0184 and V1-0310, and the in-tree
+sources under `internal/tasks`.
+
+## Agent digest
+- Claim: Agents claim, gate and complete scoped Tasks attempts through external leases or an explicitly enabled Codex, Claude Code or OpenCode supervisor.
+- Status: accepted (owner decision 2026-09-27); partial (S1 CAL-V0-001..003, S2 CAL-V0-004..006, S3 CAL-V0-007 and 009..013, S4 CAL-V0-008 and 014, S5 CAL-V0-015..017 and 024, S6 CAL-V0-018 partial (V1-0436 import-only incremental sequence implemented with focused tests and a synthetic per-batch CPU profile; Beamfall re-measurement on a host below its CPU count NOT_RUN (host load)), S7 CAL-V0-019..020, S8 CAL-V0-021..023 and 025 experimental with explicit pack opt-in; CAL-V0-026 MET (GOMAXPROCS=2 qualification); CAL-V0-027 implemented with scoped native release qualification; S9 CAL-V0-028..034 implemented with local native qualification; S10 CAL-V0-035..041 implemented with scoped local Codex qualification; CAL-V0-044 implemented with disposable fixture-profile qualification; CAL-V0-045..047 implemented with scoped disposable qualification; CAL-V0-048..051 implemented with focused local qualification and independent source review; S11 CAL-V0-052..058 implemented with local OpenCode qualification, plus Claude Code and Codex host qualification of launch, claim, handoff and summary; S12 CAL-V0-059..061 implemented with focused tests and a live-store measurement; S13 CAL-V0-062..063 implemented with focused tests, live Codex qualification NOT_RUN; issue 482 CAL-V0-044/046 experimental compatibility implemented, independently reviewed and integrated with scoped fixture qualification; native completion recorded); S15 CAL-V0-065 implemented with focused tests, a compiled native fixture and independent source review; S17 CAL-V0-067 experimental implementation with focused tests, independent review and scoped native/archive/crash fixture qualification; physical facts NOT_OBSERVED; S14 CAL-V0-064 experimental implementation with original scoped macOS checks, independent review and sealed binding; current-main integration, Linux qualification and native completion pending; S18 CAL-V0-068 experimental host-pressure launch throttle integrated on main by PR #513 (eeef6276) with focused tests and independent review; live Linux sampling and live multi-agent saturation NOT_RUN, native completion of V1-0694 pending; issue 499 escalation ladder (CAL-V0-052, 054, 055, 057, 058) implemented with focused tests, live model-host qualification and native completion pending; S19 CAL-V0-069 opt-in lease `--timing` phase breakdown and timed-out claim replay implemented with focused tests and independent review; live fleet timing and Linux NOT_RUN, native completion pending; S20 CAL-V0-070 one-pass Mutate and pinned journal reads implemented with focused equivalence tests and a before/after benchmark, writer checkpoint accepted as CAL-V0-115..119 (V1-0645); S21 CAL-V0-071..072 and 087..088 multi-repository programs (policy declarations, sibling worktrees, composite candidate, review and gate binding, designated per-repository integration with exactly-once recovery, per-repository Core context) implemented with focused and fake-host tests, undesignated changed repositories fail closed, live Codex qualification NOT_RUN; S21 CAL-V0-089 policy-bounded checkpointed stage continuation for Codex and OpenCode implemented with fake-host tests, Claude Code and token-capped policies refused `UNSUPPORTED`, live host qualification NOT_RUN; V1-0751 CTW-V0-012 (formerly CAL-V0-073) read-only CREATE payload template implemented with focused fixture tests; S22 CAL-V0-074..075 Claude Code supervised host with focused and fake-host tests, live Claude Code qualification NOT_RUN; S23 CAL-V0-076..077 OpenCode supervised host with focused and fake-host tests, live OpenCode qualification NOT_RUN; V1-0793 CAL-V0-079..081 read-only critical-path report implemented with focused fixture tests and independent review; V1-0788 CAL-V0-096 prior-generation stage and member, claim-result allocation and claim-event member implemented with focused tests; V1-0790 CAL-V0-082..085 recorded hand-off target and derived `nextStage` implemented with focused tests; S24 CAL-V0-097 resource-aware default selection implemented with focused tests, live dispatcher qualification NOT_RUN; V1-0784 CAL-V0-101 priority-yield admission implemented with focused and property tests, live qualification NOT_RUN; V1-0781 CAL-V0-095 experimental lock-free preparation-admission pressure in queue status with focused Darwin and Linux container tests; V1-0787 CAL-V0-099 stage-scoped execution prerequisites implemented with focused tests, live store qualification NOT_RUN; V1-0789 CAL-V0-098 review and integrate implement-author exclusion implemented with focused tests, live qualification NOT_RUN; V1-0780 CAL-V0-078 explicit result retryability implemented with focused wire and CLI tests; V1-0791 CAL-V0-102..103 opt-in no-progress loop detection hold implemented with focused tests and an N-1 digest, live dispatcher qualification NOT_RUN; V1-0772 CAL-V0-086 supervised stage worktree PathText bound, unproved-stop `SURVIVORS` and drain `EPERM` re-probe implemented with focused tests; V1-0851 CAL-V0-104 dispatcher worker-exit release retry and reap implemented with focused fake-queue tests, live dispatcher qualification NOT_RUN; V1-0853 CAL-V0-105 work-state-held tickets outside the dispatcher's selection window implemented with focused tests, live dispatcher qualification NOT_RUN; V1-0852 CAL-V0-107 caller-asserted author-exclusion cover implemented with focused tests, live qualification NOT_RUN; V1-0855 CAL-V0-108 cross-stage priority-admission order implemented with focused and property tests, live qualification NOT_RUN; V1-0854 CTW-V0-013 (formerly CAL-V0-106) chunked batch ticket refine implemented with focused tests, live 110-ticket qualification NOT_RUN; V1-0862 CAL-V0-109..110 Darwin kernel memory-pressure signal and recorded level reason implemented with focused tests and a live Darwin sample, live dispatcher saturation NOT_RUN; V1-0863 CAL-V0-111..113 caller-bounded lease lock wait, same-request HANDOFF replay after LOCK_TIMEOUT and no plain-release conversion implemented with focused tests, live fleet qualification NOT_RUN; CAL-V0-114 deterministic journal-audit refusal order implemented with focused tests; V1-0625 CAL-V0-120..121 policy heartbeat TTL and advisory stale-holder handoff implemented with focused tests, live fleet qualification NOT_RUN; V1-0645 CAL-V0-115..119 writer checkpoint accepted by decision 0439, implemented with focused tests and a synthetic before/after measurement, live fleet qualification NOT_RUN; V1-0888 CAL-V0-122..124 accepted by decision 0439 (issue 643) additive pool member and holderLiveness handoff compatibility and the policy update handoffFences preview implemented with focused tests, live fleet qualification NOT_RUN; V1-0891 CAL-V0-125..126 accepted by decision 0439, Linux CPU-utilisation signal and per-OS pressure signal selection implemented with focused tests, macOS CPU ticks NOT_DELIVERED (no cgo-free source), live Linux sampling NOT_RUN; V1-0890 CAL-V0-127..129 accepted by decision 0439, dispatcher configuration reload, cap 0 and lane minAgeSeconds implemented with focused tests, live dispatcher qualification NOT_RUN; V1-0889 CAL-V0-130..134 accepted by decision 0439, in-place binary upgrade with live attempts implemented with focused tests, live fleet upgrade NOT_RUN; V1-0893/V1-0894 CAL-V0-135..142 accepted by decision 0439 (pinned receipt fold, native process table, host exit poll backoff, dispatcher-carried review fold, idle dispatch tick, shared read captures, scaled plan preview node bound, service dispatcher pools) implemented with focused tests and local synthetic-store measurements, owner acceptance and live qualification pending; V1-0930 CAL-V0-143..144 (dispatcher worker log cap and finished worker directory retirement) accepted by decision 0440, implemented with focused tests; V1-0937 CAL-V0-155..161 (dispatcher role and ticket budgets, worker token accounting, declared effort, dispatch-state /2) accepted (decision 0441), implemented with focused tests, live dispatcher qualification NOT_RUN; V1-0936 CAL-V0-145..154 (dispatcher integration of detached attempt runs) accepted (decision 0441), implemented with focused tests on Darwin; V1-0935/V1-0941 CAL-V0-165..174 (compact agent output: `--fields`, `--summary`, opt-in `queue status --retries`, terse help, compact list items) accepted (decision 0441), implemented with focused tests and fixture byte measurements; V1-0954 CAL-V0-175..178 (shared dispatch prompt fragments) accepted (decision 0442), implemented with focused tests; V1-0966 CAL-V0-181..185 (queue throughput visibility) accepted (decision 0447), implemented with focused tests and a 15,133-receipt timing measurement; V1-0915 CAL-V0-189 (single intent read in the writer audit) proposed, implemented with focused tests and a synthetic measurement, owner acceptance pending; V1-0918 CAL-V0-190 (fast replays and writes without a transaction) proposed, implemented with focused tests and a synthetic measurement, owner acceptance pending; V1-0980 CAL-V0-187 (dispatch-state /2 upgrade over proven-gone workers) proposed, implemented with focused tests; V1-1016 CAL-V0-191 (running worker expired-lease reap) proposed, implemented with focused tests, live dispatcher qualification NOT_RUN; V1-1021 CAL-V0-192..193 (unbounded effects warning and serial-fallback deferral report, issue 679) proposed, implemented with focused tests and a scratch-store live check; V1-0672 CAL-V0-194 (a failed dispatcher tick ledger save fails the tick) proposed, implemented with focused tests, live dispatcher qualification NOT_RUN; V1-1026 CAL-V0-195..196 (milestone policy and unmilestoned count) accepted (decision 0459), implemented with focused tests; V1-1042 CAL-V0-198..204 (pool acquire and early return during a live attempt, issue 696) accepted (decision 0472), implemented with focused tests, live qualification NOT_RUN; V1-0827 CAL-V0-197 (`run --role` selects an answered wait only for its own stage) accepted (decision 0467), implemented with focused tests; V1-1045 CAL-V0-205 (pool confirm-safe on the writer checkpoint, issue 701) accepted (decision 0471), implemented with focused tests and a synthetic measurement, live qualification NOT_RUN; V1-0795 CAL-V0-210 (replacement-owner takeover of a dead owner's program whose attempt recorded a proved stop) accepted (decision 0473), implemented with focused tests, live host qualification NOT_RUN; owner request 2026-10-09 CAL-V0-206..209 (read facets, `--count` and release readiness membership counts) accepted (decision 0476), implemented with focused tests and a real-store read measurement, live qualification NOT_RUN; V1-1129 CAL-V0-215 (A28 retryable `RESOURCE_EXHAUSTED` for EMFILE/ENFILE, issue 769) accepted (decision 0519), implemented with focused tests; V1-1130 CAL-V0-216 (`--lock-wait` for claim, renew, submit and pool acquire, confirm-safe and release, issue 772) accepted (decision 0518), implemented with focused tests; V1-0887 CAL-V0-224 (liveness write work guard, issue 642) accepted under the owner's standing auto-accept (2026-10-11), a focused work-count test and a synthetic measurement, history-independent liveness cost residual; V1-1386 CAL-V0-225 (cwd-relative `--config`, issue 900) and V1-0710 CAL-V0-226..229 (sanctioned dispatch reader recovery: operator attestation and host-reboot proof, issue 899) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests, live dispatcher qualification NOT_RUN; V1-1320 CAL-V0-230 (superseded-generation renew fenced after re-claim) and V1-1313 CAL-V0-231 (renew records `lastHeartbeatAt`) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; V1-0887 CAL-V0-232 (an ordinary fast heartbeat or renew needs no history receipt) accepted under the owner's standing auto-accept (2026-10-11), focused test; the V1-0887 milliseconds-and-flat target remains an owner decision; V1-1415 CAL-V0-240..243 (a `reusable: true` command gate's PASS at a candidate tree satisfies the gate for another attempt at that tree without running it, audited) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests, live qualification NOT_RUN; V1-1321 stopped on CAL-V0-021; V1-1402 CAL-V0-236 (advisory warning on a superseded-generation replay) accepted under the owner's standing auto-accept (2026-10-11), focused tests; V1-1353 CAL-V0-260..262 (barrier, policy update, import, cutover, escalation and `attempt run` settle a held pending receipt; `health` and `pool cleanup` report the redo) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; V1-1518 CAL-V0-290 (lower role priority values win; shadowed-role warning in events and `dispatch status`) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; V1-1494 CAL-V0-263 and CAL-V0-265 (no complete-history audit under the preparation gate, prefix refresh when the journal moves, issue 967; the writer route for every lease verb declined by the owner) proposed, implemented with focused tests, a mutation check and an opt-in synthetic load harness, live fleet qualification NOT_RUN; CAL-V0-270..273 (dispatcher work-state reader health in the ledger and `dispatch status`, one escalation and one recovery event per failure episode, `workState: UNKNOWN` marks on charged runs, opt-in launch hold; V1-1510) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; CAL-V0-274 (a timed-out work-state read named as a timeout, one provider-level `UNAVAILABLE` event per outage; V1-1510) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; CAL-V0-275, 276 and 280 (configurable work-state read timeout, last known work states kept stale in the state-event baseline for a bounded window, no state event for a terminal ticket's work-state change; V1-1510) accepted by the owner (2026-10-16; #993 'you choose'), implemented with focused tests; V1-1511 CAL-V0-277..278 (renew-only liveness help and the effective `heartbeatTTLSeconds` in `policy show`, issue 982) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; V1-1526 CAL-V0-310 (unknown `--fields` key refusal lists the item keys and suggests `record.<key>`, issue 996) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests; V1-1548 CAL-V0-311..318 (dispatcher per-role `keepLease` lease keeper, issue 1006) accepted under the owner's standing auto-accept (2026-10-11), implemented with focused tests. Drafted and accepted 2026-09-27 on the owner's request to bring corvint-tasks to a level where it can take over Beamfall's `script/roadmap.sh`.
+- Exists: the TCP-00 attempt, reservation and receipt shapes (reserved, no writer), the §5.2 writer for fixture and non-fixture queues, and the CTS-V0-003 shadow import.
+- Blocked on: the recovered task-store contract (V1-0310) for the parts of TCP-00 this spec does not restate.
+- Read next: V1-0887 liveness write cost against history (CAL-V0-224, CAL-V0-232) for heartbeat and renew cost; read facets and release readiness counts (CAL-V0-206..209, accepted by decision 0476) for counting without listing; V1-0780 retryable result amendment (which codes a caller may retry); #464 command-reader lifecycle amendment; V1-1386 and V1-0710 dispatch config paths and reader recovery (CAL-V0-225..229); V1-1415 reusable command gate results (CAL-V0-240..243) for sharing one gate run across attempts at one tree; Slices; Requirements (S8 for parallel claims; S9 for named pools; S10 for Codex supervision; S11 for the continuous dispatcher; S12 for read cost; S13 for supervised effort and stage wall; S14 explicit command progress; S15 explicit exclusions; S17 proposed operator-attested untouched release; S18 host-pressure launch throttle; S19 lease timing and timed-out claim recovery; S19 lease timing and timed-out claim recovery; S21 multi-repository programs; S22 Claude Code supervised host; S23 OpenCode supervised host; V1-0793 critical-path read; S24 resource-aware default selection; V1-0781 admission pressure amendment; V1-0787 stage-scoped execution prerequisites; V1-0789 implement-author exclusion; V1-0791 no-progress loop detection; V1-0772 supervised stage worktree bound and unproved stops; V1-0854 batch refine amendment; V1-0930 dispatcher worker log and directory bound, accepted by decision 0440; V1-0936 dispatcher integration of detached attempt runs, proposed); Amendments to TCP-00; Failure modes.
+
+## User and boundary
+
+Beamfall's `script/roadmap.sh` is a 14,532-line Bash runner over Markdown roadmap shards. Claude and
+Codex sessions each run the same loop through it: pick the next ready ticket, claim it with a
+`mkdir` lease, work in their own worktree, run the repository gate engine, merge when safe and check
+the ticket off; `reap` frees leases whose holder crashed. It is the only sanctioned writer of those
+shards (Beamfall `AGENTS.md`).
+
+corvint-tasks already holds the ticket inventory, dependencies, holds, releases, roadmap views and a
+shadow import of the Beamfall export. TCP-00 defines the rest of the execution model around a
+supervisor: `admit` reserves the ticket, a supervisor forks a `lane-leader`, a `.boot`/`.ack`
+handshake proves whether the runtime ran, and process-group liveness decides when a reservation may
+be released (§6.2 to §6.4). None of that is built in tree: the only reservations are S3's
+`external-agent` leases, `cutover` requires an empty reservation set
+(`internal/tasks/transaction/model.go:770@afae0d34`), and until S1 the writer refused every queue
+that was not a fixture.
+
+The agents that use these queues are not processes corvint-tasks starts. They are interactive or
+orchestrated sessions that call the task tool themselves. This spec keeps TCP-00's attempt,
+generation, reservation and receipt records and replaces only the spawn and liveness layer: the
+calling agent is the runtime, and a lease it renews stands in for process liveness. A generation
+number fences every later command from a holder that lost its lease, so a stale agent can go on
+editing its own worktree but can neither move its attempt nor complete the ticket.
+
+External-agent non-goals (S10 explicitly qualifies only its own Codex children): a supervisor, `lane-leader`, process-group signalling of external agents or any §6.4 spawn effect; creating,
+removing or inspecting worktrees; budgets beyond reporting them `NOT_OBSERVED`; review lanes (§7.2)
+and the completion-manifest reducer beyond the tree and gate check in CAL-V0-016; fanout (TCP-07) and
+routing (TCP-08); the import-map writer (until 2026-10-22, when CTS-V0-014 to CTS-V0-017 in
+`corvint-tasks-store-init-v0.md` specified it for V1-0398); automatic reaping by anything other than an invoked command
+(no daemon, no timer); any network use; and any change to another repository. Switching Beamfall's
+agents and `roadmap.sh` onto these verbs is a separate, owner-run step in the Beamfall repository
+(TCP-09), taken only after S7 below.
+
+## Slices
+
+Each slice is independently reviewable and lands in order; a later slice never weakens an earlier
+one.
+
+| Slice | Requirements | Delivers |
+|---|---|---|
+| S1 | CAL-V0-001..003 | Durable writes to a non-fixture queue (resolves V1-0398) |
+| S2 | CAL-V0-004..006 | `cutover`: one authority switch publishes the imported shadow records |
+| S3 | CAL-V0-007..013 | `claim`, `renew`, `release`, `reap` and `attempt show` |
+| S4 | CAL-V0-014 | `plan preview` (`taskman-priority-first/0`, read-only) |
+| S5 | CAL-V0-015..017 | `submit`, `gate run` and `complete` |
+| S6 | CAL-V0-018 | Linear first import |
+| S7 | CAL-V0-019..020 | Lease race and crash qualification, and the execution cutover record |
+| S8 | CAL-V0-021..026 | Parallel claims: scoped claims, path-overlap collisions, scope enforcement, bounded lock hold |
+| S11 | CAL-V0-052..058 | `dispatch`: continuous roster, supervised host workers, handoff, reap, backoff and events |
+| S12 | CAL-V0-059..061 | Read cost independent of receipt history: one audit per read, resumed from a writer-retained checkpoint |
+| S13 | CAL-V0-062..063 | Policy-bounded supervised Codex effort and stage wall; focused tests, live Codex qualification NOT_RUN |
+| S14 | CAL-V0-064 | Proposed explicit command progress; original reviewed source and sealed evidence retained, current-main composition pending |
+| S15 | CAL-V0-065 | Opt-in explicit per-claim member exclusions; focused tests and a compiled native fixture |
+| S17 | CAL-V0-067 | Experimental operator-attested untouched release; scoped native/archive/crash fixtures passed, physical facts NOT_OBSERVED |
+| S18 | CAL-V0-068 | Experimental host-pressure launch throttle: hysteresis level caps new non-exempt launches; running workers untouched |
+| S19 | CAL-V0-069 | Issue 494 opt-in `--timing` phase breakdown for claim, renew, heartbeat and release; timed-out claim replay pinned by test |
+| S20 | CAL-V0-070 | Writer cost against receipt history (V1-0645): one-pass `Mutate` and pinned journal reads implemented with equivalence tests and a before/after benchmark; writer checkpoint accepted as CAL-V0-115..119 (see the V1-0645 row) |
+| S21 | CAL-V0-071..072, 087..089 | Multi-repository supervised programs: policy-pinned extra checkouts, sibling worktrees, composite candidate, review and gate binding, designated per-repository integration with exactly-once recovery, per-repository Core context; policy-bounded checkpointed stage continuation on hosts that report an interrupted session |
+| S22 | CAL-V0-074..075 | Claude Code supervised host: policy-selected host, named pin refusals, Claude Code argv and result vocabulary; live Claude Code qualification NOT_RUN |
+| S23 | CAL-V0-076..077 | OpenCode supervised host: detached-host escape drain, inline stage permissions, OpenCode argv, event-stream vocabulary with complete-accounting usage, and forked resume check; live OpenCode qualification NOT_RUN |
+| S24 | CAL-V0-097 | Resource-aware default plan: pool-needing selections capped at free eligible members, the excess deferred outside the window; dispatcher pool routing (`match.pool`) and Core plan decoding; focused tests |
+| V1-0789 | CAL-V0-098 | Opt-in review/integrate exclusion of recorded implement-generation authors; unverifiable history refuses; focused tests |
+| V1-0852 | CAL-V0-107 | Explicit `--exclude-member` values cover generations with no recorded member, reported as caller-asserted; a ticket with no implement generation is not refused; focused tests |
+| V1-0862 | CAL-V0-109..110 | Darwin pressure memory signal is the kernel memory-pressure level instead of sticky swap; the level records the signals that set it, reported in `dispatch status` and `throttled`; focused tests and a live Darwin sample |
+| V1-0855 | CAL-V0-108 | Priority admission orders competitors across stages: at equal priority a ticket handed off to review or integrate ranks first, earlier handoff first; derived, no stored state; focused and property tests |
+| V1-0863 | CAL-V0-111..113 | Caller-bounded `--lock-wait` (1..300 s) for release and attempt heartbeat; same-request HANDOFF replay after LOCK_TIMEOUT proven, no code change; no plain-release-to-HANDOFF conversion; focused tests |
+| V1-0864 | CAL-V0-114 | Journal audit walks projections, strays and stage slots in byte order, so with several faults the refusal names the same path and code every run; focused tests; accepted by decision 0438 |
+| V1-0625 | CAL-V0-120..121 | Optional policy `holderLiveness.heartbeatTTLSeconds` (300..86400, default 600) drives the derived `holderStatus`; STALE_HOLDER is advisory input to a coordinator's evidence HANDOFF, never automatic release; focused tests; accepted by decision 0438 |
+| V1-0645 | CAL-V0-115..119 | Derived writer checkpoint `<state directory>.writer-checkpoint`: mutate (except REOPEN and review) and claim, claim-next, renew, heartbeat and release resume their audit at it under the writer lock; the complete route serves every decline; a scheduled complete audit refreshes it outside the lock; accepted guarantee change; focused tests and a synthetic before/after measurement; accepted by decision 0439 |
+| V1-0888 | CAL-V0-122..124 | Issue 643: added pool members with their own settings and `holderLiveness` changes stay handoff-compatible; every other change still fences; `policy update` reports `handoffFences`; focused tests; accepted by decision 0439 |
+| V1-0891 | CAL-V0-125..126 | Linux CPU utilisation from `/proc/stat` tick deltas as an opt-in pressure signal, UNKNOWN on the first tick of a run; per-OS signal selection (for example memory only on macOS); macOS CPU ticks not delivered; focused tests; accepted by decision 0439 |
+| V1-0890 | CAL-V0-127..129 | Changed dispatcher configuration re-validated and applied at the next tick, refusals reported and the applied configuration kept; role `cap: 0` disables a role; lane `minAgeSeconds`; focused tests; accepted by decision 0439 |
+| V1-0889 | CAL-V0-130..134 | In-place binary upgrade with live attempts: `version` reports `formats`; equal sets need no drain and roll back by the same procedure, differing sets cannot roll back; another dispatcher-ledger version or unknown member refuses UNSUPPORTED_VERSION; install by rename; supervised host pins unchanged; focused tests; accepted by decision 0439 |
+| V1-0893, V1-0894 | CAL-V0-135..142 | Pinned-descriptor receipt binding fold; Darwin `kern.proc.all` and Linux `/proc` escape scan; host exit poll backoff to 200 ms; dispatcher-carried review fold; idle dispatch tick gate; shared read captures; scaled plan preview node bound; service dispatcher pools; focused tests and local measurements; accepted by decision 0439 |
+| V1-0791 | CAL-V0-102..103 | Opt-in derived `LOOP_DETECTED` hold over audited no-progress and alternating-return generations; owner reopen clears it; dispatcher raises one blocked event per episode; focused tests |
+| V1-0851 | CAL-V0-104 | Dispatcher worker-exit recovery: bounded hand-off release retries with backoff, reap once the lease expires, `needs-owner` only when both fail; `heal.exitRecovery` default on; focused tests |
+| V1-1026 | CAL-V0-195..196 | Accepted (decision 0459): optional policy `milestones.required` refuses CREATE without a milestone and REFINE clearing one `MILESTONE_REQUIRED`; `queue status.openWithoutMilestone` and a roadmap warning count OPEN tickets with no milestone; focused tests |
+| V1-1016 | CAL-V0-191 | Proposed: with `heal.reap`, a running worker's attempt expired longer than the role's `expiredLeaseGraceSeconds` (0..86400, default 600) is reaped, the worker stopped like the wall cap, and a `lease-expired` event recorded; focused tests |
+| V1-0672 | CAL-V0-194 | Proposed: a dispatcher tick whose final ledger save fails returns `ErrLedgerUnsaved` with the original cause, keeps its in-memory ledger and workers, raises a `tick failed` alert and retries the save of the current ledger on the next tick; focused tests |
+| V1-0827 | CAL-V0-197 | Accepted (decision 0467): `run --role` (and `admit --role`) selects an answered `WAITING` attempt only for the role of its own stage; an implementer run no longer resumes an answered review or integrate wait, and the reviewer and integrator select their own; a new question is recorded unanswered; focused tests |
+| V1-1042 | CAL-V0-198..204 | Accepted (decision 0472): `pool acquire` gives a live external-agent attempt one member by the pooled-claim rules for its own holder and stage; `pool release` returns the exact allocation into quarantine while the attempt stays live; one allocation per generation; lifecycle verbs act on the current allocation; receipt-bound replay; focused tests |
+| V1-0795 | CAL-V0-210 | Accepted (decision 0473): a replacement owner settles a dead owner's `SPAWNING` or `STOPPING` program `FINISHED` when its bound current attempt records a proved stop (no worker, no lane); an unproved stop stays refused; focused tests |
+| V1-1045 | CAL-V0-205 | Accepted (decision 0471): `pool confirm-safe` takes the CAL-V0-116 writer-checkpoint route, so with a bound writer checkpoint it no longer decodes the whole receipt journal under the preparation gate; every decline keeps the complete route; focused tests and a synthetic measurement |
+| Read facets | CAL-V0-206..209 | Accepted (decision 0476): `--facets` adds a bounded facet-count summary over the whole match set to `ticket search`, `ticket list` and `roadmap`; `--count` returns only that summary; `release readiness` adds member counts and milestone drift and skips the source observation without a candidate; focused tests and a real-store read measurement |
+| V1-1129 | CAL-V0-215 | Accepted (decision 0519): shared retryable descriptor-exhaustion classification, with post-effect overrides; experimental focused tests |
+| V1-1130 | CAL-V0-216 | Accepted (decision 0518): CAL-V0-111 `--lock-wait` for claim, renew, submit, pool acquire, pool confirm-safe and pool release; experimental focused tests |
+| V1-1118 | CAL-V0-211 | Accepted (decision 0499): a fresh `ticket set-effects` or claim warns `EXACT_KEY_NAMES_DIRECTORY`, naming the key and the key with `/`, for each PATH key without a trailing `/` that names a directory in the tree; it refuses nothing; focused tests |
+| V1-1125 | CAL-V0-214 | accepted, decision 0513: fresh `ticket create` and `ticket refine` transactions carry the same advisory exact-directory PATH key warning as CAL-V0-211; replays add none; effects remain unchanged; focused tests |
+| V1-0913 | CAL-V0-217 | Accepted (decision 0518): the CAL-V0-139 idle safety-net full read moves from 60 seconds to 15 minutes; focused test |
+| V1-1195 | CAL-V0-218 | Accepted (decision 0519; V1-1195): a non-ignored child keeps a dispatcher worker active only when it is new since the last activity, its CPU time is unreadable, or it used at least 1% of the wall time since then; a sleeping long-lived helper no longer blocks the IDLE stop (issue 793); focused tests |
+| V1-1081 | CAL-V0-017 (amended) | Accepted (decision 0539): `complete` also accepts a commit reachable from the intent branch's configured remote-tracking upstream when the local branch is behind; never fetches or moves a ref; an unintegrated commit refuses `STALE_TREE` plus `COMMIT_NOT_INTEGRATED`; focused tests |
+| V1-0853 | CAL-V0-105 | Dispatcher replans with the tickets its work state holds deferred `WORK_STATE_HELD` outside the selection window; UNKNOWN, NONE and no reader keep today's window; focused tests |
+| V1-0772 | CAL-V0-086 | Supervised stage worktree path recorded as PathText (4096 bytes), refused before mutation when longer; an unproved stage drain ends the role `SURVIVORS` instead of `FINISHED`; drain re-probes `EPERM`; bounded watcher read tolerance; focused tests |
+| V1-1402 | CAL-V0-236 | Accepted (standing auto-accept, orchestrator decision 2026-10-15): a replayed completed claim, renew or heartbeat whose attempt moved to another generation carries one advisory warning naming the current generation; the replayed result is otherwise byte-identical; focused tests |
+| V1-1313 | CAL-V0-231 | Accepted (standing auto-accept, orchestrator decision 2026-10-15): a successful current-generation `renew` records `lastHeartbeatAt`, so a renewing holder is not `STALE_HOLDER`; focused tests |
+| V1-1320 | CAL-V0-230 | Accepted (standing auto-accept, orchestrator decision 2026-10-15): a fresh superseded-generation renew or heartbeat after re-claim is fenced and moves nothing; same-request replay documented; focused tests |
+| V1-0887 | CAL-V0-232 | Accepted (standing auto-accept, 2026-10-15): at two history sizes, an ordinary fast heartbeat and renew commit on the writer-checkpoint route with every history receipt unreadable (scheduled refresh and fallback excluded); focused test; the milliseconds-and-flat target remains an owner decision |
+| V1-1415 | CAL-V0-240..243 | Accepted (standing auto-accept, owner request 2026-10-15): `gate run` of a `reusable: true` command gate records an earlier qualifying PASS at the same tree, rebound to the attempt with `reusedFrom`, instead of running it; the model rechecks and `receipt audit` verifies each reuse; focused tests |
+| V1-1511 | CAL-V0-277..278 | Accepted (standing auto-accept, 2026-10-16): heartbeat and renew help state that a renew records the signal, so a same-tick heartbeat is redundant, and when a renew-only holder can read `STALE_HOLDER`; `policy show` reports the effective `heartbeatTTLSeconds`; focused tests |
+| V1-1526 | CAL-V0-310 | Accepted (standing auto-accept, 2026-10-16): an unknown `--fields` key is still refused `MALFORMED`, with a warning naming the key, listing the item's keys and suggesting `PARENT.KEY` one level down (`record.body`); `ticket show` usage names the `record.` prefix; focused tests |
+| V1-1548 | CAL-V0-311..318 | Accepted (standing auto-accept, 2026-10-17): a role's optional `keepLease {intervalSeconds, leaseMinutes, maxIdleSeconds}` has the dispatcher heartbeat, or renew when the lease would not cover two intervals, the attempt each live, active worker holds; it stops once on a fence, a lost or regenerated attempt, and never writes for an exited or idle worker; ledger `taskman-dispatch-state/6`, `lease-keeper` events and the status `keeper` object; a worker whose tree this tick did not observe is not kept (CAL-V0-317) and a replayed write is followed by one fresh write (CAL-V0-318); implemented with focused tests |
+| V1-2012 | CAL-V0-319 | Accepted (standing auto-accept, 2026-10-20): an interrupted `gate run` (SIGINT/SIGTERM after the gate started) stops the gate's process group and records the run as an ordinary `FAILED` gate result with its captured output instead of discarding it; implemented with a focused test and a retained reproduction |
+| V1-1981 | CAL-V0-320 | Accepted (standing auto-accept, 2026-10-20): the standalone Tasks archive builder also cross-builds `linux/amd64` (`CGO_ENABLED=0`, reproducible, `SHA256SUMS`); the Linux runtime is `NOT_OBSERVED` until a Linux host runs the documented commands |
+| V1-2352 | CAL-V0-321 | Accepted (standing auto-accept, 2026-10-23): a read checkpoint carries a no-false-negative filter of the request paths posted at or before its sequence, so a checkpoint read refuses a duplicate request with a null pre-state through the complete audit (PSR-V0-203); a checkpoint without the filter serves no read; implemented with focused tests |
+| V1-2359 | CAL-V0-322 | Accepted (standing auto-accept, 2026-10-23): `attempt show` and `ticket show` carry `lastFailedGate`, the newest FAILED or BLOCKED gate result with the TCD-V0-165 bounded, secret-screened tail of its retained output; implemented with focused tests |
+| V1-2449 | CAL-V0-340 | Accepted (standing auto-accept, 2026-10-23): an unlocked journal audit whose two-second stage-slot wait (CTS-V0-008) is spent with the head advanced since it first saw the slots refuses the retryable `SNAPSHOT_MOVED`, not `MALFORMED` (head movement warrants another bounded observation, it does not prove the slots' holders live); a head that never moved keeps the unchanged `MALFORMED`; implemented with focused tests |
+| #1551 | CAL-V0-372 | Accepted (standing auto-accept, 2026-10-23): the lease write's unlocked pre-round guard read that ends `SNAPSHOT_MOVED` spends that one of its sixteen rounds instead of ending the write; a non-retryable guard failure still ends it at once |
+| V1-2368 | ATR-V0-323..324 | Accepted (standing auto-accept, 2026-10-23): a cleanup or reassign interrupted after its `WORKTREE_REMOVE` write is settled by the next owner with a typed `REMOVAL_COMPLETED` or `REMOVAL_ROLLED_BACK` outcome, and a removed stage worktree's record is dropped rather than kept marked, amending ATR-V0-296..298; implemented with focused tests. ATR-V0-325..329 (PR #1631 review) hold the cleanup exclusively, record and prove the remover child, drop legacy records durably, never retry a rolled-back removal in one invocation, and keep a moved worktree's record |
+| V1-1715 | PSR-V0-220 | Accepted (standing auto-accept, 2026-10-23): `claim --next` derives scope through the CLI's scope deriver for the ticket `plan preview --pool` selects with waiters present, so the deriver is asked about, and the claim takes, the previewed ticket; the CLI test fixture takes a deriver; focused test and a mutant check |
+| V1-2137 | TQD-V0-046 | Accepted (standing auto-accept, 2026-10-23): a test-only padded-journal builder appends N synthetic heartbeat receipts, elided as liveness compaction elides them, to a store with live attempts in O(N) file writes and no audit; the complete audit finds the result CONSISTENT and AGREES, so a doctor walk at 30,000 receipts is measurable; implemented with focused tests |
+| V1-1634 | ATR-V0-320, ATR-V0-321 | Accepted (standing auto-accept, 2026-10-23): host-sleep handling on Linux and the other lease-reap paths at a wake. Only the CAL-V0-191 reap of a running worker excludes a recorded gap (ATR-V0-064); the exit recovery, the unowned-lease reap and the store's own claim and reap are not gap-aware, stated as an accepted limit. A time-namespace test shows the Go monotonic clock is `CLOCK_MONOTONIC`, not `CLOCK_BOOTTIME`, and an opt-in wall-clock step records one gap. A real suspend: `NOT_RUN` (the VM advertises no suspend state) |
+| V1-0911 | ATR-V0-322, PSR-V0-221 | Accepted (standing auto-accept, 2026-10-23): Linux qualification of the Tasks scale work. The `/proc` process-table reader agrees with `ps` on a live tree; idle CPU, scan cost and `ReadDir` measurements are in the build log. The qualification found a Linux-only failure and fixed it: the change guard watched every file with inotify, so a store with more files than the user's `fs.inotify.max_user_watches` allowance (or a few concurrent writers on a large one) ended `claim` and `pool acquire` as `MALFORMED` (`no space left on device`); a guard now watches at most a 32nd of the allowance (4,096) of its files and tracks the rest by stat, as on Darwin |
+| V1-1569 | none (evidence; PSR-V0-055, PSR-V0-221) | Accepted (standing auto-accept, 2026-10-23): the 45,000-receipt pool acquire load run on Linux, with the host, load and Go version retained. The first run ended in `no space left on device` from inotify, which PSR-V0-221 fixes; the bound of PSR-V0-055 is updated with the measured values of the run after the fix |
+| V1-1321 | ATR-V0-210, ATR-V0-211 | Delivered as a refusal naming uncovered requested paths plus the reported scope (attempt runner spec); CAL-V0-021 unamended |
+| V1-1494 | CAL-V0-263, CAL-V0-265 | Proposed (issue 967): no lease write holds the preparation gate for a complete-history audit; the scheduled refresh walks the prefix to its captured head when the journal moves; focused tests, mutation check and an opt-in load harness |
+| V1-1512 | none (evidence; PSR-V0-052) | Accepted (standing auto-accept, 2026-10-20): issue 967 remainder; at 40,000 receipts and 15 writers heartbeat/renew p99 1,138/1,131 ms (residual: gate wait behind about 1 s widen and reap commits), no `SNAPSHOT_MOVED`; reap and pool release resume tests; proposals 2 remainder and 3 are 1.0 work per decision 0549, proposal 5 deferred past 1.0 |
+
+CAL-V0-062/063 are defined in S13 (issue 354). CAL-V0-064 (S14, issue 468) is reserved
+by coordinated unlanded work; CAL-V0-066/S16 remains reserved for issue 464 if used.
+The coordinator assigned CAL-V0-067/S17 to issue 479 and CAL-V0-068/S18 to issue 497. CAL-V0-069/S19 is issue 494 and CAL-V0-071..072/S21 extend issue 354 (CAL-V0-070 and S20 are left to coordinated unlanded work). CAL-V0-073 is the V1-0751 CREATE payload template amendment, re-homed as CTW-V0-012. CAL-V0-074..075/S22 deliver native ticket V1-0755, split from issue 354. CAL-V0-076..077/S23 deliver native ticket V1-0756, split from issue 354. CAL-V0-079..081 are the V1-0793 critical-path read. CAL-V0-095 is the V1-0781 preparation-admission pressure amendment. CAL-V0-096 is the V1-0788 prior-generation stage and member amendment. CAL-V0-097/S24 is issue 584. CAL-V0-098 is the V1-0789 implement-author exclusion. CAL-V0-107 is the V1-0852 caller-asserted author cover (issue 623). CAL-V0-108 is the V1-0855 cross-stage admission order (issue 626). CAL-V0-109..110 are the V1-0862 Darwin pressure signal and level reason (issue 636). CAL-V0-125..126 are the V1-0891 CPU signal and per-OS signal selection (issue 646); CAL-V0-127..129 are the V1-0890 configuration reload, cap 0 and lane minimum age (issue 645). CAL-V0-099 is the V1-0787 stage-scoped execution prerequisites amendment. CAL-V0-101 is the V1-0784 priority-yield amendment (issue 583). CAL-V0-078 is the V1-0780 retryable result amendment (issue 494 follow-up). CAL-V0-102..103 are the V1-0791 loop-detection amendment. CAL-V0-086 is the V1-0772 supervised stage worktree bound and unproved-stop amendment (issue 354). CAL-V0-087..089 complete S21 for issue 354 (V1-0475). CAL-V0-115..119 are the V1-0645 writer checkpoint (issues 641 and 642). This seed does not claim
+implementation or qualification of the new profile or any reserved slice.
+V1-1547 (detached claim and pool acquire) and V1-1549 (dispatch context thresholds) are specified as ATR-V0-020..039 in `corvint-tasks-attempt-runner-v0.md`, and V1-1560 (lease write resume under a moving journal) as PSR-V0-050..057 in `corvint-tasks-pool-safe-reuse-v0.md` (owner-approved re-homing, 2026-10-17).
+
+S8 was added by owner decision on 2026-09-27 and lands directly after S3, before S4.
+
+Corvint's own queue is a fixture queue written daily through the same §5.2 writer, and a fixture
+queue admits in mode `DEVELOPMENT` without an execution cutover (TCP-00 §4.1 step 2). S2 to S6
+therefore work on a fixture queue, and they land first, before S1. A repository can switch to them
+in `DEVELOPMENT` mode, as Corvint runs today. S1 and S7 then turn that queue into a qualified,
+non-fixture one. Whether a repository switches before S1 and S7 is an owner decision for that
+repository.
+
+## Requirements
+
+S1, non-fixture writer.
+
+- `CAL-V0-001`: The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and
+  `policy update` to a queue whose `fixture` is false and whose `importMapSha256` is null, under
+  exactly the checks it applies to a fixture queue. A queue with a non-null `importMapSha256` stays
+  refused unless its map is bound: since 2026-10-22 a non-fixture queue whose journaled map matches
+  that digest takes the same writes under CTS-V0-014 to CTS-V0-017 (V1-0398); a fixture queue that
+  names a map, or a non-fixture queue whose map is absent or mismatched, stays refused.
+- `CAL-V0-002`: A non-fixture queue MUST refuse `claim` until its `executionCutover` names an owner
+  decision and a `QUALIFICATION` receipt for the CAL-V0-019 suite exists at or before the head
+  (CAL-V0-020). A fixture queue keeps `mode` `DEVELOPMENT` and needs neither.
+- `CAL-V0-003`: Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcomes
+  and codes for the same inputs.
+
+S2, cutover of imported records.
+
+- `CAL-V0-004`: `corvint-tasks cutover --decision <ref>` MUST, under an `OWNER` binding, commit one
+  `AUTHORITY_SWITCH` receipt whose `requestId` is the decision reference and whose only post is
+  `queue.json` with `canonicalWriter` `NATIVE`, a null `foreignAdapterId`, and a `CUTOVER` write
+  barrier on the old source from the receipt's time (TCP-00 §5.4 A5). That receipt is the single
+  publication boundary: every `IMPORT` shadow record stops reading `CUTOVER_MISSING` and is judged
+  by the ordinary eligibility rules. It MUST refuse `UNAUTHORIZED` under any other role, `PAUSED`
+  while a barrier is present, and `BLOCKED` once the queue is already `NATIVE`; the same decision
+  reference replays.
+- `CAL-V0-005`: After the switch, `import` MUST refuse and write nothing, so a later foreign export
+  can never overwrite a record.
+- `CAL-V0-006`: The switch MUST leave every record file byte-identical: imported records keep their
+  `IMPORT` source as provenance, and their dependencies, holds, gates and completion.
+
+S3, leases.
+
+- `CAL-V0-007`: `corvint-tasks claim <ticketId> --holder <label> [--lease-minutes N]
+  [--branch <label>] [--base <oid>]` MUST admit by TCP-00 §4.1 steps 1, 2, 5, 6 and 8 with runtime
+  `external-agent`, in one transaction: a new attempt at the next queue-wide generation (TCP-00
+  TM-V0-011) in phase `RUNNING`, with
+  `supervisor` and `lane` null, a `lease` (CAL-V0-012), and one `ACTIVE` reservation entry. Budget
+  (step 4) is `NOT_OBSERVED` and admission is refused `BUDGET_UNKNOWN` when the policy requires any
+  enforced budget field. It returns `attemptId` and `generation`.
+- `CAL-V0-008`: `claim --next --holder <label>` MUST claim the first `SELECTED` entry of the
+  CAL-V0-014 plan computed inside the same transaction, or answer `BLOCKED` with the plan's reasons
+  when none is selected.
+  Because the plan reads every reservation, `claim --next` first reaps every expired lease, not only
+  the colliding ones, then plans and claims the ticket under its `DECLARED` or `WHOLE_REPOSITORY`
+  scope; it takes no `--scope` and derives none. With nothing selected it answers the first
+  entry's reason, or `TICKET_STATE` when no ticket is `OPEN` or `HELD`.
+  CAL-V0-097 amends this for pools: without `--pool` it claims the first `SELECTED` entry that
+  requires no pool, and answers `RESOURCE_COLLISION` when every `SELECTED` entry requires one.
+- `CAL-V0-009`: Every command that names an attempt (`renew`, `release`, `submit`, `gate run`,
+  `complete`) MUST carry `--attempt <attemptId> --generation <G>`, and a generation other than the
+  attempt's current one, or an attempt in a terminal phase, MUST refuse `REVISION_CONFLICT` with
+  `FENCED` and record the refusal (TM-V0-011).
+- `CAL-V0-010`: `renew` MUST extend a live lease to `recordedAt + lease` and refuse `FENCED` once
+  the lease has expired, even before a `reap` has recorded it.
+- `CAL-V0-011`: `release [--reason <code>]` MUST move the attempt to `CANCELLED` with quiescence
+  `FENCED` and remove its reservation entry. `reap` MUST move every non-terminal `external-agent`
+  attempt whose lease expired at its own `recordedAt` to `FAILED` with cause `LEASE_EXPIRED` and
+  quiescence `FENCED`, and remove their entries. A no-argument `reap` MUST report its receiptless
+  survey separately from the completed per-attempt transactions and name each fresh child receipt;
+  an empty survey retains the ordinary no-change warning. `claim` MUST reap, in its own transaction and
+  receipt, every expired lease whose reservation would otherwise block it. An `ALL` barrier lets
+  `release` and `reap` through as it lets `cancel` through (TCP-00 §3.4), and refuses `renew`,
+  `claim` and `widen` `PAUSED`.
+- `CAL-V0-012`: A lease is `{holder:label, grantedSeq:Size, expiresAt:Timestamp}`. The default is
+  60 minutes, the minimum 5 and the maximum 1,440; a request outside that range is `MALFORMED`. A
+  transaction of any operation whose `recordedAt` is earlier than the head receipt's refuses
+  `STORAGE_FAILED` before it writes, so a clock that steps backward cannot record a receipt that
+  later makes an expired lease look live.
+  A writer with a live clock samples `recordedAt` again once it holds the head it plans against
+  (after it takes the store lock, or after a lease preparation reads the head), and uses the later
+  of that sample and its caller's. A writer that waited behind another writer's commit is therefore
+  not refused as a backward step; a live clock that itself reads earlier than the head still refuses.
+- `CAL-V0-013`: A ticket whose last attempt is `FAILED` or `CANCELLED` MUST be claimable again as
+  that attempt's next generation while its charged retry count is below the current policy limit
+  (CAL-V0-045), and after exhaustion only an `OWNER` `ticket reopen` makes it claimable,
+  unless the existing prospective clean handoff exemption applies.
+  CAL-V0-043 specifies readmission of an exhausted `OPEN` ticket. Cancellations consume retries
+  except the prospective writer-verified clean handoffs in CAL-V0-044. Reopen creates fresh
+  acceptance, not an automatic retry refund.
+  `corvint-tasks attempt show <attemptId>` and `queue status` MUST report every live attempt with
+  holder, phase and lease expiry, as pure reads. `queue status` reports `attempts` as the count of
+  live attempts and lists them in `liveAttempts`.
+
+### Prospective handoff accounting (issue 412)
+
+- `CAL-V0-044`: Only an upgraded writer's verified terminal external-agent handoff MAY preserve
+  the cumulative retry count on the next generation. `release --reason HANDOFF` requests this
+  check for an implement/review/integrate lease; `REVIEW_RETURNED` requires a review lease. The live,
+  unexpired, current generation MUST have a scope-checked submitted candidate or the explicit
+  no-tree evidence branch in CAL-V0-046, no pending effects,
+  unchanged acceptance, and unchanged policy/config or the complete proposed issue 482
+  compatibility proof below, and prospective generation accounting without a recorded
+  non-PASSED gate result. These reason strings and stage/holder changes alone are not evidence.
+  A failed eligibility check MUST refuse without converting the attempt to a clean cancellation.
+  Missing legacy accounting remains charged. Ordinary cancellation, failure and expiry remain
+  charged regardless of stage. A clean handoff at the policy retry limit MAY continue at that count;
+  a subsequent non-exempt termination MUST block the next claim. Claim, pure plan preview and
+  exhausted-OPEN owner recovery MUST use the same exhaustion rule, preserving all CAL-V0-043
+  safety and authorization preconditions.
+  The optional closed `retryAccounting` object has profile `taskman-retry-accounting/0`, boolean
+  `failedOrUnknown`, and disposition `NONE|HANDOFF|REVIEW_RETURNED`. An upgraded claim initializes
+  NONE/false. Every recorded non-PASSED gate sets the boolean atomically and permanently for that
+  generation; a later PASS, replacement gate result or resubmission MUST NOT clear it. Only the
+  verified release writer may set a clean disposition. The next generation gets fresh local
+  accounting while preserving or incrementing accumulated debt; gates, candidates, approvals and
+  review evidence do not gain successor authority. Supervised attempts may retain inert metadata
+  after attachment but MUST NOT receive this exemption. All records remain journal-bound, with
+  original request replay, stale-generation fencing, reservation release and default pool quarantine intact.
+  The proposed CAL-V0-067 exception affects only its explicitly eligible attested occupancy;
+  it does not grant a retry exemption or change clean-handoff accounting.
+  Legacy absent-member bytes MUST round-trip unchanged; unknown/malformed metadata MUST refuse.
+  Old readers may refuse from the first accounting-bearing claim. Rollback MUST retain the journal
+  and use a compatible reader/writer after stopping admissions; stripping metadata or downgrading
+  an affected store is not supported. No historical refund, live migration or automatic owner reopen is authorized.
+  Issues 420/421 amend only the explicit retry bound and handoff branch in CAL-V0-045/046. Verification describes recorded accounting eligibility,
+  not actor authentication, unreported external failures, physical quiescence or independent review.
+
+### Proposed issue 482 amendment: unrelated policy handoff compatibility
+
+Status: proposed intent; experimental source implemented, independently reviewed and qualified in disposable fixtures. Final keyed qualification, integration and native completion remain pending. Authoritative human input:
+[issue 482](https://github.com/beamfall/corvint/issues/482). This amendment narrows the meaning of
+unchanged policy/config for clean CAL-V0-044/046 release only; it does not promote a prototype or
+change completion authority. Existing installed writers retain their qualified behavior. The
+experimental source and scoped candidate qualification are recorded in
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-02-tasks-unrelated-policy-handoff.md`; this is not whole-delivery promotion.
+
+1. A clean external-agent HANDOFF or REVIEW_RETURNED MAY remain eligible after policyVersion and
+   other-member reservedFor changes in its exact allocated pool only. Every other raw field and
+   ordered array, the own-member reservation/config/definition, acceptance, stage, generation,
+   lease and existing candidate/no-tree/accounting conditions remain bound. No-pool attempts allow
+   only policyVersion differences. Original attempt policy/config/capability hashes never change.
+   CAL-V0-122 and CAL-V0-123 (issue 643, accepted by decision 0439) also allow added pool members with their own
+   settings and `holderLiveness` changes, for pooled and no-pool attempts.
+2. Compatibility MUST cover every committed policy afterimage after the exact original policy
+   through the same settled fully audited head. Any relevant intermediate change stays
+   incompatible after restoration. Retain one original canonical file blob and bounded metadata;
+   no whole-history cache, extra wire or migration. Missing, unknown, malformed or mismatched
+   history MUST refuse. Check every receipt/post/codec and projection even after incompatibility.
+3. Original policy provenance MUST bind nondeleted intent/policy.json path, committed nonzero
+   sequence, exact file digest including LF and containing receipt digest. The first exact
+   attempt/generation post must follow it and carry matching original policy/config identities;
+   renewed GrantedSeq does not substitute for that structural provenance. Historical acceptance,
+   authentication, holder liveness and physical quiescence remain NOT_OBSERVED.
+4. One additional full audit per otherwise eligible stale-release preparation MAY supply this
+   observation under the same ChangeGuard outside the lock, after request replay handling. Bind
+   both observations' head, receipt, inventory, intent and final policy identity; reject staging,
+   pending redo, IntentError and drift. Bounded preparation retries are measured separately.
+   Shared pure comparison uses cloned raw wire trees, preserving every unremoved optional field
+   and all array/member order; only the allocated pool's empty/absent reservation map normalizes.
+5. This exception MUST NOT grant stale-holder reap, physical reuse, old-generation completion,
+   successor gate/candidate/approval authority, retry refunds or actor authentication. Preserve
+   release fencing, ordinary cancellation, pool quarantine and request replay/conflict exactly.
+
+Acceptance must include current-source CLI red/green and multiple allowed updates; budget,
+retry, gate, role and runtime/environment change-then-restore refusals; renewal and history/guard
+controls; legacy/invalid/fenced refusals; stale-policy completion and fresh-successor controls;
+read purity, aggregate bounds and per-preparation scan cost. The CAL-V0-044/046 clauses and owning metadata are seeded before the first plan freeze.
+Named tests and retained independent review/dogfood/native evidence are required before any
+delivery claim; the external-agent guide and help gain the verified behavior at terminal binding.
+Rollback preserves all journal and attempt bytes; a compatible previous writer resumes whole-policy
+refusal after admissions stop. No destructive downgrade or canonical live-policy rewrite.
+
+
+Wire and refusal boundary: the RELEASE reason/evidence request shape, attempt retryAccounting
+and handoffEvidence members, canonical request preimages, policy profile and journal receipt
+codec stay unchanged. Compatibility history is internal preparation evidence, never a new
+persistent authority field. Replay/conflict runs before any new history observation. Both full
+audits must share head/receipt/LastSeq, inventory and intent identities under one ChangeGuard;
+staging, pending redo, IntentError, selected historical drift or final-policy mismatch refuses.
+Only an otherwise eligible stale clean release gets this observation; ordinary cancellation,
+reap, equal-policy handoff and invalid/fenced requests retain their existing reducer ordering.
+The eligible original attempt/generation must carry matching original policy/config/capability
+identities. Exact LF-bearing file digests are required; namespaced policy-body digests cannot
+substitute. All history remains codec/digest checked after incompatibility. Original admitted
+identities, required gate results and candidate/scope authority are never rewritten or inherited.
+No new public verb, flag, schema profile or journal/attempt member is added.
+
+### Configurable retries, external work handoff and help (issues 420–422)
+
+- `CAL-V0-045`: Claim (explicit and next), pure plan preview (including pool/stage selection), and
+  exhausted-OPEN owner recovery MUST apply the same current `retries.admissionsPerRevision` value.
+  The historical field name denotes charged retries after the initial admission, not total
+  generations. Its required canonical Count MUST be in 0..16; the fixture/default policy retains
+  3, and 0 permits the initial admission but no charged retry. Missing or malformed fields MUST
+  refuse. Clean CAL-V0-044 handoffs preserve debt at any limit; failures, cancellations and expiry
+  remain charged. Changing a policy MUST NOT erase debt, acceptance history or owner recovery
+  safety checks. A raised limit makes a previously exhausted attempt eligible only through the
+  ordinary current-policy admission predicate. This code change does not authorize updating any
+  real queue policy or migrating live attempts. Readers limited to 3 may refuse a policy above 3;
+  retain compatible tooling and the complete store rather than stripping fields or downgrading.
+- `CAL-V0-046`: An external-agent `release --reason HANDOFF --evidence REF` MUST support work
+  outside the queue repository without submitting an unchanged or unrelated tree. `HANDOFF`
+  permits implement, review and integrate; `REVIEW_RETURNED` permits review only. With REF, the
+  live, unexpired current generation MUST be RUNNING, have no candidate, scopeCheck UNKNOWN,
+  no gate results or pending effects, and prospective NONE/false retry accounting. Unchanged
+  acceptance and unchanged policy/config or the complete proposed issue 482 compatibility
+  proof remain mandatory. Without REF, the existing BUILT/CHECKING,
+  candidate and WITHIN requirements remain mandatory. Evidence on ordinary cancellation MUST refuse unless the explicit CAL-V0-067 profile is
+  independently eligible; evidence on a candidate-bearing release MUST refuse. A non-PASSED gate remains sticky, and missing legacy
+  accounting and supervised attempts never qualify. Failed checks MUST NOT record a clean
+  disposition. The optional attempt member `handoffEvidence` MUST be absent or a nonempty
+  `Identifier` (1..128 UTF-8 bytes, no hostile code points or TAB/LF/CR); null, empty, unknown and
+  overlong forms MUST refuse. It is required exactly for the no-tree clean terminal branch and
+  forbidden on live, NONE, legacy, supervised, ordinary-cancel and candidate-tree records.
+  The decoder MUST jointly bind reason/cause/disposition, stage, CANCELLED phase, FENCED
+  quiescence, candidate absence, UNKNOWN scope and empty gate/pending-effect sets. The reference
+  MUST join the canonical RELEASE request preimage only when present: absent evidence MUST
+  preserve legacy preimage bytes and replay. Same-reference replay MUST be idempotent;
+  changed-reference replay MUST conflict. New metadata remains journal-bound; old readers may
+  refuse and MUST NOT be used to strip or rewrite it. A reference is inert caller evidence, never
+  fetched or executed and not proof of its contents, work quality or physical cleanup. Release
+  MUST remove the reservation and retain existing pool quarantine; reuse still requires the
+  existing cleanup/safe-confirm flow unless the separately defined explicit CAL-V0-067 profile
+  is requested and independently eligible. An inert handoff reference alone never frees a member. Journal consistency, logical fencing and quarantine MUST
+  remain distinct from separately observed physical cleanup. No completion, review, integration,
+  publication, automatic reopen or historical refund authority is added.
+- `CAL-V0-047`: Every implemented and omitted public command path and command family MUST return
+  read-only OK for an exact trailing `--help` or `-h` help request, with command-specific usage,
+  flags and applicable reason codes. The lease release help MUST state CAL-V0-044/046 eligibility
+  and refusal codes, including that relevant or unproved policy changes make live handoffs
+  STALE_POLICY and the proposed issue 482 exception needs a fully audited compatible interval. Help MUST
+  require no initialized store and perform no store read/write/lock, stdin read, archive stream,
+  command execution or launcher action. Omitted execution remains NOT_RUN and its help MUST say
+  so without inventing execution flags. Unknown paths and malformed non-help invocations retain
+  ordinary behavior. Existing mutation help alongside flags, operation and payloadKeys remain
+  supported; a scalar flag value spelled --help or -h MUST NOT become a help request. The
+  --version alias and release lease/artifact-family dispatch MUST remain compatible. CAL-V0-170 makes `--help` terse; the content above is required under `--help --verbose`.
+
+- `CAL-V0-048`: `attempt heartbeat --attempt ID --generation G --request-id ID` MUST
+  record a generation-local optional `lastHeartbeatAt` through the journal writer, using ordinary
+  generation, terminal and lease-expiry fencing. Fresh claims initialize the recorded signal;
+  readmission resets it. Heartbeat MUST NOT extend the work lease, charge retries, release a
+  reservation or change physical quiescence. Existing request preimages and legacy attempt bytes
+  remain unchanged. Replay MUST return the original result without refreshing a timestamp,
+  including after expiry or readmission. `attempt show` and live `queue status` entries MUST expose
+  `lastHeartbeatAt` (null for legacy absence), `holderStatus`, `observedAt` and
+  `heartbeatTTLSeconds`, the effective TTL: `"600"` unless the CAL-V0-120 policy key sets it. The
+  observation uses one time per command. Legacy absence is
+  NOT_OBSERVED; otherwise terminal is TERMINAL, work-lease expiry is LEASE_EXPIRED, an observation
+  preceding the signal is CLOCK_BEFORE_HEARTBEAT, age at or above the TTL with a live lease is
+  STALE_HOLDER, and a younger signal is FRESH_HOLDER. These are recorded freshness observations,
+  never authenticated holder liveness, proof of death, cleanup or release authority. Derived
+  display fields MUST stay outside canonical attempt evidence in criterion captures. Automatic
+  reaping or stale-holder handoff is outside this amendment.
+
+- `CAL-V0-049`: `ticket show`, full `plan preview` entries and `queue status --retries` (CAL-V0-169) MUST
+  expose current acceptance-revision `retries` with canonical Counts `charged`, `limit`,
+  `remaining` (floored at zero), boolean `exhausted`, closed `byReason` and `reasonHistory`.
+  Queue retry entries cover OPEN/HELD tickets and name ticketId/ticketRevision. Charged debt uses
+  the latest attempt's stored retryCount at that acceptance revision; the bound and exhaustion
+  predicate MUST be the admission predicate, including clean handoff at the bound and initial
+  admission when the bound is zero. Journal-absent inventory reads retain NOT_OBSERVED debt,
+  remaining and reason history, null exhaustion and byReason. Changing policy MUST NOT erase debt.
+  Optional prospective attempt `retryReasons` has exactly EXPIRED, RELEASED, FAILED, UNKNOWN
+  Counts whose sum MUST equal retryCount. Only a charged readmission increments one bucket:
+  terminal FAILED with cause LEASE_EXPIRED is EXPIRED, other FAILED is FAILED, CANCELLED is
+  RELEASED, and unclassified state is UNKNOWN. Clean handoffs copy counts without increment;
+  new acceptance resets them. Legacy debt becomes UNKNOWN, never inferred specific reasons.
+  reasonHistory is INCOMPLETE while UNKNOWN is nonzero, otherwise COMPLETE; this records cause
+  classification, not authenticated physical failures or historical acceptance qualification.
+  Issue 503 adds advisory `remainingMeaning: RETRY_CAPACITY` and `retryAdmissionReason`
+  (`INITIAL_ADMISSION`, `NEW_ACCEPTANCE`, `COMPLETED_ATTEMPT`, `VERIFIED_HANDOFF`,
+  `RETRY_AVAILABLE`, `RETRY_EXHAUSTED`; `NOT_OBSERVED` without a journal). Zero remaining
+  does not itself establish exhaustion: initial admission, a completed latest attempt and a
+  verified clean handoff retain the existing admission exceptions without changing charged debt.
+  `ticket show` and `ticket blockers` MUST expose boolean-or-null `claimable`,
+  `claimabilityReason` and `claimabilityScope: RECORDED_DEFAULT_EXTERNAL_AGENT_PLAN`.
+  The observation is this ticket's recorded default external-agent plan before reap, without
+  earlier proposed selections; it never reserves capacity, validates caller branch/base/holder
+  or scope arguments, proves physical quiescence or promises a future or pool/supervised claim.
+  Unknown-only admission evidence yields null; a known blocker, reservation collision or capacity
+  limit yields false even with unknown evidence. Existing whole-repository coverage fallback
+  remains unchanged. Reasons describe this read profile, not the writer's first refusal ordering.
+  Journal absence yields null claimability and `NOT_OBSERVED`; invalid audited inputs retain read
+  refusal. Recorded expired reservations remain until an explicit reap. Read projections MUST
+  NOT mutate attempts, reservations, retry accounting or queue state.
+  `ticket show` and `ticket blockers` MUST also expose `effectiveRequiredGates`: the sorted,
+  duplicate-free union of the policy gates marked `required` and the ticket's own `requiredGates`,
+  the exact set `complete` checks for MISSING_GATE (V1-2038). The record's `requiredGates` is
+  unchanged. Tests: `TestV12038_ShowAndBlockersReportPolicyRequiredGates` and
+  `TestV12038_CompleteRefusesTheGateShowAndBlockersReport` (complete's MISSING_GATE for that gate).
+
+- `CAL-V0-050`: Read-only `policy show` MUST return effective canonical policy, policyVersion
+  and the existing policySha256 content identity from one consistent snapshot, without writing,
+  locking, reading stdin or launching commands. `policy update --help` and external-agent docs
+  MUST say that files use canonical UTF-8 JSON, sorted keys, no insignificant whitespace and
+  exactly one trailing LF, and file policyVersion MUST equal expectedPolicyVersion+1. The flag
+  names the current version. Dry-run and real-queue policy changes are outside this amendment.
+
+- `CAL-V0-051`: CREATE help MUST omit --target and --expected-revision, which CREATE refuses.
+  It MUST explain optional payload `localToken` with a meaningful-ID example and its existing
+  queue-local grammar/collision validation. Existing CREATE localToken behavior and canonical
+  ticket identity through show, claim and plan preview MUST remain unchanged; no new alias,
+  serial allocator, wire migration or target-ID semantics are introduced.
+
+Rollback stops admissions before switching to a compatible writer. Preserve every journal,
+request and optional metadata member. No destructive downgrade, migration or live policy rewrite
+is part of these amendments. Failure witnesses include mismatched terminal metadata, changed
+reference replay, changed policy/acceptance, charged expiry, zero-budget exhaustion, and help that
+reads stdin or leaves any filesystem artifact.
+
+S4, planning.
+
+- `CAL-V0-014`: `corvint-tasks plan preview` MUST implement `taskman-priority-first/0` (TCP-00
+  §4.3) over the current inventory and live reservations, as a pure read with
+  `mutationAuthority:false`; `deferredSinceSeq` is null because this spec pins no plans.
+  The plan covers `OPEN` and `HELD` tickets, and its eligibility predicate is the claim's, so a
+  `SELECTED` entry is exactly a ticket `claim` would admit. Each entry is `BLOCKED` with the first
+  of: `PAUSED` under an admission barrier, `BUDGET_UNKNOWN` when the policy requires an enforced
+  budget field, the ticket's own blockers and unknowns except `COVERAGE_UNKNOWN` (an undeclared
+  ticket claims `WHOLE_REPOSITORY`), and `RETRY_EXHAUSTED`. An eligible entry is `DEFERRED
+  RESOURCE_COLLISION`, naming the colliding ticket, when its resources collide with a live
+  reservation or an earlier selection, and `DEFERRED LIMIT_EXCEEDED` once reservations plus
+  selections reach `maxActiveAttempts`; otherwise it is `SELECTED` with reason `DEVELOPMENT_MODE`.
+  `availableWorkers` is reported and never decides, because an `external-agent` attempt holds no
+  worker. With explicit `--selected-only`, the command MUST project that same complete plan as the
+  closed `taskman-plan-selected/0` profile: `planningProfile`, `queueId`, every selected ticket ID
+  in plan order, `selectedTotal`, `complete:true`, and `mutationAuthority:false`. The projection is
+  never paginated or truncated. The detailed `taskman-plan/0` remains the default and planning
+  decisions do not depend on the projection.
+  CAL-V0-097 defines how the default plan (no `--pool`) treats a ticket's `requiresPool`.
+
+S5, gates and completion.
+
+- `CAL-V0-015`: `submit --tree <oid>` MUST record the candidate tree and move `RUNNING` to `BUILT`;
+  a new `submit` from `BUILT` or `CHECKING` replaces the tree and marks every earlier gate result
+  `STALE`.
+- `CAL-V0-016`: `gate run --gate <gateId> --worktree <path>` MUST refuse unless the worktree's
+  `HEAD^{tree}` equals the candidate tree and the worktree is clean, then run the policy-declared
+  command gate there with its declared argv and timeout, and record a `GATE_RESULT` receipt with
+  the tree, exit status, duration and the SHA-256 of the captured output kept under `evidence/`.
+  corvint-tasks observes the exit status itself; a holder cannot report a gate as passed.
+  (Amended 2026-10-28, V1-3008, V1-3009.) Before the gate program starts, `gate run` MUST admit
+  the write it will record: an actor whose role is not OWNER or OPERATOR, or a store that the
+  writer guards pause (an `ALL` reconciliation barrier, a restore or retire in progress), is
+  refused and the program never starts; the recheck when the result is recorded stays. The pre-
+  and post-gate worktree observations (`HEAD^{tree}` and `git status`) run under a deadline equal
+  to the gate's timeout and the caller's cancellation, in their own process group that is killed
+  with its descendants when the deadline passes (LIMIT_EXCEEDED), keep at most 1 MiB of output
+  (a status past it is not clean), and disable executable Git configuration: `core.fsmonitor`,
+  hooks and credential helpers.
+- `CAL-V0-017`: (accepted, owner 2026-10-16, decision 0539; V1-1081) `complete --commit <oid>` MUST refuse unless the commit is reachable from the
+  queue's `intentBranch` or from that branch's configured upstream remote-tracking ref, its tree
+  equals the candidate tree, and every required gate of the ticket has a `PASSED` result at that
+  tree. It then completes the ticket with those digests as its
+  completion evidence, moves the attempt to `COMPLETED` with quiescence `FENCED`, and removes the
+  reservation, in one transaction. A held ticket refuses `TICKET_HELD`. Integration itself (rebase,
+  merge, push) stays with the repository's own tooling. The upstream is consulted only when the
+  local `refs/heads/<intentBranch>` lacks the commit, and only when Git resolves the branch's
+  configured upstream (`branch.<intentBranch>.remote` and `.merge`) to an existing `refs/remotes/`
+  ref; no upstream, an unresolvable one, an absent remote-tracking ref or a local-branch upstream
+  leaves the commit unreachable. `complete` MUST never fetch and never create, move or delete a
+  ref. An unreachable commit refuses with both `STALE_TREE` and `COMMIT_NOT_INTEGRATED`,
+  serialized in the envelope's canonical sorted order, and its detail names the local branch, the upstream ref checked or that none is configured, and the
+  recovery (fetch the upstream so the remote-tracking ref contains the commit); a reachable commit
+  whose tree differs, or whose extra repository is not integrated (CAL-V0-087), refuses
+  `STALE_TREE` alone. (Upstream reachability and the second code:
+  amendment by V1-1081, accepted by decision 0539.)
+
+S6, import cost.
+
+- `CAL-V0-018`: A first import MUST cost one full audit plus work proportional to the records it
+  writes: the audit is taken once under the import's lock and session, and each batch re-checks
+  only the head receipt it expects and the files it posts. Measured on the 2,894-item Beamfall
+  export, the first import MUST take under 5 minutes on a host with a load below the CPU count.
+
+S8, parallel claims.
+
+The owner's goal is many concurrent agents against one repository. Beamfall's runner admits at most
+two claims per repository, and a ticket that declares no paths collides with every other claim;
+most of Beamfall's core tickets declare none. S8 gives every claim an explicit scope, derives one
+from Corvint's own context index when the ticket declares none, and makes the scope binding at
+submit, so that disjoint work runs concurrently and a wrong prediction is refused rather than
+silently shared.
+
+- `CAL-V0-021`: Every `external-agent` attempt MUST carry a scope: a set of `PATH` resources with a
+  `scopeSource`. In order of precedence, the scope is the ticket's `effects.touchPaths` and `PATH`
+  resources when its coverage is `QUALIFIED` (`DECLARED`); else the paths given by `claim --scope
+  PATH...` (`REQUESTED`); else the CAL-V0-022 derivation (`DERIVED`); else one `WHOLE_REPOSITORY`
+  resource (`WHOLE_REPOSITORY`). Every scope other than `WHOLE_REPOSITORY` also holds each
+  non-`PATH` resource the ticket declares, so claims on one database, port or shared gate still
+  collide. A `PATH` key ending in `/` covers every path under it; any other key names one path
+  (TCP-00 §4.2). The reservation entry holds the same resource set.
+- `CAL-V0-022`: A `DERIVED` scope MUST come from Corvint's local context index for the ticket's
+  title and body at the attempt's base tree, computed in process with no network and no write
+  outside the task store, bounded to at most `MaxTouchPaths` paths. The attempt records the
+  derivation's input digest. When the index is absent, stale for that tree, or abstains, the scope
+  is `WHOLE_REPOSITORY`; a derivation never widens authority and is never an input to ranking or
+  evidence. The accepted S8 integration requires explicit `CORVINT_SNAPSHOT_FORMAT=pack`
+  opt-in for reuse between the Corvint and Tasks binaries. Other formats abstain; this does not
+  promote the experimental pack profile. Incomplete context packets also abstain. For
+  `claim --next`, derive only the ticket selected by the existing conservative priority plan,
+  bind the facts to that ticket, and recheck collisions; a blocked plan stays blocked.
+  Decision 0397's CAL-V0-022 addendum permits only the scope adapter's Core imports and its
+  pack-fixture test import; its #464 addendum admits `internal/tasks/dispatch` importing
+  `internal/groupreap`, and its #481 addendum admits only `internal/tasks/cli/attempt_run.go` and
+  `attempt_run_test.go` importing it, both owner-approved on 2026-10-04. Standalone source-archive rebuild remains blocked by V1-0456.
+- `CAL-V0-023`: Two live attempts MUST collide exactly when their resource sets collide under
+  TCP-00 §4.2 path normalization; `WHOLE_REPOSITORY` collides with every live entry and every live
+  entry collides with it. A colliding `claim` refuses `RESOURCE_COLLISION` naming the other
+  attempt. There is no per-repository lane limit beyond the policy's `maxActiveAttempts`, and scopes
+  are not expanded by dependency or import closure; interference between disjoint scopes is caught
+  by the CAL-V0-016 gates at the exact candidate tree.
+- `CAL-V0-024`: `submit --tree <oid>` MUST refuse `OUT_OF_SCOPE`, naming every offending path,
+  when the diff from the attempt's base tree to the candidate tree adds, deletes, renames or
+  modifies a path not covered by the attempt's scope under §4.2 normalization. (accepted, decision
+  0493; V1-1090) The CAL-V0-021 key rule decides coverage: a `PATH` key ending in `/` covers the
+  paths under it, and any other key names exactly one path, even when that path is a directory in
+  the tree. A `PATH` key without a trailing `/` that an offending path lies beneath MUST also be
+  named in the refusal, with the rule that only a directory key ending in `/` covers the paths
+  beneath it, so the holder can widen with the directory key instead of each file.
+- `CAL-V0-025`: `widen --attempt <id> --generation <G> --scope PATH...` MUST add the paths to a live
+  attempt's scope and reservation in one transaction, and refuse `RESOURCE_COLLISION` without
+  writing when any added path collides with another live attempt. Widening to `WHOLE_REPOSITORY`
+  is allowed only when no other attempt is live. An `ADMISSION` barrier refuses `widen` `PAUSED`,
+  as it refuses scope-expand (TCP-00 §3.4).
+- `CAL-V0-026`: Each lease command (`claim`, `renew`, `release`, `reap`, `widen`, `submit`, `gate
+  run` excluding the gate's own run time, and `complete`) MUST hold the store lock for work that
+  does not grow with the number of tickets in the store, beyond the records it writes: the full
+  audit is reused from a verified cache keyed by the head receipt digest and the intent tree
+  digest, and is otherwise taken once. Measured on a synthetic 3,000-ticket fixture store, the p95
+  lock hold of `claim` and `renew` MUST be under 500 ms on a host with a load below the CPU count.
+
+  The cache is process-local and retains one successful audit; fresh CLI processes audit once.
+  Reuse also verifies every physical content digest and path membership under a transient native
+  change monitor. Inventory, audit, model construction and monitor teardown run outside the lock.
+  Locked guards bind the prepared result to the unchanged head and monitored bytes before applying
+  the bounded writes. A changed observation retries; unavailable monitoring refuses. Pending-receipt
+  recovery prepares its full proof outside the lock before bounded redo. This changes no store format.
+
+#### Issue 494: bounded preparation admission
+
+Cooperating lease preparations use a bounded registered-order admission step before the existing `taskman.prepare.lock`. A successfully published registration cannot enter preparation while a smaller continuously live registration exists. Publication order is not CLI arrival order; pre-registration scheduling, mixed-version fairness and universal starvation freedom are not qualified. The default and maximum acquisition wait remain 30 seconds total from acquisition entry across identity resolution, registration, scans, queue wait and the final gate, except that an explicit CAL-V0-111 caller wait replaces that bound for its own command. It must never restart at phase boundaries. Full audits, journal/intent formats, writer authority, request identity, replay and the original shared 180-second qualification context remain unchanged.
+
+The private coordination namespace consists of the inert `taskman.prepare.registry.lock` and 64 fixed `taskman.prepare.slot.00` through `.63` regular files under the pinned Git common directory, outside journal and intent. A slot has 16 bytes: `CPA1`, four zero reserved bytes, unsigned 64-bit big-endian nonzero rank. A live slot is owned by an exclusive nonblocking-flock open description. Registry-held publication chooses one greater than the maximum live rank, or 1 when none are live. Rank overflow and a scan observing 64 live slots refuse LIMIT_EXCEEDED without a receipt. This fixed technical bound includes the serving holder and is independent of lease/reservation capacity. A scan is not an instantaneous-capacity promise. No arbitrary namespace enumeration, durable counter, PID/time-based eviction, daemon, database service or new authority is introduced.
+
+Only a successful lock probe proves an abandoned slot reusable. Held malformed/duplicate-rank state, unknown format, unsafe objects and observed name/root/inode drift refuse. Partial unowned bytes can be overwritten only through the acquired slot descriptor under the registry. The registry must not surround a sleep, final preparation gate, writer work, inventory/audit, monitor teardown or external execution. Slot/registry files are not normally removed or replaced. Scratch bytes are scheduling data, never proof/intent/ranking/attempt authority; read verbs do not create, clean or mutate them. Existing final-gate exclusion remains compatible with older callers, while their bypass of registration leaves mixed-version fairness unqualified.
+
+Preparation owns all registry/slot/probe/gate/root descriptors it obtains. Every locally owned cleanup failure is retained with the primary error. Temporary-root cleanup completes before returning a successful composite handle; if it fails after gate acquisition, gate and slot are retired and the call fails. This does not broaden the public writer helper's cleanup behavior or claim coverage of hidden safeopen traversal ownership. One synchronized composite Close owns retirement: gate first, slot regardless of gate error, aggregate all failures, then deliver one observation. Hold measurement ends at the actual gate-release boundary; observation delivery waits for mandatory slot cleanup. An acquired-but-not-cleanly-released handle cannot be reported as fully released success. Concurrent/double Close returns the recorded result without duplicate cleanup or callback. Close/cancel never requires registry ownership; observers run outside internal locks and never under registry ownership.
+
+Cancellation closes owned references; process-death recovery requires those references actually gone, demonstrated after joined exit. CLOEXEC is mandatory; no descriptor handoff to helpers is permitted. A still-held inherited or leaked reference remains live and is never evicted by age. Process exit may release descriptors at different instants, so transient conservative refusal before joined exit is allowed. Normal machine restart leaves no live owner locks, so stale scheduling bytes convey no authority and need no durable recovery claim. Boundary identity checking is not continuous hostile-filesystem monitoring.
+
+Deterministic proof must acknowledge reached publication/entry/injection boundaries and cover registered non-overtaking, head/middle cancellation, death before/during partial publication and after publication/while registry/while serving, actual independent-open exclusion, exec closed-FD witness, capacity/overflow/malformed/identity refusals, total deadline, locally owned cleanup failures and synchronized composite Close. Canonical fixture initialization/audit precedes injection; journal/intent snapshots and authorized product effects are asserted separately from scheduling scratch. Actual Darwin and Linux execution evidence is required before the corresponding platform claim; cross-compilation is insufficient and an absent runner stays NOT_RUN.
+
+After focused checks and independent source PASS, one unchanged original 5000-receipt/10-worker/30-operation mixed qualification must show 5000→5030 full consistent/agreeing audits, unique completed operations, ten stable identities/generations, all final CANCELLED/FENCED, zero active reservations, exact-ID replays with unchanged digest and after-replay audit 5030, plus bound source/binary and retired owned processes. Retain phase/rank/publication diagnostics on timeout without retries or changed deadlines. A failed wave is preserved and triggers diagnosis, not another automatic wave. The existing original CAL-V0-026 acceptance is not replaced by this test.
+
+#### Issue 494: phase timing, timed-out claim recovery and latency observation (S19)
+
+Issue 494 callers saw claim, heartbeat and release take 10 to 41 seconds under about ten concurrent writers, gave up, and later found an EXPIRED retry charged. This amendment makes the time visible and pins the recovery path. It changes no stored format, request preimage, digest, retry rule or deadline.
+
+- `CAL-V0-069`: `claim`, `renew`, `attempt heartbeat` and `release` MUST accept an opt-in boolean `--timing` flag; every other lease verb MUST refuse it MALFORMED without writing. The flag MUST NOT enter the request, its preimage or digest, so the same request ID with or without it replays the same receipt-bound result. With the flag, the result MUST carry one closed `timing` object, profile `taskman-lease-timing/0`, in the first item: on OK and REFUSED results beside the existing members, and on ERROR results as the only member of a single item. Members are decimal Size strings: `totalMillis` (command entry to result), `transactions` (lease transactions entered, including a claim's reaps and refused attempts), `preparationRounds`, and the summed milliseconds of `admissionWaitMillis` (registered-order preparation admission), `guardMillis` (writer guards and orphan-stage recovery), `snapshotReadMillis` (head, inventory and full audit or verified cache reuse), `validationMillis` (request replay lookup, model and handoff-history audit), `monitorCloseMillis` (change-monitor teardown), `lockWaitMillis`, `lockHoldMillis`, `journalWriteMillis` (session, staged writes, links and pending-receipt redo, excluding sync) and `fsyncMillis` (file and directory sync calls of the writer session). Lock hold contains journal write and sync. A phase not reached reports `0`. Without the flag the output MUST be byte-for-byte the existing result. Timing is diagnostic only: never written to a receipt, request record, evidence, ranking, learning or authority, and never an input to a decision. Command help MUST list the flag for the four verbs.
+
+Timed-out claim recovery, specified from existing behavior (no new semantics). A claim refused or ended by cancellation or deadline before its receipt is published writes nothing: no attempt exists and no retry is charged (CAL-V0-044/045 charge only a prior attempt). A caller whose claim outcome is unknown MUST recover by retrying the exact request ID: a committed claim replays its original attempt ID, generation and lease, with the head digest and journal bytes unchanged, including after that lease has expired; a claim whose receipt was published but whose head was not advanced is redone by the next writer and then replays. `TestGH494_TimedOutClaimReplaysExactly` covers the three cases, and that a claim cancelled after a charged attempt adds no charge. A fresh request ID after an unknown outcome may admit a second attempt and is the caller's error.
+
+Unresolved owner decision (issue 494): retry charging for a committed but unused claim is unchanged. A claim that committed after its caller gave up holds a real attempt; when its lease expires, reaping records `LEASE_EXPIRED` and the next claim of that ticket is charged EXPIRED under the accepted CAL-V0-044, CAL-V0-045 and CAL-V0-067 rules ("Ordinary cancellation, failure and expiry remain charged regardless of stage"). Exempting such an attempt would change accepted semantics; the owner must decide whether to amend those requirements and what store-recorded evidence (for example no heartbeat, submit or evidence since admission) proves an attempt unused (see the 2026-10-04 build-log entry). This amendment does not implement it.
+
+Latency observation, not a promise. On local Darwin (macOS 26.6.2, twelve CPUs, Go 1.27.1) with main `a5bb0d8f`, a disposable 7,140-receipt store and ten fresh-process writers each running claim, heartbeat, renew, heartbeat and release (one wave), 50 of 50 operations completed, median 28,165 ms and worst 32,959 ms; a fourteen-writer wave completed 55 of 70 with three LOCK_TIMEOUT refusals at about 30 s. Each preparation then cost about 2.9 s of complete-history inventory and audit, so a queued writer waits roughly 2.9 s times its queue position, bounded by the 30-second admission budget (issue 545 measurements). Latency grows with receipt history and writer count until V1-0645 makes writer cost history-independent. Linux, mixed-binary fleets, non-lease writers in the workload and more than one wave per binary are NOT_RUN. `--timing` is the instrument for collecting further observations; no p95 or latency budget is claimed.
+
+Non-goals: `claim --async` and `claim status --request-id`; history-independent writer cost (V1-0645); timing for `reap`, `widen`, `submit`, `gate run`, `complete` or pool commands; persisting or aggregating timing; any change to deadlines, admission order or retry charging. Failure modes: a phase that fails or is cancelled is still counted up to its end; sums across rounds and transactions exceed any single round; an ERROR before the first transaction reports zeros except `totalMillis`; measurement uses the monotonic clock, so a wall-clock step does not skew it, but host load does. Acceptance: `TestGH494_LeaseTimingIsOptInDiagnostic` (`internal/tasks/cli`), `TestGH494_LeaseTimingSumsEveryTransaction` and `TestGH494_TimedOutClaimReplaysExactly` (`internal/tasks/store`). Rollback removes the flag, the result member and the collector; no store, request or receipt bytes depend on them.
+
+
+S7, qualification and execution cutover.
+
+- `CAL-V0-019`: A named test suite MUST show, for `external-agent` attempts: two concurrent
+  colliding claims admit exactly one; `claim`, `renew`, `reap`, `submit`, `gate run` and `complete`
+  racing each other leave one consistent head; a fenced generation cannot move or complete an
+  attempt; and a crash at each commit point of every lease verb leaves the whole transaction or
+  none of it (the §5.3 crash matrix, lease rows).
+- `CAL-V0-020`: `cutover --execution --decision <ref> --qualification <file>` MUST, under an
+  `OWNER` binding, record a `QUALIFICATION` receipt naming the CAL-V0-019 run and set the queue's
+  `executionCutover` with that `decisionRef` and the run's digest in `gateEvidence`. The file is the
+  `go test -json` output of the suite, with each named test run and pass and the final package
+  pass; it is posted as an evidence blob under its digest. It
+  refuses when the run is absent (`MISSING_EVIDENCE`), has a failing test (`GATE_FAILED`), or is
+  not `go test -json` output (`MALFORMED`); on a fixture queue, before the authority switch
+  (`CUTOVER_MISSING`), and when `executionCutover` is already recorded.
+
+Non-fixture release lifecycle (owner request 2026-09-28 to complete the Tasks takeover).
+
+- `CAL-V0-027`: A non-fixture queue with null `importMapSha256` MUST admit release creation,
+  update, candidate capture, attestation and promotion under the existing actor, policy, CAS,
+  source, ticket acceptance, gate and predecessor checks, both before and after qualified
+  execution cutover. Release writes MUST NOT change queue authority, policy or execution cutover;
+  CAL-V0-002 still blocks unqualified claims. Shared staging observation MUST admit the same
+  non-fixture queue identity for supported operations while retaining layout, size, digest,
+  queue/head/base/request/receipt binding and malformed/fork refusals. Completed observations
+  MUST use the closed receipt kinds emitted by each supported stage class, including recorded
+  FENCED transitions with their original refusal outcome and codes; cross-class or unknown kinds
+  refuse. The closed map (V1-0466 amendment, proposed) is: `MUTATE` to `MUTATION`, `ARCHIVE` or
+  `RESTORE`; `LEASE` to `ADMIT`, `TRANSITION`, `GATE_RESULT` or `MANIFEST`, a recorded FENCED
+  refusal being a `TRANSITION` with outcome `REVISION_CONFLICT` and code `FENCED`, never a kind;
+  `ESCALATION` to `TRANSITION`; `RELEASE` to `RELEASE` or settled `RECONCILE`; `KEEP_JOURNAL` and
+  `ADOPT_FILE` to `RECONCILE`; and `INIT`, `PAUSE`, `UNPAUSE`, `POLICY_UPDATE`, `IMPORT_APPLY`,
+  `AUTHORITY_SWITCH` and `QUALIFICATION` to their own name. Import-mapped queues,
+  fixture execution cutover and INIT with execution cutover remain refused. Observation MUST
+  NOT remove stage bytes or authorize execution. The existing locked writer retry MUST recover
+  orphan slots and redo a durable receipt exactly once; an unchanged request replays and a
+  changed request with the same ID refuses. Active descriptors retain the existing unsupported
+  recovery boundary. Release reconciliation MUST remain settled-state `KEEP_JOURNAL` only,
+  bind the exact offered bytes and canonical digest, preserve conflicting bytes as evidence,
+  and refuse pending receipts and active staging without cleanup. `ADOPT_FILE` stays `NOT_RUN`.
+
+- `CAL-V0-042`: A separate `corvint-tasks-archive/0` build path MUST package the Tasks binary,
+  corresponding immutable source, license/notices, manifest, and checksums without changing the
+  Core archive or claiming workflow-bundle qualification. The initial target is native macOS arm64;
+  others remain NOT_RUN, except the cross-built linux/amd64 of CAL-V0-320. Two isolated builds and two archive assemblies MUST agree, and the
+  extracted binary MUST expose plan, claim, submit, gate and completion in a native help smoke.
+  The manifest MUST retain the unverified version label, source commit/tree and pinned build count.
+  This does not publish a release, authenticate an operator or qualify a task queue.
+
+### S9 — Named environment pools (issue 342)
+
+- `CAL-V0-028`: Policy MAY add optional `pools`; tickets MAY add acceptance-relevant
+  `requiresPool`; attempts MAY add `stage` and `poolAllocation`. Omission MUST preserve old
+  canonical bytes. Pool/member identities MUST be unique within the queue. The bound is 64 pools,
+  256 total members, the existing 256 KiB policy, and a 1 MiB `taskman-pool-state/0` projection. Lease staging permits 11 artifacts,
+  three blob afterimages and a 2658-byte descriptor; other operation limits remain unchanged.
+  The shared temporary descriptor admission bound is therefore 2658 bytes.
+  A member definition includes its pool, reservation stage, configuration reference and commands.
+  Removing or changing an occupied definition MUST refuse; unrelated policy changes MAY proceed.
+- `CAL-V0-029`: Claim and claim-next MUST atomically reserve one eligible free member of an
+  explicitly requested pool with the attempt and ordinary scope reservation. `requiresPool` MUST
+  match the explicit request. No request consumes no pool. Reserved members require matching
+  `implement|review|integrate` stage, an operator claim rather than authenticated identity.
+  An eligible free member reserved for the requested stage MUST be selected before an unreserved
+  free member, preserving policy member order within each tier. If matching reserved members are
+  occupied or unavailable, an unreserved member remains eligible fallback capacity. A claim with
+  no stage admits only unreserved members, and members reserved for another stage remain ineligible.
+  Allocated state MUST agree with the complete attempt allocation tuple, holder and stage.
+  Replayed claims MUST return their original receipt-bound allocation, never a successor's.
+  CAL-V0-065 adds explicit per-claim exclusions to this eligibility rule.
+- `CAL-V0-030`: By default, release, expiry/reap and completion MUST quarantine the exact allocation while
+  freeing the ordinary scope reservation. A retry MUST acquire a new allocation. Only an
+  OWNER/OPERATOR `pool confirm-safe` naming the current allocation, an evidence reference and
+  reason MAY clear quarantine. Configured cleanup success is necessary but insufficient: the
+  confirmation is a local operator attestation of external revocation/reset, not observed physical
+  exclusivity. Stale confirmation MUST refuse. There is no TTL or implicit safe reuse.
+  The separate explicit CAL-V0-067 operator-attested release profile (S17, experimental implementation) does not apply to ordinary release, expiry/reap or completion.
+  The accepted PSR-V0-008 optional operator-owned safeReuse profile also permits delegated
+  confirm-safe only for the exact owned successful original allocation/definition observation,
+  durable reset/verify evidence, retired owned process tree and agreeing queue readback.
+  An owned terminal observation may finalize under an audited ALL barrier; fresh preparation
+  and competing control remain refused. Ordinary manual confirmation and quarantine rules
+  otherwise remain unchanged; no physical exclusivity or authenticated operator is inferred.
+
+- `CAL-V0-031`: A configured health command MUST acquire durable PREPARING ownership before
+  execution outside the writer lock. Failed members MUST remain quarantined, be reported with
+  reason and observation digest, and be skipped for the current claim. A passing health result
+  MUST bind allocation, definition, immutable source revision/tree and command environment digest,
+  then be retained atomically with admission after rechecking current eligibility. Standalone
+  `health --member` MUST also leave quarantine, including on success, until operator confirmation.
+- `CAL-V0-032`: Cleanup MUST acquire durable CLEANING ownership before execution. Pending command
+  replay MUST NOT execute again. Explicit `pool recover` MUST refuse an observed live runner and
+  quarantine an orphan without implying cleanup. Interrupted or uncertain execution MUST never
+  make a member free. Journal redo publishes committed artifacts only. Runner PID/start observations
+  are local observations, not authentication or an exactly-once execution guarantee.
+  The proposed CAL-V0-067 profile MUST refuse every tracked started, pending, interrupted or
+  uncertain use; missing command metadata alone MUST NOT qualify an allocation for that profile.
+- `CAL-V0-033`: Pool commands MUST use bounded trusted operator argv, declared environment keys,
+  a clean repository outside `.taskman`, a 1..3600 second timeout (PSR-V0-011) and at most 64 KiB captured output.
+  Observations retain the output digest, not raw output. The implementation MUST join cancellation
+  handling and stop/check the owned process group after normal exit, timeout and interruption;
+  unproved cleanup MUST refuse admission. Detached processes, external services and a killed host
+  are outside this process-group qualification. Immutable configuration references MUST name exact
+  regular Git blobs, including for claims without a health command; symlinks and missing bytes refuse.
+- `CAL-V0-034`: Queue occupancy and plan preview MUST remain read-only and execute no probes.
+  Occupancy MUST distinguish free, preparing, allocated, cleaning and quarantined members, with
+  original allocation identity and retained command reason/observation where present. A selected
+  preview batch MUST consume eligible free member capacity under the same ordered eligibility rule
+  as claim, excluding other-stage reservations without executing health probes.
+  Archive, journal recovery and authority-confined projection publication MUST retain pool state.
+  CAL-V0-065 applies the same explicit exclusion set to preview capacity. CAL-V0-097 adds the
+  default plan's per-pool cap under the same rule.
+
+The optional policy shape is `pools:[{id,members:[MEMBER],reservedFor:{MEMBER:STAGE},
+memberConfig:{MEMBER:{configRef:{revision,path,blob},health:COMMAND,cleanup:COMMAND,prepare:COMMAND}},
+priorityAdmission:BOOL}]` (`priorityAdmission` is CAL-V0-101's opt-in priority yield).
+Each map is closed over declared member names; each nested addition is optional. A command is
+`{argv:[ARG],cwd:"REPOSITORY"|PINNED,env:[NAME],timeoutSeconds:"N"}`, where PINNED is PSR-V0-012's
+`{kind:"PINNED_REPOSITORY",path,revision}`. `prepare` is PSR-V0-024's sweep step and requires
+`safeReuse`. Git references return only identity,
+never configuration bodies. Duplicate identical configuration references refuse; differently named
+references cannot prove distinct physical environments. The command interpreter and external services
+are operator-provided dependencies, not attested deployed lineage. Commands run in the caller's
+repository checkout, falling back to the primary worktree.
+
+`poolAllocation` contains `poolId`, `memberId`, `allocationId`, `definitionSha256`, `allocatedSeq`,
+and optional `configRef`. The allocation digest binds queue, request and member; it is not a secret
+capability. `pools.json` is a separate authoritative receipt projection, never an extra ordinary
+reservation. Its closed entries retain allocation, state, holder/stage, attempt/generation,
+changed sequence, policy/request digests, command kind/revision, runner observation, cleanup result,
+observation digest and reason. `taskman-pool-observation/0` is bounded to 4096 bytes and retains
+allocation/definition, command kind, revision/tree, result class, passed/group-clean flags and
+output/environment digests. Missing inventory-bound state is corruption, never free capacity.
+
+### S10 — Foreground Codex programs (issue 341)
+
+Authoritative inputs: [issue 341](https://github.com/Beamfall/corvint/issues/341), the owner's
+2026-09-29 Codex-only direction, and the reviewed local exact-tree/expected-base integration
+boundary. Claude support and remote publication are outside this slice. The existing external-agent
+branch and absent optional-field bytes remain unchanged. Qualification is scoped to the pinned
+Codex executable and observed event vocabulary; it does not attest authentication or hostile-child
+containment. Frozen native qualification is recorded in https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-09-29-tasks-codex-supervision.md.
+
+- `CAL-V0-035`: The optional `taskman-codex-supervisor/0` policy profile MUST dispatch a pinned
+  Codex executable through a journaled SPAWNING effect, exclusive durable boot record, validated
+  PID/start/group identity, RUNNING commit and exact acknowledgment before execution. Unsupported
+  platforms MUST compile and refuse. Truncated output MUST remain an invalid/unknown result.
+- `CAL-V0-036`: Implement, independent review, repair and integrate MUST be native attempt stages.
+  Optional acceptance-relevant `requiredRoles` maps implement/review/integrate to existing runtime
+  roles; enabled runtime roles and worker limits govern dispatch. Review MUST bind every acceptance
+  claim, exact candidate tree, distinct holder and distinct host session.
+  Initial Core context queries preserve the exact ticket title followed by its canonical ticket ID
+  as one task argument; they add no inferred paths. Combined input exceeding Core's 8000-rune
+  UTF-8 task bound refuses without truncation. READY, freshness and exact-tree checks remain required. Returned work retains
+  feedback and candidate; missing or failed required gates MUST block before any target mutation.
+  Default-run regressions in `internal/tasks/store/workflow_context_test.go` (V1-0494):
+  `TestWorkflowContextKeepsUncertainNonGoFrontier` returns an uncertain READY packet whose only
+  relevant source is a non-Go frontier byte for byte with the query unchanged, and
+  `TestWorkflowContextRefusesIncompleteScopeAndAbsentSource` refuses partial or ambiguous scope, a
+  not-ok or revision-less packet, a directory with no repository and an absent revision.
+- `CAL-V0-037`: A live owner MUST NOT be stolen. Explicit quiescent owner release or native identity
+  proof permits a fenced epoch transfer. Drain, cancel and recovery MUST retain uncertain scope,
+  worker and pool resources; proved stage shutdown releases workers and quarantines its physical
+  pool allocation. A subsequent role obtains a fresh allocation. Reused PGIDs and escaped anchors
+  MUST NOT authorize adoption or signaling of unknown processes. A program transition, supervisor
+  transition or program control that refuses MUST return a §11-coded error so `wire.CodeOf` keeps
+  the refusal: `ATTEMPT_LIVE` for a live owner, `QUIESCENCE_UNPROVED` for an unproved recovery
+  (missing, invalid or mismatched recovery boot evidence) or an owner that has not retired, the
+  cause's own code when reading the recovery boot failed for a retryable operational reason such as
+  descriptor exhaustion (`RESOURCE_EXHAUSTED`), `SUPERVISOR_LOST` for a heartbeat whose owner or leader is not live,
+  `FENCED` for an absent attempt, lane or superseded control target, and the writer's first refusal
+  code for a transition it did not complete (V1-0829; `TestV10829_*`).
+- `CAL-V0-038`: WAIT MUST preserve the exact session, worktree, partial candidate and handoff.
+  Questions and answers MUST bind attempt generation and acceptance revision. Read-only pending
+  state MUST expose questions and integration waits. Explicit resume/retry MUST retain feedback;
+  neither an answer nor a host result grants integration approval.
+- `CAL-V0-039`: Every dispatch MUST reserve a turn under the native writer lock. Concurrent lanes
+  share one program's cumulative counters and start time across ticket reassignment. Active
+  deadlines MUST respect lane and remaining program wall caps. Qualified JSONL token usage is
+  OBSERVED, missing dimensions NOT_OBSERVED; required hard token enforcement is unsupported.
+  Observed token cutoffs block subsequent dispatch, with at most one already-admitted turn per
+  active lane of overshoot. Refused pre-fork work leaves a resumable no-exec outcome.
+- `CAL-V0-040`: Every assignment/stage MUST use a distinct registered worktree/private Git directory.
+  Add/remove and integration effects MUST be durable before mutation. Exact directory/common-dir,
+  commit/tree and clean-state bindings govern recovery. Only an explicitly designated integration
+  checkout may advance, and its tip MUST still equal the candidate's original base and grant binding.
+  Advanced targets require a new candidate, review, gates and grant. Crash recovery recognizes only
+  the exact clean applied candidate, including the interval before native completion.
+- `CAL-V0-041`: Foreground role workers MUST pull eligible work without a daemon, select existing
+  review/integration attempts, and treat absence of eligible work as idle completion. Terminal proved
+  slots may be reassigned with exact attempt/generation and assignment fencing, preserving shared
+  budget history and journal handoffs. The 64-slot bound is concurrent retained state, not a lifetime
+  ticket limit. New program records and evidence MUST participate in native journal projection,
+  archive and audit, with no independent authority database.
+
+Wire amendment: optional policy `supervision` contains profile, contextRequired=true,
+maxRepairCycles (0..2), and program turns/wallClockMinutes/inputTokens/outputTokens caps.
+Optional ticket `requiredRoles` is a closed nonempty role array per stage. `programs.json` is a
+bounded 1 MiB, 64-slot journal-authoritative projection; program changes and handoffs are bounded
+64 KiB, with host stdout/stderr individually capped at 16 KiB. Stage context is a pinned native Core
+query against the isolated checkout: READY/fresh tree revision must equal the stage commit's tree;
+explicit uncertainty is carried unchanged. No inferred context becomes accepted intent.
+
+### Owner retry readmission (issue 378)
+
+- `CAL-V0-043`: `ticket reopen` MUST accept an `OPEN` ticket only for an explicit `OWNER`
+  invocation permitted by policy, carrying a nonempty reason, request ID and exact expected
+  ticket revision, when the latest attempt is `FAILED` or `CANCELLED`, is bound to the current
+  acceptance revision and has exhausted the current policy retry limit (CAL-V0-045). The writer MUST derive recovery
+  facts from complete, schema-valid, canonical journal-backed attempt bytes and reservations.
+  Every attempt for the target ticket MUST be terminal, without pending effects or reservations;
+  external-agent attempts MUST be `FENCED`, and supervised attempts MUST have `PROVED`
+  quiescence with no worker. Unknown, mismatched, inconsistent or ambiguous generation facts
+  MUST refuse. The pure mutation observation MUST bind the ticket and acceptance revision;
+  a missing observation MUST NOT authorize recovery. Existing completed-ticket reopen semantics
+  and policy role narrowing remain unchanged.
+  Issue 503 requires OPEN recovery refusals to explain the failed recorded condition:
+  missing/mismatched recovery observation, reservation, ambiguous generation, live attempt,
+  pending effects, unproved quiescence/unknown runtime, absent prior attempt, acceptance mismatch,
+  unexhausted retry budget or a latest phase other than FAILED/CANCELLED. The result retains
+  `TICKET_STATE`; diagnostic detail grants no recovery authority. An unexhausted budget refusal
+  directs the operator to `ticket show` claimability instead of implying that an OPEN ticket
+  needs reopening. Ticket/revision binding, OWNER policy and all recovery predicates stay intact.
+  Recovery MUST increment ticket revision and acceptance revision exactly once, preserving the
+  acceptance criteria, dependencies, gates, effects, prior records, attempts and gate history.
+  A later claim MUST start a fresh attempt with zero retries and remain subject to ordinary
+  admission, dependency, approval, scope, pool and gate checks. Old acceptance-bound approval
+  and gate evidence MUST NOT authorize the new acceptance. Recovery is not completion.
+  The successful transaction MUST retain the exact canonical reason-bearing mutation envelope
+  as `evidence/<request-sha256>` and bind it in that same receipt's POST set. The MUTATE stage
+  contract permits at most one such optional POST, with SHA and path matching RequestSha256
+  and size at most MaxMutationEnvelopeBytes (256 KiB). It MUST NOT coexist with CREATE's queue
+  POST; the six-artifact maximum remains, with measured descriptor ceiling 1,670 bytes.
+  Existing descriptors without this evidence remain valid. Identical request replay MUST create
+  no second receipt; a changed reason under the same request ID MUST conflict. Refused recovery
+  MUST not plan this evidence POST. Publication failures before the receipt may leave an
+  unreferenced evidence blob under the existing writer contract; only a committed receipt makes
+  it recovery evidence, and post-receipt interruption MUST remain redo-safe.
+
+The explicit local operator command is:
+
+```sh
+corvint-tasks ticket reopen --target FL-001.matrix --expected-revision 7 \
+  --request-id recover-FL-001-matrix --role OWNER \
+  --payload '{"reason":"Owner readmits the ticket after cancelled attempts"}'
+```
+
+Use the actual current revision from `ticket show`. For exact replay retain the original
+`--issued-at` timestamp as well as all request bytes. The owner role and reason are local
+operator-supplied claims under the existing authority boundary, not authenticated identity or
+new execution authority. Reason text is durable local journal evidence and follows the store's
+existing retention, backup and export behavior; no host data is added.
+
+For reason lookup, follow the successful command's receipt filename to the receipt POST at
+`evidence/<request digest>`, then read the canonical envelope's `payload.reason`, actor, target
+and expected revision. `receipt audit` validates journal/projection consistency but does not
+print reason text; `receipt show` is not delivered. An unreferenced evidence file alone is not
+proof of recovery. `plan preview` and `claim` use the new acceptance revision only after the
+recovery transaction commits.
+
+Failure modes include non-owner or narrowed policy, stale expected revision, nonexhausted or
+wrong-acceptance attempts, live or unsafe older attempts, mismatched physical/journal records,
+and malformed/incomplete/ambiguous attempt inventory. These preserve the exhaustion boundary;
+recovery does not bypass a failing gate, held dependency, missing approval or admission barrier.
+Regression witnesses are `TestCALV0043_RecoveryFactsAndOwnerBinding`,
+`TestCALV0043_RecoveryExaminesEveryAttempt`, `TestCALV0043_OwnerReopensExhaustedCancelledTicket`,
+`TestCALV0043_RecoveryRefusesStaleAndTamperedAttempts`,
+`TestCALV0043_RecoveryPreservesRequiredGateFailures`,
+`TestCALV0043_RecoveryInvalidatesOldApprovals`, `TestCALV0043_RecoveryPublicationFaults`,
+`TestCALV0043_CLIRecoveryAndPreview`, and `TestCALV0043_MutationRequestEvidenceBounds`.
+Rollback disables new OPEN readmission while retaining history and already-issued receipts;
+readers of recovery receipts must retain support for the bounded MUTATE evidence artifact.
+
+### S11 — Continuous dispatcher (issue 431)
+
+Authoritative input: owner request [issue 431](https://github.com/beamfall/corvint/issues/431).
+The dispatcher is an operator-started foreground program, not a daemon: it runs only while
+`corvint-tasks dispatch` runs, and stopping it leaves its workers running for the next dispatcher.
+It adds no queue authority. Every store change goes through the existing lease transactions
+(`release`, `reap`), and workers act through the ordinary CLI under their own holder name.
+Its private state (ledger, events, worker logs and unpark requests) lives under the configured
+`stateDir`, never in the native store. That state is not an input to the queue, ranking, evidence or
+learning. Live qualification is recorded in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-01-tasks-continuous-dispatch.md`
+(OpenCode), `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-01-tasks-dispatch-claude-code.md` (Claude Code) and
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-01-tasks-dispatch-codex.md` (Codex). Gemini CLI summary support is
+derived from the installed CLI source and is not live-qualified; see
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-01-tasks-dispatch-gemini.md`. The escalation ladder amendment to CAL-V0-052,
+054, 055, 057 and 058 comes from owner request
+[issue 499](https://github.com/beamfall/corvint/issues/499); its delivery record is
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-04-dispatch-escalation-ladder.md`.
+
+- `CAL-V0-052`: `dispatch --program ID --config FILE [--once | --ticks N]` MUST decode a closed
+  `taskman-dispatch/0` configuration of at most 256 KiB, read without following symlinks, and refuse
+  unknown members, trailing data, unknown placeholders and out-of-range bounds. The bounds are:
+  tickSeconds 1..3600, globalCap 1..64, killGraceSeconds 1..120, 1..8 hosts with absolute
+  executables, 1..32 roles, cap 0..64 (0 disables the role, CAL-V0-128; previously 1..64), priority 0..1000, idleSeconds 30..86400,
+  wallSeconds 60..604800, cooldownSeconds 0..86400, parkAfter 1..100 and at most 256 pins. The
+  optional `pressure` member has the bounds in CAL-V0-068.
+  A role MAY name a base `model` (`[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,127}`) only when its host's argv
+  or env renders `{model}`, and a host whose argv, env or `activityPaths` renders `{model}` MAY serve
+  only roles that name one, so an unsupported model configuration is refused rather than silently ignored. `escalate` (1..8 tiers
+  of `after`, `model`, optional `cap` and `notes`) and `deescalateOnProgress` (default true) require a
+  base model and a match role; `after` is 1..100 and strictly increasing, each tier's model differs
+  from the tier below, a tier `cap` is 0 (role cap only) or 1..role cap, and notes are at most
+  1024 bytes without control characters.
+  Host env MUST NOT set `CORVINT_DISPATCH_*`. One exclusive non-blocking lock per program state
+  directory MUST refuse a second dispatcher. `dispatch status` and `dispatch unpark` MUST NOT read,
+  lock or write the native store. Status reports workers (with tier and model when the role names a
+  model), parked and cooling keys, with a ladder the per-ticket no-progress streak and the tier and
+  model each escalating role launches next, the dispatcher's
+  liveness (RUNNING, NOT_RUNNING or UNKNOWN, read from the lock file's process identity without
+  taking the lock) and the event tail. Unpark writes one atomic request file that the running
+  dispatcher consumes. SIGINT, SIGTERM and SIGHUP stop the loop after the current tick without
+  killing workers. `workRoot` MUST resolve to the same task store as the dispatcher's working
+  directory, so workers claim in the store that heal and reap act on.
+- `CAL-V0-053`: The optional per-ticket work state MUST come from either a `status-line` reader (one
+  `key: value` line in an absolute per-ticket file of at most 64 KiB) or a `command` reader (one JSON
+  object of ticket ID or local name to state, at most 1 MiB of output, 60 s timeout). Values are at most
+  64 printable bytes. A missing file is `NONE`. Every read failure MUST yield `UNKNOWN` and an alert,
+  never a guessed state. Roles that match states MUST refuse without a reader. See the #464 command-reader lifecycle amendment below.
+- `CAL-V0-054`: The roster MUST be a pure function of the configuration, one observation, the
+  running workers and the backoff skip set. Roles match tickets by labels, kinds, an ID glob, work
+  states, excluded states, statuses and plan selection, or lane roles match quarantined members of
+  one pool. A ticket with any live attempt is never a candidate; an expired lease becomes free only
+  after a reap. Candidates order by pin, role priority (ascending; lower wins), P-rank, plan order,
+  key and role index. The global cap, then the per-role cap, bound the result, and each assignment
+  takes the lowest free slot.
+  One key holds at most one worker. An assignment of an escalating role carries the CAL-V0-057 tier
+  computed from the ledger's escalation record; a tier with a `cap` admits a candidate only while
+  fewer running and newly assigned workers of that role hold that tier, and a candidate at a full
+  tier waits rather than launching at a lower tier.
+  An optional pressure budget (CAL-V0-068) is applied after these fences, including the tier
+  cap, and only holds candidates.
+- `CAL-V0-055`: Each assignment MUST launch one independent process in its own session, with
+  stdout and stderr appended to per-worker logs. The prompt and argv are rendered in a single pass,
+  so a substituted value is never re-expanded, and `{prompt}` may appear at most once in argv. The
+  worker receives `CORVINT_DISPATCH_PROGRAM`, `_ROLE`, `_SLOT`, `_TICKET` and `_WORKER`. Its holder
+  name is the worker ID `<program>.<role>.<slot>.<nonce>-<seq>`. Names cannot contain `.`, and the
+  nonce is random per dispatcher start, so IDs never collide across programs or roles, nor repeat
+  after a crash or a deleted state directory. A host's `activityPaths` are rendered per worker.
+  `{model}` renders the assignment's tier model (the base model at tier 0), and the worker records its
+  tier and model. The
+  worker MUST be saved to the ledger immediately after launch. A launch whose start identity cannot
+  be read MUST kill the new session and fail. A launch failure MUST emit `launch-failed` and cool the
+  key down for ten ticks while keeping its accumulated no-progress count.
+- `CAL-V0-056`: Supervision MUST track every process in the worker's session, process group or
+  descendant tree by verified start identity, so a reused PID is never signalled. A worker is
+  stopped for WALL (wall cap), IDLE (no log growth, activity-path change or non-ignored busy child
+  within the idle timeout) or ORPHANED (the leader exited while members remain). Stopping MUST send
+  SIGTERM once to each member of the whole tree, then SIGKILL after the grace deadline, which is
+  kept in the ledger so later ticks and restarts do not extend it. Survivors are reported as an alert
+  while supervision continues. An unreadable process identity MUST keep the recorded tree, so an
+  unobservable worker is never treated as ended. Supervision MUST run even when the store is
+  unreadable; ended workers are then accounted on the next readable tick. A restarted dispatcher
+  MUST adopt recorded workers whose identities still match. With `heal.handoff`, a live attempt held by an ended worker MUST be released as
+  `HANDOFF`, with `--evidence dispatch:<worker>` when it has no candidate (CAL-V0-046). A refused
+  handoff MUST emit `handoff-refused`. With `heal.exitRecovery` off it MUST also emit `needs-owner` and
+  leave the attempt untouched; otherwise the bounded exit recovery of CAL-V0-104 follows. With `heal.reap`, an expired lease
+  whose holder is not a running worker of this program MUST be reaped, whoever held it, since an
+  expired lease is reapable by any operator. Heal request IDs are deterministic, so a
+  repeated heal replays.
+- `CAL-V0-057`: An ended worker made progress exactly when the key's durable fingerprint changed.
+  The fingerprint covers ticket status, revision and work state, plus attempts with a candidate,
+  gates, reviews or a durable phase; for lanes, the member state, holder and attempt. Progress
+  in a finished session clears backoff. An `UNKNOWN` work state is never progress and never
+  unparks a key. No progress MUST
+  start a cooldown, and after `parkAfter` consecutive runs MUST
+  park the key and emit `needs-owner`. A parked key resumes when its fingerprint changes or on an
+  operator unpark request. While any role has an `escalate` ladder, the ledger MUST keep, per
+  observed ticket, the streak of consecutive finished sessions without progress (counted from when a
+  ladder is configured) and the tier each escalating role last launched at. Progress resets the
+  streak to 0 and returns every role with `deescalateOnProgress` to its base model; a role with
+  `deescalateOnProgress: false` keeps its reached tier. Progress is a finished session with progress
+  or, for a backed-off key with no worker, a known fingerprint change between sessions, including a
+  newly admitted declared progress token (CAL-V0-064) that unparks it. An operator unpark is not
+  progress and does not reset the streak. A launch uses the highest tier whose `after` is at most
+  the streak, or the kept tier when higher. A tier whose `after` is at least `parkAfter` is reached
+  only by a launch after an operator unpark, because a state change that unparks the key resets the
+  streak. Records are
+  dropped for tickets absent from the observation and, with no ladder configured, entirely.
+  Amendment **accepted, decision 0514**: a known fingerprint change
+  between sessions MUST reset both the ladder streak and the backoff's `NoProgress` count,
+  including during cooldown. A cooling key MUST retain its cooldown deadline; parking thereafter
+  MUST require `parkAfter` new finished sessions without progress after that reset. A sticky role
+  MUST keep its reached tier. While a key has a worker, a fingerprint change MUST NOT reset
+  its ladder or backoff through between-session accounting; the finished session accounts it.
+  A `RETRY_EXHAUSTED` plan entry MUST NOT be readmitted by the dispatcher.
+  It emits `needs-owner` naming `ticket reopen` (CAL-V0-043), because readmission is owner
+  authority.
+- `CAL-V0-058`: Every decision MUST append one `taskman-dispatch-event/0` line to `events.jsonl`
+  and print it to stderr as plain language. The event kinds form a closed vocabulary: started,
+  stopped, adopted, launched, launch-failed, finished, killing, killed, handoff, handoff-refused,
+  reaped, state, claim, release, lane, cooldown, parked, unparked, alert, needs-owner, throttled (CAL-V0-068), escalated and config (CAL-V0-127).
+  `escalated` is emitted after the launch that raises a role's tier on a ticket and carries the from
+  and to tier, both models, the streak and the tier notes; `launched` carries the tier and model of a
+  model-naming role. A
+  `finished` event carries the exit code (`NOT_OBSERVED` for an adopted worker), whether progress was
+  made, and a bounded summary of the worker's last agent message: the final text of a recognized
+  host event stream (OpenCode `run --format json`, Codex `exec --json`, Claude Code `-p
+  --output-format stream-json --verbose`, or `json` without `--verbose`, Gemini CLI `-p -o
+  stream-json`, whose consecutive assistant delta chunks form one reply, or `json`), ignoring
+  subagent messages, otherwise the sanitized output tail. State changes
+  compare against the previous observation; the first observation records only a baseline.
+
+Non-goals: readmitting exhausted tickets; creating or cleaning worktrees; any network, account or
+hosted service; hostile-process containment; enforcing a host's own permission deny-list; Windows
+support (it compiles and refuses); treating a worker's own report as progress; judging relative
+model strength (the ladder renders operator-chosen model strings); and the typed top-tier
+NEEDS-OPERATOR worker request, which belongs to the escalation request of
+[issue 502](https://github.com/beamfall/corvint/issues/502). Failure modes:
+a host that ignores SIGTERM is killed after the grace period; a process outside the worker's
+session, group and tree escapes supervision; a broken work-state reader makes every state `UNKNOWN`;
+and a store read failure skips heal, accounting and launches with an alert, while supervision
+continues. Rollback stops the dispatcher. Workers
+already launched keep running, and their attempts are released or reaped by the ordinary lease verbs.
+Deleting the state directory loses only dispatcher history, never queue state.
+Regression witnesses are the CAL-V0-052..058 tests in the traceability table: in `internal/tasks/dispatch`, `TestCALV0052_DecodeConfigIsClosedAndBounded`,
+`TestCALV0052_RenderIsSinglePass`, `TestCALV0053_WorkStateReaders`, `TestCALV0054_RosterIsDeterministicAndCapped`,
+`TestCALV0054_RosterStatePredicatesAndLanes`, `TestCALV0055_LaunchFinishBackoffAndPark`, `TestCALV0056_HandoffAndReap`,
+`TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0056_KillsOrphanedProcessesBySession`,
+`TestCALV0056_IdentityOutageAndUnknownState` and
+`TestCALV0057_FingerprintIgnoresNonDurableAttempts` and `TestCALV0058_SummaryReadsHostFinalText`;
+for the issue 499 ladder, `TestCALV0052_EscalationConfigRefusesUnsupportedModels`,
+`TestCALV0054_RosterTierCapsWaitWithoutDowngrade`, `TestCALV0057_EscalationLadderClimbsAndResetsOnProgress`,
+`TestCALV0057_StickyTierAndOperatorUnparkKeepStreak`, `TestCALV0057_ProgressOutsideSessionResetsLadder`,
+`TestCALV0057_NoLadderKeepsLegacyLedger` and `TestCALV0057_LedgerEscalationIsBounded`, with `TestCALV0057_DispatchStatusShowsTierAndStreak`
+in `internal/tasks/cli`; and
+`TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`).
+
+### S12 — Read cost independent of receipt history (issue 446)
+
+Authoritative input: owner request [issue 446](https://github.com/beamfall/corvint/issues/446).
+Before this slice every read command replayed the whole receipt chain, and `queue status` and
+`plan preview` did so more than once, so a read cost seconds at about 1,800 receipts and held
+the files a concurrent writer wanted. The journal stays the only authority. This slice changes
+how much of it a read must replay, never what a read may conclude.
+
+- `CAL-V0-059`: The audit checkpoint is derived state with profile `taskman-audit-checkpoint/0`,
+  stored as `<state directory>.checkpoint.json` beside, never inside, the journal state
+  directory, so state scans, archive export and older runtimes do not see it. It records the
+  queue ID, primary worktree, init digest, generation, semantic coverage, the sequence and
+  digest of one receipt, and for every non-request path the sequence and digest (or retained
+  deletion) of its latest canonical afterimage at that sequence, strictly path-ordered. The
+  codec is closed and bounded (16 MiB; entry bound derived from the existing scan, intent,
+  ticket and release limits). A checkpoint MUST be derived only from a complete, settled,
+  consistent `FULL` audit whose last receipt is the head; never from a checkpoint-resumed audit
+  and never over a pending receipt. It carries no request, evidence or receipt bytes, is never
+  posted by a receipt, and is never an input to authority, ranking or archive content.
+  Deleting it costs the next read one complete audit and nothing else.
+  CAL-V0-321 amends this: a read checkpoint also carries a filter of its request paths (not
+  their bytes).
+- `CAL-V0-060`: Only a writer retains a checkpoint: after its complete settled audit, while it
+  holds the writer lock and the head is still the audited one, by one fixed temporary file and
+  rename, best-effort. Audits that read verbs share with writers MUST NOT retain one. A failure to retain it MUST
+  NOT fail or change the transaction. Read commands MUST NOT create, replace or remove the
+  checkpoint (product invariant 4). The retained checkpoint therefore names the head the writer
+  observed before its own receipt, and a later read replays at least that receipt.
+  Administrative writes do not retain one: compaction (`CAL-V0-302`), `receipt retire` and
+  `receipt unretire` (JRT-V0) and segment sealing rewrite or remove receipts, so they delete the
+  derived checkpoints (`internal/tasks/store/compact.go`, `retire.go`, `segment_seal.go`) and the next
+  read or write pays one complete audit. The retention rule above applies to ordinary mutation and
+  lease writers only.
+- `CAL-V0-061`: A read command MUST perform at most one journal audit and derive every
+  projection it prints from that one observation. Where a checkpoint is present, a read MAY
+  resume from it: it MUST confirm the queue ID, primary worktree, init digest and generation
+  and the head's version digest; confirm that the checkpoint sequence does not exceed the head
+  and that the named receipt still hashes to the recorded digest and carries the recorded
+  sequence and generation; replay every receipt after it through the
+  head with the same per-receipt validators as the complete audit; and verify every non-request
+  projection, staging emptiness and the intent tree against the resulting afterimages exactly as
+  the complete audit does. The result reports `journalAudit` `CHECKPOINT_PLUS_TAIL` and
+  structural consistency `CHECKPOINT_PLUS_TAIL`, never `CONSISTENT`. Any decode error,
+  mismatch or refusal on that path MUST fall back to the complete audit, whose verdict is the
+  one reported; a head that moves between captures is retried at most four times first. An
+  unusable checkpoint therefore never produces a refusal, a different projection or a weaker
+  verdict than no checkpoint. Every mutation, barrier removal, reconciliation, request lookup
+  and `receipt audit` MUST keep the complete audit (`journalAudit` `FULL`). Amended by
+  `ON-V0-013` in [operator notes](corvint-tasks-operator-notes-v0.md) (V1-1650): a tail note
+  event's pre-ticket and pre-policy are read from the receipt that last posted each, bound to the
+  checkpoint entry digest, so the replay reads at most two receipts before the checkpoint per note
+  event, plus one per ticket first posted in the tail by another receipt, whose note reference it
+  binds the same way.
+
+The checkpoint has the same local trust as the journal directory it sits beside and no more:
+its entries and semantic coverage are not re-derived from the receipts before its sequence. A
+party that rewrites a projection and the matching checkpoint entry together, or adds a stray
+intent file with a matching entry, is therefore not detected by a resumed read; the complete
+audit refuses it. Detection limits of a checkpoint-resumed read, each of which the complete
+audit still covers on `receipt audit` and on every mutation: a checkpoint and projection altered
+together as above; an altered receipt before the checkpoint sequence; a
+stray receipt beyond head+1; altered or stray files under `requests/` and `evidence/` that the
+replayed tail does not post; duplicate request IDs against the prefix; and stray files in
+directories the resumed read does not list. The inventory digest of a resumed read differs from
+the complete audit's; only the head and intent-tree digests are comparable between them.
+
+Non-goals: accelerating writers (ticket V1-0645; CAL-V0-116 and CAL-V0-119 amend
+the S12 rules CAL-V0-059..061 for the writes they serve); a
+`queue status --summary` flag (the default read is now fast; ticket V1-0647 asks whether it is
+still wanted); removing the remaining per-read intent-tree passes (ticket V1-0646); any daemon,
+database or cache that a read mutates; and treating the checkpoint as evidence of anything.
+Failure modes are in the table below. Rollback: delete `<state directory>.checkpoint.json` to
+force complete audits until the next write, or revert the reader option; no journal, intent or
+archive format changes, and older runtimes ignore the file.
+
+Measured on the live store at 1,829 receipts (macOS, Go 1.27.1, warm cache): `queue status`
+4.5–4.9 s before; 1.08–1.43 s with one complete audit; 0.24–0.25 s resumed from a checkpoint
+(journal audit about 83 ms). `plan preview` 1.18–1.20 s complete, 0.25 s resumed. The remaining
+cost is proportional to the intent tree and the number of retained paths (including retained
+deletions), not to the number of receipts. See
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-01-tasks-read-checkpoint.md`.
+
+### S13 — Supervised effort and stage wall (issue 354, partial)
+
+Authoritative input: owner request [issue 354](https://github.com/beamfall/corvint/issues/354),
+the S10 supervisor's fixed `effort: "low"` and `wallSeconds` 1..3600 config bounds, and native
+ticket V1-0475 criteria 4 and 5. This slice delivers only owner-bounded effort and a longer
+policy-bounded stage wall for the existing `taskman-codex-supervisor/0` Codex supervisor.
+Owner scope decision 2026-10-04: issue 354 closes on multi-repository programs and Codex
+continuation across longer runs, using the effort delivered here; Claude Code and OpenCode
+supervisor hosts move to separate native tickets V1-0755 and V1-0756 and are non-goals of this spec's issue 354 slices.
+Multi-repository programs, gates and integration are delivered in S21 (CAL-V0-071..072, 087..088),
+and checkpointed continuation of a stage past its wall in S21 (CAL-V0-089). The continuous dispatcher (S11) is unchanged:
+its host argv already carries any effort flag and its role `wallSeconds` already reach seven days.
+
+- `CAL-V0-062`: The optional policy `supervision` object MAY carry `efforts`, a closed object whose
+  keys are a nonempty subset of `implement`, `review` and `integrate`, each a nonempty,
+  canonical-byte-sorted, duplicate-free array of `low`, `medium` and `high`. A stage without an
+  entry, or a policy without `efforts` or `supervision`, admits only `low`, so existing policy bytes
+  keep their meaning. The supervisor config MAY carry `stageEfforts`, a map from those stages to an
+  effort overriding `effort` for that stage. A new program MUST be refused, before its runtime read,
+  program record, worktree, effect or host process, when its config names an unknown stage or any
+  stage effort the policy does not admit, or when its base `effort` is not itself one of `low`,
+  `medium` or `high`, even if every stage is overridden. An existing program MUST be re-checked
+  against the current policy before every stage launch, without the base-effort rule, so a program
+  recorded before that rule is not stranded while every stage stays overridden, so a later narrowing refuses further stages without blocking
+  `drain` or `cancel`. The admitted stage effort MUST be
+  the `model_reasoning_effort` of both new and resumed Codex invocations for that stage.
+- `CAL-V0-063`: The optional policy `supervision.stageWallMinutes` (Count 1..240, the lane
+  `wallClockMinutes` ceiling) MUST bound the config `wallSeconds` to 1..`stageWallMinutes`×60;
+  absent, the bound stays 1..3600. A policy value outside 1..240 MUST be refused with
+  `LIMIT_EXCEEDED`, because no stage can outlast the lane cap. A config outside the bound MUST be
+  refused at the same points as CAL-V0-062. The active stage deadline remains the minimum of
+  `wallSeconds`, the policy lane `wallClockMinutes` and the program's remaining
+  `supervision.program.wallClockMinutes`, so the longest reachable stage is four hours and a stage
+  above one hour also needs those caps raised. Heartbeat
+  renewal, WAIT handoff on expiry and session resume are unchanged (CAL-V0-038, CAL-V0-039).
+
+Non-goals: efforts beyond `low|medium|high` (for example Codex `minimal` or `xhigh`); per-role
+models; proof that the provider applied the requested effort, which stays `NOT_OBSERVED` beyond the
+argv the supervisor passed; and any change to token accounting. Failure modes: a policy that admits
+`medium` only for `implement` refuses a config whose default `effort` is `low` (the default applies
+to every stage); a lane cap shorter than `wallSeconds` silently shortens the stage, as before; a
+program recorded with an empty base `effort` keeps running only while `stageEfforts` overrides every
+stage, and a stage it does not override is refused as an effort the policy does not admit.
+Rollback removes `efforts` and `stageWallMinutes` from the policy, which restores the low-only,
+one-hour behaviour for every later dispatch; recorded program configs keep their digests because
+`stageEfforts` is omitted when absent. Regression witnesses: `TestCALV0062_PolicyEffortAllowlist`,
+`TestCALV0063_PolicyStageWallBound` (`internal/tasks/intent`); `TestCALV0062_StageEffortSelection`,
+`TestCALV0062_CheckProgramConfigEffort`, `TestCALV0062_BaseEffortRequired`,
+`TestCALV0062_StageRechecksCurrentPolicy`,
+`TestCALV0063_CheckProgramConfigStageWall` and
+`TestCALV0062_OpenWorkflowRefusesBeforeMutation` (`internal/tasks/store`). Live Codex qualification at
+a non-low effort is `NOT_RUN`; see `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-01-tasks-supervisor-effort-wall.md`.
+
+### S14 — Explicit command progress (issue 468)
+
+Human-owned input: [issue 468](https://github.com/beamfall/corvint/issues/468) requests
+a bounded explicit command token independent of role matching. This is a proposed
+technical contract. The original scoped source has separate reviewed and sealed
+evidence; this intent-only seed makes no current-main integration, Linux, installed
+runtime, native completion or new delivery claim. CAL-V0-062/063 are defined separately in S13.
+
+- `CAL-V0-064`: A command work-state reader MAY return a legacy state string or a closed object
+  with required string `state` and optional string `progress` per ticket. State retains CAL-V0-053's
+  bounds and is the only role-matching value. The optional progress token is byte-opaque printable
+  UTF-8, at most 128 bytes. Missing or empty progress makes no additional claim. Full ticket ID takes
+  precedence over local name, including an empty full-ID state normalized to `NONE`; state and token
+  MUST come from the same selected value. Ordinary JSON whitespace, key order and valid escapes
+  remain compatible. Duplicate ticket/member keys, unknown object members, null or non-string
+  values, invalid UTF-8, lone surrogate escapes and trailing JSON MUST fail as ordinary reader
+  errors; valid surrogate pairs are retained. Unknown-ticket tokens never consume history.
+  The dispatcher retains only SHA-256 digests in private per-ticket history. First valid token seeds
+  a baseline without credit. A never-observed digest advances once; a current duplicate, observed
+  A-to-B-to-A replay or missing token keeps the last accepted digest. UNKNOWN, read failure and
+  cancellation before admission change no token history. This is a producer assertion, not artifact
+  authentication: an unseen old assertion cannot be recognized as stale.
+  History is bounded to 256 lifetime distinct digests per key and 8,192 per program, including first
+  seeds and deleted/completed keys. New slots are allocated in canonical full-ticket-ID byte order.
+  At either cap, retain history, admit no new token, emit a bounded needs-owner diagnostic, and keep
+  ordinary cooldown/parking. No eviction, reset or operator-unpark capacity restoration is allowed.
+  The one checked admission barrier uses the final successful observation after supervision/heal
+  and re-observation, before accounting/unpark/state publication/launch. It stages cloned history,
+  legacy first-seed baselines and token-dependent accounting, checks the outer context, and MUST
+  save atomically before publishing or granting effects. Save failure discards staging and returns
+  an explicit tick error; Close/deferred saves MUST NOT persist failed staging or overwrite successful
+  admission with a captured old ledger. A token grant for an ended worker commits its removal and
+  backoff deletion together; a parked-key grant commits its backoff deletion with consumption.
+  Active-worker credit remains pending relative to its launch digest. A token-enabled ended worker
+  with pending credit and UNKNOWN latest state retains worker/backoff accounting, with a bounded
+  alert, until a healthy observation grants once. Tokenless behavior remains CAL-V0-057. Cancellation
+  after commit retains completed facts and stops downstream work at the next checkpoint; no
+  whole-tick rollback is promised. Strict ledger loading validates full ticket keys, digest grammar,
+  sorted uniqueness, current membership, both caps and worker/backoff baseline-history consistency.
+  Any case-folded root progress member enables strict validation before struct decoding. Token-enabled
+  ledgers reject duplicate members and aliases of canonical static schema fields; dynamic ticket and
+  observation-map keys retain their case-sensitive identities. Programs admitting no tokens omit
+  optional fields, preserve legacy field matching, and retain legacy fingerprints/member shape.
+
+
+Failure modes: producer tokens do not verify work, lifetime exhaustion can eventually permit parking,
+and atomic rename gives process-restart visibility, not power-loss durability or exact event delivery.
+Non-goals: native handoff/evidence wire changes, evidence fetching, progressPaths, changed role rules,
+automatic migration, indefinite retention capacity or fixing all legacy ledger I/O failures.
+Rollback preserves the current ledger and uses backups only as evidence. An older reader refusing new
+members is a valid fail-closed downgrade; never restore an older snapshot, strip history or reset it.
+Final integration acceptance requires fresh parser/role/token/replay/restart/capacity/checked-save
+and cancellation witnesses on the actual composed target, the original four check argv,
+scoped registry checks, CEM/OCM, independent composition inspection, public integration
+and supported native completion. No current-main integration evidence is produced by this seed.
+
+
+Original reviewed source fbc80a5e1de6261ea1ce5290a4aa6451fd0c0b2f is unchanged in this
+composition. Historical binds 5565697748a56c285a2e30d747a05d70c04d0df3 and
+e359cc16c7b9c4e1bd5b025b0ea815b3173cdd49 and pure seals 95b7d5a/021cf0f4 remain
+in ordinary public ancestry. PR491 passed Linux CI on main094, with tested tree7df05582;
+that success does not qualify current def2a85a composition. Fresh CEM/frozen checks,
+independent composition inspection, combined CI and native completion remain pending.
+The owner-authored issue permits any one signal and explicitly names the chosen object
+option; detailed technical CAL064 remains proposed, with no new ratification claim.
+
+### S15 — Explicit pool member exclusions (issue 480)
+
+Human-owned input: [issue 480](https://github.com/beamfall/corvint/issues/480) permits
+the per-claim exclusion alternative. CAL-V0-065 was seeded before implementation
+enrollment. Scoped focused tests, a compiled disposable native fixture and
+independent source review passed; broad runtime qualification is NOT_OBSERVED.
+
+- `CAL-V0-065`: CLAIM, CLAIM_NEXT and read-only plan preview MAY accept an opt-in bounded set of explicit pool member exclusions. A supplied set MUST require an explicit pool, be nonempty and contain at most 256 sorted unique valid member labels. CLI repeated single-value `--exclude-member` flags MUST normalize order and duplicates while rejecting missing/empty values; other repeated single-value flags retain their existing refusal. Canonical request preimages MUST omit the new field entirely when absent, preserving historical bytes. Shape, syntax, canonical order and absolute bound checks MAY precede authoritative request replay; current-policy member/count eligibility MUST apply only to fresh admission after that replay lookup. An identical receipt-bound claim MUST return its original allocation after release, successor allocation or a permitted policy change, and a changed valid exclusion set under the same request ID MUST conflict before current eligibility checks.
+  Fresh explicit/next claim, every health-selection round, final prepared-allocation admission and preview capacity MUST apply the same stage/order/occupancy/exclusion predicate. Current requested-pool membership MUST be checked before any health preparation. Excluded members MUST never be allocated or probed, including matching-stage reservations and unreserved fallback; otherwise eligible members retain existing deterministic tier and member order. A matching health observation MUST NOT bypass final exclusion validation. No eligible member MUST produce RESOURCE_COLLISION rather than ignored exclusions or fallback to an excluded member. Preview MUST write no receipt, projection, trace or probe state. Ordinary claim resource scope and requiresPool remain binding; CAL-V0-029/030/032/034/046 safety and historical replay rules are unchanged. Exclusions are caller-selected member facts, not automatic ticket-history discovery, authenticated reviewer identity or proof of distinct physical environments.
+
+Failure modes: excluded reserved member/busy remainder; malformed or foreign member; preparation/admission policy drift; replay under changed policy; excluded health-start bypass; caller assumes labels authenticate independence. All remain explicit refusal/uncertainty, never ignored constraints or safe reuse inference.
+
+Acceptance evidence: focused transaction/store/CLI tests passed for the fixed
+historical preimage/digest witness, shape and membership validation, allocation
+order, preview capacity and purity, prepared admission, health filtering,
+both claim-next selectors, explicit/next replay after successor and policy changes,
+and both CLI parsers. `TestCALV0065_NativeFixture` builds and runs the candidate
+executable against a disposable native store, preserving ordinary quarantine.
+Independent source review of the frozen twelve-path implementation passed with no
+P1/P2 finding. Existing pool/quarantine/stage-order tests and three-package vet passed.
+
+Limits: health-backed CLAIM_NEXT with exclusions and concurrent policy change
+between health preparation and final admission were inspected in source rather
+than executed as combined fixtures. The historical preimage control is an
+independently retained literal from the old source; a separate baseline executable
+measurement is NOT_EXECUTED. Native journal audit establishes structural consistency
+and projection agreement, with semantic coverage UNKNOWN and runtime qualification
+NOT_OBSERVED. Exclusions never authenticate a holder or establish physical independence.
+
+Non-goals: automatic history inference; per-pool independentStages policy; holder authentication; new physical access broker; issue479 terminal fast release; shrinking complete effect/resource intent. Rollback: opt-in command support can be reverted only with current request/profile compatibility limits retained; no projection stripping, historical-request rewriting or unsafe pool state migration. Absent requests remain exact old bytes.
+
+### S17 — Operator-attested untouched pool release (issue 479, proposed)
+
+The owner-authored issue 479 accepts an explicit attestation alternative. This candidate
+intent follows the bounded Gate A R1 PASS at proposal SHA-256
+`23269d211a3c2b1b4acef38cb08aa0392634d35ba3b141abb840f29242207198`.
+The coordinator assigned CAL-V0-067/S17 before this intent seed.
+Implementation, tests and native qualification are NOT_RUN.
+
+- `CAL-V0-067`: RELEASE MAY accept an explicit `--lane-untouched --evidence REF` opt-in under
+  a separately labelled local OWNER/OPERATOR attestation profile. It MUST retain four fixed true
+  acknowledgements: no physical lane access occurred, no lane command was issued, no physical
+  lane capability/resource was issued or remains retained, and the operator accepts responsibility
+  for the statement and safe reuse. Logical source/PATH reservations are distinct from those physical
+  resources. REF MUST be a required valid inert Identifier, never fetched or executed. Recorded actor
+  identity is not authentication; physical non-use/revocation remains NOT_OBSERVED. No broker,
+  implicit exemption, arbitrary checker command or automatic history discovery is introduced.
+  Fresh opt-in MUST require exact current policy/config identity, even when ordinary
+  CAL-V0-044/046 handoff could accept the issue 482 compatibility proof. The flagged profile
+  MUST be excluded from HandoffPolicyCandidate fallback; a compatible history observation
+  MUST NOT authorize its physical reuse exception. Ordinary compatible handoff and its
+  quarantine remain unchanged. Original flagged request replay keeps its existing precedence.
+  Fresh eligibility MUST require the exact live/unexpired current external-agent RUNNING generation,
+  unchanged acceptance/policy/member definition and complete holder/stage/allocation tuple, a matching
+  ALLOCATED entry, and a prospective writer-produced `taskman-direct-pool-admission/0` witness.
+  Only upgraded fresh direct no-health CLAIM/CLAIM_NEXT admission MAY mint that witness; it binds
+  original admission sequence, attempt/generation and the full allocation tuple. No prepared/health
+  origin, legacy/backfilled witness or retry inheritance qualifies. Current allocation and pool changed
+  sequences and Lease.GrantedSeq MUST match original admission; renewed leases are ineligible.
+  Started/pending/unknown/interrupted command history, runner identity, worker/spawn/supervision/lane
+  identity, candidate/gate/reviews/manifest, failed-or-unknown retry accounting and pending effects MUST
+  refuse without freeing. Null command metadata is not authority. Programs bytes MUST be decoded
+  against the same inventory/head/queue; absence qualifies only when the inventory proves absence.
+  Matching CurrentAttempt/CurrentGeneration, including ADMITTED before ATTACH with zero leader PID,
+  and ambiguous same-attempt generation associations MUST refuse regardless of phase or OwnerReleased.
+  Missing, unbound, digest-mismatched, malformed, unknown, duplicate or foreign Programs input MUST
+  refuse. Private Dispatcher records are external/non-native and MUST NOT be reported as scanned;
+  known or uncertain external use prevents the operator from honestly making the acknowledgements.
+  An eligible opt-in MUST atomically retain a closed `taskman-lane-untouched-attestation/0` terminal
+  record, end the generation with logical FENCED quiescence, remove its ordinary reservation and omit
+  only its exact current occupancy, without executing configured cleanup. The attestation MUST bind
+  original allocation/member/definition/allocated sequence, attempt/generation/holder/stage, actor role
+  and ID, recorded sequence/time, REF, profile and the four acknowledgements. It MUST NOT claim physical
+  cleanup or PROVED quiescence. Default release/handoff, expiry/reap and completion retain quarantine.
+  Request shape and static field validation MAY precede authoritative replay; fresh current eligibility
+  MUST follow it. New flag/evidence/profile acknowledgements join the request preimage conditionally;
+  absence preserves historical request, attempt and ordinary result bytes. Actually changed named
+  fields under one request ID MUST conflict. Fresh/replay opt-in reports MUST reconstruct the original
+  RELEASE receipt's terminal attempt, inline or bounded blob, verify canonical payload digest and full
+  receipt/actor/profile/evidence/tuple bindings, and return that original allocation and attestation.
+  Successor/current policy state MUST NOT substitute for original payload; missing/damaged payload
+  MUST refuse. Crash/redo and archive round-trip MUST preserve complete afterimages and evidence;
+  a member MUST NOT become free with a live logical attempt or absent attestation. Legacy/new-reader
+  and old-reader refusal limits MUST remain explicit. HANDOFF/REVIEW_RETURNED accounting still applies
+  independently; this profile grants no retry refund, completion, review or integration authority.
+
+Qualification MUST include the configured-cleanup/no-health true-native positive fixture, default
+quarantine/missing-cleanup confirmation controls, legacy/renewal/expiry/wrong-role/history/state/tuple
+negatives, ADMITTED-before-ATTACH controls, original-payload replay after successor/policy change,
+inline/blob damage refusal, archive byte preservation and crash/redo all-or-nothing afterimages.
+Focused snapshot/transaction/store/CLI tests and vet, independent implementation and acceptance review,
+CEM/OCM frozen checks with truthful unknowns, CI/integration and native completion are required.
+Rollback stops future opt-in use while preserving witness/attestation history and exact replay;
+retain a compatible reader, never strip metadata, silently downgrade or rewrite successors.
+
+### S18 — Host-pressure launch throttle (issue 497)
+
+Authoritative input: owner request [issue 497](https://github.com/beamfall/corvint/issues/497),
+which asks the dispatcher to sample host load and swap each tick, cap new launches by pressure level
+with hysteresis, never stop running workers, keep pinned and explicitly exempt work running, and
+report the level, inputs and held work. The issue's free-form `exempt` list is refined here into two
+explicit identity lists, shipped as `exemptRoles` and `exemptTickets`. No role or ticket is inferred to be critical path, review or integration
+from its name. The coordinator assigned CAL-V0-068/S18 to this issue.
+
+- `CAL-V0-068`: The `taskman-dispatch/0` configuration MAY carry one closed `pressure` object:
+  `calmLoadPerCpu < loadPerCpuHigh < loadPerCpuCritical` (finite, non-negative),
+  `calmSwap < swapHigh < swapCritical <= 1` (non-negative), `ticksToChange` 1..3600, `levelCaps`
+  with exactly the levels `"1"` and `"2"` where `0 <= cap2 <= cap1 <= 64`, at most 32 unique
+  `exemptRoles` that name configured roles, and at most 512 unique `exemptTickets` of 1..256 bytes
+  without spaces, control characters or glob characters. When it is present, each tick that reaches
+  launch admission MUST take one bounded host sample: on Linux `/proc/loadavg`, `/proc/stat` and
+  `/proc/meminfo` read with byte limits; on macOS one `/usr/sbin/sysctl vm.loadavg kern.memorystatus_vm_pressure_level
+  hw.logicalcpu` (CAL-V0-109) with a 2 s timeout and bounded output; on any other OS an UNKNOWN
+  sample. The inputs are the one-minute load average per host-visible CPU and one memory signal:
+  used/total swap on Linux, where zero total swap is an observed fraction of zero, and the kernel
+  memory-pressure level on macOS (CAL-V0-109). The level (0, 1 or 2) is a pure step. Either metric at or
+  above its critical threshold targets level 2, and at or above its high threshold targets at least
+  level 1. Only both metrics at or below their calm thresholds target level 0; otherwise the target is
+  the current level, so a throttle never steps down from 2 to 1 and releases only to 0. The level changes only
+  after `ticksToChange` consecutive ticks target the same new level. A sample with either input
+  UNKNOWN MUST keep the current level, cancel pending dwell, and never count as calm. Above level 0,
+  the roster (CAL-V0-054) MUST admit at most `levelCaps[level]` non-exempt workers, counting the
+  running non-exempt workers. The pressure budget is consulted only after the global cap, the
+  key, skip, per-role and CAL-V0-057 tier-cap fences admit a candidate, so a held candidate
+  consumes no slot and reserves no key. A refused candidate is reported as held only while the
+  role, tier and global caps, charged with earlier launches and holds, would still have admitted it. Pins, `exemptTickets` (by ticket ID or local name) and `exemptRoles` are exempt
+  and are never held. Pressure MUST NOT stop, signal or otherwise change a running worker, and MUST
+  NOT bypass any static cap or native lease check. The level, pending dwell, newest bounded sample
+  (valid UTF-8; source at most 256 bytes, at most 8 problems of at most 200 bytes) and at most 8192 held
+  launches are kept in the private ledger. A restart keeps the recorded level, cancels pending
+  dwell, clears the previous sample and is UNKNOWN until its first sample. If the budget cannot be
+  built, the tick launches nothing and appends an `alert`. Removing `pressure` from the configuration drops the
+  record. `dispatch status` MUST report the level, pending dwell, sample (`OBSERVED` or `UNKNOWN`),
+  each input or `UNKNOWN`, problems, the active cap (`NONE` at level 0, otherwise from the
+  configuration given to `dispatch status`, or `UNKNOWN` without one) and the held launches. One
+  `throttled` event (CAL-V0-058) MUST be appended when the level, the sample's knowledge or the set
+  of held keys changes, naming the level, the inputs and at most ten held tickets.
+
+Non-goals: stopping, pausing or deprioritizing running workers; inferring critical path, review or
+integration roles; memory compression, PSI or OS memory-pressure signals other than the CAL-V0-109
+Darwin kernel level; container or cgroup
+limits; per-role pressure caps; and any network or hosted metric. Failure modes: an unreadable,
+oversized, malformed or timed-out sample is UNKNOWN and keeps the level, so a throttle is never
+released on missing evidence and never raised without it; a saturated host with an all-exempt
+roster keeps launching exempt work; load from processes outside the dispatcher still counts.
+Rollback removes `pressure` from the configuration (the record is dropped at the next start) or
+stops the dispatcher; running workers are unaffected either way. A binary without CAL-V0-068 refuses
+a ledger that carries the record, so a downgrade first needs one start without `pressure`. Linux sampling is covered by
+fixture parsing only; live Linux sampling and a live multi-agent dispatch under real host saturation are NOT_RUN, and other operating systems are always
+UNKNOWN. Regression witnesses are the CAL-V0-068 and issue-497 tests in the traceability table.
+
+V1-0862 amendment (owner request [issue 636](https://github.com/beamfall/corvint/issues/636)). On
+macOS the throttle sat at level 2 all day while the host had spare capacity. `vm.swapusage` used
+is sticky: macOS keeps pages in swap after pressure passes until their owner touches them, so the
+swap fraction ratchets up and a static high value alone held the level. The issue also asked to see
+which signal pins the level. The coordinator assigned CAL-V0-109..110 to this ticket. The optional
+CPU-utilisation signal from the issue is not delivered, and the load average stays the load signal
+on both operating systems.
+
+- `CAL-V0-109`: On macOS the memory signal MUST be the kernel memory-pressure level
+  `kern.memorystatus_vm_pressure_level`, read in the same sysctl call as the load and CPU count:
+  `1` (normal) is calm, `2` (warn) is at least high and targets at least level 1, and `4`
+  (critical) targets level 2. The swap thresholds do not apply to it. The macOS sample MUST NOT
+  read or carry swap, so a high but static swap level no longer holds a level. A sample that
+  carries a kernel level uses it as its memory signal even when swap is also present. A missing,
+  duplicated or unexpected sysctl field, or any other level value, makes the memory signal
+  UNKNOWN; it MUST never fall back to swap or count as calm or pressure, and the CAL-V0-068
+  UNKNOWN rule applies. The sample records the level as `memoryPressureLevel` with
+  `memoryPressureKnown`; the ledger refuses any other level or a level without the flag. Linux
+  sampling and its swap signal are unchanged.
+- `CAL-V0-110`: When the level changes, the pressure state MUST record as `reason` the sorted
+  signals (`load`, `memory`, `swap`) that set it: for a raise, every signal at or above the new
+  level's threshold (high for level 1, critical for level 2). A release to 0 clears it. Holding a
+  level, an UNKNOWN sample and a restart keep it. The ledger refuses a reason at level 0, an
+  unknown signal name, or an unsorted or duplicated list. `dispatch status` MUST report `reason`
+  (`NONE` at level 0, the comma-joined signals, or `UNKNOWN` for a level recorded without one) and
+  `memoryPressureLevel` (the observed kernel level or `UNKNOWN`). The `throttled` event MUST carry
+  the same `reason` and `memoryPressureLevel` details and name the reason and the memory signal in
+  its message. A reason never triggers an event of its own.
+
+Non-goals: a CPU-utilisation signal (`host_processor_info`; the V1-0891 amendment below adds a Linux-only CPU signal and per-OS selection, and macOS CPU ticks stay undelivered), discounting virtualization vCPU
+threads from the load average, a swap-out rate signal, configurable kernel-level thresholds, and
+reporting which signal currently prevents a release. Failure modes: a macOS release without the
+sysctl makes every sample UNKNOWN, so the level never moves (reported in `problems`); an inflated
+load average still raises and holds the level, and `reason: load` shows it. Rollback reverts the
+change; a ledger whose pressure record carries `reason` or a kernel level is refused by an older
+binary, so a downgrade first needs one start without `pressure`. Live dispatcher operation under
+real macOS memory pressure is NOT_RUN.
+
+### S20 — Writer cost independent of receipt history (V1-0645; one-pass `Mutate` delivered, writer checkpoint accepted as CAL-V0-115..119)
+
+Authoritative input: native ticket V1-0645, the writer follow-up named in S12's non-goals,
+owner-prioritised on 2026-10-04 as the root cause behind issues 494 and 545. An uncontended mutation
+costs about 2.9 s at 7,140 live receipts. Ten concurrent writers therefore sit at the 30-second
+admission budget, and a 14-writer wave completed 55 of 70 operations with three LOCK_TIMEOUT
+refusals.
+
+Owner decision 2026-10-04: implement (A), one audit per mutation with its digests reused, and (B),
+each parent directory opened once per scan, now and strictly inside the existing contract, so that
+audit results and refusals are byte-identical to before. Defer (C), the writer checkpoint, until A
+and B have measured before/after numbers. The coordinator confirmed CAL-V0-070/S20: CAL-V0-069/S19
+belongs to issue 494 and CAL-V0-071..072/S21 to issue 354. CAL-V0-070 records A and B. The writer
+checkpoint further below is a proposed design, owner decision pending, deferred 2026-10-04; it
+governs nothing. The last sentence of CAL-V0-061 still applies unchanged: every mutation and
+request lookup keeps the complete audit, which `store.Mutate` now runs once instead of twice.
+On 2026-10-06 the writer checkpoint was proposed as CAL-V0-115..119 ("V1-0645 writer checkpoint"
+below), accepted by decision 0439, which amends that sentence for the writes it serves.
+
+Delivered: A for `store.Mutate`, B for journal audit reads, their equivalence tests and the
+before/after measurement below. Not delivered: the writer checkpoint; A for release, policy,
+barrier, reconciliation, import and pool sweep, which keep their separate passes; B for the
+inventory's fresh reads, which still resolve every path from `/`. Writer cost stays proportional to
+receipt history.
+
+Measured cost before A and B. The opt-in `TestCALV0070_WriterHistoryProfile`
+(`internal/tasks/store`) measures each writer primitive separately on a settled synthetic store. The store has 50 tickets, and every
+receipt posts one request plus one 4 KiB-padded ticket afterimage (about 6 KB per receipt). It has
+no evidence, attempts or reservations. Conditions: Apple M2 Max, 12 CPUs, Go 1.27.1, darwin/arm64,
+medians of 3, host load average 25–33 from concurrent agents.
+
+| Receipts | Request lookup audit | Inventory | Complete audit | `Mutate` total | Lease observed audit | Guarded inventory | S12 checkpoint + tail |
+|---|---|---|---|---|---|---|---|
+| 500 | 412 ms | 320 ms | 513 ms | 1,471 ms | 525 ms | 8.5 ms | 14 ms |
+| 2,000 | 1,534 ms | 1,415 ms | 1,434 ms | 5,033 ms | 1,364 ms | 22 ms | 12 ms |
+| 7,000 | 4,558 ms | 4,129 ms | 3,939 ms | 16,561 ms | 4,716 ms | 56 ms | 13 ms |
+
+No single step dominates. `store.Mutate` takes three passes over history under the writer lock:
+- the request-lookup audit;
+- an inventory that opens, reads and hashes every state file;
+- a second complete audit for the projected records.
+
+Each pass costs about a third, roughly 0.5–0.6 ms per receipt. Lease commands (claim, renew,
+heartbeat, release), which issues 494 and 545 exercise, already make one observed pass and reuse
+its digests. They still pay that pass, plus a change guard that watches every retained file (570 ms
+at 7,000 receipts). The live figure of 2.9 s per operation is consistent with that single pass on a
+quieter host, which is an inference.
+
+CPU profiles of three mutations put most of the time in these passes:
+
+| Receipts | Journal audits | Inventory | Capacity model |
+|---|---|---|---|
+| 2,000 | 64% | 29% | — |
+| 7,000 | 59% | 37% | under 3% |
+
+Most of that time is per-file `safeopen` work (41% cumulative in `InRoot` at 2,000 receipts, with
+flat time mostly in syscalls): a journal read made three opens and three closes per file, and the
+inventory resolves every path from `/`. SHA-256 is not visible
+in the profile. Each mutation allocates about 1.65 GB, in 9.0 million allocations (receipt and
+record decode/encode). The wall-time remainder of about 0.66 ms per receipt appears as no separate
+CPU step; the likely cause is contention and GC under host load, which is an inference.
+
+Two bounded paths already exist:
+- the S12 checkpoint-plus-tail read is flat at 12–14 ms;
+- the lease path's guarded inventory, which reuses the digests observed by its one audit, costs
+  22 ms against 1,415 ms for a fresh inventory.
+
+The maintained `BenchmarkCALV0070_MutateAt2000Receipts` records the before number. See
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-04-tasks-writer-history-cost.md`.
+
+- `CAL-V0-070`: `store.Mutate` MUST take its request lookup and its canonical intent records from one
+  complete audit, the records only once a fresh inventory shows every file that audit read
+  unchanged, and a journal audit attempt MUST open each parent directory it reads from at most
+  once. Every outcome, audit result and replay MUST be byte-identical, and every refusal MUST carry
+  the same code, as the separate passes these replace give under some interleaving of the same
+  outside edits.
+  1. One pass. `Reader.AuditForMutation` runs `RequestIndex.Lookup`'s audit once. That audit also
+     retains the queue, the policy and every observed ticket and release, which is exactly the
+     selection `Mutate` derives from its inventory, and the physical digests it read. Its error is
+     exactly Lookup's. The two refusals that only the later `Audit` of that selection raised, the
+     selection-budget overflow and intent divergence, are deferred. A found request therefore
+     replays as before, and an inventory refusal still comes first. `Canonical` then returns the
+     first deferred refusal, or the Result that `Audit` returned. It answers only for exactly the
+     retained selection, under `Audit`'s own path and count checks; any other selection runs a
+     separate `Audit` as before.
+  2. Content check. The inventory is read fresh, as before. The physical digests are published
+     only when the audit completed with no deferred refusal. Its records stand in for the second
+     `Audit` only if every file it read is listed in that inventory with the same digest and size.
+     (Until the second review fix the inventory took its digests from the audit, as lease
+     preparation does; that left a write through a shared mapping unseen, see the race limit. The
+     lease path's exposure is V1-0775.)
+  3. Pinned parents. A journal audit attempt opens each parent directory it reads from once
+     (`safeopen.PinDir`), by the same no-follow, identity-checked step that began every per-file
+     open. It then opens each file beneath it with one no-follow `openat` (`safeopen.InDir`)
+     instead of three opens and three closes. Errors keep their text, and the descriptors close
+     with the attempt.
+  4. Change watch. Before the merged audit reads anything, `Mutate` registers
+     `authority.WatchChanges` over the state directory and the intent tree, the watch lease
+     preparation already uses. Item 1's records stand in for the second `Audit` only if the
+     inventory succeeds, the content check passes, `Canonical` answers and, once all are taken,
+     the watch's `Check` reports no change. Otherwise, and whenever the watch cannot be registered,
+     `Mutate` closes the watch, takes the inventory again and runs the second `Audit` as before.
+     Every refusal therefore comes from the passes that raised it before. The digests vouch for
+     content and the watch for names, types and modes: a write through a shared writable mapping
+     changes what a read returns without any inotify event, and without any kqueue event before
+     `msync`. The watch's descriptors share the process limit with the audit's reads, so a refusal
+     of the merged audit itself is taken again with the watch closed. On success the watch closes
+     after the writer lock is released.
+
+Race limit. Under the writer lock only an outside actor can change the store. An outside edit made
+after the merged audit and before the watch's check, which the watch or the content check reports,
+makes the inventory and the second `Audit` run again, so it is refused as the separate passes
+refused an edit made after their lookup. The watch reports an entry created, removed, renamed or
+re-moded, and an ordinary write. The content check reports changed content that the merged audit
+read before the inventory read it. An overwritten request projection, an edited
+`reservations.json` or a stray `barrier.json` is refused `JOURNAL_FORKED`, a projection replaced by
+a symlink `UNSUPPORTED_FILESYSTEM`, and an edited ticket `INTENT_DIVERGED`.
+
+Descriptor budget (macOS). kqueue needs one open descriptor per watched path, and the soft
+descriptor limit is often 10240, below a populated store's file count. Every directory and
+ancestor is always registered with kqueue. Regular files take a kqueue descriptor only while the
+regular-file descriptors held by all live watches in the process stay within half the soft limit
+read when the watch starts; the other half is left for directories, the audit's reads and
+concurrent work, and Close returns the watch's share. A file beyond the budget is recorded by its
+device, inode, mode, size, modification time and change time, read before and after registration
+and required to agree, and every `Check` re-reads them: any difference, or a failed read, reports a
+change, and the watch keeps reporting it. The directory watch still reports any entry created,
+removed or renamed. Regular files
+therefore no longer exhaust descriptors as a store grows. Directories are not budgeted, so a
+directory-heavy tree or many concurrent watches can still be refused with too many open files, as
+can any other registration failure. Two limits apply beyond the budget:
+- A write that leaves size, modification time and change time unchanged, possible only through a
+  timestamp collision, is missed by the watch. Only a path that rereads the file's bytes can catch
+  it, and an inventory built from audit observations reuses cached digests (the exposure recorded
+  above as V1-0775).
+- Lease commits keep the re-read out of the writer lock (V1-0845). Just before taking the lock they
+  `Sweep` the over-budget stat tuples, and under the lock they call `CheckEvents`, which only polls
+  kqueue and the result kept from earlier reads, so guard polling under the lock does not grow with
+  the store. This does not by itself meet CAL-V0-026's locked-work bound: `retainCheckpoint`, still
+  called under the lock, traverses, sorts and encodes the whole canonical map, a remaining
+  store-size cost tracked separately. A store writer changes files only by creating, linking,
+  renaming or removing entries (`authority.Session`), which a watched directory reports whenever it
+  happens, so no store write between the sweep and the locked check is lost; no Tasks writer edits a
+  watched file in place. The accepted bound is an in-place write or mode change to an over-budget
+  file by an actor that does not take the writer lock (an external editor or tool), made after the
+  sweep read that file: the locked check does not see it. The lease then commits on the canonical
+  journal content, because `commitLease` rebinds only `head.json` and not the intent tree. The next
+  audit refuses a content edit (`INTENT_DIVERGED` for an intent projection such as `policy.json` or
+  a ticket); a mode change that leaves the file readable and its content unchanged can pass that
+  audit, because projection validation compares content digests and compares mode only between
+  observations within one audit. Such an actor is not ordered against the lock, so the stat re-read under the lock only
+  moved where that window began, by the lock wait. Other `Check` callers still re-read every tuple.
+
+Linux inotify holds no descriptor per watched path and needs no budget.
+
+A write through a shared writable mapping is the case only the content check sees. Probes of
+`authority.WatchChanges` on this host's APFS (macOS, kqueue) and in a Linux arm64 container on
+tmpfs (inotify) found that reads returned the new bytes at once on both. On Linux the watch
+reported nothing, with or without `msync` (`MS_ASYNC` or `MS_SYNC`) or `munmap`. On macOS it
+reported the write only after `msync`, not without it and not on `munmap`. Such a write made after
+the merged audit read a file and before the inventory read it is refused as above. One made after
+the inventory read the file is seen by neither check. Every read `Mutate` made of that file then
+returned the content before the write, so the outcome is what the separate passes give when the
+same write follows their second pass, and it is handled as such an edit is (below). The content
+check does not depend on which writes a filesystem reports. `Mutate` qualifies the Git common dir
+against the §5.1 allowlist first; ext4, xfs, btrfs and hfs were not probed, which bears only on the
+watch's own reports.
+
+An edit after the check meets what an edit after the old second pass met. The pre-apply binding
+refuses a changed `head.json` or intent tree `SNAPSHOT_MOVED`. `barrier.json` and
+`reservations.json` are re-read for the model, which validates them. An edit to any other journal
+file is seen by the next audit. Only the refusal code is claimed: with two or more diverged files,
+the path a refusal names follows Go map order, before this change as after it.
+
+The watch is not free: on macOS it holds one descriptor per watched path within the descriptor
+budget above, and registering and closing it costs 5–11% of an after-change `Mutate`'s CPU time,
+growing with history (see below; measured before the budget).
+Where it cannot be registered (a platform other than macOS or Linux, the entry bound, a path that
+is neither a regular file nor a directory, or an exhausted watch limit), `Mutate` runs the separate
+passes at their old cost.
+
+Measured cost after A and B. The profile and the benchmark now also record the process's CPU time
+(user plus system, all threads): over the same evening, wall time for identical runs varied up to
+fourfold with concurrent agents' load. Each pair runs this change against its base `d4a896bd`,
+with identical measurement code, on the fixture and host above.
+
+Profile, medians of 3, after then base back to back, one-minute host load average 11–12:
+
+| Receipts | `Mutate` total, base → after | `Mutate` CPU, base → after | Lookup + complete audit (base) | Merged audit (after) | Inventory, fresh → observed | Lease observed audit, base → after | S12 checkpoint + tail |
+|---|---|---|---|---|---|---|---|
+| 500 | 1,132 → 565 ms | 1,287 → 648 ms | 699 ms | 321 ms | 204 → 8 ms | 362 → 324 ms | 10 → 7 ms |
+| 2,000 | 4,111 → 1,298 ms | 4,298 → 1,678 ms | 2,475 ms | 939 ms | 892 → 17 ms | 1,334 → 987 ms | 12 → 7 ms |
+| 7,000 | 11,395 → 3,891 ms | 13,883 → 5,209 ms | 6,908 ms | 3,077 ms | 2,990 → 49 ms | 3,385 → 3,239 ms | 10 → 8 ms |
+
+`BenchmarkCALV0070_MutateAt2000Receipts` with `-benchtime 5x -benchmem`, three alternating rounds,
+one-minute host load average falling from 34 to 13:
+
+| Tree | Wall per `Mutate` | CPU per `Mutate` | Allocated | Allocations |
+|---|---|---|---|---|
+| Base | 3.33–3.75 s, median 3.41 s | 4,065–4,421 ms, median 4,178 ms | 1.655 GB | 9.006 million |
+| After A and B | 1.34–1.61 s, median 1.46 s | 1,688–1,945 ms, median 1,793 ms | 0.861 GB | 5.218 million |
+
+A and B cut `Mutate`'s wall and CPU time by about 57–68% at 2,000 and 7,000 receipts, and its
+allocation by 48%. A `Mutate` now costs about one complete audit plus a fixed remainder. That is
+still proportional to history: about 0.5 ms per receipt in wall time at this load, against about
+1.6 ms before. Lease commands, which issues 494 and 545 exercise, already made one pass. B alone
+lowers their observed audit's CPU time by 6–9%. Whether (C) is still needed, chiefly for the lease
+path, remains the pending owner decision. Runs made earlier the same evening at load 41–124 had
+identical allocation counts but wall times that overlapped between trees. The build-log keeps them
+as evidence of load sensitivity, not as the comparison.
+
+Measured cost with the change watch (item 4). The pair was run again after the review fix, against
+the same base, at one-minute host load average 27–59 from concurrent agents. Wall times are not
+comparable at that load, and CPU times are inflated on both sides. Profile medians of 3, CPU time,
+base → after:
+
+| Receipts | `Mutate` | Watch setup and close (after) |
+|---|---|---|
+| 500 | 1,888 → 960 ms | 73 ms |
+| 2,000 | 5,836 → 2,503 ms | 231 ms |
+| 7,000 | 16,610 → 6,769 ms | 714 ms |
+
+The benchmark, three alternating rounds, gave a median of 5,381 → 2,299 ms CPU per `Mutate`
+(ranges 5,323–5,688 and 2,059–2,325 ms). Allocation fell from 1.655 to 0.868 GB, and from 9.006 to
+5.277 million allocations. At 2,000 receipts the cut in CPU time stays at 57%. The watch adds
+0.007 GB and 0.059 million allocations to each `Mutate`. In the low-load profile above, the
+watch's setup and close took 34, 112 and 509 ms of CPU time: 5%, 7% and 10% of the after-change
+`Mutate`.
+
+Measured cost with the content check (second review fix). The two blocks above measured the reuse
+of inventory digests that this fix withdrew. The pair was run again against the same base. On
+macOS the one-minute host load average was 34–52, falling to 15 during the last base profile.
+Profile medians of 3, CPU time, base → after:
+
+| Receipts | `Mutate` | Merged audit (after) | Fresh inventory and content check (after) |
+|---|---|---|---|
+| 500 | 1,796 → 1,337 ms | 537 ms | 466 ms |
+| 2,000 | 4,895 → 3,751 ms | 1,562 ms | 1,488 ms |
+| 7,000 | 14,032 → 10,733 ms | 4,528 ms | 4,624 ms |
+
+The benchmark, three alternating rounds, gave a median of 5,494 → 3,151 ms CPU per `Mutate`, a 42.6%
+cut (ranges 4,081–5,644 and 2,857–3,725 ms; paired cuts 30%, 44% and 32%). Allocation fell from
+1.655 to 1.035 GB, and from 9.006 to 5.618 million allocations. The fresh inventory adds 0.167 GB
+and 0.341 million allocations to the digest-reusing version.
+
+A `Mutate` now saves one complete audit, not an audit and an inventory: a 42.6% median cut at this
+load, against 57% with the digests reused. The profile's cut, 23–26%, is likely understated, because
+the base profile ran as load fell.
+
+On Linux, the benchmark ran in an arm64 container (`golang:1.27.1`, 6 virtual CPUs, tmpfs) on the
+same host, at host load 12–25, three alternating rounds. It gave a median of 4,019 → 2,547 ms CPU
+per `Mutate`, a 36.6% cut (ranges 3,855–4,938 and 2,159–3,105 ms; paired cuts 44%, 37% and 37%), and
+2.80 → 1.78 s wall. Allocation fell from 1.621 to 1.000 GB, and from 9.070 to 5.679 million
+allocations. The Linux profile and the earlier designs on Linux were not measured.
+
+Non-goals:
+- any change to the receipt, journal, intent, request, evidence or archive format;
+- writer-retained state that a read mutates;
+- relaxing CAL-V0-061 for reads;
+- lock admission and fairness (issue 494);
+- evidence deduplication;
+- removing the per-read intent-tree passes (V1-0646).
+
+Failure modes of A and B:
+
+| Failure | Handling |
+|---|---|
+| Request found while a deferred refusal is held | Replays as before; the deferred refusal is never raised, because the old flow never audited the selection |
+| Inventory refusal while a deferred refusal is held | No digests are published, so nothing is reused; the inventory refuses first, as before |
+| The inventory names a selection the audit did not retain | `Canonical` declines and a separate `Audit` runs, as before |
+| A file the merged audit read is unlisted, or listed with another digest or size, in the inventory | No reuse: the watch is closed and the inventory and the second `Audit` run again, as before |
+| A write through a shared mapping after the merged audit read the file, before the inventory read it | The watch may not report it; the content check does, and the passes run again (`TestCALV0070_MutateRefusesMappedWriteAfterMergedAudit`) |
+| A write through a shared mapping after the inventory read the file | Neither check sees it; every read already returned the earlier content, so it is handled as an edit after the old second pass |
+| A parent directory is renamed or replaced during an attempt | Reads continue beneath the parent the attempt already retained, as every per-file open did; the attempt's identity checks refuse as before |
+| A platform without the Unix open path | `PinDir` and `InDir` return the same unsupported error as `InRoot` |
+| An edit detected by the watch or the content check, made after the merged audit and before the watch's check | The inventory and the second `Audit` run fresh and refuse as before. A write through a shared mapping after the inventory read the file is detected by neither; the shared-mapping rows above give that residual window |
+| The merged audit refuses while the watch is held | The watch is closed and the audit runs again, as `Lookup` ran, so descriptors the watch holds cannot cause a refusal the separate passes did not raise (`TestCALV0070_MutateRetriesAuditWithoutWatch`) |
+| The inventory or `Canonical` refuses | The watch is closed and the fresh inventory and second `Audit` raise the refusal, as before |
+| An outside edit after the watch's check | Handled as an edit after the old second pass (see the race limit) |
+| The watch cannot be registered, or reports a change made by the merged audit's own reads | No reuse: the separate passes run as before, at their old cost. `TestCALV0070_MutateRefusesChangesAfterMergedAudit` fails if an unchanged store is observed twice |
+| A defect in the merged audit | The equivalence tests below compare every combination; rollback reverts the change |
+
+Acceptance evidence for A and B (delivered):
+1. `TestCALV0070_MergedMutationAuditEquivalence` (`internal/tasks/journal`), on 24 store states:
+   clean, with the request absent and found; a rebound, rewritten or missing receipt; a missing,
+   corrupt, stray, symlinked or FIFO request file; a request file removed or symlinked between
+   capture and read; an edited, missing, stray or symlinked ticket; an edited queue; the selection
+   budget exceeded, alone, with a found request, before a corrupt request and before an edited
+   ticket; and a pending receipt. For each it compares four flows: separate `Lookup` and `Audit`
+   with per-file opens, the same with pinned opens, and the merged audit with each. The error,
+   found entry, ticket, identity and Result must all be equal. Published digests must equal a fresh
+   read, and a subset, superset or unchecked selection, or a found request, is never answered.
+2. `TestCALV0070_PinnedDirOpensMatchInRoot` (`internal/tasks/safeopen`): for a regular file, an
+   absent name, file and dangling symlinks, a FIFO, a directory, dot, dot-dot, empty, absolute and
+   unclean names, `InDir` opens the same file or returns the same error text as `InRoot`, after the
+   directory's path has been renamed and replaced. It never descends.
+3. `TestCALV0070_MutateAuditSequenceEquivalence` (`internal/tasks/store`): on a store built by
+   `Mutate` with 70 receipts, `Mutate`'s old and new sequences give the same refusal in the same
+   phase, the same inventory and the same canonical Result. The states are: clean with the request
+   absent and found, an edited ticket with the request absent and found, a corrupt request file,
+   an edited `reservations.json`, a stray state directory, and a stray state directory with an
+   edited ticket. The new sequence runs `Mutate`'s own `observeMutation` under a change watch. It
+   fails if an unchanged store that it accepts is observed twice, or if a refusal does not come
+   from the fresh passes. Where the store is accepted, every file the merged audit read passes the
+   content check against a fresh inventory.
+4. `TestCALV0070_MutateRefusesChangesAfterMergedAudit` (`internal/tasks/store`) changes the store
+   through the real `Mutate`, at a fixed point after the merged audit or after the inventory and
+   `Canonical`, before the watch's check. The changes are an overwritten request projection (at
+   both points), a request projection replaced by a symlink, an edited ticket (at both points), an
+   edited `reservations.json` and a stray `barrier.json`. Each must be refused with the code the
+   separate passes raise when the same change follows their lookup, after a fresh inventory and
+   audit. Head, receipts and staging must be unchanged, and the request must not be projected. An
+   overwritten projection and an edited ticket made before `Mutate` starts must be refused with the
+   separate passes' code, the ticket by the fresh passes. An unchanged store must commit without a
+   fresh pass. With the check's result ignored, the overwritten and symlinked projections
+   committed, the edited tickets were refused `SNAPSHOT_MOVED`, and the `reservations.json` and
+   `barrier.json` edits failed validation. Returning a refusal from the reuse instead of the fresh
+   passes failed the stage checks.
+5. `internal/tasks/store/mutation_audit_unix_test.go`, run on macOS and in a Linux arm64 container
+   (`golang:1.27.1`, tmpfs). `TestCALV0070_MutateRefusesMappedWriteAfterMergedAudit` maps a request
+   projection and a ticket shared and writable before `Mutate` starts, first showing that the
+   watch does not report a write through the mapping that reads do see. It then changes one byte
+   through the mapping, without `msync`, after the merged audit. `Mutate` must refuse with the
+   separate passes' code (`JOURNAL_FORKED`, `INTENT_DIVERGED`) through the fresh passes, publish
+   nothing and project nothing. With the content check forced to pass, the projection case
+   committed on both platforms. `TestCALV0070_MutateRetriesAuditWithoutWatch` runs `Mutate` in a
+   child process whose descriptor limit leaves the merged audit, once the watch is registered, its
+   clean need (137 at 70 receipts, found by search) less the watch's descriptors, or none if the
+   watch holds more: none on macOS, where it holds 276, and 136 on Linux, where it holds 1. Closing
+   the watch alone gives the audit enough. The audit must fail for want of descriptors, the retry
+   must find exactly the watch's descriptors released, and `Mutate` must complete through the fresh
+   passes. On a corrupt request projection, whose need varies with read order, the audit gets no
+   free descriptor while the watch is held and the retry must refuse with the separate passes'
+   `JOURNAL_FORKED`. No descriptor may stay open. With the retry removed, both cases failed on both
+   platforms.
+6. The existing `internal/tasks/journal`, `internal/tasks/safeopen` and `internal/tasks/store`
+   tests, unchanged.
+7. The after measurements above.
+
+Rollback of A and B: revert the change. Nothing is retained, so no store needs repair.
+
+#### Proposed writer checkpoint (superseded 2026-10-06 by CAL-V0-115..119)
+
+Superseded: the "V1-0645 writer checkpoint" section defines the design that was built; this text is
+kept as history and governs nothing. This design is (C). It carries no requirement ID and governs nothing until the owner accepts it,
+which waits on the A and B numbers above. It would let a journal writer (`store.Mutate` and lease
+preparation) make at most one pass over receipt history, and only when its writer checkpoint cannot
+be used, and otherwise not read, hash, open or individually watch the files that history alone
+retains.
+
+1. Writer checkpoint. The file is `<state directory>.writer-checkpoint.json`, with profile
+   `taskman-writer-checkpoint/0`. It sits beside the journal state directory, never inside it,
+   and is separate from the S12 read checkpoint so that older runtimes neither read nor replace
+   it. Its codec is closed and bounded by the CAL-V0-059 limits. It records:
+   - everything CAL-V0-059 records;
+   - the request index: every `requests/` path with the sequence and digest of its afterimage,
+     path-ordered;
+   - the name sets of `receipts/`, `requests/` and `evidence/`, together with the exact count,
+     byte and archive-manifest-encoding contribution of those write-once files, so that capacity
+     is measured without opening them.
+
+   It MUST be derived only from a complete, settled, consistent `FULL` audit, retained by the
+   writer under CAL-V0-060's conditions, and never derived from a resumed observation. A request
+   index that would exceed the codec bound is not retained; writers then keep the complete audit.
+2. Rebinding. Under the writer lock and after pending-receipt redo, a writer that resumes MUST
+   confirm:
+   - the queue ID, primary worktree, init digest, generation and version digest;
+   - that the head is at or beyond the checkpoint sequence by at most `K` receipts;
+   - that the named receipt still hashes to its recorded digest;
+   - that a names-only listing of each write-once directory equals the checkpoint's names plus
+     the tail's posts.
+
+   It MUST then:
+   - replay every tail receipt with the unchanged per-receipt validators, including the duplicate
+     request check against the request index;
+   - verify every live projection, staging emptiness, the barrier, reservations and the intent
+     tree exactly as the complete audit does;
+   - verify the target request: for a replay it is present with its indexed digest, and for a
+     new request it is absent from both the index and the listing.
+
+   Lease preparation resumes the same way. Its change guard watches the live files and the
+   write-once directories rather than every retained file.
+3. Equivalence. Wherever the resumed path completes, the outcome, receipt bytes, replay result and
+   capacity cost MUST equal those of the complete-audit path. Any decode error, mismatch, refusal
+   or oversized tail MUST fall back to the complete audit, whose verdict governs. An unusable
+   checkpoint never yields a refusal, a receipt or a capacity verdict that the complete audit
+   would not. Every barrier removal, reconciliation and `receipt audit` keeps the complete audit,
+   and so does every mutation once `K` receipts have landed since the last complete audit.
+
+Detection limit (the owner trade-off). A resumed writer does not re-read history before the
+checkpoint sequence. An altered prefix receipt, an altered `requests/` or `evidence/` file that the
+tail does not post, or a checkpoint altered together with its projection is therefore detected only
+by the next complete audit, at most `K` receipts later, or by `receipt audit`. Up to `K` receipts may
+land on such a prefix before the store refuses, as it refuses today. `K` is owner-set; this
+proposal suggests 256, which at the measured 0.5–0.7 ms per replayed receipt bounds a resumed tail
+at roughly 0.2 s (an inference). Name-level strays, gaps and
+deletions in the write-once directories, and duplicate request IDs, are still refused or fall back
+on every mutation.
+
+Interaction with product invariant 7. The writer checkpoint is derived state: a write-once encoding
+that is replaced by rename and that nothing ever updates in place. It is not a database, has no query
+engine, needs no daemon, and is never an input to authority, ranking or archive content. Deleting it
+costs one complete audit. Because it is an immutable derived index encoding, it still needs the
+benchmark and format gate before acceptance:
+- this benchmark, before and after on the same host;
+- decode-limit and malformed-input tests for the closed codec;
+- an exact capacity-parity test against the full inventory;
+- a build-log format entry.
+
+Checkpoint failure modes:
+
+| Failure | Handling |
+|---|---|
+| Crash during retention (torn temporary file) | The rename leaves the old or the new file; a decode error falls back to the complete audit |
+| Stale checkpoint | The tail is replayed; a tail longer than `K` forces the complete audit |
+| Checkpoint from another queue, generation or forked history | Rebinding fails, and the complete audit governs |
+| Older runtime writes receipts without maintaining the checkpoint | The tail grows until `K` forces a complete audit |
+| Write-once name added, removed or missing | The listing disagrees, so the complete audit governs |
+| Prefix bytes tampered | Detected at most `K` receipts later, as under the detection limit above |
+| Capacity aggregate wrong (defect) | The parity tests and every complete audit recompute it; the complete audit governs |
+
+The S12 read checkpoint is then refreshed only on complete audits, so a read replays at most `K`
+receipts.
+
+Checkpoint acceptance evidence, if accepted:
+1. `BenchmarkCALV0070_MutateAt2000Receipts` before and after, on the same host and fixture with
+   `-benchtime 5x`, recording load.
+2. `TestCALV0070_WriterHistoryProfile` at 500, 2,000 and 7,000 receipts, where the resumed
+   `Mutate` cost at 7,000 is within an owner-set factor of its cost at 500.
+3. A differential test, for every mutation kind, showing that the resumed and complete paths
+   produce identical outcomes, receipt bytes and capacity cost.
+4. Refusal or fallback for each of these counterexamples:
+   - a duplicate request ID against the prefix, with its projection deleted;
+   - an altered receipt at the checkpoint sequence;
+   - a stray, missing or gapped receipt;
+   - a foreign or torn checkpoint;
+   - a tail longer than `K`;
+   - capacity at each hard limit.
+5. Crash injection before and after the retention rename.
+6. `receipt audit` returning `FULL` with CONSISTENT/AGREES after a concurrent wave.
+7. The opt-in issue 545 wave at 7,140 receipts, with its outcome counts and worst latency retained.
+
+Rollback: delete `<state directory>.writer-checkpoint.json` to force the complete audit until the
+next complete audit retains a new one, or revert the writer option. No retained format changes.
+
+Implementation plan, in order:
+- (A) Merge the lookup and complete audits and reuse the observed digests in the inventory.
+  Delivered for `store.Mutate` (CAL-V0-070 items 1 and 2). The digest reuse was withdrawn in the
+  second review fix: the inventory is read fresh and checked against the audit's digests, so A
+  saves the second audit only. Lease commands already made one pass, so A does not help them.
+- (B) Open each parent directory once per audit attempt instead of three opens per file, keeping
+  the no-follow and identity checks. Delivered for journal audit reads (CAL-V0-070 item 3); the
+  inventory's fresh reads are unchanged.
+- (C) The writer checkpoint and rebinding above, as its own reviewed slice: proposed 2026-10-06
+  as CAL-V0-115..119 and accepted by decision 0439.
+
+### S21 — Multi-repository supervised programs (issue 354)
+
+Authoritative input: owner request [issue 354](https://github.com/beamfall/corvint/issues/354) and
+the owner scope decision of 2026-10-04 recorded in S13; native ticket V1-0475. This slice lets one
+`taskman-codex-supervisor/0` program carry candidate changes in up to eight additional,
+operator-declared Git checkouts beside the queue repository, and binds them into one reviewable
+candidate (CAL-V0-071..072). CAL-V0-087 evaluates required gates over that composite candidate and
+integrates each changed repository only into its own operator-designated checkout, exactly once
+across interruption and restart; a changed repository without a designation still fails closed.
+CAL-V0-088 gives every stage a Core context packet for each repository. CAL-V0-089 lets any
+supervised program, with one repository or several, continue a stage that its own stage wall stopped,
+resuming the same host session in the same preserved worktree a policy-bounded number of times.
+
+- `CAL-V0-071`: The optional policy `supervision` object MAY carry `repositories`, a closed object of
+  1..8 entries keyed by a name (a lowercase ASCII letter followed by lowercase letters, digits or
+  `-`, at most 32 bytes), each a closed object `{pathSha256}` pinning the SHA-256 of one absolute
+  checkout path. The supervisor config MAY carry `repositories`, a name-sorted, duplicate-free array
+  of `{name, checkout}`. A new program MUST be refused, before its runtime read, program record,
+  worktree, effect or host process, when any entry is not declared by the policy, its checkout is not
+  an absolute, lexically clean path, or its path digest differs from the pin; an existing program is re-checked
+  at every stage launch as in CAL-V0-062. At admission the supervisor MUST record, for each entry,
+  the checkout, its Git common-directory identity and its `HEAD` commit as the repository base, with
+  no candidate. Each repository's worktree is the detached sibling `<primary worktree>@<name>` at
+  that base for `implement` and at its recorded candidate for later stages. Only the `implement`
+  Codex invocation receives those sibling worktrees as `sandbox_workspace_write.writable_roots`;
+  review and integrate invocations receive none. A later program transaction MUST refuse a changed
+  repository name, checkout or identity (`immutable repository binding differs`); a base changes
+  only on reassignment, which also clears the candidate. Changed paths in repository `name` are
+  scope-checked as `@name/<path>` against the ticket's touch paths, so an undeclared repository path
+  blocks the program `OUT_OF_SCOPE` exactly like a primary path. Absent `repositories`, policy,
+  config and `programs.json` bytes are unchanged.
+- `CAL-V0-072`: After `implement`, each repository with changes MUST receive a candidate commit
+  under its own `refs/corvint/tasks/` namespace, parented on its base, without moving that
+  checkout's `HEAD` or index. The program candidate MUST then be the composite tree whose `.queue`
+  entry is the primary candidate tree and whose `<name>` entries are `160000` gitlinks to each
+  repository candidate (or base when unchanged); a primary changed path beginning with `@` returns
+  the question `ambiguous multi-repository path` instead of a tree. Review MUST recompute the
+  composite from the recorded candidates and refuse any mismatch, so `READY_FOR_INTEGRATION` binds
+  every repository's exact commit. CAL-V0-087 governs gates over, and integration of, that
+  composite candidate.
+- `CAL-V0-087`: A config `repositories` entry MAY carry `integrationBranch`, a label naming the
+  branch of that checkout that receives the repository's candidate. When the config also sets
+  `ownIntegrationCheckout`, admission MUST record each such entry's `integrationBranch` and the
+  checkout's directory identity as `integrationIdentity` in its `programs.json` repository record
+  (both or neither), as part of the immutable repository binding; without `ownIntegrationCheckout`
+  no designation is recorded. Then:
+  1. Each required gate of a multi-repository attempt MUST run in the primary stage worktree with
+     every sibling `<worktree>@<name>` present, and MUST observe the composite of the worktree's
+     `HEAD` tree and each sibling's `HEAD` commit, clean only when every worktree is clean. A
+     sibling that is absent or not of its recorded repository refuses `STALE_TREE`; an
+     uncommitted or untracked change in any of them refuses `DIRTY_WORKTREE`; the gate result's
+     candidate and executed tree are composites. A direct `gate run` on such an attempt observes
+     the same composite.
+  2. With repositories, the INTEGRATE grant scope MUST be `taskman-integration:` followed by the
+     SHA-256 of the base commit, candidate tree and queue intent branch joined by NUL, followed,
+     for each repository in name order, by NUL, its name, NUL and its `integrationBranch` (empty
+     when undesignated). A grant whose scope is the single-repository formula, or names other
+     branches, is refused `APPROVAL_MISSING`.
+  3. Before a grant is recorded, the integrator MUST refuse `UNSUPPORTED` (`repository <name>
+     changed but has no integration designation`) when any repository's candidate differs from
+     its base and the record carries no designation; and for each designated changed repository
+     MUST refuse unless its checkout is the recorded directory of the recorded repository, on
+     `refs/heads/<integrationBranch>`, clean and at its base (`designated checkout branch differs`,
+     `TARGET_ADVANCED: repository <name> advanced`). A repository whose candidate equals its base
+     needs no designation and is never moved.
+  4. After `INTEGRATE_INTENT` and under the store lock, the supervisor MUST re-check every target,
+     then fast-forward each changed repository's designated checkout to its candidate in name
+     order, with hooks disabled, before fast-forwarding the queue checkout. A checkout already at
+     its candidate is not landed again.
+  5. A restarted integrator with a pending integration effect MUST resume: with the queue checkout
+     at its base it repeats item 4, skipping landed repositories; with the queue checkout at the
+     candidate it MUST find every changed repository's candidate on its integration branch, or
+     stop `BLOCKED_RECOVERY`, before recording `INTEGRATED` and native completion once.
+  6. Native completion MUST compare the composite of the integrated commit and each repository
+     candidate with the candidate tree, and MUST find each changed repository's candidate on its
+     designated integration branch.
+  7. Worktree cleanup after proved completion MUST remove each repository's sibling stage
+     worktrees from that repository's own worktree registry.
+- `CAL-V0-088`: Every stage of a multi-repository program MUST obtain, besides the primary packet,
+  one Core context packet per repository, queried in that repository's sibling worktree at its
+  `HEAD` and held to the same READY, fresh and revision checks; any failure refuses the stage
+  `repository <name>: CONTEXT_UNAVAILABLE` before the host is launched. The packets reach the host
+  prompt as `repositoryContext`, keyed by repository name, beside `repositories`.
+- `CAL-V0-089`: The optional policy `supervision` object MAY carry `continuations`, a canonical
+  decimal count from 1 to 16; absent means none, and 0, a count above 16 or a noncanonical value is
+  refused. With `continuations` present:
+  1. A new program, before its runtime read, program record, worktree, effect or host process, and
+     every later stage launch, MUST refuse `UNSUPPORTED` when the configured host does not report
+     the session of a turn stopped before its final result (Claude Code, whose session appears
+     only in that result), or when the lane or the program declares a nonzero input or output
+     token cap, because no supported host reports the token usage of an interrupted turn and
+     DISPATCH would refuse every continuation as `lane token usage unknown`.
+  2. A stage is continuable only when its supervised run was stopped by that stage's own wall while
+     the caller's context was live: not by the program wall, a program control, a lost heartbeat,
+     a failed watch read or the caller. It must then have stopped cleanly into `WAITING` on the same
+     stage, unanswered, with a recorded host session, its preserved worktree, no live worker and
+     proved quiescence. An `implement` stage stopped at its wall still commits its partial work
+     as a per-turn candidate ref before it waits.
+  3. In the same role invocation, the supervisor MUST then answer the recorded question with
+     `checkpointed continuation <n> of <N>` and launch the stage again, resuming the recorded
+     session in the same worktree (Codex `exec resume`; OpenCode `--session` with `--fork`,
+     CAL-V0-077), at most N times. Each continuation is an ordinary ANSWER and DISPATCH, so ticket
+     and policy revision fencing, the lane turn cap and the shared program turn and wall caps still
+     apply. The supervisor MUST NOT start one when the lane turn cap, the program group's turn cap
+     or its wall leaves no room, or when a program control is pending; the attempt then stays
+     `WAITING` with the question unanswered, the program `FINISHED` with its owner released, and the
+     role returns the stage's deadline error. A continuation's admission, its first program write,
+     MUST refuse `FENCED` when the program revision it replaces carries a control, so a drain or
+     cancel recorded after that check starts no host turn: the program stays `FINISHED` with its
+     owner released and the control recorded, and the attempt stays `WAITING` with the continuation
+     answer recorded until an operator resumes the program. A control recorded after admission stops
+     the running turn through the stage watcher, as for any stage.
+  4. An integrate-stage continuation MUST reuse the grant recorded before the wait, not record
+     another, and the queue checkout MUST NOT move until `INTEGRATE_INTENT`, so integration
+     happens once after the last continuation.
+  5. No unanswered checkpoint is continued automatically by `run`. An explicit operator `retry`
+     answers it and resumes the same session and worktree, refused by the same caps. An answered
+     integrate-stage wait resumes under its recorded grant; a different nonempty grant is refused
+     `APPROVAL_MISSING`.
+
+  Absent `continuations`, policy and program bytes and every stage's behavior are unchanged.
+
+Non-goals: pushing any checkout; atomicity against Git writers outside the store lock (see the
+partial-landing failure mode below); integration of a changed repository that has no designation;
+a repository whose Core index is unavailable (the stage refuses rather than degrading to
+primary-only context); submodule semantics in the operator's checkouts (the gitlinks exist only in the
+composite object); Claude Code and OpenCode supervisor hosts (V1-0755, V1-0756); continuation on a
+host that does not report an interrupted session (Claude Code would need its session fixed at
+launch or a streamed session event), continuation under a token cap, a single turn longer than
+the stage wall, automatic continuation after the owning process exits, and the writer checkpoint
+(V1-0645). Failure modes: a checkout moved
+to another path no longer matches its pin and is refused; a sibling worktree whose common
+identity, commit or cleanliness differs from the record refuses the stage rather than overwriting
+work; uncommitted edits in the operator's checkout are neither read nor carried, because the
+sibling starts from the recorded commit; an extra repository edit outside the
+declared `@name/` touch paths blocks the program; a checkout re-cloned or retargeted after
+admission keeps its path pin but is refused by its recorded common identity before Git registers a
+worktree in it; two queues sharing one extra checkout and one program ID collide on its
+`refs/corvint/tasks/` candidate ref, and the second ref write fails closed; the composite tree object
+is referenced by no ref and may be pruned by `git gc`, which is harmless because review, gates and
+completion recompute it from the recorded per-repository candidates; a designated checkout that
+another writer advances after an earlier repository landed stops integration `TARGET_ADVANCED` with
+that earlier landing kept and never repeated, and the attempt stays `READY_FOR_INTEGRATION` with its
+pending effect until the operator returns the advanced checkout to its base or candidate (CAL-V0-087);
+a continuation resumes the host's own record of the session, so a host that discarded or corrupted
+that session fails the resumed turn and leaves the preserved worktree and its per-turn refs for the
+operator; an owner process killed during a continuation leaves the attempt to the existing stale
+owner recovery, never a second concurrent continuation; the stage watcher polls once a second, so a
+control recorded just after a continuation's admission lets the resumed host run until the next
+poll before it is drained, as for any stage (CAL-V0-089).
+Downgrade is one-way: a binary without this slice
+refuses a `programs.json` that records repositories (`unknown field`), and because a full journal
+walk revalidates every retained post, it also refuses the retained history once any
+multi-repository program record is journaled, even after those programs are drained or cancelled,
+unless its reader resumes from a checkpoint after that record; the same holds for a record that
+carries `integrationBranch` against a binary without CAL-V0-087. Rollback removes `repositories` from the policy, which refuses every later stage of a
+multi-repository program while leaving single-repository programs and their bytes unchanged; the
+candidate refs and sibling worktrees are ordinary Git state the operator may remove; dropping
+`integrationBranch` from a config makes a later program's changed repositories refuse integration
+again; removing `continuations` returns every wall stop to the operator `retry` path, and a binary
+without CAL-V0-089 refuses a policy that carries it (`unknown field`). Regression witnesses are the
+CAL-V0-071, CAL-V0-072, CAL-V0-087, CAL-V0-088 and CAL-V0-089 rows in the traceability table,
+including the fake-host end-to-end `TestCALV0071_MultiRepositoryProgramFakeHost`,
+`TestCALV0087_DesignatedMultiRepositoryIntegration` and
+`TestCALV0089_CodexContinuationResumesPreservedSession`. Live Codex and OpenCode qualification is
+`NOT_RUN`; see
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-04-tasks-multirepo-programs.md` and
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-05-tasks-multirepo-continuation.md`.
+
+Decided 2026-10-05 (ticket V1-0475, issue 354): the owner accepted S21 (CAL-V0-071..072 and
+087..089) and CAL-V0-086 with live host qualification `NOT_RUN`. Under the owner's delegation the
+orchestrator kept every fail-closed implementation choice: the 4096-byte `worktreePath` PathText
+with its one-way downgrade, the 30-second watcher read tolerance and drain `EPERM` re-probe, Core
+context required for every repository, `integrationBranch` validated only as a label, an earlier
+repository staying landed when a later one refuses `TARGET_ADVANCED`, a continuation ceiling of 16,
+continuation refused under token caps and for Claude Code, and `continuable` failing closed on a
+transient read error. The CAL-V0-086..089 allocation stands. Live Codex, Claude Code and OpenCode
+qualification, live multi-repository integration, Linux and `make gate` are `NOT_RUN` and tracked
+with the remaining questions by follow-up V1-0824; writer checkpoint part C is accepted as CAL-V0-115..119 (V1-0645; decision 0439).
+
+### S22 — Claude Code supervised host (V1-0755, split from issue 354)
+
+Authoritative input: owner request [issue 354](https://github.com/beamfall/corvint/issues/354), which asks for host adapters
+beyond Codex and names a Claude Code adapter as the next one; the owner scope decision of
+2026-10-04 recorded in S13, which moved the Claude Code and OpenCode supervisor hosts to native
+tickets V1-0755 and V1-0756; and V1-0755's acceptance criteria. This slice lets an owner-enabled
+`taskman-codex-supervisor/0` program drive a pinned Claude Code executable in place of Codex. It
+uses the same S10 lifecycle, S13 effort and stage wall, and S21 repository bounds. The profile and
+runtime ID keep their names: they identify the supervisor protocol and the single policy runtime
+slot, not the vendor of the pinned binary. The host seam added here is a vocabulary, meaning an
+argv builder, a result decoder, a session reader and a usage reader, selected by one host name. A
+later host such as OpenCode (V1-0756) adds one entry; it does not change the lifecycle.
+
+- `CAL-V0-074`: The optional policy `supervision` object MAY carry `host`, whose admitted
+  values are `claude-code` and, per CAL-V0-076, `opencode`; absent means Codex. The supervisor
+  config MAY carry `host` with the same values and meaning. A program MUST be refused with `UNSUPPORTED` before its runtime read,
+  program record, claim, lease, worktree, effect or host process when either of these holds:
+  - the config `host` is another value;
+  - the config `host` differs from the policy host.
+
+  This check runs for a new program and again at every later stage launch, as in CAL-V0-062. An
+  existing program also repeats it on every reopen whose current attempt is absent, terminal or
+  unsupervised, before it reassigns, claims or attaches work. A live supervised attempt keeps only
+  drain and cancel after a host change. The config digest binds `host`, so a recorded program
+  cannot change hosts. `run`, `admit`, `resume`,
+  `retry`, `answer`, `drain` and `cancel` MAY pass `--host codex` or `--host claude-code`. When
+  given, the value MUST equal the config host, or the command is refused `UNSUPPORTED` before any
+  store mutation.
+
+  The pinned-executable check is host-neutral, and admission applies the launch-time check itself.
+  A program MUST be refused with `CAPABILITY_UNAVAILABLE` before any program record, claim or
+  lease in any of these cases:
+  - its executable path is not absolute, is missing or unreadable, or is not a regular file;
+  - the path is a symlink;
+  - the file has no execute bit;
+  - it does not match an enabled policy `runtimes` entry for the profile on path digest, content
+    digest and mode;
+  - its digest differs from the config `executableSha256`.
+
+  A symlink is refused rather than resolved, and the refusal names its target to pin instead. The
+  evidence: on the owner's host, `/opt/homebrew/bin/claude` and `/opt/homebrew/bin/codex` are
+  package-manager symlinks to regular executables that a package update retargets, so a pinned path
+  could change meaning without its pin changing. The lane leader's capsule validation already
+  refused symlinks and non-regular files. The check opens the path once without following a final
+  symlink, and takes the file type, mode and bytes from that one descriptor.
+
+  The lane leader MUST execute the object it verified, not a second lookup of the path. A runtime
+  whose canonical path and every ancestor directory are owned by root, writable by neither group
+  nor other, and carry no access control list runs by its path, because substituting it needs root.
+  An ACL entry can grant write access that the mode does not show, so any ACL, or a failure to read
+  one, sends the runtime to the copy path. Any other runtime runs from a
+  private copy of the verified bytes, which the leader writes before boot into the private effect
+  directory and removes when the host exits. Replacing or rewriting the pinned path while the
+  supervisor acknowledges the boot therefore cannot change what runs. Two limits follow:
+  - A runtime that loads files relative to its own path runs without them from the copy, so pin a
+    self-contained binary. On the owner's host this means the Claude Code `claude.exe` binary, and
+    not a script wrapper such as Codex's `codex.js`.
+  - macOS launch constraints kill a copied platform binary such as `/bin/sh`. Those binaries are
+    root-protected, so they run by path.
+
+  Each stage launch of an unprotected runtime writes one copy of up to 256 MiB beside the stage
+  worktree. If the leader is killed while the host runs, the copy stays in the retained effect
+  directory.
+
+  If launch is refused after admission, for example because the file changed in between, only a
+  refusal made before the lane leader is forked counts. The dispatched stage then settles as
+  `NO_EXEC` with quiescence proved and the program is recorded `FINISHED` while its owner still
+  holds it. The attempt is then cancelled, which releases its claim and reservation, and only then
+  is the owner released. While the owner is live and unreleased no other owner can take the
+  program, so none can fence the cancel. The stage returns `CAPABILITY_UNAVAILABLE`.
+  The stop, the `FINISHED` record, the cancel and the owner release are separate journal writes,
+  because the attempt and program records have no combined transition. If the owner dies after
+  the `FINISHED` record, a replacement process may take the program over once the owner is gone.
+  Before the cancel the attempt stays `WAITING`, stopped and quiescent, with its claim and
+  reservation, and a replacement that reopens the program with its original config and pin and
+  cancels it releases them. After the cancel the claim is already released and a reopen reassigns
+  the program.
+  Known limit: an owner that dies before the `FINISHED` record leaves the program `SPAWNING`, if it
+  dies before the settlement starts, or `STOPPING` after that. Neither is a safe takeover phase, and
+  recovery evidence covers only an attempt that still has a worker and a retained leader boot
+  record, which a refused launch never writes. A replacement is therefore refused, and the attempt
+  keeps its claim and reservation. Closing this
+  window needs a combined attempt and program transition, or a takeover rule that admits a bound,
+  stopped and quiescent attempt; both change the transaction contract. The proposed amendment
+  CAL-V0-210 (V1-0795) takes the takeover rule for an attempt that recorded a proved stop; a
+  dispatched worker with no proved stop stays refused. A failure after the
+  fork never settles as `NO_EXEC`, even when it carries no outcome class: it keeps the drain result,
+  and an unproved drain leaves the attempt in `BLOCKED_RECOVERY`. This also names the existing Codex
+  refusal, which was previously the unnamed `MALFORMED`. The Core
+  CLI requirement, `requireEnforcedFields`, roles, worker limits and budgets are unchanged. When
+  `host` is absent, the policy, config, capsule, argv and `programs.json` bytes are unchanged.
+  (accepted, decision 0493; V1-1063) A replacement owner that recovers a dead owner's `STOPPING`
+  program through the recovery evidence (a retained leader boot record and a proved host stop)
+  MUST record the move to `FINISHED` with its usage unobserved when the result class is not
+  `NO_EXEC`, because the stage's host output was lost with the owner. Token counters and turns are
+  unchanged, as CAL-V0-210 records for a stop the attempt proved.
+- `CAL-V0-075`: A `claude-code` stage MUST invoke the pinned executable with the prompt on
+  standard input. Its argv is:
+  1. `-p --output-format json --model M --effort E --setting-sources project --strict-mcp-config --permission-prompts none`, where E is the stage's configured
+     effort (CAL-V0-062).
+  2. The permission flags: `--permission-mode acceptEdits` for `implement`; for `review` and
+     `integrate`, `--permission-mode dontAsk --disallowedTools Edit,Write,NotebookEdit`.
+  3. `--resume S` only when the stage continues the answered WAIT session S. For either host, a
+     later stage of the same attempt starts a fresh session, so review never resumes the
+     author's session.
+  4. When any exist, `--add-dir` followed by the sorted S21 sibling worktrees. This applies in
+     every stage, because Claude Code confines its file tools to its working directories.
+
+  The capsule MUST record `host`, so that the lane leader and the supervisor apply one result
+  vocabulary. On a zero exit, standard output MUST be exactly one JSON object, optionally followed
+  by whitespace, with all of the following:
+  - `type` `result`, `subtype` `success` and `is_error` false;
+  - a nonempty `session_id` of at most 128 bytes;
+  - a nonempty string `result` that strictly decodes to the S10 minimum handoff object: kind
+    `HANDOFF`, `BUILT`, `REVIEW` or `WAIT`, with a nonempty summary and nextAction.
+
+  No object in the result, its `usage` or the decoded handoff may repeat a member name. Neither the
+  result object nor the handoff may carry a member that differs from one the profile reads only by
+  case folding, such as `IS_ERROR`, `Usage` or `Kind`, because Go's decoder would match it to the
+  same field. Escaped spellings count as the names they decode to. Without these rules a later
+  `is_error` false could override an earlier true, and two partial `usage` objects could merge into
+  one that looks complete. Any other output is `INVALID_RESULT`. The result, session and usage
+  readers share these rules, so a repeated or aliased member in the object or in a JSON handoff
+  leaves all three unobserved. A prose `result`, such as an error report, is not a handoff and
+  keeps its session and usage observable. Token usage is `OBSERVED` only when the object's `usage`
+  carries integer `input_tokens` and `output_tokens`. Input then adds any present integer
+  `cache_creation_input_tokens` and `cache_read_input_tokens`, so it counts all input as Codex's
+  counter does. A missing or non-integer counter, or an overflow, makes the turn `NOT_OBSERVED`.
+  Program and attempt usage are re-derived from the retained output in the vocabulary of the
+  policy's host, so no counter is invented. Lifecycle, process-group ownership, the 16 KiB output
+  caps, WAIT and resume, review independence, gates and integration binding are those of S10, S13
+  and S21, unchanged.
+
+  The default Codex host's result, session and usage readers apply the same rules to every event line.
+  No line may repeat a member at any depth. No line may alias by case a member the readers take:
+  `type`, `thread_id`, `item` (with its `type` and `text`) or `usage`. A JSON final
+  `agent_message` text must also repeat no member and alias no handoff member. Otherwise the
+  stream is `INVALID_RESULT`. The result, session and usage readers share this one verdict, so the
+  session and usage are also unobserved, and the supervisor journals no session for the turn. A
+  prose final text is not a handoff and keeps them observable. A null `input_tokens` or
+  `output_tokens` also leaves Codex usage `NOT_OBSERVED`, never zero. The threat is a turn that shapes its
+  own stream, for example with a repeated `type` hiding an `error` event or a repeated `kind`
+  replacing a WAIT. The dispatcher's Codex reader already applied these rules, and this keeps the
+  supervisor's reader in parity with it.
+
+Non-goals:
+- Mixed hosts within one policy or program. The transaction layer has one supervised runtime slot,
+  and per-host runtime IDs, roles and worker caps need a multi-runtime inventory.
+- The OpenCode host (V1-0756), delivered in S23.
+- Claude Code `stream-json` output.
+- Efforts beyond the S13 set.
+- Blocking Claude Code subagents beyond the prompt instruction.
+- Containing Bash in any stage. Project permission rules govern Bash, and read-only stages stay
+  subject to the existing check, made after the host exits, that the tree is unchanged.
+- Host authentication.
+- The unused `RunProgram` qualification helper, which refuses a non-Codex host.
+
+Failure modes:
+- Config and policy hosts differ, or the config names an unknown host: refused `UNSUPPORTED` before
+  any mutation. This includes reopening an existing idle or completed program after the policy host
+  changed.
+- The pinned path is a symlink or lacks an execute bit: admission refuses
+  `CAPABILITY_UNAVAILABLE` before any record. A launch refusal after admission and before the lane
+  leader is forked settles the stage `NO_EXEC` and cancels the attempt, instead of leaving it
+  `SPAWNING` or holding its claim.
+- The pinned path is replaced or rewritten after the leader's check and before the acknowledgment:
+  the leader runs the verified bytes, from a private copy unless the runtime is root-protected.
+- The leader fails after it is forked, for example a boot identity mismatch or a refused `RUNNING`
+  journal write, and its drain is not proved: the attempt stays in `BLOCKED_RECOVERY`, never `NO_EXEC`.
+- The result object repeats a member, such as `is_error` or `usage`, or aliases one by case, such as
+  `IS_ERROR`: `INVALID_RESULT`, with session and usage `NOT_OBSERVED`. The same holds for the
+  handoff.
+- The Claude Code binary is upgraded or replaced: its digest differs, so admission refuses
+  `CAPABILITY_UNAVAILABLE` and an existing program refuses its next stage. Re-pinning is an owner
+  policy change.
+- Result text is wrapped in prose or a Markdown fence, or the object reports `is_error` or a
+  non-success subtype such as a turn or budget limit: the stage is `INVALID_RESULT` on a zero exit,
+  or `EXIT_NONZERO` otherwise. The retained output and S10's invalid-result path apply.
+- The result object exceeds 16 KiB, for example because of a long `permission_denials` list: the
+  stage is `OUTPUT_LIMIT`.
+- The owner changes the policy host while a stage runs: the stage's finish transition is refused,
+  because usage no longer derives from the retained output in the policy host's vocabulary. The
+  program is left to S10 recovery until the policy host is restored, and the config host check
+  refuses every later stage.
+- Claude Code's `usage` totals differ from billed usage: this is unverified until live
+  qualification.
+- Downgrade: a binary without this slice refuses a policy that carries `supervision.host` (closed
+  keys), a config that carries `host` (unknown field) and a capsule that carries `host`. Its full
+  journal walk also refuses retained history that includes such a policy, unless its reader resumes
+  from a checkpoint after that record.
+
+Rollback: the config digest binds `host`, so an existing program can be reopened only with its
+original config, and a config with `host` removed is refused with `program config differs`.
+Rollback therefore takes three steps:
+1. While the `claude-code` policy and its runtime pin are still in force, cancel every
+   `claude-code` program using its original config, for example
+   `corvint-tasks cancel --program P --config ORIGINAL`. A program drained first MUST still be
+   cancelled: a drain leaves a live `WAITING` attempt that holds its claim and reservation.
+2. Only then remove `host` from the policy, and re-pin the Codex runtime if it differs.
+3. Start new programs from configs without `host`.
+
+Codex policy and config bytes are unchanged by this slice. Once the Codex runtime pin replaces the
+Claude Code one, every original `claude-code` config is refused `CAPABILITY_UNAVAILABLE` on reopen.
+A program missed in step 1 therefore keeps its claim and cannot be cancelled through its own
+workflow. To recover it, re-pin its Claude Code runtime with `host` still absent, reopen it with its
+original config, cancel it, and restore the Codex pin. Its live supervised attempt then keeps drain
+and cancel access but never launches another stage. An idle or completed program is refused on
+reopen and holds no claim. Regression witnesses are the CAL-V0-074 and CAL-V0-075 rows in the traceability
+table, including the fake-host end-to-end `TestCALV0075_ClaudeCodeProgramFakeHost`. Live Claude
+Code qualification on a disposable program is `NOT_RUN`; see
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-04-tasks-claude-code-supervisor-host.md`.
+
+### S23 — OpenCode supervised host (V1-0756, split from issue 354)
+
+Authoritative input: owner request [issue 354](https://github.com/beamfall/corvint/issues/354), which asks for host adapters
+beyond Codex; the owner scope decision of 2026-10-04 recorded in S13, which moved the OpenCode
+supervisor host to native ticket V1-0756; and V1-0756's acceptance criteria. This slice adds
+OpenCode as one more entry on the S22 host seam. Lifecycle, process-group ownership, the 16 KiB
+output caps, WAIT and resume, review independence, gates and integration binding stay those of S10,
+S13 and S22.
+
+OpenCode differs from Codex and Claude Code in two ways that matter here. Its extensions are
+in-process plugins loaded by its session server, not hooks run as separate commands (AHI-044), and
+`opencode run` attaches by default to a persistent shared background service. A supervised stage
+therefore defines its own process and lifecycle boundary. The foreground process that the lane
+leader owns and reaps is `opencode run --standalone`. That process starts its private session
+server as its own child, from the same executable, over standard I/O (`serve --stdio`), with
+`SIGTERM` and a forced kill after 3 seconds when the run ends. The plugins load in that server.
+OpenCode's process spawner defaults to `detached`, and neither the server spawn nor its tool
+(`bash`) spawns override it, so the server and every tool process start in a process group and
+session of their own, outside the supervisor-owned group. No flag or environment entry keeps them
+in. OpenCode is therefore a detached host: the supervisor discovers, drains and proves gone those
+escaped groups itself (CAL-V0-077). Nothing a plugin does is a supervisor input. The contract
+below was read from OpenCode 2.0.21 (`opencode run --help` in an isolated home, and its bundled
+`run`, standalone-endpoint, process-spawner and session modules, binary SHA-256
+`0b2b68c1efaf20a29aaf636c2ffccc1abb56243a82f48cce45e257d232e03442`); no live model run was made.
+
+The S22 verified-runtime launch applies unchanged. The 2.0.21 executable is a self-contained 180 MiB
+Mach-O binary, and the pin must name it, not a symlink to it. On the owner's host it is not
+root-protected (a Homebrew Cellar file), so each stage launch writes a private copy of it beside the
+stage worktree. Whether a copied OpenCode binary starts is unverified until live qualification.
+
+- `CAL-V0-076`: The policy `supervision.host` and the config `host` of CAL-V0-074 MAY also be
+  `opencode`, and `--host opencode` is admitted where `--host` is. Every CAL-V0-074 rule applies
+  unchanged: refusal with `UNSUPPORTED` on a host mismatch, the host-neutral
+  `CAPABILITY_UNAVAILABLE` executable pin, the config digest binding the host, and unchanged bytes
+  when `host` is absent. An `opencode` program MUST additionally be refused with `UNSUPPORTED`,
+  at the same point and again at every later stage launch, when either of these holds:
+  - the config `model` is not one `provider/model` reference with nonempty parts and no `#`,
+    because the stage effort becomes the model variant;
+  - the config names `repositories`, because every OpenCode stage denies directories outside its
+    worktree (CAL-V0-077), so S21 programs are not supported on this host.
+- `CAL-V0-077`: An `opencode` stage MUST invoke the pinned executable with the prompt on standard
+  input and this argv:
+  1. `run --standalone --format json --model M#E`, where E is the stage's configured effort
+     (CAL-V0-062). `--standalone` runs a private session server for this invocation instead of
+     attaching to the shared background service. `--server`, `--continue`, `--auto` and the
+     permission-skipping flags are never passed.
+  2. `--session S --fork` when the stage continues the recorded WAIT session S. With `--fork`,
+     OpenCode refuses a session that does not exist (`Session not found`, exit 1) instead of
+     creating it under the same ID, and continues an existing one in a new session forked from
+     its history.
+
+  The stage environment is the S10 inherited set plus exactly these entries:
+  - `OPENCODE_DISABLE_AUTOUPDATE=1`, so the pinned binary is never replaced mid-program;
+  - `OPENCODE_DISABLE_PROJECT_CONFIG=1`, so configuration and plugins in the untrusted stage
+    worktree are not loaded;
+  - `OPENCODE_PRINT_LOGS=1` and `OPENCODE_LOG_LEVEL=ERROR`, so the detached server inherits the
+    stage's standard error (at error level only) instead of discarding it;
+  - `OPENCODE_CONFIG_CONTENT` carrying an inline `permission` object that denies `task` (sub-agents)
+    and `external_directory` in every stage, and also `edit` in `review` and `integrate`. Rules
+    that would ask are rejected, because `--auto` is never passed.
+
+  The process boundary: the capsule of a detached host MUST carry, as the last assignment of its
+  key, every entry its vocabulary requires (`OPENCODE_PRINT_LOGS=1`), or the supervisor and the
+  lane leader refuse it before any spawn. While the host runs, the supervisor MUST observe, at
+  least every 200 ms and once more before cleanup, every live process whose parent belongs to the
+  owned group or to an escape already found but whose own group differs. Such an escape MUST lead
+  its own group and is retained by PID and start identity; an escape that joined another group, or
+  an observation that fails, is uncertainty. A numeric group is never trusted on its own: a group
+  is expanded only while its leader still holds the start identity recorded before the process
+  snapshot, checked after that snapshot, and a candidate is retained only when a later snapshot
+  still shows it, under the identity read before that snapshot, as a child of such a group. A
+  leader PID now held by another process retires the recorded group, since a PID is not reused
+  while its group exists, and nothing in a reused group is adopted or signalled. At cleanup the owned group is drained as in S10, then
+  each escaped group is drained children first and its leader with `SIGTERM` and, after a bound,
+  `SIGKILL`. The stop is clean only when no observation was uncertain, every group is gone, and
+  both host output pipes reach end of file within a bound. Because the server holds the stage's
+  standard error, that end of file is the proof that no server outlived the run, including one
+  orphaned before any observation found it. Recovery after a lost supervisor (CAL-V0-033) of a
+  detached host drains the retained leader group and the escapes it can observe, but MUST NOT
+  prove quiescence: an escape started after its discovery snapshot, or orphaned before it, has no
+  link to the retained group, and no witness of absence survives the supervisor (the output pipes
+  end with it). Detached recovery therefore always refuses as quiescence uncertain, and the
+  operator must clear it.
+
+  The plugin boundary: plugins from the operator's own configuration under `HOME` still load,
+  in-process, in the detached server. This is a known limit of this slice (owner decision
+  2026-10-04): they are not contained, audited or allowlisted. They are bounded only by the
+  escaped-group drain above, the stage wall and the output caps. The supervisor reads only the
+  stage's standard output and exit status. No plugin, server endpoint or shared service is a
+  supervisor channel, and no plugin output is evidence.
+
+  The capsule MUST record `host`. On a zero exit, every standard-output line MUST be a JSON object
+  whose `type` is `step_start`, `text`, `reasoning`, `tool_use`, `step_finish` or `error`. The
+  stream as a whole MUST meet all of the following:
+  - every line carries one nonempty `sessionID` of at most 128 bytes, constant across the stream;
+  - there is no `error` event;
+  - there is at least one `step_finish`, and the last one has `part.type` `step-finish` and
+    `part.reason` `stop`;
+  - the last `text` event comes before that final `step_finish`, has `part.type` `text`, and its
+    `part.text` strictly decodes to the S10 minimum handoff object;
+  - no object in any line repeats a member name, and no member of an object the profile reads
+    (the event, a text or step-finish part, its `tokens` and `tokens.cache`) or of a JSON last
+    `part.text` differs from a read name only by case folding, as for Claude Code (CAL-V0-075).
+    Such a stream leaves the result, the session and usage unobserved.
+
+  Any other output is `INVALID_RESULT`. When the stage continues the recorded session S, it MUST
+  advance only on positive evidence that S and its history existed: a run that decodes a session
+  other than S, which under `--fork` exists only as a fork of an existing S. A run that names no
+  session (the fork failed, for example because S is missing) or names S itself (a same-ID
+  recreation without the history) MUST NOT advance, whatever its exit. The stage stops with the
+  S10 resumable-handoff question instead of its expected kind, the attempt stays `WAITING` with S
+  retained as its resume target, and the candidate is preserved as for any stopped implement
+  stage. Its result class stays the one the host-neutral decoder recorded, because the S22
+  vocabulary seam does not receive S. That the fork carries S's history is read from the bundle,
+  not observed live.
+
+  Token usage is `OBSERVED` only when accounting is complete: every `step_finish` carries
+  nonnegative integer `tokens.input`, `tokens.output`, `tokens.reasoning`, `tokens.cache.read`
+  and `tokens.cache.write`; the stream has no `error` event; every `step_start` has a later
+  `step_finish`; the last `step_finish` has reason `stop`; and the retained output is shorter than
+  the 16 KiB cap, since output that fills it may have been cut. These counters are disjoint, so
+  input is input plus cache read plus cache write, and output is output plus reasoning, each
+  summed over all steps with overflow refusal. Otherwise the turn is `NOT_OBSERVED`, never the
+  partial sum. Program and attempt usage are re-derived from the retained output in this
+  vocabulary (CAL-V0-075).
+
+Non-goals:
+- Running or qualifying a live OpenCode model; this slice uses a pinned fake host only.
+- Supervising through the shared background service, `--server`, or an attached TUI.
+- A plugin-based supervisor channel, and loading, auditing, allowlisting or otherwise containing
+  operator (user-configuration) plugins: a known limit of this slice (owner decision 2026-10-04).
+- Keeping the standalone server or tool processes inside the owned process group; OpenCode 2.0.21
+  offers no way to, so they are drained as escapes instead.
+- An OS sandbox. OpenCode has none, so `bash` stays governed by OpenCode's defaults in every stage,
+  and read-only stages rely on the `edit` denial plus the existing check, after the host exits, that
+  the tree is unchanged.
+- Multi-repository programs on this host; mixed hosts within one policy or program (S22).
+- Raising the 16 KiB output cap (owner decision 2026-10-04: overflow fails closed as
+  `OUTPUT_LIMIT`), `--format default` output, and `--thinking`.
+- Provider-specific variant names beyond the S13 effort set; the `RunProgram` qualification
+  helper, which refuses a non-Codex host.
+
+Failure modes:
+- OpenCode's JSON stream includes full tool output in `tool_use` events, so a tool-heavy stage can
+  exceed 16 KiB: the stage is `OUTPUT_LIMIT`, retained and recoverable as in S10. This is the
+  likeliest live failure and is unmeasured until live qualification.
+- The model's provider does not offer the effort as a variant, or ignores it: unverified until live
+  qualification. A rejected variant makes the run fail, which is `EXIT_NONZERO` or
+  `INVALID_RESULT`.
+- The server, a tool or a plugin starts a process in its own group: it is an escape, observed
+  through its live parent and drained (CAL-V0-077). An escape that is orphaned before any
+  observation finds it is not reachable. If it holds the stage's standard error, as the server
+  does, the stop is not clean (`BLOCKED_RECOVERY`). If it does not, it is not detected; this
+  residual risk is the same as for any host child.
+- The supervisor is lost: recovery drains what it can observe, but a late or orphaned escape could
+  survive with no witness, so detached recovery always refuses as quiescence uncertain and the
+  operator must clear it. This is a known limit of the slice; a crash-surviving witness is not
+  defined.
+- An escape exits and its PGID is reused by an unrelated process: the recorded leader identity no
+  longer matches, so the group is retired and neither the reused group nor its children are
+  adopted or signalled.
+- OpenCode's own stderr logs at error level exceed the 16 KiB cap: `OUTPUT_LIMIT`, retained and
+  recoverable as in S10.
+- `OPENCODE_DISABLE_PROJECT_CONFIG` does not cover a project-level configuration source in some
+  OpenCode version: that configuration could widen permissions. The permission object still
+  arrives inline, but its precedence over project sources is unverified.
+- The handoff is wrapped in prose or a Markdown fence, the final step ends for `length` or
+  `tool-calls`, a step is left open, or the host reports an `error`: `INVALID_RESULT` on a zero
+  exit, or `EXIT_NONZERO` (OpenCode exits 1) otherwise; usage is `NOT_OBSERVED`.
+- The recorded session no longer exists when a WAIT stage resumes: the fork fails, and the session
+  check keeps the attempt `WAITING` with S retained. A host that ignored `--fork` and recreated S
+  under the same ID is refused the same way.
+- OpenCode's `tokens` totals differ from billed usage: unverified until live qualification.
+- The OpenCode binary is upgraded or replaced: its digest differs, and CAL-V0-074 refuses
+  `CAPABILITY_UNAVAILABLE`.
+- Downgrade: a binary with S22 but without this slice refuses a policy or config whose host is
+  `opencode` with `UNSUPPORTED`, and a capsule whose host it does not know; an older binary
+  refuses as S22 describes.
+
+Rollback: the config digest binds `host`, so the S22 ordered rollback applies with `opencode` in
+place of `claude-code`:
+1. While the `opencode` policy and its runtime pin are still in force, cancel every `opencode`
+   program using its original config. A program drained first MUST still be cancelled: a drain
+   leaves a live `WAITING` attempt that holds its claim and reservation.
+2. Only then remove or change `host` in the policy, and re-pin the other host's runtime.
+3. Start new programs from configs for that host.
+
+Once the pin changes, an original `opencode` config is refused `CAPABILITY_UNAVAILABLE` on reopen,
+and an edited one `program config differs`. A program missed in step 1 therefore keeps its claim.
+To recover it, re-pin its OpenCode runtime with the policy host unchanged, reopen it with its
+original config, cancel it, and restore the other pin; its stages stay refused `UNSUPPORTED`.
+No Codex or Claude Code bytes change. Regression witnesses are the CAL-V0-076 and CAL-V0-077 rows in the
+traceability table, including the fake-host end-to-end `TestCALV0077_OpenCodeProgramFakeHost`.
+Live OpenCode qualification on a disposable program is `NOT_RUN`; see
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-04-tasks-opencode-supervisor-host.md`.
+
+### V1-0793 critical-path read (issue 588)
+
+Authority: owner answer 2026-10-05 (D8), profile `taskman-critical-path/0`.
+
+- `CAL-V0-079`: `corvint-tasks critical-path <ticketId|local>` MUST return one
+  `taskman-critical-path/0` item for any ticket (a gate ticket is an ordinary ticket). The closure
+  starts at that ticket and follows, transitively, every dependency obligation that is not
+  satisfied: `COMPLETED` unless the dependency is `COMPLETED` or archived from `COMPLETED`, and
+  `GATE_PASSED` unless the gate oracle observes it satisfied (an unobservable gate result is
+  followed with observation `NOT_OBSERVED`, never treated as satisfied). `chains` holds, for each
+  frontier node (a closure node the walk follows no edge from), the longest root-to-frontier path,
+  root first; chains are ordered longest first, then by the frontier's planning order. Each
+  `nodes` entry carries `ticketId`, `status`, `priority`, `eligibility`, `depth` (nodes on its
+  longest path from the root), `firstBlocker`, `blockers`, `holds`, `waitingOn` and `attempt`.
+  `attempt` carries `observation` (`LIVE`, `NONE`, or `NOT_OBSERVED` when the journal is absent)
+  and `attemptId`, `phase`, `holder` (lease holder), `stage`, `member` (pool member),
+  `lastProgressSeq` (the attempt's `phaseSinceSeq`) and `lastProgressAt` (its recorded
+  `lastHeartbeatAt`); each is the string `NOT_OBSERVED` when the reader did not observe it. The
+  item also carries `estimate`, which is always `NOT_OBSERVED` in v0, and `human`, a short human
+  form: one header line, one line per returned chain and one line per cycle.
+- `CAL-V0-080`: The item MUST report `bounds` (`maxNodes` 256, `maxChains` 32), `nodesTotal`,
+  `nodesReturned`, `chainsTotal` and `chainsReturned`, and `truncated: true` when either bound is
+  exceeded. At most 256 nodes are returned (nodes on returned chains first, in chain order, then
+  the rest of the closure root-first) and at most 32 chains, each with `length` and at most 256
+  `ticketIds` (`truncated: true` on a cut chain). Edges between members of one dependency cycle are
+  not followed, so the walk terminates; every reached cycle is listed once in `cycles` with the
+  existing code `CYCLE` and its sorted members, the members appear as nodes with their `CYCLE`
+  blocker, and a member first reached through its cycle is placed one step after the member that
+  reached it. Cycle membership is computed once per component, the walk keeps only compact node
+  records, and node details and blockers are derived only for returned nodes and human chain
+  nodes, so the read stays linear in the closure even for a large cycle.
+- `CAL-V0-081`: The verb MUST be a pure read over the TM-V0-008 snapshot used by `ticket show`
+  (journal-absent stores use the same inventory projection): it takes no lock, writes no file,
+  ledger or journal record, and carries `mutationAuthority: false` (product invariant 4).
+  `blockers` is the planner's claim-blocker derivation for the recorded default external-agent
+  plan (`blockerScope: RECORDED_DEFAULT_EXTERNAL_AGENT_PLAN`), in planner order: pool collision,
+  pause barrier, cutover, enforced-budget, ticket-view blockers and unknowns except
+  `COVERAGE_UNKNOWN`, then `RETRY_EXHAUSTED`; certain entries carry `observation: CERTAIN` and
+  unknowns `NOT_OBSERVED`. `firstBlocker` is the first certain entry, else the first unknown, else
+  null, which matches the reason `plan preview` reports; `eligibility` is `BLOCKED` with a certain
+  blocker and otherwise `UNKNOWN` when blockers remain. A journal-absent store observes no barrier,
+  attempt or pool, so attempt liveness stays `NOT_OBSERVED`. Blocker codes are
+  an open set and `waitingOn` entries carry `kind` (`DEPENDENCY` in v0): execution prerequisites
+  (V1-0787), `LOOP_DETECTED` (V1-0791) and derived `ESCALATION_PENDING` holds MUST appear later as
+  further `blockers` entries or `waitingOn` kinds of the same shape, without a profile change.
+  Readers MUST treat an unknown code or kind as an opaque blocker. `critical-path` is listed in
+  the command verb inventory and answers `--help` without I/O (CAL-V0-047).
+
+### V1-0788 prior-generation stage and member (issue 586)
+
+Authoritative input: owner request [issue 586](https://github.com/beamfall/corvint/issues/586)
+part 1, ticket V1-0788: a retried attempt keeps only `generation`, `quiescence` and `provedSeq`
+for each ended generation, so which pool member and stage ran a failed generation could be
+recovered only from receipts, and neither a claim result nor the dispatcher `claim` event named
+the member. This amendment adds optional keys to the TCP-00 `taskman-attempt/0`
+`priorGenerations[]` entry; the profile name and every other key are unchanged.
+
+- `CAL-V0-096`: When a CLAIM or CLAIM_NEXT admits the next generation of an
+  `external-agent` attempt, the appended `priorGenerations[]` entry MUST carry `stage`, `poolId`
+  and `memberId`, copied from the ended generation's `stage` and `poolAllocation`; each is
+  `null` when that generation had none, and `poolId` and `memberId` are null together. The three
+  keys are present together or absent together; the closed decoder MUST refuse a partial set, an
+  unpaired null, a `stage` outside `implement`, `review` and `integrate`, and any other key. An
+  entry without them (legacy, or a supervised generation) MUST decode with no history and
+  re-encode byte-identical. `attempt show` MUST add `history` to each entry: `RECORDED` when the
+  keys are stored, otherwise `NOT_OBSERVED` with `stage`, `poolId` and `memberId` each rendered
+  `NOT_OBSERVED`, never inferred. Every `claim` result item, a refusal included, MUST include
+  `poolAllocation` (`null` without an allocation; an `ERROR` result carries no item), and the dispatcher `claim` event detail MUST include `pool` and
+  `member` (empty without an allocation). `attempt show` and the other reads write nothing.
+
+Non-goals: excluding a ticket's earlier authors from selection (issue 586 part 2); history for
+supervised generations, which span stages and release their allocation per stage, so a single
+stage and member would be a guess; recovering a legacy entry's member from receipt POST state;
+backfilling existing records; and treating a recorded member label as identity or authority (a
+label proves nothing about who did the work).
+
+Failure modes: a generation ended before this change shows `NOT_OBSERVED` for good. A member
+label may itself be the text `NOT_OBSERVED`; the `history` discriminator, not the value, says
+whether a value was recorded. The claim event names the pool member current when the dispatcher
+observes the claim, which is the claimed allocation unless it changed before that observation.
+
+Rollback and downgrade: the decoders of earlier binaries are closed and refuse a
+`priorGenerations[]` entry carrying the new keys as `MALFORMED`, so after a retry is admitted
+by this version an older binary cannot read that attempt (`attempt show`, claims and other
+commands that decode it). An older `receipt audit` can still succeed, because journal validation
+checks attempt identity and does not run the attempt decoder, so audit success does not
+demonstrate downgrade compatibility.
+Reverting the code is safe only while no attempt record holds the new keys (check each
+`<stateDir>/attempts/*.json` with `jq -e '[.priorGenerations[] | has("stage")] | any'`). Once one does, keep this version; there is no
+supported rewrite of attempt records, and editing them by hand breaks receipt-bound audit. The
+claim result and dispatcher event additions are read-side only and revert with the code.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-096 | `TestCALV0096_LegacyPriorGenerationsRoundTrip` (N-1 bytes pinned from origin/main ac818777), `TestCALV0096_RecordedPriorGenerationsRoundTrip`, `TestCALV0096_MalformedPriorGenerationHistory` (`internal/tasks/snapshot`); `TestCALV0096_EndedHistoryCopiesOnlyExact` (`internal/tasks/transaction`); `TestCALV0096_PriorGenerationRecordsStageAndMember` (`internal/tasks/store`); `TestCALV0096_HistoryObservation`, `TestCALV0096_ClaimAllocationAndPriorHistory` (`internal/tasks/cli`); `TestCALV0096_ClaimEventNamesMember` (`internal/tasks/dispatch`) |
+
+### V1-0790 recorded hand-off target (issue 587 part 1)
+
+Authoritative input: owner request [issue 587](https://github.com/beamfall/corvint/issues/587)
+part 1, ticket V1-0790, and owner decision D6 (the target is stored on the attempt generation, not
+as a ticket-record key, and surfaced as a derived `nextStage`). Free-form release prose was the only
+place a worker could say which stage should run next, and routing loops built on that prose
+consumed about 26 sessions on one ticket. This amendment adds optional keys to the TCP-00
+`taskman-attempt/0` record and its `priorGenerations[]` entry. The profile name and every other key
+are unchanged.
+
+- `CAL-V0-082`: `release` MUST accept `--handoff-to implement|review|integrate` (the closed
+  `intent.StageRoles`) and an optional `--handoff-reason CODE` only with `--reason HANDOFF` or
+  `--reason REVIEW_RETURNED`, and only after the CAL-V0-044/046 clean-handoff verification passes.
+  The release writer MUST record them as the optional top-level attempt keys `handoffTo` and
+  `handoffReason` on the terminal generation it writes, beside `retryAccounting.disposition`. A
+  `REVIEW_RETURNED` release MAY target only `implement`. A reason without a target, a target on any
+  other release, an empty value, an unknown stage or reason, the flags on any other verb, and a
+  reason inconsistent with the generation's stage under CAL-V0-083 MUST refuse `MALFORMED` without
+  ending the generation. When a later CLAIM or CLAIM_NEXT admits the next generation, the ended
+  generation's recorded keys MUST move into its `priorGenerations[]` entry, which then MUST also
+  carry the V1-0788 prior-generation history keys with a non-null `stage`. The closed decoders MUST
+  refuse the keys on a live or non-clean generation, a prior entry without a recorded stage, and
+  any combination this requirement or CAL-V0-083 forbids.
+- `CAL-V0-083`: The `--handoff-reason` set is closed: `CHANGES_REQUESTED` returns review or
+  integrate work to `implement` and is refused from an implement generation; `STAGE_INCOMPLETE`
+  hands off to the generation's own stage; `STAGE_COMPLETE` hands off to a different stage. The
+  reason is optional, advisory metadata; `release --help` MUST list the targets
+  (`handoffTargets`) and the reasons (`handoffReasonCodes`).
+- `CAL-V0-084`: `ticket show`, each `plan preview` entry and the dispatcher's native ticket
+  observation MUST expose `nextStage`, derived only from the ticket's highest-generation attempt:
+  the recorded `handoffTo` of a clean terminal generation; `implement` for a `REVIEW_RETURNED`
+  generation without one; and `null` (`NONE` in the dispatcher) when there is no attempt, the
+  generation is live, its disposition is not clean, a `HANDOFF` recorded no target, or the journal
+  is absent. When that generation's `ticketRevision` differs from the ticket's current
+  `acceptanceRevision`, `nextStage` MUST be `STALE` instead of a stage. The dispatcher MUST render
+  it through the `{nextStage}` launch placeholder and record it as `nextStage` in the `launched`
+  event detail. It is advisory: no claim, plan selection, role match or launch is refused,
+  filtered or reordered by it, and the reads write nothing.
+- `CAL-V0-085`: A release without the new flags MUST keep its exact request preimage, replay and
+  attempt bytes; the `REVIEW_RETURNED` default is derived at read time and never written. An
+  attempt or prior-generation entry without the keys MUST decode and re-encode byte-identical, and
+  retry accounting MUST be unchanged: a recorded target neither charges nor refunds a retry, and
+  the CAL-V0-044 tests remain the regression witnesses.
+
+Non-goals: enforcing the target on a later claim or refusing a claim for another stage; a
+ticket-record key; routing loop detection over the recorded history (later parts of issue 587);
+recording a target on supervised or non-clean releases; and treating the target or reason as proof
+of review, approval or authority. They are inert caller statements.
+
+Failure modes: a target recorded before an acceptance change reads `STALE`, never a stage; a target
+recorded by a generation that is then superseded by a live claim reads `null` until that claim ends;
+a `HANDOFF` that a fenced, stale-policy or ineligible check refuses records nothing, because the
+target is checked only after the clean-handoff verification passes; and the dispatcher's
+`nextStage` is the one observed at launch, which may change before the worker reads it.
+
+Rollback and downgrade: earlier binaries' decoders are closed and refuse `handoffTo` and
+`handoffReason`, at the top level or in a `priorGenerations[]` entry, as `MALFORMED`. Once a
+release records a target, an older binary cannot read that attempt or audit a store containing it.
+Reverting the code is safe only while no attempt record holds the keys (check each
+`<stateDir>/attempts/*.json` with
+`jq -e 'has("handoffTo") or ([.priorGenerations[] | has("handoffTo")] | any)'`). Once one does,
+keep this version; there is no supported rewrite of attempt records, and editing them by hand
+breaks receipt-bound audit. Releases that do not pass the flags write nothing new, so a store that
+never used them remains readable by the previous binary. The `nextStage` read fields, help keys and
+dispatcher placeholder are read-side only and revert with the code.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-082 | `TestCALV0082_RecordedHandoffRoundTrip`, `TestCALV0082_MalformedHandoffTargets`, `TestCALV0082_PriorGenerationHandoff` (`internal/tasks/snapshot`); `TestCALV0082_HandoffTargetPreimage` (`internal/tasks/transaction`); `TestCALV0084_CLIHandoffTargetNextStage` (`internal/tasks/cli`) |
+| CAL-V0-083 | `TestCALV0083_ClosedHandoffReasons`, `TestCALV0082_MalformedHandoffTargets` (`internal/tasks/snapshot`); `TestCALV0083_ReleaseHelpListsHandoffCodes` (`internal/tasks/cli`) |
+| CAL-V0-084 | `TestCALV0084_NextStageDerivation` (`internal/tasks/transaction`); `TestCALV0084_CLIHandoffTargetNextStage` (`internal/tasks/cli`); `TestCALV0084_DispatcherNextStage` (`internal/tasks/dispatch`) |
+| CAL-V0-085 | `TestCALV0082_UntargetedHandoffRoundTrip` (`internal/tasks/snapshot`); `TestCALV0082_HandoffTargetPreimage`, `TestCALV0046_ReleasePreimageCompatibility` (`internal/tasks/transaction`); `TestCALV0044_AccountingSchema` (`internal/tasks/snapshot`), `TestCALV0044_CleanHandoffsPreserveRetryDebt` (`internal/tasks/store`), `TestCALV0044_CLIHandoffAccounting` (`internal/tasks/cli`) |
+
+### S24 — Resource-aware default selection (issue 584)
+
+Human-owned input: [issue 584](https://github.com/beamfall/corvint/issues/584) reports that
+`SELECTED` tickets waiting for a pool member fill the `maxActiveAttempts` window while lane-free
+work defers `LIMIT_EXCEEDED`. The owner chose option (a) in the owner answer 2026-10-05 (D1): cap
+pool-needing selections at the pool's currently free eligible members, defer the excess with the
+existing `RESOURCE_COLLISION` code outside the window, add no policy setting, and report an
+additive per-pool resource-deferred count in the plan.
+
+- `CAL-V0-097`: In the default plan (no `--pool`), a ticket whose `requiresPool` names a pool the
+  policy declares MUST NOT be `BLOCKED` merely because the plan ran without `--pool`. Taken in plan
+  order, it is `SELECTED` only while the earlier selections requiring the same pool are fewer than
+  that pool's free eligible members. Otherwise it is `DEFERRED RESOURCE_COLLISION` with blockers
+  `[<pool>]` and does not count against `maxActiveAttempts`. Free eligible members use CAL-V0-029's
+  ordered eligibility for the plan's `--stage` (none: unreserved members only) and the occupancy in
+  `pools.json`. When that occupancy is unobservable, availability is `NOT_OBSERVED` and the ticket
+  defers; it is never selected on an assumption. A store audit that proves `pools.json` absent is
+  the empty occupancy a claim reads. A `requiresPool` the policy does not declare stays `BLOCKED
+  RESOURCE_COLLISION`. A default plan whose policy declares pools MUST add a top-level
+  `resourceDeferred` array, one row per policy pool in policy order:
+  `{poolId, availability: OBSERVED|NOT_OBSERVED, freeEligibleMembers: count|null, selected, deferred}`.
+  A `--pool` plan, a policy without pools and the closed `--selected-only` projection omit it.
+  Parity with CAL-V0-008 and CAL-V0-029: `claim --next` without `--pool` claims the first
+  `SELECTED` entry that requires no pool; a `SELECTED` pool entry is claimed by an explicit claim or
+  `claim --next` naming its pool. The `--pool`/`--stage` plan, its cap and CAL-V0-065 exclusions
+  are unchanged. Plan preview stays a pure read with no lock, write or probe (CAL-V0-034).
+  `ticket show` claimability follows the same rule: `null` with reason `NOT_OBSERVED` when the
+  member state is unobservable. The continuous dispatcher (CAL-V0-052..058) MUST carry each
+  ticket's `requiresPool` into its ticket view and route a ticket that requires pool P only to a
+  ticket role whose `match.pool` is P, binding `{pool}` to P for that worker; a role naming a pool
+  matches only that pool's tickets, and a role without one only tickets that require no pool. The
+  dispatcher's own plan MUST treat a pool that no ticket role names as unclaimable: its tickets
+  defer `RESOURCE_COLLISION` naming the pool before they count against `maxActiveAttempts`, so a
+  pool ticket no worker can claim never takes the window from lane-free work and never accrues a
+  refused claim, cooldown or parking on a role that cannot claim it. Core's `taskman-plan/0`
+  decoder MUST accept the optional `resourceDeferred` rows and a pool blocker on a `DEFERRED
+  RESOURCE_COLLISION` entry only when that pool has a row.
+
+Non-goals: a reserved per-class window or policy setting (option b); inferring a pool for tickets
+that do not declare `requiresPool` (V1-0754, V1-0758, V1-0759); stage-aware member counting when the
+default plan has no `--stage`; probing member health; changing dispatcher launch order. Failure
+modes: a pool-waiting ticket without `requiresPool` still fills the window, so operators must record
+`requiresPool` (see `docs/TASKS-EXTERNAL-AGENTS.md`); a pool whose members are all reserved for
+stages selects nothing in a stage-less default plan, which defers rather than over-selects; a
+`SELECTED` pool ticket that no caller claims with its pool can still hold a window slot in the
+preview and in `claim --next`'s plan, bounded by the pool's free members (an explicit claim checks
+only live reservations, and the dispatcher plans such a pool as unclaimable); a dispatcher role
+whose host claims without `--pool {pool}` but names `match.pool` is refused and counts toward
+cooldown and parking (CAL-V0-057), which is a configuration error the dispatcher does not detect;
+occupancy that changes after the preview is rechecked by the claim transaction. Rollback reverts
+the planner, the `claim --next` filter, the `resourceDeferred` member, the dispatcher's pool
+routing and `match.pool`, and the Core decoder rows together; no store, journal or wire state
+depends on them, and pool tickets return to `BLOCKED` in the default plan.
+
+### V1-0781 — Preparation admission pressure (issue 494 follow-up)
+
+Intent, non-goals, failure modes, acceptance evidence and rollback are in the V1-0781 amendment
+section below.
+
+- `CAL-V0-095`: `queue status` MUST add one `preparationAdmission` object to its item, observed
+  after and outside the store snapshot. The object names the fixed `capacity` of `64`.
+  `registeredWriters` is the number of live registrations with a valid published record. This
+  count includes any serving holder, whose slot stays live until it closes. `unpublishedSlots`
+  counts live slots without a readable valid record. `wouldBeRank` is the rank a registration
+  published now would receive: the largest observed live rank plus one, or `1` when none is live.
+  The same rank appears in a `LOCK_TIMEOUT` diagnostic. `registryActive` reports a registry lock
+  held at the start or end of the sweep. `snapshot` is `RACY`, and `method` names the lock query.
+  A slot is live only when a lock query that acquires nothing observes a `flock(2)` owner on it,
+  the preparation protocol's only lock. Darwin uses `fcntl(F_GETLK)`, which reports a `flock`
+  owner with `l_pid` -1. Because it names only the first conflicting lock, a POSIX record lock on
+  a coordination file MUST make the read abstain. Linux reads one bounded `/proc/locks` snapshot,
+  keeps only granted `FLOCK` entries and matches the slot's device and inode. POSIX and OFD record
+  locks are ignored there, because on local Linux filesystems they neither conflict with `flock`
+  nor mark a registration. The Linux table omits owners outside the procfs PID namespace, so it
+  MUST be used only when the reader's PID namespace is the initial one and the reader is visible
+  in that procfs mount; otherwise the read abstains. A slot without an observed owner is stale
+  scheduling bytes and is not counted. The read MUST NOT register, `flock`, create, truncate or
+  write any coordination, journal or intent file. If the lock query, an incomplete lock table, an
+  unsafe object, a file that disappears or is replaced after its first stat (the read
+  revalidates each pathname against its opened descriptor after the lock query, and the
+  common-directory pathname against its pinned root, without a symlink, before it reports), or the common
+  directory prevents observation, then `snapshot`, `method` and every count are `NOT_OBSERVED`,
+  `notObservedReason` names the cause and `registryActive` is null. A file absent at its first
+  stat is absent. A live slot without a valid record also makes `wouldBeRank` `NOT_OBSERVED`. The
+  store records no per-mutation writer cost, so `estimatedWait` is `NOT_OBSERVED` with
+  `estimatedWaitBasis` `no recorded per-mutation writer cost`. Any future estimate MUST derive
+  from recorded cost, name its basis and never be presented as a guarantee.
+
+### V1-0787 stage-scoped execution prerequisites amendment
+
+Authoritative input: owner request [issue 585](https://github.com/beamfall/corvint/issues/585) and
+native ticket V1-0787, with owner decision D4: the new refusal is the closed code
+`PREREQUISITE_UNSATISFIED`, and the key uses the same byte-sorted canonical ordering and validation
+as `dependencies`. A dependency gates the whole ticket and takes part in cycle detection and
+completion. Some orderings matter only to one stage. For example, a ticket may be implemented at once
+but must not be integrated before another lands. This amendment adds one optional record key for
+such orderings. A prerequisite blocks claims and plans for the stages it lists and nothing else.
+
+- `CAL-V0-099`: A ticket record MAY carry the optional key `executionPrerequisites`. Its value is an
+  array of closed objects `{ticketId, obligation: "COMPLETED"|"GATE_PASSED", gateId:
+  Label|null, stages: [Stage]}`, where `Stage` is `implement`, `review` or `integrate`.
+  1. Shape. The key is omitted when the set is empty. An empty array MUST be refused `MALFORMED`.
+     The array MUST hold at most 64 entries (`LIMIT_EXCEEDED`), the `dependencies` bound. It MUST be
+     a canonical-byte-sorted, duplicate-free set. Each `stages` MUST be a non-empty, sorted,
+     duplicate-free set of known stages. `gateId` MUST be non-null exactly when the obligation is
+     `GATE_PASSED`. A strict decoder refuses any violation `MALFORMED`. The CLI input boundary
+     sorts both sets, as it does for `dependencies`.
+  2. Edges. A prerequisite MUST name a ticket in the same queue (`DEPENDENCY_MISSING`) and never the
+     ticket itself (`MALFORMED`). At most one entry may exist per `(ticketId, obligation, gateId)`
+     (`DUPLICATE_ID`). Writers additionally refuse two cases: a ticket absent from the store or
+     export (`DEPENDENCY_MISSING`), and a gate the policy does not declare (`GATE_UNKNOWN`). Those
+     writers are `REFINE`, `ADOPT_FILE` and the importer.
+  3. Isolation. The key is excluded from cycle detection, completion checks and `requiredGates`. It
+     is not acceptance-relevant: changing it bumps `revision` but not `acceptanceRevision`, and is
+     allowed under a live attempt. Completing or gating the prerequisite ticket writes only that
+     ticket's own record. Legacy records without the key round-trip byte-identically.
+  4. Stage scope. The ticket view evaluates a prerequisite when the read's stage is listed in its
+     `stages`. A stageless read evaluates every prerequisite (fail closed). Stageless reads are
+     `claim`, `claim-next` or `plan` without `--stage`, plus `ticket show` and `ticket blockers`.
+     - An unmet `COMPLETED` obligation is a blocker with code `PREREQUISITE_UNSATISFIED`. It is met
+       by `COMPLETED`, or by `ARCHIVED` from `COMPLETED`. A missing prerequisite ticket is also a
+       blocker.
+     - A `GATE_PASSED` obligation follows the dependency gate rule in `view.go`. An observed failure
+       is a blocker. An unobservable gate is an unknown with the same code and the result
+       `NOT_OBSERVED`, which leaves eligibility `UNKNOWN`. The native reader has no gate oracle, so
+       today it always reports this unknown.
+     - Each blocker or unknown names the prerequisite ticket. Its detail names the stages it gates.
+       The next action is `wait-dependency` for a blocker and also for an unknown, because
+       admission refuses both; the view never recommends `admit` while a prerequisite is unknown.
+       The view echoes `executionPrerequisites` so that `ticket blockers` explains the block.
+     - `claim` and `claim-next` refuse `BLOCKED/PREREQUISITE_UNSATISFIED` on such a blocker or
+       unknown. When `claim-next` selects nothing and its first planned entry is blocked by
+       prerequisites, the refusal detail names each prerequisite ticket and its stages. `plan`
+       reports the entry `BLOCKED` with that reason and the prerequisite ticket. Recorded
+       claimability is `false` for a blocker and `null` for an unknown.
+     - A claim or plan for an unlisted stage is unaffected.
+  5. Writers. `ticket refine` sets the key with an array and clears it with `null`. `ADOPT_FILE`
+     treats it as a routine field composed through `REFINE`. An import export item MAY carry the
+     key; when a re-import omits it, the record's existing set is kept. `CREATE` does not accept
+     the key.
+  6. Core. The Core decoder (`internal/taskman`) admits the key under the same shape and edge
+     rules: each `ticketId` is a well-formed ticket ID, in the record's queue and not the record
+     itself, and each `(ticketId, obligation, gateId)` appears once. Both readers MUST refuse every
+     case in the shared fixture `cal-v0-099-prerequisite-refusals.json`. The Core planner is
+     stageless. It reports `GATE_UNKNOWN` for a `GATE_PASSED` prerequisite and
+     `PREREQUISITE_UNSATISFIED` for a missing or uncompleted `COMPLETED` prerequisite.
+  7. Code. `PREREQUISITE_UNSATISFIED` joins TCP-00 §11's closed detail codes (A21).
+
+Non-goals:
+- prerequisites on other queues or repositories;
+- a gate oracle for native reads;
+- per-stage dependencies in `CREATE`;
+- automatic re-planning or notification when a prerequisite completes;
+- any change to `dependencies`, cycle detection or completion.
+
+Failure modes:
+- A prerequisite on the wrong stage silently gates nothing for the intended stage. The view and
+  `ticket blockers` echo the set and name the stages, so the error is visible on a stageless read.
+- A prerequisite ticket is later deleted or moved. The read reports a blocker, not a pass.
+- Without a gate oracle, a `GATE_PASSED` prerequisite keeps listed-stage claims at `UNKNOWN`, and
+  they are refused until the record changes. This is deliberate: an unobservable gate is never
+  assumed to have passed.
+- A caller sends an unsorted set directly to the strict envelope decoder. It is refused
+  `MALFORMED`, and the CLI boundary sorts it first.
+
+Acceptance evidence is listed in the table below. Focused package tests ran on the change; live
+store qualification is `NOT_RUN`.
+
+Rollback: once any record has carried `executionPrerequisites`, clearing current records is not a
+rollback. Older binaries decode ticket records strictly with a closed key set and do not know the
+`PREREQUISITE_UNSATISFIED` code. `ticket refine` with `"executionPrerequisites": null` changes only
+the current record. The journal keeps every earlier ticket afterimage, and journal audit and replay
+decode each historical ticket record through the strict ticket decoder
+(`internal/tasks/journal/records.go`). An older binary therefore still refuses the store after the
+key is cleared. Exports that carry the key are refused the same way. Rollback takes one of two
+routes:
+
+- Keep a compatible reader: this binary or a later one that accepts the key. Clearing the key then
+  only stops the gating.
+- Restore the whole store, intent and state directory together, from a backup taken before the key
+  was first written. Verify it with `receipt audit` under the older binary before resuming. Every
+  later transaction is lost.
+
+To tell whether the key was ever written, search the store for the byte string
+`"executionPrerequisites"`. Search the tracked ticket records and the state directory
+(`<git common dir>/taskman`), including journal receipts, which hold inline post records, and
+`evidence/` blobs. Ticket records are canonical JSON, so every record that ever carried the key
+contains the string. No match means older binaries still read the store. Records never written
+with the key are byte-identical to legacy records, and no other store, journal or wire state
+depends on this amendment.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-099 | `TestCALV0099_RecordKeyRoundTrip`, `TestCALV0099_RecordKeyRefusals`, `TestCALV0099_SharedRefusals`, `TestCALV0099_StageScopedView`, `TestIssue502_RecordEscalationsKey` (`internal/tasks/ticket`); `TestCALV0099_RefineSetsAndClearsPrerequisites`, `TestCALV0099_CompletingPrerequisiteChangesNoOtherRecord`, `TestCALV0099_AdoptComposesPrerequisites` (`internal/tasks/mutation`); `TestCALV0099_ImportAcceptsAndPreservesPrerequisites` (`internal/tasks/importer`); `TestCALV0099_ClaimAndPlanAreStageScoped`, `TestCALV0099_ClaimNextRefusalNamesPrerequisite` (`internal/tasks/transaction`); `TestCALV0099_CoreReaderValidatesExecutionPrerequisites`, `TestCALV0099_CoreSharedRefusals`, `TestCALV0099_CorePlannerAppliesEveryPrerequisite` (`internal/taskman`); `TestTMV0002_AS01_CommandResultEnvelope` (`internal/tasks/wire`, 73 closed codes) |
+
+### V1-0789 — Exclude implement authors (issue 586 part 2)
+
+Human-owned input: [issue 586](https://github.com/beamfall/corvint/issues/586) part 2 and ticket
+V1-0789, with owner decisions: by default exclude only the most recent implement generation's member
+(D5); offer `--exclude-authors=all` for every recorded implement generation, under which any
+`NOT_OBSERVED` generation in scope also refuses; no new codes; no backfill of legacy member facts.
+It builds on the V1-0788 prior-generation history and on CAL-V0-065 explicit exclusions.
+
+- `CAL-V0-098`: CLAIM, CLAIM_NEXT and read-only plan preview MAY accept an opt-in author-exclusion mode, `LATEST` (CLI `--exclude-authors`) or `ALL` (CLI `--exclude-authors=all`). A supplied mode MUST require an explicit pool and stage `review` or `integrate`; any other stage, an absent pool, another mode value, a repeated CLI flag or another verb MUST refuse as malformed, except that the internal POOL_PREPARE for such a claim MUST carry the mode together with the derived ticket and refuses either alone, and carries the claim's explicit members only together with the mode. Canonical request preimages MUST bind the mode as `excludeAuthors` and MUST omit the field when absent, preserving historical bytes; the derived member set is not part of the request, so replay precedes derivation, an identical request replays its original allocation, and a changed mode under the same request ID MUST conflict with `REQUEST_ID_CONFLICT`. On fresh admission the derivation MUST read every generation of the ticket's attempts, prior generations from the V1-0788 prior-generation history and each attempt's current generation as that history would record it once ended, newest generation first. It MUST skip a generation recorded at stage `review` or `integrate`; every other generation it reaches MUST be an `implement` generation with a recorded pool member, which is an author. `LATEST` MUST stop at the first author; `ALL` MUST read every generation. A reached generation whose history is `NOT_OBSERVED`, one with no recorded stage, or an implement generation without a pool member MUST refuse with `INDEPENDENCE_UNVERIFIED` and a detail naming the generation, before any member selection or health preparation, unless CAL-V0-107 covers it; a ticket with no implement generation has nothing to exclude (CAL-V0-107); the claim is never silently unfiltered and no member is inferred from receipts or any other source. The effective exclusion set MUST be the union of explicit `--exclude-member` labels and the authors' members recorded in the requested pool, and the CAL-V0-065 predicate MUST apply it to allocation, every health-selection round, final prepared admission and preview capacity. POOL_PREPARE MUST rederive the authors from the snapshot it commits against and MUST refuse, before recording PREPARING and so before any health command runs, a member that derivation excludes or a derivation that is unverified under the claim's own CAL-V0-107 cover; the claim is then reevaluated with a fresh derivation. When no member remains, the claim MUST refuse `RESOURCE_COLLISION` with a detail naming each excluded author's member, pool and generation. Plan preview, and so CLAIM_NEXT, MUST evaluate the same derivation per ticket before pool capacity, as a named claim does, reporting the same refusal code and detail as a blocker even when the pool is exhausted, and, only when the mode is supplied, MUST add `detail` (string or null) and `excludedAuthors` (array of `{attemptId, generation, poolId, memberId}`, or null when unverified) to each entry.
+
+Non-goals: this is not actor authentication, not an independence proof, and not a statement that two
+member labels name physically distinct environments (the issue 480 ERG non-goal stands); no backfill
+or inference of legacy member facts; no per-pool `independentStages` policy; no new result codes; no
+exclusion by holder label; no change to implement-stage claims.
+
+Failure modes: a legacy or supervised generation (`NOT_OBSERVED`), a stage-less claim that may have
+implemented the ticket, or an implement claim outside any pool refuses `INDEPENDENCE_UNVERIFIED`
+unless explicit exclusions cover it (CAL-V0-107, which also admits a ticket never implemented); an author in another pool contributes no exclusion to the requested pool;
+an exhausted pool refuses `RESOURCE_COLLISION` naming the authors; a later policy change cannot
+change a replayed allocation; a caller who reads the exclusion as proof of independence is told
+otherwise by the documented non-goal.
+
+Limits: multi-selection preview counts global pool slots with explicit exclusions only, and catches
+a ticket whose own derived set leaves zero slots as a per-ticket blocker; CLAIM_NEXT uses only its
+first selected entry, so its admission is exact. Scope covers every attempt of the ticket across
+acceptance revisions.
+
+Acceptance evidence: focused tests `TestCALV0098_PreimageBindsMode`, `TestCALV0098_RequestShape`,
+`TestCALV0098_DeriveAuthors` (`internal/tasks/transaction`);
+`TestCALV0098_ClaimExcludesImplementAuthor`, `TestCALV0098_ClaimNextExcludesAuthors`,
+`TestCALV0098_HealthSkipsAuthor`, `TestCALV0098_HealthPrepareRederivesAuthors` (`internal/tasks/store`);
+`TestCALV0098_CLIExcludeAuthors`, `TestCALV0098_ExhaustedPoolParity` (`internal/tasks/cli`); `TestAgentLeasesSpecEnumeratesCALV0098` (`internal/lrfrepo`). Live multi-agent qualification is `NOT_RUN`; see
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-05-v1-0789-exclude-authors.md`.
+
+Rollback: revert the code. The mode is opt-in and absent from every historical preimage; attempt
+and pool records gain no field, so no stored state migrates. A request that used the mode retains
+`excludeAuthors` in its bound preimage; a binary without this slice refuses the mode, and how it
+treats such retained requests on replay or audit is `NOT_OBSERVED`.
+
+### V1-0784 priority-yield admission amendment (issue 583)
+
+Human-owned input: [issue 583](https://github.com/beamfall/corvint/issues/583) (native ticket
+V1-0784) reports that an explicit `claim <ticket> --pool P` takes P's last free member even when a
+higher-priority ticket that needs P is waiting, so the lower-priority ticket starves the
+higher-priority one. The owner directed an opt-in, derived priority yield for explicit pooled
+claims with no new state, no new result code and no waitlist (V1-0785 stays separate).
+
+- `CAL-V0-101`: A policy pool MAY set the optional boolean `priorityAdmission`; omission and
+  `false` mean today's admission. When it is `true`, an explicit `claim <ticket> --pool P` MUST be
+  refused `BLOCKED RESOURCE_COLLISION` when P has at least one free eligible member and the
+  competing tickets are at least as many as those free members. Free eligible members are the
+  claim's own CAL-V0-029 ordered eligibility for its `--stage`, its CAL-V0-065 exclusions and the
+  occupancy in `pools.json`; a prepared allocation of the claim counts as free. A competing ticket
+  is `OPEN`, precedes the claimed ticket in admission order (CAL-V0-108; plan order, that is
+  priority, order and ticket ID, when no ticket waits for a downstream stage), records
+  `requiresPool` P, and has no claim blocker, which includes a live attempt (`ATTEMPT_LIVE`). The
+  detail names the pool, the competitor and free counts, and the first competitor in admission order
+  (`yields to <ticketId>`). The check runs after the claimed ticket's own state and live-attempt
+  checks and before scope collision, capacity, retry, health preparation and member allocation, so
+  a yielded claim posts nothing, prepares no member and runs no command. A claim without `--pool`,
+  on a pool without the flag, or with no free eligible member is unaffected. Plan preview MUST
+  apply the same rule: with `--pool P`, and in the default plan for an entry that
+  requires P, an entry the rule would refuse is `DEFERRED RESOURCE_COLLISION` with blockers
+  `[<ticketId yielded to>]` before the pool cap, outside `maxActiveAttempts`, and the default
+  plan's `resourceDeferred` row counts it as deferred. `claim --next` claims a `SELECTED` entry of
+  that plan, so it never claims a ticket an explicit claim would refuse. A competitor whose only
+  blockers are unobservable (`NOT_OBSERVED`, for example a `GATE_PASSED` dependency) MUST NOT cause
+  a refusal or a deferral; it stays its own `BLOCKED` plan entry, and `ticket show` reports the
+  claimed ticket's claimability as `null` with reason `NOT_OBSERVED` when counting it would yield.
+  The rule is derived from the plan inputs on every read and claim; it adds no store, journal or
+  wire state, and plan preview stays a pure read with no lock, write or probe (CAL-V0-034).
+
+Non-goals: a durable waitlist, reservation hand-off or re-claim grace for a competitor that is
+briefly blocked or unobservable (V1-0785); new result or detail codes; changing `claim --next`,
+pool health or cleanup; the supervisor's stage-transition member allocation, which is not a claim;
+aging or fairness between equal-priority tickets beyond plan order and the CAL-V0-108 downstream
+rank; any Core change (Core reads only
+`policySha256`, and its `taskman-plan/0` decoder already admits a ticket ID blocker on a `DEFERRED
+RESOURCE_COLLISION` entry). Failure modes: a competitor that collides on scope with a live
+reservation is still claim-eligible and still counts, so a lower-priority ticket can yield to a
+ticket that cannot run yet; a competitor that becomes blocked or unobservable stops counting at the
+next read, so its member can be taken (V1-0785); an operator who wants a lower-priority claim to
+proceed must claim the competitor, change priorities or drop the flag; a claim is checked before
+health preparation, but if a competitor becomes eligible between preparation and the re-claim, the
+re-claim yields and the existing observation path leaves the prepared member `QUARANTINED` until
+operator confirmation, as for any other failed re-claim; a non-boolean value refuses the policy `MALFORMED`. Acceptance evidence:
+`TestCALV0101_ExplicitPooledClaimYields`, `TestCALV0101_FlagOffMatchesNMinusOne` (absent flag pinned
+to the pre-change transcript digest; `false` equal modulo policy identity),
+`TestCALV0101_PlanClaimAndClaimNextAgree` (400-case property test), and
+`TestCALV0101_UnobservedCompetitorIsNotObserved` (`internal/tasks/transaction`);
+`TestCALV0101_PriorityYieldThroughTheCLI` (`internal/tasks/cli`).
+
+Rollback: disabling admission and downgrading are different operations. To disable priority yield,
+remove the key or set it to `false` with `policy update` on this binary or a later one; admission
+returns to the pre-amendment rule at the next read or claim. Once any policy has carried
+`priorityAdmission`, removing it is not a downgrade. Older binaries decode the policy strictly with
+a closed pool key set and refuse the key, even `false`, as `MALFORMED`. `policy update` changes
+only the current record. The journal keeps every earlier policy afterimage, and journal audit and
+replay validate each historical post, decoding every `intent/policy.json` record through the strict
+policy decoder (`internal/tasks/journal/records.go`). An older binary therefore still refuses the
+store, including `receipt audit`, after the key is removed. Exports that carry the key are refused
+the same way. A downgrade takes one of two routes. Keep a compatible reader: this binary or a later
+one that accepts the key; removing the key then only stops the yield. Or restore the whole store,
+intent and state directory together, from a backup taken before the key was first written, verify
+it with `receipt audit` under the older binary before resuming, and accept that every later
+transaction is lost. To tell whether the key was ever written, search the store for the byte string
+`"priorityAdmission"`: the tracked policy record and the state directory
+(`<git common dir>/taskman`), including journal receipts, which hold inline post records, and
+`evidence/` blobs. Policy records are canonical JSON, so every record that ever carried the key
+contains the string. No match means older binaries still read the store. A policy never written with
+the key is byte-identical to a legacy policy, and no other store, journal, receipt or pool state
+depends on this amendment; refusals already recorded keep their existing `RESOURCE_COLLISION` code.
+
+### V1-0780 retryable command results
+
+Source, classification table, limits and evidence: the V1-0780 retryable result amendment below.
+
+- `CAL-V0-078`: Tasks MUST classify every §11 detail code in `internal/tasks/wire/codes.go` as
+  retryable or not, with a stated condition, in one table (`wire.RetryOf`). A code is retryable
+  only when every in-tree producer reports it before anything was decided or written, and its
+  usual cause is a concurrent writer, so that reissuing the same command with the same
+  `--request-id` after a bounded backoff can succeed once that writer finishes; the producers
+  whose cause is the caller's own stale input are named below and repeat until it changes. The original retryable set (extended by CAL-V0-215 below, accepted in decision 0519) is `LOCK_TIMEOUT` (the store lock or a
+  preparation admission was held past the wait budget), `SNAPSHOT_MOVED` (the store, head, intent
+  tree or worktree moved during a read or before commit) and `REDO_PENDING` (a writer sits between
+  receipt link-in and head rename; one that outlives the budget is redone by the next mutating
+  command). Fencing codes (`FENCED`, `BOOT_FENCED`, `SUPERVISOR_LOST`) MUST never be retryable,
+  and a code whose producers are mixed, uncertain or absent MUST be classified not retryable, with
+  the reason recorded. Every `taskman-command-result/0` envelope whose outcome is not `OK` and
+  whose `codes` is non-empty MUST carry `retryable`, true only when every code is retryable. The
+  commands that run a program a retry would run again MUST report false whatever their codes:
+  `attempt run` once its child has run, `gate run` once its gate program has started, and a
+  supervised `run --role` once its stage dispatch has committed (including a failed refresh or
+  program record afterwards), because a repeated run no longer selects the attempt. This lasts
+  until a committed `STOPPED` is read back in a phase the role selects again, as integration's
+  `READY_FOR_INTEGRATION` is. A `GRANT` and integration recovery leave the attempt selectable, so
+  their failures keep their codes' classification. A batch with `--count` reports false when any
+  failed lane is not retryable, by its mark or its code. A
+  command that commits a first step it may then fail to finish MUST also report false, because a
+  same-request retry replays that step without finishing it: `health` and `pool cleanup` once
+  their preparation or cleanup receipt commits, and `pool sweep` once a fresh sweep commits its
+  owner. An error that restates another with its own location and message (`wire.Annotatef`)
+  MUST keep that error's code and not-retryable mark (V1-0908). `OK` and uncoded results MUST NOT carry
+  the member. A decoder MUST accept a coded envelope without the member, and MUST refuse
+  `MALFORMED` a member on an `OK` or uncoded result, a non-boolean value, or `true` beside a code
+  that is not retryable.
+
+### V1-0791 no-progress loop detection amendment (issue 587 part 2)
+
+Human-owned input: owner request [issue 587](https://github.com/beamfall/corvint/issues/587)
+part 2, native ticket V1-0791 and owner decision D8. Routing loops that hand a ticket back and
+forth without changing anything consumed about 26 sessions on one ticket, and no read could see the
+loop. The owner asked for an opt-in derived hold computed from audited attempt history, shaped like
+ESC-V0-006, with byte-identical behaviour while the policy does not opt in. This amendment adds an
+optional policy key, an optional prior-generation key and one closed detail code (A23).
+
+- `CAL-V0-102`: A policy MAY carry the optional top-level key `loopDetection`, a closed object
+  with the required counts `maxNoProgressGenerations` and `maxAlternatingReturns`, each 1..256; an
+  unknown or missing member, a zero, an out-of-range or non-count value, `null` and `{}` refuse
+  the policy `MALFORMED`. Omission keeps today's canonical policy bytes and behaviour. While the
+  policy carries the key, a CLAIM or CLAIM_NEXT that admits the next generation of an ended
+  attempt MUST record the ended generation's work evidence as the optional `priorGenerations[]`
+  key `loopEvidence {disposition, candidateTreeOid, gateResults, reviews}`: the retry-accounting
+  disposition (`HANDOFF`, `REVIEW_RETURNED`, or `NONE` for any other end), the submitted candidate
+  tree or `null`, and the number of gate results and external reviews it recorded. The key needs
+  the V1-0788 recorded history, and the closed decoder refuses it without that history, with a
+  `NONE` disposition beside a recorded `handoffTo`, or as `REVIEW_RETURNED` on a non-review stage.
+  A claim under a policy without the key writes no `loopEvidence`. The `LOOP_DETECTED` hold is
+  derived on every read and claim, only from the ticket's newest attempt when it is ended, not
+  `COMPLETED`, and bound to the ticket's current `acceptanceRevision`; its generations are the
+  prior entries, oldest first, then the ended current generation, whose evidence is the attempt
+  itself. Two signals count. *No progress*: the newest consecutive generations that each ended in
+  a clean `HANDOFF` with zero gate results, zero reviews and no new candidate tree (none
+  submitted, or the same tree as the latest earlier one); a hand-off that carries `--evidence` but
+  no tree still counts. *Alternating returns*: the newest consecutive pairs of an `implement`
+  `HANDOFF` (untargeted or targeting `review`) followed by a `review` `REVIEW_RETURNED`, with a
+  trailing implement hand-off counted in the run. When a run's length (no progress) or its number
+  of returns (alternating) is above the policy bound, the ticket is held. A prior entry without
+  recorded history or evidence (legacy, supervised, or written while the policy was absent) is
+  UNKNOWN: it never counts, it ends the run it interrupts, and a later tree cannot be compared
+  across it. The hold MUST appear as a `LOOP_DETECTED` blocker in native eligibility, `ticket
+  show`, `ticket blockers`, direct claim, claim-next, recorded claimability, `plan preview`
+  (`BLOCKED LOOP_DETECTED`), the dispatcher's native ticket observation (the roster skips the
+  ticket) and `dispatch status` (`loopDetected`), with next action `reopen`. Its detail names the
+  signal, the acceptance revision, the counted generations, which are its evidence, and the policy
+  bound. Every plan entry so blocked, with or without author exclusion, MUST carry the optional
+  member `loop {signal, acceptanceRevision, generations, limit}`, absent from every other entry,
+  and a claim-next refusal whose first entry is `LOOP_DETECTED` MUST append the same detail. Like
+  ESC-V0-006 it never rewrites ticket status, sets a ticket hold or cancels anything,
+  and plan, eligibility and status reads stay pure: no lock, probe or write (CAL-V0-034).
+- `CAL-V0-103`: The hold MUST clear when the ticket's `acceptanceRevision` changes, which makes
+  the held attempt stale, or when the owner acknowledges it with the existing `ticket reopen`
+  writer (CAL-V0-043), which bumps the acceptance revision and readmits the ticket with a fresh
+  attempt. Reopen MUST admit a loop-held ticket as it admits a retry-exhausted one; a ticket that
+  is neither still refuses `RETRY_BUDGET_NOT_EXHAUSTED`. The dispatcher MUST raise one typed #502
+  `needs-owner` event with detail
+  `{kind: blocked, code: LOOP_DETECTED, signal, acceptanceRevision, generations}` per episode, an
+  episode being the ticket, signal, acceptance revision and newest counted generation, and persist
+  the episode in the optional dispatch-ledger member `seen.loops` so that a restart does not raise
+  it again; a cleared hold drops the member and a recurrence raises again. An episode whose event
+  append fails MUST stay recorded with `pending: true` and be raised again on the next tick or after
+  a restart until the append succeeds. Before raising an episode, the dispatcher MUST skip the
+  append and record the episode when the readable tail of the current or rotated event log already
+  holds that episode's event, so an append whose line landed before its error, or a crash between
+  the append and the ledger save, raises no duplicate. Every event append MUST first end a trailing
+  unterminated fragment, which a part-way failed append can leave, with a newline, so the appended
+  line parses; a well-formed log receives exactly the line. The ledger reader is closed whenever
+  `seen.loops` is present, with or without progress members, and refuses an alias, a duplicate or
+  unknown member, a `null` map or hold, an unknown signal, a malformed acceptance revision, a
+  malformed or empty generation list, a `pending` other than `true`, or a bad ticket key. A ledger
+  without holds keeps its bytes.
+
+Non-goals: a new acknowledgement verb or a lighter operator acknowledgement (reopen is reused);
+a native escalation record (the ESC-V0-010 writer opens a question only under a live claim, so the
+dispatcher's escalation is an event, not a record); counting supervised generations, text,
+session cost or time; holding on any other signal; changing ticket status, retry accounting or the
+retry budget; evaluating the hold in `ticket list`, `roadmap` or `queue status`; and any Core
+change. Core's closed policy reader already refuses a policy carrying `loopDetection`, as it does
+for `pools`, `supervision` and `externalReviews`, and Core does not evaluate the hold.
+
+Owner decision (2026-10-05, ticket V1-0791): both open questions keep the delivered behavior.
+The owner's `ticket reopen` stays the only acknowledgement, with no lighter operator verb, and the
+loop escalation stays a dispatcher `needs-owner` event, with no dispatcher- or operator-origin OPEN
+that would relax the ESC-V0-010 live-claim requirement.
+
+Failure modes: history recorded before the policy opted in is UNKNOWN, so a loop that began
+earlier is detected only after enough newly recorded generations; a hand-off that changed the
+work outside the candidate tree, gates and reviews counts as no progress, and the owner's reopen is
+the release valve; reopen also restarts the retry budget through the fresh attempt; the dispatcher
+raises its event when it first observes a hold, including at its baseline observation after a
+start; a ledger save failure or crash after an event leaves the episode unrecorded, and the
+duplicate is suppressed while the event stays in the readable log tail (the newest 1 MiB of the
+current and rotated logs), so it can repeat once only when that log is unreadable or the event has
+left the scanned tail; an unwritable event log keeps the episode pending, so the event is delayed,
+not lost; a part-way failed append leaves an unparseable fragment line, which the next append
+terminates and readers skip; a malformed `loopEvidence` or `seen.loops` refuses as `MALFORMED` rather than being ignored.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-102 | `TestCALV0102_PolicyLoopDetectionOptIn` (`internal/tasks/intent`); `TestCALV0102_PriorLoopEvidenceRoundTrip`, `TestCALV0102_LoopEvidenceOf` (`internal/tasks/snapshot`); `TestCALV0102_LoopHoldSignals`, `TestCALV0102_ClaimHonoursLoopHold`, `TestCALV0102_PolicyAbsentMatchesNMinusOne` (D8 digest pinned to the pre-change source), `TestCALV0102_NMinusOneScenarioOptsIn` (`internal/tasks/transaction`); `TestCALV0102_StoreLoopHoldAndOwnerReopen` (`internal/tasks/store`); `TestCALV0102_CLILoopHoldSurfaces`, `TestCALV0102_DispatchStatusShowsLoopDetected` (`internal/tasks/cli`); `TestCALV0102_DispatcherSkipsAndEscalatesLoopOnce` (`internal/tasks/dispatch`); `TestTMV0002_AS01_CommandResultEnvelope` code count 74 (`internal/tasks/wire`); `TestAgentLeasesSpecEnumeratesCALV0102` (`internal/lrfrepo`) |
+| CAL-V0-103 | `TestCALV0102_StoreLoopHoldAndOwnerReopen`, `TestCALV0103_ReopenRefusesUnheldTicket` (`internal/tasks/store`); `TestCALV0102_CLILoopHoldSurfaces` (`internal/tasks/cli`); `TestCALV0102_DispatcherSkipsAndEscalatesLoopOnce`, `TestCALV0102_LedgerLoopsAreClosedAndOptional`, `TestCALV0103_LedgerLoopsStrictWithoutProgress`, `TestCALV0103_LoopEscalationSurvivesEventAppendFailure`, `TestCALV0103_LoopEscalationSurvivesPartialEventWrite`, `TestCALV0103_LoopEscalationNotDuplicatedAfterCloseFailure`, `TestCALV0103_LoopEscalationNotDuplicatedAfterUnsavedLedger` (`internal/tasks/dispatch`); `TestAgentLeasesSpecEnumeratesCALV0102` (`internal/lrfrepo`) |
+
+Rollback: to disable detection, remove `loopDetection` with `policy update`; the hold disappears
+at the next read and claims stop recording `loopEvidence`. Downgrading is different. An older
+binary decodes the policy with a closed top-level key set and refuses a policy carrying
+`loopDetection` as `MALFORMED`; because journal audit and replay decode every historical policy
+afterimage, it keeps refusing the store, including `receipt audit`, after the key is removed. Its
+closed attempt decoder likewise refuses any attempt whose prior entry carries `loopEvidence`
+(inferred from the closed prior-generation key set; not separately exercised on an older binary).
+A downgrade therefore keeps this binary or a later reader, or restores the whole store, intent and
+state directory together, from a backup taken before the key was first written, verified with
+`receipt audit` under the older binary, accepting that later transactions are lost. Search the
+store for the byte strings `"loopDetection"` and `"loopEvidence"` to tell whether either was ever
+written; no match means older binaries still read it. An older dispatcher refuses a ledger that
+carries `seen.loops`; delete only that member while no hold is current, or start from a fresh
+ledger. Older readers also refuse a record or plan carrying `LOOP_DETECTED`; the code appears only
+in derived output and in dispatcher events, never in a stored ticket record.
+
+### V1-0772 supervised stage worktree bound and unproved stops (issue 354)
+
+Human-owned input: owner request [issue 354](https://github.com/beamfall/corvint/issues/354)
+(2026-10-05: finish the remaining code), native suspected bugs V1-0772 and V1-0771. Root cause, on
+base `d524530f`: a supervised stage worktree is `<work root>/<program>/<assignment>/<generation>/<stage>-<turn>`,
+and the attempt decoded `worktreePath` as a 128-byte Identifier. With a fixture work root under a
+resolved `TMPDIR` longer than about 81 bytes (an agent scratchpad, for example), the path exceeded
+128 bytes and DISPATCH refused `LIMIT_EXCEEDED` (`/worktreePath: Identifier longer than 128 bytes`)
+after the worktree and its program records existed. That part is deterministic, not load-dependent.
+Two further failures appeared only under concurrent host load (V1-0771). First, on Darwin,
+`kill(-group, 0)` answers `EPERM` for a process group whose only member is an unreaped zombie. The
+lane leader is one until `Run`'s `Wait` reaps it, so the drain reported survivors. The role then
+journaled the program `FINISHED` over `BLOCKED_RECOVERY` and was refused
+`MALFORMED: program transition`. Second, the stage watcher cancelled a running stage on one
+failed unlocked program read. That read had raced a concurrent writer's journal staging
+(`MALFORMED: staging/aNN: unassigned stage slot`).
+
+- `CAL-V0-086`: An attempt's `worktreePath` MUST decode as an absolute PathText of at most 4096
+  bytes, not an Identifier. A path that is empty, relative, contains a control character or exceeds
+  4096 bytes MUST still be refused with its code. Before any directory, program record or Git worktree
+  exists, the supervisor MUST refuse a stage worktree path, or a `<path>@<name>` sibling path, that
+  is not such a PathText. DISPATCH MUST refuse it as well. A stage whose drain does not prove
+  quiescence MUST end its role with a non-retryable `SURVIVORS` error, which takes precedence over
+  the stage's own failure (a wall timeout, nonzero exit or invalid result) and keeps its text. The
+  classification MUST precede any candidate preservation or read-only candidate check, so a stage
+  over an existing candidate that also changed its worktree is still `SURVIVORS`, never left
+  `STOPPING`. The program and attempt then stay `BLOCKED_RECOVERY`, the program quiescence is
+  recorded `UNKNOWN`, and the owner stays unreleased. Such a stage MUST NOT journal `FINISHED`, and a
+  role MUST NOT go on to gates, `READY` or integration after it. The drain MUST treat `EPERM` from the process-group
+  probe as neither gone nor observable. It re-probes until the group is proved gone (`ESRCH`) or the drain deadline passes,
+  and it never signals on, or counts as gone, an `EPERM` answer. The stage watcher MUST tolerate
+  failing unlocked program reads for at most 30 seconds of continuous failure before it stops the
+  stage, and a successful read resets that window. A heartbeat refusal still stops the stage at once.
+
+Non-goals: fixing the transient `unassigned stage slot` refusal of unlocked journal audits and
+archive export itself (filed separately as V1-0825; see CTS-V0-008), and a longer drain deadline. Failure modes: a group that keeps answering `EPERM` (for
+example, a member this user may not signal) is still unclean once the deadline passes. Program
+reads that fail for 30 seconds still stop the stage, so a drain or cancel control is observed up to
+30 seconds late while reads fail. Downgrade is one-way: a binary without this amendment refuses an
+attempt whose recorded `worktreePath` is longer than 128 bytes (`LIMIT_EXCEEDED`). Because a full
+journal walk revalidates every retained post, it then refuses the retained history, unless its reader
+resumes from a checkpoint after that record. Attempts with shorter paths keep identical bytes.
+Rollback reverts the decoder and the workflow together; the drain and watcher changes write no new
+bytes. Regression witnesses are in the CAL-V0-086 traceability row; see
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-05-tasks-multirepo-continuation.md`.
+
+### V1-0851 worker-exit release or reap (issue 622)
+
+Human-owned input: owner request [issue 622](https://github.com/beamfall/corvint/issues/622) and
+native ticket V1-0851. Observed on program `flowproof` (2026-10-05/06): six dispatcher-launched
+workers ended without releasing their attempts. Each time the dispatcher's one hand-off was refused
+and it reported `needs-owner` and left the attempt RUNNING and its pool member ALLOCATED, even after
+the lease expired. In one case the attempt had meanwhile become FAILED/FENCED, so a manual reap
+changed nothing. The owner asked for a bounded release retry, a reap once the lease expires, and
+`needs-owner` only when both fail, behind a dispatcher switch that defaults on.
+
+- `CAL-V0-104`: With `heal.handoff` and `heal.exitRecovery` (optional boolean, default true), a
+  refused hand-off of a live attempt held by an ended worker this dispatcher launched or adopted
+  MUST NOT emit `needs-owner` at once. The dispatcher MUST track that attempt at the generation and
+  holder it observed, in memory for its run, and on each later readable tick:
+  (1) if the attempt is absent or no longer live (released, reaped, or FAILED/FENCED by another
+  path), it MUST drop the recovery with a `handoff` event whose detail `recovery` is
+  `ALREADY_ENDED`, and write nothing;
+  (2) if the attempt's generation or holder changed, it MUST drop the recovery with a `handoff`
+  event whose `recovery` is `SUPERSEDED`, and never release or reap it;
+  (3) once the lease has expired, it MUST reap the attempt through the fenced reap transaction
+  (which fails the attempt and quarantines its pool member as an ordinary reap does), at most three
+  times;
+  (4) before the lease expires, it MUST retry the `HANDOFF` release, with the same evidence rule as
+  CAL-V0-056, so that at most three releases are made including the first; after the last refusal
+  it waits, without writing, for the lease to expire.
+  Writes are spaced by `tickSeconds` doubled per write and capped at five minutes, on the
+  dispatcher's clock. Each retry uses a distinct deterministic request ID, derived from the worker,
+  attempt, generation and try number, so a recorded refusal is never replayed as the retry's
+  answer. A successful retry emits `handoff` or `reaped` with `recovery` `RELEASED` or `REAPED`; a
+  reap that the store reports as changing nothing is resolved too. `needs-owner` MUST be emitted
+  exactly once, naming both last errors, only when the reaps are exhausted, or when the releases
+  are exhausted and the attempt has no lease to reap. An attempt held by any other holder is never
+  recovered; only the generic `heal.reap` of CAL-V0-056 applies to it. With `heal.exitRecovery`
+  false, CAL-V0-056's single hand-off and immediate `needs-owner` are unchanged. While a recovery
+  is pending or exhausted, a worker reported as ended again (because a tick failed before the worker
+  was accounted) MUST NOT restart it: the tries, backoff and request IDs continue, and an exhausted
+  recovery writes nothing more until the attempt ends or is superseded.
+
+Non-goals: persisting the recovery across a dispatcher restart (after a restart `heal.reap` still
+reaps the expired lease of a holder that is not a running worker, but releases are not retried);
+recovering attempts this dispatcher did not launch or adopt; a configurable retry count or backoff;
+new event kinds. Failure modes: an unreadable store skips heal, so the recovery waits for the next
+readable tick; a store write cancelled by shutdown leaves the recovery pending for the next tick of
+the same run; a restart loses pending recoveries; a lease renewed by a still-running orphan keeps
+the attempt live and, once releases are exhausted, the recovery waits for that new expiry; and
+with `heal.reap` also on, an expired attempt is written by the recovery only, never twice in one
+tick.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-104 | `TestCALV0104_ExitRecoveryRetriesHandoffOnLiveLease`, `TestCALV0104_ExitRecoveryReapsExpiredLease`, `TestCALV0104_ExitRecoveryResolvesFencedAttempt`, `TestCALV0104_ExitRecoveryNeedsOwnerOnlyWhenBothFail`, `TestCALV0104_ExitRecoverySurvivesFailedPostHealObservation`, `TestCALV0104_ExitRecoverySwitchOff`, `TestCALV0104_ExitRecoveryConfig` (`internal/tasks/dispatch`); `TestCALV0056_HandoffAndReap`, `TestCALV0056_CancelledHealingStopsNextWrite` unchanged |
+
+Rollback: set `heal.exitRecovery` to false for CAL-V0-056's original behaviour, or revert the
+change. The switch is an optional config member and the recovery writes no new ledger, store or
+wire bytes, but an older binary refuses a config that names `exitRecovery` (closed decoding), so
+remove the member before downgrading. See `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-06-v1-0851-worker-exit-recovery.md`.
+
+### V1-0853 held work outside the dispatcher's selection window (issue 624)
+
+Human-owned input: owner request [issue 624](https://github.com/beamfall/corvint/issues/624) and
+native ticket V1-0853. Observed on 2026-10-05: the program's work state held 21 tickets
+(`hold-lane`, `hold-dep`), yet they stayed SELECTED in the `maxActiveAttempts` window of 24.
+That left 142 actionable tickets DEFERRED `LIMIT_EXCEEDED`, so no role could ever launch them. The
+owner asked that the window count only tickets the dispatcher can act on. The preferred form is
+derived and needs no new store state.
+
+- `CAL-V0-105`: When the dispatcher has a work-state reader, a ticket MUST count as held exactly when
+  its observed work state is a known value (neither `NONE` nor `UNKNOWN`) that the state
+  predicate (`states`/`excludeStates`, CAL-V0-054) of no ticket role admits. Lane roles do not
+  count. The dispatcher MUST then replan the same observed snapshot, with no further store read and
+  no store write, passing the held ticket IDs as a derived input. In that plan, a held ticket that
+  would otherwise reach the selection window MUST be `DEFERRED` with reason and blocker
+  `WORK_STATE_HELD`, MUST NOT count toward `maxActiveAttempts`, and MUST NOT block a later ticket by
+  resource collision. A ticket that is BLOCKED (held record, dependency, prerequisite, loop) keeps
+  that decision. A held OPEN ticket that requires a pool still counts as waiting for CAL-V0-101
+  priority yield, so the dispatcher's plan agrees with the native claim's admission. Without a
+  reader, without a ticket role, with no held ticket, or for a ticket whose state is `UNKNOWN` or
+  `NONE`, the plan MUST be exactly today's (fail closed). The decision MUST be a pure function of
+  the snapshot and the work-state observation. `WORK_STATE_HELD` is derived dispatcher output only:
+  it appears in the dispatcher's ticket plan and `state` events. It is never a wire code, a stored
+  value, a plan-preview reason or a claim refusal.
+
+Non-goals: a native, revisionless program hold (the issue's alternative), counting held tickets for
+plan preview or `claim-next`, which have no work-state observation and keep today's window, a
+"not routed for N ticks" heuristic, and any change to the native claim's live-reservation limit.
+Failure modes: a work-state reader that fails reports `UNKNOWN`, so the affected tickets stay in the
+window as before. A role whose predicate admits a hold value means that value is not a hold. A
+worker launched by a non-dispatcher client can still claim a held ticket through `claim-next`,
+because the native plan does not see work state. The dispatcher's plan can therefore differ from
+`plan preview` while tickets are held.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-105 | `TestCALV0105_WorkStateHeldTicketsLeaveWindow`, `TestCALV0105_HeldSetDoesNotOverrideBlockedOrUnheld`, `TestCALV0105_HeldPooledTicketStillTakesPriorityYield` (`internal/tasks/transaction`); `TestCALV0105_HeldWorkStateLeavesDispatcherWindow`, `TestCALV0105_UnknownOrUnreadStateKeepsWindow`, `TestCALV0105_StateMatchesIsTheRolePredicate` (`internal/tasks/dispatch`); `TestCALV0105_DispatchObservationReplansHeldTickets` (`internal/tasks/cli`) |
+
+Rollback: revert the change. No config, ledger, store or wire bytes change, so every binary reads the
+same state. Removing the work-state reader, or giving a role a predicate that admits the hold values,
+also restores today's window. See `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-06-v1-0853-workstate-held-window.md`.
+### V1-0852 caller-asserted author cover (issue 623)
+
+Human-owned input: owner request [issue 623](https://github.com/beamfall/corvint/issues/623) (native
+ticket V1-0852). A review claim with `--exclude-authors` on a ticket whose implement generation
+predates V1-0788 (no recorded member) refused `INDEPENDENCE_UNVERIFIED` even when the caller named
+the author with `--exclude-member`, and a ticket with no implement generation at all refused although
+it has no author to exclude. The V1-0789 build log records both refusals as an implementer extension
+raised as owner questions, not owner decisions; this amendment answers them as the issue asks.
+
+- `CAL-V0-107`: When a CAL-V0-098 claim, CLAIM_NEXT or plan preview carries at least one explicit
+  `--exclude-member`, a reached generation whose history is `NOT_OBSERVED`, one with no recorded
+  stage and no recorded pool member, or an implement generation without a pool member MUST be
+  treated as covered by the explicit set: it contributes no member, does not refuse, and the walk
+  continues to older generations (`LATEST` still stops at the first recorded author). A generation
+  with no recorded stage but a recorded pool member MUST still refuse; a recorded member is never
+  replaced by the caller's assertion. Without explicit exclusions every CAL-V0-098 refusal is
+  unchanged. A ticket with no recorded implement author (none implemented, only review or integrate
+  generations, or only covered generations) MUST NOT be refused for that reason; its effective
+  exclusion set is the explicit members, and an exhausted pool's `RESOURCE_COLLISION` detail says
+  `excluded implement authors: none recorded`. An admitted claim's result MUST carry a warning
+  naming each covered generation as covered by the caller's explicit `--exclude-member` set, not by
+  recorded members, and a warning when no implement generation records an author. The request
+  preimage, replay and `REQUEST_ID_CONFLICT` behaviour of CAL-V0-065 and CAL-V0-098 are unchanged:
+  the warnings come from fresh derivation and an exact replay does not repeat them. POOL_PREPARE
+  MUST carry the claim's explicit members and apply the cover only when they are present, so the
+  cover is never implied: without them a generation that became unrecorded after the claim's
+  derivation refuses `INDEPENDENCE_UNVERIFIED` before PREPARING is recorded and so before any
+  health command runs or any member is quarantined, and the claim is reevaluated.
+
+Non-goals: no backfill or inference of legacy member facts; no proof that the explicit set names the
+author; no new result code or stored field; the plan preview keeps its CAL-V0-098 shape.
+
+Failure modes: a caller who names the wrong member is admitted on the real author's member; the
+warning records the claim as caller-asserted, which is the only safeguard. A stage-less pooled
+generation still refuses. A binary without this amendment refuses the same claims as before.
+
+Acceptance evidence: `TestCALV0107_ExplicitMembersCoverUnrecordedGenerations`,
+`TestCALV0098_DeriveAuthors` (`internal/tasks/transaction`); `TestCALV0098_ClaimExcludesImplementAuthor`,
+`TestCALV0098_ClaimNextExcludesAuthors`, `TestCALV0098_HealthSkipsAuthor` (`internal/tasks/store`);
+`TestCALV0107_CLIClaimReportsCoveredGenerations`, `TestCALV0098_CLIExcludeAuthors`,
+`TestCALV0098_ExhaustedPoolParity` (`internal/tasks/cli`); see
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-06-v1-0852-author-exclusion-cover.md`.
+
+Rollback: revert the code and this amendment. No stored state or preimage changes; claims admitted
+under the cover keep their recorded allocations.
+
+### V1-0855 cross-stage admission order (issue 626)
+
+Human-owned input: owner request [issue 626](https://github.com/beamfall/corvint/issues/626) (native
+ticket V1-0855). With `priorityAdmission` on, an implement claim for an equal-priority ticket earlier
+in plan order took the only free member while a review claim for a ticket that gated others had been
+waiting longer. CAL-V0-101 ranked competitors by plan order only, so stage and waiting time did not
+count. The issue asks that a waiting review claim for a blocking ticket beat new implement claims,
+and that the decision be visible.
+
+- `CAL-V0-108`: CAL-V0-101 MUST rank competitors and the claimed ticket in admission order: priority
+  first; at equal priority a downstream ticket before any other; two downstream tickets by the
+  earlier handoff sequence; then plan order (order, ticket ID). A ticket is downstream when its
+  latest attempt generation is terminal, is bound to the ticket's current acceptance revision, and
+  recorded a `HANDOFF` to `review` or `integrate` (its CAL-V0-084 `nextStage`); its handoff sequence
+  is that generation's `phaseSinceSeq`. The rank MUST be derived from the attempts on every read and
+  claim and MUST NOT add store, journal, request or wire state. A downstream competitor's claim
+  blockers MUST be read at its own downstream stage, the stage its claim names, so CAL-V0-099
+  stage-scoped prerequisites apply as they would to that claim; any other competitor's blockers are
+  read as before. Every competitor MUST be read against the pool itself, needing a free member
+  eligible for the stage it is read at, and without the plan's or claim's own `--exclude-member` or
+  `--exclude-authors`, so the default plan, a `--pool` plan and a claim count the same competitors.
+  The yield refusal detail keeps its CAL-V0-101 text and, when the ticket yielded
+  to is downstream, MUST append `; <ticketId> awaits <stage> since seq <seq>`. Plan preview (default
+  and `--pool`), `claim --next` and `ticket show` claimability MUST use the same order, so they agree
+  with an explicit claim. Without a downstream competitor the order is plan order and every
+  CAL-V0-101 result is unchanged; a pool without the flag is unaffected.
+
+Non-goals: a review or integrate ticket does not outrank a higher-priority implement ticket; there
+is no priority inheritance from dependent tickets and no `critical` or `blocks-gate` ticket field
+(the issue's alternative; an owner question). The time an implement-stage ticket has waited is not
+recorded, so among non-downstream tickets plan order stands; downstream-first is the derived stand-in
+for "waiting longer" and covers a review that open tickets depend on. A competitor's own
+`--exclude-member` or `--exclude-authors` is not known, so free members are counted for the claimed
+ticket only, as before. `dispatch status` is not changed: it reads the dispatcher configuration and
+ledger, not admission, and the decision is visible in the refusal detail, the plan entry's blocker
+and the competitor's `nextStage`.
+
+Failure modes: an implement claim on a pool with a downstream ticket waiting at equal priority now
+yields where it was admitted before; the operator claims the downstream ticket, changes priorities
+or drops the flag. A downstream ticket that never claims keeps its rank until its handoff is
+superseded by a new generation or its acceptance revision changes. A claim on a ticket whose
+recorded next stage is downstream ranks downstream whatever `--stage` it names, because the rank is
+derived from records only.
+
+Acceptance evidence: `TestCALV0108_WaitingReviewOutranksArrivingImplement` (issue order: review
+waiting, implement claim arrives, a member frees, the implement claim yields and the review is
+admitted; flag off admits the implement claim), `TestCALV0108_EarlierHandoffWinsAtEqualPriority`,
+`TestCALV0108_AdmissionRank`, `TestCALV0101_PlanClaimAndClaimNextAgree` (now with generated
+handoffs), `TestCALV0101_FlagOffMatchesNMinusOne` (pinned digest unchanged)
+(`internal/tasks/transaction`); see `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-06-v1-0855-cross-stage-admission.md`.
+
+Rollback: revert the code and this amendment. No stored state or preimage changes; admission
+returns to plan order at the next read or claim.
+
+### V1-0863 caller-bounded lease lock wait (issue 637)
+
+Human-owned input: owner request [issue 637](https://github.com/beamfall/corvint/issues/637) (native
+ticket V1-0863). With 6 to 10 concurrent writers, `release --reason HANDOFF --evidence ...` returned
+the retryable LOCK_TIMEOUT on `taskman.prepare.lock` after the fixed 30-second wait. The issue asks
+for a caller-chosen wait, safe same-request resubmission, and offers a third option that would turn
+a plain release into a HANDOFF when evidence exists.
+
+- `CAL-V0-111`: `release` and `attempt heartbeat` MUST accept `--lock-wait SECONDS`, whole seconds
+  in canonical decimal from 1 to 300 (`MaxCallerLockWait`). Any other value, a repeated flag, or the
+  flag on another lease verb MUST refuse MALFORMED before any store read or write. With the flag,
+  the lease transaction's preparation admission and each writer-lock acquisition, including the
+  orphan-stage cleanup lock, MUST wait up to
+  that bound, spent across all phases without restarting, instead of the 30-second default; an
+  expired bound still refuses the retryable LOCK_TIMEOUT before any write. The value MUST NOT be part
+  of the request, its digest or any receipt. Without the flag every wait is unchanged: the §1
+  default and maximum of 30 seconds still apply to every other caller.
+- `CAL-V0-112`: An evidence HANDOFF release refused LOCK_TIMEOUT MUST leave the store unchanged, so
+  resubmitting the same request ID with the same arguments MUST commit exactly once, and every later
+  resubmission MUST replay that committed receipt sequence without a write, with or without
+  `--lock-wait`. The replayed HANDOFF MUST carry its recorded evidence and MUST NOT charge a retry
+  to the next claim. This already held before V1-0863 (the lock refusals precede every write and the
+  wait is outside the request digest); the requirement pins it with maintained tests.
+- `CAL-V0-113`: No release path MAY convert a plain release into a HANDOFF. A plain release after
+  a timed-out HANDOFF is a new request that records no handoff evidence and charges a retry as
+  before.
+
+Non-goals: the issue's option 3 (treating a plain release as a HANDOFF when evidence exists) is
+rejected: it would silently change the retry accounting the caller asked for and depend on a
+heuristic over evidence the caller did not name. The 30-second §1 default, the preparation
+admission order and the registered-slot bound are unchanged; `--lock-wait` is not added to claim,
+renew, reap or batch verbs (CAL-V0-216, V1-1130, accepted by decision 0518, extends it to claim, renew, submit,
+pool acquire, pool confirm-safe and pool release; reap and batch verbs stay excluded). Contention
+itself is not reduced.
+
+Failure modes: a caller with a long `--lock-wait` holds a preparation slot for up to that bound,
+which can delay later registrations that then time out at their own bound. A wait beyond 300
+seconds refuses MALFORMED rather than clamping silently. A resubmission with changed arguments
+under the same request ID refuses REQUEST_ID_CONFLICT, as before.
+
+Acceptance evidence: `TestCALV0111_CallerWaitBound`, `TestCALV0111_CallerWaitOutlastsDefault`
+(`internal/tasks/authority`); `TestCALV0111_OrphanCleanupSpendsCallerWait`,
+`TestCALV0112_HandoffReleaseReplaysAfterLockTimeout` (`internal/tasks/store`); `TestCALV0111_LockWaitFlag`, `TestCALV0111_LockWaitBoundsContendedRelease`,
+`TestCALV0112_SameRequestHandoffReplayAfterLockTimeout`,
+`TestCALV0113_PlainReleaseAfterTimedOutHandoffIsCharged` (`internal/tasks/cli`); see
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-06-v1-0863-handoff-lock-wait.md`. Live fleet qualification under 6 to 10
+writers is NOT_RUN.
+
+Rollback: revert the code and this amendment. No stored state, request digest or receipt shape
+changes; callers that pass `--lock-wait` then refuse MALFORMED as an unknown flag.
+
+### V1-0864 deterministic journal-audit refusal order
+
+Human-owned input: native ticket V1-0864 (P2 bug, filed by the rc.3 corvint-tasks lanes). With two
+or more divergent projection files, the journal audit refused with whichever path Go's randomized
+map iteration visited first, so identical stores gave a different path, and sometimes a different
+code (`INTENT_DIVERGED` or `JOURNAL_FORKED`), from run to run. Read commands must be deterministic for
+identical stores.
+
+- `CAL-V0-114`: When the journal audit (complete or checkpoint-resumed) finds more than one fault of
+  the same kind, the refusal MUST name the fault at the byte-smallest store-relative path, with that
+  path's code, on every run. The audit compares canonical projections in ascending byte order of
+  their paths, then refuses stray projections in ascending byte order, and refuses unassigned stage
+  slots in ascending byte order. The relative order of these checks, and of every other audit check,
+  is unchanged; a store with one fault and a consistent store report exactly as before.
+
+Non-goals: reporting every fault at once; changing which faults are refused, their codes or
+messages; ordering refusals that are already deterministic (directory listings are read sorted).
+The joined close-failure diagnostic of the native read source is also put in path order, so its
+text is stable when several handles fail to close.
+
+Failure modes: within one projection pass a divergent canonical projection is still reported before
+any stray, whatever their paths. Passes keep their existing order: an audit that checks intent
+separately (the writer audits) still checks state projections and strays before intent ones, so
+there a state stray is reported before a divergent intent projection, as before. Sorting adds an in-memory sort of the retained path and
+observed file sets per audit; no extra file is read.
+
+Acceptance evidence: `TestCALV0114_DivergentProjectionRefusalIsDeterministic` (intent and state,
+state only, intent strays and unassigned stage slots; each audit repeated 32 times, and it fails on
+the earlier map-order walk), `TestCALV0114_SingleDivergenceAndSuccessUnchanged` and
+`TestCALV0114_CloseFailuresJoinInPathOrder` (`internal/tasks/journal`); see `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-06-v1-0864-projection-order.md`.
+
+Rollback: revert the code and this amendment. No stored state or wire shape changes.
+
+### V1-0625 policy heartbeat TTL and stale-holder advice (issue 426)
+
+Human-owned input: owner request [issue 426](https://github.com/beamfall/corvint/issues/426)
+(native ticket V1-0625, commissioned by the orchestrator 2026-10-06). On 2026-10-01 eight attempts
+of a dead OpenCode host held their tickets and two lanes for about 40 minutes; coordinators could
+not tell orphaned holders from live ones. CAL-V0-048 (cdad1b74) already delivered the
+generation-fenced `attempt heartbeat`, which records `lastHeartbeatAt` without extending the work
+lease, and the derived `holderStatus` in `attempt show` and `queue status`, with a fixed 600-second
+TTL. This amendment makes that TTL a policy choice and states how a coordinator may act on a stale
+holder.
+
+- `CAL-V0-120`: A policy MAY carry the optional top-level key `holderLiveness`, a closed object
+  with the required count `heartbeatTTLSeconds` from 300 to 86400. A count outside that range
+  refuses the policy `LIMIT_EXCEEDED`; an unknown or missing member, a non-count value, `null`, `{}`
+  or a non-object refuses it `MALFORMED`.
+  Omission keeps today's canonical policy bytes and the CAL-V0-048 default of 600 seconds. `attempt
+  show` and `queue status` MUST classify every recorded signal against the effective TTL of the
+  policy they read and report it as `heartbeatTTLSeconds`. The classification is derived on each
+  read and never written: reads take no lock and write nothing, and no attempt, reservation, lease,
+  retry count or ticket changes because a holder is stale. Legacy absence stays `NOT_OBSERVED` at
+  every TTL, never `STALE_HOLDER`. The 300-second minimum keeps the TTL above the 240-second
+  `attempt run` heartbeat interval. Heartbeat fencing is unchanged: an older or terminal
+  generation refuses FENCED and the work lease does not move.
+- `CAL-V0-121`: `STALE_HOLDER` is advisory input, not release authority. `release --help` MUST say
+  that a coordinator may use it to choose an evidence `HANDOFF` release, and that no read,
+  heartbeat, renew or reap releases, frees or fences an attempt because its holder is stale. Such
+  a release goes through the ordinary fenced writer with every CAL-V0-044/046 precondition and the
+  usual HANDOFF retry accounting. Nothing auto-releases, auto-reaps or auto-hands off a stale
+  holder, and staleness proves neither process death nor physical quiescence.
+
+Non-goals: automatic reaping or hand-off of stale holders; a holder-supplied liveness token (host
+session or PID); an aggregate stale count in `queue status`; renaming `NOT_OBSERVED` to another
+spelling; and any change to the work lease, heartbeat writer, journal, request or receipt shape.
+
+Failure modes: a TTL change is an ordinary policy change. Like any other policy change, it fences
+live evidence handoffs `STALE_POLICY` and gate runs claimed under the old policy. Set the TTL
+before claims, or release or hand off live attempts first. A coordinator that waits for STALE_HOLDER
+can still cut off a holder that is alive but not sending heartbeats. A wrong local clock shifts the
+classification, and an observation earlier than the signal stays CLOCK_BEFORE_HEARTBEAT. An older
+binary refuses a policy carrying the key.
+
+Note (2026-10-16, V1-1517): the first two sentences of this failure mode predate CAL-V0-123 and are
+superseded for handoffs; CAL-V0-123 makes a `holderLiveness`-only change, including a TTL change,
+handoff-compatible. `complete` still refuses `STALE_POLICY` for an attempt claimed under an earlier
+policy (`completionBlocker` in `internal/tasks/transaction/lease_gate.go`). The accepted text above is unchanged.
+
+Acceptance evidence: `TestCALV0120_PolicyHolderLivenessOptIn` (`internal/tasks/intent`);
+`TestCALV0120_HolderObservationUsesPolicyTTL`, `TestCALV0120_PolicyTTLDrivesHolderReads`,
+`TestCALV0121_StaleHolderCoordinatorHandoff` (`internal/tasks/cli`); the CAL-V0-048 tests still
+pass. See `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-06-v1-0625-holder-liveness-ttl.md`. Live fleet qualification
+NOT_RUN.
+
+Rollback: to restore the default, remove `holderLiveness` with `policy update`; reads use 600 seconds
+again. Downgrading follows the CAL-V0-102 rule: an older binary decodes the policy with a closed
+top-level key set. It refuses a policy carrying `holderLiveness` as `MALFORMED`, and because
+journal audit decodes every historical policy afterimage, it keeps refusing the store after the
+key is removed. Keep this binary or a later one, or restore the whole store from a backup taken
+before the key was first written. Search the store for the byte string `"holderLiveness"`; no
+match means older binaries still read it. No attempt, request or receipt bytes change.
+
+### V1-0645 writer checkpoint (issues 641 and 642; accepted by decision 0439)
+
+Human-owned input: native ticket V1-0645 (P1), which is the writer checkpoint (C) deferred in S20.
+It also covers owner requests [issue 641](https://github.com/beamfall/corvint/issues/641) and
+[issue 642](https://github.com/beamfall/corvint/issues/642) (native ticket V1-0887).
+
+Issue 641 reports that on the 13,121-receipt Flow-Proof queue every corvint-tasks write costs 30 to
+43 s. The owner's rule, 2026-10-06: writer cost must be milliseconds, not seconds. A heartbeat, renew
+or claim on a synthetic store of at least 13,000 receipts must take well under 1 s (median of 5,
+load band recorded) and stay flat from 3,000 to 13,000 receipts. Issue 642 reports that heartbeats
+and renews are about 90% of queue writes, and each one pays the full-history audit.
+
+On 2026-10-06 the coordinator, holding the owner's delegated in-task decisions, accepted this design
+for batch 4, including the guarantee change in `CAL-V0-116`. The owner accepted the
+requirements with the batch 4 list by decision 0439. This section supersedes the "Proposed writer checkpoint"
+subsection of S20. That subsection governs nothing and differs from this one: its path ended in
+`.json`, and it did not separate the writer and read routes.
+
+- `CAL-V0-115`: (accepted by decision 0439) Writer checkpoint file. The writer checkpoint is derived state.
+  - Location and profile. It has profile `taskman-writer-checkpoint/0` (`/1` under the proposed
+    `CAL-V0-190`) and is stored as
+    `<state directory>.writer-checkpoint`. That is beside the journal state directory, never inside
+    it, and separate from the CAL-V0-059 read checkpoint. State scans, archive export and older
+    runtimes therefore do not see it.
+  - Codec. The binary codec is closed and bounded, and lays out:
+    - a magic line;
+    - the length-prefixed CAL-V0-059 encoding of the receipt it names;
+    - seven counts: `FullSeq` (the head of the complete audit it descends from), the payload bytes
+      of receipts 1..Seq, the archive cost (files, payload, entry and tar bytes) of those receipts
+      and the request afterimages they posted, and the number of those requests;
+    - those requests' path digests, sorted, 32 bytes each (64-byte path and afterimage records
+      under the proposed `CAL-V0-190`);
+    - a note count and, for each live ticket entry whose afterimage at Seq carries an operator-note
+      reference, the entry's index and the SHA-256 of the reference's canonical encoding, 36 bytes
+      each, in entry order;
+    - the SHA-256 of the `CAL-V0-117` invalidation token that was current when the audit deriving
+      it began (the invalidation digest);
+    - a SHA-256 trailer over everything before it.
+  - Decoding. A decoder MUST refuse each of these:
+    - a file over the bound;
+    - a wrong trailer, magic or embedded length;
+    - truncated counts;
+    - a request count that disagrees with the digests, or a file count other than Seq plus
+      requests;
+    - `FullSeq` outside 1..Seq;
+    - receipt bytes above payload bytes;
+    - request digests that are not strictly ascending;
+    - a note count above the ticket bound or disagreeing with the remaining bytes, or note entries
+      that are not strictly ascending indexes of live `intent/tickets/` entries;
+    - a missing invalidation digest. A file written in the layout without it therefore falls back
+      to the complete route.
+  - Derivation. It MUST be derived only from bytes a settled audit physically read, and only when
+    that audit's last receipt is the head. Two kinds of audit qualify:
+    - a complete audit from receipt 1, which sets `FullSeq` to its head;
+    - a `CAL-V0-116` writer audit, which extends the checkpoint it resumed from and keeps its
+      `FullSeq`.
+
+    The note references are those the audit walked; a writer audit carries its base checkpoint's
+    reference for each ticket its tail did not post. A reference that was neither walked nor carried
+    fails the derivation, and nothing is retained.
+  - Writing. A writer retains it under the writer lock, best effort: it writes a fixed temporary file
+    opened exclusively, then renames it, with no fsync. It is never kept below an audited head of
+    128 receipts. A failure to retain it MUST NOT fail or change the transaction. Read commands,
+    `receipt audit` and archive export never read, create, replace or remove it.
+  - Fallback. The writer MUST take the complete route if the file is missing, unreadable, oversized,
+    torn, foreign or corrupt, or if a receipt it names no longer matches. An unusable checkpoint
+    therefore never yields a refusal or a committed result other than the one the store gives
+    without a checkpoint.
+  - Removal. Removing the file forces the next write through the complete audit. `receipt audit
+    --help` names both checkpoint files and says so.
+- `CAL-V0-116`: (accepted by decision 0439; amended 2026-10-20 by decision 0549 for the `CAL-V0-224`
+  liveness probe; amended 2026-10-21 by decision 0549 (JSG-V0-007) to retire it) Writer audit and
+  fast route.
+  - Scope. These writers MAY resume their audit at the writer checkpoint:
+    - `store.Mutate`, for every operation except REOPEN and the review operations, which read
+      attempt history;
+    - the lease verbs CLAIM, CLAIM_NEXT, RENEW, HEARTBEAT and RELEASE.
+
+    They do so under the writer lock, after the writer guards, and for `Mutate` after §5.2 redo. The
+    audit mode is then `WRITER_CHECKPOINT_PLUS_TAIL`.
+  - The writer audit MUST:
+    - rebind the checkpoint's queue ID, primary worktree, init digest and generation, and its named
+      receipt's sequence, generation and digest, as CAL-V0-061 does;
+    - require the receipt names on disk to be exactly 1..head, or S+1..head on a segmented store
+      with the `segments/` names exactly those the bound manifest lists (JSG-V0-007). The
+      `CAL-V0-224` liveness probe exception (decision 0549, 2026-10-20) is retired (2026-10-21);
+      the `CAL-V0-117`/`CAL-V0-265` refresh's prefix walk still retains nothing while a stray,
+      staged name or stage digest is present;
+    - walk every receipt after the checkpoint with the complete audit's per-receipt validators;
+    - refuse a tail request path that the checkpoint already holds;
+    - decline when the caller's own request ID is retained anywhere or its request file exists
+      (the proposed `CAL-V0-190` serves a retained request it can bind);
+    - compare every latest afterimage with its projection: intent and private state by digest,
+      evidence and pinned blobs by their content-addressed names;
+    - bind each tail post of a ticket last posted at or before the checkpoint, in a receipt with no
+      note event, to the note reference the checkpoint carries for that ticket (none when it carries
+      none); a mismatch declines, and the complete audit refuses it as a reference changed without
+      its note event;
+    - check stage slots, strays in the directories it lists, and the intent tree, as the complete
+      audit does and in CAL-V0-114 order.
+  - It MUST decline in each of these cases:
+    - the tail exceeds 256 receipts;
+    - the head is 4,096 or more receipts past `FullSeq`;
+    - the tail holds a note receipt whose pre-state precedes the checkpoint and does not bind to
+      the checkpoint entry digest (amended by `ON-V0-012`/`ON-V0-014` in
+      [operator notes](corvint-tasks-operator-notes-v0.md), V1-1650: a pre-state that binds keeps
+      the writer route);
+    - the journal is not plainly settled.
+  - Serving the write. The writer models the request against an inventory that summarizes receipts
+    1..Seq and their requests from the checkpoint counts. Before effects it rechecks the head and
+    the intent tree, and that the intent worktree is still on the branch it modeled: `Mutate`
+    checks the queue's intent branch, and a lease verb compares the primary branch with the
+    observed one, as `commitLease` does under the lock. It then commits exactly as the complete
+    route does. Claim facts and the scope
+    deriver run under the lock.
+  - Hand-off to the complete route. In each of these cases nothing is written on this route, and
+    the complete route serves the write and derives the outcome itself:
+    - any decline;
+    - any refusal of the writer audit;
+    - a possible replay;
+    - a model that needed an elided path;
+    - a model that did not plan a transaction, including every model refusal;
+    - a failed branch check or pre-effect recheck, including an intent worktree switched to another
+      branch with identical intent contents.
+
+    Refused and replayed writes therefore keep the complete route's cost (amended by the proposed
+    `CAL-V0-190`). A failed native close, a
+    lock timeout and an error from the commit itself are returned as the complete route returns
+    them.
+  - Parity. Served writes commit the same bytes and report the same outcome as the complete route on
+    the same store (the 2026-10-20 `CAL-V0-224` probe exception is retired by JSG-V0-007).
+  - Unreachable case. CAL-V0-012's writer-behind-newer-head case cannot occur on this route, because
+    the route samples the clock under the lock.
+  - Accepted guarantee change (decision 0439). A fast writer does not re-read receipts 1..Seq, their request
+    afterimages, or evidence and pinned bodies. It therefore does not detect:
+    - tamper of a prefix receipt or request afterimage;
+    - tamper of evidence or pinned content;
+    - a stray request file other than its own request path;
+    - a forged checkpoint whose counts and digests are internally consistent;
+    - non-cooperating edits of private state between audits.
+
+    `receipt audit`, the complete route and the `CAL-V0-117` refresh still refuse all of them.
+    File stat stamps (device, inode, size, modification time) are not adopted as evidence (the
+    `CAL-V0-224` probe's directory stamps were retired with it by JSG-V0-007).
+- `CAL-V0-117`: (accepted by decision 0439) Counts, advance and scheduled refresh.
+  - Counts. Every complete audit re-derives the checkpoint counts from receipt 1. A summarized
+    inventory's archive cost and limits MUST equal those of the complete inventory it replaces. When
+    the model reads an elided path, the inventory is marked incomplete and the write declines.
+  - Advance. When a served write's tail has reached 64 receipts, the write re-bases the checkpoint on
+    that tail under the same lock and keeps `FullSeq`.
+  - Scheduling. A write whose new head is 512 or more receipts past `FullSeq` schedules a complete
+    audit (amended by `PSR-V0-169` in `corvint-tasks-pool-safe-reuse-v0.md`: exactly 512, then
+    every further 64). That audit runs after the write has released the lock and the preparation
+    gate.
+  - Invalidation token. The token is `<state directory>.writer-checkpoint.invalidated`, derived
+    state beside the checkpoint. An absent file is an observed empty token. A file that cannot be
+    read, or is empty, is unobserved.
+  - Binding. Every consumer of the writer checkpoint MUST read the current token and use the
+    checkpoint only when the token is observed and its SHA-256 equals the checkpoint's invalidation
+    digest. A missing or unobserved token, or a different digest, declines to the complete route.
+    Every retention MUST record the token read before the audit that derived the checkpoint, and
+    MUST publish nothing when that token was unobserved or has changed by the time the checkpoint
+    would be written.
+  - Refresh.
+    1. Read the invalidation token.
+    2. Audit from receipt 1 without the lock (amended by the proposed `CAL-V0-265`: a prefix walk
+       to the captured head when the journal moves).
+    3. Under the lock, read the token again. If either read failed, or the token changed, another
+       refresh refused after this audit began: publish nothing (stage `refresh.superseded`).
+    4. Otherwise retain the derived writer checkpoint, bound to the receipt head it audited, unless
+       the retained checkpoint descends from a later complete audit.
+    5. Retain the read checkpoint only if `head.json` is unchanged.
+  - Racing writers. The next writer walks any writer that committed in between as its tail. A
+    receipt changed in between fails that writer's rebinding, and the complete route then decides.
+  - Refusal. A refusal other than SNAPSHOT_MOVED or a pending receipt, under the lock, replaces the
+    invalidation token with a fresh random value and then removes the writer checkpoint. Replacing
+    the token unbinds the retained checkpoint at once, so a stop before the removal still sends every
+    later write to the complete route, which refuses as it would without a checkpoint; the removal is
+    cleanup. An older refresh that succeeds afterwards sees the new token and cannot reinstall the
+    checkpoint. If the token cannot be written, the checkpoint is still removed; an older refresh may
+    then reinstall it, and the next scheduled refresh refuses and removes it again. An intent-only
+    divergence keeps the checkpoint for the intent repair.
+  - Effect on the triggering write. The refresh never fails or changes that write, but its caller's
+    wall time includes the refresh. This is a known latency spike.
+- `CAL-V0-118`: (accepted by decision 0439) Writer cost measurement. The opt-in profile
+  `TestCALV0118_WriterHoldProfile` runs on synthetic stores only. It is configured by
+  `CORVINT_TASKS_WRITER_HOLD_PROFILE`, `CORVINT_TASKS_HISTORY_SIZES`,
+  `CORVINT_TASKS_HISTORY_TICKETS` and `CORVINT_TASKS_WRITER_HOLD_REPS`.
+  - Recorded data. For a ticket create (`mutate`), claim, renew, heartbeat and release, it MUST
+    record:
+    - each sample's wall time, process CPU and lock hold;
+    - the route each sample took;
+    - the per-phase breakdown of each route;
+    - the median of the samples;
+    - the host load before and after.
+  - Targets. With the writer checkpoint present and a tail of at most 256, served heartbeat, renew
+    and claim writes at 13,000 receipts and the profile's default 880 tickets MUST have a median of
+    5 under 1 s. They MUST also be flat from 3,000 to 13,000 receipts, meaning within the run-to-run
+    spread of the profile, not proportional to receipts. The remaining cost is proportional to the
+    ticket count; at 9,990 tickets it is recorded, not bounded, by this slice.
+- `CAL-V0-119`: (accepted by decision 0439) Read checkpoint from a writer audit.
+  This amends CAL-V0-059 and CAL-V0-060.
+  - What a served writer retains. A writer served by `CAL-V0-116` MUST also retain the CAL-V0-059
+    read checkpoint, derived from its settled writer audit. It does so under the writer lock, at the
+    audited pre-write head, and before effects. It uses the same best-effort temporary-file write,
+    with no extra fsync and no extra tree read.
+  - Derivation. The body is the one a complete audit at that head derives: the writer checkpoint
+    entries plus the walked tail, using the complete audit's per-receipt validators. It is derived
+    only when the writer audit's projections agree. A read checkpoint is still never extended from a
+    read checkpoint, and never taken over a pending receipt.
+  - Amendment to CAL-V0-061. Its last sentence is amended. Writes served by `CAL-V0-116` do not keep
+    the complete audit. These still do:
+    - every other writer;
+    - refused and replayed writes;
+    - barrier removal, reconciliation and request lookup;
+    - `receipt audit`.
+
+Non-goals:
+- Not in this slice; follow-up lane:
+  - the issue 641 millisecond target;
+  - an incremental refresh;
+  - optimistic observation outside the lock;
+  - moving liveness records out of the audited journal (V1-0887 criterion 3, which this slice does
+    not need);
+  - stat-stamp caches.
+- Not changed:
+  - REOPEN and review operations;
+  - release-record, policy, barrier, reconciliation, import and pool writers;
+  - refused and replayed write cost;
+  - any `receipt audit` behavior;
+  - any journal, intent, request, receipt or archive bytes.
+
+Failure modes, also in the table below:
+- No fsync. The writer checkpoint is not fsynced. After a crash it may be torn, which falls back, or
+  older, which stays valid. An older checkpoint still names a receipt in the append-only chain, and
+  its tail is walked or declined.
+- Accepted detection gap. Prefix tamper, evidence and pinned tamper, stray requests, and a
+  consistent forged checkpoint are not detected by fast writers until `receipt audit`, a
+  complete-route write or the next refresh. A refresh that refuses removes the checkpoint.
+- Lock hold. Observation and modeling moved inside the writer lock, so the lock hold of a served
+  lease write rose from about 0.1 s to about 0.45 s while its wall time fell. This is accepted as a
+  measured regression of the hold metric.
+- Refresh spike. The write that crosses the 512-receipt refresh interval pays a complete audit after
+  its lock is released.
+- First write. The first write on a store without a writer checkpoint takes the complete route,
+  which seeds the checkpoint.
+- Older runtimes. They ignore the file and do not update it. The tail and `FullSeq` bounds decline a
+  checkpoint they left behind.
+
+Acceptance evidence:
+- `internal/tasks/journal`: `TestCALV0115_WriterCheckpointCodecIsClosed` (including the note
+  references, the invalidation digest and the layout without it).
+- `internal/tasks/store`:
+  - `TestCALV0115_WriterCheckpointFallsBackToCompleteAudit` (removed, corrupt, torn, foreign,
+    forged and outrun checkpoints);
+  - `TestCALV0116_WriterFullBoundDeclines`;
+  - `TestCALV0116_WriterRouteParity`;
+  - `TestCALV0116_WriterRouteCounterexamples` (prefix and tail duplicate requests, a stray own
+    request, forks at the checkpoint receipt and in the tail, a torn tail receipt);
+  - `TestCALV0116_WriterRouteTamperAtFastStages`;
+  - `TestCALV0116_PrefixTamperIsLeftToCompleteAudits`;
+  - `TestCALV0116_FastWriteRechecksIntentBranch` (a branch switch with identical intent contents at
+    the lease and mutate model stages);
+  - `TestCALV0116_TailNoteReferenceChangeWithoutEvent` (after two checkpoint advances);
+  - `TestCALV0117_RefreshWriteInterleave`;
+  - `TestCALV0117_WriterAdvanceAndScheduledRefresh`;
+  - `TestCALV0117_OlderRefreshCannotUndoInvalidation`;
+  - `TestCALV0117_InvalidationSurvivesStopBeforeRemoval` (a refusing refresh stopped after the
+    token replacement and before the removal).
+- `internal/tasks/archive`: `TestCALV0117_FileSetCostParity`.
+- `internal/tasks/transaction`:
+  - `TestCALV0117_SummarizedInventoryCostParity`;
+  - `TestCALV0117_SummarizedInventoryElidedMetadataMarksIncomplete`;
+  - `TestCALV0117_NewSummarizedInventoryRefusesMalformedSummary`.
+- `internal/tasks/cli`: `TestCALV0115_ReceiptAuditIgnoresDerivedCheckpoints`.
+- The existing CAL-V0-059..062 and CAL-V0-070 tests still pass.
+- Measurement: `TestCALV0118_WriterHoldProfile`, with the numbers below; see
+  `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-06-v1-0645-writer-checkpoint.md`. Not run: live fleet and Flow-Proof
+  qualification.
+
+Measurements (`CAL-V0-118`, 2026-10-06, synthetic stores on one macOS host). Each cell is the
+median of 5 wall times in ms, with the lock hold after the slash. "Before" is fe5ace4a, which has no
+writer checkpoint; every before sample took the complete route. Every after lease sample took the
+fast route. The first after mutate in a row seeds the checkpoint on the complete route; its time is
+in parentheses and is included in the median. Load band is the 1-minute load average before and
+after the row.
+
+| Receipts | Tickets | Run | Load band | mutate | claim | renew | heartbeat | release |
+|---|---|---|---|---|---|---|---|---|
+| 2,000 | 880 | Before | 8.09 to 8.65 | 1,711 / 1,700 | 1,441 / 116 | 1,388 / 97 | 1,378 / 98 | 1,433 / 115 |
+| 2,000 | 880 | After | 8.17 to 8.02 | 432 / 427 (1,757) | 470 / 461 | 424 / 415 | 421 / 413 | 431 / 422 |
+| 3,000 | 880 | Before | 14.96 to 13.94 | 2,946 / 2,932 | 2,430 / 141 | 2,319 / 132 | 2,424 / 129 | 2,385 / 151 |
+| 3,000 | 880 | After | 6.86 to 6.51 | 479 / 474 (2,439) | 523 / 510 | 441 / 429 | 449 / 440 | 475 / 466 |
+| 13,000 | 880 | Before | 11.67 to 7.10 | 9,039 / 9,001 | 7,978 / 142 | 7,934 / 120 | 7,881 / 131 | 7,913 / 145 |
+| 13,000 | 880 | After | 6.59 to 6.14 | 458 / 453 (8,841) | 483 / 473 | 436 / 428 | 455 / 446 | 480 / 471 |
+| 13,000 | 9,990 | After | 7.35 to 18.37 | 3,308 / 3,301 (10,680) | 3,495 / 3,482 | 3,274 / 3,263 | 3,140 / 3,129 | 3,272 / 3,262 |
+
+- Met at 880 tickets: heartbeat, renew and claim well under 1 s at 13,000 receipts, and flat from
+  3,000 to 13,000 receipts.
+- NOT_MET: the issue 641 millisecond wording, and under 1 s at 9,990 tickets. The remaining cost is
+  observation, modeling and binding of the intent tree under the lock, which grows with tickets, not
+  receipts. These go to the follow-up lane.
+- The lease lock hold rose from about 0.1 s to about 0.45 s; this is accepted as a measured
+  regression of the hold metric.
+- The phase breakdown, the load-band caveats and the 9,990-ticket choice (10,000 is
+  `MaxTicketsPerQueue`, and the profile creates five tickets) are in
+  `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-06-v1-0645-writer-checkpoint.md`.
+
+Rollback:
+- Per store: delete `<state directory>.writer-checkpoint`. The next write runs the complete route,
+  which writes the checkpoint again.
+- To disable the route: revert the code. Older runtimes ignore both files.
+- No journal, intent, request, receipt or archive bytes change.
+
+### V1-0888 additive pool and holder-liveness handoff compatibility (issue 643)
+
+Human-owned input: owner request [issue 643](https://github.com/beamfall/corvint/issues/643) (native
+tickets V1-0888 and V1-0882). An OWNER `policy update` that only added a member to a pool fenced
+every live clean HANDOFF and REVIEW_RETURNED release with STALE_POLICY, so the next claim was charged
+a retry. The issue asks that a purely additive pool change stay handoff-compatible for an attempt
+whose own member, pool settings and budgets are unchanged, that every other relevant change still
+fence, and that `policy update` say which live attempts it will fence.
+
+- `CAL-V0-122`: (Accepted by decision 0439 (V1-0888; GitHub #643)) The issue 482 projection MUST, before comparing,
+  remove from the current policy every member that the same-id pool of the original policy lacks,
+  together with that member's own `reservedFor` and `memberConfig` entries; a map left empty by that
+  removal is dropped only where the original pool omits it. This applies to every pool present in
+  both policies and to no-pool attempts, so item 1 of the issue 482 amendment now also allows added
+  members with their own settings. A removed, replaced, reordered or reconfigured existing member,
+  the own member's reservation or configuration, any other pool field, an added or removed pool,
+  budgets, capacity and every other raw field MUST stay bound and refuse the release STALE_POLICY,
+  including when they change in the same update as an added member. A current policy that no longer
+  holds the allocated member MUST be incompatible, not malformed. The policy writer's existing
+  refusal of a change to an occupied member's definition stays in force. Policy profile v0 has no
+  pool size limit, so no raised limit is normalized.
+- `CAL-V0-123`: (Accepted by decision 0439 (V1-0882; GitHub #643)) A change limited to the optional top-level
+  `holderLiveness` key (CAL-V0-120/121), added, changed or removed, MUST be handoff-compatible: the
+  key sets only a derived read-time holder status and never fences. The projection drops it with
+  policyVersion. A profile that does not define the key still refuses it in DecodePolicy before the
+  projection runs, so naming it grants nothing there.
+- `CAL-V0-124`: (Accepted by decision 0439 (V1-0888; GitHub #643)) A COMPLETED `policy update` MUST carry
+  `handoffFences`: one entry per live external-agent, unsupervised attempt whose configuration
+  identity equals its policy identity, with attemptId, ticketId, generation, stage, holder, poolId,
+  memberId and `handoff`. `FENCED` names an attempt claimed under the policy being replaced whose
+  clean handoff the new policy makes incompatible; `NOT_OBSERVED` names one claimed under an earlier
+  policy, whose interval this read does not audit. Compatible attempts are omitted. A non-empty list
+  adds a warning. The preview MUST be read-only, taken before the write and outside the writer lock,
+  and MUST NOT change the update's request, digest, refusal or receipts; if the read fails the field
+  is null with a NOT_OBSERVED warning and the committed update stands.
+
+Non-goals: no pre-commit refusal, confirmation or dry-run flag for `policy update`; no history
+audit in the preview; added pools, capacity changes and member reordering stay fenced; `complete`
+is still fenced by any policy change (lease gate, unchanged); the journal interval audit and its
+writer (V1-0645) are unchanged except that they call the widened projection.
+
+Failure modes: the preview is advisory and can race a concurrent claim, release or second update;
+the release-time interval audit stays the authority. An attempt claimed under an earlier policy is
+reported NOT_OBSERVED even when its interval is compatible. An added member that an operator later
+reconfigures while a pre-addition attempt is live is judged against the original policy, where the
+member is absent, so that change is also tolerated until the member is occupied.
+
+Acceptance evidence: `TestCALV0122_AdditivePoolMemberIsHandoffCompatible`,
+`TestCALV0123_HolderLivenessIsHandoffCompatible` (`internal/tasks/intent`; the latter skips where
+the profile lacks `holderLiveness` and passes on the batch 3 profile);
+`TestCALV0044_HandoffPolicyReceiptInterval` (member addition now compatible; other-member
+replacement and pool setting fence), `TestCALV0122_OccupiedOwnMemberChangeRefusedAtUpdate`
+(`internal/tasks/store`); `TestCALV0122_Issue643AdditiveMemberKeepsHandoff` (issue replay: claim,
+additive update with an empty `handoffFences`, HANDOFF and REVIEW_RETURNED keep the retry exemption;
+a budget change lists FENCED and NOT_OBSERVED attempts and the HANDOFF refuses STALE_POLICY)
+(`internal/tasks/cli`); see `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-06-v1-0888-additive-pool-handoff.md`. Live fleet
+qualification is NOT_RUN.
+
+Rollback: revert the code and this amendment. No stored state, request digest or receipt shape
+changes; the projection returns to issue 482 behavior at the next release and `handoffFences`
+disappears from the update result.
+
+### V1-0891 CPU signal and per-OS pressure signal selection (issue 646)
+
+Human-owned input: owner request [issue 646](https://github.com/beamfall/corvint/issues/646) (native
+ticket V1-0891, P1). On macOS the one-minute load average counts virtualization vCPU threads and
+uninterruptible waits, so the throttle held level 2 while the CPUs had spare capacity. The issue asks
+for CPU utilisation from tick deltas inside the per-tick sample without an extra command, for the
+level to use it, for optional per-OS signal selection (for example memory only on macOS), and for
+defined first-tick behaviour. The coordinator assigned CAL-V0-125..126. Both requirements are
+accepted by decision 0439.
+
+The macOS tick source is not delivered. `host_processor_info` and `host_statistics(HOST_CPU_LOAD_INFO)`
+are Mach calls that a `CGO_ENABLED=0` binary reaches only through `go:linkname` trampolines, which the
+release gate forbids; Go's `syscall` and the standard library expose no wrapper, and no macOS sysctl
+publishes cumulative CPU ticks. macOS samples therefore carry no tick counters and cannot select
+`cpu`. The macOS mitigation the issue names is delivered: selecting `memory` alone removes the load
+average from the level.
+
+- `CAL-V0-125`: (accepted by decision 0439 (V1-0891; GitHub #646)) The Linux pressure sample MUST read cumulative CPU
+  ticks from the aggregate `cpu` line of the same bounded `/proc/stat` read that counts CPUs: total is
+  user, nice, system, idle, iowait, irq, softirq and steal; busy is total minus idle and iowait. A
+  missing, duplicated, short, non-numeric or overflowing line adds a problem and leaves the counters
+  unknown. The dispatcher MUST derive `cpuUtilization` as the busy delta over the total delta between
+  the previous recorded sample of this run and the current one, and only when both carry counters
+  from the same source, the total advanced, neither counter regressed and the busy delta does not
+  exceed the total delta; otherwise utilisation is UNKNOWN with a named problem. The first sample of
+  a run, including the first after a restart (which clears the previous sample, CAL-V0-068), is
+  therefore UNKNOWN. The optional `pressure` thresholds `calmCpu < cpuHigh < cpuCritical <= 1`
+  (finite, non-negative) are required when any OS selects `cpu` and validated whenever one is
+  configured. When selected, utilisation is classified like load and swap and `cpu` is a valid level
+  `reason` (CAL-V0-110), sorted before `load`. An UNKNOWN utilisation of a selected `cpu` signal makes
+  the sample UNKNOWN and the CAL-V0-068 UNKNOWN rule applies. The ledger refuses a utilisation outside
+  0..1 or one without its known flag. `dispatch status` and the `throttled` event MUST report
+  `cpuUtilization` (the fraction or `UNKNOWN`). Sampling MUST follow the selection: a sampler reads
+  and parses nothing for an unselected signal (Linux: `/proc/loadavg` only for `load`, `/proc/stat`
+  only for `load` or `cpu`, `/proc/meminfo` only for `swap`; macOS: one `sysctl` of the selected
+  keys only, none when nothing observable is selected), and `/proc/stat` is read only up to the end
+  of its leading `cpu` lines. Without `cpu` selected, the sample carries no tick counters or
+  utilisation and records no tick problem, so those ledger fields are written only when `cpu` is
+  selected.
+- `CAL-V0-126`: (accepted by decision 0439 (V1-0891; GitHub #646)) The `pressure` object MAY carry `signals`, a map
+  from host OS (`darwin` or `linux`) to 1..N unique signal names that host can observe (`darwin`:
+  `load`, `memory`; `linux`: `cpu`, `load`, `swap`). Any other OS key, an empty or duplicated list, or
+  an unobservable name MUST be refused. On a host whose OS has an entry, exactly the named signals set
+  the level: any of them can raise it, all must be calm to release it, and an UNKNOWN unselected
+  signal does not make the sample UNKNOWN. A host without an entry keeps the CAL-V0-068/109 default
+  (load plus the kernel memory-pressure level on macOS, load plus swap on Linux), so a configuration
+  without `signals` behaves as before.
+
+Non-goals: macOS CPU utilisation (needs cgo or forbidden linkname; owner decision); per-CPU or
+per-process utilisation; PSI or cgroup CPU limits; signal weighting; selecting signals per role.
+Failure modes: the first tick of every run is UNKNOWN when `cpu` is selected, so a recorded level is
+held (never released or raised) for one admission tick after a start; a tick interval with no clock
+advance in `/proc/stat` is UNKNOWN; a host whose counters reset (a different source) starts a new
+baseline. A selection that omits `load` lets an inflated load average no longer throttle, which is
+the intent. Rollback removes `signals` and the CPU thresholds from the configuration; a ledger
+whose sample carries CPU counters or utilisation is refused by an older binary, so a downgrade first
+needs one start without `pressure`. Because those fields are written only while a host selects `cpu`,
+this downgrade risk applies only to operators who opt into `cpu`; default ledgers stay readable by
+older binaries.
+
+Acceptance evidence: `TestCALV0125_CPUUtilizationDelta`, `TestCALV0125_LinuxCPUTicksParsing`,
+`TestCALV0125_DispatcherFirstTickUnknown`, `TestCALV0125_LinuxSamplingFollowsSelection`,
+`TestCALV0125_DarwinSamplingFollowsSelection`, `TestCALV0125_UnselectedCPULeavesLedgerUnchanged`,
+`TestCALV0126_SignalSelection`,
+`TestCALV0126_SignalSelectionValidation` (`internal/tasks/dispatch`);
+`TestCALV0125_DispatchStatusCPUUtilization` (`internal/tasks/cli`); see
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-06-dispatch-cpu-signal-config-reload.md`. Live Linux sampling and a live
+dispatcher under CPU saturation are NOT_RUN.
+
+### V1-0890 dispatcher configuration reload, cap 0 and lane minimum age (issue 645)
+
+Human-owned input: owner request [issue 645](https://github.com/beamfall/corvint/issues/645) (native
+ticket V1-0890, P2): apply a changed configuration file without restarting the dispatcher, let
+`cap: 0` disable a role, and let a lane wait until a member has stayed in its state for a minimum
+time. The coordinator assigned CAL-V0-127..129. All three requirements are accepted by decision 0439.
+
+- `CAL-V0-127`: (accepted by decision 0439 (V1-0890; GitHub #645)) A running `dispatch` MUST re-read its `--config`
+  file at the start of each tick, before it observes the store, with the CAL-V0-052 read and decode
+  rules. Unchanged bytes (by SHA-256) do nothing. A changed file that decodes and validates and keeps
+  `stateDir` and `workRoot` MUST become the applied configuration for that tick and every later one,
+  appending one `config` event (`outcome` `APPLIED`, the new digest, and any removed roles). An
+  unreadable or invalid file, or one that changes `stateDir` or `workRoot`, MUST be refused: the
+  applied configuration stays active, one `alert` event (`config` `REFUSED`, the digest or `UNKNOWN`
+  when unreadable) is appended once per distinct refused content, and the refusal is recorded. When
+  the file again matches the applied configuration the refusal is cleared with a `config` event
+  (`outcome` `RESTORED`). A reload MUST NOT stop, signal or relaunch a running worker: a removed
+  role launches nothing further and its running workers stay supervised to their normal end. A
+  worker running when a reload applies MUST stay supervised under the configuration it launched
+  under (its role's wall and idle timeouts, its host's activity rules and the kill grace), even when
+  the reload lowers those timeouts or removes the role; that launch configuration is kept in memory
+  for the run, and a restart supervises adopted workers under the file it starts with. Across
+  a reload the recorded pressure level is kept and pending dwell restarts; adding `pressure` starts an
+  UNKNOWN record and removing it drops the record. The ledger keeps this run's record (applied
+  digest and time, newest refusal of at most 1024 bytes); a restart applies the file afresh and drops
+  it. `dispatch status` MUST report it as `config` (`appliedSha256`, `appliedAt`, and `refused` with
+  `sha256`, `at` and `reason`, or `NONE`) once a change has been seen. Pool routing for planning
+  follows the applied configuration. `dispatch status --config FILE` MUST still read the ledger when
+  FILE no longer decodes or validates, provided a single, exactly spelled, clean absolute top-level
+  `stateDir` string precedes any syntax error: it then reports the recorded `config` refusal and
+  adds `configFile` (`state` `INVALID`, the file's `sha256`, `reason`); the escalation view is
+  omitted, pressure caps are not shown and the infrastructure-retry `policy` is `UNKNOWN`. Without a
+  recoverable `stateDir` status refuses as usage, and `dispatch unpark` always requires a valid
+  file. Note (V1-1856, no new requirement): the exit code and outcome of `dispatch status` on an
+  invalid on-disk config are recorded by `ATR-V0-134` in
+  `corvint-tasks-attempt-runner-v0.md` (exit 1 with ERROR/MALFORMED); this text states only what
+  status still reports.
+- `CAL-V0-128`: (accepted by decision 0439 (V1-0890; GitHub #645)) A role `cap` MAY be 0. A role with cap 0 MUST
+  launch nothing; its running workers are unaffected, and every other CAL-V0-052 bound is unchanged.
+  A disabled role MUST take no part in planning: its pool is not among the pools the plan may select
+  (CAL-V0-097), its work-state predicate holds nothing in the window (CAL-V0-105) and it yields no
+  roster candidates, so a ticket only it could take never uses the `maxActiveAttempts` window of an
+  enabled role.
+- `CAL-V0-129`: (accepted by decision 0439 (V1-0890; GitHub #645)) A lane MAY carry `minAgeSeconds` 0..604800. When
+  positive, the roster MUST admit a pool member only after the dispatcher has observed it in the
+  same state and change sequence for at least that many seconds on the dispatcher clock. A changed
+  state or change sequence, a member that disappears, a clock step backwards and a dispatcher
+  restart each start a new episode; the episode clock is in memory only, so a restart can only delay
+  a lane launch, never admit a member early. The roster stays a pure function of its inputs (CAL-V0-054).
+
+Non-goals: a filesystem watcher or signal-triggered reload; reloading `stateDir` or `workRoot`;
+stopping or draining workers of a removed or disabled role; reloading in `service` mode (the
+manifest-pinned service keeps its pinned configuration); a persistent member-age clock; ages read
+from the store's receipt timestamps. Failure modes: a file edited in several writes may be read
+half-written and refused, then applied at the next tick once complete; a refused file keeps the
+previous configuration indefinitely and is visible only in status and the event log; a reload that
+narrows caps leaves already running workers above the new cap until they end. Rollback reverts the
+file (applied at the next tick) or restarts the dispatcher; a ledger carrying the reload record is
+refused by an older binary, so a downgrade first needs one restart (which drops the record).
+
+Acceptance evidence: `TestCALV0127_ConfigReloadAppliesAndRefuses`,
+`TestCALV0127_ReloadRemovedRoleKeepsWorkers`, `TestCALV0127_ConfigRecordValidation`,
+`TestCALV0127_ConfigRecordBesideStrictRecords`, `TestCALV0127_ReloadKeepsLaunchDeadlines`,
+`TestCALV0127_ReloadRemovedRoleKeepsDeadlines`, `TestCALV0128_CapZeroDisablesRole`,
+`TestCALV0129_LaneMinAge` (`internal/tasks/dispatch`); `TestCALV0127_DispatchStatusConfigRecord`,
+`TestCALV0127_DispatchStatusWithInvalidConfigFile`, `TestCALV0128_DisabledRoleDoesNotStarveEnabledRole`
+(`internal/tasks/cli`); see
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-06-dispatch-cpu-signal-config-reload.md`. Live dispatcher qualification is
+NOT_RUN.
+
+### V1-0889 in-place binary upgrade with live attempts (issue 644)
+
+Human-owned input: owner request [issue 644](https://github.com/beamfall/corvint/issues/644) (native
+ticket V1-0889). Every corvint-tasks build switch on 2026-10-06 drained the queue to zero live
+attempts first; one drain took about 1h50m. Nothing in the lease path binds an attempt to a build:
+heartbeat, renew and release are fenced only by generation, terminal phase and lease expiry, and the
+store format is the fixed `taskman-state/0`. What was missing was a supported procedure, a stated
+compatibility rule, and a coded refusal when a build meets state another format wrote. These
+requirements are accepted by decision 0439 (V1-0889; GitHub #644).
+
+- `CAL-V0-130`: (accepted by decision 0439 (V1-0889; GitHub #644)) Replacing build N with build N+1 while external
+  attempts are live MUST be supported without a drain when both builds report the same `formats`
+  (CAL-V0-131): stop the dispatcher (its close leaves workers running), install N+1 at the same path,
+  restart the dispatcher, which adopts the recorded workers. An attempt claimed under N MUST then
+  heartbeat, renew and release under N+1 with its original attempt ID and generation, and
+  `receipt audit` MUST pass under both builds. Rollback is the same procedure run the other way:
+  with equal `formats`, going back from N+1 to N (stop the dispatcher, rename-install N, restart
+  and adopt) MUST be supported, and an attempt claimed under N+1 MUST heartbeat, renew and release
+  under N. Rollback is supported only when the N and N+1 `formats` sets are identical. When the
+  sets differ, rollback is UNSUPPORTED: draining does not help, because N refuses the newer formats
+  N+1 persisted with UNSUPPORTED_VERSION (CAL-V0-131), which is the correct fail-closed result and
+  leaves the store bytes unchanged. No restore, conversion or downgrade reader is provided.
+- `CAL-V0-131`: (accepted by decision 0439 (V1-0889; GitHub #644)) `version` MUST report `formats`, the sorted set of
+  the store `VERSION` and every profile the tasks packages persist and decode again (journal, intent,
+  lease, run, release, review, pool, dispatcher and user-service records, and the command-result
+  envelope a supervisor reads back); only profiles written solely to stdout are left out, as is
+  an older version the build only adopts and never writes (the drained dispatcher ledger of the
+  CAL-V0-132 amendment), and a maintained test fails when a profile the sources name is
+  in none of those lists. Two builds are
+  adjacent-compatible only when their sets are equal. A build that changes the encoding of any
+  listed format MUST change that format's version, so the sets differ and the procedure requires a
+  drain. A decoder that meets its own profile at another version MUST refuse UNSUPPORTED_VERSION
+  before its closed-key and field checks, and MUST NOT read, accept or migrate the record; the
+  store `VERSION` refusal does this before any lease verb writes. That first refusal MUST stand: no
+  later field read, nested decoder or semantic check may replace it, and wrapping the error keeps
+  its code (`wire.CodeOf` unwraps). A decoder MUST return the stored refusal before it invokes any
+  independent decoder or profile check, and a later `Profile` call on that reader MUST return the
+  first stored error. A maintained table test feeds every listed format, from a later
+  build with an unknown member, to the decoder that reads it and fails on any other code. This
+  amends ATR-V0-010: a run record of another `taskman-attempt-run-record` version is
+  UNSUPPORTED_VERSION, while another profile name stays MALFORMED. The append-only dispatcher event log is the one exception: its
+  tail readers skip a line of another profile, as they skip a torn line, and never refuse. The
+  derived writer checkpoint (`taskman-writer-checkpoint`, CAL-V0-115) is listed and its
+  decoder refuses another version UNSUPPORTED_VERSION, but that refusal only makes the writer
+  decline to the complete route, which re-derives the checkpoint from the journal; the checkpoint
+  is never authority, so replacing another version's checkpoint is not a migration.
+- `CAL-V0-132`: (accepted by decision 0439 (V1-0889; GitHub #644)) A dispatcher ledger whose profile is another
+  `taskman-dispatch-state` version, or that carries a top-level member no spelling of a known member
+  matches, MUST refuse UNSUPPORTED_VERSION before any decode, rewrite or worker action, and the
+  dispatcher MUST NOT open. Before V1-0889 both cases were reported MALFORMED. A different profile
+  name and case-folded aliases keep their existing malformed refusals. The ledger is
+  `taskman-dispatch-state/1` from the build that added the CAL-V0-127 `config` record and the
+  CAL-V0-125 CPU sample fields; a maintained test pins each version's encoded shape, so a changed
+  shape needs a new version. Amendment accepted by decision 0439: a drained
+  `taskman-dispatch-state/0` ledger (its profile found under any case-folded spelling), one that
+  records no worker, has nothing after the ledger value but whitespace, and whose every member,
+  at any depth, is in version 0's closed member set, spelled exactly and not repeated (so neither
+  the `config` record nor a CPU sample field), MUST be adopted:
+  it is decoded under version 0's closed member set with the added members at their zero
+  values, keeps its backoff, cooldown and other history, and is rewritten as version 1 by the
+  next save. A version 0 ledger that still records a worker, carries any other member,
+  repeated member or case-folded spelling at any depth, or carries trailing data, MUST
+  refuse UNSUPPORTED_VERSION before any worker action and stay unchanged, every other version
+  still refuses, and a
+  version 0 build still refuses a version 1 ledger. The upgrade from an earlier build is
+  therefore the differing-formats procedure: drain to zero workers under that build, then
+  restart under this one. Also accepted by decision 0439: a version 1 ledger in which any object
+  repeats a member exactly, any struct object holds two members that match one field by case
+  folding, or the ledger value is followed by anything but whitespace, MUST refuse MALFORMED
+  before any worker action and stay unchanged, so a later `workers` or `WORKERS`, or a trailing
+  value, cannot hide a recorded worker; dynamic map keys stay case-sensitive and a lone
+  case-folded struct member keeps its CAL-V0-064 treatment.
+- `CAL-V0-133`: (accepted by decision 0439 (V1-0889; GitHub #644)) Build N processes that outlive the swap, such as
+  detached attempt-runner supervisors (which re-execute their own executable) and supervised program
+  owners, keep running build N against the shared store. The procedure MUST install by writing a new
+  file and renaming it over the path, never by rewriting the running file in place. The rationale is
+  known platform behaviour, not measured here: on macOS, rewriting a signed executable that is
+  running invalidates its code-signature pages and the kernel can kill the process; on Linux,
+  opening a running executable for writing fails with ETXTBSY. A rename leaves the old inode in
+  place for the processes running it. No install command or script is provided. With equal
+  `formats`, such a process MUST still read and heartbeat records build N+1 wrote, and finish and
+  exit as it would have without the swap.
+- `CAL-V0-134`: (accepted by decision 0439 (V1-0889; GitHub #644)) Supervised Codex, Claude Code and OpenCode programs
+  keep their pinned-executable guarantee unchanged. The pin is the host runtime named in policy
+  `runtimes`, not the corvint-tasks binary, so a corvint-tasks swap neither refuses nor re-pins it.
+  The procedure MUST NOT kill or restart a live supervised owner: it finishes its program under
+  build N. Upgrading the host runtime itself still needs the existing drain and policy update.
+
+Non-goals: no migration, no downgrade reader, no build or binary identity in attempts, receipts or
+the journal, no hot reload of a running dispatcher, and no change to the user-service executable
+pin (`service install --replace` remains the explicit acknowledgement). The HANDOFF policy-digest
+fence that the issue also cites belongs to V1-0888 and is unchanged here.
+
+Failure modes: a rollback from N+1 to N across different `formats` sets is unsupported and refuses
+UNSUPPORTED_VERSION, including over a ledger with a member N does not know, instead of discarding or
+converting anything; no restore, drain or conversion makes it supported. An operator who overwrites the installed binary in place instead of renaming may terminate
+running build N processes (inferred from macOS code-signing behavior; not measured here); their
+attempts then expire and are reaped as before. Equal `formats` is necessary, not sufficient, for
+behavior unrelated to formats, such as admission policy or dispatcher scheduling changes.
+
+Acceptance evidence: `TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1`,
+`TestCALV0131_OtherStoreFormatRefusesUnsupportedVersion`,
+`TestCALV0131_LiveFormatsCoverEveryLiveRecord` (`internal/tasks/cli`);
+`TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts`,
+`TestCALV0132_DrainedPreviousVersionLedgerIsAdopted`,
+`TestCALV0132_RepeatedLedgerMemberRefuses` (`internal/tasks/dispatch`); see
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-06-v1-0889-live-upgrade.md` and the operator procedure in
+`docs/TASKS-EXTERNAL-AGENTS.md`. A live fleet upgrade with real workers is NOT_RUN.
+
+Rollback: revert the code and this amendment. No stored state, request digest or receipt shape
+changes; `version` loses `formats`, and the two ledger refusals report MALFORMED again.
+
+### V1-0893 and V1-0894 read scale and idle CPU (issue 641)
+
+Human-owned input: native tickets V1-0893 (reads, claim selection and receipt audit stay fast at
+10,000 tickets and 100,000 receipts) and V1-0894 (long-running processes do not burn CPU while
+idle), both citing [issue 641](https://github.com/beamfall/corvint/issues/641), and the owner's
+2026-10-06 goals that large projects run without slowdowns and that CPU is spent only when
+essential. These requirements are accepted by decision 0439.
+
+- `CAL-V0-135`: (accepted by decision 0439 (V1-0893; GitHub #641)) A whole-history receipt binding fold (`receipt
+  audit`, redo of a pending receipt, and every `FoldExternalReviews` reader) MUST read receipts
+  beneath one pinned `receipts/` directory descriptor, one no-follow open per receipt, with the same
+  bytes, size bound and refusals as the per-path reader: a symlinked or non-regular receipt refuses
+  UNSUPPORTED_FILESYSTEM and an absent receipt stays absent. A fold that completes MUST then
+  re-bind the named `receipts/` path to the pinned directory and refuse SNAPSHOT_MOVED when it
+  disappeared or now names another directory.
+- `CAL-V0-136`: (accepted by decision 0439 (V1-0894; GitHub #641)) On Darwin arm64 and amd64 the detached-host
+  escape scan MUST read the process table through the kernel (`sysctl kern.proc.all`) instead of
+  starting `/bin/ps` every scan, with the same rows: pid, parent, process group and zombie state
+  for every process except pid 0. A table that does not decode marks the scan uncertain, as a failed
+  `ps` does. On Linux the scan MUST read the same rows from `/proc/<pid>/stat` instead of
+  starting `ps`, skipping a process that exits between the directory read and its `stat` read;
+  a `stat` record that does not parse or names another pid marks the scan uncertain. Other Darwin
+  architectures keep the `ps` reader.
+- `CAL-V0-137`: (accepted by decision 0439 (V1-0894; GitHub #641)) The supervisor's host exit capsule poll MUST
+  start at 10 milliseconds and double while the host runs, up to the detached escape scan interval
+  (200 milliseconds), so a long host costs at most five wakeups a second; it MUST NOT poll slower
+  than that interval, and the leader and interrupt wakeups stay immediate.
+- `CAL-V0-138`: (accepted by decision 0439 (V1-0894; GitHub #641)) A long-running dispatcher (`dispatch`, `service
+  run`) MAY carry its review binding fold in process memory between ticks and fold only the
+  receipts appended since. It MUST continue only while the receipt it last folded keeps its digest,
+  the `receipts/` directory listing still names every receipt from 1 to that receipt (canonical
+  names, exact count, each a regular file by its directory entry type), and every new receipt chains
+  to its predecessor; any shorter history, removed or renamed earlier receipt, earlier receipt
+  replaced by a symlink, directory or other non-regular entry, rewritten last receipt, unreadable or
+  undecodable receipt, or binding refusal MUST discard the carried state and answer exactly as the
+  whole-history fold from receipt 1. An earlier receipt's content rewritten in place under its own
+  name, and a permission-only change to an earlier regular receipt that the whole-history fold would
+  refuse UNSUPPORTED_FILESYSTEM when it cannot open it, are not re-checked by each carried fold; as
+  decided for V1-0645, such prefix edits are detected by `receipt audit` and refresh (a content
+  rewrite refuses JOURNAL_FORKED), not by every fold. This is a guarantee change from the whole-history fold, which
+  re-reads every receipt, and is accepted by decision 0439. Nothing is persisted.
+- `CAL-V0-139`: (accepted by decision 0439 (V1-0894; GitHub #641)) A long-running dispatcher whose queue offers a
+  store witness MAY skip a tick's store read only after a full tick left its ledger bytes unchanged
+  (no events, no launches) and while the witness, the configuration and the ledger it settled on
+  are unchanged, no operator request is waiting, it supervises no worker, sweep, recovery or
+  uncertain launch, and its configuration names no work-state reader (a pressure configuration no
+  longer disables it: ATR-V0-181). The
+  witness MUST cover the journal head, barrier and `VERSION` bytes, the state and receipt
+  directories and every top-level intent entry; a witness error reads in full. A skipped tick MUST
+  give way to a full tick at the earliest of the safety-net interval after the last full read (15 minutes under CAL-V0-217, accepted by decision 0518; formerly 60 seconds), an observed lease
+  expiry, a recorded cooldown, a scheduled pool sweep and the time a tracked lane member episode
+  reaches an enabled lane's `minAgeSeconds` (CAL-V0-129), and whenever the clock is behind the
+  armed tick. A deadline that falls after a full tick started and at or before it settles MUST
+  leave the gate unarmed, so the next tick reads in full; only deadlines strictly after the settle
+  time arm it, and the earliest bounds the skip window. A retained pending pool sweep record blocks
+  the gate whether or not the configuration sweeps. The ledger MUST NOT be rewritten when its
+  encoded bytes are unchanged, still in place and were last saved by this ledger with every step
+  (file fsync, rename and directory fsync) succeeding; any failed save forgets that, so the next
+  identical save writes and syncs again and reports its own result.
+- `CAL-V0-140`: (accepted by decision 0439 (V1-0893; GitHub #641)) Within one snapshot-pinned read, the journal
+  audit's before and after captures MUST reuse the intent bytes the read's first probe hashed for
+  every intent file whose current size matches, and MUST read any other file fresh. A same-size
+  rewrite during the read is caught by the read's second probe, which re-hashes the tree and moves
+  the snapshot, so the read retries or refuses SNAPSHOT_MOVED exactly as before. Disabling
+  probed-tree reuse disables the sharing.
+- `CAL-V0-141`: (accepted by decision 0439 (V1-0893; GitHub #641)) The full `plan preview` result MUST validate
+  against a JSON node bound of the base 250,000 nodes plus 64 nodes per plan entry (at most 890,000
+  at the 10,000-ticket queue bound), so a full queue previews instead of refusing LIMIT_EXCEEDED. An
+  entry is typically 27 nodes; a result over the scaled bound still refuses LIMIT_EXCEEDED. Every
+  other result keeps the base bound and the output bytes are unchanged. No bound may exceed
+  `wire.MaxResultNodes` (890,000) on encode. The generic `DecodeResult` keeps the base bound; a
+  consumer of the full plan decodes through the bounded route `DecodeResultLimit(raw, maxNodes)`,
+  which refuses LIMIT_EXCEEDED for a bound outside 1..890,000.
+- `CAL-V0-142`: (accepted by decision 0439 (V1-0894; GitHub #641)) `service run` MUST build its dispatcher's queue
+  with the configured ticket pools, as `dispatch` does.
+
+Non-goals: the writer path, writer audit and journal checkpoint (owned by V1-0645) are unchanged;
+no second checkpoint or persisted fold is added. One-shot reads still fold the whole history when
+a ticket carries external reviews, and every read still opens and hashes every intent file twice
+(the before and after probes); a stat-keyed digest cache that would remove those content passes is
+not built (see Failure modes). Dispatch configuration, pressure signals and policy handoff compatibility are
+out of scope.
+
+Failure modes: a host exit is now observed up to 200 milliseconds later; the leader holds its
+group for 90 seconds after publishing the capsule, so the classification is unchanged. The Darwin
+record layout is pinned to `kinfo_proc` (648 bytes); a kernel that changes it fails the length
+check and the scan is uncertain, exactly as when `ps` fails. A carried fold
+whose process outlives a store rewrite is caught by the digest and chain checks and refolds.
+An idle dispatcher does not see a ticket file rewritten in place outside the journal until its next
+full read, at most 60 seconds later; the periodic full read sees it. A ledger (`state.json`) edited
+by another process is never reloaded by a running dispatcher: every full tick keeps its in-memory
+ledger and overwrites `state.json` with it, as before. A carried review fold does not re-hash an
+earlier receipt's content or permissions on each tick; an in-place content rewrite or permission
+change of one under its own name is found by `receipt audit` and refresh (CAL-V0-138). The Core plan decoder (`internal/taskman`) keeps its own
+pre-existing 1,000-entry limit and does not read a full 10,000-entry plan. The
+shared audit capture trusts a same-size intent file to the read's second probe, which re-hashes
+every file after the body.
+
+Acceptance evidence: `TestCALV0135_ReceiptFoldPinnedReader`, `TestCALV0138_ReviewFoldCarriesOnlyAChainedPrefix`,
+`BenchmarkCALV0135_FoldReceiptBindings`, `BenchmarkCALV0138_DispatcherTickFold` (`internal/tasks/store`);
+`TestCALV0136_NativeProcessRowsMatchPS` (Darwin), `BenchmarkCALV0136_ProcessRows`,
+`TestCALV0137_HostExitPollBackoff` (`internal/tasks/supervisor`);
+`TestCALV0136_ProcRowsReadsAFakeProcRoot`, `TestCALV0136_ProcRowsSeesThisProcess` (Linux)
+(`internal/tasks/supervisor`); `TestCALV0139_IdleTickSkipsTheReadUntilSomethingChanges`,
+`TestCALV0139_IdleGateNeedsAWitnessAndNoWorkers`, `TestCALV0139_UnchangedSaveRetriesAFailedDirectorySync`,
+`TestCALV0139_DeadlineCrossedDuringATickDoesNotArm`,
+`TestCALV0139_PendingSweepRecordsBlockTheGateWithoutSweeping`,
+`TestCALV0139_IdleGateWakesForALaneMinimumAge` (`internal/tasks/dispatch`);
+`TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsRemoved`,
+`TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsNotRegular`, `BenchmarkCALV0138_ListsPrefix`
+(`internal/tasks/store`);
+`TestCALV0138_CarriedReviewFoldMatchesWholeHistory`,
+`TestCALV0138_RewrittenEarlierReceiptIsDetectedByReceiptAudit`, `TestCALV0139_DispatchQueueWitness`,
+`TestCALV0140_SharedAuditTreeSameSizeRewriteRereads`, `TestCALV0141_PlanNodeBoundScalesPerEntry`,
+`TestCALV0142_ServiceDispatcherReadsTicketPools` (`internal/tasks/cli`);
+`TestCALV0140_AuditSharesTheOuterIntentTree` (`internal/tasks/journal`); synthetic-store and
+idle measurements in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-06-tasks-read-scale-idle-cpu.md`. Live fleet
+qualification, the Linux `/proc` reader on a live host and Linux idle measurement are NOT_RUN.
+
+Rollback: revert the code and this amendment. No stored state, request, receipt or wire shape
+changes; the dispatcher ledger encoding is unchanged.
+
+### V1-0930 dispatcher worker log and directory bound (accepted by decision 0440)
+
+Status: accepted by decision 0440. Ticket V1-0930 records that a dispatcher worker's
+`workers/<id>/stdout.log` and `stderr.log` grew without limit, and that finished worker directories
+were never removed. The owner asked on 2026-10-07 to keep the dispatcher lean and asked for the
+same 2×8 MiB bound that detached runs keep (ATR-V0-010). A worker is a new session leader. It
+writes through append-mode descriptors it holds itself, and it outlives the dispatcher, so the
+dispatcher cannot place a pipe or a rename between the worker and its log.
+
+- `CAL-V0-143`: (accepted by decision 0440; V1-0930) On every supervising tick, right after it compares log sizes for activity
+  (CAL-V0-056), the dispatcher MUST cap each recorded worker's `stdout.log` and `stderr.log`.
+  Output that is then cut still counts as activity.
+  A stream whose live file exceeds 8 MiB MUST be cut as follows:
+  - Its newest bytes, starting at a line boundary when one lies within the first 64 KiB of the
+    kept range, are written to a temporary file in the worker directory behind one marker line.
+    The marker names the stream, its size and the bytes kept.
+  - The temporary file is renamed over `<stream>.1`. The rotated segment, marker included, is at
+    most 8 MiB, and it replaces the previous rotated segment.
+  - The live file is then truncated to zero in place, so the worker's next append lands at its
+    new end.
+
+  The truncation MUST happen even when the copy fails. The recorded log bytes become the size
+  after the cut, which the next tick compares against. The `finished` summary (CAL-V0-058) MUST read a live log shorter than its 64 KiB
+  window as the continuation of the rotated segment, and it MUST skip the marker line.
+- `CAL-V0-144`: (accepted by decision 0440; V1-0930) When a tick finishes at least one worker, after those workers leave
+  the ledger, the dispatcher MUST remove finished worker directories beyond the 32 newest that are
+not kept for a reason below; a kept directory takes none of the 32. A
+  directory's age is the newest modification time of the directory and its log segments. The pass
+  reads at most 4,096 entries of `workers/`, chosen by ATR-V0-182. It MUST keep every directory in any of these cases:
+  - the ledger records its worker;
+  - its exit is still awaited;
+  - an infrastructure retry episode names it as its launch, because its absence proves that
+    launch never spawned (CAL-V0-104 reconcile);
+  - it changed within the last hour;
+  - it cannot be read;
+  - the `leader` file that launch writes into it holds a PID and start identity whose tree may still
+    run: the leader still has that identity, or a live process is in its process group or session.
+    An unreadable identity, process table or session also keeps the directory, and so does a
+    malformed `leader` file. A process that exits between the table read and its session read may
+    have forked a child the table does not show, so the table is then read once more and both
+    reads' groups and sessions count.
+
+  Removal MUST be confirmed across two passes. The first pass that finds a directory removable only
+  writes a mark, `workers/.retiring/<name>`, holding the mark time and the directory's age, and
+  removes nothing. The mark sits beside the worker directories, so it neither changes a directory's
+  age nor counts as its content. A later pass, at least one minute after the mark, removes the
+  directory only if its own fresh reads again find it removable with the same age, and a re-read of
+  the directory and its logs immediately before removal still shows that age. A pass that finds the
+  directory protected, recent, retained or changed in age clears its mark; a pass runs at most once
+  per tick, so the two passes are always in different ticks. A mark older than 10 minutes or three
+  ticks, whichever is longer, is stale: the pass marks the directory again and removes nothing.
+  Marks are pruned by reading their own directory, at most 4,096 entries per pass; every mark whose
+  directory the pass did not find removable is cleared. At most 4,096 marks exist: a pass that reads
+  4,096 marks writes no new one, so confirmation of newly removable directories waits for the next
+  pass after the prune. Removal failures are left for the next pass.
+
+  Confirmation MUST NOT wait for another worker to finish. A pass that leaves a mark pending, or
+  that could not write one because the mark set was full, schedules one confirming pass in memory
+  for one minute later. The first tick at or after that time runs it even when no worker finished.
+  That tick is at most one tick interval late, so it falls within every mark's maximum age. The
+  CAL-V0-139 idle gate treats the scheduled time as a deadline. When no pass is scheduled, a tick
+  does no retirement work and reads nothing extra. A dispatcher that opens with a non-empty
+  `.retiring` directory runs one pass on its first tick; that check reads one directory entry. A
+  scheduled pass that cannot read `workers/`, `.retiring` or the process table leaves the marks in
+  place and schedules the next pass one minute later, so a transient failure never cancels
+  confirmation.
+
+Bound: a recorded worker keeps at most 8 MiB per stream in its rotated segment. Its live file holds
+at most 8 MiB plus what the worker writes during one tick interval (`tickSeconds`, at most 3,600 s).
+A finished worker's logs were cut on its last supervising tick. Beyond the recorded and the
+protected directories, at most 32 finished directories stay quiet longer than an hour after a
+confirming pass, each within the same per-stream bound; between the marking and the confirming pass
+the marked directories also remain. At most 4,096 marks of at most 64 bytes each exist. The event log keeps its existing single rotation at 16 MiB (CAL-V0-058).
+
+Non-goals: a dispatcher-owned pipe or log relay; logs of a worker the ledger does not record; a
+configurable segment size or retention count; compressing or archiving segments; changing the event
+log rotation or the ledger encoding.
+
+Failure modes:
+
+- Bytes the worker appends between the dispatcher's size check and the truncation are lost and are
+  not counted.
+- A worker's own child can reopen its output without append mode, for example through
+  `/proc/self/fd` on Linux. It then keeps its old offset, so the live file is sparse after the cut
+  and is cut again on the next tick.
+- A stopped dispatcher caps nothing. Workers adopted on restart are capped on the first tick.
+- A live tree that the ledger does not record, left by a crash between launch and the ledger save,
+  is kept through its `leader` file. Two cases are protected only by the one-hour quiet window and
+  the 32 newest:
+  - a crash between the spawn and the `leader` write, or a failed `leader` write;
+  - a directory written by a build without this amendment.
+
+  Such a tree that stays silent for an hour while 32 newer finished directories exist can lose its
+  log directory. The process itself is never signalled.
+- A reused leader PID, or a process group or session ID reused by an unrelated process, keeps a
+  finished directory. Removal is only deferred.
+- A session member that exits after forking during one table read is covered by the next read,
+  and removal needs two passes of two reads each. The residual is a process chain that forks and
+  exits through all four reads across the two passes, each child outside the leader's process group
+  and missing from every table read. Its directory can then be removed if it has also been silent
+  for an hour.
+- A mark whose directory falls outside the 4,096-entry window is cleared; the directory is marked
+  again once it is back in the window.
+- Output a worker writes between the re-read before removal and the removal itself is lost with
+  the directory. That window is one `stat` of the directory and its four log files.
+- A pass reads only the first 4,096 entries of `workers/`, in directory order. Retirement within
+  that window is complete. Directories beyond it wait until the window shrinks, so more than about
+  4,000 protected or recent directories in the window would stall the rest.
+- An interrupted cut can leave one `<stream>.tmp-*` file in the worker directory. It is removed
+  with the directory.
+
+Acceptance evidence: `TestCALV0143_WorkerLogsAreCappedWhileTheWorkerRuns`,
+`TestCALV0143_CappedOutputCountsAsActivity`, `TestCALV0144_FinishedWorkerDirsAreRetired` (`internal/tasks/dispatch`); bounds and limits in
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-07-v1-0930-dispatch-worker-log-bound.md`. Live dispatcher qualification is
+NOT_RUN.
+
+Rollback: revert the code and this amendment. Remaining `.1` segments, `leader` files and the
+directories already removed stay as they are. No ledger, event, request or wire shape changes.
+
+### V1-0937 dispatcher budgets, token accounting and declared effort (issue 652)
+
+Status: accepted by decision 0441 (V1-0937). Issue 652 asks for three things. First, a
+dispatcher operator can cap how many sessions, and how many tokens, a role or a ticket spends per
+day. Second, each worker's token total appears in the ledger and its `finished` event. Third, the
+model and effort a worker was launched with appear in `dispatch status`. Unknown usage is never
+reported or charged as zero. The budget is a launch gate inside the existing tick. It adds no
+daemon, network call or new store input.
+
+Intent: an operator who runs a continuous dispatcher can bound its daily spend per role and per
+ticket from local observations alone. They can see what was spent and why work is held.
+
+- `CAL-V0-155`: (accepted by decision 0441; V1-0937) A role MAY declare `budget` and the
+  configuration MAY declare a top-level `ticketBudget`. Each is `{"sessionsPerDay": N,
+  "tokensPerDay": T}`, where N is 1..1000, T is 1..2^50 and at least one is present (amended in
+  place, V1-1835: a `ticketBudget` with ATR-V0-085 `overrides` MAY omit both, and a ticket no
+  override selects then has no ticket scope; ATR-V0-085 governs it). A member
+  given as 0 or null, repeated, or spelled with other letter case is refused, not read as absent,
+  as its last value or as an alias. Both are
+  optional members of `taskman-dispatch/0`, and a build without this amendment refuses them as
+  unknown. Each budget applies over a rolling 24-hour window.
+
+  When the roster selects an assignment, it MUST check the budgets after the role, tier and global
+  caps and before the CAL-V0-068 pressure budget. Two scopes apply: the role's budget, and, for an
+  assignment with a ticket, `ticketBudget` keyed by that ticket. An assignment MUST NOT launch
+  while any of its scopes is exhausted. A scope is exhausted in any of these cases:
+  - The CAL-V0-156 history was truncated within the window (`historyTruncated`).
+  - The sessions it launched in the window, plus the launches this roster has already admitted
+    for it, reach `sessionsPerDay`.
+  - The tokens observed for its sessions in the window reach `tokensPerDay`. A session's tokens
+    count only when its total is KNOWN, PARTIAL or RUNNING (CAL-V0-157). A session whose total is
+    UNKNOWN counts as a session and contributes no tokens.
+
+  A held assignment is not parked, backed off or charged. It is selected again on every later
+  tick. Another ticket of the same role remains eligible when only the ticket scope is exhausted.
+  Every scope is re-evaluated against the configuration the tick applied, so a CAL-V0-127 reload
+  that adds, changes or removes a budget takes effect on that tick, against the history already
+  recorded.
+
+  As for CAL-V0-105 work-state holds, a ticket the budgets would hold MUST NOT occupy a selection
+  window: when the dispatcher observes one, it asks the plan preview again with that ticket
+  deferred with the derived reason `BUDGET_HELD`, so a role that selects only `SELECTED` tickets
+  reaches the next eligible ticket. A ticket is budget-held when its ticket scope is exhausted, or
+  when every enabled ticket role that would serve it has an exhausted role scope. A ticket with a
+  pending CAL-V0-149 relaunch is served only by its relaunch role when that role would match it, so
+  that role alone decides the hold, and a `BUDGET_HELD` deferral keeps that restriction: the roster
+  matches the relaunch role against the ticket as if it were selected. A
+  `WORK_STATE_HELD` deferral takes precedence. Because the roster never meets a deferred ticket,
+  the launch tick records the holds of each `BUDGET_HELD` ticket's exhausted scopes as CAL-V0-158
+  holds. `BUDGET_HELD` exists only in the dispatcher's in-process preview; it is never written or
+  shown on a wire.
+- `CAL-V0-156`: (accepted by decision 0441; V1-0937) The dispatcher MUST record every
+  launch that may have started in the ledger's `budget.sessions` history. This applies whether or
+  not any budget is configured, and includes a launch whose identity was not proved. Each record
+  holds the worker, role, ticket, launch time, usage state and counters. On every launch tick,
+  records launched at or before the window's start are pruned, and each live worker's running
+  usage is copied into its record. The history MUST hold at most 4,096 records. When a launch
+  overflows it, the oldest records are dropped and `budget.truncated` records the newest dropped
+  launch time. Until that time leaves the window, every budgeted scope is held as
+  `historyTruncated`. A ledger adopted from version 1 records `budget.historyFrom`, the adoption
+  time. The history before it is unknown and is reported as such in status, but it does not hold.
+- `CAL-V0-157`: (accepted by decision 0441; V1-0937) A role MAY declare `usageFormat`:
+  `codex`, `claude-code` or `opencode`. `tokensPerDay` in a role budget requires that role to
+  declare one. `tokensPerDay` in `ticketBudget` requires every ticket role (one without a lane)
+  to declare one. A worker of a role with a usage format carries a `usage` account in the ledger.
+
+  The dispatcher MUST read the account incrementally from the worker's `stdout.log`, starting at
+  the recorded offset. It reads on each supervising tick, before the CAL-V0-143 cap, and once more
+  when the worker finishes. Only complete lines are read, at most 1 MiB per line and 8 MiB per
+  read. Only the declared vocabulary's usage lines count, through the same strict member readers
+  the supervised hosts use:
+  - codex: each `turn.completed` adds its counters; `turn.started` opens a turn until the next
+    `turn.completed`; `turn.failed` or `error` marks the total failed. A null counter is malformed,
+    as is any line that repeats a member at any depth or carries a top-level member that differs
+    from `type` or `usage` only by letter case.
+  - claude-code: the `result` object's input (with cache creation and cache read) and output
+    counters. A result whose `subtype` is not `success` or whose `is_error` is not `false` marks
+    the total failed.
+
+  A JSON object line whose `type` cannot be read is malformed, since it may be a usage line.
+  - opencode: each `step_finish` adds its counters; `step_start` opens a step; `error` marks the
+    total failed.
+
+  A finished worker's total MUST be one of three states:
+  - KNOWN: complete.
+  - PARTIAL: a lower bound. This applies when the read was cut or bounded, when a usage line was
+    malformed, oversize or overflowed, when a failure was reported, when a claude-code session
+    reported more than one result, when a codex turn was left open, or when an opencode step was
+    left open or the last step did not finish with `stop`.
+  - UNKNOWN: no usage was read, or the role declares no usage format.
+
+  Every CAL-V0-143 cut of `stdout.log`, and every file found shorter than the read offset, MUST
+  leave the total PARTIAL. The first line after a cut is skipped, so a torn line is never counted.
+  The `finished` event MUST carry `usage`, `inputTokens`, `outputTokens` and `tokens`. When the
+  total is UNKNOWN, the three counters are `UNKNOWN`, never `0`.
+- `CAL-V0-158`: (accepted by decision 0441; V1-0937) A launch tick MUST record each
+  exhausted scope it met as a hold in `budget.held`, with the scope, its name, the limit and
+  `resetsAt`. `resetsAt` is the earliest time at which the window alone releases the hold. For
+  tokens, that is when dropping the oldest sessions brings the observed total under the limit; a
+  running session can move it later. When both limits are exhausted, the hold names the limit the
+  window releases last, and `resetsAt` is that later time. A hold MUST be reported as one `budget` event when it first
+  appears or its limit changes. The event's detail carries scope, name, limit, resetsAt, sessions,
+  observedTokens and unknownSessions. A hold that persists across ticks is not reported again, and
+  a hold whose scope is no longer exhausted is dropped. The CAL-V0-139 idle gate MUST treat each
+  hold's `resetsAt` as a deadline.
+
+  `dispatch status` (`taskman-dispatch-status/0`, an additive member) MUST show `budget`, with:
+  - `windowSeconds`;
+  - `historyTruncatedThrough` and `historyFrom` (`NONE` when not in the window);
+  - one `scopes` entry per configured role, and, with `ticketBudget`, per ticket launched in the
+    window (with overrides alone, only per ticket an override selects or with a recorded hold,
+    ATR-V0-085). Each entry shows sessions, observedTokens, partialSessions, runningSessions,
+    unknownSessions, both limits (`NONE` when unset), `held` (the limit, or `NONE`) and
+    `resetsAt`.
+
+  Status reads the ledger only.
+- `CAL-V0-159`: (accepted by decision 0441; V1-0937) A role MAY declare `effort`, matching
+  `^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$`. A role with an effort MUST be served by a host that
+  renders `{effort}` in argv or env. A host that renders it serves only roles that declare one, so
+  the effort shown is the one delivered. `{effort}` is otherwise refused as for `{model}`.
+
+  The worker records its declared effort. The `launched` and `finished` events and status show
+  it, beside the CAL-V0-057 tier and model already shown when a model is declared. The dispatcher
+  reports only what the configuration declared. It never infers a host's default model or effort.
+- `CAL-V0-160`: (accepted by decision 0441; V1-0937) Configuration validation MUST refuse
+  the following before any launch:
+  - a budget with neither limit, a limit out of range, 0 or null, or a repeated, case-folded or
+    unknown member;
+  - `tokensPerDay` whose charged roles do not declare a usage format;
+  - an unknown usage format;
+  - an effort out of format, or one its host does not render.
+
+  A reload that is refused keeps the applied configuration (CAL-V0-127).
+- `CAL-V0-161`: (accepted by decision 0441; V1-0937) The dispatcher ledger moves to
+  `taskman-dispatch-state/2`, adding the ledger member `budget`, the worker members `effort` and
+  `usage`, and their closed nested schemas. A version 2 ledger MUST be read under the CAL-V0-132
+  strict rules at every depth: repeated, folded or unknown members refuse. A malformed history,
+  hold or usage account also refuses: an unknown state or format, a negative offset or count,
+  counters on an UNKNOWN total, or counters that overflow.
+
+  A drained version 1 ledger (no recorded worker, every member in version 1's closed set) is
+  adopted under CAL-V0-132. It is given an empty history whose `historyFrom` is the adoption time,
+  and it is rewritten as version 2 by the next save. Any other version 1 ledger, and any version 0
+  ledger, refuses UNSUPPORTED_VERSION unchanged.
+
+Non-goals: provider billing or price; host-reported cost; budgets per host, model or pool; tokens
+parsed from vocabularies a role did not declare, from stderr or from rotated segments; inferring
+an undeclared model or effort; a calendar-day reset; a budget that stops a running worker; a
+store-side (native) budget.
+
+Failure modes:
+
+- A `tokensPerDay` budget is checked at launch against tokens already observed. Sessions admitted
+  together, and tokens a running session has not yet written, can overshoot it; `sessionsPerDay`
+  bounds that overshoot.
+- Output appended between the CAL-V0-143 size check and the truncation is lost, so the total is
+  PARTIAL. More than 8 MiB written within one tick interval, or an oversize line, also leaves it
+  PARTIAL. PARTIAL totals are lower bounds, so a token budget may admit more than it would with
+  complete counts.
+- A worker whose `stdout.log` is removed or replaced by something else is PARTIAL (lost) or
+  UNKNOWN.
+- A host that writes no usage lines, or a role with no usage format, is UNKNOWN. Its sessions
+  count and its tokens do not.
+- A dispatcher stopped longer than the window prunes the old history on its next launch tick. It
+  launches nothing while stopped.
+- The history between a version 1 ledger's last save and its adoption is unknown and is shown as
+  `historyFrom`. A ticket or role may exceed its budget once in the first window after an upgrade.
+- When more than 4,096 launches fall in one window, budgeted scopes are held until the dropped
+  records leave it.
+
+Acceptance evidence: `TestCALV0155_SessionBudgetHoldsUntilTheWindowReleases`,
+`TestCALV0155_TokenBudgetCountsKnownTotals`, `TestCALV0155_BudgetFollowsConfigReload`,
+`TestCALV0156_SpendHistoryIsBoundedAndHoldsWhenTruncated`,
+`TestCALV0157_UsageVocabulariesAndStates`, `TestCALV0157_UsageReadIsIncrementalAndBounded`,
+`TestCALV0157_UsageAfterRotationIsPartial`, `TestCALV0160_BudgetConfigIsClosed`,
+`TestCALV0161_LedgerCarriesSpendAndUsage`, and the updated CAL-V0-132 ledger tests
+(`internal/tasks/dispatch`); `TestCALV0158_DispatchStatusShowsBudgetsAndUsage`
+(`internal/tasks/cli`). Design and limits are recorded in
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-07-v1-0937-dispatch-budgets.md`. Live dispatcher qualification with real
+hosts is NOT_RUN.
+
+Rollback: revert the code and this amendment. A version 2 ledger refuses UNSUPPORTED_VERSION
+under the previous build, so drain the dispatcher (no recorded worker) before rolling back. Then
+remove `state.json` or restore the version 1 file; the history and holds are derived state and
+are lost. Remove `budget`, `ticketBudget`, `usageFormat`, `effort` and `{effort}` from the
+configuration, because the previous build refuses them as unknown.
+
+### V1-0936 dispatcher integration of detached attempt runs (accepted by decision 0441)
+
+Status: accepted by decision 0441; implemented with focused tests on Darwin. Ticket V1-0936,
+which builds on V1-0858 and on the detached runs of ATR-V0-008..015 (V1-0856), records that a
+dispatcher worker that starts a detached run (`corvint-tasks run --detach`) must keep its session
+open, polling, until the run ends. If it does not, the CAL-V0-056 worker tree adopts the run's
+supervisor while the worker still runs and stops it with the worker. The hand-off then releases the
+attempt, which fences the run at its next heartbeat. Owner request
+[issue 651](https://github.com/beamfall/corvint/issues/651) asks for the dispatcher to carry the
+run instead: a worker may end while its run continues, and the dispatcher starts the next session
+for the ticket when the run finishes. The design decisions were delegated by the owner and taken
+by the orchestrator on 2026-10-07. They are recorded in
+`docs/build-log/2026-10-07-dispatch-detached-runs.md`.
+
+- `CAL-V0-145`: (accepted by decision 0441; V1-0936, V1-0858) On Darwin and Linux, the
+  dispatcher MUST NOT stop, as part of a worker's tree, the supervisor of a detached run, or a
+  process in that supervisor's session or below it, when all of the following hold:
+  - the run record (ATR-V0-010) decodes and is `RUNNING`;
+  - it names a live attempt that the worker holds, with the attempt's generation;
+  - the recorded supervisor PID is greater than 1 and is neither the worker leader nor the
+    dispatcher;
+  - that PID currently has the recorded start identity and leads its own session.
+
+  The check is repeated against the process table read for that tick, both when the tree is
+  refreshed (CAL-V0-056) and when it is stopped. In every other case, including a missing,
+  undecodable, `STARTING` or `FINISHED` record, another attempt's or generation's record, an
+  identity mismatch, a supervisor that is not a session leader or a failed read, the worker tree
+  keeps today's membership and stop.
+- `CAL-V0-146`: (accepted by decision 0441; V1-0936) When `heal.handoff` is on and a
+  worker started for a ticket ends while the dispatcher can verify, as CAL-V0-145 requires, a
+  `RUNNING` run of a live attempt that the worker holds, the dispatcher MUST defer that attempt's
+  hand-off. It MUST emit a `handoff` event with detail `handoff=DEFERRED` and `detachedRun=<runId>`.
+  When several runs qualify, the run with the latest deadline is deferred for. The deferral is
+  bounded: it ends at the run's `launchedAt` plus its `timeoutSeconds` plus 3 minutes. The 3 minutes
+  cover the runner's 10-second cleanup bound, the 120-second writer margin of ATR-V0-002 and the
+  result and record writes. A run already past that bound is not deferred for. Every later tick MUST
+  re-read the record. It MUST hand the attempt off through the existing fenced release of CAL-V0-104,
+  once and with detail `detachedRun`, as soon as any of these holds:
+  - the run is `FINISHED`;
+  - the supervisor no longer has its start identity or no longer leads its session
+    (`SUPERVISOR_LOST`);
+  - the record is missing, replaced or unreadable;
+  - the bound has passed (`OVERDUE`).
+
+  A hand-off that the attempt no longer needs, because the attempt is not live or has another
+  holder or generation, is skipped.
+- `CAL-V0-147`: (accepted by decision 0441; V1-0936) Each deferral MUST be recorded before
+  its event, as one dispatcher-owned marker. The marker is the file `detached/<runId>.json` beside
+  the ledger, in profile `taskman-dispatch-detached-run/0`, with closed keys, at most 4 KiB, and
+  written atomically. The ledger encoding is unchanged. A marker moves through four phases:
+  - `DEFERRED`: the hand-off waits for the run.
+  - `HANDED_OFF`: the hand-off was made or became moot, and the run's end is awaited.
+  - `RELAUNCH`: the run finished, and the exit status, result path and output path are recorded.
+  - `LAUNCHED`: the successor worker ID is recorded before the successor is spawned.
+
+  A marker is retired when its successor leaves the ledger or its relaunch becomes moot. At most 64
+  markers are tracked, and one read takes at most 256 directory entries. A dispatcher that opens
+  MUST adopt the markers it can decode. It MUST report and remove every marker that does not
+  decode, so that such a marker can neither defer nor launch, and it MUST remove leftover temporary
+  files. A marker of another `taskman-dispatch-detached-run` version is the exception: it MUST be
+  reported as `UNSUPPORTED_VERSION` and kept unread for the build that wrote it, and its run is then
+  handed off without a deferral (CAL-V0-131). A dispatcher that sees the same ended worker again,
+  after a restart or while the worker stays in the ledger, keeps the recorded deferral and does not
+  record a second one; that deferral still ends as CAL-V0-146 states.
+- `CAL-V0-148`: (accepted by decision 0441; V1-0936) The `finished` event of a worker whose
+  hand-off was deferred MUST carry detail `detachedRun` and say that the run continues. If that
+  session recorded no progress, it MUST NOT count toward no-progress cooldown or parking: the run's
+  outcome decides the next session. A run that ends without a kept result MUST be reported as one
+  `alert` with detail `runState`, and no session is relaunched for it. Such a run is one whose
+  supervisor was lost, whose record is missing, replaced or unreadable, or whose bound passed. Its
+  marker is then retired.
+- `CAL-V0-149`: (accepted by decision 0441; V1-0936) When a deferred run is `FINISHED` and
+  no ledger worker runs on its ticket, the dispatcher MUST launch at most one session for that ticket
+  with the ended worker's role, through the normal roster, caps, admission, budgets and pressure.
+  While that role is enabled, is a ticket role and matches the ticket, no other role is a candidate
+  for the ticket. A due infrastructure retry (ESC-V0-007) of that role on the ticket is that session.
+  The marker MUST name the successor before the spawn, so that a crash can lose a
+  relaunch but can never repeat one. A launch proved to have failed before the spawn makes the
+  relaunch due again. The successor receives the outcome in two ways:
+  - the `{detachedRun}` placeholder, which is one line naming the run, attempt, exit status, result
+    and output paths and the `run --attach` replay command, and is empty for every other launch;
+  - the environment variables `CORVINT_DISPATCH_RUN_ID`, `_ATTEMPT`, `_EXIT`, `_RESULT` and
+    `_OUTPUT`.
+
+  The `launched` event carries detail `detachedRun` and `runExit`. The relaunch is moot, and the
+  marker is reported and retired, in any of these cases:
+  - the role no longer launches ticket sessions;
+  - the ticket is no longer observed;
+  - another holder holds a live attempt of the ticket;
+  - a worker other than the run's own ended worker already runs on the ticket;
+  - it has waited more than 24 hours.
+
+  While the run's own ended worker stays in the ledger, the relaunch waits; it does not become moot.
+- `CAL-V0-150`: (accepted by decision 0441; V1-0936) `corvint-tasks dispatch status` MUST
+  add a `detachedRuns` array only while markers exist. The array has one object per marker, with
+  `runId`, `attempt`, `ticket`, `role`, `worker`, `phase`, `state` and `deferUntil`, and optional
+  `exitStatus` and `successor`. `state` is read, never written, and is one of `RUNNING`,
+  `FINISHED`, `SUPERVISOR_LOST`, `MISSING`, `REPLACED` or `UNKNOWN`. A marker that does not decode
+  is listed by name as `UNKNOWN`. The read is bounded as in CAL-V0-147 and writes nothing.
+- `CAL-V0-151`: (accepted by decision 0441; V1-0936) A record that fails any CAL-V0-145
+  condition MUST NOT exempt a process, defer a hand-off or cause a launch. A record that the
+  supervisor's live identity contradicts is one example. The worker tree is stopped and the attempt
+  is handed off as today.
+- `CAL-V0-152`: (accepted by decision 0441; V1-0936) The CAL-V0-139 idle gate MUST NOT
+  arm while any marker is tracked, so every tick reads the run state.
+- `CAL-V0-153`: (accepted by decision 0441; V1-0936) On other platforms no supervisor is
+  verified, so the worker tree, the hand-off and the launch keep today's behaviour. Lane sessions
+  and roles with a `lane` configuration also keep today's hand-off and are never relaunched.
+  The event vocabulary (CAL-V0-058), the ledger and the queue's native state are unchanged. The
+  CAL-V0-131 live format set gains `taskman-dispatch-detached-run/0`, so replacing this build in
+  place with an earlier one needs a drain (CAL-V0-130).
+- `CAL-V0-154`: (accepted by decision 0441; V1-0936) The dispatcher MUST NOT signal, adopt,
+  restart or transfer the lease of a detached run, and MUST NOT write its record or result. It only
+  reads them. A compact one-line output for `run --attach --wait` is not part of this amendment.
+  It is a recorded limit for a later ticket.
+
+Non-goals: transferring the lease holder to the successor; restarting or adopting a lost supervisor;
+deferring for `STARTING` runs; runs that the dispatcher did not see its worker hold; detached runs of
+lane sessions; a compact `--attach --wait` line; any ledger, event-kind or native-state change;
+Windows.
+
+Failure modes:
+
+- A process that can write the run directory can plant a `RUNNING` record. Exemption still needs a
+  live session leader with the recorded start identity, other than the worker leader and the
+  dispatcher, and only the worker's own descendants that are in that session or below it are spared.
+  Such a writer can already start a legitimate detached run, so a planted record grants nothing
+  beyond what `run --detach` grants. The parent walk stops at the worker leader and the dispatcher,
+  and a recorded supervisor that is an ancestor of the dispatcher is ignored, so a record naming an
+  enclosing session leader spares nothing.
+- The exemption is decided once per tick from the records read in that tick. A run that becomes
+  `RUNNING` while its worker is being stopped within that tick is stopped like a `STARTING` one.
+- A run still `STARTING` when its worker ends is not exempt and is not deferred for. A supervisor
+  adopted by the tree is stopped as before. That window ends when the `RUNNING` record is written
+  (ATR-V0-009).
+- With `heal.handoff` off, supervisors are still spared, but nothing is deferred or relaunched, and
+  the attempt stays held until its lease is reaped as today.
+- If the dispatcher crashes between naming the successor and the spawn, the relaunch is lost.
+  The marker is retired on the next tick without a launch, and the ticket is planned normally. A
+  spawn whose result is ambiguous is treated the same way, and its `launch-failed` event reports it.
+  A crash after the spawn and before the ledger records the successor leaves an untracked session,
+  as for any launch; the restarted dispatcher may then launch an ordinary session on the ticket, and
+  the lease admits only one of them to the attempt.
+- A supervisor PID reused with the same start identity is not possible within the start-identity
+  contract. A supervisor that exited but has not been reaped looks live until it is reaped, bounded
+  by the deferral.
+- A failed marker write hands the attempt off at once and reports an alert. A failed removal is
+  reported and retried. More than 64 deferrals hand off at once.
+- Every tick reads the run directory of each live attempt that a recorded worker holds: at most 65
+  entries and one 64 KiB record each.
+- A marker written by another build version is kept unread; its run is handed off at once, and the
+  marker stays until that build or an operator removes it. Because the live format set grows, an
+  in-place replacement with an earlier build is refused by CAL-V0-130 and needs a drain.
+
+Acceptance evidence: `TestCALV0145_WorkerExitsWhileDetachedRunContinues`,
+`TestCALV0145_SupervisorMustBeAnotherSessionLeader`, `TestCALV0146_DeferralIsBounded`,
+`TestCALV0146_ReReportedWorkerDoesNotHoldTheDeferral`,
+`TestCALV0147_DeferralAndRelaunchSurviveRestart`, `TestCALV0147_MalformedMarkerIsRemoved`,
+`TestCALV0148_SupervisorLostHandsOffWithoutRelaunch`, `TestCALV0149_InfraRetryCarriesTheOutcome`,
+`TestCALV0149_DetachedRunPlaceholderIsPromptOnly`, `TestCALV0151_ForgedRecordNeitherExemptsNorRelaunches`,
+`TestCALV0151_EnclosingSessionLeaderSparesNoWorker` (`internal/tasks/dispatch`, Darwin and Linux); `TestCALV0150_StatusShowsDetachedRunStateReadOnly` and
+`TestCALV0131_EveryLiveFormatRefusesANewerVersion` (`internal/tasks/cli`); `GOOS=windows go vet`. The following are NOT_RUN: Linux execution, live dispatcher qualification
+with a real host session, and owner acceptance.
+
+Rollback: drain the dispatcher, then revert the code and this amendment. Remaining `detached/`
+markers are inert to a build without this amendment and may be deleted once no deferred run is live. Runs that are already
+deferred keep their supervisors, and their attempts are then handed off or reaped as today. No
+ledger, event kind, request, receipt or native-state change needs undoing.
+
+### V1-0935 and V1-0941 compact agent output (issue 650)
+
+Status: accepted by decision 0441. Owner request
+[issue 650](https://github.com/beamfall/corvint/issues/650) (native ticket V1-0935) and its
+coordinator follow-up, native ticket V1-0941, record that agents print whole `corvint-tasks` JSON
+results into their transcripts. On the 900-ticket Corvint store, `queue status` measured 163 KB
+because of its per-ticket `retries` array. A 100-of-901 `ticket search` page measured 93 KB:
+`blockers` on completed tickets were a third of each 597-byte item, and an ATTEMPT_LIVE unknown
+repeated on every item was another fifth. `roadmap` measured 35 KB. The installed build refused
+`<verb> --help`, so agents fell back to the 6 to 8 KB full help. Intent: let an agent ask for only
+what it needs, make the defaults smaller where the removed bytes carry no decision, and keep every
+read read-only.
+
+- `CAL-V0-165`: (accepted by decision 0441; V1-0935) `queue status`, `attempt show`,
+  `ticket show` and `plan preview` MUST accept `--fields KEY[.SUB],...` once. An OK result keeps
+  its envelope (`command`, `outcome`, `codes`, `snapshot`, `page`, `untrusted`, `warnings`,
+  `maxNodes`) and each item keeps only the named keys. `KEY.SUB` keeps sub-key `SUB` of an object
+  value, or of each object element of an array value; several sub-keys of one key merge. An item
+  that lacks a named key omits it rather than gaining a null.
+- `CAL-V0-166`: (accepted by decision 0441; V1-0935) A `--fields` value MUST hold 1 to 32
+  distinct names, each one or two dot-separated segments of ASCII letters and digits starting with a
+  letter, at most 64 bytes a segment. A missing, malformed, duplicate or over-long list, a repeated
+  `--fields` or `--summary`, or `--fields` with `--summary` MUST refuse `MALFORMED` (where
+  `fields`) before the store is opened. After the read, a key that no item carries, a `KEY.SUB`
+  whose key is a scalar, or a `KEY.SUB` that no element of any non-empty container carries MUST
+  refuse `MALFORMED` with no items and the read's snapshot. A missing `retries` key names the
+  `--retries` flag. No new result code is added. The argument after one of the read's own
+  value-taking flags stays that flag's value, so `ticket search --text --summary` searches for the text.
+- `CAL-V0-167`: (accepted by decision 0441; V1-0935) `--summary` on the same four reads
+  MUST return a fixed shape per item:
+  - `queue status`: `queueId`, `tickets`, `byStatus`, `blocked`, `headSeq`, `writeBarrier`,
+    `barrier`, `attempts`, `liveAttempts[]` with `attemptId`, `ticketId`, `phase`, `holder`,
+    `expiresAt` and `holderStatus`, `lanes[]` with `poolId`, `memberId`, `state` and `attemptId`
+    when pools exist, and `retriesExhausted`, a Count of exhausted retry admissions or
+    `NOT_OBSERVED` when any entry's exhaustion is unobserved;
+  - `attempt show`: `attemptId`, `ticketId`, `generation`, `phase`, the lease `holder` and
+    `expiresAt` (null without a lease), `holderStatus`, `lastHeartbeatAt` and `retryCount`;
+  - `ticket show`: `ticketId`, `revision`, `status`, `title`, `priority`, `eligibility`,
+    `claimable`, `claimabilityReason`, `nextAction`, `nextStage` and `retries` reduced to
+    `remaining` and `exhausted`;
+  - `plan preview`: `planningProfile`, `queueId`, `headSeq`, `mutationAuthority`, `profile`
+    `taskman-plan-summary/0`, and `entries[]` with `ticketId`, `state`, `reason`, `nextStage` and
+    `nextAction`. `--summary` with `--selected-only` refuses `MALFORMED`.
+
+  Keys absent from the full item stay absent from the summary.
+- `CAL-V0-168`: (accepted by decision 0441; V1-0935) Projection and summary MUST run only
+  at command dispatch, after the underlying read built its result, so they change nothing the read
+  observes, locks or writes. A non-OK result MUST pass through unchanged. Internal callers of the
+  same reads (criterion captures, blocker reads) MUST keep their full output.
+- `CAL-V0-169`: (accepted by decision 0441; V1-0935) `queue status` MUST omit the
+  `retries` array unless `--retries` is given, and MUST refuse any other argument except
+  `--fields` and `--summary`. `--summary` reads the retries itself to count `retriesExhausted`.
+  This amends the `queue status.retries` clause of CAL-V0-049, which now applies under
+  `--retries`. The criterion-binding capture of `queue status` passes `--retries`, so its bytes
+  are unchanged.
+- `CAL-V0-170`: (accepted by decision 0441; V1-0935 and V1-0941) An exact trailing
+  `--help` or `-h` on any command path MUST return terse help: `usage`, `implemented`, `flags`,
+  `operation`, `payloadKeys` and `optionalPayloadKeys` when present, `note` for an omitted command,
+  and `verboseHelp` naming `<command> --help --verbose` when keys were dropped. `--help --verbose`
+  or `--verbose --help` MUST return today's full help. This amends CAL-V0-047, CAL-V0-050,
+  CTW-V0-013, CAL-V0-121 and the V1-0751 template content (CTW-V0-012): their reason codes, preconditions,
+  notes and templates are required under `--help --verbose`. Every other CAL-V0-047 rule holds for
+  both forms, including no store, stdin, lock or write, and `<verb> --help` for every verb.
+  Mutation help given beside other flags (`ticket create --payload-stdin --help`) stays full and
+  also accepts `--verbose`; `--verbose` without `--help` is refused. A release mutation with
+  `--help` anywhere in its argv answers the same help, terse or under `--verbose`, and never writes.
+- `CAL-V0-171`: (accepted by decision 0441; V1-0935 and V1-0941) The byte effect MUST be
+  measured on a fixture of at least 300 tickets and recorded with this amendment and the build log.
+- `CAL-V0-172`: (accepted by decision 0441; V1-0935) `docs/TASKS-EXTERNAL-AGENTS.md`
+  MUST tell agents to request `--summary` or `--fields` and never to print full JSON into a
+  transcript. No `corvint-tasks` skill text exists under `integrations/` at this revision.
+- `CAL-V0-173`: (accepted by decision 0441; V1-0941) `ticket list` and `ticket search`
+  items MUST omit `record`. COMPLETED and ARCHIVED items MUST omit `blockers` and `unknowns`. An
+  ATTEMPT_LIVE unknown without a ticket identity, which a journal-absent inventory read attaches to
+  every item, MUST be removed from the items and reported once as an envelope warning beginning
+  `store-wide unknown ATTEMPT_LIVE for every listed ticket:`. Other unknowns stay on their items.
+  `ticket show` and plan entries are unchanged.
+- `CAL-V0-174`: (accepted by decision 0441; V1-0941) `ticket list`, `ticket search` and
+  `roadmap` MUST accept `--fields` and `--summary` under CAL-V0-165, 166 and 168. Their summary
+  items are `ticketId`, `status`, `priority`, `title`, `eligibility` and `nextAction` for the list
+  reads, and `ticketId`, `milestone`, `status`, `priority`, `title` and `nextAction` for
+  `roadmap`. The page envelope is kept. The default page size stays 100 (`wire.PageMax`).
+
+Measured bytes, base 79536edd against this change, on a journaled 360-ticket fixture (every third
+ticket COMPLETED, page 100):
+
+| Read | Base | Default | `--summary` |
+|---|---|---|---|
+| `queue status` | 74,487 | 1,275 (74,487 with `--retries`) | 738 |
+| `plan preview` | 119,505 | 119,505 | 24,411 |
+| `ticket list` | 67,079 | 50,396 | 15,322 |
+| `ticket search --label agent-memory` | 67,136 | 50,453 | 15,324 |
+| `roadmap` | 25,951 | 25,951 | 14,461 |
+
+On the two-attempt lease fixture: `attempt show` 2,345 to 800 with `--summary`; `ticket show`
+2,408 to 789; `release --help` 5,206 to 731 (5,206 with `--verbose`); `ticket create --help`
+1,812 to 827. The in-test 358-ticket fixture gives `queue status --retries` 110,473, default 1,271
+and summary 734.
+
+Non-goals: projection deeper than one level; renaming, reordering or computing fields beyond the
+summaries (keys are encoded in canonical sorted order); a new result code; projecting mutation
+results; changing `plan preview`, `ticket show` or `roadmap` default output; lowering the page size.
+
+Failure modes:
+
+- A `--fields` name is checked against the items actually returned. A page with no items accepts
+  any well-formed name, and a sub-key absent from every element of non-empty containers is refused
+  even though another page might carry it.
+- The store-wide unknown is a warning string, not a structured field. A consumer that read the
+  per-item ATTEMPT_LIVE unknown on list items must read the warning instead.
+- A consumer that read `retries` from default `queue status`, `record` from list items, or
+  `blockers` from terminal list items sees the key absent. In-repository consumers were checked:
+  the console board tolerates missing keys and no consumer reads `queue status.retries`.
+- `--summary` drops fields an agent may need; it must use `--fields` or the full read.
+
+Acceptance evidence: `TestCALV0165_FieldsProjectEachItem`, `TestCALV0166_FieldsRefuseBeforeOutput`,
+`TestCALV0167_SummaryShapes`, `TestCALV0169_QueueStatusRetriesOptIn`,
+`TestCALV0171_CompactOutputBytesOnLargeQueue`, `TestCALV0173_ListItemsDropTerminalAndStoreWideNoise`,
+`TestCALV0174_SearchAndRoadmapCompact` and `TestCALV0047_AllCommandHelpIsReadOnly`
+(`internal/tasks/cli`); measurements in
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-07-v1-0935-compact-agent-output.md`. Measurement on the live 900-ticket
+store with the new binary is NOT_RUN.
+
+Rollback: revert the code, this amendment and the guide paragraph. No store, journal, receipt or
+request shape changes; full output returns to the earlier defaults.
+
+### V1-0966 queue throughput visibility (issue 661)
+
+Status: accepted (decision 0447). Owner request
+[issue 661](https://github.com/beamfall/corvint/issues/661) (native ticket V1-0966) records that a
+supervisor of a long-running dispatcher could not answer "is the queue still moving?" without
+paging every ticket and reading receipts. `ticket list` had no status filter, list items carried
+no transition times, `queue status` had no last completion or completion rate, and a dispatcher
+that kept relaunching sessions on a ticket that never changed status (a program that never submits
+candidates) showed no signal. Intent: answer these from data the store and the dispatcher ledger
+already hold, with bounded reads that never mutate, and report UNKNOWN or null where the records
+cannot prove a value. No ticket, attempt or receipt record gains a field.
+
+- `CAL-V0-181`: (accepted by decision 0447; V1-0966) `ticket list` MUST accept
+  `--status S[,S...]` once: a non-empty comma-separated set of distinct §3.2 statuses (`DRAFT`,
+  `OPEN`, `HELD`, `COMPLETED`, `ARCHIVED`, case-sensitive). Only tickets whose current status is in
+  the set are listed, in the unfiltered order, and `page.total`, `offset` and `limit` apply to the
+  filtered sequence, so paging is stable for an unchanged store. An unknown, empty, lower-case or
+  duplicated status, a trailing comma, or a repeated `--status` MUST refuse `MALFORMED` (where
+  `--status`) before the store is read. `--fields` and `--summary` compose under CAL-V0-174.
+- `CAL-V0-182`: (accepted by decision 0447; V1-0966) `ticket list` and `ticket search`
+  items MUST carry `completedAt`, the record's `completion.recordedAt` or null, and
+  `statusChangedAt`, derived from the current record alone: `createdAt` for a revision-1 DRAFT or
+  OPEN record, `updatedAt` for a COMPLETED record whose last write was its completion
+  (`completion.recordedAt == updatedAt`), `updatedAt` for a HELD record whose last write placed its
+  only hold, and `UNKNOWN` for every other record. The value is never guessed from a later write.
+- `CAL-V0-183`: (accepted by decision 0447; V1-0966) `ticket list` items MUST carry
+  `lastAttemptEndedAt`: the `recordedAt` of the receipt that wrote the ticket's latest terminal
+  attempt phase (latest `phaseSinceSeq`, ties by attempt ID). The receipt is read by name, at most
+  one per listed ticket on the page, and only when its post entry matches the audited attempt
+  afterimage digest and sequence; otherwise `UNKNOWN`. A ticket with no terminal attempt is null; a
+  journal-absent store reports `NOT_OBSERVED`. `ticket search` items do not carry it.
+- `CAL-V0-184`: (accepted by decision 0447; V1-0966) `queue status` and
+  `queue status --summary` MUST report `lastCompletion` and `completions`. `lastCompletion` is
+  `{ticketId, at, receipt}` for the current record with the latest `completion.recordedAt` (ties by
+  ticket ID), or null when no record carries a completion. `receipt` is the audited sequence of
+  that ticket's latest afterimage when the record is COMPLETED (not ARCHIVED) and the completion
+  was its last write, `UNKNOWN` when the record was archived or written since or the audit cannot
+  complete, and `NOT_OBSERVED` without a journal.
+  `completions` is `{observedAt, lastHour, last24Hours}`: counts of current-record completions in
+  the half-open windows ending at the read's `observedAt` (second resolution). Both are derived
+  from the inventory already loaded, with no receipt scan. This amends the `queue status` summary
+  key set of CAL-V0-167.
+- `CAL-V0-185`: (accepted by decision 0447; V1-0966) The dispatcher MUST count, per
+  ticket-keyed worker key, finished sessions since the ticket's native status last changed,
+  seeded at launch and kept in the ledger member `stall` (`{status, sessions, changed}`, at most
+  8,192 tickets, each count saturating at 2^20; `changed` is written only as `true`). A status
+  change during or between sessions restarts the count at zero against the new status. A tick
+  during a running session leaves the session's status change to its finish and records a status
+  it observed that differs as `changed`, so a change and a return before the finish (OPEN to HELD
+  to OPEN) still restarts the count; a ticket that leaves the observation or reaches a
+  terminal status is dropped. A revision or work-state change without a status change still
+  counts, so a program that never submits candidates is covered. Each `finished` event carries
+  `sessionsSinceStatusChange` (a count, or `UNKNOWN` for a session the ledger has no launch seed
+  for). With the optional config `stalledAfterSessions` N (1..1000; a present null refuses) the
+  dispatcher MUST emit one typed `stalled` event (`sessions`, `status`, `threshold`) when a count
+  reaches N. `dispatch status` MUST list counts of at least one, most sessions first, at most 64,
+  with the threshold and a `stalled` flag. The signal is advisory: it MUST NOT hold, park, cool
+  down, skip or block any launch. The new member moves the ledger to `taskman-dispatch-state/3`
+  under CAL-V0-131; a drained (no worker) version 1 or version 2 ledger is adopted under its own
+  closed member set (amending CAL-V0-132 and CAL-V0-161), and any other version refuses
+  `UNSUPPORTED_VERSION`.
+
+Measured on a journaled 15,133-receipt store (`s15k`), median of repeated runs of the built binary,
+base 0b45b052 against this change; see the build log for the method and noise:
+
+The store holds 880 tickets (12 COMPLETED) and 15,133 receipts; times are whole-process wall
+medians of 15 runs in two rounds on a host at load average 12 to 15, so differences under about
+40 ms are noise.
+
+| Read | Base median (bytes) | This change median (bytes) |
+|---|---|---|
+| `ticket list` | 177 / 153 ms (51,596) | 231 / 188 ms (60,970) |
+| `ticket list --limit 1` | 218 / 188 ms (1,230) | 205 / 202 ms (1,334) |
+| `ticket list --status COMPLETED,OPEN` | refused `MALFORMED` | 214 / 190 ms (60,970) |
+| `ticket list --status COMPLETED` | refused `MALFORMED` | 176 / 180 ms (7,886) |
+| `queue status` | 167 / 166 ms (1,290) | 167 / 164 ms (1,480) |
+| `queue status --summary` | 305 / 182 ms (744) | 191 / 184 ms (934) |
+
+No read scans receipts: `queue status` derives its new keys from the loaded inventory plus one
+audit of a single intent path, and `ticket list` reads at most one receipt per listed ticket.
+
+Non-goals: a new ticket, attempt or receipt record field (an exact `statusChangedAt` for every
+record needs one; it is an owner question); counting completions that a later REOPEN removed from
+the record; a receipt scan or history index; a stall signal keyed on revision or candidate
+progress; holding or parking stalled tickets; a `ticket search` `lastAttemptEndedAt`.
+
+Failure modes:
+
+- `statusChangedAt` is `UNKNOWN` for every record written after its last status transition
+  (an edited OPEN ticket, a HELD ticket edited after the hold, a reopened ticket). Consumers MUST
+  treat it as unknown, not as old.
+- Completion windows count current records only. A completion reopened inside the window is not
+  counted, and a store edited after completion shows the completion but a `receipt` of `UNKNOWN`.
+- `queue status` audits the intent path of the latest-completed ticket. An audit failure (for
+  example a receipt over the inline post cap) degrades only `receipt` to `UNKNOWN`; the state
+  reads keep their own failures.
+- A session whose post-session observation is pending (work state unknown) is not counted; a
+  ledger saved before the seed reports one `UNKNOWN` and restarts the count.
+- A non-acceptance edit of a COMPLETED record in the same second as its completion is not
+  distinguishable by timestamp; `lastCompletion.receipt` then names that edit's receipt.
+- `lastAttemptEndedAt` reads a receipt that a checkpointed audit may not have re-walked. The receipt
+  is bound to the audited attempt afterimage by sequence and post digest, not by a chain walk to
+  the head, so a rewritten `recordedAt` in retained history would go unnoticed until the next full
+  audit.
+- An older build meeting a version 3 ledger refuses `UNSUPPORTED_VERSION`; a version 2 ledger
+  with workers or with a `stall` member is refused rather than adopted.
+
+Acceptance evidence: `TestCALV0181_TicketListStatusFilter`,
+`TestCALV0182_ListTransitionTimesFromTheRecord`, `TestCALV0183_ListLastAttemptEndedAt`,
+`TestCALV0184_QueueStatusLastCompletionAndWindows`, `TestCALV0167_SummaryShapes`,
+`TestCALV0185_DispatchStatusShowsStallCounts` (`internal/tasks/cli`);
+`TestCALV0185_StallCountsSessionsWithoutStatusChange`, `TestCALV0185_StallWithoutThresholdOrSeed`,
+`TestCALV0185_StallConfigAndLedgerAreClosed`, `TestCALV0185_DrainedVersion2LedgerIsAdopted`,
+`TestCALV0185_TickDuringSessionKeepsStatusChange` and the ledger schema pin (`internal/tasks/dispatch`); measurements in
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-07-v1-0966-queue-throughput-visibility.md`.
+
+Rollback: revert the code and this amendment. No ticket store, journal, receipt or request shape
+changes. A dispatcher ledger already rewritten as version 3 is refused by the earlier build with
+`UNSUPPORTED_VERSION`: drain the dispatcher first, then delete the program's dispatch `state.json`
+(or remove its `stall` member and set `profile` to `taskman-dispatch-state/2`) before starting the
+earlier build.
+
+### V1-0980 dispatch-state /2 upgrade over proven-gone workers (issue 668)
+
+Status: proposed (V1-0980; GitHub #668). Owner request
+[issue 668](https://github.com/beamfall/corvint/issues/668) (native ticket V1-0980) records that
+upgrading from a build writing `taskman-dispatch-state/2` to one writing `/3` left a program down:
+the dispatcher was stopped before its last tick reaped one ended worker, and the new build refused
+the ledger because it still recorded that worker, although its process no longer existed. Recovery
+needed the old binary, run once with launches held. Intent: adopt such a ledger when every recorded
+worker is proven gone by the check the old build reaps by, and otherwise refuse with a message that
+names the build and the command that clear it. Fencing outranks convenience: a worker that cannot
+be proven gone is never reaped by this build, and the single-dispatcher lock is unchanged.
+
+- `CAL-V0-187`: proposed (V1-0980; GitHub #668) A build writing `taskman-dispatch-state/3` MUST
+  adopt a version 2 ledger that records workers, amending CAL-V0-185's drained-only adoption,
+  when every recorded worker is proven gone: its record carries a leader PID above 1 and a leader
+  start identity, every recorded member carries a PID above 1 and a start identity, and the
+  process-tree refresh by which the version 2 build reaps a worker (each recorded process absent or
+  carrying another start identity, and no process left in the leader's process group or session),
+  run against this build's process table without any detached-run exemption, finds no process. The
+  read leaves the workers as recorded; the dispatcher that opened the ledger under its exclusive
+  lock reaps them on its first tick through the ordinary path (`adopted`, then `finished`, with
+  attempt hand-off and budget accounting) and its saves write version 3. Every other CAL-V0-185
+  rule for a version 2 ledger (closed member set, refusals) is unchanged. If any recorded worker is
+  still running, lacks those identities, or cannot be observed (the process table or a start
+  identity cannot be read, or the platform has no process table), the ledger MUST refuse
+  `UNSUPPORTED_VERSION` at `/workers`, unchanged and with no process signalled, and the message MUST
+  name the first such worker (ID and PID) and why, the build that can clear it (a corvint-tasks
+  build whose `version` formats list the ledger's version), and the clearing command:
+  `corvint-tasks dispatch --program P --config CONFIG --once` run by that build with every role
+  `cap` and escalate tier `cap` set to 0 in a copy `CONFIG` of the program's configuration, until
+  `dispatch status` lists no worker. A version 1 ledger that records a worker still refuses
+  (CAL-V0-132) and its message names the same clearing command for version 1.
+
+Non-goals: no new dispatch verb; no adoption of a version 1 ledger with workers; no reaping, signal
+or ledger write by `dispatch status` or by the refused load.
+
+Failure modes:
+
+- A PID reused by an unrelated process carries another start identity, so it is not counted; an
+  unrelated process that joined the dead leader's process group or session is counted, and the
+  ledger refuses, which is the conservative direction.
+- A detached attempt-run supervisor the old build would exempt (CAL-V0-145) is counted when it is a
+  recorded member or still in the worker's group or session, so such a ledger refuses and is cleared
+  by the old build.
+- A worker that ends between the proof and the first tick is reaped by that tick; one cannot start,
+  because only a dispatcher holding the lock launches.
+
+Acceptance evidence: `TestCALV0187_Version2LedgerWithGoneWorkersMigrates`,
+`TestCALV0187_Version2LedgerWithLiveOrUnprovenWorkerRefuses`,
+`TestCALV0187_Version2LedgerWithOrphanedProcessRefuses` (`internal/tasks/dispatch`), with real
+worker processes launched by the dispatcher; `TestCALV0185_DrainedVersion2LedgerIsAdopted` keeps a
+worker record without identities refusing.
+
+Rollback: revert the code and this amendment. A ledger this build already adopted is version 3 and
+follows the CAL-V0-185 rollback; a ledger it refused is unchanged.
+
+### V1-0915 and V1-0918 writer fast route cost (issue 641)
+
+Native tickets V1-0915 and V1-0918, children of V1-0645 and of the
+[issue 641](https://github.com/beamfall/corvint/issues/641) batch, record that the `CAL-V0-116`
+writer fast route read the intent tree about four times per write (the writer audit's two
+captures, its walk and the pre-effect recheck), and that refused and replayed writes keep the
+complete route's cost. These requirements are proposed; their acceptance is human-owned.
+
+- `CAL-V0-189`: (proposed; V1-0915; GitHub #641) Single intent read in the writer audit. A
+  `CAL-V0-116` writer audit MUST read each intent file's content at most once per observation:
+  the bytes its first capture reads and digests are the bytes its walk projects and the model
+  takes. Its second capture, which only confirms that nothing moved during the walk, MAY reuse
+  those bytes for an intent path that is still the same file (`os.SameFile`) with the same mode,
+  size and modification time; any other intent path is read again. This reuse is never the
+  evidence that the modeled intent bytes are current: before effects the writer MUST still
+  recompute the intent tree digest from content and hand the write to the complete route when it
+  differs, so an in-place edit that keeps the inode, size and modification time is still refused
+  (`INTENT_DIVERGED`) exactly as the complete route refuses it. No stat stamp survives a write or
+  decides currency, so the stat-stamp non-goal of `CAL-V0-116` is unchanged. A fast write
+  therefore reads the intent tree twice (one observation and one pre-effect content check)
+  instead of about four times.
+- `CAL-V0-190`: (proposed; V1-0918; GitHub #641) Fast replays and writes without a transaction.
+  This amends `CAL-V0-115` and `CAL-V0-116` as follows.
+  - Checkpoint profile `taskman-writer-checkpoint/1`. Each request record is 64 bytes: the path
+    digest, which is the SHA-256 of the request ID that names the request path, then the SHA-256
+    of the latest afterimage of that path that receipts 1..Seq posted, as the deriving audit read
+    it. Records are strictly ascending by path digest,
+    and a decoder refuses a record count that disagrees with the remaining bytes or a path digest
+    that is not strictly ascending. Derivation refuses an afterimage digest that is not 32 bytes
+    and a path that repeats. A `/0` file, and any other version, is refused UNSUPPORTED_VERSION and
+    only sends the write through the complete route, which retains a `/1` file.
+  - Retained requests. The writer audit no longer declines because the caller's request ID is
+    retained. It still declines when the caller's request file exists but no receipt posted it.
+    A request posted in the walked tail is answered from the walk's own validated bytes. A request
+    the checkpoint holds is answered only if all of these hold, and otherwise the write declines:
+    - the request file's SHA-256 equals the checkpoint's afterimage digest for its path;
+    - the file decodes to this request ID, with a sequence in 1..Seq and at most 256 receipts
+      before Seq;
+    - every receipt from Seq down to that sequence is read and hashed, and each is the one the
+      previous receipt's `prev` digest names, starting from the checkpoint receipt's digest;
+    - that receipt posts exactly this afterimage under this request ID, with the request's
+      outcome and codes.
+
+    The answer is the complete route's: `Mutate` reports the replay or REQUEST_ID_CONFLICT with
+    the receipt's ticket ID, and a lease verb reports it as `commitLease` does. Nothing is written.
+    A failed native close of these reads is terminal, as it is for the writer audit, and is never a
+    decline.
+  - Model results without a transaction. When the model plans no transaction (a refusal, or no
+    change), the route reports that result as the complete route does, with nothing written. It
+    does so only after the branch check and the pre-effect recheck of the head and intent tree
+    pass. A lease result that `HandoffPolicyCandidate` may convert through the handoff history
+    still declines to the complete route.
+  - Hand-off list. In `CAL-V0-116` the items "a possible replay" and "a model that did not plan a
+    transaction, including every model refusal" are replaced by:
+    - a retained request the route cannot bind;
+    - a lease STALE_POLICY candidate.
+
+    The sentence "Refused and replayed writes therefore keep the complete route's cost" no longer
+    holds for served replays and refusals. Refusals of the writer audit and of the pre-effect
+    checks still keep it.
+  - Unchanged guarantee change. A served replay or refusal detects no more than a fast commit
+    does. It does not detect what `CAL-V0-116` already lists: tamper of prefix receipts outside
+    the walked chain segment, of other request afterimages, or of evidence and pinned content, and
+    stray files it does not list. Fork, torn-tail and stray-own-request counterexamples still
+    decline.
+
+Non-goals:
+- caching validated tickets across processes;
+- making the model stage independent of the ticket count;
+- changing the complete route or `receipt audit`;
+- changing any journal, intent, request or receipt bytes.
+
+Only the derived writer checkpoint's request records change.
+
+Failure modes:
+- An intent file rewritten in place during the walk, with the same inode, size and modification
+  time, passes the second capture. It fails the pre-effect content recheck, and the complete
+  route refuses it (`TestCALV0189_FastWriteRechecksIntentContent`).
+- A prefix request whose afterimage was edited declines, and the complete route refuses it
+  JOURNAL_FORKED.
+- A receipt on the chain segment that was forked or torn declines, and the complete route refuses
+  it.
+- A request more than 256 receipts before the checkpoint declines, and the complete route replays
+  it.
+- A failed native close while the route reads a retained request or its receipts is terminal, as it
+  is for the writer audit (`CAL-V0-116`). The write fails UNSUPPORTED_FILESYSTEM and does not fall
+  through to the complete route.
+
+Acceptance evidence:
+- `TestCALV0189_WriterAuditReadsIntentOnce` (`internal/tasks/journal`) counts one content read per
+  intent file in a writer audit for both selections.
+- `TestCALV0189_FastWriteRechecksIntentContent` (`internal/tasks/store`) covers the same-stat
+  in-place edit for `mutate` and for a lease claim.
+- `TestCALV0190_WriterRouteServesReplaysAndRefusals` (`internal/tasks/store`) serves these without
+  a write, with the complete route's outcome, kind, codes, detail, ticket and attempt:
+  - prefix and tail replays and conflicts;
+  - a lease replay and conflict;
+  - a `Mutate` and a lease model refusal.
+
+  The same test declines a tampered prefix afterimage and a forked or torn chain receipt.
+- `TestCALV0190_WriterReplayBeyondBoundDeclines` (`internal/tasks/store`) covers the 256-receipt
+  bound.
+- `TestCALV0115_WriterCheckpointCodecIsClosed` (`internal/tasks/journal`) covers the `/1` codec
+  and the refusal of `/0`.
+- `TestCALV0190_WriterReplayKeyAndCloseFailure` (`internal/tasks/journal`) covers the record key
+  for a real request ID and the terminal close failure of a request file, a receipt file and a
+  root.
+- Measurements are in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-07-v1-0915-0918-writer-fast-route.md`.
+
+Rollback: revert the code and this amendment. A reverted runtime refuses a `/1` checkpoint
+UNSUPPORTED_VERSION, writes through the complete route and retains a `/0` file again. No journal
+bytes change.
+
+### V1-0954 shared dispatch prompt fragments (issue 656)
+
+Status: accepted by decision 0442 (V1-0954). Owner request
+[issue 656](https://github.com/beamfall/corvint/issues/656): a 21-role dispatch configuration that
+repeats a 6 to 8 KB rules block in every role `prompt` passed the 256 KiB CAL-V0-052 file limit, so
+`dispatch status` refused it. Intent: let the shared text exist once in the file while every role
+still receives exactly the prompt it would have inline.
+
+- `CAL-V0-175`: (accepted by decision 0442; V1-0954) A `taskman-dispatch/0`
+  configuration MAY carry a top-level `prompts` object of at most 32 fragments, each named by the
+  role-name pattern and holding a JSON string of 1..65536 bytes. A role `prompt` MAY be an array of
+  1..64 parts; each part is a non-empty JSON string or an object with exactly the member
+  `fragment` naming a fragment. Decoding MUST join the parts in order with no separator, replacing
+  each reference by its fragment text, before any role check. The decoded configuration MUST equal
+  the configuration whose role prompts are written inline, so the rendered prompt is byte-identical.
+- `CAL-V0-176`: (accepted by decision 0442; V1-0954) A string `prompt` MUST decode and
+  render exactly as before, with no reference syntax inside strings. The expansion happens in the
+  one configuration decoder, so the dispatcher start, idle reload, `dispatch status`, `dispatch
+  unpark` and the service lifecycle see the same result. The 256 KiB file limit is unchanged, and
+  the configuration digest stays the SHA-256 of the file bytes.
+- `CAL-V0-177`: (accepted by decision 0442; V1-0954) Decoding MUST refuse, with the
+  existing configuration refusal and a reason naming the role and fragment: a reference to an
+  unknown fragment; a fragment that is empty, larger than 65536 bytes, badly named, repeated or not
+  a string (fragments never reference fragments); more than 32 fragments; a malformed part or
+  array; an expanded prompt larger than 65536 bytes; and a fragment no role references. The last
+  is refused fail-closed, because an unreferenced block usually means a role lost its shared rules.
+- `CAL-V0-178`: (accepted by decision 0442; V1-0954) Every role prompt check (known
+  placeholders, no `{prompt}`, the ON-V0-011 `{operatorNote}` host rule, `{model}` and `{effort}`
+  delivery) MUST apply to the expanded prompt and refuse exactly as the inline prompt would.
+
+Non-goals: references inside strings or fragments, a `promptFile`, fragments in host argv or env,
+and raising the file limit.
+
+Failure modes: a fragment edit changes every referencing role at the next reload, as an inline edit
+of each role would; a refused fragment change keeps the applied configuration (CAL-V0-127).
+
+Acceptance evidence: `TestCALV0175_FragmentPromptEqualsInline`,
+`TestCALV0176_ConfigWithoutFragmentsUnchanged`, `TestCALV0176_ReloadExpandsFragments`,
+`TestCALV0177_FragmentRefusals`, `TestCALV0178_FragmentCannotSmugglePlaceholders`
+(`internal/tasks/dispatch`) and `TestCALV0176_DispatchStatusReadsFragmentConfig`
+(`internal/tasks/cli`).
+
+Rollback: revert the decoder change, this amendment and the guide paragraph. Configurations that
+use `prompts` or array prompts are then refused as unknown members or type errors; rewriting each
+role prompt inline restores them. No ledger, event or store shape changes.
+
+### V1-0979 complete-manual dependency warning
+
+Authoritative input: owner decision 2026-10-07 (V1-0978) recorded on native ticket V1-0979. In
+the Corvint queue, V1-0015 was completed by `complete-manual` while its COMPLETED-obligation
+dependency V1-0014 was OPEN, and nothing in the result said so. The owner chose to warn, not
+refuse: a manual disposition may override a dependency, and the warning makes the override
+visible. This amendment changes no payload, receipt, journal record, replay rule or outcome.
+
+- `CAL-V0-186`: (proposed (V1-0979)) When `corvint-tasks ticket complete-manual` commits a fresh
+  COMPLETE_MANUAL receipt (not a replay, no-change or refusal), the command result MUST add one
+  envelope `warnings` entry for each COMPLETED-obligation dependency of the target whose ticket is
+  neither COMPLETED nor ARCHIVED from COMPLETED (the §3.1 satisfaction test), in the form
+  `COMPLETE_MANUAL overrode an unsatisfied dependency: <ticketId> (obligation COMPLETED) is
+  <status>`, where `<status>` is `not found` when the dependency ticket is not in the queue. The
+  entries MUST be in ticketId byte order and MUST be derived from the intent store the command
+  read before its write. GATE_PASSED dependencies are not evaluated. When every COMPLETED
+  dependency is satisfied the command MUST add no such warning. The completion MUST still commit,
+  and the receipt, journal entry, result item and outcome MUST be those the command produces
+  without this amendment.
+
+Non-goals: refusing or holding a manual completion; evaluating GATE_PASSED dependencies or
+execution prerequisites; warning on an exact replay (the original result carried it); warnings
+on other writers such as the admin console's ticket verbs.
+
+Failure modes: the dependency status is the pre-write read, so a dependency another writer
+completes between that read and the commit can be reported as unsatisfied; the warning is
+advisory and the committed state is unaffected. Rollback removes the helper and the warning; no
+store, journal or receipt state depends on it.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-186 | `TestCALV0186_CompleteManualWarnsOnUnmetCompletedDependency` (`internal/tasks/cli`); `TestCALV0186_UnmetCompletedDependencies` (`internal/tasks/ticket`) |
+
+### V1-1016 reap a running worker's expired lease (issue 674)
+
+Status: proposed (V1-1016); implemented with focused tests, owner acceptance and live dispatcher
+qualification pending. Human-owned input: owner request
+[issue 674](https://github.com/beamfall/corvint/issues/674) and native ticket V1-1016. Observed on
+2026-10-08 (corvint `main-0b5096c`, a four-member `demo-lanes` pool, host load average 20 to 40 on
+10 CPUs): dispatched workers kept running after their attempt leases expired (`holderStatus`
+`LEASE_EXPIRED`, `phase` `RUNNING`) for up to 75 minutes. Because `heal.reap` skips any holder that
+is a running worker, three of the four members stayed ALLOCATED and no ticket completed for six
+hours. CAL-V0-104 (issue 622) covers only a worker that exited. Intent: the dispatcher, which owns
+the worker and knows its attempt, reaps such an attempt after a bounded grace and stops the worker.
+
+- `CAL-V0-191`: (proposed; V1-1016) A role MAY carry `expiredLeaseGraceSeconds`, an integer
+  0..86400 that is 600 when absent; any other value, and any unknown role key, MUST be refused by the
+  closed configuration decoder, and an absent value adds no bytes to the configuration. With
+  `heal.reap`, on each readable tick, a live attempt whose lease expired more than that grace ago
+  (by the dispatcher's clock, using the role of the configuration the worker launched under), and
+  whose holder is a worker of this dispatcher that is still running, MUST be reaped through the
+  fenced reap transaction (CAL-V0-011) with the deterministic request ID derived from the attempt,
+  generation, `lease-expired` and the observed lease expiry, so the attempt fails `LEASE_EXPIRED` and
+  its pool member follows the ordinary quarantine-then-cleanup path. The reap MUST name the lease
+  expiry the dispatcher observed (`reap --lease-expires-at T`, which requires `--attempt` and
+  `--generation`, joins the request digest only when present, and is refused `MALFORMED` on every
+  other verb and when supplied empty, so an empty value never runs an unfenced reap or sweep);
+  the transaction MUST refuse it `REVISION_CONFLICT` `FENCED`, changing nothing, when the attempt's
+  current lease expiry differs, so a renewal between the observation and the reap keeps the attempt
+  even when the renewed lease has itself expired by then. Only when the store
+  reports that this request moved the attempt (a fresh receipt, or the replay of one) MUST the
+  dispatcher emit one `lease-expired` event, whose detail names the attempt, generation, holder,
+  phase, lease expiry and grace, and stop the worker exactly as the wall-time cap does (CAL-V0-056:
+  SIGTERM to the whole tree, SIGKILL after `killGraceSeconds`), recording kill reason
+  `LEASE_EXPIRED` with a `killing` event unless the worker is already being stopped. A completed reap
+  that changed nothing (the worker released, completed or otherwise ended the attempt first) MUST
+  leave the worker running without an event. A refused reap MUST emit an `alert`, leave the worker
+  running and, while the observed lease is unchanged, retry on the next tick with the same request
+  ID. On every heal pass, whatever `heal.reap` says, a running worker of this dispatcher that holds
+  no live attempt but is the lease holder of a `FAILED` attempt with cause `LEASE_EXPIRED` MUST be
+  stopped the same way (kill reason `LEASE_EXPIRED`, `killing` event, no further store write), so the
+  store's reap, not the dispatcher's memory, is the durable record of the stop. Before supervision
+  signals anything on a tick, a `LEASE_EXPIRED` stop that this dispatcher process decided and has
+  not yet handed to supervision MUST be cancelled, with an `alert`, when that tick's observation
+  shows the worker holding a live attempt, as when it claimed again after the observation that
+  decided the stop. A stop that has reached supervision, and every `KILLING` record a restarted
+  dispatcher finds in its ledger, MUST run to completion: the ledger is saved only at tick exit, so
+  a saved record without a kill deadline may predate a signal already sent in a tick that ended
+  before its save, and cancelling it could abandon a signalled worker. An attempt whose lease is unexpired (for example renewed),
+  expired for at most the grace,
+  or already handled by an earlier step of the same heal pass (a CAL-V0-104 exit recovery or a
+  detached-run hand-off), and every attempt when `heal.reap` is off, MUST be left untouched.
+  The closed CAL-V0-058 event vocabulary gains `lease-expired`.
+
+Non-goals: delivering a "lease expired, stop and hand off" notice to the worker before the reap (no
+adapter injects messages into a running session today; the reap fences the attempt, so nothing the
+worker submits afterwards can land); a separate on/off switch (`heal.reap` off, or a large grace,
+keeps today's behavior); reaping attempts held by processes this dispatcher did not launch or adopt
+beyond what CAL-V0-056 already does; a grace measured from the last heartbeat rather than the lease
+expiry.
+
+Failure modes: an unreadable store skips heal, so the reap waits for the next readable tick; a
+dispatcher that ends after the store reaped but before its ledger records `KILLING` (saved only at
+tick exit) restarts with the worker `RUNNING`, and the store's reaped attempt stops it on the first
+tick without a second reap or a second `lease-expired` event; a stop before the store write reaps
+again on the next tick, still fenced on the then observed expiry. Residual limits: a claim that
+lands between a tick's observation and its supervision pass a few instructions later is not seen
+before the signal (no coordination with claim admission exists); a dispatcher that ends between
+deciding a stop and the next tick's supervision completes that stop after its restart even if the
+worker has claimed again; and if the dispatcher ends after
+the reap but before its ledger records `KILLING`, and another holder claims the ticket before the
+restart, the retry reuses the attempt ID and replaces the reaped holder and cause, so the stop is
+not recovered and the worker runs until the idle or wall-time cap stops it, as before this
+requirement (closing that window would need a new ledger member, hence a new
+`taskman-dispatch-state` version under CAL-V0-131, or a claim wire change). A worker that survives SIGKILL is
+reported as an alert while supervision continues (CAL-V0-056); a configuration reload changes the
+grace only for workers launched after it (CAL-V0-127). A JSON `null` grace decodes as absent, as the
+role's other optional members do.
+
+Acceptance evidence: `TestCALV0191_RunningWorkerPastGraceIsReapedAndStopped`,
+`TestCALV0191_WithinGraceOrRenewedIsUntouched`, `TestCALV0191_RefusedReapKeepsTheWorker`,
+`TestCALV0191_WorkerThatWinsTheRaceKeepsRunning`, `TestCALV0191_StopAfterReapIsRecoveredAfterRestart`,
+`TestCALV0191_ReapedAttemptSparesAWorkerWithALiveOne`, `TestCALV0191_ReclaimAfterTheStopDecisionKeepsTheWorker`,
+`TestCALV0191_ExpiredLeaseGraceConfig` (`internal/tasks/dispatch`);
+`TestCALV0191_ReapIsFencedOnTheObservedLeaseExpiry` (`internal/tasks/store`);
+`TestCALV0191_NativeReapExpiredReportsOnlyAnActualReap`, `TestCALV0191_EmptyLeaseExpiryIsMalformed` (`internal/tasks/cli`); the CAL-V0-011,
+CAL-V0-056 and CAL-V0-104 tests are unchanged.
+
+Rollback: revert the dispatcher change, this amendment and the guide sentence. A configuration that
+sets `expiredLeaseGraceSeconds` is then refused as an unknown member until the key is removed;
+`lease-expired` events already written stay readable as plain event lines. Store records do not
+change shape: a reap without `--lease-expires-at` keeps its historical digest, and a reap receipt
+written with it reads as any other reap. A ledger worker recorded `KILLING` with reason
+`LEASE_EXPIRED` is still stopped by the reverted supervisor, which replays the recorded reason. The dispatcher ledger
+does not change shape (`taskman-dispatch-state/3` is kept), so replacing either build needs no
+drain.
+
+### V1-1021 unbounded effects warning and serial-fallback deferral (issue 679)
+
+Authoritative input: owner request [issue 679](https://github.com/beamfall/corvint/issues/679),
+native ticket V1-1021. A ticket created with empty effects (the CREATE template's default) is
+planned and claimed with the WHOLE_REPOSITORY fallback scope, so it serializes against every other
+attempt, and nothing at create time or in the queue reads said so. The amendment warns and reports;
+it refuses nothing. It changes no payload, receipt, journal record, replay rule, result code,
+outcome, plan selection or claim scope.
+
+- `CAL-V0-192`: (proposed (V1-1021, issue 679)) When `corvint-tasks ticket create`,
+  `ticket refine` or `ticket set-effects` commits a fresh transaction (not a replay, no-change or
+  refusal) whose resulting effects declare no PATH scope under coverage QUALIFIED and are not
+  `externalUnbounded` (the predicate under which plan and claim use the WHOLE_REPOSITORY fallback
+  scope), the command result MUST add one envelope `warnings` entry that starts
+  `EFFECTS_UNBOUNDED: ticket <ticketId> ` and names the effects' coverage, touchPaths and resources
+  counts, `WHOLE_REPOSITORY` and the policy `serialFallback` value. The resulting effects are the
+  payload's for CREATE and SET_EFFECTS and the record's pre-write effects for REFINE, which does
+  not change effects. A ticket with a declared PATH scope (a touchPath or a PATH resource under
+  QUALIFIED coverage) or with `externalUnbounded` true MUST add no such warning. The command MUST
+  still commit, and its items, codes and outcome MUST be those it produces without this
+  amendment. `EFFECTS_UNBOUNDED` is a warning prefix, not a result code.
+- `CAL-V0-193`: (proposed (V1-1021, issue 679)) A `plan preview` entry deferred for
+  RESOURCE_COLLISION MUST carry `serialFallback: "WHOLE_REPOSITORY"` when all of these hold: its
+  own scope is the WHOLE_REPOSITORY fallback; no reserved or earlier-selected scope holds a
+  WHOLE_REPOSITORY resource or collides with the entry's non-PATH resources; and the reservations
+  plus earlier selections are below `maxActiveAttempts`. Such an entry is deferred only by its
+  fallback scope, and a declared PATH scope disjoint from every reserved and selected scope would
+  admit it. The `taskman-plan/0` item MUST then carry
+  `serialFallbackDeferred`, the marked ticket IDs in plan order. Both members MUST be absent when no
+  entry qualifies, so existing plans render unchanged. `queue status` MUST report
+  `serialFallbackDeferred`, the same list for the queue's planning input (an empty array when none
+  qualifies, null without a journal), and `queue status --summary` and `plan preview --summary`
+  MUST carry it when the full item does. This amends the `queue status` and `plan preview` summary
+  key sets of CAL-V0-167.
+
+Non-goals: `ticket create --effects-from` or any other effects derivation (recorded on issue 679
+as out of scope); refusing an unscoped create, or an `--allow-whole-repository` opt-in; warning
+on a replay (the original result carried it), on batch `ticket refine --from-file` items, on admin
+console verbs or on Core history imports; changing the serial fallback or plan selection;
+`plan preview --selected-only` output; dispatcher behaviour.
+
+Failure modes: the REFINE warning reads the pre-write record, so effects changed by another writer
+between that read and the commit can make the warning stale; it is advisory and the committed
+state is unaffected. `serialFallbackDeferred` names only entries whose collision is with a
+declared scope: an entry behind a WHOLE_REPOSITORY holder, behind a collision on one of its own
+non-PATH resources, or without spare capacity is not listed, because declaring a PATH scope would
+not admit it. `queue status` runs the planner only when an OPEN or HELD ticket has
+unbounded effects, so its cost is unchanged for a fully scoped queue. Rollback removes the warning,
+the two plan members and the queue status member; no store, journal or receipt state depends on
+them.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-192 | `TestCALV0192_UnboundedEffectsWarn` (`internal/tasks/cli`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-08-v1-1021-empty-effects-warning.md` |
+| CAL-V0-193 | `TestCALV0193_SerialFallbackDeferralIsReported`, `TestCALV0167_SummaryShapes` (`internal/tasks/cli`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-08-v1-1021-empty-effects-warning.md` |
+### V1-1026 milestone policy and unmilestoned count
+
+Status: accepted (decision 0459; V1-1026); implemented with focused tests. Human-owned
+input: native ticket V1-1026, filed 2026-10-08 after the owner asked that every ticket carry a
+milestone. Observed with Core 1.0.0-rc.2 build 360: 438 of 546 OPEN tickets had no milestone,
+`ticket create` accepted a null milestone without warning, and no read reported the count, so
+v1.0 scope could not be read from the queue. Intent: a queue can opt in to requiring a milestone
+on new and refined tickets, and reads surface the unmilestoned count so drift stays visible.
+
+- `CAL-V0-195`: (accepted (decision 0459; V1-1026)) A policy MAY carry the optional top-level key `milestones`, a
+  closed object whose only member `required` is a boolean; any other member, a missing member,
+  `null` or a non-object MUST be refused `MALFORMED` at policy load, and omission MUST keep the
+  policy bytes and today's behavior. When `required` is true, `CREATE` whose payload `milestone`
+  is null, and `REFINE` whose payload sets `milestone` to null, MUST be refused
+  `VALIDATION_FAILED` with the §11 code `MILESTONE_REQUIRED` (not retryable: the request must
+  change) after the role checks, writing nothing. The rule applies to every role and to each entry
+  of a batch refine and to `ADOPT_FILE`, which share the one mutation library. It MUST NOT rewrite
+  or refuse anything else: existing unmilestoned records stay valid, a `REFINE` that does not name
+  `milestone` is admitted on them, and receipts recorded under an earlier policy still audit,
+  because each receipt is replayed under the policy in force when it was written. `required:false`
+  behaves as omission. `ticket create --template` marks `milestone` non-nullable and lists it in
+  `fill` while the policy requires it; `ticket create` and `ticket refine` help states the
+  rule.
+- `CAL-V0-196`: (accepted (decision 0459; V1-1026)) `queue status` MUST report `openWithoutMilestone`, the count
+  of tickets in status `OPEN` whose milestone is null over the whole inventory (DRAFT, HELD and
+  terminal tickets are excluded), on every policy, and `--summary` MUST keep it. `roadmap` MUST add
+  the warning `N OPEN ticket(s) have no milestone` with the same whole-inventory count, independent
+  of `--offset` and `--limit`, when N is non-zero, and no milestone warning otherwise. Both stay pure
+  reads.
+
+Non-goals: backfilling milestones on existing tickets (an owner refine task); a milestone
+vocabulary or validation of milestone names beyond the existing Label grammar; requiring a
+milestone on import cutover replay of historical receipts; refusing reads or claims of
+unmilestoned tickets.
+
+Failure modes: a policy update that adds or changes `milestones` is an ordinary policy change, so
+it fences live evidence handoffs `STALE_POLICY` like any other policy edit (the handoff
+compatibility allowance lists only `policyVersion`, `holderLiveness` and additive pool members);
+once a policy carrying `milestones` is written, an older binary refuses that policy `MALFORMED`
+(the A20/A23 downgrade rule), and its journal audit keeps refusing after the key is removed; an importer replaying a
+foreign backlog without milestones is refused under the opt-in, which the operator resolves by
+supplying milestones or leaving the key off during import. Readers with a closed queue status key
+set see one more member, as with every earlier additive member.
+
+Acceptance evidence: `TestCALV0195_PolicyMilestonesOptIn` (`internal/tasks/intent`);
+`TestCALV0195_MilestoneRequiredPolicy`, `TestCALV0196_OpenWithoutMilestoneCount`
+(`internal/tasks/cli`); `TestCALV0078_ClassificationCoversEveryCode` (`internal/tasks/wire`) keeps
+the new code classified.
+
+Rollback: revert the change, this amendment and the guide sentence. Before any policy carries
+`milestones`, rollback is clean. Once one has, an older binary refuses that policy `MALFORMED`, and,
+as with A24, journal audit keeps refusing after the key is removed because the historical policy
+post still carries it; rolling back such a store needs a reader that accepts the key. No record,
+receipt or ticket format changes, and refusals write nothing, so `MILESTONE_REQUIRED` never reaches
+the journal.
+
+### V1-0672 surfaced dispatcher tick ledger save failure
+
+Status: proposed (V1-0672); implemented with focused tests, owner acceptance and live dispatcher
+qualification pending. Human-owned input: native ticket V1-0672, filed during issue 468 Gate A. A
+scratch-only Darwin Go 1.27.1 test at the then current base made a dispatcher's program directory
+read/execute-only, confirmed that `CreateTemp` failed there, changed the ticket status and ticked:
+the tick returned success and published the state change while `state.json` stayed byte-identical,
+because the tick's deferred final ledger save discarded its error. Intent: a failed private ledger
+save is an explicit tick failure, never a silent success, and recovery stays at the dispatcher's
+own boundary, which still holds the current ledger.
+
+- `CAL-V0-194`: (proposed; V1-0672) When a tick's final ledger save fails (any step of the write:
+  temporary file, write, file sync, close, rename or directory sync), the tick MUST return an
+  error that matches `ErrLedgerUnsaved`, names `state.json` as not confirmed durable (it may
+  still hold the previous save, or, when only the directory sync failed, the new bytes without
+  proven durability) and wraps the original save error unchanged, joined with any other error the tick returned, and the tick MUST NOT count as saved:
+  the controlled boundary reports it unrecorded (SERVICE500-003) and it does not arm the idle gate
+  (CAL-V0-139). The dispatcher MUST keep its in-memory ledger, including every recorded worker,
+  backoff and observation baseline, and MUST NOT stop, forget or relaunch a worker because of the
+  failure; it MUST NOT reload or restore an older ledger snapshot. `Run` MUST treat such a tick as
+  any failed tick (an `alert` event `tick failed: ...` that carries the cause, and supervision
+  continues), and a bounded run whose last tick failed so MUST return that error, so `dispatch
+  --ticks N` reports outcome `ERROR` with the cause as a warning. The next tick's save MUST write the
+  then current ledger whole; the first successful save makes `state.json` current and durable again. A tick
+  that leaves the ledger bytes unchanged and still in place does not rewrite it (CAL-V0-139) and so
+  cannot fail this way. The checked saves that already fail their own step (after a launch, the
+  declared-progress admission, `Open` and `Close`) are unchanged.
+
+Non-goals: power-loss or crash durability beyond the existing write, sync and rename sequence; a
+new event kind (the existing `alert` carries the failure); retrying the save within the same tick;
+mapping the I/O failure to a new wire code (a bounded `dispatch` run reports it under the existing
+error mapping, as a failed `Close` save already does); changing the event log, which is appended
+before the ledger is saved.
+
+Failure modes: while saves keep failing, the event log may run ahead of `state.json`, and events
+already appended (for example `state`, `finished` or `cooldown`) are not withdrawn; the `alert`
+records that their ledger effects are not yet persisted. A dispatcher that stops or crashes before
+any later save succeeds restarts from whatever `state.json` then holds (the last saved ledger, or
+a renamed but unsynced newer one), exactly as after a crash between an
+event append and the ledger save: it adopts the workers that ledger records, re-reports state
+changes against the older baseline, and may account again a worker the unsaved tick had already
+accounted; its event sequence restarts from the saved value. A worker launched while saves fail is
+supervised from memory (its post-launch save raises the existing `ledger unwritable after launch`
+alert, CAL-V0-055) and, if the dispatcher ends before a later save records it, is left to the
+existing unrecorded-tree handling of a crash between launch and the ledger save; this requirement
+does not hold launches while saves fail. A failing `Close` save still returns its error. Running as root bypasses the
+directory-permission fixture, so that test skips there.
+
+Acceptance evidence: `TestCALV0194_FailedTickSaveIsReportedAndRetried` and
+`TestCALV0194_UnsavedTickKeepsRunningWorkers` (`internal/tasks/dispatch`), failing at the base
+(the tick returned success over an unwritable ledger) and passing after; the updated
+`TestSERVICE500_UnsavedLaunchStaysUnrecorded`, `TestSERVICE500_UnsyncedLedgerRenameStaysUnrecorded`,
+`TestCALV0064_LaterSaveFailureCannotReviveGrantedParking` and
+`TestCALV0064_FirstSeedEndedWorkerAndLaterFailure` now require the surfaced error.
+
+Rollback: revert the dispatcher change, its tests and this amendment. Ticks then report success over
+a failed save again; no ledger, event or wire shape changes, so either build reads the other's
+state directory without a drain.
+
+### V1-0827 role selection of answered waits by stage
+
+Status: accepted (decision 0467; V1-0827); implemented with focused tests. Human-owned
+input: native ticket V1-0827, observed on Corvint 1.0.0-rc.1 build 163 by the issue 354 lane. The
+`run --role implementer` selection took every `WAITING` attempt with a recorded answer whatever its
+stage, so an implementer run opened an answered integrate-stage (or review-stage) wait, recorded a
+program `READY` for an implement launch and was then refused `MALFORMED` (`stage dispatch phase`)
+by the native `DISPATCH`. The reviewer and integrator roles selected no answered wait at all, so an
+answered review or integrate wait was reachable only through `resume` or `retry`, although
+CAL-V0-089 item 5 resumes an answered integrate-stage wait under its recorded grant. Intent: the
+role filter applies to the stage of the waiting attempt.
+
+- `CAL-V0-197`: (accepted (decision 0467; V1-0827)) `run --role ROLE` and `admit --role ROLE` MUST select an
+  attempt in `WAITING` with a recorded answer only when its recorded stage is the stage of ROLE
+  (`implementer` implement, `reviewer` review, `integrator` integrate); every other phase selection
+  is unchanged (implementer: not live, `ADMITTED` or `RETURNED`; reviewer: `BUILT`; integrator:
+  `READY_FOR_INTEGRATION`). A run of another role MUST leave that attempt, its program record and
+  its preserved session untouched. The selection that classifies a `STOPPED` as reselectable
+  (CAL-V0-078) MUST use the same predicate. A supervisor transition that enters `WAITING` with a
+  new question (from another phase, or with different question text) MUST record it unanswered,
+  so the answer of a wait the stage resumed never makes the new question selectable.
+
+Non-goals: changing `resume`, `retry`, `answer`, `drain` or `cancel` selection; selecting an
+unanswered wait (CAL-V0-089 item 5 is unchanged); any wire, policy or record shape change.
+
+Failure modes: an answered wait whose stage no role is started for stays selected only by that
+role, `resume` and `retry`. Before the new-question rule, a resumed stage that stopped into
+`host result unavailable` or `repair bound reached` kept the resumed answer, so a role run would
+have relaunched it until a cap refused; an attempt record already in that state keeps its stale
+answer until its next transition and is selected once more by the role of its stage.
+
+Acceptance evidence: `TestCALV0197_RunRoleSelectsAnsweredWaitOfItsStage` (`internal/tasks/store`)
+drives `run --role implementer` through the CLI over an answered integrate-stage wait: at the base
+it failed `MALFORMED` (`stage dispatch phase`); after the change it selects nothing and leaves the
+attempt, program and host session untouched, and `run --role integrator` then resumes the wait
+under its recorded grant and integrates exactly once. `TestCALV0197_RoleSelectsByStage`
+(`internal/tasks/store`) covers the predicate for every role, stage and phase.
+`TestCALV0197_NewQuestionClearsResumedAnswer` (`internal/tasks/store`) resumes an answered implement
+wait into `host result unavailable`: at the base the new question kept the answer
+`operator answer`; after the change it is unanswered and not selected.
+
+Rollback: revert the selection and transition changes, their tests and this amendment; no
+record, wire or state shape changes, so either build reads the other's store.
+
+### V1-1042 acquire and return a pool member during a live attempt (issue 696)
+
+Status: accepted (decision 0472; V1-1042); implemented with focused tests, live qualification
+pending. Human-owned input: native ticket V1-1042 and GitHub issue 696. Today a pool member can be
+taken only by `claim --pool` and is held until the attempt ends, so an agent that discovers mid-task
+that it needs an isolated environment must release and reclaim (losing the generation), and an
+agent that is done with one keeps it occupied until completion. Intent: a live external-agent
+attempt acquires one member under the same fencing and admission rules as a pooled claim, may
+return it early into quarantine, and keeps its lease, phase and generation throughout; `claim
+--pool` is unchanged.
+
+- `CAL-V0-198`: (accepted (decision 0472; V1-1042)) `corvint-tasks pool acquire --attempt ID --generation G --pool
+  ID --request-id ID [--exclude-member ID]... [--exclude-authors[=all]]` MUST plan the lease verb
+  `POOL_ACQUIRE` against the named attempt. It MUST be fenced exactly like every attempt verb (a
+  stale, ended or unknown generation records `REVISION_CONFLICT`/`FENCED`), MUST refuse
+  `TICKET_STATE` unless the attempt is a live external-agent attempt with a work lease, and MUST
+  refuse `RESOURCE_COLLISION`, writing nothing, when the attempt already holds an allocation
+  (claimed, acquired or shared) or has already returned one in this generation (one allocation per
+  generation). On success it MUST record the allocation as the attempt's `poolAllocation` and an
+  `ALLOCATED` `pools.json` entry bound to the attempt, generation, holder and stage in one
+  `TRANSITION` receipt (CAL-V0-027..030), and MUST NOT change the attempt's lease, phase, scope or
+  generation. `--holder`, `--stage`, `--ticket` and the other claim fields are refused `MALFORMED`.
+- `CAL-V0-199`: (accepted (decision 0472; V1-1042)) Acquire MUST admit a member by the pooled-claim steps, with the
+  attempt's own lease holder and stage standing in for the claim's `--holder` and `--stage`: an
+  admission barrier refuses `PAUSED`; a ticket `requiresPool` other than `--pool` refuses
+  `RESOURCE_COLLISION`; priority yield refuses as a pooled claim does (CAL-V0-101); members are
+  ordered stage-reserved first then unreserved, less `--exclude-member` (CAL-V0-029, CAL-V0-065);
+  a member with a configured health command runs the same health preparation, from the same
+  clean source checks, as a pooled claim and is skipped and quarantined on failure (CAL-V0-031,
+  CAL-V0-032); and no free eligible member refuses `RESOURCE_COLLISION`. A supervised attempt is
+  refused `QUIESCENCE_UNPROVED` as every other attempt verb, without health preparation, so a
+  repeated refused acquire probes and quarantines no member.
+- `CAL-V0-200`: (accepted (decision 0472; V1-1042)) `--exclude-authors[=all]` on acquire MUST apply the CAL-V0-098
+  author derivation to the attempt's ticket, and MUST be refused `MALFORMED` unless the attempt's
+  stage is `review` or `integrate`; an unverifiable author history refuses
+  `INDEPENDENCE_UNVERIFIED` as a pooled claim does, and the result names the excluded authors.
+- `CAL-V0-201`: (accepted (decision 0472; V1-1042)) `corvint-tasks pool release --attempt ID --generation G
+  --allocation SHA256 --request-id ID` MUST plan `POOL_RELEASE`, fenced like every attempt verb.
+  It MUST refuse `REVISION_CONFLICT`/`FENCED`, writing nothing, unless `--allocation` is the
+  attempt's exact current allocation, and `RESOURCE_COLLISION` when that allocation is shared
+  (PSR-V0-016): a shared allocation is returned only by ending its attempts. Otherwise, in one
+  `TRANSITION` receipt, it MUST move the `pools.json` entry to `QUARANTINED` (reason `attempt
+  returned allocation early; physical safe reuse unproved`, requiring cleanup or `confirm-safe`
+  as after any attempt end, CAL-V0-030), clear the attempt's `poolAllocation` and record the
+  optional attempt key `releasedPoolAllocation: {allocation, releasedSeq}`; the attempt MUST stay
+  live with its lease, phase and generation. The request preimage MUST bind `allocation`. Pool
+  release MUST pass an `ALL` barrier, like the other verbs that only end occupancy. The attempt
+  codec MUST refuse `MALFORMED` a `releasedPoolAllocation` on a non-external-agent attempt, beside
+  a held or shared allocation, or with `releasedSeq` not after the allocation's `allocatedSeq`; an
+  attempt without the key keeps its exact bytes.
+- `CAL-V0-202`: (accepted (decision 0472; V1-1042)) The lifecycle verbs (renew, heartbeat, run, gate run, submit,
+  complete, release, handoff release, expiry and reap) MUST act on whatever allocation the attempt
+  currently holds: an attempt holding none, including one that returned its allocation, completes
+  and releases as an unpooled attempt does, and ending an attempt that holds an acquired
+  allocation quarantines it exactly as a claimed one (CAL-V0-030). `claim --pool` and its results
+  are unchanged.
+- `CAL-V0-203`: (accepted (decision 0472; V1-1042)) An ended generation that returned its allocation early MUST
+  still name that member in its author history (CAL-V0-098), so `--exclude-authors` excludes it.
+  An attempt that returned an allocation MUST NOT attach to a supervisor (`UNSUPPORTED`), and is
+  not eligible for a lane-untouched release (CAL-V0-067), whose origin binding it no longer meets.
+- `CAL-V0-204`: (accepted (decision 0472; V1-1042)) A `pool acquire` result MUST carry `poolAllocation` (null when
+  refused) and the attempt's `ticketId`; a `pool release` result MUST carry
+  `releasedPoolAllocation` (null when refused). A replay of either request ID MUST return the
+  original receipt-bound result, read from the receipt's attempt post rather than the current
+  attempt, including after a later return, acquire or end; a changed request under the same ID
+  refuses `REQUEST_ID_CONFLICT`.
+
+Non-goals: more than one allocation per generation or several held members; returning a shared
+allocation early; acquiring for a supervised attempt; carrying an acquired allocation across a
+retry or handoff generation (the next generation acquires its own); a writer fast route for the two
+verbs (they take the ordinary locked path); new wire codes.
+
+Failure modes: an older binary refuses the `releasedPoolAllocation` attempt key `MALFORMED`, so a
+store in which any attempt returned an allocation early cannot be read by a binary predating this
+amendment; stop the queue and use a recorded safe migration before downgrading (search
+`.git/taskman` for the byte string `"releasedPoolAllocation"`). A clean handoff release across a
+policy change compares the attempt's current allocation with the one its first attempt record held,
+so after an acquire or return it refuses `STALE_POLICY` as an incompatible policy change does. A health probe that
+passes leaves its member `PREPARING` for this attempt until the acquire request completes; an
+acquire that is fenced or refused after preparation leaves that member to the existing prepared
+member handling. A member returned early stays quarantined until an operator cleanup or
+`confirm-safe`; there is no timeout.
+
+Acceptance evidence: `TestCALV0198_AcquireReleaseAndCompleteWithoutAllocation`,
+`TestCALV0199_AcquirePreparesHealth`, `TestCALV0199_BarrierPausesAcquireNotRelease`,
+`TestCALV0199_SupervisedAcquireIsNotPrepared`, `TestCALV0200_AcquireExcludesAuthors`, `TestCALV0202_EndingQuarantinesAcquiredAllocation`
+(`internal/tasks/store`); `TestCALV0201_ReleasedAllocationCodec` (`internal/tasks/snapshot`);
+`TestCALV0203_ReturnedAllocationAttachRefused` (`internal/tasks/transaction`);
+`TestCALV0204_CLIAcquireAndReleaseResults`, `TestTMV0008_AS07_HelpAndVersion`,
+`TestCALV0047_AllCommandHelpIsReadOnly` (`internal/tasks/cli`);
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-08-v1-1042-pool-acquire.md`.
+
+Rollback: revert the two verbs, the attempt key, the CLI and help entries, their tests and this
+amendment. Stores that never used the verbs keep their exact bytes and are read by either build. A
+store holding a `releasedPoolAllocation` key needs every such attempt ended and the store migrated
+before a reverted binary can read it.
+
+### V1-1045 pool confirm-safe on the writer checkpoint (issue 701)
+
+Status: accepted (decision 0471; V1-1045); implemented with focused tests and a synthetic
+measurement, live qualification NOT_RUN. Human-owned input: native ticket V1-1045 and GitHub issue 701. `pool confirm-safe` took the
+complete lease route, so it decoded the whole receipt journal while holding the preparation gate. On
+a queue of about 21,100 receipts that took minutes, and concurrent heartbeat, claim and
+confirm-safe calls failed with `LOCK_TIMEOUT`. Intent: confirm-safe costs what the other
+high-traffic lease writes cost, with the same admission decision and the same bytes.
+
+- `CAL-V0-205`: (accepted (decision 0471; V1-1045)) `POOL_CONFIRM_SAFE` MUST be served by the
+  CAL-V0-116 writer route under that route's rules: it observes, models and commits under one
+  writer lock, rechecks the head, the intent tree and the primary branch before effects, replays a
+  retained request and reports a model result that plans no transaction without a write
+  (CAL-V0-190). While the store holds a bound writer checkpoint whose tail the route accepts,
+  confirm-safe MUST NOT run the complete-history audit under the preparation gate. Every decline
+  of that route, including a model that read an elided path, MUST hand the request to the complete
+  route unchanged, with nothing written. A committed confirmation MUST write the same bytes and
+  report as the complete route, and a refused one MUST be answered as the complete route answers
+  it. This amends the CAL-V0-116 lease-verb scope to include `POOL_CONFIRM_SAFE` and extends that
+  route's accepted guarantee change (a prefix rewrite is not detected by a fast writer) to the
+  verb.
+
+Non-goals: the other pool verbs (prepare, observe, recover, cleanup, acquire, release, sweep
+finish) keep the complete route; no change to the confirm-safe model, its refusals or its wire
+result; no faster complete route when no bound checkpoint exists.
+
+Failure modes: without a bound writer checkpoint (a new store, a head below the checkpoint
+minimum, a tail beyond the route's bound, or an unsettled journal) confirm-safe still runs the
+complete audit, as every lease verb does (outside the preparation gate since CAL-V0-263). A sweep's confirmation phase
+uses the same verb and so the same route; its witness check reads the evidence digest from the
+content-addressed name, as the route does for every blob.
+
+Acceptance evidence: `TestCALV0205_PoolConfirmSafeTakesWriterRoute` (`internal/tasks/store`);
+the existing pool, sweep and writer-route tests; `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-09-v1-1045-confirm-safe-writer-route.md`.
+
+Rollback: remove `POOL_CONFIRM_SAFE` from the writer-route lease verbs and revert the test and this
+amendment. Stores are unchanged: both routes write the same bytes.
+
+### Read facets and release readiness counts (owner request 2026-10-09)
+
+Status: accepted intent (decision 0476); implemented with focused tests and a read-only measurement on the
+project's own store, live qualification NOT_RUN. Human-owned input: the owner's chat request of
+2026-10-09, relayed to the implementing lane: corvint-tasks should answer questions like "how many
+tickets to 1.0" instantly, and this should apply to every kind of search. Intent: a caller gets
+exact counts from one bounded read instead of paging through items and counting them itself, and
+a release's progress is visible from its readiness read.
+
+- `CAL-V0-206`: (accepted, decision 0476) `ticket search`, `ticket list` and `roadmap` MUST accept `--facets`.
+  With it the result carries the A26 `facets` member: a closed object counting every ticket the
+  read matches, independent of `--offset` and `--limit`, from the same records and views the items
+  use. Its members are `total`; `byStatus`, `byPriority`, `byKind`, `byExecutionClass` and
+  `byEligibility`, each listing every closed value including zeros; `byNextAction` and
+  `byBlockerCode`, listing only non-zero keys, where a blocker code counts each non-terminal ticket
+  once (terminal list items carry no blockers, CAL-V0-173); `byMilestone` and `byLabel`, each the
+  64 most frequent keys with ties in byte order, plus `milestonesOmitted` and `labelsOmitted`; and
+  `withoutMilestone`. Every count is a wire Count. The same store and arguments MUST give the same
+  bytes. Without the flag the result MUST keep its earlier bytes. A repeated `--facets` refuses
+  `MALFORMED`; a value-flag value spelled `--facets` stays a value. A result decoder MUST refuse
+  `MALFORMED` any `facets` member that is not this summary: a missing or unknown member, a
+  non-Count, a closed map missing or adding a value or not summing to `total`, a `byNextAction` key
+  outside the next-action set or counts not summing to `total`, a blocker key that is not a detail
+  code, an open-map key that is not a label, a zero or above-`total` open count, `withoutMilestone`
+  plus milestone counts above `total`, or an open map over 64 keys or under 64 with a non-zero
+  omitted count (V1-1052).
+- `CAL-V0-207`: (accepted, decision 0476) The same verbs MUST accept `--count`, which returns the CAL-V0-206
+  summary with no items and `page` null, without rendering items. `ticket list --count` MUST NOT
+  read attempt receipts for `lastAttemptEndedAt`. `--count` with `--offset` or `--limit` or a
+  repeated `--count` refuses `MALFORMED`; `--count --facets` equals `--count`. The untrusted label
+  is set when the summary counts any ticket.
+- `CAL-V0-208`: (accepted, decision 0476) The `release readiness` item MUST add `memberCounts` and
+  `milestoneDrift`. `memberCounts` has `total` (member ids), `absent` (member ids with no ticket
+  record), `byStatus` and `byPriority` (every closed value). `milestoneDrift` has `milestone`, the
+  releaseId, and two lists, each with an exact `count` and at most 100 `ticketIds` in byte order:
+  `unfinishedNonMembers`, the DRAFT, OPEN and HELD tickets whose milestone equals the releaseId
+  but which are not members, and `membersOutsideMilestone`, the members whose milestone is null or
+  differs. The association is the label convention that a release's milestone equals its
+  releaseId; the read never changes membership, readiness or any record.
+- `CAL-V0-209`: (accepted, decision 0476) `release readiness` for a release without a candidate MUST report
+  `BLOCKED` with `missing` `["candidate"]` without observing the source tree (`git` status and the
+  tree digest), because that observation cannot change the result. A release with a candidate MUST
+  observe and compare the source as before.
+
+Non-goals: no persisted or derived index (proposed separately in the build log); no change to the
+TM-V0-008 probe-body-probe read protocol, the inventory load or the default output of any verb;
+no facets on `queue status` (it already reports `byStatus` and `openWithoutMilestone`, and
+`roadmap --count` gives whole-inventory facets); no membership edit or milestone-to-release
+mapping beyond the label convention; no new filter flags.
+
+Failure modes: a store whose matched tickets carry more than 64 distinct milestones or labels
+reports the most frequent 64 and the exact number omitted. A release whose milestone label does not
+equal its releaseId reports every member as outside the milestone and no unfinished non-members,
+which is visible rather than hidden. A candidate-less readiness no longer fails when `git` cannot
+observe the source, because it no longer asks; any release with a candidate still fails as before.
+
+Acceptance evidence: `TestCALV0206_FacetsCountTheWholeMatchSet`,
+`TestCALV0207_CountReturnsOnlyTheSummary` and `TestCALV0208_ReadinessMemberCountsAndMilestoneDrift`
+(`internal/tasks/cli`); `TestCALV0206_FacetsMemberIsAbsentOnlyAndOptional` (`internal/tasks/wire`);
+the before/after medians in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-09-tasks-read-facets.md`.
+
+Rollback: revert the flags, the `facets` member, the readiness members and the source-observation
+skip. Stores are unchanged: every change is in reads.
+### V1-0795 takeover of a program whose owner died after a proved stop (proposed)
+
+Status: proposed; experimental implementation with focused tests, not accepted. Human-owned input:
+native ticket V1-0795, the known limit retained by V1-0755 under CAL-V0-074. An owner that dies
+between a stage dispatch and the program's `FINISHED` record leaves the program `SPAWNING` or
+`STOPPING`, and a replacement owner was refused, so the attempt kept its claim and reservation
+until its lease expired or the operator edited the store. Intent: a replacement recovers that
+attempt without store surgery whenever the attempt record itself proves the stage stopped, and
+still fails closed otherwise.
+
+- `CAL-V0-210`: (accepted (decision 0473; V1-0795)) A program transition that changes the owner of a program in
+  `SPAWNING` or `STOPPING` MUST be admitted, with epoch plus one and the worktree unchanged, as a
+  move to `FINISHED` with proved quiescence when the prior owner is proved gone and the attempt
+  record the program's current assignment names (same attempt ID and generation) is supervised by
+  that program and records no worker, no lane and quiescence `PROVED`. A move from `STOPPING`
+  whose result class is not `NO_EXEC` MUST record its usage unobserved, because the stage's host
+  output is lost; token counters and turns are unchanged. Every other owner change from those
+  phases keeps the existing rules: an attempt that still has a worker needs the CAL-V0-074
+  recovery evidence (a retained leader boot record and a proved host stop), and any other
+  attempt state is refused `FENCED` with `prior program owner not proved stopped`. The
+  replacement then holds the stopped attempt and may answer, resume, drain or cancel it.
+
+- `CAL-V0-212`: (accepted, decision 0502; V1-0628) The top-level `help` usage MUST NOT
+  advertise `--target` or `--expected-revision` for `ticket create`, which refuses both
+  (CAL-V0-051). It MUST list `ticket create` on its own usage line that names the optional payload
+  `localToken` as the way to choose the queue-local ID, and MUST list the target-taking `ticket`
+  mutations separately. No ID grammar, collision rule, alias or wire change.
+
+The non-cancelling `NO_EXEC` settlements (stage admission refused, prelaunch preparation failed)
+are intended not to cancel: a dispatched attempt stops into `WAITING` with the reason as its
+question and keeps its claim and reservation, and the owner is released so the operator answers,
+drains or cancels it. Only a launch refusal, which no retry clears while the pinned runtime stays
+unlaunchable, cancels (CAL-V0-074).
+
+Non-goals: no combined attempt and program transition; no change to the attempt record, the
+supervisor transitions, the `RUNNING` phase or worker recovery; no lease-expiry change.
+
+Failure modes: an attempt in `BLOCKED_RECOVERY` with survivors, or one whose dispatch recorded a
+worker that never booted, is not a proved stop and keeps the program refused and the claim held. A
+replacement after a proved stop loses the lost stage's usage, so a program with token caps refuses
+its next spawn `MISSING_EVIDENCE` until the operator acts, which is the existing unobserved-usage rule.
+
+Acceptance evidence: `TestCALV0074_NoExecCrashTakeover` (`internal/tasks/store`), whose `stopped`
+case fails on the base and passes with this change and whose `dispatched` case keeps the refusal;
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-09-v1-0795-crashed-owner-takeover.md`.
+
+Rollback: revert the takeover admission in `internal/tasks/transaction/program.go`, the matching
+store recovery in `internal/tasks/store/program.go`, the test and this amendment. Stores are
+unchanged: the transition writes the existing program record shape.
+
+### V1-0906 bounded descriptors
+
+Status: accepted (decision 0519; V1-0906); implemented with focused tests. Human-owned
+input: ticket V1-0906 asks that open descriptors on the complete mutation route and its fallback
+stay independent of receipt count. The 512-directory admission caps of the first draft were removed
+with owner approval on 2026-10-11 (decision 0519): directory count alone no longer refuses a store; operating-system
+descriptor exhaustion and the existing traversal bounds still refuse.
+
+- `CAL-V0-219`: (accepted, decision 0519 (V1-0906)) Change observation on Darwin
+  (`internal/tasks/authority/change_guard_darwin.go`) shall hold at most 16 regular-file vnode
+  descriptors process-wide, one kqueue descriptor per live guard, and one vnode descriptor per
+  watched directory; directory descriptors scale with directory count, never with receipt count.
+  Linux retains one inotify descriptor (PSR-V0-221 amends its per-file watches). Regular files beyond the budget keep the existing stat
+  sweep and locked event-check semantics, directory event coverage is never dropped, and no
+  additional directory-count admission cap applies (descriptor exhaustion and existing traversal
+  bounds still refuse).
+- `CAL-V0-220`: (accepted, decision 0519 (V1-0906)) Characterization: a native journal
+  audit keeps the accepted CAL-V0-070 item 3 strategy, one identity-pinned root per listed parent
+  directory and one pinned read descriptor per read parent per audit attempt, with a revisited
+  parent reusing its pin. Its descriptors are therefore bounded by directory count, not receipt
+  count, and are all released on close. Complete mutation observation and its no-watch fallback
+  preserve canonical outcomes and refusal codes.
+- `CAL-V0-221`: (accepted, decision 0519 (V1-0906)) Regression evidence shall bound
+  descriptors at two synthetic receipt counts on complete mutation observation and forced no-watch
+  fallback, by a bound scaled to the store's directory count. The qualification records five runs at
+  100,000 receipts, the median sampled peak open descriptors, sampling limits and host load band.
+  Sampled peaks must stay within the directory-scaled bound and must not grow with receipt count
+  at a fixed directory count; unrelated process descriptors and concurrent operations are outside
+  this per-operation bound.
+
+These requirements change change-guard descriptor admission only; the journal reader is unchanged
+from CAL-V0-070. Idle CPU, journal formats, checkpoint validity and the existing outside-writer
+in-place race bound are unchanged. Acceptance uses temporary stores, focused race tests and the
+existing refusal/identity suite; see `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-10-v1-0906-bounded-fds.md`. Rollback
+reverts the 16-descriptor ceiling in `defaultVnodeFileBudget` and the tests, restoring the
+half-soft-limit budget and its exhaustion risk at high `RLIMIT_NOFILE`.
+
+### V1-1118 exact PATH key naming a directory (proposed)
+
+Status: proposed; experimental implementation with focused tests, not accepted. Human-owned input:
+native ticket V1-1118, found in RC3 lane C (V1-1090). CAL-V0-021 makes a `PATH` key without a
+trailing `/` name exactly one path, so a key that names a directory covers nothing beneath it, and
+`submit` later refuses `OUT_OF_SCOPE` (CAL-V0-024). `ticket set-effects` stored such a key and
+claim reserved it without saying so. The amendment warns and reports; it refuses nothing.
+
+- `CAL-V0-211`: (accepted, decision 0499; V1-1118) When `corvint-tasks ticket set-effects` commits a fresh
+  transaction (not a replay, no-change or refusal), or a claim (`claim` or `claim --next`,
+  pooled or not) commits a fresh attempt, the command result MUST add one envelope `warnings`
+  entry for each distinct `PATH` key that does not end in `/` and names a directory (a Git tree
+  entry) in the base tree. The keys are, for `ticket set-effects`, the payload effects'
+  `touchPaths` and `PATH` resource keys, whatever their coverage, and the base tree is the tree of
+  `HEAD` in the caller's checkout; for a claim, they are the attempt's reserved scope's `PATH`
+  keys, and the base tree is the tree of the attempt's base commit. Each entry MUST start
+  `EXACT_KEY_NAMES_DIRECTORY: PATH key <key> `, name that tree, and end
+  `use <key>/ to cover them`; entries are in byte order of the key. A key that names a file or is
+  absent from the tree, and a key that ends in `/`, MUST add no such warning. When the base tree
+  cannot be read the command MUST add none. The command MUST still commit, and its items, codes,
+  outcome, stored effects and reserved scope MUST be those it produces without this amendment.
+  `EXACT_KEY_NAMES_DIRECTORY` is a warning prefix, not a result code.
+
+- `CAL-V0-214`: (accepted, decision 0513) When `corvint-tasks ticket create`
+  or `ticket refine` commits a fresh transaction (not a replay, no-change or refusal), the
+  command MUST add the CAL-V0-211 `EXACT_KEY_NAMES_DIRECTORY` warning for each distinct exact
+  directory key in its effects' `touchPaths` or `PATH` resources, whatever their coverage.
+  CREATE checks its committed payload effects; REFINE checks the effects in its committed
+  ticket post, which REFINE cannot change. The checked effects MUST belong to that transaction,
+  even when another mutation changes effects before writer-lock acquisition or after the commit.
+  Both check the tree of `HEAD` in the caller's checkout. This also applies to each fresh
+  transaction in `ticket refine --batch`. Warning text, key order, deduplication,
+  file/absent/trailing-`/` exclusions and unreadable-tree behavior MUST match CAL-V0-211.
+  Warnings MUST remain advisory: items, codes, outcome, receipts and stored tickets MUST be
+  those produced without the warning; no key may be rewritten or refused. Replays MUST add
+  no such warning and MUST leave the stored ticket unchanged.
+
+Non-goals: rewriting or refusing the key; changing the CAL-V0-021 key rule or the CAL-V0-024
+refusal; warning at `widen`, `submit` or a replay; reading any
+tree other than the one named above.
+The CAL-V0-214 extension (accepted, decision 0513) governs warnings at `ticket create` and `ticket refine`;
+it does not change the accepted CAL-V0-211 command behavior.
+
+Failure modes: `set-effects` reads the caller's `HEAD`, which can differ from the base a later
+claim uses, so a key can warn at one and not the other; the warning is advisory and the committed
+state is unaffected. A Git failure while reading the tree drops the warning rather than failing
+a committed write.
+
+Acceptance evidence: `TestCALV0211_ClaimWarnsOnExactDirectoryKey`,
+`TestCALV0211_ExactDirectoryKeyWarnings` (`internal/tasks/store`) and
+`TestCALV0211_SetEffectsWarnsOnExactDirectoryKey` (`internal/tasks/cli`);
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-10-v1-1118-exact-directory-key-warning.md`.
+
+Rollback: revert `internal/tasks/store/directory_keys.go`, the `ScopeWarnings` report member and
+its two result call sites, the tests and this amendment. No payload, receipt, journal record or
+store state depends on the warning.
+
+- `CAL-V0-217`: (accepted, decision 0518; V1-0913) Amends CAL-V0-139. The safety-net interval
+  after which a skipped tick MUST give way to a full tick is 15 minutes after the last full read,
+  not 60 seconds. Every other CAL-V0-139 trigger (witness change, pending operator request,
+  configuration change, observed lease expiry, recorded cooldown, scheduled pool sweep, lane
+  minimum age, a clock behind the armed tick, any witness error) is unchanged and still reads in
+  full at once. The witness continues to cover only the top-level intent entries, so a ticket
+  file rewritten in place without a journal write and without a change to the tickets directory
+  entry is seen only by the safety net, up to 15 minutes late; the store's own writers go through
+  the journal and are seen at the next tick.
+
+Non-goals: event-driven wake-up; a configurable interval; changing the witness inputs.
+
+Failure modes: an out-of-band in-place edit of a ticket file is acted on up to 15 minutes late
+instead of 60 seconds; every in-store write path is unaffected.
+
+Acceptance evidence: `TestCALV0217_SafetyNetIsFifteenMinutes` and the unchanged
+`TestCALV0139_IdleTickSkipsTheReadUntilSomethingChanges` (`internal/tasks/dispatch`); an idle CPU
+estimate (not a measurement; the 10,000-ticket idle profile is `NOT_RUN`) in
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-10-v1-0913-idle-safety-net.md`.
+
+Rollback: restore `idleFullEvery` to 60 seconds in `internal/tasks/dispatch/idle.go` and drop this
+requirement.
+
+### V1-1129 descriptor exhaustion
+
+Owner: Russell Lewis. Date: 2026-10-10. Intent: accepted (decision 0519; V1-1129).
+Delivery: experimental. Human-owned input: [issue 769](https://github.com/beamfall/corvint/issues/769).
+Three well-formed concurrent pool acquires returned `MALFORMED` and `retryable:false` during a
+host file-handle spike. Callers must be able to distinguish temporary descriptor exhaustion
+from invalid requests. `wire.CodeOf` previously mapped every untyped error to `MALFORMED`.
+
+- `CAL-V0-215`: (accepted, decision 0519 (V1-1129)) The shared Tasks error classifier
+  MUST classify untyped errors matching `syscall.EMFILE` or `syscall.ENFILE` through `errors.Is`,
+  including `os.PathError`, `os.SyscallError` and `%w` wrappers, as `RESOURCE_EXHAUSTED`, never
+  `MALFORMED`. Existing explicit wire codes retain precedence. This code joins TCP-00 §11's closed
+  set through A28 and amends CAL-V0-078's retryable set: it is retryable after bounded backoff
+  when descriptor pressure clears, using the same request ID. CLI error envelopes and wrappers
+  MUST use this classification rather than overwrite an I/O error with `MALFORMED`. A pre-write
+  pool acquire failure MUST report `ERROR`, only `RESOURCE_EXHAUSTED`, `retryable:true`, and
+  `mutation:null`, preserving store and journal bytes. Explicit `NotRetryable`, `Unretryable`
+  and `WithoutRetry` marks MUST still force false, including an untyped exhaustion error after
+  a program or a committed multi-step operation that a replay cannot finish.
+
+Durable-write boundary: `store.applyWithFaults` publishes evidence, then the receipt, then post
+files, then head. An error after receipt publication can leave a committed effect, even when the
+reported mutation is null. Ordinary journal mutations are safe to retry only with the same
+request ID and identical request: the next writer redoes the pending receipt under the lock and
+request-index replay returns its recorded outcome rather than applying it twice (`store/redo.go`,
+`store/lease_write.go`, CAL-V0-019). Before receipt publication, leftover staging is cleaned and no
+transaction is committed. Pool health/cleanup, sweep and supervised programs retain CAL-V0-078's
+explicit non-retryable marks: replay alone does not finish their later steps. Authority-layer
+errors already explicitly coded `UNSUPPORTED_FILESYSTEM` retain that conservative classification;
+this amendment does not infer errno from error text or recode errors that discarded their cause.
+A receipt link whose completion check fails after publication MUST carry `WithoutRetry`, even
+if the writer has not yet recorded the receipt name in its report. This conservative boundary
+may suppress a safe ordinary mutation retry; it avoids inviting an unfinished multi-step replay.
+Pool preparation (including automatic health preparation for claim and pool acquire), initial
+sweep ownership and supervised dispatch MUST record their non-retryable
+fact even when the writer returns both a receipt name and an error. Automatic health MUST preserve
+this fact on every later return, including claim/acquire and cleanup failures after health passes.
+`run-batch` and `qualify`
+also forbid retry once their request directory exists, including an OpenRoot failure after mkdir,
+because an identical request cannot resume that directory. Configuration open/read failures before
+that directory exists and archive verification source-read failures preserve errno identity for
+the shared classifier; genuine configuration and archive parse errors remain `MALFORMED`.
+
+Non-goals and resource limits: do not raise soft `RLIMIT_NOFILE` at CLI startup. Raising a
+per-process limit cannot fix system-wide `ENFILE`, changes inherited limits for child programs,
+and does not replace accurate retry advice. A bounded Darwin-only raise may be considered in a
+separate owner-reviewed change. No new dependency, process-global tuning, automatic retry,
+backoff loop, filesystem format, dashboard code or capacity-code reclassification is introduced.
+
+Failure modes: pressure may persist and retries may still fail; a changed request ID can duplicate
+an already committed operation. Existing typed errors keep their code; unrelated errors remain
+`MALFORMED`. Older consumers with a closed code list refuse the new code until upgraded.
+`DASHBOARD_RESOURCE_EXHAUSTED` remains dashboard-only; `LIMIT_EXCEEDED` and `JOURNAL_SATURATED`
+remain non-retryable capacity refusals.
+
+Acceptance evidence: `TestCALV0215_ResourceExhausted` and `TestCALV0215_WithoutRetry`
+(`internal/tasks/wire`) cover raw and wrapped errnos, registration, retry classification and
+mark precedence. `TestCALV0215_ReceiptLinkExhaustion` (`internal/tasks/authority`) and
+`TestCALV0215_CommittedPoolExhaustion` / `TestCALV0215_CommittedDispatchExhaustion`
+(`internal/tasks/store`) reach post-receipt failure boundaries and preserve non-retryable marks.
+`TestCALV0215_PoolAcquireResourceExhausted` (`internal/tasks/cli`) first proves
+its fixture and canonical encoding, reaches the injected pre-write snapshot failure for each
+errno, then checks the envelope and byte-identical store/journal. CLI marked-error and committed
+report cases verify false survives envelope encoding. `TestCALV0215_AutomaticHealthExhaustion`
+checks claim/acquire envelopes on both sides of the preparation receipt and after passing health,
+when the claim/acquire receipt write fails and cleanup quarantines the member, and
+`TestCALV0215_AutomaticHealthExpiryReapExhaustion` keeps the mark across a `Lease` expiry/reap
+round; both pass outside the sandbox under `-race`. `TestCALV0215_RunConfigResourceExhausted` checks config open/read
+errors before results-directory creation, and `TestCALV0215_ArchiveSourceExhausted` checks
+source errors at tar boundaries and an unchanged filesystem. Focused race tests, vet and documentation
+gates are recorded in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-10-v1-1129-emfile-retryable.md`.
+
+Rollout/rollback: accepted (decision 0519). Revert the classifier, retry entry, CLI routing,
+regressions and this amendment together; no store migration or state deletion is needed. Do not
+remove the existing non-retryable safeguards. Live host saturation and cross-platform qualification
+remain NOT_RUN; deterministic injection establishes classification, not a descriptor-capacity claim.
+
+### V1-1130 lock wait for preparation-admitted agent writes
+
+Owner: Russell Lewis. Date: 2026-10-10. Intent: accepted, decision 0518 (V1-1130).
+Delivery: experimental. Human-owned input: [issue 772](https://github.com/beamfall/corvint/issues/772).
+With about seven concurrent agent sessions on one queue, 4 of 26 `pool acquire` calls returned the
+retryable `LOCK_TIMEOUT` after the 30-second preparation admission bound while a member was `FREE`.
+`release` and `attempt heartbeat` already accept a caller-chosen wait (CAL-V0-111); `pool acquire`
+and the other agent writes did not, so a caller could only back off and resubmit.
+
+- `CAL-V0-216`: (accepted, decision 0518; V1-1130) `claim`, `renew`, `submit`,
+  `pool acquire`, `pool confirm-safe` and `pool release` MUST accept `--lock-wait SECONDS` with
+  exactly the CAL-V0-111 contract: whole seconds in canonical decimal from 1 to 300
+  (`MaxCallerLockWait`); any other value or a repeated flag refuses MALFORMED before any store
+  read or write; the bound replaces the 30-second default for that command's preparation admission
+  and writer-lock acquisitions, spent across phases without restarting; an expired bound refuses
+  the retryable `LOCK_TIMEOUT` before any write; the value is not part of the request, its digest
+  or any receipt, so a same-request resubmission commits once or replays. Each command's `--help`
+  usage MUST list `[--lock-wait SECONDS]` and its verbose help MUST carry the `lockWait` note.
+  Other lease verbs (`reap`, `widen`, `complete`, `gate run`, `health`, `pool cleanup`,
+  `pool recover`) still refuse the flag MALFORMED, naming the accepting commands. Without the
+  flag every wait is unchanged.
+
+Non-goals: no change to the 30-second default, the admission order, the registered-slot bound,
+retry classification or automatic backoff; `reap`, `gate run`, pool health/cleanup/recover and batch
+verbs are not extended (they either run programs or are not the reported contention path). A
+claim's automatic health preparation and expiry reap run inside the same `Lease` call and so spend
+the same caller bound; nothing else inherits it. Contention itself is not reduced.
+
+Failure modes: a long wait holds a registered preparation slot for up to its bound and can delay
+later registrations to their own bound, as for CAL-V0-111. Writer-checkpoint refresh and the
+recovery probe keep the default lock options, as they already do for `release`. A changed request
+ID after a timeout is a new request, as before. The no-write guarantee covers the timed-out acquisition
+only: a claim or pool acquire whose automatic health preparation committed and whose later
+acquisition then times out reports `retryable:false` under CAL-V0-078/CAL-V0-215, and callers MUST
+honour that flag rather than assume every `LOCK_TIMEOUT` is safe to resubmit.
+
+Acceptance evidence: `TestCALV0216_LockWaitAdmissionVerbs` (`internal/tasks/cli`) checks the value
+refusals without a write, help usage and note, a `LOCK_TIMEOUT` at the caller's one-second bound for
+all six commands while preparation admission is held (no write), and a renew admitted when the
+holder leaves within a 20-second bound. It fails against the previous verb set.
+`TestCALV0111_LockWaitFlag` keeps the refusal for `widen`, `complete` and `reap`. Focused race
+tests and documentation gates are recorded in
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-10-v1-1130-pool-acquire-lock-wait.md`.
+
+Rollout/rollback: accepted by decision 0518. Revert the verb set, help lines, tests and this
+section together; no store migration is needed and receipts never carry the wait. Live
+multi-agent contention qualification remains NOT_RUN.
+
+### V1-1195 busy child for the idle timeout (issue 793)
+
+Status: accepted (decision 0519; V1-1195); experimental implementation with focused
+tests. Human-owned input: GitHub issue 793 and native ticket V1-1195. CAL-V0-056 stops a worker
+IDLE only when it shows no log growth, activity-path change or "non-ignored busy child" within the
+idle timeout, and the implementation counted every non-leader member whose command was not in
+`idleIgnore` as busy merely because it existed. Agent hosts keep long-lived helpers (an agent
+server child, MCP servers) in the tree, so `LastActive` advanced every tick and IDLE never fired:
+one dispatcher recorded no IDLE stop in about 670 stops, and a hung session ran to `wallSeconds`.
+
+- `CAL-V0-218`: (accepted, decision 0519 (V1-1195)) Amends what CAL-V0-056 counts as
+  a busy child. Each tick the dispatcher MUST read every member's cumulative CPU time with the
+  process table; on Linux, whose table prints whole seconds, each non-ignored non-leader
+  member's CPU time MUST instead be utime plus stime from `/proc/<pid>/stat` at USER_HZ 100, and
+  an unreadable stat makes it unreadable. It MUST keep, per worker and only in memory, a baseline of each non-ignored
+  non-leader member's CPU time by PID and start identity, taken at the worker's first
+  observation by this dispatcher process and again at every tick on which the worker is active.
+  A non-leader member whose command is not in the host's `idleIgnore` is busy only when it is
+  absent from the baseline, its CPU time is unreadable or below its baseline value, or the CPU
+  time it used since the baseline is at least 1% of the wall time since the baseline. A member
+  that exists but meets none of those conditions MUST NOT keep the worker active. At the first
+  observation (a new launch, or every adopted worker after a restart) no member is in a
+  baseline, so every non-ignored child counts busy once and an adopted worker gets a full idle
+  timeout of CPU observation. A tick MUST observe every worker's tree and activity before it
+  stops any worker, so a stop that blocks for its grace cannot age a later worker's CPU sample.
+  Log growth, activity paths, the leader exclusion, `idleIgnore`, the idle and wall timeouts and
+  the stop procedure are unchanged.
+
+Non-goals: a configurable CPU share; per-host or per-role process classes; reading process state
+other than the CPU time already in the table; persisting the baseline (no ledger format change);
+warning about permanently busy roles.
+
+Failure modes: a tool that waits silently (for example polling a remote service at under 1% CPU)
+for longer than `idleSeconds` with no log output is now stopped IDLE; such a role needs a longer
+`idleSeconds` or an activity path. A helper that uses at least 1% CPU while the session hangs still
+keeps the worker until `wallSeconds`; list it in `idleIgnore`. Linux CPU time has 10 ms resolution
+(USER_HZ 100), so a helper's first tick after a baseline can round up and delay the stop by up to one
+more idle timeout; a Linux build with another USER_HZ would scale the 1% share. A restart retakes the baseline and counts each child
+busy once, so a hung worker with helpers is stopped up to one idle timeout after the restart. An
+unparsable CPU time, and a counter below its baseline (a reused PID), count busy.
+
+Acceptance evidence: `TestCALV0218_ParseCPUTime`, `TestCALV0218_ParseProcStatCPU`,
+`TestCALV0218_BusyChildNeedsWorkNotPresence`,
+`TestCALV0218_ActiveBaselineFollowsActivity`, `TestCALV0218_SleepingChildDoesNotBlockIdleStop` and
+`TestCALV0218_ActivityObservedBeforeBlockingStops`
+(`internal/tasks/dispatch`, run with `-race`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-11-v1-1195-idle-busy-child.md`.
+
+Rollback: revert the CPU column and parsers in `internal/tasks/dispatch/process_unix.go`, the
+`preciseCPU` files (`childcpu_linux.go`, `childcpu_darwin.go`, the `process_other.go` stub), the
+baseline and the observe-then-stop split of `supervise` in `internal/tasks/dispatch/loop.go`, the tests and this amendment. No ledger, receipt or
+store state depends on the baseline.
+
+### V1-1352 lease writes settle a held pending receipt (issue 860)
+
+Status: accepted under the owner's standing auto-accept (2026-10-11) (V1-1352); implemented with
+focused tests and one independent review round. Human-owned input: GitHub issue 860
+and native ticket V1-1352. A writer killed after linking its receipt in and before renaming
+`head.json` (§5.2 crash point C2) leaves that receipt `REDO_PENDING`. Every lease command (claim,
+renew, `attempt heartbeat`, release, submit, `gate run`, complete, the pool verbs, reap, widen and
+health) probed the store once before writing, only to learn the queue, and returned the probe's
+error verbatim. So each of them refused the same retryable `REDO_PENDING` and never reached the
+lease writer, which settles a validated pending receipt under the store lock (`redoLeaseProof`).
+While no ticket mutation ran, five heartbeats about 360 seconds apart were all refused, and a
+caller fenced a healthy 36-minute command.
+
+- `CAL-V0-222`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1352) A lease command MUST NOT refuse a `REDO_PENDING` probe whose
+  head is readable: the probe only names the queue. The lease writer MUST then audit the receipt
+  chain and, when the audit reports a pending receipt, settle it under the store lock by the §5.2
+  redo (publish its posts, then rename `head.json`) before it models and commits the request.
+  `attempt heartbeat` MUST report the redo with the existing completed-redo warning; other lease
+  commands settle it the same way but need not carry the warning. A pending receipt the audit
+  does not validate as a redo MUST be refused with the audit's own error, unchanged. A writer
+  still holding the lock delays the lease
+  command only within `--lock-wait`, unchanged. Reads keep their bounded `REDO_PENDING` patience
+  and never settle a receipt.
+- `CAL-V0-223`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1352) Caller contract for a refused heartbeat. A heartbeat refused
+  for any reason MUST record no heartbeat signal (a fenced heartbeat records only its refusal,
+  TM-V0-011): it does not move `lastHeartbeatAt`, the work lease or the attempt generation, and
+  `holderStatus` stays derived from the last recorded heartbeat against
+  `holderLiveness.heartbeatTTLSeconds`. The verbose help of `attempt heartbeat` MUST state that a
+  pending receipt does not refuse it, that a refused heartbeat records no heartbeat signal and
+  extends no liveness, and that the caller retries the same request ID before the TTL elapses.
+
+Non-goals: changing the other writers whose pre-write probe still refuses `REDO_PENDING` (barrier,
+policy, import, cutover, escalation and the initial probe of `attempt run`); settling a pending
+receipt on read; changing read patience, the heartbeat TTL, the lease or the receipt format.
+
+Failure modes: a writer that is alive and still holds the lock is not preempted; the lease writer
+waits for the lock, sees the head move and retries its bounded rounds, and a lock held past
+`--lock-wait` is `LOCK_TIMEOUT` as before. A pending receipt at a forked or invalid position keeps
+the audit's refusal (for example `JOURNAL_FORKED`). Lease writes need the intent branch; a lease
+command run off it is refused as before, and the pending receipt stays until a writer on the
+branch settles it.
+
+Acceptance evidence: `TestCALV0222_HeartbeatSettlesHeldPendingReceipt` (three rounds: a heartbeat
+or renew receipt, with `head.json` and its attempt post rewound, held pending across two reads is
+settled by the next heartbeat, which commits its own signal; with the store lock held the heartbeat
+refuses `LOCK_TIMEOUT` and changes nothing; a fenced heartbeat leaves `lastHeartbeatAt` unchanged)
+and `TestCALV0223_HeartbeatHelpNamesRedoAndLiveness` (`internal/tasks/cli`);
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-13-gh-860-heartbeat-redo-pending.md`.
+
+Rollback: revert the probe condition in `internal/tasks/cli/lease.go`, the `attempt heartbeat`
+note in `internal/tasks/cli/command_help.go`, the tests and this amendment. No store, receipt or
+wire format depends on the change.
+
+### V1-1353 other writers settle a held pending receipt
+
+Status: accepted under the owner's standing auto-accept (2026-10-11) (V1-1353). It is implemented with
+focused tests and one independent review round. Human-owned input: native tickets V1-1353 and
+V1-1059. V1-1352 (CAL-V0-222) let lease commands accept a `REDO_PENDING` probe. Its non-goals left
+the other writers unchanged: barrier (`pause`, `unpause`), `policy update`, `import`, `cutover`
+(including `--execution`), escalation (`ticket escalate`, `ticket answer`) and the initial probe of
+`attempt run`. Each of them probed the store once before writing, only to learn the queue, and
+returned the probe's retryable `REDO_PENDING`. That held even though the store writer behind each
+one settles a validated pending receipt under the store lock. So a receipt left pending by an
+interrupted writer refused these commands until some lease write happened to settle it. `health`
+and `pool cleanup` already settled such a receipt but did not report the redo.
+
+- `CAL-V0-260`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1353) `pause`,
+  `unpause`, `policy update`, `import`, `cutover` (with or without `--execution`), `ticket
+  escalate`, `ticket answer` and `attempt run` MUST NOT refuse a `REDO_PENDING` pre-write probe
+  whose head is readable. Their store writer MUST settle the pending receipt under the store lock
+  by the §5.2 redo before it models and commits its own request, and the result MUST carry the
+  existing completed-redo warning, also when the command then writes nothing (an `import` retry
+  whose export is already applied) or is refused after the settle. `attempt run` settles it at its
+  first pre-launch lease write and reports it in the run's envelope, including a refusal before
+  launch. The `policy update` handoff fence preview (CAL-V0-124) is a read
+  taken before the writer. Over a pending receipt it MUST report itself `NOT_OBSERVED
+  (REDO_PENDING)` without waiting out read patience. A pending receipt that the receipt audit does
+  not validate as a redo MUST be refused with the audit's own error, unchanged. Reads, including
+  `run --attach`, keep their bounded `REDO_PENDING` patience and never settle a receipt.
+- `CAL-V0-261`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1353) `health`
+  and `pool cleanup` MUST report a pending receipt their writer settled, with the same
+  completed-redo warning. The store's pool command reports it as `Redone`.
+- `CAL-V0-262`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1353) The verbose
+  help of each command in CAL-V0-260 and CAL-V0-261 MUST carry a `redoPending` entry. The entry
+  states that a pending receipt does not refuse the command, that its writer settles the receipt
+  under the store lock, and that reads never settle one.
+
+Non-goals:
+- Settling a pending receipt on read, and changing read patience, the lock wait, the receipt format
+  or any refusal code.
+- Changing the other writers' refusal text. V1-1059 asks that barrier and redo refusals carry the
+  intent-branch repair text that Mutate carries. It is not implemented, because accepted CTW-V0-007
+  (`docs/specs/corvint-tasks-intent-worktree-v0.md`) keeps those writers' refusal text without the
+  fix. Changing that needs an owner amendment of CTW-V0-007, recorded as an owner decision in
+  `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-15-tasks-redo-barrier-1353-1059.md`.
+
+Failure modes:
+- A writer that is alive and still holds the lock is not preempted. The command waits for the lock
+  as before.
+- A pending receipt at a forked or invalid position keeps the audit's refusal, for example
+  `JOURNAL_FORKED`.
+- These writers need the intent branch. Run off it, a command is refused as before, and the pending
+  receipt stays until a writer on the branch settles it.
+- If the `attempt run` pre-launch heartbeat is refused, the run is refused before launch, as before.
+
+Acceptance evidence:
+- `TestCALV0260_AdministrativeWritersSettleHeldPendingReceipt` runs one store per command class. A
+  receipt with `head.json` and its posts rewound is held pending across two reads. The command then
+  settles it, commits its own receipt and warns. The `policy update` subtest also checks the fence
+  preview under 5 s of read patience.
+- `TestCALV0260_AttemptRunSettlesHeldPendingReceipt`.
+- `TestCALV0262_WriterHelpNamesRedo` (all three in `internal/tasks/cli`).
+- `TestCALV0261_PoolCommandReportsSettledRedo` (`internal/tasks/store`).
+- `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-15-tasks-redo-barrier-1353-1059.md`.
+
+Rollback: revert these changes, the tests and this amendment.
+- The shared `writerProbe` (`internal/tasks/cli/writer_probe.go`) and its call sites.
+- The `attempt run` redo warning.
+- The `PoolCommand` `Redone` carry.
+- The `redoPending` help entry.
+
+No store, receipt or wire format depends on the change.
+
+### V1-0887 liveness write cost against history (issue 642)
+
+Status: accepted under the owner's standing auto-accept (2026-10-11) (V1-0887); a measurement and
+a maintained work-count guard, with no behaviour change. Human-owned input: native ticket V1-0887
+(GitHub issue 642) asks that a heartbeat or renew cost O(1), independent of journal history. At
+this change's base a fast heartbeat on 880 tickets cost a median 418 ms at 3,000 receipts and
+457 ms at 13,000. Its `CAL-V0-116` observe stage was the only stage that grew (68 to 105 ms):
+almost all of that growth is listing every name in `receipts/`, which the writer audit does once in
+each of its two captures. The tail receipts it reads, and its model, bind and commit stages, do not
+grow with receipts; model and commit are proportional to tickets. The receipt chain, generation
+fencing and refusals stay in the audited journal; no liveness record moves out of it.
+
+- `CAL-V0-224`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0887; amended 2026-10-15 by owner approval relayed by the orchestrator ("yes, approve amending CAL-V0-224 for this"; V1-0887); amended 2026-10-20 by decision 0548 row V1-0887, owner-delegated, for the liveness probe; amended
+  2026-10-20 by decision 0549 for its quiescence condition and listing rule; amended 2026-10-21 by
+  decision 0549 (JSG-V0-007): the liveness probe and listing reuse are retired; both captures list
+  exactly)
+  Characterization and regression guard for liveness write work. A settled `CAL-V0-116` writer
+  audit with a tail of k receipts MUST read exactly k + 1 receipt files (the checkpoint's receipt
+  and the tail), whatever the history. Both of its captures MUST list `receipts/` exactly
+  (JSG-V0-007), so a receipt or temporary name that appears or leaves during the walk moves the
+  attempt and the fast route declines, and a listing never outlives its attempt: a temporary name
+  a killed writer left behind, even under restored directory stamps, is found by the next exact
+  listing and declines the fast route.
+  - Retired (decision 0549 R7, slice S3, 2026-10-21): the quiescent listing reuse of the second
+    capture and the HEARTBEAT/RENEW liveness probe, with the probe's accepted failure mode (a
+    liveness write committing over an unobserved history or stray name). A segmented store keeps
+    at most 1,023 active names in `receipts/`, so the exact listings are bounded by the active set
+    and the stamps are no longer evidence. The `CAL-V0-265` prefix walk still MUST retain nothing
+    while a stray, staged name or stage digest is present (decision 0549).
+  - Checkpoint-decode reuse is allowed by decision 0548 and not implemented: reading and
+    decoding the writer checkpoint measured 1.1 ms at both 3,000 and 13,000 receipts (880 tickets),
+    flat and about 1% of a heartbeat, so reuse would not move the target.
+  A maintained test MUST show the read count and two exact listings per attempt at two history
+  sizes by counting reads and listings, never durations. Maintained tests MUST also show that a
+  refresh under appends never advances over a stray staged name or a missing history name, and
+  that a CLAIM over a broken history refuses and leaves the journal unchanged.
+  The listing is kept because `CAL-V0-116` requires the names on disk to be exactly the active
+  names and a crash-left temporary name to decline the fast route; on an unsegmented store it
+  stays proportional to history until the store is sealed (JSG-V0-013).
+
+Residual (not met; 1.0 work per decision 0549): a heartbeat or renew is not yet milliseconds. Its receipt work is flat by
+construction since the 2026-10-20 liveness probe (no listing, k + 1 reads), and wall time measured
+flat within host-load noise, about 170 ms at 3,000 and 13,000 receipts (decision 0548 target 50 ms,
+missed). The listing the probe removed cost about 2 µs per name under host load about 50; what
+remains is proportional to tickets, not receipts (about 105 µs per ticket), so a sharded
+`receipts/` layout alone would not reach the target either. Decision 0549 sets the 1.0 design: a
+liveness route without intent reads, incremental capacity, a bounded checkpoint and a segmented
+journal; see
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-20-v1-0887-liveness-probe.md`. Slice S3 (2026-10-21) retired the probe: every
+write lists `receipts/` exactly, bounded by the active set once the store is sealed; the residual is
+tracked by `docs/specs/corvint-tasks-journal-segments-v0.md` and its build logs. The reads that stay proportional to tickets
+(the intent tree read in the first capture and digested again before effects per `CAL-V0-189`,
+capacity measurement, the authority session's per-operation check and the checkpoint's embedded
+ticket inventory) are recorded by V1-0915 and `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-15-v1-0887-heartbeat-fast.md`.
+Under the retired probe, a clock stepped back by more than one second during one attempt, combined
+with a foreign change in that window, was the one case the stamps did not separate.
+
+Non-goals: moving liveness records out of the journal; changing the receipt, checkpoint or wire
+formats; a probe-only receipt check for any verb other than HEARTBEAT and RENEW; stamp evidence that
+survives an attempt or a write, or that replaces the first exact listing of a non-liveness write.
+
+Acceptance evidence: `TestCALV0224_WriterAuditWorkIsHistoryIndependent` (`internal/tasks/journal`;
+two exact listings whatever the directory's stamps, k + 1 reads at two history sizes, and a
+temporary name that appears during the walk declines),
+`TestCALV0224_ForeignReceiptDuringWalkMovesQuiescentListing` (a settled-looking receipt a foreign
+process adds after the first listing moves the attempt and the retry declines) and
+`TestCALV0224_ListingNeverOutlivesItsAttempt` (every capture lists exactly; an orphaned temporary
+name under restored stamps declines), each with one recorded mutation; the liveness probe tests
+were removed with the probe (JSG-V0-007, `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-21-jsg-s3-segments-and-seal.md`); the
+existing writer fast-route and fencing suites in `internal/tasks/journal` and `internal/tasks/store`;
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-14-v1-0887-liveness-o1.md`;
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-15-v1-0887-heartbeat-fast.md`;
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-20-v1-0887-liveness-probe.md`;
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-21-jsg-s3-segments-and-seal.md`.
+
+Rollback: of the 2026-10-21 retirement, revert slice S3's commit after unsealing every segmented
+store (JSG-V0-013); the probe, the listing reuse and their tests return as below. Before it, for the
+liveness probe alone, delete `AuditForLiveness`, `probeReceiptsDir`, the
+`probeReceipts` and `receiptsProbed` fields and the probe branch of `walkWriter` in
+`internal/tasks/journal`, pass the plain writer audit from `observeWriter` in `internal/tasks/store`,
+and delete the two liveness probe tests and the liveness probe bullet; liveness writes then list as
+other verbs do. For the whole amendment, revert the reuse branch of `scanReceiptNames`, `sameDirStamp`, `receiptsQuiescence`, the
+`change_time_*.go` files and `DirInfo` in `internal/tasks/journal`, the quiescent cases of the three
+tests, and this amendment's text; the original two-listing text then holds again. No store,
+receipt or wire format depends on it.
+
+- `CAL-V0-232`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-15)
+  End-to-end guard for liveness writes. At two history sizes, an `attempt heartbeat` and a `renew`
+  through the store's lease entry, each started with an empty in-process lease cache as a CLI
+  process starts, MUST commit on the `CAL-V0-116` writer-checkpoint route while every receipt
+  before the writer checkpoint is unreadable, keeping the attempt and generation. So an ordinary
+  fast heartbeat or renew needs no history receipt: a read of one whose error reaches the write
+  fails the test; a read that discards its error is not detected. The guard does not cover the
+  `CAL-V0-117` scheduled refresh (a complete audit once the head is 512 receipts past the
+  checkpoint's `FullSeq`) or a declined write's complete-route fallback, both of which read
+  history by contract. The test asserts outcomes and the route, never durations. `CAL-V0-116`,
+  `CAL-V0-117` and `CAL-V0-224` are unchanged. History-proportional work remained in every fast
+  write: the exact listings of `receipts/`, and reading and decoding the writer checkpoint,
+  whose retained request records grow with history. Since the 2026-10-20 `CAL-V0-224` liveness
+  probe a heartbeat or renew lists none, and checkpoint decoding measured flat (1.1 ms). The probe
+  was retired on 2026-10-21 (JSG-V0-007); listings are bounded by the active set on a sealed store.
+
+Measurement (2026-10-15, local Darwin, Go 1.27.2, the real `corvint-tasks` CLI built from the base,
+one process per call, 880 tickets, median of 5 after one warm-up, host load 35 to 39 on 12 CPUs):
+heartbeat 488, 561 and 552 ms wall (460, 470 and 490 ms CPU) at 3,000, 6,000 and 13,000 receipts;
+renew 630, 569 and 619 ms wall (470, 470 and 500 ms CPU). Wall time is not flat under that load and
+CPU grows about 6%. An in-process profile at 13,000 receipts puts about 525 ms of CPU in each
+heartbeat: about 165 ms in the transaction model (canonical encoding and ticket decoding, both
+proportional to tickets), about 97 ms observing the writer audit, and about 70 ms opening the
+authority session. Against 3,000 receipts a heartbeat costs about 48 ms more, about 31 ms of it
+in the two listings (about 1.8 µs per name under that load); the rest of that growth was not
+attributed, and checkpoint decoding is the other history-proportional step.
+
+Residual (owner decision, not met): V1-0887 asks for milliseconds that stay flat. Neither is reachable
+without changing an accepted contract. Flat cost would also need a writer checkpoint whose decoded
+size does not grow with history. Removing the history-proportional listings needs one of: a
+next-name probe or stat-stamp listing reuse (both non-goals of `CAL-V0-224`); a sharded or
+segmented `receipts/` layout (a journal format change); or liveness records outside the audited
+journal (excluded by V1-0887 itself without a decision). Even then, a heartbeat keeps about 450 ms of
+ticket-proportional model, session and commit work, so "milliseconds" also needs that work
+reduced (V1-0915). See `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-15-v1-0887-1403-liveness-guard.md`.
+
+Non-goals: any change to the route, the listings, the journal, the receipt or wire formats or the
+lease semantics; a duration bound in a maintained test.
+
+Acceptance evidence: `TestCALV0232_LivenessWritesNeverReadHistory` (`internal/tasks/store`), which
+fails when the lease route reads the first history receipt and returns the error (mutation
+recorded in the build log);
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-15-v1-0887-1403-liveness-guard.md`.
+
+Rollback: delete the test and this amendment. No code, store, receipt or wire format depends on it.
+
+- `CAL-V0-233`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-15)
+  Liveness ticket binding without decoding. A HEARTBEAT or RENEW reads no ticket, so when the
+  caller names each canonical record's `intent/tickets/` projection path (`CanonicalTicketPaths`,
+  which the store's lease routes supply from the audited record paths) the transaction model MUST
+  bind the canonical ticket set to those projections without decoding any ticket record: every
+  canonical record must be byte-identical (digest and length) to the projection at its named
+  path, the named identities must be distinct exactly and under ASCII case folding, and the
+  projections must be exactly the canonical set, under the same intent-tree byte bound. A record
+  that is refused is decoded only to name the refusal the decoding route gives, in that route's
+  order: a missing, divergent or swapped projection is `MALFORMED`, a repeated identity is
+  `DUPLICATE_ID`, a projection outside the canonical set is `MALFORMED`, each with the message the
+  decoding route gives. A record that binds is not decoded, so this route does not re-validate its
+  content: the mutation that wrote it did, and the next decoding verb does again. A caller that
+  names no paths, and every other verb and operation, still decodes the set and takes the ticket
+  inventory it did. The validated state of a bound liveness verb carries no ticket inventory.
+
+Non-goals: changing which verbs read tickets; a cached or cross-process ticket inventory; any
+change to the receipt or wire formats.
+
+Acceptance evidence: `TestCALV0233_LivenessLeaseBindsTicketsWithoutDecoding`
+(`internal/tasks/transaction`), a differential against the decoding route that fails when the
+liveness route decodes a bound record, when a divergent, swapped, missing, extra, repeated or
+case-folded projection is not refused with the decoding route's code and message, or when a caller
+that names no paths is not decoded;
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-15-v1-0887-heartbeat-fast.md`.
+
+Rollback: route the liveness verbs back through `loadTickets` in `internal/tasks/transaction` and
+delete the test and this requirement. No store, receipt or wire format depends on it.
+
+- `CAL-V0-234`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0887, 2026-10-15)
+  Request shards pinned on first use. The authority fixture session MUST NOT open or verify the
+  256 `requests/` shards when it opens; it MUST pin a shard, through the retained `requests/` root
+  exactly as opening would have, the first time a target under that shard is used, and every later
+  per-operation check re-verifies the pinned shards with the other retained parents. A shard that
+  does not exist or is not a directory refuses the operation as before and pins nothing; creation
+  stays with the directory-making operation.
+
+Non-goals: changing the shard layout or count; relaxing the per-operation re-verification of a
+pinned parent; any change to the request path or wire formats.
+
+Acceptance evidence: `TestCALV0234_RequestShardsPinnedOnFirstUse` (`internal/tasks/authority`),
+which fails when opening a session pins a shard, when the first link pins more than its own shard,
+or when a missing or non-directory shard is pinned or linked; the existing fixture session and
+transaction suites; `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-15-v1-0887-heartbeat-fast.md`.
+
+Rollback: restore the shard pins in the session constructor of
+`internal/tasks/authority/fixture_session.go` and delete `pinShard`, the test and this requirement.
+No store, receipt or wire format depends on it.
+
+### V1-1386 and V1-0710 dispatch config paths and reader recovery (issues 900 and 899)
+
+Status: accepted under the owner's standing auto-accept (2026-10-11) (V1-1386, V1-0710);
+implemented with focused tests and one independent review round. Human-owned input: GitHub
+issues 900 and 899 and native tickets V1-1386 and V1-0710. Issue 900: `dispatch --config` and the
+program verbs' `--config` passed a relative path straight to the safe open, which takes only a
+clean absolute path, so `cfg/x.json` and `../d/cfg/x.json` were refused as
+`UNSUPPORTED_FILESYSTEM`, a filesystem-support code for a path-syntax problem. Issue 899: a
+dispatcher stopped on the CAL-V0-053 HOLD/UNKNOWN exception leaves `reader-lifecycle.json`, and
+every later start refuses `QUIESCENCE_UNPROVED`; the only way forward was deleting the marker by
+hand, which the #464 amendment says proves nothing.
+
+- `CAL-V0-225`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1386) A relative
+  `--config` of `dispatch` (every subcommand) and of the program verbs MUST resolve against the
+  command's working directory, and `..` MUST be resolved lexically (join, then clean) before any
+  filesystem access; the safe open then refuses a symlink in any component of the cleaned path,
+  unchanged. The safe open MUST keep refusing a relative or unclean path; its refusal of a
+  relative directory and a bounded read of a relative path MUST name the path syntax
+  (`MALFORMED`), never `UNSUPPORTED_FILESYSTEM`. A missing configuration stays a missing file.
+- `CAL-V0-226`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0710)
+  `corvint-tasks dispatch recover-reader --program P --config FILE --reason TEXT --evidence REF
+  --request-id ID` is the operator recovery. It MUST take the program lock without waiting and
+  refuse `RESOURCE_COLLISION` while a dispatcher for the program holds it. It MUST refuse
+  `QUIESCENCE_UNPROVED` while the leader record names a reader pid that still runs with its
+  recorded start identity, or whose identity or record cannot be read, whatever the marker's
+  state (a marker that does not decode does not skip this check). Otherwise it MUST write a
+  `taskman-dispatch-reader-recovery/0` record (program, kind `OPERATOR`, request ID, reason,
+  evidence, run, the marker's sha256 and modification time, recorded time) under
+  `reader-recoveries/`, exclusively, fsynced and linked with the directory fsynced, before it
+  removes the marker; it removes only the exact marker (identity and bytes) it attested. Every
+  marker removal MUST rename the marker aside to `reader-lifecycle.json.clearing`, check its
+  identity and bytes again there, and put back a marker that changed, so a marker replaced
+  before the rename is never removed. While that name exists the program stays quarantined,
+  and the next recovery attests it first. A marker that does not decode is attested by its
+  exact bytes; a non-regular or oversized marker is refused and never removed. The same request ID with the same reason and evidence replays
+  (`replayed: true`, finishing an interrupted removal); a request ID already recorded for a
+  different attestation or a different marker is `REQUEST_ID_CONFLICT`. No quarantine is
+  `MALFORMED`. The attestation is the operator's statement, not a physical observation.
+- `CAL-V0-227`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0710) A marker
+  is written as `taskman-dispatch-reader-lifecycle/1`, which adds optional sha256 digests of the
+  host's machine identity (bound to its hostname) and current boot. The marker is never
+  rewritten after publication; after the spawn the dispatcher writes the reader leader's pid
+  and start identity to a separate `taskman-dispatch-reader-leader/0` record
+  (`reader-leader.json`), which is live evidence only and is removed after the marker. The only
+  automatic proof of containment is a reboot:
+  the marker's machine digest equals this host's, both boots are recorded, and they differ. The
+  next dispatch start (under the program lock, never a status read) MUST record a
+  `HOST_REBOOT` recovery record before removing the marker and emit a `reader-recovered` event
+  (a new member of the CAL-V0-058 event set). Absent evidence MUST never be a proof: a legacy
+  `/0` marker, a marker or host without a boot identity, another machine, or the same boot keeps
+  the refusal; a recorded pid that has exited lifts nothing by itself, because its descendants
+  may survive it. A reboot record that attests a different marker refuses the start.
+- `CAL-V0-228`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0710) The
+  `QUIESCENCE_UNPROVED` diagnostic and `dispatch status`'s `readerDiagnostic` MUST name the
+  recovery command, state whether the leader record names a reader pid and start time (or that
+  none is recorded), name a marker an interrupted removal left aside, and state whether the host has rebooted or why no reboot proof is possible.
+  The verbose help of `dispatch`, `dispatch status` and `dispatch recover-reader` MUST describe
+  both recoveries and their refusals.
+- `CAL-V0-229`: (accepted under the owner's standing auto-accept (2026-10-11), V1-0710) The marker
+  `/1`, the leader record `/0` and the recovery record `/0` are live formats (CAL-V0-131): a
+  newer version is refused `UNSUPPORTED_VERSION`, including by `recover-reader`, which never
+  attests or removes a newer marker; all decode strictly from canonical bytes. A `/0` marker an older build
+  left is read only to report and recover it (adopt-only). Recovery records are never removed by
+  Corvint.
+
+Non-goals: inferring containment from a missing pid, an exited leader or elapsed time; a
+host-wide process scan for escaped descendants; a native Tasks journal entry for the recovery
+(the attestation lives in the program state directory and the dispatcher event log); an event for
+the operator path (no dispatcher runs then); re-sampling host pressure after a killed sample
+(issue 899 item (d)); changing the safe open's own refusal of relative paths.
+
+V1-1389 rationale (accepted under the owner's standing auto-accept (2026-10-11)). A pressure
+re-sample in either recovery is unnecessary. A recovery removes only the marker and launches
+nothing. The next dispatch start keeps the recorded pressure level, so a restart cannot bypass a
+throttle, and treats pressure as UNKNOWN until its own first sample (CAL-V0-068). Every launch
+decision that consults pressure takes that run's sample first, so a sample taken by the recovery
+would be older than the one the start takes anyway. A state-directory record suffices for the attestation. The recovery concerns
+no ticket, attempt or lease, so it carries no Tasks authority that a journal entry would order or
+fence. Its only consumer is the program's dispatcher, which reads the same state directory under
+the same program lock. The record is written exclusively, fsynced with its directory, never removed
+by Corvint, and checked against the marker before any removal. A journal write would make reader
+recovery depend on the store being writable, and it would add no fence that the program lock does
+not already give. An observable event for the operator path, and live and Linux qualification, stay
+open on V1-1389.
+
+Failure modes: a machine identity cloned onto another host with the same hostname could present
+a foreign boot as a reboot; the digest binds the hostname to narrow this, and an operator who
+clones hosts must not rely on the reboot proof. A pid reused by an unrelated process has a
+different start identity and does not keep the refusal; an attestation over a still-running
+escaped descendant is the operator's error and is recorded as theirs. A crash between the record
+and the removal leaves both; a replay (operator) or the next start (reboot) finishes the removal
+after checking the record attests that marker. A crash between taking the marker aside and
+removing it leaves `reader-lifecycle.json.clearing`, which keeps the quarantine. A process that
+opened the marker before the rename and writes it after the second check is not detected. A
+failed leader-record write after the spawn leaves no live-evidence check for that run, and a
+reader that deletes the leader record removes it the same way; neither lifts the quarantine. An old binary,
+manual deletion or an alternate state directory can still bypass the marker, as before.
+
+Acceptance evidence: `TestCALV0225_DispatchConfigPathForms` (`internal/tasks/cli`: the five
+forms `cfg/x.json`, `./cfg/x.json`, `../d/cfg/x.json`, `/abs/x/../cfg/x.json` and
+`/abs/cfg/x.json`, the program verbs, a missing relative file) and
+`TestCALV0225_RelativeReadIsMalformed` (`internal/tasks/intent`);
+`TestCALV0226_OperatorRecovery`, `TestCALV0226_LiveEvidenceKeepsQuarantine`,
+`TestCALV0226_UnreadableMarkers`, `TestCALV0226_ClearTakesMarkerAside`,
+`TestCALV0229_RecoverRefusesNewerVersions`, `TestCALV0227_RebootProofLiftsQuarantine`,
+`TestCALV0227_NoProofWithoutEvidence` and `TestCALV0227_RebootRecordMustMatchMarker`
+(`internal/tasks/dispatch`); `TestCALV0226_DispatchRecoverReaderOperator`,
+`TestCALV0226_DispatchRecoverReaderLiveEvidence`, `TestCALV0227_DispatchRecoverReaderByReboot`,
+`TestCALV0228_DispatchHelpNamesRecovery` and the extended
+`TestCALV0053_DispatchReaderCLICrashRetainsQuarantine` (crashed dispatcher, refused start,
+refused attestation while the reader runs, recovery after it exits, clean restart)
+(`internal/tasks/cli`); `TestCALV0131_*` for CAL-V0-229;
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-14-gh-899-900-dispatch.md`.
+
+Rollback: revert the `--config` resolution in `internal/tasks/cli/dispatch.go` and
+`internal/tasks/cli/program.go`, the relative-path codes in `internal/tasks/intent/worktree.go` and
+`internal/tasks/safeopen/open_unix.go`, `recover-reader`, the reboot proof, the marker `/1` fields,
+the leader record, the take-aside removal and this amendment. Before reverting, quiesce dispatchers
+and resolve or preserve every `reader-lifecycle.json`: an older binary refuses a `/1` marker as
+malformed, which keeps the quarantine (fail closed), and does not see a
+`reader-lifecycle.json.clearing` left by a crash, so resolve that file first. Keep
+`reader-recoveries/` as evidence; nothing reads it after a revert.
+
+### V1-1313, V1-1320 and V1-1321 renew liveness, superseded generations and claim scope
+
+Status: CAL-V0-230..231 accepted under the owner's standing auto-accept (2026-10-11) on the
+orchestrator's decisions of 2026-10-15 (V1-1313, V1-1320); implemented with focused tests. V1-1321
+is stopped on a conflict with CAL-V0-021 and is not implemented. Human-owned input: native tickets
+V1-1313, V1-1320 and V1-1321, filed from agent lanes, and the orchestrator's decisions of
+2026-10-15. V1-1313: a holder that kept its lease live with `renew` alone read `STALE_HOLDER`,
+because only a claim or `attempt heartbeat` recorded `lastHeartbeatAt`. V1-1320: a renew with a
+superseded generation after a release and re-claim was reported as succeeding.
+
+- `CAL-V0-230`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1320) After a
+  release and a re-claim that keeps the attempt ID and takes the next generation, a fresh
+  `renew` or `attempt heartbeat` request that names the superseded generation MUST refuse
+  `REVISION_CONFLICT` with `FENCED` and record the refusal, as CAL-V0-009 already requires, and the
+  live lease's `expiresAt` and `lastHeartbeatAt` MUST stay unchanged. Resubmitting the request
+  ID of a renew or heartbeat that committed under the superseded generation still replays its
+  original result (`replayed: true`, its original generation) without a write. That is the
+  TCP-00 request-ID replay contract (for heartbeats CAL-V0-048: "including after expiry or
+  readmission"), not an admitted stale renew; it moves neither the lease nor the signal. The
+  verbose help of `renew` MUST state both.
+- `CAL-V0-231`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1313) A
+  successful `renew` by the current holder at the current generation MUST record
+  `lastHeartbeatAt` at its `recordedAt` in the same write that extends the lease, so a holder
+  that renews within `holderLiveness.heartbeatTTLSeconds` is not `STALE_HOLDER`. A refused or
+  fenced renew records no signal, and a replay refreshes nothing (CAL-V0-048, CAL-V0-223).
+  `attempt heartbeat` keeps CAL-V0-048 unchanged: it records the signal and never extends the
+  lease. The verbose help of `renew` MUST state that a renew records `lastHeartbeatAt`.
+
+Finding for V1-1320: the reported success was not reproduced for a fresh request. On both the
+complete route and the writer-checkpoint route, claim, renew, release, re-claim and then a renew
+with generation 1 under a new request ID refuse `REVISION_CONFLICT` `FENCED` ("generation 1 is not
+the attempt's current generation 2") and change nothing. The same sequence that reuses the
+earlier generation-1 renew's request ID replays that committed result, which reads as an OK renew
+at generation 1. Refusing that replay would break the TCP-00 replay contract and CAL-V0-048, so the decision is
+pinned for fresh requests and the replay is documented rather than changed.
+
+Stopped, V1-1321 (decision: claim MUST reserve the union of the ticket's touchPaths and every
+requested `--scope` path, on first claim and on re-activation, else refuse naming the unaccepted
+paths, and list the effective scope). This conflicts with CAL-V0-021, which fixes a precedence and
+not a union: the scope is the ticket's declared paths when coverage is `QUALIFIED` (`DECLARED`),
+"else" the `--scope` paths (`REQUESTED`), else `DERIVED`, else `WHOLE_REPOSITORY`. Today a
+`--scope` is dropped whenever the ticket declares paths, on a first claim as well as on a
+re-claim. The decision needs an amendment to CAL-V0-021 first; a union kept as `DECLARED` plus the
+requested paths (the CAL-V0-025 widen shape at admission) is one compatible form. Nothing here
+changes claim scope. Delivered later (2026-10-21) through the decision's refusal branch, which needs no
+amendment: ATR-V0-210 and ATR-V0-211 in `corvint-tasks-attempt-runner-v0.md`.
+
+Non-goals: changing claim scope or its precedence (V1-1321 above); refusing or warning on a
+same-request replay; making `attempt heartbeat` extend the lease; changing the heartbeat TTL,
+the journal, the request or the receipt shape. Renew writes the existing optional attempt field.
+
+Failure modes: a holder whose process died while another process keeps renewing for it reads
+`FRESH_HOLDER`; liveness stays a recorded signal, never proof of the process (CAL-V0-048). An
+older binary renews without moving the signal, as before. A caller that reuses a request ID across
+generations sees the original result, not the live lease, and must use a fresh request ID.
+
+Acceptance evidence: `TestCALV0230_SupersededGenerationRenewIsFencedAfterReclaim` and
+`TestCALV0231_RenewRecordsLastHeartbeat` (`internal/tasks/store`, each on the complete and
+writer-checkpoint routes); `TestCALV0231_RenewKeepsHolderFresh` (`internal/tasks/cli`: stale
+holder, fenced wrong-generation renew, current renew reads `FRESH_HOLDER`, verbose help);
+`TestCALV0120_PolicyTTLDrivesHolderReads` and `TestCALV0121_StaleHolderCoordinatorHandoff` now age
+the renew's signal; `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-15-tasks-claim-renew-1321-1313-1320.md`.
+
+Rollback: revert the two lines in `planRenew` (`internal/tasks/transaction/lease.go`), the `renew`
+help note and this amendment. Attempts a renew already wrote keep a valid `lastHeartbeatAt`; an
+older binary reads them unchanged.
+
+### V1-1402 advisory warning on a superseded-generation replay
+
+Status: CAL-V0-236 accepted under the owner's standing auto-accept (2026-10-11) on the
+orchestrator's lane decision of 2026-10-15 (V1-1402); implemented with focused tests. Human-owned
+input: native ticket V1-1402, filed from the V1-1313/V1-1320/V1-1321 lane. The V1-1320 finding above
+showed that a same-request replay after a release and re-claim reads as an OK renew at the
+superseded generation, and an operator reading it cannot tell that the lease has moved on.
+
+- `CAL-V0-236`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1402) When
+  `claim`, `claim --next`, `renew` or `attempt heartbeat` replays a recorded request whose original
+  outcome was `COMPLETED` (TM-V0-006, CAL-V0-048, CAL-V0-230), and the journal audit that served
+  the replay records that attempt at a generation other than the replayed one, the result MUST carry one additional
+  `warnings` entry that begins `advisory, not authoritative`, names the replayed generation and
+  the attempt's current generation, and tells the caller to use a fresh request ID. Every other
+  member of the result, the replayed outcome and its original generation included, MUST be
+  byte-identical to the same replay without the warning; the replay still writes nothing. The
+  warning is an observation for the operator, never an input to fencing, admission, ranking or
+  evidence. A completed original held the live generation and generations only advance, so a
+  difference is a supersession. When the generations agree, that audit does not show the attempt,
+  or the original was refused, no such warning is added. The complete and writer-checkpoint routes MUST give the same warning. The verbose help
+  of `renew` MUST state it.
+
+This adds a warning beside the replay and amends no accepted text: CAL-V0-048 and CAL-V0-230 still
+return the original result without a write, and the V1-1320 non-goal "refusing or warning on a
+same-request replay" scoped that slice, not later ones. The warnings an original result derived
+(CAL-V0-107, CAL-V0-211, CAL-V0-214) are still not repeated on its replay; this one is observed at
+replay time.
+
+Non-goals: refusing or changing a replay; a warning on any other verb's replay, including
+`release`, `release --lane-untouched` and `gate run` (which also calls the lease writer), or on the
+replay of a refused original such as a `FENCED` renew, whose result already says it did not act;
+a new outcome or detail code; a change to the request, receipt, journal or result key set.
+
+Failure modes: the warning reflects the audit that served the replay; a release or re-claim
+committed after it is not shown, as with any read. A replay whose attempt record is unreadable in
+that audit carries no warning rather than a guessed one. An older binary prints no warning. A
+caller that compares whole replay stdout across a re-claim sees one more `warnings` entry; the
+items and outcome are unchanged.
+
+Acceptance evidence: `TestCALV0236_SupersededReplayCarriesAdvisoryWarning` (`internal/tasks/store`,
+claim, renew and heartbeat replays before and after a release and re-claim on the complete and
+writer-checkpoint routes, with the exact warning text on both; the report minus the warning is
+deep-equal to the earlier replay; a fenced future-generation renew and a release replay carry no
+warning);
+`TestCALV0236_SupersededReplayWarningLeavesResultBytes` (`internal/tasks/cli`: renew and heartbeat
+replay stdout minus the warning is byte-identical to the replay before the release; verbose help);
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-15-tasks-replay-warning-psr-cleanup-1402-1406.md`.
+
+Rollback: remove `supersededReplayWarnings` and its call in `leaseOnce`
+(`internal/tasks/store/lease.go`), the `ReplayWarnings` report field and its append in
+`leaseResult`, the help sentence and this amendment. No stored byte depends on it.
+
+
+### V1-1415 reusable command gate results
+
+Status: CAL-V0-240..243 accepted under the owner's standing auto-accept (2026-10-11); implemented
+with focused tests; live qualification (V1-0252..0255 closing on one `make gate` run) NOT_RUN until
+the operator's policy declares that gate reusable. Human-owned input: the owner's question of
+2026-10-15 about four tickets each running a two-hour full gate at one candidate commit ("can't
+they be combined?") and native ticket V1-1415. TCP-00 already carries a gate's `reusable` flag and
+a gate result's `reusedFrom` digest; until now every `gate run` executed and wrote
+`reusedFrom: null`. CAL-V0-240 narrows CAL-V0-016's "then run" for gates the policy declares
+reusable; every other part of CAL-V0-016 (refusal unless the worktree is clean at the candidate
+tree, the receipt kind, a holder never reporting a pass) is unchanged.
+
+Amendment (V1-2193): `TCD-V0-151..153` in `corvint-tasks-closeout-debt-v0.md` widen CAL-V0-240's
+same-tree condition. With no same-tree result, a result whose commit on the protected intent branch
+descends from a commit carrying the candidate tree also qualifies. The model refusals and the
+receipt-audit ancestry check are defined there. No CAL ID is added.
+
+- `CAL-V0-240`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1415) When the
+  policy declares a COMMAND gate `reusable: true` and the store holds a result that qualifies under
+  CAL-V0-241, `gate run` MUST NOT execute the gate. It records, in the CAL-V0-016 `GATE_RESULT`
+  receipt, the source result rebound to the requesting attempt: `attemptId`, `generation`,
+  `ticketRevision`, `policySha256` and `configSha256` are the attempt's, `reusedFrom` is the source
+  result's digest, and every other field (trees, definition, inputs and environment digests, times,
+  exit status, state and output evidence digest) is the source's. The output is not posted again;
+  the source's `evidence/` blob remains the evidence. With several qualifying results the lowest
+  digest is chosen. The `gate run` result item adds `reusedFrom`: `null` after an execution, else
+  `{"result": <digest>, "attemptId": <source attempt>}`. `complete` (CAL-V0-017) accepts a reused
+  result as it accepts an executed one, and a retried request replays it, reporting the
+  `reusedFrom` that the original receipt recorded. A gate not declared
+  reusable, or with no qualifying result, runs as CAL-V0-016 requires. Surface: `gate run`
+  short-circuits; no verb, receipt kind, record field or format is added.
+- `CAL-V0-241`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1415) A result
+  qualifies only when all of these hold: (1) it is the content of `evidence/<digest>` in this store
+  and is named in the `gateResults` of the attempt that executed it, which is not the requesting
+  attempt; (2) it was executed (`reusedFrom` null), for the same `gateId`, with state `PASSED`;
+  (3) its `candidateTreeOid` equals the requesting attempt's candidate tree; (4) its
+  `definitionSha256` equals the current policy's definition digest for the gate, which covers the
+  whole gate entry, including argv, cwd, environment names, timeout, expected exit, `reusable` and
+  `required`; (5) its `inputsSha256` and `environmentSha256` equal the ones this run would record
+  (the same substituted argv and the same presence of each declared environment variable, and for a
+  reusable gate the same value: amended by `TCD-V0-158`, V1-1431); (6) the
+  current policy declares the gate `reusable: true`. Reuse across tickets is allowed: the policy
+  has no field that forbids it, and several tickets at one candidate tree is the case asked for.
+  The binding is the definition digest, not the policy revision: the policy SHA-256 moves on any
+  policy edit, including edits to other gates, capacity or holds that do not change what this gate
+  runs, while the definition digest moves exactly when this gate's declaration does. The policy
+  revision is still enforced where it governs completion: the rebound result carries the
+  requesting attempt's `policySha256`, and `complete` keeps refusing `STALE_POLICY` for an attempt
+  claimed under an earlier policy (CAL-V0-017).
+- `CAL-V0-242`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1415) The
+  transaction model MUST recheck every reuse under the store lock and refuse it without writing
+  when the policy does not declare the gate reusable (`BLOCKED` `UNSUPPORTED`), the source is not
+  `PASSED` (`BLOCKED` `GATE_FAILED`), the source is at another tree (`BLOCKED` `STALE_TREE`), the
+  source ran another definition or its attempt no longer names it (`BLOCKED` `GATE_STALE`), or the
+  source is not the `evidence/` content of its digest, is itself a reuse, or the record is not
+  exactly the source rebound to the attempt (`VALIDATION_FAILED` `MALFORMED`). A stale generation
+  is fenced and recorded as CAL-V0-009 requires. A refused reuse is not turned into an execution
+  inside the same request; the next `gate run` chooses again.
+- `CAL-V0-243`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1415) `receipt
+  audit` MUST verify every reused result. Folding receipts in order, a gate result that an attempt
+  post newly names and whose `reusedFrom` is set MUST be named by a `GATE_RESULT` receipt that posts
+  it as `evidence/<digest>`, unless the fold already accepted that identical record (an attempt
+  returning to a tree names the retained record again without posting it); its source MUST be retained under its digest, be an executed `PASSED`
+  result of the same gate that its own attempt names as folded before that receipt, and be at the
+  attempt's candidate tree; the policy as last posted MUST declare the gate reusable with the
+  source's definition digest; and the record MUST equal the source rebound to the attempt.
+  A named result that does not decode but still carries a non-null `reusedFrom` is refused, not
+  skipped. Otherwise the audit refuses `JOURNAL_FORKED` naming the receipt. Redo of a pending
+  `GATE_RESULT` receipt runs the same fold first. Results without `reusedFrom` are not examined,
+  so journals written before this change fold unchanged.
+- `CAL-V0-250`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1384) A CLI
+  ticket mutation (`ticket create` and the other `submitMutation` verbs) that runs without
+  `--issued-at` defaults `issuedAt` to the current second, and `issuedAt` is part of the TM-V0-006
+  request digest, so a byte-identical retry in a later second is still `REQUEST_ID_CONFLICT`; this is
+  unchanged, and the CLI MUST NOT synthesize the original `issuedAt` into a write. Its refusal MUST add
+  one warning. When the request index names the recorded ticket and an envelope rebuilt from this
+  invocation with that ticket's `createdAt` or `updatedAt`, or a second up to two seconds before
+  either, has exactly the recorded mutation digest, the warning MUST name the request, the ticket,
+  `issuedAt` as the only differing input, the original and defaulted values, and the retry
+  `--issued-at ORIGINAL` that replays. Otherwise it MUST name the digest inputs, the defaulted
+  `issuedAt`, and that a retry replays only with the original `--issued-at`; it never attributes a
+  different payload, actor, target or revision to `issuedAt`. The diagnosis is read-only and adds no
+  wire code, result field or journal format.
+
+Compatibility: no format changes. `taskman-gate-result/0` already decodes `reusedFrom`, and the
+receipt, attempt and manifest shapes are unchanged. On a store holding a reused result and a
+completed attempt that cited it, the released `corvint-tasks` (`0.0.0-tcp01-unverified+build.523`)
+answered `receipt audit` and `attempt show` for both attempts `OK`, with the same outcomes as this
+build. The `complete` planner is not changed, so an older binary applies the same tree, definition,
+binding and `PASSED` checks to a reused result. An older binary's `gate run` never writes one.
+
+Non-goals: reuse for external-review gates (`gate run` refuses them `UNSUPPORTED`, so a `RETURN`
+source cannot arise) or across stores or trees (`TCD-V0-151` amends trees; `TCD-V0-158` now keys
+reuse on declared environment values); a policy field limiting
+reuse to one ticket; changing any store's policy. Declaring `full-gate` reusable is the operator's
+policy update.
+
+Failure modes: a gate whose result depends on anything outside the tree, the substituted argv and
+the presence and values of its declared environment variables (`TCD-V0-158`; undeclared variables, network, clock, host
+load) will be reused as if equal, so a policy should declare only hermetic gates reusable. If the
+source attempt reruns the gate between the unlocked choice and the lock, the reuse refuses
+`GATE_STALE` and the caller runs `gate run` again. An unreadable or undecodable earlier result is
+skipped, never trusted.
+
+Acceptance evidence: `TestCALV0240_ReusablePassSatisfiesAnotherAttemptAtTheTree`,
+`TestCALV0241_GateRunExecutesWithoutAQualifyingSource`, `TestCALV0242_ModelRefusesAnUnqualifiedReuse`,
+`TestCALV0243_ReceiptAuditBindsEveryReuse`, `TestCALV0243_ReuseRenamedAfterReturningToTheTree` and
+`TestCALV0243_RedoBindsAPendingReuse` (`internal/tasks/store`);
+`TestCALV0240_GateRunReportsReusedFrom` (`internal/tasks/cli`);
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-15-v1-1415-reusable-gate-results.md`.
+
+Rollback: revert `reusableRun` and the reuse branch of `GateRun`
+(`internal/tasks/store/lease_gate.go`), `reuseRefusal`, `ReusedGateResult` and `GateReuseFacts`
+(`internal/tasks/transaction/lease_gate.go`), `GateReuseReceiptAudit` and its fold step, the
+`reusedFrom` result field and this amendment. A reused result already written remains a valid
+TCP-00 record that `complete` and the older audit accept; an older `gate run` executes every gate.
+
+### V1-1460 gate timeout bound
+
+Owner intent: the owner pre-approved raising the `full-gate` timeout on 2026-10-15, after `make gate`
+ended `TIMEOUT` twice at 7200 seconds on a host at load average about 64, but a policy could not
+declare more than 7200 seconds.
+
+- `CAL-V0-255`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1460) A policy
+  gate's `timeoutSeconds` MUST be 1..14400 (`wire.MaxGateTimeoutSecs`, 4 hours); 0 or above 14400
+  refuses `LIMIT_EXCEEDED` wherever the policy is decoded, including `policy update` and the journal
+  audit of a posted policy. `gate run` enforces the declared value with the same process-group kill
+  and `TIMEOUT` class as before. The bound relates to the other limits as follows, and none of them
+  changes: 14400 seconds is 240 minutes, inside `MaxLeaseMinutes` (1440), so one claim or renewal
+  can cover a whole gate run. `gate run` holds no writer lock and writes no heartbeat while the
+  command runs, and an unsupervised attempt records the result only while its lease is unexpired
+  (CAL-V0-016). A holder whose lease would expire during the run therefore claims with enough
+  `--lease-minutes` or renews before expiry from another process; a heartbeat alone does not extend
+  the lease. The detached `attempt run --timeout` bound (`MaxLeaseMinutes*60-130` seconds) is
+  separate and still larger. The supervised workflow runs its review-stage gates after the stage's
+  wall deadline has been released, so `MaxLaneWallMinutes` (240) and a program's `wallSeconds` do not
+  bound a gate run; the gate's own `timeoutSeconds` does. A dispatcher worker that runs a gate needs
+  its role's `wallSeconds` (from worker start) and `idleSeconds` (from last activity) to allow the
+  gate timeout; that is operator configuration.
+
+Non-goals: changing any lease, heartbeat, wall, detach or output limit; changing a store's policy.
+The orchestrator raises `full-gate` through a policy update after a rebuilt binary is installed.
+
+Compatibility: no format change. A binary built before this change refuses a policy that declares a
+gate `timeoutSeconds` above 7200 with `LIMIT_EXCEEDED`. It also refuses a journal holding such a
+policy in its `receipt audit`, even after a later policy lowers the value, because that audit decodes every posted policy.
+Install the new binary on every host that reads the store before posting such a policy.
+
+Acceptance evidence: `TestCALV0255_GateTimeoutBoundIs14400` (`internal/tasks/intent`);
+`TestCALV0255_AuditAcceptsPostedGateTimeoutBound` (`internal/tasks/journal`);
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-16-v1-1460-gate-timeout-bound.md`.
+
+Rollback: first post a policy whose every gate declares `timeoutSeconds` within 1..7200, then revert
+`MaxGateTimeoutSecs` and this amendment. A store that has posted a policy above 7200 stays readable
+only by binaries carrying this bound, which is the recorded compatibility limit of rollback; no
+receipt or posted policy is rewritten to lift it.
+
+### V1-1518 dispatch role priority and shadowed roles (issue 994)
+
+Owner intent: [issue 994](https://github.com/beamfall/corvint/issues/994) reports a dispatcher
+configuration whose narrow role (`idGlob` `T-001[0-4]`, priority 92) never launched, because a broad
+role (priority 50) matching every work-state `work` ticket was preferred. The operator had read the
+higher number as the stronger claim. The roster's order is correct and stays as it is; the direction
+is documented and a configuration that hides a role is reported.
+
+- `CAL-V0-290`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1518) A role's
+  `priority` (0..1000) is an ascending sort key: when several roles match one ticket, the role with
+  the LOWER value is preferred, and an equal value falls back to the earlier role in `roles`. This is
+  the existing CAL-V0-054 order (pin, role priority, P-rank, plan order, key, role index), and this
+  requirement changes no roster decision. An enabled (cap above 0) match role A is shadowed when an
+  enabled match role B with a strictly lower priority value provably admits every ticket A's match
+  admits: the same `pool`; A's statuses (default `OPEN`) within B's; B's labels within A's; B's kinds
+  absent or a superset of A's non-empty kinds; B's `idGlob` absent, equal to A's, or matching A's
+  literal (wildcard-free) glob; B's `planSelected` set only when A's is; B's work-state predicate
+  admitting every state A's admits (a predicate that names states or exclusions never admits
+  `UNKNOWN`); and each B gate predicate implied by A's predicate on the same gate. Containment that
+  is not certain is not reported, so a reported shadow is never a false positive; overlaps the check
+  cannot prove (several roles covering one together, general glob containment) are not reported.
+  Lane roles and disabled roles are neither reported nor shadowing. Each shadowed role is reported
+  once, naming the covering role the roster prefers (lowest value, then earliest), as a warning that
+  never refuses the configuration: the dispatcher appends a `config` event with outcome
+  `ROLE_SHADOWED`, the role, `shadowedBy` and the message at start and after each applied
+  CAL-V0-127 reload, and `dispatch status` adds `roleShadows` (rows of `role`, `priority`,
+  `shadowedBy`, `shadowedByPriority`, in role order, present only when non-empty) and one result
+  warning per shadow. A shadowed role still launches a ticket its shadow cannot take (the shadow's
+  cap, a tier cap or budget, or a CAL-V0-149 relaunch kept on the shadowed role).
+
+CAL-V0-054 amendment (owner, 2026-10-16, V1-1518): "role priority" in its candidate order now reads
+"role priority (ascending; lower wins)". The wording states the existing direction and changes no
+roster decision.
+
+Non-goals: changing launch order or refusing any configuration; reporting equal-priority overlaps
+(the earlier role wins by index, which is visible in the configuration order); `dispatch explain`
+output; proving glob-into-glob containment.
+
+Failure modes: a configuration whose shadowed role is intentional (an overflow role) receives the
+warning on each start and applied reload; the warning is advisory and does not change behaviour. A
+shadow the check cannot prove produces no warning, which is the conservative direction.
+
+Compatibility: additive. Configurations that decoded before decode unchanged; `dispatch status`
+gains an optional member and result warnings; the `config` event kind already exists.
+
+Acceptance evidence: `TestCALV0290_ShadowedRoleWarnsWithoutChangingOrder`,
+`TestCALV0290_ShadowCoverageIsConservative`, `TestCALV0290_ShadowNamesPreferredCover`,
+`TestCALV0290_ShadowWarningEvents` (`internal/tasks/dispatch`);
+`TestCALV0290_DispatchStatusReportsShadowedRoles` (`internal/tasks/cli`);
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-16-v1-1518-dispatch-role-priority.md`.
+
+Rollback: revert the change; no ledger, event or configuration format is rewritten, and events
+already appended stay readable as ordinary `config` events.
+
+### V1-1494 lease writes outside the preparation gate (issue 967)
+
+Status: proposed (V1-1494; GitHub issue 967); implemented with focused tests, a mutation check and
+an opt-in synthetic load harness; live fleet qualification NOT_RUN. Human-owned input: native
+ticket V1-1494 and GitHub issue 967. On one queue of about 42,000 receipts with about 15 writers,
+writers failed `LOCK_TIMEOUT` about 150 times an hour, and every timeout named the preparation gate
+(`taskman.prepare.lock`). Every lease verb outside the writer route (pool family, reap, widen,
+submit, complete) ran the complete audit from receipt 1 while it held the gate, refusals included,
+so heartbeat and renew queued behind work that grows with the journal. Intent: no lease write holds
+the gate for complete-history work, so the gate wait is bounded by the cost of the bounded critical
+sections, not by journal size, with unchanged receipts, audit verdicts and ordering.
+
+- `CAL-V0-263`: (proposed; V1-1494) No lease write MUST run a complete-history audit while it
+  holds the preparation gate. The complete route prepares (inventory, complete audit or verified
+  cache reuse, request replay lookup, model, handoff history audit and the guard sweep) before the
+  gate. A preparation whose model plans no transaction (a refusal, a replay or a write-free result)
+  is decided there and reported under the writer lock, after the same locked head and observation
+  recheck as before, without entering the gate. The gate surrounds only bounded work: the
+  CAL-V0-116 writer route, and the locked commit of a planned or pending-receipt preparation
+  followed by its monitor teardown. A commit whose locked recheck finds the head or the observation
+  moved fails `SNAPSHOT_MOVED` and the next round prepares again, as CAL-V0-026 already requires.
+  What a receipt contains, what the audit accepts or refuses, the order receipts take, the gate's
+  registered admission order (issue 494) and every LOCK_TIMEOUT bound and caller wait are
+  unchanged. This amends the issue 494 paragraph's reading that the gate admits a preparation: the
+  gate now admits the bounded commit of a preparation made before it. The gate is entered for the
+  writer route only when a lock-free precheck finds a writer-route verb, a head at or above the
+  route floor and a retained checkpoint file; otherwise the complete route prepares without the gate.
+- `CAL-V0-265`: (proposed; V1-1494) Amendment to CAL-V0-117 step 2. The scheduled refresh first
+  makes one complete audit attempt. If the journal moved under it (`SNAPSHOT_MOVED`), the refresh
+  MUST walk receipts 1..H for the head H it captured, with the complete audit's per-receipt
+  validators, instead of abandoning. The prefix result MUST be accepted only when a fresh listing
+  shows receipts 1..H unchanged (same file, mode, size and modification time) after the walk, and
+  every request, evidence and pinned afterimage the walk compared is still the file the capture
+  observed (or still absent). A
+  prefix walk that finds a fault refuses only when the whole observation is unchanged; on a
+  journal that moved it is `SNAPSHOT_MOVED` and publishes nothing, as before. A prefix result
+  retains a writer checkpoint bound to H and never a read checkpoint. Every writer audit resumed
+  from that checkpoint walks the receipts after H as its tail and compares every latest afterimage
+  with its projection at its own head, so the checkpoint is bound exactly as a complete audit's
+  is; steps 1, 3, 4 and 5 and the invalidation token are unchanged.
+
+Non-goals (issue 967 proposals not delivered here; proposals 2 remainder and 3 are 1.0 work per
+decision 0549, which replaces the background refresh with segment sealing): a single-owner background refresh in place of
+the refresh in each caller past the interval, and removing the `WriterFullBound` (4,096) cliff
+(proposal 2, remainder); bounded per-write payload and generation history, segment sealing and
+offline full verification (proposal 3); `--lock-wait` on `reap`, the current gate holder in status
+or doctor, and `--timing` for every lease verb (proposal 5). No new admission class for liveness
+(proposal 4) beyond what CAL-V0-263 gives: heartbeat and renew no longer queue behind
+a complete audit, only behind other bounded critical sections.
+
+Failure modes: a preparation outside the gate can be invalidated by any commit, so a complete-route
+writer on a store that appends faster than it prepares can exhaust its 16 rounds and fail
+`SNAPSHOT_MOVED` (retryable) where it used to wait at the gate. Widen, reap and the pool verbs
+other than confirm-safe always prepare the complete route, as does a writer-route verb whose route
+declines (a model that reads an elided path, an incomplete history input, a handoff-policy
+candidate, or an observation-binding or branch change), so under sustained appends they can fail
+`SNAPSHOT_MOVED` after 16 rounds. The owner chose that retryable outcome over extending the writer
+route to every lease verb (a proposal the owner declined), which would have dropped the CAL-V0-116
+rewritten-prefix detection for those verbs. Without a bound checkpoint (a new store,
+a head below the route floor, a tail beyond 256 receipts, a head 4,096 or more receipts past
+`FullSeq`, or an unsettled journal) lease writes still run the complete audit, now outside the gate,
+and contend on the writer lock's recheck instead. The refresh's prefix walk costs one more pass over
+the journal when the complete attempt moved.
+
+Acceptance evidence: `TestCALV0263_NoCompleteAuditUnderGate`, `TestCALV0026_PreparationGateStore`,
+`TestGH494PreparationAdmissionStore` (`internal/tasks/store`, Darwin and Linux); the first two fail
+when the preparation is moved back inside the gate, and the first fails on the base commit;
+`TestCALV0265_RefreshPrefixWalk`, `TestCALV0265_RefreshRefusesOnlyHeldJournal`,
+`TestCALV0265_PrefixRecheckAfterWalk` (`internal/tasks/journal`); the opt-in harness `TestCALV0263_LeaseGateLoad`
+(`CORVINT_TASKS_LEASE_GATE_LOAD=<report>`) with before and after numbers in
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-16-v1-1494-lease-gate-scope.md`. At 40,000 receipts and 15 writers on
+local Darwin (12 CPUs, host load 22 to 50), `LOCK_TIMEOUT` fell from 42 of 71 calls on the base to 0
+of 273, and the largest gate hold fell from 117,542 ms (a reap's complete audit) to 917 ms.
+Heartbeat and renew p99 stayed above 1 second (1,962 and 3,547 ms), almost all of it queueing for
+the bounded writer-lock sections, so no liveness latency bound is claimed. In the same run 8 of 9
+widen and reap calls ended `SNAPSHOT_MOVED` after 16 rounds, the retryable outcome named under
+failure modes.
+Linux and quiet-host load remain NOT_RUN.
+
+Rollback: revert the gate scope in `leaseWrite`, the `writerRouteReady` precheck, the refresh
+fallback and their tests, and this amendment. No store format, receipt, checkpoint format or wire
+result changes, so stores written by either build are read by the other.
+
+### V1-1512 issue 967 remainder: liveness p99, moving-journal verbs and proposal dispositions
+
+Status: accepted under the owner's standing auto-accept (2026-10-11) (V1-1512); evidence and
+dispositions only, with no behaviour change and no new requirement ID (this spec is at its
+obligation bound; the resume contract is `PSR-V0-050..057` in
+`docs/specs/corvint-tasks-pool-safe-reuse-v0.md`). Human-owned input: native ticket V1-1512, the
+remainder of GitHub issue 967 after V1-1494.
+
+1. Liveness p99 at 40,000 receipts and 15 writers. `TestCALV0263_LeaseGateLoad` with
+   `CORVINT_TASKS_LEASE_GATE_LOAD_SECONDS=60` (default 120; shortened to fit one foreground run),
+   after the V1-0887 liveness probe, local Darwin, 12 CPUs, Go 1.27.3, host load 24.6 before and
+   27.7 after: heartbeat p50/p99 113/1,138 ms (60 calls), renew 105/1,131 ms (61 calls), against
+   352/1,962 and 407/3,547 ms in the V1-1494 run. Residual, not met: p99 stays just above 1 s, and
+   its cause is gate wait (heartbeat and renew gate-wait p99 1,051 and 1,041 ms; their own gate
+   hold p99 156 and 111 ms) behind a widen or reap commit that holds the gate for about 1 s
+   (gate-hold p99 991 and 937 ms), which is history-proportional locked work, not a complete audit:
+   in a resumed round `RecheckResume` runs under the writer lock and stats every base receipt and
+   request file (an attribution from the code and the round numbers, not timed separately;
+   decision 0549). No liveness admission class is added (proposal 4 stays as V1-1494 left it).
+2. Widen, reap and pool verbs under sustained appends. The `PSR-V0-052` resumed write already
+   serves every lease verb; V1-1512 adds the missing maintained coverage. In the run above no call
+   failed (no `SNAPSHOT_MOVED`, no `LOCK_TIMEOUT`; 4 widens and 2 reaps) where V1-1494 recorded 8 of
+   9 widen and reap calls ending `SNAPSHOT_MOVED`. A widen or reap still costs 24 to 52 s wall at
+   40,000 receipts, almost all of it the complete audit before the gate. `PSR-V0-053`
+   rewritten-prefix detection on the resumed route stays covered by
+   `TestPSRV0053_ResumeKeepsRewrittenPrefixDetection` and
+   `TestPSRV0054_OvertakenGuardKeepsRewrittenPrefixDetection`.
+3. Remaining issue 967 proposals, dispositioned:
+   - Proposal 2 remainder (a single-owner background refresh; removing the `WriterFullBound`
+     4,096 cliff): 1.0, per decision 0549 (R9, R10). The cliff is removed without a background
+     owner, which invariant 7 excludes: segment sealing in the writer that crosses each 512-receipt
+     boundary replaces the per-caller refresh.
+   - Proposal 3 (bounded per-write payload and generation history, segment sealing, offline full
+     verification): 1.0, per decision 0549 (R4 to R8, R12, R13), with its format gate, migration
+     (`journal seal`/`unseal`) and rollback.
+   - Proposal 5 (`--lock-wait` on `reap`, the current gate holder in status or doctor, `--timing`
+     for every lease verb): deferred past 1.0 as operator ergonomics; the load harness reports
+     gate wait and hold per verb, and no call in the run above timed out.
+
+Non-goals: any change to lease, generation fencing or refusal semantics; a liveness latency bound
+in a maintained test; Linux or quiet-host qualification (NOT_RUN).
+
+Acceptance evidence: `TestPSRV0052_ReapResumesUnderWriter` (a targeted reap resumes once with one
+audit; a reap of every expired lease resumes its survey and its child reap once each) and
+`TestPSRV0052_PoolReleaseResumesUnderWriter` (`internal/tasks/store`), each failing with
+`SNAPSHOT_MOVED` when the resume base is dropped (mutation recorded in the build log), beside the
+existing `TestPSRV0052_PoolAcquireResumesUnderWriter` and `TestPSRV0052_WidenResumesUnderWriter`;
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-20-v1-1512-issue-967-remainder.md`.
+
+Rollback: delete the two tests and this section. No code, store, receipt or wire format depends on
+them.
+
+### V1-1510 work-state reader health (issue 984)
+
+Status: CAL-V0-270..274 accepted under the owner's standing auto-accept (2026-10-11) (V1-1510);
+CAL-V0-275, 276 and 280 accepted by the owner (2026-10-16; #993 'you choose'); each qualifies an accepted requirement
+(CAL-V0-053 or CAL-V0-058). All are implemented with focused tests and one independent review
+round. Human-owned input: owner request
+[issue 984](https://github.com/beamfall/corvint/issues/984) and native ticket V1-1510. Before this
+change, a failing work-state command was visible only as one `alert` event per tick. `dispatch
+status` had no field for it, nothing escalated, and a run that finished during the failure was
+charged a no-progress cooldown that the events did not attribute to the failure.
+
+- `CAL-V0-270`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1510) With a
+  configured `workState` reader, each tick that reads it MUST record the reader's health in the
+  dispatcher ledger as `workState {ok, since, lastError, failedTicks, escalated}`:
+  - `ok` is the newest read's outcome.
+  - `since` is when the current run of successful or failed reads began.
+  - `lastError` is the newest failure, bounded to 512 bytes and kept after recovery.
+  - `failedTicks` counts consecutive ticks with a failed read, and is 0 while `ok`.
+
+  A read fails when the command fails or any `status-line` read alerts. A tick counts once,
+  however often it reads. Without a reader, no health is kept.
+
+  `dispatch status` MUST report a `workState` object whenever a reader is configured or a health
+  record exists:
+  - `health` is `OK`, `FAILING`, or `NOT_OBSERVED` (configured, not yet read).
+  - Once read, it also reports `ok`, `since`, `lastError` (`NONE` before any failure),
+    `failedTicks`, `escalated` and `launchesHeld`.
+  - It always reports `escalateAfterTicks` and `holdLaunchesAfterTicks` (`NONE` when off).
+
+  The per-tick CAL-V0-053 `alert` events are unchanged. The new ledger members MUST ship as
+  `taskman-dispatch-state/5`, and the previous version is adopted:
+  - A `/4` ledger is adopted, with or without workers, as TOL-V0-021 adopted `/3`. A worker it
+    records carries no `workStateUnknown` mark until a later read sets it.
+  - A `/4` ledger that carries a version 5 member refuses `UNSUPPORTED_VERSION`.
+  - A health record whose `ok` disagrees with `failedTicks`, that is escalated while `ok`, or
+    whose `since` is zero refuses at load.
+- `CAL-V0-271`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1510) The
+  optional `workState.escalateAfterTicks` (1..1440, default 3) sets the escalation point. For
+  this and every other optional `workState` number below, an explicit 0 is read as absent.
+  - When a failure episode reaches that many consecutive failed ticks, the dispatcher MUST emit
+    exactly one `needs-owner` event with detail `provider: workState`, `health: FAILING` and
+    `failedTicks`.
+  - It MUST NOT escalate again until a read succeeds. The `escalated` mark is in the ledger, so a
+    restart during the episode does not escalate again.
+  - The first successful read after a failure MUST emit exactly one `alert` event with detail
+    `provider: workState`, `health: RECOVERED`, `failedTicks` and `escalated`, and MUST reset the
+    record to `ok`. A later episode escalates again.
+- `CAL-V0-272`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1510) A worker
+  MUST record `workStateUnknown` when a read at its launch, or during its run, leaves its ticket's
+  work state `UNKNOWN`.
+  - A finished run without progress whose worker carries the mark, or whose ticket's work state
+    is `UNKNOWN` at the finish, MUST carry detail `workState: UNKNOWN`. This applies to its
+    `finished` event and to the `cooldown` or `parked` event that charges it.
+  - The run is still charged as CAL-V0-057 requires.
+  - Only the program work state counts. `UNKNOWN` escalation material keeps its existing ordinary
+    no-progress rule.
+- `CAL-V0-273`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1510) The
+  optional `workState.holdLaunchesAfterTicks` (1..1440) holds launches; when it is absent, there
+  is no hold.
+  - While the current failure episode has at least that many failed ticks, the dispatcher MUST
+    launch no new worker.
+  - It MUST emit one `throttled` event, with detail `provider: workState`, when the hold begins,
+    including when a configuration reload starts it mid-episode.
+  - Launches MUST resume on the first tick whose read succeeds.
+  - Supervision, finish accounting, healing and running workers are unaffected.
+- `CAL-V0-274`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1510) A
+  work-state command that overruns its timeout MUST be reported as `timed out after Ns`, naming
+  the limit, never as the signal that ended it. A cancellation of the dispatcher itself is not a
+  timeout. The first failed read of an outage, from an `ok` or absent health record, MUST mark
+  its CAL-V0-053 `alert` as the outage's one provider-level event: the message ends `work state
+  unavailable since <time>`, and the detail is `provider: workState`, `health: UNAVAILABLE` and
+  `since`. Later failed reads of the same outage carry no such detail, and the outage ends with
+  the one CAL-V0-271 `RECOVERED` event.
+- `CAL-V0-275`: (accepted by the owner (2026-10-16; #993 'you choose'); V1-1510, qualifies the fixed 60 s timeout of CAL-V0-053) The optional
+  `workState.timeoutSeconds` (1..600) sets the work-state read timeout. When it is absent the
+  timeout stays 60 seconds. `dispatch status` reports `timeoutSeconds` in its `workState` object
+  (`NONE` for a `status-line` reader, which runs no command).
+- `CAL-V0-276`: (accepted by the owner (2026-10-16; #993 'you choose'); V1-1510, qualifies the CAL-V0-058 comparison against the previous
+  observation) While the reader fails within `workState.staleAfterSeconds` (1..86400; absent means
+  one tick, `tickSeconds`) of the outage's `since`, the state-event baseline MUST keep, for each
+  ticket the read left `UNKNOWN`, its last known work state, plan and plan reason, so a failed
+  read emits no per-ticket `state` event and a recovery to the same states emits none either. The
+  plan is kept too, because a failed read also empties the CAL-V0-105 held set and replans the
+  window. A plan change from another cause on such a ticket is reported when the window ends or
+  the reader recovers.
+  - The observation, launch, roster and finish decisions still see `UNKNOWN` (CAL-V0-053); only
+    the event baseline holds the stale value.
+  - `dispatch status` reports `stale` while the window holds and `staleAfterSeconds` (`NONE`
+    without a reader).
+  - Once the window passes, the baseline takes `UNKNOWN`, which emits one `state` event per
+    ticket, and recovery emits one more.
+- `CAL-V0-280`: (accepted by the owner (2026-10-16; #993 'you choose'); V1-1510, qualifies the CAL-V0-058 comparison against the previous
+  observation) A ticket whose status is `COMPLETED` or `ARCHIVED` both before and after MUST emit
+  no `state` event when only its work state changed. A change to its status, plan or plan reason
+  still emits one. The work state is still read for such tickets, because a role may match a
+  terminal status.
+
+Non-goals:
+- Exempting such runs from the cooldown, parking and escalation streak. Issue 984 asks for that
+  exemption, or for the runs to be marked `UNKNOWN`. The exemption would amend the accepted
+  CAL-V0-057 rule that no progress MUST start a cooldown and park after `parkAfter` runs, so it
+  is left as an owner decision. This change implements the marking.
+- `doctor` output. The accepted TQD-V0-001 fixes `doctor`'s arguments and gives it no dispatcher
+  configuration, so reporting the reader there would amend an accepted requirement. That is also
+  left as an owner decision.
+- A health record for the other external commands:
+  - The CAL-V0-068 pressure sampler already reports its failed inputs in status
+    `pressure.problems`.
+  - Host launches already emit `launch-failed`.
+  - An unreadable process table already never ends a worker.
+- Changing the work-state grammar, or removing the per-tick CAL-V0-053 alerts. CAL-V0-274 names the
+  timeout and marks the first alert of an outage; it does not suppress the others.
+- Letting decisions use the stale state. CAL-V0-053 says a read failure never yields a guessed
+  state, so CAL-V0-276 keeps the stale value out of every decision.
+- Skipping the work-state read for terminal tickets, because roles may match terminal statuses.
+
+Failure modes:
+- A reader that hangs fails at its timeout (60 s, or `workState.timeoutSeconds`), is reported as a
+  timeout (CAL-V0-274) and counts as a failed tick.
+- A partial `status-line` failure that leaves a ticket's literal value `UNKNOWN` inside the window
+  is treated as stale for the event baseline only.
+- A store observation that fails before the read leaves the health unchanged.
+- A failing ledger save keeps the existing CAL-V0-055 refusal.
+
+Acceptance evidence:
+- `TestCALV0270_FailingWorkStateCommandHealthEscalatesOnceAndRecovers`,
+  `TestCALV0272_UnknownWorkStateRunsAreRecorded`, `TestCALV0273_LaunchHoldIsOptInAndLifts` and
+  `TestCALV0270_ConfigAndLedgerBounds` (all in `internal/tasks/dispatch`).
+- `TestCALV0270_DispatchStatusShowsFailingWorkStateAfterOneTick` and
+  `TestCALV0270_DispatchStatusWorkState` (both in `internal/tasks/cli`).
+- `TestCALV0274_TimedOutReadIsNamedAndUnavailableOnce`,
+  `TestCALV0276_OneFailedReadEmitsNoPerTicketStateEvents`,
+  `TestCALV0276_FailedReadKeepsHeldPlansInBaseline` and
+  `TestCALV0280_TerminalTicketWorkStateEmitsNoStateEvent` (all in `internal/tasks/dispatch`).
+- `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-16-v1-1510-dispatch-workstate-health.md`.
+
+Rollback: stop the dispatcher and revert these changes, the tests and this amendment. A
+`taskman-dispatch-state/5` ledger is refused `UNSUPPORTED_VERSION` by older builds. Before an older
+build starts, remove that program's `state.json` once no worker runs. This is the recorded rollback
+limit of a ledger version, as for `/4`.
+
+### V1-1511 renew-only liveness and the effective heartbeat TTL (issue 982)
+
+Human-owned input: a GitHub [issue 982](https://github.com/beamfall/corvint/issues/982) follow-up
+comment (2026-10-16, native ticket V1-1511). A caller's keeper sent a heartbeat in the same tick as
+every renew (74 of 74 renews in one day), although CAL-V0-231 already makes a renew record
+`lastHeartbeatAt`; and it read `heartbeatTTLSeconds` as a fixed 600 because `policy show` exposes no
+TTL. The TTL has been a policy setting since CAL-V0-120 (`holderLiveness.heartbeatTTLSeconds`,
+300..86400, default 600 when omitted); this amendment adds no policy key and changes no bound. It
+makes the effective value visible and states when a heartbeat is redundant.
+
+- `CAL-V0-277`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1511) The verbose
+  help of `attempt heartbeat` MUST state that a successful current-generation `renew` records the
+  same signal (CAL-V0-231), so a holder that renews more often than the effective
+  `heartbeatTTLSeconds` need not also send a heartbeat, and that a heartbeat recorded at the same
+  instant as a renew writes the same `lastHeartbeatAt` and changes no `holderStatus` (separate CLI
+  calls sample their own time, so a paired heartbeat only moves the signal by the gap). It MUST also state that
+  freshness follows the last recorded signal, not the work lease: a holder whose lease outlasts the
+  TTL reads `STALE_HOLDER` once the TTL passes without a renew or heartbeat. The verbose help of
+  `renew` MUST say not to pair a heartbeat with each renew, and that a renew-only holder never reads
+  `STALE_HOLDER` while `--lease-minutes` times 60 is at most the TTL. This holds because each renew
+  sets `lastHeartbeatAt` and `expiresAt` from the same `recordedAt`, and `LEASE_EXPIRED` precedes
+  `STALE_HOLDER` at equal times (CAL-V0-048). With a longer lease, a holder must renew or heartbeat
+  within the TTL. No writer, signal or classification changes.
+- `CAL-V0-278`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1511) `policy
+  show` MUST add `heartbeatTTLSeconds`, the effective holder observation TTL that `attempt show`,
+  `queue status` and `doctor` classify against: the policy's `holderLiveness.heartbeatTTLSeconds`,
+  or `"600"` when the policy omits the key. The member is a sibling of `policy`, `policyVersion`
+  and `policySha256` and is not part of the policy bytes or digest, so a policy without
+  `holderLiveness` returns the same `policy` member and `policySha256` as before (CAL-V0-050). Its
+  verbose help MUST name the member and the default. Every holder read takes the TTL from the same
+  policy accessor; no read or writer hard-codes 600.
+
+Non-goals: a new policy key or new TTL bounds (CAL-V0-120 owns both); changing the heartbeat or
+renew writers, the `attempt run` 240-second heartbeat interval, or receipt retention (V1-1508);
+automatic hand-off of stale holders (CAL-V0-121).
+
+Failure modes: a caller that lengthens `--lease-minutes` past the TTL, drops its heartbeats and renews
+less often than the TTL reads `STALE_HOLDER` between renews; the help states the condition. A TTL change is a policy change.
+CAL-V0-123 makes it compatible with evidence handoffs, but `complete` of an attempt claimed under
+the earlier policy still refuses `STALE_POLICY` (the claim binds `policySha256`), so set the TTL
+before claims. An older binary refuses a policy carrying `holderLiveness` (CAL-V0-120 rollback).
+
+Acceptance evidence: `TestCALV0277_RenewOnlyHolderNeverReadsStale` classifies every second of a
+backdated four-holder timeline under the default TTL. The renew-only holder never reads
+`STALE_HOLDER`, before or after its last renew. The paired holder records the same signal and
+status at every second. The 30-minute-lease holder renewing every 540 s never reads stale while it keeps renewing. The
+holder renewing every 1080 s reads stale for exactly 1680 s inside its lease.
+`TestCALV0278_PolicyShowEffectiveTTL` holds the default policy bytes and digest unchanged with
+`heartbeatTTLSeconds` `"600"`. In it, a 1500-second heartbeat cadence reads stale 1800 of 3000
+seconds at 600 and 0 at 1800, and `policy show`, `attempt show` and `queue status` agree after the
+update (both `internal/tasks/cli`). See `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-16-v1-1511-liveness-ttl-policy.md`.
+Live fleet qualification NOT_RUN.
+
+Rollback: revert the code and this amendment. No stored state, request, receipt or policy byte
+changes; `policy show` loses one additive member.
+
+### V1-1526 unknown `--fields` key diagnostic (issue 996)
+
+Human-owned input: GitHub [issue 996](https://github.com/beamfall/corvint/issues/996) (2026-10-16,
+native ticket V1-1526). Agents asked `ticket show T --fields body` and got `MALFORMED`; the ticket
+body, acceptance criteria and title live under `record.`, and the help only said
+`--fields KEY[.SUB],...`. Agents concluded the data was unreadable and stopped for an operator.
+The refusal already carried a warning naming the key; it gave no way forward. Intent: keep the
+exact projection and the CAL-V0-166 refusal, and make the refusal and help say where the key is.
+
+- `CAL-V0-310`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1526) When a
+  read under CAL-V0-165 or CAL-V0-174 refuses a `--fields` key that no item carries (CAL-V0-166),
+  the refusal's warning MUST name the key and list, sorted, every top-level key the returned items
+  carry. For a one-segment key it MUST also suggest each `PARENT.KEY` path that exists one level
+  down, where `PARENT` is an item key whose object value, or an object element of whose array
+  value, carries `KEY` (`ticket show --fields body` suggests `record.body`). A refused `KEY.SUB`
+  whose key is present but whose sub-key no element carries MUST list that key's sub-keys. The
+  missing `retries` refusal lists the keys too and keeps naming `--retries`. The detail travels in the existing
+  `warnings` member: the result code, outcome, empty items, snapshot and every other envelope
+  member are unchanged, and no top-level alias is added, so a valid projection keeps its exact
+  bytes. The `ticket show` usage MUST say that ticket fields such as `body` and
+  `acceptanceCriteria` live under `record.` and that an unknown key is refused naming the valid
+  keys.
+
+Non-goals: aliasing record fields at the top level; projection deeper than one level; a new
+result code or envelope member; fuzzy matching of misspelled keys.
+
+Failure modes: the listed keys are those of the items actually returned, so a page whose items
+lack an optional key does not list it, and an empty page still accepts any well-formed name
+(CAL-V0-166). A suggestion is a hint, not a rewrite: the caller must resend with the path.
+
+Acceptance evidence: `TestCALV0310_FieldsUnknownKeyDiagnostic` (`internal/tasks/cli`) refuses
+`ticket show --fields body` with the item's sorted keys and `did you mean "record.body"?`, gives
+no suggestion for a key absent at every level, lists `record` sub-keys for `record.nope`, projects
+`record.body,record.acceptanceCriteria`, refuses `queue status --fields headseq` with that item's
+keys, suggests `liveAttempts.holderStatus` through an array, and finds `record.body` in
+`ticket show --help`. `TestCALV0310_UnknownFieldMessageAcrossItems` pins the exact text over
+heterogeneous items: the sorted key union, two sorted suggestions through an object and an array,
+the sorted sub-key union and the `retries` hint. At base 38d4fef8 the test fails on the bare `field "body" is not in this
+read's items`. See `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-16-v1-1526-fields-unknown-key.md`.
+
+Rollback: revert the code and this amendment. No stored state, request, receipt, policy byte or
+envelope member changes; only a refusal's warning text and the `ticket show` usage text change.
+
+### V1-1548 dispatcher lease keeper (issue 1006)
+
+Human-owned input: GitHub [issue 1006](https://github.com/beamfall/corvint/issues/1006) (2026-10-16,
+native ticket V1-1548). A dispatched worker that thinks for a long time, or runs a long build, makes
+no queue call; its lease runs out and CAL-V0-191 reaps a worker that was still working. Operators
+ran a sidecar that heartbeats and renews the attempt, and stops when the worker exits, has been idle
+too long, or the attempt is no longer live at its generation. Intent: make that keeper a per-role
+dispatcher option, using the activity signal the dispatcher already supervises, so a live, active
+worker keeps its attempt and an idle, hung or fenced one does not.
+
+- `CAL-V0-311`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1548) A role MAY
+  declare `keepLease`, a closed object of three required integers: `intervalSeconds` (30..3600),
+  `leaseMinutes` (5..1440, inside the store's `MaxLeaseMinutes`) and `maxIdleSeconds` (30..86400), with
+  `leaseMinutes` × 60 greater than two intervals. An unknown member, a missing member, a value out
+  of range or a lease within two intervals refuses the configuration. A worker is kept under the
+  role of the configuration it launched under (CAL-V0-127). Without `keepLease` the dispatcher
+  writes no renew or heartbeat, records no keeper and emits no keeper event: its ledger bytes,
+  events, status and store writes are those of a build without the option.
+- `CAL-V0-312`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1548) On each
+  readable tick, after heal and on the observation heal acted on, the keeper considers each worker
+  of a `keepLease` role that is `RUNNING`, has a live leader and a nonempty process tree; an exited,
+  ended or stopping (`KILLING`) worker is never kept. It binds to the live attempt whose holder is
+  the worker, recording the attempt and generation; a new binding is due at once. The worker is
+  idle when the time since its `lastActive` exceeds `maxIdleSeconds`, where `lastActive` is the
+  supervision activity signal the dispatcher already records each tick (CAL-V0-056, as amended
+  by CAL-V0-218: growth of the worker's `stdout.log`/`stderr.log`, an advanced mtime of a host
+  `activityPaths` entry, or a busy child process). An idle worker's attempt is not written; the keeper records `IDLE` with one
+  event per idle episode, and resumes with one event when activity returns. An idle worker's lease
+  therefore runs out and CAL-V0-191 reaps it as before; the role's `idleSeconds` stop is unchanged.
+- `CAL-V0-313`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1548) A kept,
+  active binding writes only when due, then sets the next due time one interval later. When the
+  observed lease expires more than two intervals from now, the lease covers the interval and the
+  keeper records only the attempt heartbeat (`attempt heartbeat`), which never extends the lease;
+  otherwise it renews for `leaseMinutes` (`renew --lease-minutes`), which also records the heartbeat
+  (CAL-V0-231). Either write keeps the holder from `STALE_HOLDER`. Each write is fenced on the bound
+  generation and carries a request ID derived from the attempt, generation, write kind and due
+  time, so a write repeated after a lost ledger save replays instead of committing twice; the
+  replay is then followed as CAL-V0-318 requires. Each successful write is recorded as a
+  `lease-keeper` event (`renewed` or `heartbeat`).
+- `CAL-V0-314`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1548) A binding
+  stops, once, with one `lease-keeper` `stopped` event naming its reason and no alert, when a write
+  is refused `FENCED` (`FENCED`), when the worker no longer holds the bound attempt live
+  (`NOT_HELD`), or when the attempt's generation changed (`GENERATION_CHANGED`). A stopped binding
+  is never written again; a live attempt the worker holds at another attempt or generation is a new
+  binding. A queue without the keeper capability stops the binding `UNSUPPORTED` with one alert. Any
+  other write failure records one alert per failure episode, keeps the binding and retries on the
+  next tick.
+- `CAL-V0-315`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1548) Each kept
+  worker's ledger record carries a closed `keeper` member: `state` (`WAITING`, `KEEPING`, `IDLE` or
+  `STOPPED`), the bound `attempt` and `generation`, the stop `reason`, `due`, `lastKept`,
+  `lastAction` (`RENEWED` or `HEARTBEAT`), the `renewals` and `heartbeats` counts and `failing`. A
+  record outside these states, reasons or actions, a bound state without a binding, or a negative
+  count refuses the ledger. The member moves the ledger to `taskman-dispatch-state/6` (CAL-V0-131);
+  a version 5 ledger is adopted as recorded, with its running workers and no keeper, and a version
+  5 ledger carrying `keeper` is refused `UNSUPPORTED_VERSION`. The closed event vocabulary
+  (CAL-V0-058) gains `lease-keeper`, whose detail names the `action` (`bound`, `renewed`,
+  `heartbeat`, `idle`, `resumed` or `stopped`), the `attempt`, the `generation` and, for a stop, the
+  `reason`.
+- `CAL-V0-316`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1548)
+  `dispatch status` shows, for each worker with a keeper record, a `keeper` object with its
+  `state`, `attempt`, `generation`, `reason`, `lastAction`, `renewals`, `heartbeats` and `failing`,
+  and `due` and `lastKept` once set. A worker without a record shows no `keeper` member.
+- `CAL-V0-317`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1548) The
+  keeper acts for a worker only when this tick's supervision pass observed its process tree: the
+  live leader and nonempty tree of CAL-V0-312 come from that observation, never from the members
+  the ledger recorded earlier. When the process table cannot be read, or one worker's tree cannot
+  be refreshed, that worker's recorded tree may name processes that have exited, so the keeper
+  writes nothing for it on that tick and its due time is unchanged; the supervision alert that the
+  observation failed is the visible record, and the keeper adds no event or state. The next tick
+  that observes the tree resumes or ends the binding as CAL-V0-312 and CAL-V0-314 say.
+- `CAL-V0-318`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1548) A keeper
+  write the store answers as the replay of an earlier request with the same ID (its `replayed`
+  result) did not move the lease or the heartbeat at this call: it repeats a write made before a
+  lost ledger save, possibly long ago. The keeper then writes the same kind once more, in the same
+  tick, under a request ID derived from the attempt, generation, write kind, due time and the
+  current time, and sets the next due time one interval after that write. A replay of the second
+  write is not retried again. The second write's failure, fence or success is handled as
+  CAL-V0-313 and CAL-V0-314 say, and a renewal counts once.
+
+Non-goals: keeping an attempt the worker does not hold, or one held by a process outside this
+dispatcher; a new activity signal or worker protocol; renewing an expired lease (the store fences
+it); changing the role's `idleSeconds` or `wallSeconds` stops or the CAL-V0-191 grace; applying a
+reloaded `keepLease` to a worker launched before the reload.
+
+Failure modes: the keeper acts at tick resolution, so a tick interval longer than the remaining
+lease can still let a lease run out; the two-interval skip window bounds this for ticks no longer
+than `intervalSeconds`. An idle bound shorter than a worker's real silent stretches lets its lease
+lapse; the operator raises `maxIdleSeconds`. A worker holding several live attempts is kept on the
+bound one, or on the first observed one when it holds none bound. A store write that keeps failing
+alerts once and retries each tick until the lease expires, after which the write is fenced and the
+binding stops.
+
+Acceptance evidence: `TestCALV0311_KeepLeaseConfigIsClosedAndBounded` and
+`TestCALV0311_AbsentOptionChangesNothing` (acceptance 6); `TestCALV0312_QuietWorkerKeepsItsAttemptAcrossLeasePeriods`
+(acceptance 1: four lease periods with no worker queue call, the lease never lapses, one write per due
+tick and none between); `TestCALV0312_IdleWorkerIsNotKeptPastMaxIdle` (acceptance 2: one idle event over
+several idle ticks, output growth resumes, and the idle worker's lease is reaped);
+`TestCALV0312_ExitedWorkerIsNotKept`; `TestCALV0313_CoveredLeaseIsNotRenewed` (acceptance 4) and
+`TestCALV0313_NativeKeeperRenewsAndHeartbeatsFenced` (the real store: a heartbeat leaves the lease, a
+renew moves it, a stale or released attempt is `ErrFenced`); `TestCALV0314_FencedOrMovedAttemptStopsOnce`
+(acceptance 3) and `TestCALV0314_QueueWithoutKeeperStopsOnce`; `TestCALV0315_LedgerVersion6RecordsTheKeeper`
+and `TestCALV0131_LedgerSchemaChangeMovesTheStateVersion`; `TestCALV0316_DispatchStatusShowsKeeperPerWorker`
+(acceptance 5); `TestCALV0317_UnobservedTreeIsNotKept` (an exited worker whose process table read
+fails is not kept); `TestCALV0318_ReplayedRenewalAfterRestartWritesAgain` (the 12:00 renewal whose
+save is lost and the 12:04:30 replay: one fresh renewal, the lease never lapses) and the replay arm
+of `TestCALV0313_NativeKeeperRenewsAndHeartbeatsFenced` (the real store reports a repeated renew
+`replayed` and moves nothing). See `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-17-V1-1548-dispatch-keeplease.md`.
+
+Rollback: remove `keepLease` from every role to stop the keeper at once (CAL-V0-127 reload; workers
+launched under it keep it until they end). To revert the build, drain the dispatcher first: a
+`taskman-dispatch-state/6` ledger is refused `UNSUPPORTED_VERSION` by an earlier build, as every
+ledger version move is. Then revert the code and this amendment; no store, receipt or policy byte
+changes.
+
+### V1-2012 interrupted gate run retention
+
+Human-owned input: native ticket V1-2012 (2026-10-20), the successor of
+CORE-FINISH-INTERRUPTED-TRANSCRIPT-PRESERVATION-1 after decision 0544. Its question was whether an
+interrupted `gate run` keeps the gate transcript and an interrupted outcome. Observed on the built
+binary before this change: on SIGINT or SIGTERM the gate's process group was killed (no survivor),
+`gate run` answered `MALFORMED` with the warning `context canceled`, the attempt kept no gate
+result, and every byte the gate had printed was discarded. Intent: keep what the run produced.
+
+- `CAL-V0-319`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2012) When the
+  run context of a `gate run` ends (SIGINT, SIGTERM or, since V1-2033, SIGHUP to the CLI) after the gate program started,
+  `gate run` still stops the gate's process group and reaps it, and then records that run as an
+  ordinary gate result instead of discarding it: its state is set by the existing §7.1 rules (an
+  interrupted gate is `FAILED`; a gate that had already exited keeps its own outcome), its outcome
+  class is the one the process observation gives (for a killed gate `SIGNAL`), and its `output`
+  evidence is the captured output up to the interrupt, bounded by the executable gate's 16 MiB
+  output cap. The record write runs under its own 30-second bound rather than the ended context. The
+  result carries the warning `gate run interrupted: ...`, and stays unretryable as CAL-V0-078 says.
+  An interrupt before the gate starts, or during a reuse (CAL-V0-240), records nothing as before.
+  An interrupt during the post-run worktree observation is the same case: the observation is
+  repeated under the 30-second bound and the run is recorded, not discarded (independent review,
+  2026-10-28).
+
+Non-goals: a new gate outcome class (TCP-00 §7.1's closed set is unchanged, so no reader version
+moves); streaming gate output to the terminal; retaining output beyond the existing cap; surviving
+SIGKILL of the CLI, which leaves the gate as before and records nothing.
+
+Failure modes: the record write can still fail (store lock held past the bound, a fenced attempt):
+`gate run` then reports that error, as an uninterrupted run whose write failed does. A supervisor
+that sends SIGKILL soon after SIGTERM can end the write; the journal recovers it as any writer
+crash (CAL-V0-019).
+
+- `CAL-V0-320`: (accepted under the owner's standing auto-accept (2026-10-11), V1-1981) The
+  `corvint-tasks-archive/0` build path (CAL-V0-042) MAY be run with `-target linux/amd64` and
+  `-tasks-only`. It builds the binary twice with `CGO_ENABLED=0` from the pinned Git export, requires
+  both builds and both archive assemblies to agree byte for byte, and retains
+  `corvint-tasks_linux_amd64.tar.gz` plus a `SHA256SUMS` line for it, as for the macOS arm64 archive.
+  A cross-built archive is never executed by its builder: no version or help smoke runs, the manifest
+  has no `version` member and its `qualification` is
+  `reproducible-cross-build-only-target-runtime-not-observed`, and its README says the target runtime
+  is `NOT_OBSERVED` until a host of that platform runs `bin/corvint-tasks version` and a read-only
+  `roadmap` against an existing `.taskman` store. The full companion bundle still admits only
+  `darwin/arm64`; every other target (including `linux/arm64`) is refused and stays `NOT_RUN`.
+
+Non-goals (CAL-V0-320): publishing, tagging or signing a release or `tasks-dev-*` asset (a workflow
+change is owner-gated); a Linux runtime, queue, locking or `flock` qualification; `linux/arm64`;
+Windows; authenticating the publisher (checksums detect byte changes only).
+
+Failure modes (CAL-V0-320): a build or reproducibility mismatch fails the run and retains nothing; a
+Linux host that cannot run the binary reports that, and the archive keeps its `NOT_OBSERVED` label.
+Rollback: remove `tasksCrossTarget` and its use in `RunTasksArchive`; the darwin/arm64 path and its
+archive bytes are unchanged.
+
+Acceptance evidence: `TestCALV0319_InterruptedGateRunRecordsItsResult` (`internal/tasks/store`):
+the context ends two seconds into a gate that printed `partial` and sleeps 30 seconds; the run
+returns promptly, the attempt holds a `FAILED` result whose `output` evidence is `partial`, the
+report is interrupted and unretryable, and the receipt audit passes. The reproduction before and
+after the change is in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-20-V1-2012-gate-interrupt-retention.md`.
+
+Rollback: revert the change; a recorded interrupted result is an ordinary §7.1 gate result that an
+earlier build reads unchanged, and a later `gate run` replaces it.
+
+### V1-2352 read checkpoint request filter
+
+Human-owned input: native ticket V1-2352 (PSR-V0-203 states the read-route behavior). The read
+checkpoint omitted request paths (CAL-V0-059), so a resumed read could not prove that a tail
+request with a null pre-state was a first post. An exact request set is up to 2.1 M digests
+(67 MB raw, 134 MB in hex), past the 16 MiB checkpoint bound; a filter without false negatives is
+a few bytes per request.
+
+- `CAL-V0-321`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2352) A read
+  checkpoint derived from a complete or writer-resumed audit (CAL-V0-059, CAL-V0-119) MUST carry
+  `requests`, `{bits, data}`: a Bloom filter of every request path that receipts 1..`seq` posted,
+  keyed by the path's SHA-256 digest (the 64 hex digits the path names). `bits` is a power of two in
+  64..2^26, at least 16 per request when that fits; `data` is the canonical standard base64 of
+  `bits`/8 bytes. Each path sets 11 bits at `(h1 + k*h2) mod bits` for k = 0..10, where h1 and h2
+  are the digest's first two little-endian 64-bit words (h2 with its low bit set). The filter
+  never omits a posted path; a writer-resumed derivation covers the writer checkpoint's request
+  records too and yields the same bytes as a complete audit at the same head. The decoder is closed:
+  any other key, a size outside the bound or a non-canonical encoding makes the checkpoint
+  unusable. The key is optional in the codec, so a seal anchor and a writer checkpoint header,
+  which embed it, keep their bytes, and their decoders refuse a header that carries it; the read
+  route requires it (PSR-V0-203).
+
+Non-goals: no profile change (an older binary's closed decoder refuses the key and runs the complete
+audit), no exact request set, no change to the writer checkpoint, seal anchor or any journal file.
+
+Failure modes: the filter adds 2 to 4 bytes per request (about 2.7 to 5.4 once base64-encoded);
+a checkpoint past 16 MiB is unusable as before (CAL-V0-059), and a full-size filter is 8 MiB of
+bits (about 11.2 MiB encoded), so a store near 2.1 M requests with a large entry list can pass
+the bound; the writer still retains it and every read runs the complete audit, without a warning.
+
+Rollback: revert the source; see PSR-V0-203.
+
+### V1-2359 failed-gate tail in attempt show and ticket show
+
+Human-owned input: native ticket V1-2359, the residual of V1-2196 (TCD-V0-165..166). A failed
+`gate run` quoted its tail only in the executing call; afterwards the retained output was reachable
+only through the gate record, so an agent reran the gate to diagnose it.
+
+- `CAL-V0-322`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2359) `attempt
+  show` MUST carry `lastFailedGate`: of the attempt's gate results (one per gate, kept in digest
+  order), the one whose state is `FAILED` or `BLOCKED` that ended last (ties by gate ID), as
+  `attemptId`, `gateId`, `resultSha256`, `state`,
+  `outcomeClass`, `exitCode`, `signal`, `endedAt`, `output` (`sha256`, `bytes`, `path`
+  `evidence/<sha256>`, `observed`), `failingLine` and `tail`, the last two derived from the retained
+  output exactly as TCD-V0-165 derives them (at most 20 lines of at most 240 bytes, secret-screened).
+  `ticket show` MUST carry the same value for the result that ended last across the ticket's
+  attempts (ties by the later attempt ID). It is null when no such result exists and
+  `NOT_OBSERVED` when any gate record the attempt names is absent or differs from its digest, or
+  when the journal is absent. The output is quoted only when the evidence blob still has the
+  recorded digest and size; otherwise `observed` is `NOT_OBSERVED` and `tail` and `failingLine`
+  are null. A later passing result of another gate does not hide the failed one; a later run of
+  the same gate replaces its result, and a new submission clears the attempt's results, as before.
+  Both are pure reads; nothing is written.
+
+Non-goals: no new store state or result field in `gate run`, no tail for `PENDING`, `RUNNING`,
+`NOT_RUN` or `STALE` results, and no full output in the result (it stays at `output.path`).
+
+Failure modes: a gate output blob is read and hashed in full (at most 16 MiB) for each show, and
+every gate record the attempt names (one per gate, 64 KiB bound each) is read.
+
+Rollback: revert the source; the field disappears and nothing stored changes.
+
+### V1-2449 stage-slot wait on an advancing head
+
+Human-owned input: native ticket V1-2449 (`TestCALV0019_RacingLeaseVerbsLeaveOneConsistentHead`
+flaked on macos-15), the recurrence of V1-0467. That test sends nine lease verbs at once. Racer 2,
+`gate run`, reads the lease proof before it takes the writer lock, an unlocked journal audit. With
+the other eight writers publishing back to back, and each holding a descriptor-less staging slot
+for its whole publish (CTS-V0-008), every observation of the audit saw slots, and on a host whose
+fsync is slow the two-second wait ended inside that run of writers. The audit then refused
+`MALFORMED` `unassigned stage slot`, the refusal reserved for a killed writer's orphan. On Linux
+with injected fsync latency (`strace -e inject=fsync,fdatasync:delay_enter=`), the unchanged test
+failed with `racer 2: MALFORMED: staging/a00: unassigned stage slot`; the counts are in
+`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-23-store-test-load-1023.md`.
+
+- `CAL-V0-340`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2449) A journal
+  audit that does not hold the writer lock, and that has spent the whole CTS-V0-008 stage-slot
+  wait, MUST compare the `head.json` of its last observation with the `head.json` of its first
+  observation of those slots. When they differ, a writer committed while the slots stayed. That is
+  evidence that the slots may belong to writers still publishing, which warrants another bounded
+  observation; it is not proof that their holders are live, since a writer can advance the head and
+  then die before removing its slot. The audit MUST then refuse `SNAPSHOT_MOVED` at `staging`, a
+  retryable code the lease read's rounds retry, in place of the `MALFORMED`. When they are the
+  same, the audit MUST refuse the unchanged `MALFORMED` `unassigned stage slot` naming the
+  byte-smallest slot (CTS-V0-008), so a later audit that sees the same slots under an unchanged
+  head refuses `MALFORMED`. The pauses and their exact two-second sum, the four `SNAPSHOT_MOVED`
+  attempts, and the refusal at once of an audit under the writer lock stay as CTS-V0-008 states
+  them.
+
+Non-goals: the archive export's identical wait (`internal/tasks/archive/stage_read.go`) is not
+changed here; the wait budget is not lengthened; no stored state, wire format or receipt changes.
+
+Failure modes: a store that keeps committing for longer than the lease read's sixteen rounds, each
+with its own two-second wait, still ends `SNAPSHOT_MOVED`, now retryable by the caller. An orphan
+slot on a store that other writers keep advancing is cleared by the first of those writers
+(CAL-V0-019), so the head moves once and the next read succeeds. A writer that advances the head
+and then dies leaves an orphan the first spent wait reports `SNAPSHOT_MOVED`; the retry, which sees
+the same slots under an unchanged head, refuses `MALFORMED`.
+
+Rollback: revert the source; the audit again refuses `MALFORMED` after the budget whatever the head
+did.
+
+### #1551 torn guard read in the lease write rounds
+
+Human-owned input: GitHub issue #1551 (nightly `release-gates` on main), run 39773957842 on
+macos-15, where `TestCALV0019_RacingLeaseVerbsLeaveOneConsistentHead` failed with
+`racer 2: SNAPSHOT_MOVED: .../head.json: file replaced between stat and open`. Racer 2 is `gate run`,
+whose unlocked proof read (`readLeaseProof`) already retries `SNAPSHOT_MOVED` for sixteen rounds, and
+whose write then enters `leaseWrite`. Each of that write's sixteen rounds starts with an unlocked
+guard read (`writerGuards`, `readHead`) before it prepares or takes the lock. The bounded file read
+refuses `SNAPSHOT_MOVED` when the inode it opened is not the one it stat'ed, which is exactly what a
+writer committing `head.json` under the lock does to a reader between those two calls. The
+preparation and commit steps of the same round retry that code; the guard read returned it to the
+caller, so one torn observation ended a write that had fifteen rounds left.
+
+- `CAL-V0-372`: (accepted under the owner's standing auto-accept (2026-10-11), #1551) When the
+  lease write's unlocked pre-round guard read ends `SNAPSHOT_MOVED`, that observation MUST spend
+  the current round, counted in the write's round total, and the next round MUST read the store
+  again; the write MUST NOT return that code from the guard read while rounds remain. Every other
+  guard refusal (`PAUSED`, `INTENT_BRANCH_MISMATCH`, a forked journal, a different queue) keeps its
+  present disposition and ends the write at once. Exhaustion of the sixteen rounds keeps the
+  existing `SNAPSHOT_MOVED` `store changed during all preparation attempts` refusal, a code the
+  CAL-V0-078 retryable set already names.
+
+Non-goals: the locked guard read under the writer lock (`commitLease`) is not changed; no round
+count, wait or bound is lengthened; the other unlocked `readHead` callers outside the lease write
+(`compact`, `retire`, segment sealing) are not changed here; no stored state, wire format or
+receipt changes.
+
+Failure modes: a store whose head keeps being replaced between stat and open on every one of the
+sixteen rounds still ends `SNAPSHOT_MOVED`, now after sixteen observations instead of one. A torn
+read that hides a non-retryable guard failure is impossible: the guard read either returns the
+head it opened, on which every other guard then runs, or the torn code.
+
+Acceptance evidence: `TestCALV0372_TornGuardReadSpendsOneRound`
+(`internal/tasks/store/lease_write_guard_test.go`) injects one `SNAPSHOT_MOVED` into the guard read
+through `SetLeaseGuardFaultForTest` and sees the claim commit on the next round with the fault
+observed once and the read taken at least twice, then injects `JOURNAL_FORKED` and sees the write
+end with that code; with the retry removed the same test fails with the CI message. The CI
+failure itself was not reproduced locally: twenty runs of the racing test on the base passed, so the
+cause is the code reading above, with the retry as the mechanism that removes it.
+`TestCALV0019_RacingLeaseVerbsLeaveOneConsistentHeadThroughTornGuardReads` (same file, V1-2449)
+runs the CAL-V0-019 nine-verb race with the store's first guard read torn through the same seam;
+every verb commits or refuses and the store audits CONSISTENT, and with the retry removed a
+racer fails `SNAPSHOT_MOVED: head.json: file replaced between stat and open`, the V1-2449
+release-gates signature.
+
+Rollback: revert the source; a torn guard read again ends the write at once.
+
+## V1-2531 lease-gate latency amendment
+
+The V1-2531 lease-gate latency requirements (orphan-cleanup lock on a ready writer route, retained
+fdinfo files, single canonical ticket parse, claim latency target) are LGL-V0-001..004 in
+[`corvint-tasks-lease-gate-latency-v0.md`](corvint-tasks-lease-gate-latency-v0.md), because this
+spec's Requirements section is at the 256-obligation OCM limit.
+
+## Amendments to TCP-00
+
+Accepting this spec accepts these amendments; each keeps the existing ID space.
+The experimental `RUN_OUTCOME` observation verb is amended in by `corvint-tasks-attempt-runner-v0.md` (ATR-V0-005), not here.
+The `ESCALATION_PENDING` detail code (72 codes after A17) is amended in by `corvint-tasks-escalations-v0.md` (ESC-V0-006; owner-accepted 2026-10-05), not here.
+The `SECRET_DETECTED` and `PROVENANCE_UNVERIFIED` detail codes (76 codes) are amended in by `corvint-tasks-know-how-notes-v0.md` (KHN-V0-010; proposed, V1-0964), not here.
+
+- A28: CAL-V0-215 (accepted, decision 0519 (V1-1129)) adds `RESOURCE_EXHAUSTED`
+  to TCP-00 §11 (79 codes) and the CAL-V0-078 retryable set, subject to its explicit
+  non-retryable overrides. No envelope member or stored profile changes.
+
+- A27: CAL-V0-017 (V1-1081, accepted by decision 0539) adds `COMMIT_NOT_INTEGRATED` to TCP-00 §11's closed detail
+  code set (78 codes), classified not retryable. It appears only beside `STALE_TREE` on a refused
+  `complete` whose commit neither the intent branch nor its remote-tracking upstream contains, and
+  the envelope serializes both in its canonical sorted order; every
+  other result keeps its codes, and an older strict reader refuses an outcome that carries it.
+- A26: CAL-V0-206 adds an absent-only optional object `facets` to TCP-00 §3.3's closed
+  `taskman-command-result/0` key set under the A22 pattern. It is present only when a read is
+  asked for it (`--facets`, `--count`); every other result keeps its earlier bytes, and decoders
+  accept results without it. The profile stays `/0`. Strict readers of the earlier key set see it
+  only when their caller passes the new flags.
+- A25: CAL-V0-195 adds the optional top-level policy key `milestones` (closed object, boolean
+  `required`) under the A20, A23 and A24 pattern, and `MILESTONE_REQUIRED` to TCP-00 §11's closed
+  detail code set (77 codes), classified not retryable. Omission keeps the existing canonical policy
+  bytes and behavior; older strict readers refuse a policy that carries the key, and journal audit
+  keeps refusing after the key is removed.
+- A24: CAL-V0-120 adds the optional top-level policy key `holderLiveness` under the A20 and A23
+  pattern. Omission keeps the existing canonical policy bytes and the 600-second observation TTL;
+  older strict readers refuse a policy that carries it, and journal audit keeps refusing after
+  the key is removed. No attempt, request, receipt, reservation or detail-code change.
+
+- A23: CAL-V0-102 adds the optional top-level policy key `loopDetection`, the optional
+  absent-only `priorGenerations[]` key `loopEvidence` of `taskman-attempt/0`, written only while
+  the policy carries `loopDetection`, and the closed detail code `LOOP_DETECTED`; after A21's 73
+  codes the closed set contains 74. A policy, attempt or ledger without the keys keeps its bytes; older strict
+  readers refuse a policy or attempt that carries them.
+
+- A22: CAL-V0-078 adds an absent-only optional boolean `retryable` to TCP-00 §3.3's closed
+  `taskman-command-result/0` envelope, present exactly on a non-`OK` result that carries at least
+  one §11 code. `OK` and uncoded envelopes keep their bytes, and decoders accept the earlier coded
+  bytes without the member, so the profile stays `taskman-command-result/0`.
+
+- A21: CAL-V0-099 adds the optional absent-only ticket record key `executionPrerequisites` and the
+  closed detail code `PREREQUISITE_UNSATISFIED`; with A17 and ESC-V0-006 the closed set contains 73
+  codes. Records without the key keep their bytes; older strict readers refuse a record that
+  carries it.
+
+- A20: CAL-V0-101 adds the optional boolean `priorityAdmission` to a policy pool under the A15
+  pattern. Omission keeps the existing canonical policy bytes and admission; a reader that predates
+  it refuses a policy that carries it, and journal audit keeps refusing after the key is removed
+  because earlier policy afterimages remain. No attempt, reservation, pool-state or plan member
+  changes.
+
+- A19: CAL-V0-097 adds the optional top-level `resourceDeferred` member to `taskman-plan/0` and
+  admits a declared pool ID as a `DEFERRED RESOURCE_COLLISION` blocker. Both appear only in a
+  default plan whose policy declares pools; a plan without them keeps its exact bytes. This is an
+  additive /0 change under the A9/A15 pattern with no profile bump: old readers cannot consume the
+  new records. Core's `taskman-plan/0` decoder is updated in the same change to validate the rows
+  and admit a pool blocker only for a pool that has a row; it still refuses any other member.
+
+
+- A18: CAL-V0-045 raises the admitted retry bound to 16 without changing legacy value-3
+  semantics. CAL-V0-046 adds absent-only optional `handoffEvidence` to the closed attempt codec
+  and conditional evidence to RELEASE preimages. Existing absent-member bytes are unchanged.
+
+- A17: CAL-V0-044 adds `HANDOFF` and `REVIEW_RETURNED` to TCP-00 §11's closed detail
+  codes for the verified release requests and recorded dispositions it defines. Together with
+  the original 69 codes, the extended set contains 71; neither code alone grants an exemption.
+
+- A16: S10 adds the named supervised branch, optional supervision/role fields and `programs.json`.
+  Program-only LEASE posts admit one bounded projection plus retained request/output evidence;
+  existing operation limits and external-agent semantics otherwise remain in force. Rollback requires
+  drained proved sessions and retained/migrated supervised records; an old reader must not silently
+  discard these fields. Read commands remain nonmutating.
+
+- A15: issue 342 adds S9's optional policy/ticket/attempt fields and the bounded `pools.json`
+  projection. S9 opt-in health/cleanup signals its own trusted command process group; it does not
+  control external agents. LEASE staging expands to 11 artifacts, three blob afterimages and
+  a 2658-byte descriptor (shared temporary descriptor cap); other operation limits stay unchanged.
+  Pool-only TRANSITION receipts have no attempt/generation when none exists yet.
+  Observation, cleanup, recovery and safe confirmation are cancellation-class writes permitted
+  under an ALL barrier; preparation and admission remain blocked. Prior omitted-field /0 bytes
+  remain valid; old readers cannot consume new records. Pool-aware rollback requires stopping
+  claims, resolving quarantine and a recorded safe migration, not merely installing an old binary.
+
+- A8: runtime `external-agent`. An attempt with this runtime has `supervisor` and `lane` null in
+  every generation, never has a `PROCESS_SPAWN` effect, and is exempt from the §6.4 rows.
+- A9: `taskman-attempt/0` gains `lease:{holder, grantedSeq, expiresAt}|null`, non-null exactly for
+  `external-agent` attempts. A lease receipt (`claim`, `renew`, `release`, `reap`, `widen`,
+  `submit`, `gate run`) has `ticketId` null and names its attempt by `attemptId` and `generation`,
+  because TCP-00 binds a ticket afterimage to every completed receipt that names a ticket, and a
+  lease writes no ticket file. A completed `complete` receipt is the exception: it writes the
+  ticket file, so it names the ticket and carries its resulting revision like any ticket
+  mutation.
+- A10: cause `LEASE_EXPIRED` joins the closed cause set, and quiescence `FENCED` covers a generation
+  closed by `release`, `reap` or `complete`: no command of that generation can take effect after it.
+- A11: for a queue whose admissions are all `external-agent`, the §7.4 execution permission needs a
+  `QUALIFICATION` receipt for the CAL-V0-019 suite in place of G2's supervisor and spawn rows and G3.
+- A12: an `external-agent` attempt carries `scope:{source:"DECLARED"|"REQUESTED"|"DERIVED"|
+  "WHOLE_REPOSITORY", resources:[Resource], derivationSha256:Digest|null}`, non-null exactly for
+  that runtime, with `derivationSha256` non-null exactly for `DERIVED`. A ticket without `QUALIFIED`
+  coverage is admissible under such a scope regardless of the policy's `serialFallback`, because
+  the scope is enforced at submit (CAL-V0-024).
+- A13: S5 for `external-agent` attempts. A `gate run` supports `COMMAND` gates with an expected
+  exit code, `cwd` `WORKTREE`, no reducer, no `sharedResource`, no declared `inputs` and no
+  evidence label beyond the captured output; any other gate refuses `UNSUPPORTED` before it runs.
+  The gate runs in the caller's worktree (`executedCwd` `WORKTREE`) with only the environment
+  names the gate's `env` declares, taken from the caller, so a gate whose commands need `PATH`
+  must declare it. The first argv element is resolved on `corvint-tasks`' own `PATH`, not the
+  declared one. An interrupt kills the gate's process group; a run that started is still recorded
+  as CAL-V0-319 says (V1-2012 amends the earlier "records nothing"). The CAL-V0-024
+  scope check at `submit` counts only paths that differ from both the base commit's tree and the
+  intent branch tip's tree, so a candidate rebased onto a later `main` is not charged with paths
+  other tickets merged. The check therefore guards what a lease completion certifies, not the
+  branch itself: a path an agent commits straight to the intent branch before `submit` is
+  identical at the tip and is not counted. A result's staleness is its tree binding: after a new
+  `submit`, earlier results stay in `gateResults` unchanged and count as `GATE_STALE` because
+  their `candidateTreeOid` differs, which is how CAL-V0-015's "marks every earlier gate result
+  `STALE`" is met without rewriting evidence. A `gate run` repeated under the same request id runs
+  the gate again before the replay is found, and the replay returns the original receipt.
+  `complete` refuses unless the commit is reachable and carries the candidate tree, the ticket is
+  `OPEN` and not held at the acceptance revision the attempt read, the policy is the one the claim
+  read, the scope check is `WITHIN`, an `APPROVAL_REQUIRED` ticket has a `COMPLETE` grant at that
+  revision, and every required gate (the policy's `required` gates plus the ticket's
+  `requiredGates`) has a `PASSED` result at the candidate tree. It completes the ticket `VERIFIED`
+  with a `MANIFEST` evidence record; the supervisor, lane, spawn and review checks of §7.3 do not
+  apply to this runtime. The lease verbs read Git in the caller's checkout, else the primary
+  worktree.
+- A14: S1. `init` accepts a queue whose `fixture` is false, with `importMapSha256` and
+  `executionCutover` null, so that a non-fixture store exists to write to; a queue that names an
+  import map or an execution cutover still refuses `MALFORMED`. Such a store also takes ticket
+  `reconcile` and the S2 writer `cutover`. Only S7's `QUALIFICATION` receipt (CAL-V0-020) sets
+  `executionCutover`, and `init` still refuses one; until it is set, on a non-fixture queue `claim` and
+  `claim --next` refuse `BLOCKED` `CUTOVER_MISSING` for the missing execution cutover, and
+  `plan preview` plans each ticket `BLOCKED` with `CUTOVER_MISSING` after `PAUSED` and before
+  `BUDGET_UNKNOWN`. CAL-V0-027 extends release mutations, settled release reconciliation and bounded shared staging
+  observation to native queues with a null import map, before or after valid execution cutover.
+  INIT, claim/plan qualification and cleanup authority remain unchanged.
+
+## Failure modes
+
+| Failure | Effect | Handling |
+|---|---|---|
+| Holder crashes or abandons its session | Lease stops being renewed | `reap`, or the next colliding `claim`, fails the attempt `LEASE_EXPIRED` and frees the reservation |
+| Stale holder keeps working after reap | Edits continue in its own worktree | Every command it sends is `FENCED`; the tree it built can only complete through a new claim |
+| Two sessions use one holder label | Both believe they hold it | The label is a display name only; the generation returned by `claim` is the fence |
+| Wall clock steps backward | An expired lease could look live | A transaction earlier than the head refuses before writing (CAL-V0-012) |
+| A writer waits behind another writer's commit | Its earlier timestamp would look like a backward clock | The writer samples its live clock again against the head it holds (CAL-V0-012) |
+| Gate command hangs | Holder waits | The declared gate timeout records `FAILED`; the attempt stays `CHECKING` for another `gate run` or `submit` |
+| Candidate rebased before merge | Tree changes | `complete` refuses until the new tree is submitted and gated |
+| Cutover interrupted | One receipt either committed or not | A rerun with the same decision replays or commits it |
+| Store edited outside corvint-tasks during an import (`git pull`, an editor) | Batches after the first check only the head and the files they post | A ticket the batch posts refuses `INTENT_DIVERGED` and a moved head refuses `SNAPSHOT_MOVED`; other drift is not seen until the next command audits the store (CAL-V0-018) |
+| Re-import after cutover | Foreign export disagrees with the published records | `import` refuses the whole export and writes nothing |
+| Non-fixture queue before execution cutover | Agents try to claim | `claim` and `claim --next` refuse `BLOCKED` `CUTOVER_MISSING` and `plan preview` plans every ticket `BLOCKED` until `cutover --execution` records a passing qualification run; ticket writes still work |
+| Writer killed between its first staged artifact and its head | Staging slots stay behind with no `staging/active.json` | Unlocked journal audits and `export` wait out the slots for at most two seconds (CTS-V0-008), then refuse `MALFORMED` `unassigned stage slot` until the next writer; an audit made under the writer lock (such as reconcile's) refuses them at once. Every ticket, lease and administrative write, and `gate run` before it runs a gate, first removes the orphan slots under the writer lock and redoes a receipt already linked in (CAL-V0-019). Barrier writes also remove orphan slots through `redoPendingFor` before their locked lookup (CAL-V0-019; `internal/tasks/store/barrier.go`, `internal/tasks/store/redo.go`; `TestCALV0019_BarrierRemovesOrphanStage`). Reconcile does not clear them before its locked lookup and refuses immediately (CTS-V0-008; `internal/tasks/store/reconcile.go`; `TestCTSV0008_LockedReconcileRefusesOrphanSlotWithoutWaiting`); a recovering writer must run first. Slots beside a `staging/active.json` descriptor are active staging, which stays refused `UNSUPPORTED` |
+| Derived scope misses a file the agent needs | Agent edits outside its scope | `submit` refuses `OUT_OF_SCOPE`; the agent `widen`s, or releases and reclaims with `--scope` |
+| Two disjoint scopes interfere semantically | Each passes alone, the merge breaks | Gates run at the exact rebased candidate tree before `complete` (CAL-V0-016, CAL-V0-017) |
+| Context index absent or stale | No derivation | The scope is `WHOLE_REPOSITORY`, which serializes that claim as today |
+| Dispatcher crashes or is stopped | Workers keep running unsupervised | The next `dispatch` adopts workers whose recorded identities still match, then supervises and heals them (CAL-V0-056) |
+| Dispatched worker loops without progress | Repeated launches spend host budget | Cooldown, then park and `needs-owner` after `parkAfter` runs (CAL-V0-057) |
+| Escalated tier floods a scarce model | Many tickets launch on the stronger model at once | A tier `cap` holds the excess candidates waiting, never downgraded (CAL-V0-054) |
+| Ladder names a model its host cannot render | The model setting would be silently ignored | The configuration is refused before any launch (CAL-V0-052) |
+| Host saturated by load or swap while the dispatcher launches | New workers deepen the overload | With `pressure` configured, the level caps new non-exempt launches after its dwell and a `throttled` event names the held work; running workers are untouched (CAL-V0-068) |
+| Host pressure sample unreadable, oversized, malformed or timed out | The level cannot be recomputed | The sample is `UNKNOWN`, the level and its cap are kept and pending dwell restarts; it never counts as calm (CAL-V0-068) |
+| macOS swap use stays high after memory pressure passes | A static swap level would pin the throttle | The macOS memory signal is the kernel memory-pressure level; swap is not sampled there, and a missing level is `UNKNOWN`, never swap (CAL-V0-109) |
+| Operator cannot tell which threshold set the level | Thresholds are tuned blindly | The level records its `reason`, shown in `dispatch status` and the `throttled` event (CAL-V0-110) |
+| Several projections diverge, or several strays or unassigned stage slots exist | A refusal naming a random one would differ between identical runs | The byte-smallest faulty path and its code are named on every run (CAL-V0-114) |
+| macOS load average counts vCPU threads and stays inflated | The throttle holds a level with idle CPUs | Per-OS `signals` can select `memory` alone on macOS; Linux can select `cpu` utilisation from tick deltas, UNKNOWN on the first tick of a run (CAL-V0-125..126) |
+| An edited dispatcher configuration is invalid | A restart or reload would stop dispatching | The applied configuration stays active and the refusal is reported in status and one alert (CAL-V0-127) |
+| Checkpoint absent, corrupt, oversized, foreign or ahead of the head | A read cannot resume | The read runs the complete audit and reports `FULL`; output is otherwise identical (CAL-V0-061) |
+| Checkpoint disagrees with a receipt, projection, staging or the intent tree | A resumed read would mis-state the store | The resumed path refuses internally and the complete audit decides the reported verdict (CAL-V0-061) |
+| Journal prefix, or a checkpoint entry together with its projection, altered behind a still-matching checkpoint | A resumed read does not see it | `receipt audit`, every complete-route write and the scheduled writer refresh run the complete audit and refuse (CAL-V0-116, CAL-V0-117); the read's verdict says `CHECKPOINT_PLUS_TAIL`, not `CONSISTENT` (CAL-V0-061) |
+| Writer cannot retain the checkpoint (full disk, permissions, crash before rename) | Reads stay at complete-audit cost | The transaction is unaffected; the next successful writer retains one (CAL-V0-060) |
+| Writer checkpoint absent, torn, corrupt, foreign, in the layout without an invalidation digest, bound to another invalidation token, not matching its named receipt, or outrun (tail over 256, head 4,096 or more past `FullSeq`) | The write cannot resume | The complete route serves or refuses the write and retains a fresh checkpoint at the head it audited, bound to the token read before that audit (CAL-V0-115, CAL-V0-116, CAL-V0-117) |
+| Crash after the unsynced writer checkpoint write | The file is torn or older | A torn file falls back to the complete route; an older one still names a receipt of the append-only chain, so its tail is walked or declined (CAL-V0-115) |
+| Prefix receipt, request, evidence or pinned content altered, a stray request planted, or an internally consistent writer checkpoint forged | A fast writer commits over it | `receipt audit`, every complete-route write and the scheduled refresh refuse; a refusing refresh replaces the invalidation token, which unbinds the writer checkpoint, and removes it, so every later write refuses (CAL-V0-116, CAL-V0-117) |
+| A writer commits between the scheduled refresh's audit and its lock | The refresh observed an older head | It retains the writer checkpoint bound to the head it audited unless the retained one descends from a later complete audit, and the read checkpoint only when `head.json` is unchanged; the next writer walks the rest as tail (CAL-V0-117) |
+| The intent worktree switches to another branch with identical intent contents after a fast writer observed it | A fast lease would commit on the wrong branch | The fast route rechecks the branch before effects and declines; the complete route decides (CAL-V0-116) |
+| A tail receipt changes or removes the note reference of a ticket last posted before the writer checkpoint, without its note event | A fast writer would accept a note change the complete audit refuses | The writer audit binds the post to the checkpoint's note reference and declines; the complete route refuses `JOURNAL_FORKED` (CAL-V0-116) |
+| A foreign process adds, renames or removes a `receipts/` name after the writer audit's first listing | A reused listing would hide it from the second capture | The second capture lists exactly, the attempt moves and the retry lists the fresh directory exactly (CAL-V0-224, JSG-V0-007) |
+| A killed writer leaves a temporary name in `receipts/` and the directory stamps are later restored | A listing retained across attempts would miss it | A listing never outlives its attempt; every attempt's first capture lists exactly and declines the fast route on the stray (CAL-V0-224) |
+| An older refresh's audit succeeds after a newer refresh refused and removed the writer checkpoint | The older refresh would reinstall it | The newer refusal replaced the invalidation token, so the older refresh publishes nothing (`refresh.superseded`) (CAL-V0-117) |
+| The invalidation token cannot be written | A refusal is not recorded for older refreshes | The checkpoint is still removed; an older refresh may reinstall it until the next scheduled refresh refuses and removes it again (CAL-V0-117) |
+| A refusing refresh stops after replacing the invalidation token and before removing the writer checkpoint | The checkpoint over the known corruption stays on disk | Its invalidation digest no longer matches the token, so the next write declines and the complete route refuses; the removal is only cleanup (CAL-V0-117) |
+| The invalidation token is unreadable or empty, for example torn by a crash after its unsynced write | No checkpoint can be bound to it | Every consumer declines and no retention publishes, so the complete route serves or refuses every write until the token is removed together with the writer checkpoint (CAL-V0-117) |
+| Extra repository moved, re-cloned, retargeted or undeclared | A program would edit an unintended checkout | Admission and every stage refuse unless the policy `supervision.repositories` pin matches the configured path, and every stage refuses a checkout whose common Git identity differs from the program record before any Git write (CAL-V0-071) |
+| Extra repository edited outside the ticket's `@name/` touch paths | Candidate widens scope silently | The implement stage blocks `OUT_OF_SCOPE` with no candidate (CAL-V0-071) |
+| Extra repository sibling worktree dirty or retargeted when a gate runs | A gate result would certify a tree other than the composite candidate | The gate refuses `DIRTY_WORKTREE` or `STALE_TREE` and records no result; the attempt does not reach `READY_FOR_INTEGRATION` (CAL-V0-087) |
+| Changed extra repository has no integration designation | Its candidate would land in an unintended checkout or nowhere | The integrator refuses `UNSUPPORTED` before any grant or Git write; the composite candidate stays recorded (CAL-V0-087) |
+| Integration grant omits a repository or its branch | A grant for one landing would authorize another | Its scope differs from the multi-repository formula and the grant is refused `APPROVAL_MISSING` (CAL-V0-087) |
+| Designated checkout advanced, switched branch or dirty before integration | A fast-forward would fail mid-landing or land on the wrong branch | Refused before the grant (`TARGET_ADVANCED`, `designated checkout branch differs`) and re-checked under the lock before the first landing (CAL-V0-087) |
+| Supervisor interrupted between repository landings, or before `INTEGRATED` | A restart would land a candidate twice or complete over a missing landing | A landed checkout is skipped; recovery requires every candidate on its branch or stops `BLOCKED_RECOVERY` (CAL-V0-087) |
+| Outside writer advances a later designated checkout after an earlier one landed | Integration is not atomic against writers outside the store lock | Integration stops `TARGET_ADVANCED` with the earlier landing kept and never repeated; the operator restores the advanced checkout (known limit, CAL-V0-087) |
+| Extra repository has no READY, fresh Core index | The host would edit a repository without its context | The stage refuses `repository <name>: CONTEXT_UNAVAILABLE` before launch (CAL-V0-088) |
+| Stage stopped by its wall with `continuations` configured | Work past one wall would be lost or need an operator | The stage resumes its recorded session in the preserved worktree up to the policy bound, each as an ordinary ANSWER and DISPATCH under every cap (CAL-V0-089) |
+| Continuation would exceed the lane or program turn cap, the program wall, or meets a pending drain or cancel | A continuation would overrun a bound or race the control | No continuation starts; the attempt waits unanswered for an operator `retry`, which the same caps refuse (CAL-V0-089) |
+| Drain or cancel recorded after the continuation check, before its admission | The control returns as settled and another host turn launches anyway | The continuation's first program write refuses `FENCED` against the revision it replaces; the program stays `FINISHED` and released with the control recorded, and no host turn starts (CAL-V0-089) |
+| `continuations` with Claude Code, or with a lane or program token cap | The stage could not resume, or every continuation would be refused as usage unknown | Program admission and every stage launch refuse `UNSUPPORTED` before mutation (CAL-V0-089) |
+| Supervisor config host differs from the policy host, or names an unknown host | A program would speak the wrong vocabulary to the pinned binary | Admission and every stage refuse `UNSUPPORTED` before any record, lease or host process (CAL-V0-074) |
+| Pinned Claude Code or Codex executable missing, replaced or re-moded | An unqualified binary would run | Refused `CAPABILITY_UNAVAILABLE` before any program record or lease (CAL-V0-074) |
+| Pinned executable is a symlink or lacks an execute bit | Admission takes a lease for a stage that launch refuses, leaving the worker unresolved | Admission runs the launch-time check and refuses `CAPABILITY_UNAVAILABLE` before any record; a later refusal before the leader fork settles the stage `NO_EXEC` and cancels the attempt (CAL-V0-074) |
+| Pinned executable replaced between the leader's check and its acknowledgment | Unchecked bytes would run | The leader runs the verified object: a root-protected path with no ACL on it or any ancestor, or a private copy of the verified bytes (CAL-V0-074) |
+| Owner dies after a launch refusal's `FINISHED` record and before its owner release | The program stays `FINISHED` and unreleased; before the cancel the stopped attempt keeps its claim and reservation | A replacement process takes over the `FINISHED` program once the owner is gone, then cancels the attempt or, after the cancel, reassigns the program (CAL-V0-074) |
+| Owner dies after a launch refusal's dispatch and before its `FINISHED` record | The program stays `SPAWNING` (before the settlement starts) or `STOPPING`, and the attempt keeps its claim and reservation | Once the attempt has recorded its proved stop, a replacement settles the program `FINISHED` and cancels the attempt (CAL-V0-210, accepted by decision 0473). Before that stop, the dispatched worker has no leader boot record to recover, so a replacement is still refused and the claim held (CAL-V0-074) |
+| Leader fails after the fork with no outcome class, and its drain is unproved | A spawned host would be recorded as never run and its claim released | Only a pre-fork refusal settles `NO_EXEC`; the attempt stays in `BLOCKED_RECOVERY` (CAL-V0-074) |
+| Policy host changes under an existing idle or completed program | A reopen would reassign and claim work under the old host | Reopen refuses `UNSUPPORTED` before reassignment, claim or attach; a live attempt keeps drain and cancel only (CAL-V0-074) |
+| Runtime pin changes while a drained `claude-code` attempt is live | Its claim and reservation would be stranded behind a config the new pin refuses | Rollback cancels every program, drained ones included, before the pin changes; a missed one is recovered by re-pinning its runtime to cancel it (CAL-V0-074) |
+| Claude Code result is not one exact success object with a strict handoff | A host claim would be invented from prose | The stage is `INVALID_RESULT`; missing usage counters stay `NOT_OBSERVED` (CAL-V0-075) |
+| Claude Code result or handoff repeats a JSON member, or aliases one by case | Last-wins or case-insensitive decoding would turn an error into success or merge partial usage | `INVALID_RESULT`, with session and usage `NOT_OBSERVED` (CAL-V0-075) |
+| Runtime pin changes while a drained `opencode` attempt is live | Its claim and reservation would be stranded behind a config the new pin refuses | Rollback cancels every program, drained ones included, before the pin changes; a missed one is recovered by re-pinning its runtime to cancel it (CAL-V0-076) |
+| OpenCode stream line or JSON handoff repeats a member, or aliases a read one by case | Last-wins or case-insensitive decoding would mask a host error, accept a refused review or merge partial counters | `INVALID_RESULT`, with session and usage `NOT_OBSERVED` (CAL-V0-077) |
+| OpenCode program names a variant model or extra repositories | The stage effort or the worktree boundary would be silently overridden | Admission and every stage refuse `UNSUPPORTED` before any record (CAL-V0-076) |
+| OpenCode stream reports an error, changes session, leaves a step open, is cut at the output cap, or ends without a stop-finished step carrying a strict handoff | A host claim or partial usage would be invented from a partial or failed turn | The stage is `INVALID_RESULT` (or `OUTPUT_LIMIT`); usage stays `NOT_OBSERVED` unless accounting is complete (CAL-V0-077) |
+| Resumed OpenCode stage fails the fork or answers from the same session ID | An answer would be accepted without the history of the WAIT question it continues | The attempt stays `WAITING` with the original session retained (CAL-V0-077) |
+| OpenCode standalone server or tool process leaves the owned process group | A host process would outlive a stage reported clean | Escapes are observed through their live parent and drained; the server holds the stage's standard error, so a survivor blocks end of file and the stop is not clean (CAL-V0-077) |
+| OpenCode plugin or project configuration in the worktree | Untrusted code or permissions would load into the stage | Project configuration is disabled and permissions arrive inline; user-configured plugins are a known, uncontained limit (owner decision 2026-10-04) (CAL-V0-077) |
+| Supervised stage worktree path longer than 128 bytes (deep work root or agent `TMPDIR`) | DISPATCH would refuse `LIMIT_EXCEEDED` after the worktree and program records exist | The attempt records the path as PathText up to 4096 bytes; a longer or invalid path is refused before any directory, record or Git worktree (CAL-V0-086) |
+| Stage drain cannot prove quiescence (a host process escaped, or the probe never answers gone) | The role would journal `FINISHED` over `BLOCKED_RECOVERY` and be refused `MALFORMED`, report a wall timeout, nonzero exit or invalid result as `MALFORMED`, or (over an existing candidate it changed) refuse `read-only stage changed candidate` with the attempt left `STOPPING` | The role ends with non-retryable `SURVIVORS`, keeping any stage failure's text; program and attempt stay `BLOCKED_RECOVERY`, program quiescence `UNKNOWN`, owner unreleased (CAL-V0-086) |
+| Darwin answers `EPERM` for a zombie-only process group before its leader is reaped | A finished stage would be reported unclean under load | The drain re-probes until `ESRCH` or its deadline and never counts `EPERM` as gone (CAL-V0-086) |
+| Unlocked program read fails while a concurrent writer stages its journal | The watcher would cancel a healthy stage | Reads may fail for up to 30 seconds of continuous failure before the stage stops; heartbeat refusals still stop it at once (CAL-V0-086) |
+| Dispatcher ledger written by another build (another dispatch-state version, or a member this build does not know) | A rollback or skipped build would drop or misread recorded workers and backoff | The dispatcher refuses UNSUPPORTED_VERSION before any decode, rewrite or worker action (CAL-V0-132); amendment accepted by decision 0439: a drained version 0 ledger (no worker; every member at any depth in version 0's closed set, exactly spelled and unrepeated) is adopted with its history and rewritten as version 1 by the next save, and any other version 0 ledger refuses unchanged; a version 1 ledger repeating a member exactly, holding two struct members that fold to one field, or carrying trailing data refuses MALFORMED |
+| Record written by another build (another version of its own profile, possibly with members this build does not know) | A newer record would be reported MALFORMED, read as damage, or partly decoded | Each decoder refuses UNSUPPORTED_VERSION before its closed-key checks and reads nothing more; the first refusal sticks and survives wrapping (CAL-V0-131) |
+| New corvint-tasks build installed while attempts are live | A drain would be the only safe upgrade, or a build N process would meet records it cannot read | Equal `version` `formats` permit replacement by rename and adoption, and rollback by the same procedure; differing sets require a drain to upgrade, and rollback across them is unsupported: N refuses UNSUPPORTED_VERSION with the store unchanged (CAL-V0-130, CAL-V0-131, CAL-V0-133) |
+| Dispatcher token usage is unread, cut by the log cap, malformed or never written | A budget would charge or report unknown usage as 0 tokens, or count a torn line | The total is PARTIAL (a lower bound) or UNKNOWN, written `UNKNOWN` and never `0`; UNKNOWN sessions count as sessions and add no tokens (CAL-V0-155, CAL-V0-157) |
+| Dispatcher ledger version 2 met by a version 1 build, or history lost to the record cap | Budgets would hold or admit against a history that was dropped | Version 1 refuses UNSUPPORTED_VERSION; a truncated history holds every budgeted scope as `historyTruncated` until it leaves the window (CAL-V0-156, CAL-V0-161) |
+| Dispatcher ledger version 3 (CAL-V0-185 stall counts) met by a version 2 build, or a ticket relaunched without a native status change | A rollback would drop the counts; a looping program would show no signal or be stopped by an advisory | The earlier build refuses UNSUPPORTED_VERSION; the count is reported and a typed `stalled` event fires once at the threshold, holding nothing (CAL-V0-185) |
+| Dispatcher stopped before its last tick reaped an ended worker, then upgraded from a version 2 build | The new build would refuse the ledger and the program would stay down until the old binary ran again | Every recorded worker proven gone by the version 2 reap check is adopted and reaped on the first tick; a worker live or unprovable refuses UNSUPPORTED_VERSION naming the old build and the clearing command (CAL-V0-187, proposed) |
+| Dispatcher tick ledger save fails (unwritable state directory, full disk, failed sync) | The tick would report success and publish state that `state.json` does not hold, so operators and the service boundary would read unpersisted accounting as saved | The tick fails `ErrLedgerUnsaved` with the original cause, `Run` raises a `tick failed` alert and keeps supervising from the in-memory ledger, and the next tick saves the current ledger; no older snapshot is restored (CAL-V0-194) |
+
+## Acceptance and rollback
+
+S9 evidence: `TestPoolAllocationQuarantine`, `TestPoolAllocationTupleCorrespondence`,
+`TestPoolNoHealthConfigReference`, `TestPoolReplayReturnsOriginalAllocation`,
+`TestPoolHealthSkipsFailedMember`, `TestPoolProcessDescendants`,
+`TestPoolPlanConsumesEligibleSlots`, and `TestPoolPreviewConsumesMembersWithoutProbes` under
+`internal/tasks`. Native disposable queue qualification covers independent concurrent processes,
+reserved review capacity, required-pool refusal, read-only occupancy, health skip/pass,
+cleanup-before-confirmation, success/timeout/SIGTERM descendants and SIGKILL/replay/recovery.
+This qualifies trusted same-process-group commands on the observed native host, not hostile
+containment or real deployment isolation. Final frozen enrollment and closeout remain required.
+
+Acceptance evidence, per slice: named `TestCALV0NNN_*` tests for every requirement in that slice
+under `internal/tasks`, the unchanged fixture tests for CAL-V0-003, and for S6 the measured first
+import of the real export, and for S8 a measurement on the Beamfall fixture store of how many open
+core tickets could hold concurrent claims under CAL-V0-023 against the runner's two-lane rule.
+Before S7 closes, a rehearsal in a throwaway non-fixture store holding the cut-over Beamfall export
+claims, gates and completes one real Beamfall ticket, and lets one lease expire and be reaped.
+
+CAL-V0-027 acceptance uses the compiled disposable non-fixture lifecycle, the existing lifecycle
+assertions under both queue profiles, before/after-receipt fault injection, exact replay/conflict,
+qualified post-cutover writes, and pending/active reconciliation refusal. Returned publication
+faults and reconstructed orphan slots prove the bounded retry path; arbitrary process-crash
+recovery is not claimed by this slice. Completed ordinary mutation and lease observations are
+proved against real published artifacts, including gate, manifest and FENCED refusal receipts;
+the V1-0466 amendment adds actual `ARCHIVE`, `RESTORE`, `RELEASE` and settled release `RECONCILE`
+stages, and relabels each actual stage as every other class plus one unknown label, which must
+refuse without writing at the closed layout or, where the layout fits, at the receipt-kind binding.
+CAL-V0-027 rollback restores the three fixture-only admission boundaries; retain every existing receipt,
+release projection and evidence blob. Production migration and concurrent-agent rehearsal remain
+separate release obligations; this slice does not switch Beamfall or establish complete takeover.
+
+Rollback, per slice: S1 restores the fixture-only checks in the INIT digest and `validateInput`
+(`internal/tasks/transaction/model.go`) and removes the `CUTOVER_MISSING` claim check (a
+non-fixture store it initialized then refuses every write until it is removed); S2 removes
+`cutover` (a queue it already switched stays `NATIVE`, and its imported records stay eligible
+`IMPORT` records; reversing a switch is TCP-00's §5.4 revert, which this spec does not build); S3 to S5 remove the lease verbs, and a
+store that holds live `external-agent` attempts must first `release` or `reap` them, because a
+rolled-back reader reports them `NOT_OBSERVED`; S6 restores the per-batch audit; S8 removes `widen`
+and the scope check, and every claim reverts to `WHOLE_REPOSITORY`; S7 removes the execution cutover
+verb, and an owner decision clears `executionCutover` on any queue that has it. Beamfall keeps
+`roadmap.sh` untouched until TCP-09, so its runner stays available as the fallback throughout.
+
+V1-0937 (CAL-V0-155..161, accepted by decision 0441) acceptance is the focused dispatch and status tests named in
+its section; live dispatcher qualification with real hosts is NOT_RUN. Its rollback drains the
+dispatcher before the binary is reverted, because the previous build refuses a version 2 ledger,
+and removes the new configuration members.
+
+## Traceability
+
+| Requirement | Evidence |
+|---|---|
+| CAL-V0-001 | `TestCALV0001_NonFixtureQueueTakesEveryWrite`, `TestCALV0001_ImportMappedQueueStaysRefused` (`internal/tasks/store`) |
+| CAL-V0-002 | `TestCALV0002_NonFixtureQueueRefusesClaims` (`internal/tasks/store`), `TestCALV0002_PlanPreviewBlocksANonFixtureQueue` (`internal/tasks/cli`); the cutover side is `TestCALV0020_ExecutionCutoverAdmitsClaims` (`internal/tasks/store`) |
+| CAL-V0-003 | The fixture tests under `internal/tasks` pass unchanged |
+| CAL-V0-004 | `TestCALV0004_CutoverSwitchesWriterInOneReceipt`, `TestCALV0004_CutoverRefusals` (`internal/tasks/store`), `TestCALV0004_CLICutoverPublishesImportedRecords` (`internal/tasks/cli`) |
+| CAL-V0-005 | `TestCALV0005_ImportAfterCutoverRefusesAndWritesNothing` (`internal/tasks/store`) |
+| CAL-V0-006 | `TestCALV0004_CutoverSwitchesWriterInOneReceipt` (imported record bytes unchanged) |
+| CAL-V0-007 | `TestCALV0007_ClaimAdmitsOneRunningAttempt`, `TestCALV0007_ClaimRefusesBudgetUnknown` (`internal/tasks/store`) |
+| CAL-V0-008 | `TestCALV0008_ClaimNextTakesThePlanInPriorityOrder`, `TestCALV0008_ClaimNextRefusesWithoutACandidate`, `TestCALV0008_ClaimNextReapsEveryExpiredLeaseFirst` (`internal/tasks/store`) |
+| CAL-V0-009 | `TestCALV0009_StaleGenerationIsFencedAndRecorded` (`internal/tasks/store`) |
+| CAL-V0-010 | `TestCALV0010_RenewExtendsAndIsFencedAfterExpiry` (`internal/tasks/store`) |
+| CAL-V0-011 | `TestCALV0011_ExpiredLeaseIsReapedByACollidingClaim`, `TestCALV0011_ReapAndRelease`, `TestCALV0011_ReleaseAndReapPassAnAllBarrier` (`internal/tasks/store`) |
+| CAL-V0-012 | `TestCALV0012_LeaseBoundsAndBackwardClock`, `TestCALV0012_BackwardClockRefusesEveryWriter`, `TestCALV0012_WriterBehindNewerHeadSamplesAgain` (`internal/tasks/store`) |
+| CAL-V0-044 | `TestCALV0044_CleanHandoffsPreserveRetryDebt`, `TestCALV0044_HandoffNeedsRecordedEligibility`, `TestCALV0044_FailedGateRemainsChargedAfterPassAndSubmit`, `TestCALV0044_ReviewExpiryStillExhausts`, `TestCALV0044_TimeoutRemainsSticky` (`internal/tasks/store`); `TestCALV0044_LegacyReasonCannotExempt` (`internal/tasks/transaction`); `TestCALV0044_AccountingSchema` (`internal/tasks/snapshot`); `TestCALV0044_CLIHandoffAccounting` (`internal/tasks/cli`) |
+| CAL-V0-045 | `TestCALV0045_RetryPolicyBounds` (`internal/tasks/intent`); `TestCALV0045_PolicyControlsAdmissionAndRecovery`, `TestCALV0045_RecoveryUsesCurrentPolicy` (`internal/tasks/store`); `TestCALV0045_CLIConfiguredRetriesAndNoTreeHandoff` (`internal/tasks/cli`) |
+| CAL-V0-046 | `TestCALV0046_ReleasePreimageCompatibility`, `TestCALV0046_NoTreeEligibilityBindings` (`internal/tasks/transaction`); `TestCALV0046_NoTreeHandoffSchema` (`internal/tasks/snapshot`); `TestCALV0046_NoTreeHandoffAndIntegrate`, `TestCALV0046_NoTreeRefusals` (`internal/tasks/store`); `TestCALV0045_CLIConfiguredRetriesAndNoTreeHandoff`, `TestCALV0046_CLICompatibility`, `TestCALV0046_CLIPoolHandoffQuarantines` (`internal/tasks/cli`) |
+| CAL-V0-047 | `TestCALV0047_AllCommandHelpIsReadOnly`, `TestCALV0047_MalformedInputsStillRefuse` (`internal/tasks/cli`) |
+| CAL-V0-052 | `TestCALV0052_RunNormalizesShutdown`, `TestCALV0052_DecodeConfigIsClosedAndBounded`, `TestCALV0052_RenderIsSinglePass`, `TestCALV0052_EscalationConfigRefusesUnsupportedModels` (`internal/tasks/dispatch`); `TestCALV0052_DispatchCLIClaimHandoffAndStatus`, `TestCALV0057_DispatchStatusShowsTierAndStreak` (`internal/tasks/cli`) |
+| CAL-V0-053 | `TestCALV0053_WorkStateReaders`, `TestCALV0053_ReaderReleased`, `TestCALV0053_ReaderFixedRetirementBound`, `TestCALV0053_ReaderExpiredBeforeRetirement`, `TestCALV0053_ReaderHoldIsSticky`, `TestCALV0053_ReaderMarkerRefusesUnsafeEvidence`, `TestCALV0053_ReaderMarkerIdentityAndSetup`, `TestCALV0053_ReaderLocalTimeout`, `TestCALV0053_ReaderClearFailureQuarantines`, `TestCALV0053_ReaderFilesystemFailures`, `TestCALV0053_ReaderFailedDiagnostic`, `TestCALV0053_ReaderDescendants`, `TestCALV0053_CancelledTickKeepsState`, `TestCALV0053_CancelledReobservationKeepsDurableState`, `TestCALV0053_EndedContextDoesNotObserve` (`internal/tasks/dispatch`); `TestCALV0053_DispatchReaderCLIQuarantineAndStatus`, `TestCALV0053_DispatchReaderCLIClearFailure`, `TestCALV0053_DispatchReaderCLIReleased`, `TestCALV0053_DispatchReaderCLICrashRetainsQuarantine` (`internal/tasks/cli`); #464 evidence and limits below |
+| CAL-V0-054 | `TestCALV0054_RosterIsDeterministicAndCapped`, `TestCALV0054_RosterStatePredicatesAndLanes`, `TestCALV0054_RosterTierCapsWaitWithoutDowngrade`, `TestCALV0054_TierCapPrecedesPressureBudget` (`internal/tasks/dispatch`) |
+| CAL-V0-055 | `TestCALV0055_LaunchFinishBackoffAndPark` (`internal/tasks/dispatch`); live OpenCode run in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-01-tasks-continuous-dispatch.md`; live Claude Code and Codex runs in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-01-tasks-dispatch-claude-code.md` and `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-01-tasks-dispatch-codex.md` |
+| CAL-V0-056 | `TestCALV0056_CancelledHealingStopsNextWrite`, `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0056_KillsOrphanedProcessesBySession`, `TestCALV0056_IdentityOutageAndUnknownState` (`internal/tasks/dispatch`); `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
+| CAL-V0-057 | `TestCALV0057_FingerprintIgnoresNonDurableAttempts`, `TestCALV0055_LaunchFinishBackoffAndPark`, `TestCALV0057_EscalationLadderClimbsAndResetsOnProgress`, `TestCALV0057_StickyTierAndOperatorUnparkKeepStreak`, `TestCALV0057_ProgressOutsideSessionResetsLadder`, `TestCALV0057_ProgressDuringSessionKeepsAccounting`, `TestCALV0057_StickyTierAfterProgressOutsideSession`, `TestCALV0057_CooldownProgressRequiresFreshParkingEvidence`, `TestCALV0057_NoLadderKeepsLegacyLedger`, `TestCALV0057_LedgerEscalationIsBounded` (`internal/tasks/dispatch`); `TestCALV0057_DispatchStatusShowsTierAndStreak` (`internal/tasks/cli`); V1-0726 cooldown accounting amendment proposed, pending owner acceptance; live model-host qualification NOT_RUN |
+| CAL-V0-058 | Event assertions in `TestCALV0055_LaunchFinishBackoffAndPark`, `TestCALV0056_HandoffAndReap`, `TestCALV0056_KillsWholeTreeAndAdoptsAcrossRestart`, `TestCALV0058_SummaryReadsHostFinalText`, `TestCALV0057_EscalationLadderClimbsAndResetsOnProgress`, `TestCALV0058_EventLogRotatesOnceAt16MiB` (`internal/tasks/dispatch`) and `TestCALV0052_DispatchCLIClaimHandoffAndStatus` (`internal/tasks/cli`) |
+| CAL-V0-068 | `TestCALV0068_RosterPressurePrecedence`, `TestCALV0068_HeldRespectsStaticCaps`, `TestCALV0068_ConfigValidation`, `TestCALV0068_DispatcherThrottlesNewLaunchesOnly`, `TestCALV0068_RestartKeepsLevelAndDisableClears`, `TestCALV0068_LedgerPressureRecordValidated`, `TestIssue497_PressureHysteresis`, `TestIssue497_UnknownRetainsLevel`, `TestIssue497_NormalizesHostCPU`, `TestIssue497_MixedMetricTransitions`, `TestIssue497_NonExemptBudget`, `TestIssue497_InvalidConfig`, `TestIssue497_SampleParsing`, `TestIssue497_BoundedFileReads`, `TestIssue497_CommandFixture`, `TestIssue497_CommandLifecycle`, `TestIssue497_LiveSampler` (`internal/tasks/dispatch`); `TestCALV0068_DispatchStatusPressure` (`internal/tasks/cli`); live Linux sampling NOT_RUN |
+| CAL-V0-109 | `TestCALV0109_StickySwapWithNormalPressureReleases`, `TestCALV0109_KernelMemoryLevelMapping`, `TestCALV0109_DarwinSysctlParsing`, `TestCALV0110_LedgerReasonAndMemoryLevelValidated`, `TestIssue497_LiveSampler` (`internal/tasks/dispatch`); live macOS dispatcher under memory pressure NOT_RUN |
+| CAL-V0-110 | `TestCALV0110_ReasonRecordedAtLevelChange`, `TestCALV0110_ThrottledEventReportsReason`, `TestCALV0110_LedgerReasonAndMemoryLevelValidated` (`internal/tasks/dispatch`); `TestCALV0110_DispatchStatusReason` (`internal/tasks/cli`) |
+| CAL-V0-069 | `TestGH494_LeaseTimingIsOptInDiagnostic` (`internal/tasks/cli`); `TestGH494_LeaseTimingSumsEveryTransaction`, `TestGH494_TimedOutClaimReplaysExactly` (`internal/tasks/store`) |
+| CAL-V0-059 | `TestCALV0059_CheckpointCodecAndDerivation` (`internal/tasks/journal`) |
+| CAL-V0-060 | `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`), including `pending`, which shares the lease audit with writers |
+| CAL-V0-061 | `TestCALV0061_CheckpointTailEqualsFullAudit`, `TestCALV0061_CheckpointFallsBackToFullAudit`, `TestCALV0061_CheckpointScopeAndMovement`, `TestCALV0061_CheckpointLimitsStayWithFullAudit` (`internal/tasks/journal`); `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`); live-store measurement in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-01-tasks-read-checkpoint.md` |
+| CAL-V0-062 | `TestCALV0062_PolicyEffortAllowlist` (`internal/tasks/intent`); `TestCALV0062_StageEffortSelection`, `TestCALV0062_CheckProgramConfigEffort`, `TestCALV0062_BaseEffortRequired`, `TestCALV0062_StageRechecksCurrentPolicy`, `TestCALV0062_OpenWorkflowRefusesBeforeMutation` (`internal/tasks/store`); live Codex at non-low effort NOT_RUN |
+| CAL-V0-063 | `TestCALV0063_PolicyStageWallBound` (`internal/tasks/intent`); `TestCALV0063_CheckProgramConfigStageWall`, `TestCALV0062_OpenWorkflowRefusesBeforeMutation` (`internal/tasks/store`); live stage beyond one hour NOT_RUN |
+| CAL-V0-064 | `TestCALV0064_CommandGrammarAndRoleSeparation`; `TestCALV0064_ChangedFileReplayAndRestart`; `TestCALV0064_CheckedSaveFailureDoesNotGrantOrEscapeThroughClose`; `TestCALV0064_LaterSaveFailureCannotReviveGrantedParking`; `TestCALV0064_ActivePendingUnknownAndSeedAccounting`; `TestCALV0064_FirstSeedIsNotProgressAndCancellationIsNotAdmission`; `TestCALV0064_FirstSeedEndedWorkerAndLaterFailure`; `TestCALV0064_CanceledReobservationCannotAdmitEarlierToken`; `TestCALV0064_PostCommitCancellationPreservesFactsAndStopsEffects`; `TestCALV0064_CapacitySortedAllocationAndStrictLoad`; `TestCALV0064_NoTokenPreservesLegacyLedgerAndFingerprint`; `TestCALV0064_LedgerCanonicalFieldsAndCaseSensitiveKeys`; `TestCALV0064_KeyBoundaryAndOperatorUnparkRetainLifetimeBudget` (`internal/tasks/dispatch`); `TestCALV0064_DispatchCLIFileProgressAndReplay` (`internal/tasks/cli`); manual source/test evidence in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-02-dispatch-explicit-progress.md`, optional OCM linkage unassessed |
+| CAL-V0-065 | `TestCALV0065_AbsentPreimage`, `TestCALV0065_RequestShapeAndCurrentMembership`, `TestCALV0065_AllocationPreviewAndPreparedAdmission` (`internal/tasks/transaction`); `TestCALV0065_HealthFiltersEveryRound`, `TestCALV0065_ReplayAfterSuccessorAndPolicyChange`, `TestCALV0065_ClaimNextSelectors` (`internal/tasks/store`); `TestCALV0065_CLIExclusionsAndPreviewPurity`, `TestCALV0065_NativeFixture` (`internal/tasks/cli`); scoped evidence and limits in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-02-tasks-member-exclusions.md` |
+| CAL-V0-071 | `TestCALV0071_PolicyRepositories` (`internal/tasks/intent`); `TestCALV0071_ProgramRepositoryRecords` (`internal/tasks/snapshot`); `TestCALV0071_RepositoryBindingImmutable` (`internal/tasks/transaction`); `TestCALV0071_CheckProgramConfigRepositories`, `TestCALV0071_WritableRoots`, `TestCALV0071_UndeclaredRepositoryRefusedBeforeMutation`, `TestCALV0071_ExtraRepositoryPathsAreScoped`, `TestCALV0071_RetargetedCheckoutRefusedBeforeWrite`, `TestCALV0071_MultiRepositoryProgramFakeHost` (`internal/tasks/store`); live Codex NOT_RUN |
+| CAL-V0-072 | `TestCALV0071_MultiRepositoryProgramFakeHost` (composite tree, unmoved checkout `HEAD`, review binding), `TestCALV0072_MultiRepositoryGatesFailClosed` (dirty sibling refuses its gate) (`internal/tasks/store`); live Codex NOT_RUN |
+| CAL-V0-087 | `TestCALV0071_ProgramRepositoryRecords` (designation record) (`internal/tasks/snapshot`); `TestCALV0071_CheckProgramConfigRepositories` (designation label), `TestCALV0071_MultiRepositoryProgramFakeHost` (undesignated `UNSUPPORTED`), `TestCALV0072_MultiRepositoryGatesFailClosed`, `TestCALV0087_DesignatedMultiRepositoryIntegration`, `TestCALV0087_ExtraWorktreeCleanup`, `TestCALV0087_GrantMustNameEveryTarget`, `TestCALV0087_DesignatedTargetChecked`, `TestCALV0087_InterruptedIntegrationLandsOnce`, `TestCALV0087_UnchangedRepositoryNeedsNoDesignation` (`internal/tasks/store`); live Codex NOT_RUN |
+| CAL-V0-088 | `TestCALV0088_ExtraRepositoryContextRequired`, `TestCALV0087_DesignatedMultiRepositoryIntegration` (`internal/tasks/store`); live Codex NOT_RUN |
+| CAL-V0-089 | `TestCALV0089_PolicyContinuationsBound` (`internal/tasks/intent`); `TestCALV0089_InterruptedSessionCapability` (`internal/tasks/supervisor`); `TestCALV0089_StageRechecksContinuations`, `TestCALV0089_CodexContinuationResumesPreservedSession`, `TestCALV0089_OpenCodeContinuationForksPreservedSession`, `TestCALV0089_ContinuationBoundThenOperatorRestart`, `TestCALV0089_TurnCapsBoundContinuation`, `TestCALV0089_DrainStopsContinuation`, `TestCALV0089_ProgramWallExpiryEndsContinuation`, `TestCALV0089_IntegrateCheckpointRestartKeepsGrant`, `TestCALV0089_UnsupportedContinuationRefusedBeforeMutation` (`internal/tasks/store`); live Codex and OpenCode NOT_RUN |
+| CAL-V0-074 | `TestCALV0074_PolicyHost` (`internal/tasks/intent`); `TestCALV0074_CapsuleHost`, `TestCALV0074_RuntimeReplacedAtAck`, `TestCALV0074_ACLProbe`, `TestCALV0074_PrelaunchErrorOnlyBeforeSpawn` (`internal/tasks/supervisor`); `TestCALV0074_CheckProgramConfigHost`, `TestCALV0074_OpenWorkflowRefusesHostBeforeMutation`, `TestCALV0074_AdmissionRunsLaunchCheck`, `TestCALV0074_SpawnedFailureIsNotNoExec`, `TestCALV0074_NoExecCancelBeforeRelease`, `TestCALV0074_NoExecCrashTakeover`, `TestCALV0074_HostSwitchAndRollback` (`internal/tasks/store`); `TestCALV0074_RunHostFlag` (`internal/tasks/cli`) |
+| CAL-V0-075 | `TestCALV0075_ClaudeResultVocabulary`, `TestCALV0075_ClaudeUsageObservedOrUnknown`, `TestCALV0075_ClaudeDuplicateMembers`, `TestV10799_CodexStreamRefusesRepeatedAndFoldedMembers`, `TestV10950_CodexUsageNullRepeatedOrFoldedIsUnobserved`, `TestV10799_HandoffRefusalLeavesSessionAndUsageUnobserved`, `TestV10799_RefusedCodexStreamJournalsNoSession` (`internal/tasks/supervisor`); `TestCALV0075_ClaudeStageArgv`, `TestCALV0075_ClaudeCodeProgramFakeHost` (`internal/tasks/store`); live Claude Code NOT_RUN |
+| CAL-V0-076 | `TestCALV0076_PolicyHostOpenCode` (`internal/tasks/intent`); `TestCALV0076_OpenCodeVocabularySelected` (`internal/tasks/supervisor`); `TestCALV0076_CheckOpenCodeConfig`, `TestCALV0076_CheckProgramConfigOpenCodeHost`, `TestCALV0076_OpenCodeHostRollback` (`internal/tasks/store`); `TestCALV0076_ConfigHostFlag` (`internal/tasks/cli`) |
+| CAL-V0-077 | `TestCALV0077_OpenCodeResultVocabulary`, `TestCALV0077_OpenCodeUsageObservedOrUnknown`, `TestCALV0077_OpenCodeDuplicateMembers` (`internal/tasks/supervisor`); `TestCALV0077_OpenCodeUsageIncompleteAccounting`, `TestCALV0077_DetachedHostEnvRequired`, `TestCALV0077_DetachedServerTimeout`, `TestCALV0077_DetachedServerForcedKill`, `TestCALV0077_DetachedServerHostCrash`, `TestCALV0077_DetachedOrphanFailsClosed`, `TestCALV0077_EscapeObservationUncertain`, `TestCALV0077_EscapeGroupReuse`, `TestCALV0077_RecoverDetachedHost`, `TestCALV0077_RecoverDetachedLateEscape` (`internal/tasks/supervisor`); `TestCALV0077_OpenCodeStageArgv`, `TestCALV0077_OpenCodeProgramFakeHost`, `TestCALV0077_OpenCodeResumeRequiresFork`, `TestCALV0077_OpenCodeOutputLimitUsageUnknown` (`internal/tasks/store`); live OpenCode NOT_RUN |
+| CAL-V0-098 | `TestCALV0098_PreimageBindsMode`, `TestCALV0098_RequestShape`, `TestCALV0098_DeriveAuthors` (`internal/tasks/transaction`); `TestCALV0098_ClaimExcludesImplementAuthor`, `TestCALV0098_ClaimNextExcludesAuthors`, `TestCALV0098_HealthSkipsAuthor`, `TestCALV0098_HealthPrepareRederivesAuthors` (`internal/tasks/store`); `TestCALV0098_CLIExcludeAuthors`, `TestCALV0098_ExhaustedPoolParity` (`internal/tasks/cli`); `TestAgentLeasesSpecEnumeratesCALV0098` (`internal/lrfrepo`) |
+| CAL-V0-013 | `TestCALV0013_RetryAsNextGenerationUpToThree` (`internal/tasks/store`) |
+| CAL-V0-014 | `TestCALV0014_PlanPreviewIsAPurePriorityFirstPlan`, `TestCALV0014_SelectedOnlyPlanPreviewIsComplete` (`internal/tasks/cli`); `plan preview` in `TestTMV0008_AS07_ReadsLeaveStoreByteIdentical` (`internal/tasks/cli`) |
+| CAL-V0-015 | `TestCALV0015_SubmitRecordsTheCandidateTree` (`internal/tasks/store`) |
+| CAL-V0-016 | `TestCALV0016_GateRunRecordsEachResult`, `TestCALV0016_GateRunRefusesWithoutRunning` (`internal/tasks/store`) `TestV13008_GateRunRefusesUnderAllBarrierBeforeSpawning`, `TestV13008_GateRunRefusesRejectedRoleBeforeSpawning`, `TestV13009_GateObservationRunsNoFsmonitor`, `TestV13009_GateObservationEndsAtDeadline`, `TestV13009_GateObservationCapsOutput` (`internal/tasks/store`), `TestCALV0016_GateResultRoundTrips`, `TestCALV0016_PassedNeedsACleanExitAtTheCandidate` (`internal/tasks/snapshot`) |
+| CAL-V0-017 | `TestCALV0017_CompleteVerifiesTheTicket`, `TestCALV0017_CompletionRefusals`, `TestCALV0017_CompletionNeedsEveryRequiredGateAndApproval` (`internal/tasks/store`), `TestCALV0017_ManifestRoundTrips` (`internal/tasks/snapshot`); live CLI run in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-09-27-corvint-tasks-lease-gates.md` |
+| CAL-V0-018 | `TestCALV0018_SequenceParityAndOwnership`, `TestCALV0018_SequenceRefusalParity`, `TestCALV0018_SequenceInvalidation`, `TestCALV0018_SequenceBatchGrowth`, `TestCALV0018_SequenceCapacityPrefixes`, `TestCALV0018_SequenceMixedBatches`, `TestCALV0018_SequenceInventoryBoundaries`, `TestCALV0018_ReserveProbeOwnership` (`internal/tasks/transaction`); `TestCALV0018_LaterBatchesCheckTheirHeadAndPosts`, `TestCALV0018_ImportPublicationFailureRestarts`, `TestCALV0018_ImportCancellationAndProjectionDrift` (`internal/tasks/store`); `BenchmarkCALV0018_ImportBatchModel` and the per-size CPU profile in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-15-v1-0436-incremental-import.md` show per-batch model work flat across 500, 1,500 and 3,000 stored tickets (V1-0436). Criterion 2, the 2,894-item Beamfall first import on a host with load below the CPU count, is NOT_RUN (host load 35 to 61 on 12 CPUs; export not present locally); `script/measure-import-cal018.sh` is the prepared run. The older 271 s run in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-09-27-corvint-tasks-import-cost.md` (load 37 to 60) remains nonqualifying |
+| CAL-V0-019 | `TestCALV0019_ConcurrentCollidingClaimsAdmitOne`, `TestCALV0019_RacingLeaseVerbsLeaveOneConsistentHead`, `TestCALV0019_FencedGenerationCannotMoveOrComplete`, `TestCALV0019_FaultAtEveryArtifactIsAllOrNothing`, `TestCALV0019_KilledWriterRecovers` (`internal/tasks/store`) |
+| CAL-V0-020 | `TestCALV0020_ExecutionCutoverAdmitsClaims`, `TestCALV0020_ExecutionCutoverRefusals` (`internal/tasks/store`), `TestCALV0020_CLIExecutionCutover` (`internal/tasks/cli`); rehearsal on the Beamfall export in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-09-27-corvint-tasks-qualification.md` |
+| CAL-V0-021 | `TestCALV0021_WholeRepositoryBlocksEverything`, `TestCALV0021_DeclaredNonPathResourcesJoinTheScope` (`internal/tasks/store`) |
+| CAL-V0-022 | `TestCALV0022_PackScopeAndAbstention` (`internal/tasks/scopes`), `TestCALV0022_CLIUsesOptInPack` (`internal/tasks/cli`), and `TestCALV0022_NextDerivesOnlySelectedTicket` (`internal/tasks/store`); explicit pack opt-in, conservative defaults |
+| CAL-V0-023 | `TestCALV0023_CollisionNormalization` (`internal/tasks/ticket`), `TestCALV0023_CollidingClaimsAdmitOne`, `TestCALV0023_DisjointPathScopesAreBothAdmitted` (`internal/tasks/store`) |
+| CAL-V0-024 | `TestCALV0024_SubmitOutsideTheScopeIsRefused` (`internal/tasks/store`) |
+| CAL-V0-025 | `TestCALV0025_WidenAddsPathsAndRefusesCollision`, `TestCALV0025_WidenRefusedUnderAdmissionBarrier` (`internal/tasks/store`) |
+| CAL-V0-026 | MET on macOS with Go 1.27.1 and `GOMAXPROCS=2`: 3,000 tickets, 20 samples per verb, claim p95 121.136 ms and renew 104.774 ms; every sampled load average below 12 CPUs. `TestCALV0026_VerifiedAuditReuse`, `TestCALV0026_PreparationFailureWaitsForWriter` (`internal/tasks/store`) and `TestCALV0026_ChangeGuardDescriptorExhaustion` (`internal/tasks/authority`) cover cache trust, concurrency and cleanup. Opt-in `TestCALV0026_LockHoldMeasurement` retains 3,000-ticket timings; see `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-09-28-corvint-tasks-lease-lock-qualification.md`. |
+| CAL-V0-042 | `internal/companionrelease/tasks_archive.go`, companion release `-tasks-only`; `TestTasksArchiveAssembly`, `TestTasksArchiveHelpRefusesOldRuntime`; native archive build retained in change evidence |
+
+| CAL-V0-027 | `TestCALV0027_CompiledNonfixtureReleaseLifecycle`, `TestCALV0027_NonfixtureReleaseBindings`, `TestCALV0027_NonfixtureReleaseReadinessRefusals` (`internal/tasks/cli`); `TestCALV0027_ReleaseAfterQualifiedCutover`, `TestCALV0027_ReleaseInterruptionRecovery`, `TestCALV0027_ReleaseActiveStageAndReconciliation`, `TestCALV0027_ReleaseWrongActor`, `TestCALV0027_ActualCompletedStages` (`internal/tasks/store`); `TestCALV0027_NonfixtureStageBinding`, `TestCALV0027_CompletedStageReceiptKinds`, `TestCALV0027_CompletedStageInnerBindings` (`internal/tasks/snapshot`). |
+| CAL-V0-070 | Implemented for `store.Mutate` and journal audit reads: `TestCALV0070_MergedMutationAuditEquivalence` (`internal/tasks/journal`), `TestCALV0070_PinnedDirOpensMatchInRoot` (`internal/tasks/safeopen`), `TestCALV0070_MutateAuditSequenceEquivalence`, `TestCALV0070_MutateRefusesChangesAfterMergedAudit`, `TestCALV0070_MutateRefusesMappedWriteAfterMergedAudit` and `TestCALV0070_MutateRetriesAuditWithoutWatch` (`internal/tasks/store`, the last two also in a Linux arm64 container); before/after `BenchmarkCALV0070_MutateAt2000Receipts` (median `Mutate` CPU 4,178 → 1,793 ms at 2,000 receipts; with the change watch, 5,381 → 2,299 ms at load 27–59; with the content check, 5,494 → 3,151 ms (42.6%) on macOS at load 34–52 and 4,019 → 2,547 ms (36.6%) in a Linux arm64 container) and opt-in `TestCALV0070_WriterHistoryProfile` (`internal/tasks/store`); see `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-04-tasks-writer-history-cost.md` and `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-04-tasks-writer-one-pass.md`. The writer checkpoint is delivered separately as CAL-V0-115..119 (V1-0645, accepted by decision 0439); the Linux profile, the live store and the issue 545 waves are NOT_RUN |
+| CAL-V0-097 | `TestCALV0097_PoolWaitingTicketsDoNotConsumeWindow`, `TestCALV0097_CapAtFreeEligibleMembers`, `TestCALV0097_UnobservedPoolStateDefers`, `TestCALV0097_UndeclaredPoolBlocks`, `TestCALV0097_PoolPlanUnchanged`, `TestCALV0097_UnclaimablePoolsDoNotConsumeWindow` (`internal/tasks/transaction`); `TestCALV0097_DefaultPreviewIsResourceAware`, `TestCALV0097_DispatchRoutesPoolTicketsAndKeepsLaneFreeProgress` (`internal/tasks/cli`); `TestCALV0097_RosterRoutesPoolTicketsToMatchingRole` (`internal/tasks/dispatch`); `TestCALV0097_CoreDecodesResourceDeferredPlan` (`internal/taskman`); `TestAgentLeasesSpecEnumeratesCALV0097` (`internal/lrfrepo`) |
+| CAL-V0-101 | `TestCALV0101_ExplicitPooledClaimYields`, `TestCALV0101_FlagOffMatchesNMinusOne`, `TestCALV0101_PlanClaimAndClaimNextAgree`, `TestCALV0101_UnobservedCompetitorIsNotObserved` (`internal/tasks/transaction`); `TestCALV0101_PriorityYieldThroughTheCLI` (`internal/tasks/cli`) |
+| CAL-V0-102 | See the V1-0791 amendment table: intent, snapshot, transaction (including the pinned N-1 digest), store, cli, dispatch, wire and lrfrepo tests |
+| CAL-V0-103 | See the V1-0791 amendment table: owner reopen in store and cli tests; dispatcher once-per-episode event and closed ledger member in dispatch tests |
+| CAL-V0-104 | See the V1-0851 amendment table: worker-exit release retry, reap, fenced resolution and switch-off tests in `internal/tasks/dispatch` |
+| CAL-V0-105 | See the V1-0853 amendment table: planner, dispatcher and native-observation replan tests |
+| CAL-V0-107 | `TestCALV0107_ExplicitMembersCoverUnrecordedGenerations`, `TestCALV0098_DeriveAuthors` (`internal/tasks/transaction`); `TestCALV0098_ClaimExcludesImplementAuthor`, `TestCALV0098_ClaimNextExcludesAuthors`, `TestCALV0098_HealthSkipsAuthor`, `TestCALV0107_HealthPrepareNeverImpliesCover` (`internal/tasks/store`); `TestCALV0107_CLIClaimReportsCoveredGenerations`, `TestCALV0098_CLIExcludeAuthors`, `TestCALV0098_ExhaustedPoolParity` (`internal/tasks/cli`) |
+| CAL-V0-108 | `TestCALV0108_WaitingReviewOutranksArrivingImplement`, `TestCALV0108_EarlierHandoffWinsAtEqualPriority`, `TestCALV0108_AdmissionRank`, `TestCALV0108_DownstreamCompetitorNeedsItsStageMember`, `TestCALV0101_PlanClaimAndClaimNextAgree`, `TestCALV0101_FlagOffMatchesNMinusOne` (`internal/tasks/transaction`) |
+| CAL-V0-111 | `TestCALV0111_CallerWaitBound`, `TestCALV0111_CallerWaitOutlastsDefault` (`internal/tasks/authority`); `TestCALV0111_OrphanCleanupSpendsCallerWait` (`internal/tasks/store`); `TestCALV0111_LockWaitFlag`, `TestCALV0111_LockWaitBoundsContendedRelease` (`internal/tasks/cli`) |
+| CAL-V0-112 | `TestCALV0112_HandoffReleaseReplaysAfterLockTimeout` (`internal/tasks/store`); `TestCALV0112_SameRequestHandoffReplayAfterLockTimeout` (`internal/tasks/cli`) |
+| CAL-V0-113 | `TestCALV0113_PlainReleaseAfterTimedOutHandoffIsCharged` (`internal/tasks/cli`) |
+| CAL-V0-114 | `TestCALV0114_DivergentProjectionRefusalIsDeterministic`, `TestCALV0114_SingleDivergenceAndSuccessUnchanged`, `TestCALV0114_CloseFailuresJoinInPathOrder` (`internal/tasks/journal`) |
+| CAL-V0-120 | `TestCALV0120_PolicyHolderLivenessOptIn` (`internal/tasks/intent`); `TestCALV0120_HolderObservationUsesPolicyTTL`, `TestCALV0120_PolicyTTLDrivesHolderReads` (`internal/tasks/cli`) |
+| CAL-V0-121 | `TestCALV0121_StaleHolderCoordinatorHandoff`, `TestCALV0120_PolicyTTLDrivesHolderReads` (`internal/tasks/cli`) |
+| CAL-V0-115 | `TestCALV0115_WriterCheckpointCodecIsClosed` (`internal/tasks/journal`); `TestCALV0115_WriterCheckpointFallsBackToCompleteAudit` (`internal/tasks/store`); `TestCALV0115_ReceiptAuditIgnoresDerivedCheckpoints` (`internal/tasks/cli`) |
+| CAL-V0-116 | `TestCALV0116_WriterFullBoundDeclines`, `TestCALV0116_WriterRouteParity`, `TestCALV0116_WriterRouteCounterexamples`, `TestCALV0116_WriterRouteTamperAtFastStages`, `TestCALV0116_PrefixTamperIsLeftToCompleteAudits`, `TestCALV0116_FastWriteRechecksIntentBranch`, `TestCALV0116_TailNoteReferenceChangeWithoutEvent` (`internal/tasks/store`) |
+| CAL-V0-117 | `TestCALV0117_RefreshWriteInterleave`, `TestCALV0117_WriterAdvanceAndScheduledRefresh`, `TestCALV0117_OlderRefreshCannotUndoInvalidation`, `TestCALV0117_InvalidationSurvivesStopBeforeRemoval` (`internal/tasks/store`); `TestCALV0117_FileSetCostParity` (`internal/tasks/archive`); `TestCALV0117_SummarizedInventoryCostParity`, `TestCALV0117_SummarizedInventoryElidedMetadataMarksIncomplete`, `TestCALV0117_NewSummarizedInventoryRefusesMalformedSummary` (`internal/tasks/transaction`) |
+| CAL-V0-118 | `TestCALV0118_WriterHoldProfile` (`internal/tasks/store`, opt-in); measured, see `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-06-v1-0645-writer-checkpoint.md` |
+| CAL-V0-119 | `TestCALV0116_WriterRouteParity`, `TestCALV0115_WriterCheckpointFallsBackToCompleteAudit`, `TestCALV0117_RefreshWriteInterleave` (`internal/tasks/store`) |
+| CAL-V0-122 | `TestCALV0122_AdditivePoolMemberIsHandoffCompatible` (`internal/tasks/intent`); `TestCALV0044_HandoffPolicyReceiptInterval`, `TestCALV0122_OccupiedOwnMemberChangeRefusedAtUpdate` (`internal/tasks/store`); `TestCALV0122_Issue643AdditiveMemberKeepsHandoff` (`internal/tasks/cli`) |
+| CAL-V0-123 | `TestCALV0123_HolderLivenessIsHandoffCompatible` (`internal/tasks/intent`) |
+| CAL-V0-124 | `TestCALV0122_Issue643AdditiveMemberKeepsHandoff` (`internal/tasks/cli`) |
+| CAL-V0-125 | `TestCALV0125_CPUUtilizationDelta`, `TestCALV0125_LinuxCPUTicksParsing`, `TestCALV0125_DispatcherFirstTickUnknown`, `TestCALV0125_LinuxSamplingFollowsSelection`, `TestCALV0125_DarwinSamplingFollowsSelection`, `TestCALV0125_UnselectedCPULeavesLedgerUnchanged` (`internal/tasks/dispatch`); `TestCALV0125_DispatchStatusCPUUtilization` (`internal/tasks/cli`); macOS ticks NOT_DELIVERED, live Linux sampling NOT_RUN |
+| CAL-V0-126 | `TestCALV0126_SignalSelection`, `TestCALV0126_SignalSelectionValidation` (`internal/tasks/dispatch`) |
+| CAL-V0-127 | `TestCALV0127_ConfigReloadAppliesAndRefuses`, `TestCALV0127_ReloadRemovedRoleKeepsWorkers`, `TestCALV0127_ConfigRecordValidation`, `TestCALV0127_ConfigRecordBesideStrictRecords`, `TestCALV0127_ReloadKeepsLaunchDeadlines`, `TestCALV0127_ReloadRemovedRoleKeepsDeadlines` (`internal/tasks/dispatch`); `TestCALV0127_DispatchStatusConfigRecord`, `TestCALV0127_DispatchStatusWithInvalidConfigFile` (`internal/tasks/cli`) |
+| CAL-V0-128 | `TestCALV0128_CapZeroDisablesRole` (`internal/tasks/dispatch`); `TestCALV0128_DisabledRoleDoesNotStarveEnabledRole` (`internal/tasks/cli`) |
+| CAL-V0-129 | `TestCALV0129_LaneMinAge` (`internal/tasks/dispatch`) |
+| CAL-V0-130 | `TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1`, `TestCALV0130_RollbackAcrossDifferentFormatsRefuses`, `TestCALV0130_SurvivorCleanupSignalsOnlyAnUnreapedRunner`, `TestCALV0130_SurvivorFixtureOutlivesNoKilledRunner` (`internal/tasks/cli`); `TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts` (`internal/tasks/dispatch`) |
+| CAL-V0-131 | `TestCALV0131_EveryLiveFormatRefusesANewerVersion`, `TestCALV0131_OtherStoreFormatRefusesUnsupportedVersion`, `TestCALV0131_LiveFormatsCoverEveryDecodedProfile`, `TestCALV0131_RunRecordFromAnotherBuildRefusesUnsupportedVersion`, `TestCALV0130_RollbackAcrossDifferentFormatsRefuses` (`internal/tasks/cli`); `TestCALV0131_AttemptFromAnotherBuildRefusesUnsupportedVersion` (`internal/tasks/snapshot`); `TestCALV0131_ProfileVersionRefusesOnlyAnotherVersion`, `TestCALV0131_CodeOfUnwraps`, `TestCALV0131_FirstRefusalSticks` (`internal/tasks/wire`) |
+| CAL-V0-132 | `TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts`, `TestCALV0132_DrainedPreviousVersionLedgerIsAdopted`, `TestCALV0132_RepeatedLedgerMemberRefuses`, `TestCALV0131_LedgerSchemaChangeMovesTheStateVersion` (`internal/tasks/dispatch`) |
+| CAL-V0-133 | `TestCALV0130_AttemptClaimedUnderBuildNContinuesUnderNPlus1` (`internal/tasks/cli`) |
+| CAL-V0-134 | `TestCALV0131_LiveFormatsCoverEveryDecodedProfile` (`internal/tasks/cli`); no code change to the supervised-host pin |
+| CAL-V0-135 | `TestCALV0135_ReceiptFoldPinnedReader`, `BenchmarkCALV0135_FoldReceiptBindings` (`internal/tasks/store`) |
+| CAL-V0-136 | `TestCALV0136_NativeProcessRowsMatchPS` (Darwin), `BenchmarkCALV0136_ProcessRows`, `TestCALV0136_ProcRowsReadsAFakeProcRoot`, `TestCALV0136_ProcRowsSeesThisProcess` (Linux) (`internal/tasks/supervisor`) |
+| CAL-V0-137 | `TestCALV0137_HostExitPollBackoff` (`internal/tasks/supervisor`) |
+| CAL-V0-138 | `TestCALV0138_ReviewFoldCarriesOnlyAChainedPrefix`, `TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsRemoved`, `TestCALV0138_CarriedFoldFallsBackWhenAnEarlierReceiptIsNotRegular`, `BenchmarkCALV0138_DispatcherTickFold`, `BenchmarkCALV0138_ListsPrefix` (`internal/tasks/store`); `TestCALV0138_CarriedReviewFoldMatchesWholeHistory`, `TestCALV0138_RewrittenEarlierReceiptIsDetectedByReceiptAudit` (`internal/tasks/cli`) |
+| CAL-V0-139 | `TestCALV0139_IdleTickSkipsTheReadUntilSomethingChanges`, `TestCALV0139_IdleGateNeedsAWitnessAndNoWorkers`, `TestCALV0139_UnchangedSaveRetriesAFailedDirectorySync`, `TestCALV0139_DeadlineCrossedDuringATickDoesNotArm`, `TestCALV0139_PendingSweepRecordsBlockTheGateWithoutSweeping`, `TestCALV0139_IdleGateWakesForALaneMinimumAge` (`internal/tasks/dispatch`); `TestCALV0139_DispatchQueueWitness` (`internal/tasks/cli`) |
+| CAL-V0-140 | `TestCALV0140_AuditSharesTheOuterIntentTree` (`internal/tasks/journal`); `TestCALV0140_SharedAuditTreeSameSizeRewriteRereads` (`internal/tasks/cli`) |
+| CAL-V0-141 | `TestCALV0141_PlanNodeBoundScalesPerEntry` (`internal/tasks/cli`) |
+| CAL-V0-142 | `TestCALV0142_ServiceDispatcherReadsTicketPools` (`internal/tasks/cli`) |
+| CAL-V0-143 | `TestCALV0143_WorkerLogsAreCappedWhileTheWorkerRuns`, `TestCALV0143_CappedOutputCountsAsActivity` (`internal/tasks/dispatch`) |
+| CAL-V0-144 | `TestCALV0144_FinishedWorkerDirsAreRetired`, `TestCALV0144_ProtectedDirsTakeNoRetentionSlot`, `TestCALV0144_IncompleteSessionReadIsRetaken`, `TestCALV0144_RemovalNeedsAConfirmingPass`, `TestCALV0144_LiveMemberOnConfirmingPassKeepsDir`, `TestCALV0144_ActivityDuringTheConfirmingPassKeepsDir`, `TestCALV0144_StaleMarkStartsOver`, `TestCALV0144_MarksAreBounded`, `TestCALV0144_TicksConfirmMarksWithoutAnotherFinish`, `TestCALV0144_RestartConfirmsLeftMarks`, `TestCALV0144_FailedConfirmingPassIsRetried` (`internal/tasks/dispatch`) |
+| CAL-V0-155 | `TestCALV0155_SessionBudgetHoldsUntilTheWindowReleases`, `TestCALV0155_TokenBudgetCountsKnownTotals`, `TestCALV0155_BudgetFollowsConfigReload`, `TestCALV0155_TokenSumNeitherWrapsNorSaturates`, `TestCALV0155_BudgetHeldTicketLeavesSelectionWindow` (`internal/tasks/dispatch`), `TestCALV0155_BudgetHeldTicketsLeaveWindow` (`internal/tasks/transaction`) |
+| CAL-V0-156 | `TestCALV0156_SpendHistoryIsBoundedAndHoldsWhenTruncated`, `TestCALV0155_SessionBudgetHoldsUntilTheWindowReleases` (`internal/tasks/dispatch`) |
+| CAL-V0-157 | `TestCALV0157_UsageVocabulariesAndStates`, `TestCALV0157_UsageReadIsIncrementalAndBounded`, `TestCALV0157_UsageAfterRotationIsPartial`, `TestCALV0155_TokenBudgetCountsKnownTotals` (`internal/tasks/dispatch`) |
+| CAL-V0-158 | `TestCALV0155_SessionBudgetHoldsUntilTheWindowReleases`, `TestCALV0158_CombinedLimitsResetWhenTheScopeReleases` (`internal/tasks/dispatch`); `TestCALV0158_DispatchStatusShowsBudgetsAndUsage` (`internal/tasks/cli`) |
+| CAL-V0-159 | `TestCALV0155_TokenBudgetCountsKnownTotals`, `TestCALV0160_BudgetConfigIsClosed` (`internal/tasks/dispatch`); `TestCALV0158_DispatchStatusShowsBudgetsAndUsage` (`internal/tasks/cli`) |
+| CAL-V0-160 | `TestCALV0160_BudgetConfigIsClosed` (`internal/tasks/dispatch`) |
+| CAL-V0-161 | `TestCALV0161_LedgerCarriesSpendAndUsage`, `TestCALV0132_DrainedPreviousVersionLedgerIsAdopted`, `TestCALV0132_LedgerFromAnotherBuildRefusesAndSameFormatAdopts`, `TestCALV0131_LedgerSchemaChangeMovesTheStateVersion` (`internal/tasks/dispatch`) |
+| CAL-V0-145 | `TestCALV0145_WorkerExitsWhileDetachedRunContinues`, `TestCALV0145_SupervisorMustBeAnotherSessionLeader`, `TestCALV0151_ForgedRecordNeitherExemptsNorRelaunches`, `TestCALV0151_EnclosingSessionLeaderSparesNoWorker` (`internal/tasks/dispatch`) |
+| CAL-V0-146 | `TestCALV0145_WorkerExitsWhileDetachedRunContinues`, `TestCALV0146_DeferralIsBounded`, `TestCALV0146_ReReportedWorkerDoesNotHoldTheDeferral` (`internal/tasks/dispatch`) |
+| CAL-V0-147 | `TestCALV0147_DeferralAndRelaunchSurviveRestart`, `TestCALV0147_MalformedMarkerIsRemoved` (`internal/tasks/dispatch`); `TestCALV0131_EveryLiveFormatRefusesANewerVersion` (`internal/tasks/cli`) |
+| CAL-V0-148 | `TestCALV0145_WorkerExitsWhileDetachedRunContinues`, `TestCALV0148_SupervisorLostHandsOffWithoutRelaunch` (`internal/tasks/dispatch`) |
+| CAL-V0-149 | `TestCALV0145_WorkerExitsWhileDetachedRunContinues`, `TestCALV0147_DeferralAndRelaunchSurviveRestart`, `TestCALV0149_InfraRetryCarriesTheOutcome`, `TestCALV0149_DetachedRunPlaceholderIsPromptOnly` (`internal/tasks/dispatch`) |
+| CAL-V0-150 | `TestCALV0150_StatusShowsDetachedRunStateReadOnly` (`internal/tasks/cli`) |
+| CAL-V0-151 | `TestCALV0151_ForgedRecordNeitherExemptsNorRelaunches`, `TestCALV0151_EnclosingSessionLeaderSparesNoWorker` (`internal/tasks/dispatch`) |
+| CAL-V0-152 | `TestCALV0145_WorkerExitsWhileDetachedRunContinues` (`internal/tasks/dispatch`) |
+| CAL-V0-153 | `TestCALV0151_ForgedRecordNeitherExemptsNorRelaunches` (`internal/tasks/dispatch`); other platforms: `GOOS=windows go vet` only; lane sessions: NOT_PRODUCED |
+| CAL-V0-154 | `TestCALV0145_WorkerExitsWhileDetachedRunContinues` (the run's supervisor and command stay live and unsignalled) (`internal/tasks/dispatch`) |
+| CAL-V0-165 | `TestCALV0165_FieldsProjectEachItem` (`internal/tasks/cli`) |
+| CAL-V0-166 | `TestCALV0166_FieldsRefuseBeforeOutput` (`internal/tasks/cli`) |
+| CAL-V0-167 | `TestCALV0167_SummaryShapes` (`internal/tasks/cli`) |
+| CAL-V0-168 | `TestCALV0165_FieldsProjectEachItem`, `TestCALV0166_FieldsRefuseBeforeOutput` (`internal/tasks/cli`) |
+| CAL-V0-169 | `TestCALV0169_QueueStatusRetriesOptIn` (`internal/tasks/cli`) |
+| CAL-V0-170 | `TestCALV0047_AllCommandHelpIsReadOnly` (`internal/tasks/cli`) |
+| CAL-V0-171 | `TestCALV0171_CompactOutputBytesOnLargeQueue`, `TestCALV0174_SearchAndRoadmapCompact` (`internal/tasks/cli`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-07-v1-0935-compact-agent-output.md` |
+| CAL-V0-172 | `docs/TASKS-EXTERNAL-AGENTS.md` "Keep read output compact" (documentation requirement; no test) |
+| CAL-V0-173 | `TestCALV0173_ListItemsDropTerminalAndStoreWideNoise` (`internal/tasks/cli`) |
+| CAL-V0-174 | `TestCALV0174_SearchAndRoadmapCompact` (`internal/tasks/cli`) |
+| CAL-V0-181 | `TestCALV0181_TicketListStatusFilter` (`internal/tasks/cli`) |
+| CAL-V0-182 | `TestCALV0182_ListTransitionTimesFromTheRecord` (`internal/tasks/cli`) |
+| CAL-V0-183 | `TestCALV0183_ListLastAttemptEndedAt` (`internal/tasks/cli`) |
+| CAL-V0-184 | `TestCALV0184_QueueStatusLastCompletionAndWindows`, `TestCALV0167_SummaryShapes` (`internal/tasks/cli`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-07-v1-0966-queue-throughput-visibility.md` |
+| CAL-V0-185 | `TestCALV0185_StallCountsSessionsWithoutStatusChange`, `TestCALV0185_StallWithoutThresholdOrSeed`, `TestCALV0185_StallConfigAndLedgerAreClosed`, `TestCALV0185_DrainedVersion2LedgerIsAdopted`, `TestCALV0185_TickDuringSessionKeepsStatusChange`, `TestCALV0131_LedgerSchemaChangeMovesTheStateVersion` (`internal/tasks/dispatch`); `TestCALV0185_DispatchStatusShowsStallCounts` (`internal/tasks/cli`) |
+| CAL-V0-187 | `TestCALV0187_Version2LedgerWithGoneWorkersMigrates`, `TestCALV0187_Version2LedgerWithLiveOrUnprovenWorkerRefuses`, `TestCALV0187_Version2LedgerWithOrphanedProcessRefuses`, `TestCALV0185_DrainedVersion2LedgerIsAdopted` (`internal/tasks/dispatch`) |
+| CAL-V0-189 | `TestCALV0189_WriterAuditReadsIntentOnce` (`internal/tasks/journal`); `TestCALV0189_FastWriteRechecksIntentContent` (`internal/tasks/store`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-07-v1-0915-0918-writer-fast-route.md` |
+| CAL-V0-190 | `TestCALV0190_WriterRouteServesReplaysAndRefusals`, `TestCALV0190_WriterReplayBeyondBoundDeclines` (`internal/tasks/store`); `TestCALV0115_WriterCheckpointCodecIsClosed`, `TestCALV0190_WriterReplayKeyAndCloseFailure` (`internal/tasks/journal`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-07-v1-0915-0918-writer-fast-route.md` |
+| CAL-V0-175 | `TestCALV0175_FragmentPromptEqualsInline` (`internal/tasks/dispatch`) |
+| CAL-V0-176 | `TestCALV0176_ConfigWithoutFragmentsUnchanged`, `TestCALV0176_ReloadExpandsFragments` (`internal/tasks/dispatch`), `TestCALV0176_DispatchStatusReadsFragmentConfig` (`internal/tasks/cli`) |
+| CAL-V0-177 | `TestCALV0177_FragmentRefusals` (`internal/tasks/dispatch`) |
+| CAL-V0-178 | `TestCALV0178_FragmentCannotSmugglePlaceholders` (`internal/tasks/dispatch`) |
+| CAL-V0-191 | `TestCALV0191_RunningWorkerPastGraceIsReapedAndStopped`, `TestCALV0191_WithinGraceOrRenewedIsUntouched`, `TestCALV0191_RefusedReapKeepsTheWorker`, `TestCALV0191_WorkerThatWinsTheRaceKeepsRunning`, `TestCALV0191_StopAfterReapIsRecoveredAfterRestart`, `TestCALV0191_ReapedAttemptSparesAWorkerWithALiveOne`, `TestCALV0191_ReclaimAfterTheStopDecisionKeepsTheWorker`, `TestCALV0191_ExpiredLeaseGraceConfig` (`internal/tasks/dispatch`); `TestCALV0191_ReapIsFencedOnTheObservedLeaseExpiry` (`internal/tasks/store`); `TestCALV0191_NativeReapExpiredReportsOnlyAnActualReap`, `TestCALV0191_EmptyLeaseExpiryIsMalformed` (`internal/tasks/cli`) |
+| CAL-V0-194 | `TestCALV0194_FailedTickSaveIsReportedAndRetried`, `TestCALV0194_UnsavedTickKeepsRunningWorkers`, `TestSERVICE500_UnsavedLaunchStaysUnrecorded`, `TestSERVICE500_UnsyncedLedgerRenameStaysUnrecorded`, `TestCALV0064_LaterSaveFailureCannotReviveGrantedParking`, `TestCALV0064_FirstSeedEndedWorkerAndLaterFailure` (`internal/tasks/dispatch`) |
+| CAL-V0-195 | `TestCALV0195_PolicyMilestonesOptIn` (`internal/tasks/intent`); `TestCALV0195_MilestoneRequiredPolicy` (`internal/tasks/cli`); `TestCALV0078_ClassificationCoversEveryCode` (`internal/tasks/wire`) |
+| CAL-V0-196 | `TestCALV0196_OpenWithoutMilestoneCount` (`internal/tasks/cli`) |
+| CAL-V0-197 | `TestCALV0197_RunRoleSelectsAnsweredWaitOfItsStage`, `TestCALV0197_RoleSelectsByStage`, `TestCALV0197_NewQuestionClearsResumedAnswer` (`internal/tasks/store`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-08-v1-0827-role-stage-selection.md` |
+| CAL-V0-198 | `TestCALV0198_AcquireReleaseAndCompleteWithoutAllocation` (`internal/tasks/store`); `TestCALV0204_CLIAcquireAndReleaseResults`, `TestTMV0008_AS07_HelpAndVersion`, `TestCALV0047_AllCommandHelpIsReadOnly` (`internal/tasks/cli`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-08-v1-1042-pool-acquire.md` |
+| CAL-V0-199 | `TestCALV0199_AcquirePreparesHealth`, `TestCALV0199_BarrierPausesAcquireNotRelease`, `TestCALV0199_SupervisedAcquireIsNotPrepared` (`internal/tasks/store`) |
+| CAL-V0-200 | `TestCALV0200_AcquireExcludesAuthors` (`internal/tasks/store`) |
+| CAL-V0-201 | `TestCALV0198_AcquireReleaseAndCompleteWithoutAllocation`, `TestCALV0199_BarrierPausesAcquireNotRelease` (`internal/tasks/store`); `TestCALV0201_ReleasedAllocationCodec` (`internal/tasks/snapshot`) |
+| CAL-V0-202 | `TestCALV0198_AcquireReleaseAndCompleteWithoutAllocation`, `TestCALV0202_EndingQuarantinesAcquiredAllocation` (`internal/tasks/store`) |
+| CAL-V0-203 | `TestCALV0200_AcquireExcludesAuthors` (`internal/tasks/store`); `TestCALV0203_ReturnedAllocationAttachRefused` (`internal/tasks/transaction`) |
+| CAL-V0-204 | `TestCALV0198_AcquireReleaseAndCompleteWithoutAllocation`, `TestCALV0199_AcquirePreparesHealth` (`internal/tasks/store`); `TestCALV0204_CLIAcquireAndReleaseResults` (`internal/tasks/cli`) |
+| CAL-V0-205 | `TestCALV0205_PoolConfirmSafeTakesWriterRoute` (`internal/tasks/store`) |
+| CAL-V0-206 | `TestCALV0206_FacetsCountTheWholeMatchSet` (`internal/tasks/cli`); `TestCALV0206_FacetsMemberIsAbsentOnlyAndOptional` (`internal/tasks/wire`) |
+| CAL-V0-207 | `TestCALV0207_CountReturnsOnlyTheSummary` (`internal/tasks/cli`) |
+| CAL-V0-208 | `TestCALV0208_ReadinessMemberCountsAndMilestoneDrift` (`internal/tasks/cli`) |
+| CAL-V0-209 | `TestCALV0208_ReadinessMemberCountsAndMilestoneDrift` (`internal/tasks/cli`; the fixture is not a Git repository, so a source observation would fail) |
+| CAL-V0-210 | `TestCALV0074_NoExecCrashTakeover` (`internal/tasks/store`) |
+| CAL-V0-217 | `TestCALV0217_SafetyNetIsFifteenMinutes` (`internal/tasks/dispatch`) |
+| CAL-V0-215 | `TestCALV0215_ResourceExhausted`, `TestCALV0215_WithoutRetry` (`internal/tasks/wire`); `TestCALV0215_PoolAcquireResourceExhausted`, `TestCALV0215_RetryOverrides` (`internal/tasks/cli`); `TestCALV0215_ReceiptLinkExhaustion` (`internal/tasks/authority`); `TestCALV0215_CommittedPoolExhaustion`, `TestCALV0215_CommittedDispatchExhaustion`, `TestCALV0215_AutomaticHealthExpiryReapExhaustion` (`internal/tasks/store`) |
+| CAL-V0-216 | `TestCALV0216_LockWaitAdmissionVerbs`, `TestCALV0111_LockWaitFlag` (`internal/tasks/cli`) |
+| CAL-V0-211 | `TestCALV0211_ClaimWarnsOnExactDirectoryKey`, `TestCALV0211_ExactDirectoryKeyWarnings` (`internal/tasks/store`); `TestCALV0211_SetEffectsWarnsOnExactDirectoryKey` (`internal/tasks/cli`) |
+| CAL-V0-214 | `internal/tasks/cli/mutate.go`, `internal/tasks/cli/mutate_batch.go`, shared `internal/tasks/store/directory_keys.go`, both store mutation writer routes; `TestCALV0214_CreateAndRefineWarnOnExactDirectoryKey` (`internal/tasks/cli`), `TestCALV0214_CommittedEffectsStayBoundToTransaction` (`internal/tasks/store`) |
+| CAL-V0-218 | `TestCALV0218_ParseCPUTime`, `TestCALV0218_ParseProcStatCPU`, `TestCALV0218_BusyChildNeedsWorkNotPresence`, `TestCALV0218_ActiveBaselineFollowsActivity`, `TestCALV0218_SleepingChildDoesNotBlockIdleStop`, `TestCALV0218_ActivityObservedBeforeBlockingStops` (`internal/tasks/dispatch`) |
+| CAL-V0-219 | `TestCALV0219_ChangeGuardBoundedDescriptors`, `TestCALV0219_ChangeGuardManyDirectoriesAdmitted`, `TestCALV0219_ChangeGuardBudgetIsProcessWide` (`internal/tasks/authority`) |
+| CAL-V0-220 | `TestCALV0220_NativeDescriptorBound`, `TestCALV0220_RevisitedParentReusesPin` (`internal/tasks/journal`) |
+| CAL-V0-221 | `TestCALV0221_CompleteRouteBoundedDescriptors` (`internal/tasks/store`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-10-v1-0906-bounded-fds.md` |
+| CAL-V0-222 | `TestCALV0222_HeartbeatSettlesHeldPendingReceipt` (`internal/tasks/cli`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-13-gh-860-heartbeat-redo-pending.md` |
+| CAL-V0-223 | `TestCALV0223_HeartbeatHelpNamesRedoAndLiveness` (`internal/tasks/cli`) |
+| CAL-V0-224 | `TestCALV0224_WriterAuditWorkIsHistoryIndependent`, `TestCALV0224_ForeignReceiptDuringWalkMovesQuiescentListing`, `TestCALV0224_ListingNeverOutlivesItsAttempt` (`internal/tasks/journal`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-14-v1-0887-liveness-o1.md`; `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-15-v1-0887-heartbeat-fast.md` |
+| CAL-V0-225 | `TestCALV0225_DispatchConfigPathForms` (`internal/tasks/cli`), `TestCALV0225_RelativeReadIsMalformed` (`internal/tasks/intent`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-14-gh-899-900-dispatch.md` |
+| CAL-V0-226 | `TestCALV0226_OperatorRecovery`, `TestCALV0226_LiveEvidenceKeepsQuarantine`, `TestCALV0226_UnreadableMarkers`, `TestCALV0226_ClearTakesMarkerAside` (`internal/tasks/dispatch`); `TestCALV0053_DispatchReaderCLIClearFailure`, `TestCALV0226_DispatchRecoverReaderOperator`, `TestCALV0226_DispatchRecoverReaderLiveEvidence`, `TestCALV0053_DispatchReaderCLICrashRetainsQuarantine` (`internal/tasks/cli`) |
+| CAL-V0-227 | `TestCALV0227_RebootProofLiftsQuarantine`, `TestCALV0227_NoProofWithoutEvidence`, `TestCALV0227_RebootRecordMustMatchMarker` (`internal/tasks/dispatch`); `TestCALV0227_DispatchRecoverReaderByReboot` (`internal/tasks/cli`) |
+| CAL-V0-228 | `TestCALV0228_DispatchHelpNamesRecovery` (`internal/tasks/cli`); diagnostic text asserted in `TestCALV0227_RebootProofLiftsQuarantine` and `TestCALV0226_LiveEvidenceKeepsQuarantine` |
+| CAL-V0-229 | `TestCALV0229_RecoverRefusesNewerVersions` (`internal/tasks/dispatch`), `TestCALV0131_EveryLiveFormatRefusesANewerVersion`, `TestCALV0131_LiveFormatsCoverEveryDecodedProfile` (`internal/tasks/cli`) |
+| CAL-V0-236 | `TestCALV0236_SupersededReplayCarriesAdvisoryWarning` (`internal/tasks/store`); `TestCALV0236_SupersededReplayWarningLeavesResultBytes` (`internal/tasks/cli`) |
+| CAL-V0-230 | `TestCALV0230_SupersededGenerationRenewIsFencedAfterReclaim` (`internal/tasks/store`); `TestCALV0231_RenewKeepsHolderFresh` (`internal/tasks/cli`) |
+| CAL-V0-231 | `TestCALV0231_RenewRecordsLastHeartbeat` (`internal/tasks/store`); `TestCALV0231_RenewKeepsHolderFresh` (`internal/tasks/cli`) |
+| CAL-V0-232 | `TestCALV0232_LivenessWritesNeverReadHistory` (`internal/tasks/store`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-15-v1-0887-1403-liveness-guard.md` |
+| CAL-V0-240 | `TestCALV0240_ReusablePassSatisfiesAnotherAttemptAtTheTree` (`internal/tasks/store`); `TestCALV0240_GateRunReportsReusedFrom` (`internal/tasks/cli`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-15-v1-1415-reusable-gate-results.md` |
+| CAL-V0-241 | `TestCALV0241_GateRunExecutesWithoutAQualifyingSource` (`internal/tasks/store`) |
+| CAL-V0-242 | `TestCALV0242_ModelRefusesAnUnqualifiedReuse` (`internal/tasks/store`) |
+| CAL-V0-243 | `TestCALV0243_ReceiptAuditBindsEveryReuse`, `TestCALV0243_ReuseRenamedAfterReturningToTheTree`, `TestCALV0243_RedoBindsAPendingReuse`, `TestCALV0240_ReusablePassSatisfiesAnotherAttemptAtTheTree` (`internal/tasks/store`) |
+| CAL-V0-250 | `TestCALV0250_DefaultedIssuedAtRetryNamesTheDifference` (`internal/tasks/cli`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-15-v1-1384-1379-tasks-cli-refusals.md` |
+| CAL-V0-255 | `TestCALV0255_GateTimeoutBoundIs14400` (`internal/tasks/intent`); `TestCALV0255_AuditAcceptsPostedGateTimeoutBound` (`internal/tasks/journal`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-16-v1-1460-gate-timeout-bound.md` |
+| CAL-V0-260 | `TestCALV0260_AdministrativeWritersSettleHeldPendingReceipt`, `TestCALV0260_AttemptRunSettlesHeldPendingReceipt`, `TestCALV0260_AttemptRunRefusalReportsSettledRedo` (`internal/tasks/cli`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-15-tasks-redo-barrier-1353-1059.md` |
+| CAL-V0-261 | `TestCALV0261_PoolCommandReportsSettledRedo` (`internal/tasks/store`) |
+| CAL-V0-262 | `TestCALV0262_WriterHelpNamesRedo` (`internal/tasks/cli`) |
+| CAL-V0-263 | `TestCALV0263_NoCompleteAuditUnderGate`, `TestCALV0026_PreparationGateStore`, `TestGH494PreparationAdmissionStore` (`internal/tasks/store`); opt-in `TestCALV0263_LeaseGateLoad`; `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-16-v1-1494-lease-gate-scope.md` |
+| CAL-V0-265 | `TestCALV0265_RefreshPrefixWalk`, `TestCALV0265_RefreshRefusesOnlyHeldJournal`, `TestCALV0265_PrefixRecheckAfterWalk` (`internal/tasks/journal`); `TestCALV0117_WriterAdvanceAndScheduledRefresh` (`internal/tasks/store`) |
+| CAL-V0-270 | `TestCALV0270_FailingWorkStateCommandHealthEscalatesOnceAndRecovers`, `TestCALV0270_ConfigAndLedgerBounds` (`internal/tasks/dispatch`); `TestCALV0270_DispatchStatusShowsFailingWorkStateAfterOneTick`, `TestCALV0270_DispatchStatusWorkState` (`internal/tasks/cli`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-16-v1-1510-dispatch-workstate-health.md` |
+| CAL-V0-271 | `TestCALV0270_FailingWorkStateCommandHealthEscalatesOnceAndRecovers` (`internal/tasks/dispatch`) |
+| CAL-V0-272 | `TestCALV0272_UnknownWorkStateRunsAreRecorded` (`internal/tasks/dispatch`) |
+| CAL-V0-273 | `TestCALV0273_LaunchHoldIsOptInAndLifts` (`internal/tasks/dispatch`); `TestCALV0270_DispatchStatusWorkState` (`internal/tasks/cli`) |
+| CAL-V0-274 | `TestCALV0274_TimedOutReadIsNamedAndUnavailableOnce`, `TestCALV0053_ReaderLocalTimeout` (`internal/tasks/dispatch`) |
+| CAL-V0-275 | `TestCALV0274_TimedOutReadIsNamedAndUnavailableOnce`, `TestCALV0270_ConfigAndLedgerBounds` (`internal/tasks/dispatch`); `TestCALV0270_DispatchStatusWorkState` (`internal/tasks/cli`) |
+| CAL-V0-276 | `TestCALV0276_OneFailedReadEmitsNoPerTicketStateEvents`, `TestCALV0276_FailedReadKeepsHeldPlansInBaseline`, `TestCALV0270_ConfigAndLedgerBounds` (`internal/tasks/dispatch`); `TestCALV0270_DispatchStatusWorkState` (`internal/tasks/cli`) |
+| CAL-V0-277 | `TestCALV0277_RenewOnlyHolderNeverReadsStale` (`internal/tasks/cli`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-16-v1-1511-liveness-ttl-policy.md` |
+| CAL-V0-278 | `TestCALV0278_PolicyShowEffectiveTTL` (`internal/tasks/cli`) |
+| CAL-V0-280 | `TestCALV0280_TerminalTicketWorkStateEmitsNoStateEvent` (`internal/tasks/dispatch`) |
+| CAL-V0-290 | `TestCALV0290_ShadowedRoleWarnsWithoutChangingOrder`, `TestCALV0290_ShadowCoverageIsConservative`, `TestCALV0290_ShadowNamesPreferredCover`, `TestCALV0290_ShadowWarningEvents` (`internal/tasks/dispatch`); `TestCALV0290_DispatchStatusReportsShadowedRoles` (`internal/tasks/cli`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-16-v1-1518-dispatch-role-priority.md` |
+| CAL-V0-086 | `TestCALV0086_AttemptWorktreePathIsPathText` (`internal/tasks/snapshot`); `TestCALV0086_LongWorkRootStageDispatches`, `TestCALV0086_OverlongWorktreeRefusedBeforeMutation`, `TestCALV0086_UnprovedStopIsNotFinished`, `TestCALV0086_WatcherToleratesTransientReadFailure` (`internal/tasks/store`); `TestCALV0086_DrainWaitsOutUnprovableGroupProbe`, `TestCALV0086_DrainProvesReapedZombieGroupGone` (Darwin) (`internal/tasks/supervisor`); acceptance `go test -count=10 -run TestCALV0072_MultiRepositoryGatesFailClosed` under a 113-byte resolved `TMPDIR` and concurrent load, see `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-05-tasks-multirepo-continuation.md` |
+
+## Holder, retry and policy observation acceptance
+
+
+Issue 494 preparation admission has focused and independent source review plus ten reached protocol cases on local Darwin/APFS and Linux/arm64 Colima/tmpfs. Source snapshot `82d8d532f7f537e93af2889d2fc1468a7953e9df0ccc39ff8e690e3c499c9e92` binds those protocol runs. The only later source change repairs the mixed harness replay receipt assumption; the tiny `TestGH494CLIResultContract` passed its parent and eight cases with exact captured identities on source snapshot `e716f41b793d1ad6517eeb47d3601fd227c4ee6357500e50b5fe94a07886a77b`. The original mixed Go test remains failed; independent raw readback establishes 30/30 operations, full 5000→5030→5030 audits, ten fenced attempts, empty reservations and exact-ID replay without changed bytes. No repeated mixed wave is implied. Current-source CAL-V0-026 measurement met the original threshold on local macOS with Go 1.27.1 and GOMAXPROCS=2: 3000 tickets, 20 samples per verb, claim p95 108.467584 ms and renew p95 97.003583 ms. All 105 host-load observations were below 12 CPUs. Raw measurement SHA256 `25b0076542c81b7bcce9c62badbc2f0bb9f18732eb821058218e64036830eecd`, host observation SHA256 `3a29706d5f4abee9d20313fd0f499a326a6495bcf26a4d6aef6b09114c54fd33` and source manifest `e716f41b793d1ad6517eeb47d3601fd227c4ee6357500e50b5fe94a07886a77b` bind this result. Linux and default-parallelism performance remain unqualified. Committed pending-receipt redo and the other four selected checks are recorded through the keyed post-commit plan in the build log; their results must be read from receipts bound to the actual commit. Terminal independent review, CEM/check/seal, integration and native completion remain pending. No mixed-version fairness, CLI arrival order or universal starvation freedom is claimed. See `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-04-gh494-fair-preparation-admission.md`. Rollback retires owned work before reverting code, while preserving store/journal/intent and inert coordination files.
+
+Issue 545 (claims exiting SNAPSHOT_MOVED after minutes of preparation at about 7,140 receipts) was reported against `32aa5a3f2b7f3fe658d208049fb009e2c9e24c13`, which predates issue 494 admission. The opt-in `TestGH545ClaimStarvation` (`GH545_CLI`, `GH545_EVIDENCE_DIR`; defaults 7,140 receipts, ten fresh-process writers, claim/heartbeat/renew/heartbeat/release, 60-second per-operation bound) retains whole-operation time and outcome. One local Darwin wave per binary: the reported commit completed 25 of 50 operations, five refused SNAPSHOT_MOVED and the worst ran 360,063 ms; the admission source at `a5bb0d8fe4f5748f45181f49cb3c9e8e877b3d7d` completed 50 of 50 with the worst at 32,959 ms. This changes no behaviour or requirement. It is not a latency budget: an uncontended operation still costs about 3 seconds at this history, so the ten-writer queue sits at the 30-second admission budget and a 14-writer wave refused three writers LOCK_TIMEOUT (55 of 70). History-independent mutation cost, Linux, p95 and fairness remain unqualified. See `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-04-gh545-claim-starvation-qualification.md`.
+
+
+Tests for `CAL-V0-048`: `TestCALV0048_HeartbeatLegacyRoundTrip`,
+`TestCALV0048_HeartbeatFenceReplayAndLeaseInvariant`,
+`TestCALV0048_HeartbeatCLIReplayAndFence`, `TestCALV0048_HolderObservationBoundaries`.
+Tests for `CAL-V0-049`: `TestCALV0049_ReasonTotalsAndClosedSchema`,
+`TestCALV0049_RetryObservationMatchesAdmission`, `TestCALV0049_ChargeReasonPartition`,
+`TestCALV0049_RetryReadProjections`, `TestIssue503_ZeroRemainingHandoffAdmission`,
+`TestIssue503_JournalAbsentAdmissionUnknown`, `TestIssue503_RecordedAdmissionProvenance`,
+`TestIssue503_RetryExplanation`. `CAL-V0-043` refusal diagnostics are covered by
+`TestIssue503_ReopenReasonDoesNotAuthorize` and `TestCALV0043_RecoveryExaminesEveryAttempt`.
+Rollback of issue 503 removes these additive read fields and diagnostic detail; no stored schema,
+retry charging, migration or acceptance reset changes are required.
+Tests for `CAL-V0-050`: `TestCALV0050_PolicyShowPureAndUpdateHelp` plus existing policy-update refusal/replay tests.
+Tests for `CAL-V0-051`: `TestCALV0051_CreateHelpAndMeaningfulIDs` plus existing allocator/collision tests.
+Failure modes retain stale-generation refusals, expired heartbeat replay, backwards clocks,
+legacy reason uncertainty, zero-limit initial admission and canonical/version update refusal.
+Rollback requires a compatible reader/writer for added optional attempt members; preserve journal
+and request bytes, stop admissions before replacing a writer, and never silently downgrade over
+records an older closed codec cannot read. Focused qualification establishes these disposable
+seams only; repository-wide gate, production process liveness and hosted outcomes remain unclaimed.
+
+## #464 command-reader lifecycle amendment
+
+This records the experimental implementation of the existing CAL-V0-053 repair
+under GitHub #464 / V1-0654. It adds no requirement ID or new acceptance of the
+proposed `process-group-owner-v0.md` contract. The accepted work-state limits and
+UNKNOWN/alert behavior above remain in force. Final integration qualification is
+pending; see `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-04-dispatch-reader-lifecycle-integration.md`.
+
+A command reader holds one creation-owned process slot through result handling.
+After command exit or cancellation, retirement uses one fixed deadline: the earlier
+of command deadline plus one second and retirement trigger plus one second. Only
+Owner RELEASED permits inspecting output and returning ordinary read results.
+The reader's Owner repeats the group SIGKILL on each pre-reap live observation
+while the leader is unreaped, so a member forked alongside the first signal on
+Darwin is retired too (`PGO-V0-017`).
+Unproved retirement retains UNKNOWN and poisons the dispatcher invocation;
+subsequent Tick/Run calls stop, including bounded runs and canceled contexts.
+Close releases the lock through the terminal UNKNOWN path without normal ledger
+or event writes. Cancellation also stops subsequent healing writes; it does not
+roll back an already completed mutation.
+
+Before spawning, the locked program directory receives a bounded canonical
+`reader-lifecycle.json` marker with profile `taskman-dispatch-reader-lifecycle/0`,
+program, random run identifier and lifecycle UNKNOWN. It contains no PID authority; from
+CAL-V0-227 a `/1` marker also records host evidence, and a separate leader record names the
+leader pid, which can only keep the quarantine.
+Restart checks refuse unresolved, malformed, symlink or nonregular evidence before
+owner/ledger/event writes or worker adoption. Only matching file identity and bytes
+are cleared after RELEASED/result handling or a start failure that owns no child; the clear
+takes the marker aside and checks it again there (CAL-V0-226).
+Publication or clear failure stops this invocation; failed diagnostics do not clear
+quarantine. A publication failure before creation need not leave a marker because
+no reader was spawned. Recovery is only the operator attestation (CAL-V0-226) or the
+host-reboot proof (CAL-V0-227); nothing else clears the marker.
+
+Read-only status separates `readerContainment`, `readerQuarantined` and
+`readerDiagnostic` from dispatcher PID liveness. Marker absence is NOT_OBSERVED,
+not proof of RELEASED. Exported ReadStates command calls retain the same boundary
+under the private `work-state-reader` program; status-line reads retain their
+existing behavior. Unsupported process-owner platforms refuse before creation.
+
+The marker covers process restart/crash visibility, not power loss. Old binaries,
+manual deletion and alternate state directories can bypass it. No escaped-session
+or host-wide containment, immortal handle retention, Linux amd64 runtime, or
+promotion of the Owner dependency is claimed. Rollback requires quiescing owned
+readers and preserving unresolved markers/evidence; reverting code alone does not
+prove cleanup or make an older reader safe.
+
+## Re-homed CREATE template and batch refine requirements
+
+CAL-V0-073 (V1-0751 `ticket create --template`) and CAL-V0-106 (V1-0854 `ticket refine --batch`)
+are retired aliases. Their text moved unchanged to `CTW-V0-012` and `CTW-V0-013` in
+[`corvint-tasks-intent-worktree-v0.md`](corvint-tasks-intent-worktree-v0.md) (V1-2165), because
+they were defined outside this spec's `## Requirements` section, which is at the 256-obligation
+OCM bound. Citations of the old IDs in code, help text and test names mean the new ones.
+
+## Re-homed 2026-10-23 batch requirements
+
+CAL-V0-350 (V1-1715), CAL-V0-360..364 (V1-2137, V1-1634, V1-0911, V1-1569) and CAL-V0-365..371
+(V1-2368) are retired aliases. Their text moved unchanged, because this spec's `## Requirements`
+section is at the 256-obligation OCM bound: CAL-V0-361..363 and CAL-V0-365..371 to ATR-V0-320..322
+and ATR-V0-323..329 in [`corvint-tasks-attempt-runner-v0.md`](corvint-tasks-attempt-runner-v0.md);
+CAL-V0-350 and CAL-V0-364 to PSR-V0-220 and PSR-V0-221 in
+[`corvint-tasks-pool-safe-reuse-v0.md`](corvint-tasks-pool-safe-reuse-v0.md); CAL-V0-360 to
+TQD-V0-046 in [`corvint-tasks-doctor-v0.md`](corvint-tasks-doctor-v0.md). CAL-V0-350 was already
+the retired alias of ATR-V0-180 and is not reused. Citations of the old IDs in code, messages and
+test names mean the new ones.
+
+## V1-0793 critical-path read amendment
+
+Authoritative inputs: owner request [issue 588](https://github.com/beamfall/corvint/issues/588)
+(ticket V1-0793) and owner answer 2026-10-05 (D8): a new profile `taskman-critical-path/0`,
+bounded to 256 nodes and 32 chains, with no duration estimates in v0. On 2026-10-04 two handoffs
+circulated a wrong path to a gate because finding the real open dependencies took manual
+`ticket show` walks. This amendment adds one read verb. It changes no record, journal, writer,
+plan or existing wire profile.
+
+The normative requirements CAL-V0-079 to CAL-V0-081 are defined in the Requirements section under
+"V1-0793 critical-path read (issue 588)"; this amendment records their scope and evidence.
+
+Non-goals: duration or completion-time estimates (D8 defers them; `estimate` stays
+`NOT_OBSERVED`), dispatcher-private progress tokens (CAL-V0-064 history is not read), execution
+prerequisites and loop or escalation holds before their own specs land, owner-set bounds, paging,
+and any change to eligibility, planning or claim behavior.
+
+Failure modes: an unknown or foreign ticket refuses as `ticket show` does; a malformed argument is
+`MALFORMED`; a dependency cycle never loops the walk; a missing dependency remains a
+`DEPENDENCY_MISSING` blocker on its dependent and is not a node; an unobservable fact is
+`NOT_OBSERVED`, never inferred. The 256-node bound keeps the item well under the 16 MiB list-result
+bound even when every node has the maximum 64 dependencies. Rollback removes the verb; no store,
+journal or wire state depends on it.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-079 | `TestCALV0079_CriticalPathChainsAndNodeFacts`, `TestCALV0079_CriticalPathLiveAttemptFacts` (`internal/tasks/cli`) |
+| CAL-V0-080 | `TestCALV0080_CriticalPathBoundsAndCycles`, `TestCALV0080_CriticalPathLargeCycleIsBounded` (10,000-ticket ring) (`internal/tasks/cli`) |
+| CAL-V0-081 | `TestCALV0081_CriticalPathBlockersMatchPlanner` (pool, coverage, gate observation, archived completion, budget; `plan preview` parity), `TestCALV0081_CriticalPathRetryAndPauseMatchPlanner`, `TestCALV0079_CriticalPathChainsAndNodeFacts` (purity and journal-absent `NOT_OBSERVED`), `TestCALV0079_CriticalPathLiveAttemptFacts` (purity with a live journal), `TestCALV0081_CriticalPathPrerequisiteNodeBlocker`, `TestCALV0081_CriticalPathEscalationNodeBlocker`, `TestCALV0081_CriticalPathLoopNodeBlocker` (V1-0802: one node first-blocker regression each for PREREQUISITE_UNSATISFIED, ESCALATION_PENDING and LOOP_DETECTED, each with a control lacking the condition and a purity check), `TestCALV0047_AllCommandHelpIsReadOnly` (`internal/tasks/cli`) |
+
+## V1-0781 preparation admission pressure amendment
+
+Authoritative input: the owner's 2026-10-05 comment on issue 494, filed as ticket V1-0781. At about
+8,900 receipts with up to 13 concurrent supervised sessions, a pooled claim returned
+`LOCK_TIMEOUT` after 30 seconds with `phase=queue registered=true rank=13`. The owner asked
+`queue status` to expose the current admission rank and estimated wait so that supervisors can
+back off before they queue. This amendment adds one read-only observation to `queue status`. It
+changes no admission protocol, slot format, writer behavior, journal, intent or existing field.
+
+The normative requirement is `CAL-V0-095` in the Requirements section (V1-0781 subsection).
+
+Non-goals: no change to admission order, fairness, capacity, deadlines or the slot record; no
+wait estimate from inter-receipt timing, host load or guesswork; no counting of older clients
+that bypass registration; no backoff policy or dispatcher throttle (a supervisor decides); no
+pressure history or ledger; no Windows observation.
+
+Failure modes: each slot is observed at a different instant. A registrant can publish, or a
+holder can retire, during the sweep. A registry-held scan briefly probes free slots by `flock`,
+so a free slot with a stale record can be counted; `registryActive` flags this window. Older
+clients that take the final gate without registering are invisible. A Linux reader outside the
+initial PID namespace, as in an ordinary container, abstains rather than under-count writers
+in other namespaces. Even in the initial namespace, Linux hides a `flock` whose locking process
+exited while another process still holds the file description. Corvint descriptors are
+close-on-exec and Go does not fork without exec, so a registration cannot outlive its locker that
+way, but a foreign process doing so is not detected. An entry for the same inode on another
+device refuses as ambiguous rather than reporting absence. A Darwin POSIX record lock on a
+coordination file makes the read abstain. Darwin's private OFD-style locks are unqualified and
+may read as `flock`. A lock table larger than 4 MiB, a missing `/proc` or an unsupported
+platform reports `NOT_OBSERVED`. Observation over network filesystems is unqualified.
+
+Acceptance evidence: on Darwin/APFS, and on Linux/arm64 in Colima containers over overlayfs and
+tmpfs, both in a container PID namespace and with the host PID namespace, the tests below show the
+following. Four real waiters queued behind a holder report five
+registered writers and would-be rank six. Every coordination file keeps identical bytes, mode and
+modification time, and the fixture journal and intent audits are unchanged. Retired slots with
+stale records count zero. A registration held by another process is counted. A partial live
+record hides the rank. An unsafe slot object, an unavailable lock query, an incomplete Linux lock
+table, a Darwin record lock, and a slot or registry that disappears or is replaced after its
+first stat or after its open, and a common directory renamed away and replaced after the root is
+pinned, each report `NOT_OBSERVED`. Linux POSIX and OFD record locks on stale slots count zero. The status read creates no registry file. Rollback removes the observation and
+the field; no store, wire profile or coordination file depends on it.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-095 | `TestCALV0095_PreparationQueueObservation`, `TestCALV0095_PreparationQueueObservationAcrossProcesses`, `TestCALV0095_RecordLockIsNotARegistration`, `TestCALV0095_ProcLocksParse` and `TestCALV0095_ProcLocksCompleteness` (Linux) (`internal/tasks/authority`); `TestCALV0095_QueueStatusAdmissionPressure` (`internal/tasks/cli`) |
+
+## V1-0780 retryable result amendment
+
+Authoritative input: ticket V1-0780, the follow-up the owner filed to
+[issue 494](https://github.com/beamfall/corvint/issues/494): at about 8,900 receipts with 13
+concurrent sessions, lease renew and heartbeat returned `ERROR`/`LOCK_TIMEOUT` while the lease was
+FRESH, and the client runner killed healthy runs. Its client now matches a private list of codes.
+The owner asked that Tasks document which result codes are retryable and mark each result with an
+explicit `retryable` fact so callers stop pattern-matching codes.
+
+The requirement `CAL-V0-078` is defined in the Requirements section (V1-0780 retryable command
+results); this section records its source, classification, limits and evidence.
+
+The classification, as `wire.RetryOf` records it:
+
+| Codes | Retryable | Condition or reason |
+| --- | --- | --- |
+| `RESOURCE_EXHAUSTED` | yes (CAL-V0-215, decision 0519) | EMFILE/ENFILE descriptor pressure clears; same-request retry, unless an explicit non-retryable mark forbids it |
+| `LOCK_TIMEOUT` | yes | Lock or preparation admission held by another writer past the wait; nothing locked or written |
+| `SNAPSHOT_MOVED` | yes | Store, head, intent tree or worktree moved during a read or before commit; nothing decided. A release or attestation candidate whose head no longer matches, and a criterion capture wrapping a refused read, repeat until their input changes |
+| `REDO_PENDING` | yes | A writer is between receipt link-in and head rename; the next mutating command redoes a crashed writer's receipt |
+| `FENCED`, `BOOT_FENCED`, `SUPERVISOR_LOST` | no | Fencing: the attempt or generation really lost; start a new attempt |
+| `LIMIT_EXCEEDED` | no | Mostly static size bounds; the transient preparation-slot and active-attempt caps share the code |
+| `JOURNAL_SATURATED`, `UNSUPPORTED_FILESYSTEM` | no | Capacity, I/O or filesystem-identity conditions that backoff is not known to clear |
+| `STALE_TICKET`, `STALE_POLICY`, `STALE_TREE` | no | A recorded fact moved; re-read and rebuild the request |
+| `COMMIT_NOT_INTEGRATED` | no | Beside `STALE_TREE`: the commit is in neither the intent branch nor its remote-tracking upstream; integrate it or fetch the upstream first (CAL-V0-017, V1-1081) |
+| `REQUEST_ID_CONFLICT`, `MALFORMED`, `DUPLICATE_ID`, `CYCLE`, `DEPENDENCY_MISSING`, `INVALID_PRIORITY`, `GATE_UNKNOWN`, `ADOPT_UNSUPPORTED_FIELD`, `MILESTONE_REQUIRED`, `OUT_OF_SCOPE`, `UNSUPPORTED`, `UNSUPPORTED_VERSION`, `INTENT_BRANCH_MISMATCH`, `DIRTY_WORKTREE`, `SECRET_DETECTED`, `PROVENANCE_UNVERIFIED` | no | The request or local input must change first |
+| `ATTEMPT_LIVE`, `RESOURCE_COLLISION`, `PAUSED`, `DEPENDENCY_UNSATISFIED`, `TICKET_HELD`, `TICKET_STATE`, `APPROVAL_MISSING`, `APPROVAL_REVOKED`, `CUTOVER_MISSING`, `QUIESCENCE_UNPROVED`, `RETRY_EXHAUSTED`, `GATE_FAILED`, `GATE_STALE`, `MISSING_GATE`, `MISSING_EVIDENCE`, `BUDGET_UNKNOWN`, `COVERAGE_UNKNOWN`, `EXTERNAL_UNBOUNDED`, `UNINITIALIZED`, `RESTORE_INCOMPLETE`, `INTENT_DIVERGED`, `JOURNAL_FORKED`, `ESCALATION_PENDING`, `PREREQUISITE_UNSATISFIED`, `LOOP_DETECTED` | no | Another actor, the owner or a recorded state must change first |
+| `NOEXEC`, `SURVIVORS` | no | Execution results that the same inputs reproduce |
+| `HANDOFF`, `REVIEW_RETURNED`, `DEVELOPMENT_MODE` | no | Dispositions, not failures |
+| `ADJUDICATION`, `BOOT_TIMEOUT`, `BUDGET_EXCEEDED`, `CAPABILITY_UNAVAILABLE`, `CEM_MISSING`, `CONTAMINATED`, `CUTOVER_IN_PROGRESS`, `DOCS_MISSING`, `EFFECT_OWNED`, `INDEPENDENCE_UNVERIFIED`, `OCM_MISSING`, `PLAN_STALE`, `RESTORED`, `REVIEW_INCOMPLETE`, `REVIEW_REJECTED`, `SIGNAL_REFUSED_IDENTITY`, `UNCERTAIN_EFFECT`, `UNPUBLISHED`, `UNRESOLVED_FINDING` | no | Reserved in §11 with no in-tree producer |
+
+The issue 494 client list also names `STALE`, `STORAGE_FAILED` and `HEAD_MOVED`. None is a §11
+code: `STALE` is a gate or review status, `STORAGE_FAILED` is a `taskman-outcome/0` mutation
+outcome (its envelope carries the code beside it, or none), and `HEAD_MOVED` has no producer. The
+member therefore cannot classify them; a `STORAGE_FAILED` mutation reported without a code carries
+no `retryable` member.
+
+Non-goals: no new code, no recoding of an existing producer, no change to `outcomeFor`, exit
+status, `taskman-outcome/0` or the receipt profiles, no retry or backoff inside Tasks, no member on
+`OK` or uncoded results, and no retry budget or deadline advice. `retryable` states that a retry can
+succeed, not that it will, and a command that ran a program reports false rather than rerun it on retry. A claim that ran pool
+health probes before a later refusal is not covered: a retry of that claim may probe again.
+A renew retried after the lease's `expiresAt` can still be refused or fenced.
+
+Failure modes: a new §11 code without a classification fails
+`TestCALV0078_ClassificationCoversEveryCode`; a fencing code marked retryable fails
+`TestCALV0078_FencingNeverRetryable`. A consumer built before this amendment that decodes the
+closed envelope exactly (the earlier `wire.DecodeResult`, or the companion release's 10-key
+`taskEnvelope` check) refuses a coded non-`OK` envelope that carries the member; no in-tree
+consumer reads such envelopes, because every in-tree closed reader accepts only `OK` results or
+the uncoded `attempt` `NOT_RUN`. `LIMIT_EXCEEDED` stays not retryable even though two of its
+producers (the 64 live preparation slots and the active-attempt cap) can clear without the caller,
+because its other producers are fixed limits; separating them needs a new code. `SNAPSHOT_MOVED` is
+retryable, because its usual cause is a concurrent writer. Its stale-input producers (a release or
+attestation candidate whose head no longer matches, and a criterion capture that wraps a refused
+read) are the named exception: they repeat until the caller changes its input.
+
+Acceptance evidence is the traceability row below plus unchanged bytes for `OK` and uncoded
+results under the existing `internal/tasks` tests. Rollback removes the member from
+`Result.Value`, the decoder's optional key, `Report.Unretryable`, `PoolSweepReport.Unretryable`, the `wire.Error.NotRetryable` mark and the `attempt run` override; earlier decoders then
+read every envelope again, and no store, journal or receipt state depends on it.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-078 | `TestCALV0078_ClassificationCoversEveryCode`, `TestCALV0078_FencingNeverRetryable`, `TestCALV0078_ResultRetryablePresence`, `TestCALV0078_EnvelopeRetryableMember`, `TestCALV0078_WithoutRetryKeepsCode` (`internal/tasks/wire`); `TestCALV0078_RedoPendingReadIsRetryable`, `TestCALV0078_UnrecordedRunIsNotRetryable`, `TestCALV0078_ExecutedGateRunIsNotRetryable`, `TestCALV0078_CommittedSweepIsNotRetryable`, `TestCALV0078_MarkedErrorIsNotRetryable`, `TestCALV0078_AnyMarkedLaneMakesBatchNotRetryable` (`internal/tasks/cli`); `TestCALV0078_GateRunContentionAfterExecutionIsReported`, `TestCALV0078_PoolCommandReportsExecution`, `TestCALV0078_PreparedPoolCommandIsNotRetryable`, `TestCALV0078_SweepResponseLossAfterExecutionIsNotRetryable`, `TestCALV0078_SweepContentionBeforeOwnerCommitIsRetryable`, `TestCALV0078_SweepContentionBeforeObservationCommitIsNotRetryable`, `TestCALV0078_SupervisedGateRecordFailureIsNotRetryable`, `TestCALV0078_SupervisedCheckingFailureIsNotRetryable`, `TestCALV0078_SupervisedRunAfterCommitIsNotRetryable`, `TestCALV0078_IntegratorFailureBeforeLeavingSelectionIsRetryable` (`internal/tasks/store`) |
+
+## V1-0989 pool group cleanup proof under load amendment
+
+Authoritative input: native ticket V1-0989 (a `TestCALV0065_NativeFixture` flake under host load),
+filed under the load-sensitive umbrella V1-0849. Root cause, on base `0b5096ca`: after a pool
+health or sweep command exits, the owned process-group check listed the whole process table with
+`/bin/ps -axo pgid=,stat=` under a fixed 1-second bound. At load average 45 to 60 on a 12-core
+Darwin host that listing took 0.7 to 2.4 s (8 of 15 samples over 1 s). The overrun is an
+unproved cleanup, so CAL-V0-033 correctly refused admission: the health observation was
+`EXIT_ZERO` with the group cleanup unproved, the eligible member was quarantined, and the claim
+was refused `RESOURCE_COLLISION`. The refusal was correct; the cleanup proof was unobtainable
+for a group that was already empty. This amendment changes no wire profile, observation codec,
+request preimage, receipt or replay rule.
+
+- `CAL-V0-188`: (proposed; V1-0989) Before listing processes, the owned process-group check after
+  a pool health, cleanup or sweep command MUST ask the kernel with `kill(-group, 0)`. `ESRCH` MUST
+  count as proof that the group has no member, including no zombie, and no listing runs. Every
+  other answer, including `EPERM` (Darwin answers it for a group whose only member is an unreaped
+  zombie) and success, MUST fall back to the existing bounded `/bin/ps` listing with unchanged
+  rules: a listing that fails or overruns its bound remains unproved cleanup and refuses
+  admission (CAL-V0-033, PSR-V0-010). The kernel check MUST NOT be used for group 0 or 1.
+
+Non-goals: a ps-free runner identity (`ps -p PID -o lstart=` keeps its 1-second bound and can still
+fail a preparation on a heavily loaded host); retrying a failed listing; killing a group whose
+listing failed; any change to the 1-second listing bound or the cleanup allowance.
+
+Failure modes: a reused group ID that names an unrelated live group answers success and falls back
+to the listing, exactly as before this amendment. A group whose listing fails while a member still
+lives stays unproved and quarantined. Rollback removes the kernel check; nothing persisted depends
+on it.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-188 | `TestCALV0188_GroupListingOverrun` (`internal/tasks/store`); `TestCALV0065_NativeFixture` (`internal/tasks/cli`) under load; `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-07-v1-0989-calv0065-flake.md` |
+
+## V1-1508 liveness receipt elision amendment
+
+Status: accepted (owner, 2026-10-16, in-session choice; decision 0538). It is implemented with
+focused tests. Authoritative input: native ticket V1-1508 and
+[issue 982](https://github.com/beamfall/corvint/issues/982). On one real queue over 18 days,
+heartbeat and renew receipts were 61 % of the receipts and 67 % of receipt bytes. Each carried the
+whole attempt record, and the journal could only grow. This amendment amends the TCP-00 journal
+clause J1. "Retained contiguous history" becomes "contiguous names and digests; content may be
+elided after supersession". Complete audit and archive verify gain the elision step
+in CAL-V0-301. Heartbeat and renew write paths, fencing, lease expiry, request and replay rules are
+unchanged. A store that is never compacted keeps its bytes and behaviour.
+
+- `CAL-V0-300`: (accepted, decision 0538; V1-1508) A receipt MAY be
+  elided only when all of the following hold:
+  - It is a completed `TRANSITION` with no codes.
+  - It posts exactly its attempt record and its request.
+  - Its attempt post differs from the previous record of that attempt only in `lastHeartbeatAt`
+    and in a `lease` whose holder is unchanged.
+  - A later receipt posts the same attempt path.
+
+  These receipts MUST NOT be elided: ownership or outcome receipts (claim, release, handoff,
+  reap, widen, submit, gate, complete), ticket and administrative receipts, the head receipt, and
+  the latest receipt of each attempt. A complete audit or archive verify that reaches the head
+  with an elided receipt still the latest post of its attempt MUST refuse it as `JOURNAL_FORKED`.
+- `CAL-V0-301`: (accepted, decision 0538; V1-1508) An elided receipt is
+  `taskman-receipt/1`. It is the original receipt with that attempt post's `record` set to null,
+  plus `receiptSha256` (the SHA-256 of the original bytes) and
+  `elided {path, lastHeartbeatAt, lease}`. Every walk from receipt 1 MUST restore each elided
+  receipt to its original bytes before chaining, folding or linking it. This covers complete
+  audit, the writer replay, archive verify, the receipt binding fold, external review inputs and
+  doctor. The restored attempt record is the latest earlier record of that attempt with the two
+  liveness members replaced. The restored receipt MUST match `pre`, `post` and `receiptSha256`;
+  a mismatch, or a missing earlier record, is `JOURNAL_FORKED`. Chain links and the head digest
+  are computed over the original bytes. A walk resumed from a checkpoint MUST NOT restore: it
+  treats an elided receipt as an unusable checkpoint and falls back to the complete walk. A
+  replay of a request whose receipt is elided returns the original result, read from the retained
+  header.
+- `CAL-V0-302`: (accepted, decision 0538; V1-1508)
+  `corvint-tasks receipt compact [--dry-run]` is the only writer of `taskman-receipt/1`. Nothing
+  runs it implicitly. Under the writer lock it MUST:
+  - require a complete settled audit with no staging slot, and refuse `REDO_PENDING` otherwise;
+  - remove both derived checkpoints;
+  - keep a superseded receipt whole when the latest whole record of its attempt is 1024 or more
+    receipts before it, so a reader that restores by reading backward, such as doctor, finds a
+    whole record within that bound;
+  - prove each tombstone restores to its original bytes, then publish it by write, fsync and
+    rename;
+  - sync the receipts directory and close with a complete audit.
+
+  It reports `dryRun`, `headSeq`, `elided`, `alreadyElided`, `receiptBytesBefore` and
+  `receiptBytesAfter`. `--dry-run` writes nothing. A tombstone and its original are
+  interchangeable to this binary, so an interrupted run leaves a valid journal and a rerun
+  continues.
+- `CAL-V0-303`: (accepted, decision 0538; V1-1508) `taskman-receipt/1`
+  joins `LiveFormats`, and a strict `taskman-receipt/0` decode MUST refuse it as
+  `UNSUPPORTED_VERSION` (CAL-V0-131). A binary without this amendment therefore refuses an elided
+  store and never misreads it. Because the live format set changes, moving between a binary with
+  this amendment and one without it needs one drain (CAL-V0-130).
+- `CAL-V0-304`: (accepted, decision 0538; V1-1508) An issue-shaped fixture
+  MUST show the receipt bytes before and after compaction. The fixture has four attempts with
+  interleaved heartbeats and renews, then two releases, with liveness making up two thirds of the
+  receipts.
+
+Non-goals:
+- Moving liveness out of the journal (issue 982 option 1).
+- Sealed segments, a retention policy or deleting receipts (options 2 and 3).
+- Compacting request files (item 4).
+- Changing complete-audit cost (#967).
+- Any automatic compaction.
+- Eliding any receipt other than superseded liveness.
+
+Failure modes:
+- A tombstone whose digest or liveness members were altered is refused as `JOURNAL_FORKED` by
+  audit and verify.
+- A tombstone that is still the latest post of its attempt is refused as `JOURNAL_FORKED` by
+  audit, archive export and archive verify.
+- An interrupted compaction leaves a mix of originals and tombstones, which audits clean.
+- A compaction over a pending receipt is refused as `REDO_PENDING`.
+- An older binary refuses the elided store as `UNSUPPORTED_VERSION`. The operator rolls back.
+
+Rollback: run `archive export` before every compaction and keep each export. A later export
+already holds the tombstones of earlier runs, so one export restores only the receipts the next
+run elided. To roll back, restore each elided receipt from the export taken just before the run
+that elided it: overlay the `receipts/<name>` members of every export, oldest first, over the
+state directory's `receipts/`, never replacing a `taskman-receipt/0` file with a
+`taskman-receipt/1` member. Then remove `<state directory>.checkpoint.json` and
+`<state directory>.writer-checkpoint` and run the older binary. The originals carry the digests
+the chain already binds, so this rollback also holds after later writes. Reverting the code is safe only for a store that was never compacted, or
+after this restore.
+
+| Requirement | Evidence |
+| --- | --- |
+| CAL-V0-300 | `TestCALV0300_ElisionScopeAndTamper`, `TestCALV0300_UnsupersededTombstoneRefused` (`internal/tasks/store`) |
+| CAL-V0-301 | `TestCALV0302_CompactLivenessKeepsAuditReplayAndFencing`, `TestCALV0300_ElisionScopeAndTamper` (`internal/tasks/store`); `TestCALV0302_ReceiptCompactCLI` (`internal/tasks/cli`) |
+| CAL-V0-302 | `TestCALV0302_CompactLivenessKeepsAuditReplayAndFencing`, `TestCALV0302_CompactLivenessBoundsElidedRuns` (`internal/tasks/store`); `TestCALV0302_ReceiptCompactCLI` (`internal/tasks/cli`) |
+| CAL-V0-303 | `TestCALV0131_LiveFormatsCoverEveryDecodedProfile`, `TestCALV0131_EveryLiveFormatRefusesANewerVersion` (`internal/tasks/cli`); the strict-decode check in `TestCALV0302_CompactLivenessKeepsAuditReplayAndFencing` |
+| CAL-V0-304 | `TestCALV0304_CompactLivenessIssueShape` (`internal/tasks/store`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-16-v1-1508-liveness-retention.md` |
+| CAL-V0-311 | `TestCALV0311_KeepLeaseConfigIsClosedAndBounded`, `TestCALV0311_AbsentOptionChangesNothing` (`internal/tasks/dispatch`) |
+| CAL-V0-312 | `TestCALV0312_QuietWorkerKeepsItsAttemptAcrossLeasePeriods`, `TestCALV0312_IdleWorkerIsNotKeptPastMaxIdle`, `TestCALV0312_ExitedWorkerIsNotKept` (`internal/tasks/dispatch`) |
+| CAL-V0-313 | `TestCALV0313_CoveredLeaseIsNotRenewed` (`internal/tasks/dispatch`); `TestCALV0313_NativeKeeperRenewsAndHeartbeatsFenced` (`internal/tasks/cli`) |
+| CAL-V0-314 | `TestCALV0314_FencedOrMovedAttemptStopsOnce`, `TestCALV0314_QueueWithoutKeeperStopsOnce` (`internal/tasks/dispatch`); `TestCALV0313_NativeKeeperRenewsAndHeartbeatsFenced` (`internal/tasks/cli`) |
+| CAL-V0-315 | `TestCALV0315_LedgerVersion6RecordsTheKeeper`, `TestCALV0131_LedgerSchemaChangeMovesTheStateVersion` (`internal/tasks/dispatch`) |
+| CAL-V0-316 | `TestCALV0316_DispatchStatusShowsKeeperPerWorker` (`internal/tasks/cli`) |
+| CAL-V0-317 | `TestCALV0317_UnobservedTreeIsNotKept` (`internal/tasks/dispatch`) |
+| CAL-V0-318 | `TestCALV0318_ReplayedRenewalAfterRestartWritesAgain` (`internal/tasks/dispatch`); `TestCALV0313_NativeKeeperRenewsAndHeartbeatsFenced` (`internal/tasks/cli`) |
+| CAL-V0-319 | `TestCALV0319_InterruptedGateRunRecordsItsResult`, `TestCALV0319_CancelDuringPostRunObservationRecordsResult` (`internal/tasks/store`); `TestCALV0319_HangupInterruptsGateRun` (`internal/tasks/cli`, V1-2033); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-20-V1-2012-gate-interrupt-retention.md`; `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-21-gate-run-hangup.md` |
+| CAL-V0-320 | `TestTasksArchiveCrossTargetIsLinuxAmd64Only`, `TestTasksArchiveCrossManifestStatesTheLimit`, `TestTasksArchiveRefusesOtherTargets` (`internal/companionrelease`); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-20-v1-1981-tasks-linux-amd64-archive.md` (cross-build, ELF check, checksum; Linux runtime `NOT_OBSERVED`) |
+| CAL-V0-321 | `TestCALV0321_CheckpointRequestFilter`, `TestCALV0321_RequestFilterHasNoFalseNegatives`, `TestCALV0321_EmbeddedHeadersRefuseRequestFilter`, `TestPSRV0203_CheckpointTailRefusesNullPreStateDuplicate` (`internal/tasks/journal`) |
+| CAL-V0-322 | `TestCALV0322_ShowReportsLastFailedGateTail`, `TestCALV0322_LastFailedGateUnknowns` (`internal/tasks/cli`) |

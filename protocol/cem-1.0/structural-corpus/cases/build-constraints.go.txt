@@ -1,0 +1,10 @@
+//go:build linux && (amd64 || arm64) && !purego
+// +build linux
+// +build amd64 arm64
+// +build !purego
+
+package cases
+
+func platform() string { return "linux" }
+
+func other() string { return platform() }

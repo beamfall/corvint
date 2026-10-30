@@ -1,0 +1,17 @@
+{
+  "schema": "external-evidence-provider/0",
+  "provider": {"id": "mockdocs", "revision": "2026-09-18.1"},
+  "repository": {"revision": "0000000000000000000000000000000000000000"},
+  "entities": [
+    {"id": "cap-stable-value", "kind": "capability", "summary": "Exposes the stable value to callers."},
+    {"id": "journey-first-run", "kind": "journey", "summary": "A user reads the stable value once."},
+    {"id": "gap-no-negative-test", "kind": "coverage-gap", "summary": "No negative test exists for the stable value."}
+  ],
+  "relations": [
+    {"from": "path:pkg/main.go", "to": "mockdocs:cap-stable-value", "type": "implements", "evidence": "declared", "rule": "capability-map", "reference": "docs/capabilities.md#stable-value"},
+    {"from": "mockdocs:cap-stable-value", "to": "mockdocs:journey-first-run", "type": "mockdocs:enables", "evidence": "inferred", "rule": "journey-graph", "reference": "docs/journeys.md#first-run"},
+    {"from": "path:pkg/main_test.go", "to": "mockdocs:cap-stable-value", "type": "verifies", "evidence": "observed", "rule": "test-run-2026-09-18", "reference": "ci/run/1234"},
+    {"from": "mockdocs:cap-stable-value", "to": "mockdocs:gap-no-negative-test", "type": "has-gap", "evidence": "learned", "rule": "gap-model", "reference": "model/v3"},
+    {"from": "otherdocs:cap-1", "to": "mockdocs:cap-stable-value", "type": "related-to", "evidence": "declared", "rule": "cross-link", "reference": "docs/links.md"}
+  ]
+}

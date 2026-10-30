@@ -1,0 +1,346 @@
+{
+  "config": {
+    "argv": [
+      "/opt/homebrew/Cellar/node@22/22.23.2_1/bin/node",
+      "/tmp/corvint-issues-playwright/node_modules/playwright/cli.js",
+      "test",
+      "--config=qualification/playwright.config.cjs",
+      "--reporter=json"
+    ],
+    "configFile": "/private/tmp/corvint-issue-closure-20260928/beamfall-source/qualification/playwright.config.cjs",
+    "rootDir": "/private/tmp/corvint-issue-closure-20260928/beamfall-source/qualification",
+    "failOnFlakyTests": false,
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "/private/tmp/corvint-issue-closure-20260928/beamfall-source/.corvint/qualification/artifacts",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 1
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "/private/tmp/corvint-issue-closure-20260928/beamfall-source/qualification",
+        "testIgnore": [],
+        "testMatch": [
+          "flow.spec.cjs"
+        ],
+        "timeout": 10000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.63.0",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "flow.spec.cjs",
+      "file": "flow.spec.cjs",
+      "column": 0,
+      "line": 0,
+      "specs": [
+        {
+          "title": "UI pricing checkout",
+          "ok": true,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 10000,
+              "annotations": [
+                {
+                  "type": "corvint-test-key",
+                  "description": "ui-checkout"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "passed",
+                  "duration": 486,
+                  "errors": [],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-28T02:26:30.516Z",
+                  "annotations": [
+                    {
+                      "type": "corvint-test-key",
+                      "description": "ui-checkout"
+                    }
+                  ],
+                  "attachments": []
+                }
+              ],
+              "status": "expected"
+            }
+          ],
+          "id": "04d3d68aa7f50bac1351-4b418e68e78e350e58ca",
+          "file": "flow.spec.cjs",
+          "line": 3,
+          "column": 1
+        },
+        {
+          "title": "API phase read",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 10000,
+              "annotations": [
+                {
+                  "type": "corvint-test-key",
+                  "description": "api-phase"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 0,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 154,
+                  "error": {
+                    "message": "Error: phase identity\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m\"invite-beta\"\u001b[39m\nReceived: \u001b[31m\"qualification-fault\"\u001b[39m",
+                    "stack": "Error: phase identity\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m\"invite-beta\"\u001b[39m\nReceived: \u001b[31m\"qualification-fault\"\u001b[39m\n    at /private/tmp/corvint-issue-closure-20260928/beamfall-source/qualification/flow.spec.cjs:4:284",
+                    "location": {
+                      "file": "/private/tmp/corvint-issue-closure-20260928/beamfall-source/qualification/flow.spec.cjs",
+                      "column": 284,
+                      "line": 4
+                    },
+                    "snippet": "  2 | test.beforeEach(async ({context})=>{await context.route('**/*',r=>new URL(r.request().url()).hostname==='127.0.0.1'?r.continue():r.abort());});\n  3 | test('UI pricing checkout',async ({page},info)=>{info.annotations.push({type:'corvint-test-key',description:'ui-checkout'});await page.goto(process.env.CORVINT_LIVE_URL+'/pricing');await page.getByRole('button',{name:'Checkout preview — Monthly',exact:true}).click();await expect(page.locator('#checkout-output'),'checkout returns redirectUrl').toContainText('redirectUrl');});\n> 4 | test('API phase read',async ({request},info)=>{info.annotations.push({type:'corvint-test-key',description:'api-phase'});const r=await request.get(process.env.CORVINT_LIVE_URL+'/api/mock/phase');expect(r.status(),'phase status').toBe(200);expect((await r.json()).id,'phase identity').toBe('invite-beta');});\n    |                                                                                                                                                                                                                                                                                            ^\n  5 | test('UI negative control',async ({page},info)=>{info.annotations.push({type:'corvint-test-key',description:'control-ui'});await page.goto(process.env.CORVINT_LIVE_URL+'/pricing');await expect(page.locator('#checkout-output'),'wrong checkout expectation').toContainText('deliberate-control-failure',{timeout:400});});\n  6 | test('API negative control',async ({request},info)=>{info.annotations.push({type:'corvint-test-key',description:'control-api'});const r=await request.get(process.env.CORVINT_LIVE_URL+'/api/mock/phase');expect(r.status(),'wrong API status').toBe(201);});\n  7 |"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/private/tmp/corvint-issue-closure-20260928/beamfall-source/qualification/flow.spec.cjs",
+                        "column": 284,
+                        "line": 4
+                      },
+                      "message": "Error: phase identity\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m\"invite-beta\"\u001b[39m\nReceived: \u001b[31m\"qualification-fault\"\u001b[39m\n\n  2 | test.beforeEach(async ({context})=>{await context.route('**/*',r=>new URL(r.request().url()).hostname==='127.0.0.1'?r.continue():r.abort());});\n  3 | test('UI pricing checkout',async ({page},info)=>{info.annotations.push({type:'corvint-test-key',description:'ui-checkout'});await page.goto(process.env.CORVINT_LIVE_URL+'/pricing');await page.getByRole('button',{name:'Checkout preview — Monthly',exact:true}).click();await expect(page.locator('#checkout-output'),'checkout returns redirectUrl').toContainText('redirectUrl');});\n> 4 | test('API phase read',async ({request},info)=>{info.annotations.push({type:'corvint-test-key',description:'api-phase'});const r=await request.get(process.env.CORVINT_LIVE_URL+'/api/mock/phase');expect(r.status(),'phase status').toBe(200);expect((await r.json()).id,'phase identity').toBe('invite-beta');});\n    |                                                                                                                                                                                                                                                                                            ^\n  5 | test('UI negative control',async ({page},info)=>{info.annotations.push({type:'corvint-test-key',description:'control-ui'});await page.goto(process.env.CORVINT_LIVE_URL+'/pricing');await expect(page.locator('#checkout-output'),'wrong checkout expectation').toContainText('deliberate-control-failure',{timeout:400});});\n  6 | test('API negative control',async ({request},info)=>{info.annotations.push({type:'corvint-test-key',description:'control-api'});const r=await request.get(process.env.CORVINT_LIVE_URL+'/api/mock/phase');expect(r.status(),'wrong API status').toBe(201);});\n  7 |\n    at /private/tmp/corvint-issue-closure-20260928/beamfall-source/qualification/flow.spec.cjs:4:284"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-28T02:26:31.447Z",
+                  "annotations": [
+                    {
+                      "type": "corvint-test-key",
+                      "description": "api-phase"
+                    }
+                  ],
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/private/tmp/corvint-issue-closure-20260928/beamfall-source/.corvint/qualification/artifacts/flow-API-phase-read-chromium/error-context.md"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/private/tmp/corvint-issue-closure-20260928/beamfall-source/qualification/flow.spec.cjs",
+                    "column": 284,
+                    "line": 4
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "04d3d68aa7f50bac1351-5ffecd647854d9158c66",
+          "file": "flow.spec.cjs",
+          "line": 4,
+          "column": 1
+        },
+        {
+          "title": "UI negative control",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 10000,
+              "annotations": [
+                {
+                  "type": "corvint-test-key",
+                  "description": "control-ui"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 1,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 604,
+                  "error": {
+                    "message": "Error: wrong checkout expectation\n\n\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#checkout-output')\nExpected substring: \u001b[32m\"deliberate-control-failure\"\u001b[39m\nReceived string:    \u001b[31m\"{ \\\"mode\\\": \\\"preview\\\", \\\"phase\\\": \\\"invite-beta\\\" }\"\u001b[39m\nTimeout: 400ms\n\nCall log:\n\u001b[2m  - wrong checkout expectation locator('#checkout-output') with timeout 400ms\u001b[22m\n\u001b[2m  - waiting for locator('#checkout-output')\u001b[22m\n\u001b[2m    7 × locator resolved to <pre id=\"checkout-output\">{ \"mode\": \"preview\", \"phase\": \"invite-beta\" }</pre>\u001b[22m\n\u001b[2m      - unexpected value \"{ \"mode\": \"preview\", \"phase\": \"invite-beta\" }\"\u001b[22m\n",
+                    "stack": "Error: wrong checkout expectation\n\n\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#checkout-output')\nExpected substring: \u001b[32m\"deliberate-control-failure\"\u001b[39m\nReceived string:    \u001b[31m\"{ \\\"mode\\\": \\\"preview\\\", \\\"phase\\\": \\\"invite-beta\\\" }\"\u001b[39m\nTimeout: 400ms\n\nCall log:\n\u001b[2m  - wrong checkout expectation locator('#checkout-output') with timeout 400ms\u001b[22m\n\u001b[2m  - waiting for locator('#checkout-output')\u001b[22m\n\u001b[2m    7 × locator resolved to <pre id=\"checkout-output\">{ \"mode\": \"preview\", \"phase\": \"invite-beta\" }</pre>\u001b[22m\n\u001b[2m      - unexpected value \"{ \"mode\": \"preview\", \"phase\": \"invite-beta\" }\"\u001b[22m\n\n    at /private/tmp/corvint-issue-closure-20260928/beamfall-source/qualification/flow.spec.cjs:5:257",
+                    "location": {
+                      "file": "/private/tmp/corvint-issue-closure-20260928/beamfall-source/qualification/flow.spec.cjs",
+                      "column": 257,
+                      "line": 5
+                    },
+                    "snippet": "  3 | test('UI pricing checkout',async ({page},info)=>{info.annotations.push({type:'corvint-test-key',description:'ui-checkout'});await page.goto(process.env.CORVINT_LIVE_URL+'/pricing');await page.getByRole('button',{name:'Checkout preview — Monthly',exact:true}).click();await expect(page.locator('#checkout-output'),'checkout returns redirectUrl').toContainText('redirectUrl');});\n  4 | test('API phase read',async ({request},info)=>{info.annotations.push({type:'corvint-test-key',description:'api-phase'});const r=await request.get(process.env.CORVINT_LIVE_URL+'/api/mock/phase');expect(r.status(),'phase status').toBe(200);expect((await r.json()).id,'phase identity').toBe('invite-beta');});\n> 5 | test('UI negative control',async ({page},info)=>{info.annotations.push({type:'corvint-test-key',description:'control-ui'});await page.goto(process.env.CORVINT_LIVE_URL+'/pricing');await expect(page.locator('#checkout-output'),'wrong checkout expectation').toContainText('deliberate-control-failure',{timeout:400});});\n    |                                                                                                                                                                                                                                                                 ^\n  6 | test('API negative control',async ({request},info)=>{info.annotations.push({type:'corvint-test-key',description:'control-api'});const r=await request.get(process.env.CORVINT_LIVE_URL+'/api/mock/phase');expect(r.status(),'wrong API status').toBe(201);});\n  7 |"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/private/tmp/corvint-issue-closure-20260928/beamfall-source/qualification/flow.spec.cjs",
+                        "column": 257,
+                        "line": 5
+                      },
+                      "message": "Error: wrong checkout expectation\n\n\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('#checkout-output')\nExpected substring: \u001b[32m\"deliberate-control-failure\"\u001b[39m\nReceived string:    \u001b[31m\"{ \\\"mode\\\": \\\"preview\\\", \\\"phase\\\": \\\"invite-beta\\\" }\"\u001b[39m\nTimeout: 400ms\n\nCall log:\n\u001b[2m  - wrong checkout expectation locator('#checkout-output') with timeout 400ms\u001b[22m\n\u001b[2m  - waiting for locator('#checkout-output')\u001b[22m\n\u001b[2m    7 × locator resolved to <pre id=\"checkout-output\">{ \"mode\": \"preview\", \"phase\": \"invite-beta\" }</pre>\u001b[22m\n\u001b[2m      - unexpected value \"{ \"mode\": \"preview\", \"phase\": \"invite-beta\" }\"\u001b[22m\n\n\n  3 | test('UI pricing checkout',async ({page},info)=>{info.annotations.push({type:'corvint-test-key',description:'ui-checkout'});await page.goto(process.env.CORVINT_LIVE_URL+'/pricing');await page.getByRole('button',{name:'Checkout preview — Monthly',exact:true}).click();await expect(page.locator('#checkout-output'),'checkout returns redirectUrl').toContainText('redirectUrl');});\n  4 | test('API phase read',async ({request},info)=>{info.annotations.push({type:'corvint-test-key',description:'api-phase'});const r=await request.get(process.env.CORVINT_LIVE_URL+'/api/mock/phase');expect(r.status(),'phase status').toBe(200);expect((await r.json()).id,'phase identity').toBe('invite-beta');});\n> 5 | test('UI negative control',async ({page},info)=>{info.annotations.push({type:'corvint-test-key',description:'control-ui'});await page.goto(process.env.CORVINT_LIVE_URL+'/pricing');await expect(page.locator('#checkout-output'),'wrong checkout expectation').toContainText('deliberate-control-failure',{timeout:400});});\n    |                                                                                                                                                                                                                                                                 ^\n  6 | test('API negative control',async ({request},info)=>{info.annotations.push({type:'corvint-test-key',description:'control-api'});const r=await request.get(process.env.CORVINT_LIVE_URL+'/api/mock/phase');expect(r.status(),'wrong API status').toBe(201);});\n  7 |\n    at /private/tmp/corvint-issue-closure-20260928/beamfall-source/qualification/flow.spec.cjs:5:257"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-28T02:26:32.465Z",
+                  "annotations": [
+                    {
+                      "type": "corvint-test-key",
+                      "description": "control-ui"
+                    }
+                  ],
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/private/tmp/corvint-issue-closure-20260928/beamfall-source/.corvint/qualification/artifacts/flow-UI-negative-control-chromium/error-context.md"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/private/tmp/corvint-issue-closure-20260928/beamfall-source/qualification/flow.spec.cjs",
+                    "column": 257,
+                    "line": 5
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "04d3d68aa7f50bac1351-72124a69669fd0de0e55",
+          "file": "flow.spec.cjs",
+          "line": 5,
+          "column": 1
+        },
+        {
+          "title": "API negative control",
+          "ok": false,
+          "tags": [],
+          "tests": [
+            {
+              "timeout": 10000,
+              "annotations": [
+                {
+                  "type": "corvint-test-key",
+                  "description": "control-api"
+                }
+              ],
+              "expectedStatus": "passed",
+              "projectId": "chromium",
+              "projectName": "chromium",
+              "results": [
+                {
+                  "workerIndex": 2,
+                  "parallelIndex": 0,
+                  "status": "failed",
+                  "duration": 282,
+                  "error": {
+                    "message": "Error: wrong API status\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m201\u001b[39m\nReceived: \u001b[31m200\u001b[39m",
+                    "stack": "Error: wrong API status\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m201\u001b[39m\nReceived: \u001b[31m200\u001b[39m\n    at /private/tmp/corvint-issue-closure-20260928/beamfall-source/qualification/flow.spec.cjs:6:241",
+                    "location": {
+                      "file": "/private/tmp/corvint-issue-closure-20260928/beamfall-source/qualification/flow.spec.cjs",
+                      "column": 241,
+                      "line": 6
+                    },
+                    "snippet": "  4 | test('API phase read',async ({request},info)=>{info.annotations.push({type:'corvint-test-key',description:'api-phase'});const r=await request.get(process.env.CORVINT_LIVE_URL+'/api/mock/phase');expect(r.status(),'phase status').toBe(200);expect((await r.json()).id,'phase identity').toBe('invite-beta');});\n  5 | test('UI negative control',async ({page},info)=>{info.annotations.push({type:'corvint-test-key',description:'control-ui'});await page.goto(process.env.CORVINT_LIVE_URL+'/pricing');await expect(page.locator('#checkout-output'),'wrong checkout expectation').toContainText('deliberate-control-failure',{timeout:400});});\n> 6 | test('API negative control',async ({request},info)=>{info.annotations.push({type:'corvint-test-key',description:'control-api'});const r=await request.get(process.env.CORVINT_LIVE_URL+'/api/mock/phase');expect(r.status(),'wrong API status').toBe(201);});\n    |                                                                                                                                                                                                                                                 ^\n  7 |"
+                  },
+                  "errors": [
+                    {
+                      "location": {
+                        "file": "/private/tmp/corvint-issue-closure-20260928/beamfall-source/qualification/flow.spec.cjs",
+                        "column": 241,
+                        "line": 6
+                      },
+                      "message": "Error: wrong API status\n\n\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBe\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m) // Object.is equality\u001b[22m\n\nExpected: \u001b[32m201\u001b[39m\nReceived: \u001b[31m200\u001b[39m\n\n  4 | test('API phase read',async ({request},info)=>{info.annotations.push({type:'corvint-test-key',description:'api-phase'});const r=await request.get(process.env.CORVINT_LIVE_URL+'/api/mock/phase');expect(r.status(),'phase status').toBe(200);expect((await r.json()).id,'phase identity').toBe('invite-beta');});\n  5 | test('UI negative control',async ({page},info)=>{info.annotations.push({type:'corvint-test-key',description:'control-ui'});await page.goto(process.env.CORVINT_LIVE_URL+'/pricing');await expect(page.locator('#checkout-output'),'wrong checkout expectation').toContainText('deliberate-control-failure',{timeout:400});});\n> 6 | test('API negative control',async ({request},info)=>{info.annotations.push({type:'corvint-test-key',description:'control-api'});const r=await request.get(process.env.CORVINT_LIVE_URL+'/api/mock/phase');expect(r.status(),'wrong API status').toBe(201);});\n    |                                                                                                                                                                                                                                                 ^\n  7 |\n    at /private/tmp/corvint-issue-closure-20260928/beamfall-source/qualification/flow.spec.cjs:6:241"
+                    }
+                  ],
+                  "stdout": [],
+                  "stderr": [],
+                  "retry": 0,
+                  "startTime": "2026-09-28T02:26:34.581Z",
+                  "annotations": [
+                    {
+                      "type": "corvint-test-key",
+                      "description": "control-api"
+                    }
+                  ],
+                  "attachments": [
+                    {
+                      "name": "error-context",
+                      "contentType": "text/markdown",
+                      "path": "/private/tmp/corvint-issue-closure-20260928/beamfall-source/.corvint/qualification/artifacts/flow-API-negative-control-chromium/error-context.md"
+                    }
+                  ],
+                  "errorLocation": {
+                    "file": "/private/tmp/corvint-issue-closure-20260928/beamfall-source/qualification/flow.spec.cjs",
+                    "column": 241,
+                    "line": 6
+                  }
+                }
+              ],
+              "status": "unexpected"
+            }
+          ],
+          "id": "04d3d68aa7f50bac1351-1f3263ad694561da59bf",
+          "file": "flow.spec.cjs",
+          "line": 6,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-09-28T02:26:29.331Z",
+    "duration": 6145.155,
+    "expected": 1,
+    "skipped": 0,
+    "unexpected": 3,
+    "flaky": 0
+  }
+}

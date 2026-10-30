@@ -1,0 +1,14 @@
+{
+  "profile": "corvint-supported-task-subscription-source/0-experimental",
+  "qualification": "UNQUALIFIED",
+  "schemas": {
+    "ThreadResumeParams": "e4f64c88205dbba2bf87635d12b9c5803dd6f19b84b5682a71df7fdcf87862fb",
+    "ThreadResumeResponse": "e986c7ead2f7e1bb3562ab7b7f1d0b0c0d217039122163b1c5382279226630a7",
+    "ThreadLoadedListParams": "e2866a4b9d686413f62f57567f0f4ae9bcde6805041f955ce057f864d7b5e99e",
+    "ThreadLoadedListResponse": "7fd42a34e5c85d0e6f81c440b9f6c14bf1f76d2059813ee7719cd6c55940f459",
+    "ThreadStatus": "374f9ea8a23a06808bda3435d0854aa92303547bc87a92046b6af22b6e962352",
+    "Thread": "9a2a7ab942bbc6d2a8c0757e991ab81ed6d3e55d70439b228c1f202db42cd3dc"
+  },
+  "interpretation": "Joining an already-loaded existing active task with no overrides is reversible observation connection setup. Membership and response checks detect observed unload/rehydration/status races; they cannot prove no hidden race occurred. Any mismatch discards the campaign. No model turn/new task/history request is issued.",
+  "responsePrivacy": "excludeTurns=true suppresses turns. Thread still contains preview and paths: parsed only in bounded memory and discarded, never output or persisted."
+}

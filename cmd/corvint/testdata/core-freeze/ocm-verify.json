@@ -1,0 +1,29 @@
+{
+  "counts": {
+    "linked": 0,
+    "total": 1,
+    "unknown": 1
+  },
+  "mutates": false,
+  "ok": true,
+  "policyIssues": [],
+  "testExecution": {
+    "state": "NOT_RUN"
+  },
+  "tool": "ocm-verify",
+  "verification": {
+    "issues": [],
+    "policyIssues": [],
+    "spec": "ocm/0.1-experimental",
+    "structuralCoverage": {
+      "linked": 0,
+      "total": 1,
+      "unknown": 1
+    },
+    "targetRevision": "d00b90a6272539fa9d1dc14cc401ad296c0cd839",
+    "testExecution": {
+      "state": "NOT_RUN"
+    },
+    "valid": true
+  }
+}

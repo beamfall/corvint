@@ -1,0 +1,51 @@
+{
+  "name": "@corvint/pi",
+  "version": "0.3.11",
+  "type": "module",
+  "description": "Experimental native Core, Tasks, evidence cockpit and local workflow integration for Pi",
+  "license": "Apache-2.0",
+  "files": [
+    "index.ts",
+    "extension.js",
+    "tools.js",
+    "runtime.js",
+    "compatibility.json",
+    "README.md",
+    "process.js",
+    "core.js",
+    "tasks.js",
+    "operations.js",
+    "cockpit.js",
+    "workflow.js",
+    "skills"
+  ],
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "corvintIntegration": {
+    "adapterVersion": "0.3.11",
+    "host": "pi",
+    "surface": "extension",
+    "protocol": "corvint-harness-event/0",
+    "support": "FALLBACK",
+    "testedHostVersions": [
+      "0.99.1"
+    ],
+    "apiReferenceVersion": "0.99.1",
+    "timeoutsMs": {
+      "automaticEvent": 2000,
+      "queryEvent": 2000
+    }
+  },
+  "keywords": [
+    "pi-package"
+  ]
+}

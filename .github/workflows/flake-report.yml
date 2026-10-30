@@ -1,0 +1,53 @@
+name: flake-report
+
+# AFP-V0-530 (V1-2682 option A): the weekly CI flake report. Lists the AFP-V0-441
+# `ci-flaky-<event>-<shard>` FLAKY records of the last 7 days with gh, aggregates them per test
+# with tools/ci-flake-report (built from this main commit), writes the report to the job summary
+# and into the one open `ci-flake-report` issue, updated in place. It reads artifacts and writes
+# that issue only: it reruns no test, posts no status and changes no gate or tier. Runs only
+# from main, on a schedule or a manual dispatch.
+
+on:
+  schedule:
+    - cron: "23 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flake-report
+  cancel-in-progress: false
+
+jobs:
+  report:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+      issues: write
+    env:
+      GOTOOLCHAIN: local
+      GOFLAGS: ""
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - name: Build the report tool
+        run: |
+          test "$(go env GOVERSION)" = "go1.27.3"
+          go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/ci-flake-report" ./tools/ci-flake-report
+      - name: Aggregate the window's FLAKY records and update the report issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
+          TOOL: ${{ runner.temp }}/ci-flake-report
+        run: sh .github/flake-report/report.sh

@@ -1,0 +1,52 @@
+name: Perf budget
+
+# GitHub #1602 (PRB-V0-038..043): read latency and memory on a realistic-size generated corpus
+# and repository. A contended runner reports NOT_JUDGED (exit 0) with every measurement kept; a
+# failed or unmeasured scenario fails the job either way. Not a required check.
+on:
+  pull_request:
+    paths:
+      - "**.go"
+      - "go.mod"
+      - "go.sum"
+      - "Makefile"
+      - "internal/perfbudget/**"
+      - ".github/workflows/perf-budget.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  perf-budget:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      GOTOOLCHAIN: local
+      GOPROXY: "off"
+      GOSUMDB: "off"
+      GOWORK: "off"
+      GOFLAGS: ""
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          cache: false
+          go-version: "1.27.3"
+      - name: Read budget
+        run: make perf-budget PERF_BUDGET_ARGS="--out perf-budget-report.json"
+      - name: Retain the report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: perf-budget-report
+          path: perf-budget-report.json
+          if-no-files-found: warn

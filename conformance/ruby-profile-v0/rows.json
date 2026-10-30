@@ -1,0 +1,389 @@
+{
+  "profile": "corvint-ruby-profile-rows/0",
+  "application": "rails-app",
+  "report": "rspec-report.json",
+  "classes": [
+    {
+      "class": "autoloaded-constant",
+      "changed": "app/models/user.rb"
+    },
+    {
+      "class": "described-class",
+      "changed": "app/models/account.rb"
+    },
+    {
+      "class": "shared-examples",
+      "changed": "app/services/greeter.rb"
+    },
+    {
+      "class": "support-helper",
+      "changed": "spec/support/auth_helper.rb"
+    },
+    {
+      "class": "request-spec",
+      "changed": "app/controllers/users_controller.rb"
+    },
+    {
+      "class": "controller-spec",
+      "changed": "app/controllers/users_controller.rb"
+    },
+    {
+      "class": "worker-spec",
+      "changed": "app/workers/welcome_worker.rb"
+    },
+    {
+      "class": "rails-7-1-autoload-lib",
+      "changed": "app/models/user.rb",
+      "overlay": "overlays/rails-7-1-autoload-lib"
+    },
+    {
+      "class": "dynamic-constantize",
+      "changed": "app/models/user.rb",
+      "overlay": "overlays/dynamic-constantize",
+      "negative": true
+    },
+    {
+      "class": "dynamic-const-get",
+      "changed": "app/workers/welcome_worker.rb",
+      "overlay": "overlays/dynamic-const-get",
+      "negative": true
+    }
+  ],
+  "impact": [
+    {
+      "class": "autoloaded-constant",
+      "results": [
+        "path app/models/user.rb",
+        "reference app/controllers/users_controller.rb",
+        "reference app/models/account.rb",
+        "reference app/workers/welcome_worker.rb",
+        "test spec/controllers/users_controller_spec.rb",
+        "test spec/models/account_spec.rb",
+        "test spec/models/user_spec.rb",
+        "test spec/requests/users_spec.rb",
+        "test spec/workers/welcome_worker_spec.rb"
+      ],
+      "unknowns": [
+        "dynamic-dispatch-unresolved"
+      ]
+    },
+    {
+      "class": "described-class",
+      "results": [
+        "path app/models/account.rb",
+        "test spec/models/account_spec.rb"
+      ],
+      "unknowns": [
+        "dynamic-dispatch-unresolved"
+      ]
+    },
+    {
+      "class": "shared-examples",
+      "results": [
+        "path app/services/greeter.rb",
+        "reference app/workers/welcome_worker.rb",
+        "test spec/services/greeter_spec.rb",
+        "test spec/workers/welcome_worker_spec.rb"
+      ],
+      "unknowns": [
+        "dynamic-dispatch-unresolved"
+      ]
+    },
+    {
+      "class": "support-helper",
+      "results": [
+        "path spec/support/auth_helper.rb"
+      ],
+      "unknowns": [
+        "dynamic-dispatch-unresolved",
+        "reverse-import-rule-unavailable",
+        "ruby-constant-unmapped"
+      ]
+    },
+    {
+      "class": "request-spec",
+      "results": [
+        "path app/controllers/users_controller.rb",
+        "test spec/controllers/users_controller_spec.rb"
+      ],
+      "unknowns": [
+        "dynamic-dispatch-unresolved"
+      ]
+    },
+    {
+      "class": "controller-spec",
+      "results": [
+        "path app/controllers/users_controller.rb",
+        "test spec/controllers/users_controller_spec.rb"
+      ],
+      "unknowns": [
+        "dynamic-dispatch-unresolved"
+      ]
+    },
+    {
+      "class": "worker-spec",
+      "results": [
+        "path app/workers/welcome_worker.rb",
+        "test spec/workers/welcome_worker_spec.rb"
+      ],
+      "unknowns": [
+        "dynamic-dispatch-unresolved"
+      ]
+    },
+    {
+      "class": "rails-7-1-autoload-lib",
+      "results": [
+        "path app/models/user.rb",
+        "reference app/controllers/users_controller.rb",
+        "reference app/models/account.rb",
+        "reference app/workers/welcome_worker.rb",
+        "test spec/controllers/users_controller_spec.rb",
+        "test spec/models/account_spec.rb",
+        "test spec/models/user_spec.rb",
+        "test spec/requests/users_spec.rb",
+        "test spec/workers/welcome_worker_spec.rb"
+      ],
+      "unknowns": [
+        "dynamic-dispatch-unresolved"
+      ]
+    },
+    {
+      "class": "dynamic-constantize",
+      "results": [
+        "path app/models/user.rb",
+        "reference app/controllers/users_controller.rb",
+        "reference app/models/account.rb",
+        "reference app/workers/welcome_worker.rb",
+        "test spec/controllers/users_controller_spec.rb",
+        "test spec/models/account_spec.rb",
+        "test spec/models/user_spec.rb",
+        "test spec/requests/users_spec.rb",
+        "test spec/services/model_lookup_spec.rb",
+        "test spec/workers/welcome_worker_spec.rb"
+      ],
+      "unknowns": [
+        "dynamic-dispatch-unresolved",
+        "ruby-constant-lookup-dynamic"
+      ]
+    },
+    {
+      "class": "dynamic-const-get",
+      "results": [
+        "path app/workers/welcome_worker.rb",
+        "test spec/services/handler_registry_spec.rb",
+        "test spec/workers/welcome_worker_spec.rb"
+      ],
+      "unknowns": [
+        "dynamic-dispatch-unresolved",
+        "ruby-constant-lookup-dynamic",
+        "ruby-constant-name-literal"
+      ]
+    }
+  ],
+  "affected": [
+    {
+      "class": "autoloaded-constant",
+      "scope": "BOUNDED",
+      "selected": {
+        "spec/controllers/users_controller_spec.rb": "ADVISORY_CONSTANT_REFERENCE",
+        "spec/models/account_spec.rb": "ADVISORY_CONSTANT_REFERENCE",
+        "spec/models/user_spec.rb": "DEPENDENCY_PATH",
+        "spec/requests/users_spec.rb": "ADVISORY_CONSTANT_REFERENCE",
+        "spec/workers/welcome_worker_spec.rb": "ADVISORY_CONSTANT_REFERENCE"
+      },
+      "unknown": []
+    },
+    {
+      "class": "described-class",
+      "scope": "BOUNDED",
+      "selected": {
+        "spec/models/account_spec.rb": "DEPENDENCY_PATH"
+      },
+      "unknown": []
+    },
+    {
+      "class": "shared-examples",
+      "scope": "BOUNDED",
+      "selected": {
+        "spec/services/greeter_spec.rb": "DEPENDENCY_PATH",
+        "spec/workers/welcome_worker_spec.rb": "ADVISORY_CONSTANT_REFERENCE"
+      },
+      "unknown": []
+    },
+    {
+      "class": "support-helper",
+      "scope": "BOUNDED",
+      "selected": {
+        "spec/controllers/users_controller_spec.rb": "DEPENDENCY_PATH",
+        "spec/models/account_spec.rb": "DEPENDENCY_PATH",
+        "spec/models/user_spec.rb": "DEPENDENCY_PATH",
+        "spec/requests/users_spec.rb": "DEPENDENCY_PATH",
+        "spec/services/greeter_spec.rb": "DEPENDENCY_PATH",
+        "spec/workers/welcome_worker_spec.rb": "DEPENDENCY_PATH"
+      },
+      "unknown": []
+    },
+    {
+      "class": "request-spec",
+      "scope": "BOUNDED",
+      "selected": {
+        "spec/controllers/users_controller_spec.rb": "DEPENDENCY_PATH",
+        "spec/requests/users_spec.rb": "ROUTE_DISPATCH_BOOT"
+      },
+      "unknown": []
+    },
+    {
+      "class": "controller-spec",
+      "scope": "BOUNDED",
+      "selected": {
+        "spec/controllers/users_controller_spec.rb": "DEPENDENCY_PATH",
+        "spec/requests/users_spec.rb": "ROUTE_DISPATCH_BOOT"
+      },
+      "unknown": []
+    },
+    {
+      "class": "worker-spec",
+      "scope": "BOUNDED",
+      "selected": {
+        "spec/workers/welcome_worker_spec.rb": "DEPENDENCY_PATH"
+      },
+      "unknown": []
+    },
+    {
+      "class": "rails-7-1-autoload-lib",
+      "scope": "BOUNDED",
+      "selected": {
+        "spec/controllers/users_controller_spec.rb": "ADVISORY_CONSTANT_REFERENCE",
+        "spec/models/account_spec.rb": "ADVISORY_CONSTANT_REFERENCE",
+        "spec/models/user_spec.rb": "DEPENDENCY_PATH",
+        "spec/requests/users_spec.rb": "ADVISORY_CONSTANT_REFERENCE",
+        "spec/workers/welcome_worker_spec.rb": "ADVISORY_CONSTANT_REFERENCE"
+      },
+      "unknown": []
+    },
+    {
+      "class": "dynamic-constantize",
+      "scope": "UNKNOWN",
+      "selected": {
+        "spec/controllers/users_controller_spec.rb": "ADVISORY_CONSTANT_REFERENCE",
+        "spec/models/account_spec.rb": "ADVISORY_CONSTANT_REFERENCE",
+        "spec/models/user_spec.rb": "DEPENDENCY_PATH",
+        "spec/requests/users_spec.rb": "ADVISORY_CONSTANT_REFERENCE",
+        "spec/services/model_lookup_spec.rb": "ADVISORY_CONSTANT_REFERENCE",
+        "spec/workers/welcome_worker_spec.rb": "ADVISORY_CONSTANT_REFERENCE"
+      },
+      "unknown": [
+        "LANGUAGE_FRONTIER ruby:rails-autoload:app/services/model_lookup.rb:3"
+      ]
+    },
+    {
+      "class": "dynamic-const-get",
+      "scope": "UNKNOWN",
+      "selected": {
+        "spec/services/handler_registry_spec.rb": "ADVISORY_CONSTANT_REFERENCE",
+        "spec/workers/welcome_worker_spec.rb": "DEPENDENCY_PATH"
+      },
+      "unknown": [
+        "LANGUAGE_FRONTIER ruby:rails-autoload:app/services/handler_registry.rb:3"
+      ]
+    }
+  ],
+  "provider": [
+    {
+      "class": "autoloaded-constant",
+      "example": "spec/models/user_spec.rb:4",
+      "rspecId": "./spec/models/user_spec.rb[1:1]",
+      "status": "passed",
+      "association": "ASSOCIATED",
+      "execution": "PASSED",
+      "hygiene": "UNSUPPORTED",
+      "strength": "NOT_MEASURED",
+      "freshness": "CURRENT",
+      "freshnessAfterChange": "CURRENT"
+    },
+    {
+      "class": "described-class",
+      "example": "spec/models/account_spec.rb:4",
+      "rspecId": "./spec/models/account_spec.rb[1:1]",
+      "status": "passed",
+      "association": "ASSOCIATED",
+      "execution": "PASSED",
+      "hygiene": "UNSUPPORTED",
+      "strength": "NOT_MEASURED",
+      "freshness": "CURRENT",
+      "freshnessAfterChange": "CURRENT"
+    },
+    {
+      "class": "shared-examples",
+      "example": "spec/services/greeter_spec.rb:4",
+      "rspecId": "./spec/services/greeter_spec.rb[1:1:1]",
+      "status": "passed",
+      "association": "ASSOCIATED",
+      "execution": "PASSED",
+      "hygiene": "UNSUPPORTED",
+      "strength": "NOT_MEASURED",
+      "freshness": "CURRENT",
+      "freshnessAfterChange": "CURRENT"
+    },
+    {
+      "class": "support-helper",
+      "example": "spec/requests/users_spec.rb:4",
+      "rspecId": "./spec/requests/users_spec.rb[1:1]",
+      "status": "passed",
+      "association": "ASSOCIATED",
+      "execution": "PASSED",
+      "hygiene": "UNSUPPORTED",
+      "strength": "NOT_MEASURED",
+      "freshness": "CURRENT",
+      "freshnessAfterChange": "STALE"
+    },
+    {
+      "class": "request-spec",
+      "example": "spec/requests/users_spec.rb:4",
+      "rspecId": "./spec/requests/users_spec.rb[1:1]",
+      "status": "passed",
+      "association": "ASSOCIATED",
+      "execution": "PASSED",
+      "hygiene": "UNSUPPORTED",
+      "strength": "NOT_MEASURED",
+      "freshness": "CURRENT",
+      "freshnessAfterChange": "CURRENT"
+    },
+    {
+      "class": "controller-spec",
+      "example": "spec/controllers/users_controller_spec.rb:4",
+      "rspecId": "./spec/controllers/users_controller_spec.rb[1:1]",
+      "status": "passed",
+      "association": "ASSOCIATED",
+      "execution": "PASSED",
+      "hygiene": "UNSUPPORTED",
+      "strength": "NOT_MEASURED",
+      "freshness": "CURRENT",
+      "freshnessAfterChange": "CURRENT"
+    },
+    {
+      "class": "worker-spec",
+      "example": "spec/workers/welcome_worker_spec.rb:4",
+      "rspecId": "./spec/workers/welcome_worker_spec.rb[1:1]",
+      "status": "passed",
+      "association": "ASSOCIATED",
+      "execution": "PASSED",
+      "hygiene": "UNSUPPORTED",
+      "strength": "NOT_MEASURED",
+      "freshness": "CURRENT",
+      "freshnessAfterChange": "CURRENT"
+    },
+    {
+      "class": "rails-7-1-autoload-lib",
+      "example": "spec/models/user_spec.rb:4",
+      "rspecId": "./spec/models/user_spec.rb[1:1]",
+      "status": "passed",
+      "association": "ASSOCIATED",
+      "execution": "PASSED",
+      "hygiene": "UNSUPPORTED",
+      "strength": "NOT_MEASURED",
+      "freshness": "CURRENT",
+      "freshnessAfterChange": "CURRENT"
+    }
+  ]
+}

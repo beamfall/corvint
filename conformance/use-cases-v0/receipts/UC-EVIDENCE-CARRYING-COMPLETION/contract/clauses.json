@@ -1,0 +1,14 @@
+{
+  "clauses": [
+    {
+      "id": "DCW-V0-002",
+      "text": "- `DCW-V0-002`: The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,\n  and `UC-EVIDENCE-CARRYING-COMPLETION`. All existing jobs and claims MUST remain unchanged.\n  Their closed ledger migration MUST satisfy `UCV0-013`."
+    },
+    {
+      "id": "DCW-V0-005",
+      "text": "- `DCW-V0-005`: Evidence-carrying completion MUST bind a real committed change to its immutable\n  base/target, CEM, owning OCMs, actual check observations, inspected reports/frontier and outcome.\n  Missing, stale, dirty, interrupted, unsupported or unknown evidence MUST NOT produce a false\n  complete-evidence verdict. Local policy satisfaction MUST NOT assert universal correctness or\n  formal FULL/Frontier authority."
+    }
+  ],
+  "profile": "corvint-use-case-clauses/0",
+  "spec": "docs/specs/daily-change-evidence-workflow-v0.md"
+}

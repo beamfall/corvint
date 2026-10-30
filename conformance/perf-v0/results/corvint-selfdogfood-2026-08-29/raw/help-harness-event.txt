@@ -1,0 +1,23 @@
+Compile one experimental agent-harness lifecycle event.
+
+Usage:
+  corvint [--root PATH] harness event --host HOST --host-version VERSION
+    --surface SURFACE --adapter-version VERSION --event EVENT --input -
+    [--budget-bytes N]
+
+Required options:
+  --host HOST               claude-code, codex, gemini-cli, or opencode
+  --host-version VERSION    Harness-reported host version token
+  --surface SURFACE         Harness surface token
+  --adapter-version VERSION Adapter version token
+  --event EVENT             file-change, post-tool, session-end, session-start,
+                            stop, or user-prompt
+  --input -                 Read exactly one bounded JSON object from stdin
+
+Optional:
+  --budget-bytes N  Output budget (default: 8000; range: 4096-1000000 bytes).
+
+Input is limited to 131072 bytes. user-prompt, file-change, and compact
+session-start additionally build a repository index to compile their context
+block; the remaining events do not. The command is read-only and local-only and
+emits one canonical corvint-harness-event/0 FALLBACK receipt on stdout.

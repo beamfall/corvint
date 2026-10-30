@@ -1,0 +1,1 @@
+{"profile":"cem-release-gate-outcome/1","revision":"27e9d9807214029a1535a5135f3401b6c6d45bec","declarationSha256":"5511e011e0133a5ca07a03942501403302ad8855683d2ecbda2e06c36dd1f763","records":["b6c4f020d3800c7469ad0261d62a6461fab5305c1ff074c79cece06049682041"],"verdict":"REFUSED","reason":"release-platform-incomplete: required row darwin/arm64 is not observed"}

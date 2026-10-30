@@ -1,0 +1,218 @@
+// Package testacceptance composes actual, operator-approved experimental
+// browser observations. Unknown validity remains unknown.
+package testacceptance
+
+import (
+	"github.com/Beamfall/corvint/internal/behaviorfalsify"
+	"github.com/Beamfall/corvint/internal/jstestprovider"
+	"github.com/Beamfall/corvint/internal/procgroup"
+	"github.com/Beamfall/corvint/internal/testvalidity"
+)
+
+const Schema = "corvint-new-e2e-assessment/0"
+const RequestSchema = "corvint-new-e2e-request/0"
+const FreshRequestSchema = "corvint-new-e2e-request/1"
+const FreshSchema = "corvint-new-e2e-assessment/1"
+const InputLimit = 4 << 20
+const ReportLimit = 16 << 20
+
+type Repository struct {
+	Root   string `json:"root"`
+	Commit string `json:"commit"`
+	Tree   string `json:"tree"`
+}
+type File struct {
+	Path   string `json:"path"`
+	SHA256 string `json:"sha256"`
+}
+type Command struct {
+	Argv             []string `json:"argv"`
+	EntrypointSHA256 string   `json:"entrypoint_sha256,omitempty"`
+	ExecutableSHA256 string   `json:"executable_sha256"`
+}
+type Test struct {
+	ID             string                        `json:"id"`
+	File           string                        `json:"file"`
+	Line           int                           `json:"line"`
+	Title          string                        `json:"title"`
+	Project        string                        `json:"project"`
+	ControlCommand *Command                      `json:"control_command,omitempty"`
+	Control        *behaviorfalsify.Plan         `json:"control,omitempty"`
+	Tool           *behaviorfalsify.ToolIdentity `json:"tool,omitempty"`
+}
+type Request struct {
+	Freshness      *FreshnessOptions `json:"freshness,omitempty"`
+	Schema         string            `json:"schema"`
+	Product        Repository        `json:"product"`
+	TestRepository Repository        `json:"test_repository"`
+	Inputs         []File            `json:"inputs"`
+	Tests          []Test            `json:"tests"`
+	Config         string            `json:"config"`
+	Package        string            `json:"package"`
+	Lockfile       string            `json:"lockfile"`
+	Runner         Command           `json:"runner"`
+	Server         Command           `json:"server"`
+	ReadyURL       string            `json:"ready_url"`
+	AppBuildDir    string            `json:"app_build_dir"`
+	RunnerVersion  string            `json:"runner_version"`
+	Environment    string            `json:"environment"`
+	Repeat         int               `json:"repeat"`
+	TimeoutSeconds int               `json:"timeout_seconds"`
+	// ExternalApp opts a /0 request into a caller-owned authenticated-disposable app
+	// (NEA-V0-012..016); absent, the request keeps its prior bytes and digest.
+	ExternalApp *ExternalApp `json:"external_app,omitempty"`
+}
+
+// ExternalApp declares an app the operator already started on the loopback ready URL, its
+// pinned health hook, non-secret environment and pinned storage-state files.
+type ExternalApp struct {
+	Profile     string             `json:"profile"`
+	Health      Command            `json:"health"`
+	Environment []EnvironmentValue `json:"environment,omitempty"`
+	AuthFiles   []File             `json:"auth_files"`
+}
+
+// EnvironmentValue is one declared non-secret environment pair, pinned by the request digest.
+type EnvironmentValue struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+// HookResult is one health hook invocation of a run (NEA-V0-015).
+type HookResult struct {
+	Phase   string  `json:"phase"`
+	Status  string  `json:"status"`
+	Cleanup Cleanup `json:"cleanup"`
+}
+
+// ExternalReport binds a report to the caller-owned app profile without storage-state
+// contents (NEA-V0-016).
+type ExternalReport struct {
+	Profile           string `json:"profile"`
+	ServerOwnership   string `json:"server_ownership"`
+	ReadyURL          string `json:"ready_url"`
+	HealthSHA256      string `json:"health_sha256"`
+	EnvironmentSHA256 string `json:"environment_sha256"`
+	AuthFiles         []File `json:"auth_files"`
+}
+
+type FreshnessOptions struct {
+	Provider                 jstestprovider.FreshnessConfig `json:"provider"`
+	Attestation              Command                        `json:"attestation"`
+	AttestationConfiguration File                           `json:"attestation_configuration"`
+}
+type Row struct {
+	ID              string                        `json:"id"`
+	ObservedID      string                        `json:"observed_id,omitempty"`
+	State           jstestprovider.ExecutionState `json:"state"`
+	DurationMS      float64                       `json:"duration_ms"`
+	Retries         int                           `json:"retries"`
+	Attempts        int                           `json:"attempts"`
+	Validity        testvalidity.Projection       `json:"validity"`
+	IdentityUnknown []string                      `json:"identity_unknown"`
+}
+type Cleanup struct {
+	OwnedGroup    bool                             `json:"owned_group"`
+	Status        string                           `json:"status"`
+	Qualification string                           `json:"qualification"`
+	Descendants   *procgroup.DescendantObservation `json:"descendants,omitempty"`
+	Cancelled     bool                             `json:"cancelled"`
+	TimedOut      bool                             `json:"timed_out"`
+}
+type Run struct {
+	NativeReceipt    []byte                            `json:"native_receipt,omitempty"`
+	Kind             string                            `json:"kind"`
+	Ordinal          int                               `json:"ordinal"`
+	TestID           string                            `json:"test_id,omitempty"`
+	RequestedFiles   []string                          `json:"requested_files"`
+	ObservedSchedule *jstestprovider.ExecutionSchedule `json:"observed_schedule,omitempty"`
+	ReceiptSHA256    string                            `json:"receipt_sha256,omitempty"`
+	Rows             []Row                             `json:"rows"`
+	Reasons          []string                          `json:"reasons"`
+	Cleanup          Cleanup                           `json:"cleanup"`
+	NodeVersion      string                            `json:"node_version,omitempty"`
+	// Infrastructure is the provider's infrastructure cause behind a provider-infrastructure
+	// reason (NEA-V0-011): its reason code, then its detail only when that is a code too.
+	Infrastructure string `json:"infrastructure,omitempty"`
+	// ExternalHooks are the run's health hook results under external_app (NEA-V0-015).
+	ExternalHooks []HookResult `json:"external_hooks,omitempty"`
+}
+type Control struct {
+	Evidence      *behaviorfalsify.EvidenceReceipt `json:"evidence,omitempty"`
+	ID            string                           `json:"id"`
+	PlanDigest    string                           `json:"plan_digest,omitempty"`
+	ReceiptDigest string                           `json:"receipt_digest,omitempty"`
+	Status        string                           `json:"status"`
+	Unsupported   []string                         `json:"unsupported"`
+	Cleanup       Cleanup                          `json:"cleanup"`
+	// NotApplied lists verified BBF controls whose declared application marker was never
+	// observed; ApplicationUnobserved lists controls that declare no marker (BBF-V0-016).
+	NotApplied            []string `json:"not_applied,omitempty"`
+	ApplicationUnobserved []string `json:"application_unobserved,omitempty"`
+}
+type Assessment struct {
+	ID       string                  `json:"id"`
+	Verdict  string                  `json:"verdict"`
+	Reasons  []string                `json:"reasons"`
+	Validity testvalidity.Projection `json:"validity"`
+	Repeats  RepeatSummary           `json:"repeats"`
+	Cleanup  string                  `json:"cleanup"`
+	Order    OrderEvidence           `json:"order"`
+	// Blocked is infrastructure or freshness-unknown when a /0 verdict is blocked (NEA-V0-017).
+	Blocked string `json:"blocked,omitempty"`
+}
+
+// RepeatSummary counts actual zero-retry repeat rows for one declared test.
+// Durations are present only when at least one row was observed.
+type RepeatSummary struct {
+	Passed        int      `json:"passed"`
+	Failed        int      `json:"failed"`
+	Other         int      `json:"other"`
+	MinDurationMS *float64 `json:"min_duration_ms,omitempty"`
+	MaxDurationMS *float64 `json:"max_duration_ms,omitempty"`
+}
+
+// OrderEvidence attaches the order-dependence probes to the test they concern.
+// Requested file filters and isolation runs are requests, not an observed schedule.
+type OrderEvidence struct {
+	Status             string   `json:"status"`
+	RequestedFileOrder string   `json:"requested_file_order"`
+	OriginalState      string   `json:"original_state"`
+	ReversedState      string   `json:"reversed_state"`
+	IsolatedStates     []string `json:"isolated_states"`
+}
+type Report struct {
+	Verdict          string       `json:"verdict"`
+	Reasons          []string     `json:"reasons"`
+	Schema           string       `json:"schema"`
+	RequestDigest    string       `json:"request_digest"`
+	Product          Repository   `json:"product"`
+	TestRepository   Repository   `json:"test_repository"`
+	Environment      string       `json:"environment"`
+	Build            string       `json:"build"`
+	ExecutableSHA256 string       `json:"executable_sha256"`
+	Runs             []Run        `json:"runs"`
+	Controls         []Control    `json:"controls"`
+	Assessments      []Assessment `json:"assessments"`
+	Unknowns         []string     `json:"unknowns"`
+	Body             string       `json:"body"`
+	// Blocked is infrastructure or freshness-unknown when a /0 verdict is blocked (NEA-V0-017).
+	Blocked string `json:"blocked,omitempty"`
+	// External is present only for an external_app request (NEA-V0-016).
+	External *ExternalReport `json:"external,omitempty"`
+}
+
+// Job is private to the self-worker protocol; it cannot supply observations.
+type Job struct {
+	Approved  string   `json:"approved"`
+	Request   Request  `json:"request"`
+	Kind      string   `json:"kind"`
+	Files     []string `json:"files,omitempty"`
+	TestIndex int      `json:"test_index"`
+	Ordinal   int      `json:"ordinal,omitempty"`
+}
+type WorkerResult struct {
+	Run     *Run     `json:"run,omitempty"`
+	Control *Control `json:"control,omitempty"`
+	Error   string   `json:"error,omitempty"`
+}

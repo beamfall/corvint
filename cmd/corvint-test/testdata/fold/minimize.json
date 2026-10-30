@@ -1,0 +1,153 @@
+{
+  "schema": "corvint-test-fold-golden/0",
+  "group": "minimize",
+  "old": "corvint-playwright-minimize",
+  "new": "corvint-test minimize",
+  "request": {},
+  "cases": [
+    {
+      "name": "no-args",
+      "args": [],
+      "text": true,
+      "exit": 1,
+      "stdout": "",
+      "stderr": "usage: corvint-playwright-minimize \u003cplan|execute\u003e --experimental [--approve-plan sha256:...] \u003c input.json\n"
+    },
+    {
+      "name": "plan-without-experimental",
+      "args": [
+        "plan"
+      ],
+      "stdin": "{}",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "explicit --experimental required; positional arguments forbidden\n"
+    },
+    {
+      "name": "plan-positional",
+      "args": [
+        "plan",
+        "--experimental",
+        "extra"
+      ],
+      "stdin": "{}",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "explicit --experimental required; positional arguments forbidden\n"
+    },
+    {
+      "name": "plan-help",
+      "args": [
+        "plan",
+        "-h"
+      ],
+      "exit": 1,
+      "stdout": "",
+      "stderr": "Usage of plan:\n  -approve-plan string\n    \tauthorize execution of exactly this live plan digest\n  -experimental\n    \tadmit closed experimental profile\nflag: help requested\n"
+    },
+    {
+      "name": "plan-unknown-flag",
+      "args": [
+        "plan",
+        "--experimental",
+        "--nope"
+      ],
+      "stdin": "{}",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "flag provided but not defined: -nope\nUsage of plan:\n  -approve-plan string\n    \tauthorize execution of exactly this live plan digest\n  -experimental\n    \tadmit closed experimental profile\nflag provided but not defined: -nope\n"
+    },
+    {
+      "name": "plan-with-approval",
+      "args": [
+        "plan",
+        "--experimental",
+        "--approve-plan",
+        "sha256:00"
+      ],
+      "stdin": "{}",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "planning does not accept execution approval\n"
+    },
+    {
+      "name": "plan-empty-request",
+      "args": [
+        "plan",
+        "--experimental"
+      ],
+      "stdin": "{}",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "live profile requires absolute repositories, attested external application and fresh-browser non-restart reset\n"
+    },
+    {
+      "name": "plan-unknown-field",
+      "args": [
+        "plan",
+        "--experimental"
+      ],
+      "stdin": "{\"unknown\":true}",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "json: unknown field \"unknown\"\n"
+    },
+    {
+      "name": "plan-trailing-json",
+      "args": [
+        "plan",
+        "--experimental"
+      ],
+      "stdin": "{} {}",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "trailing JSON\n"
+    },
+    {
+      "name": "plan-not-json",
+      "args": [
+        "plan",
+        "--experimental"
+      ],
+      "stdin": "not json",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "invalid character 'o' in literal null (expecting 'u')\n"
+    },
+    {
+      "name": "execute-without-approval",
+      "args": [
+        "execute",
+        "--experimental"
+      ],
+      "stdin": "{}",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "explicit --approve-plan required\n"
+    },
+    {
+      "name": "execute-empty-plan",
+      "args": [
+        "execute",
+        "--experimental",
+        "--approve-plan",
+        "sha256:00"
+      ],
+      "stdin": "{}",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "operator-authorization-required\n"
+    },
+    {
+      "name": "unknown-operation",
+      "args": [
+        "unknown",
+        "--experimental"
+      ],
+      "stdin": "{}",
+      "exit": 1,
+      "stdout": "",
+      "stderr": "unknown operation \"unknown\"\n"
+    }
+  ]
+}

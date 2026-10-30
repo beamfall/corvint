@@ -1,0 +1,86 @@
+// SPDX-License-Identifier: Apache-2.0
+import { spawn } from 'node:child_process';
+import { isAbsolute } from 'node:path';
+// The exact admitted host and adapter tuple (PWV-V0-016). Core refuses any other host version.
+export const PI_HOST_VERSION='0.99.1',PI_ADAPTER_VERSION='0.3.11';
+export const EVENTS = new Set(['session-start','user-prompt','file-change','post-tool','stop','session-end']);
+const KEYS=['profile','event','host','surface','hostVersion','adapterVersion','support','receiptId','context','degradations','fault','shouldContinue'].sort();
+const CODES=new Set(['invalid-input','unsupported-event','unsupported-host-version','core-unavailable','invalid-core-response','output-too-large','deadline','untrusted-project']);
+const DEGRADATIONS=new Set(['compaction-critical-evidence-overflow','compaction-dirty-set-over-budget','compaction-untracked-paths-not-rehydratable','frontier-authority-unavailable','outcome-persistence-unavailable']);
+export function validEnvelope(v,event) {
+ if(!EVENTS.has(event) || !v || typeof v!=='object' || Array.isArray(v) || JSON.stringify(Object.keys(v).sort())!==JSON.stringify(KEYS) || v.profile!=='corvint-pi-adapter/0' || v.event!==event || v.host!=='pi'||v.surface!=='extension'||v.adapterVersion!==PI_ADAPTER_VERSION||v.support!=='FALLBACK'||v.shouldContinue!==false||typeof v.context!=='string'||!Array.isArray(v.degradations)||new Set(v.degradations).size!==v.degradations.length||!v.degradations.every(x=>DEGRADATIONS.has(x)))return false;
+ if(v.fault!==null)return CODES.has(v.fault)&&v.receiptId===null&&v.context===''&&v.degradations.length===0&&(v.hostVersion===PI_HOST_VERSION||(v.hostVersion===null&&['invalid-input','unsupported-event','unsupported-host-version','deadline'].includes(v.fault)));
+ if(v.context!=='' && (!['session-start','user-prompt'].includes(event)||!v.context.startsWith('BEGIN CORVINT REPOSITORY DATA\n')||!v.context.endsWith('\nEND CORVINT REPOSITORY DATA')))return false;
+ return v.hostVersion===PI_HOST_VERSION&&typeof v.receiptId==='string'&&/^harness-receipt:sha256:[0-9a-f]{64}$/.test(v.receiptId);
+}
+const TOOL_KEYS=['profile','operation','hostVersion','adapterVersion','support','ok','mutation','context','packet','fault'].sort();
+const TOOL_FAULTS=new Set(['unsupported-operation','invalid-input','unsupported-host-version','core-unavailable','context-unavailable','stale-context','source-unavailable','record-unavailable','invalid-core-response','output-too-large']);
+export function validToolEnvelope(v,operation) {
+ if(!['context','expand','record'].includes(operation)||!v||JSON.stringify(Object.keys(v).sort())!==JSON.stringify(TOOL_KEYS)||v.profile!=='corvint-pi-tool/0'||v.operation!==operation||v.adapterVersion!==PI_ADAPTER_VERSION||v.support!=='FALLBACK'||typeof v.ok!=='boolean'||typeof v.context!=='string'||!['not-attempted','recorded','unknown'].includes(v.mutation))return false;
+ if(operation!=='record'&&v.mutation!=='not-attempted')return false;
+ if(!v.ok)return TOOL_FAULTS.has(v.fault)&&v.context===''&&v.packet===null&&(v.hostVersion===PI_HOST_VERSION||(v.hostVersion===null&&['invalid-input','unsupported-operation','unsupported-host-version'].includes(v.fault)));
+ if(v.hostVersion!==PI_HOST_VERSION||v.fault!==null||!v.context.startsWith('BEGIN CORVINT REPOSITORY DATA\n')||!v.context.endsWith('\nEND CORVINT REPOSITORY DATA'))return false;
+ if(operation==='record'&&v.mutation!=='recorded')return false;
+ if(operation!=='context')return v.packet===null;
+ const p=v.packet;
+ return p&&JSON.stringify(Object.keys(p).sort())===JSON.stringify(['commit','evidenceHandle','json','sha256'])&&p.evidenceHandle==='context-packet:sha256:'+p.sha256&&typeof p.json==='string'&&Buffer.byteLength(p.json)<=65536&&typeof p.commit==='string'&&typeof p.sha256==='string'&&/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(p.commit)&&/^[0-9a-f]{64}$/.test(p.sha256);
+}
+export function decodeObject(raw) {
+ const value=JSON.parse(raw);
+ if(!value||typeof value!=='object'||Array.isArray(value))throw Error('object required');
+ // Inspect keys before JSON.parse's last-key-wins behavior can erase mixed identities.
+ const tokens=raw.match(/"(?:[^"\\]|\\.)*"|[{}\[\]:,]|[^\s{}\[\]:,]+/g)??[];
+ const stack=[];
+ for(let i=0;i<tokens.length;i++) {
+  const token=tokens[i];
+  if(token==='{'){stack.push(new Set());continue;}
+  if(token==='['){stack.push(null);continue;}
+  if(token==='}'||token===']'){stack.pop();continue;}
+  if(!token.startsWith('"')||tokens[i+1]!==':')continue;
+  const key=JSON.parse(token), keys=stack.at(-1);
+  if(keys.has(key))throw Error('duplicate key');
+  keys.add(key);
+ }
+ return value;
+}
+export const decodeEnvelope=decodeObject;
+export function createRunner({binary,env=process.env,spawnImpl=spawn}={}) {
+ let conflict=false;
+ if(binary===undefined){binary=env.CORVINT_BIN;conflict=binary!==undefined&&!binary;}
+ if(binary!==undefined&&(!binary||!isAbsolute(binary)))conflict=true;
+ const pending=new Set();
+ async function run({cwd,event,input,hostVersion,signal,operation}) {
+  if(conflict)return {fault:'invalid-binary-config'};
+  if(!binary)return {fault:'missing-binary'};
+  if(process.platform==='win32')return {fault:'cleanup-failed'};
+  // A host version Core cannot admit is refused before any process starts (PWV-V0-016).
+  if(hostVersion!==PI_HOST_VERSION)return {fault:'unsupported-host-version'};
+  if(signal?.aborted)return {fault:'aborted'};
+  let bytes;try{bytes=JSON.stringify({hostVersion,input});}catch{return {fault:'invalid-input'}}
+  if(Buffer.byteLength(bytes)>131072)return {fault:'invalid-input'};
+  const allowed={};for(const key of ['PATH','HOME','LANG','LC_ALL','TMPDIR'])if(env[key]!==undefined)allowed[key]=env[key];
+  return await new Promise(resolve=>{
+   let child,reason,stdout=[],size=0,stderrSize=0,closed=false,exit,settled=false,deadline,killTimer,poll,hard;
+   const alive=()=>{if(!child?.pid)return false;try{process.kill(-child.pid,0);return true}catch(e){return e.code!=='ESRCH'}};
+   const send=sig=>{if(child?.pid)try{process.kill(-child.pid,sig)}catch{}};
+   const finish=()=>{
+    if(settled)return;settled=true;for(const t of [deadline,killTimer,poll,hard])clearTimeout(t);signal?.removeEventListener('abort',abort);pending.delete(cancel);
+    if(reason)return resolve({fault:reason});
+    if(exit!==0)return resolve({fault:'core-unavailable'});
+    try{const raw=new TextDecoder('utf-8',{fatal:true}).decode(Buffer.concat(stdout));const v=decodeEnvelope(raw);resolve((operation?validToolEnvelope(v,operation):validEnvelope(v,event))?v:{fault:'invalid-adapter-response'});}catch{resolve({fault:'invalid-adapter-response'})}
+   };
+   const check=()=>{clearTimeout(poll);if(closed&&!alive())finish();else poll=setTimeout(check,15)};
+   const cancel=(code='aborted')=>{if(settled)return;reason??=code;send('SIGTERM');if(!killTimer)killTimer=setTimeout(()=>send('SIGKILL'),100);check();};
+   const abort=()=>cancel();pending.add(cancel);signal?.addEventListener('abort',abort,{once:true});
+   try{child=spawnImpl(binary,['adapter',operation?'pi-tool':'pi',operation??event],{cwd,env:allowed,shell:false,detached:true,stdio:['pipe','pipe','pipe']});}catch{reason='missing-binary';closed=true;finish();return;}
+   deadline=setTimeout(()=>cancel('deadline'),1700);
+   hard=setTimeout(()=>{reason='cleanup-failed';send('SIGKILL');check();},2000);
+   child.on('error',()=>{reason='missing-binary';closed=true;if(!alive())finish();else cancel(reason)});
+   child.stdout.on('data',chunk=>{size+=chunk.length;if(size>(operation?65536:8000))cancel('output-too-large');else stdout.push(chunk)});
+   child.stderr.on('data',chunk=>{stderrSize+=chunk.length;if(stderrSize>4096)cancel('output-too-large')});
+   child.on('close',code=>{closed=true;exit=code;if(alive())cancel('cleanup-failed');else finish()});
+   child.stdin.on('error',()=>{});child.stdin.end(bytes);
+  });
+ }
+ return {run,tool:request=>run(request),async close(){for(const cancel of pending)cancel();while(pending.size)await new Promise(r=>setTimeout(r,10));return;}};
+}

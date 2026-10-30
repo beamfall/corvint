@@ -1,0 +1,21 @@
+{
+  "attestation": {
+    "outcome": "PASS",
+    "repository": "corvint"
+  },
+  "evidenceClass": "corvint-dogfood",
+  "repositoryRevision": "0b6f1bc245b44a8620c5e64f91e87f6d08da08d0",
+  "result": "PASS",
+  "spec": "corvint-use-case-evidence/0",
+  "subjects": [
+    {
+      "path": "conformance/use-cases-v0/receipts/UC-CHANGE-CONSEQUENCE/corvint-dogfood/prechange-impact.json",
+      "sha256": "52248032c4621e11dd8850d66c1b2b52cdaed6e66d49f2bc40e0107c64795cd2"
+    },
+    {
+      "path": ".corvint/changes/8668f77b73eaf7b203abbb922aa1fe9cff8fd6c8.cem.json",
+      "sha256": "3dd51e0677392e7df74981a5eb0a95cbc369a20602fa6a342e9af177e06c5d86"
+    }
+  ],
+  "useCaseId": "UC-CHANGE-CONSEQUENCE"
+}

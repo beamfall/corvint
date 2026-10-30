@@ -1,0 +1,79 @@
+package tcq
+
+// Axis values (TCQ-V0-006). No axis rewrites another and none is a confidence,
+// coverage, proof, or generic success score.
+const (
+	AssociationAssociated = "ASSOCIATED"
+	AssociationAbstained  = "ABSTAINED"
+
+	HygieneEligible   = "ELIGIBLE"
+	HygieneIneligible = "INELIGIBLE"
+	HygieneAbstained  = "ABSTAINED"
+
+	ReportNotMatched = "NOT_MATCHED"
+	ReportPassed     = "PASSED"
+	ReportFailed     = "FAILED"
+	ReportError      = "ERROR"
+	ReportSkipped    = "SKIPPED"
+	ReportAmbiguous  = "AMBIGUOUS"
+)
+
+// ClaimResult is one selected claim edge, in the shape of the reference vector
+// at docs/specs/test-claim-qualification-v0.md:391. Empty string stands for the
+// document's `null` in the nullable fields.
+type ClaimResult struct {
+	ObligationID       string
+	ClaimID            string
+	AnchorProfile      string
+	AssociationKind    string
+	AssociationState   string
+	HygieneState       string
+	ReportState        string
+	TestUnitID         string
+	ExecutionKeySha256 string
+	RowIDs             []string
+	Reasons            []string
+	Relation           string
+	// AuthorityClass is CALLER_REPORTED for every edge, including abstentions
+	// (TCQ-V0-006). It is carried rather than assumed so no future producer can
+	// silently upgrade it.
+	AuthorityClass string
+}
+
+// Result is the computed TCQ document. The only emitted profile is
+// tcq-stable/0 (EvaluateStable), which re-envelopes the tcq/0 computation; the
+// tcq/0 route, its cem/0.2 admission and the frontier/0 seam that consumed it
+// were retired with the cem/0.x wire (CEM-V1-217). It is a recomputable local
+// cache, never an authority token or execution record (TCQ-V0-043): Raw is the
+// canonical bytes the identity commits to, and every consumer must recompute
+// rather than trust.
+type Result struct {
+	raw         []byte
+	id          string
+	claims      []ClaimResult
+	environment map[string]string
+}
+
+// Raw returns the canonical document bytes, terminal LF included.
+func (result Result) Raw() []byte { return append([]byte(nil), result.raw...) }
+
+// ID is the `tcq:sha256:` identity of TCQ-V0-040.
+func (result Result) ID() string { return result.id }
+
+// Claims returns one result per selected edge, in TCQ-V0-003 order.
+func (result Result) Claims() []ClaimResult { return append([]ClaimResult(nil), result.claims...) }
+
+// ObservationEnvironment returns the verified observation's declared TCQ-V0-048
+// variant. The second value is false when the invocation was static or the
+// observation declared no environment: the environment is then unknown, and no
+// caller may substitute an empty variant for it.
+func (result Result) ObservationEnvironment() (map[string]string, bool) {
+	if result.environment == nil {
+		return nil, false
+	}
+	copied := make(map[string]string, len(result.environment))
+	for key, value := range result.environment {
+		copied[key] = value
+	}
+	return copied, true
+}

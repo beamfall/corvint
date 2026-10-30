@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 820 200" role="img" aria-labelledby="title desc">
+  <title id="title">Corvint</title>
+  <desc id="desc">A corvid silhouette formed by a watchful head and a sweeping wing, beside the lowercase corvint wordmark.</desc>
+  <rect width="820" height="200" rx="24" fill="#111216"/>
+  <g fill="#ffffff">
+    <g transform="translate(20 14) scale(.45)">
+    <g transform="translate(38 35)" fill-rule="evenodd">
+      <path d="M0 215C8 157 43 85 99 40C143 4 199-16 238 29C271 36 295 51 308 77C271 68 234 64 201 83C178 96 168 116 166 137C146 116 126 108 104 110C60 110 19 159 0 215ZM202 43a11 11 0 1 0-22 0a11 11 0 1 0 22 0Z"/>
+      <path d="M73 132C99 119 122 124 142 147C158 166 168 191 182 217C204 258 237 285 277 310C242 316 210 314 177 307C134 300 100 282 73 258V303C46 283 27 257 26 235C23 191 45 147 73 132Z"/>
+    </g>
+    </g>
+    <g transform="translate(231 76) scale(.96)" fill-rule="evenodd">
+      <path d="M78 10H48C18 10 2 27 2 53C2 79 18 96 48 96H78V78H49C31 78 22 69 22 53C22 37 31 28 49 28H78Z"/>
+      <path d="M137 8C111 8 93 26 93 53C93 80 111 98 137 98C163 98 181 80 181 53C181 26 163 8 137 8ZM137 28C152 28 161 37 161 53C161 69 152 78 137 78C122 78 113 69 113 53C113 37 122 28 137 28Z"/>
+      <path d="M199 96V49C199 23 213 10 239 10H254V29H242C226 29 219 36 219 51V96Z"/>
+      <path d="M268 10L293 96H318L343 10H322L306 74L289 10Z"/>
+      <path d="M362 10H382V96H362ZM383-13a11 11 0 1 0-22 0a11 11 0 1 0 22 0Z"/>
+      <path d="M403 96V48C403 22 419 8 446 8C473 8 489 22 489 48V96H469V50C469 34 461 27 446 27C431 27 423 34 423 50V96Z"/>
+      <path d="M517-13H537V10H563V28H537V65C537 75 542 79 553 79H563V97H551C528 97 517 87 517 65Z"/>
+    </g>
+  </g>
+</svg>

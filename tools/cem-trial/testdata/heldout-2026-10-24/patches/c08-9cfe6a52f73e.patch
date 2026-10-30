@@ -1,0 +1,168 @@
+diff --git a/internal/app/app.go b/internal/app/app.go
+index 0c80c5b44..025907014 100644
+--- a/internal/app/app.go
++++ b/internal/app/app.go
+@@ -164,7 +164,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger, bundles []
+ 	manifests := manifest.NewService(st, time.Now, plugins)
+ 	tokenService := streamtoken.NewService(cfg.StreamTokenKey, time.Now)
+ 	// Record issued Stream Tokens in the transparency ledger so the My Data
+-	// panel can show a Profile its own outstanding tokens (ADR-0036). The
++	// panel can present a Profile its own outstanding tokens (ADR-0036). The
+ 	// ledger never authorizes bytes — that stays the signed grant's job.
+ 	tokenService.SetRecorder(st)
+ 	playbackInfo := playback.NewService(st, tokenService, time.Now)
+diff --git a/internal/store/mydata.go b/internal/store/mydata.go
+index 1ec22e918..2e064c6d5 100644
+--- a/internal/store/mydata.go
++++ b/internal/store/mydata.go
+@@ -79,7 +79,7 @@ func (s *Store) ExportMyEngagement(ctx context.Context, profileID ProfileID, fil
+ 	if err != nil {
+ 		return MyEngagementExport{}, err
+ 	}
+-	queue, err := s.myQueue(ctx, profileID)
++	queue, err := s.myQueueRows(ctx, profileID)
+ 	if err != nil {
+ 		return MyEngagementExport{}, err
+ 	}
+@@ -175,30 +175,6 @@ func (s *Store) myFavorites(ctx context.Context, profileID ProfileID) ([]MyFavor
+ 	return out, rows.Err()
+ }
+ 
+-func (s *Store) myQueue(ctx context.Context, profileID ProfileID) ([]MyQueueEntry, error) {
+-	rows, err := s.eventsR.QueryContext(ctx, `
+-		SELECT media_id, added_at_ms
+-		FROM play_queue
+-		WHERE profile_id = ?
+-		ORDER BY position
+-	`, profileID)
+-	if err != nil {
+-		return nil, err
+-	}
+-	defer rows.Close()
+-	var out []MyQueueEntry
+-	for rows.Next() {
+-		var row MyQueueEntry
+-		var at int64
+-		if err := rows.Scan(&row.MediaID, &at); err != nil {
+-			return nil, err
+-		}
+-		row.AddedAt = millisToTime(at)
+-		out = append(out, row)
+-	}
+-	return out, rows.Err()
+-}
+-
+ // DeleteMyEngagement hard-DELETEs the caller's own engagement rows (ADR-0036
+ // explicitly sanctions hard delete here: this is the user's own behavioral
+ // data, not library content — hard invariant 6's recoverable-by-default trash
+@@ -212,7 +188,7 @@ func (s *Store) myQueue(ctx context.Context, profileID ProfileID) ([]MyQueueEntr
+ // fails identically to an unknown one, so delete-by-id cannot be used as an
+ // existence oracle for hidden Media.
+ //
+-// The delete and any projection consequences are one transaction; play_queue
++// The delete and any projection consequences are one transaction; play-queue
+ // positions for the deleted Media simply disappear (the queue is read
+ // position-ordered, so contiguity is a read-time concern, not a stored one).
+ func (s *Store) DeleteMyEngagement(ctx context.Context, profileID ProfileID, scope MyDataDeleteScope, mediaID MediaID, filter LibraryFilter) error {
+@@ -249,20 +225,30 @@ func (s *Store) DeleteMyEngagement(ctx context.Context, profileID ProfileID, sco
+ 	}
+ 	defer tx.Rollback()
+ 
++	// Play-queue deletes route through the queue API (queue.go) so all queue
++	// SQL stays behind the queue firewall
++	// (TestPlayQueueWritesStayBehindQueueAPI); the un-firewalled projection
++	// tables are deleted inline. All deletes share one transaction.
+ 	if scope == MyDataDeleteAll {
+-		for _, table := range []string{"playback_progress", "media_favorite", "play_queue"} {
++		for _, table := range []string{"playback_progress", "media_favorite"} {
+ 			if _, err := tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE profile_id = ?`, profileID); err != nil {
+ 				return err
+ 			}
+ 		}
++		if err := deleteMyQueueAll(ctx, tx, profileID); err != nil {
++			return err
++		}
+ 		return tx.Commit()
+ 	}
+ 
+-	for _, table := range []string{"playback_progress", "media_favorite", "play_queue"} {
++	for _, table := range []string{"playback_progress", "media_favorite"} {
+ 		if _, err := tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE profile_id = ? AND media_id = ?`, profileID, mediaID); err != nil {
+ 			return err
+ 		}
+ 	}
++	if err := deleteMyQueueMedia(ctx, tx, profileID, mediaID); err != nil {
++		return err
++	}
+ 	return tx.Commit()
+ }
+ 
+@@ -282,7 +268,7 @@ type MyProfileSession struct {
+ // no other-profile parameter. Ordered by id for a stable read.
+ //
+ // Note (ADR-0036 deviation): the auth_session schema records no created-at or
+-// last-seen timestamp, so those fields the panel might show are not available
++// last-seen timestamp, so those fields the panel might display are not available
+ // from the store today; only id, device name/role, and expiry are.
+ func (s *Store) MyProfileSessions(ctx context.Context, profileID ProfileID) ([]MyProfileSession, error) {
+ 	if profileID == "" {
+diff --git a/internal/store/queue.go b/internal/store/queue.go
+index 9dd6598b4..e4f4a207b 100644
+--- a/internal/store/queue.go
++++ b/internal/store/queue.go
+@@ -231,6 +231,55 @@ func (s *Store) queueItemsSQL(ctx context.Context, profileID ProfileID, filter L
+ 	return items, nil
+ }
+ 
++// myQueueRows returns every queued entry for the Profile in queue order,
++// unfiltered. My Data (ADR-0036) reveal-filters the whole export centrally, so
++// this read deliberately returns hidden entries too; it lives here, not in
++// mydata.go, because the play_queue table is firewalled behind the queue API
++// (see TestPlayQueueWritesStayBehindQueueAPI). The caller (ExportMyEngagement)
++// holds s.mu and has guarded; this reads via eventsR like the other My Data
++// projection reads.
++func (s *Store) myQueueRows(ctx context.Context, profileID ProfileID) ([]MyQueueEntry, error) {
++	rows, err := s.eventsR.QueryContext(ctx, `
++		SELECT media_id, added_at_ms
++		FROM play_queue
++		WHERE profile_id = ?
++		ORDER BY position
++	`, profileID)
++	if err != nil {
++		return nil, err
++	}
++	defer rows.Close()
++	var out []MyQueueEntry
++	for rows.Next() {
++		var row MyQueueEntry
++		var at int64
++		if err := rows.Scan(&row.MediaID, &at); err != nil {
++			return nil, err
++		}
++		row.AddedAt = millisToTime(at)
++		out = append(out, row)
++	}
++	return out, rows.Err()
++}
++
++// deleteMyQueueAll removes every queue entry for the Profile within the caller's
++// transaction, INCLUDING hidden ones. My Data's `all` delete is not disclosure,
++// so unlike QueueClear (which keeps hidden entries) it purges everything. It
++// lives in queue.go so all play_queue SQL stays behind the queue firewall.
++func deleteMyQueueAll(ctx context.Context, tx *sql.Tx, profileID ProfileID) error {
++	_, err := tx.ExecContext(ctx, `DELETE FROM play_queue WHERE profile_id = ?`, profileID)
++	return err
++}
++
++// deleteMyQueueMedia removes one Media item's queue entry for the Profile within
++// the caller's transaction. My Data's `media:<id>` delete has already resolved
++// the id through the caller's visibility filter, so this is an unconditional
++// purge of that single row. It lives in queue.go for the same firewall reason.
++func deleteMyQueueMedia(ctx context.Context, tx *sql.Tx, profileID ProfileID, mediaID MediaID) error {
++	_, err := tx.ExecContext(ctx, `DELETE FROM play_queue WHERE profile_id = ? AND media_id = ?`, profileID, mediaID)
++	return err
++}
++
+ func queueEntries(ctx context.Context, tx *sql.Tx, profileID ProfileID) ([]queueEntry, error) {
+ 	rows, err := tx.QueryContext(ctx, `
+ 		SELECT media_id, added_at_ms

@@ -1,0 +1,159 @@
+diff --git a/script/roadmap_lib.py b/script/roadmap_lib.py
+index 75d9fee23..8a04e381f 100644
+--- a/script/roadmap_lib.py
++++ b/script/roadmap_lib.py
+@@ -2424,6 +2424,108 @@ def cmd_add_dep(path, ticket, new_deps):
+     return 0
+ 
+ 
++def cmd_rm_dep(path, ticket, removed_deps, reason, at):
++    """Remove one or more Depends edges from an existing ticket's root block.
++
++    The caller holds the roadmap locks and commits the owning shard. Member IDs
++    of a consolidated row resolve to the same root block, where Depends lives.
++    Every removal appends the same root-level, timestamped amendment audit row
++    used for charter changes so the operator's reason remains review-visible.
++    """
++    path = resolve_source(path)
++    if is_db_path(path):
++        print('rm-dep: refusing to mutate the derived DB; edit the text source', file=sys.stderr)
++        return 2
++    if not removed_deps:
++        print('rm-dep: at least one dependency is required', file=sys.stderr)
++        return 2
++    if (not reason.strip() or '\n' in reason or '\r' in reason
++            or reason != reason.strip()):
++        print(
++            f'rm-dep: {ticket} removal reason is one non-empty line failed',
++            file=sys.stderr,
++        )
++        return 2
++    tickets, _ = parse(path)
++    original = next((t for t in tickets if ticket in (t.get('ids') or [t['primary']])), None)
++    if original is None:
++        print(f'{ticket}: not found', file=sys.stderr)
++        return 1
++    missing = [dep for dep in removed_deps if dep not in original['depends']]
++    if missing:
++        print(
++            f'rm-dep: {ticket} does not depend on {", ".join(missing)}',
++            file=sys.stderr,
++        )
++        return 1
++    shard = owning_shard(path, ticket) if os.path.isdir(path) else os.path.abspath(path)
++    if not shard:
++        print(f'{ticket}: not found', file=sys.stderr)
++        return 1
++    with open(shard, encoding='utf-8') as handle:
++        lines = handle.read().splitlines(keepends=True)
++    span = _ticket_block_span(lines, ticket)
++    if not span:
++        print(f'{ticket}: not found', file=sys.stderr)
++        return 1
++    start, end = span
++    original_block = ''.join(lines[start:end])
++    member_match = re.search(r'^\s*-\s*\*\*Member:\*\*', original_block, re.M)
++    root_end = member_match.start() if member_match else len(original_block)
++    root = original_block[:root_end]
++    match = FIELD_RE('Depends').search(root)
++    if not match:
++        print(f'{ticket}: no root **Depends** field to reduce', file=sys.stderr)
++        return 1
++
++    value = match.group(1)
++    suffix = re.search(r'[ .;]+$', value)
++    punctuation = suffix.group(0) if suffix else ''
++    raw = value[:-len(punctuation)] if punctuation else value
++    existing = [dep.strip() for dep in raw.split(',') if dep.strip()]
++    remaining = [dep for dep in existing if dep not in removed_deps]
++    replacement = (', '.join(remaining) if remaining else '—') + punctuation
++    changed_root = root[:match.start(1)] + replacement + root[match.end(1):]
++    changed_block = changed_root + original_block[root_end:]
++    audit = (
++        f'  - **Amendment:** {at} — {reason} '
++        f'Removed Depends {", ".join(f"`{dep}`" for dep in removed_deps)}.\n'
++    )
++    candidate_lines = changed_block.splitlines(keepends=True)
++    audit_at = next(
++        (index for index, line in enumerate(candidate_lines) if MEMBER_LINE_RE.match(line)),
++        len(candidate_lines),
++    )
++    while audit_at > 0 and not candidate_lines[audit_at - 1].strip():
++        audit_at -= 1
++    if audit_at > 0 and not candidate_lines[audit_at - 1].endswith('\n'):
++        candidate_lines[audit_at - 1] += '\n'
++    candidate_lines.insert(audit_at, audit)
++    candidate = ''.join(candidate_lines)
++
++    with tempfile.NamedTemporaryFile('w', encoding='utf-8', suffix='.md') as handle:
++        handle.write(''.join(lines[:start]) + candidate + ''.join(lines[end:]))
++        handle.flush()
++        parsed, _ = parse_markdown(handle.name)
++    mutated = next((t for t in parsed if ticket in t.get('ids', [])), None)
++    expected = set(original['depends']) - set(removed_deps)
++    bookkeeping = {'block', 'depends', 'line', 'ordinal', 'source_file'}
++    raw_fields = lambda block: [
++        field.groups() for field in RAW_FIELD_RE.finditer(block)
++        if field.group(1).lower() != 'depends'
++    ]
++    if not mutated or set(mutated['depends']) != expected \
++            or any(mutated.get(key) != value for key, value in original.items()
++                   if key not in bookkeeping) \
++            or raw_fields(candidate) != raw_fields(original_block):
++        print(f'{ticket}: rm-dep validation failed — refusing unsafe mutation', file=sys.stderr)
++        return 1
++    lines[start:end] = candidate.splitlines(keepends=True)
++    _atomic_write(shard, ''.join(lines))
++    print(f'{ticket}: -Depends {", ".join(removed_deps)} ({reason})')
++    return 0
++
++
+ def cmd_add(path, section, block_text):
+     """Insert one or more new ticket blocks at the end of the named section.
+ 
+@@ -3749,7 +3851,7 @@ def cmd_claims(_path, state, now, stale_after, preclaim_after, inventory=False):
+ 
+ def main(argv):
+     if len(argv) < 3:
+-        print('usage: roadmap_lib.py <next|jobs|show|ticket-facts|block|criteria|checkoff|amend|add|repo|root-repo|review|deps|dep-cycles|unblocks|repos|lint|metrics|export-md|init-db|import-md|migrate-packets> <roadmap> [args]', file=sys.stderr)
++        print('usage: roadmap_lib.py <next|jobs|show|ticket-facts|block|criteria|checkoff|amend|add|add-dep|rm-dep|repo|root-repo|review|deps|dep-cycles|unblocks|repos|lint|metrics|export-md|init-db|import-md|migrate-packets> <roadmap> [args]', file=sys.stderr)
+         return 2
+     cmd, path = argv[1], argv[2]
+     if cmd == 'bind-inflight-review-receipt':
+@@ -4011,6 +4113,36 @@ def main(argv):
+             return 2
+         dep_list = [d.strip() for d in deps.split(',') if d.strip()]
+         return cmd_add_dep(path, argv[3], dep_list)
++    if cmd == 'rm-dep':
++        if len(argv) < 4:
++            print('rm-dep: ticket required', file=sys.stderr)
++            return 2
++        deps = reason = at = None
++        rest = argv[4:]
++        while rest:
++            if rest[0] in ('--dep', '--reason', '--at') and len(rest) > 1:
++                key, value, rest = rest[0], rest[1], rest[2:]
++                if key == '--dep':
++                    deps = value
++                elif key == '--reason':
++                    reason = value
++                else:
++                    at = value
++            elif rest[0].startswith('--dep='):
++                deps, rest = rest[0].split('=', 1)[1], rest[1:]
++            elif rest[0].startswith('--reason='):
++                reason, rest = rest[0].split('=', 1)[1], rest[1:]
++            elif rest[0].startswith('--at='):
++                at, rest = rest[0].split('=', 1)[1], rest[1:]
++            else:
++                print(f'rm-dep: unexpected arg {rest[0]!r}', file=sys.stderr)
++                return 2
++        if not deps or not reason or not at:
++            print('rm-dep: --dep <DEP[,DEP...]> --reason <TEXT> --at <TIMESTAMP> required',
++                  file=sys.stderr)
++            return 2
++        dep_list = [dep.strip() for dep in deps.split(',') if dep.strip()]
++        return cmd_rm_dep(path, argv[3], dep_list, reason, at)
+     if cmd == 'add':
+         section = None
+         block_file = None

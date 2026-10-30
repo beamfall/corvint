@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "repositories": [
+    {
+      "id": "flask",
+      "url": "https://github.com/pallets/flask.git",
+      "commit": "d318b683471101618febed18996405ad26462110",
+      "language": "Python",
+      "public": true,
+      "cases": "benchmarks/blind-v6-dev/flask.json"
+    },
+    {
+      "id": "cobra",
+      "url": "https://github.com/spf13/cobra.git",
+      "commit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+      "language": "Go",
+      "public": true,
+      "cases": "benchmarks/blind-v6-dev/cobra.json"
+    }
+  ]
+}

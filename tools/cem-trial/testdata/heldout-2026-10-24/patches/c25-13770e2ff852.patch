@@ -1,0 +1,138 @@
+diff --git a/internal/migrate/handler.go b/internal/migrate/handler.go
+index 4a029b226..76c1bd0af 100644
+--- a/internal/migrate/handler.go
++++ b/internal/migrate/handler.go
+@@ -71,7 +71,7 @@ type Store interface {
+ 	SetMatchPinned(ctx context.Context, fingerprint string, pinned bool) (bool, error)
+ 	// UpdateJobCheckpoint persists the run's progress (match-rate report) onto
+ 	// the job's progress row — the status surface the wizard reads (ADR-0037
+-	// §2.3). The checkpoint also dedupes a resumed run (see Payload.applied).
++	// §2.3).
+ 	UpdateJobCheckpoint(ctx context.Context, id store.JobID, checkpoint []byte, progress store.JobProgress, now time.Time) error
+ }
+ 
+@@ -189,6 +189,11 @@ type Result struct {
+ 	PerCategory map[string]int
+ }
+ 
++const (
++	payloadVersion       = 1
++	checkpointEveryItems = 100
++)
++
+ func newResult() Result {
+ 	return Result{PerCategory: map[string]int{}}
+ }
+@@ -230,6 +235,9 @@ func Handler(st Store, resolver SourceResolver, opts ...HandlerOption) jobs.Hand
+ 		if err := json.Unmarshal(job.Payload, &payload); err != nil {
+ 			return jobs.Result{}, fmt.Errorf("migrate: decode payload: %w", err)
+ 		}
++		if payload.Version != payloadVersion {
++			return jobs.Result{}, fmt.Errorf("migrate: unsupported payload version %d (want %d)", payload.Version, payloadVersion)
++		}
+ 		if payload.ProfileID == "" {
+ 			return jobs.Result{}, errors.New("migrate: payload is missing the target profile")
+ 		}
+@@ -254,7 +262,15 @@ func Handler(st Store, resolver SourceResolver, opts ...HandlerOption) jobs.Hand
+ 		// total is applied once (idempotent re-run — ADR-0037 §2.4 / §2.5). A
+ 		// file-keyed item (watch-state) applies inline as before.
+ 		plays := newPlayTally()
+-		for _, item := range items {
++		for i, item := range items {
++			if err := ctx.Err(); err != nil {
++				return jobs.Result{}, fmt.Errorf("migrate: context canceled: %w", err)
++			}
++			if i > 0 && i%checkpointEveryItems == 0 {
++				if err := recordRunningProgress(ctx, st, job, result, i, len(items), now); err != nil {
++					return jobs.Result{}, fmt.Errorf("migrate: record progress: %w", err)
++				}
++			}
+ 			if item.Subscription.Present {
+ 				if !categories[CategorySubscriptions] {
+ 					continue
+@@ -362,6 +378,11 @@ func Handler(st Store, resolver SourceResolver, opts ...HandlerOption) jobs.Hand
+ 			}
+ 			result.Matched++
+ 		}
++		if len(items) > 0 && len(items)%checkpointEveryItems == 0 {
++			if err := recordRunningProgress(ctx, st, job, result, len(items), len(items), now); err != nil {
++				return jobs.Result{}, fmt.Errorf("migrate: record progress: %w", err)
++			}
++		}
+ 		// Apply each matched Media's running play total once (additive; a re-run
+ 		// of the same export is a MAX no-op). Provenance is the shape-named import
+ 		// discriminator (invariant #1), the historical time the latest scrobble.
+@@ -762,6 +783,15 @@ func (t *playTally) apply(ctx context.Context, st Store, profileID store.Profile
+ 	return nil
+ }
+ 
++func recordRunningProgress(ctx context.Context, st Store, job store.Job, result Result, processed, total int, now time.Time) error {
++	return st.UpdateJobCheckpoint(ctx, job.ID, job.Checkpoint, store.JobProgress{
++		Current: int64(processed),
++		Total:   int64(total),
++		Unit:    "items",
++		Message: fmt.Sprintf("%d of %d items processed (%d matched, %d unmatched)", processed, total, result.Matched, result.Unmatched),
++	}, now)
++}
++
+ func categorySet(categories []string) map[string]bool {
+ 	set := make(map[string]bool, len(categories))
+ 	for _, c := range categories {
+diff --git a/internal/web/app/src/areas/setup/MigrationOffer.tsx b/internal/web/app/src/areas/setup/MigrationOffer.tsx
+index 470e826b8..657d789a1 100644
+--- a/internal/web/app/src/areas/setup/MigrationOffer.tsx
++++ b/internal/web/app/src/areas/setup/MigrationOffer.tsx
+@@ -33,9 +33,12 @@ export function MigrationOffer({
+   const { t, locale } = useI18n();
+   const [importers, setImporters] = useState<ImporterInfo[] | null>(null);
+   const [failed, setFailed] = useState(false);
++  const [retry, setRetry] = useState(0);
+ 
+   useEffect(() => {
+     let cancelled = false;
++    setImporters(null);
++    setFailed(false);
+     void fetchImporters()
+       .then((list) => {
+         if (!cancelled) setImporters(list);
+@@ -46,7 +49,7 @@ export function MigrationOffer({
+     return () => {
+       cancelled = true;
+     };
+-  }, []);
++  }, [retry]);
+ 
+   // Deep-link to the importer surface and complete setup in one navigation. We
+   // assign the BASE_URL-relative path (matching the wizard's window.location
+@@ -80,9 +83,19 @@ export function MigrationOffer({
+       ) : failed ? (
+         // The offer still renders; only the source list is unavailable, so the
+         // operator can still skip or open the importer.
+-        <p className="text-[13px] text-muted-foreground">
+-          {t("setupMigrateSourcesUnavailable")}
+-        </p>
++        <div className="flex flex-col items-start gap-2">
++          <p className="m-0 text-[13px] text-muted-foreground">
++            {t("setupMigrateSourcesUnavailable")}
++          </p>
++          <Button
++            type="button"
++            variant="outline"
++            size="sm"
++            onClick={() => setRetry((n) => n + 1)}
++          >
++            {t("jobRetryAction")}
++          </Button>
++        </div>
+       ) : importers && importers.length > 0 ? (
+         <div>
+           <p className="mb-1.5 text-xs text-muted-foreground">
+@@ -109,7 +122,7 @@ export function MigrationOffer({
+         <Button type="button" variant="outline" onClick={onSkip}>
+           {t("setupMigrateSkip")}
+         </Button>
+-        {importers && importers.length > 0 && (
++        {(failed || (importers && importers.length > 0)) && (
+           <Button type="button" onClick={goToImporter}>
+             {t("setupMigrateContinue")}
+           </Button>

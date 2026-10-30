@@ -1,0 +1,22 @@
+{
+ "files": {
+  "nested/tests/nested.spec.ts": "import { LoginPage } from \"@pages/LoginPage\";\n\nexport const nested = LoginPage;\n",
+  "nested/tsconfig.json": "{ \"extends\": \"../tsconfig\" }\n",
+  "package.json": "{\n  \"name\": \"fixture-suite\",\n  \"private\": true,\n  \"dependencies\": { \"left-pad\": \"1.3.0\", \"@scope/kit\": \"1.0.0\" },\n  \"devDependencies\": { \"@playwright/test\": \"1.50.0\", \"@types/chalk\": \"2.0.0\", \"typescript\": \"5.6.0\" }\n}\n",
+  "src/pages/LoginPage.ts": "export class LoginPage {\n  open(): string { return \"/login\"; }\n}\n",
+  "src/pages/cart/index.ts": "export const Cart = \"cart\";\n",
+  "src/shared/account.ts": "export type Account = { id: string };\n",
+  "src/support/index.ts": "export const helper = () => \"help\";\n",
+  "tests/base-url.spec.ts": "import { LoginPage } from \"src/pages/LoginPage\";\nimport { helper } from \"src/support\";\n\nexport const both = [LoginPage, helper];\n",
+  "tests/checkout.spec.ts": "import { LoginPage } from \"@pages/LoginPage.js\";\nimport { Cart } from \"@pages/cart\";\n\nexport const flow = [LoginPage, Cart];\n",
+  "tests/login.spec.ts": "import { test } from \"@playwright/test\";\nimport { LoginPage } from \"@pages/LoginPage\";\n\ntest(\"login\", () => new LoginPage().open());\n",
+  "tests/packages.spec.ts": "import pad from \"left-pad\";\nimport { kit } from \"@scope/kit/sub\";\nimport chalk from \"chalk\";\nimport { readFileSync } from \"fs\";\nimport path from \"node:path\";\n\nexport const used = [pad, kit, chalk, readFileSync, path];\n",
+  "tests/shared.spec.ts": "import type { Account } from \"@shared/account\";\nimport { helper } from \"@support\";\n\nexport const shared: Account[] = [];\nhelper();\n",
+  "tests/types.spec.ts": "import type { LoginPage } from \"@pages/LoginPage\";\n\nexport type Page = LoginPage;\n",
+  "tests/unresolved.spec.ts": "import { Gone } from \"@pages/Gone\";\nimport { Widget } from \"@widgets/Widget\";\n\nexport const missing = [Gone, Widget];\n",
+  "tsconfig.base.json": "// Shared resolution settings, JSONC as tsc reads it.\n{\n  \"compilerOptions\": {\n    \"baseUrl\": \".\", /* every bare name below resolves from the suite root */\n    \"paths\": {\n      \"@pages/*\": [\"src/pages/*\"],\n      \"@support\": [\"src/support/index.ts\"],\n      \"@shared/*\": [\"src/generated/*\", \"src/shared/*\",],\n    },\n  },\n}\n",
+  "tsconfig.json": "{\n  \"extends\": \"./tsconfig.base.json\",\n  \"compilerOptions\": { \"strict\": true }\n}\n"
+ },
+ "format": "corvint-test-fixture/0",
+ "issue": "https://github.com/beamfall/corvint/issues/659"
+}

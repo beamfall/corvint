@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "repository": "spf13/cobra",
+  "commit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+  "cases": [
+    {
+      "id": "cobra-execute-command",
+      "mode": "query",
+      "text": "execute a command, validate arguments, and run lifecycle hooks",
+      "limit": 10,
+      "budget_bytes": 12000,
+      "rationale": "Command.execute coordinates argument validation and pre/run/post hook execution.",
+      "ground_truth": [
+        {"path": "command.go", "line": 905, "contains": "func (c *Command) execute"},
+        {"path": "command.go", "line": 1062, "contains": "func (c *Command) ExecuteContext"},
+        {"path": "command.go", "line": 1070, "contains": "func (c *Command) Execute"},
+        {"path": "command.go", "line": 1078, "contains": "func (c *Command) ExecuteContextC"},
+        {"path": "cobra.go", "line": 66, "contains": "EnableTraverseRunHooks"},
+        {"path": "command.go", "line": 1084, "contains": "func (c *Command) ExecuteC"},
+        {"path": "command.go", "line": 1047, "contains": "func (c *Command) preRun"},
+        {"path": "command.go", "line": 1053, "contains": "func (c *Command) postRun"},
+        {"path": "command.go", "line": 1172, "contains": "func (c *Command) ValidateArgs"},
+        {"path": "command_test.go", "line": 159, "contains": "TestSubcommandExecuteC"}
+      ],
+      "expected": {
+        "must_include": ["symbol:command.go:execute", "symbol:command.go:ExecuteC"],
+        "critical": ["symbol:command.go:execute"],
+        "relevant": [
+          "symbol:command.go:execute",
+          "symbol:command.go:ExecuteC",
+          "symbol:command.go:Execute",
+          "symbol:command.go:ExecuteContext",
+          "symbol:command.go:ExecuteContextC",
+          "symbol:cobra.go:EnableTraverseRunHooks",
+          "symbol:command.go:ValidateArgs",
+          "symbol:command.go:preRun",
+          "symbol:command.go:postRun"
+        ]
+      }
+    },
+    {
+      "id": "cobra-bash-completion",
+      "mode": "query",
+      "text": "generate Bash shell completion output",
+      "limit": 10,
+      "budget_bytes": 12000,
+      "rationale": "GenBashCompletion is the public writer-based Bash completion entry point.",
+      "ground_truth": [
+        {"path": "bash_completions.go", "line": 683, "contains": "GenBashCompletion"},
+        {"path": "bash_completions.go", "line": 701, "contains": "GenBashCompletionFile"},
+        {"path": "bash_completionsV2.go", "line": 24, "contains": "genBashCompletion"},
+        {"path": "bash_completionsV2.go", "line": 470, "contains": "GenBashCompletionFileV2"},
+        {"path": "bash_completionsV2.go", "line": 482, "contains": "GenBashCompletionV2"},
+        {"path": "bash_completions_test.go", "line": 83, "contains": "TestBashCompletions"}
+      ],
+      "expected": {
+        "must_include": ["symbol:bash_completions.go:GenBashCompletion"],
+        "critical": ["symbol:bash_completions.go:GenBashCompletion"],
+        "relevant": [
+          "symbol:bash_completions.go:GenBashCompletion",
+          "symbol:bash_completions.go:GenBashCompletionFile",
+          "symbol:bash_completionsV2.go:genBashCompletion",
+          "symbol:bash_completionsV2.go:GenBashCompletionFileV2",
+          "symbol:bash_completionsV2.go:GenBashCompletionV2"
+        ]
+      }
+    },
+    {
+      "id": "cobra-active-help",
+      "mode": "query",
+      "text": "read active help configuration from the environment",
+      "limit": 10,
+      "budget_bytes": 12000,
+      "rationale": "GetActiveHelpConfig reads the program-specific environment setting.",
+      "ground_truth": [
+        {"path": "active_help.go", "line": 47, "contains": "GetActiveHelpConfig"},
+        {"path": "active_help.go", "line": 58, "contains": "activeHelpEnvVar"},
+        {"path": "active_help_test.go", "line": 266, "contains": "TestConfigActiveHelp"}
+      ],
+      "expected": {
+        "must_include": ["symbol:active_help.go:GetActiveHelpConfig"],
+        "critical": ["symbol:active_help.go:GetActiveHelpConfig"],
+        "relevant": [
+          "symbol:active_help.go:GetActiveHelpConfig",
+          "symbol:active_help.go:activeHelpEnvVar"
+        ]
+      }
+    },
+    {
+      "id": "cobra-active-help-impact",
+      "mode": "impact",
+      "paths": ["active_help.go"],
+      "limit": 10,
+      "budget_bytes": 12000,
+      "rationale": "The same-package active-help test suite directly covers this implementation file.",
+      "ground_truth": [
+        {"path": "active_help_test.go", "line": 29, "contains": "TestActiveHelpAlone"},
+        {"path": "completions.go", "line": 257, "contains": "GetActiveHelpConfig"},
+        {"path": "bash_completions.go", "line": 401, "contains": "activeHelpEnvVar"},
+        {"path": "fish_completions.go", "line": 272, "contains": "activeHelpEnvVar"},
+        {"path": "powershell_completions.go", "line": 310, "contains": "activeHelpEnvVar"},
+        {"path": "bash_completions_test.go", "line": 287, "contains": "activeHelpEnvVar"},
+        {"path": "bash_completionsV2_test.go", "line": 31, "contains": "activeHelpVar"},
+        {"path": "fish_completions_test.go", "line": 97, "contains": "activeHelpVar"},
+        {"path": "powershell_completions_test.go", "line": 31, "contains": "activeHelpVar"},
+        {"path": "zsh_completions_test.go", "line": 31, "contains": "activeHelpVar"}
+      ],
+      "expected": {
+        "must_include": ["path:active_help.go", "test:active_help_test.go"],
+        "critical": ["reference:completions.go"],
+        "relevant": [
+          "path:active_help.go",
+          "reference:completions.go",
+          "reference:bash_completions.go",
+          "reference:fish_completions.go",
+          "reference:powershell_completions.go",
+          "test:active_help_test.go",
+          "test:bash_completions_test.go",
+          "test:bash_completionsV2_test.go",
+          "test:fish_completions_test.go",
+          "test:powershell_completions_test.go",
+          "test:zsh_completions_test.go"
+        ]
+      }
+    },
+    {
+      "id": "blind-cobra-flag-groups-impact",
+      "partition": "blind-v1",
+      "mode": "impact",
+      "paths": ["flag_groups.go"],
+      "limit": 6,
+      "budget_bytes": 18000,
+      "rationale": "A blind reviewer selected the execution-path caller and direct test before seeing Atlas code or output.",
+      "ground_truth": [
+        {"path": "flag_groups.go", "line": 81, "contains": "func (c *Command) ValidateFlagGroups() error"},
+        {"path": "command.go", "line": 1010, "contains": "c.ValidateFlagGroups()"},
+        {"path": "flag_groups_test.go", "line": 174, "contains": "MarkFlagsMutuallyExclusive"},
+        {"path": "completions_test.go", "line": 3277, "contains": "MarkFlagsMutuallyExclusive"}
+      ],
+      "expected": {
+        "must_include": [
+          "path:flag_groups.go",
+          "reference:command.go",
+          "test:flag_groups_test.go"
+        ],
+        "critical": ["reference:command.go", "test:flag_groups_test.go"],
+        "relevant": [
+          "path:flag_groups.go",
+          "reference:command.go",
+          "test:flag_groups_test.go",
+          "test:completions_test.go"
+        ],
+        "must_exclude": []
+      }
+    },
+    {
+      "id": "cobra-image-abstention",
+      "mode": "query",
+      "text": "decode a JPEG image color profile",
+      "limit": 8,
+      "budget_bytes": 8000,
+      "rationale": "Cobra contains no JPEG decoder or image color-profile implementation.",
+      "ground_truth": [],
+      "expected": {"state": "OUT_OF_SCOPE", "must_exclude": [], "relevant": []}
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "profile": "corvint-docs-blinded-task-set/0",
+  "reference": {
+    "source": "docs/specs/source-documentation-draft-v0.md",
+    "package": "internal/docmaintain",
+    "revision": "aa3b6e4f0109e3d8f2f21101db9f0e60056df099"
+  },
+  "answer_key_sha256": "499d18e7419cb975de0a8fa04e4f699a1b69a7d8cff20de5a26394ac095c85ca",
+  "pass_numerator": 5,
+  "pass_denominator": 6,
+  "questions": [
+    {"id": "q1", "text": "Which exported function computes a proposed page without writing it?"},
+    {"id": "q2", "text": "Which exported function writes the page that an earlier preview proposed?"},
+    {"id": "q3", "text": "Which exported function runs a foreground session for one selector?"},
+    {"id": "q4", "text": "Which exported type does that foreground session take to name the one block it keeps current?"},
+    {"id": "q5", "text": "Name every tracked non-test package directory that imports internal/docmaintain."},
+    {"id": "q6", "text": "Does the reference establish which code calls Preview at runtime? Answer known or unknown, with the reason."}
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "commit": "8017b279e19347efaf2587711c2d57dbd4330740",
+  "cases": [{
+    "id": "execa.lines-binary-encoding.v1",
+    "partition": "heldout-v2",
+    "target_version": "V6",
+    "mode": "query",
+    "text": "With lines: true, what happens for encoding: buffer and other binary encodings: is the option rejected or ignored, what result types are produced for stdout/stderr/all, and does stripFinalNewline change the outcome?",
+    "limit": 8,
+    "budget_bytes": 26000,
+    "rationale": "A maintainer adjusting output normalization must keep runtime behavior, sync/async parity, fd-specific options, and TypeScript inference aligned.",
+    "ground_truth": [
+      {"path": "lib/arguments/options.js", "line": 21, "contains": "export const normalizeOptions"},
+      {"path": "lib/arguments/encoding-option.js", "line": 19, "contains": "export const BINARY_ENCODINGS"},
+      {"path": "types/return/result-stdout.d.ts", "line": 44, "contains": "Encoding extends BufferEncodingOption"},
+      {"path": "types/return/result-stdout.d.ts", "line": 47, "contains": "Encoding extends BinaryEncodingOption"},
+      {"path": "test/stdio/lines-noop.js", "line": 58, "contains": "noop with \"encoding: buffer\""},
+      {"path": "test-d/return/lines-main.test-d.ts", "line": 1, "contains": "import"},
+      {"path": "lib/io/contents.js", "line": 79, "contains": "const getStreamContents"},
+      {"path": "lib/io/strip-newline.js", "line": 5, "contains": "export const stripNewline"},
+      {"path": "test/return/message.js", "line": 56, "contains": "error.message handles \"lines: true\""}
+    ],
+    "expected": {
+      "critical": ["symbol:lib/arguments/options.js:normalizeOptions", "path:types/return/result-stdout.d.ts", "test:test/stdio/lines-noop.js"],
+      "must_include": ["path:lib/arguments/encoding-option.js", "test:test-d/return/lines-main.test-d.ts"],
+      "relevant": ["symbol:lib/io/contents.js:getStreamContents", "path:lib/io/strip-newline.js", "test:test/return/message.js"],
+      "must_exclude": ["test:test/transform/split-binary.js"]
+    }
+  }]
+}

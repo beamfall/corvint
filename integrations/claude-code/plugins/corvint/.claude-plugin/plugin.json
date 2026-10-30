@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "corvint",
+  "displayName": "Corvint",
+  "version": "0.3.6",
+  "description": "Revision-pinned repository context, impact analysis and affected tests from Corvint, with explicit uncertainty",
+  "author": {
+    "name": "Corvint Project",
+    "url": "https://github.com/beamfall/corvint"
+  },
+  "homepage": "https://github.com/beamfall/corvint/tree/main/integrations/claude-code",
+  "repository": "https://github.com/beamfall/corvint",
+  "license": "Apache-2.0",
+  "keywords": [
+    "context",
+    "evidence",
+    "git",
+    "impact",
+    "tests",
+    "code-review"
+  ],
+  "metadata": {
+    "support": "FALLBACK",
+    "adapterVersion": "0.1.0",
+    "adapterProfile": "claude-code-plugin/0",
+    "protocolProfile": "corvint-harness-event/0",
+    "compatibilityFile": "compatibility.json",
+    "localCompletionProfile": "corvint-dogfood-event/0"
+  }
+}

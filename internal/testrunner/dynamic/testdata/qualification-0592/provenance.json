@@ -1,0 +1,97 @@
+{
+ "fixtures": {
+  "ava-hook.tap": {
+   "case": "/private/tmp/cem10-build/dynamic-2026-10-17/ava/hook",
+   "exitCode": 1,
+   "receiptSha256": "eeacb93fae018a9db3f6e84ed79239960b5b50622fcd4034df6de482733b35bd",
+   "runtime": "AVA 8.0.1 / Node 22.23.3",
+   "sha256": "bc203115b1cfdfcefd593630886735f31c6a67689b640c4dbff168e8d09f551f"
+  },
+  "ava-mixed.tap": {
+   "case": "/private/tmp/cem10-build/dynamic-2026-10-17/ava/mixed",
+   "exitCode": 1,
+   "receiptSha256": "e1297890cfdbf28104de96b762ca24a30123d58c65ce1dfc7cbfba9e5448cd1d",
+   "runtime": "AVA 8.0.1 / Node 22.23.3",
+   "sha256": "01d30ebec868a1b3437cf37e696a863118cf037fb7ade805fce4db5cac9a36cc"
+  },
+  "bun-hook.xml": {
+   "case": "/private/tmp/cem10-build/dynamic-2026-10-17/bun-test/hook",
+   "exitCode": 1,
+   "receiptSha256": "c5d3beff817a57d33cbf3e6c4f910c2a3a3b629c45d3cdc0d3f5e750a81d4f35",
+   "runtime": "Bun 1.3.11",
+   "sha256": "381187f9a6419204f600b1771d0bd4b7c0f2b8d1fd151bbaabdfe808addff7aa"
+  },
+  "bun-mixed.xml": {
+   "case": "/private/tmp/cem10-build/dynamic-2026-10-17/bun-test/mixed",
+   "exitCode": 1,
+   "receiptSha256": "86ff51f4476a4dd67e808f98623693651619bd2d83529183796dab64097155c4",
+   "runtime": "Bun 1.3.11",
+   "sha256": "26c54eba54e987b413ee0f40bdd03b0f9ab57ca60f060362e307a8d73dbc2bad"
+  },
+  "bun-retry.xml": {
+   "case": "/private/tmp/cem10-build/dynamic-2026-10-17/bun-test/retry",
+   "exitCode": 0,
+   "receiptSha256": "19a0ed3afd5532b2ac177a8038e1a77764c335753d44dcb8468972d591f8667f",
+   "runtime": "Bun 1.3.11",
+   "sha256": "3d41c283d929e7b2d0ab6ff42765a0f756e66c4006cce6d7bab21756f2d52900"
+  },
+  "node-basename-collision.jsonl": {
+   "case": "/private/tmp/cem10-build/dynamic-2026-10-17/node-test/basename-collision",
+   "exitCode": 0,
+   "receiptSha256": "fc05f8b8ef1bbe65cc38a193780278c01014e02a1f683cc0670d857669f6acc7",
+   "runtime": "Node 22.23.3 darwin-arm64",
+   "sha256": "0946ff29c8fb1901fe1af0c6b30436214d62d6a6cf44704cedfaa3c57adf1b6c"
+  },
+  "node-collection.jsonl": {
+   "case": "/private/tmp/cem10-build/dynamic-2026-10-17/node-test/collection",
+   "exitCode": 1,
+   "receiptSha256": "1719d165fdc39676557751cb3ac8703df8fb92a4e38356ed927eeafdf6e328c9",
+   "runtime": "Node 22.23.3 darwin-arm64",
+   "sha256": "cee6c8c1aa8853b85687f0aa7ce28ef34a536404a9cf57cbce4265f5c9ea64c9"
+  },
+  "node-filename-collision-fail.jsonl": {
+   "case": "/private/tmp/cem10-build/dynamic-2026-10-17/node-test/filename-collision-fail",
+   "exitCode": 1,
+   "receiptSha256": "99ad32e22e8d91aaa835bec12988622f0eb31344cc9aee7874574e4f810e0220",
+   "runtime": "Node 22.23.3 darwin-arm64",
+   "sha256": "c7771d69ac2b46d7fbd66160d60db3165df8e6eaca5ec7a8199f7d78abe34611"
+  },
+  "node-filename-collision.jsonl": {
+   "case": "/private/tmp/cem10-build/dynamic-2026-10-17/node-test/filename-collision",
+   "exitCode": 0,
+   "receiptSha256": "a94d1f79035e7b727b1a05085b76a94d8b46d551e72166bf2022234dc465c5de",
+   "runtime": "Node 22.23.3 darwin-arm64",
+   "sha256": "bb097ecafd013027fae5d21e982e1310b06e6f88465ccd61d3e5daaf5f7bb78e"
+  },
+  "node-mixed.jsonl": {
+   "case": "/private/tmp/cem10-build/dynamic-2026-10-17/node-test/mixed",
+   "exitCode": 1,
+   "receiptSha256": "2aa3a7b9adb5895af4ba784ae7bcfd5f6e243a58957eb3efffc32f47fa0b61a9",
+   "runtime": "Node 22.23.3 darwin-arm64",
+   "sha256": "d6c3225cd7a16733465e722ce5b24514007beaba836f0751fb22dcadbb818b10"
+  },
+  "node-zero.jsonl": {
+   "case": "/private/tmp/cem10-build/dynamic-2026-10-17/node-test/zero",
+   "exitCode": 0,
+   "receiptSha256": "df12df8eb57a79e9a39631a33fb019bbeb7c6937fb4d0a5f1ef55312456ca333",
+   "runtime": "Node 22.23.3 darwin-arm64",
+   "sha256": "c92c52d98ca25a205bee60deb5fde6fbee4bec2f2a9679b46fb4ad5c5037ade1"
+  },
+  "storybook-runner-mixed.json": {
+   "case": "/private/tmp/cem10-build/dynamic-2026-10-17/storybook-test-runner/mixed",
+   "exitCode": 1,
+   "receiptSha256": "11a84cce83c0835cd418f8a9eb06ef0ff1d841333fd1b02017d19ed05bfcbbeb",
+   "runtime": "@storybook/test-runner 0.26.0 / Storybook 10.6.1 / Playwright 1.63.0 Chromium 153.0.8010.12 / Node 22.23.3",
+   "sha256": "783b7931f4cc2d882a10ecd791ceda3add98d54cca49346aced09b176b8a9fab"
+  },
+  "storybook-runner-zero.json": {
+   "case": "/private/tmp/cem10-build/dynamic-2026-10-17/storybook-test-runner/zero-prefix",
+   "exitCode": 0,
+   "receiptSha256": "11d2605b1b779a2895896dfae0f0cfd2805f829a1a64e034c2abc49a5f886235",
+   "runtime": "@storybook/test-runner 0.26.0 / Storybook 10.6.1 / Playwright 1.63.0 Chromium 153.0.8010.12 / Node 22.23.3",
+   "sha256": "adbd3bbb52d7084cb846fa61b3321b0913c0eea07a154d6dde6c718bf5a26ddd"
+  }
+ },
+ "note": "Raw native reports from actual runs through cmd/corvint-test-runner; the case directory keeps request, plan, receipt and command.",
+ "ticket": "V1-0592"
+}

@@ -1,0 +1,155 @@
+{
+  "profile": "corvint-lsp-accepted-evaluation-policy/0",
+  "acceptedProposalSha256": "bb5f077c9197776109301f924c6a61d40216dcebbcac02c9e1b9d9b5c2391f1b",
+  "acceptanceSha256": "54ceaf096e1aad987038e9337d9f8e031816acd1345704046419a2561246f8ba",
+  "acceptance": {
+    "profile": "lsp-qualification-policy-owner-acceptance/0",
+    "acceptedAt": "2026-09-30T14:04:10.099139+00:00",
+    "humanAnswer": "Accept these evaluation targets and protocol",
+    "proposalSha256": "bb5f077c9197776109301f924c6a61d40216dcebbcac02c9e1b9d9b5c2391f1b",
+    "proposalPath": "/tmp/lsp-qualification-freeze-proposal.json",
+    "limits": "Acceptance of experimental evaluation policy, not measured qualification, candidate promotion, authenticated custody, weaker LQP004 safety or release publication."
+  },
+  "protocol": {
+    "profile": "lsp-qualification-freeze-proposal/0",
+    "status": "ACCEPTED_EXPERIMENTAL_EVALUATION_TARGETS_UNQUALIFIED",
+    "consumerScope": [
+      "Go/gopls agent CLI and MCP",
+      "VSCode1.137.0 with LanguageClient10.1.2",
+      "Neovim0.12.5 builtin client"
+    ],
+    "platform": "macOS arm64 Go1.27.1 gopls0.23.0 exact digests recorded",
+    "capabilities": [
+      "Go definition",
+      "namespaced immutable Corvint context receipts"
+    ],
+    "limits": [
+      "single canonical root; multiple roots must explicitly refuse with no partial admission",
+      "diagnostics/hover/completion/rename/code-actions remain unsupported and unadvertised",
+      "new standard-method advertisement only after exact method qualification; other OS/versions/languages remain unqualified"
+    ],
+    "corpus": {
+      "public": "exact-symbol/range frozen public calibration plus real-workspace failure cases",
+      "heldout": "20 independently selected tasks across at least3 complete pinned Go repositories; one go.work/multiple-module layout",
+      "custody": "Independent evaluator freezes immutable repository/task/gold manifest outside builder workspace before candidate execution; builder sees manifest digest and task IDs, never gold; no candidate repair and re-evaluation on same protected set",
+      "arms": [
+        "upstream-only",
+        "Corvint-only",
+        "combined"
+      ],
+      "scoring": "actual task decisions and source/target identities; no path-only score used as task success"
+    },
+    "hardFloors": {
+      "inventedCommittedFacts": 0,
+      "stalePromotedOverlays": 0,
+      "unauthorizedWritesOrExecution": 0,
+      "privatePathsOrSecretsInPublicDiagnostics": 0,
+      "ownedDescendantSurvivors": 0,
+      "corePacketParity": "100% unchanged admitted snapshots",
+      "protocolAndNegativeCases": "100% exact schema/encoding/root/cancel/crash/cleanup cases"
+    },
+    "qualityFloors": {
+      "precision": 0.95,
+      "recall": 0.9,
+      "combinedSemanticRecall": "not below upstream on matched applicable tasks",
+      "combinedGovernanceAccuracy": "not below Core",
+      "combinedTaskSuccess": "not below best applicable baseline and at least one declared governance+semantic task improved; paired numerators/denominators and abstentions retained"
+    },
+    "resourceFloors": {
+      "coldAgentP95Seconds": 30,
+      "coldEditorInitializationP95Seconds": 20,
+      "warmDefinitionP95Seconds": 0.25,
+      "warmContextP95Seconds": 2,
+      "perRequestProcessGroupCPUSeconds": 60,
+      "observedOwnedGroupPeakRSSBytes": 2147483648,
+      "agentPacketBytes": 262144,
+      "externalRecordBytes": 65536,
+      "editorWireMessageBytes": 1048576,
+      "queries": 64,
+      "relationRows": 32
+    },
+    "measurementProtocol": {
+      "cold": 20,
+      "warm": 100,
+      "cache": "Fixed prepared offline dependencies/Go build cache from immutable inputs; fresh private gopls/Core runtime caches for each cold arm; matched declared warm-up then persistent warm sessions. This qualifies prepared workspace, not empty-machine install performance.",
+      "metrics": "exact correctness/coverage/freshness and task success; all samples including failures; nearest-rank p50/p95; wall/CPU and bounded owned-group RSS sampling with explicit peak limitations; packet/query counts",
+      "clientCases": [
+        "Unicode query and target",
+        "dirty/unsaved/save/close/reopen/rename",
+        "rapid edits and stale replies without repeat-until-pass",
+        "branch/root drift",
+        "multiple-root and external-URI refusal",
+        "missing server/dependencies without installation",
+        "hostile framing/output/redaction",
+        "provider/server crash and EOF",
+        "actual editor INT/TERM and descendant retirement"
+      ],
+      "limits": "RSS sampling granularity and any unobserved counters remain explicit; unmeasured ceilings prevent promotion, no simulated result substitutes",
+      "allocation": "20cold operations and100warm operations per consumer/method/arm on each declared complete repository; no pooling CLI/MCP/editor mechanisms; deterministic arm rotation upstream/core/combined by repetition index, fixed task-order seed in manifest",
+      "warmup": "5 unscored but retained requests per exact consumer/method/root; fixed before measured100; CLI still launches one process per operation with warm declared caches, never invented daemon",
+      "timing": "cold from owned process launch through initialize/first complete reply and separately total command/session lifecycle; warm from actual client request send to complete typed reply; timeout/failure charged configured deadline in latency samples and recorded as failure",
+      "cpu": "CPU seconds of owned server/worker/provider process set per operation; editor process attribution measured separately (not silently omitted); startup separated from warm request; unavailable accounting prevents corresponding resourcefloor pass",
+      "rss": "Observed simultaneous sum RSS of positively witnessed owned editor/server/worker/provider descendants sampled every100ms, start/end inventory retained; missing/ambiguous census preventspass. Sample maximum is only a lower bound on true peak, explicitly not hard physical-memory containment",
+      "bytes": "Total serialized agent JSON envelope <=256KiB, externalrecord <=64KiB; complete editor LSPbody <=1MiB; query64/relations32 are perrequest ceilings and truncation/stopping reasons retained",
+      "custody": "Independent evaluator procedure only on shared host, no authenticated filesystem access boundary claimed; evaluator freezes3repo commits/dependency/cache manifests,20unique tasks and complete gold SHA before candidate execution. Builder receives IDs/digests only; full scored report revealed after immutable candidate run; no same-set repair/retest. Existing sealed holdouts never opened or reused."
+    },
+    "baselineEvidence": {
+      "validPathOnlyMain": "/tmp/lsp-qualification-public-main-baseline-v2.json",
+      "invalidFirstRun": "/tmp/lsp-qualification-public-main-first-run-disposition.json",
+      "configuredResourcePilot": "/tmp/lsp-qualification-configured-combined-resource-pilot.txt",
+      "missingProviderPilot": "/tmp/lsp-qualification-combined-resource-pilot.json",
+      "observations": "Corrected public paths6/6 each arm, descriptive combined8-13s. One configured pilot8.22wall/24.54CPU seconds, Darwin time-reported maxRSS1.39GB; not matched cold/warm or aggregate peak proof. Floors above are product policy proposals, not inferred qualification.",
+      "safetyGap": "Independent review /tmp/lsp-qualification-freeze-plan-rereview.md identified current definition manual-restart/static-root limits cannot satisfy LQP004. Preserve this blocker and implement actual engine invalidation; no scope-only promotion."
+    },
+    "promotion": "No promotion or parent nativecompletion until every accepted floor, independent review, governing full gate and actual native dependencies/complete write pass. Any failure retains experimental/fallback status and original failed results.",
+    "wireBaseline": "LSP3.17 subset; stdio JSON-RPC2.0; UTF8 Neovim, UTF16 VSCode; negotiate and record actual capabilities, no version inheritance",
+    "methodMatrix": [
+      {
+        "consumer": "agent CLI",
+        "entry": "context --task TASK --subject PATH --limit20 --lsp off|gopls",
+        "facts": "immutable Git Core packet, external committed Go definition/reference path evidence only",
+        "unsupported": "overlay/editor state and writes; missing provider/deps remain explicit unavailable; all query failure cannot be semantic success"
+      },
+      {
+        "consumer": "agent MCP",
+        "entry": "task-review versus opt-in task-review-lsp / corvint.context with lsp:gopls",
+        "facts": "same admitted committed snapshot and intact Core packet as CLI; no overlay replaces committed proof",
+        "unsupported": "arbitrary tool dispatch/execution/writes"
+      },
+      {
+        "consumer": "VSCode and Neovim definition",
+        "entry": "direct textDocument/definition after explicit experimental initialize; standard definitionProvider remains absent until exact-method gate and accepted advertisement",
+        "facts": "synchronized OPEN full-text source and target overlays only; navigation location carries no committed authority",
+        "unsupported": "Closed/disk/external targets remain unavailable; invalid incremental sync terminates; multiple/mismatched roots refuse; save/rename are not editing features, but engine MUST still invalidate/withhold affected stale results under LQP004 before definition can be promoted"
+      },
+      {
+        "consumer": "VSCode and Neovim context",
+        "entry": "corvint/context closed params",
+        "facts": "intact Git-bound Core separately from URI/version/SHA/session/capture nonGit overlay observation",
+        "unsupported": "no arbitrary tool selector, tests, source edits or upstream method dispatch"
+      }
+    ],
+    "caseExpectations": {
+      "Unicode/fulltext/openoverlay": "correct exact source/target coordinates, captures and unchanged disk unless external test action",
+      "cancel/rapid/close/reopen": "old pending work cancelled/joined; no stale reply promotion; healthy newest full replacement/reopened capture retry; all predeclared scheduling misses retain denominator",
+      "save/rename": "Engine must reject/mark stale after actual save and rename transitions under LQP004. No requested edit/refactor operation is introduced. Close/reopen controls are distinct; manual restart cannot substitute for engine guarantee.",
+      "branch/rootDrift": "Both promoted definition and context methods must reject or explicitly mark stale when actual branch/root drift affects results. Context must give fixed REPOSITORY_CHANGED/root error. Manual operator restart is containment only and cannot pass definition drift qualification.",
+      "multipleRoot/externalURI": "explicit rejection/unavailability, never partial root admission",
+      "missingProviderOrDependencies": "visible unavailable/refusal; no install/download; no invented semantic facts",
+      "hostile/crash/EOF/INT/TERM": "fixed redacted error or terminal closure as predeclared; all owned descendants retired; ordinary cancellation preserves healthy session"
+    },
+    "scoringRules": {
+      "units": "Gold is typed per consumer: direct gopls/editor definition uses exact source and target identifiers/ranges with committed source blobs or nonGit overlay session/capture/digest as appropriate; agent external semantics uses only its emitted path-relation type, source query point/rule, immutable endpoint paths/blobs/revision/provenance, never invents an unreturned target range; Core governance uses exact requirement/authority/test identities. Each task freezes finite required units and complete admissible units before execution.",
+      "microPrecision": "TP/(TP+FP) pooled per consumer and method across supported applicable tasks; when no claim is emitted precision is N/A and recall/task floors still apply; no optimistic zero denominator",
+      "microRecall": "TP/(TP+FN) against all frozen required supported facts; duplicate claims deduplicated by exact identity; abstention/noanswer/timeout/malformed/provider failure contributes all missed facts to FN and binary task failure",
+      "taskSuccess": "binary joint success only when every required semantic fact and governance decision is correct with no invalid/unsafe claim; for one-domain tasks only the frozen required domain applies Gold task wording may ask for only the information that its consumer can actually emit; exact target-symbol tasks cannot pass on agent path-only facts. An agent method gap is failure/unsupported, never filled by evaluator inference.",
+      "baselineApplicability": "Frozen per task before execution. Unsupported domains do not become successful answers; joint tasks are scored for each arm, with missing required domain a failure. Report method metrics independently for applicable domains",
+      "aggregation": "All20 heldout tasks retain paired binary outcome for all3arms; combined success count >=max(upstreamSuccessCount,CoreSuccessCount), at least1 joint task that both baselines fail is solved by combined; semantic recall >=upstream and governance accuracy >=Core over fixed applicable subsets",
+      "unsupportedCases": "separate protocol safety denominator with100% expected exact refusal/termination, never counted as semantic recovered facts or task benefit",
+      "exclusions": "None after freeze; all attempted tasks/schedules and crashes remain; no timing-success-only samples or selective reruns",
+      "uncertainty": "Report TP/FP/FN, counts, per-task outputs and binomial intervals; these floors are sample admission policy, not universal population reliability"
+    },
+    "profileBoundary": "Numbers and rubric are accepted only as experimental evaluation targets. Each promoted method must independently pass the full LQP004 drift-engine guarantee and every other floor. Any method relying only on manual restart remains UNQUALIFIED; no owning safety contract is weakened. Current missing engine/client cases require separate bounded implementation/qualification before any parent closure."
+  },
+  "normalization": "Only proposal status relabeled to actual accepted experimental status; targets and protocol unchanged."
+}

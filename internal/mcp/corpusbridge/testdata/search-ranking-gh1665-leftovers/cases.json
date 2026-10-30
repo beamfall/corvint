@@ -1,0 +1,10 @@
+{"schema":"corvint-corpus-eval-cases/1","origin":"synthetic","cases":[
+{"id":"question-flow-conditions","operation":"search","arguments":{"query":"What breaks in Reservation Cancellation, and under what conditions?","limit":1},"expect":{"subjects":["fixture:flow:reservation-cancellation"]},"tags":["question"]},
+{"id":"question-flow-deposit","operation":"search","arguments":{"query":"How does Reservation Cancellation handle the deposit?","limit":1},"expect":{"subjects":["fixture:flow:reservation-cancellation"]},"tags":["question"]},
+{"id":"question-symbol","operation":"search","arguments":{"query":"What calls sync_with_pos?","limit":1},"expect":{"subjects":["native:symbol:src/app/services/pos_sync.rb:2:sync_with_pos"]},"tags":["question"]},
+{"id":"identifier-snake-file","operation":"search","arguments":{"query":"waitlist_notifier","limit":1},"expect":{"subjects":["native:file:src/config/waitlist_notifier.yml"]},"tags":["identifier"]},
+{"id":"identifier-file-name","operation":"search","arguments":{"query":"waitlist_notifier.yml","limit":1},"expect":{"subjects":["native:file:src/config/waitlist_notifier.yml"]},"tags":["identifier"]},
+{"id":"identifier-controller-file","operation":"search","arguments":{"query":"on_deck_controller.rb","limit":1},"expect":{"subjects":["native:file:src/app/controllers/club/on_deck_controller.rb"]},"tags":["identifier"]},
+{"id":"identifier-controller-class","operation":"search","arguments":{"query":"OnDeckController","limit":1},"expect":{"paths":["src/app/controllers/club/on_deck_controller.rb"]},"tags":["identifier"]},
+{"id":"identifier-service","operation":"search","arguments":{"query":"pos_sync","limit":1},"expect":{"paths":["src/app/services/pos_sync.rb"]},"tags":["identifier"]}
+]}

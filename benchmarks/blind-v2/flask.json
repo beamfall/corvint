@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "commit": "d318b683471101618febed18996405ad26462110",
+  "cases": [{
+    "id": "flask.native-async-test-client-negative.v1",
+    "partition": "heldout-v2",
+    "target_version": "V4",
+    "mode": "query",
+    "text": "Locate Flask's native awaitable test-client implementation supporting async with app.test_client() and await client.get(...), and the tests proving those APIs.",
+    "limit": 6,
+    "budget_bytes": 18000,
+    "rationale": "A maintainer planning an asyncio-native test migration must distinguish async view support from an async client API that does not exist here.",
+    "ground_truth": [
+      {"path": "src/flask/testing.py", "line": 109, "contains": "class FlaskClient(Client)"},
+      {"path": "src/flask/testing.py", "line": 204, "contains": "def open("},
+      {"path": "src/flask/testing.py", "line": 249, "contains": "def __enter__(self)"},
+      {"path": "src/flask/app.py", "line": 758, "contains": "def test_client("},
+      {"path": "src/flask/app.py", "line": 1068, "contains": "def ensure_sync("},
+      {"path": "tests/test_async.py", "line": 83, "contains": "test_client = async_app.test_client()"}
+    ],
+    "nearest_context": ["symbol:src/flask/testing.py:FlaskClient", "symbol:src/flask/app.py:test_client", "symbol:src/flask/app.py:ensure_sync", "test:tests/test_async.py"],
+    "expected": {"state": "OUT_OF_SCOPE", "must_include": [], "critical": [], "relevant": [], "must_exclude": ["path:src/flask/views.py", "path:docs/async-await.rst"]}
+  }]
+}

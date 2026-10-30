@@ -1,0 +1,135 @@
+diff --git a/internal/app/app.go b/internal/app/app.go
+index f9deae0a7..cee351fa8 100644
+--- a/internal/app/app.go
++++ b/internal/app/app.go
+@@ -30,7 +30,6 @@ import (
+ 	"github.com/beamfall/core/internal/discovery"
+ 	"github.com/beamfall/core/internal/ffmpeg"
+ 	"github.com/beamfall/core/internal/genassets"
+-	"github.com/beamfall/core/internal/geocode"
+ 	"github.com/beamfall/core/internal/governor"
+ 	"github.com/beamfall/core/internal/graph"
+ 	"github.com/beamfall/core/internal/identify"
+@@ -67,6 +66,7 @@ import (
+ 	familyarchive "github.com/beamfall/plugin-familyarchive"
+ 	filmtv "github.com/beamfall/plugin-filmtv"
+ 	music "github.com/beamfall/plugin-music"
++	photos "github.com/beamfall/plugin-photos"
+ 	podcasts "github.com/beamfall/plugin-podcasts"
+ 	scrobble "github.com/beamfall/plugin-sdk/scrobble"
+ )
+@@ -330,12 +330,10 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger, bundles []
+ 	// (no FFmpeg) the detector is nil-safe — DetectForMedia errors per item and
+ 	// the sweep counts it, never crashing.
+ 	skipDetectService := skipdetect.NewService(st, ffmpegRunner)
+-	// Manual identification and local-file scraper passes share one hardened
+-	// scrape engine. The geocoder is fully offline (ADR-0043 §2.3), so EXIF GPS
+-	// hydration never introduces a network surface.
++	// Manual identification uses the hardened scrape engine. Local image
++	// metadata is plugin hook code, wired below by Library plugin ID.
+ 	scrapeEngine := scrape.New(
+ 		scrape.WithCredentials(secretFiles{dir: filepath.Join(cfg.DataDir, "secrets")}),
+-		scrape.WithGeocoder(geocode.NewTable()),
+ 	)
+ 	// Compiled filename-parser hooks, keyed by plugin ID (ADR-0044). The
+ 	// hardcoded mapping is correct for v1 — no config plumbing. Film & TV
+@@ -359,7 +357,7 @@ func New(ctx context.Context, cfg config.Config, logger *slog.Logger, bundles []
+ 	// extension VALUES are plugin data declared by the bundle; Core reads them
+ 	// off the registry and never names one.
+ 	interactiveSidecarExts := plugins.InteractiveSidecarExts()
+-	localExtractors := scanLocalExtractors(plugins, scrapeEngine)
++	localExtractors := scanLocalExtractors(plugins)
+ 	// Music audio-tag hydration (ADR-0098 area 1): the composition root adapts
+ 	// the compiled music hydrator + the activated Music bundle
+ 	// declarations into the scan MusicHydrator seam, keyed by plugin ID. nil
+@@ -1815,46 +1813,34 @@ func (a *scanIdentifier) AutoIdentify(ctx context.Context, mediaID store.MediaID
+ 	return err
+ }
+ 
+-type scanLocalExtractor struct {
+-	engine *scrape.Engine
+-	spec   plugin.ScraperSpec
++type photosLocalExtractor struct {
++	hook *photos.LocalExtractor
+ }
+ 
+-func (e scanLocalExtractor) ExtractLocal(ctx context.Context, class, path string) (scanpkg.LocalMetadata, error) {
+-	result, err := e.engine.ExtractLocal(e.spec, class, path)
++func (e photosLocalExtractor) ExtractLocal(ctx context.Context, class, path string) (scanpkg.LocalMetadata, error) {
++	result, err := e.hook.ExtractLocal(ctx, class, path)
+ 	if err != nil {
+ 		return scanpkg.LocalMetadata{}, err
+ 	}
+-	implied := map[string]string{}
+-	for target, value := range e.spec.ImpliedMediaFields {
+-		target = strings.TrimPrefix(target, "media.")
+-		if target != "" && value != "" {
+-			implied[target] = value
+-		}
+-	}
+-	return scanpkg.LocalMetadata{Fields: result.Fields, ImpliedMediaFields: implied}, nil
++	return scanpkg.LocalMetadata{Fields: result.Fields, ImpliedMediaFields: result.ImpliedMediaFields}, nil
+ }
+ 
+-func scanLocalExtractors(registry *plugin.Registry, engine *scrape.Engine) map[string][]scanpkg.LocalExtractor {
+-	if registry == nil || engine == nil {
++func scanLocalExtractors(registry *plugin.Registry) map[string][]scanpkg.LocalExtractor {
++	if registry == nil {
+ 		return nil
+ 	}
+-	out := map[string][]scanpkg.LocalExtractor{}
+-	for _, id := range registry.IDs() {
+-		bundle, ok := registry.Bundle(id)
+-		if !ok {
+-			continue
+-		}
+-		for _, spec := range bundle.Scrapers {
+-			if plugin.LocalFileScraperKind(spec.Kind) {
+-				out[string(id)] = append(out[string(id)], scanLocalExtractor{engine: engine, spec: spec})
++	bundle, ok := registry.Bundle(plugin.ID(photos.PluginID))
++	if !ok {
++		return nil
++	}
++	for _, spec := range bundle.Scrapers {
++		if plugin.LocalFileScraperKind(spec.Kind) {
++			return map[string][]scanpkg.LocalExtractor{
++				photos.PluginID: {photosLocalExtractor{hook: photos.New()}},
+ 			}
+ 		}
+ 	}
+-	if len(out) == 0 {
+-		return nil
+-	}
+-	return out
++	return nil
+ }
+ 
+ // scrobbleRelationSelectors reads the plugin-owned scrobble-match relation slugs
+diff --git a/internal/scrape/scrape.go b/internal/scrape/scrape.go
+index 52a5946f0..598bbe3b6 100644
+--- a/internal/scrape/scrape.go
++++ b/internal/scrape/scrape.go
+@@ -102,15 +102,6 @@ func WithMaxResponseBytes(limit int64) Option {
+ 	return func(e *Engine) { e.maxResponseBytes = limit }
+ }
+ 
+-// WithGeocoder supplies the offline reverse-geocoder used by the "exif"
+-// local-file scraper kind to turn GPS coordinates into a coarse place name
+-// (ADR-0043 §2.3). Nil (the default) means EXIF extraction still runs and
+-// returns coordinates, but emits no place name — the geocoder is an optional
+-// refinement, never a hard dependency of the reader.
+-func WithGeocoder(g Geocoder) Option {
+-	return func(e *Engine) { e.geocoder = g }
+-}
+-
+ // WithInsecureLoopback permits plain-http requests to loopback addresses
+ // (http://127.0.0.1:…) so tests can target httptest servers.
+ //
+@@ -147,7 +138,6 @@ const (
+ // for concurrent use.
+ type Engine struct {
+ 	credentials      CredentialSource
+-	geocoder         Geocoder
+ 	timeout          time.Duration
+ 	maxResponseBytes int64
+ 	insecureLoopback bool

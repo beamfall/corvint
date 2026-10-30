@@ -1,0 +1,538 @@
+//go:build darwin || linux
+
+package store_test
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
+	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
+	"github.com/Beamfall/corvint/internal/tasks/store"
+	"github.com/Beamfall/corvint/internal/tasks/transaction"
+	"github.com/Beamfall/corvint/internal/tasks/wire"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+)
+
+func psrFixture(t *testing.T, reset, verify, expect, attempts string, cleanup bool) (*leaseStore, *store.Report) {
+	return psrFixtureConfigured(t, reset, verify, expect, attempts, cleanup, nil)
+}
+func psrFixtureConfigured(t *testing.T, reset, verify, expect, attempts string, cleanup bool, configure func(wire.Value)) (*leaseStore, *store.Report) {
+	t.Helper()
+	s := newLeaseStore(t)
+	v := fixture.PolicyValue()
+	v.Obj.Set("policyVersion", str("3"))
+	v.Obj.Set("capacity", obj("maxActiveAttempts", str("4"), "maxWorkersTotal", str("4"), "classes", wire.Array()))
+	b, _ := v.Obj.Get("budgets")
+	b.Obj.Set("requireEnforcedFields", wire.Strings(nil))
+	reuse := obj("argv", wire.Strings([]string{"/bin/sh", "-c", reset}), "envKeys", wire.Strings(nil), "timeoutSeconds", str("3"), "maxAttempts", str(attempts), "verify", obj("argv", wire.Strings([]string{"/bin/sh", "-c", verify}), "envKeys", wire.Strings(nil), "expectExit", str("0"), "expectStdout", str(expect)))
+	envPath := filepath.Join(t.TempDir(), "private.env")
+	if e := os.WriteFile(envPath, nil, 0600); e != nil {
+		t.Fatal(e)
+	}
+	reuse.Obj.Set("env", str("file:"+envPath))
+	config := obj("safeReuse", reuse)
+	if cleanup {
+		config.Obj.Set("cleanup", obj("argv", wire.Strings([]string{"/bin/sh", "-c", "printf cleanup"}), "env", wire.Strings(nil), "cwd", str("REPOSITORY"), "timeoutSeconds", str("3")))
+	}
+	v.Obj.Set("pools", wire.Array(obj("id", str("db"), "members", wire.Strings([]string{"a"}), "memberConfig", obj("a", config))))
+	if configure != nil {
+		configure(v)
+	}
+	// Fixture codec succeeds before writes and before any injected command is reached.
+	if _, e := intent.DecodePolicy(wire.EncodeFile(v)); e != nil {
+		t.Fatal(e)
+	}
+	rep, e := store.PolicyUpdate(context.Background(), s.repo, operator(), policyRequest("psr-policy", "2", wire.EncodeFile(v)), now(t))
+	if e != nil || rep.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("policy %+v %v", rep, e)
+	}
+	id := s.ticket(t, "sweep")
+	claim := claimOf(id, "work")
+	claim.Pool = "db"
+	a := s.lease(t, "allocate", claim, 0, nil)
+	if a.PoolAllocation == nil {
+		t.Fatal("fixture allocation failed")
+	}
+	released := s.lease(t, "release", transaction.LeaseRequest{Verb: transaction.LeaseRelease, AttemptID: a.AttemptID, Generation: a.Generation}, 0, nil)
+	if released.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatal("fixture release failed")
+	}
+	return s, a
+}
+func psrPools(t *testing.T, s *leaseStore) *snapshot.PoolState {
+	t.Helper()
+	raw, e := os.ReadFile(filepath.Join(s.repo.StateDir, "pools.json"))
+	if e != nil {
+		t.Fatal(e)
+	}
+	p, e := snapshot.DecodePools(raw)
+	if e != nil {
+		t.Fatal(e)
+	}
+	return p
+}
+func psrRun(s *leaseStore, id string) (*store.PoolSweepReport, error) {
+	return store.PoolSweep(context.Background(), s.repo, operator(), store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: id, Root: s.root, TimeoutSeconds: "15"})
+}
+
+// V1-1324: the retry and reconciliation tests below assumed every sweep
+// observation finished inside the product's fixed bounds (2s per Git read, 1s
+// per process probe) and every phase inside this fixture's 3s attempt bound.
+// That holds only on a quiet host: at load 60-70 a single git rev-parse took
+// 1-2s and a ps listing 3.3s, so the sweep failed with TIMEOUT or
+// QUIESCENCE_UNPROVED before the retry or response loss under test was reached
+// (20/20 failures under 24 CPU burners). Their subject is not those bounds
+// (TestPSRDeadlineRetryMatrix and the probe tests own them), so they lift the
+// two observation bounds through a test-only context value, give the attempt
+// and the sweep load-tolerant test bounds, and wait on the observed result.
+// The product bounds are unchanged, and group-cleanup proof never reads the
+// lifted value. One quiet-host assumption remains: each Git observation still
+// proves its own group cleanup inside the fixed pipe delay and cleanup
+// allowance, and at load 170-200 an unproved one (UNKNOWN, recorded as
+// SOURCE_CHANGED) ended a retry in 2 of 18 runs; see the V1-1324 build-log entry.
+const psrLoadedSweepSeconds = "300"
+
+func psrLoadTolerant(v wire.Value) {
+	_, reuse := psrReuse(v)
+	reuse.Set("timeoutSeconds", str("120"))
+}
+func psrRunLoaded(s *leaseStore, id string) (*store.PoolSweepReport, error) {
+	return store.PoolSweep(psrLoaded(context.Background()), s.repo, operator(), store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: id, Root: s.root, TimeoutSeconds: psrLoadedSweepSeconds})
+}
+
+// PSR-V0-009: the same request replays the original result after env file
+// deletion and successor allocation, without execution or touching the successor.
+// V1-2538: the sweep runs with the V1-1324 load-tolerant bounds (see
+// psrLoadedSweepSeconds), so a loaded host cannot end the attempt as TIMEOUT
+// before the replay under test is reached.
+func TestPSRSweepSuccessReplaySuccessor(t *testing.T) {
+	t.Parallel()
+	s, a := psrFixtureConfigured(t, "printf reset", "printf 'literal[ok]'", "literal[ok]", "1", true, psrLoadTolerant)
+	out, e := psrRunLoaded(s, "sweep")
+	if e != nil || out.Report == nil || out.Report.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("sweep %+v %v", out, e)
+	}
+	if p := psrPools(t, s); len(p.Entries) != 0 {
+		t.Fatalf("not freed pool=%s", psrEntryStates(p))
+	}
+	id := s.ticket(t, "successor")
+	c := claimOf(id, "next")
+	c.Pool = "db"
+	next := s.lease(t, "successor", c, 0, nil)
+	if next.PoolAllocation == nil || next.PoolAllocation.AllocationID == a.PoolAllocation.AllocationID {
+		t.Fatal("successor not distinct")
+	}
+	policyRaw, e := os.ReadFile(filepath.Join(filepath.Join(s.repo.PrimaryWorktree, intent.Dir), "policy.json"))
+	if e != nil {
+		t.Fatal(e)
+	}
+	policy, e := intent.DecodePolicy(policyRaw)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if e = os.Remove(policy.Pools[0].MemberConfig["a"].SafeReuse.EnvFile); e != nil {
+		t.Fatal(e)
+	}
+	os.RemoveAll(s.root)
+	replay, e := psrRunLoaded(s, "sweep")
+	if e != nil || replay.Pending || !bytes.Equal(out.Result, replay.Result) {
+		t.Fatalf("replay %+v %v", replay, e)
+	}
+	if psrPools(t, s).Entries[0].AllocationID != next.PoolAllocation.AllocationID {
+		t.Fatal("replay touched successor")
+	}
+}
+
+// PSR-V0-005: a stdout literal mismatch never passes verify; the retry stays
+// within maxAttempts and the member stays quarantined.
+func TestPSRSweepMismatchRetries(t *testing.T) {
+	t.Parallel()
+	marker := filepath.Join(t.TempDir(), "reached")
+	s, _ := psrFixtureConfigured(t, "printf x >> "+marker, "printf wrong", "expected", "2", false, psrLoadTolerant)
+	out, e := psrRunLoaded(s, "mismatch")
+	if e != nil || out.Pending {
+		t.Fatalf("result %+v %v", out, e)
+	}
+	p := psrPools(t, s)
+	if len(p.Entries) != 1 || p.Entries[0].State != "QUARANTINED" || p.Entries[0].Sweep != nil {
+		t.Fatal(p)
+	}
+	raw, e := os.ReadFile(marker)
+	if e != nil || string(raw) != "xx" {
+		t.Fatalf("injected retry not reached %q %v pool=%s", raw, e, psrEntryStates(p))
+	}
+}
+
+// V1-1497: the barrier test waits on synchronization, not wall-clock bounds.
+// It used a 2s bound for the sweep to reach verify and the fixture's 3s attempt
+// bound while verify was held, so at load 50-70 the sweep timed out in an
+// earlier observation or the held verify expired (11/20 failures). The sweep
+// now runs with the V1-1324 load-tolerant bounds, the test waits for either
+// the verify marker or the sweep's own bounded return, and the remaining waits
+// end at the test deadline. While the sweep owns the member in verify, manual
+// pool-safe and pool-cleanup must be refused by that owner (BLOCKED,
+// RESOURCE_COLLISION). The test used to accept any non-COMPLETED outcome, and
+// its fixture-time manual commands were refused by the clock check instead, so
+// the barrier itself was never reached; they now run at the wall clock.
+func TestPSRSweepOwnerBarrier(t *testing.T) {
+	marker := filepath.Join(t.TempDir(), "reached")
+	release := marker + ".release"
+	verify := "printf reached > " + marker + "; while [ ! -e " + release + " ]; do /bin/sleep 0.01; done; printf verified"
+	s, a := psrFixtureConfigured(t, "printf reset", verify, "verified", "1", false, psrLoadTolerant)
+	type sweepResult struct {
+		out *store.PoolSweepReport
+		err error
+	}
+	done := make(chan sweepResult, 1)
+	bound := psrTestBound(t)
+	joined := false
+	// Registered before the sweep starts, so every exit releases verify and
+	// joins the sweep before the fixture directories are removed.
+	t.Cleanup(func() {
+		os.WriteFile(release, nil, 0600)
+		if joined {
+			return
+		}
+		select {
+		case <-done:
+		case <-bound:
+			t.Error("sweep unjoined")
+		}
+	})
+	go func() { out, e := psrRunLoaded(s, "barrier"); done <- sweepResult{out, e} }()
+	for {
+		if _, e := os.Stat(marker); e == nil {
+			break
+		}
+		select {
+		case r := <-done:
+			joined = true
+			t.Fatalf("sweep returned before the verify barrier: %+v %v pool=%s", r.out, r.err, psrEntryStates(psrPools(t, s)))
+		case <-bound:
+			t.Fatal("verify barrier not reached before the test deadline")
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+	for i, verb := range []string{transaction.LeasePoolSafe, transaction.LeasePoolCleanup} {
+		request := transaction.LeaseRequest{Verb: verb, Member: "a", Allocation: string(a.PoolAllocation.AllocationID)}
+		if verb == transaction.LeasePoolSafe {
+			request.Evidence = "manual"
+			request.Reason = "manual"
+		}
+		// The sweep committed its owner at the wall clock, so the manual
+		// command is recorded at the wall clock too: a fixture time behind the
+		// owner's receipt is refused as STORAGE_FAILED by the clock check
+		// before the barrier is consulted, which is not the barrier refusal.
+		// The lifted observation bounds keep pool-cleanup's runner probe from
+		// timing out before it reaches the owner check.
+		r, e := store.Lease(psrLoaded(context.Background()), s.repo, operator(), store.LeaseChoice{QueueID: fixture.QueueID, RequestID: "manual" + string(rune('a'+i)), Root: s.root, Lease: request}, now(t))
+		if e != nil {
+			t.Fatalf("manual %s: %v", verb, e)
+		}
+		if r.Outcome.Outcome == mutation.OutcomeCompleted {
+			t.Fatalf("manual %s stole owner", verb)
+		}
+		if r.Outcome.Outcome != mutation.OutcomeBlocked || len(r.Outcome.Codes) != 1 || r.Outcome.Codes[0] != wire.CodeResourceCollision {
+			t.Fatalf("manual %s not refused by the sweep owner: %+v", verb, r.Outcome)
+		}
+	}
+	if p := psrPools(t, s); p.Entries[0].Sweep == nil || p.Entries[0].Sweep.Phase != "verify" {
+		t.Fatal("owner disappeared")
+	}
+	if e := os.WriteFile(release, nil, 0600); e != nil {
+		t.Fatal(e)
+	}
+	select {
+	case r := <-done:
+		joined = true
+		if r.err != nil {
+			t.Fatal(r.err)
+		}
+	case <-bound:
+		t.Fatal("sweep hung")
+	}
+	if len(psrPools(t, s).Entries) != 0 {
+		t.Fatalf("confirmation failed pool=%s", psrEntryStates(psrPools(t, s)))
+	}
+}
+
+// psrTestBound is closed shortly before the test binary's -timeout, so a hung
+// sweep fails this test with its own message and every wait on it fires; with
+// no test deadline it is never closed and the sweep's own bound applies.
+func psrTestBound(t *testing.T) <-chan struct{} {
+	t.Helper()
+	deadline, ok := t.Deadline()
+	if !ok {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Until(deadline)*9/10)
+	t.Cleanup(cancel)
+	return ctx.Done()
+}
+
+// PSR-V0-005: stderr cannot satisfy the stdout literal.
+// V1-2538: the fixture's 3s attempt bound covered the reset and verify
+// commands plus about a dozen bounded Git and process-group observations, so
+// on a loaded host verify ended TIMEOUT instead of STDOUT_MISMATCH. The
+// V1-1324 load-tolerant bounds keep the verify class the subject.
+func TestPSRSweepStderrIsNotStdout(t *testing.T) {
+	t.Parallel()
+	s, _ := psrFixtureConfigured(t, "true", "printf expected >&2", "expected", "1", false, psrLoadTolerant)
+	_, e := psrRunLoaded(s, "stderr")
+	if e != nil {
+		t.Fatal(e)
+	}
+	p := psrPools(t, s)
+	if len(p.Entries) != 1 || !strings.Contains(p.Entries[0].Reason, "STDOUT_MISMATCH") {
+		// V1-1153: name the phase class so a host-load TIMEOUT is told apart
+		// from a verify-phase product failure.
+		t.Fatalf("entries=%d pool=%s", len(p.Entries), psrEntryStates(p))
+	}
+}
+
+// psrEntryStates renders each pool entry's state and sweep reason for failure
+// messages without the opaque struct dump.
+func psrEntryStates(p *snapshot.PoolState) string {
+	states := make([]string, 0, len(p.Entries))
+	for _, en := range p.Entries {
+		states = append(states, fmt.Sprintf("%s/%s=%s(%q)", en.PoolID, en.MemberID, en.State, en.Reason))
+	}
+	return "[" + strings.Join(states, " ") + "]"
+}
+
+func TestPSRAmbiguousResponseReconciliation(t *testing.T) {
+	t.Parallel()
+	for _, mode := range []string{"confirm-response", "confirm-and-readback-response", "finish-response"} {
+		t.Run(mode, func(t *testing.T) {
+			marker := filepath.Join(t.TempDir(), "runs")
+			s, a := psrFixtureConfigured(t, "printf x >> "+marker, "printf verified", "verified", "1", false, psrLoadTolerant)
+			if state := psrPools(t, s); len(state.Entries) != 1 || state.Entries[0].State != "QUARANTINED" {
+				t.Fatal("fixture not quarantined")
+			}
+			calls := 0
+			target := transaction.LeasePoolSafe
+			if mode == "finish-response" {
+				target = transaction.LeasePoolSweepFinish
+			}
+			ctx := store.PSRTestResponseFailure(psrLoaded(context.Background()), func(c store.LeaseChoice, r *store.Report, e error) error {
+				if c.Lease.Verb == target && r != nil && r.Outcome.Outcome == mutation.OutcomeCompleted && r.Outcome.ReceiptSeq != nil && calls < map[string]int{"confirm-response": 1, "confirm-and-readback-response": 2, "finish-response": 1}[mode] {
+					if state := psrPools(t, s); len(state.Entries) != 0 {
+						t.Fatal("response injection before durable confirm")
+					}
+					calls++
+					return fmt.Errorf("injected committed response loss")
+				}
+				return e
+			})
+			out, e := store.PoolSweep(ctx, s.repo, operator(), store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "ambiguous", Root: s.root, TimeoutSeconds: psrLoadedSweepSeconds})
+			if mode == "confirm-and-readback-response" {
+				if e == nil || !out.Pending || calls != 2 {
+					t.Fatalf("readback failure path: %+v %v %d", out, e, calls)
+				}
+			} else if e != nil || out.Pending || len(out.Result) == 0 || calls != 1 {
+				// V1-1153: the pool entry's class and reason classify the failure.
+				t.Fatalf("bounded reconciliation: pending=%v result=%d calls=%d err=%v pool=%s", out.Pending, len(out.Result), calls, e, psrEntryStates(psrPools(t, s)))
+			}
+			if raw, _ := os.ReadFile(marker); string(raw) != "x" {
+				t.Fatal("command not reached once", string(raw))
+			}
+			id := s.ticket(t, "successor")
+			claim := claimOf(id, "next")
+			claim.Pool = "db"
+			next := s.lease(t, "successor", claim, 0, nil)
+			if next.PoolAllocation == nil || next.PoolAllocation.AllocationID == a.PoolAllocation.AllocationID {
+				t.Fatal("successor fixture")
+			}
+			policyRaw, err := os.ReadFile(filepath.Join(s.repo.PrimaryWorktree, intent.Dir, "policy.json"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			policy, err := intent.DecodePolicy(policyRaw)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = os.Remove(policy.Pools[0].MemberConfig["a"].SafeReuse.EnvFile); err != nil {
+				t.Fatal(err)
+			}
+			if err = os.RemoveAll(s.root); err != nil {
+				t.Fatal(err)
+			}
+			replay, err := psrRunLoaded(s, "ambiguous")
+			if err != nil || replay.Pending || len(replay.Result) == 0 {
+				t.Fatalf("historical reconcile: %+v %v", replay, err)
+			}
+			again, err := psrRunLoaded(s, "ambiguous")
+			if err != nil || !bytes.Equal(replay.Result, again.Result) || (len(out.Result) > 0 && !bytes.Equal(out.Result, replay.Result)) {
+				t.Fatal("historical terminal differs", err)
+			}
+			if state := psrPools(t, s); len(state.Entries) != 1 || state.Entries[0].AllocationID != next.PoolAllocation.AllocationID {
+				t.Fatal("successor mutated")
+			}
+			if raw, _ := os.ReadFile(marker); string(raw) != "x" {
+				t.Fatal("reset rerun", string(raw))
+			}
+			t.Log("COMMIT_RESPONSE_LOSS_REACHED", mode, calls)
+		})
+	}
+}
+func TestPSRFirstCleanupProbeFailureRetiresChild(t *testing.T) {
+	marker := filepath.Join(t.TempDir(), "child")
+	// The child inherits the owned group but closes both captured pipes; the
+	// leader exits, so cmd.Wait cannot retire the child on our behalf.
+	script := "/bin/sleep 60 </dev/null >/dev/null 2>&1 & echo $! > " + marker + "; exit 0"
+	s, _ := psrFixture(t, script, "printf verified", "verified", "1", false)
+	if state := psrPools(t, s); len(state.Entries) != 1 || state.Entries[0].State != "QUARANTINED" {
+		t.Fatal("fixture not ready")
+	}
+	calls := store.PSRTestFirstCleanupProbe(t, marker)
+	start := time.Now()
+	out, e := psrRun(s, "probe-failed")
+	if e != nil || out.Pending || *calls != 1 {
+		t.Fatalf("probe injection not reached %+v %v %d", out, e, *calls)
+	}
+	raw, e := os.ReadFile(marker)
+	if e != nil {
+		t.Fatal("child path not reached", e)
+	}
+	pid, e := strconv.Atoi(strings.TrimSpace(string(raw)))
+	if e != nil {
+		t.Fatal(e)
+	}
+	status, err := exec.Command("/bin/ps", "-p", fmt.Sprint(pid), "-o", "stat=").Output()
+	if err == nil && !strings.HasPrefix(strings.TrimSpace(string(status)), "Z") {
+		t.Fatalf("known child survived: %s", status)
+	}
+	if time.Since(start) > 8*time.Second {
+		t.Fatal("cleanup unbounded")
+	}
+	if state := psrPools(t, s); len(state.Entries) != 1 || state.Entries[0].State != "QUARANTINED" || !strings.Contains(state.Entries[0].Reason, "UNKNOWN") {
+		t.Fatal("uncertainty admitted")
+	}
+	t.Log("FIRST_CLEANUP_PROBE_FAILURE_REACHED_CHILD_RETIRED", pid)
+}
+
+// CAL-V0-078: a fresh sweep that ran a phase, committed its observation and
+// then lost the write's response (the hook runs after the real writer) is not
+// retryable; a same-request retry only reconciles committed receipts and never
+// reruns the phase.
+func TestCALV0078_SweepResponseLossAfterExecutionIsNotRetryable(t *testing.T) {
+	t.Parallel()
+	marker := filepath.Join(t.TempDir(), "reached")
+	s, _ := psrFixtureConfigured(t, "printf x >> "+marker, "printf ok", "ok", "1", false, psrLoadTolerant)
+	ctx := store.PSRTestResponseFailure(psrLoaded(context.Background()), func(c store.LeaseChoice, r *store.Report, e error) error {
+		if c.Lease.Verb == transaction.LeasePoolObserve {
+			return wire.Errorf(wire.CodeLockTimeout, "lock", "injected contention after execution")
+		}
+		return e
+	})
+	choice := store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "contended", Root: s.root, TimeoutSeconds: psrLoadedSweepSeconds}
+	out, e := store.PoolSweep(ctx, s.repo, operator(), choice)
+	if wire.CodeOf(e) != wire.CodeLockTimeout || out == nil || !out.Unretryable {
+		t.Fatalf("response loss after execution reported retryable: %+v %v", out, e)
+	}
+	if raw, _ := os.ReadFile(marker); string(raw) != "x" {
+		t.Fatalf("reset not reached once: %q", raw)
+	}
+	replay, e := store.PoolSweep(psrLoaded(context.Background()), s.repo, operator(), choice)
+	if raw, _ := os.ReadFile(marker); string(raw) != "x" {
+		t.Fatalf("same-request retry reran the phase: %q (%+v %v)", raw, replay, e)
+	}
+	if e == nil && replay != nil && !replay.Pending {
+		t.Fatalf("same-request retry recovered the lost observation: %+v", replay)
+	}
+}
+
+// psrOwnerPhase is the single pool entry's sweep phase, or "" with no owner.
+func psrOwnerPhase(t *testing.T, s *leaseStore) string {
+	t.Helper()
+	entries := psrPools(t, s).Entries
+	if len(entries) != 1 {
+		t.Fatalf("pool entries %+v", entries)
+	}
+	if entries[0].Sweep == nil {
+		return ""
+	}
+	return entries[0].Sweep.Phase
+}
+
+// CAL-V0-078: contention before the sweep owner commits leaves nothing
+// committed and nothing run, so the error is retryable, and a same-request
+// retry runs the phase and commits it once.
+func TestCALV0078_SweepContentionBeforeOwnerCommitIsRetryable(t *testing.T) {
+	t.Parallel()
+	marker := filepath.Join(t.TempDir(), "reached")
+	s, _ := psrFixtureConfigured(t, "printf x >> "+marker, "printf ok", "ok", "1", false, psrLoadTolerant)
+	ctx := store.PSRTestRequestFailure(psrLoaded(context.Background()), func(c store.LeaseChoice) error {
+		if c.Lease.Verb == transaction.LeasePoolSweep {
+			return wire.Errorf(wire.CodeLockTimeout, "lock", "injected contention before commit")
+		}
+		return nil
+	})
+	choice := store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "precommit", Root: s.root, TimeoutSeconds: psrLoadedSweepSeconds}
+	out, e := store.PoolSweep(ctx, s.repo, operator(), choice)
+	if wire.CodeOf(e) != wire.CodeLockTimeout || (out != nil && out.Unretryable) {
+		t.Fatalf("uncommitted contention reported not retryable: %+v %v", out, e)
+	}
+	if phase := psrOwnerPhase(t, s); phase != "" {
+		t.Fatalf("owner committed despite contention: %s", phase)
+	}
+	if _, err := os.Stat(marker); !os.IsNotExist(err) {
+		t.Fatalf("phase ran before the owner committed: %v", err)
+	}
+	retry, e := store.PoolSweep(psrLoaded(context.Background()), s.repo, operator(), choice)
+	if e != nil || retry.Pending || len(retry.Result) == 0 || retry.Unretryable {
+		t.Fatalf("same-request retry: %+v %v", retry, e)
+	}
+	if raw, _ := os.ReadFile(marker); string(raw) != "x" {
+		t.Fatalf("retry did not run the phase once: %q", raw)
+	}
+	if entries := psrPools(t, s).Entries; len(entries) != 0 {
+		t.Fatalf("retry did not commit the sweep: %+v", entries)
+	}
+}
+
+// CAL-V0-078: contention before an executed phase's observation commits
+// leaves that observation absent, but the owner is committed: a same-request
+// retry only reconciles committed receipts, stays pending and never reruns the
+// phase or commits the observation, so the error is not retryable.
+func TestCALV0078_SweepContentionBeforeObservationCommitIsNotRetryable(t *testing.T) {
+	t.Parallel()
+	marker := filepath.Join(t.TempDir(), "reached")
+	s, _ := psrFixtureConfigured(t, "printf x >> "+marker, "printf ok", "ok", "1", false, psrLoadTolerant)
+	ctx := store.PSRTestRequestFailure(psrLoaded(context.Background()), func(c store.LeaseChoice) error {
+		if c.Lease.Verb == transaction.LeasePoolObserve {
+			return wire.Errorf(wire.CodeLockTimeout, "lock", "injected contention before the observation commit")
+		}
+		return nil
+	})
+	choice := store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "observe", Root: s.root, TimeoutSeconds: psrLoadedSweepSeconds}
+	out, e := store.PoolSweep(ctx, s.repo, operator(), choice)
+	if wire.CodeOf(e) != wire.CodeLockTimeout || out == nil || !out.Unretryable {
+		t.Fatalf("contention after execution reported retryable: %+v %v", out, e)
+	}
+	if raw, _ := os.ReadFile(marker); string(raw) != "x" {
+		t.Fatalf("reset not reached once: %q", raw)
+	}
+	if phase := psrOwnerPhase(t, s); phase != "reset" {
+		t.Fatalf("reset observation committed despite contention: phase %q", phase)
+	}
+	retry, e := store.PoolSweep(psrLoaded(context.Background()), s.repo, operator(), choice)
+	if e != nil || retry == nil || !retry.Pending {
+		t.Fatalf("same-request retry did not stay pending: %+v %v", retry, e)
+	}
+	if raw, _ := os.ReadFile(marker); string(raw) != "x" {
+		t.Fatalf("same-request retry reran the phase: %q", raw)
+	}
+	if phase := psrOwnerPhase(t, s); phase != "reset" {
+		t.Fatalf("same-request retry committed the observation: phase %q", phase)
+	}
+}

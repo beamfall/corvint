@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "repository": "cobra",
+  "commit": "adbc8813901bba65827259daa8e22ff94ec1f30e",
+  "cases": [
+    {
+      "id": "v6dev-cobra-active-help-sibling",
+      "mode": "query",
+      "text": "read active help configuration from the environment",
+      "limit": 10,
+      "budget_bytes": 12000,
+      "rationale": "Development reconstruction of the blind-v6 forbidden class active_help.go:AppendActiveHelp (decision 0307), on the development task text.",
+      "ground_truth": [{"path": "active_help.go", "line": 47, "contains": "GetActiveHelpConfig"}],
+      "expected": {
+        "must_include": ["symbol:active_help.go:GetActiveHelpConfig"],
+        "critical": ["symbol:active_help.go:GetActiveHelpConfig"],
+        "relevant": ["symbol:active_help.go:GetActiveHelpConfig", "symbol:active_help.go:activeHelpEnvVar"],
+        "must_exclude": ["symbol:active_help.go:AppendActiveHelp"]
+      }
+    },
+    {
+      "id": "v6dev-cobra-active-help-config-sibling",
+      "mode": "query",
+      "text": "which active help config value does a program read for a command",
+      "limit": 10,
+      "budget_bytes": 12000,
+      "rationale": "A second wording of the same forbidden class: the window of AppendActiveHelp carries task words its name does not.",
+      "ground_truth": [{"path": "active_help.go", "line": 47, "contains": "GetActiveHelpConfig"}],
+      "expected": {
+        "must_include": ["symbol:active_help.go:GetActiveHelpConfig"],
+        "critical": ["symbol:active_help.go:GetActiveHelpConfig"],
+        "relevant": ["symbol:active_help.go:GetActiveHelpConfig", "symbol:active_help.go:activeHelpEnvVar"],
+        "must_exclude": ["symbol:active_help.go:AppendActiveHelp"]
+      }
+    },
+    {
+      "id": "v6dev-cobra-json-docs-oos",
+      "mode": "query",
+      "text": "render command docs as JSON files",
+      "limit": 10,
+      "budget_bytes": 12000,
+      "rationale": "Development reconstruction of v6-cobra-json-docs-oos (decision 0307): cobra generates Markdown, man, reST and YAML docs, never JSON.",
+      "ground_truth": [],
+      "expected": {"state": "OUT_OF_SCOPE", "must_exclude": ["symbol:command.go:Command"], "relevant": []}
+    },
+    {
+      "id": "v6dev-cobra-json-docs-tree-oos",
+      "mode": "query",
+      "text": "generate JSON documentation for every command",
+      "limit": 10,
+      "budget_bytes": 12000,
+      "rationale": "Second wording of v6-cobra-json-docs-oos, already withdrawn on main by 2026-10-01.",
+      "ground_truth": [],
+      "expected": {"state": "OUT_OF_SCOPE", "must_exclude": ["symbol:command.go:Command"], "relevant": []}
+    }
+  ]
+}

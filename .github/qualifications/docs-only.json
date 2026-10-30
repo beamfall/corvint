@@ -1,0 +1,17 @@
+{
+  "profile": "corvint-docs-ci-qualification/0",
+  "approved": true,
+  "treeSha256": "885743592a338f0b0d1951d8919a8af8ca3a0b01575c5bc741f83b36a004116f",
+  "classifierSha256": "4191f20310cf8e6e62a26b7651f51e6208703bc627e50cfe4239cedfe373d846",
+  "checks": [
+    "immutable-local-links",
+    "unchanged-executable-blocks",
+    "identical-citation-spans",
+    "doc-gates",
+    "docs-ci-plan-tests",
+    "specindex-tests",
+    "full-static-build-interop-archive"
+  ],
+  "inventory": "docs/specs/documentation-ci-v0.md#consumer-inventory",
+  "review": "Independent Astra/medium review docs_ci_plan_review accepted DCI bounded policy, original consumer inventory, repaired source 3e0202fb and release-doc integration d60231e5..85cb2889. Final combined source 369936698b12ac6ef053cca58f7f05d4ed6347c1 passed focused race tests, actual README replay, workflow lint, exact spec-index and documentation checks; sealed CEM 477fd11096068bdebb4ea5b274ac7661e85780f3. See docs/build-log/2026-09-29-documentation-ci.md. Dynamic-reader uncertainty retained; hosted DOCS observation NOT_OBSERVED; exact-head admin control-plane acceptance remains required."
+}

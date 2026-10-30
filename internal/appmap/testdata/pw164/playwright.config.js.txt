@@ -1,0 +1,6 @@
+module.exports = {
+  testDir: '.',
+  outputDir: 'out',
+  use: { trace: { mode: 'on', snapshots: { dom: true, aria: true }, screenshots: false, sources: true } },
+  projects: [{ name: 'chromium', use: { browserName: 'chromium' } }],
+};

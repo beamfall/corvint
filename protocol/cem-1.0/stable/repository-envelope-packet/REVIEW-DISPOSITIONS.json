@@ -1,0 +1,36 @@
+{
+  "profile": "cem-s0e-public-repair-dispositions/1",
+  "reviewSHA256": "11d247c4ccbaca09c6a19501b2db777e4e94e0b63022ad216112d5befb864477",
+  "findings": [
+    {
+      "id": "P1",
+      "disposition": "Exact OPERATION-ERRORS table; normal blob nonzero exception including corrupt storage; artifact files distinct; full target-sidecar/evidence origins."
+    },
+    {
+      "id": "P2",
+      "disposition": "Root-directed one-shot10second emergency allowance; caller cancel vs outer expiry; owner anchor and HOLD; four outer-expiry full outcomes."
+    },
+    {
+      "id": "P3",
+      "disposition": "Independent complete malformed bytes/hash outrank overflow; induced EOF/short-read is provenance-tagged truncation; four synchronized full outcomes."
+    },
+    {
+      "id": "P4",
+      "disposition": "18/21complete traces; cache/repeated OID and changed-level explicit; immutable337evidence input admits1024/refuses1025 at drift item336;336evidence positive uses1023."
+    },
+    {
+      "id": "P5",
+      "disposition": "New full21metadata/grammar/blob/parser/race/repeated-sidecar/partial-drift/count/outer-expiry cases with phase-specific recipes. Old22objects copied unchanged."
+    }
+  ],
+  "status": "AWAITING_INDEPENDENT_RE_REVIEW_NOT_RUNTIME_PASS",
+  "nativeRepairs": [
+    "RB01",
+    "RB02",
+    "RB03",
+    "RB04",
+    "RB05",
+    "RB06",
+    "RB07"
+  ]
+}

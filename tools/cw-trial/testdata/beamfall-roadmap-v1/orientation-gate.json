@@ -1,0 +1,17 @@
+{
+  "access": "none",
+  "control": "grep",
+  "limit": 20,
+  "margin": 0,
+  "max_treatment_context_failed": 5,
+  "metrics": [
+    "packet_top_10",
+    "gold_as_result"
+  ],
+  "name": "beamfall-roadmap-v1-orientation",
+  "profile": "corvint-cw-trial-gate/0",
+  "purpose": "V1-0319 orientation routing gate (CWT-V0-015..017): skills and docs/DOGFOOD.md section 1 may route task-start orientation to `corvint context --task` only when this gate admits a model-free run of the frozen beamfall-roadmap-v1 set. Frozen 2026-10-22 before any run of the set.",
+  "tasks": 50,
+  "tasks_sha256": "7fbe8124e55d247bc98ef0a06f3a0d820f6824aff680853b9c69a353fe85db85",
+  "treatment": "corvint"
+}

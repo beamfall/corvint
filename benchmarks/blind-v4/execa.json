@@ -1,0 +1,301 @@
+{
+  "schemaVersion": 1,
+  "commit": "8017b279e19347efaf2587711c2d57dbd4330740",
+  "cases": [
+    {
+      "id": "execa-lines-splitting",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "When Execa's lines: true option is enabled, subprocess output comes back as an array of line strings instead of one big string, including for combined `all` output. How does it handle Windows-style CRLF newlines, and where's this backed by a direct test? Point me to the public docs and the actual line-splitting implementation too.",
+      "limit": 8,
+      "budget_bytes": 8000,
+      "rationale": "Triangulates the options.lines API doc, the dedicated lines.md guide, the line-splitting generator implementation, and a direct test covering Windows CRLF newlines specifically.",
+      "ground_truth": [
+        {
+          "path": "docs/api.md",
+          "line": 993,
+          "contains": "### options.lines"
+        },
+        {
+          "path": "docs/api.md",
+          "line": 996,
+          "contains": "_Default:_ `false`"
+        },
+        {
+          "path": "docs/lines.md",
+          "line": 9,
+          "contains": "## Simple splitting"
+        },
+        {
+          "path": "lib/transform/split.js",
+          "line": 2,
+          "contains": "export const getSplitLinesGenerator = (binary, preserveNewlines, skipped, state) => binary || skipped"
+        },
+        {
+          "path": "test/transform/split-lines.js",
+          "line": 69,
+          "contains": "test('Split stdout - Windows newlines', testLines, 1, windowsChunks, windowsLines, windowsFull, false, true, execa);"
+        }
+      ],
+      "expected": {
+        "must_include": [
+          "path:docs/api.md",
+          "path:docs/lines.md",
+          "symbol:lib/transform/split.js:getSplitLinesGenerator",
+          "test:test/transform/split-lines.js"
+        ],
+        "critical": [
+          "symbol:lib/transform/split.js:getSplitLinesGenerator",
+          "test:test/transform/split-lines.js"
+        ],
+        "relevant": [
+          "path:docs/api.md",
+          "path:docs/lines.md",
+          "symbol:lib/transform/split.js:getSplitLinesGenerator",
+          "test:test/transform/split-lines.js"
+        ],
+        "must_exclude": [
+          "path:lib/io/strip-newline.js",
+          "test:test/io/strip-newline.js"
+        ]
+      }
+    },
+    {
+      "id": "execa-verbose-short-logging",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "I want every subprocess Execa runs to log its command line, duration, and any error message to stderr for debugging, without dumping full stdout/stderr content. Which verbosity level does that, where does the default log-line formatter live, and what test proves the command actually gets printed at that level?",
+      "limit": 6,
+      "budget_bytes": 6000,
+      "rationale": "Bounds the search to the 'short' verbose mode specifically (command, duration, error -- not full output), verified across the debugging guide, the default formatter function, and a direct test asserting the printed command line.",
+      "ground_truth": [
+        {
+          "path": "docs/debugging.md",
+          "line": 41,
+          "contains": "## Verbose mode"
+        },
+        {
+          "path": "docs/debugging.md",
+          "line": 45,
+          "contains": "the [command](#command), [duration](#duration) and [error messages](errors.md#error-message) are printed on"
+        },
+        {
+          "path": "lib/verbose/default.js",
+          "line": 10,
+          "contains": "export const defaultVerboseFunction = ({"
+        },
+        {
+          "path": "test/verbose/start.js",
+          "line": 40,
+          "contains": "test('Prints command, verbose \"short\"', testPrintCommand, 'short', false, false);"
+        }
+      ],
+      "expected": {
+        "must_include": [
+          "path:docs/debugging.md",
+          "symbol:lib/verbose/default.js:defaultVerboseFunction",
+          "test:test/verbose/start.js"
+        ],
+        "critical": [
+          "symbol:lib/verbose/default.js:defaultVerboseFunction",
+          "test:test/verbose/start.js"
+        ],
+        "relevant": [
+          "path:docs/debugging.md",
+          "symbol:lib/verbose/default.js:defaultVerboseFunction",
+          "test:test/verbose/start.js"
+        ],
+        "must_exclude": [
+          "path:lib/verbose/ipc.js"
+        ]
+      }
+    },
+    {
+      "id": "execa-ipc-send-message",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "A parent process needs to send a message to a running Node.js subprocess and wait for a reply, using Execa's IPC channel rather than stdin/stdout. Where's this documented, where's the sendMessage implementation, and what test proves a full round trip works?",
+      "limit": 6,
+      "budget_bytes": 6000,
+      "rationale": "Covers the IPC exchanging-messages guide, the sendMessage implementation that actually writes to the channel, and a direct round-trip test, distinct from the receive-only getOneMessage/getEachMessage helpers.",
+      "ground_truth": [
+        {
+          "path": "docs/ipc.md",
+          "line": 9,
+          "contains": "## Exchanging messages"
+        },
+        {
+          "path": "docs/ipc.md",
+          "line": 17,
+          "contains": "sends messages with [`subprocess.sendMessage(message)`]"
+        },
+        {
+          "path": "lib/ipc/send.js",
+          "line": 15,
+          "contains": "export const sendMessage = ({anyProcess, channel, isSubprocess, ipc}, message, {strict = false} = {}) => {"
+        },
+        {
+          "path": "test/ipc/send.js",
+          "line": 10,
+          "contains": "test('Can exchange IPC messages', async t => {"
+        }
+      ],
+      "expected": {
+        "must_include": [
+          "path:docs/ipc.md",
+          "symbol:lib/ipc/send.js:sendMessage",
+          "test:test/ipc/send.js"
+        ],
+        "critical": [
+          "symbol:lib/ipc/send.js:sendMessage",
+          "test:test/ipc/send.js"
+        ],
+        "relevant": [
+          "path:docs/ipc.md",
+          "symbol:lib/ipc/send.js:sendMessage",
+          "test:test/ipc/send.js"
+        ],
+        "must_exclude": [
+          "path:lib/ipc/get-one.js"
+        ]
+      }
+    },
+    {
+      "id": "execa-escape-lines-impact",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "impact",
+      "text": "We're about to change how Execa escapes multi-line strings before printing them -- used for both verbose logs and error messages. Before touching lib/arguments/escape.js, show me every module in the package that would be affected.",
+      "paths": [
+        "lib/arguments/escape.js"
+      ],
+      "limit": 8,
+      "budget_bytes": 6000,
+      "rationale": "escapeLines is imported directly by both the result-formatting module and the verbose logger, so both call sites must surface as forward references.",
+      "ground_truth": [
+        {
+          "path": "lib/return/message.js",
+          "line": 5,
+          "contains": "import {escapeLines} from '../arguments/escape.js';"
+        },
+        {
+          "path": "lib/verbose/log.js",
+          "line": 2,
+          "contains": "import {escapeLines} from '../arguments/escape.js';"
+        }
+      ],
+      "expected": {
+        "must_include": [
+          "path:lib/arguments/escape.js",
+          "reverse-import:lib/return/message.js",
+          "reverse-import:lib/verbose/log.js"
+        ],
+        "critical": [
+          "reverse-import:lib/return/message.js"
+        ],
+        "relevant": [
+          "path:lib/arguments/escape.js",
+          "reverse-import:lib/return/message.js",
+          "reverse-import:lib/verbose/log.js"
+        ],
+        "must_exclude": []
+      }
+    },
+    {
+      "id": "execa-cleanup-on-exit",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "Execa's cleanup option is supposed to kill a subprocess automatically if the parent Node.js process exits, so nothing gets orphaned. Explain how that's wired up and point me at the function that hooks the parent's exit event, plus a test proving the child actually dies.",
+      "limit": 6,
+      "budget_bytes": 5000,
+      "rationale": "The word 'cleanup' also names an unrelated stream-teardown helper, cleanupCustomStreams in lib/stdio/handle.js, which a lexical matcher could easily confuse with the cleanup option's parent-exit-kill behavior actually implemented in lib/terminate/cleanup.js.",
+      "ground_truth": [
+        {
+          "path": "docs/api.md",
+          "line": 1162,
+          "contains": "### options.cleanup"
+        },
+        {
+          "path": "docs/api.md",
+          "line": 1167,
+          "contains": "Kill the subprocess when the current process exits."
+        },
+        {
+          "path": "lib/terminate/cleanup.js",
+          "line": 5,
+          "contains": "export const cleanupOnExit = (kill, {cleanup, detached}, {signal}) => {"
+        },
+        {
+          "path": "test/terminate/cleanup.js",
+          "line": 21,
+          "contains": "test('spawnAndExit cleanup', spawnAndExit, false, true, false);"
+        }
+      ],
+      "expected": {
+        "must_include": [
+          "path:docs/api.md",
+          "symbol:lib/terminate/cleanup.js:cleanupOnExit",
+          "test:test/terminate/cleanup.js"
+        ],
+        "critical": [
+          "symbol:lib/terminate/cleanup.js:cleanupOnExit",
+          "test:test/terminate/cleanup.js"
+        ],
+        "relevant": [
+          "path:docs/api.md",
+          "symbol:lib/terminate/cleanup.js:cleanupOnExit",
+          "test:test/terminate/cleanup.js"
+        ],
+        "must_exclude": [
+          "symbol:lib/stdio/handle.js:cleanupCustomStreams"
+        ]
+      }
+    },
+    {
+      "id": "execa-retry-on-error-abstention",
+      "partition": "heldout-v4",
+      "target_version": "V4",
+      "mode": "query",
+      "text": "Add automatic retry-with-backoff to an Execa call so a flaky network command like curl retries up to 5 times before giving up. Where's Execa's built-in retry option and its implementation? If there isn't one, say so plainly rather than pointing me at the kill/timeout termination options as a substitute.",
+      "limit": 5,
+      "budget_bytes": 3000,
+      "rationale": "Execa's own docs/bash.md explicitly shows retry-on-error requires the third-party p-retry package -- unlike zx's built-in retry() -- and a repo-wide case-insensitive scan of lib/, the entry points, and the readme finds zero retry/backoff hits, confirming no built-in mechanism exists to substitute with termination options.",
+      "ground_truth": [
+        {
+          "path": "docs/bash.md",
+          "line": 1269,
+          "contains": "### Retry on error"
+        },
+        {
+          "path": "docs/bash.md",
+          "line": 1281,
+          "contains": "import pRetry from 'p-retry';"
+        }
+      ],
+      "negative_source_proof": {
+        "paths": [
+          "lib",
+          "index.js",
+          "index.d.ts",
+          "readme.md"
+        ],
+        "case_insensitive_pattern": "retry|retries|backoff",
+        "expected_match_count": 0
+      },
+      "expected": {
+        "state": "OUT_OF_SCOPE",
+        "must_include": [],
+        "critical": [],
+        "relevant": [],
+        "must_exclude": [
+          "path:lib/terminate/cleanup.js",
+          "path:lib/terminate/graceful.js"
+        ]
+      }
+    }
+  ]
+}

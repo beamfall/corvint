@@ -1,0 +1,41 @@
+{
+  "format": "atlas-cli-parity-fixture/0",
+  "files": [
+    {
+      "path": ".gitignore",
+      "type": "file",
+      "mode": "0644",
+      "content": ".context-atlas/\n"
+    },
+    {
+      "path": "go.mod",
+      "type": "file",
+      "mode": "0644",
+      "content": "module example.test/query\n\ngo 1.27.0\n"
+    },
+    {
+      "path": "internal/auth/session.go",
+      "type": "file",
+      "mode": "0644",
+      "content": "package auth\n\nfunc EnforceSessionRevocation() bool { return true }\n"
+    },
+    {
+      "path": "internal/auth/session_test.go",
+      "type": "file",
+      "mode": "0644",
+      "content": "package auth\n\n// feature:session-revocation scenario:revoked-device\nfunc TestEnforceSessionRevocation() {}\n"
+    },
+    {
+      "path": "testing/features.yaml",
+      "type": "file",
+      "mode": "0644",
+      "content": "features:\n  - id: session-revocation\n    area: auth\n    summary: Revoke an expired device session and enforce future denial.\n    adr: []\n    applies: [server]\n    status: shipped\n"
+    },
+    {
+      "path": "testing/scenarios.yaml",
+      "type": "file",
+      "mode": "0644",
+      "content": "scenarios:\n  - id: revoked-device\n    area: auth\n    summary: Expired device session is revoked.\n    features: [session-revocation]\n    applies: [server]\n    status: shipped\n"
+    }
+  ]
+}

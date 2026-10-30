@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "corvint": {
+      "command": "/bin/sh",
+      "args": [
+        "-c",
+        "root=$(git rev-parse --show-toplevel 2>/dev/null) || { echo 'corvint-mcp: launch directory is not inside a Git worktree' >&2; exit 2; }; exec corvint-mcp --protocol-version 2025-11-25 --root \"$root\""
+      ],
+      "tool_timeout_sec": 30
+    }
+  }
+}

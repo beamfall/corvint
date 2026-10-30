@@ -1,0 +1,1003 @@
+package transaction
+
+import (
+	"bytes"
+	"slices"
+	"strings"
+	"time"
+
+	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/mutation"
+	"github.com/Beamfall/corvint/internal/tasks/snapshot"
+	"github.com/Beamfall/corvint/internal/tasks/ticket"
+	"github.com/Beamfall/corvint/internal/tasks/wire"
+)
+
+// Lease carries one CAL-V0 lease command against one external-agent attempt
+// record and the reservation set (CAL-V0-007..013, CAL-V0-021..025).
+// Request.Lease names the verb and its closed arguments.
+const Lease = snapshot.StageLease
+
+// Lease verbs and bounds (CAL-V0-012, CAL-V0-013).
+const (
+	LeaseSupervisor      = "SUPERVISOR"
+	LeaseProgram         = "PROGRAM"
+	LeasePoolPrepare     = "POOL_PREPARE"
+	LeasePoolObserve     = "POOL_OBSERVE"
+	LeasePoolReport      = "POOL_REPORT" // PSR-V0-260: one failed readiness observation.
+	LeasePoolCleanup     = "POOL_CLEANUP"
+	LeasePoolRecover     = "POOL_RECOVER"
+	LeasePoolSafe        = "POOL_CONFIRM_SAFE"
+	LeasePoolSweep       = "POOL_SWEEP"
+	LeasePoolSweepFinish = "POOL_SWEEP_FINISH"
+	LeasePoolAcquire     = "POOL_ACQUIRE"
+	LeasePoolRelease     = "POOL_RELEASE"
+	LeasePoolWait        = "POOL_WAIT" // PSR-V0-130: a bounded waitlist place.
+	LeaseClaim           = "CLAIM"
+	LeaseClaimNext       = "CLAIM_NEXT"
+	LeaseRenew           = "RENEW"
+	LeaseHeartbeat       = "HEARTBEAT"
+	LeaseRelease         = "RELEASE"
+	LeaseReap            = "REAP"
+	LeaseWiden           = "WIDEN"
+	// PSR-V0-032, PSR-V0-036: capacity slots of a declared resource.
+	LeaseSlotAcquire    = "SLOT_ACQUIRE"
+	LeaseSlotRelease    = "SLOT_RELEASE"
+	DefaultLeaseMinutes = 60
+	MinLeaseMinutes     = 5
+	MaxLeaseMinutes     = 1440
+	// MaxRetries is the legacy default, not the policy enforcement limit.
+	MaxRetries         = 3
+	wholeRepositoryKey = "repo"
+	timestampLayout    = "2006-01-02T15:04:05Z"
+)
+
+// LeaseRequest is one lease command. Fields a verb does not take stay empty;
+// the closed shape table below refuses any other combination.
+type LeaseRequest struct {
+	LaneUntouched                             bool
+	SweepSeconds                              wire.Count
+	Pool, Stage, Member, Allocation, Evidence string
+	Verb, TicketID, Holder                    string
+	LeaseMinutes                              wire.Size
+	Branch, Base                              string
+	Scope                                     []string
+	ExcludeMembers                            []string
+	// ExcludeAuthors is "", ExcludeAuthorsLatest or ExcludeAuthorsAll
+	// (CAL-V0-098).
+	ExcludeAuthors string
+	// ShareAllocation binds a CLAIM to an allocation the same holder
+	// already holds through a live attempt (PSR-V0-016); empty otherwise.
+	ShareAllocation string
+	WholeRepository bool
+	AttemptID       string
+	Generation      wire.Size
+	// LeaseExpiresAt fences a REAP on the lease expiry the caller observed:
+	// a renewal since then refuses it (CAL-V0-191). Empty otherwise.
+	LeaseExpiresAt wire.Timestamp
+	Reason         string
+	// HandoffTo and HandoffReason are the CAL-V0-082/083 recorded next
+	// stage of a clean RELEASE; empty when not requested.
+	HandoffTo, HandoffReason string
+	Tree, Gate, Commit       string
+	// Slots names a declared capacity-slot resource (PSR-V0-030); SlotCount,
+	// SlotExclusive and SlotClass shape a SLOT_ACQUIRE. All empty otherwise.
+	Slots         string
+	SlotCount     wire.Count
+	SlotExclusive bool
+	SlotClass     string
+	// Source is the REVISION:TREE pair a POOL_ACQUIRE targets, which the
+	// pool's allowedSources must hold (PSR-V0-081); empty otherwise.
+	Source string
+	// WaitSeconds is a POOL_WAIT's registration lifetime, at most the pool's
+	// maxWaitSeconds (PSR-V0-130); empty otherwise.
+	WaitSeconds wire.Count
+	// Operation is the typed lifecycle operation a POOL_OPERATE runs
+	// (PSR-V0-160); empty otherwise.
+	Operation string
+	// ScopeFromDiff is the full tree OID a CLAIM's --scope-from-diff REV
+	// resolved to (TCD-V0-174), so a replay that names another tree under
+	// the same request id refuses (TCD-V0-181); empty otherwise.
+	ScopeFromDiff string
+}
+
+// LeaseFacts are the caller's observations for a CLAIM: the fresh attempt
+// identity it minted, the resolved base commit, and the CAL-V0-022
+// derivation (nil paths when the deriver abstained). SUBMIT, GATE_RUN and
+// COMPLETE add their git and gate observations (gateFacts).
+type LeaseFacts struct {
+	Program                                []byte
+	Pool                                   PoolFacts
+	AttemptID, BaseCommit, DerivedTicketID string
+	DerivedPaths                           []string
+	DerivationSha256                       wire.Digest
+	// DiffPaths is the TCD-V0-174 --scope-from-diff observation; a declared
+	// scope must cover each of them (TCD-V0-175).
+	DiffPaths []string
+	// RunOutcome is the outcome document a RUN_OUTCOME posts (ATR-V0-005).
+	RunOutcome []byte
+	// Escalation is an ESCALATE or ANSWER request and its audit facts.
+	Escalation *EscalationFacts
+	gateFacts
+}
+
+// ExpiredLease names a live attempt whose lease has expired.
+type ExpiredLease struct {
+	AttemptID  string
+	Generation wire.Size
+}
+
+const (
+	fieldTicket = 1 << iota
+	fieldHolder
+	fieldMinutes
+	fieldBranch
+	fieldBase
+	fieldScope
+	fieldWhole
+	fieldAttempt
+	fieldGeneration
+	fieldReason
+	fieldTree
+	fieldGate
+	fieldCommit
+	fieldPool
+	fieldStage
+	fieldMember
+	fieldAllocation
+	fieldEvidence
+	fieldExclusions
+	fieldLaneUntouched
+	fieldSweepSeconds
+	fieldHandoff
+	fieldAuthors
+	fieldShare
+	fieldExpiry
+	fieldSlots
+	fieldSlotCount
+	fieldSlotExclusive
+	fieldSlotClass
+	fieldSource
+	fieldWait
+	fieldOperation
+	fieldScopeFromDiff
+)
+
+type leaseShape struct{ required, allowed int }
+
+var leaseShapes = map[string]leaseShape{
+	LeasePoolSweep:       {fieldSweepSeconds, fieldSweepSeconds | fieldMember | fieldAllocation},
+	LeasePoolSweepFinish: {fieldEvidence, fieldEvidence},
+	LeasePoolAcquire:     {fieldAttempt | fieldGeneration | fieldPool, fieldAttempt | fieldGeneration | fieldPool | fieldExclusions | fieldAuthors | fieldSource},
+	LeasePoolWait:        {fieldPool | fieldWait, fieldPool | fieldWait | fieldTicket | fieldHolder | fieldAttempt | fieldGeneration},
+	LeasePoolRelease:     {fieldAttempt | fieldGeneration | fieldAllocation, fieldAttempt | fieldGeneration | fieldAllocation},
+	LeaseSupervisor:      {fieldAttempt | fieldGeneration | fieldEvidence, fieldAttempt | fieldGeneration | fieldEvidence | fieldPool | fieldStage | fieldHolder},
+	LeaseProgram:         {fieldEvidence, fieldEvidence},
+	LeasePoolPrepare:     {fieldPool | fieldMember | fieldHolder | fieldEvidence, fieldPool | fieldMember | fieldHolder | fieldStage | fieldEvidence | fieldTicket | fieldAuthors | fieldExclusions},
+	LeasePoolObserve:     {fieldMember | fieldAllocation, fieldMember | fieldAllocation | fieldEvidence},
+	LeasePoolCleanup:     {fieldMember | fieldAllocation, fieldMember | fieldAllocation},
+	LeasePoolRecover:     {fieldMember | fieldAllocation | fieldReason, fieldMember | fieldAllocation | fieldReason},
+	LeasePoolSafe:        {fieldMember | fieldAllocation | fieldEvidence | fieldReason, fieldMember | fieldAllocation | fieldEvidence | fieldReason},
+	LeaseClaim:           {fieldTicket | fieldHolder | fieldMinutes, fieldTicket | fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage | fieldExclusions | fieldAuthors | fieldShare | fieldScopeFromDiff},
+	LeaseClaimNext:       {fieldHolder | fieldMinutes, fieldHolder | fieldMinutes | fieldBranch | fieldBase | fieldScope | fieldPool | fieldStage | fieldExclusions | fieldAuthors},
+	LeaseHeartbeat:       {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration},
+	LeaseRenew:           {fieldAttempt | fieldGeneration | fieldMinutes, fieldAttempt | fieldGeneration | fieldMinutes},
+	LeaseRelease:         {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldReason | fieldEvidence | fieldLaneUntouched | fieldHandoff},
+	LeaseReap:            {0, fieldAttempt | fieldGeneration | fieldExpiry},
+	LeaseWiden:           {fieldAttempt | fieldGeneration, fieldAttempt | fieldGeneration | fieldScope | fieldWhole},
+	LeaseSubmit:          {fieldAttempt | fieldGeneration | fieldTree, fieldAttempt | fieldGeneration | fieldTree},
+	LeaseGateRun:         {fieldAttempt | fieldGeneration | fieldGate, fieldAttempt | fieldGeneration | fieldGate},
+	LeaseComplete:        {fieldAttempt | fieldGeneration | fieldCommit, fieldAttempt | fieldGeneration | fieldCommit},
+	LeaseRunOutcome:      {fieldAttempt | fieldGeneration | fieldEvidence, fieldAttempt | fieldGeneration | fieldEvidence},
+	LeaseEscalate:        {fieldEvidence, fieldEvidence},
+	LeaseAnswer:          {fieldEvidence, fieldEvidence},
+	LeaseSlotAcquire:     {fieldAttempt | fieldGeneration | fieldSlots, fieldAttempt | fieldGeneration | fieldSlots | fieldSlotCount | fieldSlotExclusive | fieldSlotClass},
+	LeaseSlotRelease:     {fieldAttempt | fieldGeneration | fieldSlots, fieldAttempt | fieldGeneration | fieldSlots},
+	LeasePoolOperate:     {fieldPool | fieldMember | fieldOperation, fieldPool | fieldMember | fieldOperation | fieldAllocation | fieldSource},
+	LeasePoolReport:      {fieldMember | fieldEvidence, fieldMember | fieldEvidence | fieldAllocation},
+	// PSR-V0-268..271: an operator hold outside any dispatched session.
+	LeasePoolHold:        {fieldPool | fieldMember | fieldHolder | fieldMinutes | fieldReason, fieldPool | fieldMember | fieldHolder | fieldMinutes | fieldReason},
+	LeasePoolHoldRenew:   {fieldMember | fieldAllocation | fieldMinutes, fieldMember | fieldAllocation | fieldMinutes},
+	LeasePoolHoldRelease: {fieldMember | fieldAllocation, fieldMember | fieldAllocation},
+}
+
+func (l *LeaseRequest) present() int {
+	flags := map[int]bool{fieldSweepSeconds: l.SweepSeconds != "", fieldLaneUntouched: l.LaneUntouched, fieldPool: l.Pool != "", fieldStage: l.Stage != "", fieldMember: l.Member != "", fieldAllocation: l.Allocation != "", fieldEvidence: l.Evidence != "", fieldExclusions: l.ExcludeMembers != nil, fieldAuthors: l.ExcludeAuthors != "", fieldTicket: l.TicketID != "", fieldHolder: l.Holder != "", fieldMinutes: l.LeaseMinutes != "", fieldBranch: l.Branch != "", fieldBase: l.Base != "", fieldScope: l.Scope != nil, fieldWhole: l.WholeRepository, fieldAttempt: l.AttemptID != "", fieldGeneration: l.Generation != "", fieldReason: l.Reason != "", fieldTree: l.Tree != "", fieldGate: l.Gate != "", fieldCommit: l.Commit != "", fieldHandoff: l.HandoffTo != "" || l.HandoffReason != "", fieldShare: l.ShareAllocation != "", fieldExpiry: l.LeaseExpiresAt != "", fieldSlots: l.Slots != "", fieldSlotCount: l.SlotCount != "", fieldSlotExclusive: l.SlotExclusive, fieldSlotClass: l.SlotClass != "", fieldSource: l.Source != "", fieldWait: l.WaitSeconds != "", fieldOperation: l.Operation != "", fieldScopeFromDiff: l.ScopeFromDiff != ""}
+	bits := 0
+	for bit, set := range flags {
+		if set {
+			bits |= bit
+		}
+	}
+	return bits
+}
+
+// ReleaseReasonRefusal names every code --reason admits (TCD-V0-178)
+// without echoing the refused text: any closed code records the cause,
+// HANDOFF and REVIEW_RETURNED also request a stage handoff, and a plain
+// release omits --reason.
+var ReleaseReasonRefusal = "release reason is not a closed code; --reason takes exactly one of " + strings.Join(wire.Codes, ", ") +
+	". HANDOFF and REVIEW_RETURNED request a stage handoff (see release --help --verbose handoffPreconditions); any other code only records why the attempt was freed. Omit --reason for a plain release (TCD-V0-178)"
+
+func checkShape(l *LeaseRequest) error {
+	shape, ok := leaseShapes[l.Verb]
+	if !ok {
+		return malformed("unknown lease verb")
+	}
+	bits := l.present()
+	if bits&shape.required != shape.required || bits&^shape.allowed != 0 {
+		return malformed("lease arguments do not fit " + l.Verb)
+	}
+	if l.Verb == LeaseReap && bits != 0 && bits != fieldAttempt|fieldGeneration && bits != fieldAttempt|fieldGeneration|fieldExpiry {
+		return malformed("REAP names an attempt and its generation together or neither, and a lease expiry only with them")
+	}
+	if l.Verb == LeaseWiden && (bits&fieldScope != 0) == (bits&fieldWhole != 0) {
+		return malformed("WIDEN takes paths or the whole repository, exactly one")
+	}
+	if l.Verb == LeasePoolWait && bits != fieldPool|fieldWait|fieldTicket|fieldHolder && bits != fieldPool|fieldWait|fieldAttempt|fieldGeneration {
+		return malformed("POOL_WAIT names a ticket and holder, or an attempt and its generation, exactly one")
+	}
+	if l.SlotExclusive && bits&(fieldSlotCount|fieldSlotClass) != 0 {
+		return malformed("an exclusive slot request takes no count or class")
+	}
+	return nil
+}
+
+func checkMinutes(m wire.Size) error {
+	if m == "" {
+		return nil
+	}
+	n, e := wire.ParseSize("leaseMinutes", string(m))
+	if e != nil {
+		return e
+	}
+	if n.Uint64() < MinLeaseMinutes || n.Uint64() > MaxLeaseMinutes {
+		return malformed("lease minutes outside 5..1440")
+	}
+	return nil
+}
+
+// checkScopePaths accepts a sorted, duplicate-free, non-empty PATH list whose
+// keys are resource identifiers.
+func checkScopePaths(paths []string) error {
+	if paths == nil {
+		return nil
+	}
+	if len(paths) == 0 || len(paths) > wire.MaxTouchPaths {
+		return limit("scope path count")
+	}
+	for i, p := range paths {
+		if _, e := wire.ParsePath("scope", p); e != nil {
+			return e
+		}
+		if _, e := wire.ParseIdentifier("scope", p); e != nil {
+			return e
+		}
+		if i > 0 && paths[i-1] >= p {
+			return malformed("scope paths must be sorted and duplicate-free")
+		}
+	}
+	return nil
+}
+
+func checkLabels(values map[string]string) error {
+	for where, v := range values {
+		if v == "" {
+			continue
+		}
+		if _, e := wire.ParseLabel(where, v); e != nil {
+			return e
+		}
+	}
+	return nil
+}
+
+func checkLeaseFields(l *LeaseRequest, q wire.QueueID) error {
+	if l.Verb == LeasePoolSweep && l.Allocation != "" && l.Member == "" {
+		return malformed("sweep allocation requires member")
+	}
+	if l.LaneUntouched && l.Evidence == "" {
+		return malformed("lane-untouched requires inert evidence Identifier")
+	}
+	if e := checkExcludedMembers(l.Pool, l.ExcludeMembers); e != nil {
+		return e
+	}
+	// CAL-V0-200: an acquire takes its stage from the attempt, so the stage
+	// half of the author-exclusion check runs when the attempt is planned.
+	stage := l.Stage
+	if l.Verb == LeasePoolAcquire && l.ExcludeAuthors != "" {
+		stage = "review"
+	}
+	if e := CheckExcludeAuthors(l.ExcludeAuthors, l.Pool, stage); e != nil {
+		return e
+	}
+	if l.Verb == LeasePoolPrepare && (l.TicketID == "") != (l.ExcludeAuthors == "") {
+		return malformed("preparation binds a ticket only with its author-exclusion mode")
+	}
+	if l.Verb == LeasePoolPrepare && l.ExcludeMembers != nil && l.ExcludeAuthors == "" {
+		return malformed("preparation carries explicit exclusions only with its author-exclusion mode")
+	}
+	if !checkPoolStage(l.Stage) {
+		return malformed("unknown pool stage")
+	}
+	if l.Allocation != "" {
+		if _, e := wire.ParseDigest("allocation", l.Allocation); e != nil {
+			return e
+		}
+	}
+	if l.ShareAllocation != "" {
+		if l.Pool == "" || l.ExcludeMembers != nil || l.ExcludeAuthors != "" {
+			return malformed("--share-allocation needs --pool and takes no member or author exclusion")
+		}
+		if _, e := wire.ParseDigest("shareAllocation", l.ShareAllocation); e != nil {
+			return e
+		}
+	}
+	if l.Evidence != "" {
+		if l.Verb == LeaseRelease && l.Reason != wire.CodeHandoff && l.Reason != wire.CodeReviewReturned && !l.LaneUntouched {
+			return malformed("release evidence requires HANDOFF or REVIEW_RETURNED")
+		}
+		if _, e := wire.ParseIdentifier("evidence", l.Evidence); e != nil {
+			return e
+		}
+		if l.Verb == LeaseRunOutcome || l.Verb == LeaseEscalate || l.Verb == LeaseAnswer || l.Verb == LeasePoolReport {
+			if _, e := wire.ParseDigest("evidence", l.Evidence); e != nil {
+				return e
+			}
+		}
+	}
+	if e := checkHandoffRequest(l); e != nil {
+		return e
+	}
+	if l.TicketID != "" {
+		id, e := wire.ParseTicketID("ticketId", l.TicketID)
+		if e != nil {
+			return e
+		}
+		if id.QueueID() != q.Raw {
+			return malformed("lease ticket names another queue")
+		}
+	}
+	if e := checkLabels(map[string]string{"holder": l.Holder, "branch": l.Branch, "pool": l.Pool, "member": l.Member, "slots": l.Slots, "slotClass": l.SlotClass}); e != nil {
+		return e
+	}
+	if l.Base != "" {
+		if _, e := wire.ParseOID("base", l.Base); e != nil {
+			return e
+		}
+	}
+	if l.ScopeFromDiff != "" {
+		if _, e := wire.ParseOID("scopeFromDiff", l.ScopeFromDiff); e != nil {
+			return e
+		}
+	}
+	if l.Source != "" {
+		if _, e := intent.ParsePoolSource("source", l.Source); e != nil {
+			return e
+		}
+	}
+	if e := checkPoolOperation(l); e != nil {
+		return e
+	}
+	if l.WaitSeconds != "" {
+		n, e := wire.ParseCount("waitSeconds", string(l.WaitSeconds))
+		if e != nil {
+			return e
+		}
+		if n.Int() < 1 || n.Int() > intent.MaxPoolWaitSeconds {
+			return wire.Errorf(wire.CodeLimitExceeded, "waitSeconds", "wait seconds outside 1..%d", intent.MaxPoolWaitSeconds)
+		}
+	}
+	if e := checkMinutes(l.LeaseMinutes); e != nil {
+		return e
+	}
+	if e := checkScopePaths(l.Scope); e != nil {
+		return e
+	}
+	if l.AttemptID != "" {
+		aq, e := snapshot.AttemptQueue(l.AttemptID)
+		if e != nil {
+			return e
+		}
+		if aq.Raw != q.Raw {
+			return malformed("lease attempt names another queue")
+		}
+	}
+	if l.Generation != "" {
+		if _, e := wire.ParseSize("generation", string(l.Generation)); e != nil {
+			return e
+		}
+	}
+	if l.LeaseExpiresAt != "" {
+		if _, e := wire.ParseTimestamp("leaseExpiresAt", string(l.LeaseExpiresAt)); e != nil {
+			return e
+		}
+	}
+	// PSR-V0-268: a hold reason is operator prose, bounded like a pool
+	// recover reason because pools.json carries it.
+	if l.Verb == LeasePoolHold {
+		if _, e := wire.ParseProse("reason", l.Reason, 1, MaxPoolRecoverReasonBytes); e != nil {
+			return e
+		}
+	}
+	if l.Reason != "" && l.Verb != LeasePoolSafe && l.Verb != LeasePoolRecover && l.Verb != LeasePoolHold && !wire.IsCode(l.Reason) {
+		return malformed(ReleaseReasonRefusal)
+	}
+	if l.Verb == LeasePoolSafe || l.Verb == LeasePoolRecover {
+		if _, e := wire.ParseProse("reason", l.Reason, 1, 4096); e != nil {
+			return e
+		}
+	}
+	if l.SlotCount != "" {
+		n, e := wire.ParseCount("slotCount", string(l.SlotCount))
+		if e != nil {
+			return e
+		}
+		if n.Int() < 1 || n.Int() > intent.MaxSlotCapacity {
+			return limit("slotCount outside 1..64")
+		}
+	}
+	if l.SweepSeconds != "" {
+		n, e := wire.ParseCount("sweepSeconds", string(l.SweepSeconds))
+		if e != nil {
+			return e
+		}
+		if n.Int() < 1 || n.Int() > 1800 {
+			return malformed("sweepSeconds outside1..1800")
+		}
+	}
+	return checkGateFields(l)
+}
+
+// checkHandoffRequest applies the CAL-V0-082/083 rules a request alone can
+// decide; the stage-dependent reason rules wait for the attempt.
+func checkHandoffRequest(l *LeaseRequest) error {
+	if l.HandoffTo == "" && l.HandoffReason == "" {
+		return nil
+	}
+	if l.HandoffReason != "" && !slices.Contains(snapshot.HandoffReasons, l.HandoffReason) {
+		return malformed("unknown handoff reason")
+	}
+	if l.HandoffTo == "" {
+		return malformed("a handoff reason requires a handoff target")
+	}
+	return snapshot.CheckHandoffTarget("handoffTo", l.Reason, "", l.HandoffTo, "")
+}
+
+func optionalString(v string) wire.Value {
+	if v == "" {
+		return wire.Null()
+	}
+	return s(v)
+}
+
+// leaseValue is the digest preimage of a lease command: every field present,
+// null when the verb does not take it.
+func leaseValue(l *LeaseRequest, q wire.QueueID) (wire.Value, error) {
+	if e := checkShape(l); e != nil {
+		return wire.Value{}, e
+	}
+	if e := checkLeaseFields(l, q); e != nil {
+		return wire.Value{}, e
+	}
+	scope := wire.Null()
+	if l.Scope != nil {
+		scope = wire.Strings(l.Scope)
+	}
+	v := object("verb", s(l.Verb), "ticketId", optionalString(l.TicketID), "holder", optionalString(l.Holder), "leaseMinutes", optionalString(string(l.LeaseMinutes)), "branch", optionalString(l.Branch), "base", optionalString(l.Base), "scope", scope, "wholeRepository", wire.Bool(l.WholeRepository), "attemptId", optionalString(l.AttemptID), "generation", optionalString(string(l.Generation)), "reason", optionalString(l.Reason))
+	// The S5 fields join the preimage only for the S5 verbs, so an earlier
+	// lease command keeps its digest and still replays.
+	if gateVerbs[l.Verb] {
+		v.Obj.Set("tree", optionalString(l.Tree))
+		v.Obj.Set("gate", optionalString(l.Gate))
+		v.Obj.Set("commit", optionalString(l.Commit))
+	}
+	if l.Pool != "" {
+		v.Obj.Set("pool", s(l.Pool))
+	}
+	if l.Stage != "" {
+		v.Obj.Set("stage", s(l.Stage))
+	}
+	// CAL-V0-065: omission preserves every historical request preimage.
+	if l.ExcludeMembers != nil {
+		v.Obj.Set("excludeMembers", wire.Strings(l.ExcludeMembers))
+	}
+	// CAL-V0-082: omission keeps every historical RELEASE preimage.
+	if l.HandoffTo != "" {
+		v.Obj.Set("handoffTo", s(l.HandoffTo))
+	}
+	if l.HandoffReason != "" {
+		v.Obj.Set("handoffReason", s(l.HandoffReason))
+	}
+	// CAL-V0-098: likewise omitted when absent.
+	if l.ExcludeAuthors != "" {
+		v.Obj.Set("excludeAuthors", s(l.ExcludeAuthors))
+	}
+	// PSR-V0-016: omitted when absent, so every earlier CLAIM keeps its digest.
+	if l.ShareAllocation != "" {
+		v.Obj.Set("shareAllocation", s(l.ShareAllocation))
+	}
+	// CAL-V0-191: likewise omitted, so every earlier REAP keeps its digest.
+	if l.LeaseExpiresAt != "" {
+		v.Obj.Set("leaseExpiresAt", s(string(l.LeaseExpiresAt)))
+	}
+	// PSR-V0-037: the slot fields join only the slot verbs' preimages.
+	if l.Slots != "" {
+		v.Obj.Set("slots", s(l.Slots))
+	}
+	if l.SlotCount != "" {
+		v.Obj.Set("slotCount", s(string(l.SlotCount)))
+	}
+	if l.SlotExclusive {
+		v.Obj.Set("slotExclusive", wire.Bool(true))
+	}
+	if l.SlotClass != "" {
+		v.Obj.Set("slotClass", s(l.SlotClass))
+	}
+	// PSR-V0-081: omitted when absent, so every earlier POOL_ACQUIRE keeps
+	// its digest.
+	if l.Source != "" {
+		v.Obj.Set("source", s(l.Source))
+	}
+	// TCD-V0-181: omitted when absent, so every earlier CLAIM keeps its
+	// digest; present, a replay naming another tree conflicts.
+	if l.ScopeFromDiff != "" {
+		v.Obj.Set("scopeFromDiff", s(l.ScopeFromDiff))
+	}
+	// PSR-V0-130: joins only the POOL_WAIT preimage.
+	if l.WaitSeconds != "" {
+		v.Obj.Set("waitSeconds", s(string(l.WaitSeconds)))
+	}
+	// PSR-V0-160: joins only the POOL_OPERATE preimage.
+	if l.Verb == LeasePoolOperate {
+		v.Obj.Set("member", s(l.Member))
+		v.Obj.Set("operation", s(l.Operation))
+		if l.Allocation != "" {
+			v.Obj.Set("allocation", s(l.Allocation))
+		}
+	}
+	// PSR-V0-260: joins only the POOL_REPORT preimage; the evidence is the
+	// detail document's digest, which binds its kind and result.
+	if l.Verb == LeasePoolReport {
+		v.Obj.Set("member", s(l.Member))
+		v.Obj.Set("evidence", s(l.Evidence))
+		if l.Allocation != "" {
+			v.Obj.Set("allocation", s(l.Allocation))
+		}
+	}
+	// PSR-V0-268: joins only the operator hold verbs' preimages.
+	if isPoolHoldVerb(l.Verb) {
+		v.Obj.Set("member", s(l.Member))
+		if l.Allocation != "" {
+			v.Obj.Set("allocation", s(l.Allocation))
+		}
+	}
+	// Keep historical RELEASE preimages byte-identical when evidence is absent.
+	if l.Verb == LeaseRelease && l.Evidence != "" {
+		v.Obj.Set("evidence", s(l.Evidence))
+	}
+	if l.Verb == LeaseProgram || l.Verb == LeaseSupervisor || l.Verb == LeaseRunOutcome || l.Verb == LeaseEscalate || l.Verb == LeaseAnswer {
+		v.Obj.Set("evidence", s(l.Evidence))
+	}
+	if l.Verb == LeasePoolSafe || l.Verb == LeasePoolPrepare || l.Verb == LeasePoolObserve || l.Verb == LeasePoolCleanup || l.Verb == LeasePoolRecover {
+		v.Obj.Set("member", s(l.Member))
+		v.Obj.Set("allocation", s(l.Allocation))
+		v.Obj.Set("evidence", s(l.Evidence))
+	}
+	if l.Verb == LeasePoolSweep {
+		v.Obj.Set("member", s(l.Member))
+		v.Obj.Set("sweepSeconds", s(string(l.SweepSeconds)))
+		if l.Allocation != "" {
+			v.Obj.Set("allocation", s(l.Allocation))
+		}
+	}
+	if l.Verb == LeasePoolSweepFinish {
+		v.Obj.Set("evidence", s(l.Evidence))
+	}
+	// CAL-V0-201: the returned allocation joins only the new verb's preimage.
+	if l.Verb == LeasePoolRelease {
+		v.Obj.Set("allocation", s(l.Allocation))
+	}
+	if l.LaneUntouched {
+		v.Obj.Set("laneUntouched", wire.Bool(true))
+		v.Obj.Set("laneUntouchedProfile", s(snapshot.ProfileLaneUntouched))
+		v.Obj.Set("acknowledgements", snapshot.LaneUntouchedAcknowledgementsValue())
+	}
+	return v, nil
+}
+
+// leaseEffect is what a lease transaction records: the receipt kind, the
+// attempt and generation it names, whether it advances the queue-wide
+// generation (an admission, TM-V0-011), and its outcome, which is a
+// recorded FENCED refusal when a stale command is refused (CAL-V0-009).
+type leaseEffect struct {
+	kind, attemptID string
+	generation      wire.Size
+	bumpHead        bool
+	outcome         string
+	codes           []string
+}
+
+type leaseOutcome struct {
+	posts  map[string][]byte
+	effect *leaseEffect
+	ticket *ticketEffect
+	detail string
+	result *Result
+	// authors is the CAL-V0-098 derivation an admitted claim applied.
+	authors *AuthorExclusion
+}
+
+type leaseContext struct {
+	r   Request
+	l   *LeaseRequest
+	in  Input
+	st  inputState
+	seq wire.Size
+	// authors is the CAL-V0-098 derivation of a fresh claim, nil without
+	// --exclude-authors.
+	authors *AuthorExclusion
+	// source is the allow-listed pair a POOL_ACQUIRE records (PSR-V0-081).
+	source *intent.PoolSource
+}
+
+var leasePlanners = map[string]func(leaseContext) leaseOutcome{
+	LeasePoolSweep:       planPoolSweep,
+	LeasePoolSweepFinish: planPoolSweepFinish,
+	LeaseSupervisor:      planSupervisor,
+	LeaseProgram:         planProgram,
+	LeasePoolSafe:        planPoolSafe,
+	LeasePoolAcquire:     planPoolAcquire,
+	LeasePoolWait:        planPoolWait,
+	LeasePoolRelease:     planPoolRelease,
+	LeasePoolOperate:     planPoolOperate,
+	LeasePoolReport:      planPoolReport,
+	LeasePoolHold:        planPoolHold,
+	LeasePoolHoldRenew:   planPoolHoldRenew,
+	LeasePoolHoldRelease: planPoolHoldRelease,
+	LeasePoolPrepare:     planPoolPrepare, LeasePoolObserve: planPoolObserve, LeasePoolCleanup: planPoolCleanup, LeasePoolRecover: planPoolRecover,
+	LeaseClaim:     planClaim,
+	LeaseClaimNext: planClaimNext,
+	LeaseHeartbeat: planHeartbeat,
+	LeaseRenew:     planRenew,
+	LeaseRelease:   planRelease,
+	LeaseReap:      planReap,
+	LeaseWiden:     planWiden,
+	LeaseSubmit:    planSubmit,
+	LeaseGateRun:   planGateRun,
+	LeaseComplete:  planComplete,
+	// ATR-V0-005: an observation-only outcome post.
+	LeaseRunOutcome: planRunOutcome,
+	// ESC-V0-010: a typed question or answer posts the ticket and its events.
+	LeaseEscalate: planEscalation,
+	LeaseAnswer:   planEscalation,
+	// PSR-V0-032..036: capacity slots.
+	LeaseSlotAcquire: planSlotAcquire,
+	LeaseSlotRelease: planSlotRelease,
+}
+
+func planLease(r Request, in Input, st inputState) leaseOutcome {
+	c := leaseContext{r: r, l: r.Lease, in: in, st: st, seq: wire.SizeOf(st.head.LastSeq.Uint64() + 1)}
+	// Current membership is a fresh-admission check, after authoritative replay.
+	if e := CheckPoolExclusions(r.Lease.Pool, r.Lease.ExcludeMembers, st.policy); e != nil {
+		return c.fail(e)
+	}
+	if a := st.attempts[r.Lease.AttemptID]; a != nil && a.Supervision != nil && r.Lease.Verb != LeaseSupervisor && r.Lease.Verb != LeaseGateRun && r.Lease.Verb != LeaseComplete {
+		return c.refuse(mutation.OutcomeBlocked, wire.CodeQuiescenceUnproved, "supervised attempt requires owned lifecycle transition")
+	}
+	return c.pruneWaitlist(c.stampQuarantine(leasePlanners[r.Lease.Verb](c)))
+}
+
+// pruneWaitlist drops the dead waitlist entries from any pools.json the
+// planned outcome posts, whichever verb wrote it, judged against the
+// attempts it posts (PSR-V0-133). A posted waitlist that is all live, or
+// empty, is left byte-identical.
+func (c leaseContext) pruneWaitlist(out leaseOutcome) leaseOutcome {
+	raw, ok := out.posts["pools.json"]
+	if !ok {
+		return out
+	}
+	state, e := snapshot.DecodePools(raw)
+	if e != nil || len(state.Waiters) == 0 {
+		return out
+	}
+	attempt := func(id string) *snapshot.Attempt {
+		if b, ok := out.posts[attemptPath(id)]; ok {
+			if a, e := snapshot.DecodeAttempt(b); e == nil {
+				return a
+			}
+		}
+		return c.st.attempts[id]
+	}
+	live := liveWaiters(state.Waiters, state, c.st.policy, c.st.tickets, attempt, c.in.RecordedAt)
+	if len(live) == len(state.Waiters) {
+		return out
+	}
+	state.Waiters = live
+	if out.posts["pools.json"], e = state.Encode(); e != nil {
+		return c.fail(e)
+	}
+	return out
+}
+
+// checkClock refuses a transaction recorded earlier than the head receipt,
+// whatever its operation, so a clock that steps backward cannot revive an
+// expired lease (CAL-V0-012).
+func checkClock(in Input, head *snapshot.Head) error {
+	if head.LastReceiptSha256 == nil || wire.Sum(in.HeadReceipt) != *head.LastReceiptSha256 {
+		return malformed("head receipt observation differs from the head")
+	}
+	rc, e := snapshot.DecodeReceipt(in.HeadReceipt)
+	if e != nil {
+		return e
+	}
+	if in.RecordedAt < rc.RecordedAt {
+		return malformed("recordedAt " + string(in.RecordedAt) + " is earlier than the head receipt's " + string(rc.RecordedAt))
+	}
+	return nil
+}
+
+func (c leaseContext) refuse(outcome, code, detail string) leaseOutcome {
+	res := refused(c.r.RequestID, outcome, code, detail)
+	return leaseOutcome{result: &res}
+}
+
+func (c leaseContext) fail(e error) leaseOutcome {
+	res := failed(c.r.RequestID, e)
+	return leaseOutcome{result: &res}
+}
+
+func (c leaseContext) unchanged() leaseOutcome {
+	res := noChange(c.r.RequestID)
+	return leaseOutcome{result: &res}
+}
+
+func (c leaseContext) named() (*snapshot.Attempt, error) {
+	a := c.st.attempts[c.l.AttemptID]
+	if a == nil {
+		return nil, malformed("unknown attempt " + c.l.AttemptID)
+	}
+	return a, nil
+}
+
+func expired(a *snapshot.Attempt, now wire.Timestamp) bool {
+	return a.Supervision == nil && a.Lease != nil && a.Lease.ExpiresAt <= now
+}
+
+func addMinutes(t wire.Timestamp, m wire.Size) wire.Timestamp {
+	at, _ := time.Parse(timestampLayout, string(t))
+	return wire.Timestamp(at.Add(time.Duration(m.Uint64()) * time.Minute).UTC().Format(timestampLayout))
+}
+
+// fenced says why a command of the request's generation can no longer take
+// effect: another generation, a terminal phase, or an expired lease
+// (CAL-V0-009, CAL-V0-010). Empty means the command may proceed. An expired
+// lease names its remedy, because no command revives it (ATR-V0-271).
+func (c leaseContext) fenced(a *snapshot.Attempt) string {
+	switch {
+	case a.Generation.Uint64() != c.l.Generation.Uint64():
+		return "generation " + string(c.l.Generation) + " is not the attempt's current generation " + string(a.Generation)
+	case !a.Live():
+		return "the attempt is " + a.Phase
+	case expired(a, c.in.RecordedAt):
+		return "the lease expired at " + string(a.Lease.ExpiresAt) + expiredRemedy
+	}
+	return ""
+}
+
+// expiredRemedy is the ATR-V0-271 recovery for every command of a generation
+// whose lease expired, including gate run after an idle gap.
+const expiredRemedy = "; no command of this generation takes effect and renew cannot revive it (CAL-V0-010): claim the ticket again, which reaps the expired lease (CAL-V0-011), then submit and run its gates at the new generation; renew or heartbeat before the lease expires to keep it through an idle gap"
+
+// recordFenced records the refusal of a stale command (TM-V0-011): the
+// receipt posts only the request entry.
+func (c leaseContext) recordFenced(a *snapshot.Attempt, detail string) leaseOutcome {
+	eff := &leaseEffect{kind: "TRANSITION", attemptID: a.AttemptID, generation: c.l.Generation, outcome: mutation.OutcomeRevisionConflict, codes: []string{wire.CodeFenced}}
+	return leaseOutcome{posts: map[string][]byte{}, effect: eff, detail: detail}
+}
+
+func attemptPath(id string) string { return "attempts/" + id + ".json" }
+
+func (c leaseContext) entries() []snapshot.ReservationEntry {
+	return append([]snapshot.ReservationEntry{}, c.st.reservations.Entries...)
+}
+
+func (c leaseContext) without(id string) []snapshot.ReservationEntry {
+	out := []snapshot.ReservationEntry{}
+	for _, e := range c.st.reservations.Entries {
+		if e.AttemptID != id {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// write posts the attempt and, when entries is non-nil, the reservation set.
+func (c leaseContext) write(a *snapshot.Attempt, entries []snapshot.ReservationEntry, kind string, bump bool) leaseOutcome {
+	raw, e := a.Encode()
+	if e != nil {
+		return c.fail(e)
+	}
+	posts := map[string][]byte{attemptPath(a.AttemptID): raw}
+	if e = c.poolPosts(a, posts); e != nil {
+		return c.fail(e)
+	}
+	if e = c.waitlistPosts(a, posts); e != nil {
+		return c.fail(e)
+	}
+	if entries != nil {
+		set := snapshot.ReservationSet{QueueID: c.st.reservations.QueueID, Entries: entries}
+		if posts["reservations.json"], e = set.Encode(); e != nil {
+			return c.fail(e)
+		}
+	}
+	eff := &leaseEffect{kind: kind, attemptID: a.AttemptID, generation: a.Generation, bumpHead: bump, outcome: mutation.OutcomeCompleted, codes: []string{}}
+	return leaseOutcome{posts: posts, effect: eff}
+}
+
+func planRenew(c leaseContext) leaseOutcome {
+	a, e := c.named()
+	if e != nil {
+		return c.fail(e)
+	}
+	if why := c.fenced(a); why != "" {
+		return c.recordFenced(a, why)
+	}
+	next := *a
+	next.Lease = &snapshot.Lease{Holder: a.Lease.Holder, GrantedSeq: c.seq, ExpiresAt: addMinutes(c.in.RecordedAt, c.l.LeaseMinutes)}
+	// CAL-V0-231: a renew by the current holder at the current generation is
+	// also a liveness signal, so it records lastHeartbeatAt like a heartbeat.
+	at := c.in.RecordedAt
+	next.LastHeartbeatAt = &at
+	return c.write(&next, nil, "TRANSITION", false)
+}
+
+func planRelease(c leaseContext) leaseOutcome {
+	a, e := c.named()
+	if e != nil {
+		return c.fail(e)
+	}
+	if why := c.fenced(a); why != "" {
+		return c.recordFenced(a, why)
+	}
+	if c.l.LaneUntouched {
+		if err := c.verifyLaneUntouched(a); err != nil {
+			return c.fail(err)
+		}
+	}
+	next := *a
+	if c.l.LaneUntouched {
+		next.LaneUntouchedAttestation = &snapshot.LaneUntouchedAttestation{DirectPoolAdmission: *a.DirectPoolAdmission, ActorID: c.r.Actor.ID, ActorRole: c.r.Actor.Role, Evidence: c.l.Evidence, RecordedSeq: c.seq, RecordedAt: c.in.RecordedAt}
+	}
+	if c.l.Reason == wire.CodeHandoff || c.l.Reason == wire.CodeReviewReturned {
+		if refusal := c.verifyHandoff(a); refusal != nil {
+			return *refusal
+		}
+		if err := snapshot.CheckHandoffTarget("handoffReason", c.l.Reason, a.Stage, c.l.HandoffTo, c.l.HandoffReason); err != nil {
+			return c.fail(err)
+		}
+		accounting := *a.RetryAccounting
+		accounting.Disposition = c.l.Reason
+		next.RetryAccounting = &accounting
+		next.HandoffEvidence = c.l.Evidence
+		next.HandoffTo, next.HandoffReason = c.l.HandoffTo, c.l.HandoffReason
+	}
+	next.Phase, next.PhaseSinceSeq, next.Quiescence, next.Cause = "CANCELLED", c.seq, "FENCED", nil
+	if c.l.Reason != "" {
+		reason := c.l.Reason
+		next.Cause = &reason
+	}
+	return c.write(&next, c.without(a.AttemptID), "TRANSITION", false)
+}
+
+// expiredAll lists every live attempt whose lease has expired, in
+// reservation-entry order.
+func (c leaseContext) expiredAll() []ExpiredLease {
+	out := []ExpiredLease{}
+	for _, en := range c.st.reservations.Entries {
+		if expired(c.st.attempts[en.AttemptID], c.in.RecordedAt) {
+			out = append(out, ExpiredLease{AttemptID: en.AttemptID, Generation: en.Generation})
+		}
+	}
+	return out
+}
+
+// planReap without an attempt surveys the expired leases and writes nothing;
+// the caller reaps each one in its own transaction (CAL-V0-011).
+func planReap(c leaseContext) leaseOutcome {
+	if c.l.AttemptID == "" {
+		out := c.unchanged()
+		out.result.Expired = c.expiredAll()
+		return out
+	}
+	a, e := c.named()
+	if e != nil {
+		return c.fail(e)
+	}
+	if !a.Live() {
+		return c.unchanged()
+	}
+	if a.Generation.Uint64() != c.l.Generation.Uint64() {
+		return c.refuse(mutation.OutcomeRevisionConflict, wire.CodeFenced, "generation "+string(c.l.Generation)+" is not the attempt's current generation "+string(a.Generation))
+	}
+	if c.l.LeaseExpiresAt != "" && (a.Lease == nil || a.Lease.ExpiresAt != c.l.LeaseExpiresAt) {
+		now := "no lease"
+		if a.Lease != nil {
+			now = "a lease until " + string(a.Lease.ExpiresAt)
+		}
+		return c.refuse(mutation.OutcomeRevisionConflict, wire.CodeFenced, "the attempt now has "+now+", not the observed lease until "+string(c.l.LeaseExpiresAt))
+	}
+	if !expired(a, c.in.RecordedAt) {
+		return c.refuse(mutation.OutcomeBlocked, wire.CodeAttemptLive, "the lease is live until "+string(a.Lease.ExpiresAt))
+	}
+	cause := snapshot.CauseLeaseExpired
+	next := *a
+	next.Phase, next.PhaseSinceSeq, next.Quiescence, next.Cause = "FAILED", c.seq, "FENCED", &cause
+	return c.write(&next, c.without(a.AttemptID), "TRANSITION", false)
+}
+
+func sameResources(a, b []ticket.Resource) bool {
+	x, e1 := snapshot.ResourcesValue("", a)
+	y, e2 := snapshot.ResourcesValue("", b)
+	return e1 == nil && e2 == nil && bytes.Equal(wire.EncodeFile(x), wire.EncodeFile(y))
+}
+
+// entryOracle answers attempt liveness from the reservation set: an entry
+// exists exactly for each live attempt (validateInput).
+type entryOracle struct {
+	set *snapshot.ReservationSet
+	// describe, when set, names a live attempt for a refusal (ATR-V0-190).
+	describe func(snapshot.ReservationEntry) string
+}
+
+// DescribeLiveAttempt names the ticket's live attempt, its holder, holder
+// status and recovery command, or "" when none or no describer is set.
+func (o entryOracle) DescribeLiveAttempt(id string) string {
+	if o.set == nil || o.describe == nil {
+		return ""
+	}
+	for _, e := range o.set.Entries {
+		if e.TicketID.Raw == id {
+			return o.describe(e)
+		}
+	}
+	return ""
+}
+
+// oracle is the lease context's attempt oracle with an ATR-V0-190 describer.
+func (c leaseContext) oracle() entryOracle {
+	ttl := c.st.policy.HeartbeatTTLSeconds()
+	return entryOracle{set: c.st.reservations, describe: func(en snapshot.ReservationEntry) string {
+		return SummarizeAttempt(en, c.st.attempts[en.AttemptID], c.in.RecordedAt, ttl).Detail()
+	}}
+}
+
+func (o entryOracle) LiveAttempt(id string) ticket.Observation {
+	if o.set == nil {
+		return ticket.Unsatisfied
+	}
+	for _, e := range o.set.Entries {
+		if e.TicketID.Raw == id {
+			return ticket.Satisfied
+		}
+	}
+	return ticket.Unsatisfied
+}
+
+// planHeartbeat records a signal without changing work-lease or admission state.
+func planHeartbeat(c leaseContext) leaseOutcome {
+	a, e := c.named()
+	if e != nil {
+		return c.fail(e)
+	}
+	if why := c.fenced(a); why != "" {
+		return c.recordFenced(a, why)
+	}
+	if a.Lease == nil {
+		return c.refuse(mutation.OutcomeBlocked, wire.CodeTicketState, "heartbeat requires a work lease")
+	}
+	next := *a
+	at := c.in.RecordedAt
+	next.LastHeartbeatAt = &at
+	return c.write(&next, nil, "TRANSITION", false)
+}

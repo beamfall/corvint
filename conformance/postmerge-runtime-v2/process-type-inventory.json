@@ -1,0 +1,904 @@
+{
+  "constructor": "postmergeproof.VerifyProcessV2 concrete function; no injected interface or exported bool/map token constructor",
+  "owner": "internal/postmergeproof",
+  "qualification": "NOT_OBSERVED_CURRENT_SAMPLES_UNSUPPORTED",
+  "schemaRoots": [
+    "ProcessPolicyV2",
+    "ProcessProofV2",
+    "GraphBindingV2",
+    "InvocationV2",
+    "TrustedStartV2",
+    "AbsenceSweepDocumentV2"
+  ],
+  "status": "PRIVATE_CLOSED_GO_CONTRACT_NOT_COMPILED",
+  "types": {
+    "AbsenceSweepDocumentV2": [
+      {
+        "go": "Profile",
+        "type": "string",
+        "wire": "profile"
+      },
+      {
+        "go": "ExecutionID",
+        "type": "string",
+        "wire": "execution_id"
+      },
+      {
+        "go": "BootIDBytes",
+        "type": "[]byte",
+        "wire": "boot_id_bytes"
+      },
+      {
+        "go": "NamespaceLinkBytes",
+        "type": "[]byte",
+        "wire": "namespace_link_bytes"
+      },
+      {
+        "go": "PIDDirectoryBytes",
+        "type": "[]byte",
+        "wire": "pid_directory_bytes"
+      },
+      {
+        "go": "Processes",
+        "type": "[]SweepProcessV2",
+        "wire": "processes"
+      },
+      {
+        "go": "ReadFailures",
+        "type": "[]string",
+        "wire": "read_failures"
+      }
+    ],
+    "AbsenceSweepV2": [
+      {
+        "go": "ObserverInvocation",
+        "type": "ArtifactRefV2",
+        "wire": "observer_invocation"
+      },
+      {
+        "go": "ObserverStdout",
+        "type": "ArtifactRefV2",
+        "wire": "observer_stdout"
+      },
+      {
+        "go": "BootIDBytes",
+        "type": "[]byte",
+        "wire": "boot_id_bytes"
+      },
+      {
+        "go": "NamespaceLinkBytes",
+        "type": "[]byte",
+        "wire": "namespace_link_bytes"
+      },
+      {
+        "go": "PIDDirectoryBytes",
+        "type": "[]byte",
+        "wire": "pid_directory_bytes"
+      },
+      {
+        "go": "Processes",
+        "type": "[]SweepProcessV2",
+        "wire": "processes"
+      },
+      {
+        "go": "ReadFailures",
+        "type": "[]string",
+        "wire": "read_failures"
+      }
+    ],
+    "ArtifactRefV2": [
+      {
+        "go": "ID",
+        "type": "string",
+        "wire": "id"
+      },
+      {
+        "go": "SHA256",
+        "type": "string",
+        "wire": "sha256"
+      },
+      {
+        "go": "Bytes",
+        "type": "int64",
+        "wire": "bytes"
+      }
+    ],
+    "CleanupFactsV2": [
+      {
+        "go": "OwnedGroup",
+        "type": "bool",
+        "wire": "owned_group"
+      },
+      {
+        "go": "Status",
+        "type": "string",
+        "wire": "status"
+      },
+      {
+        "go": "DerivedState",
+        "type": "string",
+        "wire": "derived_state"
+      },
+      {
+        "go": "DescendantsPresent",
+        "type": "bool",
+        "wire": "descendants_present"
+      },
+      {
+        "go": "Absent",
+        "type": "bool",
+        "wire": "absent"
+      },
+      {
+        "go": "Qualification",
+        "type": "string",
+        "wire": "qualification"
+      },
+      {
+        "go": "Cancelled",
+        "type": "bool",
+        "wire": "cancelled"
+      },
+      {
+        "go": "TimedOut",
+        "type": "bool",
+        "wire": "timed_out"
+      },
+      {
+        "go": "Scope",
+        "type": "string",
+        "wire": "scope"
+      },
+      {
+        "go": "IntervalMS",
+        "type": "int",
+        "wire": "interval_ms"
+      },
+      {
+        "go": "Failures",
+        "type": "[]string",
+        "wire": "failures"
+      },
+      {
+        "go": "Limitations",
+        "type": "[]string",
+        "wire": "limitations"
+      }
+    ],
+    "CleanupJoinV2": [
+      {
+        "go": "ArtifactID",
+        "type": "string",
+        "wire": "artifact_id"
+      },
+      {
+        "go": "Pointer",
+        "type": "string",
+        "wire": "pointer"
+      },
+      {
+        "go": "ContextIndex",
+        "type": "int",
+        "wire": "context_index"
+      },
+      {
+        "go": "Facts",
+        "type": "CleanupFactsV2",
+        "wire": "facts"
+      }
+    ],
+    "EnvironmentV2": [
+      {
+        "go": "Key",
+        "type": "string",
+        "wire": "key"
+      },
+      {
+        "go": "Value",
+        "type": "string",
+        "wire": "value"
+      }
+    ],
+    "GraphBindingV2": [
+      {
+        "go": "Profile",
+        "type": "string",
+        "wire": "profile"
+      },
+      {
+        "go": "ExecutionID",
+        "type": "string",
+        "wire": "execution_id"
+      },
+      {
+        "go": "Request",
+        "type": "ArtifactRefV2",
+        "wire": "request"
+      },
+      {
+        "go": "Report",
+        "type": "ArtifactRefV2",
+        "wire": "report"
+      },
+      {
+        "go": "ProductCommit",
+        "type": "string",
+        "wire": "product_commit"
+      },
+      {
+        "go": "TestCommit",
+        "type": "string",
+        "wire": "test_commit"
+      },
+      {
+        "go": "DraftCommit",
+        "type": "string",
+        "wire": "draft_commit"
+      },
+      {
+        "go": "Sources",
+        "type": "[]SourceBindingV2",
+        "wire": "sources"
+      },
+      {
+        "go": "Contexts",
+        "type": "[]RunContextV2",
+        "wire": "contexts"
+      }
+    ],
+    "HostTupleV2": [
+      {
+        "go": "OS",
+        "type": "string",
+        "wire": "os"
+      },
+      {
+        "go": "Architecture",
+        "type": "string",
+        "wire": "architecture"
+      },
+      {
+        "go": "KernelRelease",
+        "type": "string",
+        "wire": "kernel_release"
+      },
+      {
+        "go": "ImageManifestSHA256",
+        "type": "string",
+        "wire": "image_manifest_sha256"
+      },
+      {
+        "go": "LauncherPolicySHA256",
+        "type": "string",
+        "wire": "launcher_policy_sha256"
+      }
+    ],
+    "ImplementationV2": [
+      {
+        "go": "SourceCommit",
+        "type": "string",
+        "wire": "source_commit"
+      },
+      {
+        "go": "SourceTree",
+        "type": "string",
+        "wire": "source_tree"
+      },
+      {
+        "go": "VerifierSHA256",
+        "type": "string",
+        "wire": "verifier_sha256"
+      },
+      {
+        "go": "ObserverSHA256",
+        "type": "string",
+        "wire": "observer_sha256"
+      },
+      {
+        "go": "SupervisorSHA256",
+        "type": "string",
+        "wire": "supervisor_sha256"
+      }
+    ],
+    "InvocationV2": [
+      {
+        "go": "Profile",
+        "type": "string",
+        "wire": "profile"
+      },
+      {
+        "go": "ExecutionID",
+        "type": "string",
+        "wire": "execution_id"
+      },
+      {
+        "go": "Purpose",
+        "type": "string",
+        "wire": "purpose"
+      },
+      {
+        "go": "Executable",
+        "type": "ArtifactRefV2",
+        "wire": "executable"
+      },
+      {
+        "go": "Argv",
+        "type": "[]string",
+        "wire": "argv"
+      },
+      {
+        "go": "Environment",
+        "type": "[]EnvironmentV2",
+        "wire": "environment"
+      },
+      {
+        "go": "StdinSHA256",
+        "type": "string",
+        "wire": "stdin_sha256"
+      },
+      {
+        "go": "ContextIndex",
+        "type": "int",
+        "wire": "context_index"
+      },
+      {
+        "go": "LaunchIndex",
+        "type": "int",
+        "wire": "launch_index"
+      }
+    ],
+    "LogicalProcessV2": [
+      {
+        "go": "Node",
+        "type": "string",
+        "wire": "node"
+      },
+      {
+        "go": "Role",
+        "type": "string",
+        "wire": "role"
+      },
+      {
+        "go": "RunKind",
+        "type": "string",
+        "wire": "run_kind"
+      },
+      {
+        "go": "RunOrdinal",
+        "type": "int",
+        "wire": "run_ordinal"
+      },
+      {
+        "go": "Parent",
+        "type": "*string",
+        "wire": "parent"
+      },
+      {
+        "go": "State",
+        "type": "string",
+        "wire": "state"
+      },
+      {
+        "go": "BirthDistinctFrom",
+        "type": "[]string",
+        "wire": "birth_distinct_from"
+      }
+    ],
+    "NativeProcessReferenceV2": [
+      {
+        "go": "ArtifactID",
+        "type": "string",
+        "wire": "artifact_id"
+      },
+      {
+        "go": "Pointer",
+        "type": "string",
+        "wire": "pointer"
+      },
+      {
+        "go": "Kind",
+        "type": "string",
+        "wire": "kind"
+      },
+      {
+        "go": "ContextIndex",
+        "type": "int",
+        "wire": "context_index"
+      },
+      {
+        "go": "CaptureIndex",
+        "type": "int",
+        "wire": "capture_index"
+      }
+    ],
+    "ObservationPolicyV2": [
+      {
+        "go": "Profile",
+        "type": "string",
+        "wire": "profile"
+      },
+      {
+        "go": "Scope",
+        "type": "string",
+        "wire": "scope"
+      },
+      {
+        "go": "TargetIntervalMS",
+        "type": "int",
+        "wire": "target_interval_ms"
+      },
+      {
+        "go": "CaptureLimit",
+        "type": "int",
+        "wire": "capture_limit"
+      },
+      {
+        "go": "ProcessLimit",
+        "type": "int",
+        "wire": "process_limit"
+      },
+      {
+        "go": "RequirePairedStat",
+        "type": "bool",
+        "wire": "require_paired_stat"
+      },
+      {
+        "go": "RequireFinalIndependentSweep",
+        "type": "bool",
+        "wire": "require_final_independent_sweep"
+      },
+      {
+        "go": "Limitations",
+        "type": "[]string",
+        "wire": "limitations"
+      }
+    ],
+    "OwnedLaunchV2": [
+      {
+        "go": "Index",
+        "type": "int",
+        "wire": "index"
+      },
+      {
+        "go": "ContextIndex",
+        "type": "int",
+        "wire": "context_index"
+      },
+      {
+        "go": "Purpose",
+        "type": "string",
+        "wire": "purpose"
+      },
+      {
+        "go": "Invocation",
+        "type": "ArtifactRefV2",
+        "wire": "invocation"
+      },
+      {
+        "go": "Stdin",
+        "type": "ArtifactRefV2",
+        "wire": "stdin"
+      },
+      {
+        "go": "ParentCaptureIndex",
+        "type": "*int",
+        "wire": "parent_capture_index"
+      },
+      {
+        "go": "StartCaptureIndex",
+        "type": "int",
+        "wire": "start_capture_index"
+      },
+      {
+        "go": "ExecutedCaptureIndex",
+        "type": "int",
+        "wire": "executed_capture_index"
+      },
+      {
+        "go": "RetirementCaptureIndex",
+        "type": "*int",
+        "wire": "retirement_capture_index"
+      },
+      {
+        "go": "Completed",
+        "type": "bool",
+        "wire": "completed"
+      },
+      {
+        "go": "Cancelled",
+        "type": "bool",
+        "wire": "cancelled"
+      },
+      {
+        "go": "TimedOut",
+        "type": "bool",
+        "wire": "timed_out"
+      }
+    ],
+    "ProcCaptureV2": [
+      {
+        "go": "Index",
+        "type": "int",
+        "wire": "index"
+      },
+      {
+        "go": "Phase",
+        "type": "string",
+        "wire": "phase"
+      },
+      {
+        "go": "BootIDBytes",
+        "type": "[]byte",
+        "wire": "boot_id_bytes"
+      },
+      {
+        "go": "NamespaceLinkBytes",
+        "type": "[]byte",
+        "wire": "namespace_link_bytes"
+      },
+      {
+        "go": "NamespaceDevice",
+        "type": "uint64",
+        "wire": "namespace_device"
+      },
+      {
+        "go": "NamespaceInode",
+        "type": "uint64",
+        "wire": "namespace_inode"
+      },
+      {
+        "go": "StatBefore",
+        "type": "[]byte",
+        "wire": "stat_before"
+      },
+      {
+        "go": "Cmdline",
+        "type": "[]byte",
+        "wire": "cmdline"
+      },
+      {
+        "go": "CmdlineAfter",
+        "type": "[]byte",
+        "wire": "cmdline_after"
+      },
+      {
+        "go": "ExecutableLinkBytes",
+        "type": "[]byte",
+        "wire": "executable_link_bytes"
+      },
+      {
+        "go": "ExecutableLinkAfterBytes",
+        "type": "[]byte",
+        "wire": "executable_link_after_bytes"
+      },
+      {
+        "go": "Executable",
+        "type": "ArtifactRefV2",
+        "wire": "executable"
+      },
+      {
+        "go": "ExecutableAfter",
+        "type": "ArtifactRefV2",
+        "wire": "executable_after"
+      },
+      {
+        "go": "StatAfter",
+        "type": "[]byte",
+        "wire": "stat_after"
+      },
+      {
+        "go": "NativeStartOutput",
+        "type": "[]byte",
+        "wire": "native_start_output"
+      },
+      {
+        "go": "NativeStartTool",
+        "type": "ArtifactRefV2",
+        "wire": "native_start_tool"
+      },
+      {
+        "go": "ExitCode",
+        "type": "*int",
+        "wire": "exit_code"
+      },
+      {
+        "go": "ExitSignal",
+        "type": "*int",
+        "wire": "exit_signal"
+      }
+    ],
+    "ProcessPolicyV2": [
+      {
+        "go": "Profile",
+        "type": "string",
+        "wire": "profile"
+      },
+      {
+        "go": "Implementation",
+        "type": "ImplementationV2",
+        "wire": "implementation"
+      },
+      {
+        "go": "Host",
+        "type": "HostTupleV2",
+        "wire": "host"
+      },
+      {
+        "go": "Rules",
+        "type": "[]RoleRuleV2",
+        "wire": "rules"
+      },
+      {
+        "go": "Observation",
+        "type": "ObservationPolicyV2",
+        "wire": "observation"
+      }
+    ],
+    "ProcessProofV2": [
+      {
+        "go": "Profile",
+        "type": "string",
+        "wire": "profile"
+      },
+      {
+        "go": "ExecutionID",
+        "type": "string",
+        "wire": "execution_id"
+      },
+      {
+        "go": "PolicySHA256",
+        "type": "string",
+        "wire": "policy_sha256"
+      },
+      {
+        "go": "GraphBindingSHA256",
+        "type": "string",
+        "wire": "graph_binding_sha256"
+      },
+      {
+        "go": "TrustedStartInvocation",
+        "type": "ArtifactRefV2",
+        "wire": "trusted_start_invocation"
+      },
+      {
+        "go": "TrustedStartStdout",
+        "type": "ArtifactRefV2",
+        "wire": "trusted_start_stdout"
+      },
+      {
+        "go": "Captures",
+        "type": "[]ProcCaptureV2",
+        "wire": "captures"
+      },
+      {
+        "go": "Launches",
+        "type": "[]OwnedLaunchV2",
+        "wire": "launches"
+      },
+      {
+        "go": "NativeReferences",
+        "type": "[]NativeProcessReferenceV2",
+        "wire": "native_references"
+      },
+      {
+        "go": "FinalSweep",
+        "type": "AbsenceSweepV2",
+        "wire": "final_sweep"
+      },
+      {
+        "go": "Cleanup",
+        "type": "[]CleanupJoinV2",
+        "wire": "cleanup"
+      }
+    ],
+    "ProcessQualificationV2": [
+      {
+        "go": "Profile",
+        "type": "string",
+        "wire": "profile"
+      },
+      {
+        "go": "PolicySHA256",
+        "type": "string",
+        "wire": "policy_sha256"
+      },
+      {
+        "go": "Implementation",
+        "type": "ImplementationV2",
+        "wire": "implementation"
+      },
+      {
+        "go": "Host",
+        "type": "HostTupleV2",
+        "wire": "host"
+      },
+      {
+        "go": "Cases",
+        "type": "[]QualificationCaseV2",
+        "wire": "cases"
+      },
+      {
+        "go": "Limitations",
+        "type": "[]string",
+        "wire": "limitations"
+      }
+    ],
+    "QualificationCaseV2": [
+      {
+        "go": "ID",
+        "type": "string",
+        "wire": "id"
+      },
+      {
+        "go": "GraphBindings",
+        "type": "[]ArtifactRefV2",
+        "wire": "graph_bindings"
+      },
+      {
+        "go": "Policy",
+        "type": "ArtifactRefV2",
+        "wire": "policy"
+      },
+      {
+        "go": "Proofs",
+        "type": "[]ArtifactRefV2",
+        "wire": "proofs"
+      },
+      {
+        "go": "HarnessInvocation",
+        "type": "ArtifactRefV2",
+        "wire": "harness_invocation"
+      },
+      {
+        "go": "HarnessStdout",
+        "type": "ArtifactRefV2",
+        "wire": "harness_stdout"
+      }
+    ],
+    "RoleRuleV2": [
+      {
+        "go": "Role",
+        "type": "string",
+        "wire": "role"
+      },
+      {
+        "go": "Derivation",
+        "type": "string",
+        "wire": "derivation"
+      },
+      {
+        "go": "Executable",
+        "type": "ArtifactRefV2",
+        "wire": "executable"
+      },
+      {
+        "go": "LaunchPurpose",
+        "type": "string",
+        "wire": "launch_purpose"
+      },
+      {
+        "go": "ParentRole",
+        "type": "string",
+        "wire": "parent_role"
+      },
+      {
+        "go": "Slot",
+        "type": "string",
+        "wire": "slot"
+      },
+      {
+        "go": "RequiredSwitches",
+        "type": "[]string",
+        "wire": "required_switches"
+      },
+      {
+        "go": "ForbiddenSwitches",
+        "type": "[]string",
+        "wire": "forbidden_switches"
+      }
+    ],
+    "RunContextV2": [
+      {
+        "go": "RunIndex",
+        "type": "*int",
+        "wire": "run_index"
+      },
+      {
+        "go": "RunKind",
+        "type": "string",
+        "wire": "run_kind"
+      },
+      {
+        "go": "RunOrdinal",
+        "type": "int",
+        "wire": "run_ordinal"
+      },
+      {
+        "go": "TestIDs",
+        "type": "[]string",
+        "wire": "test_ids"
+      },
+      {
+        "go": "ControlIndex",
+        "type": "*int",
+        "wire": "control_index"
+      },
+      {
+        "go": "ControlOrdinal",
+        "type": "*int",
+        "wire": "control_ordinal"
+      },
+      {
+        "go": "AttemptOrdinal",
+        "type": "*int",
+        "wire": "attempt_ordinal"
+      }
+    ],
+    "SourceBindingV2": [
+      {
+        "go": "Kind",
+        "type": "string",
+        "wire": "kind"
+      },
+      {
+        "go": "Artifact",
+        "type": "ArtifactRefV2",
+        "wire": "artifact"
+      }
+    ],
+    "SweepProcessV2": [
+      {
+        "go": "PID",
+        "type": "int",
+        "wire": "pid"
+      },
+      {
+        "go": "StatBytes",
+        "type": "[]byte",
+        "wire": "stat_bytes"
+      }
+    ],
+    "TrustedStartV2": [
+      {
+        "go": "Profile",
+        "type": "string",
+        "wire": "profile"
+      },
+      {
+        "go": "ExecutionID",
+        "type": "string",
+        "wire": "execution_id"
+      },
+      {
+        "go": "PolicySHA256",
+        "type": "string",
+        "wire": "policy_sha256"
+      },
+      {
+        "go": "RequestSHA256",
+        "type": "string",
+        "wire": "request_sha256"
+      },
+      {
+        "go": "SupervisorSHA256",
+        "type": "string",
+        "wire": "supervisor_sha256"
+      },
+      {
+        "go": "ObserverSHA256",
+        "type": "string",
+        "wire": "observer_sha256"
+      },
+      {
+        "go": "HostTupleSHA256",
+        "type": "string",
+        "wire": "host_tuple_sha256"
+      },
+      {
+        "go": "RootCaptureIndex",
+        "type": "int",
+        "wire": "root_capture_index"
+      }
+    ]
+  }
+}

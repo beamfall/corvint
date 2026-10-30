@@ -1,0 +1,730 @@
+package typescript
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+
+	"github.com/Beamfall/corvint/internal/liveverify/affected"
+)
+
+func TestOwnsOnlyDeclaredSourceExtensions(t *testing.T) {
+	language := New()
+	for _, relative := range []string{"a.ts", "a.tsx", "a.js", "a.jsx", "a.mjs", "a.cjs"} {
+		if !language.Owns(relative) {
+			t.Fatalf("%s should be owned", relative)
+		}
+	}
+	for _, relative := range []string{"a.mts", "a.cts", "a.json", "a.feature", "flow.yaml", "story.mdx", "a.py"} {
+		if language.Owns(relative) {
+			t.Fatalf("%s must remain unowned", relative)
+		}
+	}
+}
+
+func TestScanImportsReadsStaticFormsAndFlagsComputedLoading(t *testing.T) {
+	refs, dynamic, err := scanImports("", `
+import value from "./value";
+import type { Kind } from './kind';
+export { other } from "./other.js";
+const common = require("./common.cjs");
+const lazy = import("./lazy.mjs");
+const unknown = import(target);
+// import "./forged";
+const text = "require('./also-forged')";
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"./common.cjs", "./kind", "./other.js", "./value"}
+	if strings.Join(refs, " ") != strings.Join(want, " ") {
+		t.Fatalf("refs=%v want=%v", refs, want)
+	}
+	if !dynamic {
+		t.Fatal("computed import did not raise the dynamic flag")
+	}
+}
+
+// TJAA-V0-034: import types and literal text are not computed loading; runtime calls still are.
+func TestScanImportsSeparatesImportTypesAndLiteralTextFromDynamicImports(t *testing.T) {
+	static := map[string]string{
+		"type position": "import type { Page } from '@playwright/test';\nexport class Login { constructor(readonly page: import('@playwright/test').Page) {} }\nlet pages: import(\"./pages\").Page[] = []",
+		"typeof alias":  "type Module = typeof import('./module');\nconst k: Map<string, import('./kind').Kind> = new Map()",
+		"literal text":  "const a = 'import (x)'; const b = \"import('./y')\"; const c = `await import(\"./z\")`; const d = /import\\(/",
+		"member call":   "loader.import('./x'); const reimport = 1",
+		"division":      "import a from './a';\nconst half = (a + 1) / 2 / 3; const s = total / 2; const t = x.return / 2 / 'import(y)'.length",
+		"keyword regex": "import a from './a';\nconst f = () => /\"/; function g() { return /'/ } const h = typeof /`/",
+	}
+	for name, body := range static {
+		if refs, dynamic, err := scanImports("pages/login.ts", body); err != nil || dynamic {
+			t.Fatalf("%s: refs=%v dynamic=%v err=%v", name, refs, dynamic, err)
+		}
+	}
+	if refs, dynamic, err := scanImports("pages/view.tsx", "import a from './a';\nconst v = <><p>{a}</p><A b={a} /><B c={a} /></>"); err != nil || dynamic || !slices.Equal(refs, []string{"./a"}) {
+		t.Fatalf("JSX tag slashes are not ambiguous: refs=%v dynamic=%v err=%v", refs, dynamic, err)
+	}
+	if refs, _, _ := scanImports("pages/login.ts", static["type position"]); !slices.Equal(refs, []string{"./pages", "@playwright/test"}) {
+		t.Fatalf("import-type specifiers must stay static references: %v", refs)
+	}
+	dynamicBodies := []string{
+		"const m = import('./x')",
+		"const m = await import('./x').Page",
+		"import('./x').then(run)",
+		"const p = import('./x').default()",
+		"const p = `${import('./x')}`",
+		"const p = import(name).Page",
+		"const p = import('./' + name)",
+		// A regular expression after `=>` or a keyword must not open a string that hides the import (TJAA-V0-034).
+		"const before = () => /\"/; const pending = import('./lazy'); const after = () => /\"/;",
+		"function f() { return /\"/ }\nconst pending = import('./lazy');\nfunction g() { return /\"/ }",
+		"switch (k) { case /'/: break } const pending = import('./lazy'); typeof /'/",
+	}
+	for _, body := range dynamicBodies {
+		if _, dynamic, err := scanImports("spec/a.ts", body); err != nil || !dynamic {
+			t.Fatalf("%q must stay computed loading: dynamic=%v err=%v", body, dynamic, err)
+		}
+	}
+	// An ambiguous slash that could hide loading keeps its own scan-unresolved frontier
+	// (TJAA-V0-034, TJAA-V0-038).
+	for _, body := range []string{
+		"if (x) /\"/.test(y); const pending = import('./lazy'); if (x) /\"/.test(y)",
+		"if (x) /'/.test(y); const u = '//'; import('./lazy')",
+		"if (x) /'/.test(y); const u = '//'; const m = require('./lazy')",
+		"if (x) /'/.test(y); const u = '//'; import a from './lazy'",
+	} {
+		if scan := scanImportSites("spec/a.ts", body); scan.err != nil || scan.dynamic >= 0 || scan.unresolved != strings.Index(body, "/") {
+			t.Fatalf("%q must stay scan-unresolved at its first slash: %+v", body, scan)
+		}
+	}
+	if _, dynamic, _ := scanImports("spec/a.js", "const p = import('./x').Page"); !dynamic {
+		t.Fatal("JavaScript has no import types, so a member read stays a runtime import")
+	}
+}
+
+func TestDynamicImportWithCommentBeforeParenthesisRaisesFrontier(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
+	write(t, root, "vitest.config.ts", `export default {}`)
+	write(t, root, "src/lazy.ts", `export const value = 1`)
+	write(t, root, "src/lazy.test.ts", `import { test } from "vitest"; test("lazy", async () => { await import /* chunk */ ("./lazy") })`)
+	result, err := New().Units(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertFrontier(t, result, FrontierDynamicImport)
+}
+
+func TestUnitsDetectsEverySupportedRunnerFromImportsOrConfiguration(t *testing.T) {
+	cases := []struct {
+		name     string
+		manifest string
+		config   string
+		path     string
+		body     string
+		runner   string
+	}{
+		{name: "vitest", manifest: `{"devDependencies":{"vitest":"1"}}`, path: "tests/a.test.ts", body: `import { test } from "vitest"`, runner: runnerVitest},
+		{name: "jest", manifest: `{"devDependencies":{"jest":"1"}}`, path: "tests/a.test.js", body: `import { test } from "@jest/globals"`, runner: runnerJest},
+		{name: "node", path: "checks/a.js", body: `import test from "node:test"`, runner: runnerNode},
+		{name: "playwright", path: "e2e/login.spec.ts", body: `import { test } from "@playwright/test"`, runner: runnerPlaywright},
+		{name: "bun", path: "tests/a.ts", body: `import { test } from "bun:test"`, runner: runnerBun},
+		{name: "deno", path: "tests/a.ts", body: `Deno.test("a", () => {})`, runner: runnerDeno},
+		{name: "cypress config membership", config: "cypress.config.ts", path: "cypress/e2e/login.ts", body: `describe("login", () => {})`, runner: runnerCypress},
+		{name: "webdriverio", path: "e2e/login.ts", body: `import { browser } from "@wdio/globals"`, runner: runnerWebdriverIO},
+		{name: "testcafe", path: "e2e/login.ts", body: `import { Selector } from "testcafe"`, runner: runnerTestCafe},
+		{name: "nightwatch config membership", config: "nightwatch.conf.js", path: "e2e/login.js", body: `module.exports = { Login() {} }`, runner: runnerNightwatch},
+		{name: "detox", path: "e2e/login.js", body: `import { device } from "detox"`, runner: runnerDetox},
+		{name: "storybook vitest", path: "src/button.stories.ts", body: `import { storybookTest } from "@storybook/addon-vitest/vitest-plugin"`, runner: runnerStorybookVitest},
+	}
+	for _, testCase := range cases {
+		t.Run(testCase.name, func(t *testing.T) {
+			root := t.TempDir()
+			if testCase.manifest != "" {
+				write(t, root, "package.json", testCase.manifest)
+			}
+			if testCase.config != "" {
+				write(t, root, testCase.config, "export default {}\n")
+			}
+			write(t, root, testCase.path, testCase.body)
+			result, err := New().Units(context.Background(), root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			unit := testUnit(result, testCase.path)
+			if unit.ID != unitID(testCase.runner, testCase.path) {
+				t.Fatalf("id=%s want=%s frontier=%v", unit.ID, unitID(testCase.runner, testCase.path), result.Frontier)
+			}
+		})
+	}
+}
+
+func TestPuppeteerUsesItsHostRunnerAndUnknownWithoutOne(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"devDependencies":{"puppeteer":"1","jest":"1"}}`)
+	write(t, root, "e2e/hosted.test.js", `import { test } from "@jest/globals"; import puppeteer from "puppeteer"`)
+	write(t, root, "e2e/script.js", `import puppeteer from "puppeteer"`)
+	result, err := New().Units(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := testUnit(result, "e2e/hosted.test.js").ID; got != unitID(runnerJest, "e2e/hosted.test.js") {
+		t.Fatalf("hosted id=%s", got)
+	}
+	if got := testUnit(result, "e2e/script.js").ID; got != unitID(runnerUnknown, "e2e/script.js") {
+		t.Fatalf("script id=%s", got)
+	}
+	assertFrontier(t, result, FrontierPuppeteerHost)
+}
+
+func TestPackageScriptsDoNotAssignRunnerOwnership(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"scripts":{"test":"vitest run"}}`)
+	write(t, root, "tests/orphan.test.ts", `test("a", () => {})`)
+	result, err := New().Units(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := testUnit(result, "tests/orphan.test.ts").ID; got != unitID(runnerUnknown, "tests/orphan.test.ts") {
+		t.Fatalf("id=%s frontier=%v", got, result.Frontier)
+	}
+	assertFrontier(t, result, FrontierUnknownRunner)
+}
+
+func TestFilenameWithoutRunnerEvidenceIsDiscoveredAsUnknown(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "tests/orphan.test.ts", `test("orphan", () => {})`)
+	result, err := New().Units(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := testUnit(result, "tests/orphan.test.ts").ID; got != unitID(runnerUnknown, "tests/orphan.test.ts") {
+		t.Fatalf("id=%s", got)
+	}
+	assertFrontier(t, result, FrontierUnknownRunner)
+}
+
+func TestTopLevelTestDirectoryWithoutRunnerEvidenceIsDiscoveredAsUnknown(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "src/value.js", `export const value = 1`)
+	write(t, root, "test/value.js", `import { value } from "../src/value.js"; test("value", () => value)`)
+	result, err := New().Units(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := testUnit(result, "test/value.js").ID; got != unitID(runnerUnknown, "test/value.js") {
+		t.Fatalf("id=%s frontier=%v", got, result.Frontier)
+	}
+	assertFrontier(t, result, FrontierUnknownRunner)
+	graph, err := affected.Build(context.Background(), root, New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"src/value.js"})
+	if plan.Scope != affected.ScopeUnknown {
+		t.Fatalf("scope=%s unknown=%v", plan.Scope, plan.Unknown)
+	}
+}
+
+func TestJestDependencyKeepsTestsDirectoryVisibleAsUnknown(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"devDependencies":{"jest":"29"}}`)
+	write(t, root, "src/sum.js", `module.exports = (a, b) => a + b`)
+	write(t, root, "src/__tests__/sum.js", `const sum = require("../sum"); test("adds", () => expect(sum(1, 2)).toBe(3))`)
+	graph, err := affected.Build(context.Background(), root, New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"src/sum.js"})
+	if plan.Scope != affected.ScopeUnknown || len(plan.SelectedTests()) != 1 || plan.SelectedTests()[0] != "src/__tests__/sum.js" {
+		t.Fatalf("scope=%s selected=%v unknown=%v", plan.Scope, plan.SelectedTests(), plan.Unknown)
+	}
+}
+
+func TestAvaImportInTopLevelTestDirectoryIsAddressable(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"devDependencies":{"ava":"1"}}`)
+	write(t, root, "lib/escape.js", `export const escape = value => value`)
+	write(t, root, "test/arguments/escape.js", `import test from "ava"; import { escape } from "../../lib/escape.js"; test("escape", t => t.is(escape("a"), "a"))`)
+	result, err := New().Units(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := testUnit(result, "test/arguments/escape.js").ID; got != unitID("ava", "test/arguments/escape.js") {
+		t.Fatalf("id=%s want=%s frontier=%v", got, unitID("ava", "test/arguments/escape.js"), result.Frontier)
+	}
+	graph, err := affected.Build(context.Background(), root, New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"lib/escape.js"})
+	if got := strings.Join(plan.SelectedTests(), " "); got != "test/arguments/escape.js" {
+		t.Fatalf("selected=%s unknown=%v", got, plan.Unknown)
+	}
+}
+
+func TestOverlappingRunnerEvidenceWidensRatherThanChoosing(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"devDependencies":{"vitest":"1","jest":"1"}}`)
+	write(t, root, "vitest.config.ts", "export default {}")
+	write(t, root, "jest.config.js", "module.exports = {}")
+	write(t, root, "tests/shared.test.ts", `describe("shared", () => {})`)
+	result, err := New().Units(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := testUnit(result, "tests/shared.test.ts").ID; got != unitID(runnerUnknown, "tests/shared.test.ts") {
+		t.Fatalf("id=%s", got)
+	}
+	assertFrontier(t, result, FrontierAmbiguousRunner)
+	graph, err := affected.Build(context.Background(), root, New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"tests/shared.test.ts"})
+	if plan.Scope != affected.ScopeUnknown {
+		t.Fatalf("scope=%s unknown=%v", plan.Scope, plan.Unknown)
+	}
+}
+
+func TestImportsBuildAConservativeDependencyClosure(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
+	write(t, root, "src/core.ts", `export const core = 1`)
+	write(t, root, "src/mid.ts", `export { core } from "./core"`)
+	write(t, root, "src/leaf.ts", `import { core } from "./mid.js"; export { core }`)
+	write(t, root, "tests/leaf.test.ts", `import { test } from "vitest"; import { core } from "../src/leaf"`)
+	write(t, root, "tests/solo.test.ts", `import { test } from "vitest"`)
+	graph, err := affected.Build(context.Background(), root, New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"src/core.ts"})
+	if got := plan.SelectedTests(); len(got) != 1 || got[0] != "tests/leaf.test.ts" {
+		t.Fatalf("selected=%v unknown=%v", got, plan.Unknown)
+	}
+	if plan.Scope != affected.ScopeBounded {
+		t.Fatalf("scope=%s unknown=%v", plan.Scope, plan.Unknown)
+	}
+}
+
+func TestFrameworkConfigIsAnAffectingSourceUnit(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
+	write(t, root, "vitest.config.ts", `export default {}`)
+	write(t, root, "tests/a.test.ts", `import { test } from "vitest"`)
+	write(t, root, "tests/b.test.ts", `import { test } from "vitest"`)
+	graph, err := affected.Build(context.Background(), root, New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"vitest.config.ts"})
+	if got := strings.Join(plan.SelectedTests(), " "); got != "tests/a.test.ts tests/b.test.ts" {
+		t.Fatalf("selected=%s unknown=%v", got, plan.Unknown)
+	}
+}
+
+func TestVitestSpecificViteConfigIsSourceNotTest(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "vite.config.ts", `import { defineConfig } from "vitest/config"; export default defineConfig({ test: {} })`)
+	write(t, root, "tests/a.test.ts", `import { test } from "vitest"`)
+	result, err := New().Units(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, unit := range result.Units {
+		for _, testPath := range unit.Tests {
+			if testPath == "vite.config.ts" {
+				t.Fatalf("Vite config classified as test: %+v", unit)
+			}
+		}
+	}
+	graph, err := affected.Build(context.Background(), root, New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"vite.config.ts"})
+	if got := strings.Join(plan.SelectedTests(), " "); got != "tests/a.test.ts" {
+		t.Fatalf("selected=%s unknown=%v", got, plan.Unknown)
+	}
+}
+
+func TestLegacyStorybookUsesOneAddressableStorySet(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"devDependencies":{"@storybook/test-runner":"1"}}`)
+	write(t, root, "src/a.stories.ts", `import "./a"`)
+	write(t, root, "src/b.stories.ts", `import "./b"`)
+	write(t, root, "src/a.ts", `export const a = 1`)
+	write(t, root, "src/b.ts", `export const b = 1`)
+	result, err := New().Units(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	count := 0
+	for _, unit := range result.Units {
+		if unit.ID != "typescript:storybook-test-runner:." {
+			continue
+		}
+		count++
+		if got := strings.Join(unit.Tests, " "); got != "src/a.stories.ts src/b.stories.ts" {
+			t.Fatalf("stories=%s", got)
+		}
+	}
+	if count != 1 {
+		t.Fatalf("storybook units=%d result=%+v", count, result.Units)
+	}
+	assertFrontier(t, result, FrontierStorybookAddressing)
+}
+
+func TestDynamicAndCrossLanguageInputsRemainExplicitFrontiers(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"scripts":{"test":"node --test"}}`)
+	write(t, root, "tests/dynamic.test.js", `const target = "../src/a.js"; import(target)`)
+	write(t, root, "features/login.feature", "Feature: login\n")
+	write(t, root, "maestro/login.yaml", "appId: example\n")
+	result, err := New().Units(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertFrontier(t, result, FrontierDynamicImport)
+	assertFrontier(t, result, FrontierCrossLanguageTestAsset)
+	if New().Owns("features/login.feature") || New().Owns("maestro/login.yaml") {
+		t.Fatal("ambiguous assets were claimed")
+	}
+}
+
+func testUnit(result affected.Result, relative string) affected.Unit {
+	for _, unit := range result.Units {
+		for _, test := range unit.Tests {
+			if test == relative {
+				return unit
+			}
+		}
+	}
+	return affected.Unit{}
+}
+
+func assertFrontier(t *testing.T, result affected.Result, want string) {
+	t.Helper()
+	if !frontierHas(result, want) {
+		t.Fatalf("frontier=%v want=%s", result.Frontier, want)
+	}
+}
+
+// frontierHas reports whether result raised reason, as a bare reason or as a located
+// `reason:site` entry (TJAA-V0-052).
+func frontierHas(result affected.Result, reason string) bool {
+	for _, entry := range result.Frontier {
+		if entry == reason || strings.HasPrefix(entry, reason+":") {
+			return true
+		}
+	}
+	return false
+}
+
+func write(t *testing.T, root, relative, body string) {
+	t.Helper()
+	full := filepath.Join(root, filepath.FromSlash(relative))
+	if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(full, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestQuoteInRegexLiteralHidesNoRequire(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
+	write(t, root, "src/dep.js", `module.exports = 1`)
+	write(t, root, "src/other.js", `module.exports = 2`)
+	write(t, root, "tests/dep.test.js", "import { test } from \"vitest\"\nconst quote = /\"/;\nconst dep = require('./../src/dep')\nconst text = \"x\".concat(/\"/.source)\n")
+	write(t, root, "tests/division.test.js", "import { test } from \"vitest\"\nconst half = total / 2; const other = require('../src/other') / \"1\"\n")
+	graph, err := affected.Build(context.Background(), root, New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for dirty, want := range map[string]string{"src/dep.js": "tests/dep.test.js", "src/other.js": "tests/division.test.js"} {
+		plan := affected.Select(graph, []string{dirty})
+		if got := plan.SelectedTests(); plan.Scope != affected.ScopeBounded || len(got) != 1 || got[0] != want {
+			t.Errorf("%s: scope=%s selected=%v unknown=%v", dirty, plan.Scope, got, plan.Unknown)
+		}
+	}
+}
+
+func TestTemplateSubstitutionRequireBuildsDependencyEdge(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
+	write(t, root, "src/dep.ts", `export const dep = 1`)
+	write(t, root, "tests/a.test.tsx", "import { test } from \"vitest\"\nconst value = `${require('../src/dep')}`\n")
+	graph, err := affected.Build(context.Background(), root, New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"src/dep.ts"})
+	if got := plan.SelectedTests(); plan.Scope != affected.ScopeBounded || len(got) != 1 || got[0] != "tests/a.test.tsx" {
+		t.Fatalf("scope=%s selected=%v unknown=%v", plan.Scope, got, plan.Unknown)
+	}
+}
+
+func TestMultilineJSXQuoteAmbiguityRaisesFrontier(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
+	write(t, root, "src/dep.ts", `export const dep = 1`)
+	write(t, root, "tests/a.test.tsx", "import { test } from \"vitest\"\nconst first = <p>it's</p>\nconst dep = require('../src/dep')\nconst last = <p>Bob's</p>\n")
+	graph, err := affected.Build(context.Background(), root, New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"src/dep.ts"})
+	want := affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: FrontierUnparsedSource + ":tests/a.test.tsx:2 `'s</p>`"}
+	untested := affected.Unknown{Reason: affected.UnknownNoSelectableTest, Detail: "typescript:src/dep.ts"}
+	if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 2 || plan.Unknown[0] != want || plan.Unknown[1] != untested {
+		t.Fatalf("scope=%s selected=%v unknown=%v", plan.Scope, plan.SelectedTests(), plan.Unknown)
+	}
+}
+
+func TestSameLineJSXApostropheAmbiguityRaisesFrontier(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
+	write(t, root, "src/dep.ts", `export const dep = 1`)
+	write(t, root, "tests/a.test.tsx", "import { test } from \"vitest\"\nconst view = <><p>it's</p>{require('../src/dep')}<p>Bob's</p></>\n")
+	graph, err := affected.Build(context.Background(), root, New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"src/dep.ts"})
+	want := affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: FrontierUnparsedSource + ":tests/a.test.tsx:2 `'s</p>{require('../src/d`"}
+	untested := affected.Unknown{Reason: affected.UnknownNoSelectableTest, Detail: "typescript:src/dep.ts"}
+	if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 2 || plan.Unknown[0] != want || plan.Unknown[1] != untested {
+		t.Fatalf("scope=%s selected=%v unknown=%v", plan.Scope, plan.SelectedTests(), plan.Unknown)
+	}
+}
+
+func TestStandaloneJSXApostrophesRaiseFrontier(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
+	write(t, root, "src/dep.ts", `export const dep = 1`)
+	write(t, root, "tests/a.test.tsx", "import { test } from \"vitest\"\nconst view = <><p>'</p>{require('../src/dep')}<p>'</p></>\n")
+	graph, err := affected.Build(context.Background(), root, New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"src/dep.ts"})
+	want := affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: FrontierUnparsedSource + ":tests/a.test.tsx:2 `'</p>{require('../src/de`"}
+	untested := affected.Unknown{Reason: affected.UnknownNoSelectableTest, Detail: "typescript:src/dep.ts"}
+	if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 2 || plan.Unknown[0] != want || plan.Unknown[1] != untested {
+		t.Fatalf("scope=%s selected=%v unknown=%v", plan.Scope, plan.SelectedTests(), plan.Unknown)
+	}
+}
+
+func TestJSXTextCannotImitateALiteralOpeningContext(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
+	write(t, root, "src/dep.ts", `export const dep = 1`)
+	write(t, root, "tests/a.test.tsx", "import { test } from \"vitest\"\nconst view = <><p>return '</p>{require('../src/dep')}<p>'</p></>\n")
+	graph, err := affected.Build(context.Background(), root, New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"src/dep.ts"})
+	want := affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: FrontierUnparsedSource + ":tests/a.test.tsx:2 `'</p>{require('../src/de`"}
+	untested := affected.Unknown{Reason: affected.UnknownNoSelectableTest, Detail: "typescript:src/dep.ts"}
+	if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 2 || plan.Unknown[0] != want || plan.Unknown[1] != untested {
+		t.Fatalf("scope=%s selected=%v unknown=%v", plan.Scope, plan.SelectedTests(), plan.Unknown)
+	}
+}
+
+func TestKeywordEndingJSXTextCannotHideRequireWithoutBraces(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
+	write(t, root, "return.ts", `export const value = 1`)
+	write(t, root, "tests/a.test.tsx", "import { test } from \"vitest\"\nconst a=<p>return '</p>; const dep=require('../return'); const b=<p>'</p>\n")
+	graph, err := affected.Build(context.Background(), root, New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"return.ts"})
+	want := affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: FrontierUnparsedSource + ":tests/a.test.tsx:2 `'</p>;`"}
+	untested := affected.Unknown{Reason: affected.UnknownNoSelectableTest, Detail: "typescript:return.ts"}
+	if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 2 || plan.Unknown[0] != want || plan.Unknown[1] != untested {
+		t.Fatalf("scope=%s selected=%v unknown=%v", plan.Scope, plan.SelectedTests(), plan.Unknown)
+	}
+}
+
+func TestJSXAttributeAndExpressionStringsRemainParsed(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
+	write(t, root, "src/dep.ts", `export const dep = 1`)
+	write(t, root, "tests/a.test.tsx", "import { test } from \"vitest\"\nconst view = <p title=\"it's\">{require('../src/dep')}</p>\n")
+	graph, err := affected.Build(context.Background(), root, New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"src/dep.ts"})
+	if got := plan.SelectedTests(); plan.Scope != affected.ScopeBounded || len(got) != 1 || got[0] != "tests/a.test.tsx" {
+		t.Fatalf("scope=%s selected=%v unknown=%v", plan.Scope, got, plan.Unknown)
+	}
+}
+
+func TestOrdinaryTSXStringsAndJSXExpressionLiteralsRemainParsed(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
+	write(t, root, "return.ts", `export const value = 1`)
+	write(t, root, "tests/a.test.tsx", "import { test } from \"vitest\"\nconst before = \"ordinary\"\nconst view = <p title=\"it's\">{require('../return')}</p>\nconst after = 'still ordinary'\n")
+	graph, err := affected.Build(context.Background(), root, New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"return.ts"})
+	if got := plan.SelectedTests(); plan.Scope != affected.ScopeBounded || len(got) != 1 || got[0] != "tests/a.test.tsx" {
+		t.Fatalf("scope=%s selected=%v unknown=%v", plan.Scope, got, plan.Unknown)
+	}
+}
+
+func TestUnownedModuleExtensionTestWidensItsImportedSource(t *testing.T) {
+	for _, test := range []string{"tests/a.test.mts", "tests/a.test.CTS"} {
+		root := t.TempDir()
+		write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
+		write(t, root, "src/a.ts", `export const a = 1`)
+		write(t, root, test, "import { test } from \"vitest\"\nimport { a } from \"../src/a\"\n")
+		graph, err := affected.Build(context.Background(), root, New())
+		if err != nil {
+			t.Fatal(err)
+		}
+		plan := affected.Select(graph, []string{"src/a.ts"})
+		want := []affected.Unknown{{Reason: affected.UnknownLanguageFrontier, Detail: FrontierUnparsedSource + ":" + test}}
+		untested := affected.Unknown{Reason: affected.UnknownNoSelectableTest, Detail: "typescript:src/a.ts"}
+		if plan.Scope != affected.ScopeUnknown || len(plan.Unknown) != 2 || plan.Unknown[0] != want[0] || plan.Unknown[1] != untested {
+			t.Errorf("%s: scope=%s unknown=%v", test, plan.Scope, plan.Unknown)
+		}
+	}
+}
+
+func TestTripleSlashReferencePathIsARelativeEdge(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"devDependencies":{"vitest":"1"}}`)
+	write(t, root, "lib/globals.d.ts", "declare var G: number\n")
+	write(t, root, "src/types/local.d.ts", "declare var L: number\n")
+	write(t, root, "src/a.test.ts", "/// <reference path=\"../lib/globals.d.ts\" />\n///<reference path='types/local.d.ts'/>\n/// <reference types=\"node\" />\nimport { test } from \"vitest\"\n")
+	graph, err := affected.Build(context.Background(), root, New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dirty := range []string{"lib/globals.d.ts", "src/types/local.d.ts"} {
+		plan := affected.Select(graph, []string{dirty})
+		if got := plan.SelectedTests(); plan.Scope != affected.ScopeBounded || len(got) != 1 || got[0] != "src/a.test.ts" {
+			t.Errorf("%s: scope=%s selected=%v unknown=%v", dirty, plan.Scope, got, plan.Unknown)
+		}
+	}
+}
+
+// Allocation count rather than wall time: it does not depend on host load, and
+// the quadratic scan copied the whole buffer once per byte, so its count grew
+// with the input while a linear scan allocates a fixed number of times.
+// AllocsPerRun counts process-wide mallocs and returns the integer mean, so 20
+// runs absorb a stray allocation from another goroutine; the quadratic scan
+// still costs tens of thousands per run.
+func TestStripCommentsAllocationsDoNotGrowWithInput(t *testing.T) {
+	unit := "const a = /r[/]x/g; // c\nlet b = x / 2 /* k */ + 'q' + \"w\" + `t`;\n"
+	for _, jsx := range []bool{false, true} {
+		body := strings.Repeat(unit, 64<<10/len(unit))
+		allocations := testing.AllocsPerRun(20, func() {
+			if _, err := stripComments(body, jsx); err != nil {
+				t.Fatal(err)
+			}
+		})
+		if allocations > 2 {
+			t.Errorf("jsx=%t: %v allocations for %d bytes, want at most 2", jsx, allocations, len(body))
+		}
+	}
+}
+
+// TJAA-V0-005 (V1-0283, panel D8): a test in another workspace package that
+// imports the changed package by its package.json name is selected, a test
+// that does not import it is not, and a named package with no source to stand
+// for it stays a frontier instead of being claimed covered.
+func TestWorkspacePackageImportReachesTheImportingTest_V1_0283(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "package.json", `{"private":true,"workspaces":["packages/*"],"devDependencies":{"vitest":"1"}}`)
+	write(t, root, "packages/a/package.json", `{"name":"@acme/a","main":"src/index.ts"}`)
+	write(t, root, "packages/a/src/index.ts", `export { util } from "./util"`)
+	write(t, root, "packages/a/src/util.ts", `export const util = 1`)
+	write(t, root, "packages/b/package.json", `{"name":"@acme/b","dependencies":{"@acme/a":"*"}}`)
+	write(t, root, "packages/b/test/b.test.ts", `import { test } from "vitest"; import { util } from "@acme/a"`)
+	write(t, root, "packages/c/package.json", `{"name":"@acme/c"}`)
+	write(t, root, "packages/c/test/c.test.ts", `import { test } from "vitest"`)
+	graph, err := affected.Build(context.Background(), root, New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := affected.Select(graph, []string{"packages/a/src/util.ts"})
+	if got := plan.SelectedTests(); strings.Join(got, " ") != "packages/b/test/b.test.ts" {
+		t.Fatalf("selected=%v unknown=%v", got, plan.Unknown)
+	}
+	if plan.Scope != affected.ScopeBounded {
+		t.Fatalf("scope=%s unknown=%v", plan.Scope, plan.Unknown)
+	}
+
+	write(t, root, "packages/d/package.json", `{"name":"@acme/d","main":"dist/index.js"}`)
+	write(t, root, "packages/c/test/c.test.ts", `import { test } from "vitest"; import "@acme/d"`)
+	result, err := New().Units(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertFrontier(t, result, FrontierPathAlias)
+}
+
+// GitHub #709 review round 4: U+2028 and U+2029 are ECMAScript line terminators, so they end a
+// `//` comment and start a line for import declarations and triple-slash references.
+func TestUnicodeLineTerminatorsEndCommentsAndLines(t *testing.T) {
+	for _, terminator := range []string{"\u2028", "\u2029"} {
+		refs, _, err := scanImports("", "// note"+terminator+"const a = require('./a');\nconst b = 1;"+terminator+"import './b';\n/* x */"+terminator+"/// <reference path=\"./c.d.ts\" />\n")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if want := []string{"./a", "./b", "./c.d.ts"}; !slices.Equal(refs, want) {
+			t.Fatalf("%U: refs=%v want=%v", []rune(terminator)[0], refs, want)
+		}
+	}
+}
+
+// GitHub #709 review round 5: a backtick inside a `${}` substitution opens a nested template whose
+// content is never a comment or a line terminator; the outer template resumes after it, and
+// nesting deeper than jsTemplateMaxDepth substitutions is refused rather than recursed.
+func TestNestedTemplateLiteralsKeepContent(t *testing.T) {
+	for _, terminator := range []string{"\u2028", "\u2029"} {
+		source := "const x = `${`//${f()}" + terminator + "`}`;\nconst a = require('./a');\n"
+		if clean, err := stripComments(source, false); err != nil || clean != source {
+			t.Fatalf("%U: nested template content rewritten: err=%v clean=%q", []rune(terminator)[0], err, clean)
+		}
+	}
+	refs, _, err := scanImports("", "const x = `${`//`}`; const a = require('./a');\nconst y = `a${`b${`c${require('./c')}`}`}d`; import './b';\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"./a", "./b", "./c"}; !slices.Equal(refs, want) {
+		t.Fatalf("refs=%v want=%v", refs, want)
+	}
+	for _, unterminated := range []string{"`${`", "`${`}`", "`${ { }`", "x = `a${b}"} {
+		if _, err := stripComments(unterminated, false); err == nil {
+			t.Fatalf("unterminated template %q accepted", unterminated)
+		}
+	}
+	deep := strings.Repeat("`${", jsTemplateMaxDepth+1) + strings.Repeat("}`", jsTemplateMaxDepth+1)
+	if _, err := stripComments(deep, false); err == nil {
+		t.Fatal("over-deep template nesting accepted")
+	}
+	if _, _, parsed := scanRequires(deep, false); parsed {
+		t.Fatal("over-deep template nesting scanned")
+	}
+	shallow := strings.Repeat("`${", jsTemplateMaxDepth) + "require('./d')" + strings.Repeat("}`", jsTemplateMaxDepth)
+	if clean, err := stripComments(shallow, false); err != nil || clean != shallow {
+		t.Fatalf("bounded template nesting refused: %v", err)
+	}
+	if refs, _, parsed := scanRequires(shallow, false); !parsed || !slices.Equal(refs, []importRef{{text: "./d", offset: strings.Index(shallow, "./d")}}) {
+		t.Fatalf("bounded template nesting: refs=%v parsed=%v", refs, parsed)
+	}
+}

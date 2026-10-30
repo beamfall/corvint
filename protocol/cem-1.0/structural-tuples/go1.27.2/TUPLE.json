@@ -1,0 +1,141 @@
+{
+  "profile": "cem-structural-tuple-admission/1",
+  "tuple": "go1.27.2",
+  "predecessorTuple": "go1.27.1",
+  "decision": "0522",
+  "requirement": "CEM-V1-050",
+  "structuralQualification": "QUALIFIED_EXACT_TUPLE",
+  "license": "Apache-2.0 public specifications/data only; no native code",
+  "inherited": {
+    "packet": "repository-envelope-packet",
+    "manifestSha256": "c3b7a8e6db645267b71f24e16a18f7f109e6050199f5591cf62d45efb5542d6f",
+    "predecessorManifestSha256": "c6a5cbe0899fe31968f42e740db00da6005989c3e7ce1954c1e832e5045834f4",
+    "files": {
+      "FULL-RESULT-CASES.json": "06fb20c0a1903921c7c5f83459bf790313c5e33379538e867982ab9a5e6603be",
+      "inherited/s0e/REPOSITORY-ENVELOPE.cells.json": "b59262dca59a6f815477c599f6fc173d2665bcf83d8d128e7c0c92160e0c4fdc"
+    }
+  },
+  "substitution": {
+    "field": "expectedResult.runtime.goVersion",
+    "from": "go1.27.1",
+    "to": "go1.27.2"
+  },
+  "parserClosure": {
+    "profile": "cem-structural-parser-closure/1",
+    "closureSha256": "83e19e1d4fe7e661c587b465ccd191630d64f3f3d8edfb830c86626bc8877ec7",
+    "packages": 35,
+    "files": 323,
+    "qualifiedTuple": "go1.27.1",
+    "decision": "0551",
+    "corpus": "../../structural-corpus"
+  },
+  "qualification": {
+    "host": "darwin/arm64",
+    "toolchains": {
+      "go1.27.1": "official golang.org/toolchain v0.0.1-go1.27.1.darwin-arm64",
+      "go1.27.2": "Homebrew go 1.27.2 (go version go1.27.2 darwin/arm64)"
+    },
+    "stdlibSource": {
+      "closure": "go list -deps go/format go/parser go/scanner go/ast go/token",
+      "closureListSha256": "f2fe3f7e03754ea3b235c773be044c3884cd7a25f1f0b4d4dbf80700f79b32a6",
+      "packages": 70,
+      "identicalPackages": 66,
+      "differingPackages": {
+        "internal/godebugs": [
+          "table.go"
+        ],
+        "runtime": [
+          "iface.go",
+          "netpoll_epoll.go",
+          "os_windows.go",
+          "os_workdir_ios_arm64.go",
+          "sys_ios_arm64.go",
+          "sys_ios_arm64.s"
+        ],
+        "internal/poll": [
+          "fd_windows.go"
+        ],
+        "os": [
+          "file_windows.go",
+          "root_openat.go",
+          "root_unix.go",
+          "root_windows.go"
+        ]
+      },
+      "differingPackagesNote": "none of the differing files is in go/ast, go/format, go/parser, go/printer, go/scanner or go/token; the behavioural comparison below covers the runtime and os differences on this host",
+      "trees": {
+        "go/ast": {
+          "files": 18,
+          "identical": true,
+          "sha256": "79b28c106eb02d019c55c2f5e987d35d1da258e88e3118f30d5bafea1b261902"
+        },
+        "go/format": {
+          "files": 5,
+          "identical": true,
+          "sha256": "b45dabb951917bcb1ccac626a2a3409fc663366ccdea61bb816c0a8864561bd4"
+        },
+        "go/parser": {
+          "files": 42,
+          "identical": true,
+          "sha256": "be42e76cf3c93698d3b391f06e596bfbe2e9c33f64ee84f3b122c38c68c8bdb6"
+        },
+        "go/printer": {
+          "files": 52,
+          "identical": true,
+          "sha256": "efdb338934fb2a882ee520ad8b7bcbba0408218216e9a2218d9f764819166da7"
+        },
+        "go/scanner": {
+          "files": 4,
+          "identical": true,
+          "sha256": "ca9ede51dcc3f6353b9f8b4871cae48ec0a220e83bc100da22718e770355dffe"
+        },
+        "go/token": {
+          "files": 11,
+          "identical": true,
+          "sha256": "830b30b54ed63e61c8a6e4f7301bd729cae5b0be4573f5ac338eafd41766cbae"
+        },
+        "go/build/constraint": {
+          "files": 4,
+          "identical": true,
+          "sha256": "3c4d1388b1d605ab4201408f3b2afaf221b0aeac95a5be653faa86b04694345b"
+        },
+        "cmd/gofmt": {
+          "files": 70,
+          "identical": true,
+          "sha256": "d296fcbbb60e7a77f097e6b3a86363c5c9a83ffb679d64ba9ead644944bd7f7b"
+        }
+      }
+    },
+    "behaviour": {
+      "corpus": {
+        "repositoryRevision": "8410da997c4a277c16b005eaa35796fe7b26e219",
+        "files": 3745,
+        "corpusListSha256": "26c35454f8bb51d4d9300d98822340b98638c5a994e36ccccaf4f9a5321fa5e8",
+        "fixturePairs": 144,
+        "recorded": "per tracked .go file: source digest; go/format.Source output digest and error; go/scanner token stream digest; go/ast.Fprint dump digest with Scope maps filtered (map iteration order is random); go/printer output digest; structural parse error; and for each file that formats without error, the same for the formatted output plus the rename, move, import-reorder and formatter-only predicates in both directions; plus the 12x12 internal/cem/verify/testdata/structural fixture matrix under all four predicates",
+        "bytes": 3212820,
+        "outputSha256": "0a4a997d202407f0559b246ab702079d6c045b5cd3e1746921d9a38c7cbeb125",
+        "byteIdentical": true,
+        "repeatRunIdenticalUnderGo1.27.1": true
+      },
+      "s0eNative": {
+        "results": 57,
+        "goVersionSubstitutions": 57,
+        "normalizedSha256": "20dc6ad0651d1ccdc4b1952936acbd726ce46d502c65ee11531c29888bd41263",
+        "byteIdenticalAfterSubstitution": true,
+        "scope": "TestStableS0EPublicCases (56 FULL-RESULT-CASES, including the two go1.24.13-recorded cases run unbound for comparison) and TestStableS0ELinkedControl"
+      },
+      "s0eInterop": {
+        "results": 88,
+        "goVersionSubstitutions": 84,
+        "normalizedSha256": "6362aa11dbc6a8e3563a7fd6b6ed1ea59e11db61379321faf22d316ae2def17c",
+        "byteIdenticalAfterSubstitution": true,
+        "scope": "interop/cem01-go full-result, linked-control, logical-ledger and repository-envelope cell results"
+      }
+    },
+    "notRun": [
+      "linux and windows hosts for this packet's comparison; the decision 0551 structural corpus (../../structural-corpus/QUALIFICATION.json) ran on darwin/arm64 and linux/arm64 and leaves windows and linux/amd64 NOT_RUN",
+      "CI-hosted go1.27.2 runs"
+    ]
+  }
+}

@@ -1,0 +1,143 @@
+{
+ "config": {
+  "configFile": "/w/playwright.config.ts",
+  "rootDir": "/w/tests",
+  "metadata": {
+   "corvintRunIdentity": "__IDENTITY__"
+  },
+  "shard": null,
+  "version": "1.64.0",
+  "workers": 1,
+  "projects": [
+   {
+    "outputDir": "/w/test-results",
+    "repeatEach": 1,
+    "retries": 0,
+    "metadata": {
+     "corvintRunIdentity": "__IDENTITY__"
+    },
+    "id": "setup",
+    "name": "setup",
+    "testDir": "/w/setup",
+    "testIgnore": [],
+    "testMatch": [
+     {}
+    ],
+    "timeout": 30000
+   },
+   {
+    "outputDir": "/w/test-results",
+    "repeatEach": 1,
+    "retries": 0,
+    "metadata": {
+     "corvintRunIdentity": "__IDENTITY__"
+    },
+    "id": "chromium",
+    "name": "chromium",
+    "testDir": "/w/tests",
+    "testIgnore": [],
+    "testMatch": [
+     "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+    ],
+    "timeout": 30000
+   }
+  ]
+ },
+ "suites": [
+  {
+   "title": "../setup/global.setup.ts",
+   "file": "../setup/global.setup.ts",
+   "column": 0,
+   "line": 0,
+   "specs": [
+    {
+     "title": "seed",
+     "ok": true,
+     "tags": [],
+     "tests": [
+      {
+       "timeout": 30000,
+       "annotations": [],
+       "expectedStatus": "passed",
+       "projectId": "setup",
+       "projectName": "setup",
+       "results": [
+        {
+         "workerIndex": 0,
+         "parallelIndex": 0,
+         "status": "passed",
+         "duration": 5,
+         "errors": [],
+         "stdout": [],
+         "stderr": [],
+         "retry": 0,
+         "startTime": "2026-10-26T10:00:00.000Z",
+         "annotations": [],
+         "attachments": []
+        }
+       ],
+       "status": "expected"
+      }
+     ],
+     "id": "../setup/global.setup.ts-seed",
+     "file": "../setup/global.setup.ts",
+     "line": 3,
+     "column": 1
+    }
+   ],
+   "suites": []
+  },
+  {
+   "title": "cart.spec.ts",
+   "file": "cart.spec.ts",
+   "column": 0,
+   "line": 0,
+   "specs": [
+    {
+     "title": "adds item",
+     "ok": true,
+     "tags": [],
+     "tests": [
+      {
+       "timeout": 30000,
+       "annotations": [],
+       "expectedStatus": "passed",
+       "projectId": "chromium",
+       "projectName": "chromium",
+       "results": [
+        {
+         "workerIndex": 0,
+         "parallelIndex": 0,
+         "status": "passed",
+         "duration": 5,
+         "errors": [],
+         "stdout": [],
+         "stderr": [],
+         "retry": 0,
+         "startTime": "2026-10-26T10:00:00.000Z",
+         "annotations": [],
+         "attachments": []
+        }
+       ],
+       "status": "expected"
+      }
+     ],
+     "id": "cart.spec.ts-adds item",
+     "file": "cart.spec.ts",
+     "line": 3,
+     "column": 1
+    }
+   ],
+   "suites": []
+  }
+ ],
+ "errors": [],
+ "stats": {
+  "startTime": "2026-10-26T10:00:00.000Z",
+  "duration": 20,
+  "expected": 2,
+  "skipped": 0,
+  "unexpected": 0,
+  "flaky": 0
+ }
+}

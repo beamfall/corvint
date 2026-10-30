@@ -1,0 +1,13 @@
+{
+  "baseRevision": "8be653a5152872ce409936ed9232302b097bce9a",
+  "code": "unsupported-resource-limit",
+  "driftItems": 13,
+  "exit": 2,
+  "operations": 113,
+  "outcome": "UNSUPPORTED",
+  "profile": "cem-stable-drift-resource-limit/1",
+  "result": "result.json",
+  "stage": "repository",
+  "targetRevision": "8e91f32b41cb13723bd94e2dafa3ef563224ae4e",
+  "verdictSha256": "a5611d4da50659d8f87988a89f7515413b6ed12df21abc801760b866f17d33d6"
+}

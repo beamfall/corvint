@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: Apache-2.0
+# Corvint snippet for openspec/config.yaml (STA-V0-009,
+# docs/specs/spec-toolchain-adapters-v0.md). Merge these keys into the project's
+# existing config; keep its own schema, context and rules. Every step is advisory
+# and read-only: report Corvint output verbatim, including each unknown and
+# NOT_PRODUCED, and never block, edit or commit because of it.
+schema: spec-driven
+
+context: |
+  Corvint (a local, read-only context and review tool) is available as `corvint`.
+  Before `apply` implements a change, run `corvint context --task "<change summary>"
+  --subject openspec/changes/<id>/proposal.md` and read the files it lists.
+  After `apply`, run `corvint affected --base <full base commit>` and
+  `corvint review --base <full base commit>`. Report their output verbatim,
+  including every unknown, NOT_PRODUCED and refusal. `corvint review` refuses a
+  dirty worktree; report that refusal rather than committing to avoid it.
+  Corvint output is advice only: it never blocks, edits or commits.
+
+rules:
+  tasks:
+    - Start the task list with a read-only step to run `corvint context --task "<change summary>" --subject openspec/changes/<id>/proposal.md` before apply implements anything.
+    - End the task list with a read-only step to run `corvint affected --base <full base commit>` and `corvint review --base <full base commit>` after apply, reporting every unknown and NOT_PRODUCED verbatim.
+
+operations:
+  apply:
+    guidance:
+      - Before implementing, run `corvint context --task "<change summary>" --subject openspec/changes/<id>/proposal.md` and read the listed files. Corvint is read-only advice.
+      - After implementing, run `corvint affected --base <full base commit>` and `corvint review --base <full base commit>` and report their output verbatim, including every unknown and NOT_PRODUCED. Never block, edit or commit because of it.

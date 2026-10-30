@@ -1,0 +1,211 @@
+{
+  "id": "disposition-witnesses",
+  "obligations": [
+    {
+      "id": "CONF-V0-001",
+      "disposition": "linked"
+    },
+    {
+      "id": "CONF-V0-002",
+      "disposition": "unknown",
+      "reason": "no-test-claim"
+    }
+  ],
+  "note": "One linked row (hunk 1, claim A) and one unknown/no-test-claim row. Each case perturbs a disposition or a reference and expects the exact verifier verdict.",
+  "cases": [
+    {
+      "id": "valid",
+      "note": "The produced map verifies against its own target.",
+      "ops": [],
+      "expect": {
+        "state": "ready-for-review",
+        "linked": 1,
+        "unknown": 1
+      }
+    },
+    {
+      "id": "caller-target-successor",
+      "note": "The caller names the equal-tree successor commit; the map binds the original target.",
+      "ops": [],
+      "expect": {
+        "target": "successor",
+        "state": "invalid",
+        "code": "target-mismatch"
+      }
+    },
+    {
+      "id": "linked-empty-references",
+      "note": "A linked row with no hunk and no claim references.",
+      "ops": [
+        {
+          "set": {
+            "obligation": "CONF-V0-001",
+            "field": "hunkIds",
+            "array": []
+          }
+        },
+        {
+          "set": {
+            "obligation": "CONF-V0-001",
+            "field": "claimIds",
+            "array": []
+          }
+        }
+      ],
+      "expect": {
+        "state": "invalid",
+        "code": "invalid-linked"
+      }
+    },
+    {
+      "id": "linked-wrong-reason",
+      "note": "A linked row carrying an unknown reason.",
+      "ops": [
+        {
+          "set": {
+            "obligation": "CONF-V0-001",
+            "field": "reason",
+            "value": "unassessed"
+          }
+        }
+      ],
+      "expect": {
+        "state": "invalid",
+        "code": "invalid-linked"
+      }
+    },
+    {
+      "id": "unsupported-disposition",
+      "note": "A disposition outside {linked, unknown}.",
+      "ops": [
+        {
+          "set": {
+            "obligation": "CONF-V0-001",
+            "field": "disposition",
+            "value": "partial"
+          }
+        }
+      ],
+      "expect": {
+        "state": "invalid",
+        "code": "invalid-linked"
+      }
+    },
+    {
+      "id": "unknown-with-references",
+      "note": "An unknown row that still references the supported hunk.",
+      "ops": [
+        {
+          "set": {
+            "obligation": "CONF-V0-002",
+            "field": "hunkIds",
+            "array": [
+              "hunk:sha256:738ba86a2b6b17e1ff23e01f90183de27727120f3ebe0e88f722013ac4f76411"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "state": "invalid",
+        "code": "invalid-unknown"
+      }
+    },
+    {
+      "id": "unknown-wrong-reason",
+      "note": "An unknown row carrying the linked reason.",
+      "ops": [
+        {
+          "set": {
+            "obligation": "CONF-V0-002",
+            "field": "reason",
+            "value": "change-and-test-linked"
+          }
+        }
+      ],
+      "expect": {
+        "state": "invalid",
+        "code": "invalid-unknown"
+      }
+    },
+    {
+      "id": "dangling-hunk-reference",
+      "note": "A well-formed hunk ID that names no supported CEM hunk.",
+      "ops": [
+        {
+          "set": {
+            "obligation": "CONF-V0-001",
+            "field": "hunkIds",
+            "array": [
+              "hunk:sha256:0000000000000000000000000000000000000000000000000000000000000000"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "state": "invalid",
+        "code": "unknown-hunk-reference"
+      }
+    },
+    {
+      "id": "dangling-claim-reference",
+      "note": "A well-formed claim ID absent from the claims array.",
+      "ops": [
+        {
+          "set": {
+            "obligation": "CONF-V0-001",
+            "field": "claimIds",
+            "array": [
+              "claim:sha256:0000000000000000000000000000000000000000000000000000000000000000"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "state": "invalid",
+        "code": "unknown-claim-reference"
+      }
+    },
+    {
+      "id": "claim-anchored-on-other-obligation",
+      "note": "Row 2 linked through claim A, whose anchor names CONF-V0-001 only.",
+      "ops": [
+        {
+          "set": {
+            "obligation": "CONF-V0-002",
+            "field": "disposition",
+            "value": "linked"
+          }
+        },
+        {
+          "set": {
+            "obligation": "CONF-V0-002",
+            "field": "reason",
+            "value": "change-and-test-linked"
+          }
+        },
+        {
+          "set": {
+            "obligation": "CONF-V0-002",
+            "field": "hunkIds",
+            "array": [
+              "hunk:sha256:738ba86a2b6b17e1ff23e01f90183de27727120f3ebe0e88f722013ac4f76411"
+            ]
+          }
+        },
+        {
+          "set": {
+            "obligation": "CONF-V0-002",
+            "field": "claimIds",
+            "array": [
+              "claim:sha256:d97d2bce0f5fd38c4ae3334ed4798f6d76df85bc5d3f4778b9a2f12aaa9c8e27"
+            ]
+          }
+        }
+      ],
+      "expect": {
+        "state": "invalid",
+        "code": "claim-obligation-mismatch"
+      }
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "profile": "cem-stable-neutral-repository/1",
+  "objectFormat": "sha1",
+  "note": "Flat-tree recipe built like ../multi-runner with one addition: links entries are mode-120000 blobs whose content is the link target. The target edits app.txt, adds notes.txt, adds the symlink escape (pointing outside the tree) and retypes config.txt from a regular file to a symlink (cem-additive-profiles-v0, CAX-V0-024).",
+  "identity": {
+    "name": "Fixture",
+    "email": "fixture@invalid",
+    "date": "2026-10-01T00:00:00Z"
+  },
+  "commits": [
+    {
+      "name": "base",
+      "message": "base",
+      "files": {
+        "app.txt": "alpha\nbeta\ngamma\n",
+        "config.txt": "mode=plain\n"
+      }
+    },
+    {
+      "name": "target",
+      "message": "target: edit app.txt, add notes.txt, add link escape, retype config.txt as a link",
+      "files": {
+        "app.txt": "alpha\nBETA\ngamma\n",
+        "notes.txt": "added\n"
+      },
+      "links": {
+        "config.txt": "app.txt",
+        "escape": "../outside"
+      }
+    }
+  ]
+}
