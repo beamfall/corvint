@@ -672,7 +672,11 @@ top=$(git rev-parse --show-toplevel)
 if [ -f "$top/flaky-$2" ] && [ ! -f "$FLAKY_MARK/$2" ]; then
   : > "$FLAKY_MARK/$2"; printf -- '--- FAIL: TestFlaky (0.01s)\n    --- FAIL: TestFlaky/sub (0.01s)\n'; exit 1
 fi
+if [ -f "$top/hostflaky-$2" ] && [ ! -f "$FLAKY_MARK/host-$2" ]; then
+  : > "$FLAKY_MARK/host-$2"; printf 'write /x/sort1: No space left on device\n'; exit 1
+fi
 [ -f "$top/fail-$2" ] || exit 0
+[ -s "$top/fail-$2" ] && cat "$top/fail-$2"
 printf -- '--- FAIL: TestHard (0.01s)\nnot ok 3 - node case\n'; exit 1
 EOF
 printf '#!/bin/sh\nexit 0\n' > "$fbin/gofmt"
@@ -697,6 +701,27 @@ grep -q '^batch-precheck: failed: make test-commands-check$' "$tmp/out" || fail 
 git -C "$frepo" rm -q fail-test-commands-check && git -C "$frepo" -c user.name=t -c user.email=t@t commit -qm pass || fail "flaky pass commit"
 frun || fail "a flaky-only run failed: $(cat "$tmp/out")"
 grep -q '^batch-precheck: FLAKY make test-read-scopes-check' "$tmp/out" || fail "flaky-only run: $(cat "$tmp/out")"
+
+# 9. ASD-V0-054: a failure naming an exhausted host resource is a host-resource FAIL, never
+# introduced, and is not rerun at the base (whose own run here passes, so a comparison would say
+# introduced); a FLAKY pass names the resource; a TMPDIR below the free-space floor warns first.
+fbase=$(git -C "$frepo" rev-parse HEAD)
+printf 'compile: writing output: write $WORK/b1/_pkg_.a: no space left on device\n' > "$frepo/fail-test-commands-check"
+: > "$frepo/hostflaky-capabilities-check"
+git -C "$frepo" add -A && git -C "$frepo" -c user.name=t -c user.email=t@t commit -qm host || fail "host fixture commit"
+/bin/rm -f "$tmp/fmark"/*
+BATCH_PRECHECK_MIN_TMP_KIB=999999999999 frun --base "$fbase"
+[[ $? == 1 ]] || fail "a host-resource failure passed: $(cat "$tmp/out")"
+grep -Eq '^batch-precheck: WARN low-tmp-space avail=[0-9]+KiB under .*set TMPDIR to a directory with room$' "$tmp/out" ||
+  fail "low TMPDIR space not warned: $(cat "$tmp/out")"
+grep -Fq "batch-precheck: FAIL make test-commands-check: attempt 1 rc=1" "$tmp/out" || fail "host failure not rerun: $(cat "$tmp/out")"
+grep -Eq '^batch-precheck: FAIL make test-commands-check \([0-9]+s\) host-resource: compile: writing output: write \$WORK/b1/_pkg_\.a: no space left on device; not compared with '"$fbase"': free disk or memory' "$tmp/out" ||
+  fail "host-resource failure not named: $(cat "$tmp/out")"
+grep -q 'make test-commands-check .* introduced' "$tmp/out" && fail "host-resource failure called introduced: $(cat "$tmp/out")"
+grep -Eq '^batch-precheck: FLAKY make capabilities-check: attempt 1 failed rc=1 \([0-9]+s\), host-resource: write /x/sort1: No space left on device; attempt 2 passed' "$tmp/out" ||
+  fail "flaky host-resource pass not named: $(cat "$tmp/out")"
+frun --base "$fbase"
+grep -q 'low-tmp-space' "$tmp/out" && fail "low-tmp-space warned above the floor: $(cat "$tmp/out")"
 
 "$pre" --bogus > /dev/null 2>&1
 [[ $? == 2 ]] || fail "bad argument did not exit 2"

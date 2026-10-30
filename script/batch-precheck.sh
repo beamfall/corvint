@@ -644,6 +644,12 @@ cleanup() {
 
 receipt=$(receipt_path) || exit 2
 /bin/rm -f "$receipt"
+# A TMPDIR with less than BATCH_PRECHECK_MIN_TMP_KIB (4 GiB) free warns before any step runs:
+# compiler, test and sort spills there fail with no space left on device (ASD-V0-054).
+tmp_kib=$(df -Pk "${TMPDIR:-/tmp}" 2> /dev/null | awk 'NR == 2 { print $4 }')
+if [[ $tmp_kib =~ ^[0-9]+$ ]] && ((tmp_kib < ${BATCH_PRECHECK_MIN_TMP_KIB:-4194304})); then
+  printf 'batch-precheck: WARN low-tmp-space avail=%sKiB under %s; steps may fail with no space left on device: set TMPDIR to a directory with room\n' "$tmp_kib" "${TMPDIR:-/tmp}"
+fi
 dir=$(mktemp -d "${TMPDIR:-/tmp}/batch-precheck.XXXXXX") || exit 2
 trap cleanup EXIT
 trap 'cleanup; exit 129' HUP
@@ -748,6 +754,15 @@ failing_tests() {
     awk 'NF && !seen[$0]++' | head -n 20 | paste -sd , - | sed 's/,/, /g'
 }
 
+# host_resource LOG prints, trimmed, the first line of LOG naming an exhausted host resource: a full
+# disk, a quota, exhausted memory or file descriptors. Such a failure says nothing about the change,
+# so it is named host-resource, never introduced, and a FLAKY pass names it; the step still fails
+# (ASD-V0-054).
+host_resource() {
+  grep -m 1 -i -E 'no space left on device|disk quota exceeded|cannot allocate memory|out of memory|too many open files' "$1" 2> /dev/null |
+    sed -E 's/^[[:space:]|]+//' | cut -c 1-200
+}
+
 # ASD-V0-046 (V1-3122): each failed step reruns once, one at a time, before anything is classified.
 # A pass on the rerun is FLAKY: counted passed, with both attempts named. A second failure keeps the
 # rerun's log for the --base comparison and the report; attempt 1's log stays beside it.
@@ -767,13 +782,15 @@ for ((i = 1; i <= n; i++)); do
     flaky=$((flaky + 1))
     flakes+=("$name")
     printf '0 %s flaky\n' $((secs + resecs)) > "$dir/$i.rc"
-    printf 'batch-precheck: FLAKY %s: attempt 1 failed rc=%s (%ss)%s; attempt 2 passed (%ss)\n' \
-      "$name" "$rc" "$secs" "${first:+, failing: $first}" "$resecs"
+    hr=$(host_resource "$dir/$i.first.log")
+    printf 'batch-precheck: FLAKY %s: attempt 1 failed rc=%s (%ss)%s%s; attempt 2 passed (%ss)\n' \
+      "$name" "$rc" "$secs" "${first:+, failing: $first}" "${hr:+, host-resource: $hr}" "$resecs"
   else
     printf '%s %s\n' "$rerc" $((secs + resecs)) > "$dir/$i.rc"
     again=$(failing_tests "$dir/$i.log")
-    printf 'batch-precheck: FAIL %s: attempt 1 rc=%s (%ss)%s; attempt 2 rc=%s (%ss)%s\n' \
-      "$name" "$rc" "$secs" "${first:+, failing: $first}" "$rerc" "$resecs" "${again:+, failing: $again}"
+    hr=$(host_resource "$dir/$i.log")
+    printf 'batch-precheck: FAIL %s: attempt 1 rc=%s (%ss)%s; attempt 2 rc=%s (%ss)%s%s\n' \
+      "$name" "$rc" "$secs" "${first:+, failing: $first}" "$rerc" "$resecs" "${again:+, failing: $again}" "${hr:+, host-resource: $hr}"
   fi
 done
 
@@ -785,7 +802,12 @@ if [[ -n $base ]]; then
     [[ $rc == 0 ]] && continue
     line=$(sed -n "${i}p" "$dir/steps")
     name=${line%%$'\t'*}
-    if at_base "${line#*$'\t'}" "$dir/$i.log"; then
+    # The base rerun would exhaust the same resource, so it is not run (ASD-V0-054).
+    hr=$(host_resource "$dir/$i.log")
+    if [[ -n $hr ]]; then
+      printf 'batch-precheck: FAIL %s (%ss) host-resource: %s; not compared with %s: free disk or memory (TMPDIR=%s) and rerun\n' \
+        "$name" "$secs" "$hr" "$base" "${TMPDIR:-/tmp}"
+    elif at_base "${line#*$'\t'}" "$dir/$i.log"; then
       : > "$dir/$i.warn"
       printf 'batch-precheck: WARN %s (%ss) base-present: fails the same way at %s\n' "$name" "$secs" "$base"
       tail -n 40 "$dir/$i.log" | sed 's/^/  | /'

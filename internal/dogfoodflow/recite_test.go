@@ -170,7 +170,7 @@ func TestChangeDCWV0117StagedSecondPlanIsAddedToCitations(t *testing.T) {
 	if !strings.Contains(step, `"status": "PRODUCED"`) {
 		t.Fatalf("cem-cite step = %q in report:\n%s", step, report)
 	}
-	note := "  cem-cite: the plan was added to citations the map already carried and never replaces them; to correct an earlier plan, delete .corvint/change.cem.json and rerun corvint dogfood change " + base + " (docs/DOGFOOD.md step 4)\n"
+	note := "  cem-cite: the plan was added to citations the map already carried and never replaces them; to correct one hunk's earlier citations, rerun with the DOGFOOD_CITATION_REPLACE entry the refusal names, or delete .corvint/change.cem.json and rerun corvint dogfood change " + base + " (docs/DOGFOOD.md step 4)\n"
 	if !strings.Contains(stderr.String(), note) {
 		t.Fatalf("stderr lacks the added-to-citations note:\n%s", stderr.String())
 	}
