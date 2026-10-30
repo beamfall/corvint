@@ -555,14 +555,14 @@
         "corvint [--root PATH] cem anchor --map MAP [--commit REV] [--artifacts DIR]",
         "corvint [--root PATH] cem begin --patch PATCH --output MAP [--base REV] [--spec cem/1.0]",
         "corvint cem bundle --request FILE --out DIR",
-        "corvint [--root PATH] cem cite --map MAP --hunk SELECTOR --evidence-path PATH (--bytes START:END | --lines START:END) --relation RELATION [--output MAP]",
+        "corvint [--root PATH] cem cite --map MAP --hunk SELECTOR --evidence-path PATH (--bytes START:END | --lines START:END) --relation RELATION [--output MAP] [--replace --expected-hunk-digest DIGEST]",
         "corvint [--root PATH] cem cite --map MAP --hunk SELECTOR --evidence-path PATH (--bytes START:END | --lines START:END) --relation RELATION --paired-output DOC --paired-range NAME=BASE..HEAD --paired-root ABS",
         "corvint [--root PATH] cem cover --map MAP --coverprofile PATH --test-run ID [--output MAP] [--states-output PATH]",
         "corvint [--root PATH] cem defer --map MAP --intent PATH --reason TEXT",
         "corvint [--root PATH] cem discriminate --map MAP --target REV [--max-hunks N] [--max-mutants N] [--wall-time DURATION] [--same-change-test SELECTOR=PATH[,SELECTOR=PATH...]] [--output MAP]",
         "corvint [--root PATH] cem export --map MAP --expected-base REV --target REV --artifacts DIR --output DIR",
         "corvint [--root PATH] cem gate-verdict --base OID --candidate OID --predicate touched-anchored|all-anchored --touch-paths JSON --portable-consumer PATH",
-        "corvint [--root PATH] cem mark --map MAP --hunk SELECTOR --disposition unknown|mechanical --reason REASON [--output MAP]",
+        "corvint [--root PATH] cem mark --map MAP --hunk SELECTOR --disposition unknown|mechanical --reason REASON [--output MAP] [--expected-hunk-digest DIGEST]",
         "corvint [--root PATH] cem prepare --base REV --target REV [--patch CACHE] [--replace] [--spec cem/1.0] [--non-regular unknown] [--path-policy base]",
         "corvint [--root PATH] cem provenance --commit REV [--notes-tip OID] [--verdicts [--verdicts-tip OID]]",
         "corvint [--root PATH] cem report --map MAP --expected-base REV --target REV --artifacts DIR [--output REPORT | --preview] [OPTIONS]",
@@ -582,6 +582,7 @@
         "--disposition",
         "--evidence-path",
         "--expected-base",
+        "--expected-hunk-digest",
         "--format",
         "--hunk",
         "--intent",
@@ -699,12 +700,13 @@
       "command": "corvint cem cite",
       "summary": "Change Evidence Map cite action",
       "usage": [
-        "corvint [--root PATH] cem cite --map MAP --hunk SELECTOR --evidence-path PATH (--bytes START:END | --lines START:END) --relation RELATION [--output MAP]",
+        "corvint [--root PATH] cem cite --map MAP --hunk SELECTOR --evidence-path PATH (--bytes START:END | --lines START:END) --relation RELATION [--output MAP] [--replace --expected-hunk-digest DIGEST]",
         "corvint [--root PATH] cem cite --map MAP --hunk SELECTOR --evidence-path PATH (--bytes START:END | --lines START:END) --relation RELATION --paired-output DOC --paired-range NAME=BASE..HEAD --paired-root ABS"
       ],
       "flags": [
         "--bytes",
         "--evidence-path",
+        "--expected-hunk-digest",
         "--hunk",
         "--lines",
         "--map",
@@ -713,6 +715,7 @@
         "--paired-range",
         "--paired-root",
         "--relation",
+        "--replace",
         "--root"
       ],
       "required": [
@@ -865,10 +868,11 @@
       "command": "corvint cem mark",
       "summary": "Change Evidence Map mark action",
       "usage": [
-        "corvint [--root PATH] cem mark --map MAP --hunk SELECTOR --disposition unknown|mechanical --reason REASON [--output MAP]"
+        "corvint [--root PATH] cem mark --map MAP --hunk SELECTOR --disposition unknown|mechanical --reason REASON [--output MAP] [--expected-hunk-digest DIGEST]"
       ],
       "flags": [
         "--disposition",
+        "--expected-hunk-digest",
         "--hunk",
         "--map",
         "--output",

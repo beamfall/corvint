@@ -99,20 +99,29 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
 4. Write the citation plan from the prepared map. The hunk count is
    `python3 -c "import json; print(len(json.load(open('.corvint/change.cem.json'))['hunks']))"`.
    `corvint dogfood propose-citations $BASE > plan.tsv` prints a draft with one row per owed hunk,
-   each citing a unique base line near that hunk or leaving it `unknown` (`DCW-V0-150`); it is not
-   a plan until you have checked that every cited line is the evidence the hunk relies on. Run
-   before any map exists, it drafts one row per hunk of the canonical `BASE..HEAD` patch, keyed by
+   each citing a base line of a file the change leaves untouched that names that hunk's path, or
+   leaving it `unknown`; it never cites a file the diff adds or modifies (`DCW-V0-150`,
+   `DCW-V0-393`). It is not a plan until you have checked that every cited line is the evidence
+   the hunk relies on. Run before any map exists, or with an unreadable or other-base map
+   (`DCW-V0-394`), it drafts one row per hunk of the canonical `BASE..HEAD` patch, keyed by
    full hunk ID and labelled `map=NOT_PREPARED keyed=hunk-id`; ID keys survive a later commit
    reordering hunks, and the bind's plan precheck still judges every row (`DCW-V0-350`).
    A plan written for an earlier map, such as nine rows kept after a later commit added a tenth
    hunk, refuses `cem-cite: citation-plan-map-mismatch` and cites nothing; rewrite it from the
    current map. So does the same plan rerun after a commit moved a hunk it named by ordinal to
-   another ordinal (`DCW-V0-029`). Citations add to the map and never replace it: `cem prepare` resumes a map whose
-   base and patch still match, keeping every earlier citation, and `cem cite` has no removal. To
-   correct a plan that was already cited, delete `.corvint/change.cem.json` and rerun, so prepare
-   writes a fresh map and only the corrected plan is cited. A pass that cites onto an already cited
-   map prints `cem-cite: the plan was added to citations the map already carried` with this
-   instruction (`DCW-V0-019`).
+   another ordinal (`DCW-V0-029`). Citations add to the map: `cem prepare` resumes a map whose
+   base and patch still match, keeping every earlier citation, and a plan row that would change a
+   hunk the map already cites refuses `cem-cite: citation-plan-recites-cited-hunk` before anything
+   is cited (`DCW-V0-117`). To correct one already cited hunk, even one an earlier stage cited, keep
+   the map and rerun with the entry the refusal's `fix:` line prints,
+   `DOGFOOD_CITATION_REPLACE=HUNK_ID=DIGEST corvint dogfood change $BASE` (several entries are
+   comma-separated): the plan's rows for that hunk replace its earlier citations and every other
+   hunk keeps its own (`DCW-V0-390`). The digest pins the hunk's state when the refusal was printed,
+   so a map changed since then refuses `citation-replace-digest-mismatch` and cites nothing
+   (`DCW-V0-391`); keep the same export on later passes, which replay once the replacement is in
+   the map (`DCW-V0-392`). Deleting `.corvint/change.cem.json` and rerunning the whole corrected plan
+   still restarts the map. A pass that cites onto an already cited map prints `cem-cite: the plan
+   was added to citations the map already carried` naming both recoveries (`DCW-V0-019`).
    Export `DOGFOOD_CITATIONS` and rerun `make dogfood-change BASE=$BASE`. `cem-cite` and, for an
    untracked sidecar, `cem-status` are now produced; the only remaining row is
    `local-outcome: record-index-failed`. A modified tracked sidecar additionally keeps the OCM and
@@ -740,7 +749,7 @@ target already carries an older sidecar that `CEM-CB-009` requires to equal the 
 - `DOGFOOD-BIND-007`: a hunk whose intent no stable base content records (for example an intent
   added or removed inside the range) is not cited. A fixing commit that removes its backlog entry
   MUST cite a stable owning spec requirement or accepted decision instead. The producer reads a
-  requested span from `baseRevision` (`internal/cem/workflow/commands.go:466-483@c79ac767`), but
+  requested span from `baseRevision` (`internal/cem/workflow/commands.go:482-499@c79ac767`), but
   both its stability precheck and canonical target-drift verification reject that removed span
   (`internal/cem/verify/verify.go:422-482@166fa7f2`). A backlog entry that was the only recorded
   intent therefore binds as `NOT_PRODUCED`, never as an
@@ -1136,7 +1145,7 @@ are shared. A different session must use its own worktree or wait for explicit c
 
 A linked Git worktree is a supported checkout for the loop; it is run at that worktree's top level
 like any other and does not refuse. The loop resolves its private evidence and session directory
-with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:147@8a79d4fb`), which for a linked
+with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:161@8a79d4fb`), which for a linked
 worktree (whose `.git` is a file) is that worktree's own directory under the main repository's
 `.git/worktrees/NAME`, so sessions and evidence stay per worktree.
 The `.corvint/` outputs live in the worktree root. Repository-wide Git state (objects, refs, and

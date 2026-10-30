@@ -85,7 +85,7 @@ Where each row was verified:
 - `affected`: profile `cmd/corvint/affected.go:36@af9fb447`; exits `cmd/corvint/affected.go:663-699@90596237`; its
   refusals are emitted without the ledger recorder (`cmd/corvint/main.go:1094-1099@7ed11581`); help text
   "runs no test, writes no repository state" (`cmd/corvint/help.go:886@f024c3ab`).
-- `cem verify` and `cem status`: exits `internal/cem/cli/cli.go:415-444@773eecd5` (0 when the envelope says
+- `cem verify` and `cem status`: exits `internal/cem/cli/cli.go:418-447@773eecd5` (0 when the envelope says
   `"ok": true`, 1 when it says false, 2 on a dispatch error); `ok`, `mutates` and `state`
   `internal/cem/workflow/stable_read.go:143-200@7e596fa3`; refusals pass through the ledger recorder
   (`cmd/corvint/main.go:1223@760ae507`, `cmd/corvint/main.go:1678-1693@7a65d7e8`).

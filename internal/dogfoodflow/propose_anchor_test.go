@@ -17,7 +17,8 @@ import (
 // earns the hunk a CEM-V1-081 anchor, the line defining a requirement ID the
 // hunk adds, then a line naming the hunk path, so the check that recomputes
 // the tier prints no tier-below-anchored warning for it. A hunk with no such
-// line still gets a nearby line, and stderr records why that row fell back.
+// line in a file the change leaves untouched gets an unknown row, never a
+// line of its own modified file (DCW-V0-393).
 func TestProposeCitationsDCWV0161DraftsAnchoredRows(t *testing.T) {
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
@@ -67,7 +68,9 @@ func TestProposeCitationsDCWV0161DraftsAnchoredRows(t *testing.T) {
 	want := map[string]string{
 		"internal/x/x.go":     "docs/specs/x-v0.md\t" + lineOf(t, specLines, "- `XYZ-V0-001`:") + "\tspecification",
 		"internal/x/named.go": "docs/specs/x-v0.md\t" + lineOf(t, specLines, "| `XYZ-V0-002` |") + "\tspecification",
-		"internal/x/plain.go": "internal/x/plain.go\t4:4\tdependency",
+		// The change modifies plain.go and no untouched file names it, so
+		// its own lines are not proposed (DCW-V0-393).
+		"internal/x/plain.go": "unknown\tinsufficient-evidence\tproposed: no stable BASE line of a file this change leaves untouched names internal/x/plain.go or defines a requirement ID the hunk adds; the change modifies internal/x/plain.go, so its own lines are not proposed; name the BASE contract the hunk depends on or implements",
 	}
 	for index, row := range rows {
 		ordinal, rest, _ := strings.Cut(row, "\t")
@@ -75,13 +78,12 @@ func TestProposeCitationsDCWV0161DraftsAnchoredRows(t *testing.T) {
 			t.Errorf("row %d = %q; want %q for %s", index+1, row, want[hunks[index].Path], hunks[index].Path)
 		}
 	}
-	note := "  row 2 cited, not anchored (CEM-V1-081): no stable BASE line names internal/x/plain.go or defines a requirement ID the hunk adds\n"
-	if !strings.Contains(stderr.String(), note) || strings.Count(stderr.String(), "not anchored") != 1 {
-		t.Errorf("stderr does not record the one fallback:\n%s", stderr.String())
+	if strings.Contains(stderr.String(), "not anchored") {
+		t.Errorf("stderr records a cited row that is not anchored:\n%s", stderr.String())
 	}
 
-	// The check's own tiering of the drafted rows: anchored rows draw no
-	// CEM-V1-081 warning, the fallback row draws one.
+	// The check's own tiering of the drafted cite rows: anchored rows draw no
+	// CEM-V1-081 warning.
 	raw := testGit(t, root, "diff", "--full-index", "--no-renames", "--no-indent-heuristic", "--diff-algorithm=myers",
 		"--unified=3", "--inter-hunk-context=0", "--src-prefix=a/", "--dst-prefix=b/", base, "HEAD") + "\n"
 	parsed, err := patch.Parse([]byte(raw))
@@ -97,6 +99,9 @@ func TestProposeCitationsDCWV0161DraftsAnchoredRows(t *testing.T) {
 	statusHunks := []statusHunk{}
 	for index, row := range rows {
 		fields := strings.Split(row, "\t")
+		if fields[1] == "unknown" {
+			continue
+		}
 		first, _ := strconv.Atoi(strings.SplitN(fields[2], ":", 2)[0])
 		evidenceID := "evidence:" + fields[0]
 		blob := splitRecords([]byte(testGit(t, root, "show", base+":"+fields[1]) + "\n"))
@@ -111,8 +116,8 @@ func TestProposeCitationsDCWV0161DraftsAnchoredRows(t *testing.T) {
 		t.Fatal(err)
 	}
 	warnings := belowAnchoredWarnings(line, nil)
-	if len(warnings) != 1 || !strings.Contains(warnings[0], `path="internal/x/plain.go"`) || !strings.Contains(warnings[0], "rule=CEM-V1-081") {
-		t.Errorf("tier warnings = %q; want one, for the fallback row", warnings)
+	if len(warnings) != 0 {
+		t.Errorf("tier warnings = %q; want none for anchored rows", warnings)
 	}
 }
 
