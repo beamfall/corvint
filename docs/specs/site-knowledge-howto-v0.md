@@ -468,7 +468,7 @@ condition query follows `SKH-V0-103`. Two parts of `SKH-V0-032` remain open:
   arguments are read from the same line unmasked, up to an unquoted `#`. A script line that
   starts with `//` or `*` is skipped. A link that leaves the application or
   stays on the page is skipped: a URL with a scheme, or one starting with `//`, `#`, `mailto:`,
-  `tel:` or `javascript:`.
+  `tel:`, `javascript:`, `data:` or `vbscript:`, with the scheme matched in any letter case.
 - `SKH-V0-112`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1901) The source screen of a static edge MUST come only from Rails conventions,
   through the compiled `GET` routes of the map's `rails-routes/0` routers. A view
   `app/views/CTRL/ACTION.*` that is not a partial binds to the screen of `CTRL#ACTION`. A line

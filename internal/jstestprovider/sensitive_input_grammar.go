@@ -157,8 +157,25 @@ func boundarySensitiveProperty(raw string, quote rune, policy normalizedSensitiv
 	if quote == '\'' {
 		raw = strings.ReplaceAll(raw, `\'`, `'`)
 	}
+	// Decode JavaScript escapes through a JSON string literal. A bare `"` is
+	// legal inside a single-quoted or template literal but would end the JSON
+	// literal early, leaving every escape undecoded, so it is escaped here.
+	literal := make([]byte, 0, len(raw)+2)
+	literal = append(literal, '"')
+	for i := 0; i < len(raw); i++ {
+		switch {
+		case raw[i] == '\\' && i+1 < len(raw):
+			literal = append(literal, raw[i], raw[i+1])
+			i++
+		case raw[i] == '"':
+			literal = append(literal, '\\', '"')
+		default:
+			literal = append(literal, raw[i])
+		}
+	}
+	literal = append(literal, '"')
 	var decoded string
-	if json.Unmarshal([]byte(`"`+raw+`"`), &decoded) == nil {
+	if json.Unmarshal(literal, &decoded) == nil {
 		raw = decoded
 	}
 	for _, pattern := range policy.actions {

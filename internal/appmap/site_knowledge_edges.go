@@ -102,9 +102,19 @@ var (
 var skLinkTags = wordSet("Link NavLink router-link RouterLink")
 
 // skExternal reports a target that leaves the application or stays on the page.
+// URI schemes are case-insensitive, and a script-bearing data: or vbscript:
+// target is never an in-app route (SKH-V0-111).
 func skExternal(v string) bool {
-	return urlScheme.MatchString(v) || strings.HasPrefix(v, "//") || strings.HasPrefix(v, "#") ||
-		strings.HasPrefix(v, "mailto:") || strings.HasPrefix(v, "tel:") || strings.HasPrefix(v, "javascript:")
+	if urlScheme.MatchString(v) || strings.HasPrefix(v, "//") || strings.HasPrefix(v, "#") {
+		return true
+	}
+	lower := strings.ToLower(v)
+	for _, scheme := range []string{"mailto:", "tel:", "javascript:", "data:", "vbscript:"} {
+		if strings.HasPrefix(lower, scheme) {
+			return true
+		}
+	}
+	return false
 }
 
 // templateLinks reads the attribute links of one template or component text.
