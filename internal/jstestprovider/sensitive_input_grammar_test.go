@@ -102,3 +102,23 @@ func TestSensitiveInputArgumentCandidatesRespectStructure(t *testing.T) {
 		})
 	}
 }
+
+// A bare double quote inside a single-quoted or template property literal must
+// not stop the JavaScript escapes in it from being decoded (CodeQL alert 31).
+func TestSensitiveInputPropertyDecodesEscapesBesideBareDoubleQuote(t *testing.T) {
+	policy, err := sensitivePolicy(&SensitiveInputPolicy{AdditionalActionPatterns: []string{"custom entry"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, quote := range []rune{'\'', '`'} {
+		if !boundarySensitiveProperty(`custom\u0020"entry"`, quote, policy) {
+			t.Errorf("escaped property beside a bare double quote evaded the classifier (quote %q)", quote)
+		}
+		if boundarySensitiveProperty(`custom\u0020"other"`, quote, policy) {
+			t.Errorf("negative control classified (quote %q)", quote)
+		}
+	}
+	if !boundarySensitiveProperty(`custom\u0020entry`, '"', policy) {
+		t.Error("double-quoted escape no longer decoded")
+	}
+}
