@@ -839,7 +839,7 @@ var (
 		"record", "migrate-traces", "harness", "cem", "ocm", "work", "context", "adapter",
 		"dogfood", "dogfood-ocm", "frontier", "observations", "affected", "obligations", "prove", "prove-observe",
 		"index", "batch", "docs", "depsource", "necessity", "surprise", "answerability",
-		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "test-plan", "features", "overview", "review", "migration-ratchet", "flows", "skill-export", "breakage", "step", "delta", "changes", "runs", "test", "tests", "repro", "graph"}
+		"kernel", "lease", "reads", "calibrate", "witness", "test-validity", "test-plan", "features", "overview", "review", "migration-ratchet", "flows", "skill-export", "breakage", "step", "delta", "changes", "runs", "test", "tests", "repro", "graph", "mcp"}
 )
 
 func knownHost(value string) bool {
@@ -899,6 +899,14 @@ func run(arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
 }
 
 func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	// mcp runs first: every argument after the verb is the server's, and no other parser may read it (AHI-373).
+	if len(arguments) > 0 && arguments[0] == "mcp" {
+		return runMCP(ctx, arguments[1:], stdin, stdout, stderr)
+	}
+	if mcpAfterGlobalRoot(arguments) {
+		emitError(stderr, argumentError("argument command: mcp takes its own --root after the verb: corvint mcp --root ABSOLUTE_ROOT"))
+		return 2
+	}
 	if code, handled := runCEMInvocation(ctx, arguments, stdout, stderr); handled {
 		return code
 	}

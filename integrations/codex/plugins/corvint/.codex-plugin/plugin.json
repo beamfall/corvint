@@ -1,6 +1,6 @@
 {
   "name": "corvint",
-  "version": "0.2.11",
+  "version": "0.2.12",
   "description": "Revision-pinned, proof-carrying code context for Codex",
   "author": {
     "name": "Russell Lewis"

@@ -81,7 +81,7 @@ with the code.
 | Tasks | A local ticket store with roadmap, claims, gates and audited completion | `corvint-tasks queue status` | experimental |
 | Documentation corpus | Source-pinned documentation you can build, search and serve to agents | `corvint docs corpus search --artifact corpus.json --query login` | experimental |
 | Application flows | Flows, assertions, coverage and gaps for a web application | `corvint flows --manifest flows.json` | experimental |
-| Agent tools over MCP | Query, impact, status, context, CEM report and flow tools for any MCP host | `corvint-mcp --root /abs/repo --tool-profile task-review` | experimental |
+| Agent tools over MCP | Query, impact, status, context, CEM report and flow tools for any MCP host | `corvint mcp --root /abs/repo --tool-profile task-review` | experimental |
 | Obligation closure and review order | Declared obligations linked to test claims, then a deterministic review queue | `corvint ocm prepare --target HEAD_SHA --intent docs/specs/my-spec.md` | core |
 | Language support | Impact rules for Go, Ruby, JavaScript and TypeScript; affected-test providers for eleven ecosystems from Go to Swift and .NET; everything else is reported as unknown | `corvint affected --base FULL_SHA --full` | core verb; individual language providers are experimental |
 | Governing context first | The instruction file that governs the task, then the minimum context, as one canonical receipt | `corvint query --task "add a retry to the uploader"` | core |
@@ -193,7 +193,7 @@ Each MCP server is a local stdio process bound to one repository root and is rea
 | `corvint-test-validity-mcp` | Discovery and projection of retained test evidence |
 | `corvint-corpus-mcp` | Experimental, source-only read tools over one [documentation corpus](docs/DOCUMENTATION-CORPUS.md) artifact |
 
-Build one with `GOTOOLCHAIN=local go build -o "$HOME/.local/bin/corvint-mcp" ./cmd/corvint-mcp`.
+`corvint mcp ARGS` serves the `corvint-mcp` server from the core binary (AHI-373); build the others with `GOTOOLCHAIN=local go build -o "$HOME/.local/bin/NAME" ./cmd/NAME`.
 
 Host adapters run `corvint` from `PATH` and share one bounded lifecycle receipt
 (`corvint help harness event`): [Codex](integrations/codex/README.md),

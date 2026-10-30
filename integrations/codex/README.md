@@ -29,14 +29,14 @@ without selecting it as the installed version or changing the new cache or hook 
 the affected tasks end; source/cache equality alone does not verify active hook paths.
 
 The package provides the Corvint skill, bounded `SessionStart`, `UserPromptSubmit`, `Stop`, and
-`SessionEnd` hooks, and the read-only stdio `corvint-mcp` server (`.mcp.json`, AHI-207). The server
+`SessionEnd` hooks, and the read-only stdio `corvint mcp` server (`.mcp.json`, AHI-207, AHI-373). The server
 binds the Git worktree of the directory Codex launches it in (the session working directory) once,
 at startup; after switching to another worktree, start a new Codex session there to rebind. It
 speaks MCP `2025-11-25`, because Codex 0.162 still gates the `2026-07-28` protocol behind an
-unreleased feature. It needs `corvint-mcp` on `PATH` (`go build -o DIR/corvint-mcp ./cmd/corvint-mcp`).
+unreleased feature. It needs only `corvint` on `PATH`.
 Outside a Git worktree it exits 2 before starting and Codex continues without Corvint tools.
-Current status is `FALLBACK`: supported context works when the local `corvint` and `corvint-mcp`
-executables are available. A separately enrolled local completion policy can request one bounded
+Current status is `FALLBACK`: supported context works when the local `corvint`
+executable is available. A separately enrolled local completion policy can request one bounded
 Stop remediation; formal closing Frontier authority remains unavailable.
 
 The hook routes all four native events to `corvint`, including `UserPromptSubmit` and

@@ -3817,6 +3817,49 @@
           "reason": "the root help Support boundary does not classify this command; see writeStatements"
         }
       ]
+    },
+    {
+      "name": "mcp",
+      "helpTopic": "corvint help mcp",
+      "purpose": "local read-only stdio MCP server",
+      "maturity": "experimental",
+      "owningSpec": "AHI",
+      "freezeContract": null,
+      "operations": [],
+      "nestedOperations": {},
+      "requiredFlags": {},
+      "flags": [
+        "--corpus-artifact",
+        "--follow-ref",
+        "--protocol-version",
+        "--tool-profile",
+        "--workspace"
+      ],
+      "schemaIds": [],
+      "inputs": null,
+      "outputs": null,
+      "exitCodesMentioned": [
+        2
+      ],
+      "writes": null,
+      "selfObservationLedger": "not-listed",
+      "writeStatements": [
+        "Serve the local read-only stdio MCP server (AHI-373, experimental)."
+      ],
+      "unknowns": [
+        {
+          "field": "inputs",
+          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "outputs",
+          "reason": "COMMAND --help does not separate input from output schemas; schemaIds lists every schema identifier it names"
+        },
+        {
+          "field": "writes",
+          "reason": "the root help Support boundary does not classify this command; see writeStatements"
+        }
+      ]
     }
   ],
   "workflows": [
@@ -4418,7 +4461,8 @@
       "test",
       "tests",
       "repro",
-      "graph"
+      "graph",
+      "mcp"
     ],
     "default": "off",
     "knobs": [

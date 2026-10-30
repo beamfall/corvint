@@ -4,7 +4,7 @@
   "adapter": {
     "host": "claude-code",
     "surface": "plugin",
-    "version": "0.3.6"
+    "version": "0.3.7"
   },
   "host": {
     "minimumTestedVersion": "2.1.238",
@@ -18,9 +18,10 @@
   },
   "mcpServer": {
     "name": "corvint",
-    "command": "corvint-mcp",
+    "command": "corvint",
+    "args": ["mcp"],
     "protocolVersion": "2025-11-25",
-    "verifiedHostVersion": "2.1.293",
+    "verifiedHostVersion": "2.1.311",
     "verification": "claude mcp list health check (connected); corvint.help tools/call over stdio"
   },
   "lastValidation": {

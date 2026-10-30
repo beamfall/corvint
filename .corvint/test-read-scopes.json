@@ -72,14 +72,6 @@
       "cmd/corvint/docs.go"
     ],
     "cmd/corvint-lsp": [],
-    "cmd/corvint-mcp": [
-      "cmd/corvint-corpus-mcp/",
-      "cmd/corvint-docs-mcp/",
-      "cmd/corvint-test-validity-mcp/",
-      "go.mod",
-      "go.sum",
-      "internal/"
-    ],
     "cmd/corvint-playwright-minimize": [],
     "cmd/corvint-postmerge-connect": [],
     "cmd/corvint-postmerge-host-launcher": [],
@@ -355,6 +347,14 @@
     "internal/lspevidence": [],
     "internal/mcp/bridge": [
       "protocol/cem-1.0/stable/repository-envelope-packet/"
+    ],
+    "internal/mcp/cli": [
+      "cmd/corvint-corpus-mcp/",
+      "cmd/corvint-docs-mcp/",
+      "cmd/corvint-test-validity-mcp/",
+      "go.mod",
+      "go.sum",
+      "internal/"
     ],
     "internal/mcp/corpusbridge": [],
     "internal/mcp/testvaliditybridge": [

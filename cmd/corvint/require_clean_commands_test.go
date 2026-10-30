@@ -27,6 +27,7 @@ var requireCleanRefusalForms = map[string]struct {
 	"query": {args: []string{"query", "--task", "change main"}}, "feature": {args: []string{"feature", "impact"}},
 	"eval": {args: []string{"eval"}}, "lrf": {args: []string{"lrf"}}, "record": {args: []string{"record"}},
 	"repro":          {args: []string{"repro", "record"}},
+	"mcp":            {args: []string{"mcp"}, noRoot: true},
 	"migrate-traces": {args: []string{"migrate-traces"}}, "harness": {args: []string{"harness", "event"}},
 	"cem": {args: []string{"cem", "status", "--map", "change.cem.json"}}, "ocm": {args: []string{"ocm", "status"}},
 	"work": {args: []string{"work", "observe"}}, "context": {args: []string{"context", "--task", "change main"}},
