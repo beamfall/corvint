@@ -206,6 +206,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	}
 	resolve(units, imports, testImports, modulePaths(modules))
 	applyReadScopes(root, units[:observedUnits], unitDirectories, frontier)
+	applyGatedLocators(root, units[:observedUnits], unitDirectories, frontier)
 	applyBinaryExecs(root, units[:observedUnits], unitDirectories, owners, commands, frontier)
 	// A read this plugin tolerates (an unparsed file, an invalid declaration)
 	// may be an immutable source's fatal failure; surface it rather than a

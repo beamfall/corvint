@@ -10,10 +10,10 @@ when the [affected plan](affected-plan-v0.md) names a unit frontier; that spec's
 section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 
 ## Agent digest
-- Claim: `go:build-constraint-variants` is named only on a plan with a dirty path in the constrained package's own directory or an ancestor.
+- Claim: the build-constraint frontier bears only on its package's own files; a declared gated root locator stops widening every plan.
 - Status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3160); TSP-V0-001 amends AFP-V0-580.
-- Exists: `FrontierBearsOnOwnFiles` in `internal/liveverify/affected/unit.go`; `ownFilesBear` in `internal/liveverify/affected/select.go`; `observeDirectory` in `internal/liveverify/affected/golang/golang.go`; tests named in the traceability table.
-- Blocked on: an owner decision for the nested-module and shell foreign-invocation frontiers (Open questions).
+- Exists: `FrontierBearsOnOwnFiles` in `internal/liveverify/affected/unit.go`; `ownFilesBear` in `internal/liveverify/affected/select.go`; `observeDirectory` in `internal/liveverify/affected/golang/golang.go`; `applyGatedLocators` in `internal/liveverify/affected/golang/gatedlocators.go`; tests named in the traceability table.
+- Blocked on: nothing for TSP-V0-001 to 003; see Open questions for the shell frontier.
 - Read next: Requirements; Failure modes; Open questions.
 
 ## Intent and scope
@@ -48,13 +48,32 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   TSP-V0-001. `Source.LinkedEntries` SHALL list a directory's symlinked entries, record the
   directory unfollowed for the graph cache, and answer none on an immutable tree source, whose walk
   already refuses every non-regular entry.
+- **TSP-V0-003:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; the
+  orchestrator's go:nested-module-frontier decision, 2026-10-30; V1-0872) The project MAY declare
+  gated root locators in `.corvint/gated-root-locators.json`, the closed JSON object
+  `{"profile": "corvint-gated-root-locators/0", "packages": {DIR: {"gate": ABS, "reason": TEXT}}}`
+  (at most 64 KiB and 64 packages): DIR a clean relative package directory other than `.`, ABS a
+  clean absolute path other than `/`, TEXT non-empty printable text of at most 512 bytes. A
+  declared package's root-locating code SHALL run only after it admits a protected document read
+  under the gate, a path outside every checkout, so a test that links it reads the repository only
+  on a host where the protected document names that checkout. The Go plugin SHALL clear
+  `LocatesRoot` on each declared package, which keeps its own unbounded-read reason and test
+  selection, so its dependents (including a dependent nested module's unit) are no longer followed
+  on every dirty path (AFP-V0-012 rule (d)) but only when a change reaches them. The declaration
+  SHALL declare nothing, and every plan SHALL name `go:gated-root-locators-invalid`, when it is
+  unreadable, oversized, not a regular file, has an unknown member or a wrong profile, or names a
+  package that is not observed, does not locate the root, or whose non-test sources do not carry
+  the gate as a Go string literal. A plan with the declaration dirty SHALL name
+  `go:gated-root-locators-changed`, so it is `UNKNOWN`. Each declared package SHALL carry a test
+  that proves the gate from its own non-test sources and fails when the gate or the declaration
+  drifts; for `internal/authoritystore` it is `TestRootLocatorGated_TSP_V0_003`.
 
 ## Non-goals
 
 Evaluating build constraints for a host or running non-host variants; scoping the frontier to the
 dirty file's own constraint (a plain file in the directory can be what a variant calls, which
-AFP-V0-580's review withdrew a narrower scoping over); scoping `go:nested-module-frontier` or
-`shell:foreign-invocation-unmodelled` (see Open questions).
+AFP-V0-580's review withdrew a narrower scoping over); selecting a dependent nested module's tests
+(AFP-V0-582); mirroring the gated declaration in `internal/gateselect`.
 
 ## Failure modes
 
@@ -68,21 +87,24 @@ Build configuration outside an ancestor (`.github/**`, which forces FULL in CI; 
 `script/` that passes `-tags`) is not modelled; no repository script passes `-tags` today. (3) A plan
 from an older planner, or a unit graph cached before this change, carries no `OWN_FILES` and bears
 as before; the graph cache is bound to the program identity, so a new binary rebuilds it.
+(4) TSP-V0-003: a gated package whose gate admits the checkout (an operator whose protected root
+names this repository) runs its locating code in a dependent's test; the planner then misses the
+read only if the dependent is not otherwise reached, the declared gate is unchanged and the
+package's proof test still passes, which the test's call-order and constructor checks are there to
+prevent. The proof is static over the package's own sources: a reflective or `unsafe` call path
+it does not model is out of its reach. `internal/gateselect` (the CI PR tier) does not read the
+declaration; it keeps the wider closure, which over-selects but never under-selects.
 
 ## Open questions
 
 These need an owner decision because no existing project-owned model bounds them; each frontier
 stays as it was:
 
-1. `go:nested-module-frontier` bears on every plan. The synthetic dependent-module unit for
-   `tools/local-authority` inherits root locating (`LocatesRoot`) from
-   `internal/authoritystore`, whose working-directory walk climbs to `.git`; a root locator's
-   dependents are followed on every dirty path (AFP-V0-581 (1), AFP-V0-012 rule (d)). The module's
-   tests cannot be selected (AFP-V0-582 non-goal) and CI never runs them, so the frontier is their
-   only signal. Options: (a) a project declaration bounding a root locator's code-level reads (for
-   example `internal/authoritystore` reads only `.git` metadata and an absolute system path);
-   (b) read scopes for dependent-module keys, which `.github/testconfine` would not enforce;
-   (c) accept AFP-V0-650's listed failure mode and stop naming it for root-module-only changes.
+1. Resolved by TSP-V0-003 (the orchestrator chose option (a), 2026-10-30, rejecting unenforced
+   read scopes for dependent-module keys and accepting AFP-V0-650's failure mode):
+   `go:nested-module-frontier` bore on every plan because the `tools/local-authority` unit
+   inherited root locating from `internal/authoritystore`. Its tests still run only in the job
+   V1-3329 adds.
 2. `shell:foreign-invocation-unmodelled` bears on every plan through `script/heavy.sh`, which
    locates the root (`git rev-parse --show-toplevel`) and sources a runtime file (`. "$w/meta.env"`),
    so it is an unbounded reader followed on every dirty path. Narrowing needs a model of what that
@@ -97,8 +119,12 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 |---|---|---|
 | TSP-V0-001 | `FrontierBearsOnOwnFiles` and `validFrontierBears` in `internal/liveverify/affected/unit.go`; `ownFilesBear` and its two call sites in `internal/liveverify/affected/select.go`; `observeDirectory` in `internal/liveverify/affected/golang/golang.go` | `TestBuildConstraintFrontierBearsOnOwnFiles_TSP_V0_001` (a dirty plain file, variant, absent variant or non-Go file in the directory, alone or with another path, and a root or ancestor file the package reads, bears and stays `UNKNOWN`; a dirty package the variant imports, a named data path and an unrelated package do not, the variant's tests stay selected, and the imported package's plan is `BOUNDED`), the narrowing, V1-0289 and V1-1818 cases in `internal/liveverify/affected/golang/golang_test.go` |
 | TSP-V0-002 | `LinkedEntries` in `internal/liveverify/affected/source.go`; `observeDirectory` in `internal/liveverify/affected/golang/golang.go` | `TestBuildConstraintFrontierSymlinkedSource_TSP_V0_002` (a constrained package reached through an imported package, with a dirty symlink target outside its directory: the frontier bears and the plan is `UNKNOWN` with the link, and is not named without it) in `internal/liveverify/affected/golang/golang_test.go` |
+| TSP-V0-003 | `readGatedLocators`, `applyGatedLocators` and `carriesLiteral` in `internal/liveverify/affected/golang/gatedlocators.go`; their call in `internal/liveverify/affected/golang/golang.go`; `gatedLocatorsChanged` in `internal/liveverify/affected/readers.go` and its call in `internal/liveverify/affected/select.go`; `.corvint/gated-root-locators.json` | `TestGatedRootLocators_TSP_V0_003` in `internal/liveverify/affected/golang/gatedlocators_test.go` (undeclared: the dependent is selected on an unrelated change; declared: it is not and the plan is `BOUNDED`, the locator's own tests stay selected and a change to the locator still selects it; a gate not carried, a package that is not a locator or not present, a relative gate, an unknown member and unparsed JSON each name the invalid frontier and keep it selected; a dirty declaration is `UNKNOWN`); `TestRootLocatorGated_TSP_V0_003` in `internal/authoritystore/gated_locator_test.go` |
 
 ## Rollback
 
 Remove `frontierBears = affected.FrontierBearsOnOwnFiles` in `observeDirectory`; the constant and
-`ownFilesBear` are then inert. No stored state depends on the value.
+`ownFilesBear` are then inert. No stored state depends on the value. TSP-V0-002: drop the
+`LinkedEntries` check in `observeDirectory` only together with TSP-V0-001. TSP-V0-003: delete
+`.corvint/gated-root-locators.json` (a change that itself plans `UNKNOWN`); the package is then a
+root locator again and its dependents are followed on every dirty path.

@@ -245,6 +245,7 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.Unknown = append(frontier, unknown...)
 	plan.FrontierExcluded = excluded
 	plan.Unknown = append(plan.Unknown, graph.tokenBounds(reached, normalized)...)
+	plan.Unknown = append(plan.Unknown, gatedLocatorsChanged(normalized)...)
 	for _, id := range graph.order {
 		unit := graph.units[id]
 		if _, changed := seeds[id]; changed && graph.untested(id) {
