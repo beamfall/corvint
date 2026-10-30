@@ -821,3 +821,44 @@ func TestCINV0005PushPassesItsFirstParentOnlyWhileQueueNarrowingIsOn(t *testing.
 		}
 	}
 }
+
+// TestCINV0006DocGatesRefusesAICoauthorTrailersOnPullRequests (V1-3227): the doc-gates step runs
+// the repository's trailer check over the pull request's commits, passes its exit status
+// through, skips on any other event, and skips, saying so, in a tree without the script.
+func TestCINV0006DocGatesRefusesAICoauthorTrailersOnPullRequests(t *testing.T) {
+	testplatform.SkipPOSIXShell(t, "the step runs under bash with a stub check script")
+	b := stepBlock(t, jobBlock(t, readWorkflow(t, "ci.yml"), "doc-gates"), "Refuse AI co-author trailers in the pull request's commits (CIN-V0-006)")
+	wantLine(t, "doc-gates", b, "          BASE_SHA: ${{ github.event.pull_request.base.sha }}")
+	script := runScript(t, b)
+	run := func(event string, stub string) (string, error) {
+		dir := t.TempDir()
+		if stub != "" {
+			if err := os.MkdirAll(filepath.Join(dir, "script"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(filepath.Join(dir, "script", "check-ai-coauthor-trailers.sh"), []byte(stub), 0o644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		cmd := exec.Command("bash", "--noprofile", "--norc", "-e", "-c", script)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(), "GITHUB_EVENT_NAME="+event, "BASE_SHA=1111111111111111111111111111111111111111")
+		out, err := cmd.CombinedOutput()
+		return string(out), err
+	}
+	spy := "echo \"args: $*\"\nexit \"${STUB_EXIT:-0}\"\n"
+	if out, err := run("pull_request", spy); err != nil || !strings.Contains(out, "args: 1111111111111111111111111111111111111111 HEAD") {
+		t.Fatalf("pull request: %v\n%s", err, out)
+	}
+	if out, err := run("pull_request", "echo refused\nexit 1\n"); err == nil || !strings.Contains(out, "refused") {
+		t.Fatalf("a refusal must fail the step: %v\n%s", err, out)
+	}
+	if out, err := run("pull_request", ""); err != nil || !strings.Contains(out, "no script/check-ai-coauthor-trailers.sh") {
+		t.Fatalf("missing script: %v\n%s", err, out)
+	}
+	for _, event := range []string{"merge_group", "push"} {
+		if out, err := run(event, "echo ran\nexit 1\n"); err != nil || strings.Contains(out, "ran") {
+			t.Fatalf("%s: %v\n%s", event, err, out)
+		}
+	}
+}
