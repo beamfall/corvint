@@ -628,3 +628,30 @@ and then runs `codex exec -m gpt-6.1-sol -s read-only` with the lane's arguments
 logged-out one prints one `codex-review: NOT_AVAILABLE` line with the fix (`codex login`, or
 `codex login --with-api-key` on a headless host) and exits 3 without any review call; the lane
 records the review as `NOT_RUN` with that line instead of retrying.
+
+## 11. Friction goes up to the orchestrator (ASD-V0-076)
+
+Lane friction (stale binaries, missing logins, requirement ID collisions, parked background jobs)
+is the main input to process repairs, and most lane hosts cannot file tickets: the WSL and Unraid
+lanes have no current Tasks store. A side session's relayed report is cut to its first 400
+characters, so a Friction section only in the final report never reaches the orchestrator; on
+2026-10-30 the owner restated this three times. The orchestrator copies the block below into
+every lane charter verbatim, together with a digest (ID and title) of the open friction tickets
+from `corvint-tasks ticket search --status OPEN --label agent-memory`, and puts every merge
+instruction (for example, a lane to merge as the one pre-dogfood merge) in the charter before
+dispatch:
+
+```text
+Friction report (docs/LANE-ORCHESTRATION.md section 11). Before closeout and before wrap_up,
+SendMessage the full numbered friction list to the orchestrator session: an item already in the
+charter's digest as one line `+1 V1-NNNN <context>`; a new item with its repro, host and tool
+version, expected versus actual, and whether it is suspected or confirmed; "none" when there was
+none. Friction found mid-task may be sent as soon as it is found. A Friction section only in the
+final report does not count. Do not file tickets yourself.
+```
+
+An in-process subagent's charter (the Agent tool) requires the same Friction section in its
+result instead. The orchestrator reads every list in the round it arrives, dedupes it against
+`corvint-tasks ticket search --text`, files the new items (labels `agent-memory` plus the
+category) or adds the `+1` context to the existing ticket, and asks a lane whose report arrived
+cut off to resend its list by SendMessage.

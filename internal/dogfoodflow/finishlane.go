@@ -154,7 +154,7 @@ func (l *finishLane) run() int {
 		l.line("seal SKIP already-sealed sealed=.corvint/changes/%s.cem.json", bind)
 		return 0
 	}
-	l.requireFreshWorktree(l.base, l.gitDir)
+	l.requireFreshWorktree(l.base, l.gitDir, !l.options.Preflight)
 	if l.options.Preflight {
 		// The pre-flight checks the inputs the bind pass reads; from the
 		// bind commit on that pass has run, so there is nothing to check.
@@ -256,6 +256,13 @@ func (l *finishLane) requireVerifyInput() {
 		return
 	}
 	l.say("%s: REFUSE %s\n", l.prefix, reason)
+	if fix := quotedRunFix(l.options.Change.VerifyFile); reason == "unsupported-verify-syntax" && fix != "" {
+		// DCW-V0-403: an unquoted -run alternation gets one line naming its
+		// admitted quoted form, not the grammar remediation.
+		l.say("  fix: --verify %s, then rerun corvint dogfood finish-lane --base %s\n", fix, l.options.Change.Base)
+		l.exit(2)
+		return
+	}
 	if line := verifyRefusalLine(l.options.Change.VerifyFile); detail != "" && line > 0 {
 		l.say("  input: --verify %s line %d\n", l.options.Change.VerifyFile, line)
 	}
@@ -279,12 +286,19 @@ func verifyRefusalLine(path string) int {
 	if path == "" || err != nil {
 		return 0
 	}
+	line, _ := refusedVerifyLine(data)
+	return line
+}
+
+// refusedVerifyLine returns the 1-based number and text of the first line of
+// data that the recorder refuses, or 0 and "" when every line is admitted.
+func refusedVerifyLine(data []byte) (int, string) {
 	for index, line := range strings.Split(string(data), "\n") {
 		if strings.TrimLeft(line, " \t\n\v\f\r") != "" && validateVerify(verifyLineArguments(line)) != nil {
-			return index + 1
+			return index + 1, line
 		}
 	}
-	return 0
+	return 0, ""
 }
 
 // line writes one step line to stdout.
@@ -385,14 +399,29 @@ func (l *finishLane) pass(name, citations string) (int, *change, []byte) {
 // rebind runs every step (DCW-V0-115).
 var passScopes = map[string]passScope{"prepare": passPrepare, "bind": passBind, "rebind": passFull}
 
-// accept keeps an accepted pass's NOTE lines, each once per run.
+// accept keeps an accepted pass's NOTE lines, each once per run. A later
+// pass repeats a note with only its target or counts changed, so a note is
+// keyed by its name, status and reason (DCW-V0-405).
 func (l *finishLane) accept(output []byte) {
 	for _, text := range textLines(output) {
-		if strings.HasPrefix(text, "dogfood-change: NOTE ") && !l.notes[text] {
-			l.notes[text] = true
+		if !strings.HasPrefix(text, "dogfood-change: NOTE ") {
+			continue
+		}
+		if key := noteKey(text); !l.notes[key] {
+			l.notes[key] = true
 			l.say("%s\n", text)
 		}
 	}
+}
+
+// noteKey is a NOTE line's first five fields: the prefix, NOTE, the step
+// name, its status and its reason.
+func noteKey(text string) string {
+	fields := strings.Fields(text)
+	if len(fields) > 5 {
+		fields = fields[:5]
+	}
+	return strings.Join(fields, " ")
 }
 
 // stop ends the run at step: the step's own output is printed unchanged, then
@@ -401,7 +430,12 @@ func (l *finishLane) stop(name string, code int, output []byte) {
 	// A changed input explains the failure better than the step's own
 	// refusal, such as intent-scope-drift (DCW-V0-378).
 	l.requireInputsUnchanged(name)
-	_, _ = l.stderr.Write(output)
+	for _, text := range textLines(output) {
+		// A note an earlier pass printed is not repeated (DCW-V0-405).
+		if !strings.HasPrefix(text, "dogfood-change: NOTE ") || !l.notes[noteKey(text)] {
+			l.say("%s\n", text)
+		}
+	}
 	if code == 0 {
 		code = 1
 	}

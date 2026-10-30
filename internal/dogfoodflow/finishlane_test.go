@@ -502,12 +502,14 @@ func TestFinishLaneDCWV0378DigestsOnlyRegularFiles(t *testing.T) {
 	}
 }
 
-// DCW-V0-400 (V1-3211): finish-lane refuses a reused worktree's ignored OCM
-// sidecar older than BASE before it prepares or binds anything, and names the
-// move that clears it.
-func TestFinishLaneDCWV0400RefusesAStaleSidecarBeforePrepare(t *testing.T) {
+// staleSidecarLane commits a base and a change in a worktree whose path holds
+// glob syntax, then leaves an ignored OCM status sidecar dated 1990, before
+// BASE; run runs finish-lane there with steps that fail and returns its exit
+// code, step calls and stderr.
+func staleSidecarLane(t *testing.T) (root, stale string, run func() (int, int, string)) {
+	t.Helper()
 	// Glob syntax in the worktree path must not hide its sidecars.
-	root := filepath.Join(t.TempDir(), "lane[1]")
+	root = filepath.Join(t.TempDir(), "lane[1]")
 	if err := os.Mkdir(root, 0o777); err != nil {
 		t.Fatal(err)
 	}
@@ -525,7 +527,7 @@ func TestFinishLaneDCWV0400RefusesAStaleSidecarBeforePrepare(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, ".git", "info", "exclude"), []byte(".corvint/change.ocm*\n"), 0o666); err != nil {
 		t.Fatal(err)
 	}
-	stale := filepath.Join(root, ".corvint", "change.ocm-status.json")
+	stale = filepath.Join(root, ".corvint", "change.ocm-status.json")
 	if err := os.MkdirAll(filepath.Dir(stale), 0o777); err != nil {
 		t.Fatal(err)
 	}
@@ -544,7 +546,7 @@ func TestFinishLaneDCWV0400RefusesAStaleSidecarBeforePrepare(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	run := func() (int, int, string) {
+	run = func() (int, int, string) {
 		calls := 0
 		steps := Runner{Path: "corvint", Run: func(context.Context, string, []string, io.Writer, io.Writer) int {
 			calls++
@@ -556,6 +558,21 @@ func TestFinishLaneDCWV0400RefusesAStaleSidecarBeforePrepare(t *testing.T) {
 			t.Fatal(err)
 		}
 		return code, calls, stderr.String()
+	}
+	return root, stale, run
+}
+
+// DCW-V0-400 (V1-3211): finish-lane refuses a reused worktree's ignored OCM
+// sidecar older than BASE that it cannot retire, before it prepares or binds
+// anything, and names the move that clears it.
+func TestFinishLaneDCWV0400RefusesAStaleSidecarBeforePrepare(t *testing.T) {
+	root, stale, run := staleSidecarLane(t)
+	// A file where the aside directory belongs makes the retirement fail.
+	if err := os.MkdirAll(filepath.Join(root, ".git", "corvint"), 0o777); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".git", "corvint", "stale-ocm"), nil, 0o666); err != nil {
+		t.Fatal(err)
 	}
 	code, calls, out := run()
 	if code != 2 || calls != 0 || !strings.HasPrefix(out, "dogfood-finish-lane: REFUSE reused-worktree-state\n") ||
@@ -569,6 +586,38 @@ func TestFinishLaneDCWV0400RefusesAStaleSidecarBeforePrepare(t *testing.T) {
 	}
 	if _, calls, out := run(); calls == 0 || strings.Contains(out, "reused-worktree-state") {
 		t.Fatalf("a fresh sidecar was refused: calls=%d stderr=%q", calls, out)
+	}
+}
+
+// TestFinishLaneDCWV0406RetiresAStaleSidecarAndContinues (V1-3211): the stale
+// sidecar moves, byte-preserved, into a new directory under the Git directory,
+// the move is printed, and the run goes on to its steps without refusing.
+func TestFinishLaneDCWV0406RetiresAStaleSidecarAndContinues(t *testing.T) {
+	root, stale, run := staleSidecarLane(t)
+	_, calls, out := run()
+	if calls == 0 || strings.Contains(out, "REFUSE reused-worktree-state") ||
+		!strings.HasPrefix(out, "dogfood-finish-lane: RETIRE stale sidecar .corvint/change.ocm-status.json moved to ") {
+		t.Fatalf("step calls=%d stderr=%q, want the sidecar retired and the steps run", calls, out)
+	}
+	if _, err := os.Lstat(stale); !os.IsNotExist(err) {
+		t.Fatalf("the stale sidecar is still in place: %v", err)
+	}
+	// The worktree path holds glob syntax, so list the asides rather than glob.
+	parent := filepath.Join(root, ".git", "corvint", "stale-ocm")
+	asides, _ := os.ReadDir(parent)
+	var moved []string
+	for _, aside := range asides {
+		if path := filepath.Join(parent, aside.Name(), "change.ocm-status.json"); aside.IsDir() {
+			if _, err := os.Lstat(path); err == nil {
+				moved = append(moved, path)
+			}
+		}
+	}
+	if len(moved) != 1 {
+		t.Fatalf("moved sidecars = %q, want one", moved)
+	}
+	if data, err := os.ReadFile(moved[0]); err != nil || string(data) != "{}\n" {
+		t.Fatalf("moved sidecar = %q, %v", data, err)
 	}
 }
 
@@ -622,5 +671,39 @@ func TestFinishLaneDCWV0400InputsCheckRefusesAStrandedTrace(t *testing.T) {
 		!strings.Contains(out, "  stale trace: the worktree-local trace store names "+stranded+", which HEAD does not reach") ||
 		!strings.Contains(out, "  fix: corvint migrate-traces --apply --plan-digest ") {
 		t.Fatalf("exit=%d step calls=%d stderr=%q, want REFUSE reused-worktree-state naming migrate-traces", code, calls, out)
+	}
+}
+
+// TestDCWV0405FinishLanePrintsEachNoteOnce (V1-3231): the bind and rebind
+// passes repeat the guarding-tests note with only the target changed; the run
+// prints it once, while a note with another reason still prints.
+func TestDCWV0405FinishLanePrintsEachNoteOnce(t *testing.T) {
+	var stderr bytes.Buffer
+	lane := &finishLane{flow: flow{ctx: context.Background(), prefix: "dogfood-finish-lane", stderr: &stderr}, notes: map[string]bool{}}
+	guarding := func(target string) string {
+		return "dogfood-change: NOTE guarding-tests NOT_PRODUCED guarding-tests-not-run hunks=13: to cite an observed guarding test, run corvint cem verify --target " + target + " --guarding-tests\n"
+	}
+	absent := "dogfood-change: NOTE prechange-query NOT_OBSERVED agent-receipt-absent\n"
+	lane.accept([]byte(guarding("t0") + absent))
+	lane.accept([]byte("dogfood-change: PASS\n" + guarding("t1") + absent))
+	lane.accept([]byte(guarding("t2") + "dogfood-change: NOTE prechange-query NOT_OBSERVED agent-receipt-malformed\n"))
+	want := guarding("t0") + absent + "dogfood-change: NOTE prechange-query NOT_OBSERVED agent-receipt-malformed\n"
+	if stderr.String() != want {
+		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
+	}
+}
+
+// TestDCWV0405StoppedPassOmitsPrintedNotes (V1-3231): a pass that stops
+// prints its own output without the notes an earlier pass printed.
+func TestDCWV0405StoppedPassOmitsPrintedNotes(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	lane := &finishLane{flow: flow{ctx: context.Background(), prefix: "dogfood-finish-lane", stderr: &stderr}, stdout: &stdout, notes: map[string]bool{}}
+	note := "dogfood-change: NOTE prechange-query NOT_OBSERVED agent-receipt-absent\n"
+	lane.accept([]byte(note))
+	if code, _ := boundary(context.Background(), func() int { lane.stop("rebind", 1, []byte(note+"dogfood-change: FAIL not-complete\n")); return 0 }, func() {}); code != 1 {
+		t.Fatalf("stop code = %d, want 1", code)
+	}
+	if want := note + "dogfood-change: FAIL not-complete\n"; stderr.String() != want {
+		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
 	}
 }

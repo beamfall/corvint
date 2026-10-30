@@ -15,6 +15,35 @@ import (
 // joined by |. No other quote, anchor, group or class is admitted.
 var quotedRunAlternation = regexp.MustCompile(`^([A-Za-z0-9_./:@=+, -]+) -run '([A-Za-z0-9_./:@=+-]+(?:\|[A-Za-z0-9_./:@=+-]+)+)'((?: [A-Za-z0-9_./:@=+, -]*)?)$`)
 
+// unquotedRunAlternation is the same line with the alternation left unquoted,
+// go test ./pkg -run TestA|TestB, which the recorder refuses as a shell pipe;
+// its refusal names the quoted form instead of the grammar (DCW-V0-403).
+var unquotedRunAlternation = regexp.MustCompile(`^([A-Za-z0-9_./:@=+, -]+) -run ([A-Za-z0-9_./:@=+-]+(?:\|[A-Za-z0-9_./:@=+-]+)+)((?: [A-Za-z0-9_./:@=+, -]*)?)$`)
+
+// quotedRunFix names the first refused line of the verify file at path and
+// its admitted quoted form when that line is an unquoted -run alternation,
+// and returns "" otherwise (DCW-V0-403). It reads the file once, so the line
+// it names is the line it rewrites even when the file changes meanwhile.
+func quotedRunFix(path string) string {
+	data, err := readPrefix(path, maxVerifyFileBytes)
+	if path == "" || err != nil {
+		return ""
+	}
+	line, text := refusedVerifyLine(data)
+	if line == 0 {
+		return ""
+	}
+	match := unquotedRunAlternation.FindStringSubmatch(strings.TrimSpace(text))
+	if match == nil {
+		return ""
+	}
+	quoted := match[1] + " -run '" + match[2] + "'" + match[3]
+	if validateVerify(verifyLineArguments(quoted)) != nil {
+		return ""
+	}
+	return fmt.Sprintf("%s line %d: quote the -run alternation as one word: %s (DCW-V0-403)", path, line, quoted)
+}
+
 // verifyLineArguments is one verify line's recorder argument pair: a quoted
 // -run alternation becomes a typed argv entry whose quoted word is exactly
 // one argument, so no shell ever parses it (LTPM-V0-013); every other line

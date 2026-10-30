@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -371,6 +372,7 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 		candidates = append(candidates, p.matches[definitionPattern(id)]...)
 	}
 	definitions := len(candidates)
+	families := p.hunkFamilies(derived)
 	candidates = append(candidates, p.matches[anchorPath(derived)]...)
 	if name := anchorBasename(derived); p.basenames && name != "" {
 		candidates = append(candidates, p.matches[name]...)
@@ -389,10 +391,100 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 		if index >= definitions && !p.basenames && !namesWholePath(text, anchorPath(derived)) {
 			continue
 		}
+		// A hunk that names a requirement family is anchored only by a
+		// line of its dominant family, never by another spec's row, a bare
+		// list naming its path, or the definition of an ID it only mentions
+		// in passing (DCW-V0-404).
+		if !p.basenames && !relevantRequirementLine(families, text) {
+			continue
+		}
 		relation := proposalRelation(candidate.path)
 		return fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, candidate.path, candidate.line, candidate.line, relation), cite
 	}
 	return "", ""
+}
+
+// requirementToken is one requirement ID, such as DCW-V0-402, whose family
+// is the prefix before its final number, DCW-V0.
+var requirementToken = regexp.MustCompile(`\b[A-Z][A-Z0-9-]{2,31}-[0-9]{3}\b`)
+
+// hunkText returns a hunk's added and removed lines and its context lines.
+func hunkText(hunk *patch.Hunk) (edits, around []byte) {
+	for _, line := range hunk.Body {
+		if line.Prefix == ' ' {
+			around = append(append(around, line.Payload...), '\n')
+		} else {
+			edits = append(append(edits, line.Payload...), '\n')
+		}
+	}
+	return edits, around
+}
+
+// dominantFamilies returns the requirement families text names most often,
+// so a status line that mentions a few other specs' IDs still anchors to its
+// own family.
+func dominantFamilies(text []byte) map[string]bool {
+	counts, most := map[string]int{}, 0
+	for _, id := range requirementToken.FindAll(text, -1) {
+		family := string(id[:bytes.LastIndexByte(id, '-')])
+		counts[family]++
+		most = max(most, counts[family])
+	}
+	families := map[string]bool{}
+	for family, count := range counts {
+		if count == most {
+			families[family] = true
+		}
+	}
+	return families
+}
+
+// hunkFamilies returns the requirement families a hunk implements: those its
+// added and removed lines name, else its context lines, else the edits to the
+// same file, else the whole change's edits. It is empty when nothing names one.
+func (p *proposal) hunkFamilies(hunk *patch.Hunk) map[string]bool {
+	if hunk == nil {
+		return nil
+	}
+	edits, around := hunkText(hunk)
+	if changed := dominantFamilies(edits); len(changed) > 0 {
+		return changed
+	}
+	if context := dominantFamilies(around); len(context) > 0 {
+		return context
+	}
+	// The fallbacks count every ID of the other edits together, so the
+	// family they name most often wins (DCW-V0-404).
+	var file, all []byte
+	for key, other := range p.derived {
+		if key != other.ID {
+			continue
+		}
+		edits, _ := hunkText(other)
+		all = append(all, edits...)
+		if other.DisplayPath == hunk.DisplayPath {
+			file = append(file, edits...)
+		}
+	}
+	if families := dominantFamilies(file); len(families) > 0 {
+		return families
+	}
+	return dominantFamilies(all)
+}
+
+// relevantRequirementLine reports whether a BASE line naming a hunk's path
+// may anchor its draft: any such line when the hunk names no requirement
+// family, else only a line carrying an ID of one of them (DCW-V0-404).
+func relevantRequirementLine(families map[string]bool, text []byte) bool {
+	if len(families) == 0 {
+		return true
+	}
+	for _, id := range requirementToken.FindAll(text, -1) {
+		if families[string(id[:bytes.LastIndexByte(id, '-')])] {
+			return true
+		}
+	}
+	return false
 }
 
 // prepareAnchors reads the canonical BASE..HEAD patch the map was derived
