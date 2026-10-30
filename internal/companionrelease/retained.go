@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/archivepath"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
@@ -343,7 +344,10 @@ func (v *VerifiedRetainedBundle) Extract(target string) (err error) {
 		}
 	}()
 	for _, entry := range v.entries {
-		full := filepath.Join(target, filepath.FromSlash(entry.Path))
+		full, err := archivepath.Join(target, entry.Path)
+		if err != nil {
+			return err
+		}
 		if err := os.MkdirAll(filepath.Dir(full), 0o700); err != nil {
 			return err
 		}

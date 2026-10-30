@@ -56,6 +56,8 @@ type Report struct {
 	AuthorExclusion *transaction.AuthorExclusion
 	// ScopeRefusal is the ATR-V0-214 detail of an OUT_OF_SCOPE claim.
 	ScopeRefusal *transaction.ScopeRefusal
+	// RestoredScope is the TRM-V0-006 provenance of a claim's restored paths.
+	RestoredScope *transaction.RestoredScope
 	// Outcome is the model's outcome, unchanged.
 	Outcome mutation.Outcome
 	// Coverage is the model's coverage, unchanged: an axis stays

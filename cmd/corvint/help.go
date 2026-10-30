@@ -105,16 +105,17 @@ func nestedHelpTopic(command, subcommand string) string {
 }
 
 // unknownHelpTopic refuses `corvint help TOPIC` with argparse's invalid-choice convention, naming
-// every valid topic: each public command, then each nested topic (DCP-V1-057).
+// every valid topic: each public command, then each nested topic (DCP-V1-057). The topic is
+// rendered as a Python repr, so a quote or control character in it is escaped.
 func unknownHelpTopic(topic []string) error {
 	quoted := make([]string, 0, len(topLevelCommands)+len(nestedHelpTopics))
 	for _, command := range topLevelCommands {
-		quoted = append(quoted, "'"+command+"'")
+		quoted = append(quoted, pythonRepr(command))
 	}
 	for _, nested := range nestedHelpTopics {
-		quoted = append(quoted, "'"+nested[0]+"'")
+		quoted = append(quoted, pythonRepr(nested[0]))
 	}
-	return argumentError("unknown help topic: '" + strings.Join(topic, " ") + "' (choose from " + strings.Join(quoted, ", ") + ")")
+	return argumentError("unknown help topic: " + pythonRepr(strings.Join(topic, " ")) + " (choose from " + strings.Join(quoted, ", ") + ")")
 }
 
 // commandHelpTopic names the help topic of a public command invocation, or "" when the command is

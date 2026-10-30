@@ -111,6 +111,7 @@ var skScheme = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]*:`)
 // " javascript:" and "java\tscript:" carry their scheme (V1-3199). A backslash
 // counts as a slash, so "/\\host" is protocol-relative. A template attribute is also
 // checked after HTML character references decode, as a browser reads "&#x6A;avascript:".
+// Schemes match in any letter case, so data: and vbscript: are external too (SKH-V0-111).
 func skExternal(v string) bool {
 	v = strings.TrimFunc(v, func(r rune) bool { return r <= ' ' })
 	v = strings.Map(func(r rune) rune {

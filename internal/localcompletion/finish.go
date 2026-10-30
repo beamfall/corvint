@@ -121,7 +121,7 @@ func finishWithProfile(ctx context.Context, root, key, profile string, command P
 		return Evaluation{}, err
 	}
 	if !processPassed(checked) {
-		return Evaluation{}, errors.New("final-check-failed")
+		return Evaluation{}, repo.finalCheckError(ctx, "final-check", true)
 	}
 	if err = repo.revalidate(ctx, saved, snap); err != nil {
 		return Evaluation{}, err
@@ -514,6 +514,26 @@ func (repo *repository) runFlow(ctx context.Context, command PublicCommand, run 
 
 func processPassed(result flowResult) bool {
 	return result.err == nil && result.code == 0 && !result.overflow
+}
+
+// finalCheckError classifies a final strict check that did not pass
+// (LCP-V0-043). Only the caller's context ending (a supervised signal or
+// cancellation) is an interruption; runFlow's own step deadline and every other
+// failure stay final-check-failed. Logged steps name their retained logs
+// relative to the Git directory. Neither result writes state, so the next
+// finish reuses the unchanged bound results.
+func (repo *repository) finalCheckError(ctx context.Context, step string, logged bool) error {
+	failure := &FinalCheckError{Interrupted: ctx.Err() != nil, Step: step, Session: repo.session}
+	if logged {
+		for _, name := range []string{step + ".stdout", step + ".stderr"} {
+			relative, err := filepath.Rel(repo.auth.GitDir, repo.local(name))
+			if err != nil {
+				return failure
+			}
+			failure.Logs = append(failure.Logs, "$GIT_DIR/"+filepath.ToSlash(relative))
+		}
+	}
+	return failure
 }
 func (repo *repository) saveProcess(prefix string, result flowResult) error {
 	if secretscreen.MatchString(string(result.stdout)) || secretscreen.MatchString(string(result.stderr)) {
@@ -1174,7 +1194,7 @@ func (repo *repository) finishAggregate(ctx context.Context, saved *state, comma
 		if err := dogfoodoperation.Check(ctx); err != nil {
 			return Evaluation{}, err
 		}
-		return Evaluation{}, errors.New("final-check-failed")
+		return Evaluation{}, repo.finalCheckError(ctx, "aggregate-final-check", false)
 	}
 	current, err := repo.load()
 	if err != nil {

@@ -205,6 +205,16 @@ func TestSKHV0_114_StaticLinkRegressions(t *testing.T) {
 	if s := templateLinks("const href = '/orders';\n"); len(s) != 0 {
 		t.Fatalf("script assignment read as an anchor: %+v", s)
 	}
+	// SKH-V0-111 (CodeQL alert 102): a data:, vbscript: or mixed-case script
+	// scheme leaves the application and is never read as an in-app route.
+	for _, href := range []string{"data:text/html,x", "vbscript:x", "JavaScript:x", "Mailto:a@b", "DATA:x"} {
+		if s := templateLinks(`<a href="` + href + `">x</a>`); len(s) != 0 {
+			t.Fatalf("external %q read as an in-app link: %+v", href, s)
+		}
+	}
+	if s := templateLinks(`<a href="/data:ok">x</a>`); len(s) != 1 || s[0].target != "/data:ok" {
+		t.Fatalf("in-app path with a colon dropped: %+v", s)
+	}
 	secret := "/reset?token=ghp_" + strings.Repeat("a", 36)
 	root, m := railsFixture(t, func(files map[string]string) {
 		files["config/routes.rb"] = skEdgeRoutes

@@ -468,7 +468,7 @@ condition query follows `SKH-V0-103`. Two parts of `SKH-V0-032` remain open:
   arguments are read from the same line unmasked, up to an unquoted `#`. A script line that
   starts with `//` or `*` is skipped. A link that leaves the application or
   stays on the page is skipped: a URL with any scheme, with or without `//` (`https:`, `mailto:`,
-  `tel:`, `javascript:`, `blob:`, `file:`), or one starting with `//` or `#`. The target is first
+  `tel:`, `javascript:`, `data:`, `vbscript:`, `blob:`, `file:`, in any letter case), or one starting with `//` or `#`. The target is first
   normalised as a URL parser would: leading and trailing C0 controls and spaces are stripped, every
   tab and newline is removed, and a backslash counts as a slash, so ` javascript:`, `java<TAB>script:`
   and `/\host` are skipped too. A template attribute value is also checked after its HTML character

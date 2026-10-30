@@ -1213,6 +1213,21 @@ The archived CEM, OCM and prior outcome remain bound to that original commit. Co
 actual checks on the seal and a new strict-check pass. Repeated successful finish does not
 rewrite evidence or duplicate outcomes.
 
+The supported order with the one-command lane closeout (V1-3194, `LCP-V0-041`) is: enrolled
+strict `finish` satisfied at the bind, then `make dogfood-closeout`, then the keyed `verify`
+actions at the seal, `finish`, review of its new report set, and `finish` again. Do not edit
+private evidence in between. The closeout's own `dogfood record` rewrites the coordinated local
+outcome; the sealed `finish` accepts that one replacement only after proving it against Git, the
+target's trace store and the coordinator report, and names both outcome digests in the new report
+set. Any other change still refuses `sealed-evidence-drift`, whose detail names the artifact, the
+reason and the pinned and current digests (`LCP-V0-042`); restore the named artifact rather than
+re-pinning it by hand.
+
+A signal or cancellation that ends `finish` during its final strict check reports
+`finish-interrupted` with the step, the retained check logs and the rerun command (V1-3192,
+`LCP-V0-043`); rerun that `finish`, which reuses the unchanged bound results. A genuine check
+failure stays `final-check-failed` and names the same logs.
+
 This continuation excludes aggregate-profile completion, context-abstention/deadline replay,
 missing reviewed bind evidence, merge commits, extra changes and descendants of the seal. Those
 cases remain incomplete with their evidence intact; a rename or old PASS alone never grants

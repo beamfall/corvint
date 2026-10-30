@@ -83,7 +83,7 @@ var ReadVerbs = []string{
 	"ticket set-gates", "ticket set-effects", "ticket hold", "ticket release-hold", "ticket reopen",
 	"ticket archive", "ticket restore", "ticket complete-manual", "ticket grant-approval",
 	"ticket revoke-approval", "ticket attach-evidence", "ticket batch-close",
-	"release create", "release update", "release candidate", "release record-gate", "release promote", "release list", "release show", "release readiness",
+	"release create", "release update", "release membership", "release candidate", "release record-gate", "release promote", "release list", "release show", "release readiness",
 	"claim", "renew", "release", "reap", "widen", "attempt show", "attempt heartbeat", "plan preview", "plan batches",
 	"lane-leader", "run", "admit", "cancel", "retry", "resume", "drain", "answer", "pending", "program show", "program cleanup",
 	"dispatch", "dispatch context-hook", "dispatch recover-reader", "dispatch salvage", "dispatch status", "dispatch unpark", "dispatch upgrade",

@@ -2684,6 +2684,13 @@ PSR-V0-269	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the ow
 PSR-V0-270	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2704) `pool ho	standing	2026-10-11; V1-2704
 PSR-V0-271	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2704) `pool ho	standing	2026-10-11; V1-2704
 PSR-V0-272	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2704) `pool	standing	2026-10-11; V1-2704
+TRM-V0-001	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3193) `corvint-tasks release membership --target R	unrecorded	-
+TRM-V0-002	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3193) The mutation MUST be refused `STALE_TICKET` when	unrecorded	-
+TRM-V0-003	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3193) `RELEASE_MEMBERSHIP` MUST be authorized exactly as	unrecorded	-
+TRM-V0-004	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3193) The CLI MUST build the membership payload from repeated	unrecorded	-
+TRM-V0-005	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3189) Widen on a live attempt under an admission barrier MUST stay	unrecorded	-
+TRM-V0-006	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3190) A claim whose requested `--scope` paths fall outside the	unrecorded	-
+TRM-V0-007	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3190) A requested path that no attempt of the ticket held MUST	unrecorded	-
 SCC-V0-001	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) `store.S	standing	2026-10-11; V1-1920
 SCC-V0-002	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) An ABSEN	standing	2026-10-11; V1-1920
 SCC-V0-003	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) The patc	standing	2026-10-11; V1-1920
@@ -4475,6 +4482,9 @@ LCP-V0-037	docs/specs/local-completion-policy-v0.md	(accepted under the owner's 
 LCP-V0-038	docs/specs/local-completion-policy-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2177)	standing	2026-10-11; V1-2177
 LCP-V0-039	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept; V1-2762) Amending	standing	V1-2762
 LCP-V0-040	docs/specs/local-completion-policy-v0.md	(owner-requested V1-1894 repair, 2026-10-30) A legacy enrolled change	unrecorded	-
+LCP-V0-041	docs/specs/local-completion-policy-v0.md	(V1-3194, 2026-10-30) The supported order is: enrolled strict `finish` satisfied	unrecorded	-
+LCP-V0-042	docs/specs/local-completion-policy-v0.md	(V1-3194, 2026-10-30) Every `sealed-evidence-drift` refusal MUST keep that code	unrecorded	-
+LCP-V0-043	docs/specs/local-completion-policy-v0.md	(V1-3192, 2026-10-30) When the caller's context ends (a supervised SIGINT or	unrecorded	-
 LOD-V0-001	docs/specs/local-observability-dashboard-v0.md	Every displayed metric and source-derived value MUST derive through the compiled	unrecorded	-
 LOD-V0-002	docs/specs/local-observability-dashboard-v0.md	Missing, disabled, invalid, inaccessible, unsupported, expired, and unretained	unrecorded	-
 LOD-V0-003	docs/specs/local-observability-dashboard-v0.md	P0 MUST produce byte-identical CLI snapshots for identical frozen inputs and the	unrecorded	-

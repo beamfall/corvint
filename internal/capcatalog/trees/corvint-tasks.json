@@ -2229,6 +2229,33 @@
     {
       "path": [
         "release",
+        "membership"
+      ],
+      "command": "corvint-tasks release membership",
+      "summary": "",
+      "usage": [
+        "corvint-tasks release membership --request-id ID --target RELEASE --expected-revision N (--add TICKET | --remove TICKET)... [--issued-at TS] [--role ROLE]"
+      ],
+      "flags": [
+        "--add",
+        "--expected-revision",
+        "--issued-at",
+        "--remove",
+        "--request-id",
+        "--role",
+        "--target"
+      ],
+      "required": [
+        "--request-id ID",
+        "--target RELEASE",
+        "--expected-revision N"
+      ],
+      "example": "corvint-tasks release membership --request-id ID --target RELEASE --expected-revision N --add TICKET",
+      "help": "corvint-tasks release membership --help"
+    },
+    {
+      "path": [
+        "release",
         "promote"
       ],
       "command": "corvint-tasks release promote",
