@@ -655,3 +655,52 @@ func TestForeignFrontierBearsOnlyWhenDependentsAreFollowed_NSAV0012(t *testing.T
 		t.Errorf("cmd/main.go: the reader is not reached: %v", reached)
 	}
 }
+
+// TSP-V0-004: a source of a file inside a directory `mktemp -d` just created
+// reads a runtime file outside the repository; every near miss stays a
+// dynamic, root-locating source.
+func TestFreshTemporaryDirectorySourceIsBounded_TSP_V0_004(t *testing.T) {
+	const serve = "serve() {\n  local a b\n  infra() { exit 97; }\n  w=$(mktemp -d \"${TMPDIR:-/tmp}/x.XXXXXX\") || infra \"mktemp failed\"\n  trap '/bin/rm -rf \"$w\"' EXIT\n  base64 -d | tar -x -C \"$w\" || infra decode\n  source \"${w}/sub/meta.env\" || infra meta\n}\n"
+	root := t.TempDir()
+	write(t, root, "fresh.sh", serve)
+	negatives := map[string]string{
+		"other-value.sh":    "w=$(pwd)\n. \"$w/meta.env\"\n",
+		"twice.sh":          "w=$(mktemp -d)\nw=$(mktemp -d)\n. \"$w/meta.env\"\n",
+		"for-rebind.sh":     "w=$(mktemp -d)\nfor w in lib; do :; done\n. \"$w/meta.env\"\n",
+		"read-rebind.sh":    "w=$(mktemp -d)\nread -r w\n. \"$w/meta.env\"\n",
+		"local-rebind.sh":   "f() {\n  w=$(mktemp -d)\n  local w\n  . \"$w/meta.env\"\n}\n",
+		"unset.sh":          "w=$(mktemp -d)\nunset w\n. \"$w/meta.env\"\n",
+		"default-bind.sh":   "w=$(mktemp -d)\n: \"${w:=lib}\"\n. \"$w/meta.env\"\n",
+		"local-decl.sh":     "f() {\n  local w=$(mktemp -d)\n  . \"$w/meta.env\"\n}\n",
+		"other-func.sh":     "f() { w=$(mktemp -d); }\ng() { . \"$w/meta.env\"; }\n",
+		"subshell.sh":       "( w=$(mktemp -d) )\n. \"$w/meta.env\"\n",
+		"branch.sh":         "if true; then\n  w=$(mktemp -d)\nfi\n. \"$w/meta.env\"\n",
+		"conditional.sh":    "true && w=$(mktemp -d)\n. \"$w/meta.env\"\n",
+		"pipeline.sh":       "w=$(mktemp -d) | cat\n. \"$w/meta.env\"\n",
+		"inner-pipe.sh":     "w=$(mktemp -d | head -1)\n. \"$w/meta.env\"\n",
+		"dynamic-rest.sh":   "w=$(mktemp -d)\n. \"$w/$name.env\"\n",
+		"dotdot-rest.sh":    "w=$(mktemp -d)\n. \"$w/../lib.sh\"\n",
+		"bare-dir.sh":       "w=$(mktemp -d)\n. \"$w\"\n",
+		"file-temp.sh":      "w=$(mktemp)\n. \"$w/meta.env\"\n",
+		"dry-run.sh":        "w=$(mktemp -du)\n. \"$w/meta.env\"\n",
+		"prefix.sh":         "w=$(mktemp -d) true\n. \"$w/meta.env\"\n",
+		"envfile.sh":        "w=$(mktemp -d)\n. \"$w/meta.env\"\n. \"${ENVFILE/#\\~/$HOME}\"\n",
+		"source-between.sh": "w=$(mktemp -d)\n. ./lib.sh\n. \"$w/meta.env\"\n",
+		"after-source.sh":   "w=$(mktemp -d)\n. \"$w/meta.env\"\n. \"$w/more.env\"\n",
+		"later-source.sh":   ". \"$w/meta.env\"\nw=$(mktemp -d)\n",
+		"backticks.sh":      "w=`mktemp -d`\n. \"$w/meta.env\"\n",
+	}
+	for name, text := range negatives {
+		write(t, root, name, text)
+	}
+	write(t, root, "lib.sh", "true\n")
+	result := units(t, root)
+	if unit := unitOf(t, result, "fresh.sh"); unit.UnboundedReads != "" || unit.LocatesRoot {
+		t.Fatalf("fresh temporary directory source stayed dynamic: %+v", unit)
+	}
+	for name := range negatives {
+		if unit := unitOf(t, result, name); unit.UnboundedReads != UnboundedDynamicSource || !unit.LocatesRoot {
+			t.Errorf("%s is not a dynamic source: %+v", name, unit)
+		}
+	}
+}

@@ -67,6 +67,17 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   `go:gated-root-locators-changed`, so it is `UNKNOWN`. Each declared package SHALL carry a test
   that proves the gate from its own non-test sources and fails when the gate or the declaration
   drifts; for `internal/authoritystore` it is `TestRootLocatorGated_TSP_V0_003`.
+- **TSP-V0-004:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; the
+  orchestrator's V1-3325 decision, 2026-10-30) The shell plugin SHALL treat a `source` or `.` of
+  `$NAME/REST` or `${NAME}/REST` as a read of a runtime file outside the repository, and not as a
+  dynamic source, only when REST is literal, non-empty and has no `..` segment; NAME occurs in the
+  file exactly once as an assignment and otherwise only as `$NAME` or `${NAME...}` expansions other
+  than `${NAME=...}` and `${NAME:=...}`; that assignment is a command of its own whose value is one
+  `$(mktemp ...)` substitution with `-d` or `--directory`, no `-u` or `--dry-run`, and no list,
+  pipeline, redirection or backquote inside; it precedes the source in the same block (one function
+  body, brace group or conditional arm, never a subshell or command substitution), does not follow
+  `&&`, `||`, `|` or `&` and does not precede `|` or `&`; and no `source`, `.`, `load` or `eval`
+  runs between them. Every other non-literal source SHALL stay `shell:dynamic-source`.
 
 ## Non-goals
 
@@ -94,6 +105,11 @@ package's proof test still passes, which the test's call-order and constructor c
 prevent. The proof is static over the package's own sources: a reflective or `unsafe` call path
 it does not model is out of its reach. `internal/gateselect` (the CI PR tier) does not read the
 declaration; it keeps the wider closure, which over-selects but never under-selects.
+(5) TSP-V0-004: the rule is static over one file's text. A sourced runtime file that rebinds NAME
+is excluded by refusing any source after the first; an `eval` of computed text naming NAME, a
+nameref (`declare -n`) or an indirect `${!x}` assignment it cannot see would let the read escape,
+and only a textual occurrence of NAME in another form refuses. `mktemp -d` that fails leaves NAME
+empty, so the read is of an absolute path, still outside the repository.
 
 ## Open questions
 
@@ -120,6 +136,7 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | TSP-V0-001 | `FrontierBearsOnOwnFiles` and `validFrontierBears` in `internal/liveverify/affected/unit.go`; `ownFilesBear` and its two call sites in `internal/liveverify/affected/select.go`; `observeDirectory` in `internal/liveverify/affected/golang/golang.go` | `TestBuildConstraintFrontierBearsOnOwnFiles_TSP_V0_001` (a dirty plain file, variant, absent variant or non-Go file in the directory, alone or with another path, and a root or ancestor file the package reads, bears and stays `UNKNOWN`; a dirty package the variant imports, a named data path and an unrelated package do not, the variant's tests stay selected, and the imported package's plan is `BOUNDED`), the narrowing, V1-0289 and V1-1818 cases in `internal/liveverify/affected/golang/golang_test.go` |
 | TSP-V0-002 | `LinkedEntries` in `internal/liveverify/affected/source.go`; `observeDirectory` in `internal/liveverify/affected/golang/golang.go` | `TestBuildConstraintFrontierSymlinkedSource_TSP_V0_002` (a constrained package reached through an imported package, with a dirty symlink target outside its directory: the frontier bears and the plan is `UNKNOWN` with the link, and is not named without it) in `internal/liveverify/affected/golang/golang_test.go` |
 | TSP-V0-003 | `readGatedLocators`, `applyGatedLocators` and `carriesLiteral` in `internal/liveverify/affected/golang/gatedlocators.go`; their call in `internal/liveverify/affected/golang/golang.go`; `gatedLocatorsChanged` in `internal/liveverify/affected/readers.go` and its call in `internal/liveverify/affected/select.go`; `.corvint/gated-root-locators.json` | `TestGatedRootLocators_TSP_V0_003` in `internal/liveverify/affected/golang/gatedlocators_test.go` (undeclared: the dependent is selected on an unrelated change; declared: it is not and the plan is `BOUNDED`, the locator's own tests stay selected and a change to the locator still selects it; a gate not carried, a package that is not a locator or not present, a relative gate, an unknown member and unparsed JSON each name the invalid frontier and keep it selected; a dirty declaration is `UNKNOWN`); `TestRootLocatorGated_TSP_V0_003` in `internal/authoritystore/gated_locator_test.go` |
+| TSP-V0-004 | `freshDirectorySource`, `makesDirectory` and `onlyExpanded` in `internal/liveverify/affected/shell/fresh.go`; block identity and separators in `parse` in `internal/liveverify/affected/shell/lex.go`; `plainAt` and the source case of `observe` in `internal/liveverify/affected/shell/shell.go` | `TestFreshTemporaryDirectorySourceIsBounded_TSP_V0_004` in `internal/liveverify/affected/shell/shell_test.go` (a heavy.sh-shaped `serve` is bounded; another value, a second assignment, a `for`, `read`, `local` or `unset` rebinding, `${w:=}`, a `local w=` declaration, another function, a subshell, an `if` arm, `&&`, a pipeline, an inner pipeline, a dynamic, `..` or empty rest, `mktemp` without `-d` or with `-u`, a prefix assignment, an `ENVFILE` source, a source between, a second fresh source, a source before the assignment and backquotes each stay dynamic) |
 
 ## Rollback
 
@@ -127,4 +144,5 @@ Remove `frontierBears = affected.FrontierBearsOnOwnFiles` in `observeDirectory`;
 `ownFilesBear` are then inert. No stored state depends on the value. TSP-V0-002: drop the
 `LinkedEntries` check in `observeDirectory` only together with TSP-V0-001. TSP-V0-003: delete
 `.corvint/gated-root-locators.json` (a change that itself plans `UNKNOWN`); the package is then a
-root locator again and its dependents are followed on every dirty path.
+root locator again and its dependents are followed on every dirty path. TSP-V0-004: make
+`freshDirectorySource` return false; every such source is then dynamic again, as before.

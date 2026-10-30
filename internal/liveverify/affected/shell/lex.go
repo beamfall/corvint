@@ -5,11 +5,19 @@ import "strings"
 // command is one simple command: its raw words, quoting kept, with a
 // redirection operator kept as the redirect marker before its target.
 // inFunction reports a command inside a function body; substituted, one
-// inside a command or process substitution.
+// inside a command or process substitution. block identifies the innermost
+// function body, brace group, subshell or compound-command arm (an if, elif or
+// else branch, a loop body, a case arm) holding the command: 0 is the file's
+// top level and -1 a substitution's own commands, so two commands with one
+// block id >= 0 run in that order in one straight-line list. lead and trail
+// are the operators before and after it ("" at a list's start or end, "\n",
+// ";", ";;", "&&", "||", "|", "&", "(" or ")").
 type command struct {
 	words       []string
 	inFunction  bool
 	substituted bool
+	block       int
+	lead, trail string
 }
 
 // script is what one lexing pass over a file yields: its commands in source
@@ -20,6 +28,7 @@ type script struct {
 	commands  []command
 	data      []string
 	functions map[string]int
+	blocks    int
 }
 
 // define records a function's first definition.
@@ -77,7 +86,12 @@ type heredoc struct {
 	expands bool
 }
 
-type frame struct{ function, paren bool }
+// frame is one open construct: a function body or brace group, a subshell
+// (paren) or a compound command (keyword), with its block id.
+type frame struct {
+	function, paren, keyword bool
+	id                       int
+}
 
 // parse reads commands until EOF or, when closer is ')', the parenthesis that
 // closes the substitution it was called for, leaving pos past it.
@@ -93,6 +107,35 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 		cases   int
 		pattern bool
 	)
+	push := func(entry frame) {
+		l.out.blocks++
+		entry.id = l.out.blocks
+		stack = append(stack, entry)
+	}
+	block := func() int {
+		if substituted {
+			return -1
+		}
+		if len(stack) == 0 {
+			return 0
+		}
+		return stack[len(stack)-1].id
+	}
+	// arm starts a compound command's next arm, a new block.
+	arm := func() {
+		if len(stack) > 0 && stack[len(stack)-1].keyword {
+			l.out.blocks++
+			stack[len(stack)-1].id = l.out.blocks
+			return
+		}
+		push(frame{keyword: true})
+	}
+	popKeyword := func() {
+		if len(stack) > 0 && stack[len(stack)-1].keyword {
+			stack = stack[:len(stack)-1]
+		}
+	}
+	var lead, trail string
 	inFunction := func() bool {
 		if inherited {
 			return true
@@ -119,20 +162,22 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 		case cases > 0 && len(words) == 0 && word == "esac":
 			cases--
 			pattern = false
+			popKeyword()
 		case pattern:
 		case len(words) == 2 && words[0] == "case" && word == "in":
 			words = nil
 			cases++
 			pattern = true
+			push(frame{keyword: true})
 		case len(words) == 0 && word == "{":
-			stack = append(stack, frame{function: pendingFunc})
+			push(frame{function: pendingFunc})
 			pendingFunc = false
 		case len(words) == 0 && word == "}":
 			pop()
 		case word == "{" && len(words) == 2 && words[0] == "function":
 			l.out.define(words[1])
 			words = nil
-			stack = append(stack, frame{function: true})
+			push(frame{function: true})
 			pendingFunc = false
 		default:
 			words = append(words, word)
@@ -149,9 +194,26 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 			}
 			pendingFunc = true
 		} else {
-			l.out.commands = append(l.out.commands, command{words: words, inFunction: inFunction(), substituted: substituted})
+			switch words[0] {
+			case "then", "else", "elif", "do":
+				arm()
+			}
+			l.out.commands = append(l.out.commands, command{words: words, inFunction: inFunction(), substituted: substituted, block: block(), lead: lead, trail: trail})
+			lead = trail
+			switch words[0] {
+			case "if", "while", "until", "for", "select":
+				push(frame{keyword: true})
+			case "fi", "done":
+				popKeyword()
+			}
 		}
 		words = nil
+	}
+	// endAt ends a command at the operator op.
+	endAt := func(op string) {
+		trail = op
+		endCommand()
+		trail = ""
 	}
 	begin := func() {
 		if start < 0 {
@@ -165,6 +227,7 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 			if c == ')' {
 				words = nil
 				pattern = false
+				arm()
 			}
 			l.pos++
 			continue
@@ -178,7 +241,7 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 		}
 		switch {
 		case c == '\n':
-			endCommand()
+			endAt("\n")
 			l.pos++
 			for _, body := range pending {
 				l.heredoc(body, inFunction())
@@ -212,14 +275,19 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 			begin()
 			l.dollar(inFunction())
 		case c == ';' && cases > 0 && (l.peek(1) == ';' || l.peek(1) == '&'):
-			endCommand()
+			endAt(";;")
+			arm()
 			l.pos += 2
 			if l.peek(0) == '&' {
 				l.pos++
 			}
 			pattern = true
 		case c == ';' || c == '&' || c == '|':
-			endCommand()
+			op := string(c)
+			if (c == '&' || c == '|') && l.peek(1) == c {
+				op += op
+			}
+			endAt(op)
 			l.pos++
 		case (c == '<' || c == '>') && l.peek(1) == '(':
 			begin()
@@ -260,11 +328,11 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 				pendingFunc = true
 				continue
 			}
-			endCommand()
-			stack = append(stack, frame{paren: true})
+			endAt("(")
+			push(frame{paren: true})
 			l.pos++
 		case c == ')':
-			endCommand()
+			endAt(")")
 			l.pos++
 			if len(stack) > 0 && stack[len(stack)-1].paren {
 				pop()
