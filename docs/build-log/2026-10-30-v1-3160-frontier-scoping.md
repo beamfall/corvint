@@ -1,4 +1,4 @@
-# Scope the build-constraint frontier to its package's own files — V1-3160
+# Scope the global plan frontiers — V1-3160
 
 ## Root cause
 
@@ -67,3 +67,92 @@ The options are listed in the spec's Open questions.
 `affected-plan-v0.md` is at its OCM limit, so the new requirement is in the companion spec
 `test-selection-precision-v0.md` (prefix `TSP-V0`). The lane's assigned `AFP-V0-920` to `949`
 block was not used.
+
+## Measured outcome after TSP-V0-002 to 005
+
+TSP-V0-002 closes a symlink gap in TSP-V0-001. TSP-V0-003 (V1-0872) removes the nested-module
+cause through a verified gated-locator declaration. TSP-V0-004 (V1-3325) bounds heavy.sh's fresh
+`mktemp -d` source. TSP-V0-005 (the orchestrator's option (c)) verifies a declaration of every
+file that names `script/heavy.sh` and the three scripts that run it. It is verified rather than
+trusted: the shell plugin re-scans every candidate file on each graph build, and
+`TestRepositoryShellForeignCallersComplete_TSP_V0_005` scans the tracked tree, failing on an
+unlisted file.
+
+The measurements used `corvint affected --no-cache --path PATH` on a clean tree:
+
+- before: a binary built from base `fd51f53a2`, run on a worktree at that base;
+- after: a binary built from the lane commit that adds TSP-V0-005, run on the lane worktree.
+
+Cost is the selected Go packages' share of the summed per-package test time in
+`.github/cishards/package-costs.json`. Shell tests are counted in the units but not costed. An
+`UNKNOWN` plan runs FULL in CI, so its effective cost there is 1.0.
+
+| Dirty path | Before: scope, units, cost | After: scope, units, cost |
+|---|---|---|
+| `docs/AUTOMATION.md` | UNKNOWN, 50, 0.327 (CI 1.0) | **BOUNDED**, 50, 0.327 |
+| `internal/liveverify/affected/golang/golang.go` | UNKNOWN, 95, 0.478 (CI 1.0) | **BOUNDED**, 95, 0.478 |
+| `script/heavy.sh` | UNKNOWN, 50, 0.320 (CI 1.0) | **BOUNDED**, 64, 0.380 |
+| `internal/capcatalog/capcatalog.go` | UNKNOWN, 74, 0.438 | **BOUNDED**, 74, 0.438 |
+| `script/lane-guard.sh` | UNKNOWN, 50, 0.320 | **BOUNDED**, 50, 0.320 |
+| `cmd/corvint/main.go` | UNKNOWN, 83, 0.385 | UNKNOWN, 83, 0.385 |
+| `internal/gitstatus/status.go` | UNKNOWN, 175, 0.751 | UNKNOWN, 175, 0.751 |
+| `internal/tasks/cli/cli.go` | UNKNOWN, 61, 0.531 | UNKNOWN, 61, 0.531 |
+| `docs/specs/affected-plan-v0.md` | UNKNOWN, 59, 0.357 | UNKNOWN, 61, 0.366 |
+| `README.md`, `go.mod` | UNKNOWN (root, many frontiers) | UNKNOWN |
+
+`script/heavy.sh` selects 14 more units after the change: `internal/dogfoodflow` and 13 of its
+importers' packages (`cmd/corvint-test`, `tools/corvint-pr-tests`, `tools/ci-forward-row` and
+others). They arrive through `batch-regen.sh`, whose declared Go callers are in
+`internal/dogfoodflow`. These are edges the plugin could not model before. In this repository,
+`heavy.sh` is no longer followed on every dirty path once TSP-V0-004 bounds its source, so these
+tests are selected only when `heavy.sh` or `batch-regen.sh` changes: `docs/AUTOMATION.md` selects
+the same 50 units before and after. The `docs/specs` path gains two units, which were not
+attributed.
+
+Files that only name `heavy.sh`, and do not run it, are declared as `mentions`:
+
+- the `corvint test` message in `cmd/corvint`;
+- the deny text in `lane-guard.sh`;
+- the transcript matcher;
+- a comment in `tools/test-shards`.
+
+Declaring them as callers would have added `tools/test-shards` to the units selected on every
+change, which the unbounded-readers check refused. This split between callers and mentions is the
+project's own claim, file by file. The rest of the declaration is verified.
+
+## Residuals that still keep a plan UNKNOWN
+
+The bearing units were found by a temporary diagnostic test (`ReachedBeyondOwnTests`), since
+deleted. No CLI output names them.
+
+- **Go source in a constrained package** (`cmd/corvint`, `internal/gitstatus`, `internal/tasks/cli`):
+  `go:build-constraint-variants` bears on the package's own files. TSP-V0-001 intends this.
+- **`cmd/corvint/**`**:
+  - `go:nested-module-frontier` bears through `tools/local-authority`, which reads `cmd/corvint` by
+    literal path.
+  - `shell:foreign-invocation-unmodelled` bears through 14 undeclared non-test scripts that build
+    or read `cmd/corvint` by literal path: `agent-preflight`, `check-analyzer-python-offline-build`,
+    `check-install-lifecycle`, `check-sql-native-ratchets`, `dogfood-batch-check`,
+    `dogfood-bind-range`, `dogfood-build-corvint`, `dogfood-change`, `dogfood-check`,
+    `dogfood-finish`, `gate-affected-corvint`, `install-cem-verifiers`,
+    `spec-toolchain-conformance` and `tools/check-analyzer-go`.
+- **`docs/specs/**`**: `shell:foreign-invocation-unmodelled` bears through the undeclared spec
+  checkers:
+  - `check-error-code-ownership`
+  - `check-line-citations`
+  - `check-requirement-definitions`
+  - `check-traceability-tests`
+  - `dogfood-finish`
+  - `gen-spec-requirements`
+  - `spec-acceptance-audit`
+  - `spec-requirements-resolve`
+  - `spec-toolchain-conformance`
+
+  The staged-CEM path set in `replay_v12941_test.go` has the same bearers, through
+  `dogfood-seal.sh` and `check-install-lifecycle.sh`.
+- **Root files** (`README.md`, `go.mod`): every language's global frontier bears.
+
+Declaring the residual scripts is mechanical. The cost would be over-selection: several Go
+packages (`internal/contextindex`, `internal/console`, `internal/lrfrepo`, `tools/docs-ci-plan`)
+name them, and each one would have to be classified as a caller or a mention. That is left for a
+follow-up.
