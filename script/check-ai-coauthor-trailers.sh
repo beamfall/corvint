@@ -158,5 +158,8 @@ while IFS= read -r sha; do
   printf '%s\n' "$found" | while IFS=$'\t' read -r reason trailer; do printf '    %s  (%s)\n' "$trailer" "$reason"; done
 done < <(git rev-list --reverse "$base..$head")
 ((bad == 0)) && { printf '%s: no AI co-author trailer in %s..%s\n' "$me" "$base" "$head"; exit 0; }
-printf 'fix: rewrite those %d commit(s) without the trailer before pushing, then rerun this check:\n  git rebase --rebase-merges %s --exec '"'"'git show -s --format=%%B HEAD | script/check-ai-coauthor-trailers.sh --strip | git commit --amend --allow-empty -q -F -'"'"'\nthen %s; script/check-ai-coauthor-trailers.sh --install-hook refuses the trailer before a commit is made\n' "$bad" "$base" "$settings_fix"
+# The rewrite runs a copy of this script taken outside the checkout: the commits being rewritten
+# may predate it, so the checkout's own copy can be absent while the rebase runs.
+self=$(cd "$(dirname "$0")" && pwd)/$(basename "$0")
+printf 'fix: rewrite those %d commit(s) without the trailer before pushing, then rerun this check:\n  strip=$(mktemp) && cp %q "$strip" && git rebase --rebase-merges %q --exec "git show -s --format=%%B HEAD | bash \047$strip\047 --strip | git commit --amend --allow-empty -q -F -"\nthen %s; script/check-ai-coauthor-trailers.sh --install-hook refuses the trailer before a commit is made\n' "$bad" "$self" "$base" "$settings_fix"
 exit 1

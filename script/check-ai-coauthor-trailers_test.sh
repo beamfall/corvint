@@ -70,8 +70,9 @@ git merge -q --no-ff -m 'merge side
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>' side || fail "merge"
 "$check" "$base" HEAD > "$tmp/out" 2>&1 && fail "AI trailers in a merged range accepted"
 [[ $(grep -c '^  [0-9a-f]\{40\} ' "$tmp/out") == 2 ]] || fail "both commits not named: $(cat "$tmp/out")"
-mkdir -p script && /bin/cp -f "$check" script/
-recovery=$(sed -n 's/^  \(git rebase .*\)$/\1/p' "$tmp/out")
+# The fixture never tracks the script, so the recovery must not need it in the rewritten commits.
+[[ ! -e script ]] || fail "the fixture has a script directory"
+recovery=$(sed -n 's/^  \(strip=.*git rebase .*\)$/\1/p' "$tmp/out")
 [[ -n $recovery ]] || fail "no recovery command printed: $(cat "$tmp/out")"
 bash -c "$recovery" > "$tmp/rebase" 2>&1 || fail "recovery failed: $(cat "$tmp/rebase")"
 "$check" "$base" HEAD > "$tmp/out" 2>&1 || fail "range still refused after the recovery: $(cat "$tmp/out")"
@@ -87,6 +88,7 @@ printf 'subject\n\nCo-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>\n' > 
 
 # 6. --install-hook refuses the trailer before the commit exists, is idempotent, and never
 # replaces a foreign hook.
+mkdir -p script && /bin/cp -f "$check" script/
 "$check" --install-hook > "$tmp/out" 2>&1 || fail "install: $(cat "$tmp/out")"
 "$check" --install-hook > "$tmp/out" 2>&1 && grep -q 'already installed' "$tmp/out" || fail "reinstall: $(cat "$tmp/out")"
 before=$(git rev-parse HEAD)

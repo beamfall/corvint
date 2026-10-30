@@ -36,6 +36,12 @@ ASD-V0-560 (checker, batch-precheck step, opt-in commit-msg hook) and ASD-V0-561
 
 - `make ai-coauthor-trailers-test`: cases 1 to 6, including running the printed rebase recovery
   over a range with a merge. Each assertion was mutation-checked.
+- The lane's self-check found that the first version of the recovery called the checkout's own
+  `script/check-ai-coauthor-trailers.sh` from inside the rebase. That fails on any commit that
+  predates the script, which includes every commit in the batch that introduces it. The test hid
+  this by giving the fixture an untracked copy. The recovery now copies the script to a temporary
+  file first, and the fixture tracks no script until case 6. A mutation back to the checkout path
+  fails case 4.
 - `script/agent-preflight_test.sh`: 16 assertions. Case 4 covers attribution, and every case now
   pins `CLAUDE_CONFIG_DIR`, so the test no longer reads the real host settings.
 - `make batch-precheck-test` passes with `TMPDIR=${TMPDIR%/}`. Its step counts in groups 3, 4 and
