@@ -69,11 +69,11 @@ func TestFinishLaneDCWV0061RecognizesOnlyTheBindCommit(t *testing.T) {
 	if code, out := clean(false); code != 0 || out != "" {
 		t.Fatalf("sidecar-only exit=%d stderr=%q", code, out)
 	}
-	if code, out := clean(true); code != 2 || out != "dogfood-finish-lane: REFUSE dirty-worktree\n  fix: git restore --source=HEAD --staged --worktree -- .corvint/change.cem.json .corvint/changes/"+bind+".cem.json, commit or remove every other change, then rerun corvint dogfood finish-lane --base "+change+"\n" {
+	if code, out := clean(true); code != 2 || out != "dogfood-finish-lane: REFUSE dirty-worktree\n  uncommitted: \".corvint/change.cem.json\"\n  fix: git restore --source=HEAD --staged --worktree -- .corvint/change.cem.json .corvint/changes/"+bind+".cem.json, commit or remove every other change, then rerun corvint dogfood finish-lane --base "+change+"\n" {
 		t.Fatalf("resume exit=%d stderr=%q", code, out)
 	}
 	write("notes.txt", "draft\n")
-	if code, out := clean(false); code != 2 || !strings.HasPrefix(out, "dogfood-finish-lane: REFUSE dirty-worktree\n  fix: commit the change ") {
+	if code, out := clean(false); code != 2 || !strings.HasPrefix(out, "dogfood-finish-lane: REFUSE dirty-worktree\n  uncommitted: \".corvint/change.cem.json\" \"notes.txt\"\n  fix: commit the change ") {
 		t.Fatalf("dirty exit=%d stderr=%q", code, out)
 	}
 }
