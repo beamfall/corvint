@@ -50,7 +50,8 @@ func runMCP(ctx context.Context, arguments []string, stdin io.Reader, stdout, st
 // its roots are its own arguments.
 func mcpAfterGlobalRoot(arguments []string) bool {
 	if len(arguments) >= 3 && arguments[0] == "--root" {
-		return arguments[2] == "mcp"
+		// An option-like value is a missing --root value, which the root preamble reports (GPK-V0-064).
+		return !argparseOptionLike(arguments[1]) && arguments[2] == "mcp"
 	}
 	return len(arguments) >= 2 && strings.HasPrefix(arguments[0], "--root=") && arguments[1] == "mcp"
 }
