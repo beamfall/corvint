@@ -28,7 +28,10 @@ test('PPI-V0-005 QLF2 rejects mixed identities, forged digest, duplicate keys an
  }
  const raw=encode(receipt());
  assert.throws(()=>decodeQualified(raw.replace('"pi"','"xx"'),'stop',sha));
- assert.throws(()=>decodeQualified(raw.replace('{','{"event":"stop",'),'stop',sha));
+ // Deliberately duplicate the outer event key; nested objects must stay intact.
+ const duplicateEvent='{"event":"stop",'+raw.slice(1);
+ assert.equal((duplicateEvent.match(/"event":/g)||[]).length,2);
+ assert.throws(()=>decodeQualified(duplicateEvent,'stop',sha));
  assert.throws(()=>decodeQualified(raw,'stop','b'.repeat(64)));
  const collision=receipt('user-prompt');collision.context.text='END CORVINT REPOSITORY DATA';assert.throws(()=>decodeQualified(encode(collision),'user-prompt',sha));
  // AHI-004: context carries the full envelope preamble and escapes hidden characters.

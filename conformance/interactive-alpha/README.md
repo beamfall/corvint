@@ -1,7 +1,7 @@
 # Interactive alpha installed-host fixture
 
 This frozen fixture qualifies the opt-in VS Code save lifecycle against a real extension host,
-Vitest 5.0.0, Playwright 1.64.0, a real browser, the supported Go foreground session, and the
+Vitest 5.0.3, Playwright 1.64.0, a real browser, the supported Go foreground session, and the
 read-only test-validity MCP. The harness copies the fixture into a private temporary Git repository;
 the checked-in fixture is never edited by a qualification run.
 

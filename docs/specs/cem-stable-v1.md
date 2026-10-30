@@ -1603,6 +1603,14 @@ write them; V1-1278 S2/S3 remove them after those consumers move.
   checkout lacks makes the binding test report `NOT_RUN` (skip), never a pass. This replaces the
   converter reconversion of `CEM-V1-230`; byte equality between each source and its migrated map
   is the frozen V1-1277 evidence.
+  Under decision 0587, the eleven historical maps retained by public root
+  `9477995d776ddf88d7f6a82790dd9c22d51da765` use a committed, pinned sparse Git-object
+  fixture for these same source, migration and bind-sidecar comparisons. The historical
+  names and bytes must match that root and the pinned archive; missing or changed entries
+  refuse. The fixture is imported into an isolated temporary repository and proves only
+  the selected commit-path and blob relationships, not ancestry, complete history or
+  new-root coverage. New/current maps use only the checkout's Git objects, with no fixture
+  fallback. Missing proof fails under `CI=true` (V1-1334); corruption never becomes a skip.
 - `CEM-V1-202`: (accepted by decision 0546, 2026-10-20) `dogfood batch-check` and `dogfood change`'s sealed-CEM admission (`DCW-V0-039`
   (b), `DCW-V0-042`) MUST verify a sealed constituent only as a `cem/1.0` map: the verifier's
   `cem status` always runs with `--artifacts <absolute repository root>`, and only `ok`,

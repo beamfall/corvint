@@ -7,6 +7,8 @@ import {tmpdir} from 'node:os';
 import {dirname,join,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {run,ownNativeGroup} from './process.mjs';
+import {PROTECTED_PI_VERSION} from './host-version.mjs';
+import {PI_HOST_VERSION} from '../pi/runtime.js';
 import {readSettings,mergeSettings,guardAuth,guardedAuthBackend,createCredentials,parseArguments} from './settings.mjs';
 const here=dirname(fileURLToPath(import.meta.url)),root=resolve(here,'../..');
 const binary=join(here,'build/release/pi-protected');
@@ -41,7 +43,7 @@ test('PPI-V0-003 configuration rejects executable resources and shell credential
  }finally{rmSync(dir,{recursive:true,force:true})}
 });
 
-test('PPI-V0-001 PPI-V0-002 native RPC uses embedded SDK with hostile global resources',async t=>{
+test('PPI-V0-001 PPI-V0-002 PWV-V0-016 native RPC uses embedded SDK with hostile global resources',async t=>{
  const scratch=mkdtempSync(join(tmpdir(),'pi-protected-host-'));
  t.after(()=>rmSync(scratch,{recursive:true,force:true}));
  const repo=join(scratch,'repo'),home=join(scratch,'home'),dataDir=join(scratch,'data');
@@ -59,6 +61,7 @@ test('PPI-V0-001 PPI-V0-002 native RPC uses embedded SDK with hostile global res
  writeFileSync(join(repo,'fixture.png'),Buffer.from('iVBORw0KGgoAAAANSUhEUgAAC7kAAAABCAIAAAAudx9XAAAAH0lEQVR4nO3BAQEAAACCIP+vbkhAAQAAAAAAAADAhwEjLAAB5nWy6QAAAABJRU5ErkJggg==','base64'));
  writeFileSync(join(repo,'image-resize-worker.js'),canary);
  for(const args of [['init','-q'],['add','.'],['-c','user.name=Fixture','-c','user.email=fixture@example.invalid','commit','-qm','fixture']])assert.equal((await run('/usr/bin/git',args,{cwd:repo})).code,0);
+ const contextSupported=PROTECTED_PI_VERSION===PI_HOST_VERSION;
  const requests=[];let imageIssued=false;
  const server=createServer((req,res)=>{
   let body='';req.on('data',chunk=>{body+=chunk;if(body.length>2**20)req.destroy()});
@@ -92,21 +95,32 @@ test('PPI-V0-001 PPI-V0-002 native RPC uses embedded SDK with hostile global res
  }});
  assert.equal(result.code,0,result.stderr);assert.equal(settled,2,JSON.stringify(events));assert.equal(requests.length,2,JSON.stringify(events));
  assert.ok(events.some(e=>e.id==='new'&&e.success));assert.doesNotMatch(result.stderr,/Corvint unavailable|Failed to load/);
- for(const request of requests)assert.match(JSON.stringify(request.messages),/BEGIN CORVINT REPOSITORY DATA/);
+ for(const request of requests){
+  if(contextSupported)assert.match(JSON.stringify(request.messages),/BEGIN CORVINT REPOSITORY DATA/);
+  else assert.doesNotMatch(JSON.stringify(request.messages),/BEGIN CORVINT REPOSITORY DATA/);
+ }
+ if(!contextSupported)assert.ok(events.some(e=>e.type==='extension_ui_request'&&e.method==='notify'&&e.message==='Corvint unavailable: unsupported-host-version. Frontier authority remains unavailable.'&&e.notifyType==='warning'),'unsupported pinned host must expose the actual RPC refusal');
  assert.equal(existsSync(marker),false);
  const witness=join(scratch,'tui-pgid'),releaseWitness=ownNativeGroup(witness);
  try {
   const fixture=join(scratch,'pi-tui-fixture');
   const built=await run('go',['build','-o',fixture,'./tools/pi-tui-fixture'],{cwd:root,env:{...process.env,GOTOOLCHAIN:'local'}});assert.equal(built.code,0,built.stderr);
-  const tui=await run(fixture,['-protected','/usr/bin/sandbox-exec','-p',profile,binary,'--mode','tui','--data-dir',dataDir],{cwd:repo,env:{...env,CORVINT_PI_PTY_WITNESS:witness,CORVINT_PI_TUI_FIRST:'3'}});
+  const tui=await run(fixture,['-protected','/usr/bin/sandbox-exec','-p',profile,binary,'--mode','tui','--data-dir',dataDir],{cwd:repo,env:{...env,CORVINT_PI_PTY_WITNESS:witness,CORVINT_PI_TUI_FIRST:'3',CORVINT_PI_TUI_EXPECT:contextSupported?'':'unsupported-host-version'}});
   assert.equal(tui.code,0,tui.stderr);assert.match(tui.stdout,/clean shutdown passed/);
  }finally{releaseWitness()}
  assert.equal(requests.length,5);
- for(const request of requests)assert.match(JSON.stringify(request.messages),/BEGIN CORVINT REPOSITORY DATA/);
+ for(const request of requests){
+  if(contextSupported)assert.match(JSON.stringify(request.messages),/BEGIN CORVINT REPOSITORY DATA/);
+  else assert.doesNotMatch(JSON.stringify(request.messages),/BEGIN CORVINT REPOSITORY DATA/);
+ }
  assert.equal(existsSync(marker),false);
  let imageOutput='';
  const resized=await run('/usr/bin/sandbox-exec',['-p',profile,binary,'--mode','rpc','--data-dir',dataDir],{cwd:repo,env,onSpawn(c){c.stdin.write('{"type":"prompt","message":"read fixture image"}\n')},onStdout(chunk,c){imageOutput+=chunk;if(imageOutput.includes('"type":"agent_settled"'))c.stdin.end()}});
  assert.equal(resized.code,0,resized.stderr);assert.match(imageOutput,/"toolName":"read"/);assert.match(imageOutput,/"type":"image"/);assert.doesNotMatch(imageOutput,/external-module-unavailable|image-resize-failed|native-addon-unavailable/);
  assert.ok(requests.some(request=>JSON.stringify(request.messages).includes('data:image/png;base64,')),'native image must reach the provider');
+ for(const request of requests){
+  if(contextSupported)assert.match(JSON.stringify(request.messages),/BEGIN CORVINT REPOSITORY DATA/);
+  else assert.doesNotMatch(JSON.stringify(request.messages),/BEGIN CORVINT REPOSITORY DATA/);
+ }
  assert.equal(existsSync(marker),false);
 });

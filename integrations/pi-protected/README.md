@@ -13,8 +13,15 @@ contract is `docs/specs/protected-pi-runtime-v0.md`.
 
 ## Build and verify
 
-Use Bun 1.3.11, Go 1.27.3 and the checked-in npm lockfile. Dependency installation
-is explicit: `npm ci --ignore-scripts --prefix integrations/pi-protected`.
+Use Bun 1.3.11, Go 1.27.3, npm 12.2.1 and the checked-in npm lockfile. Dependency
+installation is explicit: `cd integrations/pi-protected && npx --yes npm@12.2.1 ci --ignore-scripts`.
+The local npm configuration requires that npm version and a nested dependency layout.
+npm 12 ignores the upstream SDK shrinkwrap so the scoped Undici security override and
+patched transitive dependencies can take effect while preserving the pinned Pi 0.85.1 host.
+The install runtime must satisfy npm 12.2.1's Node range (`^22.22.2 || ^24.15.0 || >=26.0.0`);
+the bundled Node 22.23.2 remains compatible.
+A dependency update invalidates protected-image qualification; rebuild and requalify the image
+before claiming its protected path is qualified (PPI-V0-009).
 Set `CORVINT_PI_NODE_ARCHIVE` to the official Node 22.23.2 darwin-arm64 tarball;
 the build rejects any SHA256 other than
 `61130f394c1630d211dd50aecc4353d379480f36d3ac913cd85dbba1aed585c6`.

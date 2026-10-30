@@ -42,7 +42,7 @@ async function prepare(kind) {
       const server = join(dir, 'app/server.js'); await writeFile(server, (await readFile(server, 'utf8')).replace(/server.listen\(\d+/, `server.listen(${number}`));
       const test = join(dir, 'e2e.spec.js'); await writeFile(test, (await readFile(test, 'utf8')).replace(/127\.0\.0\.1:\d+/, `127.0.0.1:${number}`));
     }
-    argv = [join(bin, 'corvint-js-test-provider'), kind, '--dir', dir, '--package-json', join(dir, 'package.json'), '--lockfile', join(dir, 'package-lock.json'), '--config', join(dir, e2e ? 'playwright.config.js' : 'vitest.config.js'), '--test-file', join(dir, e2e ? 'e2e.spec.js' : 'unit.test.js'), '--runner-version', e2e ? '1.64.0' : '5.0.0', '--timeout', '60s', '--retain', '--foreground', '--experimental', '--trusted-local', '--watch', e2e ? 'app/index.html' : 'math.js'];
+    argv = [join(bin, 'corvint-js-test-provider'), kind, '--dir', dir, '--package-json', join(dir, 'package.json'), '--lockfile', join(dir, 'package-lock.json'), '--config', join(dir, e2e ? 'playwright.config.js' : 'vitest.config.js'), '--test-file', join(dir, e2e ? 'e2e.spec.js' : 'unit.test.js'), '--runner-version', e2e ? '1.64.0' : '5.0.3', '--timeout', '60s', '--retain', '--foreground', '--experimental', '--trusted-local', '--watch', e2e ? 'app/index.html' : 'math.js'];
     if (e2e) argv.push('--watch', 'app/server.js', '--app-build-dir', join(dir, 'app'), '--server-ready-url', `http://127.0.0.1:${number}/`, '--server-arg', 'node', '--server-arg', 'app/server.js', '--test-arg', 'npx', '--test-arg', 'playwright', '--test-arg', 'test', '--test-arg', '--reporter=json');
     watched = join(dir, e2e ? 'app/index.html' : 'math.js');
   }

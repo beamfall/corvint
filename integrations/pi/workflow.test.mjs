@@ -35,7 +35,9 @@ test('LCP-V0-008 closed Pi workflow envelopes verify complete digest and request
  for(const mutate of [v=>v.policy.satisfied=true,v=>v.completion.decision='release',v=>v.repository.commitRevision='c'.repeat(40),v=>v.adapter.hostVersion='0.85.1',v=>v.frontier.shouldContinue=true,v=>v.extra=1]){const bad=structuredClone(value);mutate(bad);assert.throws(()=>decodeWorkflowEnvelope(JSON.stringify(bad),'stop',input))}
  const {resultDigest,...base}=value;
  for(const delta of [{mutates:true},{completion:{decision:'block',reason:'not-stop-event'}},{policy:{...base.policy,satisfied:true}},{adapter:{...base.adapter,adapterVersion:'0.2.0'}}])assert.throws(()=>decodeWorkflowEnvelope(JSON.stringify(sign({...base,...delta})),'stop',input));
- assert.throws(()=>decodeWorkflowEnvelope(JSON.stringify(value).replace('{','{"ok":true,'),'stop',input));
+ const duplicateOK='{"ok":true,'+JSON.stringify(value).slice(1);
+ assert.equal((duplicateOK.match(/"ok":/g)||[]).length,2);
+ assert.throws(()=>decodeWorkflowEnvelope(duplicateOK,'stop',input));
  assert.throws(()=>decodeWorkflowEnvelope(JSON.stringify(value),'stop',{...input,stopHookActive:true}));
 });
 test('LCP-V0-008 canonical envelope sorts numeric and Unicode keys and rejects ambiguous numbers',()=>{

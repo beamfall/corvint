@@ -100,7 +100,7 @@ export class Child {
   constructor(argv, cwd, timeout = 120000) {
     verifyPins();
     this.timeout = timeout; this.argv = argv; this.stdout = Buffer.alloc(0); this.stderr = Buffer.alloc(0); this.observed = new Map(); this.failure = undefined; this.closed = false;
-    this.process = spawn(argv[0], argv.slice(1), { cwd, env: process.env, detached: true, stdio: ['pipe', 'pipe', 'pipe'] });
+    this.process = spawn(argv[0], argv.slice(1), { cwd, env: process.env, shell: false, detached: true, stdio: ['pipe', 'pipe', 'pipe'] });
     owned.add(this);
     const append = (key, bytes) => {
       if (this[key].length + bytes.length > 1 << 20) { this.failure ??= new Error('child output exceeded 1 MiB'); this.signal('SIGTERM'); return; }

@@ -241,10 +241,10 @@ test('AHI-002 AHI-024 native Pi package lifecycle and ephemeral context',async t
 
 test('AHI-024 native-host harness cancellation kills descendants',{skip:!!process.env.CORVINT_PI_INTERRUPT_WITNESS},async t=>{
  const scratch=mkdtempSync(join(tmpdir(),'pi-host-cancel-'));t.after(()=>rmSync(scratch,{recursive:true,force:true}));
- const pidFile=join(scratch,'pid');const abort=new AbortController();
+ const pidFile=join(scratch,'pid-"\'`$()\u2028');const abort=new AbortController();
  const script=join(scratch,'child.js');
- writeFileSync(script,`const {spawn}=require('node:child_process');const {writeFileSync}=require('node:fs');const child=spawn(process.execPath,['-e','process.on("SIGTERM",()=>{});setInterval(()=>{},1000)'],{stdio:'ignore'});writeFileSync(${JSON.stringify(pidFile)},String(child.pid));setInterval(()=>{},1000);`);
- const work=run(process.execPath,[script],{signal:abort.signal});
+ writeFileSync(script,`const {spawn}=require('node:child_process');const {writeFileSync}=require('node:fs');const child=spawn(process.execPath,['-e','process.on("SIGTERM",()=>{});setInterval(()=>{},1000)'],{stdio:'ignore'});writeFileSync(process.argv[2],String(child.pid));setInterval(()=>{},1000);`);
+ const work=run(process.execPath,[script,pidFile],{signal:abort.signal});
  const rejected=assert.rejects(work,/interrupted/);
  for(let i=0;i<200&&!existsSync(pidFile);i++)await new Promise(r=>setTimeout(r,10));
  assert.ok(existsSync(pidFile));const pid=Number(readFileSync(pidFile,'utf8'));
