@@ -1,17 +1,14 @@
-# Push reuse of a narrowed queue run and the job-level shard skip — V1-3158, V1-2902
+# Push reuse after a narrowed queue run rejected; the job-level shard skip — V1-3158, V1-2902
 
 ## V1-3158 (CIN-V0-005)
 
-Fork: keep the full `main` push after a narrowed merge-queue run, or reuse that run. Decision
-(orchestrator, within the ticket): reuse it, only while `CORVINT_MQ_NARROWING` is `on`. The queue
-run already proved one narrowed selection of exactly the range `base_sha..head` and passed; the
-push of the same commit tests the same tree. The narrowed-record job now also runs on such a
-queue run, and `ci-reuse-plan` admits for a push only the record of a successful `merge_group`
-run of the pushed commit naming the same tree, target, base, head and shard count; a pull-request
-run's narrowed record is never admitted for a push. Owner-visible consequence: a narrowed merge
-then has no full `main` backstop and the push makes no forward row; setting the variable off
-restores the full push. Live evidence (two narrowed merges with push run IDs and durations)
-follows the merge.
+Fork: keep the full `main` push after a narrowed merge-queue run, or reuse that run. The first
+cut (c9ff36e, a98fec9) reused it while `CORVINT_MQ_NARROWING` was `on`. Decision (orchestrator,
+on the Codex P1 finding against c827217): rejected. A `main` push reuses only a `merge_group`
+record that ran FULL on the identical tree; a narrowed queue record is refused for a push, with
+or without `--base`, and the narrowed-record job stays pull-request only. A narrowed merge keeps
+its full `main` push as the backstop, and that push still produces forward rows. Both commits
+are reverted (baf9476, 6347df8); the ticket's push saving is not delivered by this lane.
 
 ## V1-2902 (CIN-V0-007)
 
@@ -22,7 +19,7 @@ AFP-V0-080 gated-job structure; building the shadow planner once per run touches
 #11 changes and needs a trusted artifact handoff. `doc-gates` merge-queue reuse already exists
 (AFP-V0-670, AFP-V0-671), and V1-1642 was delivered by AFP-V0-080.
 
-Evidence: `TestCINV0005PushReusesTheNarrowedQueueRunOfThePushedCommit`,
-`TestCINV0005PushPassesItsFirstParentOnlyWhileQueueNarrowingIsOn`, `TestAFPV0734NarrowedRecordJob`,
-`TestCINV0007ShardsSkipAtJobLevelOnlyForADocsOrReuseDecision` (`tools/ci-reuse-plan`, PASS; whole
-package PASS).
+Evidence: `TestCINV0005PushNeverReusesANarrowedQueueRecord` (a valid narrowed queue record of the
+pushed commit gives FULL with and without `--base`; adding the full record gives REUSE of it),
+`TestAFPV0734NarrowedRecordJob`, `TestCINV0007ShardsSkipAtJobLevelOnlyForADocsOrReuseDecision`
+(`tools/ci-reuse-plan`, PASS; whole package PASS).
