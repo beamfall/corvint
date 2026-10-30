@@ -1,11 +1,12 @@
 #!/bin/sh
 # SPDX-License-Identifier: Apache-2.0
 # AFP-V0-731: the selection step of a merge-queue entry. The go-product-shard job runs this copy
-# from the queue base (merge_group.base_sha, a commit of main), never from the entry under test,
+# from the queue base (merge_group.base_sha) when main contains it, else from the newest commit of
+# main it descends from (AFP-V0-934), never from the entry under test,
 # in the tested checkout, only after the narrowing-verdict job said MET for the entry (AFP-V0-730).
-# It selects over the whole queue range QUEUE_BASE..TESTED_MERGE, so an entry stacked on earlier
+# It selects over the whole queue range SELECTION_BASE..TESTED_MERGE, so an entry stacked on earlier
 # entries of its group selects for their changes too, with the pinned planner (`corvint affected
-# --base QUEUE_BASE`) and the pinned selector (tools/gate-affected-select), and writes their
+# --base SELECTION_BASE`) and the pinned selector (tools/gate-affected-select), and writes their
 # verdict as a driver-shaped selection. narrow.sh beside it then applies every AFP-V0-098 guard
 # (no .github/ change in the range, the shadow superset, the AFP-V0-590 balanced placement) and
 # writes the corvint-pr-narrowing/0 record, the executed sidecar and the step output `mode`.
@@ -25,6 +26,9 @@ here=$(cd "$(dirname "$0")" && pwd)
 sel="$RUNNER_TEMP/corvint-mq-selection"
 mkdir -p "$sel"
 hex40() { printf '%s' "$1" | grep -Eqx '[0-9a-f]{40}'; }
+# SELECTION_BASE: the base the queue-range selection is measured from, the queue base unless it is a
+# stacked entry's (AFP-V0-934).
+SELECTION_BASE=${QUEUE_BASE:-}
 # select REASON [PACKAGE...]: write the driver-shaped selection; any REASON makes narrow.sh FULL.
 # Without a REASON the AFP-V0-813 reuse files beside it add Reused and Reuse.
 select_() {
@@ -33,7 +37,7 @@ select_() {
   printf '%s\n' "$@" | sed '/^$/d' > "$sel/packages"
   [ -f "$sel/reused" ] || : > "$sel/reused"
   [ -s "$sel/reuse.json" ] || printf '%s\n' '{"applied":false,"reason":"no reuse was considered"}' > "$sel/reuse.json"
-  jq -n -c --arg base "$QUEUE_BASE" --arg target "$TESTED_MERGE" --arg reason "$reason" --rawfile packages "$sel/packages" \
+  jq -n -c --arg base "$SELECTION_BASE" --arg target "$TESTED_MERGE" --arg reason "$reason" --rawfile packages "$sel/packages" \
     --rawfile reused "$sel/reused" --slurpfile reuse "$sel/reuse.json" \
     '{Schema: "corvint-mq-selection/0", Base: $base, Head: $target, Target: $target, Reason: $reason,
       Packages: (if $reason == "" then [$packages | split("\n")[] | select(length > 0)] else ["./..."] end),
@@ -66,9 +70,13 @@ plan_() {
     why="malformed or mismatched planner receipt"
     return 1
   fi
-  # AFP-V0-816: an UNKNOWN (or unnamed) plan scope refuses reuse even under a `run` verdict.
-  if [ "$3" = 1 ] && ! jq -e '.plan.scope == "BOUNDED"' "${p_out}plan.json" > /dev/null 2>&1; then
-    why="plan scope is $(jq -r '.plan.scope // "missing" | tostring' "${p_out}plan.json" 2> /dev/null | head -c 40), not BOUNDED"
+  # AFP-V0-816: an UNKNOWN (or unnamed) plan scope refuses reuse even under a `run` verdict,
+  # unless (AFP-V0-935, V1-3160) every unknown is a LANGUAGE_FRONTIER entry: the pinned selector
+  # FALLBACKs on a module-level one and attributes the rest itself, as it does for S.
+  if [ "$3" = 1 ] && ! jq -e '.plan.scope == "BOUNDED" or (.plan.scope == "UNKNOWN" and (.plan.unknown | type) == "array"
+      and (.plan.unknown | length) > 0 and all(.plan.unknown[]; type == "object" and .reason == "LANGUAGE_FRONTIER"))' \
+    "${p_out}plan.json" > /dev/null 2>&1; then
+    why="plan scope is $(jq -r '.plan.scope // "missing" | tostring' "${p_out}plan.json" 2> /dev/null | head -c 40), not BOUNDED or a language frontier alone"
     return 1
   fi
   module=$(sed -n 's/^module[[:space:]]\{1,\}\([^[:space:]]\{1,\}\)[[:space:]]*$/\1/p' go.mod 2> /dev/null | head -n 1)
@@ -228,13 +236,22 @@ decide() {
     select_ "the tested checkout is not a clean checkout of the queue head"
     return
   fi
-  # The entry is built on the queue base, and that base is on main.
-  if ! git merge-base --is-ancestor "$QUEUE_BASE" "$TESTED_MERGE" 2> /dev/null ||
-    ! git merge-base --is-ancestor "$QUEUE_BASE" refs/remotes/origin/main 2> /dev/null; then
-    select_ "the queue base is not an ancestor of both the queue head and main"
+  # The entry is built on the queue base. A stacked entry's queue base is the entry ahead of it,
+  # which main does not contain yet (AFP-V0-934, V1-3159): the selection then covers the whole
+  # group from the newest commit of main the queue base descends from, a superset of the entry's
+  # own range, so narrow.sh's .github/ and shadow guards cover the earlier entries too.
+  if ! git merge-base --is-ancestor "$QUEUE_BASE" "$TESTED_MERGE" 2> /dev/null; then
+    select_ "the queue base is not an ancestor of the queue head"
     return
   fi
-  if ! plan_ "$QUEUE_BASE" "" 0; then
+  if ! git merge-base --is-ancestor "$QUEUE_BASE" refs/remotes/origin/main 2> /dev/null; then
+    SELECTION_BASE=$(git merge-base "$QUEUE_BASE" refs/remotes/origin/main 2> /dev/null) || SELECTION_BASE=""
+    if ! hex40 "$SELECTION_BASE" || ! git merge-base --is-ancestor "$SELECTION_BASE" refs/remotes/origin/main 2> /dev/null; then
+      select_ "the queue base shares no commit with main"
+      return
+    fi
+  fi
+  if ! plan_ "$SELECTION_BASE" "" 0; then
     select_ "$why"
     return
   fi
@@ -253,5 +270,5 @@ decide
 pr=${QUEUE_HEAD_REF#refs/heads/gh-readonly-queue/main/pr-}
 pr=${pr%%-*}
 printf '%s' "$pr" | grep -Eqx '[0-9]+' || pr=""
-SELECTION="$sel/selection.json" BASE_REF=main PR_BASE=$QUEUE_BASE PR_HEAD=$TESTED_MERGE PR_NUMBER=$pr \
+SELECTION="$sel/selection.json" BASE_REF=main PR_BASE=$SELECTION_BASE PR_HEAD=$TESTED_MERGE PR_NUMBER=$pr \
   exec sh "$here/narrow.sh"

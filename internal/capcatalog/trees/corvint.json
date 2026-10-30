@@ -343,7 +343,7 @@
       "summary": "Compile the affected-test selection plan for the dirty worktree",
       "usage": [
         "corvint affected --path PATH [PATH ...] plans a transitive selection at HEAD.",
-        "corvint [--root PATH] affected [--full] [--require-clean] [--cache DIR | --no-cache]",
+        "corvint [--root PATH] affected [--full] [--require-clean] [--cache DIR | --no-cache] [--format json|text]",
         "corvint [--root PATH] affected [--full] --path PATH [PATH ...] [--path PATH ...] [--paths-from FILE] [--cache DIR | --no-cache]",
         "corvint [--root PATH] affected [--full] --snapshot RECEIPT",
         "corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH",
@@ -357,6 +357,7 @@
         "--appmap-impact",
         "--base",
         "--cache",
+        "--format",
         "--full",
         "--no-cache",
         "--path",
@@ -6042,12 +6043,13 @@
       "command": "corvint test",
       "summary": "Run the affected test set (experimental, STR-V0)",
       "usage": [
-        "corvint [--root PATH] test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci [--confine PATH]] [--dry-run] [--manifest PATH] [--receipt PATH]"
+        "corvint [--root PATH] test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci [--confine PATH]] [--go-parallel N] [--dry-run] [--manifest PATH] [--receipt PATH]"
       ],
       "flags": [
         "--base",
         "--confine",
         "--dry-run",
+        "--go-parallel",
         "--manifest",
         "--placement",
         "--profile",

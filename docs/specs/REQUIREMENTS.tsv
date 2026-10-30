@@ -266,6 +266,13 @@ AFP-V0-815	docs/specs/affected-plan-v0.md	(experimental under the owner's standi
 AFP-V0-816	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3100)	standing	2026-10-11; V1-3100
 AFP-V0-760	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3084;	standing	2026-10-11; V1-3084
 AFP-V0-828	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3137;	standing	2026-10-11; V1-3137
+AFP-V0-928	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3148;	standing	2026-10-11; V1-3148
+AFP-V0-929	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3152)	standing	2026-10-11; V1-3152
+AFP-V0-930	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3147)	standing	2026-10-11; V1-3147
+AFP-V0-931	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3146;	standing	2026-10-11; V1-3146
+AFP-V0-933	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3109;	standing	2026-10-11; V1-3109
+AFP-V0-934	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3159;	standing	2026-10-11; V1-3159
+AFP-V0-935	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3160;	standing	2026-10-11; V1-3160
 AFP-V0-810	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2758)	standing	2026-10-11; V1-2758
 AFP-V0-811	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2898)	standing	2026-10-11; V1-2898
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
@@ -5672,6 +5679,8 @@ STR-V0-070	docs/specs/session-test-runner-v0.md	(experimental under the standing
 STR-V0-071	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-28; V1-3000), amendin	standing	2026-10-28; V1-3000
 STR-V0-072	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-28; V1-3021), amendin	standing	2026-10-28; V1-3021
 STR-V0-073	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-29; V1-3120) For each	standing	2026-10-29; V1-3120
+STR-V0-173	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3149) `corvint	standing	2026-10-11; V1-3149
+STR-V0-174	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3155) When the	standing	2026-10-11; V1-3155
 SHA-V0-001	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	accept only exact finite language/version/toolchain/stage tuples, never a neares	unrecorded	-
 SHA-V0-002	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	use the experimental `shader` family extension: a request has the fixed transpor	unrecorded	-
 SHA-V0-003	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	facts carry an inclusive/exclusive byte span (zero-based bytes, one-based byte c	unrecorded	-

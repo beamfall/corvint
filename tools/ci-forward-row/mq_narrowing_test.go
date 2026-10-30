@@ -148,12 +148,28 @@ func TestAFPV0731MergeQueueSelection(t *testing.T) {
 			t.Fatalf("planner argv %q, want affected --base %s", r.planned, base)
 		}
 	})
+	// AFP-V0-934 (V1-3159): GitHub names a stacked entry's queue base the entry ahead of it, which
+	// main does not contain yet; the selection is then measured from the newest commit of main
+	// that queue base descends from, so it covers the whole group.
+	t.Run("a stacked entry selects from main's commit under the entry ahead", func(t *testing.T) {
+		r := narrow(t, map[string]string{"QUEUE_BASE": entry1, "TOOL_SOURCE": entry1}, nil)
+		if r.mode != "NARROWED" || r.record["base"] != base || r.record["target"] != entry2 ||
+			fmt.Sprint(r.record["selected"]) != fmt.Sprint([]string{a, b}) {
+			t.Fatalf("mode %s, record %v\n%s", r.mode, r.record, r.summary)
+		}
+		if !strings.Contains(r.planned, "affected --base "+base) || strings.Contains(r.planned, entry1) {
+			t.Fatalf("planner argv %q, want affected --base %s", r.planned, base)
+		}
+	})
 	for _, tc := range []struct {
 		name     string
 		env      map[string]string
 		override map[string]string
 		reason   string
 	}{
+		{"a stacked queue base sharing no commit with main is FULL", map[string]string{"QUEUE_BASE": entry1},
+			map[string]string{"git": "#!/bin/sh\ncase \"$1 $2\" in \"merge-base $QUEUE_BASE\") exit 1 ;; *) exec REALGIT \"$@\" ;; esac\n"},
+			"the queue base shares no commit with main"},
 		{"an UNKNOWN plan (selector FALLBACK) is FULL", nil,
 			map[string]string{"selector": "#!/bin/sh\necho 'FALLBACK the plan is UNKNOWN'\n"}, "selector: FALLBACK the plan is UNKNOWN"},
 		{"a selection of nothing is FULL", nil,
@@ -170,16 +186,22 @@ func TestAFPV0731MergeQueueSelection(t *testing.T) {
 		{"a queue base that is not main is FULL", map[string]string{"QUEUE_BASE_REF": "refs/heads/release"}, nil,
 			"not refs/heads/main"},
 		{"a queue base outside the entry's history is FULL", map[string]string{"QUEUE_BASE": strings.Repeat("a", 40)}, nil,
-			"not an ancestor of both the queue head and main"},
+			"not an ancestor of the queue head"},
 		{"an empty run verdict is FULL", nil,
 			map[string]string{"selector": "#!/bin/sh\necho 'run '\n"}, "run names no package"},
 		{"a glob in the verdict is not expanded", nil,
 			map[string]string{"selector": "#!/bin/sh\necho 'run example.org/m/*'\n"}, "invalid executable package argument"},
-		{"a queue base that main does not contain is FULL", map[string]string{"QUEUE_BASE": entry1}, nil,
-			"not an ancestor of both the queue head and main"},
 		{"a range touching .github/ is FULL", nil,
-			map[string]string{"git": "#!/bin/sh\ncase \"$1\" in diff) echo .github/workflows/ci.yml ;; *) exec REALGIT \"$@\" ;; esac\n"},
+			map[string]string{"git": "#!/bin/sh\ncase \"$1\" in diff) exit 1 ;; *) exec REALGIT \"$@\" ;; esac\n"},
 			"the change touches .github/"},
+		// AFP-V0-933 (V1-3109): git prints a non-ASCII .github/ path quoted, so a --name-only grep
+		// for ^.github/ saw no change; only the exit status of git diff --quiet decides.
+		{"a range touching a quoted non-ASCII .github/ path is FULL", nil,
+			map[string]string{"git": "#!/bin/sh\ncase \"$1 $2\" in \"diff --quiet\") exit 1 ;; diff*) echo '\".github/\\303\\251.yml\"' ;; *) exec REALGIT \"$@\" ;; esac\n"},
+			"the change touches .github/"},
+		{"an unreadable .github/ diff is FULL", nil,
+			map[string]string{"git": "#!/bin/sh\ncase \"$1\" in diff) exit 128 ;; *) exec REALGIT \"$@\" ;; esac\n"},
+			"change set is unreadable"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if tc.override["git"] != "" {
@@ -401,7 +423,9 @@ func TestAFPV0813MergeQueueReusesTheNarrowedRecordOfAMovedBase(t *testing.T) {
 			"corvint": "#!/bin/sh\nwhile [ $# -gt 0 ]; do [ \"$1\" != --base ] || b=$2; shift; done\nprintf '%s\\n' \"$b\" >> \"$FAKE/planned\"\n" +
 				"s=BOUNDED\ncase \" ${UNKNOWN_BASES-} \" in *\" $b \"*) s=UNKNOWN ;; esac\n" +
 				"if [ -n \"${BOUNDED_BASES-}\" ]; then case \" $BOUNDED_BASES \" in *\" $b \"*) ;; *) s=UNKNOWN ;; esac; fi\n" +
-				"printf '{\"profile\":\"affected-plan/1\",\"tool\":\"affected\",\"ok\":true,\"mutates\":false,\"revision\":\"%s\",\"range\":{\"base\":\"%s\"},\"plan\":{\"scope\":\"%s\"}}\\n' \"$(git rev-parse HEAD)\" \"$b\" \"$s\"\n",
+				// An UNKNOWN receipt lists UNKNOWN_DETAIL's unknowns (AFP-V0-935), else none.
+				"u=''\n[ \"$s\" != UNKNOWN ] || u=${UNKNOWN_DETAIL-}\n" +
+				"printf '{\"profile\":\"affected-plan/1\",\"tool\":\"affected\",\"ok\":true,\"mutates\":false,\"revision\":\"%s\",\"range\":{\"base\":\"%s\"},\"plan\":{\"scope\":\"%s\"%s}}\\n' \"$(git rev-parse HEAD)\" \"$b\" \"$s\" \"$u\"\n",
 			"selector":  selector(queueBase, recordBase, "run "+b),
 			"gh":        "#!/bin/sh\necho true\n",
 			"go":        "#!/bin/sh\nprintf '%s\\n' " + a + " " + b + " " + c + "\n",
@@ -475,6 +499,20 @@ func TestAFPV0813MergeQueueReusesTheNarrowedRecordOfAMovedBase(t *testing.T) {
 			t.Fatalf("planner bases %q, want %s, the delta base %v and %s", planned, queueBase, reuse["deltaBase"], recordBase)
 		}
 	})
+	// AFP-V0-935 (V1-3160): this repository's plans are UNKNOWN through language frontiers alone
+	// (build-constraint variants, the nested module, unmodelled shell invocations), which the pinned
+	// selector attributes as it does for the queue range, so such a delta or record receipt reuses.
+	t.Run("a language-frontier-only UNKNOWN delta and record range reuse", func(t *testing.T) {
+		r, _, _ := narrow(t, "", func(env map[string]string, _ map[string]string, recordBase, _, queueBase, _, _ string) {
+			env["BOUNDED_BASES"] = queueBase
+			env["UNKNOWN_DETAIL"] = `,"unknown":[{"reason":"LANGUAGE_FRONTIER","detail":"go:build-constraint-variants"},{"reason":"LANGUAGE_FRONTIER","detail":"go:nested-module-frontier"}]`
+		})
+		reuse, _ := r.record["reuse"].(doc)
+		if r.mode != "NARROWED" || reuse == nil || reuse["applied"] != true || fmt.Sprint(r.record["reused"]) != fmt.Sprint([]string{a}) ||
+			fmt.Sprint(r.record["executed"]) != fmt.Sprint([]string{b}) {
+			t.Fatalf("mode %s, record %v\n%s", r.mode, r.record, r.summary)
+		}
+	})
 	t.Run("a main delta that selects nothing reuses the whole record range", func(t *testing.T) {
 		r, _, _ := narrow(t, "", func(_ map[string]string, tools map[string]string, recordBase, _, queueBase, _, _ string) {
 			tools["selector"] = selector(queueBase, recordBase, "NOTHING no dirty or committed path; no Go package to test")
@@ -520,6 +558,14 @@ func TestAFPV0813MergeQueueReusesTheNarrowedRecordOfAMovedBase(t *testing.T) {
 		{"an UNKNOWN record-range receipt under a run verdict", "", func(env map[string]string, _ map[string]string, recordBase, _, _, _, _ string) {
 			env["UNKNOWN_BASES"] = recordBase
 		}, "record range: plan scope is UNKNOWN, not BOUNDED"},
+		{"an UNKNOWN main-delta receipt with an unowned path beside its frontier", "", func(env map[string]string, _ map[string]string, recordBase, _, queueBase, _, _ string) {
+			env["BOUNDED_BASES"] = queueBase + " " + recordBase
+			env["UNKNOWN_DETAIL"] = `,"unknown":[{"reason":"LANGUAGE_FRONTIER","detail":"go:build-constraint-variants"},{"reason":"UNOWNED_DIRTY_PATH","detail":"Makefile"}]`
+		}, "main delta: plan scope is UNKNOWN, not BOUNDED or a language frontier alone"},
+		{"an UNKNOWN record-range receipt with a malformed unknown list", "", func(env map[string]string, _ map[string]string, recordBase, _, _, _, _ string) {
+			env["UNKNOWN_BASES"] = recordBase
+			env["UNKNOWN_DETAIL"] = `,"unknown":"LANGUAGE_FRONTIER"`
+		}, "record range: plan scope is UNKNOWN, not BOUNDED or a language frontier alone"},
 		{"an UNKNOWN main-delta plan", "", func(_ map[string]string, tools map[string]string, recordBase, _, queueBase, _, _ string) {
 			tools["selector"] = selector(queueBase, recordBase, "FALLBACK the plan is UNKNOWN")
 		}, "main delta: selector: FALLBACK the plan is UNKNOWN"},

@@ -47,6 +47,11 @@ func TestAffectedMixedRangeWarning(t *testing.T) {
 			t.Fatalf("%v: exit=%d stderr=%s receipt=%s", form, code, stderr, raw)
 		}
 	}
+	// AFP-V0-928: --format text carries the same warning on its own line.
+	if text := affectedTextOutput(t, root, "--base", base, "--format", "text"); !strings.Contains(text, "\nwarning ") ||
+		!strings.Contains(text, head) || !strings.Contains(text, "1 dirty worktree paths") {
+		t.Fatalf("--format text dropped the mixed warning:\n%s", text)
+	}
 	worktreeOnly, _, _, code := runAffectedCLI(t, root)
 	if code != 0 || worktreeOnly["warning"] != nil {
 		t.Fatalf("worktree-only form warned: %v", worktreeOnly["warning"])
@@ -221,6 +226,20 @@ func TestAFPV0356MixedNamesGloballyExcludedPath(t *testing.T) {
 	if warning, _ := receipt["warning"].(string); code != 0 || !named(warning) {
 		t.Fatalf("--base: exit=%d stderr=%s receipt=%s", code, stderr, raw)
 	}
+	if text := affectedTextOutput(t, root, "--base", base, "--format", "text"); !named(text) {
+		t.Fatalf("--format text dropped the excludes recovery:\n%s", text)
+	}
+}
+
+// affectedTextOutput runs `corvint affected` with arguments that select
+// --format text and returns its stdout, failing on a nonzero exit.
+func affectedTextOutput(t *testing.T, root string, arguments ...string) string {
+	t.Helper()
+	var stdout, stderr bytes.Buffer
+	if code := runContext(context.Background(), append([]string{"--root", root, "affected"}, arguments...), strings.NewReader(""), &stdout, &stderr); code != 0 {
+		t.Fatalf("%q exit %d: %s", arguments, code, stderr.String())
+	}
+	return stdout.String()
 }
 
 // TestAFPV0507PathRefusalNamesRecovery: AFP-V0-507 (V1-2818). --path plans a

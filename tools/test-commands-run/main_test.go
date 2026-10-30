@@ -106,3 +106,17 @@ func TestSTRV0006Invocation(t *testing.T) {
 		t.Errorf("argv %q env %q", argv, env)
 	}
 }
+
+// STR-V0-174 (V1-3155): an inherited CORVINT_GOCACHE replaces the declared
+// GOCACHE, as the Makefile's `CORVINT_GOCACHE ?=` does; an empty one does not.
+func TestSTRV0174InvocationHonoursCorvintGocache(t *testing.T) {
+	declared := sessiontest.Declared{GoEnv: []string{"GOCACHE=/tmp/c", "GOTOOLCHAIN=local"}, GoFlags: []string{"-count=1"}}
+	_, env := invocation(declared, []string{"PATH=/usr/bin", "CORVINT_GOCACHE=/lane/cache", "GOCACHE=/x"})
+	if strings.Join(env, " ") != "PATH=/usr/bin CORVINT_GOCACHE=/lane/cache GOCACHE=/lane/cache GOTOOLCHAIN=local" {
+		t.Errorf("env %q", env)
+	}
+	_, env = invocation(declared, []string{"CORVINT_GOCACHE="})
+	if strings.Join(env, " ") != "CORVINT_GOCACHE= GOCACHE=/tmp/c GOTOOLCHAIN=local" {
+		t.Errorf("empty CORVINT_GOCACHE: env %q", env)
+	}
+}

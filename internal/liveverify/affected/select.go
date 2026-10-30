@@ -2,8 +2,10 @@ package affected
 
 import (
 	json "encoding/json/v2"
+	"fmt"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -506,24 +508,6 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 			reasons[reason] = true
 		}
 	}
-	if len(unowned) > 0 {
-		fixtures := graph.hostedFixtureDirectories(unowned)
-		for _, name := range graph.languages {
-			if participating[name] {
-				continue
-			}
-			closed := fixtures
-			if graph.listsBelowAny(name, fixtures) {
-				closed = nil
-			}
-			steered := graph.readsResolutionInput(name, unowned)
-			for _, entry := range graph.frontierBy[name] {
-				if steered || graph.bearsOnUnowned(name, entry, closed) {
-					reasons[entry] = true
-				}
-			}
-		}
-	}
 	for id, witness := range reached {
 		if graph.frontierBears(id, witness, followed, reads) {
 			for _, reason := range graph.units[id].Frontier {
@@ -539,9 +523,33 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 			reasons[reason] = true
 		}
 	}
+	// An entry of a plugin that owns no dirty path and reaches no changed
+	// unit bears only through a path no plugin owns (AFP-V0-511); its Hint
+	// names that path, so the count is explained (AFP-V0-929).
+	hints := make(map[string]string)
+	if len(unowned) > 0 {
+		fixtures := graph.hostedFixtureDirectories(unowned)
+		hint := unownedFrontierHint(unowned)
+		for _, name := range graph.languages {
+			if participating[name] {
+				continue
+			}
+			closed := fixtures
+			if graph.listsBelowAny(name, fixtures) {
+				closed = nil
+			}
+			steered := graph.readsResolutionInput(name, unowned)
+			for _, entry := range graph.frontierBy[name] {
+				if (steered || graph.bearsOnUnowned(name, entry, closed)) && !reasons[entry] {
+					reasons[entry] = true
+					hints[entry] = hint
+				}
+			}
+		}
+	}
 	unknown := make([]Unknown, 0, len(reasons))
 	for _, reason := range sortedKeys(reasons) {
-		unknown = append(unknown, Unknown{Reason: UnknownLanguageFrontier, Detail: reason})
+		unknown = append(unknown, Unknown{Reason: UnknownLanguageFrontier, Detail: reason, Hint: hints[reason]})
 	}
 	var excluded []FrontierExclusion
 	names := make([]string, 0, len(terminal))
@@ -565,6 +573,17 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 		excluded = append(excluded, FrontierExclusion{Language: name, Reason: FrontierExclusionReason, Frontier: left, Units: units})
 	}
 	return unknown, excluded
+}
+
+// unownedFrontierHint is the Hint of a frontier entry that bears only
+// because a dirty path is owned by no plugin (AFP-V0-929): the first such path
+// in byte order and how many more there are.
+func unownedFrontierHint(unowned []string) string {
+	more := ""
+	if len(unowned) > 1 {
+		more = fmt.Sprintf(" (and %d more UNOWNED_DIRTY_PATH)", len(unowned)-1)
+	}
+	return "bears only because no plugin owns the dirty path " + strconv.Quote(unowned[0]) + more + ": this plugin owns no dirty path and reaches no changed unit"
 }
 
 // frontierBears reports whether unit id's Frontier bears on a plan that

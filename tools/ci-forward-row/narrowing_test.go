@@ -941,7 +941,9 @@ func TestAFPV0098SupersetGuardSidecar(t *testing.T) {
 		effective := strings.Repeat("a", 40)
 		mode, out := narrow(t, false, map[string]string{
 			"driver": "#!/bin/sh\nwhile [ $# -gt 0 ]; do [ \"$1\" != --out ] || o=$2; shift; done\njq --arg base " + effective + " '.Base=$base' \"$FAKE/selection.json\" > \"$o/selection.json\"\n",
-			"git":    "#!/bin/sh\n[ \"$*\" = 'diff --no-renames --name-only " + effective + " " + target + "' ] || { echo .github/main-only.yml; exit 0; }\necho internal/x.go\n",
+			// AFP-V0-933: only the proven parent's range is free of .github/ changes; any other
+			// base would see main's own .github/ edit (exit status 1).
+			"git":    "#!/bin/sh\n[ \"$*\" = 'diff --quiet --no-renames " + effective + " " + target + " -- .github/' ] || exit 1\n",
 			"shadow": "#!/bin/sh\ncase \"$*\" in *'--base " + effective + " '*) cat \"$FAKE/shadow.json\" ;; *) exit 1 ;; esac\n",
 		})
 		v := readDoc(t, filepath.Join(out, "narrowing.json"))
@@ -950,7 +952,7 @@ func TestAFPV0098SupersetGuardSidecar(t *testing.T) {
 		}
 	})
 	t.Run("PR-owned github edit stays full", func(t *testing.T) {
-		mode, out := narrow(t, false, map[string]string{"git": "#!/bin/sh\necho .github/pr-owned.yml\n"})
+		mode, out := narrow(t, false, map[string]string{"git": "#!/bin/sh\nexit 1\n"})
 		v := readDoc(t, filepath.Join(out, "narrowing.json"))
 		if mode != "FULL" || !strings.Contains(fmt.Sprint(v["reasons"]), "the change touches .github/") {
 			t.Fatalf("github: %s %v", mode, v)
@@ -1063,8 +1065,10 @@ func TestAFPV0097WorkflowBindings(t *testing.T) {
 	for _, want := range []string{"needs.narrowing-verdict.outputs.verdict == 'MET'", "vars.CORVINT_PR_NARROWING == 'on'",
 		"github.event_name == 'pull_request'", "github.event.pull_request.head.repo.full_name == github.repository",
 		`sh "$GITHUB_WORKSPACE/trusted-tools/.github/forward-rows/narrow.sh"`,
-		// AFP-V0-731: a merge-queue entry runs mq-narrow.sh from its queue base, never the entry.
-		"vars.CORVINT_MQ_NARROWING == 'on'", `git archive "$QUEUE_BASE" .github/forward-rows`, `sh "$trusted/.github/forward-rows/mq-narrow.sh"`,
+		// AFP-V0-731: a merge-queue entry runs mq-narrow.sh from a commit of main, never the entry:
+		// its queue base, or a stacked entry's newest main ancestor (AFP-V0-934).
+		"vars.CORVINT_MQ_NARROWING == 'on'", `git archive "$scripts" .github/forward-rows`, `sh "$trusted/.github/forward-rows/mq-narrow.sh"`,
+		`scripts=$(git merge-base "$QUEUE_BASE" refs/remotes/origin/main 2> /dev/null) || exit 0`,
 		"QUEUE_BASE: ${{ github.event.merge_group.base_sha }}"} {
 		if !strings.Contains(gate, want) {
 			t.Fatalf("the narrowing gate lacks %q", want)
