@@ -101,11 +101,11 @@ func TestV12690DeclaredRuntimeTupleDrift(t *testing.T) {
 			`"Google Chrome for Testing ` + declaredHeadlessBrowser + `"`,
 			`expectedBrowserSHA256 = "` + declaredHeadlessSHA256 + `"`,
 		},
-		"conformance/interactive-alpha/core-provider-proof.mjs": {`'--runner-version', e2e ? '` + declaredPlaywrightVersion + `' : '5.0.0'`},
+		"conformance/interactive-alpha/core-provider-proof.mjs": {`'--runner-version', e2e ? '` + declaredPlaywrightVersion + `' : '5.0.3'`},
 		"extensions/vscode/test/installed/index.cjs":            {`"--runner-version", "` + declaredPlaywrightVersion + `"`},
 		"docs/specs/public-release-v0.md": {
 			"verify Node " + strings.TrimPrefix(requiredNodeVersion, "v") + ", npm " + requiredNPMVersion + ",",
-			"Node " + requiredNodeVersion + ", npm " + requiredNPMVersion + ",\nVitest 5.0.0 and Playwright " + declaredPlaywrightVersion,
+			"Node " + requiredNodeVersion + ", npm " + requiredNPMVersion + ",\nVitest 5.0.3 and Playwright " + declaredPlaywrightVersion,
 			"`chromium_headless_shell-" + declaredHeadlessRevision + "`",
 		},
 	}

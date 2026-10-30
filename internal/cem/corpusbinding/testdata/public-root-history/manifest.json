@@ -1,0 +1,484 @@
+{
+  "profile": "corvint-public-root-corpus-fixture/1",
+  "archiveRepository": "https://github.com/beamfall/corvint-history",
+  "archiveCommit": "1c4d8793cf71cbb01b8509b68a6cb1502a40a13e",
+  "publicRoot": "9477995d776ddf88d7f6a82790dd9c22d51da765",
+  "packSHA256": "f627783ae5f84cfc3c1dee442ccd07fd07d429ed95718ba75d97405d8286ee0d",
+  "packBytes": 249286,
+  "objects": [
+    {
+      "oid": "0277e9e7942f65d683957676c0237d6f893856d5",
+      "type": "tree",
+      "size": 127
+    },
+    {
+      "oid": "033f1e12ac7a09b0dadd3f079f402445c86b6288",
+      "type": "blob",
+      "size": 8990
+    },
+    {
+      "oid": "06c90d7d86a88676b9c3ae6f32ceca7bc1bf6658",
+      "type": "tree",
+      "size": 529
+    },
+    {
+      "oid": "06cf00ac5b39e1df734ea0fd63dbe42cfa6d078f",
+      "type": "commit",
+      "size": 246
+    },
+    {
+      "oid": "0b6f1bc245b44a8620c5e64f91e87f6d08da08d0",
+      "type": "commit",
+      "size": 266
+    },
+    {
+      "oid": "15fd5f4e3e55bf42a71e0d637565edde6ef153a6",
+      "type": "tree",
+      "size": 1330
+    },
+    {
+      "oid": "1c4d8793cf71cbb01b8509b68a6cb1502a40a13e",
+      "type": "commit",
+      "size": 1227
+    },
+    {
+      "oid": "229b7f91bdd47b9901dfff98db6f37aea9b19c99",
+      "type": "blob",
+      "size": 31148
+    },
+    {
+      "oid": "2be2aea5a3db31d41e555097f5703fbe55bad231",
+      "type": "tree",
+      "size": 47586
+    },
+    {
+      "oid": "3807936c3293f04ffc5c3c9618990757fd3c4174",
+      "type": "commit",
+      "size": 246
+    },
+    {
+      "oid": "3b0343913b31743461ada8c6ba61368ab0ac249a",
+      "type": "tree",
+      "size": 1437
+    },
+    {
+      "oid": "3b21b43f7666d29b231a69fd4c27d3953d60747e",
+      "type": "tree",
+      "size": 534
+    },
+    {
+      "oid": "3b86121f4ced8b90212eaab6644ffbb4c491710d",
+      "type": "commit",
+      "size": 287
+    },
+    {
+      "oid": "47721991cd848c9e3f330eff2f7256d2f59285df",
+      "type": "tree",
+      "size": 1437
+    },
+    {
+      "oid": "48de67414ddea1e27196f6519f9de6307f74d227",
+      "type": "blob",
+      "size": 32263
+    },
+    {
+      "oid": "4b81c7f019a671e1a452d92a02dea357e615a456",
+      "type": "tree",
+      "size": 529
+    },
+    {
+      "oid": "55384a914f5df929edc1bf10e1a480c33708f9b6",
+      "type": "tree",
+      "size": 529
+    },
+    {
+      "oid": "56acf444fd6a27b31eec10ac5e210472a547a6f2",
+      "type": "commit",
+      "size": 246
+    },
+    {
+      "oid": "56ed79386e8d3946199214c6ebacd0bac6a3b5e8",
+      "type": "tree",
+      "size": 1437
+    },
+    {
+      "oid": "57f4c2d938fbfa9cdd0f21854703cf312c867da0",
+      "type": "commit",
+      "size": 246
+    },
+    {
+      "oid": "5fb03a97b0320bb9300a6510a271e4c39f14ac4a",
+      "type": "blob",
+      "size": 8619
+    },
+    {
+      "oid": "63168379c61f239d104e1fb178aa0111226f4cb2",
+      "type": "blob",
+      "size": 6791
+    },
+    {
+      "oid": "636d4852e7f0291fcd59401cae89ad11e6a978c6",
+      "type": "tree",
+      "size": 1437
+    },
+    {
+      "oid": "646481371460bcb66c96131142d3112868efc49b",
+      "type": "blob",
+      "size": 6050
+    },
+    {
+      "oid": "65d29e1efd7440bf88c711bdbe46719c82956ab6",
+      "type": "commit",
+      "size": 246
+    },
+    {
+      "oid": "685134c106d4a64ceff28b4b3c7c475839fc68f1",
+      "type": "blob",
+      "size": 10388
+    },
+    {
+      "oid": "6e200c396c2795ff1e11e8075bce515931bde951",
+      "type": "blob",
+      "size": 7113
+    },
+    {
+      "oid": "73294e112cdd7d3edf77da5fe77e42e6fc6054b5",
+      "type": "tree",
+      "size": 529
+    },
+    {
+      "oid": "73f0bf286882dd56ea758df58d4c48796812fcc4",
+      "type": "blob",
+      "size": 7231
+    },
+    {
+      "oid": "77bd1a1665c9d11191b84dbe61950440de573eca",
+      "type": "blob",
+      "size": 32954
+    },
+    {
+      "oid": "7a8ccada89d7e6c1ebb491e7c49e03842f02295b",
+      "type": "tree",
+      "size": 1437
+    },
+    {
+      "oid": "7f107ba5b808ae412871f659f999628158328904",
+      "type": "blob",
+      "size": 5173
+    },
+    {
+      "oid": "8668f77b73eaf7b203abbb922aa1fe9cff8fd6c8",
+      "type": "commit",
+      "size": 246
+    },
+    {
+      "oid": "89561333fdd4d1fbad9776df5aeacef3978e76f1",
+      "type": "commit",
+      "size": 246
+    },
+    {
+      "oid": "8c5dcc1854fadc0c8f4c8848b451f8a4c97d6239",
+      "type": "tree",
+      "size": 233
+    },
+    {
+      "oid": "8d7b44188cb086aeb5c32182fe4fab18890973d9",
+      "type": "commit",
+      "size": 246
+    },
+    {
+      "oid": "8dc6cbf9a25a796aac94785260c425a83ec4c2aa",
+      "type": "blob",
+      "size": 4790
+    },
+    {
+      "oid": "91044789fbe10e70120bf72bd3bb0b625cf7c94c",
+      "type": "tree",
+      "size": 1437
+    },
+    {
+      "oid": "97ec4c50c0b2c8822c702e7370267ce60a4e3169",
+      "type": "blob",
+      "size": 35510
+    },
+    {
+      "oid": "9a3070399a284160fe12b110e1e1b12e391e7b0e",
+      "type": "tree",
+      "size": 432
+    },
+    {
+      "oid": "9b1bde5f1aadd497c016f4f71b6ebfa6293b60fb",
+      "type": "tree",
+      "size": 529
+    },
+    {
+      "oid": "9ca8bfa777f4275cca5654328ae745c46eb5e502",
+      "type": "blob",
+      "size": 7132
+    },
+    {
+      "oid": "9cb8dac6f1fe6162b0aaaf8fab5d594dc039902a",
+      "type": "tree",
+      "size": 1437
+    },
+    {
+      "oid": "9ec1c2881247a5deee62e2f125e86afb131fe38a",
+      "type": "tree",
+      "size": 1437
+    },
+    {
+      "oid": "a0b6f94243b36a139b3b6eeb25699198dd6efdf1",
+      "type": "tree",
+      "size": 1365
+    },
+    {
+      "oid": "a4886ea64ad0765f092c40f41df66312466b428c",
+      "type": "tree",
+      "size": 529
+    },
+    {
+      "oid": "a617b2266bfaf6b3540f12d3f343e0b284d3a1bb",
+      "type": "tree",
+      "size": 1365
+    },
+    {
+      "oid": "b243ae5cff106ec901e58f42d71c73f88fbcb4c2",
+      "type": "tree",
+      "size": 1437
+    },
+    {
+      "oid": "bf41c25210036353b816a27d367546382b87deb3",
+      "type": "tree",
+      "size": 529
+    },
+    {
+      "oid": "c0094703cb9ae8ae4dea180ca650a07117f47b34",
+      "type": "tree",
+      "size": 1437
+    },
+    {
+      "oid": "cb64c3e63fa5494c48adf5c63f36eaf37d31a074",
+      "type": "tree",
+      "size": 109494
+    },
+    {
+      "oid": "ce79228ff7a0a76f8eb621f60baa28ba199ef15d",
+      "type": "blob",
+      "size": 11343
+    },
+    {
+      "oid": "d26c384bb28f2ddcc93093f41624e1fcf7e1bcf3",
+      "type": "tree",
+      "size": 47355
+    },
+    {
+      "oid": "d3de0e037bd8931625c79d7354a95b9261922df3",
+      "type": "tree",
+      "size": 432
+    },
+    {
+      "oid": "d662a191df1069eb7bb72867e566986d3b6001ac",
+      "type": "tree",
+      "size": 529
+    },
+    {
+      "oid": "d7a4e6c3cb02c21be4736cf35a9c40824e1a528e",
+      "type": "blob",
+      "size": 9689
+    },
+    {
+      "oid": "de866e0e033c4dcb500c5701ed72aa5a5f8c2c40",
+      "type": "blob",
+      "size": 51719
+    },
+    {
+      "oid": "e9ebd7c885ac99badb1efd57c97ed583ef5a16b5",
+      "type": "blob",
+      "size": 30456
+    },
+    {
+      "oid": "e9eec84100408553dc6fde3399aa8e48e0cc36a1",
+      "type": "commit",
+      "size": 246
+    },
+    {
+      "oid": "ebda995079c5c3e402cf94ac0158d01ee15b5d63",
+      "type": "commit",
+      "size": 246
+    },
+    {
+      "oid": "ec75c04dacd04534fc29c869504348248e88588a",
+      "type": "commit",
+      "size": 246
+    },
+    {
+      "oid": "f1f03064c9d78be3acf2f04233e5634d6ba7c30a",
+      "type": "tree",
+      "size": 1437
+    },
+    {
+      "oid": "f9a10044c92faa012b626416874d28c579bb9138",
+      "type": "tree",
+      "size": 233
+    }
+  ],
+  "fixtures": [
+    {
+      "name": "06cf00ac5b39e1df734ea0fd63dbe42cfa6d078f.cem.json",
+      "oid": "d7a4e6c3cb02c21be4736cf35a9c40824e1a528e",
+      "sha256": "069c03b6bc0b7e54419bc04cb8f3b176353e6fc7ed1f85eb635e4edbb784a188",
+      "size": 9689
+    },
+    {
+      "name": "3807936c3293f04ffc5c3c9618990757fd3c4174.cem.json",
+      "oid": "48de67414ddea1e27196f6519f9de6307f74d227",
+      "sha256": "b993860205c0eaa3a9a26ef6ca4b28385ff8f984615b4a93f975ca89e0e645ee",
+      "size": 32263
+    },
+    {
+      "name": "56acf444fd6a27b31eec10ac5e210472a547a6f2.cem.json",
+      "oid": "5fb03a97b0320bb9300a6510a271e4c39f14ac4a",
+      "sha256": "c338a184326d014478a10a7e2e8797c939f62566b19aa3d7b148dbc869672349",
+      "size": 8619
+    },
+    {
+      "name": "57f4c2d938fbfa9cdd0f21854703cf312c867da0.cem.json",
+      "oid": "77bd1a1665c9d11191b84dbe61950440de573eca",
+      "sha256": "9afdcfc655dee0acff26968d9ae006b52d8e5d7586cc67658e98f4ca0bad55df",
+      "size": 32954
+    },
+    {
+      "name": "65d29e1efd7440bf88c711bdbe46719c82956ab6.cem.json",
+      "oid": "229b7f91bdd47b9901dfff98db6f37aea9b19c99",
+      "sha256": "fbcde3911563e19d7a6b6869e733187000df1fe469590c78dbee997056e21f18",
+      "size": 31148
+    },
+    {
+      "name": "8668f77b73eaf7b203abbb922aa1fe9cff8fd6c8.cem.json",
+      "oid": "7f107ba5b808ae412871f659f999628158328904",
+      "sha256": "3dd51e0677392e7df74981a5eb0a95cbc369a20602fa6a342e9af177e06c5d86",
+      "size": 5173
+    },
+    {
+      "name": "89561333fdd4d1fbad9776df5aeacef3978e76f1.cem.json",
+      "oid": "033f1e12ac7a09b0dadd3f079f402445c86b6288",
+      "sha256": "1d773d064b31251a150f76a659dc3abe63e6452b72cdc95c2014900970c9089a",
+      "size": 8990
+    },
+    {
+      "name": "8d7b44188cb086aeb5c32182fe4fab18890973d9.cem.json",
+      "oid": "685134c106d4a64ceff28b4b3c7c475839fc68f1",
+      "sha256": "53ff1b11f54453f098ec7bd578a957e5e8c594b4ca768c68042af340467d3b46",
+      "size": 10388
+    },
+    {
+      "name": "e9eec84100408553dc6fde3399aa8e48e0cc36a1.cem.json",
+      "oid": "e9ebd7c885ac99badb1efd57c97ed583ef5a16b5",
+      "sha256": "cd9f41462c80274c3c3951be3b1c813f2b65e0950739b9b3082d05628fa66ff1",
+      "size": 30456
+    },
+    {
+      "name": "ebda995079c5c3e402cf94ac0158d01ee15b5d63.cem.json",
+      "oid": "de866e0e033c4dcb500c5701ed72aa5a5f8c2c40",
+      "sha256": "4c0eaeb1db60fe5b712a46c40aac57cea88b13c098ad33932e648b2ff4a10714",
+      "size": 51719
+    },
+    {
+      "name": "ec75c04dacd04534fc29c869504348248e88588a.cem.json",
+      "oid": "73f0bf286882dd56ea758df58d4c48796812fcc4",
+      "sha256": "dd99355bfb5fd89544dec4ab5054923ae14a081f68ef81c31cd5a7294a8c6f2a",
+      "size": 7231
+    }
+  ],
+  "notices": [
+    {
+      "file": "notices/646481371460bcb66c96131142d3112868efc49b.txt",
+      "oid": "646481371460bcb66c96131142d3112868efc49b",
+      "sourcePath": "LICENSING.md",
+      "sha256": "05222f14148648f2cfc55c38cf1ce6bd7aec76f15faa469c02d6d23e2d0517a8",
+      "commits": [
+        "8668f77b73eaf7b203abbb922aa1fe9cff8fd6c8"
+      ]
+    },
+    {
+      "file": "notices/6e200c396c2795ff1e11e8075bce515931bde951.txt",
+      "oid": "6e200c396c2795ff1e11e8075bce515931bde951",
+      "sourcePath": "LICENSING.md",
+      "sha256": "e1d4181eba9773429e722bc810686f563efe1ebfd31a726f6e04851974112e01",
+      "commits": [
+        "06cf00ac5b39e1df734ea0fd63dbe42cfa6d078f",
+        "3807936c3293f04ffc5c3c9618990757fd3c4174",
+        "56acf444fd6a27b31eec10ac5e210472a547a6f2",
+        "57f4c2d938fbfa9cdd0f21854703cf312c867da0",
+        "65d29e1efd7440bf88c711bdbe46719c82956ab6",
+        "89561333fdd4d1fbad9776df5aeacef3978e76f1",
+        "8d7b44188cb086aeb5c32182fe4fab18890973d9",
+        "e9eec84100408553dc6fde3399aa8e48e0cc36a1",
+        "ebda995079c5c3e402cf94ac0158d01ee15b5d63",
+        "ec75c04dacd04534fc29c869504348248e88588a"
+      ]
+    },
+    {
+      "file": "notices/8dc6cbf9a25a796aac94785260c425a83ec4c2aa.txt",
+      "oid": "8dc6cbf9a25a796aac94785260c425a83ec4c2aa",
+      "sourcePath": "LICENSING.md",
+      "sha256": "b7a89bd5b7be7bf2a3fb692bc7f07bcbe567c4fe00308930432a7a046a4d3a1f",
+      "commits": [
+        "1c4d8793cf71cbb01b8509b68a6cb1502a40a13e"
+      ]
+    },
+    {
+      "file": "notices/97ec4c50c0b2c8822c702e7370267ce60a4e3169.txt",
+      "oid": "97ec4c50c0b2c8822c702e7370267ce60a4e3169",
+      "sourcePath": "LICENSE",
+      "sha256": "196fbeabc292687bcea70da40d01c0777f8eb243ec1c11cb7b1f647bb8dd6108",
+      "commits": [
+        "06cf00ac5b39e1df734ea0fd63dbe42cfa6d078f",
+        "0b6f1bc245b44a8620c5e64f91e87f6d08da08d0",
+        "3807936c3293f04ffc5c3c9618990757fd3c4174",
+        "3b86121f4ced8b90212eaab6644ffbb4c491710d",
+        "56acf444fd6a27b31eec10ac5e210472a547a6f2",
+        "57f4c2d938fbfa9cdd0f21854703cf312c867da0",
+        "65d29e1efd7440bf88c711bdbe46719c82956ab6",
+        "8668f77b73eaf7b203abbb922aa1fe9cff8fd6c8",
+        "89561333fdd4d1fbad9776df5aeacef3978e76f1",
+        "8d7b44188cb086aeb5c32182fe4fab18890973d9",
+        "e9eec84100408553dc6fde3399aa8e48e0cc36a1",
+        "ebda995079c5c3e402cf94ac0158d01ee15b5d63",
+        "ec75c04dacd04534fc29c869504348248e88588a"
+      ]
+    },
+    {
+      "file": "notices/9ca8bfa777f4275cca5654328ae745c46eb5e502.txt",
+      "oid": "9ca8bfa777f4275cca5654328ae745c46eb5e502",
+      "sourcePath": "LICENSING.md",
+      "sha256": "231b4639de815aab0a72f160ba82065374819aaabefc7cb80571147024959397",
+      "commits": [
+        "0b6f1bc245b44a8620c5e64f91e87f6d08da08d0",
+        "3b86121f4ced8b90212eaab6644ffbb4c491710d"
+      ]
+    },
+    {
+      "file": "notices/ce79228ff7a0a76f8eb621f60baa28ba199ef15d.txt",
+      "oid": "ce79228ff7a0a76f8eb621f60baa28ba199ef15d",
+      "sourcePath": "LICENSE",
+      "sha256": "d43daf6ebba91f7ea294dedcd0da5fe6cf02ab611e36181c7e168a207e75457e",
+      "commits": [
+        "1c4d8793cf71cbb01b8509b68a6cb1502a40a13e"
+      ]
+    }
+  ],
+  "sourceAncestryObserved": [
+    "06cf00ac5b39e1df734ea0fd63dbe42cfa6d078f",
+    "3807936c3293f04ffc5c3c9618990757fd3c4174",
+    "56acf444fd6a27b31eec10ac5e210472a547a6f2",
+    "57f4c2d938fbfa9cdd0f21854703cf312c867da0",
+    "65d29e1efd7440bf88c711bdbe46719c82956ab6",
+    "8668f77b73eaf7b203abbb922aa1fe9cff8fd6c8",
+    "89561333fdd4d1fbad9776df5aeacef3978e76f1",
+    "8d7b44188cb086aeb5c32182fe4fab18890973d9",
+    "e9eec84100408553dc6fde3399aa8e48e0cc36a1",
+    "ebda995079c5c3e402cf94ac0158d01ee15b5d63",
+    "ec75c04dacd04534fc29c869504348248e88588a"
+  ]
+}
