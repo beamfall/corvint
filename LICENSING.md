@@ -23,11 +23,11 @@ holding those copies, and a recipient may keep using such a copy under its origi
   same Apache-2.0 text. Their opening paragraph still describes the former interoperability-layer
   boundary; those bytes are pinned by frozen protocol manifests and release-artifact evidence, so
   they are kept unchanged. That paragraph is historical and does not limit this grant.
-- A few files keep a historical `SPDX-License-Identifier: AGPL-3.0-or-later` line because frozen
+- Two files keep a historical `SPDX-License-Identifier: AGPL-3.0-or-later` line because frozen
   evidence pins their exact bytes: `benchmarks/daily-loop-v0/harness.py` and
-  `benchmarks/untouched-repository-v1/harness.py` (preregistered harness digests),
-  `internal/postmergehost/testdata/paired-author/author/main.go` (fixture digest) and
-  `tools/cw-trial/testdata/beamfall-roadmap-v1/build_roadmap_set.py` (task-set provenance digest).
+  `benchmarks/untouched-repository-v1/harness.py`. Each harness refuses to run unless its own
+  digest matches the `harnessSha256` sealed in its preregistrations, which recorded runs and the
+  1.0 release specification also cite.
   The frozen corpus notice fixtures under
   `internal/cem/corpusbinding/testdata/public-root-history/notices/` quote the former policy text and
   are byte-pinned by the corpus binding tests.
