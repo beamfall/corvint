@@ -348,7 +348,8 @@ func objectKey(toks []token, i int) bool {
 // whose last element cannot be a function, which the injector refuses to invoke (AMAP-V0-384), nor
 // one only a const binding holds that reaches no call (see constHeld, AMAP-V0-385). Any other
 // array holding a name fails closed. A plain-ended array a binding or member is assigned (`= [...]`)
-// is not exempt by its last element: a later `.pop()` and `.push(fn)` may complete it.
+// is not exempt by its last element: a later `.pop()` and `.push(fn)` may complete it, and neither
+// is one spreading a parameter, which a function may return to a caller that does so (AMAP-V0-650).
 func computedAnnotationIn(toks []token, exempt bool) int {
 	if lines := computedAnnotations(toks, exempt, nil); len(lines) > 0 {
 		return lines[0]
@@ -375,7 +376,7 @@ func computedAnnotations(toks []token, exempt bool, quiet map[int]bool) []int {
 			elems = append(elems, [2]int{k, e})
 			k = e + 1
 		}
-		if n := len(elems); n > 0 && (plainElement(toks, elems[n-1][0], elems[n-1][1]) && !callArgument(toks, i) && !isPunct(toks[max(i-1, 0)], "=") ||
+		if n := len(elems); n > 0 && (plainElement(toks, elems[n-1][0], elems[n-1][1]) && !parameterSpread(toks, elems, i) && !callArgument(toks, i) && !isPunct(toks[max(i-1, 0)], "=") ||
 			!functionLiteral(toks, elems[n-1][0], elems[n-1][1]) && constHeld(toks, i, end)) {
 			continue
 		}
@@ -391,6 +392,50 @@ func computedAnnotations(toks []token, exempt bool, quiet map[int]bool) []int {
 		}
 	}
 	return lines
+}
+
+// parameterSpread reports whether an element of the array literal opening at toks[i] spreads a name
+// (`...p`, `...p.deps`) that a parameter list enclosing the literal binds (AMAP-V0-650): the list of
+// a function, method or arrow whose body holds the literal, read as every `(...)` before a `{` and
+// every list or single name before an arrow. The literal then copies its caller's elements, so a
+// caller that pops its plain last element and pushes a function registers a rebuilt annotation, as
+// a method's spread parameter does (AMAP-V0-426). Any other parenthesized list before a `{` (an
+// `if` condition) is read as a parameter list too, which can only keep the literal judged.
+func parameterSpread(toks []token, elems [][2]int, i int) bool {
+	names := map[string]bool{}
+	for _, el := range elems {
+		if k := el[0] + 3; k < el[1] && isPunct(toks[el[0]], ".") && toks[k].kind == tokIdent && !word(toks, k, "this") {
+			names[toks[k].text] = true
+		}
+	}
+	if len(names) == 0 {
+		return false
+	}
+	binds := func(open, close int) bool {
+		for k := open + 1; k < close; k++ {
+			if toks[k].kind == tokIdent && names[toks[k].text] && !property(toks, k) {
+				return true
+			}
+		}
+		return false
+	}
+	for h := i; h > 0; h = enclosingOpen(toks, h) {
+		switch {
+		case h > 2 && isPunct(toks[h-1], ">") && toks[h-1].glued && isPunct(toks[h-2], "="):
+			if l := h - 3; toks[l].kind == tokIdent && names[toks[l].text] {
+				return true
+			} else if isPunct(toks[l], ")") {
+				if o := openParen(toks, l); o >= 0 && binds(o, l) {
+					return true
+				}
+			}
+		case isPunct(toks[h], "{") && isPunct(toks[h-1], ")"):
+			if o := openParen(toks, h-1); o >= 0 && binds(o, h-1) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // parameterPattern reports whether the `[` at toks[i] lies in an array binding pattern that is a
