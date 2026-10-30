@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -951,12 +952,12 @@ func TestUPDV0367CheckExplainsSourceAndUnknown(t *testing.T) {
 		{Tag: "v9.0.0", Draft: true, Published: time.Now(), Assets: []asset{core}},
 	})
 	r, err := e.run(context.Background(), "check")
-	if err != nil || r.AvailableTag != "v1.0.0-rc.3" || r.Source != "beamfall/corvint" || r.Channel != "v" || r.ReleasesObserved != 2 || r.UnknownReason != "" || r.Freshness != "RELEASE_OBSERVED" || r.Authenticated {
+	if err != nil || r.AvailableTag != "v1.0.0-rc.3" || r.Source != "beamfall/corvint" || r.Channel != "v" || r.ReleasesObserved == nil || *r.ReleasesObserved != 2 || r.UnknownReason != "" || r.Freshness != "RELEASE_OBSERVED" || r.Authenticated {
 		t.Fatalf("prerelease check: %+v %v", r, err)
 	}
 	serve(200, []release{{Tag: "tasks-dev-20261030.1", Published: time.Now(), Assets: []asset{{"corvint-tasks_" + e.platform + ".tar.gz", "https://github.com/tasks"}}}})
 	r, err = e.run(context.Background(), "check")
-	if err == nil || r.Freshness != "UNKNOWN" || r.InstalledVersion == "" || r.ReleasesObserved != 1 || !strings.Contains(r.UnknownReason, `none has a tag starting "v"`) || !strings.Contains(r.UnknownReason, "owner-authorized") {
+	if err == nil || r.Freshness != "UNKNOWN" || r.InstalledVersion == "" || r.ReleasesObserved == nil || *r.ReleasesObserved != 1 || !strings.Contains(r.UnknownReason, `none has a tag starting "v"`) || !strings.Contains(r.UnknownReason, "owner-authorized") {
 		t.Fatalf("no Core release: %+v %v", r, err)
 	}
 	serve(200, nil)
@@ -1012,5 +1013,39 @@ func TestUPDV0368TokenReachesOnlyTheAPIHost(t *testing.T) {
 	r, err = Run(context.Background(), "check", Config{Component: "core", BinDir: e.config.BinDir, StateDir: e.config.StateDir, AllowNetwork: true, TokenEnv: "CORVINT_UPDATE_TEST_TOKEN"})
 	if err == nil || !strings.Contains(r.UnknownReason, "CORVINT_UPDATE_TEST_TOKEN") {
 		t.Fatalf("unset token variable: %+v %v", r, err)
+	}
+}
+
+// TestUPDV0367ReleasesObservedSerialisedAndTokenRefusal checks the wire form:
+// a read empty inventory serialises releasesObserved 0, an unread one omits
+// it, an unset token variable still names source and channel, and rollback,
+// which is offline, ignores the token option (UPD-V0-367, UPD-V0-368).
+func TestUPDV0367ReleasesObservedSerialisedAndTokenRefusal(t *testing.T) {
+	e := fixtureEngine(t)
+	writeScript(t, filepath.Join(e.config.BinDir, "corvint"), 407)
+	e.client = &http.Client{Transport: transportFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("[]"))}, nil
+	})}
+	r, err := e.run(context.Background(), "check")
+	wire, _ := json.Marshal(r)
+	if err == nil || !strings.Contains(string(wire), `"releasesObserved":0`) {
+		t.Fatalf("read empty inventory: %s %v", wire, err)
+	}
+	e.client = &http.Client{Transport: transportFunc(func(*http.Request) (*http.Response, error) {
+		return nil, errors.New("offline")
+	})}
+	r, _ = e.run(context.Background(), "check")
+	if wire, _ = json.Marshal(r); strings.Contains(string(wire), "releasesObserved") {
+		t.Fatalf("unread inventory reported a count: %s", wire)
+	}
+	t.Setenv("CORVINT_UPDATE_TEST_TOKEN", "")
+	c := Config{Component: "tasks", BinDir: e.config.BinDir, StateDir: e.config.StateDir, AllowNetwork: true, TokenEnv: "CORVINT_UPDATE_TEST_TOKEN"}
+	r, err = Run(context.Background(), "check", c)
+	if err == nil || r.Source != "beamfall/corvint" || r.Channel != "tasks-dev-" {
+		t.Fatalf("unset token refusal: %+v %v", r, err)
+	}
+	r, err = Run(context.Background(), "rollback", c)
+	if err == nil || strings.Contains(err.Error(), "CORVINT_UPDATE_TEST_TOKEN") || strings.Contains(r.UnknownReason, "CORVINT_UPDATE_TEST_TOKEN") {
+		t.Fatalf("rollback refused on the token option: %+v %v", r, err)
 	}
 }

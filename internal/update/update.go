@@ -77,11 +77,12 @@ type Result struct {
 	Freshness      string `json:"freshness"`
 	// Source is the official release repository, Channel the tag prefix the
 	// component's releases carry (prereleases included), ReleasesObserved the
-	// published releases discovery read, and UnknownReason the actionable
+	// published releases a completely read inventory held (nil when it was
+	// not read, so an empty one reports 0), and UnknownReason the actionable
 	// cause of an UNKNOWN freshness (UPD-V0-367).
 	Source           string `json:"source,omitempty"`
 	Channel          string `json:"channel,omitempty"`
-	ReleasesObserved int    `json:"releasesObserved,omitempty"`
+	ReleasesObserved *int   `json:"releasesObserved,omitempty"`
 	UnknownReason    string `json:"unknownReason,omitempty"`
 	// Authenticated is true when release API requests carried the operator's
 	// token (UPD-V0-368).
@@ -155,10 +156,11 @@ func Run(ctx context.Context, command string, c Config) (Result, error) {
 		}
 		return allowedURL(req.URL)
 	}}, api: "https://api.github.com/repos/" + officialSource + "/releases", platform: runtime.GOOS + "_" + runtime.GOARCH}
-	if c.TokenEnv != "" {
+	// Rollback is offline and local, so the token option never refuses it.
+	if c.TokenEnv != "" && command != "rollback" {
 		e.token = strings.TrimSpace(os.Getenv(c.TokenEnv))
 		if e.token == "" {
-			return Result{Component: c.Component, Freshness: "UNKNOWN", Action: command, PublisherIdentity: "NOT_VERIFIED", UnknownReason: "--github-token-env " + c.TokenEnv + " names an unset or empty variable; export the token or omit the option for anonymous requests"}, errors.New("release API token variable " + c.TokenEnv + " is unset or empty")
+			return Result{Component: c.Component, Freshness: "UNKNOWN", Action: command, PublisherIdentity: "NOT_VERIFIED", Source: officialSource, Channel: channel(c.Component), UnknownReason: "--github-token-env " + c.TokenEnv + " names an unset or empty variable; export the token or omit the option for anonymous requests"}, errors.New("release API token variable " + c.TokenEnv + " is unset or empty")
 		}
 	}
 	return e.execute(ctx, command)
@@ -398,7 +400,9 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 	}
 	r.Authenticated = e.authenticated()
 	selected, observed, err := e.discover(ctx)
-	r.ReleasesObserved = observed
+	if err == nil || errors.Is(err, errNoRelease) || errors.Is(err, errPaginationCap) {
+		r.ReleasesObserved = &observed
+	}
 	if err != nil {
 		r.UnknownReason = e.unknownReason(err, observed)
 		return r, err
