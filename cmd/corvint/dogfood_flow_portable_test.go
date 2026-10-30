@@ -126,24 +126,14 @@ func portableDogfoodRunner(t *testing.T) portableRun {
 func (run portableRun) exec(t *testing.T, root string, extra []string, args ...string) (int, string, string) {
 	t.Helper()
 	var stdout, stderr strings.Builder
-	// The binary was just copied, so a fork another parallel test makes can still hold its
-	// write descriptor and fail this start with ETXTBSY. Nothing started then, so the start is
-	// retried on workTextBusyRetries, as workStartAdapter does (ASD-V0-106, V1-3175).
-	var command *exec.Cmd
-	var err error
-	for attempt := 0; ; attempt++ {
-		stdout.Reset()
-		stderr.Reset()
-		command = exec.Command(run.binary, args...)
+	// The binary was just copied, so its start retries ETXTBSY (ASD-V0-106, V1-3175).
+	command, err := startCopiedBinary(func() *exec.Cmd {
+		command := exec.Command(run.binary, args...)
 		command.Dir = root
 		command.Env = append(append([]string{}, run.env...), extra...)
 		command.Stdout, command.Stderr = &stdout, &stderr
-		err = command.Start()
-		if err == nil || !errors.Is(err, syscall.ETXTBSY) || attempt == len(workTextBusyRetries) {
-			break
-		}
-		time.Sleep(workTextBusyRetries[attempt])
-	}
+		return command
+	})
 	if err == nil {
 		err = command.Wait()
 	}

@@ -292,21 +292,26 @@ cannot silently go missing or outlive its command.
   capabilities check enforces it. `CAP-V0-051` to `CAP-V0-059` are reserved for this slice and
   unassigned.
 - `CAP-V0-200`: (experimental under the standing lane auto-accept (2026-10-30); V1-3153; refines
-  `CAP-V0-041` and `CAP-V0-047`) The dispatch scan MUST NOT treat as this binary's arguments a
-  slice that a function body uses as a child process's argv: one it passes, whole, indexed,
-  sliced, spread or through `append`, to `exec.Command`, `exec.CommandContext` or `syscall.Exec`, assigns to a
-  `Cmd`'s `Args` field or sets as `Args:` in a composite literal, or binds to a `[]string{...}`
-  literal it builds. Words and options compared against such a slice or its elements in that
-  function are not scanned, so a helper named `argv` or `args` that builds a `git` or `go`
-  command line no longer demands tree entries for the child's words and flags. `os.Args`, any
-  selector's `Args` field, and a name the function binds from one of them or from an `Args()`
-  call (`flag.Args()`, a flag set's `Args()`) are never excluded, so a binary that re-executes
-  itself with its own arguments is still scanned; a slice the function only dispatches on is
-  scanned as before. Non-goals: data-flow tracking across functions or through a second name
-  (`a := argv` excludes only `a`). Failure mode: a function that both dispatches on an argument
-  parameter and execs that same parameter hides its dispatch words, a false negative the
-  repository's own trees show none of (the scan of all three trees is unchanged). Rollback:
-  remove `childScopes`, `commandLine` and the `childArgv` predicate.
+  `CAP-V0-041` and `CAP-V0-047`) The dispatch scan MUST NOT read as this binary's arguments two
+  kinds of argument-named slice. (1) An argument-named `[]string` parameter of a package
+  function that never receives the command line: the function is not exported, `main` or
+  `init`, is called in the package and named nowhere but as a callee, and every call passes, at
+  that position, only a struct field other than `Args` (a recorded invocation such as
+  `wholeGoTest(invocation.Argv)`), a literal, an `append` of those, or a caller parameter that is
+  itself of this kind, computed to a fixed point; any other argument (a local, a closure
+  parameter, a call result) counts as the command line. (2) A slice a function body hands whole,
+  sliced, spread or through `append` to `exec.Command`, `exec.CommandContext` or `syscall.Exec`,
+  assigns to a `Cmd`'s `Args` field or sets as `Args:` in a composite literal, or binds to a
+  `[]string{...}` literal; a single element (`exec.Command("xdg-open", args[1])`) is a string,
+  not an argv, and excludes nothing. A name the body binds from `os.Args`, a selector's `Args`,
+  an `Args()` call or an `append` of one is never excluded, so a binary that re-executes itself
+  is still scanned. A name resolves in its innermost enclosing function, so a closure's
+  parameter never hides the same name in the function around it. Non-goals: type-checked data
+  flow; following a second name (`a := argv` excludes only `a`). Failure mode: a function that
+  dispatches on an argument parameter and also execs that whole parameter hides its dispatch
+  words. The scan of the three committed command trees finds the same words and flags as before,
+  with `cmd/corvint`'s `wholeGoTest` parameter named `argv` again. Rollback: remove
+  `childargv.go` and the `childArgv` predicate, and rename that parameter back to `command`.
 
 ## Boundaries and failure modes
 
@@ -457,4 +462,4 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-048 | `internal/capcatalog/CLI-RATCHET.tsv`, `readRatchet`, `ratchetCeiling`, `ratchetBaseline` | `TestCAPV0048RatchetMatchesCeiling`, `TestCAPV0047SyntheticDriftFails` (ratchet cases) |
 | CAP-V0-049 | `llms.txt`, `CheckEntryPoint`, `docs/CAPABILITIES.md` Command trees section | `TestCAPV0049LLMsEntryPointLinksEveryView`, `TestCAPV0005RoutingPointersNameTheCatalog` |
 | CAP-V0-050 | `AGENTS.md` Agent routing rule | `TestCAPV0050AgentsRuleNamesHelpCatalogAndGate` |
-| CAP-V0-200 | `clitree.ScanDirs` `childScopes`, `childArgv`, `commandLine`, `stringSliceLiteral` | `TestCAPV0047ChildArgvIsNotDispatch` (fails without the change: `--no-pager` and `--exec-child` scanned; `os.Args[1:]` and `flag.Args()` re-executed stay scanned), `TestCAPV0041ScanFindsDispatch`, `TestCAPV0047RepositoryCommandTreesMatchDispatch` |
+| CAP-V0-200 | `internal/clitree/childargv.go` (`childArgvOf`, `nonCommandLineParams`, `childNames`, `commandLine`), `sliceName`; `cmd/corvint/test_whole_reason.go` `wholeGoTest(argv)` | `TestCAPV0047ChildArgvIsNotDispatch` (fails on the base scanner: `flags [--exec-child --no-pager --real-flag -run]`; covers the `wholeGoTest` helper, exec, `CommandContext`, `Cmd.Args`, `syscall.Exec`, `append`, literals, and keeps a forwarded parameter, a handler-table function, a single exec element, a shadowing closure and a re-executed `os.Args`/`flag.Args()` scanned), `TestCAPV0041ScanFindsDispatch`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`; `make capabilities-check` and `make capability-catalog-check` pass |

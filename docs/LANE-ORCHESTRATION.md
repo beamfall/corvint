@@ -334,7 +334,10 @@ the lane sits idle with its seal unfinished until the orchestrator notices. Run 
 in the foreground and, when one would pass the 600 s tool-call limit, split it at its own phase
 boundary (stop after the bind commit, as the table says) instead of backgrounding it. A lane never
 ends a turn with its own job still running: it finishes the job, or it reports the exact remaining
-command as its handoff and ends with nothing running.
+command as its handoff and ends with nothing running. `script/lane-guard.sh` enforces the first half for
+every session, subagent or not: a backgrounded `make dogfood-closeout`, `-finish`, `-check` or
+`-seal`, `script/dogfood-finish.sh` or `corvint dogfood finish-lane`/`finish`/`check`/`seal` is
+denied with this foreground recipe.
 
 The 2026-10-23..25 counts come from `script/lane-transcript-metrics.py`
 (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-25-lane-infra-p0-evidence.md`): 48 tool calls ran 600 s or longer, 15 of

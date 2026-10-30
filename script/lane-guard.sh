@@ -12,7 +12,11 @@
 #     command separator), nohup, setsid or disown (ASD-V0-016: a lane waiting on its own background
 #     job stays parked). `&&`, redirections (`>&`, `<&`, `&>`, `&>>`, `|&`), quoted strings,
 #     comments, arithmetic (`$((a & b))`, `((x = y & 3))`) and heredoc bodies never count as a
-#     background `&`; an unterminated quote or arithmetic expression does not hide one.
+#     background `&`; an unterminated quote or arithmetic expression does not hide one; or
+#   - from any session, subagent or not, starts a dogfood closeout, finish, check or seal step
+#     (make dogfood-closeout/-finish/-check/-seal, script/dogfood-finish.sh, corvint dogfood
+#     finish-lane/finish/check/seal) as background work by the same tests; the refusal names the
+#     foreground recipe (ASD-V0-107, V1-3224: a session lane that ends its turn waiting on one parks).
 # Heredoc bodies are file content, not commands, so they are never matched.
 #
 #   LANE_GUARD_ROOTS  colon-separated directory prefixes; when set, a command whose cwd is under
@@ -22,7 +26,7 @@
 set -uo pipefail
 
 if [[ ${1-} == -h || ${1-} == --help ]]; then
-  sed -n '2,23p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,27p' "$0" | sed 's/^# \{0,1\}//'
   exit 0
 fi
 
@@ -110,6 +114,15 @@ sub shell_words {
     }
     $out =~ s/&&|\d*[<>]&(?:\d+|-)?|&>>?|\|&/ /g;
     return $out;
+}
+my $rib_value = ref $in->{tool_input} eq "HASH" ? $in->{tool_input}{run_in_background} : undef;
+my $in_background = defined $rib_value && "$rib_value" ne "" && "$rib_value" ne "0" && "$rib_value" ne "false";
+{
+    my $words = shell_words(join "\n", @kept);
+    if ($words =~ /(?:dogfood-(?:closeout|finish|seal|check)(?![\w-])|dogfood-finish\.sh|\bdogfood\s+(?:finish-lane|finish|check|seal)(?![\w-]))/ &&
+        ($in_background || $words =~ /&/ || $words =~ /(?:^|[;|(&\s])(?:nohup|setsid|disown)(?:\s|$)/)) {
+        deny("Lane rule: dogfood closeout, finish, check and seal run in the foreground (docs/LANE-ORCHESTRATION.md section 4): a lane that backgrounds one and ends its turn stays parked. Run $heavy make dogfood-finish LANE=1 BASE=.. CITATIONS=.. INTENTS=.. VERIFY=.. OUTCOME=.. in the foreground; if it would pass 600s, stop after the bind commit and hand off the exact remaining command.");
+    }
 }
 if (defined $in->{agent_id} && "$in->{agent_id}" ne "") {
     my $bg = "Lane rule: no background work (run_in_background, &, nohup/setsid/disown, Monitor); a lane waiting on its own background job stays parked. Run it in the foreground through $heavy under 600s, splitting it if needed.";

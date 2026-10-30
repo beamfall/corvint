@@ -23,30 +23,44 @@ root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd)
 cd "$root"
 command -v jq >/dev/null 2>&1 || { printf 'documentation paths: jq is required\n' >&2; exit 1; }
 
+# generate OUT: write the declaration to OUT. Each stage writes a file and is checked, since
+# /bin/sh has no pipefail: a failed listing must refuse, never write a short declaration.
 generate() {
+    work=$(mktemp -d "${TMPDIR:-/tmp}/corvint-documentation-paths.XXXXXX") || exit 1
     # -z keeps a name with a quote, backslash or non-ASCII byte raw (git C-quotes it otherwise); a
     # name holding a newline cannot be one JSON line entry here, so it refuses.
-    { git ls-files -z -- 'docs/*.md' |
-        perl -0ne 'chomp; next unless m{\Adocs/[^/]+\.md\z}s; die "documentation paths: a docs/*.md name holds a newline\n" if /\n/; print "$_\n"'
-        printf '%s\n' "$DIRS"; } |
-        LC_ALL=C sort -u |
-        jq -R . | jq -cs '{profile: "corvint-documentation-paths/0", paths: .}'
+    git ls-files -z -- 'docs/*.md' >"$work/listed" ||
+        { rm -rf "$work"; printf 'documentation paths: git ls-files failed\n' >&2; exit 1; }
+    perl -0ne 'chomp; next unless m{\Adocs/[^/]+\.md\z}s; die "documentation paths: a docs/*.md name holds a newline\n" if /\n/; print "$_\n"' \
+        "$work/listed" >"$work/paths" || { rm -rf "$work"; exit 1; }
+    printf '%s\n' "$DIRS" >>"$work/paths"
+    LC_ALL=C sort -u "$work/paths" >"$work/sorted" &&
+        jq -R . "$work/sorted" >"$work/strings" &&
+        jq -cs '{profile: "corvint-documentation-paths/0", paths: .}' "$work/strings" >"$1" ||
+        { rm -rf "$work"; printf 'documentation paths: cannot build the declaration\n' >&2; exit 1; }
+    rm -rf "$work"
 }
 
 case ${1:-} in
     '')
         tmp="$declaration.tmp.$$"
         trap 'rm -f "$tmp"' EXIT
-        generate >"$tmp"
+        generate "$tmp"
         mv -f "$tmp" "$declaration"
         trap - EXIT
         ;;
     --check)
         want=$(mktemp "${TMPDIR:-/tmp}/corvint-documentation-paths.XXXXXX")
         trap 'rm -f "$want"' EXIT
-        generate >"$want"
+        generate "$want"
         if ! cmp -s "$want" "$declaration"; then
             printf 'documentation paths: %s is stale against the tracked docs/*.md files; run make documentation-paths and commit it\n' "$declaration" >&2
+            # Name each declared path the tree no longer has (V1-3174).
+            if [ -f "$declaration" ]; then
+                jq -r '.paths[]? | strings' "$declaration" 2>/dev/null | while IFS= read -r path; do
+                    [ -e "$path" ] || printf '  missing: %s\n' "$path" >&2
+                done
+            fi
             exit 1
         fi
         ;;

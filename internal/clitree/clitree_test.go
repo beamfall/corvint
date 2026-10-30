@@ -186,10 +186,13 @@ func dispatch(args []string) {
 	}
 }
 
-// TestCAPV0047ChildArgvIsNotDispatch checks that a slice a function builds or hands to a child
-// process (exec.Command, exec.CommandContext, syscall.Exec, a Cmd's Args, through append) is not
-// scanned as this binary's arguments, while a parameter it only dispatches on, and its own
-// command line re-executed (os.Args, flag.Args()), still are (CAP-V0-200, V1-3153).
+// TestCAPV0047ChildArgvIsNotDispatch checks that a slice a function builds or hands whole to a
+// child process (exec.Command, exec.CommandContext, syscall.Exec, a Cmd's Args, through append),
+// and an argv parameter every caller fills from a non-command-line value (wholeGoTest), are not
+// scanned as this binary's arguments, while a parameter it only dispatches on, one that receives
+// the command line or escapes into a handler table, a single element handed to a child, a
+// closure's same-named parameter and its own command line re-executed (os.Args, flag.Args(), an
+// append of them) still are (CAP-V0-200, V1-3153).
 func TestCAPV0047ChildArgvIsNotDispatch(t *testing.T) {
 	dir := t.TempDir()
 	source := `package main
@@ -264,6 +267,62 @@ func reexec() {
 	_ = exec.Command("x", rest...)
 }
 
+type invocation struct{ Argv []string }
+
+// wholeGoTest is only ever handed a recorded child command, never this binary's arguments.
+func wholeGoTest(argv []string) bool {
+	if argv[0] != "go" || argv[1] != "test" {
+		return false
+	}
+	for _, word := range argv[2:] {
+		if word == "-run" {
+			return false
+		}
+	}
+	return true
+}
+
+func checkRecorded(recorded invocation) bool { return wholeGoTest(recorded.Argv) }
+
+// forwarded receives this binary's own arguments from Main, so it is dispatch.
+func forwarded(args []string) {
+	if args[0] == "forwarded-verb" {
+	}
+}
+
+func handler(args []string) {
+	if args[0] == "handler-verb" {
+	}
+}
+
+var handlers = map[string]func([]string){"h": handler}
+
+func Main(args []string) {
+	forwarded(args[1:])
+}
+
+func nested(args []string) {
+	helper := func(args []string) { _ = exec.Command("git", args...) }
+	_ = helper
+	if args[0] == "nested-verb" {
+	}
+}
+
+func element(args []string) {
+	switch args[0] {
+	case "elem-verb":
+		_ = exec.Command("xdg-open", args[1])
+	}
+}
+
+func prepended() {
+	words := []string{}
+	words = append(words, os.Args[1:]...)
+	if words[0] == "appended-own" {
+	}
+	_ = exec.Command("x", words...)
+}
+
 func dispatch(argv []string) {
 	if argv[0] == "real-verb" {
 	}
@@ -287,7 +346,7 @@ func dispatch(argv []string) {
 	for _, literal := range scan.Flags {
 		flags = append(flags, literal.Value)
 	}
-	if want := []string{"flag-args-verb", "real-verb", "reexec-verb"}; !slices.Equal(words, want) {
+	if want := []string{"appended-own", "elem-verb", "flag-args-verb", "forwarded-verb", "handler-verb", "nested-verb", "real-verb", "reexec-verb"}; !slices.Equal(words, want) {
 		t.Errorf("words %v, want %v", words, want)
 	}
 	if !slices.Equal(flags, []string{"--real-flag"}) {

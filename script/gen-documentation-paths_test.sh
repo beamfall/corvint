@@ -48,7 +48,14 @@ tool && tool --check || fail "regenerating did not clear the stale declaration"
 grep -q '"docs/C.md"' "$test_root/.corvint/documentation-paths.json" || fail "staged guide not declared"
 cases=$((cases + 1))
 
-# 3. A hand edit or a missing declaration is stale too.
+# 3. A declared guide deleted from the tree fails the check, naming the missing path.
+git -C "$test_root" rm -qf docs/b.md
+if output=$(tool --check 2>&1); then fail "check passed a declaration naming a deleted guide"; fi
+case $output in *'missing: docs/b.md'*) ;; *) fail "refusal did not name the missing path: $output" ;; esac
+tool && tool --check || fail "regenerating did not drop the deleted guide"
+cases=$((cases + 1))
+
+# 3b. A hand edit or a missing declaration is stale too.
 printf '{"profile":"corvint-documentation-paths/0","paths":["docs/"]}\n' >"$test_root/.corvint/documentation-paths.json"
 if tool --check 2>/dev/null; then fail "check passed a hand-edited declaration"; fi
 rm "$test_root/.corvint/documentation-paths.json"

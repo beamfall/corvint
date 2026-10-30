@@ -416,8 +416,6 @@ host-package-versions-test:
 	@script/check-host-package-versions_test.sh
 	@script/host-package-version_test.sh
 
-# AHI-173: bump every version location of one host package together (VERSION defaults to the next
-# patch), or verify that every package's locations agree.
 # documentation-paths regenerates .corvint/documentation-paths.json (the AFP-V0-160 declaration)
 # from the staged top-level docs/*.md files; documentation-paths-check, a doc gate, refuses a
 # stale one (ASD-V0-105, V1-3174).
@@ -430,6 +428,8 @@ documentation-paths-check:
 documentation-paths-test:
 	@script/gen-documentation-paths_test.sh
 
+# AHI-173: bump every version location of one host package together (VERSION defaults to the next
+# patch), or verify that every package's locations agree.
 host-package-version-bump:
 	@test -n "$(PKG)" || { echo 'usage: make host-package-version-bump PKG=<package> [VERSION=X.Y.Z]' >&2; exit 2; }
 	@script/host-package-version.sh bump $(PKG) $(VERSION)
