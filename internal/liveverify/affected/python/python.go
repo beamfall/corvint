@@ -240,6 +240,12 @@ func resolveRef(ref importRef, moduleNames map[string][]string) ([]string, bool)
 // edges, so a string that merely looks like an open import never hides the
 // imports after it. A reference already read from the file is not repeated.
 //
+// A statement can also be the body of a compound statement on the same line
+// (`if x: import a`, `try: import a`, `except ImportError: import b`, `def f():
+// import a`): the header up to its colon is skipped and the body is read as an
+// import, which is conditional, so it raises the conditional-import flag like
+// an indented import (AFP-V0-680, V1-3044).
+//
 // A name that appears inside a string or comment can produce an edge that does
 // not exist. That is conservative in the safe direction: a spurious edge widens
 // selection, never narrows it.
@@ -269,18 +275,19 @@ func scanImports(owner, text string) ([]importRef, map[string]bool) {
 			}
 			continue
 		}
-		if !hasImportStatement(trimmed) {
+		has, compound := hasImportStatement(trimmed)
+		if !has {
 			continue
 		}
-		if len(line) != len(trimmed) && index > continued {
+		if (len(line) != len(trimmed) || compound) && index > continued {
 			flags[FrontierConditionalImport] = true
 		}
 		statement, next := joinContinuation(lines, index)
 		continued = max(continued, next)
 		for _, text := range []string{statement, trimmed} {
 			for _, piece := range strings.Split(text, ";") {
-				piece = strings.TrimSpace(piece)
-				if !isImportStatement(piece) {
+				piece, _, ok := importStatement(strings.TrimSpace(piece))
+				if !ok {
 					continue
 				}
 				for _, ref := range parseImportLine(piece) {
@@ -297,14 +304,69 @@ func scanImports(owner, text string) ([]importRef, map[string]bool) {
 }
 
 // hasImportStatement reports whether any semicolon-separated statement of the
-// line is an import.
-func hasImportStatement(trimmed string) bool {
+// line is an import, and whether one is the body of a compound statement.
+func hasImportStatement(trimmed string) (has, compound bool) {
 	for _, piece := range strings.Split(trimmed, ";") {
-		if isImportStatement(strings.TrimSpace(piece)) {
-			return true
+		if _, inBody, ok := importStatement(strings.TrimSpace(piece)); ok {
+			has = true
+			compound = compound || inBody
 		}
 	}
-	return false
+	return has, compound
+}
+
+// compoundKeywords open a compound statement whose body may follow its header
+// colon on the same line.
+var compoundKeywords = []string{"if", "elif", "else", "try", "except", "finally", "with", "while", "for", "def", "class", "async", "case"}
+
+// importStatement returns the import statement a semicolon-separated piece
+// holds: the piece itself, or the body after the header colon of a one-line
+// compound statement (V1-3044), in which case inBody is true.
+func importStatement(piece string) (statement string, inBody, ok bool) {
+	if isImportStatement(piece) {
+		return piece, false, true
+	}
+	if body, found := compoundBody(piece); found && isImportStatement(body) {
+		return body, true, true
+	}
+	return "", false, false
+}
+
+// compoundBody returns the text after the header colon of a piece that starts
+// with a compound-statement keyword. The colon is the first one outside
+// brackets and string literals that is not the walrus `:=`; a header with no
+// such colon has no body on this line.
+func compoundBody(piece string) (string, bool) {
+	keyword := false
+	for _, word := range compoundKeywords {
+		if rest, found := strings.CutPrefix(piece, word); found && rest != "" && (rest[0] == ' ' || rest[0] == '\t' || rest[0] == ':' || rest[0] == '(') {
+			keyword = true
+			break
+		}
+	}
+	if !keyword {
+		return "", false
+	}
+	depth := 0
+	for index := 0; index < len(piece); index++ {
+		switch char := piece[index]; char {
+		case '(', '[', '{':
+			depth++
+		case ')', ']', '}':
+			depth--
+		case '"', '\'':
+			for index++; index < len(piece) && piece[index] != char; index++ {
+				if piece[index] == '\\' {
+					index++
+				}
+			}
+		case ':':
+			if depth == 0 && (index+1 == len(piece) || piece[index+1] != '=') {
+				return strings.TrimSpace(piece[index+1:]), true
+			}
+		}
+	}
+	return "", false
 }
 
 func isImportStatement(statement string) bool {

@@ -95,3 +95,55 @@ func TestAFPV0682SourceRootAliasReachesEveryOwner(t *testing.T) {
 		}
 	}
 }
+
+// TestAFPV0680CompoundStatementBodyIsAnImport pins the V1-3044 amendment of
+// AFP-V0-680: an import that is the body of a one-line compound statement is
+// read, so a change to the module it names selects the test, and it raises the
+// conditional-import flag like an indented import.
+func TestAFPV0680CompoundStatementBodyIsAnImport(t *testing.T) {
+	importers := map[string]string{
+		"if":                     "if x: import b\n",
+		"try":                    "try: import b\nexcept ImportError: pass\n",
+		"except":                 "try: pass\nexcept ImportError: from b import B\n",
+		"else no space":          "if x: pass\nelse:import b\n",
+		"with as":                "with ctx() as c: import b\n",
+		"def with annotations":   "def f(x: int = {1: 2}) -> dict[str, int]: import b\n",
+		"colon in a string":      "if y == \"a:b\": import b\n",
+		"walrus":                 "if (n := 1): import b\n",
+		"body after a semicolon": "try: import a; import b\nexcept ImportError: pass\n",
+		"indented":               "def f():\n    if x: import b\n",
+		"continued body":         "if x: from pkg import (\n    early,\n    b,\n)\n",
+		"async with":             "async def f():\n    pass\nasync with ctx(): import b\n",
+	}
+	for name, importer := range importers {
+		t.Run(name, func(t *testing.T) {
+			files := map[string]string{
+				"a.py": "A = 1\n", "b.py": "B = 2\n", "pkg/__init__.py": "\n", "pkg/early.py": "\n", "pkg/b.py": "\n",
+				"tests/test_x.py": importer,
+			}
+			dirty := "b.py"
+			if name == "continued body" {
+				dirty = "pkg/b.py"
+			}
+			got, plan := selectedFor(t, files, dirty)
+			if !slices.Contains(got, "tests/test_x.py") {
+				t.Fatalf("selected=%v unknown=%+v, want tests/test_x.py", got, plan.Unknown)
+			}
+			_, flags := scanImports("tests/test_x.py", importer)
+			if !flags[FrontierConditionalImport] {
+				t.Fatalf("flags=%v, want %s", flags, FrontierConditionalImport)
+			}
+		})
+	}
+	for _, text := range []string{
+		"if x: pass\n",
+		"print(\"if x: import b\")\n",
+		"value = {\"if\": 1}\n",
+		"iffy: int = 1\n",
+	} {
+		refs, flags := scanImports("tests/test_x.py", text)
+		if len(refs) != 0 || len(flags) != 0 {
+			t.Fatalf("%q: refs=%v flags=%v, want none", text, refs, flags)
+		}
+	}
+}
