@@ -194,6 +194,7 @@
       "internal/localauthority/",
       "internal/slotlearn/"
     ],
+    "internal/archivepath": [],
     "internal/attest": [
       "protocol/cem-1.0/stable/receipt-authentication/"
     ],
