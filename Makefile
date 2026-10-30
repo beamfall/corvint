@@ -631,10 +631,17 @@ dogfood-inputs-check:
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
 
+# V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
+DOC_GATE_TARGETS := host-package-versions-check host-package-versions-test spec-requirements-check requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check line-citations-check error-code-ownership-check unbounded-readers-check test-read-scopes-check test-commands-check use-case-receipts-check use-case-receipts-test
+.PHONY: doc-gates
+doc-gates:
+	@$(MAKE) --no-print-directory $(DOC_GATE_TARGETS)
+	@GOTOOLCHAIN=local go run ./conformance/use-cases-v0
+
 # dogfood-closeout is the one lane closeout command (DCW-V0-349, V1-1894): dogfood-finish with the
 # same variables, whose input pre-flight refuses a bad VERIFY, INTENTS or CITATIONS file before the
-# base build or any bind (DCW-V0-380), then batch-precheck, the local twin of the CI doc-gates that
-# batch-precheck-test keeps in step with ci.yml; it stops at the first failing step.
+# base build or any bind (DCW-V0-380), then batch-precheck, which derives the shared doc-gates
+# target from ci.yml; batch-precheck-test checks that connection; it stops at the first failing step.
 dogfood-closeout:
 	@$(MAKE) --no-print-directory dogfood-finish
 	@$(MAKE) --no-print-directory batch-precheck

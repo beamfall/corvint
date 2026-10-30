@@ -251,6 +251,9 @@ func (repo *repository) evaluateObserved(ctx context.Context, saved *state, pinn
 		return result, err
 	}
 	result.Target = snap.target
+	if saved.Sealed != nil {
+		result.EvidenceTarget = saved.Sealed.Binding.EvidenceTarget
+	}
 	// finish diffs base against HEAD as two trees, so ancestry must still hold
 	// here too: HEAD can move to unrelated history after begin already checked it.
 	// Ancestry depends on mutable shallow/graft metadata, so it is re-proved
@@ -295,7 +298,7 @@ func (repo *repository) evaluateObserved(ctx context.Context, saved *state, pinn
 	reviewRequired := false
 	if saved.ReportSet == nil {
 		result.Unmet = append(result.Unmet, "reports-not-produced")
-	} else if !repo.reportCurrent(saved, snap) {
+	} else if !repo.reportCurrent(ctx, saved, snap) {
 		result.Unmet = append(result.Unmet, "report-set-stale")
 	} else {
 		result.ReportSetDigest = saved.ReportSet.Digest
@@ -400,8 +403,11 @@ func (repo *repository) artifactsCurrent(items []artifact) bool {
 	return artifactsCurrent(items)
 }
 
-func (repo *repository) reportCurrent(saved *state, snap snapshot) bool {
+func (repo *repository) reportCurrent(ctx context.Context, saved *state, snap snapshot) bool {
 	set := saved.ReportSet
+	if saved.Sealed != nil && repo.validateSealed(ctx, saved, snap) != nil {
+		return false
+	}
 	if set == nil || set.Target != snap.target || set.PlanDigest != saved.PlanDigest || len(set.Bindings) != 3+2*len(saved.Plan.Intents) || len(set.Reports) != 1+len(saved.Plan.Intents) || len(set.Observations) != len(saved.Plan.Checks) {
 		return false
 	}
@@ -542,7 +548,7 @@ func Review(ctx context.Context, root, key, reportDigest string) (Evaluation, er
 	if err != nil {
 		return Evaluation{}, err
 	}
-	if !snap.clean || !repo.reportCurrent(saved, snap) || saved.ReportSet.Digest != reportDigest {
+	if !snap.clean || !repo.reportCurrent(ctx, saved, snap) || saved.ReportSet.Digest != reportDigest {
 		return Evaluation{}, errors.New("report-set-stale")
 	}
 	for _, check := range saved.Plan.Checks {
