@@ -89,6 +89,17 @@ func TestTSPV0007PriorRecordFromRunEvidence(t *testing.T) {
 			e.Selection.Identity.GoVersion = "go0"
 			write(t, filepath.Join(evidence, "shard-1"), e, "")
 		}},
+		{"source-drift-fallback", func(t *testing.T, evidence string) {
+			// Uncommitted edits were tested while ObservedTree names the committed tree.
+			e := shard(1)
+			e.Selection.Reason, e.Selection.Packages = "source drift before execution", []string{"./..."}
+			write(t, filepath.Join(evidence, "shard-1"), e, "{\"Action\":\"pass\",\"Package\":\"m/b\"}\n")
+		}},
+		{"planner-drift-fallback", func(t *testing.T, evidence string) {
+			e := shard(0)
+			e.Selection.Reason = "planner/selector/driver drift before execution"
+			write(t, filepath.Join(evidence, "shard-0"), e, "{\"Action\":\"pass\",\"Package\":\"m/a\"}\n")
+		}},
 		{"execution-error", func(t *testing.T, evidence string) {
 			e := shard(1)
 			e.Error = "test output limit exceeded"
@@ -230,6 +241,27 @@ func TestTSPV0007RerunReusesPriorPasses(t *testing.T) {
 		{"unknown-field", "prior-record-unreadable", func(t *testing.T, o *options, _ *selection, _ *bool) {
 			o.prior = filepath.Join(t.TempDir(), "prior.json")
 			if err := os.WriteFile(o.prior, []byte(`{"Schema":"`+priorSchema+`","Failed":[]}`), 0600); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{"trailing-close", "prior-record-unreadable", func(t *testing.T, o *options, _ *selection, _ *bool) {
+			// Decoder.More reports false before a stray "}" or "]"; only a second Decode sees it.
+			o.prior = put(t, record)
+			b, err := os.ReadFile(o.prior)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = os.WriteFile(o.prior, append(b, '}'), 0600); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{"trailing-value", "prior-record-unreadable", func(t *testing.T, o *options, _ *selection, _ *bool) {
+			o.prior = put(t, record)
+			b, err := os.ReadFile(o.prior)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err = os.WriteFile(o.prior, append(b, " {}"...), 0600); err != nil {
 				t.Fatal(err)
 			}
 		}},

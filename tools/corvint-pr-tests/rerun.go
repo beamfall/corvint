@@ -68,7 +68,9 @@ func readPrior(path string) (priorRecord, error) {
 	if err = d.Decode(&p); err != nil {
 		return p, err
 	}
-	if d.More() {
+	// TSP-V0-007: More() is not an end-of-input check; a second Decode must report io.EOF.
+	var rest json.RawMessage
+	if err = d.Decode(&rest); err != io.EOF {
 		return p, errors.New("trailing data")
 	}
 	if p.Schema != priorSchema || !oid.MatchString(p.Head) || !oid.MatchString(p.Target) || !oid.MatchString(p.Tree) || p.Passed == nil {
@@ -211,6 +213,11 @@ func buildPrior(o options) error {
 			return fmt.Errorf("%s: execution error %q", dir, e.Error)
 		}
 		s := e.Selection
+		// TSP-V0-007: a run that recorded any fallback or drift reason may have tested
+		// a tree other than the one it names, so none of its passes are proven.
+		if s.Reason != "" {
+			return fmt.Errorf("%s: execution recorded fallback reason %q", dir, s.Reason)
+		}
 		record := priorRecord{Schema: priorSchema, Head: s.Head, Target: s.Target, Tree: s.Tree, Identity: priorIdentity(s.Identity)}
 		if s.ObservedTarget != s.Target || s.ObservedTree != s.Tree || !oid.MatchString(s.Head) || !oid.MatchString(s.Target) || !oid.MatchString(s.Tree) {
 			return fmt.Errorf("%s: execution did not observe its tested merge", dir)
