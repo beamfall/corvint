@@ -160,3 +160,65 @@ func TestATRV0270_DispatchUsageNamesGrantID(t *testing.T) {
 		}
 	}
 }
+
+// CAP-V0-060 (V1-3212): every implemented verb answers --help with its usage,
+// flags and example, never an unknown-verb hint, and a guessed top-level word
+// that is the last word of implemented verbs names each of them.
+func TestCAPV0060_EveryVerbHelpAndUnknownWordRoutes(t *testing.T) {
+	help := func(args ...string) *wire.Result {
+		t.Helper()
+		var out bytes.Buffer
+		cli.Run(cli.Env{Cwd: t.TempDir(), Args: args, Stdin: unreadHelpInput{}, Stdout: &out})
+		r, err := wire.DecodeResult(out.Bytes())
+		if err != nil {
+			t.Fatalf("%v: %s (%v)", args, out.Bytes(), err)
+		}
+		return r
+	}
+	first := map[string]bool{}
+	for _, verb := range cli.ReadVerbs {
+		first[strings.Fields(verb)[0]] = true
+	}
+	routes := map[string][]string{}
+	for _, verb := range cli.ReadVerbs {
+		if verb == "help" {
+			// `help --help` is the root help, pinned by CAL-V0-047.
+			if r := help("help", "--help"); r.Outcome != wire.OutcomeOK || len(field(r.Items[0], "implemented").Arr) == 0 {
+				t.Fatalf("help --help is not the root help: %s %v", r.Outcome, r.Warnings)
+			}
+			continue
+		}
+		args := append(strings.Fields(verb), "--help")
+		r := help(args...)
+		warnings := strings.Join(r.Warnings, ";")
+		if r.Outcome != wire.OutcomeOK || strings.Contains(warnings, "unknown") || len(r.Items) != 1 {
+			t.Fatalf("%v: %s %v", args, r.Outcome, r.Warnings)
+		}
+		item := r.Items[0]
+		if field(item, "usage").Str == "" || len(field(item, "flags").Arr) == 0 || field(item, "example").Str == "" {
+			t.Fatalf("%v: help lacks usage, flags or example", args)
+		}
+		words := strings.Fields(verb)
+		if last := words[len(words)-1]; len(words) > 1 && !first[last] {
+			routes[last] = append(routes[last], verb)
+		}
+	}
+	if len(routes["heartbeat"]) != 1 {
+		t.Fatalf("heartbeat routes: %v", routes["heartbeat"])
+	}
+	for word, verbs := range routes {
+		r := help(word, "--help")
+		warnings := strings.Join(r.Warnings, ";")
+		if r.Outcome != wire.OutcomeError || !strings.Contains(warnings, "unknown verb; did you mean") {
+			t.Fatalf("%s --help: %s %v", word, r.Outcome, r.Warnings)
+		}
+		for _, verb := range verbs {
+			if !strings.Contains(warnings, "`corvint-tasks "+verb+" --help`") {
+				t.Fatalf("%s --help does not name %q: %v", word, verb, r.Warnings)
+			}
+		}
+	}
+	if r := help("no-such-verb", "--help"); strings.Join(r.Warnings, ";") != "unknown verb; run `corvint-tasks help`" {
+		t.Fatalf("unmatched word hint: %v", r.Warnings)
+	}
+}

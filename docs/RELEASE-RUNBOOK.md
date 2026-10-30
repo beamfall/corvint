@@ -112,8 +112,9 @@ output directories outside the checkout; the reproducibility script refuses one 
    An explicit disconnected tag is allowed; Git cannot prove its chronological precedence. The
    operator owns the published lifecycle predecessor choice. Published checksums still verify the
    downloaded archive, without independently proving it was built from the pinned tag. The Core
-   replay gate below uses the same predecessor (V1-3177). By hand, name the tag explicitly:
-   `make core-n1-replay`'s ancestry default excludes pre-release tags.
+   replay gate below uses the same predecessor (V1-3177). By hand, `make core-n1-replay`
+   without `CORE_N1_TAG` uses the same selector's tag for `HEAD` (pre-release tags count) and reports
+   `NOT_APPLICABLE FIRST_RELEASE` when none precedes it; pass `CORE_N1_TAG` for any other tag (V1-3203).
 
    Then the CCF-V1-007 N-1 replay (accepted 2026-09-26, decision 0422; from decision 0398): every
    frozen Core mode except the skips CCF-V1-007 names also runs under the previous release tag over a

@@ -666,6 +666,7 @@
         "--disposition",
         "--evidence-path",
         "--expected-base",
+        "--expected-hunk-digest",
         "--format",
         "--guarding-tests",
         "--hunk",
@@ -719,6 +720,7 @@
         "cem-coverage-states/1",
         "cem-guarding-tests/0",
         "cem-hunk-revert/0",
+        "cem-hunk-state/1",
         "cem-non-regular/1",
         "cem-paired-evidence/1",
         "cem-path-policy/1",
@@ -743,6 +745,7 @@
       "writeStatements": [
         "prepare Derive the canonical base-to-target patch and write or resume the cem/1.0 candidate at .corvint/change.cem.json.",
         "With --paired-output, --paired-range and --paired-root (all three, additive profile cem-paired-evidence/1, CAX-V0-032) the evidence is read at HEAD of the second repository at --paired-root, both range ends are resolved to full commit IDs (BASE must be an ancestor of HEAD), and the citation is added to the separate document DOC bound to the map's change; the map is never written, so --output is refused.",
+        "--replace --expected-hunk-digest DIGEST (given together) first drops the hunk's earlier citations, only while DIGEST is the hunk's current cem-hunk-state/1 digest; a stale digest refuses hunk-digest-mismatch and nothing is written, and every other hunk is kept (CEM-V1-694).",
         "report writes $GIT_DIR/corvint/cem-review.md unless --output names a repository-relative path or an absolute one outside the repository.",
         "report --preview returns the same Markdown in the envelope and writes nothing (mutates false); it takes neither --output nor --format json.",
         "Any language's line coverage works once written in that line format (\"mode: set\" then \"PATH:L.C,L.C STATEMENTS COUNT\" per span; PATH is the hunk path or ends in \"/\" plus it).",

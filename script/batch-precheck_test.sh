@@ -11,9 +11,31 @@ export LC_ALL=C
 script=$(cd "$(dirname "$0")" && pwd)
 pre=$script/batch-precheck.sh
 regen=$script/batch-regen.sh
-tmp=$(mktemp -d "${TMPDIR:-/tmp}/corvint-batch-precheck-test.XXXXXX") || exit 1
-trap '/bin/rm -rf "$tmp"' EXIT
-fail() { printf 'batch-precheck_test: FAIL %s\n' "$*" >&2; exit 1; }
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/corvint-batch-precheck-test.XXXXXX") ||
+  { printf 'batch-precheck_test: FAIL mktemp under %s: %s\n' "${TMPDIR:-/tmp}" "$(df -Pk "${TMPDIR:-/tmp}" 2>&1 | tail -n 1)" >&2; exit 1; }
+# V1-3205: every failure names its case (the numbered group and the failing line), the last output
+# of the command under test and the free space of TMPDIR, whose exhaustion once failed this test
+# with an empty log; an exit that bypassed fail says so.
+failed=0
+fail() {
+  local line=${BASH_LINENO[0]} group
+  group=$(awk -v n="$line" 'NR > n { exit } /^# [0-9]+[a-z]?\. / { g = $0 } END { print substr(g, 3, 70) }' "$script/batch-precheck_test.sh")
+  failed=1
+  {
+    printf 'batch-precheck_test: FAIL case "%s" line %s: %s\n' "$group" "$line" "$*"
+    [[ -s $tmp/out ]] && { printf 'batch-precheck_test: last output (%s), last 40 lines:\n' "$tmp/out"; tail -n 40 "$tmp/out" | sed 's/^/  | /'; }
+    printf 'batch-precheck_test: TMPDIR %s: %s\n' "${TMPDIR:-/tmp}" "$(df -Pk "${TMPDIR:-/tmp}" 2>&1 | tail -n 1)"
+  } >&2
+  exit 1
+}
+on_exit() {
+  local rc=$?
+  ((rc == 0 || failed)) || printf 'batch-precheck_test: FAIL exit %s without a FAIL line (TMPDIR %s: %s)\n' "$rc" "${TMPDIR:-/tmp}" "$(df -Pk "${TMPDIR:-/tmp}" 2>&1 | tail -n 1)" >&2
+  /bin/rm -rf "$tmp"
+}
+trap on_exit EXIT
+# The precheck's step TMPDIR (ASD-V0-055) stays inside this test's scratch unless a case sets it.
+export BATCH_PRECHECK_TMPDIR=$tmp/step-tmp
 export GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
 # Every group but the ledger-reuse one runs cold; that group turns the ledger on explicitly.
@@ -27,6 +49,13 @@ export CORVINT_GATE_LEDGER=off
 grep -qx 'make doc-gates' "$tmp/out" || fail "derived doc-gates miss shared target: $(cat "$tmp/out")"
 grep -q '^batch-drift (' "$tmp/out" || fail "no batch-drift step: $(cat "$tmp/out")"
 grep -qx 'make host-adapter-node-test' "$tmp/out" || fail "no host-adapter-node-test step: $(cat "$tmp/out")"
+
+# 1c. DCW-V0-399 (V1-3218): the lane's pre-bind `make doc-gates` reaches ./internal/specindex,
+# whose TestIndexCoversSpecsAndHeaders refuses an Agent digest Status that drifts from the header.
+(cd "$script/.." && make -n --no-print-directory doc-gates) > "$tmp/out" 2>&1 || fail "make -n doc-gates: $(cat "$tmp/out")"
+grep -q '\./internal/specindex' "$tmp/out" || fail "doc-gates no longer runs ./internal/specindex"
+grep -q 'TestIndexCoversSpecsAndHeaders' "$script/../internal/specindex/index_test.go" || fail "specindex header/digest check missing"
+grep -q 'make doc-gates' "$script/../docs/DOGFOOD.md" || fail "lane recipe no longer runs make doc-gates before the bind"
 
 # 1b. ASD-V0-044 (V1-3062): that step catches a Pi adapter version bump that leaves the
 # docs/specs/pi-workflow-v0.md capability tuple behind. On a copy of the adapter, its spec and the
@@ -672,7 +701,11 @@ top=$(git rev-parse --show-toplevel)
 if [ -f "$top/flaky-$2" ] && [ ! -f "$FLAKY_MARK/$2" ]; then
   : > "$FLAKY_MARK/$2"; printf -- '--- FAIL: TestFlaky (0.01s)\n    --- FAIL: TestFlaky/sub (0.01s)\n'; exit 1
 fi
+if [ -f "$top/hostflaky-$2" ] && [ ! -f "$FLAKY_MARK/host-$2" ]; then
+  : > "$FLAKY_MARK/host-$2"; printf 'write /x/sort1: No space left on device\n'; exit 1
+fi
 [ -f "$top/fail-$2" ] || exit 0
+[ -s "$top/fail-$2" ] && cat "$top/fail-$2"
 printf -- '--- FAIL: TestHard (0.01s)\nnot ok 3 - node case\n'; exit 1
 EOF
 printf '#!/bin/sh\nexit 0\n' > "$fbin/gofmt"
@@ -690,6 +723,7 @@ grep -Eq '^batch-precheck: FLAKY make test-read-scopes-check: attempt 1 failed r
 grep -Eq '^batch-precheck: FAIL make test-commands-check: attempt 1 rc=1 \([0-9]+s\), failing: TestHard, node case; attempt 2 rc=1 \([0-9]+s\), failing: TestHard, node case$' "$tmp/out" ||
   fail "hard failure not rerun with both attempts: $(cat "$tmp/out")"
 grep -Eq '^batch-precheck: \| FLAKY \| +[0-9]+s \| make test-read-scopes-check$' "$tmp/out" || fail "no FLAKY row: $(cat "$tmp/out")"
+grep -qx '  | attempt 1: --- FAIL: TestFlaky (0.01s)' "$tmp/out" || fail "FLAKY attempt 1 output not shown (ASD-V0-055): $(cat "$tmp/out")"
 grep -q '^batch-precheck: 1 step(s) FLAKY, passed only on their one rerun: make test-read-scopes-check$' "$tmp/out" || fail "no FLAKY summary: $(cat "$tmp/out")"
 grep -q '^batch-precheck: failing tests: TestHard, node case$' "$tmp/out" || fail "failing test names not printed: $(cat "$tmp/out")"
 grep -q '^batch-precheck: failed: make test-commands-check$' "$tmp/out" || fail "flaky step counted failed: $(cat "$tmp/out")"
@@ -698,6 +732,52 @@ git -C "$frepo" rm -q fail-test-commands-check && git -C "$frepo" -c user.name=t
 frun || fail "a flaky-only run failed: $(cat "$tmp/out")"
 grep -q '^batch-precheck: FLAKY make test-read-scopes-check' "$tmp/out" || fail "flaky-only run: $(cat "$tmp/out")"
 
+# 9. ASD-V0-054: a failure naming an exhausted host resource is a host-resource FAIL, never
+# introduced, and is not rerun at the base (whose own run here passes, so a comparison would say
+# introduced); a FLAKY pass names the resource; a TMPDIR below the free-space floor warns first.
+fbase=$(git -C "$frepo" rev-parse HEAD)
+printf 'compile: writing output: write $WORK/b1/_pkg_.a: no space left on device\n' > "$frepo/fail-test-commands-check"
+: > "$frepo/hostflaky-capabilities-check"
+git -C "$frepo" add -A && git -C "$frepo" -c user.name=t -c user.email=t@t commit -qm host || fail "host fixture commit"
+/bin/rm -f "$tmp/fmark"/*
+BATCH_PRECHECK_MIN_TMP_KIB=999999999999 frun --base "$fbase"
+[[ $? == 1 ]] || fail "a host-resource failure passed: $(cat "$tmp/out")"
+grep -Eq '^batch-precheck: WARN low-tmp-space avail=[0-9]+KiB under .*set TMPDIR to a directory with room$' "$tmp/out" ||
+  fail "low TMPDIR space not warned: $(cat "$tmp/out")"
+grep -Fq "batch-precheck: FAIL make test-commands-check: attempt 1 rc=1" "$tmp/out" || fail "host failure not rerun: $(cat "$tmp/out")"
+grep -Eq '^batch-precheck: FAIL make test-commands-check \([0-9]+s\) host-resource: compile: writing output: write \$WORK/b1/_pkg_\.a: no space left on device; not compared with '"$fbase"': free disk or memory' "$tmp/out" ||
+  fail "host-resource failure not named: $(cat "$tmp/out")"
+grep -q 'make test-commands-check .* introduced' "$tmp/out" && fail "host-resource failure called introduced: $(cat "$tmp/out")"
+grep -Eq '^batch-precheck: FLAKY make capabilities-check: attempt 1 failed rc=1 \([0-9]+s\), host-resource: write /x/sort1: No space left on device; attempt 2 passed' "$tmp/out" ||
+  fail "flaky host-resource pass not named: $(cat "$tmp/out")"
+frun --base "$fbase"
+grep -q 'low-tmp-space' "$tmp/out" && fail "low-tmp-space warned above the floor: $(cat "$tmp/out")"
+
+# 10. ASD-V0-055 (V1-3205, V1-3206): step scratch stays off a RAM-backed TMPDIR. BATCH_PRECHECK_TMPDIR
+# is every step's TMPDIR; unset, a tmpfs TMPDIR (Linux /dev/shm here) becomes
+# XDG_CACHE_HOME/corvint-tmp, named in one line; a disk TMPDIR is kept.
+printf '#!/bin/sh\nprintf "%%s\\n" "$TMPDIR" >> "%s/step-tmpdirs"\nexit 0\n' "$tmp" > "$fbin/make"
+: > "$tmp/step-tmpdirs"
+frun || fail "BATCH_PRECHECK_TMPDIR run failed: $(cat "$tmp/out")"
+[[ $(sort -u "$tmp/step-tmpdirs") == "$tmp/step-tmp" ]] || fail "steps did not use BATCH_PRECHECK_TMPDIR: $(sort -u "$tmp/step-tmpdirs")"
+grep -q 'RAM-backed' "$tmp/out" && fail "an explicit BATCH_PRECHECK_TMPDIR was replaced: $(cat "$tmp/out")"
+if [[ $(uname -s) == Linux && $(stat -f -c %T /dev/shm 2> /dev/null) == tmpfs ]]; then
+  : > "$tmp/step-tmpdirs"
+  (unset BATCH_PRECHECK_TMPDIR; TMPDIR=/dev/shm XDG_CACHE_HOME=$tmp/xdg frun) || fail "tmpfs TMPDIR run failed: $(cat "$tmp/out")"
+  grep -qx "batch-precheck: TMPDIR /dev/shm is RAM-backed; steps use $tmp/xdg/corvint-tmp (BATCH_PRECHECK_TMPDIR chooses another)" "$tmp/out" ||
+    fail "tmpfs TMPDIR not replaced: $(cat "$tmp/out")"
+  [[ $(sort -u "$tmp/step-tmpdirs") == "$tmp/xdg/corvint-tmp" ]] || fail "steps kept the tmpfs TMPDIR: $(sort -u "$tmp/step-tmpdirs")"
+  [[ $(stat -c %a "$tmp/xdg/corvint-tmp") == 700 ]] || fail "step TMPDIR mode $(stat -c %a "$tmp/xdg/corvint-tmp")"
+  : > "$tmp/step-tmpdirs"
+  (unset BATCH_PRECHECK_TMPDIR XDG_CACHE_HOME HOME; TMPDIR=/dev/shm CORVINT_GOCACHE=$tmp/gocache frun) || fail "a run without HOME failed: $(cat "$tmp/out")"
+  [[ $(sort -u "$tmp/step-tmpdirs") == /dev/shm ]] || fail "without HOME the TMPDIR was not kept: $(sort -u "$tmp/step-tmpdirs")"
+  : > "$tmp/step-tmpdirs"
+  mkdir -p "$tmp/disk-tmp"
+  if [[ $(stat -f -c %T "$tmp/disk-tmp") != tmpfs ]]; then
+    (unset BATCH_PRECHECK_TMPDIR; TMPDIR=$tmp/disk-tmp XDG_CACHE_HOME=$tmp/xdg2 frun) || fail "disk TMPDIR run failed: $(cat "$tmp/out")"
+    [[ $(sort -u "$tmp/step-tmpdirs") == "$tmp/disk-tmp" ]] || fail "a disk TMPDIR was replaced: $(sort -u "$tmp/step-tmpdirs")"
+  fi
+fi
 "$pre" --bogus > /dev/null 2>&1
 [[ $? == 2 ]] || fail "bad argument did not exit 2"
 "$regen" --bogus > /dev/null 2>&1

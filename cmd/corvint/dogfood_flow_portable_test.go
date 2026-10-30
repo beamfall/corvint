@@ -384,7 +384,7 @@ func TestDogfoodChangeNamesDeleteWhenACorrectedPlanJoinsEarlierCitations(t *test
 	}
 	inputs := []string{"DOGFOOD_TASK=Answer two.", "DOGFOOD_VERIFY=go test ./fixture", "DOGFOOD_OUTCOME=passed", "DOGFOOD_CITATIONS=" + citations, "DOGFOOD_INTENTS_FILE=" + intents}
 	// V1-0261: an adopter's fix line names the subverb, not the Corvint make target.
-	note := "\n  cem-cite: the plan was added to citations the map already carried and never replaces them; to correct an earlier plan, delete .corvint/change.cem.json and rerun corvint dogfood change " + base + " (docs/DOGFOOD.md step 4)\n"
+	note := "\n  cem-cite: the plan was added to citations the map already carried and never replaces them; to correct one hunk's earlier citations, rerun with the DOGFOOD_CITATION_REPLACE entry the refusal names, or delete .corvint/change.cem.json and rerun corvint dogfood change " + base + " (docs/DOGFOOD.md step 4)\n"
 	pass := func(plan string) (string, int) {
 		t.Helper()
 		if err := os.WriteFile(citations, []byte(plan), 0644); err != nil {

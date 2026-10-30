@@ -99,20 +99,29 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
 4. Write the citation plan from the prepared map. The hunk count is
    `python3 -c "import json; print(len(json.load(open('.corvint/change.cem.json'))['hunks']))"`.
    `corvint dogfood propose-citations $BASE > plan.tsv` prints a draft with one row per owed hunk,
-   each citing a unique base line near that hunk or leaving it `unknown` (`DCW-V0-150`); it is not
-   a plan until you have checked that every cited line is the evidence the hunk relies on. Run
-   before any map exists, it drafts one row per hunk of the canonical `BASE..HEAD` patch, keyed by
+   each citing a base line of a file the change leaves untouched that names that hunk's path, or
+   leaving it `unknown`; it never cites a file the diff adds or modifies (`DCW-V0-150`,
+   `DCW-V0-393`). It is not a plan until you have checked that every cited line is the evidence
+   the hunk relies on. Run before any map exists, or with an unreadable or other-base map
+   (`DCW-V0-394`), it drafts one row per hunk of the canonical `BASE..HEAD` patch, keyed by
    full hunk ID and labelled `map=NOT_PREPARED keyed=hunk-id`; ID keys survive a later commit
    reordering hunks, and the bind's plan precheck still judges every row (`DCW-V0-350`).
    A plan written for an earlier map, such as nine rows kept after a later commit added a tenth
    hunk, refuses `cem-cite: citation-plan-map-mismatch` and cites nothing; rewrite it from the
    current map. So does the same plan rerun after a commit moved a hunk it named by ordinal to
-   another ordinal (`DCW-V0-029`). Citations add to the map and never replace it: `cem prepare` resumes a map whose
-   base and patch still match, keeping every earlier citation, and `cem cite` has no removal. To
-   correct a plan that was already cited, delete `.corvint/change.cem.json` and rerun, so prepare
-   writes a fresh map and only the corrected plan is cited. A pass that cites onto an already cited
-   map prints `cem-cite: the plan was added to citations the map already carried` with this
-   instruction (`DCW-V0-019`).
+   another ordinal (`DCW-V0-029`). Citations add to the map: `cem prepare` resumes a map whose
+   base and patch still match, keeping every earlier citation, and a plan row that would change a
+   hunk the map already cites refuses `cem-cite: citation-plan-recites-cited-hunk` before anything
+   is cited (`DCW-V0-117`). To correct one already cited hunk, even one an earlier stage cited, keep
+   the map and rerun with the entry the refusal's `fix:` line prints,
+   `DOGFOOD_CITATION_REPLACE=HUNK_ID=DIGEST corvint dogfood change $BASE` (several entries are
+   comma-separated): the plan's rows for that hunk replace its earlier citations and every other
+   hunk keeps its own (`DCW-V0-390`). The digest pins the hunk's state when the refusal was printed,
+   so a map changed since then refuses `citation-replace-digest-mismatch` and cites nothing
+   (`DCW-V0-391`); keep the same export on later passes, which replay once the replacement is in
+   the map (`DCW-V0-392`). Deleting `.corvint/change.cem.json` and rerunning the whole corrected plan
+   still restarts the map. A pass that cites onto an already cited map prints `cem-cite: the plan
+   was added to citations the map already carried` naming both recoveries (`DCW-V0-019`).
    Export `DOGFOOD_CITATIONS` and rerun `make dogfood-change BASE=$BASE`. `cem-cite` and, for an
    untracked sidecar, `cem-status` are now produced; the only remaining row is
    `local-outcome: record-index-failed`. A modified tracked sidecar additionally keeps the OCM and
@@ -128,8 +137,10 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    `local-outcome: record-failed`, both reading `local trace store contains unreachable revision`).
    If that commit is gone for good, `corvint migrate-traces --dry-run` lists it in
    `stranded_revisions`, and `corvint migrate-traces --apply --plan-digest DIGEST` moves the trace,
-   byte-preserved, to `.context-corvint/legacy-traces/` (LTPM-V0-012). The trace store, the
-   `<git-dir>/corvint/` evidence and the operation lock belong to one worktree: lanes that share a
+   byte-preserved, to `.context-corvint/legacy-traces/` (LTPM-V0-012). `dogfood change` and
+   `finish-lane` check this before they prepare anything and refuse `reused-worktree-state` with
+   those exact commands, also naming ignored `.corvint/change.ocm*` sidecars older than BASE to
+   move aside (`DCW-V0-400`). The trace store, the `<git-dir>/corvint/` evidence and the operation lock belong to one worktree: lanes that share a
    repository each run in their own `git worktree add` worktree or clone, and can then change,
    check and seal at the same time; switching one worktree between lanes strands the first lane's
    traces the same way (`DCW-V0-044`, proposed).
@@ -238,7 +249,7 @@ produces `"complete": true` or `dogfood-check: PASS`.
 | Unsupported | run from a subdirectory of the worktree (reproduced for V1-0236) | `REFUSE not-repository-root` (exit 2) | `REFUSE not-repository-root` (exit 2) |
 | Unsupported | intent without exactly one `## Requirements` heading | `ocm-prepare-001: invalid-requirements-section`, `ocm-aggregate: intent-scope-drift` | NOT_OBSERVED |
 | Drift | OCM map marked or linked without a rerun | not applicable | `FAIL intent-scope-drift`, `fix:` reruns `dogfood-change` |
-| Rewritten | amend or rebase after a recorded pass, or another lane run in the same worktree | `coordination-time-query: unsupported-query-trace-state`, `local-outcome: record-failed` and a `local trace store:` line; restoring the commit as an ancestor, or quarantining the trace with `corvint migrate-traces`, clears it | not reached |
+| Rewritten | amend or rebase after a recorded pass, or another lane run in the same worktree | before any prepare, `REFUSE reused-worktree-state` (exit 2) naming each stranded trace and each ignored OCM sidecar older than BASE, with the `mv` and `corvint migrate-traces --apply --plan-digest` recovery lines (`DCW-V0-400`); a trace stranded mid-run still reports `coordination-time-query: unsupported-query-trace-state`, `local-outcome: record-failed` and a `local trace store:` line; restoring the commit as an ancestor, or quarantining the trace with `corvint migrate-traces`, clears it | not reached |
 | Sealed | check on the seal commit, or a change containing a modified or unverifiable seal | `REFUSE sealed-cem-in-change`, one line per refused path | `REFUSE sealed-head` |
 | Undeclared | `DOGFOOD_OUTPUT_CHANGE` names a requirement `REQUIREMENTS.tsv` at `HEAD` lacks, or whose spec `BASE..HEAD` does not modify, or is set for an enrolled aggregate check (`DCW-V0-047`; reproduced by `TestCheckDCWV0047DeclaredOutputChange` for V1-1279, the aggregate case NOT_OBSERVED) | not applicable | `REFUSE output-change-requirement-unknown`, `output-change-not-in-diff` or `output-change-aggregate-unsupported` (exit 2) before any verifier runs; without the variable an output change still fails `verifier-disagreement` |
 
@@ -425,6 +436,11 @@ with the same inputs: the input checks and prepare pass alone, which bind and co
 leave no map, so a `|` in the verify file, a uniform plan, a stale ordinal, a cite of a span the
 change edits or an empty file exits naming the file and line before any bind work (`DCW-V0-380`).
 Run it alone, with the same variables, as `make dogfood-inputs-check` while writing the inputs.
+It also refuses `reused-worktree-state` for a trace or OCM sidecar an earlier lane left in a reused
+worktree and prints the `corvint migrate-traces --apply` recovery (`DCW-V0-400`). Before the first
+bind, also run `make doc-gates` on the working tree: it is the doc-gate list closeout and CI run, so
+a spec whose Agent digest `Status` no longer repeats its header `Status`, a stale
+`REQUIREMENTS.tsv` or a missing read scope fails there, before any bind (`DCW-V0-399`).
 Take the ordinals from `corvint dogfood propose-citations BASE` (the prepared map's order), never
 from `git diff -U0`. A few checks need the bind's own state and stay with the bind:
 `recites-cited-hunk`, `citation-stage-exists` and `unknown-reasons-not-recorded`.
@@ -625,6 +641,14 @@ prints a `fix:` line saying that no change can be sealed on a `BASE` that does n
 onto the batch head, fix the build there, bind, check and seal it again with `BASE=<batch head>`,
 then merge it. Do not fix the build in a direct batch commit, which fails `unbound-commits`.
 
+Regenerated commits. A one-parent commit whose tree equals what `script/batch-regen.sh` produces
+from its parent passes as `derivation=regenerated` with a `NOTE COMMIT` line: the batch-regen
+commit (`ASD-V0-033`) and a lane's post-seal receipt or line-citation repin. Batch-check replays the
+parent's script in a private clone outside the repository; a commit with any hand-edited hunk
+does not reproduce and stays `unbound-commits` with `NOT_REPRODUCED tree-differs`. A repin commit
+inside a lane's own range needs no hand citation rows for the paths it alone changes
+(`DCW-V0-401`, `DCW-V0-398`).
+
 The check is read-only: it writes no object, ref, index, worktree file, trace or ledger, runs no
 repository-configured filter, hook or merge driver (a configuration Core's hardened status cannot
 read safely refuses `worktree-status-unavailable`), and refuses a `TMPDIR` inside the repository. Its
@@ -740,7 +764,7 @@ target already carries an older sidecar that `CEM-CB-009` requires to equal the 
 - `DOGFOOD-BIND-007`: a hunk whose intent no stable base content records (for example an intent
   added or removed inside the range) is not cited. A fixing commit that removes its backlog entry
   MUST cite a stable owning spec requirement or accepted decision instead. The producer reads a
-  requested span from `baseRevision` (`internal/cem/workflow/commands.go:466-483@c79ac767`), but
+  requested span from `baseRevision` (`internal/cem/workflow/commands.go:482-499@c79ac767`), but
   both its stability precheck and canonical target-drift verification reject that removed span
   (`internal/cem/verify/verify.go:422-482@166fa7f2`). A backlog entry that was the only recorded
   intent therefore binds as `NOT_PRODUCED`, never as an
@@ -1136,7 +1160,7 @@ are shared. A different session must use its own worktree or wait for explicit c
 
 A linked Git worktree is a supported checkout for the loop; it is run at that worktree's top level
 like any other and does not refuse. The loop resolves its private evidence and session directory
-with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:147@8a79d4fb`), which for a linked
+with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:164@8a79d4fb`), which for a linked
 worktree (whose `.git` is a file) is that worktree's own directory under the main repository's
 `.git/worktrees/NAME`, so sessions and evidence stay per worktree.
 The `.corvint/` outputs live in the worktree root. Repository-wide Git state (objects, refs, and

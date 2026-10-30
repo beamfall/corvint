@@ -26,7 +26,7 @@ arm64, Go 1.27.1, at `01b6804`); the worked example at the end is that run.
   console "carries no authority" (line 25), and decision 0373 took formal host FULL and protected
   authority off the Core path (row 6, line 19); a CI or hook invocation of the same binary gains
   nothing either path lacks. In particular: `affected` never claims omitted tests are safe to skip
-  (`cmd/corvint/help.go:890-891@d5d6e05c`); a valid CEM establishes provenance completeness, not semantic
+  (`cmd/corvint/help.go:895-896@d5d6e05c`); a valid CEM establishes provenance completeness, not semantic
   correctness ([Change Evidence Map](CHANGE-EVIDENCE-MAP.md)); and `witness` exits 0 on a
   report whose obligations are all unproven (worked example below).
 - **Network.** "Local-only; no network or telemetry" (root help support boundary)
@@ -45,7 +45,7 @@ three classes:
 
 The self-observation append happens only when that ledger path is gitignored by the root
 `.gitignore` or `.corvint/.gitignore` together with its `.self-observations.*` temporaries
-(`internal/observations/observations.go:276-278@93f6bda0`, `internal/observations/observations.go:697-704@b40a3bba`).
+(`internal/observations/observations.go:266-268@93f6bda0`, `internal/observations/observations.go:687-694@b40a3bba`).
 At `01b6804` the root `.gitignore` names the ledger but not its temporaries, so in a fresh clone
 with no `.corvint/.gitignore` (which `corvint index` creates) no row is written; the worked example
 and a forced `unsupported-impact-path-suffix` refusal both left `.corvint/` unchanged. A ledger
@@ -82,10 +82,10 @@ about their safety as a triggered step.
 
 Where each row was verified:
 
-- `affected`: profile `cmd/corvint/affected.go:36@af9fb447`; exits `cmd/corvint/affected.go:663-699@90596237`; its
+- `affected`: profile `cmd/corvint/affected.go:36@af9fb447`; exits `cmd/corvint/affected.go:666-705@af892533`; its
   refusals are emitted without the ledger recorder (`cmd/corvint/main.go:1104-1109@7ed11581`); help text
-  "runs no test, writes no repository state" (`cmd/corvint/help.go:890@f024c3ab`).
-- `cem verify` and `cem status`: exits `internal/cem/cli/cli.go:457-486@773eecd5` (0 when the envelope says
+  "runs no test, writes no repository state" (`cmd/corvint/help.go:895@f024c3ab`).
+- `cem verify` and `cem status`: exits `internal/cem/cli/cli.go:460-489@773eecd5` (0 when the envelope says
   `"ok": true`, 1 when it says false, 2 on a dispatch error); `ok`, `mutates` and `state`
   `internal/cem/workflow/stable_read.go:143-200@7e596fa3`; refusals pass through the ledger recorder
   (`cmd/corvint/main.go:1233@760ae507`, `cmd/corvint/main.go:1688-1703@7a65d7e8`).
@@ -245,7 +245,7 @@ CEM/OCM artifacts exist (`internal/gokernel/harness.go:444@a4869098`). The harne
 `internal/frontier`. Stop emits a fixed `UNAVAILABLE` frontier with `shouldContinue: false`
 (`internal/gokernel/harness.go:483-489@19864b9a`); this is an abstention, not proof that the change
 is complete. The code is also admitted by the observations ledger and host adapter vocabularies
-(`internal/observations/observations.go:49-56@493847da`,
+(`internal/observations/observations.go:50-57@493847da`,
 `cmd/corvint/host_adapter.go:733-742@c1243f78`). Repeated appearances are not evidence of repeated
 failures, and adding artifacts does not remove this message.
 

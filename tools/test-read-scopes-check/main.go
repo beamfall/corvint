@@ -117,6 +117,9 @@ type finding struct {
 	// listed marks a dependency directory a `go list -deps` of the test loads
 	// (V1-2037), rather than a literal the test names.
 	listed bool
+	// built marks a dependency directory a go build, run, vet, test or install
+	// of repository source by the test loads (AFP-V0-847).
+	built bool
 	// sandbox is the reason a declared package's tests launch a nested
 	// sandbox (AFP-V0-615); file and path are then empty.
 	sandbox string
@@ -310,15 +313,201 @@ func goListTargets(name string, body []byte) ([]string, error) {
 	return targets, nil
 }
 
+// goBuildVerbs are the go subcommands that compile repository source, so a
+// confined run reads every in-repository package they load (AFP-V0-847).
+var goBuildVerbs = []string{"build", "run", "vet", "test", "install"}
+
+// goTestVerbs also compile the package's test files, so their targets load the
+// imports of _test.go files too.
+var goTestVerbs = []string{"vet", "test"}
+
+// goValueFlags are the go command flags whose value, when not joined by "=",
+// is the next argument, so it is never a package target.
+var goValueFlags = []string{
+	"-asmflags", "-bench", "-benchtime", "-buildmode", "-C", "-compiler", "-count", "-covermode",
+	"-coverpkg", "-coverprofile", "-cpu", "-exec", "-gcflags", "-ldflags", "-mod", "-modfile", "-o",
+	"-overlay", "-p", "-parallel", "-pgo", "-pkgdir", "-run", "-skip", "-tags", "-timeout", "-toolexec",
+}
+
+// goBuildTargets returns the package patterns of every go command a test file
+// spells as the string-slice Argv of a procgroup.Spec literal or as the
+// arguments of exec.Command or exec.CommandContext, whose go binary is a "go"
+// literal or an identifier whose name contains "go" in any case, such as
+// goPath, followed by a literal verb in goBuildVerbs (V1-3210). A target is a
+// literal "." or one starting with "./" or "../", or a concatenation whose
+// leftmost literal starts so, such as "./fixtures/"+variant, which stands for
+// the directories below its prefix ("./fixtures/..."); the separate value of a
+// flag in goValueFlags, such as "-o" or "-tags", is never one. A command with
+// no positional argument, only flags, builds the package itself; a positional argument the file does not spell as a target,
+// such as a variable or a file name, is a target the check cannot see. The
+// targets of a verb in goTestVerbs are returned apart, as tests.
+func goBuildTargets(name string, body []byte) (builds, tests []string, err error) {
+	file, err := parser.ParseFile(token.NewFileSet(), name, body, parser.SkipObjectResolution)
+	if err != nil {
+		return nil, nil, err
+	}
+	ast.Inspect(file, func(node ast.Node) bool {
+		var arguments []ast.Expr
+		switch node := node.(type) {
+		case *ast.CompositeLit:
+			if arguments = specArgv(node); arguments == nil {
+				return true
+			}
+		case *ast.CallExpr:
+			selector, ok := node.Fun.(*ast.SelectorExpr)
+			if !ok || selector.Sel.Name != "Command" && selector.Sel.Name != "CommandContext" {
+				return true
+			}
+			if pkg, ok := selector.X.(*ast.Ident); !ok || pkg.Name != "exec" {
+				return true
+			}
+			arguments = node.Args
+		default:
+			return true
+		}
+		for index := 0; index+1 < len(arguments); index++ {
+			verb, ok := stringLiteral(arguments[index+1])
+			if !goBinary(arguments[index]) || !ok || !slices.Contains(goBuildVerbs, verb) {
+				continue
+			}
+			targets := &builds
+			if slices.Contains(goTestVerbs, verb) {
+				targets = &tests
+			}
+			positional, value := false, false
+			for _, argument := range arguments[index+2:] {
+				text, literal := stringLiteral(argument)
+				if !value && !(literal && strings.HasPrefix(text, "-")) {
+					positional = true
+					if target, ok := buildTarget(argument); ok {
+						*targets = append(*targets, target)
+					}
+				}
+				value = !value && literal && slices.Contains(goValueFlags, "-"+strings.TrimLeft(text, "-"))
+			}
+			if !positional {
+				*targets = append(*targets, ".")
+			}
+			break
+		}
+		return true
+	})
+	return builds, tests, nil
+}
+
+// specArgv returns the elements of the string-slice literal a
+// procgroup.Spec literal gives as its Argv, the argv procgroup.Run executes,
+// or nil. A string slice elsewhere is data a test compares or hands to a
+// planner, not a command it runs.
+func specArgv(literal *ast.CompositeLit) []ast.Expr {
+	switch spec := literal.Type.(type) {
+	case *ast.SelectorExpr:
+		if pkg, ok := spec.X.(*ast.Ident); !ok || pkg.Name != "procgroup" || spec.Sel.Name != "Spec" {
+			return nil
+		}
+	case *ast.Ident:
+		if spec.Name != "Spec" {
+			return nil
+		}
+	default:
+		return nil
+	}
+	for _, element := range literal.Elts {
+		field, ok := element.(*ast.KeyValueExpr)
+		if !ok {
+			continue
+		}
+		if key, ok := field.Key.(*ast.Ident); !ok || key.Name != "Argv" {
+			continue
+		}
+		argv, ok := field.Value.(*ast.CompositeLit)
+		if !ok {
+			return nil
+		}
+		slice, ok := argv.Type.(*ast.ArrayType)
+		if !ok {
+			return nil
+		}
+		if element, ok := slice.Elt.(*ast.Ident); !ok || element.Name != "string" {
+			return nil
+		}
+		return argv.Elts
+	}
+	return nil
+}
+
+// goBinary reports whether expression names the go tool: a "go" literal or an
+// identifier, or selected field, whose name contains "go" in any case.
+func goBinary(expression ast.Expr) bool {
+	switch expression := expression.(type) {
+	case *ast.BasicLit:
+		value, ok := stringLiteral(expression)
+		return ok && value == "go"
+	case *ast.Ident:
+		return strings.Contains(strings.ToLower(expression.Name), "go")
+	case *ast.SelectorExpr:
+		return strings.Contains(strings.ToLower(expression.Sel.Name), "go")
+	}
+	return false
+}
+
+// buildTarget returns the package pattern argument spells, if it is one: a
+// relative literal, or the "/..." pattern below the relative directory prefix
+// of the leftmost literal of a concatenation.
+func buildTarget(argument ast.Expr) (string, bool) {
+	relative := func(value string) bool {
+		return value == "." || strings.HasPrefix(value, "./") || strings.HasPrefix(value, "../")
+	}
+	if value, ok := stringLiteral(argument); ok {
+		return value, relative(value)
+	}
+	binary, ok := argument.(*ast.BinaryExpr)
+	if !ok || binary.Op != token.ADD {
+		return "", false
+	}
+	for {
+		left, ok := binary.X.(*ast.BinaryExpr)
+		if !ok || left.Op != token.ADD {
+			break
+		}
+		binary = left
+	}
+	prefix, ok := stringLiteral(binary.X)
+	if !ok || !relative(prefix) {
+		return "", false
+	}
+	directory := path.Dir(prefix + "x")
+	if directory == "." {
+		return "./...", true
+	}
+	if !strings.HasPrefix(directory, ".") {
+		directory = "./" + directory
+	}
+	return directory + "/...", true
+}
+
+// stringLiteral returns the value of a string literal expression.
+func stringLiteral(expression ast.Expr) (string, bool) {
+	literal, ok := expression.(*ast.BasicLit)
+	if !ok || literal.Kind != token.STRING {
+		return "", false
+	}
+	value, err := strconv.Unquote(literal.Value)
+	return value, err == nil
+}
+
 // dependencyDirectories lists, relative to root, the directory of every
 // non-standard package that `go list -deps` of targets loads from inside root.
 // Those directories are what a confined `go list` must read. A target resolves
 // against the package directory, where `go test` runs, or, when no directory
 // is there, against the root, where a test that sets the command's Dir to the
-// root runs it; a target that is neither is an error, not a silent pass.
-func dependencyDirectories(root, directory string, targets []string) ([]string, error) {
+// root runs it; a target that is neither is an error, not a silent pass. With
+// test, the imports of the targets' test files are loaded too.
+func dependencyDirectories(root, directory string, targets []string, test bool) ([]string, error) {
 	var resolved []string
 	for _, target := range targets {
+		// A "/..." pattern resolves at its directory and keeps the suffix.
+		target, below := strings.CutSuffix(target, "/...")
 		var found string
 		for _, base := range []string{directory, "."} {
 			candidate := path.Join(base, target)
@@ -328,11 +517,18 @@ func dependencyDirectories(root, directory string, targets []string) ([]string, 
 			}
 		}
 		if found == "" || found == ".." || strings.HasPrefix(found, "../") {
-			return nil, fmt.Errorf("%s: a test runs go list of %s, which names no repository directory", directory, target)
+			return nil, fmt.Errorf("%s: a test runs a go command on %s, which names no repository directory", directory, target)
+		}
+		if below {
+			found += "/..."
 		}
 		resolved = append(resolved, "./"+found)
 	}
-	command := exec.Command("go", append([]string{"list", "-deps", "-f", "{{if not .Standard}}{{.Dir}}{{end}}"}, resolved...)...)
+	arguments := []string{"list", "-deps", "-f", "{{if not .Standard}}{{.Dir}}{{end}}"}
+	if test {
+		arguments = append(arguments, "-test")
+	}
+	command := exec.Command("go", append(arguments, resolved...)...)
 	command.Dir = root
 	var stderr bytes.Buffer
 	command.Stderr = &stderr
@@ -372,6 +568,17 @@ func dependencyCovered(directory, dependency string, entries []string) bool {
 		}
 	}
 	return false
+}
+
+// recordedAbove returns the recorded path of a package that is dependency or a
+// directory above it (AFP-V0-847).
+func recordedAbove(recorded map[string]string, dependency string) (string, bool) {
+	for target := range recorded {
+		if dependency == target || strings.HasPrefix(dependency, target+"/") {
+			return target, true
+		}
+	}
+	return "", false
 }
 
 // check returns the unrecorded findings and the recorded literals that no test
@@ -427,7 +634,7 @@ func check(root string) ([]finding, []string, error) {
 				return nil, nil, fmt.Errorf("%s: %w", file, err)
 			}
 			if len(targets) > 0 {
-				dependencies, err := dependencyDirectories(root, directory, targets)
+				dependencies, err := dependencyDirectories(root, directory, targets, false)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -435,6 +642,34 @@ func check(root string) ([]finding, []string, error) {
 					if !dependencyCovered(directory, dependency, unit.ReadScope) {
 						findings = append(findings, finding{pkg: directory, file: file, path: dependency, listed: true})
 					}
+				}
+			}
+			builds, tests, err := goBuildTargets(file, body)
+			if err != nil {
+				return nil, nil, fmt.Errorf("%s: %w", file, err)
+			}
+			for _, group := range []struct {
+				targets []string
+				test    bool
+			}{{builds, false}, {tests, true}} {
+				if len(group.targets) == 0 {
+					continue
+				}
+				dependencies, err := dependencyDirectories(root, directory, group.targets, group.test)
+				if err != nil {
+					return nil, nil, err
+				}
+				for _, dependency := range dependencies {
+					if dependencyCovered(directory, dependency, unit.ReadScope) {
+						continue
+					}
+					// A recorded path at or above the directory is a build the
+					// confined shard never runs, such as a skipped live test.
+					if target, ok := recordedAbove(recorded[directory], dependency); ok {
+						used[directory+" "+target] = true
+						continue
+					}
+					findings = append(findings, finding{pkg: directory, file: file, path: dependency, built: true})
 				}
 			}
 		}
@@ -502,6 +737,11 @@ func run(root string, stdout, stderr io.Writer) int {
 		}
 		if found.listed {
 			fmt.Fprintf(stderr, "test-read-scopes-check: package %s: %s runs go list -deps, which loads %s, outside its entries in %s; declare the directory there (AFP-V0-023)\n",
+				found.pkg, found.file, found.path, affected.ReadScopesPath)
+			continue
+		}
+		if found.built {
+			fmt.Fprintf(stderr, "test-read-scopes-check: package %s: %s builds repository source with go, which reads %s, outside its entries in %s; declare the directory there (AFP-V0-023)\n",
 				found.pkg, found.file, found.path, affected.ReadScopesPath)
 			continue
 		}

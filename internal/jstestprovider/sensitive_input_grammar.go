@@ -1,9 +1,10 @@
 package jstestprovider
 
 import (
-	"encoding/json"
+	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf16"
 )
 
 func boundaryWordRune(r rune) bool {
@@ -126,7 +127,7 @@ func boundaryUnsupportedSensitiveAction(title string, policy normalizedSensitive
 				continue
 			}
 			if r == quote {
-				if property && boundarySensitiveProperty(string(runes[quoteStart:i]), quote, policy) {
+				if property && boundarySensitiveProperty(string(runes[quoteStart:i]), policy) {
 					return true
 				}
 				quote = 0
@@ -153,30 +154,12 @@ func boundaryUnsupportedSensitiveAction(title string, policy normalizedSensitive
 	return quote != 0
 }
 
-func boundarySensitiveProperty(raw string, quote rune, policy normalizedSensitivePolicy) bool {
-	if quote == '\'' {
-		raw = strings.ReplaceAll(raw, `\'`, `'`)
-	}
-	// Decode JavaScript escapes through a JSON string literal. A bare `"` is
-	// legal inside a single-quoted or template literal but would end the JSON
-	// literal early, leaving every escape undecoded, so it is escaped here.
-	literal := make([]byte, 0, len(raw)+2)
-	literal = append(literal, '"')
-	for i := 0; i < len(raw); i++ {
-		switch {
-		case raw[i] == '\\' && i+1 < len(raw):
-			literal = append(literal, raw[i], raw[i+1])
-			i++
-		case raw[i] == '"':
-			literal = append(literal, '\\', '"')
-		default:
-			literal = append(literal, raw[i])
-		}
-	}
-	literal = append(literal, '"')
-	var decoded string
-	if json.Unmarshal(literal, &decoded) == nil {
-		raw = decoded
+// An undecodable property name fails closed: it may spell a sensitive action
+// the classifier cannot see (V1-3197).
+func boundarySensitiveProperty(raw string, policy normalizedSensitivePolicy) bool {
+	raw, ok := boundaryDecodeJSString(raw)
+	if !ok {
+		return true
 	}
 	for _, pattern := range policy.actions {
 		if boundaryWords(raw) == boundaryWords(pattern) {
@@ -215,11 +198,7 @@ func boundaryTailCandidates(tail string, add func(string)) {
 			if r == quote {
 				raw := string(runes[quoteStart:i])
 				add(raw)
-				if quote == '\'' {
-					raw = strings.ReplaceAll(raw, `\'`, `'`)
-				}
-				var decoded string
-				if json.Unmarshal([]byte(`"`+raw+`"`), &decoded) == nil {
+				if decoded, ok := boundaryDecodeJSString(raw); ok {
 					add(decoded)
 				}
 				quote = 0
@@ -254,4 +233,105 @@ func boundaryTailCandidates(tail string, add func(string)) {
 		}
 	}
 	add(string(runes[start:]))
+}
+
+// boundaryDecodeJSString decodes the body of a JavaScript string or template
+// literal with the full ECMAScript escape grammar: single-character escapes,
+// \0, \xHH, \uHHHH (surrogate pairs combined), \u{H..}, line continuations
+// and identity escapes. A trailing backslash, a malformed or out-of-range
+// escape, a lone surrogate or a legacy octal escape reports false.
+func boundaryDecodeJSString(raw string) (string, bool) {
+	if !strings.ContainsRune(raw, '\\') {
+		return raw, true
+	}
+	var units []uint16
+	runes := []rune(raw)
+	hex := func(from, to int) (rune, bool) {
+		if to > len(runes) || from >= to {
+			return 0, false
+		}
+		v, err := strconv.ParseUint(string(runes[from:to]), 16, 32)
+		if err != nil || v > unicode.MaxRune {
+			return 0, false
+		}
+		return rune(v), true
+	}
+	for i := 0; i < len(runes); i++ {
+		r := runes[i]
+		if r != '\\' {
+			units = utf16.AppendRune(units, r)
+			continue
+		}
+		i++
+		if i == len(runes) {
+			return "", false
+		}
+		switch r = runes[i]; r {
+		case 'b':
+			units = append(units, '\b')
+		case 'f':
+			units = append(units, '\f')
+		case 'n':
+			units = append(units, '\n')
+		case 'r':
+			units = append(units, '\r')
+		case '\r':
+			if i+1 < len(runes) && runes[i+1] == '\n' {
+				i++
+			}
+		case '\n', '\u2028', '\u2029':
+		case 't':
+			units = append(units, '\t')
+		case 'v':
+			units = append(units, '\v')
+		case '0':
+			if i+1 < len(runes) && runes[i+1] >= '0' && runes[i+1] <= '9' {
+				return "", false
+			}
+			units = append(units, 0)
+		case '1', '2', '3', '4', '5', '6', '7', '8', '9':
+			return "", false
+		case 'x':
+			v, ok := hex(i+1, i+3)
+			if !ok || v > 0xFF {
+				return "", false
+			}
+			units, i = append(units, uint16(v)), i+2
+		case 'u':
+			if i+1 < len(runes) && runes[i+1] == '{' {
+				end := i + 2
+				for end < len(runes) && runes[end] != '}' {
+					end++
+				}
+				v, ok := hex(i+2, end)
+				if !ok || end == len(runes) {
+					return "", false
+				}
+				// A BMP code point stays one code unit, so a surrogate written as
+				// \u{D83D} pairs or stays lone exactly as \uD83D does.
+				if v <= 0xFFFF {
+					units, i = append(units, uint16(v)), end
+				} else {
+					units, i = utf16.AppendRune(units, v), end
+				}
+				continue
+			}
+			v, ok := hex(i+1, i+5)
+			if !ok || v > 0xFFFF {
+				return "", false
+			}
+			units, i = append(units, uint16(v)), i+4
+		default:
+			units = utf16.AppendRune(units, r)
+		}
+	}
+	for i := 0; i < len(units); i++ {
+		if utf16.IsSurrogate(rune(units[i])) {
+			if i+1 == len(units) || utf16.DecodeRune(rune(units[i]), rune(units[i+1])) == unicode.ReplacementChar {
+				return "", false
+			}
+			i++
+		}
+	}
+	return string(utf16.Decode(units)), true
 }
