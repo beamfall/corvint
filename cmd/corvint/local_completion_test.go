@@ -244,6 +244,9 @@ func TestLocalCompletionRealEvidenceWorkflow(t *testing.T) {
 		state["lifecycle"] = "active"
 		altered, _ = json.Marshal(state)
 		os.WriteFile(statePath, altered, 0600)
+		// LCP-V0-060 on the pre-seal strict path: a real SIGINT and SIGTERM
+		// during the unsealed final check keep the active policy on stdout.
+		assertFinishSignalCLI(t, root, key, statePath)
 		cemGit(t, root, "config", "--local", "corvint.dogfood.anchor", "HEAD")
 		result, err = localcompletion.Finish(ctx, root, key, localCompletionPublicCommand)
 		if err == nil || result.Satisfied {
@@ -810,7 +813,7 @@ func assertSealedCompletionControls(t *testing.T, root, key, base, seal string, 
 		t.Fatal(e)
 	}
 	// LCP-V0-060: the same interruption delivered as a real SIGINT and SIGTERM
-	// to the `corvint dogfood finish` CLI.
+	// to the `corvint dogfood finish` CLI on the sealed path.
 	assertFinishSignalCLI(t, root, key, statePath)
 	signalled, signal := context.WithCancel(ctx)
 	interrupts := 0

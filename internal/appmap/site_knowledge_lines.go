@@ -22,8 +22,9 @@ type SKLineScreen struct{ Screen, Basis string }
 // assertion, the screen the IR places it on (CCE-V0-310). A visit binds to the screen its URL
 // resolves to; an assertion binds to the screen of the last visit, or of the last action run
 // through a page object joined to a screen (SKH-V0-121, SKH-V0-185), before it. An unresolved
-// visit, an unresolved call or an unparsed step forgets the screen, so nothing after it binds
-// until a later step names one again. A line two tests place on different screens is omitted.
+// visit, an unresolved call or an unparsed step forgets the screen, even inside a page object
+// joined to a screen, so nothing after it binds until a later step names one again. A line two
+// tests place on different screens is omitted.
 func LineScreens(ctx context.Context, m *Map, sources []string, o Options) (map[SKLine]SKLineScreen, error) {
 	k, _, _, err := readSiteKnowledge(ctx, m, sources, o)
 	if err != nil {
@@ -59,10 +60,12 @@ func LineScreens(ctx context.Context, m *Map, sources []string, o Options) (map[
 					put(at, SKLineScreen{Screen: screen, Basis: SKLineBasisStep})
 				}
 			case s.Kind == StepWaitFor:
+			case s.Kind == StepOpaque && (s.Reason != OpaqueDynamicValue || s.Call == StepVisit):
+				// Checked before the page-object screen: a joined page object's method that visits
+				// an unknown URL, or that the IR could not read, leaves the destination unknown.
+				screen = ""
 			case k.stepScreen(s) != "":
 				screen = k.stepScreen(s)
-			case s.Kind == StepOpaque && (s.Reason != OpaqueDynamicValue || s.Call == StepVisit):
-				screen = ""
 			}
 		}
 	}

@@ -423,7 +423,7 @@ func eoContractFindings(name, text string) ([]testvalidity.SourceFinding, []test
 		if m == nil {
 			continue
 		}
-		values := eoContractValues(m[2])
+		values := eoContractValues(eoContractValueText(m[2]))
 		if len(values) < 2 {
 			continue
 		}
@@ -460,6 +460,18 @@ func eoContractFindings(name, text string) ([]testvalidity.SourceFinding, []test
 func eoContractComment(line string) bool {
 	line = strings.TrimSpace(line)
 	return strings.HasPrefix(line, "#") || strings.HasPrefix(line, "//") || strings.HasPrefix(line, "<!--")
+}
+
+// eoContractValueText is an expected value without a trailing comment on its line: a YAML ` #`,
+// a ` //` or a Markdown `<!--` comment. The comment, which may carry the justification annotation,
+// is read separately from the value (TSA-V0-870).
+func eoContractValueText(value string) string {
+	for _, mark := range []string{"<!--", " #", "\t#", " //", "\t//"} {
+		if i := strings.Index(value, mark); i >= 0 {
+			value = value[:i]
+		}
+	}
+	return value
 }
 
 // eoContractValues splits an expected value into its alternatives when every alternative is one

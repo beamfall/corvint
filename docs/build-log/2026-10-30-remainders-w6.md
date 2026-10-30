@@ -40,3 +40,15 @@ remainder of an accepted contract; IDs come from the lane's assigned blocks.
 
 The live Playwright hand-off ran once against a fixture, not against an adopter suite. IR binding
 covers only lines written in the test body; helper-body (`Via`) steps are not bound.
+
+## Review fixes (orchestrator Codex review of f7449ea)
+
+- CCE-V0-310: an opaque visit inside a joined page-object method (a dynamic `page.goto`) now
+  forgets the screen before the page object's own screen is considered, so the assertion after it
+  stays unbound. `TestCCEV0310OpaqueVisitInJoinedPageObjectForgetsScreen` failed before the fix.
+- TSA-V0-870: a contract value line's own trailing comment (YAML ` #`, ` //`, Markdown `<!--`) is
+  read apart from the expected value, so an inline annotation is recorded as an exemption and an
+  unannotated trailing comment no longer hides the value's alternatives. The inline cases in
+  `TestEitherOrOutcomeExemptionRetainsReason` failed before the fix.
+- LCP-V0-060: the CLI signal assertion also runs on the pre-seal strict finish path, which is
+  the path the `finish.go` change covers; with that change reverted it fails with empty stdout.

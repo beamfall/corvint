@@ -12,8 +12,9 @@ import (
 // TestEitherOrOutcomeExemptionRetainsReason: TSA-V0-870 (V1-1930 AC2). Every line a justified
 // annotation exempts is reported as an exemption naming the rule, the exempted `path:line` and the
 // annotation's own reason, in JS/TS (the line above and the same line), a Markdown and a YAML
-// contract comment, and a JSON sibling member; a reasonless or other-rule annotation exempts
-// nothing and records nothing. The file record carries the same exemptions in its JSON.
+// contract comment (the line above and the value line's own trailing comment), and a JSON sibling
+// member; a reasonless or other-rule annotation exempts nothing and records nothing. The file
+// record carries the same exemptions in its JSON.
 func TestEitherOrOutcomeExemptionRetainsReason(t *testing.T) {
 	exempt := func(location, reason string) testvalidity.RuleExemption {
 		return testvalidity.RuleExemption{Rule: testvalidity.RuleEitherOrOutcome, Location: location, Reason: reason}
@@ -30,6 +31,10 @@ func TestEitherOrOutcomeExemptionRetainsReason(t *testing.T) {
 `
 	md := "<!-- corvint-validity-allow EITHER-OR-OUTCOME: the gateway is non-deterministic -->\n- expected status: 502 or 504\n- expected status: 401 or 403\n"
 	yml := "# corvint-validity-allow EITHER-OR-OUTCOME: load balancer picks\nexpected_code: 502 or 504\n"
+	// An annotation in the value line's own trailing comment: the comment is read apart from the
+	// value, and a plain trailing comment does not hide the value's alternatives.
+	ymlInline := "expected_code: 502 or 504 # corvint-validity-allow EITHER-OR-OUTCOME: gateway varies\nexpected_code: 401 or 403 # see the auth notes\n"
+	mdInline := "- expected status: 502 or 504 <!-- corvint-validity-allow EITHER-OR-OUTCOME: gateway varies -->\n"
 	jsonContract := `{
   "rows": [
     {
@@ -51,6 +56,8 @@ func TestEitherOrOutcomeExemptionRetainsReason(t *testing.T) {
 		{"e2e/gw.spec.ts", js, 2, []testvalidity.RuleExemption{exempt("e2e/gw.spec.ts:3", "the upstream gateway answers 502 or 504 at random"), exempt("e2e/gw.spec.ts:4", "same gateway")}},
 		{"docs/contracts/gw.md", md, 1, []testvalidity.RuleExemption{exempt("docs/contracts/gw.md:2", "the gateway is non-deterministic")}},
 		{"contracts/gw.yml", yml, 0, []testvalidity.RuleExemption{exempt("contracts/gw.yml:2", "load balancer picks")}},
+		{"contracts/inline.yml", ymlInline, 1, []testvalidity.RuleExemption{exempt("contracts/inline.yml:1", "gateway varies")}},
+		{"docs/contracts/inline.md", mdInline, 0, []testvalidity.RuleExemption{exempt("docs/contracts/inline.md:1", "gateway varies")}},
 		{"contracts/gw.json", jsonContract, 1, []testvalidity.RuleExemption{exempt("contracts/gw.json:4", "the gateway is non-deterministic")}},
 	} {
 		report := ValidityFindings(c.name, c.text)

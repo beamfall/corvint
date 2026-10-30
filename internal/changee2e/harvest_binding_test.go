@@ -203,3 +203,55 @@ func TestCCEV0310BindProposalIRPrecedence(t *testing.T) {
 		}
 	}
 }
+
+const irOpaqueVisitPage = `import { Page } from '@playwright/test';
+
+export class TeeSheetPage {
+  constructor(private readonly page: Page) {}
+
+  async selectSlot() {
+    await this.page.getByTestId('slot').first().click();
+  }
+
+  async jump(dest: string) {
+    await this.page.goto(dest);
+  }
+}
+`
+
+const irOpaqueVisitSpec = `import { test, expect } from '@playwright/test';
+import { TeeSheetPage } from '../pages/teesheet.page';
+
+test('a joined page object visiting an unknown url', async ({ page }) => {
+  const sheet = new TeeSheetPage(page);
+  await sheet.selectSlot();
+  await expect(page.getByTestId('sheet-banner')).toHaveText('Ready');
+  await sheet.jump(await page.title());
+  await expect(page.getByTestId('jumped-banner')).toHaveText('Elsewhere');
+});
+`
+
+// CCE-V0-310: a joined page-object method whose visit target is dynamic leaves the destination
+// unknown, so the screen is forgotten even though the page object itself is joined to a screen;
+// the assertion after it is not bound to that page object's screen.
+func TestCCEV0310OpaqueVisitInJoinedPageObjectForgetsScreen(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	rev := commitFiles(t, root, map[string]*string{"e2e/pages/teesheet.page.ts": text(irOpaqueVisitPage),
+		"e2e/extra/zz-ir-opaque.spec.ts": text(irOpaqueVisitSpec)}, "opaque visit through a page object")
+	p, err := Harvest(bg, HarvestOptions{Root: root, Rev: rev, Sources: []string{"e2e"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]Binding{}
+	for _, pr := range p.Proposals {
+		if pr.Block.Span.Path == "e2e/extra/zz-ir-opaque.spec.ts" {
+			got[pr.Block.Kind+" "+pr.Block.Locator] = pr.Binding
+		}
+	}
+	if b := got[KindOutcome+" sheet-banner"]; b != (Binding{Screen: "screen:admin:app.clubs.teesheets", Basis: appmap.SKLineBasisStep}) {
+		t.Fatalf("assertion after the joined action: %+v (all %+v)", b, got)
+	}
+	if b, ok := got[KindOutcome+" jumped-banner"]; !ok || b.Basis == appmap.SKLineBasisStep || b.Screen != "" {
+		t.Fatalf("assertion after an opaque visit bound to %+v (all %+v)", b, got)
+	}
+}

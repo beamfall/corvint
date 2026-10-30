@@ -92,7 +92,8 @@ baseline is running every setup project for every spec, reviewing by eye, and gr
   justified `EITHER-OR-OUTCOME` annotation exempts (TSA-V0-163, TSA-V0-308) MUST be reported, not
   silently dropped: the file's validity record carries an `exemptions` entry naming the rule, the
   exempted `path:line` and the annotation's own reason, for a JS/TS line (same line or the line
-  above), a Markdown or YAML contract comment and a JSON sibling member. A reasonless or
+  above), a Markdown or YAML contract comment (the line above, or the value line's own trailing
+  comment, which is read apart from the expected value) and a JSON sibling member. A reasonless or
   other-rule annotation exempts nothing and records nothing. An exemption is not a finding and
   changes no axis. Non-goals: judging the reason's truth. Rollback: drop the `exemptions` member;
   it is omitted when empty and nothing reads it.
@@ -2242,7 +2243,7 @@ persisted.
 | TSA-V0-162 | `internal/testsource/validity_either_or.go`, `internal/testsource/validity.go` | `TestEitherOrOutcomeContract` | experimental |
 | TSA-V0-163 | `internal/testsource/validity_either_or.go` | `TestEitherOrOutcomeAnnotation`, `TestEitherOrOutcomeContract`, `TestEitherOrOutcomeReviewCases` | experimental |
 | TSA-V0-164 | `eoMessage` in `internal/testsource/validity_either_or.go` (names the accepted values, proposes none); `AssertionOperandRecord` in `internal/jstestprovider/assertion_operands.go` records operand sizes only (LPCV-V0-120), so no receipt carries the observed value | `TestEitherOrOutcomeProposesNoValue` (without a receipt: every accepted value named, no value proposed or guessed); the with-receipt proposal stays NOT_PRODUCED because no receipt observes an operand value | experimental |
-| TSA-V0-870 | `RuleExemption` in `internal/testvalidity/source_rules_outcome.go`; `eoAllowed`, `eoAnnotation`, `eoContractFindings` in `internal/testsource/validity_either_or.go`; `eoJSONAllowed` in `validity_crossfile.go`; `ValidityReport.Exemptions`, `SourceValidityFile.Exemptions` | `TestEitherOrOutcomeExemptionRetainsReason` (JS/TS above and same line, Markdown, YAML and JSON annotations each retain rule, location and reason in the report and the file JSON; reasonless and other-rule annotations record nothing) | experimental |
+| TSA-V0-870 | `RuleExemption` in `internal/testvalidity/source_rules_outcome.go`; `eoAllowed`, `eoAnnotation`, `eoContractFindings`, `eoContractValueText` in `internal/testsource/validity_either_or.go`; `eoJSONAllowed` in `validity_crossfile.go`; `ValidityReport.Exemptions`, `SourceValidityFile.Exemptions` | `TestEitherOrOutcomeExemptionRetainsReason` (JS/TS above and same line, Markdown and YAML above and as the value line's trailing comment, and JSON annotations each retain rule, location and reason in the report and the file JSON; reasonless and other-rule annotations record nothing) | experimental |
 | TSA-V0-165 | `internal/testsource/validity_cleanup_handle.go` | `TestCleanupHandleOutlivedInTest`, `TestCleanupHandleOutlivedShadowed` | experimental |
 | TSA-V0-166 | `internal/testsource/validity_cleanup_handle.go`, `internal/testsource/validity.go` | `TestCleanupHandleOutlivedInTest`, `TestCleanupHandleOutlivedFixtureFile` | experimental |
 | TSA-V0-167 | `internal/testsource/validity_cleanup_handle.go` | `TestCleanupHandleOutlivedAbstains` | experimental |
