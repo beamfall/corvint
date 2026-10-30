@@ -37,6 +37,7 @@ type Repository struct {
 	ProfileID      string
 	TreeRevision   string
 	WorktreeState  string
+	DirtySample    string
 }
 
 type gitRunner func(context.Context, string, int, ...string) ([]byte, error)
@@ -424,7 +425,7 @@ func repositoryFromObservation(after repositoryObservation, profileID string) (R
 	return Repository{
 		CommitRevision: after.identity[1], DirtyPathCount: len(dirtyAfter),
 		DirtyPathsSHA: sha256Hex(dirtyJSON), ObjectFormat: after.identity[0],
-		ProfileID: profileID, TreeRevision: after.identity[2], WorktreeState: state,
+		ProfileID: profileID, TreeRevision: after.identity[2], WorktreeState: state, DirtySample: dirtySample(dirtyAfter),
 	}, nil
 }
 

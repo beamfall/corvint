@@ -270,14 +270,23 @@ func TestDogfoodFinishLaneDCWV0060RefusesBeforeAnyStep(t *testing.T) {
 	_, args := finishLaneInputs(t, "1\tintent.md\t1:5\tspecification\n", "intent.md\n")
 	cemWrite(t, root, "notes.txt", "draft\n")
 	code, stdout, stderr := run.exec(t, root, nil, append([]string{"dogfood", "finish-lane", "--base", base}, args...)...)
-	if code != 2 || stdout != "" || stderr != "dogfood-finish-lane: REFUSE dirty-worktree\n  fix: commit the change (finish-lane binds only committed work) and remove every other uncommitted path, then rerun corvint dogfood finish-lane --base "+base+"\n" {
+	if code != 2 || stdout != "" || stderr != "dogfood-finish-lane: REFUSE dirty-worktree\n  uncommitted: \"notes.txt\"\n  fix: commit the change (finish-lane binds only committed work) and remove every other uncommitted path, then rerun corvint dogfood finish-lane --base "+base+"\n" {
 		t.Fatalf("dirty exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	if _, err := os.Stat(filepath.Join(root, ".corvint/dogfood-report.json")); !os.IsNotExist(err) {
 		t.Fatalf("a refused run wrote a report: %v", err)
 	}
-	if err := os.Remove(filepath.Join(root, "notes.txt")); err != nil {
-		t.Fatal(err)
+	// DCW-V0-397: the refusal names at most five sorted paths, quoted, and counts the rest.
+	for _, name := range []string{"a\x1b[31m.txt", "b.txt", "c.txt", "d.txt", "e.txt", "f.txt"} {
+		cemWrite(t, root, name, "draft\n")
+	}
+	if code, _, stderr = run.exec(t, root, nil, append([]string{"dogfood", "finish-lane", "--base", base}, args...)...); code != 2 || !strings.HasPrefix(stderr, "dogfood-finish-lane: REFUSE dirty-worktree\n  uncommitted: \"a\\x1b[31m.txt\" \"b.txt\" \"c.txt\" \"d.txt\" \"e.txt\" and 2 more\n  fix: ") {
+		t.Fatalf("bounded dirty sample exit=%d stderr=%q", code, stderr)
+	}
+	for _, name := range []string{"a\x1b[31m.txt", "b.txt", "c.txt", "d.txt", "e.txt", "f.txt", "notes.txt"} {
+		if err := os.Remove(filepath.Join(root, name)); err != nil {
+			t.Fatal(err)
+		}
 	}
 	head := cemGit(t, root, "rev-parse", "HEAD")
 	if code, _, stderr = run.exec(t, root, nil, append([]string{"dogfood", "finish-lane", "--base", head}, args...)...); code != 2 || !strings.HasPrefix(stderr, "dogfood-finish-lane: REFUSE head-not-ahead-of-base\n") {
@@ -314,7 +323,7 @@ func TestDogfoodFinishLaneDCWV0061ResumesAfterRejectedSeal(t *testing.T) {
 		t.Fatalf("rejected seal exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	restore := "git restore --source=HEAD --staged --worktree -- .corvint/change.cem.json .corvint/changes/" + bind + ".cem.json"
-	if code, _, stderr = run.exec(t, root, finishLaneIdentity, finish...); code != 2 || !strings.HasPrefix(stderr, "dogfood-finish-lane: REFUSE dirty-worktree\n  fix: "+restore+", ") {
+	if code, _, stderr = run.exec(t, root, finishLaneIdentity, finish...); code != 2 || !strings.HasPrefix(stderr, "dogfood-finish-lane: REFUSE dirty-worktree\n  uncommitted: \".corvint/change.cem.json\" \".corvint/changes/"+bind+".cem.json\"\n  fix: "+restore+", ") {
 		t.Fatalf("staged rename rerun exit=%d stderr=%s", code, stderr)
 	}
 	cemGit(t, root, strings.Fields(restore)[1:]...)
@@ -326,7 +335,7 @@ func TestDogfoodFinishLaneDCWV0061ResumesAfterRejectedSeal(t *testing.T) {
 		t.Fatalf("resumed seal exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	cemWrite(t, root, "notes.txt", "draft\n")
-	if code, stdout, stderr = run.exec(t, root, nil, finish...); code != 2 || stdout != "" || stderr != "dogfood-finish-lane: REFUSE dirty-worktree\n  fix: HEAD is sealed; commit or remove every uncommitted path, then rerun corvint dogfood finish-lane --base "+base+"\n" {
+	if code, stdout, stderr = run.exec(t, root, nil, finish...); code != 2 || stdout != "" || stderr != "dogfood-finish-lane: REFUSE dirty-worktree\n  uncommitted: \"notes.txt\"\n  fix: HEAD is sealed; commit or remove every uncommitted path, then rerun corvint dogfood finish-lane --base "+base+"\n" {
 		t.Fatalf("dirty sealed rerun exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 }

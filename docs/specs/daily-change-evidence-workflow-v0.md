@@ -2008,6 +2008,19 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   file with neither an anchor nor a receipt stays below anchored, as before. Evidence:
   `TestProposeCitationsDCWV0393NeverCitesChangedPaths` (added test file row); decision recorded in
   `docs/build-log/2026-10-30-propose-citations-changed-paths.md`. Rollback: revert the note text.
+- `DCW-V0-397`: (experimental under the standing lane auto-accept; sec-res-w2 lane friction; refines
+  `DCW-V0-060` and `DCW-V0-061`) A `dogfood finish-lane` or `dogfood-inputs-check` refusal
+  `dirty-worktree` MUST print, between the `REFUSE` line and its `fix:` line, one
+  `  uncommitted: P1 .. Pn[ and K more]` line. It names at most five of the dirty paths that Core's
+  hardened probe (`DCW-V0-045`) observed, in sorted order, each Go-quoted so no control byte reaches
+  the terminal, and counts the rest. The probe exposes the sample as a comparable string field
+  that is not on its wire. Design: a lane that built `bin/corvint` inside its worktree was told
+  only to "remove every other uncommitted path" and needed a separate `git status` to find the
+  binary. Non-goals: naming paths in `dogfood check` or `batch-check` refusals; running a second
+  status read. Evidence: `TestDogfoodFinishLaneDCWV0060RefusesBeforeAnyStep` (sorted, bounded,
+  escape-quoted sample), `TestDogfoodFinishLaneDCWV0061ResumesAfterRejectedSeal` and the
+  `finishlane_test.go` clean-worktree cases. Rollback: drop the `uncommitted:` line and
+  `Repository.DirtySample`.
 - `DCW-V0-170`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2344) When
   `dogfood finish-lane` refuses a verify input as `unsupported-verify-syntax` (`DCW-V0-092`), it
   MUST also print an `accepted form:` line that names the common quoted `-run 'TestA|TestB'`

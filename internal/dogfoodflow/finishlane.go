@@ -334,6 +334,13 @@ func (l *finishLane) requireCleanWorktree(committed, sealed bool) {
 		return
 	}
 	l.say("%s: REFUSE dirty-worktree\n", l.prefix)
+	// Naming the paths saves a status round trip; the sample is sorted and
+	// bounded, and each path is quoted so no byte reaches the terminal raw (DCW-V0-397).
+	more := ""
+	if extra := repository.DirtyPathCount - min(repository.DirtyPathCount, gokernel.DirtySampleSize); extra > 0 {
+		more = fmt.Sprintf(" and %d more", extra)
+	}
+	l.say("  uncommitted: %s%s\n", repository.DirtySample, more)
 	switch {
 	case sealed:
 		l.say("  fix: HEAD is sealed; commit or remove every uncommitted path, then rerun corvint dogfood finish-lane --base %s\n", l.base)
