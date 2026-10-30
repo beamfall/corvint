@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/archivepath"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/procgroup"
 )
@@ -1244,7 +1245,10 @@ func extract(archive, dest string) error {
 		if h.Size < 0 || size > extractedLimit {
 			return errors.New("archive expansion limit")
 		}
-		p := filepath.Join(dest, filepath.FromSlash(n))
+		p, err := archivepath.Join(dest, n)
+		if err != nil {
+			return errors.New("unsafe archive path")
+		}
 		if h.Typeflag == tar.TypeDir {
 			if err = os.MkdirAll(p, 0700); err != nil {
 				return err
