@@ -23,12 +23,22 @@ type command struct {
 // script is what one lexing pass over a file yields: its commands in source
 // order, its heredoc bodies, which are data rather than commands, and the
 // functions it defines, each mapped to the number of commands before its
-// first definition.
+// first definition. definitions counts each name's definitions, and bodies
+// holds the brace body of a name's first definition (TSP-V0-004).
 type script struct {
-	commands  []command
-	data      []string
-	functions map[string]int
-	blocks    int
+	commands    []command
+	data        []string
+	functions   map[string]int
+	definitions map[string]int
+	bodies      map[string]body
+	blocks      int
+	naming      string
+}
+
+// body is a function's brace body: its block id and the block id holding
+// the definition.
+type body struct {
+	block, parent int
 }
 
 // define records a function's first definition.
@@ -36,6 +46,8 @@ func (s *script) define(name string) {
 	if _, seen := s.functions[name]; !seen {
 		s.functions[name] = len(s.commands)
 	}
+	s.definitions[name]++
+	s.naming = name
 }
 
 // redirect marks a redirection operator; the word after it is its target.
@@ -66,7 +78,7 @@ func plainWords(words []string) []string {
 // and anything else is kept as word text. A misreading can add or drop an
 // edge in either direction only for constructs it does not model.
 func parse(text string) script {
-	out := script{functions: map[string]int{}}
+	out := script{functions: map[string]int{}, definitions: map[string]int{}, bodies: map[string]body{}}
 	lexer := &lexer{src: text, out: &out}
 	lexer.parse(0, false, false)
 	return out
@@ -107,11 +119,6 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 		cases   int
 		pattern bool
 	)
-	push := func(entry frame) {
-		l.out.blocks++
-		entry.id = l.out.blocks
-		stack = append(stack, entry)
-	}
 	block := func() int {
 		if substituted {
 			return -1
@@ -120,6 +127,17 @@ func (l *lexer) parse(closer byte, inherited, substituted bool) {
 			return 0
 		}
 		return stack[len(stack)-1].id
+	}
+	push := func(entry frame) {
+		l.out.blocks++
+		entry.id = l.out.blocks
+		if name := l.out.naming; entry.function && name != "" {
+			if _, seen := l.out.bodies[name]; !seen {
+				l.out.bodies[name] = body{block: entry.id, parent: block()}
+			}
+		}
+		l.out.naming = ""
+		stack = append(stack, entry)
 	}
 	// arm starts a compound command's next arm, a new block.
 	arm := func() {
