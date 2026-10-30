@@ -351,8 +351,14 @@ func TestProposeCitationsDCWV0802NamesWhyThePatchIsUnavailable(t *testing.T) {
 				t.Fatal(err)
 			}
 		}},
-		{name: "over-bound", reason: "patch-over-bound", limit: 64, change: func(t *testing.T, root string) {
+		{name: "over-read-bound", reason: "git-output-exceeded", limit: 64, change: func(t *testing.T, root string) {
 			writeTree(t, root, map[string]string{"a.md": "# Title\n\n" + numbered("body amended", 20)})
+		}},
+		// A textual patch between cem prepare's 8 MiB Git output bound and
+		// the flow's larger read bound is refused as cem prepare refuses it,
+		// with the split guidance, never as a binary patch.
+		{name: "over-prepare-bound", reason: "git-output-exceeded", change: func(t *testing.T, root string) {
+			writeTree(t, root, map[string]string{"large.txt": strings.Repeat(strings.Repeat("x", 99)+"\n", 9<<20/100)})
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -388,6 +394,9 @@ func TestProposeCitationsDCWV0802NamesWhyThePatchIsUnavailable(t *testing.T) {
 				if !strings.Contains(stderr.String(), want) {
 					t.Errorf("stderr lacks %q:\n%s", want, stderr.String())
 				}
+			}
+			if tc.reason == "git-output-exceeded" && (!strings.Contains(stderr.String(), "split the change into smaller commits") || strings.Contains(stderr.String(), "textual hunk")) {
+				t.Errorf("an oversized patch lacks the split guidance or names the binary-patch fix:\n%s", stderr.String())
 			}
 			if strings.Contains(stderr.String(), "run corvint dogfood change") {
 				t.Errorf("the refusal advises dogfood change first, which refuses the same patch:\n%s", stderr.String())

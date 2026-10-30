@@ -48,10 +48,8 @@ type proposal struct {
 	// order to number against (DCW-V0-350).
 	keyByID bool
 	// moves maps each side of a file the change moves, the deleted BASE path
-	// and the added path, to that move; moveCites holds the one span both
-	// sides of a move cite, by BASE path (DCW-V0-803).
-	moves     map[string]movedFile
-	moveCites map[string]movedCite
+	// and the added path, to that move (DCW-V0-803).
+	moves map[string]movedFile
 }
 
 // spanLine is one line of a BASE file.
@@ -148,14 +146,16 @@ func (p *proposal) canonicalPatch() (*patch.Patch, bool) {
 }
 
 // readCanonicalPatch reads and parses the canonical patch, or names why it
-// cannot: the reason is git-diff-failed, patch-over-bound, or the cem/1.0
-// code cem prepare refuses the same patch with, and detail is that refusal's
-// message (DCW-V0-802).
+// cannot: the reason is git-diff-failed, or the cem/1.0 code cem prepare
+// refuses the same patch with, and detail is that refusal's message
+// (DCW-V0-802). A patch over cem prepare's Git output bound,
+// patch.MaxPatchBytes, is git-output-exceeded as there, not the binary-patch
+// code the parser gives an oversized input.
 func (p *proposal) readCanonicalPatch() (parsed *patch.Patch, reason, detail string) {
 	raw, status, bounded := p.boundedGit(p.canonicalDiffArguments()...)
 	switch {
-	case !bounded:
-		return nil, "patch-over-bound", fmt.Sprintf("the BASE..HEAD patch exceeds %d bytes", maxGitOutputBytes)
+	case !bounded, len(raw) > patch.MaxPatchBytes:
+		return nil, cemcode.GitOutputExceeded, fmt.Sprintf("the BASE..HEAD patch exceeds the %d-byte Git output bound cem prepare reads it under", patch.MaxPatchBytes)
 	case status != 0:
 		return nil, "git-diff-failed", fmt.Sprintf("git diff BASE HEAD exited %d", status)
 	case raw == "":
@@ -238,7 +238,7 @@ func (p *proposal) refusePatchUnavailable(reason, detail string) {
 	switch reason {
 	case "git-diff-failed":
 		p.say("  fix: make BASE a commit of this repository that HEAD contains (git merge-base --is-ancestor %s HEAD), then rerun corvint dogfood propose-citations %s\n", base, base)
-	case "patch-over-bound":
+	case cemcode.GitOutputExceeded:
 		p.say("  fix: cem prepare refuses a patch this large as well, so dogfood change cannot run first; split the change into smaller commits on separate branches, then rerun corvint dogfood propose-citations %s\n", base)
 	default:
 		p.say("  fix: cem prepare refuses this patch with the same code, so dogfood change and dogfood finish-lane cannot run first; make every changed path a regular file with a textual hunk (give an empty file content, revert a mode-only change, drop a binary file or symbolic link), commit, then rerun corvint dogfood propose-citations %s\n", base)

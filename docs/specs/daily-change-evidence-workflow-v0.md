@@ -1957,8 +1957,10 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `quotedRunAlternation` and remove `quotedRunSuggestion(s)`.
 - `DCW-V0-802`: (experimental under the standing lane auto-accept; V1-3279; amends `DCW-V0-350`)
   When `propose-citations` cannot read or parse the canonical BASE..HEAD patch it MUST print
-  `REFUSE patch-unavailable reason=<code>` (the `cem prepare` refusal code, `patch-over-bound`,
-  `git-diff-failed` or `patch-unparsable`), the cause, a fix for that reason, a `prerequisite:`
+  `REFUSE patch-unavailable reason=<code>` (the `cem prepare` refusal code, `git-diff-failed` or
+  `patch-unparsable`; a patch over `cem prepare`'s 8 MiB Git output bound is `git-output-exceeded`
+  with split-the-change guidance, as `cem prepare` refuses it, never `binary-patch`), the cause, a
+  fix for that reason, a `prerequisite:`
   line stating that the draft needs only BASE and a committed HEAD (no prepared map, intents,
   verify or outcome input), and a `next:` line naming `make dogfood-inputs-check` and
   `make dogfood-finish` with `BASE`, `CITATIONS`, `INTENTS`, `VERIFY` and `OUTCOME`, and exit 2
@@ -1966,15 +1968,20 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   refuses the same patch (an empty file, a mode-only change, a binary file or a symlink).
   `docs/DOGFOOD.md` §4 MUST show the first-run order: draft, write the inputs, pre-flight, finish.
   Non-goals: drafting rows for a patch `cem prepare` refuses. Evidence:
-  `TestProposeCitationsDCWV0802NamesWhyThePatchIsUnavailable` (empty file, mode-only change and
-  over-bound diff; workflow prepare refuses with the same code; fails on BASE). Rollback: restore
+  `TestProposeCitationsDCWV0802NamesWhyThePatchIsUnavailable` (empty file, mode-only change, a
+  diff over the read bound and a 9 MiB textual diff; workflow prepare refuses with the same code;
+  fails on BASE). Rollback: restore
   the single-line refusal and remove the §4 first-run list.
 - `DCW-V0-803`: (experimental under the standing lane auto-accept; V1-3268; refines `DCW-V0-150`,
   `DCW-V0-161` and `DCW-V0-382`) `propose-citations` MUST pair each whole-file addition with the
   whole-file deletion sharing its longest path-component suffix (ties and contested deletions stay
-  unpaired) and draft both sides of a pair on one stable BASE line that names the moved file's
-  BASE path or a BASE directory above it up to the renamed directory, never a top-level directory
-  alone; an unused line is preferred and moves share a line when every naming line is taken. No
+  unpaired) and draft each side of a pair on a stable BASE line that names the moved file's BASE
+  path or a BASE directory above it up to the renamed directory, never a top-level directory
+  alone. The name MUST start the line, follow a byte that is neither a path byte nor a slash, or
+  follow `./` or the BASE root `go.mod` module path plus `/`; a name under another parent, such as
+  `tools/cmd/svc/main.go` for `cmd/svc/main.go`, names a different file. An unused line is
+  preferred, so the two sides of a move cite distinct lines when two exist and a change of one
+  move drafts no `unknown` row; rows share a line when every naming line is taken. No
   drafted span lies in a file the change deletes or on a line any hunk's old range covers, and the
   real prepare and cite pre-flight admits every drafted row. A move with no surviving naming line
   keeps the `DCW-V0-150` behaviour. Design: a package move is a deletion plus an addition under
@@ -1982,8 +1989,10 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   bind loop rewrote by hand. Non-goals: rename detection by content similarity. Failure modes: a
   line naming the directory names every file in it, so the span supports the move, not a file's
   content. Evidence: `TestProposeCitationsDCWV0803CitesASurvivingLineForEachMovedFile` (package
-  directory move with an edited document; no unknown row, one span per pair, no span in a deleted
-  or edited range, the pre-flight passes, with and without a map; fails on BASE),
+  directory move with an edited document; no unknown row, no span in a deleted or edited range,
+  the pre-flight passes, with and without a map; fails on BASE),
+  `TestProposeCitationsDCWV0803DraftsDistinctSpansForAMoveAlone` (a change of one move: two
+  distinct spans, no `tools/cmd/svc` line, the pre-flight passes),
   `TestMovedFilesDCWV0803PairsOnlyUnambiguousMoves`. Rollback: remove `propose_move.go` and its
   two hooks in `propose.go`.
 - `DCW-V0-170`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2344) When
@@ -2301,7 +2310,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-800` (experimental under the standing lane auto-accept; V1-3269) | `internal/dogfoodflow/finishlane.go` `requireOutcomeInputs`; `TestFinishLaneDCWV0800RefusesMissingOutcomeInputsBeforePrepare` | implemented; focused test PASS |
 | `DCW-V0-801` (experimental under the standing lane auto-accept; V1-3280) | `internal/dogfoodflow/verify_argv.go` `quotedRunAlternation`, `quotedRunSuggestion`, `quotedRunSuggestions`; `internal/dogfoodflow/change.go`; `internal/dogfoodflow/finishlane.go` `requireVerifyInput`; `TestVerifyArgumentsDCWV0801AdmitsAnchoredAndAttachedRunAlternation`, `TestDogfoodChangeNamesVerifySyntaxRemediation` | implemented; focused tests PASS |
 | `DCW-V0-802` (experimental under the standing lane auto-accept; V1-3279) | `internal/dogfoodflow/propose.go` `readCanonicalPatch`, `refusePatchUnavailable`; `docs/DOGFOOD.md` §4 first-run order; `TestProposeCitationsDCWV0802NamesWhyThePatchIsUnavailable` | implemented; focused test PASS |
-| `DCW-V0-803` (experimental under the standing lane auto-accept; V1-3268) | `internal/dogfoodflow/propose_move.go` `movedFiles`, `movedProposal`, `namesPathOrDirectory`; `internal/dogfoodflow/propose.go` `propose`, `prepareAnchors`; `TestProposeCitationsDCWV0803CitesASurvivingLineForEachMovedFile`, `TestMovedFilesDCWV0803PairsOnlyUnambiguousMoves` | implemented; focused tests PASS |
+| `DCW-V0-803` (experimental under the standing lane auto-accept; V1-3268) | `internal/dogfoodflow/propose_move.go` `movedFiles`, `movedProposal`, `namesPathOrDirectory`; `internal/dogfoodflow/propose.go` `propose`, `prepareAnchors`; `TestProposeCitationsDCWV0803CitesASurvivingLineForEachMovedFile`, `TestProposeCitationsDCWV0803DraftsDistinctSpansForAMoveAlone`, `TestMovedFilesDCWV0803PairsOnlyUnambiguousMoves` | implemented; focused tests PASS |
 | `DCW-V0-359` (experimental under the standing lane auto-accept; V1-2858) | `script/heavy.sh` `keep_written`, `copy_back`, `fetch`; `script/lane-scripts_test.sh` copy-back fixtures | implemented; shell test PASS |
 | `DCW-V0-373` (experimental under the standing lane auto-accept; V1-2883) | `internal/cem/gitrun/gitrun.go` `ScaledOperations`, `ScaleForRecords`; `internal/cem/gitauth/repo.go` `ScaleBudgetForRecords`; `internal/cem/workflow/commands.go` `resumeStableCandidate`; `internal/cem/verify/stable.go` `StableOptions.ScaledOperations`; `internal/cem/cli/cli.go` `--scaled-operations`; `internal/dogfoodflow/scaled.go`; `internal/lrfrepo/adapter.go` `acceptedStable`; `TestScaledOperationsGrowWithMapRecords`, `TestDCWV0373ScaledOperationsIsOptIn`, `TestDCWV0373StatusRetriesOnlyResourceLimit`, `TestDCWV0373CheckScaledStatusNeedsBothVerifiers` | implemented; focused tests PASS |
 | `DCW-V0-374` (experimental under the standing lane auto-accept; V1-2883) | `cmd/corvint/dogfood_record.go` `runDogfoodAggregateRecord`; `internal/tracerecordrepo/aggregate_outcome.go` `AggregateExpectedFor`; `internal/dogfoodflow/change.go` `localOutcome`, `AggregateMarkerPresent`; `TestDCWV0374OverLimitOutcomeLearnsNothing`, `TestDCWV0374LocalOutcomeAdmitsOptedInAggregate`, `TestDCWV0374UnenrolledAggregateReceiptIsNotAMarker` | implemented; focused tests PASS |

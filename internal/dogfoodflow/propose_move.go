@@ -17,7 +17,7 @@ type movedFile struct {
 	old, added, oldRoot string
 }
 
-// movedCite is the one span both sides of a move cite.
+// movedCite is a span one side of a move cites.
 type movedCite struct {
 	path     string
 	line     int
@@ -95,66 +95,94 @@ func commonSuffix(a, b string) int {
 	return count
 }
 
-// movedProposal drafts the row of either side of a move (DCW-V0-803): both
-// sides cite one stable BASE line that names the moved file's BASE path, its
+// movedProposal drafts the row of either side of a move (DCW-V0-803): each
+// side cites a stable BASE line that names the moved file's BASE path, its
 // directory or the directory the move renamed, in a file the change neither
-// deletes nor edits at that line. A span no other row cites is preferred; when
-// every naming line is taken, moves share one, since a moved package is often
-// named by a single line. It returns "" for a hunk that is not a move, or when
-// no BASE line names the move.
+// deletes nor edits at that line. A span no other row cites is preferred, so
+// the two sides of a move cite distinct lines when two exist; when every
+// naming line is taken, rows share one, since a moved package is often named
+// by a single line. It returns "" for a hunk that is not a move, or when no
+// BASE line names the move.
 func (p *proposal) movedProposal(hunk proposedHunk, ordinal string, edited map[string][][2]int, used map[string]bool) (string, string, string) {
 	move, moved := p.moves[hunk.path]
 	if !moved {
 		return "", "", ""
 	}
-	chosen, found := p.moveCites[move.old]
-	if !found {
-		var shared *movedCite
-		for _, term := range move.terms() {
-			for _, candidate := range p.matches[term] {
-				if !p.stable(candidate.path, candidate.line, edited) || !namesPathOrDirectory(p.baseLines(candidate.path)[candidate.line-1], term) {
-					continue
-				}
-				relation, _ := proposalRelation(candidate.path)
-				cite := movedCite{candidate.path, candidate.line, relation}
-				if !used[fmt.Sprintf("%s:%d:%d", cite.path, cite.line, cite.line)] {
-					chosen, found = cite, true
-					break
-				}
-				if shared == nil {
-					shared = &cite
-				}
+	module := p.modulePath()
+	var chosen, shared *movedCite
+	for _, term := range move.terms() {
+		for _, candidate := range p.matches[term] {
+			if !p.stable(candidate.path, candidate.line, edited) || !namesPathOrDirectory(p.baseLines(candidate.path)[candidate.line-1], term, module) {
+				continue
 			}
-			if found {
+			relation, _ := proposalRelation(candidate.path)
+			cite := movedCite{candidate.path, candidate.line, relation}
+			if !used[fmt.Sprintf("%s:%d:%d", cite.path, cite.line, cite.line)] {
+				chosen = &cite
 				break
 			}
+			if shared == nil {
+				shared = &cite
+			}
 		}
-		if !found && shared == nil {
-			return "", "", ""
+		if chosen != nil {
+			break
 		}
-		if !found {
-			chosen = *shared
-		}
-		if p.moveCites == nil {
-			p.moveCites = map[string]movedCite{}
-		}
-		p.moveCites[move.old] = chosen
+	}
+	if chosen == nil {
+		chosen = shared
+	}
+	if chosen == nil {
+		return "", "", ""
 	}
 	cite := fmt.Sprintf("%s:%d:%d", chosen.path, chosen.line, chosen.line)
 	note := ""
 	if kinds, _ := verify.SpanAnchors(p.derivedHunk(hunk), p.baseLines(chosen.path)[chosen.line-1]); len(kinds) == 0 {
-		note = fmt.Sprintf("%s is one side of the move %s -> %s; both sides cite a BASE line naming the moved path (DCW-V0-803)", hunk.path, move.old, move.added)
+		note = fmt.Sprintf("%s is one side of the move %s -> %s; it cites a BASE line naming the moved path (DCW-V0-803)", hunk.path, move.old, move.added)
 	}
 	return fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, chosen.path, chosen.line, chosen.line, chosen.relation), cite, note
 }
 
+// modulePath returns the module path the BASE go.mod at the repository root
+// declares, or "" when there is none; only it may qualify a moved path as a
+// Go import path.
+func (p *proposal) modulePath() string {
+	data, ok := p.blob(p.base, "go.mod")
+	if !ok {
+		return ""
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		if fields := strings.Fields(line); len(fields) == 2 && fields[0] == "module" {
+			return strings.Trim(fields[1], `"`)
+		}
+	}
+	return ""
+}
+
 // namesPathOrDirectory reports whether text names term as a path or a
-// directory: some occurrence is not preceded by a name byte (a slash may
-// precede it, as in a Go import path) and is followed by the end, a slash, a
-// byte that cannot continue a path, or a sentence-ending dot.
-func namesPathOrDirectory(text []byte, term string) bool {
+// directory: some occurrence is preceded by the start, a byte that is
+// neither a name byte nor a slash, "./", or module + "/" (a Go import path of
+// this module), and is followed by the end, a slash, a byte that cannot
+// continue a path, or a sentence-ending dot. Any other slash prefix names a
+// different file, such as tools/cmd/svc/main.go for cmd/svc/main.go.
+func namesPathOrDirectory(text []byte, term, module string) bool {
 	name := func(b byte) bool {
 		return b == '.' || b == '-' || b == '_' || b >= '0' && b <= '9' || b >= 'A' && b <= 'Z' || b >= 'a' && b <= 'z'
+	}
+	opens := func(start int) bool {
+		if start == 0 || !name(text[start-1]) && text[start-1] != '/' {
+			return true
+		}
+		// ./term is the same path relative to the repository root.
+		if start >= 2 && text[start-2] == '.' && text[start-1] == '/' && (start == 2 || !name(text[start-3]) && text[start-3] != '/') {
+			return true
+		}
+		qualifier := module + "/"
+		if module == "" || start < len(qualifier) || string(text[start-len(qualifier):start]) != qualifier {
+			return false
+		}
+		before := start - len(qualifier)
+		return before == 0 || !name(text[before-1]) && text[before-1] != '/'
 	}
 	for offset := 0; term != ""; {
 		found := strings.Index(string(text[offset:]), term)
@@ -162,7 +190,7 @@ func namesPathOrDirectory(text []byte, term string) bool {
 			return false
 		}
 		start, end := offset+found, offset+found+len(term)
-		if (start == 0 || !name(text[start-1])) &&
+		if opens(start) &&
 			(end == len(text) || text[end] == '/' || !name(text[end]) || text[end] == '.' && (end+1 == len(text) || !name(text[end+1]))) {
 			return true
 		}
