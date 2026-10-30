@@ -667,6 +667,8 @@ func fakeGH(t *testing.T, dir string) string {
 set -eu
 d='`+dir+`'
 if [ "$1" = api ]; then
+  # CIN-V0-004: every API path read, for the request counts.
+  printf '%s\n' "$2" >> "$d/requests"
   case "$2" in
   */commits/*) [ "$3" = --jq ]; jq -r "$4" "$d/commit.json" ;;
   */compare/*) [ "$3" = --jq ]; f="$d/compare-${2##*/}.json"; [ -f "$f" ] || f="$d/compare.json"; jq -r "$4" "$f" ;;
