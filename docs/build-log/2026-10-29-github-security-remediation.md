@@ -82,3 +82,14 @@ Preserve prior manifests and never reuse image admission across either closure. 
 protected image remains uninstalled and unpromoted. Unrelated primary-checkout work and the
 native backlog remain intact. The operator admission pause was restored immediately after
 the approved TUI scope reservation.
+
+## Native gate selection correction
+
+Before submission, independent process review found that this task had accidentally selected
+optional `cem-verdict` over its entire reservation scope. That syntax-only anchored-tier
+predicate was not required by queue policy and had no predeclared semantic domain for the
+mixed npm, fixtures and new regression files. It was removed by native ticket mutation before
+any such gate ran; no failure was bypassed. Mandatory CEM/OCM verification, focused-docs,
+independent review and the frozen behavioral checks remain. The actual TUI write scope was
+also recorded in the ticket, and the stale claim was released and reclaimed. No policy change,
+manual completion, artificial requirement annotations or irrelevant anchoring citations were used.
