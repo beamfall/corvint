@@ -22,6 +22,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/archivepath"
 	"github.com/Beamfall/corvint/internal/behaviorfalsify"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/jstestprovider"
@@ -791,7 +792,10 @@ func untar(data []byte, dest string) error {
 		if name == "." {
 			continue
 		}
-		target := filepath.Join(dest, filepath.FromSlash(name))
+		target, err := archivepath.Join(dest, name)
+		if err != nil {
+			return refuse("e2e-tree-unavailable", "archive entry %q escapes the tree", h.Name)
+		}
 		switch h.Typeflag {
 		case tar.TypeDir:
 			if err := os.MkdirAll(target, 0o755); err != nil {
