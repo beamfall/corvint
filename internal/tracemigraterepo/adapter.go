@@ -9,14 +9,18 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/contextindex"
 	"github.com/Beamfall/corvint/internal/trace"
 	"github.com/Beamfall/corvint/internal/tracerepopaths"
 )
 
+// maximumAncestry is the replay window; a test may lower it to exercise a deep
+// history without building one.
+var maximumAncestry = 10_000
+
 const (
-	maximumAncestry       = 10_000
 	maximumAncestryBytes  = 2 << 20
 	maximumTreeBytes      = 64 << 20
 	maximumHistoricalPath = 200_000
@@ -70,8 +74,13 @@ func bindAuthority(ctx context.Context, root string) (trace.MigrationAuthority, 
 	if len(lines) == 1 && lines[0] == "" {
 		lines = nil
 	}
-	if len(lines) > maximumAncestry {
-		return trace.MigrationAuthority{}, nil, fmt.Errorf("Git ancestry exceeds bounded trace replay limit %d", maximumAncestry)
+	// A deeper history keeps the newest window and resolves any other trace name
+	// on its own, so the cost is bounded by the trace store, not the ancestry;
+	// a legacy tree name then cannot be proven to map to one commit and refuses
+	// with its recovery (LTPM-V0-517, V1-3034).
+	truncated := len(lines) > maximumAncestry
+	if truncated {
+		lines = lines[:maximumAncestry]
 	}
 	length := objectIDLength(index.ObjectFormat)
 	commits := make(map[string]trace.Revision, len(lines))
@@ -87,7 +96,9 @@ func bindAuthority(ctx context.Context, root string) (trace.MigrationAuthority, 
 			paths = currentPaths
 		}
 		commits[fields[0]] = trace.Revision{TreeRevision: fields[1], TrackedPaths: paths}
-		trees[fields[1]] = append(trees[fields[1]], fields[0])
+		if !truncated {
+			trees[fields[1]] = append(trees[fields[1]], fields[0])
+		}
 	}
 	for tree := range trees {
 		sort.Strings(trees[tree])
@@ -97,6 +108,10 @@ func bindAuthority(ctx context.Context, root string) (trace.MigrationAuthority, 
 		CommitRevision: index.CommitRevision, TreeRevision: index.Revision,
 		ObjectFormat: index.ObjectFormat, DirtyPaths: dirty, ProfileID: index.ProfileID,
 		Commits: commits, Trees: trees,
+	}
+	if truncated {
+		authority.AncestryLimit = maximumAncestry
+		authority.ReachableCommit = reachableCommit(ctx, budget, root, length)
 	}
 	trackedCache := map[string][]string{index.Revision: currentPaths}
 	authority.TrackedPaths = func(tree string) ([]string, error) {
@@ -145,6 +160,47 @@ func bindAuthority(ctx context.Context, root string) (trace.MigrationAuthority, 
 		return nil
 	}
 	return authority, stable, nil
+}
+
+// reachableCommit resolves a trace name outside the replay window: a commit
+// object that `git merge-base --is-ancestor` places under HEAD is reachable,
+// with the tree `rev-parse` names. Each name is probed once.
+func reachableCommit(ctx context.Context, budget *gitrun.Budget, root string, length int) func(string) (trace.Revision, bool, error) {
+	type result struct {
+		revision  trace.Revision
+		reachable bool
+	}
+	cache := map[string]result{}
+	return func(id string) (trace.Revision, bool, error) {
+		if cached, ok := cache[id]; ok {
+			return cached.revision, cached.reachable, nil
+		}
+		kind, err := runGitInput(ctx, budget, root, []byte(id+"\n"), 128, "cat-file", "--batch-check=%(objecttype)")
+		if err != nil {
+			return trace.Revision{}, false, err
+		}
+		if string(kind) != "commit\n" {
+			cache[id] = result{}
+			return trace.Revision{}, false, nil
+		}
+		if _, err := runGit(ctx, budget, root, 128, "merge-base", "--is-ancestor", id, "HEAD"); err != nil {
+			if details, ok := cemcode.GitExitFailureDetails(err); ok && details.ExitCode == 1 {
+				cache[id] = result{}
+				return trace.Revision{}, false, nil
+			}
+			return trace.Revision{}, false, err
+		}
+		raw, err := runGit(ctx, budget, root, 128, "rev-parse", "--verify", "--end-of-options", id+"^{tree}")
+		if err != nil {
+			return trace.Revision{}, false, err
+		}
+		tree := strings.TrimSuffix(string(raw), "\n")
+		if !lowerHex(tree, length) {
+			return trace.Revision{}, false, fmt.Errorf("Git ancestry contains malformed commit/tree identity")
+		}
+		cache[id] = result{trace.Revision{TreeRevision: tree}, true}
+		return cache[id].revision, true, nil
+	}
 }
 
 func runGit(ctx context.Context, budget *gitrun.Budget, root string, limit int, arguments ...string) ([]byte, error) {

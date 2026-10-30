@@ -4537,6 +4537,7 @@ LTPM-V0-014	docs/specs/local-trace-producer-migration-v0.md	All ordinary trace c
 LTPM-V0-015	docs/specs/local-trace-producer-migration-v0.md	(owner-selected design 2026-10-04, decision 0429; requirement text accepted 2026	owner	2026-10-04; decision 0429; decision 0430
 LTPM-V0-016	docs/specs/local-trace-producer-migration-v0.md	(owner-selected design 2026-10-04, decision 0429; requirement text accepted 2026	owner	2026-10-04; decision 0429; decision 0430
 LTPM-V0-017	docs/specs/local-trace-producer-migration-v0.md	(accepted 2026-10-21 under the owner's standing lane auto-accept of 2026-10-11;	standing	2026-10-21; 2026-10-11; V1-2272
+LTPM-V0-517	docs/specs/local-trace-producer-migration-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3034)	standing	2026-10-11; V1-3034
 LEC-V0-001	docs/specs/lsp-editor-context-v0.md	Only explicit `corvint/context` MUST be added. Initialization MUST expose `exper	unrecorded	-
 LEC-V0-002	docs/specs/lsp-editor-context-v0.md	Params MUST be the closed object `{textDocument:{uri},task,limit}`; recursively	unrecorded	-
 LEC-V0-003	docs/specs/lsp-editor-context-v0.md	Success MUST contain schema `corvint-editor-context/0`, intact validated `Result	unrecorded	-

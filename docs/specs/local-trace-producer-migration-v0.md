@@ -327,6 +327,20 @@ Acceptance: `TestLTPMV0014TypedGolden`, `TestLTPMV0014TypedRefusals`,
   keeps the existing cleanliness refusal. With an authority, the check MUST re-derive the candidate and admitted path digests against the compiled index's tracked
   source set, which is a function of the unchanged tree. Recorded trace bytes and refusal codes are
   unchanged.
+- `LTPM-V0-517`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3034)
+  When `HEAD` has more ancestors than the 10000-commit replay window, `migrate-traces` MUST NOT
+  refuse the whole store. It keeps the newest 10000 commits as reachable commits and resolves any
+  other trace name on its own: a commit object that `git merge-base --is-ancestor` places under
+  `HEAD` is a canonical trace with the tree `git rev-parse` names, and an unreachable commit object
+  is stranded under `LTPM-V0-012`. So the cost is bounded by the trace store rather than by the
+  ancestry. With a truncated window no legacy tree name can be proven to map to exactly one
+  commit, so such a name MUST refuse, naming the revision, the limit and the recovery: move
+  `.context-corvint/traces/<rev>.jsonl` out of `.context-corvint/` and rerun the dry run. Plan
+  digests and output bytes are unchanged. Failure mode: before this, the recovery that the
+  `LTPM-V0-012` rebind refusal prints refused on every repository deeper than the window with
+  `Git ancestry exceeds bounded trace replay limit 10000`. Non-goal: mapping a legacy tree beyond
+  the window. Rollback: restore the ancestry-limit refusal in `bindAuthority`, and remove the
+  `AncestryLimit` and `ReachableCommit` fields from `trace.MigrationAuthority`.
 
 ## Non-goals and simpler baseline
 
@@ -384,6 +398,7 @@ fallback consumers retain `admitted-path-limit`.
 | `LTPM-V0-010` | fixture-root CLI dogfood and before/after fingerprint of the real trace store |
 | `LTPM-V0-012` | stranded dry-run without writing, byte-preserved apply, non-commit refusal, probe failure, quarantine collision, identical-copy resume, CLI amend fixture |
 | `LTPM-V0-017` | one counted index compilation per dogfood record; unchanged repository passes; admitted-digest drift and a same-tree moved `HEAD` refuse |
+| `LTPM-V0-517` | an injected two-commit window over five commits plans a canonical trace beyond the window and a trace stranded by amend; a legacy tree beyond the window refuses with the named recovery, which then lets the dry run pass; a live dry run and apply on a 10958-commit clone quarantine a stranded trace where the 93b9f5b0 binary refused |
 
 ## Rollout, rollback, and traceability
 
@@ -406,6 +421,7 @@ non-authoritative and slated for separate removal. The Go producer row below is 
 | `LTPM-V0-011` | `internal/trace`, `internal/tracerecordrepo`, `cmd/corvint`, `script/dogfood-change.sh`, `script/dogfood-check.sh` | shared tri-state admission tests; `TestTracePathScreenIsTheIndexScreen`; `TestRecordUnsupportedVerifySyntaxAppendsOneObservation` (verification refusal `code`) (`IDX-SNAP-V0-018` screen); mixed and source-free CLI fixtures; NUL-safe line-feed path fixture; malformed and over-bound refusal; `TestTraceTaskMustBeValidUTF8`; target/digest stability checks; shell coordination, evidence-drift, and interruption tests |
 | `LTPM-V0-012` | `internal/trace`, `internal/tracemigraterepo`, `cmd/corvint` | `TestMigrationQuarantinesStrandedCommitTrace`; `TestMigrationRefusesUnknownOrCollidingStrandedTrace`; `TestMigrateTracesQuarantinesTraceStrandedByAmend` |
 | `LTPM-V0-017` | `internal/tracerecordrepo` | `TestDogfoodRecordCompilesOneIndex`; `TestDogfoodStabilityBindsCandidateAndAdmittedDigests` |
+| `LTPM-V0-517` | `internal/tracemigraterepo` (`bindAuthority`, `reachableCommit`), `internal/trace` (`MigrationAuthority.reachableCommit`, `stranded`) | `TestLTPMV0517DeepHistoryBoundsByTraceStore`; `TestMigrateTracesQuarantinesTraceStrandedByAmend` |
 
 ## Accepted amendment: dogfood changed-path admission
 
