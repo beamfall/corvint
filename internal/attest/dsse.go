@@ -169,7 +169,7 @@ func refuseCaseVariantField(members map[string]jsontext.Value, field reflect.Str
 // preAuthenticationEncoding computes the DSSE PAE:
 // "DSSEv1" SP len(payloadType) SP payloadType SP len(payload) SP payload.
 func preAuthenticationEncoding(payloadType string, payload []byte) []byte {
-	pae := make([]byte, 0, len(payloadType)+len(payload)+32)
+	var pae []byte
 	pae = append(pae, "DSSEv1 "...)
 	pae = append(pae, strconv.Itoa(len(payloadType))...)
 	pae = append(pae, ' ')

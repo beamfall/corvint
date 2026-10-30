@@ -783,7 +783,9 @@ containment. Frozen native qualification is recorded in https://github.com/beamf
 
 - `CAL-V0-035`: The optional `taskman-codex-supervisor/0` policy profile MUST dispatch a pinned
   Codex executable through a journaled SPAWNING effect, exclusive durable boot record, validated
-  PID/start/group identity, RUNNING commit and exact acknowledgment before execution. Unsupported
+  PID/start/group identity, RUNNING commit and exact acknowledgment before execution. A persisted
+  leader PID must be positive and exactly representable by the native process-identity API before
+  lookup; a wider stored integer must never alias another PID. Unsupported
   platforms MUST compile and refuse. Truncated output MUST remain an invalid/unknown result.
 - `CAL-V0-036`: Implement, independent review, repair and integrate MUST be native attempt stages.
   Optional acceptance-relevant `requiredRoles` maps implement/review/integrate to existing runtime
@@ -807,7 +809,8 @@ containment. Frozen native qualification is recorded in https://github.com/beamf
   the refusal: `ATTEMPT_LIVE` for a live owner, `QUIESCENCE_UNPROVED` for an unproved recovery
   (missing, invalid or mismatched recovery boot evidence) or an owner that has not retired, the
   cause's own code when reading the recovery boot failed for a retryable operational reason such as
-  descriptor exhaustion (`RESOURCE_EXHAUSTED`), `SUPERVISOR_LOST` for a heartbeat whose owner or leader is not live,
+  descriptor exhaustion (`RESOURCE_EXHAUSTED`), `SUPERVISOR_LOST` for a heartbeat whose owner or leader is not live
+  or whose leader PID cannot be represented as a positive native process identifier,
   `FENCED` for an absent attempt, lane or superseded control target, and the writer's first refusal
   code for a transition it did not complete (V1-0829; `TestV10829_*`).
 - `CAL-V0-038`: WAIT MUST preserve the exact session, worktree, partial candidate and handoff.

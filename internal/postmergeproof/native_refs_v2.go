@@ -325,7 +325,7 @@ func descendantFactsV2(n *jsonNode) (CleanupFactsV2, []*jsonNode, error) {
 	scope, interval, processes, absent := n.obj["scope"], n.obj["interval_ms"], n.obj["processes"], n.obj["absent"]
 	failures, limitations := n.obj["failures"], n.obj["limitations"]
 	value, okInterval := interval.integer()
-	if scope == nil || scope.kind != 's' || !okInterval || value < 0 || processes == nil || processes.kind != 'a' || absent == nil || absent.kind != 'b' {
+	if scope == nil || scope.kind != 's' || !okInterval || value < 0 || value > int64(^uint(0)>>1) || processes == nil || processes.kind != 'a' || absent == nil || absent.kind != 'b' {
 		return facts, nil, errorString("descendant observation is malformed")
 	}
 	var err error
