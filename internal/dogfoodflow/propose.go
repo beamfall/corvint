@@ -166,29 +166,27 @@ func (p *proposal) canonicalPatch() (*patch.Patch, bool) {
 	return parsed, err == nil
 }
 
-// mapStale reports whether the prepared map's hunks, by path and BASE range,
-// differ from the current canonical patch's in either direction: a commit
-// after the prepare added a hunk, or reverted one the map still holds.
-// An unreadable patch is not judged stale; the draft then keeps the map
-// (DCW-V0-382).
+// mapStale reports whether the prepared map's hunks, by path, BASE range and
+// any recorded hunk ID, differ from the current canonical patch's in either direction: a
+// commit after the prepare added a hunk, reverted one the map still holds, or
+// amended a hunk's content in place, which keeps its range but re-hunks its ID
+// (DCW-V0-441). An unreadable patch is not judged stale; the draft then keeps
+// the map (DCW-V0-382).
 func (p *proposal) mapStale(hunks []proposedHunk) bool {
 	parsed, ok := p.canonicalPatch()
 	if !ok {
 		return false
 	}
-	prepared := map[string]bool{}
-	for _, hunk := range hunks {
-		prepared[rangeKey(hunk.path, int64(hunk.oldStart), int64(hunk.oldCount))] = true
-	}
-	current := map[string]bool{}
+	current := map[string]string{}
 	for _, hunk := range parsed.Hunks {
-		current[rangeKey(hunk.DisplayPath, hunk.OldRange.Start, hunk.OldRange.Count)] = true
+		current[rangeKey(hunk.DisplayPath, hunk.OldRange.Start, hunk.OldRange.Count)] = hunk.ID
 	}
-	if len(current) != len(prepared) {
+	if len(current) != len(hunks) {
 		return true
 	}
-	for key := range current {
-		if !prepared[key] {
+	for _, hunk := range hunks {
+		id, found := current[rangeKey(hunk.path, int64(hunk.oldStart), int64(hunk.oldCount))]
+		if !found || hunk.id != "" && hunk.id != id {
 			return true
 		}
 	}
@@ -316,6 +314,12 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 	if bookkeepingPath(hunk.path) {
 		return unknownProposal(ordinal, hunk.path+" is a bookkeeping record (DCW-V0-333); name the BASE contract the record describes"), "", ""
 	}
+	// Checked before any anchor: a BASE line that happens to name the path
+	// must not displace the mandatory unknown row (DCW-V0-440).
+	if id, where := p.sameChangeRequirement(p.derivedHunk(hunk)); id != "" {
+		return unknownProposal(ordinal, "the hunk names requirement "+id+", which this change itself adds in "+where+
+			", and same-change intent is not BASE evidence (cem cite cites BASE spans only), so it cannot be cited (DCW-V0-440): keep this row unknown, or cite the BASE contract "+id+" refines"), "", ""
+	}
 	if row, cite, note := p.sealedProposal(hunk, ordinal, edited, used); row != "" {
 		return row, cite, note
 	}
@@ -323,10 +327,6 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 		return row, cite, ""
 	}
 	fellBack := "no stable BASE line names " + hunk.path + " or defines a requirement ID the hunk adds"
-	if id, where := p.sameChangeRequirement(p.derivedHunk(hunk)); id != "" {
-		return unknownProposal(ordinal, fellBack+"; the hunk names requirement "+id+", which this change itself adds in "+where+
-			", and same-change intent is not BASE evidence (cem cite cites BASE spans only), so it cannot be cited (DCW-V0-440): keep this row unknown, or cite the BASE contract "+id+" refines"), "", ""
-	}
 	if _, ok := p.blob(p.base, hunk.path); !ok {
 		return unknownProposal(ordinal, hunk.path+" is absent at BASE and "+fellBack+"; name the BASE contract this new file implements"), "", ""
 	}

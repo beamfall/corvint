@@ -2062,8 +2062,12 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   and the next commit's rebind then refused `aggregate-enrollment-required`. The change resolves
   HEAD before the marker check. The refusal for a marker that still applies (an enrolled owner
   state, an aggregate report, or an unbound receipt for HEAD) MUST name the file (`marker:
-  <path>`), say how to finish the enrolled change, and give `fix: mv <path> <path>.stale, then
-  rerun the same command`. Design: the receipt binds its own target commit, so evidence for
+  <path>`) and say how to finish the enrolled change. For an aggregate report or receipt it gives
+  `fix: mv <path> <path>.stale, then rerun the same command`; for an enrolled owner's
+  `local-completion/<key>/state.json` it MUST NOT suggest moving the state aside, which would
+  leave the owner naming missing state, and instead gives the keyed `corvint dogfood status
+  --session-key <key>` and `corvint dogfood finish --session-key <key>
+  --aggregate-outcome-profile corvint-dogfood-aggregate-outcome/0` recovery. Design: the receipt binds its own target commit, so evidence for
   another commit cannot enroll this one. `dogfood check` keeps the target-free
   `AggregateMarkerPresent` guard. Non-goals: deleting or rewriting the receipt; changing the
   receipt format. Failure modes: an unreadable marker refuses with the path and its own `fix:`
@@ -2416,7 +2420,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-445` (experimental under the standing lane auto-accept; V1-3166) | `internal/tracerecordrepo/aggregate_outcome.go` `AggregateExpectedFor`; `TestDCWV0445AggregateAcceptsAnyVerifyOrder` | implemented; focused test PASS |
 | `DCW-V0-446` (experimental under the standing lane auto-accept; V1-3167) | `internal/dogfoodflow/finishlane_stages.go` `planStages`, `stagePlan`; `internal/dogfoodflow/finishlane.go` `prepare`, `preparePass`, `bind`, `bindStage`, `rebind`; `TestDogfoodFinishLaneDCWV0446StagesOversizedPlan` (fails on BASE), `TestFinishLaneDCWV0446PlanStagesSplitsOversizedPlan` | implemented; focused tests PASS |
 | `DCW-V0-447` (experimental under the standing lane auto-accept; V1-3167) | `internal/dogfoodflow/finishlane_stages.go` `planStages`, `stageHunkConflict`, `requireStageableMap`; `TestFinishLaneDCWV0447PlanStagesRefusesUnstageablePlan` (fails on BASE) | implemented; focused test PASS |
-| `DCW-V0-448` (experimental under the standing lane auto-accept; V1-3169) | `internal/dogfoodflow/change.go` `run`, `aggregateMarker`, `requireNoAggregateMarker`, `AggregateMarkerPresent`; `TestDCWV0448StaleAggregateReceiptForAnotherTargetIsIgnored` (fails on BASE) | implemented; focused test PASS |
+| `DCW-V0-448` (experimental under the standing lane auto-accept; V1-3169) | `internal/dogfoodflow/change.go` `run`, `aggregateMarker`, `requireNoAggregateMarker`, `AggregateMarkerPresent`; `TestDCWV0448StaleAggregateReceiptForAnotherTargetIsIgnored` (fails on BASE), `TestDCWV0448EnrolledStateMarkerNamesKeyedFinish` | implemented; focused test PASS |
 | `DCW-V0-449` (experimental under the standing lane auto-accept; V1-3108) | `internal/dogfoodflow/bootstrap_precheck.go` `precheckBootstrapIntentRows`, `bootstrapIntentHint`; `internal/dogfoodflow/change.go` `precheckInputs`, `fixHints`; `TestDCWV0449InputsCheckRefusesCitedBootstrapIntentHunk` (fails on BASE), `TestDCWV0449InputsCheckPassesUncitedBootstrapIntentHunk` | implemented; focused tests PASS |
 | `DCW-V0-359` (experimental under the standing lane auto-accept; V1-2858) | `script/heavy.sh` `keep_written`, `copy_back`, `fetch`; `script/lane-scripts_test.sh` copy-back fixtures | implemented; shell test PASS |
 | `DCW-V0-373` (experimental under the standing lane auto-accept; V1-2883) | `internal/cem/gitrun/gitrun.go` `ScaledOperations`, `ScaleForRecords`; `internal/cem/gitauth/repo.go` `ScaleBudgetForRecords`; `internal/cem/workflow/commands.go` `resumeStableCandidate`; `internal/cem/verify/stable.go` `StableOptions.ScaledOperations`; `internal/cem/cli/cli.go` `--scaled-operations`; `internal/dogfoodflow/scaled.go`; `internal/lrfrepo/adapter.go` `acceptedStable`; `TestScaledOperationsGrowWithMapRecords`, `TestDCWV0373ScaledOperationsIsOptIn`, `TestDCWV0373StatusRetriesOnlyResourceLimit`, `TestDCWV0373CheckScaledStatusNeedsBothVerifiers` | implemented; focused tests PASS |

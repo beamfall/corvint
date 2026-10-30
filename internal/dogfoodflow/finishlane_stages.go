@@ -168,6 +168,11 @@ func stageHunkConflict(stages [][]string, hunks []map[string]string) string {
 // (DCW-V0-446, DCW-V0-447).
 func (l *finishLane) stagePlan() (files []string, stages [][]string, cleanup func()) {
 	cleanup = func() {}
+	// A non-regular plan, such as a FIFO that could block on open, is left to
+	// the ordinary path's input refusal.
+	if !isRegular(l.options.Change.Citations) {
+		return nil, nil, cleanup
+	}
 	plan, err := readPrefix(l.options.Change.Citations, maxPlanBytes+1)
 	if err != nil {
 		return nil, nil, cleanup

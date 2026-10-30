@@ -61,3 +61,30 @@ func TestDCWV0448StaleAggregateReceiptForAnotherTargetIsIgnored(t *testing.T) {
 		t.Fatalf("AggregateMarkerPresent=%v err=%v", present, err)
 	}
 }
+
+// DCW-V0-448: an enrolled owner's state that records an aggregate outcome is
+// recovered by the keyed finish, never by moving the state aside, which would
+// leave the owner naming missing state.
+func TestDCWV0448EnrolledStateMarkerNamesKeyedFinish(t *testing.T) {
+	root, base := preflightRepository(t, nil)
+	key := strings.Repeat("ab", 32)
+	completion := filepath.Join(root, ".git", "corvint", "local-completion")
+	state := filepath.Join(completion, key, "state.json")
+	if err := os.MkdirAll(filepath.Dir(state), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(completion, "owner"), []byte(key+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(state, []byte(`{"aggregateOutcome":{}}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	stderr := new(bytes.Buffer)
+	steps := Runner{Path: "corvint", Run: func(context.Context, string, []string, io.Writer, io.Writer) int { return 1 }}
+	_, _ = Change(context.Background(), ChangeOptions{Root: root, Base: base, Steps: steps}, stderr)
+	got := stderr.String()
+	if !strings.Contains(got, "REFUSE aggregate-enrollment-required") || !strings.Contains(got, "fix: resume it with corvint dogfood status --session-key "+key) ||
+		!strings.Contains(got, "corvint dogfood finish --session-key "+key+" --aggregate-outcome-profile corvint-dogfood-aggregate-outcome/0") || strings.Contains(got, "fix: mv ") {
+		t.Fatalf("enrolled state refusal does not name the keyed finish:\n%s", got)
+	}
+}

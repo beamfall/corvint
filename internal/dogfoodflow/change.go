@@ -2918,6 +2918,15 @@ func (c *change) requireNoAggregateMarker() {
 		c.exit(2)
 	}
 	c.say("  marker: %s\n", shellWord(marker))
+	if filepath.Base(marker) == "state.json" {
+		// The enrollment owner names this state; moving it aside would leave
+		// the owner pointing at missing state, so the recovery is the
+		// enrollment's own keyed finish (DCW-V0-448).
+		key := filepath.Base(filepath.Dir(marker))
+		c.say("  this checkout has an enrolled aggregate change whose state records an aggregate outcome; do not move its state aside, which leaves the enrollment owner naming missing state\n")
+		c.say("  fix: resume it with corvint dogfood status --session-key %s and finish it with corvint dogfood finish --session-key %s --aggregate-outcome-profile %s, then rerun the same command (DCW-V0-448)\n", key, key, tracerecordrepo.AggregateOutcomeProfile)
+		c.exit(2)
+	}
 	c.say("  this checkout holds aggregate local-outcome evidence for HEAD that no plain change report binds; finish an enrolled aggregate change with corvint dogfood check %s, or, when the file is left over from an earlier run, move it aside (reversible)\n", c.options.Base)
 	c.say("  fix: mv %s %s, then rerun the same command (DCW-V0-448)\n", shellWord(marker), shellWord(marker+".stale"))
 	c.exit(2)

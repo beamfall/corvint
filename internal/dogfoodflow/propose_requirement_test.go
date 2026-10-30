@@ -24,6 +24,9 @@ func TestProposeCitationsDCWV0440SameChangeRequirementStaysUnknown(t *testing.T)
 		"internal/x/gadget.go": code,
 		"docs/worklist.json":   `{"paths":["internal/x/gadget.go"]}` + "\n",
 		"docs/LIST.txt":        "internal/x/gadget.go\n",
+		// An untouched multiline BASE document naming the path competes as an
+		// anchor; the same-change requirement still keeps the row unknown.
+		"docs/design/gadget.md":                              "# Gadget\n\n## Traceability\n\n| `internal/x/gadget.go` `Gadget` | spins |\n| state | none |\n",
 		".agent-evidence/native-taskman/affected-dirty.json": "{\n  \"dirty\": [\n    \"internal/x/gadget.go\"\n  ]\n}\n",
 		"protocol/x/MIGRATION.json":                          "{\n  \"note\": \"one\",\n  \"path\": \"internal/x/gadget.go\",\n  \"end\": true\n}\n",
 	})

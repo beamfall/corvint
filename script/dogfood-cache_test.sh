@@ -147,6 +147,20 @@ for action in change check; do
   [[ $status == 2 ]] || exit 1
   rg -q "^dogfood-$action: REFUSE corvint-bin-unresolved$" "$root/output" || exit 1
 done
+# ASD-V0-090: a report directory that cannot be made still runs the check, keeps its verdict and
+# exit status, and says NOTE report NOT_PRODUCED.
+evidence_dir="$(git rev-parse --absolute-git-dir)/corvint"
+/bin/mv -f "$evidence_dir" "$evidence_dir.aside" 2> /dev/null || :
+: > "$evidence_dir"
+: > "$TEST_FLOW_LOG"
+status=0
+bash script/dogfood-batch-check.sh "$base" > "$root/output" 2>&1 || status=$?
+/bin/rm -f "$evidence_dir"
+[[ ! -e "$evidence_dir.aside" ]] || /bin/mv -f "$evidence_dir.aside" "$evidence_dir"
+[[ $status == 0 ]] || exit 1
+rg -q "^dogfood batch-check --verifier .* $base$" "$TEST_FLOW_LOG" || exit 1
+rg -q '^dogfood-batch-check: NOTE report NOT_PRODUCED path=unavailable$' "$root/output" || exit 1
+rg -qx 'dogfood-batch-check: PASS constituents=0 commits=1' "$root/output" || exit 1
 unset CORVINT_BIN
 for action in change check batch-check; do
   for source in tree-source base-source; do
@@ -206,6 +220,12 @@ git clone -q "$root/repo" "$root/bound"
   printf '{"baseRevision":"%s"}\n' feedfacefeedfacefeedfacefeedfacefeedface > .corvint/change.cem.json
   git -c user.name=test -c user.email=test@example.invalid commit -qam unrelated-base
   : > "$TEST_BUILD_LOG"
+  status=0
+  env -u BASE make -s dogfood-check > "$root/output" 2>&1 || status=$?
+  [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] && rg -q '^BASE is required: pass BASE=<full origin/main sha>; no CEM bound at HEAD' "$root/output" || exit 1
+  # Only the top-level member counts: a baseRevision nested in another member is not the CEM's base.
+  printf '{"artifacts":[{"baseRevision":"%s"}],"hunks":[]}\n' "$base" > .corvint/change.cem.json
+  git -c user.name=test -c user.email=test@example.invalid commit -qam nested-base
   status=0
   env -u BASE make -s dogfood-check > "$root/output" 2>&1 || status=$?
   [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] && rg -q '^BASE is required: pass BASE=<full origin/main sha>; no CEM bound at HEAD' "$root/output" || exit 1

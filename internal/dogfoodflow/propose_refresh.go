@@ -2,6 +2,7 @@ package dogfoodflow
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -52,8 +53,14 @@ func (p *proposal) readRefreshPlan() {
 			name = filepath.Join(wd, name)
 		}
 	}
-	data, err := readPrefix(name, maxPlanBytes+1)
-	if err != nil || !isRegular(name) || len(data) > maxPlanBytes {
+	// A non-regular file such as a FIFO is refused before it is opened, which
+	// could otherwise block with no writer.
+	var data []byte
+	err := errors.New("not a regular file")
+	if isRegular(name) {
+		data, err = readPrefix(name, maxPlanBytes+1)
+	}
+	if err != nil || len(data) > maxPlanBytes {
 		p.say("%s: REFUSE refresh-plan-unavailable\n  --refresh %s is not a readable regular citation plan of at most %d bytes\n  fix: corvint dogfood propose-citations %s --refresh \"$DOGFOOD_CITATIONS\" > plan.new, naming the plan the bind loop read\n",
 			p.prefix, strconv.Quote(p.options.Refresh), maxPlanBytes, p.options.Base)
 		p.exit(2)
@@ -218,14 +225,25 @@ func (p *proposal) resolveHunkFacts(wanted map[string]bool) map[string]hunkFacts
 	if len(wanted) == 0 {
 		return facts
 	}
-	candidates := []string{}
+	// Each source has its own budget of refreshHistoryLimit patches, so a long
+	// first-parent history cannot crowd out an amended-away reflog tip.
+	sources := [][]string{}
 	if listed, status, bounded := p.boundedGit("rev-list", "--first-parent", "-n", strconv.Itoa(refreshHistoryLimit), p.base+".."+p.target); status == 0 && bounded {
-		candidates = append(candidates, textLines([]byte(chomp(listed)))...)
+		sources = append(sources, textLines([]byte(chomp(listed))))
 	}
 	if listed, status, bounded := p.boundedGit("log", "-g", "--format=%H", "-n", strconv.Itoa(refreshHistoryLimit), "HEAD"); status == 0 && bounded {
-		candidates = append(candidates, textLines([]byte(chomp(listed)))...)
+		sources = append(sources, textLines([]byte(chomp(listed))))
 	}
 	seen := map[string]bool{p.target: true}
+	for _, candidates := range sources {
+		p.collectHunkFacts(candidates, wanted, seen, facts)
+	}
+	return facts
+}
+
+// collectHunkFacts adds to facts each wanted hunk found in the canonical patch
+// of BASE to one of candidates, trying at most refreshHistoryLimit patches.
+func (p *proposal) collectHunkFacts(candidates []string, wanted, seen map[string]bool, facts map[string]hunkFacts) {
 	tried := 0
 	for _, commit := range candidates {
 		if len(facts) == len(wanted) || tried == refreshHistoryLimit {
@@ -253,7 +271,6 @@ func (p *proposal) resolveHunkFacts(wanted map[string]bool) map[string]hunkFacts
 			}
 		}
 	}
-	return facts
 }
 
 func sortedKeys(set map[string]bool) []string {
