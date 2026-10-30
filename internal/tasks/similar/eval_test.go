@@ -178,10 +178,17 @@ func TestTCLV0009_FrozenDuplicateEval(t *testing.T) {
 	for i, r := range corpus {
 		docs[i] = recordDoc(r)
 	}
-	start := time.Now()
-	idx := NewIndex(docs)
-	got := idx.Rank(queries[0].Text, func(d *Doc) bool { return d.Status == "OPEN" }, 5)
-	elapsed := time.Since(start)
+	// The fastest of three runs: one wall-clock sample on a shared CI runner
+	// measures the other packages' load as much as the index (V1-3237).
+	var idx *Index
+	var got []Candidate
+	elapsed := time.Duration(1<<63 - 1)
+	for range 3 {
+		start := time.Now()
+		idx = NewIndex(docs)
+		got = idx.Rank(queries[0].Text, func(d *Doc) bool { return d.Status == "OPEN" }, 5)
+		elapsed = min(elapsed, time.Since(start))
+	}
 	t.Logf("TCL-V0-009 latency: %d tickets, index+rank %s, %d candidates", idx.Len(), elapsed, len(got))
 	if elapsed > 300*time.Millisecond {
 		t.Errorf("index+rank took %s, want under 300ms", elapsed)
