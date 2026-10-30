@@ -152,3 +152,24 @@ documentation-paths declaration file itself is unchanged.
 | V1-3224 | delivered: `ASD-V0-107` (lane-guard refusal and guide) |
 
 The dogfood result and its `NOT_PRODUCED` reasons are in the sealed CEM for this branch.
+
+## Follow-up: V1-3267 sealed CEM names
+
+Added to this lane after its first seal. A branch carried `.corvint/changes/<sha>.cem.json` files
+named for pre-rewrite commits (beamfall/corvint#7, run 41087113303), and CI failed after about 28
+minutes in `TestCEMV1201CommittedCorpusBinding`. `ASD-V0-109`: batch-precheck now refuses, before
+its steps, each sealed CEM the branch adds whose name is not a commit in HEAD's history, naming the
+file and the reseal recovery. It judges only additions since the base, because the 1.0 snapshot
+itself holds 25 seals whose names are not commits on this lineage. It runs outside the gate ledger,
+which keys on the tree and would replay a pass across a history rewrite.
+
+Adversarial cases: malformed, a non-hex or short name is refused like an unknown commit; aliasing,
+a name that resolves only as an abbreviation is refused (40 hex required); historical vs worktree,
+committed, staged, unstaged and untracked additions are all listed; unobserved state, a failed
+listing or a base that is not a commit fails the row, and no base prints a SKIP with its reason;
+quoting, paths come from Git quoted (`core.quotePath=true`) and a quoted path is refused as
+unreadable (section 9 case); concurrency does not apply. Evidence: `make
+batch-precheck-test` section 9 (run without the node-only section 1b on this host) PASS, and it
+fails with the previous script. Disposition: V1-3267 delivered; sealed as a change stacked on this
+lane's first seal commit `fc80ce4b8` (docs/DOGFOOD.md, stacking on a sealed predecessor).
+
