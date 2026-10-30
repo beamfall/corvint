@@ -1194,6 +1194,29 @@ ok
 out=$("$script/codex-review_test.sh" 2>&1) || fail "codex-review_test.sh: $out"
 ok
 
+# ASD-V0-086 (V1-3242): the dogfood wrapper fixtures share one copy step that follows the copied
+# scripts' source/run references, so a new helper a wrapper sources reaches every fixture unedited.
+fsrc=$tmp/fixture-src fdst=$tmp/fixture-dst
+mkdir -p "$fsrc/script" "$fdst"
+printf '#!/usr/bin/env bash\nsource "$repo/script/new-helper.sh" || exit 2\n# script/only-in-comment.sh\n' > "$fsrc/script/dogfood-wrap.sh"
+printf '#!/usr/bin/env bash\n"$repo/script/deep-helper.sh" "$@"\n' > "$fsrc/script/new-helper.sh"
+printf '#!/usr/bin/env bash\n# script/new-helper.sh is mentioned again; the copy is single\n' > "$fsrc/script/deep-helper.sh"
+# shellcheck source=script/dogfood-fixture-scripts.sh
+source "$script/dogfood-fixture-scripts.sh"
+dogfood_fixture_copy "$fsrc" "$fdst" dogfood-wrap.sh || fail "fixture copy refused a complete closure"
+[[ $(cd "$fdst" && /bin/ls | tr '\n' ' ') == 'deep-helper.sh dogfood-wrap.sh new-helper.sh ' ]] ||
+  fail "fixture copy did not follow the sourced helper: $(/bin/ls "$fdst" | tr '\n' ' ')"
+# The real wrappers: every fixture named by a wrapper gets the build helper it sources.
+real=$tmp/fixture-real
+mkdir -p "$real"
+dogfood_fixture_copy "$script/.." "$real" dogfood-change.sh dogfood-check.sh dogfood-bind-range.sh ||
+  fail "fixture copy refused the real dogfood wrappers"
+[[ -f $real/dogfood-build-corvint.sh ]] || fail "the real wrapper closure lacks dogfood-build-corvint.sh"
+printf 'source "$repo/script/missing-helper.sh"\n' > "$fsrc/script/dogfood-broken.sh"
+out=$(dogfood_fixture_copy "$fsrc" "$fdst" dogfood-broken.sh 2>&1) && fail "a missing helper was copied silently"
+[[ $out == *'REFUSE missing-script script/missing-helper.sh'*'fix: '* ]] || fail "missing-helper refusal names no recovery: $out"
+ok
+
 # ASD-V0-014: no fixture outlives the run, so nothing can write after the summary line. Every
 # background job is reaped and no heavy.sh slot the fixtures used (local, remote stub, worktree) is
 # still held by a live process.

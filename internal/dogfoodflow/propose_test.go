@@ -207,9 +207,10 @@ func TestProposeCitationsDCWV0150DraftsPerHunkPlan(t *testing.T) {
 func TestProposeCitationsDCWV0150NeverDraftsUniformPlan(t *testing.T) {
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
-	// One untouched line names the changed file, so only one hunk can cite it.
+	// One untouched line names the changed file, so only one hunk can cite it;
+	// index.md has two lines, since a one-line file is never cited (DCW-V0-440).
 	file := "# Only\n" + strings.Repeat("same\n", 20)
-	writeTree(t, root, map[string]string{"docs/alpha.md": file, "index.md": "See docs/alpha.md.\n"})
+	writeTree(t, root, map[string]string{"docs/alpha.md": file, "index.md": "# Index\nSee docs/alpha.md.\n"})
 	testGit(t, root, "add", ".")
 	testGit(t, root, "commit", "-q", "-m", "base")
 	base := testGit(t, root, "rev-parse", "HEAD")
@@ -228,8 +229,8 @@ func TestProposeCitationsDCWV0150NeverDraftsUniformPlan(t *testing.T) {
 		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
 	}
 	rows := textLines(stdout.Bytes())
-	if len(rows) != 2 || !strings.HasPrefix(rows[0], "1\tindex.md\t1:1\t") || !strings.HasPrefix(rows[1], "2\tunknown\tinsufficient-evidence\tproposed: ") {
-		t.Errorf("draft = %q; want one cite of index.md:1 and one unknown row", stdout.String())
+	if len(rows) != 2 || !strings.HasPrefix(rows[0], "1\tindex.md\t2:2\t") || !strings.HasPrefix(rows[1], "2\tunknown\tinsufficient-evidence\tproposed: ") {
+		t.Errorf("draft = %q; want one cite of index.md:2 and one unknown row", stdout.String())
 	}
 }
 

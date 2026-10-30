@@ -17,8 +17,8 @@ test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-dogfood-bind-range-test.XXXXXX")
 trap 'rm -rf "$test_root"' EXIT
 repo="$test_root/repo"
 mkdir -p "$repo/script" "$test_root/bin"
-cp "$source_root/script/dogfood-bind-range.sh" "$repo/script/"
-cp "$source_root/script/dogfood-build-corvint.sh" "$repo/script/"
+source "$source_root/script/dogfood-fixture-scripts.sh"
+dogfood_fixture_copy "$source_root" "$repo/script" dogfood-bind-range.sh
 # The check notes come from the binary itself (DCW-V0-020); the fixture has no cmd/corvint to build.
 (cd "$source_root" && GOCACHE=${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache GOTOOLCHAIN=local go build -o "$test_root/driver" ./cmd/corvint)
 # DOGFOOD-BIND-008: the guarding-tests count comes from the real Go rule, built once here.

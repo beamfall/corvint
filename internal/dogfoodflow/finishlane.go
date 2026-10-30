@@ -49,6 +49,12 @@ type finishLane struct {
 	// inputs are the supplied input files' content digests, taken before
 	// prepare and compared after every pass (DCW-V0-378).
 	inputs []laneInput
+	// stageFiles are the staged route's plans of a plan over 256 rows, the
+	// last one replayed by the rebind, and stages their rows (DCW-V0-446).
+	stageFiles []string
+	stages     [][]string
+	// stage labels the running stage in kept rows and step lines.
+	stage string
 }
 
 // laneInput is one supplied input file and its content digest at run start.
@@ -155,6 +161,10 @@ func (l *finishLane) run() int {
 		return 0
 	}
 	l.requireFreshWorktree(l.base, l.gitDir, !l.options.Preflight)
+	// A plan over 256 rows runs as the staged route's plans (DCW-V0-446).
+	files, stages, cleanup := l.stagePlan()
+	defer cleanup()
+	l.stageFiles, l.stages = files, stages
 	if l.options.Preflight {
 		// The pre-flight checks the inputs the bind pass reads; from the
 		// bind commit on that pass has run, so there is nothing to check.
@@ -382,7 +392,7 @@ func (l *finishLane) pass(name, citations string) (int, *change, []byte) {
 	run.releaseOperation()
 	for _, row := range run.rows {
 		if row.status != "PRODUCED" {
-			l.missing = append(l.missing, name+" "+row.name+" "+row.status+" "+row.reason)
+			l.missing = append(l.missing, name+l.stage+" "+row.name+" "+row.status+" "+row.reason)
 		}
 	}
 	if err != nil {
@@ -466,11 +476,27 @@ func (l *finishLane) removeSidecar(name string) {
 // a plan or a committed sidecar are the bind's to decide.
 func (l *finishLane) prepare() {
 	defer l.timed("prepare")()
+	if len(l.stageFiles) == 0 {
+		l.line("prepare PASS hunks=%d", l.preparePass(l.options.Change.Citations, false))
+		return
+	}
+	// Each stage's plan is prechecked against a freshly prepared map, so a
+	// refused row of any stage stops before the first bind (DCW-V0-446).
+	for k, file := range l.stageFiles {
+		l.stage = fmt.Sprintf(" stage=%d/%d", k+1, len(l.stageFiles))
+		l.line("prepare PASS hunks=%d%s", l.preparePass(file, k == 0), l.stage)
+	}
+	l.stage = ""
+}
+
+// preparePass runs one prepare pass with citations and returns the prepared
+// map's hunk count; first also runs the whole-plan stage checks on that map.
+func (l *finishLane) preparePass(citations string, first bool) int {
 	l.removeSidecar("prepare")
 	// The plan is prechecked against this prepared map, so a row cem cite
 	// would refuse, or a plan or manifest the bind would refuse before any
 	// cite, stops here, before the bind pass (DCW-V0-335, DCW-V0-379).
-	code, run, output := l.pass("prepare", l.options.Change.Citations)
+	code, run, output := l.pass("prepare", citations)
 	prepared := code != 2 && isRegular(l.root+"/"+finishLaneSidecar)
 	for _, row := range run.rows {
 		if (row.name == "cem-prepare" || row.name == citePrecheckStep || row.name == inputsPrecheckStep) && row.status != "PRODUCED" {
@@ -481,10 +507,13 @@ func (l *finishLane) prepare() {
 		l.stop("prepare", code, output)
 	}
 	l.requireInputsUnchanged("prepare")
-	hunks := len(mapHunks(readFile(l.root + "/" + finishLaneSidecar)))
+	data := readFile(l.root + "/" + finishLaneSidecar)
+	if first {
+		l.requireStageableMap(l.stages, data)
+	}
 	l.accept(output)
 	l.removeSidecar("prepare")
-	l.line("prepare PASS hunks=%d", hunks)
+	return len(mapHunks(data))
 }
 
 // bind cites the plan into a freshly prepared map. The only row it may leave
@@ -492,7 +521,16 @@ func (l *finishLane) prepare() {
 // and the bind commit clears (DCW-V0-015).
 func (l *finishLane) bind() {
 	defer l.timed("bind")()
-	code, run, output := l.pass("bind", l.options.Change.Citations)
+	citations, last := l.options.Change.Citations, ""
+	if n := len(l.stageFiles); n > 0 {
+		for k, file := range l.stageFiles[:n-1] {
+			l.stage = fmt.Sprintf(" stage=%d/%d", k+1, n)
+			l.bindStage(file)
+		}
+		citations, l.stage = l.stageFiles[n-1], fmt.Sprintf(" stage=%d/%d", n, n)
+		last = l.stage
+	}
+	code, run, output := l.pass("bind", citations)
 	if code == 1 {
 		for _, row := range run.rows {
 			if run.rowFailing(row) && row != (step{"local-outcome", "NOT_PRODUCED", "record-index-failed"}) {
@@ -504,7 +542,35 @@ func (l *finishLane) bind() {
 	}
 	l.requireInputsUnchanged("bind")
 	l.accept(output)
-	l.line("bind PASS")
+	l.line("bind PASS%s", last)
+	l.stage = ""
+}
+
+// bindStage cites one earlier stage's plan into the retained map, which cem
+// prepare resumes, as the staged route's successive passes do. The pass is
+// incomplete by design, since unknown hunks remain until the last stage, so
+// only a refused prepare, input check or cite stops it (DCW-V0-446).
+func (l *finishLane) bindStage(file string) {
+	code, run, output := l.pass("bind", file)
+	if code != 0 && code != 1 {
+		l.stop("bind", code, output)
+	}
+	cited := false
+	for _, row := range run.rows {
+		switch row.name {
+		case "cem-prepare", "cem-cite", citePrecheckStep, inputsPrecheckStep:
+			if row.status != "PRODUCED" {
+				l.stop("bind", code, output)
+			}
+			cited = cited || row.name == "cem-cite"
+		}
+	}
+	if !cited {
+		l.stop("bind", code, output)
+	}
+	l.requireInputsUnchanged("bind")
+	l.accept(output)
+	l.line("bind PASS%s", l.stage)
 }
 
 // commitBind commits only the sidecar, and the deferral record the bind pass
@@ -544,7 +610,13 @@ func (l *finishLane) gitPassthrough(args ...string) int {
 // rebind reruns the bind on the committed sidecar; it must complete.
 func (l *finishLane) rebind() {
 	defer l.timed("rebind")()
-	code, _, output := l.pass("rebind", l.options.Change.Citations)
+	// A staged plan's rebind replays its last stage on the fully cited map,
+	// as the staged route's last-plan rerun does (DCW-V0-446).
+	citations := l.options.Change.Citations
+	if n := len(l.stageFiles); n > 0 {
+		citations = l.stageFiles[n-1]
+	}
+	code, _, output := l.pass("rebind", citations)
 	if code != 0 {
 		l.stop("rebind", code, output)
 	}

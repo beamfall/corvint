@@ -2972,7 +2972,7 @@
         "corvint [--root PATH] dogfood handoff --task-state FILE [--session-key HASH]",
         "corvint [--root PATH] dogfood handoff --bundle FILE --session-key HASH",
         "corvint [--root PATH] dogfood inputs-check --base BASE --citations FILE [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH]",
-        "corvint [--root PATH] dogfood propose-citations BASE",
+        "corvint [--root PATH] dogfood propose-citations [--refresh PLAN] BASE",
         "corvint [--root PATH] dogfood review --report-set DIGEST [--session-key HASH]",
         "corvint [--root PATH] dogfood seal [--base-verifier PATH] [--tree-verifier PATH] [--override-verifier PATH] BASE",
         "corvint [--root PATH] dogfood status [--session-key HASH]",
@@ -2992,6 +2992,7 @@
         "--plan",
         "--reason",
         "--receipt",
+        "--refresh",
         "--report-set",
         "--root",
         "--session-key",
@@ -3212,9 +3213,10 @@
       "command": "corvint dogfood propose-citations",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] dogfood propose-citations BASE"
+        "corvint [--root PATH] dogfood propose-citations [--refresh PLAN] BASE"
       ],
       "flags": [
+        "--refresh",
         "--root"
       ],
       "required": [

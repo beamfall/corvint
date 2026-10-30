@@ -229,7 +229,7 @@ func TestDogfoodFinishLaneDCWV0061StopsOnInvalidRequirementsSection(t *testing.T
 	head := cemGit(t, root, "rev-parse", "HEAD")
 	env, args := finishLaneInputs(t, "1\tintent.md\t1:5\tspecification\n", "AGENTS.md\n")
 	code, stdout, stderr := run.exec(t, root, env[:3], append([]string{"dogfood", "finish-lane", "--base", base}, args...)...)
-	if code != 1 || !strings.Contains(stderr, "\n  ocm-prepare-001: invalid-requirements-section\n    fix: intent must be a spec that exists at BASE and contains exactly one \"## Requirements\" heading\n") ||
+	if code != 1 || !strings.Contains(stderr, "\n  ocm-prepare-001: invalid-requirements-section\n    fix: the intent on line N of DOGFOOD_INTENTS_FILE, ocm-prepare-001 being ocm-prepare-N, must be a spec Markdown file with exactly one \"## Requirements\" heading outside code fences; give it one, or name instead the spec that holds this change's requirements, then rerun corvint dogfood change "+base+"\n") ||
 		!strings.Contains(stdout, "dogfood-finish-lane: bind FAIL exit=1\n") {
 		t.Fatalf("invalid intent exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}

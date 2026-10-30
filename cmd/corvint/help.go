@@ -1948,7 +1948,7 @@ Usage:
   corvint [--root PATH] dogfood inputs-check --base BASE --citations FILE
     [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH]
   corvint [--root PATH] dogfood batch-check [--verifier PATH] BASE
-  corvint [--root PATH] dogfood propose-citations BASE
+  corvint [--root PATH] dogfood propose-citations [--refresh PLAN] BASE
 
 A plan freezes base, intent paths and selected checks with id, argv, timeoutSeconds
 and optional allowCemSidecarOnlyReuse (false by default). Session keys are 64 hex
@@ -2020,11 +2020,23 @@ re-derives each merge result; it reports what it cannot prove (DCW-V0-039).
 propose-citations is read-only. It prints, on stdout, a draft citation plan with
 one row per hunk of .corvint/change.cem.json still owed a row: a BASE line of a
 file the change leaves untouched that names the hunk's path, or an unknown row; it
-never cites a file the change adds or modifies (DCW-V0-393). With no usable map
+never cites a file the change adds or modifies (DCW-V0-393), and an unknown row for
+a hunk of a modified file names its nearest stable line as a review hint only
+(DCW-V0-439). JSON, .agent-evidence/ and one-line files are never drafted, and a
+hunk naming a requirement the same change adds stays unknown with that ID, since
+same-change intent is not BASE evidence (DCW-V0-440). With no usable map
 (missing, unreadable or for another BASE) it drafts one row per hunk of the
 canonical BASE..HEAD patch, keyed by full hunk ID, so no probe bind pass is needed
 (DCW-V0-350, DCW-V0-394). The draft is labelled PROPOSED on stderr; review it and write
 it to the DOGFOOD_CITATIONS file yourself (DCW-V0-150).
+
+--refresh PLAN carries an earlier plan forward after a later edit, amend or
+renumber re-hunked it (DCW-V0-442): rows whose hunk ID is current are kept as
+written, a row whose hunk was re-hunked is re-keyed to the hunk with the same path
+and content (else the same path and BASE range), and every re-keyed or dropped row
+is noted on stderr; only the remaining hunks are drafted afresh. The bind refuses a
+stale hunk-ID row, naming the row, its old ID and the current hunk (DCW-V0-441).
+For example, run corvint dogfood propose-citations --refresh plan.tsv BASE > plan.new.
 `
 
 // rootPreambleValue reports whether arguments[index] may be consumed as the value of a bare `--root`

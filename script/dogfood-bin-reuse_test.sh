@@ -11,7 +11,8 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 repo="$root/repo"
 mkdir -p "$repo/script" "$repo/cmd/corvint" "$repo/internal/lib" "$repo/docs" "$root/bin"
-/bin/cp -f "$source_root"/script/dogfood-{change,check,build-corvint}.sh "$repo/script/"
+source "$source_root/script/dogfood-fixture-scripts.sh"
+dogfood_fixture_copy "$source_root" "$repo/script" dogfood-change.sh dogfood-check.sh
 printf 'module example.invalid/corvint\n' > "$repo/go.mod"
 printf 'test-version\n' > "$repo/VERSION"
 printf 'package main\n' > "$repo/cmd/corvint/main.go"

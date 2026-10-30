@@ -166,11 +166,9 @@ func (c *change) run() int {
 	c.requireRoot()
 	c.gitDir = c.gitValue("rev-parse", "--absolute-git-dir")
 	c.acquireOperation()
-	if present, err := AggregateMarkerPresent(c.root, c.gitDir); err != nil || present {
-		c.refuse("aggregate-enrollment-required")
-	}
-	c.base = c.gitValue("rev-parse", c.options.Base+"^{commit}")
 	c.target = c.gitValue("rev-parse", "HEAD^{commit}")
+	c.requireNoAggregateMarker()
+	c.base = c.gitValue("rev-parse", c.options.Base+"^{commit}")
 	// finish-lane checks once before its first pass; its passes skip it.
 	if !c.nested {
 		c.requireFreshWorktree(c.base, c.gitDir, true)
@@ -1239,7 +1237,8 @@ func (c *change) precheckInputs() int {
 	if c.options.Citations == "" || !isRegular(c.options.Citations) {
 		return 0
 	}
-	if _, reason := c.planShape(); reason != "" {
+	plan, reason := c.planShape()
+	if reason != "" {
 		input := "--citations " + c.options.Citations
 		switch {
 		case reason == "citation-plan-uniform":
@@ -1251,7 +1250,7 @@ func (c *change) precheckInputs() int {
 		}
 		return c.refuseInput(step{"cem-cite", "NOT_PRODUCED", reason}, input)
 	}
-	return 0
+	return c.precheckBootstrapIntentRows(plan)
 }
 
 // refuseInput records the inputs precheck row and prints the bind step's
@@ -1617,8 +1616,18 @@ func (c *change) citationPlanMismatch(plan []byte) string {
 		selector, _, _ := strings.Cut(line, "\t")
 		named[selector] = true
 	}
+	mapIDs := map[string]bool{}
+	for _, hunk := range hunks {
+		mapIDs[hunk["id"]] = true
+	}
 	for index, line := range textLines(plan) {
 		selector, _, _ := strings.Cut(line, "\t")
+		// A hunk ID a later edit or amend re-hunked is refused here, naming
+		// the current hunk, before cem cite rejects it (DCW-V0-441).
+		if strings.HasPrefix(selector, wire.HunkPrefix) && !mapIDs[selector] {
+			c.mismatchDetail = staleHunkRowDetail(index+1, selector, hunks, named)
+			return mismatch
+		}
 		numeric := ordinal.MatchString(selector)
 		if strings.ContainsAny(selector[:1], "+0123456789") && !numeric {
 			c.mismatchDetail = fmt.Sprintf("row %d selector %s is not a canonical hunk ordinal", index+1, strconv.Quote(selector))
@@ -2193,8 +2202,9 @@ var fixHints = []struct{ pattern, hint string }{
 	{"ocm-aggregate:missing-intent-scope", intentScopeHint},
 	{"ocm-aggregate:intent-manifest-over-bound", "DOGFOOD_INTENTS_FILE is larger than 16 paths of 512 bytes can be; list 1-16 repository-relative spec paths, or the one line #no-intent-declared"},
 	{"ocm-aggregate:intent-scope-limit", "DOGFOOD_INTENTS_FILE lists more than 16 intent scopes, the bound of the aggregate OCM map (OCM-V0-013); list the 1-16 specs that govern the change, record any other scope as a deferred intent (DCW-V0-371), or write the one line #no-intent-declared; the change itself still binds at any size (DCW-V0-376)"},
-	{"ocm-prepare-*:invalid-requirements-section", `intent must be a spec that exists at BASE and contains exactly one "## Requirements" heading`},
+	{"ocm-prepare-*:invalid-requirements-section", requirementsSectionHint},
 	{"ocm-prepare-*:excluded-artifact-mismatch", uncommittedHint},
+	{"ocm-prepare-*:" + bootstrapIntentReason, bootstrapIntentHint},
 	{"ocm-prepare-*:verification-timeout", "OCM prepare for the intent on line N of DOGFOOD_INTENTS_FILE, {step} being ocm-prepare-N, stopped at its verification deadline (often host load); {evidence}/{step}.stderr keeps its refusal, the maps of the intents before it are kept and nothing was committed; rerun the same corvint dogfood change {base} (or finish-lane) command, which prepares that intent again (DCW-V0-116)"},
 	{"coordination-time-impact:unsupported-impact-worktree", uncommittedHint},
 	{"local-outcome:record-index-failed", uncommittedHint},
@@ -2423,6 +2433,9 @@ func (c *change) rowValues() string {
 
 func (c *change) fixHint(row step) string {
 	value := row.name + ":" + row.reason
+	if value == "cem-cite:citation-plan-map-mismatch" && strings.Contains(c.mismatchDetail, staleHunkIDMarker) {
+		return staleHunkIDHint(c.base, c.options.Citations)
+	}
 	if value == "cem-cite:citation-plan-map-mismatch" && c.staleBinding != "" {
 		return strings.NewReplacer("{evidence}", c.evidence, "{staleBinding}", c.staleBinding).Replace(staleBindingHint)
 	}
@@ -2449,6 +2462,12 @@ func (c *change) fixHint(row step) string {
 			return "DOGFOOD_VERIFY_FILE " + fix
 		}
 	}
+	if strings.HasPrefix(row.name, "ocm-prepare-") && row.reason == "invalid-requirements-section" {
+		return c.requirementsSectionHint(row.name)
+	}
+	if value == "local-outcome:aggregate-schema-invalid" {
+		return c.aggregateSchemaHint()
+	}
 	if value == "cem-cite:cite-span-not-stable" && c.citeSpanUnaligned {
 		return strings.ReplaceAll(citeSpanUnalignedHint, "{row}", strconv.Itoa(c.citationFailedRow))
 	}
@@ -2463,6 +2482,41 @@ func (c *change) fixHint(row step) string {
 		}
 	}
 	return ""
+}
+
+// requirementsSectionHint is the ocm-prepare invalid-requirements-section fix
+// for an intent present at BASE; requirementsSectionBootstrapHint is the fix for
+// a bootstrap intent this change adds (ASD-V0-092, V1-3254; DCW-V0-449).
+const (
+	requirementsSectionHint          = `the intent on line N of DOGFOOD_INTENTS_FILE, {step} being ocm-prepare-N, must be a spec Markdown file with exactly one "## Requirements" heading outside code fences; give it one, or name instead the spec that holds this change's requirements, then rerun corvint dogfood change {base}`
+	requirementsSectionBootstrapHint = `%s on line %s of DOGFOOD_INTENTS_FILE is absent at BASE, a bootstrap intent this change adds (such as a new companion spec, DCW-V0-449); it is read at the change's commit and must hold exactly one "## Requirements" heading outside code fences: add the heading to that new spec and commit it, keep each of its hunks as no row or an unknown row in DOGFOOD_CITATIONS, then rerun corvint dogfood change {base}`
+)
+
+// requirementsSectionHint names the bootstrap route when the intent of the
+// failed ocm-prepare-N row is absent at BASE, and the BASE fix otherwise.
+func (c *change) requirementsSectionHint(name string) string {
+	number := strings.TrimPrefix(name, "ocm-prepare-")
+	index, err := strconv.Atoi(number)
+	if err != nil || index < 1 || index > len(c.intents) || c.gitSucceeds("cat-file", "-e", c.base+":"+c.intents[index-1]) {
+		return strings.NewReplacer("{step}", name, "{base}", c.base).Replace(requirementsSectionHint)
+	}
+	return strings.ReplaceAll(fmt.Sprintf(requirementsSectionBootstrapHint, strconv.Quote(c.intents[index-1]), number), "{base}", c.base)
+}
+
+// aggregateSchemaHint names the field and recovery the recorder wrote for an
+// aggregate-schema-invalid local outcome (ASD-V0-089), from its stderr.
+func (c *change) aggregateSchemaHint() string {
+	var refusal struct {
+		Error string `json:"error"`
+	}
+	detail := ""
+	if json.Unmarshal(bytes.TrimSpace([]byte(readFile(c.evidence+"/local-outcome.stderr"))), &refusal) == nil {
+		_, detail, _ = strings.Cut(refusal.Error, "aggregate-schema-invalid ")
+	}
+	if detail == "" {
+		detail = "field: not named by this recorder; fix: read " + c.evidence + "/local-outcome.stderr, remove leading or trailing whitespace from each DOGFOOD_VERIFY_FILE line and rerun corvint dogfood change BASE with the lane-built --corvint-bin, which names the field"
+	}
+	return strings.ReplaceAll(detail, "BASE", c.base)
 }
 
 // noteAgentReceipts reports, without blocking, an agent pre-change receipt that
@@ -2634,71 +2688,72 @@ var aggregateKeyPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
 
 func ParseAggregateReport(raw []byte) (AggregateReport, error) {
 	var value AggregateReport
-	bad := errors.New("aggregate-schema-invalid")
+	// ASD-V0-089: each refusal names the report member it found malformed.
+	bad := tracerecordrepo.AggregateSchemaReportError
 	if len(raw) == 0 || len(raw) > 4<<20 {
-		return value, bad
+		return value, bad("size")
 	}
 	parsed, err := wire.Parse(raw)
 	if err != nil {
-		return value, bad
+		return value, bad("json")
 	}
 	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
 	if err = decoder.Decode(&value); err != nil {
-		return value, bad
+		return value, bad("members")
 	}
 	// Canonical comparison requires every member and rejects null scalar values;
 	// incoming whitespace and object key order are not semantic constraints.
 	encoded, err := aggregateWorkerJSON(value)
 	if err != nil || !bytes.Equal(wire.CanonicalValue(parsed), bytes.TrimSuffix(encoded, []byte{'\n'})) {
-		return value, bad
+		return value, bad("canonical form")
 	}
 	if value.Profile != AggregateReportProfile || value.LocalOutcomeProfile != tracerecordrepo.AggregateOutcomeProfile || !fullRevision.MatchString(value.Base) || !fullRevision.MatchString(value.Target) || !aggregateDigestPattern.MatchString(value.LocalOutcomeEvidenceSHA256) || !aggregateKeyPattern.MatchString(value.Enrollment.Session) || !aggregateKeyPattern.MatchString(value.Enrollment.PlanDigest) || !aggregateDigestPattern.MatchString(value.Enrollment.BindingSHA256) || len(value.Enrollment.Generation) != 68 || !strings.HasPrefix(value.Enrollment.Generation, value.Enrollment.PlanDigest+"-") {
-		return value, bad
+		return value, bad("profile, base, target, localOutcomeEvidenceSha256 or enrollment")
 	}
 	if value.CompletionState != "complete" && value.CompletionState != "incomplete" {
-		return value, bad
+		return value, bad("completionState")
 	}
 	if len(value.Steps) < 1 || len(value.Steps) > 256 || value.DogfoodPolicy.BootstrapUnknown < 0 || value.DogfoodPolicy.MaximumUnknownAfterBootstrap != 0 {
-		return value, bad
+		return value, bad("steps or dogfoodPolicy")
 	}
 	outcomeRows := 0
 	rows := &change{}
 	for _, row := range value.Steps {
 		if row.Status != "PRODUCED" && row.Status != "NOT_PRODUCED" {
-			return value, bad
+			return value, bad("steps status")
 		}
 		if row.Name == "local-outcome" {
 			outcomeRows++
 			if row.Status != "PRODUCED" || row.Reason != "none" {
-				return value, bad
+				return value, bad("local-outcome step")
 			}
 		}
 		rows.rows = append(rows.rows, step{row.Name, row.Status, row.Reason})
 	}
 	if value.QueryAbstentionEvidenceSHA256 != nil {
 		if !aggregateDigestPattern.MatchString(*value.QueryAbstentionEvidenceSHA256) {
-			return value, bad
+			return value, bad("queryAbstentionEvidenceSha256")
 		}
 		rows.queryAbstentionSHA = *value.QueryAbstentionEvidenceSHA256
 	}
 	if value.ContextAbstentionEvidenceSHA256 != nil && !aggregateDigestPattern.MatchString(*value.ContextAbstentionEvidenceSHA256) {
-		return value, bad
+		return value, bad("contextAbstentionEvidenceSha256")
 	}
 	if outcomeRows != 1 || (value.CompletionState == "complete" && !rows.complete()) {
-		return value, bad
+		return value, bad("steps completion")
 	}
 	if value.Anchor.State == "OBSERVED" {
 		if value.Anchor.MergeBase == nil || !fullRevision.MatchString(*value.Anchor.MergeBase) {
-			return value, bad
+			return value, bad("anchor.mergeBase")
 		}
 	} else if value.Anchor.State != "NOT_OBSERVED" || value.Anchor.MergeBase != nil {
-		return value, bad
+		return value, bad("anchor.state")
 	}
 	if value.DogfoodCheck != nil {
 		check := value.DogfoodCheck
 		if !aggregateDigestPattern.MatchString(check.BaseVerifierSHA256) || !aggregateDigestPattern.MatchString(check.TreeVerifierSHA256) || (check.OverrideVerifierSHA256 != nil && !aggregateDigestPattern.MatchString(*check.OverrideVerifierSHA256)) || check.BootstrapUnknown < 0 || check.MaximumUnknownAfterBootstrap != 0 {
-			return value, bad
+			return value, bad("dogfoodCheck")
 		}
 	}
 	return value, nil
@@ -2831,35 +2886,45 @@ func aggregateReadFile(name string, bound int) ([]byte, error) {
 // AggregateMarkerPresent is a read-only downgrade guard, not an authority
 // validator. Positive Check/Seal authority still comes from the loaded owner.
 func AggregateMarkerPresent(root, gitDir string) (bool, error) {
+	name, err := aggregateMarker(root, gitDir, "")
+	return name != "", err
+}
+
+// aggregateMarker returns the file that makes the aggregate marker present, or
+// "" when none does. With a target, a parseable aggregate receipt bound to
+// another target is the stale evidence of an earlier commit's run, not this
+// change's enrollment, so it is skipped (DCW-V0-448).
+func aggregateMarker(root, gitDir, target string) (string, error) {
 	// Repository spelling aliases (such as /tmp and /private/tmp) are already
 	// supported. Resolve the root, then reject symlinks below that boundary.
 	canonicalRoot, rootErr := filepath.EvalSymlinks(root)
 	if rootErr != nil {
-		return false, rootErr
+		return "", rootErr
 	}
 	root = canonicalRoot
 	owner, err := aggregateReadFile(filepath.Join(gitDir, "corvint", "local-completion", "owner"), 65)
 	if err != nil && !os.IsNotExist(err) {
-		return false, err
+		return "", err
 	}
 	if err == nil {
 		key := strings.TrimSuffix(string(owner), "\n")
 		if !aggregateKeyPattern.MatchString(key) {
-			return false, errors.New("aggregate-enrollment-required")
+			return "", errors.New("aggregate-enrollment-required")
 		}
-		raw, readErr := aggregateReadFile(filepath.Join(gitDir, "corvint", "local-completion", key, "state.json"), 256<<10)
+		stateFile := filepath.Join(gitDir, "corvint", "local-completion", key, "state.json")
+		raw, readErr := aggregateReadFile(stateFile, 256<<10)
 		if readErr != nil {
-			return false, readErr
+			return "", readErr
 		}
 		if _, err := wire.Parse(raw); err != nil {
-			return false, err
+			return "", err
 		}
 		var state map[string]json.RawMessage
 		if err := json.Unmarshal(raw, &state); err != nil {
-			return false, err
+			return "", err
 		}
 		if _, ok := state["aggregateOutcome"]; ok {
-			return true, nil
+			return stateFile, nil
 		}
 	}
 	// An unenrolled change over the learning bound records the same aggregate
@@ -2872,7 +2937,7 @@ func AggregateMarkerPresent(root, gitDir string) (bool, error) {
 			continue
 		}
 		if err != nil {
-			return false, err
+			return "", err
 		}
 		var object map[string]json.RawMessage
 		if json.Unmarshal(raw, &object) != nil {
@@ -2886,14 +2951,48 @@ func AggregateMarkerPresent(root, gitDir string) (bool, error) {
 		if profile == tracerecordrepo.AggregateOutcomeProfile && changeReportBinds != "" && changeReportBinds == "sha256:"+sha256Hex(raw) {
 			continue
 		}
+		if i == 1 && target != "" && profile == tracerecordrepo.AggregateOutcomeProfile {
+			if receipt, err := tracerecordrepo.ParseAggregateOutcome(raw); err == nil && receipt.Target != target {
+				continue
+			}
+		}
 		if profile == AggregateReportProfile || profile == tracerecordrepo.AggregateOutcomeProfile {
-			return true, nil
+			return name, nil
 		}
 		if _, ok := object["localOutcomeProfile"]; ok {
-			return true, nil
+			return name, nil
 		}
 	}
-	return false, nil
+	return "", nil
+}
+
+// requireNoAggregateMarker refuses, before any step runs, a change whose
+// checkout holds an aggregate marker for HEAD, naming the marker file and its
+// recovery (DCW-V0-448); a receipt bound to another target is skipped.
+func (c *change) requireNoAggregateMarker() {
+	marker, err := aggregateMarker(c.root, c.gitDir, c.target)
+	if err == nil && marker == "" {
+		return
+	}
+	c.say("dogfood-change: REFUSE aggregate-enrollment-required\n")
+	if err != nil {
+		c.say("  the aggregate marker under %s cannot be read: %v\n", shellWord(filepath.Join(c.gitDir, "corvint")), err)
+		c.say("  fix: restore or remove the unreadable file named above, then rerun the same command (DCW-V0-448)\n")
+		c.exit(2)
+	}
+	c.say("  marker: %s\n", shellWord(marker))
+	if filepath.Base(marker) == "state.json" {
+		// The enrollment owner names this state; moving it aside would leave
+		// the owner pointing at missing state, so the recovery is the
+		// enrollment's own keyed finish (DCW-V0-448).
+		key := filepath.Base(filepath.Dir(marker))
+		c.say("  this checkout has an enrolled aggregate change whose state records an aggregate outcome; do not move its state aside, which leaves the enrollment owner naming missing state\n")
+		c.say("  fix: resume it with corvint dogfood status --session-key %s and finish it with corvint dogfood finish --session-key %s --aggregate-outcome-profile %s, then rerun the same command (DCW-V0-448)\n", key, key, tracerecordrepo.AggregateOutcomeProfile)
+		c.exit(2)
+	}
+	c.say("  this checkout holds aggregate local-outcome evidence for HEAD that no plain change report binds; finish an enrolled aggregate change with corvint dogfood check %s, or, when the file is left over from an earlier run, move it aside (reversible)\n", c.options.Base)
+	c.say("  fix: mv %s %s, then rerun the same command (DCW-V0-448)\n", shellWord(marker), shellWord(marker+".stale"))
+	c.exit(2)
 }
 
 // LegacyRecordAttempt is an actual recorder invocation, captured only after
