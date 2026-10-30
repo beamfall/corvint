@@ -1380,11 +1380,13 @@ Usage:
     [--spec cem/1.0] [--non-regular unknown] [--path-policy base]
   corvint [--root PATH] cem cite --map MAP --hunk SELECTOR --evidence-path PATH
     (--bytes START:END | --lines START:END) --relation RELATION [--output MAP]
+    [--replace --expected-hunk-digest DIGEST]
   corvint [--root PATH] cem cite --map MAP --hunk SELECTOR --evidence-path PATH
     (--bytes START:END | --lines START:END) --relation RELATION
     --paired-output DOC --paired-range NAME=BASE..HEAD --paired-root ABS
   corvint [--root PATH] cem mark --map MAP --hunk SELECTOR
     --disposition unknown|mechanical --reason REASON [--output MAP]
+    [--expected-hunk-digest DIGEST]
   corvint [--root PATH] cem status --map MAP --expected-base REV --target REV
     --artifacts DIR [OPTIONS]
   corvint [--root PATH] cem status --map MAP --paired DOC --paired-root ABS
@@ -1426,7 +1428,14 @@ Actions:
            ancestor of HEAD), and the citation is added to the separate
            document DOC bound to the map's change; the map is never written,
            so --output is refused.
+           --replace --expected-hunk-digest DIGEST (given together) first drops
+           the hunk's earlier citations, only while DIGEST is the hunk's current
+           cem-hunk-state/1 digest; a stale digest refuses hunk-digest-mismatch
+           and nothing is written, and every other hunk is kept (CEM-V1-694).
+           dogfood change prints the digest in its recites-cited-hunk fix line.
   mark     Record an explicit unknown or byte-verifiable mechanical disposition.
+           --expected-hunk-digest DIGEST refuses the mark unless DIGEST is the
+           hunk's current digest (CEM-V1-695).
   status   Local completion check; verify is the equivalent machine/CI surface;
            report renders the optional human view. All three verify identically.
            report writes $GIT_DIR/corvint/cem-review.md unless --output names
@@ -1964,7 +1973,11 @@ checks, then commits the CEM rename to .corvint/changes/COMMIT.cem.json. Steps a
 verifiers run as this executable unless an option names another one; this binary
 never builds or version-checks one. DOGFOOD_TASK, DOGFOOD_VERIFY,
 DOGFOOD_VERIFY_FILE, DOGFOOD_OUTCOME, DOGFOOD_INTENTS_FILE, DOGFOOD_CITATIONS,
-DOGFOOD_OCM_LINKS and DOGFOOD_EXCEPTION keep their script meanings. For check and
+DOGFOOD_OCM_LINKS and DOGFOOD_EXCEPTION keep their script meanings.
+DOGFOOD_CITATION_REPLACE=HUNK_ID=DIGEST[,...] lets the plan replace the earlier
+citations of each named, already cited hunk, and only those; the digest is the one
+the citation-plan-recites-cited-hunk fix line prints, so a stale one cites
+nothing (DCW-V0-390..392). For check and
 seal, DOGFOOD_OUTPUT_CHANGE=REQUIREMENT-ID declares a change whose cem status output
 differs from the base verifier's by construction: admitted only when HEAD's
 docs/specs/REQUIREMENTS.tsv maps the ID to a spec BASE..HEAD modifies, it runs the

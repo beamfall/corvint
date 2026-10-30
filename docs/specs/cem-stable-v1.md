@@ -666,6 +666,25 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   passing. A row is `survived` only when every package with eligible tests survived; a package
   with none (all its named tests fail at the target) does not block it. Failure mode: a row that
   previously read `survived` on a partial pass now reads `not-run` with the reason.
+- `CEM-V1-694`: (experimental under the standing lane auto-accept (V1-3168)) `cem cite --replace
+  --expected-hunk-digest DIGEST` (both or neither) replaces one hunk's citations: after every check
+  an ordinary cite runs (evidence at the base, span, stable span, self-modified authority, limits),
+  it MUST refuse `hunk-digest-mismatch` unless DIGEST equals the hunk's current
+  `cem-hunk-state/1` digest, then drop that hunk's basis, attach the one citation, prune evidence no
+  hunk still cites, and publish the map in one atomic write. The digest is the lowercase SHA-256 of
+  the LF-terminated lines `cem-hunk-state/1`, the map's `baseRevision`, its `patchSha256`, the hunk
+  ID, its disposition and its reason, followed by one `evidenceId<TAB>relation` line per basis entry
+  in order (`wire.HunkDigest`). Because evidence IDs are content identities, the digest changes
+  when any earlier citation of the hunk, or the base or patch it was cited against, changes. Every
+  other hunk, and the hunk's coverage and discrimination witnesses (bound to the hunk and the
+  patch, not to its basis), are kept unchanged. Failure modes: a stale old digest, stale base or
+  patch, invalid span, policy refusal or failed publication writes nothing, so the previous map is
+  intact; `--replace` without the digest, a digest that is not 64 lowercase hex digits, or either
+  flag with `--paired-output` refuses `invalid-arguments`.
+- `CEM-V1-695`: (experimental under the standing lane auto-accept (V1-3168)) `cem mark
+  --expected-hunk-digest DIGEST` refuses `hunk-digest-mismatch`, writing nothing, unless DIGEST is
+  the hunk's current `CEM-V1-694` digest; without the option `cem mark` is unchanged. A mark
+  already replaces the hunk's basis, so the option only guards it.
 
 ## Non-goals and failure modes
 
@@ -5390,3 +5409,24 @@ No map, seal, golden, vector or ledger depends on the change.
 | CEM-V1-691 | `TestCEMV1691DriftStopsAtTheSecondMatch`, `TestClassifySpanCountsAMatchEndingAtTheEnd` (`internal/cem/verify`) | A 1 MiB repeated-byte needle in a 4 MiB repeated-byte target is ambiguous and counted exactly (3 MiB + 1) in under 2 s; a cancelled context errors; small overlapping counts are exact |
 | CEM-V1-692 | `TestCEMV1692EachRunGetsAFreshSnapshot`, `TestCEMV1088JudgeRevertsOnlyInsideTheCopy` (`internal/cem/verify`) | A sentinel-writing test leaves an unrelated hunk `survived`, runs see two distinct snapshots and never the export, the export never sees the sentinel, and no run directory remains |
 | CEM-V1-693 | `TestCEMV1089ClassifyRevert`, `TestCEMV1693SurvivedNeedsEveryEligiblePass` (`internal/cem/verify`) | A skipped eligible test is `skipped`, a missing one `test-not-observed`, a partial pass in a failed package `test-not-observed`; a row survives only when every package with eligible tests survived |
+
+### Guarded one-hunk citation replacement (V1-3168)
+
+Status: `CEM-V1-694` and `CEM-V1-695` are experimental under the owner's standing lane
+auto-accept of 2026-10-11. Build entry `docs/build-log/2026-10-30-guarded-citation-replacement.md`.
+`cem cite` only ever added evidence, so correcting one cited hunk forced deleting the whole map;
+the guarded replacement changes that one hunk and nothing else. It adds no `cem/1.0` wire member,
+verdict, reason or profile: a replaced map is an ordinary producer map, and every verifier reads it
+as before. `dogfood change` drives it from a plan (`DCW-V0-390..392`).
+
+Non-goals: no unguarded replacement, no removal without a replacing citation (use the guarded
+`cem mark`), no multi-hunk transaction in Core (the dogfood flow stages its rows and publishes the
+tracked map once), and no digest in the cite or mark result envelope.
+
+Rollback: revert the V1-3168 code commit. `cem cite` and `cem mark` lose the two options and a
+correction again needs a fresh map; no map, seal, golden, vector or ledger depends on the change.
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-694 | `TestCiteReplaceCEMV1694` (`internal/cem/workflow`); `TestCEMV1694ReplaceFlagsAreGuarded` (`internal/cem/cli`) | Positive first: hunk 1's two citations are replaced by one, hunk 2's digest is unchanged, and the two dropped spans are pruned while the shared span stays; then a stale old digest, a stale base, a stale patch, an out-of-range line span, evidence absent at the base and a failed publication each refuse with their code and leave the map's bytes identical; the flag pairing, digest shape and paired refusal are checked at the command line |
+| CEM-V1-695 | `TestCiteReplaceCEMV1694` (`internal/cem/workflow`); `TestCEMV1694ReplaceFlagsAreGuarded` (`internal/cem/cli`) | A stale-digest mark refuses with the map unchanged; the current digest marks hunk 1 unknown and leaves hunk 2's digest unchanged |

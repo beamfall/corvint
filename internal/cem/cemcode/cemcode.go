@@ -185,6 +185,10 @@ const (
 	// links, artifacts or provenance (CEM-V1-342, V1-2102). The spec is
 	// supported, so unsupported-spec misnamed it.
 	NotAProducerMap = "not-a-producer-map"
+
+	// HunkDigestMismatch refuses a guarded citation replacement whose
+	// --expected-hunk-digest is not the hunk's current digest (CEM-V1-694).
+	HunkDigestMismatch = "hunk-digest-mismatch"
 )
 
 // Typed bounded-runner codes.

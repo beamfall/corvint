@@ -1168,6 +1168,8 @@ CEM-V1-690	docs/specs/cem-stable-v1.md	(experimental under the standing lane aut
 CEM-V1-691	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2996)) native drift classi	standing	V1-2996
 CEM-V1-692	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2991)) `--hunk-revert` and	standing	V1-2991
 CEM-V1-693	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2995)) a reverted run is `	standing	V1-2995
+CEM-V1-694	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3168)) `cem cite --replace	standing	V1-3168
+CEM-V1-695	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3168)) `cem mark	standing	V1-3168
 CEM-V1-011	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Reject missing, duplicate, unknown or es	owner	decision 0546; 2026-10-20
 CEM-V1-012	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Publish the candidate schema and algorit	owner	decision 0546; 2026-10-20
 CEM-V1-013	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Never translate candidate spec labels to	owner	decision 0546; 2026-10-20
@@ -2933,6 +2935,9 @@ DCW-V0-386	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-387	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3141; refines `DCW-V0-379`	standing	V1-3141
 DCW-V0-388	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3130; amends `DCW-V0-112`	standing	V1-3130
 DCW-V0-389	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3118; extends `DCW-V0-381`	standing	V1-3118
+DCW-V0-390	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3168; amends `DCW-V0-117`)	standing	V1-3168
+DCW-V0-391	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3168) Before any cite or	standing	V1-3168
+DCW-V0-392	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3168) An entry whose hunk	standing	V1-3168
 DCW-V0-170	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2344) When	standing	2026-10-11; V1-2344
 DCW-V0-171	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2171) A	standing	2026-10-11; V1-2171
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-

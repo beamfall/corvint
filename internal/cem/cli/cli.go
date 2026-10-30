@@ -87,9 +87,12 @@ var cemActions = map[string]cemAction{
 	},
 	// --paired-output, --paired-range and --paired-root together cite into the
 	// additive cem-paired-evidence/1 document instead of the map (CAX-V0-032).
+	// --replace with --expected-hunk-digest replaces one hunk's citations
+	// (CEM-V1-694).
 	"cite": {
-		arguments: []string{"--map", "--hunk", "--evidence-path", "--bytes", "--lines", "--relation", "--output", "--paired-output", "--paired-range", "--paired-root"},
+		arguments: []string{"--map", "--hunk", "--evidence-path", "--bytes", "--lines", "--relation", "--output", "--paired-output", "--paired-range", "--paired-root", "--expected-hunk-digest"},
 		required:  []string{"--map", "--hunk", "--evidence-path", "--relation"},
+		booleans:  []string{"--replace"},
 		paths:     []string{"--evidence-path", "--paired-output"},
 		spans:     []string{"--bytes", "--lines"},
 		choices: map[string][]string{"--relation": {
@@ -98,7 +101,7 @@ var cemActions = map[string]cemAction{
 		mutex: &mutexGroup{names: []string{"--bytes", "--lines"}, required: true},
 	},
 	"mark": {
-		arguments: []string{"--map", "--hunk", "--disposition", "--reason", "--output"},
+		arguments: []string{"--map", "--hunk", "--disposition", "--reason", "--output", "--expected-hunk-digest"},
 		required:  []string{"--map", "--hunk", "--disposition", "--reason"},
 		choices: map[string][]string{
 			"--disposition": {"unknown", "mechanical"},
@@ -517,6 +520,9 @@ func dispatchCEMWithCallerRoot(ctx context.Context, root, callerRoot string, arg
 			if flags.present["--output"] {
 				return nil, cemcode.New(cemcode.InvalidArguments, "argument --output: not allowed with --paired-output: a paired citation never writes the map")
 			}
+			if flags.booleans["--replace"] || flags.present["--expected-hunk-digest"] {
+				return nil, cemcode.New(cemcode.InvalidArguments, "argument --replace: not allowed with --paired-output: a paired citation never writes the map")
+			}
 			return session.CitePaired(ctx, workflow.PairedCiteOptions{
 				MapPath: flags.values["--map"], Output: flags.values["--paired-output"],
 				Range: flags.values["--paired-range"], Root: flags.values["--paired-root"],
@@ -524,17 +530,29 @@ func dispatchCEMWithCallerRoot(ctx context.Context, root, callerRoot string, arg
 				Bytes: flags.values["--bytes"], Lines: flags.values["--lines"], Relation: flags.values["--relation"],
 			})
 		}
+		// A replacement is guarded: --replace and --expected-hunk-digest are
+		// given together or not at all (CEM-V1-694).
+		if flags.booleans["--replace"] != flags.present["--expected-hunk-digest"] {
+			return nil, cemcode.New(cemcode.InvalidArguments, "argument --replace: requires --expected-hunk-digest, and --expected-hunk-digest requires --replace")
+		}
+		if flags.booleans["--replace"] && !hunkDigestShape(flags.values["--expected-hunk-digest"]) {
+			return nil, cemcode.New(cemcode.InvalidArguments, "argument --expected-hunk-digest: must be 64 lowercase hexadecimal digits")
+		}
 		return session.Cite(ctx, workflow.CiteOptions{
 			MapPath: flags.values["--map"], Hunk: flags.values["--hunk"],
 			EvidencePath: flags.values["--evidence-path"], Bytes: flags.values["--bytes"],
 			Lines: flags.values["--lines"], Relation: flags.values["--relation"],
-			Output: flags.values["--output"],
+			Output:  flags.values["--output"],
+			Replace: flags.booleans["--replace"], ExpectedHunkDigest: flags.values["--expected-hunk-digest"],
 		})
 	case "mark":
+		if digest, given := flags.values["--expected-hunk-digest"], flags.present["--expected-hunk-digest"]; given && !hunkDigestShape(digest) {
+			return nil, cemcode.New(cemcode.InvalidArguments, "argument --expected-hunk-digest: must be 64 lowercase hexadecimal digits")
+		}
 		return session.Mark(ctx, workflow.MarkOptions{
 			MapPath: flags.values["--map"], Hunk: flags.values["--hunk"],
 			Disposition: flags.values["--disposition"], Reason: flags.values["--reason"],
-			Output: flags.values["--output"],
+			Output: flags.values["--output"], ExpectedHunkDigest: flags.values["--expected-hunk-digest"],
 		})
 	case "cover":
 		return session.Cover(ctx, workflow.CoverOptions{
@@ -628,6 +646,11 @@ func dispatchCEMWithCallerRoot(ctx context.Context, root, callerRoot string, arg
 var oracleReadFailures = map[string]string{
 	cemcode.PatchUnavailable: "cannot read patch",
 	cemcode.MapUnavailable:   "cannot read CEM map",
+}
+
+// hunkDigestShape admits a wire.HunkDigest value: 64 lowercase hex digits.
+func hunkDigestShape(value string) bool {
+	return len(value) == 64 && strings.Trim(value, "0123456789abcdef") == ""
 }
 
 func emitCEMError(stderr io.Writer, err error) {

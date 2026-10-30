@@ -141,6 +141,7 @@ func runDogfoodAction(ctx context.Context, root, action, base string, flags map[
 		Task: os.Getenv("DOGFOOD_TASK"), Verify: os.Getenv("DOGFOOD_VERIFY"), VerifyFile: input("--verify", "DOGFOOD_VERIFY_FILE"),
 		Outcome: input("--outcome", "DOGFOOD_OUTCOME"), IntentsFile: input("--intents", "DOGFOOD_INTENTS_FILE"),
 		Citations: input("--citations", "DOGFOOD_CITATIONS"), OCMLinks: os.Getenv("DOGFOOD_OCM_LINKS"),
+		CitationReplace:    os.Getenv("DOGFOOD_CITATION_REPLACE"),
 		AggregateOverLimit: true,
 	}
 	if action == "change" {
