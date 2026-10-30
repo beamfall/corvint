@@ -42,7 +42,8 @@ The baseline is manual archive verification and copying binaries, with external 
   its current archive provides no separate source archive or release manifest, which MUST remain
   explicitly NOT_PROVIDED rather than synthesized.
 - `UPD-V0-003`: Downloads, release discovery, extracted bytes/members and subprocess output/time MUST
-  be bounded. Extraction MUST refuse unsafe paths, aliases, duplicate files and all link/special
+  be bounded. Extraction MUST refuse unsafe paths (since V1-3179, any member that `filepath.IsLocal`
+  rejects on the running platform, joined through the shared `internal/archivepath` check), aliases, duplicate files and all link/special
   entries. Managed executable/state paths MUST refuse symlink aliases and overlap. Mutation MUST
   serialize by canonical destination independently of state-directory choice.
 - `UPD-V0-004`: Apply MUST mutate only one selected component, refuse downgrades/unknown builds,
@@ -308,7 +309,7 @@ With it, only the operator's control program is run (`UPD-V0-011`).
 |---|---|---|
 | UPD-V0-001 | `internal/update`, `cmd/corvint-update` | `TestUPDV0001OfflineReadOnlyAndChannels`, `TestUPDV0001PaginationCapUnknown` and `TestUPDV0001TasksInstalledVersion`: channels, offline/unknown, read-only, Tasks version string from its command result |
 | UPD-V0-002 | archive/identity verification | `TestUPDV0002ChecksumsAndArchive`, `TestUPDV0002PlatformAndQualificationIdentity`, `TestUPDV0002InternalTamperWithValidOuterChecksum`: outer/internal checksums, host, notices, evidence |
-| UPD-V0-003 | bounded transport, paths and destination lock | `TestUPDV0003ArchivePathsAndLocks`: caps, aliases, traversal, concurrent state roots |
+| UPD-V0-003 | bounded transport, paths and destination lock | `TestUPDV0003ArchivePathsAndLocks`: caps, aliases, traversal, concurrent state roots; `TestV13179ExtractConfinesMembersToDest` (V1-3179 shared join) |
 | UPD-V0-004 | candidate preparation and activation | `TestUPDV0004ActivationDowngradeCancelRace`, `TestUPDV0004UnchangedCleanupAndDestinationDrift`, `TestUPDV0004PartialArchiveCancellation`: no-op, downgrade, race and partial-download cancellation |
 | UPD-V0-005 | bound prepared receipts and rollback | `TestUPDV0005ApplyRollbackAndPreparedReceipt` and `TestUPDV0005PreparedReceiptInterruptionRecovery`: exact restored digest, interrupted prepared state and drift |
 | UPD-V0-007 | `sweepIncomplete`, `retainCommitted`, state lock | `TestUPDV0007RetentionBoundInterruptedSweepAndRollback`: three padded applies keep one transaction's previous bytes (state constant instead of growing per apply), exact `removed`/`left`, other component kept, malformed receipt left and named, a fresh receipt-less transaction and a `transaction-notes` operator directory kept, a stale interrupted (receipt-less) transaction swept by the next rollback, rollback after pruning restores the exact previous digest, a held state lock refuses the run; `TestUPDV0005ApplyRollbackAndPreparedReceipt` tampers the retained transaction |

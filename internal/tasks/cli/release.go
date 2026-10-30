@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/Beamfall/corvint/internal/tasks/intent"
@@ -11,7 +13,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
-var releaseVerbs = map[string]string{"create": release.OpCreate, "update": release.OpUpdate, "candidate": release.OpCandidate, "promote": release.OpPromote}
+var releaseVerbs = map[string]string{"create": release.OpCreate, "update": release.OpUpdate, "candidate": release.OpCandidate, "promote": release.OpPromote, "membership": release.OpMembership}
 
 func releaseCommand(env Env, verb string, args []string) *wire.Result {
 	cmd := []string{"release", verb}
@@ -22,9 +24,19 @@ func releaseCommand(env Env, verb string, args []string) *wire.Result {
 	if !ok && verb != "record-gate" {
 		return usage(cmd, "unknown release verb")
 	}
+	var add, remove []string
+	if verb == "membership" {
+		var res *wire.Result
+		if args, add, remove, res = membershipFlags(cmd, args); res != nil {
+			return res
+		}
+	}
 	f, res := parseMutateFlags(cmd, args)
 	if res != nil {
 		return res
+	}
+	if verb == "membership" && (f.payload != "" || f.payloadFromStdin) {
+		return usage(cmd, "release membership takes --add and --remove, not a payload")
 	}
 	if f.batch {
 		return usage(cmd, "unknown flag --batch")
@@ -58,9 +70,20 @@ func releaseCommand(env Env, verb string, args []string) *wire.Result {
 		payload = wire.ObjectValue(wire.NewObject().Set("headCommit", wire.Null()))
 	} else if verb == "promote" && f.payload == "" && !f.payloadFromStdin {
 		payload = wire.ObjectValue(wire.NewObject())
+	} else if verb == "membership" {
+		q := st.Queue.QueueID.Raw
+		payload = wire.ObjectValue(wire.NewObject().Set("add", qualifiedTickets(q, add)).Set("remove", qualifiedTickets(q, remove)))
 	} else {
 		payload, err = readPayload(env, f)
 		if err != nil {
+			return errorResult(cmd, err)
+		}
+	}
+	if op == release.OpMembership {
+		// TRM-V0-004: repeated --add/--remove flags may arrive in any order;
+		// a caller-serialized create or update payload keeps strict set
+		// order (V1-0750).
+		if payload, err = release.CanonicalPayload(op, payload); err != nil {
 			return errorResult(cmd, err)
 		}
 	}
@@ -106,6 +129,38 @@ func releaseCommand(env Env, verb string, args []string) *wire.Result {
 		}
 	}
 	return result
+}
+
+// membershipFlags takes the repeatable --add and --remove ticket arguments of
+// release membership out of argv and returns the rest (TRM-V0-001).
+func membershipFlags(cmd, args []string) (rest, add, remove []string, res *wire.Result) {
+	for i := 0; i < len(args); i++ {
+		if args[i] != "--add" && args[i] != "--remove" {
+			rest = append(rest, args[i])
+			continue
+		}
+		if i+1 >= len(args) || strings.HasPrefix(args[i+1], "--") {
+			return nil, nil, nil, usage(cmd, args[i]+" needs a ticket id or local token")
+		}
+		if args[i] == "--add" {
+			add = append(add, args[i+1])
+		} else {
+			remove = append(remove, args[i+1])
+		}
+		i++
+	}
+	if len(add)+len(remove) == 0 && !slices.Contains(rest, "--help") {
+		return nil, nil, nil, usage(cmd, "release membership needs at least one --add or --remove")
+	}
+	return rest, add, remove, nil
+}
+
+func qualifiedTickets(queueID string, args []string) wire.Value {
+	out := make([]string, len(args))
+	for i, a := range args {
+		out[i] = qualifyTicket(queueID, a)
+	}
+	return wire.Strings(out)
 }
 
 func releaseRead(env Env, verb string, args []string) *wire.Result {

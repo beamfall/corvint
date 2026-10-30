@@ -9,7 +9,7 @@ Authoritative inputs: `docs/DOGFOOD.md`, `docs/decisions/0009-harness-authority-
 ## Agent digest
 - Claim: Explicitly enrolled changes require selected checks, bound evidence and inspected reports before local completion; no execution attestation.
 - Status: accepted direction (owner selected decision 0009 option 2 in the 2026-09-06 Codex dogfood repair task); LCP-V0-008/009 Pi tuple accepted (decision 0452; V1-0506)/implemented
-- Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881). `LCP-V0-017` (envelope `ok` mirrors the exit status) is accepted by decision 0465 (V1-1012). `LCP-V0-018` (plan intent refusals name the rule) is accepted by decision 0472 (V1-1043). `LCP-V0-019` proposes reuse of immutable facts inside one enrolled event while re-reading private inputs and cleanliness (V1-1124; accepted, decision 0508). `LCP-V0-033` (snapshot read overlapping the opening status read) is accepted under the owner's lane auto-acceptance (V1-1524, V1-2144). `LCP-V0-034` (named prompt-bounds refusal code) is accepted under the same auto-acceptance (V1-1976). `LCP-V0-036` (base-ancestry probes refuse a grafted or shallow checkout with `ancestry-rewritten`) is accepted under the same auto-acceptance (V1-1757). `LCP-V0-037` (begin refuses an intent without numbered requirements) is accepted under the owner's standing auto-accept (V1-0680). `LCP-V0-038` (cancel of an active enrollment requires `--reason`) is accepted under the owner's standing auto-accept (2026-10-11) (V1-2177). `LCP-V0-040` adds strict sealed continuation with distinct current/evidence targets; aggregate and context-abstention continuation remain unsupported.
+- Exists: all 15 in-scope requirements have executable local evidence for the workflow, prompt compiler and native adapter; `LCP-V0-016` (one repository bracket per dogfood event) is accepted by decision 0439 (V1-0881). `LCP-V0-017` (envelope `ok` mirrors the exit status) is accepted by decision 0465 (V1-1012). `LCP-V0-018` (plan intent refusals name the rule) is accepted by decision 0472 (V1-1043). `LCP-V0-019` proposes reuse of immutable facts inside one enrolled event while re-reading private inputs and cleanliness (V1-1124; accepted, decision 0508). `LCP-V0-033` (snapshot read overlapping the opening status read) is accepted under the owner's lane auto-acceptance (V1-1524, V1-2144). `LCP-V0-034` (named prompt-bounds refusal code) is accepted under the same auto-acceptance (V1-1976). `LCP-V0-036` (base-ancestry probes refuse a grafted or shallow checkout with `ancestry-rewritten`) is accepted under the same auto-acceptance (V1-1757). `LCP-V0-037` (begin refuses an intent without numbered requirements) is accepted under the owner's standing auto-accept (V1-0680). `LCP-V0-038` (cancel of an active enrollment requires `--reason`) is accepted under the owner's standing auto-accept (2026-10-11) (V1-2177). `LCP-V0-040` adds strict sealed continuation with distinct current/evidence targets; aggregate and context-abstention continuation remain unsupported. `LCP-V0-041` (sealed continuation re-pins only the lane closeout's own proved outcome record) and `LCP-V0-042` (drift refusal names the artifact and digests) are accepted under the owner's standing lane auto-accept (V1-3194). `LCP-V0-043` (a signal during the final strict check reports `finish-interrupted`, not `final-check-failed`) is accepted under the same auto-accept (V1-3192).
 - Blocked on: current-change canonical verification, report acknowledgment, strict outcome qualification and installed-hook validation, recorded separately; complete host-version matrix NOT_RUN.
 - Read next: Requirements; Failure modes; Acceptance evidence and traceability.
 
@@ -500,6 +500,59 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   retain the affected enrollment and sealed tree for a compatible runtime; never delete its
   evidence or reverse the seal to manufacture success.
 
+- `LCP-V0-041`: (V1-3194, 2026-10-30) The supported order is: enrolled strict `finish` satisfied
+  at the bind commit, then the one-command lane closeout (`make dogfood-closeout`, which runs
+  `dogfood finish-lane` and seals), then the keyed `verify` actions at the seal, `finish`, review
+  of the new report set, and `finish` again. The closeout's own `dogfood record` rewrites the
+  coordinated `local-outcome.json`, so sealed `finish` MAY replace that one coordination pin only
+  when every one of these holds: the `change.ocm-status.json` pin is unchanged; the new outcome
+  parses as a `dogfood-record` `recorded` outcome whose `ok`, base, target, tree, candidate set
+  and both path-admission digests reproduce from Git at the plan base and the evidence target;
+  its trace names the evidence target with outcome `passed`, the same `trace_id` and exactly the
+  admitted paths; the target's trace store still holds the enrollment's own row with that same
+  admitted set and its newest row is a different-task row byte-equal (as JSON) to the outcome's
+  trace; and the coordinator report is complete for the original base and evidence target and
+  binds the new outcome digest. The replacement happens only inside `finish` (status and host
+  events stay read-only), forces a new continuation report set naming the replaced and
+  replacing digests, and requires its review before completion. Every other prior binding,
+  report, observation and pin keeps the `LCP-V0-040` rules. Non-goals: accepting a change to
+  any other pinned artifact, a hand-written or replayed outcome, or a new state field. Failure
+  modes: an OCM status change refuses `foreign-change`; an unparseable, failed or inconsistent
+  outcome refuses `replacement-tampered`; another base, target or tree refuses
+  `replacement-retargeted`; a missing enrollment or closeout trace row refuses
+  `replacement-unrecorded`; a coordinator report that does not bind the new digest refuses
+  `replacement-unreferenced`; each refusal writes no state. Rollback: revert the acceptance;
+  an enrollment that already re-pinned keeps valid state bytes, and one that did not returns to
+  the `LCP-V0-040` refusal with its evidence retained.
+
+- `LCP-V0-042`: (V1-3194, 2026-10-30) Every `sealed-evidence-drift` refusal MUST keep that code
+  and carry a bounded detail `artifact=<label> reason=<reason>`, plus `pinned=sha256:<hex>
+  current=<sha256:<hex>|absent|unreadable>` when a pinned artifact's bytes changed. Labels are
+  fixed names (`local-outcome.json`, `change.ocm-status.json`, `change.cem.json`, `state`,
+  `worktree`, `seal-binding`, `prior-report-set`, `prior-binding-NN`, `prior-report-NN`,
+  `prior-observation-NN`, `coordination`), never file contents or absolute paths. Reasons are
+  likewise fixed: `shared-map-present`, `sealed-state-invalid`, `worktree-dirty`,
+  `seal-binding-changed`, `prior-report-set-invalid`, `prior-report-set-digest`,
+  `binding-path-changed`, `report-path-changed`, `artifact-changed`, `prior-observation-missing`,
+  `prior-observation-unqualified`, `coordination-pins-invalid`, and the `LCP-V0-041` reasons
+  `foreign-change`, `replacement-unreadable`, `replacement-tampered`, `replacement-retargeted`,
+  `replacement-unrecorded` and `replacement-unreferenced`. The Go
+  surface is `SealedDriftError`; the CLI envelope's `detail` field carries the same text and
+  the remedy names the supported order. Non-goals: content diffs or automatic repair. Rollback:
+  revert to the bare code; no stored state depends on the detail.
+
+- `LCP-V0-043`: (V1-3192, 2026-10-30) When the caller's context ends (a supervised SIGINT or
+  SIGTERM, or a caller cancellation) while `finish` runs its final strict check, the result MUST
+  be the `finish-interrupted` refusal, not `final-check-failed`. Its envelope detail names the
+  step (`final-check` or `aggregate-final-check`), the retained check logs as
+  `$GIT_DIR/corvint/local-completion/<key>/<generation>/final-check.{stdout,stderr}`, and the
+  rerun command `corvint dogfood finish --session-key <key>`. A genuine checker failure, including
+  the step's own deadline, MUST keep `final-check-failed` and name the same retained logs. Neither
+  result writes an outcome, terminal or state, so the next `finish` reuses the unchanged bound
+  results and must regain success through a real check. Non-goals: resuming the interrupted
+  check, a new exit status, or classifying an interruption in another step. Rollback: revert to
+  the bare `final-check-failed` code; no stored state depends on the classification.
+
 ## Non-goals and simpler baseline
 
 The baseline is the documented agent-driven DOGFOOD loop. This slice removes orchestration gaps and
@@ -539,7 +592,7 @@ elsewhere are not repeated.
 | `sealed-binding-drift` | `internal/dogfoodflow/check.go` (`run`) | The clean seal identity changed during strict checking. |
 | `sealed-aggregate-unsupported` | `internal/dogfoodflow/check.go` (`run`); `internal/localcompletion/sealed.go` (`finishSealed`) | Aggregate-profile completion cannot use the legacy sealed continuation. |
 | `sealed-context-replay-unsupported` | `internal/dogfoodflow/check.go` (`run`) | Parent query/impact context is not exactly the supported produced-step shape or requires HEAD-dependent replay. |
-| `sealed-evidence-drift` | `internal/localcompletion/sealed.go` (`validateSealed`) | The seal, original reviewed evidence, retained checks/logs, or recorded coordinator identity no longer matches. |
+| `sealed-evidence-drift` | `internal/localcompletion/sealed.go` (`validateSealed`, `acceptCloseoutOutcome`) | The seal, original reviewed evidence, retained checks/logs, or recorded coordinator identity no longer matches, other than the lane closeout's own proved outcome record (`LCP-V0-041`); the detail names the artifact, reason and pinned/current digests (`LCP-V0-042`). |
 | `sealed-reviewed-evidence-required` | `internal/localcompletion/sealed.go` (`finishSealed`) | No prior reviewed bind report set is available for continuation. |
 | `base-not-ancestor-of-target` | `internal/localcompletion/storage.go` (`requireBaseAncestor`) | Git reports the plan base is not an ancestor of the enrollment-time `HEAD` commit (exit 1, empty stderr) |
 | `ancestry-rewritten` | `internal/localcompletion/storage.go` (`requireBaseAncestor`) | the checkout's Git common directory holds `info/grafts`, the checkout is shallow, or that metadata is unreadable, so the base-ancestry probe is not asked (`LCP-V0-036`) |
@@ -567,7 +620,8 @@ elsewhere are not repeated.
 | `enrollment-drift` | `internal/localcompletion/storage.go` (`load`) | saved state names another session, or its plan digest does not match its plan |
 | `enrollment-generation-bound-exceeded` | `internal/localcompletion/lifecycle.go` (`archiveGeneration`) | 16 enrollment generations are already preserved for the session |
 | `enrollment-plan-conflict` | `internal/localcompletion/lifecycle.go` (`Begin`) | the session already has an active enrollment for a different plan digest |
-| `final-check-failed` | `internal/localcompletion/finish.go` (`finishWithProfile`) | the final in-process `dogfood check` did not pass (`LCP-V0-014`) |
+| `final-check-failed` | `internal/localcompletion/finish.go` (`finishWithProfile`, `finalCheckError`) | the final in-process `dogfood check` did not pass (`LCP-V0-014`); the detail names the step and its retained logs (`LCP-V0-043`) |
+| `finish-interrupted` | `internal/localcompletion/finish.go` (`finalCheckError`) | the caller's context ended during the final strict check; the detail names the step, the retained logs and the rerun command, and no state is written (`LCP-V0-043`) |
 | `final-check-not-prerequisite` | `internal/localcompletion/storage.go` (`validatePlan`) | a check argv element is `dogfood-check` or ends in `/dogfood-check.sh`, or the argv contains `dogfood check` or `dogfood seal` (`LCP-V0-015`) |
 | `immutable-base-required` | `internal/localcompletion/storage.go` (`validatePlan`) | the plan base is not a Git object id |
 | `initial-receipt-secret-screened` | `internal/localcompletion/lifecycle.go` (`Begin`) | a preserved pre-change query or impact receipt matches the secret screen; recorded as the `NOT_PRODUCED` reason in its refusal metadata |
@@ -701,6 +755,9 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-039 | `selector`, `explicitPaths`, `anchorIdentifiers`, `crowded` and `pathCandidates` in `internal/contextindex/local_completion_context.go` | `TestDogfoodPromptLCPV0039ProseIsNotAnAnchor` (`internal/contextindex/local_completion_context_test.go`: a path among URL, number, version, slash-prose, markup and status-word noise resolves alone; absolute and slash-stripped root paths rebase; prose-only prompts abstain; backticked, missing-path and qualified cases keep their outcome; 129 `main.go` files and two crowded base names count ambiguous without refusing); frozen `TestDogfoodPromptFrozenAnchors`, `TestDogfoodPromptMentionAnchors` and `TestDogfoodPromptLCPV0035KeepsFirstAnchorsInOrder` unchanged |
 
 | LCP-V0-040 | `TestLocalCompletionRealEvidenceWorkflow` sealed completion and positive-first drift/checker controls; `TestLocalCompletionSealedBinding` exact rename, source/map/name/mode/symlink/multi-parent/descendant controls; `TestLocalCompletionSealedReportCancellation` caller cancellation reaches canonical-fixture seal validation |
+| LCP-V0-041 | `TestLocalCompletionSealedCloseoutRepin` (`cmd/corvint/local_completion_test.go`: enrolled strict finish, the real `dogfood finish-lane` closeout, verify, then sealed finish produces a report set naming both outcome digests, review, and satisfied at the seal with the bind as evidence target and no manual edits; positive-first controls refuse tampered, retargeted, unreferenced and unrecorded replacements and a foreign OCM status change with unchanged state, and the restored evidence completes) |
+| LCP-V0-042 | `TestLocalCompletionSealedCloseoutRepin` (each control asserts `SealedDriftError` artifact, reason and pinned/current digests; the CLI `dogfood finish` envelope carries the code and detail); `TestLocalCompletionRealEvidenceWorkflow` existing drift controls keep `sealed-evidence-drift` |
+| LCP-V0-043 | `TestLocalCompletionRealEvidenceWorkflow` (`cmd/corvint/local_completion_test.go`: a caller cancellation during the final strict check returns `finish-interrupted` with step `final-check`, both retained logs on disk, the rerun command and byte-identical state; a genuine checker failure returns `final-check-failed` naming the logs; the following real finish is satisfied without new verification); `TestTransportAdaptedRecoveryNative` keeps `final-check-failed` |
 
 ## Rollout, rollback and remaining gates
 

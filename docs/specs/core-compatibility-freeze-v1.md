@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `CCF-V1`
-Intent status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-007 N-1 skip list amended for decision 0525 (V1-0285, owner standing auto-accept 2026-10-11); CCF-V1-007 (d) `coverage.governance_refused` register accepted by decision 0468; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943); CCF-V1-010 accepted under the owner's standing auto-accept of 2026-10-11 (V1-0285)
+Intent status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-007 N-1 skip list amended for decision 0525 (V1-0285, owner standing auto-accept 2026-10-11); CCF-V1-007 (d) `coverage.governance_refused` register accepted by decision 0468; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943); CCF-V1-010 accepted under the owner's standing auto-accept of 2026-10-11 (V1-0285); CCF-V1-007 first-release N-1 amendment accepted by owner decision 2026-10-30 (V1-3177)
 Delivery status: experimental
 Authoritative inputs: ticket V1-0007, accepted decision 0332 (the Core set), decision 0358, `AGENTS.md` invariants 1, 2, 4 and 8,
 `conformance/cli-parity-v0/manifest.json`, and the owning specs of each Core verb listed in CCF-V1-002.
 
 ## Agent digest
 - Claim: The twelve Core verbs of decision 0332 keep their command modes, wire profiles, error envelope and state readers compatible from 0.8.1 to 1.0.
-- Status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-007 N-1 skip list amended for decision 0525 (V1-0285, owner standing auto-accept 2026-10-11); CCF-V1-007 (d) `coverage.governance_refused` register accepted by decision 0468; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943); CCF-V1-010 accepted under the owner's standing auto-accept of 2026-10-11 (V1-0285); experimental delivery; the Core set is taken from accepted decision 0332
+- Status: accepted (decision 0422, 2026-09-26); CCF-V1-006/CCF-V1-007 amendments accepted by decision 0401; CCF-V1-007 N-1 skip list amended by decision 0424; CCF-V1-007 N-1 skip list amended for decision 0525 (V1-0285, owner standing auto-accept 2026-10-11); CCF-V1-007 (d) `coverage.governance_refused` register accepted by decision 0468; CCF-V1-002/005/007 `affected-plan/1` amendment proposed (V1-0943); CCF-V1-010 accepted under the owner's standing auto-accept of 2026-10-11 (V1-0285); CCF-V1-007 first-release N-1 amendment accepted by owner decision 2026-10-30 (V1-3177); experimental delivery; the Core set is taken from accepted decision 0332
 - Exists: this contract, decision 0358, the root-help maturity groups of the `Commands:` list (`rootHelp`), `cmd/corvint/core_freeze_test.go` and its per-mode goldens in `cmd/corvint/testdata/core-freeze/`
 - Blocked on: pinned modes for the mutating `cem`, `ocm` and `dogfood` subcommands are NOT_PRODUCED; the exhaustive gate is NOT_RUN
 - Read next: Requirements; Breaking-change rule; Traceability
@@ -33,6 +33,9 @@ The N-1 baseline is the published 0.8.1 release (tag `v0.8.1`, commit 0e5d596), 
 but 0.8.0 (516439f) and 0.8.1 shipped it after that premise stopped holding; see CCF-V1-007.
 (V1-0285) Accepted decision 0434 (item 3) later named the published `v1.0.0-rc.1` the N-1
 compatibility baseline; see the N-1 replay paragraph of CCF-V1-007 for how the replay selects it.
+(Owner decision 2026-10-30, V1-3177) This repository was recreated on 2026-10-30 as a single-root
+history without those release tags or published releases. Its first release, `v1.0.0-rc.3`, has
+no N-1, and each later release's N-1 is the previous release published in it; see CCF-V1-007.
 
 ## Requirements
 
@@ -93,13 +96,13 @@ compatibility baseline; see the N-1 replay paragraph of CCF-V1-007 for how the r
   `external-test-selection/0`, `playwright-affected/0`, `corvint-planning-snapshot/0`,
   `corvint-checkpoint/0` and in-toto statements. Their owning specs govern them. The verbs
   `native-hook`, `authority-event` and `qualified-event` are undocumented adapter plumbing that
-  `runContext` dispatches before the `topLevelCommands` check (`cmd/corvint/main.go:917@e2ed60e2`); they
+  `runContext` dispatches before the `topLevelCommands` check (`cmd/corvint/main.go:919@e2ed60e2`); they
   are absent from root help and outside the freeze. (accepted 2026-09-26, decision 0422; from decision 0398) The `cem/0.3` profile and the
   modes that write it, `cem cover`, `cem discriminate` and `cem mark` with a structural reason, are
   experimental and outside the freeze, not among the Core modes listed under CCF-V1-002; they never
   write over the Core sidecar `.corvint/change.cem.json` or their `cem/0.2` input (`CEM-SM-006`).
 - **CCF-V1-004:** A Core refusal MUST exit 2 with empty stdout and exactly one stderr JSON line built by
-  `emitError` (`cmd/corvint/main.go:1609@40010ccd`): `code`, `error` and `ok=false`, plus the DRC-V0-006
+  `emitError` (`cmd/corvint/main.go:1611@40010ccd`): `code`, `error` and `ok=false`, plus the DRC-V0-006
   diagnostic members `subject`, `evidence`, `supported_fixes` and optional `terminal` where the site was
   converted. Frozen code families are `invalid-*` (argument, revision and repository-root validation),
   `unsupported-*` (a well-formed request outside the qualified profile, including
@@ -182,7 +185,8 @@ compatibility baseline; see the N-1 replay paragraph of CCF-V1-007 for how the r
   `affected-plan/1`), an N-1 reader per CCF-V1-007, a decision record, and an update to this contract
   and its test in the same change.
 - **CCF-V1-007:** (accepted 2026-09-25, decision 0401; panel blocker B6) N-1 and migration policy. N-1
-  is the newest release tag on `main`, currently 0.8.1 (tag `v0.8.1`, commit 0e5d596). It is not 0.7.0:
+  is the newest release tag on `main`, 0.8.1 (tag `v0.8.1`, commit 0e5d596) when accepted; the
+  first-release amendment in the N-1 replay paragraph below (V1-3177) governs it now. It is not 0.7.0:
   0.8.0 (516439f) and 0.8.1 both shipped this contract, and between `v0.7.0` and `v0.8.1` 170 files
   under `cmd/corvint` and `internal` changed. One change reached a frozen member. Commit 2f3bfe6
   (V1-0186) added the relation `instruction-routed` to `context`'s `coverage.unexamined`. That
@@ -319,7 +323,18 @@ compatibility baseline; see the N-1 replay paragraph of CCF-V1-007 for how the r
   replayed by no mode, and the replay reaches nine of the twelve Core verbs. The `CORE_N1_TAG`
   default excludes pre-release tags and so still resolves to `v0.8.1`, while decision 0434 names
   `v1.0.0-rc.1` the baseline; release-runbook step 8 passes the tag explicitly. On 2026-10-14 the
-  replay passed against `v0.8.1`, `v1.0.0-rc.1` and `v1.0.0-rc.2`. The target
+  replay passed against `v0.8.1`, `v1.0.0-rc.1` and `v1.0.0-rc.2`. (Owner decision 2026-10-30,
+  V1-3177) Those tags and their published releases are not in this repository, recreated that day
+  as a single-root history, so they are no longer baselines. N-1 is the previous release published
+  in this repository: `script/core-n1-source.sh` takes `script/select-previous-release.sh`'s tag
+  (the newest reachable prior `v*` tag, or the operator's explicit `previous_release_tag` and
+  `previous_release_oid`) and requires a published, non-draft release of that exact tag. The
+  `core-n1-replay` gate of `.github/workflows/release-gates.yml` replays against it, and
+  `linux-core`'s N-1 lifecycle steps download its archive. The first release, `v1.0.0-rc.3`, has no
+  N-1: when no tag precedes the candidate and every published release of the repository is the
+  candidate or a descendant, both report FIRST_RELEASE, not applicable, in the log, a notice and the
+  step summary, never a silent pass or skip. A predecessor that exists but cannot be selected,
+  found as a published release, fetched or verified fails the gate. The target
   is opt-in, like `companion-release-gate`: release-runbook step 8 runs it, and it is not a
   `make gate` prerequisite. Making it one is an owner decision. This replaces the second NOT_PRODUCED
   above. A member, value or order that no fixture exercises stays unreplayed.

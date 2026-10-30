@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
@@ -187,14 +188,55 @@ var DataReaders workflow.DataReaderFinder
 func quotedChoices(values []string) string {
 	quoted := make([]string, 0, len(values))
 	for _, value := range values {
-		quoted = append(quoted, "'"+value+"'")
+		quoted = append(quoted, pythonRepr(value))
 	}
 	return strings.Join(quoted, ", ")
 }
 
+// invalidChoice renders argparse's invalid-choice message. Like argparse's %r,
+// the value is a Python repr, so a quote or control character in it is escaped
+// rather than ending the quoted span.
 func invalidChoice(argument, value string, choices []string) error {
-	return cemArgumentError(fmt.Sprintf("argument %s: invalid choice: '%s' (choose from %s)",
-		argument, value, quotedChoices(choices)))
+	return cemArgumentError(fmt.Sprintf("argument %s: invalid choice: %s (choose from %s)",
+		argument, pythonRepr(value), quotedChoices(choices)))
+}
+
+// pythonRepr quotes a string the way Python's repr() does: single quotes unless
+// the string holds one and no double quote, with backslashes, the chosen quote
+// and non-printable characters escaped.
+func pythonRepr(value string) string {
+	quote := '\''
+	if strings.ContainsRune(value, '\'') && !strings.ContainsRune(value, '"') {
+		quote = '"'
+	}
+	var output strings.Builder
+	output.WriteRune(quote)
+	for _, character := range value {
+		switch {
+		case character == '\\':
+			output.WriteString(`\\`)
+		case character == '\n':
+			output.WriteString(`\n`)
+		case character == '\r':
+			output.WriteString(`\r`)
+		case character == '\t':
+			output.WriteString(`\t`)
+		case character == quote:
+			output.WriteByte('\\')
+			output.WriteRune(character)
+		case character >= 0x20 && character <= 0x7e, unicode.IsLetter(character), unicode.IsMark(character),
+			unicode.IsNumber(character), unicode.IsPunct(character), unicode.IsSymbol(character):
+			output.WriteRune(character)
+		case character <= 0xff:
+			fmt.Fprintf(&output, `\x%02x`, character)
+		case character <= 0xffff:
+			fmt.Fprintf(&output, `\u%04x`, character)
+		default:
+			fmt.Fprintf(&output, `\U%08x`, character)
+		}
+	}
+	output.WriteRune(quote)
+	return output.String()
 }
 
 // parseAction validates the subcommand before anything else, exactly as

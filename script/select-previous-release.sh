@@ -1,6 +1,8 @@
 #!/bin/sh
 # Select the published lifecycle predecessor; stdout is its tag, stderr its Git identity.
 # An explicit preserved tag need not be an ancestor. The operator owns that predecessor choice.
+# Exit 0 selected, 3 no reachable previous release tag exists (stdout empty; the caller decides
+# whether that is a first release), 2 any refusal or Git error.
 set -eu
 export LC_ALL=C
 refuse() { printf 'previous-release: %s\n' "$*" >&2; exit 2; }
@@ -35,7 +37,10 @@ else
   mode=reachable
   # Capture Git status before choosing the first row; never hide errors behind a pipeline.
   choices=$(git_read tag --merged "$candidate" --no-contains "$candidate" --list 'v[0-9]*' --sort=-v:refname) || refuse 'reachable tag enumeration failed'
-  [ -n "$choices" ] || refuse 'no reachable previous release; supply an explicit tag and direct OID'
+  if [ -z "$choices" ]; then
+    printf 'previous-release: none: no reachable previous release tag before %s; supply an explicit tag and direct OID for a nonancestor predecessor\n' "$candidate" >&2
+    exit 3
+  fi
   # Validate the highest-ranked row, never silently fall back after a malformed selection.
   tag=$(printf '%s\n' "$choices" | sed -n '1p')
 fi

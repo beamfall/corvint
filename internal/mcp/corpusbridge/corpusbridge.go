@@ -15,7 +15,6 @@ import (
 	"runtime/debug"
 	"slices"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -681,11 +680,18 @@ func queryBatch(ctx context.Context, a *doccorpus.Artifact, request doccorpus.Re
 
 // frameCost is what one receipt row adds to the MCP result frame: its JSON
 // bytes once as structured content, and once as the JSON string of its
-// envelope-escaped text.
+// envelope-escaped text. The path is JSON-encoded exactly as the row writes it,
+// so a path with a control, hidden or non-ASCII character is costed as sent.
 func frameCost(path string, receipt []byte) int {
 	row := len(path) + len(receipt) + 32
-	text, _ := json.Marshal(repoenvelope.EscapeHidden(`{"path":` + strconv.Quote(path) + `,"receipt":` + string(receipt) + `}`))
-	return row + len(text)
+	var text bytes.Buffer
+	text.WriteString(`{"path":`)
+	writeJSON(&text, path)
+	text.WriteString(`,"receipt":`)
+	text.Write(receipt)
+	text.WriteByte('}')
+	encoded, _ := json.Marshal(repoenvelope.EscapeHidden(text.String()))
+	return row + len(encoded)
 }
 
 func writeJSON(out *bytes.Buffer, value any) {

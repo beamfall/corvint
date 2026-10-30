@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"sort"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/archivepath"
 )
 
 type fileEntry struct {
@@ -91,7 +93,10 @@ func materialize(data []byte, root string) error {
 		return err
 	}
 	for _, e := range entries {
-		p := filepath.Join(root, e.Path)
+		p, err := archivepath.Join(root, e.Path)
+		if err != nil {
+			return err
+		}
 		if e.Directory {
 			if err = os.MkdirAll(p, 0700); err != nil {
 				return err
@@ -112,7 +117,11 @@ func materialize(data []byte, root string) error {
 	for i := len(entries) - 1; i >= 0; i-- {
 		e := entries[i]
 		if e.Directory {
-			if err = os.Chmod(filepath.Join(root, e.Path), os.FileMode(e.Mode)); err != nil {
+			p, err := archivepath.Join(root, e.Path)
+			if err != nil {
+				return err
+			}
+			if err = os.Chmod(p, os.FileMode(e.Mode)); err != nil {
 				return err
 			}
 		}

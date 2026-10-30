@@ -3,6 +3,7 @@ package cli
 import (
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -172,7 +173,10 @@ func quoteField(n string) string {
 	if len(n) > 80 {
 		n = n[:80]
 	}
-	return "\"" + n + "\""
+	// strconv.Quote escapes a quote, backslash or control character in a
+	// refused name, so the diagnostic shows exactly what was sent. A valid key
+	// renders as before.
+	return strconv.Quote(n)
 }
 
 // checkCompactFields refuses a name no item carries; an item without it
