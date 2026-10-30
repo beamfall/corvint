@@ -131,9 +131,9 @@ func recorded(r run, tree, head string, shards int, jobs func(int64) ([]job, boo
 	return id
 }
 
-// recordedNarrowed returns the id of run r's one latest ci-narrowed-tree-record job when its log
-// holds exactly one AFP-V0-734 line naming tree, base, head and shards, and, for a merge-queue
-// run, r's own commit as the target (CIN-V0-005). Anything else is 0.
+// recordedNarrowed returns the id of pull-request run r's one latest ci-narrowed-tree-record job
+// when its log holds exactly one AFP-V0-734 line naming tree, base, head and shards. Anything
+// else, and any run but a pull-request run, is 0.
 func recordedNarrowed(r run, tree, base, head string, shards int, jobs func(int64) ([]job, bool), logs func(int64) ([]byte, bool)) int64 {
 	if !oidPattern.MatchString(base) {
 		return 0
@@ -145,16 +145,15 @@ func recordedNarrowed(r run, tree, base, head string, shards int, jobs func(int6
 	return id
 }
 
-// narrowedRecordOf returns run r's one latest ci-narrowed-tree-record job and the submatches of
-// its one AFP-V0-734 line when that line names head and shards, and, for a merge-queue run, r's
-// own commit as the target, whatever its tree and base; a pull-request or merge-queue run
-// (CIN-V0-005) may print one. Anything else is 0 and nil.
+// narrowedRecordOf returns pull-request run r's one latest ci-narrowed-tree-record job and the
+// submatches of its one AFP-V0-734 line when that line names head and shards, whatever its tree
+// and base; anything else, and any run but a pull-request run, is 0 and nil.
 func narrowedRecordOf(r run, head string, shards int, jobs func(int64) ([]job, bool), logs func(int64) ([]byte, bool)) (int64, []string) {
-	if r.Event != "pull_request" && r.Event != "merge_group" {
+	if r.Event != "pull_request" {
 		return 0, nil
 	}
 	id, found := recordJobLine(r, NarrowedRecordJob, narrowedLine, jobs, logs)
-	if found == nil || found[4] != head || found[5] != strconv.Itoa(shards) || (r.Event == "merge_group" && found[2] != r.HeadSHA) {
+	if found == nil || found[4] != head || found[5] != strconv.Itoa(shards) {
 		return 0, nil
 	}
 	return id, found
@@ -201,9 +200,7 @@ func recordJobLine(r run, name string, line *regexp.Regexp, jobs func(int64) ([]
 // event; the reused run is named by runId and its record job by recordJobId. For a merge-queue
 // entry whose first parent is base, a pull-request run's AFP-V0-734 narrowed record of the same
 // tree, head and base also vouches (scope NARROWED); a full record of the same run is preferred.
-// A main push never reuses a pull-request run's narrowed record; given its first parent as base
-// it reuses the narrowed record of the merge-queue run of that same commit (CIN-V0-005, V1-3158),
-// and without a base only a full record. A merge-queue FULL decision made with a base also
+// A main push never reuses a narrowed record. A merge-queue FULL decision made with a base also
 // names, as Delta, the first admitted narrowed record of head and the shard count (AFP-V0-812).
 func Decide(repository, event, tree, head, target, base string, shards int, runs []run, jobs func(int64) ([]job, bool), logs func(int64) ([]byte, bool)) decision {
 	d := decision{Profile: profile, Mode: "FULL", Tree: tree, Head: head, Shards: shards, Records: []string{}}
@@ -221,7 +218,7 @@ func Decide(repository, event, tree, head, target, base string, shards int, runs
 		}
 		scope := "FULL"
 		jobID := recorded(r, tree, head, shards, jobs, logs)
-		if jobID == 0 && (event == "merge_group" || (event == "push" && r.Event == "merge_group")) {
+		if jobID == 0 && event == "merge_group" {
 			scope, jobID = "NARROWED", recordedNarrowed(r, tree, base, head, shards, jobs, logs)
 		}
 		if jobID == 0 {
@@ -233,10 +230,7 @@ func Decide(repository, event, tree, head, target, base string, shards int, runs
 		}
 		id := r.ID
 		d.Mode, d.Scope, d.RunID, d.RecordJobID, d.Records = "REUSE", scope, &id, &jobID, records
-		if scope == "NARROWED" && r.Event == "merge_group" {
-			d.Base = base
-			d.Reason = "the narrowed-record job of a successful merge-queue run of this commit named this exact tree and base after its shards passed one proven narrowed selection of the queue range"
-		} else if scope == "NARROWED" {
+		if scope == "NARROWED" {
 			d.Base = base
 			d.Reason = "the narrowed-record job of a successful pull-request run named this exact tree and this entry's base after its shards passed one proven narrowed selection of the same range"
 		} else if r.Event == "merge_group" {
@@ -306,7 +300,7 @@ func main() {
 	head := flag.String("head", "", "full commit id of the tested commit's second parent, the merged pull-request head")
 	target := flag.String("target", "", "full commit id of the tested commit (the pushed or queue commit)")
 	shards := flag.Int("shards", 0, "shard count of the full run")
-	base := flag.String("base", "", "full commit id of the tested commit's first parent, the base a narrowed record must name (AFP-V0-734, CIN-V0-005)")
+	base := flag.String("base", "", "merge_group only: full commit id of the queue commit's first parent, the queue base a narrowed pull-request record must name (AFP-V0-734)")
 	var runsPaths pathList
 	flag.Var(&runsPaths, "runs", "retained workflow-runs API response (repeatable)")
 	jobsDir := flag.String("jobs", "", "directory of retained RUN_ID.json latest run-jobs API responses")
@@ -314,7 +308,7 @@ func main() {
 	flag.Parse()
 	if flag.NArg() != 0 || *repository == "" || (*event != "push" && *event != "merge_group") || !oidPattern.MatchString(*tree) ||
 		!oidPattern.MatchString(*head) || !oidPattern.MatchString(*target) || *shards < 1 || *shards > maxShards || len(runsPaths) == 0 || *jobsDir == "" || *logsDir == "" ||
-		(*base != "" && !oidPattern.MatchString(*base)) {
+		(*base != "" && (*event != "merge_group" || !oidPattern.MatchString(*base))) {
 		fmt.Fprintln(os.Stderr, "usage: ci-reuse-plan --repository OWNER/NAME --event push|merge_group --tree TREE --head COMMIT --target COMMIT [--base COMMIT] --shards N --runs FILE [--runs FILE] --jobs DIR --logs DIR")
 		os.Exit(2)
 	}

@@ -805,23 +805,6 @@ cat "$STUB_DIR/$f" > "$out"
 	}
 }
 
-// TestCINV0005PushPassesItsFirstParentOnlyWhileQueueNarrowingIsOn (V1-3158): the main push
-// hands ci-reuse-plan its first parent, and reads the narrowed-record job's log, only while
-// CORVINT_MQ_NARROWING is on; otherwise it reuses a full record or runs in full.
-func TestCINV0005PushPassesItsFirstParentOnlyWhileQueueNarrowingIsOn(t *testing.T) {
-	b := jobBlock(t, readWorkflow(t, "ci.yml"), "docs-plan")
-	for _, want := range []string{
-		"          MQ_NARROWING: ${{ vars.CORVINT_MQ_NARROWING }}\n",
-		"          if [ \"$GITHUB_EVENT_NAME\" = push ] && [ \"$MQ_NARROWING\" = on ]; then\n" +
-			"            base_args=(--base \"$(git -C \"$src\" rev-parse --verify -q \"$GITHUB_SHA^1\")\")\n          fi\n",
-		`jq -r --arg base "${base_args[*]}" '.jobs[]? | select((.name == "ci-tested-tree-record" or ($base != "" and .name == "ci-narrowed-tree-record")) and .conclusion == "success")`,
-	} {
-		if !strings.Contains(b, want) {
-			t.Errorf("docs-plan lacks %q", want)
-		}
-	}
-}
-
 // TestCINV0006DocGatesRefusesAICoauthorTrailersOnPullRequests (V1-3227): the doc-gates step runs
 // the repository's trailer check over the pull request's commits, passes its exit status
 // through, skips on any other event, and skips, saying so, in a tree without the script.
