@@ -109,8 +109,9 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   no lexical ranking can place in the top 3 MAY be retained as a known miss with a
   `knownMissRank`: the test then requires a labelled duplicate at or above that rank, fails if
   it rises into the top 3 (so it is counted again), and reports the miss count. Ranking one
-  query against the full store (3,257 tickets) MUST take under 300 ms, building the index
-  included.
+  query against the full store (3,257 tickets) MUST take under 300 ms on a developer host,
+  building the index included; on a shared hosted CI runner (`CI=true`) the test bounds it at
+  2 s, an order-of-magnitude regression guard.
 - `TCL-V0-010`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3223)
   `corvint-tasks queue snapshot [--out FILE]` MUST write one JSON object whose `profile` is
   `taskman-intent-snapshot/0`: the intent tree's files (path, sha256 and content), its tree

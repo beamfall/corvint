@@ -190,8 +190,15 @@ func TestTCLV0009_FrozenDuplicateEval(t *testing.T) {
 		elapsed = min(elapsed, time.Since(start))
 	}
 	t.Logf("TCL-V0-009 latency: %d tickets, index+rank %s, %d candidates", idx.Len(), elapsed, len(got))
-	if elapsed > 300*time.Millisecond {
-		t.Errorf("index+rank took %s, want under 300ms", elapsed)
+	// The 300 ms budget is measured on a developer host. A shared hosted CI
+	// runner (CI=true) runs the package beside the rest of its shard, so it
+	// guards only against an order-of-magnitude regression.
+	budget := 300 * time.Millisecond
+	if os.Getenv("CI") == "true" {
+		budget = 2 * time.Second
+	}
+	if elapsed > budget {
+		t.Errorf("index+rank took %s, want under %s", elapsed, budget)
 	}
 }
 
