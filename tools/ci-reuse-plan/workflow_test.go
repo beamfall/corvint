@@ -836,14 +836,20 @@ cat "$STUB_DIR/$f" > "$out"
 }
 
 // TestCINV0006DocGatesRefusesAICoauthorTrailersOnPullRequests (V1-3227): the doc-gates step runs
-// the repository's trailer check over the pull request's commits, passes its exit status
-// through, skips on any other event, and skips, saying so, in a tree without the script.
+// the Makefile's ai-coauthor-trailers-check, which runs the repository's trailer check over the
+// pull request's commits and passes its exit status through, fails a pull request without its
+// base, skips on any other event, and skips, saying so, in a tree without the script.
 func TestCINV0006DocGatesRefusesAICoauthorTrailersOnPullRequests(t *testing.T) {
-	testplatform.SkipPOSIXShell(t, "the step runs under bash with a stub check script")
+	testplatform.SkipPOSIXShell(t, "the make target runs under sh with a stub check script")
 	b := stepBlock(t, jobBlock(t, readWorkflow(t, "ci.yml"), "doc-gates"), "Refuse AI co-author trailers in the pull request's commits (CIN-V0-006)")
 	wantLine(t, "doc-gates", b, "          BASE_SHA: ${{ github.event.pull_request.base.sha }}")
-	script := runScript(t, b)
-	run := func(event string, stub string) (string, error) {
+	// A make target, which batch-precheck's sync-check can mirror; an inline script it cannot.
+	wantLine(t, "doc-gates", b, "        run: make -s ai-coauthor-trailers-check")
+	makefile, err := filepath.Abs("../../Makefile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	run := func(event, base, stub string) (string, error) {
 		dir := t.TempDir()
 		if stub != "" {
 			if err := os.MkdirAll(filepath.Join(dir, "script"), 0o755); err != nil {
@@ -853,25 +859,30 @@ func TestCINV0006DocGatesRefusesAICoauthorTrailersOnPullRequests(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		cmd := exec.Command("bash", "--noprofile", "--norc", "-e", "-c", script)
+		cmd := exec.Command("make", "-s", "-f", makefile, "ai-coauthor-trailers-check")
 		cmd.Dir = dir
-		cmd.Env = append(os.Environ(), "GITHUB_EVENT_NAME="+event, "BASE_SHA=1111111111111111111111111111111111111111")
+		cmd.Env = append(os.Environ(), "GITHUB_EVENT_NAME="+event, "BASE_SHA="+base)
 		out, err := cmd.CombinedOutput()
 		return string(out), err
 	}
+	const base = "1111111111111111111111111111111111111111"
 	spy := "echo \"args: $*\"\nexit \"${STUB_EXIT:-0}\"\n"
-	if out, err := run("pull_request", spy); err != nil || !strings.Contains(out, "args: 1111111111111111111111111111111111111111 HEAD") {
+	if out, err := run("pull_request", base, spy); err != nil || !strings.Contains(out, "args: "+base+" HEAD") {
 		t.Fatalf("pull request: %v\n%s", err, out)
 	}
-	if out, err := run("pull_request", "echo refused\nexit 1\n"); err == nil || !strings.Contains(out, "refused") {
+	if out, err := run("pull_request", base, "echo refused\nexit 1\n"); err == nil || !strings.Contains(out, "refused") {
 		t.Fatalf("a refusal must fail the step: %v\n%s", err, out)
 	}
-	if out, err := run("pull_request", ""); err != nil || !strings.Contains(out, "no script/check-ai-coauthor-trailers.sh") {
+	if out, err := run("pull_request", base, ""); err != nil || !strings.Contains(out, "no script/check-ai-coauthor-trailers.sh") {
 		t.Fatalf("missing script: %v\n%s", err, out)
 	}
-	for _, event := range []string{"merge_group", "push"} {
-		if out, err := run(event, "echo ran\nexit 1\n"); err != nil || strings.Contains(out, "ran") {
-			t.Fatalf("%s: %v\n%s", event, err, out)
+	if out, err := run("pull_request", "", "echo ran\nexit 0\n"); err == nil || strings.Contains(out, "ran") || !strings.Contains(out, "has no BASE_SHA") {
+		t.Fatalf("a pull request without BASE_SHA must fail: %v\n%s", err, out)
+	}
+	// Outside a pull request the event's base is empty, so the check is skipped.
+	for _, event := range []string{"merge_group", "push", ""} {
+		if out, err := run(event, "", "echo ran\nexit 1\n"); err != nil || strings.Contains(out, "ran") || !strings.Contains(out, "skipped") {
+			t.Fatalf("%q: %v\n%s", event, err, out)
 		}
 	}
 }

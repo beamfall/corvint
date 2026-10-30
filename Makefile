@@ -652,6 +652,20 @@ doc-gates:
 	@$(MAKE) --no-print-directory $(DOC_GATE_TARGETS)
 	@GOTOOLCHAIN=local go run ./conformance/use-cases-v0
 
+# CIN-V0-006 (V1-3227): the doc-gates job of ci.yml runs this on a pull request with BASE_SHA set
+# to the pull request's base. A pull request without BASE_SHA fails; any other run without BASE_SHA
+# (a merge-queue run, a push, or batch-precheck's local mirror) or a tree without the check script
+# says so and passes.
+.PHONY: ai-coauthor-trailers-check
+ai-coauthor-trailers-check:
+	@if [ -z "$${BASE_SHA-}" ] && [ "$${GITHUB_EVENT_NAME-}" = pull_request ]; then \
+	  echo 'CIN-V0-006: a pull request run has no BASE_SHA; the trailer check cannot run' >&2; exit 1; \
+	elif [ -z "$${BASE_SHA-}" ]; then \
+	  echo 'CIN-V0-006: no BASE_SHA (not a pull request); the trailer check is skipped.'; \
+	elif [ ! -f script/check-ai-coauthor-trailers.sh ]; then \
+	  echo 'CIN-V0-006: this tree has no script/check-ai-coauthor-trailers.sh; the trailer check is skipped.'; \
+	else bash script/check-ai-coauthor-trailers.sh "$$BASE_SHA" HEAD; fi
+
 # dogfood-closeout is the one lane closeout command (DCW-V0-349, V1-1894): dogfood-finish with the
 # same variables, whose input pre-flight refuses a bad VERIFY, INTENTS or CITATIONS file before the
 # base build or any bind (DCW-V0-380), then batch-precheck, which derives the shared doc-gates
