@@ -5012,7 +5012,7 @@ selected package unrun. The full fallback is unchanged.
   a descendant of it, so the shadow never runs selection rules older than the driver's. It is set
   equal to `CORVINT_PR_TOOL_SOURCE` (`0245855002c84e45e41e8a63036d48f83df2c4fa`). Replaying PR #1961
   with both tools built from that commit gives driver 204 and shadow 204 (`NARROWED`), with 0
-  omitted. V1-3093 re-pinned both to origin/main `b609ca4b266e63ccbf08954edd99a2a914213e47` (the merge of PR #1990), which carries the AFP-V0-800..802 effective-base proof. The forward epoch is not advanced:
+  omitted. V1-3093 re-pinned both to origin/main `b609ca4b266e63ccbf08954edd99a2a914213e47` (the merge of PR #1990), which carries the AFP-V0-800..802 effective-base proof. V1-3309 re-pinned both to `93b9f5b08ce841875c9c81d17905908d91346f99` (the merge of PR #8), because the single-root 1.0 repository does not contain `b609ca4b2`: every pinned checkout failed with "not our ref", no shadow plan was retained and each forward row was INCOMPLETE. `tools/corvint-pr-tests` and `go.mod` are byte-identical at both commits. The forward epoch is not advanced:
   each AFP-V0-047 row records its `toolSource`, and AFP-V0-030 advances the epoch only to re-arm
   after a miss.
   Non-goals: changing `narrow.jq`, the driver or the superset rule, which is correct at one version;
