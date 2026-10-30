@@ -61,9 +61,12 @@ func TestSERVICE500_CLIRoutesRefusalsAndPureReads(t *testing.T) {
 	}
 
 	// A relative --config resolves against the working directory; a
-	// temporary production path is refused before any manager call.
+	// temporary production path is refused before any manager call. The
+	// profile names paths under /tmp, never created, because t.TempDir()
+	// follows TMPDIR and a custom TMPDIR is not a temporary root (V1-2750).
 	cfgDir := filepath.Join(home, "config")
-	profile := wire.EncodeFile(wire.ObjectValue(wire.NewObject().Set("profile", wire.String(service.ProfileName)).Set("executable", wire.String(filepath.Join(home, "bin", "corvint-tasks"))).Set("dispatchConfig", wire.String(filepath.Join(cfgDir, "dispatch.json"))).Set("workRoot", wire.String(filepath.Join(home, "project"))).Set("legacyStopFile", wire.Null()).Set("helpers", wire.Array())))
+	tmpRoot := "/tmp/corvint-service500"
+	profile := wire.EncodeFile(wire.ObjectValue(wire.NewObject().Set("profile", wire.String(service.ProfileName)).Set("executable", wire.String(filepath.Join(tmpRoot, "bin", "corvint-tasks"))).Set("dispatchConfig", wire.String(filepath.Join(tmpRoot, "config", "dispatch.json"))).Set("workRoot", wire.String(filepath.Join(tmpRoot, "project"))).Set("legacyStopFile", wire.Null()).Set("helpers", wire.Array())))
 	if err := os.MkdirAll(cfgDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
