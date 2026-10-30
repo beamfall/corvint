@@ -800,7 +800,9 @@ snapshots refreshed automatically without a manual warmup.
   (`AHI-053`) follows `Background index refresh started.` with one sentence: the previous
   refresh, started at its parsed UTC second, ended without publishing a snapshot, its closed
   cause (work limit under host load, failed, or stopped before recording an outcome), and that
-  later events also get no Corvint context until a refresh completes. Only the parsed start time
+  later events may also get no Corvint context until a refresh completes. The sentence is dropped,
+  and the frame, status and manual argv kept, when it would push the hook output past its
+  8000-byte limit. Only the parsed start time
   and the closed cause reach the notice; never the PID, raw bytes or an unknown outcome. The read
   is at most 512 bytes of the lock the hook already holds. The record never feeds ranking,
   evidence or authority, and the priority, GOMAXPROCS, work and hard wall bounds of

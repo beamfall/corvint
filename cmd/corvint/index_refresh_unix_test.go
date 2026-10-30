@@ -537,3 +537,24 @@ func TestSnapshotRefreshNoticeNamesPreviousOutcome(t *testing.T) {
 		t.Fatalf("refresh did not publish: %t %v", fresh, err)
 	}
 }
+
+// Proposed IDX-SNAP-V0-515: the previous outcome is dropped, never the frame, status or argv,
+// when it would push the hook output past adapterOutputLimit.
+func TestSnapshotRefreshPreviousOutcomeYieldsToOutputLimit(t *testing.T) {
+	root := staleSnapshotRepository(t)
+	lockPath := filepath.Join(contextindex.SnapshotDirectory(root), "refresh.lock")
+	if err := os.WriteFile(lockPath, []byte(`{"pid":1,"started":"2000-01-01T00:00:00Z","outcome":"expired"}`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ctx, commands := refreshTestContext(t, root)
+	refresh, _ := json.Marshal([]string{"corvint", "--root", root, "index", "--if-stale"})
+	plain := "\nNo index snapshot matches the current tree, and building one in memory does not fit the hook deadline. Background index refresh started. Manual fallback, outside the hook:\n" + string(refresh)
+	probe, _ := json.Marshal(map[string]any{"systemMessage": plain})
+	frame := "Corvint FALLBACK degraded: " + claudeSnapshotStaleReason + "; coding continues" + strings.Repeat(" ", adapterOutputLimit-1-len(probe)-200)
+	output := withSnapshotRemediation(ctx, root, "stop", claudeSnapshotStaleReason, map[string]any{"systemMessage": frame})
+	waitRefreshExit(t, (*commands)[0])
+	text, _ := output["systemMessage"].(string)
+	if text != frame+plain || !withinAdapterOutputLimit(output) {
+		t.Fatalf("over-limit notice kept the outcome or lost the argv: %d bytes", len(text))
+	}
+}

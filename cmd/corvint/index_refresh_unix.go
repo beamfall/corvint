@@ -95,7 +95,7 @@ func previousSnapshotRefresh(lock *os.File) string {
 	case "failed":
 		cause = "it failed"
 	}
-	return "The previous background refresh, started at " + started.UTC().Format(time.RFC3339) + ", ended without publishing a snapshot: " + cause + ". Until a refresh completes, later events also get no Corvint context."
+	return "The previous background refresh, started at " + started.UTC().Format(time.RFC3339) + ", ended without publishing a snapshot: " + cause + ". Until a refresh completes, later events may also get no Corvint context."
 }
 
 func spawnSnapshotRefresh(ctx context.Context, root string, lock *os.File) string {

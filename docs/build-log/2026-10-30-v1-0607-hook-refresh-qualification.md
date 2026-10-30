@@ -68,7 +68,9 @@ they are owner-accepted (decision 0517) and protect interactive work, and add `I
 A writer that exits nonzero records `expired` or `failed` in its lock metadata. A killed writer
 leaves its running record. The next hook that starts a writer reads that record under the lock
 it holds, and its notice says that the previous refresh ended without publishing, its closed
-cause, and that later events also get no context until one completes. Each started writer overwrites
+cause, and that later events may also get no context until one completes. If that sentence
+would push the output past the 8000-byte limit it is dropped, so the frame and manual argv are
+never replaced by `corvint-output-too-large`. Each started writer overwrites
 the record, so a notice describes only the writer just before it, and a writer that completes
 clears the record.
 
