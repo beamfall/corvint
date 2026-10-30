@@ -139,14 +139,16 @@ Example:
 		{ID: "e2e-harvest", Command: "corvint-test e2e harvest", Optional: true, Requires: []string{"e2e-catalog"}, Help: `Propose blocks from the existing Playwright suite (optional, experimental, CCE-V0).
 
 Usage:
-  corvint-test e2e harvest --rev REV [--root DIR] [--manifest FILE] [--out FILE]
+  corvint-test e2e harvest --rev REV [--root DIR] [--manifest FILE] [--source [ALIAS:]DIR]... [--out FILE]
       [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]...
       [--workspace FILE | --no-workspace]
 
 Inputs:
   --rev REV is required. Every tracked *.spec.* and *.test.* file at --rev is read for literal
   getByTestId assertions and page.goto navigations; the map at --manifest only binds proposals to
-  flows and screens, and without it every proposal is unbound.
+  flows and screens, and without it every proposal is unbound. Each --source directory is read
+  into the site-knowledge IR at the map revision, which binds a line the map places on no flow
+  or screen to the screen its test is on there (CCE-V0-310).
 
 Commit:
   Nothing new to run it. To admit a proposal, commit its ID with a reason in

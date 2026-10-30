@@ -1510,6 +1510,7 @@ CCE-V0-151	docs/specs/change-compiled-e2e-v0.md	(accepted under the owner's stan
 CCE-V0-152	docs/specs/change-compiled-e2e-v0.md	(experimental under the standing lane auto-accept (2026-10-11; V1-2876; GitHub	standing	2026-10-11; V1-2876
 CCE-V0-296	docs/specs/change-compiled-e2e-v0.md	(experimental under the standing lane auto-accept (2026-10-11; V1-2928; GitHub	standing	2026-10-11; V1-2928
 CCE-V0-297	docs/specs/change-compiled-e2e-v0.md	(experimental under the standing lane auto-accept (2026-10-11; V1-2928; GitHub	standing	2026-10-11; V1-2928
+CCE-V0-310	docs/specs/change-compiled-e2e-v0.md	(V1-2411) `corvint-test e2e harvest --source [ALIAS:]DIR` (repeatable;	unrecorded	-
 CCE-V0-121	docs/specs/change-compiled-e2e-v0.md	The e2e step help, the `e2e-map-unavailable` hint and the guide MUST say: `--man	unrecorded	-
 CCE-V0-170	docs/specs/change-compiled-e2e-v0.md	`corvint-test e2e discriminate` MUST take the head-side hunks of	unrecorded	-
 CCE-V0-171	docs/specs/change-compiled-e2e-v0.md	The operator set `corvint-extmutate-operators/0` is closed and documented here.	unrecorded	-
@@ -4484,6 +4485,7 @@ LCP-V0-040	docs/specs/local-completion-policy-v0.md	(owner-requested V1-1894 rep
 LCP-V0-041	docs/specs/local-completion-policy-v0.md	(V1-3194, 2026-10-30) The supported order is: enrolled strict `finish` satisfied	unrecorded	-
 LCP-V0-042	docs/specs/local-completion-policy-v0.md	(V1-3194, 2026-10-30) Every `sealed-evidence-drift` refusal MUST keep that code	unrecorded	-
 LCP-V0-043	docs/specs/local-completion-policy-v0.md	(V1-3192, 2026-10-30) When the caller's context ends (a supervised SIGINT or	unrecorded	-
+LCP-V0-060	docs/specs/local-completion-policy-v0.md	(V1-3192, 2026-10-30) A real SIGINT or SIGTERM delivered to the	unrecorded	-
 LOD-V0-001	docs/specs/local-observability-dashboard-v0.md	Every displayed metric and source-derived value MUST derive through the compiled	unrecorded	-
 LOD-V0-002	docs/specs/local-observability-dashboard-v0.md	Missing, disabled, invalid, inaccessible, unsupported, expired, and unretained	unrecorded	-
 LOD-V0-003	docs/specs/local-observability-dashboard-v0.md	P0 MUST produce byte-identical CLI snapshots for identical frozen inputs and the	unrecorded	-
@@ -6287,6 +6289,8 @@ TSA-V0-002	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-003	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) When the closure cannot be proved, t	standing	2026-10-11; V1-1587
 TSA-V0-004	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) A comment-only mention of an import	standing	2026-10-11; V1-1587
 TSA-V0-005	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) The JSON output (schema	standing	2026-10-11; V1-1587
+TSA-V0-871	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587 AC6, 2026-10-30) The `--format lines`	standing	2026-10-11; V1-1587; 2026-10-30
+TSA-V0-870	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1930 / GitHub #1191, 2026-10-30) Every lin	standing	2026-10-11; V1-1930; #1191; 2026-10-30
 TSA-V0-006	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1698 / GitHub #1082) A shared constant is	standing	2026-10-11; V1-1698; #1082
 TSA-V0-007	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1698 / GitHub #1082) A reached read of a	standing	2026-10-11; V1-1698; #1082
 TSA-V0-646	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; decision 0552; V1-1478) A spec's literal key	standing	2026-10-11; decision 0552; V1-1478

@@ -121,7 +121,9 @@ func finishWithProfile(ctx context.Context, root, key, profile string, command P
 		return Evaluation{}, err
 	}
 	if !processPassed(checked) {
-		return Evaluation{}, repo.finalCheckError(ctx, "final-check", true)
+		// LCP-V0-060: return the pre-check evaluation, as the sealed path does,
+		// so the CLI's stdout carries the active policy beside the stderr refusal.
+		return evaluation, repo.finalCheckError(ctx, "final-check", true)
 	}
 	if err = repo.revalidate(ctx, saved, snap); err != nil {
 		return Evaluation{}, err

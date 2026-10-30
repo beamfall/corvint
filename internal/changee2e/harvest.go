@@ -81,6 +81,9 @@ type HarvestOptions struct {
 	// Roots binds the manifest's aliased roots; with a tests alias the test files are read from
 	// that root at the map's pin (CCE-V0-131).
 	Roots appmap.Roots
+	// Sources are the site-knowledge `--source [ALIAS:]DIR` directories; when set, the IR read
+	// from them at the map revision binds proposals the map binds no closer (CCE-V0-310).
+	Sources []string
 }
 
 // Harvest proposes outcome and path blocks from the literal assertions and navigations of the
@@ -111,7 +114,15 @@ func Harvest(ctx context.Context, o HarvestOptions) (*Proposals, error) {
 		}
 		m = nil
 	}
-	p, err := harvestAt(ctx, rev, testsRootOf(root, rev, m, o.Roots), m)
+	var lines map[appmap.SKLine]appmap.SKLineScreen
+	if m != nil && len(o.Sources) > 0 {
+		lines, err = appmap.LineScreens(ctx, m, o.Sources, appmap.Options{Root: root, Revision: rev, Repos: o.Roots.Repos})
+		if err != nil {
+			// A declared source the IR cannot read is an operator error, not a silent fallback.
+			return nil, refuse("e2e-site-knowledge-unavailable", "%v", err)
+		}
+	}
+	p, err := harvestAt(ctx, rev, testsRootOf(root, rev, m, o.Roots), m, lines)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +152,7 @@ func testsRootOf(root, rev string, m *appmap.Map, roots appmap.Roots) testsRoot 
 }
 
 // harvestAt lists the test files of src; the document's revision is rev, the --root revision.
-func harvestAt(ctx context.Context, rev string, src testsRoot, m *appmap.Map) (*Proposals, error) {
+func harvestAt(ctx context.Context, rev string, src testsRoot, m *appmap.Map, lines map[appmap.SKLine]appmap.SKLineScreen) (*Proposals, error) {
 	out, err := git(ctx, src.dir, "ls-tree", "-r", "-z", "--full-tree", src.rev)
 	if err != nil {
 		return nil, refuse("e2e-revision-invalid", "list %s: %v", src.rev, err)
@@ -186,7 +197,7 @@ func harvestAt(ctx context.Context, rev string, src testsRoot, m *appmap.Map) (*
 				continue // the first occurrence by path, then line, carries the provenance
 			}
 			seen[b.ID] = true
-			p.Proposals = append(p.Proposals, Proposal{ID: b.ID, Block: b, Binding: bindProposal(m, b)})
+			p.Proposals = append(p.Proposals, Proposal{ID: b.ID, Block: b, Binding: bindProposal(m, lines, b)})
 		}
 	}
 	sort.Slice(p.Proposals, func(i, j int) bool { return p.Proposals[i].ID < p.Proposals[j].ID })
@@ -259,7 +270,7 @@ func (c *Catalog) addAcceptances(ctx context.Context, root, rev string) error {
 	if err != nil || !ok {
 		return err
 	}
-	p, err := harvestAt(ctx, rev, c.tests, c.m)
+	p, err := harvestAt(ctx, rev, c.tests, c.m, nil) // bindings never admit a proposal (CCE-V0-050)
 	if err != nil {
 		return err
 	}
@@ -320,10 +331,16 @@ func acceptancesInDiff(ctx context.Context, root, base string, head *Catalog) ([
 // binds to the screen the map resolved for the same navigation line of the same test file; an
 // outcome block binds to the single flow declaring an outcome on the same locator, else to the
 // screen the map gives its test file. Anything else is unbound with its reason; nothing is
-// guessed from names. The site-knowledge IR is not consulted by this slice.
-func bindProposal(m *appmap.Map, b Block) Binding {
+// guessed from names. When the site-knowledge IR was read (CCE-V0-310), a proposal the map does
+// not bind by its own line or flow binds to the screen the IR gives the same line, ahead of the
+// test file's screen; the map's line and flow bindings and its ambiguity are never overridden.
+func bindProposal(m *appmap.Map, lines map[appmap.SKLine]appmap.SKLineScreen, b Block) Binding {
 	if m == nil {
 		return Binding{Unbound: "app-map-unavailable"}
+	}
+	ir, irOK := lines[appmap.SKLine{Repo: b.Span.Repo, Path: b.Span.Path, Line: b.Span.Start}]
+	if irOK && (b.Kind == KindPath) != (ir.Basis == appmap.SKLineBasisVisit) {
+		irOK = false // a path binds only through a visit, an outcome only through an assertion
 	}
 	var file *appmap.TestFile
 	for i := range m.Files {
@@ -333,18 +350,24 @@ func bindProposal(m *appmap.Map, b Block) Binding {
 		}
 	}
 	if b.Kind == KindPath {
+		unbound := "goto-not-mapped"
 		if file == nil {
-			return Binding{Unbound: "test-file-not-mapped"}
-		}
-		for _, g := range file.Gotos {
-			if g.Line == b.Span.Start {
-				if g.Screen == "" {
-					return Binding{Unbound: "goto-unresolved"}
+			unbound = "test-file-not-mapped"
+		} else {
+			for _, g := range file.Gotos {
+				if g.Line == b.Span.Start {
+					if g.Screen != "" {
+						return Binding{Screen: g.Screen, Basis: "app-map-goto"}
+					}
+					unbound = "goto-unresolved"
+					break
 				}
-				return Binding{Screen: g.Screen, Basis: "app-map-goto"}
 			}
 		}
-		return Binding{Unbound: "goto-not-mapped"}
+		if irOK {
+			return Binding{Screen: ir.Screen, Basis: ir.Basis}
+		}
+		return Binding{Unbound: unbound}
 	}
 	var flows []string
 	for _, f := range m.Flows {
@@ -360,6 +383,8 @@ func bindProposal(m *appmap.Map, b Block) Binding {
 		return Binding{Flow: flows[0], Basis: "flow-outcome-locator"}
 	case len(flows) > 1:
 		return Binding{Unbound: "flow-ambiguous"}
+	case irOK:
+		return Binding{Screen: ir.Screen, Basis: ir.Basis}
 	case file != nil && file.Screen != "":
 		return Binding{Screen: file.Screen, Basis: "test-file-screen"}
 	}
