@@ -154,6 +154,7 @@ func (l *finishLane) run() int {
 		l.line("seal SKIP already-sealed sealed=.corvint/changes/%s.cem.json", bind)
 		return 0
 	}
+	l.requireFreshWorktree(l.base, l.gitDir)
 	if l.options.Preflight {
 		// The pre-flight checks the inputs the bind pass reads; from the
 		// bind commit on that pass has run, so there is nothing to check.
@@ -355,7 +356,7 @@ func (l *finishLane) pass(name, citations string) (int, *change, []byte) {
 	options := l.options.Change
 	options.Citations = citations
 	var captured bytes.Buffer
-	run := &change{flow: flow{ctx: l.ctx, prefix: "dogfood-change", root: options.Root, stderr: &captured}, options: options, scope: passScopes[name]}
+	run := &change{flow: flow{ctx: l.ctx, prefix: "dogfood-change", root: options.Root, stderr: &captured}, options: options, scope: passScopes[name], nested: true}
 	code, err := boundary(l.ctx, run.run, run.cleanup)
 	run.releaseOperation()
 	for _, row := range run.rows {

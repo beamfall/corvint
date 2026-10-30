@@ -266,6 +266,7 @@ AFP-V0-815	docs/specs/affected-plan-v0.md	(experimental under the owner's standi
 AFP-V0-816	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3100)	standing	2026-10-11; V1-3100
 AFP-V0-760	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3084;	standing	2026-10-11; V1-3084
 AFP-V0-828	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3137;	standing	2026-10-11; V1-3137
+AFP-V0-840	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3210;	standing	2026-10-11; V1-3210
 AFP-V0-810	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2758)	standing	2026-10-11; V1-2758
 AFP-V0-811	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2898)	standing	2026-10-11; V1-2898
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
@@ -1767,6 +1768,7 @@ ASD-V0-050	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-051	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-29; V1-3136) Under th	standing	2026-10-29; V1-3136
 ASD-V0-052	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-29; V1-3135) `docs/LA	standing	2026-10-29; V1-3135
 ASD-V0-053	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-29; V1-2552; refines	standing	2026-10-29; V1-2552
+ASD-V0-060	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept; V1-3213; refines `ASD-V0-014`	standing	V1-3213
 CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and	unrecorded	-
 CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow	unrecorded	-
 CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom	unrecorded	-
@@ -2933,6 +2935,9 @@ DCW-V0-386	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-387	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3141; refines `DCW-V0-379`	standing	V1-3141
 DCW-V0-388	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3130; amends `DCW-V0-112`	standing	V1-3130
 DCW-V0-389	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3118; extends `DCW-V0-381`	standing	V1-3118
+DCW-V0-396	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3211; refines `DCW-V0-044`	standing	V1-3211
+DCW-V0-397	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2981; refines `DCW-V0-039`	standing	V1-2981
+DCW-V0-398	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3214; refines `DCW-V0-341`	standing	V1-3214
 DCW-V0-170	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2344) When	standing	2026-10-11; V1-2344
 DCW-V0-171	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2171) A	standing	2026-10-11; V1-2171
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-

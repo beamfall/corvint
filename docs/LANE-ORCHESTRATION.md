@@ -51,6 +51,17 @@ are lane defaults for a 12-core host whose lanes each run `-p 4` tests; the disp
 script/heavy.sh env GOTOOLCHAIN=local go test -count=1 -timeout 30m -run '^TestName$' ./internal/pkg
 ```
 
+Lane test recipe (ASD-V0-060, V1-3213): when the output is piped, start the step with
+`set -o pipefail;` so a refusing `heavy.sh` fails the step and a following `&& git commit` never runs:
+
+```sh
+set -o pipefail; script/heavy.sh env GOTOOLCHAIN=local go test -count=1 -run '^TestName$' ./internal/pkg 2>&1 | tail -n 40 && git commit ...
+```
+
+Without `pipefail` the pipeline status is `tail`'s, so a refusal (exit 2) is lost and the commit goes in
+with no test run. A refusal prints `heavy.sh: REFUSED <reason> (exit 2)` on stdout too, so the tail shows it.
+Other docs cite this paragraph instead of repeating it.
+
 `script/heavy.sh` is a host-wide counting semaphore: `HEAVY_SLOTS` commands run at once (default
 CPUs/4, so 3 on 12 CPUs), the rest wait quietly and print `heavy.sh: slot N/M after Ss` when
 admitted. Each admitted command gets `GOFLAGS=-p=HEAVY_P` (default CPUs/slots) unless `GOFLAGS`
