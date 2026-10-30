@@ -304,7 +304,7 @@ no N-1, and each later release's N-1 is the previous release published in it; se
   accepts this removal into the baseline; V1-0340's rollback would restore the value.
 
   (accepted 2026-09-26, decision 0422; from decision 0398; V1-0350) N-1 replay. `make core-n1-replay` builds `CORE_N1_TAG` (by
-  default the newest release tag without a pre-release suffix reachable from `HEAD^`) from
+  default the tag `script/select-previous-release.sh` selects for `HEAD`; see the V1-3203 note below) from
   `git archive` and runs `TestCoreVerbsEmitTheFrozenProfiles` with `CORVINT_CORE_N1_BINARY` naming that
   binary. Each frozen mode then also runs under the N-1 binary over a fresh fixture. It MUST exit alike
   and carry the same CCF-V1-002 identifiers. Every member path it emits, arrays spread, MUST be emitted
@@ -320,8 +320,8 @@ no N-1, and each later release's N-1 is the previous release published in it; se
   modes are skipped because decision 0525 §6 superseded the `cem/0.2` freeze and its N-1 reader:
   their fixture is a `cem/1.0` map, which 0.8.1 cannot read (`cem` refuses `--artifacts`, `ocm`
   reports `invalid-cem`). The `frontier --json` golden is retired (CEM-V1-212), so `frontier` is
-  replayed by no mode, and the replay reaches nine of the twelve Core verbs. The `CORE_N1_TAG`
-  default excludes pre-release tags and so still resolves to `v0.8.1`, while decision 0434 names
+  replayed by no mode, and the replay reaches nine of the twelve Core verbs. Until V1-3203 the `CORE_N1_TAG`
+  default excluded pre-release tags and so resolved to `v0.8.1`, while decision 0434 names
   `v1.0.0-rc.1` the baseline; release-runbook step 8 passes the tag explicitly. On 2026-10-14 the
   replay passed against `v0.8.1`, `v1.0.0-rc.1` and `v1.0.0-rc.2`. (Owner decision 2026-10-30,
   V1-3177) Those tags and their published releases are not in this repository, recreated that day
@@ -333,7 +333,12 @@ no N-1, and each later release's N-1 is the previous release published in it; se
   `linux-core`'s N-1 lifecycle steps download its archive. The first release, `v1.0.0-rc.3`, has no
   N-1: when no tag precedes the candidate and every published release of the repository is the
   candidate or a descendant, both report FIRST_RELEASE, not applicable, in the log, a notice and the
-  step summary, never a silent pass or skip. A predecessor that exists but cannot be selected,
+  step summary, never a silent pass or skip. (V1-3203, 2026-10-30) Left unset, the Makefile's
+  `CORE_N1_TAG` default is that same selector's tag for `HEAD`, so pre-release tags count, and the selector ranks a final release above its pre-releases
+  (`versionsort.suffix=-`), which also governs `script/core-n1-source.sh`; when no
+  release tag precedes `HEAD`, `make core-n1-replay` prints `NOT_APPLICABLE FIRST_RELEASE` and exits
+  0 rather than failing on an empty tag, a selector refusal exits 2, and an explicit empty
+  `CORE_N1_TAG=` is still refused (`script/core-n1-replay-default_test.sh`). A predecessor that exists but cannot be selected,
   found as a published release, fetched or verified fails the gate. The target
   is opt-in, like `companion-release-gate`: release-runbook step 8 runs it, and it is not a
   `make gate` prerequisite. Making it one is an owner decision. This replaces the second NOT_PRODUCED

@@ -35,8 +35,10 @@ if [ -n "$tag" ] || [ -n "$expected" ]; then
   mode=explicit
 else
   mode=reachable
+  # versionsort.suffix=- ranks a final release above its pre-releases (v1.0.0 over v1.0.0-rc.3,
+  # V1-3203 review); without it Git sorts the suffixed tag first.
   # Capture Git status before choosing the first row; never hide errors behind a pipeline.
-  choices=$(git_read tag --merged "$candidate" --no-contains "$candidate" --list 'v[0-9]*' --sort=-v:refname) || refuse 'reachable tag enumeration failed'
+  choices=$(git_read -c versionsort.suffix=- tag --merged "$candidate" --no-contains "$candidate" --list 'v[0-9]*' --sort=-v:refname) || refuse 'reachable tag enumeration failed'
   if [ -z "$choices" ]; then
     printf 'previous-release: none: no reachable previous release tag before %s; supply an explicit tag and direct OID for a nonancestor predecessor\n' "$candidate" >&2
     exit 3

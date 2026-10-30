@@ -83,6 +83,13 @@ not see each other's slots. `make lane-scripts-test` runs the serialisation chec
 commands with `HEAVY_SLOTS=1` never overlap), the killed-wrapper, dead-owner and group-signal
 checks.
 
+From any clone, scratch or plain, the entry point is that clone's own `script/heavy.sh`; there is
+no other copy to find. Put the host's settings (`HEAVY_SLOTS`, `HEAVY_LOCK_DIR`, `HEAVY_REMOTE_HOST`
+and the rest) in `HEAVY_CONFIG` (default `~/.config/corvint/heavy.env`) rather than a lane's
+environment, so every clone on the host shares one semaphore and one remote. A plain `git clone` of a
+lane checkout offloads as that checkout's origin at its `origin/main` (ASD-V0-056). A checkout that
+cannot offload prints `heavy.sh: offload unavailable from this checkout: REASON` and runs locally.
+
 ### Offload to a Linux host (ASD-V0-028)
 
 With `HEAVY_REMOTE_HOST` set, `script/heavy.sh` runs `go test`, `go vet` and `make windows-vet`
