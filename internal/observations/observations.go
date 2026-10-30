@@ -160,7 +160,7 @@ var admittedDogfoodErrorCodes = codeSet(
 	"excluded-path-not-file", "expected-base-required", "extra-hunk-payload", "fabricated-claim-id",
 	"fabricated-evidence-id", "git-budget-exceeded", "git-cancelled", "git-diff-failed",
 	"git-diff-timeout", "git-exit-failure", "git-output-exceeded", "git-read-failed",
-	"git-start-failed", "git-timeout", "intent-scope-drift", "intent-scope-mismatch",
+	"git-start-failed", "git-timeout", "hunk-digest-mismatch", "intent-scope-drift", "intent-scope-mismatch",
 	"internal-error", "invalid-arguments", "invalid-base-revision", "invalid-cem",
 	"invalid-cem-digest", "invalid-claim-blob", "invalid-claim-extractor", "invalid-claim-references",
 	"invalid-claims", "invalid-excluded-path", "invalid-field", "invalid-hunk-references",
