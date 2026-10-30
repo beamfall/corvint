@@ -430,8 +430,9 @@ from `git diff -U0`. A few checks need the bind's own state and stay with the bi
 `recites-cited-hunk`, `citation-stage-exists` and `unknown-reasons-not-recorded`.
 
 `make dogfood-closeout` takes the same variables, runs `dogfood-finish` (so the pre-flight runs
-first), then `batch-precheck`, the local twin of the CI doc-gates, and stops at the first step that
-fails (`DCW-V0-349`).
+first), then `batch-precheck`, and stops at the first step that fails (`DCW-V0-349`). CI and the
+precheck both run `make doc-gates`, using the single `DOC_GATE_TARGETS` list and the existing
+use-case conformance command. The precheck also retains its other drift checks.
 
 Before pushing, the optional pre-push hook `script/pre-push-dogfood-seal.sh` runs
 `script/dogfood-batch-check.sh` against each pushed branch's merge base with `origin/main` and
@@ -1178,22 +1179,22 @@ The final checker is outside the selected prerequisite check set. Coordinator `c
 `outputsAgree` alone are insufficient. Original pre-change receipts stay archived; a later
 coordination query is never evidence of earlier chronology.
 
-The enrolled workflow ends at the bind commit (decision 0534, V1-1490 option (a)). Once `finish`
-reports satisfied there, the enrollment is complete; the later `make dogfood-seal` commit is outside
-it. After the seal, `status` can offer `verify` again, because the seal moved the bound CEM out of
-the shared path. Do not run that `verify`: it clears the satisfied record, and a `finish` cannot
-succeed while `HEAD` is the seal commit. Completion can then be rerun only from the bind commit
-(`git checkout --detach HEAD^`), and `cancel` would record non-success over a completion that
-succeeded. Leave the sealed worktree as it is, and begin the next enrollment with
-`corvint dogfood begin` in a fresh worktree or clone. Adding a sealed-terminal state would amend
-LCP-V0-002, 003 and 020, and decision 0534 does not adopt it.
+The owner-requested V1-1894 repair adds a bounded sealed continuation (`LCP-V0-040`),
+amending decision 0534's earlier bind-only completion rule for this exact case. Keep the reviewed
+bind evidence and seal normally. At an exact one-parent seal that only moves the unchanged CEM,
+follow the keyed `verify` actions for the sealed commit, then `finish`, inspect and acknowledge
+its new report set, and `finish` again. This also recovers a session whose check reruns already
+cleared the old terminal. `target` names the seal; `evidenceTarget` names its original bind.
+The archived CEM, OCM and prior outcome remain bound to that original commit. Completion requires
+actual checks on the seal and a new strict-check pass. Repeated successful finish does not
+rewrite evidence or duplicate outcomes.
 
-A staged over-cap batch, bound as several sealed stages, follows the same rule (V1-0953). After
-stage 1 is satisfied and sealed, a stage-2 `corvint dogfood begin` in the same clone with the same
-session key is refused with `prior-completion-stale`: the satisfied enrollment is bound to the
-stage-1 target, no longer evaluates as satisfied at `HEAD`, and its state is left unchanged.
-Begin each later stage in a fresh worktree or clone at the stage's base, and leave the stage-1
-checkout as it is; the refusal's message names this route.
+This continuation excludes aggregate-profile completion, context-abstention/deadline replay,
+missing reviewed bind evidence, merge commits, extra changes and descendants of the seal. Those
+cases remain incomplete with their evidence intact; a rename or old PASS alone never grants
+completion. An older runtime cannot read the new continuation state: retain a compatible runtime
+and never delete state to make an old binary accept it. For a staged over-cap batch, keep each
+stage in its own worktree or clone at the stage's base; this feature does not combine stages.
 
 A new base needs a fresh worktree and a new enrollment (V1-2177). When the base moves under an
 active, unsatisfied enrollment, leave that enrollment ACTIVE in its own checkout until its

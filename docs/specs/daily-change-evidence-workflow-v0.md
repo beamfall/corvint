@@ -1513,15 +1513,17 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   and a non-HEAD branch are refused without running the check, a missing merge base is refused, and a
   tag, a base-only branch and a deletion skip it). Rollback: delete the two scripts and the make
   target; installed hooks then fail to exec and must be removed.
-- `DCW-V0-349`: (experimental under the standing lane auto-accept; V1-1894) `make
-  dogfood-closeout` MUST run `make dogfood-finish` with the caller's variables and then `make
-  batch-precheck`, stopping at the first step that fails with that step's own output and exit
-  status; its `dogfood-finish` step starts with the `DCW-V0-380` input pre-flight, so a bad
-  input stops before any bind work. Non-goals: a new check; a variable shared with `ci.yml` (the CI mirror stays
-  `batch-precheck-test`, which fails when `ci.yml` gains an unmirrored doc-gates step); a retained
-  closeout transcript (NOT_PRODUCED: dogfood targets are outside the lane charter). Failure modes:
-  none new; each step keeps its own refusals. Evidence: `make -n dogfood-closeout` shows the two
-  steps with the variables passed through. Rollback: delete the target.
+- `DCW-V0-349`: (owner-requested V1-1894 repair) `make dogfood-closeout` MUST run
+  `make dogfood-finish` with the caller's variables and then `make batch-precheck`, stopping
+  at the first failing step with its output and exit status. The `DCW-V0-380` input pre-flight
+  MUST still precede bind work. CI and the local precheck MUST use `make doc-gates`, whose
+  `DOC_GATE_TARGETS` variable is the single ordered list of documentation make gates; it also
+  runs the existing use-case conformance command. The precheck derives this target and the
+  job environment from `ci.yml`, retaining its fail-closed syntax checks. No gate is waived.
+  Acceptance requires a retained live closeout transcript after the CEM commit, plus the
+  shared-target/syntax regression. Sealed enrolled completion follows the local-completion
+  contract and preserves distinct evidence and current check targets. Rollback restores the
+  former explicit CI list and two-step closeout; it does not remove any gate.
 - `DCW-V0-350`: (experimental under the standing lane auto-accept; V1-2810; amends `DCW-V0-150`)
   When `.corvint/change.cem.json` does not exist, `corvint dogfood propose-citations BASE` MUST
   draft the plan from the canonical `BASE..HEAD` patch that `cem prepare` derives the map from,
@@ -2215,7 +2217,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-346` (experimental under the standing lane auto-accept; V1-2809) | `internal/dogfoodflow/change.go` `aggregateBoundShares`, `aggregateFitHint`, `reportFailures`; `TestDCWV0346AggregateBoundNamesAFittingSubset` | implemented; focused tests PASS; the recorded deferral is open on V1-2809 and needs a reviewer-visible cem/1.0 map field, which `internal/cem` owns |
 | `DCW-V0-347` (experimental under the standing lane auto-accept; V1-2810) | `internal/dogfoodflow/check_reuse.go` `passInputs`, `reusePass`, `capturePass`; `script/dogfood-seal.sh`; `TestDCWV0347SealReusesOnlyABoundPass` | implemented; focused tests PASS; end-to-end seal time NOT_MEASURED |
 | `DCW-V0-348` (experimental under the standing lane auto-accept; V1-2805, V1-1773) | `script/pre-push-dogfood-seal.sh`; `make pre-push-dogfood-seal-test` (`script/pre-push-dogfood-seal_test.sh`) | implemented; shell test PASS; CI job NOT_PRODUCED (needs `.github`) |
-| `DCW-V0-349` (experimental under the standing lane auto-accept; V1-1894) | `Makefile` `dogfood-closeout`; `make -n dogfood-closeout` | implemented; dry run observed; live transcript NOT_PRODUCED |
+| `DCW-V0-349` (V1-1894) | `Makefile` `dogfood-closeout`/`doc-gates`; `script/batch-precheck_test.sh` | shared CI gate definition; live closeout evidence retained with the repair |
 | `DCW-V0-350` (experimental under the standing lane auto-accept; V1-2810) | `internal/dogfoodflow/propose.go` `template`, `keyByID`; `TestProposeCitationsDCWV0350DraftsHunkIDTemplateWithoutMap`, `TestProposeCitationsDCWV0150RefusesWithoutMatchingMap` | implemented; focused tests PASS |
 | `DCW-V0-351` (experimental under the standing lane auto-accept; V1-2827) | `script/dogfood-change_test.sh` `report_failed_case`; `cmd/corvint/go_only_cutover_test.go` `shellTestFailure`; `TestDCWV0351ShellTestFailureNamesTheFailingCase`, `TestGoOnlyContextAbstentionRemainsClosed` | implemented; focused tests PASS |
 | `DCW-V0-352` (experimental under the standing lane auto-accept; V1-2835) | `script/gen-spec-requirements.sh` `--all` warning block; `script/gen-spec-requirements_test.sh` | implemented; shell test PASS |

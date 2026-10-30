@@ -1,10 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -243,6 +248,36 @@ func TestLocalCompletionRealEvidenceWorkflow(t *testing.T) {
 			t.Fatal("checker nonzero accepted")
 		}
 		cemGit(t, root, "config", "--local", "--unset", "corvint.dogfood.anchor")
+	})
+	t.Run("V1-1894 sealed completion", func(t *testing.T) {
+		// Establish a real successful completion before exercising the required seal.
+		result, err := localcompletion.Finish(ctx, root, key, localCompletionPublicCommand)
+		if err != nil || !result.Satisfied {
+			t.Fatalf("pre-seal completion: %#v %v", result, err)
+		}
+		publicLocal(t, root, "dogfood", "seal", base)
+		seal := cemGit(t, root, "rev-parse", "HEAD")
+		// Reproduce the old Stop worklist: rerunning checks clears the terminal.
+		if _, err = localcompletion.Verify(ctx, root, key, "actual-test"); err != nil {
+			t.Fatal(err)
+		}
+		result, err = localcompletion.Finish(ctx, root, key, localCompletionPublicCommand)
+		if err != nil {
+			t.Fatalf("post-seal finish: %#v %v", result, err)
+		}
+		if !result.Satisfied && result.ReportSetDigest != "" {
+			if _, err = localcompletion.Review(ctx, root, key, result.ReportSetDigest); err != nil {
+				t.Fatal(err)
+			}
+			result, err = localcompletion.Finish(ctx, root, key, localCompletionPublicCommand)
+		}
+		if err != nil || !result.Satisfied || result.Target != seal {
+			t.Fatalf("sealed completion: %#v %v", result, err)
+		}
+		if got := cemGit(t, root, "status", "--porcelain"); got != "" {
+			t.Fatalf("finish changed sealed worktree: %s", got)
+		}
+		assertSealedCompletionControls(t, root, key, base, seal, result)
 	})
 }
 
@@ -609,5 +644,187 @@ func TestDogfoodPriorCompletionStaleNamesStagedRoute(t *testing.T) {
 		if !strings.Contains(stderr.String(), want) {
 			t.Fatalf("refusal %q lacks %q", stderr.String(), want)
 		}
+	}
+}
+
+// LCP-V0-040: controls start from the real successful sealed completion above.
+func assertSealedCompletionControls(t *testing.T, root, key, base, seal string, positive localcompletion.Evaluation) {
+	t.Helper()
+	ctx := context.Background()
+	if positive.EvidenceTarget == "" || positive.EvidenceTarget == seal || positive.Checks[0].TestedCommit != seal {
+		t.Fatalf("missing target distinction: %#v", positive)
+	}
+	statePath := filepath.Join(root, ".git/corvint/local-completion", key, "state.json")
+	stateRaw, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	outcome := filepath.Join(root, ".git/corvint/local-outcome.json")
+	outcomeRaw, err := os.ReadFile(outcome)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, action := range []string{"status", "finish"} {
+		var result localcompletion.Evaluation
+		if action == "status" {
+			result, err = localcompletion.Evaluate(ctx, root, key)
+		} else {
+			result, err = localcompletion.Finish(ctx, root, key, localCompletionPublicCommand)
+		}
+		if err != nil || !result.Satisfied {
+			t.Fatalf("repeat %s: %#v %v", action, result, err)
+		}
+		after, _ := os.ReadFile(statePath)
+		afterOutcome, _ := os.ReadFile(outcome)
+		if !bytes.Equal(stateRaw, after) || !bytes.Equal(outcomeRaw, afterOutcome) {
+			t.Fatalf("repeat %s mutated evidence", action)
+		}
+	}
+	var savedDocument struct {
+		Sealed struct {
+			Prior struct {
+				Reports      []struct{ Path string }
+				Observations []struct{ Stdout struct{ Path string } }
+			}
+		} `json:"sealedContinuation"`
+	}
+	if err = json.Unmarshal(stateRaw, &savedDocument); err != nil {
+		t.Fatal(err)
+	}
+	// A private artifact fault leaves the tracked tree clean, reaching evidence
+	// validation rather than merely exercising the dirty-worktree guard.
+	for _, name := range []string{positive.Reports[0], outcome, positive.Checks[0].Stdout, savedDocument.Sealed.Prior.Reports[0].Path, savedDocument.Sealed.Prior.Observations[0].Stdout.Path} {
+		original, e := os.ReadFile(name)
+		if e != nil {
+			t.Fatal(e)
+		}
+		if e = os.WriteFile(name, append(append([]byte{}, original...), []byte("injected drift")...), 0600); e != nil {
+			t.Fatal(e)
+		}
+		if got := cemGit(t, root, "status", "--porcelain"); got != "" {
+			t.Fatal("private fault made fixture dirty")
+		}
+		result, e := localcompletion.Evaluate(ctx, root, key)
+		if e == nil && result.Satisfied {
+			t.Fatalf("private drift accepted: %s", name)
+		}
+		if e = os.WriteFile(name, original, 0600); e != nil {
+			t.Fatal(e)
+		}
+		result, e = localcompletion.Evaluate(ctx, root, key)
+		if e != nil || !result.Satisfied {
+			t.Fatalf("fault restoration: %#v %v", result, e)
+		}
+	}
+	// Repointing the parent report to new, internally consistent outcome bytes
+	// must not bypass the original coordination receipt. A terminal-artifact
+	// mismatch alone is insufficient: the report set itself must become stale.
+	coordinatorReportPath := filepath.Join(root, ".corvint/dogfood-report.json")
+	coordinatorReportRaw, e := os.ReadFile(coordinatorReportPath)
+	if e != nil {
+		t.Fatal(e)
+	}
+	changedOutcome := append(append([]byte{}, outcomeRaw...), '\n')
+	oldDigest := fmt.Sprintf("sha256:%x", sha256.Sum256(outcomeRaw))
+	newDigest := fmt.Sprintf("sha256:%x", sha256.Sum256(changedOutcome))
+	changedReport := bytes.ReplaceAll(coordinatorReportRaw, []byte(oldDigest), []byte(newDigest))
+	if bytes.Equal(changedReport, coordinatorReportRaw) {
+		t.Fatal("coordinator digest injection did not reach report")
+	}
+	if e = os.WriteFile(outcome, changedOutcome, 0600); e != nil {
+		t.Fatal(e)
+	}
+	if e = os.WriteFile(coordinatorReportPath, changedReport, 0600); e != nil {
+		t.Fatal(e)
+	}
+	var consistent struct {
+		Outcome string `json:"localOutcomeEvidenceSha256"`
+	}
+	if e = json.Unmarshal(changedReport, &consistent); e != nil || consistent.Outcome != newDigest {
+		t.Fatalf("injection not internally consistent: %v %#v", e, consistent)
+	}
+	drifted, e := localcompletion.Evaluate(ctx, root, key)
+	if e != nil || drifted.Satisfied || drifted.ReportSetDigest != "" || !slices.Contains(drifted.Unmet, "report-set-stale") {
+		t.Fatalf("changed coordinated outcome remained current: %#v %v", drifted, e)
+	}
+	if e = os.WriteFile(outcome, outcomeRaw, 0600); e != nil {
+		t.Fatal(e)
+	}
+	if e = os.WriteFile(coordinatorReportPath, coordinatorReportRaw, 0600); e != nil {
+		t.Fatal(e)
+	}
+	restored, e := localcompletion.Evaluate(ctx, root, key)
+	if e != nil || !restored.Satisfied {
+		t.Fatalf("coordinator restoration: %#v %v", restored, e)
+	}
+	shared := filepath.Join(root, ".corvint/change.cem.json")
+	if e := os.WriteFile(shared, []byte("unexpected ignored map"), 0600); e != nil {
+		t.Fatal(e)
+	}
+	result, e := localcompletion.Evaluate(ctx, root, key)
+	if e == nil && result.Satisfied {
+		t.Fatal("unexpected shared map accepted")
+	}
+	if e = os.Remove(shared); e != nil {
+		t.Fatal(e)
+	}
+	// Force the final-check path without claiming that the prior terminal survives.
+	var state map[string]any
+	if e = json.Unmarshal(stateRaw, &state); e != nil {
+		t.Fatal(e)
+	}
+	observations := state["observations"].([]any)
+	latest := observations[len(observations)-1].(map[string]any)
+	latest["passed"] = false
+	latest["exit"] = "1"
+	failedRaw, _ := json.Marshal(state)
+	if e = os.WriteFile(statePath, failedRaw, 0600); e != nil {
+		t.Fatal(e)
+	}
+	failed, failureErr := localcompletion.Evaluate(ctx, root, key)
+	if failureErr != nil || failed.Satisfied || len(failed.Checks) != 1 || failed.Checks[0].Qualified {
+		t.Fatalf("later failed observation accepted: %#v %v", failed, failureErr)
+	}
+	if e = json.Unmarshal(stateRaw, &state); e != nil {
+		t.Fatal(e)
+	}
+	state["terminal"] = nil
+	state["lifecycle"] = "active"
+	altered, _ := json.Marshal(state)
+	if e = os.WriteFile(statePath, altered, 0600); e != nil {
+		t.Fatal(e)
+	}
+	reportPath := filepath.Join(root, ".corvint/dogfood-report.json")
+	reportRaw, e := os.ReadFile(reportPath)
+	if e != nil {
+		t.Fatal(e)
+	}
+	statuses := 0
+	failChecker := func(ctx context.Context, root string, args []string, out, errout io.Writer) int {
+		if len(args) > 1 && args[0] == "cem" && args[1] == "status" {
+			statuses++
+			if statuses > 1 {
+				return 2
+			}
+		}
+		return localCompletionPublicCommand(ctx, root, args, out, errout)
+	}
+	result, e = localcompletion.Finish(ctx, root, key, failChecker)
+	if statuses < 2 || e == nil || e.Error() != "final-check-failed" || result.Satisfied {
+		t.Fatalf("final checker fault not reached/refused: calls=%d result=%#v err=%v", statuses, result, e)
+	}
+	if after, _ := os.ReadFile(reportPath); !bytes.Equal(after, reportRaw) {
+		t.Fatal("sealed checker changed parent report")
+	}
+	// Keep the failed terminal absent: success must be regained by a real check.
+	result, e = localcompletion.Finish(ctx, root, key, localCompletionPublicCommand)
+	if e != nil || !result.Satisfied {
+		t.Fatalf("real checker recovery: %#v %v", result, e)
+	}
+	if got := cemGit(t, root, "rev-parse", "HEAD"); got != seal {
+		t.Fatal("continuation moved HEAD")
+	}
+	if _, e = os.Stat(shared); !os.IsNotExist(e) {
+		t.Fatal("continuation restored shared map")
 	}
 }

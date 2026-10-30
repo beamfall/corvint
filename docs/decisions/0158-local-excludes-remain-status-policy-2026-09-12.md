@@ -43,7 +43,7 @@ claims that those complete gates were run.
 | Local completion, `internal/localcompletion/storage.go:435-438@c8ffb05d` and `internal/localcompletion/storage.go:476@f0524476` | Direct status against the resolved Git directory; global/system config disabled, no external-exclude override. The clean bit can omit local/configured-external hidden paths; the subsequent committed-tree listing is independent. |
 | Touch surprise, `internal/touchsurprise/git.go:110` | Requests `--untracked-files=no`; excludes do not change its already tracked-only status universe. |
 | Release scan, dependency source, migration adapters | `core.excludesFile` matches in their Git prefixes are not themselves additional status consumers. Committed tree/object reads do not omit a tracked path because an ignore rule matches it. |
-| Developer checks and measurement tools | `tools/native-bridge-pre-review.sh:49`, retrieval-bench status/snapshot checks, release smoke, and the path-scoped CEM interop consumer use ordinary Git status. Local/global ignores can hide untracked drift in those status observations; they do not prove a complete filesystem snapshot. No policy change is applied to those tools. The dogfood check, `internal/dogfoodflow/check.go:270@e7b189a7`, no longer belongs in this row: see the 2026-10-14 amendment. |
+| Developer checks and measurement tools | `tools/native-bridge-pre-review.sh:49`, retrieval-bench status/snapshot checks, release smoke, and the path-scoped CEM interop consumer use ordinary Git status. Local/global ignores can hide untracked drift in those status observations; they do not prove a complete filesystem snapshot. No policy change is applied to those tools. The dogfood check, `internal/dogfoodflow/check.go:322@e7b189a7`, no longer belongs in this row: see the 2026-10-14 amendment. |
 
 Disabling `GIT_CONFIG_GLOBAL` alone also does not disable Git's default XDG `git/ignore` file.
 A scratch probe observed that file still hiding a path with global configuration disabled;
@@ -118,7 +118,7 @@ failure behavior. Rollback of this decision is a new policy decision; there is n
 As recorded on 2026-09-12, the developer-checks row listed `internal/dogfoodflow/check.go` among
 the tools that read ordinary Git status. That stopped being true when DCW-V0-045 moved the dogfood
 check's worktree status read to Core's hardened probe, `gokernel.ProbeRepositoryContext`
-(`internal/dogfoodflow/check.go:270@e7b189a7`), which refuses a configuration that could run a
+(`internal/dogfoodflow/check.go:322@e7b189a7`), which refuses a configuration that could run a
 repository-owned filter or hook. The probe follows the Gokernel row above: external excludes are
 disabled and the common directory's `info/exclude` still applies, so a local-only ignored path can
 still be absent from that observation. The row now cites the probe call instead of the earlier

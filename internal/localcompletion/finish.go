@@ -87,6 +87,9 @@ func finishWithProfile(ctx context.Context, root, key, profile string, command P
 			return evaluation, nil
 		}
 	}
+	if saved.Sealed != nil || !regularSharedMap(repo.auth.Root) {
+		return repo.finishSealed(ctx, saved, snap, command, evaluation)
+	}
 	bootstrap, err := repo.prepareBindings(ctx, saved, snap, command, &evaluation)
 	if err != nil {
 		evaluation.Unmet = append(evaluation.Unmet, "evidence-bindings-required")
@@ -96,7 +99,7 @@ func finishWithProfile(ctx context.Context, root, key, profile string, command P
 		}
 		return evaluation, err
 	}
-	if !repo.reportCurrent(saved, snap) {
+	if !repo.reportCurrent(ctx, saved, snap) {
 		if err = repo.generateReports(ctx, saved, snap, bootstrap, command); err != nil {
 			return Evaluation{}, err
 		}
@@ -324,7 +327,11 @@ func (buffer *boundedBuffer) ReadFrom(reader io.Reader) (int64, error) {
 }
 
 func (repo *repository) bindingPaths(saved *state) []string {
-	paths := []string{repo.local("plan.json"), filepath.Join(repo.auth.Root, ".corvint/change.cem.json"), filepath.Join(repo.auth.Root, ".corvint/change.ocm-intents")}
+	mapPath := ".corvint/change.cem.json"
+	if saved.Sealed != nil {
+		mapPath = saved.Sealed.Binding.MapPath
+	}
+	paths := []string{repo.local("plan.json"), filepath.Join(repo.auth.Root, mapPath), filepath.Join(repo.auth.Root, ".corvint/change.ocm-intents")}
 	for index, intent := range saved.Plan.Intents {
 		paths = append(paths, filepath.Join(repo.auth.Root, intent), filepath.Join(repo.auth.Root, fmt.Sprintf(".corvint/change.ocm.%03d.json", index+1)))
 	}
@@ -406,7 +413,7 @@ func (repo *repository) revalidate(ctx context.Context, saved *state, before sna
 	if err != nil {
 		return err
 	}
-	if !now.clean || now.target != before.target || now.tree != before.tree || !repo.reportCurrent(saved, now) {
+	if !now.clean || now.target != before.target || now.tree != before.tree || !repo.reportCurrent(ctx, saved, now) {
 		return errors.New("completion-evidence-drift")
 	}
 	for _, check := range saved.Plan.Checks {
@@ -536,6 +543,9 @@ func (repo *repository) terminalArtifacts() ([]artifact, error) {
 
 func (repo *repository) terminalPaths() []string {
 	paths := []string{filepath.Join(repo.auth.Root, ".corvint/dogfood-report.json"), filepath.Join(repo.auth.Root, ".corvint/change.ocm-status.json"), filepath.Join(repo.auth.GitDir, "corvint/local-outcome.json"), repo.local("final-check.stdout"), repo.local("final-check.stderr")}
+	if saved, err := repo.load(); err == nil && saved.Sealed != nil {
+		paths = append(paths, filepath.Join(repo.auth.GitDir, "corvint/dogfood-sealed-check.json"))
+	}
 	raw, err := readFile(paths[0], maxArtifactBytes)
 	var report struct {
 		ContextAbstention string `json:"contextAbstentionEvidenceSha256"`
@@ -664,7 +674,7 @@ func (repo *repository) aggregatePrerequisites(ctx context.Context, saved *state
 	if !snap.clean {
 		return errors.New("uncommitted-work")
 	}
-	if !repo.reportCurrent(saved, snap) {
+	if !repo.reportCurrent(ctx, saved, snap) {
 		return errors.New("report-set-stale")
 	}
 	if saved.ReportSet == nil || saved.Review != saved.ReportSet.Digest {
@@ -755,7 +765,7 @@ func (repo *repository) validateAggregateSemantic(ctx context.Context, saved *st
 	if err != nil {
 		return err
 	}
-	if !closing.clean || closing.target != opening.target || closing.tree != opening.tree || !repo.reportCurrent(saved, closing) {
+	if !closing.clean || closing.target != opening.target || closing.tree != opening.tree || !repo.reportCurrent(ctx, saved, closing) {
 		return errors.New("aggregate-binding-drift")
 	}
 	if err = repo.requireOwner(); err != nil {
@@ -1115,7 +1125,7 @@ func (repo *repository) finishAggregate(ctx context.Context, saved *state, comma
 	if err != nil {
 		return Evaluation{}, err
 	}
-	if !closing.clean || closing.target != opening.target || closing.tree != opening.tree || !repo.reportCurrent(saved, closing) {
+	if !closing.clean || closing.target != opening.target || closing.tree != opening.tree || !repo.reportCurrent(ctx, saved, closing) {
 		return Evaluation{}, errors.New("aggregate-binding-drift")
 	}
 	if err = opCtx.Err(); err != nil {

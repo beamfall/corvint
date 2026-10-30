@@ -342,16 +342,8 @@ func (f *flow) noteMergedForward() {
 // isSealCommit reports a one-parent commit that only renames that parent's
 // CEM, unchanged, to .corvint/changes/<parent>.cem.json (DOGFOOD-013).
 func (f *flow) isSealCommit(commit string) bool {
-	parent, status := f.git(true, "rev-parse", "--verify", "-q", commit+"^1")
-	if status != 0 {
-		return false
-	}
-	parent = chomp(parent)
-	if f.gitSucceeds("rev-parse", "--verify", "-q", commit+"^2") {
-		return false
-	}
-	renamed, _ := f.git(false, "diff-tree", "-r", "-M", "--no-commit-id", "--name-status", parent, commit)
-	return chomp(renamed) == "R100\t.corvint/change.cem.json\t.corvint/changes/"+parent+".cem.json"
+	_, err := ResolveSealBinding(f.ctx, f.root, commit)
+	return err == nil
 }
 
 // inheritedCEM is the unsealed .corvint/change.cem.json BASE tracks, if any:

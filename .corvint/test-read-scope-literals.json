@@ -32,7 +32,8 @@
       "docs/README.md": "a path inside the test's temporary fixture repository root; the repository's docs file is not read"
     },
     "internal/localcompletion": {
-      "script/dogfood-check.sh": "an argv fixture classified as a command name; the script is never read"
+      "script/dogfood-check.sh": "an argv fixture classified as a command name; the script is never read",
+      ".corvint/changes": "a CEM archive path written and read only inside the cancellation test's temporary Git fixture; the repository's own archive is not read"
     },
     "internal/observations": {
       "docs/decisions/0015-impact-without-go-module-2026-09-01.md": "a decision reference copied into the expected report line; the file is never read"

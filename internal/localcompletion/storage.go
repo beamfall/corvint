@@ -87,7 +87,7 @@ func validateJSONTypes(value wire.Value, kind reflect.Type) error {
 			name := strings.Split(field.Tag.Get("json"), ",")[0]
 			member, present := value.Obj.Get(name)
 			if !present {
-				if kind == reflect.TypeFor[state]() && name == "aggregateOutcome" {
+				if kind == reflect.TypeFor[state]() && (name == "aggregateOutcome" || name == "sealedContinuation") {
 					continue
 				}
 				if kind == reflect.TypeFor[Check]() && name == "allowCemSidecarOnlyReuse" {
