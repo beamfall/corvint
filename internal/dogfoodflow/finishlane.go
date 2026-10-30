@@ -415,7 +415,12 @@ func (l *finishLane) stop(name string, code int, output []byte) {
 	// A changed input explains the failure better than the step's own
 	// refusal, such as intent-scope-drift (DCW-V0-378).
 	l.requireInputsUnchanged(name)
-	_, _ = l.stderr.Write(output)
+	for _, text := range textLines(output) {
+		// A note an earlier pass printed is not repeated (DCW-V0-405).
+		if !strings.HasPrefix(text, "dogfood-change: NOTE ") || !l.notes[noteKey(text)] {
+			l.say("%s\n", text)
+		}
+	}
 	if code == 0 {
 		code = 1
 	}

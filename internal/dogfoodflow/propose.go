@@ -416,10 +416,8 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 // is the prefix before its final number, DCW-V0.
 var requirementToken = regexp.MustCompile(`\b[A-Z][A-Z0-9-]{2,31}-[0-9]{3}\b`)
 
-// changedFamilies returns the dominant requirement families of a hunk's
-// added and removed lines and of its context lines.
-func changedFamilies(hunk *patch.Hunk) (changed, context map[string]bool) {
-	var edits, around []byte
+// hunkText returns a hunk's added and removed lines and its context lines.
+func hunkText(hunk *patch.Hunk) (edits, around []byte) {
 	for _, line := range hunk.Body {
 		if line.Prefix == ' ' {
 			around = append(append(around, line.Payload...), '\n')
@@ -427,7 +425,7 @@ func changedFamilies(hunk *patch.Hunk) (changed, context map[string]bool) {
 			edits = append(append(edits, line.Payload...), '\n')
 		}
 	}
-	return dominantFamilies(edits), dominantFamilies(around)
+	return edits, around
 }
 
 // dominantFamilies returns the requirement families text names most often,
@@ -456,30 +454,30 @@ func (p *proposal) hunkFamilies(hunk *patch.Hunk) map[string]bool {
 	if hunk == nil {
 		return nil
 	}
-	changed, context := changedFamilies(hunk)
-	if len(changed) > 0 {
+	edits, around := hunkText(hunk)
+	if changed := dominantFamilies(edits); len(changed) > 0 {
 		return changed
 	}
-	if len(context) > 0 {
+	if context := dominantFamilies(around); len(context) > 0 {
 		return context
 	}
-	file, all := map[string]bool{}, map[string]bool{}
+	// The fallbacks count every ID of the other edits together, so the
+	// family they name most often wins (DCW-V0-404).
+	var file, all []byte
 	for key, other := range p.derived {
 		if key != other.ID {
 			continue
 		}
-		edits, _ := changedFamilies(other)
-		for family := range edits {
-			all[family] = true
-			if other.DisplayPath == hunk.DisplayPath {
-				file[family] = true
-			}
+		edits, _ := hunkText(other)
+		all = append(all, edits...)
+		if other.DisplayPath == hunk.DisplayPath {
+			file = append(file, edits...)
 		}
 	}
-	if len(file) > 0 {
-		return file
+	if families := dominantFamilies(file); len(families) > 0 {
+		return families
 	}
-	return all
+	return dominantFamilies(all)
 }
 
 // relevantRequirementLine reports whether a BASE line naming a hunk's path

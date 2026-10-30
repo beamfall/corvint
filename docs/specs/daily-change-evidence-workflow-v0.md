@@ -1954,8 +1954,10 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   and `DCW-V0-381`) A drafted row MUST be anchored only by a BASE line carrying a requirement ID
   of the hunk's dominant requirement family: the family its added and removed lines name most
   often, else its context lines', else the same file's other edits', else the whole change's.
-  This applies to path-naming lines and to definitions of IDs the hunk only mentions; with no
-  such line the row stays the explicit `unknown` row. A change that names no family anywhere
+  The fallbacks count the IDs of those other edits together. This applies to path-naming lines
+  and to definitions of IDs the hunk only mentions; with no such line the draft keeps the
+  `DCW-V0-381` fallback, a stable span of the hunk's own file reported as cited, not anchored,
+  else the explicit `unknown` row. A change that names no family anywhere
   keeps the `DCW-V0-381` order. Governing instruction files the diff modifies stay uncited
   (`CEM-V1-114`), and an edited span stays excluded (`DCW-V0-382`, `DCW-V0-389`). Non-goals:
   choosing the exact bullet a hunk implements when that bullet is new at HEAD, which BASE cannot
@@ -1966,7 +1968,8 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `dogfood finish-lane` MUST print each `dogfood-change: NOTE` line at most once per run, keyed
   by its step name, status and reason, so a later pass that repeats a note with only its
   `--target` or counts changed prints nothing; a note with another status or reason still
-  prints. The first pass's text is kept. Non-goals: shortening a note, or changing what a
+  prints. The first pass's text is kept, and a stopped pass's output omits the notes already
+  printed. Non-goals: shortening a note, or changing what a
   single `dogfood change` run prints. Failure modes: none new. Evidence:
   `TestDCWV0405FinishLanePrintsEachNoteOnce`; on this lane's closeout the guarding-tests note
   (536 bytes) printed for both bind and rebind. Rollback: key `finishLane.notes` by the whole
@@ -2285,8 +2288,8 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-389` (experimental under the standing lane auto-accept; V1-3118) | `internal/dogfoodflow/propose.go` `dataPath`, `prepareAnchors`; `TestProposeCitationsDCWV0389SkipsRecordedCommandOutput` | implemented; focused test PASS |
 | `DCW-V0-402` (experimental under the standing lane auto-accept; V1-3226) | `internal/dogfoodflow/change.go` `unknownRelationRow`, `RelationChoices`; `TestDCWV0379InputsCheckRefusesEachPlanAndManifestDefect` (relation tests), `TestDCWV0402RelationListMatchesDocsAndCite` | implemented; focused test PASS |
 | `DCW-V0-403` (experimental under the standing lane auto-accept; V1-3131) | `internal/dogfoodflow/verify_argv.go` `unquotedRunAlternation`, `quotedRunFix`; `finishlane.go` `requireVerifyInput`; `change.go` `fixHint`; `TestDCWV0403UnquotedRunAlternationRefusesInOneLine` | implemented; focused test PASS |
-| `DCW-V0-404` (experimental under the standing lane auto-accept; V1-3118) | `internal/dogfoodflow/propose.go` `hunkFamilies`, `dominantFamilies`, `relevantRequirementLine`; `TestProposeCitationsDCWV0404AnchorsToTheHunksRequirementFamily`, `TestProposeCitationsDCWV0381SkipsDataAndPartialPaths` | implemented; focused test PASS; draft relevance 9/17 to 17/17 on this lane's diff |
-| `DCW-V0-405` (experimental under the standing lane auto-accept; V1-3231) | `internal/dogfoodflow/finishlane.go` `accept`, `noteKey`; `TestDCWV0405FinishLanePrintsEachNoteOnce` | implemented; focused test PASS |
+| `DCW-V0-404` (experimental under the standing lane auto-accept; V1-3118) | `internal/dogfoodflow/propose.go` `hunkFamilies`, `hunkText`, `dominantFamilies`, `relevantRequirementLine`; `TestProposeCitationsDCWV0404AnchorsToTheHunksRequirementFamily`, `TestDCWV0404FallbackFamilyCountsEveryOtherEdit`, `TestProposeCitationsDCWV0381SkipsDataAndPartialPaths` | implemented; focused test PASS; draft relevance 9/17 to 17/17 on this lane's diff |
+| `DCW-V0-405` (experimental under the standing lane auto-accept; V1-3231) | `internal/dogfoodflow/finishlane.go` `accept`, `noteKey`; `TestDCWV0405FinishLanePrintsEachNoteOnce`, `TestDCWV0405StoppedPassOmitsPrintedNotes` | implemented; focused test PASS |
 | `DCW-V0-359` (experimental under the standing lane auto-accept; V1-2858) | `script/heavy.sh` `keep_written`, `copy_back`, `fetch`; `script/lane-scripts_test.sh` copy-back fixtures | implemented; shell test PASS |
 | `DCW-V0-373` (experimental under the standing lane auto-accept; V1-2883) | `internal/cem/gitrun/gitrun.go` `ScaledOperations`, `ScaleForRecords`; `internal/cem/gitauth/repo.go` `ScaleBudgetForRecords`; `internal/cem/workflow/commands.go` `resumeStableCandidate`; `internal/cem/verify/stable.go` `StableOptions.ScaledOperations`; `internal/cem/cli/cli.go` `--scaled-operations`; `internal/dogfoodflow/scaled.go`; `internal/lrfrepo/adapter.go` `acceptedStable`; `TestScaledOperationsGrowWithMapRecords`, `TestDCWV0373ScaledOperationsIsOptIn`, `TestDCWV0373StatusRetriesOnlyResourceLimit`, `TestDCWV0373CheckScaledStatusNeedsBothVerifiers` | implemented; focused tests PASS |
 | `DCW-V0-374` (experimental under the standing lane auto-accept; V1-2883) | `cmd/corvint/dogfood_record.go` `runDogfoodAggregateRecord`; `internal/tracerecordrepo/aggregate_outcome.go` `AggregateExpectedFor`; `internal/dogfoodflow/change.go` `localOutcome`, `AggregateMarkerPresent`; `TestDCWV0374OverLimitOutcomeLearnsNothing`, `TestDCWV0374LocalOutcomeAdmitsOptedInAggregate`, `TestDCWV0374UnenrolledAggregateReceiptIsNotAMarker` | implemented; focused tests PASS |

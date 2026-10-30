@@ -519,3 +519,18 @@ func TestDCWV0405FinishLanePrintsEachNoteOnce(t *testing.T) {
 		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
 	}
 }
+
+// TestDCWV0405StoppedPassOmitsPrintedNotes (V1-3231): a pass that stops
+// prints its own output without the notes an earlier pass printed.
+func TestDCWV0405StoppedPassOmitsPrintedNotes(t *testing.T) {
+	var stdout, stderr bytes.Buffer
+	lane := &finishLane{flow: flow{ctx: context.Background(), prefix: "dogfood-finish-lane", stderr: &stderr}, stdout: &stdout, notes: map[string]bool{}}
+	note := "dogfood-change: NOTE prechange-query NOT_OBSERVED agent-receipt-absent\n"
+	lane.accept([]byte(note))
+	if code, _ := boundary(context.Background(), func() int { lane.stop("rebind", 1, []byte(note+"dogfood-change: FAIL not-complete\n")); return 0 }, func() {}); code != 1 {
+		t.Fatalf("stop code = %d, want 1", code)
+	}
+	if want := note + "dogfood-change: FAIL not-complete\n"; stderr.String() != want {
+		t.Fatalf("stderr = %q, want %q", stderr.String(), want)
+	}
+}
