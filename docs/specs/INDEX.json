@@ -4128,5 +4128,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/corvint-tasks-release-membership-and-resume-v0.md",
+    "title": "Corvint Tasks release membership and lease resume V0",
+    "reqPrefix": "TRM-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Release membership edits alone; widen PAUSED names admission and recovery; a resumed claim restores its widened scope.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

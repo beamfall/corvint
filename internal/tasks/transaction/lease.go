@@ -626,6 +626,8 @@ type leaseOutcome struct {
 	result *Result
 	// authors is the CAL-V0-098 derivation an admitted claim applied.
 	authors *AuthorExclusion
+	// restored is the TRM-V0-006 provenance of an admitted claim.
+	restored *RestoredScope
 }
 
 type leaseContext struct {
