@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -82,6 +83,18 @@ func pinnable(t *testing.T) {
 	saved := affected.GraphCacheRacyWindow
 	affected.GraphCacheRacyWindow = 0
 	t.Cleanup(func() { affected.GraphCacheRacyWindow = saved })
+}
+
+// privateCacheDir returns a new cache directory only this user may write.
+// t.TempDir creates it with mode 0777 less the umask, which a group-writable
+// umask such as 0002 leaves group-writable, and the cache refuses that.
+func privateCacheDir(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	if err := os.Chmod(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	return dir
 }
 
 func buildCached(t *testing.T, root, dir, identity string) (*affected.Graph, affected.CacheOutcome) {
@@ -253,7 +266,7 @@ func TestAFPV0392CacheFailsClosedOnAnyMismatch(t *testing.T) {
 		t.Run(testCase.name, func(t *testing.T) {
 			pinnable(t)
 			root := graphCacheFixture(t)
-			dir := t.TempDir()
+			dir := privateCacheDir(t)
 			if _, outcome := buildCached(t, root, dir, graphCacheIdentity); !outcome.Stored {
 				t.Fatalf("seed entry not stored: %+v", outcome)
 			}
@@ -292,7 +305,7 @@ func rewriteEntry(t *testing.T, entry string, edit func(string) string) {
 func TestAFPV0392UnpinnableObservationStoresNoEntry(t *testing.T) {
 	t.Run("racy window", func(t *testing.T) {
 		root := graphCacheFixture(t)
-		dir := t.TempDir()
+		dir := privateCacheDir(t)
 		for range 2 {
 			graph, outcome := buildCached(t, root, dir, graphCacheIdentity)
 			if outcome.Hit || outcome.Stored || !strings.HasPrefix(outcome.NotStored, "path changed too recently to pin: ") {
@@ -308,7 +321,7 @@ func TestAFPV0392UnpinnableObservationStoresNoEntry(t *testing.T) {
 		pinnable(t)
 		root := graphCacheFixture(t)
 		writeCacheFixture(t, root, map[string]string{".maestro/flow.yaml": "appId: x\n"})
-		_, outcome := buildCached(t, root, t.TempDir(), graphCacheIdentity)
+		_, outcome := buildCached(t, root, privateCacheDir(t), graphCacheIdentity)
 		if outcome.Stored || outcome.NotStored != "walked subtree .maestro" {
 			t.Fatalf("a walked present subtree must not be pinned: %+v", outcome)
 		}
@@ -317,28 +330,30 @@ func TestAFPV0392UnpinnableObservationStoresNoEntry(t *testing.T) {
 		pinnable(t)
 		root := graphCacheFixture(t)
 		languages := append(allLanguages(), unrecordedLanguage{})
-		_, outcome, err := affected.BuildCached(context.Background(), root, t.TempDir(), graphCacheIdentity, languages...)
+		_, outcome, err := affected.BuildCached(context.Background(), root, privateCacheDir(t), graphCacheIdentity, languages...)
 		if err != nil || outcome.Stored || outcome.NotStored != "language zz reads outside the recorded source" {
 			t.Fatalf("a language reading outside the recorded source must not be pinned: %+v %v", outcome, err)
 		}
 	})
-	t.Run("cache directory writable by others", func(t *testing.T) {
-		pinnable(t)
-		root := graphCacheFixture(t)
-		dir := t.TempDir()
-		if err := os.Chmod(dir, 0o777); err != nil {
-			t.Fatal(err)
-		}
-		graph, outcome := buildCached(t, root, dir, graphCacheIdentity)
-		if outcome.Hit || outcome.Stored || outcome.Reason != "cache directory is not private to this user" || outcome.NotStored != outcome.Reason {
-			t.Fatalf("a directory another user may write must neither hit nor store: %+v", outcome)
-		}
-		assertSameGraph(t, root, graph)
-	})
+	for _, mode := range []os.FileMode{0o777, 0o775, 0o770} {
+		t.Run(fmt.Sprintf("cache directory writable by others %#o", mode), func(t *testing.T) {
+			pinnable(t)
+			root := graphCacheFixture(t)
+			dir := t.TempDir()
+			if err := os.Chmod(dir, mode); err != nil {
+				t.Fatal(err)
+			}
+			graph, outcome := buildCached(t, root, dir, graphCacheIdentity)
+			if outcome.Hit || outcome.Stored || outcome.Reason != "cache directory is not private to this user" || outcome.NotStored != outcome.Reason {
+				t.Fatalf("a directory another user may write must neither hit nor store: %+v", outcome)
+			}
+			assertSameGraph(t, root, graph)
+		})
+	}
 	t.Run("no program identity", func(t *testing.T) {
 		pinnable(t)
 		root := graphCacheFixture(t)
-		dir := t.TempDir()
+		dir := privateCacheDir(t)
 		graph, outcome := buildCached(t, root, dir, "")
 		if outcome.Hit || outcome.Stored || outcome.Reason != "no program identity" {
 			t.Fatalf("an empty identity must neither hit nor store: %+v", outcome)
@@ -362,7 +377,7 @@ func (unrecordedLanguage) Units(context.Context, string) (affected.Result, error
 func TestAFPV0392TransientReadFailureStoresNoEntry(t *testing.T) {
 	pinnable(t)
 	root := graphCacheFixture(t)
-	dir := t.TempDir()
+	dir := privateCacheDir(t)
 	failures := 0
 	restore := affected.SetReadSource(func(root, relative string) ([]byte, error) {
 		if relative == "app/models/widget.rb" && failures == 0 {

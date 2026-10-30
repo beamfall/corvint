@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/signal"
@@ -85,6 +86,16 @@ func runDogfoodFlow(ctx context.Context, root string, args []string, stdout, std
 	self, err := os.Executable()
 	if err != nil {
 		return emitLocalCompletionFailure(stderr, "dogfood-executable-unavailable")
+	}
+	if args[0] != "propose-citations" {
+		refusal, notes := dogfoodStaleBinary(ctx, root, self, flags)
+		for _, note := range notes {
+			_, _ = fmt.Fprintf(stderr, "dogfood-%s: NOTE %s\n", args[0], note)
+		}
+		if refusal != "" {
+			_, _ = fmt.Fprintf(stderr, "dogfood-%s: REFUSE %s\n", args[0], refusal)
+			return 2
+		}
 	}
 	runner := func(name string) dogfoodflow.Runner {
 		if path, ok := flags[name]; ok {
@@ -173,4 +184,37 @@ func runDogfoodAction(ctx context.Context, root, action, base string, flags map[
 		return dogfoodflow.Seal(ctx, options, stdout, stderr)
 	}
 	return dogfoodflow.Check(ctx, options, stdout, stderr)
+}
+
+// dogfoodStaleBinary refuses a dogfood flow whose own binary, or a binary it
+// would run for the change steps or as a verifier, is stale for root, so no
+// change evidence is bound or checked by code that current source does not
+// build (DCW-V0-396). A binary that could not be compared is a note, not a
+// refusal. The base verifier is built from BASE on purpose and is not judged;
+// the wrappers' builds carry no Git stamp and are never refused, so only an
+// operator's CORVINT_BIN can be.
+func dogfoodStaleBinary(ctx context.Context, root, self string, flags map[string]string) (string, []string) {
+	var notes []string
+	judge := func(label string, freshness binaryFreshness) string {
+		switch freshness.Code {
+		case selfBinaryStaleCode:
+			return selfBinaryStaleCode + " " + label + ": " + freshness.Detail + "; or unset CORVINT_BIN to use the current-tree build"
+		case selfBinaryUnverifiedCode:
+			notes = append(notes, selfBinaryUnverifiedCode+" "+label+": "+freshness.Detail)
+		}
+		return ""
+	}
+	if refusal := judge(self, selfBinaryStale(ctx, root)); refusal != "" {
+		return refusal, notes
+	}
+	for _, name := range []string{"--corvint-bin", "--tree-verifier", "--override-verifier", "--verifier"} {
+		path, ok := flags[name]
+		if !ok || path == self {
+			continue
+		}
+		if refusal := judge(name+" "+path, executableStale(ctx, root, path)); refusal != "" {
+			return refusal, notes
+		}
+	}
+	return "", notes
 }

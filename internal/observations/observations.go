@@ -21,6 +21,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/secretscreen"
 )
 
@@ -148,44 +149,33 @@ var admittedFalsifiers = map[string]bool{
 
 var admittedProofVerdicts = map[string]bool{"FAIL": true, "NOT_RUN": true, "PASS": true}
 
-var admittedDogfoodErrorCodes = codeSet(
-	"ambiguous-claim-selector", "base-mismatch", "base-revision-mismatch", "binary-patch",
-	"bootstrap-intent-not-unknown", "bundle-map-uncommitted", "bundle-output-refused",
-	"cem-map-digest-mismatch", "cem-patch-digest-mismatch",
-	"changed-path-acquisition-failed", "cite-self-modified-authority", "cite-span-not-stable", "claim-conflict", "claim-not-reextractable",
-	"claim-obligation-mismatch", "claim-selector-out-of-range", "diff-metadata-mismatch",
+// admittedDogfoodErrorCodes admits every code the cemcode registry declares,
+// read from the registry so a new code needs no copy here (V1-3215), and the
+// CEM tool codes that the registry does not declare.
+var admittedDogfoodErrorCodes = codeSet(append(cemcode.Registered(),
+	"ambiguous-claim-selector", "bootstrap-intent-not-unknown", "cem-map-digest-mismatch",
+	"cem-patch-digest-mismatch", "changed-path-acquisition-failed", "claim-conflict",
+	"claim-not-reextractable", "claim-obligation-mismatch", "claim-selector-out-of-range",
 	"duplicate-claim", "duplicate-claim-reference", "duplicate-hunk-reference", "duplicate-key",
 	"duplicate-obligation", "duplicate-or-unsorted-claims", "duplicate-or-unsorted-reference",
-	"duplicate-requirement", "evidence-drift", "evidence-unavailable", "excluded-artifact-mismatch",
-	"excluded-path-not-file", "expected-base-required", "extra-hunk-payload", "fabricated-claim-id",
-	"fabricated-evidence-id", "git-budget-exceeded", "git-cancelled", "git-diff-failed",
-	"git-diff-timeout", "git-exit-failure", "git-output-exceeded", "git-read-failed",
-	"git-start-failed", "git-timeout", "intent-scope-drift", "intent-scope-mismatch",
-	"internal-error", "invalid-arguments", "invalid-base-revision", "invalid-cem",
-	"invalid-cem-digest", "invalid-claim-blob", "invalid-claim-extractor", "invalid-claim-references",
-	"invalid-claims", "invalid-excluded-path", "invalid-field", "invalid-hunk-references",
-	"invalid-integer", "invalid-intent", "invalid-intent-blob", "invalid-intent-scope",
-	"invalid-json", "invalid-line-range", "invalid-linked", "invalid-object", "invalid-obligation",
+	"duplicate-requirement", "fabricated-claim-id", "intent-scope-drift", "intent-scope-mismatch",
+	"internal-error", "invalid-base-revision", "invalid-cem", "invalid-cem-digest",
+	"invalid-claim-blob", "invalid-claim-extractor", "invalid-claim-references", "invalid-claims",
+	"invalid-hunk-references", "invalid-integer", "invalid-intent", "invalid-intent-blob",
+	"invalid-intent-scope", "invalid-linked", "invalid-object", "invalid-obligation",
 	"invalid-obligation-id", "invalid-obligation-selector", "invalid-obligations", "invalid-ocm",
 	"invalid-path", "invalid-reference-array", "invalid-reference-id", "invalid-requirement-prefix",
-	"invalid-requirements-section", "invalid-selector", "invalid-span", "invalid-span-digest",
-	"invalid-target-revision", "invalid-unknown", "invalid-unknown-reason", "line-range-out-of-range",
-	"malformed-patch", "map-locked", "map-outdated", "map-too-large", "map-type", "map-unavailable",
-	"metadata-only-change-unsupported",
-	"missing-claim", "missing-evidence", "missing-field", "missing-hunk", "missing-intent-scope",
-	"missing-requirements", "noncanonical-map", "not-a-producer-map", "not-an-object", "obligation-order-mismatch",
-	"obligation-selector-out-of-range", "obligation-set-mismatch", "ocm-cli-error",
-	"orphan-evidence", "output-failed", "output-path-conflict", "patch-digest-mismatch",
-	"patch-unavailable", "path-traversal", "publish-failed", "record-failed", "record-index-failed",
-	"repository-identity-changed", "repository-object-unavailable", "span-out-of-range",
-	"target-mismatch", "target-required", "too-many-claims", "too-many-lines", "too-many-obligations",
-	"uncited-hunk", "unknown-claim-reference", "unknown-field", "unknown-hunk-id",
-	"unknown-hunk-reference", "unknown-obligation-id", "unproven-mechanical", "unsafe-output",
-	"unsupported-hunk-selector", "unsupported-lrf-context", "unsupported-object-alternates",
-	"unsupported-ocm-closure-profile", "unsupported-ocm-json-profile", "unsupported-ocm-output-path",
-	"unsupported-ocm-python-claims", "unsupported-repository-attributes", "unsupported-spec",
-	"unsupported-tree-mode", "unsupported-verify-syntax", "unsupported-without-basis",
-)
+	"invalid-requirements-section", "invalid-selector", "invalid-span-digest",
+	"invalid-target-revision", "invalid-unknown", "invalid-unknown-reason", "map-outdated",
+	"map-too-large", "map-type", "missing-claim", "missing-hunk", "missing-intent-scope",
+	"missing-requirements", "noncanonical-map", "obligation-order-mismatch",
+	"obligation-selector-out-of-range", "obligation-set-mismatch", "ocm-cli-error", "output-failed",
+	"output-path-conflict", "record-failed", "record-index-failed", "repository-identity-changed",
+	"target-mismatch", "too-many-claims", "too-many-obligations", "unknown-claim-reference",
+	"unknown-hunk-reference", "unknown-obligation-id", "unsafe-output", "unsupported-hunk-selector",
+	"unsupported-lrf-context", "unsupported-ocm-closure-profile", "unsupported-ocm-json-profile",
+	"unsupported-ocm-output-path", "unsupported-ocm-python-claims", "unsupported-verify-syntax",
+)...)
 
 func codeSet(values ...string) map[string]bool {
 	result := make(map[string]bool, len(values))
