@@ -13,7 +13,7 @@ and implement V1-0505; `../../AGENTS.md` invariants 4 and 7; `../INSTALL.md` upg
 - Status: proposed technical contract under owner-requested V1-0505 outcome / experimental
 - Exists: separate `../../cmd/corvint-update` and `../../internal/update`; focused regression and actual macOS evidence are required before delivery.
 - Blocked on: final focused checks, independent review, actual published-archive lifecycle and native completion. Publisher identity and full Tasks qualification remain NOT_VERIFIED/NOT_OBSERVED.
-- Read next: Requirements; Trust boundary and limits; Acceptance evidence. A Core switch refreshes index snapshots of named and indexed enclosing checkouts (`UPD-V0-008`). `check` states the installed-to-available relation (`UPD-V0-009`). An unnumbered local install (build 0 or none) still checks, as `installedBuildStatus` `UNNUMBERED`, and `apply` refuses to replace it (`UPD-V0-010`). A stop is observed before switch or rollback, and the old build restarts under a cleanup context (`UPD-V0-015`); check and apply share the Tasks report binding (`UPD-V0-016`), read per platform with a legacy fallback (`UPD-V0-017`).
+- Read next: Requirements; Trust boundary and limits; Acceptance evidence. A Core switch refreshes index snapshots of named and indexed enclosing checkouts (`UPD-V0-008`). `check` states the installed-to-available relation (`UPD-V0-009`). An unnumbered local install (build 0 or none) still checks, as `installedBuildStatus` `UNNUMBERED`, and `apply` refuses to replace it (`UPD-V0-010`). A stop is observed before switch or rollback, and the old build restarts under a cleanup context (`UPD-V0-015`); check and apply share the Tasks report binding (`UPD-V0-016`), read per platform with a legacy fallback (`UPD-V0-017`). Every check names the official source and channel, admits RC and developer prereleases, and explains an UNKNOWN freshness (`UPD-V0-367`); `--github-token-env` authenticates API reads only (`UPD-V0-368`).
 
 ## Human intent and current state
 
@@ -267,6 +267,36 @@ The baseline is manual archive verification and copying binaries, with external 
   Rollback of this requirement: stop publishing and reading the per-platform asset; releases then
   qualify only the platform named by the legacy report, as before.
 
+- `UPD-V0-367`: (proposed (V1-3184)) Core and Tasks are checked from one official source, the
+  GitHub releases of `beamfall/corvint`: Core on the `v` channel (RC tags `vX.Y.Z-rc.N` and stable
+  `vX.Y.Z`) and Tasks on the `tasks-dev-` channel (`tasks-dev-YYYYMMDD.N`), each independently.
+  Discovery MUST admit published prereleases, so an RC or developer build is checkable before, and
+  without, any published stable `v1.0.0`. Every `check` and `apply` result MUST carry `source` and
+  `channel`; after a readable inventory it MUST carry `releasesObserved`, the number of published
+  non-draft releases read. Whenever discovery cannot select a release, the result MUST keep
+  `freshness` `UNKNOWN`, keep the installed version and build when they were read, exit non-zero,
+  and carry `unknownReason`: for an inventory with no matching release, the count observed, the
+  channel prefix, the host asset name and that an official release of that channel must be
+  published (an owner-authorized action); for an unreadable inventory, the cause and to retry with
+  network access (and with `--github-token-env` when unauthenticated); for a missing network grant,
+  to rerun with `--allow-network`; for the pagination cap, that the window was exhausted. Failure
+  modes: a release published as a draft, or under another tag prefix, is not a candidate; the
+  source is fixed, so a fork or mirror is never consulted. Falsifier: a check whose result lacks
+  `source` or `channel`, a prerelease-only inventory reported as having no release, or an UNKNOWN
+  result without `unknownReason`. Rollback of this requirement: remove the four fields and the
+  reasons; the error line alone states the UNKNOWN, as before.
+- `UPD-V0-368`: (proposed (V1-3184)) `--github-token-env NAME` MAY authenticate release reads with
+  the token in the named environment variable. The token MUST be sent only as an `Authorization`
+  header to `api.github.com` (release inventory and metadata), never to `github.com`, an asset or
+  redirect host, the result, the error text or retained transaction evidence. A named variable
+  that is unset or empty MUST refuse before any request with an `unknownReason` naming it. The
+  result's `authenticated` is true when discovery ran with the token. Authentication raises the
+  API rate limit and binds the observation to an operator identity; it is not publisher
+  authentication and does not change checksum, identity or downgrade rules. Failure modes: a
+  token without read access to the repository yields an unreadable inventory reported as UNKNOWN.
+  Falsifier: a request to any host other than `api.github.com` carrying the token, or a token
+  value in output. Rollback of this requirement: remove the option; requests stay anonymous.
+
 ## Non-goals
 
 No Core network dependency, daemon, account, silent background service, mutable repository index,
@@ -323,6 +353,8 @@ With it, only the operator's control program is run (`UPD-V0-011`).
 | UPD-V0-015 | `service.stopped`, `service.stop`, `service.restartOld`, `quiesce`, `rollbackPermitted` | `TestUPDV0015CancelledRunRestartsOldService`: a run cancelled just before activation resumes the old build (`RESUMED_OLD`), and a failing restart is `FAILED` with `old build restart` after the original refusal; `TestUPDV0015CancelledDrainRestartsOldService`: a cancelled drain resumes the old build; `TestUPDV0015StopObservedBeforeSwitch`: a slow stop is polled until `STOPPED` before the switch, and a service that never stops or whose status breaks after stop refuses with the destination unchanged and the old build resumed; `TestUPDV0015StopObservedBeforeRollback`: a new build that never stops stays installed with `FAILED`, a slow one is rolled back |
 | UPD-V0-016 | `tasksDeclaredBuild`, `declaredTasksBuild`, `verifyQualification` | `TestUPDV0016ApplyBindsReportToArchiveDigest`: a report naming another archive's digest is `UNKNOWN` for check and refused by apply with the destination unchanged; the bound report applies |
 | UPD-V0-017 | `tasksDeclaration`, `tasksReportAsset`, `RunTasksArchive` | `TestUPDV0017PerPlatformTasksReports`: a release with both archives and per-platform reports, the same beside a legacy report naming the other platform, and the legacy single-platform layout each check and apply; a legacy report for the other platform alone is `UNKNOWN` and refused; `TestUPDV0017TasksReportAssetPerPlatform`: the producer names one report per target, bound to the archive digest, without the host-local path |
+| UPD-V0-367 | `officialSource`, `channel`, `discover`, `unknownReason` | `TestUPDV0367CheckExplainsSourceAndUnknown`: a prerelease `v1.0.0-rc.3` is selected beside a later Tasks prerelease and a draft (2 observed); a Tasks-only inventory, an empty inventory, HTTP 403 and no network grant each stay UNKNOWN with the installed build and an actionable reason; no state written; live (2026-10-30, Linux amd64): Core build 7 and Tasks build 7 checks against `beamfall/corvint` report UNKNOWN with `lists 0 published release(s)` (`docs/build-log/2026-10-30-official-update-sources.md`) |
+| UPD-V0-368 | `--github-token-env`, `get` | `TestUPDV0368TokenReachesOnlyTheAPIHost`: the token reaches `api.github.com` only, never `github.com` or the asset host, `authenticated` is set and the token never appears in the result; an unset variable refuses with its name; live authenticated check NOT_RUN (no token on the lane host) |
 | UPD-V0-006 | owned bounded process probes | `TestUPDV0006SubprocessCancellationCleanup`: timeout/interruption descendant cleanup |
 
 Actual macOS evidence MUST start disposable installs with retained Core/Tasks bytes, exercise the

@@ -36,6 +36,10 @@ const extractedLimit = 300 << 20
 type Config struct {
 	Component, BinDir, StateDir string
 	AllowNetwork                bool
+	// TokenEnv names an environment variable whose value authenticates
+	// release API requests to api.github.com only; empty means anonymous
+	// requests (UPD-V0-368).
+	TokenEnv string
 	// RefreshRoots are checkouts whose index snapshot a Core switch refreshes
 	// unconditionally; WorkDir's checkout is refreshed only when it already
 	// has a snapshot store (UPD-V0-008).
@@ -66,11 +70,22 @@ type Result struct {
 	// AvailableBuild is the build a Tasks release declares in its archive
 	// manifest. Relation compares installed with available on RelationBasis
 	// (build or version), or is UNKNOWN with RelationReason (UPD-V0-009).
-	AvailableBuild    int    `json:"availableBuild,omitempty"`
-	Relation          string `json:"relation,omitempty"`
-	RelationBasis     string `json:"relationBasis,omitempty"`
-	RelationReason    string `json:"relationReason,omitempty"`
-	Freshness         string `json:"freshness"`
+	AvailableBuild int    `json:"availableBuild,omitempty"`
+	Relation       string `json:"relation,omitempty"`
+	RelationBasis  string `json:"relationBasis,omitempty"`
+	RelationReason string `json:"relationReason,omitempty"`
+	Freshness      string `json:"freshness"`
+	// Source is the official release repository, Channel the tag prefix the
+	// component's releases carry (prereleases included), ReleasesObserved the
+	// published releases discovery read, and UnknownReason the actionable
+	// cause of an UNKNOWN freshness (UPD-V0-367).
+	Source           string `json:"source,omitempty"`
+	Channel          string `json:"channel,omitempty"`
+	ReleasesObserved int    `json:"releasesObserved,omitempty"`
+	UnknownReason    string `json:"unknownReason,omitempty"`
+	// Authenticated is true when release API requests carried the operator's
+	// token (UPD-V0-368).
+	Authenticated     bool   `json:"authenticated,omitempty"`
 	Action            string `json:"action"`
 	Qualification     string `json:"qualification"`
 	PublisherIdentity string `json:"publisherIdentity"`
@@ -113,9 +128,11 @@ type release struct {
 }
 type receipt struct{ Component, Destination, PreviousDigest, CandidateDigest string }
 type engine struct {
-	config   Config
-	client   *http.Client
-	api      string
+	config Config
+	client *http.Client
+	api    string
+	// token authenticates requests to api.github.com only (UPD-V0-368).
+	token    string
 	platform string
 	inspect  func(string, string) error
 	// refreshCtx bounds the post-switch snapshot refresh; nil means none.
@@ -137,9 +154,52 @@ func Run(ctx context.Context, command string, c Config) (Result, error) {
 			return errors.New("redirect limit")
 		}
 		return allowedURL(req.URL)
-	}}, api: "https://api.github.com/repos/beamfall/corvint/releases", platform: runtime.GOOS + "_" + runtime.GOARCH}
+	}}, api: "https://api.github.com/repos/" + officialSource + "/releases", platform: runtime.GOOS + "_" + runtime.GOARCH}
+	if c.TokenEnv != "" {
+		e.token = strings.TrimSpace(os.Getenv(c.TokenEnv))
+		if e.token == "" {
+			return Result{Component: c.Component, Freshness: "UNKNOWN", Action: command, PublisherIdentity: "NOT_VERIFIED", UnknownReason: "--github-token-env " + c.TokenEnv + " names an unset or empty variable; export the token or omit the option for anonymous requests"}, errors.New("release API token variable " + c.TokenEnv + " is unset or empty")
+		}
+	}
 	return e.execute(ctx, command)
 }
+
+// officialSource is the one official release repository. Core RC and stable
+// releases are `v*` tags and Tasks developer releases are `tasks-dev-*` tags
+// there; prereleases are admitted, so checking an RC or developer build never
+// waits for a published stable release (UPD-V0-367).
+const officialSource = "beamfall/corvint"
+
+// channel is the tag prefix of the component's official releases.
+func channel(component string) string {
+	if component == "tasks" {
+		return "tasks-dev-"
+	}
+	return "v"
+}
+
+// unknownReason turns a discovery failure into the actionable cause the
+// result carries with freshness UNKNOWN (UPD-V0-367).
+func (e engine) unknownReason(err error, observed int) string {
+	name, _ := binaryName(e.config.Component)
+	asset := name + "_" + e.platform + ".tar.gz"
+	switch {
+	case errors.Is(err, errNoRelease):
+		return fmt.Sprintf("%s lists %d published release(s) and none has a tag starting %q with asset %s; an official %s release must be published (an owner-authorized action, docs/RELEASE-RUNBOOK.md) before freshness can be known", officialSource, observed, channel(e.config.Component), asset, map[string]string{"core": "Core RC or stable (vX.Y.Z-rc.N)", "tasks": "Tasks developer (tasks-dev-YYYYMMDD.N)"}[e.config.Component])
+	case errors.Is(err, errPaginationCap):
+		return fmt.Sprintf("%s lists more than %d releases, beyond the bounded discovery window; freshness cannot be established", officialSource, observed)
+	}
+	hint := "rerun with network access to api.github.com"
+	if !e.authenticated() {
+		hint += ", or with --github-token-env when the anonymous API rate limit applies"
+	}
+	return fmt.Sprintf("the release inventory of %s could not be read (%v); %s", officialSource, err, hint)
+}
+
+var errNoRelease = errors.New("no matching release; freshness UNKNOWN")
+var errPaginationCap = errors.New("release pagination cap reached; freshness UNKNOWN")
+
+func (e engine) authenticated() bool { return e.token != "" }
 
 // execute runs command under the updater's own bound; a Core switch's
 // snapshot refresh keeps the caller's context instead (UPD-V0-008).
@@ -280,7 +340,11 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 	if err = validateDirs(c.BinDir, c.StateDir); err != nil {
 		return r, err
 	}
+	if command != "rollback" {
+		r.Source, r.Channel = officialSource, channel(c.Component)
+	}
 	if command != "rollback" && !c.AllowNetwork {
+		r.UnknownReason = "network not permitted; rerun with --allow-network to read the official release inventory"
 		return r, errors.New("network permission required: --allow-network; freshness UNKNOWN")
 	}
 	destination := filepath.Join(c.BinDir, name)
@@ -332,8 +396,11 @@ func (e engine) run(ctx context.Context, command string) (r Result, err error) {
 	if err != nil {
 		return r, err
 	}
-	selected, err := e.discover(ctx)
+	r.Authenticated = e.authenticated()
+	selected, observed, err := e.discover(ctx)
+	r.ReleasesObserved = observed
 	if err != nil {
+		r.UnknownReason = e.unknownReason(err, observed)
 		return r, err
 	}
 	r.AvailableTag = selected.Tag
@@ -725,6 +792,11 @@ func (e engine) get(ctx context.Context, address string, limit int64) ([]byte, e
 		return nil, err
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
+	if e.token != "" && u.Hostname() == "api.github.com" {
+		// Only the API host sees the token; asset downloads and redirects
+		// to other hosts stay anonymous (UPD-V0-368).
+		req.Header.Set("Authorization", "Bearer "+e.token)
+	}
 	res, err := e.client.Do(req)
 	if err != nil {
 		return nil, err
@@ -739,27 +811,29 @@ func (e engine) get(ctx context.Context, address string, limit int64) ([]byte, e
 	}
 	return data, err
 }
-func (e engine) discover(ctx context.Context) (release, error) {
+func (e engine) discover(ctx context.Context) (release, int, error) {
 	var matches []release
+	observed := 0
 	name, _ := binaryName(e.config.Component)
+	prefix := channel(e.config.Component)
 	for page := 1; page <= 5; page++ {
 		data, err := e.get(ctx, fmt.Sprintf("%s?per_page=100&page=%d", e.api, page), metadataLimit)
 		if err != nil {
-			return release{}, err
+			return release{}, observed, err
 		}
 		var rows []release
 		if err = json.Unmarshal(data, &rows); err != nil {
-			return release{}, err
+			return release{}, observed, err
 		}
 		if len(rows) > 100 {
-			return release{}, errors.New("release page exceeds bound")
+			return release{}, observed, errors.New("release page exceeds bound")
 		}
 		for _, r := range rows {
-			prefix := "v"
-			if e.config.Component == "tasks" {
-				prefix = "tasks-dev-"
+			if r.Draft || r.Published.IsZero() {
+				continue
 			}
-			if r.Draft || !strings.HasPrefix(r.Tag, prefix) || r.Published.IsZero() {
+			observed++
+			if !strings.HasPrefix(r.Tag, prefix) {
 				continue
 			}
 			for _, a := range r.Assets {
@@ -771,13 +845,13 @@ func (e engine) discover(ctx context.Context) (release, error) {
 		}
 		if len(rows) < 100 {
 			if len(matches) == 0 {
-				return release{}, errors.New("no matching release; freshness UNKNOWN")
+				return release{}, observed, errNoRelease
 			}
 			sort.Slice(matches, func(i, j int) bool { return matches[i].Published.After(matches[j].Published) })
-			return matches[0], nil
+			return matches[0], observed, nil
 		}
 	}
-	return release{}, errors.New("release pagination cap reached; freshness UNKNOWN")
+	return release{}, observed, errPaginationCap
 }
 
 // relate states how the selected release compares with the installed build

@@ -129,7 +129,7 @@ func TestUPDV0001OfflineReadOnlyAndChannels(t *testing.T) {
 		t.Fatal("check created state")
 	}
 	e.config.Component = "tasks"
-	if _, err = e.discover(context.Background()); err == nil {
+	if _, _, err = e.discover(context.Background()); err == nil {
 		t.Fatal("Core release selected for Tasks")
 	}
 }
@@ -250,7 +250,7 @@ func TestUPDV0001PaginationCapUnknown(t *testing.T) {
 		calls++
 		return &http.Response{StatusCode: 200, Body: io.NopCloser(bytes.NewReader(b))}, nil
 	})}
-	_, err := e.discover(context.Background())
+	_, _, err := e.discover(context.Background())
 	if err == nil || calls != 5 {
 		t.Fatalf("cap: calls=%d err=%v", calls, err)
 	}
@@ -928,5 +928,89 @@ func TestPUBV0053UpdateReadsTheCommitBearingLine(t *testing.T) {
 		if err != nil || build != want || got != line {
 			t.Fatalf("%q: %q %d %v", line, got, build, err)
 		}
+	}
+}
+
+// TestUPDV0367CheckExplainsSourceAndUnknown checks that every check names the
+// official source and channel, that an RC or developer prerelease is selected
+// without any stable release, and that an empty inventory, an unreadable one
+// and a missing network grant each stay UNKNOWN with an actionable reason.
+func TestUPDV0367CheckExplainsSourceAndUnknown(t *testing.T) {
+	e := fixtureEngine(t)
+	writeScript(t, filepath.Join(e.config.BinDir, "corvint"), 407)
+	serve := func(status int, rows []release) {
+		b, _ := json.Marshal(rows)
+		e.client = &http.Client{Transport: transportFunc(func(*http.Request) (*http.Response, error) {
+			return &http.Response{StatusCode: status, Body: io.NopCloser(bytes.NewReader(b))}, nil
+		})}
+	}
+	core := asset{"corvint_" + e.platform + ".tar.gz", "https://github.com/core"}
+	serve(200, []release{
+		{Tag: "v1.0.0-rc.3", Prerelease: true, Published: time.Now(), Assets: []asset{core}},
+		{Tag: "tasks-dev-20261030.1", Prerelease: true, Published: time.Now().Add(time.Hour), Assets: []asset{{"corvint-tasks_" + e.platform + ".tar.gz", "https://github.com/tasks"}}},
+		{Tag: "v9.0.0", Draft: true, Published: time.Now(), Assets: []asset{core}},
+	})
+	r, err := e.run(context.Background(), "check")
+	if err != nil || r.AvailableTag != "v1.0.0-rc.3" || r.Source != "beamfall/corvint" || r.Channel != "v" || r.ReleasesObserved != 2 || r.UnknownReason != "" || r.Freshness != "RELEASE_OBSERVED" || r.Authenticated {
+		t.Fatalf("prerelease check: %+v %v", r, err)
+	}
+	serve(200, []release{{Tag: "tasks-dev-20261030.1", Published: time.Now(), Assets: []asset{{"corvint-tasks_" + e.platform + ".tar.gz", "https://github.com/tasks"}}}})
+	r, err = e.run(context.Background(), "check")
+	if err == nil || r.Freshness != "UNKNOWN" || r.InstalledVersion == "" || r.ReleasesObserved != 1 || !strings.Contains(r.UnknownReason, `none has a tag starting "v"`) || !strings.Contains(r.UnknownReason, "owner-authorized") {
+		t.Fatalf("no Core release: %+v %v", r, err)
+	}
+	serve(200, nil)
+	e.config.Component = "tasks"
+	envelope := `{"items":[{"version":"0.0.0-tcp01-unverified+build.7"}],"profile":"taskman-command-result/0"}`
+	if err = os.WriteFile(filepath.Join(e.config.BinDir, "corvint-tasks"), []byte("#!/bin/sh\necho '"+envelope+"'\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	r, err = e.run(context.Background(), "check")
+	if err == nil || r.Channel != "tasks-dev-" || r.InstalledBuild != 7 || !strings.Contains(r.UnknownReason, "lists 0 published release(s)") || !strings.Contains(r.UnknownReason, "tasks-dev-YYYYMMDD.N") {
+		t.Fatalf("empty inventory: %+v %v", r, err)
+	}
+	serve(403, nil)
+	r, err = e.run(context.Background(), "check")
+	if err == nil || r.Freshness != "UNKNOWN" || !strings.Contains(r.UnknownReason, "status 403") || !strings.Contains(r.UnknownReason, "--github-token-env") {
+		t.Fatalf("unreadable inventory: %+v %v", r, err)
+	}
+	e.config.AllowNetwork = false
+	r, err = e.run(context.Background(), "check")
+	if err == nil || !strings.Contains(r.UnknownReason, "--allow-network") || r.Source != "beamfall/corvint" {
+		t.Fatalf("offline: %+v %v", r, err)
+	}
+	if _, err = os.Stat(e.config.StateDir); !os.IsNotExist(err) {
+		t.Fatal("check created state")
+	}
+}
+
+// TestUPDV0368TokenReachesOnlyTheAPIHost checks that an operator token
+// authenticates api.github.com requests, never a download host, and that a
+// named but unset variable refuses before any request.
+func TestUPDV0368TokenReachesOnlyTheAPIHost(t *testing.T) {
+	e := fixtureEngine(t)
+	e.token = "secret-token"
+	seen := map[string]string{}
+	e.client = &http.Client{Transport: transportFunc(func(req *http.Request) (*http.Response, error) {
+		seen[req.URL.Host] = req.Header.Get("Authorization")
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader("[]"))}, nil
+	})}
+	for _, address := range []string{"https://api.github.com/repos/beamfall/corvint/releases", "https://github.com/beamfall/corvint/releases/download/v1/x", "https://release-assets.githubusercontent.com/x"} {
+		if _, err := e.get(context.Background(), address, metadataLimit); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if seen["api.github.com"] != "Bearer secret-token" || seen["github.com"] != "" || seen["release-assets.githubusercontent.com"] != "" {
+		t.Fatalf("authorization headers: %v", seen)
+	}
+	writeScript(t, filepath.Join(e.config.BinDir, "corvint"), 407)
+	r, err := e.run(context.Background(), "check")
+	if err == nil || !r.Authenticated || strings.Contains(r.UnknownReason, "--github-token-env") || strings.Contains(fmt.Sprint(r), "secret-token") {
+		t.Fatalf("authenticated empty check: %+v %v", r, err)
+	}
+	t.Setenv("CORVINT_UPDATE_TEST_TOKEN", "")
+	r, err = Run(context.Background(), "check", Config{Component: "core", BinDir: e.config.BinDir, StateDir: e.config.StateDir, AllowNetwork: true, TokenEnv: "CORVINT_UPDATE_TEST_TOKEN"})
+	if err == nil || !strings.Contains(r.UnknownReason, "CORVINT_UPDATE_TEST_TOKEN") {
+		t.Fatalf("unset token variable: %+v %v", r, err)
 	}
 }

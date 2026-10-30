@@ -4932,6 +4932,8 @@ UPD-V0-014	docs/specs/operator-update-v0.md	(accepted under the owner's standing
 UPD-V0-015	docs/specs/operator-update-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3011, V1-3012)	standing	2026-10-11; V1-3011; V1-3012
 UPD-V0-016	docs/specs/operator-update-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3013) `check`	standing	2026-10-11; V1-3013
 UPD-V0-017	docs/specs/operator-update-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3014) A Tasks	standing	2026-10-11; V1-3014
+UPD-V0-367	docs/specs/operator-update-v0.md	(proposed (V1-3184)) Core and Tasks are checked from one official source, the	unrecorded	-
+UPD-V0-368	docs/specs/operator-update-v0.md	(proposed (V1-3184)) `--github-token-env NAME` MAY authenticate release reads wi	unrecorded	-
 OACS-V0-001	docs/specs/optional-artifact-check-scripts-v0.md	The offline-build entrypoint MUST require a nonempty first argument naming a	unrecorded	-
 OACS-V0-002	docs/specs/optional-artifact-check-scripts-v0.md	The offline-build entrypoint MUST refuse an exact dependency-list line equal to	unrecorded	-
 OACS-V0-003	docs/specs/optional-artifact-check-scripts-v0.md	After all three temporary allocations succeed, the offline-build entrypoint	unrecorded	-
