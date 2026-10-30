@@ -34,16 +34,18 @@ func TestAFPV0734NarrowedRecordJob(t *testing.T) {
 	testplatform.SkipPOSIXShell(t, "the record script runs under sh against a real Git repository")
 	b := jobBlock(t, readWorkflow(t, "ci.yml"), NarrowedRecordJob)
 	wantLine(t, NarrowedRecordJob, b, "    needs: [docs-plan, narrowing-verdict, go-product-shard, go-product]")
-	for _, want := range []string{"github.event_name == 'pull_request'", "needs.go-product.result == 'success'",
+	for _, want := range []string{"(github.event_name == 'pull_request' || github.event_name == 'merge_group')", "needs.go-product.result == 'success'",
 		"needs.go-product-shard.result == 'success'", "needs.narrowing-verdict.outputs.verdict == 'MET'",
 		"!(needs.go-product-shard.outputs.full0 == 'FULL' &&", "needs.docs-plan.outputs.mode != 'REUSE'"} {
 		if !strings.Contains(b, want) {
 			t.Errorf("the narrowed record job condition lacks %q", want)
 		}
 	}
-	if strings.Contains(b, "merge_group") {
-		t.Error("only a pull-request run may print a narrowed record")
+	// CIN-V0-005: a pull-request or merge-queue run may print a narrowed record, never a push.
+	if strings.Contains(b, "'push'") {
+		t.Error("only a pull-request or merge-queue run may print a narrowed record")
 	}
+	wantLine(t, NarrowedRecordJob, b, "          EVENT_BASE: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}")
 	runsNoRepositoryCode(t, NarrowedRecordJob, b)
 	// Run the script in a two-parent merge and parse what it prints.
 	repo := t.TempDir()
@@ -68,18 +70,21 @@ func TestAFPV0734NarrowedRecordJob(t *testing.T) {
 	git("checkout", "-q", "--detach", base)
 	git("merge", "-q", "--no-ff", "-m", "merge", head)
 	target, tree := git("rev-parse", "HEAD"), git("rev-parse", "HEAD^{tree}")
-	run := func(prHead string, prBase ...string) string {
-		if len(prBase) == 0 {
-			prBase = []string{base}
-		}
+	runAs := func(event, prHead, eventBase string) string {
 		cmd := exec.Command("sh", "-c", runScript(t, b))
 		cmd.Dir = repo
-		cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GITHUB_SHA="+target, "PR_HEAD="+prHead, "PR_BASE="+prBase[0], "SHARDS=8")
+		cmd.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GITHUB_EVENT_NAME="+event, "GITHUB_SHA="+target, "PR_HEAD="+prHead, "EVENT_BASE="+eventBase, "SHARDS=8")
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("record script: %v\n%s", err, out)
 		}
 		return string(out)
+	}
+	run := func(prHead string, prBase ...string) string {
+		if len(prBase) == 0 {
+			prBase = []string{base}
+		}
+		return runAs("pull_request", prHead, prBase[0])
 	}
 	m := narrowedLine.FindStringSubmatch(strings.TrimSpace(run(head)))
 	if m == nil || m[1] != tree || m[2] != target || m[3] != base || m[4] != head || m[5] != "8" {
@@ -91,6 +96,21 @@ func TestAFPV0734NarrowedRecordJob(t *testing.T) {
 	// A merge ref recomputed on another first parent than the event's base covers another range.
 	if out := run(head, head); narrowedLine.MatchString(strings.TrimSpace(out)) || !strings.Contains(out, "not built on the base its selection covered") {
 		t.Fatalf("a merge on another base printed %q", out)
+	}
+	// CIN-V0-005: a merge-queue run has no pull-request head; its record names the queue
+	// commit's second parent and requires the entry's base_sha as the first parent.
+	m = narrowedLine.FindStringSubmatch(strings.TrimSpace(runAs("merge_group", "", base)))
+	if m == nil || m[1] != tree || m[2] != target || m[3] != base || m[4] != head || m[5] != "8" {
+		t.Fatalf("merge-queue narrowed record %q, want tree %s target %s base %s head %s shards 8", m, tree, target, base, head)
+	}
+	for name, eventBase := range map[string]string{"another base_sha": head, "no base_sha": ""} {
+		if out := runAs("merge_group", "", eventBase); narrowedLine.MatchString(strings.TrimSpace(out)) || !strings.Contains(out, "not built on the base its selection covered") {
+			t.Fatalf("merge queue, %s: printed %q", name, out)
+		}
+	}
+	// A pull-request run without its head in the event still refuses.
+	if out := runAs("pull_request", "", base); narrowedLine.MatchString(strings.TrimSpace(out)) {
+		t.Fatalf("a pull-request run without a head printed %q", out)
 	}
 }
 

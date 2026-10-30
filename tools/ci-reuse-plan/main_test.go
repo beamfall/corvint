@@ -367,3 +367,65 @@ func TestAFPV0812NamesTheNarrowedRecordOfAMovedBase(t *testing.T) {
 		t.Fatalf("failed run: delta = %+v", d.Delta)
 	}
 }
+
+// queueNarrowedEvidence is a narrowed merge-queue run of the pushed commit whose only record job
+// is ci-narrowed-tree-record (CIN-V0-005).
+func queueNarrowedEvidence(runID int64, name, log string) evidence {
+	e := evidence{jobs: map[int64][]job{}, logs: map[int64]string{}}
+	e.jobs[runID] = append(shardJobs(runID, testTarget, 4), job{ID: runID * 10, RunID: runID, Name: name, HeadSHA: testTarget, Status: "completed", Conclusion: "success"})
+	e.logs[runID*10] = log
+	return e
+}
+
+// TestCINV0005PushReusesTheNarrowedQueueRunOfThePushedCommit (V1-3158): the main push of a
+// commit whose merge-queue run passed narrowed reuses that run only when its narrowed record
+// names this exact tree, target, base, head and shard count; each other case stays FULL.
+func TestCINV0005PushReusesTheNarrowedQueueRunOfThePushedCommit(t *testing.T) {
+	good := narrowedLog(testTree, testTarget, testBase, testHead, 4)
+	push := func(base string, runs []run, e evidence) decision {
+		return Decide(testRepo, "push", testTree, testHead, testTarget, base, 4, runs, e.listJobs, e.readLog)
+	}
+	d := push(testBase, []run{passedQueueRun(11)}, queueNarrowedEvidence(11, NarrowedRecordJob, good))
+	if d.Mode != "REUSE" || d.Scope != "NARROWED" || d.Base != testBase || d.RunID == nil || *d.RunID != 11 || d.RecordJobID == nil ||
+		*d.RecordJobID != 110 || len(d.Records) != 4 || !strings.Contains(d.Reason, "merge-queue run of this commit") {
+		t.Fatalf("decision = %+v", d)
+	}
+	other := "3333333333333333333333333333333333333333"
+	failed := passedQueueRun(11)
+	failed.Conclusion = "failure"
+	otherCommit := passedQueueRun(11)
+	otherCommit.HeadSHA = other
+	for name, tc := range map[string]struct {
+		base string
+		runs []run
+		e    evidence
+	}{
+		// CORVINT_MQ_NARROWING off, or a tool without --base: only a full record is reused.
+		"no base":                       {"", []run{passedQueueRun(11)}, queueNarrowedEvidence(11, NarrowedRecordJob, good)},
+		"another base":                  {other, []run{passedQueueRun(11)}, queueNarrowedEvidence(11, NarrowedRecordJob, good)},
+		"the tree differs":              {testBase, []run{passedQueueRun(11)}, queueNarrowedEvidence(11, NarrowedRecordJob, narrowedLog(other, testTarget, testBase, testHead, 4))},
+		"another target":                {testBase, []run{passedQueueRun(11)}, queueNarrowedEvidence(11, NarrowedRecordJob, narrowedLog(testTree, other, testBase, testHead, 4))},
+		"another head":                  {testBase, []run{passedQueueRun(11)}, queueNarrowedEvidence(11, NarrowedRecordJob, narrowedLog(testTree, testTarget, testBase, other, 4))},
+		"another shard count":           {testBase, []run{passedQueueRun(11)}, queueNarrowedEvidence(11, NarrowedRecordJob, narrowedLog(testTree, testTarget, testBase, testHead, 8))},
+		"two record lines":              {testBase, []run{passedQueueRun(11)}, queueNarrowedEvidence(11, NarrowedRecordJob, good+good)},
+		"the queue ran FULL, no record": {testBase, []run{passedQueueRun(11)}, evidence{jobs: map[int64][]job{11: shardJobs(11, testTarget, 4)}, logs: map[int64]string{}}},
+		"the record log is unreadable":  {testBase, []run{passedQueueRun(11)}, evidence{jobs: queueNarrowedEvidence(11, NarrowedRecordJob, good).jobs, logs: map[int64]string{}}},
+		"the jobs are unreadable":       {testBase, []run{passedQueueRun(11)}, evidence{}},
+		"the line in the full job":      {testBase, []run{passedQueueRun(11)}, queueNarrowedEvidence(11, RecordJob, good)},
+		"a failed queue run":            {testBase, []run{failed}, queueNarrowedEvidence(11, NarrowedRecordJob, good)},
+		"a queue run of another commit": {testBase, []run{otherCommit}, queueNarrowedEvidence(11, NarrowedRecordJob, good)},
+		// A pull-request run's narrowed record never vouches for a main push (AFP-V0-734).
+		"a pull-request narrowed record": {testBase, []run{passedRun(7)}, narrowedEvidence(7, NarrowedRecordJob, narrowedLog(testTree, prMerge, testBase, testHead, 4))},
+	} {
+		if d := push(tc.base, tc.runs, tc.e); d.Mode != "FULL" || d.Delta != nil {
+			t.Errorf("%s: decision = %+v, want FULL", name, d)
+		}
+	}
+	// A queue run whose full record also passed is reused as FULL.
+	both := queueNarrowedEvidence(11, NarrowedRecordJob, good)
+	both.jobs[11] = append(both.jobs[11], job{ID: 111, RunID: 11, Name: RecordJob, HeadSHA: testTarget, Status: "completed", Conclusion: "success"})
+	both.logs[111] = recordLog(testTree, testTarget, testHead, 4)
+	if d := push(testBase, []run{passedQueueRun(11)}, both); d.Mode != "REUSE" || d.Scope != "FULL" || *d.RecordJobID != 111 {
+		t.Fatalf("decision = %+v, want the full record", d)
+	}
+}
