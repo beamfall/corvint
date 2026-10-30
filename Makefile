@@ -547,6 +547,8 @@ diagnostic-coverage-check:
 
 install-lifecycle-test:
 	@script/check-install-lifecycle_test.sh
+	@script/select-previous-release_test.sh
+	@script/core-n1-source_test.sh
 
 hostile-regressions-check:
 	@script/check-hostile-regressions.sh

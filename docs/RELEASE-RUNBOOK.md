@@ -100,7 +100,7 @@ output directories outside the checkout; the reproducibility script refuses one 
    ```
 
    For the hosted `Release gates` workflow, lifecycle qualification normally selects the newest
-   prior reachable `v*` tag. If published tags were preserved across a history rewrite, supply
+   prior reachable `v*` tag, which must be a published release of this repository. If published tags were preserved across a history rewrite, supply
    both `previous_release_tag` and `previous_release_oid` when dispatching. The OID is the exact
    direct value of `refs/tags/TAG` (the commit OID for a lightweight tag), not a branch name or an
    abbreviated commit. For example, inspect `git rev-parse refs/tags/vW.V.U` and
@@ -111,9 +111,9 @@ output directories outside the checkout; the reproducibility script refuses one 
 
    An explicit disconnected tag is allowed; Git cannot prove its chronological precedence. The
    operator owns the published lifecycle predecessor choice. Published checksums still verify the
-   downloaded archive, without independently proving it was built from the pinned tag. Keep that
-   lifecycle predecessor separate from the accepted Core compatibility baseline: after a rewrite,
-   explicitly name the Core tag in the replay below rather than relying on its ancestry default.
+   downloaded archive, without independently proving it was built from the pinned tag. The Core
+   replay gate below uses the same predecessor (V1-3177). By hand, name the tag explicitly:
+   `make core-n1-replay`'s ancestry default excludes pre-release tags.
 
    Then the CCF-V1-007 N-1 replay (accepted 2026-09-26, decision 0422; from decision 0398): every
    frozen Core mode except the skips CCF-V1-007 names also runs under the previous release tag over a
@@ -121,11 +121,20 @@ output directories outside the checkout; the reproducibility script refuses one 
    still be emitted by this commit with the same JSON type, and every value it writes at a registered
    path must still be registered here. Each Core verb's pinned refusal also runs under that tag and
    must keep its exit class, envelope members and code (CCF-V1-010). It must end `ok`; retain its output. The
-   `core-n1-replay-v1.0.0-rc.1` and `core-n1-replay-v0.8.1` gates of
-   `.github/workflows/release-gates.yml` run this replay against the documented baselines (decision
-   0434 item 3 and the CCF-V1-007 text) at the dispatched `sha` and nightly on `main` (V1-1382);
-   cite that run's `core-n1-replay-<tag>-<release>-ubuntu-24.04` artifacts, or run the command below
-   for another tag.
+   `core-n1-replay` gate of `.github/workflows/release-gates.yml` runs this replay at the dispatched
+   `sha` and nightly on `main` against the previous release published in this repository, selected
+   by `script/core-n1-source.sh` as the lifecycle predecessor above (owner decision 2026-10-30,
+   V1-3177: the `v0.8.1` and `v1.0.0-rc.1` baselines are not in this repository). Cite that run's
+   `core-n1-replay-<release>-ubuntu-24.04` artifact, or run the command below for another tag.
+
+   The first release of this repository, `v1.0.0-rc.3`, has no N-1. When no prior tag is reachable
+   and no published release could precede the candidate, the replay gate and `linux-core`'s N-1
+   fetch, N-1 install lifecycle and host lifecycle upgrade case each report `FIRST_RELEASE` not
+   applicable in their log, a notice and the step summary; the host lifecycle's other eight cases
+   still run and must pass. Retain those lines as the release's N-1 evidence. Any published release
+   that is not the candidate or its descendant, or a selected tag that is not a published release
+   or whose archive cannot be fetched or verified, fails the gate instead; supply
+   `previous_release_tag` and `previous_release_oid` for a published nonancestor predecessor.
 
    ```sh
    bash -o pipefail -c 'make core-n1-replay CORE_N1_TAG=vW.V.U 2>&1 | tee "$1"' _ "/abs/release/X.Y.Z/core-n1-replay.txt"
