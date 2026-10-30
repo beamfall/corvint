@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/archivepath"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 )
 
@@ -553,7 +554,10 @@ func writeTree(dir string, entries []ArchiveEntry) error {
 		return err
 	}
 	for _, e := range entries {
-		full := filepath.Join(dir, e.Path)
+		full, err := archivepath.Join(dir, e.Path)
+		if err != nil {
+			return err
+		}
 		if err := os.MkdirAll(filepath.Dir(full), 0o700); err != nil {
 			return err
 		}
