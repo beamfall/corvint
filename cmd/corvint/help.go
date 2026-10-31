@@ -1944,6 +1944,8 @@ Usage:
   corvint [--root PATH] dogfood cancel [--reason TEXT] [--session-key HASH]
   corvint [--root PATH] dogfood hold --reason TEXT [--session-key HASH]
   corvint [--root PATH] dogfood hold --release-authorization TEXT [--session-key HASH]
+  corvint [--root PATH] dogfood export --output FILE [--session-key HASH]
+  corvint [--root PATH] dogfood import --input FILE [--session-key HASH]
   corvint [--root PATH] dogfood handoff [--anchors "ANCHOR..."] [--session-key HASH]
   corvint [--root PATH] dogfood handoff --receipt FILE [--session-key HASH]
   corvint [--root PATH] dogfood handoff --task-state FILE [--session-key HASH]
@@ -1973,11 +1975,19 @@ exact report set. A subsequent finish materializes the selected-check outcome,
 runs the strict dogfood check and records satisfaction only on success.
 
 Status is read-only. Missing evidence remains incomplete. Cancellation is explicit
-non-success. hold records a coordinator's preservation hold on the active
-enrollment, under which cancel refuses enrollment-preservation-hold; begin the new
-base in a distinct checkout instead, or release it with --release-authorization
-TEXT, which is kept as a record (LCP-V0-880, LCP-V0-881). Local satisfaction is caller-owned workflow evidence, never execution
+non-success. Local satisfaction is caller-owned workflow evidence, never execution
 attestation or Frontier closure. Native event is a separate bounded adapter profile.
+
+hold records a coordinator's preservation hold on the active enrollment, under
+which cancel refuses enrollment-preservation-hold; begin the new base in a
+distinct checkout instead, or release it with --release-authorization TEXT, which
+is kept as a record (LCP-V0-880, LCP-V0-881).
+
+export writes the enrollment, its session files and the artifacts it names to a
+new FILE bound to HEAD's commit and tree, changing nothing; keep FILE outside the
+Git directory before a worktree is archived. import restores it into a worktree
+at that exact commit and tree with no state for the key, relocating its saved
+paths; it never replaces an enrollment or invents satisfaction (LCP-V0-883..885).
 
 handoff is read-only. Without --receipt it emits a receipt naming the session key,
 root, bound revision, sorted task anchors, prompt packet sha256 and bytes, and

@@ -1081,10 +1081,12 @@
         "cancel",
         "change",
         "check",
+        "export",
         "finish",
         "finish-lane",
         "handoff",
         "hold",
+        "import",
         "inputs-check",
         "prechange",
         "propose-citations",
@@ -1098,9 +1100,15 @@
         "dogfood begin": [
           "--plan"
         ],
+        "dogfood export": [
+          "--output"
+        ],
         "dogfood finish-lane": [
           "--base",
           "--citations"
+        ],
+        "dogfood import": [
+          "--input"
         ],
         "dogfood inputs-check": [
           "--base",
@@ -1121,8 +1129,10 @@
         "--check",
         "--citations",
         "--corvint-bin",
+        "--input",
         "--intents",
         "--outcome",
+        "--output",
         "--override-verifier",
         "--plan",
         "--reason",
@@ -1147,6 +1157,7 @@
       "selfObservationLedger": "not-listed",
       "writeStatements": [
         "Status is read-only.",
+        "export writes the enrollment, its session files and the artifacts it names to a new FILE bound to HEAD's commit and tree, changing nothing; keep FILE outside the Git directory before a worktree is archived.",
         "handoff is read-only.",
         "change writes the private evidence under the Git directory and .corvint/change.cem.json and .corvint/dogfood-report.json; check verifies the committed binding; seal checks, then commits the CEM rename to .corvint/changes/COMMIT.cem.json.",
         "Prepare also cites each plan row against the prepared map without writing it, so a row cem cite would refuse stops the run before any bind (DCW-V0-335), and so does an intents manifest or a plan the bind would refuse before any cite: invalid, past the map's hunks, or citing one span for every hunk (DCW-V0-379).",

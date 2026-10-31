@@ -1344,6 +1344,26 @@ saved observations it would close, unless `--reason TEXT` records why it is bein
 reason is echoed as `cancelReason` in the result and is not persisted (LCP-V0-038). Cancelling an
 already satisfied or cancelled enrollment needs no reason.
 
+When a coordinator's instruction is to preserve that ACTIVE enrollment, it records the instruction
+with `corvint dogfood hold --session-key KEY --reason TEXT`. While the hold exists, `dogfood
+cancel` refuses `enrollment-preservation-hold`, quoting the reason and naming the distinct-checkout
+route; only `dogfood hold --session-key KEY --release-authorization TEXT`, which keeps the released
+hold and its authorization as a record, admits the cancel (LCP-V0-880, LCP-V0-881). Before a managed
+worktree is archived, export its enrollment to a file outside the Git directory:
+
+```console
+$ corvint dogfood export --session-key KEY --output "$HOME/enrollments/KEY.json"
+```
+
+After restore, check out the exported commit and run `corvint dogfood import --session-key KEY
+--input "$HOME/enrollments/KEY.json"` in the restored worktree. The import is bound to that exact
+commit and tree, never replaces an existing enrollment, relocates the saved paths into the new Git
+directory and evaluates as the source did; it never makes the enrollment more satisfied
+(LCP-V0-883..885). Without a bundle a restored worktree reads `inactive`: whether it ever held an
+enrollment cannot be told from it, so report that as `NOT_OBSERVED` and never re-enroll over it.
+Aggregate-outcome and sealed-continuation enrollments cannot be exported yet
+(`enrollment-export-unsupported`); keep their original checkout.
+
 `status` and native events are read-only. An enrolled incomplete Stop permits one remediation;
 recursive Stop releases with an unresolved notice. `cancel` explicitly records non-success and is
 not a way to disguise a blocked gate. All local observations and inspection remain caller-owned;

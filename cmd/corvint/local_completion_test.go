@@ -254,6 +254,46 @@ func TestLocalCompletionRealEvidenceWorkflow(t *testing.T) {
 		}
 		cemGit(t, root, "config", "--local", "--unset", "corvint.dogfood.anchor")
 	})
+	// LCP-V0-883..885 (V1-0580): a satisfied enrollment exported from this
+	// worktree and imported into a restored worktree at the same commit, with
+	// another Git directory, evaluates satisfied there with the same target,
+	// checks and reports; a second import is refused rather than replacing it.
+	t.Run("LCP-V0-883 restore satisfied", func(t *testing.T) {
+		source, err := localcompletion.Finish(ctx, root, key, localCompletionPublicCommand)
+		if err != nil || !source.Satisfied {
+			t.Fatalf("source completion: %#v %v", source, err)
+		}
+		bundle := filepath.Join(t.TempDir(), "enrollment.json")
+		if code, stdout, stderr := runCLI(t, "--root", root, "dogfood", "export", "--session-key", key, "--output", bundle); code != 0 || !strings.Contains(stdout, `"mutates":false`) {
+			t.Fatalf("export: exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+		}
+		restored := filepath.Join(t.TempDir(), "restored")
+		cemGit(t, root, "worktree", "add", "-q", "--detach", restored, "HEAD")
+		restored, _ = filepath.EvalSymlinks(restored)
+		if result, err := localcompletion.Evaluate(ctx, restored, key); err != nil || result.Lifecycle != "inactive" {
+			t.Fatalf("restored worktree before import: %#v %v", result, err)
+		}
+		code, stdout, stderr := runCLI(t, "--root", restored, "dogfood", "import", "--session-key", key, "--input", bundle)
+		var document struct {
+			Policy localcompletion.Evaluation `json:"policy"`
+		}
+		if err = json.Unmarshal([]byte(stdout), &document); err != nil || code != 0 {
+			t.Fatalf("import: exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+		}
+		got := document.Policy
+		if !got.Satisfied || got.Lifecycle != "satisfied" || got.Target != source.Target || len(got.Unmet) != 0 || len(got.Reports) != len(source.Reports) || len(got.Checks) != 1 || !got.Checks[0].Qualified {
+			t.Fatalf("restored policy %#v, source %#v", got, source)
+		}
+		for _, report := range got.Reports {
+			if !strings.HasPrefix(report, cemGit(t, restored, "rev-parse", "--absolute-git-dir")+"/") {
+				t.Errorf("report %s not relocated into the restored Git directory", report)
+			}
+		}
+		if code, _, stderr = runCLI(t, "--root", restored, "dogfood", "import", "--session-key", key, "--input", bundle); code != 2 || !strings.Contains(stderr, "import-would-replace") {
+			t.Fatalf("second import: exit=%d stderr=%s", code, stderr)
+		}
+		cemGit(t, root, "worktree", "remove", "--force", restored)
+	})
 	t.Run("V1-1894 sealed completion", func(t *testing.T) {
 		// Establish a real successful completion before exercising the required seal.
 		result, err := localcompletion.Finish(ctx, root, key, localCompletionPublicCommand)
