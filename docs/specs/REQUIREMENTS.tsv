@@ -4211,6 +4211,13 @@ GPK-V0-084	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20,
 GPK-V0-085	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2047) The listing MUST be derived	standing	2026-10-20; V1-2047
 GPK-V0-086	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2047) `--capabilities` MUST be th	standing	2026-10-20; V1-2047
 GPK-V0-087	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-20, standing auto-accept; V1-2128) A static named import MUST	standing	2026-10-20; V1-2128
+GTE-V0-820	docs/specs/go-test-evidence-v0.md	`gotest-evidence record -ledger FILE -tree SHA` MUST read one `go test -json`	unrecorded	-
+GTE-V0-821	docs/specs/go-test-evidence-v0.md	Each record MUST name its package, its test (empty for the package outcome) and	unrecorded	-
+GTE-V0-822	docs/specs/go-test-evidence-v0.md	Writes MUST be idempotent. A record's `id` is the SHA-256 of its schema, the	unrecorded	-
+GTE-V0-823	docs/specs/go-test-evidence-v0.md	Identity is the package and the full test path. A renamed test is a new identity	unrecorded	-
+GTE-V0-824	docs/specs/go-test-evidence-v0.md	A test that started (`run`) and never reached a terminal event, as after a panic	unrecorded	-
+GTE-V0-825	docs/specs/go-test-evidence-v0.md	`gotest-evidence summary -ledger FILE` MUST print, per package and test, the	unrecorded	-
+GTE-V0-826	docs/specs/go-test-evidence-v0.md	Nothing in Corvint reads the ledger for ranking, evidence, authority or learning	unrecorded	-
 GCS-V0-001	docs/specs/gopls-client-session-v0.md	Startup MUST require an absolute explicitly configured executable and canonical	unrecorded	-
 GCS-V0-002	docs/specs/gopls-client-session-v0.md	The session MUST own its process group through `procgroup`, join cleanup on shut	unrecorded	-
 GCS-V0-003	docs/specs/gopls-client-session-v0.md	Open/change/close MUST use caller text and monotonically increasing versions. De	unrecorded	-
