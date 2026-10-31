@@ -75,7 +75,7 @@ export HEAVY_WHOLE_REASON='lane-scripts-test fixture' HEAVY_MAX_LOAD=999999 HEAV
 unset HEAVY_LOCAL_REASON HEAVY_LOAD_WAIT
 unset HEAVY_REMOTE_HOST HEAVY_REMOTE HEAVY_REMOTE_SHELL HEAVY_REMOTE_SSH HEAVY_REMOTE_CLONE HEAVY_REMOTE_ROOT \
   HEAVY_REMOTE_SLOTS HEAVY_REMOTE_ENV HEAVY_REMOTE_TIMEOUT HEAVY_REMOTE_BUSY_PROCESS HEAVY_REMOTE_BUILD_MAX_LOAD \
-  HEAVY_BUILD_OFFLOAD HEAVY_CI_GH HEAVY_CI_STATUSES HEAVY_CI_TIMEOUT
+  HEAVY_REMOTE_GOMAXPROCS HEAVY_BUILD_OFFLOAD HEAVY_CI_GH HEAVY_CI_STATUSES HEAVY_CI_TIMEOUT
 # ASD-V0-040: no fixture queries a real CI; the guard's own group sets a repository and a stub gh.
 export HEAVY_CI_REPO=off
 # DCW-V0-355 (V1-2853): every heavy.sh fixture run goes through $heavy, a guard that asks heavy.sh
@@ -281,7 +281,7 @@ if [[ \$1 == build ]]; then
   exit 0
 fi
 [[ \$1 == test || \$1 == vet || \$1 == windows-vet ]] || exit 0
-case \$PWD in */off/rhome/.cache/corvint-heavy/wt/*) where=remote; printf '%s\n' "\$TMPDIR" > "$off/tmpdir.last"; : > "\$TMPDIR/leak" ;; *) where=local ;; esac
+case \$PWD in */off/rhome/.cache/corvint-heavy/wt/*) where=remote; printf '%s\n' "\$TMPDIR" > "$off/tmpdir.last"; printf '%s\n' "\${GOMAXPROCS-unset}" > "$off/gmp.last"; : > "\$TMPDIR/leak" ;; *) where=local ;; esac
 printf 'where=%s dir=%s gocache=%s mark=%s\n' "\$where" "\${PWD##*/}" "\${GOCACHE-unset}" "\${FAKE_MARK-}"
 cat ../committed.txt ../wip.txt untracked.txt 2> /dev/null
 for a in "\$@"; do
@@ -312,7 +312,7 @@ printf 'wip-uncommitted\n' > "$off/lc/wip.txt"
 printf 'untracked\n' > "$off/lc/sub/untracked.txt"
 printf 'export FAKE_MARK=sourced\n' > "$off/rhome/go.env"
 # shellcheck disable=SC2088 # the remote expands ~
-hv() { (cd "$off/lc/sub" && env PATH="$off/bin:$PATH" TMPDIR="$off/ltmp" HEAVY_REMOTE_SSH="$off/bin/ssh" \
+hv() { (cd "$off/lc/sub" && env -u GOMAXPROCS PATH="$off/bin:$PATH" TMPDIR="$off/ltmp" HEAVY_REMOTE_SSH="$off/bin/ssh" \
   HEAVY_REMOTE_SHELL='bash -s' HEAVY_REMOTE_ENV='~/go.env' HEAVY_SLOTS=1 HEAVY_REMOTE_RETRY=0 \
   HEAVY_FALLBACK_LOG="$off/fallback.log" "$heavy" "$@"); }
 out=$(HEAVY_REMOTE_HOST=box hv env GOCACHE=/no/such/cache go test -exit=0 ./... 2> "$off/err")
@@ -335,6 +335,19 @@ grep -qE "^heavy.sh: running on .* at $(g -C "$off/lc" rev-parse HEAD) \+wip tre
 # slot's worktree at a fixed path that later runs reuse after resetting it to the tested tree.
 phase='^heavy.sh: phase receive=[0-9]+\.[0-9]s wait=[0-9]+\.[0-9]s prepare=[0-9]+\.[0-9]s run=[0-9]+\.[0-9]s worktree=heavy-slot1/'
 grep -qE "${phase}created\$" "$off/err" || fail "heavy.sh first offload phase line: $(cat "$off/err")"
+# V1-1628 (ASD-V0-835): the remote command runs with GOMAXPROCS set to the remote -p (CPUs/slots)
+# by default, HEAVY_REMOTE_GOMAXPROCS overrides it, 0 sets none, and a malformed value is refused.
+grep -qE '^heavy.sh: remote bound -p=[0-9]+ GOMAXPROCS=[0-9]+$' "$off/err" &&
+  [[ $(cat "$off/gmp.last") == "$(sed -n 's/^heavy.sh: remote bound -p=\([0-9]*\) GOMAXPROCS=.*/\1/p' "$off/err")" ]] ||
+  fail "heavy.sh remote GOMAXPROCS default is not the remote -p: $(cat "$off/gmp.last") $(cat "$off/err")"
+HEAVY_REMOTE_HOST=box HEAVY_REMOTE_GOMAXPROCS=3 hv go test -exit=0 ./... > /dev/null 2> "$off/err"
+[[ $(cat "$off/gmp.last") == 3 ]] || fail "heavy.sh HEAVY_REMOTE_GOMAXPROCS=3 not applied: $(cat "$off/gmp.last")"
+HEAVY_REMOTE_HOST=box HEAVY_REMOTE_GOMAXPROCS=0 hv go test -exit=0 ./... > /dev/null 2> "$off/err"
+[[ $(cat "$off/gmp.last") == unset ]] && grep -q 'GOMAXPROCS=unset$' "$off/err" ||
+  fail "heavy.sh HEAVY_REMOTE_GOMAXPROCS=0 still set one: $(cat "$off/gmp.last")"
+HEAVY_REMOTE_HOST=box HEAVY_REMOTE_GOMAXPROCS=x hv go test -exit=0 ./... > /dev/null 2> "$off/err"
+[[ $? == 2 ]] && grep -q 'invalid-remote-gomaxprocs' "$off/err" ||
+  fail "heavy.sh did not refuse HEAVY_REMOTE_GOMAXPROCS=x: $(cat "$off/err")"
 rwt=$off/rhome/.cache/corvint-heavy/wt/heavy-slot1
 printf 'stale\n' > "$rwt/wip.txt"
 printf 'stale\n' > "$rwt/sub/stale.txt"
