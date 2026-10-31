@@ -207,17 +207,30 @@ func (p *proposal) carry(owed []proposedHunk, used map[string]bool) {
 			p.carryNotes = append(p.carryNotes, fmt.Sprintf("refresh row %d dropped: hunk %s is gone, %s; its hunk is drafted afresh", row.line, row.id, why))
 			continue
 		}
+		fields := strings.Split(row.rest, "\t")
 		if how != "" {
 			hunk := current[target]
 			p.carryNotes = append(p.carryNotes, fmt.Sprintf("refresh row %d re-keyed %s -> %s (%s BASE %d,%d; %s)", row.line, row.id, target, hunk.path, hunk.oldStart, hunk.oldCount, how))
+			// The NOTE of a re-keyed unknown row was written for the old
+			// hunk, so it is carried marked stale for review (DCW-V0-884).
+			if fields[0] == "unknown" {
+				fields[2] = staleNotePrefix + row.id + ", review] " + staleNote.ReplaceAllString(fields[2], "")
+				row.rest = strings.Join(fields, "\t")
+				p.carryNotes = append(p.carryNotes, fmt.Sprintf("refresh row %d note marked stale: it was written for %s; review it for %s", row.line, row.id, target))
+			}
 		}
 		p.carried[target] = append(p.carried[target], target+"\t"+row.rest)
-		fields := strings.Split(row.rest, "\t")
 		if fields[0] != "unknown" {
 			used[fields[0]+":"+fields[1]] = true
 		}
 	}
 }
+
+// staleNotePrefix opens the NOTE of an unknown row --refresh re-keyed; staleNote
+// matches an earlier such mark, so a second refresh replaces it.
+const staleNotePrefix = "[stale: re-keyed from "
+
+var staleNote = regexp.MustCompile(`^\[stale: re-keyed from [^\]]*\] `)
 
 // refreshOrdinalIDs are the hunk IDs, in ordinal order, that the --refresh
 // plan's ordinals name, and whether they are known. They come from the

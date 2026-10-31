@@ -2044,7 +2044,8 @@ it to the DOGFOOD_CITATIONS file yourself (DCW-V0-150).
 renumber re-hunked it (DCW-V0-442): rows whose hunk ID is current are kept as
 written, a row whose hunk was re-hunked is re-keyed to the hunk with the same path
 and content (else the same path and BASE range), and every re-keyed or dropped row
-is noted on stderr; only the remaining hunks are drafted afresh. The bind refuses a
+is noted on stderr, a re-keyed unknown row's NOTE marked stale for review
+(DCW-V0-884); only the remaining hunks are drafted afresh. The bind refuses a
 stale hunk-ID row, naming the row, its old ID and the current hunk (DCW-V0-441).
 For example, run corvint dogfood propose-citations --refresh plan.tsv BASE > plan.new.
 
