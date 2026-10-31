@@ -567,7 +567,8 @@
     "tools/str-parity": [],
     "tools/test-commands-check": [
       ".github/cishards/test-commands.json",
-      "Makefile"
+      "Makefile",
+      "script/"
     ],
     "tools/test-commands-run": []
   }
