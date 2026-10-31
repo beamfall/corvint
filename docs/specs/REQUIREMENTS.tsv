@@ -1188,6 +1188,13 @@ CEM-V1-692	docs/specs/cem-stable-v1.md	(experimental under the standing lane aut
 CEM-V1-693	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2995)) a reverted run is `	standing	V1-2995
 CEM-V1-694	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3168)) `cem cite --replace	standing	V1-3168
 CEM-V1-695	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3168)) `cem mark	standing	V1-3168
+CEM-V1-980	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) Amends `CEM-V1-037`	standing	V1-2752
+CEM-V1-981	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) A binary group adds	standing	V1-2752
+CEM-V1-982	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) Base simulation	standing	V1-2752
+CEM-V1-983	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) When the prepared	standing	V1-2752
+CEM-V1-984	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) `cem cite` MUST	standing	V1-2752
+CEM-V1-985	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) The binary	standing	V1-2752
+CEM-V1-986	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) The frozen	standing	V1-2752
 CEM-V1-011	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Reject missing, duplicate, unknown or es	owner	decision 0546; 2026-10-20
 CEM-V1-012	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Publish the candidate schema and algorit	owner	decision 0546; 2026-10-20
 CEM-V1-013	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Never translate candidate spec labels to	owner	decision 0546; 2026-10-20
