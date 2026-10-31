@@ -3,7 +3,7 @@ set -eu
 
 # Covers SRG-V0-001 (cases 1-3), SRG-V0-005 (case 4), SRG-V0-002/003 (case 5), SRG-V0-009 (case 6),
 # SRG-V0-012 and SRG-V0-043 (case 7), SRG-V0-010 (case 8), SRG-V0-015 (case 9), SRG-V0-018 (case 10)
-# SRG-V0-042/044/046 (case 11) and SRG-V0-547/548 (case 12).
+# SRG-V0-042/044/046 (case 11), SRG-V0-547/548 (case 12) and SRG-V0-980 (case 13).
 # SRG-V0-001: the generated index must be the one a fresh clone reproduces, so the enumeration is
 # the Git index and nothing the worktree alone says can change the output. The three cases are the drift directions reproduced in
 # `docs/specs/spec-requirement-index-generator-v0.md`: an untracked spec, a tracked spec
@@ -506,5 +506,51 @@ wrapped=$(run) || fail "a wrapped citation was refused as a duplicate definition
 printf '%s\n' "$wrapped" | grep -q '^DUP-V0-001	docs/specs/dupa.md	the only definition\.' ||
   fail "a wrapped citation displaced the definition: $(printf '%s\n' "$wrapped" | grep '^DUP-V0-001')"
 git -C "$test_root" rm -q --cached -- docs/specs/dupa.md
+
+# 13. SRG-V0-980 (V1-3458): the header Intent status and digest Status are frozen. A requirement ID
+# the frozen row does not list, in either field, or a header grown past 160 characters and its
+# frozen length, is refused with the repair; a frozen header, a shortened one and a short ID-free
+# header with no frozen row pass.
+long=$(printf 'accepted (decision 0001); FRZ-V0-001 accepted (decision 0002) %0100d' 0)
+write_frozen() {
+  # shellcheck disable=SC2016
+  printf '# Frozen\n\nIntent status: %s\nDelivery status: experimental\n\n## Agent digest\n- Claim: The frozen fixture keeps its header.\n- Status: %s / experimental\n\n- `FRZ-V0-001`: (accepted, decision 0002) The first clause.\n- `FRZ-V0-002`: (accepted under the owner'"'"'s standing auto-accept (2026-10-31); V1-3458) The second clause.\n' \
+    "$1" "${2:-$1}" > "$test_root/docs/specs/frozen.md"
+  stage docs/specs/frozen.md
+}
+printf 'path\tchars\tids\ndocs/specs/frozen.md\t%s\tFRZ-V0-001\n' "${#long}" > "$test_root/docs/specs/INTENT-STATUS-FROZEN.tsv"
+stage docs/specs/INTENT-STATUS-FROZEN.tsv
+write_frozen "$long"
+run > /dev/null || fail "a frozen header was refused"
+write_frozen 'accepted'
+run > /dev/null || fail "a shortened header was refused"
+write_frozen "$long; FRZ-V0-002 accepted (2026-10-31)" "$long"
+frz_err=$(run 2>&1 > /dev/null) && fail "a new ID in the Intent status was accepted"
+for want in \
+  'docs/specs/frozen.md: its Intent status names FRZ-V0-002, which its frozen header text does not' \
+  "docs/specs/frozen.md: its Intent status is $((${#long} + 34)) characters; the limit is 160 or its frozen length, ${#long}" \
+  "record an acceptance or amendment in the requirement's own leading note" \
+  'acceptance and acceptedBy columns' '(SRG-V0-980)'; do
+  case $frz_err in *"$want"*) ;; *) fail "the frozen-header refusal lacks '$want': $frz_err" ;; esac
+done
+case $frz_err in *FRZ-V0-001*) fail "a frozen ID was refused: $frz_err" ;; esac
+write_frozen 'accepted' 'accepted; FRZ-V0-002 accepted'
+frz_err=$(run 2>&1 > /dev/null) && fail "a new ID in the digest Status was accepted"
+case $frz_err in
+  *'docs/specs/frozen.md: its Agent digest Status names FRZ-V0-002'*) ;;
+  *) fail "the digest refusal lacks the field and ID: $frz_err" ;;
+esac
+frz_dir="$test_root/frz-out"
+mkdir "$frz_dir"
+if (cd "$test_root" && script/gen-spec-requirements.sh --all "$frz_dir") > /dev/null 2>&1; then
+  fail "--all accepted a new header segment"
+fi
+test -z "$(ls -A "$frz_dir")" || fail "a refused header wrote into DIR"
+git -C "$test_root" rm -q --cached -- docs/specs/INTENT-STATUS-FROZEN.tsv
+write_frozen 'proposed'
+run > /dev/null || fail "a short ID-free header without a frozen row was refused"
+write_frozen "$long"
+run > /dev/null 2>&1 && fail "a header over 160 characters without a frozen row was accepted"
+git -C "$test_root" rm -q --cached -- docs/specs/frozen.md
 
 printf 'ok\n'

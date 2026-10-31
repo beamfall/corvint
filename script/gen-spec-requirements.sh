@@ -226,9 +226,9 @@ sub header_value {
     return $blob =~ /^[^\S\n]*(?:- )?[^\S\n]*(?:\Q$key\E|\Q$bold\E)([^\n]*)/m ? trim($1) : undef;
 }
 
-sub digest_claim {
+sub digest_values {
     my ($blob) = @_;
-    $blob =~ /^[^\S\n]*## Agent digest[^\S\n]*(?:\n|\z)/mg or return undef;
+    $blob =~ /^[^\S\n]*## Agent digest[^\S\n]*(?:\n|\z)/mg or return {};
     my %values;
     for my $line (split /\n/, substr($blob, pos $blob)) {
         my $text = trim($line);
@@ -237,10 +237,11 @@ sub digest_claim {
         my ($key, $value) = split /: /, $text, 2;
         $values{$key} = $value if defined $value;
     }
-    return $values{Claim};
+    return \%values;
 }
 
 my @reads = sort @specs;
+push @reads, 'docs/specs/INTENT-STATUS-FROZEN.tsv' if $tracked{'docs/specs/INTENT-STATUS-FROZEN.tsv'};
 push @reads, 'docs/specs/INDEX.json'
     if ($mode eq 'index' || $mode eq 'all') && $tracked{'docs/specs/INDEX.json'};
 push @reads, 'docs/specs/README.md'
@@ -260,7 +261,8 @@ for my $file (sort @specs) {
         prefix => $prefix,
         intent => header_value($blob, 'Intent status:'),
         delivery => header_value($blob, 'Delivery status:'),
-        claim => digest_claim($blob),
+        claim => digest_values($blob)->{Claim},
+        status => digest_values($blob)->{Status},
     };
     my $line_number = 0;
     my $previous_blank = 1;
@@ -350,6 +352,46 @@ for my $file (sort @specs) {
     utf8::decode($claim);
     length($claim) <= 160
         or die "$file: the Agent digest Claim is " . length($claim) . " characters; the limit is 160\n";
+}
+# SRG-V0-980 (V1-3458): the header `Intent status:` and digest `Status:` are frozen. A spec may name
+# in them only the requirement IDs its row in INTENT-STATUS-FROZEN.tsv lists, and its header may
+# exceed 160 characters only up to that row's length, so an amendment is recorded on the
+# requirement's own line (SRG-V0-981) and two lanes never append to one header line.
+{
+    my %frozen;
+    my $frozen_text = $blobs->{'docs/specs/INTENT-STATUS-FROZEN.tsv'} // '';
+    for my $row (split /\n/, $frozen_text) {
+        next if $row =~ /\Apath\t/;
+        my ($path, $chars, $ids) = split /\t/, $row, -1;
+        defined $ids && $chars =~ /\A[0-9]+\z/
+            or die "docs/specs/INTENT-STATUS-FROZEN.tsv: malformed row: $row\n";
+        $frozen{$path} = { chars => $chars, ids => { map { $_ => 1 } split / /, $ids } };
+    }
+    my @refused;
+    for my $file (sort @specs) {
+        my $row = $frozen{$file} // { chars => 0, ids => {} };
+        for my $field (['Intent status', $header{$file}{intent}], ['Agent digest Status', $header{$file}{status}]) {
+            my ($name, $value) = @$field;
+            next unless defined $value;
+            my %seen;
+            push @refused, "$file: its $name names $1, which its frozen header text does not"
+                for grep { !$row->{ids}{$_} && !$seen{$_}++ } $value =~ /\b([A-Z][A-Z0-9-]*-[0-9]{3})\b/g;
+        }
+        next unless defined(my $intent = $header{$file}{intent});
+        utf8::decode($intent);
+        push @refused, "$file: its Intent status is " . length($intent) . " characters; the limit is "
+            . "160 or its frozen length, " . $row->{chars}
+            if length($intent) > 160 && length($intent) > $row->{chars};
+    }
+    if (@refused) {
+        print STDERR "$_\n" for @refused;
+        die "the Intent status header and digest Status hold the current status only; record an "
+            . "acceptance or amendment in the requirement's own leading note, for example "
+            . "`- `ID`: (accepted under the owner's standing auto-accept (YYYY-MM-DD); V1-NNNN) ...`, "
+            . "which REQUIREMENTS.tsv carries in its acceptance and acceptedBy columns, and in its "
+            . "build-log entry, then remove the new header text and rerun make spec-requirements; "
+            . "see docs/SPEC-DRIVEN-DEVELOPMENT.md (SRG-V0-980)\n";
+    }
 }
 # SRG-V0-547 (V1-3049): a requirement ID defined by more than one rank 0 line, in one spec or
 # across specs, is refused in every mode, naming every definition, instead of keeping the first
