@@ -39,7 +39,7 @@ func mapRoot(ctx context.Context, m *Map, alias string, o Options) (repo, string
 		r := repo{ctx: ctx, root: o.Root}
 		rev, err := r.resolve(m.Revision)
 		if err != nil || rev != m.Revision {
-			return repo{}, "", &gokernel.Error{Code: "appmap-invalid-revision", Message: "the map revision is not a commit in --root"}
+			return repo{}, "", orPlatform(err, &gokernel.Error{Code: "appmap-invalid-revision", Message: "the map revision is not a commit in --root"})
 		}
 		return r, rev, nil
 	}

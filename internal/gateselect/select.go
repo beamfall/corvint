@@ -91,6 +91,10 @@ var moduleLevelFrontiers = map[string]bool{
 	"go:cgo-frontier":                    true,
 	"go:test-read-scopes-invalid":        true,
 	"go:test-binary-execs-invalid":       true,
+	// TSP-V0-940: the planner leaves an invalid or dirty gated root-locator
+	// declaration UNKNOWN, so the selector does not narrow under it.
+	"go:gated-root-locators-invalid": true,
+	"go:gated-root-locators-changed": true,
 }
 
 var rootModuleDefinitions = map[string]bool{"go.mod": true, "go.sum": true, "go.work": true, "go.work.sum": true}
@@ -265,11 +269,6 @@ func selectPackages(plan Receipt, module, root string, withUnresolved bool) []st
 		return fallback(fmt.Sprintf("the read-scope declaration is invalid: %q", err.Error()))
 	}
 	if withUnresolved {
-		// TSP-V0-862: the planner's gated root-locator declaration, unless
-		// this change edits it; a dirty or invalid one keeps rule (d) wide.
-		if !slices.Contains(plan.Plan.Dirty, gatedLocatorsPath) {
-			index.applyGatedLocators(root)
-		}
 		unresolved := index.unresolved()
 		for _, directory := range sortedKeys(unresolved) {
 			if _, declared := scopes[directory]; !declared && len(plan.Plan.Dirty) > 0 {
@@ -314,13 +313,6 @@ func selectPackages(plan Receipt, module, root string, withUnresolved bool) []st
 	return append(lines, "run "+strings.Join(selected, " "))
 }
 
-// taskStateOnly reports whether an empty selection over a non-empty diff is
-// the AFP-V0-088 task-state case (AFP-V0-153): the plan is BOUNDED and every
-// dirty path is in the recognised Tasks store projection layout and listed in
-// the plan's TASK_STORE_PROJECTION group. The caller has already applied rules
-// (a) to (d) and the declared scopes to those paths and selected nothing, so
-// the gate's own attribution agrees with the planner; any other empty
-// selection keeps the full-suite fallback.
 // unknownNarrowing is CIN-V0-860's rule for Select, the CI PR tier: a plan
 // may still run narrowed while it names unknowns only when each is a
 // LANGUAGE_FRONTIER (a module-level one falls back above), an
@@ -366,6 +358,13 @@ func deletedGoSource(plan Receipt, index *repositoryIndex, root, p string) bool 
 
 var unknownReason = regexp.MustCompile(`^[A-Z][A-Z_]{0,63}$`)
 
+// taskStateOnly reports whether an empty selection over a non-empty diff is
+// the AFP-V0-088 task-state case (AFP-V0-153): the plan is BOUNDED and every
+// dirty path is in the recognised Tasks store projection layout and listed in
+// the plan's TASK_STORE_PROJECTION group. The caller has already applied rules
+// (a) to (d) and the declared scopes to those paths and selected nothing, so
+// the gate's own attribution agrees with the planner; any other empty
+// selection keeps the full-suite fallback.
 func taskStateOnly(plan Receipt) bool {
 	if plan.Plan.Scope != "BOUNDED" {
 		return false

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Run by `make runtime-environment-test`, a gate step (ASD-V0-942).
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 tmp=$(mktemp -d)

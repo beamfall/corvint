@@ -1,11 +1,12 @@
-// SPDX-License-Identifier: Apache-2.0
 package gateselect
 
 import (
 	"bytes"
-	json "encoding/json/v2"
+	jsonv2 "encoding/json/v2"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -15,14 +16,14 @@ import (
 	"unicode/utf8"
 )
 
-// gatedLocatorsPath is the planner's gated root-locator declaration
-// (TSP-V0-003, affected.GatedRootLocatorsPath). Select honours it as the
-// planner does (TSP-V0-862): a declared package whose root locating runs only
-// behind its gate keeps its own reason but is no longer a root locator, so its
-// dependents leave rule (d).
-const gatedLocatorsPath = ".corvint/gated-root-locators.json"
+// This file reads the project-owned gated root-locator declaration as the
+// planner reads it (TSP-V0-003, internal/liveverify/affected/golang/
+// gatedlocators.go), so the selector and the planner agree on rule (d)
+// (TSP-V0-940). A declared package keeps its own unresolved reason; its
+// dependents no longer depend on a root locator.
 
 const (
+	gatedLocatorsPath       = ".corvint/gated-root-locators.json"
 	gatedLocatorsProfile    = "corvint-gated-root-locators/0"
 	maxGatedLocatorBytes    = 64 << 10
 	maxGatedLocatorPackages = 64
@@ -34,49 +35,31 @@ type gatedLocator struct {
 	Reason string `json:"reason"`
 }
 
-// applyGatedLocators clears locatesRoot on every declared package when the
-// declaration is valid for this index: the closed profile and bounds the
-// planner's readGatedLocators applies, and each declared directory a package
-// whose non-test code locates the root and whose non-test Go sources carry the
-// gate as an interpreted string literal. A missing declaration changes
-// nothing; any other failure declares nothing and returns the reason, so the
-// wider closure stays.
-func (index *repositoryIndex) applyGatedLocators(root string) string {
-	declared, err := readGatedLocators(root)
-	if err != nil {
-		return err.Error()
-	}
-	for directory, entry := range declared {
-		pkg := index.packages[directory]
-		if pkg == nil || !pkg.locatesRoot {
-			return fmt.Sprintf("%s: package %q does not locate the root", gatedLocatorsPath, directory)
-		}
-		if !carriesGate(root, directory, entry.Gate) {
-			return fmt.Sprintf("%s: package %q does not carry its gate %q", gatedLocatorsPath, directory, entry.Gate)
-		}
-	}
-	for directory := range declared {
-		index.packages[directory].locatesRoot = false
-	}
-	return ""
+type gatedLocatorFile struct {
+	Profile  string                  `json:"profile"`
+	Packages map[string]gatedLocator `json:"packages"`
 }
 
-func readGatedLocators(root string) (map[string]gatedLocator, error) {
-	file, err := os.Open(filepath.Join(root, filepath.FromSlash(gatedLocatorsPath)))
-	if os.IsNotExist(err) {
+// gatedLocators returns the declared packages by directory: nil with no
+// declaration, an error for one that is unreadable, oversized, not a regular
+// file, or invalid in any member.
+func gatedLocators(root string) (map[string]gatedLocator, error) {
+	name := filepath.Join(root, filepath.FromSlash(gatedLocatorsPath))
+	info, err := os.Lstat(name)
+	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
 	}
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-	info, err := file.Stat()
 	if err != nil {
 		return nil, err
 	}
 	if !info.Mode().IsRegular() {
 		return nil, fmt.Errorf("%s is not a regular file", gatedLocatorsPath)
 	}
+	file, err := os.Open(name)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
 	body, err := io.ReadAll(io.LimitReader(file, maxGatedLocatorBytes+1))
 	if err != nil {
 		return nil, err
@@ -84,18 +67,15 @@ func readGatedLocators(root string) (map[string]gatedLocator, error) {
 	if len(body) > maxGatedLocatorBytes {
 		return nil, fmt.Errorf("%s exceeds %d bytes", gatedLocatorsPath, maxGatedLocatorBytes)
 	}
-	var declared struct {
-		Profile  string                  `json:"profile"`
-		Packages map[string]gatedLocator `json:"packages"`
-	}
-	if err := json.UnmarshalRead(bytes.NewReader(body), &declared, json.RejectUnknownMembers(true)); err != nil {
-		return nil, fmt.Errorf("%s: %w", gatedLocatorsPath, err)
+	var declared gatedLocatorFile
+	if err := jsonv2.UnmarshalRead(bytes.NewReader(body), &declared, jsonv2.RejectUnknownMembers(true)); err != nil {
+		return nil, err
 	}
 	if declared.Profile != gatedLocatorsProfile || declared.Packages == nil || len(declared.Packages) > maxGatedLocatorPackages {
 		return nil, fmt.Errorf("%s: profile must be %s with at most %d packages", gatedLocatorsPath, gatedLocatorsProfile, maxGatedLocatorPackages)
 	}
 	for directory, entry := range declared.Packages {
-		if directory == "" || directory == "." || path.Clean(directory) != directory || path.IsAbs(directory) || directory == ".." || strings.HasPrefix(directory, "../") || !utf8.ValidString(directory) || strings.ContainsFunc(directory, unicode.IsControl) {
+		if directory == "" || directory == "." || path.Clean(directory) != directory || path.IsAbs(directory) || directory == ".." || strings.HasPrefix(directory, "../") {
 			return nil, fmt.Errorf("%s: package %q", gatedLocatorsPath, directory)
 		}
 		if !path.IsAbs(entry.Gate) || path.Clean(entry.Gate) != entry.Gate || entry.Gate == "/" || !utf8.ValidString(entry.Gate) || strings.ContainsFunc(entry.Gate, unicode.IsControl) {
@@ -108,20 +88,36 @@ func readGatedLocators(root string) (map[string]gatedLocator, error) {
 	return declared.Packages, nil
 }
 
-// carriesGate reports whether a non-test Go source of directory holds gate as
-// an interpreted string literal; an unreadable directory or source is false.
-func carriesGate(root, directory, gate string) bool {
-	literal := []byte(strconv.Quote(gate))
-	entries, err := os.ReadDir(filepath.Join(root, filepath.FromSlash(directory)))
-	if err != nil {
-		return false
+// applyGatedLocators clears locatesRoot on each declared package once every
+// declared directory is an indexed package whose non-test code locates the
+// root and whose non-test sources carry the gate as a string literal; any
+// failure declares nothing, the wider selection.
+func (index *repositoryIndex) applyGatedLocators(root string, files []indexedFile) {
+	declared, err := gatedLocators(root)
+	if err != nil || len(declared) == 0 {
+		return
 	}
-	for _, entry := range entries {
-		name := entry.Name()
-		if entry.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+	for directory, entry := range declared {
+		pkg := index.packages[directory]
+		if pkg == nil || !pkg.locatesRoot || !carriesLiteral(root, directory, files, entry.Gate) {
+			return
+		}
+	}
+	for directory := range declared {
+		index.packages[directory].locatesRoot = false
+	}
+}
+
+// carriesLiteral reports whether a non-test source of the package in
+// directory holds value as an interpreted string literal. An unreadable
+// source reports false.
+func carriesLiteral(root, directory string, files []indexedFile, value string) bool {
+	literal := []byte(strconv.Quote(value))
+	for _, file := range files {
+		if parentDirectory(file.relative) != directory || strings.HasSuffix(file.relative, "_test.go") {
 			continue
 		}
-		body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(directory), name))
+		body, err := readBounded(filepath.Join(root, filepath.FromSlash(file.relative)), file.expected)
 		if err != nil {
 			return false
 		}

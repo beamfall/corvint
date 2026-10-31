@@ -3,6 +3,7 @@
 package cli_test
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -13,6 +14,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -151,5 +153,50 @@ func TestCALV0360_PaddedDoctorWalkCost(t *testing.T) {
 		t.Fatalf("audit: %s", x.stdout)
 	}
 	t.Logf("receipt audit of the padded store: %v", time.Since(audit))
-	measureDoctorWalk(t, root, time.Now().UTC().Add(time.Duration(n/100+3600)*time.Second))
+	now := time.Now().UTC().Add(time.Duration(n/100+3600) * time.Second)
+	// The builder runs no audit, so no writer retained a read checkpoint and
+	// every doctor run walks the whole journal (journalAudit FULL). A store
+	// of real writes keeps one; retain it as a writer would and measure the
+	// CHECKPOINT_PLUS_TAIL doctor too (TQD-V0-820, V1-1193).
+	t.Log("without a read checkpoint:")
+	measureDoctorWalk(t, root, now)
+	retainPaddedCheckpoint(t, root)
+	t.Log("with a writer-retained read checkpoint:")
+	measureDoctorWalk(t, root, now)
+}
+
+// retainPaddedCheckpoint writes the read checkpoint of a complete audit, as a
+// writer's commit retains it (CAL-V0-059).
+func retainPaddedCheckpoint(t *testing.T, root string) {
+	t.Helper()
+	repo, err := intent.Resolve(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(root, ".taskman", "queue.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var queue struct {
+		QueueID string `json:"queueId"`
+	}
+	if err := json.Unmarshal(raw, &queue); err != nil {
+		t.Fatal(err)
+	}
+	id, err := wire.ParseQueueID("queueId", queue.QueueID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader := journal.Reader{QueueID: id, Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.IntentRoot()}, PrimaryWorktree: repo.PrimaryWorktree, SelectState: true}
+	res, err := reader.Audit()
+	if err != nil {
+		t.Fatal(err)
+	}
+	checkpoint := res.Checkpoint()
+	if checkpoint == nil {
+		t.Fatalf("the complete audit derived no read checkpoint (mode %s, %s)", res.Mode, res.StructuralConsistency)
+	}
+	if err := os.WriteFile(journal.CheckpointPath(repo.StateDir), checkpoint.Encode(), 0o644); err != nil {
+		t.Fatal(err)
+	}
 }

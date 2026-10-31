@@ -10,9 +10,10 @@ import (
 )
 
 // TestPrepareBinaryRefusalNamesPath reproduces V1-0301 on real Git commits:
-// cem prepare over a binary creation, modification or deletion, alone or
-// beside a text change, keeps the binary-patch refusal code and names the
-// binary path (CEM-V1-037, decision 0548).
+// cem prepare over a binary-only creation, modification or deletion keeps the
+// binary-patch refusal code and names the binary path (CEM-V1-037, decision
+// 0548). Since V1-2752 a binary change beside a text change prepares instead
+// (CEM-V1-980..983, TestCEMV1983PrepareBindsBinaryFixture).
 func TestPrepareBinaryRefusalNamesPath(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -27,10 +28,6 @@ func TestPrepareBinaryRefusalNamesPath(t *testing.T) {
 		}},
 		{"binary-deletion", "assets/logo.bin", func(t *testing.T, root string) {
 			gitCmd(t, root, "rm", "-q", "assets/logo.bin")
-		}},
-		{"mixed-text-and-binary", "assets/logo.bin", func(t *testing.T, root string) {
-			writeFile(t, root, "t.txt", "b\n")
-			writeFile(t, root, "assets/logo.bin", "logo\x00v2\n")
 		}},
 	}
 	for _, tc := range cases {

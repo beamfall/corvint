@@ -599,11 +599,11 @@ func findPathPolicyDataReaders(ctx context.Context, root, target string) (func(s
 // countIntentObligations counts one intent's requirement IDs by the OCM-V0-001
 // rule for a recorded intent-scope deferral (CEM-V1-644, CEM-V1-645).
 func countIntentObligations(data []byte) (int, error) {
-	requirements, _, _, _, err := lrfrepo.IntentRequirements(data)
+	count, err := lrfrepo.IntentObligationCount(data)
 	if err != nil {
 		return 0, err
 	}
-	return len(requirements), nil
+	return count, nil
 }
 
 // readStableOCMReview verifies supplied OCM bytes against an exact cem/1.0

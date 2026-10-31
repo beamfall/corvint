@@ -1,11 +1,10 @@
-// SPDX-License-Identifier: Apache-2.0
 package gateselect
 
 import (
 	"context"
 	"maps"
+	"path"
 	"reflect"
-	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -14,12 +13,15 @@ import (
 	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 )
 
-// TestGatedRootLocatorParity_TSP_V0_862 holds Select's rule (d) and run set
-// equal to the planner's on a change in a nested module that imports a root
-// locator, with and without the TSP-V0-003 declaration: declared, neither
-// selects the locator's dependents; undeclared, an invalid declaration, or the
-// declaration itself dirty, both (or Select alone, for the dirty one) keep them.
-func TestGatedRootLocatorParity_TSP_V0_862(t *testing.T) {
+// TestGatedRootLocatorsMatchThePlanner_TSP_V0_940 holds the selector's rule (d)
+// equal to the planner's under the gated root-locator declaration (V1-3346).
+// `loc` locates the root behind its gate and `user` imports it. Undeclared,
+// both are unresolved; declared, `loc` keeps its own reason and `user` is no
+// longer a root-locator dependent, in the selector as in the planner, and a
+// change inside the nested module selects the same root-module units in both.
+// An invalid declaration declares nothing, and a plan naming either
+// declaration frontier falls back.
+func TestGatedRootLocatorsMatchThePlanner_TSP_V0_940(t *testing.T) {
 	test := func(name string) string {
 		return "package " + name + "\n\nimport \"testing\"\n\nfunc TestX(t *testing.T) {}\n"
 	}
@@ -31,76 +33,82 @@ func TestGatedRootLocatorParity_TSP_V0_862(t *testing.T) {
 		"user/user_test.go":   test("user"),
 		"other/other.go":      "package other\n",
 		"other/other_test.go": test("other"),
-		"nested/go.mod":       "module example.com/nested\n\ngo 1.22\n\nrequire " + fixtureModule + " v0.0.0\n\nreplace " + fixtureModule + " => ../\n",
-		"nested/n.go":         "package nested\n\nimport _ \"" + fixtureModule + "/loc\"\n",
-		"nested/n_test.go":    test("nested"),
+		"nested/go.mod":       "module example.com/nested\n\ngo 1.22\n",
+		"nested/n/n.go":       "package n\n",
+		"nested/n/n_test.go":  test("n"),
 	}
 	const valid = `{"profile":"corvint-gated-root-locators/0","packages":{"loc":{"gate":"/gate/root","reason":"locates only behind /gate/root"}}}`
 	for _, tc := range []struct {
 		name, declaration string
-		dirty             []string
-		userChosen        bool
-		plannerUser       bool
+		want              []string
 	}{
-		{name: "undeclared", dirty: []string{"nested/n.go"}, userChosen: true, plannerUser: true},
-		{name: "declared", declaration: valid, dirty: []string{"nested/n.go"}},
-		{name: "declared, unrelated change", declaration: valid, dirty: []string{"other/other.go"}},
-		{name: "gate not carried", declaration: `{"profile":"corvint-gated-root-locators/0","packages":{"loc":{"gate":"/elsewhere","reason":"r"}}}`, dirty: []string{"nested/n.go"}, userChosen: true, plannerUser: true},
-		{name: "not a locator", declaration: `{"profile":"corvint-gated-root-locators/0","packages":{"loc":{"gate":"/gate/root","reason":"r"},"other":{"gate":"/gate/root","reason":"r"}}}`, dirty: []string{"nested/n.go"}, userChosen: true, plannerUser: true},
-		{name: "unknown member", declaration: `{"profile":"corvint-gated-root-locators/0","packages":{"loc":{"gate":"/gate/root","reason":"r","reads":[]}}}`, dirty: []string{"nested/n.go"}, userChosen: true, plannerUser: true},
-		{name: "unparsed", declaration: `{`, dirty: []string{"nested/n.go"}, userChosen: true, plannerUser: true},
-		// The planner reads the head declaration; Select keeps the wider
-		// closure for the edit itself, so it still selects the dependent.
-		{name: "dirty declaration", declaration: valid, dirty: []string{affected.GatedRootLocatorsPath, "nested/n.go"}, userChosen: true},
+		{name: "undeclared", want: []string{"loc", "user"}},
+		{name: "declared", declaration: valid, want: []string{"loc"}},
+		{name: "gate not carried", declaration: `{"profile":"corvint-gated-root-locators/0","packages":{"loc":{"gate":"/elsewhere","reason":"r"}}}`, want: []string{"loc", "user"}},
+		{name: "not a locator", declaration: `{"profile":"corvint-gated-root-locators/0","packages":{"loc":{"gate":"/gate/root","reason":"r"},"other":{"gate":"/gate/root","reason":"r"}}}`, want: []string{"loc", "user"}},
+		{name: "unknown member", declaration: `{"profile":"corvint-gated-root-locators/0","packages":{"loc":{"gate":"/gate/root","reason":"r","reads":[]}}}`, want: []string{"loc", "user"}},
+		{name: "unparsed", declaration: `{`, want: []string{"loc", "user"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			files := maps.Clone(base)
 			if tc.declaration != "" {
-				files[affected.GatedRootLocatorsPath] = tc.declaration
+				files[gatedLocatorsPath] = tc.declaration
 			}
 			root := writeFixture(t, files)
+			index, err := indexRepository(root, fixtureModule)
+			if err != nil {
+				t.Fatal(err)
+			}
 			graph, err := affected.Build(context.Background(), root, golang.New())
 			if err != nil {
 				t.Fatal(err)
 			}
-			plan := affected.Select(graph, tc.dirty)
-			var receipt Receipt
-			receipt.Plan.Dirty = tc.dirty
-			receipt.Plan.Scope = string(plan.Scope)
-			for _, unknown := range plan.Unknown {
-				receipt.Plan.Unknown = append(receipt.Plan.Unknown, struct {
-					Reason string `json:"reason"`
-					Detail string `json:"detail"`
-				}{unknown.Reason, unknown.Detail})
+			unresolved := sortedKeys(index.unresolved())
+			if !reflect.DeepEqual(unresolved, tc.want) {
+				t.Errorf("gateselect rule (d) = %v, want %v", unresolved, tc.want)
 			}
-			receipt.Provider.Go.State = "RUNNABLE"
-			planned := []string{}
-			for _, selection := range plan.Selected {
-				if pkg, ok := strings.CutPrefix(selection.UnitID, "go:"); ok && (pkg == fixtureModule || strings.HasPrefix(pkg, fixtureModule+"/")) {
-					planned = append(planned, pkg)
+			var planner []string
+			for _, id := range graph.UnboundedReaders() {
+				if rest, ok := strings.CutPrefix(id, "go:"+fixtureModule+"/"); ok {
+					planner = append(planner, rest)
 				}
 			}
-			sort.Strings(planned)
-			receipt.Provider.Go.Packages = planned
-			lines := selectPackages(receipt, fixtureModule, root, true)
-			last := strings.Fields(lines[len(lines)-1])
-			if len(last) == 0 || last[0] != "run" {
-				t.Fatalf("verdict %q", lines[len(lines)-1])
+			sort.Strings(planner)
+			if !reflect.DeepEqual(unresolved, planner) {
+				t.Errorf("gateselect rule (d) = %v, planner rule (d) = %v", unresolved, planner)
 			}
-			run := slices.Sorted(slices.Values(last[1:]))
-			user := fixtureModule + "/user"
-			if got := slices.Contains(run, user); got != tc.userChosen {
-				t.Errorf("Select chose user %v, want %v (lines %q)", got, tc.userChosen, lines)
+
+			// A nested-module change: the root-module units each side selects.
+			const dirty = "nested/n/n.go"
+			selected := map[string]bool{}
+			for _, test := range affected.Select(graph, []string{dirty}).SelectedTests() {
+				if directory := path.Dir(test); !strings.HasPrefix(directory, "nested/") && directory != "nested" {
+					selected[directory] = true
+				}
 			}
-			if got := slices.Contains(planned, user); got != tc.plannerUser {
-				t.Errorf("planner chose user %v, want %v (planned %v)", got, tc.plannerUser, planned)
+			var plan Receipt
+			plan.Provider.Go.State = "RUNNABLE"
+			plan.Plan.Dirty = []string{dirty}
+			want := "run"
+			for _, directory := range sortedKeys(selected) {
+				want += " " + fixtureModule + "/" + directory
 			}
-			if !slices.Contains(run, fixtureModule+"/loc") {
-				t.Errorf("the locator's own tests stay selected: %v", run)
-			}
-			if tc.userChosen == tc.plannerUser && !reflect.DeepEqual(run, planned) {
-				t.Errorf("Select run %v, planner %v", run, planned)
+			if got := verdict(plan, root); got != want {
+				t.Errorf("nested-module change: selector %q, planner %q", got, want)
 			}
 		})
+	}
+	root := writeFixture(t, base)
+	for _, frontier := range []string{"go:gated-root-locators-invalid", "go:gated-root-locators-changed"} {
+		var plan Receipt
+		plan.Provider.Go.State = "RUNNABLE"
+		plan.Plan.Dirty = []string{"other/other.go"}
+		plan.Plan.Unknown = append(plan.Plan.Unknown, struct {
+			Reason string `json:"reason"`
+			Detail string `json:"detail"`
+		}{"LANGUAGE_FRONTIER", frontier})
+		if got := verdict(plan, root); got != "FALLBACK Go frontier is unknown at module level: "+frontier {
+			t.Errorf("%s: verdict %q, want the module-level fallback", frontier, got)
+		}
 	}
 }

@@ -195,11 +195,12 @@ affect authorization, root selection, evidence, limits, or behavior.
 
 The server MUST omit instructions, prompts, resources, subscriptions, completions, sampling,
 elicitation, tasks, experimental extensions, list-change notifications, and logging unless a later
-accepted profile implements and tests them. It MUST return `-32601` for legacy `initialize`,
-`ping`, `logging/setLevel`, `resources/subscribe`, and `resources/unsubscribe` requests; these are
+accepted profile implements and tests them. It MUST return `-32601` for legacy `initialize` (since
+`MCPV0-820` only on a server without `NameLegacyFlag`), `ping`, `logging/setLevel`, `resources/subscribe`, and `resources/unsubscribe` requests; these are
 not 2026-07-28 lifecycle operations. A server that sets the opt-in `NameLegacyFlag` instead answers
 a legacy `initialize` with `-32602`, naming its version and `--protocol-version 2025-11-25`
-(`DCP-V1-652`); only `corvint-corpus-mcp` sets it. That answer precedes the per-request metadata check of
+(`DCP-V1-652`); `corvint-corpus-mcp` sets it, and since `MCPV0-820` so do `corvint-mcp`,
+`corvint mcp`, `corvint-docs-mcp` and `corvint-test-validity-mcp`. That answer precedes the per-request metadata check of
 `MCPV0-005`, because a legacy client never sends that metadata. A `notifications/initialized` notification is unsupported and
 ignored without a response, as required for notifications.
 
@@ -438,6 +439,22 @@ is the negotiation reference; the additional closed admission rules below are lo
   OpenCode connection/list is discovery evidence only; actual host tools/call evidence is recorded
   separately and MUST NOT be inferred from direct protocol tests or promoted into formal FULL
   host authority. Official conformance and release gates remain independent.
+- `MCPV0-820`: (experimental under the standing lane auto-accept; V1-2507, V1-2513; amends
+  `MCPV0-006` for `initialize` only) Started without `--protocol-version`, `corvint-mcp`,
+  `corvint mcp`, `corvint-docs-mcp` and `corvint-test-validity-mcp` MUST set the shared server's
+  `NameLegacyFlag`, so a 2025-11-25 `initialize` gets the `DCP-V1-652` answer: `-32602`, a message
+  naming the version the server speaks and `--protocol-version 2025-11-25`, and `data`
+  `{supported, flag, requested?}`, instead of a bare `-32601 Method not found`. The server keeps
+  serving after the answer. `ping`, `logging/setLevel` and the resource subscription methods keep
+  the `MCPV0-006` `-32601`. Selection stays explicit (`MCPV0-021`): the server never switches to
+  the legacy profile from an incoming frame. Non-goals: negotiating 2025-11-25 by default, a
+  change to the explicit legacy profile or to any tool. Failure mode: a client that branches on
+  `-32601` for `initialize` now sees `-32602`, the code a 2025-11-25 client expects for an
+  unsupported version. Falsifier: a default-profile `initialize` on any of the four commands that
+  answers `-32601` or omits the flag. Evidence: `TestMCPV0820DefaultProfileNamesLegacyFlag`
+  (`internal/mcp/cli`), `TestMCPV0820DocsAndTestValidityNameLegacyFlag` (`cmd/corvint-docs-mcp`,
+  `cmd/corvint-test-validity-mcp`). Rollback: drop `NameLegacyFlag` from the three server
+  configurations.
 
 An isolated OpenCode `mcp list` probe reproduced `initialize` method-not-found on the original
 binary, then connected and discovered tools with the explicit profile. CLI version was 1.18.31;
@@ -957,6 +974,7 @@ result again, and no state depends on it. Protocol and conformance paths retain 
 | Requirements | Implementation | Evidence |
 |---|---|---|
 | `MCPV0-001..006` | `internal/mcp/cli`, `internal/mcp/protocol`, `internal/mcp/server` | protocol/discovery/framing/version vectors; `TestDuplicateInFlightIDOmitsID`, `TestIDReusableOnceResponseIsRead`, `TestUnencodableResultIsRequestError`, and `TestLegacyLifecycleMethodsWithoutMetadataAreNotFound` observed; official-schema digest pinned; opt-in `TestServerTrafficMatchesOfficialSchema` passed on 2026-09-23 |
+| `MCPV0-820` | `internal/mcp/cli`, `cmd/corvint-docs-mcp`, `cmd/corvint-test-validity-mcp` (`NameLegacyFlag`) | `TestMCPV0820DefaultProfileNamesLegacyFlag`, `TestMCPV0820DocsAndTestValidityNameLegacyFlag`; live Claude Code `claude mcp list` receipt in `docs/build-log/2026-10-31-linux-w2-bugs.md` |
 | `MCPV0-007..010` | `internal/mcp/bridge` | tool registry, closed-schema, receipt, budget, and abstention tests |
 | `MCPV0-011..015` | `internal/mcp/server` | cancellation race and post-cancel health observed; `TestCancelledProgressNeverTearsFrame`, `TestUnterminatedEOFFlushesAdmittedResponse`, and Unix `TestServeRestoresInheritedDescriptorBlockingMode` observed; Unix-gated compiled-process INT/TERM fake-Git parent-and-child cleanup passed locally; Unix `TestClosedStdoutCancelsInFlightDescendantGroup` (closed stdout mid-call exits 2 and reaps the fake-Git group) observed; truthful emitted progress and non-Unix signal cleanup `NOT_OBSERVED`; pagination/logging/roots negative tests |
 | `MCPV0-016..019` | all MCP implementation paths | local secret/mutation and Unix descendant-cleanup checks observed; start-time Git pinning observed by Unix `TestGitPlantedOnPathAfterStartNeverRuns` and `TestPinFixesExecutableAgainstLaterPathChanges`; no promisor fetch (V1-0349) observed by `TestMCPReadsRefuseAMissingPromisorObjectWithoutFetching` (every read tool over a blob:none sparse clone, also through a Git that drops `GIT_NO_LAZY_FETCH`) `TestMCPFlowsCoverageRefusesAMissingPromisorObjectWithoutFetching` (`corvint.flows.coverage`, with a full blob:none clone as the serving control) and `TestMCPCEMReportRefusesAMissingCitedBlobWithAValidMapWithoutFetching` (V1-1039: `corvint.cem.report` with a present map and a missing cited base blob, with an unfiltered clone as the serving control); fuzz, complete race, non-Unix cleanup, and cross-build evidence remain separate gates |

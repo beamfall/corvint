@@ -256,6 +256,7 @@ use Fcntl qw(:flock F_SETFD);
 use POSIX qw(setpgid strftime);
 use Time::HiRes qw(time);
 use Cwd ();
+use Config;
 my ($dir, $n, $nice, @cmd) = @ARGV;
 # ASD-V0-037: HEAVY_RUN_LOG names the selection log a local run appends its status line to, and
 # HEAVY_RUN_TAG the suffix that line ends with; neither reaches the command.
@@ -294,6 +295,13 @@ my $got;
 do { $got = waitpid($pid, 0) } until $got == $pid || ($got == -1 && !$!{EINTR});
 my $status = $?;
 my $rc = $status & 127 ? 128 + ($status & 127) : $status >> 8;
+# ASD-V0-940 (V1-3247): a non-zero exit names its cause, so it never reads as a silent wrapper failure.
+if ($rc) {
+    my $cause = "command";
+    if ($status & 127) { my @sig = split " ", $Config{sig_name}; $cause = "signal-" . ($sig[$status & 127] // $status & 127) }
+    elsif ($cmd[0] eq "timeout" && $rc == 124) { $cause = "timeout" }
+    printf STDERR "heavy.sh: exit rc=%d cause=%s cmd=%s\n", $rc, $cause, $cmd[0] eq "timeout" ? $cmd[2] // "" : $cmd[0];
+}
 if (length $log) {
     my $line = sprintf "%s local wait=%.1fs run=%.1fs rc=%d pwd=%s cmd=%s%s\n",
         strftime("%Y-%m-%dT%H:%M:%SZ", gmtime), $t1 - $t0, time - $t1, $rc, $ENV{PWD} // Cwd::getcwd(), "@cmd", $tag;
@@ -1134,8 +1142,8 @@ main() {
   cpus=$(cpu_count)
   slot_limits "$cpus"
   mkdir -p "$lock_dir" 2> /dev/null || refuse "lock-dir-unavailable $lock_dir"
-  selection_policy "$@" || return 2
-  local_policy "$@" || return 2
+  selection_policy "$@" || { heavy_cause=refused; return 2; }
+  local_policy "$@" || { heavy_cause=refused; return 2; }
   if [[ -n ${HEAVY_REMOTE_HOST-} ]] && offloadable "$@"; then
     if [[ ${HEAVY_REMOTE:-1} == 0 ]]; then
       fallback_log "HEAVY_REMOTE=0 local_reason=$(printf %q "$HEAVY_LOCAL_REASON")" "$@"
@@ -1158,14 +1166,14 @@ main() {
         try_offload "$@"
       fi
       trap - EXIT INT TERM HUP
-      ((rc == 97)) || return "$rc"
+      ((rc == 97)) || { heavy_cause="offload host=$HEAVY_REMOTE_HOST"; return "$rc"; }
       printf 'heavy.sh: offload to %s unavailable; running locally (logged)\n' "$HEAVY_REMOTE_HOST" >&2
       fallback_log offload-unavailable "$@"
       selection_log "$(date -u +%Y-%m-%dT%H:%M:%SZ) fallback host=$HEAVY_REMOTE_HOST pwd=$PWD cmd=$*"
       fallback_alert
     fi
   elif [[ -n ${HEAVY_REMOTE_HOST-} && ${HEAVY_REMOTE:-1} != 0 && ${HEAVY_BUILD_OFFLOAD:-1} != 0 ]] && buildable "$@"; then
-    build_offload "$@" && return "$rc"
+    build_offload "$@" && { heavy_cause="offload host=$HEAVY_REMOTE_HOST"; return "$rc"; }
   fi
   load_wait
   pin_go
@@ -1182,4 +1190,13 @@ main() {
     exec perl -e "$slot_perl" "$lock_dir" "$slots" "$nice_level" "$@"
 }
 
-main "$@"; exit $?
+# heavy_exit RC: ASD-V0-940. The calling shell names the cause of a non-zero main; the remote half
+# leaves that to its slot holder, whose line is relayed.
+heavy_exit() {
+  if (($1 != 0)) && [[ -z ${__heavy_serve-}${__heavy_fetch-} ]]; then
+    printf 'heavy.sh: exit rc=%d cause=%s\n' "$1" "${heavy_cause:-wrapper}" >&2
+  fi
+  exit "$1"
+}
+
+main "$@"; heavy_exit $?

@@ -341,9 +341,15 @@ func graphAction(row contextRow) string {
 
 // contextRelations is TCP-V0-011's relation order, with `graph` last only
 // when the slot is enabled, so the default packet's receipt is unchanged.
+// `spec-cited` (TCP-V0-990) is listed after the other reserved relations
+// only when it ran, so a packet routing no spec citation keeps its receipt.
 func (compiler *taskContextCompiler) contextRelations() []string {
-	if !compiler.graphRanking {
-		return contextRelationOrder
+	relations := contextRelationOrder
+	if compiler.relationState[specCitedRelation] != "" {
+		relations = contextRankOrder
 	}
-	return append(slices.Clone(contextRelationOrder), contextGraphRelation)
+	if !compiler.graphRanking {
+		return relations
+	}
+	return append(slices.Clone(relations), contextGraphRelation)
 }

@@ -3,7 +3,7 @@
   "repository": "https://github.com/beamfall/corvint",
   "note": "V1-2892 fixed change set: every lane change merged to origin/main up to 85d5ad4b7 (base = first parent), and every merged-branch commit whose pull-request CI run failed (base = newest first-parent ancestor of main). Failures are the go-product-shard annotations 'exit 1; PACKAGE: test-failures' of each run.",
   "floor": {
-    "narrowMerged": 13,
+    "narrowMerged": 12,
     "misses": 0
   },
   "changes": [

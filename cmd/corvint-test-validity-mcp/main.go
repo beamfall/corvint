@@ -85,6 +85,8 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 		Description:  "Local read-only Corvint experimental test-validity projection server.",
 		Capabilities: map[string]any{"tools": map[string]any{"listChanged": false}},
 		Handler:      handler,
+		// A 2025-11-25 initialize is told to restart with --protocol-version (MCPV0-820).
+		NameLegacyFlag: true,
 	})
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, "corvint-test-validity-mcp: startup failed")

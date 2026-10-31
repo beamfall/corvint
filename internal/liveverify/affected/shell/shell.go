@@ -48,6 +48,13 @@ const (
 // Suffixes are the file-name endings this plugin owns (NSA-V0-006).
 var Suffixes = []string{".sh", ".bash", ".zsh", ".ksh", ".bats"}
 
+// HiddenRoots are the hidden top-level directories whose shell files the
+// plugin indexes although the shared source walk skips every hidden
+// directory: CI keeps its scripts there, such as .github/forward-rows/*.sh,
+// and an owned file no unit declares is UNINDEXED_SOURCE_PATH, which forces a
+// full run (NSA-V0-800).
+var HiddenRoots = []string{".github"}
+
 // gitTopLevel is the git rev-parse option that prints the repository root, split
 // so that this package's own source does not read as root-locating to the Go
 // plugin (golang.rootLocatorToken).
@@ -99,6 +106,11 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	if err != nil {
 		return affected.Result{}, err
 	}
+	hidden, err := hiddenFiles(root)
+	if err != nil {
+		return affected.Result{}, err
+	}
+	files = append(files, hidden...)
 	foreign, err := root.Files(func(name string) bool { return hasAnySuffix(name, ForeignSourceSuffixes) })
 	if err != nil {
 		return affected.Result{}, err
@@ -107,10 +119,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	for _, relative := range files {
 		known[relative] = true
 	}
-	frontier := map[string]bool{}
-	// computed holds, per file, the base-name shapes of the scripts it runs
-	// by a path the resolver cannot fix (TSP-V0-863).
-	computed := map[string][]string{}
+	frontier, built := map[string]bool{}, map[string]computedNames{}
 	units := make([]affected.Unit, 0, len(files))
 	for _, relative := range files {
 		unit := affected.Unit{ID: "shell:" + relative}
@@ -127,17 +136,31 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 			units = append(units, foreignFrontier(unit, len(foreign) > 0))
 			continue
 		}
-		unit, shapes := observe(relative, string(body), known)
-		unit = foreignFrontier(unit, len(foreign) > 0)
-		if len(shapes) != 0 {
-			computed[relative] = shapes
-			unit = computedFrontier(unit)
+		unit, names := observe(relative, string(body), known)
+		if !names.empty() {
+			built[relative] = names
 		}
-		units = append(units, unit)
+		units = append(units, foreignFrontier(unit, len(foreign) > 0))
 	}
 	sort.Slice(units, func(left, right int) bool { return units[left].ID < units[right].ID })
-	applyForeignCallers(root, units, frontier, computed)
+	applyForeignCallers(root, units, built, frontier)
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
+}
+
+// hiddenFiles lists the shell files under each HiddenRoots directory through
+// Source.FilesUnder, which skips hidden directories below it as the shared
+// walk does and stamps each listed directory, so the graph stays cacheable
+// (NSA-V0-800). An absent root contributes nothing.
+func hiddenFiles(root *affected.Source) ([]string, error) {
+	var files []string
+	for _, directory := range HiddenRoots {
+		found, err := root.FilesUnder(directory, func(name string) bool { return hasAnySuffix(name, Suffixes) })
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, found...)
+	}
+	return files, nil
 }
 
 func foreignFrontier(unit affected.Unit, foreign bool) affected.Unit {
@@ -154,114 +177,14 @@ func foreignFrontier(unit affected.Unit, foreign bool) affected.Unit {
 	return unit
 }
 
-// computedFrontier gives a unit that runs a script by a computed path
-// FrontierForeignInvocation on every plan that reaches it (TSP-V0-863): what
-// it runs is not modelled, so its frontier bears as an ordinary unit
-// frontier, test or not, and no foreign-caller declaration clears it.
-func computedFrontier(unit affected.Unit) affected.Unit {
-	reasons := map[string]bool{FrontierForeignInvocation: true}
-	for _, reason := range unit.Frontier {
-		reasons[reason] = true
-	}
-	unit.Frontier = sortedKeys(reasons)
-	unit.FrontierBears = ""
-	return unit
-}
-
-// runExpansion matches one parameter expansion, command substitution or
-// arithmetic expansion, innermost first, so nested forms collapse in turns.
-var runExpansion = regexp.MustCompile(`\$\{[^{}]*\}|\$\([^()]*\)|\$[A-Za-z_][A-Za-z0-9_]*|\$[0-9@*#?$!-]`)
-
-// computedShapes returns the base-name shapes of a command word or script
-// operand the resolver could not fix that match the base name of a known
-// shell file: the computed runs of a script (TSP-V0-863). A variable bound
-// only by one `for NAME in WORDS` of literal words (loops) takes each word in
-// turn; every other expansion reads as `*`. A shape with no literal part,
-// such as a word that is one expansion alone (`$heavy`), is a whole value
-// assigned or passed elsewhere, as text the file or its caller holds, and is
-// left out.
-func computedShapes(target string, known map[string]bool, loops map[string][]string) []string {
-	if !strings.Contains(target, "$") {
-		return nil
-	}
-	variants := []string{target}
-	for name, words := range loops {
-		var next []string
-		for _, variant := range variants {
-			if !strings.Contains(variant, "$"+name) && !strings.Contains(variant, "${"+name+"}") {
-				next = append(next, variant)
-				continue
-			}
-			for _, word := range words {
-				expanded := strings.ReplaceAll(variant, "${"+name+"}", word)
-				next = append(next, loopVariable(name).ReplaceAllString(expanded, word))
-			}
-		}
-		variants = next
-	}
-	var shapes []string
-	for _, shape := range variants {
-		for range 8 {
-			next := runExpansion.ReplaceAllString(shape, "*")
-			if next == shape {
-				break
-			}
-			shape = next
-		}
-		base := path.Base(shape)
-		if strings.Trim(base, "*") == "" || strings.ContainsAny(base, "$`") {
-			continue
-		}
-		for file := range known {
-			if matched, _ := path.Match(base, path.Base(file)); matched {
-				shapes = append(shapes, base)
-				break
-			}
-		}
-	}
-	return shapes
-}
-
-// loopVariable matches $NAME not followed by a name character.
-func loopVariable(name string) *regexp.Regexp {
-	return regexp.MustCompile(`\$` + regexp.QuoteMeta(name) + `\b`)
-}
-
-// literalLoops maps each variable a file binds only by one `for NAME in
-// WORDS` of plain literal words, never assigned, read or declared otherwise.
-func literalLoops(commands []command, text string) map[string][]string {
-	loops := map[string][]string{}
-	bound := map[string]int{}
-	for _, c := range commands {
-		if len(c.words) < 3 || c.words[0] != "for" || c.words[2] != "in" {
-			continue
-		}
-		name := c.words[1]
-		bound[name]++
-		literal := len(c.words) > 3
-		for _, word := range c.words[3:] {
-			if dynamic(word) || strings.ContainsAny(word, "\"'/") {
-				literal = false
-			}
-		}
-		if literal {
-			loops[name] = slices.Clone(c.words[3:])
-		}
-	}
-	for name := range loops {
-		other := regexp.MustCompile(`\b` + regexp.QuoteMeta(name) + `\+?=|\b(?:read|local|declare|typeset|export|readonly|unset|mapfile|readarray|getopts)\b[^\n;]*\b` + regexp.QuoteMeta(name) + `\b`)
-		if bound[name] != 1 || other.MatchString(text) {
-			delete(loops, name)
-		}
-	}
-	return loops
-}
-
-// observe builds one readable file's unit and returns the base-name shapes
-// of the scripts it runs by a computed path (TSP-V0-863).
-func observe(relative, text string, known map[string]bool) (affected.Unit, []string) {
+// observe builds one readable file's unit and returns the script names it
+// builds without a resolvable literal (TSP-V0-960).
+func observe(relative, text string, known map[string]bool) (affected.Unit, computedNames) {
 	parsed := parse(text)
 	resolve := newResolver(relative, parsed.commands)
+	values := variableValues(parsed.commands)
+	var names computedNames
+	builds := false
 	unit := affected.Unit{ID: "shell:" + relative}
 	test := isTestName(relative) || (inTestDirectory(relative) && executesAtTopLevel(parsed.commands))
 	if test {
@@ -272,14 +195,19 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, []str
 	edges := map[string]bool{}
 	unitFrontier := map[string]bool{}
 	toolchain, dynamic := false, false
-	shapes := map[string]bool{}
-	loops := literalLoops(parsed.commands, text)
-	computedRun := func(target string) {
-		for _, shape := range computedShapes(target, known, loops) {
-			shapes[shape] = true
-		}
-	}
 	loads := strings.HasSuffix(relative, ".bats") || strings.HasSuffix(relative, ".bash")
+	// computed links a run target or expands it as a computed name
+	// (TSP-V0-960). An expansion the value bound cut short may drop a script
+	// it would link, so the unit is then an unbounded reader like a computed
+	// source.
+	computed := func(target string) {
+		if resolve.link(target, nil, known, edges) {
+			return
+		}
+		unresolved, cut := constructed(target, resolve, values, known, edges, &names)
+		builds = builds || unresolved
+		dynamic = dynamic || cut
+	}
 	commands := parsed.commands
 	for index := 0; index < len(commands); index++ {
 		word, args := commandWord(plainWords(commands[index].words))
@@ -298,14 +226,10 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, []str
 				commands = append(commands, parse(script).commands...)
 			}
 			for _, target := range invokedScripts(word, args) {
-				if !resolve.link(unquote(target), nil, known, edges) {
-					computedRun(unquote(target))
-				}
+				computed(unquote(target))
 			}
 		case strings.Contains(word, "/") || strings.HasPrefix(word, "$"):
-			if !resolve.link(word, nil, known, edges) {
-				computedRun(word)
-			}
+			computed(word)
 		}
 		if isToolchain(word) && (bypassesFunctions(commands[index].words) || !shadowed(parsed, word, index)) {
 			toolchain = true
@@ -313,6 +237,13 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, []str
 	}
 	delete(edges, unit.ID)
 	unit.Imports = sortedKeys(edges)
+	if builds && !test {
+		// What runs the script it builds is unmodelled (TSP-V0-960), so the
+		// caller keeps the frontier, bearing as the foreign one does
+		// (AFP-V0-581). A test is a leaf: nothing runs a script through it.
+		unitFrontier[FrontierForeignInvocation] = true
+		unit.FrontierBears = affected.FrontierBearsOnDependents
+	}
 	unit.Frontier = sortedKeys(unitFrontier)
 	switch {
 	case test && toolchain:
@@ -330,7 +261,7 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, []str
 	} else {
 		unit.PathTokens = sortedKeys(tokens)
 	}
-	return unit, sortedKeys(shapes)
+	return unit, names
 }
 
 // recursiveReaders are the commands that read below a directory they are

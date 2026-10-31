@@ -118,12 +118,7 @@ func callerCandidate(name string) bool {
 // candidate files other than the script whose text holds the script's file
 // name are exactly its callers and mentions. Any failure declares nothing and names
 // FrontierForeignCallersInvalid.
-//
-// computed holds each shell file's computed-run shapes (TSP-V0-863). A shape
-// with a wildcard that matches a declared script's file name may run it
-// without naming it, so the declaration cannot be complete; and a declared
-// script that itself runs a script by a computed path keeps its frontier.
-func applyForeignCallers(root *affected.Source, units []affected.Unit, frontier map[string]bool, computed map[string][]string) {
+func applyForeignCallers(root *affected.Source, units []affected.Unit, built map[string]computedNames, frontier map[string]bool) {
 	declared, err := readForeignCallers(root)
 	if declared == nil && err == nil {
 		return
@@ -140,14 +135,16 @@ func applyForeignCallers(root *affected.Source, units []affected.Unit, frontier 
 			}
 		}
 	}
-	if len(indexes) != len(declared) || computedNamesDeclared(root, computed, declared) || !foreignCallersComplete(root, declared) {
+	if len(indexes) != len(declared) || !foreignCallersComplete(root, declared, built) {
 		frontier[FrontierForeignCallersInvalid] = true
 		return
 	}
 	for script, index := range indexes {
 		unit := &units[index]
 		unit.Callers = slices.Clone(declared[script].Callers)
-		if len(computed[script]) != 0 {
+		if !built[script].empty() {
+			// A script that itself runs a name it builds keeps the frontier
+			// (TSP-V0-960); only its callers are declared.
 			continue
 		}
 		unit.Frontier = slices.DeleteFunc(unit.Frontier, func(reason string) bool { return reason == FrontierForeignInvocation })
@@ -157,30 +154,12 @@ func applyForeignCallers(root *affected.Source, units []affected.Unit, frontier 
 	}
 }
 
-// computedNamesDeclared reports whether a file's computed-run shape matches
-// a declared script's file name while the file's text does not hold that
-// name: the file builds the name from parts, so the text scan cannot tell
-// whether it runs the script. An unreadable file reports true.
-func computedNamesDeclared(root *affected.Source, computed map[string][]string, declared map[string]ForeignCallers) bool {
-	for file, shapes := range computed {
-		for script := range declared {
-			name := path.Base(script)
-			if !slices.ContainsFunc(shapes, func(shape string) bool { matched, _ := path.Match(shape, name); return matched }) {
-				continue
-			}
-			body, err := root.Read(file)
-			if err != nil || !bytes.Contains(body, []byte(name)) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
 // foreignCallersComplete reports whether every declared script's callers and
 // mentions are exactly the candidate files, other than the script, whose text holds the
-// script's file name. An unreadable candidate fails it.
-func foreignCallersComplete(root *affected.Source, declared map[string]ForeignCallers) bool {
+// script's file name. A shell file that runs a script name it builds names
+// every script that name may be (TSP-V0-960), so it must be listed too. An
+// unreadable candidate fails it.
+func foreignCallersComplete(root *affected.Source, declared map[string]ForeignCallers, built map[string]computedNames) bool {
 	candidates, err := root.Files(callerCandidate)
 	if err != nil {
 		return false
@@ -192,7 +171,7 @@ func foreignCallersComplete(root *affected.Source, declared map[string]ForeignCa
 			return false
 		}
 		for script := range declared {
-			if candidate != script && bytes.Contains(body, []byte(path.Base(script))) {
+			if candidate != script && (bytes.Contains(body, []byte(path.Base(script))) || built[candidate].names(path.Base(script))) {
 				found[script] = append(found[script], candidate)
 			}
 		}

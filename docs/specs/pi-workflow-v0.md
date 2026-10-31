@@ -90,7 +90,7 @@ as runtime admission.
 ```json
 {
   "profile": "corvint-pi-capabilities/0",
-  "tuple": {"adapterVersion": "0.3.11", "host": "pi", "hostVersion": "0.99.1", "support": "FALLBACK", "surface": "extension"},
+  "tuple": {"adapterVersion": "0.3.12", "host": "pi", "hostVersion": "0.99.1", "support": "FALLBACK", "surface": "extension"},
   "tools": {"corvint_context": "NATIVE_READ", "corvint_core_read": "NATIVE_READ", "corvint_expand": "NATIVE_READ", "corvint_record_outcome": "EXPLICIT_RECORD", "corvint_tasks": "NATIVE_READ"},
   "commands": {"corvint": "NATIVE_READ", "corvint-context": "LIFECYCLE", "corvint-outcome": "LIFECYCLE", "corvint-record": "EXPLICIT_RECORD", "corvint-tasks": "OPERATOR_NATIVE_WRITE", "corvint-workflow": "LOCAL_POLICY"},
   "events": ["agent_before_settle", "agent_end", "agent_settled", "before_agent_start", "context", "input", "session_compact", "session_shutdown", "session_start", "session_tree", "tool_result"],

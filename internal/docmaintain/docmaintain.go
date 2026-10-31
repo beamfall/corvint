@@ -87,8 +87,8 @@ type Result struct {
 
 // Refusal is a closed, sanitized session refusal (disabled policy, invalid
 // selector, unauthorized apply, or a write-time conflict). It never carries
-// underlying process output.
-type Refusal struct{ Code string }
+// underlying process output; Message is a closed library message, such as a draft limit's bound and size.
+type Refusal struct{ Code, Message string }
 
 func (r *Refusal) Error() string { return r.Code }
 
@@ -154,7 +154,7 @@ func Preview(ctx context.Context, root, page string, selectors []Selector, polic
 		}
 		draft, draftErr := doccompiler.DraftSources(index, selector.Source, selector.Package)
 		if draftErr != nil {
-			return nil, refuse(doccompilerCode(draftErr))
+			return nil, doccompilerRefusal(draftErr)
 		}
 		newDigest := sourceDigest(draft.Entries)
 		if containsMarker(draft.Markdown) {
@@ -275,15 +275,15 @@ func Run(ctx context.Context, root, page string, selectors []Selector, policy Po
 	return Apply(root, preview, policy)
 }
 
-func doccompilerCode(err error) string {
+func doccompilerRefusal(err error) *Refusal {
 	var problem *doccompiler.Error
 	if e, ok := err.(*doccompiler.Error); ok {
 		problem = e
 	}
 	if problem != nil {
-		return problem.Code
+		return &Refusal{Code: problem.Code, Message: problem.Message}
 	}
-	return "internal-error"
+	return refuse("internal-error")
 }
 
 func readIfExists(path string) ([]byte, bool, error) {

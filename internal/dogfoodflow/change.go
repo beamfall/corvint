@@ -2208,6 +2208,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"ocm-prepare-*:invalid-requirements-section", requirementsSectionHint},
 	{"ocm-prepare-*:excluded-artifact-mismatch", uncommittedHint},
 	{"ocm-prepare-*:" + bootstrapIntentReason, bootstrapIntentHint},
+	{"ocm-prepare-*:too-many-obligations", "the intent on line N of DOGFOOD_INTENTS_FILE, {step} being ocm-prepare-N, derives more obligations than one OCM map admits (256 requirements, OCM-V0-023); {evidence}/{step}.stderr names the count. Remove that intent from DOGFOOD_INTENTS_FILE and cite its BASE requirement rows or decisions in DOGFOOD_CITATIONS instead, or name a smaller spec that holds this change's requirements, then rerun corvint dogfood change {base} (DCW-V0-806)"},
 	{"ocm-prepare-*:verification-timeout", "OCM prepare for the intent on line N of DOGFOOD_INTENTS_FILE, {step} being ocm-prepare-N, stopped at its verification deadline (often host load); {evidence}/{step}.stderr keeps its refusal, the maps of the intents before it are kept and nothing was committed; rerun the same corvint dogfood change {base} (or finish-lane) command, which prepares that intent again (DCW-V0-116)"},
 	{"coordination-time-impact:unsupported-impact-worktree", uncommittedHint},
 	{"local-outcome:record-index-failed", uncommittedHint},
@@ -2227,7 +2228,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"local-outcome:outcome-input-not-provided", "set DOGFOOD_OUTCOME (passed, failed or blocked) and DOGFOOD_VERIFY_FILE (one verification command per line)"},
 	{"local-outcome:verify-file-unavailable", "DOGFOOD_VERIFY_FILE must be the path of a regular file holding one verification command per line, not the commands themselves"},
 	{"local-outcome:verify-file-over-bound", "DOGFOOD_VERIFY_FILE is larger than 64 KiB; keep at most 50 verification commands of at most 512 characters, one per line"},
-	{"local-outcome:unsupported-verify-syntax", "each DOGFOOD_VERIFY_FILE line is one command of ASCII letters, digits and _./:@=+, - only, with no quotes, ^, $, |, parentheses or other shell syntax, except one quoted -run alternation of test names such as -run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (DCW-V0-384, DCW-V0-801); write -run TestName instead of -run '^TestName$'; a command that needs quotes or regular-expression syntax, such as a split -run '^Test[A-C]' group, goes in a script committed with the change and is listed as sh path/to/script.sh (DCW-V0-065)"},
+	{"local-outcome:unsupported-verify-syntax", "each DOGFOOD_VERIFY_FILE line is one command of ASCII letters, digits and _./:@=+, - only, with no quotes, ^, $, |, parentheses or other shell syntax, except one quoted -run alternation of test names such as -run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (DCW-V0-384, DCW-V0-801), and leading NAME='value' or NAME=\"value\" assignments such as GOFLAGS='-count=1 -v' go test ./pkg (DCW-V0-804); write -run TestName instead of -run '^TestName$'; a command that needs quotes or regular-expression syntax, such as a split -run '^Test[A-C]' group, goes in a script committed with the change and is listed as sh path/to/script.sh (DCW-V0-065)"},
 	{"local-outcome:record-failed", "read {evidence}/local-outcome.stderr for the cause; DOGFOOD_VERIFY_FILE holds at most 50 commands of at most 512 characters each, so split a longer command into several lines"},
 }
 
@@ -2465,8 +2466,20 @@ func (c *change) fixHint(row step) string {
 			return "DOGFOOD_VERIFY_FILE " + fix
 		}
 	}
+	if value == "ocm-aggregate:intent-scope-drift" {
+		// A refused prepare stops the aggregate before it runs, so the
+		// refusal is the cause and nothing drifted (DCW-V0-806).
+		for _, prepared := range c.rows {
+			if strings.HasPrefix(prepared.name, "ocm-prepare-") && c.rowFailing(prepared) {
+				return fmt.Sprintf("%s refused %s first, so the aggregate did not run and no intent drifted; fix that row (its fix line is above), then rerun corvint dogfood change %s", prepared.name, prepared.reason, c.base)
+			}
+		}
+	}
 	if strings.HasPrefix(row.name, "ocm-prepare-") && row.reason == "invalid-requirements-section" {
 		return c.requirementsSectionHint(row.name)
+	}
+	if row.reason == "repository-object-unavailable" {
+		return objectUnavailableHint(row.name, c.evidence, c.base)
 	}
 	if value == "local-outcome:aggregate-schema-invalid" {
 		return c.aggregateSchemaHint()
@@ -2485,6 +2498,41 @@ func (c *change) fixHint(row step) string {
 		}
 	}
 	return ""
+}
+
+// maxQuotedRefusal bounds the refusal message objectUnavailableHint quotes.
+const maxQuotedRefusal = 240
+
+// objectUnavailableHint is the repository-object-unavailable fix (DCW-V0-940,
+// V1-2445): the step's own refusal message from evidence/step.stderr, which
+// names the object, then the fetch remedy. The message is the stderr's JSON
+// error, else its first line, bounded and stripped of control characters.
+func objectUnavailableHint(step, evidence, base string) string {
+	stderr := bytes.TrimSpace(readFile(evidence + "/" + step + ".stderr"))
+	var refusal struct {
+		Error string `json:"error"`
+	}
+	message := ""
+	if json.Unmarshal(stderr, &refusal) == nil {
+		message = refusal.Error
+	} else {
+		line, _, _ := bytes.Cut(stderr, []byte("\n"))
+		message = string(line)
+	}
+	message = strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, strings.TrimSpace(message))
+	if len(message) > maxQuotedRefusal {
+		message = strings.ToValidUTF8(message[:maxQuotedRefusal], "") + "..."
+	}
+	named := "its refusal in " + evidence + "/" + step + ".stderr names the missing object"
+	if message != "" {
+		named = strconv.Quote(message) + " (" + evidence + "/" + step + ".stderr)"
+	}
+	return step + " could not read a Git object it needs: " + named + "; fetch the missing history into this clone (git fetch origin, and git fetch origin " + base + " when BASE is not local; git fetch --unshallow for a shallow clone; a plain clone of a lane checkout also needs that checkout's origin fetched), then rerun corvint dogfood change " + base + " (DCW-V0-940)"
 }
 
 // requirementsSectionHint is the ocm-prepare invalid-requirements-section fix

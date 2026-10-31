@@ -5,7 +5,7 @@ Date: 2026-10-30
 Requirement prefix: `TSP-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3160); TSP-V0-001 amends AFP-V0-580
 Delivery status: experimental
-Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-861: V1-3348; TSP-V0-862: V1-3346; TSP-V0-863: V1-3347; TSP-V0-864: V1-3348. These requirements narrow
+Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-861: V1-3348; TSP-V0-940: V1-3346; TSP-V0-960: V1-3347; TSP-V0-864: V1-3348. These requirements narrow
 when the [affected plan](affected-plan-v0.md) names a unit frontier; that spec's Requirements
 section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 
@@ -151,7 +151,37 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   the recorded tree or its second parent is not the recorded head, that head is not an ancestor of
   the current head, M0..M1 changes a `.github` path, the planner or selector fails or gives no `run`
   verdict, the universe is unavailable, or the source drifts after planning.
+- **TSP-V0-940:** (experimental, under the owner's standing lane auto-accept, 2026-10-31; V1-3346;
+  refines TSP-V0-003 and STR-V0-061) `internal/gateselect` SHALL read the same
+  `.corvint/gated-root-locators.json` from the checkout it indexes, with the same validity rules
+  (closed object, profile, at most 64 KiB and 64 packages, each package an indexed package whose
+  non-test code locates the root and whose non-test sources carry the gate as a Go string
+  literal, the gate a clean absolute path other than `/`, the reason non-empty printable text of
+  at most 512 bytes). A valid declaration SHALL stop each declared package's rule (d) reach: the
+  package keeps its own `unresolved` reason, and its dependents are no longer `unresolved` for
+  depending on it, so the selector and the planner agree on which units every dirty path selects,
+  a nested-module change included. An absent or invalid declaration SHALL declare nothing (the
+  wider selection). A plan that names `go:gated-root-locators-invalid` or
+  `go:gated-root-locators-changed` SHALL make the selection `FALLBACK`, as the module-level
+  frontiers do.
 
+- **TSP-V0-960:** (experimental, amending TSP-V0-005, under the owner's standing lane auto-accept,
+  2026-10-11; V1-3347) The shell plugin SHALL expand a command word or `bash`/`sh` operand that is
+  computed (contains `$` or a backquote) through the file's own assignments, `${NAME-default}`,
+  `${NAME:-default}`, `${NAME=default}` and `${NAME:=default}` defaults and `for NAME in` word lists,
+  bounded to depth 4, 16 values a name and 64 values a word; any other expansion, a positional or
+  special parameter, a command substitution and a name the file never sets is unknown. A word whose
+  values the 64-value bound cuts short SHALL NOT drop them silently: its kept values stay edges and
+  the unit SHALL set `UnboundedReads` to `shell:dynamic-source`, a non-test unit also `LocatesRoot`
+  (NSA-V0-009), so a change to a dropped script still selects the tests that reach it. Each fully
+  literal value SHALL be resolved as a literal target, adding an import edge when it names a source.
+  A value whose file name is still unknown but whose text after its last unknown part ends in an
+  owned shell suffix is a constructed script name: its non-test unit SHALL carry
+  `shell:foreign-invocation-unmodelled` bearing on dependents, and the TSP-V0-005 completeness scan
+  SHALL count the file as naming every declared script whose file name the pattern matches, so an
+  unlisted constructor makes the declaration invalid. A declared script that itself constructs a
+  script name SHALL keep the frontier while still carrying its callers. A value with no literal shell
+  suffix is not a constructed script name.
 - **TSP-V0-861:** (experimental, amending TSP-V0-006, under the owner's standing lane auto-accept,
   2026-10-11; V1-3348) A package TSP-V0-006 would keep whole only because its own test files
   changed with its source SHALL instead be sliced when both proofs hold: TSP-V0-006's over its
@@ -168,30 +198,6 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   the parsed comments: a file names it when one of its comments starts with `//go:linkname`, the
   only form the compiler honours, so a string literal or prose naming the directive (this
   slicer's own source does) no longer keeps its package whole.
-- **TSP-V0-862:** (experimental, amending TSP-V0-003 and its non-goal, under the owner's standing
-  lane auto-accept, 2026-10-11; V1-3346) `internal/gateselect`'s `Select` (gate-affected-select,
-  the CI PR tier) SHALL read `.corvint/gated-root-locators.json` under the same closed profile and
-  bounds as TSP-V0-003 and, when every declared directory is an indexed package whose non-test code
-  locates the root and whose non-test Go sources carry the gate as an interpreted string literal,
-  SHALL stop treating each declared package as a root locator, so its dependents leave rule (d)
-  while the package keeps its own reason. A missing declaration SHALL change nothing; an invalid
-  one, or one this change makes dirty, SHALL declare nothing, so rule (d) keeps the wider closure.
-  On a change in a nested module that imports a declared locator, Select's run set SHALL equal the
-  planner's. `SelectStructural`, `Unresolved` and `Bounds` are unchanged.
-- **TSP-V0-863:** (experimental, amending TSP-V0-005, under the owner's standing lane auto-accept,
-  2026-10-11; V1-3347) A shell file that runs a script (as a command word, or as the operand of a
-  shell such as `sh` or `bash`) by a target the resolver cannot fix to a literal SHALL be a computed
-  run of each known shell file whose base name matches the target's base-name shape. The shape reads
-  every expansion as `*`, except a variable the file binds only by one `for NAME in WORDS` of plain
-  literal words and never assigns, reads or declares otherwise, which takes each word in turn. A
-  shape with no literal part (one expansion alone, such as `"$heavy"`, whose value is text this
-  file or its caller holds) and the caller's arguments (`$@`, `$*`, `$1` to `$9`) SHALL NOT count.
-  A file with a computed run SHALL carry `shell:foreign-invocation-unmodelled` as an ordinary unit
-  frontier, bearing on every plan that reaches it, test file or not, and a foreign-caller
-  declaration SHALL NOT clear it from a declared script. The TSP-V0-005 completeness scan SHALL fail
-  (naming `shell:foreign-callers-invalid`) when a computed run's shape matches a declared script's
-  file name and the running file's text does not hold that name, since the text scan cannot tell
-  whether it runs the script.
 - **TSP-V0-864:** (experimental, amending TSP-V0-006, under the owner's standing lane auto-accept,
   2026-10-11; V1-3348) A changed file whose residue (the file less its receiver-less functions
   other than `init`) differs from base SHALL still be sliced when, comments ignored, the head
@@ -229,8 +235,7 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
 Evaluating build constraints for a host or running non-host variants; scoping the frontier to the
 dirty file's own constraint (a plain file in the directory can be what a variant calls, which
 AFP-V0-580's review withdrew a narrower scoping over); selecting a dependent nested module's tests
-(AFP-V0-582); reading the gated declaration in gateselect's `Unresolved` and `Bounds`
-(tools/gate-ledger), which keep the wider closure.
+(AFP-V0-582).
 
 ## Failure modes
 
@@ -249,9 +254,8 @@ names this repository) runs its locating code in a dependent's test; the planner
 read only if the dependent is not otherwise reached, the declared gate is unchanged and the
 package's proof test still passes, which the test's call-order and constructor checks are there to
 prevent. The proof is static over the package's own sources: a reflective or `unsafe` call path
-it does not model is out of its reach. `internal/gateselect`'s `Select` (the CI PR tier) reads the
-declaration since TSP-V0-862 and shares this failure mode; its `Unresolved` and `Bounds` keep the
-wider closure, which over-selects but never under-selects.
+it does not model is out of its reach. `internal/gateselect` (the CI PR tier and
+tools/gate-ledger) reads the declaration since TSP-V0-940 and shares this failure mode.
 (5) TSP-V0-004: the rule is static over one file's text. A sourced runtime file that rebinds NAME
 is excluded by refusing any source after the first; an `eval` of computed text naming NAME, a
 nameref (`declare -n`) or an indirect `${!x}` assignment it cannot see would let the read escape,
@@ -263,9 +267,9 @@ time, and another process writing into the new directory concurrently are out of
 `command -p` form bypasses functions and a PATH override. The payload `tar` extracts is run-time
 data, so a link inside it is the script's own, as before.
 (6) TSP-V0-005: the scan is textual. A caller in another language that builds the script's file name from parts is
-missed, so the declaration can verify while a caller is unlisted; a shell caller doing so fails
-the scan under TSP-V0-863, except through a whole-word expansion whose value another file builds
-from parts, which no scan sees. The caller or mention split is
+missed, so the declaration can verify while a caller is unlisted; a shell caller doing so with a
+literal shell suffix fails the scan under TSP-V0-960, whose failure mode (12) names what it still
+misses. The caller or mention split is
 the project's own per-file claim: a file listed as a mention that does run the script loses its
 edge, so its tests are not selected for a change to the script. A caller in a file outside the
 candidate suffixes (a `.md` runbook an operator pastes from) is not a code path and is not
@@ -305,14 +309,19 @@ whatever it reaches, and a test of an unchanged file is skipped only when it nei
 changed function (TSP-V0-006's lexical reach over the head test files) nor uses a name a changed
 test file declares; a test file that is deleted, or a change to a test file of another package, is
 outside both proofs and keeps the package whole through the other dirty paths' plan.
-(11) TSP-V0-863: the shape is lexical over one file. A loop variable the file rebinds in a form
-the check does not list (an `eval`, a nameref, an indirect assignment) is not seen, so the loop's
-words are trusted though the variable may hold another value at the run; a computed run
-through a function or alias the file defines is seen only at its call. A computed run of a binary
-whose name happens to match a shell file's shape still carries the frontier (an over-approximation).
-(12) TSP-V0-864: a new type or const is observed only by code that names it, which lexical reach
+(11) TSP-V0-864: a new type or const is observed only by code that names it, which lexical reach
 finds; a new type's method set could satisfy an interface, so any method on it keeps the package
 whole. A comment is no input to the compiled program except a directive, which must match.
+(12) TSP-V0-960: the expansion is static over one file. A value set in another file, the environment,
+an argument or a command's output is unknown, so a computed name built only from those, or with no
+literal shell suffix (`"$tool"` holding a script path from the environment), is still missed, as is a
+construction in a Make, Go or YAML candidate; the frontier is then not named and the scan can verify
+while such a caller is unlisted. The frontier bears on the constructing file's dependents, not on the
+scripts it may run, so a change to the constructed callee does not select the caller's tests; failing
+closed through `UnboundedReads`, as NSA-V0-009 does for a dynamic source, was rejected because it
+would select those tests on every plan. A test file is a leaf and carries no frontier for what it
+constructs. Unknown parts match any text, so a pattern can count a file as naming a script it never
+runs, which can only invalidate the declaration, never verify it.
 
 ## Open questions
 
@@ -355,10 +364,10 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | TSP-V0-006 | `testSourceEligibles`, `testSourceEligible`, `testSourceSlice`, `testSourcePlainFunctions`, `testSourceValueUse`, `testSourceQualifiers`, `testSourceDeclOf`, `testSourceReferenceSignature` and `testSourceWrite` in `cmd/corvint/test_source_slices.go`; their call and the shared base read in `testGoSlices` in `cmd/corvint/test_slices.go`; the TSP-V0-006 verdict line in `testVerdict` in `cmd/corvint/test.go` | `TestTSPV0006DryRunSlicesSourceChanges` in `cmd/corvint/test_source_slices_tspv0006_unix_test.go` (a called function, a doc comment, a function a method calls and an added function slice to the reaching and external tests; a function no test reaches builds only; every test reaching, an own test file, a value use, a package variable reached, initialization reaching, a method, an import, a variable, a comment outside functions, a dependency also changed, a new file, an assembly file, `go:linkname` and cgo stay whole, and so do a function that stopped reaching a package variable, a pointer parameter, a write through another package's variable in the head or only in the base body, a function reaching such a write, and a dot import; the importer stays whole); `TestTSPV0006PlainFunctionsAndQualifiers` and `TestTSPV0006ReferenceSignatureAndWrites` (basic-only signatures; pointer, slice, map, channel, function, interface, named, struct, array, variadic, `uintptr`, pointer-result, generic and redeclared-basic signatures and writes through a selector, pointer, index or range target or by `copy`, `delete` or `clear` are named) in `cmd/corvint/test_source_slices_tspv0006_test.go`; `TestSTRV0072SliceWalksDoNotGrowWithPackages` (two Git processes with a source change present); the mutation check in `docs/build-log/2026-10-30-v1-2806-source-slices.md` |
 | TSP-V0-007 | `readPrior`, `rerun`, `buildPrior` and `readPriorEvents` in `tools/corvint-pr-tests/rerun.go`; `selectSince` and the `--prior` branch of `planOnly` in `tools/corvint-pr-tests/main.go` | `TestTSPV0007RerunReusesPriorPasses` in `tools/corvint-pr-tests/rerun_tspv0007_test.go` (the fixed package alone reruns while the base-relative selection keeps both; nothing passed, everything passed and one passed; a missing, malformed, unknown-field, other-schema or invalid-package record, another identity, tree, unresolvable merge or head, a rewritten head, a planner failure, a non-`run` verdict, an unavailable tool profile, a refused plan and a `.github` delta each run `./...`; a record followed by a stray `}` or a second value is malformed); `TestTSPV0007PriorRecordFromRunEvidence` (only whole-package passes no directory contradicts; no directories, another merge, an unobserved merge, another identity, a source-drift or planner-drift fallback reason, an execution error, an unreadable or missing event stream each refuse); the replay in `docs/build-log/2026-10-30-v1-3050-pr-rerun-reuse.md` |
 | TSP-V0-861 | `tests` of `testSourceCandidate`, `testSourceEligible`, `testSourceOwnPaths` and the TSP-V0-861 union in `testSourceSlice` in `cmd/corvint/test_source_slices.go` | `TestTSPV0861DryRunSlicesSourceAndTestChanges` in `cmd/corvint/test_source_slices_tspv0861_unix_test.go` (a new internal test file, an edited external test file and a new test of a function no test reached slice to the union; every test kept, a `TestMain`, an `init`, a new import, a failing source proof and a test file with no test function stay whole; a string literal and a prose comment naming the directive slice, and a `//go:linkname` comment stays whole); the "its test file changed too" case of `TestTSPV0006DryRunSlicesSourceChanges`; the replay in build log `docs/build-log/2026-10-31-ci-select-w1.md` |
-| TSP-V0-862 | `applyGatedLocators`, `readGatedLocators` and `carriesGate` in `internal/gateselect/gatedlocators.go`; their call before rule (d) in `selectPackages` in `internal/gateselect/select.go` | `TestGatedRootLocatorParity_TSP_V0_862` in `internal/gateselect/gatedlocators_test.go` (on a nested-module change, declared: neither Select nor the planner selects the locator's dependent and their run sets are equal, also on an unrelated change; undeclared, a gate not carried, a package that does not locate the root, an unknown member and unparsed JSON: both select it and agree; a dirty declaration: Select keeps it) |
-| TSP-V0-863 | `computedShapes`, `literalLoops`, `computedFrontier` and the computed-run cases of `observe` in `internal/liveverify/affected/shell/shell.go`; `computedNamesDeclared` and the kept frontier in `applyForeignCallers` in `internal/liveverify/affected/shell/callers.go`; the unique loop variable in `script/batch-precheck_test.sh` | `TestComputedScriptRunKeepsTheFrontier_TSP_V0_863` in `internal/liveverify/affected/shell/computed_test.go` (a wildcard name, a computed command word, a literal loop and an untrusted loop variable keep the frontier on the caller and a plan reaching it is `UNKNOWN`; a loop over unmatched names, one expansion alone, the caller's arguments, an unmatched shape and a literal do not; a wildcard or loop naming a declared script in parts makes the declaration invalid, one naming another script does not, and a declared script's own computed run keeps its frontier); `TestRepositoryShellForeignCallersComplete_TSP_V0_005` |
 | TSP-V0-864 | `testSourceAdditive` and the `added`, `additive` and `seeds` handling in `testSourceSlice` in `cmd/corvint/test_source_slices.go` | `TestTSPV0864DryRunSlicesAdditiveDeclarations` in `cmd/corvint/test_source_slices_tspv0861_unix_test.go` (a file comment, a new const no test names, a new const a changed function uses, and a new type with its new test slice; a new var, import, method on a new type, directive and a changed declaration stay whole); the "a comment outside functions" case of `TestTSPV0006DryRunSlicesSourceChanges`; the replay in build log `docs/build-log/2026-10-31-ci-select-w1.md` |
 | TSP-V0-860 | `replay`, `measure`, `CIScope`, `checkFailures`, `Summarize` and `Failures` in `tools/selection-baseline/main.go`; `benchmarks/selection-baseline/changes.json`; the `selection-baseline-check` target in `Makefile` | `TestSelectionBaselineGateFailsOnFloorOrMiss_V12892`, `TestSelectionBaselineUnknownKindsAndManifest_V12892` and `TestSelectionBaselineChangeSetIsValid_V12892` in `tools/selection-baseline/main_test.go`; the replays in `benchmarks/results/v2892-selection-baseline-*.json` and build log `docs/build-log/2026-10-31-ci-select-w1.md` |
+| TSP-V0-960 | `variableValues`, `expand`, `braced`, `named` and `constructed` in `internal/liveverify/affected/shell/computed.go`; the computed command and interpreter cases of `observe` and the `built` map in `internal/liveverify/affected/shell/shell.go`; the `built` argument of `applyForeignCallers` and `foreignCallersComplete` in `internal/liveverify/affected/shell/callers.go` | `TestComputedInvocation_TSP_V0_960` and `TestComputedInvocationValueBoundIsUnbounded_TSP_V0_960` (81 values from two nine-word loops make the test an unbounded reader with its 64 kept edges; 64 values stay bounded) in `internal/liveverify/affected/shell/computed_test.go` (a literal `${NAME-default}` value is an import edge with no frontier; a constructed `"$here/$name.sh"` keeps the frontier of a non-test caller, bearing on dependents, and not of a test; a declared script that constructs a name keeps the frontier; an unlisted literal-parts, pattern or interpreter-operand constructor makes the declaration invalid; a listed one and a pattern naming another script keep it declared) |
+| TSP-V0-940 | `gatedLocators` and `applyGatedLocators` in `internal/gateselect/gatedlocators.go`, their call in `indexRepository` (`internal/gateselect/readers.go`); the two frontiers in `moduleLevelFrontiers` (`internal/gateselect/select.go`) | `TestGatedRootLocatorsMatchThePlanner_TSP_V0_940` in `internal/gateselect/gatedlocators_test.go`: with a nested module and a dependent of a gated locator, the selector's rule (d) equals the planner's `UnboundedReaders` undeclared (the dependent included) and declared (the locator alone), a nested-module change selects the same root-module units in both, an invalid declaration declares nothing, and a plan naming either frontier falls back. |
 
 ## Rollback
 
@@ -375,7 +384,9 @@ make `applyForeignCallers` return at once; every script then carries the frontie
 original reason. No stored state depends on it. TSP-V0-007: stop passing `--prior`; `rerun.json` is then
 not written and only `selection.json` decides, as before. TSP-V0-860: delete the
 `selection-baseline-check` target; no other target or stored state depends on it. TSP-V0-861: in
-`testSourceEligible`, return the fallback again when a test file of the package is dirty. TSP-V0-862: remove the
-`applyGatedLocators` call in `selectPackages`; Select then keeps the wider closure, as before. TSP-V0-863: make
-`computedShapes` return nil; computed runs are then ignored, as before. TSP-V0-864: make
-`testSourceAdditive` return false; every residue change keeps the package whole again.
+`testSourceEligible`, return the fallback again when a test file of the package is dirty. TSP-V0-864: make
+`testSourceAdditive` return false; every residue change keeps the package whole again. TSP-V0-960: make
+`constructed` return false and pass an empty `built` map; computed words are then ignored again.
+No stored state depends on it. TSP-V0-940: drop the `applyGatedLocators`
+call in `indexRepository` and the two `moduleLevelFrontiers` entries; the selector then follows a
+declared package's dependents on every dirty path again, as before.

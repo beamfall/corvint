@@ -1,101 +1,109 @@
-// SPDX-License-Identifier: Apache-2.0
 package shell
 
 import (
-	"context"
-	"maps"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
-	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 )
 
-// TSP-V0-863: a file that runs a script by a computed path the resolver cannot
-// fix keeps FrontierForeignInvocation on itself, bearing on every plan that
-// reaches it, and no foreign-caller declaration clears it; a computed run that
-// may name a declared script without the file's text naming it makes the
-// declaration incomplete.
-func TestComputedScriptRunKeepsTheFrontier_TSP_V0_863(t *testing.T) {
+// TSP-V0-960: a computed command word is expanded through the file's own
+// values. One whose value is a literal path is an edge ("$heavy" with a
+// literal default). One that builds a script name it cannot resolve keeps
+// FrontierForeignInvocation on a non-test caller, even a declared one, and
+// names every script its pattern may be in the completeness scan, so an
+// unlisted builder leaves the declaration invalid.
+func TestComputedInvocation_TSP_V0_960(t *testing.T) {
+	t.Run("literal value is an edge", func(t *testing.T) {
+		root := t.TempDir()
+		write(t, root, "run/run.sh", "echo run\n")
+		write(t, root, "use/use.sh", "tool=${USE_TOOL-run/run.sh}\nenv A=1 \"$tool\" x\n")
+		use := unitOf(t, units(t, root), "use/use.sh")
+		if !slices.Equal(use.Imports, []string{"shell:run/run.sh"}) || len(use.Frontier) != 0 {
+			t.Errorf("use imports %v frontier %v, want the run.sh edge and no frontier", use.Imports, use.Frontier)
+		}
+	})
+	t.Run("built name keeps the caller frontier", func(t *testing.T) {
+		root := t.TempDir()
+		write(t, root, "run/run.sh", "echo run\n")
+		write(t, root, "use/use.sh", "\"$here/$name.sh\" x\n")
+		write(t, root, "use/use_test.sh", "\"$here/$name.sh\" x\n")
+		result := units(t, root)
+		use := unitOf(t, result, "use/use.sh")
+		if !slices.Equal(use.Frontier, []string{FrontierForeignInvocation}) || use.FrontierBears != affected.FrontierBearsOnDependents {
+			t.Errorf("use frontier %v bears %q, want the foreign frontier on dependents", use.Frontier, use.FrontierBears)
+		}
+		if test := unitOf(t, result, "use/use_test.sh"); len(test.Frontier) != 0 {
+			t.Errorf("test frontier %v, want none: a test is a leaf", test.Frontier)
+		}
+		if other := unitOf(t, result, "run/run.sh"); len(other.Frontier) != 0 {
+			t.Errorf("run frontier %v, want none in a shell-only repository", other.Frontier)
+		}
+	})
+
+	declaration := func(callers string) string {
+		return `{"profile":"corvint-shell-foreign-callers/0","scripts":{"run/run.sh":{"callers":[` + callers + `],"reason":"computed paths"}}}`
+	}
 	for _, tc := range []struct {
-		name, body string
-		computed   bool
+		name, script, builder, callers string
+		declared, keeps                bool
 	}{
-		{"a wildcard name", "sh \"$dir/run-$kind.sh\"\n", true},
-		{"a computed command word", "\"$tools/run-a.sh\" --check\n", true},
-		{"a literal loop", "for k in a b; do\n  bash \"$here/run-$k.sh\"\ndone\n", true},
-		{"a loop over names no script has", "for k in x y; do\n  bash \"$here/run-$k.sh\"\ndone\n", false},
-		{"a loop variable read elsewhere", "read -r k\nfor k in x y; do\n  bash \"$here/run-$k.sh\"\ndone\n", true},
-		{"one expansion alone", "\"$heavy\" go test ./...\n", false},
-		{"the caller's arguments", "\"$@\"\nsh \"$1\"\n", false},
-		{"a shape no script matches", "sh \"$dir/other-$kind.sh\"\n", false},
-		{"a resolved literal", "sh run/run-a.sh\n", false},
+		{name: "declared script that builds a name keeps the frontier", script: "for n in helper; do \"$here/$n.sh\"; done\n", builder: "sh run/run.sh\n", callers: `"Makefile","tool/use.sh"`, declared: true, keeps: true},
+		{name: "unlisted literal builder", script: "echo run\n", builder: "n=ru\n\"$here/${n}n.sh\"\n", callers: `"Makefile"`},
+		{name: "unlisted pattern builder", script: "echo run\n", builder: "\"$here/r$x.sh\"\n", callers: `"Makefile"`},
+		{name: "unlisted interpreter operand", script: "echo run\n", builder: "bash \"$here/$x.sh\"\n", callers: `"Makefile"`},
+		{name: "listed pattern builder", script: "echo run\n", builder: "\"$here/r$x.sh\"\n", callers: `"Makefile","tool/use.sh"`, declared: true},
+		{name: "builder of another name", script: "echo run\n", builder: "\"$here/x$x.sh\"\n", callers: `"Makefile"`, declared: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			root := t.TempDir()
-			write(t, root, "run/run-a.sh", "#!/bin/sh\necho a\n")
-			write(t, root, "run/run-b.sh", "#!/bin/sh\necho b\n")
-			write(t, root, "check/caller_test.sh", "#!/bin/sh\n"+tc.body)
-			caller := unitOf(t, units(t, root), "check/caller_test.sh")
-			if got := slices.Contains(caller.Frontier, FrontierForeignInvocation); got != tc.computed || caller.FrontierBears != "" {
-				t.Fatalf("caller frontier %v bears %q, want computed %v (%+v)", caller.Frontier, caller.FrontierBears, tc.computed, caller)
+			write(t, root, "go.mod", "module example.test/m\n")
+			write(t, root, "m.go", "package m\n")
+			write(t, root, "Makefile", "check:\n\tsh run/run.sh\n")
+			write(t, root, "run/run.sh", tc.script)
+			write(t, root, "tool/use.sh", tc.builder)
+			write(t, root, affected.ShellForeignCallersPath, declaration(tc.callers))
+			result := units(t, root)
+			if invalid := slices.Contains(result.Frontier, FrontierForeignCallersInvalid); invalid == tc.declared {
+				t.Fatalf("invalid %v, want declared %v (frontier %v)", invalid, tc.declared, result.Frontier)
 			}
-			if !tc.computed {
-				return
-			}
-			graph, err := affected.Build(context.Background(), root, New())
-			if err != nil {
-				t.Fatal(err)
-			}
-			plan := affected.Select(graph, []string{"check/caller_test.sh"})
-			if plan.Scope != affected.ScopeUnknown || !slices.Contains(plan.Unknown, affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: FrontierForeignInvocation}) {
-				t.Fatalf("a plan reaching the caller: scope %s unknown %v", plan.Scope, plan.Unknown)
+			script := unitOf(t, result, "run/run.sh")
+			if bears := slices.Contains(script.Frontier, FrontierForeignInvocation); bears != (tc.keeps || !tc.declared) {
+				t.Errorf("script frontier %v, want bearing %v", script.Frontier, tc.keeps || !tc.declared)
 			}
 		})
 	}
+}
 
-	base := map[string]string{
-		"go.mod":                "module example.test/m\n",
-		"run/run.sh":            "#!/bin/sh\necho run\n",
-		"caller/caller.go":      "package caller\n\nvar script = \"run/run.sh\"\n",
-		"caller/caller_test.go": "package caller\n",
-	}
-	const declaration = `{"profile":"corvint-shell-foreign-callers/0","scripts":{"run/run.sh":{"callers":["caller/caller.go"],"reason":"r"}}}`
+// TSP-V0-960: a computed run target whose values exceed the 64-value bound
+// is not silently cut. Two nine-word loops build 81 names; the kept values
+// stay edges and the test becomes an unbounded reader, so a change to a
+// dropped script still selects it. Eight by eight fits and stays bounded.
+func TestComputedInvocationValueBoundIsUnbounded_TSP_V0_960(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
-		extra   map[string]string
-		invalid bool
-		bears   bool
+		letters string
+		cut     bool
 	}{
-		{name: "complete"},
-		{name: "a wildcard that may name it", extra: map[string]string{"tool/use.sh": "sh \"$d/r$x.sh\"\n"}, invalid: true, bears: true},
-		{name: "a loop that names it in parts", extra: map[string]string{"tool/use.sh": "for n in run; do\n  sh \"$d/$n.sh\"\ndone\n"}, invalid: true, bears: true},
-		{name: "a wildcard naming another script", extra: map[string]string{"tool/use.sh": "sh \"$d/other-$x.sh\"\n", "tool/other-a.sh": "echo\n"}},
-		// The declared script's own computed run keeps its frontier, though its callers verify.
-		{name: "the declared script runs one", extra: map[string]string{"run/run.sh": "#!/bin/sh\nsh \"$d/other-$x.sh\"\n", "tool/other-a.sh": "echo\n"}, bears: true},
+		{name: "81 values exceed the bound", letters: "abcdefghi", cut: true},
+		{name: "64 values fit the bound", letters: "abcdefgh"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			files := maps.Clone(base)
-			maps.Copy(files, tc.extra)
-			files[affected.ShellForeignCallersPath] = declaration
 			root := t.TempDir()
-			for relative, content := range files {
-				write(t, root, relative, content)
+			words := strings.Join(strings.Split(tc.letters, ""), " ")
+			for _, x := range tc.letters {
+				for _, y := range tc.letters {
+					write(t, root, "scripts/"+string(x)+string(y)+".sh", "echo ok\n")
+				}
 			}
-			result := units(t, root)
-			if got := slices.Contains(result.Frontier, FrontierForeignCallersInvalid); got != tc.invalid {
-				t.Errorf("invalid frontier %v, want %v", got, tc.invalid)
+			write(t, root, "use_test.sh", "for x in "+words+"\ndo\n  for y in "+words+"\n  do\n    sh \"./scripts/${x}${y}.sh\"\n  done\ndone\n")
+			unit := unitOf(t, units(t, root), "use_test.sh")
+			if got := unit.UnboundedReads == UnboundedDynamicSource; got != tc.cut {
+				t.Errorf("unbounded reads %q, want unbounded %v", unit.UnboundedReads, tc.cut)
 			}
-			script := unitOf(t, result, "run/run.sh")
-			if got := slices.Contains(script.Frontier, FrontierForeignInvocation); got != tc.bears {
-				t.Errorf("script frontier %v, want bearing %v", script.Frontier, tc.bears)
-			}
-			graph, err := affected.Build(context.Background(), root, New(), golang.New())
-			if err != nil {
-				t.Fatal(err)
-			}
-			if plan := affected.Select(graph, []string{"run/run.sh"}); (plan.Scope == affected.ScopeUnknown) != (tc.invalid || tc.bears) {
-				t.Errorf("a change to the script: scope %s unknown %v", plan.Scope, plan.Unknown)
+			if len(unit.Imports) != 64 {
+				t.Errorf("imports %d, want the 64 kept edges", len(unit.Imports))
 			}
 		})
 	}

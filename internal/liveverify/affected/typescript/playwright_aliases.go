@@ -31,10 +31,23 @@ type typeScriptAliases struct {
 	refusalKey string
 }
 
+// aliasConfigFile reports whether name is the alias config of its folder that Playwright reads:
+// tsconfig.json, or jsconfig.json when no tsconfig.json is beside it (AFP-V0-418, TJAA-V0-960).
+func aliasConfigFile(name string, bodies map[string]string) bool {
+	switch path.Base(name) {
+	case "tsconfig.json":
+		return true
+	case "jsconfig.json":
+		_, sibling := bodies[path.Join(path.Dir(name), "tsconfig.json")]
+		return !sibling
+	}
+	return false
+}
+
 func readTypeScriptAliases(bodies map[string]string, frontier frontierSet) []typeScriptAliases {
 	var configs []typeScriptAliases
 	for _, name := range sortedKeys(bodies) {
-		if path.Base(name) != "tsconfig.json" {
+		if !aliasConfigFile(name, bodies) {
 			continue
 		}
 		config := parseTypeScriptAliasesIn(name, bodies)
@@ -259,12 +272,16 @@ func parseTypeScriptAliasesIn(name string, bodies map[string]string) typeScriptA
 	return config
 }
 
-// resolveTypeScriptAliases rewrites each bare reference the nearest tsconfig resolves to the
+// resolveTypeScriptAliases rewrites each bare reference the nearest alias config resolves to the
 // relative path of its target. When keep reports true for the original reference, the target is
 // added beside it instead, so the edges the original names are kept (TJAA-V0-059).
 func resolveTypeScriptAliases(owner string, refs []string, configs []typeScriptAliases, bodies map[string]string, sites sourceSites, frontier frontierSet, keep func(string) bool) []string {
 	nearest := nearestTypeScriptAliases(owner, configs)
-	if nearest == nil || !nearest.valid {
+	typeScript := strings.HasSuffix(owner, ".ts") || strings.HasSuffix(owner, ".tsx")
+	// Playwright maps no specifier of a module that is not .ts or .tsx without allowJs
+	// (AFP-V0-418, TJAA-V0-960). Under a blocked gate (keep set) every edge is speculative and
+	// kept, so the selection stays a superset of what any runner resolves (TJAA-V0-059).
+	if nearest == nil || !nearest.valid || !typeScript && !nearest.allowJS && keep == nil {
 		return refs
 	}
 	resolved := append([]string(nil), refs...)
