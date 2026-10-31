@@ -65,7 +65,6 @@ func heldSlot(t *testing.T, dir string, i int, record []byte) {
 
 func TestCALV0095_PreparationQueueObservation(t *testing.T) {
 	assumeCompleteLockTable(t)
-	requireObservableFlocks(t)
 	t.Run("absent-namespace-creates-nothing", func(t *testing.T) {
 		_, repo := preparationOpenFixture(t)
 		before := preparationNamespace(t, repo.CommonDir)
@@ -82,6 +81,7 @@ func TestCALV0095_PreparationQueueObservation(t *testing.T) {
 	})
 
 	t.Run("registered-waiters-rank-and-no-write", func(t *testing.T) {
+		requireObservableFlocks(t)
 		admissionRestore(t)
 		_, repo := preparationOpenFixture(t)
 		const waiters = 4
@@ -167,6 +167,7 @@ func TestCALV0095_PreparationQueueObservation(t *testing.T) {
 	})
 
 	t.Run("unpublished-live-slot-hides-rank", func(t *testing.T) {
+		requireObservableFlocks(t)
 		_, repo := preparationOpenFixture(t)
 		heldSlot(t, repo.CommonDir, 0, admissionRecord(7))
 		heldSlot(t, repo.CommonDir, 1, []byte("CPA1"))
@@ -194,6 +195,7 @@ func TestCALV0095_PreparationQueueObservation(t *testing.T) {
 	})
 
 	t.Run("drift-after-stat-not-observed", func(t *testing.T) {
+		requireObservableFlocks(t)
 		for _, replace := range []bool{false, true} {
 			_, repo := preparationOpenFixture(t)
 			heldSlot(t, repo.CommonDir, 0, admissionRecord(1))
@@ -234,6 +236,7 @@ func TestCALV0095_PreparationQueueObservation(t *testing.T) {
 	})
 
 	t.Run("drift-after-open-not-observed", func(t *testing.T) {
+		requireObservableFlocks(t)
 		for _, held := range []bool{false, true} {
 			for _, replace := range []bool{false, true} {
 				_, repo := preparationOpenFixture(t)
@@ -301,6 +304,7 @@ func TestCALV0095_PreparationQueueObservation(t *testing.T) {
 	})
 
 	t.Run("common-dir-replaced-after-open-not-observed", func(t *testing.T) {
+		requireObservableFlocks(t)
 		for _, viaSymlink := range []bool{false, true} {
 			_, repo := preparationOpenFixture(t)
 			heldSlot(t, repo.CommonDir, 0, admissionRecord(1))

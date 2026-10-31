@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -122,23 +123,32 @@ func TestPSRV0224_HeadFilesResolveAsGit(t *testing.T) {
 // (exit 129); any other failure is a broken git, not a missing capability.
 func reftableUnsupported(t *testing.T, git string) string {
 	t.Helper()
+	reason, err := probeReftable(t, git)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return reason
+}
+
+func probeReftable(t *testing.T, git string) (string, error) {
+	t.Helper()
 	c := exec.Command(git, "init", "-q", "--ref-format=reftable", filepath.Join(t.TempDir(), "probe"))
 	c.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
 	out, err := c.CombinedOutput()
 	if err == nil {
-		return ""
+		return "", nil
 	}
 	var exit *exec.ExitError
 	if errors.As(err, &exit) && exit.ExitCode() == 129 && bytes.Contains(out, []byte("ref-format")) {
 		line, _, _ := strings.Cut(strings.TrimSpace(string(out)), "\n")
-		return "git lacks --ref-format=reftable (needs git 2.45 or later): " + line
+		return "git lacks --ref-format=reftable (needs git 2.45 or later): " + line, nil
 	}
-	t.Fatalf("reftable probe: %v %s", err, out)
-	return ""
+	return "", fmt.Errorf("reftable probe: %v %s", err, out)
 }
 
 // PSR-V0-224: the reftable probe skips only for the unknown-option refusal of
-// a git older than 2.45, and reports support when init accepts the format.
+// a git older than 2.45, reports support when init accepts the format, and
+// treats any other failure as a broken git.
 func TestPSRV0224_ReftableProbeNamesMissingSupport(t *testing.T) {
 	t.Parallel()
 	fake := func(t *testing.T, body string) string {
@@ -155,6 +165,11 @@ func TestPSRV0224_ReftableProbeNamesMissingSupport(t *testing.T) {
 	}
 	if reason := reftableUnsupported(t, fake(t, "exit 0")); reason != "" {
 		t.Fatalf("supporting git reported %q", reason)
+	}
+	for _, body := range []string{"echo 'fatal: cannot mkdir' >&2\nexit 128", "echo 'usage: git init' >&2\nexit 129"} {
+		if reason, err := probeReftable(t, fake(t, body)); err == nil {
+			t.Fatalf("broken git %q skipped as %q", body, reason)
+		}
 	}
 }
 

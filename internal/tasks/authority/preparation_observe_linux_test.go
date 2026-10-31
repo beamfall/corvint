@@ -43,10 +43,14 @@ func requireNotObserved(t *testing.T, reason string) {
 	}
 }
 
-// requireObservableFlocks skips a counting test where /proc/locks names a
-// test flock under a device other than the one stat reports for its file, as
-// on a btrfs subvolume (anonymous st_dev, superblock s_dev in the table).
-// The product read must then report the typed ambiguity, never a count.
+// btrfsMagic is BTRFS_SUPER_MAGIC from statfs(2).
+const btrfsMagic = 0x9123683e
+
+// requireObservableFlocks skips a counting test on a btrfs subvolume, where
+// /proc/locks names a test flock under the superblock's s_dev while stat
+// reports the subvolume's anonymous device. The product read must then
+// report the typed ambiguity, never a count; on any other filesystem a
+// refused or missing match fails.
 func requireObservableFlocks(t *testing.T) {
 	t.Helper()
 	f, err := os.Create(filepath.Join(t.TempDir(), "flock-probe"))
@@ -72,10 +76,14 @@ func requireObservableFlocks(t *testing.T) {
 	if err == nil {
 		t.Fatalf("the reader's own flock is absent from %s", procLocksPath)
 	}
+	var fs syscall.Statfs_t
+	if e := syscall.Fstatfs(int(f.Fd()), &fs); e != nil || uint32(fs.Type) != btrfsMagic {
+		t.Fatalf("flock not matched off btrfs (statfs type %#x, %v): %v", fs.Type, e, err)
+	}
 	sys := st.Sys().(*syscall.Stat_t)
 	dev := uint64(sys.Dev)
 	requireNotObserved(t, err.Error())
-	t.Skipf("flock owners are not observable on this filesystem: stat reports device %d:%d but %s lists %v for inode %d; product read abstains with %q",
+	t.Skipf("flock owners are not observable on this btrfs subvolume: stat reports device %d:%d but %s lists %v for inode %d; product read abstains with %q",
 		(dev>>8)&0xfff|(dev>>32)&^uint64(0xfff), dev&0xff|(dev>>12)&^uint64(0xff), procLocksPath, v.(procLocksView).locked[uint64(sys.Ino)], sys.Ino, err)
 }
 
