@@ -11,6 +11,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -156,7 +157,9 @@ var (
 	errRoot          = unsupported(classRootUnresolved, "repository root path cannot be resolved")
 	errScratchInside = unsupported(classScratchDir, "scratch directory (TMPDIR) is inside the repository or its Git directory")
 	errScratchCreate = unsupported(classScratchDir, "private metadata scratch directory cannot be created")
-	errIndexTime     = unsupported(classScratchDir, "private index copy cannot preserve the index modification time")
+	// errScratchNowhere names every location Status tried and the remedy (GPK-V0-336).
+	errScratchNowhere = unsupported(classScratchDir, "private metadata scratch directory cannot be created in TMPDIR, /tmp or the user cache directory; set TMPDIR to a writable directory outside the repository")
+	errIndexTime      = unsupported(classScratchDir, "private index copy cannot preserve the index modification time")
 )
 
 // RefusalMessage is the caller-facing text for a failed isolated status: the
@@ -225,13 +228,43 @@ type capturedFile struct {
 
 // Status runs only against private metadata. All failures are closed: callers
 // must not retry status against the live Git directory.
+//
+// The scratch parent is the ambient temporary directory; when a private
+// directory cannot be created there (a read-only filesystem sandbox), Status
+// falls back to /tmp and then the user cache directory, each still outside the
+// repository, and refuses naming all of them when none is writable (GPK-V0-336).
 func Status(ctx context.Context, root string, limit int, run Runner, arguments ...string) ([]byte, error) {
-	return StatusIn(ctx, root, os.TempDir(), limit, run, arguments...)
+	return statusIn(ctx, root, ambientScratchParents(), limit, run, arguments...)
+}
+
+// ambientScratchParents is the ordered fallback list for Status: os.TempDir(),
+// then /tmp off Windows, then the user cache directory, without duplicates.
+func ambientScratchParents() []string {
+	parents := []string{os.TempDir()}
+	if runtime.GOOS != "windows" {
+		parents = append(parents, "/tmp")
+	}
+	if cache, err := os.UserCacheDir(); err == nil {
+		parents = append(parents, cache)
+	}
+	unique := parents[:0]
+	seen := map[string]bool{}
+	for _, parent := range parents {
+		if parent != "" && !seen[parent] {
+			seen[parent] = true
+			unique = append(unique, parent)
+		}
+	}
+	return unique
 }
 
 // StatusIn preserves a caller's existing scratch ownership instead of consulting
 // ambient TMPDIR. The parent must remain outside the observed repository.
 func StatusIn(ctx context.Context, root, temporaryParent string, limit int, run Runner, arguments ...string) ([]byte, error) {
+	return statusIn(ctx, root, []string{temporaryParent}, limit, run, arguments...)
+}
+
+func statusIn(ctx context.Context, root string, temporaryParents []string, limit int, run Runner, arguments ...string) ([]byte, error) {
 	if !Isolated(ctx) {
 		ctx = WithIsolation(ctx)
 	}
@@ -258,22 +291,9 @@ func StatusIn(ctx context.Context, root, temporaryParent string, limit int, run 
 	if err != nil {
 		return nil, err
 	}
-	if !filepath.IsAbs(temporaryParent) {
-		return nil, unsupported(classScratchDir, "scratch directory is not an absolute path")
-	}
-	tempRoot, err := filepath.EvalSymlinks(temporaryParent)
+	temp, err := scratchUnder(ctx, temporaryParents, root, gitdir, common)
 	if err != nil {
-		return nil, unsupported(classScratchDir, "scratch directory cannot be resolved")
-	}
-	if within(root, tempRoot) || within(gitdir, tempRoot) || within(common, tempRoot) {
-		return nil, errScratchInside
-	}
-	if err := ScratchOutside(ctx, tempRoot, root, gitdir, common); err != nil {
 		return nil, err
-	}
-	temp, err := createScratch(tempRoot)
-	if err != nil {
-		return nil, errScratchCreate
 	}
 	defer releaseScratch(temp)
 	private := filepath.Join(temp, "metadata")
@@ -688,6 +708,55 @@ func (reader *metadataReader) unchanged(files []capturedFile) error {
 		}
 	}
 	return reader.unchangedDirectories()
+}
+
+// scratchUnder creates the private scratch directory under the first usable
+// parent. The first parent keeps its exact refusals for a relative path or a
+// parent inside the repository; a parent that cannot be resolved or written
+// moves on to the next, and a fallback that fails any check is skipped
+// (GPK-V0-336).
+func scratchUnder(ctx context.Context, parents []string, roots ...string) (string, error) {
+	for index, parent := range parents {
+		first := index == 0
+		if !filepath.IsAbs(parent) {
+			if first {
+				return "", unsupported(classScratchDir, "scratch directory is not an absolute path")
+			}
+			continue
+		}
+		resolved, err := filepath.EvalSymlinks(parent)
+		if err != nil {
+			if len(parents) == 1 {
+				return "", unsupported(classScratchDir, "scratch directory cannot be resolved")
+			}
+			continue
+		}
+		inside := false
+		for _, root := range roots {
+			inside = inside || within(root, resolved)
+		}
+		if inside {
+			if first {
+				return "", errScratchInside
+			}
+			continue
+		}
+		if err := ScratchOutside(ctx, resolved, roots...); err != nil {
+			if first || ctx.Err() != nil {
+				return "", err
+			}
+			continue
+		}
+		if temp, err := createScratch(resolved); err == nil {
+			return temp, nil
+		} else if errors.Is(err, errScratchClosed) {
+			return "", errScratchCreate
+		}
+	}
+	if len(parents) > 1 {
+		return "", errScratchNowhere
+	}
+	return "", errScratchCreate
 }
 
 func within(parent, path string) bool {

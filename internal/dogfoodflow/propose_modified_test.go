@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -64,5 +65,20 @@ func TestProposeCitationsDCWV0439NeverDraftsModifiedFileLines(t *testing.T) {
 	}
 	if !strings.Contains(rows[0], "nearest stable line docs/specs/x-v0.md 3:3 specification is a review hint only") {
 		t.Errorf("spec row does not hint its enclosing heading: %q", rows[0])
+	}
+	// DCW-V0-845 (V1-3302): the header names the line basis and the BASE sha.
+	if basis := "  line basis: every START:END in a plan row is a BASE line number, counted in each file as it is at BASE " + base + ", not at HEAD or in the working tree (DCW-V0-845)\n"; !strings.Contains(stderr.String(), basis) {
+		t.Errorf("draft header does not name the line basis:\n%s", stderr.String())
+	}
+	// DCW-V0-846 (V1-1724): each hinted span is also printed, on stderr only,
+	// as a ready plan row the lane may accept; stdout keeps the unknown row.
+	for index, hunk := range hunks {
+		accept := "  proposed, not drafted: " + fmt.Sprint(index+1) + "\t" + hunk.Path + "\t"
+		if !strings.Contains(stderr.String(), accept) || strings.Contains(stdout.String(), accept[len("  proposed, not drafted: "):]) {
+			t.Errorf("hunk %d: want a stderr-only accept proposal %q:\n%s", index+1, accept, stderr.String())
+		}
+	}
+	if !strings.Contains(stderr.String(), "  proposed, not drafted: 1\tdocs/specs/x-v0.md\t3:3\tspecification\n    the nearest stable BASE span of the file this hunk edits; it is not BASE evidence for the change (DCW-V0-393), so accept it only after review") {
+		t.Errorf("spec proposal is not the hinted heading span:\n%s", stderr.String())
 	}
 }
