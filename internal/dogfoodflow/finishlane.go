@@ -301,6 +301,13 @@ func (l *finishLane) requireVerifyInput() {
 // refusal names both inputs, as the rebind's fix line does.
 func (l *finishLane) requireOutcomeInputs() {
 	verify, _ := verifyInput(l.options.Change)
+	// DCW-V0-960: the full pass's ocm-aggregate refuses missing-intent-scope
+	// only after the bind commit, so the pre-flight refuses an absent manifest.
+	intents := !l.options.Preflight || l.options.Change.IntentsFile != ""
+	if !intents {
+		l.say("%s: REFUSE intent-scope-not-provided\n", l.prefix)
+		l.say("  fix: pass --intents FILE (or DOGFOOD_INTENTS_FILE; make takes INTENTS=<intents.txt>): the sorted spec paths that govern the change, or the one line #no-intent-declared when none does (DCW-V0-024); then rerun corvint dogfood inputs-check --base %s\n", l.options.Change.Base)
+	}
 	var missing []string
 	if len(verify) == 0 {
 		missing = append(missing, "--verify")
@@ -309,6 +316,10 @@ func (l *finishLane) requireOutcomeInputs() {
 		missing = append(missing, "--outcome")
 	}
 	if len(missing) == 0 {
+		if !intents {
+			l.say("  nothing was prepared, bound or committed\n")
+			l.exit(2)
+		}
 		return
 	}
 	l.say("%s: REFUSE outcome-input-not-provided missing=%s\n", l.prefix, strings.Join(missing, ","))

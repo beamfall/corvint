@@ -715,6 +715,9 @@ doc-gates:
 # before any bind or seal; dogfood-finish with the same variables; and batch-precheck again for the
 # receipt of the sealed head. batch-precheck-test checks the ci.yml connection; it stops at the first
 # failing step.
+# DCW-V0-960 (V1-3047): the closeout is a lane closeout, so both input steps run with LANE=1 and one
+# refusal names every missing INTENTS, VERIFY or OUTCOME before any build; LANE= on the command line wins.
+dogfood-closeout: export LANE = 1
 dogfood-closeout:
 	@$(MAKE) --no-print-directory dogfood-inputs-check
 	@$(MAKE) --no-print-directory batch-precheck

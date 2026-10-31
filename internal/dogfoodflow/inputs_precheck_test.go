@@ -53,6 +53,10 @@ func preflightRun(t *testing.T, root string, options ChangeOptions) (int, string
 	if options.Outcome == "" {
 		options.Outcome = "passed"
 	}
+	// DCW-V0-960: nor without an intent manifest.
+	if options.IntentsFile == "" {
+		options.IntentsFile = writeInput(t, "#no-intent-declared\n")
+	}
 	options.Steps = Runner{Path: "corvint", Run: func(ctx context.Context, root string, args []string, stdout, stderr io.Writer) int {
 		labels = append(labels, strings.Join(args, " "))
 		if len(args) > 0 && args[0] == "cem" {
@@ -204,4 +208,41 @@ func TestDCWV0380InputsCheckPassesBindsNothing(t *testing.T) {
 		t.Fatalf("code=%d stdout=%q want %q stderr=%q", code, stdout, want, stderr)
 	}
 	assertNothingBound(t, root, head, labels)
+}
+
+// TestDCWV0960InputsCheckRefusesAbsentIntentManifest (V1-3047): without an
+// intent manifest the pre-flight refuses before prepare, naming --intents and
+// the no-intent declaration, and with the outcome refusal when both apply;
+// the full pass's ocm-aggregate would refuse missing-intent-scope only after
+// the bind commit.
+func TestDCWV0960InputsCheckRefusesAbsentIntentManifest(t *testing.T) {
+	root, base := preflightRepository(t, nil)
+	plan := writeInput(t, "1\tpre.go\t3:3\timplementation\n2\tpre.go\t20:20\timplementation\n")
+	for _, tc := range []struct {
+		name    string
+		options ChangeOptions
+		outcome bool
+	}{
+		{"intents only", ChangeOptions{Verify: "go version", Outcome: "passed"}, false},
+		{"intents and outcome", ChangeOptions{}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			options := tc.options
+			options.Root, options.Base, options.Citations = root, base, plan
+			calls := 0
+			options.Steps = Runner{Path: "corvint", Run: func(context.Context, string, []string, io.Writer, io.Writer) int {
+				calls++
+				return 1
+			}}
+			var stdout, stderr bytes.Buffer
+			code, err := FinishLane(context.Background(), FinishLaneOptions{Change: options, Preflight: true}, &stdout, &stderr)
+			out := stderr.String()
+			if err != nil || code != 2 || calls != 0 || !strings.HasPrefix(out, "dogfood-inputs-check: REFUSE intent-scope-not-provided\n") ||
+				!strings.Contains(out, "  fix: pass --intents FILE (or DOGFOOD_INTENTS_FILE; make takes INTENTS=<intents.txt>)") ||
+				!strings.Contains(out, "#no-intent-declared") ||
+				strings.Contains(out, "outcome-input-not-provided") != tc.outcome {
+				t.Fatalf("code=%d err=%v calls=%d stderr:\n%s", code, err, calls, out)
+			}
+		})
+	}
 }

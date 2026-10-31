@@ -136,3 +136,34 @@ func TestOCMV0028DerivedBoundAdmitsSummedScopes(t *testing.T) {
 		t.Fatalf("271 obligations over three scopes were refused or ran no step (%d calls):\n%s", calls, &stderr)
 	}
 }
+
+// TestDCWV0961OverBoundSingleIntentRefusesBeforeAnyStep (V1-3047): an intent
+// whose Requirements section alone is over one OCM map's 256 obligations
+// refuses before any step runs, naming that intent and not the one within the
+// bound; the count used to fail, the precheck skipped and ocm-prepare refused
+// only after the bind commit.
+func TestDCWV0961OverBoundSingleIntentRefusesBeforeAnyStep(t *testing.T) {
+	root, base, manifest := obligationRepository(t, "docs/specs", 257, 3)
+	calls := 0
+	steps := Runner{Path: "corvint", Run: func(context.Context, string, []string, io.Writer, io.Writer) int {
+		calls++
+		return 1
+	}}
+	var stderr bytes.Buffer
+	code, err := Change(context.Background(), ChangeOptions{Root: root, Base: base, Steps: steps, IntentsFile: manifest}, &stderr)
+	if err != nil || code != 2 || calls != 0 {
+		t.Fatalf("code=%d err=%v calls=%d stderr:\n%s", code, err, calls, &stderr)
+	}
+	for _, want := range []string{
+		"dogfood-change: REFUSE too-many-obligations\n",
+		"  intent docs/specs/intent-1.md in DOGFOOD_INTENTS_FILE derives more obligations at HEAD than one OCM map admits (256); no step ran",
+		"  fix: drop it from DOGFOOD_INTENTS_FILE and cite the BASE lines of it the change depends on, or list a companion spec",
+	} {
+		if !strings.Contains(stderr.String(), want) {
+			t.Errorf("refusal lacks %q:\n%s", want, &stderr)
+		}
+	}
+	if strings.Contains(stderr.String(), "intent-2.md") {
+		t.Errorf("the intent within the bound was named:\n%s", &stderr)
+	}
+}
