@@ -41,11 +41,12 @@ func TestNativeJVMBuildReports(t *testing.T) {
 	}
 }
 
-// verifiedAndroid is a retained native instrumentation capture behind the
-// installed-APK identity line the runner's device script prints (TRE-V0-820).
+// verifiedAndroid is a retained native instrumentation capture between the
+// installed-APK identity lines the runner's device script prints before and
+// after it (TRE-V0-820).
 func verifiedAndroid(t *testing.T, name string) []byte {
 	t.Helper()
-	return append([]byte(installedAPKVerified+"\n"), fixture(t, name)...)
+	return append(append([]byte(installedAPKVerified+"\n"), fixture(t, name)...), installedAPKUnchanged+"\n"...)
 }
 
 // TestAndroidRequiresBoundAPKs binds TRE-V0-820 (V1-1554): an Android run
@@ -70,7 +71,15 @@ func TestAndroidRequiresBoundAPKs(t *testing.T) {
 	if err != nil || len(i.Argv) != 4 || !strings.Contains(i.Argv[3], `w=" `+sum+" "+strings.Repeat("b", 64)+` "`) {
 		t.Fatalf("%q %v", i.Argv, err)
 	}
-	for _, stdout := range [][]byte{fixture(t, "android.txt"), append([]byte("INSTALLED_APK_IDENTITY: mismatch\n"), fixture(t, "android.txt")...), []byte(installedAPKVerified + "\n")} {
+	verified := append([]byte(installedAPKVerified+"\n"), fixture(t, "android.txt")...)
+	for _, stdout := range [][]byte{
+		fixture(t, "android.txt"),
+		append([]byte("INSTALLED_APK_IDENTITY: mismatch\n"), fixture(t, "android.txt")...),
+		[]byte(installedAPKVerified + "\n"),
+		[]byte(installedAPKVerified + "\n" + installedAPKUnchanged + "\n"),
+		verified, // no second hash: the run was cut or predates it
+		append(append([]byte{}, verified...), "INSTALLED_APK_IDENTITY: changed\n"...),
+	} {
 		in := tr.Input{Runner: "android-junit", Stdout: stdout, ExitCode: 0, OutcomeNeutralExitCodes: []int{0}}
 		if o, err := Parse(in); err == nil && tr.Normalize(in, o).Complete {
 			t.Fatalf("unverified stdout observed complete: %.60q", stdout)

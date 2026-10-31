@@ -32,7 +32,7 @@ var fakeDevice = map[string]string{
 	"am": `#!/bin/sh
 s=${0%/*}/..
 case "$1" in
-instrument) echo instrument >> "$s/instrument.log"; [ -f "$s/instrument-prints" ] && exec /bin/cat "$s/instrument.txt"; [ -f "$s/instrument-completes" ] && exit 0; exec /bin/sleep 30;;
+instrument) echo instrument >> "$s/instrument.log"; [ -f "$s/instrument-prints" ] && { /bin/cat "$s/instrument.txt"; [ -f "$s/reinstall-during-run" ] && : > "$s/reinstalled"; exit 0; }; [ -f "$s/instrument-completes" ] && exit 0; exec /bin/sleep 30;;
 force-stop) echo "force-stop $2" >> "$s/device.log"; [ "$2" = local.proof ] && [ ! -f "$s/stuck" ] && : > "$s/stopped"; exit 0;;
 esac
 exit 1
@@ -131,18 +131,24 @@ func androidDevice(t *testing.T, markers string) (string, string, tr.Request) {
 
 // TestAndroidInstalledAPKIdentity binds TRE-V0-820 (V1-1554): the runner
 // itself compares the installed test and app APKs with the bound digests
-// before it instruments. A matching install is verified and instrumented; a
-// reinstall from another build, a split install or a missing app is never
-// instrumented and is incomplete, also when the transport drops the exit
-// status.
+// before it instruments, and again after. A matching install is verified and
+// instrumented; a reinstall from another build, a split install or a missing
+// app is never instrumented and is incomplete, also when the transport drops
+// the exit status; a reinstall during the run keeps the tests visible but is
+// incomplete.
 func TestAndroidInstalledAPKIdentity(t *testing.T) {
-	for _, c := range []struct{ name, markers, reason string }{
-		{"verified", "instrument-prints", ""},
-		{"mismatch", "instrument-prints,reinstalled", "installed APK identity mismatch"},
-		{"mismatch-status-dropped", "instrument-prints,reinstalled,drop-status", "installed APK identity mismatch"},
-		{"split", "instrument-prints,split", "installed APK identity unobservable"},
-		{"app-missing", "instrument-prints,app-missing", "installed APK identity unobservable"},
-		{"uninstalled", "instrument-prints,uninstalled", "installed APK identity unresolved"},
+	for _, c := range []struct {
+		name, markers, reason string
+		instrumented          bool
+	}{
+		{"verified", "instrument-prints", "", true},
+		{"mismatch", "instrument-prints,reinstalled", "installed APK identity mismatch", false},
+		{"mismatch-status-dropped", "instrument-prints,reinstalled,drop-status", "installed APK identity mismatch", false},
+		{"split", "instrument-prints,split", "installed APK identity unobservable", false},
+		{"app-missing", "instrument-prints,app-missing", "installed APK identity unobservable", false},
+		{"uninstalled", "instrument-prints,uninstalled", "installed APK identity unresolved", false},
+		{"reinstalled-during-run", "instrument-prints,reinstall-during-run", "installed APK identity changed after the instrumentation", true},
+		{"reinstalled-during-run-status-dropped", "instrument-prints,reinstall-during-run,drop-status", "installed APK identity changed after the instrumentation", true},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			_, bin, r := androidDevice(t, c.markers)
@@ -170,8 +176,8 @@ func TestAndroidInstalledAPKIdentity(t *testing.T) {
 				}
 				return
 			}
-			if o.Complete || len(log) != 0 {
-				t.Fatalf("unverified install instrumented or complete: %+v %q", o, log)
+			if o.Complete || (len(log) != 0) != c.instrumented || (c.instrumented && len(o.Tests) != 4) {
+				t.Fatalf("unverified install complete, or instrumented=%v wrong: %+v %q", c.instrumented, o, log)
 			}
 			found := false
 			for _, p := range o.Problems {
@@ -231,7 +237,7 @@ func TestAndroidTimeoutStopsDeviceProcesses(t *testing.T) {
 			}
 			calls, _ := os.ReadFile(filepath.Join(bin, "adb.log"))
 			lines := strings.Split(strings.TrimSuffix(string(calls), "\n"), "\n")
-			if !strings.HasPrefix(lines[0], "-s emulator-5554 shell c=local.proof.test/androidx.test.runner.AndroidJUnitRunner; ") || !strings.HasSuffix(lines[0], "; exec am instrument -w -r -e class local.proof.Case#test local.proof.test/androidx.test.runner.AndroidJUnitRunner") || len(lines) != 1+len(c.status) {
+			if !strings.HasPrefix(lines[0], "-s emulator-5554 shell c=local.proof.test/androidx.test.runner.AndroidJUnitRunner; ") || !strings.Contains(lines[0], "; am instrument -w -r -e class local.proof.Case#test local.proof.test/androidx.test.runner.AndroidJUnitRunner; r=$?; ") || len(lines) != 1+len(c.status) {
 				t.Fatalf("adb invocations: %q", lines)
 			}
 			stops, _ := os.ReadFile(filepath.Join(bin, "device.log"))

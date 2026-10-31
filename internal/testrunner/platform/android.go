@@ -38,7 +38,7 @@ func buildAndroid(r tr.Request, i *tr.Invocation) error {
 		instrument += " -e class " + strings.Join(r.Selectors, ",")
 	}
 	instrument += " " + r.Project
-	i.Argv = []string{"-s", r.Target, "shell", androidIdentityScript(r.Project, apks) + "exec " + instrument}
+	i.Argv = []string{"-s", r.Target, "shell", androidIdentityScript(r.Project, apks, instrument)}
 	// adb's zero means the shell command completed, even if native tests failed.
 	i.SuccessExitCodes = nil
 	i.FailureExitCodes = nil
@@ -48,8 +48,13 @@ func buildAndroid(r tr.Request, i *tr.Invocation) error {
 }
 
 // installedAPKVerified is the fixed first stdout line of an Android run whose
-// installed APKs match the bound ones (TRE-V0-820).
-const installedAPKVerified = "INSTALLED_APK_IDENTITY: verified"
+// installed APKs match the bound ones, and installedAPKUnchanged the fixed
+// last line when a second hash after the instrumentation matches the first
+// (TRE-V0-820).
+const (
+	installedAPKVerified  = "INSTALLED_APK_IDENTITY: verified"
+	installedAPKUnchanged = "INSTALLED_APK_IDENTITY: unchanged"
+)
 
 // boundAPKs returns the distinct sorted digests of the request's .apk input
 // files: the test APK, and the app APK unless the instrumentation targets its
@@ -76,23 +81,26 @@ func boundAPKs(files map[string]string) ([]string, error) {
 	return apks, nil
 }
 
-// androidIdentityScript is the device shell prefix that hashes the installed
-// APKs of the test package and the instrumentation's target package and
-// requires their digest set to equal the bound one before it prints
-// installedAPKVerified (TRE-V0-820). A split install is unobservable. The
-// component and digests are regex-bounded, so the script needs no quoting.
-func androidIdentityScript(component string, apks []string) string {
+// androidIdentityScript is the device shell script that hashes the installed
+// APKs of the test package and the instrumentation's target package, requires
+// their digest set to equal the bound one before it prints installedAPKVerified
+// and runs the instrumentation, then hashes them again and prints
+// installedAPKUnchanged only when nothing was reinstalled meanwhile
+// (TRE-V0-820). A split install is unobservable. The component, digests and
+// selectors are regex-bounded, so the script needs no quoting.
+func androidIdentityScript(component string, apks []string, instrument string) string {
 	testPackage, _, _ := strings.Cut(component, "/")
 	fail := func(reason string) string { return `{ echo "INSTALLED_APK_IDENTITY: ` + reason + `"; exit 10; }` }
-	return `c=` + component + `; w=" ` + strings.Join(apks, " ") + ` "; l=$(pm list instrumentation | grep -F "instrumentation:$c "); t=${l##*target=}; t=${t%?}; ` +
-		`if [ -z "$l" ] || [ -z "$t" ]; then ` + fail("unresolved") + `; fi; h=" "; ` +
-		`for p in ` + testPackage + ` "$t"; do o=$(pm path "$p") || ` + fail("unobservable") + `; set -- $o; ` +
+	hash := `a() { h=" "; for p in ` + testPackage + ` "$t"; do o=$(pm path "$p") || ` + fail("unobservable") + `; set -- $o; ` +
 		`if [ $# -ne 1 ]; then ` + fail("unobservable") + `; fi; case "$1" in package:/*) ;; *) ` + fail("unobservable") + `;; esac; ` +
 		`s=$(sha256sum "${1#package:}") || ` + fail("unobservable") + `; d=${s%% *}; if [ ${#d} -ne 64 ]; then ` + fail("unobservable") + `; fi; ` +
-		`case "$h" in *" $d "*) ;; *) h="$h$d ";; esac; done; ` +
+		`case "$h" in *" $d "*) ;; *) h="$h$d ";; esac; done; }; `
+	return `c=` + component + `; w=" ` + strings.Join(apks, " ") + ` "; l=$(pm list instrumentation | grep -F "instrumentation:$c "); t=${l##*target=}; t=${t%?}; ` +
+		`if [ -z "$l" ] || [ -z "$t" ]; then ` + fail("unresolved") + `; fi; ` + hash + `a; ` +
 		`for d in $h; do case "$w" in *" $d "*) ;; *) ` + fail("mismatch") + `;; esac; done; ` +
 		`for d in $w; do case "$h" in *" $d "*) ;; *) ` + fail("mismatch") + `;; esac; done; ` +
-		`echo "` + installedAPKVerified + `"; `
+		`echo "` + installedAPKVerified + `"; ` + instrument + `; r=$?; f=$h; a; ` +
+		`if [ "$h" = "$f" ]; then echo "` + installedAPKUnchanged + `"; else echo "INSTALLED_APK_IDENTITY: changed"; fi; exit $r`
 }
 
 // androidCleanup stops a timed-out or interrupted instrumentation on the
@@ -130,10 +138,25 @@ func parseAndroid(in tr.Input, o *tr.Observation) error {
 		problem(o, "INSTALLED_APK_UNVERIFIED", detail)
 		return nil
 	}
-	if rest == "" {
-		return fmt.Errorf("Android requires complete native instrumentation stdout")
+	// The last line is the second hash's verdict: a reinstall during the run
+	// makes the observation incomplete, though the tests stay visible
+	// (TRE-V0-820).
+	body, trailer := "", strings.TrimSuffix(rest, "\n")
+	if i := strings.LastIndex(trailer, "\n"); i >= 0 {
+		body, trailer = rest[:i+1], trailer[i+1:]
 	}
-	in.Stdout = []byte(rest)
+	unverified := ""
+	if trailer = strings.TrimSuffix(trailer, "\r"); trailer != installedAPKUnchanged {
+		unverified = "no installed-APK identity line after the instrumentation"
+		if reason, ok := strings.CutPrefix(trailer, "INSTALLED_APK_IDENTITY: "); ok && len(reason) <= 64 {
+			unverified = "installed APK identity " + reason + " after the instrumentation"
+		}
+		if body == "" {
+			problem(o, "INSTALLED_APK_UNVERIFIED", unverified)
+			return nil
+		}
+	}
+	in.Stdout = []byte(body)
 	status := map[string]string{}
 	last := ""
 	resultStream := ""
@@ -303,6 +326,9 @@ func parseAndroid(in tr.Input, o *tr.Observation) error {
 	}
 	if in.ExitCode != 0 {
 		problem(o, "ADB_FAILURE", "adb transport/shell did not exit successfully")
+	}
+	if unverified != "" {
+		problem(o, "INSTALLED_APK_UNVERIFIED", unverified)
 	}
 	o.Complete = len(o.Problems) == 0
 	return nil
