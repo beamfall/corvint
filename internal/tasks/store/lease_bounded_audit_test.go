@@ -152,15 +152,32 @@ func TestPSRV0151_DeclinedResumeChargesNoResumedWalk(t *testing.T) {
 	}
 	f := newResumeFixture(t)
 	invalidate := func(int) { invalidateWriterCheckpoint(context.Background(), f.repo) }
-	run := moving(t, f, f.acquire("split-decline"), 1, invalidate)
-	if !run.completed() || run.fast() || run.timing.Resumed != 0 {
+	// The walk split is read when the token decline is reported, so it is
+	// the declined resume's own charge. On a loaded host a later round can
+	// end SNAPSHOT_MOVED and resume again; that resume may serve and charge
+	// its own walk, so the final totals are not fixed (V1-2764).
+	var atDecline *LeaseTiming
+	observe := func(stage string, timing LeaseTiming) {
+		if atDecline == nil && strings.HasPrefix(stage, "fast.declined: ") && strings.Contains(stage, "invalidated since the resume base") {
+			atDecline = &timing
+		}
+	}
+	run := movingObserved(t, f, f.acquire("split-decline"), 1, invalidate, observe)
+	if !run.completed() {
 		t.Fatalf("acquire: %+v %v resumed %d stages %v", run.rep, run.err, run.timing.Resumed, run.stages)
 	}
-	if !strings.Contains(strings.Join(run.stages, "\n"), "invalidated since the resume base") {
+	if atDecline == nil {
 		t.Fatalf("resumed route did not decline on the token: %v", run.stages)
 	}
-	if timing := run.timing; timing.ResumedWalks != 0 || timing.ResumedWalk != 0 || timing.ResumeDeclines < 1 {
-		t.Fatalf("walk split after a declined resume: %+v", timing)
+	if timing := *atDecline; timing.ResumedWalks != 0 || timing.ResumedWalk != 0 || timing.Resumed != 0 {
+		t.Fatalf("walk split when the resume declined: %+v", timing)
+	}
+	if timing := run.timing; timing.ResumeDeclines < 1 {
+		t.Fatalf("walk split after a declined resume: %+v stages %v", timing, run.stages)
+	}
+	// Without a later resume, the complete route served the write.
+	if run.timing.Resumed == 0 && run.fast() {
+		t.Fatalf("the writer route served the declined resume's write: %v", run.stages)
 	}
 }
 

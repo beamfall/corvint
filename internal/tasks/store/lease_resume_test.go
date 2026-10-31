@@ -87,6 +87,17 @@ func moving(t *testing.T, f resumeFixture, write func(context.Context) (*Report,
 // movingStaged is moving with stage, when set, as the command's stage hook.
 func movingStaged(t *testing.T, f resumeFixture, write func(context.Context) (*Report, error), writes int, after func(n int), stage func(string), tweak ...func(*inventoryHooks)) movingRun {
 	t.Helper()
+	var observe func(string, LeaseTiming)
+	if stage != nil {
+		observe = func(s string, _ LeaseTiming) { stage(s) }
+	}
+	return movingObserved(t, f, write, writes, after, observe, tweak...)
+}
+
+// movingObserved is movingStaged whose stage hook also sees the command's
+// timing as it stands when each stage is reported.
+func movingObserved(t *testing.T, f resumeFixture, write func(context.Context) (*Report, error), writes int, after func(n int), observe func(string, LeaseTiming), tweak ...func(*inventoryHooks)) movingRun {
+	t.Helper()
 	var run movingRun
 	hooks := hooksForInventory(context.Background())
 	for _, fn := range tweak {
@@ -112,7 +123,11 @@ func movingStaged(t *testing.T, f resumeFixture, write func(context.Context) (*R
 	run.writerRun = stagedWrite(func(ctx context.Context) (*Report, error) {
 		ctx = context.WithValue(ctx, inventoryHooksKey{}, hooks)
 		return write(WithLeaseTiming(ctx, &run.timing))
-	}, stage)
+	}, func(s string) {
+		if observe != nil {
+			observe(s, run.timing)
+		}
+	})
 	return run
 }
 
