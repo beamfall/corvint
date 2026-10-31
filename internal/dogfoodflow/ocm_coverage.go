@@ -25,7 +25,7 @@ const maxNamedUnlinked = 32
 
 // unlinkedNote is the stderr NOTE naming each unlinked requirement, at most
 // maxNamedUnlinked of them, or "" when there is none or the coverage could
-// not be read (OCM-V0-025).
+// not be read (OCM-V0-025), under its OCM-V0-920 name.
 func (coverage *changeCoverage) unlinkedNote() string {
 	if coverage == nil || coverage.unlinked == "" {
 		return ""
@@ -35,17 +35,19 @@ func (coverage *changeCoverage) unlinkedNote() string {
 	if len(ids) > maxNamedUnlinked {
 		named += fmt.Sprintf(" (+%d more)", len(ids)-maxNamedUnlinked)
 	}
-	return fmt.Sprintf("dogfood-check: NOTE unlinked-requirements count=%d ids=%s", len(ids), named)
+	return fmt.Sprintf("dogfood-check: NOTE untraced-requirements count=%d ids=%s", len(ids), named)
 }
 
 // summaryFields prints the three members, or NOT_OBSERVED for each when the
-// coverage could not be read, never a guessed count (invariant 2).
+// coverage could not be read, never a guessed count (invariant 2). Each name
+// carries the change- prefix so it is never read as the aggregate's linked
+// count (OCM-V0-920).
 func (coverage *changeCoverage) summaryFields() []string {
 	if coverage == nil {
-		return []string{"requirements=NOT_OBSERVED", "linked=NOT_OBSERVED", "unlinked=NOT_OBSERVED"}
+		return []string{"change-requirements=NOT_OBSERVED", "change-traced=NOT_OBSERVED", "change-untraced=NOT_OBSERVED"}
 	}
-	return []string{"requirements=" + strconv.Itoa(coverage.requirements), "linked=" + strconv.Itoa(coverage.linked),
-		"unlinked=" + strconv.Itoa(coverage.requirements-coverage.linked)}
+	return []string{"change-requirements=" + strconv.Itoa(coverage.requirements), "change-traced=" + strconv.Itoa(coverage.linked),
+		"change-untraced=" + strconv.Itoa(coverage.requirements-coverage.linked)}
 }
 
 // requirementLine is the frozen OCM requirement-line syntax (OCM-V0-001).

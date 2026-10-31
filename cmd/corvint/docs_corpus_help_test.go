@@ -198,3 +198,18 @@ func TestListedHelpTopicResolvesAsOneArgument(t *testing.T) {
 		t.Fatalf("listed %d nested topics, want %d: %s", nested, len(nestedHelpTopics), list)
 	}
 }
+
+// TestDocsCorpusRunnerHelpNamesEachOperationsRunners pins V1-2478: discover-tests and
+// discover-legacy share the --runner flag, but each operation's help names only the runners that
+// operation accepts.
+func TestDocsCorpusRunnerHelpNamesEachOperationsRunners(t *testing.T) {
+	for operation, want := range map[string][2]string{
+		"discover-tests":  {"--runner playwright|rspec", "jasmine"},
+		"discover-legacy": {"--runner jasmine|mocha", "rspec"},
+	} {
+		topic := corpusHelpRun(t, "docs", "corpus", operation, "--help")
+		if !strings.Contains(topic, want[0]) || strings.Contains(topic, want[1]) {
+			t.Errorf("%s --help: want %q and no %q:\n%s", operation, want[0], want[1], topic)
+		}
+	}
+}

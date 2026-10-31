@@ -103,7 +103,7 @@ func TestHostAdapterJavaScriptHarnessInterruption(t *testing.T) {
 		t.Fatalf("outer harness cleanup incomplete: %+v", result)
 	}
 	// The witness pid is a node child spawned with {detached: true}
-	// (integrations/host-adapters.test.mjs:51,206), so it is orphaned into its own session:
+	// (integrations/host-adapters.test.mjs:65), so it is orphaned into its own session:
 	// OwnedProcessGroupCleanup above only proves the outer wrapper's own process group is
 	// quiescent, not that this separately-signalled orphan has finished exiting. That is a
 	// second, independent OS-scheduled completion, so this deadline is a hang detector, not a

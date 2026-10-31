@@ -42,6 +42,10 @@ func runTestsExampleJoin(repo testsource.Repo, args []string, out, diagnostic io
 	}
 	if mapping != "" {
 		text, err := readRequirementMap(mapping)
+		if errors.Is(err, testvaliditydoc.ErrPlatformUnsupported) {
+			refusal := receiptPlatformRefusal()
+			return testsRefuse(diagnostic, refusal.Code, refusal.Message)
+		}
 		if err != nil {
 			return testsRefuse(diagnostic, "tests-source-unavailable", "cannot read --requirements: "+err.Error())
 		}
@@ -78,7 +82,7 @@ func readRequirementMap(path string) (string, error) {
 		return "", err
 	}
 	defer parent.Close()
-	data, err := testvaliditydoc.ReadFile(parent, filepath.Base(resolved))
+	data, err := readReceiptFile(parent, filepath.Base(resolved))
 	if err != nil {
 		return "", err
 	}

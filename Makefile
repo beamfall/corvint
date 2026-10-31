@@ -18,7 +18,7 @@ GO_TEST_TIMEOUT ?= 30m
 GO_TEST_FLAGS = -p 1 -timeout $(GO_TEST_TIMEOUT)
 GO_TEST_COMMAND = $(HEAVY_NICE_PREFIX) env GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test $(GO_TEST_FLAGS) -count=1
 
-.PHONY: build gate capability-catalog capability-catalog-check instruction-conflicts gate-receipt-clear gate-receipt-test gate-affected gate-affected-test host-adapter-test host-adapter-node-test go-version go-test go-vet cross-vet windows-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-resolve spec-requirements-check spec-requirements-test spec-acceptance-audit requirement-definitions-check requirement-definitions-test traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test analyzer-schema-check analyzer-schema-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check capabilities-check release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check core-n1-replay dogfood-change dogfood-check dogfood-seal dogfood-finish dogfood-inputs-check dogfood-batch-check dogfood-bind-range dogfood-bind-range-test lane-scripts-test error-code-ownership-check error-code-ownership-test use-case-receipts-check use-case-receipts-test host-package-versions-check host-package-versions-test host-package-version-bump host-package-version-verify diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test goos-filenames-check goos-filenames-test go-cache-trim go-cache-trim-test scratch-sweep scratch-sweep-test pre-push-windows-vet-test pre-push-dogfood-seal-test dogfood-closeout cem-stable-regen cem-stable-regen-capture cem-stable-regen-replace cem-stable-regen-widen cem-stable-regen-check cem-release-suites cem-release-gate spec-toolchain-conformance spec-toolchain-latest-test batch-precheck batch-precheck-test documentation-paths documentation-paths-check binary-blobs-check legal-file-pins-check mkfifo-build-tags-check documentation-paths-test qualify-tasks-basic-test ai-coauthor-trailers-check ai-coauthor-trailers-test dogfood-cache-test dogfood-bin-reuse-test
+.PHONY: build gate capability-catalog capability-catalog-check instruction-conflicts gate-receipt-clear gate-receipt-test gate-affected gate-affected-test host-adapter-test host-adapter-node-test go-version go-test go-vet cross-vet windows-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-resolve spec-requirements-check spec-requirements-test spec-acceptance-audit requirement-definitions-check requirement-definitions-test traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test analyzer-schema-check analyzer-schema-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check capabilities-check release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check core-n1-replay dogfood-change dogfood-check dogfood-seal dogfood-finish dogfood-inputs-check dogfood-batch-check dogfood-bind-range dogfood-bind-range-test lane-scripts-test error-code-ownership-check error-code-ownership-test use-case-receipts-check use-case-receipts-test host-package-versions-check host-package-versions-test host-package-version-bump host-package-version-verify diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test goos-filenames-check goos-filenames-test go-cache-trim go-cache-trim-test scratch-sweep scratch-sweep-test pre-push-windows-vet-test pre-push-dogfood-seal-test dogfood-closeout cem-stable-regen cem-stable-regen-capture cem-stable-regen-replace cem-stable-regen-widen cem-stable-regen-any-of cem-stable-regen-check cem-release-suites cem-release-gate spec-toolchain-conformance spec-toolchain-latest-test batch-precheck batch-precheck-test documentation-paths documentation-paths-check binary-blobs-check legal-file-pins-check mkfifo-build-tags-check documentation-paths-test qualify-tasks-basic-test ai-coauthor-trailers-check ai-coauthor-trailers-test dogfood-cache-test dogfood-bin-reuse-test
 
 build: go-version
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_BIN) ./cmd/corvint
@@ -150,6 +150,8 @@ interop-gate:
 #     [VALUES=<overrides.json>] [CELL_VALUES=<cell-overrides.json>]
 # cem-stable-regen-widen adds recorded values to one string const or enum of both RESULT.schema.json
 # copies (CEM-V1-620): make cem-stable-regen-widen RECORD=<widen-record.json>
+# cem-stable-regen-any-of adds one recorded anyOf alternative to one object-schema node of both
+# RESULT.schema.json copies (CEM-V1-880): make cem-stable-regen-any-of RECORD=<any-of-record.json>
 # cem-stable-regen-check verifies the sealed chain without writing.
 AFTER ?= artifactChecks
 
@@ -169,6 +171,10 @@ cem-stable-regen-replace:
 cem-stable-regen-widen:
 	@test -n "$(RECORD)" || { echo "set RECORD=<widen-record.json>" >&2; exit 2; }
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/cem-stable-regen --widen --record "$(RECORD)"
+
+cem-stable-regen-any-of:
+	@test -n "$(RECORD)" || { echo "set RECORD=<any-of-record.json>" >&2; exit 2; }
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/cem-stable-regen --any-of --record "$(RECORD)"
 
 cem-stable-regen-check:
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/cem-stable-regen --check
@@ -225,6 +231,7 @@ spec-requirements-check:
 	for file in $(SPEC_GENERATED); do cmp "$$tmp/$$file" "docs/specs/$$file" || stale=1; done; \
 	test $$stale = 0 || { echo "docs/specs/REQUIREMENTS.tsv, INDEX.json or README.md is stale: stage the changed spec, then run make spec-requirements" >&2; exit 1; }
 	$(GO_TEST_COMMAND) ./internal/specindex
+	$(GO_TEST_COMMAND) -run '^TestSpecsStayWithinTheOCMObligationBound$$' ./internal/lrfrepo
 
 # spec-requirements-test pins SRG-V0-001: the generator enumerates the Git index, so no
 # untracked, deleted-from-the-worktree, or unstaged spec can change the index a fresh clone
@@ -716,11 +723,15 @@ doc-gates:
 	@$(MAKE) --no-print-directory $(DOC_GATE_TARGETS)
 	@GOTOOLCHAIN=local go run ./conformance/use-cases-v0
 
-# dogfood-closeout is the one lane closeout command (DCW-V0-349, V1-1894): dogfood-finish with the
-# same variables, whose input pre-flight refuses a bad VERIFY, INTENTS or CITATIONS file before the
-# base build or any bind (DCW-V0-380), then batch-precheck, which derives the shared doc-gates
-# target from ci.yml; batch-precheck-test checks that connection; it stops at the first failing step.
+# dogfood-closeout is the one lane closeout command (DCW-V0-349, V1-1894; DCW-V0-900): the input
+# pre-flight, which refuses a bad VERIFY, INTENTS or CITATIONS file before any build (DCW-V0-380);
+# batch-precheck, which derives the shared doc-gates target from ci.yml, so drift stops the closeout
+# before any bind or seal; dogfood-finish with the same variables; and batch-precheck again for the
+# receipt of the sealed head. batch-precheck-test checks the ci.yml connection; it stops at the first
+# failing step.
 dogfood-closeout:
+	@$(MAKE) --no-print-directory dogfood-inputs-check
+	@$(MAKE) --no-print-directory batch-precheck
 	@$(MAKE) --no-print-directory dogfood-finish
 	@$(MAKE) --no-print-directory batch-precheck
 

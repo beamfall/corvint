@@ -349,6 +349,16 @@ No requirement below diverges from the implementation.
   over the id's real definition, so the row carried the wrong title and acceptance (`AHI-246`,
   `DCI-V1-030`). `specindex.DefinitionLine`, the Go reader of SRG-V0-017, MUST rank the same way.
   Rollback: drop the wrapped flag from the `%best` key, the duplicate count and `DefinitionLine`.
+- `SRG-V0-900`: (experimental under the standing lane auto-accept, 2026-10-31; tasks-w1 lane
+  friction) `spec-requirements-check`, and so `make doc-gates`, MUST also run
+  `TestSpecsStayWithinTheOCMObligationBound` (`internal/lrfrepo`), which fails for every
+  `docs/specs/*.md` whose `## Requirements` section `ocm prepare` would refuse as
+  `too-many-obligations` (more than 256 requirement IDs, OCM-V0-028), naming the spec and saying
+  to define the new requirement elsewhere. Specs already over the bound when the check was added
+  are listed in `overBoundSpecs` and must stay over it, so the list cannot go stale. Failure mode:
+  before this, adding one requirement to the agent-leases spec, which sat at the bound, passed the
+  doc gates and was caught only by `internal/lrfrepo`'s enumeration tests in the closeout
+  batch-precheck, after the CEM was sealed. Rollback: drop the test and its Makefile line.
 
 ## Non-goals and simpler baseline
 
@@ -491,6 +501,7 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-547 | the `%definitions` collection and its refusal block in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `spec-requirements-check` |
 | SRG-V0-548 | the fence and continuation tracking and the wrapped flag in the `%best` key in `script/gen-spec-requirements.sh`; `DefinitionLine` in `internal/specindex/requirements.go` | `spec-requirements-test`; `spec-requirements-check`; `TestSRGV0017DefinitionLineFollowsGeneratorRanks`, `TestSRGV0017DefinitionLineLocatesEveryRow` |
 | SRG-V0-047 | `statusDriftMessage` and `headerLine` in `internal/specindex/index_test.go` | `TestSRGV0047StatusDriftNamesBothFieldsWithLines`; `spec-requirements-check` |
+| SRG-V0-900 | `TestSpecsStayWithinTheOCMObligationBound` in `internal/lrfrepo/ocm_spec_bound_test.go`, run by `spec-requirements-check` |
 
 ## Rollout, rollback, and drift
 

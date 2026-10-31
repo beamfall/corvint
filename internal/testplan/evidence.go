@@ -286,9 +286,22 @@ func readProvider(name string) ([]byte, error) {
 		return nil, invalidReceipt()
 	}
 	defer root.Close()
-	data, err := testvaliditydoc.ReadFile(root, filepath.Base(resolved))
+	data, err := readReceiptFile(root, filepath.Base(resolved))
 	if err != nil {
-		return nil, invalidReceipt()
+		return nil, providerReadError(err)
 	}
 	return data, nil
+}
+
+// readReceiptFile is testvaliditydoc.ReadFile; tests force its platform
+// refusal (PRS-V1-920).
+var readReceiptFile = testvaliditydoc.ReadFile
+
+// providerReadError keeps the receipt platform refusal typed (PRS-V1-920);
+// every other read failure stays an invalid receipt.
+func providerReadError(err error) error {
+	if errors.Is(err, testvaliditydoc.ErrPlatformUnsupported) {
+		return &gokernel.Error{Code: testvaliditydoc.PlatformUnsupportedCode, Message: testvaliditydoc.ErrPlatformUnsupported.Error()}
+	}
+	return invalidReceipt()
 }

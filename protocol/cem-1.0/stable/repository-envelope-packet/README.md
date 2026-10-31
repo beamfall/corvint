@@ -93,3 +93,9 @@ Recorded schema enum widenings: a revision may also widen one string `const` or
 `enum` of RESULT.schema.json with `make cem-stable-regen-widen` (CEM-V1-620),
 which keeps every existing value, case and cell, records the predecessor digest
 of the widened node and the reason, and appends a section to CHANGES.md.
+
+Recorded schema anyOf branches: a revision may also add one alternative to an object
+schema node of RESULT.schema.json with `make cem-stable-regen-any-of`
+(CEM-V1-880), which keeps the old node and every case and cell, records the
+predecessor digest of the node and the reason, and appends a section to
+CHANGES.md.

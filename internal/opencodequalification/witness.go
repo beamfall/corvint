@@ -67,13 +67,19 @@ func witnessDescendants(ctx context.Context, dir string, pid int) (map[int]procg
 	}
 	return known, nil
 }
+
+// passiveSettleWindow is how long witnessAbsent observes natural exit. It is a
+// var only so the transient-exit test can lift it off a loaded host (V1-0849,
+// V1-0764); production never writes it.
+var passiveSettleWindow = 500 * time.Millisecond
+
 func witnessAbsent(ctx context.Context, dir string, known map[int]procgroup.ObservedProcess) error {
 	if len(known) == 0 {
 		return errors.New("passive cleanup witness unavailable")
 	}
 	// Observe natural exit before the outer supervisor may rescue a survivor.
 	// This window does not signal processes or broaden the captured identities.
-	ctx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
+	ctx, cancel := context.WithTimeout(ctx, passiveSettleWindow)
 	defer cancel()
 	for {
 		rows, e := processSnapshot(ctx, dir)

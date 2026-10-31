@@ -9,6 +9,11 @@ import "errors"
 // read (PRS-V1-021, PRS-V1-022, decision 0559, V1-2484).
 var ErrPlatformUnsupported = errors.New("receipt reads are unsupported on this platform")
 
+// PlatformUnsupportedCode is the typed code every receipt-read caller outside
+// the docs corpus reports for ErrPlatformUnsupported, in place of its own
+// invalid-receipt or unreadable code (PRS-V1-920, V1-2683).
+const PlatformUnsupportedCode = "test-validity-platform-unsupported"
+
 // PlatformRefusal returns ErrPlatformUnsupported where receipt reads are
 // refused and nil where they are qualified, so a caller can refuse before it
 // opens anything.

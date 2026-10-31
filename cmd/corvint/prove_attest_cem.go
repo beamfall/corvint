@@ -440,7 +440,7 @@ func compileStableCEMProof(ctx context.Context, gitExecutable string, options op
 	}
 	dirtyAfter, err := affected.DirtyPaths(ctx, gitExecutable, options.root)
 	if err != nil {
-		return proveReceipt{}, &gokernel.Error{Code: "unsupported-prove-history", Message: "cannot read the worktree status"}
+		return proveReceipt{}, proveStatusRefusal(ctx, err)
 	}
 	mapAfter, _, err := readProveCEMMap(options.root, options.prove.mapPath)
 	if err != nil {

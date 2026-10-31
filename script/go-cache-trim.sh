@@ -12,7 +12,10 @@
 # the entry files in its two-hex-digit subdirectories are candidates, oldest modification time
 # first, and only entries older than --min-age-hours (default 12, the post-batch rule of ASD-V0-038;
 # Go refreshes an entry's time when a build uses it and it is over an hour old), until the cache's entry bytes are at most
-# --max-gib (default 20) GiB. Go treats a removed entry as a cache miss and rebuilds it.
+# --max-gib (default 20) GiB. Without --max-gib, a cache's bound is also at most 40% of the size of
+# the file system holding it (ASD-V0-900): a 20 GiB bound over a 16 GiB /tmp tmpfs bounded nothing
+# and the shared cache filled the disk every lane builds on. Go treats a removed entry as a cache
+# miss and rebuilds it.
 #
 # Work directories: each `go-build*` directory directly under every --temp-root (default
 # $TMPDIR and /tmp) last modified more than --work-age-hours (default 24) ago, unless a running
@@ -33,6 +36,7 @@ export LC_ALL=C
 
 apply=0
 max_gib=20
+max_explicit=0
 min_age_hours=12
 min_free_pct=20
 work_age_hours=24
@@ -43,7 +47,7 @@ number() { [[ ${2-} =~ ^[0-9]+$ ]] || refuse "invalid-$1 ${2-}"; }
 while [[ $# -gt 0 ]]; do
   case $1 in
     --apply) apply=1; shift ;;
-    --max-gib) number max-gib "${2-}"; max_gib=$2; shift 2 ;;
+    --max-gib) number max-gib "${2-}"; max_gib=$2; max_explicit=1; shift 2 ;;
     --min-age-hours) number min-age-hours "${2-}"; min_age_hours=$2; shift 2 ;;
     --work-age-hours) number work-age-hours "${2-}"; work_age_hours=$2; shift 2 ;;
     --min-free-pct) number min-free-pct "${2-}"; min_free_pct=$2; shift 2 ;;
@@ -69,6 +73,8 @@ free_kib() { df -Pk "$1" 2> /dev/null | awk 'NR == 2 { print $4 }'; }
 # free_pct DIR: the available share of DIR's file system, whole percent (available over used plus
 # available, as df's capacity column counts it); empty when df cannot say.
 free_pct() { df -Pk "$1" 2> /dev/null | awk 'NR == 2 && $3 + $4 > 0 { printf "%d\n", 100 * $4 / ($3 + $4) }'; }
+# fs_bytes DIR: the size of DIR's file system in bytes (used plus available); empty when df cannot say.
+fs_bytes() { df -Pk "$1" 2> /dev/null | awk 'NR == 2 && $3 + $4 > 0 { printf "%.0f\n", ($3 + $4) * 1024 }'; }
 free_before=$(free_kib /tmp)
 max_bytes=$((max_gib * 1024 * 1024 * 1024))
 now=$(date +%s)
@@ -94,7 +100,12 @@ for cache in "${caches[@]}"; do
   # Names holding a newline are never listed, so each "mtime size path" line is one whole file.
   find "$real" -mindepth 2 -maxdepth 2 -type f -path "$real/[0-9a-f][0-9a-f]/*" ! -name "*$nl*" -exec stat "${stat_format[@]}" {} + 2> /dev/null |
     sort -n -k1,1 > "$listing"
-  plan=$(awk -v max="$max_bytes" -v cutoff="$cutoff" '
+  bound=$max_bytes
+  if ((!max_explicit)); then
+    size=$(fs_bytes "$real")
+    if [[ -n $size ]] && ((size * 40 / 100 < bound)); then bound=$((size * 40 / 100)); fi
+  fi
+  plan=$(awk -v max="$bound" -v cutoff="$cutoff" '
     { mtime[NR] = $1; size[NR] = $2; total += $2 }
     END {
       kept = total

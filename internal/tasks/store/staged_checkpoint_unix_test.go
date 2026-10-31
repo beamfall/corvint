@@ -52,7 +52,33 @@ type derivedBytes struct {
 
 // completeRouteClaim runs one lease claim on the complete route of a store
 // with tickets tickets and records its derived checkpoint writes.
+//
+// V1-2638: the property holds for a claim that commits in its first round.
+// If the snapshot moves under that commit (a stray change event under host
+// load), the next round resumes on the writer route, which retains the read
+// checkpoint under the lock by design (CAL-V0-119) and writes no delta; see
+// TestJSGV0015_MovedClaimResumesOnTheWriterRoute. Such a run measures that
+// route, not this one, so a fresh fixture is taken, at most claimAttempts
+// times.
 func completeRouteClaim(t *testing.T, tickets int) (*intent.Repository, derivedBytes) {
+	t.Helper()
+	const claimAttempts = 3
+	for i := 1; ; i++ {
+		repo, got, timing := completeRouteClaimMoved(t, tickets, false)
+		if timing.Rounds == 1 {
+			return repo, got
+		}
+		t.Logf("%d tickets: the claim took %d rounds (resumed %d); the snapshot moved, so it is not a complete-route commit", tickets, timing.Rounds, timing.Resumed)
+		if i == claimAttempts {
+			t.Fatalf("%d tickets: no single-round claim in %d fixtures", tickets, claimAttempts)
+		}
+	}
+}
+
+// completeRouteClaimMoved is completeRouteClaim; with move set, an outside
+// edit under the writer lock of the first commit moves the snapshot, so the
+// claim takes a second round. It also returns the claim's lease timing.
+func completeRouteClaimMoved(t *testing.T, tickets int, move bool) (*intent.Repository, derivedBytes, LeaseTiming) {
 	t.Helper()
 	base, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
@@ -84,11 +110,23 @@ func completeRouteClaim(t *testing.T, tickets int) (*intent.Repository, derivedB
 	}
 	defer func() { derivedWritten = nil }()
 	local := strings.TrimSuffix(entries[0].Name(), ".json")
-	report, err := Lease(context.Background(), repo, historyActor, LeaseChoice{QueueID: fixture.QueueID, RequestID: fmt.Sprintf("staged-claim-%d", tickets), Root: root, Lease: transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: fixture.TicketID(local), Holder: "agent-1", LeaseMinutes: "60"}}, WallClock())
+	var timing LeaseTiming
+	ctx := WithLeaseTiming(context.Background(), &timing)
+	if move {
+		ticket := filepath.Join(repo.PrimaryWorktree, intent.Dir, "tickets", entries[1].Name())
+		ctx = context.WithValue(ctx, mutationStageKey{}, at("fast.complete.guards", func() {
+			raw, err := os.ReadFile(ticket)
+			if err != nil {
+				t.Fatal(err)
+			}
+			historyWrite(t, ticket, raw)
+		}))
+	}
+	report, err := Lease(ctx, repo, historyActor, LeaseChoice{QueueID: fixture.QueueID, RequestID: fmt.Sprintf("staged-claim-%d", tickets), Root: root, Lease: transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: fixture.TicketID(local), Holder: "agent-1", LeaseMinutes: "60"}}, WallClock())
 	if err != nil || report.Outcome.Outcome != mutation.OutcomeCompleted {
 		t.Fatalf("claim %+v %v", report, err)
 	}
-	return repo, got
+	return repo, got, timing
 }
 
 // JSG-V0-015 (V1-0850, CAL-V0-026): a complete-route lease commit encodes
@@ -159,6 +197,20 @@ func TestJSGV0015_LeaseCommitStagesCheckpointsOutsideWriterLock(t *testing.T) {
 		if left := stagedLeft(t, repo); len(left) != 0 {
 			t.Fatalf("staged temporaries left: %v", left)
 		}
+	}
+}
+
+// V1-2638: the route by which a complete-route claim writes the read
+// checkpoint under the writer lock and no writer delta. An outside edit under
+// the first commit's lock moves the snapshot; the second round resumes from
+// the first round's audit on the writer route, which retains the read
+// checkpoint under the lock (CAL-V0-119), after the first round had already
+// staged it, and publishes no writer delta.
+func TestJSGV0015_MovedClaimResumesOnTheWriterRoute(t *testing.T) {
+	_, got, timing := completeRouteClaimMoved(t, 40, true)
+	cp := filepath.Base(journal.CheckpointPath("taskman"))
+	if timing.Rounds != 2 || timing.Resumed != 1 || got.locked[cp] == 0 || got.unlocked[cp] == 0 {
+		t.Fatalf("moved claim: rounds %d resumed %d, locked %v, staged %v", timing.Rounds, timing.Resumed, got.locked, got.unlocked)
 	}
 }
 
