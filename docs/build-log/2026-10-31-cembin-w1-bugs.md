@@ -67,3 +67,19 @@ reaches stage `complete` with outcome `ACCEPT`.
   the caller to drop any binary file. That fix still works, but only a binary-only or non-canonical
   binary change now needs it.
 - `CEM-V1-986` portable parity needs a packet revision before external verifiers accept such maps.
+
+## Review fixes
+
+The independent review found two gaps, and both are fixed with regression tests that fail on the
+earlier code.
+
+- **Over-bound binaries (CEM-V1-985).** Binary bodies are never read, so the existing blob bound
+  never fired. A 64 MiB + 1 binary creation beside a text change prepared, and `verify-stable`
+  accepted it. `verify.BinaryBlobSizes` now reads every binary object header, base and target
+  side, and refuses `repository-object-unavailable` naming the path. Prepare, the candidate
+  verifier and `verify-stable` share it and run it before base simulation.
+- **Empty rename lines (CEM-V1-980).** The parser refused rename metadata only when it had a
+  value, so `rename from ` with an empty value let a binary section through. It now tracks the
+  metadata's presence. Copy and similarity lines already refused. A textual group still parses
+  exactly as before. Whether the textual grammar should also refuse empty rename values is left
+  as a follow-up, because the shared tamper matrix pins textual verdicts for both consumers.
