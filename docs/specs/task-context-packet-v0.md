@@ -1214,6 +1214,67 @@ and `internal/cem/workflow/self_modified.go`. The `cem status` report is `CEM-V1
   `TestTaskContextResultsNameTheirCandidateKind_TCPV0163`,
   `TestTaskContextAuthorityLabelsDoNotOrderRows_TCPV0163`.
 
+### Spec-cited code reservation (V1-1269, 2026-10-31)
+
+A spec-routed implementation task edits or reuses the code its spec names, and that code shares few
+terms with the task text: the frozen replay of `Implement slice 1 of the Session Test Runner`
+(tree `fab866738af74c7e2169adadb9e1defbe164b705`, limit 25) carried the spec but none of
+`cmd/corvint/affected.go`, `tools/gate-affected-select` or the `Makefile`, and named none of them
+as withheld. This amendment reserves what the routed spec cites.
+
+- `TCP-V0-990`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)
+  After the `governing`, `spec-mentioned` and `instruction-routed` rows, the packet reserves a
+  `spec-cited` relation: every backquoted span in the bodies of the clean (not downgraded)
+  `spec-mentioned` rows, in row and text order, resolves to at most one indexed path. The span's
+  first word, with a leading `./`, a `:LINE` suffix and a trailing `/` dropped, is that path when
+  indexed, else the directory's entry file `<dir>/main.go` or `<dir>/<base>.go`; `make TARGET`
+  resolves to the root `Makefile`; `NAME VERB` (neither word containing `/` or `.`) resolves to
+  `cmd/NAME/VERB.go`, the Go command layout. A documentation path, the task's subject and a path
+  an earlier reserved row carries are never candidates. Distinct candidates order by citation
+  count, then first citation. The first three are rows of kind `spec-cited`, `authority`
+  `document-reference` (trust class `project-authority`, TCP-V0-023, unchanged table), `confidence`
+  `medium`, `score` 825, evidence line 1, `summary` `cited by SPEC, the spec this task routes to`,
+  and a `reason` naming the citing spec, the cited span in backquotes and the citation count.
+  The relation is a relation-gated reservation in TCP-V0-163's governing-instruction class, not an
+  authority credit. Falsifier: the frozen replay
+  above carries none of the three paths and names none of them under TCP-V0-992. Test:
+  `TestTaskContextReservesTheCodeTheRoutedSpecCites_TCPV0990`.
+- `TCP-V0-991`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)
+  `spec-cited` rows are reserved in every other respect: they cost positions of `--limit`, pass
+  TCP-V0-056's authority screen and its demotion order, count in TCP-V0-011's `critical`, and a
+  row the limit cuts is named in `critical_missing`. Selector and row order follow
+  TCP-V0-011's relation order with `spec-cited` directly after `instruction-routed`. Falsifier: a
+  limit-cut spec-cited row absent from `critical_missing`. Test:
+  `TestTaskContextSpecCitedRowsTheLimitCutsAreCriticalMissing_TCPV0991`.
+- `TCP-V0-992`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)
+  A candidate beyond the cap that no carried row names is listed in an optional
+  `coverage.omitted_spec_cited` member: `count` is the number of such candidates and `samples`
+  holds at most 50 (the largest `--limit`) `{path, reason}` objects in candidate order, with
+  `reason` the row reason followed by `; omitted: spec-cited cap 3`. The member is present only
+  when there is one (additive under CCF-V1-006) and ranks nothing. The candidates the cap turned
+  away make `budget_shortage` `slots`, and TCP-V0-011's `withheld` for `spec-cited` counts them; a
+  spec the bounded source reader cannot return makes the relation `capped`. Falsifier: an
+  uncarried candidate beyond the cap missing from the member, or a carried path listed in it.
+  Tests: `TestTaskContextReservesTheCodeTheRoutedSpecCites_TCPV0990`,
+  `TestTaskContextOmittedSpecCitedNamesOnlyUncarriedPaths_TCPV0992`.
+- `TCP-V0-993`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)
+  A packet whose routed specs cite no candidate runs no `spec-cited` pass: `coverage.unexamined`
+  lists TCP-V0-011's relations unchanged, without `spec-cited`, and the packet carries no
+  `omitted_spec_cited`, so it is byte-identical to the packet before this amendment (the default
+  wire, core-freeze and recipe goldens are unchanged). Falsifier: a changed golden or a
+  `spec-cited` relation in a packet with no spec citation. Test:
+  `TestTaskContextWithoutASpecCitationKeepsItsReceipt_TCPV0993`.
+- `TCP-V0-994`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)
+  A frozen `tools/retrieval-bench --arms context` run over the `v2_code2test`,
+  `v2_comment2context`, `v2_edit2ripple` and `v2_trace2code` releases MUST show no recall@20,
+  recall@10 or recall@5 regression on any subset against the base. Those corpora carry no
+  `docs/specs/*.md`, so the run bounds harm and cannot show the gain; the frozen replay of
+  TCP-V0-990 is the gain's evidence, and a held-out spec-routed set is the open measurement.
+  Evidence: `docs/build-log/2026-10-31-ctxpkt-w1-bugs.md`. Rollback for TCP-V0-990..994: delete
+  `internal/contextindex/spec_cited.go`, its call in `reservedRows`, `contextRankOrder` and the
+  `omitted_spec_cited` call, and repin the analyzer input digest; packets without a spec citation
+  are unaffected either way.
+
 ## Non-goals and authority
 
 Forward imports of the subject, cross-directory definition-to-reference edges, and re-export
@@ -1707,3 +1768,5 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-004 amendment / TCP-V0-161 (accepted, standing auto-accept, V1-2288) | `admitLexicalPairs`, `omittedPairCoverage` | `TestTaskContextSelectedLexicalPairs`, `TestTaskContextLexicalPairPromotion`, `TestRunTaskContextSubjectlessCounterparts` |
 | TCP-V0-162 (accepted, standing auto-accept, V1-2262) | `goStructFieldNames`, `goSymbols` (`internal/contextindex/parse.go`), `eligibleDefiners`, `symbolRows`, `Index.Fields` persistence | `TestGoStructFieldsAreIndexedWithFileAndLine_TCPV0162`, `TestTaskContextRetrievesTheStructFieldDefiner_TCPV0162`, `TestParenthesizedStructTypeFieldsAreIndexed_TCPV0162`, `TestDefinitionRowKeepsTheStrongestMatchPerPath_TCPV0162`, `TestStructFieldNeverJoinsADeclaredNamesDefiners_TCPV0162`, `TestTaskContextDisclosesUnresolvedIDAnchors` |
 | TCP-V0-163 (accepted, standing auto-accept, V1-2953) | `contextRelationOrder`, `orderBySlotWeight`, `corroborate`, `renderRow` | `TestTaskContextResultsNameTheirCandidateKind_TCPV0163`, `TestTaskContextAuthorityLabelsDoNotOrderRows_TCPV0163` |
+| TCP-V0-990..993 (experimental, standing lane auto-accept, V1-1269) | `specCitedRows`, `specCitations`, `specCitedPath`, `contextRankOrder`, `omittedSpecCitedCoverage`, `contextRelations` | `TestTaskContextReservesTheCodeTheRoutedSpecCites_TCPV0990`, `TestTaskContextSpecCitedRowsTheLimitCutsAreCriticalMissing_TCPV0991`, `TestTaskContextOmittedSpecCitedNamesOnlyUncarriedPaths_TCPV0992`, `TestTaskContextWithoutASpecCitationKeepsItsReceipt_TCPV0993`, `TestTaskContextResultsNameTheirCandidateKind_TCPV0163` |
+| TCP-V0-994 (experimental, standing lane auto-accept, V1-1269) | frozen `tools/retrieval-bench --arms context` run | `docs/build-log/2026-10-31-ctxpkt-w1-bugs.md` |
