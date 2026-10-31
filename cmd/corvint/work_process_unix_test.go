@@ -185,7 +185,9 @@ func TestWorkRunnerEscapedPipeHolder(t *testing.T) {
 	runner := workTestRunner(t, context.Background(), workEscapedScript(binary, root, false))
 	start := time.Now()
 	_, receipt, err := runner.run("snapshot", []string{}, 100)
-	if time.Since(start) > 2*time.Second || err == nil || receipt.State != "INCOMPLETE" || !strings.Contains(err.Error(), "pipe") {
+	// The drain reports the idle holder after one second of awake time
+	// (WQO-V0-920), well before the guardian's four-second deadline.
+	if time.Since(start) > 3*time.Second || err == nil || receipt.State != "INCOMPLETE" || !strings.Contains(err.Error(), "pipe") {
 		t.Fatalf("escaped capture: %+v %v", receipt, err)
 	}
 }

@@ -140,7 +140,56 @@ func (runner *workAdapterRunner) checkExecutables() error {
 	return nil
 }
 
-const workDrainTimeout = 250 * time.Millisecond
+// After the reap, an open capture pipe is reported incomplete once the drain
+// has watched workDrainIdle of awake time (WQO-V0-034, WQO-V0-920). Only tick
+// intervals delivered near schedule count, so a host stall that delivers EOF
+// and the expiry together never misreports a complete capture. workDrainHang
+// bounds the wall time of a stalled host; it is a hang detector, not a budget.
+const (
+	workDrainIdle = time.Second
+	workDrainTick = 25 * time.Millisecond
+	workDrainHang = time.Minute
+)
+
+// workDrainCapture waits for both copy goroutines. It closes the read ends
+// through closeReads and reports incomplete capture when the drain expires,
+// and closes them silently on cancellation, which the caller reports.
+func workDrainCapture(ctx context.Context, drained <-chan error, closeReads func(), ticks, hang <-chan time.Time, now func() time.Time) error {
+	var cause error
+	awake, last := time.Duration(0), now()
+	for pending := 2; pending > 0; pending-- {
+		expired := false
+		select {
+		case drainErr := <-drained:
+			if drainErr != nil && cause == nil {
+				cause = errors.New("incomplete pipe capture")
+			}
+			continue
+		case <-ticks:
+			current := now()
+			if gap := current.Sub(last); gap <= 2*workDrainTick {
+				awake += gap
+			}
+			last = current
+			if awake < workDrainIdle {
+				pending++
+				continue
+			}
+			expired = true
+		case <-hang:
+			expired = true
+		case <-ctx.Done():
+		}
+		closeReads()
+		if expired && cause == nil {
+			cause = errors.New("incomplete pipe capture")
+		}
+		for ; pending > 0; pending-- {
+			<-drained
+		}
+	}
+	return cause
+}
 
 const workReapTimeout = time.Second
 
@@ -294,23 +343,14 @@ func (runner *workAdapterRunner) run(operation string, argv []string, stdoutLimi
 	if reaped && residue && cause == nil {
 		cause = errors.New("process residue")
 	}
-	timer := time.NewTimer(workDrainTimeout)
-	defer timer.Stop()
-	for pending := 2; pending > 0; pending-- {
-		select {
-		case drainErr := <-drained:
-			if drainErr != nil && cause == nil {
-				cause = errors.New("incomplete pipe capture")
-			}
-		case <-timer.C:
-			_ = outRead.Close()
-			_ = errRead.Close()
-			if cause == nil {
-				cause = errors.New("incomplete pipe capture")
-			}
-			<-drained
-		}
+	ticker := time.NewTicker(workDrainTick)
+	hang := time.NewTimer(workDrainHang)
+	closeReads := func() { _ = outRead.Close(); _ = errRead.Close() }
+	if drainCause := workDrainCapture(operationContext, drained, closeReads, ticker.C, hang.C, time.Now); drainCause != nil && cause == nil {
+		cause = drainCause
 	}
+	ticker.Stop()
+	hang.Stop()
 	if reaped {
 		workReceiptExit(&receipt, command)
 	}

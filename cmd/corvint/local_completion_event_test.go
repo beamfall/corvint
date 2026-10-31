@@ -701,3 +701,63 @@ func (reader expiringReader) Read([]byte) (int, error) {
 	<-reader.release
 	return 0, io.EOF
 }
+
+// AHI-920: with no build-cost record a snapshot miss builds under half the time left, so a build
+// that cannot finish reports the stale snapshot with the other half of the deadline unspent,
+// while a build that fits, as on a small repository, still serves the event.
+func TestDogfoodEventSnapshotMissWithoutRecordReturnsWithMargin(t *testing.T) {
+	t.Parallel()
+	const deadline = 20 * time.Second
+	withoutRecord := func(t *testing.T) string {
+		root := staleSnapshotRepository(t)
+		// The record sits beside the snapshots, in the Git common directory's store.
+		if err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+			if err == nil && !entry.IsDir() && entry.Name() == "build-cost.json" {
+				err = os.Remove(path)
+			}
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		if _, recorded := contextindex.RecordedBuildCost(root); recorded {
+			t.Fatal("build-cost record still readable")
+		}
+		return root
+	}
+	bounded := liftedProbeBound(context.WithValue(context.Background(), dogfoodEventDeadlineKey{}, func(string, string) time.Duration { return deadline }))
+	t.Run("a build that outlasts half the deadline", func(t *testing.T) {
+		t.Parallel()
+		root := withoutRecord(t)
+		built := new(atomic.Bool)
+		never := make(chan struct{})
+		t.Cleanup(func() { close(never) })
+		// The in-memory compile does not observe cancellation; this build does not either.
+		ctx := context.WithValue(bounded, dogfoodEventBuildKey{}, func(context.Context, string, string) (*contextindex.Index, error) {
+			built.Store(true)
+			<-never
+			return nil, errors.New("unreachable")
+		})
+		var stdout, stderr bytes.Buffer
+		started := time.Now()
+		code := runLocalCompletionEvent(ctx, root, dogfoodEventArguments("session-start"), strings.NewReader(`{}`), &stdout, &stderr)
+		elapsed := time.Since(started)
+		t.Logf("miss returned in %s of %s", elapsed, deadline)
+		if code != 2 || !strings.Contains(stderr.String(), `"dogfood-event-index-snapshot-stale"`) || !built.Load() {
+			t.Fatalf("miss did not report the stale snapshot: code=%d built=%t %s", code, built.Load(), &stderr)
+		}
+		if elapsed >= deadline*3/4 {
+			t.Fatalf("miss spent %s of the %s deadline, want under three quarters", elapsed, deadline)
+		}
+		if _, recorded := contextindex.RecordedBuildCost(root); recorded {
+			t.Fatal("the hook wrote a build-cost record")
+		}
+	})
+	t.Run("a build that fits still serves the event", func(t *testing.T) {
+		t.Parallel()
+		root := withoutRecord(t)
+		var stdout, stderr bytes.Buffer
+		if code := runLocalCompletionEvent(bounded, root, dogfoodEventArguments("session-start"), strings.NewReader(`{}`), &stdout, &stderr); code != 0 {
+			t.Fatalf("no-record miss on a small repository did not build: code=%d %s", code, &stderr)
+		}
+	})
+}

@@ -498,3 +498,37 @@ func TestProposeCitationsDCWV0802NamesWhyThePatchIsUnavailable(t *testing.T) {
 		})
 	}
 }
+
+// DCW-V0-920 (V1-3043): a BASE line longer than cem cite's evidence span
+// bound, such as the only line of a large one-line JSON document, is never
+// drafted as a cite, and the draft names the span it skipped and why; the same
+// line within the bound is cited.
+func TestProposeCitationsDCWV0920SkipsSpansOverTheCiteBound(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		padding int
+		cited   bool
+	}{{"within-bound", 64, true}, {"over-bound", 1 << 20, false}} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			testGit(t, root, "init", "-q")
+			spec := "# P v0\n\n## Requirements\n\n- internal/p/p.go answers " + strings.Repeat("a", tc.padding) + "\n" + numbered("requirement", 10)
+			writeTree(t, root, map[string]string{"docs/specs/p-v0.md": spec, "internal/p/p.go": "package p\n\nfunc P() int { return 1 }\n"})
+			testGit(t, root, "add", ".")
+			testGit(t, root, "commit", "-q", "-m", "base")
+			base := testGit(t, root, "rev-parse", "HEAD")
+			writeTree(t, root, map[string]string{"internal/p/p.go": "package p\n\nfunc P() int { return 2 }\n"})
+			testGit(t, root, "commit", "-q", "-am", "change")
+			var stdout, stderr bytes.Buffer
+			if code, err := ProposeCitations(context.Background(), ProposeOptions{Root: root, Base: base}, &stdout, &stderr); code != 0 || err != nil {
+				t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
+			}
+			out := stdout.String() + stderr.String()
+			cites := strings.Contains(stdout.String(), "\tdocs/specs/p-v0.md\t5:5\t")
+			skipped := strings.Contains(out, "docs/specs/p-v0.md:5:5 not cited: its BASE line is") && strings.Contains(out, "over the 1048576-byte evidence span cem cite admits (DCW-V0-920)")
+			if cites != tc.cited || skipped == tc.cited {
+				t.Fatalf("cites=%v skipped=%v, want cited=%v:\n%.2000s", cites, skipped, tc.cited, out)
+			}
+		})
+	}
+}

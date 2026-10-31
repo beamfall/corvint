@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/testvaliditydoc"
 )
 
@@ -327,8 +328,26 @@ func maintenanceFile(root *os.Root, name string, absent bool) ([]byte, os.FileIn
 	if err != nil || !info.Mode().IsRegular() {
 		return nil, nil, errors.New("maintenance input must be a regular file")
 	}
-	raw, err := testvaliditydoc.ReadFile(root, name)
-	return raw, info, err
+	raw, err := readReceiptFile(root, name)
+	return raw, info, maintenanceReadError(err)
+}
+
+// maintenanceReadError keeps the receipt platform refusal typed (PRS-V1-920);
+// the flows CLI would otherwise report it as an argument error.
+// readReceiptFile is testvaliditydoc.ReadFile; tests force its platform
+// refusal (PRS-V1-920).
+var readReceiptFile = testvaliditydoc.ReadFile
+
+func isPlatformRefusal(err error) bool {
+	var coded *gokernel.Error
+	return errors.As(err, &coded) && coded.Code == testvaliditydoc.PlatformUnsupportedCode
+}
+
+func maintenanceReadError(err error) error {
+	if errors.Is(err, testvaliditydoc.ErrPlatformUnsupported) {
+		return &gokernel.Error{Code: testvaliditydoc.PlatformUnsupportedCode, Message: testvaliditydoc.ErrPlatformUnsupported.Error()}
+	}
+	return err
 }
 
 func cleanMaintenancePaths(ctx context.Context, root string, paths []string) error {
@@ -402,6 +421,9 @@ func maintenanceSources(ctx context.Context, root string, set IntentSet, o DocMa
 				return nil, nil, err
 			}
 			live, info, e := maintenanceFile(repository, entry.name, false)
+			if isPlatformRefusal(e) {
+				return nil, nil, e
+			}
 			if e != nil || !bytes.Equal(live, raw) {
 				return nil, nil, errors.New("maintenance generation input differs from committed bytes")
 			}
