@@ -333,8 +333,9 @@ func TestPSRV0222_AncestorAddKeepsTheContentMask(t *testing.T) {
 	}
 }
 
-// CAL-V0-364, PSR-V0-222: a directory the kernel refuses to watch still fails
-// the registration, as UNSUPPORTED_FILESYSTEM naming the allowance, because
+// CAL-V0-364, PSR-V0-222, CAL-V0-900: a directory the kernel refuses to watch
+// still fails the registration, as RESOURCE_EXHAUSTED naming the path and the
+// allowance, because
 // only directory events report entries created or removed at any time.
 func TestCALV0364_ChangeGuardRefusesADirectoryBeyondTheInotifyLimit(t *testing.T) {
 	refuseDirectoryWatches(t)
@@ -344,8 +345,11 @@ func TestCALV0364_ChangeGuardRefusesADirectoryBeyondTheInotifyLimit(t *testing.T
 		g.Close()
 		t.Fatal("a directory without a watch was accepted")
 	}
-	if wire.CodeOf(err) != wire.CodeUnsupportedFilesystem || !strings.Contains(err.Error(), "fs.inotify.max_user_watches") {
+	if wire.CodeOf(err) != wire.CodeResourceExhausted || !strings.Contains(err.Error(), "fs.inotify.max_user_watches") {
 		t.Fatalf("refusal %v (%s)", err, wire.CodeOf(err))
+	}
+	if e := (*wire.Error)(nil); !errors.As(err, &e) || !filepath.IsAbs(e.Where) {
+		t.Fatalf("refusal names no path: %v", err)
 	}
 }
 
