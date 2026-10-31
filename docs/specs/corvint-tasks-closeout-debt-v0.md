@@ -530,9 +530,11 @@ closeout step is missing.
   mention-only citations. A ticket takes the strongest proposal of its rows. `proposals` is one
   entry per proposing PR, ascending: `pr`, `mergeCommit`, the sorted delivered OPEN `tickets`, and
   the `command` `corvint-tasks ticket batch-close --pr N --prs FILE --runs RUNS`. `reviewTickets`
-  is the sorted OPEN tickets whose proposal is not `BATCH_CLOSE`. Nothing is completed, claimed or
-  written, and a proposal is never a delivery claim. Without `--prs` the result bytes are those of
-  TCD-V0-007. An undecodable export is refused `MALFORMED`.
+  is the sorted OPEN tickets whose proposal is not `BATCH_CLOSE`; `tickets` and `reviewTickets`
+  hold local ticket tokens. Nothing is completed, claimed or written, and a proposal is never a
+  delivery claim. With `--prs` the exit is also 1 when `proposals` is non-empty, so a delivered
+  ticket a scanned commit never cites still fails the reconcile. Without `--prs` the result bytes
+  are those of TCD-V0-007. An undecodable export is refused `MALFORMED`.
 - `TCD-V0-872`: (V1-3496) `make tasks-reconcile` runs `script/tasks-reconcile.sh`: it exports
   merged PRs (`gh pr list --state merged --limit RECONCILE_PRS`) and CI runs, runs
   `corvint-tasks ticket closeout-debt --ref REF --prs EXPORT`, and retains the export and the report
