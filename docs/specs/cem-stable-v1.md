@@ -441,8 +441,8 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   `CHANGES.md` section with the reason, the record digest, the old and new admitted values and the
   predecessor and new node digests. `make cem-stable-regen-check` MUST pass before and after.
   Failure modes: a widening that also needs a structural change (a new member, a new `oneOf`
-  branch) is out of scope and refused at the node-shape check. Rollback is a Git revert of the
-  regenerated files.
+  branch) is out of scope and refused at the node-shape check; a new `anyOf` branch uses
+  `CEM-V1-880` instead. Rollback is a Git revert of the regenerated files.
 - `CEM-V1-621`: (proposed; V1-2107) Both `RESULT.schema.json` copies MUST admit exactly the two
   `CEM-V1-311` labels at `$defs/runnerReceipt/properties/profile`, `corvint-test-runner-receipt/0`
   and `opaque/0`, produced by one `CEM-V1-620` run from the committed record
@@ -452,11 +452,35 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   public `neutral-criterion` case, once with its runner label and once relabelled `opaque/0` (the
   label of an unadmitted map), against both committed schema copies with a closed draft 2020-12
   validator that refuses every keyword it does not implement. The label `opaque/1` and the
-  predecessor legacy `const` MUST refuse at `references.runnerReceipts[0].profile`. Open limit:
-  the committed `$defs/criterionBinding` still carries only the Tasks form, not the `CEM-V1-083`
-  plain form these results carry, so each result is refused at `references.criterionBindings[0]`;
-  the test pins that gap and validates the rest of each result with only that definition
-  overlaid by both forms. The gap is V1-2615.
+  predecessor legacy `const` MUST refuse at `references.runnerReceipts[0].profile`. (Amended
+  2026-10-31 by V1-2615: the open limit is closed. Each result MUST validate against the
+  committed copies as they are, with no overlaid definition, because `CEM-V1-881` admits the
+  `CEM-V1-083` plain criterion binding these results carry.)
+- `CEM-V1-880`: (proposed; V1-2615) An object-schema node of both `RESULT.schema.json` copies MAY
+  gain one alternative only by `make cem-stable-regen-any-of RECORD=<file>` (`cem-stable-regen
+  --any-of --record`). The closed record names a reason, the RFC 6901 pointer of the node (object
+  members only), the SHA-256 of the node's compact JSON and the branch, a JSON object schema. The
+  tool MUST refuse before any write: an unknown record member, an empty reason, a root or
+  array-crossing pointer, a missing member, a node that is not an object, an `anyOf` node with any
+  other keyword, a predecessor digest that differs, a branch that is not a non-empty object, and a
+  branch whose compact JSON equals an existing alternative. It MUST rewrite a node that is not yet
+  exactly `{"anyOf": [...]}` as `{"anyOf": [OLD, BRANCH]}` with the old bytes kept and only
+  re-indented, append the branch to an existing `anyOf`, keep the record's member order in the
+  branch, change no other schema byte, case, cell, exit or key count, and re-bind the same chain as
+  `CEM-V1-091` with packet status `SCHEMA_ANYOF_BRANCH_ADDED`, a once-only README pointer and a
+  `CHANGES.md` section with the reason, the record digest and the predecessor, branch and new
+  node digests. `make cem-stable-regen-check` MUST pass before and after. Failure modes: an
+  alternative only widens what the schema admits, so no frozen case or verdict changes; a branch
+  that should replace or narrow the node is out of scope. Rollback is a Git revert of the
+  regenerated files.
+- `CEM-V1-881`: (proposed; V1-2615) Both `RESULT.schema.json` copies MUST admit, at
+  `$defs/criterionBinding`, `anyOf` the sealed Tasks form unchanged and the `CEM-V1-083` plain form:
+  an object with exactly `id` (`$defs/criterionId`), `criterionIndex` (integer 0..255),
+  `criterionSha256` (`$defs/sha256`) and `evidenceId` (`^evidence:sha256:[0-9a-f]{64}$`), all
+  required and no other member. They are produced by one `CEM-V1-880` run from the committed record
+  `tools/cem-stable-regen/testdata/v1-2615-any-of-record.json`. The Tasks form stays admitted,
+  so no sealed map, public case result or verdict digest changes. The external form
+  (`CEM-V1-330`) is not added here. Rollback is a Git revert of that run.
 - `CEM-V1-633`: (proposed; V1-2599) Neither stable reader's verdict MAY depend on a runner
   receipt's recorded test states or on a runner plan's selection. Both readers MUST ACCEPT, with
   `verificationMode` `canonical-and-reference-integrity`, `referenceIntegrity`
@@ -3184,7 +3208,9 @@ members and needs no change.
 | CEM-V1-578 | `TestCEMV1578TasksBoundRequestHasNoRunnersForm` (`internal/cemcandidate`) | `runners` refused as an unknown field |
 | CEM-V1-620 | `TestWidenRealPacketCopy`, `TestWidenRefusals` (`tools/cem-stable-regen`); `make cem-stable-regen-check` | Both schema copies change only at the node; cases and cells byte-identical; repeat refused |
 | CEM-V1-621 | `TestWidenCommittedProfile` (`tools/cem-stable-regen`); the run in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-v1-2107-result-schema-opaque-widen.md` | Exactly the two labels; `CHANGES.md` names the legacy node digest |
-| CEM-V1-622 | `TestCEMV1622OpaqueReceiptResultValidates`, `TestStableSchemaValidatorRefusesUnknownKeywords` (`internal/cem/verify`) | `opaque/1` and the legacy const refused; plain binding gap V1-2615 pinned |
+| CEM-V1-622 | `TestCEMV1622OpaqueReceiptResultValidates`, `TestStableSchemaValidatorRefusesUnknownKeywords` (`internal/cem/verify`) | `opaque/1` and the legacy const refused; both results validate against the committed copies with no overlay (V1-2615) |
+| CEM-V1-880 | `TestAnyOfRealPacketCopy`, `TestAnyOfRefusals` (`tools/cem-stable-regen`); `make cem-stable-regen-check` | Both schema copies change only at the node; old bytes kept; cases and cells byte-identical; repeat refused |
+| CEM-V1-881 | `TestAnyOfCommittedCriterionBinding` (`tools/cem-stable-regen`); `TestCEMV1622OpaqueReceiptResultValidates` (`internal/cem/verify`); the run in `docs/build-log/2026-10-31-bugs-w3-bugs.md` | Tasks form plus plain form; `CHANGES.md` names the predecessor node digest |
 
 Rollback: remove the `runners` and `runnerReceiptSha256s` members, the two `UnmarshalJSON`
 methods, `validateRunnerSet`, `checkRunnerProfiles` and `artifactPaths` from
@@ -3240,9 +3266,10 @@ a newly produced unadmitted map instead of misreading it, which is the safe dire
 
 Closed limit (V1-2107): both `RESULT.schema.json` copies now admit `opaque/0` beside the legacy
 label at `references.runnerReceipts[].profile` (`CEM-V1-621`), through the recorded `--widen`
-mode of `cem-stable-regen` (`CEM-V1-620`). The result of a plain map still fails the committed
-schema at `references.criterionBindings[]`, which lacks the `CEM-V1-083` plain form (V1-2615,
-`CEM-V1-622`).
+mode of `cem-stable-regen` (`CEM-V1-620`). Closed limit (V1-2615): the result of a plain map
+now also validates at `references.criterionBindings[]`, because both copies admit the
+`CEM-V1-083` plain form beside the Tasks form (`CEM-V1-881`), through the recorded `--any-of`
+mode (`CEM-V1-880`).
 
 ### Opaque runner receipt label traceability
 
