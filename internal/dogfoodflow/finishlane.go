@@ -140,6 +140,7 @@ func (l *finishLane) run() int {
 		l.exit(2)
 	}
 	l.requireVerifyInput()
+	l.requireIntentsInput()
 	l.snapshotInputs()
 	// A sealed HEAD is admitted like its bind commit, so a rerun with another
 	// base or a dirty tree is refused rather than reported as done.
@@ -294,6 +295,35 @@ func (l *finishLane) requireVerifyInput() {
 		}
 		l.say("  accepted form: one quoted -run alternation of test names, -run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (single or double quotes, or attached as -run='TestA|TestB'), is admitted as one argv word (DCW-V0-384, DCW-V0-801), as are leading NAME='value' or NAME=\"value\" assignments such as GOFLAGS='-count=1 -v' go test ./pkg (DCW-V0-804); an unquoted alternation, a single anchored name such as -run '^TestA$' or any other quoted regex is refused; write one command per test name (go test -run TestA ./pkg, then go test -run TestB ./pkg), use a shared name prefix (-run TestA matches TestA*), or commit a script and list it as sh path/to/script.sh\n")
 	}
+	l.exit(2)
+}
+
+// requireIntentsInput refuses, before prepare runs any step, an --intents
+// manifest the bind's ocm-aggregate row would refuse for its grammar, naming
+// the first faulty line and, for an ordering fault, the sort that fixes it
+// (DCW-V0-882). Unset intents stay with the bind pass.
+func (l *finishLane) requireIntentsInput() {
+	source := l.options.Change.IntentsFile
+	if source == "" {
+		return
+	}
+	_, paths, reason, issue := readIntentManifest(source)
+	if reason == "" && len(paths) > maxAggregateScopes {
+		reason = "intent-scope-limit"
+	}
+	if reason == "" {
+		return
+	}
+	l.say("%s: REFUSE %s\n", l.prefix, reason)
+	l.say("  input: --intents %s\n", source)
+	if issue != "" {
+		l.say("  %s\n", issue)
+	}
+	if strings.Contains(issue, "does not sort after") {
+		l.say("  fix: LC_ALL=C sort -u -o %s %s, then rerun corvint dogfood finish-lane --base %s\n", shellWord(source), shellWord(source), l.options.Change.Base)
+		l.exit(2)
+	}
+	l.say("  fix: %s, then rerun corvint dogfood finish-lane --base %s\n", intentScopeHint, l.options.Change.Base)
 	l.exit(2)
 }
 

@@ -677,40 +677,15 @@ const maxIntentManifestBytes = 16 * 513
 // declaration. It reads at most the bound plus one sentinel byte and returns
 // the ocm-aggregate refusal code, or "" when the manifest is valid.
 func (c *change) validateIntentManifest() string {
-	source := c.options.IntentsFile
-	c.manifestIssue = ""
-	if source == "" || !isRegular(source) || isSymlink(source) {
-		return "missing-intent-scope"
-	}
-	data, err := readPrefix(source, maxIntentManifestBytes+1)
-	if err == nil && len(data) > maxIntentManifestBytes {
-		return "intent-manifest-over-bound"
-	}
-	if err != nil || len(data) == 0 || data[len(data)-1] != '\n' {
-		switch {
-		case err == nil && len(data) == 0:
-			c.manifestIssue = "the file is empty"
-		case err == nil:
-			c.manifestIssue = "the last line does not end with LF"
-		}
-		return "missing-intent-scope"
+	data, paths, reason, issue := readIntentManifest(c.options.IntentsFile)
+	c.manifestIssue = issue
+	if reason != "" {
+		return reason
 	}
 	c.intentSource = data
-	if bytes.Equal(data, noIntentManifest) {
+	if paths == nil {
 		c.intentSnapshot, c.noIntent = data, true
 		return ""
-	}
-	paths := readLines(data)
-	for number, path := range paths {
-		if !canonicalIntentPath(path) {
-			c.manifestIssue = fmt.Sprintf("line %d %q is not a canonical repository-relative path", number+1, path)
-			return "missing-intent-scope"
-		}
-		if number > 0 && paths[number-1] >= path {
-			// DCW-V0-387: name the first line out of byte order and the rule.
-			c.manifestIssue = fmt.Sprintf("line %d %q does not sort after line %d %q; the lines must be in strictly increasing byte order with no duplicates (LC_ALL=C sort -u)", number+1, path, number, paths[number-1])
-			return "missing-intent-scope"
-		}
 	}
 	if len(paths) > maxAggregateScopes {
 		// A well-formed list over the scope bound is not a missing scope
@@ -726,6 +701,43 @@ func (c *change) validateIntentManifest() string {
 	}
 	c.intentSnapshot, c.intents = data, paths
 	return ""
+}
+
+// readIntentManifest is the grammar check of DOGFOOD_INTENTS_FILE, which needs
+// no Git read: the bytes and paths of a well-formed manifest (nil paths for the
+// no-intent declaration), or the refusal code and the first fault it names
+// (DCW-V0-387). finish-lane runs it before any step (DCW-V0-882).
+func readIntentManifest(source string) (data []byte, paths []string, reason, issue string) {
+	if source == "" || !isRegular(source) || isSymlink(source) {
+		return nil, nil, "missing-intent-scope", ""
+	}
+	data, err := readPrefix(source, maxIntentManifestBytes+1)
+	if err == nil && len(data) > maxIntentManifestBytes {
+		return nil, nil, "intent-manifest-over-bound", ""
+	}
+	if err != nil || len(data) == 0 || data[len(data)-1] != '\n' {
+		switch {
+		case err == nil && len(data) == 0:
+			issue = "the file is empty"
+		case err == nil:
+			issue = "the last line does not end with LF"
+		}
+		return nil, nil, "missing-intent-scope", issue
+	}
+	if bytes.Equal(data, noIntentManifest) {
+		return data, nil, "", ""
+	}
+	paths = readLines(data)
+	for number, path := range paths {
+		if !canonicalIntentPath(path) {
+			return nil, nil, "missing-intent-scope", fmt.Sprintf("line %d %q is not a canonical repository-relative path", number+1, path)
+		}
+		if number > 0 && paths[number-1] >= path {
+			// DCW-V0-387: name the first line out of byte order and the rule.
+			return nil, nil, "missing-intent-scope", fmt.Sprintf("line %d %q does not sort after line %d %q; the lines must be in strictly increasing byte order with no duplicates (LC_ALL=C sort -u)", number+1, path, number, paths[number-1])
+		}
+	}
+	return data, paths, "", ""
 }
 
 // recordIntent reports a record change whose manifest names only build-log
