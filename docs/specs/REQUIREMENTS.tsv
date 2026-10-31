@@ -5685,6 +5685,7 @@ SCL-V0-005	docs/specs/scope-lease-v0.md	`lease renew --id ID --holder H --ttl D`
 SCL-V0-006	docs/specs/scope-lease-v0.md	`lease status` and `lease list` MUST NOT write, create, or delete any path, incl	unrecorded	-
 SCL-V0-007	docs/specs/scope-lease-v0.md	Expired leases MUST be reaped only inside `acquire`, `release`, and `renew`, und	unrecorded	-
 SCL-V0-008	docs/specs/scope-lease-v0.md	Mutating actions MUST serialize through one single-writer lock at	unrecorded	-
+SCL-V0-900	docs/specs/scope-lease-v0.md	(proposed; V1-2489) On a deferred platform the `O_EXCL` lock MUST treat a create	unrecorded	-
 SCL-V0-009	docs/specs/scope-lease-v0.md	`scopelease.Check(root, paths)` MUST report, without writing, every touched path	unrecorded	-
 SCL-V0-010	docs/specs/scope-lease-v0.md	Every action MUST emit one deterministic canonical JSON line on stdout with a st	unrecorded	-
 SCL-V0-011	docs/specs/scope-lease-v0.md	An unreadable or unparsable lease document MUST NOT block actions on other lease	unrecorded	-
