@@ -816,7 +816,10 @@ grep -q 'low-tmp-space' "$tmp/out" && fail "low-tmp-space warned above the floor
 printf '#!/bin/sh\nprintf "%%s\\n" "$TMPDIR" >> "%s/step-tmpdirs"\nexit 0\n' "$tmp" > "$fbin/make"
 : > "$tmp/step-tmpdirs"
 frun || fail "BATCH_PRECHECK_TMPDIR run failed: $(cat "$tmp/out")"
-[[ $(sort -u "$tmp/step-tmpdirs") == "$tmp/step-tmp" ]] || fail "steps did not use BATCH_PRECHECK_TMPDIR: $(sort -u "$tmp/step-tmpdirs")"
+# A mismatch prints both values byte-visibly (V1-3464): equal-looking paths differed by `//`.
+step_tmp_diff() { diff <(printf '%s\n' "$1" | od -c) <(sort -u "$tmp/step-tmpdirs" | od -c) | head -n 20; }
+[[ $(sort -u "$tmp/step-tmpdirs") == "$tmp/step-tmp" ]] ||
+  fail "steps did not use BATCH_PRECHECK_TMPDIR: expected $tmp/step-tmp, got $(sort -u "$tmp/step-tmpdirs"); od -c diff (< expected, > got): $(step_tmp_diff "$tmp/step-tmp")"
 grep -q 'RAM-backed' "$tmp/out" && fail "an explicit BATCH_PRECHECK_TMPDIR was replaced: $(cat "$tmp/out")"
 if [[ $(uname -s) == Linux && $(stat -f -c %T /dev/shm 2> /dev/null) == tmpfs ]]; then
   : > "$tmp/step-tmpdirs"
