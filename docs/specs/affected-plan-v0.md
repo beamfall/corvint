@@ -5263,6 +5263,22 @@ filed from its plan. Nothing in the receipt said the binary was older than the s
   in both outputs. Rollback: delete `cmd/corvint/self_binary.go` and its three call sites, and the
   `Degradations` members.
 
+### Frontier routes (AFP-V0-761; V1-2051)
+
+- **AFP-V0-761:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2051)
+  Amending AFP-V0-008: a plugin MAY implement `affected.FrontierRoute`, naming for a frontier reason
+  the supported route past it. `Select` SHALL append that route to the reason's `unknown` entry
+  `hint` (after any AFP-V0-929 hint, joined by `; `), so selection, scope and the bare `detail`
+  consumers key on are unchanged. The Go plugin SHALL name, for `go:workspace-module-outside-root`,
+  that affected plans one repository root and does not follow a `go.work` use outside it: the
+  sibling's own change is planned by `corvint affected` in that module's checkout, and the Go API
+  relations between the two are declared for `corvint breakage --manifest` (BKM-V0), the
+  cross-repository route. Every other Go reason names no route. Non-goals: affected still does not
+  read outside its root, follow a sibling, or select root dependents of a sibling change; the
+  frontier still widens the plan to `UNKNOWN`. Failure mode: a route text that drifts from BKM-V0
+  is advisory only and changes no plan. Rollback: remove `FrontierRoute`, its `Select` loop and
+  the Go route text.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
@@ -5621,6 +5637,7 @@ traceability table.
 | AFP-V0-483 | the `cost` output of `.github/forward-rows/collect.sh`; the `Retain the forward row's shadow cost name` step in `.github/workflows/ci-control-plane.yml` | `TestAFPV0047CollectorNamesRows` (a CLEAN queue row names `-CLEAN-f0-…-bna-cna-dna-m0nnn`, an INCOMPLETE row names none); `TestAFPV0099CollectorFetchesNarrowing` (a MISS row names `-MISS-f1-…-m1nnn`); `TestAFPV0047WorkflowBindings` |
 | AFP-V0-484 | the `$costNames`, `costs` and `$shadowCost` block and the `Shadow cost` lines of `.github/forward-rows/bar.jq`; `shadowCost` in `.github/forward-rows/verdict.sh` | `TestAFPV0484BarShadowCost` (cost names leave the status, counts and tripped kill switch identical; the nearest name listed before its row prices it, while a name listed after it, other epochs, INCOMPLETE rows and malformed names do not; a CLEAN re-run without its own cost is unpriced, not priced by an older MISS or CLEAN run; median, mean and miss rows per selector) |
 | AFP-V0-520 | `sealedCEM`, `validEntry`, `documentation`, `declared` and the non-Go branch of `.github/forward-rows/tiers.jq`; the `.corvint/documentation-paths.json` read and `--rawfile documentation` in `.github/forward-rows/tiers.sh` | `TestAFPV0520TierExemptions` in `tools/ci-forward-row/shadowcost_test.go` (a sealed CEM alone, declared documentation alone, and both beside a Go file keep the Go file's tiers; a `Makefile`, a script, undeclared docs, the CEM sidecar, a nested or empty-stem CEM, a CEM outside `.corvint/changes/` and the declaration itself stay FULL; a declared `testdata`, embedded or `.github/` path stays FULL; sixteen invalid declarations declare nothing); `TestAFPV0480Tiers` (`tiers.sh` end to end: adding the declaration is FULL, then a CEM and a declared spec are not, and a `Makefile` is) |
+| AFP-V0-761 | `FrontierRoute` in `internal/liveverify/affected/unit.go`, its loop in `frontierUnknowns` (`select.go`); `Language.FrontierRoute` and `WorkspaceOutsideRootRoute` in `internal/liveverify/affected/golang/golang.go` | `TestWorkspaceOutsideRootFrontierNamesTheRoute_AFPV0761` (an outside-root `go.work` sibling: the entry's hint names the `corvint breakage` route for a root and a `go.work` change, scope stays `UNKNOWN`; the nested-module reason names none); `TestWorkspaceDirtySourceSelectsTheOtherModulesTest` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`
