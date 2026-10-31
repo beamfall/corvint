@@ -16,7 +16,11 @@ package shell
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"io/fs"
 	"path"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
@@ -47,6 +51,13 @@ const (
 
 // Suffixes are the file-name endings this plugin owns (NSA-V0-006).
 var Suffixes = []string{".sh", ".bash", ".zsh", ".ksh", ".bats"}
+
+// HiddenRoots are the hidden top-level directories whose shell files the
+// plugin indexes although the shared source walk skips every hidden
+// directory: CI keeps its scripts there, such as .github/forward-rows/*.sh,
+// and an owned file no unit declares is UNINDEXED_SOURCE_PATH, which forces a
+// full run (NSA-V0-800).
+var HiddenRoots = []string{".github"}
 
 // gitTopLevel is the git rev-parse option that prints the repository root, split
 // so that this package's own source does not read as root-locating to the Go
@@ -99,6 +110,11 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	if err != nil {
 		return affected.Result{}, err
 	}
+	hidden, err := hiddenFiles(root)
+	if err != nil {
+		return affected.Result{}, err
+	}
+	files = append(files, hidden...)
 	foreign, err := root.Files(func(name string) bool { return hasAnySuffix(name, ForeignSourceSuffixes) })
 	if err != nil {
 		return affected.Result{}, err
@@ -129,6 +145,53 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	sort.Slice(units, func(left, right int) bool { return units[left].ID < units[right].ID })
 	applyForeignCallers(root, units, frontier)
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
+}
+
+// hiddenFiles lists the shell files under each present HiddenRoots
+// directory, skipping hidden directories below it as the shared walk does
+// (NSA-V0-800). An absent root contributes nothing.
+func hiddenFiles(root *affected.Source) ([]string, error) {
+	var files []string
+	for _, directory := range HiddenRoots {
+		if info, err := root.Stat(directory); errors.Is(err, fs.ErrNotExist) || err == nil && !info.IsDir() {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+		// A disk source visits absolute paths, an immutable one relative
+		// paths; the first visit is the directory itself, so its prefix
+		// turns either into the repository-relative slash path.
+		prefix, entries := "", 0
+		err := root.Walk(directory, func(current string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if entries++; entries == 1 {
+				prefix = strings.TrimSuffix(current, filepath.FromSlash(directory))
+			} else if entries > affected.MaxWalkEntries {
+				return affected.ErrWalkLimit
+			}
+			relative := filepath.ToSlash(strings.TrimPrefix(current, prefix))
+			if entry.IsDir() {
+				if relative != directory && (strings.HasPrefix(entry.Name(), ".") || affected.SkippedDirectories[entry.Name()]) {
+					return fs.SkipDir
+				}
+				return nil
+			}
+			if !hasAnySuffix(entry.Name(), Suffixes) {
+				return nil
+			}
+			if !entry.Type().IsRegular() || !affected.ValidRelativePath(relative) {
+				return fmt.Errorf("%w: %q", affected.ErrWalkUnrepresentable, relative)
+			}
+			files = append(files, relative)
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+	return files, nil
 }
 
 func foreignFrontier(unit affected.Unit, foreign bool) affected.Unit {
