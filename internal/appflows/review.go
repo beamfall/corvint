@@ -60,6 +60,9 @@ type reviewer struct {
 	anchors  map[string]anchorFacts
 	// repos pins each bound application repository a qualified link target names (AFU-V1-071).
 	repos map[string]RepositoryPin
+	// rewritten names why root's ancestry cannot be trusted, or is "": a grafted or shallow root
+	// cannot prove a review anchor an ancestor, so every anchor is anchor-unknown (EEP-V0-770).
+	rewritten string
 }
 
 // anchorFacts caches, per review anchor, its resolved commit and ancestry, and per intent file
@@ -97,6 +100,7 @@ func EvaluateLinksAcross(ctx context.Context, root string, set IntentSet, revisi
 	if r.revision, err = ResolveRevision(ctx, root, revision); err != nil {
 		return nil, err
 	}
+	r.rewritten = ancestryRewritten(ctx, root)
 	links := []EvaluatedLink{}
 	for _, intent := range set.Flows {
 		for _, link := range intent.Links {
@@ -165,6 +169,8 @@ func (r *reviewer) repositoryTargetState(id, rel string, link FlowLink) string {
 	if err != nil || reviewed != link.ReviewedAtRepository {
 		return ReviewAnchorUnknown
 	}
+	// Safe without a guard here: pin.Dir bound only through OpenCheckout and bindRepository, which
+	// refuse a grafted or shallow checkout (AFU-V1-068, EEP-V0-771).
 	if base, err := git(r.ctx, pin.Dir, "merge-base", reviewed, pin.Revision); err != nil || strings.TrimSpace(string(base)) != reviewed {
 		return ReviewNotAncestor
 	}
@@ -181,6 +187,9 @@ func (r *reviewer) anchor(reviewedAt string) anchorFacts {
 	}
 	facts := anchorFacts{changed: map[string]bool{}}
 	facts.commit, facts.err = ResolveRevision(r.ctx, r.root, reviewedAt)
+	if facts.err == nil && r.rewritten != "" {
+		facts.err = errors.New(r.rewritten)
+	}
 	facts.ancestor = facts.err == nil && r.ancestor(facts.commit)
 	r.anchors[reviewedAt] = facts
 	return facts
