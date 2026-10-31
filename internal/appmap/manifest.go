@@ -126,6 +126,9 @@ func decodeManifest(raw []byte) (Manifest, error) {
 			}
 		}
 	}
+	if t.WebRoot != "" && !safeRelative(t.WebRoot) {
+		return m, invalidManifest("tests.web_root must be a repository-relative directory")
+	}
 	bound := map[string]bool{}
 	for _, p := range m.PageObjectScreens {
 		if !safeRelative(p.Path) || !under(p.Path, t.Root) || bound[p.Path] || strings.TrimSpace(p.State) == "" {

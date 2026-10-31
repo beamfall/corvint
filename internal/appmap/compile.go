@@ -93,6 +93,9 @@ func BuildRoots(ctx context.Context, root, manifestPath, revision string, roots 
 		dirs = append([]string{m.Tests.Root}, dirs...) // "." is the repository itself (AMAP-V0-075)
 	}
 	dirs = append(append(append(dirs, m.Tests.PageObjects...), m.Tests.Workflows...), m.Tests.Scenarios...)
+	if m.Tests.WebRoot != "" {
+		dirs = append(dirs, m.Tests.WebRoot)
+	}
 	if m.Flows != "" && m.Tests.Repo == "" {
 		dirs = append(dirs, m.Flows)
 	}
@@ -327,18 +330,87 @@ func bareConfigImport(resolver *contextindex.WebImportResolver, importer, specif
 	return "", false
 }
 
-// computedLoads returns the lines of the `import(...)` and `require(...)` calls of a test source
-// whose argument is not one exact literal. The index records no module for them, so the file may
-// load any test file and its join is not known to be complete (AMAP-V0-195).
-func computedLoads(text string) []int {
+// browserCalls are the member calls whose callback Playwright runs in the page (AMAP-V0-781).
+var browserCalls = map[string]bool{"evaluate": true, "evaluateHandle": true, "addInitScript": true}
+
+// testLoads is what the module loads of one test source read.
+type testLoads struct {
+	computed        []int            // Node-context loads whose argument is not one exact literal (AMAP-V0-195)
+	browserComputed []int            // the same inside a browser-context callback (AMAP-V0-781)
+	browserOnly     map[string]bool  // literal specifiers every occurrence of which is browser-context
+	browserLines    map[string][]int // the lines each browser-only specifier is loaded on
+}
+
+// readLoads finds the `import(...)` and `require(...)` calls of a test source. A call lexically
+// inside the arguments of a `.evaluate(`, `.evaluateHandle(` or `.addInitScript(` member call runs
+// in the page, so it is a browser-context reference, not a load the index can resolve for the
+// test file. A literal specifier is browser-only when no occurrence of it lies outside such a
+// call, so a static or Node-context import of the same module keeps the AMAP-V0-005 rules.
+func readLoads(text string) testLoads {
 	toks, _ := lexJS(text)
-	lines := []int{}
+	inBrowser := make([]bool, len(toks))
 	for i := range toks {
-		if (word(toks, i, "import") || word(toks, i, "require")) && !property(toks, i) && next(toks, i+1, "(") && moduleArg(toks, i+2) == "" {
-			lines = append(lines, toks[i].line)
+		if toks[i].kind == tokIdent && browserCalls[toks[i].text] && property(toks, i) && next(toks, i+1, "(") {
+			for j, end := i+1, closeParen(toks, i+1); j <= end; j++ {
+				inBrowser[j] = true
+			}
 		}
 	}
-	return lines
+	l := testLoads{computed: []int{}, browserComputed: []int{}, browserOnly: map[string]bool{}, browserLines: map[string][]int{}}
+	node := map[string]bool{}
+	for i := range toks {
+		if literal(toks[i]) && !inBrowser[i] {
+			node[toks[i].text] = true
+		}
+		if !(word(toks, i, "import") || word(toks, i, "require")) || property(toks, i) || !next(toks, i+1, "(") {
+			continue
+		}
+		switch spec := moduleArg(toks, i+2); {
+		case spec == "" && inBrowser[i]:
+			l.browserComputed = append(l.browserComputed, toks[i].line)
+		case spec == "":
+			l.computed = append(l.computed, toks[i].line)
+		case inBrowser[i]:
+			l.browserLines[spec] = append(l.browserLines[spec], toks[i].line)
+		}
+	}
+	for spec := range l.browserLines {
+		if node[spec] {
+			delete(l.browserLines, spec)
+		} else {
+			l.browserOnly[spec] = true
+		}
+	}
+	return l
+}
+
+// browserTarget resolves a browser-context specifier: a root-relative one against tests.web_root,
+// with its own suffix or the first web suffix or index file that names an indexed source
+// (AMAP-V0-782). It returns the target or the browser-reference unknown reason.
+func (b *builder) browserTarget(ix *contextindex.Index, specifier string) (target, reason string) {
+	if !strings.HasPrefix(specifier, "/") || strings.HasPrefix(specifier, "//") {
+		return "", "browser-specifier-unread"
+	}
+	if b.m.Tests.WebRoot == "" {
+		return "", "browser-root-undeclared"
+	}
+	base := path.Join(b.m.Tests.WebRoot, strings.TrimPrefix(specifier, "/"))
+	if !under(base, b.m.Tests.WebRoot) {
+		return "", "browser-target-missing"
+	}
+	candidates := []string{base}
+	for _, ext := range []string{".ts", ".tsx", ".js", ".jsx", ".mjs"} {
+		candidates = append(candidates, base+ext)
+	}
+	for _, ext := range []string{".ts", ".tsx", ".js", ".jsx", ".mjs"} {
+		candidates = append(candidates, base+"/index"+ext)
+	}
+	for _, c := range candidates {
+		if _, ok := ix.Sources[c]; ok {
+			return c, ""
+		}
+	}
+	return "", "browser-target-missing"
 }
 
 func (b *builder) tests(ix *contextindex.Index) error {
@@ -427,9 +499,25 @@ func (b *builder) tests(ix *contextindex.Index) error {
 			}
 		}
 		sort.SliceStable(imps, func(i, j int) bool { return imps[i].Line < imps[j].Line })
+		loads := readLoads(text)
 		for _, imp := range imps {
 			s := imp.Specifier
 			detail := "specifier " + s
+			if loads.browserOnly[s] {
+				// The page loads it through the dev server; it is no edge of the test import graph.
+				imp.Status = importBrowser
+				if lines := loads.browserLines[s]; len(lines) > 0 {
+					imp.Line = lines[0]
+				}
+				target, reason := b.browserTarget(ix, s)
+				if target != "" {
+					imp.Resolved = target
+				} else {
+					b.testUnknown(Unknown{Kind: "browser-reference", Ref: tf.ID, Reason: reason, Path: p, Line: imp.Line, Detail: detail})
+				}
+				tf.Imports = append(tf.Imports, imp)
+				continue
+			}
 			if target := contextindex.ResolveWebImport(ix, p, s); target != "" {
 				imp.Status, imp.Resolved = importResolved, target
 			} else if res, refused := bareConfigImport(resolver, p, s); res != "" {
@@ -457,9 +545,12 @@ func (b *builder) tests(ix *contextindex.Index) error {
 			}
 			tf.Imports = append(tf.Imports, imp)
 		}
-		for _, line := range computedLoads(text) {
+		for _, line := range loads.computed {
 			tf.Join = StatusUnknown
 			b.testUnknown(Unknown{Kind: "import", Ref: tf.ID, Reason: "unresolved-import", Path: p, Line: line, Detail: "computed specifier"})
+		}
+		for _, line := range loads.browserComputed {
+			b.testUnknown(Unknown{Kind: "browser-reference", Ref: tf.ID, Reason: "browser-computed-specifier", Path: p, Line: line, Detail: "computed specifier"})
 		}
 		for _, rm := range facts.methods {
 			meth := Method{ID: methodID(p, rm.name), Name: rm.name, Anchor: spanOf(e, data, rm.start, rm.end), Callable: rm.callable, Selectors: []Selector{}}
@@ -501,7 +592,7 @@ func (b *builder) gotos(facts fileFacts) []Goto {
 // the file, import and selector unknowns tests() reports. The join reports import-depth-exceeded.
 func testStageUnknown(u Unknown) bool {
 	switch u.Kind {
-	case "file", "selector":
+	case "file", "selector", "browser-reference":
 		return true
 	case "import":
 		return u.Reason != "import-depth-exceeded"
