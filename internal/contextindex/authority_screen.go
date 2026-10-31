@@ -127,6 +127,11 @@ func (compiler *taskContextCompiler) screenPath(candidate string) authorityScree
 func (compiler *taskContextCompiler) screenAuthority(rows []contextRow) []contextRow {
 	for index := range rows {
 		screen := compiler.screenPath(rows[index].path)
+		if link := rows[index].link; link != "" && slices.Contains(compiler.index.DirtyPaths, link) &&
+			!slices.Contains(screen.codes, SelfModifiedAuthorityWarning) {
+			// TCP-V0-271: a modified link no longer points where its pin says.
+			screen.codes = append(screen.codes, SelfModifiedAuthorityWarning)
+		}
 		if len(screen.codes) == 0 {
 			continue
 		}
