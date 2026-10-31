@@ -2,7 +2,7 @@
 import { spawn } from 'node:child_process';
 import { isAbsolute } from 'node:path';
 // The exact admitted host and adapter tuple (PWV-V0-016). Core refuses any other host version.
-export const PI_HOST_VERSION='0.99.1',PI_ADAPTER_VERSION='0.3.11';
+export const PI_HOST_VERSION='0.99.1',PI_ADAPTER_VERSION='0.3.12';
 export const EVENTS = new Set(['session-start','user-prompt','file-change','post-tool','stop','session-end']);
 const KEYS=['profile','event','host','surface','hostVersion','adapterVersion','support','receiptId','context','degradations','fault','shouldContinue'].sort();
 const CODES=new Set(['invalid-input','unsupported-event','unsupported-host-version','core-unavailable','invalid-core-response','output-too-large','deadline','untrusted-project']);

@@ -206,7 +206,8 @@ requires a repository with a `.git` directory; linked Git worktrees are not admi
 All Corvint MCP servers default to the latest published MCP protocol, `2026-07-28`.
 OpenCode clients using the older `initialize` handshake need the explicit
 `--protocol-version 2025-11-25` compatibility option shown in the example. Without it,
-initialization returns `Method not found`. This selection changes transport negotiation only;
+initialization fails with a `-32602` answer that names that flag (`MCPV0-820`; a Corvint before
+it answered `Method not found`). This selection changes transport negotiation only;
 repository bounds, tool schemas and Corvint receipts stay the same. Modern clients should omit
 the selector or select `2026-07-28` explicitly.
 

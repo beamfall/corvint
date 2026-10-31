@@ -357,6 +357,7 @@
       "cmd/corvint-test-validity-mcp/",
       "go.mod",
       "go.sum",
+      "integrations/claude-code/plugins/corvint/.mcp.json",
       "internal/"
     ],
     "internal/mcp/corpusbridge": [],
@@ -562,6 +563,7 @@
     ],
     "tools/gate-affected-select": [],
     "tools/gate-ledger": [
+      "internal/gateselect/gatedlocators.go",
       "internal/gateselect/readers.go",
       "internal/gateselect/readscopes.go",
       "internal/gateselect/select.go",
@@ -574,7 +576,8 @@
     "tools/str-parity": [],
     "tools/test-commands-check": [
       ".github/cishards/test-commands.json",
-      "Makefile"
+      "Makefile",
+      "script/"
     ],
     "tools/test-commands-run": []
   }

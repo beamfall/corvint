@@ -2633,6 +2633,40 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `TestMergedForwardDCWV0171NamesTheMergedMainline`, `TestChangeDCWV0171NotesOrRefusesBeforeAnyStep`,
   `script/dogfood-change_test.sh` (anchored refusal fix line). Rollback: revert the note and the
   fix line; the refusal again prints only its code.
+- `DCW-V0-940`: (experimental under the standing lane auto-accept; V1-2445; refines `DCW-V0-150`)
+  A `repository-object-unavailable` refusal of any `dogfood change` step (an `ocm-prepare-N` row
+  included) MUST be followed by a `fix:` line that quotes the step's own refusal message from
+  `{evidence}/{step}.stderr` (bounded to 240 bytes, control characters removed) and names the
+  remedy: fetch the missing history into this clone (`git fetch origin`, and `git fetch origin
+  BASE` when BASE is not local; `git fetch --unshallow` for a shallow clone; a plain clone of a
+  lane checkout also needs that checkout's origin fetched), then rerun `corvint dogfood change
+  BASE`. The OCM adapter's `repository-object-unavailable` messages MUST name the object: the
+  map's target commit, the path, revision and blob id it could not read, or the underlying Git
+  refusal it maps, instead of the bare `repository object unavailable`. Non-goals: fetching
+  automatically; changing any refusal code. Failure modes: a stderr with no message keeps the
+  remedy and points at the file. Evidence: `TestDCWV0940ObjectUnavailableFixNamesObjectAndRemedy`
+  (a stderr naming a blob yields the quoted message and the fetch remedy; an empty one keeps the
+  remedy) and `TestOCMPrepareNamesTheUnavailableTarget_DCW_V0_940` (an OCM read against a map
+  whose target commit is absent names that commit). Rollback: drop the `fixHint` branch and
+  restore the bare messages.
+- `DCW-V0-941`: (experimental under the standing lane auto-accept; V1-3036; refines `DCW-V0-370`
+  and `DCW-V0-372`) When the bind commit `dogfood finish-lane` reaches (made in this run or
+  resumed) carries a deferral record, the record is a hunk of the map at that commit that the
+  bind pass could not see, so before the rebind `finish-lane` MUST settle it: one bind-scope pass
+  with the same plan prepares and cites that hunk, and when its `cem-prepare`, `cem-defer` and
+  `cem-cite` rows are produced and the sidecar is the only changed path, `finish-lane` MUST amend
+  the bind commit with the settled sidecar (`settle PASS bind=<commit>`; `settle SKIP
+  map-unchanged` when nothing changed), so the commit still changes only the sidecar and the
+  record and the rebind, check and seal complete in the same invocation with a clean worktree.
+  The settle pass's own rows are not added to the `NOT_PRODUCED` list. Any other outcome stops at
+  `settle FAIL`, naming the pass's output. Non-goals: settling a bind commit with no deferral
+  record (its map does not change); a second bind commit. Failure modes: a resumed bind commit
+  that was already pushed is rewritten locally like any unsealed bind commit. Evidence:
+  `TestDogfoodFinishLaneDCWV0941SettlesTheDeferralRecordHunk` (a deferred plan row through one
+  real `finish-lane` run: rebind, check and seal pass, the worktree is clean and the bind commit
+  changes only the sidecar and the record; fails on BASE with `excluded-artifact-mismatch` and
+  `intent-scope-drift` at the rebind). Rollback: drop `settleDeferralRecord` and its call; the
+  rebind again refuses a deferred plan until the sidecar is committed by hand.
 
 ## Code vocabulary
 
@@ -2956,6 +2990,8 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-447` (experimental under the standing lane auto-accept; V1-3167) | `internal/dogfoodflow/finishlane_stages.go` `planStages`, `stageHunkConflict`, `requireStageableMap`; `TestFinishLaneDCWV0447PlanStagesRefusesUnstageablePlan` (fails on BASE) | implemented; focused test PASS |
 | `DCW-V0-448` (experimental under the standing lane auto-accept; V1-3169) | `internal/dogfoodflow/change.go` `run`, `aggregateMarker`, `requireNoAggregateMarker`, `AggregateMarkerPresent`; `TestDCWV0448StaleAggregateReceiptForAnotherTargetIsIgnored` (fails on BASE), `TestDCWV0448EnrolledStateMarkerNamesKeyedFinish` | implemented; focused test PASS |
 | `DCW-V0-449` (experimental under the standing lane auto-accept; V1-3108) | `internal/dogfoodflow/bootstrap_precheck.go` `precheckBootstrapIntentRows`, `bootstrapIntentHint`; `internal/dogfoodflow/change.go` `precheckInputs`, `fixHints`; `TestDCWV0449InputsCheckRefusesCitedBootstrapIntentHunk` (fails on BASE), `TestDCWV0449InputsCheckPassesUncitedBootstrapIntentHunk` | implemented; focused tests PASS |
+| `DCW-V0-940` (experimental under the standing lane auto-accept; V1-2445) | `internal/dogfoodflow/change.go` `objectUnavailableHint` and its `fixHint` branch; the named messages in `internal/lrfrepo/ocm.go`, `ocm_read.go`, `ocm_write.go` and `ocm_obligation_count.go`; `TestDCWV0940ObjectUnavailableFixNamesObjectAndRemedy`, `TestOCMPrepareNamesTheUnavailableTarget_DCW_V0_940` |
+| `DCW-V0-941` (experimental under the standing lane auto-accept; V1-3036) | `internal/dogfoodflow/finishlane.go` `settleDeferralRecord`, `bindCarriesRecord` and its call in `run`; `docs/DOGFOOD.md` deferred-row note; `TestDogfoodFinishLaneDCWV0941SettlesTheDeferralRecordHunk` |
 | `DCW-V0-800` (experimental under the standing lane auto-accept; V1-3269) | `internal/dogfoodflow/finishlane.go` `requireOutcomeInputs`; `TestFinishLaneDCWV0800RefusesMissingOutcomeInputsBeforePrepare` | implemented; focused test PASS |
 | `DCW-V0-801` (experimental under the standing lane auto-accept; V1-3280) | `internal/dogfoodflow/verify_argv.go` `quotedRunAlternation`, `quotedRunSuggestion`, `quotedRunSuggestions`; `internal/dogfoodflow/change.go`; `internal/dogfoodflow/finishlane.go` `requireVerifyInput`; `TestVerifyArgumentsDCWV0801AdmitsAnchoredAndAttachedRunAlternation`, `TestDogfoodChangeNamesVerifySyntaxRemediation` | implemented; focused tests PASS |
 | `DCW-V0-802` (experimental under the standing lane auto-accept; V1-3279) | `internal/dogfoodflow/propose.go` `readCanonicalPatch`, `refusePatchUnavailable`; `docs/DOGFOOD.md` §4 first-run order; `TestProposeCitationsDCWV0802NamesWhyThePatchIsUnavailable` | implemented; focused test PASS |

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"io"
@@ -131,13 +132,12 @@ func runDocsMaintain(ctx context.Context, options docsMaintainOptions, stdout, s
 	}
 	result, err := docmaintain.Run(ctx, options.root, options.page, selectors, policy)
 	if err != nil {
-		var refusal *docmaintain.Refusal
-		code := "internal-error"
-		if asRefusal, ok := err.(*docmaintain.Refusal); ok {
-			refusal, code = asRefusal, asRefusal.Code
+		// A draft limit refusal's message names the bound, its value and the observed size (V1-2416).
+		code, message := "internal-error", err.Error()
+		if refusal, ok := err.(*docmaintain.Refusal); ok {
+			code, message = refusal.Code, cmp.Or(refusal.Message, message)
 		}
-		_ = refusal
-		emitError(stderr, &gokernel.Error{Code: code, Message: err.Error()})
+		emitError(stderr, &gokernel.Error{Code: code, Message: message})
 		if result == nil {
 			return 2
 		}

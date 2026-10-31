@@ -28,6 +28,7 @@
 # host-adapter-node-test (the node half of host-adapter-test, which no PR CI job runs; ASD-V0-044,
 # V1-3062), the `gofmt -l` sets of the go-static and go-interop jobs, and `batch-drift`: one `go test -count=1 -run` over the union of DRIFT_TESTS
 # in every package at once, through script/heavy.sh, so one offload covers them (ASD-V0-034).
+# BATCH_PRECHECK_GO_WRAPPER, when set, wraps every make and go run step the same way (ASD-V0-941).
 # DRIFT_TESTS is a maintained list, not a selection: `corvint test --dry-run` over a batch diff
 # falls back to the whole package universe, and these tests read specs, catalogs and goldens no
 # Go import names. The sync check fails when a prefix names no test, and when a test that reads
@@ -97,6 +98,9 @@ self_dir=$(cd "$(dirname "$0")" && pwd) || exit 2
 cd "$root" || exit 2
 workflow=${BATCH_PRECHECK_WORKFLOW:-.github/workflows/ci.yml}
 heavy=${BATCH_PRECHECK_HEAVY-script/heavy.sh}
+# ASD-V0-941 (V1-3037): an operator wrapper (a host semaphore or offload hook) for the make and
+# go run steps, whose recipes start Go tests and builds; unset or empty, they run directly.
+go_wrapper=${BATCH_PRECHECK_GO_WRAPPER-}
 regen=${BATCH_PRECHECK_REGEN-script/batch-regen.sh}
 jobs=${BATCH_PRECHECK_JOBS:-6}
 # ASD-V0-070 (V1-3233): under an empty environment (env -i) the Go build cache has no location;
@@ -474,7 +478,9 @@ doc_gate_expansion() {
 
 # Steps as "name<TAB>command", longest first; each command runs under bash -c from the root.
 steps() {
-  local kind value t s dir args line pkg prefix inputs pkgs=() re='' envs=() i n=${#DRIFT_TESTS[@]} k=0 own=() expanded
+  local kind value t s dir args line pkg prefix inputs pkgs=() re='' envs=() i n=${#DRIFT_TESTS[@]} k=0 own=() expanded go_wrap=
+  # Like BATCH_PRECHECK_HEAVY, the wrapper is one executable path quoted as one word (ASD-V0-941).
+  [[ -z $go_wrapper ]] || go_wrap="$(printf '%q' "$go_wrapper") "
   for ((i = 0; i < n; i++)); do
     [[ ${drift_on[i]:-1} == 1 ]] || continue
     k=$((k + 1))
@@ -502,15 +508,15 @@ steps() {
     if [[ $t == capability-catalog-check && -n $cat_skip ]]; then
       printf 'make %s\tprintf "%%s\\n" %q\n' "$t" "skipped: $cat_skip"
     else
-      printf 'make %s\tenv CORVINT_GOCACHE=%q make -s %s\n' "$t" "$gocache" "$t"
+      printf 'make %s\t%senv CORVINT_GOCACHE=%q make -s %s\n' "$t" "$go_wrap" "$gocache" "$t"
     fi
   done
   while IFS= read -r line; do envs+=("$(printf '%q' "$line")"); done < <(doc_gate_env)
   expanded=$(doc_gate_expansion)
   while IFS=$'\t' read -r kind value; do
     case $kind in
-      make) printf 'make %s\tenv %s make -s %q\n' "$value" "${envs[*]-}" "$value" ;;
-      gorun) printf 'go run %s\tenv %s GOCACHE=%q go run %q\n' "$value" "${envs[*]-}" "$gocache" "$value" ;;
+      make) printf 'make %s\t%senv %s make -s %q\n' "$value" "$go_wrap" "${envs[*]-}" "$value" ;;
+      gorun) printf 'go run %s\t%senv %s GOCACHE=%q go run %q\n' "$value" "$go_wrap" "${envs[*]-}" "$gocache" "$value" ;;
     esac
   done < <(doc_gates | while IFS=$'\t' read -r kind value; do
     if [[ $kind == make && $value == doc-gates && -n $expanded ]]; then printf '%s\n' "$expanded"; else printf '%s\t%s\n' "$kind" "$value"; fi

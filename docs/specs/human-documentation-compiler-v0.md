@@ -1041,7 +1041,7 @@ above and add a failure-code vector per mapping; until then no mapping is assert
 | `command-timeout` | `internal/doccompiler/process.go:92` | 1 | "command exceeded its deadline" |
 | `corpus-too-large` | `internal/doccompiler/build.go:255` | 2 | "staged corpus exceeds its byte limit" |
 | `corpus-unavailable` | `internal/doccompiler/build.go:244` | 3 | "cannot read staged document target" |
-| `documentation-limit-exceeded` | `internal/doccompiler/draft.go:150@057646ce` | 5 | "draft exceeds 64 KiB" |
+| `documentation-limit-exceeded` | `internal/doccompiler/draft.go:150@9fd0f2ff` | 5 | "draft exceeds the DraftMaxBytes limit of <value> bytes (64 KiB): observed <value> bytes" |
 | `duplicate-claim` | `internal/doccompiler/plan.go:161@e2c46350` | 1 | "claim ID is duplicated: <value>" |
 | `duplicate-clause` | `internal/doccompiler/admission.go:115` | 2 | "clause ID is duplicated: <value>" |
 | `duplicate-document` | `internal/doccompiler/plan.go:45@febb118a` | 1 | "document proposal is duplicated: <value>" |

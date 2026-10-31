@@ -322,6 +322,7 @@ AHI-056	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's s
 AHI-171	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2192; GitHub #	standing	2026-10-11; V1-2192; #1406
 AHI-172	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2201; GitHub #	standing	2026-10-11; V1-2201; #1406
 AHI-372	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3086; GitHub #	standing	2026-10-11; V1-3086; #1982
+AHI-820	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept; V1-2513; amends `AHI-373`) Th	standing	V1-2513
 AHI-373	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3244) Amendmen	standing	2026-10-11; V1-3244
 AHI-173	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2145) One comm	standing	2026-10-11; V1-2145
 AHI-240	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-10-27); V1-2854) Amendme	standing	2026-10-27; V1-2854
@@ -878,6 +879,7 @@ BBF-V0-031	docs/specs/browser-behavior-falsification-v0.md	(accepted under the o
 BBF-V0-032	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2027)	standing	2026-10-11; V1-2027
 BBF-V0-033	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2027) A live t	standing	2026-10-11; V1-2027
 BBF-V0-214	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2029) The go-t	standing	2026-10-11; V1-2029
+BBF-V0-820	docs/specs/browser-behavior-falsification-v0.md	(experimental under the standing lane auto-accept; V1-2215; amends the	standing	V1-2215
 BBF-V0-215	docs/specs/browser-behavior-falsification-v0.md	(proposed; V1-2524) A plan's `contract_file`, `test_file`, `config_file` and Go	unrecorded	-
 BBF-V0-216	docs/specs/browser-behavior-falsification-v0.md	(proposed; V1-2030, decision 0552) Every `ServerIdentity` an isolation observati	unrecorded	-
 BBF-V0-217	docs/specs/browser-behavior-falsification-v0.md	(proposed, standing lane auto-accept 2026-10-11; V1-2688, GH #1789) A request	standing	2026-10-11; V1-2688; #1789
@@ -1132,6 +1134,7 @@ CEM-V1-242	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto
 CEM-V1-243	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1329) The nati	standing	2026-10-11; V1-1329
 CEM-V1-244	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2106) After th	standing	2026-10-11; V1-2106
 CEM-V1-245	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1470) The	standing	2026-10-11; V1-1470
+CEM-V1-820	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept; V1-1470 criterion 2) The port	standing	V1-1470
 CEM-V1-568	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2133) When Git	standing	2026-10-11; V1-2133
 CEM-V1-037	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0301, decision	standing	2026-10-11; V1-0301
 CEM-V1-038	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2018) In the	standing	2026-10-11; V1-2018
@@ -1193,6 +1196,13 @@ CEM-V1-692	docs/specs/cem-stable-v1.md	(experimental under the standing lane aut
 CEM-V1-693	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2995)) a reverted run is `	standing	V1-2995
 CEM-V1-694	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3168)) `cem cite --replace	standing	V1-3168
 CEM-V1-695	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3168)) `cem mark	standing	V1-3168
+CEM-V1-980	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) Amends `CEM-V1-037`	standing	V1-2752
+CEM-V1-981	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) A binary group adds	standing	V1-2752
+CEM-V1-982	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) Base simulation	standing	V1-2752
+CEM-V1-983	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) When the prepared	standing	V1-2752
+CEM-V1-984	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) `cem cite` MUST	standing	V1-2752
+CEM-V1-985	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) The binary	standing	V1-2752
+CEM-V1-986	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) The frozen	standing	V1-2752
 CEM-V1-011	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Reject missing, duplicate, unknown or es	owner	decision 0546; 2026-10-20
 CEM-V1-012	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Publish the candidate schema and algorit	owner	decision 0546; 2026-10-20
 CEM-V1-013	docs/specs/cem-stable-v1.md	(accepted by decision 0546, 2026-10-20) Never translate candidate spec labels to	owner	decision 0546; 2026-10-20
@@ -1833,6 +1843,9 @@ ASD-V0-582	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-583	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3373) `make li	standing	2026-10-31; V1-3373
 ASD-V0-584	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3374; refines	standing	2026-10-31; V1-3374
 ASD-V0-900	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; tasks-w1 lane fri	standing	2026-10-31
+ASD-V0-940	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3247; refines	standing	2026-10-31; V1-3247
+ASD-V0-941	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3037; refines	standing	2026-10-31; V1-3037
+ASD-V0-942	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-2393; refines	standing	2026-10-31; V1-2393
 CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and	unrecorded	-
 CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow	unrecorded	-
 CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom	unrecorded	-
@@ -2366,6 +2379,7 @@ TQD-V0-012	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHu
 TQD-V0-013	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0519; V1-1176; GitHub #791) NO_PROGRESS_HANDOFF is not repor	owner	decision 0519; V1-1176; #791
 TQD-V0-020	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-17, V1-1598, standing lane auto-accept; GitHub #1041) `--confi	standing	2026-10-17; V1-1598; #1041
 TQD-V0-021	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-17, V1-1598, standing lane auto-accept; GitHub #1041; amended	standing	2026-10-17; V1-1598; #1041; #1060
+TQD-V0-821	docs/specs/corvint-tasks-doctor-v0.md	(experimental under the standing lane auto-accept; amends `TQD-V0-021` on linux)	standing	-
 TQD-V0-022	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-17, V1-1598, standing lane auto-accept; GitHub #1041) SLOW_QUE	standing	2026-10-17; V1-1598; #1041
 TQD-V0-023	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-17, V1-1598, standing lane auto-accept; GitHub #1041) NO_COMPL	standing	2026-10-17; V1-1598; #1041
 TQD-V0-024	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-17, V1-1598, standing lane auto-accept; GitHub #1041) FD_PRESS	standing	2026-10-17; V1-1598; #1041
@@ -2383,6 +2397,7 @@ TQD-V0-042	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-18, V1-1608, 
 TQD-V0-043	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-19, V1-1914, standing lane auto-accept; GitHub #1181) For each	standing	2026-10-19; V1-1914; #1181
 TQD-V0-044	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-19, V1-1916, standing lane auto-accept; GitHub #1183) From the	standing	2026-10-19; V1-1916; #1183
 TQD-V0-045	docs/specs/corvint-tasks-doctor-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1193; GitHub #	standing	2026-10-11; V1-1193; #791
+TQD-V0-820	docs/specs/corvint-tasks-doctor-v0.md	(experimental under the standing lane auto-accept; V1-1193; GitHub #791) The	standing	V1-1193; #791
 TQD-V0-046	docs/specs/corvint-tasks-doctor-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2137) A test-o	standing	2026-10-11; V1-2137
 ESC-V0-001	docs/specs/corvint-tasks-escalations-v0.md	`ticket escalate --attempt A --kind decision|infrastructure|scope|blocked --ques	unrecorded	-
 ESC-V0-002	docs/specs/corvint-tasks-escalations-v0.md	Questions MUST be stored as an optional tool-owned `escalations` reference on th	unrecorded	-
@@ -3079,6 +3094,8 @@ DCW-V0-846	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-920	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3043; refines `DCW-V0-150`	standing	V1-3043
 DCW-V0-170	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2344) When	standing	2026-10-11; V1-2344
 DCW-V0-171	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2171) A	standing	2026-10-11; V1-2171
+DCW-V0-940	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2445; refines `DCW-V0-150`	standing	V1-2445
+DCW-V0-941	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3036; refines `DCW-V0-370`	standing	V1-3036
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-
 DNG-V0-002	docs/specs/decision-number-gate-v0.md	When no file in `docs/decisions/` matches that pattern, the gate MUST exit 0	unrecorded	-
 DNG-V0-003	docs/specs/decision-number-gate-v0.md	The gate MUST derive each matched file's decision number as the first four	unrecorded	-
@@ -4765,6 +4782,7 @@ MCPV0-020	docs/specs/mcp-server-2026-07-28-v0.md	`corvint.query` and `corvint.im
 MCPV0-021	docs/specs/mcp-server-2026-07-28-v0.md	All four existing MCP commands MUST accept at most one	unrecorded	-
 MCPV0-022	docs/specs/mcp-server-2026-07-28-v0.md	A legacy connection MUST initialize independently for each Serve invocation. It	unrecorded	-
 MCPV0-023	docs/specs/mcp-server-2026-07-28-v0.md	Legacy calls MUST reuse each existing command's closed tool registry and native	unrecorded	-
+MCPV0-820	docs/specs/mcp-server-2026-07-28-v0.md	(experimental under the standing lane auto-accept; V1-2507, V1-2513; amends	standing	V1-2507; V1-2513
 MCPV0-026	docs/specs/mcp-server-2026-07-28-v0.md	`corvint-mcp` MUST accept at most one `--tool-profile` selector, following the	unrecorded	-
 MCPV0-024	docs/specs/mcp-server-2026-07-28-v0.md	`corvint.context` MUST compile the same packet as `corvint context` in process,	unrecorded	-
 MCPV0-025	docs/specs/mcp-server-2026-07-28-v0.md	`corvint.cem.report` MUST render the `corvint cem report` Markdown and the stabl	unrecorded	-
@@ -6420,6 +6438,7 @@ TSP-V0-004	docs/specs/test-selection-precision-v0.md	(experimental, under the ow
 TSP-V0-005	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; the	standing	2026-10-11
 TSP-V0-006	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2806)	standing	2026-10-11; V1-2806
 TSP-V0-007	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3050)	standing	2026-10-11; V1-3050
+TSP-V0-940	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-31; V1-3346;	standing	2026-10-31; V1-3346
 TSA-V0-010	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1589, V1-1592) Lint and duplicates MUST re	standing	2026-10-11; V1-1589; V1-1592
 TSA-V0-011	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587, V1-1589) Comments MUST be returned a	standing	2026-10-11; V1-1587; V1-1589
 TSA-V0-001	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) `corvint tests setup-select --specs	standing	2026-10-11; V1-1587

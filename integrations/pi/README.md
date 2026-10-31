@@ -108,8 +108,8 @@ package also ships the `corvint-context`, `corvint-impact`, `corvint-review` and
 
 Pi 0.99.1 also has a native MCP client. To add the `corvint-mcp` companion, register it with
 the legacy protocol Pi speaks: `pi mcp add corvint -- corvint-mcp --protocol-version 2025-11-25
---root <repo>`, then check it with `pi mcp list`. Without the flag Pi reports `Method not found`
-(V1-2507). The extension does not register it for you.
+--root <repo>`, then check it with `pi mcp list`. Without the flag Pi reports `corvint: failed`; the
+server's answer (`-32602`) names the `--protocol-version 2025-11-25` flag (V1-2507, `MCPV0-820`). The extension does not register it for you.
 
 `/corvint` opens Evidence, Changes, Tasks, Verification and Gaps. Use left/right or
 1–5 to select a view, `r` to refresh, arrows/PageUp/PageDown to scroll and `q`/Escape

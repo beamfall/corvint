@@ -76,7 +76,7 @@ func DraftDryRun(index *contextindex.Index, sourcePath string, owner []byte, dir
 		return SourceDraft{}, failure("unsupported-documentation-source", "dry-run owner source must name one repository-relative Markdown path")
 	}
 	if len(owner) > DraftMaxBytes {
-		return SourceDraft{}, failure("documentation-limit-exceeded", "dry-run owner source exceeds 64 KiB")
+		return SourceDraft{}, failure("documentation-limit-exceeded", "dry-run owner source exceeds the DraftMaxBytes limit of %d bytes (64 KiB): observed %d bytes", DraftMaxBytes, len(owner))
 	}
 	entry, err := ownerEntry(contextindex.Source{Path: sourcePath, Data: owner})
 	if err != nil {
@@ -98,7 +98,7 @@ func ReadDryRunOwner(root, sourcePath string) ([]byte, error) {
 	}
 	var problem *Error
 	if errors.As(err, &problem) && problem.Code == "file-too-large" {
-		return nil, failure("documentation-limit-exceeded", "dry-run owner source exceeds 64 KiB")
+		return nil, failure("documentation-limit-exceeded", "dry-run owner source exceeds the DraftMaxBytes limit of %d bytes (64 KiB): observed more than %d bytes", DraftMaxBytes, DraftMaxBytes)
 	}
 	if problem != nil {
 		return nil, failure("unsupported-documentation-source", "dry-run owner source unreadable: %s", problem.Message)
@@ -147,7 +147,7 @@ func compileDraft(index *contextindex.Index, owner DraftEntry, sourcePath, direc
 	draft.Entries = append(draft.Entries, importers...)
 	draft.Markdown = renderDraft(draft, sourcePath, directory)
 	if len(draft.Markdown) > DraftMaxBytes {
-		return SourceDraft{}, failure("documentation-limit-exceeded", "draft exceeds 64 KiB")
+		return SourceDraft{}, failure("documentation-limit-exceeded", "draft exceeds the DraftMaxBytes limit of %d bytes (64 KiB): observed %d bytes", DraftMaxBytes, len(draft.Markdown))
 	}
 	return draft, nil
 }
@@ -189,7 +189,7 @@ func ownerEntry(source contextindex.Source) (DraftEntry, error) {
 		return DraftEntry{}, failure("unsupported-documentation-source", "exactly one Agent digest is required")
 	}
 	if end > 64 {
-		return DraftEntry{}, failure("documentation-limit-exceeded", "owner preamble and digest exceed 64 lines")
+		return DraftEntry{}, failure("documentation-limit-exceeded", "owner preamble and digest exceed the limit of 64 lines: observed %d lines", end)
 	}
 	if source.BlobHash == "" {
 		return dryRunOwnerEntry(source, strings.TrimPrefix(lines[start], "## "), lines[:end])
@@ -202,7 +202,7 @@ func ownerEntry(source contextindex.Source) (DraftEntry, error) {
 func dryRunOwnerEntry(source contextindex.Source, title string, lines []string) (DraftEntry, error) {
 	excerpt := strings.Join(lines, "\n")
 	if len(excerpt) > 4<<10 {
-		return DraftEntry{}, failure("documentation-limit-exceeded", "source excerpt exceeds 4 KiB")
+		return DraftEntry{}, failure("documentation-limit-exceeded", "source excerpt exceeds the limit of %d bytes (4 KiB): observed %d bytes", 4<<10, len(excerpt))
 	}
 	digest := sha256.Sum256(source.Data)
 	return DraftEntry{ID: fmt.Sprintf("%s:%d:%s", source.Path, 1, title), Kind: "dry-run-owner", Title: title, Excerpt: excerpt, Path: source.Path, SHA256: hex.EncodeToString(digest[:]), StartLine: 1, EndLine: len(lines)}, nil
@@ -246,7 +246,7 @@ func sourceEntry(source contextindex.Source, kind, title string, start, end int)
 		return DraftEntry{}, failure("unsupported-documentation-source", "source excerpt must use LF without carriage returns")
 	}
 	if len(excerpt) > 4<<10 {
-		return DraftEntry{}, failure("documentation-limit-exceeded", "source excerpt exceeds 4 KiB")
+		return DraftEntry{}, failure("documentation-limit-exceeded", "source excerpt exceeds the limit of %d bytes (4 KiB): observed %d bytes", 4<<10, len(excerpt))
 	}
 	digest := sha256.Sum256(source.Data)
 	return DraftEntry{ID: fmt.Sprintf("%s:%d:%s", source.Path, start, title), Kind: kind, Title: title, Excerpt: excerpt, Path: source.Path, Blob: source.BlobHash, SHA256: hex.EncodeToString(digest[:]), StartLine: start, EndLine: end}, nil
@@ -614,7 +614,7 @@ func importLine(source contextindex.Source, target string) (int, error) {
 
 func boundedEntries(entries []DraftEntry) ([]DraftEntry, error) {
 	if len(entries) > 64 {
-		return nil, failure("documentation-limit-exceeded", "more than 64 declarations or importers")
+		return nil, failure("documentation-limit-exceeded", "declarations or importers exceed the limit of 64 entries: observed %d entries", len(entries))
 	}
 	sort.Slice(entries, func(a, b int) bool { return entries[a].ID < entries[b].ID })
 	return entries, nil
@@ -655,7 +655,7 @@ func draftMetadata(value string) string {
 // can attach SOURCE_REDERIVED validation; this pure helper makes no such claim.
 func ConsumeDraft(draft SourceDraft, provided []byte, task string) (map[string]any, error) {
 	if len(provided) > DraftMaxBytes {
-		return nil, failure("documentation-limit-exceeded", "draft exceeds 64 KiB")
+		return nil, failure("documentation-limit-exceeded", "draft exceeds the DraftMaxBytes limit of %d bytes (64 KiB): observed %d bytes", DraftMaxBytes, len(provided))
 	}
 	if draft.DryRun || IsDryRunDraft(provided) {
 		return nil, failure("unsupported-documentation-source", "dry-run draft is not admissible: commit the owner source, draft again and consume that draft")
