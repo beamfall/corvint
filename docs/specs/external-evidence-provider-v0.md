@@ -249,6 +249,14 @@ each cited path still exists at that revision, and what was omitted or could not
   shallow boundary cuts parents. `equal` needs no ancestry and is unchanged. Falsifier: a grafted
   or shallow checkout whose freshness is an ancestry verdict. Rollback: drop the guard call from
   `Freshness`.
+- `EEP-V0-820`: (experimental under the standing lane auto-accept, 2026-10-31; V1-0482) The Go
+  provider's query summary MUST explain each omitted relation by its cause, beside the unchanged
+  total `omitted_rows`: `omitted_unpinned` (an endpoint not indexed as text, or a target whose
+  working-tree bytes differ from the index), `omitted_row_bound` (a pinned relation beyond the
+  32-relation bound) and `omitted_byte_bound` (a relation dropped to fit 64 KiB). The three MUST
+  sum to `omitted_rows`. Distinct relations are counted once, so a repeated answer is not an
+  omission. Falsifier: a summary whose causes do not sum to the total, or a bound-dropped
+  relation counted as unpinned. Rollback: delete the three members; `omitted_rows` is unchanged.
 
 ## Non-goals and simpler baseline
 
@@ -362,6 +370,7 @@ their tests, the fixture `lsp-gopls.json`, the one `attachLSPEvidence` call in
 
 | `EEP-V0-027` | `rootCommit`, `environment`, `run` | `TestContextLSPPinAndDrift`, `TestContextLSPCancellationRetiresDescendants`, `TestContextLSPEnvironmentDropsRelativePATH` |
 | `EEP-V0-028` | `Freshness` in `internal/extevidence/freshness.go`; `Rewritten` in `internal/gitancestry/gitancestry.go` | `TestFreshnessDistrustsRewrittenAncestry_EEPV0028`, `TestRewrittenNamesGraftsShallowAndUnreadable_EEPV0028` |
+| `EEP-V0-820` | `record` in `internal/lspprovider/provider.go` | `TestRecordExplainsOmissions_EEPV0820` |
 
 ## Unresolved decisions and promotion or kill criteria
 

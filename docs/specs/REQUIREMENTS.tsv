@@ -3846,6 +3846,7 @@ EEP-V0-025	docs/specs/external-evidence-provider-v0.md	The expansion is at most 
 EEP-V0-026	docs/specs/external-evidence-provider-v0.md	An absent or failing provider yields no record and no partial rows: the section	unrecorded	-
 EEP-V0-027	docs/specs/external-evidence-provider-v0.md	The shared CLI/MCP Go provider reads root ancestry through the bounded Git	unrecorded	-
 EEP-V0-028	docs/specs/external-evidence-provider-v0.md	(accepted under the owner's standing auto-accept, 2026-10-11; V1-1757) Before	standing	2026-10-11; V1-1757
+EEP-V0-820	docs/specs/external-evidence-provider-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-0482) The Go	standing	2026-10-31; V1-0482
 EEP-V1-001	docs/specs/external-evidence-provider-v1.md	A record whose top-level `schema` is `external-evidence-provider/1` MUST decode	unrecorded	-
 EEP-V1-002	docs/specs/external-evidence-provider-v1.md	`repositories` MUST list 1 to 8 entries with unique identifier `id`s, each with	unrecorded	-
 EEP-V1-003	docs/specs/external-evidence-provider-v1.md	An endpoint MUST be exactly one of the two shapes in Definitions. A mixed, strin	unrecorded	-
