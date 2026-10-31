@@ -272,20 +272,39 @@ func (b *builder) routers(r repo, ix *contextindex.Index) error {
 }
 
 // role names the manifest directory a test file sits in; the deepest declared directory wins.
+// In a directory declared as both specs and page objects, a file Playwright's default testMatch
+// names is a spec and every other file a page object (AMAP-V0-780).
 func (b *builder) role(p string) string {
-	best, role := "", roleSupport
+	best, role, flat := "", roleSupport, false
 	t := b.m.Tests
 	for _, g := range []struct {
 		dirs []string
 		role string
 	}{{t.Specs, roleSpec}, {t.PageObjects, rolePageObject}, {t.Workflows, roleWorkflow}, {t.Scenarios, roleScenario}} {
 		for _, d := range g.dirs {
-			if under(p, d) && len(d) > len(best) {
-				best, role = d, g.role
+			switch {
+			case under(p, d) && len(d) > len(best):
+				best, role, flat = d, g.role, false
+			case d == best && role == roleSpec && g.role == rolePageObject:
+				flat = true
 			}
 		}
 	}
+	if flat && !playwrightTestName(path.Base(p)) {
+		return rolePageObject
+	}
 	return role
+}
+
+// playwrightTestName reports whether a base name matches Playwright's default testMatch,
+// `NAME.spec.EXT` or `NAME.test.EXT` with a JavaScript or TypeScript suffix.
+func playwrightTestName(base string) bool {
+	ext := path.Ext(base)
+	if !webSuffix[strings.ToLower(ext)] {
+		return false
+	}
+	stem := strings.TrimSuffix(base, ext)
+	return strings.HasSuffix(stem, ".spec") || strings.HasSuffix(stem, ".test")
 }
 
 // bareConfigImport resolves a bare specifier through the tsconfig/jsconfig governing importer

@@ -107,16 +107,23 @@ func decodeManifest(raw []byte) (Manifest, error) {
 	if t.Root != "." && !safeRelative(t.Root) {
 		return m, invalidManifest("tests.root must be a repository-relative directory")
 	}
-	if len(t.Specs) == 0 || len(t.PageObjects) == 0 {
-		return m, invalidManifest("tests.specs and tests.page_objects must each name a directory")
+	if len(t.Specs) == 0 {
+		return m, invalidManifest("tests.specs must name a directory")
 	}
-	dirs := map[string]bool{}
-	for _, group := range [][]string{t.Specs, t.PageObjects, t.Workflows, t.Scenarios} {
+	// page_objects may be empty, and may repeat a specs directory: a flat layout keeps its
+	// helpers beside the specs (AMAP-V0-780). Every other repetition is refused.
+	dirs, specs := map[string]bool{}, map[string]bool{}
+	for g, group := range [][]string{t.Specs, t.PageObjects, t.Workflows, t.Scenarios} {
+		inGroup := map[string]bool{}
 		for _, d := range group {
-			if !safeRelative(d) || !under(d, t.Root) || dirs[d] {
+			flat := g == 1 && specs[d]
+			if !safeRelative(d) || !under(d, t.Root) || inGroup[d] || (dirs[d] && !flat) {
 				return m, invalidManifest("test directory %q must be unique and inside tests.root", d)
 			}
-			dirs[d] = true
+			dirs[d], inGroup[d] = true, true
+			if g == 0 {
+				specs[d] = true
+			}
 		}
 	}
 	bound := map[string]bool{}

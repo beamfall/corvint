@@ -94,7 +94,7 @@ type TestLayout struct {
 	Repo        string   `json:"repo,omitempty"`
 	Root        string   `json:"root"`
 	Specs       []string `json:"specs"`
-	PageObjects []string `json:"page_objects"`
+	PageObjects []string `json:"page_objects,omitempty"`
 	Workflows   []string `json:"workflows,omitempty"`
 	Scenarios   []string `json:"scenarios,omitempty"`
 }
