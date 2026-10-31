@@ -6,7 +6,7 @@ Requirement prefix: `CIN-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3309, V1-3091, V1-3158, V1-3227, V1-2902, V1-3329); CIN-V0-001 decided by the orchestrator under owner delegation (V1-3314), applying the AFP-V0-030 re-arm rule; effective only after the owner's `ci-control-plane` review of the `.github` change
 Delivery status: experimental
 Authoritative inputs: native tickets V1-3314, V1-3309 (AC3), V1-3091, V1-3158, V1-3227,
-V1-2902 and V1-3329; CIN-V0-860: V1-3354. These requirements operate the CI narrowing of the [affected plan](affected-plan-v0.md)
+V1-2902 and V1-3329; CIN-V0-860: V1-3354; CIN-V0-861: V1-3332. These requirements operate the CI narrowing of the [affected plan](affected-plan-v0.md)
 (AFP-V0-028..030, AFP-V0-046, AFP-V0-097, AFP-V0-670, AFP-V0-730..734); that spec's
 Requirements section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 Requirement IDs CIN-V0-001 to CIN-V0-049 are reserved for this spec.
@@ -109,6 +109,19 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   `UNKNOWN` plan that names no unknown SHALL answer `FALLBACK` with the reason named. The rule binds
   `Select` only; `SelectStructural` (`corvint test`, the shadow) is unchanged, so the driver's
   FULL is a superset of the shadow's selection (AFP-V0-603).
+- **CIN-V0-861:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3332;
+  effective only after the owner's `ci-control-plane` review of the `.github` change it needs) When
+  `collect.sh` writes no row under CIN-V0-001 it SHALL name the run instead: an empty-bodied
+  artifact `ci-forward-EPOCH-pr<N>-<head>-e<K>` when every selection document carries one integer
+  epoch `K` below `FORWARD_EPOCH`, else `ci-forward-NOROW-pr<N>-<head>-e<FORWARD_EPOCH>-r<why>`,
+  `why` `nodoc` (no selection document) or `mixed` (a missing, mixed or non-integer epoch).
+  `absence.jq` SHALL count, among the latest 20 (pull request, commit) entries of the epoch formed
+  by its rows that take a kill-switch place (not `INFRA`, not `NARROWED`) and its `NOROW` markers,
+  a re-run's newer entry replacing the older, the `NOROW` ones, and SHALL answer `TRIPPED` at 3 (the
+  `INCOMPLETE` threshold) or when the epoch or threshold is malformed. An `EPOCH` marker, a row or
+  marker of another epoch, and an unknown reason SHALL take no place, so an epoch-1 run is never
+  counted as absence. `verdict.sh` SHALL trip the AFP-V0-030 kill switch when either the row count
+  or `absence.jq` trips. The bar, its thresholds and the `MISS` rule are unchanged.
 
 ## Non-goals
 
@@ -128,7 +141,10 @@ created during the verdict's own listing could be missed by the incremental acce
 hour of overlap before `listedAt` covers it. (3) A run with no retained selection document
 (no shadow, a dead shadow pin, or a failed artifact download) writes no row under CIN-V0-001, so
 a sustained shadow outage no longer counts `INCOMPLETE` toward the kill switch; the bar still
-needs 8 complete epoch-2 rows, so narrowing stays FULL through it. A queue row takes the epoch
+needs 8 complete epoch-2 rows, so narrowing stays FULL through it. CIN-V0-861 makes such a run a
+`NOROW` marker that the kill switch counts; a collector that does not run at all (the
+`ci-control-plane` workflow disabled or failing before `collect.sh`) still leaves no name, and only
+the verdict's own staleness shows it. A queue row takes the epoch
 of its pull-request selection run. (4) A dead pin turns every shard red until repinned
 (CIN-V0-002); that is the intended loud failure. (5) An old `ci-reuse-plan` refusing `--base` on a
 push fails the reuse step, so `docs-plan` fails and every shard runs FULL. (6) The CIN-V0-008
@@ -158,10 +174,12 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-007 | the `go-product-shard` job condition and the `go-product` shard check of `ci.yml` | `TestCINV0007ShardsSkipAtJobLevelOnlyForADocsOrReuseDecision` |
 | CIN-V0-008 | the "Nested module tools/local-authority tests and vet" step of `go-static` in `ci.yml` | `TestCINV0008LocalAuthorityModuleTestsRunInGoStatic`; `TestAFPV0380InteropTestsRunOnceInGoStatic` |
 | CIN-V0-860 | `unknownNarrowing` and its call in `selectPackages` in `internal/gateselect/select.go` | `TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860` in `internal/gateselect/unknown_cinv0860_test.go` (language frontiers alone run; a module-level frontier, an unowned path alone or beside frontiers, an unindexed path, no selectable test, a malformed or empty reason, an UNKNOWN plan naming none and a BOUNDED receipt naming one fall back; SelectStructural unchanged); the "unknown plan keeps the fallback" case of `TestSelectPackagesTaskStateOnlyDiffSelectsNothing`; the replay in build log `docs/build-log/2026-10-31-ci-select-w1.md` |
+| CIN-V0-861 | `tools/ci-forward-row/absence.jq` (to move to `.github/forward-rows/absence.jq`); the `collect.sh`, `verdict.sh` and `ci-control-plane.yml` changes in build log `docs/build-log/2026-10-31-ci-select-w1.md`, not applied (no `.github` edit in this lane) | `TestCINV0861RowAbsenceTripsTheKillSwitch` in `tools/ci-forward-row/absence_test.go` (three NOROW markers trip, with rows beside too, and at a lower threshold; two do not; epoch-1 markers and rows, another epoch's marker, INFRA and NARROWED rows and an unknown reason take no place; a re-run's row replaces its NOROW; markers older than 20 entries do not trip; a malformed threshold trips) |
 
 ## Rollback
 
 R1: revert the lane's `.github` commits and their test commits; the epoch returns to 1 only by an
 owner decision, since epoch-1 rows hold the dead-pin `INCOMPLETE` rows. No stored state depends on
 these requirements; verdict artifacts without `listedAt` keep the whole listing. CIN-V0-860: remove the `unknownNarrowing` call in `selectPackages`; Select then
-runs every RUNNABLE plan without a module-level frontier narrowed, as before.
+runs every RUNNABLE plan without a module-level frontier narrowed, as before. CIN-V0-861: drop the `absence.jq`
+call in `verdict.sh`; the markers are then ignored names.

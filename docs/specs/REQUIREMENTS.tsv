@@ -1614,6 +1614,7 @@ CIN-V0-006	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standin
 CIN-V0-007	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-2902)	standing	2026-10-11; V1-2902
 CIN-V0-008	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3329)	standing	2026-10-11; V1-3329
 CIN-V0-860	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3354)	standing	2026-10-11; V1-3354
+CIN-V0-861	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3332;	standing	2026-10-11; V1-3332
 CVI-V0-001	docs/specs/closed-vocabulary-intake-v0.md	Publish a versioned schema whose data fields are enums, literal repository paths	unrecorded	-
 CVI-V0-002	docs/specs/closed-vocabulary-intake-v0.md	Validate exact field names and presence, types, enum vocabulary, bounded identif	unrecorded	-
 CVI-V0-003	docs/specs/closed-vocabulary-intake-v0.md	Bind validation to explicit full base/head commit identities. Every behaviour an	unrecorded	-
