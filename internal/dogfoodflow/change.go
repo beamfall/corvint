@@ -2208,6 +2208,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"ocm-prepare-*:invalid-requirements-section", requirementsSectionHint},
 	{"ocm-prepare-*:excluded-artifact-mismatch", uncommittedHint},
 	{"ocm-prepare-*:" + bootstrapIntentReason, bootstrapIntentHint},
+	{"ocm-prepare-*:too-many-obligations", "the intent on line N of DOGFOOD_INTENTS_FILE, {step} being ocm-prepare-N, derives more obligations than one OCM map admits (256 requirements, OCM-V0-023); {evidence}/{step}.stderr names the count. Remove that intent from DOGFOOD_INTENTS_FILE and cite its BASE requirement rows or decisions in DOGFOOD_CITATIONS instead, or name a smaller spec that holds this change's requirements, then rerun corvint dogfood change {base} (DCW-V0-806)"},
 	{"ocm-prepare-*:verification-timeout", "OCM prepare for the intent on line N of DOGFOOD_INTENTS_FILE, {step} being ocm-prepare-N, stopped at its verification deadline (often host load); {evidence}/{step}.stderr keeps its refusal, the maps of the intents before it are kept and nothing was committed; rerun the same corvint dogfood change {base} (or finish-lane) command, which prepares that intent again (DCW-V0-116)"},
 	{"coordination-time-impact:unsupported-impact-worktree", uncommittedHint},
 	{"local-outcome:record-index-failed", uncommittedHint},
@@ -2463,6 +2464,15 @@ func (c *change) fixHint(row step) string {
 	if value == "local-outcome:unsupported-verify-syntax" {
 		if fix := quotedRunFix(c.options.VerifyFile); fix != "" {
 			return "DOGFOOD_VERIFY_FILE " + fix
+		}
+	}
+	if value == "ocm-aggregate:intent-scope-drift" {
+		// A refused prepare stops the aggregate before it runs, so the
+		// refusal is the cause and nothing drifted (DCW-V0-806).
+		for _, prepared := range c.rows {
+			if strings.HasPrefix(prepared.name, "ocm-prepare-") && c.rowFailing(prepared) {
+				return fmt.Sprintf("%s refused %s first, so the aggregate did not run and no intent drifted; fix that row (its fix line is above), then rerun corvint dogfood change %s", prepared.name, prepared.reason, c.base)
+			}
 		}
 	}
 	if strings.HasPrefix(row.name, "ocm-prepare-") && row.reason == "invalid-requirements-section" {
