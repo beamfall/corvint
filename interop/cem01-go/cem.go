@@ -2420,7 +2420,9 @@ func (v *verifier) git03(limit int, args ...string) ([]byte, *cemError) {
 	cmd.Env = append(cleanGitEnvironment(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null", "GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0", "GIT_NO_LAZY_FETCH=1", "GIT_NO_REPLACE_OBJECTS=1", "GIT_GRAFT_FILE=/dev/null", "GIT_ASKPASS=", "GIT_ATTR_NOSYSTEM=1")
 	stdout, stderr := &buffer03{limit: limit}, &buffer03{limit: 64 << 10}
 	cmd.Stdout, cmd.Stderr = stdout, stderr
-	cmd.WaitDelay = 250 * time.Millisecond
+	// The output copy may finish well after a successful Git exits on a loaded host; 250 ms
+	// turned valid reads into git-read-failed (CEM-V1-820).
+	cmd.WaitDelay = 5 * time.Second
 	// CommandContext owns cancellation of this exact child until Wait reaps it.
 	// No group ID is retained or signalled after reap. Descendant retirement is
 	// not qualified by this narrowly admitted, sanitized Git-only backend.

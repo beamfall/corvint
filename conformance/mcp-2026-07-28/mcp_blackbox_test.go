@@ -256,6 +256,14 @@ func TestRemovedLegacyMethodsAreNotFound(t *testing.T) {
 			params["clientInfo"] = map[string]any{"name": "legacy", "version": "0"}
 		}
 		response := client.call(t, 30+index, method, params)
+		if method == "initialize" {
+			// MCPV0-820: the default profile names the explicit legacy selector.
+			assertErrorCode(t, response, -32602)
+			if message, _ := response["error"].(map[string]any)["message"].(string); !strings.Contains(message, "--protocol-version 2025-11-25") {
+				t.Fatalf("legacy initialize answer does not name the flag: %s", canonicalJSON(response))
+			}
+			continue
+		}
 		assertErrorCode(t, response, -32601)
 	}
 

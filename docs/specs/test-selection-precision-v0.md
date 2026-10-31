@@ -151,6 +151,19 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   the recorded tree or its second parent is not the recorded head, that head is not an ancestor of
   the current head, M0..M1 changes a `.github` path, the planner or selector fails or gives no `run`
   verdict, the universe is unavailable, or the source drifts after planning.
+- **TSP-V0-940:** (experimental, under the owner's standing lane auto-accept, 2026-10-31; V1-3346;
+  refines TSP-V0-003 and STR-V0-061) `internal/gateselect` SHALL read the same
+  `.corvint/gated-root-locators.json` from the checkout it indexes, with the same validity rules
+  (closed object, profile, at most 64 KiB and 64 packages, each package an indexed package whose
+  non-test code locates the root and whose non-test sources carry the gate as a Go string
+  literal, the gate a clean absolute path other than `/`, the reason non-empty printable text of
+  at most 512 bytes). A valid declaration SHALL stop each declared package's rule (d) reach: the
+  package keeps its own `unresolved` reason, and its dependents are no longer `unresolved` for
+  depending on it, so the selector and the planner agree on which units every dirty path selects,
+  a nested-module change included. An absent or invalid declaration SHALL declare nothing (the
+  wider selection). A plan that names `go:gated-root-locators-invalid` or
+  `go:gated-root-locators-changed` SHALL make the selection `FALLBACK`, as the module-level
+  frontiers do.
 
 - **TSP-V0-960:** (experimental, amending TSP-V0-005, under the owner's standing lane auto-accept,
   2026-10-11; V1-3347) The shell plugin SHALL expand a command word or `bash`/`sh` operand that is
@@ -288,6 +301,7 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | TSP-V0-006 | `testSourceEligibles`, `testSourceEligible`, `testSourceSlice`, `testSourcePlainFunctions`, `testSourceValueUse`, `testSourceQualifiers`, `testSourceDeclOf`, `testSourceReferenceSignature` and `testSourceWrite` in `cmd/corvint/test_source_slices.go`; their call and the shared base read in `testGoSlices` in `cmd/corvint/test_slices.go`; the TSP-V0-006 verdict line in `testVerdict` in `cmd/corvint/test.go` | `TestTSPV0006DryRunSlicesSourceChanges` in `cmd/corvint/test_source_slices_tspv0006_unix_test.go` (a called function, a doc comment, a function a method calls and an added function slice to the reaching and external tests; a function no test reaches builds only; every test reaching, an own test file, a value use, a package variable reached, initialization reaching, a method, an import, a variable, a comment outside functions, a dependency also changed, a new file, an assembly file, `go:linkname` and cgo stay whole, and so do a function that stopped reaching a package variable, a pointer parameter, a write through another package's variable in the head or only in the base body, a function reaching such a write, and a dot import; the importer stays whole); `TestTSPV0006PlainFunctionsAndQualifiers` and `TestTSPV0006ReferenceSignatureAndWrites` (basic-only signatures; pointer, slice, map, channel, function, interface, named, struct, array, variadic, `uintptr`, pointer-result, generic and redeclared-basic signatures and writes through a selector, pointer, index or range target or by `copy`, `delete` or `clear` are named) in `cmd/corvint/test_source_slices_tspv0006_test.go`; `TestSTRV0072SliceWalksDoNotGrowWithPackages` (two Git processes with a source change present); the mutation check in `docs/build-log/2026-10-30-v1-2806-source-slices.md` |
 | TSP-V0-007 | `readPrior`, `rerun`, `buildPrior` and `readPriorEvents` in `tools/corvint-pr-tests/rerun.go`; `selectSince` and the `--prior` branch of `planOnly` in `tools/corvint-pr-tests/main.go` | `TestTSPV0007RerunReusesPriorPasses` in `tools/corvint-pr-tests/rerun_tspv0007_test.go` (the fixed package alone reruns while the base-relative selection keeps both; nothing passed, everything passed and one passed; a missing, malformed, unknown-field, other-schema or invalid-package record, another identity, tree, unresolvable merge or head, a rewritten head, a planner failure, a non-`run` verdict, an unavailable tool profile, a refused plan and a `.github` delta each run `./...`; a record followed by a stray `}` or a second value is malformed); `TestTSPV0007PriorRecordFromRunEvidence` (only whole-package passes no directory contradicts; no directories, another merge, an unobserved merge, another identity, a source-drift or planner-drift fallback reason, an execution error, an unreadable or missing event stream each refuse); the replay in `docs/build-log/2026-10-30-v1-3050-pr-rerun-reuse.md` |
 | TSP-V0-960 | `variableValues`, `expand`, `braced`, `named` and `constructed` in `internal/liveverify/affected/shell/computed.go`; the computed command and interpreter cases of `observe` and the `built` map in `internal/liveverify/affected/shell/shell.go`; the `built` argument of `applyForeignCallers` and `foreignCallersComplete` in `internal/liveverify/affected/shell/callers.go` | `TestComputedInvocation_TSP_V0_960` and `TestComputedInvocationValueBoundIsUnbounded_TSP_V0_960` (81 values from two nine-word loops make the test an unbounded reader with its 64 kept edges; 64 values stay bounded) in `internal/liveverify/affected/shell/computed_test.go` (a literal `${NAME-default}` value is an import edge with no frontier; a constructed `"$here/$name.sh"` keeps the frontier of a non-test caller, bearing on dependents, and not of a test; a declared script that constructs a name keeps the frontier; an unlisted literal-parts, pattern or interpreter-operand constructor makes the declaration invalid; a listed one and a pattern naming another script keep it declared) |
+| TSP-V0-940 | `gatedLocators` and `applyGatedLocators` in `internal/gateselect/gatedlocators.go`, their call in `indexRepository` (`internal/gateselect/readers.go`); the two frontiers in `moduleLevelFrontiers` (`internal/gateselect/select.go`) | `TestGatedRootLocatorsMatchThePlanner_TSP_V0_940` in `internal/gateselect/gatedlocators_test.go`: with a nested module and a dependent of a gated locator, the selector's rule (d) equals the planner's `UnboundedReaders` undeclared (the dependent included) and declared (the locator alone), a nested-module change selects the same root-module units in both, an invalid declaration declares nothing, and a plan naming either frontier falls back. |
 
 ## Rollback
 
@@ -304,4 +318,6 @@ make `applyForeignCallers` return at once; every script then carries the frontie
 original reason. No stored state depends on it. TSP-V0-007: stop passing `--prior`; `rerun.json` is then
 not written and only `selection.json` decides, as before. TSP-V0-960: make
 `constructed` return false and pass an empty `built` map; computed words are then ignored again.
-No stored state depends on it.
+No stored state depends on it. TSP-V0-940: drop the `applyGatedLocators`
+call in `indexRepository` and the two `moduleLevelFrontiers` entries; the selector then follows a
+declared package's dependents on every dirty path again, as before.

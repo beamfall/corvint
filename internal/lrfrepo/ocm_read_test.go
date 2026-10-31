@@ -84,3 +84,28 @@ func TestOCMBindingNamesGitBudgetExpiryNotMissingObject(t *testing.T) {
 		})
 	}
 }
+
+// TestOCMPrepareNamesTheUnavailableTarget_DCW_V0_940 pins DCW-V0-940
+// (V1-2445): a map whose target commit is absent from the repository is
+// refused as repository-object-unavailable naming that commit, and a mapped
+// Git refusal keeps the underlying message.
+func TestOCMPrepareNamesTheUnavailableTarget_DCW_V0_940(t *testing.T) {
+	root, _, target := makeOCMPrepareRepository(t)
+	cemRaw := []byte("{}")
+	missing := strings.Repeat("0", len(target))
+	repository, err := gitauth.Open(root, gitrun.NewDefaultBudget())
+	if err != nil {
+		t.Fatal(err)
+	}
+	document := &ocmDocument{target: missing, cemMap: sha256Hex(cemRaw)}
+	err = verifyOCMBinding(context.Background(), repository, &wire.Map{}, cemRaw, nil, document, Options{})
+	if CodeOf(err) != "repository-object-unavailable" || !strings.Contains(err.Error(), "target commit "+missing) {
+		t.Fatalf("missing target: %v, want repository-object-unavailable naming %s", err, missing)
+	}
+	underlying := &Error{Code: "repository-object-unavailable", Message: "tree 1234 does not resolve locally"}
+	for _, mapped := range []error{mapOCMRepositoryError(underlying), mapOCMCEMError(underlying)} {
+		if CodeOf(mapped) != "repository-object-unavailable" || !strings.Contains(mapped.Error(), "tree 1234 does not resolve locally") {
+			t.Errorf("mapped refusal %v drops the underlying object", mapped)
+		}
+	}
+}

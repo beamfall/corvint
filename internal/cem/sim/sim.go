@@ -6,6 +6,11 @@ package sim
 
 import (
 	"bytes"
+	"crypto/sha1"
+	"crypto/sha256"
+	"encoding/hex"
+	"hash"
+	"strconv"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/patch"
@@ -33,6 +38,9 @@ func Simulate(parsed *patch.Patch, source BlobSource) error {
 }
 
 func simulateGroup(group *patch.Group, source BlobSource) error {
+	if group.Binary {
+		return simulateBinaryGroup(group, source)
+	}
 	oldBytes, err := groupOldBytes(group, source)
 	if err != nil {
 		return err
@@ -48,6 +56,48 @@ func simulateGroup(group *patch.Group, source BlobSource) error {
 		return mismatch("delete of %q does not produce empty bytes", *group.OldPath)
 	}
 	return nil
+}
+
+// simulateBinaryGroup applies no hunk to a binary group (CEM-V1-982): a
+// creation's destination must be absent, and a modified or deleted base must
+// be the regular blob the index line names, in the group's mode. The target
+// side carries no bytes; the canonical-diff proof binds it.
+func simulateBinaryGroup(group *patch.Group, source BlobSource) error {
+	if group.Kind == patch.KindCreate {
+		return requireDestinationAbsent(group, source)
+	}
+	data, mode, exists, err := source.BaseBlob(*group.OldPath)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return mismatch("old path %q is absent from the base tree", *group.OldPath)
+	}
+	if mode != group.Mode {
+		return cemcode.New(cemcode.DiffMetadataMismatch,
+			"binary group mode %s disagrees with base mode %s of %q", group.Mode, mode, *group.OldPath)
+	}
+	if BlobObjectID(data, len(group.OldOID)) != group.OldOID {
+		return mismatch("base blob of %q is not object %s", *group.OldPath, group.OldOID)
+	}
+	return nil
+}
+
+// BlobObjectID is the Git blob object ID of data: SHA-1 for a 40-hex width,
+// SHA-256 for a 64-hex width, and "" for any other width.
+func BlobObjectID(data []byte, width int) string {
+	var digest hash.Hash
+	switch width {
+	case 40:
+		digest = sha1.New()
+	case 64:
+		digest = sha256.New()
+	default:
+		return ""
+	}
+	digest.Write([]byte("blob " + strconv.Itoa(len(data)) + "\x00"))
+	digest.Write(data)
+	return hex.EncodeToString(digest.Sum(nil))
 }
 
 func groupOldBytes(group *patch.Group, source BlobSource) ([]byte, error) {

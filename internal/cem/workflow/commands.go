@@ -279,6 +279,10 @@ func (s *Session) Prepare(ctx context.Context, options PrepareOptions) (map[stri
 	if err != nil {
 		return nil, s.treeModeRefusal(ctx, base, target, err)
 	}
+	binary, err := s.binaryRows(ctx, parsed)
+	if err != nil {
+		return nil, err
+	}
 	// The map lock spans resume inspection through publication, so an
 	// interrupted pair's backup is restored before the map counts as missing
 	// and no concurrent cite or mark lands between read and replace. A stable
@@ -349,6 +353,9 @@ func (s *Session) Prepare(ctx context.Context, options PrepareOptions) (map[stri
 	if profile {
 		result["profile"] = gitauth.NonRegularProfile
 		result["nonRegular"] = NonRegularRows(nonRegular)
+	}
+	if binary != nil {
+		result["binary"] = binary
 	}
 	if pathPolicy {
 		// The policy is read from the resolved base only, after the map is
@@ -553,6 +560,9 @@ func (s *Session) requireCiteSpanStable(ctx context.Context, document *wire.Map,
 	for _, group := range parsed.Groups {
 		if group.OldPath == nil || *group.OldPath != evidencePath {
 			continue
+		}
+		if group.Binary {
+			return binaryCiteRefusal(evidencePath)
 		}
 		patchedBlob, err := sim.ApplyHunks(group, baseBlob)
 		if err != nil {

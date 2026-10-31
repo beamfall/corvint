@@ -19,6 +19,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/cli"
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
+	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/supervisor"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
@@ -937,5 +938,35 @@ func TestTQDV0010_PluginDiscoveryDoesNotBlockOnFIFO(t *testing.T) {
 		}
 	case <-time.After(10 * time.Second):
 		t.Fatal("plugin discovery blocked opening a FIFO")
+	}
+}
+
+// TQD-V0-820, V1-1193: the doctor's scan names how its journal audit ran, so
+// a doctor that walked the whole journal is visible as FULL rather than only
+// slow; with the writer-retained read checkpoint it resumes from the tail.
+func TestTQDV0820DoctorScanNamesJournalAudit(t *testing.T) {
+	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
+	id := planTicket(t, root, "audit-mode", "P1", `["src/"]`)
+	loopCLIHandoffs(t, root, id, 1)
+	repo, err := intent.Resolve(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(journal.CheckpointPath(repo.StateDir)); err != nil {
+		t.Fatalf("the writers retained no read checkpoint: %v", err)
+	}
+	_, item := doctorOK(t, root)
+	if got := field(field(item, "scan"), "journalAudit").Str; got != "CHECKPOINT_PLUS_TAIL" {
+		t.Fatalf("with a checkpoint journalAudit=%q: %s", got, wire.Encode(field(item, "scan")))
+	}
+	if err := os.Remove(journal.CheckpointPath(repo.StateDir)); err != nil {
+		t.Fatal(err)
+	}
+	_, full := doctorOK(t, root)
+	if got := field(field(full, "scan"), "journalAudit").Str; got != "FULL" {
+		t.Fatalf("without a checkpoint journalAudit=%q: %s", got, wire.Encode(field(full, "scan")))
+	}
+	if !bytes.Equal(wire.Encode(field(item, "findings")), wire.Encode(field(full, "findings"))) {
+		t.Fatalf("the audit mode changed the findings:\n%s\n%s", wire.Encode(field(item, "findings")), wire.Encode(field(full, "findings")))
 	}
 }

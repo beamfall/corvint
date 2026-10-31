@@ -73,3 +73,28 @@ func TestAHI373PluginCommandsShipInCoreRelease(t *testing.T) {
 		}
 	}
 }
+
+// AHI-820: the Claude Code plugin declares its corvint server with the test-validity and docs
+// tool groups over the legacy handshake Claude Code speaks (V1-2513).
+func TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "integrations", "claude-code", "plugins", "corvint", ".mcp.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var declared struct {
+		MCPServers map[string]struct {
+			Command string   `json:"command"`
+			Args    []string `json:"args"`
+		} `json:"mcpServers"`
+	}
+	if err := json.Unmarshal(raw, &declared); err != nil {
+		t.Fatal(err)
+	}
+	server := declared.MCPServers["corvint"]
+	want := []string{"mcp", "--root", "${CLAUDE_PROJECT_DIR}", "--protocol-version", "2025-11-25", "--tool-profile", "test-validity,docs"}
+	if len(declared.MCPServers) != 1 || server.Command != "corvint" || !slices.Equal(server.Args, want) {
+		t.Fatalf("declared %+v, want one corvint server with args %q", declared.MCPServers, want)
+	}
+	// The server run over these args is TestAHI820ClaudePluginArgsServeTestValidityAndDocs in
+	// internal/mcp/cli: starting it here would pin Git for this whole test process.
+}
