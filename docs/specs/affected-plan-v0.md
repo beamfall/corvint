@@ -5302,6 +5302,20 @@ filed from its plan. Nothing in the receipt said the binary was older than the s
   driver run of the consumer, no inference of a consumer from environment variables. Rollback:
   remove the member, `matchBinaryConsumers`, `unselectedConsumers` and the repository entries.
 
+### Agent instruction files (AFP-V0-763; V1-2077)
+
+- **AFP-V0-763:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2077)
+  Decision: affected gives agent instruction files (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, at any
+  depth) no built-in ownership class. Only the project knows whether a build, a test or a tool
+  reads one (Corvint's own `affected` advice reads the target's `AGENTS.md` Verify block), so a
+  built-in class would be a Corvint guess outranking project authority (invariant 3); the existing
+  project-owned route is the AFP-V0-160 documentation declaration, which still selects every unit
+  whose path literal or declared read scope reaches the file. An undeclared instruction file stays
+  `UNOWNED_DIRTY_PATH`, and its entry SHALL carry an AFP-V0-494 `hint` naming that declaration
+  route (a symlink hint wins), changing neither selection nor scope. This repository SHALL declare
+  its root `AGENTS.md` and `CLAUDE.md` in `.corvint/documentation-paths.json`, so a change to them
+  alone is `DECLARED_DOCUMENTATION` here. Rollback: remove `instructionHints` and the two entries.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
@@ -5662,6 +5676,7 @@ traceability table.
 | AFP-V0-520 | `sealedCEM`, `validEntry`, `documentation`, `declared` and the non-Go branch of `.github/forward-rows/tiers.jq`; the `.corvint/documentation-paths.json` read and `--rawfile documentation` in `.github/forward-rows/tiers.sh` | `TestAFPV0520TierExemptions` in `tools/ci-forward-row/shadowcost_test.go` (a sealed CEM alone, declared documentation alone, and both beside a Go file keep the Go file's tiers; a `Makefile`, a script, undeclared docs, the CEM sidecar, a nested or empty-stem CEM, a CEM outside `.corvint/changes/` and the declaration itself stay FULL; a declared `testdata`, embedded or `.github/` path stays FULL; sixteen invalid declarations declare nothing); `TestAFPV0480Tiers` (`tiers.sh` end to end: adding the declaration is FULL, then a CEM and a declared spec are not, and a `Makefile` is) |
 | AFP-V0-761 | `FrontierRoute` in `internal/liveverify/affected/unit.go`, its loop in `frontierUnknowns` (`select.go`); `Language.FrontierRoute` and `WorkspaceOutsideRootRoute` in `internal/liveverify/affected/golang/golang.go` | `TestWorkspaceOutsideRootFrontierNamesTheRoute_AFPV0761` (an outside-root `go.work` sibling: the entry's hint names the `corvint breakage` route for a root and a `go.work` change, scope stays `UNKNOWN`; the nested-module reason names none); `TestWorkspaceDirtySourceSelectsTheOtherModulesTest` |
 | AFP-V0-762 | `binaryExecsFile.Consumers`, `readBinaryExecs`, `matchBinaryConsumers` in `internal/liveverify/affected/golang/binaryexecs.go`; `unselectedConsumers` in `internal/liveverify/affected/execs.go`; `.corvint/test-binary-execs.json` | `TestDeclaredBinaryConsumerIsAnExplicitUnknown_AFPV0762` (a library or command change names the consumer, a test-only command change and an unrelated change do not); `TestInvalidBinaryConsumerDeclaresNothing_AFPV0762`; `TestRepositoryDeclaresWebFlowsConsumers_AFPV0762` |
+| AFP-V0-763 | `instructionHints`, `instructionUnownedHint` in `internal/liveverify/affected/documentation.go`, called from `selectPlan`; `.corvint/documentation-paths.json` | `TestInstructionFileUnknownNamesTheDeclarationRoute_AFPV0763` (an undeclared root or nested instruction file carries the hint and stays `UNKNOWN`, another unowned path none; declared, both are `DECLARED_DOCUMENTATION` and `BOUNDED`); `TestRepositoryDeclaresItsInstructionFiles_AFPV0763` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`
