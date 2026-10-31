@@ -704,7 +704,8 @@ func (r Reader) capture(lim limits, lite bool) (*observation, error) {
 			if info.Size() > int64(max) || info.Size() > int64(wire.MaxIntentTreeBytes-total) {
 				return nil, wire.Errorf(wire.CodeLimitExceeded, p, "intent byte bound")
 			}
-			raw, sum, shared := r.sharedIntent(p, info.Size())
+			raw, sum, shared := r.sharedIntent(p, info.Size(), !o.writer)
+			indexed := shared && raw == nil // a closed ticket the probe took from its index (TCX-V0-985)
 			if !shared {
 				raw, sum, shared = r.writerIntent(p, info)
 			}
@@ -715,18 +716,22 @@ func (r Reader) capture(lim limits, lite bool) (*observation, error) {
 				}
 				sum = wire.Sum(raw)
 			}
-			if len(raw) == 0 && !strings.HasPrefix(p, "intent/tickets/") {
+			n := len(raw)
+			if indexed {
+				n = int(info.Size())
+			}
+			if n == 0 && !strings.HasPrefix(p, "intent/tickets/") {
 				return nil, wire.Errorf(wire.CodeMalformed, p, "empty intent file")
 			}
-			if len(raw) > wire.MaxIntentTreeBytes-total {
+			if n > wire.MaxIntentTreeBytes-total {
 				return nil, wire.Errorf(wire.CodeLimitExceeded, p, "intent tree grew beyond bound")
 			}
-			total += len(raw)
+			total += n
 			o.intentDigests[p] = sum
 			if o.writer {
 				o.intentRaw[p] = raw
 			}
-			intents = append(intents, intent.File{Path: strings.TrimPrefix(p, "intent/"), Sha256: sum, Bytes: len(raw)})
+			intents = append(intents, intent.File{Path: strings.TrimPrefix(p, "intent/"), Sha256: sum, Bytes: n})
 		}
 	}
 	if r.liveness {
@@ -773,15 +778,26 @@ func (r Reader) capture(lim limits, lite bool) (*observation, error) {
 }
 
 // sharedIntent returns the bytes and digest the outer snapshot hashed for
-// intent path p, when it holds that file at the observed size.
-func (r Reader) sharedIntent(p string, size int64) ([]byte, wire.Digest, bool) {
+// intent path p, when it holds that file at the observed size. When digest
+// alone is enough (no bytes are kept), a file the snapshot took from the
+// closed-ticket index shares its digest with nil bytes (TCX-V0-985).
+func (r Reader) sharedIntent(p string, size int64, digestOnly bool) ([]byte, wire.Digest, bool) {
 	if r.IntentTree == nil {
 		return nil, "", false
 	}
 	files := r.IntentTree.Files
 	rel := strings.TrimPrefix(p, "intent/")
 	i := sort.Search(len(files), func(i int) bool { return files[i].Path >= rel })
-	if i == len(files) || files[i].Path != rel || files[i].Raw == nil || int64(len(files[i].Raw)) != size {
+	if i == len(files) || files[i].Path != rel {
+		return nil, "", false
+	}
+	if files[i].Raw == nil {
+		if digestOnly && int64(files[i].Bytes) == size {
+			return nil, files[i].Sha256, true
+		}
+		return nil, "", false
+	}
+	if int64(len(files[i].Raw)) != size {
 		return nil, "", false
 	}
 	return files[i].Raw, files[i].Sha256, true

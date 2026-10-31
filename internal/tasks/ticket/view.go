@@ -171,7 +171,7 @@ func (ctx Context) attempts() AttemptOracle {
 
 // View derives the §3.2 eligibility for one ticket. It never writes.
 func (inv *Inventory) View(id string, ctx Context) (View, bool) {
-	rec, ok := inv.byID[id]
+	rec, ok := inv.Get(id)
 	if !ok {
 		return View{}, false
 	}
@@ -213,7 +213,7 @@ func (inv *Inventory) View(id string, ctx Context) (View, bool) {
 	}
 	// §3.1 dependency obligations at the dependency's current acceptanceRevision.
 	for _, d := range rec.Dependencies {
-		dep, ok := inv.byID[d.TicketID.Raw]
+		dep, ok := inv.sum[d.TicketID.Raw]
 		if !ok {
 			continue // already DEPENDENCY_MISSING
 		}
@@ -243,7 +243,7 @@ func (inv *Inventory) View(id string, ctx Context) (View, bool) {
 			continue
 		}
 		scope := " (execution prerequisite for stages " + strings.Join(p.Stages, ",") + ")"
-		pre, ok := inv.byID[p.TicketID.Raw]
+		pre, ok := inv.sum[p.TicketID.Raw]
 		if !ok {
 			add(wire.CodePrerequisiteUnsatisfied, p.TicketID.Raw, "prerequisite "+p.TicketID.Raw+" does not exist in the queue"+scope)
 			continue
@@ -373,6 +373,13 @@ func holdIDs(rec *Record) string {
 // An unknown execution prerequisite (CAL-V0-099: a GATE_PASSED obligation
 // whose gate is NOT_OBSERVED) refuses admission like a blocker, so it waits
 // on the prerequisite rather than recommending an admission that must fail.
+// ClosedView is View's eligibility and next action for a COMPLETED or
+// ARCHIVED ticket, which depend on its status alone, so a read can render a
+// closed ticket from its summary (TCX-V0-986).
+func ClosedView(s *Summary) (eligibility, next string) {
+	return EligibilityBlocked, nextAction(&Record{Status: s.Status}, nil, nil)
+}
+
 func nextAction(rec *Record, blockers, unknowns []Blocker) string {
 	switch rec.Status {
 	case StatusDraft:

@@ -36,6 +36,9 @@ type heldHold struct {
 func collectHeldHolds(inv *ticket.Inventory) []heldHold {
 	var out []heldHold
 	for _, id := range inv.IDs() {
+		if closedTicket(inv, id) {
+			continue
+		}
 		rec, ok := inv.Get(id)
 		if !ok || rec.Status != ticket.StatusHeld {
 			continue

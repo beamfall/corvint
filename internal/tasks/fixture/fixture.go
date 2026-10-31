@@ -319,6 +319,20 @@ func WriteState(t *testing.T, r *Repo) {
 	Write(t, filepath.Join(r.StateDir, "head.json"), wire.EncodeFile(HeadValue(r.Root, 1, d, 0, d)))
 }
 
+// WriteWritableState is WriteState plus the other directories store.Init
+// creates, so the real writer can commit CLI mutations on the store. Without
+// staging the writer refuses with "fixture filesystem identity, role or
+// lifetime refused" (TCX-V0-987).
+func WriteWritableState(t *testing.T, r *Repo) {
+	t.Helper()
+	WriteState(t, r)
+	for _, d := range []string{"evidence", "pinned", "requests", "staging"} {
+		if err := os.MkdirAll(filepath.Join(r.StateDir, d), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 // Commit appends one receipt of the given kind to the chain and advances
 // head.json, simulating a committed transaction (test-only; the real
 // commit protocol is TCP-02's).
