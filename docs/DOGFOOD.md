@@ -772,7 +772,7 @@ target already carries an older sidecar that `CEM-CB-009` requires to equal the 
   (`corvint-version-mismatch expected=V`); without it the current tree is built
   (`current-tree-corvint-build-failed`). The 256-commit refusal is not a promise that one piece fits:
   size each piece for both the 256-row citation-plan limit
-  (`script/dogfood-bind-range.sh:136-143@3b3a27f5`) and the verifier's 1,024-logical-Git-operation
+  (`script/dogfood-bind-range.sh:149-156@3b3a27f5`) and the verifier's 1,024-logical-Git-operation
   budget (`internal/cem/gitrun/gitrun.go:32-38@a875e210`). For the current object-identity and
   tree-walk checks, use roughly 5.7 operations per changed path plus 10 per evidence record as a
   planning estimate; path depth, shared objects, and request-memo hits change the exact count, so
@@ -837,10 +837,26 @@ target already carries an older sidecar that `CEM-CB-009` requires to equal the 
   detail=D`, and the binding commit message carries the same `NOT_PRODUCED` line per row before its
   trailer. A malformed plan fails as `cem-mark invalid-unknown-plan`.
 
+- `DCW-V0-824` to `DCW-V0-827` (experimental; V1-3365 to V1-3368, `docs/specs/daily-change-evidence-workflow-v0.md`)
+  refine this contract: `DOGFOOD_CITATIONS=auto-inherit` drafts the plan from the sealed constituent
+  CEMs of the range through `tools/dogfood-inherit-citations` (hunk ID, then added-line overlap;
+  each span relocated to BASE by exact text) and leaves every uninherited hunk a visible
+  `NOT_PRODUCED` unknown; a plan row may name `bytes:START:END` for `cem cite --bytes`; the script
+  reads no caller stdin; and a `cem-policy` failure prints only the counts, the `policyIssues` and
+  the status file path.
+
+- `DCW-V0-828` to `DCW-V0-831` (experimental; V1-3369 to V1-3372) extend it: an uninherited hunk is
+  proposed a cited class when TARGET's generator or checker reproduces or admits it (`spec-index`,
+  `line-citation-repin`, `use-case-receipt-repin`) or when it is the byte-identical move of a sealed
+  CEM (`sealed-cem-rename`, citing this document's seal clause); `--prepare-only` (or
+  `DOGFOOD_CITATIONS=none`) writes the hunk map and exits 0 without binding; and
+  `script/dogfood-bind-coverage.sh BASE TARGET` lists, read-only, the evidence covering each
+  first-parent commit of the half-open range.
+
 Failure modes: a failing prepare, citation, binding-commit, or status step exits 1 with
 `dogfood-bind-range: FAIL STEP REASON` (`cem-prepare`, `cem-cite` including
 `invalid-citation-plan`, `cem-mark` including `invalid-unknown-plan`, `binding-commit-failed`, `cem-status`, or `cem-policy` after printing the
-status line) and prints no `PASS` or `next:` line. A failure after the binding commit is written
+bounded policy summary of `DCW-V0-825`) and prints no `PASS` or `next:` line. A failure after the binding commit is written
 leaves only an unreferenced commit object that `git gc` may prune. A citation that no longer
 survives the change, or an uncited hunk absent from the unknown plan, fails status rather than
 being marked.
