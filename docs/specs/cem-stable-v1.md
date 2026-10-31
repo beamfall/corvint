@@ -4628,6 +4628,17 @@ positive cell, with the identical full result, or a typed refusal at stage `repo
   - the native test pins the native code and compares every other key exactly. Its expected
     `verdictSha256` is recomputed by hand from that expectation, so V1-2133 removes the table
     entries deliberately.
+- `CEM-V1-960`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2519) A
+  repository root, administrative directory or common directory whose path has a symbolic-link
+  component MUST be refused by the stable admission itself, before any boundary is retained, with
+  `repository-object-unavailable` and a detail naming the link and asking for the resolved path. The
+  retained boundary's `Validate` MUST NOT be the first to observe the link, so `repository boundary
+  changed during verification` is reported only when an admitted directory or descriptor changed
+  identity. The same repository opened by its resolved path is admitted and validates unchanged.
+  Failure mode: a macOS `/var` temporary path is admitted and then refused as a change that never
+  happened. Falsifier: a symlinked path that OpenStable admits, or a refusal of it whose detail does
+  not name the link. Rollback: drop the symbolic-link detail branch in `stableAdmission.directory`;
+  the generic `not reached through ordinary directories` refusal with the same code remains.
 
 Non-goals:
 - no change to the admission order, the stable profile, the packet, the cells or any file under
@@ -4670,6 +4681,7 @@ Rollback: delete the two test files. No product code, wire byte or packet byte c
 | CEM-V1-365 | `TestStableEnvelopeAdversarialShapes` (`internal/cem/verify`, `interop/cem01-go`) | `sha256-extensions-first-mixed-case` and `unknown-extension-v0` give the full result of `ordinary-sha256` and `ordinary-sha1` |
 | CEM-V1-366 | `TestStableEnvelopeAdversarialShapes` (`internal/cem/verify`, `interop/cem01-go`) | `unknown-extension-v1`, `sha1-store-claims-sha256` and `sha256-store-claims-sha1` refuse with `git-read-failed` in both consumers |
 | CEM-V1-367 | `TestStableCanonicalEnvelopeCellsNative` (`internal/cem/verify`), `TestStableCanonicalEnvelopeCells` (`interop/cem01-go`), `TestMapCoreVerbsRefuseAPromisorObjectWithoutFetching` (`cmd/corvint`) | Resolved by V1-2133 (`CEM-V1-568`): both consumers give `git-diff-failed` and the packet's `verdictSha256` on the two blob cells; the native test asserts 29/29 exact cells |
+| CEM-V1-960 | `TestOpenStableSymlinkedPathIsRefusedUpFront_V12519`, `TestStableBoundaryResolvedPathValidates_V12519` (`internal/cem/gitauth`) | Ancestor link, root link and a gitfile naming a linked path refuse up front with `repository-object-unavailable` naming the link; the resolved path validates |
 
 ### Stable review rows carry citation tier, anchors and evidence location (V1-1339, 2026-10-21)
 
