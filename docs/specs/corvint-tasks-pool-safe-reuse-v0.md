@@ -1178,7 +1178,7 @@ dispatcher (CAL-V0-137, CAL-V0-139) and the `ReadDir` listing that relies on dir
   file beyond its descriptor budget, so that a difference or a failed read reports
   `SNAPSHOT_MOVED` at the next check, and registration MUST NOT fail for want of a file watch. A
   directory whose watch the kernel refuses MUST still fail the registration, as
-  `UNSUPPORTED_FILESYSTEM` naming the allowance, because directory events are what report an
+  `UNSUPPORTED_FILESYSTEM` naming the allowance (`RESOURCE_EXHAUSTED` since CAL-V0-900), because directory events are what report an
   entry created, removed or renamed at any time. The ceiling bounds the regular-file watches of
   one guard independently of the store's receipt count; it does not bound the guard's directory
   watches, and it does not bound the sum over guards: concurrent writers, each with up to its

@@ -5926,6 +5926,14 @@ from invalid requests. `wire.CodeOf` previously mapped every untyped error to `M
   `mutation:null`, preserving store and journal bytes. Explicit `NotRetryable`, `Unretryable`
   and `WithoutRetry` marks MUST still force false, including an untyped exhaustion error after
   a program or a committed multi-step operation that a replay cannot finish.
+- `CAL-V0-900`: (proposed, V1-2483) The shared Tasks error classifier MUST also classify an
+  untyped error matching `syscall.ENOSPC` through `errors.Is` as `RESOURCE_EXHAUSTED`, never
+  `MALFORMED`: the host is out of a shared resource (disk space, or the per-user inotify watch
+  allowance), which is not a fault of the request and can clear. The Linux change guard MUST
+  refuse a directory watch the kernel declines with `ENOSPC` as `RESOURCE_EXHAUSTED` naming the
+  path and `fs.inotify.max_user_watches`, which amends the `UNSUPPORTED_FILESYSTEM` code of
+  PSR-V0-221: the allowance is shared by concurrent guards and frees when they finish. Explicit
+  codes and non-retryable marks keep precedence as under CAL-V0-215.
 
 Durable-write boundary: `store.applyWithFaults` publishes evidence, then the receipt, then post
 files, then head. An error after receipt publication can leave a committed effect, even when the
@@ -7993,6 +8001,7 @@ and removes the new configuration members.
 | CAL-V0-210 | `TestCALV0074_NoExecCrashTakeover` (`internal/tasks/store`) |
 | CAL-V0-217 | `TestCALV0217_SafetyNetIsFifteenMinutes` (`internal/tasks/dispatch`) |
 | CAL-V0-215 | `TestCALV0215_ResourceExhausted`, `TestCALV0215_WithoutRetry` (`internal/tasks/wire`); `TestCALV0215_PoolAcquireResourceExhausted`, `TestCALV0215_RetryOverrides` (`internal/tasks/cli`); `TestCALV0215_ReceiptLinkExhaustion` (`internal/tasks/authority`); `TestCALV0215_CommittedPoolExhaustion`, `TestCALV0215_CommittedDispatchExhaustion`, `TestCALV0215_AutomaticHealthExpiryReapExhaustion` (`internal/tasks/store`) |
+| CAL-V0-900 | `TestCALV0900_NoSpaceIsResourceExhausted` (`internal/tasks/wire`); `TestCALV0364_ChangeGuardRefusesADirectoryBeyondTheInotifyLimit` (`internal/tasks/authority`, Linux) |
 | CAL-V0-216 | `TestCALV0216_LockWaitAdmissionVerbs`, `TestCALV0111_LockWaitFlag` (`internal/tasks/cli`) |
 | CAL-V0-211 | `TestCALV0211_ClaimWarnsOnExactDirectoryKey`, `TestCALV0211_ExactDirectoryKeyWarnings` (`internal/tasks/store`); `TestCALV0211_SetEffectsWarnsOnExactDirectoryKey` (`internal/tasks/cli`) |
 | CAL-V0-214 | `internal/tasks/cli/mutate.go`, `internal/tasks/cli/mutate_batch.go`, shared `internal/tasks/store/directory_keys.go`, both store mutation writer routes; `TestCALV0214_CreateAndRefineWarnOnExactDirectoryKey` (`internal/tasks/cli`), `TestCALV0214_CommittedEffectsStayBoundToTransaction` (`internal/tasks/store`) |
@@ -8224,7 +8233,7 @@ The classification, as `wire.RetryOf` records it:
 
 | Codes | Retryable | Condition or reason |
 | --- | --- | --- |
-| `RESOURCE_EXHAUSTED` | yes (CAL-V0-215, decision 0519) | EMFILE/ENFILE descriptor pressure clears; same-request retry, unless an explicit non-retryable mark forbids it |
+| `RESOURCE_EXHAUSTED` | yes (CAL-V0-215, decision 0519; CAL-V0-900) | EMFILE/ENFILE descriptor pressure, or ENOSPC disk or inotify watch exhaustion, clears; same-request retry, unless an explicit non-retryable mark forbids it |
 | `LOCK_TIMEOUT` | yes | Lock or preparation admission held by another writer past the wait; nothing locked or written |
 | `SNAPSHOT_MOVED` | yes | Store, head, intent tree or worktree moved during a read or before commit; nothing decided. A release or attestation candidate whose head no longer matches, and a criterion capture wrapping a refused read, repeat until their input changes |
 | `REDO_PENDING` | yes | A writer is between receipt link-in and head rename; the next mutating command redoes a crashed writer's receipt |
