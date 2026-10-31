@@ -520,7 +520,7 @@ func TestFinishLaneDCWV0378DigestsOnlyRegularFiles(t *testing.T) {
 // glob syntax, then leaves an ignored OCM status sidecar dated 1990, before
 // BASE; run runs finish-lane there with steps that fail and returns its exit
 // code, step calls and stderr.
-func staleSidecarLane(t *testing.T) (root, stale string, run func() (int, int, string)) {
+func staleSidecarLane(t *testing.T) (root, stale string, run func(preflight bool) (int, int, string)) {
 	t.Helper()
 	// Glob syntax in the worktree path must not hide its sidecars.
 	root = filepath.Join(t.TempDir(), "lane[1]")
@@ -555,19 +555,20 @@ func staleSidecarLane(t *testing.T) (root, stale string, run func() (int, int, s
 	scratch := t.TempDir()
 	plan := filepath.Join(scratch, "cites.tsv")
 	verify := filepath.Join(scratch, "verify.txt")
-	for path, data := range map[string]string{plan: "1\ta.txt\t1:1\tspecification\n", verify: "go test -count=1 -run TestA ./internal/a\n"} {
+	intents := filepath.Join(scratch, "intents.txt")
+	for path, data := range map[string]string{plan: "1\ta.txt\t1:1\tspecification\n", verify: "go test -count=1 -run TestA ./internal/a\n", intents: "#no-intent-declared\n"} {
 		if err := os.WriteFile(path, []byte(data), 0o666); err != nil {
 			t.Fatal(err)
 		}
 	}
-	run = func() (int, int, string) {
+	run = func(preflight bool) (int, int, string) {
 		calls := 0
 		steps := Runner{Path: "corvint", Run: func(context.Context, string, []string, io.Writer, io.Writer) int {
 			calls++
 			return 1
 		}}
 		var stdout, stderr bytes.Buffer
-		code, err := FinishLane(context.Background(), FinishLaneOptions{Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan, VerifyFile: verify, Outcome: "passed"}}, &stdout, &stderr)
+		code, err := FinishLane(context.Background(), FinishLaneOptions{Preflight: preflight, Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan, IntentsFile: intents, VerifyFile: verify, Outcome: "passed"}}, &stdout, &stderr)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -588,7 +589,7 @@ func TestFinishLaneDCWV0400RefusesAStaleSidecarBeforePrepare(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, ".git", "corvint", "stale-ocm"), nil, 0o666); err != nil {
 		t.Fatal(err)
 	}
-	code, calls, out := run()
+	code, calls, out := run(false)
 	if code != 2 || calls != 0 || !strings.HasPrefix(out, "dogfood-finish-lane: REFUSE reused-worktree-state\n") ||
 		!strings.Contains(out, "  stale sidecar: .corvint/change.ocm-status.json is ignored and was last written before BASE ") ||
 		!strings.Contains(out, "/corvint/stale-ocm' && mv .corvint/change.ocm-status.json ") {
@@ -598,7 +599,7 @@ func TestFinishLaneDCWV0400RefusesAStaleSidecarBeforePrepare(t *testing.T) {
 	if err := os.Chtimes(stale, time.Now(), time.Now()); err != nil {
 		t.Fatal(err)
 	}
-	if _, calls, out := run(); calls == 0 || strings.Contains(out, "reused-worktree-state") {
+	if _, calls, out := run(false); calls == 0 || strings.Contains(out, "reused-worktree-state") {
 		t.Fatalf("a fresh sidecar was refused: calls=%d stderr=%q", calls, out)
 	}
 }
@@ -608,7 +609,7 @@ func TestFinishLaneDCWV0400RefusesAStaleSidecarBeforePrepare(t *testing.T) {
 // the move is printed, and the run goes on to its steps without refusing.
 func TestFinishLaneDCWV0406RetiresAStaleSidecarAndContinues(t *testing.T) {
 	root, stale, run := staleSidecarLane(t)
-	_, calls, out := run()
+	_, calls, out := run(false)
 	if calls == 0 || strings.Contains(out, "REFUSE reused-worktree-state") ||
 		!strings.HasPrefix(out, "dogfood-finish-lane: RETIRE stale sidecar .corvint/change.ocm-status.json moved to ") {
 		t.Fatalf("step calls=%d stderr=%q, want the sidecar retired and the steps run", calls, out)
@@ -676,7 +677,11 @@ func TestFinishLaneDCWV0400InputsCheckRefusesAStrandedTrace(t *testing.T) {
 		return 1
 	}}
 	var stdout, stderr bytes.Buffer
-	code, err := FinishLane(context.Background(), FinishLaneOptions{Preflight: true, Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan, VerifyFile: verify, Outcome: "passed"}}, &stdout, &stderr)
+	intents := filepath.Join(scratch, "intents.txt")
+	if err := os.WriteFile(intents, []byte("#no-intent-declared\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	code, err := FinishLane(context.Background(), FinishLaneOptions{Preflight: true, Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan, IntentsFile: intents, VerifyFile: verify, Outcome: "passed"}}, &stdout, &stderr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -818,7 +823,12 @@ func TestInputsCheckDCWV0810NotesAStaleSidecar(t *testing.T) {
 		return 1
 	}}
 	var stdout, stderr bytes.Buffer
-	if _, err := FinishLane(context.Background(), FinishLaneOptions{Preflight: true, Change: ChangeOptions{Root: root, Base: testGit(t, root, "rev-parse", "HEAD^"), Steps: steps, Citations: plan, VerifyFile: verify, Outcome: "passed"}}, &stdout, &stderr); err != nil {
+	// DCW-V0-960: the pre-flight also needs an intent manifest.
+	intents := filepath.Join(t.TempDir(), "intents.txt")
+	if err := os.WriteFile(intents, []byte("#no-intent-declared\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := FinishLane(context.Background(), FinishLaneOptions{Preflight: true, Change: ChangeOptions{Root: root, Base: testGit(t, root, "rev-parse", "HEAD^"), Steps: steps, Citations: plan, IntentsFile: intents, VerifyFile: verify, Outcome: "passed"}}, &stdout, &stderr); err != nil {
 		t.Fatal(err)
 	}
 	out := stderr.String()

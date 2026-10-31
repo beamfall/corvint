@@ -69,8 +69,9 @@ func TestProposeCitationsDCWV0161DraftsAnchoredRows(t *testing.T) {
 		"internal/x/x.go":     "docs/specs/x-v0.md\t" + lineOf(t, specLines, "- `XYZ-V0-001`:") + "\tspecification",
 		"internal/x/named.go": "docs/specs/x-v0.md\t" + lineOf(t, specLines, "| `XYZ-V0-002` |") + "\tspecification",
 		// The change modifies plain.go and no untouched file names it, so
-		// its own lines are not proposed (DCW-V0-393).
-		"internal/x/plain.go": "unknown\tinsufficient-evidence\tproposed: no stable BASE line of a file this change leaves untouched names internal/x/plain.go or defines a requirement ID the hunk adds; the change modifies internal/x/plain.go, so its own lines are not proposed; its nearest stable line internal/x/plain.go 4:4 dependency is a review hint only (DCW-V0-439); name the BASE contract the hunk depends on or implements",
+		// its nearest stable line is drafted as a marked proposal
+		// (DCW-V0-962), not an anchor (DCW-V0-393).
+		"internal/x/plain.go": "internal/x/plain.go\t4:4\tdependency",
 	}
 	for index, row := range rows {
 		ordinal, rest, _ := strings.Cut(row, "\t")
@@ -97,9 +98,12 @@ func TestProposeCitationsDCWV0161DraftsAnchoredRows(t *testing.T) {
 		Path string `json:"path"`
 	}
 	statusHunks := []statusHunk{}
+	if !strings.Contains(stderr.String(), "  drafted proposal: 2\tinternal/x/plain.go\t4:4\tdependency\n") {
+		t.Errorf("the plain.go proposal is not marked:\n%s", stderr.String())
+	}
 	for index, row := range rows {
 		fields := strings.Split(row, "\t")
-		if fields[1] == "unknown" {
+		if fields[1] == "unknown" || strings.Contains(stderr.String(), "  drafted proposal: "+row+"\n") {
 			continue
 		}
 		first, _ := strconv.Atoi(strings.SplitN(fields[2], ":", 2)[0])

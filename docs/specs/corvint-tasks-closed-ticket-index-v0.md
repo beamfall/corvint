@@ -11,7 +11,7 @@ Native tickets: V1-3459; V1-3473 (fixture mutations) and V1-3474 (index build to
 
 ## Agent digest
 - Claim: OPEN-path reads take closed tickets' digests and summaries from a derived stat-keyed index, so their cost barely grows with the closed set.
-- Status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3459); TCX-V0-980..988 implemented and tested in tree.
+- Status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3459); implemented and tested in tree.
 - Exists: `internal/tasks/intent/closed_index.go`, `internal/tasks/ticket/lazy.go`, the indexed read path in `internal/tasks/cli`, the audit digest share in `internal/tasks/journal/audit.go`, `fixture.WriteWritableState` and the development tool `internal/tasks/cmd/closed-index`.
 - Blocked on: nothing.
 - Read next: Requirements; Failure modes; Rollback.

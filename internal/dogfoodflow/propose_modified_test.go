@@ -9,14 +9,13 @@ import (
 	"testing"
 )
 
-// TestProposeCitationsDCWV0439NeverDraftsModifiedFileLines pins V1-3145: a
-// draft never cites a line of a file the change modifies. Since the batch
-// integration with DCW-V0-393 no changed file is cited at all, and a
-// requirement-family hunk is anchored only by its family's lines
-// (DCW-V0-404), so every hunk here gets an unknown row; DCW-V0-439 keeps the
-// review hint: the row names its file's nearest stable line, preferring the
-// enclosing heading or declaration. The unrelated spec is never cited.
-func TestProposeCitationsDCWV0439NeverDraftsModifiedFileLines(t *testing.T) {
+// TestProposeCitationsDCWV0962DraftsNearestStableLineAsProposal pins
+// V1-3284 and V1-3428 (amending DCW-V0-439 and DCW-V0-846): a hunk no line of
+// an untouched file anchors gets its modified file's nearest stable line,
+// preferring the enclosing heading or declaration, drafted on stdout as its
+// cite row and marked "drafted proposal" on stderr, with no span drafted
+// twice (DCW-V0-382). The unrelated spec is never cited.
+func TestProposeCitationsDCWV0962DraftsNearestStableLineAsProposal(t *testing.T) {
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
 	spec := "# X v0\n\n## Requirements\n\n- `XYZ-V0-001`: the widget MUST frob.\n" + numbered("requirement", 30) +
@@ -54,31 +53,40 @@ func TestProposeCitationsDCWV0439NeverDraftsModifiedFileLines(t *testing.T) {
 	if len(hunks) != 4 || len(rows) != 4 {
 		t.Fatalf("draft has %d rows for %d hunks:\n%s", len(rows), len(hunks), stdout.String())
 	}
+	spans := map[string]bool{}
 	for index, row := range rows {
 		fields := strings.Split(row, "\t")
 		if strings.Contains(row, "unrelated-v0.md") {
 			t.Errorf("row %d cites the unrelated spec: %q", index+1, row)
 		}
-		if !reasonedUnknownRow(fields) || !strings.Contains(fields[3], "the change modifies "+hunks[index].Path+", so its own lines are not proposed; its nearest stable line "+hunks[index].Path+" ") {
-			t.Errorf("row %d = %q; want a DCW-V0-439 unknown row for %s", index+1, row, hunks[index].Path)
+		// DCW-V0-966: the hunk naming XYZ-V0-001 is anchored on that
+		// requirement's unedited BASE definition in the modified spec.
+		if index == 1 {
+			if row != "2\tdocs/specs/x-v0.md\t5:5\tspecification" || proposalRow(stderr.String(), row) {
+				t.Errorf("row 2 = %q; want the anchored, unmarked XYZ-V0-001 definition", row)
+			}
+			spans[fields[1]+":"+fields[2]] = true
+			continue
+		}
+		if len(fields) != 4 || fields[0] != fmt.Sprint(index+1) || fields[1] != hunks[index].Path || spans[fields[1]+":"+fields[2]] {
+			t.Errorf("row %d = %q; want a distinct cite of its own file %s", index+1, row, hunks[index].Path)
+		}
+		spans[fields[1]+":"+fields[2]] = true
+		if mark := "  hunk " + fields[0] + " edits " + hunks[index].Path + " at BASE "; !strings.Contains(stderr.String(), mark) {
+			t.Errorf("row %d: stderr lacks %q", index+1, mark)
+		}
+		if mark := "  drafted proposal: " + row + "\n    the nearest stable BASE span of the file this hunk edits, a same-file proposal rather than an anchor (DCW-V0-393): confirm it, or replace it"; !strings.Contains(stderr.String(), mark) {
+			t.Errorf("row %d is not marked as a proposal:\n%s", index+1, stderr.String())
 		}
 	}
-	if !strings.Contains(rows[0], "nearest stable line docs/specs/x-v0.md 3:3 specification is a review hint only") {
-		t.Errorf("spec row does not hint its enclosing heading: %q", rows[0])
+	if rows[0] != "1\tdocs/specs/x-v0.md\t3:3\tspecification" {
+		t.Errorf("spec row does not draft its enclosing heading: %q", rows[0])
+	}
+	if !strings.Contains(stderr.String(), "  proposals=3 rows are drafted proposals") {
+		t.Errorf("draft header does not count the proposals:\n%s", stderr.String())
 	}
 	// DCW-V0-845 (V1-3302): the header names the line basis and the BASE sha.
 	if basis := "  line basis: every START:END in a plan row is a BASE line number, counted in each file as it is at BASE " + base + ", not at HEAD or in the working tree (DCW-V0-845)\n"; !strings.Contains(stderr.String(), basis) {
 		t.Errorf("draft header does not name the line basis:\n%s", stderr.String())
-	}
-	// DCW-V0-846 (V1-1724): each hinted span is also printed, on stderr only,
-	// as a ready plan row the lane may accept; stdout keeps the unknown row.
-	for index, hunk := range hunks {
-		accept := "  proposed, not drafted: " + fmt.Sprint(index+1) + "\t" + hunk.Path + "\t"
-		if !strings.Contains(stderr.String(), accept) || strings.Contains(stdout.String(), accept[len("  proposed, not drafted: "):]) {
-			t.Errorf("hunk %d: want a stderr-only accept proposal %q:\n%s", index+1, accept, stderr.String())
-		}
-	}
-	if !strings.Contains(stderr.String(), "  proposed, not drafted: 1\tdocs/specs/x-v0.md\t3:3\tspecification\n    the nearest stable BASE span of the file this hunk edits; it is not BASE evidence for the change (DCW-V0-393), so accept it only after review") {
-		t.Errorf("spec proposal is not the hinted heading span:\n%s", stderr.String())
 	}
 }

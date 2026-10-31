@@ -2,6 +2,7 @@ package dogfoodflow
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -36,6 +37,9 @@ func (c *change) precheckIntentObligations() {
 		return
 	}
 	shares, err := lrfrepo.IntentObligationCounts(c.ctx, c.root, c.target, intents)
+	if overMapBound(err) {
+		c.refuseOverBoundIntents(intents)
+	}
 	if err != nil || len(shares) != len(intents) {
 		return
 	}
@@ -80,4 +84,32 @@ func (c *change) manifestIntents() []string {
 		return nil
 	}
 	return paths
+}
+
+// overMapBound reports the derivation refusal of an intent whose Requirements
+// section alone exceeds one OCM map's obligation bound.
+func overMapBound(err error) bool {
+	var refusal *lrfrepo.Error
+	return errors.As(err, &refusal) && refusal.Code == "too-many-obligations"
+}
+
+// refuseOverBoundIntents refuses, before any step runs, a manifest naming an
+// intent that one OCM map cannot hold: its count would fail, and ocm-prepare
+// would refuse too-many-obligations only after the bind commit (DCW-V0-961).
+// Each intent is derived alone, so the refusal names every one over the bound.
+func (c *change) refuseOverBoundIntents(intents []string) {
+	over := []string{}
+	for _, intent := range intents {
+		if _, err := lrfrepo.IntentObligationCounts(c.ctx, c.root, c.target, []string{intent}); overMapBound(err) {
+			over = append(over, intent)
+		}
+	}
+	if len(over) == 0 {
+		return
+	}
+	c.say("%s: REFUSE too-many-obligations\n", c.prefix)
+	c.say("  intent %s in DOGFOOD_INTENTS_FILE derives more obligations at HEAD than one OCM map admits (%d); no step ran and the previous evidence is kept (DCW-V0-961)\n",
+		strings.Join(over, ", "), lrfrepo.MaxOCMObligations)
+	c.say("  fix: drop it from DOGFOOD_INTENTS_FILE and cite the BASE lines of it the change depends on, or list a companion spec that holds the change's requirements (OCM-V0-024), then rerun\n")
+	c.exit(2)
 }
