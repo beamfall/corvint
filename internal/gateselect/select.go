@@ -257,6 +257,11 @@ func selectPackages(plan Receipt, module, root string, withUnresolved bool) []st
 		return fallback(fmt.Sprintf("the read-scope declaration is invalid: %q", err.Error()))
 	}
 	if withUnresolved {
+		// TSP-V0-862: the planner's gated root-locator declaration, unless
+		// this change edits it; a dirty or invalid one keeps rule (d) wide.
+		if !slices.Contains(plan.Plan.Dirty, gatedLocatorsPath) {
+			index.applyGatedLocators(root)
+		}
 		unresolved := index.unresolved()
 		for _, directory := range sortedKeys(unresolved) {
 			if _, declared := scopes[directory]; !declared && len(plan.Plan.Dirty) > 0 {
