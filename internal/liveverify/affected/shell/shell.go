@@ -48,6 +48,13 @@ const (
 // Suffixes are the file-name endings this plugin owns (NSA-V0-006).
 var Suffixes = []string{".sh", ".bash", ".zsh", ".ksh", ".bats"}
 
+// HiddenRoots are the hidden top-level directories whose shell files the
+// plugin indexes although the shared source walk skips every hidden
+// directory: CI keeps its scripts there, such as .github/forward-rows/*.sh,
+// and an owned file no unit declares is UNINDEXED_SOURCE_PATH, which forces a
+// full run (NSA-V0-800).
+var HiddenRoots = []string{".github"}
+
 // gitTopLevel is the git rev-parse option that prints the repository root, split
 // so that this package's own source does not read as root-locating to the Go
 // plugin (golang.rootLocatorToken).
@@ -99,6 +106,11 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	if err != nil {
 		return affected.Result{}, err
 	}
+	hidden, err := hiddenFiles(root)
+	if err != nil {
+		return affected.Result{}, err
+	}
+	files = append(files, hidden...)
 	foreign, err := root.Files(func(name string) bool { return hasAnySuffix(name, ForeignSourceSuffixes) })
 	if err != nil {
 		return affected.Result{}, err
@@ -129,6 +141,22 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	sort.Slice(units, func(left, right int) bool { return units[left].ID < units[right].ID })
 	applyForeignCallers(root, units, frontier)
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
+}
+
+// hiddenFiles lists the shell files under each HiddenRoots directory through
+// Source.FilesUnder, which skips hidden directories below it as the shared
+// walk does and stamps each listed directory, so the graph stays cacheable
+// (NSA-V0-800). An absent root contributes nothing.
+func hiddenFiles(root *affected.Source) ([]string, error) {
+	var files []string
+	for _, directory := range HiddenRoots {
+		found, err := root.FilesUnder(directory, func(name string) bool { return hasAnySuffix(name, Suffixes) })
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, found...)
+	}
+	return files, nil
 }
 
 func foreignFrontier(unit affected.Unit, foreign bool) affected.Unit {

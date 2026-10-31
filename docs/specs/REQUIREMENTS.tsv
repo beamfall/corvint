@@ -3077,10 +3077,20 @@ DCW-V0-800	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-801	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3280; amends `DCW-V0-384`)	standing	V1-3280
 DCW-V0-802	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3279; amends `DCW-V0-350`)	standing	V1-3279
 DCW-V0-803	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3268; refines `DCW-V0-150`	standing	V1-3268
+DCW-V0-804	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3378; amends `DCW-V0-801`)	standing	V1-3378
+DCW-V0-805	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3380; refines `DCW-V0-161`	standing	V1-3380
+DCW-V0-806	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3381; refines `DCW-V0-062`	standing	V1-3381
+DCW-V0-807	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3383; refines `DCW-V0-351`	standing	V1-3383
+DCW-V0-808	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; lane friction F2; refines	standing	-
+DCW-V0-809	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; lane friction F3; refines	standing	-
+DCW-V0-810	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; lane friction F11; amends	standing	-
+DCW-V0-811	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; lane friction F10) On a host	standing	-
+DCW-V0-812	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; lane friction F4; refines	standing	-
 DCW-V0-844	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3318; refines `DCW-V0-400`	standing	V1-3318
 DCW-V0-845	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3302; refines `DCW-V0-063`	standing	V1-3302
 DCW-V0-846	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-1724; refines `DCW-V0-439`	standing	V1-1724
 DCW-V0-920	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3043; refines `DCW-V0-150`	standing	V1-3043
+DCW-V0-813	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; lane friction F13; refines	standing	-
 DCW-V0-170	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2344) When	standing	2026-10-11; V1-2344
 DCW-V0-171	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2171) A	standing	2026-10-11; V1-2171
 DCW-V0-940	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2445; refines `DCW-V0-150`	standing	V1-2445
@@ -3235,6 +3245,8 @@ DCG-V0-045	docs/specs/documentation-citation-gate-v0.md	(experimental under the 
 DCG-V0-046	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-2821)) The gate MUST print	standing	V1-2821
 DCG-V0-047	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3124); refines DCG-V0-045)	standing	V1-3124
 DCG-V0-048	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3228); refines DCG-V0-045	standing	V1-3228
+DCG-V0-800	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3384); refines DCG-V0-013)	standing	V1-3384
+DCG-V0-801	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3384)) `make repin`	standing	V1-3384
 DCX-V1-370	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) The	standing	2026-10-11; #1582
 DCX-V1-371	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) Eac	standing	2026-10-11; #1582
 DCX-V1-372	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) Eac	standing	2026-10-11; #1582
@@ -4866,6 +4878,7 @@ NSA-V0-013	docs/specs/native-shell-affected-test-v0.md	Neither plugin may execut
 NSA-V0-014	docs/specs/native-shell-affected-test-v0.md	Units, paths, imports, path tokens and frontier reasons MUST be sorted and uniqu	unrecorded	-
 NSA-V0-015	docs/specs/native-shell-affected-test-v0.md	Both plugins MUST pass the shared seam conformance suite (`core <- mid <- leaf`	unrecorded	-
 NSA-V0-016	docs/specs/native-shell-affected-test-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2708) Ame	standing	2026-10-11; V1-2708
+NSA-V0-800	docs/specs/native-shell-affected-test-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3382)	standing	2026-10-11; V1-3382
 NTP-V0-001	docs/specs/native-taskman-planning-v0.md	The opt-in `corvint work plan-fixture --executor ABSOLUTE_FILE --observations FI	unrecorded	-
 NTP-V0-002	docs/specs/native-taskman-planning-v0.md	The receipt MUST bind the immutable source commit/tree, executor digest, native	unrecorded	-
 NTP-V0-003	docs/specs/native-taskman-planning-v0.md	Eligible tickets MUST be processed by priority P0..P3, numeric order, then ticke	unrecorded	-
@@ -5822,6 +5835,7 @@ STR-V0-072	docs/specs/session-test-runner-v0.md	(experimental under the standing
 STR-V0-073	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-29; V1-3120) For each	standing	2026-10-29; V1-3120
 STR-V0-173	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3149) `corvint	standing	2026-10-11; V1-3149
 STR-V0-174	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3155) When the	standing	2026-10-11; V1-3155
+STR-V0-800	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3382)	standing	2026-10-11; V1-3382
 SHA-V0-001	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	accept only exact finite language/version/toolchain/stage tuples, never a neares	unrecorded	-
 SHA-V0-002	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	use the experimental `shader` family extension: a request has the fixed transpor	unrecorded	-
 SHA-V0-003	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	facts carry an inclusive/exclusive byte span (zero-based bytes, one-based byte c	unrecorded	-
@@ -6032,6 +6046,7 @@ SRG-V0-046	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the
 SRG-V0-047	docs/specs/spec-requirement-index-generator-v0.md	(proposed; V1-2867; experimental under the standing lane auto-accept) When a	standing	V1-2867
 SRG-V0-547	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)	standing	2026-10-11; V1-3049
 SRG-V0-548	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)	standing	2026-10-11; V1-3049
+SRG-V0-800	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3379;	standing	2026-10-11; V1-3379
 SRG-V0-900	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; tasks-w1 lane	standing	2026-10-31
 STA-V0-001	docs/specs/spec-toolchain-adapters-v0.md	One manifest, `interop/spec-toolchains/versions.json`, records the supported ups	unrecorded	-
 STA-V0-002	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob	unrecorded	-

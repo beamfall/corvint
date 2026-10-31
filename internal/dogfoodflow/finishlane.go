@@ -55,6 +55,9 @@ type finishLane struct {
 	stages     [][]string
 	// stage labels the running stage in kept rows and step lines.
 	stage string
+	// cause is the last pass's first failing row, which a stop names before
+	// the rows that follow from it (DCW-V0-806).
+	cause *step
 }
 
 // laneInput is one supplied input file and its content digest at run start.
@@ -289,7 +292,7 @@ func (l *finishLane) requireVerifyInput() {
 		for _, suggestion := range quotedRunSuggestions(l.options.Change) {
 			l.say("  quoted form: %s\n", suggestion)
 		}
-		l.say("  accepted form: one quoted -run alternation of test names, -run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (single or double quotes, or attached as -run='TestA|TestB'), is admitted as one argv word (DCW-V0-384, DCW-V0-801); an unquoted alternation, a single anchored name such as -run '^TestA$' or any other quoted regex is refused; write one command per test name (go test -run TestA ./pkg, then go test -run TestB ./pkg), use a shared name prefix (-run TestA matches TestA*), or commit a script and list it as sh path/to/script.sh\n")
+		l.say("  accepted form: one quoted -run alternation of test names, -run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (single or double quotes, or attached as -run='TestA|TestB'), is admitted as one argv word (DCW-V0-384, DCW-V0-801), as are leading NAME='value' or NAME=\"value\" assignments such as GOFLAGS='-count=1 -v' go test ./pkg (DCW-V0-804); an unquoted alternation, a single anchored name such as -run '^TestA$' or any other quoted regex is refused; write one command per test name (go test -run TestA ./pkg, then go test -run TestB ./pkg), use a shared name prefix (-run TestA matches TestA*), or commit a script and list it as sh path/to/script.sh\n")
 	}
 	l.exit(2)
 }
@@ -419,9 +422,13 @@ func (l *finishLane) pass(name, citations string) (int, *change, []byte) {
 	run := &change{flow: flow{ctx: l.ctx, prefix: "dogfood-change", root: options.Root, stderr: &captured}, options: options, scope: passScopes[name], nested: true}
 	code, err := boundary(l.ctx, run.run, run.cleanup)
 	run.releaseOperation()
+	l.cause = nil
 	for _, row := range run.rows {
 		if row.status != "PRODUCED" {
 			l.missing = append(l.missing, name+l.stage+" "+row.name+" "+row.status+" "+row.reason)
+		}
+		if l.cause == nil && run.rowFailing(row) {
+			l.cause = &row
 		}
 	}
 	if err != nil {
@@ -477,6 +484,15 @@ func (l *finishLane) stop(name string, code int, output []byte) {
 	}
 	if code == 0 {
 		code = 1
+	}
+	// The first failing row is the originating refusal; an ocm-aggregate
+	// intent-scope-drift after a refused ocm-prepare only follows from it
+	// (DCW-V0-806).
+	if l.cause != nil {
+		l.line("CAUSE %s%s %s %s", name, l.stage, l.cause.name, l.cause.reason)
+		if name != "prepare" && isRegular(l.root+"/"+finishLaneSidecar) {
+			_, _ = fmt.Fprintf(l.stdout, "  recover: this pass left the uncommitted %s, which the next finish-lane run removes before it prepares again when it is the only uncommitted path; fix the cause above, then rerun the same command\n", finishLaneSidecar)
+		}
 	}
 	l.line("%s FAIL exit=%d", name, code)
 	l.reportMissing()
