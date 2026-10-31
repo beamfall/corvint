@@ -2,14 +2,14 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-22
-Intent status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25), `OCM-V0-017` and `OCM-V0-018` (2026-10-08, decision 0469), `OCM-V0-019` and `OCM-V0-020` (2026-10-13, V1-1345, owner's standing auto-accept), `OCM-V0-021` to `OCM-V0-023` (2026-10-14, V1-1049, V1-1048, V1-0522, owner's standing auto-accept), `OCM-V0-024` (2026-10-21, V1-1068, owner's standing auto-accept), `OCM-V0-025` (2026-10-21, V1-1961, owner's standing auto-accept), `OCM-V0-026` (2026-10-21, V1-2170, owner's standing auto-accept); `OCM-V0-027` and `OCM-V0-028` experimental under the standing lane auto-accept (2026-10-27, V1-2894, V1-2893, decision 0585); `OCM-V0-013`, `OCM-V0-021` and `OCM-V0-028` aggregate-bound amendment (2026-10-28, V1-2971, owner-approved); `OCM-V0-920` experimental under the standing lane auto-accept (2026-10-31, V1-3092), renaming the `OCM-V0-019`/`OCM-V0-025` change-scoped members
+Intent status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25), `OCM-V0-017` and `OCM-V0-018` (2026-10-08, decision 0469), `OCM-V0-019` and `OCM-V0-020` (2026-10-13, V1-1345, owner's standing auto-accept), `OCM-V0-021` to `OCM-V0-023` (2026-10-14, V1-1049, V1-1048, V1-0522, owner's standing auto-accept), `OCM-V0-024` (2026-10-21, V1-1068, owner's standing auto-accept), `OCM-V0-025` (2026-10-21, V1-1961, owner's standing auto-accept), `OCM-V0-026` (2026-10-21, V1-2170, owner's standing auto-accept); `OCM-V0-027` and `OCM-V0-028` experimental under the standing lane auto-accept (2026-10-27, V1-2894, V1-2893, decision 0585); `OCM-V0-013`, `OCM-V0-021` and `OCM-V0-028` aggregate-bound amendment (2026-10-28, V1-2971, owner-approved); `OCM-V0-920` experimental under the standing lane auto-accept (2026-10-31, V1-3092), renaming the `OCM-V0-019`/`OCM-V0-025` change-scoped members; `OCM-V0-880` experimental under the standing lane auto-accept (2026-10-31, V1-2083), widening the `OCM-V0-019` referenced population
 Delivery status: experimental
 Authoritative inputs: `docs/SPEC-DRIVEN-DEVELOPMENT.md`, `docs/CHANGE-EVIDENCE-MAP.md`,
 `docs/specs/cem-pilot-kit.md`, `docs/specs/cem-0.2-canonical-binding.md`
 
 ## Agent digest
 - Claim: OCM maps scoped requirements to exact change-and-test witnesses or explicit unknowns; ordered multi-intent dogfood coordination is experimental.
-- Status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25), `OCM-V0-017` and `OCM-V0-018` (2026-10-08, decision 0469), `OCM-V0-019` and `OCM-V0-020` (2026-10-13, V1-1345, owner's standing auto-accept), `OCM-V0-021` to `OCM-V0-023` (2026-10-14, V1-1049, V1-1048, V1-0522, owner's standing auto-accept), `OCM-V0-024` (2026-10-21, V1-1068, owner's standing auto-accept), `OCM-V0-025` (2026-10-21, V1-1961, owner's standing auto-accept), `OCM-V0-026` (2026-10-21, V1-2170, owner's standing auto-accept); `OCM-V0-027` and `OCM-V0-028` experimental under the standing lane auto-accept (2026-10-27, V1-2894, V1-2893, decision 0585); `OCM-V0-013`, `OCM-V0-021` and `OCM-V0-028` aggregate-bound amendment (2026-10-28, V1-2971, owner-approved); `OCM-V0-920` experimental under the standing lane auto-accept (2026-10-31, V1-3092), renaming the `OCM-V0-019`/`OCM-V0-025` change-scoped members/experimental; accepted amendments implemented without promotion
+- Status: proposed overall; accepted clauses/amendments: `OCM-V0-001` narrowing and `OCM-V0-013` (2026-09-01), `OCM-V0-009` dogfood-policy amendment (2026-09-05), `OCM-V0-016` (2026-09-25), `OCM-V0-017` and `OCM-V0-018` (2026-10-08, decision 0469), `OCM-V0-019` and `OCM-V0-020` (2026-10-13, V1-1345, owner's standing auto-accept), `OCM-V0-021` to `OCM-V0-023` (2026-10-14, V1-1049, V1-1048, V1-0522, owner's standing auto-accept), `OCM-V0-024` (2026-10-21, V1-1068, owner's standing auto-accept), `OCM-V0-025` (2026-10-21, V1-1961, owner's standing auto-accept), `OCM-V0-026` (2026-10-21, V1-2170, owner's standing auto-accept); `OCM-V0-027` and `OCM-V0-028` experimental under the standing lane auto-accept (2026-10-27, V1-2894, V1-2893, decision 0585); `OCM-V0-013`, `OCM-V0-021` and `OCM-V0-028` aggregate-bound amendment (2026-10-28, V1-2971, owner-approved); `OCM-V0-920` experimental under the standing lane auto-accept (2026-10-31, V1-3092), renaming the `OCM-V0-019`/`OCM-V0-025` change-scoped members; `OCM-V0-880` experimental under the standing lane auto-accept (2026-10-31, V1-2083), widening the `OCM-V0-019` referenced population/experimental; accepted amendments implemented without promotion
 - Exists: an `ocm/0.1-experimental` structural traceability profile, verifier, and evidence mapping.
 - Blocked on: ten-change dogfood and promotion gates; linked rows do not prove correctness or adequacy.
 - Read next: Verified starting state; Requirements; Acceptance and dogfood.
@@ -319,6 +319,19 @@ claim, and mutation ordering deltas below.
   consumer parsing the old member names reads nothing, never a wrong count. Evidence:
   `TestOCMV0920SummaryNamesTheChangePopulation`. Rollback: restore the three old member names
   and the `unlinked-requirements` note.
+- `OCM-V0-880`: (experimental under the standing lane auto-accept; V1-2083; amends `OCM-V0-019`)
+  The change-scoped population MUST also count, as referenced, a requirement whose unfenced
+  requirement line (the `OCM-V0-001` syntax) lies outside the intent's one `## Requirements`
+  section when the BASE..target `-U0` diff adds or changes a line of its item, the item running to
+  the next requirement line or heading line. Such a requirement has no `OCM-V0-001` obligation, so
+  it is traced only by a test file or a table row naming it, and the check MUST print `dogfood-check:
+  NOTE requirements-outside-ocm-section count=N ids=ID[,ID...]: ...` naming each, bounded as the
+  `OCM-V0-025` note. Citation spans keep counting only items inside the section; the aggregate and
+  every verdict are unchanged. Design: `test-source-analysis-v0.md` defines `TSA-V0-410..419` under
+  a later `##` section, so the PR #1317 check reported zero requirements though the diff added ten.
+  Non-goals: enumerating such lines as OCM obligations (that amends `OCM-V0-001`). Evidence:
+  `TestOCMV0880CoverageCountsRequirementsAddedOutsideTheSection`. Rollback: drop
+  `requirementSection.outside` and the note.
 
 ## Wire profile
 
@@ -624,6 +637,7 @@ non-authoritative and slated for separate removal. The native OCM status/verify/
 | OCM-V0-027 | `internal/lrfrepo/stable_reuse.go` (`StableReuse`, `acceptedStableReused`, `verifierIdentity`), `internal/lrfrepo/stable_reuse_change_darwin.go` (`fileChangedBefore`), `internal/lrfrepo/ocm_read.go` (`verifyStableOCMCEM`), `internal/cem/verify/stable_artifacts.go` (`RecheckStableArtifacts`), `internal/dogfoodocm/aggregate.go` (`Status`), `internal/dogfoodflow/flow.go` (`childEnvironment`) | `internal/lrfrepo/stable_reuse_test.go:TestOCMV0027RunVerifiesUnchangedCEMOnce`, `internal/lrfrepo/stable_reuse_test.go:TestOCMV0027ChangedDigestForcesReverification`, `internal/lrfrepo/stable_reuse_test.go:TestOCMV0027ReuseMissesOnVerifierOrArtifactChange`, `internal/lrfrepo/stable_reuse_test.go:TestOCMV0027ReplacedExecutableHasNoIdentity`, `internal/dogfoodflow/stable_reuse_test.go:TestOCMV0027ChildrenShareOnlyTheirRunStore` |
 | OCM-V0-028 | `internal/dogfoodflow/obligation_precheck.go` (`precheckIntentObligations`, `manifestIntents`), `internal/lrfrepo/ocm_obligation_count.go` (`IntentObligationCounts`), `internal/dogfoodflow/change.go` (`fitHint`) | `internal/dogfoodflow/obligation_precheck_test.go:TestOCMV0028OverBoundIntentsRefuseBeforeAnyStep`, `internal/dogfoodflow/obligation_precheck_test.go:TestOCMV0028DerivedBoundAdmitsSummedScopes` |
 | OCM-V0-920 | `internal/dogfoodflow/ocm_coverage.go` (`summaryFields`, `unlinkedNote`) | `internal/dogfoodflow/check_test.go:TestOCMV0920SummaryNamesTheChangePopulation` |
+| OCM-V0-880 | `internal/dogfoodflow/ocm_coverage.go` (`parseRequirements`, `changeCoverage`, `outsideNote`) | `internal/dogfoodflow/ocm_outside_test.go:TestOCMV0880CoverageCountsRequirementsAddedOutsideTheSection` |
 
 Native selector diagnostic amendment to `OCM-V0-007` (2026-09-08): the owner's Task 2
 follow-up explicitly requests printing the normalized fragment on a miss. A missing `/case:` selector retains
