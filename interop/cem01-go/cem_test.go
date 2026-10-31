@@ -130,6 +130,22 @@ func TestBinaryMarkerTextInHunkPayloadIsText(t *testing.T) {
 	}
 }
 
+// TestCEMV1986PortableRefusesCanonicalBinarySection pins CEM-V1-986
+// (V1-2752): the portable cem/1.0 consumer is unchanged, so Git's canonical
+// full-index binary section, which the native producer binds by blob
+// identity beside a textual group, still fails closed here with the patch
+// refusal rather than being accepted or skipped.
+func TestCEMV1986PortableRefusesCanonicalBinarySection(t *testing.T) {
+	t.Parallel()
+	binary := "diff --git a/img/x.png b/img/x.png\nindex " + strings.Repeat("a", 40) + ".." + strings.Repeat("b", 40) + " 100644\nBinary files a/img/x.png and b/img/x.png differ\n"
+	text := "diff --git a/t.txt b/t.txt\nindex " + strings.Repeat("c", 40) + ".." + strings.Repeat("d", 40) + " 100644\n--- a/t.txt\n+++ b/t.txt\n@@ -1 +1 @@\n-a\n+b\n"
+	for _, patch := range []string{binary + text, text + binary} {
+		if _, err := parsePatch([]byte(patch)); err == nil || err.code != "patch" {
+			t.Errorf("portable consumer err=%v, want the patch refusal", err)
+		}
+	}
+}
+
 func TestSimulateEmptyBase(t *testing.T) {
 	t.Parallel()
 	patch := []byte("--- a/empty.txt\n+++ b/empty.txt\n@@ -0,0 +1 @@\n+new\n")

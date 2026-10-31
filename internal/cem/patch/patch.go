@@ -48,14 +48,21 @@ type Group struct {
 	Kind    GroupKind
 	OldPath *string
 	NewPath *string
-	Mode    string // bound tree mode for creates and deletes
+	Mode    string // bound tree mode for creates and deletes, and for a binary modification
 	Hunks   []*Hunk
+	// Binary marks a hunk-less group parsed from Git's canonical full-index
+	// `Binary files` section (CEM-V1-980). OldOID and NewOID are its full
+	// object IDs; the absent side of a creation or deletion is "".
+	Binary bool
+	OldOID string
+	NewOID string
 }
 
 // Patch is a fully parsed patch conforming to the CEM patch grammar.
 type Patch struct {
 	Groups []*Group
-	Hunks  []*Hunk // every hunk in patch order
+	Hunks  []*Hunk  // every hunk in patch order
+	Binary []*Group // every binary group in patch order (CEM-V1-980)
 }
 
 func malformed(format string, args ...any) *cemcode.Error {
@@ -69,6 +76,8 @@ func metadataMismatch(format string, args ...any) *cemcode.Error {
 type metadata struct {
 	indexSeen   bool
 	indexMode   string
+	indexOld    string
+	indexNew    string
 	newFileMode string
 	deleteMode  string
 	renameFrom  string
@@ -124,6 +133,9 @@ func Parse(raw []byte) (*Patch, error) {
 			}
 			usedNew[*group.NewPath] = true
 		}
+		if group.Binary {
+			result.Binary = append(result.Binary, group)
+		}
 		for _, hunk := range group.Hunks {
 			if seenIDs[hunk.ID] {
 				return nil, malformed("duplicate derived hunk ID %s", hunk.ID)
@@ -132,6 +144,11 @@ func Parse(raw []byte) (*Patch, error) {
 			result.Hunks = append(result.Hunks, hunk)
 		}
 		result.Groups = append(result.Groups, group)
+	}
+	if len(result.Hunks) == 0 && len(result.Binary) != 0 {
+		return nil, cemcode.New(cemcode.BinaryPatch,
+			"binary change to %q is bound by blob identity, but the patch contains no textual hunks; a cem/1.0 map needs at least one (CEM-V1-981)",
+			binaryGroupPath(result.Binary[0]))
 	}
 	if len(result.Hunks) == 0 {
 		return nil, cemcode.New(cemcode.BinaryPatch, "patch contains no textual hunks")
@@ -150,10 +167,14 @@ func optionalKey(path *string) string {
 }
 
 func (p *parser) peek() []byte {
-	if p.pos >= len(p.lines) {
+	return p.peekAt(p.pos)
+}
+
+func (p *parser) peekAt(pos int) []byte {
+	if pos >= len(p.lines) {
 		return nil
 	}
-	return p.lines[p.pos]
+	return p.lines[pos]
 }
 
 // lineText returns the current line without its trailing LF; CR is retained as
@@ -210,6 +231,14 @@ func (p *parser) parseStateMachineGroup() (*Group, error) {
 	}
 	if p.peek() == nil {
 		return nil, malformed("diff --git group is missing file headers")
+	}
+	if hasPrefixLine(p.peek(), "Binary files ") {
+		if group := canonicalBinaryGroup(diffLine, meta, lineText(p.peek())); group != nil {
+			if next := p.peekAt(p.pos + 1); next == nil || hasPrefixLine(next, "diff --git ") {
+				p.pos++
+				return group, nil
+			}
+		}
 	}
 	if hasPrefixLine(p.peek(), "GIT binary patch") || hasPrefixLine(p.peek(), "Binary files ") {
 		path, ok := symmetricDiffPath(diffLine)
@@ -288,10 +317,63 @@ func metadataOnlyKind(first, second string) string {
 	return ""
 }
 
+// canonicalBinaryGroup returns the hunk-less binary group for Git's exact
+// full-index `Binary files` section (CEM-V1-980): a symmetric diff --git
+// line, at most one new or deleted file mode, one index line whose full
+// object IDs have one length (all zeros on the absent side, a mode suffix only
+// for a modification), and the marker whose labels match. Any other shape
+// returns nil, so the caller keeps the CEM-V1-037 refusal.
+func canonicalBinaryGroup(diffLine string, meta *metadata, marker string) *Group {
+	path, ok := symmetricDiffPath(diffLine)
+	if !ok || !meta.indexSeen || meta.renameFrom != "" || meta.renameTo != "" || meta.similarity {
+		return nil
+	}
+	oldOID, newOID := meta.indexOld, meta.indexNew
+	if len(oldOID) != len(newOID) || (len(oldOID) != 40 && len(oldOID) != 64) {
+		return nil
+	}
+	zero := strings.Repeat("0", len(oldOID))
+	oldLabel, newLabel := "a/"+path, "b/"+path
+	group := &Group{Binary: true}
+	switch {
+	case meta.newFileMode != "":
+		if oldOID != zero || newOID == zero || meta.indexMode != "" {
+			return nil
+		}
+		oldLabel, oldOID = "/dev/null", ""
+		group.Kind, group.NewPath, group.Mode = KindCreate, &path, meta.newFileMode
+	case meta.deleteMode != "":
+		if newOID != zero || oldOID == zero || meta.indexMode != "" {
+			return nil
+		}
+		newLabel, newOID = "/dev/null", ""
+		group.Kind, group.OldPath, group.Mode = KindDelete, &path, meta.deleteMode
+	default:
+		if oldOID == zero || newOID == zero || oldOID == newOID || meta.indexMode == "" {
+			return nil
+		}
+		newPath := path
+		group.Kind, group.OldPath, group.NewPath, group.Mode = KindModify, &path, &newPath, meta.indexMode
+	}
+	if marker != "Binary files "+oldLabel+" and "+newLabel+" differ" {
+		return nil
+	}
+	group.OldOID, group.NewOID = oldOID, newOID
+	return group
+}
+
+// binaryGroupPath is the repository path of a binary group.
+func binaryGroupPath(group *Group) string {
+	if group.NewPath != nil {
+		return *group.NewPath
+	}
+	return *group.OldPath
+}
+
 // binaryRefusal returns the binary-patch refusal, naming the changed path when
 // the diff --git line, rename metadata or `Binary files` marker declares one
-// (CEM-V1-037). The refusal code is unchanged; cem/1.0 cannot represent binary
-// content.
+// (CEM-V1-037). The refusal code is unchanged; only Git's canonical full-index
+// section is a binary group (CEM-V1-980).
 func binaryRefusal(path string, marker []byte) error {
 	if path == "" {
 		path = binaryMarkerPath(lineText(marker))
@@ -300,7 +382,7 @@ func binaryRefusal(path string, marker []byte) error {
 		return cemcode.New(cemcode.BinaryPatch, "binary patches are outside the CEM patch grammar")
 	}
 	return cemcode.New(cemcode.BinaryPatch,
-		"binary change to %q is outside the CEM patch grammar; cem/1.0 cannot represent binary content", path)
+		"binary change to %q is outside the CEM patch grammar; cem/1.0 binds only Git's canonical full-index Binary files section", path)
 }
 
 // binaryMarkerPath returns the new-side path, or the old side for a deletion,
@@ -355,11 +437,11 @@ func (p *parser) parseMetadata() (*metadata, error) {
 			if meta.indexSeen {
 				return nil, malformed("repeated index line")
 			}
-			mode, err := parseIndexLine(text)
+			oldOID, newOID, mode, err := parseIndexOIDs(text)
 			if err != nil {
 				return nil, err
 			}
-			meta.indexSeen, meta.indexMode = true, mode
+			meta.indexSeen, meta.indexMode, meta.indexOld, meta.indexNew = true, mode, oldOID, newOID
 		case strings.HasPrefix(text, "new file mode "):
 			if meta.newFileMode != "" || meta.deleteMode != "" {
 				return nil, malformed("repeated or contradictory file mode metadata")
@@ -406,21 +488,29 @@ func (p *parser) parseMetadata() (*metadata, error) {
 }
 
 func parseIndexLine(text string) (string, error) {
+	_, _, mode, err := parseIndexOIDs(text)
+	return mode, err
+}
+
+// parseIndexOIDs returns the OLD and NEW object IDs and the optional mode of
+// an `index OLD..NEW[ MODE]` line.
+func parseIndexOIDs(text string) (string, string, string, error) {
 	rest := strings.TrimPrefix(text, "index ")
 	body, mode, hasMode := strings.Cut(rest, " ")
 	oids := strings.SplitN(body, "..", 2)
 	if len(oids) != 2 {
-		return "", malformed("index line must carry OLD..NEW object IDs")
+		return "", "", "", malformed("index line must carry OLD..NEW object IDs")
 	}
 	for _, oid := range oids {
 		if len(oid) < 4 || len(oid) > 64 || !isLowerHex(oid) {
-			return "", malformed("index object IDs must be 4..64 lowercase hex bytes")
+			return "", "", "", malformed("index object IDs must be 4..64 lowercase hex bytes")
 		}
 	}
 	if !hasMode {
-		return "", nil
+		return oids[0], oids[1], "", nil
 	}
-	return requireTreeMode(mode)
+	mode, err := requireTreeMode(mode)
+	return oids[0], oids[1], mode, err
 }
 
 func requireTreeMode(mode string) (string, error) {
