@@ -971,11 +971,63 @@ func (c *change) uniformPlan(plan []byte) bool {
 		return false
 	}
 	hunks, span, uniform := uniformCitation(plan, mapHunks(data))
+	if !uniform {
+		hunks, span, uniform = c.carriedUniform(plan)
+	}
 	if !uniform || c.choreRole() != "" || c.recordChange() {
 		return false
 	}
 	c.uniformHunks, c.uniformSpan = hunks, span
 	return true
+}
+
+// carriedUniform reports a staged plan (DCW-V0-037) that completes a uniform
+// citation: its rows all cite one span, and every hunk it does not name
+// already cites only that span in the map, so the stages together cite one
+// span for every hunk (DCW-V0-883).
+func (c *change) carriedUniform(plan []byte) (int, string, bool) {
+	m, ok := c.readCitationMap()
+	if !ok || len(m.Hunks) < 2 {
+		return 0, "", false
+	}
+	named, span := map[string]bool{}, ""
+	for _, line := range textLines(plan) {
+		fields := strings.SplitN(line, "\t", 4)
+		if len(fields) != 4 || unknownRow(fields) {
+			return 0, "", false
+		}
+		rowSpan, ok := canonicalSpan(fields[1], fields[2])
+		if !ok || span != "" && rowSpan != span {
+			return 0, "", false
+		}
+		span, named[fields[0]] = rowSpan, true
+	}
+	if span == "" {
+		return 0, "", false
+	}
+	spans := map[string]string{}
+	for _, evidence := range m.Evidence {
+		spans[evidence.ID], _ = canonicalSpan(evidence.Path, strconv.FormatInt(evidence.Span.Start, 10)+":"+strconv.FormatInt(evidence.Span.End, 10))
+	}
+	carried := 0
+	for index, hunk := range m.Hunks {
+		if named[strconv.Itoa(index+1)] || named[hunk.ID] {
+			continue
+		}
+		if len(hunk.Basis) == 0 {
+			return 0, "", false
+		}
+		for _, basis := range hunk.Basis {
+			if spans[basis.EvidenceID] != span {
+				return 0, "", false
+			}
+		}
+		carried++
+	}
+	if carried == 0 {
+		return 0, "", false
+	}
+	return len(m.Hunks), span, true
 }
 
 // recitesCitedHunk reports, before any cite or mark runs, a plan row that
