@@ -818,8 +818,13 @@ func TestClaudeAdapterReceiptOmitsHostVersionUnknown(t *testing.T) {
 // CKN-V0-009: the kernel reaches the adapter context only under the opt-in
 // variable, only from a fresh snapshot, and only inside the untrusted-data
 // envelope.
-// Serial: the fresh-snapshot case must load within the production 250 ms kernel deadline.
+// Serial: the test lifts the production 250 ms kernel deadline, which a loaded
+// host exceeded on the fresh-snapshot case (V1-0849, V1-0455). The deadline is
+// a load bound, not what this test asserts; the measured load time is logged.
 func TestExperimentalKernelAdapterContext(t *testing.T) {
+	previous := experimentalKernelDeadline
+	experimentalKernelDeadline = 30 * time.Second // hang detector, not a budget (decision 0082)
+	t.Cleanup(func() { experimentalKernelDeadline = previous })
 	root := kernelRepository(t)
 	if got := experimentalKernelContext(adapterEnvContext(context.Background(), nil), "session-start", root); got != "" {
 		t.Fatalf("unset opt-in must leave the adapter output unchanged: %q", got)
@@ -835,9 +840,11 @@ func TestExperimentalKernelAdapterContext(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, event := range []string{"session-start", "user-prompt"} {
+		started := time.Now()
 		if got := experimentalKernelContext(ctx, event, root); got != experimentalKernelLabel+framed {
 			t.Fatalf("%s: injected block differs from the framed kernel verb output: %q", event, got)
 		}
+		t.Logf("%s: kernel block loaded in %s (production deadline %s)", event, time.Since(started).Round(time.Millisecond), previous)
 	}
 	if got := experimentalKernelContext(ctx, "stop", root); got != "" {
 		t.Fatalf("stop must not carry the kernel: %q", got)

@@ -50,7 +50,7 @@ func psrStart(t *testing.T, s *leaseStore, id string) (<-chan psrOutcome, contex
 // while the file is still empty.
 func psrAwaitMarker(t *testing.T, path string) {
 	t.Helper()
-	end := time.Now().Add(3 * time.Second)
+	end := time.Now().Add(2 * time.Minute) // hang detector, not a budget (decision 0082; V1-0849)
 	for time.Now().Before(end) {
 		if info, e := os.Stat(path); e == nil && info.Size() > 0 {
 			return
@@ -996,7 +996,15 @@ func TestPSROrphanEarlyInitializationCleanup(t *testing.T) {
 	owned := psrOwnOrphan(t, cmd)
 	psrAwaitMarker(t, marker)
 	// Simulate failure before marker parsing. Ownership comes only from ps.
-	owned.capture(t)
+	// V1-0849 (V1-0796): the reset shell writes the marker before it forks
+	// sleep, so one capture right after the marker can see the shell alone.
+	// Capture until the forked child is seen; the bound only detects a hang.
+	for end := time.Now().Add(2 * time.Minute); ; time.Sleep(10 * time.Millisecond) {
+		owned.capture(t)
+		if len(owned.children) >= 2 && len(owned.groups) > 0 || time.Now().After(end) {
+			break
+		}
+	}
 	if len(owned.children) < 2 || len(owned.groups) == 0 {
 		t.Fatal("early failure fixture not reached")
 	}
