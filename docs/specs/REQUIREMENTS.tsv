@@ -5737,6 +5737,7 @@ RUBY-AFFECTED-V0-048	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under
 RUBY-AFFECTED-V0-960	docs/specs/ruby-affected-test-adapter-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 RUBY-AFFECTED-V0-049	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2448,	standing	2026-10-11; V1-2448
 RUBY-AFFECTED-V0-050	docs/specs/ruby-affected-test-adapter-v0.md	(experimental under the standing lane auto-accept; V1-2473, GH #1601)	standing	V1-2473; #1601
+RUBY-AFFECTED-V0-761	docs/specs/ruby-affected-test-adapter-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-1831)	standing	2026-10-11; V1-1831
 RVN-V0-001	docs/specs/run-verified-navigation-v0.md	`corvint flows appmap screen` and `flow` MUST accept repeatable	unrecorded	-
 RVN-V0-002	docs/specs/run-verified-navigation-v0.md	A step's bound keys MUST be the union of `Step.tests` (compiled into the map fro	unrecorded	-
 RVN-V0-003	docs/specs/run-verified-navigation-v0.md	An outcome MUST count as a pass only when `QualifiedReceiptBindingReady` holds a	unrecorded	-
