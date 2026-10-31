@@ -4833,6 +4833,7 @@ NSA-V0-013	docs/specs/native-shell-affected-test-v0.md	Neither plugin may execut
 NSA-V0-014	docs/specs/native-shell-affected-test-v0.md	Units, paths, imports, path tokens and frontier reasons MUST be sorted and uniqu	unrecorded	-
 NSA-V0-015	docs/specs/native-shell-affected-test-v0.md	Both plugins MUST pass the shared seam conformance suite (`core <- mid <- leaf`	unrecorded	-
 NSA-V0-016	docs/specs/native-shell-affected-test-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2708) Ame	standing	2026-10-11; V1-2708
+NSA-V0-800	docs/specs/native-shell-affected-test-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3382)	standing	2026-10-11; V1-3382
 NTP-V0-001	docs/specs/native-taskman-planning-v0.md	The opt-in `corvint work plan-fixture --executor ABSOLUTE_FILE --observations FI	unrecorded	-
 NTP-V0-002	docs/specs/native-taskman-planning-v0.md	The receipt MUST bind the immutable source commit/tree, executor digest, native	unrecorded	-
 NTP-V0-003	docs/specs/native-taskman-planning-v0.md	Eligible tickets MUST be processed by priority P0..P3, numeric order, then ticke	unrecorded	-
@@ -5787,6 +5788,7 @@ STR-V0-072	docs/specs/session-test-runner-v0.md	(experimental under the standing
 STR-V0-073	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-29; V1-3120) For each	standing	2026-10-29; V1-3120
 STR-V0-173	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3149) `corvint	standing	2026-10-11; V1-3149
 STR-V0-174	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3155) When the	standing	2026-10-11; V1-3155
+STR-V0-800	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3382)	standing	2026-10-11; V1-3382
 SHA-V0-001	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	accept only exact finite language/version/toolchain/stage tuples, never a neares	unrecorded	-
 SHA-V0-002	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	use the experimental `shader` family extension: a request has the fixed transpor	unrecorded	-
 SHA-V0-003	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	facts carry an inclusive/exclusive byte span (zero-based bytes, one-based byte c	unrecorded	-
