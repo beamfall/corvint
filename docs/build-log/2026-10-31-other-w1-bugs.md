@@ -112,3 +112,27 @@ below.
   chosen design. Reviews are run by the orchestrator, not by lanes.
 - **V1-1269.** This needs a context-ranking change, or withheld-with-reason packet entries, plus
   the frozen held-out context evaluation gates. That did not fit the remaining lane budget.
+
+## Review fixes
+
+The independent review found three defects in the lane's own changes. Each was reproduced by a
+failing regression test before it was fixed.
+
+- **TSP-V0-960 value bound.** Two nine-word `for` loops that run `sh "./scripts/${x}${y}.sh"`
+  build 81 names. Expansion kept 64 of them and dropped the rest without a trace, so a change to a
+  dropped script could skip the test. Now `expand`, `braced` and `named` report when the bound cuts
+  values. `observe` then marks the unit `shell:dynamic-source`, the same as a computed `source`
+  (NSA-V0-009), and the kept values stay edges. The spec amendment is in TSP-V0-960. Test:
+  `TestComputedInvocationValueBoundIsUnbounded_TSP_V0_960`.
+- **AFP-V0-960 shadowed counter.** Inside `for (let i = 0; ...)`, the destructuring
+  `for (const [i] of [['ta' + 'g']])` passed as a whole-index read of the counter. That let
+  `rows[i]` pass the literal-tag check. `playwrightCounterUse` now refuses `const [NAME]`,
+  `let [NAME]` and `var [NAME]`. The spec already said a shadowed counter stops the closure, so it
+  was not changed. Test: row `counter shadowed by destructuring` in
+  `TestPlaywrightTagClosureParseValuesCounter_V12562`.
+- **AFU-V1-043 keyword before `<`.** `return<div>(required) save(text)</div>` was read as a
+  generic call, because the keyword `return` ends in identifier bytes. That left the JSX text
+  unmasked. An expression keyword is no longer treated as a generic callee. This stays within
+  generator version 4, which has not shipped yet. The analyzer input digest is repinned with no
+  schema bump, matching the V1-2415 precedent, because the flow mask does not change index
+  encoding. Test: the `Render` case in `TestFlowDocsGenericCallMaskedOnlyThroughTypeArguments`.
