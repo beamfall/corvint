@@ -2997,6 +2997,7 @@ DCW-V0-346	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-347	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2810) A `dogfood check` th	standing	V1-2810
 DCW-V0-348	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2805, V1-1773)	standing	V1-2805; V1-1773
 DCW-V0-349	docs/specs/daily-change-evidence-workflow-v0.md	(owner-requested V1-1894 repair) `make dogfood-closeout` MUST run	unrecorded	-
+DCW-V0-900	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; tasks-w1 lane	standing	2026-10-31
 DCW-V0-350	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2810; amends `DCW-V0-150`)	standing	V1-2810
 DCW-V0-351	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2827) When	standing	V1-2827
 DCW-V0-352	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2835; refines `SRG-V0-018`	standing	V1-2835
