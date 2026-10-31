@@ -23,6 +23,13 @@ that a lane seals on its first closeout try and that its citation plan is mostly
 - A lane charter named a requirement-ID prefix block that was already in use, and nothing cheap
   checked it.
 
+## Acceptance criteria received after the first seal
+
+The ticket bodies arrived from the orchestrator after the first seal at `a7a0630b2`
+(`~/lanes/dffric-acs.md`). Several criteria differed from the charter's summaries, so a stacked
+second slice delivers them. That slice is described below under "Second slice"; the first-slice
+decisions above it stand.
+
 ## Decisions
 
 - **V1-3047, absent inputs (`DCW-V0-960`).** `dogfood-closeout` exports `LANE = 1` as a
@@ -65,13 +72,61 @@ that a lane seals on its first closeout try and that its citation plan is mostly
   `origin/main`) with one `git grep`. A neighbouring byte that is a letter or digit (`XDCW-V0-960`)
   or a four-digit tail does not count. The script lists each used ID's first location (exit 1),
   prints `free` (exit 0), or refuses its input (exit 2).
-- **V1-3394, already delivered.** `ASD-V0-045` (V1-3119, in the base snapshot `9477995d7`): a
+- **V1-3394, first slice: found partly delivered.** `ASD-V0-045` (V1-3119, in the base snapshot `9477995d7`): a
   missing or unreadable `CITATIONS` refusal names `corvint dogfood propose-citations BASE >
   plan.tsv` and the `dogfood-inputs-check` pre-check, and says nothing was built, prepared or
   bound. This happens before any build or batch-precheck step, so no try is spent. Tests:
   `script/lane-scripts_test.sh` (the `ASD-V0-045` case) and `script/dogfood-cache_test.sh` (the
   closeout case, `! rg -q batch-precheck`). An empty plan is refused in the pre-flight as
   `empty-citation-plan`, whose fix names the same command (probe on the base).
+
+## Second slice (against the ticket acceptance criteria)
+
+- **V1-3047 (`DCW-V0-965`).** The criteria ask that `inputs-check` refuse an over-bound aggregate
+  and closeout's verify-syntax refusals with closeout's own code and fix line. Both were already
+  refused before any step on the base: `OCM-V0-028` and `DCW-V0-380`/`403`. The reported
+  484-obligation manifest is now admitted by both commands, because V1-2971 derived the aggregate
+  bound as 16 x 256 = 4096. A parity test now pins it: for four inputs, the pre-flight and the
+  closeout's `finish-lane` print identical `REFUSE` and `fix:` lines.
+- **V1-3394 (`ASD-V0-961`).** This is no longer already-delivered: the criteria also require the
+  record-only recipe. The missing-`CITATIONS` refusal now names it. `docs/DOGFOOD.md` gains a
+  "Record-only closeout" paragraph with the whole command sequence; it uses `LANE_DIR`, not
+  `GIT_DIR`, because Git itself reads `GIT_DIR`.
+- **V1-3284, V1-3428 (`DCW-V0-966`, `DCW-V0-967`).** The root cause of the high unknown rates:
+  `prepareAnchors` dropped every candidate line in a modified file, and a self-development change
+  almost always modifies its governing spec. Changes:
+  - Candidates from modified files are now kept. `stable` still drops every line a hunk edits or
+    the change repeats, so `DCW-V0-393`'s stated intent (never bind the change's own text) holds.
+  - The hunk's own file stays a proposal, never an anchor. A mode-only path (in git's name list
+    but not in the patch) is still never cited.
+  - An untouched file's candidate ranks first.
+  - A requirement whose definition already exists at BASE was being classed as "added by this
+    change". That was a real bug, and the likely cause of the ci-select-w1 repro. It is now
+    classed as edited, and its unknown note names the edited definition and the
+    `cite-span-not-stable` refusal it would cause.
+  - A hunk naming or defining an added requirement cites the BASE definition of a requirement the
+    entry refines, amends or names. Several hunks may share that span, an explicit exception to
+    `DCW-V0-382`, because citing the refined requirement is the right evidence. Failing that, it
+    cites the nearest stable entry or heading to where the entry is inserted, as a marked
+    proposal with its reason.
+  - A prior seal's CEM falls back to the `DCW-V0-385` definition line when the change edits the
+    `docs/DOGFOOD.md` line. A `--refresh` row that kept it unknown is redrafted.
+
+  Measured unknown rates (base binary, then this tree):
+  - this lane's `3555875f9..cd644e29f`: 57/65 then 1/65;
+  - the V1-3284 change `c5d5f0829..9ba44871f`: 140/146 then 14/146, with 100 rows marked as
+    proposals.
+
+  The old checkout's pre-flight refuses a newer binary, so that draft was not bind-checked. The
+  regression fixture's draft is bind-checked instead, through real cem prepare and cite.
+- **V1-3270 (`DCW-V0-963` amended).** The criteria ask for the new line range too. Every stderr
+  mapping line and every unknown note now reads `PATH at BASE S,C HEAD S,C`.
+- **V1-3303.** The criterion test was added: a real seal, sidecars dated before the seal commit, a
+  stacked commit, then `inputs-check` and `finish-lane` bound against the seal. Both pass and seal
+  with no manual cleanup.
+- **V1-3472 (`ASD-V0-962`).** With no range, the check now refuses a prefix family that
+  `REQUIREMENTS.tsv` already uses. It names the next free one: the last letter advances past
+  families the index or any tracked file uses. `TCD-V0` gives `TCE-V0`.
 
 ## Evidence
 
@@ -94,15 +149,21 @@ that a lane seals on its first closeout try and that its citation plan is mostly
   - `make dogfood-cache-test`, `lane-scripts-test`, `dogfood-change-test`,
     `dogfood-bin-reuse-test` and `dogfood-bind-range-test`
 
+- Second slice: the whole `internal/dogfoodflow` package and the `cmd/corvint` dogfood filter
+  PASS. Also PASS: `TestDogfoodFinishLaneDCWV0964StackedFinishNeedsNoCleanup`,
+  `TestDCWV0965InputsCheckRefusesWhatCloseoutRefuses`,
+  `TestProposeCitationsDCWV0966BoundsTheUnknownRate`, `...DCWV0966CitesPriorSealInEveryRoute` and
+  `...DCWV0967NamesAnEditedRequirementDefinition`, plus the five dogfood and lane shell suites.
+
 ## NOT_RUN
 
 - `make gate` and the exhaustive `go test ./...`: not required for scoped issue work (AGENTS.md
   Verify). The rest of the `corvint affected` selection (94 units, `scope=UNKNOWN`, 86
   `LANGUAGE_FRONTIER` unknowns) was not run. The `cmd/corvint` tests outside the `-run` filter
   were not run either.
-- Ticket acceptance criteria were not read: `corvint-tasks ticket show` refuses on this WSL host
-  (no `.git/taskman` journal, and these tickets are newer than the committed `.taskman` snapshot).
-  The work follows the charter's summaries, and the orchestrator was asked for the criteria.
+- At first the ticket acceptance criteria could not be read here: `corvint-tasks ticket show`
+  refuses on this WSL host (no journal; V1-3474). The orchestrator later supplied them, and the
+  second slice builds to them.
 
 ## Rollback
 
@@ -113,12 +174,12 @@ target.
 
 ## Outcome
 
-- V1-3047: delivered (`DCW-V0-960`, `DCW-V0-961`; the verify-syntax part was already covered by
-  `DCW-V0-403`).
-- V1-3394: already delivered (`ASD-V0-045`, V1-3119; evidence above).
-- V1-3284, V1-3428: delivered (`DCW-V0-962`).
+- V1-3047: delivered (`DCW-V0-960`, `DCW-V0-961`, `DCW-V0-965`).
+- V1-3394: delivered (`ASD-V0-961`, on top of `ASD-V0-045`).
+- V1-3284, V1-3428: delivered (`DCW-V0-962`, `DCW-V0-966`, `DCW-V0-967`).
 - V1-3270: delivered (`DCW-V0-963`).
 - V1-3303: delivered (`DCW-V0-964`).
-- V1-3472: delivered (`ASD-V0-960`).
-- Dogfood: sealed once with `make dogfood-closeout` after this commit. The lane report gives the
-  seal state and every `NOT_PRODUCED` reason.
+- V1-3472: delivered (`ASD-V0-960`, `ASD-V0-962`).
+- Dogfood: the first slice sealed on its first closeout try (`a7a0630b2`, unknownShare 0/65). The
+  second slice is resealed with the same BASE as the lane's second and last try. The lane report
+  gives its seal state and every `NOT_PRODUCED` reason.
