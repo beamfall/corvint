@@ -29,6 +29,9 @@ func validateFreshnessOptions(r Request) error {
 		return errors.New("freshness-request-binding-invalid")
 	}
 	for _, root := range []struct{ root, expected string }{{r.Product.Root, c.ProductExpected.RootCommit}, {r.TestRepository.Root, c.TestExpected.RootCommit}} {
+		// Safe unguarded (EEP-V0-771): an equality check against the root commit the provider
+		// observed with info/grafts disabled, so a graft here can only make the two differ (a
+		// refusal); a shallow boundary named on both sides is a real commit of this history.
 		actual, e := git(root.root, "rev-list", "--max-parents=0", "HEAD")
 		if e != nil || actual != root.expected {
 			return errors.New("freshness-root-commit-invalid")
