@@ -20,7 +20,7 @@ type fixture struct {
 
 func (f fixture) git(args ...string) string {
 	f.t.Helper()
-	cmd := exec.Command("git", append([]string{"-C", f.repo}, args...)...)
+	cmd := exec.Command("git", append([]string{"-C", f.repo, "-c", "maintenance.auto=false", "-c", "gc.auto=0"}, args...)...)
 	cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.invalid",
 		"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.invalid", "GIT_CONFIG_NOSYSTEM=1", "HOME="+f.repo)
 	out, err := cmd.CombinedOutput()
