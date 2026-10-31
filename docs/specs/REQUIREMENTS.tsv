@@ -3360,6 +3360,7 @@ DCX-V1-521	docs/specs/documentation-corpus-extraction-delta-v1.md	(proposed, exp
 DCX-V1-522	docs/specs/documentation-corpus-extraction-delta-v1.md	(proposed, experimental; GitHub #1662; owner acceptance open) The walk keeps	unrecorded	-
 DCX-V1-810	docs/specs/documentation-corpus-extraction-delta-v1.md	(proposed, experimental; V1-2560) Legacy discovery of a directory resolves its	unrecorded	-
 DCX-V1-811	docs/specs/documentation-corpus-extraction-delta-v1.md	(proposed, experimental; V1-2560) The discovered test files keep the per-tree	unrecorded	-
+DCX-V1-812	docs/specs/documentation-corpus-extraction-delta-v1.md	(proposed, experimental; V1-2561) The matched-file bound is operator-declared by	unrecorded	-
 DCI-V1-001	docs/specs/documentation-corpus-inventory-v1.md	`docs corpus estate --input ESTATE.json` reads one closed	unrecorded	-
 DCI-V1-002	docs/specs/documentation-corpus-inventory-v1.md	Each corpus is admitted by the verified read (`DCR-V1-410`) at its own root, so	unrecorded	-
 DCI-V1-003	docs/specs/documentation-corpus-inventory-v1.md	Every reference a corpus leaves as an `outside-corpus-reference` gap is one	unrecorded	-

@@ -932,7 +932,7 @@ These rows change no inventory, profile, provider record or artifact format and 
 option or persisted state; a revision that extracted before yields the same inventory bytes.
 Failure modes: a tree object that does not self-hash or is not the one its parent names refuses
 the extraction; a revision past a bound is refused rather than listed in part. The per-extractor
-4,096-file record bound (`MaxRecords`) still applies to the matched files. Rollback restores the
+4,096-file record bound (`MaxRecords`) still applies to the matched files (`DCX-V1-812`). Rollback restores the
 per-tree `RevisionFS` walk in `extractorTree`. Timing on linux/WSL2 is retained in
 `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-corpus-extract-enumeration.md`.
 
@@ -962,6 +962,25 @@ for `DCX-V1-810..811`: proposed, experimental under the standing lane auto-accep
 
 No inventory format, option, cache or persisted state changes. Rollback restores the
 `RevisionFS` walk in `legacyPaths`.
+
+### Extractor matched-file bound on large repositories (V1-2561)
+
+A caller-owned `app/**/*.rb` profile over a large Rails repository (GitHub #1662's reporter has
+13,806 such files) passes enumeration (`DCX-V1-520`) and then meets the per-extractor matched-file
+bound. Reproduced on linux/WSL2 at 2026-10-31: 4,200 matching files refuse under provider/1 at the
+4,096 bound; `--schema 2` (`DCX-V1-560`) extracts them. Status for `DCX-V1-812`: proposed,
+experimental under the standing lane auto-accept; V1-2561.
+
+- `DCX-V1-812`: (proposed, experimental; V1-2561) The matched-file bound is operator-declared by
+  the output schema: `MaxRecords` (4,096) for provider/1 and `MaxCorpusRecords` (100,000) under
+  `--schema 2`. Its refusal MUST name the matched-file count, the bound and the extractor, under
+  provider/1 the `--schema 2` bound, and how to scope the profile:
+  `narrow extractor "<id>" files globs to at most <bound> files`. Acceptance:
+  `TestDCXV1812MatchedFilesBoundNamesScopeAndSchemaTwo` (4,200 matched files refuse with both
+  levers named under the default and `--schema 1`, and extract under `--schema 2`; fails first on
+  the missing scope hint).
+
+Rollback drops the scope sentence from the refusal; no format, option or state changes.
 
 ## Input and authority boundary
 
@@ -1067,6 +1086,7 @@ DCPV1.
 | DCX-V1-474 | `internal/mcp/corpusbridge/eval.go`, `corpusbridge.go` | `TestDCXV1474EvalSuiteObservesOnce`, `TestDCPV1251EvalScoresThroughTheMCPToolPath`; measured in https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-corpus-diagnostics-and-ranking.md |
 | DCX-V1-475..477 | `internal/doccorpus/search_rank.go`, `search_phrase.go`, `typed_query.go` | `TestDCXV1475PhraseAndIdentifierMatchesRankFirst`, `TestDCXV1476ClaimTextMatchesInflections`, `TestDCXV1477MeaningfulTieBreaks`, `TestDCSV1404SearchRankingEvalFixture` |
 | DCX-V1-478, DCX-V1-503..506 | `internal/doccorpus/extractor.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `docs.go` | `TestDCXV1478CallerProfileExtractsLikeTheCommittedProfile`, `TestDCXV1478CallerProfileRequiresAMatchingDigest`, `TestDCXV1478CallerProfileDirectorySwapIsRefused`, `TestDCXV1478CallerProfileUnsupportedPlatformIsRefused`, `TestDCXV1503CallerProfileProvenanceIsRecorded`, `TestDCXV1503CallerProfileWithNoSubjectsKeepsItsDigest`, `TestDCXV1504CallerProfileProviderRecordBuildsUnchanged`, `TestDCXV1505CallerProfileExtractionIsReadOnly`, `TestDCXV1506DocsCorpusExtractCallerProfileCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusHelpListsOperations`, `TestCAPV0019CommittedCatalogMatchesTheBinary` |
+| DCX-V1-812 | `bound` in `internal/doccorpus/extractor.go` | `TestDCXV1812MatchedFilesBoundNamesScopeAndSchemaTwo` |
 | DCX-V1-810..811 | `legacyPaths` in `internal/doccorpus/behavior_legacy_discovery.go` | `TestDCXV1810LegacyDiscoveryEnumeratesMoreThan1024Directories`, `TestDCXV1811LegacyPathsMatchPerTreeWalk` |
 | DCX-V1-520..522 | `internal/cem/gitauth/revision_paths.go`, `internal/doccorpus/extractor.go` | `TestDCXV1520RevisionPathsMatchesLsTreeWithinOneOpPerLevel`, `TestDCXV1520RevisionPathsOpsIndependentOfDirectoryCount`, `TestDCXV1520RevisionPathsListsGitSafeNamesUnfiltered`, `TestDCXV1520ExtractionEnumeratesMoreThan1024Directories`, `TestDCXV1521ExtractorGlobPruningIsSound`, `TestDCXV1521RevisionPathsPrunesRejectedSubtrees`, `TestDCXV1522RevisionPathsRefusesPastItsBounds`; measured in https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-corpus-extract-enumeration.md |
 | DCX-V1-560..564 | `internal/doccorpus/extractor.go`, `capacity.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `docs_corpus_delta.go`, `docs/RELEASE-NOTES.md` | `TestDCXV1560ExtractorSchemaTwoAdmitsMoreThanTheRecordBound`, `TestDCXV1560DocsCorpusExtractSchemaCLI`, `TestDCXV1562ExtractorRefusesARecordOverTheInputBound`, `TestDCXV1563DeltaCurrentSideIsDecidedByPresence`, `TestDCXV1564ReleaseNotesListEveryDerivation`, `TestDocsCorpusOperationFlagMatrix`; measured in https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-corpus-coverage-multirepo-derivation.md |
