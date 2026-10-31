@@ -325,6 +325,10 @@ func ObservePlaywrightSources(root, configPath string) (string, error) {
 			identities = append(identities, sourceIdentity{Path: declared[0], SHA256: sum})
 		}
 	}
+	// A manager other than npm changes every emitted argv, so it is a plan input (TJAA-V0-780).
+	if sum := playwrightPackageManagerSum(root); sum != "" {
+		identities = append(identities, sourceIdentity{Path: playwrightPackageManagerIdentity, SHA256: sum})
+	}
 	for _, relative := range files {
 		body, readErr := affected.ReadSource(root, relative)
 		if errors.Is(readErr, affected.ErrWalkLimit) && relative != configPath {

@@ -118,6 +118,7 @@ func SelectPlaywrightWithEnvironment(root, configPath, revision string, dirty []
 		narrowing.Symbols = playwrightChangedSymbols(root, plan.Dirty, before)
 		plan.Narrowed = &narrowing
 	}
+	applyPlaywrightPackageManager(&plan, root)
 	return plan, nil
 }
 
