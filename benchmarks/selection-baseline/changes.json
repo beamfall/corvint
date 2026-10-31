@@ -234,37 +234,6 @@
       ]
     },
     {
-      "id": "ci-cb87a4341",
-      "kind": "failed-ci",
-      "base": "21fea70cb1fec853eecd55ebaadc3a61a1e11534",
-      "head": "cb87a43411ca1b291ba46eff446d6fe2cc763fb8",
-      "failures": [
-        {
-          "run": 41070773409,
-          "job": 124114635726,
-          "package": "github.com/Beamfall/corvint/internal/observations"
-        }
-      ]
-    },
-    {
-      "id": "ci-d92b0a2a5",
-      "kind": "failed-ci",
-      "base": "21fea70cb1fec853eecd55ebaadc3a61a1e11534",
-      "head": "d92b0a2a5dadd5f2ba15b49544926b506dd81311",
-      "failures": [
-        {
-          "run": 41069075502,
-          "job": 124108731322,
-          "package": "github.com/Beamfall/corvint/tools/compat-trial/build-fixtures"
-        },
-        {
-          "run": 41069075502,
-          "job": 124108731579,
-          "unattributed": "the job's annotations name no failing package (the failure is outside a go test package line)"
-        }
-      ]
-    },
-    {
       "id": "ci-8de253042",
       "kind": "failed-ci",
       "base": "9477995d776ddf88d7f6a82790dd9c22d51da765",
