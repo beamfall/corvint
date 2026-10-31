@@ -1071,3 +1071,51 @@ func TestLocalCompletionSealedCloseoutRepin(t *testing.T) {
 		t.Fatalf("restored completion: %#v", result)
 	}
 }
+
+// TestDogfoodHoldRefusesCancelThroughTheCLI covers LCP-V0-880/881 at the CLI:
+// dogfood hold records the hold, cancel exits 2 with
+// enrollment-preservation-hold naming the distinct-checkout route, and a
+// release with an authorization admits the cancel.
+func TestDogfoodHoldRefusesCancelThroughTheCLI(t *testing.T) {
+	t.Parallel()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cemWrite(t, root, "a.md", "# A\n\n## Requirements\n\n- `FIXTURE-001`: preserve behavior.\n")
+	cemWrite(t, root, ".gitignore", ".corvint/\n")
+	cemGit(t, root, "init", "-q", "-b", "main")
+	cemGit(t, root, "add", ".")
+	cemGit(t, root, "commit", "-qm", "base")
+	plan := localcompletion.Plan{Base: cemGit(t, root, "rev-parse", "HEAD"), Intents: []string{"a.md"}, Checks: []localcompletion.Check{{ID: "unit", Argv: []string{"true"}, TimeoutSeconds: 30}}}
+	raw, _ := json.Marshal(plan)
+	planPath := filepath.Join(t.TempDir(), "plan.json")
+	if err = os.WriteFile(planPath, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	key := localcompletion.HashSession(t.Name())
+	call := func(args ...string) (int, string, string) {
+		var stdout, stderr strings.Builder
+		code := runLocalCompletion(context.Background(), root, append(args, "--session-key", key), strings.NewReader(""), &stdout, &stderr)
+		return code, stdout.String(), stderr.String()
+	}
+	if code, stdout, stderr := call("begin", "--plan", planPath); code != 0 {
+		t.Fatalf("begin: exit %d stdout %s stderr %s", code, stdout, stderr)
+	}
+	if code, stdout, stderr := call("hold", "--reason", "preserve ACTIVE"); code != 0 || !strings.Contains(stdout, `"tool":"dogfood-hold"`) || strings.Contains(stdout, "cancelReason") {
+		t.Fatalf("hold: exit %d stdout %s stderr %s", code, stdout, stderr)
+	}
+	code, stdout, stderr := call("cancel", "--reason", "base moved")
+	if code != 2 || stdout != "" || !strings.Contains(stderr, `"enrollment-preservation-hold"`) || !strings.Contains(stderr, "distinct checkout") {
+		t.Fatalf("held cancel: exit %d stdout %q stderr %q", code, stdout, stderr)
+	}
+	if code, _, stderr = call("hold"); code != 2 || !strings.Contains(stderr, "invalid-local-completion-option") {
+		t.Fatalf("hold with no option: exit %d stderr %s", code, stderr)
+	}
+	if code, stdout, stderr = call("hold", "--release-authorization", "coordinator approved"); code != 0 {
+		t.Fatalf("release: exit %d stdout %s stderr %s", code, stdout, stderr)
+	}
+	if code, stdout, _ = call("cancel", "--reason", "approved"); code != 0 || !strings.Contains(stdout, `"lifecycle":"cancelled"`) {
+		t.Fatalf("authorized cancel: exit %d %s", code, stdout)
+	}
+}

@@ -96,6 +96,8 @@ func runLocalCompletion(ctx context.Context, root string, args []string, stdin i
 		result, err = localcompletion.Review(ctx, root, key, flags["--report-set"])
 	case "cancel":
 		result, err = localcompletion.Cancel(ctx, root, key, flags["--reason"])
+	case "hold":
+		result, err = localcompletion.Hold(ctx, root, key, flags["--reason"], flags["--release-authorization"])
 	}
 	if err != nil {
 		if result.Lifecycle != "" {
@@ -112,6 +114,10 @@ func runLocalCompletion(ctx context.Context, root string, args []string, stdin i
 		if errors.As(err, &reasonless) {
 			return emitLocalCompletionFailureDetail(stderr, err.Error(), reasonless.Detail())
 		}
+		var held *localcompletion.HoldError
+		if errors.As(err, &held) {
+			return emitLocalCompletionFailureDetail(stderr, err.Error(), held.Detail())
+		}
 		var drift *localcompletion.SealedDriftError
 		if errors.As(err, &drift) {
 			return emitLocalCompletionFailureDetail(stderr, err.Error(), drift.Detail())
@@ -126,7 +132,7 @@ func runLocalCompletion(ctx context.Context, root string, args []string, stdin i
 	// ok mirrors the exit status (LCP-V0-017): a caller reading only ok never
 	// sees an unqualified selected check or an unsatisfied finish as success.
 	payload := map[string]any{"ok": code == 0, "profile": "corvint-local-completion/0", "tool": "dogfood-" + args[0], "mutates": args[0] != "status", "policy": result, "claim": "caller-owned-selected-workflow-only"}
-	if reason := flags["--reason"]; reason != "" {
+	if reason := flags["--reason"]; reason != "" && args[0] == "cancel" {
 		// LCP-V0-038: the caller's reason is echoed, never persisted in the
 		// closed enrollment state.
 		payload["cancelReason"] = reason
@@ -169,6 +175,9 @@ func localCompletionFlags(args []string) (map[string]string, error) {
 	case "status":
 	case "cancel":
 		allowed["--reason"] = true
+	case "hold":
+		// LCP-V0-880/881: exactly one of the two is given.
+		allowed["--reason"], allowed["--release-authorization"] = true, true
 	case "handoff":
 		allowed["--anchors"], allowed["--receipt"] = true, true
 		allowed["--task-state"], allowed["--bundle"] = true, true

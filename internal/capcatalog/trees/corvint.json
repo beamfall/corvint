@@ -2973,6 +2973,8 @@
         "corvint [--root PATH] dogfood handoff --receipt FILE [--session-key HASH]",
         "corvint [--root PATH] dogfood handoff --task-state FILE [--session-key HASH]",
         "corvint [--root PATH] dogfood handoff --bundle FILE --session-key HASH",
+        "corvint [--root PATH] dogfood hold --reason TEXT [--session-key HASH]",
+        "corvint [--root PATH] dogfood hold --release-authorization TEXT [--session-key HASH]",
         "corvint [--root PATH] dogfood inputs-check --base BASE --citations FILE [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH]",
         "corvint [--root PATH] dogfood prechange [--task TEXT] BASE [PATH...]",
         "corvint [--root PATH] dogfood propose-citations [--refresh PLAN] BASE",
@@ -2996,6 +2998,7 @@
         "--reason",
         "--receipt",
         "--refresh",
+        "--release-authorization",
         "--report-set",
         "--root",
         "--session-key",
@@ -3182,6 +3185,27 @@
       "required": [],
       "example": "corvint dogfood handoff",
       "help": "corvint dogfood handoff --help"
+    },
+    {
+      "path": [
+        "dogfood",
+        "hold"
+      ],
+      "command": "corvint dogfood hold",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] dogfood hold --reason TEXT [--session-key HASH]",
+        "corvint [--root PATH] dogfood hold --release-authorization TEXT [--session-key HASH]"
+      ],
+      "flags": [
+        "--reason",
+        "--release-authorization",
+        "--root",
+        "--session-key"
+      ],
+      "required": [],
+      "example": "corvint dogfood hold --reason TEXT",
+      "help": "corvint dogfood hold --help"
     },
     {
       "path": [

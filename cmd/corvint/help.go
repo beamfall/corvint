@@ -1942,6 +1942,8 @@ Usage:
   corvint [--root PATH] dogfood finish [--session-key HASH]
   corvint [--root PATH] dogfood review --report-set DIGEST [--session-key HASH]
   corvint [--root PATH] dogfood cancel [--reason TEXT] [--session-key HASH]
+  corvint [--root PATH] dogfood hold --reason TEXT [--session-key HASH]
+  corvint [--root PATH] dogfood hold --release-authorization TEXT [--session-key HASH]
   corvint [--root PATH] dogfood handoff [--anchors "ANCHOR..."] [--session-key HASH]
   corvint [--root PATH] dogfood handoff --receipt FILE [--session-key HASH]
   corvint [--root PATH] dogfood handoff --task-state FILE [--session-key HASH]
@@ -1971,7 +1973,10 @@ exact report set. A subsequent finish materializes the selected-check outcome,
 runs the strict dogfood check and records satisfaction only on success.
 
 Status is read-only. Missing evidence remains incomplete. Cancellation is explicit
-non-success. Local satisfaction is caller-owned workflow evidence, never execution
+non-success. hold records a coordinator's preservation hold on the active
+enrollment, under which cancel refuses enrollment-preservation-hold; begin the new
+base in a distinct checkout instead, or release it with --release-authorization
+TEXT, which is kept as a record (LCP-V0-880, LCP-V0-881). Local satisfaction is caller-owned workflow evidence, never execution
 attestation or Frontier closure. Native event is a separate bounded adapter profile.
 
 handoff is read-only. Without --receipt it emits a receipt naming the session key,
