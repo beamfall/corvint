@@ -571,6 +571,27 @@ path receives it by default, add a bounded second hop, and mark every such row a
   their exact bytes.
   Acceptance evidence: `TestNGIV0062RangeAndPathChooseOneGate`, `TestNonGoRangeImpactLegacyGoBytes`.
   Rollback: restore `rangeVerification`'s profile-only gate.
+- `NGI-V0-780`: (accepted under the owner's standing auto-accept (2026-10-31); V1-3498) Impact's
+  `verification` member is governed by two rules: a repository-declared gate (`NGI-V0-060`) closes
+  it, and the language command each changed path implies precedes it. For a JavaScript or
+  TypeScript path whose root `package.json` declares a non-empty `test` script, that command MUST
+  run the script under the repository's Node package manager: `npm test`, `pnpm test`,
+  `yarn test` or `bun run test`. The manager is the root `package.json` `packageManager` member's
+  name when it is `npm`, `pnpm`, `yarn` or `bun`; else the one manager whose tracked root file
+  signals it (`package-lock.json` or `npm-shrinkwrap.json` npm, `pnpm-lock.yaml` or
+  `pnpm-workspace.yaml` pnpm, `yarn.lock` yarn, `bun.lock` or `bun.lockb` bun); else npm, the
+  Node default. When tracked files signal more than one manager and no `packageManager` member
+  settles it, no Node command is named, since which one runs the script is not known. A
+  repository with no such file and no member keeps its exact receipt bytes. Committed-range impact
+  names no Node command and is unchanged.
+  Non-goals: reading nested workspace packages' manifests or lockfiles; validating that the
+  manager is installed; running the script.
+  Failure modes (V1-3498): a pnpm workspace (`packageManager: pnpm@...`, `pnpm-lock.yaml`) was told
+  to run `npm test`. A declared `pnpm check` that impact did not read, because the root `AGENTS.md`
+  is a symlink, is V1-1272, not this rule.
+  Acceptance evidence: `TestNGIV0780NodeTestCommandFollowsPackageManager`,
+  `TestNGIV0060DeclaredVerifyCommandClosesMakefileLessPlan`.
+  Rollback: make `nodeTestCommand` return `npm test`.
 
 ### Whole-tree import export (V1-3090; GitHub #1986)
 
@@ -752,6 +773,7 @@ and a validated declared identifier, never source text.
 | `NGI-V0-059` | `RangeImpact` unknown-language branch (`internal/contextindex/range_impact.go`), `lacksLanguageVerification` | `TestNGIV0059RubyRangeReportsUnknownVerification`, `TestNGIV0059RangeWithoutRubyPathKeepsUncertainty` |
 | `NGI-V0-060` | `closingGates`, `declaredVerification` (`internal/contextindex/receipt.go`); `MandatoryVerifyCommands` (`internal/projectprofile/verify.go`) | `TestNGIV0060DeclaredVerifyCommandClosesMakefileLessPlan`, `TestNGIV0060MandatoryVerifyCommands` |
 | `NGI-V0-061` | `setVerification` (`internal/contextindex/receipt.go`) | `TestNGIV0060DeclaredVerifyCommandClosesMakefileLessPlan`, `TestNGIV0061InferredCommandBesideDeclaredGate` |
+| `NGI-V0-780` | `nodeTestCommand`, `toolchainCommand` (`internal/contextindex/receipt.go`); `NodePackageManager`, `NodeTestCommand` (`internal/projectprofile/nodepm.go`) | `TestNGIV0780NodeTestCommandFollowsPackageManager` |
 | `NGI-V0-062` | `rangeVerification` (`internal/contextindex/range_impact.go`), `closingGates` | `TestNGIV0062RangeAndPathChooseOneGate`, `TestNonGoRangeImpactLegacyGoBytes` |
 | `NGI-V0-033` | `rubyImpactRequested` and the syntax-frontier selection in `impact` | `TestRubyAutoloadDefaultOn`, `TestRubyAutoloadIssue1130DefaultTransitive`, `TestNonGoImpactCLIProfile`; Go/JS goldens `conformance/cli-parity-v0`, `TestNonGoRangeImpactLegacyGoBytes` |
 | `NGI-V0-034` | `rubyAutoload.impact` second hop (`traversed`), `referrers`, `result` | `TestRubyAutoloadIssue1130DefaultTransitive`, `TestRubyAutoloadSecondHopOnce`, `TestRubyAutoloadSecondHopConstantOnce` |

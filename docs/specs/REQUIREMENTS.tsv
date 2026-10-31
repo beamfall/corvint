@@ -5004,6 +5004,7 @@ NGI-V0-059	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing a
 NGI-V0-060	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2071) When the	standing	2026-10-11; V1-2071
 NGI-V0-061	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2071) A path o	standing	2026-10-11; V1-2071
 NGI-V0-062	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1848) Path imp	standing	2026-10-11; V1-1848
+NGI-V0-780	docs/specs/non-go-impact-v0.md	(accepted under the owner's standing auto-accept (2026-10-31); V1-3498) Impact's	standing	2026-10-31; V1-3498
 NGI-V0-301	docs/specs/non-go-impact-v0.md	`corvint graph imports --revision FULL_COMMIT [--kinds KINDS]	unrecorded	-
 NGI-V0-302	docs/specs/non-go-impact-v0.md	Every Ruby/JS/TS path MUST retain the structured syntax unknowns that	unrecorded	-
 NGI-V0-303	docs/specs/non-go-impact-v0.md	Import resolution and evidence sites MUST agree with impact on the same	unrecorded	-
