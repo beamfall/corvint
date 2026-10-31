@@ -356,6 +356,7 @@ sub check {
             my @shifts = relocations($lines, $pin, @numbers);
             my $shift = @shifts == 1 && relocatable($lines, $shifts[0], @numbers) ? $shifts[0] : undef;
             $shift //= diff_relocation($path, $lines, $pin, @numbers) if defined $repin_base;
+            $shift //= history_relocation($path, $lines, $pin, @numbers) if defined $repin_base;
             if (defined $shift) {
                 my $moved = shifted_token($token, $shift);
                 push @failures, "$doc:$line_number  $token  cited content moved unchanged to $moved "
@@ -471,39 +472,43 @@ sub candidates {
 # diff is the move evidence the hash search lacks when the cited text repeats or is one short line.
 my (%hunks_of, %base_lines_of);
 sub base_hunks {
-    my ($path) = @_;
-    return $hunks_of{$path} if exists $hunks_of{$path};
-    return $hunks_of{$path} = undef if $path =~ /\n/;
+    my ($path, $commit) = @_;
+    $commit //= $repin_base;
+    my $key = "$commit\0$path";
+    return $hunks_of{$key} if exists $hunks_of{$key};
+    return $hunks_of{$key} = undef if $path =~ /\n/;
     local $ENV{GIT_OPTIONAL_LOCKS} = '0';
     local $/ = "\n";
     my @hunks;
     open my $diff, '-|', 'git', 'diff', '--cached', '--no-ext-diff', '--no-textconv', '--no-color',
-        '--no-renames', '-U0', $repin_base, '--', $path or die "git diff $repin_base_label -- $path: $!\n";
+        '--no-renames', '-U0', $commit, '--', $path or die "git diff $commit -- $path: $!\n";
     while (my $row = <$diff>) {
         push @hunks, [$1, $2 // 1, $3, $4 // 1] if $row =~ /^\@\@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? \@\@/;
     }
     close $diff
-        or die $! ? "git diff $repin_base_label -- $path: $!\n" : "git diff $repin_base_label -- $path failed: exit " . ($? >> 8) . "\n";
-    return $hunks_of{$path} = \@hunks;
+        or die $! ? "git diff $commit -- $path: $!\n" : "git diff $commit -- $path failed: exit " . ($? >> 8) . "\n";
+    return $hunks_of{$key} = \@hunks;
 }
 
 # The cited file's lines at the base commit, or undef when the base does not hold it as a blob.
 sub base_lines {
-    my ($path) = @_;
-    return $base_lines_of{$path} if exists $base_lines_of{$path};
-    return $base_lines_of{$path} = undef if $path =~ /\n/;
+    my ($path, $commit) = @_;
+    $commit //= $repin_base;
+    my $key = "$commit\0$path";
+    return $base_lines_of{$key} if exists $base_lines_of{$key};
+    return $base_lines_of{$key} = undef if $path =~ /\n/;
     local $/ = "\n";
     my $entry = do {
         local $/;
-        open my $tree, '-|', 'git', 'ls-tree', '-z', $repin_base, '--', $path or die "git ls-tree: $!\n";
+        open my $tree, '-|', 'git', 'ls-tree', '-z', $commit, '--', $path or die "git ls-tree: $!\n";
         my $listed = <$tree> // '';
-        close $tree or die "git ls-tree $repin_base_label -- $path failed\n";
+        close $tree or die "git ls-tree $commit -- $path failed\n";
         $listed;
     };
-    return $base_lines_of{$path} = undef unless $entry =~ /\A\d+ blob [0-9a-f]+\t/;
-    my @lines = split /^/, index_blob_once($path, "$repin_base:$path");
+    return $base_lines_of{$key} = undef unless $entry =~ /\A\d+ blob [0-9a-f]+\t/;
+    my @lines = split /^/, index_blob_once($path, "$commit:$path");
     chomp @lines;
-    return $base_lines_of{$path} = \@lines;
+    return $base_lines_of{$key} = \@lines;
 }
 
 # Maps base line $n through the hunks: (index line) when the diff leaves it unchanged, or
@@ -530,11 +535,15 @@ sub map_line {
 # moved lines still hash to the pin in the index.
 sub diff_relocation {
     my ($path, $lines, $pin, @numbers) = @_;
+    return diff_relocation_from($repin_base, $path, $lines, $pin, @numbers);
+}
+sub diff_relocation_from {
+    my ($commit, $path, $lines, $pin, @numbers) = @_;
     return undef if length($pin) < 8;
-    my $base = base_lines($path) or return undef;
+    my $base = base_lines($path, $commit) or return undef;
     return undef if grep { $_ < 1 || $_ > @$base } @numbers;
     return undef unless anchor_of($base, @numbers) =~ /^\Q$pin\E/;
-    my $hunks = base_hunks($path) or return undef;
+    my $hunks = base_hunks($path, $commit) or return undef;
     my %shifts;
     for my $number (@numbers) {
         my ($moved) = map_line($hunks, $number);
@@ -546,6 +555,38 @@ sub diff_relocation {
     my @moved = map { $_ + $shift } @numbers;
     return undef if grep { $_ < 1 || $_ > @$lines } @moved;
     return anchor_of($lines, @moved) =~ /^\Q$pin\E/ ? $shift : undef;
+}
+
+# DCG-V0-810 (V1-3467): when HEAD's diff proves nothing, typically because the insertion above a
+# cited line was committed before --repin ran, the move is proved by the diff from the newest
+# commit at or before the base, among the last $history_depth commits that touched the cited file,
+# whose cited lines hash to the pin. That commit is where the citation's text last sat at its
+# cited numbers, so the diff tracks those very lines, a repeated or short line included; a span
+# whose own text changed since then is never relocated.
+my $history_depth = 50;
+my %history_of;
+sub path_history {
+    my ($path) = @_;
+    return @{ $history_of{$path} } if exists $history_of{$path};
+    return @{ $history_of{$path} = [] } if $path =~ /\n/;
+    local $ENV{GIT_OPTIONAL_LOCKS} = '0';
+    local $/ = "\n";
+    open my $log, '-|', 'git', 'log', '--format=%H', "--max-count=$history_depth", $repin_base, '--', $path
+        or die "git log -- $path: $!\n";
+    chomp(my @commits = <$log>);
+    close $log or die "git log $repin_base_label -- $path failed\n";
+    return @{ $history_of{$path} = \@commits };
+}
+sub history_relocation {
+    my ($path, $lines, $pin, @numbers) = @_;
+    return undef if length($pin) < 8;
+    for my $commit (path_history($path)) {
+        my $base = base_lines($path, $commit) or next;
+        next if grep { $_ < 1 || $_ > @$base } @numbers;
+        next unless anchor_of($base, @numbers) =~ /^\Q$pin\E/;
+        return diff_relocation_from($commit, $path, $lines, $pin, @numbers);
+    }
+    return undef;
 }
 
 # For a pinned span whose text changed since the base, the span the diff maps it to and that
