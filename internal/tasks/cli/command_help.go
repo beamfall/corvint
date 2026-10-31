@@ -51,6 +51,10 @@ func terseHelp(cmd []string, full *wire.Result) *wire.Result {
 	if isOmitted(name) {
 		keep = append(keep, "note")
 	}
+	if name == "release" {
+		// TCD-V0-178 (V1-3200): --reason is call-forming, so its closed codes stay terse.
+		keep = append(keep, "reasonCodes")
+	}
 	terse := pick(full.Items[0], keep...)
 	if len(terse.Obj.Keys) < len(o.Keys) {
 		terse.Obj.Set("verboseHelp", wire.String("corvint-tasks "+name+" --help --verbose"))
