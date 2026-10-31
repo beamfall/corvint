@@ -2758,7 +2758,9 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   the precheck's count fail, so it skipped, and `ocm-prepare` refused only after the bind commit;
   `docs/specs/affected-plan-v0.md` is one. Non-goals: widening the bound. Failure modes: any other
   derivation failure stays with the existing steps. Evidence:
-  `TestDCWV0961OverBoundSingleIntentRefusesBeforeAnyStep` (fails on BASE: the steps ran).
+  `TestDCWV0961OverBoundSingleIntentRefusesBeforeAnyStep` (fails on BASE: the steps ran). This
+  pre-empts the input `DCW-V0-806`'s end-to-end fixture used: `TestFinishLaneDCWV0806NamesTheOriginatingRefusal`
+  now asserts the up-front refusal, and the `CAUSE` line keeps no end-to-end case of its own.
   Rollback: drop the per-intent branch of `precheckIntentObligations`.
 - `DCW-V0-962`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3284, V1-3428;
   amends `DCW-V0-393`, `DCW-V0-439` and `DCW-V0-846`) When a hunk has no anchored row and its
