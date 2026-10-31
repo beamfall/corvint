@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -412,6 +413,9 @@ func submitMutationContext(ctx context.Context, env Env, cmd []string, operation
 		if w := unboundedEffectsWarning(store0, operation, payload, report.Ticket); w != "" {
 			res.Warnings = append(res.Warnings, w)
 		}
+		if w := requiredGatesWarning(store0.Policy, operation, payload, report.Ticket); w != "" {
+			res.Warnings = append(res.Warnings, w)
+		}
 		if report.MutationEffects != nil {
 			res.Warnings = append(res.Warnings, store.EffectsDirectoryKeyWarnings(env.Cwd, "HEAD", *report.MutationEffects)...)
 		}
@@ -547,6 +551,37 @@ func unboundedEffectsWarning(st *intent.Store, operation string, payload wire.Va
 	}
 	return fmt.Sprintf("%s: ticket %s declares no PATH scope under coverage QUALIFIED (coverage %s, %d touchPaths, %d resources), so plan and claim reserve WHOLE_REPOSITORY and it will serialize against every other attempt (policy serialFallback %s); declare its scope with ticket set-effects, or claim a committed change with --scope-from-diff REV (TCD-V0-174)",
 		WarningEffectsUnbounded, ticketID, e.Coverage, len(e.TouchPaths), len(e.Resources), st.Policy.SerialFallback)
+}
+
+// WarningRequiredGatesEmpty prefixes the TCD-V0-807 warning.
+const WarningRequiredGatesEmpty = "REQUIRED_GATES_EMPTY"
+
+// requiredGatesWarning names, for a CREATE that names no requiredGates under
+// a policy with gates, the gates complete still demands and the ones it will
+// not (TCD-V0-807).
+func requiredGatesWarning(p *intent.Policy, operation string, payload wire.Value, ticketID string) string {
+	if operation != mutation.OpCreate || len(p.Gates) == 0 || payload.Obj == nil {
+		return ""
+	}
+	if v, ok := payload.Obj.Get("requiredGates"); !ok || len(v.Arr) != 0 {
+		return ""
+	}
+	required := transaction.RequiredGates(p, &ticket.Record{})
+	optional := []string{}
+	for _, g := range slices.Sorted(maps.Keys(p.GateIDs())) {
+		if !slices.Contains(required, g) {
+			optional = append(optional, g)
+		}
+	}
+	demanded := "no policy gate"
+	if len(required) > 0 {
+		demanded = "the policy-required gates " + strings.Join(required, " ")
+	}
+	tail := ""
+	if len(optional) > 0 {
+		tail = "; it will not demand " + strings.Join(optional, " ") + " unless the ticket names them with ticket set-gates"
+	}
+	return fmt.Sprintf("%s: ticket %s names no requiredGates; complete still demands %s (ticket show effectiveRequiredGates)%s (TCD-V0-807)", WarningRequiredGatesEmpty, ticketID, demanded, tail)
 }
 
 // unmetDependencyWarnings names each COMPLETED-obligation dependency that a
