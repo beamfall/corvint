@@ -1,0 +1,32 @@
+{
+  "reason": "V1-2615: the native and portable stable readers emit the CEM-V1-083 plain criterion binding (id, criterionIndex, criterionSha256, evidenceId) for a plain map, which the sealed Tasks-only $defs/criterionBinding refused at references.criterionBindings[]; CEM-V1-881 admits it beside the unchanged Tasks form.",
+  "pointer": "/$defs/criterionBinding",
+  "predecessorSha256": "328958d8cce0eabc535794f407421543f7c954f4f3bcb2ab6f49b7f09a017e06",
+  "branch": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "id",
+      "criterionIndex",
+      "criterionSha256",
+      "evidenceId"
+    ],
+    "properties": {
+      "id": {
+        "$ref": "#/$defs/criterionId"
+      },
+      "criterionIndex": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 255
+      },
+      "criterionSha256": {
+        "$ref": "#/$defs/sha256"
+      },
+      "evidenceId": {
+        "type": "string",
+        "pattern": "^evidence:sha256:[0-9a-f]{64}$"
+      }
+    }
+  }
+}

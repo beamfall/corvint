@@ -4799,13 +4799,16 @@ read read-only.
   and `verboseHelp` naming `<command> --help --verbose` when keys were dropped. `--help --verbose`
   or `--verbose --help` MUST return today's full help. This amends CAL-V0-047, CAL-V0-050,
   CTW-V0-013, CAL-V0-121 and the V1-0751 template content (CTW-V0-012): their reason codes, preconditions,
-  notes and templates are required under `--help --verbose`. Every other CAL-V0-047 rule holds for
+  notes and templates are required under `--help --verbose` (terse `release --help` also keeps
+  `reasonCodes`, `TCD-V0-178`). Every other CAL-V0-047 rule holds for
   both forms, including no store, stdin, lock or write, and `<verb> --help` for every verb.
   Mutation help given beside other flags (`ticket create --payload-stdin --help`) stays full and
   also accepts `--verbose`; `--verbose` without `--help` is refused. A release mutation with
   `--help` anywhere in its argv answers the same help, terse or under `--verbose`, and never writes.
 - `CAL-V0-171`: (accepted by decision 0441; V1-0935 and V1-0941) The byte effect MUST be
   measured on a fixture of at least 300 tickets and recorded with this amendment and the build log.
+  Since `TCD-V0-178` (V1-3200) keeps `reasonCodes` in terse `release --help`, that form is bounded
+  at half of `--help --verbose` rather than a quarter.
 - `CAL-V0-172`: (accepted by decision 0441; V1-0935) `docs/TASKS-EXTERNAL-AGENTS.md`
   MUST tell agents to request `--summary` or `--fields` and never to print full JSON into a
   transcript. No `corvint-tasks` skill text exists under `integrations/` at this revision.
@@ -8224,7 +8227,7 @@ The classification, as `wire.RetryOf` records it:
 
 | Codes | Retryable | Condition or reason |
 | --- | --- | --- |
-| `RESOURCE_EXHAUSTED` | yes (CAL-V0-215, decision 0519) | EMFILE/ENFILE descriptor pressure clears; same-request retry, unless an explicit non-retryable mark forbids it |
+| `RESOURCE_EXHAUSTED` | yes (CAL-V0-215, decision 0519; PSR-V0-901) | EMFILE/ENFILE descriptor pressure, or ENOSPC disk or inotify watch exhaustion, clears; same-request retry, unless an explicit non-retryable mark forbids it |
 | `LOCK_TIMEOUT` | yes | Lock or preparation admission held by another writer past the wait; nothing locked or written |
 | `SNAPSHOT_MOVED` | yes | Store, head, intent tree or worktree moved during a read or before commit; nothing decided. A release or attestation candidate whose head no longer matches, and a criterion capture wrapping a refused read, repeat until their input changes |
 | `REDO_PENDING` | yes | A writer is between receipt link-in and head rename; the next mutating command redoes a crashed writer's receipt |

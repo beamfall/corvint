@@ -487,3 +487,45 @@ file and are recorded in Git, in ../manifest.json and in each tuple manifest.
 | protocol/cem-1.0/structural-tuples/go1.27.3/TUPLE.json | 2eb10d8258eddcb272185e35296e423167e47353ee35d94fdb22f3a10c20f32e |
 | protocol/cem-1.0/structural-tuples/go1.27.3/manifest.json | 912c59cbdffc35c9031491c74c6f41bb9bba4377c076cce8fcb411f48d88a692 |
 | protocol/cem-1.0/stable/RESULT.schema.json | identical to protocol/cem-1.0/stable/repository-envelope-packet/RESULT.schema.json |
+
+# Recorded schema anyOf branch at `/$defs/criterionBinding` (2026-10-31)
+
+Base: the public packet with manifest sha256
+c3b7a8e6db645267b71f24e16a18f7f109e6050199f5591cf62d45efb5542d6f.
+Reason: V1-2615: the native and portable stable readers emit the CEM-V1-083 plain criterion binding (id, criterionIndex, criterionSha256, evidenceId) for a plain map, which the sealed Tasks-only $defs/criterionBinding refused at references.criterionBindings[]; CEM-V1-881 admits it beside the unchanged Tasks form.
+Record file sha256: d5abcdf74034dcf9bde6d9eeb5bf4d9cf00705d60e0a029051cd93247601e3b2.
+Produced by `make cem-stable-regen-any-of` (tools/cem-stable-regen, CEM-V1-880).
+
+- RESULT.schema.json `/$defs/criterionBinding` had 1 alternative(s); it now has 2, the last
+  being the recorded branch.
+- Node sha256 (compact JSON): 328958d8cce0eabc535794f407421543f7c954f4f3bcb2ab6f49b7f09a017e06 -> 60a7761c4555bb7c17e8b56828fd81e78d77bcba20d85d34d80be5c2adee0a45; branch sha256 1078d3f1bef8f0ba993773a312ceb42f9fa328201c9b5dfb7adbd49fe7924a51.
+- No member, case, cell, exit or other schema byte changed; every frozen
+  expectation stays valid because the schema only admits more.
+
+## Changed files
+
+| File | Old sha256 | New sha256 |
+| --- | --- | --- |
+| RESULT.schema.json | 5849832edd23b92c8cc70aa7ea20f26f51dd8d0cfb8f288b5518515b56aa2fdb | 89a6b27b678dd0a5c82c7947f9baedcbd61ebbc74c557d5942c25dca921f3da8 |
+| README.md | dd48c32b5b8ca50ce0f7d345fc9b43c70d4b58f45a1b5cf5a89ee0c24f534de6 | 7ff0ead68a1ea61187ef90e3a0d2c58c300082afe8474d88111951a753fb8611 |
+| CHANGES.md | d0de35ab6b06ec23e36bfaa781e1f1ee390a86f542bb8c039030859839bf0b9e | See manifest.json; this file cannot contain its own final digest. |
+| manifest.json | c3b7a8e6db645267b71f24e16a18f7f109e6050199f5591cf62d45efb5542d6f | See ../manifest.json publicAmendmentManifestSHA256; manifest.json is not listed inside its own file list. |
+
+Files not listed above are byte-identical to the base packet. INPUTS.json
+keeps its repair-era pins as history.
+
+## Re-bound files outside the packet
+
+These files are re-bound to the digests above; their new digests depend on this
+file and are recorded in Git, in ../manifest.json and in each tuple manifest.
+
+| File | Predecessor sha256 |
+| --- | --- |
+| protocol/cem-1.0/stable/REPOSITORY-ENVELOPE.cells.json | 39cf062fe8cd02b062583a691f920746f2c55b5a629adf45f7f932f6e51cad74 |
+| protocol/cem-1.0/stable/REPOSITORY-ENVELOPE.md | 8c9fa6c855a069cd037b1f7b018cad88013b219a40f6d2548809e0e1236b475b |
+| protocol/cem-1.0/stable/manifest.json | ec34cf570df90fb20db3ca8c259ccf51effa6d3df96047a75f38d63cb687200d |
+| protocol/cem-1.0/structural-tuples/go1.27.2/TUPLE.json | 597b95503703f9325c068048363ba349a6e9329d88522b97944f230f916a7b1e |
+| protocol/cem-1.0/structural-tuples/go1.27.2/manifest.json | a9b0e547e22e960d199a951ff3f7de0d04107ddfa788eada4196448c98f6d734 |
+| protocol/cem-1.0/structural-tuples/go1.27.3/TUPLE.json | 89feb67d18b99be1a93644a85551378fcd3662d3a97b527ca6d049ee32753041 |
+| protocol/cem-1.0/structural-tuples/go1.27.3/manifest.json | 5254160eb18b2db7dc1178b3264ec2d1e300056035917887c56c844a92184a81 |
+| protocol/cem-1.0/stable/RESULT.schema.json | identical to protocol/cem-1.0/stable/repository-envelope-packet/RESULT.schema.json |

@@ -50,7 +50,7 @@ func psrStart(t *testing.T, s *leaseStore, id string) (<-chan psrOutcome, contex
 // while the file is still empty.
 func psrAwaitMarker(t *testing.T, path string) {
 	t.Helper()
-	end := time.Now().Add(3 * time.Second)
+	end := time.Now().Add(2 * time.Minute) // hang detector, not a budget (decision 0082; V1-0849)
 	for time.Now().Before(end) {
 		if info, e := os.Stat(path); e == nil && info.Size() > 0 {
 			return
@@ -106,6 +106,10 @@ func (d *psrDeadline) Err() error {
 // PSR-V0-008: once ALL is set an owned sweep launches no further phase command;
 // it only publishes its terminal observation. An owned successful verify may
 // still finalize its exact delegated confirmation.
+// psrBarrierJoin bounds the wait for the barrier test's sweep: the 120s
+// load-tolerant attempt bound plus the barrier's own publication.
+const psrBarrierJoin = 150 * time.Second
+
 func TestPSRAllBarrierTerminal(t *testing.T) {
 	for _, mode := range []string{"during-reset", "before-verify-launch", "during-verify"} {
 		t.Run(mode, func(t *testing.T) {
@@ -122,8 +126,13 @@ func TestPSRAllBarrierTerminal(t *testing.T) {
 				reset = "printf reset > " + marker
 				verify = "printf x > " + verified + wait + "; printf verified"
 			}
-			s, _ := psrFixture(t, reset, verify, "verified", "1", false)
-			ctx, cancel := context.WithCancel(context.Background())
+			// V1-1516: the reset (or verify) blocks until this test has set
+			// the barrier and run a refused fresh sweep, which at load 40+
+			// outlasted the fixture's 3s attempt bound: the attempt ended
+			// TIMEOUT before the barrier was what stopped it. The V1-1324
+			// load-tolerant bounds keep the barrier the subject.
+			s, _ := psrFixtureConfigured(t, reset, verify, "verified", "1", false, psrLoadTolerant)
+			ctx, cancel := context.WithCancel(psrLoaded(context.Background()))
 			barrier := false
 			if mode == "before-verify-launch" {
 				ctx = store.PSRTestResponseFailure(ctx, func(c store.LeaseChoice, r *store.Report, e error) error {
@@ -136,7 +145,7 @@ func TestPSRAllBarrierTerminal(t *testing.T) {
 			}
 			done := make(chan psrOutcome, 1)
 			go func() {
-				r, e := store.PoolSweep(ctx, s.repo, operator(), store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "barrier-sweep", Root: s.root, TimeoutSeconds: "15"})
+				r, e := store.PoolSweep(ctx, s.repo, operator(), store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "barrier-sweep", Root: s.root, TimeoutSeconds: psrLoadedSweepSeconds})
 				done <- psrOutcome{r, e}
 			}()
 			joined := false
@@ -145,7 +154,7 @@ func TestPSRAllBarrierTerminal(t *testing.T) {
 				if !joined {
 					select {
 					case <-done:
-					case <-time.After(40 * time.Second):
+					case <-time.After(psrBarrierJoin):
 						t.Error("sweep unjoined")
 					}
 				}
@@ -170,7 +179,7 @@ func TestPSRAllBarrierTerminal(t *testing.T) {
 			select {
 			case result = <-done:
 				joined = true
-			case <-time.After(40 * time.Second):
+			case <-time.After(psrBarrierJoin):
 				t.Fatal("owned sweep failed to terminate")
 			}
 			if result.err != nil || result.report.Pending || result.report.Report.Outcome.Outcome != mutation.OutcomeCompleted {
@@ -193,7 +202,7 @@ func TestPSRAllBarrierTerminal(t *testing.T) {
 					t.Fatal("ALL sweep not terminal quarantine", pools)
 				}
 			}
-			replay, e := psrRun(s, "barrier-sweep")
+			replay, e := psrRunLoaded(s, "barrier-sweep")
 			if e != nil || replay.Pending || replay.Report.Outcome.Outcome != mutation.OutcomeCompleted || !bytes.Equal(replay.Result, result.report.Result) {
 				t.Fatal(replay, e)
 			}
@@ -996,7 +1005,15 @@ func TestPSROrphanEarlyInitializationCleanup(t *testing.T) {
 	owned := psrOwnOrphan(t, cmd)
 	psrAwaitMarker(t, marker)
 	// Simulate failure before marker parsing. Ownership comes only from ps.
-	owned.capture(t)
+	// V1-0849 (V1-0796): the reset shell writes the marker before it forks
+	// sleep, so one capture right after the marker can see the shell alone.
+	// Capture until the forked child is seen; the bound only detects a hang.
+	for end := time.Now().Add(2 * time.Minute); ; time.Sleep(10 * time.Millisecond) {
+		owned.capture(t)
+		if len(owned.children) >= 2 && len(owned.groups) > 0 || time.Now().After(end) {
+			break
+		}
+	}
 	if len(owned.children) < 2 || len(owned.groups) == 0 {
 		t.Fatal("early failure fixture not reached")
 	}
