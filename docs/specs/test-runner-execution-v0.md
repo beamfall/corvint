@@ -150,8 +150,14 @@ analyzer families need explicit runtime/domain disposition; their presence is no
   and run `am instrument`. Otherwise it prints `INSTALLED_APK_IDENTITY: <reason>` (`unresolved`,
   `unobservable`, `mismatch`) and exits without instrumenting. The parser MUST require the
   verified line as the first stdout line and MUST record `INSTALLED_APK_UNVERIFIED` with the
-  reason otherwise, so the observation is incomplete. Because the parser checks a fixed line,
-  an adb build that drops the remote exit status cannot pass a mismatch.
+  reason otherwise, so the observation is incomplete. After `am instrument` returns, the same
+  script MUST hash the installed APKs again and print one fixed last line:
+  `INSTALLED_APK_IDENTITY: unchanged` only when the second digest set equals the first, otherwise
+  `INSTALLED_APK_IDENTITY: changed` (or `unobservable` when the second hash cannot be taken). The
+  parser MUST require `unchanged` as the last stdout line and MUST record
+  `INSTALLED_APK_UNVERIFIED` otherwise, so a reinstall during the run (`adb install -r`) makes the
+  observation incomplete even when every test passed. Because the parser checks fixed lines, an
+  adb build that drops the remote exit status cannot pass a mismatch or a change.
 
 ## Runner inventory
 
@@ -1912,21 +1918,24 @@ supported and fail closed as `unobservable`.
 
 Failure modes. An uninstalled or mistyped component is `unresolved`. A missing package, a
 failing `pm path`, more than one `package:` path or a failing `sha256sum` is `unobservable`. A
-reinstall from another build, or a bound APK that is not installed, is `mismatch`. Stdout from
+reinstall from another build, or a bound APK that is not installed, is `mismatch`. A reinstall
+after the first hash that is still in place when the instrumentation ends is `changed`. Stdout from
 before this requirement (no verified line) is `INSTALLED_APK_UNVERIFIED`, so a historical raw
 capture is not a complete observation. An Android plan written before this requirement differs
 in its TEST argv, so `corvint-test-runner run` refuses it and asks for a re-plan.
 
 | Requirements | Source/tests | Evidence |
 | --- | --- | --- |
-| TRE-V0-820 | `platform/android.go` `buildAndroid`, `androidIdentityScript`, `parseAndroid`; `TestAndroidInstalledAPKIdentity`, `TestAndroidRequiresBoundAPKs`, `TestNativeAndroidOutcomesAndNeutralTransportExit`, `TestAndroidTimeoutStopsDeviceProcesses` | A recording fake `adb` with a stateful fake device shell (`pm path`, `sha256sum`) runs the real script: a matching install is verified and instrumented, a mismatching, split or missing install is never instrumented and is incomplete, including when the transport drops the exit status; focused unit tests, 2026-10-31 |
+| TRE-V0-820 | `platform/android.go` `buildAndroid`, `androidIdentityScript`, `parseAndroid`; `TestAndroidInstalledAPKIdentity`, `TestAndroidRequiresBoundAPKs`, `TestNativeAndroidOutcomesAndNeutralTransportExit`, `TestAndroidTimeoutStopsDeviceProcesses` | A recording fake `adb` with a stateful fake device shell (`pm path`, `sha256sum`) runs the real script: a matching install is verified and instrumented, a mismatching, split or missing install is never instrumented and is incomplete, including when the transport drops the exit status; an install replaced during the instrumentation is `changed` and incomplete (`reinstalled-during-run`); focused unit tests, 2026-10-31 |
 
 Recorded limits.
 - The live witness is NOT_RUN: no emulator or adb was available to the lane host. Whether every
   supported emulator image ships toybox `sha256sum` is inferred from AOSP toybox, not observed.
-- The check and the instrumentation run in one shell session, but a concurrent reinstall
-  between the hash and `am instrument` is not excluded.
+- The check and the instrumentation run in one shell session and the APKs are hashed before and
+  after it. A reinstall that is reverted to the bound bytes before the second hash (A to B to A),
+  and which process image the device actually loaded, are not observed: two hashes bound the
+  window, they do not close it.
 
-Rollback removes the `.apk` input requirement, the identity script and the parser's first-line
-check, with their tests and this section. Android TEST argv returns to the bare `am instrument`
+Rollback removes the `.apk` input requirement, the identity script and the parser's first- and
+last-line checks, with their tests and this section. Android TEST argv returns to the bare `am instrument`
 command, so plans written with the script would need a re-plan.

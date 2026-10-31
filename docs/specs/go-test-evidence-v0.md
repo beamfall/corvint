@@ -47,14 +47,17 @@ and platform.
   and is never merged with the old one; nothing maps names across a rename.
 - `GTE-V0-824`: A test that started (`run`) and never reached a terminal event, as after a panic,
   a timeout or a killed process, MUST be recorded `NOT_OBSERVED` with no elapsed time, never as a
-  pass. A stream with any line that is not a test2json event, an unknown action, an event without a
-  bounded package, or no events at all MUST be refused with no write. A ledger line that does not
-  decode, has an unknown field, or whose `id` or `sha256` does not match its content MUST make the
-  tool refuse the ledger.
+  pass. Each stream line and each ledger line MUST hold exactly one JSON value and nothing but
+  white space after it. A stream with any line that is not one test2json event, an unknown action,
+  an event without a bounded package, or no events at all MUST be refused with no write. A ledger
+  line that does not decode, has trailing content or an unknown field, or whose `id` or `sha256`
+  does not match its content MUST make the tool refuse the ledger.
 - `GTE-V0-825`: `gotest-evidence summary -ledger FILE` MUST print, per package and test, the
-  outcome counts, the number of distinct runs and `flaky`, which is true only when the test both
-  passed and failed on the same tree, toolchain and platform. A pass on one tree and a fail on
-  another is a change, not a flake.
+  outcome counts, the number of distinct runs and `flaky`: `true` only when the test both passed
+  and failed on the same tree, toolchain and platform, all three observed. A `NOT_OBSERVED`
+  toolchain or platform never counts as the same environment: a pass and a fail on one tree that
+  only an unobserved environment could join give `unknown`, never `true`. Otherwise `false`. A pass
+  on one tree and a fail on another is a change, not a flake.
 - `GTE-V0-826`: Nothing in Corvint reads the ledger for ranking, evidence, authority or learning.
   The ledger lives where the operator names it; the tool writes nothing else.
 
@@ -92,8 +95,8 @@ framework than `go test -json`.
 | GTE-V0-820 | `tools/gotest-evidence/main.go` `run`, `record`; `TestGTEV0820HelpNamesUsageInputsAndExample` | help and flag refusal, 2026-10-31 |
 | GTE-V0-821, GTE-V0-823 | `Derive`; `TestGTEV0821RecordsNameIdentityAndProvenance` | actual go1.27.3 `-count=2` stream: two ordinals per test, subtest path split, renamed test a new identity, undeclared provenance `NOT_OBSERVED` |
 | GTE-V0-822 | `record`, `recordID`, `replace`; `TestGTEV0822RecordingTwiceIsByteIdentical` | second recording adds 0 and the bytes are equal; 13 distinct ids for 13 outcomes |
-| GTE-V0-824 | `Derive`, `readLedger`; `TestGTEV0824UnfinishedTestIsNotObserved` | a stream cut before `TestPass` ended gives one `NOT_OBSERVED`; three bad streams and three bad provenances refused with no write; an edited outcome refused |
-| GTE-V0-825 | `summary`; `TestGTEV0825SummaryMeasuresFlakes` | a subtest that passed twice and failed once on one tree is flaky; the same outcomes split across two trees are not |
+| GTE-V0-824 | `Derive`, `readLedger`, `oneValue`; `TestGTEV0824UnfinishedTestIsNotObserved` | a stream cut before `TestPass` ended gives one `NOT_OBSERVED`; five bad streams (including a terminal event followed by a stray `}`) and three bad provenances refused with no write; an edited outcome and a record followed by trailing garbage refused |
+| GTE-V0-825 | `summary`; `TestGTEV0825SummaryMeasuresFlakes` | a subtest that passed twice and failed once on one tree is flaky; the same outcomes split across two trees are not; the same outcomes with toolchain and platform undeclared are `unknown` |
 | GTE-V0-826 | no reader outside `tools/gotest-evidence` | `git grep gotest-evidence` names only this tool, this spec and its index rows |
 
 Recorded limits. The fixtures are one module captured on one host; no CI or gate stream has been
