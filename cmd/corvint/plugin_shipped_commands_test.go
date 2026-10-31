@@ -74,8 +74,8 @@ func TestAHI373PluginCommandsShipInCoreRelease(t *testing.T) {
 	}
 }
 
-// AHI-820: the Claude Code plugin's corvint server serves the test-validity and docs tool groups
-// over the legacy handshake Claude Code speaks, so their tools are reachable in-session (V1-2513).
+// AHI-820: the Claude Code plugin declares its corvint server with the test-validity and docs
+// tool groups over the legacy handshake Claude Code speaks (V1-2513).
 func TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join("..", "..", "integrations", "claude-code", "plugins", "corvint", ".mcp.json"))
 	if err != nil {
@@ -95,31 +95,6 @@ func TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups(t *testing.T) {
 	if len(declared.MCPServers) != 1 || server.Command != "corvint" || !slices.Equal(server.Args, want) {
 		t.Fatalf("declared %+v, want one corvint server with args %q", declared.MCPServers, want)
 	}
-	root := taskContextRepository(t)
-	args := slices.Clone(server.Args)
-	args[slices.Index(args, "${CLAUDE_PROJECT_DIR}")] = root
-	input := `{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"claude-code","version":"2.1.311"}}}` + "\n" +
-		`{"jsonrpc":"2.0","method":"notifications/initialized"}` + "\n" +
-		`{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}` + "\n"
-	var stdout, stderr strings.Builder
-	if exit := runContext(t.Context(), args, strings.NewReader(input), &stdout, &stderr); exit != 0 {
-		t.Fatalf("exit=%d stderr=%q", exit, stderr.String())
-	}
-	var listed struct {
-		ID     int
-		Result struct{ Tools []struct{ Name string } }
-	}
-	var names []string
-	for line := range strings.Lines(stdout.String()) {
-		if err := json.Unmarshal([]byte(line), &listed); err == nil && listed.ID == 1 {
-			for _, tool := range listed.Result.Tools {
-				names = append(names, tool.Name)
-			}
-		}
-	}
-	for _, name := range []string{"corvint.status", "corvint.test_validity", "corvint.docs_draft", "corvint.docs_consume"} {
-		if !slices.Contains(names, name) {
-			t.Fatalf("tools/list %q lacks %s: %s", names, name, stdout.String())
-		}
-	}
+	// The server run over these args is TestAHI820ClaudePluginArgsServeTestValidityAndDocs in
+	// internal/mcp/cli: starting it here would pin Git for this whole test process.
 }
