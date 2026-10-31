@@ -1290,7 +1290,17 @@ out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 102 104 HEAD 2>&1)
 [[ $? == 0 && $out == "free ABC-V0-102..ABC-V0-104 at HEAD ($(git -C "$ids" rev-parse HEAD))" ]] || fail "free range: $out"
 out=$(cd "$ids" && "$script/requirement-ids-free.sh" ZZZ-V1 1 9 HEAD 2>&1)
 [[ $? == 0 && $out == 'free ZZZ-V1-001..ZZZ-V1-009 at HEAD ('* ]] || fail "unknown prefix: $out"
-for bad in 'abc 1 2 HEAD:bad-prefix' 'ABC-V0 5 2 HEAD:bad-range' 'ABC-V0 1 1000 HEAD:bad-range' 'ABC-V0 1 2 no-such-ref:ref-not-a-commit' 'ABC-V0 1:bad-arguments'; do
+# ASD-V0-962 (V1-3472): with no range the prefix is a new family; one REQUIREMENTS.tsv names refuses
+# it and names the next free prefix, skipping a family REQUIREMENTS.tsv or any tracked file uses.
+mkdir -p "$ids/docs/specs" && printf 'ABC-V0-101\tdocs/specs/abc.md\tone\nABD-V0-001\tdocs/specs/abd.md\ttwo\n' > "$ids/docs/specs/REQUIREMENTS.tsv" &&
+  printf 'ABE-V0-001 is named only here\n' > "$ids/notes.txt" && git -C "$ids" add docs notes.txt &&
+  git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm index || fail "prefix fixture"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 HEAD 2>&1)
+[[ $? == 1 && $out == 'used-prefix ABC-V0: 1 requirement rows in docs/specs/REQUIREMENTS.tsv at HEAD, first ABC-V0-101 in docs/specs/abc.md; next free prefix: ABF-V0' ]] ||
+  fail "in-use prefix: $out"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABX-V0 HEAD 2>&1)
+[[ $? == 0 && $out == 'free-prefix ABX-V0 at HEAD ('* ]] || fail "free prefix: $out"
+for bad in 'abc 1 2 HEAD:bad-prefix' 'ABC-V0 5 2 HEAD:bad-range' 'ABC-V0 1 1000 HEAD:bad-range' 'ABC-V0 1 2 no-such-ref:ref-not-a-commit' 'ABC-V0 1 2 3 4:bad-arguments'; do
   read -r -a argv <<< "${bad%:*}"
   out=$(cd "$ids" && "$script/requirement-ids-free.sh" "${argv[@]}" 2>&1)
   [[ $? == 2 && $out == *"REFUSE ${bad##*:}"* ]] || fail "refusal ${bad##*:}: $out"

@@ -745,9 +745,10 @@ dogfood-bin-reuse-test:
 
 # ASD-V0-960 (V1-3472): before a charter names a requirement-ID block, check it is free on origin/main,
 # for example make requirement-ids-free PREFIX=DCW-V0 RANGE=960..979 (REF= names another commit).
+# Without RANGE it checks PREFIX as a new family and names the next free one (ASD-V0-962, V1-3472).
 requirement-ids-free:
-	@case "$(RANGE)" in *..*) ;; *) echo "requirement-ids-free: pass PREFIX=<prefix> RANGE=<lo>..<hi> [REF=<commit>], for example PREFIX=DCW-V0 RANGE=960..979" >&2; exit 2 ;; esac
-	@script/requirement-ids-free.sh "$(PREFIX)" "$(firstword $(subst .., ,$(RANGE)))" "$(lastword $(subst .., ,$(RANGE)))" $(if $(REF),"$(REF)")
+	@case "$(RANGE)" in *..*|'') ;; *) echo "requirement-ids-free: pass PREFIX=<prefix> [RANGE=<lo>..<hi>] [REF=<commit>], for example PREFIX=DCW-V0 RANGE=960..979" >&2; exit 2 ;; esac
+	@script/requirement-ids-free.sh "$(PREFIX)" $(if $(RANGE),"$(firstword $(subst .., ,$(RANGE)))" "$(lastword $(subst .., ,$(RANGE)))") $(if $(REF),"$(REF)")
 
 # The lane procedure scripts (docs/LANE-ORCHESTRATION.md, ASD-V0-014..018); no Go build.
 lane-scripts-test:
