@@ -106,6 +106,10 @@ func (d *psrDeadline) Err() error {
 // PSR-V0-008: once ALL is set an owned sweep launches no further phase command;
 // it only publishes its terminal observation. An owned successful verify may
 // still finalize its exact delegated confirmation.
+// psrBarrierJoin bounds the wait for the barrier test's sweep: the 120s
+// load-tolerant attempt bound plus the barrier's own publication.
+const psrBarrierJoin = 150 * time.Second
+
 func TestPSRAllBarrierTerminal(t *testing.T) {
 	for _, mode := range []string{"during-reset", "before-verify-launch", "during-verify"} {
 		t.Run(mode, func(t *testing.T) {
@@ -122,8 +126,13 @@ func TestPSRAllBarrierTerminal(t *testing.T) {
 				reset = "printf reset > " + marker
 				verify = "printf x > " + verified + wait + "; printf verified"
 			}
-			s, _ := psrFixture(t, reset, verify, "verified", "1", false)
-			ctx, cancel := context.WithCancel(context.Background())
+			// V1-1516: the reset (or verify) blocks until this test has set
+			// the barrier and run a refused fresh sweep, which at load 40+
+			// outlasted the fixture's 3s attempt bound: the attempt ended
+			// TIMEOUT before the barrier was what stopped it. The V1-1324
+			// load-tolerant bounds keep the barrier the subject.
+			s, _ := psrFixtureConfigured(t, reset, verify, "verified", "1", false, psrLoadTolerant)
+			ctx, cancel := context.WithCancel(psrLoaded(context.Background()))
 			barrier := false
 			if mode == "before-verify-launch" {
 				ctx = store.PSRTestResponseFailure(ctx, func(c store.LeaseChoice, r *store.Report, e error) error {
@@ -136,7 +145,7 @@ func TestPSRAllBarrierTerminal(t *testing.T) {
 			}
 			done := make(chan psrOutcome, 1)
 			go func() {
-				r, e := store.PoolSweep(ctx, s.repo, operator(), store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "barrier-sweep", Root: s.root, TimeoutSeconds: "15"})
+				r, e := store.PoolSweep(ctx, s.repo, operator(), store.PoolSweepChoice{QueueID: fixture.QueueID, RequestID: "barrier-sweep", Root: s.root, TimeoutSeconds: psrLoadedSweepSeconds})
 				done <- psrOutcome{r, e}
 			}()
 			joined := false
@@ -145,7 +154,7 @@ func TestPSRAllBarrierTerminal(t *testing.T) {
 				if !joined {
 					select {
 					case <-done:
-					case <-time.After(40 * time.Second):
+					case <-time.After(psrBarrierJoin):
 						t.Error("sweep unjoined")
 					}
 				}
@@ -170,7 +179,7 @@ func TestPSRAllBarrierTerminal(t *testing.T) {
 			select {
 			case result = <-done:
 				joined = true
-			case <-time.After(40 * time.Second):
+			case <-time.After(psrBarrierJoin):
 				t.Fatal("owned sweep failed to terminate")
 			}
 			if result.err != nil || result.report.Pending || result.report.Report.Outcome.Outcome != mutation.OutcomeCompleted {
@@ -193,7 +202,7 @@ func TestPSRAllBarrierTerminal(t *testing.T) {
 					t.Fatal("ALL sweep not terminal quarantine", pools)
 				}
 			}
-			replay, e := psrRun(s, "barrier-sweep")
+			replay, e := psrRunLoaded(s, "barrier-sweep")
 			if e != nil || replay.Pending || replay.Report.Outcome.Outcome != mutation.OutcomeCompleted || !bytes.Equal(replay.Result, result.report.Result) {
 				t.Fatal(replay, e)
 			}
