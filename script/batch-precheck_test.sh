@@ -14,6 +14,9 @@ pre=$script/batch-precheck.sh
 regen=$script/batch-regen.sh
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/corvint-batch-precheck-test.XXXXXX") ||
   { printf 'batch-precheck_test: FAIL mktemp under %s: %s\n' "${TMPDIR:-/tmp}" "$(df -Pk "${TMPDIR:-/tmp}" 2>&1 | tail -n 1)" >&2; exit 1; }
+# batch-precheck resolves the step TMPDIR with `cd && pwd`; macOS TMPDIR ends in `/`, so the
+# mktemp path holds `//` until it is resolved the same way (V1-3055).
+tmp=$(cd "$tmp" && pwd)
 # V1-3205: every failure names its case (the numbered group and the failing line), the last output
 # of the command under test and the free space of TMPDIR, whose exhaustion once failed this test
 # with an empty log; an exit that bypassed fail says so.

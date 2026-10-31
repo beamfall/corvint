@@ -167,6 +167,9 @@ func ticketLocal(name string) (string, bool) {
 type plannedFile struct {
 	path string
 	max  int
+	// known is the closed-index entry whose sha stands for this file's
+	// bytes (TCX-V0-981); the file is then not read.
+	known *ClosedEntry
 }
 
 // TreeDigest reads the intent store of a primary worktree through a
@@ -178,6 +181,24 @@ type plannedFile struct {
 // names fail closed. Records are not validated here; Load does that from the
 // same captured bytes.
 func TreeDigest(primaryWorktree string) (Tree, error) {
+	return treeDigest(primaryWorktree, nil, nil)
+}
+
+// TreeDigestIndexed is TreeDigest that takes the digest of a closed ticket
+// from idx instead of reading it when the entry's stat key still matches
+// (TCX-V0-981). Such a file's Raw is nil; LoadTreeIndexed holds it as a
+// summary and reads it only on demand. A nil idx is TreeDigest.
+func TreeDigestIndexed(primaryWorktree string, idx *ClosedIndex) (Tree, error) {
+	tree, err := treeDigest(primaryWorktree, idx, nil)
+	if err != nil || idx.governs(tree) {
+		return tree, err
+	}
+	return treeDigest(primaryWorktree, nil, nil)
+}
+
+// treeDigest also records each ticket file's stat key in keys when keys is
+// not nil, for the closed index writer.
+func treeDigest(primaryWorktree string, idx *ClosedIndex, keys map[string]statKey) (Tree, error) {
 	rootPath := filepath.Join(primaryWorktree, Dir)
 	fi, err := os.Lstat(rootPath)
 	if err != nil {
@@ -216,7 +237,7 @@ func TreeDigest(primaryWorktree string) (Tree, error) {
 				return Tree{}, err
 			}
 			total += size
-			plan = append(plan, plannedFile{name, max})
+			plan = append(plan, plannedFile{path: name, max: max})
 		case TicketsDir, ReleasesDir:
 			info, err := root.Lstat(name)
 			if err != nil {
@@ -259,12 +280,20 @@ func TreeDigest(primaryWorktree string) (Tree, error) {
 				if !ok {
 					return Tree{}, wire.Errorf(wire.CodeMalformed, tfull, "unexpected entry in the intent store (%s/ admits only named JSON records)", name)
 				}
-				size, err := statRegular(statRoot, tfull, statRel+tn, bound)
+				info, err := statRegularInfo(statRoot, tfull, statRel+tn, bound)
 				if err != nil {
 					return Tree{}, err
 				}
-				total += size
-				plan = append(plan, plannedFile{rel, bound})
+				total += info.Size()
+				pf := plannedFile{path: rel, max: bound}
+				if name == TicketsDir {
+					key := statKeyOf(info)
+					if keys != nil {
+						keys[rel] = key
+					}
+					pf.known = idx.trusted(rel, key)
+				}
+				plan = append(plan, pf)
 				if total > int64(wire.MaxIntentTreeBytes) {
 					return Tree{}, wire.Errorf(wire.CodeLimitExceeded, rootPath, "intent tree larger than %d bytes", wire.MaxIntentTreeBytes)
 				}
@@ -302,15 +331,23 @@ func captureTree(rootPath string, plan []plannedFile, read func(full, rel string
 	files := make([]File, 0, len(plan))
 	captured := 0
 	for _, p := range plan {
-		raw, err := read(filepath.Join(rootPath, filepath.FromSlash(p.path)), p.path, p.max)
-		if err != nil {
-			return Tree{}, err
+		var f File
+		if p.known != nil {
+			f = File{Path: p.path, Sha256: p.known.Sha, Bytes: int(p.known.Size)}
+		} else {
+			raw, err := read(filepath.Join(rootPath, filepath.FromSlash(p.path)), p.path, p.max)
+			if err != nil {
+				return Tree{}, err
+			}
+			f = File{Path: p.path, Sha256: wire.Sum(raw), Bytes: len(raw), Raw: raw}
 		}
-		captured += len(raw)
+		// Indexed entries count too: a file read here may have grown since
+		// the stat pass, so the bound is checked after either branch.
+		captured += f.Bytes
 		if captured > wire.MaxIntentTreeBytes {
 			return Tree{}, wire.Errorf(wire.CodeLimitExceeded, rootPath, "intent tree larger than %d bytes", wire.MaxIntentTreeBytes)
 		}
-		files = append(files, File{Path: p.path, Sha256: wire.Sum(raw), Bytes: len(raw), Raw: raw})
+		files = append(files, f)
 	}
 	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
 	return Tree{Files: files, TotalBytes: captured, Sha256: DigestOfFiles(files)}, nil
@@ -339,23 +376,31 @@ func listNames(root *os.Root, rootPath, sub, label string, max int) ([]string, e
 // statRegular proves, without opening it, that a store entry is a regular
 // non-empty file within its bound, and returns its size.
 func statRegular(root *os.Root, full, rel string, max int) (int64, error) {
-	info, err := root.Lstat(rel)
+	info, err := statRegularInfo(root, full, rel, max)
 	if err != nil {
-		return 0, wire.Errorf(wire.CodeUnsupportedFilesystem, full, "cannot stat: %v", err)
-	}
-	if info.Mode()&os.ModeSymlink != 0 {
-		return 0, wire.Errorf(wire.CodeUnsupportedFilesystem, full, "symlink inside the intent store")
-	}
-	if !info.Mode().IsRegular() {
-		return 0, wire.Errorf(wire.CodeMalformed, full, "not a regular file")
-	}
-	if info.Size() == 0 {
-		return 0, wire.Errorf(wire.CodeMalformed, full, "empty file (a canonical document is never empty)")
-	}
-	if info.Size() > int64(max) {
-		return 0, wire.Errorf(wire.CodeLimitExceeded, full, "file larger than %d bytes (%d)", max, info.Size())
+		return 0, err
 	}
 	return info.Size(), nil
+}
+
+func statRegularInfo(root *os.Root, full, rel string, max int) (os.FileInfo, error) {
+	info, err := root.Lstat(rel)
+	if err != nil {
+		return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, full, "cannot stat: %v", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 {
+		return nil, wire.Errorf(wire.CodeUnsupportedFilesystem, full, "symlink inside the intent store")
+	}
+	if !info.Mode().IsRegular() {
+		return nil, wire.Errorf(wire.CodeMalformed, full, "not a regular file")
+	}
+	if info.Size() == 0 {
+		return nil, wire.Errorf(wire.CodeMalformed, full, "empty file (a canonical document is never empty)")
+	}
+	if info.Size() > int64(max) {
+		return nil, wire.Errorf(wire.CodeLimitExceeded, full, "file larger than %d bytes (%d)", max, info.Size())
+	}
+	return info, nil
 }
 
 // readInRoot opens a store entry through the root (so no path can escape
@@ -490,13 +535,22 @@ func LoadTree(primaryWorktree string, tree Tree, want wire.Digest) (*Store, erro
 }
 
 func decodeTree(root string, tree Tree) (*Store, error) {
+	return decodeTreeIndexed(root, tree, nil)
+}
+
+// decodeTreeIndexed is decodeTree where a closed ticket file the capture
+// took from idx (Raw nil) is held as idx's summary.
+func decodeTreeIndexed(root string, tree Tree, idx *ClosedIndex) (*Store, error) {
 	st := &Store{Root: root, Tree: tree, Digests: map[string]wire.Digest{}}
 	byPath := map[string]File{}
+	lazy := map[string]wire.Digest{}
 	for _, f := range tree.Files {
 		if _, ok := BoundFor(f.Path); !ok {
 			return nil, wire.Errorf(wire.CodeMalformed, filepath.Join(root, f.Path), "unexpected entry in the intent store")
 		}
-		if f.Raw == nil || wire.Sum(f.Raw) != f.Sha256 {
+		if f.Raw == nil && idx != nil && strings.HasPrefix(f.Path, TicketsDir+"/") {
+			lazy[f.Path] = f.Sha256
+		} else if f.Raw == nil || wire.Sum(f.Raw) != f.Sha256 {
 			return nil, wire.Errorf(wire.CodeSnapshotMoved, filepath.Join(root, f.Path), "captured bytes do not match the tree digest")
 		}
 		byPath[f.Path] = f
@@ -534,9 +588,30 @@ func decodeTree(root string, tree Tree) (*Store, error) {
 		return nil, wire.Errorf(wire.CodeMalformed, QueueFile+"/importMapSha256", "names an import-map.json that is absent")
 	}
 	gateIDs := p.GateIDs()
+	if len(lazy) > 0 && (idx.queueID != q.QueueID.Raw || idx.policySha != byPath[PolicyFile].Sha256) {
+		// TCX-V0-983: an index of another queue or policy is not trusted;
+		// its files are read and decoded as the full scan does.
+		files := append([]File(nil), tree.Files...)
+		for i, f := range files {
+			if f.Raw != nil {
+				continue
+			}
+			raw, err := readIndexed(root, f.Path, f.Sha256)
+			if err != nil {
+				return nil, err
+			}
+			files[i].Raw = raw
+		}
+		tree.Files, st.Tree.Files, lazy = files, files, nil
+	}
 	var records []*ticket.Record
+	var closed []*ticket.Summary
 	for _, f := range tree.Files {
 		if !strings.HasPrefix(f.Path, TicketsDir+"/") {
+			continue
+		}
+		if f.Raw == nil {
+			closed = append(closed, idx.entries[f.Path].Summary)
 			continue
 		}
 		rec, err := ticket.Decode(f.Raw)
@@ -562,7 +637,7 @@ func decodeTree(root string, tree Tree) (*Store, error) {
 		}
 		records = append(records, rec)
 	}
-	inv, err := ticket.NewInventory(q.QueueID, records)
+	inv, err := ticket.NewLazyInventory(q.QueueID, records, closed, closedLoader(root, lazy))
 	if err != nil {
 		return nil, err
 	}
