@@ -3343,6 +3343,7 @@ DCX-V1-531	docs/specs/documentation-corpus-extraction-delta-v1.md	`corvint docs 
 DCX-V1-532	docs/specs/documentation-corpus-extraction-delta-v1.md	Amending `DCX-V1-495`, `build --artifact` reuses the artifact's records instead	unrecorded	-
 DCX-V1-533	docs/specs/documentation-corpus-extraction-delta-v1.md	Any other artifact is rebuilt in full, to the same bytes. This covers another or	unrecorded	-
 DCX-V1-534	docs/specs/documentation-corpus-extraction-delta-v1.md	The rebuild is measured on a synthetic inventory of 9,500 files (38,010	unrecorded	-
+DCX-V1-813	docs/specs/documentation-corpus-extraction-delta-v1.md	(proposed, experimental under the standing lane auto-accept; V1-2565) A pin that	standing	V1-2565
 DCX-V1-470	docs/specs/documentation-corpus-extraction-delta-v1.md	A closed JSON refusal of a named local input (a manifest, a provider record or	unrecorded	-
 DCX-V1-471	docs/specs/documentation-corpus-extraction-delta-v1.md	The builder engine names a derivation version (`native-contextindex/<schema>/	unrecorded	-
 DCX-V1-472	docs/specs/documentation-corpus-extraction-delta-v1.md	Amending `DCP-V1-033` and `DCP-V1-157`, the pinned bytes of a corpus's distinct	unrecorded	-

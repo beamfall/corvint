@@ -731,6 +731,18 @@ experimental; GitHub #1664, #1667.
   subjects, 28,511 claims, 28,500 provider anchors, 62 MB artifact). Each mode runs in its own process,
   and both print the bytes of a full build. Acceptance: `TestDCXV1534RebuildReuseMeasured` (env-gated);
   measured in https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-corpus-compact-producer-and-rebuild-reuse.md.
+- `DCX-V1-813`: (proposed, experimental under the standing lane auto-accept; V1-2565) A pin that
+  only verifies, the reuse pin of `DCX-V1-532` and the post-compile re-pin of a full build
+  (`DCP-V1-040`), MUST pin each revision through `contextindex.BuildRevisionPin`: the identity,
+  tree listing, admission and verified source pins of `BuildRevisionContext`, and so its refusals,
+  without compiling the symbol, import, vocabulary and term tables nothing downstream of such a pin
+  reads. The opening pin of a full build keeps `BuildRevisionContext`. The printed bytes and every
+  refusal are unchanged. Acceptance: `TestDCXV1532RebuildReusesSameDerivation`,
+  `TestDCXV1533RebuildRederivesOtherwise` unchanged; `TestDCXV1534RebuildReuseMeasured` at 9,500
+  files on linux/WSL2 2026-10-31, base then head test binaries alternated five times on one
+  prepared corpus at load 1.4 to 4.6: reuse median 2.14 s / 443 MiB before, 1.87 s / 411 MiB
+  after (the ticket's bar was 2.52 s / 421 MiB); full rebuild 4.23 to 4.46 s before, 3.87 to
+  4.02 s after. Rollback: drop `verifyOnly`, so every pin compiles its index.
 
 Failure modes: a hand-edited artifact whose records were re-signed, and whose recorded builder
 the verified read admits, is reused as is. The verified read already serves such an artifact
@@ -1086,6 +1098,7 @@ DCPV1.
 | DCX-V1-474 | `internal/mcp/corpusbridge/eval.go`, `corpusbridge.go` | `TestDCXV1474EvalSuiteObservesOnce`, `TestDCPV1251EvalScoresThroughTheMCPToolPath`; measured in https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-corpus-diagnostics-and-ranking.md |
 | DCX-V1-475..477 | `internal/doccorpus/search_rank.go`, `search_phrase.go`, `typed_query.go` | `TestDCXV1475PhraseAndIdentifierMatchesRankFirst`, `TestDCXV1476ClaimTextMatchesInflections`, `TestDCXV1477MeaningfulTieBreaks`, `TestDCSV1404SearchRankingEvalFixture` |
 | DCX-V1-478, DCX-V1-503..506 | `internal/doccorpus/extractor.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `docs.go` | `TestDCXV1478CallerProfileExtractsLikeTheCommittedProfile`, `TestDCXV1478CallerProfileRequiresAMatchingDigest`, `TestDCXV1478CallerProfileDirectorySwapIsRefused`, `TestDCXV1478CallerProfileUnsupportedPlatformIsRefused`, `TestDCXV1503CallerProfileProvenanceIsRecorded`, `TestDCXV1503CallerProfileWithNoSubjectsKeepsItsDigest`, `TestDCXV1504CallerProfileProviderRecordBuildsUnchanged`, `TestDCXV1505CallerProfileExtractionIsReadOnly`, `TestDCXV1506DocsCorpusExtractCallerProfileCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusHelpListsOperations`, `TestCAPV0019CommittedCatalogMatchesTheBinary` |
+| DCX-V1-813 | `verifyOnly` and `pin` in `internal/doccorpus/compile.go`, `rebuild.go`; `BuildRevisionPin` in `internal/contextindex/corpus.go` | `TestDCXV1532RebuildReusesSameDerivation`, `TestDCXV1533RebuildRederivesOtherwise`, `TestDCXV1534RebuildReuseMeasured` |
 | DCX-V1-812 | `bound` in `internal/doccorpus/extractor.go` | `TestDCXV1812MatchedFilesBoundNamesScopeAndSchemaTwo` |
 | DCX-V1-810..811 | `legacyPaths` in `internal/doccorpus/behavior_legacy_discovery.go` | `TestDCXV1810LegacyDiscoveryEnumeratesMoreThan1024Directories`, `TestDCXV1811LegacyPathsMatchPerTreeWalk` |
 | DCX-V1-520..522 | `internal/cem/gitauth/revision_paths.go`, `internal/doccorpus/extractor.go` | `TestDCXV1520RevisionPathsMatchesLsTreeWithinOneOpPerLevel`, `TestDCXV1520RevisionPathsOpsIndependentOfDirectoryCount`, `TestDCXV1520RevisionPathsListsGitSafeNamesUnfiltered`, `TestDCXV1520ExtractionEnumeratesMoreThan1024Directories`, `TestDCXV1521ExtractorGlobPruningIsSound`, `TestDCXV1521RevisionPathsPrunesRejectedSubtrees`, `TestDCXV1522RevisionPathsRefusesPastItsBounds`; measured in https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-corpus-extract-enumeration.md |
