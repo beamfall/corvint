@@ -2,6 +2,7 @@ package dogfoodflow
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -96,5 +97,52 @@ func TestVerifyArgumentsDCWV0801AdmitsAnchoredAndAttachedRunAlternation(t *testi
 	}
 	if got := quotedRunSuggestions(ChangeOptions{Verify: "go test ./b\ngo test -run TestA|TestB ./a"}); len(got) != 1 || got[0] != "line 2: go test -run 'TestA|TestB' ./a" {
 		t.Errorf("quotedRunSuggestions = %q", got)
+	}
+}
+
+// TestVerifyArgumentsDCWV0804AdmitsQuotedEnvironmentAssignments covers V1-3378:
+// a verify line led by quoted NAME=value assignments is recorded as a typed
+// argv whose first words are those assignments verbatim, and any other shell
+// syntax after or inside them stays refused with the unsupported-verify-syntax
+// remediation.
+func TestVerifyArgumentsDCWV0804AdmitsQuotedEnvironmentAssignments(t *testing.T) {
+	for line, want := range map[string]string{
+		"HEAVY_WHOLE_REASON='x' script/heavy.sh go test -count=1 ./internal/a":           `["HEAVY_WHOLE_REASON=x","script/heavy.sh","go","test","-count=1","./internal/a"]`,
+		"HEAVY_WHOLE_REASON='whole package; 60 KB of tests' script/heavy.sh go test ./a": `["HEAVY_WHOLE_REASON=whole package; 60 KB of tests","script/heavy.sh","go","test","./a"]`,
+		`A="two words" GOTOOLCHAIN=local B='' go test ./a`:                               `["A=two words","GOTOOLCHAIN=local","B=","go","test","./a"]`,
+		"HEAVY_WHOLE_REASON='r' script/heavy.sh go test -run 'TestA|TestB' ./a":          `["HEAVY_WHOLE_REASON=r","script/heavy.sh","go","test","-run","TestA|TestB","./a"]`,
+	} {
+		got := verifyArguments([]byte(line + "\n"))
+		if len(got) != 2 || got[0] != "--verify-argv-json" || got[1] != want {
+			t.Errorf("%q became %q, want argv %s", line, got, want)
+			continue
+		}
+		if err := validateVerify(got); err != nil {
+			t.Errorf("%q refused: %v", line, err)
+		}
+	}
+	// An unquoted assignment keeps the unchanged v1 command form.
+	if got := verifyArguments([]byte("GOTOOLCHAIN=local go test ./a\n")); len(got) != 2 || got[0] != "--verify" {
+		t.Errorf("unquoted assignment became %q, want a v1 command", got)
+	}
+	for _, line := range []string{
+		"HEAVY_WHOLE_REASON='x' script/heavy.sh go test ./a | tee log",
+		"HEAVY_WHOLE_REASON='x' script/heavy.sh go test -run '^TestA$' ./a",
+		`A="$HOME" go test ./a`,
+		"A=\"`id`\" go test ./a",
+		`A="x\" go test ./a`,
+		"A='it's' go test ./a",
+		"A='x'y go test ./a",
+		"1A='x' go test ./a",
+		"go test ./a A='x'",
+		"A='x'",
+	} {
+		args := verifyArguments([]byte(line + "\n"))
+		if err := validateVerify(args); args[0] != "--verify" || err == nil || !strings.Contains(err.Error(), "unsupported shell syntax") {
+			t.Errorf("%q became %q (%v), want a refused v1 command", line, args, err)
+		}
+	}
+	if got := quotedRunFix(""); got != "" {
+		t.Errorf("quotedRunFix(\"\") = %q", got)
 	}
 }

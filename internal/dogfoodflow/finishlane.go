@@ -288,7 +288,7 @@ func (l *finishLane) requireVerifyInput() {
 		for _, suggestion := range quotedRunSuggestions(l.options.Change) {
 			l.say("  quoted form: %s\n", suggestion)
 		}
-		l.say("  accepted form: one quoted -run alternation of test names, -run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (single or double quotes, or attached as -run='TestA|TestB'), is admitted as one argv word (DCW-V0-384, DCW-V0-801); an unquoted alternation, a single anchored name such as -run '^TestA$' or any other quoted regex is refused; write one command per test name (go test -run TestA ./pkg, then go test -run TestB ./pkg), use a shared name prefix (-run TestA matches TestA*), or commit a script and list it as sh path/to/script.sh\n")
+		l.say("  accepted form: one quoted -run alternation of test names, -run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (single or double quotes, or attached as -run='TestA|TestB'), is admitted as one argv word (DCW-V0-384, DCW-V0-801), as are leading NAME='value' or NAME=\"value\" assignments such as HEAVY_WHOLE_REASON='whole package' script/heavy.sh go test ./pkg (DCW-V0-804); an unquoted alternation, a single anchored name such as -run '^TestA$' or any other quoted regex is refused; write one command per test name (go test -run TestA ./pkg, then go test -run TestB ./pkg), use a shared name prefix (-run TestA matches TestA*), or commit a script and list it as sh path/to/script.sh\n")
 	}
 	l.exit(2)
 }
