@@ -5,7 +5,9 @@ package main
 // Linux step-1 quiet observation tests (stable_process_linux.go).
 
 import (
+	"bytes"
 	"os"
+	"strconv"
 	"syscall"
 	"testing"
 	"time"
@@ -110,12 +112,20 @@ func TestStableLinuxQuietRequiresOwnZombieLeader(t *testing.T) {
 }
 
 func TestStableLinuxProcStatParsesHostileCommandName(t *testing.T) {
-	dir := s0eTemp(t)
-	name := dir + "/a) Z 1 1 ("
-	if err := os.Symlink("/bin/sleep", name); err != nil {
+	// The leader is this test binary re-executed under the hostile name, so
+	// its lifetime does not depend on how the host's /bin/sleep treats its
+	// argv0 (a rust-coreutils multicall binary refuses it; V1-2511).
+	self, err := os.Executable()
+	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := startGroup(t, "exec '"+name+"' 300")
+	dir := s0eTemp(t)
+	name := dir + "/a) Z 1 1 ("
+	if err := os.Symlink(self, name); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv(stableTestSleeperEnv, "1")
+	cmd := startGroup(t, "exec '"+name+"'")
 	pgid := cmd.Process.Pid
 	defer func() {
 		_ = syscall.Kill(-pgid, syscall.SIGKILL)
@@ -126,6 +136,10 @@ func TestStableLinuxProcStatParsesHostileCommandName(t *testing.T) {
 			break
 		}
 		time.Sleep(5 * time.Millisecond)
+	}
+	status, err := os.ReadFile("/proc/" + strconv.Itoa(pgid) + "/status")
+	if err != nil || !bytes.Contains(status, []byte("\nState:\t")) || bytes.Contains(status, []byte("\nState:\tZ")) || bytes.Contains(status, []byte("\nState:\tX")) {
+		t.Fatalf("the leader is not alive before parsing: %v\n%s", err, status)
 	}
 	e, found, ok := stableProcStat(pgid)
 	if !ok || !found || stableProcDead(e.state) || e.ppid != os.Getpid() || e.pgrp != pgid {
