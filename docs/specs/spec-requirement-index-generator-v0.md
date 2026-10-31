@@ -361,16 +361,18 @@ No requirement below diverges from the implementation.
   batch-precheck, after the CEM was sealed. Rollback: drop the test and its Makefile line.
 - `SRG-V0-980`: (experimental under the owner's standing auto-accept (2026-10-31); V1-3458) Every
   generator mode MUST refuse, before printing or writing anything, a tracked spec whose header
-  `Intent status:` or Agent digest `Status:` names a requirement ID (the SRG-V0-003 token) that the
-  spec's row in `docs/specs/INTENT-STATUS-FROZEN.tsv` does not list, or whose `Intent status:` is
+  `Intent status:` or Agent digest `Status:` names a requirement ID (the SRG-V0-003 token, and
+  each `..NNN` or `/NNN` suffix after it, read as the same prefix) that the spec's row in `docs/specs/INTENT-STATUS-FROZEN.tsv` does not list, or whose `Intent status:` is
   longer than 160 characters and longer than that row's frozen length. Each refusal MUST name the
   spec, the field and the ID or the two lengths, and MUST say to record the acceptance in the
   requirement's own leading note (SRG-V0-009, SRG-V0-981) and its build-log entry instead. The
   frozen file is tab-separated `path`, `chars` (the header's character length) and `ids`
   (space-separated), sorted by path, read from the Git index like the specs, and absent means
-  empty. It holds a row for every spec whose header at the freeze named an ID or exceeded 160
-  characters; it is written once and never appended to, so a header may shrink or drop IDs without
-  an edit to it. Non-goal: deciding which old tails to cut back. Failure mode: before this, every
+  empty. It holds a row for every spec whose header or digest `Status:` at the freeze named an ID,
+  or whose header exceeded 160 characters; it is never appended to, so a header may shrink or drop
+  IDs without an edit to it, and its only edit is moving a renamed spec's row to the new path in
+  the rename's commit. The guard is lexical: a segment naming no requirement ID passes while the
+  header stays within 160 characters or its frozen length. Non-goal: deciding which old tails to cut back. Failure mode: before this, every
   amendment appended a segment to the one-line header (up to about 14.5 KB), which the generator
   mirrored into the digest, INDEX.json and README.md, so two lanes amending one spec conflicted in
   four files. Rollback: delete the frozen file and the refusal block.
@@ -382,15 +384,17 @@ No requirement below diverges from the implementation.
   reads the amendment back. Rollback: none needed; the rule only names where the record goes.
 - `SRG-V0-982`: (experimental under the owner's standing auto-accept (2026-10-31); V1-3458) The
   repository `Makefile` MUST declare each phony target on its own `.PHONY:` line, placed with that
-  target's rule, and `make spec-requirements-test` MUST fail naming each `.PHONY:` line that lists
-  more than one target. Failure mode: one shared `.PHONY:` line of about 1,560 characters took a
+  target's rule (kept by review, not checked), and `make spec-requirements-test` MUST fail naming
+  each `.PHONY:` line that lists more than one target. Failure mode: one shared `.PHONY:` line of about 1,560 characters took a
   word from every lane that added a target, so any two such lanes conflicted on it. Rollback:
   rejoin the lines and drop the check.
 - `SRG-V0-983`: (experimental under the owner's standing auto-accept (2026-10-31); V1-3458)
   `script/spec-requirements-conflict_test.sh` MUST replay two branches of one synthetic repository
   that each amend a different requirement of one spec under SRG-V0-981 and each add a different
   phony make target under SRG-V0-982, and MUST fail unless they merge in both orders with no
-  conflict in any file and every merged generated file equals the regenerated one. As negative
+  conflict in any file and every merged generated file equals the regenerated one. It MUST also
+  record the limit: amendments to adjacent definition lines conflict only in those lines of the
+  spec and the two REQUIREMENTS.tsv rows. As negative
   controls it MUST show that the same amendments written as header segments, and the same targets
   appended to one shared `.PHONY:` line, do conflict, and that the generator refuses the new header
   segment under SRG-V0-980. Rollback: drop the case.

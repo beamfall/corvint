@@ -73,10 +73,14 @@ To amend an accepted requirement, edit its own definition line: rewrite its lead
 the amendment and its anchor, for example `(accepted, decision NNNN; amended under the owner's
 standing auto-accept (YYYY-MM-DD); V1-NNNN)`, which `REQUIREMENTS.tsv` carries as `standing` with
 every anchor in `acceptedBy` until the owner reads the amendment back (`SRG-V0-981`). Two changes
-that amend different requirements of one spec then touch different lines and rows and merge
-without a conflict. The same holds for `Makefile` targets: each phony target is declared on its
-own `.PHONY:` line next to its rule, never appended to a shared line (`SRG-V0-982`).
-`script/spec-requirements-conflict_test.sh` replays both merges (`SRG-V0-983`).
+that amend non-adjacent requirements of one spec then touch different lines and rows and merge
+without a conflict; amendments to adjacent definition lines (or adjacent `REQUIREMENTS.tsv` rows)
+still conflict in those lines only, and resolve by keeping both notes and regenerating. The same
+holds for `Makefile` targets: each phony target is declared on its own `.PHONY:` line next to its
+rule, never appended to a shared line (`SRG-V0-982`); two targets added at the same spot still
+conflict there. `script/spec-requirements-conflict_test.sh` replays both merges and the adjacent
+limit (`SRG-V0-983`). Renaming a spec moves its frozen row to the new path in the same commit; that
+is the only edit the frozen file takes.
 
 A qualified `Delivery status:` header (more than one word, for example `experimental (file transport
 only)`) appears verbatim in the digest `Status:`; the digest may add only a new sentence after it,
