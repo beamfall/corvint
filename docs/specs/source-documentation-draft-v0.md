@@ -78,7 +78,9 @@ the bounded stdin read stops one byte past the limit (V1-2416,
 `TestSDDV0005DocsLimitRefusalNamesLimitAndSize`, which failed against the earlier `draft exceeds
 64 KiB` and `encoded consumption result exceeds 64 KiB` messages). The library refusals in
 `internal/doccompiler/draft.go`, which `docs draft`, `docs consume` and `docs maintain` also return,
-name their bound but not the observed size.
+name the bound, its value and the observed size (`documentation-limit-exceeded`, V1-2416). A
+`docs maintain` refusal carries that message to stderr unchanged instead of repeating the code
+(`TestSDDV0005DocsMaintainLimitRefusalNamesLimitAndSize`).
 
 - `SDD-V0-006`: An MCP client can call `corvint.docs_draft` and `corvint.docs_consume`
 (`cmd/corvint-docs-mcp`, package `internal/mcp/docsbridge`) and receive the same claims,
