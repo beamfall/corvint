@@ -36,7 +36,8 @@ var staleOCMPatterns = []string{"change.ocm.[0-9][0-9][0-9].json", "change.ocm-s
 // Nothing is deleted. A trace store that cannot be evaluated is left to the
 // steps that already report it. The dogfood inputs-check pre-flight passes
 // retire=false: it only checks, and still refuses with the manual recovery
-// (DCW-V0-400).
+// (DCW-V0-400). The refusal names the reset-after-bind case, a lane that reset
+// its own unpushed bind/seal commits, and its one-step recovery (DCW-V0-844).
 func (f *flow) requireFreshWorktree(base, gitDir string, retire bool) {
 	stranded, digest, legacy := f.strandedTraces()
 	stale := f.staleOCMSidecars(base)
@@ -55,7 +56,7 @@ func (f *flow) requireFreshWorktree(base, gitDir string, retire bool) {
 		}
 	}
 	f.say("%s: REFUSE reused-worktree-state\n", f.prefix)
-	f.say("  this worktree path holds dogfood state from an earlier lane or an amended/rebased commit that could not be retired; nothing was prepared or bound\n")
+	f.say("  this worktree path holds dogfood state from an earlier lane, an amended/rebased commit, or this lane's own bind/seal commits reset away before push, that could not be retired; nothing was prepared or bound\n")
 	for _, revision := range stranded {
 		f.say("  stale trace: the worktree-local trace store names %s, which HEAD does not reach (LTPM-V0-012)\n", revision)
 	}
@@ -70,7 +71,7 @@ func (f *flow) requireFreshWorktree(base, gitDir string, retire bool) {
 		f.say("  the same migration plan also rekeys %d reachable tree-keyed legacy trace(s), so it was not applied automatically (DCW-V0-406)\n", legacy)
 	}
 	if len(stranded) > 0 {
-		f.say("  fix: corvint migrate-traces --apply --plan-digest %s (the digest of corvint migrate-traces --dry-run now; it quarantines the stranded traces byte-preserved)\n", digest)
+		f.say("  fix: corvint migrate-traces --apply --plan-digest %s (the digest of corvint migrate-traces --dry-run now; it quarantines the stranded traces byte-preserved). This is also the one-step recovery after a reset of this lane's own unpushed bind/seal commits (DCW-V0-844)\n", digest)
 	}
 	f.say("  then rerun the same command; each lane should use a fresh worktree (git worktree add) rather than a reused path (DCW-V0-044)\n")
 	f.exit(2)
