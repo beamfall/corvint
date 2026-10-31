@@ -4096,6 +4096,7 @@ GPK-V0-092	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-26,
 GPK-V0-093	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-28, standing auto-accept; V1-2946) `EvalQuery` MUST compile in	standing	2026-10-28; V1-2946
 GPK-V0-095	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-29, standing auto-accept; V1-3140) The web mask that the	standing	2026-10-29; V1-3140
 GPK-V0-295	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-30, standing auto-accept; V1-3150) Amending the `GPK-V0-095`	standing	2026-10-30; V1-3150
+GPK-V0-336	docs/specs/go-production-kernel-migration-v0.md	(experimental 2026-10-31, standing lane auto-accept; V1-3377) The isolated statu	standing	2026-10-31; V1-3377
 GPK-V0-033	docs/specs/go-production-kernel-migration-v0.md	The frozen spec, not the Python implementation, is the conformance authority.	unrecorded	-
 GPK-V0-034	docs/specs/go-production-kernel-migration-v0.md	Every adjudication under `GPK-V0-033` MUST be recorded in	unrecorded	-
 GPK-V0-035	docs/specs/go-production-kernel-migration-v0.md	Known-divergent cases MUST NOT accumulate unexamined. Every one carries an	unrecorded	-
