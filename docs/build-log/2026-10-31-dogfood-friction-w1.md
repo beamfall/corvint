@@ -128,6 +128,25 @@ decisions above it stand.
   `REQUIREMENTS.tsv` already uses. It names the next free one: the last letter advances past
   families the index or any tracked file uses. `TCD-V0` gives `TCE-V0`.
 
+## Merge with origin/main and review fixes
+
+- A Codex review of `a7a0630b2` found three issues in `requirement-ids-free`, all fixed with a
+  test each:
+  - `git grep` searched only the caller's directory, so the script now runs from the top level;
+  - a match led by `:` lost its path and line, so the parse now anchors on the ID;
+  - the make target accepted `RANGE=..979` and `RANGE=1..2..3`, and now refuses any `RANGE` but
+    `<digits>..<digits>`.
+- origin/main (`71c4b1966`) had meanwhile delivered two overlapping rules:
+  - `DCW-V0-810`, the same pre-flight sidecar note as this lane's `DCW-V0-964`. This lane kept
+    main's implementation, folded `DCW-V0-964` into the stacked-finish acceptance test, and
+    dropped its own unit test as a duplicate.
+  - `DCW-V0-809`, which keeps a spec hunk that defines a same-change requirement unknown and adds
+    the same "an edited definition is not added" rule as `DCW-V0-967`. `DCW-V0-809` wins for the
+    defining hunk. `DCW-V0-967` keeps the refined-requirement draft for the other hunks that name
+    the ID, and drops its neighbouring-entry fallback: that entry is another requirement's
+    evidence.
+- Main's `DCW-V0-810` test now supplies an intent manifest, which `DCW-V0-960` requires.
+
 ## Evidence
 
 - New tests, each failing on the base code (checked by stashing the implementation file):
