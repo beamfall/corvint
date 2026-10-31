@@ -75,8 +75,9 @@ expect_builds() {
   [[ -s $TEST_FLOW_LOG ]] || { printf '%s: the flow did not run\n' "$3" >&2; exit 1; }
 }
 # expect_builds_with NAME=VALUE ACTION COUNT CASE runs expect_builds with NAME=VALUE exported for that
-# run only. Bash 3.2 (macOS /bin/bash) keeps a prefix assignment to a function call after it
-# returns, so `NAME=VALUE expect_builds` would leak into every later case (V1-2557).
+# run only. Bash in POSIX mode (run as sh, as macOS /bin/sh is) keeps a prefix assignment to a
+# function call after it returns, so `NAME=VALUE expect_builds` would leak into every later case
+# (V1-2557).
 expect_builds_with() {
   (export "$1"; shift; expect_builds "$@") || exit 1
 }

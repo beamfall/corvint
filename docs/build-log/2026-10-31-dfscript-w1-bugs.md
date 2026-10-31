@@ -8,12 +8,16 @@ Lane `dfscript-w1`, base `780f9e97099aa3ccd52744a0c239a744c4a30adf`: 15 bug tick
 - **V1-2557 and V1-2312 share one root cause.** Both tests call a shell function with prefix
   assignments (`TEST_GOVERSION=go1.27.3 expect_builds ...`; `PATH=$shim LANE_TEST_FAIL_GIT=... clean`).
   When those assignments outlive the call, the later case runs with go1.27.3, or with the
-  failing-git shim. The two lanes saw these failures on the Mac (`/bin/bash` 3.2). Neither
+  failing-git shim. The two lanes saw these failures on the Mac. Neither
   reproduces on WSL bash 5.3, at the current base or at the reported bases. Simulating the leak
   (an `export` in place of the prefix) reproduces each reported message exactly: `rg -q '^#
   go1.27.2$'` fails, and `lane-clean dry run: KEEP active ...` shows `merged` kept as
   `has-worktrees`. The fix runs each case in a subshell, and a guard fails if the variable
-  survives its case. The orchestrator was asked to confirm the bash 3.2 behaviour on the Mac.
+  survives its case. The orchestrator confirmed the condition on the Mac: plain `/bin/bash`
+  3.2.57 does not keep the assignment (`[]`), but bash in POSIX mode does (`/bin/sh -c` and
+  `/bin/bash --posix -c` both print `[1]`). So the leak needs the test to run under `sh` (a
+  `sh script/..._test.sh` invocation or a POSIX-mode bash), not bash 3.2 in general. The
+  subshell fix holds in every mode. The fix commits' subjects still say "bash 3.2".
   A scan of `script/*.sh` finds more prefix assignments to functions outside `$(...)`, in
   `batch-precheck_test.sh`, `core-n1-source_test.sh`, `lane-scripts_test.sh` (the `pv`, `cemv`
   and `spv` cases) and `select-previous-release_test.sh`. They were left alone: their cases pass,
@@ -33,7 +37,8 @@ Lane `dfscript-w1`, base `780f9e97099aa3ccd52744a0c239a744c4a30adf`: 15 bug tick
   runs them). Three stay outside the gate. `public-release-check-test` fails its 8-second
   TERM-join bound on a loaded host (it failed once here at load 36 and passed twice when quiet).
   `release-env-compat-test` already runs inside `companion-release-gate-test`.
-  `seed-planning-store-test` needs `atm` and `/private/tmp`. Two scripts gained the executable bit.
+  `seed-planning-store-test` needs `atm` and `/private/tmp`. A CEM cannot carry a mode-only change, so the two non-executable scripts run as
+  `@bash script/..._test.sh`; both recipe regexes accept that form.
   `TestASDV0942EveryScriptTestHasAMakeTarget` locks the invariant.
 - **V1-3346 (TSP-V0-940).** gateselect reads the declaration itself, with the planner's validity
   rules, rather than importing the planner's unexported reader. It clears `locatesRoot` only when

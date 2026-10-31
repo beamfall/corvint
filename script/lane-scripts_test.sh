@@ -837,8 +837,9 @@ printf '#!/bin/sh\nfor a in "$@"; do [ "$a" = "$LANE_TEST_FAIL_GIT" ] && exit 12
 chmod +x "$tmp/shim/git"
 real_git=$(command -v git)
 for sub in stash:git-unreadable for-each-ref:git-unreadable worktree:has-worktrees; do
-  # A subshell scopes the shim: bash 3.2 keeps prefix assignments to a function after it returns,
-  # so the failing git would otherwise reach the dry run below (V1-2312).
+  # A subshell scopes the shim: bash in POSIX mode (run as sh, as macOS /bin/sh is) keeps prefix
+  # assignments to a function after it returns, so the failing git would reach the dry run below
+  # (V1-2312).
   (PATH=$tmp/shim:$PATH LANE_TEST_REAL_GIT=$real_git LANE_TEST_FAIL_GIT=${sub%%:*}; export PATH LANE_TEST_REAL_GIT LANE_TEST_FAIL_GIT; clean > "$tmp/out")
   grep -q "^KEEP ${sub#*:} .*/merged\$" "$tmp/out" || fail "lane-clean with failing git ${sub%%:*}: $(cat "$tmp/out")"
 done
