@@ -2287,6 +2287,7 @@ TCX-V0-982	docs/specs/corvint-tasks-closed-ticket-index-v0.md	Only `ticket searc
 TCX-V0-983	docs/specs/corvint-tasks-closed-ticket-index-v0.md	An index whose queue ID or policy digest differs from the snapshot's is not	unrecorded	-
 TCX-V0-984	docs/specs/corvint-tasks-closed-ticket-index-v0.md	A rewrite reuses the entries whose stat keys still match and reads every other	unrecorded	-
 TCX-V0-985	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The journal audit of a reader accepts a probed tree file taken from the index as	unrecorded	-
+TCX-V0-986	docs/specs/corvint-tasks-closed-ticket-index-v0.md	`roadmap` renders a COMPLETED or ARCHIVED ticket's row from its summary, without	unrecorded	-
 TCD-V0-001	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]` is a	unrecorded	-
 TCD-V0-002	docs/specs/corvint-tasks-closeout-debt-v0.md	The verb reads Git only through `git rev-parse --verify`, `git config --get	unrecorded	-
 TCD-V0-003	docs/specs/corvint-tasks-closeout-debt-v0.md	The scan covers every commit reachable from the ref and not from `--since`, newe	unrecorded	-
