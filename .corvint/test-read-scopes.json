@@ -564,6 +564,9 @@
     ],
     "tools/heading-nav-bench": [],
     "tools/retrieval-bench": [],
+    "tools/selection-baseline": [
+      "benchmarks/selection-baseline/changes.json"
+    ],
     "tools/str-parity": [],
     "tools/test-commands-check": [
       ".github/cishards/test-commands.json",
