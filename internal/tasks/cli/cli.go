@@ -11,6 +11,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
 	"runtime"
 	"slices"
 	"sort"
@@ -131,6 +132,9 @@ func Run(env Env) int {
 	}
 	if env.Stdin == nil {
 		env.Stdin = strings.NewReader("")
+	}
+	if res := globalRoot(&env); res != nil {
+		return emit(env.Stdout, res)
 	}
 	args := env.Args
 	if len(args) == 2 && args[0] == "help" && args[1] == "--json" {
@@ -460,6 +464,31 @@ func prose(s string) string {
 
 // emit encodes the envelope and returns the exit code. An envelope that
 // fails its own validation is replaced by a minimal ERROR envelope.
+// globalRoot applies a leading `--root DIR` (or `--root=DIR`): the command
+// runs as if started in DIR, relative to the working directory (CTS-V0-871).
+func globalRoot(env *Env) *wire.Result {
+	if len(env.Args) == 0 || (env.Args[0] != "--root" && !strings.HasPrefix(env.Args[0], "--root=")) {
+		return nil
+	}
+	dir, inline := strings.CutPrefix(env.Args[0], "--root=")
+	rest := env.Args[1:]
+	if !inline {
+		if len(rest) == 0 {
+			dir = ""
+		} else {
+			dir, rest = rest[0], rest[1:]
+		}
+	}
+	if dir == "" || strings.HasPrefix(dir, "--") {
+		return failure([]string{"--root"}, nil, wire.Errorf(wire.CodeMalformed, "argv", "--root needs a directory: corvint-tasks --root DIR <verb> ..."))
+	}
+	if !filepath.IsAbs(dir) {
+		dir = filepath.Join(env.Cwd, dir)
+	}
+	env.Cwd, env.Args = dir, rest
+	return nil
+}
+
 func emit(w io.Writer, res *wire.Result) int {
 	data, err := res.Encode()
 	if err != nil {
@@ -1201,7 +1230,7 @@ func parseSearchFilter(fl map[string]string) (searchFilter, error) {
 		f.text = &low
 	}
 	if f.status == nil && f.kind == nil && f.priority == nil && f.owner == nil && f.milestone == nil && f.label == nil && f.text == nil {
-		return f, wire.Errorf(wire.CodeMalformed, "argv", "ticket search needs at least one filter (--status, --kind, --priority, --owner, --milestone, --label, --text)")
+		return f, wire.Errorf(wire.CodeMalformed, "argv", "ticket search needs at least one filter (--status, --kind, --priority, --owner, --milestone, --label, --text); `ticket list` is the unfiltered read")
 	}
 	return f, nil
 }
@@ -1618,7 +1647,32 @@ func resolveTicketArg(rc *readCtx, arg string) (string, error) {
 	if id.QueueID() != rc.store.Queue.QueueID.Raw {
 		return "", wire.Errorf(wire.CodeMalformed, "argv", "ticket %s is outside queue %s", id.Raw, rc.store.Queue.QueueID.Raw)
 	}
+	if c := paddedCandidates(rc, id); len(c) == 1 {
+		return c[0], nil
+	}
 	return id.Raw, nil
+}
+
+// paddedCandidates are the tickets an absent token with an unpadded numeric
+// suffix (QB-1) names once leading zeros are added (QB-0001); an exact token
+// has none (CTS-V0-873).
+func paddedCandidates(rc *readCtx, id wire.TicketID) []string {
+	if _, ok := rc.store.Inventory.Get(id.Raw); ok {
+		return nil
+	}
+	digits := id.Local[strings.LastIndexByte(id.Local, '-')+1:]
+	if digits == "" || strings.Trim(digits, "0123456789") != "" {
+		return nil
+	}
+	prefix := strings.TrimSuffix(id.Raw, digits)
+	var found []string
+	for zeros := 1; len(digits)+zeros <= 8; zeros++ {
+		c := prefix + strings.Repeat("0", zeros) + digits
+		if _, ok := rc.store.Inventory.Get(c); ok {
+			found = append(found, c)
+		}
+	}
+	return found
 }
 
 func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
@@ -1632,20 +1686,23 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 		return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "argv", "ticket %s takes exactly one ticket id or local token", verb))
 	}
 	var item *wire.Value
-	notFound := ""
+	notFound, candidates := "", ""
 	read := withStore
 	if includeRecord {
 		read = withInventoryStore
 	}
 	rc, err := read(env, func(rc *readCtx) error {
 		item = nil
-		notFound = ""
+		notFound, candidates = "", ""
 		id, err := resolveTicketArg(rc, args[0])
 		if err != nil {
 			return err
 		}
 		if _, ok := rc.store.Inventory.Get(id); !ok {
 			notFound = id
+			if c := paddedCandidates(rc, wire.TicketID{Raw: id, Local: id[strings.LastIndexByte(id, ':')+1:]}); len(c) > 1 {
+				candidates = "; it names " + strings.Join(c, " and ")
+			}
 			return nil
 		}
 		ctx, err := ticketContext(rc)
@@ -1730,7 +1787,7 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 		} else if rc.journalAbsent {
 			res.Warnings = append(res.Warnings, journalAbsentNotFound(rc, notFound))
 		} else {
-			res.Warnings = append(res.Warnings, "ticket "+notFound+" does not exist in this queue")
+			res.Warnings = append(res.Warnings, "ticket "+notFound+" does not exist in this queue"+candidates)
 		}
 		return res
 	}

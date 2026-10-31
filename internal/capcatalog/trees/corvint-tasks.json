@@ -2952,7 +2952,7 @@
         "corvint-tasks ticket set-dependencies --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket set-effects --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket set-gates --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
-        "corvint-tasks ticket show <ticketId|local> [--summary | --fields KEY[.SUB],...]",
+        "corvint-tasks [--root DIR] ticket show <ticketId|local> [--json] [--summary | --fields KEY[.SUB],...]",
         "corvint-tasks ticket similar (--text TEXT | --payload-stdin) [--status S]... [--label L]... [--limit N] [--digest FILE]"
       ],
       "flags": [
@@ -2984,6 +2984,7 @@
         "--generation",
         "--ids",
         "--issued-at",
+        "--json",
         "--kind",
         "--label",
         "--legacy-cases",
@@ -3022,6 +3023,7 @@
         "--review",
         "--reviewed",
         "--role",
+        "--root",
         "--route",
         "--runs",
         "--seal",
@@ -4379,10 +4381,12 @@
       "command": "corvint-tasks ticket show",
       "summary": "",
       "usage": [
-        "corvint-tasks ticket show <ticketId|local> [--summary | --fields KEY[.SUB],...]"
+        "corvint-tasks [--root DIR] ticket show <ticketId|local> [--json] [--summary | --fields KEY[.SUB],...]"
       ],
       "flags": [
         "--fields",
+        "--json",
+        "--root",
         "--summary"
       ],
       "required": [

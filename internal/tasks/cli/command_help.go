@@ -303,7 +303,7 @@ var commandUsage = map[string]string{
 	"version":                 "corvint-tasks version (alias --version)",
 	"ticket list":             "corvint-tasks ticket list [--status S[,S...]] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
 	"ticket search":           "corvint-tasks ticket search [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
-	"ticket show":             "corvint-tasks ticket show <ticketId|local> [--summary | --fields KEY[.SUB],...]   (ticket fields such as body and acceptanceCriteria live under record.: --fields record.body,record.acceptanceCriteria; an unknown key is refused naming the valid keys)",
+	"ticket show":             "corvint-tasks [--root DIR] ticket show <ticketId|local> [--json] [--summary | --fields KEY[.SUB],...]   (output is always JSON, so --json is a no-op; ticket fields such as body and acceptanceCriteria live under record.: items[0].record.acceptanceCriteria, --fields record.body,record.acceptanceCriteria; the revision is items[0].revision; an unpadded token such as QB-1 resolves the one ticket QB-0001; an unknown key is refused naming the valid keys)",
 	"ticket blockers":         "corvint-tasks ticket blockers <ticketId|local>",
 	"ticket closeout-debt":    "corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N] [--prs FILE|-]",
 	"ticket delivery-screen":  "corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE|-] [--ref REF] [--since REV] [--limit N]",
