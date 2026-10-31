@@ -924,6 +924,12 @@ accepted variation, or a replacement for independent application/browser qualifi
   `TestFlowDocsWebMemberCallsAreNotDeclarations`). Calls to the recognized validation, permission, error, persistence
   and integration vocabulary are observations of source only. Native lexical masks exclude comments,
   strings and Ruby heredocs; web regex/arithmetic suffixes and JSX text are conservatively masked.
+  A `<` directly after a name that opens a balanced one-line type-argument list followed by `(`
+  (`useMemo<T>(`, `useState<Map<K, V>>(`) is a generic call, not JSX: only that list is passed over,
+  so the call and the declarations after it stay code, and a hook-wrapped arrow may carry it (since
+  V1-2415, `TestFlowDocsGenericCallMaskedOnlyThroughTypeArguments`). A list holding `(`, `)`, `;`,
+  `=` or a line break (`useCallback<(x: T) => void>(`) is not recognized and stays conservatively
+  masked as before.
 - **AFU-V1-044**: Logical flow and paragraph IDs depend on provider namespace, repository-relative
   path, declaration identity and claim kind/callee, never line, revision or output ordering. Repeated
   logical declarations/claim identities remain unresolved. Removal is retirement, never inferred
@@ -939,8 +945,9 @@ accepted variation, or a replacement for independent application/browser qualifi
   `TestFlowDocsCallInventoryDriftIsStale`); control keywords (`if`, `function`, `return` and similar)
   are never listed as bare calls; a member call that spells one (`promise.catch(h)`,
   `iterator.return(v)`) is a call (`TestFlowDocsMemberKeywordCallsAreDrift`). This changed the
-  generator to version 2, and the AFU-V1-043 member-call declaration fix to version 3: a version 1
-  or 2 manifest cannot be rederived byte for byte, so check, finalize and `generate --previous`
+  generator to version 2, the AFU-V1-043 member-call declaration fix to version 3, and the
+  AFU-V1-043 generic-call mask fix (V1-2415) to version 4: a version 1, 2 or 3 manifest cannot be
+  rederived byte for byte, so check, finalize and `generate --previous`
   refuse it with the typed `flowdocs-generator-stale` code even at its own revision; regenerate it
   once with the current binary
   (`TestFlowDocsPredecessorGeneratorManifestIsTypedStale`). Optional byte checking compares the original rendered directory,
@@ -987,7 +994,10 @@ provider B, Build/Open and changed-authorization-only staleness across line inse
 strict predecessor rederivation, read-only determinism and output safety. Broader runtime/parity
 qualification must retain its own original receipt and cannot be inferred from these fixtures.
 Rollback removes the `docs flows` dispatch and generated producer; existing accepted-outcome AFU,
-corpus adoption artifacts and their original trust/evidence contracts remain unchanged.
+corpus adoption artifacts and their original trust/evidence contracts remain unchanged. The V1-2415
+generic-call mask rolls back by removing the `typeArgumentsEnd` branch of `flowWebMask` in
+`internal/contextindex/flowlexical.go` and the hook type-argument group of `webArrow`, with the
+generator version returned to 3 (a version 4 manifest then needs regeneration).
 
 ## Complete variation coverage (issue340)
 
