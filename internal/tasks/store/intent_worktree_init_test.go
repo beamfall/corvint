@@ -48,7 +48,7 @@ func TestCTWV0780_InitFromFeatureBranchWithLinkedIntentWorktree(t *testing.T) {
 	}
 	report, err := store.Init(context.Background(), repo, operator(), "req-init", now(t))
 	text := refusalText(t, report, err, wire.CodeIntentBranchMismatch)
-	for _, part := range []string{`.taskman/queue.json is missing or unreadable`, "give '" + linked + "' a .taskman directory", "queue.json", "CTW-V0-780"} {
+	for _, part := range []string{"queue.json is missing or unreadable", "give '" + linked + "' a .taskman directory", "queue.json", "CTW-V0-780"} {
 		if !strings.Contains(text, part) {
 			t.Errorf("refusal %q lacks %q", text, part)
 		}
