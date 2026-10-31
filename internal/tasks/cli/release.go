@@ -123,7 +123,7 @@ func releaseCommand(env Env, verb string, args []string) *wire.Result {
 	result := &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(item)}}
 	if report.Outcome.Outcome != "COMPLETED" {
 		result.Outcome = wire.OutcomeRefused
-		result.Codes = report.Outcome.Codes
+		result.Codes = refusalCodes(report.Outcome)
 		if report.Detail != "" {
 			result.Warnings = append(result.Warnings, prose(report.Detail))
 		}

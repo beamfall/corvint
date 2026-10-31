@@ -106,7 +106,8 @@ func TestTEAV0001_ArchiveCarriesAttachedEvidence(t *testing.T) {
 
 // TestTEAV0001_TwoProcessAttachEvidenceCAS (V1-0813 item 2): two processes
 // racing ATTACH_EVIDENCE at the same expected revision yield exactly one
-// success and one REVISION_CONFLICT refusal, and the record carries one entry.
+// success and one REVISION_CONFLICT refusal whose top-level codes carry
+// STALE_TICKET (TCL-V0-870), and the record carries one entry.
 func TestTEAV0001_TwoProcessAttachEvidenceCAS(t *testing.T) {
 	bin := cli.CompiledTasksBinary(t)
 	r, id := attachStore(t)
@@ -139,6 +140,9 @@ func TestTEAV0001_TwoProcessAttachEvidenceCAS(t *testing.T) {
 		case res == nil:
 			t.Error("racer without a result")
 		case len(res.Items) == 1 && field(res.Items[0], "outcome").Str == mutation.OutcomeRevisionConflict:
+			if !hasCode(res, wire.CodeStaleTicket) {
+				t.Errorf("REVISION_CONFLICT without STALE_TICKET in the top-level codes (TCL-V0-870): %v", res.Codes)
+			}
 			stale++
 		default:
 			t.Errorf("racer result %s %v %v", res.Outcome, res.Codes, res.Warnings)

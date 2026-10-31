@@ -195,7 +195,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 - `internal/tasks/boundary_test.go`: the `similar/terms.go` exception and its controls
   (TCL-V0-003).
 - `tools/capabilities-check` and the command-tree snapshot (TCL-V0-013).
-- `internal/tasks/cli/refusal_codes_test.go`: `TestTCLV0870_EveryRefusalOutcomeHasACode` and
+- `internal/tasks/cli/refusal_codes_internal_test.go`: `TestTCLV0870_EveryRefusalOutcomeHasACode`;
+  `internal/tasks/cli/refusal_codes_test.go`:
   `TestTCLV0870_StaleUpdateCarriesStaleTicket`; `internal/tasks/cli/attach_evidence_witness_test.go`:
   `TestTEAV0001_TwoProcessAttachEvidenceCAS` asserts `STALE_TICKET` in the loser's codes
   (TCL-V0-870).
