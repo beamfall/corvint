@@ -45,6 +45,26 @@ snapshot `internal/tasks/similar/testdata/corpus-2026-10-30.jsonl` and, for V1-3
   its `t.TempDir` was never removed. Its `TMPDIR` is now inside the test's own temporary directory.
   Before: one leaked directory per run. After: none over three runs.
 
+## Follow-up fixes (second pass)
+
+- `git-read-failed` under load (V1-1470 criterion 2): a debug pass showed
+  `exec: WaitDelay expired before I/O complete` on `git cat-file` in `git03`. The 250 ms
+  `WaitDelay` let the output-copy goroutines lose the race after a successful exit. It is now 5 s
+  (`CEM-V1-820`). The `pipe-held-briefly` case fails before and passes after. The selection that
+  failed twice under 60 busy loops (load average 23 to 41) then passed in 393 s. Other 100-250 ms
+  `WaitDelay` sites remain (`conformance/release-artifact-v0`, `internal/procgroup`,
+  `internal/testsupport`, `tools/beamfall-shadow`, darwin `processidentity`); none was observed to
+  fail here.
+- `TestTQDV0021_RealProbes` failed on the base on this host. On btrfs, `stat` reports the
+  subvolume's anonymous device (`00:48`) and `/proc/locks` the superblock's (`00:2f`), so the
+  doctor never named a held `taskman.lock`. It now falls back to a same-inode `FLOCK` holder that
+  has the file open (`TQD-V0-821`).
+- `TestDogfoodEventObservedMismatchFallsBack` failed whenever a test that starts `corvint mcp`
+  in-process ran first in the same binary: a started server pins Git for its process (V1-0191),
+  so the `countingGit` PATH shim saw no spawns. `TestAHI373MCPVerbOwnsItsArgumentsAndProfile`
+  (on the base) and this lane's AHI-820 test both did that. The first now serves from a re-exec'd
+  child; the second's served-args half moved to `internal/mcp/cli`.
+
 ## Already delivered on the base
 
 - V1-2727: `AFP-V0-464`. `internal/gateselect` `unresolved()` follows the planner's import-only
