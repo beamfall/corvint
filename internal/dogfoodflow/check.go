@@ -208,6 +208,7 @@ func (c *check) fail(reason string, lines ...string) {
 
 func (c *check) run() int {
 	c.requireRoot()
+	c.requireTrustedAncestry()
 	c.base = c.gitValue("rev-parse", c.options.Base+"^{commit}")
 	c.target = c.gitValue("rev-parse", "HEAD^{commit}")
 	c.cemPath = ".corvint/change.cem.json"

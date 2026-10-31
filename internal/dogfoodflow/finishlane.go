@@ -129,6 +129,7 @@ func (l *finishLane) recovery(step string) string {
 
 func (l *finishLane) run() int {
 	l.requireRoot()
+	l.requireTrustedAncestry()
 	l.gitDir = l.gitValue("rev-parse", "--absolute-git-dir")
 	// One operation lock spans every step; each nested pass shares it.
 	l.acquireOperation()

@@ -18,6 +18,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/Beamfall/corvint/internal/gitancestry"
 	"github.com/Beamfall/corvint/internal/secretscreen"
 )
 
@@ -280,20 +281,27 @@ func compile(ctx context.Context, req Request) (Report, error) {
 	if r.To, err = g.resolve(req.To); err != nil {
 		return r, err
 	}
+	// A shallow checkout silently omits carried commits and info/grafts can invent or cut them, so
+	// either refuses before any ancestry read rather than report a complete range (EEP-V0-770).
+	rewritten := gitancestry.Rewritten(ctx, func(_ context.Context, args ...string) ([]byte, error) {
+		out, cut, err := g.read(4096, args...)
+		if cut {
+			return nil, errors.New("changes-git-unavailable")
+		}
+		return out, err
+	})
+	if ctx.Err() != nil {
+		return r, errors.New("changes-git-unavailable")
+	}
+	if rewritten != "" {
+		return r, errors.New("changes-range-unavailable")
+	}
 	// Reject reversed or unrelated builds without querying a remote.
 	_, cut, err := g.read(128, "merge-base", "--is-ancestor", r.From, r.To)
 	if ctx.Err() != nil {
 		return r, errors.New("changes-git-unavailable")
 	}
 	if err != nil || cut {
-		return r, errors.New("changes-range-unavailable")
-	}
-	// A shallow checkout silently omits carried commits; refuse rather than report a complete range.
-	shallow, _, err := g.read(64, "rev-parse", "--is-shallow-repository")
-	if ctx.Err() != nil {
-		return r, errors.New("changes-git-unavailable")
-	}
-	if err != nil || strings.TrimSpace(string(shallow)) != "false" {
 		return r, errors.New("changes-range-unavailable")
 	}
 	// Count the whole range before reading any message, so a range over the bound refuses at once

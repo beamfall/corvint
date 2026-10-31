@@ -275,6 +275,11 @@ type e2eSelector struct {
 	evidencePaths    int
 	evidenceExceeded bool
 	reachMemo        int
+	// rootRewritten names why the root checkout's ancestry cannot be trusted ("" when it can); an
+	// evidence commit cannot then be proved an ancestor of base, so no root evidence diff is read
+	// and the selection falls back to the full suite naming the reason (EEP-V0-770).
+	rootRewritten   string
+	ancestryRefused bool
 }
 
 // evidenceDiff is what changed between one coverage evidence commit and base, computed once per
@@ -316,6 +321,8 @@ func SelectE2E(ctx context.Context, root string, in E2EInput) E2ESelection {
 		out.Selected, out.OmittedTests, codes = s.prove()
 		if s.evidenceExceeded {
 			codes = []E2EFallback{{Code: CodeBoundExceeded, Subject: "evidence-paths"}}
+		} else if s.ancestryRefused {
+			codes = []E2EFallback{{Code: CodeExclusionUnproven, Subject: "ancestry-rewritten: " + s.rootRewritten}}
 		}
 	}
 	if len(codes) != 0 {
@@ -334,7 +341,7 @@ func SelectE2E(ctx context.Context, root string, in E2EInput) E2ESelection {
 func newE2ESelector(ctx context.Context, root string, in E2EInput, provider SelectionProvider, records []CoverageRecord, repos map[string]boundRepository) *e2eSelector {
 	s := &e2eSelector{ctx: ctx, root: root, in: in, base: in.Base, provider: provider, records: records, selected: map[string]bool{}, coverage: map[string]CoverageRecord{},
 		dirty: map[string]bool{}, closure: map[string]bool{}, globals: map[string]bool{}, evidence: map[string]*evidenceDiff{}, proofs: map[string]E2EProof{}, flowProof: map[string]string{},
-		repos: repos, declared: map[string]bool{}}
+		repos: repos, declared: map[string]bool{}, rootRewritten: ancestryRewritten(ctx, root)}
 	if s.base == "" {
 		s.base = in.Revision
 	}
@@ -953,6 +960,12 @@ func (s *e2eSelector) evidenceDiffAt(key, dir, base, prefix, commit string) *evi
 		return diff
 	}
 	s.evidence[key] = diff
+	// A bound repository's dir was refused at binding when its ancestry is rewritten (AFU-V1-068);
+	// the root is checked here (EEP-V0-770).
+	if dir == s.root && s.rootRewritten != "" {
+		s.ancestryRefused = true
+		return diff
+	}
 	if _, err := git(s.ctx, dir, "merge-base", "--is-ancestor", commit, base); err != nil {
 		return diff
 	}

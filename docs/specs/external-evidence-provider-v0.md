@@ -250,6 +250,79 @@ each cited path still exists at that revision, and what was omitted or could not
   or shallow checkout whose freshness is an ancestry verdict. Rollback: drop the guard call from
   `Freshness`.
 
+- `EEP-V0-770`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2259)
+  Every other product ancestry read below MUST consult the same `internal/gitancestry` guard
+  (`Rewritten`, or `RewrittenAt` from a resolved common Git directory) before it answers, and a
+  grafted, shallow or unreadable checkout MUST get the package's typed unavailable state, never a
+  verdict from rewritten parents. `appflows`: a root review anchor is `anchor-unknown` and no root
+  coverage evidence diff is read, so the e2e-safe selection falls back to the full suite with
+  `e2e-exclusion-unproven` subject `ancestry-rewritten: REASON` (bound repositories keep the
+  AFU-V1-068 binding refusal). `corvint impact --base` and `prove --base`: `unsupported-impact-range`
+  `--base ancestry cannot be trusted: REASON`, and the witness committed-range admission a `REFUSED`
+  stage with that detail, for an `info/grafts` or unreadable checkout. These call the contextindex
+  range engine, whose `merge-base --all` honours grafts; a shallow checkout stays admitted because
+  the engine's exact check that the one merge base is `--base` itself can only fail closed under a
+  shallow boundary. The guard sits at these callers, not in the engine, because any contextindex
+  source byte re-pins the analyzer schema (IDX-SNAP-V0-017); a graft written while one range
+  compiles is not detected. The guard's reasons are the exported `gitancestry.Unreadable`,
+  `Grafted` and `Shallow`.
+  `corvint runs baseline diff --base`: staleness `NOT_OBSERVED` `BRANCH_POINT_UNRESOLVED`
+  (PWR-V0-045). `breakagemap`: the manifest helper refuses `ID: REASON` and compile leaves the
+  repository unknown with REASON, so its base merge-base is never read. Dashboard trace
+  qualification: `ANCESTRY_BOUND`. `upgradechanges`: `changes-range-unavailable`, now also for
+  `info/grafts` and before the `--is-ancestor` read. Already guarded before this sweep and unchanged:
+  `postmergeconnector` (PMC-V0-010), `postmergemetrics` (PMM-V0-008), `localcompletion`
+  (LCP-V0-036), `dogfoodflow.ResolveSealBinding` (LCP-V0-040) and appflows repository binding
+  (AFU-V1-068). Falsifier: a grafted or shallow fixture for which one of these reads returns an
+  ancestry verdict. Rollback: drop the guard call at that site.
+
+- `EEP-V0-771`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2259)
+  An ancestry read MAY stay unguarded only where a rewritten history cannot make its answer wrong,
+  with that reason in a code comment at the read. A shallow boundary only removes parents, so it
+  can hide an ancestor or a containment but never invent one; a reader whose Git environment sets
+  `GIT_GRAFT_FILE=/dev/null` reads no grafts. Recorded safe: `witness` (`resolveBaseTree`,
+  `CheckPairedApplication` and the pairing parent read: grafts off, a wrong answer only refuses);
+  `tracerecordrepo.probeGitAncestor` (grafts off; it only picks which read failure is named);
+  `gitnotes` notes-tip containment (grafts off; shallow can report `rollback`, never `current`);
+  `sharedpath`, whose Git reader now sets `GIT_GRAFT_FILE=/dev/null` like its private dry-merge
+  repository, while SPC-V0-015 refuses shallow ranges and the split refuses a parentless commit;
+  `jstestprovider` test repository identity, which now reads with grafts off and names a shallow
+  boundary, a real commit of that history, as its root, so an identity comparison can only fail to
+  match a full-history identity; `testacceptance` root equality against that identity;
+  `genesis` guidance snapshots, which refuse `info/grafts` and `shallow` at open and every `Check`;
+  `contextindex` range bound precheck and `CorpusRepositoryID`, which return on `historyCut` (this
+  reason is recorded here only, since a contextindex comment would re-pin the analyzer schema); and
+  appflows reads in a bound repository and the breakage compile base read, which run only after the
+  guarded binding. Falsifier: one of these reads admitting a verdict in a grafted or shallow
+  fixture. Rollback: none needed; each is a recorded reason.
+
+- `EEP-V0-772`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2259)
+  Every dogfood flow (`change`, `check`, `seal`, `batch-check`, `finish-lane`,
+  `propose-citations`) MUST refuse a grafted or shallow checkout right after its root check and
+  before any ancestry read, exiting 2 with `REFUSE ancestry-rewritten`, the guard's reason and a fix
+  naming `git fetch --unshallow`; it has no degraded mode. Decision: no CI job runs a dogfood flow.
+  The fetch-depth 2 jobs (`doc-gates-reuse`, `doc-gates-record`, `ci-tested-tree-record`,
+  `ci-narrowed-tree-record`, `artifact-integrity`, `artifact-integrity-record`, `cce-live` in
+  `ci.yml`; `cem-release-reuse`, `cem-release-record` in `cem-release-gate.yml`) run shell
+  `git rev-parse` steps, the gate-reuse finder or the CCE live tests over their own fixture
+  repositories, and the dogfood flows' tests run in fetch-depth 0 `go-product-shard` checkouts over
+  fixture repositories. `ResolveSealBinding` already refused both, so a shallow checkout could not
+  recognise a seal commit and every flow there was already unreliable, and the `script/dogfood-*.sh`
+  wrappers already refuse a shallow clone before resolving BASE (ASD-V0-072); the binary flows now
+  refuse it too when invoked directly. Falsifier: a dogfood flow
+  that reads ancestry in a grafted or shallow checkout. Rollback: drop the
+  `requireTrustedAncestry` calls.
+
+- `EEP-V0-773`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2259)
+  A root-commit read (`rev-list --max-parents=0`) that names or pins a repository's origin MUST
+  consult the guard first, because a graft or shallow boundary is listed as a parentless commit:
+  `extevidence` checkout binding (`unavailable` with REASON; the root checkout lists no root and
+  binds nothing), `lspprovider.rootCommit` (`root commit unavailable`), the site-knowledge flows
+  request repository identity (`appmap-invalid-revision` with REASON) and the `breakagemap`
+  origin pin (EEP-V0-770). `appflows` binding and `CorpusRepositoryID` were already guarded.
+  Falsifier: a grafted or shallow fixture whose root commit is pinned as an origin. Rollback: drop
+  the guard call at that site.
+
 ## Non-goals and simpler baseline
 
 - New transports or analyzer authority. The kit reuses the separately owned contained command
@@ -362,6 +435,10 @@ their tests, the fixture `lsp-gopls.json`, the one `attachLSPEvidence` call in
 
 | `EEP-V0-027` | `rootCommit`, `environment`, `run` | `TestContextLSPPinAndDrift`, `TestContextLSPCancellationRetiresDescendants`, `TestContextLSPEnvironmentDropsRelativePATH` |
 | `EEP-V0-028` | `Freshness` in `internal/extevidence/freshness.go`; `Rewritten` in `internal/gitancestry/gitancestry.go` | `TestFreshnessDistrustsRewrittenAncestry_EEPV0028`, `TestRewrittenNamesGraftsShallowAndUnreadable_EEPV0028` |
+| `EEP-V0-770` | `internal/appflows/review.go`, `internal/appflows/selection.go`, `impactRangeAncestryRefusal` in `cmd/corvint/impact_range_ancestry.go`, `admit` in `internal/witness/witness.go`, `cmd/corvint/runs_baseline.go`, `internal/breakagemap/read.go`, `internal/dashboard/repository/trace.go`, `internal/upgradechanges/changes.go`; fixtures `internal/gitancestry/ancestrytest` | `TestRootAncestryRewrittenIsUnknown_EEPV0770`, `TestImpactRangeRefusesGraftedAncestry_EEPV0770`, `TestAdmitRefusesGraftedAncestry_EEPV0770`, `TestRunsBaselineStalenessDistrustsRewrittenAncestry_EEPV0770`, `TestBreakageRefusesRewrittenAncestry_EEPV0770`, `TestQualifyTraceRefusesRewrittenAncestry_EEPV0770`, `TestCompileRefusesGraftedCheckout_EEPV0770` |
+| `EEP-V0-771` | comments at each read; `GIT_GRAFT_FILE` in `internal/sharedpath/sharedpath.go` and `internal/jstestprovider/application_attestation.go` | `TestBaseTreeShallowBoundaryRefuses_EEPV0771`, `TestBaseTreeIgnoresGraftedAncestry`, `TestProbeGitAncestorUnderRewrittenAncestry_EEPV0771`, `TestRefTipStateUnderRewrittenAncestry_EEPV0771`, `TestAncestryReadsIgnoreGraftsAndRefuseShallow_EEPV0771`, `TestObserveTestRepositoryIgnoresGrafts_EEPV0771`, `TestOpenGuidanceRefusesRewrittenAncestry_EEPV0771` |
+| `EEP-V0-772` | `requireTrustedAncestry` in `internal/dogfoodflow/flow.go` | `TestFlowsRefuseRewrittenAncestry_EEPV0772` |
+| `EEP-V0-773` | `resolveCheckout`, `rootCommits` in `internal/extevidence/repository.go`; `rootCommit` in `internal/lspprovider/provider.go`; `repositoryRootID` in `internal/appmap/site_knowledge_flows.go`; `bind`, `BuildManifestWith` in `internal/breakagemap` | `TestRootCommitsDistrustRewrittenAncestry_EEPV0773`, `TestRootCommitRefusesRewrittenAncestry_EEPV0773`, `TestRepositoryRootIDRefusesRewrittenAncestry_EEPV0773`, `TestBreakageRefusesRewrittenAncestry_EEPV0770` |
 
 ## Unresolved decisions and promotion or kill criteria
 

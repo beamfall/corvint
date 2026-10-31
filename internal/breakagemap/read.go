@@ -10,6 +10,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/Beamfall/corvint/internal/gitancestry"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/procgroup"
@@ -48,6 +49,11 @@ func bind(ctx context.Context, r Repository, root string) error {
 	if err != nil || !sameTopLevel(string(top), canonical) {
 		return errors.New("checkout must name its Git top level")
 	}
+	// The origin pin and the compile's base ancestry are root-commit and merge-base answers, which a
+	// grafted or shallow checkout rewrites, so it stays unavailable (EEP-V0-770, EEP-V0-773).
+	if reason := ancestryRewritten(ctx, canonical); reason != "" {
+		return errors.New(reason)
+	}
 	typ, err := git(ctx, canonical, "cat-file", "-t", r.Commit)
 	if err != nil || strings.TrimSpace(string(typ)) != "commit" {
 		return errors.New("commit unavailable")
@@ -76,6 +82,13 @@ func bind(ctx context.Context, r Repository, root string) error {
 		return errors.New("checkout origin pin mismatch")
 	}
 	return nil
+}
+
+// ancestryRewritten names why root's commit ancestry cannot be trusted, or returns "".
+func ancestryRewritten(ctx context.Context, root string) string {
+	return gitancestry.Rewritten(ctx, func(ctx context.Context, args ...string) ([]byte, error) {
+		return git(ctx, root, args...)
+	})
 }
 
 func readBlob(ctx context.Context, root, commit, p, expected string) ([]byte, error) {

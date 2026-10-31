@@ -598,6 +598,9 @@ func gitArguments(root string, arguments ...string) []string {
 	return append(args, arguments...)
 }
 
+// probeGitAncestor is safe unguarded (EEP-V0-771): gitEnvironment sets GIT_GRAFT_FILE=/dev/null,
+// and it only chooses between two read failures for a candidate the bounded walk did not reach, so
+// a shallow boundary can change which refusal is named but never admit a revision.
 func probeGitAncestor(ctx context.Context, budget *gitrun.Budget, root, candidate, head string) (bool, error) {
 	args := gitArguments(root, "merge-base", "--is-ancestor", candidate, head)
 	result, err := gitrun.Run(ctx, budget, gitrun.Options{Env: gitEnvironment(), StdoutLimit: 1}, args...)

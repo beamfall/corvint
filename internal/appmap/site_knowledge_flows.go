@@ -12,6 +12,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/appflows"
 	"github.com/Beamfall/corvint/internal/doccorpus"
+	"github.com/Beamfall/corvint/internal/gitancestry"
 	"github.com/Beamfall/corvint/internal/gokernel"
 )
 
@@ -571,16 +572,11 @@ func InferFlowsRequest(ctx context.Context, m *Map, sources []string, trust []Te
 			return nil, &gokernel.Error{Code: "appmap-invalid-query", Message: "--emit request reads --source from --root only; root " + alias + " is aliased"}
 		}
 	}
-	r := repo{ctx: ctx, root: o.Root}
-	rootOut, err := r.git(4096, nil, "rev-list", "--max-parents=0", "--end-of-options", m.Revision)
+	id, err := repositoryRootID(repo{ctx: ctx, root: o.Root}, m.Revision)
 	if err != nil {
 		return nil, err
 	}
-	roots := strings.Fields(string(rootOut))
-	if len(roots) != 1 {
-		return nil, &gokernel.Error{Code: "appmap-invalid-revision", Message: "the map revision has no single root commit to name the repository"}
-	}
-	source := doccorpus.Repository{ID: roots[0], Revision: m.Revision}
+	source := doccorpus.Repository{ID: id, Revision: m.Revision}
 	revisions := doccorpus.BehaviorRevisions{App: source, E2E: source, Docs: source}
 	stateOf := map[string]string{}
 	for _, s := range m.Screens {
@@ -718,4 +714,24 @@ func (k *SKModel) candidateIntent(f SKCandidateFlow, source doccorpus.Repository
 		intent.Variations = append(intent.Variations, iv)
 	}
 	return intent, nil
+}
+
+// repositoryRootID names the repository by revision's one root commit. A grafted or shallow
+// checkout has no trustworthy root commit, since its parentless commits are the graft or the
+// shallow boundary, so it is refused like a revision without one (EEP-V0-773).
+func repositoryRootID(r repo, revision string) (string, error) {
+	if reason := gitancestry.Rewritten(r.ctx, func(_ context.Context, args ...string) ([]byte, error) {
+		return r.git(4096, nil, args...)
+	}); reason != "" {
+		return "", &gokernel.Error{Code: "appmap-invalid-revision", Message: "the map revision has no trustworthy root commit to name the repository: " + reason}
+	}
+	rootOut, err := r.git(4096, nil, "rev-list", "--max-parents=0", "--end-of-options", revision)
+	if err != nil {
+		return "", err
+	}
+	roots := strings.Fields(string(rootOut))
+	if len(roots) != 1 {
+		return "", &gokernel.Error{Code: "appmap-invalid-revision", Message: "the map revision has no single root commit to name the repository"}
+	}
+	return roots[0], nil
 }

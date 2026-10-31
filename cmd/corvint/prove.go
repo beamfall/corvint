@@ -1117,6 +1117,9 @@ func provePacket(ctx context.Context, options options) (map[string]any, error) {
 		if err != nil {
 			return nil, err
 		}
+		if err := impactRangeAncestryRefusal(ctx, index.Root); err != nil {
+			return nil, err
+		}
 		return contextindex.RangeImpact(ctx, index, options.impactBase, options.impactLimit)
 	}
 	// Impact mode reads the snapshot as path impact does (IDX-SNAP-V0-020).
