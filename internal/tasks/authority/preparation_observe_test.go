@@ -65,6 +65,7 @@ func heldSlot(t *testing.T, dir string, i int, record []byte) {
 
 func TestCALV0095_PreparationQueueObservation(t *testing.T) {
 	assumeCompleteLockTable(t)
+	requireObservableFlocks(t)
 	t.Run("absent-namespace-creates-nothing", func(t *testing.T) {
 		_, repo := preparationOpenFixture(t)
 		before := preparationNamespace(t, repo.CommonDir)
@@ -385,6 +386,7 @@ func TestCALV0095ProcessHolderHelper(t *testing.T) {
 
 func TestCALV0095_PreparationQueueObservationAcrossProcesses(t *testing.T) {
 	assumeCompleteLockTable(t)
+	requireObservableFlocks(t)
 	r, repo := preparationOpenFixture(t)
 	cmd := exec.Command(os.Args[0], "-test.run=^TestCALV0095ProcessHolderHelper$")
 	cmd.Env = append(os.Environ(), "CAL095_HOLD_ROOT="+r.Root)

@@ -8204,7 +8204,12 @@ stale records count zero. A registration held by another process is counted. A p
 record hides the rank. An unsafe slot object, an unavailable lock query, an incomplete Linux lock
 table, a Darwin record lock, and a slot or registry that disappears or is replaced after its
 first stat or after its open, and a common directory renamed away and replaced after the root is
-pinned, each report `NOT_OBSERVED`. Linux POSIX and OFD record locks on stale slots count zero. The status read creates no registry file. Rollback removes the observation and
+pinned, each report `NOT_OBSERVED`. Linux POSIX and OFD record locks on stale slots count zero. The status read creates no registry file. On a
+Linux btrfs subvolume, `stat` reports an anonymous device while `/proc/locks` names the
+superblock device, so every held slot reads as ambiguous: the counting tests first require that
+real read to report `NOT_OBSERVED` with `lock table device mapping is ambiguous`, then skip with the
+two devices named (observed 2026-10-31 on an Unraid btrfs container, PID namespace not initial).
+Rollback removes the observation and
 the field; no store, wire profile or coordination file depends on it.
 
 | Requirement | Evidence |

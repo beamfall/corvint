@@ -12,12 +12,15 @@ import (
 
 // assumeCompleteLockTable lets the counting tests run in a container whose
 // PID namespace is not the initial one, where every writer is a test
-// process in the same namespace. The real check is used when it passes.
+// process in the same namespace. The real check is used when it passes;
+// otherwise the unassumed product read must first report the typed
+// NOT_OBSERVED degradation for a held slot.
 func assumeCompleteLockTable(t *testing.T) {
 	t.Helper()
 	if procLocksComplete() == nil {
 		return
 	}
+	requireNotObserved(t, "lock table omits owners outside this PID namespace")
 	link := filepath.Join(t.TempDir(), "pid")
 	if err := os.Symlink(initialPIDNamespace, link); err != nil {
 		t.Fatal(err)
@@ -26,6 +29,54 @@ func assumeCompleteLockTable(t *testing.T) {
 	t.Cleanup(func() { procSelfPIDNamespace = old })
 	procSelfPIDNamespace = link
 	t.Log("reader is outside the initial PID namespace; table completeness assumed for same-namespace test writers")
+}
+
+// requireNotObserved holds one slot and requires the product read, under the
+// current lock view, to abstain with reason instead of counting.
+func requireNotObserved(t *testing.T, reason string) {
+	t.Helper()
+	_, repo := preparationOpenFixture(t)
+	heldSlot(t, repo.CommonDir, 0, admissionRecord(1))
+	q := ObservePreparationQueue(repo)
+	if _, ok := q.WouldBeRank(); q.NotObserved != reason || q.Method != "" || q.Registered != 0 || ok {
+		t.Fatalf("product read did not report NOT_OBSERVED %q: %+v", reason, q)
+	}
+}
+
+// requireObservableFlocks skips a counting test where /proc/locks names a
+// test flock under a device other than the one stat reports for its file, as
+// on a btrfs subvolume (anonymous st_dev, superblock s_dev in the table).
+// The product read must then report the typed ambiguity, never a count.
+func requireObservableFlocks(t *testing.T) {
+	t.Helper()
+	f, err := os.Create(filepath.Join(t.TempDir(), "flock-probe"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if err = withFD(f, flockExclusiveNB); err != nil {
+		t.Fatal(err)
+	}
+	st, err := f.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err := loadPreparationLockView()
+	if err != nil {
+		t.Fatal(err)
+	}
+	held, err := v.held(f, st)
+	if err == nil && held {
+		return
+	}
+	if err == nil {
+		t.Fatalf("the reader's own flock is absent from %s", procLocksPath)
+	}
+	sys := st.Sys().(*syscall.Stat_t)
+	dev := uint64(sys.Dev)
+	requireNotObserved(t, err.Error())
+	t.Skipf("flock owners are not observable on this filesystem: stat reports device %d:%d but %s lists %v for inode %d; product read abstains with %q",
+		(dev>>8)&0xfff|(dev>>32)&^uint64(0xfff), dev&0xff|(dev>>12)&^uint64(0xff), procLocksPath, v.(procLocksView).locked[uint64(sys.Ino)], sys.Ino, err)
 }
 
 // fOFDSetlk is F_OFD_SETLK, identical on every Linux architecture.
