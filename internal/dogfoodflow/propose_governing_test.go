@@ -157,3 +157,37 @@ func TestProposeCitationsDCWV0809AddedRequirementRowsStayUnknown(t *testing.T) {
 		t.Errorf("the prose hunk lost its path anchor:\n%s", stdout.String())
 	}
 }
+
+// TestProposeCitationsDCWV0809AmendedDefinitionReachesItsDecision pins the
+// Codex finding on DCW-V0-809: a requirement's definition line rewritten in
+// place was collected as a same-change requirement, so the amendment drafted
+// an unknown row claiming the change introduces it and never reached the
+// DCW-V0-805 governing-decision ranking. Only an ID absent from BASE is new.
+func TestProposeCitationsDCWV0809AmendedDefinitionReachesItsDecision(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	spec := "# X v0\n\nIntro.\n" + numbered("intro", 6) + "\n## Requirements\n\n" +
+		"- `XYZ-V0-001`: (accepted, decision 0388) the widget MUST frob within 20 seconds of start.\n" + numbered("tail", 6)
+	writeTree(t, root, map[string]string{
+		"docs/specs/x-v0.md": spec,
+		"docs/decisions/0388-accept-xyz-v0-001-2026-09-25.md": "# Decision 0388\n\n" +
+			"The owner accepts the widget frob bound: within 20 seconds of start, measured from launch.\n" + numbered("d", 4),
+	})
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	writeTree(t, root, map[string]string{"docs/specs/x-v0.md": strings.Replace(spec, "within 20 seconds", "within 8 seconds", 1)})
+	testGit(t, root, "commit", "-q", "-am", "lower the bound")
+
+	var stdout, stderr bytes.Buffer
+	if code, err := ProposeCitations(context.Background(), ProposeOptions{Root: root, Base: base}, &stdout, &stderr); code != 0 || err != nil {
+		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
+	}
+	rows := textLines(stdout.Bytes())
+	if len(rows) != 1 || !strings.Contains(rows[0], "docs/decisions/0388-accept-xyz-v0-001-2026-09-25.md\t3:3\tdecision") {
+		t.Fatalf("the amended definition was not drafted to its decision:\n%s\n%s", stdout.String(), stderr.String())
+	}
+	if strings.Contains(stderr.String(), "which this change itself defines") || !strings.Contains(stderr.String(), "the hunk amends requirement XYZ-V0-001") {
+		t.Errorf("the note does not name the amendment:\n%s", stderr.String())
+	}
+}

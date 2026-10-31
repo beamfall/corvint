@@ -627,7 +627,10 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 					p.changed[hunk.DisplayPath], p.changed[anchorPath(hunk)] = true, true
 				}
 				for _, id := range addedDefinitions(hunk) {
-					if _, seen := p.changeIDs[id]; !seen {
+					// A definition rewritten in place amends a requirement
+					// BASE already defines; only a new one is same-change
+					// intent (DCW-V0-440, DCW-V0-809).
+					if _, seen := p.changeIDs[id]; !seen && !p.definedAtBase(hunk.DisplayPath, id) {
 						p.changeIDs[id] = hunk.DisplayPath
 					}
 				}

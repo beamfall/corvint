@@ -223,3 +223,11 @@ func (p *proposal) addedRequirementRows(hunk *patch.Hunk) string {
 	}
 	return ""
 }
+
+// definedAtBase reports whether name at BASE already holds the definition
+// line of id, so an added definition of it rewrites an existing requirement
+// rather than adding one.
+func (p *proposal) definedAtBase(name, id string) bool {
+	blob, ok := p.blob(p.base, name)
+	return ok && bytes.Contains(blob, []byte(definitionPattern(id)))
+}
