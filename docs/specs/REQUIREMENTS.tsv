@@ -876,6 +876,7 @@ BBF-V0-031	docs/specs/browser-behavior-falsification-v0.md	(accepted under the o
 BBF-V0-032	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2027)	standing	2026-10-11; V1-2027
 BBF-V0-033	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2027) A live t	standing	2026-10-11; V1-2027
 BBF-V0-214	docs/specs/browser-behavior-falsification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2029) The go-t	standing	2026-10-11; V1-2029
+BBF-V0-820	docs/specs/browser-behavior-falsification-v0.md	(experimental under the standing lane auto-accept; V1-2215; amends the	standing	V1-2215
 BBF-V0-215	docs/specs/browser-behavior-falsification-v0.md	(proposed; V1-2524) A plan's `contract_file`, `test_file`, `config_file` and Go	unrecorded	-
 BBF-V0-216	docs/specs/browser-behavior-falsification-v0.md	(proposed; V1-2030, decision 0552) Every `ServerIdentity` an isolation observati	unrecorded	-
 BBF-V0-217	docs/specs/browser-behavior-falsification-v0.md	(proposed, standing lane auto-accept 2026-10-11; V1-2688, GH #1789) A request	standing	2026-10-11; V1-2688; #1789
