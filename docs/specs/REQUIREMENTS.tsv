@@ -1087,7 +1087,7 @@ CEM-PILOT-026	docs/specs/cem-pilot-kit.md	a recipe MUST NOT convert a refusal or
 CEM-PILOT-027	docs/specs/cem-pilot-kit.md	each recipe step MUST run in its own process group bounded by `RECIPE_TIMEOUT`	unrecorded	-
 CRT-V0-001	docs/specs/cem-reviewer-trial-v0.md	Unit and selection. One change is one non-merge Beamfall commit `C`, and its lan	unrecorded	-
 CRT-V0-002	docs/specs/cem-reviewer-trial-v0.md	Pairing. Every change runs in both arms; the estimate is within-change. The arm	unrecorded	-
-CRT-V0-003	docs/specs/cem-reviewer-trial-v0.md	Withheld-patch construction. The presented patch `P(C)` contains only the source	unrecorded	-
+CRT-V0-003	docs/specs/cem-reviewer-trial-v0.md	Withheld-patch construction. The presented patch `P(C)` contains only the	unrecorded	-
 CRT-V0-004	docs/specs/cem-reviewer-trial-v0.md	Ground truth. Primary gold for `C` is the set of test-or-spec paths `C` itself	unrecorded	-
 CRT-V0-005	docs/specs/cem-reviewer-trial-v0.md	(Amended 2026-10-11: V1-1261, accepted under the owner's standing auto-accept (2	standing	2026-10-11; V1-1261
 CRT-V0-006	docs/specs/cem-reviewer-trial-v0.md	Reply grammar. Every reply MUST end with one fenced JSON block	unrecorded	-

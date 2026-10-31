@@ -43,21 +43,27 @@ name is exactly what the change's author also wrote and the harness removed.
 ## Requirements
 
 - `CRT-V0-001`: Unit and selection. One change is one non-merge Beamfall commit `C`, and its lane
-  runs at `C^`. The selection rule is frozen verbatim in the manifest (`selection_rule`): non-merge
-  commits since `--since`, oldest first, touching between 3 and 12 text files, with at least one
-  modified non-test source file (`.go|.ts|.tsx|.swift|.py`) and at least one test-or-spec file
-  (`_test.go`, `*.test.ts`, `*.test.tsx`, `*Tests.swift`, `_test.py`, `docs/specs/**`); the presented
-  patch is the source-file hunks alone, at most 64 KiB, over which `cem begin` parses between 3 and
-  20 hunks; a change is rejected when any source hunk contains a gold path literal; candidates are
-  ordered oldest-first and selected at index `floor(i*N/n)`. The manifest records the population `N`,
-  the rule string, every commit SHA, and each change's patch sha256; `run` recomputes those digests
-  and refuses the manifest on mismatch, and refuses a manifest that lists one change id twice.
+  runs at `C^`. The selection rule is frozen verbatim in the manifest (`selection_rule`):
+  non-merge commits since `--since`, oldest first, touching between 3 and 12 text files, with at
+  least one modified non-test source file (`.go|.ts|.tsx|.swift|.py`) and at least one
+  test-or-spec file (`_test.go`, `*.test.ts`, `*.test.tsx`, `*Tests.swift`, `_test.py`,
+  `docs/specs/**`); the presented patch is the source-file hunks alone in the canonical CEM diff
+  form (myers, no indent heuristic, three context lines, no inter-hunk context; the options
+  `cem prepare` maps with, `internal/cem/gitauth`; amended 2026-10-31 by V1-2619), at most 64 KiB, over
+  which `cem begin` parses between 3 and 20 hunks; a change is rejected when any source hunk
+  contains a gold path literal; candidates are ordered oldest-first and selected at index
+  `floor(i*N/n)`. The manifest records the population `N`, the rule string, every commit SHA, and
+  each change's patch sha256; `run` recomputes those digests and refuses the manifest on mismatch,
+  and refuses a manifest that lists one change id twice.
 - `CRT-V0-002`: Pairing. Every change runs in both arms; the estimate is within-change. The arm order
   per change is a seeded shuffle over `--seed`, recorded on every lane as `arm_order`. Each arm runs
   in its own disjoint clone and its own agent session; no state crosses arms.
-- `CRT-V0-003`: Withheld-patch construction. The presented patch `P(C)` contains only the source-file
-  hunks of `C`. The test-or-spec hunks are withheld and become gold. Both arms receive byte-identical
-  `P(C)`, its sha256, and a harness-generated numbered hunk list in the order `cem begin` reads them.
+- `CRT-V0-003`: Withheld-patch construction. The presented patch `P(C)` contains only the
+  source-file hunks of `C`, in the canonical CEM diff form of CRT-V0-001, so every presented hunk
+  starts on the line `cem prepare` maps it to; git's default indent heuristic slid one hunk by a
+  line and errored all six lanes of a held-out pair (V1-2619). The test-or-spec hunks are withheld
+  and become gold. Both arms receive byte-identical `P(C)`, its sha256, and a harness-generated
+  numbered hunk list in the order `cem begin` reads them.
 - `CRT-V0-004`: Ground truth. Primary gold for `C` is the set of test-or-spec paths `C` itself
   touched **and that exist at `C^`** (git status `M` or `D`; amended 2026-10-01, accepted by the owner 2026-10-25);
   secondary gold is the one-based line spans of those files' added lines, read from `C`'s own
@@ -398,9 +404,9 @@ executables named on the command line; it downloads nothing. Manifest 16 MiB; pa
 
 | Requirement | Implementation | Evidence |
 |---|---|---|
-| CRT-V0-001 | `selectionRule`, `candidateCommits`, `inspectCommit`, `validated`, `beginHunks`, `evenlySpaced`, `readManifest` (`tools/cem-trial/select.go`, `main.go`) | `TestSelectionIsDeterministicAndRefusesGoldLeak`; pilot manifest `tools/cem-trial/testdata/pilot/tasks.json` (population 620, five changes) |
+| CRT-V0-001 | `selectionRule`, `candidateCommits`, `inspectCommit`, `validated`, `beginHunks`, `evenlySpaced`, `readManifest` (`tools/cem-trial/select.go`, `main.go`) | `TestSelectionIsDeterministicAndRefusesGoldLeak`, `TestSelectionPresentsTheCanonicalCEMDiff`; pilot manifest `tools/cem-trial/testdata/pilot/tasks.json` (population 620, five changes) |
 | CRT-V0-002 | `plan`, `shuffledArms`, `seededStream`, `laneClone` | `TestCloneCannotResolveTheChangeCommit`; pilot dry run (three of five changes ran treatment first) |
-| CRT-V0-003 | `inspectCommit` (source-only diff), `hunkList`, `readPatch` digest check | `TestWithheldPatchExcludesEveryGoldPath` |
+| CRT-V0-003 | `inspectCommit` (source-only diff), `hunkList`, `readPatch` digest check | `TestWithheldPatchExcludesEveryGoldPath`, `TestSelectionPresentsTheCanonicalCEMDiff` |
 | CRT-V0-004 | `goldSpans`, `hunkRanges`, `stemBaseline`, `stemGuesses`, `leaksGold`, `hunkBody`, `stemMiss` (`gold.go`, `score.go`) | `TestSelectionIsDeterministicAndRefusesGoldLeak`; `TestWithheldPatchExcludesEveryGoldPath` (spans present) |
 | CRT-V0-005 | `skeleton`, `treatmentPrologue`, `buildPrompt`, `buildArtefacts`, `prepareTarget`, `commitTarget`, `renderArtefacts`, `alignedHunks`, `patchHunks`, `mapTarget`, `cloneAtBase`, `resolvable`, `laneClone` | `TestBothArmsShareTheSamePromptDigestApartFromThePrologue`; `TestMapArmsCarryAPreparedCEM10Map` (2026-10-24 amendment: prepared map, leak control, pristine restore, symlinked `TMPDIR`); `TestMisalignedMapIsRefused`; `TestCloneCannotResolveTheChangeCommit` |
 | CRT-V0-006 | `extractCitations`, `citationsBlock`, `extractUnknown`, `scoreLane` | `TestMissRateAndPairedBootstrapAreDeterministicUnderASeed`; `TestScoreRebuildsTheReportByteIdentically`; `TestExtractCitationsKeepsEmptyAbsentAndMalformedDistinct`, `TestCodexRunBoundsTheReplyAndRecordsStdoutTruncation` (2026-10-04 amendment) |
