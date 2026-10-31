@@ -1429,22 +1429,7 @@ func roadmap(env Env, args []string) *wire.Result {
 		ctx := rc.store.Context()
 		items = items[:0]
 		for _, id := range ids[start:end] {
-			v, _ := rc.store.Inventory.View(id, ctx)
-			rec := v.Record
-			o := wire.NewObject()
-			o.Set("milestone", wire.StringOrNull(rec.Milestone))
-			o.Set("ticketId", wire.String(rec.TicketID.Raw))
-			o.Set("title", wire.String(rec.Title))
-			o.Set("status", wire.String(rec.Status))
-			o.Set("kind", wire.String(rec.Kind))
-			o.Set("priority", wire.String(rec.Priority))
-			o.Set("order", wire.String(string(rec.Order)))
-			o.Set("owner", wire.StringOrNull(rec.Owner))
-			o.Set("requiredGates", wire.Strings(rec.RequiredGates))
-			o.Set("gateResults", wire.String(string(v.GateResults)))
-			o.Set("eligibility", wire.String(v.Eligibility))
-			o.Set("nextAction", wire.String(v.NextAction))
-			items = append(items, wire.ObjectValue(o))
+			items = append(items, roadmapRow(rc.store.Inventory, id, ctx))
 		}
 		pg = p.result(len(ids), len(items))
 		return nil
@@ -1461,6 +1446,34 @@ func roadmap(env Env, args []string) *wire.Result {
 	}
 	fm.apply(res, summary, matched)
 	return res
+}
+
+// roadmapRow is one roadmap item. A closed ticket's row comes from its
+// summary, whose fields and derived eligibility equal its record's, so a
+// lazily held record is never decoded (TCX-V0-986).
+func roadmapRow(inv *ticket.Inventory, id string, ctx ticket.Context) wire.Value {
+	s, _ := inv.Summary(id)
+	gateResults, eligibility, next := ticket.NotObserved, "", ""
+	if ticket.Closed(s.Status) {
+		eligibility, next = ticket.ClosedView(s)
+	} else {
+		v, _ := inv.View(id, ctx)
+		gateResults, eligibility, next = v.GateResults, v.Eligibility, v.NextAction
+	}
+	o := wire.NewObject()
+	o.Set("milestone", wire.StringOrNull(s.Milestone))
+	o.Set("ticketId", wire.String(s.TicketID.Raw))
+	o.Set("title", wire.String(s.Title))
+	o.Set("status", wire.String(s.Status))
+	o.Set("kind", wire.String(s.Kind))
+	o.Set("priority", wire.String(s.Priority))
+	o.Set("order", wire.String(string(s.Order)))
+	o.Set("owner", wire.StringOrNull(s.Owner))
+	o.Set("requiredGates", wire.Strings(s.RequiredGates))
+	o.Set("gateResults", wire.String(string(gateResults)))
+	o.Set("eligibility", wire.String(eligibility))
+	o.Set("nextAction", wire.String(next))
+	return wire.ObjectValue(o)
 }
 
 // openWithoutMilestone counts OPEN tickets whose milestone is null

@@ -15,6 +15,7 @@ import (
 // caller asks for the whole record.
 type Summary struct {
 	TicketID           wire.TicketID
+	Title              string
 	Status             string
 	ArchivedFrom       *string
 	Priority           string
@@ -24,6 +25,7 @@ type Summary struct {
 	Owner              *string
 	Milestone          *string
 	Labels             []string
+	RequiredGates      []string
 	Dependencies       []Dependency
 	UpdatedAt          wire.Timestamp
 	CompletedAt        *wire.Timestamp
@@ -31,9 +33,9 @@ type Summary struct {
 
 // SummaryOf is r's summary.
 func SummaryOf(r *Record) *Summary {
-	s := &Summary{TicketID: r.TicketID, Status: r.Status, ArchivedFrom: r.ArchivedFrom, Priority: r.Priority, Order: r.Order,
+	s := &Summary{TicketID: r.TicketID, Title: r.Title, Status: r.Status, ArchivedFrom: r.ArchivedFrom, Priority: r.Priority, Order: r.Order,
 		AcceptanceRevision: r.AcceptanceRevision, Kind: r.Kind, Owner: r.Owner, Milestone: r.Milestone, Labels: r.Labels,
-		Dependencies: r.Dependencies, UpdatedAt: r.UpdatedAt}
+		RequiredGates: r.RequiredGates, Dependencies: r.Dependencies, UpdatedAt: r.UpdatedAt}
 	if r.Completion != nil {
 		at := r.Completion.RecordedAt
 		s.CompletedAt = &at

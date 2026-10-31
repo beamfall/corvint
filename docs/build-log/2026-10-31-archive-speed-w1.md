@@ -13,8 +13,8 @@ each further 1,000 archived tickets added about 30%.
 ## Design
 
 - A derived file `<git common dir>/taskman.closed-index` beside the state directory holds, per
-  closed ticket file, its path, size, modification time, SHA-256 and a summary (status, priority,
-  order, labels, dependencies and the other planning fields). A header carries the format, queue ID,
+  closed ticket file, its path, size, modification time, SHA-256 and a summary (title, status,
+  priority, order, labels, required gates, dependencies and the other planning fields). A header carries the format, queue ID,
   policy digest, capture time and the body's SHA-256.
 - The snapshot probe trusts an entry only when size and mtime match and the mtime is more than 2 s
   before capture (Git's racy-index rule); the file is then neither read nor decoded, and its digest
@@ -61,10 +61,35 @@ A second run of the new build alone, 31 samples per cell:
 A rerun at host load about 4 (rebuilt final binary, 31 samples) gave full/open 1.20, 1.22, 1.33,
 1.22, 1.21 and big/full 1.074, 1.078, 1.070, 1.078, 1.075, in the same command order.
 
-Acceptance 2 (1,000 archived tickets change read time by under 10%) holds for every command.
-Acceptance 1 (within 1.3x of open-only) holds for all but `roadmap` at 1.33: its output lists
-closed tickets, so it sorts and pages over them; that remainder stays open on V1-3459. The remaining per-ticket cost is
-the directory listing and one lstat per file.
+### Roadmap remainder (TCX-V0-986)
+
+At 1.33x, `roadmap` was the one read over the 1.3x bar. A CPU profile of 200 runs on the full
+store put the gap in `Inventory.View` decoding closed records: the default page, sorted by
+milestone, lists closed tickets, and each was re-opened, re-hashed and decoded (about 9.5 ms per
+run). A closed ticket's row needs nothing the summary lacks except its title and required gates:
+its eligibility is always `BLOCKED` (the status blocker is always present), its gate results stay
+`NOT_OBSERVED` and its next action depends on the status alone. The summary and index (format
+`/2`) now carry the title and required gates, and `roadmap` renders closed rows from them.
+`TestTCXV0_ClosedRoadmapRowsMatchView` checks the derived fields against `View` across
+dependencies, approvals, effects and oracles that observe everything.
+
+Two runs of the new build, 31 samples per cell, with stores re-indexed at format `/2`:
+
+| Command | full/open (load 10-18) | big/full | full/open (load 7-10) | big/full |
+| --- | --- | --- | --- | --- |
+| `--facets` | 1.22 | 1.085 | 1.23 | 1.079 |
+| `--count` | 1.24 | 1.065 | 1.24 | 1.075 |
+| `roadmap` | 1.23 | 1.088 | 1.27 | 1.061 |
+| `queue status` | 1.23 | 1.086 | 1.23 | 1.075 |
+| `ticket show` | 1.23 | 1.085 | 1.22 | 1.093 |
+
+`roadmap`, `queue status` and `--facets` output on all three stores is byte-identical to the base
+binary (only `observedAt` masked).
+
+Acceptance 1 (within 1.3x of open-only) and acceptance 2 (1,000 archived tickets change read time
+by under 10%) hold for every command. The remaining per-ticket cost is the directory listing and
+one lstat per file. Host load stayed above the earlier quiet reading of about 4, so absolute times
+are noisy; the ratios interleave samples across stores.
 
 ## Evidence
 

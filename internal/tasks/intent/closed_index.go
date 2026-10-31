@@ -27,7 +27,7 @@ import (
 // header, checksum or decode mismatch discards the whole index, so the read
 // falls back to the full scan.
 const (
-	closedIndexMagic      = "corvint-tasks-closed-index/1"
+	closedIndexMagic      = "corvint-tasks-closed-index/2"
 	closedIndexSuffix     = ".closed-index"
 	closedIndexRacyWindow = 2 * time.Second
 	closedIndexMaxBytes   = wire.MaxIntentTreeBytes
@@ -148,6 +148,7 @@ func encodeEntry(rel string, e *ClosedEntry) (string, bool) {
 		}
 	}
 	strs = append(strs, s.Labels...)
+	strs = append(strs, s.RequiredGates...)
 	deps := make([]string, 0, len(s.Dependencies))
 	for _, d := range s.Dependencies {
 		strs = append(strs, d.TicketID.Raw, d.Obligation)
@@ -162,7 +163,7 @@ func encodeEntry(rel string, e *ClosedEntry) (string, bool) {
 			return "", false
 		}
 	}
-	for _, l := range s.Labels {
+	for _, l := range append(append([]string(nil), s.Labels...), s.RequiredGates...) {
 		if l == "" {
 			return "", false
 		}
@@ -174,10 +175,10 @@ func encodeEntry(rel string, e *ClosedEntry) (string, bool) {
 	return strings.Join([]string{rel, strconv.FormatInt(e.Size, 10), strconv.FormatInt(e.mtime, 10), string(e.Sha),
 		s.TicketID.Raw, s.Status, optField(s.ArchivedFrom), s.Priority, string(s.Order), string(s.AcceptanceRevision), s.Kind,
 		optField(s.Owner), optField(s.Milestone), strings.Join(s.Labels, sepList), strings.Join(deps, sepList),
-		string(s.UpdatedAt), completed}, sepField), true
+		string(s.UpdatedAt), completed, strconv.Quote(s.Title), strings.Join(s.RequiredGates, sepList)}, sepField), true
 }
 
-const closedEntryFields = 17
+const closedEntryFields = 19
 
 func encodeClosedIndex(idx *ClosedIndex) []byte {
 	rels := make([]string, 0, len(idx.entries))
@@ -274,6 +275,14 @@ func decodeEntry(f []string) (*ClosedEntry, error) {
 	if f[16] != "" {
 		at := wire.Timestamp(f[16][1:])
 		s.CompletedAt = &at
+	}
+	title, err := strconv.Unquote(f[17])
+	if err != nil {
+		return nil, errClosedIndex
+	}
+	s.Title = title
+	if f[18] != "" {
+		s.RequiredGates = strings.Split(f[18], sepList)
 	}
 	return &ClosedEntry{Size: size, mtime: mtime, Sha: wire.Digest(f[3]), Summary: s}, nil
 }

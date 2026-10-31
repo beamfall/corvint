@@ -373,6 +373,13 @@ func holdIDs(rec *Record) string {
 // An unknown execution prerequisite (CAL-V0-099: a GATE_PASSED obligation
 // whose gate is NOT_OBSERVED) refuses admission like a blocker, so it waits
 // on the prerequisite rather than recommending an admission that must fail.
+// ClosedView is View's eligibility and next action for a COMPLETED or
+// ARCHIVED ticket, which depend on its status alone, so a read can render a
+// closed ticket from its summary (TCX-V0-986).
+func ClosedView(s *Summary) (eligibility, next string) {
+	return EligibilityBlocked, nextAction(&Record{Status: s.Status}, nil, nil)
+}
+
 func nextAction(rec *Record, blockers, unknowns []Blocker) string {
 	switch rec.Status {
 	case StatusDraft:

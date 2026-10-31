@@ -33,6 +33,8 @@ func tcxRecords() []*ticket.Record {
 	from := ticket.StatusCompleted
 	c.Status, c.ArchivedFrom = ticket.StatusArchived, &from
 	e.Labels = []string{"x"}
+	a.RequiredGates = []string{"verify"}
+	c.Title = `archived "quoted" ünïcode \ title`
 	b, d, f := fixture.Ticket("B"), fixture.Ticket("D"), fixture.Ticket("F")
 	b.Dependencies = []ticket.Dependency{fixture.Dep("A")}
 	d.Dependencies = []ticket.Dependency{fixture.Dep("C")}
