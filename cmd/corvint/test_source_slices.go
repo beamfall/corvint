@@ -206,6 +206,11 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 	}
 
 	changed := make(map[string]bool)
+	// added holds the names of whole new const and type declarations, which
+	// seed reach but are no function (TSP-V0-864); additive records that a
+	// changed file's residue passed testSourceAdditive.
+	added := make(map[string]bool)
+	additive := false
 	type ownFile struct {
 		name       string
 		head, base *ast.File
@@ -231,7 +236,16 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 		headRest, headFuncs := testSourcePlainFunctions(files[index].file, fileSet, files[index].source)
 		baseRest, baseFuncs := testSourcePlainFunctions(baseFile, baseSet, prior.content)
 		if headRest != baseRest {
-			return whole(own + " changes more than plain functions")
+			// TSP-V0-864: a residue that differs only in comments, directives
+			// unchanged, or by whole new const and type declarations.
+			names, ok := testSourceAdditive(files[index].file, fileSet, files[index].source, baseFile, baseSet, prior.content)
+			if !ok {
+				return whole(own + " changes more than plain functions")
+			}
+			for _, name := range names {
+				added[name] = true
+			}
+			additive = true
 		}
 		for _, spec := range baseFile.Imports {
 			if spec.Name != nil && spec.Name.Name == "." {
@@ -250,7 +264,7 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 			}
 		}
 	}
-	if len(changed) == 0 {
+	if len(changed) == 0 && !additive {
 		return sessiontest.GoSlice{Reason: candidate.fallback}
 	}
 	names := make([]string, 0, len(changed))
@@ -258,6 +272,13 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 		names = append(names, name)
 	}
 	slices.Sort(names)
+	seeds := slices.Clone(names)
+	for name := range added {
+		if declared := changed[name]; !declared {
+			seeds = append(seeds, name)
+		}
+	}
+	slices.Sort(seeds)
 
 	declared := make(map[string]bool)
 	for _, file := range files {
@@ -334,7 +355,7 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 		return seen
 	}
 	var start []int
-	for _, name := range names {
+	for _, name := range seeds {
 		start = append(start, declaring[name]...)
 	}
 	reaching := walk(slices.Clone(start), func(index int) []int { return users[index] })
@@ -348,7 +369,7 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 	for index, decl := range decls {
 		switch {
 		case decl.root && reaching[index]:
-			return whole("package initialization in " + decl.file + " reaches " + strings.Join(names, ", "))
+			return whole("package initialization in " + decl.file + " reaches " + strings.Join(seeds, ", "))
 		case decl.root && decl.test == "" && reached[index] && len(decl.names) != 0:
 			return whole(strings.Join(names, ", ") + " reaches the package variable " + strings.Join(decl.names, ", "))
 		}
@@ -357,7 +378,7 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 		if !reached[index] || decl.write == "" {
 			continue
 		}
-		writer := strings.Join(names, ", ") + " reaches " + strings.Join(decl.names, ", ") + ", which writes "
+		writer := strings.Join(seeds, ", ") + " reaches " + strings.Join(decl.names, ", ") + ", which writes "
 		if len(decl.names) == 1 && changed[decl.names[0]] {
 			writer = decl.names[0] + " writes "
 		}
@@ -370,11 +391,17 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 			continue
 		}
 		all = append(all, decl.test)
-		if external[decl.test] || reaching[index] {
+		// An external test can observe a changed function or a new name, never
+		// a comment.
+		if external[decl.test] && len(seeds) != 0 || reaching[index] {
 			kept = append(kept, decl.test)
 		}
 	}
-	changedIn := strings.Join(names, ", ") + " changed in " + strings.Join(candidate.own, ", ")
+	what := strings.Join(seeds, ", ")
+	if what == "" {
+		what = "comments outside declarations"
+	}
+	changedIn := what + " changed in " + strings.Join(candidate.own, ", ")
 	if len(candidate.tests) != 0 {
 		// TSP-V0-861: the changed test files' own STR-V0-063 slice, under its
 		// own proofs, joins the tests reaching the changed functions.
@@ -407,6 +434,95 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 		return whole("the -run pattern exceeds the bound")
 	}
 	return sessiontest.GoSlice{Pattern: pattern, Reason: "selected: the tests reaching " + changedIn}
+}
+
+// testSourceAdditive admits a changed file whose residue (the file less its
+// receiver-less functions other than init) differs from base only in
+// comments, with every directive comment (//go:, //line, /*line, // +build)
+// the same in both, or by whole new const and type declarations whose names
+// base does not declare (TSP-V0-864). It returns the new names. A changed or
+// removed declaration, a new import, var, method or init, and a changed
+// package clause are refused: initialization, interface dispatch and
+// package state lie outside the lexical model.
+func testSourceAdditive(head *ast.File, headSet *token.FileSet, headSource []byte, base *ast.File, baseSet *token.FileSet, baseSource []byte) ([]string, bool) {
+	directives := func(file *ast.File) []string {
+		var out []string
+		for _, group := range file.Comments {
+			for _, comment := range group.List {
+				if text := comment.Text; strings.HasPrefix(text, "//go:") || strings.HasPrefix(text, "//line ") || strings.HasPrefix(text, "/*line ") || strings.HasPrefix(text, "// +build") {
+					out = append(out, text)
+				}
+			}
+		}
+		slices.Sort(out)
+		return out
+	}
+	if !slices.Equal(directives(head), directives(base)) {
+		return nil, false
+	}
+	baseNames := make(map[string]bool)
+	for _, decl := range base.Decls {
+		for _, name := range testSourceDeclOf("", nil, nil, decl).names {
+			baseNames[name] = true
+		}
+	}
+	// The head residue without comments, leaving out each wholly new const or
+	// type declaration, must equal base's residue without comments.
+	var names []string
+	residue := func(file *ast.File, fileSet *token.FileSet, source []byte, skip func(ast.Decl) bool) string {
+		offset := func(pos token.Pos) int { return fileSet.Position(pos).Offset }
+		var rest strings.Builder
+		last := 0
+		tokens := func(text []byte) {
+			var scan scanner.Scanner
+			scan.Init(token.NewFileSet().AddFile("", -1, len(text)), text, nil, 0)
+			for {
+				_, tok, literal := scan.Scan()
+				if tok == token.EOF {
+					return
+				}
+				if tok == token.SEMICOLON && literal == "\n" {
+					literal = ";"
+				}
+				rest.WriteString(tok.String() + "\x00" + literal + "\x00")
+			}
+		}
+		for _, decl := range file.Decls {
+			function, plain := decl.(*ast.FuncDecl)
+			if !(plain && function.Recv == nil && function.Name.Name != "init") && !skip(decl) {
+				continue
+			}
+			tokens(source[last:offset(decl.Pos())])
+			last = offset(decl.End())
+		}
+		tokens(source[last:])
+		return rest.String()
+	}
+	headResidue := residue(head, headSet, headSource, func(decl ast.Decl) bool {
+		general, ok := decl.(*ast.GenDecl)
+		if !ok || (general.Tok != token.CONST && general.Tok != token.TYPE) {
+			return false
+		}
+		declared := testSourceDeclOf("", nil, nil, decl).names
+		for _, name := range declared {
+			if baseNames[name] {
+				return false
+			}
+		}
+		names = append(names, declared...)
+		return true
+	})
+	if headResidue != residue(base, baseSet, baseSource, func(ast.Decl) bool { return false }) {
+		return nil, false
+	}
+	for _, decl := range head.Decls {
+		if function, ok := decl.(*ast.FuncDecl); ok && function.Recv != nil {
+			if receiver := testSourceReceiver(function.Recv); slices.Contains(names, receiver) {
+				return nil, false
+			}
+		}
+	}
+	return names, true
 }
 
 // testSourceLinkname reports whether a comment of file is a //go:linkname

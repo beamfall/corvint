@@ -138,6 +138,9 @@ func TestTSPV0006DryRunSlicesSourceChanges(t *testing.T) {
 			map[string]string{"p/p.go": edit("return n * 2", "return n + n")}},
 		{"an added function", "go:example.test/m/p", "^(TestExternal)$", "selected: the tests reaching Extra changed in p/p.go",
 			map[string]string{"p/p.go": pSource + "\nfunc Extra() int { return 1 }\n"}},
+		// TSP-V0-864: a comment outside functions is observed by no test.
+		{"a comment outside functions", "go:example.test/m/p", "^$", "selected: no test reaches comments outside declarations changed in p/p.go; build and vet only",
+			map[string]string{"p/p.go": edit("type T struct", "// T holds n.\ntype T struct")}},
 		{"no test reaches it", "go:example.test/m/r", "^$", "selected: no test reaches S changed in r/r.go; build and vet only",
 			map[string]string{"r/r.go": "package r\n\nfunc R() int { return 1 }\n\nfunc S() int { return 3 }\n"}},
 	}
@@ -196,8 +199,6 @@ func TestTSPV0006DryRunSlicesSourceChanges(t *testing.T) {
 			map[string]string{"p/p.go": edit("\t\"strings\"\n", "\t\"strings\"\n\t_ \"unicode\"\n")}},
 		{"a package variable", "go:example.test/m/p", "whole: DIRECT_SOURCE_CHANGE via p/p.go (p/p.go changes more than plain functions)",
 			map[string]string{"p/p.go": edit("var counter int", "var counter = 1")}},
-		{"a comment outside functions", "go:example.test/m/p", "whole: DIRECT_SOURCE_CHANGE via p/p.go (p/p.go changes more than plain functions)",
-			map[string]string{"p/p.go": edit("type T struct", "// T holds n.\ntype T struct")}},
 		{"a dependency also changed", "go:example.test/m/p", "whole: DIRECT_SOURCE_CHANGE via p/p.go (also selected by DEPENDENCY_PATH via u/u.go)",
 			map[string]string{"p/p.go": edit("strings.ToUpper(s) +", "strings.ToTitle(s) +"), "u/u.go": "package u\n\nfunc U() string { return \"v\" }\n"}},
 		{"a new file", "go:example.test/m/p", "whole: DIRECT_SOURCE_CHANGE via p/extra.go (p/extra.go is new)",
