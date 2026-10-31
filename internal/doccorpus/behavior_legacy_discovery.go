@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"io/fs"
 	"path"
 	"slices"
 	"sort"
@@ -249,34 +248,31 @@ func legacyPaths(ctx context.Context, auth *gitauth.Repository, revision, root s
 			return []string{root}, nil
 		}
 	}
-	tree, err := auth.RevisionFS(ctx, revision, MaxBytes)
-	if err != nil {
-		return nil, err
-	}
-	paths, entries := []string{}, 0
-	err = fs.WalkDir(tree, root, func(current string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return err
+	// The revision is listed one verified cat-file batch per directory level (DCX-V1-810, through
+	// DCX-V1-520..522), descending only the root's ancestors and the root's own subtree, never a
+	// node_modules directory inside it. A test-named symlink or other non-tree entry is kept, so
+	// the read refuses it exactly as it refuses that path selected alone.
+	below := func(name string) bool { return root == "." || strings.HasPrefix(name, root+"/") }
+	names, err := auth.RevisionPaths(ctx, revision, affected.MaxWalkEntries, func(dir string) bool {
+		if dir == root || below(dir) {
+			return path.Base(dir) != "node_modules"
 		}
-		if entries++; entries > affected.MaxWalkEntries {
-			return affected.ErrWalkLimit
-		}
-		if entry.IsDir() {
-			if entry.Name() == "node_modules" {
-				return fs.SkipDir
-			}
-			return nil
-		}
-		// A test-named symlink or other non-regular entry is kept, so the read refuses it exactly as
-		// it refuses that path selected alone instead of the walk silently dropping it.
-		if legacyTestPath(current) {
-			paths = append(paths, current)
-		}
-		return nil
+		return strings.HasPrefix(root, dir+"/")
 	})
 	if err != nil {
 		return nil, fail("legacy discovery cannot enumerate the revision: " + err.Error())
 	}
+	paths := []string{}
+	for _, name := range names {
+		if below(name) && legacyTestPath(name) {
+			paths = append(paths, name)
+		}
+	}
+	// The per-tree walk this replaces visited each directory's entries in name order, so a
+	// directory's files come before a sibling whose name it prefixes (DCX-V1-811).
+	slices.SortFunc(paths, func(a, b string) int {
+		return slices.Compare(strings.Split(a, "/"), strings.Split(b, "/"))
+	})
 	if len(paths) == 0 || len(paths) > MaxRecords {
 		return nil, fail("legacy path has no test files or exceeds the record bound: " + root)
 	}
