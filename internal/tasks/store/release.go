@@ -144,7 +144,7 @@ func Release(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 	obs := release.Observation{HeadCommit: headCommit, SourceSha256: source, PolicySha256: wire.Sum(p.Raw), Tickets: tickets, TicketDigests: ticketDigests, PredecessorPromotions: preds}
 	gates := make([]release.Gate, len(p.Gates))
 	for i, g := range p.Gates {
-		gates[i] = release.Gate{GateID: g.GateID, Kind: g.Kind, Required: g.Required}
+		gates[i] = release.Gate{GateID: g.GateID, Kind: g.Kind, Required: g.Required, Argv: g.Argv}
 	}
 	var candidate *release.Candidate
 	if req.Operation == release.OpCandidate {
