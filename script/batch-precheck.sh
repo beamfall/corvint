@@ -78,6 +78,14 @@
 # that cannot be checked out and a failed mechanical repin, stays an introduced FAIL. A run with a
 # base-present WARN writes no receipt, since not every step passed.
 #
+# Sealed CEM names (ASD-V0-109, V1-3267): before the steps, every `.corvint/changes/NAME.cem.json`
+# the branch adds since the base (--base, BATCH_PRECHECK_BASE, else `git merge-base HEAD origin/main`)
+# must name, as NAME, a full commit in HEAD's history; a seal made on another lineage (a pre-rewrite
+# seal carried by a cherry-pick) otherwise fails CI's TestCEMV1201CommittedCorpusBinding after about
+# 28 minutes. The refusal names each file and the reseal recovery. Seals the base already holds are
+# not judged, and with no resolvable base the check is skipped with the reason printed. It runs
+# outside the ledger, whose key is the tree, not the history.
+#
 # Not mirrored: the full go-product shards (-race, the whole suite), go vet and the Windows build
 # and vet (`make windows-vet`), the protected .github helper self-tests, interop tests, and the
 # docs-plan/artifact-integrity/cce-live/release jobs. They are not drift checks.
@@ -85,12 +93,21 @@ set -uo pipefail
 export LC_ALL=C
 
 root=${BATCH_PRECHECK_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null)} || exit 2
+self_dir=$(cd "$(dirname "$0")" && pwd) || exit 2
 cd "$root" || exit 2
 workflow=${BATCH_PRECHECK_WORKFLOW:-.github/workflows/ci.yml}
 heavy=${BATCH_PRECHECK_HEAVY-script/heavy.sh}
 regen=${BATCH_PRECHECK_REGEN-script/batch-regen.sh}
-jobs=${BATCH_PRECHECK_JOBS:-4}
-gocache=${CORVINT_GOCACHE:-${XDG_CACHE_HOME:-$HOME/.cache}/corvint-go-build-cache}
+jobs=${BATCH_PRECHECK_JOBS:-6}
+# ASD-V0-070 (V1-3233): under an empty environment (env -i) the Go build cache has no location;
+# the run and --list refuse with exit 3 naming it, instead of aborting on an unbound HOME.
+cache_home=${XDG_CACHE_HOME:-${HOME:+$HOME/.cache}}
+gocache=${CORVINT_GOCACHE:-${cache_home:+$cache_home/corvint-go-build-cache}}
+need_gocache() {
+  [[ -n $gocache ]] && return 0
+  printf 'batch-precheck: REFUSE home-unset: HOME, XDG_CACHE_HOME and CORVINT_GOCACHE are all unset, so the Go build cache has no location; set HOME (or CORVINT_GOCACHE) and rerun\n' >&2
+  exit 3
+}
 
 # Targets go-product runs as tests of ./tools/capabilities-check and ./cmd/corvint, and the node
 # half of host-adapter-test, which no PR CI job runs (ASD-V0-044, V1-3062).
@@ -134,8 +151,8 @@ else
     "./internal/tasks/store TestCALV0070_"
     "./internal/tasks/journal TestCALV0070_"
     "./internal/tasks/safeopen TestCALV0070_"
-    "./internal/companionrelease TestCurrentTasksSourceArchiveBuildsOffline"
-    "./internal/companionrelease TestCorvintBundledBinariesBuildTwiceIdentically @go"
+    "./internal/companionrelease TestCurrentTasksSourceArchiveBuildsOffline @own"
+    "./internal/companionrelease TestCorvintBundledBinariesBuildTwiceIdentically @own @go"
   )
 fi
 
@@ -291,7 +308,7 @@ sync_check() {
     # A declared input that names no tracked path would narrow the entry to nothing (ASD-V0-050).
     read -ra decl <<< "$inputs"
     for found in ${decl[@]+"${decl[@]}"}; do
-      case $found in @go | @root) continue ;; @*) ;; *) [[ -n $(git ls-files -- "$found" 2> /dev/null | head -n 1) ]] && continue ;; esac
+      case $found in @go | @root | @own) continue ;; @*) ;; *) [[ -n $(git ls-files -- "$found" 2> /dev/null | head -n 1) ]] && continue ;; esac
       printf 'batch-precheck: drift test %s %s declares input %s, which is not @go, @root or a tracked path\n' "$pkg" "$prefix" "$found" >&2
       bad=1
     done
@@ -403,7 +420,7 @@ select_report() {
     drift_on[i]=1
     ((sel_on)) || continue
     read -r pkg prefix inputs <<< "${DRIFT_TESTS[i]}"
-    read -ra decl <<< "$inputs"
+    read -ra decl <<< "${inputs//@own/}"
     wanted "$pkg" ${decl[@]+"${decl[@]}"} && continue
     drift_on[i]=0
     skipped+=("$pkg $prefix ($why)")
@@ -426,30 +443,60 @@ select_report() {
   fi
 }
 
+# drift_step NAME REGEX PACKAGE...: one go test step; a package that runs no test fails it, since
+# its prefix would otherwise pass silently.
+drift_step() {
+  local name=$1 re=$2 heavyq=
+  shift 2
+  # BATCH_PRECHECK_HEAVY is one executable path, quoted as one word: no expansion, no splitting.
+  [[ -z $heavy ]] || heavyq=$(printf '%q' "$heavy")
+  printf '%s\tout=$(%s env GOCACHE=%q GOTOOLCHAIN=local go test -count=1 -run %q %s 2>&1); rc=$?; printf "%%s\\n" "$out"; [ "$rc" = 0 ] || exit "$rc"; case $out in *"no tests to run"*|*"no test files"*) exit 1 ;; esac\n' \
+    "$name" "$heavyq" "$gocache" "^($re)" "$*"
+}
+
+# doc_gate_expansion prints the Makefile's DOC_GATE_TARGETS and then `gorun ./conformance/use-cases-v0`
+# when the doc-gates recipe is exactly its two known lines (`$(MAKE) --no-print-directory
+# $(DOC_GATE_TARGETS)` and that go run); anything else prints nothing, so `make doc-gates` stays one
+# step (V1-3232: as one step its targets ran one after another).
+doc_gate_expansion() {
+  awk '/^DOC_GATE_TARGETS :=/ { sub(/^DOC_GATE_TARGETS :=[[:space:]]*/, ""); targets = $0; next }
+    /^doc-gates:[[:space:]]*$/ { on = 1; next }
+    on && /^\t/ { recipe[++n] = $0; next }
+    on { on = 0 }
+    END {
+      if (n != 2 || targets == "" || recipe[1] != "\t@$(MAKE) --no-print-directory $(DOC_GATE_TARGETS)" || recipe[2] != "\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0") exit
+      m = split(targets, t, /[[:space:]]+/)
+      for (i = 1; i <= m; i++) if (t[i] !~ /^[A-Za-z0-9][A-Za-z0-9_.-]*$/) exit
+      for (i = 1; i <= m; i++) if (t[i] != "") printf "make\t%s\n", t[i]
+      print "gorun\t./conformance/use-cases-v0"
+    }' Makefile 2> /dev/null
+}
+
 # Steps as "name<TAB>command", longest first; each command runs under bash -c from the root.
 steps() {
-  local kind value t s dir args line pkg prefix pkgs=() re='' envs=() i n=${#DRIFT_TESTS[@]} k=0
+  local kind value t s dir args line pkg prefix inputs pkgs=() re='' envs=() i n=${#DRIFT_TESTS[@]} k=0 own=() expanded
   for ((i = 0; i < n; i++)); do
     [[ ${drift_on[i]:-1} == 1 ]] || continue
     k=$((k + 1))
-    read -r pkg prefix _ <<< "${DRIFT_TESTS[i]}"
+    read -r pkg prefix inputs <<< "${DRIFT_TESTS[i]}"
+    # An `@own` entry (the slow companion-release builds) runs as its own step beside the union, so
+    # it no longer waits behind the other tests of its package (V1-3232).
+    if [[ " $inputs " == *" @own "* ]]; then own+=("$pkg $prefix"); continue; fi
     contains "$pkg" "${pkgs[@]+"${pkgs[@]}"}" || pkgs+=("$pkg")
     re+="${re:+|}$prefix"
   done
-  # One go test over every package; a package that runs no test fails the step, since its prefix
-  # would otherwise pass silently.
-  # BATCH_PRECHECK_HEAVY is one executable path, quoted as one word: no expansion, no splitting.
-  local heavyq= label
-  [[ -z $heavy ]] || heavyq=$(printf '%q' "$heavy")
-  label="${#pkgs[@]} packages"
+  local label="${#pkgs[@]} packages"
   ((k == n)) || label+=", $k of $n tests"
   if ((k == 0)); then
     # Every entry was skipped under the selection (ASD-V0-050); no go test runs.
     printf 'batch-drift (0 of %d tests)\tprintf "%%s\\n" %q\n' "$n" "batch-drift: no drift test is reachable from the batch diff; every one is skipped"
-  else
-    printf 'batch-drift (%s)\tout=$(%s env GOCACHE=%q GOTOOLCHAIN=local go test -count=1 -run %q %s 2>&1); rc=$?; printf "%%s\\n" "$out"; [ "$rc" = 0 ] || exit "$rc"; case $out in *"no tests to run"*|*"no test files"*) exit 1 ;; esac\n' \
-      "$label" "$heavyq" "$gocache" "^($re)" "${pkgs[*]}"
+  elif ((${#pkgs[@]})); then
+    drift_step "batch-drift ($label)" "$re" "${pkgs[@]}"
   fi
+  for ((i = 0; i < ${#own[@]}; i++)); do
+    read -r pkg prefix <<< "${own[i]}"
+    drift_step "batch-drift $prefix" "$prefix" "$pkg"
+  done
   # The make steps share batch-drift's GOCACHE (ASD-V0-051); a skipped catalog check prints why.
   for t in "${EXTRA_TARGETS[@]}"; do
     if [[ $t == capability-catalog-check && -n $cat_skip ]]; then
@@ -459,18 +506,32 @@ steps() {
     fi
   done
   while IFS= read -r line; do envs+=("$(printf '%q' "$line")"); done < <(doc_gate_env)
+  expanded=$(doc_gate_expansion)
   while IFS=$'\t' read -r kind value; do
     case $kind in
       make) printf 'make %s\tenv %s make -s %q\n' "$value" "${envs[*]-}" "$value" ;;
       gorun) printf 'go run %s\tenv %s GOCACHE=%q go run %q\n' "$value" "${envs[*]-}" "$gocache" "$value" ;;
     esac
-  done < <(doc_gates)
+  done < <(doc_gates | while IFS=$'\t' read -r kind value; do
+    if [[ $kind == make && $value == doc-gates && -n $expanded ]]; then printf '%s\n' "$expanded"; else printf '%s\t%s\n' "$kind" "$value"; fi
+  done)
   for s in "${GOFMT_SETS[@]}"; do
     dir=${s%%|*}
     args=${s#*|}
     printf 'gofmt -l %s (%s)\tout=$(cd %q && gofmt -l %s) || exit 1; [ -z "$out" ] || { printf "%%s\\n" "$out"; exit 1; }\n' "$args" "$dir" "$dir" "$args"
   done
+  printf 'ai-coauthor-trailers (%s)\t%q --batch %q\n' "$(git rev-parse --short HEAD)" "${0%/*}/check-ai-coauthor-trailers.sh" "$base" # ASD-V0-560, V1-3227
   printf 'sync-check\t%q --sync-check\n' "$0"
+  # ASD-V0-071 (V1-3227): no commit since the base (else origin/main) carries an AI trailer; HEAD
+  # is in the command, so a ledger pass never covers a reworded commit. ASD-V0-073 (V1-3238): every
+  # legal file still matches its release-artifact manifest pin.
+  local tbase thead
+  if tbase=$(git rev-parse --verify -q "${base:-origin/main}^{commit}") && thead=$(git rev-parse --verify -q 'HEAD^{commit}'); then
+    printf 'ai-trailers\t%q --range %q %q\n' "$self_dir/check-ai-trailers.sh" "$tbase" "$thead"
+  else
+    printf 'ai-trailers\tprintf "%%s\\n" %q\n' "skipped: ${base:-origin/main} or HEAD is not a commit"
+  fi
+  printf 'legal-file-pins\t%q\n' "$self_dir/check-legal-file-pins.sh"
 }
 
 base=${BATCH_PRECHECK_BASE:-}
@@ -529,12 +590,15 @@ tree_clean() { local out; out=$(git status --porcelain 2> /dev/null) && [[ -z $o
 
 case ${1:-} in
   --sync-check) sync_check; exit $? ;;
-  --list) steps | cut -f1; exit 0 ;;
+  --list) need_gocache; steps | cut -f1; exit 0 ;;
   --verify-receipt) verify_receipt "${2:-}"; exit $? ;;
   --base) [[ $# == 2 && -n $2 ]] || { printf 'usage: script/batch-precheck.sh --base REV\n' >&2; exit 2; }; base=$2 ;;
   '') ;;
   *) printf 'usage: script/batch-precheck.sh [--base REV|--sync-check|--list|--verify-receipt [REV]]\n' >&2; exit 2 ;;
 esac
+need_gocache
+# ASD-V0-072 (V1-3230): a --base range in a shallow clone refuses with the unshallow recovery.
+[[ -z $base ]] || "$self_dir/require-full-history.sh" batch-precheck || exit 2
 
 # normalize DIR < output: one finding per line, with only volatile tokens erased, so the same
 # finding compares equal at the base and the head: the checkout path (as given, as the shell prints
@@ -695,6 +759,53 @@ if [[ -n $regen ]]; then
   printf 'batch-precheck: %s repin (mechanical) (%ss)\n' "$( ((repin_rc)) && echo FAIL || echo PASS)" $((SECONDS - t0))
 fi
 
+# sealed_names BASE prints one refusal line per sealed CEM added since BASE whose name is not a
+# commit in HEAD's history (ASD-V0-109, V1-3267), and returns 1 when there is any.
+sealed_names() {
+  local tracked untracked name sha where bad=0 rm_untracked=0 rm_tracked=0
+  tracked=$(git -c core.quotePath=true diff --name-only --diff-filter=A --no-renames "$1" -- .corvint/changes/) &&
+    untracked=$(git -c core.quotePath=true ls-files -o --exclude-standard -- .corvint/changes/) ||
+    { printf 'sealed-cem-names: cannot list the sealed CEMs added since %s\n' "$1"; return 1; }
+  while IFS=$'\t' read -r where name; do
+    [[ -n $name ]] || continue
+    # Only sealed CEMs are judged; a Git-quoted name is one when its decoded name ends in .cem.json.
+    if [[ $name == \"* ]]; then
+      [[ $name == *'.cem.json"' ]] || continue
+      printf 'sealed-cem-names: %s needs quoting, so its name cannot be a commit (%s)\n' "$name" "$where"
+    else
+      [[ $name == *.cem.json ]] || continue
+      sha=${name##*/}
+      sha=${sha%.cem.json}
+      if [[ $sha =~ ^[0-9a-f]{40}$ ]] && git cat-file -e "$sha^{commit}" 2> /dev/null && git merge-base --is-ancestor "$sha" HEAD 2> /dev/null; then
+        continue
+      fi
+      printf 'sealed-cem-names: %s names %s, which is not a commit in HEAD'"'"'s history (a seal made on another lineage, such as before a rewrite; %s)\n' "$name" "$sha" "$where"
+    fi
+    bad=1
+    if [[ $where == untracked ]]; then rm_untracked=1; else rm_tracked=1; fi
+  done < <(sed 's/^/tracked\t/' <<< "$tracked"; sed 's/^/untracked\t/' <<< "$untracked")
+  if ((bad)); then
+    ((rm_untracked)) && printf 'sealed-cem-names: recover: rm each named untracked file\n'
+    ((rm_tracked)) && printf 'sealed-cem-names: recover: git rm each named tracked file and commit\n'
+    printf 'sealed-cem-names: recover: then rebind and reseal this branch against its base: make dogfood-finish LANE=1 BASE=%s CITATIONS=.. INTENTS=.. VERIFY=.. OUTCOME=.. (docs/DOGFOOD.md section 4)\n' "$1"
+  fi
+  return "$bad"
+}
+sealed_rc=0 sealed_base=${base:-}
+[[ -n $sealed_base ]] || sealed_base=$(git merge-base HEAD origin/main 2> /dev/null) || sealed_base=
+if [[ -z $sealed_base ]]; then
+  printf 'batch-precheck: SKIP sealed-cem-names (no --base and no merge base with origin/main)\n'
+elif ! sealed_sha=$(git rev-parse --verify -q "$sealed_base^{commit}"); then
+  printf 'sealed-cem-names: base %s is not a commit\n' "$sealed_base" > "$dir/sealed.log"
+  sealed_rc=1
+else
+  sealed_names "$sealed_sha" > "$dir/sealed.log" 2>&1 || sealed_rc=1
+fi
+if [[ -n $sealed_base ]]; then
+  printf '%s 0\n' "$sealed_rc" > "$dir/sealed.rc"
+  printf 'batch-precheck: %s sealed-cem-names\n' "$( ((sealed_rc)) && echo FAIL || echo PASS)"
+fi
+
 # Ledger reuse is decided once, after the repins wrote what they write (ASD-V0-042).
 ledger='' ledger_off=''
 if [[ ${CORVINT_GATE_LEDGER:-} == off ]]; then
@@ -830,7 +941,9 @@ if [[ -n $base ]]; then
     if [[ -n $hr ]]; then
       printf 'batch-precheck: FAIL %s (%ss) host-resource: %s; not compared with %s: free disk or memory (TMPDIR=%s) and rerun\n' \
         "$name" "$secs" "$hr" "$base" "${TMPDIR:-/tmp}"
-    elif at_base "${line#*$'\t'}" "$dir/$i.log"; then
+    # ASD-V0-071: the ai-trailers step checks the same pinned BASE..HEAD range at the base, so its
+    # failure would always look base-present; a history check is never downgraded.
+    elif [[ $name != ai-trailers ]] && at_base "${line#*$'\t'}" "$dir/$i.log"; then
       : > "$dir/$i.warn"
       printf 'batch-precheck: WARN %s (%ss) base-present: fails the same way at %s\n' "$name" "$secs" "$base"
       tail -n 40 "$dir/$i.log" | sed 's/^/  | /'
@@ -869,6 +982,7 @@ row() {
 }
 printf 'batch-precheck: | result | seconds | step\n'
 [[ -f $dir/repin.rc ]] && row 'repin (mechanical)' "$dir/repin.rc"
+[[ -f $dir/sealed.rc ]] && row 'sealed-cem-names' "$dir/sealed.rc"
 for ((i = 1; i <= n; i++)); do row "$(sed -n "${i}p" "$dir/steps" | cut -f1)" "$dir/$i.rc"; done
 printf 'batch-precheck: %d passed, %d failed in %ss wall, %ss summed\n' "$pass" "$fail" $((SECONDS - start)) "$summed"
 ((flaky)) && printf 'batch-precheck: %d step(s) FLAKY, passed only on their one rerun: %s\n' "$flaky" "$(IFS=,; printf '%s' "${flakes[*]}")"
@@ -880,6 +994,10 @@ if ((fail)); then
   if ((repin_rc)); then
     printf 'batch-precheck: FAIL repin (mechanical) output:\n'
     tail -n 40 "$dir/repin.log" | sed 's/^/  | /'
+  fi
+  if ((sealed_rc)); then
+    printf 'batch-precheck: FAIL sealed-cem-names output:\n'
+    tail -n 40 "$dir/sealed.log" | sed 's/^/  | /'
   fi
   for ((i = 1; i <= n; i++)); do
     read -r rc _ < "$dir/$i.rc" 2> /dev/null || rc=1

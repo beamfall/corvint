@@ -92,7 +92,7 @@ No requirement below diverges from the implementation.
   rows. It MUST exclude `docs/specs/README.md`, which is the index of specs rather than a spec.
 - `SRG-V0-002`: (accepted, decision 0506) The generator MUST recognise a requirement id as a token matching an uppercase
   letter followed by uppercase letters, digits, and hyphens, then a hyphen and exactly three
-  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:273@86a5b2d6`). An id with a suffix
+  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:288@86a5b2d6`). An id with a suffix
   that is not exactly three digits MUST NOT be indexed. Matching the token alone MUST NOT
   establish a definition; the occurrence MUST also meet SRG-V0-003.
 - `SRG-V0-003`: (accepted, decision 0506) The generator MUST classify each occurrence of an id into exactly one of three
@@ -329,6 +329,26 @@ No requirement below diverges from the implementation.
   check cannot find reports line 0 beside the existing missing-header finding. Rollback: revert
   `statusDriftMessage` and `headerLine` in `internal/specindex/index_test.go` and delete
   `internal/specindex/status_drift_test.go`; the check reports the previous one-line message.
+- `SRG-V0-547`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)
+  When the staged specs hold more than one unwrapped rank 0 definition line for one requirement
+  id, in one spec or across specs, the generator MUST exit non-zero in every mode, before writing
+  any output, and print one `ID: defined more than once: path:line path:line ...` line per such id
+  naming every definition, then say to renumber or remove the extra definitions, so
+  `make spec-requirements` and `spec-requirements-check` both fail. Non-goal: comparing the
+  definitions' text; an identical repeat is refused too. Failure mode: before this, the
+  lowest-ranked definition won and the other was silently dropped, so a collision between two
+  lanes was visible only by diffing the merged `REQUIREMENTS.tsv`. Rollback: delete the
+  `%definitions` collection and its refusal block in `script/gen-spec-requirements.sh`.
+- `SRG-V0-548`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)
+  A rank 0 line that RDG-V0-023 calls wrapped (an unbulleted line directly after a non-blank,
+  non-heading line outside a fence, with the fence tracked as
+  `script/check-requirement-definitions.sh` tracks it) MUST rank after every unwrapped rank 0
+  line of the same id and MUST NOT count as a definition under SRG-V0-547. Non-goal: a wrapped
+  rank 0 line that is an id's only definition keeps its row, as SRG-V0-003 requires. Failure
+  mode: before this, a wrapped citation of an id earlier in a spec won
+  over the id's real definition, so the row carried the wrong title and acceptance (`AHI-246`,
+  `DCI-V1-030`). `specindex.DefinitionLine`, the Go reader of SRG-V0-017, MUST rank the same way.
+  Rollback: drop the wrapped flag from the `%best` key, the duplicate count and `DefinitionLine`.
 
 ## Non-goals and simpler baseline
 
@@ -401,6 +421,7 @@ definition line (SRG-V0-017).
 | A change touches only INDEX.json, a spec's Agent digest or the README table | `corvint affected` selects `internal/specindex`, whose `TestIndexCoversSpecsAndHeaders` fails on a claim over 160 characters or one the digest and README do not carry (SRG-V0-045) |
 | The `internal/specindex` read scope is narrowed so a spec-metadata input leaves it | `TestSRGV0045SpecMetadataStaysInSelectedScope` fails naming the input and the scope |
 | An author edits a spec's header Intent status but not its Agent digest Status, or the reverse | `spec-requirements-check` names the digest `- Status:` line and both header status lines as `path:line` and says to edit them together (SRG-V0-047) |
+| Two specs, or two lines of one spec, define the same requirement id | every generator mode exits non-zero naming each `path:line`, so `make spec-requirements` and `spec-requirements-check` fail instead of keeping one definition (SRG-V0-547) |
 | An agent needs a requirement's line | `rg -n -F` on the id in the row's file, or `script/gen-spec-requirements.sh --lines` |
 
 ## Acceptance criteria and testing matrix
@@ -434,6 +455,8 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-045 | `TestSRGV0045SpecMetadataStaysInSelectedScope` over the committed `.corvint/test-read-scopes.json` and INDEX.json; `TestSRGV0045IndexCheckWitnesses`: the mismatched fixture reports exactly the length, digest and README findings, the aligned one none; on the repository, an INDEX-only 217-character claim is selected by `corvint affected` and fails `TestIndexCoversSpecsAndHeaders` with the same three findings, and the aligned claim in all three files is selected and passes (V1-0515 PR evidence) |
 | SRG-V0-047 | `TestSRGV0047StatusDriftNamesBothFieldsWithLines`: a fixture whose digest Status says `accepted` under an `Intent status: proposed` header yields exactly one finding, pinned byte for byte, naming `fixture-v0.md:7`, `:3` and `:4` and saying to edit the fields together |
 | SRG-V0-044 | `script/gen-spec-requirements_test.sh` case 11: a definition line ending in `Status: (accepted, decision 0481; GitHub #715).` is refused with its line and id; the case fails on the pre-change generator |
+| SRG-V0-547 | `script/gen-spec-requirements_test.sh` case 12: `DUP-V0-001` defined in two specs and `DUP-V0-002` twice in one are refused in the TSV, `--lines`, `--index` and `--readme` modes naming both `path:line` locations, and `--all` writes nothing; the case fails on the pre-change generator |
+| SRG-V0-548 | `script/gen-spec-requirements_test.sh` case 12: a wrapped `` `DUP-V0-001`. `` citation before the real definition is neither refused nor chosen as the row; regenerating the committed index moves only the `AHI-246` and `DCI-V1-030` rows to their real definitions |
 | SRG-V0-046 | `script/gen-spec-requirements_test.sh` case 11: `NEAR-008`, an owner-chat note whose date wraps to the next line, is refused as still open at the end of the definition line with the closed-note example, the no-anchor reason and closing line carry their examples, and `NEAR-009`, the same note nested and closed on one line, classifies as `owner` with `2026-10-27; V1-2763`; the open-note and example cases fail on the pre-change generator |
 
 ## Traceability
@@ -465,6 +488,8 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-044 | the trailing `Status:` branch of `acceptance_near_miss` in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `spec-requirements-check` |
 | SRG-V0-046 | the open-note branch and the examples in `acceptance_near_miss`, and the refusal block, in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `spec-requirements-check` |
 | SRG-V0-045 | the `internal/specindex` entry in `.corvint/test-read-scopes.json`; `checkIndex` in `internal/specindex/index_test.go` | `TestSRGV0045SpecMetadataStaysInSelectedScope`; `TestSRGV0045IndexCheckWitnesses`; `spec-requirements-check` |
+| SRG-V0-547 | the `%definitions` collection and its refusal block in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `spec-requirements-check` |
+| SRG-V0-548 | the fence and continuation tracking and the wrapped flag in the `%best` key in `script/gen-spec-requirements.sh`; `DefinitionLine` in `internal/specindex/requirements.go` | `spec-requirements-test`; `spec-requirements-check`; `TestSRGV0017DefinitionLineFollowsGeneratorRanks`, `TestSRGV0017DefinitionLineLocatesEveryRow` |
 | SRG-V0-047 | `statusDriftMessage` and `headerLine` in `internal/specindex/index_test.go` | `TestSRGV0047StatusDriftNamesBothFieldsWithLines`; `spec-requirements-check` |
 
 ## Rollout, rollback, and drift
@@ -493,6 +518,10 @@ unchanged by the revert, so no generated file moves.
 
 SRG-V0-047 rolls back as one revert of its commit: only the wording of one test finding changes,
 so no generated file moves.
+
+SRG-V0-547 and SRG-V0-548 roll back as one revert of their commit: the duplicate refusal goes away
+and the `AHI-246` and `DCI-V1-030` rows return to their wrapped citations after `make
+spec-requirements`.
 
 Drift rule: enumeration MUST measure the Git index, never a worktree listing, for the same reason
 `decision-number-gate-v0.md` pins it. A future change that reintroduces a directory listing,

@@ -34,24 +34,28 @@ func argumentSlice(name string) bool {
 		lowered == "remaining" || lowered == "words" || lowered == "cmd"
 }
 
-func sliceName(expression ast.Expr) (string, bool) {
+// childArgv reports whether an identifier names a child-process argument
+// vector rather than this binary's command line (CAP-V0-047, CAP-V0-200).
+type childArgv func(*ast.Ident) bool
+
+func sliceName(expression ast.Expr, child childArgv) (string, bool) {
 	switch value := expression.(type) {
 	case *ast.Ident:
-		return value.Name, argumentSlice(value.Name)
+		return value.Name, argumentSlice(value.Name) && !child(value)
 	case *ast.SelectorExpr:
 		return value.Sel.Name, value.Sel.Name == "Args" || argumentSlice(value.Sel.Name)
 	case *ast.SliceExpr:
-		return sliceName(value.X)
+		return sliceName(value.X, child)
 	}
 	return "", false
 }
 
 // position classifies an expression: fixed when it indexes an argument slice
 // at a constant, any when it is an argument element at a computed index.
-func position(expression ast.Expr, fixed, element map[string]bool) (isFixed, isElement bool) {
+func position(expression ast.Expr, fixed, element map[string]bool, child childArgv) (isFixed, isElement bool) {
 	switch value := expression.(type) {
 	case *ast.IndexExpr:
-		if _, ok := sliceName(value.X); !ok {
+		if _, ok := sliceName(value.X, child); !ok {
 			return false, false
 		}
 		_, constant := value.Index.(*ast.BasicLit)
@@ -62,7 +66,7 @@ func position(expression ast.Expr, fixed, element map[string]bool) (isFixed, isE
 		// strings.TrimSpace(args[0]), strings.ToLower(sub) and the like.
 		if selector, ok := value.Fun.(*ast.SelectorExpr); ok && len(value.Args) == 1 {
 			if pkg, ok := selector.X.(*ast.Ident); ok && pkg.Name == "strings" {
-				return position(value.Args[0], fixed, element)
+				return position(value.Args[0], fixed, element, child)
 			}
 		}
 	}
@@ -141,13 +145,14 @@ func scanPackage(fset *token.FileSet, files []*ast.File, words, flags map[string
 			record(words, value, at)
 		}
 	}
+	child := childArgvOf(files)
 	for _, file := range files {
 		fixed, element, flagSets := map[string]bool{}, map[string]bool{}, map[string]bool{}
 		// bind records what NAME = RIGHT (an assignment or a var declaration) makes NAME: a
 		// table, an argument at a fixed or computed position, or a flag set.
 		bind := func(name string, right ast.Expr) {
 			tables[name] = append(tables[name], right)
-			if isFixed, isElement := position(right, fixed, element); isElement {
+			if isFixed, isElement := position(right, fixed, element, child); isElement {
 				fixed[name] = fixed[name] || isFixed
 				element[name] = true
 			}
@@ -186,7 +191,7 @@ func scanPackage(fset *token.FileSet, files []*ast.File, words, flags map[string
 					bind(identifier.Name, node.Rhs[index])
 				}
 			case *ast.RangeStmt:
-				if _, ok := sliceName(node.X); ok {
+				if _, ok := sliceName(node.X, child); ok {
 					if value, ok := node.Value.(*ast.Ident); ok {
 						element[value.Name] = true
 					}
@@ -205,7 +210,7 @@ func scanPackage(fset *token.FileSet, files []*ast.File, words, flags map[string
 				if node.Tag == nil {
 					return true
 				}
-				if isFixed, isElement := position(node.Tag, fixed, element); isElement {
+				if isFixed, isElement := position(node.Tag, fixed, element, child); isElement {
 					for _, statement := range node.Body.List {
 						for _, label := range statement.(*ast.CaseClause).List {
 							if value, ok := stringLiteral(label); ok {
@@ -220,14 +225,14 @@ func scanPackage(fset *token.FileSet, files []*ast.File, words, flags map[string
 				}
 				for _, pair := range [][2]ast.Expr{{node.X, node.Y}, {node.Y, node.X}} {
 					if value, ok := stringLiteral(pair[1]); ok {
-						if isFixed, isElement := position(pair[0], fixed, element); isElement {
+						if isFixed, isElement := position(pair[0], fixed, element, child); isElement {
 							add(value, pair[1].Pos(), isFixed)
 						}
 					}
 				}
 			case *ast.IndexExpr:
 				if table, ok := node.X.(*ast.Ident); ok {
-					if isFixed, _ := position(node.Index, fixed, element); isFixed {
+					if isFixed, _ := position(node.Index, fixed, element, child); isFixed {
 						looked[table.Name] = true
 					}
 				}

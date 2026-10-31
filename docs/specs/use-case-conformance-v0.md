@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Frozen: 2026-08-23
-Intent status: proposed overall; accepted daily-workflow scope and UCV0-013 (decision 0332) and UCV0-014 (decision 0424); UCV0-217 accepted under the owner's standing auto-accept (2026-10-11; V1-0303); UCV0-018 experimental under the standing lane auto-accept (2026-10-27; V1-2828); UCV0-019 experimental under the standing lane auto-accept (2026-10-29; V1-3124)
+Intent status: proposed overall; accepted daily-workflow scope and UCV0-013 (decision 0332) and UCV0-014 (decision 0424); UCV0-217 accepted under the owner's standing auto-accept (2026-10-11; V1-0303); UCV0-018 experimental under the standing lane auto-accept (2026-10-27; V1-2828); UCV0-019 experimental under the standing lane auto-accept (2026-10-29; V1-3124); UCV0-020 experimental under the standing lane auto-accept (2026-10-30; V1-3229)
 Delivery status: experimental
 Authoritative inputs: `docs/PRODUCT.md`, `docs/DOGFOOD.md`,
 `docs/specs/applied-intelligence-breakthroughs-v0.md`,
@@ -10,7 +10,7 @@ Authoritative inputs: `docs/PRODUCT.md`, `docs/DOGFOOD.md`,
 
 ## Agent digest
 - Claim: Headline Corvint jobs remain UNPROVEN until each has complete content-addressed promotion evidence.
-- Status: proposed overall; accepted daily-workflow scope and UCV0-013 (decision 0332) and UCV0-014 (decision 0424); UCV0-217 accepted under the owner's standing auto-accept (2026-10-11; V1-0303); UCV0-018 experimental under the standing lane auto-accept (2026-10-27; V1-2828); UCV0-019 experimental under the standing lane auto-accept (2026-10-29; V1-3124); experimental
+- Status: proposed overall; accepted daily-workflow scope and UCV0-013 (decision 0332) and UCV0-014 (decision 0424); UCV0-217 accepted under the owner's standing auto-accept (2026-10-11; V1-0303); UCV0-018 experimental under the standing lane auto-accept (2026-10-27; V1-2828); UCV0-019 experimental under the standing lane auto-accept (2026-10-29; V1-3124); UCV0-020 experimental under the standing lane auto-accept (2026-10-30; V1-3229); experimental
 - Exists: `conformance/use-cases-v0/ledger.json` and deterministic validator; `UC-TASK-ORIENTATION` is `verified`/`VERIFIED` for releases including decision 0387, not for `0.8.1` (decision 0389); `UC-CHANGE-CONSEQUENCE` and `UC-EVIDENCE-CARRYING-COMPLETION` returned to `experimental`/`UNPROVEN` (V1-0341); the other nineteen jobs stay `specified`/`UNPROVEN`.
 - Blocked on: complete promotion receipts, Corvint and Beamfall dogfood, and sealed outcome benchmarks.
 - Read next: Verified current state; Status and claim model; Acceptance matrix.
@@ -202,6 +202,14 @@ cannot be interpreted as success.
   unchanged. Non-goals: searching further back than 50 commits. Falsifier: a refusal for a
   receipt whose pinned bytes a recent commit holds names no command. Rollback: remove
   `pinned_recovery` and cases 7 to 9.
+- `UCV0-020`: (experimental under the standing lane auto-accept (2026-10-30); V1-3229)
+  When `go run ./conformance/use-cases-v0` refuses with `subject-digest-mismatch`, it MUST print to
+  stderr a `use-cases-v0: fix:` line naming `script/repin-use-case-receipts.sh` as the repin; with
+  `receipt-digest-mismatch` (a receipt that left its ledger pin, which the repin refuses) it MUST
+  first name the restore of the ledger and receipts from HEAD,
+  `git restore --source=HEAD -- <ledger> <ledger dir>/receipts`, then the repin. stdout stays the
+  canonical result and the exit status is unchanged; nothing is run or restored. Falsifier: either
+  refusal prints no recovery. Rollback: remove `recoveryHint` and its test.
 
 ## Trust boundary and failure behavior
 
@@ -250,6 +258,7 @@ evidence; never rewrite a failed receipt.
 | `UCV0-217` | Agent digest of this spec, `conformance/use-cases-v0/ledger.json` | `TestUCV0217DigestStatusMatchesLedger` |
 | `UCV0-018` | `script/repin-use-case-receipts.sh` | `script/repin-use-case-receipts_test.sh` cases 1 to 4 (`make use-case-receipts-test`) |
 | `UCV0-019` | `script/repin-use-case-receipts.sh` `pinned_recovery` | `script/repin-use-case-receipts_test.sh` cases 7 to 9 (`make use-case-receipts-test`) |
+| `UCV0-020` | `conformance/use-cases-v0/main.go` `recoveryHint` | `TestUCV0020DigestRefusalNamesRecovery` |
 | `UCV0-011` | governed ledger row only | `UNPROVEN`; implementation and outcome evidence absent |
 
 ## Unresolved decisions and kill criteria

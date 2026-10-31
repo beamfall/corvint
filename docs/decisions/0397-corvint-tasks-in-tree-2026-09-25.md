@@ -177,6 +177,21 @@ Rule 5 needs no change because `internal/contextindex` and its closure are alrea
 source-archive subset (V1-0456, issue 443). Rollback is reverting the symbol-anchor change and
 removing this one-file edge; the other edges stay.
 
+## V1-3237 addendum — duplicate check ranks with the context compiler's BM25
+
+Agent decision, 2026-10-30, made while delivering V1-3237 under the owner's standing auto-accept
+(2026-10-11); it is not a direct owner statement. The ticket duplicate check
+(`docs/specs/corvint-tasks-cli-v0.md`, TCL-V0-003) must rank with the same deterministic BM25 and
+tokeniser as the context compiler rather than a second, drifting copy, so it calls the
+`contextindex.Lexical*` exports. Rule 2 gains one more exact edge, limited to one file:
+`internal/tasks/similar/terms.go` may import `internal/contextindex`. The rest of
+`internal/tasks/similar` and every other Tasks file stay refused, and this file admits no other
+Core package. `TestImportViolationControls` keeps negative controls for
+`internal/tasks/similar/similar.go` importing `internal/contextindex` and for the admitted file
+importing `internal/gitstatus`, and a positive control for the admitted edge. Rule 5 needs no
+change because `internal/contextindex` is already in the source-archive subset (V1-0456). Rollback
+is reverting the duplicate check and removing this one-file edge; the other edges stay.
+
 ## Issue 712 addendum — expected-fail excerpt secret screen
 
 Agent decision, 2026-10-10, made while delivering GitHub issues beamfall/corvint#712 and #713

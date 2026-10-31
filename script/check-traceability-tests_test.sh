@@ -30,8 +30,8 @@ printf '%s\n' 'package demo' '' 'func TestGhostOnlyOnDisk() {}' \
   > "$test_root/internal/demo/ghost_test.go"
 output=$(run) && fail "an untracked test function satisfied a staged traceability row"
 case "$output" in
-  *"docs/specs/fixture.md:7: TestGhostOnlyOnDisk"*) ;;
-  *) fail "the unresolved function was not reported: $output" ;;
+  *"docs/specs/fixture.md:7: TestGhostOnlyOnDisk (declared only in the unstaged working-tree file internal/demo/ghost_test.go; the check reads the index, so stage it: git add -- internal/demo/ghost_test.go)"*) ;;
+  *) fail "the unresolved function was not reported with its unstaged file (TTG-V0-012): $output" ;;
 esac
 
 stage internal/demo/ghost_test.go
@@ -56,6 +56,7 @@ for expected in control.md:5 nested.md:9 nested.md:15; do
 done
 case "$output" in
   *closed.md*) fail "a row after its traceability section closed was inspected: $output" ;;
+  *"declared only in the unstaged"*) fail "a never-declared function was named as unstaged: $output" ;;
 esac
 
 # DCW-V0-356 (V1-2855): a wildcard row is refused with the full-name rule and the declared
@@ -101,5 +102,19 @@ case "$output" in
 esac
 /bin/rm -f "$test_root/docs/specs/qualified.md"
 stage docs/specs/qualified.md
+
+# TTG-V0-012 (V1-3235): a declaration added to a tracked file but not staged is named with its file
+# and the staging fix; staging it resolves the row.
+printf '%s\n' 'func TestAddedUnstaged() {}' >> "$test_root/internal/demo/ghost_test.go"
+# shellcheck disable=SC2016
+printf '%s\n' '# Added' '' '## Traceability' '' '| FIX-V0-006 | `TestAddedUnstaged` |' > "$test_root/docs/specs/added.md"
+stage docs/specs/added.md
+output=$(run) && fail "an unstaged edit satisfied a staged traceability row"
+case "$output" in
+  *"docs/specs/added.md:5: TestAddedUnstaged (declared only in the unstaged working-tree file internal/demo/ghost_test.go;"*) ;;
+  *) fail "the unstaged edit was not named: $output" ;;
+esac
+stage internal/demo/ghost_test.go
+run >/dev/null || fail "the staged edit did not satisfy the row: $(run)"
 
 echo "check-traceability-tests_test.sh: ok"

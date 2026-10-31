@@ -18,7 +18,7 @@ GO_TEST_TIMEOUT ?= 30m
 GO_TEST_FLAGS = -p 1 -timeout $(GO_TEST_TIMEOUT)
 GO_TEST_COMMAND = $(HEAVY_NICE_PREFIX) env GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test $(GO_TEST_FLAGS) -count=1
 
-.PHONY: build gate capability-catalog capability-catalog-check instruction-conflicts gate-receipt-clear gate-receipt-test gate-affected gate-affected-test host-adapter-test host-adapter-node-test go-version go-test go-vet cross-vet windows-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-resolve spec-requirements-check spec-requirements-test spec-acceptance-audit requirement-definitions-check requirement-definitions-test traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test analyzer-schema-check analyzer-schema-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check capabilities-check release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check core-n1-replay dogfood-change dogfood-check dogfood-seal dogfood-finish dogfood-inputs-check dogfood-batch-check dogfood-bind-range dogfood-bind-range-test lane-scripts-test error-code-ownership-check error-code-ownership-test use-case-receipts-check use-case-receipts-test host-package-versions-check host-package-versions-test host-package-version-bump host-package-version-verify diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test goos-filenames-check goos-filenames-test go-cache-trim go-cache-trim-test scratch-sweep scratch-sweep-test pre-push-windows-vet-test pre-push-dogfood-seal-test dogfood-closeout cem-stable-regen cem-stable-regen-capture cem-stable-regen-replace cem-stable-regen-widen cem-stable-regen-check cem-release-suites cem-release-gate spec-toolchain-conformance spec-toolchain-latest-test batch-precheck batch-precheck-test
+.PHONY: build gate capability-catalog capability-catalog-check instruction-conflicts gate-receipt-clear gate-receipt-test gate-affected gate-affected-test host-adapter-test host-adapter-node-test go-version go-test go-vet cross-vet windows-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-resolve spec-requirements-check spec-requirements-test spec-acceptance-audit requirement-definitions-check requirement-definitions-test traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test analyzer-schema-check analyzer-schema-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check capabilities-check release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check core-n1-replay dogfood-change dogfood-check dogfood-seal dogfood-finish dogfood-inputs-check dogfood-batch-check dogfood-bind-range dogfood-bind-range-test lane-scripts-test error-code-ownership-check error-code-ownership-test use-case-receipts-check use-case-receipts-test host-package-versions-check host-package-versions-test host-package-version-bump host-package-version-verify diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test goos-filenames-check goos-filenames-test go-cache-trim go-cache-trim-test scratch-sweep scratch-sweep-test pre-push-windows-vet-test pre-push-dogfood-seal-test dogfood-closeout cem-stable-regen cem-stable-regen-capture cem-stable-regen-replace cem-stable-regen-widen cem-stable-regen-check cem-release-suites cem-release-gate spec-toolchain-conformance spec-toolchain-latest-test batch-precheck batch-precheck-test documentation-paths documentation-paths-check documentation-paths-test qualify-tasks-basic-test ai-coauthor-trailers-check ai-coauthor-trailers-test dogfood-cache-test dogfood-bin-reuse-test
 
 build: go-version
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_BIN) ./cmd/corvint
@@ -38,7 +38,7 @@ pi-protected-test: pi-protected-build
 # not a gate prerequisite because it depends on
 # untracked, gitignored .corvint/ artifacts that a clean checkout never has.
 # GATE_STEPS are the gate prerequisites after gate-receipt-clear.
-GATE_STEPS = host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements-check spec-requirements-test requirement-definitions-check requirement-definitions-test traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test analyzer-schema-check analyzer-schema-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check release-checklist-test gate-receipt-test error-code-ownership-check error-code-ownership-test host-package-versions-check host-package-versions-test diagnostic-coverage-check no-python-runtime-dependency-test goos-filenames-check goos-filenames-test go-cache-trim-test scratch-sweep-test pre-push-windows-vet-test pre-push-dogfood-seal-test batch-precheck-test
+GATE_STEPS = host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements-check spec-requirements-test requirement-definitions-check requirement-definitions-test traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test analyzer-schema-check analyzer-schema-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check release-checklist-test gate-receipt-test error-code-ownership-check error-code-ownership-test host-package-versions-check host-package-versions-test diagnostic-coverage-check no-python-runtime-dependency-test goos-filenames-check goos-filenames-test go-cache-trim-test scratch-sweep-test pre-push-windows-vet-test pre-push-dogfood-seal-test batch-precheck-test documentation-paths-check documentation-paths-test qualify-tasks-basic-test ai-coauthor-trailers-test dogfood-cache-test dogfood-bin-reuse-test
 gate: gate-receipt-clear $(addprefix ledger/,$(GATE_STEPS))
 	@script/gate-receipt record
 
@@ -416,6 +416,18 @@ host-package-versions-test:
 	@script/check-host-package-versions_test.sh
 	@script/host-package-version_test.sh
 
+# documentation-paths regenerates .corvint/documentation-paths.json (the AFP-V0-160 declaration)
+# from the staged top-level docs/*.md files; documentation-paths-check, a doc gate, refuses a
+# stale one (ASD-V0-105, V1-3174).
+documentation-paths:
+	@script/gen-documentation-paths.sh
+
+documentation-paths-check:
+	@script/gen-documentation-paths.sh --check
+
+documentation-paths-test:
+	@script/gen-documentation-paths_test.sh
+
 # AHI-173: bump every version location of one host package together (VERSION defaults to the next
 # patch), or verify that every package's locations agree.
 host-package-version-bump:
@@ -535,6 +547,33 @@ batch-push-check:
 batch-precheck-test:
 	@script/batch-precheck_test.sh
 
+# ai-coauthor-trailers-check DOGFOOD_BASE=<sha> refuses, naming each commit, when base..HEAD has a
+# Co-authored-by trailer for an AI agent; make batch-precheck runs the script as a step. script/check-ai-coauthor-trailers.sh --install-hook refuses one before the commit
+# exists (ASD-V0-560, V1-3227).
+# CIN-V0-006: the doc-gates job of ci.yml runs it on a pull request with BASE_SHA set to the pull
+# request's base. A pull request without BASE_SHA fails; any other CI run without BASE_SHA (a
+# merge-queue run or a push) or a tree without the check script says so and passes. With
+# DOGFOOD_BASE set it checks DOGFOOD_BASE..HEAD; batch-precheck calls the script directly.
+.PHONY: ai-coauthor-trailers-check
+ai-coauthor-trailers-check:
+	@if [ -n "$(DOGFOOD_BASE)" ]; then \
+	  script/check-ai-coauthor-trailers.sh $(if $(DOGFOOD_BASE),'$(DOGFOOD_BASE)'); \
+	elif [ -z "$${BASE_SHA-}" ] && [ "$${GITHUB_EVENT_NAME-}" = pull_request ]; then \
+	  echo 'CIN-V0-006: a pull request run has no BASE_SHA; the trailer check cannot run' >&2; exit 1; \
+	elif [ -z "$${BASE_SHA-}" ]; then \
+	  echo 'CIN-V0-006: no BASE_SHA (not a pull request); the trailer check is skipped.'; \
+	elif [ ! -f script/check-ai-coauthor-trailers.sh ]; then \
+	  echo 'CIN-V0-006: this tree has no script/check-ai-coauthor-trailers.sh; the trailer check is skipped.'; \
+	else bash script/check-ai-coauthor-trailers.sh "$$BASE_SHA" HEAD; fi
+
+ai-coauthor-trailers-test:
+	@script/check-ai-coauthor-trailers_test.sh
+
+# qualify-tasks-basic-test proves the refusals, the supplied-input labelling and the tamper
+# injection of script/qualify-tasks-basic.sh (TBS-V1-458, TBS-V1-459).
+qualify-tasks-basic-test:
+	@script/qualify-tasks-basic_test.sh
+
 batch-review-packet:
 	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
 	@script/batch-review-packet.sh '$(DOGFOOD_BASE)' '$(or $(HEAD),HEAD)'
@@ -620,9 +659,10 @@ dogfood-change:
 	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
 	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" $(HEAVY_NICE_PREFIX) script/dogfood-change.sh "$(DOGFOOD_BASE)"
 
+# Without BASE, dogfood-check takes the base of the CEM committed at HEAD, and the script refuses
+# naming BASE when none is bound (ASD-V0-085, V1-3172).
 dogfood-check:
-	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
-	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" $(HEAVY_NICE_PREFIX) script/dogfood-check.sh "$(DOGFOOD_BASE)"
+	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" $(HEAVY_NICE_PREFIX) script/dogfood-check.sh $(if $(DOGFOOD_BASE),"$(DOGFOOD_BASE)",--bound-base)
 
 dogfood-seal:
 	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
@@ -646,25 +686,11 @@ dogfood-inputs-check:
 		$(call dogfood_finish_quote,$(VERIFY)) $(call dogfood_finish_quote,$(OUTCOME))
 
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
-DOC_GATE_TARGETS := host-package-versions-check host-package-versions-test spec-requirements-check requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check line-citations-check error-code-ownership-check unbounded-readers-check test-read-scopes-check test-commands-check use-case-receipts-check use-case-receipts-test
+DOC_GATE_TARGETS := host-package-versions-check host-package-versions-test spec-requirements-check requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check line-citations-check error-code-ownership-check unbounded-readers-check test-read-scopes-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check
 .PHONY: doc-gates
 doc-gates:
 	@$(MAKE) --no-print-directory $(DOC_GATE_TARGETS)
 	@GOTOOLCHAIN=local go run ./conformance/use-cases-v0
-
-# CIN-V0-006 (V1-3227): the doc-gates job of ci.yml runs this on a pull request with BASE_SHA set
-# to the pull request's base. A pull request without BASE_SHA fails; any other run without BASE_SHA
-# (a merge-queue run, a push, or batch-precheck's local mirror) or a tree without the check script
-# says so and passes.
-.PHONY: ai-coauthor-trailers-check
-ai-coauthor-trailers-check:
-	@if [ -z "$${BASE_SHA-}" ] && [ "$${GITHUB_EVENT_NAME-}" = pull_request ]; then \
-	  echo 'CIN-V0-006: a pull request run has no BASE_SHA; the trailer check cannot run' >&2; exit 1; \
-	elif [ -z "$${BASE_SHA-}" ]; then \
-	  echo 'CIN-V0-006: no BASE_SHA (not a pull request); the trailer check is skipped.'; \
-	elif [ ! -f script/check-ai-coauthor-trailers.sh ]; then \
-	  echo 'CIN-V0-006: this tree has no script/check-ai-coauthor-trailers.sh; the trailer check is skipped.'; \
-	else bash script/check-ai-coauthor-trailers.sh "$$BASE_SHA" HEAD; fi
 
 # dogfood-closeout is the one lane closeout command (DCW-V0-349, V1-1894): dogfood-finish with the
 # same variables, whose input pre-flight refuses a bad VERIFY, INTENTS or CITATIONS file before the
@@ -685,6 +711,13 @@ dogfood-bind-range:
 
 dogfood-bind-range-test:
 	@script/dogfood-bind-range_test.sh
+
+# The dogfood wrapper fixtures run in the gate and CI's shell job (ASD-V0-091, V1-3250).
+dogfood-cache-test:
+	@script/dogfood-cache_test.sh
+
+dogfood-bin-reuse-test:
+	@script/dogfood-bin-reuse_test.sh
 
 # The lane procedure scripts (docs/LANE-ORCHESTRATION.md, ASD-V0-014..018); no Go build.
 lane-scripts-test:
@@ -717,7 +750,7 @@ test-shard: go-version
 # make gate runs and no others. TestSTRV0004ShellTestIsTheGateShellSteps
 # (tools/test-commands-check) keeps the two lists equal.
 .PHONY: shell-test
-shell-test: go-format-test go-archive-gate-test spec-requirements-test requirement-definitions-test traceability-tests-test decision-numbers-test analyzer-schema-test instruction-conflicts-test eol-policy-test license-headers-test line-citations-test ci-least-privilege-test release-checklist-test gate-receipt-test error-code-ownership-test host-package-versions-test no-python-runtime-dependency-test goos-filenames-test go-cache-trim-test scratch-sweep-test pre-push-windows-vet-test pre-push-dogfood-seal-test batch-precheck-test
+shell-test: go-format-test go-archive-gate-test spec-requirements-test requirement-definitions-test traceability-tests-test decision-numbers-test analyzer-schema-test instruction-conflicts-test eol-policy-test license-headers-test line-citations-test ci-least-privilege-test release-checklist-test gate-receipt-test error-code-ownership-test host-package-versions-test no-python-runtime-dependency-test goos-filenames-test go-cache-trim-test scratch-sweep-test pre-push-windows-vet-test pre-push-dogfood-seal-test batch-precheck-test documentation-paths-test qualify-tasks-basic-test ai-coauthor-trailers-test dogfood-cache-test dogfood-bin-reuse-test
 
 # windows-vet is the local twin of the go-static step "Windows vet including test files
 # (AFP-V0-042)" in .github/workflows/ci.yml: the same GOOS, GOARCH, CGO_ENABLED, empty GOFLAGS (no

@@ -1,0 +1,284 @@
+[
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T15:48:07Z",
+    "text": "In test-read-scopes-check, one literal that locates the repository root turns off every temp-root exemption, and the error does not say why.",
+    "duplicates": [],
+    "note": "V1-3137 is a different test-read-scopes defect (TempDir subject-ID prefixes); V1-3225 was filed from this item"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T15:48:07Z",
+    "text": "propose-citations drafts rows that cite unrelated spec lines.",
+    "duplicates": [
+      "V1-3118",
+      "V1-3151"
+    ],
+    "note": "propose-citations drafting weak or unrelated cites"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T15:48:07Z",
+    "text": "traceability-tests-check reads only staged or tracked files, so new test files must be staged first.",
+    "duplicates": [],
+    "note": "no existing ticket on traceability-tests-check reading only the index"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T15:48:07Z",
+    "text": "heavy.sh demands HEAVY_WHOLE_REASON even for a small tool package.",
+    "duplicates": [
+      "V1-3120"
+    ],
+    "note": "heavy.sh refusing a whole package without HEAVY_WHOLE_REASON"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T15:48:07Z",
+    "text": "The citation RELATION choices are not listed in DOGFOOD.md, and tests is not one of them.",
+    "duplicates": [
+      "V1-0629"
+    ],
+    "note": "citation relation vocabulary is undocumented; V1-3226 was filed from this item"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T15:26:02Z",
+    "text": "The reused worktree had a stale trace store. It cost one failed dogfood-change plus a migrate-traces dry-run and apply.",
+    "duplicates": [
+      "V1-3211"
+    ],
+    "note": "stale trace store in a reused worktree"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T15:26:02Z",
+    "text": "heavy.sh ran locally because no remote host is configured, so I reproduced the TMPDIR case by hand.",
+    "duplicates": [
+      "V1-2552"
+    ],
+    "note": "heavy.sh cannot offload to a second machine"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T15:26:02Z",
+    "text": "V1-2817 was still open although main already delivered it.",
+    "duplicates": [
+      "V1-2817"
+    ],
+    "note": "names the delivered-but-open ticket; a recurrence is reported on it by ID"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T15:26:02Z",
+    "text": "V1-3212's premise was imprecise: heartbeat is attempt heartbeat.",
+    "duplicates": [
+      "V1-3212"
+    ],
+    "note": "names the heartbeat-help ticket by ID"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T15:26:02Z",
+    "text": "The CAL spec is full, so the new requirement went into a different spec.",
+    "duplicates": [],
+    "note": "V1-2165 re-homed a different spec; V1-3236 was filed from this item"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T15:26:02Z",
+    "text": "propose-citations drafted cites in changed files, which the bind refuses. All 9 rows had to be rewritten by hand.",
+    "duplicates": [
+      "V1-3118",
+      "V1-3145",
+      "V1-2355"
+    ],
+    "note": "propose-citations citing changed files"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T15:26:02Z",
+    "text": "The verify file refused an unquoted -run A|B; only the quoted form is accepted.",
+    "duplicates": [
+      "V1-3131",
+      "V1-2344"
+    ],
+    "note": "verify-file -run A|B quoting"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T15:26:02Z",
+    "text": "lane-scripts-test took 72 s and batch-precheck 92 s.",
+    "duplicates": [],
+    "note": "V1-3232 was filed from this item"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T14:59:15Z",
+    "text": "I ran dogfood-change late, after the edits, and it returned rc=2. That result is kept.",
+    "duplicates": [],
+    "note": "a late dogfood-change run is a lane mistake, not a ticketed defect"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T14:59:15Z",
+    "text": "The inputs check refused a dirty worktree: the built bin/corvint and a generated .corvint/change.cem.json were untracked. I moved the binary to the git dir and deleted the CEM.",
+    "duplicates": [],
+    "note": "inputs-check refusal of untracked build outputs has no ticket; V1-3211 is the trace store"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T14:59:15Z",
+    "text": "The intents file had to be in sorted byte order.",
+    "duplicates": [
+      "V1-3141",
+      "V1-1043",
+      "V1-3166"
+    ],
+    "note": "unsorted dogfood input files refused without a sort hint"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T14:59:15Z",
+    "text": "My first citation plan cited a span of corpusbridge.go that the change rewrites, which the check refused. I redrafted the plan with keys by full hunk ID, and it passed.",
+    "duplicates": [
+      "V1-1724"
+    ],
+    "note": "a hand-drafted citation plan cited a span the change rewrites; V1-1724 is 'the citation plan cited a file or span the change modifies (cite-span-not-stable)'. Related, not duplicated: V1-3118 ('propose-citations proposed spans overlapping changed lines') and V1-3145 ('propose-citations proposes citation lines inside files the change modifies') are the drafting tool's defect, and this plan was not drafted by propose-citations",
+    "knownMissRank": 10
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T14:11:38Z",
+    "text": "The CORE_N1_TAG Makefile default excludes pre-release tags, so a manual make core-n1-replay after rc.3 must name the tag.",
+    "duplicates": [],
+    "note": "V1-3177 is the history-tag gap; V1-3203 was filed from this item"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T14:11:38Z",
+    "text": "make dogfood-change was run only after the commit, to prepare the map for propose-citations, not at the start of the change.",
+    "duplicates": [],
+    "note": "V1-3204 was filed from this item"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T14:11:38Z",
+    "text": "propose-citations drafted rows citing files the diff modifies, which the lane rule forbids, so I rewrote the plan by hand.",
+    "duplicates": [
+      "V1-3118",
+      "V1-3145",
+      "V1-2355"
+    ],
+    "note": "propose-citations citing changed files"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T14:11:38Z",
+    "text": "batch-precheck_test.sh failed once with an empty log and passed on reruns, so it is flaky.",
+    "duplicates": [],
+    "note": "V1-3205 was filed from this item"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T14:11:38Z",
+    "text": "/tmp is a 16G tmpfs, and filling it caused the batch-drift failure.",
+    "duplicates": [
+      "V1-2691",
+      "V1-2563"
+    ],
+    "note": "the WSL box's 16G tmpfs /tmp fills"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T14:11:38Z",
+    "text": "corvint affected matched script/core-n1-source.sh by path literal to unrelated tests such as analyzerhtmlcss and jstestprovider, which made the selection broader than it needed to be.",
+    "duplicates": [],
+    "note": "V1-3207 was filed from this item"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T14:05:02Z",
+    "text": "Small staged plans must name every unknown hunk, so the staged test uses an unknown row in stage 1.",
+    "duplicates": [],
+    "note": "staged-plan friction distinct from V1-3167/V1-3168"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T14:05:02Z",
+    "text": "The cemcode/wire change makes corvint test select 286 units; I ran focused patterns instead.",
+    "duplicates": [],
+    "note": "wide test selection from a wire change has no ticket"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T14:05:02Z",
+    "text": "Batch-drift blames this change for a tmpfs-full failure (introduced: not present at base).",
+    "duplicates": [
+      "V1-3122"
+    ],
+    "note": "batch-precheck labels a one-off failure as introduced"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T14:05:02Z",
+    "text": "capability-catalog-check was flaky once under load.",
+    "duplicates": [],
+    "note": "V1-3206 was filed from this item"
+  },
+  {
+    "source": "lane-friction-2026-10-30",
+    "filedAt": "2026-10-30T14:05:02Z",
+    "text": "If a parallel lane also takes them, the new IDs CEM-V1-694/695 and DCW-V0-390..392 could collide at batch time.",
+    "duplicates": [
+      "V1-1009"
+    ],
+    "note": "parallel lanes collide on requirement IDs"
+  },
+  {
+    "source": "historical-pair V1-1441",
+    "filedAt": "2026-10-15T22:09:13Z",
+    "text": "suspected: Codex review run with -s read-only wrote a task-store mutation in the primary checkout\nsuspected: Observed 2026-10-15 in the V1-1375/1334 lane (PR #938). The lane's single Codex review (codex exec -s read-only, from the lane clone) ran `corvint-tasks ticket note set ticket:corvint:main:V1-1375 --role OWNER` in /Users/russelllewis/projects/corvint; it succeeded as receipt .git/taskman/receipts/000000006212.json (MUTATION, actor russelllewis role OWNER, ticket revision 2, 17:42 local). Expected: a read-only review cannot mutate the native store and never claims the OWNER role. Actual: mutation recorded as OWNER. Possible causes: corvint-tasks resolves the primary checkout outside the sandbox's writable roots, or the sandbox does not cover .git/taskman; the review prompt did not forbid corvint-tasks.",
+    "duplicates": [
+      "V1-1256"
+    ],
+    "exclude": "V1-1441",
+    "note": "V1-1441 restates V1-1256"
+  },
+  {
+    "source": "historical-pair V1-1833",
+    "filedAt": "2026-10-18T21:11:04Z",
+    "text": "dispatch: acquire and hold the pool member for a session that needs one; release it on attempt end (GitHub #1147)\nGitHub beamfall/corvint#1147 (owner, 2026-10-18). A ticket whose session needs a pool member must currently acquire it from inside the session. If the worker ends (context limit, crash, budget stop) while that acquire is in flight, the allocation is abandoned and stays allocated or quarantined until a sweep. Expected: for a ticket that declares a pool requirement, the dispatcher acquires the member before launch, hands the allocation to the session (env or handoff file), and releases it when the attempt ends, whatever the session did. Related, not duplicated: V1-1573 (acquire at claim time, a follow-up of capacity slots) and V1-0800 (requiresPool omitted). New requirements belong in the pool-safe-reuse (PSR) or attempt-runner (ATR) spec, not the leases spec, which is over its bound.",
+    "duplicates": [],
+    "exclude": "V1-1833",
+    "note": "V1-1833 says \"Related, not duplicated: V1-1573\"; a negative pair"
+  },
+  {
+    "source": "historical-pair V1-2740",
+    "filedAt": "2026-10-26T02:08:27Z",
+    "text": "tests: the 20 slowest single tests take 25% of CI test time (145-418 s each; LGLV0009 418 s)\nMeasured on batch 1025i CI run 40246146353 (2026-10-25, 8 self-hosted go-product shards, go test -json Elapsed). The 347 packages took 15,757 s of test time. The 20 slowest top-level tests take about 3,950 s, which is 25% of the total, and each one alone is longer than most packages:\n\n- 418 s internal/tasks/store TestLGLV0009_SealedBaseDeclinesRewrittenSegment\n- 276 s internal/doccorpus TestDCPV1216LegacyDiscoveryGitOpsIndependentOfPathCount\n- 217 s internal/tasks/store TestLGLV0009_SealedBaseDeclinesChangedState\n- 207 s cmd/corvint TestPackSnapshotReadsWithoutChangingAByteOnTwentyTasks\n- 204 s internal/doccorpus TestDCRV1552ParallelScanMatchesSequential\n- 199 s internal/docviews TestVerifyRejectsCanonicalBundleOver64MiB\n- 197 s tools/corvint-pr-tests TestAFPV0048ShardedRunExecutesSlices\n- 189 s internal/tasks/store TestCALV0089_ProgramWallExpiryEndsContinuation\n- 173 s internal/doccorpus/selfcorpus TestCorpusSelfDocumentation\n- 170 s internal/tasks/store TestJSGV0020_HarnessRunsBothModes\n- 169 s internal/tasks/store TestCALV0044_HandoffPolicyReceiptInterval\n- 165 s internal/companionrelease TestCorvintBundledBinariesBuildTwiceIdentically\n- 159 s internal/doccorpus TestDCPV1216SymbolAnchorsGitOpsIndependentOfAnchorCount\n- 159 s cmd/corvint TestBlobShardsReadOnlyTwentyTaskMatrix\n- 153 s internal/doccorpus TestDCPV1091TestKnowledgeQueryExposure\n- 151 s internal/doccorpus TestDCPV1216PlaywrightDiscoveryGitOpsIndependentOfPathCount\n- 147 s internal/tasks/store TestATRV0297_ReassignRemovesPriorStageWorktrees\n- 146 s internal/tasks/store TestLGLV0009_PoolVerbsResumeFromSealedBase\n- 146 s internal/tasks/store TestCALV0371_MovedWorktreeKeepsItsRecord\n- 145 s tools/corvint-pr-tests TestSelectedFailureAndFallback\n\nA single test cannot be split across shards, so these set a floor on shard wall time and on every lane run that selects them. Likely causes to check per test: fixture sizes larger than the property needs (64 MiB bundle, twenty-task matrices, path-count scaling sweeps), repeated builds of the same binaries, and serial subtests that could run in parallel. Related, not duplicated: V1-0961 and V1-1108 (internal/tasks/store package time and mutexes), V1-0643 (doccorpus hermetic fixtures), V1-1753 (shard balance), V1-1100 (per-test cost table).",
+    "duplicates": [],
+    "exclude": "V1-2740",
+    "note": "V1-2740 says \"Related, not duplicated: V1-0961\"; a negative pair"
+  },
+  {
+    "source": "historical-pair V1-2863",
+    "filedAt": "2026-10-27T18:04:00Z",
+    "text": "corvint affected --path takes one path per flag; space-separated paths fail with unrecognized arguments\nObserved 2026-10-27 by lane ci-perf (build 774): corvint affected --path a b c exits with unrecognized arguments; only repeated --path works. Agents naturally pass several paths after one flag, as with git and go. Related: V1-2825 (directories refused), V1-2818 (dirty worktree refused).",
+    "duplicates": [
+      "V1-2833"
+    ],
+    "exclude": "V1-2863",
+    "note": "V1-2863 restates V1-2833"
+  },
+  {
+    "source": "historical-pair V1-0630",
+    "filedAt": "2026-10-01T18:56:52Z",
+    "text": "corvint-tasks: criterion-binding capture/verify --help returns ERROR, failing CAL-V0-047 on main\nObserved 2026-10-01 on origin/main cf4c8a39 (after PR #416 merged criterion-binding verbs onto the #422 help work in cf61ee63). `GOTOOLCHAIN=local go test -count=1 ./internal/tasks/cli/ -run TestCALV0047_AllCommandHelpIsReadOnly` fails: `criterion-binding verify --help` returns outcome ERROR with warning `verify consumes only canonical capture stdin` (capture --help fails likewise). Expected: read-only OK with command-specific usage per CAL-V0-047. Actual: the verb reads stdin/validates before the help intercept. Reproduced in a clean worktree at cf4c8a39 (Go 1.27.1, darwin). Related: V1-0604 (issue 422). Found while building issue 431 (dispatch), whose own help paths pass.",
+    "duplicates": [
+      "V1-0604"
+    ],
+    "exclude": "V1-0630",
+    "note": "V1-0630 restates V1-0604"
+  }
+]

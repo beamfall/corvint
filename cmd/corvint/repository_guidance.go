@@ -11,6 +11,7 @@ import (
 	"go/token"
 	"io"
 	"os"
+	"os/exec"
 	"path"
 	"regexp"
 	"sort"
@@ -22,7 +23,6 @@ import (
 	"github.com/Beamfall/corvint/internal/genesis"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
-	"github.com/Beamfall/corvint/internal/liveverify/affected/golang"
 )
 
 type guidanceInvocation struct {
@@ -679,12 +679,16 @@ func snapshotReviewAffected(ctx context.Context, s *genesis.GuidanceSnapshot, in
 	if err != nil {
 		return affectedReceipt{}, err
 	}
-	// The snapshot is HEAD's tree, so the additive records measure it from the
-	// base commit in the repository, as `corvint affected --base` does.
-	graph = graph.WithGoAdditive(golang.AdditiveChangesAt(ctx, in.Root, scratch, in.Base, graph, affected.NormalizePaths(paths)))
-	plan := affected.Select(graph, affected.NormalizePaths(paths))
-	provider := providerGoProjection(graph, plan)
-	advice := withFocusedNextStep(compileAffectedAdvice(scratch, graph, plan, provider), in.Base, plan)
+	gitExecutable, err := exec.LookPath("git")
+	if err != nil {
+		return affectedReceipt{}, affectedGitExecutableRefusal()
+	}
+	// The snapshot is HEAD's tree, so the prior read scopes and the additive
+	// records are measured from the base commit in the repository, through
+	// the same planning tail as `corvint affected --base` (AFP-V0-930).
+	_, plan, provider, advice := planAffectedGraph(ctx, affectedPlanInputs{
+		gitExecutable: gitExecutable, repository: in.Root, tree: scratch, base: in.Base, revision: s.Revision, additive: true,
+	}, graph, affected.NormalizePaths(paths))
 	return affectedReceipt{Advice: advice, Mutates: false, OK: true, Plan: plan, Profile: affectedProfile, Provider: affectedProvider{Go: provider}, Range: affectedRange{Base: in.Base, Paths: paths}, Revision: s.Revision, Tool: "affected"}, nil
 }
 

@@ -185,3 +185,179 @@ func dispatch(args []string) {
 		t.Errorf("flags %v", flags)
 	}
 }
+
+// TestCAPV0047ChildArgvIsNotDispatch checks that a slice a function builds or hands whole to a
+// child process (exec.Command, exec.CommandContext, syscall.Exec, a Cmd's Args, through append),
+// and an argv parameter every caller fills from a non-command-line value (wholeGoTest), are not
+// scanned as this binary's arguments, while a parameter it only dispatches on, one that receives
+// the command line or escapes into a handler table, a single element handed to a child, a
+// closure's same-named parameter and its own command line re-executed (os.Args, flag.Args(), an
+// append of them) still are (CAP-V0-200, V1-3153).
+func TestCAPV0047ChildArgvIsNotDispatch(t *testing.T) {
+	dir := t.TempDir()
+	source := `package main
+
+import (
+	"context"
+	"flag"
+	"os"
+	"os/exec"
+	"syscall"
+)
+
+func runGit(argv []string) {
+	if argv[0] == "log" {
+	}
+	for _, arg := range argv {
+		if arg == "--no-pager" {
+		}
+	}
+	_ = exec.Command("git", argv...)
+}
+
+func runContext(ctx context.Context, args []string) {
+	switch args[0] {
+	case "context-child":
+	}
+	_ = exec.CommandContext(ctx, args[0], args[1:]...)
+}
+
+func runField(argv []string) {
+	if argv[0] == "field-child" {
+	}
+	command := exec.Command("x")
+	command.Args = argv
+}
+
+func runLiteral(argv []string) {
+	if argv[0] == "literal-field-child" {
+	}
+	_ = exec.Cmd{Path: "x", Args: argv}
+}
+
+func runExec(argv []string) {
+	if argv[1] == "--exec-child" {
+	}
+	_ = syscall.Exec("/bin/x", argv, nil)
+}
+
+func built() {
+	args := []string{"status", "--short"}
+	if args[0] == "built-child" {
+	}
+	var cmdArgs = []string{"x"}
+	if cmdArgs[0] == "var-child" {
+	}
+}
+
+func runAppended(dir string, argv []string) {
+	if argv[0] == "appended-child" {
+	}
+	_ = exec.Command("git", append([]string{"-C", dir}, argv...)...)
+}
+
+func reexec() {
+	args := os.Args[1:]
+	if args[0] == "reexec-verb" {
+	}
+	_ = exec.Command(os.Args[0], args...)
+	rest := flag.Args()
+	if rest[0] == "flag-args-verb" {
+	}
+	_ = exec.Command("x", rest...)
+}
+
+type invocation struct{ Argv []string }
+
+// wholeGoTest is only ever handed a recorded child command, never this binary's arguments.
+func wholeGoTest(argv []string) bool {
+	if argv[0] != "go" || argv[1] != "test" {
+		return false
+	}
+	for _, word := range argv[2:] {
+		if word == "-run" {
+			return false
+		}
+	}
+	return true
+}
+
+func checkRecorded(recorded invocation) bool { return wholeGoTest(recorded.Argv) }
+
+// forwarded receives this binary's own arguments from Main, so it is dispatch.
+func forwarded(args []string) {
+	if args[0] == "forwarded-verb" {
+	}
+}
+
+func handler(args []string) {
+	if args[0] == "handler-verb" {
+	}
+}
+
+var handlers = map[string]func([]string){"h": handler}
+
+func Main(args []string) {
+	forwarded(args[1:])
+}
+
+// Run's parameter is not argument-named, but it carries the command line into routed.
+func Run(input []string) { routed(input) }
+
+func routed(args []string) {
+	if args[0] == "input-verb" {
+	}
+}
+
+func nested(args []string) {
+	helper := func(args []string) { _ = exec.Command("git", args...) }
+	_ = helper
+	if args[0] == "nested-verb" {
+	}
+}
+
+func element(args []string) {
+	switch args[0] {
+	case "elem-verb":
+		_ = exec.Command("xdg-open", args[1])
+	}
+}
+
+func prepended() {
+	words := []string{}
+	words = append(words, os.Args[1:]...)
+	if words[0] == "appended-own" {
+	}
+	_ = exec.Command("x", words...)
+}
+
+func dispatch(argv []string) {
+	if argv[0] == "real-verb" {
+	}
+	for _, arg := range argv {
+		if arg == "--real-flag" {
+		}
+	}
+}
+`
+	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(source), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	scan, err := ScanDirs(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var words, flags []string
+	for _, literal := range scan.Words {
+		words = append(words, literal.Value)
+	}
+	for _, literal := range scan.Flags {
+		flags = append(flags, literal.Value)
+	}
+	if want := []string{"appended-own", "elem-verb", "flag-args-verb", "forwarded-verb", "handler-verb", "input-verb", "nested-verb", "real-verb", "reexec-verb"}; !slices.Equal(words, want) {
+		t.Errorf("words %v, want %v", words, want)
+	}
+	if !slices.Equal(flags, []string{"--real-flag"}) {
+		t.Errorf("flags %v, want only --real-flag", flags)
+	}
+}

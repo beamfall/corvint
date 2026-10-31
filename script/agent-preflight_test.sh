@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-# Three fixed behaviors in agent-preflight.sh:
+# Four fixed behaviors in agent-preflight.sh:
 #
 #   1. It must see a worktree DELETION (`git status --short` prefix ` D`) as a
 #      concurrent write, not just a modification (` M`). Before the fix, `grep '^ M'`
@@ -13,6 +13,10 @@ set -eu
 #      matter what `git status` showed.
 #   3. A failed `git ls-files src/` call must refuse instead of proving that no tracked
 #      oracle path remains.
+#   4. The Claude Code attribution setting (ASD-V0-561, V1-3227): unset, or set to a
+#      non-empty value, fails; "attribution": {"commit": "", "pr": ""} (or the legacy
+#      includeCoAuthoredBy false) passes; no config directory is not a Claude Code host;
+#      a project settings file overrides the user file.
 #
 # Each case runs the real script (copied into an isolated fixture repo, per the
 # gate-enumeration_test.sh pattern) against a small git history it controls.
@@ -33,7 +37,7 @@ fail() { printf 'FAIL: %s\n' "$1" >&2; exit 1; }
 # aren't testing. /usr/bin:/bin still carries sh, git, grep, sed, cut, tr, wc, mktemp.
 run_preflight() {
     fixture=$1; shift
-    (cd "$fixture" && PATH=/usr/bin:/bin sh script/agent-preflight.sh "$@" 2>&1)
+    (cd "$fixture" && CLAUDE_CONFIG_DIR=${claude_dir:-$harness_root/no-claude} PATH=/usr/bin:/bin sh script/agent-preflight.sh "$@" 2>&1)
 }
 
 new_fixture() {
@@ -112,7 +116,7 @@ exec "$REAL_GIT" "$@"
 SH
 chmod +x "$harness_root/failing-git/git"
 fixture=$(new_fixture git-failure)
-output=$(cd "$fixture" && REAL_GIT="$real_git" PATH="$harness_root/failing-git:/usr/bin:/bin" \
+output=$(cd "$fixture" && CLAUDE_CONFIG_DIR="$harness_root/no-claude" REAL_GIT="$real_git" PATH="$harness_root/failing-git:/usr/bin:/bin" \
     sh script/agent-preflight.sh 2>&1) && status=0 || status=$?
 test "$status" -ne 0 \
     || fail "git-failure: expected non-zero exit when git ls-files fails, got 0: $output"
@@ -120,4 +124,35 @@ printf '%s\n' "$output" | grep -q 'oracle-retired.*git ls-files failed' \
     || fail "git-failure: missing refusal diagnostic: $output"
 printf '  %-24s %s\n' "git-failure" "git ls-files failure refused, exit $status"
 
-printf 'agent-preflight_test: 7 assertions passed\n'
+# Case 4: the Claude Code attribution setting.
+fixture=$(new_fixture claude-attribution)
+claude_dir=$harness_root/claude
+attribution() { # expected-exit expected-text [settings.json content]
+    rm -rf "$claude_dir"; mkdir -p "$claude_dir"
+    if [ "$#" -gt 2 ]; then printf '%s\n' "$3" > "$claude_dir/settings.json"; fi
+    output=$(run_preflight "$fixture") && status=0 || status=$?
+    test "$status" = "$1" || fail "claude-attribution: expected exit $1 for ${3-no settings file}, got $status: $output"
+    printf '%s\n' "$output" | grep -q "^claude-attribution $2" || fail "claude-attribution: expected '$2' for ${3-no settings file}: $output"
+}
+attribution 1 'unset -- Claude Code adds an AI Co-Authored-By trailer'
+attribution 1 'unset' '{"model": "opus"}'
+attribution 0 'commit and pr attribution off' '{
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  }
+}'
+attribution 1 'attribution is set but not empty' '{"attribution": {"commit": "Co-Authored-By: Claude <noreply@anthropic.com>", "pr": ""}}'
+attribution 1 'attribution is set but not empty' '{"attribution": {"commit": ""}}'
+attribution 0 'includeCoAuthoredBy is false' '{"includeCoAuthoredBy": false}'
+mkdir -p "$fixture/.claude"
+printf '{"attribution": {"commit": "x", "pr": "x"}}\n' > "$fixture/.claude/settings.local.json"
+attribution 1 "attribution is set but not empty in .*/claude-attribution/.claude/settings.local.json" '{"attribution": {"commit": "", "pr": ""}}'
+rm -rf "$fixture/.claude"
+claude_dir=$harness_root/no-claude
+output=$(run_preflight "$fixture") && status=0 || status=$?
+test "$status" = 0 || fail "claude-attribution: no config directory failed, exit $status: $output"
+printf '%s\n' "$output" | grep -q '^claude-attribution no .* -- not a Claude Code host' || fail "claude-attribution: absent directory: $output"
+printf '  %-24s %s\n' "claude-attribution" "unset and non-empty fail; empty, legacy-off and absent pass; project overrides"
+
+printf 'agent-preflight_test: 16 assertions passed\n'

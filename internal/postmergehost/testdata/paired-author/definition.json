@@ -59,7 +59,7 @@
     "whole398 completion"
   ],
   "files": {
-    "author/main.go": "f298bc87732f909dde225313d88301a8a2cc10ed756f7596d798efbf8bf57016",
+    "author/main.go": "f1dd3c890146bc6e82a62f8557e31af088b41f867c57c9f1e07ddec7c34f4372",
     "control/calc.go": "32b2d3da3416d42d2c5cadcca56bc76b290005da0edd75e79d288aa2254e2895",
     "base/go.mod": "0b1db9cb88367640f95b31fe7e15fef92c762f95a7d9b199aa8c7c03f499e59b",
     "base/calc.go": "81cfdb8660a9f8e2c2c890537b4df8817d552a16f690f2844eb57b4e3413cece",

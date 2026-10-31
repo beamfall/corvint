@@ -17,4 +17,8 @@ func startSnapshotRefresh(ctx context.Context, root string) string {
 	return "failed to start"
 }
 
+func startSnapshotRefreshReporting(ctx context.Context, root string) (string, string) {
+	return startSnapshotRefresh(ctx, root), ""
+}
+
 func runSnapshotRefreshWorker(arguments []string, wallBound time.Duration) int { return 2 }

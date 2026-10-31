@@ -865,7 +865,7 @@ func assertedEnd(toks []token, i int) int {
 }
 
 func next(toks []token, i int, punct ...string) bool {
-	if i >= len(toks) || toks[i].kind != tokPunct {
+	if i < 0 || i >= len(toks) || toks[i].kind != tokPunct {
 		return false
 	}
 	for _, p := range punct {

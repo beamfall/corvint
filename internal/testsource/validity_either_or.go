@@ -28,10 +28,11 @@ func (s *source) eoFindings() []testvalidity.SourceFinding {
 			continue
 		}
 		line := s.tokens[i].Line
-		if eoAllowed(s.comments, s.eoCodeLines(), line) {
+		where := fmt.Sprintf("%s:%d", s.path, line)
+		if reason, ok := eoAllowed(s.comments, s.eoCodeLines(), line); ok {
+			s.exemptions = append(s.exemptions, testvalidity.RuleExemption{Rule: testvalidity.RuleEitherOrOutcome, Location: where, Reason: reason})
 			continue
 		}
-		where := fmt.Sprintf("%s:%d", s.path, line)
 		out = append(out, testvalidity.SourceFinding{
 			Rule: testvalidity.RuleEitherOrOutcome, Severity: testvalidity.SeverityInvalid,
 			Test: fmt.Sprintf("%s:%d", s.path, test.line), Title: test.title, Location: where, Cause: where,
@@ -363,29 +364,35 @@ func (s *source) eoCodeLines() map[int]bool {
 
 // eoAllowed reports a valid `corvint-validity-allow EITHER-OR-OUTCOME: <reason>` annotation for
 // line: a comment on the line itself, or one alone on the line above. A missing reason or another
-// rule's name does not exempt the line (TSA-V0-163).
-func eoAllowed(comments []appmap.JSComment, codeLines map[int]bool, line int) bool {
+// rule's name does not exempt the line (TSA-V0-163). The annotation's reason is returned so the
+// exemption retains it (TSA-V0-870).
+func eoAllowed(comments []appmap.JSComment, codeLines map[int]bool, line int) (string, bool) {
 	for _, c := range comments {
 		last := c.Line + strings.Count(c.Text, "\n")
 		if c.Line != line && !(last == line-1 && !codeLines[c.Line]) {
 			continue
 		}
-		if eoAnnotation(c.Text) {
-			return true
+		if reason, ok := eoAnnotation(c.Text); ok {
+			return reason, true
 		}
 	}
-	return false
+	return "", false
 }
 
-// eoAnnotation reports text carrying the either-or justification annotation with a reason.
-func eoAnnotation(text string) bool {
+// eoAnnotation returns the reason of text carrying the either-or justification annotation, and
+// whether it carries one with a reason.
+func eoAnnotation(text string) (string, bool) {
 	_, rest, ok := strings.Cut(text, testvalidity.ValidityAllowMarker)
 	if !ok || rest == "" || (rest[0] != ' ' && rest[0] != '\t') {
-		return false
+		return "", false
 	}
 	rule, reason, ok := strings.Cut(strings.TrimSpace(rest), ":")
 	reason = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(reason), "*/"))
-	return ok && strings.TrimSpace(rule) == testvalidity.RuleEitherOrOutcome && reason != "" && !strings.HasPrefix(reason, "-->")
+	reason = strings.TrimSpace(strings.TrimSuffix(reason, "-->"))
+	if !ok || strings.TrimSpace(rule) != testvalidity.RuleEitherOrOutcome || reason == "" || strings.HasPrefix(reason, "-->") {
+		return "", false
+	}
+	return reason, true
 }
 
 // eoContractExpected matches one expected-value line of a behaviour contract: a Markdown,
@@ -401,11 +408,13 @@ var (
 // eoContractFindings reports every behaviour-contract expected value naming two or more distinct
 // outcomes joined by `or` (single words) or `/` (status codes or upper-case enum names), unless
 // the line or the line above carries the justification annotation (TSA-V0-162, TSA-V0-163). The
-// finding is invalid against the contract line itself.
-func eoContractFindings(name, text string) []testvalidity.SourceFinding {
+// finding is invalid against the contract line itself. Each exempted line is returned with the
+// annotation's reason (TSA-V0-870).
+func eoContractFindings(name, text string) ([]testvalidity.SourceFinding, []testvalidity.RuleExemption) {
 	out := []testvalidity.SourceFinding{}
+	var exempted []testvalidity.RuleExemption
 	lines := strings.Split(text, "\n")
-	jsonContract, jsonAllowed := strings.HasSuffix(name, ".json"), map[int]bool{}
+	jsonContract, jsonAllowed := strings.HasSuffix(name, ".json"), map[int]string{}
 	if jsonContract {
 		jsonAllowed = eoJSONAllowed(text)
 	}
@@ -414,11 +423,22 @@ func eoContractFindings(name, text string) []testvalidity.SourceFinding {
 		if m == nil {
 			continue
 		}
-		values := eoContractValues(m[2])
-		if len(values) < 2 || eoAnnotation(raw) || n > 0 && eoContractComment(lines[n-1]) && eoAnnotation(lines[n-1]) || jsonAllowed[n+1] {
+		values := eoContractValues(eoContractValueText(m[2]))
+		if len(values) < 2 {
 			continue
 		}
 		where := fmt.Sprintf("%s:%d", name, n+1)
+		reason, allowed := eoAnnotation(raw)
+		if !allowed && n > 0 && eoContractComment(lines[n-1]) {
+			reason, allowed = eoAnnotation(lines[n-1])
+		}
+		if !allowed {
+			reason, allowed = jsonAllowed[n+1]
+		}
+		if allowed {
+			exempted = append(exempted, testvalidity.RuleExemption{Rule: testvalidity.RuleEitherOrOutcome, Location: where, Reason: reason})
+			continue
+		}
 		message := eoMessage("the contract's expected value", values)
 		if jsonContract {
 			// JSON has no comment lines, so the message also names the sibling-member form
@@ -432,7 +452,7 @@ func eoContractFindings(name, text string) []testvalidity.SourceFinding {
 			Message: message,
 		})
 	}
-	return out
+	return out, exempted
 }
 
 // eoContractComment reports a contract line that is a comment: YAML `#`, `//`, or a Markdown
@@ -440,6 +460,18 @@ func eoContractFindings(name, text string) []testvalidity.SourceFinding {
 func eoContractComment(line string) bool {
 	line = strings.TrimSpace(line)
 	return strings.HasPrefix(line, "#") || strings.HasPrefix(line, "//") || strings.HasPrefix(line, "<!--")
+}
+
+// eoContractValueText is an expected value without a trailing comment on its line: a YAML ` #`,
+// a ` //` or a Markdown `<!--` comment. The comment, which may carry the justification annotation,
+// is read separately from the value (TSA-V0-870).
+func eoContractValueText(value string) string {
+	for _, mark := range []string{"<!--", " #", "\t#", " //", "\t//"} {
+		if i := strings.Index(value, mark); i >= 0 {
+			value = value[:i]
+		}
+	}
+	return value
 }
 
 // eoContractValues splits an expected value into its alternatives when every alternative is one

@@ -11,10 +11,12 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/patch"
 	"github.com/Beamfall/corvint/internal/cem/verify"
 	"github.com/Beamfall/corvint/internal/cem/workflow"
@@ -24,6 +26,10 @@ import (
 type ProposeOptions struct {
 	Root string
 	Base string
+	// Refresh names an earlier plan whose rows are carried forward to the
+	// current hunks by hunk ID, else by path and content or BASE range
+	// (DCW-V0-442).
+	Refresh string
 }
 
 // proposal drafts a per-hunk citation plan from the prepared map (DCW-V0-150).
@@ -49,6 +55,22 @@ type proposal struct {
 	// changed holds every path BASE..HEAD adds, modifies or deletes; a draft
 	// never cites one (DCW-V0-393).
 	changed map[string]bool
+	// changeIDs maps each requirement ID an added "- `ID`:" line of the
+	// canonical patch defines to the path defining it (DCW-V0-440).
+	changeIDs map[string]string
+	// refreshRows are the --refresh plan's rows; carried holds those carried
+	// to each current hunk ID, and carryNotes says what happened to each
+	// (DCW-V0-442).
+	refreshRows []refreshRow
+	carried     map[string][]string
+	carryNotes  []string
+	// refreshPlan is the --refresh plan as read; refreshDeferred holds its
+	// validated deferred rows, carried as written (DCW-V0-370).
+	refreshPlan     []byte
+	refreshDeferred []string
+	// moves maps each side of a file the change moves, the deleted BASE path
+	// and the added path, to that move (DCW-V0-803).
+	moves map[string]movedFile
 }
 
 // spanLine is one line of a BASE file.
@@ -84,6 +106,7 @@ func ProposeCitations(ctx context.Context, options ProposeOptions, stdout, stder
 
 func (p *proposal) run() int {
 	p.requireRoot()
+	p.readRefreshPlan()
 	base, status := p.git(true, "rev-parse", "--verify", "-q", p.options.Base+"^{commit}")
 	if status != 0 {
 		p.refuse("base-unavailable")
@@ -107,12 +130,16 @@ func (p *proposal) run() int {
 		p.say("%s: NOTE map-base-mismatch\n  map baseRevision=%s BASE=%s, so the draft is keyed by the current patch's hunk IDs against BASE; dogfood change BASE prepares a fresh map when it binds (DCW-V0-394)\n", p.prefix, baseRevision, p.base)
 		return p.template("OTHER_BASE")
 	}
+	if p.options.Refresh != "" {
+		// A refreshed plan is keyed by hunk ID, so it survives later reordering.
+		p.keyByID = true
+	}
 	if p.mapStale(hunks) {
 		p.say("%s: NOTE map-stale\n  .corvint/change.cem.json no longer matches the canonical BASE..HEAD patch (a commit followed its prepare), so its ordinals would name other hunks and its ranges miss new edits; drafting hunk-ID rows from the current patch instead (DCW-V0-382)\n", p.prefix)
 		return p.template("STALE")
 	}
 	rows, notes := p.draft(hunks)
-	p.say("%s: PROPOSED rows=%d hunks=%d base=%s\n", p.prefix, len(rows), len(hunks), p.base)
+	p.say("%s: PROPOSED rows=%d hunks=%d base=%s%s\n", p.prefix, len(rows), len(hunks), p.base, p.refreshLabel())
 	p.say("  this draft is not a plan: review every row, replace each with the evidence the hunk really depends on or implements, then write it to the DOGFOOD_CITATIONS file; nothing is cited until dogfood change runs with that file (DCW-V0-150)\n")
 	p.printDraft(hunks, rows, notes)
 	return 0
@@ -141,40 +168,58 @@ func (p *proposal) printDraft(hunks []proposedHunk, rows, notes []string) {
 // canonicalPatch reads and parses the canonical BASE..HEAD patch the map is
 // derived from, or reports it unreadable within its bound.
 func (p *proposal) canonicalPatch() (*patch.Patch, bool) {
-	raw, status, bounded := p.boundedGit(p.canonicalDiffArguments()...)
-	if status != 0 || !bounded {
-		return nil, false
-	}
-	if raw == "" {
-		return new(patch.Patch), true
-	}
-	parsed, err := patch.Parse([]byte(raw))
-	return parsed, err == nil
+	parsed, _, _ := p.readCanonicalPatch()
+	return parsed, parsed != nil
 }
 
-// mapStale reports whether the prepared map's hunks, by path and BASE range,
-// differ from the current canonical patch's in either direction: a commit
-// after the prepare added a hunk, or reverted one the map still holds.
-// An unreadable patch is not judged stale; the draft then keeps the map
-// (DCW-V0-382).
+// readCanonicalPatch reads and parses the canonical patch, or names why it
+// cannot: the reason is git-diff-failed, or the cem/1.0 code cem prepare
+// refuses the same patch with, and detail is that refusal's message
+// (DCW-V0-802). A patch over cem prepare's Git output bound,
+// patch.MaxPatchBytes, is git-output-exceeded as there, not the binary-patch
+// code the parser gives an oversized input.
+func (p *proposal) readCanonicalPatch() (parsed *patch.Patch, reason, detail string) {
+	raw, status, bounded := p.boundedGit(p.canonicalDiffArguments()...)
+	switch {
+	case !bounded, len(raw) > patch.MaxPatchBytes:
+		return nil, cemcode.GitOutputExceeded, fmt.Sprintf("the BASE..HEAD patch exceeds the %d-byte Git output bound cem prepare reads it under", patch.MaxPatchBytes)
+	case status != 0:
+		return nil, "git-diff-failed", fmt.Sprintf("git diff BASE HEAD exited %d", status)
+	case raw == "":
+		return new(patch.Patch), "", ""
+	}
+	parsed, err := patch.Parse([]byte(raw))
+	if err != nil {
+		reason = cemcode.CodeOf(err)
+		if reason == "" {
+			reason = "patch-unparsable"
+		}
+		return nil, reason, err.Error()
+	}
+	return parsed, "", ""
+}
+
+// mapStale reports whether the prepared map's hunks, by path, BASE range and
+// any recorded hunk ID, differ from the current canonical patch's in either direction: a
+// commit after the prepare added a hunk, reverted one the map still holds, or
+// amended a hunk's content in place, which keeps its range but re-hunks its ID
+// (DCW-V0-441). An unreadable patch is not judged stale; the draft then keeps
+// the map (DCW-V0-382).
 func (p *proposal) mapStale(hunks []proposedHunk) bool {
 	parsed, ok := p.canonicalPatch()
 	if !ok {
 		return false
 	}
-	prepared := map[string]bool{}
-	for _, hunk := range hunks {
-		prepared[rangeKey(hunk.path, int64(hunk.oldStart), int64(hunk.oldCount))] = true
-	}
-	current := map[string]bool{}
+	current := map[string]string{}
 	for _, hunk := range parsed.Hunks {
-		current[rangeKey(hunk.DisplayPath, hunk.OldRange.Start, hunk.OldRange.Count)] = true
+		current[rangeKey(hunk.DisplayPath, hunk.OldRange.Start, hunk.OldRange.Count)] = hunk.ID
 	}
-	if len(current) != len(prepared) {
+	if len(current) != len(hunks) {
 		return true
 	}
-	for key := range current {
-		if !prepared[key] {
+	for _, hunk := range hunks {
+		id, found := current[rangeKey(hunk.path, int64(hunk.oldStart), int64(hunk.oldCount))]
+		if !found || hunk.id != "" && hunk.id != id {
 			return true
 		}
 	}
@@ -188,10 +233,9 @@ func (p *proposal) mapStale(hunks []proposedHunk) bool {
 // as owed; the bind and its plan precheck (DCW-V0-019, DCW-V0-335) still judge
 // every row against the map they prepare.
 func (p *proposal) template(mapState string) int {
-	parsed, ok := p.canonicalPatch()
-	if !ok {
-		p.say("%s: REFUSE patch-unavailable\n  the canonical BASE..HEAD patch could not be read within its bound, so no draft is printed\n  fix: run corvint dogfood change %s first to prepare .corvint/change.cem.json, then rerun this command\n", p.prefix, p.options.Base)
-		p.exit(2)
+	parsed, reason, detail := p.readCanonicalPatch()
+	if parsed == nil {
+		p.refusePatchUnavailable(reason, detail)
 	}
 	hunks := make([]proposedHunk, len(parsed.Hunks))
 	for index, hunk := range parsed.Hunks {
@@ -199,11 +243,34 @@ func (p *proposal) template(mapState string) int {
 	}
 	p.keyByID = true
 	rows, notes := p.draft(hunks)
-	p.say("%s: PROPOSED rows=%d hunks=%d base=%s map=%s keyed=hunk-id\n", p.prefix, len(rows), len(hunks), p.base, mapState)
+	p.say("%s: PROPOSED rows=%d hunks=%d base=%s map=%s keyed=hunk-id%s\n", p.prefix, len(rows), len(hunks), p.base, mapState, p.refreshLabel())
 	p.say("  no usable map is prepared, so the hunks come from the canonical BASE..HEAD patch and each row is keyed by its full hunk ID, valid in any map order; no probe bind pass is needed, and the bind's plan precheck still judges every row (DCW-V0-350)\n")
 	p.say("  this draft is not a plan: review every row, replace each with the evidence the hunk really depends on or implements, then write it to the DOGFOOD_CITATIONS file; nothing is cited until dogfood change runs with that file (DCW-V0-150)\n")
 	p.printDraft(hunks, rows, notes)
 	return 0
+}
+
+// refusePatchUnavailable refuses a map-free draft whose canonical patch
+// cannot be read or parsed (DCW-V0-802). cem prepare derives the map from the
+// same patch with the same parser, so running dogfood change first cannot
+// help: the refusal names why, what to change, and the first-run order, in
+// which propose-citations is the first command and needs only BASE and a
+// committed HEAD.
+func (p *proposal) refusePatchUnavailable(reason, detail string) {
+	base := p.options.Base
+	p.say("%s: REFUSE patch-unavailable reason=%s\n", p.prefix, reason)
+	p.say("  %s; no draft is printed and nothing was written\n", detail)
+	switch reason {
+	case "git-diff-failed":
+		p.say("  fix: make BASE a commit of this repository that HEAD contains (git merge-base --is-ancestor %s HEAD), then rerun corvint dogfood propose-citations %s\n", base, base)
+	case cemcode.GitOutputExceeded:
+		p.say("  fix: cem prepare refuses a patch this large as well, so dogfood change cannot run first; split the change into smaller commits on separate branches, then rerun corvint dogfood propose-citations %s\n", base)
+	default:
+		p.say("  fix: cem prepare refuses this patch with the same code, so dogfood change and dogfood finish-lane cannot run first; make every changed path a regular file with a textual hunk (give an empty file content, revert a mode-only change, drop a binary file or symbolic link), commit, then rerun corvint dogfood propose-citations %s\n", base)
+	}
+	p.say("  prerequisite: propose-citations is the first command of the closeout and needs only BASE and a committed HEAD; no prepared map, DOGFOOD_INTENTS_FILE, DOGFOOD_VERIFY_FILE or DOGFOOD_OUTCOME (DCW-V0-350)\n")
+	p.say("  next: write the reviewed draft to plan.tsv, then make dogfood-inputs-check BASE=%s CITATIONS=plan.tsv INTENTS=<intents.txt> VERIFY=<verify.txt> OUTCOME=passed|failed|blocked, then make dogfood-finish with the same inputs (docs/DOGFOOD.md §4 first-run order)\n", base)
+	p.exit(2)
 }
 
 // preparedHunks reads a prepared map's base revision and its hunks in map order,
@@ -269,11 +336,17 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 		p.changed[sealContract] = true
 	}
 	used := map[string]bool{}
-	rows, notes := []string{}, []string{}
+	p.carry(owed, used)
+	rows, notes := []string{}, append([]string{}, p.carryNotes...)
 	cited := 0
 	lastCite := ""
 	uniform := true
 	for _, hunk := range owed {
+		if carried, ok := p.carried[hunk.id]; ok {
+			rows = append(rows, carried...)
+			uniform = false
+			continue
+		}
 		row, cite, fellBack := p.propose(hunk, edited, used)
 		if fellBack != "" {
 			notes = append(notes, fmt.Sprintf("row %d cited, not anchored (CEM-V1-081): %s", hunk.ordinal, fellBack))
@@ -295,7 +368,7 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 		ordinal, _, _ := strings.Cut(rows[last], "\t")
 		rows[last] = unknownProposal(ordinal, "no second stable span was found near this hunk")
 	}
-	return rows, notes
+	return append(rows, p.refreshDeferred...), notes
 }
 
 // propose returns one row for hunk, the PATH:START:END it cites, or "" for an
@@ -311,7 +384,16 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 	if bookkeepingPath(hunk.path) {
 		return unknownProposal(ordinal, hunk.path+" is a bookkeeping record (DCW-V0-333); name the BASE contract the record describes"), "", ""
 	}
+	// Checked before any anchor: a BASE line that happens to name the path
+	// must not displace the mandatory unknown row (DCW-V0-440).
+	if id, where := p.sameChangeRequirement(p.derivedHunk(hunk)); id != "" {
+		return unknownProposal(ordinal, "the hunk names requirement "+id+", which this change itself adds in "+where+
+			", and same-change intent is not BASE evidence (cem cite cites BASE spans only), so it cannot be cited (DCW-V0-440): keep this row unknown, or cite the BASE contract "+id+" refines"), "", ""
+	}
 	if row, cite, note := p.sealedProposal(hunk, ordinal, edited, used); row != "" {
+		return row, cite, note
+	}
+	if row, cite, note := p.movedProposal(hunk, ordinal, edited, used); row != "" {
 		return row, cite, note
 	}
 	if row, cite := p.anchoredProposal(hunk, ordinal, edited, used); row != "" {
@@ -326,7 +408,29 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 		// gate through a cite row plus a passed runner receipt (DCW-V0-395).
 		return unknownProposal(ordinal, hunk.path+" is absent at BASE and "+missing+"; name the BASE contract this new file implements, and bind a passed runner receipt for it (CEM-V1-606)"), "", ""
 	}
-	return unknownProposal(ordinal, missing+"; the change modifies "+hunk.path+", so its own lines are not proposed; name the BASE contract the hunk depends on or implements"), "", ""
+	// The nearest stable heading or declaration of the modified file is named
+	// as a review hint only, never drafted (DCW-V0-439).
+	hint := ""
+	if lines := p.baseLines(hunk.path); len(lines) > 0 {
+		anchor := min(max(hunk.oldStart, 1), len(lines))
+		relation, preferred := proposalRelation(hunk.path), preferredAnchor(hunk.path)
+		candidates := []int{}
+		for line := anchor; line >= 1; line-- {
+			if preferred(string(lines[line-1])) {
+				candidates = append(candidates, line)
+			}
+		}
+		for distance := 1; distance <= len(lines); distance++ {
+			candidates = append(candidates, anchor-distance, anchor+hunk.oldCount+distance-1)
+		}
+		for _, line := range candidates {
+			if p.stable(hunk.path, line, edited) {
+				hint = fmt.Sprintf("; its nearest stable line %s %d:%d %s is a review hint only (DCW-V0-439)", hunk.path, line, line, relation)
+				break
+			}
+		}
+	}
+	return unknownProposal(ordinal, missing+"; the change modifies "+hunk.path+", so its own lines are not proposed"+hint+"; name the BASE contract the hunk depends on or implements"), "", ""
 }
 
 // sealContract is the BASE document whose lines define the sealed CEM path
@@ -371,6 +475,7 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 		candidates = append(candidates, p.matches[definitionPattern(id)]...)
 	}
 	definitions := len(candidates)
+	families := p.hunkFamilies(derived)
 	candidates = append(candidates, p.matches[anchorPath(derived)]...)
 	if name := anchorBasename(derived); p.basenames && name != "" {
 		candidates = append(candidates, p.matches[name]...)
@@ -380,7 +485,13 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 		if used[cite] || !p.stable(candidate.path, candidate.line, edited) {
 			continue
 		}
-		text := p.baseLines(candidate.path)[candidate.line-1]
+		lines := p.baseLines(candidate.path)
+		// The only line of a file, such as a one-line JSON document, cites the
+		// whole file, which says nothing about this hunk (DCW-V0-440).
+		if !p.basenames && len(lines) == 1 {
+			continue
+		}
+		text := lines[candidate.line-1]
 		if kinds, _ := verify.SpanAnchors(derived, text); len(kinds) == 0 {
 			continue
 		}
@@ -389,10 +500,100 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 		if index >= definitions && !p.basenames && !namesWholePath(text, anchorPath(derived)) {
 			continue
 		}
+		// A hunk that names a requirement family is anchored only by a
+		// line of its dominant family, never by another spec's row, a bare
+		// list naming its path, or the definition of an ID it only mentions
+		// in passing (DCW-V0-404).
+		if !p.basenames && !relevantRequirementLine(families, text) {
+			continue
+		}
 		relation := proposalRelation(candidate.path)
 		return fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, candidate.path, candidate.line, candidate.line, relation), cite
 	}
 	return "", ""
+}
+
+// requirementToken is one requirement ID, such as DCW-V0-402, whose family
+// is the prefix before its final number, DCW-V0.
+var requirementToken = regexp.MustCompile(`\b[A-Z][A-Z0-9-]{2,31}-[0-9]{3}\b`)
+
+// hunkText returns a hunk's added and removed lines and its context lines.
+func hunkText(hunk *patch.Hunk) (edits, around []byte) {
+	for _, line := range hunk.Body {
+		if line.Prefix == ' ' {
+			around = append(append(around, line.Payload...), '\n')
+		} else {
+			edits = append(append(edits, line.Payload...), '\n')
+		}
+	}
+	return edits, around
+}
+
+// dominantFamilies returns the requirement families text names most often,
+// so a status line that mentions a few other specs' IDs still anchors to its
+// own family.
+func dominantFamilies(text []byte) map[string]bool {
+	counts, most := map[string]int{}, 0
+	for _, id := range requirementToken.FindAll(text, -1) {
+		family := string(id[:bytes.LastIndexByte(id, '-')])
+		counts[family]++
+		most = max(most, counts[family])
+	}
+	families := map[string]bool{}
+	for family, count := range counts {
+		if count == most {
+			families[family] = true
+		}
+	}
+	return families
+}
+
+// hunkFamilies returns the requirement families a hunk implements: those its
+// added and removed lines name, else its context lines, else the edits to the
+// same file, else the whole change's edits. It is empty when nothing names one.
+func (p *proposal) hunkFamilies(hunk *patch.Hunk) map[string]bool {
+	if hunk == nil {
+		return nil
+	}
+	edits, around := hunkText(hunk)
+	if changed := dominantFamilies(edits); len(changed) > 0 {
+		return changed
+	}
+	if context := dominantFamilies(around); len(context) > 0 {
+		return context
+	}
+	// The fallbacks count every ID of the other edits together, so the
+	// family they name most often wins (DCW-V0-404).
+	var file, all []byte
+	for key, other := range p.derived {
+		if key != other.ID {
+			continue
+		}
+		edits, _ := hunkText(other)
+		all = append(all, edits...)
+		if other.DisplayPath == hunk.DisplayPath {
+			file = append(file, edits...)
+		}
+	}
+	if families := dominantFamilies(file); len(families) > 0 {
+		return families
+	}
+	return dominantFamilies(all)
+}
+
+// relevantRequirementLine reports whether a BASE line naming a hunk's path
+// may anchor its draft: any such line when the hunk names no requirement
+// family, else only a line carrying an ID of one of them (DCW-V0-404).
+func relevantRequirementLine(families map[string]bool, text []byte) bool {
+	if len(families) == 0 {
+		return true
+	}
+	for _, id := range requirementToken.FindAll(text, -1) {
+		if families[string(id[:bytes.LastIndexByte(id, '-')])] {
+			return true
+		}
+	}
+	return false
 }
 
 // prepareAnchors reads the canonical BASE..HEAD patch the map was derived
@@ -401,7 +602,7 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 // leaves no candidates, and the drafts fall back to nearby lines; it reports
 // whether both reads completed.
 func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
-	p.derived, p.matches = map[string]*patch.Hunk{}, map[string][]spanLine{}
+	p.derived, p.matches, p.changeIDs = map[string]*patch.Hunk{}, map[string][]spanLine{}, map[string]string{}
 	complete := false
 	if raw, status, bounded := p.boundedGit(p.canonicalDiffArguments()...); status == 0 && bounded {
 		if parsed, err := patch.Parse([]byte(raw)); err == nil {
@@ -412,10 +613,24 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 				if p.changed != nil {
 					p.changed[hunk.DisplayPath], p.changed[anchorPath(hunk)] = true, true
 				}
+				for _, id := range addedDefinitions(hunk) {
+					if _, seen := p.changeIDs[id]; !seen {
+						p.changeIDs[id] = hunk.DisplayPath
+					}
+				}
 			}
 		}
 	}
 	patterns := map[string]bool{}
+	if !p.basenames {
+		// Only drafts pair moves; the check's anchor search is unchanged.
+		p.moves = movedFiles(p.derived)
+		for _, move := range p.moves {
+			for _, term := range move.terms() {
+				patterns[term] = true
+			}
+		}
+	}
 	for _, hunk := range owed {
 		derived := p.derivedHunk(hunk)
 		if name := anchorPath(derived); name != "" {
@@ -493,10 +708,14 @@ func bookkeepingPath(name string) bool {
 // corpus.json, is data, not a contract for the hunk. Recorded command output
 // is data too (DCW-V0-389): any file under a raw/ directory and any .stdout
 // or .stderr file, such as an inventory listing of every path in the tree.
+// So are JSON documents and retained agent evidence (DCW-V0-440): a
+// worklist, a migration table or an .agent-evidence/ capture names paths as
+// records, not as a contract for the hunk.
 func dataPath(name string) bool {
 	return strings.HasPrefix(name, "benchmarks/") || strings.HasPrefix(name, "testdata/") || strings.Contains(name, "/testdata/") ||
 		name == "docs/specs/INDEX.json" || name == "docs/specs/REQUIREMENTS.tsv" ||
-		strings.HasPrefix(name, "raw/") || strings.Contains(name, "/raw/") || strings.HasSuffix(name, ".stdout") || strings.HasSuffix(name, ".stderr")
+		strings.HasPrefix(name, "raw/") || strings.Contains(name, "/raw/") || strings.HasSuffix(name, ".stdout") || strings.HasSuffix(name, ".stderr") ||
+		strings.HasSuffix(name, ".json") || strings.HasSuffix(name, ".jsonl") || strings.HasPrefix(name, ".agent-evidence/")
 }
 
 // namesWholePath reports whether text names name as a whole path: some
@@ -523,6 +742,12 @@ func namesWholePath(text []byte, name string) bool {
 // canonicalDiffArguments are the canonical patch arguments of `cem` map
 // derivation (internal/cem/gitauth), so the parsed hunk IDs are the map's.
 func (p *proposal) canonicalDiffArguments() []string {
+	return p.canonicalDiffArgumentsFor(p.base, p.target)
+}
+
+// canonicalDiffArgumentsFor is the canonical patch of base..target, which
+// --refresh also reads for earlier commits (DCW-V0-442).
+func (p *proposal) canonicalDiffArgumentsFor(base, target string) []string {
 	format, _ := p.git(true, "rev-parse", "--show-object-format")
 	empty := map[string]string{
 		"sha1":   "4b825dc642cb6eb9a060e54bf8d69288fbee4904",
@@ -530,7 +755,7 @@ func (p *proposal) canonicalDiffArguments() []string {
 	}[chomp(format)]
 	return []string{"--attr-source=" + empty, "diff", "--full-index", "--no-color", "--no-ext-diff", "--no-textconv",
 		"--no-renames", "--no-indent-heuristic", "--diff-algorithm=myers", "--unified=3", "--inter-hunk-context=0",
-		"--src-prefix=a/", "--dst-prefix=b/", "--ignore-submodules=none", "--end-of-options", p.base, p.target,
+		"--src-prefix=a/", "--dst-prefix=b/", "--ignore-submodules=none", "--end-of-options", base, target,
 		"--", ".", ":(exclude).corvint/change.cem.json"}
 }
 
@@ -626,6 +851,24 @@ func proposalRelation(name string) string {
 	default:
 		return "dependency"
 	}
+}
+
+// preferredAnchor reports the lines preferred as a review hint for name: the
+// enclosing heading of a document, the enclosing declaration of source code.
+func preferredAnchor(name string) func(string) bool {
+	if strings.EqualFold(path.Ext(name), ".md") {
+		return func(line string) bool { return strings.HasPrefix(line, "#") }
+	}
+	return declaration
+}
+
+func declaration(line string) bool {
+	for _, prefix := range []string{"func ", "type ", "var ", "const ", "def ", "class "} {
+		if strings.HasPrefix(line, prefix) {
+			return true
+		}
+	}
+	return strings.HasSuffix(strings.TrimRight(line, "\n"), "() {")
 }
 
 func unknownProposal(ordinal, note string) string {

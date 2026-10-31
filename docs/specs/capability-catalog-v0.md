@@ -3,13 +3,13 @@
 Owner: Russell Lewis
 Date: 2026-10-20
 Requirement prefix: `CAP-V0`
-Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020); CAP-V0-015 to CAP-V0-021 accepted under the same standing auto-accept (beamfall/corvint#1588); CAP-V0-024 to CAP-V0-029 accepted under the same standing auto-accept (beamfall/corvint#1626); CAP-V0-030 to CAP-V0-032 accepted under the same standing auto-accept (beamfall/corvint#1784); CAP-V0-040 to CAP-V0-050 accepted under the same standing auto-accept (V1-2685); CAP-V0-060 accepted under the same standing auto-accept (V1-3212)
+Intent status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020); CAP-V0-015 to CAP-V0-021 accepted under the same standing auto-accept (beamfall/corvint#1588); CAP-V0-024 to CAP-V0-029 accepted under the same standing auto-accept (beamfall/corvint#1626); CAP-V0-030 to CAP-V0-032 accepted under the same standing auto-accept (beamfall/corvint#1784); CAP-V0-040 to CAP-V0-050 accepted under the same standing auto-accept (V1-2685); CAP-V0-200 experimental under the standing lane auto-accept (2026-10-30; V1-3153); CAP-V0-060 accepted under the same standing auto-accept (V1-3212)
 Delivery status: experimental
 Authoritative inputs: V1-2008 owner request (2026-10-20) "make sure corvints capabilities are properly documented so agents can fully understand what it can do", and the same-day scope addition for a README capability section; `../../AGENTS.md` invariants 2 and 8; `../AGENT-ROUTES.md`; beamfall/corvint#1588 (2026-10-23), a machine-readable command catalog generated from the command registry and a task-indexed guide shipped with the install.
 
 ## Agent digest
 - Claim: `llms.txt`, `docs/CAPABILITIES.md`, `corvint help --json`, the guide and per-binary command trees describe every command, flag and MCP tool; drift fails tests.
-- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020); CAP-V0-015 to CAP-V0-021 accepted under the same standing auto-accept (beamfall/corvint#1588); CAP-V0-024 to CAP-V0-029 accepted under the same standing auto-accept (beamfall/corvint#1626); CAP-V0-030 to CAP-V0-032 accepted under the same standing auto-accept (beamfall/corvint#1784); CAP-V0-040 to CAP-V0-050 accepted under the same standing auto-accept (V1-2685); CAP-V0-060 accepted under the same standing auto-accept (V1-3212)/experimental
+- Status: accepted under the owner's standing auto-accept (2026-10-11; V1-2008); CAP-V0-007 to CAP-V0-009 accepted under the same standing auto-accept (V1-2020); CAP-V0-015 to CAP-V0-021 accepted under the same standing auto-accept (beamfall/corvint#1588); CAP-V0-024 to CAP-V0-029 accepted under the same standing auto-accept (beamfall/corvint#1626); CAP-V0-030 to CAP-V0-032 accepted under the same standing auto-accept (beamfall/corvint#1784); CAP-V0-040 to CAP-V0-050 accepted under the same standing auto-accept (V1-2685); CAP-V0-200 experimental under the standing lane auto-accept (2026-10-30; V1-3153); CAP-V0-060 accepted under the same standing auto-accept (V1-3212)/experimental
 - Exists: `docs/CAPABILITIES.md`, the README "What Corvint can do" section, `tools/capabilities-check` (its `go test` and `make capabilities-check`), and `internal/capcatalog` (`corvint help --json`, `corvint help guide`, `make capability-catalog`, `make capability-catalog-check`, and the offline Non-capabilities status guard `NONCAPABILITY-STATUS.tsv`), `internal/clitree` with the snapshots under `internal/capcatalog/trees/` and the shrink-only `CLI-RATCHET.tsv`, the root `llms.txt`, and catalog pointers in `AGENTS.md`, `docs/AGENT-ROUTES.md`, `docs/README.md` and the shipped Claude Code, Codex, Gemini CLI, OpenCode and OpenSpec skills.
 - Blocked on: the 52 `cmd/` binaries on the CLI ratchet have no command tree yet; subcommands and flags are gated against the command trees, not against the `docs/CAPABILITIES.md` rows, and profile membership and prose claims are not gated (see Failure modes); the guide ships inside the binary rather than as a release-archive member (owner-accepted as shipped with the install, 2026-10-23: a seventh member would break deployed updaters); the drift tests run in the existing Go test shards, and `capability-catalog-check` is not a separate CI step; `corvint-mcp` serves both through `corvint.help` (`MCPV0-100`), the other MCP servers do not; the Pi package text is not routed yet (its qualified adapter tuple pins the package bytes).
 - Read next: Requirements; Boundaries and failure modes; Traceability.
@@ -298,6 +298,28 @@ cannot silently go missing or outlive its command.
   hint when none matches; the outcome stays `ERROR`. A test walks every implemented verb except
   `help`, whose `--help` is the root help (CAL-V0-047), with `--help` and fails on an unknown-verb
   result or help without usage, flags or an example.
+- `CAP-V0-200`: (experimental under the standing lane auto-accept (2026-10-30); V1-3153; refines
+  `CAP-V0-041` and `CAP-V0-047`) The dispatch scan MUST NOT read as this binary's arguments two
+  kinds of argument-named slice. (1) An argument-named `[]string` parameter of a package
+  function that never receives the command line: the function is not exported, `main` or
+  `init`, is called in the package and named nowhere but as a callee, and every call passes, at
+  that position, only a struct field other than `Args` (a recorded invocation such as
+  `wholeGoTest(invocation.Argv)`), a literal, an `append` of those, or a caller `[]string`
+  parameter, whatever its name, that is not shown to receive the command line, computed to a fixed
+  point, so `Run(input []string) { routed(input) }` carries the command line into `routed`; any other argument (a local, a closure
+  parameter, a call result) counts as the command line. (2) A slice a function body hands whole,
+  sliced, spread or through `append` to `exec.Command`, `exec.CommandContext` or `syscall.Exec`,
+  assigns to a `Cmd`'s `Args` field or sets as `Args:` in a composite literal, or binds to a
+  `[]string{...}` literal; a single element (`exec.Command("xdg-open", args[1])`) is a string,
+  not an argv, and excludes nothing. A name the body binds from `os.Args`, a selector's `Args`,
+  an `Args()` call or an `append` of one is never excluded, so a binary that re-executes itself
+  is still scanned. A name resolves in its innermost enclosing function, so a closure's
+  parameter never hides the same name in the function around it. Non-goals: type-checked data
+  flow; following a second name (`a := argv` excludes only `a`). Failure mode: a function that
+  dispatches on an argument parameter and also execs that whole parameter hides its dispatch
+  words. The scan of the three committed command trees finds the same words and flags as before,
+  with `cmd/corvint`'s `wholeGoTest` parameter named `argv` again. Rollback: remove
+  `childargv.go` and the `childArgv` predicate, and rename that parameter back to `command`.
 
 ## Boundaries and failure modes
 
@@ -449,3 +471,4 @@ with its read-scope entry, the AGENTS.md rule and the `docs/CAPABILITIES.md` sec
 | CAP-V0-049 | `llms.txt`, `CheckEntryPoint`, `docs/CAPABILITIES.md` Command trees section | `TestCAPV0049LLMsEntryPointLinksEveryView`, `TestCAPV0005RoutingPointersNameTheCatalog` |
 | CAP-V0-050 | `AGENTS.md` Agent routing rule | `TestCAPV0050AgentsRuleNamesHelpCatalogAndGate` |
 | CAP-V0-060 | `unknownVerbHint` (`internal/tasks/cli/cli.go`) | `TestCAPV0060_EveryVerbHelpAndUnknownWordRoutes` (internal/tasks/cli) |
+| CAP-V0-200 | `internal/clitree/childargv.go` (`childArgvOf`, `nonCommandLineParams`, `childNames`, `commandLine`), `sliceName`; `cmd/corvint/test_whole_reason.go` `wholeGoTest(argv)` | `TestCAPV0047ChildArgvIsNotDispatch` (fails on the base scanner: `flags [--exec-child --no-pager --real-flag -run]`; covers the `wholeGoTest` helper, exec, `CommandContext`, `Cmd.Args`, `syscall.Exec`, `append`, literals, and keeps a forwarded parameter, a handler-table function, a single exec element, a shadowing closure and a re-executed `os.Args`/`flag.Args()` scanned), `TestCAPV0041ScanFindsDispatch`, `TestCAPV0047RepositoryCommandTreesMatchDispatch`; `make capabilities-check` and `make capability-catalog-check` pass |

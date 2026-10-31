@@ -70,7 +70,7 @@ func TestProposeCitationsDCWV0161DraftsAnchoredRows(t *testing.T) {
 		"internal/x/named.go": "docs/specs/x-v0.md\t" + lineOf(t, specLines, "| `XYZ-V0-002` |") + "\tspecification",
 		// The change modifies plain.go and no untouched file names it, so
 		// its own lines are not proposed (DCW-V0-393).
-		"internal/x/plain.go": "unknown\tinsufficient-evidence\tproposed: no stable BASE line of a file this change leaves untouched names internal/x/plain.go or defines a requirement ID the hunk adds; the change modifies internal/x/plain.go, so its own lines are not proposed; name the BASE contract the hunk depends on or implements",
+		"internal/x/plain.go": "unknown\tinsufficient-evidence\tproposed: no stable BASE line of a file this change leaves untouched names internal/x/plain.go or defines a requirement ID the hunk adds; the change modifies internal/x/plain.go, so its own lines are not proposed; its nearest stable line internal/x/plain.go 4:4 dependency is a review hint only (DCW-V0-439); name the BASE contract the hunk depends on or implements",
 	}
 	for index, row := range rows {
 		ordinal, rest, _ := strings.Cut(row, "\t")

@@ -1,0 +1,196 @@
+# Friction lane checks-w5: batch-precheck, doc checks and lane hygiene
+
+Lane K=3 on unraid-lanes, base `c5d5f0829c28756ee7b202caf80a3f3fc37fa85b`, tickets V1-3122,
+V1-3124, V1-3128, V1-3132, V1-3134, V1-3135, V1-3136, V1-3137, V1-3142, V1-3143, V1-3153, V1-3156,
+V1-3170, V1-3171, V1-3174, V1-3175, V1-3224. The full ticket text file was not on this host and
+the Tasks store here is a snapshot without these tickets, so the first pass read each ticket from its
+digest title and the code. The orchestrator copied the ticket text mid-lane, and the second pass
+checked every change against each ticket's acceptance list; that widened V1-3153, V1-3175, V1-3224,
+V1-3156 and V1-3174 (below).
+
+## Problem
+
+Nine of the seventeen tickets were already delivered before the 1.0 snapshot: the requirements,
+code and tests that name them are on main (table under Outcome). The other eight were open:
+
+- V1-3153: the `CAP-V0-047` dispatch scan keyed argument slices by name alone, so a helper such as
+  `wholeGoTest(argv []string)`, comparing a recorded command against `"go"` and `"-run"`, failed
+  `capabilities-check` until the parameter was renamed `command`.
+- V1-3170: `make host-package-version-bump PKG=pi` left the `corvint-pi-capabilities/0` tuple in
+  `docs/specs/pi-workflow-v0.md` behind; only the `ASD-V0-044` node test caught it, later.
+- V1-3171: the `DCW-V0-388` block ended with `DCW-V0-387`'s rollback line, and `DCW-V0-387` had none.
+- V1-3174: `.corvint/documentation-paths.json` had no generator or freshness check.
+- V1-3175: `TestDogfoodFinishRunsFromBinaryInForeignRepository` flaked with `fork/exec ...: text
+  file busy`: a parallel test's fork can hold the just-copied binary's write descriptor.
+- V1-3156, V1-3132, V1-3224: the lane guide did not tell lanes where scratch logs and helper
+  binaries go, nor to keep closeout and seal in the foreground.
+
+## Decisions
+
+- `CAP-V0-200`: two exclusions. First, a package call graph: an argument-named `[]string`
+  parameter is not the command line when the function is unexported, called in the package and
+  named only as a callee, and every call passes a struct field other than `Args`, a literal or
+  another such parameter; anything else counts as the command line (the first, narrower version
+  of this rule read a closure parameter `a` as non-command-line and dropped real flags such as
+  `--facets`, `--retries` and `--mutate`, caught by diffing the scan). Second, a slice a body hands
+  whole, sliced, spread or through `append` to a child process, or builds from a literal; one
+  element is not an argv. Names resolve in the innermost function. The scan of all three committed
+  command trees finds the same words and flags as before, with `wholeGoTest(argv)` restored.
+- `AHI-522`: a new `tuple:FIELD` location kind in `script/host-package-version.sh` rather than a
+  general regex location, so the Pi spec's tuple is bumped and verified with the other six Pi
+  locations; zero or two tuple objects refuse as "no single value", like `lit:`.
+- `ASD-V0-105`: the declaration is derived (every tracked top-level `docs/*.md` plus three
+  directories); the generator reproduced the committed file byte for byte. The check joins
+  `DOC_GATE_TARGETS`, which CI's `doc-gates` job already runs through `make doc-gates`, so no
+  `.github/` file changes.
+- `ASD-V0-106`: one shared test helper, `startCopiedBinary`, retries `ETXTBSY` on the existing
+  `workTextBusyRetries` delays with a plain `Start()`, used by every portable-runner start site;
+  reusing `workStartAdapter` would route through `workStartLive`, a global the prereap tests swap.
+- `ASD-V0-107`: `script/lane-guard.sh` denies a backgrounded dogfood closeout, finish, check or
+  seal step for every session, not only subagents, naming the foreground recipe; plus guide text.
+- `ASD-V0-108`: the one script with a fixed-name scratch file (`seed-planning-store_test.sh`)
+  uses its per-run root; guide text for lane scratch logs and helper binaries.
+- V1-3171: text fix only; no requirement changes meaning.
+
+## Review
+
+One independent subagent review (Codex is not installed on this host). Its five findings, all fixed in
+the second commit: a closure parameter hid outer dispatch (innermost-scope resolution); one exec
+element excluded the whole slice (elements no longer count); an `append` copy of `os.Args` was
+excluded (`commandLine` follows `append`); the generator ignored pipeline failures under `/bin/sh`
+(each stage checked); a Makefile comment sat above the wrong target (moved).
+
+## Adversarial refusal pass (docs/LANE-ORCHESTRATION.md section 9)
+
+`CAP-V0-200` (a narrowing rule of the dispatch scan):
+
+| Category | Case and test |
+|---|---|
+| Malformed input | An unparsable file still fails `ScanDirs` (unchanged); a body-less `FuncDecl` adds no scope. |
+| Aliasing | `a := argv` then exec of `a` excludes only `a`; a closure parameter with the outer name does not hide the outer dispatch (`nested-verb`); a function also named as a value in a handler table stays command line (`handler-verb`). |
+| Spread/variadic | `argv...`, `args[1:]...` and `append([]string{"-C", dir}, argv...)...`: `TestCAPV0047ChildArgvIsNotDispatch` (`appended-child`, `context-child`). |
+| Quoting | Words are AST string literals unquoted by `strconv`; unchanged. Not applicable. |
+| Historical vs worktree | The scan reads the files it is given; unchanged. Not applicable. |
+| Unobserved state | A call argument of unknown origin (local, closure parameter, call result) counts as the command line; own command line re-executed (`os.Args[1:]`, `flag.Args()`, an `append` of them) stays scanned (`reexec-verb`, `flag-args-verb`, `appended-own`); a single exec element excludes nothing (`elem-verb`). The repository-wide diff is the check that no real flag was lost. |
+| Concurrency | Pure function of the parsed files. Not applicable. |
+
+`AHI-522` (`tuple:`): malformed, two tuples refuse in verify and bump (case 4c); a drifted tuple
+is named (case 4b); quoting: the value is matched as a JSON string with no quote or newline, like
+`lit:`; historical reads, unobserved state and concurrency do not apply (one worktree file, and
+bump rewrites through a temporary file and `mv`).
+
+`ASD-V0-107` (lane-guard): quoting, a quoted `--grep='dogfood-seal' &` and a heredoc mention stay
+allowed while each backgrounded form is denied (group 25); malformed, a name such as
+`dogfood-checks-report` does not match; unobserved state, `run_in_background` is denied without a
+shell `&`; historical reads and concurrency do not apply.
+
+`ASD-V0-105`: malformed, a hand edit, a missing file and a declared guide removed from the tree
+(named as `missing:`) fail `--check`, and a failed listing refuses instead of writing; quoting, a name with a
+space, quotes and a non-ASCII byte is declared raw (NUL-separated listing; Git would C-quote it);
+historical vs worktree, the listing reads the index, so an untracked guide is not declared until
+staged (case 2); concurrency, the write goes through a temporary file and `mv`.
+
+## Evidence
+
+All on unraid-lanes (Linux 6.18.38-Unraid, go1.27.3), installed `corvint` build 6 at the base.
+
+- `corvint affected --base c5d5f08`: `scope=UNKNOWN dirty=10 selected=93 excluded=473 unknown=87
+  LANGUAGE_FRONTIER=86`; the focused tests below were run instead of the 93 units.
+- `go test -run 'TestCAPV00|_V1_3137$|TestChangeDCWV0386|TestDCWV0387|TestDCWV0388'` over
+  `internal/clitree`, `tools/capabilities-check`, `tools/test-read-scopes-check` and
+  `internal/dogfoodflow`: PASS. `TestCAPV0047ChildArgvIsNotDispatch` fails with the change
+  stashed (`flags [--exec-child --no-pager --real-flag]`).
+- Second pass: `make capabilities-check` and `make capability-catalog-check` rc 0 (42 s) with
+  `wholeGoTest(argv)`; `TestCAPV0047ChildArgvIsNotDispatch` fails on the base scanner with
+  `flags [--exec-child --no-pager --real-flag -run]`; the four portable dogfood tests at
+  `-count=20`: PASS in 112 s, no `text file busy` (load average about 3.4);
+  `TestDogfoodDCWV0044WorktreeLanesRunConcurrently` and `TestAggregateFinishNativeForeignRepository`
+  PASS; `make lane-scripts-test` 29 groups PASS, and group 25 fails with the base `lane-guard.sh`.
+- `go test -run '^(TestPortableRunRetriesTextFileBusy|TestDogfoodFinishRunsFromBinaryInForeignRepository|TestDogfoodDailyPathRunsFromBinaryInForeignRepository|TestTraceGitignoreFinishThenChangeCheckSeal)$' ./cmd/corvint`:
+  PASS; with the retry disabled the new test fails `fork/exec .../bin/corvint: text file busy`.
+- `make doc-gates` (now with `documentation-paths-check`; includes `use-case-receipts-test`,
+  `traceability-tests-test`, `test-read-scopes-check`, `line-citations-check`): rc 0, 19 s.
+- `make documentation-paths-test` (5 cases), `host-package-versions-test` (16 cases),
+  `spec-requirements-test`, `traceability-tests-test`, `line-citations-test`: PASS.
+- `make batch-precheck-test`: section 1b needs `node`, which this host lacks; a temporary copy
+  without section 1b passed every other section in 69 s (groups 2, 3, 7 and section 8).
+- `make windows-vet`: rc 0.
+
+## NOT_RUN
+
+- `make batch-precheck-test` section 1b (the Pi tuple node test) and `make host-adapter-node-test`:
+  no `node` on this host.
+- `make gate` and whole-package tests: lane policy.
+- `script/seed-planning-store_test.sh`: needs `atm` and `/private/tmp`; syntax-checked only.
+- A `-count=20` stress at high host load: this host was quiet (load about 3.4).
+
+## Rollback
+
+Each requirement carries its own rollback in its spec. Together: revert this lane's commits; the
+documentation-paths declaration file itself is unchanged.
+
+## Outcome
+
+| Ticket | Disposition |
+|---|---|
+| V1-3122 | already delivered: `ASD-V0-046` rerun and `FLAKY` row; batch-precheck-test section 8 PASS here |
+| V1-3124 | already delivered: `UCV0-019` and `DCG-V0-047`; `use-case-receipts-test` (9 cases) and `line-citations-test` PASS |
+| V1-3128 | already delivered: `DCW-V0-352` names each unstaged spec (reproduced here with an unstaged edit); `spec-requirements-test` PASS |
+| V1-3132 | already delivered in the tool (`DCW-V0-386`, `TestChangeDCWV0386NotesUntrackedBuildOutputs` PASS); lane guide bullet added (`ASD-V0-108`) |
+| V1-3134 | already delivered: `ASD-V0-050`; batch-precheck-test group 7 PASS |
+| V1-3135 | already delivered: `ASD-V0-052`, section 9; this entry uses it |
+| V1-3136 | already delivered: `ASD-V0-051`; batch-precheck-test group 7 PASS |
+| V1-3137 | already delivered: `AFP-V0-828`; `TestTempRootOnly*_V1_3137` PASS |
+| V1-3142 | already delivered: `ASD-V0-047`; batch-precheck-test section 3 serial probe PASS |
+| V1-3143 | already delivered: `TTG-V0-011`; `traceability-tests-test` PASS |
+| V1-3153 | delivered: `CAP-V0-200`; `wholeGoTest` takes `argv` again and both checks pass |
+| V1-3156 | delivered: `ASD-V0-108` (script and guide) |
+| V1-3170 | delivered: `AHI-522` |
+| V1-3171 | delivered: rollback lines corrected |
+| V1-3174 | delivered: `ASD-V0-105` (missing declared paths named; CI runs it through `make doc-gates`) |
+| V1-3175 | delivered: `ASD-V0-106` (shared helper, `-count=20` stress clean) |
+| V1-3224 | delivered: `ASD-V0-107` (lane-guard refusal and guide) |
+
+The dogfood result and its `NOT_PRODUCED` reasons are in the sealed CEM for this branch.
+
+## Follow-up: V1-3267 sealed CEM names
+
+Added to this lane after its first seal. A branch carried `.corvint/changes/<sha>.cem.json` files
+named for pre-rewrite commits (beamfall/corvint#7, run 41087113303), and CI failed after about 28
+minutes in `TestCEMV1201CommittedCorpusBinding`. `ASD-V0-109`: batch-precheck now refuses, before
+its steps, each sealed CEM the branch adds whose name is not a commit in HEAD's history, naming the
+file and the reseal recovery. It judges only additions since the base, because the 1.0 snapshot
+itself holds 25 seals whose names are not commits on this lineage. It runs outside the gate ledger,
+which keys on the tree and would replay a pass across a history rewrite.
+
+Adversarial cases: malformed, a non-hex or short name is refused like an unknown commit; aliasing,
+a name that resolves only as an abbreviation is refused (40 hex required); historical vs worktree,
+committed, staged, unstaged and untracked additions are all listed; unobserved state, a failed
+listing or a base that is not a commit fails the row, and no base prints a SKIP with its reason;
+quoting, paths come from Git quoted (`core.quotePath=true`) and a quoted path is refused as
+unreadable (section 9 case); concurrency does not apply. Evidence: `make
+batch-precheck-test` section 9 (run without the node-only section 1b on this host) PASS, and it
+fails with the previous script. Disposition: V1-3267 delivered; sealed as a change stacked on this
+lane's first seal commit `fc80ce4b8` (docs/DOGFOOD.md, stacking on a sealed predecessor).
+
+## Follow-up: Codex review of 42718740f
+
+The orchestrator ran one Codex review on the Mac; its five findings, fixed in one commit:
+
+1. P2, `CAP-V0-200`: `Run(input []string) { routed(input) }` hid `routed`'s dispatch because the
+   call graph tracked only argument-named parameters. Every `[]string` parameter now carries its
+   command-line state; only argument-named ones can be excluded (`input-verb` case, which fails on
+   the previous code). The repository scan is unchanged.
+2. P2, `ASD-V0-105`: a staged `docs/a\b.md` produced a declaration `--check` passed but the
+   AFP-V0-160 grammar rejects. Generate and `--check` now refuse a backslash, newline or non-UTF-8
+   name, naming it (case 4b).
+3. P2, `ASD-V0-107`: the guard matched the step name and `&` anywhere in the call. It now needs
+   the step as a command word inside the backgrounded command; the two reported calls are allowed
+   cases and a `(...) &` group and `&> log &` stay denied.
+4. P3, `ASD-V0-109`: a quoted non-CEM name such as `review"notes.txt` failed the check; names are
+   now filtered for `.cem.json` first.
+5. P3, `ASD-V0-109`: an untracked stale seal was told to `git rm`; each refusal now says tracked or
+   untracked and the recovery is `rm` for untracked files (section 9 cases).
+
+The `afcaa46` rename fix is not merged: this branch adds only its own seals (`77a70d62f`,
+`ec5509cf2`), both commits in its history.

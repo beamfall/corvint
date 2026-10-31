@@ -14,7 +14,8 @@ trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 mkdir -p "$root/repo/script" "$root/bin"
-/bin/cp -f "$source_root"/script/dogfood-{change,check,seal,batch-check,build-corvint,finish}.sh "$root/repo/script/"
+source "$source_root/script/dogfood-fixture-scripts.sh"
+dogfood_fixture_copy "$source_root" "$root/repo/script" dogfood-{change,check,seal,batch-check,finish}.sh
 /bin/cp -f "$source_root/Makefile" "$root/repo/"
 printf 'test-version\n' > "$root/repo/VERSION"
 printf 'base-source\n' > "$root/repo/source-marker"
@@ -30,6 +31,7 @@ if [[ ${1-} == --version ]]; then
   printf 'Corvint %s (build 0)\n' "${TEST_VERSION:-test-version}"
 else
   printf '%s\n' "$*" >> "$TEST_FLOW_LOG"
+  [[ "${1-} ${2-}" != 'dogfood batch-check' ]] || printf 'dogfood-batch-check: PASS constituents=0 commits=1\n'
 fi
 EOF
 cat > "$root/bin/go" <<'EOF'
@@ -97,6 +99,12 @@ for route in direct make; do
       elif [[ $action == batch-check ]]; then
         [[ $count == 1 ]] || exit 1
         rg -q "^dogfood batch-check --verifier .* $base$" "$TEST_FLOW_LOG" || exit 1
+        # ASD-V0-090 (V1-3249): the verdict is retained in a report file whose path is printed.
+        report="$(git rev-parse --absolute-git-dir)/corvint/batch-check-report.txt"
+        rg -qF "dogfood-batch-check: REPORT $report verdict=PASS" "$root/output" || exit 1
+        rg -q "^dogfood-batch-check: REPORT base=$base head=[0-9a-f]{40} verdict=PASS status=0$" "$report" || exit 1
+        rg -qx 'dogfood-batch-check: PASS constituents=0 commits=1' "$report" || exit 1
+        /bin/rm -f "$report"
       else
         [[ $count == 2 ]] || exit 1
         rg -q "^dogfood check --base-verifier .* --tree-verifier .* $base$" "$TEST_FLOW_LOG" || exit 1
@@ -139,6 +147,20 @@ for action in change check; do
   [[ $status == 2 ]] || exit 1
   rg -q "^dogfood-$action: REFUSE corvint-bin-unresolved$" "$root/output" || exit 1
 done
+# ASD-V0-090: a report directory that cannot be made still runs the check, keeps its verdict and
+# exit status, and says NOTE report NOT_PRODUCED.
+evidence_dir="$(git rev-parse --absolute-git-dir)/corvint"
+/bin/mv -f "$evidence_dir" "$evidence_dir.aside" 2> /dev/null || :
+: > "$evidence_dir"
+: > "$TEST_FLOW_LOG"
+status=0
+bash script/dogfood-batch-check.sh "$base" > "$root/output" 2>&1 || status=$?
+/bin/rm -f "$evidence_dir"
+[[ ! -e "$evidence_dir.aside" ]] || /bin/mv -f "$evidence_dir.aside" "$evidence_dir"
+[[ $status == 0 ]] || exit 1
+rg -q "^dogfood batch-check --verifier .* $base$" "$TEST_FLOW_LOG" || exit 1
+rg -q '^dogfood-batch-check: NOTE report NOT_PRODUCED path=unavailable$' "$root/output" || exit 1
+rg -qx 'dogfood-batch-check: PASS constituents=0 commits=1' "$root/output" || exit 1
 unset CORVINT_BIN
 for action in change check batch-check; do
   for source in tree-source base-source; do
@@ -179,6 +201,38 @@ env -u BASE make -s dogfood-bind-range TARGET=x > "$root/output" 2>&1 || status=
 status=0
 env -u BASE make -s dogfood-finish LANE=1 > "$root/output" 2>&1 || status=$?
 [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] && rg -q 'REFUSE missing-inputs BASE ' "$root/output" || exit 1
+# ASD-V0-085 (V1-3172): with no CEM bound at HEAD the refusal above also names its recovery; once
+# one is committed, dogfood-check without BASE checks against its baseRevision and says so, and a
+# recorded base HEAD does not contain is refused before any build.
+env -u BASE make -s dogfood-check > "$root/output" 2>&1 || :
+rg -qF '  fix: make dogfood-check BASE=<the full sha passed to dogfood-change>' "$root/output" || exit 1
+git clone -q "$root/repo" "$root/bound"
+(
+  cd "$root/bound"
+  mkdir .corvint
+  printf '{"artifacts":[],"baseRevision":"%s","hunks":[]}\n' "$base" > .corvint/change.cem.json
+  git add .corvint/change.cem.json
+  git -c user.name=test -c user.email=test@example.invalid commit -qm bind
+  : > "$TEST_BUILD_LOG"; : > "$TEST_FLOW_LOG"
+  env -u BASE make -s dogfood-check > "$root/output" 2>&1 || exit 1
+  rg -qFx "dogfood-check: BASE=$base from the CEM bound at HEAD (.corvint/change.cem.json baseRevision)" "$root/output" || exit 1
+  rg -q "^dogfood check --base-verifier .* --tree-verifier .* $base$" "$TEST_FLOW_LOG" || exit 1
+  printf '{"baseRevision":"%s"}\n' feedfacefeedfacefeedfacefeedfacefeedface > .corvint/change.cem.json
+  git -c user.name=test -c user.email=test@example.invalid commit -qam unrelated-base
+  : > "$TEST_BUILD_LOG"
+  status=0
+  env -u BASE make -s dogfood-check > "$root/output" 2>&1 || status=$?
+  [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] && rg -q '^BASE is required: pass BASE=<full origin/main sha>; no CEM bound at HEAD' "$root/output" || exit 1
+  # Only the top-level member counts: a baseRevision nested in another member is not the CEM's base.
+  # A top-level member repeated under any value type, or a CEM that is not valid JSON, fails closed.
+  for cem in '{"artifacts":[{"baseRevision":"%s"}],"hunks":[]}' '{"baseRevision":{},"baseRevision":"%s"}' '{"baseRevision":"%s",}'; do
+    printf "$cem\n" "$base" > .corvint/change.cem.json
+    git -c user.name=test -c user.email=test@example.invalid commit -qam malformed-base
+    status=0
+    env -u BASE make -s dogfood-check > "$root/output" 2>&1 || status=$?
+    [[ $status == 2 && ! -s $TEST_BUILD_LOG ]] && rg -q '^BASE is required: pass BASE=<full origin/main sha>; no CEM bound at HEAD' "$root/output" || exit 1
+  done
+) || exit 1
 # ASD-V0-045 (V1-3119): dogfood-closeout without a plan refuses before any build or batch-precheck
 # step and names the drafting and pre-flight commands.
 status=0
@@ -188,10 +242,30 @@ rg -q '^dogfood-finish-lane: REFUSE missing-inputs CITATIONS INTENTS VERIFY OUTC
 rg -qF 'corvint dogfood propose-citations feedfacefeedfacefeedfacefeedfacefeedface > plan.tsv' "$root/output" || exit 1
 rg -qF 'make dogfood-inputs-check BASE=feedfacefeedfacefeedfacefeedfacefeedface' "$root/output" || exit 1
 ! rg -q 'batch-precheck' "$root/output" || exit 1
+# ASD-V0-087 (V1-3154): when the change touches dogfood tooling, a CORVINT_BIN override is refused
+# before any build, naming the binary, the changed path and the recovery; unset, the lane-built tree
+# binary runs the steps. A change outside that tooling keeps the override.
+printf '1\tsource-marker\t1:1\timplementation\n' > "$root/cites.tsv"
+mkdir -p internal/dogfoodflow
+printf 'package dogfoodflow\n' > internal/dogfoodflow/new.go
+git add internal/dogfoodflow/new.go
+: > "$TEST_BUILD_LOG"; : > "$TEST_FLOW_LOG"
+status=0
+CORVINT_BIN="$TEST_FAKE_CORVINT" bash script/dogfood-finish.sh "$base" "$root/cites.tsv" > "$root/output" 2>&1 || status=$?
+[[ $status == 2 && ! -s $TEST_BUILD_LOG && ! -s $TEST_FLOW_LOG ]] || { cat "$root/output" >&2; exit 1; }
+rg -qF "dogfood-finish-lane: REFUSE corvint-bin-predates-tree-tooling CORVINT_BIN=$TEST_FAKE_CORVINT changed=internal/dogfoodflow/new.go (1 paths)" "$root/output" || exit 1
+rg -q '^fix: unset CORVINT_BIN and rerun the same make target .*/\.git/corvint/corvint then runs every step' "$root/output" || exit 1
+DOGFOOD_FINISH_PREFLIGHT=1 bash script/dogfood-finish.sh "$base" "$root/cites.tsv" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+rg -q -- '^dogfood inputs-check --base .* --corvint-bin .*/repo/\.git/corvint/corvint$' "$TEST_FLOW_LOG" || exit 1
+git rm -q --cached internal/dogfoodflow/new.go
+/bin/rm -f internal/dogfoodflow/new.go
+rmdir internal/dogfoodflow internal
+: > "$TEST_FLOW_LOG"
+CORVINT_BIN="$TEST_FAKE_CORVINT" DOGFOOD_FINISH_PREFLIGHT=1 bash script/dogfood-finish.sh "$base" "$root/cites.tsv" > "$root/output" 2>&1 || { cat "$root/output" >&2; exit 1; }
+rg -qF -- "--corvint-bin $TEST_FAKE_CORVINT" "$TEST_FLOW_LOG" || exit 1
 # DCW-V0-151 (V1-1442): an interrupt during either finish build names the step and the empty
 # NOT_PRODUCED block, exits 128 plus the signal and never reaches finish-lane. set -m gives the
 # wrapper its own process group, so the signal never reaches this test.
-printf '1\tsource-marker\t1:1\timplementation\n' > "$root/cites.tsv"
 for interrupt in tree-source:INT:build-tree:130 base-source:TERM:build-base:143; do
   IFS=: read -r source signal step code <<< "$interrupt"
   : > "$TEST_FLOW_LOG"

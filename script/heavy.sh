@@ -26,6 +26,12 @@
 #   HEAVY_WHOLE_REASON   a `go test` without `-run` (a whole package) is refused with exit 2 unless
 #                        this names why, for example "corvint selected the package whole" or Corvint's
 #                        FALLBACK/UNKNOWN reason. Select units with `corvint test --base SHA --dry-run`.
+#   HEAVY_SMALL_TEST_BYTES  a whole-package `go test` whose every package is a plain local directory
+#                        under tools/ or conformance/ (no `...`) and whose *_test.go files total at
+#                        most this many bytes runs without HEAVY_WHOLE_REASON, logged as
+#                        `whole reason=small-package:NB` (ASD-V0-074, V1-3120); default 49152. On
+#                        2026-10-30 the six such packages measured (4-45 KB of tests) each ran whole
+#                        in 0.6-16 s; cmd/ and internal/ packages are never exempt. 0 disables it.
 #   HEAVY_SELECTION_LOG  every `go test` appends `UTC selected|whole reason=Q|refused pwd=... cmd=...`
 #                        here; default HEAVY_LOCK_DIR/selection.log.
 #   HEAVY_LOCAL_REASON   with HEAVY_REMOTE=0, a go test, go vet or make windows-vet is refused with exit
@@ -209,7 +215,7 @@ pin_go() {
   [[ $want =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || return 0 # a language-only line pins no release
   { read -r have; read -r cache; read -r os; read -r arch; } < <(GOTOOLCHAIN=local go env GOVERSION GOMODCACHE GOOS GOARCH 2> /dev/null)
   [[ ${have-} == "go$want" ]] && return 0
-  for c in "$HOME/sdk/go$want/bin" "${cache-}/golang.org/toolchain@v0.0.1-go$want.${os-}-${arch-}/bin"; do
+  for c in "${HOME:-/nonexistent}/sdk/go$want/bin" "${cache-}/golang.org/toolchain@v0.0.1-go$want.${os-}-${arch-}/bin"; do
     if [[ -x $c/go && $(GOTOOLCHAIN=local "$c/go" env GOVERSION 2> /dev/null) == "go$want" ]]; then
       export PATH="$c:$PATH"
       return 0
@@ -958,6 +964,36 @@ selection_log() {
     printf 'heavy.sh: cannot append to %s\n' "${HEAVY_SELECTION_LOG:-$lock_dir/selection.log}" >&2
 }
 
+# small_package_bytes COMMAND...: print the total *_test.go bytes of the go test's packages and
+# succeed when every package is a plain local directory under tools/ or conformance/ and the total
+# is at most HEAVY_SMALL_TEST_BYTES (ASD-V0-074, V1-3120). Flags are skipped, with the value of a
+# flag that takes one; any other package form (an import path, `...`, a file) fails.
+small_package_bytes() {
+  local limit=${HEAVY_SMALL_TEST_BYTES:-49152} seen=0 skip=0 prev_go=0 arg dir total=0 n=0 f size
+  [[ $limit =~ ^[0-9]+$ ]] && ((limit > 0)) || return 1
+  for arg in "$@"; do
+    if ((!seen)); then [[ $arg == test && $prev_go == 1 ]] && seen=1; [[ $arg == go ]] && prev_go=1 || prev_go=0; continue; fi
+    if ((skip)); then skip=0; continue; fi
+    case $arg in
+      -run | -skip | -timeout | -count | -p | -parallel | -cpu | -tags | -bench | -benchtime | -shuffle | -vet | -exec | -ldflags | -gcflags | -asmflags | -mod | -o | -coverpkg | -covermode | -list) skip=1 ;;
+      -C | -C=*) return 1 ;;
+      -*) ;;
+      *)
+        dir=${arg#./}
+        [[ $arg == ./* && $dir != *...* && $dir != *..* && ($dir == tools/* || $dir == conformance/*) && -d $dir ]] || return 1
+        n=$((n + 1))
+        for f in "$dir"/*_test.go; do
+          [[ -f $f ]] || continue
+          size=$(wc -c < "$f" | tr -d ' ') || return 1
+          total=$((total + size))
+        done
+        ;;
+    esac
+  done
+  ((n > 0 && total <= limit)) || return 1
+  printf '%s\n' "$total"
+}
+
 # selection_policy COMMAND...: log every go test and refuse a whole-package one (no -run) without
 # HEAVY_WHOLE_REASON (ASD-V0-030). Returns 1 on refusal.
 selection_policy() {
@@ -970,8 +1006,13 @@ selection_policy() {
       return 0
       ;;
   esac
+  local small
+  if [[ -z ${HEAVY_WHOLE_REASON-} ]] && small=$(small_package_bytes "$@"); then
+    selection_log "$now whole reason=small-package:${small}B pwd=$PWD cmd=$*"
+    return 0
+  fi
   if [[ -z ${HEAVY_WHOLE_REASON-} ]]; then
-    printf '%s\n' "heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON. Run only Corvint's selection: corvint test --base <origin/main sha> --dry-run, then go test -run '<selected>' ./<pkg>. If Corvint selected the package whole or reported UNKNOWN/FALLBACK for it, rerun with HEAVY_WHOLE_REASON='<that reason>'." >&2
+    printf '%s\n' "heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON. Run only Corvint's selection: corvint test --base <origin/main sha> --dry-run, then go test -run '<selected>' ./<pkg>. If Corvint selected the package whole or reported UNKNOWN/FALLBACK for it, rerun with HEAVY_WHOLE_REASON='<that reason>'. A tools/ or conformance/ package with at most ${HEAVY_SMALL_TEST_BYTES:-49152} bytes of tests needs no reason." >&2
     printf 'heavy.sh: REFUSED whole-reason-missing (exit 2)\n' # stdout marker (V1-3213)
     selection_log "$now refused pwd=$PWD cmd=$*"
     return 1
@@ -1005,7 +1046,8 @@ load_wait() {
   [[ $max =~ ^[0-9]{1,6}$ ]] || refuse "invalid-max-load HEAVY_MAX_LOAD=$max (want 0..999999)"
   [[ $limit =~ ^[0-9]{1,5}$ ]] || refuse "invalid-load-wait HEAVY_LOAD_WAIT=$limit (want 0..99999 seconds)"
   while l=$(load1) && [[ $l =~ ^[0-9]+$ ]] && ((l > max && SECONDS - t0 < limit)); do
-    sleep 5
+    # Never sleep past the bound (V1-3232): a 1-second bound waits 1 second, not one 5-second poll.
+    sleep $((limit - (SECONDS - t0) < 5 ? limit - (SECONDS - t0) : 5))
   done
   ((SECONDS > t0)) && printf 'heavy.sh: waited %ss for host load %s (HEAVY_MAX_LOAD=%s)\n' "$((SECONDS - t0))" "$(load1)" "$max" >&2
   return 0
@@ -1053,7 +1095,9 @@ main() {
     [[ $# -eq 0 ]] && return 2
     return 0
   fi
-  load_config "${HEAVY_CONFIG:-${XDG_CONFIG_HOME:-$HOME/.config}/corvint/heavy.env}"
+  # ASD-V0-070 (V1-3233): with no HOME and no XDG_CONFIG_HOME there is no default config file.
+  local config_home=${XDG_CONFIG_HOME:-${HOME:+$HOME/.config}}
+  load_config "${HEAVY_CONFIG:-${config_home:+$config_home/corvint/heavy.env}}"
   local cpus slots par nice_level lock_dir rc retry
   lock_dir=${HEAVY_LOCK_DIR:-/tmp/corvint-heavy-$(id -u)}
   if [[ $1 == --print-lock-dir ]]; then

@@ -23,3 +23,13 @@ const (
 // ValidityAllowMarker opens a justification annotation, `corvint-validity-allow RULE: REASON`,
 // that exempts one flagged line from an annotatable rule (TSA-V0-163).
 const ValidityAllowMarker = "corvint-validity-allow"
+
+// RuleExemption is one reading a justified `corvint-validity-allow RULE: <reason>` annotation
+// exempted, with the annotation's reason retained (TSA-V0-870): Location is `path:line` of the
+// exempted line and Reason the annotation's own text after the rule name. It is not a finding
+// and changes no axis.
+type RuleExemption struct {
+	Rule     string `json:"rule"`
+	Location string `json:"location"`
+	Reason   string `json:"reason"`
+}

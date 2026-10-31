@@ -90,6 +90,33 @@ open my $paths, '-|', 'git', 'ls-files', '-z', '--cached'
 close $paths
     or die $! ? "git ls-files: $!\n" : 'git ls-files failed: exit ' . ($? >> 8) . "\n";
 
+# TTG-V0-012 (V1-3235): the set above is an index snapshot by design, so an unresolved name stays
+# unresolved; when an untracked or unstaged working-tree test file declares it, the refusal names
+# that file and says to stage it, rather than reporting a test that exists as missing.
+my %unstaged;
+sub unstaged_hint {
+    my ($name) = @_;
+    unless (%unstaged) {
+        $unstaged{''} = [];
+        open my $ls, '-|', 'git', 'ls-files', '-z', '--others', '--modified', '--exclude-standard'
+            or die "git ls-files: $!\n";
+        local $/ = "\0";
+        while (my $file = <$ls>) {
+            chomp $file;
+            next unless $file =~ /_test\.go\z/ && open my $fh, '<', $file;
+            my $source = do { local $/; <$fh> } // '';
+            close $fh;
+            push @{ $unstaged{$1} }, $file while $source =~ /^\s*func\s+(Test[A-Za-z0-9_]+)\s*\(/mg;
+        }
+        close $ls
+            or die $! ? "git ls-files: $!\n" : 'git ls-files failed: exit ' . ($? >> 8) . "\n";
+    }
+    my $files = $unstaged{$name} or return '';
+    my %seen;
+    my @files = grep { !$seen{$_}++ } @$files;
+    return " (declared only in the unstaged working-tree file @files; the check reads the index, so stage it: git add -- @files)";
+}
+
 my @missing;
 my $planned = 0;
 my $wildcards = 0;
@@ -127,7 +154,7 @@ for my $file (tracked_spec_docs()) {
                 ++$wildcards;
                 next;
             }
-            push @missing, "$file:$line_number: $name" unless $tests{$name};
+            push @missing, "$file:$line_number: $name" . unstaged_hint($name) unless $tests{$name};
         }
     }
 }

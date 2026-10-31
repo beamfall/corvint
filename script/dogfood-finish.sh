@@ -72,6 +72,19 @@ if [[ -n $(git -C "$repo" diff --name-only "$base" HEAD -- docs/specs/) ]]; then
   /bin/rm -rf "$spec_tmp"
   trap - EXIT
 fi
+# ASD-V0-087 (V1-3154): a CORVINT_BIN built before this change cannot run the change's own dogfood
+# tooling, and a matching VERSION does not prove otherwise. When the change touches that tooling, only
+# the lane-built tree binary may run the steps, so an override is refused before any build.
+if [[ -n $corvint_bin_set && $corvint_bin != "$git_dir/corvint/corvint" ]]; then
+  tooling=$(git -C "$repo" diff --name-only "$base" -- internal/dogfoodflow/ internal/cem/ 'cmd/corvint/dogfood_*.go') || exit 2
+  if [[ -n $tooling ]]; then
+    printf 'dogfood-finish-lane: REFUSE corvint-bin-predates-tree-tooling CORVINT_BIN=%s changed=%s (%d paths)\n' \
+      "$corvint_bin" "${tooling%%$'\n'*}" "$(printf '%s\n' "$tooling" | wc -l | tr -d ' ')" >&2
+    printf 'fix: unset CORVINT_BIN and rerun the same make target (dogfood-closeout, dogfood-finish or dogfood-inputs-check) with the same inputs; the lane-built tree binary %s then runs every step (nothing was built, prepared or bound)\n' \
+      "$git_dir/corvint/corvint" >&2
+    exit 2
+  fi
+fi
 source "$repo/script/dogfood-build-corvint.sh" || exit 2
 evidence="$git_dir/corvint"
 override=()

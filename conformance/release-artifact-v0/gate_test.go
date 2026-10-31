@@ -217,3 +217,19 @@ func TestGoModDirectivesAreReadExactly(t *testing.T) {
 		t.Fatalf("toolchain directive not counted: %d", lines)
 	}
 }
+
+// TestCommittedManifestPinsTheTreeLegalFiles fails when a legal file changes
+// without its manifest pin, which the archive gate reports as legal-file-altered.
+func TestCommittedManifestPinsTheTreeLegalFiles(t *testing.T) {
+	manifest, err := loadManifest("manifest.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := &Report{}
+	if err := checkLegalFiles(filepath.Join("..", ".."), manifest, report); err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Reasons) != 0 {
+		t.Fatalf("legal files differ from manifest.json pins: %+v", report.Reasons)
+	}
+}

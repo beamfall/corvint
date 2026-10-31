@@ -91,9 +91,9 @@ tampered="$run_root/tampered-roadmap.md"
 printf '# tampered plan\n' > "$tampered"
 store3="$run_root/store3"
 status=0
-"$source_root/script/seed-planning-store.sh" "$atm" "$store3" "$tampered" >/tmp/seed-test-mismatch.out 2>&1 || status=$?
+"$source_root/script/seed-planning-store.sh" "$atm" "$store3" "$tampered" >"$run_root/mismatch.out" 2>&1 || status=$?
 [ "$status" -ne 0 ] || fail "digest mismatch was not refused"
 [ ! -e "$store3" ] || fail "digest mismatch still created $store3"
-grep -q "source-digest mismatch" /tmp/seed-test-mismatch.out || fail "refusal message missing source-digest mismatch text"
+grep -q "source-digest mismatch" "$run_root/mismatch.out" || fail "refusal message missing source-digest mismatch text"
 
 printf 'seed-planning-store: full seed, replay, interruption-resume and digest-mismatch refusal pass\n'

@@ -75,34 +75,66 @@ const blank = "\t\n\v\f\r "
 
 var marked = regexp.MustCompile("^[\t\n\v\f\r ]*(?:[-*][\t\n\v\f\r ]+|\\*\\*|`)")
 
+// fenceRun is a run of at least three backticks or tildes indented at most three spaces, and the
+// rest of its line, as script/check-requirement-definitions.sh reads a fence (RDG-V0-023).
+var fenceRun = regexp.MustCompile("^ {0,3}(`{3,}|~{3,})(.*?)\r?\n?$")
+
+var bulleted = regexp.MustCompile("^[\t\n\v\f\r ]*[-*][\t\n\v\f\r ]")
+
+var heading = regexp.MustCompile("^ {0,3}#")
+
 // DefinitionLine returns the one-based line of spec text that defines id under the generator's
-// ranks (SRG-V0-003, SRG-V0-004): the first definition line, else the first table row that opens
-// with the id, else 0. It is how a reader of the committed index, which carries no line number,
-// finds the clause (SRG-V0-017).
+// ranks (SRG-V0-003, SRG-V0-004, SRG-V0-548): the first unwrapped definition line, else the first
+// wrapped one (an unbulleted line directly after a non-blank, non-heading line outside a fence),
+// else the first table row that opens with the id, else 0. It is how a reader of the committed
+// index, which carries no line number, finds the clause (SRG-V0-017).
 func DefinitionLine(text, id string) int {
 	quoted := regexp.QuoteMeta(id)
 	const lead = "^[\t\n\v\f\r ]*(?:[-*][\t\n\v\f\r ]+)?(?:\\*\\*)?`?"
 	period := regexp.MustCompile(lead + quoted + "`?\\.(?:\\*\\*)?[\t\n\v\f\r ]")
 	colon := regexp.MustCompile(lead + quoted + "`?(?:\\*\\*)?[\t\n\v\f\r ]*:")
 	table := regexp.MustCompile("^[\t\n\v\f\r ]*\\|[\t\n\v\f\r ]*`?" + quoted + "`?(?:[\t\n\v\f\r |.])")
-	firstTable := 0
-	previousBlank := true
+	firstWrapped, firstTable := 0, 0
+	previousBlank, continues := true, false
+	fence := ""
 	lines := strings.SplitAfter(text, "\n")
 	for i, line := range lines {
 		if line == "" {
 			continue
 		}
+		wrapped := continues && !bulleted.MatchString(line)
 		boundary := previousBlank || marked.MatchString(line)
 		previousBlank = strings.Trim(line, blank) == ""
+		run, rest := "", ""
+		if match := fenceRun.FindStringSubmatch(line); match != nil {
+			run, rest = match[1], match[2]
+		}
+		switch {
+		case fence != "":
+			if run != "" && run[0] == fence[0] && len(run) >= len(fence) && strings.Trim(rest, " \t") == "" {
+				fence = ""
+			}
+		case run != "" && !(run[0] == '`' && strings.Contains(rest, "`")):
+			fence = run
+		}
+		continues = fence == "" && run == "" && strings.TrimSpace(line) != "" && !heading.MatchString(line)
 		if !strings.Contains(line, id) {
 			continue
 		}
 		if boundary && (period.MatchString(line) || colon.MatchString(line)) {
-			return i + 1
+			if !wrapped {
+				return i + 1
+			}
+			if firstWrapped == 0 {
+				firstWrapped = i + 1
+			}
 		}
 		if firstTable == 0 && table.MatchString(line) {
 			firstTable = i + 1
 		}
+	}
+	if firstWrapped != 0 {
+		return firstWrapped
 	}
 	return firstTable
 }

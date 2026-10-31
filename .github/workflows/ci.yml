@@ -817,10 +817,16 @@ jobs:
           MQ_DELTA: ${{ needs.docs-plan.outputs.mqDelta }}
         run: |
           if [ "$GITHUB_EVENT_NAME" = merge_group ]; then
-            # AFP-V0-731: the scripts come from the queue base, a commit of main, never the entry.
+            # AFP-V0-731: the scripts come from a commit of main, never an entry: the queue base, or
+            # for an entry stacked behind an unmerged one, the newest commit of main that queue
+            # base descends from (AFP-V0-934); no such commit leaves the gate unrun, so FULL.
+            scripts=$QUEUE_BASE
+            if ! git merge-base --is-ancestor "$QUEUE_BASE" refs/remotes/origin/main 2> /dev/null; then
+              scripts=$(git merge-base "$QUEUE_BASE" refs/remotes/origin/main 2> /dev/null) || exit 0
+            fi
             trusted="$RUNNER_TEMP/mq-trusted"
             mkdir -p "$trusted"
-            git archive "$QUEUE_BASE" .github/forward-rows | tar -x -C "$trusted"
+            git archive "$scripts" .github/forward-rows | tar -x -C "$trusted"
             test -f "$trusted/.github/forward-rows/mq-narrow.sh"
             PR_BIN="$RUNNER_TEMP/corvint-pr-bin" SHADOW="$RUNNER_TEMP/corvint-shadow-bin/corvint" \
               CI_SHARDS="$RUNNER_TEMP/ci-shards" CONFINE="$RUNNER_TEMP/test-confine" \

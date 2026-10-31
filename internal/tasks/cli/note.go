@@ -321,6 +321,9 @@ func noteValue(ref *ticket.OperatorNoteReference, event *ticket.OperatorNoteEven
 // be resolved: the failure is rendered as UNAVAILABLE with its code, never as
 // NONE, while `ticket note show` refuses outright.
 func operatorNoteShowValue(rc *readCtx, rec *ticket.Record) wire.Value {
+	if rc.bundle != nil && rec.OperatorNote != nil {
+		return unavailableNoteValue(*rec.OperatorNote, wire.Errorf(wire.CodeUnsupported, SnapshotEnv, "operator notes are not in a queue snapshot"))
+	}
 	v, err := operatorNoteView(rc.repo, rec)
 	if err == nil {
 		return v

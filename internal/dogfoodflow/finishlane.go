@@ -49,6 +49,12 @@ type finishLane struct {
 	// inputs are the supplied input files' content digests, taken before
 	// prepare and compared after every pass (DCW-V0-378).
 	inputs []laneInput
+	// stageFiles are the staged route's plans of a plan over 256 rows, the
+	// last one replayed by the rebind, and stages their rows (DCW-V0-446).
+	stageFiles []string
+	stages     [][]string
+	// stage labels the running stage in kept rows and step lines.
+	stage string
 }
 
 // laneInput is one supplied input file and its content digest at run start.
@@ -154,7 +160,12 @@ func (l *finishLane) run() int {
 		l.line("seal SKIP already-sealed sealed=.corvint/changes/%s.cem.json", bind)
 		return 0
 	}
-	l.requireFreshWorktree(l.base, l.gitDir)
+	l.requireOutcomeInputs()
+	l.requireFreshWorktree(l.base, l.gitDir, !l.options.Preflight)
+	// A plan over 256 rows runs as the staged route's plans (DCW-V0-446).
+	files, stages, cleanup := l.stagePlan()
+	defer cleanup()
+	l.stageFiles, l.stages = files, stages
 	if l.options.Preflight {
 		// The pre-flight checks the inputs the bind pass reads; from the
 		// bind commit on that pass has run, so there is nothing to check.
@@ -256,18 +267,52 @@ func (l *finishLane) requireVerifyInput() {
 		return
 	}
 	l.say("%s: REFUSE %s\n", l.prefix, reason)
+	if fix := quotedRunFix(l.options.Change.VerifyFile); reason == "unsupported-verify-syntax" && fix != "" {
+		// DCW-V0-403: an unquoted -run alternation gets one line naming its
+		// admitted quoted form, not the grammar remediation.
+		l.say("  fix: --verify %s, then rerun corvint dogfood finish-lane --base %s\n", fix, l.options.Change.Base)
+		l.exit(2)
+		return
+	}
 	if line := verifyRefusalLine(l.options.Change.VerifyFile); detail != "" && line > 0 {
 		l.say("  input: --verify %s line %d\n", l.options.Change.VerifyFile, line)
 	}
 	if detail != "" {
 		l.say("  %s\n", oneLine(detail))
 	}
-	l.say("  fix: pass a readable verify file of at most %d bytes with one shell-free command per line (no quotes, globs or operators), then rerun corvint dogfood finish-lane --base %s\n", maxVerifyFileBytes, l.options.Change.Base)
+	l.say("  fix: pass a readable verify file of at most %d bytes with one shell-free command per line (no globs or operators, and no quotes except around one -run alternation), then rerun corvint dogfood finish-lane --base %s\n", maxVerifyFileBytes, l.options.Change.Base)
 	if reason == "unsupported-verify-syntax" {
-		// DCW-V0-170, amended by DCW-V0-384: name the admitted quoted -run
-		// alternation and the accepted forms for any other quoted regex.
-		l.say("  accepted form: one quoted -run alternation of test names such as -run 'TestA|TestB' is admitted as one argv word (DCW-V0-384); any other quoted -run regex, such as -run '^TestA$', is refused even inside quotes; write one command per test name (go test -run TestA ./pkg, then go test -run TestB ./pkg), use a shared name prefix (-run TestA matches TestA*), or commit a script and list it as sh path/to/script.sh\n")
+		// DCW-V0-170, amended by DCW-V0-384 and DCW-V0-801: name the admitted
+		// quoted -run alternation, the line's own quoted form when only the
+		// quotes are missing, and the accepted forms for any other regex.
+		for _, suggestion := range quotedRunSuggestions(l.options.Change) {
+			l.say("  quoted form: %s\n", suggestion)
+		}
+		l.say("  accepted form: one quoted -run alternation of test names, -run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (single or double quotes, or attached as -run='TestA|TestB'), is admitted as one argv word (DCW-V0-384, DCW-V0-801); an unquoted alternation, a single anchored name such as -run '^TestA$' or any other quoted regex is refused; write one command per test name (go test -run TestA ./pkg, then go test -run TestB ./pkg), use a shared name prefix (-run TestA matches TestA*), or commit a script and list it as sh path/to/script.sh\n")
 	}
+	l.exit(2)
+}
+
+// requireOutcomeInputs refuses, before prepare and before any bind or commit,
+// a run without a verification command or an outcome: the rebind's
+// local-outcome row records both, so without them it can only refuse
+// outcome-input-not-provided after the bind commit exists (DCW-V0-800). The
+// refusal names both inputs, as the rebind's fix line does.
+func (l *finishLane) requireOutcomeInputs() {
+	verify, _ := verifyInput(l.options.Change)
+	var missing []string
+	if len(verify) == 0 {
+		missing = append(missing, "--verify")
+	}
+	if l.options.Change.Outcome == "" {
+		missing = append(missing, "--outcome")
+	}
+	if len(missing) == 0 {
+		return
+	}
+	l.say("%s: REFUSE outcome-input-not-provided missing=%s\n", l.prefix, strings.Join(missing, ","))
+	l.say("  fix: pass --verify FILE (or DOGFOOD_VERIFY_FILE, one verification command per line) and --outcome passed|failed|blocked (or DOGFOOD_OUTCOME); make dogfood-finish takes them as VERIFY=<verify.txt> OUTCOME=passed|failed|blocked; then rerun corvint dogfood finish-lane --base %s\n", l.options.Change.Base)
+	l.say("  the rebind records the local outcome from both inputs; nothing was prepared, bound or committed\n")
 	l.exit(2)
 }
 
@@ -279,12 +324,19 @@ func verifyRefusalLine(path string) int {
 	if path == "" || err != nil {
 		return 0
 	}
+	line, _ := refusedVerifyLine(data)
+	return line
+}
+
+// refusedVerifyLine returns the 1-based number and text of the first line of
+// data that the recorder refuses, or 0 and "" when every line is admitted.
+func refusedVerifyLine(data []byte) (int, string) {
 	for index, line := range strings.Split(string(data), "\n") {
 		if strings.TrimLeft(line, " \t\n\v\f\r") != "" && validateVerify(verifyLineArguments(line)) != nil {
-			return index + 1
+			return index + 1, line
 		}
 	}
-	return 0
+	return 0, ""
 }
 
 // line writes one step line to stdout.
@@ -368,7 +420,7 @@ func (l *finishLane) pass(name, citations string) (int, *change, []byte) {
 	run.releaseOperation()
 	for _, row := range run.rows {
 		if row.status != "PRODUCED" {
-			l.missing = append(l.missing, name+" "+row.name+" "+row.status+" "+row.reason)
+			l.missing = append(l.missing, name+l.stage+" "+row.name+" "+row.status+" "+row.reason)
 		}
 	}
 	if err != nil {
@@ -385,14 +437,29 @@ func (l *finishLane) pass(name, citations string) (int, *change, []byte) {
 // rebind runs every step (DCW-V0-115).
 var passScopes = map[string]passScope{"prepare": passPrepare, "bind": passBind, "rebind": passFull}
 
-// accept keeps an accepted pass's NOTE lines, each once per run.
+// accept keeps an accepted pass's NOTE lines, each once per run. A later
+// pass repeats a note with only its target or counts changed, so a note is
+// keyed by its name, status and reason (DCW-V0-405).
 func (l *finishLane) accept(output []byte) {
 	for _, text := range textLines(output) {
-		if strings.HasPrefix(text, "dogfood-change: NOTE ") && !l.notes[text] {
-			l.notes[text] = true
+		if !strings.HasPrefix(text, "dogfood-change: NOTE ") {
+			continue
+		}
+		if key := noteKey(text); !l.notes[key] {
+			l.notes[key] = true
 			l.say("%s\n", text)
 		}
 	}
+}
+
+// noteKey is a NOTE line's first five fields: the prefix, NOTE, the step
+// name, its status and its reason.
+func noteKey(text string) string {
+	fields := strings.Fields(text)
+	if len(fields) > 5 {
+		fields = fields[:5]
+	}
+	return strings.Join(fields, " ")
 }
 
 // stop ends the run at step: the step's own output is printed unchanged, then
@@ -401,7 +468,12 @@ func (l *finishLane) stop(name string, code int, output []byte) {
 	// A changed input explains the failure better than the step's own
 	// refusal, such as intent-scope-drift (DCW-V0-378).
 	l.requireInputsUnchanged(name)
-	_, _ = l.stderr.Write(output)
+	for _, text := range textLines(output) {
+		// A note an earlier pass printed is not repeated (DCW-V0-405).
+		if !strings.HasPrefix(text, "dogfood-change: NOTE ") || !l.notes[noteKey(text)] {
+			l.say("%s\n", text)
+		}
+	}
 	if code == 0 {
 		code = 1
 	}
@@ -432,11 +504,27 @@ func (l *finishLane) removeSidecar(name string) {
 // a plan or a committed sidecar are the bind's to decide.
 func (l *finishLane) prepare() {
 	defer l.timed("prepare")()
+	if len(l.stageFiles) == 0 {
+		l.line("prepare PASS hunks=%d", l.preparePass(l.options.Change.Citations, false))
+		return
+	}
+	// Each stage's plan is prechecked against a freshly prepared map, so a
+	// refused row of any stage stops before the first bind (DCW-V0-446).
+	for k, file := range l.stageFiles {
+		l.stage = fmt.Sprintf(" stage=%d/%d", k+1, len(l.stageFiles))
+		l.line("prepare PASS hunks=%d%s", l.preparePass(file, k == 0), l.stage)
+	}
+	l.stage = ""
+}
+
+// preparePass runs one prepare pass with citations and returns the prepared
+// map's hunk count; first also runs the whole-plan stage checks on that map.
+func (l *finishLane) preparePass(citations string, first bool) int {
 	l.removeSidecar("prepare")
 	// The plan is prechecked against this prepared map, so a row cem cite
 	// would refuse, or a plan or manifest the bind would refuse before any
 	// cite, stops here, before the bind pass (DCW-V0-335, DCW-V0-379).
-	code, run, output := l.pass("prepare", l.options.Change.Citations)
+	code, run, output := l.pass("prepare", citations)
 	prepared := code != 2 && isRegular(l.root+"/"+finishLaneSidecar)
 	for _, row := range run.rows {
 		if (row.name == "cem-prepare" || row.name == citePrecheckStep || row.name == inputsPrecheckStep) && row.status != "PRODUCED" {
@@ -447,10 +535,13 @@ func (l *finishLane) prepare() {
 		l.stop("prepare", code, output)
 	}
 	l.requireInputsUnchanged("prepare")
-	hunks := len(mapHunks(readFile(l.root + "/" + finishLaneSidecar)))
+	data := readFile(l.root + "/" + finishLaneSidecar)
+	if first {
+		l.requireStageableMap(l.stages, data)
+	}
 	l.accept(output)
 	l.removeSidecar("prepare")
-	l.line("prepare PASS hunks=%d", hunks)
+	return len(mapHunks(data))
 }
 
 // bind cites the plan into a freshly prepared map. The only row it may leave
@@ -458,7 +549,16 @@ func (l *finishLane) prepare() {
 // and the bind commit clears (DCW-V0-015).
 func (l *finishLane) bind() {
 	defer l.timed("bind")()
-	code, run, output := l.pass("bind", l.options.Change.Citations)
+	citations, last := l.options.Change.Citations, ""
+	if n := len(l.stageFiles); n > 0 {
+		for k, file := range l.stageFiles[:n-1] {
+			l.stage = fmt.Sprintf(" stage=%d/%d", k+1, n)
+			l.bindStage(file)
+		}
+		citations, l.stage = l.stageFiles[n-1], fmt.Sprintf(" stage=%d/%d", n, n)
+		last = l.stage
+	}
+	code, run, output := l.pass("bind", citations)
 	if code == 1 {
 		for _, row := range run.rows {
 			if run.rowFailing(row) && row != (step{"local-outcome", "NOT_PRODUCED", "record-index-failed"}) {
@@ -470,7 +570,35 @@ func (l *finishLane) bind() {
 	}
 	l.requireInputsUnchanged("bind")
 	l.accept(output)
-	l.line("bind PASS")
+	l.line("bind PASS%s", last)
+	l.stage = ""
+}
+
+// bindStage cites one earlier stage's plan into the retained map, which cem
+// prepare resumes, as the staged route's successive passes do. The pass is
+// incomplete by design, since unknown hunks remain until the last stage, so
+// only a refused prepare, input check or cite stops it (DCW-V0-446).
+func (l *finishLane) bindStage(file string) {
+	code, run, output := l.pass("bind", file)
+	if code != 0 && code != 1 {
+		l.stop("bind", code, output)
+	}
+	cited := false
+	for _, row := range run.rows {
+		switch row.name {
+		case "cem-prepare", "cem-cite", citePrecheckStep, inputsPrecheckStep:
+			if row.status != "PRODUCED" {
+				l.stop("bind", code, output)
+			}
+			cited = cited || row.name == "cem-cite"
+		}
+	}
+	if !cited {
+		l.stop("bind", code, output)
+	}
+	l.requireInputsUnchanged("bind")
+	l.accept(output)
+	l.line("bind PASS%s", l.stage)
 }
 
 // commitBind commits only the sidecar, and the deferral record the bind pass
@@ -510,7 +638,13 @@ func (l *finishLane) gitPassthrough(args ...string) int {
 // rebind reruns the bind on the committed sidecar; it must complete.
 func (l *finishLane) rebind() {
 	defer l.timed("rebind")()
-	code, _, output := l.pass("rebind", l.options.Change.Citations)
+	// A staged plan's rebind replays its last stage on the fully cited map,
+	// as the staged route's last-plan rerun does (DCW-V0-446).
+	citations := l.options.Change.Citations
+	if n := len(l.stageFiles); n > 0 {
+		citations = l.stageFiles[n-1]
+	}
+	code, _, output := l.pass("rebind", citations)
 	if code != 0 {
 		l.stop("rebind", code, output)
 	}

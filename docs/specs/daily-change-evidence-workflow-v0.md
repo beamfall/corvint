@@ -3,14 +3,14 @@
 Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `DCW-V0`
-Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 accepted under the owner's standing auto-accept (2026-10-11) (V1-1277); DCW-V0-051..056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1330, V1-1336, V1-1337); DCW-V0-057..059 accepted under the owner's standing auto-accept (2026-10-11) (V1-1344); DCW-V0-060..062 accepted under the owner's standing auto-accept (2026-10-11) (V1-1348); DCW-V0-063 accepted under the owner's standing auto-accept (2026-10-11) (V1-1349, V1-1418); DCW-V0-064..068 accepted under the owner's standing auto-accept (2026-10-11) (V1-1354, V1-1341, V1-1397); DCW-V0-072 accepted under the owner's standing auto-accept (2026-10-11) (V1-1307, decision 0532), superseded and DCW-V0-047 amended by the owner's delegated decision (V1-1307, decision 0535); DCW-V0-073 accepted under the owner's standing auto-accept (2026-10-11) (V1-1786); DCW-V0-022 amended and DCW-V0-074 accepted under the owner's standing auto-accept (2026-10-11) (V1-1639); DCW-V0-075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1652); DCW-V0-332 accepted under the owner's standing auto-accept (2026-10-11) (V1-1929); DCW-V0-117 accepted under the owner's standing auto-accept (2026-10-11) (V1-2267); DCW-V0-150/151 accepted under the owner's standing auto-accept (2026-10-11) (V1-2283, V1-2214, V1-1442); DCW-V0-160/161 accepted under the owner's standing auto-accept (2026-10-11) (V1-2274, V1-2355, V1-2343); DCW-V0-170 accepted under the owner's standing auto-accept (2026-10-11) (V1-2344); DCW-V0-171 accepted under the owner's standing auto-accept (2026-10-11) (V1-2171); DCW-V0-112 amended and DCW-V0-165 accepted under the owner's standing auto-accept (2026-10-11) (V1-2367, V1-2379); DCW-V0-166 accepted under the owner's standing auto-accept (2026-10-11) (V1-2404); DCW-V0-333 accepted, amending DCW-V0-150 and DCW-V0-161, under the owner's standing auto-accept (2026-10-11) (V1-2423); DCW-V0-334/335 accepted, amending DCW-V0-115, under the owner's standing auto-accept (2026-10-11) (V1-2541); DCW-V0-340/341 accepted, refining DCW-V0-042 and DCW-V0-066, under the owner's delegated decision (V1-1638, `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-owner-held-decisions.md`); DCW-V0-370..372 accepted under the owner's standing auto-accept (2026-10-11) (V1-2809); DCW-V0-342..345 experimental under the standing lane auto-accept (V1-2811); DCW-V0-346..349 experimental under the standing lane auto-accept (V1-2809, V1-2810, V1-2805, V1-1773, V1-1894); DCW-V0-350/351 experimental under the standing lane auto-accept, DCW-V0-350 amending DCW-V0-150 (V1-2810, V1-2827); DCW-V0-352/353 experimental under the standing lane auto-accept, refining SRG-V0-018 and DCG-V0-001/021/022 (V1-2835, V1-2836); DCW-V0-354..356 experimental under the standing lane auto-accept, refining DCG-V0-022, ASD-V0-014 and TTG-V0-003 (V1-2852, V1-2853, V1-2855); DCW-V0-357..359 experimental under the standing lane auto-accept, refining ASD-V0-014 and ASD-V0-028 (V1-2856, V1-2857, V1-2858); DCW-V0-373..376 experimental under the standing lane auto-accept, amending DCW-V0-039, DCW-V0-040 and DCW-V0-032 (V1-2883, decision 0584); DCW-V0-377 experimental under the standing lane auto-accept, amending DCW-V0-025 (V1-2893, decision 0585); DCW-V0-378 experimental under the standing lane auto-accept, refining DCW-V0-060 (V1-2889); DCW-V0-379..381 experimental under the standing lane auto-accept, amending DCW-V0-335, DCW-V0-349 and DCW-V0-333 (V1-2970, V1-2423); DCW-V0-382..386 and DCW-V0-389 experimental under the standing lane auto-accept, refining DCW-V0-150, DCW-V0-333 and DCW-V0-381 and amending DCW-V0-065 and DCW-V0-170 (V1-3118, V1-3121, V1-3131, V1-3132); DCW-V0-387 experimental under the standing lane auto-accept, refining DCW-V0-379 (V1-3141); DCW-V0-388 experimental under the standing lane auto-accept, amending DCW-V0-112 (V1-3130); DCW-V0-390..392 experimental under the standing lane auto-accept, amending DCW-V0-117 (V1-3168); DCW-V0-396 experimental under the standing lane auto-accept, refining DCW-V0-022 (V1-3216); DCW-V0-398..401 experimental under the standing lane auto-accept (V1-3211, V1-2981, V1-3214, V1-3218)
+Intent status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 accepted under the owner's standing auto-accept (2026-10-11) (V1-1277); DCW-V0-051..056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1330, V1-1336, V1-1337); DCW-V0-057..059 accepted under the owner's standing auto-accept (2026-10-11) (V1-1344); DCW-V0-060..062 accepted under the owner's standing auto-accept (2026-10-11) (V1-1348); DCW-V0-063 accepted under the owner's standing auto-accept (2026-10-11) (V1-1349, V1-1418); DCW-V0-064..068 accepted under the owner's standing auto-accept (2026-10-11) (V1-1354, V1-1341, V1-1397); DCW-V0-072 accepted under the owner's standing auto-accept (2026-10-11) (V1-1307, decision 0532), superseded and DCW-V0-047 amended by the owner's delegated decision (V1-1307, decision 0535); DCW-V0-073 accepted under the owner's standing auto-accept (2026-10-11) (V1-1786); DCW-V0-022 amended and DCW-V0-074 accepted under the owner's standing auto-accept (2026-10-11) (V1-1639); DCW-V0-075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1652); DCW-V0-332 accepted under the owner's standing auto-accept (2026-10-11) (V1-1929); DCW-V0-117 accepted under the owner's standing auto-accept (2026-10-11) (V1-2267); DCW-V0-150/151 accepted under the owner's standing auto-accept (2026-10-11) (V1-2283, V1-2214, V1-1442); DCW-V0-160/161 accepted under the owner's standing auto-accept (2026-10-11) (V1-2274, V1-2355, V1-2343); DCW-V0-170 accepted under the owner's standing auto-accept (2026-10-11) (V1-2344); DCW-V0-171 accepted under the owner's standing auto-accept (2026-10-11) (V1-2171); DCW-V0-112 amended and DCW-V0-165 accepted under the owner's standing auto-accept (2026-10-11) (V1-2367, V1-2379); DCW-V0-166 accepted under the owner's standing auto-accept (2026-10-11) (V1-2404); DCW-V0-333 accepted, amending DCW-V0-150 and DCW-V0-161, under the owner's standing auto-accept (2026-10-11) (V1-2423); DCW-V0-334/335 accepted, amending DCW-V0-115, under the owner's standing auto-accept (2026-10-11) (V1-2541); DCW-V0-340/341 accepted, refining DCW-V0-042 and DCW-V0-066, under the owner's delegated decision (V1-1638, `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-owner-held-decisions.md`); DCW-V0-370..372 accepted under the owner's standing auto-accept (2026-10-11) (V1-2809); DCW-V0-342..345 experimental under the standing lane auto-accept (V1-2811); DCW-V0-346..349 experimental under the standing lane auto-accept (V1-2809, V1-2810, V1-2805, V1-1773, V1-1894); DCW-V0-350/351 experimental under the standing lane auto-accept, DCW-V0-350 amending DCW-V0-150 (V1-2810, V1-2827); DCW-V0-352/353 experimental under the standing lane auto-accept, refining SRG-V0-018 and DCG-V0-001/021/022 (V1-2835, V1-2836); DCW-V0-354..356 experimental under the standing lane auto-accept, refining DCG-V0-022, ASD-V0-014 and TTG-V0-003 (V1-2852, V1-2853, V1-2855); DCW-V0-357..359 experimental under the standing lane auto-accept, refining ASD-V0-014 and ASD-V0-028 (V1-2856, V1-2857, V1-2858); DCW-V0-373..376 experimental under the standing lane auto-accept, amending DCW-V0-039, DCW-V0-040 and DCW-V0-032 (V1-2883, decision 0584); DCW-V0-377 experimental under the standing lane auto-accept, amending DCW-V0-025 (V1-2893, decision 0585); DCW-V0-378 experimental under the standing lane auto-accept, refining DCW-V0-060 (V1-2889); DCW-V0-379..381 experimental under the standing lane auto-accept, amending DCW-V0-335, DCW-V0-349 and DCW-V0-333 (V1-2970, V1-2423); DCW-V0-382..386 and DCW-V0-389 experimental under the standing lane auto-accept, refining DCW-V0-150, DCW-V0-333 and DCW-V0-381 and amending DCW-V0-065 and DCW-V0-170 (V1-3118, V1-3121, V1-3131, V1-3132); DCW-V0-387 experimental under the standing lane auto-accept, refining DCW-V0-379 (V1-3141); DCW-V0-388 experimental under the standing lane auto-accept, amending DCW-V0-112 (V1-3130); DCW-V0-800..803 experimental under the standing lane auto-accept, refining DCW-V0-380 and DCW-V0-150 and amending DCW-V0-384 and DCW-V0-350 (V1-3269, V1-3280, V1-3279, V1-3268); DCW-V0-439..442 experimental under the standing lane auto-accept, amending DCW-V0-150, DCW-V0-161, DCW-V0-333 and DCW-V0-381 (V1-3145, V1-3151, V1-3240); DCW-V0-446..448 experimental (V1-3167, V1-3169); DCW-V0-390..392 experimental under the standing lane auto-accept, amending DCW-V0-117 (V1-3168); DCW-V0-396 experimental under the standing lane auto-accept, refining DCW-V0-022 (V1-3216); DCW-V0-398..401 experimental under the standing lane auto-accept (V1-3211, V1-2981, V1-3214, V1-3218); DCW-V0-402..406 experimental under the standing lane auto-accept, refining DCW-V0-061, DCW-V0-161, DCW-V0-170, DCW-V0-379, DCW-V0-381, DCW-V0-384 and DCW-V0-400 (V1-3226, V1-3131, V1-3118, V1-3231, V1-3211)
 Delivery status: experimental; milestone NOT_QUALIFIED
 Authoritative inputs: decision 0332, `docs/DOGFOOD.md`, `public-release-v0.md`,
 `use-case-conformance-v0.md`, `local-completion-policy-v0.md`
 
 ## Agent digest
 - Claim: 0.6 requires verified task orientation, change consequence and evidence-carrying local completion.
-- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 accepted under the owner's standing auto-accept (2026-10-11) (V1-1277); DCW-V0-051..056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1330, V1-1336, V1-1337); DCW-V0-057..059 accepted under the owner's standing auto-accept (2026-10-11) (V1-1344); DCW-V0-060..062 accepted under the owner's standing auto-accept (2026-10-11) (V1-1348); DCW-V0-063 accepted under the owner's standing auto-accept (2026-10-11) (V1-1349, V1-1418); DCW-V0-064..068 accepted under the owner's standing auto-accept (2026-10-11) (V1-1354, V1-1341, V1-1397); DCW-V0-072 accepted under the owner's standing auto-accept (2026-10-11) (V1-1307, decision 0532), superseded and DCW-V0-047 amended by the owner's delegated decision (V1-1307, decision 0535); DCW-V0-073 accepted under the owner's standing auto-accept (2026-10-11) (V1-1786); DCW-V0-022 amended and DCW-V0-074 accepted under the owner's standing auto-accept (2026-10-11) (V1-1639); DCW-V0-075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1652); DCW-V0-332 accepted under the owner's standing auto-accept (2026-10-11) (V1-1929); DCW-V0-117 accepted under the owner's standing auto-accept (2026-10-11) (V1-2267); DCW-V0-150/151 accepted under the owner's standing auto-accept (2026-10-11) (V1-2283, V1-2214, V1-1442); DCW-V0-160/161 accepted under the owner's standing auto-accept (2026-10-11) (V1-2274, V1-2355, V1-2343); DCW-V0-170 accepted under the owner's standing auto-accept (2026-10-11) (V1-2344); DCW-V0-171 accepted under the owner's standing auto-accept (2026-10-11) (V1-2171); DCW-V0-112 amended and DCW-V0-165 accepted under the owner's standing auto-accept (2026-10-11) (V1-2367, V1-2379); DCW-V0-166 accepted under the owner's standing auto-accept (2026-10-11) (V1-2404); DCW-V0-333 accepted, amending DCW-V0-150 and DCW-V0-161, under the owner's standing auto-accept (2026-10-11) (V1-2423); DCW-V0-334/335 accepted, amending DCW-V0-115, under the owner's standing auto-accept (2026-10-11) (V1-2541); DCW-V0-340/341 accepted, refining DCW-V0-042 and DCW-V0-066, under the owner's delegated decision (V1-1638, `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-owner-held-decisions.md`); DCW-V0-370..372 accepted under the owner's standing auto-accept (2026-10-11) (V1-2809); DCW-V0-342..345 experimental under the standing lane auto-accept (V1-2811); DCW-V0-346..349 experimental under the standing lane auto-accept (V1-2809, V1-2810, V1-2805, V1-1773, V1-1894); DCW-V0-350/351 experimental under the standing lane auto-accept, DCW-V0-350 amending DCW-V0-150 (V1-2810, V1-2827); DCW-V0-352/353 experimental under the standing lane auto-accept, refining SRG-V0-018 and DCG-V0-001/021/022 (V1-2835, V1-2836); DCW-V0-354..356 experimental under the standing lane auto-accept, refining DCG-V0-022, ASD-V0-014 and TTG-V0-003 (V1-2852, V1-2853, V1-2855); DCW-V0-357..359 experimental under the standing lane auto-accept, refining ASD-V0-014 and ASD-V0-028 (V1-2856, V1-2857, V1-2858); DCW-V0-373..376 experimental under the standing lane auto-accept, amending DCW-V0-039, DCW-V0-040 and DCW-V0-032 (V1-2883, decision 0584); DCW-V0-377 experimental under the standing lane auto-accept, amending DCW-V0-025 (V1-2893, decision 0585); DCW-V0-378 experimental under the standing lane auto-accept, refining DCW-V0-060 (V1-2889); DCW-V0-379..381 experimental under the standing lane auto-accept, amending DCW-V0-335, DCW-V0-349 and DCW-V0-333 (V1-2970, V1-2423); DCW-V0-382..386 and DCW-V0-389 experimental under the standing lane auto-accept, refining DCW-V0-150, DCW-V0-333 and DCW-V0-381 and amending DCW-V0-065 and DCW-V0-170 (V1-3118, V1-3121, V1-3131, V1-3132); DCW-V0-387 experimental under the standing lane auto-accept, refining DCW-V0-379 (V1-3141); DCW-V0-388 experimental under the standing lane auto-accept, amending DCW-V0-112 (V1-3130); DCW-V0-390..392 experimental under the standing lane auto-accept, amending DCW-V0-117 (V1-3168); DCW-V0-396 experimental under the standing lane auto-accept, refining DCW-V0-022 (V1-3216); DCW-V0-398..401 experimental under the standing lane auto-accept (V1-3211, V1-2981, V1-3214, V1-3218); experimental; milestone NOT_QUALIFIED.
+- Status: accepted scope (decision 0332); DCW-V0-018/019 accepted (decision 0376); DCW-V0-020..023 owner-directed (V1-0236, 2026-09-24); DCW-V0-024 owner-approved (V1-0259, 2026-09-25); DCW-V0-025 accepted (decision 0388, V1-0264, 2026-09-25); DCW-V0-026 accepted (decision 0395, panel M1, 2026-09-25); DCW-V0-033 accepted (decision 0441; V1-0940); evaluation protocol awaits separate freeze; DCW-V0-034 accepted, decision 0505; DCW-V0-039..041 accepted (decision 0519; V1-1151, V1-1171); DCW-V0-042..045 accepted (decision 0520; V1-1219, V1-1198, V1-1209, V1-1207); DCW-V0-019 amended and DCW-V0-046 accepted under the owner's standing auto-accept (2026-10-11) (decision 0523 P3; V1-1258); DCW-V0-047 accepted under the owner's standing auto-accept (2026-10-11) (V1-1279); DCW-V0-048/049 accepted under the owner's standing auto-accept (2026-10-11) (V1-1281); DCW-V0-050 accepted under the owner's standing auto-accept (2026-10-11) (V1-1277); DCW-V0-051..056 accepted under the owner's standing auto-accept (2026-10-11) (V1-1330, V1-1336, V1-1337); DCW-V0-057..059 accepted under the owner's standing auto-accept (2026-10-11) (V1-1344); DCW-V0-060..062 accepted under the owner's standing auto-accept (2026-10-11) (V1-1348); DCW-V0-063 accepted under the owner's standing auto-accept (2026-10-11) (V1-1349, V1-1418); DCW-V0-064..068 accepted under the owner's standing auto-accept (2026-10-11) (V1-1354, V1-1341, V1-1397); DCW-V0-072 accepted under the owner's standing auto-accept (2026-10-11) (V1-1307, decision 0532), superseded and DCW-V0-047 amended by the owner's delegated decision (V1-1307, decision 0535); DCW-V0-073 accepted under the owner's standing auto-accept (2026-10-11) (V1-1786); DCW-V0-022 amended and DCW-V0-074 accepted under the owner's standing auto-accept (2026-10-11) (V1-1639); DCW-V0-075 accepted under the owner's standing auto-accept (2026-10-11) (V1-1652); DCW-V0-332 accepted under the owner's standing auto-accept (2026-10-11) (V1-1929); DCW-V0-117 accepted under the owner's standing auto-accept (2026-10-11) (V1-2267); DCW-V0-150/151 accepted under the owner's standing auto-accept (2026-10-11) (V1-2283, V1-2214, V1-1442); DCW-V0-160/161 accepted under the owner's standing auto-accept (2026-10-11) (V1-2274, V1-2355, V1-2343); DCW-V0-170 accepted under the owner's standing auto-accept (2026-10-11) (V1-2344); DCW-V0-171 accepted under the owner's standing auto-accept (2026-10-11) (V1-2171); DCW-V0-112 amended and DCW-V0-165 accepted under the owner's standing auto-accept (2026-10-11) (V1-2367, V1-2379); DCW-V0-166 accepted under the owner's standing auto-accept (2026-10-11) (V1-2404); DCW-V0-333 accepted, amending DCW-V0-150 and DCW-V0-161, under the owner's standing auto-accept (2026-10-11) (V1-2423); DCW-V0-334/335 accepted, amending DCW-V0-115, under the owner's standing auto-accept (2026-10-11) (V1-2541); DCW-V0-340/341 accepted, refining DCW-V0-042 and DCW-V0-066, under the owner's delegated decision (V1-1638, `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-owner-held-decisions.md`); DCW-V0-370..372 accepted under the owner's standing auto-accept (2026-10-11) (V1-2809); DCW-V0-342..345 experimental under the standing lane auto-accept (V1-2811); DCW-V0-346..349 experimental under the standing lane auto-accept (V1-2809, V1-2810, V1-2805, V1-1773, V1-1894); DCW-V0-350/351 experimental under the standing lane auto-accept, DCW-V0-350 amending DCW-V0-150 (V1-2810, V1-2827); DCW-V0-352/353 experimental under the standing lane auto-accept, refining SRG-V0-018 and DCG-V0-001/021/022 (V1-2835, V1-2836); DCW-V0-354..356 experimental under the standing lane auto-accept, refining DCG-V0-022, ASD-V0-014 and TTG-V0-003 (V1-2852, V1-2853, V1-2855); DCW-V0-357..359 experimental under the standing lane auto-accept, refining ASD-V0-014 and ASD-V0-028 (V1-2856, V1-2857, V1-2858); DCW-V0-373..376 experimental under the standing lane auto-accept, amending DCW-V0-039, DCW-V0-040 and DCW-V0-032 (V1-2883, decision 0584); DCW-V0-377 experimental under the standing lane auto-accept, amending DCW-V0-025 (V1-2893, decision 0585); DCW-V0-378 experimental under the standing lane auto-accept, refining DCW-V0-060 (V1-2889); DCW-V0-379..381 experimental under the standing lane auto-accept, amending DCW-V0-335, DCW-V0-349 and DCW-V0-333 (V1-2970, V1-2423); DCW-V0-382..386 and DCW-V0-389 experimental under the standing lane auto-accept, refining DCW-V0-150, DCW-V0-333 and DCW-V0-381 and amending DCW-V0-065 and DCW-V0-170 (V1-3118, V1-3121, V1-3131, V1-3132); DCW-V0-387 experimental under the standing lane auto-accept, refining DCW-V0-379 (V1-3141); DCW-V0-388 experimental under the standing lane auto-accept, amending DCW-V0-112 (V1-3130); DCW-V0-800..803 experimental under the standing lane auto-accept, refining DCW-V0-380 and DCW-V0-150 and amending DCW-V0-384 and DCW-V0-350 (V1-3269, V1-3280, V1-3279, V1-3268); DCW-V0-439..442 experimental under the standing lane auto-accept, amending DCW-V0-150, DCW-V0-161, DCW-V0-333 and DCW-V0-381 (V1-3145, V1-3151, V1-3240); DCW-V0-446..448 experimental (V1-3167, V1-3169); DCW-V0-390..392 experimental under the standing lane auto-accept, amending DCW-V0-117 (V1-3168); DCW-V0-396 experimental under the standing lane auto-accept, refining DCW-V0-022 (V1-3216); DCW-V0-398..401 experimental under the standing lane auto-accept (V1-3211, V1-2981, V1-3214, V1-3218); DCW-V0-402..406 experimental under the standing lane auto-accept, refining DCW-V0-061, DCW-V0-161, DCW-V0-170, DCW-V0-379, DCW-V0-381, DCW-V0-384 and DCW-V0-400 (V1-3226, V1-3131, V1-3118, V1-3231, V1-3211); experimental; milestone NOT_QUALIFIED.
 - Exists: native commands and local completion primitives; three governed ledger identities.
 - Blocked on: contract/lifecycle qualification, real dual-repository workflow, sealed correctness/cost evidence and candidate gates.
 - Read next: Requirements; Acceptance and evidence; Compatibility and rollback.
@@ -1899,6 +1899,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   empty; byte-order and no-intent manifests accepted; an absent manifest keeps the generic fix;
   fails to build without the change) and the unsorted case of
   `TestDCWV0379InputsCheckRefusesEachPlanAndManifestDefect` through `dogfood inputs-check`.
+  Rollback: remove `manifestIssue` and its `fixHint` branch.
 - `DCW-V0-388`: (experimental under the standing lane auto-accept; V1-3130; amends `DCW-V0-112`
   and `DCW-V0-344`) A `cited` or `unknown` hunk for which an anchor is available, whose basis in
   the staged change map (the `DCW-V0-165` map bound to the same BASE) cites at least one evidence
@@ -1918,7 +1919,8 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `TestDCWV0388SamePathCitationIsANoteNotAWarning` (same-path note, cross-file and prefix-path
   hunks warned, unanchorable note kept first; refusals: unlisted evidence ID, suffix-only path, no
   basis, other base, unparsable map; fails with the classifier stubbed out).
-  Rollback: remove `manifestIssue` and its `fixHint` branch.
+  Rollback: remove `samePathHunks` and its use in `quietHunks`, the `samePathCnt` tally and the
+  `tierBelowAnchoredSamePath` note, so every such hunk is tier-warned again (V1-3171).
 - `DCW-V0-389`: (experimental under the standing lane auto-accept; V1-3118; extends `DCW-V0-381`)
   A citation draft MUST NOT cite recorded command output as an anchor: any file under a `raw/`
   directory and any `.stdout` or `.stderr` file, such as a `conformance/perf-v0/results/*/raw/`
@@ -1955,7 +1957,6 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   base or patch re-prepares a fresh map, whose hunk digest differs, so an entry read from the
   earlier map is refused; a cite row that `cem cite` refuses after earlier rows were staged fails
   the step with the tracked map unchanged, as before. Evidence:
-  `TestChangeDCWV0390ReplacesOnlyTheNamedCitedHunk`,
   `TestDogfoodCitationReplaceCorrectsOneHunkOfAnAppliedStage`. Rollback: as `DCW-V0-390`.
 - `DCW-V0-392`: (experimental under the standing lane auto-accept; V1-3168) An entry whose hunk
   already holds exactly the plan's rows for it (each row held, and no other basis entry) was
@@ -2062,7 +2063,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   prepare had run, and kept 28 October OCM sidecars that predate the lane's base. Failure modes:
   clock skew can make a sidecar look stale (the refusal names the file, and moving it aside loses
   nothing a later run cannot rebuild); a sidecar written on BASE's own day by a later run is not
-  stale. Non-goals: deleting or migrating anything automatically. Evidence:
+  stale. Non-goals: deleting anything (automatic retirement is `DCW-V0-406`). Evidence:
   `TestDogfoodDCWV0044WorktreeLanesRunConcurrently` (lane B's commit in lane A's worktree with a
   2000-dated sidecar: exit 2, nothing committed, both stale items named; the printed recovery then
   clears the refusal); `TestFinishLaneDCWV0400RefusesAStaleSidecarBeforePrepare` (finish-lane
@@ -2136,6 +2137,332 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   pins the message); a live run on a copy with the digest `Status` alone extended failed `make -s
   doc-gates` with `digest status ... continues the qualified delivery header` (2026-10-30).
   Rollback: remove the recipe step and check 1c.
+- `DCW-V0-402`: (experimental under the standing lane auto-accept; V1-3226; refines `DCW-V0-379`)
+  The `DCW-V0-379` inputs precheck MUST refuse a citation plan row whose fourth field is not a
+  registered basis relation as `citation-plan-relation-unknown` before any CEM write, naming the
+  first such row and its value, and its `fix:` line MUST print the full relation list, generated
+  from `wire.Relations`. `docs/DOGFOOD.md` MUST list the same relations, drift-tested against the
+  code and the `cem cite --relation` choices. Decision: `tests` is not accepted as an alias; test
+  evidence takes `test-claim`, because the basis relations are the frozen CEM wire set and an
+  alias would make one plan row mean two wire values. Non-goals: adding relations, changing
+  `cem cite`. Failure modes: an unknown-row (`HUNK<TAB>unknown<TAB>REASON<TAB>NOTE`) is not a cite
+  row and is not checked here. Evidence: the `relation tests` case of
+  `TestDCWV0379InputsCheckRefusesEachPlanAndManifestDefect`;
+  `TestDCWV0402RelationListMatchesDocsAndCite`. Rollback: remove `unknownRelationRow`, its
+  `fixHint` entry and the observation reason.
+- `DCW-V0-403`: (experimental under the standing lane auto-accept; V1-3131; refines `DCW-V0-170`
+  and `DCW-V0-384`) When the first refused verify line is an unquoted `-run` alternation of plain
+  test names, `go test ./pkg -run TestA|TestB`, whose quoted form `DCW-V0-384` admits, the
+  `finish-lane` and `inputs-check` refusal MUST print, after the `REFUSE` line, one `fix:` line
+  naming the file, the line and that quoted form instead of the grammar remediation, and the
+  `dogfood-change` `local-outcome` hint MUST name the same form. Every other refused line keeps
+  the `DCW-V0-170` remediation. The fix line MUST be built from one read of the verify file, so
+  a file replaced or truncated meanwhile yields no hint rather than a panic. Non-goals: admitting the unquoted form, which a shell would read
+  as a pipe. Evidence: `TestDCWV0403UnquotedRunAlternationRefusesInOneLine` (exact two-line
+  stderr, the hint, the quoted form reaching prepare, a grouped regex keeping the grammar hint),
+  `TestDCWV0403QuoteFixReadsTheVerifyFileOnce` (a FIFO that is empty on every later open).
+  Rollback: remove `unquotedRunAlternation`, `quotedRunFix` and their two call sites.
+- `DCW-V0-404`: (experimental under the standing lane auto-accept; V1-3118; refines `DCW-V0-161`
+  and `DCW-V0-381`) A drafted row MUST be anchored only by a BASE line carrying a requirement ID
+  of the hunk's dominant requirement family: the family its added and removed lines name most
+  often, else its context lines', else the same file's other edits', else the whole change's.
+  The fallbacks count the IDs of those other edits together. This applies to path-naming lines
+  and to definitions of IDs the hunk only mentions; with no such line the draft keeps the
+  `DCW-V0-381` fallback, a stable span of the hunk's own file reported as cited, not anchored,
+  else the explicit `unknown` row. A change that names no family anywhere
+  keeps the `DCW-V0-381` order. Governing instruction files the diff modifies stay uncited
+  (`CEM-V1-114`), and an edited span stays excluded (`DCW-V0-382`, `DCW-V0-389`). Non-goals:
+  choosing the exact bullet a hunk implements when that bullet is new at HEAD, which BASE cannot
+  hold. Evidence: `TestProposeCitationsDCWV0404AnchorsToTheHunksRequirementFamily`; on this
+  lane's 17-hunk diff at `1c43e54be`, rows on a line of the hunk's family or explicit unknowns
+  rose from 9/17 to 17/17. Rollback: remove `hunkFamilies` and its filter in `anchoredProposal`.
+- `DCW-V0-405`: (experimental under the standing lane auto-accept; V1-3231; refines `DCW-V0-061`)
+  `dogfood finish-lane` MUST print each `dogfood-change: NOTE` line at most once per run, keyed
+  by its step name, status and reason, so a later pass that repeats a note with only its
+  `--target` or counts changed prints nothing; a note with another status or reason still
+  prints. The first pass's text is kept, and a stopped pass's output omits the notes already
+  printed. Non-goals: shortening a note, or changing what a
+  single `dogfood change` run prints. Failure modes: none new. Evidence:
+  `TestDCWV0405FinishLanePrintsEachNoteOnce`; on this lane's closeout the guarding-tests note
+  (536 bytes) printed for both bind and rebind. Rollback: key `finishLane.notes` by the whole
+  line again.
+- `DCW-V0-406`: (experimental under the standing lane auto-accept; V1-3211; refines `DCW-V0-400`)
+  When `DCW-V0-400` finds reused-worktree state, `dogfood change` and `dogfood finish-lane` MUST
+  first retire it themselves, before any prepare or bind: each stale sidecar moves, byte-preserved,
+  into a new directory under `<git-dir>/corvint/stale-ocm/` (never overwriting an earlier one), and
+  the stranded traces are quarantined by `corvint migrate-traces --apply` with the plan digest of
+  the dry run just made (`LTPM-V0-012`). That apply MUST run only when the dry-run plan holds
+  stranded traces alone: a plan that would also rekey a reachable tree-keyed legacy trace is not
+  applied, and the refusal adds one line naming how many legacy traces it would rekey. Each completed retirement MUST print one
+  `RETIRE stale sidecar` or `RETIRE stale trace` line naming the item and where it went, and the
+  run then continues. The run MUST re-evaluate afterwards and refuse `reused-worktree-state` with
+  the `DCW-V0-400` recovery lines only for what is still stale. Nothing is deleted. Design: the
+  `DCW-V0-400` recovery was always the same two commands, and a lane that pasted them lost a
+  dogfood run to the refusal. Failure modes: the aside directory cannot be created or a move
+  fails (the item stays and is refused); the trace store changes between the dry run and the
+  apply (the digest no longer matches, apply refuses, and the trace is refused); a store that
+  cannot be evaluated is left to the steps that report it, as before. Non-goals: deleting
+  anything, retiring state other than the `DCW-V0-400` items, or a flag to keep the old refusal.
+  The `dogfood inputs-check` pre-flight only checks: it retires nothing and still refuses with the
+  `DCW-V0-400` recovery (`TestFinishLaneDCWV0400InputsCheckRefusesAStrandedTrace`).
+  Evidence: `TestFinishLaneDCWV0406RetiresAStaleSidecarAndContinues`,
+  `TestFinishLaneDCWV0406LeavesAMixedTracePlanToTheOperator` (stranded, reachable-legacy and
+  canonical traces: no trace moves, the refusal names the legacy count),
+  `TestFinishLaneDCWV0400RefusesAStaleSidecarBeforePrepare` (an unwritable aside directory still
+  refuses), `TestDogfoodDCWV0044WorktreeLanesRunConcurrently` (lane B's commit in lane A's
+  worktree: the stranded trace lands in `.context-corvint/legacy-traces/`, the sidecar moves, and
+  the next run retires nothing). Rollback: drop the `retireStaleState` call in
+  `requireFreshWorktree`, restoring the `DCW-V0-400` refusal.
+- `DCW-V0-439`: (experimental under the standing lane auto-accept; V1-3145; amends `DCW-V0-150`,
+  `DCW-V0-161` and `DCW-V0-333`; reconciled with `DCW-V0-393` at batch integration 2026-10-30) A
+  citation draft never cites a line of a file the change modifies (`DCW-V0-393` governs). When such
+  a hunk's row is `unknown<TAB>insufficient-evidence`, its note MUST, when one exists, name the
+  nearest stable heading or declaration of the modified file as a review hint only, never as a
+  drafted citation. Design: lane drafts cited lines next to the edit in the edited file; `cem cite`
+  accepts them when they fall outside the hunk, but they are not BASE evidence for the change. The
+  lane's narrower rule (refuse only lines a hunk overlaps or shifts, with a `shifted` check) was
+  superseded by `DCW-V0-393` and dropped at integration; only the review hint is kept. Non-goals:
+  ranking contract lines; changing what `cem cite` accepts or what `dogfood-check` tiers. Failure
+  modes: a hunk whose only evidence is its own file asks the author for a row, which `DCW-V0-046`
+  admits as a reasoned unknown. Evidence: `TestProposeCitationsDCWV0439NeverDraftsModifiedFileLines`
+  (every modified-file row is a reasoned unknown that names its nearest stable line as a hint).
+  Rollback: remove `preferredAnchor`, `declaration` and the hint clause of `propose`.
+- `DCW-V0-440`: (experimental under the standing lane auto-accept; V1-3151; amends `DCW-V0-381`)
+  A draft MUST NOT cite a line of a one-line file (a whole-file `1:1` record such as a
+  `worklist.json`) or of a `.json`, `.jsonl` or `.agent-evidence/` record, and MUST keep `unknown`
+  the row of a hunk that names, in its path or added lines, a requirement ID the same change
+  defines (an added `` - `ID`: `` bullet in another file), in the ID, compact (`XYZV0002`) or
+  lower underscore (`xyz_v0_002`) form. That row's note names the requirement and the file that
+  adds it and says same-change intent is not BASE evidence, since `cem cite` cites BASE spans only.
+  Design: lane drafts cited `worklist.json:1`, `.agent-evidence/...json` and
+  a `protocol/cem-1.0/stable/MIGRATION.json` line for code they merely listed, and left a new test file
+  unknown without naming the requirement its own change adds. Non-goals: citing the HEAD bullet;
+  deriving a BASE contract the new requirement refines. Failure modes: an ID named only in prose is
+  still found; a hunk that names an older BASE requirement keeps the `DCW-V0-161` anchor. Evidence:
+  `TestProposeCitationsDCWV0440SameChangeRequirementStaysUnknown` (no `1:1`, JSON or
+  `.agent-evidence/` row; code and test rows name `XYZ-V0-002`; fails on BASE). Rollback: remove
+  `sameChangeRequirement`, the single-line skip and the JSON clauses of `dataPath`.
+- `DCW-V0-441`: (experimental under the standing lane auto-accept; V1-3240; refines `DCW-V0-379`)
+  The bind and every pre-flight MUST refuse a `DOGFOOD_CITATIONS` row whose `hunk:sha256:` selector
+  is not in the prepared map as `citation-plan-map-mismatch`, with a detail naming the 1-based row,
+  the stale ID and either the current hunk the row most likely meant (the one unnamed hunk), up to
+  three current unnamed hunks, or that every hunk is already named, and a `fix:` line naming
+  `corvint dogfood propose-citations BASE --refresh PLAN`. Design: a new build-log file edited
+  after its plan was drafted changes its hunk ID; the refusal named neither ID and authors
+  hand-diffed IDs. Non-goals: binding a stale row. Failure modes: none new; other mismatch details
+  keep their fix. Evidence: `TestProposeCitationsDCWV0441V0442RefreshRekeysReHunkedNewFile`
+  (commit and amend cases; fails on BASE). Rollback: remove the `mapIDs` check in
+  `citationPlanMismatch` and its `fixHint` branch.
+- `DCW-V0-442`: (experimental under the standing lane auto-accept; V1-3240; amends `DCW-V0-150`)
+  `corvint dogfood propose-citations --refresh PLAN BASE` MUST carry each PLAN row whose hunk is
+  current verbatim, MUST re-key a row whose hunk ID a later commit, amend or renumber re-hunked to
+  the one unclaimed current hunk with the same path and content, else the same path and BASE range,
+  noting `refresh row N re-keyed OLD -> NEW (PATH BASE a,b; content unchanged|content changed, so
+  review the row)`, and MUST drop any other row with a note and draft its hunk afresh; the PROPOSED
+  header adds `refreshed= carried= rekeyed= dropped= deferred=`. Stale IDs are resolved from the first-parent
+  commits of BASE..HEAD and the HEAD reflog (at most 32 each, BASE ancestors only). Ordinal rows
+  resolve only through the map the citation-plan binding recorded for this PLAN (its digest, with
+  or without the deferral rows); with no such binding they are dropped with a note naming the full
+  hunk ID, since a later prepare may have renumbered the map on disk. Valid `deferred` rows
+  (`DCW-V0-370`) are carried as written and counted as `deferred=`; invalid ones are dropped with a
+  note. A missing, non-regular or over-limit PLAN is refused as
+  `refresh-plan-unavailable` with a `fix:`. Design: V1-3240 asked for carry-forward by path and
+  content across amend and renumber; `docs/CHANGE-FLOW.md` orders the build-log write before the
+  draft so the usual case needs no refresh. Non-goals: rewriting PLAN in place; carrying a row
+  whose hunk left the change. Failure modes: two hunks with the same path and range stay ambiguous
+  and are drafted afresh. Evidence: `TestProposeCitationsDCWV0441V0442RefreshRekeysReHunkedNewFile`
+  (pre.go rows carried verbatim, build-log row re-keyed, refreshed plan passes the pre-flight; fails
+  on BASE, which has no `--refresh`); `TestProposeCitationsDCWV0442RefreshOrdinalsNeedBinding`
+  (ordinals dropped without a binding and carried with one; a deferral row kept). Rollback: remove
+  `--refresh` and `propose_refresh.go`'s carry.
+- `DCW-V0-443`: (experimental under the standing lane auto-accept; V1-3104; refines `DCW-V0-040`)
+  One `dogfood batch-check` run MUST list every hand-resolved merge of BASE..HEAD under
+  `FAIL merge-resolution-unbound count=N`, earliest first, with N equal to the merges listed, and
+  after the reason's recovery MUST print one `fix:` line per listed merge naming the merge, the
+  change it merged (its second parent) and the BASE that change rebinds against (its first
+  parent). When more than one merge is listed it MUST also print one `fix:` line saying all of them
+  are recovered in the same round, in the listed order, since redoing a merge changes the first
+  parent of every later merge. Verdicts, other reasons and the exit status are unchanged. Design:
+  batch 1029a needed two rebind rounds; rerunning the check of that batch's code on its head
+  (`b0de0ac91`, BASE `c412f4f10`) lists both merges with `count=2`, so the check never stopped at
+  the first merge, and the second round came from acting on the head merge only, under a recovery
+  line that named neither merge's own BASE nor that every listed merge needs it. Non-goals:
+  rebinding or remerging for the author; ordering the batch. Failure modes: a merge whose first
+  parent is itself rebuilt still names the old first parent, which the one-round line covers.
+  Evidence: `TestBatchCheckDCWV0443ListsEveryHandResolvedMerge` (two hand-resolved merges in one
+  range, both listed with `count=2` and their own fix lines; fails on BASE, which prints no
+  per-merge line). Rollback: remove `mergeRecovery` and the `unresolved` list.
+- `DCW-V0-445`: (experimental under the standing lane auto-accept; V1-3166; refines `DCW-V0-374`)
+  The aggregate local outcome of an over-limit `dogfood-change` MUST accept the
+  `DOGFOOD_VERIFY_FILE` lines in any order: `AggregateExpectedFor` sorts them in byte order
+  (`LC_ALL=C sort`) and drops duplicates before validation, the same normalization the learning
+  trace recorder applies to the same file, so a file in any order records the receipt a sorted
+  file records. The receipt is unchanged: its `verification` member stays a sorted unique array
+  (`ALO-V0-005`), and a receipt in any other order is still refused as `aggregate-schema-invalid`.
+  Design: the relicense lane's 281-path closeout failed `local-outcome: aggregate-schema-invalid`
+  on an unsorted verify file whose order binds nothing; only the receipt array, its envelope and
+  binding digests bind the list, all over the normalized form, and `dogfood-check` reproduces from
+  the receipt's own list. Non-goals: relaxing the receipt's canonical order; normalizing task text.
+  Failure modes: none new. Evidence: `TestDCWV0445AggregateAcceptsAnyVerifyOrder` (an unsorted
+  list with a duplicate yields the sorted unique expectation and byte-identical receipt; fails on
+  BASE with `aggregate-schema-invalid`). Rollback: pass the author's list through unsorted.
+- `DCW-V0-446`: (experimental under the standing lane auto-accept; V1-3167; amends `DCW-V0-060`
+  and automates `DCW-V0-037`) `dogfood finish-lane` MUST bind one well-formed, LF-terminated
+  `--citations` plan of more than 256 rows through the staged route without manual plans. It splits
+  the plan, from its bytes alone, into stage plans of at most 256 rows each. Every row of one
+  selector stays in one stage. The final stage takes the selectors with the fewest rows (the later
+  ones among equals) and every deferral row. The earlier stages take the remaining selectors in plan
+  order; the stage just before the final one is the longest trailing run of them that fits, and the
+  rest are packed forward. Each stage is written to a private directory under `$GIT_DIR/corvint/`, which the run
+  removes on exit. The prepare pass prepares each stage and prints `prepare PASS hunks=<n>
+  stage=<k>/<n>`. The bind pass cites the earlier stages on the same retained map (`bind PASS
+  stage=<k>/<n>`), then binds the final stage with the existing acceptance. The one bind commit
+  follows, then a rebind that replays the final stage, as the manual route does. A plan of at most
+  256 rows keeps the ordinary single-plan path and its output. Design: the 256-row bound is per
+  plan, and the documented route already resumes one retained map across plans. Because the split
+  is deterministic, a resumed run rebuilds the same final stage for its rebind. Non-goals: raising
+  the per-plan bound; staging plans across commits; changing `cem cite`. Failure modes: an
+  unwritable stage directory refuses `citation-plan-stage-unwritable` with a `fix:` line. An
+  earlier stage whose bind run fails stops at that stage with its rows listed. Evidence:
+  `TestDogfoodFinishLaneDCWV0446StagesOversizedPlan` binds, checks (`hunks=300 supported=300`) and
+  seals a 300-hunk commit from one 300-row plan; it fails on BASE with
+  `citation-plan-row-limit-exceeded`. `TestFinishLaneDCWV0446PlanStagesSplitsOversizedPlan` covers
+  the stage sizes, the deferral rows in the last stage, and a 256-row plan left unstaged. Rollback:
+  drop `finishlane_stages.go` and the stage loops in `finishlane.go`; oversized plans then refuse
+  at prepare as before.
+- `DCW-V0-447`: (experimental under the standing lane auto-accept; V1-3167; refines `DCW-V0-446`
+  and `DCW-V0-048`) `dogfood finish-lane` MUST refuse a plan of more than 256 rows that no staging
+  can bind before any step runs: `REFUSE citation-plan-not-stageable rows=<n>`, a detail line, and a
+  `fix:` line naming the manual route. This covers one selector with more than 256 rows; deferral
+  rows that leave the last stage no citation row; and an earlier stage that would run while at most
+  256 hunks remain under that split (the refusal detail says no plan-order boundary avoids it),
+  since `DCW-V0-037` admits a subset plan only while more than 256 hunks are
+  unmarked. After the first stage's prepare, and before any bind, it MUST also refuse two cases.
+  The first is one hunk named in two stages through different selectors (ordinal and full ID),
+  refused as `citation-plan-not-stageable`. The second is a whole plan that cites one span for every
+  hunk of a non-chore, non-record change, refused as `citation-plan-uniform` with the
+  `DCW-V0-379` fix. No single stage names every hunk, so staging alone would evade `DCW-V0-048`.
+  Non-goals: rewriting or reordering the author's rows. Failure modes: an unreadable plan skips
+  staging, and the ordinary pre-flight refuses it. Evidence:
+  `TestFinishLaneDCWV0447PlanStagesRefusesUnstageablePlan` (fails on BASE, which has no stage
+  planner) covers the over-bound selector, 200 hunks of two rows, deferral overflow, and the
+  cross-stage selector conflict; `TestFinishLaneDCWV0446PlanStagesSplitsOversizedPlan` binds 216
+  two-row then 144 one-row hunks as 64/256/256, which greedy forward packing refused. Rollback: drop the refusals with the `DCW-V0-446` stage planner.
+- `DCW-V0-448`: (experimental under the standing lane auto-accept; V1-3169; amends `DCW-V0-374`)
+  `dogfood-change` MUST NOT treat as an aggregate-enrollment marker an aggregate local-outcome
+  receipt (`$GIT_DIR/corvint/local-outcome.json`, profile `corvint-dogfood-aggregate-outcome/0`)
+  whose `target` is not the current HEAD. A sealed aggregate stage leaves such a receipt behind,
+  and the next commit's rebind then refused `aggregate-enrollment-required`. The change resolves
+  HEAD before the marker check. The refusal for a marker that still applies (an enrolled owner
+  state, an aggregate report, or an unbound receipt for HEAD) MUST name the file (`marker:
+  <path>`) and say how to finish the enrolled change. For an aggregate report or receipt it gives
+  `fix: mv <path> <path>.stale, then rerun the same command`; for an enrolled owner's
+  `local-completion/<key>/state.json` it MUST NOT suggest moving the state aside, which would
+  leave the owner naming missing state, and instead gives the keyed `corvint dogfood status
+  --session-key <key>` and `corvint dogfood finish --session-key <key>
+  --aggregate-outcome-profile corvint-dogfood-aggregate-outcome/0` recovery. Design: the receipt binds its own target commit, so evidence for
+  another commit cannot enroll this one. `dogfood check` keeps the target-free
+  `AggregateMarkerPresent` guard. Non-goals: deleting or rewriting the receipt; changing the
+  receipt format. Failure modes: an unreadable marker refuses with the path and its own `fix:`
+  line; a receipt that does not parse stays a marker. Evidence:
+  `TestDCWV0448StaleAggregateReceiptForAnotherTargetIsIgnored` shows the same-target refusal
+  naming the file and recovery, the next commit running past the marker, and the check guard
+  still true. It fails on BASE, which refused at every target and named no file. Rollback: pass an
+  empty target to `aggregateMarker` in `requireNoAggregateMarker`.
+- `DCW-V0-449`: (experimental under the standing lane auto-accept; V1-3108; refines `DCW-V0-379`)
+  `dogfood inputs-check` and the prepare pre-flight of `dogfood finish-lane` MUST refuse, before
+  any bind, a `DOGFOOD_CITATIONS` row that cites (is not an `unknown` row) a hunk on a
+  `DOGFOOD_INTENTS_FILE` path absent at BASE, a bootstrap intent such as a new companion spec.
+  The refusal is `FAIL dogfood-inputs-precheck ocm-prepare bootstrap-intent-not-unknown
+  input=--citations <plan> rows=<n>`, one line per row (1-based row, selector, quoted path, the
+  cited evidence and relation), a `fix:` line, and the step `dogfood-inputs-precheck NOT_PRODUCED
+  bootstrap-intent-not-unknown`. The fix names the shapes that bind: delete the row (the dogfood
+  policy counts the hunk as a bootstrap unknown and the plan owes it no row) or keep it as an
+  `unknown<TAB>insufficient-evidence` row. A full or bind pass that still reaches the
+  `ocm-prepare-*:bootstrap-intent-not-unknown` refusal MUST print the same fix. Design: `OCM-V0-009`
+  keeps every hunk of a base-absent intent `unknown`, by design, so the companion-spec route bound
+  only when the plan left the spec hunk uncited; the cite itself succeeded and the refusal came
+  only from `ocm prepare` after the bind run. The check reads the prepared map and the intent
+  manifest the pre-flight already validated and runs only when that manifest is valid and names
+  an intent absent at BASE. Non-goals: relaxing `OCM-V0-009`; rewriting the plan; changing the
+  proposal drafter. Failure modes: an unreadable prepared map skips the check and the later
+  `ocm prepare` still refuses fail-closed; at most `maxNamedRefusals` rows are named, then a count.
+  Evidence: `TestDCWV0449InputsCheckRefusesCitedBootstrapIntentHunk` (a plan citing the new spec's
+  hunk is refused naming row 1 and the fix, with nothing bound; fails on BASE, whose pre-flight
+  passed the plan) and `TestDCWV0449InputsCheckPassesUncitedBootstrapIntentHunk` (no row and an
+  unknown row both pass); the bind of an uncited bootstrap spec stays covered by
+  `script/dogfood-change_test.sh`. Rollback: remove `precheckBootstrapIntentRows`, its call in
+  `precheckInputs` and the `fixHints` row.
+- `DCW-V0-800`: (experimental under the standing lane auto-accept; V1-3269; refines `DCW-V0-380`)
+  `dogfood-inputs-check` and `dogfood-finish-lane` MUST refuse, before prepare, bind or any
+  commit, when the verify input (`--verify`, `--verify-file`, `DOGFOOD_VERIFY_FILE`) or the
+  outcome (`--outcome`, `DOGFOOD_OUTCOME`) is absent, with
+  `REFUSE outcome-input-not-provided missing=--verify,--outcome` naming each missing input, a fix
+  line naming both flags, their environment variables and the `VERIFY=` and `OUTCOME=` make
+  inputs, and exit 2. An already-sealed HEAD keeps the `DCW-V0-061` no-op first. Design: the non-lane
+  `make dogfood-finish` with only `CITATIONS` and `INTENTS` passed the pre-flight, bound and
+  committed the CEM, then refused at the post-commit rebind, which needs both inputs for
+  `local-outcome`; the inputs are now checked where nothing is yet written. Non-goals: validating
+  the verify grammar here (`DCW-V0-170`), defaulting either input. Failure modes: an operator that
+  only wanted the citation pre-flight must now name the outcome inputs too. Evidence:
+  `TestFinishLaneDCWV0800RefusesMissingOutcomeInputsBeforePrepare` (both missing, verify only,
+  outcome only; finish-lane and pre-flight paths; no step runs, HEAD and the worktree unchanged;
+  fails on BASE). Rollback: remove `requireOutcomeInputs`.
+- `DCW-V0-801`: (experimental under the standing lane auto-accept; V1-3280; amends `DCW-V0-384`)
+  The quoted `-run` word of `DCW-V0-384` MUST also be admitted in double quotes, attached as
+  `-run='TestA|TestB'`, and anchored as `^(TestA|TestB)$` or `^TestA$|^TestB$`; each is recorded
+  as one typed argv argument. A verify line whose `-run` alternation is unquoted MUST be refused
+  with the `DCW-V0-170` remediation plus one `quoted form: line N: <line with the word in single
+  quotes>` line, so the operator sees the admitted A|B form; reconciled with `DCW-V0-403` at
+  batch integration, a `finish-lane` verify file whose line is such an alternation gets the one-line
+  `DCW-V0-403` fix instead, and both share one unquoted-alternation grammar. A character class, a nested group, a
+  single anchored name, a second quoted word and a shell operator stay refused. Design: lanes
+  wrote `-run TestA|TestB` and `-run '^(TestA|TestB)$'`, both refused with a remediation that did
+  not show the accepted form. Non-goals: a general shell-quoting grammar. Evidence:
+  `TestVerifyArgumentsDCWV0801AdmitsAnchoredAndAttachedRunAlternation` (admitted forms and their
+  argv, refused forms, the suggestion for each unquoted form; fails on BASE),
+  `TestDogfoodChangeNamesVerifySyntaxRemediation`. Rollback: restore the `DCW-V0-384`
+  `quotedRunAlternation` and remove `quotedRunSuggestion(s)`.
+- `DCW-V0-802`: (experimental under the standing lane auto-accept; V1-3279; amends `DCW-V0-350`)
+  When `propose-citations` cannot read or parse the canonical BASE..HEAD patch it MUST print
+  `REFUSE patch-unavailable reason=<code>` (the `cem prepare` refusal code, `git-diff-failed` or
+  `patch-unparsable`; a patch over `cem prepare`'s 8 MiB Git output bound is `git-output-exceeded`
+  with split-the-change guidance, as `cem prepare` refuses it, never `binary-patch`), the cause, a
+  fix for that reason, a `prerequisite:`
+  line stating that the draft needs only BASE and a committed HEAD (no prepared map, intents,
+  verify or outcome input), and a `next:` line naming `make dogfood-inputs-check` and
+  `make dogfood-finish` with `BASE`, `CITATIONS`, `INTENTS`, `VERIFY` and `OUTCOME`, and exit 2
+  with nothing written. It MUST NOT advise running `dogfood change` first, since `cem prepare`
+  refuses the same patch (an empty file, a mode-only change, a binary file or a symlink).
+  `docs/DOGFOOD.md` §4 MUST show the first-run order: draft, write the inputs, pre-flight, finish.
+  Non-goals: drafting rows for a patch `cem prepare` refuses. Evidence:
+  `TestProposeCitationsDCWV0802NamesWhyThePatchIsUnavailable` (empty file, mode-only change, a
+  diff over the read bound and a 9 MiB textual diff; workflow prepare refuses with the same code;
+  fails on BASE). Rollback: restore
+  the single-line refusal and remove the §4 first-run list.
+- `DCW-V0-803`: (experimental under the standing lane auto-accept; V1-3268; refines `DCW-V0-150`,
+  `DCW-V0-161` and `DCW-V0-382`) `propose-citations` MUST pair each whole-file addition with the
+  whole-file deletion sharing its longest path-component suffix (ties and contested deletions stay
+  unpaired) and draft each side of a pair on a stable BASE line that names the moved file's BASE
+  path or a BASE directory above it up to the renamed directory, never a top-level directory
+  alone. The name MUST start the line, follow a byte that is neither a path byte nor a slash, or
+  follow `./` or the BASE root `go.mod` module path plus `/`; a name under another parent, such as
+  `tools/cmd/svc/main.go` for `cmd/svc/main.go`, names a different file. An unused line is
+  preferred, so the two sides of a move cite distinct lines when two exist and a change of one
+  move drafts no `unknown` row; rows share a line when every naming line is taken. No
+  drafted span lies in a file the change deletes or on a line any hunk's old range covers, and the
+  real prepare and cite pre-flight admits every drafted row. A move with no surviving naming line
+  keeps the `DCW-V0-150` behaviour. Design: a package move is a deletion plus an addition under
+  `--no-renames`; the draft had no BASE span for the added side and drafted `unknown` rows the
+  bind loop rewrote by hand. Non-goals: rename detection by content similarity. Failure modes: a
+  line naming the directory names every file in it, so the span supports the move, not a file's
+  content. Evidence: `TestProposeCitationsDCWV0803CitesASurvivingLineForEachMovedFile` (package
+  directory move with an edited document; no unknown row, no span in a deleted or edited range,
+  the pre-flight passes, with and without a map; fails on BASE),
+  `TestProposeCitationsDCWV0803DraftsDistinctSpansForAMoveAlone` (a change of one move: two
+  distinct spans, no `tools/cmd/svc` line, the pre-flight passes),
+  `TestMovedFilesDCWV0803PairsOnlyUnambiguousMoves`. Rollback: remove `propose_move.go` and its
+  two hooks in `propose.go`.
 - `DCW-V0-170`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2344) When
   `dogfood finish-lane` refuses a verify input as `unsupported-verify-syntax` (`DCW-V0-092`), it
   MUST also print an `accepted form:` line that names the common quoted `-run 'TestA|TestB'`
@@ -2468,6 +2795,25 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-401` (experimental under the standing lane auto-accept; V1-2981) | `internal/dogfoodflow/regenerated.go` `regenerated`, `replay`; `batch.go` `regeneratedCommit`, `verifyCoverage`; `TestBatchCheckDCWV0401AcceptsRegeneratedCommits` | implemented; focused tests PASS |
 | `DCW-V0-398` (experimental under the standing lane auto-accept; V1-3214) | `internal/dogfoodflow/change.go` `regeneratedPath`, `citationPlanMismatch`; `TestChangeDCWV0398CitesRegeneratedHunksOnly`, `TestChangeDCWV0398RefusesAMergedRegeneration` | implemented; focused tests PASS |
 | `DCW-V0-399` (experimental under the standing lane auto-accept; V1-3218) | `docs/DOGFOOD.md` lane recipe; `Makefile` `doc-gates`; `script/batch-precheck_test.sh` 1c; `TestIndexCoversSpecsAndHeaders` | implemented; shell test PASS; live drift run FAIL as required |
+| `DCW-V0-402` (experimental under the standing lane auto-accept; V1-3226) | `internal/dogfoodflow/change.go` `unknownRelationRow`, `RelationChoices`; `TestDCWV0379InputsCheckRefusesEachPlanAndManifestDefect` (relation tests), `TestDCWV0402RelationListMatchesDocsAndCite` | implemented; focused test PASS |
+| `DCW-V0-403` (experimental under the standing lane auto-accept; V1-3131) | `internal/dogfoodflow/verify_argv.go` `unquotedRunAlternation`, `quotedRunFix`; `finishlane.go` `requireVerifyInput`; `change.go` `fixHint`; `TestDCWV0403UnquotedRunAlternationRefusesInOneLine`, `TestDCWV0403QuoteFixReadsTheVerifyFileOnce` | implemented; focused tests PASS |
+| `DCW-V0-404` (experimental under the standing lane auto-accept; V1-3118) | `internal/dogfoodflow/propose.go` `hunkFamilies`, `hunkText`, `dominantFamilies`, `relevantRequirementLine`; `TestProposeCitationsDCWV0404AnchorsToTheHunksRequirementFamily`, `TestDCWV0404FallbackFamilyCountsEveryOtherEdit`, `TestProposeCitationsDCWV0381SkipsDataAndPartialPaths` | implemented; focused test PASS; draft relevance 9/17 to 17/17 on this lane's diff |
+| `DCW-V0-405` (experimental under the standing lane auto-accept; V1-3231) | `internal/dogfoodflow/finishlane.go` `accept`, `noteKey`; `TestDCWV0405FinishLanePrintsEachNoteOnce`, `TestDCWV0405StoppedPassOmitsPrintedNotes` | implemented; focused test PASS |
+| `DCW-V0-406` (experimental under the standing lane auto-accept; V1-3211) | `internal/dogfoodflow/reused_worktree.go` `requireFreshWorktree`, `retireStaleState`, `strandedTraces`; `TestFinishLaneDCWV0406RetiresAStaleSidecarAndContinues`, `TestFinishLaneDCWV0406LeavesAMixedTracePlanToTheOperator`, `TestFinishLaneDCWV0400RefusesAStaleSidecarBeforePrepare`, `TestDogfoodDCWV0044WorktreeLanesRunConcurrently` | implemented; focused tests PASS |
+| `DCW-V0-439` (experimental under the standing lane auto-accept; V1-3145; reconciled with `DCW-V0-393`) | `internal/dogfoodflow/propose.go` `propose`, `preferredAnchor`, `declaration`; `TestProposeCitationsDCWV0439NeverDraftsModifiedFileLines` | implemented; focused tests PASS |
+| `DCW-V0-440` (experimental under the standing lane auto-accept; V1-3151) | `internal/dogfoodflow/propose.go` `anchoredProposal`, `dataPath`; `internal/dogfoodflow/propose_refresh.go` `addedDefinitions`, `sameChangeRequirement`; `TestProposeCitationsDCWV0440SameChangeRequirementStaysUnknown` (fails on BASE) | implemented; focused tests PASS |
+| `DCW-V0-441` (experimental under the standing lane auto-accept; V1-3240) | `internal/dogfoodflow/change.go` `citationPlanMismatch`, `fixHint`; `internal/dogfoodflow/propose_refresh.go` `staleHunkRowDetail`, `staleHunkIDHint`; `TestProposeCitationsDCWV0441V0442RefreshRekeysReHunkedNewFile` (fails on BASE) | implemented; focused tests PASS |
+| `DCW-V0-442` (experimental under the standing lane auto-accept; V1-3240) | `internal/dogfoodflow/propose_refresh.go` `readRefreshPlan`, `carry`, `resolveHunkFacts`; `cmd/corvint/dogfood_flow.go`; `cmd/corvint/help.go`; `docs/CHANGE-FLOW.md`; `TestProposeCitationsDCWV0441V0442RefreshRekeysReHunkedNewFile` (fails on BASE) | implemented; focused tests PASS |
+| `DCW-V0-443` (experimental under the standing lane auto-accept; V1-3104) | `internal/dogfoodflow/batch.go` `deriveMerge`, `mergeRecovery`, `finish`; `TestBatchCheckDCWV0443ListsEveryHandResolvedMerge` | implemented; focused test PASS |
+| `DCW-V0-445` (experimental under the standing lane auto-accept; V1-3166) | `internal/tracerecordrepo/aggregate_outcome.go` `AggregateExpectedFor`; `TestDCWV0445AggregateAcceptsAnyVerifyOrder` | implemented; focused test PASS |
+| `DCW-V0-446` (experimental under the standing lane auto-accept; V1-3167) | `internal/dogfoodflow/finishlane_stages.go` `planStages`, `stagePlan`; `internal/dogfoodflow/finishlane.go` `prepare`, `preparePass`, `bind`, `bindStage`, `rebind`; `TestDogfoodFinishLaneDCWV0446StagesOversizedPlan` (fails on BASE), `TestFinishLaneDCWV0446PlanStagesSplitsOversizedPlan` | implemented; focused tests PASS |
+| `DCW-V0-447` (experimental under the standing lane auto-accept; V1-3167) | `internal/dogfoodflow/finishlane_stages.go` `planStages`, `stageHunkConflict`, `requireStageableMap`; `TestFinishLaneDCWV0447PlanStagesRefusesUnstageablePlan` (fails on BASE) | implemented; focused test PASS |
+| `DCW-V0-448` (experimental under the standing lane auto-accept; V1-3169) | `internal/dogfoodflow/change.go` `run`, `aggregateMarker`, `requireNoAggregateMarker`, `AggregateMarkerPresent`; `TestDCWV0448StaleAggregateReceiptForAnotherTargetIsIgnored` (fails on BASE), `TestDCWV0448EnrolledStateMarkerNamesKeyedFinish` | implemented; focused test PASS |
+| `DCW-V0-449` (experimental under the standing lane auto-accept; V1-3108) | `internal/dogfoodflow/bootstrap_precheck.go` `precheckBootstrapIntentRows`, `bootstrapIntentHint`; `internal/dogfoodflow/change.go` `precheckInputs`, `fixHints`; `TestDCWV0449InputsCheckRefusesCitedBootstrapIntentHunk` (fails on BASE), `TestDCWV0449InputsCheckPassesUncitedBootstrapIntentHunk` | implemented; focused tests PASS |
+| `DCW-V0-800` (experimental under the standing lane auto-accept; V1-3269) | `internal/dogfoodflow/finishlane.go` `requireOutcomeInputs`; `TestFinishLaneDCWV0800RefusesMissingOutcomeInputsBeforePrepare` | implemented; focused test PASS |
+| `DCW-V0-801` (experimental under the standing lane auto-accept; V1-3280) | `internal/dogfoodflow/verify_argv.go` `quotedRunAlternation`, `quotedRunSuggestion`, `quotedRunSuggestions`; `internal/dogfoodflow/change.go`; `internal/dogfoodflow/finishlane.go` `requireVerifyInput`; `TestVerifyArgumentsDCWV0801AdmitsAnchoredAndAttachedRunAlternation`, `TestDogfoodChangeNamesVerifySyntaxRemediation` | implemented; focused tests PASS |
+| `DCW-V0-802` (experimental under the standing lane auto-accept; V1-3279) | `internal/dogfoodflow/propose.go` `readCanonicalPatch`, `refusePatchUnavailable`; `docs/DOGFOOD.md` §4 first-run order; `TestProposeCitationsDCWV0802NamesWhyThePatchIsUnavailable` | implemented; focused test PASS |
+| `DCW-V0-803` (experimental under the standing lane auto-accept; V1-3268) | `internal/dogfoodflow/propose_move.go` `movedFiles`, `movedProposal`, `namesPathOrDirectory`; `internal/dogfoodflow/propose.go` `propose`, `prepareAnchors`; `TestProposeCitationsDCWV0803CitesASurvivingLineForEachMovedFile`, `TestProposeCitationsDCWV0803DraftsDistinctSpansForAMoveAlone`, `TestMovedFilesDCWV0803PairsOnlyUnambiguousMoves` | implemented; focused tests PASS |
 | `DCW-V0-359` (experimental under the standing lane auto-accept; V1-2858) | `script/heavy.sh` `keep_written`, `copy_back`, `fetch`; `script/lane-scripts_test.sh` copy-back fixtures | implemented; shell test PASS |
 | `DCW-V0-373` (experimental under the standing lane auto-accept; V1-2883) | `internal/cem/gitrun/gitrun.go` `ScaledOperations`, `ScaleForRecords`; `internal/cem/gitauth/repo.go` `ScaleBudgetForRecords`; `internal/cem/workflow/commands.go` `resumeStableCandidate`; `internal/cem/verify/stable.go` `StableOptions.ScaledOperations`; `internal/cem/cli/cli.go` `--scaled-operations`; `internal/dogfoodflow/scaled.go`; `internal/lrfrepo/adapter.go` `acceptedStable`; `TestScaledOperationsGrowWithMapRecords`, `TestDCWV0373ScaledOperationsIsOptIn`, `TestDCWV0373StatusRetriesOnlyResourceLimit`, `TestDCWV0373CheckScaledStatusNeedsBothVerifiers` | implemented; focused tests PASS |
 | `DCW-V0-374` (experimental under the standing lane auto-accept; V1-2883) | `cmd/corvint/dogfood_record.go` `runDogfoodAggregateRecord`; `internal/tracerecordrepo/aggregate_outcome.go` `AggregateExpectedFor`; `internal/dogfoodflow/change.go` `localOutcome`, `AggregateMarkerPresent`; `TestDCWV0374OverLimitOutcomeLearnsNothing`, `TestDCWV0374LocalOutcomeAdmitsOptedInAggregate`, `TestDCWV0374UnenrolledAggregateReceiptIsNotAMarker` | implemented; focused tests PASS |

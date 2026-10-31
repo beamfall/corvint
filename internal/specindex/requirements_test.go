@@ -89,7 +89,8 @@ func TestSRGV0017ParseIndexReadsBothLayouts(t *testing.T) {
 
 // TestSRGV0017DefinitionLineFollowsGeneratorRanks pins SRG-V0-017 against SRG-V0-003/004: a
 // definition beats an earlier table row, a table row is the fallback, a wrapped prose continuation
-// and a passing mention never count, and a longer id sharing the prefix is a different id.
+// and a passing mention never count, and a longer id sharing the prefix is a different id. A marked
+// line that wraps prose ranks after every unwrapped definition and is only a fallback (SRG-V0-548).
 func TestSRGV0017DefinitionLineFollowsGeneratorRanks(t *testing.T) {
 	spec := strings.Join([]string{
 		"# Spec",                             // 1
@@ -104,10 +105,14 @@ func TestSRGV0017DefinitionLineFollowsGeneratorRanks(t *testing.T) {
 		"**X-V0-003.** a bold period definition.", // 10
 		"X-V0-004-005: a longer id.",              // 11
 		"",                                        // 12
-		"X-V0-002: a paragraph-start definition.", // 13
-		"See X-V0-005 in passing.",                // 14
+		"X-V0-002: a paragraph-start definition.",                 // 13
+		"See X-V0-005 in passing.",                                // 14
+		"`X-V0-006`. a marked but wrapped citation (SRG-V0-548).", // 15
+		"`X-V0-007`: only ever a wrapped citation.",               // 16
+		"",                                    // 17
+		"X-V0-006. the unwrapped definition.", // 18
 	}, "\n")
-	for id, want := range map[string]int{"X-V0-001": 9, "T-V0-001": 4, "X-V0-002": 13, "X-V0-003": 10, "X-V0-004": 0, "X-V0-005": 0} {
+	for id, want := range map[string]int{"X-V0-001": 9, "T-V0-001": 4, "X-V0-002": 13, "X-V0-003": 10, "X-V0-004": 0, "X-V0-005": 0, "X-V0-006": 18, "X-V0-007": 16} {
 		if got := DefinitionLine(spec, id); got != want {
 			t.Errorf("DefinitionLine(%s) = %d, want %d", id, got, want)
 		}

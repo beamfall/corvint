@@ -414,7 +414,7 @@ output=$(run) || rc=$?
 [ "$rc" = 1 ] || fail "the ordered failing run exited $rc, not 1: $output"
 expected_head="line citations: 1 citation(s) do not resolve:
   docs/agent-memory/fixture.md:3  \`$span\`  cited content moved unchanged to \`internal/demo/demo.go:5-6@$pin\` (script/check-line-citations.sh --repin rewrites it)
-line citations: fix: 1 citation(s) moved unchanged; run script/check-line-citations.sh --repin, git add the rewritten documents, then rerun make line-citations-check
+line citations: fix: 1 citation(s) moved unchanged; run script/check-line-citations.sh --repin (it stages the documents it rewrites), then rerun make line-citations-check
 line citations: note: skipped 1 citation(s) whose basename is not tracked at repository root (--verbose lists them)
 line citations: note: this gate reads the Git index, so unstaged edits to 1 file(s) it read were not checked (git add them to include them):
   internal/demo/demo.go"
@@ -432,8 +432,36 @@ cite "$span"
 out=$(cd "$test_root" && script/check-line-citations.sh --repin 2>&1) || fail "--repin failed on a unique move: $out"
 grep -q "internal/demo/demo.go:5-6@$pin" "$test_root/docs/agent-memory/fixture.md" ||
   fail "--repin did not rewrite the citation to lines 5-6"
-stage docs/agent-memory/fixture.md
-run >/dev/null || fail "the repinned citation did not pass"
+# DCG-V0-048 (V1-3228): --repin staged its rewrite, so the index-reading check passes unstaged.
+case $out in *'staged them (git add -- docs/agent-memory/fixture.md)'*) ;; *) fail "--repin did not name what it staged: $out" ;; esac
+[ -z "$(git -C "$test_root" diff --name-only -- docs/agent-memory/fixture.md)" ] || fail "--repin left its rewrite unstaged"
+run >/dev/null || fail "the repinned citation did not pass without manual staging"
+# 24b. DCG-V0-048: a failed `git add` (index.lock held) exits non-zero naming the command; a pass
+#      that still rewrote at the fifth pass exits non-zero as not converged; a document whose name
+#      is a glob stages only itself, never an unstaged sibling the glob would match.
+cite "$span"
+: > "$test_root/.git/index.lock"
+rc=0
+out=$(cd "$test_root" && script/check-line-citations.sh --repin 2>&1) || rc=$?
+rm -f "$test_root/.git/index.lock"
+[ "$rc" = 1 ] || fail "--repin exited $rc after a failed git add: $out"
+case $out in *'could not stage them; run `git add -- docs/agent-memory/fixture.md`'*) ;; *) fail "failed staging not named: $out" ;; esac
+cite "$span"
+rc=0
+out=$(cd "$test_root" && CHECK_LINE_CITATIONS_REPIN_PASS=5 script/check-line-citations.sh --repin 2>&1) || rc=$?
+[ "$rc" = 1 ] || fail "--repin exited $rc when its fifth pass still rewrote: $out"
+case $out in *'did not converge'*) ;; *) fail "non-convergence not named: $out" ;; esac
+cite "$span"
+printf 'sibling\n' > "$test_root/docs/agent-memory/f.md"
+printf '# Glob\n\nAlso `%s`.\n' "$span" > "$test_root/docs/agent-memory/[fx].md"
+stage docs/agent-memory/f.md
+git -C "$test_root" --literal-pathspecs add -- 'docs/agent-memory/[fx].md'
+printf 'unstaged sibling edit\n' >> "$test_root/docs/agent-memory/f.md"
+out=$(cd "$test_root" && script/check-line-citations.sh --repin 2>&1) || fail "--repin of a glob-named document failed: $out"
+git -C "$test_root" diff --name-only | grep -qx 'docs/agent-memory/f.md' || fail "--repin staged a sibling its glob-named document matches"
+[ -z "$(git -C "$test_root" --literal-pathspecs diff --name-only -- 'docs/agent-memory/[fx].md')" ] || fail "--repin left the glob-named rewrite unstaged"
+git -C "$test_root" --literal-pathspecs rm -q -f --cached -- 'docs/agent-memory/f.md' 'docs/agent-memory/[fx].md'
+rm -f "$test_root/docs/agent-memory/f.md" "$test_root/docs/agent-memory/[fx].md"
 
 # 25. Moved text that now appears twice is ambiguous and is not relocated.
 cite "$span"
@@ -676,11 +704,11 @@ git -C "$test_root" rm -q --cached internal/demo/shift.go
 rm -f "$test_root/internal/demo/shift.go"
 cite "$single"
 
-# 33. DCG-V0-047 (V1-3124): a transitive chain repins without a hand-run --hash. The fixture pins
-#     a spec line that itself cites a moved source line; --repin moves the spec's token, which
-#     changes the spec line, and once that is staged a second --repin re-anchors the fixture's
-#     citation because the line changed only inside its citation tokens, a `:N@pin` continuation
-#     among them.
+# 33. DCG-V0-047 (V1-3124), DCG-V0-048 (V1-3228): a transitive chain repins in one --repin call
+#     with no hand-run --hash and no manual staging. The fixture pins a spec line that itself cites
+#     a moved source line; --repin moves the spec's token, which changes the spec line, stages the
+#     spec, and its second pass re-anchors the fixture's citation because the line changed only
+#     inside its citation tokens, a `:N@pin` continuation among them.
 mkdir -p "$test_root/docs/specs"
 printf '%s\n' 'package demo' '' 'func ChainTarget() int { return 42 }' 'func ChainOther() int { return 7 }' \
   > "$test_root/internal/demo/chain.go"
@@ -697,28 +725,19 @@ git -C "$test_root" -c user.name=t -c user.email=t@example.invalid -c commit.gpg
 printf '%s\n' 'package demo' '' '// one' '// two' 'func ChainTarget() int { return 42 }' 'func ChainOther() int { return 7 }' \
   > "$test_root/internal/demo/chain.go"
 stage internal/demo/chain.go
-(cd "$test_root" && script/check-line-citations.sh --repin >/dev/null 2>&1) || fail "--repin of the moved inner citation failed"
+rc=0
+repinned=$(cd "$test_root" && script/check-line-citations.sh --repin 2>&1) || rc=$?
+[ "$rc" = 0 ] || fail "--repin of the chain exited $rc: $repinned"
 grep -q "internal/demo/chain.go:5@${inner##*@}" "$test_root/docs/specs/chain.md" || fail "--repin did not move the inner citation"
 grep -q "\`:6@${other##*@}\`" "$test_root/docs/specs/chain.md" ||
   fail "--repin did not move the inner continuation: $(cat "$test_root/docs/specs/chain.md")"
-stage docs/specs/chain.md
-rc=0
-output=$(run) || rc=$?
-[ "$rc" = 1 ] || fail "the transitively changed citation passed before its repin: $output"
-case $output in
-*"$outer"*'cited content changed'*'--repin re-anchors it'*) ;;
-*) fail "the transitive change did not name the --repin route: $output" ;;
-esac
-rc=0
-repinned=$(cd "$test_root" && script/check-line-citations.sh --repin 2>/dev/null) || rc=$?
-[ "$rc" = 0 ] || fail "--repin of the transitive citation exited $rc: $repinned"
 reanchored=$(cd "$test_root" && script/check-line-citations.sh --hash docs/specs/chain.md:3)
 case $repinned in
-*"$outer"*" -> \`$reanchored\`"*) ;;
-*) fail "--repin did not re-anchor the transitive citation to $reanchored: $repinned" ;;
+*'--repin pass 2 rereads the staged rewrite'*"$outer"*" -> \`$reanchored\`"*) ;;
+*) fail "--repin did not re-anchor the transitive citation to $reanchored in its second pass: $repinned" ;;
 esac
-stage docs/agent-memory/fixture.md
-run >/dev/null || fail "the re-anchored chain did not pass: $(run)"
+[ -z "$(git -C "$test_root" diff --name-only)" ] || fail "--repin left a rewrite unstaged: $(git -C "$test_root" diff --name-only)"
+run >/dev/null || fail "the re-anchored chain did not pass without manual staging: $(run)"
 git -C "$test_root" rm -q --cached internal/demo/chain.go docs/specs/chain.md
 rm -f "$test_root/internal/demo/chain.go" "$test_root/docs/specs/chain.md"
 cite "$single"
@@ -738,12 +757,12 @@ git -C "$test_root" -c user.name=t -c user.email=t@example.invalid -c commit.gpg
   -c core.hooksPath=/dev/null commit -q -m prose
 printf '%s\n' 'package demo' '' '// one' '// two' 'func ProseTarget() int { return 42 }' > "$test_root/internal/demo/prose.go"
 stage internal/demo/prose.go
-(cd "$test_root" && script/check-line-citations.sh --repin >/dev/null 2>&1) || fail "--repin of the moved prose-line citation failed"
 perl -0pi -e 's/`retry:3`/`retry:0`/' "$test_root/docs/specs/prose.md"
+stage docs/specs/prose.md
+# One --repin moves the inner citation and stages it (DCG-V0-048); its second pass must refuse.
+(cd "$test_root" && script/check-line-citations.sh --repin >/dev/null 2>&1) || fail "--repin of the prose chain exited non-zero"
 grep -q "internal/demo/prose.go:5@${inner##*@}\` with \`retry:0\`" "$test_root/docs/specs/prose.md" ||
   fail "the prose fixture was not set up: $(cat "$test_root/docs/specs/prose.md")"
-stage docs/specs/prose.md
-(cd "$test_root" && script/check-line-citations.sh --repin >/dev/null 2>&1) || true
 grep -qF "$outer" "$test_root/docs/agent-memory/fixture.md" ||
   fail "--repin re-anchored a citation whose line changed a prose name:number: $(cat "$test_root/docs/agent-memory/fixture.md")"
 rc=0

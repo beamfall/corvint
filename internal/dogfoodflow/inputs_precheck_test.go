@@ -45,6 +45,14 @@ func preflightRun(t *testing.T, root string, options ChangeOptions) (int, string
 	t.Helper()
 	var labels []string
 	options.Root = root
+	// DCW-V0-800: the pre-flight refuses before prepare without both outcome
+	// inputs, so the cases that test later refusals supply them.
+	if options.Verify == "" && options.VerifyFile == "" {
+		options.Verify = "go version"
+	}
+	if options.Outcome == "" {
+		options.Outcome = "passed"
+	}
 	options.Steps = Runner{Path: "corvint", Run: func(ctx context.Context, root string, args []string, stdout, stderr io.Writer) int {
 		labels = append(labels, strings.Join(args, " "))
 		if len(args) > 0 && args[0] == "cem" {
@@ -91,12 +99,12 @@ func assertNothingBound(t *testing.T, root, head string, labels []string) {
 
 // TestDCWV0380InputsCheckRefusesVerifySyntaxBeforeAnyStep (V1-2970): a `|` in
 // the verify file is refused by name and line before any step runs. The
-// alternation is anchored and grouped, a form DCW-V0-384 still refuses.
+// alternation holds a character class, a form DCW-V0-801 still refuses.
 func TestDCWV0380InputsCheckRefusesVerifySyntaxBeforeAnyStep(t *testing.T) {
 	root, base := preflightRepository(t, nil)
 	head := testGit(t, root, "rev-parse", "HEAD")
 	plan := writeInput(t, "1\tpre.go\t3:3\timplementation\n2\tpre.go\t20:20\timplementation\n")
-	verify := writeInput(t, "go test -run TestA ./pre\ngo test -run '^(TestA|TestB)$' ./pre\n")
+	verify := writeInput(t, "go test -run TestA ./pre\ngo test -run '^(TestA|Test[B])$' ./pre\n")
 	code, stdout, stderr, labels := preflightRun(t, root, ChangeOptions{Base: base, Citations: plan, VerifyFile: verify})
 	if code != 2 || len(labels) != 0 {
 		t.Fatalf("code=%d steps=%q stdout=%q stderr=%q", code, labels, stdout, stderr)
@@ -127,6 +135,15 @@ func TestDCWV0379InputsCheckRefusesEachPlanAndManifestDefect(t *testing.T) {
 			name: "uniform plan",
 			plan: "1\tpre.go\t3:3\timplementation\n2\tpre.go\t3:3\timplementation\n",
 			want: []string{"FAIL dogfood-inputs-precheck cem-cite citation-plan-uniform input=", " rows=all hunks=2 span=", "prepare dogfood-inputs-precheck NOT_PRODUCED citation-plan-uniform"},
+		},
+		{
+			// DCW-V0-402 (V1-3226): an unregistered relation refuses the whole
+			// plan before any cite and names the full allowed list.
+			name: "relation tests",
+			plan: "1\tpre.go\t3:3\timplementation\n2\tpre.go\t20:20\ttests\n",
+			want: []string{"FAIL dogfood-inputs-precheck cem-cite citation-plan-relation-unknown input=", ` row 2 relation="tests"`,
+				"one of call-site, decision, dependency, implementation, incident, specification, test-claim;", "takes test-claim (tests is not a relation)",
+				"prepare dogfood-inputs-precheck NOT_PRODUCED citation-plan-relation-unknown"},
 		},
 		{
 			name: "ordinal past the map",

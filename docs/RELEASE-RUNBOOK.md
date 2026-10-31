@@ -182,6 +182,24 @@ output directories outside the checkout; the reproducibility script refuses one 
     git push origin vX.Y.Z
     ```
 
+## Official update sources for RC and developer builds
+
+`corvint-update` reads only the GitHub releases of `beamfall/corvint` (`UPD-V0-367`), so a build
+is checkable and appliable through the supported update route only after it is published there as
+a non-draft release (a prerelease is enough; no stable `v1.0.0` is needed first). Each component
+is its own release, published by the owner (step 10 for Core):
+
+| Component | Tag | Assets the updater reads |
+|---|---|---|
+| Core RC or stable | `vX.Y.Z-rc.N` or `vX.Y.Z` | `corvint_<goos>_<goarch>.tar.gz`, `SHA256SUMS` and `verification-report.json` from step 5 |
+| Tasks developer | `tasks-dev-YYYYMMDD.N` | `corvint-tasks_<goos>_<goarch>.tar.gz`, `SHA256SUMS` and `build-verification_<goos>_<goarch>.json` from `corvint-companion-release -tasks-only` ([INSTALL](INSTALL.md#standalone-tasks-archive)) |
+
+Until such a release exists, `corvint-update check --allow-network --component core|tasks`
+reports freshness `UNKNOWN` with an `unknownReason` naming the empty channel; that is the expected
+state, not an updater fault. After publication, retain each component's `check` and a disposable
+`apply`/`rollback` (`--bin-dir`/`--state-dir` in a scratch directory) as the release's update-route
+evidence. Publishing a release or marking it a prerelease is an owner action like the tag push.
+
 ## Rollback of a bad release
 
 Public tags and published assets are never moved, deleted or rewritten. To roll back:

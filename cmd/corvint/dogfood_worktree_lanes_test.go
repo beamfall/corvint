@@ -21,13 +21,17 @@ func (run portableRun) concurrently(t *testing.T, dirs []string, extra func(int)
 	commands := make([]*exec.Cmd, len(dirs))
 	stdout, stderr := make([]strings.Builder, len(dirs)), make([]strings.Builder, len(dirs))
 	for i, dir := range dirs {
-		commands[i] = exec.Command(run.binary, args...)
-		commands[i].Dir = dir
-		commands[i].Env = append(append([]string{}, run.env...), extra(i)...)
-		commands[i].Stdout, commands[i].Stderr = &stdout[i], &stderr[i]
-		if err := commands[i].Start(); err != nil {
+		command, err := startCopiedBinary(func() *exec.Cmd {
+			command := exec.Command(run.binary, args...)
+			command.Dir = dir
+			command.Env = append(append([]string{}, run.env...), extra(i)...)
+			command.Stdout, command.Stderr = &stdout[i], &stderr[i]
+			return command
+		})
+		if err != nil {
 			t.Fatal(err)
 		}
+		commands[i] = command
 	}
 	results := make([]laneRun, len(dirs))
 	for i, command := range commands {
@@ -115,8 +119,10 @@ func TestDogfoodDCWV0044WorktreeLanesRunConcurrently(t *testing.T) {
 
 	// The shared-store failure V1-1209 reported: lane B's work run in lane A's
 	// worktree, whose traces name commits lane B cannot reach, beside an ignored
-	// OCM sidecar older than BASE (fixture commits are dated 2000-01-01). DCW-V0-400 (V1-3211) refuses it before any
-	// prepare or bind and names the recovery, which then clears the refusal.
+	// OCM sidecar older than BASE (fixture commits are dated 2000-01-01).
+	// DCW-V0-406 (V1-3211) retires both before any prepare or bind: the trace
+	// is quarantined by migrate-traces and the sidecar moved under the Git
+	// directory, each byte-preserved, and the run goes on without refusing.
 	cemGit(t, lanes[0], "checkout", "-q", "--detach", work)
 	stale := filepath.Join(lanes[0], ".corvint", "change.ocm.009.json")
 	if err := os.WriteFile(stale, []byte("{}\n"), 0o644); err != nil {
@@ -125,33 +131,19 @@ func TestDogfoodDCWV0044WorktreeLanesRunConcurrently(t *testing.T) {
 	if err := os.Chtimes(stale, time.Unix(946684000, 0), time.Unix(946684000, 0)); err != nil {
 		t.Fatal(err)
 	}
-	before := cemGit(t, lanes[0], "rev-parse", "HEAD")
-	code, _, stderr := run.exec(t, lanes[0], inputs(1), "dogfood", "change", base)
-	if code != 2 || !strings.Contains(stderr, "dogfood-change: REFUSE reused-worktree-state\n") ||
-		!strings.Contains(stderr, "  stale trace: the worktree-local trace store names ") ||
-		!strings.Contains(stderr, "  stale sidecar: .corvint/change.ocm.009.json is ignored and was last written before BASE ") ||
-		!strings.Contains(stderr, "each lane should use a fresh worktree (git worktree add)") {
-		t.Fatalf("shared worktree exit=%d stderr=%s", code, stderr)
+	_, _, stderr := run.exec(t, lanes[0], inputs(1), "dogfood", "change", base)
+	if strings.Contains(stderr, "reused-worktree-state") ||
+		!strings.Contains(stderr, "dogfood-change: RETIRE stale trace ") ||
+		!strings.Contains(stderr, "dogfood-change: RETIRE stale sidecar .corvint/change.ocm.009.json moved to ") {
+		t.Fatalf("shared worktree was not retired: %s", stderr)
 	}
-	if after := cemGit(t, lanes[0], "rev-parse", "HEAD"); after != before {
-		t.Fatalf("the refusal committed %s", after)
+	if _, err := os.Lstat(stale); !os.IsNotExist(err) {
+		t.Fatalf("the stale sidecar is still in place: %v", err)
 	}
-	digest := ""
-	for _, line := range strings.Split(stderr, "\n") {
-		if rest, ok := strings.CutPrefix(line, "  fix: corvint migrate-traces --apply --plan-digest "); ok {
-			digest, _, _ = strings.Cut(rest, " ")
-		}
+	if legacy, err := os.ReadDir(filepath.Join(lanes[0], ".context-corvint", "legacy-traces")); err != nil || len(legacy) == 0 {
+		t.Fatalf("no quarantined trace: %v", err)
 	}
-	if len(digest) != 64 {
-		t.Fatalf("no plan digest in %s", stderr)
-	}
-	if err := os.Rename(stale, filepath.Join(t.TempDir(), "change.ocm.009.json")); err != nil {
-		t.Fatal(err)
-	}
-	if code, stdout, stderr := run.exec(t, lanes[0], nil, "migrate-traces", "--apply", "--plan-digest", digest); code != 0 {
-		t.Fatalf("migrate-traces exit=%d stdout=%s stderr=%s", code, stdout, stderr)
-	}
-	if _, _, stderr := run.exec(t, lanes[0], inputs(1), "dogfood", "change", base); strings.Contains(stderr, "reused-worktree-state") {
-		t.Fatalf("recovered worktree still refused: %s", stderr)
+	if _, _, stderr := run.exec(t, lanes[0], inputs(1), "dogfood", "change", base); strings.Contains(stderr, "RETIRE") || strings.Contains(stderr, "reused-worktree-state") {
+		t.Fatalf("retired worktree still holds stale state: %s", stderr)
 	}
 }
