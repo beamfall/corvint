@@ -485,7 +485,11 @@ from `git diff -U0`. A few checks need the bind's own state and stay with the bi
 `make dogfood-closeout` takes the same variables, runs `dogfood-finish` (so the pre-flight runs
 first), then `batch-precheck`, and stops at the first step that fails (`DCW-V0-349`). CI and the
 precheck both run `make doc-gates`, using the single `DOC_GATE_TARGETS` list and the existing
-use-case conformance command. The precheck also retains its other drift checks.
+use-case conformance command. The precheck also retains its other drift checks. Its drift tests
+run through `script/heavy.sh` (`BATCH_PRECHECK_HEAVY`); set `BATCH_PRECHECK_GO_WRAPPER` to one
+executable path, such as `script/heavy.sh`, to run every `make` and `go run` step through that
+host semaphore or offload hook too, so concurrent lane prechecks do not overload the host
+(`ASD-V0-941`). Unset, those steps run directly.
 
 Before pushing, the optional pre-push hook `script/pre-push-dogfood-seal.sh` runs
 `script/dogfood-batch-check.sh` against each pushed branch's merge base with `origin/main` and
