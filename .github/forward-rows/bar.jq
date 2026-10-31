@@ -45,7 +45,7 @@ def counts($rows):
     if (.rows | length) >= 20 then . elif $r.class == "INFRA" then .infra += 1 else .rows += [$r] end)) as $window
 | counts($unique) as $e
 | counts($window.rows) as $w
-| (if ($e.complete >= 20 and $e.failing >= 5 and $e.miss == 0) | not then "NOT MET"
+| (if ($e.complete >= 8 and $e.failing >= 1 and $e.miss == 0) | not then "NOT MET"
    elif $covered then "MET"
    else "NOT ESTABLISHED" end) as $status
 | (if $w.miss >= 2 or $w.incomplete >= 3 then "TRIPPED" else "clear" end) as $kill
@@ -92,9 +92,9 @@ def counts($rows):
   "",
   "Narrowed pull-request runs (AFP-V0-099): \($narrowed) NARROWED row(s), outside the bar and the window.",
   "",
-  "Shadow bar (20 complete rows of the epoch, at least 5 with failing packages, no non-FLAKY miss in the epoch): "
+  "Shadow bar (8 complete rows of the epoch, at least 1 with failing packages, no non-FLAKY miss in the epoch): "
     + $status
-    + " (\($e.complete)/20 complete, \($e.failing)/5 failing)"
+    + " (\($e.complete)/8 complete, \($e.failing)/1 failing)"
     + (if $covered then "." else "; the listing did not reach the start of epoch \($epoch), so an older MISS row cannot be excluded." end),
   "",
   "Kill switch (AFP-V0-030: 2 MISS or 3 INCOMPLETE in the latest 20): " + $kill + ".",

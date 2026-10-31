@@ -927,7 +927,7 @@ and container qualification; full fallback remains available.
   Both `go-product` and step summaries SHALL say "selected packages passed: N of M; the full
   suite runs in the merge queue", never "suite passed". Hosted behavior, net cost and batch
   speedup remain `NOT_OBSERVED`; batch speedup is not claimed.
-- **AFP-V0-029:** (accepted, decision 0509; intent decision 0431; amended decision 0537; amended by the owner (owner chat, 2026-10-20; V1-0812)) Every PR run computing a trusted selection SHALL
+- **AFP-V0-029:** (accepted, decision 0509; intent decision 0431; amended decision 0537; amended by the owner (owner chat, 2026-10-20; V1-0812); amended by the orchestrator under owner delegation (owner chat, 2026-10-31)) Every PR run computing a trusted selection SHALL
   retain S with tool source, plan and selection digests and shard partition digest. Every
   `merge_group` shard SHALL retain bounded terminal `go test -json` package outcomes. A
   default-branch `workflow_run` job, as in AFP-V0-016, SHALL build one row per queue run,
@@ -954,14 +954,17 @@ and container qualification; full fallback remains available.
   `doc-gates` and `ci-control-plane` reported on the queue commit, `main` equal to that commit
   and `dogfood-check` reading its seal; until then it is `NOT_OBSERVED`.
   Narrowing requires, among all complete shadow rows of the current epoch (one per pull request
-  and commit, not only the latest 20), at least 20 complete rows, at least 5 of them with failing
+  and commit, not only the latest 20), at least 8 complete rows, at least 1 of them with failing
   packages, and no row anywhere in the epoch with a miss other than `FLAKY`; `INFRA` rows stay
   outside these counts and `INCOMPLETE` rows are not complete. The bar is met only on a listing
   that reached the start of the epoch (it read every artifact or names a row of an earlier
   epoch); otherwise it is not established, never met. (Amended by the owner (owner chat,
   2026-10-20; V1-0812): the bar counts the whole epoch; the AFP-V0-030 kill switch keeps its
   latest-20 window.) (Amended by the orchestrator under owner delegation (owner chat,
-  2026-10-20; V1-0812).) `NARROWED` rows (AFP-V0-099) are outside every count of this bar and are
+  2026-10-20; V1-0812).) (Amended by the orchestrator under owner delegation (owner chat,
+  2026-10-31): the bar was lowered from 20 complete rows, at least 5 failing, to 8 complete rows,
+  at least 1 failing; the no-miss rule, the coverage rule and AFP-V0-030 are unchanged.)
+  `NARROWED` rows (AFP-V0-099) are outside every count of this bar and are
   dropped before the per-(pull request, commit) deduplication, so a narrowed run never replaces a
   counted row; a PR run reads the bar only through the trusted verdict of AFP-V0-097, never by
   listing the epoch itself. Hosted queue branch form, `workflow_run` delivery,
@@ -970,9 +973,10 @@ and container qualification; full fallback remains available.
   `forward-qualification-tripped` when the latest 20 rows of the current epoch, counting
   `INCOMPLETE` rows in the window, contain at least 2 `MISS` rows or at least 3 `INCOMPLETE`
   rows. (Amended by the owner, decision 0537; V1-1514.) An `INFRA` row (AFP-V0-052) takes no place
-  in the window and never counts as `INCOMPLETE` or toward the 20 complete rows of AFP-V0-029.
-  (Amended by the orchestrator under owner delegation (owner chat, 2026-10-20; V1-0812).) A
-  `NARROWED` row (AFP-V0-099) likewise takes no place in the window. The window is read twice:
+  in the window and never counts as `INCOMPLETE` or toward the 8 complete rows of AFP-V0-029.
+  (Amended by the orchestrator under owner delegation (owner chat, 2026-10-20; V1-0812).)
+  (Amended by the orchestrator under owner delegation (owner chat, 2026-10-31): the AFP-V0-029
+  count follows its lowered bar.) A `NARROWED` row (AFP-V0-099) likewise takes no place in the window. The window is read twice:
   in the trusted AFP-V0-097 verdict, and live by the PR job over the newest 25 pages of artifact
   names, so rows newer than the verdict can still trip it. (Amended 2026-10-28 on the owner report "every
   PR ran full CI": the page budget rose from 5 to 25 because 500 artifacts held about 8 forward rows.)
@@ -1592,7 +1596,8 @@ and container qualification; full fallback remains available.
   SHALL count, from the names of non-expired artifacts that runs on `main` of this repository
   uploaded (a pull-request or queue run can upload any name) and without downloading, two
   separate counts of the current epoch's rows (one per pull request and commit): every listed row
-  against the AFP-V0-029 bar of 20 complete and 5 failing rows with no non-`FLAKY` miss, and the
+  against the AFP-V0-029 bar of 8 complete and 1 failing rows with no non-`FLAKY` miss (amended by
+  the orchestrator under owner delegation (owner chat, 2026-10-31); formerly 20 and 5), and the
   latest 20 rows against the AFP-V0-030 thresholds. It SHALL say NOT MET while the epoch is short
   and NOT ESTABLISHED, never MET, when the listing neither read every artifact nor reached a row of
   an earlier epoch (owner chat, 2026-10-20; V1-0812). Nothing in

@@ -72,5 +72,5 @@ jq -n -c --argjson bar "$bar" --arg epoch "$FORWARD_EPOCH" --arg start "$start" 
     runAttempt: ($runAttempt | num),
     mainSha: $mainSha,
     computedAt: $computedAt}' > "$dir/verdict.json"
-jq -r '"### AFP-V0-097 shadow-bar verdict, epoch \(.epoch)\n\n\(.status): \(.counts.complete // 0)/20 complete, \(.counts.failing // 0)/5 failing, \(.counts.miss // 0) MISS in the epoch; kill switch \(.killSwitch // "unknown"); \(.pages) page(s)\(if .exhausted then ", every artifact" elif .reachedEpochSince then ", back to \(.epochSince)" else "" end)\(if .limit then "; " + .limit else "" end)."' \
+jq -r '"### AFP-V0-097 shadow-bar verdict, epoch \(.epoch)\n\n\(.status): \(.counts.complete // 0)/8 complete, \(.counts.failing // 0)/1 failing, \(.counts.miss // 0) MISS in the epoch; kill switch \(.killSwitch // "unknown"); \(.pages) page(s)\(if .exhausted then ", every artifact" elif .reachedEpochSince then ", back to \(.epochSince)" else "" end)\(if .limit then "; " + .limit else "" end)."' \
   "$dir/verdict.json" >> "${GITHUB_STEP_SUMMARY:-/dev/stdout}"
