@@ -870,9 +870,20 @@ grep -v ' local wait=' "$pol/sel.log" > "$pol/sel.policy"
 for i in 0 1 2 3; do
   sed -n "$((i + 1))p" "$pol/sel.policy" | grep -Eq "${want[$i]}" || fail "heavy.sh selection log line $((i + 1)): $(sed -n "$((i + 1))p" "$pol/sel.policy")"
 done
+# ASD-V0-860: a -run that matches every test is a whole-package go test; a narrower one is selected.
+for run in 'Test' '-run=.' '^Test.*' '.*/Sub' ''; do
+  case $run in -run=*) runargs=("$run") ;; *) runargs=(-run "$run") ;; esac
+  HEAVY_WHOLE_REASON= pv go test "${runargs[@]}" ./x > /dev/null 2> "$pol/err"
+  [[ $? == 2 ]] && grep -q '^heavy.sh: refused: whole-package go test without HEAVY_WHOLE_REASON' "$pol/err" ||
+    fail "heavy.sh logged go test ${runargs[*]} as a selection"
+done
+HEAVY_WHOLE_REASON= pv go test -run TestAll ./x 2> /dev/null || fail "heavy.sh refused go test -run TestAll"
+grep -v ' local wait=' "$pol/sel.log" | tail -n 6 > "$pol/sel.all"
+[[ $(grep -c ' refused pwd=' "$pol/sel.all") == 5 && $(tail -n 1 "$pol/sel.all") == *" selected pwd=$pol cmd=go test -run TestAll ./x script="* ]] ||
+  fail "heavy.sh match-all selection log: $(cat "$pol/sel.all")"
 # ASD-V0-037: every local run appends its slot wait, run wall time and status after it exits.
 l="local wait=[0-9]+\.[0-9]s run=[0-9]+\.[0-9]s"
-[[ $(grep -c ' local wait=' "$pol/sel.log") == 5 ]] &&
+[[ $(grep -c ' local wait=' "$pol/sel.log") == 6 ]] &&
   grep -Eq "^$d $l rc=0 pwd=$pol cmd=go vet \./x$h" "$pol/sel.log" &&
   grep -Eq "^$d $l rc=3 pwd=$pol cmd=sh -c exit 3$h" "$pol/sel.log" || fail "heavy.sh local run lines: $(cat "$pol/sel.log")"
 HEAVY_REMOTE=0 pv go vet ./x 2> "$pol/err"

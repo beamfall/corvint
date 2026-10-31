@@ -995,16 +995,39 @@ small_package_bytes() {
   printf '%s\n' "$total"
 }
 
-# selection_policy COMMAND...: log every go test and refuse a whole-package one (no -run) without
-# HEAVY_WHOLE_REASON (ASD-V0-030). Returns 1 on refusal.
+# run_selects_all COMMAND...: whether a -run value of the command matches every test (ASD-V0-860):
+# its part before the first /, less one leading ^, is empty, ., .*, .+, Test, Test.* or Test.+.
+run_selects_all() {
+  local value next=""
+  for arg in "$@"; do
+    if [[ -n $next ]]; then
+      value=$arg next=""
+    else
+      case $arg in
+        -run | --run) next=1; continue ;;
+        -run=* | --run=*) value=${arg#*=} ;;
+        *) continue ;;
+      esac
+    fi
+    value=${value%%/*}
+    value=${value#^}
+    case $value in '' | . | '.*' | '.+' | Test | 'Test.*' | 'Test.+') return 0 ;; esac
+  done
+  return 1
+}
+
+# selection_policy COMMAND...: log every go test and refuse a whole-package one (no -run, or a -run
+# that matches every test) without HEAVY_WHOLE_REASON (ASD-V0-030, ASD-V0-860). Returns 1 on refusal.
 selection_policy() {
   local now
   case " $* " in *" go test "*) ;; *) return 0 ;; esac
   now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
   case " $* " in
-    *" -run "* | *" -run="*)
-      selection_log "$now selected pwd=$PWD cmd=$*"
-      return 0
+    *" -run "* | *" -run="* | *" --run "* | *" --run="*)
+      if ! run_selects_all "$@"; then
+        selection_log "$now selected pwd=$PWD cmd=$*"
+        return 0
+      fi
       ;;
   esac
   local small
