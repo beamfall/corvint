@@ -77,7 +77,8 @@ evidence. Its only write is the summary cache, made by the explicit `doctor --re
   doctor's `scan` MUST report `journalAudit`, how the read's journal audit ran: `FULL` (every
   retained receipt was walked, so the doctor's cost grows with the journal) or
   `CHECKPOINT_PLUS_TAIL` (it resumed from a writer-retained read checkpoint, `CAL-V0-059`, so only
-  the tail past it and the TQD-V0-004 window are read). Nothing else in `scan`, `findings` or the
+  the tail past it and the TQD-V0-004 window are read), or `NOT_OBSERVED` when the read needed no
+  audit (a store with no claim yet). Nothing else in `scan`, `findings` or the
   cache changes, and the doctor never writes a checkpoint (a read writes no store state). Measured
   with `TestCALV0360_PaddedDoctorWalkCost`, which now times both cases: on a padded store of 30,073
   receipts (24 live attempts, 29,280 elided) at host load about 5 on 12 CPUs, the best of five
