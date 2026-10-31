@@ -43,10 +43,11 @@ func ticketFile(t *testing.T, r *fixture.Repo, id string) string {
 	return filepath.Join(r.IntentDir, "tickets", id[strings.LastIndex(id, ":")+1:]+".json")
 }
 
-// TestTEAV0001_ArchiveCarriesAttachedEvidence (V1-0813 item 1, export half):
-// `archive export` of a store holding an attachment-bearing record carries
-// that record's exact bytes and `archive verify` accepts the stream. The
-// restore half stays NOT_RUN: `archive restore` is not implemented.
+// TestTEAV0001_ArchiveCarriesAttachedEvidence (V1-0813 item 1): `archive
+// export` of a store holding an attachment-bearing record carries that
+// record's exact bytes, `archive verify` accepts the stream, and `archive
+// restore` into the emptied store rebuilds the record and every receipt
+// byte-for-byte (TRL-V0-871).
 func TestTEAV0001_ArchiveCarriesAttachedEvidence(t *testing.T) {
 	r, id := attachStore(t)
 	if x := atm(t, r.Root, nil, attachArgs(id, "1", "ev-1", "archived log")...); x.res.Outcome != wire.OutcomeOK {
@@ -81,8 +82,25 @@ func TestTEAV0001_ArchiveCarriesAttachedEvidence(t *testing.T) {
 	if v := atm(t, r.Root, x.stdout, "archive", "verify"); v.res.Outcome != wire.OutcomeOK {
 		t.Fatalf("verify: %s", v.stdout)
 	}
-	if x := atm(t, r.Root, nil, "archive", "restore"); x.res.Outcome == wire.OutcomeOK {
-		t.Fatalf("archive restore is implemented; extend this witness to the round trip: %s", x.stdout)
+	receipts := treeBytes(t, filepath.Join(r.StateDir, "receipts"))
+	path := filepath.Join(fixture.TempDirOutside(t), "queue.tar")
+	fixture.Write(t, path, x.stdout)
+	if err := os.RemoveAll(r.StateDir); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(ticketFile(t, r, id)); err != nil {
+		t.Fatal(err)
+	}
+	if x := atm(t, r.Root, nil, "archive", "restore", path); x.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("restore: %s", x.stdout)
+	}
+	if got, err := os.ReadFile(ticketFile(t, r, id)); err != nil || !bytes.Equal(got, want) {
+		t.Fatalf("restored record differs: %v\n%s", err, got)
+	}
+	sameBytes(t, "receipts", receipts, treeBytes(t, filepath.Join(r.StateDir, "receipts")))
+	shown := atm(t, r.Root, nil, "ticket", "show", id)
+	if n := len(field(shown.res.Items[0], "attachedEvidence").Arr); n != 1 {
+		t.Fatalf("restored ticket carries %d attachments: %s", n, shown.stdout)
 	}
 }
 

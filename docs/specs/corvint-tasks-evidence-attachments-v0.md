@@ -17,7 +17,7 @@ preserves the audited record) and the ticket/mutation/receipt boundaries of the
 - Claim: Writers attach sha256 evidence digests and a reason to an OPEN native ticket in one receipt-backed write that leaves acceptance, status and gates unchanged.
 - Status: accepted; experimental; the native `ticket attach-evidence` writer (operation `ATTACH_EVIDENCE`), the optional record/Core `attachedEvidence` member and the `ticket show` listing exist with focused tests.
 - Exists: closed payload and record codecs, Core reader validation, Apply/finalize through the existing mutation path, OWNER default and explicit OPERATOR grant, ADOPT_FILE and IMPORT_APPLY refusal, CLI help, replay and receipt-audit witnesses.
-- Blocked on: the restore half of the native archive round trip (`archive restore` is `NOT_RUN` in this build; V1-0813); durable qualification. The export/verify half, the two-process CAS and the interrupted-commit redo witnesses pass (V1-0813, 2026-10-31).
+- Blocked on: durable qualification. The native archive round trip (export, verify and `archive restore`, `TRL-V0-871`), the two-process CAS and the interrupted-commit redo witnesses pass (V1-0813, 2026-10-31).
 - Read next: Requirements; Resolved decisions; Acceptance evidence and traceability; Rollout and rollback.
 
 ## User and current state
@@ -81,13 +81,13 @@ derived event, lock or recovery path exists.
 - No foreign-import carrier: the closed key set of the foreign-ticket importer (`ticket import`)
   still refuses an export item that carries the member. Native archive export captures ticket
   files verbatim: `archive export` carries the attachment-bearing record's exact bytes and `archive
-  verify` accepts the stream; the restore half stays untested until `archive restore` exists.
+  verify` accepts the stream; `archive restore` rebuilds the record byte-for-byte (`TRL-V0-871`).
 
 ## Acceptance evidence and traceability
 
 | Requirement | Ticket acceptance | Implementation boundary | Delivered evidence | Required integrated evidence (NOT_RUN) |
 |---|---|---|---|---|
-| TEA-V0-001 | V1-0808 criteria 1-4 | `internal/tasks/mutation` (payload, Apply, adopt); `internal/tasks/ticket` (record codec, view); `internal/tasks/intent` (policy grant); `internal/tasks/transaction` (import guard); `internal/taskman` (Core reader); `internal/tasks/cli` (verb, help) | `TestTEAV0001_AttachEvidenceLeavesTheRecordUnchanged` (whole-record comparison; acceptanceRevision, status and gates unchanged; live attempt does not block; same digest admitted again after the acceptance revision moves); `TestTEAV0001_AttachEvidenceRefusals` (DRAFT/HELD/COMPLETED/ARCHIVED and IMPORT BLOCKED/TICKET_STATE; malformed payloads; 17 digests; 33rd entry LIMIT_EXCEEDED; DUPLICATE_ID; every non-OWNER default role UNAUTHORIZED; explicit OPERATOR row admits; a WORKER row naming the verb does not decode; stale CAS REVISION_CONFLICT); `TestTEAV0001_RecordCodecRefusals`; `TestTEAV0001_AdoptFileRefusesAttachedEvidence`; `TestTEAV0001_ImportApplyNeverCarriesAttachedEvidence`; `TestTEAV0001_ReaderAttachedEvidence` and `TestIssue502_ReaderAdmitsSharedOptionalKeys` (Core reader over the shared fixture); `TestTEAV0001_TicketAttachEvidenceThroughTheCLI` (receipt, unchanged acceptance revision, `ticket show` listing, record unchanged member by member, replay, DUPLICATE_ID, receipt audit CONSISTENT/AGREES, help); V1-0813: `TestTEAV0001_ArchiveCarriesAttachedEvidence` (an export member equals the attachment-bearing record's bytes, `archive verify` accepts it, `archive restore` still refuses), `TestTEAV0001_TwoProcessAttachEvidenceCAS` (two compiled-binary processes at one expected revision: one OK, one REVISION_CONFLICT, one entry, audit CONSISTENT), `TestTEAV0001_InterruptedAttachmentIsRedone` (crash point C2: head and projection rolled back after the receipt append; the next writer redoes the record to the same bytes, audit CONSISTENT/AGREES), each passing 10x | restore half of the native archive round trip (`archive restore` is `NOT_RUN`); durable qualification |
+| TEA-V0-001 | V1-0808 criteria 1-4 | `internal/tasks/mutation` (payload, Apply, adopt); `internal/tasks/ticket` (record codec, view); `internal/tasks/intent` (policy grant); `internal/tasks/transaction` (import guard); `internal/taskman` (Core reader); `internal/tasks/cli` (verb, help) | `TestTEAV0001_AttachEvidenceLeavesTheRecordUnchanged` (whole-record comparison; acceptanceRevision, status and gates unchanged; live attempt does not block; same digest admitted again after the acceptance revision moves); `TestTEAV0001_AttachEvidenceRefusals` (DRAFT/HELD/COMPLETED/ARCHIVED and IMPORT BLOCKED/TICKET_STATE; malformed payloads; 17 digests; 33rd entry LIMIT_EXCEEDED; DUPLICATE_ID; every non-OWNER default role UNAUTHORIZED; explicit OPERATOR row admits; a WORKER row naming the verb does not decode; stale CAS REVISION_CONFLICT); `TestTEAV0001_RecordCodecRefusals`; `TestTEAV0001_AdoptFileRefusesAttachedEvidence`; `TestTEAV0001_ImportApplyNeverCarriesAttachedEvidence`; `TestTEAV0001_ReaderAttachedEvidence` and `TestIssue502_ReaderAdmitsSharedOptionalKeys` (Core reader over the shared fixture); `TestTEAV0001_TicketAttachEvidenceThroughTheCLI` (receipt, unchanged acceptance revision, `ticket show` listing, record unchanged member by member, replay, DUPLICATE_ID, receipt audit CONSISTENT/AGREES, help); V1-0813: `TestTEAV0001_ArchiveCarriesAttachedEvidence` (an export member equals the attachment-bearing record's bytes, `archive verify` accepts it, `archive restore` into the emptied store rebuilds the record and every receipt byte-for-byte), `TestTEAV0001_TwoProcessAttachEvidenceCAS` (two compiled-binary processes at one expected revision: one OK, one REVISION_CONFLICT, one entry, audit CONSISTENT), `TestTEAV0001_InterruptedAttachmentIsRedone` (crash point C2: head and projection rolled back after the receipt append; the next writer redoes the record to the same bytes, audit CONSISTENT/AGREES), each passing 10x | durable qualification |
 
 ## Resolved decisions
 
@@ -126,9 +126,9 @@ None. On 2026-10-05 the owner delegated these to the orchestrator, which decided
 - The profile stays separate as TEA-V0, because it is a separable verb with its own rollback.
 - The foreign-ticket importer does not carry the member (decision 5).
 
-The concurrent two-process CAS and interrupted-commit redo witnesses and the export/verify half of
-the native archive round trip passed on 2026-10-31 (V1-0813). The restore half stays `NOT_RUN`
-until the CLI implements `archive restore`; `make gate` and `go test ./...` are `NOT_RUN`.
+The concurrent two-process CAS and interrupted-commit redo witnesses and the native archive round
+trip (export, verify and restore) passed on 2026-10-31 (V1-0813, V1-3554); `make gate` and
+`go test ./...` are `NOT_RUN`.
 
 ## Rollout and rollback
 
