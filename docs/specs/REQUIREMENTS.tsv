@@ -2353,6 +2353,7 @@ TCD-V0-187	docs/specs/corvint-tasks-closeout-debt-v0.md	each required gate is pl
 TCD-V0-188	docs/specs/corvint-tasks-closeout-debt-v0.md	before the claim, each closed ticket receives one `ATTACH_EVIDENCE` mutation	unrecorded	-
 TCD-V0-189	docs/specs/corvint-tasks-closeout-debt-v0.md	a failure after the claim releases the attempt (with the failure code as the	unrecorded	-
 TCD-V0-190	docs/specs/corvint-tasks-closeout-debt-v0.md	the `receipt audit` item adds `completions` `{verified, manual}`, counting COMPL	unrecorded	-
+TCD-V0-806	docs/specs/corvint-tasks-closeout-debt-v0.md	when a `gate run` of a reusable gate finds no qualifying result	unrecorded	-
 TCT-V0-001	docs/specs/corvint-tasks-create-payload-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2703) `corvint	standing	2026-10-11; V1-2703
 TCT-V0-002	docs/specs/corvint-tasks-create-payload-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2703) When the	standing	2026-10-11; V1-2703
 TDR-V0-001	docs/specs/corvint-tasks-defect-register-v0.md	Policy MAY declare `defects` as a closed object with optional `prefix` (matching	unrecorded	-
