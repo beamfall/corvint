@@ -2515,6 +2515,7 @@ KHN-V0-020	docs/specs/corvint-tasks-know-how-notes-v0.md	The change MUST be wire
 KHN-V0-021	docs/specs/corvint-tasks-know-how-notes-v0.md	Policy MAY carry the optional closed member `knowHow: {workerAdd: boolean}`.	unrecorded	-
 KHN-V0-022	docs/specs/corvint-tasks-know-how-notes-v0.md	A WORKER `KNOWHOW_ADD` admitted by KHN-V0-021 MUST be checked, after request	unrecorded	-
 KHN-V0-023	docs/specs/corvint-tasks-know-how-notes-v0.md	An entry written under KHN-V0-022 MUST record actor role WORKER together with th	unrecorded	-
+KHN-V0-800	docs/specs/corvint-tasks-know-how-notes-v0.md	A policy change limited to the top-level `knowHow` key (added, changed or remove	unrecorded	-
 KHN-V0-024	docs/specs/corvint-tasks-know-how-notes-v0.md	`ticket know-how add` MUST accept at most one `--repo ALIAS=ROOT`. ALIAS is a	unrecorded	-
 KHN-V0-025	docs/specs/corvint-tasks-know-how-notes-v0.md	The ADD entry and the `KNOWHOW_ADD` payload MAY carry the optional key	unrecorded	-
 KHN-V0-026	docs/specs/corvint-tasks-know-how-notes-v0.md	A repository note's anchors are matched in their stored, qualified form by the	unrecorded	-

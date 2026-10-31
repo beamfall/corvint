@@ -839,7 +839,7 @@
     "path": "docs/specs/corvint-tasks-know-how-notes-v0.md",
     "title": "Corvint Tasks know-how notes V0",
     "reqPrefix": "KHN-V0",
-    "intent": "accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671); KHN-V0-024..027 accepted (decision 0462; V1-1029; GitHub #687); KHN-V0-028..031 accepted under the owner's standing auto-accept (2026-10-11) (V1-1602; GitHub #1045)",
+    "intent": "accepted by decision 0443 (V1-0955); KHN-V0-008..015 proposed (V1-0964); KHN-V0-016..020 proposed (V1-0963); KHN-V0-021..023 proposed (V1-0987; GitHub #671); KHN-V0-800 proposed (V1-1007); KHN-V0-024..027 accepted (decision 0462; V1-1029; GitHub #687); KHN-V0-028..031 accepted under the owner's standing auto-accept (2026-10-11) (V1-1602; GitHub #1045)",
     "delivery": "experimental",
     "claim": "Agents record cross-ticket know-how notes pinned to file blobs; reads compute STALE/UNKNOWN freshness and claims deliver intersecting notes as untrusted data.",
     "dependsOn": [
