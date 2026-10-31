@@ -138,6 +138,27 @@ runner tuple; runner execution belongs to V1-0593 and V1-0594.
   `install`, `rsync` or inside `eval` or `bash -c` text keeps its token; a word written in one
   command and read in another keeps the token the read contributes. Rollback: `readWords` returns
   every word.
+- `NSA-V0-800`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3382)
+  Amending `NSA-V0-006`, the shell plugin MUST also index the shell files under the hidden
+  top-level directory `.github`, which the shared source walk skips with every hidden directory,
+  through the same `Source` (disk or immutable) with repository-relative paths, skipping hidden and
+  skipped directories below it and refusing a non-regular or unnamable shell file as the shared walk
+  does. An absent `.github` contributes nothing. The read MUST keep the graph cacheable: it goes
+  through `Source.FilesUnder`, which stamps the directory and every directory it lists as the shared
+  walk does, so an unchanged checkout reuses its graph cache entry and a script added under
+  `.github` invalidates it (a `Source.Walk` read pins nothing and stored no entry for any repository
+  with a `.github` directory). Design: `.github/forward-rows/*.sh`, run by the
+  `tools/ci-forward-row` tests, were owned files no unit declared, so an edit planned
+  `UNINDEXED_SOURCE_PATH`, outside the `AFP-V0-028` allowlist, and `corvint test` fell back to the
+  whole repository; indexed, the edit narrows through the same literal-reader selection as any
+  other shell file. Non-goals: other hidden directories; files no plugin owns, such as `.jq`, which
+  stay `UNOWNED_DIRTY_PATH`. Failure modes: a walk past `MaxWalkEntries` fails the build closed.
+  Evidence: `TestIndexesGitHubShellScripts_NSAV0800` (disk and immutable sources; a caller's edge
+  into the indexed script; skipped subdirectories; no `.github`) and
+  `TestForwardRowsChangeSelectsCIForwardRow_V13382` (this repository: `verdict.sh`, `bar.sh` and
+  `bar.jq` edits select `tools/ci-forward-row` with no `UNINDEXED_SOURCE_PATH`; fails on BASE for
+  the scripts) and `TestNSAV0800GitHubShellScriptsKeepTheGraphCacheable` (stored, reused, then
+  invalidated by an added script; fails with a `Source.Walk` read). Rollback: empty `HiddenRoots`.
 
 ## Exclusions
 
@@ -176,3 +197,4 @@ No stored format, wire contract or ledger changes, so a revert restores the prio
 | `NSA-V0-006..012`, `NSA-V0-016` | `internal/liveverify/affected/shell/` (`readWords`, `targetDirectoryOption`, the `writeRedirect` marker for `NSA-V0-016`) | `internal/liveverify/affected/shell` package tests; `TestWriteOnlyWordsAreNoPathTokens_NSAV0016` (written words absent, read words present; `-t`, `<`, `>>`, `<>`, a source operand and `-T` keep the unit selected) |
 | `NSA-V0-012` (amended by `AFP-V0-581`) | `foreignFrontier` in `internal/liveverify/affected/shell/shell.go` | `TestForeignFrontierBearsOnlyWhenDependentsAreFollowed_NSAV0012` |
 | `NSA-V0-013..015` | both packages; `internal/liveverify/affected/languages/` | `TestSeamSelectsTheDependencyClosureInEveryLanguage` and the shared seam tests |
+| `NSA-V0-800` | `HiddenRoots` and `hiddenFiles` in `internal/liveverify/affected/shell/shell.go`; `Source.FilesUnder` in `internal/liveverify/affected/source.go` | `TestIndexesGitHubShellScripts_NSAV0800`; `TestForwardRowsChangeSelectsCIForwardRow_V13382` in `internal/liveverify/affected/replay_v13382_test.go`; `TestNSAV0800GitHubShellScriptsKeepTheGraphCacheable` |

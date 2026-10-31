@@ -32,7 +32,9 @@
     },
     "internal/liveverify/affected/shell": {
       "docs/specs/README.md": "a path inside the test's temporary fixture repository root; the repository's docs file is not read",
-      "docs/README.md": "a path inside the test's temporary fixture repository root; the repository's docs file is not read"
+      "docs/README.md": "a path inside the test's temporary fixture repository root; the repository's docs file is not read",
+      ".github/forward-rows/verdict.sh": "a fixture path the test writes under t.TempDir and into an in-memory fstest.MapFS; the repository's .github/forward-rows file is not read",
+      ".github/forward-rows/bar.jq": "a fixture path the test writes under t.TempDir and into an in-memory fstest.MapFS; the repository's .github/forward-rows file is not read"
     },
     "internal/localcompletion": {
       "script/dogfood-check.sh": "an argv fixture classified as a command name; the script is never read",

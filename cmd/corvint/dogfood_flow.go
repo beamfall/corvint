@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -36,6 +38,40 @@ var dogfoodFlowOptions = map[string]map[string]bool{
 		"--corvint-bin": true},
 }
 
+// dogfoodFlagError is a dogfood option refusal whose detail names the option
+// at fault and the options the subverb takes (DCW-V0-808); Error is the
+// fixed reason code alone.
+type dogfoodFlagError struct{ code, detail string }
+
+func (e dogfoodFlagError) Error() string { return e.code }
+
+// dogfoodFlagName is an option name safe to print in a refusal detail.
+var dogfoodFlagName = regexp.MustCompile(`^--[a-z][a-z0-9-]{0,40}$`)
+
+// dogfoodUnknownOption names the refused option, the options action takes and,
+// for an option that is an environment input's name, the flag that replaces it.
+func dogfoodUnknownOption(action, name string) error {
+	accepted := make([]string, 0, len(dogfoodFlowOptions[action]))
+	for flag := range dogfoodFlowOptions[action] {
+		accepted = append(accepted, flag)
+	}
+	sort.Strings(accepted)
+	shown := "an option"
+	if dogfoodFlagName.MatchString(name) {
+		shown = name
+	}
+	detail := "dogfood " + action + " does not take " + shown
+	if len(accepted) == 0 {
+		detail += "; it takes no option"
+	} else {
+		detail += "; it takes " + strings.Join(accepted, ", ")
+	}
+	if name == "--verify-file" && dogfoodFlowOptions[action]["--verify"] {
+		detail += "; the verify file is --verify FILE (DOGFOOD_VERIFY_FILE is its environment form)"
+	}
+	return dogfoodFlagError{"invalid-local-completion-option", detail}
+}
+
 func dogfoodFlowArguments(action string, args []string) (map[string]string, string, error) {
 	flags := map[string]string{}
 	positional := []string{}
@@ -46,7 +82,7 @@ func dogfoodFlowArguments(action string, args []string) (map[string]string, stri
 		}
 		name, value, inline := strings.Cut(args[index], "=")
 		if !dogfoodFlowOptions[action][name] {
-			return nil, "", errors.New("invalid-local-completion-option")
+			return nil, "", dogfoodUnknownOption(action, name)
 		}
 		if _, exists := flags[name]; exists {
 			return nil, "", errors.New("duplicate-local-completion-option")
@@ -65,7 +101,7 @@ func dogfoodFlowArguments(action string, args []string) (map[string]string, stri
 	}
 	if action == "finish-lane" || action == "inputs-check" {
 		if len(positional) != 0 || flags["--base"] == "" {
-			return nil, "", errors.New("dogfood-base-required")
+			return nil, "", dogfoodFlagError{"dogfood-base-required", "dogfood " + action + " takes the base as --base BASE, never as a positional argument"}
 		}
 		return flags, flags["--base"], nil
 	}
@@ -81,6 +117,9 @@ func dogfoodFlowArguments(action string, args []string) (map[string]string, stri
 // make targets have always taken.
 func runDogfoodFlow(ctx context.Context, root string, args []string, stdout, stderr io.Writer) int {
 	flags, base, err := dogfoodFlowArguments(args[0], args[1:])
+	if refusal, ok := err.(dogfoodFlagError); ok {
+		return emitLocalCompletionFailureDetail(stderr, refusal.code, refusal.detail)
+	}
 	if err != nil {
 		return emitLocalCompletionFailure(stderr, err.Error())
 	}

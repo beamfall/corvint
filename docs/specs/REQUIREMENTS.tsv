@@ -17,6 +17,52 @@ ADS-V0-004	docs/specs/adoption-setup-report-v0.md	the `agent-instructions` check
 ADS-V0-005	docs/specs/adoption-setup-report-v0.md	the `hooks` check MUST report `gap` unless repository-scoped `.claude/settings.j	unrecorded	-
 ADS-V0-006	docs/specs/adoption-setup-report-v0.md	the `ignored-paths` check MUST report `gap` for each Corvint private state path	unrecorded	-
 ADS-V0-007	docs/specs/adoption-setup-report-v0.md	the command MUST write nothing (invariant 4): files are read through the reposit	unrecorded	-
+AFP-V0-181	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) The Pyth	standing	2026-10-11; V1-2050
+AFP-V0-182	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) Import	standing	2026-10-11; V1-2050
+AFP-V0-183	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) Each nam	standing	2026-10-11; V1-2050
+AFP-V0-184	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) A relati	standing	2026-10-11; V1-2050
+AFP-V0-185	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) What sou	standing	2026-10-11; V1-2050
+AFP-V0-186	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) On the	standing	2026-10-11; V1-2050
+AFP-V0-187	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2297)) An	standing	2026-10-11; V1-2297
+AFP-V0-188	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2296)) A	standing	2026-10-11; V1-2296
+AFP-V0-189	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2296)) Each tes	standing	2026-10-11; V1-2296
+AFP-V0-680	docs/specs/affected-plan-python-playwright-v0.md	(experimental under the standing lane auto-accept, 2026-10-28; V1-3001) Every	standing	2026-10-28; V1-3001
+AFP-V0-681	docs/specs/affected-plan-python-playwright-v0.md	(experimental under the standing lane auto-accept, 2026-10-28; V1-3002) An	standing	2026-10-28; V1-3002
+AFP-V0-682	docs/specs/affected-plan-python-playwright-v0.md	(experimental under the standing lane auto-accept, 2026-10-28; V1-3003) A	standing	2026-10-28; V1-3003
+AFP-V0-382	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1640))	standing	2026-10-11; #1640
+AFP-V0-383	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1640))	standing	2026-10-11; #1640
+AFP-V0-384	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1640))	standing	2026-10-11; #1640
+AFP-V0-385	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1640))	standing	2026-10-11; #1640
+AFP-V0-386	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1640))	standing	2026-10-11; #1640
+AFP-V0-387	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1640))	standing	2026-10-11; #1640
+AFP-V0-388	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1640))	standing	2026-10-11; #1640
+AFP-V0-389	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1604))	standing	2026-10-11; #1604
+AFP-V0-404	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1604))	standing	2026-10-11; #1604
+AFP-V0-405	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647);	standing	2026-10-11; #1646; #1647
+AFP-V0-406	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647))	standing	2026-10-11; #1646; #1647
+AFP-V0-407	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647))	standing	2026-10-11; #1646; #1647
+AFP-V0-408	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647))	standing	2026-10-11; #1646; #1647
+AFP-V0-409	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647);	standing	2026-10-11; #1646; #1647
+AFP-V0-410	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647);	standing	2026-10-11; #1646; #1647
+AFP-V0-411	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647);	standing	2026-10-11; #1646; #1647
+AFP-V0-412	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647))	standing	2026-10-11; #1646; #1647
+AFP-V0-413	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647))	standing	2026-10-11; #1646; #1647
+AFP-V0-414	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647))	standing	2026-10-11; #1646; #1647
+AFP-V0-417	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1660);	standing	2026-10-11; #1660
+AFP-V0-418	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1660);	standing	2026-10-11; #1660
+AFP-V0-419	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1660);	standing	2026-10-11; #1660
+AFP-V0-423	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1688);	standing	2026-10-11; #1688
+AFP-V0-424	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1688))	standing	2026-10-11; #1688
+AFP-V0-425	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1688);	standing	2026-10-11; #1688
+AFP-V0-426	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1688))	standing	2026-10-11; #1688
+AFP-V0-442	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2693, Git	standing	2026-10-11; V1-2693; #1751
+AFP-V0-443	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2693, Git	standing	2026-10-11; V1-2693; #1751
+AFP-V0-472	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2760)	standing	2026-10-11; V1-2760
+AFP-V0-473	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2760)	standing	2026-10-11; V1-2760
+AFP-V0-474	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2760)	standing	2026-10-11; V1-2760
+AFP-V0-475	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2760)	standing	2026-10-11; V1-2760
+AFP-V0-476	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2760)	standing	2026-10-11; V1-2760
+AFP-V0-477	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2760)	standing	2026-10-11; V1-2760
 AFP-V0-001	docs/specs/affected-plan-v0.md	The command MUST be read-only: one bounded `git status`, one HEAD identity read,	unrecorded	-
 AFP-V0-002	docs/specs/affected-plan-v0.md	The dirty set MUST come from `affected.DirtyPaths` (porcelain v1, NUL-delimited,	unrecorded	-
 AFP-V0-003	docs/specs/affected-plan-v0.md	Stdout MUST be one canonical JSON line with exactly the members `advice`	unrecorded	-
@@ -110,18 +156,6 @@ AFP-V0-361	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-156	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2162))	standing	2026-10-11; V1-2162
 AFP-V0-162	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2256, V1-2252))	standing	2026-10-11; V1-2256; V1-2252
 AFP-V0-196	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2071))	standing	2026-10-11; V1-2071
-AFP-V0-181	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) The Pyth	standing	2026-10-11; V1-2050
-AFP-V0-182	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) Import	standing	2026-10-11; V1-2050
-AFP-V0-183	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) Each nam	standing	2026-10-11; V1-2050
-AFP-V0-184	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) A relati	standing	2026-10-11; V1-2050
-AFP-V0-185	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) What sou	standing	2026-10-11; V1-2050
-AFP-V0-186	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2050)) On the	standing	2026-10-11; V1-2050
-AFP-V0-187	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2297)) An	standing	2026-10-11; V1-2297
-AFP-V0-188	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2296)) A	standing	2026-10-11; V1-2296
-AFP-V0-189	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2296)) Each tes	standing	2026-10-11; V1-2296
-AFP-V0-680	docs/specs/affected-plan-v0.md	(experimental under the standing lane auto-accept, 2026-10-28; V1-3001) Every	standing	2026-10-28; V1-3001
-AFP-V0-681	docs/specs/affected-plan-v0.md	(experimental under the standing lane auto-accept, 2026-10-28; V1-3002) An	standing	2026-10-28; V1-3002
-AFP-V0-682	docs/specs/affected-plan-v0.md	(experimental under the standing lane auto-accept, 2026-10-28; V1-3003) A	standing	2026-10-28; V1-3003
 AFP-V0-230	docs/specs/affected-plan-v0.md	(experimental under the standing lane auto-accept; V1-1284) `corvint affected	standing	V1-1284
 AFP-V0-231	docs/specs/affected-plan-v0.md	(experimental under the standing lane auto-accept; V1-2825) `corvint affected	standing	V1-2825
 AFP-V0-232	docs/specs/affected-plan-v0.md	(experimental under the standing lane auto-accept (2026-10-28); V1-1284) Amendme	standing	2026-10-28; V1-1284
@@ -132,32 +166,6 @@ AFP-V0-400	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-401	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1803) The Go	standing	2026-10-11; V1-1803
 AFP-V0-402	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1006; amends	standing	2026-10-11; V1-1006
 AFP-V0-403	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2370; amends	standing	2026-10-11; V1-2370
-AFP-V0-382	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1640))	standing	2026-10-11; #1640
-AFP-V0-383	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1640))	standing	2026-10-11; #1640
-AFP-V0-384	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1640))	standing	2026-10-11; #1640
-AFP-V0-385	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1640))	standing	2026-10-11; #1640
-AFP-V0-386	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1640))	standing	2026-10-11; #1640
-AFP-V0-387	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1640))	standing	2026-10-11; #1640
-AFP-V0-388	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1640))	standing	2026-10-11; #1640
-AFP-V0-389	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1604))	standing	2026-10-11; #1604
-AFP-V0-404	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1604))	standing	2026-10-11; #1604
-AFP-V0-405	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647);	standing	2026-10-11; #1646; #1647
-AFP-V0-406	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647))	standing	2026-10-11; #1646; #1647
-AFP-V0-407	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647))	standing	2026-10-11; #1646; #1647
-AFP-V0-408	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647))	standing	2026-10-11; #1646; #1647
-AFP-V0-409	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647);	standing	2026-10-11; #1646; #1647
-AFP-V0-410	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647);	standing	2026-10-11; #1646; #1647
-AFP-V0-411	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647);	standing	2026-10-11; #1646; #1647
-AFP-V0-412	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647))	standing	2026-10-11; #1646; #1647
-AFP-V0-413	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647))	standing	2026-10-11; #1646; #1647
-AFP-V0-414	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1646/#1647))	standing	2026-10-11; #1646; #1647
-AFP-V0-417	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1660);	standing	2026-10-11; #1660
-AFP-V0-418	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1660);	standing	2026-10-11; #1660
-AFP-V0-419	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1660);	standing	2026-10-11; #1660
-AFP-V0-423	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1688);	standing	2026-10-11; #1688
-AFP-V0-424	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1688))	standing	2026-10-11; #1688
-AFP-V0-425	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1688);	standing	2026-10-11; #1688
-AFP-V0-426	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1688))	standing	2026-10-11; #1688
 AFP-V0-415	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2488))	standing	2026-10-11; V1-2488
 AFP-V0-416	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2488))	standing	2026-10-11; V1-2488
 AFP-V0-390	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601; amended 2026-10-24 by AFP-V0-436, V1-2572)	unrecorded	-
@@ -188,8 +196,6 @@ AFP-V0-438	docs/specs/affected-plan-v0.md	(proposed, experimental; V1-2572, GH #
 AFP-V0-439	docs/specs/affected-plan-v0.md	(proposed, experimental; V1-2572, GH #1601)	unrecorded	-
 AFP-V0-441	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2682); its	standing	2026-10-11; V1-2682
 AFP-V0-440	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2674, Git	standing	2026-10-11; V1-2674; #1774
-AFP-V0-442	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2693, Git	standing	2026-10-11; V1-2693; #1751
-AFP-V0-443	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2693, Git	standing	2026-10-11; V1-2693; #1751
 AFP-V0-444	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2702, Git	standing	2026-10-11; V1-2702; #1811
 AFP-V0-445	docs/specs/affected-plan-v0.md	(proposed, experimental; accepted under the owner's standing lane auto-accept (2	standing	2026-10-11; V1-2705; #1814
 AFP-V0-447	docs/specs/affected-plan-v0.md	(proposed, experimental; accepted under the owner's standing lane auto-accept (2	standing	2026-10-11; V1-2705; #1814
@@ -205,12 +211,6 @@ AFP-V0-463	docs/specs/affected-plan-v0.md	(accepted by the owner, owner chat 202
 AFP-V0-446	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2708)	standing	2026-10-11; V1-2708
 AFP-V0-464	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2727)	standing	2026-10-11; V1-2727
 AFP-V0-465	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2708,	standing	2026-10-11; V1-2708
-AFP-V0-472	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2760)	standing	2026-10-11; V1-2760
-AFP-V0-473	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2760)	standing	2026-10-11; V1-2760
-AFP-V0-474	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2760)	standing	2026-10-11; V1-2760
-AFP-V0-475	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2760)	standing	2026-10-11; V1-2760
-AFP-V0-476	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2760)	standing	2026-10-11; V1-2760
-AFP-V0-477	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2760)	standing	2026-10-11; V1-2760
 AFP-V0-466	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2758)	standing	2026-10-11; V1-2758
 AFP-V0-467	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2758)	standing	2026-10-11; V1-2758
 AFP-V0-468	docs/specs/affected-plan-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2759)	standing	2026-10-11; V1-2759
@@ -3080,6 +3080,15 @@ DCW-V0-800	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-801	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3280; amends `DCW-V0-384`)	standing	V1-3280
 DCW-V0-802	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3279; amends `DCW-V0-350`)	standing	V1-3279
 DCW-V0-803	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3268; refines `DCW-V0-150`	standing	V1-3268
+DCW-V0-804	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3378; amends `DCW-V0-801`)	standing	V1-3378
+DCW-V0-805	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3380; refines `DCW-V0-161`	standing	V1-3380
+DCW-V0-806	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3381; refines `DCW-V0-062`	standing	V1-3381
+DCW-V0-807	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3383; refines `DCW-V0-351`	standing	V1-3383
+DCW-V0-808	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; lane friction F2; refines	standing	-
+DCW-V0-809	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; lane friction F3; refines	standing	-
+DCW-V0-810	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; lane friction F11; amends	standing	-
+DCW-V0-811	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; lane friction F10) On a host	standing	-
+DCW-V0-812	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; lane friction F4; refines	standing	-
 DCW-V0-824	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3365; refines DOGFOOD-BIND	standing	V1-3365
 DCW-V0-825	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3366) When `cem status`	standing	V1-3366
 DCW-V0-826	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3367) `script/dogfood-bind	standing	V1-3367
@@ -3092,6 +3101,7 @@ DCW-V0-844	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-845	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3302; refines `DCW-V0-063`	standing	V1-3302
 DCW-V0-846	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-1724; refines `DCW-V0-439`	standing	V1-1724
 DCW-V0-920	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3043; refines `DCW-V0-150`	standing	V1-3043
+DCW-V0-813	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; lane friction F13; refines	standing	-
 DCW-V0-170	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2344) When	standing	2026-10-11; V1-2344
 DCW-V0-171	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2171) A	standing	2026-10-11; V1-2171
 DCW-V0-940	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2445; refines `DCW-V0-150`	standing	V1-2445
@@ -3246,6 +3256,8 @@ DCG-V0-045	docs/specs/documentation-citation-gate-v0.md	(experimental under the 
 DCG-V0-046	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-2821)) The gate MUST print	standing	V1-2821
 DCG-V0-047	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3124); refines DCG-V0-045)	standing	V1-3124
 DCG-V0-048	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3228); refines DCG-V0-045	standing	V1-3228
+DCG-V0-800	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3384); refines DCG-V0-013)	standing	V1-3384
+DCG-V0-801	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3384)) `make repin`	standing	V1-3384
 DCX-V1-370	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) The	standing	2026-10-11; #1582
 DCX-V1-371	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) Eac	standing	2026-10-11; #1582
 DCX-V1-372	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) Eac	standing	2026-10-11; #1582
@@ -4877,6 +4889,7 @@ NSA-V0-013	docs/specs/native-shell-affected-test-v0.md	Neither plugin may execut
 NSA-V0-014	docs/specs/native-shell-affected-test-v0.md	Units, paths, imports, path tokens and frontier reasons MUST be sorted and uniqu	unrecorded	-
 NSA-V0-015	docs/specs/native-shell-affected-test-v0.md	Both plugins MUST pass the shared seam conformance suite (`core <- mid <- leaf`	unrecorded	-
 NSA-V0-016	docs/specs/native-shell-affected-test-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2708) Ame	standing	2026-10-11; V1-2708
+NSA-V0-800	docs/specs/native-shell-affected-test-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3382)	standing	2026-10-11; V1-3382
 NTP-V0-001	docs/specs/native-taskman-planning-v0.md	The opt-in `corvint work plan-fixture --executor ABSOLUTE_FILE --observations FI	unrecorded	-
 NTP-V0-002	docs/specs/native-taskman-planning-v0.md	The receipt MUST bind the immutable source commit/tree, executor digest, native	unrecorded	-
 NTP-V0-003	docs/specs/native-taskman-planning-v0.md	Eligible tickets MUST be processed by priority P0..P3, numeric order, then ticke	unrecorded	-
@@ -5833,6 +5846,7 @@ STR-V0-072	docs/specs/session-test-runner-v0.md	(experimental under the standing
 STR-V0-073	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-29; V1-3120) For each	standing	2026-10-29; V1-3120
 STR-V0-173	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3149) `corvint	standing	2026-10-11; V1-3149
 STR-V0-174	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3155) When the	standing	2026-10-11; V1-3155
+STR-V0-800	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3382)	standing	2026-10-11; V1-3382
 SHA-V0-001	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	accept only exact finite language/version/toolchain/stage tuples, never a neares	unrecorded	-
 SHA-V0-002	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	use the experimental `shader` family extension: a request has the fixed transpor	unrecorded	-
 SHA-V0-003	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	facts carry an inclusive/exclusive byte span (zero-based bytes, one-based byte c	unrecorded	-
@@ -6043,6 +6057,7 @@ SRG-V0-046	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the
 SRG-V0-047	docs/specs/spec-requirement-index-generator-v0.md	(proposed; V1-2867; experimental under the standing lane auto-accept) When a	standing	V1-2867
 SRG-V0-547	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)	standing	2026-10-11; V1-3049
 SRG-V0-548	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)	standing	2026-10-11; V1-3049
+SRG-V0-800	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3379;	standing	2026-10-11; V1-3379
 SRG-V0-900	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; tasks-w1 lane	standing	2026-10-31
 STA-V0-001	docs/specs/spec-toolchain-adapters-v0.md	One manifest, `interop/spec-toolchains/versions.json`, records the supported ups	unrecorded	-
 STA-V0-002	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob	unrecorded	-

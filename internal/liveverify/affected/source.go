@@ -373,6 +373,80 @@ func (s *Source) ResolvesToDependency(relative string) bool {
 	return inside != "." && slices.Contains(strings.Split(path.Dir(inside), "/"), "node_modules")
 }
 
+// FilesUnder lists the regular files below the directory relative whose base
+// name accept admits, as repository-relative slash paths, skipping hidden and
+// SkippedDirectories directories below it as the shared walk does. Unlike Walk
+// it stays cacheable: like the shared walk, it stamps the directory itself
+// (an absent one is a valid stamp and lists nothing) and every directory it
+// lists, so a graph cache entry pins the listing it saw (NSA-V0-800). An
+// accepted entry that is not a regular file refuses ErrWalkUnrepresentable.
+func (s *Source) FilesUnder(relative string, accept func(string) bool) (filesOut []string, errOut error) {
+	if err := s.stopped(); err != nil {
+		return nil, err
+	}
+	defer func() { s.retain(errOut) }()
+	if s == nil || !fs.ValidPath(relative) || relative == "." {
+		return nil, ErrInvalidUnit
+	}
+	var fsys fs.FS
+	if s.fsys != nil {
+		fsys = s.fsys
+	} else {
+		s.record.path(s.root, relative, false)
+		info, err := os.Lstat(filepath.Join(s.root, filepath.FromSlash(relative)))
+		if errors.Is(err, fs.ErrNotExist) || err == nil && !info.IsDir() {
+			return nil, nil
+		}
+		if err != nil {
+			s.record.failed(relative, err)
+			return nil, err
+		}
+		fsys = os.DirFS(s.root)
+	}
+	if info, err := fs.Stat(fsys, relative); errors.Is(err, fs.ErrNotExist) || err == nil && !info.IsDir() {
+		return nil, nil
+	}
+	entries := 0
+	var files []string
+	err := fs.WalkDir(fsys, relative, func(current string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return fmt.Errorf("%w: %s", ErrWalkUnreadable, current)
+		}
+		if cancelled := s.cancelled(); cancelled != nil {
+			return cancelled
+		}
+		if entries++; entries > MaxWalkEntries {
+			return ErrWalkLimit
+		}
+		if entry.IsDir() {
+			if current != relative && (strings.HasPrefix(entry.Name(), ".") || SkippedDirectories[entry.Name()]) {
+				return fs.SkipDir
+			}
+			if s.fsys == nil {
+				s.record.path(s.root, current, false)
+			}
+			return nil
+		}
+		if !accept(entry.Name()) {
+			return nil
+		}
+		if !entry.Type().IsRegular() || !ValidRelativePath(current) {
+			return fmt.Errorf("%w: %q", ErrWalkUnrepresentable, current)
+		}
+		files = append(files, current)
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return files, nil
+}
+
+// Walk visits every entry below the directory relative, hidden and skipped
+// directories included, with fs.WalkDir semantics. On a disk source a walk of
+// a directory that exists makes the whole graph uncacheable: BuildCached then
+// reports NotStored "walked subtree <relative>" and every later run rebuilds.
+// A plugin that only lists files should use FilesUnder, which stays cacheable.
 func (s *Source) Walk(relative string, visit fs.WalkDirFunc) (errOut error) {
 	if err := s.stopped(); err != nil {
 		return err

@@ -897,7 +897,7 @@ erepo=$tmp/erepo
 mkdir -p "$erepo"
 cp -R "$repo/.github" "$erepo/.github" && cp -R "$repo/pkg" "$erepo/pkg" || fail "expansion fixture"
 printf 'jobs:\n  doc-gates:\n    steps:\n      - run: make doc-gates\n' > "$erepo/.github/workflows/ci.yml"
-printf 'DOC_GATE_TARGETS := alpha-check beta-test\ndoc-gates:\n\t@$(MAKE) --no-print-directory $(DOC_GATE_TARGETS)\n\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0\n' > "$erepo/Makefile"
+printf 'DOC_GATE_TARGETS := alpha-check beta-test\ndoc-gates:\n\t@$(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)\n\t@GOTOOLCHAIN=local go run ./conformance/use-cases-v0\n' > "$erepo/Makefile"
 git -C "$erepo" init -q && git -C "$erepo" add -A && git -C "$erepo" commit -qm e || fail "expansion fixture commit"
 elist() { BATCH_PRECHECK_ROOT=$erepo BATCH_PRECHECK_REGEN= BATCH_PRECHECK_DRIFT="./pkg TestDrift
 ./pkg TestOwn @own" "$pre" --list; }

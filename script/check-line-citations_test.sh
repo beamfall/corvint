@@ -803,6 +803,37 @@ case $output in
 *) fail "the unused inventory row was not named: $output" ;;
 esac
 
+# 34. DCG-V0-800 (V1-3384): a committed decision record resolves its citations against the commit
+#     that last wrote it, so moving the cited lines needs no repin of a record nobody may edit; a
+#     decision this change edits resolves against the index again and reports the move.
+write_source 1
+anchor=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/demo.go:3)
+cite "$anchor"
+mkdir -p "$test_root/docs/decisions"
+# shellcheck disable=SC2016
+printf '# Decision 0001\n\nThe record cites `%s`.\n' "$anchor" > "$test_root/docs/decisions/0001-fixture.md"
+stage docs/decisions/0001-fixture.md
+git -C "$test_root" -c user.name=t -c user.email=t@example.invalid commit -qm decision
+run >/dev/null || fail "a fresh decision citation failed"
+printf '%s\n' '// one' '// two' | cat - "$test_root/internal/demo/demo.go" > "$test_root/demo.tmp"
+mv "$test_root/demo.tmp" "$test_root/internal/demo/demo.go"
+stage internal/demo/demo.go
+anchor=$(cd "$test_root" && script/check-line-citations.sh --hash internal/demo/demo.go:5)
+cite "$anchor"
+output=$(run) || fail "a committed decision citation needed a repin after its lines moved: $output"
+printf 'Edited in this change.\n' >> "$test_root/docs/decisions/0001-fixture.md"
+stage docs/decisions/0001-fixture.md
+rc=0
+output=$(run) || rc=$?
+[ "$rc" = 1 ] || fail "an edited decision did not resolve against the index (exit $rc): $output"
+case $output in
+*'docs/decisions/0001-fixture.md:3'*'cited content moved unchanged to `internal/demo/demo.go:5@'*) ;;
+*) fail "the edited decision's moved citation was not reported: $output" ;;
+esac
+git -C "$test_root" rm -q --cached docs/decisions/0001-fixture.md
+rm "$test_root/docs/decisions/0001-fixture.md"
+write_source 1
+
 # 30. DCG-V0-043 (V1-2152): --hash on a path with unmerged index entries and no stage 0 exits
 #     non-zero and names the unmerged entry, rather than the bare `git cat-file` failure.
 blob=$(printf 'x\ny\n' | git -C "$test_root" hash-object -w --stdin)
