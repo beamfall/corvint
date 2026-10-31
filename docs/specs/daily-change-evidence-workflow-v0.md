@@ -2616,8 +2616,9 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   the `DCW-V0-439` candidate order and relation) instead of the unknown row, and MUST mark it on
   stderr, after the hunk's `hunk ... edits` line, with `drafted proposal:` and the row, saying it
   is the nearest stable span of the file the hunk edits, a same-file proposal rather than an
-  anchor, which the author confirms or replaces before binding; one `proposals=K` line follows the header when K is
-  above 0. The span-dedupe (`DCW-V0-382`) and uniform-plan (`DCW-V0-048`) rules apply to these
+  anchor, which the author confirms or replaces before binding; one `proposals=K rows are drafted
+  proposals` line follows the header when K is above 0, and each `drafted proposal:` line says why
+  its row was chosen (this rule's own-file span, or a `DCW-V0-967` same-change route). The span-dedupe (`DCW-V0-382`) and uniform-plan (`DCW-V0-048`) rules apply to these
   rows. Design: most rows were unknown and the usable span was printed only on stderr as
   `proposed, not drafted`, so every lane retyped it; a plan comment form was rejected because the
   four-field plan grammar has none and every plan reader would change. Non-goals: anchoring the
@@ -2630,9 +2631,10 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   Rollback: restore the unknown row and the `proposed, not drafted` line.
 - `DCW-V0-963`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3270; refines
   `DCW-V0-382`) Every `unknown` row `propose-citations` drafts MUST name, in its NOTE, the path its
-  hunk edits and that hunk's BASE range (`proposed: hunk edits PATH at BASE S,C; ...`), so the
-  stdout draft alone tells which file each row stands for. Non-goals: changing cite rows, whose
-  hunk path stays on the stderr mapping line. Evidence: `TestProposeCitationsDCWV0963UnknownRowsNameHunkPath`
+  hunk edits, that hunk's BASE range and its new range at HEAD (`proposed: hunk edits PATH at BASE
+  S,C HEAD S,C; ...`), and the stderr mapping line of every row MUST name the same
+  (`hunk KEY edits PATH at BASE S,C HEAD S,C`), so no throwaway `cem prepare` is needed to review a
+  draft. Non-goals: changing the four-field cite row. Evidence: `TestProposeCitationsDCWV0963UnknownRowsNameHunkPath`
   (fails on BASE). Rollback: drop the NOTE prefix.
 - `DCW-V0-964`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3303; amends
   `DCW-V0-400`) When the only reused-worktree state `dogfood inputs-check` finds is stale ignored
@@ -2644,8 +2646,54 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   whose BASE is its own predecessor's seal holds that lane's sidecars, written before the seal
   commit, so the pre-flight refused a closeout that would have retired them. Non-goals: deleting
   sidecars; retiring in the pre-flight. Evidence:
-  `TestDCWV0964InputsCheckNotesRetirableSidecars` (fails on BASE: `REFUSE reused-worktree-state`).
+  `TestDCWV0964InputsCheckNotesRetirableSidecars` (fails on BASE: `REFUSE reused-worktree-state`)
+  and `TestDogfoodFinishLaneDCWV0964StackedFinishNeedsNoCleanup` (a real seal, its sidecars dated
+  before the seal commit, a stacked commit, then `inputs-check` and `finish-lane` bound against the
+  seal pass and seal with no manual cleanup).
   Rollback: pass the pre-flight's refusal back unconditionally.
+- `DCW-V0-965`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3047; refines
+  `DCW-V0-380`, `DCW-V0-403` and `OCM-V0-028`) For an intent manifest whose derived obligations
+  exceed the OCM aggregate bound and for every verify line the closeout refuses as
+  `unsupported-verify-syntax` (an unquoted `-run` alternation, an anchored `-run ^Name$` quoted or
+  not), `dogfood inputs-check` MUST refuse before any step with the same `REFUSE` line and `fix:`
+  lines the closeout's `finish-lane` run prints, apart from the command prefix. Design: on the
+  reported lane both closeout tries were refused for these inputs after `inputs-check` passed; the
+  bound was then 256, and V1-2971 has since derived it as 16 scopes of 256, so the reported
+  484-obligation manifest is admitted by both. Evidence:
+  `TestDCWV0965InputsCheckRefusesWhatCloseoutRefuses` (four cases, the bound lowered to 256; it
+  pins behaviour BASE already had). Rollback: none needed beyond the test.
+- `DCW-V0-966`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3284; amends
+  `DCW-V0-385` and `DCW-V0-393`) `propose-citations` MUST take anchor candidates from a file the
+  change modifies as well as from untouched files, never from the hunk's own file (a `DCW-V0-962`
+  proposal) and never from a path git lists as changed without a hunk (a mode-only change); the
+  stability check keeps every line a hunk edits or the change repeats out, so the draft still never
+  cites the change's own text, which is the `DCW-V0-393` intent. An untouched file's candidate
+  ranks before a modified one's. A prior seal's CEM (`.corvint/changes/<bind>.cem.json`) MUST get a
+  `DCW-V0-385` cite in every route (no map, a prepared map, `--refresh` over a plan that kept it
+  unknown) and also when the change edits `docs/DOGFOOD.md`: its unedited sealed-path line, or
+  else the `DCW-V0-385` definition line of this spec. Only an unread changed-path inventory leaves
+  it unknown. Measured unknown rates (base binary, then this tree): this lane's own change
+  `3555875f9..cd644e29f` 57/65 then 1/65; the V1-3284 change `c5d5f0829..9ba44871f` 140/146 then
+  14/146. Non-goals: anchoring on the hunk's own file. Failure modes: more `drafted proposal`
+  rows to review. Evidence: `TestProposeCitationsDCWV0966BoundsTheUnknownRate` (a self-development
+  fixture drafts at most one unknown row in five, and the draft passes the pre-flight's real cem
+  prepare and cite) and `TestProposeCitationsDCWV0966CitesPriorSealInEveryRoute`. Rollback:
+  restore the changed-path filter in `prepareAnchors` and the `docs/DOGFOOD.md` guard.
+- `DCW-V0-967`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3428; refines
+  `DCW-V0-440`) A requirement ID counts as added by the change only when its definition is absent
+  from that file at BASE; an edited definition is not same-change intent. A hunk that names or
+  defines an added requirement MUST be drafted, as a marked proposal, against the first stable BASE
+  definition of a requirement the new entry refines, amends or otherwise names (several hunks may
+  share that one span, an exception to `DCW-V0-382`; the uniform rule `DCW-V0-048` holds), else the
+  nearest stable BASE entry or heading to where the entry is added; only then is it `unknown` with
+  the `DCW-V0-440` reason. A hunk editing a requirement's entry proposes that requirement's own
+  stable definition line first. When the BASE definition of a requirement a hunk names is edited
+  by the change, its `unknown` note MUST say so and that cem cite would refuse the span as
+  `cite-span-not-stable`. Non-goals: treating same-change intent as BASE evidence. Evidence:
+  `TestProposeCitationsDCWV0966BoundsTheUnknownRate` (code, test and new test hunks cite the
+  refined definition), `TestProposeCitationsDCWV0440SameChangeRequirementStaysUnknown` (the
+  defining spec hunk's proposal) and `TestProposeCitationsDCWV0967NamesAnEditedRequirementDefinition`.
+  Rollback: drop `propose_samechange.go` and its calls.
 
 ## Code vocabulary
 
@@ -2976,6 +3024,9 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-962` (experimental under the standing lane auto-accept; V1-3284, V1-3428) | `internal/dogfoodflow/propose.go` `propose`, `definesRequirement`, `printDraft`; `TestProposeCitationsDCWV0962DraftsNearestStableLineAsProposal` | implemented; focused tests PASS |
 | `DCW-V0-963` (experimental under the standing lane auto-accept; V1-3270) | `internal/dogfoodflow/propose.go` `unknownProposal`; `TestProposeCitationsDCWV0963UnknownRowsNameHunkPath` | implemented; focused test PASS |
 | `DCW-V0-964` (experimental under the standing lane auto-accept; V1-3303) | `internal/dogfoodflow/reused_worktree.go` `requireFreshWorktree`; `TestDCWV0964InputsCheckNotesRetirableSidecars` | implemented; focused test PASS |
+| `DCW-V0-965` (experimental under the standing lane auto-accept; V1-3047) | `TestDCWV0965InputsCheckRefusesWhatCloseoutRefuses` | regression pin; focused test PASS |
+| `DCW-V0-966` (experimental under the standing lane auto-accept; V1-3284) | `internal/dogfoodflow/propose.go` `prepareAnchors`, `sealedProposal`, `draft`; `propose_samechange.go` `sealedFallback`; `TestProposeCitationsDCWV0966BoundsTheUnknownRate`, `TestProposeCitationsDCWV0966CitesPriorSealInEveryRoute` | implemented; focused tests PASS |
+| `DCW-V0-967` (experimental under the standing lane auto-accept; V1-3428) | `internal/dogfoodflow/propose_samechange.go`; `propose.go` `propose`; `TestProposeCitationsDCWV0967NamesAnEditedRequirementDefinition` | implemented; focused tests PASS |
 | `DCW-V0-800` (experimental under the standing lane auto-accept; V1-3269) | `internal/dogfoodflow/finishlane.go` `requireOutcomeInputs`; `TestFinishLaneDCWV0800RefusesMissingOutcomeInputsBeforePrepare` | implemented; focused test PASS |
 | `DCW-V0-801` (experimental under the standing lane auto-accept; V1-3280) | `internal/dogfoodflow/verify_argv.go` `quotedRunAlternation`, `quotedRunSuggestion`, `quotedRunSuggestions`; `internal/dogfoodflow/change.go`; `internal/dogfoodflow/finishlane.go` `requireVerifyInput`; `TestVerifyArgumentsDCWV0801AdmitsAnchoredAndAttachedRunAlternation`, `TestDogfoodChangeNamesVerifySyntaxRemediation` | implemented; focused tests PASS |
 | `DCW-V0-802` (experimental under the standing lane auto-accept; V1-3279) | `internal/dogfoodflow/propose.go` `readCanonicalPatch`, `refusePatchUnavailable`; `docs/DOGFOOD.md` §4 first-run order; `TestProposeCitationsDCWV0802NamesWhyThePatchIsUnavailable` | implemented; focused test PASS |
