@@ -3074,6 +3074,47 @@ profile changes encoding: only detail and frontier-site text changes, and one ta
   `frontierDetail` for the runtime unknown, drop `graphFrontierDetail`, `namedFrontierSites` and
   `playwrightRuntimeDetail`, and restore the mutators and the boolean result of
   `playwrightTagTextLiteral`.
+- **AFP-V0-960:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2562,
+  amends AFP-V0-425) Three ordinary spec constructs MUST NOT make a closure file inexact. (1) A
+  `const NAME = JSON.parse(text)` or `let NAME = JSON.parse(text)` with one argument, no reviver,
+  no type annotation, whose binding the fresh-object escape analysis (TJAA-V0-095 to 099) admits:
+  each use is a member read or a call argument of a neutral sink, so the keys the parse builds
+  never reach a test details argument. Any other `JSON.parse` (a reviver, a direct member read, a
+  copy, an enumeration, an argument) still stops the closure. (2) `Object.values(NAME)` on the
+  same terms TJAA-V0-117 sets for `Object.entries(NAME)`. (3) A computed member read `X[NAME]`
+  whose NAME is the counter of the innermost enclosing `for (let NAME = DIGITS; ...) { ... }`
+  block loop, in which every other use of NAME is an update (`++`, `--`), a comparison, a single
+  arithmetic operand, a property name or the whole index of another member access: NAME is then a
+  number, so the read takes a numeric key and never the key `tag`. A counter that is assigned,
+  rebound, shadowed, read outside its loop, or used as a computed write target still stops the
+  closure. Failure mode: an ordinary e2e spec reading a JSON fixture, summing `Object.values` or
+  walking `rows[i]` hides the whole grep omission behind a generic stop. Falsifier: a GH #1647
+  hidden-tag fixture, or a spec that reaches a tag array through one of the three admitted forms,
+  whose closure stays exact. Acceptance: `TestPlaywrightTagClosureParseValuesCounter_V12562`,
+  `TestPlaywrightGrepOmissionSourceTags_GH1647`, `TestPlaywrightTagClosureDetailsWithoutTag_GH1688`,
+  `TestPlaywrightTagClosureFreshObjectTypeKeyAndEntries_GH1881`.
+- **AFP-V0-961:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2582)
+  A neutral module that can build an object whose keys come from text MUST NOT leave the closure
+  exact. When any closure file imports `url`, `node:url` or `dotenv`, the first closure file that
+  names `parse` (other than `JSON.parse`), `parsed`, `populate` or `processEnv` in code MUST stop
+  the closure, naming that line as ``(line N: `NAME` builds an object from text, so a `tag` key
+  can exist without its name)``: `url.parse(text, true).query`, `dotenv.parse(text)`, a
+  `config()` result's `parsed` and `dotenv.populate` or `config({ processEnv })` each yield a
+  `tag` property without the text `tag`. A `node:` built-in import is followed as non-neutral
+  unless it is one of `node:path`, `node:os`, `node:url`, `node:fs`, `node:fs/promises`,
+  `node:crypto`, `node:child_process`, `node:process`, `node:buffer`, `node:assert`,
+  `node:events`, `node:timers`, `node:timers/promises` or `node:test`; others, such as `node:vm`,
+  `node:module`, `node:querystring` or `node:util`, can evaluate code or build keyed objects.
+  Failure mode: `test('x', url.parse('/?tag=@x', true).query, ...)` selects a tagged test that
+  the closure reports as untagged, so a grep omission goes unreported. Falsifier: a spec that
+  passes such a value as details, with a closure that stays exact. Known gap: `process.env`
+  passed whole or spread as details is not modelled. Acceptance:
+  `TestPlaywrightTagClosureParseValuesCounter_V12562`.
+  Rollback for AFP-V0-960 and AFP-V0-961: drop `playwrightCounterIndex`, `playwrightCounterLoop`,
+  `playwrightCounterUse`, `playwrightParseCallEnd`, `playwrightParseDeclaration` and the `values`
+  method, restore the `{`-only fresh-object initializer, and drop `playwrightTagKeyModules`,
+  `playwrightTagKeyBuilders`, `playwrightTagNeutralBuiltins` and the `builderStop` aggregation,
+  restoring the blanket `node:` neutrality.
 ### Windows production path logic (V1-2488)
 
 The native Windows test run of V1-2441 (build-log entry
@@ -6060,6 +6101,8 @@ stream truncated by the runner lists the unfinished packages and `no package-lev
 | AFP-V0-423 | `playwrightStaticMembership` in `alias_gate.go`; the `FrontierConfig` raise in `observe` | `TestPlaywrightConfigFrontierNamesBlocker_GH1688`, `TestFrontierSitesNameFileLineAndToken_GH1604` |
 | AFP-V0-424 | `graphFrontierDetail`, `namedFrontierSites` in `playwright.go` | `TestPlaywrightDynamicSourceNamesSites_GH1688` |
 | AFP-V0-425 | `playwrightTagIndirection`, `playwrightTagTextLiteral`, `playwrightTagFileExact` in `playwright_tag_sources.go` | `TestPlaywrightTagClosureDetailsWithoutTag_GH1688`, `TestPlaywrightGrepOmissionSourceTags_GH1647` |
+| AFP-V0-960 | `playwrightCounterIndex`, `playwrightParseDeclaration`, `playwrightEntriesCall` in `playwright_tag_sources.go` | `TestPlaywrightTagClosureParseValuesCounter_V12562`, `TestPlaywrightGrepOmissionSourceTags_GH1647` |
+| AFP-V0-961 | `playwrightTagKeyModules`, `playwrightTagKeyBuilders`, `playwrightTagNeutralBuiltins` in `playwright_tag_sources.go` | `TestPlaywrightTagClosureParseValuesCounter_V12562` |
 | AFP-V0-426 | `playwrightRuntimeDetail`, `classifyPlaywrightFrontier` in `playwright.go` | `TestPlaywrightRuntimeDependencySummary_GH1688` |
 | AFP-V0-390 | `setAffectedOnce`, `resolveAffectedBatchAndCache`, `resolveAffectedCache`, `affectedGitDirectories`, `resolveExistingAncestor` and `within` in `cmd/corvint/affected_cache.go`; the `--cache` combination check in `parseAffectedOptions`; `writeGraphCache` and `BuildCachedExcluding` in `internal/liveverify/affected/graphcache.go`; `openCacheDirectory` and `admitCacheHandle` in `graphcache_dir.go`; `directoryPath` and `privateDirectory` in `graphcache_dir_darwin.go`, `graphcache_dir_linux.go` and `graphcache_dir_unix.go` | `TestAFPV0390CacheDirectoryMustBeOutsideTheRepository` (root, `.corvint/`, a package directory, a symlink into the root, a `.git` or `.GIT` component, the root under another case on a case-insensitive file system, empty, repeated, `--snapshot`, `--playwright-config` refuse with no stdout, no repository change and no cache write), `TestAFPV0390CacheRefusesTheSeparateGitDirectory` (a `--separate-git-dir` directory, a directory under it, one under a symlink alias of it and one under its `objects/` refuse and leave it unchanged; a sibling is accepted), `TestAFPV0390CacheDirectoryReplacementCannotRedirectWrites` (a cache directory replaced by a link into `.corvint/` just before the open is refused for read and write; one replaced after the open receives the entry in the opened directory, not the repository; the Git directory passed as excluded is never written), `TestAFPV0392UnpinnableObservationStoresNoEntry` (a 0777 cache directory is neither read nor written), `TestAFPV0391CachedGraphIsRestoredExactly` (one 0600 entry per root; a new identity replaces it) |
 | AFP-V0-391 | `cacheEntry`, `cachedLanguage`, `cachedUnit`, `recording`, `pathStamp`, `stampPath`, `newCacheEntry`, `GraphCacheEntryPath` in `internal/liveverify/affected/graphcache.go`; `statStamp` in `graphcache_stamp_darwin.go` and `graphcache_stamp_linux.go`; the `Source.record` hooks in `source.go`; `buildDisk` in `graph.go`; `recording.failed` in `graphcache.go`; `affectedProgramIdentity` and `affectedFileIdentity` in `cmd/corvint/affected_cache.go`; `affectedExecutable` and `affectedChangeTime` in `cmd/corvint/affected_identity_darwin.go` and `affected_identity_linux.go` | `TestAFPV0391CachedGraphIsRestoredExactly` (the restored graph's canonical body, every unit with its nil lists, and the plans over six dirty sets equal the fresh build), `TestAFPV0391ProgramIdentityRefusesAReplacedExecutable` (a pathname replaced at the process start yields no identity, one installed before it hashes to its content, the running image hashes whatever its times, linux hashes `/proc/self/exe`), `TestAFPV0392TransientReadFailureStoresNoEntry` (one injected I/O error stores no entry; after recovery the call builds the fresh graph with the unit) |
