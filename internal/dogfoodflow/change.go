@@ -2468,6 +2468,9 @@ func (c *change) fixHint(row step) string {
 	if strings.HasPrefix(row.name, "ocm-prepare-") && row.reason == "invalid-requirements-section" {
 		return c.requirementsSectionHint(row.name)
 	}
+	if row.reason == "repository-object-unavailable" {
+		return objectUnavailableHint(row.name, c.evidence, c.base)
+	}
 	if value == "local-outcome:aggregate-schema-invalid" {
 		return c.aggregateSchemaHint()
 	}
@@ -2485,6 +2488,41 @@ func (c *change) fixHint(row step) string {
 		}
 	}
 	return ""
+}
+
+// maxQuotedRefusal bounds the refusal message objectUnavailableHint quotes.
+const maxQuotedRefusal = 240
+
+// objectUnavailableHint is the repository-object-unavailable fix (DCW-V0-940,
+// V1-2445): the step's own refusal message from evidence/step.stderr, which
+// names the object, then the fetch remedy. The message is the stderr's JSON
+// error, else its first line, bounded and stripped of control characters.
+func objectUnavailableHint(step, evidence, base string) string {
+	stderr := bytes.TrimSpace(readFile(evidence + "/" + step + ".stderr"))
+	var refusal struct {
+		Error string `json:"error"`
+	}
+	message := ""
+	if json.Unmarshal(stderr, &refusal) == nil {
+		message = refusal.Error
+	} else {
+		line, _, _ := bytes.Cut(stderr, []byte("\n"))
+		message = string(line)
+	}
+	message = strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, strings.TrimSpace(message))
+	if len(message) > maxQuotedRefusal {
+		message = strings.ToValidUTF8(message[:maxQuotedRefusal], "") + "..."
+	}
+	named := "its refusal in " + evidence + "/" + step + ".stderr names the missing object"
+	if message != "" {
+		named = strconv.Quote(message) + " (" + evidence + "/" + step + ".stderr)"
+	}
+	return step + " could not read a Git object it needs: " + named + "; fetch the missing history into this clone (git fetch origin, and git fetch origin " + base + " when BASE is not local; git fetch --unshallow for a shallow clone; a plain clone of a lane checkout also needs that checkout's origin fetched), then rerun corvint dogfood change " + base + " (DCW-V0-940)"
 }
 
 // requirementsSectionHint is the ocm-prepare invalid-requirements-section fix

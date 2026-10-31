@@ -32,7 +32,7 @@ func IntentObligationCounts(ctx context.Context, root, target string, paths []st
 			return nil, err
 		}
 		if !exists || entry.Type != "blob" {
-			return nil, fail("repository-object-unavailable", "repository object unavailable")
+			return nil, fail("repository-object-unavailable", "repository object unavailable: %s is not a blob at %s", path, resolved)
 		}
 		blob, err := reader.blob(resolved, path, entry.OID)
 		if err != nil {

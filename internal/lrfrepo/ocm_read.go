@@ -292,7 +292,7 @@ func mapOCMCEMError(err error) error {
 		cemcode.GitTimeout, cemcode.GitOutputExceeded, cemcode.GitBudgetExceeded,
 		cemcode.GitStartFailed, cemcode.GitExitFailure, cemcode.GitDiffFailed,
 		cemcode.GitDiffTimeout:
-		return fail(cemcode.RepositoryObjectUnavailable, "repository object unavailable")
+		return fail(cemcode.RepositoryObjectUnavailable, "repository object unavailable: %v", err)
 	default:
 		return fail("invalid-cem", "CEM verification failed")
 	}
@@ -302,7 +302,7 @@ func mapOCMRepositoryError(err error) error {
 	if CodeOf(err) == cemcode.UnsupportedObjectAlternates {
 		return err
 	}
-	return fail(cemcode.RepositoryObjectUnavailable, "repository object unavailable")
+	return fail(cemcode.RepositoryObjectUnavailable, "repository object unavailable: %v", err)
 }
 
 func ocmMessage(err error) string {
@@ -524,7 +524,7 @@ func retiredCEMFailure(err error) bool {
 func verifyStableOCMCEM(ctx context.Context, repository *gitauth.Repository, root string, cem *wire.Map, cemRaw []byte, options OCMReadOptions) (*verifiedCEM, error) {
 	absolute, err := filepath.Abs(root)
 	if err != nil {
-		return nil, fail(cemcode.RepositoryObjectUnavailable, "repository object unavailable")
+		return nil, fail(cemcode.RepositoryObjectUnavailable, "repository object unavailable: repository root: %v", err)
 	}
 	base, err := repository.Resolve(ctx, options.ExpectedBase)
 	if err != nil {
