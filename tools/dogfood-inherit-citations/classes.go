@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -86,8 +87,6 @@ var (
 	citationToken = regexp.MustCompile("`([^`\\s]+):[0-9]+(?:[-,][0-9]+)*(?:@[0-9a-f]+)?`")
 	hexDigest     = regexp.MustCompile(`\b(?:[0-9a-f]{64}|[0-9a-f]{40})\b`)
 	digest64      = regexp.MustCompile(`\b[0-9a-f]{64}\b`)
-	revision40    = regexp.MustCompile(`"repositoryRevision": "([0-9a-f]{40})"`)
-	quotedPath    = regexp.MustCompile(`"([^"\\\s]+)"`)
 )
 
 // propose returns the rows and class of a hunk no constituent covers, or no
@@ -262,41 +261,82 @@ func maskedEqual(h *patch.Hunk, pattern *regexp.Regexp, replacement string) bool
 	return true
 }
 
-// digestsPinned reports that every 64-hex digest an added line writes is the
-// SHA-256 of a TARGET file the same file names, and every new
-// repositoryRevision is a commit: the repin script's output, re-derived.
+// digestsPinned reports that every hex value an added line writes is re-derived
+// from TARGET, read from the parsed JSON file rather than its formatting: a
+// 64-hex value only as the "sha256" of an object whose "path" names a TARGET
+// file with that SHA-256 (every object carrying the value must pin its own
+// path, so swapping two subjects' digests fails), and a 40-hex value only as a
+// revision field naming a commit or a "blobOid" naming an object.
 func (in *inheritor) digestsPinned(h *patch.Hunk) bool {
 	data, ok := in.blob(in.target + ":" + h.DisplayPath)
 	if !ok {
 		return false
 	}
-	pinned := map[string]bool{}
-	for _, match := range quotedPath.FindAllSubmatch(data, -1) {
-		path := string(match[1])
-		if !strings.Contains(path, "/") {
-			continue
-		}
-		if content, ok := in.blob(in.target + ":" + path); ok {
-			sum := sha256.Sum256(content)
-			pinned[hex.EncodeToString(sum[:])] = true
+	var document any
+	if json.Unmarshal(data, &document) != nil {
+		return false
+	}
+	digests := map[string]bool{}   // value -> every object carrying it pins its own path
+	revisions := map[string]bool{} // value -> it names the object its key requires
+	var walk func(node any)
+	walk = func(node any) {
+		switch value := node.(type) {
+		case []any:
+			for _, item := range value {
+				walk(item)
+			}
+		case map[string]any:
+			if digest, ok := value["sha256"].(string); ok && digest64.MatchString(digest) && len(digest) == 64 {
+				path, _ := value["path"].(string)
+				pinned := false
+				if content, found := in.blob(in.target + ":" + path); path != "" && found {
+					sum := sha256.Sum256(content)
+					pinned = hex.EncodeToString(sum[:]) == digest
+				}
+				previous, seen := digests[digest]
+				digests[digest] = pinned && (!seen || previous)
+			}
+			for key, item := range value {
+				text, isText := item.(string)
+				kind, named := revisionKeys[key]
+				if !isText || !named || len(text) != 40 || !hexDigest.MatchString(text) {
+					walk(item)
+					continue
+				}
+				_, err := in.git(nil, "cat-file", "-e", "--end-of-options", text+kind)
+				previous, seen := revisions[text]
+				revisions[text] = err == nil && (!seen || previous)
+			}
 		}
 	}
+	walk(document)
 	for _, line := range h.Body {
 		if line.Prefix != '+' {
 			continue
 		}
-		for _, digest := range digest64.FindAllString(string(line.Payload), -1) {
-			if !pinned[digest] {
-				return false
+		for _, value := range hexDigest.FindAllString(string(line.Payload), -1) {
+			var good bool
+			if len(value) == 64 {
+				good = digests[value]
+			} else {
+				good = revisions[value]
 			}
-		}
-		for _, match := range revision40.FindAllStringSubmatch(string(line.Payload), -1) {
-			if _, err := in.git(nil, "cat-file", "-e", match[1]+"^{commit}"); err != nil {
+			if !good {
 				return false
 			}
 		}
 	}
 	return true
+}
+
+// revisionKeys are the use-case JSON fields whose 40-hex value names a Git
+// object, with the object type each must peel to.
+var revisionKeys = map[string]string{
+	"repositoryRevision": "^{commit}",
+	"baseRevision":       "^{commit}",
+	"base":               "^{commit}",
+	"target":             "^{commit}",
+	"blobOid":            "^{blob}",
 }
 
 // specIndexReproduced runs TARGET's generator over TARGET's specs and reports

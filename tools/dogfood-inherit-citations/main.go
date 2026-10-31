@@ -207,7 +207,7 @@ func (in *inheritor) loadConstituents() error {
 		commit, _ := in.git(nil, "rev-parse", "--verify", "--quiet", "--end-of-options", strings.TrimSuffix(name, ".cem.json")+"^{commit}")
 		add(in.target+":"+path, commit)
 	}
-	commits, err := in.git(nil, "log", "--format=%H", "--end-of-options", in.base+".."+in.target, "--", changeMapPath)
+	commits, err := in.git(nil, "log", "--full-history", "--format=%H", "--end-of-options", in.base+".."+in.target, "--", changeMapPath)
 	if err != nil {
 		return fmt.Errorf("log %s..%s: %w", in.base, in.target, err)
 	}

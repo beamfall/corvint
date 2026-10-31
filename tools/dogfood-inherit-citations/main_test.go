@@ -200,3 +200,26 @@ func TestInheritCitationsDCWV0824TwoLaneRange(t *testing.T) {
 		t.Fatalf("uninherited = %v, want %v", reasons, want)
 	}
 }
+
+// TestInheritCitationsFindsBindingMergedWithOurs (V1-3369 review) reads a
+// retroactive binding merged with `-s ours`, the documented route: the merge's
+// tree equals its first parent's, so a history walk without --full-history
+// simplifies the binding's side away and the hunk it cites stays unknown.
+func TestInheritCitationsFindsBindingMergedWithOurs(t *testing.T) {
+	f := newFixture(t)
+	f.write("doc.md", "rule alpha holds\n")
+	f.write("a.txt", numbered("a", 12, nil))
+	base := f.commit("base")
+	f.write("a.txt", numbered("a", 12, map[int]string{4: "unbound edit"}))
+	work := f.commit("work")
+	f.git("checkout", "-q", "-b", "binding")
+	f.write(changeMapPath, f.cemFor(base, work, map[string]string{"a.txt": "rule alpha holds"}))
+	f.commit("chore: bind change evidence")
+	f.git("checkout", "-q", "main")
+	f.git("merge", "-q", "-s", "ours", "--no-edit", "binding")
+	target := f.git("rev-parse", "HEAD")
+	summary, _, reasons := f.bindRange(base, target)
+	if !strings.Contains(summary, "constituents=1") || reasons["a.txt"] != "" {
+		t.Fatalf("summary %q reasons %v: the -s ours binding must be read and its hunk inherited", summary, reasons)
+	}
+}

@@ -283,3 +283,42 @@ func TestProposeLineCitationRepinDCWV0828(t *testing.T) {
 		t.Fatalf("reasons = %v: a repin the gate refuses must stay unknown", reasons)
 	}
 }
+
+// TestProposeUseCaseReceiptBindsEachDigestToItsPath (V1-3369 review) keeps a
+// receipt unknown when it swaps two subjects' digests, each of which is the
+// SHA-256 of the other named file, and when a compact repositoryRevision names
+// no commit; the receipt is read as JSON, so its formatting cannot hide either.
+func TestProposeUseCaseReceiptBindsEachDigestToItsPath(t *testing.T) {
+	f := newFixture(t)
+	f.write("docs/specs/use-case-conformance-v0.md",
+		"# Use Case Conformance V0\n\n- `UCV0-004`: A receipt MUST pin its inputs.\n- `UCV0-005`: The ledger MUST pin each receipt.\n")
+	sum := func(content string) string {
+		digest := sha256.Sum256([]byte(content))
+		return hex.EncodeToString(digest[:])
+	}
+	receipt := func(revision, digestA, digestB string) string {
+		return `{"repositoryRevision":"` + revision + `","subjects":[{"path":"cmd/a.go","sha256":"` + digestA +
+			`"},{"path":"cmd/b.go","sha256":"` + digestB + `"}]}` + "\n"
+	}
+	path := "conformance/use-cases-v0/receipts/demo.json"
+	f.write("cmd/a.go", "package a\n")
+	f.write("cmd/b.go", "package b\n")
+	f.write(path, receipt(strings.Repeat("0", 40), sum("old a\n"), sum("old b\n")))
+	base := f.commit("base")
+
+	f.write(path, receipt(base, sum("package a\n"), sum("package b\n")))
+	good := f.commit("repin")
+	if summary, _, reasons := f.bindRange(base, good); reasons[path] != "" || !strings.Contains(summary, "proposed=1 ") {
+		t.Fatalf("summary %q reasons %v: a compact receipt pinning each path must be proposed", summary, reasons)
+	}
+	f.write(path, receipt(base, sum("package b\n"), sum("package a\n")))
+	swapped := f.commit("swap the subjects' digests")
+	if _, _, reasons := f.bindRange(base, swapped); reasons[path] != "no-constituent-hunk" {
+		t.Fatalf("reasons = %v: swapped subject digests must stay unknown", reasons)
+	}
+	f.write(path, receipt(strings.Repeat("e", 40), sum("package a\n"), sum("package b\n")))
+	missing := f.commit("revision that is no commit")
+	if _, _, reasons := f.bindRange(base, missing); reasons[path] != "no-constituent-hunk" {
+		t.Fatalf("reasons = %v: a compact repositoryRevision naming no commit must stay unknown", reasons)
+	}
+}
