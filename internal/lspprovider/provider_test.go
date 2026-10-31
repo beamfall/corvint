@@ -303,3 +303,67 @@ func TestRootCommitIgnoresReplaceRefs(t *testing.T) {
 		t.Fatalf("root commit %q, %v; want %q", origin, err, m.head)
 	}
 }
+
+// TestRecordExplainsOmissions_EEPV0820 binds EEP-V0-820 (V1-0482): every
+// omitted relation is counted by its cause, the causes sum to omitted_rows,
+// and a repeated answer is not an omission.
+func TestRecordExplainsOmissions_EEPV0820(t *testing.T) {
+	for _, tc := range []struct {
+		name                         string
+		dir                          string
+		unpinned, rowBound, byteMore bool
+	}{
+		{name: "row bound and unpinned", dir: "p", unpinned: true, rowBound: true},
+		{name: "byte bound", dir: strings.Repeat("deep/", 600), byteMore: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			committed := map[string]string{}
+			write := func(path, text string) {
+				full := filepath.Join(root, filepath.FromSlash(path))
+				if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(full, []byte(text), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				committed[path] = text
+			}
+			write("seed.go", "package seed\n")
+			var links []link
+			for i := 0; i < MaxRows+2; i++ {
+				path := fmt.Sprintf("%sf%02d.go", tc.dir, i)
+				write(path, "package p\n")
+				links = append(links, link{from: "seed.go", to: path, method: "textDocument/definition", hop: 1, seed: "seed.go"})
+			}
+			links = append(links, links[0]) // a repeated answer
+			if tc.unpinned {
+				write("modified.go", "package p\n")
+				if err := os.WriteFile(filepath.Join(root, "modified.go"), []byte("package p // edited\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				links = append(links, link{from: "seed.go", to: "modified.go", method: "textDocument/definition", hop: 1, seed: "seed.go"}, link{from: "seed.go", to: "untracked.go", method: "textDocument/references", hop: 1, seed: "seed.go"})
+			}
+			request := Request{Root: root, Revision: strings.Repeat("a", 40), Committed: func(path string) (string, string, bool) {
+				text, ok := committed[path]
+				return text, strings.Repeat("b", 40), ok
+			}}
+			query := querySummary(request, []string{"seed.go"})
+			encoded, _ := record(request, strings.Repeat("c", 40), expansion{links: links}, query)
+			var document struct{ Relations []any }
+			if err := json.Unmarshal(encoded, &document); err != nil || len(encoded) > MaxRecordBytes {
+				t.Fatalf("record %d bytes: %v", len(encoded), err)
+			}
+			unpinned, rows, bytes := query["omitted_unpinned"].(int), query["omitted_row_bound"].(int), query["omitted_byte_bound"].(int)
+			if query["omitted_rows"].(int) != unpinned+rows+bytes {
+				t.Fatalf("causes do not sum: %v", query)
+			}
+			if tc.unpinned && (unpinned != 2 || rows != 2 || bytes != 0 || len(document.Relations) != MaxRows) {
+				t.Fatalf("query %v, relations %d", query, len(document.Relations))
+			}
+			if tc.byteMore && (unpinned != 0 || rows != 2 || bytes == 0 || len(document.Relations)+bytes != MaxRows) {
+				t.Fatalf("query %v, relations %d", query, len(document.Relations))
+			}
+		})
+	}
+}
