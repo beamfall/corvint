@@ -220,7 +220,7 @@ func selectPlaywrightStaticDraft(root, configPath string, dirty []string, enviro
 	selectionUnknown = append(selectionUnknown, contradicted...)
 	selectionUnknown = append(selectionUnknown, outOfSuite...)
 	selected := selectPlaywrightUnits(configPath, base, projects, units, normalizedDirty)
-	draft, err := draftPlaywrightNarrowing(root, configPath, observed, graph, base, configUnknown, projects, units, normalizedDirty, informational)
+	draft, err := draftPlaywrightNarrowing(root, configPath, observed, graph, base, configUnknown, projects, units, normalizedDirty, informational, sites)
 	if err != nil {
 		return PlaywrightPlan{}, none, err
 	}

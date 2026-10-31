@@ -137,6 +137,10 @@ func ChangedSymbols(relative string, before []byte, beforeExists bool, after []b
 type symbolStatement struct {
 	text  string
 	names []string
+	// bound holds, for a variable statement binding several names, each
+	// name's own declarator text, so a change to one binding changes only
+	// that name (TJAA-V0-761).
+	bound map[string]string
 }
 
 var symbolStatementKeywords = map[string]bool{
@@ -183,7 +187,11 @@ func symbolStatements(body []byte) ([]symbolStatement, bool) {
 		if text == "" {
 			continue
 		}
-		statements = append(statements, symbolStatement{text: text, names: exportNames(text)})
+		statement := symbolStatement{text: text, names: exportNames(text)}
+		if bound := variableBindings(text); len(bound) > 1 {
+			statement.names, statement.bound = sortedKeys(bound), bound
+		}
+		statements = append(statements, statement)
 	}
 	return statements, true
 }
@@ -261,6 +269,61 @@ func exportNames(text string) []string {
 	return nil
 }
 
+// variableBindings returns each plain name an exported `const`, `let` or
+// `var` statement binds, with its declarator text, splitting at commas
+// outside brackets, strings and templates (TJAA-V0-761). A destructuring
+// declarator, or any other statement, binds nothing here.
+func variableBindings(text string) map[string]string {
+	if identifierAt(text, 0) != "export" {
+		return nil
+	}
+	rest := strings.TrimSpace(text[len("export"):])
+	if word := identifierAt(rest, 0); word == "declare" {
+		rest = strings.TrimSpace(rest[len(word):])
+	}
+	word := identifierAt(rest, 0)
+	if word != "const" && word != "let" && word != "var" {
+		return nil
+	}
+	rest = strings.TrimSpace(rest[len(word):])
+	if identifierAt(rest, 0) == "enum" {
+		return nil
+	}
+	bound := map[string]string{}
+	depth, quote, start := 0, byte(0), 0
+	for index := 0; index <= len(rest); index++ {
+		if index < len(rest) {
+			character := rest[index]
+			switch {
+			case quote != 0:
+				if character == '\\' {
+					index++
+				} else if character == quote {
+					quote = 0
+				}
+				continue
+			case character == '"' || character == '\'' || character == '`':
+				quote = character
+				continue
+			case character == '(' || character == '[' || character == '{':
+				depth++
+				continue
+			case character == ')' || character == ']' || character == '}':
+				depth--
+				continue
+			case character != ',' || depth != 0:
+				continue
+			}
+		}
+		declarator := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(rest[start:index]), ";"))
+		if name := identifierAt(declarator, 0); name != "" {
+			bound[name] = word + " " + declarator
+		}
+		start = index + 1
+	}
+	return bound
+}
+
 func exportListNames(rest string) []string {
 	end := strings.IndexByte(rest, '}')
 	if end < 0 {
@@ -285,7 +348,11 @@ func exportedStatements(statements []symbolStatement) map[string][]string {
 	byName := map[string][]string{}
 	for _, statement := range statements {
 		for _, name := range statement.names {
-			byName[name] = append(byName[name], statement.text)
+			text := statement.text
+			if declarator, ok := statement.bound[name]; ok {
+				text = declarator
+			}
+			byName[name] = append(byName[name], text)
 		}
 	}
 	for name := range byName {

@@ -25,6 +25,9 @@ const (
 	PlaywrightMembershipUnresolved = "UNRESOLVED"
 
 	playwrightWitnessDynamicImport = "DYNAMIC_IMPORT_FRONTIER"
+	// playwrightWitnessFrontierReach marks a candidate that statically reaches the site
+	// of a frontier other than a dynamic import (TJAA-V0-762).
+	playwrightWitnessFrontierReach = "FRONTIER_SITE_REACH"
 )
 
 // PlaywrightNarrowing is advisory evidence beside FULL_RELEVANT_SUITE: the statically importing
@@ -125,7 +128,7 @@ func notNarrowed(reason, detail string) playwrightNarrowingDraft {
 
 // draftPlaywrightNarrowing computes the advisory candidate set from the static graph. Any input it
 // cannot attribute to one project or one test-side module makes it NOT_NARROWED (TJAA-V0-030..032).
-func draftPlaywrightNarrowing(root, configPath string, observed affected.Result, graph *affected.Graph, base affected.Plan, configUnknown []PlaywrightUnknown, projects []PlaywrightProject, units []PlaywrightSelection, dirty []string, informational map[string]bool) (playwrightNarrowingDraft, error) {
+func draftPlaywrightNarrowing(root, configPath string, observed affected.Result, graph *affected.Graph, base affected.Plan, configUnknown []PlaywrightUnknown, projects []PlaywrightProject, units []PlaywrightSelection, dirty []string, informational map[string]bool, sites frontierSet) (playwrightNarrowingDraft, error) {
 	if len(dirty) == 0 {
 		return notNarrowed(PlaywrightNarrowingNoDirtyPath, "no dirty path to narrow from"), nil
 	}
@@ -141,6 +144,33 @@ func draftPlaywrightNarrowing(root, configPath string, observed affected.Result,
 		}
 	}
 	dynamicFrontier := false
+	// A frontier other than a dynamic import whose every site is a file of the graph taints
+	// only the tests that statically reach one of those files (TJAA-V0-762); an unsited one,
+	// or one sited outside the graph, still refuses the whole narrowing.
+	owned := map[string]bool{}
+	for _, unit := range observed.Units {
+		for _, relative := range append(append([]string{}, unit.Sources...), unit.Tests...) {
+			owned[relative] = true
+		}
+	}
+	tainted := map[string]bool{}
+	taint := func(reason string) bool {
+		if len(sites[reason]) == 0 {
+			return false
+		}
+		files := []string{}
+		for site := range sites[reason] {
+			file := siteFile(site)
+			if !owned[file] {
+				return false
+			}
+			files = append(files, file)
+		}
+		for _, file := range files {
+			tainted[file] = true
+		}
+		return true
+	}
 	// An informational frontier reason cannot change the selection, so it never blocks narrowing
 	// (TJAA-V0-110).
 	for _, reason := range observed.Frontier {
@@ -149,6 +179,7 @@ func draftPlaywrightNarrowing(root, configPath string, observed affected.Result,
 		case reason == FrontierConfig || reason == FrontierE2ERuntimeDependency:
 		case reason == FrontierDynamicImport:
 			dynamicFrontier = true
+		case taint(reason):
 		default:
 			return notNarrowed(PlaywrightNarrowingGraphFrontier, reason), nil
 		}
@@ -158,6 +189,7 @@ func draftPlaywrightNarrowing(root, configPath string, observed affected.Result,
 		case unknown.Reason == affected.UnknownNoSelectableTest:
 		case unknown.Reason == affected.UnknownLanguageFrontier && informational[unknown.Detail]:
 		case unknown.Reason == affected.UnknownLanguageFrontier && unknown.Detail == FrontierDynamicImport:
+		case unknown.Reason == affected.UnknownLanguageFrontier && taint(unknown.Detail):
 		case unknown.Reason == affected.UnknownLanguageFrontier:
 			return notNarrowed(PlaywrightNarrowingGraphFrontier, unknown.Detail), nil
 		default:
@@ -190,6 +222,13 @@ func draftPlaywrightNarrowing(root, configPath string, observed affected.Result,
 		// A test that statically reaches a dynamic import may load the dirty module at runtime.
 		for _, unit := range selectPlaywrightUnits(configPath, affected.Select(graph, dynamic), projects, units, dynamic) {
 			unit.Witness.Kind = playwrightWitnessDynamicImport
+			candidates[unit.ID] = unit
+		}
+	}
+	if len(tainted) != 0 {
+		files := sortedKeys(tainted)
+		for _, unit := range selectPlaywrightUnits(configPath, affected.Select(graph, files), projects, units, files) {
+			unit.Witness.Kind = playwrightWitnessFrontierReach
 			candidates[unit.ID] = unit
 		}
 	}
