@@ -1,6 +1,7 @@
 package transaction
 
 import (
+	"fmt"
 	"slices"
 	"sort"
 	"strings"
@@ -325,8 +326,8 @@ const noExecutionCutover = "a non-fixture queue admits no claim before its execu
 // explicit pooled claim to higher-priority waiting tickets when the pool
 // opts in (CAL-V0-101).
 func planClaim(c leaseContext) leaseOutcome {
-	if c.st.barrier != nil {
-		return c.refuse(mutation.OutcomeBlocked, wire.CodePaused, "an admission barrier is present")
+	if why := c.barrierRefusal(claimPausedRemedy); why != "" {
+		return c.refuse(mutation.OutcomeBlocked, wire.CodePaused, why)
 	}
 	if !c.st.queue.Fixture && c.st.queue.ExecutionCutover == nil {
 		return c.refuse(mutation.OutcomeBlocked, wire.CodeCutoverMissing, noExecutionCutover)
@@ -576,8 +577,33 @@ func (c leaseContext) addedPaths(a *snapshot.Attempt) []string {
 // barrier: it says why widen counts as an admission and names the recovery
 // (TRM-V0-005, V1-3189).
 const widenPausedRemedy = "an admission barrier is present: widen admits new paths to a live attempt's reservation, so the barrier refuses it like a claim; " +
-	"the owner or operator lifts the barrier (corvint-tasks unpause), widens and restores it (corvint-tasks pause), " +
+	"the owner or operator widens this attempt alone with --admit-under-barrier (TRM-V0-800), or lifts the barrier (corvint-tasks unpause), widens and restores it (corvint-tasks pause), " +
 	"or the attempt releases and a later claim restores its widened scope (TRM-V0-006); the attempt's existing scope stays held"
+
+// claimPausedRemedy is the PAUSED detail for a named claim under an
+// admission barrier (TRM-V0-802).
+const claimPausedRemedy = "an admission barrier is present; the owner or operator admits this one ticket with claim --admit-under-barrier (TRM-V0-800), " +
+	"or lifts the barrier (corvint-tasks unpause), claims and restores it (corvint-tasks pause)"
+
+// barrierRefusal is the PAUSED detail for a named claim or widen under the
+// admission barrier, or "" when there is none or the request's explicit
+// exemption applies: an OWNER or OPERATOR passing an OPERATOR ADMISSION
+// barrier for this one ticket, which the barrier record never notes
+// (TRM-V0-800, TRM-V0-801). An ALL barrier refuses before any planner.
+func (c leaseContext) barrierRefusal(remedy string) string {
+	b := c.st.barrier
+	switch {
+	case b == nil:
+		return ""
+	case !c.l.AdmitUnderBarrier:
+		return remedy
+	case b.Scope != "ADMISSION" || b.Reason != "OPERATOR":
+		return fmt.Sprintf("an admission barrier is present with reason %s; --admit-under-barrier passes only an OPERATOR admission barrier (TRM-V0-801)", b.Reason)
+	case c.r.Actor.Role != "OWNER" && c.r.Actor.Role != "OPERATOR":
+		return fmt.Sprintf("an admission barrier is present; --admit-under-barrier needs the OWNER or OPERATOR role, not %s (TRM-V0-801)", c.r.Actor.Role)
+	}
+	return ""
+}
 
 func planWiden(c leaseContext) leaseOutcome {
 	a, e := c.named()
@@ -592,8 +618,8 @@ func planWiden(c leaseContext) leaseOutcome {
 	}
 	// An admission barrier refuses scope-expand (TCP-00 §3.4): widen admits
 	// new paths to a live reservation, so it is an admission (TRM-V0-005).
-	if c.st.barrier != nil {
-		return c.refuse(mutation.OutcomeBlocked, wire.CodePaused, widenPausedRemedy)
+	if why := c.barrierRefusal(widenPausedRemedy); why != "" {
+		return c.refuse(mutation.OutcomeBlocked, wire.CodePaused, why)
 	}
 	if c.l.WholeRepository {
 		return c.widenWhole(a)

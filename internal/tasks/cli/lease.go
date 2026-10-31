@@ -63,6 +63,7 @@ type leaseArgs struct {
 	exclusive     bool
 	next          bool
 	timing        bool
+	admit         bool
 	repos         []string
 	pos           []string
 }
@@ -128,6 +129,8 @@ func parseLeaseArgs(args []string) (leaseArgs, error) {
 			out.next = true
 		case a == "--timing":
 			out.timing = true
+		case a == "--admit-under-barrier":
+			out.admit = true
 		case a == "--exclude-member":
 			if i+1 >= len(args) || args[i+1] == "" || strings.HasPrefix(args[i+1], "--") {
 				return out, wire.Errorf(wire.CodeMalformed, "argv", "--exclude-member needs one nonempty member")
@@ -214,7 +217,7 @@ func (a leaseArgs) request(verb, queueID string) (transaction.LeaseRequest, erro
 	if a.next {
 		verb = transaction.LeaseClaimNext
 	}
-	req := transaction.LeaseRequest{LaneUntouched: a.laneUntouched, Pool: a.values["--pool"], Stage: a.values["--stage"], Member: a.values["--member"], Allocation: a.values["--allocation"], Evidence: a.values["--evidence"], Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), ExcludeMembers: scopePaths(a.excluded), ExcludeAuthors: a.authors, WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), LeaseExpiresAt: wire.Timestamp(a.values["--lease-expires-at"]), Reason: a.values["--reason"], HandoffTo: a.values["--handoff-to"], HandoffReason: a.values["--handoff-reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"]), Tree: a.values["--tree"], Gate: a.values["--gate"], Commit: a.values["--commit"], ShareAllocation: a.values["--share-allocation"], Slots: a.values["--slots"], SlotCount: wire.Count(a.values["--count"]), SlotExclusive: a.exclusive, SlotClass: a.values["--class"], Source: a.values["--source"], WaitSeconds: wire.Count(a.values["--ttl-seconds"]), Operation: a.values["--operation"]}
+	req := transaction.LeaseRequest{LaneUntouched: a.laneUntouched, Pool: a.values["--pool"], Stage: a.values["--stage"], Member: a.values["--member"], Allocation: a.values["--allocation"], Evidence: a.values["--evidence"], Verb: verb, Holder: a.values["--holder"], Branch: a.values["--branch"], Base: a.values["--base"], Scope: scopePaths(a.scope), ExcludeMembers: scopePaths(a.excluded), ExcludeAuthors: a.authors, WholeRepository: a.whole, AttemptID: a.values["--attempt"], Generation: wire.Size(a.values["--generation"]), LeaseExpiresAt: wire.Timestamp(a.values["--lease-expires-at"]), Reason: a.values["--reason"], HandoffTo: a.values["--handoff-to"], HandoffReason: a.values["--handoff-reason"], LeaseMinutes: wire.Size(a.values["--lease-minutes"]), Tree: a.values["--tree"], Gate: a.values["--gate"], Commit: a.values["--commit"], ShareAllocation: a.values["--share-allocation"], Slots: a.values["--slots"], SlotCount: wire.Count(a.values["--count"]), SlotExclusive: a.exclusive, SlotClass: a.values["--class"], Source: a.values["--source"], WaitSeconds: wire.Count(a.values["--ttl-seconds"]), Operation: a.values["--operation"], AdmitUnderBarrier: a.admit}
 	if t := a.values["--ticket"]; t != "" {
 		if verb != transaction.LeasePoolWait {
 			return req, wire.Errorf(wire.CodeMalformed, "argv", "--ticket is a pool wait flag")
@@ -304,6 +307,11 @@ func leaseCommand(env Env, name string, args []string) (res *wire.Result) {
 	scopeFromDiff, fromDiff := parsed.values["--scope-from-diff"]
 	if fromDiff && (name != "claim" || scopeFromDiff == "" || parsed.next || parsed.whole || len(parsed.scope) > 0) {
 		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--scope-from-diff belongs to claim of one named ticket, needs a revision and excludes --scope, --whole-repository and --next"))
+	}
+	// TRM-V0-801: the barrier exemption names one ticket or attempt, so it
+	// belongs to a named claim or a widen and never to claim --next.
+	if parsed.admit && ((name != "claim" && name != "widen") || parsed.next) {
+		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--admit-under-barrier belongs to claim of one named ticket and to widen, never to claim --next (TRM-V0-801)"))
 	}
 	knowHowRepos, err := store.KnowHowRepositoryArgs(env.Cwd, parsed.repos)
 	if err != nil {

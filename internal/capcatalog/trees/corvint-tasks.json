@@ -256,9 +256,10 @@
       "command": "corvint-tasks claim",
       "summary": "",
       "usage": [
-        "corvint-tasks claim (<ticketId|local> | --next) --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH... | --scope-from-diff REV] [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--share-allocation DIGEST] [--repo ALIAS=ROOT]... [--timing] [--lock-wait SECONDS] [--role ROLE] [--detach [--wait SECONDS]]"
+        "corvint-tasks claim (<ticketId|local> | --next) --holder LABEL --request-id ID [--lease-minutes N] [--branch LABEL] [--base OID] [--scope PATH... | --scope-from-diff REV] [--admit-under-barrier] [--pool ID] [--stage implement|review|integrate] [--exclude-member ID]... [--exclude-authors[=all]] [--share-allocation DIGEST] [--repo ALIAS=ROOT]... [--timing] [--lock-wait SECONDS] [--role ROLE] [--detach [--wait SECONDS]]"
       ],
       "flags": [
+        "--admit-under-barrier",
         "--base",
         "--branch",
         "--detach",
@@ -4454,9 +4455,10 @@
       "command": "corvint-tasks widen",
       "summary": "",
       "usage": [
-        "corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository) [--role ROLE]"
+        "corvint-tasks widen --attempt ID --generation G --request-id ID (--scope PATH... | --whole-repository) [--admit-under-barrier] [--role ROLE]"
       ],
       "flags": [
+        "--admit-under-barrier",
         "--attempt",
         "--generation",
         "--request-id",
