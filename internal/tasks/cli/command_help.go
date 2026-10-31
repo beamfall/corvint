@@ -270,6 +270,9 @@ func fullCommandHelp(cmd []string) *wire.Result {
 	if name == "archive verify" {
 		o.Set("note", wire.String("Reads FILE, or stdin when FILE is absent or -. Help reads neither."))
 	}
+	if name == "archive restore" {
+		o.Set("note", wire.String("Writer (TRL-V0-870, TRL-V0-871): verifies FILE (an archive export) in full, then rebuilds the state directory <git common dir>/taskman byte-for-byte, which must be absent. Intent files the archive holds must be absent or byte-identical; missing ones are written first, then the state directory is published by one rename. Every refusal (MALFORMED for a damaged or tampered archive, UNSUPPORTED for an existing store or a segmented head, INTENT_DIVERGED for differing intent) writes nothing. An archive from another primary worktree restores with a warning naming `corvint-tasks relocate --from <recorded path>`. Rollback: remove the restored state directory and any intent file it wrote."))
+	}
 	if name == "criterion-binding capture" {
 		o.Set("note", wire.String("Returns a capture and its verification from the current native ticket and attempt. Offline verify consumes the canonical capture object on stdin, not the result envelope."))
 	}
@@ -333,6 +336,7 @@ var commandUsage = map[string]string{
 	"reconcile intent":        "corvint-tasks reconcile intent (--keep-journal | --adopt-file) --request-id ID --target TICKET|RELEASE --file FILE|- [--canonical-sha256 SHA256] [--role OWNER|OPERATOR]",
 	"archive export":          "corvint-tasks archive export [--staging DIR]",
 	"archive verify":          "corvint-tasks archive verify [FILE|-]",
+	"archive restore":         "corvint-tasks archive restore FILE   (example: corvint-tasks archive restore ../queue-export.tar)",
 	"init":                    "corvint-tasks init [--role ROLE] [--request-id ID]",
 	"pause":                   "corvint-tasks pause --request-id ID [--role OWNER|OPERATOR]",
 	"unpause":                 "corvint-tasks unpause --request-id ID [--role OWNER|OPERATOR]",
@@ -396,7 +400,6 @@ var commandUsage = map[string]string{
 	"plan record":             "corvint-tasks plan record (execution NOT_RUN)",
 	"receipt show":            "corvint-tasks receipt show (execution NOT_RUN)",
 	"receipt replay":          "corvint-tasks receipt replay (execution NOT_RUN)",
-	"archive restore":         "corvint-tasks archive restore (execution NOT_RUN)",
 }
 
 func init() {

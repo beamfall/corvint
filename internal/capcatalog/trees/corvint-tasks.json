@@ -94,7 +94,7 @@
       "summary": "",
       "usage": [
         "corvint-tasks archive export [--staging DIR]",
-        "corvint-tasks archive restore (execution NOT_RUN)",
+        "corvint-tasks archive restore FILE",
         "corvint-tasks archive verify [FILE|-]"
       ],
       "flags": [
@@ -129,11 +129,13 @@
       "command": "corvint-tasks archive restore",
       "summary": "",
       "usage": [
-        "corvint-tasks archive restore (execution NOT_RUN)"
+        "corvint-tasks archive restore FILE"
       ],
       "flags": [],
-      "required": [],
-      "example": "corvint-tasks archive restore",
+      "required": [
+        "FILE"
+      ],
+      "example": "corvint-tasks archive restore FILE",
       "help": "corvint-tasks archive restore --help"
     },
     {

@@ -82,7 +82,7 @@ type Env struct {
 var ReadVerbs = []string{
 	"criterion-binding capture", "criterion-binding verify",
 	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket delivery-screen", "ticket batch-delivered", "ticket export", "ticket similar", "ticket digest",
-	"queue status", "queue snapshot", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "receipt compact", "receipt retire", "receipt unretire", "receipt put", "receipt get", "receipt path", "receipt prune", "journal seal", "journal unseal", "reconcile inspect", "reconcile intent",
+	"queue status", "queue snapshot", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "archive restore", "receipt audit", "receipt compact", "receipt retire", "receipt unretire", "receipt put", "receipt get", "receipt path", "receipt prune", "journal seal", "journal unseal", "reconcile inspect", "reconcile intent",
 	"init", "pause", "unpause", "policy show", "policy update", "import", "import amend-map", "cutover", "relocate",
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
 	"ticket set-gates", "ticket set-effects", "ticket hold", "ticket release-hold", "ticket reopen",
@@ -115,7 +115,6 @@ var ReadVerbs = []string{
 // unimplemented; receipt audit exposes the native journal reader.
 var OmittedVerbs = []string{
 	"config", "plan record", "receipt show", "receipt replay",
-	"archive restore",
 }
 
 // Run executes one command and returns the process exit code: 0 iff the
@@ -410,7 +409,7 @@ func Run(env Env) int {
 		return emit(env.Stdout, usage([]string{"journal"}, "unknown journal verb"))
 	case "archive":
 		if len(args) < 2 {
-			return emit(env.Stdout, usage([]string{"archive"}, "archive needs a verb: export [--staging DIR], verify [FILE]"))
+			return emit(env.Stdout, usage([]string{"archive"}, "archive needs a verb: export [--staging DIR], verify [FILE], restore FILE"))
 		}
 		switch args[1] {
 		case "export":
@@ -419,7 +418,7 @@ func Run(env Env) int {
 		case "verify":
 			return emit(env.Stdout, archiveVerify(env, args[2:]))
 		case "restore":
-			return emit(env.Stdout, notRun([]string{"archive", "restore"}))
+			return emit(env.Stdout, archiveRestore(env, args[2:]))
 		}
 		return emit(env.Stdout, usage([]string{"archive"}, "unknown archive verb"))
 	}
@@ -2130,6 +2129,37 @@ func archiveVerify(env Env, args []string) *wire.Result {
 	o.Set("files", wire.String(string(wire.CountOf(int64(vr.Files)))))
 	o.Set("bytes", wire.String(string(wire.SizeOf(vr.Bytes))))
 	return &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
+}
+
+// archiveRestore rebuilds an absent store from one verified archive
+// (TRL-V0-870, TRL-V0-871).
+func archiveRestore(env Env, args []string) *wire.Result {
+	cmd := []string{"archive", "restore"}
+	if len(args) != 1 || strings.HasPrefix(args[0], "-") {
+		return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "argv", "archive restore takes exactly one archive file argument"))
+	}
+	repo, err := intent.Resolve(env.Cwd)
+	if err != nil {
+		return failure(cmd, nil, err)
+	}
+	rep, err := store.RestoreArchive(writerContext(), repo, args[0])
+	if err != nil {
+		return failure(cmd, nil, err)
+	}
+	m := rep.Verified.Manifest
+	o := wire.NewObject()
+	o.Set("queueId", wire.String(m.QueueID.Raw))
+	o.Set("exportedAtSeq", wire.String(string(m.ExportedAtSeq)))
+	o.Set("headGeneration", wire.String(string(m.HeadGeneration)))
+	o.Set("files", wire.String(string(wire.CountOf(int64(rep.Verified.Files)))))
+	o.Set("bytes", wire.String(string(wire.SizeOf(rep.Verified.Bytes))))
+	o.Set("stateFiles", wire.String(string(wire.CountOf(int64(rep.StateFiles)))))
+	o.Set("intentWritten", wire.String(string(wire.CountOf(int64(rep.IntentWritten)))))
+	res := &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Codes: []string{}, Items: []wire.Value{wire.ObjectValue(o)}}
+	if rep.RecordedPrimary != "" {
+		res.Warnings = append(res.Warnings, "the archive was exported from primary worktree "+rep.RecordedPrimary+"; run `corvint-tasks relocate --from "+rep.RecordedPrimary+"` to bind the restored store to this path")
+	}
+	return res
 }
 
 // withoutKeys copies an object item without the named keys.
