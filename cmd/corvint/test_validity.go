@@ -233,7 +233,10 @@ func readProviderReceipt(path string) (testvaliditydoc.Input, error) {
 		return testvaliditydoc.Input{}, invalidReceipt("cannot open --receipt parent: " + err.Error())
 	}
 	defer parent.Close()
-	data, err := testvaliditydoc.ReadFile(parent, filepath.Base(resolved))
+	data, err := readReceiptFile(parent, filepath.Base(resolved))
+	if errors.Is(err, testvaliditydoc.ErrPlatformUnsupported) {
+		return testvaliditydoc.Input{}, receiptPlatformRefusal()
+	}
 	if err != nil {
 		return testvaliditydoc.Input{}, invalidReceipt("cannot read --receipt: " + err.Error())
 	}
@@ -242,6 +245,15 @@ func readProviderReceipt(path string) (testvaliditydoc.Input, error) {
 		return testvaliditydoc.Input{}, invalidReceipt("--receipt " + err.Error())
 	}
 	return receipt, nil
+}
+
+// readReceiptFile is testvaliditydoc.ReadFile; tests force its platform
+// refusal (PRS-V1-920).
+var readReceiptFile = testvaliditydoc.ReadFile
+
+// receiptPlatformRefusal is the typed receipt platform refusal (PRS-V1-920).
+func receiptPlatformRefusal() *gokernel.Error {
+	return &gokernel.Error{Code: testvaliditydoc.PlatformUnsupportedCode, Message: testvaliditydoc.ErrPlatformUnsupported.Error()}
 }
 
 func invalidReceipt(message string) error {
