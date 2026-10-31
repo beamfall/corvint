@@ -57,6 +57,25 @@ claim safe test omission, or amend the LPCV promotion tranche.
   `unknown`. Reading a project directory (`rootProject.projectDir.resolve(...)`,
   `layout.projectDirectory.file(...)`, `projectDir == rootDir`, or `"$projectDir/..."`) MUST NOT
   mark it, so a conventional module keeps its exact Gradle test task.
+- `KAT-V0-761`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2054)
+  Amending `KAT-V0-001`: the adapter MUST also own each Gradle default version catalog, a path whose
+  base name is `libs.versions.toml` in a directory named `gradle`. A catalog is the build
+  configuration unit `kotlin:config:<path>`, never scanned as Kotlin, and every Kotlin unit under
+  its build root (the directory holding that `gradle/` directory; the repository root for
+  `gradle/libs.versions.toml`) imports it, build scripts included. The stated reason: a catalog
+  alias can reach any module through a build script or a convention plugin, and alias-level
+  resolution is not modelled, so a catalog change selects every test of that build rather than
+  guessing which aliases a module reads. Catalogs named by `versionCatalogs { from(...) }` elsewhere
+  stay unowned. Rollback: drop the catalog from `Owns` and the config edge.
+- `KAT-V0-762`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2054) A
+  module whose Gradle build script applies the `com.android.test` plugin (the literal plugin id, or
+  `alias(libs.plugins.NAME)` where a version catalog of that build maps `NAME` to that id) is an
+  Android test module: its tests live in `src/main`. A test there MUST be the typed unit
+  `kotlin:android-test:<module>:unknown:<classes>` and raise the typed frontier
+  `kotlin:android-test-module`, because the connected task is variant-defined by the build (for
+  example `connectedBenchmarkAndroidTest`), rather than the `kotlin:unknown` kind with
+  `kotlin:custom-source-set`. Non-goals: no task-name inference, no device execution. Rollback:
+  remove the module detection and the frontier.
 
 ## Unit identity and invocation
 
@@ -171,6 +190,8 @@ remain unowned and a dirty one correctly widens with `UNOWNED_DIRTY_PATH`.
 | Requirement | Evidence |
 |---|---|
 | `KAT-V0-001..007`, `KAT-V0-009` | `internal/liveverify/affected/kotlin/kotlin_test.go` |
+| `KAT-V0-761` | `TestVersionCatalogIsABuildConfigurationOfItsBuild_KATV0761` in `internal/liveverify/affected/kotlin/catalog_test.go` |
+| `KAT-V0-762` | `TestAndroidTestModuleYieldsATypedUnit_KATV0762` in `internal/liveverify/affected/kotlin/catalog_test.go` |
 | `KAT-V0-008` | `internal/liveverify/affected/conformance_test.go` |
 | real-repository recall | pinned AndroidX Media ground-truth run described in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` |
 
