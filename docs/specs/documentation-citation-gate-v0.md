@@ -329,8 +329,8 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   DCG-V0-044 threshold) relocates by context rather than by its text alone. A span whose own text
   changed since that commit is never rewritten, and no matching commit leaves the DCG-V0-045
   result. Design: on 2026-10-31 a lane that had already committed its `Makefile` insertion could
-  not repin `Makefile:122` in `docs/specs/go-archive-gate-v0.md`, a line under 20 characters, since
-  `HEAD`'s diff to the index was empty. Non-goals: following renames, and history deeper than 50
+  not repin the citation of line 122 of `Makefile` in `docs/specs/go-archive-gate-v0.md`, a line
+  under 20 characters, since `HEAD`'s diff to the index was empty. Non-goals: following renames, and history deeper than 50
   commits of the cited file. Failure modes: a pin whose text sat at its numbers only before a
   rename, or more than 50 commits back, keeps the DCG-V0-044 refusal. Evidence: case 35 of
   `script/check-line-citations_test.sh` (a repeated short `go build` line moved by a committed
@@ -432,19 +432,19 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | DCG-V0-001, DCG-V0-004, DCG-V0-005, DCG-V0-015 | the citation scanner loop in `script/check-line-citations.sh` | `line-citations-check`; cases 9 and 10 |
-| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:344-348@3dd28600` and `:393-396@087dfc00` | `line-citations-check`; case 14 |
+| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:344-348@3dd28600` and `:394-397@087dfc00` | `line-citations-check`; case 14 |
 | DCG-V0-006, DCG-V0-009, DCG-V0-010 | the anchor comparison in `check` | `line-citations_test.sh` cases 1-4, 6 |
 | DCG-V0-007 | `anchor_of`, `script/check-line-citations.sh:255-261@ca6f1248` | case 2 |
 | DCG-V0-008 | `anchored_numbers`, `script/check-line-citations.sh:247-253@9a3cc62d` | case 5 |
-| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:650-667@e1697d2d` | cases 1 and 14 |
+| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:691-708@e1697d2d` | cases 1 and 14 |
 | DCG-V0-012 | `make gate` target list | gate run 2026-09-07 |
 | DCG-V0-013 | the tracked set, the `index_blob` batch reader, and `lines_of`, `script/check-line-citations.sh:79-165@4888d14b` | cases 7, 8, and 13 |
 | DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:263-268@fce1154d` and `:338-343@e5963c48` | case 11 |
-| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:344-348@3dd28600` and `:393-396@087dfc00` | `line-citations-check`; case 14 |
+| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:344-348@3dd28600` and `:394-397@087dfc00` | `line-citations-check`; case 14 |
 | DCG-V0-006, DCG-V0-009, DCG-V0-010 | the anchor comparison in `check` | `line-citations_test.sh` cases 1-4, 6 |
 | DCG-V0-007 | `anchor_of`, `script/check-line-citations.sh:255-261@ca6f1248` | case 2 |
 | DCG-V0-008 | `anchored_numbers`, `script/check-line-citations.sh:247-253@9a3cc62d` | case 5 |
-| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:650-667@e1697d2d` | cases 1 and 14 |
+| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:691-708@e1697d2d` | cases 1 and 14 |
 | DCG-V0-012 | `make gate` target list | gate run 2026-09-07 |
 | DCG-V0-013 | the tracked set, the `index_blob` batch reader, and `lines_of`, `script/check-line-citations.sh:79-165@4888d14b` | cases 7, 8, and 13 |
 | DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:263-268@fce1154d` and `:338-343@e5963c48` | case 11 |
