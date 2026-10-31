@@ -3,7 +3,7 @@ set -eu
 
 # On a fixture repository: Apache-headed examples, an unheaded README and an unheaded source file
 # outside examples/ pass; a former AGPL SPDX identifier anywhere outside the historical records and
-# the two byte-pinned benchmark harnesses fails and names the file, as do a missing or compound
+# the byte-pinned frozen files fails and names the file, as do a missing or compound
 # Apache identifier under examples/; historical records and the pinned files are exempt.
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
@@ -16,7 +16,8 @@ trap 'exit 143' TERM
 
 mkdir -p "$test_root/script" "$test_root/examples/demo" "$test_root/protocol" "$test_root/internal/x" \
     "$test_root/docs/build-log" "$test_root/docs/decisions" "$test_root/.taskman" "$test_root/.github/workflows" \
-    "$test_root/benchmarks/daily-loop-v0" "$test_root/internal/cem/corpusbinding/testdata/public-root-history/notices"
+    "$test_root/benchmarks/daily-loop-v0" "$test_root/internal/cem/corpusbinding/testdata/public-root-history/notices" \
+    "$test_root/internal/tasks/similar/testdata"
 cp "$source_root/script/check-license-headers.sh" "$test_root/script/"
 git -C "$test_root" init -q
 
@@ -55,6 +56,7 @@ printf '# %s\n' "$former" >"$test_root/docs/decisions/evidence.py"
 printf '{"body":"%s"}\n' "$former" >"$test_root/.taskman/ticket.json"
 printf '# %s\n' "$former" >"$test_root/benchmarks/daily-loop-v0/harness.py"
 printf 'policy: %s\n' "$former" >"$test_root/internal/cem/corpusbinding/testdata/public-root-history/notices/aaaa.txt"
+printf '{"body":"%s"}\n' "$former" >"$test_root/internal/tasks/similar/testdata/corpus-2026-10-30.jsonl"
 git -C "$test_root" add -A
 output=$(run) || fail "a clean tree did not pass: $output"
 case $output in
@@ -75,6 +77,11 @@ rm "$test_root/.github/workflows/ci.yml"
 printf '// %s\npackage x\n' "$former" >"$test_root/internal/cem/corpusbinding/other.go"
 expect_failure "a former identifier next to the notice fixtures" "internal/cem/corpusbinding/other.go carries a former AGPL SPDX identifier"
 rm "$test_root/internal/cem/corpusbinding/other.go"
+
+# 2b'. The ticket-corpus exemption is that one frozen file: another corpus beside it still fails.
+printf '{"body":"%s"}\n' "$former" >"$test_root/internal/tasks/similar/testdata/corpus-next.jsonl"
+expect_failure "a former identifier beside the frozen ticket corpus" "internal/tasks/similar/testdata/corpus-next.jsonl carries a former AGPL SPDX identifier"
+rm "$test_root/internal/tasks/similar/testdata/corpus-next.jsonl"
 
 # 2c. The formerly exempt test fixtures now carry Apache-2.0, so a former header there fails.
 mkdir -p "$test_root/tools/cw-trial/testdata/beamfall-roadmap-v1"

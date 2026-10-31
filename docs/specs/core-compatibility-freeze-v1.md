@@ -435,7 +435,11 @@ no N-1, and each later release's N-1 is the previous release published in it; se
   and `GOTOOLCHAIN=local go test -count=1 -run 'TestClassifyMissingObjectsNamesOnlyAnObjectTheReadNamed' ./internal/contextindex`.
 - The cli-parity replay over the 133-case manifest against a candidate built from this change.
 - The cited N-1 and migration tests in Traceability.
-- (accepted 2026-09-26, decision 0422; from decision 0398) `make core-n1-replay` against `v0.8.1`, at each release (runbook step 8).
+- (accepted 2026-09-26, decision 0422; from decision 0398) `make core-n1-replay` against the N-1, at each release
+  (runbook step 8). (Owner decision 2026-10-30, V1-3177) The N-1 is the previous release published in
+  this repository, never `v0.8.1` or `v1.0.0-rc.1`, which are not restored or replayed; the
+  `core-n1-replay` gate of `.github/workflows/release-gates.yml` runs `script/core-n1-source.sh --replay`,
+  and for the first release, `v1.0.0-rc.3`, its retained `NOT_APPLICABLE FIRST_RELEASE` line is the evidence.
 
 ## Traceability
 
