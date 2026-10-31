@@ -1,18 +1,31 @@
 #!/usr/bin/env bash
-# usage: dogfood-bind-range.sh BASE TARGET
+# usage: dogfood-bind-range.sh [--prepare-only] BASE TARGET
 # Binds the already-landed range BASE..TARGET to one CEM after the fact
 # (docs/DOGFOOD.md section 4, DOGFOOD-011). DOGFOOD_CITATIONS optionally names a
 # four-column citation plan written against this range's private prepared map, and
-# DOGFOOD_UNKNOWN a three-column plan of hunks that no base evidence supports.
+# DOGFOOD_UNKNOWN a three-column plan of hunks that no base evidence supports. A citation row's
+# third column is a `--lines` START:END or `bytes:START:END` for `--bytes` (DCW-V0-827), and
+# DOGFOOD_CITATIONS=auto-inherit derives the plan from the range's sealed CEMs (DCW-V0-824).
+# --prepare-only (or DOGFOOD_CITATIONS=none) writes the private prepared map, prints its path and
+# hunk count, and exits 0 before any citation, binding commit or status (DCW-V0-830).
 # The main worktree, its sidecar and its dogfood report are never written.
 set -uo pipefail
 export LC_ALL=C
+# No command reads the caller's stdin, so a while-read loop can drive this script (DCW-V0-826).
+exec </dev/null
 
 # Read the executable selection before Git, temporary files, or a selected executable can run.
 corvint_bin_set=${CORVINT_BIN+x}
 corvint_bin=${CORVINT_BIN-}
 guard_hunks_bin_set=${CORVINT_GUARD_HUNKS_BIN+x}
 guard_hunks_bin=${CORVINT_GUARD_HUNKS_BIN-}
+inherit_bin_set=${CORVINT_INHERIT_CITATIONS_BIN+x}
+inherit_bin=${CORVINT_INHERIT_CITATIONS_BIN-}
+auto_inherit=
+[[ ${DOGFOOD_CITATIONS:-} != auto-inherit ]] || auto_inherit=1
+prepare_only=
+[[ ${DOGFOOD_CITATIONS:-} != none ]] || prepare_only=1
+[[ ${1:-} != --prepare-only ]] || { prepare_only=1; shift; }
 
 base_arg=${1:?usage: dogfood-bind-range.sh BASE TARGET}
 target_arg=${2:?usage: dogfood-bind-range.sh BASE TARGET}
@@ -215,6 +228,43 @@ removed_intent_pin_at_base() {
   ((10#$end <= size))
 }
 
+# inherit_citations writes this run's citation plan from the range's sealed constituent CEMs through
+# tools/dogfood-inherit-citations (DCW-V0-824); CORVINT_INHERIT_CITATIONS_BIN names a built helper.
+# A hunk it cannot inherit stays unknown in the map and is listed with its reason in a private file.
+inherit_citations() {
+  local helper=$inherit_bin plan="$evidence/bind-range.$range_label.inherited.tsv"
+  local missing="$evidence/bind-range.$range_label.uninherited.tsv" summary uninherited
+  if [[ -z $inherit_bin_set ]]; then
+    helper="$run_tmp/dogfood-inherit-citations"
+    run_child /dev/null "$run_tmp/inherit-build.stderr" env GOCACHE="$go_cache" GOTOOLCHAIN=local \
+      GOFLAGS="$dogfood_goflags" go -C "$repo" build -o "$helper" -trimpath ./tools/dogfood-inherit-citations
+    [[ $child_status -eq 0 ]] || fail 'cem-cite inherit-helper-build-failed'
+  fi
+  run_child "$run_tmp/inherit.stdout" "$run_tmp/inherit.stderr" \
+    "$helper" "$repo" "$base" "$target" "$map" "$plan" "$missing"
+  [[ $child_status -eq 0 ]] || fail "cem-cite inherit-failed exit-$child_status"
+  summary=$(head -c 256 "$run_tmp/inherit.stdout" | head -1)
+  snapshot_plan "$plan" "$run_tmp/citations.snapshot" || fail 'cem-cite inherited-plan-exceeds-limits'
+  printf 'dogfood-bind-range: NOTE cem-cite inherited %s plan=%s\n' "$summary" "$plan" >&2
+  uninherited=$(wc -l < "$missing" | tr -d ' ')
+  ((uninherited == 0)) ||
+    printf 'dogfood-bind-range: NOTE cem-cite NOT_PRODUCED uninherited count=%s list=%s\n' "$uninherited" "$missing" >&2
+}
+
+# policy_summary STATUS PUBLISHED prints a failed status's counts, policy issues and state on one
+# bounded line and names the full status file instead of echoing the whole document (DCW-V0-825).
+policy_summary() {
+  local line counts issues state
+  line=$(head -c 65536 "$1" | head -1)
+  counts=$(sed -n 's/.*"counts":\({[^}]*}\).*/\1/p' <<<"$line")
+  issues=$(sed -n 's/.*"policyIssues":\(\[.*\]\),"policyState".*/\1/p' <<<"$line")
+  state=$(sed -n 's/.*"state":"\([A-Za-z0-9_-]*\)".*/\1/p' <<<"$line")
+  ((${#issues} <= 2048)) || issues="${issues:0:2048}...truncated"
+  printf 'dogfood-bind-range: cem-policy counts=%s policyIssues=%s state=%s\n' \
+    "${counts:-NOT_PRODUCED}" "${issues:-NOT_PRODUCED}" "${state:-NOT_PRODUCED}"
+  printf 'dogfood-bind-range: cem-policy status=%s\n' "$2"
+}
+
 dogfood_require_full_history dogfood-bind-range || exit 2
 base=$(git -C "$repo" rev-parse --verify --quiet "$base_arg^{commit}") || refuse base-unavailable
 target=$(git -C "$repo" rev-parse --verify --quiet "$target_arg^{commit}") || refuse target-unavailable
@@ -224,7 +274,7 @@ git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2
 git -C "$repo" merge-base --is-ancestor "$base" "$target" || refuse base-not-ancestor-of-target
 git -C "$repo" merge-base --is-ancestor "$target" "$head" || refuse target-not-landed
 [[ $(git -C "$repo" rev-list --count "$base..$target") -le 256 ]] || refuse range-exceeds-256-commits
-if [[ -n ${DOGFOOD_CITATIONS:-} && ! -f $DOGFOOD_CITATIONS ]]; then
+if [[ -z $auto_inherit$prepare_only && -n ${DOGFOOD_CITATIONS:-} && ! -f $DOGFOOD_CITATIONS ]]; then
   refuse citation-plan-unavailable
 fi
 if [[ -n ${DOGFOOD_UNKNOWN:-} && ! -f $DOGFOOD_UNKNOWN ]]; then
@@ -251,7 +301,14 @@ fi
 map="$worktree/.corvint/change.cem.json"
 # The uncited prepared map is the one a citation plan is written against.
 cp "$map" "$prepared_copy" || exit 2
-if [[ -n ${DOGFOOD_CITATIONS:-} ]]; then
+if [[ -n $prepare_only ]]; then
+  hunks=$(grep -o '"id": *"hunk:' "$prepared_copy" | wc -l | tr -d ' ')
+  printf 'dogfood-bind-range: PASS prepare-only map=%s hunks=%s range=%s..%s\n' "$prepared_copy" "$hunks" "$base" "$target"
+  exit 0
+fi
+if [[ -n $auto_inherit ]]; then
+  inherit_citations
+elif [[ -n ${DOGFOOD_CITATIONS:-} ]]; then
   validate_citation_plan || fail 'cem-cite invalid-citation-plan'
 fi
 if [[ -n ${DOGFOOD_UNKNOWN:-} ]]; then
@@ -260,15 +317,24 @@ fi
 if [[ -z ${DOGFOOD_CITATIONS:-} ]]; then
   printf 'dogfood-bind-range: NOTE cem-cite NOT_PRODUCED citation-plan-not-provided\n' >&2
 else
-  [[ ! -s $run_tmp/citations.snapshot ]] || citation_plan_matches_map || fail 'cem-cite citation-plan-map-mismatch'
+  # An inherited plan leaves uninherited hunks unknown on purpose; only a hand plan must cover the map.
+  [[ -n $auto_inherit || ! -s $run_tmp/citations.snapshot ]] || citation_plan_matches_map ||
+    fail 'cem-cite citation-plan-map-mismatch'
+  refused_inherited=0
   while IFS=$'\t' read -r hunk evidence_path lines relation; do
+    span_flag=(--lines "$lines")
+    [[ ! $lines =~ ^bytes:([0-9]+:[0-9]+)$ ]] || span_flag=(--bytes "${BASH_REMATCH[1]}")
     run_child "$run_tmp/cem-cite.json" "$run_tmp/cem-cite.stderr" \
       "$corvint_bin" --root "$worktree" cem cite --map .corvint/change.cem.json --hunk "$hunk" \
-      --evidence-path "$evidence_path" --lines "$lines" --relation "$relation"
-    if [[ $child_status -ne 0 ]]; then
+      --evidence-path "$evidence_path" "${span_flag[@]}" --relation "$relation"
+    if [[ $child_status -ne 0 && -n $auto_inherit ]]; then
+      refused_inherited=$((refused_inherited + 1))
+    elif [[ $child_status -ne 0 ]]; then
       fail "cem-cite $(failure_reason "$run_tmp/cem-cite.stderr" "$child_status")"
     fi
   done < "$run_tmp/citations.snapshot"
+  ((refused_inherited == 0)) ||
+    printf 'dogfood-bind-range: NOTE cem-cite NOT_PRODUCED inherited-rows-refused count=%s\n' "$refused_inherited" >&2
 fi
 # An explicit unknown stays in the map and in the binding message; it is never cited.
 unknown_count=0
@@ -312,7 +378,7 @@ run_child "$run_tmp/cem-status.json" "$run_tmp/cem-status.stderr" \
 cp "$run_tmp/cem-status.json" "$evidence/bind-range.$range_label.cem-status.json" || exit 2
 if [[ $child_status -ne 0 ]]; then
   if [[ -s $run_tmp/cem-status.json ]]; then
-    sed -n '1p' "$run_tmp/cem-status.json"
+    policy_summary "$run_tmp/cem-status.json" "$evidence/bind-range.$range_label.cem-status.json"
     fail cem-policy
   fi
   fail "cem-status $(failure_reason "$run_tmp/cem-status.stderr" "$child_status")"

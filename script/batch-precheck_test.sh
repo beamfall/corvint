@@ -307,7 +307,7 @@ grep -q -- '-run ^(TestDriftOne|TestGoldenWriter|TestVacant) ./pkg ./internal/g 
 grep -q '^make -s use-case-receipts-test GOPROXY=off$' "$tmp/calls" || fail "doc-gates env not applied: $(cat "$tmp/calls")"
 grep -q '^make -s capability-catalog-check GOPROXY=unset$' "$tmp/calls" || fail "extra target: $(cat "$tmp/calls")"
 grep -q '^make -s host-adapter-node-test GOPROXY=unset$' "$tmp/calls" || fail "host-adapter-node-test not run: $(cat "$tmp/calls")"
-grep -q '^batch-precheck: 15 passed, 3 failed in ' "$tmp/out" || fail "summary: $(cat "$tmp/out")"
+grep -q '^batch-precheck: 14 passed, 3 failed in ' "$tmp/out" || fail "summary: $(cat "$tmp/out")"
 grep -q '^batch-precheck: failed: ' "$tmp/out" || fail "failed list: $(cat "$tmp/out")"
 [[ -f $receipt ]] && fail "a failing run wrote a receipt"
 # Parallel: the two 3-second steps overlap, so the wall time is below the summed time.
@@ -332,7 +332,7 @@ head=$(git -C "$repo" rev-parse HEAD)
 grep -q 'refused: no precheck receipt' "$tmp/out" || fail "no receipt: $(cat "$tmp/out")"
 run || fail "passing run failed: $(cat "$tmp/out")"
 grep -q "^batch-precheck: receipt for $head written" "$tmp/out" || fail "receipt not written: $(cat "$tmp/out")"
-grep -qx 'steps 18' "$receipt" && grep -qx 'passed 18' "$receipt" || fail "receipt counts: $(cat "$receipt")"
+grep -qx 'steps 17' "$receipt" && grep -qx 'passed 17' "$receipt" || fail "receipt counts: $(cat "$receipt")"
 [[ $(head -n 1 "$receipt") == corvint-batch-precheck-receipt/0 ]] || fail "receipt profile: $(cat "$receipt")"
 (cd "$repo" && "$pre" --verify-receipt) > "$tmp/out" 2>&1 || fail "guard refused HEAD: $(cat "$tmp/out")"
 (cd "$repo" && "$pre" --verify-receipt "$head") > /dev/null 2>&1 || fail "guard refused an explicit REV"
@@ -456,9 +456,9 @@ lrun || fail "reuse run failed: $(cat "$tmp/out")"
 grep -q '^batch-precheck: | REUSE | *[0-9]*s | make test-commands-check$' "$tmp/out" || fail "make step not reused: $(cat "$tmp/out")"
 grep -q '^batch-precheck: | REUSE | *[0-9]*s | batch-drift (2 packages)$' "$tmp/out" || fail "drift not reused: $(cat "$tmp/out")"
 grep -q '^batch-precheck: REUSE make slow-a ([0-9]*s): .*recorded ' "$tmp/out" || fail "reuse line: $(cat "$tmp/out")"
-grep -q '^batch-precheck: 18 passed, 0 failed in ' "$tmp/out" || fail "reuse summary: $(cat "$tmp/out")"
-grep -q '^batch-precheck: 17 of 17 steps reused a ledger pass on identical inputs' "$tmp/out" || fail "reuse count: $(cat "$tmp/out")"
-grep -q '^batch-precheck: receipt for ' "$tmp/out" && grep -qx 'passed 18' "$receipt" || fail "reuse receipt: $(cat "$tmp/out")"
+grep -q '^batch-precheck: 17 passed, 0 failed in ' "$tmp/out" || fail "reuse summary: $(cat "$tmp/out")"
+grep -q '^batch-precheck: 16 of 16 steps reused a ledger pass on identical inputs' "$tmp/out" || fail "reuse count: $(cat "$tmp/out")"
+grep -q '^batch-precheck: receipt for ' "$tmp/out" && grep -qx 'passed 17' "$receipt" || fail "reuse receipt: $(cat "$tmp/out")"
 grep -q '^make \|^gofmt \|^go test' "$tmp/calls" && fail "a reused step ran: $(cat "$tmp/calls")"
 printf 'note\n' > "$repo/notes.txt"
 lrun || fail "tree-change run failed: $(cat "$tmp/out")"
@@ -1015,6 +1015,15 @@ rm -f "$lrepo/LICENSE"
 grep -q '^check-legal-file-pins: FAIL legal-file-missing LICENSE' "$tmp/out" || fail "missing legal file not named: $(cat "$tmp/out")"
 (cd "$tmp" && "$script/check-legal-file-pins.sh") > "$tmp/out" 2>&1 || fail "a checkout without the manifest failed: $(cat "$tmp/out")"
 (cd "$script/.." && "$script/check-legal-file-pins.sh") > "$tmp/out" 2>&1 || fail "this checkout's legal pins are stale: $(cat "$tmp/out")"
+# ASD-V0-584 (V1-3374): the same refusal runs in make doc-gates, before bind and seal: the
+# legal-file-pins-check target is a doc gate, and on the fixture it refuses an edited LICENSING.md.
+grep -qE '^DOC_GATE_TARGETS := (.* )?legal-file-pins-check( |$)' "$script/../Makefile" || fail "legal-file-pins-check is not a doc gate"
+printf 'Apache\n' > "$lrepo/LICENSE"
+mkdir -p "$lrepo/script" && /bin/cp -f "$script/check-legal-file-pins.sh" "$lrepo/script/"
+(cd "$lrepo" && make -s -f "$script/../Makefile" legal-file-pins-check) > "$tmp/out" 2>&1 &&
+  fail "make legal-file-pins-check passed an edited LICENSING.md: $(cat "$tmp/out")"
+grep -q '^check-legal-file-pins: FAIL legal-file-altered LICENSING.md ' "$tmp/out" ||
+  fail "make legal-file-pins-check did not name the edited LICENSING.md: $(cat "$tmp/out")"
 
 # 12. ASD-V0-072 (V1-3230): a --base run in a shallow clone refuses with the unshallow recovery
 # before any step runs.
@@ -1031,5 +1040,57 @@ for w in dogfood-change dogfood-check dogfood-bind-range; do
   "$srepo2/script/$w.sh" HEAD HEAD > "$tmp/out" 2>&1
   [[ $? == 2 ]] && grep -q "^$w: REFUSE shallow-repository: .* fetch --unshallow origin" "$tmp/out" || fail "$w in a shallow clone: $(cat "$tmp/out")"
 done
+
+# 13. ASD-V0-582 (V1-3364): the binary-blobs-check doc gate (a batch-precheck step by group 1)
+# refuses a committed binary blob outside a declared fixture path and a tools/ main whose root
+# build output is not ignored; a testdata/ fixture and an ignored tool output pass.
+brepo=$tmp/brepo
+mkdir -p "$brepo/tools/kept" "$brepo/pkg/testdata"
+git -C "$brepo" init -q -b main
+printf 'package main\n\nfunc main() {}\n' > "$brepo/tools/kept/main.go"
+printf '/kept\n' > "$brepo/.gitignore"
+printf 'fixture\0bytes\n' > "$brepo/pkg/testdata/blob.bin"
+git -C "$brepo" add -A && git -C "$brepo" commit -qm base
+(cd "$brepo" && "$script/check-binary-blobs.sh") > "$tmp/out" 2>&1 || fail "a fixture blob or ignored tool failed: $(cat "$tmp/out")"
+printf '\177ELF\2\1\1\0\0\0' > "$brepo/kept-build"
+chmod +x "$brepo/kept-build"
+git -C "$brepo" add kept-build
+(cd "$brepo" && "$script/check-binary-blobs.sh") > "$tmp/out" 2>&1
+[[ $? == 1 ]] && grep -q '^check-binary-blobs: FAIL binary-blob kept-build mode=100755: ' "$tmp/out" ||
+  fail "a committed executable blob was not refused: $(cat "$tmp/out")"
+git -C "$brepo" rm -q --cached kept-build
+mkdir -p "$brepo/tools/loose"
+printf 'package main\n\nfunc main() {}\n' > "$brepo/tools/loose/main.go"
+git -C "$brepo" add tools/loose
+(cd "$brepo" && "$script/check-binary-blobs.sh") > "$tmp/out" 2>&1
+[[ $? == 1 ]] && grep -qx 'check-binary-blobs: FAIL tool-output-not-ignored loose: .*add /loose to the root .gitignore' "$tmp/out" ||
+  fail "an unignored tool output was not refused: $(cat "$tmp/out")"
+grep -q kept "$tmp/out" && fail "an ignored tool output was refused: $(cat "$tmp/out")"
+
+# 14. ASD-V0-583 (V1-3373): license-headers-check and mkfifo-build-tags-check are doc gates, and the
+# Mkfifo check refuses a file calling syscall.Mkfifo under //go:build unix (which includes solaris)
+# or with no constraint at all, while an explicit GOOS list, unix && !solaris and a GOOS file-name
+# suffix pass.
+for t in license-headers-check mkfifo-build-tags-check; do
+  grep -qE "^DOC_GATE_TARGETS := (.* )?$t( |\$)" "$script/../Makefile" || fail "$t is not a doc gate"
+done
+frepo=$tmp/frepo
+mkdir -p "$frepo/pkg"
+git -C "$frepo" init -q -b main
+fifo_file() { printf '%spackage pkg\n\nimport "syscall"\n\nvar _ = syscall.Mkfifo\n' "$2" > "$frepo/pkg/$1"; }
+fifo_file listed_test.go $'//go:build darwin || linux\n\n'
+fifo_file excluded_test.go $'//go:build unix && !solaris\n\n'
+fifo_file suffix_linux_test.go ''
+git -C "$frepo" add -A
+(cd "$frepo" && "$script/check-mkfifo-build-tags.sh") > "$tmp/out" 2>&1 || fail "allowed Mkfifo constraints failed: $(cat "$tmp/out")"
+fifo_file unix_test.go $'//go:build unix\n\n'
+fifo_file untagged_test.go ''
+git -C "$frepo" add -A
+(cd "$frepo" && "$script/check-mkfifo-build-tags.sh") > "$tmp/out" 2>&1
+[[ $? == 1 ]] || fail "a solaris-reachable Mkfifo file passed: $(cat "$tmp/out")"
+grep -q '^check-mkfifo-build-tags: FAIL pkg/unix_test.go: calls syscall.Mkfifo under //go:build unix, ' "$tmp/out" &&
+  grep -q '^check-mkfifo-build-tags: FAIL pkg/untagged_test.go: calls syscall.Mkfifo with no //go:build constraint' "$tmp/out" ||
+  fail "the unix-tagged and untagged Mkfifo files were not both named: $(cat "$tmp/out")"
+[[ $(grep -c FAIL "$tmp/out") == 2 ]] || fail "an allowed Mkfifo file was refused: $(cat "$tmp/out")"
 
 printf 'batch-precheck_test: PASS\n'
