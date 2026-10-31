@@ -3054,6 +3054,7 @@ DCW-V0-803	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-804	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3378; amends `DCW-V0-801`)	standing	V1-3378
 DCW-V0-805	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3380; refines `DCW-V0-161`	standing	V1-3380
 DCW-V0-806	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3381; refines `DCW-V0-062`	standing	V1-3381
+DCW-V0-807	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3383; refines `DCW-V0-351`	standing	V1-3383
 DCW-V0-170	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2344) When	standing	2026-10-11; V1-2344
 DCW-V0-171	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2171) A	standing	2026-10-11; V1-2171
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-
