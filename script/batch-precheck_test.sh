@@ -987,4 +987,30 @@ for w in dogfood-change dogfood-check dogfood-bind-range; do
   [[ $? == 2 ]] && grep -q "^$w: REFUSE shallow-repository: .* fetch --unshallow origin" "$tmp/out" || fail "$w in a shallow clone: $(cat "$tmp/out")"
 done
 
+# 13. ASD-V0-582 (V1-3364): the binary-blobs-check doc gate (a batch-precheck step by group 1)
+# refuses a committed binary blob outside a declared fixture path and a tools/ main whose root
+# build output is not ignored; a testdata/ fixture and an ignored tool output pass.
+brepo=$tmp/brepo
+mkdir -p "$brepo/tools/kept" "$brepo/pkg/testdata"
+git -C "$brepo" init -q -b main
+printf 'package main\n\nfunc main() {}\n' > "$brepo/tools/kept/main.go"
+printf '/kept\n' > "$brepo/.gitignore"
+printf 'fixture\0bytes\n' > "$brepo/pkg/testdata/blob.bin"
+git -C "$brepo" add -A && git -C "$brepo" commit -qm base
+(cd "$brepo" && "$script/check-binary-blobs.sh") > "$tmp/out" 2>&1 || fail "a fixture blob or ignored tool failed: $(cat "$tmp/out")"
+printf '\177ELF\2\1\1\0\0\0' > "$brepo/kept-build"
+chmod +x "$brepo/kept-build"
+git -C "$brepo" add kept-build
+(cd "$brepo" && "$script/check-binary-blobs.sh") > "$tmp/out" 2>&1
+[[ $? == 1 ]] && grep -q '^check-binary-blobs: FAIL binary-blob kept-build mode=100755: ' "$tmp/out" ||
+  fail "a committed executable blob was not refused: $(cat "$tmp/out")"
+git -C "$brepo" rm -q --cached kept-build
+mkdir -p "$brepo/tools/loose"
+printf 'package main\n\nfunc main() {}\n' > "$brepo/tools/loose/main.go"
+git -C "$brepo" add tools/loose
+(cd "$brepo" && "$script/check-binary-blobs.sh") > "$tmp/out" 2>&1
+[[ $? == 1 ]] && grep -qx 'check-binary-blobs: FAIL tool-output-not-ignored loose: .*add /loose to the root .gitignore' "$tmp/out" ||
+  fail "an unignored tool output was not refused: $(cat "$tmp/out")"
+grep -q kept "$tmp/out" && fail "an ignored tool output was refused: $(cat "$tmp/out")"
+
 printf 'batch-precheck_test: PASS\n'
