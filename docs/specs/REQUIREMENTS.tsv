@@ -2374,6 +2374,7 @@ TQD-V0-042	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-18, V1-1608, 
 TQD-V0-043	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-19, V1-1914, standing lane auto-accept; GitHub #1181) For each	standing	2026-10-19; V1-1914; #1181
 TQD-V0-044	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-19, V1-1916, standing lane auto-accept; GitHub #1183) From the	standing	2026-10-19; V1-1916; #1183
 TQD-V0-045	docs/specs/corvint-tasks-doctor-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1193; GitHub #	standing	2026-10-11; V1-1193; #791
+TQD-V0-820	docs/specs/corvint-tasks-doctor-v0.md	(experimental under the standing lane auto-accept; V1-1193; GitHub #791) The	standing	V1-1193; #791
 TQD-V0-046	docs/specs/corvint-tasks-doctor-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2137) A test-o	standing	2026-10-11; V1-2137
 ESC-V0-001	docs/specs/corvint-tasks-escalations-v0.md	`ticket escalate --attempt A --kind decision|infrastructure|scope|blocked --ques	unrecorded	-
 ESC-V0-002	docs/specs/corvint-tasks-escalations-v0.md	Questions MUST be stored as an optional tool-owned `escalations` reference on th	unrecorded	-
