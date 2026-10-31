@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-17
-Intent status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615); TCD-V0-151..153 accepted (standing auto-accept 2026-10-11, V1-2193); TCD-V0-154..157 accepted (standing auto-accept 2026-10-11, V1-2216); TCD-V0-158 accepted (standing auto-accept 2026-10-11, V1-1431); TCD-V0-159..164 accepted (standing auto-accept 2026-10-11, V1-2251, V1-2254); TCD-V0-165..166 accepted (standing auto-accept 2026-10-11, V1-2196); TCD-V0-167..168 and the TCD-V0-160/161 amendments accepted (standing auto-accept 2026-10-11, V1-2303); TCD-V0-169..173 accepted (standing auto-accept 2026-10-11, V1-2396, V1-2397, V1-2398); TCD-V0-174..175 experimental under the standing lane auto-accept (V1-2807); TCD-V0-176..180 experimental under the standing lane auto-accept (V1-2535, V1-2534, V1-2627, V1-2654, V1-2532); TCD-V0-181..183 experimental under the standing lane auto-accept (V1-2832, V1-2831, V1-2834); TCD-V0-184 experimental under the standing lane auto-accept (lane gap following V1-2831); TCD-V0-185..190 experimental under the standing lane auto-accept (V1-2984)
+Intent status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615); TCD-V0-151..153 accepted (standing auto-accept 2026-10-11, V1-2193); TCD-V0-154..157 accepted (standing auto-accept 2026-10-11, V1-2216); TCD-V0-158 accepted (standing auto-accept 2026-10-11, V1-1431); TCD-V0-159..164 accepted (standing auto-accept 2026-10-11, V1-2251, V1-2254); TCD-V0-165..166 accepted (standing auto-accept 2026-10-11, V1-2196); TCD-V0-167..168 and the TCD-V0-160/161 amendments accepted (standing auto-accept 2026-10-11, V1-2303); TCD-V0-169..173 accepted (standing auto-accept 2026-10-11, V1-2396, V1-2397, V1-2398); TCD-V0-174..175 experimental under the standing lane auto-accept (V1-2807); TCD-V0-176..180 experimental under the standing lane auto-accept (V1-2535, V1-2534, V1-2627, V1-2654, V1-2532); TCD-V0-181..183 experimental under the standing lane auto-accept (V1-2832, V1-2831, V1-2834); TCD-V0-184 experimental under the standing lane auto-accept (lane gap following V1-2831); TCD-V0-185..190 experimental under the standing lane auto-accept (V1-2984); TCD-V0-870..873 experimental under the standing lane auto-accept (V1-3496)
 Delivery status: experimental
 
 Authoritative input: the owner-requested native ticket V1-1615 ("tickets stay OPEN after their work
@@ -38,7 +38,7 @@ was already retained as an evidence blob, but no result named it (TCD-V0-165..16
 
 ## Agent digest
 - Claim: `corvint-tasks ticket closeout-debt` lists OPEN tickets that merged commits cite, with each one's pending native closeout step, and writes nothing.
-- Status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615); TCD-V0-151..153 accepted (standing auto-accept 2026-10-11, V1-2193); TCD-V0-154..157 accepted (standing auto-accept 2026-10-11, V1-2216); TCD-V0-158 accepted (standing auto-accept 2026-10-11, V1-1431); TCD-V0-159..164 accepted (standing auto-accept 2026-10-11, V1-2251, V1-2254); TCD-V0-165..166 accepted (standing auto-accept 2026-10-11, V1-2196); TCD-V0-167..168 and the TCD-V0-160/161 amendments accepted (standing auto-accept 2026-10-11, V1-2303); TCD-V0-169..173 accepted (standing auto-accept 2026-10-11, V1-2396, V1-2397, V1-2398); TCD-V0-174..175 experimental under the standing lane auto-accept (V1-2807); TCD-V0-176..180 experimental under the standing lane auto-accept (V1-2535, V1-2534, V1-2627, V1-2654, V1-2532); TCD-V0-181..183 experimental under the standing lane auto-accept (V1-2832, V1-2831, V1-2834); TCD-V0-184 experimental under the standing lane auto-accept (lane gap following V1-2831); TCD-V0-185..190 experimental under the standing lane auto-accept (V1-2984); experimental; the verb, its help entry and fixture tests exist.
+- Status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615); TCD-V0-151..153 accepted (standing auto-accept 2026-10-11, V1-2193); TCD-V0-154..157 accepted (standing auto-accept 2026-10-11, V1-2216); TCD-V0-158 accepted (standing auto-accept 2026-10-11, V1-1431); TCD-V0-159..164 accepted (standing auto-accept 2026-10-11, V1-2251, V1-2254); TCD-V0-165..166 accepted (standing auto-accept 2026-10-11, V1-2196); TCD-V0-167..168 and the TCD-V0-160/161 amendments accepted (standing auto-accept 2026-10-11, V1-2303); TCD-V0-169..173 accepted (standing auto-accept 2026-10-11, V1-2396, V1-2397, V1-2398); TCD-V0-174..175 experimental under the standing lane auto-accept (V1-2807); TCD-V0-176..180 experimental under the standing lane auto-accept (V1-2535, V1-2534, V1-2627, V1-2654, V1-2532); TCD-V0-181..183 experimental under the standing lane auto-accept (V1-2832, V1-2831, V1-2834); TCD-V0-184 experimental under the standing lane auto-accept (lane gap following V1-2831); TCD-V0-185..190 experimental under the standing lane auto-accept (V1-2984); TCD-V0-870..873 experimental under the standing lane auto-accept (V1-3496); experimental; the verb, its help entry and fixture tests exist.
 - Exists: a bounded `git log` scan under the store's sanitized Git environment; direct-id, issue-link and umbrella citations; closeout steps derived from the attempt inventory and verified gate evidence; deterministic rows; a typed 0/1/2 exit status; a byte-identical store and journal proof; descendant gate reuse (V1-2193), where a reusable gate's PASS at a protected intent-branch commit covers an attempt whose candidate tree an ancestor commit carries (TCD-V0-151..153); CI-run gate evidence (V1-2216), where `gate run --ci-run FILE` records a policy-admitted green CI run at a protected intent-branch commit that descends from the candidate as the gate's PASS without executing it (TCD-V0-154..157); a reusable gate's reuse key covers its declared environment values (TCD-V0-158); `ticket delivery-screen` and `ticket batch-delivered` reads over `gh --json` exports (TCD-V0-159..164); a `gate run` result that reports the executed gate's state, exit and retained output path, with a bounded, secret-screened tail and failing line when it did not pass (TCD-V0-165..166); `ticket batch-close`, one COMPLETE_MANUAL per delivered OPEN ticket of a merged batch (TCD-V0-169); store-first COMPLETED and HELD verdicts, operator notes and a stdin export in `delivery-screen` (TCD-V0-170..171); multi-target `note set` and `hold` (TCD-V0-172..173); `claim --scope-from-diff REV`, a claim scope derived from the committed diff, so an INCOMPLETE-effects ticket closes natively (TCD-V0-174..175); a nonblank reason to `complete-manual` over FAILED intent checks, complete-manual help stating its validator limits, release-reason refusals naming the admitted codes, and ancestry-checked lane PRs with `excludedPrs` in `batch-delivered` and `batch-close` (TCD-V0-176..180); a `--scope-from-diff` tree bound into the claim request, an `alternativeActions` member naming that claim on effects-incomplete tickets, and `script/tasks-scratch-queue.sh` for an execution-ready fixture queue (TCD-V0-181..183); the same `alternativeActions` member on `plan preview` entries (TCD-V0-184).
 - Blocked on: nothing for V0. `COMPLETE_REFUSED` is NOT_PRODUCED: a refused `complete` writes no receipt (TCD-V0-006).
 - Read next: Requirements; Failure modes; Acceptance evidence and traceability.
@@ -511,6 +511,40 @@ closeout step is missing.
 - `TCD-V0-190`: the `receipt audit` item adds `completions` `{verified, manual}`, counting COMPLETED
   tickets by completion kind. An operator can then tell gated closes from manual ones without
   reading each ticket. The audit's existing members and verdict are unchanged.
+- `TCD-V0-870`: (V1-3496; amends TCD-V0-163 and TCD-V0-169) In `ticket batch-delivered` and
+  `ticket batch-close`, every PR whose text is read (each lane PR, then the batch PR) delivers a
+  ticket on a `TCD-V0-160` line of its body, on a body line whose first word after leading
+  punctuation and markup is the ticket's ID (`- **V1-3459**: ...`), or through its title read as a
+  commit subject under `TCD-V0-167` (first word, conventional-commit scope or final parenthetical).
+  The `TCD-V0-160` veto words still demote every such line to a mention. A direct PR, one whose
+  text names no lane PR, therefore delivers the tickets its own title and body declare. Non-goal:
+  `delivery-screen` keeps the `TCD-V0-160` rule. Rollback: revert; PR bodies again deliver only on
+  lead or `DELIVERED` lines.
+- `TCD-V0-871`: (V1-3496) `ticket closeout-debt` takes an optional `--prs FILE|-` export
+  (the `batch-delivered` field list). With it, each candidate row adds `proposal` and `pr`, and the
+  item adds `proposals`, `prsExported` and `reviewTickets`. A candidate's `proposal` is
+  `BATCH_CLOSE` with the lowest-numbered exported MERGED PR whose `mergeCommit` is a scanned commit
+  and whose `batch-delivered` set (TCD-V0-163, TCD-V0-870) delivers the ticket. Otherwise it is
+  `COMMIT_DELIVERED` (`pr` null) when the row is `direct-id` and the commit delivers the ticket
+  under `TCD-V0-167`, and `REVIEW` for every other row, including umbrella, issue-link and
+  mention-only citations. A ticket takes the strongest proposal of its rows. `proposals` is one
+  entry per proposing PR, ascending: `pr`, `mergeCommit`, the sorted delivered OPEN `tickets`, and
+  the `command` `corvint-tasks ticket batch-close --pr N --prs FILE --runs RUNS`. `reviewTickets`
+  is the sorted OPEN tickets whose proposal is not `BATCH_CLOSE`. Nothing is completed, claimed or
+  written, and a proposal is never a delivery claim. Without `--prs` the result bytes are those of
+  TCD-V0-007. An undecodable export is refused `MALFORMED`.
+- `TCD-V0-872`: (V1-3496) `make tasks-reconcile` runs `script/tasks-reconcile.sh`: it exports
+  merged PRs (`gh pr list --state merged --limit RECONCILE_PRS`) and CI runs, runs
+  `corvint-tasks ticket closeout-debt --ref REF --prs EXPORT`, and retains the export and the report
+  under `<git-common-dir>/corvint/reconcile/<refCommit>/`. It prints each proposal's command and
+  the review tickets, and exits with the closeout-debt status (0 no debt, 1 debt, 2 refusal). A
+  failed export, a missing binary or an unparsable report exits 2 with the reason on stderr; the
+  reconcile is never skipped silently. With `RECONCILE_APPLY=dry-run|manual|gated` it then runs
+  each proposal's `batch-close` in that mode (`--dry-run --manual`, `--manual`, or the gated
+  default) and exits non-zero when any of them does. The default applies nothing.
+- `TCD-V0-873`: (V1-3496) A merged PR whose body declares `Delivers ID` leaves no OPEN ticket after
+  the reconcile: closeout-debt proposes `BATCH_CLOSE` for its PR, the proposed `batch-close
+  --manual` completes the ticket, and a rerun of closeout-debt reports no candidate for it.
 
 ## Failure modes
 
@@ -712,6 +746,10 @@ closeout step is missing.
 | TCD-V0-188 | V1-2984 | `internal/tasks/cli` (`mergeDocument`, `batchPRURL`, `runGated`), `internal/tasks/cli` (`ghPR.URL`) | `TestTCDV0185_GatedBatchCloseRunsRequiredGates` (the row document's digest equals `mergeEvidence.sha256` and is attached to the closed ticket; header `prUrl` and `mergedAt`) | none |
 | TCD-V0-189 | V1-2984 | `internal/tasks/cli` (`gatedRequestID`, `release`, `gatedRowValue`) | `TestTCDV0185_GatedBatchCloseRunsRequiredGates` (closed row request id `batch-close-50-<local>-a0-complete`; failed rows released and OPEN; rerun replays `ALREADY_COMPLETED` and the failing ticket's request id carries `-a1-`) | none |
 | TCD-V0-190 | V1-2984 | `internal/tasks/cli` (`receiptAudit` completions) | `TestTCDV0185_GatedBatchCloseRunsRequiredGates` (`receipt audit` `completions` `{verified: 2, manual: 3}`) | none |
+| TCD-V0-870 | V1-3496 | `internal/tasks/cli` (`closeoutIndex.prReferences`, `batchHits`) | `TestTCDV0870_DirectPRDeliversItsOwnTickets` (a direct PR's title parenthetical, `- **ID**:` lines and `Delivers` line deliver; a `Follow-up` prose line and a vetoed line only mention) | none |
+| TCD-V0-871 | V1-3496 | `internal/tasks/cli` (`closeoutProposals`, `closeoutDebtCommand`) | `TestTCDV0871_CloseoutDebtProposesBatchClose` (BATCH_CLOSE for the PR whose merge commit cites the ticket; COMMIT_DELIVERED for a scoped direct commit; REVIEW for an umbrella mention; bytes unchanged without `--prs`; undecodable export `MALFORMED`) | none |
+| TCD-V0-872 | V1-3496 | `script/tasks-reconcile.sh`, `Makefile` (`tasks-reconcile`) | `TestTCDV0872_ReconcileScriptRetainsReportAndExitStatus` (stub `gh`: report retained, exit 1 with debt, proposal command printed; failed export exit 2) | live reconcile of origin/main 6c967b21c: build log 2026-10-31-tasks-cli-w2 |
+| TCD-V0-873 | V1-3496 | `internal/tasks/cli` | `TestTCDV0871_CloseoutDebtProposesBatchClose` (proposed `batch-close --manual` completes the ticket, rerun has no candidate for it) | none |
 
 ## Rollout and rollback
 
@@ -769,3 +807,9 @@ TCD-V0-185..190 make the gated close the default. They add one output-only profi
 receipt, wire codec or policy change, and `--manual` keeps the `/0` bytes. To roll back without a
 revert, pass `--manual`. To roll back fully, revert the change. Gated completions stay ordinary
 `VERIFIED` completions, which an older binary audits as before.
+
+TCD-V0-870..873 widen which batch PR lines deliver, add one optional `closeout-debt` flag with
+additive output members, and add one script and make target. There is no store format, receipt,
+wire codec or policy change; the reconcile writes only its retained report outside the store. To
+roll back, revert the change. Batch reads then deliver only on lead lines again, and closeout-debt
+lists candidates without proposals.
