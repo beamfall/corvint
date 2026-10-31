@@ -443,7 +443,8 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   detail quoting the hold's reason, naming the distinct-checkout route (leave it ACTIVE, begin a
   new enrollment in `git worktree add` or a fresh clone) and the release command. A hold on a
   non-active enrollment refuses `preservation-hold-requires-active`; a second hold refuses
-  `preservation-hold-exists`. The hold is the agent-facing check that compares a proposed cancel
+  `preservation-hold-exists`; a hold file that does not decode as its profile and session refuses
+  `invalid-preservation-hold`. The hold is the agent-facing check that compares a proposed cancel
   with the coordinator's governing instruction before any lifecycle mutation; it is separate from
   Core's technical capability, which `LCP-V0-038` already admits with a reason.
 - `LCP-V0-881`: (experimental under the standing lane auto-accept; V1-0581)
@@ -472,12 +473,13 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   or Git-directory artifact the state names (report-set bindings and reports, terminal artifacts,
   coordination), each by anchor (`session`, `gitdir`, `root`), relative path, SHA-256 and bytes, at
   most 512 files of 4 MiB and 64 MiB in all (`export-bound-exceeded`), with the SHA-256 of the
-  bundle. It changes no repository or enrollment state (`"mutates": false`). An absent enrollment
+  bundle. A path outside its anchor refuses `export-path-invalid` and an output it cannot create
+  `export-output-unwritable`. It changes no repository or enrollment state (`"mutates": false`). An absent enrollment
   refuses `enrollment-absent`; one with an aggregate outcome or sealed continuation refuses
   `enrollment-export-unsupported`, since their ledgers name paths the bundle does not relocate.
 - `LCP-V0-884`: (experimental under the standing lane auto-accept; V1-0580)
-  `corvint dogfood import --session-key K --input FILE` MUST refuse, writing nothing: a bundle
-  whose digest, profile or any file digest fails (`import-bundle-invalid`); another key
+  `corvint dogfood import --session-key K --input FILE` MUST refuse, writing nothing: an unreadable
+  or over-bound bundle (`import-bundle-unreadable`); a bundle whose digest, profile or any file digest fails (`import-bundle-invalid`); another key
   (`import-session-mismatch`); a worktree where K already has state (`import-would-replace`), so an
   import never resets or replaces an enrollment; another owner (`worktree-already-enrolled`); a HEAD
   whose commit or tree differs from the bundle's (`import-target-mismatch`); an unresolvable BASE

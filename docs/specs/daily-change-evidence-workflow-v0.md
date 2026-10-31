@@ -2706,7 +2706,8 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   TEXT --limit 20` into `prechange-context.json`, `query --task TEXT --limit 1` into
   `prechange-query.json` and, when PATH is given, `impact PATH... --limit 10` into
   `prechange-impact.json`; TEXT defaults to `DOGFOOD_TASK`, else `Dogfood change from BASE12 to
-  HEAD`. A command that fails leaves no receipt for its slot. It then writes
+  HEAD`. A command that fails leaves no receipt for its slot; an evidence directory or binding it
+  cannot write refuses `prechange-evidence-unwritable`. It then writes
   `<git-dir>/corvint/prechange-binding.json` (profile `corvint-dogfood-prechange/0`) naming BASE,
   BASE's tree, the absolute Git directory, the task, the executable's SHA-256 and, per slot, the
   command that satisfies it, its argv, its status and the receipt's SHA-256. The context receipt is
@@ -2729,8 +2730,8 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `tool` is present and is not the slot's (`query` for `prechange-query`, `impact` for
   `prechange-impact`), so a context receipt never substitutes for a query receipt. For a receipt
   at BASE's tree it MUST then read `prechange-binding.json`: with no binding it prints nothing, as
-  before; a binding that does not decode as profile `corvint-dogfood-prechange/0` prints
-  `NOT_OBSERVED agent-receipt-binding-malformed`; a binding for another BASE prints `STALE
+  before; a binding that does not decode as profile `corvint-dogfood-prechange/0` (internally
+  `prechange-binding-malformed`) prints `NOT_OBSERVED agent-receipt-binding-malformed`; a binding for another BASE prints `STALE
   agent-receipt-binding-other-base base=BASE`; one recorded in another Git directory prints
   `NOT_OBSERVED agent-receipt-wrong-worktree`; one whose slot digest differs from the receipt's
   prints `NOT_OBSERVED agent-receipt-binding-mismatch`; and a matching binding prints `OBSERVED
