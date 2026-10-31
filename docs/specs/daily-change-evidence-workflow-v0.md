@@ -303,7 +303,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
 - `DCW-V0-033`: (accepted by decision 0441; V1-0940) This amends the stdout
   parity of `DCW-V0-020` for a passing check only. On PASS, `dogfood check` and the check inside
   `dogfood seal` MUST print one line `dogfood-check: SUMMARY cem=STATE hunks=N supported=N
-  unknown=N mechanical=N ocm=STATE [requirements=N linked=N unlinked=N]
+  unknown=N mechanical=N ocm=STATE [change-requirements=N change-traced=N change-untraced=N]
   report=.corvint/dogfood-report.json detail=<git-dir>/corvint/dogfood-check.stdout` (amended by
   `DCW-V0-046`, which adds `unknownShare=U/M reasonedUnknown=N` after `mechanical=N`) in place of
   the CEM and OCM status JSON, then any `DCW-V0-024` note and the unchanged terminator

@@ -5010,6 +5010,7 @@ OCM-V0-025	docs/specs/ocm-v0-dogfood.md	(accepted under the owner's standing aut
 OCM-V0-026	docs/specs/ocm-v0-dogfood.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2170) when	standing	2026-10-11; V1-2170
 OCM-V0-027	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-2894, decision 0585) withi	standing	V1-2894; decision 0585
 OCM-V0-028	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-2893, decision 0585) the	standing	V1-2893; decision 0585
+OCM-V0-920	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-3092) amends `OCM-V0-019`,	standing	V1-3092
 OCM-V0-013	docs/specs/ocm-v0-dogfood.md	one dogfood change MAY declare an ordered set of pinned Markdown intent	unrecorded	-
 UPD-V0-001	docs/specs/operator-update-v0.md	`check` MUST require explicit network opt-in, distinguish Core `v*` and standalo	unrecorded	-
 UPD-V0-002	docs/specs/operator-update-v0.md	`apply` MUST verify the release archive checksum before extraction, verify inter	unrecorded	-
