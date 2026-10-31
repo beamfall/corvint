@@ -171,7 +171,7 @@ func TestInheritCitationsDCWV0824TwoLaneRange(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := fmt.Sprintf("hunks=%d inherited=2 rows=3 uninherited=%d constituents=2", len(parsed.Hunks), len(parsed.Hunks)-2); summary != want {
+	if want := fmt.Sprintf("hunks=%d inherited=2 proposed=0 rows=3 uninherited=%d constituents=2", len(parsed.Hunks), len(parsed.Hunks)-2); summary != want {
 		t.Fatalf("summary = %q, want %q", summary, want)
 	}
 	plan, _ := os.ReadFile(planPath)

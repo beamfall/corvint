@@ -13,7 +13,9 @@
 // evidence span is moved to BASE by exact text search of the cited bytes,
 // nearest the original offset, and written as a `bytes:S:E` plan row
 // (DCW-V0-827). A hunk with no inherited row is written to UNINHERITED with
-// its reason; it is never cited and stays unknown in the map.
+// its reason; it is never cited and stays unknown in the map, unless it is in
+// a proposed class (classes.go): a byte-identical sealed-CEM rename
+// (DCW-V0-829) or a hunk a registered generator reproduces (DCW-V0-828).
 package main
 
 import (
@@ -86,6 +88,13 @@ type inheritor struct {
 	blobs              map[string][]byte
 	constituents       []*constituent
 	byID               map[string][]*constituent
+
+	// Proposed-class state (classes.go), loaded on first use.
+	sealedAt               [2]map[string]string
+	removedCEMs, addedCEMs map[string]bool
+	specIndex              map[string]bool
+	citations              int
+	gitDir, privateIndex   string
 }
 
 func main() {
@@ -119,14 +128,17 @@ func run(repo, base, target, mapPath, planPath, uninheritedPath string) (string,
 	}
 	mine := in.canonicalDiff(base, target)
 	var plan, missing bytes.Buffer
-	inherited, rows := 0, 0
+	inherited, proposed, rows := 0, 0, 0
 	for i, h := range current.Hunks {
 		got, reason := in.inherit(h, mine[h.ID])
-		if len(got) == 0 {
+		if len(got) > 0 {
+			inherited++
+		} else if got, _ = in.propose(mine[h.ID]); len(got) > 0 {
+			proposed++
+		} else {
 			fmt.Fprintf(&missing, "%d\t%s\t%s\t%s\n", i+1, h.ID, planField(h.Path), reason)
 			continue
 		}
-		inherited++
 		for _, r := range got {
 			rows++
 			fmt.Fprintf(&plan, "%d\t%s\tbytes:%d:%d\t%s\n", i+1, r.path, r.start, r.end, r.relation)
@@ -138,8 +150,8 @@ func run(repo, base, target, mapPath, planPath, uninheritedPath string) (string,
 	if err := os.WriteFile(uninheritedPath, missing.Bytes(), 0o600); err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("hunks=%d inherited=%d rows=%d uninherited=%d constituents=%d",
-		len(current.Hunks), inherited, rows, len(current.Hunks)-inherited, len(in.constituents)), nil
+	return fmt.Sprintf("hunks=%d inherited=%d proposed=%d rows=%d uninherited=%d constituents=%d",
+		len(current.Hunks), inherited, proposed, rows, len(current.Hunks)-inherited-proposed, len(in.constituents)), nil
 }
 
 // git runs one Git command in the repository with no caller stdin (V1-3367).
