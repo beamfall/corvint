@@ -23,6 +23,7 @@ fi
 printf '%s\n' "$source" >"$STUB_LOG.source"
 git -C "$source" show HEAD:edited.txt >"$STUB_LOG.edited"
 git -C "$source" show HEAD:new/untracked.txt >"$STUB_LOG.untracked" 2>/dev/null || :
+git -C "$source" ls-files -s new/link | cut -c1-6 >"$STUB_LOG.link"
 exit "${STUB_EXIT:-0}"
 STUB
 chmod +x "$scratch/runner"
@@ -44,6 +45,8 @@ grep -Fqx -- --host "$scratch/log.args"
 printf 'dirty\n' >"$scratch/repo/edited.txt"
 mkdir "$scratch/repo/new"
 printf 'fresh\n' >"$scratch/repo/new/untracked.txt"
+# An untracked dangling symlink is snapshotted as a symlink, not dereferenced.
+ln -s missing-target "$scratch/repo/new/link"
 printf 'skip\n' >"$scratch/repo/ignored"
 code=0
 "$source_root/script/hlq-local.sh" --source "$scratch/repo" 2>"$scratch/err" || code=$?
@@ -59,6 +62,7 @@ grep -Fq 'running against snapshot' "$scratch/err"
 [ "$(cat "$scratch/log.source")" != "$scratch/repo" ]
 [ "$(cat "$scratch/log.edited")" = dirty ]
 [ "$(cat "$scratch/log.untracked")" = fresh ]
+[ "$(cat "$scratch/log.link")" = 120000 ]
 [ "$(git -C "$scratch/repo" status --porcelain | wc -l | tr -d ' ')" -eq 2 ]
 [ ! -e "$(cat "$scratch/log.source")" ]
 # A snapshot that cannot be made is a setup error (exit 2) and the runner never starts.
@@ -70,4 +74,9 @@ chmod 644 "$scratch/repo/new/untracked.txt"
 [ "$code" -eq 2 ]
 grep -Fq 'setup failed before the runner started' "$scratch/err"
 [ ! -e "$scratch/log.source" ]
+# A work directory that cannot be created is a setup error (exit 2), not a runner failure.
+code=0
+TMPDIR=/dev/null "$source_root/script/hlq-local.sh" --source "$scratch/repo" 2>"$scratch/err" || code=$?
+[ "$code" -eq 2 ]
+grep -Fq 'cannot create a work directory' "$scratch/err"
 printf 'hlq-local: PASS\n'

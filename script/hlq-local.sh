@@ -31,7 +31,7 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 source_dir=$(cd "$source_dir" && pwd -P) || { echo "hlq-local: --source is not a directory" >&2; exit 2; }
-work=$(mktemp -d "${TMPDIR:-/tmp}/corvint-hlq-local.XXXXXX")
+work=$(mktemp -d "${TMPDIR:-/tmp}/corvint-hlq-local.XXXXXX") || { echo "hlq-local: setup failed: cannot create a work directory" >&2; exit 2; }
 trap 'rm -rf "$work"' EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
@@ -54,7 +54,7 @@ if [ "$snapshot" = true ] && [ -n "$(git -C "$source_dir" status --porcelain --u
   git -C "$source_dir" ls-files -z --others --exclude-standard >"$work/untracked"
   while IFS= read -r -d '' path; do
     mkdir -p "$snap/$(dirname "$path")"
-    cp -p "$source_dir/$path" "$snap/$path"
+    cp -pRP "$source_dir/$path" "$snap/$path"
     git -C "$snap" add -- "$path"
   done <"$work/untracked"
   git -C "$snap" -c user.name=hlq-local -c user.email=hlq-local@example.invalid \
