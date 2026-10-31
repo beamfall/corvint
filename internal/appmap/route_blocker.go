@@ -258,7 +258,7 @@ func CheckBlocker(ctx context.Context, m *Map, note string, o Options) (*Blocker
 	r := repo{ctx: ctx, root: o.Root}
 	rev, err := r.resolve(m.Revision)
 	if err != nil || rev != m.Revision {
-		return nil, &gokernel.Error{Code: "appmap-invalid-revision", Message: "the map revision is not a commit in --root"}
+		return nil, orPlatform(err, &gokernel.Error{Code: "appmap-invalid-revision", Message: "the map revision is not a commit in --root"})
 	}
 	man, err := readManifestAt(r, m, nil)
 	if err != nil {

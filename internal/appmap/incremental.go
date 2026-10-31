@@ -52,7 +52,7 @@ func BuildFrom(ctx context.Context, root, manifestPath, revision string, roots R
 	r := repo{ctx: ctx, root: root}
 	rev, err := r.resolve(revision)
 	if err != nil {
-		return nil, inc, &gokernel.Error{Code: "appmap-invalid-revision", Message: err.Error()}
+		return nil, inc, orPlatform(err, &gokernel.Error{Code: "appmap-invalid-revision", Message: err.Error()})
 	}
 	var pins []RootPin
 	var part *partialReuse

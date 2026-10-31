@@ -20,6 +20,10 @@ const (
 	// FrontierDeclarationInvalid reports a present declaration that cannot
 	// be read, so it resolves nothing.
 	FrontierDeclarationInvalid = "ruby:frontier-declaration-invalid"
+	// FrontierDeclarationStale reports a declared entry that matches no
+	// observed site, located at the entry's own path and line, so a line shift
+	// or a removed site invalidates the entry visibly (RUBY-AFFECTED-V0-960).
+	FrontierDeclarationStale = "ruby:frontier-declaration-stale"
 	// maxFrontierDeclarationBytes bounds the declaration read.
 	maxFrontierDeclarationBytes = 1 << 20
 	// maxSitesPerReason bounds how many sites of one reason a frontier list
@@ -108,6 +112,35 @@ func undeclared(sites map[string]bool, resolved map[string]bool) []string {
 		kept[site] = true
 	}
 	return boundSites(kept)
+}
+
+// staleDeclarations returns, located at each entry's path and line, the
+// declared entries that resolve no observed site in sites: an exact entry
+// whose site is gone or moved, or a file entry whose file holds no site of
+// its reason. Corvint does not re-anchor an entry to another line, since the
+// declaration is an unverified claim about one site (RUBY-AFFECTED-V0-960).
+func staleDeclarations(declared map[string]bool, sites []map[string]bool) []string {
+	used := make(map[string]bool, len(declared))
+	for _, set := range sites {
+		for site := range set {
+			if declared[site] {
+				used[site] = true
+			}
+			if reason, relative, line, ok := splitSite(site); ok && line > 0 && declared[reason+":"+relative] {
+				used[reason+":"+relative] = true
+			}
+		}
+	}
+	var stale []string
+	for entry := range declared {
+		if used[entry] {
+			continue
+		}
+		_, relative, line, _ := splitSite(entry)
+		stale = append(stale, located(FrontierDeclarationStale, relative, line))
+	}
+	sort.Strings(stale)
+	return stale
 }
 
 // boundSites names at most maxSitesPerReason sites of each reason, in order,

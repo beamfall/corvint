@@ -51,6 +51,11 @@ type playwrightTagFile struct {
 	// has an object sink (TJAA-V0-095, TJAA-V0-096).
 	objectWrite, objectSink bool
 	selfStop, sinkStop      string
+	// keyModule records that the file imports one of playwrightTagKeyModules, and builderStop,
+	// when not empty, names its first playwrightTagKeyBuilders name; the closure stops on
+	// builderStop once any file imports a key module (AFP-V0-960).
+	keyModule   bool
+	builderStop string
 }
 
 func newPlaywrightTagSources(root, configPath string) *playwrightTagSources {
@@ -123,6 +128,7 @@ func (sources *playwrightTagSources) exactOrStop(entries ...string) (map[string]
 	seen := map[string]bool{}
 	fresh, freshStop := false, ""
 	objectWrite, objectSink, selfStop, sinkStop := false, false, "", ""
+	keyModule, builderStop := false, ""
 	queue := slices.Clone(entries)
 	for len(queue) != 0 {
 		file := queue[0]
@@ -156,6 +162,10 @@ func (sources *playwrightTagSources) exactOrStop(entries ...string) (map[string]
 		if sinkStop == "" {
 			sinkStop = checked.sinkStop
 		}
+		keyModule = keyModule || checked.keyModule
+		if builderStop == "" {
+			builderStop = checked.builderStop
+		}
 		queue = append(queue, checked.imports...)
 	}
 	if fresh && freshStop != "" {
@@ -166,6 +176,9 @@ func (sources *playwrightTagSources) exactOrStop(entries ...string) (map[string]
 	}
 	if objectSink && sinkStop != "" {
 		return nil, sinkStop
+	}
+	if keyModule && builderStop != "" {
+		return nil, builderStop
 	}
 	return tags, ""
 }
@@ -188,6 +201,27 @@ func (sources *playwrightTagSources) resolveAlias(owner, ref string) (string, bo
 
 // playwrightTagNeutralModules are bare modules whose import gives a case no tag.
 var playwrightTagNeutralModules = map[string]bool{"@playwright/test": true, "dotenv": true, "dotenv/config": true, "path": true, "os": true, "url": true, "fs": true}
+
+// playwrightTagNeutralBuiltins are the `node:` built-ins whose import gives a case no tag: their
+// members return strings, buffers, arrays or objects with fixed keys. Any other built-in, such as
+// node:vm, node:module, node:querystring or node:util, can evaluate code, load a module or build
+// an object whose keys come from text, so it is not followed (AFP-V0-960).
+var playwrightTagNeutralBuiltins = map[string]bool{
+	"node:path": true, "node:os": true, "node:url": true, "node:fs": true, "node:fs/promises": true, "node:crypto": true,
+	"node:child_process": true, "node:process": true, "node:buffer": true, "node:assert": true, "node:events": true,
+	"node:timers": true, "node:timers/promises": true, "node:test": true,
+}
+
+// playwrightTagKeyModules are the neutral modules with members that build an object whose keys
+// come from text: url.parse(text, true).query, and dotenv.parse, a config() result's `parsed`,
+// dotenv.populate and the `processEnv` option of config(). A `tag` key can then exist without the
+// text `tag`, so once a closure file imports one of them, the first closure file that names one
+// of playwrightTagKeyBuilders stops the closure (AFP-V0-960).
+var playwrightTagKeyModules = map[string]bool{"url": true, "node:url": true, "dotenv": true}
+
+// playwrightTagKeyBuilders are the member names of playwrightTagKeyModules that build such an
+// object; the `parse` of a `JSON.parse` call is the JSON rule's (AFP-V0-960).
+var playwrightTagKeyBuilders = []string{"parse", "parsed", "populate", "processEnv"}
 
 // playwrightTagIndirection are names through which a module can build, rename or enumerate a
 // property at run time, so a tag could exist without the text `tag` in source: the reflective
@@ -224,7 +258,8 @@ func playwrightTagFileExact(root, relative string, alias func(owner, ref string)
 	}
 	result := playwrightTagFile{exact: true}
 	for _, ref := range scan.refs {
-		if playwrightTagNeutralModules[ref] || strings.HasPrefix(ref, "node:") {
+		result.keyModule = result.keyModule || playwrightTagKeyModules[ref]
+		if playwrightTagNeutralModules[ref] || playwrightTagNeutralBuiltins[ref] {
 			continue
 		}
 		resolved, ok := playwrightResolveRelative(root, relative, ref)
@@ -262,6 +297,9 @@ func playwrightTagFileExact(root, relative string, alias func(owner, ref string)
 	}
 	if literal.sinks >= 0 {
 		result.sinkStop = stop(literal.sinks, "`fulfill` is defined or read other than as a direct method call, so a fresh object a computed member write sets can reach a test through it")
+	}
+	if literal.builder >= 0 {
+		result.builderStop = stop(literal.builder, "`"+literal.builderName+"` builds an object from text, so a `tag` key can exist without its name")
 	}
 	return result
 }
@@ -315,6 +353,10 @@ type playwrightTagLiteral struct {
 	objectWrite, objectSink bool
 	self, sinks             int
 	selfName                string
+	// builder is the offset of the first playwrightTagKeyBuilders name (named by builderName) in
+	// code, or -1 (AFP-V0-960).
+	builder     int
+	builderName string
 }
 
 // playwrightFreshMethods are the methods whose direct call returns a new array that no tag key
@@ -358,9 +400,29 @@ func playwrightTagTextLiteral(clean string) playwrightTagLiteral {
 			objectWrite, objectSink = true, objectSink || objects[declaration][1]
 		}
 	}
+	// `const NAME = JSON.parse(text)` whose binding playwrightFreshObject admits keeps the parsed
+	// value from every test, so the keys it builds from text cannot reach one (AFP-V0-960).
+	parsed := map[int]bool{}
+	for _, offset := range playwrightTokenOffsets(clean, "JSON") {
+		if !lexed.code[offset] {
+			continue
+		}
+		declaration := playwrightParseDeclaration(clean, lexed, offset)
+		if declaration < 0 {
+			continue
+		}
+		if _, checked := objects[declaration]; !checked {
+			admitted, sink := playwrightFreshObject(clean, lexed, declaration)
+			objects[declaration] = [2]bool{admitted, sink}
+		}
+		if objects[declaration][0] {
+			parsed[offset] = true
+			objectSink = objectSink || objects[declaration][1]
+		}
+	}
 	for _, candidate := range playwrightTagIndirection {
 		for _, offset := range playwrightTokenOffsets(clean, candidate) {
-			if lexed.code[offset] && !enumerated[offset] && (first < 0 || offset < first) && (candidate != "JSON" || !playwrightPlainStringify(clean, lexed, offset)) {
+			if lexed.code[offset] && !enumerated[offset] && !parsed[offset] && (first < 0 || offset < first) && (candidate != "JSON" || !playwrightPlainStringify(clean, lexed, offset)) {
 				first, name = offset, candidate
 			}
 		}
@@ -410,7 +472,7 @@ func playwrightTagTextLiteral(clean string) playwrightTagLiteral {
 			if previous >= 0 && clean[previous] == '}' && !playwrightLiteralIndex(clean[index+1:closeAt]) {
 				return playwrightTagLiteral{at: index, why: "a `[` after `}` can index an object literal and reach a tag array without naming it", defines: -1}
 			}
-			if playwrightMemberAccessAt(clean, previous) && !playwrightLiteralIndex(clean[index+1:closeAt]) {
+			if playwrightMemberAccessAt(clean, previous) && !playwrightLiteralIndex(clean[index+1:closeAt]) && !playwrightCounterIndex(clean, lexed, index, closeAt) {
 				if opens == nil {
 					opens = make(map[int]int, len(lexed.closes))
 					for open, close := range lexed.closes {
@@ -462,7 +524,15 @@ func playwrightTagTextLiteral(clean string) playwrightTagLiteral {
 	if accessor, accessorName := playwrightAccessorDefinition(clean, lexed); accessor >= 0 && (self < 0 || accessor < self) {
 		self, selfName = accessor, accessorName
 	}
-	return playwrightTagLiteral{tags: tags, fresh: fresh, defines: defines, defined: defined, objectWrite: objectWrite, objectSink: objectSink, self: self, selfName: selfName, sinks: sinks}
+	builder, builderName := -1, ""
+	for _, candidate := range playwrightTagKeyBuilders {
+		for _, offset := range playwrightTokenOffsets(clean, candidate) {
+			if lexed.code[offset] && (builder < 0 || offset < builder) && (candidate != "parse" || !playwrightJSONMember(clean, offset)) {
+				builder, builderName = offset, candidate
+			}
+		}
+	}
+	return playwrightTagLiteral{tags: tags, fresh: fresh, defines: defines, defined: defined, objectWrite: objectWrite, objectSink: objectSink, self: self, selfName: selfName, sinks: sinks, builder: builder, builderName: builderName}
 }
 
 // playwrightComputedReceiverAt returns the start of the plain identifier that ends at previous,
@@ -673,10 +743,11 @@ func playwrightEntriesCall(clean string, lexed playwrightLexed, offset int) (mem
 		return -1, -1
 	}
 	member = playwrightNextCode(clean, dot+1)
-	if playwrightIdentifierAt(clean, member) != "entries" {
+	method := playwrightIdentifierAt(clean, member)
+	if method != "entries" && method != "values" {
 		return -1, -1
 	}
-	open := playwrightNextCode(clean, member+len("entries"))
+	open := playwrightNextCode(clean, member+len(method))
 	if open >= len(clean) || clean[open] != '(' || !lexed.code[open] {
 		return -1, -1
 	}
@@ -703,7 +774,7 @@ func playwrightEntriesArgument(clean string, lexed playwrightLexed, open int) bo
 		start--
 	}
 	dot := playwrightPreviousCode(clean, start)
-	if clean[start:end+1] != "entries" || dot < 0 || clean[dot] != '.' {
+	if method := clean[start : end+1]; method != "entries" && method != "values" || dot < 0 || clean[dot] != '.' {
 		return false
 	}
 	receiver := playwrightPreviousCode(clean, dot)
@@ -916,8 +987,9 @@ func playwrightWordBefore(clean string, previous int) string {
 
 // playwrightFreshObjectDeclaration reports whether the `const NAME` or `let NAME` whose name
 // ends at end and whose keyword ends at previous declares an object literal: it is not exported,
-// carries at most a simple type annotation, is a plain `=` of one `{ ... }` and the literal ends
-// its expression.
+// carries at most a simple type annotation, is a plain `=` of one `{ ... }` or of one direct
+// `JSON.parse(text)` call (playwrightParseCallEnd, AFP-V0-960) and the literal or call ends its
+// expression.
 func playwrightFreshObjectDeclaration(clean string, lexed playwrightLexed, end, previous int) bool {
 	keyword := previous
 	for keyword > 0 && playwrightIdentifierByte(clean[keyword-1]) {
@@ -935,10 +1007,14 @@ func playwrightFreshObjectDeclaration(clean string, lexed playwrightLexed, end, 
 		return false
 	}
 	open := playwrightNextCode(clean, index+1)
-	if open >= len(clean) || clean[open] != '{' || !lexed.code[open] {
+	if open >= len(clean) || !lexed.code[open] {
 		return false
 	}
 	closeAt, closed := lexed.closes[open]
+	if clean[open] != '{' {
+		closeAt = playwrightParseCallEnd(clean, lexed, open)
+		closed = closeAt >= 0
+	}
 	if !closed {
 		return false
 	}
@@ -1288,4 +1364,183 @@ func playwrightLiteralTagProperty(clean string, lexed playwrightLexed, at int) (
 		tags = append(tags, tag)
 	}
 	return tags, len(tags) != 0
+}
+
+// playwrightParseCallEnd returns the offset of the `)` that closes a direct `JSON.parse(text)`
+// call starting at the `JSON` token at, or -1: one argument and no reviver, which could pass each
+// parsed value to code that keeps it, and no spread argument (AFP-V0-960).
+func playwrightParseCallEnd(clean string, lexed playwrightLexed, at int) int {
+	if playwrightIdentifierAt(clean, at) != "JSON" || at > 0 && playwrightIdentifierByte(clean[at-1]) {
+		return -1
+	}
+	dot := playwrightNextCode(clean, at+len("JSON"))
+	if dot >= len(clean) || clean[dot] != '.' {
+		return -1
+	}
+	member := playwrightNextCode(clean, dot+1)
+	if playwrightIdentifierAt(clean, member) != "parse" {
+		return -1
+	}
+	open := playwrightNextCode(clean, member+len("parse"))
+	if open >= len(clean) || clean[open] != '(' || !lexed.code[open] {
+		return -1
+	}
+	closeAt, closed := lexed.closes[open]
+	argument := strings.TrimSpace(clean[open+1 : max(open+1, closeAt)])
+	if !closed || argument == "" || strings.HasPrefix(argument, "...") {
+		return -1
+	}
+	for index := open + 1; index < closeAt; index++ {
+		if lexed.code[index] && lexed.parent[index] == open && clean[index] == ',' {
+			return -1
+		}
+	}
+	return closeAt
+}
+
+// playwrightParseDeclaration returns, for the `JSON` token at offset, the offset of NAME when the
+// token begins the initializer of `const NAME = JSON.parse(text)` or `let NAME = JSON.parse(text)`
+// with no type annotation, or -1. playwrightFreshObject then decides whether the binding keeps the
+// parsed value from every test (AFP-V0-960).
+func playwrightParseDeclaration(clean string, lexed playwrightLexed, offset int) int {
+	if playwrightParseCallEnd(clean, lexed, offset) < 0 {
+		return -1
+	}
+	assignment := playwrightPreviousCode(clean, offset)
+	if assignment < 1 || !playwrightPlainAssignmentAt(clean, assignment) || strings.IndexByte("=!<>+-*/%&|^?", clean[assignment-1]) >= 0 {
+		return -1
+	}
+	end := playwrightPreviousCode(clean, assignment)
+	if end < 0 || !playwrightIdentifierByte(clean[end]) {
+		return -1
+	}
+	start := end
+	for start > 0 && playwrightIdentifierByte(clean[start-1]) {
+		start--
+	}
+	if _, _, ok := playwrightBlockDeclaration(clean, lexed, start); !ok {
+		return -1
+	}
+	return start
+}
+
+// playwrightJSONMember reports whether the name at offset is the member of a `JSON.` access.
+func playwrightJSONMember(clean string, offset int) bool {
+	dot := playwrightPreviousCode(clean, offset)
+	if dot < 0 || clean[dot] != '.' {
+		return false
+	}
+	end := playwrightPreviousCode(clean, dot)
+	return end >= 3 && clean[end-3:end+1] == "JSON" && (end == 3 || !playwrightIdentifierByte(clean[end-4]))
+}
+
+// playwrightCounterIndex reports whether the computed member access whose brackets open at open
+// and close at closeAt indexes by a numeric for-loop counter: its index is a plain name NAME, and
+// the innermost loop holding the access whose header declares NAME is
+// `for (let NAME = DIGITS; ...) { ... }` in which every code occurrence of NAME, outside a
+// property name after `.`, is a nested such declaration, an update `NAME++`, `++NAME`, `NAME--`
+// or `--NAME`, a comparison or arithmetic operand, or the whole index of a member access. NAME
+// is then a number, so the access reads a numeric key, and no literal tag array is held under a
+// numeric key unless a route the rule already refuses put it there. Any assignment, parameter,
+// declaration or destructuring of NAME in the loop, a `with` statement or an access outside the
+// loop is not a counter index (AFP-V0-960).
+func playwrightCounterIndex(clean string, lexed playwrightLexed, open, closeAt int) bool {
+	start := playwrightNextCode(clean, open+1)
+	if start >= closeAt || clean[start] >= '0' && clean[start] <= '9' {
+		return false
+	}
+	name := playwrightIdentifierAt(clean, start)
+	if name == "" || playwrightNextCode(clean, start+len(name)) != closeAt || playwrightWithStatement(clean, lexed) || playwrightNonASCIINeighbour(clean, name) {
+		return false
+	}
+	offsets := playwrightTokenOffsets(clean, name)
+	loopOpen, loopClose := -1, -1
+	for _, at := range offsets {
+		if from, to, ok := playwrightCounterLoop(clean, lexed, at); ok && from < open && closeAt < to && from > loopOpen {
+			loopOpen, loopClose = from, to
+		}
+	}
+	if loopOpen < 0 {
+		return false
+	}
+	for _, at := range offsets {
+		if lexed.code[at] && loopOpen < at && at < loopClose && !playwrightCounterUse(clean, lexed, at, name) {
+			return false
+		}
+	}
+	return true
+}
+
+// playwrightCounterLoop reports whether the name at at is declared by a loop header
+// `for (let NAME = DIGITS;` whose body is a block, and returns the header's `(` and the body's `}`.
+func playwrightCounterLoop(clean string, lexed playwrightLexed, at int) (open, close int, ok bool) {
+	name := playwrightIdentifierAt(clean, at)
+	keyword := playwrightPreviousCode(clean, at)
+	if playwrightWordBefore(clean, keyword) != "let" {
+		return -1, -1, false
+	}
+	open = playwrightPreviousCode(clean, keyword-len("let")+1)
+	if open < 0 || clean[open] != '(' || playwrightWordBefore(clean, playwrightPreviousCode(clean, open)) != "for" {
+		return -1, -1, false
+	}
+	assignment := playwrightNextCode(clean, at+len(name))
+	if !playwrightPlainAssignmentAt(clean, assignment) {
+		return -1, -1, false
+	}
+	digits := playwrightNextCode(clean, assignment+1)
+	end := digits
+	for end < len(clean) && clean[end] >= '0' && clean[end] <= '9' {
+		end++
+	}
+	if end == digits || playwrightNextCode(clean, end) >= len(clean) || clean[playwrightNextCode(clean, end)] != ';' {
+		return -1, -1, false
+	}
+	header, closed := lexed.closes[open]
+	if !closed {
+		return -1, -1, false
+	}
+	body := playwrightNextCode(clean, header+1)
+	if body >= len(clean) || clean[body] != '{' {
+		return -1, -1, false
+	}
+	close, closed = lexed.closes[body]
+	return open, close, closed
+}
+
+// playwrightCounterUse reports whether the code occurrence of the counter name at at keeps it a
+// number and names the counter binding (playwrightCounterIndex).
+func playwrightCounterUse(clean string, lexed playwrightLexed, at int, name string) bool {
+	previous := playwrightPreviousCode(clean, at)
+	next := playwrightNextCode(clean, at+len(name))
+	if previous >= 0 && clean[previous] == '.' && (previous == 0 || clean[previous-1] != '.') {
+		return true
+	}
+	if _, _, ok := playwrightCounterLoop(clean, lexed, at); ok {
+		return true
+	}
+	rest := clean[min(next, len(clean)):]
+	if previous >= 1 && (clean[previous-1:previous+1] == "++" || clean[previous-1:previous+1] == "--") ||
+		strings.HasPrefix(rest, "++") || strings.HasPrefix(rest, "--") {
+		return true
+	}
+	if previous >= 0 && clean[previous] == '[' && next < len(clean) && clean[next] == ']' && playwrightMemberAccessAt(clean, playwrightPreviousCode(clean, previous)) {
+		// `const [NAME]`, `let [NAME]` or `var [NAME]` is a destructuring that rebinds the
+		// name, not an index read of the counter.
+		switch playwrightWordBefore(clean, playwrightPreviousCode(clean, previous)) {
+		case "const", "let", "var":
+			return false
+		}
+		return true
+	}
+	for _, operator := range []string{"===", "!==", "==", "!=", "<=", ">="} {
+		if strings.HasPrefix(rest, operator) {
+			return true
+		}
+	}
+	if rest == "" || strings.IndexByte("<>+-*/%", rest[0]) < 0 {
+		return false
+	}
+	// A single `<`, `>` or arithmetic operator reads the counter; a doubled operator or `op=`
+	// may be a shift, an exponent or an assignment.
+	return len(rest) > 1 && rest[1] != rest[0] && rest[1] != '='
 }

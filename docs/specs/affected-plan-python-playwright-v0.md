@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-10-31
 Requirement prefix: `AFP-V0`
-Intent status: per requirement and unchanged by the split; AFP-V0-181 to AFP-V0-189, AFP-V0-382 to AFP-V0-389, AFP-V0-404 to AFP-V0-414, AFP-V0-417 to AFP-V0-419 and AFP-V0-423 to AFP-V0-426 accepted under the owner's standing auto-accept (2026-10-11); AFP-V0-442, AFP-V0-443 and AFP-V0-472 to AFP-V0-477 accepted under the standing lane auto-accept (2026-10-11); AFP-V0-680 to AFP-V0-682 experimental under it (2026-10-28)
+Intent status: per requirement and unchanged by the split; AFP-V0-181 to AFP-V0-189, AFP-V0-382 to AFP-V0-389, AFP-V0-404 to AFP-V0-414, AFP-V0-417 to AFP-V0-419 and AFP-V0-423 to AFP-V0-426 accepted under the owner's standing auto-accept (2026-10-11); AFP-V0-442, AFP-V0-443 and AFP-V0-472 to AFP-V0-477 accepted under the standing lane auto-accept (2026-10-11); AFP-V0-680 to AFP-V0-682 experimental under it (2026-10-28); AFP-V0-960 and AFP-V0-961 experimental under it (2026-10-31)
 Delivery status: experimental
 Authoritative inputs: `docs/specs/affected-plan-v0.md` (parent contract: wire, authority,
 failure codes and acceptance gates), `internal/liveverify/affected/python`,
@@ -13,7 +13,7 @@ limit; the requirements keep their `AFP-V0` IDs, see build-log entry `2026-10-31
 
 ## Agent digest
 - Claim: `corvint affected` selects Python tests, advises a pytest command and bounds the Playwright environment, dotenv, alias and tag-closure frontiers.
-- Status: per requirement and unchanged by the split; AFP-V0-181 to AFP-V0-189, AFP-V0-382 to AFP-V0-389, AFP-V0-404 to AFP-V0-414, AFP-V0-417 to AFP-V0-419 and AFP-V0-423 to AFP-V0-426 accepted under the owner's standing auto-accept (2026-10-11); AFP-V0-442, AFP-V0-443 and AFP-V0-472 to AFP-V0-477 accepted under the standing lane auto-accept (2026-10-11); AFP-V0-680 to AFP-V0-682 experimental under it (2026-10-28); delivery experimental.
+- Status: per requirement and unchanged by the split; AFP-V0-181 to AFP-V0-189, AFP-V0-382 to AFP-V0-389, AFP-V0-404 to AFP-V0-414, AFP-V0-417 to AFP-V0-419 and AFP-V0-423 to AFP-V0-426 accepted under the owner's standing auto-accept (2026-10-11); AFP-V0-442, AFP-V0-443 and AFP-V0-472 to AFP-V0-477 accepted under the standing lane auto-accept (2026-10-11); AFP-V0-680 to AFP-V0-682 experimental under it (2026-10-28); AFP-V0-960 and AFP-V0-961 experimental under it (2026-10-31); delivery experimental.
 - Exists: `internal/liveverify/affected/python`, the Playwright discovery and tag-source files in `internal/liveverify/affected`, `advisoryPytestCheck` in `cmd/corvint`.
 - Blocked on: the parent spec's gates; live external-corpus qualification of the Python adapter.
 - Read next: Requirements; the parent spec's Non-goals and authority and Failure modes.
@@ -423,6 +423,47 @@ profile changes encoding: only detail and frontier-site text changes, and one ta
   `frontierDetail` for the runtime unknown, drop `graphFrontierDetail`, `namedFrontierSites` and
   `playwrightRuntimeDetail`, and restore the mutators and the boolean result of
   `playwrightTagTextLiteral`.
+- **AFP-V0-960:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2562,
+  amends AFP-V0-425) Three ordinary spec constructs MUST NOT make a closure file inexact. (1) A
+  `const NAME = JSON.parse(text)` or `let NAME = JSON.parse(text)` with one argument, no reviver,
+  no type annotation, whose binding the fresh-object escape analysis (TJAA-V0-095 to 099) admits:
+  each use is a member read or a call argument of a neutral sink, so the keys the parse builds
+  never reach a test details argument. Any other `JSON.parse` (a reviver, a direct member read, a
+  copy, an enumeration, an argument) still stops the closure. (2) `Object.values(NAME)` on the
+  same terms TJAA-V0-117 sets for `Object.entries(NAME)`. (3) A computed member read `X[NAME]`
+  whose NAME is the counter of the innermost enclosing `for (let NAME = DIGITS; ...) { ... }`
+  block loop, in which every other use of NAME is an update (`++`, `--`), a comparison, a single
+  arithmetic operand, a property name or the whole index of another member access: NAME is then a
+  number, so the read takes a numeric key and never the key `tag`. A counter that is assigned,
+  rebound, shadowed, read outside its loop, or used as a computed write target still stops the
+  closure. Failure mode: an ordinary e2e spec reading a JSON fixture, summing `Object.values` or
+  walking `rows[i]` hides the whole grep omission behind a generic stop. Falsifier: a GH #1647
+  hidden-tag fixture, or a spec that reaches a tag array through one of the three admitted forms,
+  whose closure stays exact. Acceptance: `TestPlaywrightTagClosureParseValuesCounter_V12562`,
+  `TestPlaywrightGrepOmissionSourceTags_GH1647`, `TestPlaywrightTagClosureDetailsWithoutTag_GH1688`,
+  `TestPlaywrightTagClosureFreshObjectTypeKeyAndEntries_GH1881`.
+- **AFP-V0-961:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2582)
+  A neutral module that can build an object whose keys come from text MUST NOT leave the closure
+  exact. When any closure file imports `url`, `node:url` or `dotenv`, the first closure file that
+  names `parse` (other than `JSON.parse`), `parsed`, `populate` or `processEnv` in code MUST stop
+  the closure, naming that line as ``(line N: `NAME` builds an object from text, so a `tag` key
+  can exist without its name)``: `url.parse(text, true).query`, `dotenv.parse(text)`, a
+  `config()` result's `parsed` and `dotenv.populate` or `config({ processEnv })` each yield a
+  `tag` property without the text `tag`. A `node:` built-in import is followed as non-neutral
+  unless it is one of `node:path`, `node:os`, `node:url`, `node:fs`, `node:fs/promises`,
+  `node:crypto`, `node:child_process`, `node:process`, `node:buffer`, `node:assert`,
+  `node:events`, `node:timers`, `node:timers/promises` or `node:test`; others, such as `node:vm`,
+  `node:module`, `node:querystring` or `node:util`, can evaluate code or build keyed objects.
+  Failure mode: `test('x', url.parse('/?tag=@x', true).query, ...)` selects a tagged test that
+  the closure reports as untagged, so a grep omission goes unreported. Falsifier: a spec that
+  passes such a value as details, with a closure that stays exact. Known gap: `process.env`
+  passed whole or spread as details is not modelled. Acceptance:
+  `TestPlaywrightTagClosureParseValuesCounter_V12562`.
+  Rollback for AFP-V0-960 and AFP-V0-961: drop `playwrightCounterIndex`, `playwrightCounterLoop`,
+  `playwrightCounterUse`, `playwrightParseCallEnd`, `playwrightParseDeclaration` and the `values`
+  method, restore the `{`-only fresh-object initializer, and drop `playwrightTagKeyModules`,
+  `playwrightTagKeyBuilders`, `playwrightTagNeutralBuiltins` and the `builderStop` aggregation,
+  restoring the blanket `node:` neutrality.
 
 ### Playwright declaration closure and the declaration path (AFP-V0-442, AFP-V0-443, GitHub #1751)
 
@@ -645,6 +686,8 @@ hold or an unevaluable pattern keeps the omission unverified with its units name
 | AFP-V0-424 | `graphFrontierDetail`, `namedFrontierSites` in `playwright.go` | `TestPlaywrightDynamicSourceNamesSites_GH1688` |
 | AFP-V0-425 | `playwrightTagIndirection`, `playwrightTagTextLiteral`, `playwrightTagFileExact` in `playwright_tag_sources.go` | `TestPlaywrightTagClosureDetailsWithoutTag_GH1688`, `TestPlaywrightGrepOmissionSourceTags_GH1647` |
 | AFP-V0-426 | `playwrightRuntimeDetail`, `classifyPlaywrightFrontier` in `playwright.go` | `TestPlaywrightRuntimeDependencySummary_GH1688` |
+| AFP-V0-960 | `playwrightCounterIndex`, `playwrightParseDeclaration`, `playwrightEntriesCall` in `playwright_tag_sources.go` | `TestPlaywrightTagClosureParseValuesCounter_V12562`, `TestPlaywrightGrepOmissionSourceTags_GH1647` |
+| AFP-V0-961 | `playwrightTagKeyModules`, `playwrightTagKeyBuilders`, `playwrightTagNeutralBuiltins` in `playwright_tag_sources.go` | `TestPlaywrightTagClosureParseValuesCounter_V12562` |
 | AFP-V0-442 | `playwrightDeclaredPaths`, `playwrightClosure.build` and `playwrightClosure.member` in `internal/liveverify/affected/typescript/playwright_declaration.go` | `TestAffectedPlaywrightDeclarationClosure_GH1751` in `cmd/corvint/affected_playwright_closure_gh1751_test.go` (an out-of-closure `scripts/check.mjs` reader recorded in `outOfClosure` with `APPLIED`; a script a spec names, a module that script imports, and a closure with a dynamic import still refuse); `TestAffectedPlaywrightDeclarationReporterShape_GH1751` in `cmd/corvint/affected_playwright_reporter_shape_gh1751_test.go` (the reporter's committed `--base` range: a `testDir` config, a `package.json`-run CLI naming `docs/migrations/test-behavior-contracts.json` at line 11 plus its `node --test` file, recorded out of closure; plan narrowed to the changed spec); `TestAffectedPlaywrightPathDeclaration_GH1751` (an imported helper, specs and the config still refuse); reporter repository `NOT_OBSERVED` |
 | AFP-V0-443 | `declarationPath` and `ClassCorvintDeclaration` in `internal/liveverify/affected/documentation.go`, called from `Select` | `TestDocumentationDeclarationIsCorvintDeclaration_AFPV0443` (classified when unnamed; a file literal, a climbing directory literal and an unbounded reader keep `UNOWNED_DIRTY_PATH`); the declaration-added-in-the-range case of `TestAffectedPlaywrightDeclarationClosure_GH1751` and of `TestAffectedPlaywrightDeclarationReporterShape_GH1751`; `TestAffectedDocumentationDeclarationAddedInRange_GH1751` in `cmd/corvint/affected_documentation_range_gh1751_test.go` (generic plan: a declaration and a declared document both added in the range give `BOUNDED` with both classified; without the declaration the document is `UNOWNED_DIRTY_PATH`) |
 | AFP-V0-472 | `advisoryPytestCheck` in `cmd/corvint/affected_pytest.go`, called from `compileAffectedAdvice` in `cmd/corvint/affected.go` | `TestAFPV0472FlatLayoutPytestCommand` (flat layout, pyproject.toml, conftest.py and a helper filtered, no prefix) and `TestAFPV0475SrcLayoutPytestCommand` in `cmd/corvint/affected_pytest_advice_test.go`; both fixtures' commands run green under pytest 8.4.2, and the src one errors without its prefix; replay over the four V1-2717 pairs (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-26-affected-pytest-advice.md`) |

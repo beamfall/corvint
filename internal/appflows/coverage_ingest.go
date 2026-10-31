@@ -521,6 +521,9 @@ func IngestCoverage(ctx context.Context, in CoverageIngestInput) ([]byte, error)
 		return nil, coverageFail("coverage ingest requires a full commit revision")
 	}
 	commit, err := ResolveRevision(ctx, in.Root, in.Revision)
+	if errors.Is(err, errPlatformUnsupported) {
+		return nil, err
+	}
 	if err != nil || commit != in.Revision {
 		return nil, &gokernel.Error{Code: "coverage-invalid-revision", Message: "coverage revision is not a commit"}
 	}

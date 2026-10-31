@@ -4,7 +4,7 @@ Owner: Russell Lewis
 Date: 2026-09-22
 Requirement prefix: `PRS-V1`
 Status: accepted (decision 0373, 2026-09-23; scope expanded by decision 0426, 2026-09-28)
-Intent status: accepted (decisions 0373 and 0426, V1-0001 and V1-0461; PRS-V1-018 accepted (owner instruction 2026-10-13, V1-1344..V1-1348 at milestone v1-0))
+Intent status: accepted (decisions 0373 and 0426, V1-0001 and V1-0461; PRS-V1-018 accepted (owner instruction 2026-10-13, V1-1344..V1-1348 at milestone v1-0); PRS-V1-840 experimental under the owner's standing lane auto-accept (2026-10-31; V1-2487))
 Delivery status: partial; expanded 1.0 qualification pending
 Authoritative inputs: `../../AGENTS.md` invariants 1-8, `public-release-v0.md` (the 0.6 local-workflow
 scope, `PUB-V0-001..026` and the 2026-09-16 Core release scope amendment),
@@ -14,7 +14,7 @@ scope, `PUB-V0-001..026` and the 2026-09-16 Core release scope amendment),
 
 ## Agent digest
 - Claim: 1.0 requires Core change evidence, Flows, navigation, docs, MCP, automatic docs, PRS-V1-018 SDD improvements and the Tasks Beamfall takeover.
-- Status: accepted (decisions 0373 and 0426, V1-0001 and V1-0461; PRS-V1-018 accepted (owner instruction 2026-10-13, V1-1344..V1-1348 at milestone v1-0)) / partial; expanded 1.0 qualification pending
+- Status: accepted (decisions 0373 and 0426, V1-0001 and V1-0461; PRS-V1-018 accepted (owner instruction 2026-10-13, V1-1344..V1-1348 at milestone v1-0); PRS-V1-840 experimental under the owner's standing lane auto-accept (2026-10-31; V1-2487)) / partial; expanded 1.0 qualification pending
 - Exists: this spec, decision 0373 with the eleven owner answers, and the prospective amendment section in `public-release-v0.md`; the candidate reader and installer admit a Core-only profile (V1-0125), and `corvint-release-candidate` assembles one when `-companion-dir` is omitted (V1-0229). windows/amd64 is UNSUPPORTED for 1.0 and fails closed with typed refusals (decision 0559, `PRS-V1-021`, `PRS-V1-022`); native Windows qualification is post-1.0 and CI windows-vet stays.
 - Blocked on: V1-0019 external validation and V1-0020 qualification of the next candidate. `1.0.0-rc.1` (build 163, `b967f6bb`) is published as a prerelease with V1-0019 run-001 as a known issue (decision 0425): orientation FAIL on go-chi/chi (3 of 20) and beamfall/core (1 of 20), consequence and completion PASS on both, and the Corvint run aborted (V1-0431..V1-0433). The next run uses spf13/viper (decision 0555): urfave/cli (decision 0432), which replaced the cobra pin already scored in development, stopped counting as held out once the V1-0859 and V1-0431 fixes were derived from its rc.2 misses (decision 0539); the native linux/amd64 host is a GitHub-hosted `ubuntu-24.04` runner (decision 0420).
 - Read next: Expanded 1.0 product scope; Classification of shipped surfaces; Externally dependent gates.
@@ -421,6 +421,20 @@ accepted by decision 0373 and the amendment it requires are stated.
   `invalid-test-evidence-location` reason. darwin and linux reads are unchanged (V1-2484). Rollback:
   remove `platformRefusal` in `internal/doccorpus/encoding.go`; the code then reverts to
   `corpus-input-unavailable`.
+- `PRS-V1-840`: (experimental under the owner's standing lane auto-accept, 2026-10-31; V1-2487) A
+  Git read in `internal/appmap`, `internal/appflows` or `internal/testsource` that `procgroup.Run`
+  refuses with `process-platform-unsupported` MUST report that refusal and MUST NOT be renamed as
+  an input defect (`evaluated revision is not a commit`, `the revision is not a commit`, `is not a
+  Git worktree`, `not a Git checkout`, `has no HEAD commit` or `appmap-invalid-revision`).
+  `procgroup` exports `ErrPlatformUnsupported`, which only that refusal matches with `errors.Is`.
+  appmap and appflows refuse with code `process-platform-unsupported` and a message ending `:
+  process-platform-unsupported`; testsource keeps its listed code `tests-source-unavailable` with a
+  message ending `: process-platform-unsupported` and wraps `ErrPlatformUnsupported`, so
+  `testplatform.SkipWindowsRefusal` matches all three by the listed procgroup refusal. Non-goals:
+  running Git on Windows, and other packages' Git callers. Failure mode: a caller that rewraps the
+  resolver's error without `errors.Is` still misattributes it; the three packages' tests force the
+  refusal through their `runGit` seam. Rollback: revert the commit; the refusals return to their
+  revision wording.
 - `PRS-V1-920`: Every receipt-read caller outside the docs corpus MUST report the
   `testvaliditydoc.ErrPlatformUnsupported` refusal as code `test-validity-platform-unsupported` with
   the message `receipt reads are unsupported on this platform`, never as its own invalid-receipt,
@@ -509,7 +523,8 @@ is `github.com/go-chi/chi` (decision 0422). The questions stay as asked.
 | `PRS-V1-007` | V1-0014 | `NOT_RUN` |
 | `PRS-V1-019` | `make cross-vet` freebsd/openbsd/netbsd/solaris amd64 lines; `TestReadTargetOnceOtherRefusesRegularFile` (compiled by the cross vet); `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-21-portwire-1021x-xplat-wire.md` (V1-0393) | PASS (cross vet, 2026-10-21); native BSD/Solaris execution `NOT_RUN` |
 | `PRS-V1-020` | `TestPRSV1020VersionJSONNamesVerbsAndHosts` (V1-0300) | PASS (unit); no plugin tree reads it yet |
-| `PRS-V1-021` | Decision 0559; `TestPlatformRefusalsMatchTheirSources`, `TestDocsCorpusAndReceiptRefusalsSkipOnlyOnWindows` (V1-2485) | Owner scope recorded; V1-2487 and V1-2492 remain open rule-2 defects |
+| `PRS-V1-021` | Decision 0559; `TestPlatformRefusalsMatchTheirSources`, `TestDocsCorpusAndReceiptRefusalsSkipOnlyOnWindows` (V1-2485) | Owner scope recorded; V1-2492 remains an open rule-2 defect (V1-2487 by `PRS-V1-840`) |
+| `PRS-V1-840` | `TestGitPlatformRefusalIsNotReportedAsARevisionDefect` in `internal/appmap`, `internal/appflows` and `internal/testsource`; `TestProcessErrorMatchesPlatformSentinelOnlyForPlatformRefusal`, `TestRunPlatformRefusalIsTheSentinel` (Windows) (V1-2487) | PASS (unit, linux/WSL2); native Windows execution `NOT_RUN` |
 | `PRS-V1-022` | `TestPRSV1022CorpusReadsRefuseAnUnsupportedPlatformWithATypedCode`, `TestPRSV1022ReceiptPlatformRefusalMatchesTheQualifiedPlatforms`, `TestPRSV1022UnqualifiedPlatformRefusesEveryReceiptOpen` (windows-tagged, type-checked by `make windows-vet`) (V1-2484) | PASS (unit, linux/WSL2); native Windows execution `NOT_RUN` |
 | `PRS-V1-920` | `TestPRSV1920ProviderReadReportsThePlatformRefusal`, `TestPRSV1920BridgeReportsThePlatformRefusal`, `TestPRSV1920MaintenanceReadReportsThePlatformRefusal`, `TestPRSV1920ReceiptAndRequirementReadsReportThePlatformRefusal` (V1-2683) | PASS (unit, darwin); native Windows execution `NOT_RUN` |
 | `PRS-V1-008` | V1-0019 run-001 on `1.0.0-rc.1` (`b967f6bb`), `benchmarks/untouched-repository-v1/runs/run-001.json` | FAIL: orientation on go-chi/chi (3 of 20) and beamfall/core (1 of 20); Corvint aborted; known issue of `1.0.0-rc.1` (decision 0425) |

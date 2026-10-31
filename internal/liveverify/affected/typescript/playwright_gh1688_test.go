@@ -91,7 +91,7 @@ func TestPlaywrightTagClosureDetailsWithoutTag_GH1688(t *testing.T) {
 	}{
 		{"annotation-only details object", "import { annotation } from './annotation';\ntest('plain', { annotation: annotation('some-id') }, async ({ request }) => {\n  const res = await request.get('/x');\n});\n", helper, grepReproCases, ""},
 		{"page fill and own array push", "test.describe('d', { tag: '@smoke' }, () => {\n  test('plain', { annotation: { type: 'a', description: 'b' } }, async ({ page }) => {\n    const ids: string[] = [];\n    ids.push('x');\n    await page.fill('#q', ids[0]);\n  });\n});\n", nil, smoke, ""},
-		{"reflective name stops at its line", "test('plain', { annotation: { type: 'a', description: 'b' } }, async () => {\n  const body = JSON.parse('{}');\n});\n", nil, grepReproCases, "e2e/plain.spec.ts holds a tag or construct that is not one literal @\\S+ string (line 2: `JSON` can build or enumerate a property at run time)"},
+		{"reflective name stops at its line", "test('plain', { annotation: { type: 'a', description: 'b' } }, async () => {\n  keep(JSON.parse('{}'));\n});\n", nil, grepReproCases, "e2e/plain.spec.ts holds a tag or construct that is not one literal @\\S+ string (line 2: `JSON` can build or enumerate a property at run time)"},
 		{"computed member access stops at its line", "test('plain', async () => {\n  const ids = [1];\n  for (let i = 0; i < 1; i++) ids[i];\n});\n", nil, grepReproCases, "(line 3: a computed member access can reach a tag array without naming it)"},
 	} {
 		t.Run(row.label, func(t *testing.T) {

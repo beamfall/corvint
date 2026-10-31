@@ -276,6 +276,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 		}
 	}
 	units := make([]affected.Unit, 0, len(observed))
+	siteSets := make([]map[string]bool, 0, len(observed)+1)
 	support := supportIndex{}
 	for _, item := range observed {
 		imports := resolveLoads(item, aliases, item.frontier)
@@ -306,7 +307,13 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 			unit.Tests = []string{item.relative}
 		}
 		unit.Frontier = undeclared(item.frontier, declared)
+		siteSets = append(siteSets, item.frontier)
 		units = append(units, unit)
+	}
+	// A declared entry that resolves no observed site is stale and stays
+	// visible as a plugin-wide site (RUBY-AFFECTED-V0-960).
+	for _, stale := range staleDeclarations(declared, append(siteSets, frontier)) {
+		frontier[stale] = true
 	}
 	sort.Slice(units, func(left, right int) bool { return units[left].ID < units[right].ID })
 	return affected.Result{Units: units, Frontier: undeclared(frontier, declared)}, nil
