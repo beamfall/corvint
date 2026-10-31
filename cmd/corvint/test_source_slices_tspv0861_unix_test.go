@@ -129,7 +129,8 @@ func TestTSPV0861DryRunSlicesSourceAndTestChanges(t *testing.T) {
 // TSP-V0-864: a changed file whose residue differs only by comments (directives
 // unchanged) or by whole new const and type declarations is sliced to the tests
 // reaching its changed functions and new names; a new var, import or method, a
-// changed directive or a changed declaration keeps it whole.
+// changed directive or directive binding, a legacy build constraint in any
+// spelling, or a changed declaration keeps it whole.
 func TestTSPV0864DryRunSlicesAdditiveDeclarations(t *testing.T) {
 	root, base := sourceSliceFixture(t)
 	original, err := os.ReadFile(filepath.Join(root, "r/r.go"))
@@ -190,38 +191,43 @@ func TestTSPV0864DryRunSlicesAdditiveDeclarations(t *testing.T) {
 			}
 		})
 	}
+	// Each embed directive binds the var below it; the swap keeps the
+	// directive multiset and the uncommented residue but moves the bindings.
+	embedded := func(first, second string) string {
+		return strings.Replace(r, "package r\n", "package r\n\nimport _ \"embed\"\n\n//go:embed "+first+"\nvar A string\n\n//go:embed "+second+"\nvar B string\n", 1)
+	}
 	for _, tc := range []struct {
-		name  string
-		edits map[string]string
+		name, base string // base, when set, is committed as r/r.go before the edit
+		edits      map[string]string
 	}{
-		{"a new var", map[string]string{"r/r.go": r + "\nvar limit = 3\n"}},
-		{"a new import", map[string]string{"r/r.go": strings.Replace(r, "package r\n", "package r\n\nimport _ \"strings\"\n", 1)}},
-		{"a new method on a new type", map[string]string{"r/r.go": r + "\ntype Unit int\n\nfunc (u Unit) Twice() Unit { return u * 2 }\n"}},
-		{"a new directive", map[string]string{"r/r.go": r + "\n//go:generate echo r\n"}},
-		{"a changed declaration", map[string]string{"r/r.go": r + "\nconst Limit = 3\n"}},
+		{"a new var", "", map[string]string{"r/r.go": r + "\nvar limit = 3\n"}},
+		{"a new import", "", map[string]string{"r/r.go": strings.Replace(r, "package r\n", "package r\n\nimport _ \"strings\"\n", 1)}},
+		{"a new method on a new type", "", map[string]string{"r/r.go": r + "\ntype Unit int\n\nfunc (u Unit) Twice() Unit { return u * 2 }\n"}},
+		{"a new directive", "", map[string]string{"r/r.go": r + "\n//go:generate echo r\n"}},
+		{"a legacy build constraint without a space", "", map[string]string{"r/r.go": "//+build ignore\n\n" + r}},
+		{"a changed declaration", r + "\nconst Limit = 3\n", map[string]string{"r/r.go": r + "\nconst Limit = 4\n"}},
+		{"swapped embed directives", embedded("a.txt", "b.txt"), map[string]string{"r/r.go": embedded("b.txt", "a.txt")}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			edits := tc.edits
-			if tc.name == "a changed declaration" {
-				// Base gains the const first, then the change alters its value.
+			if tc.base != "" {
 				write := func(body string) {
 					if err := os.WriteFile(filepath.Join(root, "r/r.go"), []byte(body), 0o644); err != nil {
 						t.Fatal(err)
 					}
 				}
 				affectedGit(t, root, "checkout", "-q", "--", ".")
-				write(r + "\nconst Limit = 3\n")
-				affectedGit(t, root, "commit", "-qam", "limit")
+				write(tc.base)
+				affectedGit(t, root, "commit", "-qam", "base")
 				defer func() { affectedGit(t, root, "reset", "-q", "--hard", base) }()
 				newBase := strings.TrimSpace(affectedGit(t, root, "rev-parse", "HEAD"))
-				write(r + "\nconst Limit = 4\n")
+				write(tc.edits["r/r.go"])
 				code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", newBase, "--dry-run", "--manifest", filepath.Join(t.TempDir(), "m.json"))
 				if code != 0 || !strings.Contains(stdout, "r/r.go changes more than plain functions") {
 					t.Fatalf("code %d stdout %q stderr %q", code, stdout, stderr)
 				}
 				return
 			}
-			got := plan(t, edits)[id]
+			got := plan(t, tc.edits)[id]
 			if got.Slice != sessiontest.SliceWhole || !strings.Contains(got.Reason, "changes more than plain functions") {
 				t.Fatalf("unit %+v, want whole", got)
 			}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"go/ast"
+	"go/build/constraint"
 	"go/parser"
 	"go/scanner"
 	"go/token"
@@ -438,26 +439,15 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 
 // testSourceAdditive admits a changed file whose residue (the file less its
 // receiver-less functions other than init) differs from base only in
-// comments, with every directive comment (//go:, //line, /*line, // +build)
-// the same in both, or by whole new const and type declarations whose names
-// base does not declare (TSP-V0-864). It returns the new names. A changed or
-// removed declaration, a new import, var, method or init, and a changed
-// package clause are refused: initialization, interface dispatch and
-// package state lie outside the lexical model.
+// comments, with every directive comment (//go:, //line, /*line, and a build
+// constraint as go/build/constraint classifies it) bound to the same
+// declaration in the same order in both, or by whole new const and type
+// declarations whose names base does not declare (TSP-V0-864). It returns the
+// new names. A changed or removed declaration, a new import, var, method or
+// init, and a changed package clause are refused: initialization, interface
+// dispatch and package state lie outside the lexical model.
 func testSourceAdditive(head *ast.File, headSet *token.FileSet, headSource []byte, base *ast.File, baseSet *token.FileSet, baseSource []byte) ([]string, bool) {
-	directives := func(file *ast.File) []string {
-		var out []string
-		for _, group := range file.Comments {
-			for _, comment := range group.List {
-				if text := comment.Text; strings.HasPrefix(text, "//go:") || strings.HasPrefix(text, "//line ") || strings.HasPrefix(text, "/*line ") || strings.HasPrefix(text, "// +build") {
-					out = append(out, text)
-				}
-			}
-		}
-		slices.Sort(out)
-		return out
-	}
-	if !slices.Equal(directives(head), directives(base)) {
+	if !slices.Equal(testSourceDirectives(head), testSourceDirectives(base)) {
 		return nil, false
 	}
 	baseNames := make(map[string]bool)
@@ -523,6 +513,76 @@ func testSourceAdditive(head *ast.File, headSet *token.FileSet, headSource []byt
 		}
 	}
 	return names, true
+}
+
+// testSourceDirectives lists, in source order, each directive comment of file
+// with the declaration it binds: the package clause for one above it, else the
+// innermost declaration or spec beginning next (TSP-V0-864). A //go:embed
+// above var A therefore differs from the same directive above var B.
+func testSourceDirectives(file *ast.File) []string {
+	type target struct {
+		pos token.Pos
+		key string
+	}
+	targets := []target{{file.Package, "package " + file.Name.Name}}
+	specNames := func(spec ast.Spec) string {
+		switch spec := spec.(type) {
+		case *ast.ImportSpec:
+			return spec.Path.Value
+		case *ast.TypeSpec:
+			return spec.Name.Name
+		case *ast.ValueSpec:
+			var names []string
+			for _, name := range spec.Names {
+				names = append(names, name.Name)
+			}
+			return strings.Join(names, ",")
+		}
+		return ""
+	}
+	for _, decl := range file.Decls {
+		switch decl := decl.(type) {
+		case *ast.FuncDecl:
+			key := "func " + decl.Name.Name
+			if decl.Recv != nil {
+				key = "func (" + testSourceReceiver(decl.Recv) + ") " + decl.Name.Name
+			}
+			targets = append(targets, target{decl.Pos(), key})
+		case *ast.GenDecl:
+			var names []string
+			for _, spec := range decl.Specs {
+				names = append(names, specNames(spec))
+			}
+			targets = append(targets, target{decl.Pos(), decl.Tok.String() + " " + strings.Join(names, ";")})
+			if decl.Lparen.IsValid() {
+				for _, spec := range decl.Specs {
+					targets = append(targets, target{spec.Pos(), decl.Tok.String() + " " + specNames(spec)})
+				}
+			}
+		}
+	}
+	var out []string
+	for _, group := range file.Comments {
+		for _, comment := range group.List {
+			text := comment.Text
+			if !(strings.HasPrefix(text, "//go:") || strings.HasPrefix(text, "//line ") || strings.HasPrefix(text, "/*line ") || constraint.IsGoBuild(text) || constraint.IsPlusBuild(text)) {
+				continue
+			}
+			key := ""
+			if comment.End() <= file.Package {
+				key = targets[0].key
+			} else {
+				for _, candidate := range targets[1:] {
+					if candidate.pos >= comment.End() {
+						key = candidate.key
+						break
+					}
+				}
+			}
+			out = append(out, text+"\x00"+key)
+		}
+	}
+	return out
 }
 
 // testSourceLinkname reports whether a comment of file is a //go:linkname
