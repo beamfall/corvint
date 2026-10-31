@@ -10,12 +10,12 @@ import (
 
 // TestFinishLaneDCWV0806NamesTheOriginatingRefusal reproduces V1-3381 with the
 // installed binary: an intent spec over one OCM map's 256-obligation bound
-// makes ocm-prepare-001 refuse too-many-obligations, after which ocm-aggregate
-// reports intent-scope-drift. The bind failure must name the prepare refusal
-// as its CAUSE, give that row a fix, point the aggregate row back at it and
-// name the sidecar recovery; a rerun of the same command must reach the same
-// CAUSE instead of a dirty-worktree refusal. Fails on BASE, which printed no
-// CAUSE line and blamed a drift.
+// used to make ocm-prepare-001 refuse too-many-obligations at the bind, after
+// which ocm-aggregate reported intent-scope-drift (DCW-V0-806 named the
+// prepare refusal as the CAUSE). Since DCW-V0-961 the prepare pass refuses
+// that intent before any step, naming it, so no bind runs, no sidecar is left
+// and no drift is blamed; a rerun reaches the same refusal instead of a
+// dirty-worktree refusal.
 func TestFinishLaneDCWV0806NamesTheOriginatingRefusal(t *testing.T) {
 	t.Parallel()
 	run := portableDogfoodRunner(t)
@@ -53,14 +53,15 @@ func TestFinishLaneDCWV0806NamesTheOriginatingRefusal(t *testing.T) {
 	for attempt := 1; attempt <= 2; attempt++ {
 		code, stdout, stderr := run.exec(t, root, finishLaneIdentity, args...)
 		for _, want := range []string{
-			"dogfood-finish-lane: CAUSE bind ocm-prepare-001 too-many-obligations\n  recover: this pass left the uncommitted .corvint/change.cem.json",
-			"dogfood-finish-lane: bind FAIL exit=1\n",
-			"  ocm-prepare-001: too-many-obligations\n    fix: the intent on line N of DOGFOOD_INTENTS_FILE, ocm-prepare-001 being ocm-prepare-N, derives more obligations than one OCM map admits (256 requirements, OCM-V0-023)",
-			"  ocm-aggregate: intent-scope-drift\n    fix: ocm-prepare-001 refused too-many-obligations first, so the aggregate did not run and no intent drifted",
+			"REFUSE too-many-obligations\n",
+			"  intent docs/specs/big-v0.md in DOGFOOD_INTENTS_FILE derives more obligations at HEAD than one OCM map admits (256); no step ran",
 		} {
-			if code != 1 || !strings.Contains(stdout+stderr, want) {
+			if code != 2 || !strings.Contains(stdout+stderr, want) || strings.Contains(stdout+stderr, "intent-scope-drift") || strings.Contains(stdout, "bind FAIL") {
 				t.Fatalf("attempt %d exit=%d lacks %q\nstdout=%s\nstderr=%s", attempt, code, want, stdout, stderr)
 			}
+		}
+		if _, err := os.Lstat(filepath.Join(root, ".corvint", "change.cem.json")); !os.IsNotExist(err) {
+			t.Fatalf("attempt %d left a sidecar: %v", attempt, err)
 		}
 		if strings.Contains(stdout+stderr, "dirty-worktree") {
 			t.Fatalf("attempt %d refused the failed pass's sidecar:\n%s%s", attempt, stdout, stderr)
