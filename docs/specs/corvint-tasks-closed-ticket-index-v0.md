@@ -40,7 +40,8 @@ byte-identical with and without it.
   and the summary. A read trusts an entry only when the file's current size and modification time
   equal the entry's and that time is more than 2 seconds before the capture time. A trusted file is
   not read during the snapshot probe; its digest is the entry's, so the intent tree digest is
-  unchanged.
+  unchanged. A trusted entry's size still counts toward the intent tree bound, so a capture whose
+  read and trusted files together exceed it is refused with `LIMIT_EXCEEDED`.
 - `TCX-V0-982`: Only `ticket search`, `roadmap`, `queue status`, `ticket show` and
   `ticket blockers` read with the index. Their scans of OPEN and HELD tickets skip closed
   summaries. Any index that is absent, unreadable, over the intent tree size bound, of another
@@ -113,7 +114,7 @@ their commit removes them with no effect on stores.
 | Requirement | Evidence |
 | --- | --- |
 | `TCX-V0-980` | `TestTCXV0_LazyInventoryMatchesFull`, `TestTCXV0_IndexedReadParity` |
-| `TCX-V0-981` | `TestTCXV0_ClosedIndexRoundTrip`, `TestTCXV0_ChangedFileNotTrusted` |
+| `TCX-V0-981` | `TestTCXV0_ClosedIndexRoundTrip`, `TestTCXV0_ChangedFileNotTrusted`, `TestTCXV0_CachedEntriesCountTowardTreeBound` |
 | `TCX-V0-982` | `TestTCXV0_CorruptIndexFullScan`, `TestTCXV0_MovedClosedRecordFails`, `TestTCXV0_IndexedReadParity` |
 | `TCX-V0-983` | `TestTCXV0_PolicyMismatchNotTrusted`, `TestTCXV0_IndexedReadParity` |
 | `TCX-V0-984` | `TestTCXV0_RacyEntryLeftOut` |
