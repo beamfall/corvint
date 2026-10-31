@@ -11,6 +11,7 @@ package kotlin
 import (
 	"context"
 	"path"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -34,6 +35,10 @@ const (
 	// FrontierAndroidTestModule reports a test in a com.android.test module,
 	// whose connected task the build's variants define (KAT-V0-762).
 	FrontierAndroidTestModule = "kotlin:android-test-module"
+	// FrontierCrossRepositoryBuild prefixes the frontier of a Gradle
+	// includeBuild outside the repository root, suffixed with the included
+	// path as the settings file names it (V1-2055).
+	FrontierCrossRepositoryBuild = "kotlin:cross-repository-build"
 )
 
 // Framework names returned by detectFrameworks. MockK is deliberately an
@@ -102,7 +107,13 @@ type buildLayout struct {
 	composite     bool
 	// androidTest holds each com.android.test module directory (KAT-V0-762).
 	androidTest map[string]bool
+	// crossBuilds holds each includeBuild path outside the root (KAT-V0-763).
+	crossBuilds []string
 }
+
+// includeBuildPattern matches a literal includeBuild path, in the Kotlin
+// call or the Groovy command form.
+var includeBuildPattern = regexp.MustCompile(`includeBuild\s*\(?\s*["']([^"'\n]+)["']`)
 
 // Units observes every Kotlin source and resolves static first-party imports.
 func (language Language) Units(ctx context.Context, root string) (affected.Result, error) {
@@ -127,6 +138,11 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 		return affected.Result{}, err
 	}
 	frontier := map[string]bool{}
+	// A build included from outside the root is another repository: its
+	// changes and its units are absent from this graph (KAT-V0-763).
+	for _, included := range layout.crossBuilds {
+		frontier[FrontierCrossRepositoryBuild+":"+included] = true
+	}
 	observations := make([]sourceObservation, 0, len(files))
 	seenIDs := make(map[string]bool, len(files))
 	java := make([]javaReferrer, 0)
@@ -214,6 +230,11 @@ func observeBuildLayout(root *affected.Source) (buildLayout, error) {
 		}
 		layout.projectMapped = layout.projectMapped || remapsProjectDirectory(text)
 		layout.composite = layout.composite || strings.Contains(text, "includeBuild(") || strings.Contains(text, "includeBuild ")
+		for _, match := range includeBuildPattern.FindAllStringSubmatch(text, -1) {
+			if included := path.Join(path.Dir(manifest), match[1]); path.IsAbs(match[1]) || included == ".." || strings.HasPrefix(included, "../") {
+				layout.crossBuilds = append(layout.crossBuilds, match[1])
+			}
+		}
 	}
 	return layout, nil
 }

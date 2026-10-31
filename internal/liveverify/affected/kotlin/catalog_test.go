@@ -81,3 +81,25 @@ func TestAndroidTestModuleYieldsATypedUnit_KATV0762(t *testing.T) {
 		t.Fatalf("frontier=%v, want %s and no custom-source-set", result.Frontier, FrontierAndroidTestModule)
 	}
 }
+
+// KAT-V0-763 (V1-2055): an includeBuild outside the root is the named
+// cross-repository frontier carrying the included path; one inside the root
+// is not.
+func TestIncludeBuildOutsideTheRootIsANamedFrontier_KATV0763(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, "settings.gradle.kts", "rootProject.name = \"app\"\nincludeBuild(\"../beamfall-android-ui\")\nincludeBuild(\"build-logic\")\n")
+	write(t, root, "nested/settings.gradle", "includeBuild '../../shared'\n")
+	write(t, root, "app/src/main/kotlin/app/App.kt", "package app\nclass App\n")
+	result, err := New().Units(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{FrontierCrossRepositoryBuild + ":../beamfall-android-ui", FrontierCrossRepositoryBuild + ":../../shared"} {
+		if !contains(result.Frontier, want) {
+			t.Errorf("frontier %v lacks %s", result.Frontier, want)
+		}
+	}
+	if contains(result.Frontier, FrontierCrossRepositoryBuild+":build-logic") {
+		t.Errorf("frontier %v names the in-root build-logic", result.Frontier)
+	}
+}
