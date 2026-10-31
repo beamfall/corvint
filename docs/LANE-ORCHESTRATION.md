@@ -439,11 +439,11 @@ every gap above the threshold with the time the watchdog would have flagged it.
   `batch-review-packet` and `batch-precheck --base` refuse one up front with `REFUSE
   shallow-repository` and the recovery `git -C <shared> fetch --unshallow origin` (or a reclone
   without `--depth`).
-- No commit carries an AI co-author or "Generated with" trailer (ASD-V0-071, V1-3227). The
-  commit-msg hook `lane-setup.sh` installs (`script/check-ai-trailers.sh --install`, shared by every
-  worktree of the clone) refuses one at commit time, and `make batch-precheck` refuses any commit in
-  `BASE..HEAD` (default `origin/main..HEAD`) that carries one, naming the commit and the line;
-  remove it with `git commit --amend` or a reword before the batch push. The dogfood
+- No commit carries an AI co-author or "Generated with" trailer (ASD-V0-560, ASD-V0-831, V1-3227).
+  The commit-msg hook `lane-setup.sh` installs (`script/check-ai-coauthor-trailers.sh
+  --install-hook`, shared by every worktree of the clone) refuses one at commit time, and
+  `make batch-precheck` refuses any commit in `BASE..HEAD` (default `origin/main..HEAD`) that
+  carries one, naming the commit and the line, and prints the `--strip` rebase that removes it. The dogfood
   loop supports linked worktrees with per-worktree trace stores and locks (`DCW-V0-044`); never
   switch one checkout between lanes. A fresh plain clone remains the fallback until a live lane has
   run `dogfood-finish` and `dogfood-batch-check` in a linked worktree

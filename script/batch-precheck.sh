@@ -528,15 +528,9 @@ steps() {
   done
   printf 'ai-coauthor-trailers (%s)\t%q --batch %q\n' "$(git rev-parse --short HEAD)" "${0%/*}/check-ai-coauthor-trailers.sh" "$base" # ASD-V0-560, V1-3227
   printf 'sync-check\t%q --sync-check\n' "$0"
-  # ASD-V0-071 (V1-3227): no commit since the base (else origin/main) carries an AI trailer; HEAD
-  # is in the command, so a ledger pass never covers a reworded commit. ASD-V0-073 (V1-3238): the
-  # legal-file pins run as the legal-file-pins-check doc gate above (ASD-V0-584, V1-3374).
-  local tbase thead
-  if tbase=$(git rev-parse --verify -q "${base:-origin/main}^{commit}") && thead=$(git rev-parse --verify -q 'HEAD^{commit}'); then
-    printf 'ai-trailers\t%q --range %q %q\n' "$self_dir/check-ai-trailers.sh" "$tbase" "$thead"
-  else
-    printf 'ai-trailers\tprintf "%%s\\n" %q\n' "skipped: ${base:-origin/main} or HEAD is not a commit"
-  fi
+  # ASD-V0-831 (V1-3337): the ai-coauthor-trailers step above is the only AI-trailer check
+  # (ASD-V0-071's ai-trailers step is retired). ASD-V0-073 (V1-3238): the legal-file pins run as
+  # the legal-file-pins-check doc gate above (ASD-V0-584, V1-3374).
 }
 
 base=${BATCH_PRECHECK_BASE:-}
@@ -946,9 +940,7 @@ if [[ -n $base ]]; then
     if [[ -n $hr ]]; then
       printf 'batch-precheck: FAIL %s (%ss) host-resource: %s; not compared with %s: free disk or memory (TMPDIR=%s) and rerun\n' \
         "$name" "$secs" "$hr" "$base" "${TMPDIR:-/tmp}"
-    # ASD-V0-071: the ai-trailers step checks the same pinned BASE..HEAD range at the base, so its
-    # failure would always look base-present; a history check is never downgraded.
-    elif [[ $name != ai-trailers ]] && at_base "${line#*$'\t'}" "$dir/$i.log"; then
+    elif at_base "${line#*$'\t'}" "$dir/$i.log"; then
       : > "$dir/$i.warn"
       printf 'batch-precheck: WARN %s (%ss) base-present: fails the same way at %s\n' "$name" "$secs" "$base"
       tail -n 40 "$dir/$i.log" | sed 's/^/  | /'

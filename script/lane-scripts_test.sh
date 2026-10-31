@@ -5,7 +5,7 @@
 # lane-clean.sh (ASD-V0-018), lane-guard.sh (ASD-V0-024),
 # install-local-bin.sh (ASD-V0-025), install-cem-verifiers.sh (TCB-V0-046),
 # wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), codex-review.sh
-# (ASD-V0-064), lane-setup.sh (ASD-V0-071, ASD-V0-072). No Go build runs.
+# (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831). No Go build runs.
 set -uo pipefail
 export LC_ALL=C
 # The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
@@ -1219,12 +1219,14 @@ limit=0 spv go test ./tools/small
 [[ $? == 2 ]] || fail "HEAVY_SMALL_TEST_BYTES=0 did not disable the exemption"
 ok
 
-# ASD-V0-072 (V1-3230), ASD-V0-071 (V1-3227): lane-setup.sh refuses a shallow shared clone with the
+# ASD-V0-072 (V1-3230), ASD-V0-831 (V1-3337): lane-setup.sh refuses a shallow shared clone with the
 # `git fetch --unshallow` recovery and creates nothing; on the full clone it adds the lane worktree
-# on its branch at origin/main and installs the commit-msg hook that refuses an AI trailer.
+# on its branch at origin/main and installs the commit-msg hook that refuses an AI trailer. The hook
+# runs the lane's own script/check-ai-coauthor-trailers.sh, so the source commits it.
 ls_src=$tmp/lane-setup-src
 git init -q "$ls_src" && git -C "$ls_src" -c user.name=t -c user.email=t@t commit -q --allow-empty -m one &&
-  git -C "$ls_src" -c user.name=t -c user.email=t@t commit -q --allow-empty -m two || fail "lane-setup source"
+  mkdir -p "$ls_src/script" && /bin/cp -f "$script/check-ai-coauthor-trailers.sh" "$ls_src/script/" &&
+  git -C "$ls_src" add script && git -C "$ls_src" -c user.name=t -c user.email=t@t commit -q -m two || fail "lane-setup source"
 git clone -q --depth 1 "file://$ls_src" "$tmp/lane-setup-shallow" 2> /dev/null || fail "lane-setup shallow clone"
 out=$("$script/lane-setup.sh" --repo "$tmp/lane-setup-shallow" --dir "$tmp/lane-a" --branch claude/a 2>&1)
 rc=$?
