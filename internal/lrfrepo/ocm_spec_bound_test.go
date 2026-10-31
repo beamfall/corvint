@@ -15,7 +15,7 @@ import (
 //
 // overBoundSpecs are the specs already over the bound when this check was
 // added; each must stay over it, so the list shrinks as they are restructured.
-var overBoundSpecs = map[string]bool{"affected-plan-v0.md": true}
+var overBoundSpecs = map[string]bool{}
 
 func TestSpecsStayWithinTheOCMObligationBound(t *testing.T) {
 	paths, err := filepath.Glob("../../docs/specs/*.md")
