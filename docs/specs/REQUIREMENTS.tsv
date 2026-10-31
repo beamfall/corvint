@@ -2806,6 +2806,9 @@ TRM-V0-004	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(propose
 TRM-V0-005	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3189) Widen on a live attempt under an admission barrier MUST stay	unrecorded	-
 TRM-V0-006	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3190) A claim whose requested `--scope` paths fall outside the	unrecorded	-
 TRM-V0-007	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3190) A requested path that no attempt of the ticket held MUST	unrecorded	-
+TRM-V0-800	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3191) `corvint-tasks claim <ticket> --admit-under-barrier` and	unrecorded	-
+TRM-V0-801	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3191) The exemption MUST be explicit and recorded: the flag joins	unrecorded	-
+TRM-V0-802	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3191) The `PAUSED` refusal of a named claim, and the widen remedy	unrecorded	-
 SCC-V0-001	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) `store.S	standing	2026-10-11; V1-1920
 SCC-V0-002	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) An ABSEN	standing	2026-10-11; V1-1920
 SCC-V0-003	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) The patc	standing	2026-10-11; V1-1920
