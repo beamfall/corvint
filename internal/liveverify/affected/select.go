@@ -66,6 +66,10 @@ const (
 	// UnknownNoSelectableTest reports a changed unit (one owning a dirty path)
 	// that no selectable test checks under its plugin's rule (AFP-V0-020).
 	UnknownNoSelectableTest = "NO_SELECTABLE_TEST"
+	// UnknownUnselectedBinaryConsumer reports a file the project declares as
+	// running the built binary of a Go command this change reaches, when no
+	// selected unit carries it as a test (AFP-V0-762).
+	UnknownUnselectedBinaryConsumer = "UNSELECTED_BINARY_CONSUMER"
 )
 
 // Scope axes, per the LPCV result-axis rule. Selection produces scope only;
@@ -283,6 +287,7 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 		})
 	}
 	graph.rank(plan.Selected)
+	plan.Unknown = append(plan.Unknown, graph.unselectedConsumers(reached, plan.Selected)...)
 	graph.symlinkHints(plan.Unknown)
 	if len(plan.Unknown) != 0 {
 		plan.Scope = ScopeUnknown
