@@ -16,11 +16,7 @@ package shell
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	"io/fs"
 	"path"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
@@ -147,49 +143,18 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
 }
 
-// hiddenFiles lists the shell files under each present HiddenRoots
-// directory, skipping hidden directories below it as the shared walk does
+// hiddenFiles lists the shell files under each HiddenRoots directory through
+// Source.FilesUnder, which skips hidden directories below it as the shared
+// walk does and stamps each listed directory, so the graph stays cacheable
 // (NSA-V0-800). An absent root contributes nothing.
 func hiddenFiles(root *affected.Source) ([]string, error) {
 	var files []string
 	for _, directory := range HiddenRoots {
-		if info, err := root.Stat(directory); errors.Is(err, fs.ErrNotExist) || err == nil && !info.IsDir() {
-			continue
-		} else if err != nil {
-			return nil, err
-		}
-		// A disk source visits absolute paths, an immutable one relative
-		// paths; the first visit is the directory itself, so its prefix
-		// turns either into the repository-relative slash path.
-		prefix, entries := "", 0
-		err := root.Walk(directory, func(current string, entry fs.DirEntry, err error) error {
-			if err != nil {
-				return err
-			}
-			if entries++; entries == 1 {
-				prefix = strings.TrimSuffix(current, filepath.FromSlash(directory))
-			} else if entries > affected.MaxWalkEntries {
-				return affected.ErrWalkLimit
-			}
-			relative := filepath.ToSlash(strings.TrimPrefix(current, prefix))
-			if entry.IsDir() {
-				if relative != directory && (strings.HasPrefix(entry.Name(), ".") || affected.SkippedDirectories[entry.Name()]) {
-					return fs.SkipDir
-				}
-				return nil
-			}
-			if !hasAnySuffix(entry.Name(), Suffixes) {
-				return nil
-			}
-			if !entry.Type().IsRegular() || !affected.ValidRelativePath(relative) {
-				return fmt.Errorf("%w: %q", affected.ErrWalkUnrepresentable, relative)
-			}
-			files = append(files, relative)
-			return nil
-		})
+		found, err := root.FilesUnder(directory, func(name string) bool { return hasAnySuffix(name, Suffixes) })
 		if err != nil {
 			return nil, err
 		}
+		files = append(files, found...)
 	}
 	return files, nil
 }
