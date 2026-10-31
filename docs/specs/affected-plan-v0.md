@@ -5279,6 +5279,29 @@ filed from its plan. Nothing in the receipt said the binary was older than the s
   is advisory only and changes no plan. Rollback: remove `FrontierRoute`, its `Select` loop and
   the Go route text.
 
+### Declared binary consumers (AFP-V0-762; V1-1017)
+
+- **AFP-V0-762:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-1017)
+  Amending AFP-V0-037: `.corvint/test-binary-execs.json` MAY carry the optional member
+  `consumers`, `{FILE:[COMMAND_DIR...]}`, naming a repository file that no Go package holds (such as
+  a Node script) and the commands whose built binary it runs; `packages` and `consumers` together
+  hold at most 4096 keys, each under the `packages` entry grammar, and every entry must be an
+  observed command, else the whole declaration is invalid (`go:test-binary-execs-invalid`). The Go
+  plugin SHALL record each consumer file as a TSP-V0-005 `callers` entry of each named command
+  unit, so the file's owning unit, if any, becomes a dependent (or a test user when the file is
+  one of its tests). When a plan reaches a command's build (a `DIRECT_SOURCE_CHANGE`,
+  `DEPENDENCY_PATH` or `ENCLOSING_PACKAGE` witness) and no selection carries a declared consumer
+  file as a test, the plan SHALL name that file once as the unknown
+  `{reason: "UNSELECTED_BINARY_CONSUMER", detail: FILE, hint}`, the hint naming the nearest such command, which
+  widens it to `UNKNOWN` instead of leaving the run out silently. A command reached only for its
+  own test files, or only as a reader, names no consumer. This repository declares `tools/web-flows/test/e2e.mjs` and
+  `tools/web-flows/test/navigation-e2e.mjs` as consumers of `cmd/corvint-web-flows`, which
+  `script/web-flows-gate` builds and hands them; they also run `cmd/corvint`, but nearly every
+  change reaches that build, so that edge is left undeclared rather than naming them on almost
+  every plan (a `cmd/corvint` change is left to its own tests and the web-flows gate). Non-goals: no
+  driver run of the consumer, no inference of a consumer from environment variables. Rollback:
+  remove the member, `matchBinaryConsumers`, `unselectedConsumers` and the repository entries.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
@@ -5638,6 +5661,7 @@ traceability table.
 | AFP-V0-484 | the `$costNames`, `costs` and `$shadowCost` block and the `Shadow cost` lines of `.github/forward-rows/bar.jq`; `shadowCost` in `.github/forward-rows/verdict.sh` | `TestAFPV0484BarShadowCost` (cost names leave the status, counts and tripped kill switch identical; the nearest name listed before its row prices it, while a name listed after it, other epochs, INCOMPLETE rows and malformed names do not; a CLEAN re-run without its own cost is unpriced, not priced by an older MISS or CLEAN run; median, mean and miss rows per selector) |
 | AFP-V0-520 | `sealedCEM`, `validEntry`, `documentation`, `declared` and the non-Go branch of `.github/forward-rows/tiers.jq`; the `.corvint/documentation-paths.json` read and `--rawfile documentation` in `.github/forward-rows/tiers.sh` | `TestAFPV0520TierExemptions` in `tools/ci-forward-row/shadowcost_test.go` (a sealed CEM alone, declared documentation alone, and both beside a Go file keep the Go file's tiers; a `Makefile`, a script, undeclared docs, the CEM sidecar, a nested or empty-stem CEM, a CEM outside `.corvint/changes/` and the declaration itself stay FULL; a declared `testdata`, embedded or `.github/` path stays FULL; sixteen invalid declarations declare nothing); `TestAFPV0480Tiers` (`tiers.sh` end to end: adding the declaration is FULL, then a CEM and a declared spec are not, and a `Makefile` is) |
 | AFP-V0-761 | `FrontierRoute` in `internal/liveverify/affected/unit.go`, its loop in `frontierUnknowns` (`select.go`); `Language.FrontierRoute` and `WorkspaceOutsideRootRoute` in `internal/liveverify/affected/golang/golang.go` | `TestWorkspaceOutsideRootFrontierNamesTheRoute_AFPV0761` (an outside-root `go.work` sibling: the entry's hint names the `corvint breakage` route for a root and a `go.work` change, scope stays `UNKNOWN`; the nested-module reason names none); `TestWorkspaceDirtySourceSelectsTheOtherModulesTest` |
+| AFP-V0-762 | `binaryExecsFile.Consumers`, `readBinaryExecs`, `matchBinaryConsumers` in `internal/liveverify/affected/golang/binaryexecs.go`; `unselectedConsumers` in `internal/liveverify/affected/execs.go`; `.corvint/test-binary-execs.json` | `TestDeclaredBinaryConsumerIsAnExplicitUnknown_AFPV0762` (a library or command change names the consumer, a test-only command change and an unrelated change do not); `TestInvalidBinaryConsumerDeclaresNothing_AFPV0762`; `TestRepositoryDeclaresWebFlowsConsumers_AFPV0762` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`
