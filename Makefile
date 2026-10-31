@@ -833,6 +833,13 @@ tasks-test: go-version
 	$(GO_TEST_COMMAND) ./cmd/corvint-tasks/... ./internal/tasks/...
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go vet ./cmd/corvint-tasks/... ./internal/tasks/...
 
+# tasks-reconcile is the post-merge closeout reconcile (TCD-V0-872, V1-3496): closeout-debt over the
+# merged-PR export, retained under <git-common-dir>/corvint/reconcile/<refCommit>/, proposing the
+# batch-close for each merged PR. It applies nothing unless RECONCILE_APPLY=dry-run|manual|gated.
+.PHONY: tasks-reconcile
+tasks-reconcile:
+	CORVINT_TASKS=$(CORVINT_TASKS_BIN) script/tasks-reconcile.sh
+
 # test-shard runs shard SHARD of SHARDS of one slow Go test package through script/heavy.sh, so a
 # package over the agent's 600 s foreground limit runs as bounded pieces that together cover every
 # top-level test exactly once (ASD-V0-026, tools/test-shards). Reference splits:
