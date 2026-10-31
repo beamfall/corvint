@@ -982,9 +982,9 @@ grep -q '^batch-precheck: REFUSE shallow-repository: .* fetch --unshallow origin
 # The dogfood range wrappers refuse the same clone before resolving their base.
 mkdir -p "$srepo2/script" && cp "$script/dogfood-change.sh" "$script/dogfood-check.sh" "$script/dogfood-bind-range.sh" "$script/dogfood-build-corvint.sh" "$srepo2/script/" ||
   fail "copy dogfood wrappers"
-for w in dogfood-change dogfood-check dogfood-bind-range; do
-  "$srepo2/script/$w.sh" HEAD HEAD > "$tmp/out" 2>&1
-  [[ $? == 2 ]] && grep -q "^$w: REFUSE shallow-repository: .* fetch --unshallow origin" "$tmp/out" || fail "$w in a shallow clone: $(cat "$tmp/out")"
+for wrapper in dogfood-change dogfood-check dogfood-bind-range; do
+  "$srepo2/script/$wrapper.sh" HEAD HEAD > "$tmp/out" 2>&1
+  [[ $? == 2 ]] && grep -q "^$wrapper: REFUSE shallow-repository: .* fetch --unshallow origin" "$tmp/out" || fail "$wrapper in a shallow clone: $(cat "$tmp/out")"
 done
 
 printf 'batch-precheck_test: PASS\n'

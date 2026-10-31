@@ -108,6 +108,9 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 		known[relative] = true
 	}
 	frontier := map[string]bool{}
+	// computed holds, per file, the base-name shapes of the scripts it runs
+	// by a path the resolver cannot fix (TSP-V0-863).
+	computed := map[string][]string{}
 	units := make([]affected.Unit, 0, len(files))
 	for _, relative := range files {
 		unit := affected.Unit{ID: "shell:" + relative}
@@ -124,10 +127,16 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 			units = append(units, foreignFrontier(unit, len(foreign) > 0))
 			continue
 		}
-		units = append(units, foreignFrontier(observe(relative, string(body), known), len(foreign) > 0))
+		unit, shapes := observe(relative, string(body), known)
+		unit = foreignFrontier(unit, len(foreign) > 0)
+		if len(shapes) != 0 {
+			computed[relative] = shapes
+			unit = computedFrontier(unit)
+		}
+		units = append(units, unit)
 	}
 	sort.Slice(units, func(left, right int) bool { return units[left].ID < units[right].ID })
-	applyForeignCallers(root, units, frontier)
+	applyForeignCallers(root, units, frontier, computed)
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
 }
 
@@ -145,8 +154,112 @@ func foreignFrontier(unit affected.Unit, foreign bool) affected.Unit {
 	return unit
 }
 
-// observe builds one readable file's unit.
-func observe(relative, text string, known map[string]bool) affected.Unit {
+// computedFrontier gives a unit that runs a script by a computed path
+// FrontierForeignInvocation on every plan that reaches it (TSP-V0-863): what
+// it runs is not modelled, so its frontier bears as an ordinary unit
+// frontier, test or not, and no foreign-caller declaration clears it.
+func computedFrontier(unit affected.Unit) affected.Unit {
+	reasons := map[string]bool{FrontierForeignInvocation: true}
+	for _, reason := range unit.Frontier {
+		reasons[reason] = true
+	}
+	unit.Frontier = sortedKeys(reasons)
+	unit.FrontierBears = ""
+	return unit
+}
+
+// runExpansion matches one parameter expansion, command substitution or
+// arithmetic expansion, innermost first, so nested forms collapse in turns.
+var runExpansion = regexp.MustCompile(`\$\{[^{}]*\}|\$\([^()]*\)|\$[A-Za-z_][A-Za-z0-9_]*|\$[0-9@*#?$!-]`)
+
+// computedShapes returns the base-name shapes of a command word or script
+// operand the resolver could not fix that match the base name of a known
+// shell file: the computed runs of a script (TSP-V0-863). A variable bound
+// only by one `for NAME in WORDS` of literal words (loops) takes each word in
+// turn; every other expansion reads as `*`. A shape with no literal part,
+// such as a word that is one expansion alone (`$heavy`), is a whole value
+// assigned or passed elsewhere, as text the file or its caller holds, and is
+// left out.
+func computedShapes(target string, known map[string]bool, loops map[string][]string) []string {
+	if !strings.Contains(target, "$") {
+		return nil
+	}
+	variants := []string{target}
+	for name, words := range loops {
+		var next []string
+		for _, variant := range variants {
+			if !strings.Contains(variant, "$"+name) && !strings.Contains(variant, "${"+name+"}") {
+				next = append(next, variant)
+				continue
+			}
+			for _, word := range words {
+				expanded := strings.ReplaceAll(variant, "${"+name+"}", word)
+				next = append(next, loopVariable(name).ReplaceAllString(expanded, word))
+			}
+		}
+		variants = next
+	}
+	var shapes []string
+	for _, shape := range variants {
+		for range 8 {
+			next := runExpansion.ReplaceAllString(shape, "*")
+			if next == shape {
+				break
+			}
+			shape = next
+		}
+		base := path.Base(shape)
+		if strings.Trim(base, "*") == "" || strings.ContainsAny(base, "$`") {
+			continue
+		}
+		for file := range known {
+			if matched, _ := path.Match(base, path.Base(file)); matched {
+				shapes = append(shapes, base)
+				break
+			}
+		}
+	}
+	return shapes
+}
+
+// loopVariable matches $NAME not followed by a name character.
+func loopVariable(name string) *regexp.Regexp {
+	return regexp.MustCompile(`\$` + regexp.QuoteMeta(name) + `\b`)
+}
+
+// literalLoops maps each variable a file binds only by one `for NAME in
+// WORDS` of plain literal words, never assigned, read or declared otherwise.
+func literalLoops(commands []command, text string) map[string][]string {
+	loops := map[string][]string{}
+	bound := map[string]int{}
+	for _, c := range commands {
+		if len(c.words) < 3 || c.words[0] != "for" || c.words[2] != "in" {
+			continue
+		}
+		name := c.words[1]
+		bound[name]++
+		literal := len(c.words) > 3
+		for _, word := range c.words[3:] {
+			if dynamic(word) || strings.ContainsAny(word, "\"'/") {
+				literal = false
+			}
+		}
+		if literal {
+			loops[name] = slices.Clone(c.words[3:])
+		}
+	}
+	for name := range loops {
+		other := regexp.MustCompile(`\b` + regexp.QuoteMeta(name) + `\+?=|\b(?:read|local|declare|typeset|export|readonly|unset|mapfile|readarray|getopts)\b[^\n;]*\b` + regexp.QuoteMeta(name) + `\b`)
+		if bound[name] != 1 || other.MatchString(text) {
+			delete(loops, name)
+		}
+	}
+	return loops
+}
+
+// observe builds one readable file's unit and returns the base-name shapes
+// of the scripts it runs by a computed path (TSP-V0-863).
+func observe(relative, text string, known map[string]bool) (affected.Unit, []string) {
 	parsed := parse(text)
 	resolve := newResolver(relative, parsed.commands)
 	unit := affected.Unit{ID: "shell:" + relative}
@@ -159,6 +272,13 @@ func observe(relative, text string, known map[string]bool) affected.Unit {
 	edges := map[string]bool{}
 	unitFrontier := map[string]bool{}
 	toolchain, dynamic := false, false
+	shapes := map[string]bool{}
+	loops := literalLoops(parsed.commands, text)
+	computedRun := func(target string) {
+		for _, shape := range computedShapes(target, known, loops) {
+			shapes[shape] = true
+		}
+	}
 	loads := strings.HasSuffix(relative, ".bats") || strings.HasSuffix(relative, ".bash")
 	commands := parsed.commands
 	for index := 0; index < len(commands); index++ {
@@ -178,10 +298,14 @@ func observe(relative, text string, known map[string]bool) affected.Unit {
 				commands = append(commands, parse(script).commands...)
 			}
 			for _, target := range invokedScripts(word, args) {
-				resolve.link(unquote(target), nil, known, edges)
+				if !resolve.link(unquote(target), nil, known, edges) {
+					computedRun(unquote(target))
+				}
 			}
 		case strings.Contains(word, "/") || strings.HasPrefix(word, "$"):
-			resolve.link(word, nil, known, edges)
+			if !resolve.link(word, nil, known, edges) {
+				computedRun(word)
+			}
 		}
 		if isToolchain(word) && (bypassesFunctions(commands[index].words) || !shadowed(parsed, word, index)) {
 			toolchain = true
@@ -206,7 +330,7 @@ func observe(relative, text string, known map[string]bool) affected.Unit {
 	} else {
 		unit.PathTokens = sortedKeys(tokens)
 	}
-	return unit
+	return unit, sortedKeys(shapes)
 }
 
 // recursiveReaders are the commands that read below a directory they are

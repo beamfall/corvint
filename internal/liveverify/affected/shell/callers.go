@@ -118,7 +118,12 @@ func callerCandidate(name string) bool {
 // candidate files other than the script whose text holds the script's file
 // name are exactly its callers and mentions. Any failure declares nothing and names
 // FrontierForeignCallersInvalid.
-func applyForeignCallers(root *affected.Source, units []affected.Unit, frontier map[string]bool) {
+//
+// computed holds each shell file's computed-run shapes (TSP-V0-863). A shape
+// with a wildcard that matches a declared script's file name may run it
+// without naming it, so the declaration cannot be complete; and a declared
+// script that itself runs a script by a computed path keeps its frontier.
+func applyForeignCallers(root *affected.Source, units []affected.Unit, frontier map[string]bool, computed map[string][]string) {
 	declared, err := readForeignCallers(root)
 	if declared == nil && err == nil {
 		return
@@ -135,18 +140,41 @@ func applyForeignCallers(root *affected.Source, units []affected.Unit, frontier 
 			}
 		}
 	}
-	if len(indexes) != len(declared) || !foreignCallersComplete(root, declared) {
+	if len(indexes) != len(declared) || computedNamesDeclared(root, computed, declared) || !foreignCallersComplete(root, declared) {
 		frontier[FrontierForeignCallersInvalid] = true
 		return
 	}
 	for script, index := range indexes {
 		unit := &units[index]
 		unit.Callers = slices.Clone(declared[script].Callers)
+		if len(computed[script]) != 0 {
+			continue
+		}
 		unit.Frontier = slices.DeleteFunc(unit.Frontier, func(reason string) bool { return reason == FrontierForeignInvocation })
 		if len(unit.Frontier) == 0 {
 			unit.Frontier, unit.FrontierBears = nil, ""
 		}
 	}
+}
+
+// computedNamesDeclared reports whether a file's computed-run shape matches
+// a declared script's file name while the file's text does not hold that
+// name: the file builds the name from parts, so the text scan cannot tell
+// whether it runs the script. An unreadable file reports true.
+func computedNamesDeclared(root *affected.Source, computed map[string][]string, declared map[string]ForeignCallers) bool {
+	for file, shapes := range computed {
+		for script := range declared {
+			name := path.Base(script)
+			if !slices.ContainsFunc(shapes, func(shape string) bool { matched, _ := path.Match(shape, name); return matched }) {
+				continue
+			}
+			body, err := root.Read(file)
+			if err != nil || !bytes.Contains(body, []byte(name)) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // foreignCallersComplete reports whether every declared script's callers and
