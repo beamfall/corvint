@@ -337,3 +337,41 @@ rg -q "^dogfood-check: NOTE retroactive-bound-commits count=3 window=$b0\\.\\.$m
 if rg -q '^  (unbound|retroactive) '; then exit 1; fi <<< "$after"
 test "$(sort "$(printf '%s\n' "$after" | sed -n 's/^dogfood-check: NOTE retroactive-bound-commits .* list=//p')")" = \
   "$(printf 'retroactive %s binding=%s\n' "$g1" "$binding" "$g2" "$binding" "$binding" "$binding" | sort)"
+
+# DCW-V0-831 (V1-3372): script/dogfood-bind-coverage.sh lists each first-parent commit of the
+# half-open range with the CEM covering it; a retroactive binding's own BASE is not covered by it.
+cov="$test_root/coverage"
+git init -q -b main "$cov"
+cov_commit() {
+  (cd "$cov" && git add -A && GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t \
+    GIT_COMMITTER_EMAIL=t@example.invalid git commit -qm "$1" && git rev-parse HEAD)
+}
+printf 'base\n' > "$cov/f"; cb=$(cov_commit base)
+printf 'lane\n' > "$cov/f"; c1=$(cov_commit lane)
+mkdir -p "$cov/.corvint/changes"
+printf '{"baseRevision":"%s","hunks":[]}\n' "$cb" > "$cov/.corvint/change.cem.json"; k1=$(cov_commit bind)
+git -C "$cov" mv .corvint/change.cem.json ".corvint/changes/$k1.cem.json"; s1=$(cov_commit seal)
+printf 'unbound\n' > "$cov/f"; u=$(cov_commit unbound)
+printf 'retro\n' > "$cov/f"; c2=$(cov_commit retro)
+# A retroactive binding of u..c2: TARGET's tree plus the sidecar, merged with -s ours.
+blob=$(printf '{"baseRevision":"%s","hunks":[]}\n' "$u" | git -C "$cov" hash-object -w --stdin)
+GIT_INDEX_FILE="$test_root/coverage.index" git -C "$cov" read-tree "$c2"
+GIT_INDEX_FILE="$test_root/coverage.index" git -C "$cov" update-index --add --cacheinfo "100644,$blob,.corvint/change.cem.json"
+rb=$(GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@example.invalid \
+  git -C "$cov" commit-tree "$(GIT_INDEX_FILE="$test_root/coverage.index" git -C "$cov" write-tree)" -p "$c2" -m retro-bind)
+(cd "$cov" && GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t \
+  GIT_COMMITTER_EMAIL=t@example.invalid git merge -q --no-ff -s ours -m "merge retro" "$rb")
+m=$(git -C "$cov" rev-parse HEAD)
+refs_before=$(git -C "$cov" for-each-ref; git -C "$cov" status --porcelain)
+output=$(cd "$cov" && "$source_root/script/dogfood-bind-coverage.sh" "$cb" "$m")
+test "$output" = "$(printf '%s\t%s\n' "$c1" "sealed:.corvint/changes/$k1.cem.json" "$k1" "sealed:.corvint/changes/$k1.cem.json" \
+  "$s1" "seal:sealed:.corvint/changes/$k1.cem.json" "$u" UNBOUND "$c2" "bind:$rb" "$m" no-change)
+dogfood-bind-coverage: commits=6 covered=4 no-change=1 unbound=1"
+test "$(git -C "$cov" for-each-ref; git -C "$cov" status --porcelain)" = "$refs_before"
+# The listing range is half-open too: from u, u itself is not listed.
+output=$(cd "$cov" && "$source_root/script/dogfood-bind-coverage.sh" "$u" "$m")
+test "$output" = "$(printf '%s\t%s\n' "$c2" "bind:$rb" "$m" no-change)
+dogfood-bind-coverage: commits=2 covered=1 no-change=1 unbound=0"
+status=0
+(cd "$cov" && "$source_root/script/dogfood-bind-coverage.sh" "$m" "$cb" 2>/dev/null) || status=$?
+test "$status" = 2
