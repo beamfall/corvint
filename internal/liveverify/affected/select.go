@@ -289,6 +289,7 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	graph.rank(plan.Selected)
 	plan.Unknown = append(plan.Unknown, graph.unselectedConsumers(reached, plan.Selected)...)
 	graph.symlinkHints(plan.Unknown)
+	instructionHints(plan.Unknown)
 	if len(plan.Unknown) != 0 {
 		plan.Scope = ScopeUnknown
 	}

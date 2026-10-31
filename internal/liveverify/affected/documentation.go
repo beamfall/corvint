@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"path"
 	"slices"
 	"strings"
 )
@@ -170,4 +171,26 @@ func (graph *Graph) declarationPath(unknown []Unknown) ([]NonSource, []Unknown) 
 		return nil, unknown
 	}
 	return []NonSource{{Class: ClassCorvintDeclaration, Reason: corvintDeclarationReason, Paths: paths}}, kept
+}
+
+// instructionFileNames are the agent instruction file names AFP-V0-763 names
+// in the hint of an unowned dirty path.
+var instructionFileNames = map[string]bool{"AGENTS.md": true, "CLAUDE.md": true, "GEMINI.md": true}
+
+// instructionUnownedHint is AFP-V0-763's guidance for an unowned agent
+// instruction file: affected gives such files no built-in class, because only
+// the project knows whether a build, test or tool reads one, so the project
+// declares it.
+const instructionUnownedHint = "agent instruction file: affected gives instruction files no built-in class (AFP-V0-763); if only units whose path literal or declared read scope names it read it, declare it in " + DocumentationPathsPath + " (AFP-V0-160) so a change to it alone is " + ClassDeclaredDocumentation
+
+// instructionHints annotates, in place, each UNOWNED_DIRTY_PATH whose base
+// name is an agent instruction file and that carries no hint yet
+// (AFP-V0-763). It changes neither selection nor scope.
+func instructionHints(unknown []Unknown) {
+	for index := range unknown {
+		entry := &unknown[index]
+		if entry.Reason == UnknownUnownedDirtyPath && entry.Hint == "" && instructionFileNames[path.Base(entry.Detail)] {
+			entry.Hint = instructionUnownedHint
+		}
+	}
 }
