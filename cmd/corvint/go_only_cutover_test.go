@@ -70,7 +70,10 @@ func TestGoOnlyContextAbstentionRemainsClosed(t *testing.T) {
 	argv := []string{bash, "script/dogfood-change_test.sh"}
 	result := procgroup.Run(ctx, procgroup.Spec{
 		Argv: argv, Dir: moduleRoot(t),
-		Env: os.Environ(), Timeout: 30 * time.Minute, OutputLimit: 1 << 20,
+		// DCW-V0-807 (V1-3383): a lane's exported closeout inputs must not reach the fixtures.
+		Env: append(os.Environ(), "DOGFOOD_OUTCOME=passed", "DOGFOOD_CITATIONS=/nonexistent/cites.tsv",
+			"DOGFOOD_INTENTS_FILE=/nonexistent/intents.txt", "CORVINT_BIN=/nonexistent/corvint"),
+		Timeout: 30 * time.Minute, OutputLimit: 1 << 20,
 	})
 	if result.Err != nil || result.ExitStatus != 0 || !result.ExitObserved || !result.WaitCompleted ||
 		!result.PipesDrained || !result.OwnedProcessGroupCleanup || result.TimedOut || result.Cancelled || result.OutputOverflow {
