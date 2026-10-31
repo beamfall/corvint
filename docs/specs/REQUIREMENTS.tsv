@@ -6829,6 +6829,7 @@ TJAA-V0-012	docs/specs/typescript-javascript-affected-adapter-v0.md	Static confi
 TJAA-V0-013	docs/specs/typescript-javascript-affected-adapter-v0.md	A changed source, page object, fixture, scenario builder, or helper MUST select	unrecorded	-
 TJAA-V0-014	docs/specs/typescript-javascript-affected-adapter-v0.md	Project grep/tag and metadata inputs are identity, not file-exclusion authority.	unrecorded	-
 TJAA-V0-015	docs/specs/typescript-javascript-affected-adapter-v0.md	Per-file commands require a matching complete caller-owned discovery receipt.	unrecorded	-
+TJAA-V0-780	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-31); V1-3498) Every	standing	2026-10-31; V1-3498
 TJAA-V0-016	docs/specs/typescript-javascript-affected-adapter-v0.md	The profile MUST be read-only and bounded by the shared source-walk and source-r	unrecorded	-
 TJAA-V0-017	docs/specs/typescript-javascript-affected-adapter-v0.md	Qualification requires a fixture with Chromium plus Angular/React project varian	unrecorded	-
 TJAA-V0-018	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted, decision 0483; V1-1065; GitHub #709) In a global or project	owner	decision 0483; V1-1065; #709

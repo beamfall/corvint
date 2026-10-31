@@ -158,6 +158,20 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   select exactly the complete discovered universe, preserving setup/teardown closure and all
   uncertainty; it MUST NOT multiply helpers by projects. `discovery` MUST report its state,
   input SHA-256, and sorted `onlyInStatic`/`onlyInReceipt` differences when bindings match.
+- `TJAA-V0-780`: (accepted under the owner's standing auto-accept (2026-10-31); V1-3498) Every
+  Playwright argv the plan emits (selected, project, narrowing-project and `fallbackArgv`) MUST
+  launch Playwright through the repository root's Node package manager, chosen by the
+  `NGI-V0-780` rule over the root `package.json` and the root lockfiles and workspace files
+  present in the worktree: `pnpm exec playwright`, `yarn playwright`, `bunx playwright`, or
+  `npx playwright` for npm, the default, and for files that name more than one manager with no
+  `packageManager` member to settle it. This amends the `npx` prefix of `TJAA-V0-015`. A chosen
+  manager other than npm is a plan input: the source digest binds it, so a manager change between
+  discovery and plan reads as a binding mismatch. A repository whose manager is npm keeps its exact
+  plan bytes and source digest. Non-goals: per-workspace-package managers, `--filter` or
+  workspace-directory launch, and checking that the binary is installed. Failure mode (V1-3498): a
+  pnpm workspace's `fallbackArgv` named `npx`. Acceptance evidence:
+  `TestPlaywrightArgvFollowsPackageManager_V13498`. Rollback: remove
+  `applyPlaywrightPackageManager` and its digest identity.
 - `TJAA-V0-016`: The profile MUST be read-only and bounded by the shared source-walk and source-read
   limits. It MUST bind and revalidate a digest of every source input the TypeScript observer may
   consume. For fixed repository bytes, config path, HEAD, and dirty set, canonical output MUST be
@@ -1865,6 +1879,7 @@ persisted; run-identity documents carrying `corvint-test-closure/0` digests are 
 |---|---|---|
 | `TJAA-V0-001..004`, `TJAA-V0-006..008` | `internal/liveverify/affected/typescript/` focused tests | experimental |
 | `TJAA-V0-005` | `TestTemplateSubstitutionRequireBuildsDependencyEdge`, `TestMultilineJSXQuoteAmbiguityRaisesFrontier`, `TestSameLineJSXApostropheAmbiguityRaisesFrontier`, `TestStandaloneJSXApostrophesRaiseFrontier`, `TestJSXTextCannotImitateALiteralOpeningContext`, `TestKeywordEndingJSXTextCannotHideRequireWithoutBraces`, `TestJSXAttributeAndExpressionStringsRemainParsed`, `TestOrdinaryTSXStringsAndJSXExpressionLiteralsRemainParsed`, `TestWorkspacePackageImportReachesTheImportingTest_V1_0283`, and import-resolution focused tests in `internal/liveverify/affected/typescript/` | experimental |
+| `TJAA-V0-780` (V1-3498) | `TestPlaywrightArgvFollowsPackageManager_V13498` in `playwright_package_manager_test.go` (pnpm via `packageManager` and via `pnpm-lock.yaml` rewrites selected, project and fallback argv and changes the source digest; npm and conflicting lockfiles keep `npx` and the npm digest) | experimental |
 | `TJAA-V0-009` | `internal/liveverify/affected/conformance_test.go` TypeScript seam case | experimental |
 | `TJAA-V0-010..017` | `internal/liveverify/affected/typescript/playwright.go`, `playwright_test.go`, and `cmd/corvint/affected_playwright_test.go` | experimental |
 | `TJAA-V0-013` bounded helper exclusion (V1-0211) | `TestPlaywrightUnreachedHelperBoundedExclusion_V1_0211` in `internal/liveverify/affected/typescript/playwright_test.go` | accepted, decision 0514; synthetic matched discovery |
