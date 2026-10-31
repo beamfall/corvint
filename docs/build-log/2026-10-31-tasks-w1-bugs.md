@@ -108,3 +108,13 @@ therefore waits 2 s before reporting, which is the accepted cost. The Windows-ho
 - V1-2357: blocked. The frozen code2test suite needs the ARB v2 repository corpus (diffusers at
   c7ea7d6f), which is absent on this host, and the fix is a retrieval-ranking change outside
   `internal/tasks`.
+
+## Dogfood intents
+
+`docs/specs/corvint-tasks-agent-leases-v0.md` is omitted from the OCM intents: it holds 263
+requirements, over the 256-obligation bound of one map, so `ocm prepare` refuses it on its own
+(`too-many-obligations`, DOGFOOD.md, which says that needs an owner-reviewed restructuring of the
+spec). Its CAL-V0-215, CAL-V0-070, CAL-V0-074 and CAL-V0-089 lines are cited as `specification`
+instead. CAL-V0-900 still applies; omitting the spec does not claim it holds. The intents are the
+journal-segments, lease-gate-latency, pool-safe-reuse, scope-lease and test-claim-qualification
+specs (244 requirements).
