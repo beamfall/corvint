@@ -23,7 +23,8 @@ func TestGitPlatformRefusalIsNotReportedAsARevisionDefect(t *testing.T) {
 	_, buildErr := Build(ctx, root, "appmap.json", "HEAD")
 	_, impactErr := Impact(ctx, &Map{}, nil, "HEAD~1", Options{Root: root})
 	_, _, rootErr := openRoot(ctx, root, "app", t.TempDir(), "")
-	for name, err := range map[string]error{"build": buildErr, "impact": impactErr, "root": rootErr} {
+	_, branchesErr := QueryBranches(ctx, &Map{Revision: strings.Repeat("a", 40)}, []string{"app/models/user.rb:1"}, Options{Root: root})
+	for name, err := range map[string]error{"build": buildErr, "impact": impactErr, "root": rootErr, "branches": branchesErr} {
 		var typed *gokernel.Error
 		if !errors.As(err, &typed) || typed.Code != "process-platform-unsupported" {
 			t.Fatalf("%s: want code process-platform-unsupported, got %#v", name, err)
