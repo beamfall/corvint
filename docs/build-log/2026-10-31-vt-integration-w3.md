@@ -151,3 +151,10 @@ add` and init. `internal/tasks/intent` and `internal/tasks/store` pass whole, an
 6. `git stash` is shared by every worktree of the checkout, so one lane's `git stash list` shows
    another lane's entries. Lanes using stash can drop each other's work. Repro: `git stash list`
    from `corvint-lanes/vt-w3` shows the affected-w3 lane's stash.
+7. The charter says running `make dogfood-change BASE=<base>` before the first edit gives the
+   closeout its prechange-query and prechange-impact receipts. It ran first here, and printed
+   `pre-change context recorded`. The closeout still reported `prechange-query NOT_OBSERVED
+   agent-receipt-absent` and `prechange-impact NOT_OBSERVED agent-receipt-absent`, so those
+   receipts come from an agent's own query and impact calls, not from `dogfood-change`. Repro: in
+   a fresh worktree, run `make dogfood-change BASE=<base>`, commit a change, then run
+   `make dogfood-finish` and read its NOTE lines.
