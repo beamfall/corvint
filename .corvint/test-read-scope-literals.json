@@ -69,7 +69,6 @@
     },
     "tools/gate-ledger": {
       ".corvint/test-read-scopes.json": "a read-scope declaration written into a temporary fixture repository; the repository's own declaration is not read",
-      "internal/gateselect/select_test.go": "a file written into a temporary fixture repository",
       "tools/gate-affected-select/main_test.go": "a file written into a temporary fixture repository"
     }
   }

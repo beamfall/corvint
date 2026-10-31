@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -461,12 +462,31 @@ func TestWorktreeDigestImportFailureRunsWithoutRecord(t *testing.T) {
 // repository and returns its root.
 func packageRepository(t *testing.T, files map[string]string) string {
 	t.Helper()
-	// The selector's sources and its one in-module import, the stdlib-only
-	// internal/taskprojection leaf, rebased onto the fixture module.
-	for _, name := range []string{"gateselect/select.go", "gateselect/readers.go", "gateselect/readscopes.go", "gateselect/workspace.go", "gateselect/gatedlocators.go", "taskprojection/taskprojection.go"} {
+	// Every non-test source of the selector and its one in-module import, the
+	// stdlib-only internal/taskprojection leaf, rebased onto the fixture
+	// module. The directory is listed, not named file by file, so a new
+	// gateselect source cannot leave the fixture unbuildable; a new in-module
+	// import fails here by name.
+	sources, err := filepath.Glob(filepath.Join("..", "..", "internal", "gateselect", "*.go"))
+	if err != nil || len(sources) == 0 {
+		t.Fatalf("list internal/gateselect: %v", err)
+	}
+	names := []string{"taskprojection/taskprojection.go"}
+	for _, source := range sources {
+		if !strings.HasSuffix(source, "_test.go") {
+			names = append(names, "gateselect/"+filepath.Base(source))
+		}
+	}
+	inModule := regexp.MustCompile(`"github.com/Beamfall/corvint/([^"]+)"`)
+	for _, name := range names {
 		data, err := os.ReadFile(filepath.Join("..", "..", "internal", filepath.FromSlash(name)))
 		if err != nil {
 			t.Fatal(err)
+		}
+		for _, imported := range inModule.FindAllStringSubmatch(string(data), -1) {
+			if imported[1] != "internal/gateselect" && imported[1] != "internal/taskprojection" {
+				t.Fatalf("internal/%s imports %s, which this fixture does not copy; add it to packageRepository", name, imported[1])
+			}
 		}
 		files["internal/"+name] = strings.ReplaceAll(string(data), "github.com/Beamfall/corvint/internal/", "example.com/fixture/internal/")
 	}
