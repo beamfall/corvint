@@ -40,8 +40,9 @@ func TestBBFV0214ToolchainRunsVerifiedBytes(t *testing.T) {
 
 	afterToolchainStaged = func(Command) { write("#!/bin/sh\necho swapped\n") }
 	out, evidence := run()
-	if got := strings.TrimSpace(string(out)); got != "verified "+goroot || evidence.Error != "" {
-		t.Fatalf("swap after the check ran %q (%+v), want the verified bytes", got, evidence)
+	// GOROOT is the private copy of the pinned root (BBF-V0-820), never the original.
+	if got := strings.TrimSpace(string(out)); !strings.HasPrefix(got, "verified /") || !strings.HasSuffix(got, string(filepath.Separator)+"goroot") || got == "verified "+goroot || evidence.Error != "" {
+		t.Fatalf("swap after the check ran %q (%+v), want the verified bytes over the private GOROOT", got, evidence)
 	}
 
 	afterToolchainStaged = func(Command) {}
@@ -64,11 +65,11 @@ func TestBBFV0214ToolchainRunsVerifiedBytes(t *testing.T) {
 	}
 }
 
-// TestBBFV0214LimitToolsRunInPlace confirms the BBF-V0-214 limit (V1-2215): only the Go driver is
-// staged from verified bytes. A tool under the pinned GOROOT swapped after the driver's check, and
-// an RSpec toolchain swapped after its own digest check, both still run. The test records today's
-// behavior so that a fix that stages or refuses them must flip it.
-func TestBBFV0214LimitToolsRunInPlace(t *testing.T) {
+// TestBBFV0820ToolsRunFromVerifiedCopies: a tool under the pinned GOROOT, or a standard
+// library file, swapped after the private GOROOT is staged does not run, and one swapped between
+// the driver's check and staging is refused; an RSpec toolchain swapped after its digest check does
+// not run either (V1-2215). Before BBF-V0-820 the swapped GOROOT tool and RSpec toolchain ran.
+func TestBBFV0820ToolsRunFromVerifiedCopies(t *testing.T) {
 	t.Cleanup(func() {
 		afterToolchainStaged = func(Command) {}
 		afterToolchainChecked = func(Command) {}
@@ -82,26 +83,60 @@ func TestBBFV0214LimitToolsRunInPlace(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-
-	t.Run("GOROOT tool swapped after the driver check runs", func(t *testing.T) {
+	fixture := func(t *testing.T) (Plan, string, string) {
 		goroot := t.TempDir()
-		for _, dir := range []string{"bin", filepath.Join("pkg", "tool")} {
+		for _, dir := range []string{"bin", filepath.Join("pkg", "tool"), filepath.Join("src", "fmt")} {
 			if err := os.MkdirAll(filepath.Join(goroot, dir), 0o700); err != nil {
 				t.Fatal(err)
 			}
 		}
 		driver, tool := filepath.Join(goroot, "bin", "go"), filepath.Join(goroot, "pkg", "tool", "compile")
 		replace(driver, "#!/bin/sh\nexec \"$GOROOT/pkg/tool/compile\"\n")
-		replace(tool, "#!/bin/sh\necho verified-tool\n")
+		replace(tool, "#!/bin/sh\necho verified-tool $(cat \"$GOROOT/src/fmt/print.go\")\n")
+		replace(filepath.Join(goroot, "src", "fmt", "print.go"), "verified-library")
+		// A top-level member file is copied before any member directory creates the private root.
+		replace(filepath.Join(goroot, "VERSION"), "go0.0.0")
 		plan := Plan{Request: Request{Provider: &ProviderSpec{Name: ProviderGoTest, Toolchain: Command{Path: driver, ExecutableSHA256: mustFileDigest(t, driver)}, Package: ".", Examples: []string{"TestX"}}}}
-		afterToolchainStaged = func(Command) { replace(tool, "#!/bin/sh\necho swapped-tool\n") }
+		return plan, tool, filepath.Join(goroot, "src", "fmt", "print.go")
+	}
+
+	t.Run("GOROOT tool and library swapped after staging do not run", func(t *testing.T) {
+		plan, tool, library := fixture(t)
+		afterToolchainStaged = func(Command) {
+			replace(tool, "#!/bin/sh\necho swapped-tool\n")
+			replace(library, "swapped-library")
+		}
 		out, evidence := runProvider(context.Background(), plan, nil, t.TempDir(), t.TempDir(), 30*time.Second)
-		if got := strings.TrimSpace(string(out)); got != "swapped-tool" || evidence.Error != "" {
-			t.Fatalf("GOROOT tool swap ran %q (%+v); the limit no longer holds, update BBF-V0-214 and this test", got, evidence)
+		if got := strings.TrimSpace(string(out)); got != "verified-tool verified-library" || evidence.Error != "" {
+			t.Fatalf("ran %q (%+v), want the verified tool over the verified library", got, evidence)
 		}
 	})
 
-	t.Run("RSpec toolchain swapped after its digest check runs", func(t *testing.T) {
+	t.Run("GOROOT swapped between the check and staging is refused", func(t *testing.T) {
+		for name, swap := range map[string]func(tool, library string){
+			"tool":    func(tool, _ string) { replace(tool, "#!/bin/sh\necho swapped-tool\n") },
+			"library": func(_, library string) { replace(library, "swapped-library") },
+		} {
+			plan, tool, library := fixture(t)
+			afterToolchainChecked = func(Command) { swap(tool, library) }
+			out, evidence := runProvider(context.Background(), plan, nil, t.TempDir(), t.TempDir(), 30*time.Second)
+			if evidence.Error != errGOROOTChanged.Error() || evidence.Started || len(out) != 0 {
+				t.Fatalf("%s swap: ran %q (%+v), want %q before anything starts", name, out, evidence, errGOROOTChanged)
+			}
+		}
+	})
+
+	t.Run("GOROOT symbolic link is refused", func(t *testing.T) {
+		plan, tool, _ := fixture(t)
+		if err := os.Symlink(tool, filepath.Join(filepath.Dir(tool), "link")); err != nil {
+			t.Fatal(err)
+		}
+		if _, evidence := runProvider(context.Background(), plan, nil, t.TempDir(), t.TempDir(), 30*time.Second); evidence.Error != errGOROOTUnsupported.Error() {
+			t.Fatalf("symbolic link under pkg/tool: %+v", evidence)
+		}
+	})
+
+	t.Run("RSpec toolchain swapped after its digest check does not run", func(t *testing.T) {
 		checkout := t.TempDir()
 		if err := os.Mkdir(filepath.Join(checkout, "example"), 0o700); err != nil {
 			t.Fatal(err)
@@ -110,8 +145,8 @@ func TestBBFV0214LimitToolsRunInPlace(t *testing.T) {
 		plan := Plan{Request: Request{Provider: &ProviderSpec{Name: ProviderRSpec, Toolchain: toolchain, Package: "example", Examples: []string{rspecTotalExample}}}}
 		afterToolchainChecked = func(Command) { replace(toolchain.Path, "#!/bin/sh\nprintf swapped > "+rspecReportName+"\n") }
 		out, evidence := runProvider(context.Background(), plan, nil, t.TempDir(), checkout, 30*time.Second)
-		if string(out) != "swapped" || evidence.Error != "" {
-			t.Fatalf("RSpec toolchain swap ran %q (%+v); the limit no longer holds, update BBF-V0-214 and this test", out, evidence)
+		if evidence.Error != "command changed before staging" || len(out) != 0 {
+			t.Fatalf("RSpec toolchain swapped after its check: ran %q (%+v), want a staging refusal", out, evidence)
 		}
 	})
 }

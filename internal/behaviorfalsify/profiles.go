@@ -469,6 +469,20 @@ func runProvider(ctx context.Context, plan Plan, perturbation map[string]string,
 	if err := validateCommand(provider.Toolchain); err != nil {
 		return nil, ProcessEvidence{Error: err.Error()}
 	}
+	// The GOROOT members a go test run reads are digested at the driver's check, so the private
+	// copy staged below runs only those bytes (BBF-V0-820).
+	goroot, gorootWant := filepath.Dir(filepath.Dir(provider.Toolchain.Path)), ""
+	if provider.Name != ProviderRSpec {
+		if info, err := os.Stat(filepath.Join(goroot, "pkg", "tool")); err != nil || !info.IsDir() {
+			return nil, ProcessEvidence{Error: "provider toolchain GOROOT unavailable"}
+		}
+		var err error
+		if gorootWant, err = gorootDigest(goroot, ""); errors.Is(err, errGOROOTUnsupported) {
+			return nil, ProcessEvidence{Error: err.Error()}
+		} else if err != nil {
+			return nil, ProcessEvidence{Error: "provider toolchain GOROOT unavailable"}
+		}
+	}
 	afterToolchainChecked(provider.Toolchain)
 	if provider.Name == ProviderRSpec {
 		return runRSpecProvider(ctx, plan, perturbation, scratch, filepath.Join(checkout, filepath.FromSlash(provider.Package)), timeout)
@@ -490,20 +504,26 @@ func runProvider(ctx context.Context, plan Plan, perturbation map[string]string,
 	for key, value := range providerForcedEnvironment {
 		values[key] = value
 	}
-	// The verified driver bytes run from a private copy, with GOROOT pinned to the directory the
-	// in-place driver would resolve, so a swap after the digest check cannot run (BBF-V0-214).
-	goroot := filepath.Dir(filepath.Dir(provider.Toolchain.Path))
-	if info, err := os.Stat(filepath.Join(goroot, "pkg", "tool")); err != nil || !info.IsDir() {
-		return nil, ProcessEvidence{Error: "provider toolchain GOROOT unavailable"}
-	}
+	// The verified driver bytes run from a private GOROOT holding the digested copy of its tools
+	// and standard library, so a swap of any of them after the check cannot run (BBF-V0-214,
+	// BBF-V0-820).
 	staged, cleanup, err := stageVerified(provider.Toolchain)
 	if err != nil {
 		return nil, ProcessEvidence{Error: err.Error()}
 	}
 	defer cleanup()
+	private := filepath.Join(scratch, "goroot")
+	defer os.RemoveAll(private)
+	if err := stageGOROOT(goroot, gorootWant, private); err != nil {
+		return nil, ProcessEvidence{Error: err.Error()}
+	}
+	driver, err := placeVerifiedDriver(staged, private, goroot, provider.Toolchain.Path)
+	if err != nil {
+		return nil, ProcessEvidence{Error: err.Error()}
+	}
 	afterToolchainStaged(provider.Toolchain)
-	values["GOROOT"] = goroot
-	argv := []string{staged, "test", "-json", "-count=1", "-run", "^(" + strings.Join(provider.Examples, "|") + ")$", pattern}
+	values["GOROOT"] = private
+	argv := []string{driver, "test", "-json", "-count=1", "-run", "^(" + strings.Join(provider.Examples, "|") + ")$", pattern}
 	return observeProcess(ctx, argv, checkout, environmentList(values), nil, timeout, providerOutputLimit)
 }
 
@@ -538,7 +558,14 @@ func runRSpecProvider(ctx context.Context, plan Plan, perturbation map[string]st
 	for key, value := range rspecForcedEnvironment {
 		values[key] = value
 	}
-	argv := append([]string{provider.Toolchain.Path, "--format", "json", "--out", rspecReportName}, provider.Examples...)
+	// The verified toolchain bytes run from a private copy, so a swap after the check cannot run
+	// (BBF-V0-820).
+	staged, cleanup, err := stageVerified(provider.Toolchain)
+	if err != nil {
+		return nil, ProcessEvidence{Error: err.Error()}
+	}
+	defer cleanup()
+	argv := append([]string{staged, "--format", "json", "--out", rspecReportName}, provider.Examples...)
 	_, process := observeProcess(ctx, argv, project, environmentList(values), nil, timeout, providerOutputLimit)
 	return readRSpecReport(root), process
 }
