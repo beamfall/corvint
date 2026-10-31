@@ -74,6 +74,12 @@ expect_builds() {
   [[ $builds == "$2" ]] || { printf '%s: expected %s builds, got %s\n' "$3" "$2" "$builds" >&2; exit 1; }
   [[ -s $TEST_FLOW_LOG ]] || { printf '%s: the flow did not run\n' "$3" >&2; exit 1; }
 }
+# expect_builds_with NAME=VALUE ACTION COUNT CASE runs expect_builds with NAME=VALUE exported for that
+# run only. Bash 3.2 (macOS /bin/bash) keeps a prefix assignment to a function call after it
+# returns, so `NAME=VALUE expect_builds` would leak into every later case (V1-2557).
+expect_builds_with() {
+  (export "$1"; shift; expect_builds "$@") || exit 1
+}
 tree_bin=.git/corvint/corvint
 
 expect_builds change 1 'first change'
@@ -117,9 +123,10 @@ printf 'test-version-3\n' > VERSION
 git -c user.name=test -c user.email=test@example.invalid commit -qam version
 expect_builds change 1 'committed VERSION'
 rg -q '^# test-version-3$' "$tree_bin" && rg -q '^# package lib // committed$' "$tree_bin" || exit 1
-TEST_GOVERSION=go1.27.3 expect_builds change 1 'new Go version'
+expect_builds_with TEST_GOVERSION=go1.27.3 change 1 'new Go version'
 rg -q '^# go1.27.3$' "$tree_bin" || exit 1
-TEST_GOVERSION=go1.27.3 expect_builds change 0 'new Go version again'
+expect_builds_with TEST_GOVERSION=go1.27.3 change 0 'new Go version again'
+[[ -z ${TEST_GOVERSION+x} ]] || { printf 'TEST_GOVERSION leaked past its case\n' >&2; exit 1; }
 expect_builds change 0 'previous Go version'
 rg -q '^# go1.27.2$' "$tree_bin" || exit 1
 # A doc-only commit keeps the build inputs, so it reuses.
@@ -128,14 +135,14 @@ git -c user.name=test -c user.email=test@example.invalid commit -qam docs
 expect_builds change 0 'doc-only commit'
 
 # The C toolchain and its flags are key inputs.
-TEST_CC=clang expect_builds change 1 'new C compiler'
-TEST_CC=clang expect_builds change 0 'new C compiler again'
+expect_builds_with TEST_CC=clang change 1 'new C compiler'
+expect_builds_with TEST_CC=clang change 0 'new C compiler again'
 # A workspace file outside the keyed objects leaves no key, so it always builds.
-TEST_GOWORK="$root/go.work" expect_builds change 1 'outside workspace'
-TEST_GOWORK="$root/go.work" expect_builds change 1 'outside workspace again'
+expect_builds_with TEST_GOWORK="$root/go.work" change 1 'outside workspace'
+expect_builds_with TEST_GOWORK="$root/go.work" change 1 'outside workspace again'
 
 # Any failure to compute or verify the key falls back to a build.
-TEST_LIST_FAIL=1 expect_builds change 1 'key unavailable'
+expect_builds_with TEST_LIST_FAIL=1 change 1 'key unavailable'
 for entry in "$CORVINT_DOGFOOD_BIN_CACHE"/*/corvint; do printf 'tampered\n' >> "$entry"; done
 expect_builds change 1 'tampered record'
 expect_builds check 1 'tampered base record'
