@@ -3099,6 +3099,8 @@ opened, so in `` `${`decoy(x)`}` `` it unmasked `decoy(x)` and read it as a call
 held in a quoted literal or comment inside a substitution unmasked the rest of the template. Under
 `GPK-V0-095` the candidate blanks the template whole, nested substitutions and literals included,
 so such a spelling adds no dependency link the oracle would add.
+`GPK-V0-295` (V1-3150, 2026-10-30) gives the `GPK-V0-093` admission mask the same reading, so a
+call spelled in a nested template demonstrates no reference edge either.
 
 **Adjudication: python-defect (known-divergent, no repair).** The oracle reads string data as
 code, contradicting `GPK-V0-095` and product invariant 2; the candidate satisfies them. No committed

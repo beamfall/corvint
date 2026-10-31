@@ -30,6 +30,7 @@ corvint=${CORVINT_BIN:-corvint}
 [[ $# == 1 || $# == 2 ]] || refuse "usage: batch-review-packet.sh BASE [HEAD]"
 top=$(git rev-parse --show-toplevel 2> /dev/null) || refuse "not-a-git-checkout $PWD"
 cd "$top" || exit 2
+"$(dirname "$0")/require-full-history.sh" batch-review-packet "$top" || exit 2
 base=$(git rev-parse --verify -q "$1^{commit}") || refuse "unknown-base $1"
 head=$(git rev-parse --verify -q "${2:-HEAD}^{commit}") || refuse "unknown-head ${2:-HEAD}"
 checkout=$(git rev-parse --verify -q 'HEAD^{commit}') || refuse "no-checked-out-head"

@@ -804,39 +804,75 @@ const claudeSnapshotStaleReason = "corvint-event-rejected:dogfood-event-index-sn
 // snapshotRemediation is the line pair a stale-snapshot notice carries after its frame: the cause
 // and the explicit refresh argv (AHI-031).
 func snapshotRemediation(ctx context.Context, root string) string {
+	full, _ := snapshotRemediations(ctx, root)
+	return full
+}
+
+// snapshotRemediations starts at most one refresh and returns the notice text with and without
+// the previous writer's outcome (proposed IDX-SNAP-V0-515); they are equal when there is none.
+func snapshotRemediations(ctx context.Context, root string) (string, string) {
 	refresh, _ := json.Marshal([]string{"corvint", "--root", root, "index", "--if-stale"})
-	status := startSnapshotRefresh(ctx, root)
-	if status != "disabled" {
-		return "\nNo index snapshot matches the current tree, and building one in memory does not fit the hook deadline. Background index refresh " + status + ". Manual fallback, outside the hook:\n" + string(refresh)
+	status, previous := startSnapshotRefreshReporting(ctx, root)
+	if status == "disabled" {
+		text := "\nNo index snapshot matches the current tree, and building one in memory does not fit the hook deadline. Refresh the snapshot once, outside the hook:\n" + string(refresh)
+		return text, text
 	}
-	return "\nNo index snapshot matches the current tree, and building one in memory does not fit the hook deadline. Refresh the snapshot once, outside the hook:\n" + string(refresh)
+	lead := "\nNo index snapshot matches the current tree, and building one in memory does not fit the hook deadline. Background index refresh " + status + "."
+	tail := " Manual fallback, outside the hook:\n" + string(refresh)
+	if previous == "" {
+		return lead + tail, lead + tail
+	}
+	return lead + " " + previous + tail, lead + tail
+}
+
+// withinAdapterOutputLimit reports whether output still fits once encoded with its final LF, so
+// emitAdapterOutput would not replace the stale frame with corvint-output-too-large.
+func withinAdapterOutputLimit(output map[string]any) bool {
+	raw, err := json.Marshal(output)
+	return err == nil && len(raw)+1 <= adapterOutputLimit
 }
 
 // withSnapshotRemediation appends the explicit refresh argv to a stale-snapshot fault notice and,
-// where the event accepts additionalContext, gives the model the same text (AHI-031).
+// where the event accepts additionalContext, gives the model the same text (AHI-031). A previous
+// outcome that would push the output past the limit is dropped, never the frame or argv.
 func withSnapshotRemediation(ctx context.Context, root, event, reason string, output map[string]any) map[string]any {
 	if reason != claudeSnapshotStaleReason {
 		return output
 	}
-	text := output["systemMessage"].(string) + snapshotRemediation(ctx, root)
-	output["systemMessage"] = text
-	if name, ok := claudeContextEvents[event]; ok {
-		output["hookSpecificOutput"] = map[string]any{"hookEventName": name, "additionalContext": text}
+	frame := output["systemMessage"].(string)
+	full, plain := snapshotRemediations(ctx, root)
+	for _, remediation := range []string{full, plain} {
+		text := frame + remediation
+		output["systemMessage"] = text
+		if name, ok := claudeContextEvents[event]; ok {
+			output["hookSpecificOutput"] = map[string]any{"hookEventName": name, "additionalContext": text}
+		}
+		if withinAdapterOutputLimit(output) {
+			break
+		}
 	}
 	return output
 }
 
 // withCodexSnapshotRemediation appends the same refresh argv to a Codex stale-snapshot fallback,
-// in the one channel codexDegraded chose for the event (AHI-031).
+// in the one channel codexDegraded chose for the event (AHI-031), under the same size rule.
 func withCodexSnapshotRemediation(ctx context.Context, root, reason string, output map[string]any) map[string]any {
 	if reason != claudeSnapshotStaleReason {
 		return output
 	}
-	if hook, ok := output["hookSpecificOutput"].(map[string]any); ok {
-		hook["additionalContext"] = hook["additionalContext"].(string) + snapshotRemediation(ctx, root)
-		return output
+	full, plain := snapshotRemediations(ctx, root)
+	hook, isHook := output["hookSpecificOutput"].(map[string]any)
+	key, channel := "systemMessage", output
+	if isHook {
+		key, channel = "additionalContext", hook
 	}
-	output["systemMessage"] = output["systemMessage"].(string) + snapshotRemediation(ctx, root)
+	frame := channel[key].(string)
+	for _, remediation := range []string{full, plain} {
+		channel[key] = frame + remediation
+		if withinAdapterOutputLimit(output) {
+			break
+		}
+	}
 	return output
 }
 

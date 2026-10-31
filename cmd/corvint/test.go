@@ -28,8 +28,8 @@ const testHelp = `Run the affected test set (experimental, STR-V0).
 Usage:
   corvint [--root PATH] test --base FULL_COMMIT_ID [--shard I/N]
     [--placement universe|balanced|measured [--shard-plan PATH]]
-    [--profile local|ci [--confine PATH]] [--dry-run] [--manifest PATH]
-    [--receipt PATH]
+    [--profile local|ci [--confine PATH]] [--go-parallel N] [--dry-run]
+    [--manifest PATH] [--receipt PATH]
   corvint test verify-shards --manifest PATH RECEIPT...
   corvint test shards --count N --files PATH [--durations PATH]... [--runs K]
       [--test-slices PATH --split-allow PATH]
@@ -76,6 +76,13 @@ partition digest. Missing or invalid history prints corvint-test: shards FALLBAC
 --split-allow (both or neither) a package those AFP-V0-041 files split is
 placed as its slices, each on a different shard. It writes only stdout.
 
+--go-parallel N (local profile only, 1 to 64) runs the Go invocations with
+-p N in place of the declared -p, so a focused selection fits a bounded
+offload such as heavy.sh's 40-minute remote cap; the manifest and the
+receipt argv record it, and every shard of one manifest must pass the same
+value. Example: corvint test --base "$(git merge-base HEAD origin/main)"
+--go-parallel 4.
+
 --dry-run prints the shard's argv as JSON and runs nothing but Git;
 --manifest PATH writes the corvint-test-manifest/0 there. Without --dry-run
 a supplied --manifest must equal the recomputed one. Each shard writes one
@@ -99,7 +106,10 @@ const testPartitionDirectory = ".github/cishards"
 type testOptions struct {
 	base, placement, profile, confine, manifest, receipt, shardPlan string
 	shard, shardCount                                               int
-	dryRun                                                          bool
+	// goParallel is --go-parallel, the local Go `-p` (STR-V0-173); zero
+	// keeps the declared flags.
+	goParallel int
+	dryRun     bool
 }
 
 // testInvocation recognises `[--root PATH] test ...`.
@@ -150,9 +160,11 @@ func parseTestOptions(args []string) (testOptions, error) {
 	once("shard-plan", &options.shardPlan)
 	shard := ""
 	once("shard", &shard)
+	goParallel := ""
+	once("go-parallel", &goParallel)
 	f.BoolVar(&options.dryRun, "dry-run", false, "")
 	requireClean := f.Bool("require-clean", false, "")
-	const usage = "usage: corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci --confine PATH] [--dry-run] [--manifest PATH] [--receipt PATH]"
+	const usage = "usage: corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci --confine PATH] [--go-parallel N] [--dry-run] [--manifest PATH] [--receipt PATH]"
 	// The refusal names the flag or argument at fault (STR-V0-062), as the
 	// flag package reports it: "flag provided but not defined: -out".
 	if err := f.Parse(args); err != nil {
@@ -176,6 +188,16 @@ func parseTestOptions(args []string) (testOptions, error) {
 		return options, argumentError("--profile ci needs --confine ABSOLUTE_PATH to the test-confine wrapper")
 	case options.profile == sessiontest.ProfileLocal && options.confine != "":
 		return options, argumentError("--confine applies only to --profile ci")
+	}
+	if goParallel != "" {
+		n, err := strconv.Atoi(goParallel)
+		switch {
+		case err != nil || n < 1 || n > 64:
+			return options, argumentError("--go-parallel must be an integer from 1 to 64")
+		case options.profile != sessiontest.ProfileLocal:
+			return options, argumentError("--go-parallel applies only to --profile local; the ci profile runs the full CI branch's flags (AFP-V0-028)")
+		}
+		options.goParallel = n
 	}
 	if shard != "" {
 		index, count, ok := strings.Cut(shard, "/")
@@ -278,6 +300,9 @@ func runTest(ctx context.Context, root string, args []string, stdout, stderr io.
 		return 2
 	}
 	input := testRunInput(ctx, root, options, source)
+	if options.goParallel != 0 {
+		input.Declared = input.Declared.WithGoParallel(options.goParallel)
+	}
 	input.ShardPlan = shardPlan
 	manifest, err := sessiontest.Build(input)
 	if err != nil {

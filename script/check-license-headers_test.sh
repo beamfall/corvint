@@ -3,7 +3,7 @@ set -eu
 
 # On a fixture repository: Apache-headed examples, an unheaded README and an unheaded source file
 # outside examples/ pass; a former AGPL SPDX identifier anywhere outside the historical records and
-# the four byte-pinned frozen-evidence files fails and names the file, as do a missing or compound
+# the two byte-pinned benchmark harnesses fails and names the file, as do a missing or compound
 # Apache identifier under examples/; historical records and the pinned files are exempt.
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
@@ -75,6 +75,12 @@ rm "$test_root/.github/workflows/ci.yml"
 printf '// %s\npackage x\n' "$former" >"$test_root/internal/cem/corpusbinding/other.go"
 expect_failure "a former identifier next to the notice fixtures" "internal/cem/corpusbinding/other.go carries a former AGPL SPDX identifier"
 rm "$test_root/internal/cem/corpusbinding/other.go"
+
+# 2c. The formerly exempt test fixtures now carry Apache-2.0, so a former header there fails.
+mkdir -p "$test_root/tools/cw-trial/testdata/beamfall-roadmap-v1"
+printf '# %s\n' "$former" >"$test_root/tools/cw-trial/testdata/beamfall-roadmap-v1/build_roadmap_set.py"
+expect_failure "a former identifier in a converted fixture" "build_roadmap_set.py carries a former AGPL SPDX identifier"
+rm -r "$test_root/tools"
 
 # 3. A former identifier under examples/ fails, alone or in a compound expression.
 printf '#!/bin/sh\n# %s\necho ok\n' "$former" >"$test_root/examples/demo/run.sh"

@@ -168,6 +168,10 @@ func runDogfoodAggregateRecord(ctx context.Context, root string, options dogfood
 	if !strings.HasPrefix(reason, "aggregate-") {
 		reason = "aggregate-outcome-failed"
 	}
+	if fix := tracerecordrepo.AggregateSchemaFix(err); fix != "" {
+		// ASD-V0-089: the code stays aggregate-schema-invalid; the message names the field and fix.
+		err = fmt.Errorf("%s %s", reason, fix)
+	}
 	emitDogfoodRecordError(stderr, reason, err)
 	return 2
 }

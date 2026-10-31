@@ -538,6 +538,10 @@ func validateManifest(m Manifest) error {
 	if len(m.Profile.Groups) > 32 {
 		return fail("profile group bound exceeded")
 	}
+	// An explicit empty list is refused: encoding would drop it (DCI-V1-230).
+	if m.OverBoundInputs != nil && len(m.OverBoundInputs) == 0 {
+		return fail("invalid over-bound input list: an explicit list is not empty")
+	}
 	// A scope may hold only over-bound inputs: it builds with their gaps (DCI-V1-024).
 	if len(m.Inputs)+len(m.OverBoundInputs) == 0 || len(m.Scopes) == 0 || len(m.Providers) == 0 {
 		return fail("manifest record bound exceeded")
@@ -661,6 +665,10 @@ func validateManifest(m Manifest) error {
 // identity, one pinned revision and a clean relative checkout locator, in identity order, distinct
 // from the primary repository and from each other (DCP-V1-175).
 func validateAdditionalRepositories(m Manifest) error {
+	// An explicit empty list is refused: encoding would drop it (DCI-V1-230).
+	if m.AdditionalRepositories != nil && len(m.AdditionalRepositories) == 0 {
+		return fail("invalid additional repository declaration: an explicit list is not empty")
+	}
 	if len(m.AdditionalRepositories) > maxAdditionalRepositories {
 		return capacityExceeded("additional repository count", len(m.AdditionalRepositories), maxAdditionalRepositories)
 	}
@@ -1419,6 +1427,10 @@ func validDerivationFilter(m Manifest, p Provider) error {
 	}
 	if len(f.Paths) == 0 && len(f.Kinds) == 0 {
 		return fail("vacuous derivation filter")
+	}
+	// An explicit empty list is refused: encoding would drop it (DCI-V1-230).
+	if f.Paths != nil && len(f.Paths) == 0 || f.Kinds != nil && len(f.Kinds) == 0 {
+		return fail("invalid derivation filter: an explicit paths or kinds list is not empty")
 	}
 	if len(f.Paths) > 64 {
 		return capacityExceeded("derivation filter path count", len(f.Paths), 64)

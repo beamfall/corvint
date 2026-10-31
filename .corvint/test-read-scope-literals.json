@@ -1,6 +1,9 @@
 {
   "profile": "corvint-test-read-scope-literals/0",
   "literals": {
+    "conformance/use-cases-v0": {
+      "script/repin-use-case-receipts.sh": "named inside the expected recovery hint; the test reads no file"
+    },
     "internal/analyzercap": {
       "docs/specs/analyzer-candidate-profiles.md": "named inside an expected diagnostic message; the test reads no file"
     },

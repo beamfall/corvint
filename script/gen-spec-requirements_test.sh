@@ -3,7 +3,7 @@ set -eu
 
 # Covers SRG-V0-001 (cases 1-3), SRG-V0-005 (case 4), SRG-V0-002/003 (case 5), SRG-V0-009 (case 6),
 # SRG-V0-012 and SRG-V0-043 (case 7), SRG-V0-010 (case 8), SRG-V0-015 (case 9), SRG-V0-018 (case 10)
-# and SRG-V0-042/044/046 (case 11).
+# SRG-V0-042/044/046 (case 11) and SRG-V0-547/548 (case 12).
 # SRG-V0-001: the generated index must be the one a fresh clone reproduces, so the enumeration is
 # the Git index and nothing the worktree alone says can change the output. The three cases are the drift directions reproduced in
 # `docs/specs/spec-requirement-index-generator-v0.md`: an untracked spec, a tracked spec
@@ -463,5 +463,48 @@ run > /dev/null || fail "the exact acceptance forms were refused"
 # SRG-V0-046: a dated owner-chat note inside a longer clause on the id's line classifies as `owner`.
 lines | grep -q '^NEAR-009	docs/specs/near.md	4	.*	owner	2026-10-27; V1-2763$' ||
   fail "the nested dated note did not classify as owner: $(lines | grep '^NEAR-009')"
+
+# 12. SRG-V0-547 (V1-3049): an id defined twice, across two specs or within one, is refused in
+# every mode, naming every definition, instead of keeping one and dropping the other. SRG-V0-548:
+# a wrapped citation that starts a continuation line is no second definition and ranks after the
+# real one.
+cat > "$test_root/docs/specs/dupa.md" <<'SPEC'
+- `DUP-V0-001`: the first lane's text.
+- `DUP-V0-002`: defined once in this spec.
+- `DUP-V0-002`: and again in the same spec.
+SPEC
+cat > "$test_root/docs/specs/dupb.md" <<'SPEC'
+- `DUP-V0-001`: the second lane's different text.
+SPEC
+stage docs/specs/dupa.md
+stage docs/specs/dupb.md
+for mode in '' --lines --index --readme; do
+  # shellcheck disable=SC2086
+  dup_err=$( (cd "$test_root" && script/gen-spec-requirements.sh $mode) 2>&1 > /dev/null) &&
+    fail "mode '${mode:-tsv}' accepted a duplicate definition"
+  for want in \
+    'DUP-V0-001: defined more than once: docs/specs/dupa.md:1 docs/specs/dupb.md:1' \
+    'DUP-V0-002: defined more than once: docs/specs/dupa.md:2 docs/specs/dupa.md:3' \
+    'a requirement ID must have exactly one definition line across docs/specs'; do
+    case $dup_err in *"$want"*) ;; *) fail "mode '${mode:-tsv}' duplicate refusal lacks '$want': $dup_err" ;; esac
+  done
+done
+dup_dir="$test_root/dup-out"
+mkdir "$dup_dir"
+if (cd "$test_root" && script/gen-spec-requirements.sh --all "$dup_dir") > /dev/null 2>&1; then
+  fail "--all accepted a duplicate definition"
+fi
+test -z "$(ls -A "$dup_dir")" || fail "a refused duplicate wrote into DIR"
+git -C "$test_root" rm -q --cached -- docs/specs/dupb.md
+cat > "$test_root/docs/specs/dupa.md" <<'SPEC'
+- `DUP-V0-002`: amended by
+  `DUP-V0-001`. A wrapped citation, not a definition.
+- `DUP-V0-001`: the only definition.
+SPEC
+stage docs/specs/dupa.md
+wrapped=$(run) || fail "a wrapped citation was refused as a duplicate definition"
+printf '%s\n' "$wrapped" | grep -q '^DUP-V0-001	docs/specs/dupa.md	the only definition\.' ||
+  fail "a wrapped citation displaced the definition: $(printf '%s\n' "$wrapped" | grep '^DUP-V0-001')"
+git -C "$test_root" rm -q --cached -- docs/specs/dupa.md
 
 printf 'ok\n'

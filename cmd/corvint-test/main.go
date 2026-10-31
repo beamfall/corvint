@@ -130,6 +130,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 	var recordCoverage, moduleGraph, remedySummary *bool
 	var remedyCommits *int
 	var endpoints *appmap.EndpointsOptions
+	var sources []string
 	var nodeModules, nodeBin, packageJSON, lockfile, window, hostedTest, hostedTitle, oracleAcceptance *string
 	// Every map-reading verb takes the aliased-root flags of `flows appmap build` (CCE-V0-130).
 	roots := &appmap.Roots{}
@@ -141,6 +142,10 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		window = fs.String("window", "", "frozen shadow window file (CCE-V0-011)")
 	case "catalog", "harvest":
 		rev = fs.String("rev", "", "revision")
+		if sub == "harvest" {
+			fs.Func("source", "[ALIAS:]DIR site-knowledge source directory whose IR binds proposals, repeatable (CCE-V0-310)",
+				func(v string) error { sources = append(sources, v); return nil })
+		}
 	case "obligations", "compile", "prove":
 		base = fs.String("base", "", "base revision")
 		head = fs.String("head", "", "head revision")
@@ -235,7 +240,7 @@ func run(ctx context.Context, args []string, stdout io.Writer) error {
 		}
 		doc = c.Encoded()
 	case "harvest":
-		p, err := changee2e.Harvest(ctx, changee2e.HarvestOptions{Root: *root, Rev: *rev, Manifest: *manifest, Roots: *roots})
+		p, err := changee2e.Harvest(ctx, changee2e.HarvestOptions{Root: *root, Rev: *rev, Manifest: *manifest, Roots: *roots, Sources: sources})
 		if err != nil {
 			return err
 		}

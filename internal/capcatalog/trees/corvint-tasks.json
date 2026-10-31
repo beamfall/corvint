@@ -1812,16 +1812,35 @@
       "command": "corvint-tasks queue",
       "summary": "",
       "usage": [
+        "corvint-tasks queue snapshot [--out FILE]",
         "corvint-tasks queue status [--retries] [--summary | --fields KEY[.SUB],...]"
       ],
       "flags": [
         "--fields",
+        "--out",
         "--retries",
         "--summary"
       ],
       "required": [],
-      "example": "corvint-tasks queue status",
+      "example": "corvint-tasks queue snapshot",
       "help": "corvint-tasks queue --help"
+    },
+    {
+      "path": [
+        "queue",
+        "snapshot"
+      ],
+      "command": "corvint-tasks queue snapshot",
+      "summary": "",
+      "usage": [
+        "corvint-tasks queue snapshot [--out FILE]"
+      ],
+      "flags": [
+        "--out"
+      ],
+      "required": [],
+      "example": "corvint-tasks queue snapshot",
+      "help": "corvint-tasks queue snapshot --help"
     },
     {
       "path": [
@@ -2892,9 +2911,10 @@
         "corvint-tasks ticket blockers <ticketId|local>",
         "corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]",
         "corvint-tasks ticket complete-manual --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
-        "corvint-tasks ticket create --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE]",
+        "corvint-tasks ticket create --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE] [--not-duplicate-of TICKET|LOCAL ...]",
         "corvint-tasks ticket create --template [--skeleton]",
         "corvint-tasks ticket delivery-screen <ticketId|local>... [--prs FILE|-] [--ref REF] [--since REV] [--limit N]",
+        "corvint-tasks ticket digest [--label L]... [--status S]... [--since YYYY-MM-DD] [--format json|text]",
         "corvint-tasks ticket escalate --attempt ID --claim-receipt SEQ|RECEIPT --kind decision|infrastructure|scope|blocked --question TEXT [--options A,B] [--supersedes REQUEST --expected-request-revision N] [--blocked-by TICKET [--gate GATE]] [--expected-revision N] --request-id ID [--role ROLE]",
         "corvint-tasks ticket escalation history <ticketId|local> <requestId> [--limit 1..50] [--cursor EVENT_SHA256]",
         "corvint-tasks ticket escalation list [--kind KIND] [--state OPEN|ANSWERED|SUPERSEDED] [--target TICKET] [--program NAME] [--limit 1..50] [--cursor ORIGIN_SHA256]",
@@ -2921,6 +2941,7 @@
         "corvint-tasks ticket obligations witness --target <ticketId|local> --expected-revision N --request-id ID --commit OID (--from-playwright-report FILE [--ids ID,...] [--post-check LOG --post-check-status N] [--retain] | --declared ID,... --manifest-sha256 SHA256 --test-id TEXT --reason TEXT | --reviewed ID --review FILE [--exclude-author ID,...]) [--attempt ID --generation G] [--test-commit OID] [--environment-tree OID] [--evidence-ref TEXT] [--test-title TEXT] [--test-repository NAME] [--issued-at TS] [--role OWNER|OPERATOR|WORKER] [--refuse-repeat N [--remediation REF]]",
         "corvint-tasks ticket obligations worklist [--target <ticketId|local>] [--rank priority,nearest,age] [--next K]",
         "corvint-tasks ticket prioritize --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
+        "corvint-tasks ticket recur <ticketId|local> --context TEXT --request-id ID [--issued-at TS] [--role OWNER|OPERATOR]",
         "corvint-tasks ticket refine --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket refine --batch --request-id ID (--payload-stdin | --payload JSON) [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket release-hold --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
@@ -2931,7 +2952,8 @@
         "corvint-tasks ticket set-dependencies --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket set-effects --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
         "corvint-tasks ticket set-gates --request-id ID (--payload JSON | --payload-stdin) [--target TICKET|LOCAL --expected-revision N] [--issued-at TS] [--role ROLE]",
-        "corvint-tasks ticket show <ticketId|local> [--summary | --fields KEY[.SUB],...]"
+        "corvint-tasks ticket show <ticketId|local> [--summary | --fields KEY[.SUB],...]",
+        "corvint-tasks ticket similar (--text TEXT | --payload-stdin) [--status S]... [--label L]... [--limit N] [--digest FILE]"
       ],
       "flags": [
         "--anchor",
@@ -2942,9 +2964,11 @@
         "--claim-receipt",
         "--commit",
         "--contains",
+        "--context",
         "--count",
         "--cursor",
         "--declared",
+        "--digest",
         "--dry-run",
         "--environment-tree",
         "--evidence-path",
@@ -2954,6 +2978,7 @@
         "--expected-revision",
         "--facets",
         "--fields",
+        "--format",
         "--from-playwright-report",
         "--gate",
         "--generation",
@@ -2967,6 +2992,7 @@
         "--manual",
         "--milestone",
         "--next",
+        "--not-duplicate-of",
         "--note",
         "--offset",
         "--options",
@@ -3219,11 +3245,12 @@
       "command": "corvint-tasks ticket create",
       "summary": "",
       "usage": [
-        "corvint-tasks ticket create --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE]",
+        "corvint-tasks ticket create --request-id ID (--payload JSON | --payload-stdin) [--issued-at TS] [--role ROLE] [--not-duplicate-of TICKET|LOCAL ...]",
         "corvint-tasks ticket create --template [--skeleton]"
       ],
       "flags": [
         "--issued-at",
+        "--not-duplicate-of",
         "--payload",
         "--payload-stdin",
         "--request-id",
@@ -3256,6 +3283,26 @@
       ],
       "example": "corvint-tasks ticket delivery-screen <ticketId|local>...",
       "help": "corvint-tasks ticket delivery-screen --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "digest"
+      ],
+      "command": "corvint-tasks ticket digest",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket digest [--label L]... [--status S]... [--since YYYY-MM-DD] [--format json|text]"
+      ],
+      "flags": [
+        "--format",
+        "--label",
+        "--since",
+        "--status"
+      ],
+      "required": [],
+      "example": "corvint-tasks ticket digest",
+      "help": "corvint-tasks ticket digest --help"
     },
     {
       "path": [
@@ -4071,6 +4118,30 @@
     {
       "path": [
         "ticket",
+        "recur"
+      ],
+      "command": "corvint-tasks ticket recur",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket recur <ticketId|local> --context TEXT --request-id ID [--issued-at TS] [--role OWNER|OPERATOR]"
+      ],
+      "flags": [
+        "--context",
+        "--issued-at",
+        "--request-id",
+        "--role"
+      ],
+      "required": [
+        "<ticketId|local>",
+        "--context TEXT",
+        "--request-id ID"
+      ],
+      "example": "corvint-tasks ticket recur <ticketId|local> --context TEXT --request-id ID",
+      "help": "corvint-tasks ticket recur --help"
+    },
+    {
+      "path": [
+        "ticket",
         "refine"
       ],
       "command": "corvint-tasks ticket refine",
@@ -4318,6 +4389,28 @@
       ],
       "example": "corvint-tasks ticket show <ticketId|local>",
       "help": "corvint-tasks ticket show --help"
+    },
+    {
+      "path": [
+        "ticket",
+        "similar"
+      ],
+      "command": "corvint-tasks ticket similar",
+      "summary": "",
+      "usage": [
+        "corvint-tasks ticket similar (--text TEXT | --payload-stdin) [--status S]... [--label L]... [--limit N] [--digest FILE]"
+      ],
+      "flags": [
+        "--digest",
+        "--label",
+        "--limit",
+        "--payload-stdin",
+        "--status",
+        "--text"
+      ],
+      "required": [],
+      "example": "corvint-tasks ticket similar --text TEXT",
+      "help": "corvint-tasks ticket similar --help"
     },
     {
       "path": [

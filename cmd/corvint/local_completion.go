@@ -87,7 +87,11 @@ func runLocalCompletion(ctx context.Context, root string, args []string, stdin i
 		if flags["--transport-adapted-recovery"] != "" {
 			return runTransportAdaptedRecovery(ctx, root, key, flags, stdout, stderr)
 		}
-		result, err = localcompletion.FinishWithAggregateProfile(ctx, root, key, flags["--aggregate-outcome-profile"], localCompletionPublicCommand)
+		command := localcompletion.PublicCommand(localCompletionPublicCommand)
+		if wrapFinishCommand != nil {
+			command = wrapFinishCommand(command)
+		}
+		result, err = localcompletion.FinishWithAggregateProfile(ctx, root, key, flags["--aggregate-outcome-profile"], command)
 	case "review":
 		result, err = localcompletion.Review(ctx, root, key, flags["--report-set"])
 	case "cancel":
@@ -238,6 +242,12 @@ func runTransportAdaptedRecovery(ctx context.Context, root, key string, flags ma
 	}
 	return 0
 }
+
+// wrapFinishCommand is nil in the shipped binary. The LCP-V0-060 signal
+// regression's re-executed helper sets it to hold the final strict check open
+// until a real SIGINT or SIGTERM reaches the CLI's signal context; a default
+// value would form an initialization cycle through runContext.
+var wrapFinishCommand func(localcompletion.PublicCommand) localcompletion.PublicCommand
 
 func localCompletionPublicCommand(ctx context.Context, root string, args []string, stdout, stderr io.Writer) int {
 	if len(args) < 2 {

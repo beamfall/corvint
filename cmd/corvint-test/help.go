@@ -15,7 +15,7 @@ import (
 // when a dispatched subcommand or flag is missing from it (CAP-V0-040 to CAP-V0-047).
 const commandHelpText = `corvint-test help [--json]
 corvint-test e2e catalog --rev REV [--root DIR] [--manifest FILE] [--out FILE]
-corvint-test e2e harvest --rev REV [--root DIR] [--manifest FILE] [--out FILE]
+corvint-test e2e harvest --rev REV [--root DIR] [--manifest FILE] [--source [ALIAS:]DIR]... [--out FILE]
 corvint-test e2e obligations --base REV --head REV [--root DIR] [--manifest FILE] [--coverage FILE] [--ledger FILE] [--module-graph] [--out FILE]
     [--endpoint-source [ALIAS:]DIR]... [--rails-routes [ALIAS:]FILE]... [--openapi [ALIAS:]FILE]... [--remedy-summary [--remedy-commits N]]
 corvint-test e2e compile --base REV --head REV --out DIR [--root DIR] [--manifest FILE] [--coverage FILE] [--ledger FILE] [--module-graph]

@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/workflow"
 )
 
@@ -207,9 +208,10 @@ func TestProposeCitationsDCWV0150DraftsPerHunkPlan(t *testing.T) {
 func TestProposeCitationsDCWV0150NeverDraftsUniformPlan(t *testing.T) {
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
-	// One untouched line names the changed file, so only one hunk can cite it.
+	// One untouched line names the changed file, so only one hunk can cite it;
+	// index.md has two lines, since a one-line file is never cited (DCW-V0-440).
 	file := "# Only\n" + strings.Repeat("same\n", 20)
-	writeTree(t, root, map[string]string{"docs/alpha.md": file, "index.md": "See docs/alpha.md.\n"})
+	writeTree(t, root, map[string]string{"docs/alpha.md": file, "index.md": "# Index\nSee docs/alpha.md.\n"})
 	testGit(t, root, "add", ".")
 	testGit(t, root, "commit", "-q", "-m", "base")
 	base := testGit(t, root, "rev-parse", "HEAD")
@@ -228,8 +230,8 @@ func TestProposeCitationsDCWV0150NeverDraftsUniformPlan(t *testing.T) {
 		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
 	}
 	rows := textLines(stdout.Bytes())
-	if len(rows) != 2 || !strings.HasPrefix(rows[0], "1\tindex.md\t1:1\t") || !strings.HasPrefix(rows[1], "2\tunknown\tinsufficient-evidence\tproposed: ") {
-		t.Errorf("draft = %q; want one cite of index.md:1 and one unknown row", stdout.String())
+	if len(rows) != 2 || !strings.HasPrefix(rows[0], "1\tindex.md\t2:2\t") || !strings.HasPrefix(rows[1], "2\tunknown\tinsufficient-evidence\tproposed: ") {
+		t.Errorf("draft = %q; want one cite of index.md:2 and one unknown row", stdout.String())
 	}
 }
 
@@ -405,5 +407,94 @@ func TestProposeCitationsDCWV0393ModeOnlyChangeIsChanged(t *testing.T) {
 	}
 	if strings.Contains(stdout.String(), "\tdocs/specs/p-v0.md\t") {
 		t.Errorf("draft cites a file the change made executable:\n%s", stdout.String())
+	}
+}
+
+// TestProposeCitationsDCWV0802NamesWhyThePatchIsUnavailable pins V1-3279: a
+// map-free draft whose canonical patch cem/1.0 cannot represent refuses with
+// the code cem prepare refuses the same patch with, never advises running
+// dogfood change first, and names the first-run order and the inputs each
+// later command needs; a patch over the read bound names the split.
+func TestProposeCitationsDCWV0802NamesWhyThePatchIsUnavailable(t *testing.T) {
+	for _, tc := range []struct {
+		name, reason string
+		change       func(t *testing.T, root string)
+		limit        int
+	}{
+		{name: "empty-file", reason: "metadata-only-change-unsupported", change: func(t *testing.T, root string) {
+			writeTree(t, root, map[string]string{"a.md": "# Title\n\nbody amended\n", "empty.txt": ""})
+		}},
+		{name: "mode-only", reason: "metadata-only-change-unsupported", change: func(t *testing.T, root string) {
+			if err := os.Chmod(filepath.Join(root, "a.md"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{name: "over-read-bound", reason: "git-output-exceeded", limit: 64, change: func(t *testing.T, root string) {
+			writeTree(t, root, map[string]string{"a.md": "# Title\n\n" + numbered("body amended", 20)})
+		}},
+		// A textual patch between cem prepare's 8 MiB Git output bound and
+		// the flow's larger read bound is refused as cem prepare refuses it,
+		// with the split guidance, never as a binary patch.
+		{name: "over-prepare-bound", reason: "git-output-exceeded", change: func(t *testing.T, root string) {
+			writeTree(t, root, map[string]string{"large.txt": strings.Repeat(strings.Repeat("x", 99)+"\n", 9<<20/100)})
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			testGit(t, root, "init", "-q")
+			testGit(t, root, "config", "core.fileMode", "true")
+			writeTree(t, root, map[string]string{"a.md": "# Title\n\nbody\n"})
+			testGit(t, root, "add", ".")
+			testGit(t, root, "commit", "-q", "-m", "base")
+			base := testGit(t, root, "rev-parse", "HEAD")
+			tc.change(t, root)
+			testGit(t, root, "add", ".")
+			testGit(t, root, "commit", "-q", "-m", "change")
+			status := testGit(t, root, "status", "--porcelain", "--untracked-files=all", "--ignored")
+
+			var stdout, stderr bytes.Buffer
+			run := &proposal{
+				flow:    flow{ctx: context.Background(), prefix: "dogfood-propose-citations", root: root, stderr: &stderr, gitOutputLimit: tc.limit},
+				options: ProposeOptions{Root: root, Base: base}, stdout: &stdout, blobs: map[string][]byte{}, lines: map[string][][]byte{},
+			}
+			if code, err := boundary(context.Background(), run.run, func() {}); err != nil || code != 2 {
+				t.Fatalf("ProposeCitations = %d, %v, want exit 2\n%s", code, err, stderr.String())
+			}
+			if stdout.Len() != 0 {
+				t.Fatalf("a refused draft printed rows: %q", stdout.String())
+			}
+			for _, want := range []string{
+				"dogfood-propose-citations: REFUSE patch-unavailable reason=" + tc.reason + "\n",
+				"propose-citations is the first command of the closeout and needs only BASE and a committed HEAD; no prepared map, DOGFOOD_INTENTS_FILE, DOGFOOD_VERIFY_FILE or DOGFOOD_OUTCOME",
+				"make dogfood-inputs-check BASE=" + base + " CITATIONS=plan.tsv INTENTS=<intents.txt> VERIFY=<verify.txt> OUTCOME=passed|failed|blocked",
+				"then rerun corvint dogfood propose-citations " + base + "\n",
+			} {
+				if !strings.Contains(stderr.String(), want) {
+					t.Errorf("stderr lacks %q:\n%s", want, stderr.String())
+				}
+			}
+			if tc.reason == "git-output-exceeded" && (!strings.Contains(stderr.String(), "split the change into smaller commits") || strings.Contains(stderr.String(), "textual hunk")) {
+				t.Errorf("an oversized patch lacks the split guidance or names the binary-patch fix:\n%s", stderr.String())
+			}
+			if strings.Contains(stderr.String(), "run corvint dogfood change") {
+				t.Errorf("the refusal advises dogfood change first, which refuses the same patch:\n%s", stderr.String())
+			}
+			if after := testGit(t, root, "status", "--porcelain", "--untracked-files=all", "--ignored"); after != status {
+				t.Fatalf("the refusal wrote files: %q -> %q", status, after)
+			}
+			if tc.limit != 0 {
+				return
+			}
+			// cem prepare, which dogfood change runs, refuses the same patch
+			// with the same code, so the refusal's advice is the only route.
+			session, err := workflow.Open(root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = session.Prepare(context.Background(), workflow.PrepareOptions{Base: base, Target: testGit(t, root, "rev-parse", "HEAD")})
+			if code := cemcode.CodeOf(err); code != tc.reason {
+				t.Fatalf("cem prepare = %v (code %q), want %s", err, code, tc.reason)
+			}
+		})
 	}
 }

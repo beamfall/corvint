@@ -11,7 +11,7 @@ capability-spec shape" (item 9, the requirement-to-implementation traceability t
 
 ## Agent digest
 - Claim: A Go test function named in a spec traceability table must exist or be marked PLANNED.
-- Status: accepted (owner instruction 2026-09-07) / implemented; TTG-V0-011 experimental under the standing lane auto-accept (2026-10-29; V1-3143)
+- Status: accepted (owner instruction 2026-09-07) / implemented; TTG-V0-011 experimental under the standing lane auto-accept (2026-10-29; V1-3143); TTG-V0-012 experimental under the same (2026-10-30; V1-3235)
 - Exists: `script/check-traceability-tests.sh`, fixture test `script/check-traceability-tests_test.sh`, `make` targets `traceability-tests-check` and `traceability-tests-test` in `gate`.
 - Blocked on: nothing for this gate.
 - Read next: Requirements; Non-goals; Trust boundary and failure modes.
@@ -91,6 +91,14 @@ arguments, and requires only `git` and `perl` on `PATH`.
   bare. Every other match on the same line is still checked. Non-goals: resolving bare type names
   or prose words, which still need rephrasing. Failure mode: a test cited only in qualified form
   goes unchecked.
+- `TTG-V0-012`: (experimental under the standing lane auto-accept, 2026-10-30; V1-3235; refines
+  TTG-V0-009) The test-function set stays the index snapshot of TTG-V0-001 and TTG-V0-002, so a
+  name declared only in the working tree stays unresolved. When an untracked (not ignored) or
+  unstaged modified `_test.go` file in the working tree declares an unresolved name, its failure
+  line MUST name that file and say that the check reads the index and the file must be staged
+  (`git add -- FILE`). A name no working-tree file declares keeps the plain `path:line: Name` line.
+  Non-goals: reading working-tree content as evidence. Failure mode: a name declared only in a
+  Git-ignored file gets no hint.
 
 ## Non-goals and simpler baseline
 
@@ -121,8 +129,8 @@ exit code.
 | Cited identifier declared only as a method with a receiver clause | fail, same as above; a receiver clause is not matched by TTG-V0-001 |
 | Cited identifier marked `(PLANNED)` immediately after the token | pass; counted in the summary total, not checked for existence |
 | A capitalized table-row word that happens to start with the matched prefix but names no verification function | fail, indistinguishable from a real citation; see TTG-V0-005 |
-| An untracked or Git-ignored `_test.go` file declares the only matching function | its declarations are invisible to TTG-V0-001; the citing row fails |
-| An unstaged edit adds or removes a declaration in a tracked `_test.go` file | the edit is invisible; the gate continues to evaluate the indexed blob per TTG-V0-002 |
+| An untracked or Git-ignored `_test.go` file declares the only matching function | its declarations are invisible to TTG-V0-001; the citing row fails, naming the untracked file and the staging fix (TTG-V0-012); an ignored file gets no hint |
+| An unstaged edit adds or removes a declaration in a tracked `_test.go` file | the edit is invisible; the gate continues to evaluate the indexed blob per TTG-V0-002; an added declaration's failure names the file and the staging fix (TTG-V0-012) |
 
 ## Acceptance criteria
 
@@ -140,6 +148,7 @@ but not after a heading at or above the opening depth.
 | TTG-V0-008, TTG-V0-009 | `script/check-traceability-tests_test.sh` `path:line: Name` failure reports; direct reading of the summary and failure-report block in `script/check-traceability-tests.sh` |
 | TTG-V0-010 | `Makefile` targets `traceability-tests-check` and `traceability-tests-test` and their membership in the `gate` target's prerequisite list |
 | TTG-V0-011 | `script/check-traceability-tests_test.sh` qualified fixture: `toolgroup.TestValidity` and `(*v).TestRun` pass, a bare undeclared name of that word on the same row is still reported (the fixture fails on the base checker) |
+| TTG-V0-012 | `script/check-traceability-tests_test.sh` untracked and unstaged-edit fixtures: each failure names the working-tree file and `git add`; a never-declared name carries no hint; staging resolves the row (the fixture fails on the base checker) |
 
 ## Traceability
 
@@ -151,6 +160,7 @@ but not after a heading at or above the opening depth.
 | TTG-V0-008, TTG-V0-009 | the summary print and the failure report in `script/check-traceability-tests.sh` | `script/check-traceability-tests_test.sh`; reading of the script |
 | TTG-V0-010 | `traceability-tests-check` and `traceability-tests-test` in `Makefile` and their place in the `gate` prerequisite list | `Makefile` |
 | TTG-V0-011 | the selector skip in the per-line match loop of `script/check-traceability-tests.sh` | `script/check-traceability-tests_test.sh` |
+| TTG-V0-012 | `unstaged_hint` in `script/check-traceability-tests.sh` | `script/check-traceability-tests_test.sh` |
 
 ## Rollout, rollback, and drift
 
@@ -161,6 +171,7 @@ function before that function exists MUST use the `(PLANNED)` marker immediately
 renaming or deleting a cited function without updating or re-marking its row is exactly the drift
 this gate exists to catch, so such a change MUST update the citing row in the same commit. Roll back
 TTG-V0-011 by removing the selector skip and its fixture; qualified identifiers then fail again.
+Roll back TTG-V0-012 by removing `unstaged_hint` and its fixture cases; failures lose the hint only.
 
 ## Unresolved
 

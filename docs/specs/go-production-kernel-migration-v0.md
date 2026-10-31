@@ -851,6 +851,19 @@ which is the whole of what the row asserts.
   `Component` and the call after a commented or nested backtick as code against the flat mask.
   Rollback: restore the single `literal` state for backticks in `stripWebNonCode` and delete
   `evalWebTemplateEnd`, `evalWebSubstitutionEnd`, `evalWebLineCommentEnd` and `evalWebQuotedEnd`.
+- `GPK-V0-295`: (accepted 2026-10-30, standing auto-accept; V1-3150) Amending the `GPK-V0-095`
+  non-goal: the `GPK-V0-093` admission mask (`evalBlankCommentsAndStrings`), which blanks comments
+  and literals before it reads a reference edge, MUST read a template literal in a web file
+  (`.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`) with the `GPK-V0-095` reading
+  (`evalWebTemplateEnd`): the template is blanked whole, a backtick inside a `${}` substitution
+  never ends it, a backslash escapes the next byte, and an unterminated template is blanked to the
+  end of the text. A backtick in any other file keeps the flat reading, so a Go raw string still
+  ends at the next backtick. Offsets and newlines are preserved; no wire change. Failure mode
+  closed: before, `` `${`leak()`}` `` exposed `leak()` as code, so a call spelled inside nested
+  string data could demonstrate a reference edge and admit a sibling. Acceptance evidence:
+  `TestGPKV0295BlankCommentsAndStringsNestedTemplates`, which leaked `leak` and `Component`
+  against the flat reading. Rollback: delete the web template case in
+  `evalBlankCommentsAndStrings`.
 
 ### Conformance authority
 
@@ -1977,4 +1990,5 @@ negative result.
 | `GPK-V0-092` (accepted 2026-10-26, V1-2716) | `TaskLexicalChannel` in `internal/contextindex/query_fusion.go`; `widenQueryResult`, `fusedPacketRow` in `cmd/corvint/query_widening.go` | `TestStandaloneQueryWideningFusesLexicalChannel`, `TestTaskLexicalChannelRanksTheNamedIdentifierFirst`, `TestStandaloneQueryWidensBeneathConfidentResults`, `TestGPKV0002ManifestReplay`, core-freeze goldens `query-repository-task.json`, `query-excluded-sources.json`; `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-26-v2716-query-fusion.md` |
 | `GPK-V0-093` (accepted 2026-10-28, V1-2946) | `evalAdmitSiblings`, `evalRelations`, `evalScope`, `evalDiscriminatingWords`, `evalBlankCommentsAndStrings` in `internal/contextindex/eval_admission.go`; `evalConfidentSymbols`, `evalQuery` in `internal/contextindex/eval_query.go` | `TestEvalAdmitSiblingsRequiresDemonstratedRelation`, `TestEvalAdmitSiblingsPythonRelations`, `TestEvalBlankCommentsAndStrings`, `TestEvalQueryScopeRefusesRepositoryVocabulary`, `TestEvalQueryScopeAdmitsLedgerRecordOnCommonWords`, `TestEvalQueryScopeOneSourceWordDiscriminates`, `TestEvalQueryScopeAbsentWordDoesNotWithdrawNamedSymbol`, `TestEvalScopeNamesExactly`, `TestEvalQueryRelevanceFloor`; `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-v2946-v2953-admission-and-candidate-kinds.md` |
 | `GPK-V0-095` (accepted 2026-10-29, V1-3140) | `stripWebNonCode`, `evalWebTemplateEnd`, `evalWebSubstitutionEnd`, `evalWebLineCommentEnd`, `evalWebQuotedEnd` in `internal/contextindex/eval_dependency.go` | `TestGPKV0095StripWebNonCodeBlanksNestedTemplates`, `TestGPKV0095DependencyLinksIgnoreCallsInsideNestedTemplates`, `TestGPKV0095ImpactReadsNoImportInsideNestedTemplates`; `DR-0046` |
+| `GPK-V0-295` (accepted 2026-10-30, V1-3150) | `evalBlankCommentsAndStrings` in `internal/contextindex/eval_admission.go` | `TestGPKV0295BlankCommentsAndStringsNestedTemplates`; `DR-0046` |
 | `GPK-V0-091` (accepted 2026-10-25, V1-2716) | `authorityDegradedQueryContext`, `authorityStartUnavailable` in `cmd/corvint/main.go`; `QueryDegradation`, `WithQueryDegradation` in `internal/contextindex/query_degradation.go`; `EvalQuery` degradation disclosure in `internal/contextindex/eval_query.go` | `TestProjectOperationsQueryDegradesWithoutRootAgentsFile`, `TestProjectOperationsQueryStillRefusesSymlinkAuthority`, `TestGPKV0002ManifestReplay` (`RETIRED query-missing-authority-refusal decision=0561`) |

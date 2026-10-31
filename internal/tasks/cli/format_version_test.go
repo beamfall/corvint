@@ -1,8 +1,10 @@
 package cli_test
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -430,6 +432,20 @@ func everyLiveFormatRefusesANewerVersion(t *testing.T) {
 		service.RequestsName:        plain(func(b []byte) error { _, e := service.DecodeRequests(b); return e }),
 		service.HelperRecordName:    plain(func(b []byte) error { _, e := service.DecodeHelperRecord("helper", b, "prog", "h1"); return e }),
 		service.ResumeOperationName: plain(func(b []byte) error { _, e := service.DecodeResumeOperation(b, "prog"); return e }),
+		"taskman-intent-snapshot/0": func(t *testing.T, p string) error {
+			path := filepath.Join(resolvedTempDir(t), "queue-snapshot.json")
+			if err := os.WriteFile(path, enc(t, p), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv(cli.SnapshotEnv, path)
+			var out bytes.Buffer
+			cli.Run(cli.Env{Cwd: filepath.Dir(path), Args: []string{"queue", "status"}, Stdin: bytes.NewReader(nil), Stdout: &out, Stderr: io.Discard})
+			res, err := wire.DecodeResult(out.Bytes())
+			if err != nil || len(res.Codes) == 0 {
+				t.Fatalf("snapshot read: %v %s", err, out.String())
+			}
+			return wire.Errorf(res.Codes[0], "snapshot", "%v", res.Warnings)
+		},
 	}
 	live := cli.LiveFormats()
 	for _, p := range live {

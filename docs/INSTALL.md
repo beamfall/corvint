@@ -353,8 +353,14 @@ and for the checkout you run it from when that checkout is already indexed. The 
 not undo the switch. Other checkouts, and any Core binary copied into place by hand, still need
 an explicit `corvint index --if-stale`.
 
-Core `v*` and standalone Tasks `tasks-dev-*` channels are selected separately. Developer Tasks
-archives retain their explicit unverified/runtime-qualification limits. Checksums detect byte
+Core `v*` and standalone Tasks `tasks-dev-*` channels are selected separately from the one
+official source, the GitHub releases of `beamfall/corvint`. RC (`vX.Y.Z-rc.N`) and developer Tasks
+releases are published as prereleases and are admitted, so checking them never waits for a stable
+release. Every result names `source` and `channel`; when no release can be selected, freshness
+stays `UNKNOWN` and `unknownReason` says why and what would resolve it (for example, that the
+channel has no published release yet). `--github-token-env NAME` authenticates the release API
+reads with the token in that variable (sent to `api.github.com` only, never to download hosts).
+Developer Tasks archives retain their explicit unverified/runtime-qualification limits. Checksums detect byte
 changes, not publisher identity. Bounded inventory exhaustion/offline state reports freshness
 UNKNOWN. This optional operator tool introduces no daemon, config rewrite, store migration,
 publisher authentication or power-loss durability; callers schedule it and manage active hosts.

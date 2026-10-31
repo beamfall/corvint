@@ -433,7 +433,9 @@ func (r *Runner) drift(ctx context.Context, planned SourceIdentity) string {
 // from the repository root), so it is resolved against Root, never against
 // the caller's working directory; a bare name is looked up on PATH.
 func (r *Runner) discover(ctx context.Context, invocation Planned, deadline time.Time) (string, string, error) {
-	name, versionArgs, env := invocation.Argv[0], []string{"--version"}, invocation.Env
+	// The probes run with the launch's cache (STR-V0-174), so a declared
+	// cache the caller replaced cannot fail discovery first.
+	name, versionArgs, env := invocation.Argv[0], []string{"--version"}, GoCacheOverride(invocation.Env, r.Environ)
 	if name == "go" {
 		versionArgs = []string{"env", "GOVERSION"}
 	}
@@ -549,10 +551,11 @@ func firstOf(values []string) string {
 func (r *Runner) launch(ctx context.Context, planned Planned, identity [2]string, budget time.Duration, deadline time.Time) (Invocation, string) {
 	runCtx, cancel := r.withDeadline(ctx, deadline)
 	defer cancel()
-	env := append(append([]string{}, r.Environ...), planned.Env...)
+	plannedEnv := GoCacheOverride(planned.Env, r.Environ)
+	env := append(append([]string{}, r.Environ...), plannedEnv...)
 	envDigest, _ := Digest(env)
 	recorded := Invocation{
-		Adapter: planned.Adapter, Argv: planned.Argv, Dir: planned.Dir, Env: nonNil(planned.Env), EnvDigest: envDigest,
+		Adapter: planned.Adapter, Argv: planned.Argv, Dir: planned.Dir, Env: nonNil(plannedEnv), EnvDigest: envDigest,
 		Exit: -1, Outcomes: []Outcome{}, Runner: identity[0], Version: identity[1],
 	}
 	cmd := exec.CommandContext(runCtx, identity[0], planned.Argv[1:]...)

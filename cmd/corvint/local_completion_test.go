@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -243,6 +244,9 @@ func TestLocalCompletionRealEvidenceWorkflow(t *testing.T) {
 		state["lifecycle"] = "active"
 		altered, _ = json.Marshal(state)
 		os.WriteFile(statePath, altered, 0600)
+		// LCP-V0-060 on the pre-seal strict path: a real SIGINT and SIGTERM
+		// during the unsealed final check keep the active policy on stdout.
+		assertFinishSignalCLI(t, root, key, statePath)
 		cemGit(t, root, "config", "--local", "corvint.dogfood.anchor", "HEAD")
 		result, err = localcompletion.Finish(ctx, root, key, localCompletionPublicCommand)
 		if err == nil || result.Satisfied {
@@ -808,6 +812,9 @@ func assertSealedCompletionControls(t *testing.T, root, key, base, seal string, 
 	if e != nil {
 		t.Fatal(e)
 	}
+	// LCP-V0-060: the same interruption delivered as a real SIGINT and SIGTERM
+	// to the `corvint dogfood finish` CLI on the sealed path.
+	assertFinishSignalCLI(t, root, key, statePath)
 	signalled, signal := context.WithCancel(ctx)
 	interrupts := 0
 	interruptChecker := func(ctx context.Context, root string, args []string, out, errout io.Writer) int {
@@ -860,6 +867,18 @@ func assertSealedCompletionControls(t *testing.T, root, key, base, seal string, 
 	result, e = localcompletion.Finish(ctx, root, key, localCompletionPublicCommand)
 	if e != nil || !result.Satisfied {
 		t.Fatalf("real checker recovery: %#v %v", result, e)
+	}
+	// LCP-V0-060: the recovery finish reused the bound verification results; it
+	// appended or rewrote no check observation, so no check was rerun.
+	var held, recovered struct {
+		Observations []map[string]any `json:"observations"`
+	}
+	recoveredState, e := os.ReadFile(statePath)
+	if e != nil || json.Unmarshal(interruptedState, &held) != nil || json.Unmarshal(recoveredState, &recovered) != nil {
+		t.Fatalf("state read: %v", e)
+	}
+	if len(held.Observations) == 0 || !reflect.DeepEqual(held.Observations, recovered.Observations) {
+		t.Fatalf("recovery finish reverified: before=%v after=%v", held.Observations, recovered.Observations)
 	}
 	if got := cemGit(t, root, "rev-parse", "HEAD"); got != seal {
 		t.Fatal("continuation moved HEAD")

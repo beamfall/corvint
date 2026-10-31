@@ -25,6 +25,23 @@ type MigrationAuthority struct {
 	// CommitObject reports whether an unreachable name is still a commit
 	// object, which makes its trace file stranded rather than unknown.
 	CommitObject func(string) (bool, error)
+	// AncestryLimit is nonzero when Git ancestry exceeds the bounded replay
+	// window, so Commits holds only the newest AncestryLimit commits and Trees
+	// is empty (LTPM-V0-517). ReachableCommit then resolves a name missing from
+	// Commits: whether it is a commit reachable from HEAD, and its tree.
+	AncestryLimit   int
+	ReachableCommit func(string) (Revision, bool, error)
+}
+
+// reachableCommit reports whether revision is a commit reachable from HEAD.
+func (authority MigrationAuthority) reachableCommit(revision string) (Revision, bool, error) {
+	if policy, reachable := authority.Commits[revision]; reachable {
+		return policy, true, nil
+	}
+	if authority.ReachableCommit == nil {
+		return Revision{}, false, nil
+	}
+	return authority.ReachableCommit(revision)
 }
 
 // MigrationEntry is one legacy tree file and its canonical commit replacement.
@@ -137,10 +154,16 @@ func planMigrationPinned(root string, directory *heldDirectory, authority Migrat
 			plan.Candidates = append(plan.Candidates, candidate)
 			continue
 		}
-		policy, canonical := authority.Commits[revision]
+		policy, canonical, err := authority.reachableCommit(revision)
+		if err != nil {
+			return MigrationPlan{}, err
+		}
 		kind, commit := "canonical", revision
 		if !canonical {
 			commits := authority.Trees[revision]
+			if len(commits) == 0 && authority.AncestryLimit != 0 {
+				return MigrationPlan{}, fmt.Errorf("local trace store revision %s is neither a commit reachable from HEAD nor a stranded commit, and Git ancestry exceeds the bounded legacy tree replay limit %d, so it cannot be mapped to one commit; move .context-corvint/traces/%s.jsonl out of .context-corvint/ to retire it, then rerun corvint migrate-traces --dry-run (LTPM-V0-517)", revision, authority.AncestryLimit, revision)
+			}
 			if len(commits) == 0 {
 				return MigrationPlan{}, fmt.Errorf("local trace store contains unreachable revision: %s", revision)
 			}
@@ -270,8 +293,8 @@ func confirmQuarantineCollision(quarantine *heldDirectory, revision string, sour
 // reachable legacy tree but is still a commit object: history was rewritten
 // after the trace was recorded (LTPM-V0-012).
 func stranded(authority MigrationAuthority, revision string) (bool, error) {
-	if _, reachable := authority.Commits[revision]; reachable {
-		return false, nil
+	if _, reachable, err := authority.reachableCommit(revision); err != nil || reachable {
+		return false, err
 	}
 	if len(authority.Trees[revision]) != 0 {
 		return false, nil

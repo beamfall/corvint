@@ -386,7 +386,7 @@ func (c *check) checkReport() []byte {
 		}
 		value, err := ParseAggregateReport(bounded)
 		if err != nil {
-			c.fail("aggregate-schema-invalid")
+			c.fail("aggregate-schema-invalid", "  "+strings.ReplaceAll(tracerecordrepo.AggregateSchemaFix(err), "BASE", c.base))
 		}
 		if value.Base != c.base || value.Target != c.target || value.CompletionState != "complete" {
 			c.fail("aggregate-binding-drift")

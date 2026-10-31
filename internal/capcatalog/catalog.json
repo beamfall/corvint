@@ -1125,6 +1125,7 @@
         "--plan",
         "--reason",
         "--receipt",
+        "--refresh",
         "--report-set",
         "--session-key",
         "--task-state",
@@ -1147,7 +1148,8 @@
         "Prepare also cites each plan row against the prepared map without writing it, so a row cem cite would refuse stops the run before any bind (DCW-V0-335), and so does an intents manifest or a plan the bind would refuse before any cite: invalid, past the map's hunks, or citing one span for every hunk (DCW-V0-379).",
         "batch-check is read-only.",
         "propose-citations is read-only.",
-        "The draft is labelled PROPOSED on stderr; review it and write it to the DOGFOOD_CITATIONS file yourself (DCW-V0-150)."
+        "The draft is labelled PROPOSED on stderr; review it and write it to the DOGFOOD_CITATIONS file yourself (DCW-V0-150).",
+        "--refresh PLAN carries an earlier plan forward after a later edit, amend or renumber re-hunked it (DCW-V0-442): rows whose hunk ID is current are kept as written, a row whose hunk was re-hunked is re-keyed to the hunk with the same path and content (else the same path and BASE range), and every re-keyed or dropped row is noted on stderr; only the remaining hunks are drafted afresh."
       ],
       "unknowns": [
         {
@@ -1396,7 +1398,8 @@
       "selfObservationLedger": "not-listed",
       "writeStatements": [
         "The command reads the Git worktree status, builds the multi-language unit graph from source text, and writes one affected-plan/1 document to stdout: the selector's plan (selected units with witnesses and test counts, an exclusion summary, unknowns, scope) and provider.go.packages, the exact import paths an operator may copy into a Go live-test provider bundle.",
-        "--full writes the affected-plan/0 document instead: every exclusion and every selected unit's test files.",
+        "--format text (AFP-V0-928) writes the same affected-plan/1 plan as lines instead of JSON: \"affected <summary.line> revision=SHA [base=SHA]\", a \"warning TEXT\" line when the plan read unpinned worktree content, one \"selected UNIT tests=N WITNESS <- DIRTY_PATH [via A > B]\" line per selection, one \"unknown REASON DETAIL [hint TEXT]\" line per plan unknown, the exclusion count and digest, and one \"check KIND COMMAND\" line per advice check with the advisory packages appended.",
+        "Example: corvint affected --base FULL_SHA --format text --full writes the affected-plan/0 document instead: every exclusion and every selected unit's test files.",
         "It runs no test, writes no repository state, and never claims that omitted tests are safe to skip; the provider keeps its own NO_AFFECTED_SELECTION_PROOF unknown.",
         "Write --path=VALUE for a name that begins with -.",
         "An entry is trusted only when it was written by this exact corvint executable for this root, and every directory the graph walked and every file it read or statted has the same size, mode, inode, modification and change time; otherwise, or when the entry is damaged, the graph is built in full and the entry replaced.",
@@ -3545,6 +3548,7 @@
         "--dry-run",
         "--durations",
         "--files",
+        "--go-parallel",
         "--manifest",
         "--placement",
         "--profile",
@@ -4099,7 +4103,7 @@
             "e2e-catalog"
           ],
           "usage": [
-            "corvint-test e2e harvest --rev REV [--root DIR] [--manifest FILE] [--out FILE]",
+            "corvint-test e2e harvest --rev REV [--root DIR] [--manifest FILE] [--source [ALIAS:]DIR]... [--out FILE]",
             "    [--repo ALIAS=ABSOLUTE_ROOT]... [--manifest-repo ALIAS] [--repo-revision ALIAS=REV]...",
             "    [--workspace FILE | --no-workspace]"
           ],
@@ -4115,6 +4119,7 @@
             "--repo-revision",
             "--rev",
             "--root",
+            "--source",
             "--workspace"
           ],
           "schemaIds": [
@@ -4124,7 +4129,9 @@
           "inputs": [
             "--rev REV is required. Every tracked *.spec.* and *.test.* file at --rev is read for literal",
             "getByTestId assertions and page.goto navigations; the map at --manifest only binds proposals to",
-            "flows and screens, and without it every proposal is unbound."
+            "flows and screens, and without it every proposal is unbound. Each --source directory is read",
+            "into the site-knowledge IR at the map revision, which binds a line the map places on no flow",
+            "or screen to the screen its test is on there (CCE-V0-310)."
           ],
           "commit": [
             "Nothing new to run it. To admit a proposal, commit its ID with a reason in",

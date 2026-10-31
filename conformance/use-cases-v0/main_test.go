@@ -408,3 +408,30 @@ func TestUCV0217DigestStatusMatchesLedger(t *testing.T) {
 		t.Errorf("digest does not say %q", want)
 	}
 }
+
+// TestUCV0020DigestRefusalNamesRecovery: a subject or receipt digest refusal names its recovery,
+// the repin script and, for a receipt that left its pin, the restore from HEAD that comes first.
+func TestUCV0020DigestRefusalNamesRecovery(t *testing.T) {
+	for _, tc := range []struct {
+		name, want, absent string
+		mutate             func(*fixture)
+	}{
+		{"subject", "a pinned subject changed; run `script/repin-use-case-receipts.sh`", "git restore", func(f *fixture) { f.write("evidence/contract/subject", []byte("changed")) }},
+		{"receipt", "restore the ledger and receipts from HEAD first, `git restore --source=HEAD -- conformance/use-cases-v0/ledger.json conformance/use-cases-v0/receipts`, then run `script/repin-use-case-receipts.sh`", "a pinned subject changed", func(f *fixture) { f.write("evidence/contract/receipt.json", []byte("changed")) }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newFixture(t)
+			f.receipt("contract")
+			f.check()
+			tc.mutate(f)
+			errs, _ := f.check(tc.name + "-digest-mismatch")["errors"].([]any)
+			hint := strings.Join(recoveryHint(errs, "conformance/use-cases-v0/ledger.json"), "\n")
+			if !strings.Contains(hint, tc.want) || strings.Contains(hint, tc.absent) {
+				t.Fatalf("recovery hint %q does not name %q (or names %q)", hint, tc.want, tc.absent)
+			}
+		})
+	}
+	if hint := recoveryHint([]any{"ledger:unexpected-use-case-count"}, "ledger.json"); hint != nil {
+		t.Fatalf("a non-digest refusal printed a recovery hint: %q", hint)
+	}
+}

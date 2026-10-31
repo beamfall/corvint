@@ -19,6 +19,11 @@
 #                      tracked path, and one reappearing means it didn't stick.
 #   own-package build  `go build ./...` in a live tree reports other agents'
 #                      half-written files, which reads as your own breakage.
+#   claude-attribution a lane host whose Claude Code attribution setting was
+#                      unset added an AI Co-Authored-By trailer to every commit,
+#                      crediting Claude as a GitHub contributor (V1-3227,
+#                      ASD-V0-561); script/check-ai-coauthor-trailers.sh refuses
+#                      those commits, and this check names the setting.
 set -eu
 root=$(cd "$(dirname "$0")/.." && pwd)
 status=0
@@ -89,6 +94,42 @@ else
 		fail "concurrent-writers" "$(printf '%s\n' "$foreign" | wc -l | tr -d ' ') tracked file(s) modified by someone else, outside the $# path(s) you named -- stage ONLY your named paths with an explicit pathspec, never git add -u or git add -A"
 		printf '%s\n' "$foreign" | sed 's/^/                   /'
 	fi
+fi
+# The Claude Code attribution setting, read without jq: the user file, then the checkout's
+# project files, the last one that sets attribution winning. Both values must be "".
+attribution_fix='set "attribution": {"commit": "", "pr": ""} in'
+attr_state() { # prints: off, legacy-off, on, or unset
+	flat=$(tr -d ' \t\r\n' < "$1" 2>/dev/null) || { echo unset; return; }
+	case $flat in
+	*'"attribution":{'*)
+		attr=${flat#*'"attribution":{'}
+		attr=${attr%%\}*}
+		case $attr in
+		*'"commit":""'*'"pr":""'* | *'"pr":""'*'"commit":""'*) echo off ;;
+		*) echo on ;;
+		esac
+		;;
+	*'"includeCoAuthoredBy":false'*) echo legacy-off ;;
+	*) echo unset ;;
+	esac
+}
+claude_dir=${CLAUDE_CONFIG_DIR:-${HOME:-}/.claude}
+if [ ! -d "$claude_dir" ]; then
+	note "claude-attribution" "no $claude_dir -- not a Claude Code host"
+else
+	state=unset
+	from="$claude_dir/settings.json"
+	for f in "$claude_dir/settings.json" "$root/.claude/settings.json" "$root/.claude/settings.local.json"; do
+		[ -f "$f" ] || continue
+		s=$(attr_state "$f")
+		if [ "$s" != unset ]; then state=$s; from=$f; fi
+	done
+	case $state in
+	off) note "claude-attribution" "commit and pr attribution off ($from)" ;;
+	legacy-off) note "claude-attribution" "includeCoAuthoredBy is false ($from); the current form is \"attribution\": {\"commit\": \"\", \"pr\": \"\"}" ;;
+	on) fail "claude-attribution" "attribution is set but not empty in $from -- Claude Code will add an AI Co-Authored-By trailer; $attribution_fix $from" ;;
+	*) fail "claude-attribution" "unset -- Claude Code adds an AI Co-Authored-By trailer to every commit by default; $attribution_fix $claude_dir/settings.json" ;;
+	esac
 fi
 printf '\n%s\n' "Build and test only the packages you own; a red ./... here is usually not yours."
 exit "$status"

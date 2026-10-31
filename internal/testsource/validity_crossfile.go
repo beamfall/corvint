@@ -270,17 +270,17 @@ const eoJSONAllowMember = testvalidity.ValidityAllowMarker
 // `"corvint-validity-allow": {"<key>": "EITHER-OR-OUTCOME: <reason>"}` exempts every line holding
 // a `<key>` member of that object. A value without a reason, naming another rule, or not a string,
 // and a key it does not name, exempt nothing. A file that is not one valid JSON value exempts
-// nothing.
-func eoJSONAllowed(text string) map[int]bool {
+// nothing. Each exempted line maps to the annotation's reason (TSA-V0-870).
+func eoJSONAllowed(text string) map[int]string {
 	type frame struct {
 		object, wantKey bool
 		key             string
 		keyLine         int
 		members         map[string][]int
-		allow           map[string]bool
+		allow           map[string]string
 		allowFor        *frame // set on the annotation object: the object it annotates
 	}
-	exempt := map[int]bool{}
+	exempt := map[int]string{}
 	if !json.Valid([]byte(text)) {
 		return exempt
 	}
@@ -299,7 +299,7 @@ func eoJSONAllowed(text string) map[int]bool {
 			break
 		}
 		if err != nil {
-			return map[int]bool{}
+			return map[int]string{}
 		}
 		var top *frame
 		if len(stack) > 0 {
@@ -309,16 +309,16 @@ func eoJSONAllowed(text string) map[int]bool {
 		case json.Delim:
 			switch v {
 			case '{', '[':
-				f := &frame{object: v == '{', wantKey: v == '{', members: map[string][]int{}, allow: map[string]bool{}}
+				f := &frame{object: v == '{', wantKey: v == '{', members: map[string][]int{}, allow: map[string]string{}}
 				if v == '{' && top != nil && top.object && top.key == eoJSONAllowMember {
 					f.allowFor = top
 				}
 				stack = append(stack, f)
 			default:
 				for key, lines := range top.members {
-					if top.allow[key] {
+					if reason, ok := top.allow[key]; ok {
 						for _, line := range lines {
-							exempt[line] = true
+							exempt[line] = reason
 						}
 					}
 				}
@@ -331,8 +331,8 @@ func eoJSONAllowed(text string) map[int]bool {
 				top.members[v] = append(top.members[v], top.keyLine)
 				continue
 			}
-			if top != nil && top.allowFor != nil && eoJSONAllowValue(v) {
-				top.allowFor.allow[top.key] = true
+			if reason, ok := eoJSONAllowValue(v); ok && top != nil && top.allowFor != nil {
+				top.allowFor.allow[top.key] = reason
 			}
 			value()
 		default:
@@ -342,8 +342,13 @@ func eoJSONAllowed(text string) map[int]bool {
 	return exempt
 }
 
-// eoJSONAllowValue reports an annotation value `EITHER-OR-OUTCOME: <reason>` with a reason.
-func eoJSONAllowValue(v string) bool {
+// eoJSONAllowValue returns the reason of an annotation value `EITHER-OR-OUTCOME: <reason>`, and
+// whether it carries one.
+func eoJSONAllowValue(v string) (string, bool) {
 	rule, reason, ok := strings.Cut(v, ":")
-	return ok && strings.TrimSpace(rule) == testvalidity.RuleEitherOrOutcome && strings.TrimSpace(reason) != ""
+	reason = strings.TrimSpace(reason)
+	if !ok || strings.TrimSpace(rule) != testvalidity.RuleEitherOrOutcome || reason == "" {
+		return "", false
+	}
+	return reason, true
 }

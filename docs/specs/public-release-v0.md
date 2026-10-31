@@ -672,6 +672,17 @@ Context, non-goals, failure modes and rollback: the "Version source identity ame
   earlier `(build N)` form. A version check MUST accept `VERSION` or its `PUB-V0-052` development
   form unless it checks a release build, which prints `VERSION` itself.
 
+- `PUB-V0-054`: (experimental under the owner's standing lane auto-accept, 2026-10-30; V1-3221)
+  The real-toolchain `PUB-V0-013` double-build test MUST bound its scratch: before building it
+  reads the free space under its temporary scratch directory, builds at most as many components
+  concurrently as that space holds at the measured per-component need (1 GiB: a cold `corvint`
+  build measured 272 MB of `GOCACHE` home plus a 53 MB binary, twice), removes each component's
+  homes and binaries once it passes, and skips naming the free space and the need when one
+  component does not fit. Each component still builds twice with two cold, separate caches and
+  the byte-identity assertion is unchanged. Non-goals: reserving space against concurrent
+  writers. Failure mode: another process fills the file system after the check and a build fails
+  with its own error. Rollback: restore unbounded concurrency and drop the skip.
+
 ## Non-goals and failure modes
 
 No service installation, shared database, hosted dashboard, automatic account/license creation,
@@ -897,5 +908,6 @@ read it. No stored state depends on them; manifests of either form stay verifiab
 |---|---|---|
 | PUB-V0-050 | `cmd/corvint/version_json.go` (`versionIdentityFrom`, `versionPayload`) | `TestPUBV0050VersionJSONStatesSourceCommit` |
 | PUB-V0-051 | `cmd/corvint/version_json.go` (`versionPayload`) | `TestPUBV0051UnstampedBuildOmitsBuild` |
+| PUB-V0-054 | `doubleBuildScratchBytes`, `doubleBuildWorkers` and the bounded subtests of `TestCorvintBundledBinariesBuildTwiceIdentically` in `internal/companionrelease/companionrelease_test.go` | `TestDoubleBuildWorkersFitFreeScratch_V1_3221`; `TestCorvintBundledBinariesBuildTwiceIdentically` (run 2026-10-30) |
 | PUB-V0-053 | `internal/versionline`, `cmd/corvint/version_json.go` (`versionText`, `emitVersion`), the consumers listed above | `TestPUBV0053PlainVersionLineFormat`, `TestPUBV0053ParseIsTolerant`, `TestPUBV0053FormatRoundTrips`, `TestPUBV0053ManifestVersionLineIsTolerant`, `TestPUBV0053UpdateReadsTheCommitBearingLine` |
 | PUB-V0-052 | `cmd/corvint/version_json.go` (`developmentVersion`), `conformance/release-artifact-v0/build.go` (`buildArguments`), `internal/companionrelease/companionrelease.go` | `TestPUBV0052UnreleasedBuildIsPreRelease`, `TestPUBV0052ArchiveStampsSourceCommit` |

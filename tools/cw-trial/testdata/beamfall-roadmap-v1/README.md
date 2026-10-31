@@ -38,7 +38,7 @@ roadmap-ticket-to-diff tasks. Skills and `docs/DOGFOOD.md` §1 may route orienta
 `tasks.json` (sha256 `7fbe8124e55d247bc98ef0a06f3a0d820f6824aff680853b9c69a353fe85db85`) holds 50
 `retrieval` tasks with 181 gold paths. It was drawn from 247 candidates in Beamfall/core's
 first-parent history at `02835b1be8a2c6989ea2f4b74dbf6ec0163c2b35`. `build_roadmap_set.py`
-(sha256 `412917690587e29161da3a6f2ecb254750ea45c2917293eb2b032d4fdf06c41c`) reproduces the set from
+(sha256 `15385e9844718f29f834f796c5363dbd6e063bf54bc7c9f1f5ac9b3d8213841a`) reproduces the set from
 a Beamfall/core clone using only Git: `python3 build_roadmap_set.py REPO 02835b1be tasks.json`.
 The manifest's `sampling_rule` states the rule in full:
 

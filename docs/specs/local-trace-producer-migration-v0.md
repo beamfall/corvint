@@ -327,6 +327,23 @@ Acceptance: `TestLTPMV0014TypedGolden`, `TestLTPMV0014TypedRefusals`,
   keeps the existing cleanliness refusal. With an authority, the check MUST re-derive the candidate and admitted path digests against the compiled index's tracked
   source set, which is a function of the unchanged tree. Recorded trace bytes and refusal codes are
   unchanged.
+- `LTPM-V0-517`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3034)
+  When `HEAD` has more ancestors than the 10000-commit replay window, `migrate-traces` MUST NOT
+  refuse the whole store. It keeps the newest 10000 commits as reachable commits and resolves any
+  other trace name on its own: a commit object that `git merge-base --is-ancestor` places under
+  `HEAD` is a canonical trace with the tree that the same `git cat-file --batch-check` call peels,
+  and an unreachable commit object is stranded under `LTPM-V0-012`. So the cost is bounded by the
+  trace store rather than by the ancestry. The Git operation budget MUST cover a valid store at its
+  maximum: it is the 1024-operation default plus three per admitted trace file
+  (`trace.MaxTraceFiles`), since a name costs one cat-file and one merge-base, and then one tree
+  listing or one commit-object check, each cached across the two plans of an apply. With a truncated window no legacy tree name can be proven to map to exactly one
+  commit, so such a name MUST refuse, naming the revision, the limit and the recovery: move
+  `.context-corvint/traces/<rev>.jsonl` out of `.context-corvint/` and rerun the dry run. Plan
+  digests and output bytes are unchanged. Failure mode: before this, the recovery that the
+  `LTPM-V0-012` rebind refusal prints refused on every repository deeper than the window with
+  `Git ancestry exceeds bounded trace replay limit 10000`. Non-goal: mapping a legacy tree beyond
+  the window. Rollback: restore the ancestry-limit refusal in `bindAuthority`, and remove the
+  `AncestryLimit` and `ReachableCommit` fields from `trace.MigrationAuthority`.
 
 ## Non-goals and simpler baseline
 
@@ -362,7 +379,7 @@ fallback consumers retain `admitted-path-limit`.
 | `candidate-limit` | `internal/trace/record.go:363@bd1c5902` | `AdmissibleCurrentPaths` received more than 200,000 unique changed-path candidates |
 | `changed-path-acquisition-failed` | `internal/tracerecordrepo/adapter.go:105@f49f60cd` | listing the base-to-target changed paths failed |
 | `changed-path-admission-failed` | `internal/tracerecordrepo/adapter.go:111@69bd23b7` | `trace.AdmissibleCurrentPaths` failed with an error `trace.AdmissionFailureReason` maps to no reason |
-| `dogfood-record-failed` | `cmd/corvint/dogfood_record.go:200@d0afa17b` | the stderr `code` written when the dogfood-record error carries an empty reason |
+| `dogfood-record-failed` | `cmd/corvint/dogfood_record.go:204@d0afa17b` | the stderr `code` written when the dogfood-record error carries an empty reason |
 | `invalid-base-revision` | `internal/tracerecordrepo/adapter.go:94@8006b57c` | the base argument does not resolve to a commit |
 | `malformed-path` | `internal/trace/record.go:518@c94787ea` | a path is empty or `pythonString` rejects it (its value cannot be decoded as Python string units); also at `internal/trace/record.go:535@c94787ea`, a normalized, unforbidden path that is tracked (or any stored-row path) breaks the `corvint-dashboard-trace-path-witness/0` lexical profile: more than 4,096 bytes, not valid UTF-8 (an encoded surrogate), a Unicode control, a backslash, or an ASCII-letter-colon prefix (decision 0235) |
 | `record-failed` | `internal/tracerecordrepo/adapter.go:162@0416b61a` | the stability check or recording failed for a reason that is neither repository drift nor a verification reason |
@@ -384,6 +401,7 @@ fallback consumers retain `admitted-path-limit`.
 | `LTPM-V0-010` | fixture-root CLI dogfood and before/after fingerprint of the real trace store |
 | `LTPM-V0-012` | stranded dry-run without writing, byte-preserved apply, non-commit refusal, probe failure, quarantine collision, identical-copy resume, CLI amend fixture |
 | `LTPM-V0-017` | one counted index compilation per dogfood record; unchanged repository passes; admitted-digest drift and a same-tree moved `HEAD` refuse |
+| `LTPM-V0-517` | an injected two-commit window over five commits plans a canonical trace beyond the window and a trace stranded by amend; a legacy tree beyond the window refuses with the named recovery, which then lets the dry run pass; a store of `trace.MaxTraceFiles` traces all beyond the window (ten stranded, each on its own tree) plans and applies, where the fixed 1024-operation budget refused; a live dry run and apply on a 10958-commit clone quarantine a stranded trace where the 93b9f5b0 binary refused |
 
 ## Rollout, rollback, and traceability
 
@@ -406,6 +424,7 @@ non-authoritative and slated for separate removal. The Go producer row below is 
 | `LTPM-V0-011` | `internal/trace`, `internal/tracerecordrepo`, `cmd/corvint`, `script/dogfood-change.sh`, `script/dogfood-check.sh` | shared tri-state admission tests; `TestTracePathScreenIsTheIndexScreen`; `TestRecordUnsupportedVerifySyntaxAppendsOneObservation` (verification refusal `code`) (`IDX-SNAP-V0-018` screen); mixed and source-free CLI fixtures; NUL-safe line-feed path fixture; malformed and over-bound refusal; `TestTraceTaskMustBeValidUTF8`; target/digest stability checks; shell coordination, evidence-drift, and interruption tests |
 | `LTPM-V0-012` | `internal/trace`, `internal/tracemigraterepo`, `cmd/corvint` | `TestMigrationQuarantinesStrandedCommitTrace`; `TestMigrationRefusesUnknownOrCollidingStrandedTrace`; `TestMigrateTracesQuarantinesTraceStrandedByAmend` |
 | `LTPM-V0-017` | `internal/tracerecordrepo` | `TestDogfoodRecordCompilesOneIndex`; `TestDogfoodStabilityBindsCandidateAndAdmittedDigests` |
+| `LTPM-V0-517` | `internal/tracemigraterepo` (`bindAuthority`, `reachableCommit`), `internal/trace` (`MigrationAuthority.reachableCommit`, `stranded`) | `TestLTPMV0517DeepHistoryBoundsByTraceStore`; `TestLTPMV0517StoreAtMaximumBeyondTheWindow`; `TestMigrateTracesQuarantinesTraceStrandedByAmend` |
 
 ## Accepted amendment: dogfood changed-path admission
 

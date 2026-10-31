@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -55,6 +56,68 @@ func (d Declared) Command(language string) (LanguageCommand, bool) {
 		}
 	}
 	return LanguageCommand{}, false
+}
+
+// GoCacheOverride returns goEnv with a declared GOCACHE replaced by the
+// caller's CORVINT_GOCACHE when environ sets it non-empty (STR-V0-174,
+// V1-3155), the knob the Makefile's `CORVINT_GOCACHE ?=` and script/heavy.sh
+// already use, so `corvint test`, `make go-test` and the Makefile's other Go
+// targets share one cache per lane or host instead of the declared
+// /tmp path. goEnv without a GOCACHE entry (the ci profile's) is returned as
+// is. The manifest keeps the declared value; only the launch, and the
+// receipt that records it, carry the override.
+func GoCacheOverride(goEnv, environ []string) []string {
+	cache := ""
+	for _, entry := range environ {
+		if value, ok := strings.CutPrefix(entry, "CORVINT_GOCACHE="); ok {
+			cache = value
+		}
+	}
+	if cache == "" {
+		return goEnv
+	}
+	out := make([]string, len(goEnv))
+	for index, entry := range goEnv {
+		if strings.HasPrefix(entry, "GOCACHE=") {
+			entry = "GOCACHE=" + cache
+		}
+		out[index] = entry
+	}
+	return out
+}
+
+// WithGoParallel returns d with its Go `-p` flag set to n (STR-V0-173,
+// V1-3149): a `-p VALUE` pair or `-p=VALUE` word is replaced in place, and
+// without one `-p n` is appended. The declaration file is unchanged; the
+// manifest digests the result, so every shard of one manifest and the
+// receipt's argv state the parallelism that ran. An unreadable declaration
+// is returned as is.
+func (d Declared) WithGoParallel(n int) Declared {
+	if d.Unreadable != "" {
+		return d
+	}
+	value := strconv.Itoa(n)
+	flags := make([]string, 0, len(d.GoFlags)+2)
+	replaced := false
+	for index := 0; index < len(d.GoFlags); index++ {
+		switch word := d.GoFlags[index]; {
+		case (word == "-p" || word == "--p") && index+1 < len(d.GoFlags):
+			flags = append(flags, word, value)
+			index++
+			replaced = true
+		case strings.HasPrefix(word, "-p=") || strings.HasPrefix(word, "--p="):
+			name, _, _ := strings.Cut(word, "=")
+			flags = append(flags, name+"="+value)
+			replaced = true
+		default:
+			flags = append(flags, word)
+		}
+	}
+	if !replaced {
+		flags = append(flags, "-p", value)
+	}
+	d.GoFlags = flags
+	return d
 }
 
 // declarationFile is the on-disk schema: a closed set of members, with each

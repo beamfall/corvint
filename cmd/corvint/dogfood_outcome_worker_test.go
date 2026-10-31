@@ -550,14 +550,17 @@ func aggregateQualificationNativeSignals(t *testing.T, run portableRun, root, ke
 			if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0755); err != nil {
 				t.Fatal(err)
 			}
-			command := exec.Command(run.binary, "dogfood", "finish", "--session-key", key, "--aggregate-outcome-profile", tracerecordrepo.AggregateOutcomeProfile)
-			command.Dir = root
-			command.Env = append(run.env, "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"))
-			command.WaitDelay = 2 * time.Second
 			var stdout, stderr bytes.Buffer
-			command.Stdout = &stdout
-			command.Stderr = &stderr
-			if err := command.Start(); err != nil {
+			command, err := startCopiedBinary(func() *exec.Cmd {
+				command := exec.Command(run.binary, "dogfood", "finish", "--session-key", key, "--aggregate-outcome-profile", tracerecordrepo.AggregateOutcomeProfile)
+				command.Dir = root
+				command.Env = append(run.env, "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+				command.WaitDelay = 2 * time.Second
+				command.Stdout = &stdout
+				command.Stderr = &stderr
+				return command
+			})
+			if err != nil {
 				t.Fatal(err)
 			}
 			done := make(chan error, 1)
