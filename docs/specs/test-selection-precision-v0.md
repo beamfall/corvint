@@ -5,7 +5,7 @@ Date: 2026-10-30
 Requirement prefix: `TSP-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3160); TSP-V0-001 amends AFP-V0-580
 Delivery status: experimental
-Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892. These requirements narrow
+Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-861: V1-3348. These requirements narrow
 when the [affected plan](affected-plan-v0.md) names a unit frontier; that spec's Requirements
 section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 
@@ -152,6 +152,19 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   the current head, M0..M1 changes a `.github` path, the planner or selector fails or gives no `run`
   verdict, the universe is unavailable, or the source drifts after planning.
 
+- **TSP-V0-861:** (experimental, amending TSP-V0-006, under the owner's standing lane auto-accept,
+  2026-10-11; V1-3348) A package TSP-V0-006 would keep whole only because its own test files
+  changed with its source SHALL instead be sliced when both proofs hold: TSP-V0-006's over its
+  changed non-test files, with the head test files (changed ones included) in its reach graph, and
+  STR-V0-063's over its changed test files (each exists and parses, none declares `init` or
+  `TestMain`, initializes a variable with a call or has a blank or dot import, now or at base; no
+  unchanged test file uses a name a changed one declares; the test files' imports together equal
+  base's; the changed files declare at least one test function). The slice SHALL run the union of
+  the tests TSP-V0-006 keeps and every test function of the changed test files. Either proof
+  failing SHALL keep the package whole with that proof's reason; a union holding every test
+  function of the package SHALL keep it whole naming that. The plan of the dirty paths outside the
+  package's own source and test files SHALL still not select it, and the base reads SHALL stay in
+  the same two Git processes (STR-V0-072).
 - **TSP-V0-860:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2892)
   `tools/selection-baseline` SHALL replay a corvint binary and a gate-affected-select binary over
   the fixed change set `benchmarks/selection-baseline/changes.json`
@@ -229,7 +242,7 @@ test is assumed independent of the kept ones except through package variables, w
 function may not reach: a test that observes a changed function only through files, the
 environment or another process it starts is missed. The slice keeps external tests whole because a
 package they import may call the changed function. A package whose source and own test files both
-changed stays whole (44 of 57 such packages on 29 replayed commits).
+changed was kept whole (44 of 57 such packages on 29 replayed commits) until TSP-V0-861.
 (8) TSP-V0-007: a package's prior pass is reused only when the planner does not select it for
 M0..M1, so a missed reader in that delta is missed as it is in the deciding plan; a test that passed
 at M0 by chance (flaky, time or network dependent) is not rerun; a record is only as trustworthy as
@@ -244,6 +257,11 @@ name no package is unattributed; a failure that only a non-host variant or anoth
 (Release gates, `cross-vet`) shows is out of the set. The replay uses the tree under test's
 planner on historical trees, so it measures today's selection of yesterday's changes, not what CI
 ran then.
+(10) TSP-V0-861: the union is sound only as far as each half is: a test of a changed test file runs
+whatever it reaches, and a test of an unchanged file is skipped only when it neither reaches a
+changed function (TSP-V0-006's lexical reach over the head test files) nor uses a name a changed
+test file declares; a test file that is deleted, or a change to a test file of another package, is
+outside both proofs and keeps the package whole through the other dirty paths' plan.
 
 ## Open questions
 
@@ -261,10 +279,8 @@ stays as it was:
    verified declaration. The frontier still bears through the undeclared non-test shell scripts
    that read a dirty path by a literal path (the `docs/specs/**` checkers and the CEM scripts under
    `script/`); declaring them would make many Go packages that only name them dependents.
-3. TSP-V0-006 keeps a package whole when its own test files changed with its source, the common
-   shape of a real commit. Combining it with STR-V0-063 (the tests of the changed test files plus
-   the tests reaching the changed functions, each under its own proof) is the next lever; it needs
-   STR-V0-063's shared-helper rules applied to the union and is not designed here.
+3. Resolved by TSP-V0-861 (V1-3348): a package whose own test files changed with its source runs the
+   union of the TSP-V0-006 and STR-V0-063 slices, each under its own proof.
 4. TSP-V0-007 is not wired into CI: `.github/workflows/ci.yml` must keep each PR run's shard output
    directories, fetch the previous run's tested merge for the same PR, build the record with
    `--mode prior` and pass `--prior`, and the narrowing gate must decide from `rerun.json` (its
@@ -287,6 +303,7 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | TSP-V0-005 | `readForeignCallers`, `applyForeignCallers` and `foreignCallersComplete` in `internal/liveverify/affected/shell/callers.go` and their call in `internal/liveverify/affected/shell/shell.go`; `Unit.Callers` in `internal/liveverify/affected/unit.go`; `callerEdges` in `internal/liveverify/affected/graph.go`; `foreignCallersChanged` in `internal/liveverify/affected/readers.go`; `.corvint/shell-foreign-callers.json` | `TestForeignCallerDeclaration_TSP_V0_005` in `internal/liveverify/affected/shell/callers_test.go` (declared: the frontier is gone, the plan on an unrelated change is `BOUNDED` and selects the caller, test-file caller and upstream dependents' tests but not a mention's; undeclared keeps it bearing; an unlisted Go, shell, Make, Python or workflow caller or mention, a stale caller or mention, unsorted lists, a script that is no unit, an empty reason, a bad profile, an unknown member, unparsed JSON and a file both caller and mention each name the invalid frontier and keep it bearing; a dirty declaration is `UNKNOWN`); `TestRepositoryShellForeignCallersComplete_TSP_V0_005` in `internal/liveverify/affected/shell_callers_repo_test.go`; `TestBatchReplayDeclaredRuntimeReaders_V12941` frontier floor in `internal/liveverify/affected/replay_v12941_test.go` |
 | TSP-V0-006 | `testSourceEligibles`, `testSourceEligible`, `testSourceSlice`, `testSourcePlainFunctions`, `testSourceValueUse`, `testSourceQualifiers`, `testSourceDeclOf`, `testSourceReferenceSignature` and `testSourceWrite` in `cmd/corvint/test_source_slices.go`; their call and the shared base read in `testGoSlices` in `cmd/corvint/test_slices.go`; the TSP-V0-006 verdict line in `testVerdict` in `cmd/corvint/test.go` | `TestTSPV0006DryRunSlicesSourceChanges` in `cmd/corvint/test_source_slices_tspv0006_unix_test.go` (a called function, a doc comment, a function a method calls and an added function slice to the reaching and external tests; a function no test reaches builds only; every test reaching, an own test file, a value use, a package variable reached, initialization reaching, a method, an import, a variable, a comment outside functions, a dependency also changed, a new file, an assembly file, `go:linkname` and cgo stay whole, and so do a function that stopped reaching a package variable, a pointer parameter, a write through another package's variable in the head or only in the base body, a function reaching such a write, and a dot import; the importer stays whole); `TestTSPV0006PlainFunctionsAndQualifiers` and `TestTSPV0006ReferenceSignatureAndWrites` (basic-only signatures; pointer, slice, map, channel, function, interface, named, struct, array, variadic, `uintptr`, pointer-result, generic and redeclared-basic signatures and writes through a selector, pointer, index or range target or by `copy`, `delete` or `clear` are named) in `cmd/corvint/test_source_slices_tspv0006_test.go`; `TestSTRV0072SliceWalksDoNotGrowWithPackages` (two Git processes with a source change present); the mutation check in `docs/build-log/2026-10-30-v1-2806-source-slices.md` |
 | TSP-V0-007 | `readPrior`, `rerun`, `buildPrior` and `readPriorEvents` in `tools/corvint-pr-tests/rerun.go`; `selectSince` and the `--prior` branch of `planOnly` in `tools/corvint-pr-tests/main.go` | `TestTSPV0007RerunReusesPriorPasses` in `tools/corvint-pr-tests/rerun_tspv0007_test.go` (the fixed package alone reruns while the base-relative selection keeps both; nothing passed, everything passed and one passed; a missing, malformed, unknown-field, other-schema or invalid-package record, another identity, tree, unresolvable merge or head, a rewritten head, a planner failure, a non-`run` verdict, an unavailable tool profile, a refused plan and a `.github` delta each run `./...`; a record followed by a stray `}` or a second value is malformed); `TestTSPV0007PriorRecordFromRunEvidence` (only whole-package passes no directory contradicts; no directories, another merge, an unobserved merge, another identity, a source-drift or planner-drift fallback reason, an execution error, an unreadable or missing event stream each refuse); the replay in `docs/build-log/2026-10-30-v1-3050-pr-rerun-reuse.md` |
+| TSP-V0-861 | `tests` of `testSourceCandidate`, `testSourceEligible`, `testSourceOwnPaths` and the TSP-V0-861 union in `testSourceSlice` in `cmd/corvint/test_source_slices.go` | `TestTSPV0861DryRunSlicesSourceAndTestChanges` in `cmd/corvint/test_source_slices_tspv0861_unix_test.go` (a new internal test file, an edited external test file and a new test of a function no test reached slice to the union; every test kept, a `TestMain`, an `init`, a new import, a failing source proof and a test file with no test function stay whole); the "its test file changed too" case of `TestTSPV0006DryRunSlicesSourceChanges`; the replay in build log `docs/build-log/2026-10-31-ci-select-w1.md` |
 | TSP-V0-860 | `replay`, `measure`, `CIScope`, `checkFailures`, `Summarize` and `Failures` in `tools/selection-baseline/main.go`; `benchmarks/selection-baseline/changes.json`; the `selection-baseline-check` target in `Makefile` | `TestSelectionBaselineGateFailsOnFloorOrMiss_V12892`, `TestSelectionBaselineUnknownKindsAndManifest_V12892` and `TestSelectionBaselineChangeSetIsValid_V12892` in `tools/selection-baseline/main_test.go`; the replays in `benchmarks/results/v2892-selection-baseline-*.json` and build log `docs/build-log/2026-10-31-ci-select-w1.md` |
 
 ## Rollback
@@ -303,4 +320,5 @@ make `applyForeignCallers` return at once; every script then carries the frontie
 `DIRECT_SOURCE_CHANGE` selection on the `reason` path); every such package then runs whole with its
 original reason. No stored state depends on it. TSP-V0-007: stop passing `--prior`; `rerun.json` is then
 not written and only `selection.json` decides, as before. TSP-V0-860: delete the
-`selection-baseline-check` target; no other target or stored state depends on it.
+`selection-baseline-check` target; no other target or stored state depends on it. TSP-V0-861: in
+`testSourceEligible`, return the fallback again when a test file of the package is dirty.
