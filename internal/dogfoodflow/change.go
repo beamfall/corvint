@@ -2200,7 +2200,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"cem-cite:unknown-reasons-not-recorded", "the unknown rows of DOGFOOD_CITATIONS could not be kept in {evidence}/cem-unknown-reasons.tsv (or its .next file): before citing (an occupied path, or notes over 16 MiB) nothing was cited; after citing the map has changed and earlier notes are kept; remove whatever occupies the path and rerun the same plan, which replays idempotently (DCW-V0-046)"},
 	{"cem-cite:invalid-arguments", "plan row {row}{rowValues}: RELATION must be one of call-site, decision, dependency, implementation, incident, specification or test-claim, and START:END a line span of the cited file; any file present at BASE may be cited, code and tests as well as specs (DCW-V0-041)"},
 	{"cem-cite:missing-evidence", "plan row {row} cites a path that is not a regular file at BASE; cite a source, test or spec file that exists at BASE, since a file this change adds cannot be evidence for itself (DCW-V0-041)"},
-	{"cem-cite:cite-span-not-stable", "plan row {row} cites BASE lines that this change edits or deletes; cite a START:END span the change leaves unchanged"},
+	{"cem-cite:cite-span-not-stable", "plan row {row} cites BASE lines that this change edits or deletes; plan spans are BASE line numbers, counted in the file as it is at BASE {base}, not at HEAD; cite a START:END span the change leaves unchanged (DCW-V0-845)"},
 	{"cem-cite:cite-self-modified-authority", "plan row {row} cites a governing file (spec, decision or other authority) that this change itself modifies, which cannot govern it; cite a governing source the change leaves unmodified, or keep the hunk unknown with ORDINAL<TAB>unknown<TAB>REASON<TAB>NOTE (CEM-V1-114)"},
 	{"ocm-aggregate:missing-intent-scope", intentScopeHint},
 	{"ocm-aggregate:intent-manifest-over-bound", "DOGFOOD_INTENTS_FILE is larger than 16 paths of 512 bytes can be; list 1-16 repository-relative spec paths, or the one line #no-intent-declared"},
@@ -2410,7 +2410,7 @@ func fitHint(intents []string, bound int, shares []int) string {
 const citeSpanUnedited = "are edited by no hunk"
 
 // citeSpanUnalignedHint is the DCW-V0-063 fix line for that refusal.
-const citeSpanUnalignedHint = "plan row {row} cites BASE lines that no hunk edits (at most hunk context), which git's line alignment leaves unchanged, but their text occurs more than once in the changed file (another copy exists or the change adds one), and the stability check matches text, not line positions; cite a span whose text occurs once in the changed file, for example by widening it to a neighbouring distinct line (DCW-V0-063)"
+const citeSpanUnalignedHint = "plan row {row} cites BASE lines that no hunk edits (at most hunk context), which git's line alignment leaves unchanged, but their text occurs more than once in the changed file (another copy exists or the change adds one), and the stability check matches text, not line positions; cite a span whose text occurs once in the changed file, for example by widening it to a neighbouring distinct line (DCW-V0-063); plan spans are BASE line numbers, counted in the file as it is at BASE {base}, not at HEAD (DCW-V0-845)"
 
 // staleBindingHint replaces the citation-plan-map-mismatch fix line when the
 // refusal came from a binding recorded against an earlier map (DCW-V0-066).
@@ -2472,7 +2472,7 @@ func (c *change) fixHint(row step) string {
 		return c.aggregateSchemaHint()
 	}
 	if value == "cem-cite:cite-span-not-stable" && c.citeSpanUnaligned {
-		return strings.ReplaceAll(citeSpanUnalignedHint, "{row}", strconv.Itoa(c.citationFailedRow))
+		return strings.NewReplacer("{row}", strconv.Itoa(c.citationFailedRow), "{base}", c.base).Replace(citeSpanUnalignedHint)
 	}
 	for _, entry := range fixHints {
 		prefix, suffix, star := strings.Cut(entry.pattern, "*")
