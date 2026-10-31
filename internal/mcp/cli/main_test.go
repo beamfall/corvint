@@ -606,3 +606,52 @@ func TestContextLSPToolProfileSelector(t *testing.T) {
 		}
 	})
 }
+
+// TestMCPV0820DefaultProfileNamesLegacyFlag: the default corvint-mcp answers
+// a 2025-11-25 initialize with -32602 naming --protocol-version 2025-11-25,
+// not a bare method-not-found, and keeps serving (V1-2507).
+func TestMCPV0820DefaultProfileNamesLegacyFlag(t *testing.T) {
+	root := filepath.Clean(t.TempDir())
+	if err := os.Mkdir(filepath.Join(root, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	input := `{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"pi","version":"0.99.1"}}}` + "\n" +
+		`{"jsonrpc":"2.0","id":1,"method":"ping"}` + "\n"
+	var stdout, stderr bytes.Buffer
+	if exit := run(context.Background(), []string{"--root", root}, strings.NewReader(input), &stdout, &stderr); exit != 0 {
+		t.Fatalf("exit=%d stderr=%q", exit, stderr.String())
+	}
+	lines := bytes.Split(bytes.TrimSpace(stdout.Bytes()), []byte("\n"))
+	if len(lines) != 2 {
+		t.Fatalf("responses=%s", stdout.Bytes())
+	}
+	type answer struct {
+		ID    int
+		Error struct {
+			Code    int
+			Message string
+			Data    struct {
+				Flag      string
+				Supported []string
+				Requested string
+			}
+		}
+	}
+	answers := map[int]answer{}
+	for _, line := range lines {
+		var decoded answer
+		if err := json.Unmarshal(line, &decoded); err != nil {
+			t.Fatal(err)
+		}
+		answers[decoded.ID] = decoded
+	}
+	initialize := answers[0].Error
+	if initialize.Code != -32602 || !strings.Contains(initialize.Message, "--protocol-version 2025-11-25") ||
+		initialize.Data.Flag != "--protocol-version 2025-11-25" || initialize.Data.Requested != "2025-11-25" ||
+		len(initialize.Data.Supported) != 1 || initialize.Data.Supported[0] != "2026-07-28" {
+		t.Fatalf("initialize answers=%s", stdout.Bytes())
+	}
+	if answers[1].Error.Code != -32601 {
+		t.Fatalf("ping answers=%s, want MCPV0-006 method-not-found", stdout.Bytes())
+	}
+}
