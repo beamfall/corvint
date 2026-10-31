@@ -2974,6 +2974,7 @@
         "corvint [--root PATH] dogfood handoff --task-state FILE [--session-key HASH]",
         "corvint [--root PATH] dogfood handoff --bundle FILE --session-key HASH",
         "corvint [--root PATH] dogfood inputs-check --base BASE --citations FILE [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH]",
+        "corvint [--root PATH] dogfood prechange [--task TEXT] BASE [PATH...]",
         "corvint [--root PATH] dogfood propose-citations [--refresh PLAN] BASE",
         "corvint [--root PATH] dogfood review --report-set DIGEST [--session-key HASH]",
         "corvint [--root PATH] dogfood seal [--base-verifier PATH] [--tree-verifier PATH] [--override-verifier PATH] BASE",
@@ -2998,6 +2999,7 @@
         "--report-set",
         "--root",
         "--session-key",
+        "--task",
         "--task-state",
         "--tree-verifier",
         "--verifier",
@@ -3206,6 +3208,26 @@
       ],
       "example": "corvint dogfood inputs-check --base BASE --citations FILE",
       "help": "corvint dogfood inputs-check --help"
+    },
+    {
+      "path": [
+        "dogfood",
+        "prechange"
+      ],
+      "command": "corvint dogfood prechange",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] dogfood prechange [--task TEXT] BASE [PATH...]"
+      ],
+      "flags": [
+        "--root",
+        "--task"
+      ],
+      "required": [
+        "BASE"
+      ],
+      "example": "corvint dogfood prechange BASE",
+      "help": "corvint dogfood prechange --help"
     },
     {
       "path": [

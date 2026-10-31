@@ -1958,6 +1958,7 @@ Usage:
     [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH]
   corvint [--root PATH] dogfood batch-check [--verifier PATH] BASE
   corvint [--root PATH] dogfood propose-citations [--refresh PLAN] BASE
+  corvint [--root PATH] dogfood prechange [--task TEXT] BASE [PATH...]
 
 A plan freezes base, intent paths and selected checks with id, argv, timeoutSeconds
 and optional allowCemSidecarOnlyReuse (false by default). Session keys are 64 hex
@@ -2046,6 +2047,18 @@ and content (else the same path and BASE range), and every re-keyed or dropped r
 is noted on stderr; only the remaining hunks are drafted afresh. The bind refuses a
 stale hunk-ID row, naming the row, its old ID and the current hunk (DCW-V0-441).
 For example, run corvint dogfood propose-citations --refresh plan.tsv BASE > plan.new.
+
+prechange records the agent pre-change receipts before the first edit, while
+HEAD's tree is BASE's and no tracked file is modified (DCW-V0-880): context
+--task into prechange-context.json (orientation only; it satisfies no slot),
+query --task into prechange-query.json and, with PATH, impact PATH... into
+prechange-impact.json, all under the Git directory's corvint/, then
+prechange-binding.json naming BASE, its tree, the Git directory, the task and
+each receipt's digest. --task defaults to DOGFOOD_TASK. It refuses
+prechange-after-change once the change began, and prechange-receipt-exists
+rather than overwrite a receipt it did not write. Each later dogfood change
+notes the bound receipts as OBSERVED, or why one is not (DCW-V0-881).
+For example, run corvint dogfood prechange --task "Fix the parser" BASE internal/parse/parse.go.
 `
 
 // rootPreambleValue reports whether arguments[index] may be consumed as the value of a bare `--root`

@@ -297,6 +297,25 @@ $ corvint query --task "THE CHANGE" --limit 1 > "$corvint_git_dir/corvint/precha
 $ corvint impact PATH... --limit 10 > "$corvint_git_dir/corvint/prechange-impact.json"
 ```
 
+The supported recorder runs those three reads for you and binds them (`DCW-V0-880`), so no file
+needs forwarding to closeout. Run it before the first edit, while `HEAD` is BASE:
+
+```console
+$ make dogfood-prechange BASE=BASE_SHA TASK="THE CHANGE" PATHS="PATH..."
+```
+
+It writes the same three receipts plus `prechange-binding.json`, which names BASE, its tree, this Git
+directory, the task and each receipt's digest. `prechange-query` is satisfied by `corvint query
+--task`, `prechange-impact` by `corvint impact PATH...`; `prechange-context` is orientation and
+satisfies neither slot. It refuses `prechange-after-change` once a commit or tracked edit exists,
+since a receipt is never written retrospectively, and `prechange-receipt-exists` rather than overwrite
+a receipt you wrote yourself. Every later `dogfood change` pass, including each `make
+dogfood-closeout` pass, prints `NOTE prechange-query OBSERVED bound sha256=... command=corvint query`
+for a bound receipt, or the reason it is not: `agent-receipt-unsupported tool=...` (for example a
+context receipt saved as the query receipt), `agent-receipt-binding-mismatch`,
+`agent-receipt-binding-other-base` or `agent-receipt-wrong-worktree` (`DCW-V0-881`). The notes stay
+non-blocking.
+
 `context --task` is the orientation read: which tracked files a ticket-to-change task touches. The
 frozen Beamfall roadmap orientation gate admitted it against a grep baseline before this route
 changed (`CWT-V0-017`, `benchmarks/results/orientation-gate-beamfall-roadmap-v1.json`); a READY

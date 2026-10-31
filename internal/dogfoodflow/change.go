@@ -2571,14 +2571,23 @@ func (c *change) aggregateSchemaHint() string {
 }
 
 // noteAgentReceipts reports, without blocking, an agent pre-change receipt that
-// is absent, over the 4 MiB bound, malformed, or was not written against the
-// base tree (DCW-V0-031, DCW-V0-032).
+// is absent, over the 4 MiB bound, malformed, from another tool, or was not
+// written against the base tree, and how a base-tree receipt matches its
+// dogfood prechange binding (DCW-V0-031, DCW-V0-032, DCW-V0-881).
 func (c *change) noteAgentReceipts() {
 	baseTree := c.gitValue("rev-parse", c.base+"^{tree}")
 	for _, name := range []string{"prechange-query", "prechange-impact"} {
 		c.noteAgentReceipt(name, baseTree)
 	}
+	// A context receipt is orientation and never stands in for the query
+	// receipt (DCW-V0-881).
+	if !isRegular(c.evidence+"/prechange-query.json") && isRegular(c.evidence+"/prechange-context.json") {
+		c.say("dogfood-change: NOTE prechange-context orientation-only satisfies-no-slot\n")
+	}
 }
+
+// receiptTools names the tool each agent receipt slot must come from (DCW-V0-881).
+var receiptTools = map[string]string{"prechange-query": "query", "prechange-impact": "impact"}
 
 func (c *change) noteAgentReceipt(name, baseTree string) {
 	path := c.evidence + "/" + name + ".json"
@@ -2587,6 +2596,7 @@ func (c *change) noteAgentReceipt(name, baseTree string) {
 		return
 	}
 	var receipt struct {
+		Tool    *string `json:"tool"`
 		Context struct {
 			Revision string `json:"revision"`
 		} `json:"context"`
@@ -2603,8 +2613,13 @@ func (c *change) noteAgentReceipt(name, baseTree string) {
 		c.say("dogfood-change: NOTE %s NOT_OBSERVED agent-receipt-malformed\n", name)
 		return
 	}
+	if receipt.Tool != nil && *receipt.Tool != receiptTools[name] {
+		c.say("dogfood-change: NOTE %s NOT_OBSERVED agent-receipt-unsupported tool=%s\n", name, strconv.Quote(*receipt.Tool))
+		return
+	}
 	switch tree := receipt.Context.Revision; tree {
 	case baseTree:
+		c.noteBoundReceipt(name, path)
 	case "":
 		c.say("dogfood-change: NOTE %s NOT_OBSERVED agent-receipt-tree-unknown\n", name)
 	default:
