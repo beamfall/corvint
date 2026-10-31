@@ -240,8 +240,7 @@ sub digest_values {
     return \%values;
 }
 
-my @reads = sort @specs;
-push @reads, 'docs/specs/INTENT-STATUS-FROZEN.tsv' if $tracked{'docs/specs/INTENT-STATUS-FROZEN.tsv'};
+my @reads = ((sort @specs), grep { $tracked{$_} } 'docs/specs/INTENT-STATUS-FROZEN.tsv');
 push @reads, 'docs/specs/INDEX.json'
     if ($mode eq 'index' || $mode eq 'all') && $tracked{'docs/specs/INDEX.json'};
 push @reads, 'docs/specs/README.md'
@@ -261,8 +260,7 @@ for my $file (sort @specs) {
         prefix => $prefix,
         intent => header_value($blob, 'Intent status:'),
         delivery => header_value($blob, 'Delivery status:'),
-        claim => digest_values($blob)->{Claim},
-        status => digest_values($blob)->{Status},
+        claim => digest_values($blob)->{Claim}, status => digest_values($blob)->{Status},
     };
     my $line_number = 0;
     my $previous_blank = 1;
