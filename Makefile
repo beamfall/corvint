@@ -225,6 +225,7 @@ spec-requirements-check:
 	for file in $(SPEC_GENERATED); do cmp "$$tmp/$$file" "docs/specs/$$file" || stale=1; done; \
 	test $$stale = 0 || { echo "docs/specs/REQUIREMENTS.tsv, INDEX.json or README.md is stale: stage the changed spec, then run make spec-requirements" >&2; exit 1; }
 	$(GO_TEST_COMMAND) ./internal/specindex
+	$(GO_TEST_COMMAND) -run '^TestSpecsStayWithinTheOCMObligationBound$$' ./internal/lrfrepo
 
 # spec-requirements-test pins SRG-V0-001: the generator enumerates the Git index, so no
 # untracked, deleted-from-the-worktree, or unstaged spec can change the index a fresh clone
