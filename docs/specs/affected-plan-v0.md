@@ -5316,6 +5316,23 @@ filed from its plan. Nothing in the receipt said the binary was older than the s
   its root `AGENTS.md` and `CLAUDE.md` in `.corvint/documentation-paths.json`, so a change to them
   alone is `DECLARED_DOCUMENTATION` here. Rollback: remove `instructionHints` and the two entries.
 
+### Typed --path profile refusals (AFP-V0-764; V1-2082)
+
+- **AFP-V0-764:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2082)
+  Amending AFP-V0-094: each profile that `--path` (and `--paths-from`) does not combine with is
+  decided one by one, and every one keeps a refusal: none plans a path list, because each plans its
+  own change set. The refusal is exit 2, code `unsupported-affected-path-profile`, no stdout
+  document, and a message naming the profile, why, and the recovery: `--snapshot` carries its own
+  frozen tree and changed set, not HEAD's (plan the snapshot alone); `--provider` hands a provider
+  the worktree or `--base` change set and its checkouts, and the provider protocol carries no path
+  list; the Playwright profile (`--playwright-config`, `--playwright-discovery`) narrows the
+  worktree or `--base` set against a discovery taken from the worktree, which a HEAD path list does
+  not pin; `--appmap-impact` binds a report to the `--base` range it was recorded over (ANL-V0-060).
+  For the last three the message names `corvint affected --base <HEAD>` after committing the
+  paths. `--base` with `--path` names two change sets and stays `invalid-arguments`. The checks
+  run in that order, before any other option check. Rollback: restore the single
+  `invalid-arguments` refusal.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
@@ -5677,6 +5694,7 @@ traceability table.
 | AFP-V0-761 | `FrontierRoute` in `internal/liveverify/affected/unit.go`, its loop in `frontierUnknowns` (`select.go`); `Language.FrontierRoute` and `WorkspaceOutsideRootRoute` in `internal/liveverify/affected/golang/golang.go` | `TestWorkspaceOutsideRootFrontierNamesTheRoute_AFPV0761` (an outside-root `go.work` sibling: the entry's hint names the `corvint breakage` route for a root and a `go.work` change, scope stays `UNKNOWN`; the nested-module reason names none); `TestWorkspaceDirtySourceSelectsTheOtherModulesTest` |
 | AFP-V0-762 | `binaryExecsFile.Consumers`, `readBinaryExecs`, `matchBinaryConsumers` in `internal/liveverify/affected/golang/binaryexecs.go`; `unselectedConsumers` in `internal/liveverify/affected/execs.go`; `.corvint/test-binary-execs.json` | `TestDeclaredBinaryConsumerIsAnExplicitUnknown_AFPV0762` (a library or command change names the consumer, a test-only command change and an unrelated change do not); `TestInvalidBinaryConsumerDeclaresNothing_AFPV0762`; `TestRepositoryDeclaresWebFlowsConsumers_AFPV0762` |
 | AFP-V0-763 | `instructionHints`, `instructionUnownedHint` in `internal/liveverify/affected/documentation.go`, called from `selectPlan`; `.corvint/documentation-paths.json` | `TestInstructionFileUnknownNamesTheDeclarationRoute_AFPV0763` (an undeclared root or nested instruction file carries the hint and stays `UNKNOWN`, another unowned path none; declared, both are `DECLARED_DOCUMENTATION` and `BOUNDED`); `TestRepositoryDeclaresItsInstructionFiles_AFPV0763` |
+| AFP-V0-764 | `affectedPathProfileRefusal`, `affectedPathProfileCode` in `cmd/corvint/affected.go`; the `--path` paragraph of `affected` help in `cmd/corvint/help.go` | `TestAFPV0094PathListRefusals` (snapshot, provider, Playwright config and discovery, AppMap and `--paths-from` refuse typed with their recovery; `--base` stays `invalid-arguments`) |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`
