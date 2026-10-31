@@ -26,7 +26,9 @@ func TestProposeCitationsDCWV0805CitesTheDecisionGoverningAnAmendedRequirement(t
 		"  Narrowing requires, among all complete shadow rows of the current epoch, at least 20 complete rows,\n" +
 		"  at least 5 of them with failing packages, and no row with a miss other than `FLAKY`.\n" +
 		"  The bar is met only on a listing that reached the start of the epoch.\n" +
-		"- **AFP-V0-030:** (accepted, decision 0509) The kill switch returns PR runs to FULL.\n" + numbered("tail", 6)
+		"- **AFP-V0-030:** (accepted, decision 0509) The kill switch returns PR runs to FULL.\n" +
+		"  It reads the latest 20 rows of the epoch.\n  It counts INCOMPLETE rows.\n  It never counts INFRA rows.\n" +
+		"  It is read twice.\n  The window is bounded.\n  The verdict is trusted.\n" + numbered("tail", 6)
 	writeTree(t, root, map[string]string{
 		"docs/specs/affected-plan-v0.md": spec,
 		"docs/specs/documentation-ci-v0.md": "# Documentation CI\n\nOwner: x\n\nAuthoritative inputs: `AGENTS.md` invariants 1, 2 and 8; `docs/specs/affected-plan-v0.md` AFP-V0-013/014/016.\n" +
@@ -49,6 +51,9 @@ func TestProposeCitationsDCWV0805CitesTheDecisionGoverningAnAmendedRequirement(t
 	base := testGit(t, root, "rev-parse", "HEAD")
 	amended := strings.Replace(spec, "at least 20 complete rows,\n  at least 5 of them", "at least 8 complete rows,\n  at least 1 of them", 1)
 	amended = strings.Replace(amended, "Plain prose before the requirements.", "Plain prose, edited, before the requirements.", 1)
+	// A new requirement after AFP-V0-030 adds a requirement; it amends none,
+	// so it is never drafted to a decision AFP-V0-030 cites.
+	amended = strings.Replace(amended, "  The verdict is trusted.\n", "  The verdict is trusted.\n- **AFP-V0-031:** (proposed) A new bar SHALL hold.\n", 1)
 	writeTree(t, root, map[string]string{"docs/specs/affected-plan-v0.md": amended})
 	testGit(t, root, "commit", "-q", "-am", "lower the bar")
 
@@ -57,19 +62,24 @@ func TestProposeCitationsDCWV0805CitesTheDecisionGoverningAnAmendedRequirement(t
 		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
 	}
 	rows := textLines(stdout.Bytes())
-	if len(rows) != 2 {
-		t.Fatalf("draft has %d rows; want 2:\n%s\n%s", len(rows), stdout.String(), stderr.String())
+	if len(rows) != 3 {
+		t.Fatalf("draft has %d rows; want 3:\n%s\n%s", len(rows), stdout.String(), stderr.String())
 	}
-	var bar, prose []string
+	var bar, prose, added []string
 	for _, row := range rows {
 		fields := strings.Split(row, "\t")
 		id := fields[0]
 		switch {
 		case strings.Contains(stderr.String(), "hunk "+id+" edits docs/specs/affected-plan-v0.md at BASE 2,"):
 			prose = fields
+		case strings.Contains(stderr.String(), "hunk "+id+" edits docs/specs/affected-plan-v0.md at BASE 24,"):
+			added = fields
 		default:
 			bar = fields
 		}
+	}
+	if added == nil || strings.Contains(added[1], "/0509-") || strings.Contains(added[1], "/0431-") || strings.Contains(stderr.String(), "amends requirement AFP-V0-030") {
+		t.Errorf("the added-requirement hunk row = %q; want no decision of the requirement before it\n%s\n%s", added, stdout.String(), stderr.String())
 	}
 	// The bar hunk cites the "Shadow first" paragraph (lines 5-10) on its
 	// line sharing most words with the amended text, the line naming the
@@ -85,7 +95,7 @@ func TestProposeCitationsDCWV0805CitesTheDecisionGoverningAnAmendedRequirement(t
 	if prose == nil || prose[1] != "docs/specs/documentation-ci-v0.md" {
 		t.Errorf("prose hunk row = %q; want the unchanged path anchor\n%s", prose, stdout.String())
 	}
-	if strings.Contains(stdout.String(), "0131") {
+	if strings.Contains(bar[1], "0131") || strings.Contains(prose[1], "0131") {
 		t.Errorf("draft cites the unrelated decision 0131:\n%s", stdout.String())
 	}
 }

@@ -95,23 +95,43 @@ func (p *proposal) governingProposal(hunk proposedHunk, ordinal string, edited m
 
 // amendedRequirement returns the requirement ID and BASE line of the
 // definition that opens the list item holding the hunk's first edited BASE
-// line, or "" and 0 when a heading, a blank line or another list item comes
-// first.
+// line, or "" and 0 when a heading, a blank line, a table row or another
+// list item comes first. A hunk that adds a requirement definition adds a
+// requirement rather than amending one, and a pure insertion amends the
+// item it extends only when its first added line continues that item.
 func (p *proposal) amendedRequirement(name string, hunk *patch.Hunk) (string, int) {
 	lines := p.baseLines(name)
-	first := int(hunk.OldRange.Start)
+	first, removed, added := int(hunk.OldRange.Start), false, []byte(nil)
+	leading := true
 	for _, body := range hunk.Body {
-		if body.Prefix != ' ' {
-			break
+		switch {
+		case body.Prefix == ' ' && leading:
+			first++
+		case body.Prefix == '-':
+			removed, leading = true, false
+		case body.Prefix == '+':
+			if requirementDefinition.Match(body.Payload) {
+				return "", 0
+			}
+			if added == nil {
+				added = body.Payload
+			}
+			leading = false
 		}
-		first++
+	}
+	if !removed {
+		// The insertion follows line first-1, the last leading context line.
+		if trimmed := bytes.TrimSpace(added); len(trimmed) == 0 || !bytes.HasPrefix(added, []byte(" ")) {
+			return "", 0
+		}
+		first--
 	}
 	for line := min(first, len(lines)); line >= 1; line-- {
 		text := lines[line-1]
 		if match := requirementDefinition.FindSubmatch(text); match != nil {
 			return string(match[1]) + string(match[2]), line
 		}
-		if len(bytes.TrimSpace(text)) == 0 || bytes.HasPrefix(text, []byte("#")) || bytes.HasPrefix(text, []byte("- ")) {
+		if len(bytes.TrimSpace(text)) == 0 || bytes.HasPrefix(text, []byte("#")) || bytes.HasPrefix(text, []byte("- ")) || bytes.HasPrefix(text, []byte("|")) {
 			return "", 0
 		}
 	}
