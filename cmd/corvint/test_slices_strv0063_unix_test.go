@@ -133,7 +133,9 @@ func TestSTRV0063DryRunSlicesTestOnlyChanges(t *testing.T) {
 	for _, tc := range wholeCases {
 		t.Run(tc.name, func(t *testing.T) {
 			stderr, invocations := plan(tc.edits)
-			if strings.Contains(stderr, "SLICED") {
+			// A dirty source file elsewhere may be sliced by TSP-V0-006; no
+			// test-file slice may happen.
+			if strings.Contains(stderr, "to the test functions of their changed test files") {
 				t.Fatalf("stderr %q", stderr)
 			}
 			got := unit(invocations, tc.id)

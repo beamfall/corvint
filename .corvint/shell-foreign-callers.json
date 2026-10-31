@@ -1,0 +1,55 @@
+{
+  "profile": "corvint-shell-foreign-callers/0",
+  "scripts": {
+    "script/batch-precheck.sh": {
+      "callers": [
+        "Makefile",
+        "script/batch-precheck_test.sh",
+        "script/batch-regen.sh"
+      ],
+      "reason": "Every tracked file naming batch-precheck.sh: make batch-precheck, its shell test and batch-regen.sh run it (TSP-V0-005)."
+    },
+    "script/batch-regen.sh": {
+      "callers": [
+        "Makefile",
+        "internal/dogfoodflow/batch.go",
+        "internal/dogfoodflow/regenerated.go",
+        "internal/dogfoodflow/regenerated_test.go",
+        "script/batch-precheck.sh",
+        "script/batch-precheck_test.sh"
+      ],
+      "reason": "Every tracked file naming batch-regen.sh: make batch-regen, batch-precheck.sh and its test run it, and internal/dogfoodflow replays a parent's copy (DCW-V0-401) (TSP-V0-005).",
+      "mentions": null
+    },
+    "script/heavy.sh": {
+      "callers": [
+        "Makefile",
+        "internal/liveverify/affected/golang/golang_test.go",
+        "script/batch-precheck.sh",
+        "script/batch-precheck_test.sh",
+        "script/batch-regen.sh",
+        "script/lane-scripts_test.sh"
+      ],
+      "mentions": [
+        "cmd/corvint/session_test_command_unix_test.go",
+        "cmd/corvint/test.go",
+        "cmd/corvint/test_module_strv0064_unix_test.go",
+        "cmd/corvint/test_whole_reason.go",
+        "cmd/corvint/test_whole_reason_cli_unix_test.go",
+        "cmd/corvint/test_whole_reason_test.go",
+        "internal/sessiontest/declared.go",
+        "internal/tasks/cli/command_help.go",
+        "script/lane-guard.sh",
+        "script/lane-transcript-metrics.py",
+        "tools/test-shards/main.go"
+      ],
+      "reason": "Every tracked file naming heavy.sh. Make, the batch scripts and their test run it through computed paths, lane-scripts_test.sh tests it and golang_test.go plans over its text; cmd/corvint prints it in a message, lane-guard.sh matches and names it in a deny message, lane-transcript-metrics.py matches it in transcripts and test-shards names it in a comment (TSP-V0-005)."
+    },
+    "script/lane-guard.sh": {
+      "callers": [
+        "script/lane-scripts_test.sh"
+      ],
+      "reason": "Every tracked file naming lane-guard.sh: its shell test runs it; agent hooks outside the planned languages run it too (TSP-V0-005)."
+    }
+  }
+}

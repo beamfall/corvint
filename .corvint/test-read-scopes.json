@@ -203,7 +203,9 @@
     "internal/attest": [
       "protocol/cem-1.0/stable/receipt-authentication/"
     ],
-    "internal/authoritystore": [],
+    "internal/authoritystore": [
+      ".corvint/gated-root-locators.json"
+    ],
     "internal/betarung": [
       "conformance/cli-parity-v0/",
       "conformance/divergence-register.md"

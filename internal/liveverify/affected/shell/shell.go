@@ -127,6 +127,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 		units = append(units, foreignFrontier(observe(relative, string(body), known), len(foreign) > 0))
 	}
 	sort.Slice(units, func(left, right int) bool { return units[left].ID < units[right].ID })
+	applyForeignCallers(root, units, frontier)
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
 }
 
@@ -164,7 +165,7 @@ func observe(relative, text string, known map[string]bool) affected.Unit {
 		word, args := commandWord(plainWords(commands[index].words))
 		switch {
 		case word == "source" || word == ".":
-			if len(args) == 0 || !resolve.link(unquote(args[0]), nil, known, edges) {
+			if len(args) == 0 || !resolve.link(unquote(args[0]), nil, known, edges) && !freshDirectorySource(resolve, parsed, text, index, unquote(args[0])) {
 				dynamic = true
 			}
 		case word == "load" && loads:
@@ -536,6 +537,9 @@ type resolver struct {
 	directory string
 	values    map[string]string
 	counts    map[string]int
+	// plainAt holds, for each name, the index of a command that is that
+	// name's assignment alone (TSP-V0-004).
+	plainAt   map[string]int
 	resolving map[string]bool
 	// noZero refuses `$0` forms, which name the running script rather than
 	// this file when it is sourced or run by bats.
@@ -547,8 +551,8 @@ func newResolver(relative string, commands []command) *resolver {
 	if directory == "." {
 		directory = ""
 	}
-	r := &resolver{directory: directory, values: map[string]string{}, counts: map[string]int{}, resolving: map[string]bool{}}
-	for _, cmd := range commands {
+	r := &resolver{directory: directory, values: map[string]string{}, counts: map[string]int{}, plainAt: map[string]int{}, resolving: map[string]bool{}}
+	for at, cmd := range commands {
 		words := plainWords(cmd.words)
 		declaring := false
 		for index, raw := range words {
@@ -576,6 +580,9 @@ func newResolver(relative string, commands []command) *resolver {
 				r.counts[name]++
 			}
 			r.values[name] = unquote(raw[len(match[0]):])
+			if index == 0 && len(words) == 1 {
+				r.plainAt[name] = at
+			}
 		}
 	}
 	return r

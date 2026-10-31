@@ -42,8 +42,12 @@ const (
 	// FrontierBuildConstraint reports a package with a file under a //go:build
 	// constraint or a GOOS/GOARCH file-name suffix. Every variant's imports
 	// are edges here, so the closure is a superset of each variant's; the
-	// reason is the unit's own and bears only on a plan that reaches it, whose
-	// tests one run exercises in one variant (AFP-V0-580).
+	// reason is the unit's own and bears only on a plan with a dirty path in
+	// the package's directory or an ancestor, where its files, go.mod and
+	// build configuration live and its variant set can change; a change
+	// elsewhere reaches every variant through the same union edges, and one
+	// run exercises the same host variant whatever it selects (AFP-V0-580 as
+	// amended by TSP-V0-001).
 	FrontierBuildConstraint = "go:build-constraint-variants"
 	// FrontierUnparsedSource reports a file the parser rejected.
 	FrontierUnparsedSource = "go:unparsed-source"
@@ -202,6 +206,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	}
 	resolve(units, imports, testImports, modulePaths(modules))
 	applyReadScopes(root, units[:observedUnits], unitDirectories, frontier)
+	applyGatedLocators(root, units[:observedUnits], unitDirectories, frontier)
 	applyBinaryExecs(root, units[:observedUnits], unitDirectories, owners, commands, frontier)
 	// A read this plugin tolerates (an unparsed file, an invalid declaration)
 	// may be an immutable source's fatal failure; surface it rather than a
@@ -425,10 +430,20 @@ func (Language) observeDirectory(root *affected.Source, owner module, directory 
 		names, globs = nil, nil
 	}
 	var unitFrontier []string
+	var frontierBears string
 	if constrained {
 		unitFrontier = []string{FrontierBuildConstraint}
+		frontierBears = affected.FrontierBearsOnOwnFiles
+		// A symlinked .go file compiles a target outside this directory that
+		// the walk never listed, so the unit's own files are not all here:
+		// the frontier bears on every plan, as it does when the directory
+		// cannot be listed (TSP-V0-002).
+		links, err := root.LinkedEntries(directory, func(name string) bool { return strings.HasSuffix(name, ".go") })
+		if err != nil || len(links) > 0 {
+			frontierBears = ""
+		}
 	}
-	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathGlobs: globSlice(globs), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: reads.locatesRoot, Frontier: unitFrontier}, importPaths, testImportPaths, command, patterns, nil
+	return affected.Unit{ID: unitID(owner, directory), Sources: sources, Tests: tests, PathTokens: sortedKeys(names), PathGlobs: globSlice(globs), PathTokensBounded: bounded, Embeds: embeds, UnboundedReads: reads.reason, LocatesRoot: reads.locatesRoot, Frontier: unitFrontier, FrontierBears: frontierBears}, importPaths, testImportPaths, command, patterns, nil
 }
 
 // platformNames are the GOOS and GOARCH values a file-name suffix constrains

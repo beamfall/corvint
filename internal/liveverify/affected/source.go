@@ -303,6 +303,36 @@ func (s *Source) Lstat(relative string) (infoOut fs.FileInfo, errOut error) {
 	return info, err
 }
 
+// LinkedEntries names the entries directly in directory that are symbolic
+// links and whose base names accept admits. A disk walk drops a link silently,
+// though a build tool may still compile its target, so a provider that narrows
+// by a unit's own files asks here whether it can see all of them (TSP-V0-002).
+// The directory is recorded unfollowed, so an added or removed link
+// invalidates a graph cache entry. An immutable tree source answers nil: its
+// walk already refuses every non-regular entry.
+func (s *Source) LinkedEntries(directory string, accept func(name string) bool) (linksOut []string, errOut error) {
+	if err := s.stopped(); err != nil {
+		return nil, err
+	}
+	if s == nil || !fs.ValidPath(directory) {
+		return nil, ErrInvalidUnit
+	}
+	if s.fsys != nil {
+		return nil, nil
+	}
+	s.record.path(s.root, directory, false)
+	entries, err := os.ReadDir(filepath.Join(s.root, filepath.FromSlash(directory)))
+	if err != nil {
+		return nil, err
+	}
+	for _, entry := range entries {
+		if entry.Type()&fs.ModeSymlink != 0 && accept(entry.Name()) {
+			linksOut = append(linksOut, path.Join(directory, entry.Name()))
+		}
+	}
+	return linksOut, nil
+}
+
 // ResolvesToDependency reports whether the existing path relative resolves on disk, following
 // every symlink, outside the root's real path or inside a node_modules directory below it: a
 // dependency location rather than repository source (TJAA-V0-122). A path that resolves to

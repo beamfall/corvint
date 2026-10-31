@@ -39,6 +39,9 @@ import (
 //   - the changed files declare at least one Test, Example or Fuzz function,
 //     and the anchored pattern of all of them fits the -run bound.
 //
+// A package selected by DIRECT_SOURCE_CHANGE is decided by testSourceSlices
+// (TSP-V0-006) instead.
+//
 // The slice runs every test function of every changed test file, so a test
 // moved, added or edited there runs; which assertion changed is not modelled.
 // The base reads of every changed test file of every package are two Git
@@ -46,12 +49,19 @@ import (
 func testGoSlices(ctx context.Context, plan affected.Plan, graph *affected.Graph, root, base string) map[string]sessiontest.GoSlice {
 	sliced := make(map[string]sessiontest.GoSlice, len(plan.Selected))
 	var candidates []testSliceCandidate
+	var sources []testSourceCandidate
 	for _, selection := range plan.Selected {
 		pkg, ok := strings.CutPrefix(selection.UnitID, "go:")
 		if !ok {
 			continue
 		}
 		candidate, reason := testSliceCandidateOf(plan, graph, selection)
+		if selection.Witness.Kind == affected.WitnessDirectSource {
+			if unit, ok := graph.Unit(selection.UnitID); ok {
+				sources = append(sources, testSourceCandidate{pkg: pkg, unit: unit, fallback: reason})
+				continue
+			}
+		}
 		if reason != "" {
 			sliced[pkg] = sessiontest.GoSlice{Reason: reason}
 			continue
@@ -69,7 +79,10 @@ func testGoSlices(ctx context.Context, plan affected.Plan, graph *affected.Graph
 			}
 		}
 	}
-	atBase := testBaseDeclarations(ctx, root, base, paths)
+	// One base read serves both models (STR-V0-072).
+	eligible := testSourceEligibles(plan, graph, sources, sliced)
+	blobs := testBaseBlobs(ctx, root, base, append(slices.Clone(paths), testSourceOwnPaths(eligible)...))
+	atBase := testBaseDeclarations(blobs, paths)
 	for _, candidate := range candidates {
 		pkg := strings.TrimPrefix(candidate.id, "go:")
 		if reason := elsewhere[candidate.id]; reason != "" {
@@ -77,6 +90,9 @@ func testGoSlices(ctx context.Context, plan affected.Plan, graph *affected.Graph
 			continue
 		}
 		sliced[pkg] = testGoSlice(root, candidate, atBase)
+	}
+	for _, candidate := range eligible {
+		sliced[candidate.pkg] = testSourceSlice(root, candidate, blobs)
 	}
 	return sliced
 }
@@ -294,14 +310,46 @@ type testBaseFile struct {
 }
 
 // testBaseDeclarations reads every given test file as it was at base, in two
-// Git processes whatever the number of files or packages (STR-V0-072): one
-// `ls-tree -l -z` names each blob and its size, and one `cat-file --batch`
-// reads them all. Removing an initialization effect changes what every test
-// of the package observes, so it is as much a proof gap as adding one. A
-// failed listing, read or parse is itself the reason, so the package stays
-// whole on a missing proof; the reasons are those of the former per-file read.
-func testBaseDeclarations(ctx context.Context, root, base string, paths []string) map[string]testBaseFile {
+// Git processes whatever the number of files or packages (STR-V0-072).
+// Removing an initialization effect changes what every test of the package
+// observes, so it is as much a proof gap as adding one. A failed listing,
+// read or parse is itself the reason, so the package stays whole on a missing
+// proof; the reasons are those of the former per-file read.
+func testBaseDeclarations(blobs map[string]testBaseBlob, paths []string) map[string]testBaseFile {
 	files := make(map[string]testBaseFile, len(paths))
+	for _, path := range paths {
+		blob := blobs[path]
+		if blob.absent || blob.reason != "" {
+			files[path] = testBaseFile{reason: blob.reason}
+			continue
+		}
+		declarations, err := golang.TestFileDeclarations(path, blob.content)
+		switch {
+		case err != nil:
+			files[path] = testBaseFile{reason: "does not parse at base"}
+		case declarations.SideEffect != "":
+			files[path] = testBaseFile{reason: declarations.SideEffect + " at base"}
+		default:
+			files[path] = testBaseFile{imports: declarations.Imports}
+		}
+	}
+	return files
+}
+
+// testBaseBlob is one path as it was at base: its content, or the reason it
+// could not be read, or absent when base has no such path.
+type testBaseBlob struct {
+	content []byte
+	reason  string
+	absent  bool
+}
+
+// testBaseBlobs reads every given path as it was at base in two Git processes
+// whatever their number (STR-V0-072): one `ls-tree -l -z` names each blob and
+// its size, and one `cat-file --batch` reads them all. A failed listing or
+// read is the path's reason.
+func testBaseBlobs(ctx context.Context, root, base string, paths []string) map[string]testBaseBlob {
+	files := make(map[string]testBaseBlob, len(paths))
 	if len(paths) == 0 {
 		return files
 	}
@@ -312,7 +360,7 @@ func testBaseDeclarations(ctx context.Context, root, base string, paths []string
 	listing, err := sourceGit(ctx, root, limit, append([]string{"ls-tree", "-l", "-z", base, "--"}, paths...)...)
 	if err != nil {
 		for _, path := range paths {
-			files[path] = testBaseFile{reason: "cannot be listed at base"}
+			files[path] = testBaseBlob{reason: "cannot be listed at base"}
 		}
 		return files
 	}
@@ -344,11 +392,11 @@ func testBaseDeclarations(ctx context.Context, root, base string, paths []string
 		entry, present := listed[path]
 		switch {
 		case !present:
-			files[path] = testBaseFile{}
+			files[path] = testBaseBlob{absent: true}
 		case entry.oid == "":
-			files[path] = testBaseFile{reason: "is not a file at base"}
+			files[path] = testBaseBlob{reason: "is not a file at base"}
 		case entry.size < 0 || entry.size > sourceBlobLimit:
-			files[path] = testBaseFile{reason: "cannot be read at base"}
+			files[path] = testBaseBlob{reason: "cannot be read at base"}
 		case !requested[entry.oid]:
 			requested[entry.oid] = true
 			request.WriteString(entry.oid + "\n")
@@ -368,18 +416,10 @@ func testBaseDeclarations(ctx context.Context, root, base string, paths []string
 		}
 		source, read := contents[listed[path].oid]
 		if !read {
-			files[path] = testBaseFile{reason: "cannot be read at base"}
+			files[path] = testBaseBlob{reason: "cannot be read at base"}
 			continue
 		}
-		declarations, err := golang.TestFileDeclarations(path, source)
-		switch {
-		case err != nil:
-			files[path] = testBaseFile{reason: "does not parse at base"}
-		case declarations.SideEffect != "":
-			files[path] = testBaseFile{reason: declarations.SideEffect + " at base"}
-		default:
-			files[path] = testBaseFile{imports: declarations.Imports}
-		}
+		files[path] = testBaseBlob{content: source}
 	}
 	return files
 }

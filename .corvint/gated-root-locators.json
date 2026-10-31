@@ -1,0 +1,9 @@
+{
+  "profile": "corvint-gated-root-locators/0",
+  "packages": {
+    "internal/authoritystore": {
+      "gate": "/Library/CorvintAuthority",
+      "reason": "bindCurrentRepository and its binding's revalidation, the package's only root-locating code, run only after resolveObservedProfile or resolveLifecycleContextProfile admits accepted-root.json read through protectedFiles, which only openProtectedFiles supplies, rooted at RootPath (darwin) or unavailable; binding refuses any root other than the admitted RepositoryRoot (TestRootLocatorGated_TSP_V0_003)"
+    }
+  }
+}

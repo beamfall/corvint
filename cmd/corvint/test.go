@@ -50,6 +50,12 @@ uses a name a changed one declares, no changed file declares init or
 TestMain or initializes a variable with a call, and no other dirty path
 reaches the package; otherwise it runs whole and the manifest unit's
 "reason" names the missing proof (STR-V0-063).
+A Go package selected only because its own non-test .go files changed runs
+just the test functions that can reach the changed functions (-run, or
+-run ^$ to build and vet only when none can) when only receiver-less
+functions changed, none is used other than called, package initialization
+does not reach them and they reach no package variable; otherwise it runs
+whole with the missing proof named (TSP-V0-006, experimental).
 --placement balanced (experimental) spreads a narrowed run's own units
 over the shards by the cost table; FULL keeps the universe partition. It
 executes only in the local profile (ci: --dry-run only), and a sharded run
@@ -555,7 +561,18 @@ func testVerdict(stderr io.Writer, m sessiontest.Manifest) {
 	default:
 		_, _ = fmt.Fprintf(stderr, "corvint-test: NARROWED %d execution units\n", len(m.Units))
 		if sliced := m.SlicedUnits(); sliced != 0 {
-			_, _ = fmt.Fprintf(stderr, "corvint-test: SLICED %d of them to the test functions of their changed test files\n", sliced)
+			bySource := 0
+			for _, unit := range m.Units {
+				if unit.Slice == sessiontest.SliceSelected && (strings.HasPrefix(unit.Reason, "selected: the tests reaching ") || strings.HasPrefix(unit.Reason, "selected: no test reaches ")) {
+					bySource++
+				}
+			}
+			if sliced > bySource {
+				_, _ = fmt.Fprintf(stderr, "corvint-test: SLICED %d of them to the test functions of their changed test files\n", sliced-bySource)
+			}
+			if bySource != 0 {
+				_, _ = fmt.Fprintf(stderr, "corvint-test: SLICED %d of them to the test functions their changed functions reach (TSP-V0-006)\n", bySource)
+			}
 		}
 	}
 	for _, entry := range m.Excluded {

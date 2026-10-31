@@ -239,6 +239,45 @@ func (graph *Graph) unboundedReadersOf(reached map[string]Witness, dirty []strin
 // Go package's tests read outside the package directory (AFP-V0-023).
 const ReadScopesPath = ".corvint/test-read-scopes.json"
 
+// GatedRootLocatorsPath is the repository's declaration of the Go packages
+// whose root locating runs only behind an absolute gate outside the
+// repository (TSP-V0-003). The declaration is read when the graph is built,
+// so a plan with the declaration dirty is UNKNOWN (gatedLocatorsChanged).
+const GatedRootLocatorsPath = ".corvint/gated-root-locators.json"
+
+// FrontierGatedLocatorsChanged is the unknown detail of a plan whose dirty
+// paths hold GatedRootLocatorsPath (TSP-V0-003): the edited declaration may
+// clear a root locator its own head graph trusts.
+const FrontierGatedLocatorsChanged = "go:gated-root-locators-changed"
+
+// ShellForeignCallersPath is the repository's declaration of the files that
+// run a shell script by a path no plugin resolves (TSP-V0-005). The shell
+// plugin reads and verifies it when the graph is built, so a plan with the
+// declaration dirty is UNKNOWN (foreignCallersChanged).
+const ShellForeignCallersPath = ".corvint/shell-foreign-callers.json"
+
+// FrontierForeignCallersChanged is the unknown detail of a plan whose dirty
+// paths hold ShellForeignCallersPath (TSP-V0-005).
+const FrontierForeignCallersChanged = "shell:foreign-callers-changed"
+
+// foreignCallersChanged returns the TSP-V0-005 unknown when normalized holds
+// the shell foreign-caller declaration.
+func foreignCallersChanged(normalized []string) []Unknown {
+	if !slices.Contains(normalized, ShellForeignCallersPath) {
+		return nil
+	}
+	return []Unknown{{Reason: UnknownLanguageFrontier, Detail: FrontierForeignCallersChanged}}
+}
+
+// gatedLocatorsChanged returns the TSP-V0-003 unknown when normalized holds
+// the gated root-locator declaration, whatever unit names it.
+func gatedLocatorsChanged(normalized []string) []Unknown {
+	if !slices.Contains(normalized, GatedRootLocatorsPath) {
+		return nil
+	}
+	return []Unknown{{Reason: UnknownLanguageFrontier, Detail: FrontierGatedLocatorsChanged}}
+}
+
 // scopedReadersOf selects each unit not already reached whose declared read
 // scope holds a dirty path, witnessed by the smallest such path (AFP-V0-023).
 // Like a reader it is not traversed. When the declaration itself is dirty and

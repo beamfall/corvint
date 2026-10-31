@@ -655,3 +655,89 @@ func TestForeignFrontierBearsOnlyWhenDependentsAreFollowed_NSAV0012(t *testing.T
 		t.Errorf("cmd/main.go: the reader is not reached: %v", reached)
 	}
 }
+
+// TSP-V0-004: a source of a file inside a directory `mktemp -d` just created
+// reads a runtime file outside the repository; every near miss stays a
+// dynamic, root-locating source.
+func TestFreshTemporaryDirectorySourceIsBounded_TSP_V0_004(t *testing.T) {
+	const serve = "serve() {\n  local a b\n  infra() { exit 97; }\n  w=$(mktemp -d \"${TMPDIR:-/tmp}/x.XXXXXX\") || infra \"mktemp failed\"\n  trap '/bin/rm -rf \"$w\"' EXIT\n  base64 -d | tar -x -C \"$w\" || infra decode\n  source \"${w}/sub/meta.env\" || infra meta\n}\n"
+	// pathServe sets PATH, so every external command runs as `command -p`;
+	// it also defines a function between the assignment and the source.
+	const pathServe = "serve() {\n  infra() {\n    printf 'remote %s: %s\\n' \"$(command -p hostname)\" \"$*\" >&2\n    exit 97\n  }\n  export PATH=\"/opt/go/bin:$PATH\"\n  w=$(command -p mktemp -d \"${TMPDIR:-/tmp}/x.XXXXXX\") || infra \"mktemp failed\"\n  ready() { return 0; }\n  trap '/bin/rm -rf \"$w\"' EXIT\n  trap 'exit 130' INT TERM HUP\n  command -p base64 -d | command -p tar -x -C \"$w\" 2> /dev/null || infra decode\n  ready\n  . \"$w/meta.env\" || infra meta\n}\n"
+	root := t.TempDir()
+	write(t, root, "fresh.sh", serve)
+	write(t, root, "fresh-path.sh", pathServe)
+	negatives := map[string]string{
+		// Between the assignment and the source only allow-listed commands run.
+		"ln-between.sh":     "w=$(mktemp -d)\nln -s \"$PWD/lib\" \"$w/runtime\"\n. \"$w/runtime/meta.env\"\n",
+		"cp-between.sh":     "w=$(mktemp -d)\ncp lib.sh \"$w/meta.env\"\n. \"$w/meta.env\"\n",
+		"mv-between.sh":     "w=$(mktemp -d)\nmv \"$w\" \"$w.old\"\n. \"$w/meta.env\"\n",
+		"mount-between.sh":  "w=$(mktemp -d)\nmount --bind \"$PWD\" \"$w\"\n. \"$w/meta.env\"\n",
+		"cd-into.sh":        "w=$(mktemp -d)\ncd \"$w\"\n. \"$w/meta.env\"\n",
+		"write-redirect.sh": "w=$(mktemp -d)\nprintf x > \"$w/meta.env\"\n. \"$w/meta.env\"\n",
+		"unlisted.sh":       "w=$(mktemp -d)\nsleep 1\n. \"$w/meta.env\"\n",
+		"env-prefix.sh":     "w=$(mktemp -d)\nenv tar -x -C \"$w\"\n. \"$w/meta.env\"\n",
+		"prefix-between.sh": "w=$(mktemp -d)\nTAR_OPTIONS=-P tar -x -C \"$w\"\n. \"$w/meta.env\"\n",
+		"tar-member.sh":     "w=$(mktemp -d)\ntar -x -C \"$w\" -f lib.tar\n. \"$w/meta.env\"\n",
+		"subst-between.sh":  "w=$(mktemp -d)\n: \"$(ln -s \"$PWD\" \"$w/r\")\"\n. \"$w/r/meta.env\"\n",
+		"brace-between.sh":  "w=$(mktemp -d)\n{ ln -s \"$PWD\" \"$w/r\"; }\n. \"$w/r/meta.env\"\n",
+		"printf-assign.sh":  "w=$(mktemp -d)\nprintf -v x '%s' y\n. \"$w/meta.env\"\n",
+		"debug-trap.sh":     "w=$(mktemp -d)\ntrap 'ln -s \"$PWD\" \"$w/r\"' DEBUG\n. \"$w/r/meta.env\"\n",
+		"signal-trap.sh":    "w=$(mktemp -d)\ntrap 'ln -s \"$PWD\" \"$w/r\"' INT\n. \"$w/r/meta.env\"\n",
+		"func-body.sh":      "f() { ln -s \"$PWD/lib\" \"$w/r\"; }\nw=$(mktemp -d)\nf\n. \"$w/r/meta.env\"\n",
+		"func-later.sh":     "w=$(mktemp -d)\nf\n. \"$w/meta.env\"\nf() { :; }\n",
+		"func-twice.sh":     "f() { :; }\nf() { ln -s \"$PWD\" \"$w/r\"; }\nw=$(mktemp -d)\nf\n. \"$w/r/meta.env\"\n",
+		"func-nested.sh":    "f() { if true; then ln -s \"$PWD\" \"$w/r\"; fi; }\nw=$(mktemp -d)\nf\n. \"$w/r/meta.env\"\n",
+		// Nothing may redirect mktemp or an allowed command.
+		"mktemp-func.sh":       "mktemp() { ln -s \"$PWD\" \"$2\"; echo \"$2\"; }\nw=$(mktemp -d /tmp/x)\n. \"$w/meta.env\"\n",
+		"mktemp-func-later.sh": "w=$(mktemp -d)\n. \"$w/meta.env\"\nmktemp() { :; }\n",
+		"tar-func.sh":          "tar() { ln -s \"$PWD\" \"$w/r\"; }\nw=$(mktemp -d)\ntar -x -C \"$w\"\n. \"$w/r/meta.env\"\n",
+		"command-func.sh":      "command() { :; }\nw=$(command -p mktemp -d)\n. \"$w/meta.env\"\n",
+		"alias.sh":             "alias mktemp=./fake\nw=$(mktemp -d)\n. \"$w/meta.env\"\n",
+		"hash.sh":              "hash -p ./fake mktemp\nw=$(mktemp -d)\n. \"$w/meta.env\"\n",
+		"path.sh":              "PATH=\"$PWD/bin:$PATH\"\nw=$(mktemp -d)\n. \"$w/meta.env\"\n",
+		"path-tar.sh":          "export PATH=\"$PWD/bin:$PATH\"\nw=$(command -p mktemp -d)\ntar -x -C \"$w\"\n. \"$w/meta.env\"\n",
+		"tape.sh":              "export TAPE=lib.tar\nw=$(mktemp -d)\ntar -x -C \"$w\"\n. \"$w/meta.env\"\n",
+		"source-before.sh":     ". ./lib.sh\nw=$(mktemp -d)\n. \"$w/meta.env\"\n",
+		"other-value.sh":       "w=$(pwd)\n. \"$w/meta.env\"\n",
+		"twice.sh":             "w=$(mktemp -d)\nw=$(mktemp -d)\n. \"$w/meta.env\"\n",
+		"for-rebind.sh":        "w=$(mktemp -d)\nfor w in lib; do :; done\n. \"$w/meta.env\"\n",
+		"read-rebind.sh":       "w=$(mktemp -d)\nread -r w\n. \"$w/meta.env\"\n",
+		"local-rebind.sh":      "f() {\n  w=$(mktemp -d)\n  local w\n  . \"$w/meta.env\"\n}\n",
+		"unset.sh":             "w=$(mktemp -d)\nunset w\n. \"$w/meta.env\"\n",
+		"default-bind.sh":      "w=$(mktemp -d)\n: \"${w:=lib}\"\n. \"$w/meta.env\"\n",
+		"local-decl.sh":        "f() {\n  local w=$(mktemp -d)\n  . \"$w/meta.env\"\n}\n",
+		"other-func.sh":        "f() { w=$(mktemp -d); }\ng() { . \"$w/meta.env\"; }\n",
+		"subshell.sh":          "( w=$(mktemp -d) )\n. \"$w/meta.env\"\n",
+		"branch.sh":            "if true; then\n  w=$(mktemp -d)\nfi\n. \"$w/meta.env\"\n",
+		"conditional.sh":       "true && w=$(mktemp -d)\n. \"$w/meta.env\"\n",
+		"pipeline.sh":          "w=$(mktemp -d) | cat\n. \"$w/meta.env\"\n",
+		"inner-pipe.sh":        "w=$(mktemp -d | head -1)\n. \"$w/meta.env\"\n",
+		"dynamic-rest.sh":      "w=$(mktemp -d)\n. \"$w/$name.env\"\n",
+		"dotdot-rest.sh":       "w=$(mktemp -d)\n. \"$w/../lib.sh\"\n",
+		"bare-dir.sh":          "w=$(mktemp -d)\n. \"$w\"\n",
+		"file-temp.sh":         "w=$(mktemp)\n. \"$w/meta.env\"\n",
+		"dry-run.sh":           "w=$(mktemp -du)\n. \"$w/meta.env\"\n",
+		"prefix.sh":            "w=$(mktemp -d) true\n. \"$w/meta.env\"\n",
+		"envfile.sh":           "w=$(mktemp -d)\n. \"$w/meta.env\"\n. \"${ENVFILE/#\\~/$HOME}\"\n",
+		"source-between.sh":    "w=$(mktemp -d)\n. ./lib.sh\n. \"$w/meta.env\"\n",
+		"after-source.sh":      "w=$(mktemp -d)\n. \"$w/meta.env\"\n. \"$w/more.env\"\n",
+		"later-source.sh":      ". \"$w/meta.env\"\nw=$(mktemp -d)\n",
+		"backticks.sh":         "w=`mktemp -d`\n. \"$w/meta.env\"\n",
+	}
+	for name, text := range negatives {
+		write(t, root, name, text)
+	}
+	write(t, root, "lib.sh", "true\n")
+	result := units(t, root)
+	for _, name := range []string{"fresh.sh", "fresh-path.sh"} {
+		if unit := unitOf(t, result, name); unit.UnboundedReads != "" || unit.LocatesRoot {
+			t.Fatalf("%s: fresh temporary directory source stayed dynamic: %+v", name, unit)
+		}
+	}
+	for name := range negatives {
+		if unit := unitOf(t, result, name); unit.UnboundedReads != UnboundedDynamicSource || !unit.LocatesRoot {
+			t.Errorf("%s is not a dynamic source: %+v", name, unit)
+		}
+	}
+}

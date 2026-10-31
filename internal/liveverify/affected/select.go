@@ -247,6 +247,8 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 	plan.Unknown = append(frontier, unknown...)
 	plan.FrontierExcluded = excluded
 	plan.Unknown = append(plan.Unknown, graph.tokenBounds(reached, normalized)...)
+	plan.Unknown = append(plan.Unknown, gatedLocatorsChanged(normalized)...)
+	plan.Unknown = append(plan.Unknown, foreignCallersChanged(normalized)...)
 	for _, id := range graph.order {
 		unit := graph.units[id]
 		if _, changed := seeds[id]; changed && graph.untested(id) {
@@ -509,7 +511,7 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 		}
 	}
 	for id, witness := range reached {
-		if graph.frontierBears(id, witness, followed, reads) {
+		if graph.frontierBears(id, witness, followed, reads) && graph.ownFilesBear(id, dirty) {
 			for _, reason := range graph.units[id].Frontier {
 				reasons[reason] = true
 			}
@@ -518,7 +520,11 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 	for id := range narrowed {
 		// A narrowed reader is unreached. Reached, it would be a path reader,
 		// whose frontier bears whatever the plan follows (AFP-V0-581 (2)), so
-		// the narrowing removes no entry (AFP-V0-072(4)).
+		// the narrowing removes no entry (AFP-V0-072(4)). An own-files
+		// frontier bears on the same dirty paths whatever reached the unit.
+		if !graph.ownFilesBear(id, dirty) {
+			continue
+		}
 		for _, reason := range graph.units[id].Frontier {
 			reasons[reason] = true
 		}
@@ -603,6 +609,35 @@ func (graph *Graph) frontierBears(id string, witness Witness, followed, reads ma
 		return true
 	}
 	return witness.Kind == WitnessPathLiteralReader || witness.Kind == WitnessPathGlobReader
+}
+
+// ownFilesBear reports whether unit id's Frontier can bear on a plan with
+// this dirty set under its FrontierBears value: always, unless the value is
+// FrontierBearsOnOwnFiles, which bears only when a dirty path lies directly in
+// the unit's own directory or in one of its ancestors (TSP-V0-001). The unit's
+// directory holds every file of a Go package, so it is where a file is added,
+// deleted or gains or loses a build constraint; an ancestor holds the module
+// and workspace manifests and the build configuration that choose the
+// toolchain and tags. A change anywhere else changes no file the variants are
+// chosen from. A unit with no file has no directory to scope by, so its
+// frontier always bears.
+func (graph *Graph) ownFilesBear(id string, dirty []string) bool {
+	unit := graph.units[id]
+	if unit.FrontierBears != FrontierBearsOnOwnFiles {
+		return true
+	}
+	files := append(append([]string(nil), unit.Sources...), unit.Tests...)
+	if len(files) == 0 {
+		return true
+	}
+	directory := relativeDirectory(files[0])
+	for _, dirtyPath := range dirty {
+		parent := relativeDirectory(dirtyPath)
+		if parent == "." || parent == directory || strings.HasPrefix(directory, parent+"/") {
+			return true
+		}
+	}
+	return false
 }
 
 // participants lists the plugins a plan with this dirty set takes part in: one
