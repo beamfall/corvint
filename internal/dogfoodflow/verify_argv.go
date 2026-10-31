@@ -93,8 +93,8 @@ func envAssignments(line string) (words []string, rest string, quoted bool) {
 // verifyLineArguments is one verify line's recorder argument pair: a quoted
 // -run alternation becomes a typed argv entry whose quoted word is exactly
 // one argument, so no shell ever parses it (LTPM-V0-013); a line led by
-// quoted NAME=value assignments, such as HEAVY_WHOLE_REASON='whole run'
-// script/heavy.sh go test ./a, becomes a typed argv entry whose first words
+// quoted NAME=value assignments, such as RUN_REASON='whole run'
+// script/run.sh go test ./a, becomes a typed argv entry whose first words
 // are those assignments verbatim, without their quotes (DCW-V0-804); every
 // other line stays a v1 command under the unchanged grammar.
 func verifyLineArguments(line string) []string {
