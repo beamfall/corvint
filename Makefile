@@ -220,10 +220,12 @@ spec-requirements:
 spec-requirements-resolve:
 	@script/spec-requirements-resolve.sh
 
+# SRG-V0-800 (V1-3379): it also fails when an unstaged spec edit would change the generated files.
 spec-requirements-check:
 	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT INT TERM; $(SPEC_GENERATE) || exit 1; stale=0; \
 	for file in $(SPEC_GENERATED); do cmp "$$tmp/$$file" "docs/specs/$$file" || stale=1; done; \
 	test $$stale = 0 || { echo "docs/specs/REQUIREMENTS.tsv, INDEX.json or README.md is stale: stage the changed spec, then run make spec-requirements" >&2; exit 1; }
+	@script/spec-requirements-worktree-check.sh
 	$(GO_TEST_COMMAND) ./internal/specindex
 
 # spec-requirements-test pins SRG-V0-001: the generator enumerates the Git index, so no
@@ -231,10 +233,11 @@ spec-requirements-check:
 # reproduces. It is the drift detector for a return to a worktree listing. It also pins the
 # acceptance columns, the header projection and the audit (SRG-V0-009, -010, -012) and shows that
 # two lanes adding requirements to one spec conflict only in its requirement list and the TSV
-# rows (SRG-V0-013).
+# rows (SRG-V0-013). It also pins the SRG-V0-800 worktree check.
 spec-requirements-test:
 	@script/gen-spec-requirements_test.sh
 	@script/spec-requirements-conflict_test.sh
+	@script/spec-requirements-worktree-check_test.sh
 
 # spec-acceptance-audit lists the requirements of one acceptance mode by spec, standing by
 # default, and reports a validated spec that holds a standing requirement as NOT_PROMOTABLE
