@@ -5,14 +5,14 @@ Date: 2026-10-24
 Intent status: proposed
 Delivery status: experimental
 
-Authoritative inputs: native tickets V1-2531, V1-2537, V1-2539, V1-2203, V1-2205, V1-1702, V1-2592, V1-2866 and the owner decision of 2026-10-27 on concurrent publish directory syncs. These requirements
+Authoritative inputs: native tickets V1-2531, V1-2537, V1-2539, V1-2203, V1-2205, V1-1702, V1-2592, V1-2866, V1-3186 and the owner decision of 2026-10-27 on concurrent publish directory syncs. These requirements
 amend the write rounds of the [agent lease contract](corvint-tasks-agent-leases-v0.md), whose
 Requirements section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 They change no lease semantics, stored state, wire format or receipt.
 
 ## Agent digest
 - Claim: Lease rounds skip the ready-route cleanup lock, keep fdinfo files open, parse tickets in parallel, skip liveness staging syncs, overlap stage and publish syncs.
-- Status: proposed; experimental; LGL-V0-001, 002, 004, 005, 006, 007, 009 and 010 are implemented with focused tests; LGL-V0-011 measured a 47k-receipt pool release at p99 1.03 s (target 2 s); LGL-V0-003 is a measured target that is NOT MET (claim gate-wait p99 1.7 s against 500 ms); LGL-V0-008 keeps every published artifact's sync and records why; LGL-V0-013 stages a lease write's artifacts together (heartbeat median 82.0 to 63.0 ms, indicative); LGL-V0-014 decodes a large ticket inventory concurrently (claim hold p50 228 to 172 ms at 880 tickets, WSL2); LGL-V0-016 overlaps one phase's publish directory syncs (claim hold about 16 ms lower, WSL2); the V1-0887 heartbeat median of 50 ms is still NOT MET (65.5 ms at 13.5k and 80.8 ms at 40k receipts, WSL2, 2026-10-27), and LGL-V0-003 is still NOT MET (gate-wait p99 1.78 s at 31 tickets, 2.32 s at 880 with LGL-V0-016).
+- Status: proposed; experimental; LGL-V0-001, 002, 004, 005, 006, 007, 009 and 010 are implemented with focused tests; LGL-V0-011 measured a 47k-receipt pool release at p99 1.03 s (target 2 s); LGL-V0-003 is a measured target that is NOT MET (claim gate-wait p99 1.7 s against 500 ms); LGL-V0-008 keeps every published artifact's sync and records why; LGL-V0-013 stages a lease write's artifacts together (heartbeat median 82.0 to 63.0 ms, indicative); LGL-V0-014 decodes a large ticket inventory concurrently (claim hold p50 228 to 172 ms at 880 tickets, WSL2); LGL-V0-016 overlaps one phase's publish directory syncs (claim hold about 16 ms lower, WSL2); the V1-0887 heartbeat median of 50 ms is still NOT MET (65.5 ms at 13.5k and 80.8 ms at 40k receipts, WSL2, 2026-10-27), and LGL-V0-003 is still NOT MET (gate-wait p99 1.78 s at 31 tickets, 2.32 s at 880 with LGL-V0-016); LGL-V0-800 decodes each attempt post once per receipt in the `receipt audit` binding fold (complete audit 25 to 29 % lower wall time at 3k to 40k receipts, Darwin).
 - Exists: the writer-route staging decline, retained Linux fdinfo files, the single-parse ticket loader and its concurrent decode, the wire ASCII scan, the heartbeat/renew staging-sync skip and the together staging of lease writes and the overlapped publish syncs, each with a focused test.
 - Blocked on: V1-2539 (claim wait: serial FIFO admission of a claim burst, about 13 claim holds at p99; 500 ms needs a design decision on non-serial admission or a claim staging-sync skip (concurrent publish directory syncs are LGL-V0-016); the 2026-10-27 claim hold floor is commit near 80 ms plus observe near 47 ms) and V1-2203/V1-2205 (the rest of the heartbeat floor, commit syncs near 38-54 ms, observe near 20 ms and Qualify near 15 ms before the gate, needs an owner store-format or sync decision: LGL-V0-008).
 - Read next: Requirements; Failure modes; Acceptance evidence.
@@ -190,6 +190,17 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   locked step MUST re-read that one segment and refuse `JOURNAL_FORKED` when it is absent or its
   size or SHA-256 differs from the manifest entry; no other segment is re-read, so the check is
   bounded by one segment.
+- `LGL-V0-800`: (proposed; V1-3186) The `receipt audit` receipt binding fold (CAL-V0-135) MUST
+  read and decode each `attempts/` post of a receipt at most once, sharing the bytes, the decoded
+  attempt and any read or decode error between the external review, escalation, obligation and
+  gate reuse steps, as it already shares `intent/tickets/` posts between the review and escalation
+  steps. The shared result MUST be exactly what each step computed for itself, errors included,
+  and MUST be discarded when the fold moves to another receipt; no result is reused across
+  receipts, processes or invocations, so the explicit audit still reads and checks every receipt,
+  post and blob, and reports the same outcome, refusals and unknowns. Target: on the same host and
+  load, the complete audit's median wall time at 3k, 13k and 40k synthetic receipts and on a copy
+  of the live queue is at least 20 % below the base binary's in interleaved runs; the steps only
+  read the shared records.
 
 ## Non-goals
 
@@ -259,7 +270,24 @@ the barrier deletion or the head is published, as a failed immediate sync did. T
 the filesystem grouping concurrent directory fsyncs; one that serializes them pays the sequential
 cost, never more syncs.
 
+With LGL-V0-800 a fold step that mutated a shared attempt or ticket record would change what a
+later step of the same receipt sees; every step only reads them, which
+`TestLGLV0800_AttemptMemoMatchesFreshDecode` and the unchanged audit outcomes guard. Reuse within
+one receipt is the whole boundary: a cached audit result across invocations would need its own
+input binding and is not part of this contract.
+
 ## Acceptance evidence
+
+`TestLGLV0800_AttemptMemoMatchesFreshDecode` (`internal/tasks/transaction/ticket_posts_test.go`,
+V1-3186) shows the memo returns what a fresh read and decode return for a valid attempt, a
+non-record, a malformed attempt and an absent blob, reads each blob once however often it is asked,
+and starts afresh for another receipt. The transaction package and the store fold, audit and review
+tests pass unchanged. Interleaved runs (five per binary per size, Darwin arm64, 12 CPUs, load 9 to
+14) gave median wall times base to new of 0.93 to 0.66 s at 3,000 synthetic receipts, 3.20 to
+2.43 s at 13,000, 6.43 to 4.69 s on a 15,147-receipt copy of the live queue and 10.06 to 7.43 s at
+40,000, with byte-identical audit items; total allocation on the live copy fell from 7.95 to
+5.42 GB. The runs and profiles are in the build-log entry
+`docs/build-log/2026-10-31-tasks-core-w2.md`.
 
 `TestLGLV0001_ReadyRouteTakesNoCleanupLockOutsideGate`
 (`internal/tasks/store/lease_orphan_route_test.go`) holds the writer lock 600 ms over an orphan
@@ -398,4 +426,6 @@ Reverting LGL-V0-015 returns the harness default to writers+16 tickets; set
 `CORVINT_TASKS_LEASE_GATE_LOAD_TICKETS=880` to keep live-sized runs. Reverting LGL-V0-016
 (`leasePublishSyncsOverlap` false, or the source) returns lease writes to syncing each publication's
 directories before the next is published; nothing it writes differs in format, and the same
-binary or an older one reads and redoes the store unchanged.
+binary or an older one reads and redoes the store unchanged. Reverting LGL-V0-800 (the
+`TicketPosts.attempt` memo, or passing a nil memo) returns each binding step to reading and
+decoding its own attempt posts; nothing is stored.
