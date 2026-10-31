@@ -65,6 +65,17 @@ snapshot `internal/tasks/similar/testdata/corpus-2026-10-30.jsonl` and, for V1-3
   (on the base) and this lane's AHI-820 test both did that. The first now serves from a re-exec'd
   child; the second's served-args half moved to `internal/mcp/cli`.
 
+## Codex review fixes
+
+- P2, V1-2215: GOROOT staging ran outside the command budget, and the driver then got the full
+  timeout again. `runProvider` now fixes one deadline: both GOROOT passes stop on cancellation or
+  when it passes (`command budget exhausted`), and the driver gets `time.Until(deadline)`.
+  `TestBBFV0820StagingHonorsTheCommandBudget` fails on the previous code in both cases.
+- P3, TQD-V0-821: an open descriptor was taken as proof of ownership. A holder is now named only
+  through a descriptor on this file (stat device and inode) whose `/proc/<pid>/fdinfo` lists the
+  `FLOCK`, which the kernel prints only for the owning open file. With the fdinfo check removed,
+  `TestTQDV0821OpenDescriptorWithoutLockIsNotOwnership` fails three of its four cases.
+
 ## Already delivered on the base
 
 - V1-2727: `AFP-V0-464`. `internal/gateselect` `unresolved()` follows the planner's import-only
