@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# usage: script/heavy.sh COMMAND [ARG...]
+# usage: script/heavy.sh [NAME=VALUE...] COMMAND [ARG...]
 #        script/heavy.sh --print-lock-dir
 #
 # --print-lock-dir prints the slot lock directory a run would use (HEAVY_LOCK_DIR, else HEAVY_CONFIG,
@@ -131,7 +131,8 @@
 # 143, 130 or 129; the remote command keeps running until it ends or HEAVY_REMOTE_TIMEOUT stops it.
 # Each local run of an offloadable command (unavailable, HEAVY_REMOTE=0, a file-writing flag) is
 # appended to HEAVY_FALLBACK_LOG, so host load from local runs stays visible. Only the argv travels:
-# set test environment with `env K=V` inside the command. GOCACHE/GOMODCACHE assignments are
+# set test environment with `env K=V` inside the command, or as leading K=V words, which become
+# `env K=V ...` (ASD-V0-830). GOCACHE/GOMODCACHE assignments are
 # dropped remotely, and a command with a file-writing flag (-o, -c, -outputdir, -coverprofile, the
 # profiles, -trace, -test.*), as an argument, in a GOFLAGS= argument or in the exported GOFLAGS,
 # always runs locally, because its files would stay on the remote.
@@ -1114,6 +1115,10 @@ main() {
     printf '%s\n' "$lock_dir"
     return 0
   fi
+  # ASD-V0-830 (V1-3256): leading NAME=VALUE words are environment, as for env(1), so
+  # `heavy.sh GOTOOLCHAIN=local go test ...` runs `env GOTOOLCHAIN=local go test ...` locally and
+  # remotely instead of failing with `cannot run` after the load wait.
+  [[ $1 =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] && set -- env "$@"
   heavy_script=$(script_hash "${BASH_SOURCE[0]}")
   printf 'heavy.sh: script sha256=%s %s\n' "$heavy_script" "${BASH_SOURCE[0]}" >&2
   cpus=$(cpu_count)

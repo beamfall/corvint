@@ -923,6 +923,12 @@ STUB_LOAD=9.99 HEAVY_MAX_LOAD=9 pv true 2> "$pol/err" && ! grep -q waited "$pol/
   fail "heavy.sh waited at a load whose integer part is within HEAVY_MAX_LOAD"
 HEAVY_MAX_LOAD=x pv true 2> "$pol/err"
 [[ $? == 2 ]] && grep -q 'REFUSE invalid-max-load' "$pol/err" || fail "heavy.sh accepted HEAVY_MAX_LOAD=x"
+# ASD-V0-830 (V1-3256): leading NAME=VALUE words are the command's environment, as with env(1).
+[[ $(pv HEAVY_T1=a HEAVY_T2='b c' sh -c 'printf "%s|%s" "$HEAVY_T1" "$HEAVY_T2"' 2> "$pol/err") == 'a|b c' ]] ||
+  fail "heavy.sh did not run leading assignments as environment: $(cat "$pol/err")"
+pv GOTOOLCHAIN=local go test -run TestA ./x 2> "$pol/err" || fail "heavy.sh refused GOTOOLCHAIN=local go test: $(cat "$pol/err")"
+grep -q ' selected .*cmd=env GOTOOLCHAIN=local go test -run TestA ./x script=' "$pol/sel.log" ||
+  fail "a leading assignment hid the go test from the selection policy: $(tail -n 3 "$pol/sel.log")"
 ok
 # ASD-V0-024 (V1-1953): lane-guard.sh refuses real polling loops and unwrapped go test, but never
 # matches heredoc bodies, which are file content. Inputs are built as JSON by perl so the cases
