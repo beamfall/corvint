@@ -1084,6 +1084,38 @@ func TestAFPV0047BarCountsArtifactNames(t *testing.T) {
 		}
 	}
 	const epochLine, windowLine = "Every listed row of the epoch (AFP-V0-029 bar): ", "row(s) of the epoch (AFP-V0-030 window): "
+	// rows are n complete rows of epoch 1, pr1 to prN, the first `failing` of them with failing packages.
+	rows := func(n, failing int) []string {
+		var r []string
+		for pr := 1; pr <= n; pr++ {
+			f := "0"
+			if pr <= failing {
+				f = "1"
+			}
+			r = append(r, name("CLEAN", pr, "1", f))
+		}
+		return r
+	}
+	// The AFP-V0-029 bar at its boundaries (owner chat, 2026-10-31): 8 complete rows, at least 1
+	// with failing packages, no non-FLAKY miss in the epoch.
+	expect(t, bar(t, rows(8, 1), false),
+		"Shadow bar (8 complete rows of the epoch, at least 1 with failing packages, no non-FLAKY miss in the epoch): MET (8/8 complete, 1/1 failing).")
+	expect(t, bar(t, rows(7, 7), false), ": NOT MET (7/8 complete, 7/1 failing).")
+	expect(t, bar(t, rows(8, 0), false), ": NOT MET (8/8 complete, 0/1 failing).")
+	// A newer INCOMPLETE row replaces its pull request's complete row, leaving the epoch one short;
+	// an INFRA row is never complete either.
+	expect(t, bar(t, append([]string{name("INCOMPLETE", 8, "1", "0")}, rows(8, 1)...), false),
+		epochLine+"7 complete, 1 complete with failing packages, 0 FLAKY, 0 MISS, 1 INCOMPLETE, 0 INFRA.",
+		": NOT MET (7/8 complete, 1/1 failing).")
+	expect(t, bar(t, append([]string{name("INFRA", 40, "1", "1")}, rows(7, 1)...), false),
+		": NOT MET (7/8 complete, 1/1 failing).")
+	// A MISS blocks counts that would otherwise meet the bar exactly; one MISS leaves the switch clear.
+	expect(t, bar(t, append([]string{name("MISS", 30, "1", "1")}, rows(7, 0)...), false),
+		": NOT MET (8/8 complete, 1/1 failing).", "): clear.")
+	// A listing that neither ends nor reaches an earlier epoch leaves even an exact bar unestablished.
+	expect(t, bar(t, rows(8, 1), true),
+		": NOT ESTABLISHED (8/8 complete, 1/1 failing); the listing did not reach the start of epoch 1")
+
 	var names []string
 	for pr := 1; pr <= 22; pr++ {
 		f := "0"
@@ -1097,16 +1129,16 @@ func TestAFPV0047BarCountsArtifactNames(t *testing.T) {
 	expect(t, bar(t, names, false),
 		epochLine+"21 complete, 4 complete with failing packages, 0 FLAKY, 0 MISS, 1 INCOMPLETE, 0 INFRA.",
 		"Latest 20 "+windowLine+"19 complete, 4 complete with failing packages, 0 FLAKY, 0 MISS, 1 INCOMPLETE.",
-		"Shadow bar (20 complete rows of the epoch, at least 5 with failing packages, no non-FLAKY miss in the epoch): NOT MET (21/20 complete, 4/5 failing).",
+		"Shadow bar (8 complete rows of the epoch, at least 1 with failing packages, no non-FLAKY miss in the epoch): MET (21/8 complete, 4/1 failing).",
 		"Kill switch (AFP-V0-030: 2 MISS or 3 INCOMPLETE in the latest 20): clear.", "Window: 1 page(s), every repository artifact.")
-	expect(t, bar(t, names[1:], false), ": MET (22/20 complete, 5/5 failing).")
+	expect(t, bar(t, names[1:], false), ": MET (22/8 complete, 5/1 failing).")
 	// AFP-V0-052: INFRA rows are counted on their own, never trip the INCOMPLETE switch and
 	// take no place in the window, so the complete rows behind them still meet the bar.
 	infra := append([]string{name("INFRA", 40, "1", "0"), name("INFRA", 41, "1", "0"), name("INFRA", 42, "1", "1")}, names[1:]...)
 	expect(t, bar(t, infra, false),
 		epochLine+"22 complete, 5 complete with failing packages, 0 FLAKY, 0 MISS, 0 INCOMPLETE, 3 INFRA.",
 		"Latest 20 "+windowLine+"20 complete, 5 complete with failing packages, 0 FLAKY, 0 MISS, 0 INCOMPLETE.",
-		"Hosted infrastructure failures (AFP-V0-052): 3 INFRA row(s)", ": MET (22/20 complete, 5/5 failing)",
+		"Hosted infrastructure failures (AFP-V0-052): 3 INFRA row(s)", ": MET (22/8 complete, 5/1 failing)",
 		"3 INCOMPLETE in the latest 20): clear.")
 	// A newer INFRA row replaces the same pull request's older complete row; an INFRA row between
 	// the window's rows is counted there, one beyond the twentieth classified row is not.
@@ -1119,10 +1151,10 @@ func TestAFPV0047BarCountsArtifactNames(t *testing.T) {
 	expect(t, bar(t, mixed, false),
 		epochLine+"21 complete, 4 complete with failing packages, 0 FLAKY, 0 MISS, 0 INCOMPLETE, 3 INFRA.",
 		"Latest 20 "+windowLine+"20 complete, 4 complete with failing packages, 0 FLAKY, 0 MISS, 0 INCOMPLETE.",
-		"Hosted infrastructure failures (AFP-V0-052): 2 INFRA row(s)", ": NOT MET (21/20 complete, 4/5 failing)")
+		"Hosted infrastructure failures (AFP-V0-052): 2 INFRA row(s)", ": MET (21/8 complete, 4/1 failing)")
 	// A newer complete row replaces the same pull request's older INFRA row.
 	expect(t, bar(t, append(append([]string{}, names[1:]...), name("INFRA", 2, "1", "0")), false),
-		": MET (22/20 complete, 5/5 failing)", "(AFP-V0-052): 0 INFRA row(s)")
+		": MET (22/8 complete, 5/1 failing)", "(AFP-V0-052): 0 INFRA row(s)")
 	tripped := append([]string{name("MISS", 30, "1", "1"), name("MISS", 31, "1", "1")}, names[1:]...)
 	expect(t, bar(t, tripped, false), "NOT MET", "): TRIPPED.", windowLine+"20 complete, 7 complete with failing packages, 0 FLAKY, 2 MISS")
 
@@ -1132,28 +1164,28 @@ func TestAFPV0047BarCountsArtifactNames(t *testing.T) {
 	expect(t, bar(t, older, false),
 		epochLine+"23 complete, 6 complete with failing packages, 0 FLAKY, 1 MISS, 0 INCOMPLETE, 0 INFRA.",
 		"Latest 20 "+windowLine+"20 complete, 5 complete with failing packages, 0 FLAKY, 0 MISS, 0 INCOMPLETE.",
-		": NOT MET (23/20 complete, 6/5 failing).", "): clear.")
-	// Failing rows older than the window count toward the bar.
+		": NOT MET (23/8 complete, 6/1 failing).", "): clear.")
+	// A failing row older than the window counts toward the bar.
 	var late []string
 	for pr := 1; pr <= 22; pr++ {
 		f := "0"
-		if pr >= 18 {
+		if pr == 22 {
 			f = "1"
 		}
 		late = append(late, name("CLEAN", pr, "1", f))
 	}
 	expect(t, bar(t, late, false),
-		"Latest 20 "+windowLine+"20 complete, 3 complete with failing packages",
-		": MET (22/20 complete, 5/5 failing).")
+		"Latest 20 "+windowLine+"20 complete, 0 complete with failing packages",
+		": MET (22/8 complete, 1/1 failing).")
 	// A listing that neither ends nor reaches an earlier epoch cannot exclude an older MISS:
 	// the bar is NOT ESTABLISHED, never MET. A row of an earlier epoch proves the start was read.
 	expect(t, bar(t, late, true),
-		": NOT ESTABLISHED (22/20 complete, 5/5 failing); the listing did not reach the start of epoch 1",
+		": NOT ESTABLISHED (22/8 complete, 1/1 failing); the listing did not reach the start of epoch 1",
 		"Window: 20 page(s) of the newest repository artifacts")
 	expect(t, bar(t, append(late, name("CLEAN", 50, "0", "0")), true),
-		": MET (22/20 complete, 5/5 failing).", "Window: 20 page(s) of the newest")
+		": MET (22/8 complete, 1/1 failing).", "Window: 20 page(s) of the newest")
 	expect(t, bar(t, append(append([]string{}, names[2:]...), name("MISS", 80, "1", "1")), true),
-		": NOT MET (23/20 complete, 6/5 failing); the listing did not reach")
+		": NOT MET (23/8 complete, 6/1 failing); the listing did not reach")
 }
 
 func TestAFPV0047WorkflowBindings(t *testing.T) {
