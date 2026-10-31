@@ -2,7 +2,7 @@
 
 Owner: Russell Lewis
 Date: 2026-10-17
-Intent status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615); TCD-V0-151..153 accepted (standing auto-accept 2026-10-11, V1-2193); TCD-V0-154..157 accepted (standing auto-accept 2026-10-11, V1-2216); TCD-V0-158 accepted (standing auto-accept 2026-10-11, V1-1431); TCD-V0-159..164 accepted (standing auto-accept 2026-10-11, V1-2251, V1-2254); TCD-V0-165..166 accepted (standing auto-accept 2026-10-11, V1-2196); TCD-V0-167..168 and the TCD-V0-160/161 amendments accepted (standing auto-accept 2026-10-11, V1-2303); TCD-V0-169..173 accepted (standing auto-accept 2026-10-11, V1-2396, V1-2397, V1-2398); TCD-V0-174..175 experimental under the standing lane auto-accept (V1-2807); TCD-V0-176..180 experimental under the standing lane auto-accept (V1-2535, V1-2534, V1-2627, V1-2654, V1-2532); TCD-V0-181..183 experimental under the standing lane auto-accept (V1-2832, V1-2831, V1-2834); TCD-V0-184 experimental under the standing lane auto-accept (lane gap following V1-2831); TCD-V0-185..190 experimental under the standing lane auto-accept (V1-2984); TCD-V0-806 experimental under the standing lane auto-accept, refining TCD-V0-151 (V1-3548)
+Intent status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615); TCD-V0-151..153 accepted (standing auto-accept 2026-10-11, V1-2193); TCD-V0-154..157 accepted (standing auto-accept 2026-10-11, V1-2216); TCD-V0-158 accepted (standing auto-accept 2026-10-11, V1-1431); TCD-V0-159..164 accepted (standing auto-accept 2026-10-11, V1-2251, V1-2254); TCD-V0-165..166 accepted (standing auto-accept 2026-10-11, V1-2196); TCD-V0-167..168 and the TCD-V0-160/161 amendments accepted (standing auto-accept 2026-10-11, V1-2303); TCD-V0-169..173 accepted (standing auto-accept 2026-10-11, V1-2396, V1-2397, V1-2398); TCD-V0-174..175 experimental under the standing lane auto-accept (V1-2807); TCD-V0-176..180 experimental under the standing lane auto-accept (V1-2535, V1-2534, V1-2627, V1-2654, V1-2532); TCD-V0-181..183 experimental under the standing lane auto-accept (V1-2832, V1-2831, V1-2834); TCD-V0-184 experimental under the standing lane auto-accept (lane gap following V1-2831); TCD-V0-185..190 experimental under the standing lane auto-accept (V1-2984); TCD-V0-806 experimental under the standing lane auto-accept, refining TCD-V0-151 (V1-3548); TCD-V0-807 experimental under the standing lane auto-accept (V1-3541)
 Delivery status: experimental
 
 Authoritative input: the owner-requested native ticket V1-1615 ("tickets stay OPEN after their work
@@ -38,7 +38,7 @@ was already retained as an evidence blob, but no result named it (TCD-V0-165..16
 
 ## Agent digest
 - Claim: `corvint-tasks ticket closeout-debt` lists OPEN tickets that merged commits cite, with each one's pending native closeout step, and writes nothing.
-- Status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615); TCD-V0-151..153 accepted (standing auto-accept 2026-10-11, V1-2193); TCD-V0-154..157 accepted (standing auto-accept 2026-10-11, V1-2216); TCD-V0-158 accepted (standing auto-accept 2026-10-11, V1-1431); TCD-V0-159..164 accepted (standing auto-accept 2026-10-11, V1-2251, V1-2254); TCD-V0-165..166 accepted (standing auto-accept 2026-10-11, V1-2196); TCD-V0-167..168 and the TCD-V0-160/161 amendments accepted (standing auto-accept 2026-10-11, V1-2303); TCD-V0-169..173 accepted (standing auto-accept 2026-10-11, V1-2396, V1-2397, V1-2398); TCD-V0-174..175 experimental under the standing lane auto-accept (V1-2807); TCD-V0-176..180 experimental under the standing lane auto-accept (V1-2535, V1-2534, V1-2627, V1-2654, V1-2532); TCD-V0-181..183 experimental under the standing lane auto-accept (V1-2832, V1-2831, V1-2834); TCD-V0-184 experimental under the standing lane auto-accept (lane gap following V1-2831); TCD-V0-185..190 experimental under the standing lane auto-accept (V1-2984); TCD-V0-806 experimental under the standing lane auto-accept, refining TCD-V0-151 (V1-3548); experimental; the verb, its help entry and fixture tests exist.
+- Status: TCD-V0-001..010 accepted (standing auto-accept 2026-10-11, V1-1615); TCD-V0-151..153 accepted (standing auto-accept 2026-10-11, V1-2193); TCD-V0-154..157 accepted (standing auto-accept 2026-10-11, V1-2216); TCD-V0-158 accepted (standing auto-accept 2026-10-11, V1-1431); TCD-V0-159..164 accepted (standing auto-accept 2026-10-11, V1-2251, V1-2254); TCD-V0-165..166 accepted (standing auto-accept 2026-10-11, V1-2196); TCD-V0-167..168 and the TCD-V0-160/161 amendments accepted (standing auto-accept 2026-10-11, V1-2303); TCD-V0-169..173 accepted (standing auto-accept 2026-10-11, V1-2396, V1-2397, V1-2398); TCD-V0-174..175 experimental under the standing lane auto-accept (V1-2807); TCD-V0-176..180 experimental under the standing lane auto-accept (V1-2535, V1-2534, V1-2627, V1-2654, V1-2532); TCD-V0-181..183 experimental under the standing lane auto-accept (V1-2832, V1-2831, V1-2834); TCD-V0-184 experimental under the standing lane auto-accept (lane gap following V1-2831); TCD-V0-185..190 experimental under the standing lane auto-accept (V1-2984); TCD-V0-806 experimental under the standing lane auto-accept, refining TCD-V0-151 (V1-3548); TCD-V0-807 experimental under the standing lane auto-accept (V1-3541); experimental; the verb, its help entry and fixture tests exist.
 - Exists: a bounded `git log` scan under the store's sanitized Git environment; direct-id, issue-link and umbrella citations; closeout steps derived from the attempt inventory and verified gate evidence; deterministic rows; a typed 0/1/2 exit status; a byte-identical store and journal proof; descendant gate reuse (V1-2193), where a reusable gate's PASS at a protected intent-branch commit covers an attempt whose candidate tree an ancestor commit carries (TCD-V0-151..153); CI-run gate evidence (V1-2216), where `gate run --ci-run FILE` records a policy-admitted green CI run at a protected intent-branch commit that descends from the candidate as the gate's PASS without executing it (TCD-V0-154..157); a reusable gate's reuse key covers its declared environment values (TCD-V0-158); `ticket delivery-screen` and `ticket batch-delivered` reads over `gh --json` exports (TCD-V0-159..164); a `gate run` result that reports the executed gate's state, exit and retained output path, with a bounded, secret-screened tail and failing line when it did not pass (TCD-V0-165..166); `ticket batch-close`, one COMPLETE_MANUAL per delivered OPEN ticket of a merged batch (TCD-V0-169); store-first COMPLETED and HELD verdicts, operator notes and a stdin export in `delivery-screen` (TCD-V0-170..171); multi-target `note set` and `hold` (TCD-V0-172..173); `claim --scope-from-diff REV`, a claim scope derived from the committed diff, so an INCOMPLETE-effects ticket closes natively (TCD-V0-174..175); a nonblank reason to `complete-manual` over FAILED intent checks, complete-manual help stating its validator limits, release-reason refusals naming the admitted codes, and ancestry-checked lane PRs with `excludedPrs` in `batch-delivered` and `batch-close` (TCD-V0-176..180); a `--scope-from-diff` tree bound into the claim request, an `alternativeActions` member naming that claim on effects-incomplete tickets, and `script/tasks-scratch-queue.sh` for an execution-ready fixture queue (TCD-V0-181..183); the same `alternativeActions` member on `plan preview` entries (TCD-V0-184).
 - Blocked on: nothing for V0. `COMPLETE_REFUSED` is NOT_PRODUCED: a refused `complete` writes no receipt (TCD-V0-006).
 - Read next: Requirements; Failure modes; Acceptance evidence and traceability.
@@ -521,6 +521,12 @@ closeout step is missing.
   the reused result against the descendant ancestry (`TCD-V0-153`, `TCD-V0-190`). This route
   closes a lower stacked attempt whose tree fails a joint gate alone. With several such results,
   the lowest digest is named. The gate still executes as before, and no record or receipt changes.
+- `TCD-V0-807`: a committed `ticket create` whose payload names no `requiredGates`, under a policy
+  that defines gates, adds a `REQUIRED_GATES_EMPTY` warning. It names the policy gates `complete`
+  still demands because they are marked required (`effectiveRequiredGates`), and the policy gates
+  it will not demand unless the ticket names them with `ticket set-gates`. The ticket record is
+  unchanged: required policy gates already apply to every ticket, so nothing is defaulted. `ticket
+  create --template` states the same in the `requiredGates` field note.
 
 ## Failure modes
 
@@ -629,6 +635,8 @@ closeout step is missing.
 - The TCD-V0-806 warning is advisory and is read before the store lock. A PASS whose tree reaches
   the protected branch later is reused only by a rerun; a commit that does not descend from the
   candidate is still refused `STALE_TREE` under `TCD-V0-152` on that rerun.
+- The TCD-V0-807 warning reads the policy loaded before the write; a policy changed in between can
+  make it name a stale gate set. `ticket show` `effectiveRequiredGates` stays the authority.
 
 ## Non-goals
 
@@ -727,6 +735,7 @@ closeout step is missing.
 | TCD-V0-189 | V1-2984 | `internal/tasks/cli` (`gatedRequestID`, `release`, `gatedRowValue`) | `TestTCDV0185_GatedBatchCloseRunsRequiredGates` (closed row request id `batch-close-50-<local>-a0-complete`; failed rows released and OPEN; rerun replays `ALREADY_COMPLETED` and the failing ticket's request id carries `-a1-`) | none |
 | TCD-V0-190 | V1-2984 | `internal/tasks/cli` (`receiptAudit` completions) | `TestTCDV0185_GatedBatchCloseRunsRequiredGates` (`receipt audit` `completions` `{verified: 2, manual: 3}`) | none |
 | TCD-V0-806 | V1-3548 | `internal/tasks/store` (`reusableRun`, `descendantSource`, `Report.GateReusePending`), `internal/tasks/cli` (`gate run` warning) | `TestTCDV0806_StackedLowerAttemptCompletesVerifiedFromDescendantPass` (a joint gate fails the lower stacked attempt alone and the report names the upper attempt's PASS, tree and branch as pending; after a fast-forward integration the rerun reuses it without executing, `complete` records kind `VERIFIED` whose evidence names the descendant result in `reusedFrom`, and the receipt audit passes); `TestTCDV0151_DescendantPassCoversAMergedSeal` and `TestTCDV0152_DescendantReuseRefusals` unchanged | none |
+| TCD-V0-807 | V1-3541 | `internal/tasks/cli` (`requiredGatesWarning`, `createTemplateFields`) | `TestTCDV0807_CreateWithoutGatesNamesThePolicyGates` (a required and an optional policy gate: an empty-gates create warns naming both; a create naming the optional gate, a replay and a policy without gates warn nothing) | none |
 
 ## Rollout and rollback
 
@@ -735,6 +744,9 @@ back, revert the change. Nothing persisted depends on the verb.
 
 TCD-V0-806 adds one warning to the `gate run` result and changes no record, receipt or policy.
 To roll back, revert the change.
+
+TCD-V0-807 adds one `ticket create` warning and one template note and changes no record, receipt
+or policy. To roll back, revert the change.
 
 TCD-V0-165..166 add one result field and change no store format, wire codec, receipt or policy. To
 roll back, revert the change; the output blobs stay retained as before.

@@ -2237,6 +2237,9 @@ ATR-V0-215	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the own
 ATR-V0-216	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2709)	standing	2026-10-11; V1-2709
 ATR-V0-800	docs/specs/corvint-tasks-attempt-runner-v0.md	A claim refused `RESOURCE_COLLISION` against a live attempt MUST, after the	unrecorded	-
 ATR-V0-801	docs/specs/corvint-tasks-attempt-runner-v0.md	Two tickets whose declared touchPaths are distinct exact files under one directo	unrecorded	-
+ATR-V0-806	docs/specs/corvint-tasks-attempt-runner-v0.md	A fresh claim whose scope fell back to `WHOLE_REPOSITORY` (the ticket declares n	unrecorded	-
+ATR-V0-807	docs/specs/corvint-tasks-attempt-runner-v0.md	A fresh `widen` that commits a requested PATH key without a trailing `/` naming	unrecorded	-
+ATR-V0-808	docs/specs/corvint-tasks-attempt-runner-v0.md	`claim --base REV` MUST resolve any revision naming one commit, as	unrecorded	-
 ATR-V0-213	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2189) The	standing	2026-10-11; V1-2189
 ATR-V0-270	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0830) The usag	standing	2026-10-11; V1-0830
 ATR-V0-271	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0828) A `FENCE	standing	2026-10-11; V1-0828
@@ -2354,6 +2357,7 @@ TCD-V0-188	docs/specs/corvint-tasks-closeout-debt-v0.md	before the claim, each c
 TCD-V0-189	docs/specs/corvint-tasks-closeout-debt-v0.md	a failure after the claim releases the attempt (with the failure code as the	unrecorded	-
 TCD-V0-190	docs/specs/corvint-tasks-closeout-debt-v0.md	the `receipt audit` item adds `completions` `{verified, manual}`, counting COMPL	unrecorded	-
 TCD-V0-806	docs/specs/corvint-tasks-closeout-debt-v0.md	when a `gate run` of a reusable gate finds no qualifying result	unrecorded	-
+TCD-V0-807	docs/specs/corvint-tasks-closeout-debt-v0.md	a committed `ticket create` whose payload names no `requiredGates`, under a poli	unrecorded	-
 TCT-V0-001	docs/specs/corvint-tasks-create-payload-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2703) `corvint	standing	2026-10-11; V1-2703
 TCT-V0-002	docs/specs/corvint-tasks-create-payload-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2703) When the	standing	2026-10-11; V1-2703
 TDR-V0-001	docs/specs/corvint-tasks-defect-register-v0.md	Policy MAY declare `defects` as a closed object with optional `prefix` (matching	unrecorded	-
