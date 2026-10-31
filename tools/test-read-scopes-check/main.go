@@ -18,6 +18,7 @@ import (
 	"go/token"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"os/exec"
 	"path"
@@ -635,6 +636,9 @@ func check(root string) ([]finding, []string, error) {
 		return nil, nil, err
 	}
 	if slices.Contains(graph.Frontier(), golang.FrontierReadScopesInvalid) {
+		if reasons := unsupportedKeys(root, graph); len(reasons) > 0 {
+			return nil, nil, errors.New(strings.Join(reasons, "\n"))
+		}
 		return nil, nil, errors.New(affected.ReadScopesPath + " is invalid, so no package is declared")
 	}
 	paths, err := tracked(root)
@@ -765,6 +769,63 @@ func check(root string) ([]finding, []string, error) {
 	}
 	slices.Sort(stale)
 	return findings, stale, nil
+}
+
+// unsupportedKeys names, for a declaration the planner found invalid, each key
+// that binds no root-module package unit and why no confined shard can enforce
+// it (AFP-V0-817): a dependent nested module (AFP-V0-582) is one synthetic unit
+// with no files that the root module's go list ./... never lists, and any other
+// directory without a package names no test process at all. A declaration that
+// does not parse yields nothing, so the generic refusal stands.
+func unsupportedKeys(root string, graph *affected.Graph) []string {
+	body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(affected.ReadScopesPath)))
+	if err != nil {
+		return nil
+	}
+	var declared struct {
+		Packages map[string]any `json:"packages"`
+	}
+	if json.Unmarshal(body, &declared) != nil {
+		return nil
+	}
+	packages := map[string]bool{}
+	for _, id := range graph.UnitIDs() {
+		unit, _ := graph.Unit(id)
+		for _, file := range append(slices.Clone(unit.Sources), unit.Tests...) {
+			packages[path.Dir(file)] = true
+		}
+	}
+	var reasons []string
+	for _, directory := range slices.Sorted(maps.Keys(declared.Packages)) {
+		if packages[directory] {
+			continue
+		}
+		if id, ok := dependentModule(root, graph, directory); ok {
+			reasons = append(reasons, fmt.Sprintf("%s declares %q, the dependent nested module unit %s (AFP-V0-582), which has no files of its own and which the root module's go list ./... never lists, so no confined CI shard runs it under the AFP-V0-023 wrapper; remove the key (the module's own tests run from its directory)",
+				affected.ReadScopesPath, directory, id))
+			continue
+		}
+		reasons = append(reasons, fmt.Sprintf("%s declares %q, which holds no Go package unit of the root module, so no test process exists to confine; remove the key",
+			affected.ReadScopesPath, directory))
+	}
+	return reasons
+}
+
+// dependentModule returns the synthetic unit of the dependent nested module
+// whose go.mod sits in directory, if the plan observed one there.
+func dependentModule(root string, graph *affected.Graph, directory string) (string, bool) {
+	manifest, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(directory), "go.mod"))
+	if err != nil {
+		return "", false
+	}
+	for _, line := range strings.Split(string(manifest), "\n") {
+		if fields := strings.Fields(line); len(fields) == 2 && fields[0] == "module" {
+			id := "go:" + strings.Trim(fields[1], `"`)
+			unit, ok := graph.Unit(id)
+			return id, ok && golang.DependentModuleUnit(unit)
+		}
+	}
+	return "", false
 }
 
 func run(root string, stdout, stderr io.Writer) int {
