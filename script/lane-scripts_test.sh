@@ -6,7 +6,7 @@
 # install-local-bin.sh (ASD-V0-025), install-cem-verifiers.sh (TCB-V0-046),
 # wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), codex-review.sh
 # (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831), heavy-groups.sh (ASD-V0-832),
-# pr-landing-watch.sh (ASD-V0-833). No Go build runs.
+# pr-landing-watch.sh (ASD-V0-833), lane-transcript-metrics.py (ASD-V0-834). No Go build runs.
 set -uo pipefail
 export LC_ALL=C
 # The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
@@ -1374,6 +1374,29 @@ out=$(lwr --act 10); rc=$?
 [[ ! -e $lw/s/calls ]] || fail "a human dequeue was re-armed"
 grep -q 'pr=10 reason=human-dequeue by=owner' "$lw/state/alerts.log" || fail "human dequeue not alerted"
 lwr abc > /dev/null; [[ $? == 2 ]] || fail "a non-numeric PR was accepted"
+ok
+
+# ASD-V0-834 (V1-1630): lane-transcript-metrics.py aggregates several project directories and, with
+# --sessions, counts top-level session transcripts with the subagent rules and names each row's kind.
+ltm=$tmp/transcripts
+mkdir -p "$ltm/p1/s1/subagents" "$ltm/p2"
+printf '%s\n' '{"timestamp":"2026-10-31T01:00:00Z","message":{"content":[{"type":"tool_use","id":"a","name":"Bash","input":{"command":"ls"}}]}}' \
+  > "$ltm/p1/s1/subagents/agent-sub1.jsonl"
+printf '%s\n' '{"timestamp":"2026-10-31T02:00:00Z","message":{"content":[{"type":"tool_use","id":"b","name":"Bash","input":{"command":"git commit -m x"}}]}}' \
+  '{"timestamp":"2026-10-31T02:10:00Z","message":{"content":[{"type":"tool_result","tool_use_id":"b","content":"Command timed out after 10m 0s"}]}}' \
+  > "$ltm/p2/sess1.jsonl"
+printf '%s\n' '{"timestamp":"2026-11-02T00:00:00Z","message":{"content":[]}}' > "$ltm/p2/late.jsonl"
+ltm_q() { python3 -c 'import json,sys; d=json.load(sys.stdin); print(eval(sys.argv[1]))' "$1"; }
+ltm_out=$(python3 "$script/lane-transcript-metrics.py" "$ltm/p1" "$ltm/p2" --since 2026-10-30 --until 2026-11-01) ||
+  fail "lane-transcript-metrics without --sessions failed"
+[[ $(ltm_q '(d["subagents"], d["sessions"], d["lanes"])' <<< "$ltm_out") == '(1, 0, 0)' ]] ||
+  fail "lane-transcript-metrics counted sessions without --sessions: $ltm_out"
+ltm_out=$(python3 "$script/lane-transcript-metrics.py" "$ltm/p1" "$ltm/p2" --since 2026-10-30 --until 2026-11-01 --sessions) ||
+  fail "lane-transcript-metrics --sessions failed"
+[[ $(ltm_q '(d["subagents"], d["sessions"], d["lanes"], sorted(r["kind"] for r in d["perSubagent"]))' <<< "$ltm_out") == "(1, 1, 1, ['session', 'subagent'])" ]] ||
+  fail "lane-transcript-metrics --sessions counts or kinds: $ltm_out"
+[[ $(ltm_q '[(r["harnessTimeouts600s"], r["lane"]) for r in d["perSubagent"] if r["kind"] == "session"]' <<< "$ltm_out") == '[(1, True)]' ]] ||
+  fail "lane-transcript-metrics session timeout or lane: $ltm_out"
 ok
 
 # ASD-V0-014: no fixture outlives the run, so nothing can write after the summary line. Every

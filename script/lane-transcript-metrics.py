@@ -2,11 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 """Aggregate lane-procedure counts from Claude Code subagent transcripts (V1-1629, V1-1630).
 
-usage: script/lane-transcript-metrics.py PROJECT_DIR --since YYYY-MM-DD --until YYYY-MM-DD
+usage: script/lane-transcript-metrics.py PROJECT_DIR... --since YYYY-MM-DD --until YYYY-MM-DD [--sessions]
 
-PROJECT_DIR is a Claude Code project transcript directory (~/.claude/projects/<slug>). Every
-<session>/subagents/agent-*.jsonl whose first record falls in [since, until) is read. Only counts,
-durations and agent ids are printed (JSON on stdout); no transcript text is retained.
+Each PROJECT_DIR is a Claude Code project transcript directory (~/.claude/projects/<slug>); all of
+them aggregate into one window. Every <session>/subagents/agent-*.jsonl whose first record falls in
+[since, until) is read. With --sessions each directory's top-level <session>.jsonl is read too, so
+lanes that run as their own worktree sessions are counted with the same rules (ASD-V0-834). Only
+counts, durations and agent ids are printed (JSON on stdout); no transcript text is retained.
 
 Per subagent: Bash calls; dogfood-change and dogfood-finish invocations (make targets or the
 scripts, not reads such as grep); seconds spent in polling tool calls (Bash with sleep, until/while
@@ -116,9 +118,9 @@ def go_test_packages(command):
     return out
 
 
-def scan(path):
+def scan(path, kind="subagent"):
     calls = {}  # tool_use_id -> (name, command, started)
-    row = {"agent": path.stem.removeprefix("agent-"), "bashCalls": 0, "dogfoodChange": 0, "dogfoodFinish": 0,
+    row = {"agent": path.stem.removeprefix("agent-"), "kind": kind, "bashCalls": 0, "dogfoodChange": 0, "dogfoodFinish": 0,
            "pollCalls": 0, "pollSeconds": 0.0, "harnessTimeouts": 0, "harnessTimeouts600s": 0, "calls600s": 0, "lane": False}
     long = []  # tool calls of 600 s or more, as a command class and duration only
     focused = []  # single-package go test calls: package, seconds, through heavy.sh, offloaded
@@ -200,15 +202,21 @@ def focused_summary(calls):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("project_dir")
+    ap.add_argument("project_dir", nargs="+")
     ap.add_argument("--since", required=True)
     ap.add_argument("--until", required=True)
+    ap.add_argument("--sessions", action="store_true", help="also read top-level session transcripts")
     a = ap.parse_args()
     lo = dt.datetime.fromisoformat(a.since).replace(tzinfo=dt.timezone.utc)
     hi = dt.datetime.fromisoformat(a.until).replace(tzinfo=dt.timezone.utc)
     rows, long, focused = [], [], []
-    for p in sorted(pathlib.Path(a.project_dir).glob("*/subagents/agent-*.jsonl")):
-        first, last, row, calls, tests = scan(p)
+    paths = []
+    for d in a.project_dir:
+        paths += [(p, "subagent") for p in sorted(pathlib.Path(d).glob("*/subagents/agent-*.jsonl"))]
+        if a.sessions:
+            paths += [(p, "session") for p in sorted(pathlib.Path(d).glob("*.jsonl"))]
+    for p, kind in paths:
+        first, last, row, calls, tests = scan(p, kind)
         if first and lo <= first < hi:
             long += calls
             focused += tests
@@ -224,7 +232,8 @@ def main():
     out = {
         "profile": "corvint-lane-transcript-metrics/0",
         "window": {"since": a.since, "until": a.until},
-        "subagents": len(rows),
+        "subagents": sum(r["kind"] == "subagent" for r in rows),
+        "sessions": sum(r["kind"] == "session" for r in rows),
         "lanes": len(lanes),
         "lanesRunningDogfood": len(dogfood_lanes),
         "dogfoodChangePerDogfoodLane": {
