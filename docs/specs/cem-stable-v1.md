@@ -691,7 +691,8 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   The native parser (`internal/cem/patch`) MUST accept Git's canonical full-index binary section
   as a hunk-less binary file group that records its path, kind, mode and both object IDs. Every
   other binary shape keeps the `binary-patch` refusal and the `CEM-V1-037` named path. That
-  includes a `GIT binary patch` body, rename or similarity metadata, `old mode`/`new mode` lines,
+  includes a `GIT binary patch` body, rename, copy or similarity metadata (refused when the line is
+  present, whatever its value, so an empty `rename from ` line also refuses), `old mode`/`new mode` lines,
   abbreviated object IDs, a marker whose labels disagree with the `diff --git` line, and a quoted
   path. A textual group parses exactly as before. The accepted section is exactly these lines,
   ending at EOF or at the next `diff --git` line:
@@ -738,7 +739,10 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
 - `CEM-V1-985`: (experimental under the standing lane auto-accept (V1-2752)) The binary
   exclusion is bounded by the existing limits, and no new bound is added. An over-bound binary
   file refuses with the existing code of the bound that it exceeds, never by silently omitting the
-  file. The limits are:
+  file. Binary bodies are never read, so `cem prepare`, `cem verify` and `verify-stable` MUST each
+  read the Git object header of every object ID a binary group names, base and target side, and
+  refuse `repository-object-unavailable` naming the path when one exceeds `gitauth.MaxBlobBytes`,
+  before base simulation. The limits are:
   - the canonical patch is at most `patch.MaxPatchBytes` (8 MiB);
   - the canonical-diff proof reads at most `gitauth.MaxTotalBlobBytes` (128 MiB) of blobs in all,
     and each blob at most `gitauth.MaxBlobBytes` (64 MiB);
@@ -5540,10 +5544,10 @@ golden, vector or ledger depends on this change.
 
 | Requirement | Test | Evidence |
 | --- | --- | --- |
-| CEM-V1-980 | `TestCEMV1980BinaryGroupGrammar`, `TestBinaryRefusalNamesPath` (`internal/cem/patch`) | Canonical creation, modification and deletion sections, with SHA-1 and SHA-256 IDs, parse as hunk-less binary groups beside a textual group whose hunk ID is unchanged; abbreviated IDs, mismatched lengths, a nonzero creation ID, a mode suffix on a creation, a missing index, a disagreeing marker, rename metadata and `GIT binary patch` refuse `binary-patch` naming the path |
+| CEM-V1-980 | `TestCEMV1980BinaryGroupGrammar`, `TestBinaryRefusalNamesPath` (`internal/cem/patch`) | Canonical creation, modification and deletion sections, with SHA-1 and SHA-256 IDs, parse as hunk-less binary groups beside a textual group whose hunk ID is unchanged; abbreviated IDs, mismatched lengths, a nonzero creation ID, a mode suffix on a creation, a missing index, a disagreeing marker, rename metadata and `GIT binary patch` refuse `binary-patch` naming the path; empty-valued `rename from `/`rename to ` lines, similarity and copy metadata refuse |
 | CEM-V1-981 | `TestCEMV1980BinaryGroupGrammar` (`internal/cem/patch`), `TestPrepareBinaryRefusalNamesPath` (`internal/cem/workflow`) | A binary-only patch refuses `binary-patch` naming the path; real binary-only creation, modification and deletion commits refuse `cem prepare` naming the path |
 | CEM-V1-982 | `TestCEMV1982BinaryGroupBaseSimulation` (`internal/cem/sim`) | A matching SHA-1 or SHA-256 base passes; a changed base byte, an absent base, a present creation destination and a disagreeing mode refuse with the named codes |
 | CEM-V1-983 | `TestCEMV1983PrepareBindsBinaryFixture` (`internal/cem/workflow`) | A real commit with one binary fixture and a text change prepares; the result's `binary` rows name the path, change, both blob IDs, both sizes and `excluded`; the map has only the textual hunk and native `verify` reads it without a parser refusal; a text-only prepare has no `binary` member |
 | CEM-V1-984 | `TestCEMV1984CiteRefusesBinaryPath` (`internal/cem/workflow`) | A cite into the changed binary path refuses `cite-span-not-stable` naming it, while a cite into the text file succeeds |
-| CEM-V1-985 | `TestCEMV1980BinaryGroupGrammar` (`internal/cem/patch`) | The bounds are the existing constants, so no new test applies; the parser's oversize and NUL refusals are unchanged |
+| CEM-V1-985 | `TestCEMV1985OverBoundBinaryRefuses` (`internal/cem/workflow`), `TestCEMV1980BinaryGroupGrammar` (`internal/cem/patch`) | A binary creation one byte over `gitauth.MaxBlobBytes` beside a text change refuses `cem prepare` with `repository-object-unavailable` naming the path and writes no map; a map begun over the same canonical patch is refused with that code by the candidate and stable verifiers; the parser's oversize and NUL refusals are unchanged |
 | CEM-V1-986 | `TestCEMV1986PortableRefusesCanonicalBinarySection` (`interop/cem01-go`) | The portable parser rejects the canonical full-index binary section beside a textual group with its `patch` refusal |
