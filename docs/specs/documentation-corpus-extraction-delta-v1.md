@@ -936,6 +936,33 @@ the extraction; a revision past a bound is refused rather than listed in part. T
 per-tree `RevisionFS` walk in `extractorTree`. Timing on linux/WSL2 is retained in
 `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-corpus-extract-enumeration.md`.
 
+### Legacy discovery enumeration of large revisions (V1-2560)
+
+`docs corpus discover-tests` legacy discovery (`DCP-V1-060..068`) still walked its `--path` one
+Git operation per tree through `RevisionFS`, the root cause `DCX-V1-520` removed from extraction,
+so a root holding more than about 1,000 directories exhausted the 1,024-operation budget. Status
+for `DCX-V1-810..811`: proposed, experimental under the standing lane auto-accept; V1-2560.
+
+- `DCX-V1-810`: (proposed, experimental; V1-2560) Legacy discovery of a directory resolves its
+  test files through the verified walk of `DCX-V1-520`, descending only the discovery root's
+  ancestors and the root's own subtree, never a `node_modules` directory at or below the root, so
+  its Git operations grow with directory depth, not directory count. The walk's entry, tree-byte
+  and depth bounds of `DCX-V1-522` refuse before the next level is read, reported as
+  `corpus-refused` with `legacy discovery cannot enumerate the revision`. A test-named symlink or
+  other non-tree entry stays listed, so the read refuses it as before. Acceptance:
+  `TestDCXV1810LegacyDiscoveryEnumeratesMoreThan1024Directories` (1,100 directories below the
+  root, under the default budget and under `boundCorpusGitOps(phaseGitOps)`; fails first on the
+  per-tree walk with `git-budget-exceeded`).
+- `DCX-V1-811`: (proposed, experimental; V1-2560) The discovered test files keep the per-tree
+  walk's order, each directory's entries in name order, so a directory sorts before a sibling file
+  its name prefixes, and every inventory existing fixtures produce is byte-identical. Acceptance:
+  `TestDCXV1811LegacyPathsMatchPerTreeWalk` (the listing equals an `fs.WalkDir` over `RevisionFS`
+  for four roots with `a.spec.js` beside `a/b.spec.js` and nested `node_modules`), the existing
+  `TestLegacy*` tests and `TestDocsCorpusDiscoverLegacyCLI` unchanged.
+
+No inventory format, option, cache or persisted state changes. Rollback restores the
+`RevisionFS` walk in `legacyPaths`.
+
 ## Input and authority boundary
 
 ### Experimental extractor profile limits (issue 1583)
@@ -1040,6 +1067,7 @@ DCPV1.
 | DCX-V1-474 | `internal/mcp/corpusbridge/eval.go`, `corpusbridge.go` | `TestDCXV1474EvalSuiteObservesOnce`, `TestDCPV1251EvalScoresThroughTheMCPToolPath`; measured in https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-corpus-diagnostics-and-ranking.md |
 | DCX-V1-475..477 | `internal/doccorpus/search_rank.go`, `search_phrase.go`, `typed_query.go` | `TestDCXV1475PhraseAndIdentifierMatchesRankFirst`, `TestDCXV1476ClaimTextMatchesInflections`, `TestDCXV1477MeaningfulTieBreaks`, `TestDCSV1404SearchRankingEvalFixture` |
 | DCX-V1-478, DCX-V1-503..506 | `internal/doccorpus/extractor.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `docs.go` | `TestDCXV1478CallerProfileExtractsLikeTheCommittedProfile`, `TestDCXV1478CallerProfileRequiresAMatchingDigest`, `TestDCXV1478CallerProfileDirectorySwapIsRefused`, `TestDCXV1478CallerProfileUnsupportedPlatformIsRefused`, `TestDCXV1503CallerProfileProvenanceIsRecorded`, `TestDCXV1503CallerProfileWithNoSubjectsKeepsItsDigest`, `TestDCXV1504CallerProfileProviderRecordBuildsUnchanged`, `TestDCXV1505CallerProfileExtractionIsReadOnly`, `TestDCXV1506DocsCorpusExtractCallerProfileCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusHelpListsOperations`, `TestCAPV0019CommittedCatalogMatchesTheBinary` |
+| DCX-V1-810..811 | `legacyPaths` in `internal/doccorpus/behavior_legacy_discovery.go` | `TestDCXV1810LegacyDiscoveryEnumeratesMoreThan1024Directories`, `TestDCXV1811LegacyPathsMatchPerTreeWalk` |
 | DCX-V1-520..522 | `internal/cem/gitauth/revision_paths.go`, `internal/doccorpus/extractor.go` | `TestDCXV1520RevisionPathsMatchesLsTreeWithinOneOpPerLevel`, `TestDCXV1520RevisionPathsOpsIndependentOfDirectoryCount`, `TestDCXV1520RevisionPathsListsGitSafeNamesUnfiltered`, `TestDCXV1520ExtractionEnumeratesMoreThan1024Directories`, `TestDCXV1521ExtractorGlobPruningIsSound`, `TestDCXV1521RevisionPathsPrunesRejectedSubtrees`, `TestDCXV1522RevisionPathsRefusesPastItsBounds`; measured in https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-corpus-extract-enumeration.md |
 | DCX-V1-560..564 | `internal/doccorpus/extractor.go`, `capacity.go`, `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go`, `docs_corpus_delta.go`, `docs/RELEASE-NOTES.md` | `TestDCXV1560ExtractorSchemaTwoAdmitsMoreThanTheRecordBound`, `TestDCXV1560DocsCorpusExtractSchemaCLI`, `TestDCXV1562ExtractorRefusesARecordOverTheInputBound`, `TestDCXV1563DeltaCurrentSideIsDecidedByPresence`, `TestDCXV1564ReleaseNotesListEveryDerivation`, `TestDocsCorpusOperationFlagMatrix`; measured in https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-corpus-coverage-multirepo-derivation.md |
 | DCX-V1-360..369 | `internal/doccorpus/delta.go`, `delta_diff.go`, `cmd/corvint/docs_corpus_delta.go`, `docs_corpus.go`, `docs_corpus_help.go` | `TestDCXV1360DeltaWorklistClasses`, `TestDCXV1366CarryForwardFeedsNextBuild`, `TestDCXV1363LineDiff`, `TestDCXV1360DeltaRepairs`, `TestDCXV1360DeltaCLI`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags` |
