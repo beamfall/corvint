@@ -53,6 +53,10 @@ func preflightRun(t *testing.T, root string, options ChangeOptions) (int, string
 	if options.Outcome == "" {
 		options.Outcome = "passed"
 	}
+	// DCW-V0-960: nor without an intent manifest.
+	if options.IntentsFile == "" {
+		options.IntentsFile = writeInput(t, "#no-intent-declared\n")
+	}
 	options.Steps = Runner{Path: "corvint", Run: func(ctx context.Context, root string, args []string, stdout, stderr io.Writer) int {
 		labels = append(labels, strings.Join(args, " "))
 		if len(args) > 0 && args[0] == "cem" {
@@ -204,4 +208,97 @@ func TestDCWV0380InputsCheckPassesBindsNothing(t *testing.T) {
 		t.Fatalf("code=%d stdout=%q want %q stderr=%q", code, stdout, want, stderr)
 	}
 	assertNothingBound(t, root, head, labels)
+}
+
+// TestDCWV0960InputsCheckRefusesAbsentIntentManifest (V1-3047): without an
+// intent manifest the pre-flight refuses before prepare, naming --intents and
+// the no-intent declaration, and with the outcome refusal when both apply;
+// the full pass's ocm-aggregate would refuse missing-intent-scope only after
+// the bind commit.
+func TestDCWV0960InputsCheckRefusesAbsentIntentManifest(t *testing.T) {
+	root, base := preflightRepository(t, nil)
+	plan := writeInput(t, "1\tpre.go\t3:3\timplementation\n2\tpre.go\t20:20\timplementation\n")
+	for _, tc := range []struct {
+		name    string
+		options ChangeOptions
+		outcome bool
+	}{
+		{"intents only", ChangeOptions{Verify: "go version", Outcome: "passed"}, false},
+		{"intents and outcome", ChangeOptions{}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			options := tc.options
+			options.Root, options.Base, options.Citations = root, base, plan
+			calls := 0
+			options.Steps = Runner{Path: "corvint", Run: func(context.Context, string, []string, io.Writer, io.Writer) int {
+				calls++
+				return 1
+			}}
+			var stdout, stderr bytes.Buffer
+			code, err := FinishLane(context.Background(), FinishLaneOptions{Change: options, Preflight: true}, &stdout, &stderr)
+			out := stderr.String()
+			if err != nil || code != 2 || calls != 0 || !strings.HasPrefix(out, "dogfood-inputs-check: REFUSE intent-scope-not-provided\n") ||
+				!strings.Contains(out, "  fix: pass --intents FILE (or DOGFOOD_INTENTS_FILE; make takes INTENTS=<intents.txt>)") ||
+				!strings.Contains(out, "#no-intent-declared") ||
+				strings.Contains(out, "outcome-input-not-provided") != tc.outcome {
+				t.Fatalf("code=%d err=%v calls=%d stderr:\n%s", code, err, calls, out)
+			}
+		})
+	}
+}
+
+// refusalLines runs finish-lane, as the pre-flight or the closeout's full
+// run, and returns its REFUSE and fix lines with the run's prefix removed, and
+// how many steps ran.
+func refusalLines(t *testing.T, options ChangeOptions, preflight bool) ([]string, int) {
+	t.Helper()
+	calls := 0
+	options.Steps = Runner{Path: "corvint", Run: func(context.Context, string, []string, io.Writer, io.Writer) int {
+		calls++
+		return 1
+	}}
+	var stdout, stderr bytes.Buffer
+	code, err := FinishLane(context.Background(), FinishLaneOptions{Change: options, Preflight: preflight}, &stdout, &stderr)
+	if err != nil || code != 2 {
+		t.Fatalf("preflight=%t: code=%d err=%v\n%s", preflight, code, err, &stderr)
+	}
+	lines := []string{}
+	for _, line := range strings.Split(stderr.String(), "\n") {
+		line = strings.NewReplacer("dogfood-inputs-check: ", "PREFIX: ", "dogfood-finish-lane: ", "PREFIX: ", "dogfood-change: ", "PREFIX: ").Replace(line)
+		if strings.Contains(line, "REFUSE ") || strings.HasPrefix(line, "  fix: ") {
+			lines = append(lines, strings.ReplaceAll(line, "corvint dogfood inputs-check", "corvint dogfood finish-lane"))
+		}
+	}
+	return lines, calls
+}
+
+// TestDCWV0965InputsCheckRefusesWhatCloseoutRefuses (V1-3047): an intent
+// manifest over the OCM aggregate obligation bound and each verify line the
+// closeout refuses as unsupported-verify-syntax are refused by the pre-flight
+// before any step, with the closeout run's own refusal code and fix line.
+func TestDCWV0965InputsCheckRefusesWhatCloseoutRefuses(t *testing.T) {
+	defer func(bound int) { aggregateObligationBound = bound }(aggregateObligationBound)
+	aggregateObligationBound = 256
+	root, base, manifest := obligationRepository(t, "docs/specs", 200, 40, 30)
+	plan := writeInput(t, "1\tunknown\tinsufficient-evidence\tintents only\n")
+	cases := []struct {
+		name, code string
+		options    ChangeOptions
+	}{
+		{"aggregate bound", "REFUSE too-many-obligations", ChangeOptions{IntentsFile: manifest, Verify: "go version"}},
+		{"anchored -run name", "REFUSE unsupported-verify-syntax", ChangeOptions{IntentsFile: manifest, VerifyFile: writeInput(t, "go test -run ^TestA$ ./pre\n")}},
+		{"quoted anchored -run name", "REFUSE unsupported-verify-syntax", ChangeOptions{IntentsFile: manifest, VerifyFile: writeInput(t, "go test -run '^TestA$' ./pre\n")}},
+		{"unquoted alternation", "REFUSE unsupported-verify-syntax", ChangeOptions{IntentsFile: manifest, VerifyFile: writeInput(t, "go test -run TestA|TestB ./pre\n")}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			options := tc.options
+			options.Root, options.Base, options.Citations, options.Outcome = root, base, plan, "passed"
+			preflight, preflightCalls := refusalLines(t, options, true)
+			closeout, _ := refusalLines(t, options, false)
+			if preflightCalls != 0 || len(preflight) < 2 || !strings.Contains(preflight[0], tc.code) || strings.Join(preflight, "\n") != strings.Join(closeout, "\n") {
+				t.Fatalf("pre-flight (%d steps):\n%s\ncloseout:\n%s", preflightCalls, strings.Join(preflight, "\n"), strings.Join(closeout, "\n"))
+			}
+		})
+	}
 }

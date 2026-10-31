@@ -84,8 +84,9 @@ func TestProposeCitationsDCWV0385CitesPriorSealOnStackedRepair(t *testing.T) {
 			}
 			continue
 		}
-		if mapped == "pkg/code.go" {
-			t.Errorf("hunk of the modified pkg/code.go cites a span: %q", row)
+		// DCW-V0-962: only its own marked proposal may cite the modified file.
+		if mapped == "pkg/code.go" && (fields[1] != "pkg/code.go" || !proposalRow(errText, row)) {
+			t.Errorf("hunk of the modified pkg/code.go cites a span other than its marked proposal: %q", row)
 		}
 		if spans[fields[1]+":"+fields[2]] {
 			t.Errorf("span %s:%s cited twice:\n%s", fields[1], fields[2], out)

@@ -242,6 +242,13 @@ rg -q '^dogfood-finish-lane: REFUSE missing-inputs CITATIONS INTENTS VERIFY OUTC
 rg -qF 'corvint dogfood propose-citations feedfacefeedfacefeedfacefeedfacefeedface > plan.tsv' "$root/output" || exit 1
 rg -qF 'make dogfood-inputs-check BASE=feedfacefeedfacefeedfacefeedfacefeedface' "$root/output" || exit 1
 ! rg -q 'batch-precheck' "$root/output" || exit 1
+# DCW-V0-960 (V1-3047): the closeout runs its input steps with LANE=1 without being told, so a plan
+# alone still names the missing INTENTS, VERIFY and OUTCOME before any build.
+printf '1\tsource-marker\t1:1\timplementation\n' > "$root/closeout-cites.tsv"
+status=0
+env -u LANE make -s dogfood-closeout BASE=feedfacefeedfacefeedfacefeedfacefeedface CITATIONS="$root/closeout-cites.tsv" > "$root/output" 2>&1 || status=$?
+[[ $status == 2 && ! -s $TEST_BUILD_LOG ]] || { cat "$root/output" >&2; exit 1; }
+rg -q '^dogfood-finish-lane: REFUSE missing-inputs INTENTS VERIFY OUTCOME$' "$root/output" || { cat "$root/output" >&2; exit 1; }
 # DCW-V0-900: the closeout checks its inputs, then runs batch-precheck before any bind or seal, and
 # again after the seal for the receipt of the sealed head.
 recipe=$(awk '/^dogfood-closeout:/ { on = 1; next } on && /^\t/ { sub(/^\t@\$\(MAKE\) --no-print-directory /, ""); print; next } on { exit }' "$source_root/Makefile" | tr '\n' ' ')

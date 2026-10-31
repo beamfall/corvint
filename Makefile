@@ -18,16 +18,17 @@ GO_TEST_TIMEOUT ?= 30m
 GO_TEST_FLAGS = -p 1 -timeout $(GO_TEST_TIMEOUT)
 GO_TEST_COMMAND = $(HEAVY_NICE_PREFIX) env GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test $(GO_TEST_FLAGS) -count=1
 
-.PHONY: build repin shell-foreign-callers-check shell-test-registration-check gate capability-catalog capability-catalog-check instruction-conflicts gate-receipt-clear gate-receipt-test gate-affected gate-affected-test host-adapter-test host-adapter-node-test go-version go-test go-vet cross-vet windows-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements spec-requirements-resolve spec-requirements-check spec-requirements-test spec-acceptance-audit requirement-definitions-check requirement-definitions-test traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test analyzer-schema-check analyzer-schema-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check capabilities-check release-checklist-test analyzer-python-offline-build-test analyzer-python-ratchets-test release-artifact-reproducibility-test sql-native-ratchets sql-native-ratchets-test companion-release-gate public-release-check core-n1-replay dogfood-change dogfood-check dogfood-seal dogfood-finish dogfood-inputs-check dogfood-batch-check dogfood-bind-range dogfood-bind-range-test lane-scripts-test error-code-ownership-check error-code-ownership-test use-case-receipts-check use-case-receipts-test host-package-versions-check host-package-versions-test host-package-version-bump host-package-version-verify diagnostic-coverage-check go-archive-gate-injection-test install-lifecycle-test hostile-regressions-check hostile-regressions-test no-python-runtime-dependency-test goos-filenames-check goos-filenames-test go-cache-trim go-cache-trim-test scratch-sweep scratch-sweep-test rg-fallback-test repin-test pre-push-windows-vet-test pre-push-dogfood-seal-test dogfood-closeout cem-stable-regen cem-stable-regen-capture cem-stable-regen-replace cem-stable-regen-widen cem-stable-regen-any-of cem-stable-regen-check cem-release-suites cem-release-gate spec-toolchain-conformance spec-toolchain-latest-test batch-precheck batch-precheck-test documentation-paths documentation-paths-check documentation-paths-test qualify-tasks-basic-test ai-coauthor-trailers-check ai-coauthor-trailers-test dogfood-cache-test dogfood-bin-reuse-test agent-preflight-test codex-review-test companion-release-gate-test dogfood-change-test runtime-environment-test vscode-check-install-test public-release-check-test release-env-compat-test seed-planning-store-test binary-blobs-check legal-file-pins-check mkfifo-build-tags-check
 
+.PHONY: build
 build: go-version
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_BIN) ./cmd/corvint
 
 # Optional protected Pi distribution; dependency installation/download is explicit.
-.PHONY: pi-protected-build pi-protected-test
+.PHONY: pi-protected-build
 pi-protected-build:
 	bun integrations/pi-protected/build.mjs
 
+.PHONY: pi-protected-test
 pi-protected-test: pi-protected-build
 	node --test integrations/pi-protected/*.test.mjs
 	cd tools/local-authority && GOTOOLCHAIN=local go test -count=1 -timeout 30m ./... && GOTOOLCHAIN=local go vet ./...
@@ -39,6 +40,7 @@ pi-protected-test: pi-protected-build
 # untracked, gitignored .corvint/ artifacts that a clean checkout never has.
 # GATE_STEPS are the gate prerequisites after gate-receipt-clear.
 GATE_STEPS = host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements-check spec-requirements-test requirement-definitions-check requirement-definitions-test traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test analyzer-schema-check analyzer-schema-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check release-checklist-test gate-receipt-test error-code-ownership-check error-code-ownership-test host-package-versions-check host-package-versions-test diagnostic-coverage-check no-python-runtime-dependency-test goos-filenames-check goos-filenames-test go-cache-trim-test scratch-sweep-test rg-fallback-test repin-test pre-push-windows-vet-test pre-push-dogfood-seal-test batch-precheck-test documentation-paths-check documentation-paths-test qualify-tasks-basic-test ai-coauthor-trailers-test dogfood-cache-test dogfood-bin-reuse-test agent-preflight-test codex-review-test companion-release-gate-test dogfood-change-test runtime-environment-test hlq-local-test binary-blobs-check legal-file-pins-check mkfifo-build-tags-check
+.PHONY: gate
 gate: gate-receipt-clear $(addprefix ledger/,$(GATE_STEPS))
 	@script/gate-receipt record
 
@@ -73,16 +75,20 @@ endif
 # Native adapter and opt-in handoff regressions are owned by the reproducible source gate.
 # host-adapter-node-test is its node half; batch-precheck runs it too, so an adapter version or
 # capability-tuple drift fails before merge instead of only in the nightly (ASD-V0-044, V1-3062).
+.PHONY: host-adapter-node-test
 host-adapter-node-test:
 	node --test integrations/opencode/*.test.mjs
 	node --test integrations/pi/runtime.test.mjs integrations/pi/extension.test.mjs integrations/pi/tools.test.mjs integrations/pi/process.test.mjs integrations/pi/core.test.mjs integrations/pi/capabilities.test.mjs integrations/pi/operations.test.mjs integrations/pi/tasks.test.mjs integrations/pi/cockpit.test.mjs integrations/pi/workflow.test.mjs
 
+.PHONY: host-adapter-test
 host-adapter-test: host-adapter-node-test
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test -count=1 -timeout $(GO_TEST_TIMEOUT) ./cmd/corvint -run '^(TestDogfoodEvent|TestCodexHostAdapter|TestClaudeNativeDogfoodLifecycle|TestClaudeSourceHandoffCLI|TestHostAdapter|TestPi)'
 
+.PHONY: go-version
 go-version:
 	test "$$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.3"
 
+.PHONY: go-test
 go-test:
 	go run ./tools/test-commands-run
 
@@ -92,14 +98,17 @@ go-test:
 # main) joins BASE..HEAD to the dirty worktree, `BASE=` tests the worktree alone, and a BASE that
 # does not resolve is a usage error. Not the push gate: `make gate` stays that. Rollback:
 # script/gate-affected.sh stays (docs/specs/session-test-runner-v0.md, Rollout).
+.PHONY: gate-affected
 gate-affected: go-version
 	@script/gate-affected-corvint.sh "$(BASE)"
 	@$(MAKE) go-vet go-format-check spec-requirements-check decision-numbers-check line-citations-check
 
+.PHONY: gate-affected-test
 gate-affected-test:
 	@script/gate-affected_test.sh
 	@script/gate-affected-corvint_test.sh
 
+.PHONY: go-vet
 go-vet:
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go vet ./...
 
@@ -109,6 +118,7 @@ go-vet:
 # netbsd and solaris (PRS-V1-019, V1-0393). CGO stays disabled so the check never depends on a
 # cross-compiling C toolchain being installed.
 CROSS_VET_UNQUALIFIED_GOOS = freebsd openbsd netbsd solaris
+.PHONY: cross-vet
 cross-vet:
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go vet ./...
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go vet ./...
@@ -119,12 +129,14 @@ cross-vet:
 		(cd interop/cem01-go && GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local GOOS=$$goos GOARCH=amd64 CGO_ENABLED=0 go vet ./...); \
 	done
 
+.PHONY: go-archive-gate
 go-archive-gate:
 	@script/go-archive-gate
 
 # go-archive-gate-test covers GAG-V0-007 on a fixture repository: `archive` records its witness
 # best-effort, so the gate removes any pre-existing witness before building and a run whose witness
 # write failed can no longer be satisfied by one an earlier run left behind.
+.PHONY: go-archive-gate-test
 go-archive-gate-test:
 	@script/go-archive-gate_test.sh
 
@@ -133,10 +145,12 @@ go-archive-gate-test:
 # the unchanged gate's checks and a SIGINT during the real build. It needs the manifest's exact Go
 # toolchain first on PATH and is not a `gate` prerequisite, because `go-archive-gate` already pays for
 # one real build per `make gate` run. The interrupt test first proves an interrupted harness exits 130.
+.PHONY: go-archive-gate-injection-test
 go-archive-gate-injection-test:
 	@script/go-archive-gate-injection-interrupt_test.sh
 	@script/go-archive-gate-injection_test.sh
 
+.PHONY: interop-gate
 interop-gate:
 	cd interop/cem01-go && GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test -count=1 -timeout $(GO_TEST_TIMEOUT) ./... && GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go vet ./...
 
@@ -155,27 +169,33 @@ interop-gate:
 # cem-stable-regen-check verifies the sealed chain without writing.
 AFTER ?= artifactChecks
 
+.PHONY: cem-stable-regen-capture
 cem-stable-regen-capture:
 	@test -n "$(CAPTURE)" || { echo "set CAPTURE=<file.jsonl>" >&2; exit 2; }
 	rm -f "$(abspath $(CAPTURE))"
 	CEM_STABLE_REGEN_CAPTURE="$(abspath $(CAPTURE))" GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go test -count=1 ./internal/cem/verify -run '^TestStableS0EPublicCases$$'
 
+.PHONY: cem-stable-regen
 cem-stable-regen:
 	@test -n "$(MEMBER)" && test -n "$(SCHEMA)" && test -n "$(NOTE)" || { echo "set MEMBER, SCHEMA, NOTE and CAPTURE or VALUES" >&2; exit 2; }
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/cem-stable-regen --member "$(MEMBER)" --schema "$(SCHEMA)" --after "$(AFTER)" $(if $(CAPTURE),--capture "$(CAPTURE)") $(if $(VALUES),--values "$(VALUES)") $(if $(CELL_VALUES),--cell-values "$(CELL_VALUES)") --note "$(NOTE)"
 
+.PHONY: cem-stable-regen-replace
 cem-stable-regen-replace:
 	@test -n "$(MEMBER)" && test -n "$(RECORD)" || { echo "set MEMBER, RECORD and CAPTURE or VALUES" >&2; exit 2; }
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/cem-stable-regen --replace --member "$(MEMBER)" --record "$(RECORD)" $(if $(CAPTURE),--capture "$(CAPTURE)") $(if $(VALUES),--values "$(VALUES)") $(if $(CELL_VALUES),--cell-values "$(CELL_VALUES)")
 
+.PHONY: cem-stable-regen-widen
 cem-stable-regen-widen:
 	@test -n "$(RECORD)" || { echo "set RECORD=<widen-record.json>" >&2; exit 2; }
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/cem-stable-regen --widen --record "$(RECORD)"
 
+.PHONY: cem-stable-regen-any-of
 cem-stable-regen-any-of:
 	@test -n "$(RECORD)" || { echo "set RECORD=<any-of-record.json>" >&2; exit 2; }
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/cem-stable-regen --any-of --record "$(RECORD)"
 
+.PHONY: cem-stable-regen-check
 cem-stable-regen-check:
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/cem-stable-regen --check
 
@@ -188,6 +208,7 @@ cem-stable-regen-check:
 # worktree. The tamper matrix, citation vectors, neutral criterion and receipt authentication run
 # through both binaries. The repository-envelope cells are prose S0E recipes, so the tool runs
 # them as source-level Go tests in the same committed tree; that is not a binary-level run.
+.PHONY: cem-release-suites
 cem-release-suites:
 	@test -n "$(CORVINT_RELEASE_BIN)" && test -n "$(CEM01_RELEASE_BIN)" || { echo "set CORVINT_RELEASE_BIN and CEM01_RELEASE_BIN" >&2; exit 2; }
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/cem-release-suites --corvint "$(CORVINT_RELEASE_BIN)" --cem01 "$(CEM01_RELEASE_BIN)"
@@ -202,6 +223,7 @@ cem-release-suites:
 # CEM_RELEASE_OUTCOME=PATH the cem-release-gate-outcome/1 verdict (CEM-V1-611, CEM-V1-613); both
 # paths must not exist yet. `go run ./tools/cem-release-suites --aggregate --readiness PATH
 # --outcome OUT RECORD...` judges the records of one revision from several hosts (CEM-V1-612).
+.PHONY: cem-release-gate
 cem-release-gate: go-version
 	@test -z "$$(git status --porcelain)" || { echo "cem-release-gate: the checkout has changes or untracked files; release binaries are built from a clean HEAD" >&2; exit 2; }
 	node --test tools/cem-release-suites/readiness.test.mjs
@@ -217,12 +239,14 @@ cem-release-gate: go-version
 SPEC_GENERATE = script/gen-spec-requirements.sh --all "$$tmp"
 SPEC_GENERATED = REQUIREMENTS.tsv INDEX.json README.md
 
+.PHONY: spec-requirements
 spec-requirements:
 	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT INT TERM; $(SPEC_GENERATE) && \
 	for file in $(SPEC_GENERATED); do cp "$$tmp/$$file" "docs/specs/$$file" || exit 1; done
 
 # spec-requirements-resolve finishes a merge whose only conflicts left are in the generated
 # REQUIREMENTS.tsv, INDEX.json or README.md: it regenerates and stages them (SRG-V0-041).
+.PHONY: spec-requirements-resolve
 spec-requirements-resolve:
 	@script/spec-requirements-resolve.sh
 
@@ -231,10 +255,12 @@ spec-requirements-resolve:
 # BASE is given on the command line or in the environment: the file's own `BASE ?= main` default
 # names a local main that can lag origin/main and its analyzer schema number.
 REPIN_BASE = $(if $(filter command line environment environment override,$(origin BASE)),$(BASE),origin/main)
+.PHONY: repin
 repin:
 	@script/repin.sh --base "$(REPIN_BASE)"
 
 # SRG-V0-800 (V1-3379): it also fails when an unstaged spec edit would change the generated files.
+.PHONY: spec-requirements-check
 spec-requirements-check:
 	@tmp=$$(mktemp -d); trap 'rm -rf "$$tmp"' EXIT INT TERM; $(SPEC_GENERATE) || exit 1; stale=0; \
 	for file in $(SPEC_GENERATED); do cmp "$$tmp/$$file" "docs/specs/$$file" || stale=1; done; \
@@ -249,6 +275,7 @@ spec-requirements-check:
 # acceptance columns, the header projection and the audit (SRG-V0-009, -010, -012) and shows that
 # two lanes adding requirements to one spec conflict only in its requirement list and the TSV
 # rows (SRG-V0-013). It also pins the SRG-V0-800 worktree check.
+.PHONY: spec-requirements-test
 spec-requirements-test:
 	@script/gen-spec-requirements_test.sh
 	@script/spec-requirements-conflict_test.sh
@@ -258,23 +285,28 @@ spec-requirements-test:
 # default, and reports a validated spec that holds a standing requirement as NOT_PROMOTABLE
 # (SRG-V0-010). It is a report, not a gate step: ACCEPTANCE=owner or unrecorded lists the others.
 ACCEPTANCE ?= standing
+.PHONY: spec-acceptance-audit
 spec-acceptance-audit:
 	@script/spec-acceptance-audit.sh --acceptance $(ACCEPTANCE)
 
 # requirement-definitions-check fails when a requirement id survives only as a table row.
 # REQUIREMENTS.tsv is generated by an extractor that falls back to a table row when no clause
 # body defines an id, so a deleted clause body otherwise leaves every gate green.
+.PHONY: requirement-definitions-check
 requirement-definitions-check:
 	@script/check-requirement-definitions.sh
 
 # requirement-definitions-test runs the gate's own fixture cases (V1-2311); before it existed no
 # target ran script/check-requirement-definitions_test.sh.
+.PHONY: requirement-definitions-test
 requirement-definitions-test:
 	@script/check-requirement-definitions_test.sh
 
+.PHONY: traceability-tests-check
 traceability-tests-check:
 	@script/check-traceability-tests.sh
 
+.PHONY: traceability-tests-test
 traceability-tests-test:
 	@script/check-traceability-tests_test.sh
 
@@ -286,18 +318,22 @@ traceability-tests-test:
 # collide on: two branches that bump corvint-analyzer to the same number with different audit
 # digests merge without a textual conflict on the number (V1-1732, IDX-SNAP-V0-061). CI's
 # documentation step reaches it through this target until that step names it directly.
+.PHONY: decision-numbers-check
 decision-numbers-check: analyzer-schema-check
 	@script/check-decision-numbers.sh
 
+.PHONY: decision-numbers-test
 decision-numbers-test:
 	@script/check-decision-numbers_test.sh
 
 # analyzer-schema-check refuses a stale analyzer audit digest and a branch that changed the
 # analyzer pins while keeping a schema number origin/main already uses; `script/analyzer-schema.sh
 # bump` is the one-command recovery for both (V1-2130, V1-1732, IDX-SNAP-V0-060/061).
+.PHONY: analyzer-schema-check
 analyzer-schema-check:
 	@script/analyzer-schema.sh check
 
+.PHONY: analyzer-schema-test
 analyzer-schema-test:
 	@script/analyzer-schema_test.sh
 
@@ -310,9 +346,11 @@ analyzer-schema-test:
 # Without it the target gives the repository-layer verdict and reports the host layer NOT_OBSERVED
 # (--repository-only, V1-1756).
 INSTRUCTION_HOST_FILES ?=
+.PHONY: instruction-conflicts
 instruction-conflicts:
 	@script/check-instruction-conflicts.sh $(if $(strip $(INSTRUCTION_HOST_FILES)),$(addprefix --host ,$(INSTRUCTION_HOST_FILES)),--repository-only)
 
+.PHONY: instruction-conflicts-test
 instruction-conflicts-test:
 	@script/check-instruction-conflicts_test.sh
 
@@ -320,27 +358,33 @@ instruction-conflicts-test:
 # mixed endings, exempting only the two intentional interop fixtures. Decision 0061 made
 # .gitattributes repository-wide `* -text`, so Git normalises nothing and a CRLF-committing
 # contributor is not corrected automatically; this is where that drift is caught.
+.PHONY: eol-policy-check
 eol-policy-check:
 	@script/check-eol-policy.sh
 
+.PHONY: eol-policy-test
 eol-policy-test:
 	@script/check-eol-policy_test.sh
 
 # license-headers-check fails when a tracked non-Markdown file outside the historical records carries a
 # former AGPL SPDX identifier, or a non-Markdown file under examples/ lacks
 # `SPDX-License-Identifier: Apache-2.0` (decision 0586; LICENSING.md is the authority).
+.PHONY: license-headers-check
 license-headers-check:
 	@script/check-license-headers.sh
 
+.PHONY: license-headers-test
 license-headers-test:
 	@script/check-license-headers_test.sh
 
 # go-format-check fails when a tracked Go file is not gofmt-clean, using the pinned toolchain's
 # gofmt over `git ls-files`, so scratch trees and vendored Go are out of scope. go vet says
 # nothing about formatting, which is how an unformatted file sat in the tree unnoticed.
+.PHONY: go-format-check
 go-format-check:
 	@script/check-go-format.sh
 
+.PHONY: go-format-test
 go-format-test:
 	@script/check-go-format_test.sh
 
@@ -349,9 +393,11 @@ go-format-test:
 # tree and land in the same commit as the code, so this is where stale citations are caught.
 # A citation pinned as `path:line@<hex>` also fails when the cited content itself changed;
 # `script/check-line-citations.sh --hash <path:line>` prints the anchor to write.
+.PHONY: line-citations-check
 line-citations-check:
 	@script/check-line-citations.sh
 
+.PHONY: line-citations-test
 line-citations-test:
 	@script/check-line-citations_test.sh
 
@@ -360,9 +406,11 @@ line-citations-test:
 # script/ci-least-privilege-exceptions.tsv, an actions/checkout step stops disabling persisted
 # credentials, or any `uses:` reference stops being pinned to a full 40-character commit SHA
 # (ARTIFACT-V0-008, docs/specs/release-artifact-integrity-v0.md).
+.PHONY: ci-least-privilege-check
 ci-least-privilege-check:
 	@script/check-ci-least-privilege.sh
 
+.PHONY: ci-least-privilege-test
 ci-least-privilege-test:
 	@script/check-ci-least-privilege_test.sh
 
@@ -371,6 +419,7 @@ ci-least-privilege-test:
 # asserts that Corvint's derived obligations equal upstream's own view (STA-V0-011,
 # docs/specs/spec-toolchain-adapters-v0.md). It needs the npm registry, GitHub and PyPI, so it is
 # not a gate step: the path-filtered spec-toolchain-conformance workflow runs it.
+.PHONY: spec-toolchain-conformance
 spec-toolchain-conformance:
 	@script/spec-toolchain-conformance.sh
 
@@ -378,18 +427,21 @@ spec-toolchain-conformance:
 # recorded registry answers; the script itself is operator-run and needs the network. Like
 # spec-toolchain-conformance it is not a gate step (so not a shell-test prerequisite either): the
 # spec-toolchain-conformance workflow runs it.
+.PHONY: spec-toolchain-latest-test
 spec-toolchain-latest-test:
 	@script/spec-toolchain-latest_test.sh
 
 # unbounded-readers-check fails unless the test packages selected on every change are exactly
 # the units recorded in .corvint/unbounded-readers.json (AFP-V0-025,
 # docs/specs/affected-plan-v0.md).
+.PHONY: unbounded-readers-check
 unbounded-readers-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/unbounded-readers >/dev/null
 
 # test-read-scopes-check fails, naming the package and path, when a test file of a package declared
 # in .corvint/test-read-scopes.json carries a literal naming a tracked repository path outside that
 # package's entries, which the confined CI shard would deny (AFP-V0-051, docs/specs/affected-plan-v0.md).
+.PHONY: test-read-scopes-check
 test-read-scopes-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/test-read-scopes-check >/dev/null
 
@@ -399,12 +451,14 @@ test-read-scopes-check:
 # .SHELLFLAGS or MAKEFLAGS or defines a target- or pattern-specific variable that could reach
 # go-test, every declared language command that names a make target exists, and no GATE_STEPS
 # recipe runs a suite of a language declared none (STR-V0-006, docs/specs/session-test-runner-v0.md).
+.PHONY: test-commands-check
 test-commands-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/test-commands-check >/dev/null
 
 # capabilities-check fails when docs/CAPABILITIES.md or the README capability table drifts from the
 # commands, cmd/ binaries and MCP tools in the code (CAP-V0-003, docs/specs/capability-catalog-v0.md).
 # go test ./tools/capabilities-check runs the same check, so it is not a separate GATE_STEPS step.
+.PHONY: capabilities-check
 capabilities-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/capabilities-check
 
@@ -413,12 +467,14 @@ capabilities-check:
 # binary's own `help --tree` / `help --json`; capability-catalog-check fails when a snapshot, the
 # shipped agent guide or any node's help drifts from the code (CAP-V0-019, CAP-V0-040 to CAP-V0-048,
 # docs/specs/capability-catalog-v0.md).
+.PHONY: capability-catalog
 capability-catalog:
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint help --json > internal/capcatalog/catalog.json
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint help --tree > internal/capcatalog/trees/corvint.json
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-tasks help --json > internal/capcatalog/trees/corvint-tasks.json
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./cmd/corvint-test help --json > internal/capcatalog/trees/corvint-test.json
 
+.PHONY: capability-catalog-check
 capability-catalog-check:
 	$(GO_TEST_COMMAND) -run '^TestCAPV0(015|016|017|018|019|020|021|022|023|024|025|026|027|028|029|030|031|032|04[0-9])' ./cmd/corvint ./internal/capcatalog ./internal/clitree ./internal/tasks/cli ./cmd/corvint-test ./tools/capabilities-check
 
@@ -426,10 +482,12 @@ capability-catalog-check:
 # docs/specs/agent-harness-integration-v0.md) was last bumped in a commit older than the last
 # commit that changed any other shipped file in that package. AHI-240: it also verifies that every
 # version location of every package agrees, so a manifest-only bump fails here.
+.PHONY: host-package-versions-check
 host-package-versions-check:
 	@script/check-host-package-versions.sh
 	@script/host-package-version.sh verify >/dev/null
 
+.PHONY: host-package-versions-test
 host-package-versions-test:
 	@script/check-host-package-versions_test.sh
 	@script/host-package-version_test.sh
@@ -437,62 +495,77 @@ host-package-versions-test:
 # documentation-paths regenerates .corvint/documentation-paths.json (the AFP-V0-160 declaration)
 # from the staged top-level docs/*.md files; documentation-paths-check, a doc gate, refuses a
 # stale one (ASD-V0-105, V1-3174).
+.PHONY: documentation-paths
 documentation-paths:
 	@script/gen-documentation-paths.sh
 
+.PHONY: documentation-paths-check
 documentation-paths-check:
 	@script/gen-documentation-paths.sh --check
 
+.PHONY: documentation-paths-test
 documentation-paths-test:
 	@script/gen-documentation-paths_test.sh
 
 # ASD-V0-582 (V1-3364): no binary blob outside a declared fixture path, and every tools/ main's
 # root build output ignored. A doc gate, so CI and batch-precheck both run it.
+.PHONY: binary-blobs-check
 binary-blobs-check:
 	@script/check-binary-blobs.sh
 
 # ASD-V0-584 (V1-3374): a legal-file edit without its release-artifact manifest repin fails in
 # doc-gates, before bind and seal, not only in batch-precheck.
+.PHONY: legal-file-pins-check
 legal-file-pins-check:
 	@script/check-legal-file-pins.sh
 
 # ASD-V0-583 (V1-3373): a Go file calling syscall.Mkfifo must exclude solaris and illumos.
+.PHONY: mkfifo-build-tags-check
 mkfifo-build-tags-check:
 	@script/check-mkfifo-build-tags.sh
 
 # AHI-173: bump every version location of one host package together (VERSION defaults to the next
 # patch), or verify that every package's locations agree.
+.PHONY: host-package-version-bump
 host-package-version-bump:
 	@test -n "$(PKG)" || { echo 'usage: make host-package-version-bump PKG=<package> [VERSION=X.Y.Z]' >&2; exit 2; }
 	@script/host-package-version.sh bump $(PKG) $(VERSION)
 
+.PHONY: host-package-version-verify
 host-package-version-verify:
 	@script/host-package-version.sh verify $(PKG)
 
+.PHONY: release-checklist-test
 release-checklist-test:
 	@script/release-checklist_test.sh
 
 # no-python-runtime-dependency-test is the GOC-V0-008 falsifying assertion: no build, test, hook or
 # packaging path names a Python interpreter.
+.PHONY: no-python-runtime-dependency-test
 no-python-runtime-dependency-test:
 	@script/no-python-runtime-dependency_test.sh
 
 # GOC-V0-010: the full-gate receipt is cleared before the first gate step and recorded only after the
 # last one passed, bound to HEAD and the archive witness this run recorded.
+.PHONY: gate-receipt-clear
 gate-receipt-clear:
 	@script/gate-receipt clear
 
+.PHONY: gate-receipt-test
 gate-receipt-test:
 	@script/gate-receipt_test.sh
 
 # The three optional artifact wrappers are not gate members; their tests drive each wrapper
 # with a stub `go` (OACS-V0).
+.PHONY: analyzer-python-offline-build-test
 analyzer-python-offline-build-test:
 	@script/check-analyzer-python-offline-build_test.sh
 
+.PHONY: analyzer-python-ratchets-test
 analyzer-python-ratchets-test:
 	@script/check-analyzer-python-ratchets_test.sh
 
+.PHONY: release-artifact-reproducibility-test
 release-artifact-reproducibility-test:
 	@script/check-release-artifact-reproducibility_test.sh
 
@@ -500,62 +573,76 @@ release-artifact-reproducibility-test:
 # cmd/ and internal/ is named by no docs/specs/*.md and is not in
 # script/error-code-ownership.allowlist, or when a listed code has since been owned or retired, so
 # the list only shrinks (ECO-V0, docs/specs/error-code-ownership-gate-v0.md).
+.PHONY: error-code-ownership-check
 error-code-ownership-check:
 	@script/check-error-code-ownership.sh
 
+.PHONY: error-code-ownership-test
 error-code-ownership-test:
 	@script/check-error-code-ownership_test.sh
 
 # use-case-receipts-check fails, naming each receipt to repin, when a subject pinned by a receipt
 # under conformance/use-cases-v0/receipts/ changed (V1-0268); script/repin-use-case-receipts.sh
 # without --check does the repin.
+.PHONY: use-case-receipts-check
 use-case-receipts-check:
 	@script/repin-use-case-receipts.sh --check
 
+.PHONY: use-case-receipts-test
 use-case-receipts-test:
 	@script/repin-use-case-receipts_test.sh
 
 # goos-filenames-check fails when a Go file under cmd/ or internal/ has a GOOS/GOARCH filename
 # suffix outside darwin/linux/windows/amd64/arm64 (`foo_js.go` builds only for GOOS=js) and is
 # not in script/goos-filename-allowlist.txt (ASD-V0-020, V1-1910).
+.PHONY: goos-filenames-check
 goos-filenames-check:
 	@script/check-goos-filenames.sh
 
+.PHONY: goos-filenames-test
 goos-filenames-test:
 	@script/check-goos-filenames_test.sh
 
 # go-cache-trim bounds the Go build caches and removes stale go-build* work directories; it is a
 # dry run unless APPLY=1 (ASD-V0-021, V1-0360). Extra options go in GO_CACHE_TRIM_ARGS.
+.PHONY: go-cache-trim
 go-cache-trim:
 	@script/go-cache-trim.sh $(if $(filter 1,$(APPLY)),--apply) $(GO_CACHE_TRIM_ARGS)
 
+.PHONY: go-cache-trim-test
 go-cache-trim-test:
 	@script/go-cache-trim_test.sh
 
 # scratch-sweep prunes worktree registrations whose directory is gone and removes closed-session
 # scratch older than 24 h, archiving unfinished Git work first; dry run unless APPLY=1 (ASD-V0-022,
 # V1-1978). Pass --root/--repo/--keep/--archive in SCRATCH_SWEEP_ARGS.
+.PHONY: scratch-sweep
 scratch-sweep:
 	@script/scratch-sweep.sh $(if $(filter 1,$(APPLY)),--apply) $(SCRATCH_SWEEP_ARGS)
 
+.PHONY: scratch-sweep-test
 scratch-sweep-test:
 	@script/scratch-sweep_test.sh
 
 # DCG-V0-801: make repin defaults its base to origin/main.
+.PHONY: repin-test
 repin-test:
 	@script/repin_test.sh
 
 # DCW-V0-811: the grep -P stand-in the dogfood shell tests use on a host without ripgrep.
+.PHONY: rg-fallback-test
 rg-fallback-test:
 	@script/test-rg-fallback_test.sh
 
 # pre-push-windows-vet-test pushes through script/pre-push-windows-vet.sh, the installable Git
 # pre-push hook that runs make windows-vet when Go inputs change (ASD-V0-023, V1-1725).
+.PHONY: pre-push-windows-vet-test
 pre-push-windows-vet-test:
 	@script/pre-push-windows-vet_test.sh
 
 # pre-push-dogfood-seal-test pushes through script/pre-push-dogfood-seal.sh, the installable Git
 # pre-push hook that refuses a branch whose commits no sealed CEM binds (DCW-V0-348, V1-2805).
+.PHONY: pre-push-dogfood-seal-test
 pre-push-dogfood-seal-test:
 	@script/pre-push-dogfood-seal_test.sh
 
@@ -574,16 +661,19 @@ pre-push-dogfood-seal-test:
 # batch-review-packet BASE=<sha> [HEAD=<rev>] prints the bounded, read-only batch reviewer input for
 # the checked-out merged range: the reviewed revision, lane overlap, corvint impact and dogfood
 # batch-check (ASD-V0-043, V1-2986).
-.PHONY: batch-regen batch-push-check batch-review-packet
+.PHONY: batch-precheck
 batch-precheck:
 	@script/batch-precheck.sh $(if $(DOGFOOD_BASE),--base '$(DOGFOOD_BASE)')
 
+.PHONY: batch-regen
 batch-regen:
 	@script/batch-regen.sh
 
+.PHONY: batch-push-check
 batch-push-check:
 	@script/batch-precheck.sh --verify-receipt $(or $(REV),HEAD)
 
+.PHONY: batch-precheck-test
 batch-precheck-test:
 	@script/batch-precheck_test.sh
 
@@ -617,14 +707,17 @@ selection-baseline-check:
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -o "$$d/" ./cmd/corvint ./tools/gate-affected-select ./tools/selection-baseline && \
 	"$$d/selection-baseline" --check --corvint "$$d/corvint" --selector "$$d/gate-affected-select" $(if $(SELECTION_BASELINE_OUT),--out '$(SELECTION_BASELINE_OUT)')
 
+.PHONY: ai-coauthor-trailers-test
 ai-coauthor-trailers-test:
 	@script/check-ai-coauthor-trailers_test.sh
 
 # qualify-tasks-basic-test proves the refusals, the supplied-input labelling and the tamper
 # injection of script/qualify-tasks-basic.sh (TBS-V1-458, TBS-V1-459).
+.PHONY: qualify-tasks-basic-test
 qualify-tasks-basic-test:
 	@script/qualify-tasks-basic_test.sh
 
+.PHONY: batch-review-packet
 batch-review-packet:
 	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
 	@script/batch-review-packet.sh '$(DOGFOOD_BASE)' '$(or $(HEAD),HEAD)'
@@ -632,28 +725,33 @@ batch-review-packet:
 # diagnostic-coverage-check fails when a diagnostic.Refusal literal lacks a subject, a registered
 # fix list or terminal reason, when Go that imports internal/diagnostic parses a refusal message,
 # or when the covered-site count differs from script/diagnostic-coverage.count (DRC-V0-011/012).
+.PHONY: diagnostic-coverage-check
 diagnostic-coverage-check:
 	@script/check-diagnostic-coverage.sh
 
+.PHONY: install-lifecycle-test
 install-lifecycle-test:
 	@script/check-install-lifecycle_test.sh
 	@script/select-previous-release_test.sh
 	@script/core-n1-source_test.sh
 	@script/core-n1-replay-default_test.sh
 
-.PHONY: hlq-local hlq-local-test
 # Local host lifecycle qualification (HLQ-V1-056): builds the runner and runs the binary, so its exit
 # code survives (go run collapses exit 2 to 1). Example:
 #   make hlq-local HLQ_ARGS='--host cli --corvint ./corvint --snapshot-dirty'
+.PHONY: hlq-local
 hlq-local:
 	@script/hlq-local.sh $(HLQ_ARGS)
 
+.PHONY: hlq-local-test
 hlq-local-test:
 	@script/hlq-local_test.sh
 
+.PHONY: hostile-regressions-check
 hostile-regressions-check:
 	@script/check-hostile-regressions.sh
 
+.PHONY: hostile-regressions-test
 hostile-regressions-test:
 	@script/check-hostile-regressions_test.sh
 
@@ -661,12 +759,14 @@ hostile-regressions-test:
 # cmd/corvint twice and runs 30 benchmark samples pinned to one local Go toolchain
 # install (docs/specs/sql-native-ratchet-gate-v0.md, SNR-V0), far too slow for the gate. Invoke
 # it directly when evaluating the experimental sql-native analyzer candidate.
+.PHONY: sql-native-ratchets
 sql-native-ratchets:
 	@script/check-sql-native-ratchets.sh
 
 # sql-native-ratchets-test exercises the gate's lock/lock-test-hold, source-byte-ceiling, Core-base
 # export, and causal_parent presence-guard control flow with disposable fixtures; it is fast (no cmd/corvint
 # build, no benchmarks) and is NOT part of `make gate`, matching its sibling ratchet-script tests.
+.PHONY: sql-native-ratchets-test
 sql-native-ratchets-test:
 	@script/check-sql-native-ratchets_test.sh
 
@@ -675,6 +775,7 @@ sql-native-ratchets-test:
 # and independently assembles and verifies the archives (PUB-V0-013/014).
 # The native CLI archive gate remains independent (PUB-V0-002). corvint-tasks
 # builds from this checkout's cmd/corvint-tasks (decision 0397).
+.PHONY: companion-release-gate
 companion-release-gate:
 	@script/corvint-companion-release-gate
 
@@ -683,6 +784,7 @@ companion-release-gate:
 # CORVINT_PUBLIC_RELEASE_QUALIFICATION selects editor (default) or core (bundle /2,
 # PUB-V0-020); core also needs CORVINT_NODE_SHA256, CORVINT_NPM_SHA256,
 # CORVINT_GO_AUTHORITY_BUNDLE and CORVINT_GO_AUTHORITY_SHA256, which editor refuses.
+.PHONY: public-release-check
 public-release-check:
 	@script/public-release-check
 
@@ -695,6 +797,7 @@ public-release-check:
 # FIRST_RELEASE and exits 0, and a selector refusal exits 2. An empty CORE_N1_TAG= is refused.
 CORE_N1_TAG_GIVEN = $(if $(filter undefined,$(origin CORE_N1_TAG)),,1)
 
+.PHONY: core-n1-replay
 core-n1-replay:
 	@tag='$(CORE_N1_TAG)'; \
 	if [ -z '$(CORE_N1_TAG_GIVEN)' ]; then \
@@ -716,15 +819,18 @@ core-n1-replay:
 DOGFOOD_BASE = $(if $(filter file,$(origin BASE)),,$(BASE))
 DOGFOOD_BASE_REFUSAL = BASE is required: pass BASE=<full origin/main sha>; the Makefile default (main) is not used by dogfood targets
 
+.PHONY: dogfood-change
 dogfood-change:
 	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
 	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" $(HEAVY_NICE_PREFIX) script/dogfood-change.sh "$(DOGFOOD_BASE)"
 
 # Without BASE, dogfood-check takes the base of the CEM committed at HEAD, and the script refuses
 # naming BASE when none is bound (ASD-V0-085, V1-3172).
+.PHONY: dogfood-check
 dogfood-check:
 	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" $(HEAVY_NICE_PREFIX) script/dogfood-check.sh $(if $(DOGFOOD_BASE),"$(DOGFOOD_BASE)",--bound-base)
 
+.PHONY: dogfood-seal
 dogfood-seal:
 	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
 	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-seal.sh "$(DOGFOOD_BASE)"
@@ -734,6 +840,7 @@ dogfood_finish_quote = '$(subst ','\'',$(1))'
 
 # script/dogfood-finish.sh refuses every missing input at once; LANE=1 also requires INTENTS,
 # VERIFY and OUTCOME (ASD-V0-015).
+.PHONY: dogfood-finish
 dogfood-finish:
 	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
@@ -741,6 +848,7 @@ dogfood-finish:
 
 # dogfood-inputs-check is the input pre-flight alone (DCW-V0-380): it builds only the tree binary and
 # checks VERIFY, INTENTS and CITATIONS against a freshly prepared map, binding nothing.
+.PHONY: dogfood-inputs-check
 dogfood-inputs-check:
 	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" DOGFOOD_FINISH_PREFLIGHT=1 DOGFOOD_FINISH_LANE=$(call dogfood_finish_quote,$(LANE)) script/dogfood-finish.sh $(call dogfood_finish_quote,$(DOGFOOD_BASE)) \
 		$(call dogfood_finish_quote,$(CITATIONS)) $(call dogfood_finish_quote,$(INTENTS)) \
@@ -749,11 +857,13 @@ dogfood-inputs-check:
 # shell-foreign-callers-check runs the TSP-V0-005 declaration test alone, so a new mention of a
 # declared script, such as heavy.sh in a message, fails in doc-gates instead of only inside the long
 # internal/liveverify/affected package (DCW-V0-812).
+.PHONY: shell-foreign-callers-check
 shell-foreign-callers-check:
 	$(GO_TEST_COMMAND) -run '^TestRepositoryShellForeignCallersComplete_TSP_V0_005$$' ./internal/liveverify/affected
 
 # shell-test-registration-check runs the STR-V0-004 shell-test list check alone, so a GATE_STEPS
 # shell step missing from shell-test fails in doc-gates, not only in go test (DCW-V0-813).
+.PHONY: shell-test-registration-check
 shell-test-registration-check:
 	$(GO_TEST_COMMAND) -run '^TestSTRV0004ShellTestIsTheGateShellSteps$$' ./tools/test-commands-check
 
@@ -771,49 +881,72 @@ doc-gates:
 # before any bind or seal; dogfood-finish with the same variables; and batch-precheck again for the
 # receipt of the sealed head. batch-precheck-test checks the ci.yml connection; it stops at the first
 # failing step.
+.PHONY: dogfood-closeout
+# DCW-V0-960 (V1-3047): the closeout is a lane closeout, so both input steps run with LANE=1 and one
+# refusal names every missing INTENTS, VERIFY or OUTCOME before any build; LANE= on the command line wins.
+dogfood-closeout: export LANE = 1
 dogfood-closeout:
 	@$(MAKE) --no-print-directory dogfood-inputs-check
 	@$(MAKE) --no-print-directory batch-precheck
 	@$(MAKE) --no-print-directory dogfood-finish
 	@$(MAKE) --no-print-directory batch-precheck
 
+.PHONY: dogfood-batch-check
 dogfood-batch-check:
 	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
 	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-batch-check.sh "$(DOGFOOD_BASE)"
 
+.PHONY: dogfood-bind-range
 dogfood-bind-range:
 	@test -n "$(DOGFOOD_BASE)" || { echo "$(DOGFOOD_BASE_REFUSAL)" >&2; exit 2; }
 	@test -n "$(TARGET)" || { echo "TARGET is required" >&2; exit 2; }
 	@CORVINT_GOCACHE="$(DOGFOOD_GOCACHE)" script/dogfood-bind-range.sh "$(DOGFOOD_BASE)" "$(TARGET)"
 
+.PHONY: dogfood-bind-range-test
 dogfood-bind-range-test:
 	@script/dogfood-bind-range_test.sh
 
 # The dogfood wrapper fixtures run in the gate and CI's shell job (ASD-V0-091, V1-3250).
+.PHONY: dogfood-cache-test
 dogfood-cache-test:
 	@script/dogfood-cache_test.sh
 
+.PHONY: dogfood-bin-reuse-test
 dogfood-bin-reuse-test:
 	@script/dogfood-bin-reuse_test.sh
 
+# ASD-V0-960 (V1-3472): before a charter names a requirement-ID block, check it is free on origin/main,
+# for example make requirement-ids-free PREFIX=DCW-V0 RANGE=960..979 (REF= names another commit).
+# Without RANGE it checks PREFIX as a new family and names the next free one (ASD-V0-962, V1-3472).
+.PHONY: requirement-ids-free
+requirement-ids-free:
+	@printf '%s\n' '$(RANGE)' | grep -Eqx '([0-9]+\.\.[0-9]+)?' || { echo "requirement-ids-free: REFUSE bad-range RANGE=$(RANGE): pass PREFIX=<prefix> [RANGE=<lo>..<hi>] [REF=<commit>], for example PREFIX=DCW-V0 RANGE=960..979" >&2; exit 2; }
+	@script/requirement-ids-free.sh "$(PREFIX)" $(if $(RANGE),"$(firstword $(subst .., ,$(RANGE)))" "$(lastword $(subst .., ,$(RANGE)))") $(if $(REF),"$(REF)")
+
 # The lane procedure scripts (docs/LANE-ORCHESTRATION.md, ASD-V0-014..018); no Go build.
+.PHONY: lane-scripts-test
 lane-scripts-test:
 	@script/lane-scripts_test.sh
 
 # ASD-V0-942 (V1-2393): every script/*_test.sh has a target. These five are gate steps, so CI's
 # shell command runs them; companion-release-gate-test also runs release-env-compat_test.sh.
+.PHONY: agent-preflight-test
 agent-preflight-test:
 	@script/agent-preflight_test.sh
 
+.PHONY: codex-review-test
 codex-review-test:
 	@script/codex-review_test.sh
 
+.PHONY: companion-release-gate-test
 companion-release-gate-test:
 	@script/corvint-companion-release-gate_test.sh
 
+.PHONY: dogfood-change-test
 dogfood-change-test:
 	@script/dogfood-change_test.sh
 
+.PHONY: runtime-environment-test
 runtime-environment-test:
 	@bash script/runtime-environment_test.sh
 
@@ -821,25 +954,30 @@ runtime-environment-test:
 # cache; public-release-check-test bounds a TERM-ignoring child to 8 seconds, which a
 # loaded host exceeds; release-env-compat-test already runs in companion-release-gate-test; and
 # seed-planning-store-test needs the atm binary and /private/tmp (ASD-V0-942).
+.PHONY: public-release-check-test
 public-release-check-test:
 	@script/public-release-check_test.sh
 
+.PHONY: release-env-compat-test
 release-env-compat-test:
 	@bash script/release-env-compat_test.sh
 
+.PHONY: seed-planning-store-test
 seed-planning-store-test:
 	@script/seed-planning-store_test.sh
 
+.PHONY: vscode-check-install-test
 vscode-check-install-test:
 	@script/vscode-check-install_test.sh
 
-.PHONY: tasks-build tasks-test
 # The in-tree corvint-tasks companion binary (decision 0397). It is never a corvint subcommand;
 # tasks-test runs its own packages, which also stay in go-test's ./... because they share the module.
 CORVINT_TASKS_BIN ?= corvint-tasks
+.PHONY: tasks-build
 tasks-build: go-version
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -trimpath -ldflags "-X main.build=$$(git rev-list --count --first-parent HEAD)" -o $(CORVINT_TASKS_BIN) ./cmd/corvint-tasks
 
+.PHONY: tasks-test
 tasks-test: go-version
 	$(GO_TEST_COMMAND) ./cmd/corvint-tasks/... ./internal/tasks/...
 	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go vet ./cmd/corvint-tasks/... ./internal/tasks/...
@@ -870,6 +1008,7 @@ shell-test: go-format-test go-archive-gate-test spec-requirements-test requireme
 # before pushing a change that touches a .go, go.mod or go.sum file (AFP-V0-054,
 # docs/specs/affected-plan-v0.md); TestAFPV0054 keeps the two in step.
 WINDOWS_VET_ENV = GOCACHE=$(CORVINT_GOCACHE) GOENV=off GOTOOLCHAIN=local GOWORK=off GOFLAGS= CGO_ENABLED=0 GOOS=windows GOARCH=amd64
+.PHONY: windows-vet
 windows-vet: go-version
 	$(WINDOWS_VET_ENV) go vet ./...
 	cd interop/cem01-go && $(WINDOWS_VET_ENV) go vet ./...

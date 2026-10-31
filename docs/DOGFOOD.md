@@ -99,15 +99,19 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
 4. Write the citation plan from the prepared map. The hunk count is
    `python3 -c "import json; print(len(json.load(open('.corvint/change.cem.json'))['hunks']))"`.
    `corvint dogfood propose-citations $BASE > plan.tsv` prints a draft with one row per owed hunk,
-   each citing a base line of a file the change leaves untouched that names that hunk's path, or
-   leaving it `unknown`; it never cites a file the diff adds or modifies (`DCW-V0-150`,
-   `DCW-V0-393`). It is not a plan until you have checked that every cited line is the evidence
+   each citing a stable base line (one no hunk edits and the change does not repeat) that names
+   that hunk's path or defines a requirement ID it adds, an untouched file's line first, or leaving
+   it `unknown`; it never anchors a hunk on its own file or on the change's own text
+   (`DCW-V0-150`, `DCW-V0-393`, `DCW-V0-966`). A hunk naming a requirement this change adds cites
+   the BASE requirement the new entry refines, as a marked proposal (`DCW-V0-967`). It is not a plan until you have checked that every cited line is the evidence
    the hunk relies on. Run before any map exists, or with an unreadable or other-base map
    (`DCW-V0-394`), it drafts one row per hunk of the canonical `BASE..HEAD` patch, keyed by
    full hunk ID and labelled `map=NOT_PREPARED keyed=hunk-id`; ID keys survive a later commit
    reordering hunks, and the bind's plan precheck still judges every row (`DCW-V0-350`).
-   A hunk whose only nearby evidence is its own modified file gets an `unknown` row that names
-   that file's nearest stable heading or declaration as a review hint only (`DCW-V0-439`). It cites no one-line, JSON or `.agent-evidence/`
+   A hunk whose only nearby evidence is its own modified file gets a cite row on that file's
+   nearest stable heading or declaration, marked `drafted proposal:` on stderr: confirm or
+   replace each before binding (`DCW-V0-962`). An `unknown` row's note names the path and BASE
+   range its hunk edits (`DCW-V0-963`). It cites no one-line, JSON or `.agent-evidence/`
    record, and keeps `unknown` a hunk that names a requirement ID this same change adds, naming
    the ID, since same-change intent is not BASE evidence (`DCW-V0-440`). Write the build-log entry
    and commit it before drafting (`docs/CHANGE-FLOW.md`): a new file edited after the draft gets a
@@ -985,6 +989,21 @@ class; a `cem/0.x` map is classed by its paths under the chore rule above.
 
 A record change touches only `docs/build-log/` or `.agent-evidence/` paths, with at most the two sidecar paths: name its build-log entry or decision in `DOGFOOD_INTENTS_FILE` (reported as `no-intent-declared`), and cite each hunk to BASE lines of the decision or entry it records with relation `decision`; one span may serve every hunk (`DCW-V0-057`, `DCW-V0-058`).
 Its sealed map has no role and reads `citationClass` `{"class": "record", "role": "change"}`, which the baseline summarizes apart from `change` (`CEM-V1-170`, `DCW-V0-059`).
+
+Record-only closeout (`ASD-V0-961`, V1-3394). A lane whose only change is its build-log entry closes
+out in one try:
+
+```sh
+printf '%s\n' docs/build-log/YYYY-MM-DD-LANE.md > "$LANE_DIR/intents.txt"
+corvint dogfood propose-citations "$BASE" > "$LANE_DIR/plan.tsv"   # one row per hunk to review
+# replace each row with HUNK<TAB>docs/specs/SPEC.md<TAB>START:END<TAB>decision, citing the BASE
+# lines of the decision or spec the entry records; one span may serve every hunk
+make dogfood-inputs-check BASE="$BASE" CITATIONS="$LANE_DIR/plan.tsv" INTENTS="$LANE_DIR/intents.txt" VERIFY="$LANE_DIR/verify.txt" OUTCOME=passed
+make dogfood-closeout BASE="$BASE" CITATIONS="$LANE_DIR/plan.tsv" INTENTS="$LANE_DIR/intents.txt" VERIFY="$LANE_DIR/verify.txt" OUTCOME=passed
+```
+
+with `LANE_DIR=$(git rev-parse --absolute-git-dir)` (not `GIT_DIR`, which Git itself reads). A `dogfood-closeout` without `CITATIONS` names
+this recipe in its refusal, before any build.
 
 ### Staged binding of one oversized commit
 

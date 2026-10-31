@@ -62,7 +62,8 @@ func TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase(t *testing.T) {
 	scratch := t.TempDir()
 	plan := filepath.Join(scratch, "cites.tsv")
 	verify := filepath.Join(scratch, "verify.txt")
-	for path, data := range map[string]string{plan: "1\ta.txt\t1:1\tspecification\n", verify: "go test -count=1 -run TestA ./internal/a\n"} {
+	intents := filepath.Join(scratch, "intents.txt")
+	for path, data := range map[string]string{plan: "1\ta.txt\t1:1\tspecification\n", verify: "go test -count=1 -run TestA ./internal/a\n", intents: "#no-intent-declared\n"} {
 		if err := os.WriteFile(path, []byte(data), 0o666); err != nil {
 			t.Fatal(err)
 		}
@@ -74,7 +75,7 @@ func TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase(t *testing.T) {
 			return 1
 		}}
 		var stdout, stderr bytes.Buffer
-		code, err := FinishLane(context.Background(), FinishLaneOptions{Preflight: preflight, Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan, VerifyFile: verify, Outcome: "passed"}}, &stdout, &stderr)
+		code, err := FinishLane(context.Background(), FinishLaneOptions{Preflight: preflight, Change: ChangeOptions{Root: root, Base: base, Steps: steps, Citations: plan, IntentsFile: intents, VerifyFile: verify, Outcome: "passed"}}, &stdout, &stderr)
 		if err != nil {
 			t.Fatal(err)
 		}

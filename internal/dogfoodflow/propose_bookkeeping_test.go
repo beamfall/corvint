@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -66,11 +67,14 @@ func TestProposeCitationsDCWV0333SkipsBookkeepingPaths(t *testing.T) {
 		}
 		switch path := hunks[index].Path; path {
 		case "internal/x/named.go":
-			if !strings.HasPrefix("\t"+rest, bookkeeping+"no stable BASE line of a file this change leaves untouched names internal/x/named.go") || !strings.Contains(rest, "nearest stable line internal/x/named.go 4:4 dependency is a review hint only (DCW-V0-439)") {
-				t.Errorf("code row = %q; want an unknown row, not a cite of a file the change modifies", row)
+			// Only bookkeeping lines name it, so its own nearest stable line
+			// is the marked proposal (DCW-V0-962).
+			if rest != "internal/x/named.go\t4:4\tdependency" || !strings.Contains(stderr.String(), "  drafted proposal: "+row+"\n") {
+				t.Errorf("code row = %q; want the marked proposal of its own nearest stable line", row)
 			}
 		default:
-			if want := bookkeeping + path + " is a bookkeeping record (DCW-V0-333)"; !strings.HasPrefix("\t"+rest, want) {
+			// DCW-V0-963: the note names the path and BASE range first.
+			if want := fmt.Sprintf("%shunk edits %s at BASE %d,%d HEAD ", bookkeeping, path, hunks[index].OldRange.Start, hunks[index].OldRange.Count); !strings.HasPrefix("\t"+rest, want) || !strings.Contains(rest, "; "+path+" is a bookkeeping record (DCW-V0-333)") {
 				t.Errorf("row for %s = %q; want an unknown bookkeeping row", path, row)
 			}
 		}

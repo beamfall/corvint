@@ -35,8 +35,8 @@ var staleOCMPatterns = []string{"change.ocm.[0-9][0-9][0-9].json", "change.ocm-s
 // something is still stale after that, naming the exact manual recovery.
 // Nothing is deleted. A trace store that cannot be evaluated is left to the
 // steps that already report it. The dogfood inputs-check pre-flight passes
-// retire=false: it only checks, and still refuses with the manual recovery
-// (DCW-V0-400). The refusal names the reset-after-bind case, a lane that reset
+// retire=false: it only checks, notes stale sidecars alone (DCW-V0-964), and
+// refuses a stranded trace with the manual recovery (DCW-V0-400). The refusal names the reset-after-bind case, a lane that reset
 // its own unpushed bind/seal commits, and its one-step recovery (DCW-V0-844).
 func (f *flow) requireFreshWorktree(base, gitDir string, retire bool) {
 	stranded, digest, legacy := f.strandedTraces()

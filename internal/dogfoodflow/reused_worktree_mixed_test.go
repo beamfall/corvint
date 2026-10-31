@@ -44,7 +44,7 @@ func TestFinishLaneDCWV0406LeavesAMixedTracePlanToTheOperator(t *testing.T) {
 		}
 		want[revision] = row
 	}
-	code, calls, out := run()
+	code, calls, out := run(false)
 	if code != 2 || calls != 0 || !strings.Contains(out, "REFUSE reused-worktree-state\n") ||
 		!strings.Contains(out, "  stale trace: the worktree-local trace store names "+stranded+", ") ||
 		!strings.Contains(out, "  the same migration plan also rekeys 1 reachable tree-keyed legacy trace(s), so it was not applied automatically (DCW-V0-406)\n") ||

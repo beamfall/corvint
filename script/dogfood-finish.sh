@@ -41,6 +41,8 @@ if ((${#missing[@]} > 0)); then
   if [[ " ${missing[*]} " == *' CITATIONS '* || " ${missing[*]} " == *' CITATIONS:unreadable '* ]]; then
     printf 'fix: draft the plan with corvint dogfood propose-citations %s > plan.tsv, then check it with make dogfood-inputs-check BASE=%s CITATIONS=plan.tsv (the same INTENTS, VERIFY and OUTCOME)\n' \
       "${base_arg:-<full sha>}" "${base_arg:-<full sha>}" >&2
+    # ASD-V0-961 (V1-3394): a record-only change (a build-log entry alone) has its own recipe.
+    printf 'fix: a record-only change (only docs/build-log/ or .agent-evidence/ paths): put the entry path in the INTENTS file, and cite each hunk to the BASE lines of the decision or spec the entry records with relation decision, one row per hunk, for example 1<TAB>docs/specs/SPEC.md<TAB>START:END<TAB>decision; one span may serve every hunk (DCW-V0-057, DCW-V0-058; docs/DOGFOOD.md "Record-only closeout")\n' >&2
   fi
   printf 'dogfood-finish-lane: nothing was built, prepared or bound\n' >&2
   exit 2

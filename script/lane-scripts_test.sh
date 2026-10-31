@@ -5,7 +5,8 @@
 # lane-clean.sh (ASD-V0-018), lane-guard.sh (ASD-V0-024),
 # install-local-bin.sh (ASD-V0-025), install-cem-verifiers.sh (TCB-V0-046),
 # wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), codex-review.sh
-# (ASD-V0-064), lane-setup.sh (ASD-V0-071, ASD-V0-072). No Go build runs.
+# (ASD-V0-064), lane-setup.sh (ASD-V0-071, ASD-V0-072), requirement-ids-free.sh (ASD-V0-960). No
+# Go build runs.
 set -uo pipefail
 export LC_ALL=C
 # The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
@@ -744,6 +745,10 @@ out=$(finish 1 "$sha" '' plan.tsv plan.tsv passed)
 [[ $out == *'REFUSE missing-inputs CITATIONS'$'\n'* && $out == *"corvint dogfood propose-citations $sha > plan.tsv"* &&
   $out == *"make dogfood-inputs-check BASE=$sha CITATIONS=plan.tsv"* && $out == *'nothing was built, prepared or bound'* ]] ||
   fail "finish refusal for a missing plan names no recovery: $out"
+# ASD-V0-961 (V1-3394): the same refusal names the record-only recipe and its DOGFOOD.md section.
+[[ $out == *'fix: a record-only change (only docs/build-log/ or .agent-evidence/ paths): put the entry path in the INTENTS file'*'relation decision'*'docs/DOGFOOD.md "Record-only closeout"'* ]] ||
+  fail "finish refusal for a missing plan names no record-only recipe: $out"
+grep -q '^Record-only closeout (`ASD-V0-961`' "$script/../docs/DOGFOOD.md" || fail "docs/DOGFOOD.md has no record-only closeout section"
 ok
 
 # DCW-V0-090: a committed spec edit without regenerated indexes is refused before any build;
@@ -1280,6 +1285,49 @@ dogfood_fixture_copy "$script/.." "$real" dogfood-change.sh dogfood-check.sh dog
 printf 'source "$repo/script/missing-helper.sh"\n' > "$fsrc/script/dogfood-broken.sh"
 out=$(dogfood_fixture_copy "$fsrc" "$fdst" dogfood-broken.sh 2>&1) && fail "a missing helper was copied silently"
 [[ $out == *'REFUSE missing-script script/missing-helper.sh'*'fix: '* ]] || fail "missing-helper refusal names no recovery: $out"
+ok
+
+# ASD-V0-960 (V1-3472): requirement-ids-free reports each used ID with its first location and exits
+# 1, a free range with exit 0, and refuses a bad prefix, range or REF with exit 2.
+ids=$tmp/ids
+git init -q "$ids" && printf '# Spec\n- `ABC-V0-101`: one.\nXABC-V0-102 is another family; ABC-V0-1030 has four digits.\n' > "$ids/spec.md" &&
+  printf 'see ABC-V0-101 and ABC-V0-105\n' > "$ids/b.txt" && git -C "$ids" add . &&
+  git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm ids || fail "ids fixture"
+printf 'ABC-V0-104\n' > "$ids/uncommitted.txt"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 100 105 HEAD 2> "$tmp/ids.err")
+[[ $? == 1 && $out == $'used ABC-V0-101 b.txt:1\nused ABC-V0-105 b.txt:1' && $(cat "$tmp/ids.err") == *'2 of 6 IDs in ABC-V0-100..ABC-V0-105 are used at HEAD'* ]] ||
+  fail "used IDs: $out $(cat "$tmp/ids.err")"
+# Review fixes: a run from a subdirectory still searches the whole tree, and a match whose leading
+# byte is a colon (`:ABC-V0-103`) keeps its path and line.
+mkdir -p "$ids/sub/deeper" && printf 'key:ABC-V0-103\n' > "$ids/sub/colon.txt" && git -C "$ids" add sub/colon.txt &&
+  git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm colon || fail "colon fixture"
+out=$(cd "$ids/sub/deeper" && "$script/requirement-ids-free.sh" ABC-V0 101 103 HEAD 2> /dev/null)
+[[ $? == 1 && $out == $'used ABC-V0-101 b.txt:1\nused ABC-V0-103 sub/colon.txt:1' ]] || fail "subdirectory or colon-prefixed match: $out"
+git -C "$ids" rm -q sub/colon.txt && git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm uncolon || fail "colon fixture removal"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 102 104 HEAD 2>&1)
+[[ $? == 0 && $out == "free ABC-V0-102..ABC-V0-104 at HEAD ($(git -C "$ids" rev-parse HEAD))" ]] || fail "free range: $out"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ZZZ-V1 1 9 HEAD 2>&1)
+[[ $? == 0 && $out == 'free ZZZ-V1-001..ZZZ-V1-009 at HEAD ('* ]] || fail "unknown prefix: $out"
+# ASD-V0-962 (V1-3472): with no range the prefix is a new family; one REQUIREMENTS.tsv names refuses
+# it and names the next free prefix, skipping a family REQUIREMENTS.tsv or any tracked file uses.
+mkdir -p "$ids/docs/specs" && printf 'ABC-V0-101\tdocs/specs/abc.md\tone\nABD-V0-001\tdocs/specs/abd.md\ttwo\n' > "$ids/docs/specs/REQUIREMENTS.tsv" &&
+  printf 'ABE-V0-001 is named only here\n' > "$ids/notes.txt" && git -C "$ids" add docs notes.txt &&
+  git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm index || fail "prefix fixture"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 HEAD 2>&1)
+[[ $? == 1 && $out == 'used-prefix ABC-V0: 1 requirement rows in docs/specs/REQUIREMENTS.tsv at HEAD, first ABC-V0-101 in docs/specs/abc.md; next free prefix: ABF-V0' ]] ||
+  fail "in-use prefix: $out"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABX-V0 HEAD 2>&1)
+[[ $? == 0 && $out == 'free-prefix ABX-V0 at HEAD ('* ]] || fail "free prefix: $out"
+# Review fix: the make target refuses any RANGE but <digits>..<digits>.
+for range in ..979 1..2..3 960.. abc; do
+  out=$(make -s -C "$script/.." requirement-ids-free PREFIX=ABC-V0 RANGE="$range" 2>&1)
+  [[ $? == 2 && $out == *"REFUSE bad-range RANGE=$range"* ]] || fail "make target admitted RANGE=$range: $out"
+done
+for bad in 'abc 1 2 HEAD:bad-prefix' 'ABC-V0 5 2 HEAD:bad-range' 'ABC-V0 1 1000 HEAD:bad-range' 'ABC-V0 1 2 no-such-ref:ref-not-a-commit' 'ABC-V0 1 2 3 4:bad-arguments'; do
+  read -r -a argv <<< "${bad%:*}"
+  out=$(cd "$ids" && "$script/requirement-ids-free.sh" "${argv[@]}" 2>&1)
+  [[ $? == 2 && $out == *"REFUSE ${bad##*:}"* ]] || fail "refusal ${bad##*:}: $out"
+done
 ok
 
 # ASD-V0-014: no fixture outlives the run, so nothing can write after the summary line. Every
