@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
-//go:build unix
+//go:build unix && !solaris
 
 package dogfoodflow
 
