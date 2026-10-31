@@ -40,8 +40,10 @@ within 15 minutes.
 
 - `CEM-PILOT-001`: `cem prepare --base REV --target REV` MUST derive the exact committed patch with
   the documented CI diff profile, exclude only the map path, create private atomic outputs, and
-  return an ordered hunk worklist. (proposed 2026-09-25, V1-0301, not accepted) Today a patch with
-  a binary file refuses the whole prepare with `binary-patch`, and one with an `old mode`/`new mode`
+  return an ordered hunk worklist. (proposed 2026-09-25, V1-0301, not accepted) Until V1-2752 a
+  patch with a binary file refused the whole prepare with `binary-patch`; the native reader now binds
+  Git's canonical binary section by blob identity and reports it as an excluded row
+  (`CEM-V1-980..986` in `cem-stable-v1.md`). A patch with an `old mode`/`new mode`
   change refuses it with `malformed-patch`, because the frozen `cem/0.1` grammar
   (now `protocol/cem-1.0/stable/inherited/cem-0.1-algorithms.md`) and the `cem/0.2` hunk wire and hunk IDs have no such hunk. A
   new versioned profile MAY bind each binary or mode-only file change as its own hunk kind whose
