@@ -352,6 +352,7 @@ AHI-045	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0441; V
 AHI-046	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0441; V1-0942) Outside a main-thread	owner	decision 0441; V1-0942
 AHI-047	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0441; V1-0939) The Claude Code trusted	owner	decision 0441; V1-0939
 AHI-230	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept; V1-2754; amends `AHI-047`) Th	standing	V1-2754
+AHI-880	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-2754; closes t	standing	2026-10-31; V1-2754
 AHI-048	docs/specs/agent-harness-integration-v0.md	(proposed; V1-0734) When an adapter process exits through `exitProcess`, includi	unrecorded	-
 AHI-049	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0477, amended by decision 0479; V1-1040, V1-1055) Every Se	owner	decision 0477; decision 0479; V1-1040; V1-1055
 AHI-050	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0474; V1-0371) The OpenCode and Gemini adapters MUST send	owner	decision 0474; V1-0371
@@ -1087,7 +1088,7 @@ CEM-PILOT-026	docs/specs/cem-pilot-kit.md	a recipe MUST NOT convert a refusal or
 CEM-PILOT-027	docs/specs/cem-pilot-kit.md	each recipe step MUST run in its own process group bounded by `RECIPE_TIMEOUT`	unrecorded	-
 CRT-V0-001	docs/specs/cem-reviewer-trial-v0.md	Unit and selection. One change is one non-merge Beamfall commit `C`, and its lan	unrecorded	-
 CRT-V0-002	docs/specs/cem-reviewer-trial-v0.md	Pairing. Every change runs in both arms; the estimate is within-change. The arm	unrecorded	-
-CRT-V0-003	docs/specs/cem-reviewer-trial-v0.md	Withheld-patch construction. The presented patch `P(C)` contains only the source	unrecorded	-
+CRT-V0-003	docs/specs/cem-reviewer-trial-v0.md	Withheld-patch construction. The presented patch `P(C)` contains only the	unrecorded	-
 CRT-V0-004	docs/specs/cem-reviewer-trial-v0.md	Ground truth. Primary gold for `C` is the set of test-or-spec paths `C` itself	unrecorded	-
 CRT-V0-005	docs/specs/cem-reviewer-trial-v0.md	(Amended 2026-10-11: V1-1261, accepted under the owner's standing auto-accept (2	standing	2026-10-11; V1-1261
 CRT-V0-006	docs/specs/cem-reviewer-trial-v0.md	Reply grammar. Every reply MUST end with one fenced JSON block	unrecorded	-
@@ -1165,6 +1166,8 @@ CEM-V1-578	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto
 CEM-V1-620	docs/specs/cem-stable-v1.md	(proposed; V1-2107) A string `const` or `enum` node of both `RESULT.schema.json`	unrecorded	-
 CEM-V1-621	docs/specs/cem-stable-v1.md	(proposed; V1-2107) Both `RESULT.schema.json` copies MUST admit exactly the two	unrecorded	-
 CEM-V1-622	docs/specs/cem-stable-v1.md	(proposed; V1-2107) A test MUST validate the complete native verify result of th	unrecorded	-
+CEM-V1-880	docs/specs/cem-stable-v1.md	(proposed; V1-2615) An object-schema node of both `RESULT.schema.json` copies MA	unrecorded	-
+CEM-V1-881	docs/specs/cem-stable-v1.md	(proposed; V1-2615) Both `RESULT.schema.json` copies MUST admit, at	unrecorded	-
 CEM-V1-633	docs/specs/cem-stable-v1.md	(proposed; V1-2599) Neither stable reader's verdict MAY depend on a runner	unrecorded	-
 CEM-V1-634	docs/specs/cem-stable-v1.md	(accepted by the owner (2026-10-25; V1-2658 sign-off); V1-2599, V1-2658) No	owner	2026-10-25; V1-2658; V1-2599
 CEM-V1-635	docs/specs/cem-stable-v1.md	(accepted by the owner (2026-10-25; V1-2658 sign-off); V1-2658) The gate MUST	owner	2026-10-25; V1-2658

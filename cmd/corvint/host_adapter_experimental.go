@@ -18,11 +18,15 @@ import (
 // unless the operator opts in, so the default adapter output is unchanged and
 // neither slice is promoted into the shipped agent path (invariant 8).
 const (
-	experimentalKernelEnv      = "CORVINT_EXPERIMENTAL_COMPACTION_KERNEL"
-	experimentalKernelDeadline = 250 * time.Millisecond
-	experimentalKernelLabel    = "\nCorvint experimental compaction kernel (CKN-V0 proposed, not delivered):\n"
-	experimentalKernelNotRun   = "\nCorvint experimental compaction kernel NOT_RUN: "
+	experimentalKernelEnv    = "CORVINT_EXPERIMENTAL_COMPACTION_KERNEL"
+	experimentalKernelLabel  = "\nCorvint experimental compaction kernel (CKN-V0 proposed, not delivered):\n"
+	experimentalKernelNotRun = "\nCorvint experimental compaction kernel NOT_RUN: "
 )
+
+// experimentalKernelDeadline bounds the opt-in kernel load. It is a var only so
+// the serial adapter test can lift it off a loaded host (V1-0849, V1-0455);
+// production never writes it.
+var experimentalKernelDeadline = 250 * time.Millisecond
 
 // experimentalKernelContext is the trusted-label-plus-framed kernel block for
 // the session-start and user-prompt paths when CORVINT_EXPERIMENTAL_COMPACTION_KERNEL=1
