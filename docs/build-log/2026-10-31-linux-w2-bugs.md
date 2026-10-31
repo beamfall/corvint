@@ -15,8 +15,10 @@ snapshot `internal/tasks/similar/testdata/corpus-2026-10-30.jsonl` and, for V1-3
   now exclude Solaris. `make cross-vet` is the regression guard and already runs in `make gate`.
 - V1-3243: the two scripts are tracked `100755`, and `script/check-script-modes.sh`
   (`make script-modes-check`, in `GATE_STEPS`) fails on any tracked `script/*_test.sh` that is
-  not. CEM-V1-300 refuses a mode-only group, so each script also gets one comment line. That makes
-  the group a mode change with a text hunk, which a CEM can bind.
+  not. Each script also gets one comment line, but the CEM patch grammar refuses `old mode`/`new
+  mode` metadata even beside a text hunk (`propose-citations`: `patch-unavailable
+  reason=malformed-patch`). The commit is therefore the branch's tip, after the seal, unbound by
+  the CEM, as the 2026-10-30 friction lane left the same fix.
 - V1-2416: the consume CLI already named the bound. The library refusals now name the bound, its
   value and the observed size, and `docs maintain` keeps the library message (a new
   `Refusal.Message`) instead of repeating the code. Line numbers that specs cite were kept.
