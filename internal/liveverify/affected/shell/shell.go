@@ -107,7 +107,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	for _, relative := range files {
 		known[relative] = true
 	}
-	frontier := map[string]bool{}
+	frontier, built := map[string]bool{}, map[string]computedNames{}
 	units := make([]affected.Unit, 0, len(files))
 	for _, relative := range files {
 		unit := affected.Unit{ID: "shell:" + relative}
@@ -124,10 +124,14 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 			units = append(units, foreignFrontier(unit, len(foreign) > 0))
 			continue
 		}
-		units = append(units, foreignFrontier(observe(relative, string(body), known), len(foreign) > 0))
+		unit, names := observe(relative, string(body), known)
+		if !names.empty() {
+			built[relative] = names
+		}
+		units = append(units, foreignFrontier(unit, len(foreign) > 0))
 	}
 	sort.Slice(units, func(left, right int) bool { return units[left].ID < units[right].ID })
-	applyForeignCallers(root, units, frontier)
+	applyForeignCallers(root, units, built, frontier)
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
 }
 
@@ -145,10 +149,14 @@ func foreignFrontier(unit affected.Unit, foreign bool) affected.Unit {
 	return unit
 }
 
-// observe builds one readable file's unit.
-func observe(relative, text string, known map[string]bool) affected.Unit {
+// observe builds one readable file's unit and returns the script names it
+// builds without a resolvable literal (TSP-V0-960).
+func observe(relative, text string, known map[string]bool) (affected.Unit, computedNames) {
 	parsed := parse(text)
 	resolve := newResolver(relative, parsed.commands)
+	values := variableValues(parsed.commands)
+	var names computedNames
+	builds := false
 	unit := affected.Unit{ID: "shell:" + relative}
 	test := isTestName(relative) || (inTestDirectory(relative) && executesAtTopLevel(parsed.commands))
 	if test {
@@ -178,10 +186,14 @@ func observe(relative, text string, known map[string]bool) affected.Unit {
 				commands = append(commands, parse(script).commands...)
 			}
 			for _, target := range invokedScripts(word, args) {
-				resolve.link(unquote(target), nil, known, edges)
+				if !resolve.link(unquote(target), nil, known, edges) && constructed(unquote(target), resolve, values, known, edges, &names) {
+					builds = true
+				}
 			}
 		case strings.Contains(word, "/") || strings.HasPrefix(word, "$"):
-			resolve.link(word, nil, known, edges)
+			if !resolve.link(word, nil, known, edges) && constructed(word, resolve, values, known, edges, &names) {
+				builds = true
+			}
 		}
 		if isToolchain(word) && (bypassesFunctions(commands[index].words) || !shadowed(parsed, word, index)) {
 			toolchain = true
@@ -189,6 +201,13 @@ func observe(relative, text string, known map[string]bool) affected.Unit {
 	}
 	delete(edges, unit.ID)
 	unit.Imports = sortedKeys(edges)
+	if builds && !test {
+		// What runs the script it builds is unmodelled (TSP-V0-960), so the
+		// caller keeps the frontier, bearing as the foreign one does
+		// (AFP-V0-581). A test is a leaf: nothing runs a script through it.
+		unitFrontier[FrontierForeignInvocation] = true
+		unit.FrontierBears = affected.FrontierBearsOnDependents
+	}
 	unit.Frontier = sortedKeys(unitFrontier)
 	switch {
 	case test && toolchain:
@@ -206,7 +225,7 @@ func observe(relative, text string, known map[string]bool) affected.Unit {
 	} else {
 		unit.PathTokens = sortedKeys(tokens)
 	}
-	return unit
+	return unit, names
 }
 
 // recursiveReaders are the commands that read below a directory they are
