@@ -109,7 +109,7 @@ func TestVerifyArgumentsDCWV0804AdmitsQuotedEnvironmentAssignments(t *testing.T)
 	for line, want := range map[string]string{
 		"HEAVY_WHOLE_REASON='x' script/run.sh go test -count=1 ./internal/a":           `["HEAVY_WHOLE_REASON=x","script/run.sh","go","test","-count=1","./internal/a"]`,
 		"HEAVY_WHOLE_REASON='whole package; 60 KB of tests' script/run.sh go test ./a": `["HEAVY_WHOLE_REASON=whole package; 60 KB of tests","script/run.sh","go","test","./a"]`,
-		`A="two words" GOTOOLCHAIN=local B='' go test ./a`:                               `["A=two words","GOTOOLCHAIN=local","B=","go","test","./a"]`,
+		`A="two words" GOTOOLCHAIN=local B='' go test ./a`:                             `["A=two words","GOTOOLCHAIN=local","B=","go","test","./a"]`,
 		"HEAVY_WHOLE_REASON='r' script/run.sh go test -run 'TestA|TestB' ./a":          `["HEAVY_WHOLE_REASON=r","script/run.sh","go","test","-run","TestA|TestB","./a"]`,
 	} {
 		got := verifyArguments([]byte(line + "\n"))
