@@ -1237,6 +1237,14 @@ measured on a 4 vCPU Linux VM with an allowance of 130,016, one guard still held
   is reported under the lock. The guard MUST NOT add an inotify watch for any of this, so its
   watch count stays the PSR-V0-222 bound, and the work under the writer lock grows only with the
   uncovered files, none of which a Tasks writer makes (CAL-V0-026).
+- `PSR-V0-890`: (experimental under the standing lane auto-accept (2026-10-11), V1-2530) On Linux
+  `Check` and `Sweep` SHOULD re-read the PSR-V0-223 identities with `fstatat(AT_SYMLINK_NOFOLLOW)`
+  relative to one descriptor of each file's directory, opened by its path for that sweep and
+  closed before the next directory, instead of resolving every full path. The identity fields,
+  the symlink handling and every reported change MUST be exactly PSR-V0-223's; a directory that
+  cannot be opened MUST be swept by full path. The guard MUST NOT hold a directory descriptor
+  between sweeps, and the raw call MUST need no new module dependency (linux/amd64 and
+  linux/arm64 use the raw syscall; other Linux architectures read through `/proc/self/fd`).
 - `PSR-V0-274`: (experimental under the standing lane auto-accept (2026-10-11), V1-2689) On Linux
   the change guard watches every ancestor of an observed root, and the kernel reports `IN_ATTRIB`
   for every entry of a watched directory, not only for the directory itself. An ancestor watch
@@ -1321,6 +1329,13 @@ on the PSR-V0-222-only code and pass with it (WSL2, Linux 6.18). Opt-in
 Linux 6.18, 32 vCPU, load below 2.1) measured the median `Check` and `Sweep` at 47 ms over 20,057
 files (10,000 receipts) and 250 ms over 90,057 (45,000), against 42 ms and 256 ms for
 PSR-V0-221 on origin/main; `CheckEvents` stayed under 1 µs median, 15 µs maximum.
+For PSR-V0-890, `TestPSRV0223_SweepReadsByDirectoryDescriptor` checks that every tracked file is
+read by `fstatat` and none by full path, that each read equals `lstat`, and that a later link, a
+mode change, a file renamed over and a directory that cannot be opened are still reported. The
+same opt-in `TestPSRV0223_ChangeGuardSweepCost` on linux/amd64 (native, btrfs, 12 CPUs, load
+below 7) measured the median `Check` at 28 ms over 20,057 files and 121 ms over 90,057, against
+37 ms and 172 ms for the full-path sweep on the same host (25% and 30% less); not measured on
+WSL2.
 For PSR-V0-274, `TestPSRV0274_ChangeGuardIgnoresUnrelatedEntriesOfAnAncestor` fails on the
 PSR-V0-223 code in its four admitted cases (a mode change on a sibling file and on a sibling
 directory of the repository, a mode change and a time change on a direct entry of the system
