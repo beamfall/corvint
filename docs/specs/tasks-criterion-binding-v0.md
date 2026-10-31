@@ -562,3 +562,54 @@ contract, policy entry or gate digest changes.
 | TCB-V0-044 | `release-gates.yml` dispatches 38650914390 (cause, commit 22fca01e6) and 38654510601 (fix, commit 52ad86a36) | Run 1 macos-15 full-gate `failure` with the cause retained (Apple Git 2.39.5 rejects `--attr-source`; portable `repository` / `git-diff-failed`); run 2 macos-15 full-gate `success` (cmd/corvint and internal/taskman `ok`), see the lane build log |
 | TCB-V0-045 | `internal/taskman/cem_verdict_gate.go` `crossCheck`, `verifierBuilds`, `verifierBuildsDiffer`; `TestTCBV0045DisagreementNamesAVerifierBuildMismatch`, `TestTCBV0045RecordedBuildReadsVCSSettings`; `cmd/corvint/cem_gate_verdict.go` `cemGateVerdictHelp`, `TestTCBV0045GateVerdictHelpNamesBuildMismatchRecovery` (V1-2324: the help names the refusal and the rebuild command; fails without the help text) | Over a real fixture with a disagreeing consumer, differing revisions and a modified tree on either side refuse `verifier-build-mismatch`, while equal or unrecorded builds keep `verifier-disagreement`; agreeing legs grant without reading builds; the test binary and `/bin/sh` read as unrecorded. The test fails with the build check disabled. The installed-binary rehearsal of V1-1761 (a stale `~/.local/bin/cem01-go`) is NOT_RUN. |
 | TCB-V0-046 | `script/install-cem-verifiers.sh`; the TCB-V0-046 group of `script/lane-scripts_test.sh` (`make lane-scripts-test`, stub `GO`) | Install from a clean fixture HEAD prints `MATCH`, builds from the repository root and `interop/cem01-go`, and keeps one backup per tool; `--check` reports a stale, modified or unrecorded consumer as `MISMATCH`/`UNRECORDED` (exit 1) and a missing tool exit 2; a `GOOS`/`GOARCH` environment still builds for the host; a dirty checkout, an unstamped, modified or foreign-target build and bad arguments are refused with the bin dir unchanged. The real-build rehearsal is in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-v1-2107-result-schema-opaque-widen.md`. |
+
+## Cited-only closeout route (V1-1840, 2026-10-31)
+
+Closing V1-1694, V1-1695, V1-1665 and V1-1697 after merge found no supported route. The sealed map
+of each delivery recomputes its code hunks as `cited`, so `cem-verdict` over the code touchPaths
+refuses `tier-below-anchored`. The workaround, an anchored addendum under `docs/build-log/`, refuses
+`no-governed-hunk` because no touchPath governs it. Each refusal charged a Tasks attempt, and all
+four tickets ended `RETRY_EXHAUSTED`. This section names the route and the preflight. It changes no
+gate rule: the route is the runner-bound anchor of `CEM-V1-606` to `CEM-V1-608`.
+
+- `TCB-V0-870`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1840) The closeout
+  route for a merged delivery whose sealed map is cited-only MUST gate the delivered code paths,
+  not a closeout note. The closeout lane does four things:
+  - It rebinds the delivery range: the delivery's base, and as the candidate a new seal commit on
+    top of the merged delivery.
+  - It commits a passed runner plan and receipt whose plan pins the delivered code files.
+  - It links those hunks to that receipt in a runner-bound map. The map is assembled with the plain
+    producer's runner pairs (`CEM-V1-280..287`).
+  - It seals the map.
+
+  Over the unchanged code touchPaths, that map GRANTs `touched-anchored` with each delivered hunk
+  still `cited` and satisfied on `runner-input`, while the cited-only map refuses
+  `tier-below-anchored`. An addendum whose diff no touchPath governs is not a route. It refuses
+  `no-governed-hunk`, as `TCB-V0-011` already pins.
+- `TCB-V0-871`: (accepted under the owner's standing auto-accept (2026-10-11); V1-1840)
+  `corvint cem gate-verdict` with the gate's own base, candidate, predicate and touchPaths is the
+  read-only preflight. It MUST be run before `gate run cem-verdict`. It MUST report
+  `no-governed-hunk` or `tier-below-anchored` by name, and it MUST leave the repository unchanged
+  (`TCB-V0-014`). It never opens or charges a Tasks attempt. `docs/DOGFOOD.md` names both the
+  route and the preflight.
+
+Non-goals: no tier is raised and no path is exempted. The touched-anchored predicate is unchanged,
+and so is `verdictPaths`. Tasks gets no preflight verb, and no store write refunds a spent attempt.
+
+Failure modes:
+- A closeout map whose link omits a delivered hunk refuses that hunk `tier-below-anchored`.
+- A failed or stale runner receipt refuses with the `CEM-V1-608` reason.
+- A preflight on other inputs than the gate's proves nothing about the gate run.
+
+Acceptance evidence: the tests below. A recorded live run on one of V1-1694, V1-1695, V1-1665 or
+V1-1697 is NOT_RUN. That run needs a runner plan over the delivered code and a closeout seal on
+`main`, which only the orchestrator can land.
+
+Rollback: revert the test and this section. Gate behavior does not change.
+
+### Cited-only closeout route traceability
+
+| ID | Evidence | Observed |
+|---|---|---|
+| TCB-V0-870 | `internal/taskman/cem_verdict_closeout_unix_test.go` `TestTCBV0870_CitedOnlyDeliveryClosesThroughARunnerBoundMap` | The cited-only map over `lib/util.txt` and `lib/fresh.txt` refuses `tier-below-anchored`, with both hunks `cited` and unsatisfied. A `docs/build-log/` touch over the same range refuses `no-governed-hunk`. The runner-bound closeout map over the same range and touchPaths GRANTs, with both hunks `cited` on `runner-input`. |
+| TCB-V0-871 | the same test; `TestTCBV0014GateIsReadOnly` | Each of the three preflights leaves the status, refs, HEAD and object count unchanged. No Tasks store exists in the fixture. |
