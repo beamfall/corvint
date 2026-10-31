@@ -357,6 +357,7 @@
       "cmd/corvint-test-validity-mcp/",
       "go.mod",
       "go.sum",
+      "integrations/claude-code/plugins/corvint/.mcp.json",
       "internal/"
     ],
     "internal/mcp/corpusbridge": [],
