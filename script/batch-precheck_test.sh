@@ -339,6 +339,16 @@ grep -qx 'steps 16' "$receipt" && grep -qx 'passed 16' "$receipt" || fail "recei
 [[ $(head -n 1 "$receipt") == corvint-batch-precheck-receipt/0 ]] || fail "receipt profile: $(cat "$receipt")"
 (cd "$repo" && "$pre" --verify-receipt) > "$tmp/out" 2>&1 || fail "guard refused HEAD: $(cat "$tmp/out")"
 (cd "$repo" && "$pre" --verify-receipt "$head") > /dev/null 2>&1 || fail "guard refused an explicit REV"
+# ASD-V0-837 (V1-3550): the pre-bind run of dogfood-closeout leaves out the batch-drift go test and
+# writes no receipt, so the receipt and each drift step come from the one run on the sealed head.
+/bin/rm -f "$receipt"
+: > "$tmp/calls"
+BATCH_PRECHECK_SKIP_DRIFT=1 run || fail "skip-drift run failed: $(cat "$tmp/out")"
+grep -q '^go test' "$tmp/calls" && fail "skip-drift ran the drift go test: $(cat "$tmp/calls")"
+grep -q '^batch-precheck: | PASS | *[0-9]*s | batch-drift (skipped before the bind)$' "$tmp/out" || fail "skip-drift row: $(cat "$tmp/out")"
+grep -q '^batch-precheck: no receipt: BATCH_PRECHECK_SKIP_DRIFT=1' "$tmp/out" || fail "skip-drift receipt line: $(cat "$tmp/out")"
+[[ -f $receipt ]] && fail "a skip-drift run wrote a receipt"
+run || fail "passing run after skip-drift failed: $(cat "$tmp/out")"
 # BATCH_PRECHECK_HEAVY is one quoted path: a space does not split it and $(...) never runs.
 hv="$tmp/h d/heavy\$(touch pwned)"
 mkdir -p "$tmp/h d"

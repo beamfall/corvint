@@ -759,10 +759,11 @@ doc-gates:
 # batch-precheck, which derives the shared doc-gates target from ci.yml, so drift stops the closeout
 # before any bind or seal; dogfood-finish with the same variables; and batch-precheck again for the
 # receipt of the sealed head. batch-precheck-test checks the ci.yml connection; it stops at the first
-# failing step.
+# failing step. The first precheck leaves out the batch-drift go tests, which read the CEM the seal
+# adds, so each runs once, on the sealed head (ASD-V0-837, V1-3550).
 dogfood-closeout:
 	@$(MAKE) --no-print-directory dogfood-inputs-check
-	@$(MAKE) --no-print-directory batch-precheck
+	@BATCH_PRECHECK_SKIP_DRIFT=1 $(MAKE) --no-print-directory batch-precheck
 	@$(MAKE) --no-print-directory dogfood-finish
 	@$(MAKE) --no-print-directory batch-precheck
 

@@ -87,6 +87,12 @@
 # not judged, and with no resolvable base the check is skipped with the reason printed. It runs
 # outside the ledger, whose key is the tree, not the history.
 #
+# Pre-bind run (ASD-V0-837, V1-3550): BATCH_PRECHECK_SKIP_DRIFT=1 leaves out every batch-drift
+# step and writes no receipt, since not every step ran. dogfood-closeout uses it for its precheck
+# before the bind: the seal then adds a `.corvint/changes/*.cem.json` that `corvint affected` names
+# as an input of the cmd/corvint and companion-release drift tests, so only the precheck of the
+# sealed head runs them, once per closeout.
+#
 # Not mirrored: the full go-product shards (-race, the whole suite), go vet and the Windows build
 # and vet (`make windows-vet`), the protected .github helper self-tests, interop tests, and the
 # docs-plan/artifact-integrity/cce-live/release jobs. They are not drift checks.
@@ -491,9 +497,15 @@ steps() {
     contains "$pkg" "${pkgs[@]+"${pkgs[@]}"}" || pkgs+=("$pkg")
     re+="${re:+|}$prefix"
   done
+  if [[ ${BATCH_PRECHECK_SKIP_DRIFT:-} == 1 ]]; then
+    k=0 pkgs=() own=()
+    printf 'batch-drift (skipped before the bind)\tprintf "%%s\\n" %q\n' "batch-drift: BATCH_PRECHECK_SKIP_DRIFT=1; the precheck of the sealed head runs it (ASD-V0-837)"
+  fi
   local label="${#pkgs[@]} packages"
   ((k == n)) || label+=", $k of $n tests"
-  if ((k == 0)); then
+  if [[ ${BATCH_PRECHECK_SKIP_DRIFT:-} == 1 ]]; then
+    :
+  elif ((k == 0)); then
     # Every entry was skipped under the selection (ASD-V0-050); no go test runs.
     printf 'batch-drift (0 of %d tests)\tprintf "%%s\\n" %q\n' "$n" "batch-drift: no drift test is reachable from the batch diff; every one is skipped"
   elif ((${#pkgs[@]})); then
@@ -1009,6 +1021,8 @@ if ((fail)); then
 fi
 if ((warn)); then
   printf 'batch-precheck: no receipt: %d step(s) failed, though only base-present\n' "$warn"
+elif [[ ${BATCH_PRECHECK_SKIP_DRIFT:-} == 1 ]]; then
+  printf 'batch-precheck: no receipt: BATCH_PRECHECK_SKIP_DRIFT=1 left out the batch-drift steps\n'
 elif ((pristine_before)) && tree_clean && [[ $(git rev-parse HEAD) == "$head_before" ]]; then
   # Written beside the receipt and renamed over it, so a failed write leaves no receipt.
   if printf 'corvint-batch-precheck-receipt/0\nhead %s\nsteps %s\npassed %s\nfinished %s\n' \
