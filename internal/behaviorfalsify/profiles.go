@@ -469,6 +469,11 @@ func runProvider(ctx context.Context, plan Plan, perturbation map[string]string,
 	if err := validateCommand(provider.Toolchain); err != nil {
 		return nil, ProcessEvidence{Error: err.Error()}
 	}
+	// Staging spends the same command budget the run gets, and the run gets only what is left
+	// (BBF-V0-820).
+	deadline := time.Now().Add(timeout)
+	staging, cancelStaging := context.WithDeadline(ctx, deadline)
+	defer cancelStaging()
 	// The GOROOT members a go test run reads are digested at the driver's check, so the private
 	// copy staged below runs only those bytes (BBF-V0-820).
 	goroot, gorootWant := filepath.Dir(filepath.Dir(provider.Toolchain.Path)), ""
@@ -477,7 +482,7 @@ func runProvider(ctx context.Context, plan Plan, perturbation map[string]string,
 			return nil, ProcessEvidence{Error: "provider toolchain GOROOT unavailable"}
 		}
 		var err error
-		if gorootWant, err = gorootDigest(goroot, ""); errors.Is(err, errGOROOTUnsupported) {
+		if gorootWant, err = gorootDigest(staging, goroot, ""); errors.Is(err, errGOROOTUnsupported) || errors.Is(err, errBudgetExhausted) {
 			return nil, ProcessEvidence{Error: err.Error()}
 		} else if err != nil {
 			return nil, ProcessEvidence{Error: "provider toolchain GOROOT unavailable"}
@@ -485,7 +490,7 @@ func runProvider(ctx context.Context, plan Plan, perturbation map[string]string,
 	}
 	afterToolchainChecked(provider.Toolchain)
 	if provider.Name == ProviderRSpec {
-		return runRSpecProvider(ctx, plan, perturbation, scratch, filepath.Join(checkout, filepath.FromSlash(provider.Package)), timeout)
+		return runRSpecProvider(ctx, plan, perturbation, scratch, filepath.Join(checkout, filepath.FromSlash(provider.Package)), time.Until(deadline))
 	}
 	pattern := "."
 	if provider.Package != "." {
@@ -514,7 +519,7 @@ func runProvider(ctx context.Context, plan Plan, perturbation map[string]string,
 	defer cleanup()
 	private := filepath.Join(scratch, "goroot")
 	defer os.RemoveAll(private)
-	if err := stageGOROOT(goroot, gorootWant, private); err != nil {
+	if err := stageGOROOT(staging, goroot, gorootWant, private); err != nil {
 		return nil, ProcessEvidence{Error: err.Error()}
 	}
 	driver, err := placeVerifiedDriver(staged, private, goroot, provider.Toolchain.Path)
@@ -524,7 +529,11 @@ func runProvider(ctx context.Context, plan Plan, perturbation map[string]string,
 	afterToolchainStaged(provider.Toolchain)
 	values["GOROOT"] = private
 	argv := []string{driver, "test", "-json", "-count=1", "-run", "^(" + strings.Join(provider.Examples, "|") + ")$", pattern}
-	return observeProcess(ctx, argv, checkout, environmentList(values), nil, timeout, providerOutputLimit)
+	remaining := time.Until(deadline)
+	if remaining <= 0 || ctx.Err() != nil {
+		return nil, ProcessEvidence{Error: errBudgetExhausted.Error()}
+	}
+	return observeProcess(ctx, argv, checkout, environmentList(values), nil, remaining, providerOutputLimit)
 }
 
 // afterToolchainStaged is a test seam between staging and execution (BBF-V0-214).

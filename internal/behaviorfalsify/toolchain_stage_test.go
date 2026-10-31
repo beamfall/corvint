@@ -150,3 +150,47 @@ func TestBBFV0820ToolsRunFromVerifiedCopies(t *testing.T) {
 		}
 	})
 }
+
+// TestBBFV0820StagingHonorsTheCommandBudget: the GOROOT digest and copy run inside the control's
+// command budget. A run cancelled during staging refuses before anything starts, and the driver
+// gets only what staging left of the budget, not the whole budget again (Codex review of
+// linux-w2).
+func TestBBFV0820StagingHonorsTheCommandBudget(t *testing.T) {
+	t.Cleanup(func() { afterToolchainChecked = func(Command) {} })
+	fixture := func(t *testing.T, driverScript string) Plan {
+		goroot := t.TempDir()
+		for _, dir := range []string{"bin", filepath.Join("pkg", "tool")} {
+			if err := os.MkdirAll(filepath.Join(goroot, dir), 0o700); err != nil {
+				t.Fatal(err)
+			}
+		}
+		driver := filepath.Join(goroot, "bin", "go")
+		if err := os.WriteFile(driver, []byte(driverScript), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		return Plan{Request: Request{Provider: &ProviderSpec{Name: ProviderGoTest, Toolchain: Command{Path: driver, ExecutableSHA256: mustFileDigest(t, driver)}, Package: ".", Examples: []string{"TestX"}}}}
+	}
+
+	t.Run("cancelled during staging", func(t *testing.T) {
+		plan := fixture(t, "#!/bin/sh\necho ran\n")
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		afterToolchainChecked = func(Command) { cancel() }
+		out, evidence := runProvider(ctx, plan, nil, t.TempDir(), t.TempDir(), 30*time.Second)
+		if evidence.Error != errBudgetExhausted.Error() || evidence.Started || len(out) != 0 {
+			t.Fatalf("ran %q (%+v), want %q before anything starts", out, evidence, errBudgetExhausted)
+		}
+	})
+
+	t.Run("the driver gets only the remaining budget", func(t *testing.T) {
+		// Staging spends 1.5 s of a 3 s budget; the 2 s driver fits the whole budget but not
+		// what remains, so it must time out.
+		plan := fixture(t, "#!/bin/sh\nexec /bin/sleep 2\n")
+		afterToolchainChecked = func(Command) { time.Sleep(1500 * time.Millisecond) }
+		start := time.Now()
+		_, evidence := runProvider(context.Background(), plan, nil, t.TempDir(), t.TempDir(), 3*time.Second)
+		if !evidence.TimedOut {
+			t.Fatalf("driver given the whole budget after staging (%+v, %v elapsed), want a timeout inside the budget", evidence, time.Since(start))
+		}
+	})
+}

@@ -1,6 +1,7 @@
 package behaviorfalsify
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -19,12 +20,15 @@ var gorootMembers = []string{"VERSION", "go.env", "bin", "lib", filepath.Join("p
 var (
 	errGOROOTChanged     = errors.New("provider toolchain GOROOT changed before staging")
 	errGOROOTUnsupported = errors.New("provider toolchain GOROOT holds an unsupported entry")
+	// errBudgetExhausted is the refusal when the run is cancelled or its command budget is spent
+	// while the GOROOT is digested or copied (BBF-V0-820).
+	errBudgetExhausted = errors.New("command budget exhausted")
 )
 
 // gorootDigest digests every regular file under the GOROOT members, in lexical walk order, as
 // its relative path, executable bit, size and content digest. When into is not empty each file is
 // also written there from the same bytes it digests, so the copy holds exactly what was digested.
-func gorootDigest(goroot, into string) (string, error) {
+func gorootDigest(ctx context.Context, goroot, into string) (string, error) {
 	tree := sha256.New()
 	for _, member := range gorootMembers {
 		start := filepath.Join(goroot, member)
@@ -34,6 +38,9 @@ func gorootDigest(goroot, into string) (string, error) {
 		err := filepath.WalkDir(start, func(path string, entry fs.DirEntry, err error) error {
 			if err != nil {
 				return err
+			}
+			if ctx.Err() != nil {
+				return errBudgetExhausted
 			}
 			relative, err := filepath.Rel(goroot, path)
 			if err != nil {
@@ -54,7 +61,7 @@ func gorootDigest(goroot, into string) (string, error) {
 			if err != nil {
 				return err
 			}
-			sum, err := digestCopy(path, into, relative, info.Mode().Perm()&0o111 != 0)
+			sum, err := digestCopy(ctx, path, into, relative, info.Mode().Perm()&0o111 != 0)
 			if err != nil {
 				return err
 			}
@@ -70,7 +77,7 @@ func gorootDigest(goroot, into string) (string, error) {
 
 // digestCopy reads path once, returning its content digest and, when into is set, writing the
 // same bytes to into/relative.
-func digestCopy(path, into, relative string, executable bool) (string, error) {
+func digestCopy(ctx context.Context, path, into, relative string, executable bool) (string, error) {
 	source, err := os.Open(path)
 	if err != nil {
 		return "", err
@@ -89,7 +96,7 @@ func digestCopy(path, into, relative string, executable bool) (string, error) {
 		}
 		writer = io.MultiWriter(hash, target)
 	}
-	_, err = io.Copy(writer, source)
+	_, err = io.Copy(writer, contextReader{ctx: ctx, r: source})
 	if target != nil {
 		if closeErr := target.Close(); err == nil {
 			err = closeErr
@@ -101,15 +108,28 @@ func digestCopy(path, into, relative string, executable bool) (string, error) {
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
+// contextReader stops a copy at the next read once ctx is done.
+type contextReader struct {
+	ctx context.Context
+	r   io.Reader
+}
+
+func (c contextReader) Read(p []byte) (int, error) {
+	if c.ctx.Err() != nil {
+		return 0, errBudgetExhausted
+	}
+	return c.r.Read(p)
+}
+
 // stageGOROOT copies the GOROOT members into private, refusing when the bytes it copies do not
 // digest to want, the digest taken at the driver's check (BBF-V0-820).
-func stageGOROOT(goroot, want, private string) error {
+func stageGOROOT(ctx context.Context, goroot, want, private string) error {
 	if err := os.MkdirAll(private, 0o700); err != nil {
 		return errors.New("provider toolchain GOROOT staging failed")
 	}
-	got, err := gorootDigest(goroot, private)
+	got, err := gorootDigest(ctx, goroot, private)
 	switch {
-	case errors.Is(err, errGOROOTUnsupported):
+	case errors.Is(err, errGOROOTUnsupported), errors.Is(err, errBudgetExhausted):
 		return err
 	case err != nil:
 		return errors.New("provider toolchain GOROOT staging failed")
