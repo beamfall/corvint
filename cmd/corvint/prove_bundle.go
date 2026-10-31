@@ -303,7 +303,7 @@ func bundleErrorCode(err error) string {
 func bundleCleanWorktree(ctx context.Context, gitExecutable, root string) error {
 	dirty, err := affected.DirtyPaths(ctx, gitExecutable, root)
 	if err != nil {
-		return &gokernel.Error{Code: "unsupported-prove-history", Message: "cannot read the worktree status"}
+		return proveStatusRefusal(ctx, err)
 	}
 	if len(dirty) > 0 {
 		return &gokernel.Error{Code: "mixed-worktree", Message: "failure bundles need a clean worktree: tracked or untracked changes are present"}

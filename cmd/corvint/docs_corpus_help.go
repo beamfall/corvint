@@ -173,9 +173,10 @@ var corpusFlagHelp = map[string][2]string{
 // corpusOperationFlagHelp overrides a shared option's help for one operation: eval's --format
 // selects the report view, not a test-management export format.
 var corpusOperationFlagHelp = map[string]map[string][2]string{
-	"eval":         {"--format": {"json|table", "report view (default json)"}},
-	"audit-sample": {"--scope": {"PATH", "sample only claims citing this path or directory"}},
-	"audit-report": {"--format": {"json|table", "report view (default json)"}},
+	"eval":           {"--format": {"json|table", "report view (default json)"}},
+	"discover-tests": {"--runner": {"playwright|rspec", "test runner whose committed examples are read"}},
+	"audit-sample":   {"--scope": {"PATH", "sample only claims citing this path or directory"}},
+	"audit-report":   {"--format": {"json|table", "report view (default json)"}},
 	"delta": {"--previous": {"CORPUS.json", "previous corpus artifact the worklist compares from"},
 		"--artifact":   {"CORPUS.json", "current corpus artifact (or --manifest; exactly one)"},
 		"--manifest":   {"INPUT.json", "current manifest, built in memory (or --artifact; exactly one)"},

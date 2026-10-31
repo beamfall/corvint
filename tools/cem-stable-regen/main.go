@@ -1,6 +1,7 @@
 // Command cem-stable-regen adds one additive member to the sealed cem/1.0 stable
-// result, re-emits recorded values of existing members, or widens one recorded
-// string const or enum of its schema, and re-binds every
+// result, re-emits recorded values of existing members, widens one recorded
+// string const or enum of its schema, or adds one recorded anyOf alternative to
+// one of its object-schema nodes, and re-binds every
 // digest that seals it (docs/specs/cem-stable-v1.md, CEM-V1-091). It edits only
 // by splicing new bytes into the existing text, so every untouched byte of every
 // file stays identical, and it refuses verdict drift, a missing value, an
@@ -16,6 +17,7 @@
 //	                 --capture CAPTURE.jsonl [--values OVERRIDES.json]
 //	                 [--cell-values CELLS.json] [--root DIR]
 //	cem-stable-regen --widen --record RECORD.json [--root DIR]
+//	cem-stable-regen --any-of --record RECORD.json [--root DIR]
 //	cem-stable-regen --check [--root DIR]
 //
 // --replace re-emits the values of existing members in place (CEM-V1-091 as
@@ -31,6 +33,13 @@
 // object member whose value is exactly {"const": STRING} or {"enum": [STRING...]},
 // the digest is the sha256 of that value's compact JSON, and every added value
 // must be new. No case, cell or other schema byte changes.
+//
+// --any-of adds one alternative to one object-schema node of both
+// RESULT.schema.json copies (CEM-V1-880). RECORD.json is {"reason": TEXT,
+// "pointer": POINTER, "predecessorSha256": SHA256, "branch": SCHEMA}: a node
+// that is not yet exactly {"anyOf": [...]} becomes {"anyOf": [OLD, SCHEMA]},
+// and an existing anyOf gains SCHEMA as its last alternative. No case, cell or
+// other schema byte changes.
 //
 // CAPTURE.jsonl is written by the native S0E harness with
 // CEM_STABLE_REGEN_CAPTURE set (internal/cem/verify requireS0EResult).
@@ -76,7 +85,7 @@ func main() {
 
 type options struct {
 	root, member, schema, after, capture, values, cellValues, note, date, record string
-	check, replace, widen                                                        bool
+	check, replace, widen, anyOf                                                 bool
 }
 
 func run(args []string, stdout, stderr io.Writer) int {
@@ -95,7 +104,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 	flags.BoolVar(&o.check, "check", false, "verify the sealed chain and write nothing")
 	flags.BoolVar(&o.replace, "replace", false, "re-emit the values of existing members (comma-separated --member) under --record")
 	flags.BoolVar(&o.widen, "widen", false, "add recorded values to one string const or enum of RESULT.schema.json under --record")
-	flags.StringVar(&o.record, "record", "", "with --replace: JSON record of the reason and each replaced value's predecessor digest; with --widen: the widening record")
+	flags.BoolVar(&o.anyOf, "any-of", false, "add one recorded anyOf alternative to one object-schema node of RESULT.schema.json under --record")
+	flags.StringVar(&o.record, "record", "", "with --replace: JSON record of the reason and each replaced value's predecessor digest; with --widen: the widening record; with --any-of: the branch record")
 	if err := flags.Parse(args); err != nil {
 		return 2
 	}
@@ -115,6 +125,12 @@ func run(args []string, stdout, stderr io.Writer) int {
 	var report string
 	var err error
 	switch {
+	case o.anyOf:
+		if o.widen || o.replace || o.record == "" || o.member != "" || o.schema != "" || o.capture != "" || o.values != "" || o.cellValues != "" || o.note != "" {
+			fmt.Fprintln(stderr, "cem-stable-regen: --any-of needs --record and takes no --widen, --replace, --member, --schema, --capture, --values, --cell-values or --note")
+			return 2
+		}
+		report, err = anyOf(t, o)
 	case o.widen:
 		if o.replace || o.record == "" || o.member != "" || o.schema != "" || o.capture != "" || o.values != "" || o.cellValues != "" || o.note != "" {
 			fmt.Fprintln(stderr, "cem-stable-regen: --widen needs --record and takes no --replace, --member, --schema, --capture, --values, --cell-values or --note")

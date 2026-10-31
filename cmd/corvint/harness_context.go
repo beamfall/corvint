@@ -320,7 +320,8 @@ func harnessPaths(value any) ([]string, error) {
 }
 
 // sanitizeHarnessQueryContext drops the echoed prompt text and replaces it with
-// its digest, so a receipt never carries the raw task.
+// its digest, so a receipt never carries the raw task. coverage.packet_bytes
+// keeps counting the receipt as compiled, before this swap (AHI-921).
 func sanitizeHarnessQueryContext(value map[string]any, task string) (map[string]any, error) {
 	encoded, err := gokernel.CanonicalJSON(value)
 	if err != nil {

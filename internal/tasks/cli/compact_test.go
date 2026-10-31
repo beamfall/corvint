@@ -259,8 +259,9 @@ func TestCALV0171_CompactOutputBytesOnLargeQueue(t *testing.T) {
 		t.Logf("358 tickets: queue status --retries=%d default=%d --summary=%d; plan preview default=%d --summary=%d; ticket show default=%d --summary=%d; attempt show default=%d --summary=%d; release --help --verbose=%d --help=%d",
 			qRetries, qDefault, qSummary, pDefault, pSummary, tDefault, tSummary, aDefault, aSummary, hVerbose, hTerse)
 		// Each compact form is at most a quarter of its full form (the
-		// ticket show item is already small, so at most half).
-		if qDefault*4 > qRetries || qSummary*4 > qRetries || pSummary*4 > pDefault || tSummary*2 > tDefault || aSummary*2 > aDefault || hTerse*4 > hVerbose {
+		// ticket show item is already small, so at most half; terse release
+		// help keeps the closed reasonCodes, TCD-V0-178, so at most half).
+		if qDefault*4 > qRetries || qSummary*4 > qRetries || pSummary*4 > pDefault || tSummary*2 > tDefault || aSummary*2 > aDefault || hTerse*2 > hVerbose {
 			t.Fatal("compact output did not shrink as required")
 		}
 	})

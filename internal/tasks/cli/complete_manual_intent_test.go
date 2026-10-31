@@ -157,3 +157,27 @@ func TestTCDV0178_ReleaseReasonRefusalsNameTheAdmittedCodes(t *testing.T) {
 		t.Fatalf("a non-handoff code should release: %s", x.stdout)
 	}
 }
+
+// TestTCDV0178_TerseReleaseHelpListsReasonCodes (V1-3200): terse release
+// help carries the closed reasonCodes the refusal names, keeps reasonRule
+// verbose-only, and an unknown code-shaped reason refusal names --reason.
+func TestTCDV0178_TerseReleaseHelpListsReasonCodes(t *testing.T) {
+	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	root, claimed := leaseCLIStore(t, 1, time.Now().UTC().Add(-12*time.Minute))
+	for _, flag := range []string{"--help", "-h"} {
+		h := atm(t, root, nil, "release", flag)
+		item := h.res.Items[0]
+		var got []string
+		for _, v := range field(item, "reasonCodes").Arr {
+			got = append(got, v.Str)
+		}
+		if strings.Join(got, ",") != strings.Join(wire.Codes, ",") || field(item, "reasonRule").Str != "" {
+			t.Fatalf("terse release %s: %s", flag, h.stdout)
+		}
+	}
+	a := claimed[0]
+	x := atm(t, root, nil, "release", "--attempt", a.AttemptID, "--generation", string(a.Generation), "--request-id", "unknown-code", "--reason", "NOT_A_REASON_CODE")
+	if !hasCode(x.res, wire.CodeMalformed) || !strings.Contains(string(x.stdout), "--reason takes exactly one of") || strings.Contains(string(x.stdout), "NOT_A_REASON_CODE") {
+		t.Fatalf("unknown code reason: %s", x.stdout)
+	}
+}

@@ -435,6 +435,15 @@ accepted by decision 0373 and the amendment it requires are stated.
   resolver's error without `errors.Is` still misattributes it; the three packages' tests force the
   refusal through their `runGit` seam. Rollback: revert the commit; the refusals return to their
   revision wording.
+- `PRS-V1-920`: Every receipt-read caller outside the docs corpus MUST report the
+  `testvaliditydoc.ErrPlatformUnsupported` refusal as code `test-validity-platform-unsupported` with
+  the message `receipt reads are unsupported on this platform`, never as its own invalid-receipt,
+  unreadable or source-unavailable code: `corvint test-plan` `--tests` provider reads, the MCP
+  test-validity bridge, `corvint flows docs-maintain` maintenance-file reads, `corvint test-validity
+  --receipt` and `corvint tests example-join --requirements`. Any other read failure keeps its
+  existing code, and darwin and linux are unchanged (V1-2683). Rollback: remove the
+  `errors.Is(err, testvaliditydoc.ErrPlatformUnsupported)` branches; each caller then reverts to
+  its earlier code.
 
 ## Decisions the owner must make
 
@@ -517,6 +526,7 @@ is `github.com/go-chi/chi` (decision 0422). The questions stay as asked.
 | `PRS-V1-021` | Decision 0559; `TestPlatformRefusalsMatchTheirSources`, `TestDocsCorpusAndReceiptRefusalsSkipOnlyOnWindows` (V1-2485) | Owner scope recorded; V1-2492 remains an open rule-2 defect (V1-2487 by `PRS-V1-840`) |
 | `PRS-V1-840` | `TestGitPlatformRefusalIsNotReportedAsARevisionDefect` in `internal/appmap`, `internal/appflows` and `internal/testsource`; `TestProcessErrorMatchesPlatformSentinelOnlyForPlatformRefusal`, `TestRunPlatformRefusalIsTheSentinel` (Windows) (V1-2487) | PASS (unit, linux/WSL2); native Windows execution `NOT_RUN` |
 | `PRS-V1-022` | `TestPRSV1022CorpusReadsRefuseAnUnsupportedPlatformWithATypedCode`, `TestPRSV1022ReceiptPlatformRefusalMatchesTheQualifiedPlatforms`, `TestPRSV1022UnqualifiedPlatformRefusesEveryReceiptOpen` (windows-tagged, type-checked by `make windows-vet`) (V1-2484) | PASS (unit, linux/WSL2); native Windows execution `NOT_RUN` |
+| `PRS-V1-920` | `TestPRSV1920ProviderReadReportsThePlatformRefusal`, `TestPRSV1920BridgeReportsThePlatformRefusal`, `TestPRSV1920MaintenanceReadReportsThePlatformRefusal`, `TestPRSV1920ReceiptAndRequirementReadsReportThePlatformRefusal` (V1-2683) | PASS (unit, darwin); native Windows execution `NOT_RUN` |
 | `PRS-V1-008` | V1-0019 run-001 on `1.0.0-rc.1` (`b967f6bb`), `benchmarks/untouched-repository-v1/runs/run-001.json` | FAIL: orientation on go-chi/chi (3 of 20) and beamfall/core (1 of 20); Corvint aborted; known issue of `1.0.0-rc.1` (decision 0425) |
 
 ## Sections not applicable to a scope spec
