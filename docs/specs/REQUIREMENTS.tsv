@@ -770,6 +770,9 @@ AMAP-V0-143	docs/specs/application-map-v0.md	Each cited request MUST read exactl
 AMAP-V0-144	docs/specs/application-map-v0.md	A `BLOCKER-404-NO-ROUTE` or `route-table-incomplete` request MUST name up to 3	unrecorded	-
 AMAP-V0-145	docs/specs/application-map-v0.md	The report head MUST carry the map identity, budget, rule	unrecorded	-
 AMAP-V0-146	docs/specs/application-map-v0.md	Router and handler reads MUST stay within the AMAP-V0-107 bounds, and the same	unrecorded	-
+AMAP-V0-780	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-31); V1-3526) `tests.p	standing	2026-10-31; V1-3526
+AMAP-V0-781	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-31); V1-3527) A dynami	standing	2026-10-31; V1-3527
+AMAP-V0-782	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-31); V1-3527) The opti	standing	2026-10-31; V1-3527
 ANL-V0-001	docs/specs/application-navigation-ledger-v0.md	Derive one edge per distinct (from screen ID, to screen ID, trigger, selector ID	unrecorded	-
 ANL-V0-002	docs/specs/application-navigation-ledger-v0.md	Reuse RVN verification for each common test key bound to both endpoint steps,	unrecorded	-
 ANL-V0-003	docs/specs/application-navigation-ledger-v0.md	Deduplicate crossings by test key; choose the proven test with fewest declared	unrecorded	-
