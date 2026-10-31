@@ -121,6 +121,18 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   portable op-timeout descendant test MUST retry with longer timeouts (500 ms, 2 s, 8 s, 30 s)
   while the timeout fires before the shim records its descendant, MUST still require
   `git-timeout` and no hold on every attempt, and MUST fail when no attempt records a descendant.
+- `CEM-V1-820`: (experimental under the standing lane auto-accept; V1-1470 criterion 2) The portable
+  consumer's direct Git backend (`git03` in `interop/cem01-go/cem.go`) MUST wait up to 5 s after its
+  Git child exits for the output copy to finish (`exec.Cmd.WaitDelay`), not 250 ms. On a host at
+  load about 60 on 12 CPUs, the copy goroutines did not finish inside 250 ms after a successful
+  `git cat-file`, so `cmd.Run` returned `exec: WaitDelay expired before I/O complete` and the
+  verifier answered `git-read-failed` (UNSUPPORTED) for a valid map; three citation tests failed
+  that way under load and passed alone. The Git child itself stays bounded by the 10 s operation
+  context and cancellation is unchanged; a descendant that keeps the output open longer than 5 s
+  still fails `git-read-failed`. Falsifier: a Git child whose own descendant holds its stdout for
+  1 s after a complete, successful output fails. Evidence: the `pipe-held-briefly` case of
+  `Test03GitDirectChildControls`, and the three citation tests passing under that load. Rollback:
+  restore 250 ms.
 - `CEM-V1-568`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2133) When Git
   exits unsuccessfully deriving the canonical patch, the native reader MUST walk the change set for
   a missing object, and answer `repository-object-unavailable`, only in a promisor (partial-clone)
