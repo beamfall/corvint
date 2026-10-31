@@ -66,6 +66,10 @@ else
 fi
 tasks=$out/bin/corvint-tasks
 "$tasks" version >"$out/version.json"
+# The identity records items[0]; an empty or non-object first item fails here, never as version:null.
+jq -e '(.items | type) == "array" and (.items[0] | type) == "object"' "$out/version.json" >/dev/null 2>&1 ||
+  { echo "FAIL case=version: corvint-tasks version printed no items[0] object in $out/version.json" >&2
+    echo "FAILED cases=0 failed=1"; exit 1; }
 
 # The CAL-V0-019 suite.
 suite_source=RUN
@@ -136,7 +140,10 @@ check() {
   local verdict
   verdict=$(jq -cnS --rawfile raw "$last" --arg name "$name" --arg want_o "$want_outcome" --arg want_c "$want_codes" \
     --arg want_f "$want_field" --argjson status "$status" '
-($raw | try fromjson catch null | if type == "object" then . else null end) as $d
+# A non-object envelope, or a codes, items or warnings field that is not an array, is UNPARSED and
+# fails its case through the normal path rather than stopping jq.
+($raw | try fromjson catch null
+  | if type == "object" and all(.codes, .items, .warnings; . == null or type == "array") then . else null end) as $d
 | (if $d == null then "UNPARSED" else $d.outcome end) as $outcome
 | (($d.codes // []) | sort) as $codes
 | ((($d.items // [])[0]) // {}) as $item

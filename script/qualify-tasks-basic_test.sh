@@ -87,4 +87,23 @@ for wrap in exit0 profile1; do
   grep -q '^FAIL case=claim-before-cutover ' "$test_root/$wrap.out" || fail "$wrap run passed the cutover refusal"
 done
 
+# An empty version item list fails with a named reason before any case, never as version:null.
+printf '#!/bin/sh\nif [ "$1" = version ]; then echo %s; exit 0; fi\nexec "%s" "$@"\n' "'{\"items\":[]}'" "$real" >"$test_root/emptyver-tasks"
+# A non-array codes field is UNPARSED: the case is recorded and the run ends FAILED, not a jq abort.
+printf '#!/usr/bin/env bash\nset -o pipefail\nif [ "$1 $2" = "queue status" ]; then "%s" "$@" | jq -c ".codes = 7"; exit; fi\nexec "%s" "$@"\n' "$real" "$real" >"$test_root/badcodes-tasks"
+chmod +x "$test_root/emptyver-tasks" "$test_root/badcodes-tasks"
+status=0
+"$qualify" "$test_root/emptyver" --tasks-binary "$test_root/emptyver-tasks" --suite-run "$test_root/suite.jsonl" \
+  >"$test_root/emptyver.out" 2>&1 || status=$?
+[ "$status" -eq 1 ] || fail "empty version items exited $status, want 1"
+grep -q '^FAIL case=version: corvint-tasks version printed no items\[0\] object' "$test_root/emptyver.out" || fail "empty version items not named"
+[ ! -e "$test_root/emptyver/identity.json" ] || fail "identity written for empty version items"
+status=0
+"$qualify" "$test_root/badcodes" --tasks-binary "$test_root/badcodes-tasks" --suite-run "$test_root/suite.jsonl" \
+  >"$test_root/badcodes.out" 2>&1 || status=$?
+[ "$status" -eq 1 ] || fail "non-array codes exited $status, want 1"
+jq -e 'select(.case == "init-nonfixture" and .outcome == "UNPARSED" and .pass == false)' \
+  "$test_root/badcodes/results.jsonl" >/dev/null || fail "non-array codes case not recorded UNPARSED"
+tail -n 1 "$test_root/badcodes.out" | grep -q '^FAILED cases=[0-9]* failed=1$' || fail "non-array codes run summary not FAILED"
+
 echo "PASS: qualify-tasks-basic refusals, supplied-input labelling, exit and profile checks, tamper injection"
