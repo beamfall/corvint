@@ -97,6 +97,9 @@ func activeLedger(rec *ticket.Record) bool {
 func (f *mirrorFolds) findings(ids []string) []wire.Value {
 	var out []wire.Value
 	for _, id := range ids {
+		if closedTicket(f.inv, id) {
+			continue
+		}
 		rec, _ := f.inv.Get(id)
 		if !activeLedger(rec) {
 			continue
@@ -142,6 +145,9 @@ func observeLedgers(rc *readCtx, in *transaction.PlanInput, cache *ledgerFoldCac
 	}
 	f := newMirrorFolds(rc, in.Tickets, cache)
 	for _, id := range in.Tickets.IDs() {
+		if closedTicket(in.Tickets, id) {
+			continue
+		}
 		rec, _ := in.Tickets.Get(id)
 		if !activeLedger(rec) {
 			continue

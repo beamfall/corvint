@@ -2292,6 +2292,15 @@ TCL-V0-011	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standi
 TCL-V0-012	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3223) Under	standing	2026-10-11; V1-3223
 TCL-V0-013	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3237, V1-3223)	standing	2026-10-11; V1-3237; V1-3223
 TCL-V0-014	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3236) A new	standing	2026-10-11; V1-3236
+TCX-V0-980	docs/specs/corvint-tasks-closed-ticket-index-v0.md	An inventory may hold a COMPLETED or ARCHIVED ticket as a summary: ticket ID,	unrecorded	-
+TCX-V0-981	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The index file is `<state dir>.closed-index`, a sibling of the state directory.	unrecorded	-
+TCX-V0-982	docs/specs/corvint-tasks-closed-ticket-index-v0.md	Only `ticket search`, `roadmap`, `queue status`, `ticket show` and	unrecorded	-
+TCX-V0-983	docs/specs/corvint-tasks-closed-ticket-index-v0.md	An index whose queue ID or policy digest differs from the snapshot's is not	unrecorded	-
+TCX-V0-984	docs/specs/corvint-tasks-closed-ticket-index-v0.md	A rewrite reuses the entries whose stat keys still match and reads every other	unrecorded	-
+TCX-V0-985	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The journal audit of a reader accepts a probed tree file taken from the index as	unrecorded	-
+TCX-V0-986	docs/specs/corvint-tasks-closed-ticket-index-v0.md	`roadmap` renders a COMPLETED or ARCHIVED ticket's row from its summary, without	unrecorded	-
+TCX-V0-987	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The test fixture's journaled store `fixture.WriteWritableState` also creates the	unrecorded	-
+TCX-V0-988	docs/specs/corvint-tasks-closed-ticket-index-v0.md	The development tool `go run ./internal/tasks/cmd/closed-index DIR` writes the i	unrecorded	-
 TCD-V0-001	docs/specs/corvint-tasks-closeout-debt-v0.md	`corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N]` is a	unrecorded	-
 TCD-V0-002	docs/specs/corvint-tasks-closeout-debt-v0.md	The verb reads Git only through `git rev-parse --verify`, `git config --get	unrecorded	-
 TCD-V0-003	docs/specs/corvint-tasks-closeout-debt-v0.md	The scan covers every commit reachable from the ref and not from `--since`, newe	unrecorded	-
