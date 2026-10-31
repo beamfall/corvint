@@ -566,16 +566,15 @@
     ],
     "tools/gate-affected-select": [],
     "tools/gate-ledger": [
-      "internal/gateselect/gatedlocators.go",
-      "internal/gateselect/readers.go",
-      "internal/gateselect/readscopes.go",
-      "internal/gateselect/select.go",
-      "internal/gateselect/workspace.go",
+      "internal/gateselect/",
       "internal/taskprojection/taskprojection.go",
       "tools/gate-affected-select/main.go"
     ],
     "tools/heading-nav-bench": [],
     "tools/retrieval-bench": [],
+    "tools/selection-baseline": [
+      "benchmarks/selection-baseline/changes.json"
+    ],
     "tools/str-parity": [],
     "tools/test-commands-check": [
       ".github/cishards/test-commands.json",

@@ -1627,6 +1627,8 @@ CIN-V0-005	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standin
 CIN-V0-006	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3227)	standing	2026-10-11; V1-3227
 CIN-V0-007	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-2902)	standing	2026-10-11; V1-2902
 CIN-V0-008	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3329)	standing	2026-10-11; V1-3329
+CIN-V0-860	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3354;	standing	2026-10-11; V1-3354
+CIN-V0-861	docs/specs/ci-narrowing-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3332;	standing	2026-10-11; V1-3332
 CVI-V0-001	docs/specs/closed-vocabulary-intake-v0.md	Publish a versioned schema whose data fields are enums, literal repository paths	unrecorded	-
 CVI-V0-002	docs/specs/closed-vocabulary-intake-v0.md	Validate exact field names and presence, types, enum vocabulary, bounded identif	unrecorded	-
 CVI-V0-003	docs/specs/closed-vocabulary-intake-v0.md	Bind validation to explicit full base/head commit identities. Every behaviour an	unrecorded	-
@@ -1802,6 +1804,7 @@ ASD-V0-033	docs/specs/corvint-self-development-v0.md	(accepted under the owner's
 ASD-V0-034	docs/specs/corvint-self-development-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2899) `make ba	standing	2026-10-11; V1-2899
 ASD-V0-035	docs/specs/corvint-self-development-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2899) A `make	standing	2026-10-11; V1-2899
 ASD-V0-036	docs/specs/corvint-self-development-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2900) The doc-	standing	2026-10-11; V1-2900
+ASD-V0-860	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; lane ci-select-w1	standing	2026-10-31
 ASD-V0-037	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-27; V1-2905; refines	standing	2026-10-27; V1-2905
 ASD-V0-038	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-27; V1-2904; amends `	standing	2026-10-27; V1-2904
 ASD-V0-039	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-27; V1-2888) `script/	standing	2026-10-27; V1-2888
@@ -6492,6 +6495,9 @@ TSP-V0-006	docs/specs/test-selection-precision-v0.md	(experimental, under the ow
 TSP-V0-007	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3050)	standing	2026-10-11; V1-3050
 TSP-V0-940	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-31; V1-3346;	standing	2026-10-31; V1-3346
 TSP-V0-960	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-005, under the owner's standing lane auto-accept,	standing	-
+TSP-V0-861	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-006, under the owner's standing lane auto-accept,	standing	-
+TSP-V0-864	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-006, under the owner's standing lane auto-accept,	standing	-
+TSP-V0-860	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2892)	standing	2026-10-11; V1-2892
 TSA-V0-010	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1589, V1-1592) Lint and duplicates MUST re	standing	2026-10-11; V1-1589; V1-1592
 TSA-V0-011	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587, V1-1589) Comments MUST be returned a	standing	2026-10-11; V1-1587; V1-1589
 TSA-V0-001	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) `corvint tests setup-select --specs	standing	2026-10-11; V1-1587

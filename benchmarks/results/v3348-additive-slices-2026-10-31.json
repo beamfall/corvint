@@ -1,0 +1,26 @@
+{
+  "profile": "corvint-tsp-v0-864-per-commit-replay/0",
+  "note": "corvint test --base C^ --dry-run at the 87 non-merge commits of origin/main up to 85d5ad4b7 that change a Go package source and tests in one directory; before = TSP-V0-861 planner, after = TSP-V0-864 planner; each newly sliced package passed its full go test at that commit",
+  "after": {
+    "whole": 14579,
+    "sliced": 2,
+    "slices": [
+      {
+        "commit": "d9cddbdd1c03efe20367a73b8715e4ffdae576fe",
+        "reasons": [
+          "selected: no test reaches PlatformUnsupportedCode changed in"
+        ]
+      },
+      {
+        "commit": "a0226cc40ce06f5a3bf6d198b4b62e2c52de9da1",
+        "reasons": [
+          "selected: no test reaches RuleExemption changed in internal/"
+        ]
+      }
+    ]
+  },
+  "before": {
+    "whole": 14581,
+    "sliced": 0
+  }
+}

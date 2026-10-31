@@ -26,10 +26,13 @@ package gateselect
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"slices"
 	"sort"
@@ -212,6 +215,11 @@ func selectPackages(plan Receipt, module, root string, withUnresolved bool) []st
 	if err != nil {
 		return fallback(fmt.Sprintf("the repository could not be indexed for attribution: %q", err.Error()))
 	}
+	if withUnresolved {
+		if reason := unknownNarrowing(plan, index, root); reason != "" {
+			return fallback(reason)
+		}
+	}
 	packages := map[string]bool{}
 	for _, pkg := range sortedUnique(plan.Provider.Go.Packages) {
 		packages[pkg] = true
@@ -304,6 +312,51 @@ func selectPackages(plan Receipt, module, root string, withUnresolved bool) []st
 	}
 	return append(lines, "run "+strings.Join(selected, " "))
 }
+
+// unknownNarrowing is CIN-V0-860's rule for Select, the CI PR tier: a plan
+// may still run narrowed while it names unknowns only when each is a
+// LANGUAGE_FRONTIER (a module-level one falls back above), an
+// UNOWNED_DIRTY_PATH, a NO_SELECTABLE_TEST, or an UNINDEXED_SOURCE_PATH that
+// deletedGoSource admits. CI narrows only the Go shards; rules (b) and (c)
+// select every package that encloses or names a dirty path and rule (d) every
+// package whose reads no literal bounds, so every Go reader of an unowned path
+// is selected; a frontier names what a language model cannot see inside units
+// the dirty paths already reach; and a unit with no selectable test gets no
+// test from a FULL run either. Any other unknown, a malformed reason, and an
+// UNKNOWN plan that names no unknown return the fallback reason.
+func unknownNarrowing(plan Receipt, index *repositoryIndex, root string) string {
+	if plan.Plan.Scope == "UNKNOWN" && len(plan.Plan.Unknown) == 0 {
+		return "the plan is UNKNOWN but names no unknown"
+	}
+	for _, entry := range plan.Plan.Unknown {
+		switch {
+		case entry.Reason == "LANGUAGE_FRONTIER", entry.Reason == "UNOWNED_DIRTY_PATH", entry.Reason == "NO_SELECTABLE_TEST":
+			continue
+		case entry.Reason == "UNINDEXED_SOURCE_PATH" && deletedGoSource(plan, index, root, entry.Detail):
+			continue
+		}
+		reason := entry.Reason
+		if !unknownReason.MatchString(reason) {
+			reason = "a malformed reason"
+		}
+		return "the plan names the unknown " + reason + ", which the selector cannot attribute"
+	}
+	return ""
+}
+
+// deletedGoSource reports an unindexed Go source that this change deleted from
+// a directory still holding an indexed package: rule (a) attributes the
+// deletion to that package and its importers (CIN-V0-860 (4)). The path must be
+// a clean dirty path, absent from the tested tree.
+func deletedGoSource(plan Receipt, index *repositoryIndex, root, p string) bool {
+	if !fs.ValidPath(p) || !packageSource(p) || !slices.Contains(plan.Plan.Dirty, p) || index.packages[parentDirectory(p)] == nil {
+		return false
+	}
+	_, err := os.Lstat(filepath.Join(root, filepath.FromSlash(p)))
+	return errors.Is(err, fs.ErrNotExist)
+}
+
+var unknownReason = regexp.MustCompile(`^[A-Z][A-Z_]{0,63}$`)
 
 // taskStateOnly reports whether an empty selection over a non-empty diff is
 // the AFP-V0-088 task-state case (AFP-V0-153): the plan is BOUNDED and every

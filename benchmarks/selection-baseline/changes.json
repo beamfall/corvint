@@ -1,0 +1,255 @@
+{
+  "profile": "corvint-selection-baseline-changes/0",
+  "repository": "https://github.com/beamfall/corvint",
+  "note": "V1-2892 fixed change set: every lane change merged to origin/main up to 85d5ad4b7 (base = first parent), and every merged-branch commit whose pull-request CI run failed (base = newest first-parent ancestor of main). Failures are the go-product-shard annotations 'exit 1; PACKAGE: test-failures' of each run.",
+  "floor": {
+    "narrowMerged": 12,
+    "misses": 0
+  },
+  "changes": [
+    {
+      "id": "pr-2",
+      "kind": "merged",
+      "base": "9477995d776ddf88d7f6a82790dd9c22d51da765",
+      "head": "6394d6fdc94d0a7a15c5a46b7fdc0eaddc75b9c0",
+      "pr": 2
+    },
+    {
+      "id": "pr-3",
+      "kind": "merged",
+      "base": "6394d6fdc94d0a7a15c5a46b7fdc0eaddc75b9c0",
+      "head": "21fea70cb1fec853eecd55ebaadc3a61a1e11534",
+      "pr": 3
+    },
+    {
+      "id": "pr-4",
+      "kind": "merged",
+      "base": "21fea70cb1fec853eecd55ebaadc3a61a1e11534",
+      "head": "bb943b524e700840ec0ba78a36563087a1b45671",
+      "pr": 4
+    },
+    {
+      "id": "pr-6",
+      "kind": "merged",
+      "base": "bb943b524e700840ec0ba78a36563087a1b45671",
+      "head": "ed8e73c893c48eb4d319b5eacd3d61f5906e3970",
+      "pr": 6
+    },
+    {
+      "id": "pr-5",
+      "kind": "merged",
+      "base": "ed8e73c893c48eb4d319b5eacd3d61f5906e3970",
+      "head": "c5d5f0829c28756ee7b202caf80a3f3fc37fa85b",
+      "pr": 5
+    },
+    {
+      "id": "pr-8",
+      "kind": "merged",
+      "base": "c5d5f0829c28756ee7b202caf80a3f3fc37fa85b",
+      "head": "93b9f5b08ce841875c9c81d17905908d91346f99",
+      "pr": 8
+    },
+    {
+      "id": "pr-10",
+      "kind": "merged",
+      "base": "93b9f5b08ce841875c9c81d17905908d91346f99",
+      "head": "fd51f53a2ee691edd8eacf16a3023cac7e7bb5c2",
+      "pr": 10
+    },
+    {
+      "id": "pr-11",
+      "kind": "merged",
+      "base": "fd51f53a2ee691edd8eacf16a3023cac7e7bb5c2",
+      "head": "9bb16e1ffab45bb75b60450645d0d6540b469a26",
+      "pr": 11
+    },
+    {
+      "id": "pr-12",
+      "kind": "merged",
+      "base": "9bb16e1ffab45bb75b60450645d0d6540b469a26",
+      "head": "8b917889f580ba126ef6d3fe05c5ef2ff8fa53a0",
+      "pr": 12
+    },
+    {
+      "id": "pr-13",
+      "kind": "merged",
+      "base": "8b917889f580ba126ef6d3fe05c5ef2ff8fa53a0",
+      "head": "e00e20d2c5c10c98e3ae80d8e12bb9470adc95ab",
+      "pr": 13
+    },
+    {
+      "id": "pr-14",
+      "kind": "merged",
+      "base": "e00e20d2c5c10c98e3ae80d8e12bb9470adc95ab",
+      "head": "780f9e97099aa3ccd52744a0c239a744c4a30adf",
+      "pr": 14
+    },
+    {
+      "id": "pr-15",
+      "kind": "merged",
+      "base": "780f9e97099aa3ccd52744a0c239a744c4a30adf",
+      "head": "531ddd61937484045f0356eb986dcd038eaa9ebe",
+      "pr": 15
+    },
+    {
+      "id": "pr-16",
+      "kind": "merged",
+      "base": "531ddd61937484045f0356eb986dcd038eaa9ebe",
+      "head": "960e05bcc4442e2222d0bf99df5279d35a01a1b5",
+      "pr": 16
+    },
+    {
+      "id": "pr-17",
+      "kind": "merged",
+      "base": "960e05bcc4442e2222d0bf99df5279d35a01a1b5",
+      "head": "f586f8a69c52180b1cbd6efceb1566d3f5f2cfd3",
+      "pr": 17
+    },
+    {
+      "id": "pr-18",
+      "kind": "merged",
+      "base": "f586f8a69c52180b1cbd6efceb1566d3f5f2cfd3",
+      "head": "b623665f250ec2ab70691577fd5f5d0dabdf8f36",
+      "pr": 18
+    },
+    {
+      "id": "pr-20",
+      "kind": "merged",
+      "base": "b623665f250ec2ab70691577fd5f5d0dabdf8f36",
+      "head": "82c235f95bf8b6a1fa77077925f647be063a97b8",
+      "pr": 20
+    },
+    {
+      "id": "pr-23",
+      "kind": "merged",
+      "base": "82c235f95bf8b6a1fa77077925f647be063a97b8",
+      "head": "6a00a0043887a99b8947128c9f5971a8e5b2ec4b",
+      "pr": 23
+    },
+    {
+      "id": "pr-24",
+      "kind": "merged",
+      "base": "6a00a0043887a99b8947128c9f5971a8e5b2ec4b",
+      "head": "dc0f8d6c29527a321cdd0cd8e09cdfd3414d666b",
+      "pr": 24
+    },
+    {
+      "id": "pr-22",
+      "kind": "merged",
+      "base": "dc0f8d6c29527a321cdd0cd8e09cdfd3414d666b",
+      "head": "85d5ad4b758193ef702a83632f4cb8c573b91933",
+      "pr": 22
+    },
+    {
+      "id": "ci-e09dae910",
+      "kind": "failed-ci",
+      "base": "9bb16e1ffab45bb75b60450645d0d6540b469a26",
+      "head": "e09dae910a4d8da7f38a7eb95e70bffb5619ac62",
+      "failures": [
+        {
+          "run": 41139255540,
+          "job": 124349635629,
+          "package": "github.com/Beamfall/corvint/internal/tasks/similar"
+        }
+      ]
+    },
+    {
+      "id": "ci-d2115e21f",
+      "kind": "failed-ci",
+      "base": "9bb16e1ffab45bb75b60450645d0d6540b469a26",
+      "head": "d2115e21f3ca902df771554c6334ec14ae297eac",
+      "failures": [
+        {
+          "run": 41135435905,
+          "job": 124337110109,
+          "package": "github.com/Beamfall/corvint/internal/tasks/similar"
+        },
+        {
+          "run": 41135435905,
+          "job": 124337110338,
+          "package": "github.com/Beamfall/corvint/cmd/corvint"
+        }
+      ]
+    },
+    {
+      "id": "ci-5d73b89f4",
+      "kind": "failed-ci",
+      "base": "c5d5f0829c28756ee7b202caf80a3f3fc37fa85b",
+      "head": "5d73b89f4fdf179869825df61f4d21b7b282915b",
+      "failures": [
+        {
+          "run": 41104934124,
+          "job": 124232755302,
+          "package": "github.com/Beamfall/corvint/internal/cem/corpusbinding"
+        },
+        {
+          "run": 41104934124,
+          "job": 124232755465,
+          "package": "github.com/Beamfall/corvint/cmd/corvint"
+        },
+        {
+          "run": 41104934124,
+          "job": 124232755197,
+          "unattributed": "the job's annotations name no failing package (the failure is outside a go test package line)"
+        }
+      ]
+    },
+    {
+      "id": "ci-79300f5ed",
+      "kind": "failed-ci",
+      "base": "c5d5f0829c28756ee7b202caf80a3f3fc37fa85b",
+      "head": "79300f5eddf512b22221ff25a18e36b64bdbd6be",
+      "failures": [
+        {
+          "run": 41096224906,
+          "job": 124223719665,
+          "package": "github.com/Beamfall/corvint/internal/cem/corpusbinding"
+        }
+      ]
+    },
+    {
+      "id": "ci-1ceb4ee33",
+      "kind": "failed-ci",
+      "base": "c5d5f0829c28756ee7b202caf80a3f3fc37fa85b",
+      "head": "1ceb4ee3385f93a39d1f2c80b260a67c40c72f75",
+      "failures": [
+        {
+          "run": 41091074264,
+          "job": 124185848607,
+          "package": "github.com/Beamfall/corvint/internal/cem/corpusbinding"
+        }
+      ]
+    },
+    {
+      "id": "ci-045ca9b32",
+      "kind": "failed-ci",
+      "base": "c5d5f0829c28756ee7b202caf80a3f3fc37fa85b",
+      "head": "045ca9b322073a324484ffd8c1b539187f2a4713",
+      "failures": [
+        {
+          "run": 41087113303,
+          "job": 124172432360,
+          "package": "github.com/Beamfall/corvint/internal/cem/corpusbinding"
+        }
+      ]
+    },
+    {
+      "id": "ci-8de253042",
+      "kind": "failed-ci",
+      "base": "9477995d776ddf88d7f6a82790dd9c22d51da765",
+      "head": "8de25304257bf58cd6727a2122ada1a7671b4eb7",
+      "failures": [
+        {
+          "run": 40996444699,
+          "job": 123870927746,
+          "package": "github.com/Beamfall/corvint/internal/cem/corpusbinding"
+        },
+        {
+          "run": 40996444699,
+          "job": 123870927746,
+          "package": "github.com/Beamfall/corvint/internal/companionrelease"
+        }
+      ]
+    }
+  ]
+}

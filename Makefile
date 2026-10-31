@@ -696,6 +696,17 @@ ai-coauthor-trailers-check:
 	  echo 'CIN-V0-006: this tree has no script/check-ai-coauthor-trailers.sh; the trailer check is skipped.'; \
 	else bash script/check-ai-coauthor-trailers.sh "$$BASE_SHA" HEAD; fi
 
+# selection-baseline-check (V1-2892) builds this tree's corvint and gate-affected-select, replays them
+# over the fixed change set benchmarks/selection-baseline/changes.json (merged lane changes and the
+# merged-branch commits whose CI failed) and fails when CI would narrow fewer merged changes than the
+# recorded floor or a narrowed selection misses a package that failed in CI. It needs full history.
+# SELECTION_BASELINE_OUT=FILE also writes the results JSON.
+.PHONY: selection-baseline-check
+selection-baseline-check:
+	@d=$$(mktemp -d) && trap 'rm -rf "$$d"' EXIT && \
+	GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go build -o "$$d/" ./cmd/corvint ./tools/gate-affected-select ./tools/selection-baseline && \
+	"$$d/selection-baseline" --check --corvint "$$d/corvint" --selector "$$d/gate-affected-select" $(if $(SELECTION_BASELINE_OUT),--out '$(SELECTION_BASELINE_OUT)')
+
 .PHONY: ai-coauthor-trailers-test
 ai-coauthor-trailers-test:
 	@script/check-ai-coauthor-trailers_test.sh
@@ -857,7 +868,7 @@ shell-test-registration-check:
 	$(GO_TEST_COMMAND) -run '^TestSTRV0004ShellTestIsTheGateShellSteps$$' ./tools/test-commands-check
 
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
-DOC_GATE_TARGETS := host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check spec-requirements-check requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check line-citations-check error-code-ownership-check unbounded-readers-check test-read-scopes-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check license-headers-check legal-file-pins-check mkfifo-build-tags-check
+DOC_GATE_TARGETS := host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check spec-requirements-check requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check line-citations-check error-code-ownership-check unbounded-readers-check test-read-scopes-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813).
 .PHONY: doc-gates
 doc-gates:

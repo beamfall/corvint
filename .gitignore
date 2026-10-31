@@ -68,6 +68,7 @@ node_modules/
 /pi-tui-fixture
 /qualify-opencode
 /retrieval-bench
+/selection-baseline
 /str-parity
 /test-commands-check
 /test-commands-run
