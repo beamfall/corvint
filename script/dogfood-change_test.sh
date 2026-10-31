@@ -11,12 +11,27 @@ self_path=$(cd "$(dirname "$0")" && pwd)/$(basename "$0")
 # shellcheck disable=SC2329
 report_failed_case() {
   [[ $- == *e* ]] || return 0
+  # DCW-V0-807: once a case inside a scenario subshell has reported, the enclosing shell's report
+  # for that subshell names its closing line, whose nearest comment is an unrelated case.
+  if [[ -n ${failed_case_marker:-} && -e $failed_case_marker && $BASH_SUBSHELL == 0 ]]; then
+    printf 'dogfood-change_test: FAIL line=%s enclosing-block of the failure above\n' "$1" >&2
+    return 0
+  fi
   local case_name
   case_name=$(awk -v n="$1" 'NR <= n && /^[[:space:]]*# / && !/shellcheck/ {c = $0}
     NR == n {sub(/^[[:space:]]*# /, "", c); print c; exit}' "$self_path" 2>/dev/null) || case_name=
   printf 'dogfood-change_test: FAIL line=%s case=%s command=%s\n' "$1" "${case_name:-NOT_OBSERVED}" "$2" >&2
+  [[ -z ${failed_case_marker:-} ]] || : > "$failed_case_marker" 2>/dev/null || :
 }
 trap 'report_failed_case "$LINENO" "$BASH_COMMAND"' ERR
+
+# DCW-V0-807 (V1-3383): the fixtures supply every dogfood input themselves. A lane that exported
+# its closeout inputs (DOGFOOD_CITATIONS, DOGFOOD_OUTCOME, CORVINT_BIN, ...) would otherwise feed
+# them into each fixture's wrapper run and fail cases that pass in CI.
+while IFS= read -r ambient; do
+  [[ $ambient == DOGFOOD_* ]] && unset "$ambient"
+done < <(compgen -e)
+unset CORVINT_BIN
 
 # This wrapper asserts on captured output with ripgrep (rg); without it every rg call below fails
 # as a bare "command not found" partway through, which reads as a real regression instead of a
@@ -34,6 +49,9 @@ rg -qF 'corvint ocm report --map .corvint/change.ocm.001.json' "$source_root/doc
   exit 1
 }
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-dogfood-change-test.XXXXXX")
+failed_case_marker="$test_root/.failed-case"
+# DCW-V0-807: a host-wide reuse cache never feeds a verifier build into these fixtures.
+export CORVINT_DOGFOOD_BIN_CACHE="$test_root/bin-cache"
 active_runner=
 active_descendant=
 active_pid_file=
@@ -741,7 +759,8 @@ phase_jobs="$phase_jobs $!"
   rg -Fxq -- '    fix: DOGFOOD_CITATIONS must be the path of a TSV file of ORDINAL<TAB>PATH<TAB>START:END<TAB>RELATION rows, not the rows themselves' <<< "$input_output"
   rg -q -- '^    fix: (the intent on line N of DOGFOOD_INTENTS_FILE, ocm-prepare-001 being|"docs/specs/intent-a\.md" on line 001 ).* "## Requirements" heading outside code fences' <<< "$input_output"
   rg -Fxq -- '  ocm-aggregate: intent-scope-drift' <<< "$input_output"
-  rg -Fxq -- '    fix: fix the ocm-prepare or ocm-status row above; otherwise the intents file changed during the run' <<< "$input_output"
+  # DCW-V0-806: the refused prepare row, not a drift, is named as the aggregate's cause.
+  rg -Fxq -- "    fix: ocm-prepare-001 refused invalid-requirements-section first, so the aggregate did not run and no intent drifted; fix that row (its fix line is above), then rerun corvint dogfood change $base" <<< "$input_output"
   rg -Fxq -- '    fix: set DOGFOOD_OUTCOME (passed, failed or blocked) and DOGFOOD_VERIFY_FILE (one verification command per line)' <<< "$input_output"
   pending_status=0
   pending_output=$(DOGFOOD_TEST_OCM_PREPARE_CODE=excluded-artifact-mismatch DOGFOOD_TEST_CEM_UNKNOWNS=1 \
