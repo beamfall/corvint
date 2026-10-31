@@ -1,12 +1,13 @@
-# Tasks core lane tasks-core (wave 2) — 15 tickets
+# Tasks core lane tasks-core (wave 2) — 19 tickets
 
 Base: origin/main `6c967b21caa2ffb0324a681f873a891996d82e34`. Branch
 `claude/lane-taskscore-w2-1031`, built on the Mac. Tests ran through `script/heavy.sh`, one
 package per command, while other lanes loaded the host (1-minute load from 7 to above 200 on
 12 CPUs). Timings below carry the host load measured beside them.
 
-Dispositions: ten delivered (V1-1212, V1-1007, V1-3185, V1-3186, V1-3191,
-AGENT-TASKS-ADMIN-RESERVATION-1, V1-0232, V1-2479, V1-0673, V1-0757), three ALREADY-DELIVERED
+Dispositions: fourteen delivered (V1-1212, V1-1007, V1-3185, V1-3186, V1-3191,
+AGENT-TASKS-ADMIN-RESERVATION-1, V1-0232, V1-2479, V1-0673, V1-0757, and the owner-priority P1
+tickets V1-3548, V1-3540, V1-3547, V1-3541), three ALREADY-DELIVERED
 (V1-1473, V1-2204, V1-2383) and two BLOCKED on external inputs (V1-0464, V1-0436).
 
 ## Delivered
@@ -21,7 +22,27 @@ AGENT-TASKS-ADMIN-RESERVATION-1, V1-0232, V1-2479, V1-0673, V1-0757), three ALRE
   now names the next action: a directory key reserves every path beneath it, so tickets writing
   distinct files declare exact file touchPaths with `ticket set-effects`; and when the claim took
   the declared scope although `--scope` was given, the detail says so (ATR-V0-215 unchanged).
-  Exact-file reservations under one directory are admitted concurrently.
+  Exact-file reservations under one directory are admitted concurrently. Second part
+  (`3444e382e` spec, `e628cb076` code; ATR-V0-806): a fresh claim that silently fell back to
+  WHOLE_REPOSITORY now warns `WHOLE_REPOSITORY_FALLBACK` with the narrowing routes (`--scope`,
+  `--scope-from-diff`, `ticket set-effects`); a replay or a declared, requested or derived scope
+  warns nothing.
+- **V1-3548** (`0b6401101` spec, `53e008c54` code; TCD-V0-806): `gate run` names a descendant
+  PASS that a stacked lower attempt can reuse once integrated (`Report.GateReusePending`).
+- **V1-3540** (`3444e382e`, `e628cb076`; ATR-V0-807): the claim warning (CAL-V0-211) and the
+  submit `OUT_OF_SCOPE` hint already existed on main; the gap was `widen`, which now warns
+  `EXACT_KEY_NAMES_DIRECTORY` for a requested bare key naming a directory at the base. Inference:
+  the Beamfall report's directory did not exist at its base commit, so no claim-time check could
+  have fired.
+- **V1-3547** (`3444e382e`, `e628cb076`; ATR-V0-808): `claim --base` takes any revision (short
+  OID, branch) and records the full OID; an unresolvable revision refuses `MALFORMED` naming
+  `git rev-parse --verify REV^{commit}`.
+- **V1-3541** (`3444e382e`, `0845e0345`; TCD-V0-807): delivered as a warning, not a default.
+  Policy gates marked `required` already apply to every ticket (`transaction.RequiredGates`,
+  V1-2038), so Beamfall's required gate was enforced despite `requiredGates: []`. A create naming
+  no gates under a policy with gates now warns `REQUIRED_GATES_EMPTY`, naming the gates
+  `complete` still demands and the optional ones it will not; the template field note says the
+  same. The record is unchanged.
 - **V1-3186** (`ce22b3f23`, `65d87080c`; LGL-V0-800): `receipt audit` memoizes decoded attempt
   posts the way `TicketPosts` already did for ticket posts. Interleaved A/B, 5 runs per binary,
   host load 9-14: wall time 25-29% lower at 3k, 13k and 40k synthetic receipts and 29% lower
@@ -84,9 +105,12 @@ AGENT-TASKS-ADMIN-RESERVATION-1, V1-0232, V1-2479, V1-0673, V1-0757), three ALRE
 Kept minimal and only where a ticket's fix lives:
 
 - `internal/tasks/cli` (lane tasks-cli): `cli.go`, `command_help.go`, `lease.go`, `release.go`
-  (V1-3191, V1-0232 flags and help); tests `doctor_test.go`, `nonfixture_release_test.go`,
+  (V1-3191, V1-0232 flags and help), `mutate.go`, `create_template.go` (V1-3541); tests
+  `required_gates_warning_test.go`, `doctor_test.go`, `nonfixture_release_test.go`,
   `release_test.go`, `widen_resume_test.go` (fixture argv, new flag coverage).
-- `internal/tasks/store` (lane tasks-store): `external_review.go`, `release.go`, and the tests
+- `internal/tasks/store` (lane tasks-store): `external_review.go`, `release.go`, `lease.go`,
+  `lease_gate.go`, `store.go` (V1-3548, V1-3185, V1-3540, V1-3547), and the tests
+  `claim_scope_diagnostics_test.go`, `lease_gate_descendant_test.go`,
   `admin_checkpoint_test.go`, `admin_reservation_test.go`, `importmap_amend_test.go`,
   `know_how_worker_expiry_test.go`, `lease_exact_paths_test.go`, `lease_gate_load_test.go`.
 
@@ -114,3 +138,7 @@ Kept minimal and only where a ticket's fix lives:
   `.taskman/queue.json` is missing.
 - Product evidence: a pre-1.0 binary refuses the current store's policy (`reservations`) as
   `MALFORMED` instead of naming a version skew.
+- `claim --whole-repository` is parsed by the CLI but refused `MALFORMED` ("lease arguments do
+  not fit CLAIM"); only `widen` takes it.
+- The create `EFFECTS_UNBOUNDED` warning says "under coverage QUALIFIED" even when coverage is
+  UNKNOWN or INCOMPLETE.
