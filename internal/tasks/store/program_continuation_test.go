@@ -139,6 +139,10 @@ esac
 `
 }
 
+// continuationResumeWall is the stage wall, in seconds, of a test whose
+// resumed turn must finish inside it under host load (V1-1516).
+const continuationResumeWall = 12
+
 // newContinuationFixture is a real Git queue repository with a pinned fake
 // host and a pinned fake Core CLI under a supervision policy shaped by o.
 func newContinuationFixture(t *testing.T, o continuationOptions) *continuationFixture {
@@ -305,8 +309,13 @@ func (f *continuationFixture) assertWaitingCheckpoint(t *testing.T, id, session 
 // each continues the recorded session in the same preserved worktree, the
 // wall-time checkpoint stays as a per-turn candidate ref, the continuation
 // prompt names the continuation, and integration lands exactly once.
+//
+// V1-1516: the stage wall bounds the resumed turn too, so a resume that
+// outlasts it is walled again and takes one more turn; at load 44 a resume
+// turn (host start, checkpoint commit, Core) outlasted the 4s default in 1 of
+// 5 runs. continuationResumeWall leaves a loaded resume room to finish.
 func TestCALV0089_CodexContinuationResumesPreservedSession(t *testing.T) {
-	f := newContinuationFixture(t, continuationOptions{continuations: "3"})
+	f := newContinuationFixture(t, continuationOptions{continuations: "3", wallSeconds: continuationResumeWall})
 	f.config.OwnIntegrationCheckout = true
 	f.touch(t, "stall-implement")
 	w := f.open(t)

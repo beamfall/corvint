@@ -504,9 +504,13 @@ func localEventContext(ctx context.Context, options options, input map[string]an
 	}
 	if (err != nil || !hit) && compact {
 		// Impact needs the test-relation imports BuildContext omits.
-		index, err = contextindex.Build(ctx, options.root)
+		index, err = dogfoodMissBuild(ctx, options.root, func(ctx context.Context) (*contextindex.Index, error) {
+			return contextindex.Build(ctx, options.root)
+		})
 	} else if err != nil || !hit {
-		index, err = buildContext(ctx, options.root, "")
+		index, err = dogfoodMissBuild(ctx, options.root, func(ctx context.Context) (*contextindex.Index, error) {
+			return buildContext(ctx, options.root, "")
+		})
 	}
 	if err != nil {
 		return nil, err
@@ -635,6 +639,43 @@ func dogfoodMissOutlastsDeadline(ctx context.Context, root string) bool {
 	deadline, bounded := ctx.Deadline()
 	cost, recorded := contextindex.RecordedBuildCost(root)
 	return bounded && recorded && cost >= time.Until(deadline)
+}
+
+// dogfoodMissBuild runs a hook event's snapshot-miss build. With no usable
+// build-cost record the build gets half the time left before the deadline and,
+// when it has not finished by then, the miss reports the stale snapshot with
+// the other half unspent, so a loaded host's watchdog does not kill the first
+// hook of a never-indexed repository (AHI-920). The in-memory compile does not
+// observe cancellation, so the abandoned build ends with its process, as in
+// dogfoodEventWithin. A recorded cost or an unbounded context builds as before.
+func dogfoodMissBuild(ctx context.Context, root string, build func(context.Context) (*contextindex.Index, error)) (*contextindex.Index, error) {
+	deadline, bounded := ctx.Deadline()
+	if _, recorded := contextindex.RecordedBuildCost(root); !bounded || recorded {
+		return build(ctx)
+	}
+	half, cancel := context.WithDeadline(ctx, time.Now().Add(time.Until(deadline)/2))
+	defer cancel()
+	type outcome struct {
+		index *contextindex.Index
+		err   error
+	}
+	done := make(chan outcome, 1)
+	go func() {
+		index, err := build(half)
+		done <- outcome{index, err}
+	}()
+	select {
+	case finished := <-done:
+		if finished.err != nil && half.Err() != nil && ctx.Err() == nil {
+			return nil, errDogfoodSnapshotStale
+		}
+		return finished.index, finished.err
+	case <-half.Done():
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, errDogfoodSnapshotStale
+	}
 }
 
 // probeExpired reports a Git repository probe that expired on its own fixed

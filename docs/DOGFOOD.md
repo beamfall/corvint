@@ -1160,17 +1160,19 @@ policy verification as strict status; standalone `verify` is reserved for machin
 report stays local by default because
 paths and digests are sensitive even though source and diff bodies are omitted.
 
-The `dogfood-check: SUMMARY` members `requirements`, `linked` and `unlinked` after `ocm=STATE`
-describe only the requirements this change touches (`OCM-V0-019`): `requirements` counts the
+The `dogfood-check: SUMMARY` members `change-requirements`, `change-traced` and `change-untraced`
+after `ocm=STATE` describe only the requirements this change touches (`OCM-V0-019`, renamed by
+`OCM-V0-920` so they cannot be read as the aggregate's link count): `change-requirements` counts the
 declared-intent requirements whose text a citation span covers or whose lines the diff adds or
-changes, `linked` those of them that a `*_test.go` or `*_test.sh` line, a traceability table row of
-the intent, or a `DOGFOOD_OCM_LINKS` obligation names as an exact ID, and `unlinked` the rest. A
-lane that adds four requirements with traced tests reads `requirements=4 linked=4 unlinked=0`; a
-code-only change that cites no requirement reads `requirements=0 linked=0 unlinked=0`
-(`OCM-V0-020`). A nonzero `unlinked` names requirements the change touched without a test or row
-naming them; it does not fail the check. `NOT_OBSERVED` in all three means an input could not be
-read. The intent-wide totals stay in `corvint ocm report` and the detail file's aggregate
-`coverage`.
+changes, `change-traced` those of them that a `*_test.go` or `*_test.sh` line, a traceability table
+row of the intent, or a `DOGFOOD_OCM_LINKS` obligation names as an exact ID, and `change-untraced`
+the rest. A lane that adds four requirements with traced tests reads `change-requirements=4
+change-traced=4 change-untraced=0`; a code-only change that cites no requirement reads
+`change-requirements=0 change-traced=0 change-untraced=0` (`OCM-V0-020`). A nonzero
+`change-untraced` names requirements the change touched without a test or row naming them; it does
+not fail the check. `NOT_OBSERVED` in all three means an input could not be read. The intent-wide
+totals and the aggregate's `linked` count stay in `corvint ocm report` and the detail file's
+aggregate `coverage`.
 
 ### 7. Record the outcome
 

@@ -314,6 +314,8 @@ AHI-030	docs/specs/agent-harness-integration-v0.md	Every compact `SessionStart` 
 AHI-057	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1974) Amendmen	standing	2026-10-11; V1-1974
 AHI-053	docs/specs/agent-harness-integration-v0.md	(accepted, decision 0517 (V1-1128)) Amendment to `AHI-031`	owner	decision 0517; V1-1128
 AHI-031	docs/specs/agent-harness-integration-v0.md	(accepted 2026-09-25, decision 0400; panel blocker B8) When no index snapshot	owner	2026-09-25; decision 0400
+AHI-920	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3311; amends	standing	2026-10-31; V1-3311
+AHI-921	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-2735) The	standing	2026-10-31; V1-2735
 AHI-055	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1280) A Claude	standing	2026-10-11; V1-1280
 AHI-032	docs/specs/agent-harness-integration-v0.md	At the owner’s request (2026-09-28), stock OpenCode native integration qualifica	unrecorded	-
 AHI-056	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1969; GitHub #	standing	2026-10-11; V1-1969; #1218
@@ -352,6 +354,7 @@ AHI-045	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0441; V
 AHI-046	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0441; V1-0942) Outside a main-thread	owner	decision 0441; V1-0942
 AHI-047	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0441; V1-0939) The Claude Code trusted	owner	decision 0441; V1-0939
 AHI-230	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept; V1-2754; amends `AHI-047`) Th	standing	V1-2754
+AHI-880	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-2754; closes t	standing	2026-10-31; V1-2754
 AHI-048	docs/specs/agent-harness-integration-v0.md	(proposed; V1-0734) When an adapter process exits through `exitProcess`, includi	unrecorded	-
 AHI-049	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0477, amended by decision 0479; V1-1040, V1-1055) Every Se	owner	decision 0477; decision 0479; V1-1040; V1-1055
 AHI-050	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0474; V1-0371) The OpenCode and Gemini adapters MUST send	owner	decision 0474; V1-0371
@@ -1087,7 +1090,7 @@ CEM-PILOT-026	docs/specs/cem-pilot-kit.md	a recipe MUST NOT convert a refusal or
 CEM-PILOT-027	docs/specs/cem-pilot-kit.md	each recipe step MUST run in its own process group bounded by `RECIPE_TIMEOUT`	unrecorded	-
 CRT-V0-001	docs/specs/cem-reviewer-trial-v0.md	Unit and selection. One change is one non-merge Beamfall commit `C`, and its lan	unrecorded	-
 CRT-V0-002	docs/specs/cem-reviewer-trial-v0.md	Pairing. Every change runs in both arms; the estimate is within-change. The arm	unrecorded	-
-CRT-V0-003	docs/specs/cem-reviewer-trial-v0.md	Withheld-patch construction. The presented patch `P(C)` contains only the source	unrecorded	-
+CRT-V0-003	docs/specs/cem-reviewer-trial-v0.md	Withheld-patch construction. The presented patch `P(C)` contains only the	unrecorded	-
 CRT-V0-004	docs/specs/cem-reviewer-trial-v0.md	Ground truth. Primary gold for `C` is the set of test-or-spec paths `C` itself	unrecorded	-
 CRT-V0-005	docs/specs/cem-reviewer-trial-v0.md	(Amended 2026-10-11: V1-1261, accepted under the owner's standing auto-accept (2	standing	2026-10-11; V1-1261
 CRT-V0-006	docs/specs/cem-reviewer-trial-v0.md	Reply grammar. Every reply MUST end with one fenced JSON block	unrecorded	-
@@ -1165,6 +1168,8 @@ CEM-V1-578	docs/specs/cem-stable-v1.md	(accepted under the owner's standing auto
 CEM-V1-620	docs/specs/cem-stable-v1.md	(proposed; V1-2107) A string `const` or `enum` node of both `RESULT.schema.json`	unrecorded	-
 CEM-V1-621	docs/specs/cem-stable-v1.md	(proposed; V1-2107) Both `RESULT.schema.json` copies MUST admit exactly the two	unrecorded	-
 CEM-V1-622	docs/specs/cem-stable-v1.md	(proposed; V1-2107) A test MUST validate the complete native verify result of th	unrecorded	-
+CEM-V1-880	docs/specs/cem-stable-v1.md	(proposed; V1-2615) An object-schema node of both `RESULT.schema.json` copies MA	unrecorded	-
+CEM-V1-881	docs/specs/cem-stable-v1.md	(proposed; V1-2615) Both `RESULT.schema.json` copies MUST admit, at	unrecorded	-
 CEM-V1-633	docs/specs/cem-stable-v1.md	(proposed; V1-2599) Neither stable reader's verdict MAY depend on a runner	unrecorded	-
 CEM-V1-634	docs/specs/cem-stable-v1.md	(accepted by the owner (2026-10-25; V1-2658 sign-off); V1-2599, V1-2658) No	owner	2026-10-25; V1-2658; V1-2599
 CEM-V1-635	docs/specs/cem-stable-v1.md	(accepted by the owner (2026-10-25; V1-2658 sign-off); V1-2658) The gate MUST	owner	2026-10-25; V1-2658
@@ -1725,6 +1730,7 @@ PRS-V1-019	docs/specs/corvint-1.0-product-and-release-v1.md	The root module and 
 PRS-V1-020	docs/specs/corvint-1.0-product-and-release-v1.md	`corvint --version --json` (also after `--root PATH`) MUST print one canonical J	unrecorded	-
 PRS-V1-021	docs/specs/corvint-1.0-product-and-release-v1.md	windows/amd64 is UNSUPPORTED for 1.0 and MUST fail closed (decision 0559). A	unrecorded	-
 PRS-V1-022	docs/specs/corvint-1.0-product-and-release-v1.md	Off darwin and linux, every docs corpus input read (`ReadCorpusFile`,	unrecorded	-
+PRS-V1-920	docs/specs/corvint-1.0-product-and-release-v1.md	Every receipt-read caller outside the docs corpus MUST report the	unrecorded	-
 CRB-V0-001	docs/specs/corvint-rebrand-v0.md	The current product display name MUST be `Corvint`, with lowercase slug `corvint	unrecorded	-
 CRB-V0-002	docs/specs/corvint-rebrand-v0.md	The root and repository-owned nested Go modules, active Go self-imports, and ope	unrecorded	-
 CRB-V0-003	docs/specs/corvint-rebrand-v0.md	The main native CLI version output MUST be `Corvint <version> (build <N>, commit	unrecorded	-
@@ -1823,6 +1829,7 @@ ASD-V0-106	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-107	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3224; refines	standing	2026-10-30; V1-3224
 ASD-V0-108	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3156, V1-3132;	standing	2026-10-30; V1-3156; V1-3132
 ASD-V0-109	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3267) Before i	standing	2026-10-30; V1-3267
+ASD-V0-900	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; tasks-w1 lane fri	standing	2026-10-31
 CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and	unrecorded	-
 CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow	unrecorded	-
 CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom	unrecorded	-
@@ -2501,6 +2508,7 @@ LGL-V0-014	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2539,
 LGL-V0-015	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2866; experimental under the standing lane auto-accept)	standing	V1-2866
 LGL-V0-016	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203, V1-2539; owner decision 2026-10-27 "Try concurrent publish	owner	V1-2203; V1-2539; 2026-10-27
 LGL-V0-017	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2877; experimental under the standing lane auto-accept)	standing	V1-2877
+LGL-V0-900	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2623) When a lease command's preparation failed `SNAPSHOT_MOVED`,	unrecorded	-
 TOL-V0-001	docs/specs/corvint-tasks-obligation-ledger-v0.md	A NATIVE ticket record MAY carry the optional member `obligations`, a closed	unrecorded	-
 TOL-V0-002	docs/specs/corvint-tasks-obligation-ledger-v0.md	Each `OBLIGATIONS_*` write MUST derive exactly one immutable canonical ledger	unrecorded	-
 TOL-V0-003	docs/specs/corvint-tasks-obligation-ledger-v0.md	A folded obligation entry MUST be the closed object `{id, title, core, state,	unrecorded	-
@@ -2745,7 +2753,9 @@ PSR-V0-262	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the ow
 PSR-V0-263	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2636) `pool	standing	2026-10-11; V1-2636
 PSR-V0-264	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2636) When an	standing	2026-10-11; V1-2636
 PSR-V0-265	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2636) Amends	standing	2026-10-11; V1-2636
-PSR-V0-266	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2636) The	standing	2026-10-11; V1-2636
+PSR-V0-266	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2636; bound am	standing	2026-10-11; V1-2636
+PSR-V0-900	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(proposed; V1-2447; decision 0552) Amends PSR-V0-266. The pools.json bound MUST	unrecorded	-
+PSR-V0-901	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(proposed, V1-2483) Amends CAL-V0-215 and PSR-V0-221; defined here because the	unrecorded	-
 PSR-V0-267	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2637) Amends	standing	2026-10-11; V1-2637
 PSR-V0-273	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2711) Amends	standing	2026-10-11; V1-2711
 PSR-V0-268	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2704) `corvint	standing	2026-10-11; V1-2704
@@ -2993,6 +3003,7 @@ DCW-V0-346	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-347	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2810) A `dogfood check` th	standing	V1-2810
 DCW-V0-348	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2805, V1-1773)	standing	V1-2805; V1-1773
 DCW-V0-349	docs/specs/daily-change-evidence-workflow-v0.md	(owner-requested V1-1894 repair) `make dogfood-closeout` MUST run	unrecorded	-
+DCW-V0-900	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; tasks-w1 lane	standing	2026-10-31
 DCW-V0-350	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2810; amends `DCW-V0-150`)	standing	V1-2810
 DCW-V0-351	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2827) When	standing	V1-2827
 DCW-V0-352	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2835; refines `SRG-V0-018`	standing	V1-2835
@@ -3054,6 +3065,7 @@ DCW-V0-803	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-844	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3318; refines `DCW-V0-400`	standing	V1-3318
 DCW-V0-845	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3302; refines `DCW-V0-063`	standing	V1-3302
 DCW-V0-846	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-1724; refines `DCW-V0-439`	standing	V1-1724
+DCW-V0-920	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3043; refines `DCW-V0-150`	standing	V1-3043
 DCW-V0-170	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2344) When	standing	2026-10-11; V1-2344
 DCW-V0-171	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2171) A	standing	2026-10-11; V1-2171
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-
@@ -3914,6 +3926,7 @@ FPK-V0-053	docs/specs/falsifiable-packet-v0.md	(accepted, decision 0515; experim
 FPK-V0-054	docs/specs/falsifiable-packet-v0.md	(accepted, decision 0515; experimental)	owner	decision 0515
 FPK-V0-055	docs/specs/falsifiable-packet-v0.md	(accepted, decision 0515; experimental)	owner	decision 0515
 FPK-V0-056	docs/specs/falsifiable-packet-v0.md	(accepted, decision 0515; experimental)	owner	decision 0515
+FPK-V0-920	docs/specs/falsifiable-packet-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3042) a `prov	standing	2026-10-31; V1-3042
 FDM-V0-001	docs/specs/flow-document-maintenance-v0.md	`flows docs maintain --preview` MUST write nothing, returning proposed page and	unrecorded	-
 FDM-V0-002	docs/specs/flow-document-maintenance-v0.md	`--apply --expected-proposal SHA256` MUST freshly derive the proposal and refuse	unrecorded	-
 FDM-V0-003	docs/specs/flow-document-maintenance-v0.md	Both outputs absent permits exclusive creation. Both present requires an explici	unrecorded	-
@@ -5014,6 +5027,7 @@ OCM-V0-025	docs/specs/ocm-v0-dogfood.md	(accepted under the owner's standing aut
 OCM-V0-026	docs/specs/ocm-v0-dogfood.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2170) when	standing	2026-10-11; V1-2170
 OCM-V0-027	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-2894, decision 0585) withi	standing	V1-2894; decision 0585
 OCM-V0-028	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-2893, decision 0585) the	standing	V1-2893; decision 0585
+OCM-V0-920	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-3092) amends `OCM-V0-019`,	standing	V1-3092
 OCM-V0-013	docs/specs/ocm-v0-dogfood.md	one dogfood change MAY declare an ordered set of pinned Markdown intent	unrecorded	-
 UPD-V0-001	docs/specs/operator-update-v0.md	`check` MUST require explicit network opt-in, distinguish Core `v*` and standalo	unrecorded	-
 UPD-V0-002	docs/specs/operator-update-v0.md	`apply` MUST verify the release archive checksum before extraction, verify inter	unrecorded	-
@@ -5687,6 +5701,7 @@ SCL-V0-005	docs/specs/scope-lease-v0.md	`lease renew --id ID --holder H --ttl D`
 SCL-V0-006	docs/specs/scope-lease-v0.md	`lease status` and `lease list` MUST NOT write, create, or delete any path, incl	unrecorded	-
 SCL-V0-007	docs/specs/scope-lease-v0.md	Expired leases MUST be reaped only inside `acquire`, `release`, and `renew`, und	unrecorded	-
 SCL-V0-008	docs/specs/scope-lease-v0.md	Mutating actions MUST serialize through one single-writer lock at	unrecorded	-
+SCL-V0-900	docs/specs/scope-lease-v0.md	(proposed; V1-2489) On a deferred platform the `O_EXCL` lock MUST treat a create	unrecorded	-
 SCL-V0-009	docs/specs/scope-lease-v0.md	`scopelease.Check(root, paths)` MUST report, without writing, every touched path	unrecorded	-
 SCL-V0-010	docs/specs/scope-lease-v0.md	Every action MUST emit one deterministic canonical JSON line on stdout with a st	unrecorded	-
 SCL-V0-011	docs/specs/scope-lease-v0.md	An unreadable or unparsable lease document MUST NOT block actions on other lease	unrecorded	-
@@ -5999,6 +6014,7 @@ SRG-V0-046	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the
 SRG-V0-047	docs/specs/spec-requirement-index-generator-v0.md	(proposed; V1-2867; experimental under the standing lane auto-accept) When a	standing	V1-2867
 SRG-V0-547	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)	standing	2026-10-11; V1-3049
 SRG-V0-548	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)	standing	2026-10-11; V1-3049
+SRG-V0-900	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; tasks-w1 lane	standing	2026-10-31
 STA-V0-001	docs/specs/spec-toolchain-adapters-v0.md	One manifest, `interop/spec-toolchains/versions.json`, records the supported ups	unrecorded	-
 STA-V0-002	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob	unrecorded	-
 STA-V0-003	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-delta` reads one OpenSpec delta file.	unrecorded	-
@@ -7033,6 +7049,7 @@ WQO-V0-093	docs/specs/work-queue-observation-v0.md	(proposed; V1-2476, V1-2550) 
 WQO-V0-096	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept, 2026-10-28; V1-3063) The work	standing	2026-10-28; V1-3063
 WQO-V0-095	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept; V1-2769) The remaining fixed	standing	V1-2769
 WQO-V0-094	docs/specs/work-queue-observation-v0.md	(accepted under the owner's standing lane-requirement auto-accept (2026-10-11);	standing	2026-10-11
+WQO-V0-920	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-2741) After an	standing	2026-10-31; V1-2741
 WQO-V0-033	docs/specs/work-queue-observation-v0.md	Corvint core makes no network request, model call, database, daemon, embedding,	unrecorded	-
 WQO-V0-034	docs/specs/work-queue-observation-v0.md	Independent Go conformance validates every schema, identity, decision row, bound	unrecorded	-
 WQO-V0-035	docs/specs/work-queue-observation-v0.md	Rollout is frozen conformance, Corvint self-dogfood, Beamfall shadow, 500 consec	unrecorded	-

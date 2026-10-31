@@ -28,7 +28,7 @@ const (
 // retries classifies every member of Codes. TestCALV0078_ClassificationCoversEveryCode
 // pins it so a new §11 code cannot ship unclassified.
 var retries = map[string]Retry{
-	CodeResourceExhausted: {true, "process or system file descriptors are exhausted; after bounded backoff the identical request with the same --request-id can succeed when pressure clears; explicit post-program or unfinished-commit marks still forbid retry (CAL-V0-215)"},
+	CodeResourceExhausted: {true, "process or system file descriptors, disk space or inotify watches are exhausted (PSR-V0-901); after bounded backoff the identical request with the same --request-id can succeed when pressure clears; explicit post-program or unfinished-commit marks still forbid retry (CAL-V0-215)"},
 	CodeLockTimeout:       {true, "the store lock or a preparation admission was held by another writer past the wait budget, or the write's context ended before it committed (ATR-V0-050); nothing was locked or written, so the same command with the same --request-id can succeed once the holder releases"},
 	CodeRedoPending:       {true, "a writer is between receipt link-in and head rename; the read or command can succeed once that writer finishes, and if it outlives the budget the next mutating command redoes the pending receipt"},
 	CodeSnapshotMoved:     {true, "the store, head, intent tree or worktree changed during a read or before commit; nothing was decided, so the same command can succeed against a quiet snapshot (a release or attestation candidate whose head no longer matches, and a criterion capture wrapping a refused read, repeat until their input changes)"},

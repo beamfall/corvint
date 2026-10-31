@@ -56,3 +56,22 @@ func TestCALV0215_WithoutRetry(t *testing.T) {
 		}
 	}
 }
+
+// PSR-V0-901: a host out of disk space or inotify watches (ENOSPC) is resource
+// exhaustion, not a malformed request; explicit codes keep precedence.
+func TestPSRV0901_NoSpaceIsResourceExhausted(t *testing.T) {
+	for _, err := range []error{syscall.ENOSPC, &os.PathError{Op: "inotify_add_watch", Path: "tickets", Err: syscall.ENOSPC}, &os.SyscallError{Syscall: "write", Err: syscall.ENOSPC}, fmt.Errorf("guard: %w", &os.PathError{Op: "write", Path: "head.json", Err: syscall.ENOSPC})} {
+		if got := CodeOf(err); got != CodeResourceExhausted {
+			t.Fatalf("CodeOf(%v) = %s", err, got)
+		}
+	}
+	if CodeOf(errors.New(syscall.ENOSPC.Error())) != CodeMalformed {
+		t.Fatal("message text classified as exhaustion")
+	}
+	if CodeOf(errors.Join(Errorf(CodeUnsupportedFilesystem, "open", "explicit refusal"), syscall.ENOSPC)) != CodeUnsupportedFilesystem {
+		t.Fatal("explicit code lost precedence")
+	}
+	if !RetryForbidden(fmt.Errorf("after program: %w", WithoutRetry(syscall.ENOSPC))) {
+		t.Fatal("post-effect mark lost")
+	}
+}

@@ -1322,7 +1322,7 @@
         "corvint docs corpus discover-playwright --migration evidence/migration.json --config playwright.config.ts --playwright-list evidence/list.json --receipt evidence/receipt.json > evidence/discovery.json git add evidence/receipt.json && git commit -m \"retain playwright receipt\"",
         "corvint [--root PATH] docs corpus discover-playwright --migration MIGRATION.json --config PATH --playwright-list LIST.json [--receipt RECEIPT.json] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
         "corvint [--root PATH] docs corpus discover-tests --runner playwright|rspec --revision FULL_COMMIT --path PATH",
-        "corvint [--root PATH] docs corpus discover-tests --runner jasmine|mocha --revision FULL_COMMIT --path PATH [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
+        "corvint [--root PATH] docs corpus discover-tests --runner playwright|rspec --revision FULL_COMMIT --path PATH [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
         "corvint [--root PATH] docs corpus estate --input ESTATE.json",
         "corvint [--root PATH] docs corpus estate --input REQUEST.json [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
         "corvint [--root PATH] docs corpus eval --artifact CORPUS.json --cases CASES.json [--baseline RECEIPT.json] [--format json|table] [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]",
@@ -1976,7 +1976,7 @@
       "summary": "Experimental documentation corpus: read Playwright or RSpec examples, expectations, navigations, reaches and hooks statically from Git blobs",
       "usage": [
         "corvint [--root PATH] docs corpus discover-tests --runner playwright|rspec --revision FULL_COMMIT --path PATH",
-        "corvint [--root PATH] docs corpus discover-tests --runner jasmine|mocha --revision FULL_COMMIT --path PATH [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
+        "corvint [--root PATH] docs corpus discover-tests --runner playwright|rspec --revision FULL_COMMIT --path PATH [--workspace FILE] [--no-workspace] [--repo ALIAS=ROOT]"
       ],
       "flags": [
         "--no-workspace",
@@ -1988,6 +1988,7 @@
         "--workspace"
       ],
       "required": [
+        "--runner playwright|rspec",
         "--revision FULL_COMMIT",
         "--path PATH"
       ],

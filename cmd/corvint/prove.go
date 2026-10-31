@@ -591,6 +591,21 @@ func runProve(ctx context.Context, options options, stdout, stderr io.Writer) in
 	return 0
 }
 
+// proveStatusRefusal is the refusal for a failed worktree status read: a read
+// whose fixed Git deadline elapsed while the command's own context was live is
+// the typed time bound repository-probe-timeout, so a loaded host is not
+// reported as unreadable history; any other failure keeps
+// unsupported-prove-history (FPK-V0-920). The read's own deadline context
+// usually ends first and reports the cancellation, so with the command's
+// context live either code is that deadline.
+func proveStatusRefusal(ctx context.Context, err error) *gokernel.Error {
+	var failure *cemcode.Error
+	if ctx.Err() == nil && errors.As(err, &failure) && (failure.Code == cemcode.GitTimeout || failure.Code == cemcode.GitCancelled) {
+		return &gokernel.Error{Code: "repository-probe-timeout", Message: "Git worktree status read exceeded its 10-second deadline"}
+	}
+	return &gokernel.Error{Code: "unsupported-prove-history", Message: "cannot read the worktree status"}
+}
+
 // compileProof brackets the whole operation: the dirty set is read before the
 // packet is compiled and again after the cited blobs are read, and the HEAD
 // tree must still be the packet's revision at the end. Any drift fails closed,
@@ -602,7 +617,7 @@ func compileProof(ctx context.Context, options options) (any, error) {
 	}
 	dirtyBefore, err := affected.DirtyPaths(ctx, gitExecutable, options.root)
 	if err != nil {
-		return proveReceipt{}, &gokernel.Error{Code: "unsupported-prove-history", Message: "cannot read the worktree status"}
+		return proveReceipt{}, proveStatusRefusal(ctx, err)
 	}
 	if options.proveMode == "checkpoint" {
 		return compileCheckpointProof(ctx, gitExecutable, options, dirtyBefore)
@@ -651,7 +666,7 @@ func compileProof(ctx context.Context, options options) (any, error) {
 	}
 	dirtyAfter, err := affected.DirtyPaths(ctx, gitExecutable, options.root)
 	if err != nil {
-		return proveReceipt{}, &gokernel.Error{Code: "unsupported-prove-history", Message: "cannot read the worktree status"}
+		return proveReceipt{}, proveStatusRefusal(ctx, err)
 	}
 	tree, err := proveTreeRevision(ctx, gitExecutable, options.root)
 	if err != nil {

@@ -297,7 +297,7 @@ func (p *proposal) collectHunkFacts(candidates []string, wanted, seen map[string
 	}
 }
 
-func sortedKeys(set map[string]bool) []string {
+func sortedKeys[V any](set map[string]V) []string {
 	keys := make([]string, 0, len(set))
 	for key := range set {
 		keys = append(keys, key)
