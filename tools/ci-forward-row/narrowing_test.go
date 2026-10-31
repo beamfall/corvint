@@ -116,6 +116,7 @@ func TestAFPV0099CollectorFetchesNarrowing(t *testing.T) {
 	p := strs(f.sel[0]["selected"])[0]
 	fail(f.out[0], p, "fail", "RAN", "pass")
 	f.nar = map[int]doc{0: narrowingRecord(0, "NARROWED", prRun, nil, []string{p})}
+	f.stampEpoch(1) // CIN-V0-001: the collector runs at FORWARD_EPOCH=1
 	selDir, outDir := f.write(t, filepath.Join(dir, "src"))
 	move := func(src, run string) []string {
 		var names []string
@@ -331,6 +332,7 @@ func TestAFPV0097VerdictAcceptance(t *testing.T) {
 		pages     [][]any  // when set, the full artifact listing page by page (page N+1 onward is empty)
 		killPages string   // KILL_PAGES, the page budget of the scan since the verdict
 		fail      []string // AFP-V0-760: unreadable listing pages, as "SIZE-PAGE"
+		reads     *int     // CIN-V0-004: when set, gets the number of artifact listing pages read
 	}
 	artifact := func(run string, age time.Duration) doc {
 		id, _ := strconv.Atoi(run)
@@ -389,6 +391,10 @@ func TestAFPV0097VerdictAcceptance(t *testing.T) {
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("accept.sh: %v\n%s", err, out)
+		}
+		if s.reads != nil {
+			r, _ := os.ReadFile(filepath.Join(dir, "requests"))
+			*s.reads = len(regexp.MustCompile(`(?m)/actions/artifacts\?per_page=`).FindAllIndex(r, -1))
 		}
 		o, _ := os.ReadFile(output)
 		verdict := regexp.MustCompile(`(?m)^verdict=(.*)$`).FindStringSubmatch(string(o))
@@ -522,6 +528,93 @@ func TestAFPV0097VerdictAcceptance(t *testing.T) {
 			}
 			if verdict != "FULL" || !strings.Contains(reason, c.want) {
 				t.Fatalf("verdict %s (%s), want FULL with %q", verdict, reason, c.want)
+			}
+		})
+	}
+	// CIN-V0-004 (V1-3091): a verdict that names its listing time and window rows is re-checked
+	// over the rows since that listing only. The replayed listing is 30 pages of 100, past the
+	// old 25-page budget: the verdict artifact sits on page 30, two new rows of the epoch on
+	// page 1, artifacts of other branches created four hours ago (before the verdict's listing)
+	// on page 2, and the window's 20 rows on page 3, which the incremental listing never reads.
+	window := epochRows(20)
+	incremental := func(s *setup) {
+		s.verdict.(doc)["listedAt"] = now.Add(-2 * time.Hour).Format(time.RFC3339)
+		s.verdict.(doc)["windowNames"] = window
+	}
+	replay := func(fresh ...string) func(*setup) {
+		return func(s *setup) {
+			s.pages = [][]any{listed(append(fresh, barNames("CLEAN", 2001, "1", "0"), barNames("CLEAN", 2002, "1", "1")), time.Hour, false, 100),
+				listed(nil, 0, false, 100), listed(window, 5*time.Hour, false, 100)}
+			for _, a := range s.pages[1] {
+				a.(doc)["created_at"] = now.Add(-4 * time.Hour).Format(time.RFC3339)
+			}
+			for len(s.pages) < 29 {
+				s.pages = append(s.pages, listed(nil, 0, false, 100))
+			}
+			s.pages = append(s.pages, listed(nil, 0, true, 100))
+		}
+	}
+	big := []struct {
+		name, want string
+		reads      int
+		edit       func(*setup)
+	}{
+		// The same rows give the same verdict: the whole listing (31 reads, the 31st empty) and
+		// the incremental one (2 reads) are both MET, where the old 25-page budget ran out.
+		{"the whole listing of 30 pages", "MET", 31, func(s *setup) { replay()(s); s.killPages = "40" }},
+		{"the old 25-page budget", "do not reach the verdict", 25, replay()},
+		{"the incremental listing", "MET", 2, func(s *setup) { replay()(s); incremental(s) }},
+		{"a MISS since the verdict", "show a MISS", 2, func(s *setup) { replay(barNames("MISS", 2003, "1", "1"))(s); incremental(s) }},
+		{"a MISS in the verdict's window", "show a MISS", 2, func(s *setup) {
+			replay()(s)
+			incremental(s)
+			s.verdict.(doc)["windowNames"] = append([]string{barNames("MISS", 2004, "1", "0")}, window[1:]...)
+		}},
+		{"three INCOMPLETE rows trip the switch", "tripped kill switch", 2, func(s *setup) {
+			replay(barNames("INCOMPLETE", 2005, "1", "0"), barNames("INCOMPLETE", 2006, "1", "0"))(s)
+			incremental(s)
+			s.verdict.(doc)["windowNames"] = append([]string{barNames("INCOMPLETE", 2007, "1", "0")}, window[1:]...)
+		}},
+		{"a re-run row replaces its window row", "show a MISS", 2, func(s *setup) {
+			replay(barNames("MISS", 1003, "1", "0"))(s)
+			incremental(s)
+		}},
+		{"an unreadable page since the verdict", "artifact page 2 is unreadable", 5, func(s *setup) {
+			replay()(s)
+			incremental(s)
+			s.fail = []string{"100-2", "25-5"}
+		}},
+		{"a listing that does not reach the verdict's listing", "do not reach " + now.Add(-3*time.Hour).Format(time.RFC3339), 1, func(s *setup) {
+			replay()(s)
+			incremental(s)
+			s.killPages = "1"
+		}},
+		{"a window of under 20 rows", "fewer than 20 rows", 2, func(s *setup) {
+			replay()(s)
+			incremental(s)
+			s.verdict.(doc)["windowNames"] = window[:5]
+		}},
+		// A malformed listing time or window falls back to the whole listing and its budget.
+		{"a window row of another epoch", "do not reach the verdict", 25, func(s *setup) {
+			replay()(s)
+			incremental(s)
+			s.verdict.(doc)["windowNames"] = append([]string{barNames("CLEAN", 2008, "0", "0")}, window[1:]...)
+		}},
+		{"a malformed listing time", "do not reach the verdict", 25, func(s *setup) {
+			replay()(s)
+			incremental(s)
+			s.verdict.(doc)["listedAt"] = "yesterday"
+		}},
+	}
+	for _, c := range big {
+		t.Run("CIN-V0-004 "+c.name, func(t *testing.T) {
+			s := good()
+			c.edit(&s)
+			reads := -1
+			s.reads = &reads
+			verdict, reason := accept(t, s)
+			if (c.want == "MET") != (verdict == "MET") || (c.want != "MET" && !strings.Contains(reason, c.want)) || reads != c.reads {
+				t.Fatalf("verdict %s (%s) after %d listing reads, want %q after %d", verdict, reason, reads, c.want, c.reads)
 			}
 		})
 	}

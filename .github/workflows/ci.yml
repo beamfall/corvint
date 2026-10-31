@@ -87,6 +87,14 @@ jobs:
       - name: Shared documentation gates (including host versions and use-case pins)
         if: needs.doc-gates-reuse.outputs.mode != 'REUSE'
         run: make -s doc-gates
+      - name: Refuse AI co-author trailers in the pull request's commits (CIN-V0-006)
+        # V1-3227: no commit may credit an AI agent as a GitHub co-author. A make target, so
+        # batch-precheck can mirror it; BASE_SHA is empty outside a pull request, where it skips,
+        # as it does on a tree without the check script (before it lands).
+        if: needs.doc-gates-reuse.outputs.mode != 'REUSE'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: make -s ai-coauthor-trailers-check
 
   doc-gates-record:
     # AFP-V0-670, AFP-V0-671: the only evidence the doc-gates-reuse decision accepts. It runs in a
@@ -358,7 +366,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           # Must equal CORVINT_PR_FORWARD_EPOCH below and FORWARD_EPOCH in ci-forward-bar.yml.
-          FORWARD_EPOCH: "1"
+          FORWARD_EPOCH: "2"
           VERDICT_WORKFLOW: .github/workflows/ci-forward-bar.yml
         run: sh trusted/.github/forward-rows/accept.sh
 
@@ -368,7 +376,9 @@ jobs:
     # that runs this suite on the combined tree, so its own race shards never start. go-product
     # below passes with a notice (V1-2265); the label never lands a PR untested, because every
     # merge goes through the merge queue, whose run ignores the label and tests in full.
-    if: ${{ always() && !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') }}
+    # CIN-V0-007 (V1-2902): on a passed docs-plan DOCS or REUSE decision no shard runs a tests
+    # step, so no shard job starts; go-product accepts that skip only for that decision.
+    if: ${{ always() && !cancelled() && !contains(github.event.pull_request.labels.*.name, 'ci:batched') && !(needs.docs-plan.result == 'success' && (needs.docs-plan.outputs.mode == 'DOCS' || needs.docs-plan.outputs.mode == 'REUSE')) }}
     # Partition the complete runtime package universe using advisory measured costs. An
     # admitted Corvint selection recorded with the PARTITION placement intersects those same
     # disjoint partitions, so mixed full fallbacks cannot omit selected packages. One recorded
@@ -422,10 +432,11 @@ jobs:
       # AFP-V0-098 superset rule records FULL on every batch.
       CORVINT_TEST_SHADOW_SOURCE: "93b9f5b08ce841875c9c81d17905908d91346f99"
       # AFP-V0-030: the forward-evidence epoch. Advanced to 1 when `corvint test` joined the
-      # shadow (STR-V0-012 step 3), so no earlier row counts toward the AFP-V0-029 bar. The
-      # first shadow rows of this epoch come from the AFP-V0-047 shadow pin above. Must equal
+      # shadow (STR-V0-012 step 3), and to 2 (V1-3314, CIN-V0-001) after the dead-pin rows of
+      # the 1.0 mint, so no earlier row counts toward the AFP-V0-029 bar. The first shadow
+      # rows of this epoch come from the AFP-V0-047 shadow pin above. Must equal
       # FORWARD_EPOCH in ci-control-plane.yml, which names the rows.
-      CORVINT_PR_FORWARD_EPOCH: "1"
+      CORVINT_PR_FORWARD_EPOCH: "2"
       GOTOOLCHAIN: local
       GOPROXY: "off"
       GOSUMDB: "off"
@@ -612,6 +623,7 @@ jobs:
           cp -a -- "$src" "$GOCACHE" || cold "copying $src failed"
           echo "AFP-V0-427: restored $(du -sk -- "$GOCACHE" | cut -f1) KiB from $src"
       - name: Capture trusted tool source outside tested checkout
+        id: pin-tool-capture
         continue-on-error: true
         if: (github.event_name == 'pull_request' || (github.event_name == 'merge_group' && vars.CORVINT_MQ_NARROWING == 'on' && github.event.merge_group.base_ref == 'refs/heads/main')) && env.CORVINT_PR_TOOL_SOURCE != ''
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -620,6 +632,7 @@ jobs:
           ref: ${{ env.CORVINT_PR_TOOL_SOURCE }}
           persist-credentials: false
       - name: Build pinned planner, selector, and driver
+        id: pin-tool-build
         continue-on-error: true
         if: (github.event_name == 'pull_request' || (github.event_name == 'merge_group' && vars.CORVINT_MQ_NARROWING == 'on' && github.event.merge_group.base_ref == 'refs/heads/main')) && env.CORVINT_PR_TOOL_SOURCE != ''
         working-directory: trusted-tools
@@ -630,6 +643,7 @@ jobs:
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-pr-bin/selector" ./tools/gate-affected-select
           go build -trimpath -buildvcs=false -o "$RUNNER_TEMP/corvint-pr-bin/driver" ./tools/corvint-pr-tests
       - name: Capture the pinned shadow planner source outside tested checkout
+        id: pin-shadow-capture
         continue-on-error: true
         if: (github.event_name == 'pull_request' || (github.event_name == 'merge_group' && vars.CORVINT_MQ_NARROWING == 'on' && github.event.merge_group.base_ref == 'refs/heads/main')) && env.CORVINT_TEST_SHADOW_SOURCE != '' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE'
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -640,6 +654,7 @@ jobs:
       - name: Build the pinned shadow planner
         # AFP-V0-047: only ./cmd/corvint, from the shadow pin, never from the tested checkout.
         # AFP-V0-731: a merge-queue entry builds it too, for the narrowing gate's superset guard.
+        id: pin-shadow-build
         continue-on-error: true
         if: (github.event_name == 'pull_request' || (github.event_name == 'merge_group' && vars.CORVINT_MQ_NARROWING == 'on' && github.event.merge_group.base_ref == 'refs/heads/main')) && env.CORVINT_TEST_SHADOW_SOURCE != '' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE'
         working-directory: trusted-shadow
@@ -717,7 +732,8 @@ jobs:
         # from CORVINT_TEST_SHADOW_SOURCE, outside the tested checkout, plans this shard with the
         # ci profile and universe placement and prints its argv; --dry-run runs nothing but Git.
         # The Go tests step below keeps executing the full shard, and its result alone counts.
-        # selection.json is this shard's retained S (corvint-pr-selection/0) for the forward rows.
+        # selection.json is this shard's retained S (corvint-pr-selection/0) for the forward rows,
+        # stamped with this run's own CORVINT_PR_FORWARD_EPOCH, which names its rows (CIN-V0-001).
         if: github.event_name == 'pull_request' && env.CORVINT_TEST_SHADOW_SOURCE != '' && needs.docs-plan.outputs.mode != 'DOCS' && needs.docs-plan.outputs.mode != 'REUSE'
         continue-on-error: true
         timeout-minutes: 5
@@ -752,7 +768,7 @@ jobs:
             --arg toolSource "$CORVINT_TEST_SHADOW_SOURCE" --arg toolDigest "sha256:$(sha256sum "$shadow" | cut -d' ' -f1)" \
             --arg pr "$PR_NUMBER" --arg head "$PR_HEAD" --arg base "$PR_BASE" --arg target "$TESTED_MERGE" \
             --arg tree "$shadow_tree" --arg runId "$GITHUB_RUN_ID" --arg runAttempt "$GITHUB_RUN_ATTEMPT" \
-            --arg shard "$SHARD" --arg shards "$SHARDS" --arg exit "$status" \
+            --arg shard "$SHARD" --arg shards "$SHARDS" --arg exit "$status" --arg forwardEpoch "$CORVINT_PR_FORWARD_EPOCH" \
             -f .github/forward-rows/selection.jq > "$d/selection.json"
           jq -c '{scope, exit, selected: (.selected | length), manifestDigest, incomplete}' "$d/selection.json"
       - name: Retain corvint test shadow plan
@@ -1233,6 +1249,27 @@ jobs:
         with:
           path: ~/.cache/go-build
           key: ${{ steps.gocache.outputs.cache-primary-key }}
+      - name: Fail loudly on an unreachable or unbuildable pin (CIN-V0-002, V1-3309)
+        # The pin steps above stay continue-on-error so the full suite still runs, but a pin that
+        # cannot be fetched or built leaves every forward row of this run INCOMPLETE and narrowing
+        # dead; the shard fails here, after every other step, and names the pin.
+        if: always() && (steps.pin-tool-capture.outcome == 'failure' || steps.pin-tool-build.outcome == 'failure' || steps.pin-shadow-capture.outcome == 'failure' || steps.pin-shadow-build.outcome == 'failure')
+        timeout-minutes: 1
+        env:
+          TOOL_CAPTURE: ${{ steps.pin-tool-capture.outcome }}
+          TOOL_BUILD: ${{ steps.pin-tool-build.outcome }}
+          SHADOW_CAPTURE: ${{ steps.pin-shadow-capture.outcome }}
+          SHADOW_BUILD: ${{ steps.pin-shadow-build.outcome }}
+        run: |
+          for s in "CORVINT_PR_TOOL_SOURCE $CORVINT_PR_TOOL_SOURCE fetch $TOOL_CAPTURE" "CORVINT_PR_TOOL_SOURCE $CORVINT_PR_TOOL_SOURCE build $TOOL_BUILD" \
+            "CORVINT_TEST_SHADOW_SOURCE $CORVINT_TEST_SHADOW_SOURCE fetch $SHADOW_CAPTURE" "CORVINT_TEST_SHADOW_SOURCE $CORVINT_TEST_SHADOW_SOURCE build $SHADOW_BUILD"; do
+            set -- $s
+            if [ "$4" = failure ]; then
+              echo "::error title=CI pin unreachable (CIN-V0-002)::$1 $2 failed to $3; every forward row of this run is INCOMPLETE until it is repinned"
+              echo "CIN-V0-002: $1 $2 failed to $3" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+          exit 1
 
   ci-tested-tree-record:
     # AFP-V0-170 (V1-2271): the only evidence the AFP-V0-024/046 reuse decision accepts. In a
@@ -1444,6 +1481,17 @@ jobs:
               CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build ./...
             )
           done
+      - name: Nested module tools/local-authority tests and vet (CIN-V0-008)
+        # V1-3329: the only CI run of this nested module's tests. It runs on every path that
+        # starts go-static, so it covers every change a plan can carry to the module, its own
+        # files included. Its two external modules are fetched once, verified against the
+        # module's go.sum (-mod=readonly fails on a missing or mismatched hash); the tests and
+        # vet then run with GOPROXY off, as every other Go step does.
+        working-directory: source/tools/local-authority
+        run: |
+          GOPROXY=https://proxy.golang.org GOSUMDB=sum.golang.org GOFLAGS=-mod=readonly go mod download
+          go test -count=1 -timeout 30m ./...
+          go vet ./...
       - name: Independent interop under production toolchain
         # AFP-V0-380 (V1-1103): the only run of interop/cem01-go's tests and vet in this workflow.
         working-directory: source/interop/cem01-go
@@ -1491,7 +1539,12 @@ jobs:
             echo "$msg" >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          test "$SHARDS_RESULT" = success
+          # CIN-V0-007: shards skipped at job level only for a passed DOCS or REUSE decision.
+          if [ "$SHARDS_RESULT" = skipped ] && [ "$DOCS_RESULT" = success ] && { [ "$DOCS_MODE" = DOCS ] || [ "$DOCS_MODE" = REUSE ]; }; then
+            echo "CIN-V0-007: no go-product shard started (docs-plan $DOCS_MODE)."
+          else
+            test "$SHARDS_RESULT" = success
+          fi
           # AFP-V0-080: only a main push whose queue run passed go-static on this commit skips it.
           if [ "$GITHUB_EVENT_NAME" = push ] && [ "$STATIC_REUSE" = REUSE ] && [ "$STATIC_RESULT" = skipped ]; then
             echo 'go-static reused from the merge-queue run of this commit (AFP-V0-080).'

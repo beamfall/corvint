@@ -4166,6 +4166,18 @@
     "implementation": []
   },
   {
+    "path": "docs/specs/ci-narrowing-v0.md",
+    "title": "CI Narrowing V0",
+    "reqPrefix": "CIN-V0",
+    "intent": "experimental under the owner's standing lane auto-accept (2026-10-11; V1-3309, V1-3091, V1-3158, V1-3227, V1-2902, V1-3329); CIN-V0-001 decided by the orchestrator under owner delegation (V1-3314), applying the AFP-V0-030 re-arm rule; effective only after the owner's `ci-control-plane` review of the `.github` change",
+    "delivery": "experimental",
+    "claim": "CI narrowing restarts its epoch per producing run, fails loudly on a dead pin, lists only needed rows, skips idle shards and tests tools/local-authority.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
+  },
+  {
     "path": "docs/specs/test-selection-precision-v0.md",
     "title": "Test Selection Precision V0",
     "reqPrefix": "TSP-V0",
