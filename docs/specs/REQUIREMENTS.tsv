@@ -2235,6 +2235,8 @@ ATR-V0-241	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the own
 ATR-V0-214	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2709) A claim	standing	2026-10-11; V1-2709
 ATR-V0-215	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2709) A claim	standing	2026-10-11; V1-2709
 ATR-V0-216	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2709)	standing	2026-10-11; V1-2709
+ATR-V0-800	docs/specs/corvint-tasks-attempt-runner-v0.md	A claim refused `RESOURCE_COLLISION` against a live attempt MUST, after the	unrecorded	-
+ATR-V0-801	docs/specs/corvint-tasks-attempt-runner-v0.md	Two tickets whose declared touchPaths are distinct exact files under one directo	unrecorded	-
 ATR-V0-213	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2189) The	standing	2026-10-11; V1-2189
 ATR-V0-270	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0830) The usag	standing	2026-10-11; V1-0830
 ATR-V0-271	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0828) A `FENCE	standing	2026-10-11; V1-0828
