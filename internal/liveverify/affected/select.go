@@ -553,6 +553,17 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 			}
 		}
 	}
+	for _, name := range graph.languages {
+		route, names := graph.claimants[name].(FrontierRoute)
+		if !names {
+			continue
+		}
+		for _, entry := range graph.frontierBy[name] {
+			if text := route.FrontierRoute(entry); reasons[entry] && text != "" {
+				hints[entry] = strings.TrimPrefix(hints[entry]+"; "+text, "; ")
+			}
+		}
+	}
 	unknown := make([]Unknown, 0, len(reasons))
 	for _, reason := range sortedKeys(reasons) {
 		unknown = append(unknown, Unknown{Reason: UnknownLanguageFrontier, Detail: reason, Hint: hints[reason]})

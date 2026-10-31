@@ -181,6 +181,14 @@ type PathReader interface {
 	ReadsAnyPath() bool
 }
 
+// FrontierRoute is implemented by a plugin that names, for some of its frontier
+// reasons, the supported route past the frontier (AFP-V0-761). The route is
+// appended to the entry's Hint, so it never changes selection, scope or the
+// bare Detail consumers key on. An empty route names nothing.
+type FrontierRoute interface {
+	FrontierRoute(reason string) string
+}
+
 // FrontierReach is implemented by a plugin that classifies its frontier reasons
 // by the paths their hidden edge can bind (AFP-V0-511). A reason is the first
 // two colon-separated fields of a frontier entry, `<plugin>:<category>`. A
