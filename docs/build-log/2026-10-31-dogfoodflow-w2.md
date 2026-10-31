@@ -37,7 +37,10 @@ amendment under the standing lane auto-accept, with its spec commit before its i
   requirement-bearing lines name the most distinct owed paths, counting specs the change modifies
   (never cited). A first count over all lines picked the unrelated spec in the fixture, so only
   requirement-bearing lines count. A cite outside every governing spec is kept with a
-  `cited low-confidence (DCW-V0-886)` note (`DCW-V0-886`).
+  `cited low-confidence (DCW-V0-886)` note (`DCW-V0-886`). Self-use on this lane's own change then
+  named `affected-plan-v0.md` governing, because it names many paths, and showed that `git grep -o`
+  hands the matcher only the match, so modified specs were never counted. Both were fixed: the
+  BASE line is read, and when a modified spec names an owed path only modified specs compete.
 - V1-2083. Reproduced by reading `docs/specs/test-source-analysis-v0.md`: `TSA-V0-410..419` sit
   under `## Example receipt join...` (line 2708), outside the one `## Requirements` section
   (29..1063), so `OCM-V0-001` enumerates none of them. The change coverage now also counts a
