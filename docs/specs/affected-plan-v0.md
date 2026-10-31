@@ -5387,6 +5387,28 @@ admit a selection that under-selects without detection.
   observing declared packages unconfined. Rollback: remove the flag and the `Confine` and
   `ConfinedEnv` members; identities frozen without the wrapper are unchanged by it.
 
+### Two Go lexers (AFP-V0-765; V1-2206)
+
+- **AFP-V0-765:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2206)
+  Decision on sharing one Go lexer between the affected graph scan (`pathTokens` in
+  `internal/liveverify/affected/golang`) and the fast-tier index (`scanSource` in
+  `internal/gateselect`): their token streams are not equal, so no lexer is shared and the
+  `corvint test --dry-run` 3.90 s median (AFP-V0-316) is not re-measured. The four differences and
+  their selection impact: (1) region: the graph lexes from the end of an imports-only parse, the
+  index lexes the whole file and skips import declarations by its own recognizer; on a file both
+  parse, the literals outside imports are the same. (2) comment mode: the index lexes with
+  `ScanComments` (for `//go:embed`), the graph without; a comment between `os.` and `Getwd` would
+  hide a root-locating call from the index alone. Measured over every tracked Go file of this
+  repository at the lane base (6146 files), the streams are equal with comments dropped and no
+  comment splits a qualified identifier, so this reaches no file today. (3) root-locator table:
+  one function per import path in the index, a set in the graph, with equal contents
+  (`os.Getwd`). (4) literal lexicon: the index splits a literal with printf verbs as spaces and
+  none of the AFP-V0-505, AFP-V0-506, AFP-V0-840 and V1-1818 rules, so a closing tag, a `..\x`
+  path or a short sed component yields other path tokens there; that is a selection difference
+  between `corvint test` and `affected` by design of each lexicon, not a lexer difference
+  sharing could remove. Falsifier: a token-stream difference beyond comments on the repository,
+  or a comment-split qualifier. Rollback: delete the two tests.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
@@ -5753,6 +5775,7 @@ traceability table.
 | AFP-V0-767 | the `-exec` argv of `execute` in `tools/corvint-pr-tests/main.go`; `.github/testconfine` | `TestConfinedDriverRunsFailUndeclaredReads` (declared undeclared-read package fails, declared entry passes, undeclared package unconfined, unconfined control passes); skipped with a typed reason without Landlock ABI 2 |
 | AFP-V0-768 | `requireConfinement` and `declaresReadScopes` in `tools/corvint-pr-tests/shadow.go`; the guard in `runPR` | `TestCampaignRefusesDeclarationWithoutConfine` (freeze and shadow refuse, no corpus or checkout written; run mode falls back to FULL with the reason) |
 | AFP-V0-769 | the `.git` check of `execute`; `validRunEnv` and the argv check of `validateRow` in `tools/corvint-pr-tests/shadow.go` | `TestConfinedDriverRunsFailUndeclaredReads` (a root without `.git` refused; tampered argv and env refused); `TestCampaignRefusesDeclarationWithoutConfine` (a confined row frozen in the source runs in the owned clone and resumes); `TestConfinedRowValidationBindsArgvAndEnv` |
+| AFP-V0-765 | decision only; the two lexers stay | `TestTwoGoLexersAgreeBeyondComments_AFPV0765` (`internal/liveverify/affected`: repository measurement of difference (2)); `TestFastTierLiteralLexiconDiffers_AFPV0765` (`internal/gateselect`: difference (4)) |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`
