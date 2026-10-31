@@ -528,9 +528,9 @@ write_frozen "$long; FRZ-V0-002 accepted (2026-10-31)" "$long"
 frz_err=$(run 2>&1 > /dev/null) && fail "a new ID in the Intent status was accepted"
 for want in \
   'docs/specs/frozen.md: its Intent status names FRZ-V0-002, which its frozen header text does not' \
-  "docs/specs/frozen.md: its Intent status is $((${#long} + 34)) characters; the limit is 160 or its frozen length, ${#long}" \
+  "docs/specs/frozen.md: its Intent status is $((${#long} + 34)) characters; the limit is its frozen length, ${#long}" \
   "record an acceptance or amendment in the requirement's own leading note" \
-  'acceptance and acceptedBy columns' '(SRG-V0-980)'; do
+  'acceptance and acceptedBy columns' '(SRG-V0-009, SRG-V0-981)' '(SRG-V0-980)'; do
   case $frz_err in *"$want"*) ;; *) fail "the frozen-header refusal lacks '$want': $frz_err" ;; esac
 done
 case $frz_err in *FRZ-V0-001*) fail "a frozen ID was refused: $frz_err" ;; esac
@@ -540,6 +540,15 @@ case $frz_err in
   *'docs/specs/frozen.md: its Agent digest Status names FRZ-V0-002'*) ;;
   *) fail "the digest refusal lacks the field and ID: $frz_err" ;;
 esac
+# A range or slash after a frozen ID names the IDs it reaches.
+for segment in 'FRZ-V0-001..002' 'FRZ-V0-001/002'; do
+  write_frozen "accepted; $segment accepted"
+  frz_err=$(run 2>&1 > /dev/null) && fail "the segment $segment was accepted"
+  case $frz_err in
+    *'its Intent status names FRZ-V0-002'*) ;;
+    *) fail "the segment $segment was not read as naming FRZ-V0-002: $frz_err" ;;
+  esac
+done
 frz_dir="$test_root/frz-out"
 mkdir "$frz_dir"
 if (cd "$test_root" && script/gen-spec-requirements.sh --all "$frz_dir") > /dev/null 2>&1; then
@@ -549,8 +558,12 @@ test -z "$(ls -A "$frz_dir")" || fail "a refused header wrote into DIR"
 git -C "$test_root" rm -q --cached -- docs/specs/INTENT-STATUS-FROZEN.tsv
 write_frozen 'proposed'
 run > /dev/null || fail "a short ID-free header without a frozen row was refused"
-write_frozen "$long"
-run > /dev/null 2>&1 && fail "a header over 160 characters without a frozen row was accepted"
+write_frozen "accepted $(printf '%0170d' 0)"
+frz_err=$(run 2>&1 > /dev/null) && fail "a header over 160 characters without a frozen row was accepted"
+case $frz_err in
+  *'its Intent status is 179 characters; the limit is 160'*) ;;
+  *) fail "the unfrozen length refusal lacks the lengths: $frz_err" ;;
+esac
 git -C "$test_root" rm -q --cached -- docs/specs/frozen.md
 
 printf 'ok\n'

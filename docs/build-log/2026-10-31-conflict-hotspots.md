@@ -22,7 +22,10 @@ The Makefile's three conflicts each hit the shared `.PHONY:` line, the `GATE_STE
    appended to, so it is not a new hotspot; a header may shrink or drop IDs without editing it. A
    per-spec hash was rejected because it would refuse every legitimate status change. The length
    bound catches a new segment that reuses a frozen ID; 160 matches the claim bound (SRG-V0-040),
-   and 32 of 240 headers were over it.
+   and 32 of 239 headers were over it. IDs are read as the SRG-V0-003 token plus each `..NNN` or
+   `/NNN` suffix (so `X-V0-001..003` names X-V0-003), and the frozen rows were built with that reader.
+   The guard is lexical: a segment that names no ID passes while the header stays within 160
+   characters or its frozen length. A renamed spec moves its frozen row in the rename's commit.
 2. **Refuse in the generator.** The refusal runs in every `gen-spec-requirements.sh` mode, before
    any output, as SRG-V0-040 and SRG-V0-547 do, so `make spec-requirements` reports it at the first
    spec step and `spec-requirements-check` (and so `make doc-gates`) enforces it. The message names
@@ -43,6 +46,22 @@ The Makefile's three conflicts each hit the shared `.PHONY:` line, the `GATE_STE
    `.PHONY:` line) conflict, and the generator refuses the header segment. A mutation in which both
    lanes amend the same requirement fails the replay, and case 13 of
    `script/gen-spec-requirements_test.sh` fails on the pre-change generator.
+
+6. **Independent review (one subagent pass).** It found no correctness bug in the refusal, the frozen
+   file (rebuilt independently, exact match) or the Makefile split (same 122 phony targets, none in a
+   conditional). It found that the docs claimed more than the replay proved: amendments to
+   adjacent definition lines, and two targets added at the same spot, still conflict. That limit is
+   now in SRG-V0-983 and the Status model, and the replay asserts it (adjacent SEC-V0-001/002
+   amendments conflict only in the spec and REQUIREMENTS.tsv). Also fixed from the review: range and
+   slash tokens, the rename repair, a case-13 assertion that could not fail (now ID-free), the
+   message's SRG-V0-009/981 pointer and its no-row length wording, and `.PHONY:a b` or a trailing
+   comment in the `.PHONY` check.
+
+## Rollout
+
+An open lane PR that still adds an ID segment to a spec header or digest `Status:` merges cleanly
+on text but turns `spec-requirements-check` red after this lands. Its repair is the refusal's: move
+the segment into the requirement's leading note and regenerate.
 
 ## Documented, not fixed
 

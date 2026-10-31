@@ -305,7 +305,11 @@ done
 
 # SRG-V0-982: each phony target has its own `.PHONY:` line. multi_phony FILE names every line that
 # declares more than one.
-multi_phony() { awk -v file="$1" '/^\.PHONY:/ && NF > 2 { printf "%s:%d: .PHONY declares %d targets\n", file, NR, NF - 1 }' "$1"; }
+multi_phony() {
+  awk -v file="$1" '/^[ \t]*\.PHONY[ \t]*:/ { line = $0; sub(/#.*/, "", line); sub(/^[^:]*:/, "", line); n = split(line, words, /[ \t]+/)
+    for (i = 1; i <= n; i++) if (words[i] == "") --count; count += n
+    if (count > 1) printf "%s:%d: .PHONY declares %d targets\n", file, NR, count; count = 0 }' "$1"
+}
 shared_phony=$(multi_phony "$source_root/Makefile")
 test -z "$shared_phony" || fail "declare each phony target on its own .PHONY: line next to its rule (SRG-V0-982): $shared_phony"
 
@@ -313,7 +317,7 @@ test -z "$shared_phony" || fail "declare each phony target on its own .PHONY: li
 # makefile with one shared line.
 git checkout -q -b replay "$sections"
 printf '.PHONY: alpha\nalpha:\n\t@echo alpha\n\n.PHONY: mid\nmid:\n\t@echo mid\n\n.PHONY: omega\nomega:\n\t@echo omega\n' > "$repo/Makefile"
-printf '.PHONY: alpha omega\nalpha:\n\t@echo alpha\n\nomega:\n\t@echo omega\n' > "$repo/shared.mk"
+printf '.PHONY:alpha omega # shared\nalpha:\n\t@echo alpha\n\nomega:\n\t@echo omega\n' > "$repo/shared.mk"
 test "$(multi_phony "$repo/shared.mk")" = "$repo/shared.mk:1: .PHONY declares 2 targets" ||
   fail "a shared .PHONY: line was not named: $(multi_phony "$repo/shared.mk")"
 git add -- Makefile shared.mk
@@ -344,6 +348,15 @@ for pair in 'SEC-V0-001 V1-9101' 'SEC-V0-011 V1-9102'; do
 done
 test "$(make -s --no-print-directory -C "$repo" alpha beta mid psi omega | tr '\n' ' ')" = 'alpha beta mid psi omega ' ||
   fail "the merged Makefile lost a target"
+# SRG-V0-983 limit: amendments to adjacent definition lines still conflict, only in those spec lines
+# and the two REQUIREMENTS.tsv rows.
+amend_lane lane-am3 SEC-V0-002 V1-9103 gamma omega
+git checkout -q -b merge-adjacent lane-am1
+if git merge -q --no-edit lane-am3 > /dev/null 2>&1; then fail "adjacent amendments merged without a conflict; drop the SRG-V0-983 limit"; fi
+conflicted=$(git diff --name-only --diff-filter=U | tr '\n' ' ')
+test "$conflicted" = "docs/specs/REQUIREMENTS.tsv docs/specs/sections.md " ||
+  fail "adjacent amendments conflicted in $conflicted, want only the spec and REQUIREMENTS.tsv"
+git merge --abort
 
 # Controls: the same amendments as header segments are refused by the generator (SRG-V0-980) and
 # conflict, and the same targets appended to one shared `.PHONY:` line conflict.
@@ -351,8 +364,10 @@ control_lane() {
   git checkout -q -b "$1" "$replay"
   sed "s/^Intent status: accepted\$/Intent status: accepted; $2 amended under the owner's standing auto-accept (2026-10-31; $3)/" \
     "$repo/docs/specs/sections.md" > "$test_root/spec" && cp "$test_root/spec" "$repo/docs/specs/sections.md"
-  sed "1s/\$/ $4/" "$repo/shared.mk" > "$test_root/mk" && printf '\n%s:\n\t@echo %s\n' "$4" "$4" >> "$test_root/mk" &&
+  sed "1s/ #/ $4 #/" "$repo/shared.mk" > "$test_root/mk" && printf '\n%s:\n\t@echo %s\n' "$4" "$4" >> "$test_root/mk" &&
     cp "$test_root/mk" "$repo/shared.mk"
+  make -np -f "$repo/shared.mk" 2> /dev/null | grep '^\.PHONY:' | tr ' ' '\n' | grep -qx "$4" ||
+    fail "the control did not add $4 to the shared .PHONY: list"
   git add -- docs/specs/sections.md shared.mk
   ctl_err=$( (cd "$repo" && script/gen-spec-requirements.sh) 2>&1 > /dev/null) &&
     fail "a header segment naming $2 was not refused"

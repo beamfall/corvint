@@ -351,6 +351,18 @@ for my $file (sort @specs) {
     length($claim) <= 160
         or die "$file: the Agent digest Claim is " . length($claim) . " characters; the limit is 160\n";
 }
+# status_ids returns the requirement IDs a status names: each SRG-V0-003 token and each `..NNN` or
+# `/NNN` suffix after it, read with the token's prefix, so `X-V0-001..003` and `X-V0-001/002` name
+# X-V0-003 and X-V0-002 too.
+sub status_ids {
+    my ($text) = @_;
+    my @ids;
+    while ($text =~ /\b([A-Z][A-Z0-9-]*-)([0-9]{3})((?:(?:\.\.|\/)[0-9]{3}\b)*)\b/g) {
+        my ($prefix, $first, $rest) = ($1, $2, $3);
+        push @ids, map { "$prefix$_" } $first, $rest =~ /([0-9]{3})/g;
+    }
+    return @ids;
+}
 # SRG-V0-980 (V1-3458): the header `Intent status:` and digest `Status:` are frozen. A spec may name
 # in them only the requirement IDs its row in INTENT-STATUS-FROZEN.tsv lists, and its header may
 # exceed 160 characters only up to that row's length, so an amendment is recorded on the
@@ -372,13 +384,13 @@ for my $file (sort @specs) {
             my ($name, $value) = @$field;
             next unless defined $value;
             my %seen;
-            push @refused, "$file: its $name names $1, which its frozen header text does not"
-                for grep { !$row->{ids}{$_} && !$seen{$_}++ } $value =~ /\b([A-Z][A-Z0-9-]*-[0-9]{3})\b/g;
+            push @refused, "$file: its $name names $_, which its frozen header text does not"
+                for grep { !$row->{ids}{$_} && !$seen{$_}++ } status_ids($value);
         }
         next unless defined(my $intent = $header{$file}{intent});
         utf8::decode($intent);
         push @refused, "$file: its Intent status is " . length($intent) . " characters; the limit is "
-            . "160 or its frozen length, " . $row->{chars}
+            . ($row->{chars} > 160 ? "its frozen length, $row->{chars}" : '160')
             if length($intent) > 160 && length($intent) > $row->{chars};
     }
     if (@refused) {
@@ -387,8 +399,9 @@ for my $file (sort @specs) {
             . "acceptance or amendment in the requirement's own leading note, for example "
             . "`- `ID`: (accepted under the owner's standing auto-accept (YYYY-MM-DD); V1-NNNN) ...`, "
             . "which REQUIREMENTS.tsv carries in its acceptance and acceptedBy columns, and in its "
-            . "build-log entry, then remove the new header text and rerun make spec-requirements; "
-            . "see docs/SPEC-DRIVEN-DEVELOPMENT.md (SRG-V0-980)\n";
+            . "build-log entry (SRG-V0-009, SRG-V0-981), then remove the new header text and rerun "
+            . "make spec-requirements; a renamed spec moves its INTENT-STATUS-FROZEN.tsv row to the new "
+            . "path; see docs/SPEC-DRIVEN-DEVELOPMENT.md (SRG-V0-980)\n";
     }
 }
 # SRG-V0-547 (V1-3049): a requirement ID defined by more than one rank 0 line, in one spec or
