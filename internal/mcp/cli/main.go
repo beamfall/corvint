@@ -68,6 +68,7 @@ const usage = "usage: corvint-mcp --root ABSOLUTE_ROOT [--protocol-version 2026-
 	"       corvint-mcp ROOTS... --tool-profile LIST [--corpus-artifact [ALIAS=]PATH]\n" +
 	"       corvint-mcp --version\n" +
 	"A local read-only stdio MCP server. Each --root must be an absolute path to a Git worktree.\n" +
+	"One plain --root that does not exist serves the Git worktree enclosing the launch directory, with a notice.\n" +
 	"The import-graph profile adds corvint.graph.imports; calls require a full commit revision.\n" +
 	"--follow-ref keeps a detached linked worktree on the commit REF names, moving it before each call;\n" +
 	"with aliased roots, ALIAS=REF selects the root that follows and the others serve their checkout.\n" +
@@ -134,6 +135,16 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 			return 2
 		}
 	}
+	// MCPV0-115: a missing plain --root falls back to the launch worktree, visibly.
+	fallbackRoot, substituted, refusal := missingRootFallback(roots, len(followRefs) != 0, corpusArtifact != "", os.Getwd)
+	if refusal != "" {
+		_, _ = fmt.Fprintln(stderr, "corvint-mcp: "+refusal)
+		return 2
+	}
+	if substituted {
+		roots[0].root = fallbackRoot
+		_, _ = fmt.Fprintln(stderr, missingRootStderr)
+	}
 	git, err := gitstatus.Pin()
 	if err != nil {
 		_, _ = fmt.Fprintln(stderr, "corvint-mcp: git unavailable")
@@ -184,6 +195,9 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 	// The launch directory is observed once and only labels results (MMR-V0-009).
 	if launch, err := os.Getwd(); err == nil {
 		handler.notices = launchWorktreeNotices(launch, bindings)
+	}
+	if substituted {
+		handler.notices = map[*bridge.Registry]string{handler.registry: missingRootNoticeText}
 	}
 	instance, err := server.New(server.Config{
 		ProtocolVersion: protocolVersion,
