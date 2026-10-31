@@ -58,9 +58,11 @@ evidence. Its only write is the summary cache, made by the explicit `doctor --re
   (a btrfs subvolume reports an anonymous device, so `stat` says `00:48` where `/proc/locks` says
   `00:2f`), the exact `major:minor:inode` match finds no holder. When it finds none, the doctor
   MUST take the `FLOCK` lines with the lock file's inode on any device and name as holder only a
-  listed pid that has a descriptor open on the same file, compared by `stat` device and inode
-  through `/proc/<pid>/fd`. A same-inode lock on another filesystem is never reported, because its
-  pid holds no descriptor on this file. Non-goals: darwin, POSIX record locks. Failure mode: a
+  listed pid with a descriptor that is open on the same file, compared by `stat` device and inode
+  through `/proc/<pid>/fd`, and whose `/proc/<pid>/fdinfo` lists a `FLOCK` lock on that inode. The
+  kernel lists a lock in `fdinfo` only for the open file that owns it. A pid that holds a same-inode
+  flock on another filesystem while merely having this queue's file open is therefore never named
+  (Codex review of linux-w2). Non-goals: darwin, POSIX record locks. Failure mode: a
   holder whose `/proc/<pid>/fd` this user cannot read is not named, as before. Falsifier: a held
   `taskman.lock` on btrfs reported as not held, or a same-inode lock on another device named.
   Evidence: `TestTQDV0821LockHolderMatchesByOpenDescriptor`, and `TestTQDV0021_RealProbes` passing

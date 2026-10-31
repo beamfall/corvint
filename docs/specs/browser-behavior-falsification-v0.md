@@ -296,7 +296,10 @@ bounded caller commands, but it diagnoses suite interactions rather than criteri
   `BBF-V0-214` root two levels above the pinned path. A difference
   between the two digests is `provider toolchain GOROOT changed before staging`; a member entry that
   is not a regular file or directory is `provider toolchain GOROOT holds an unsupported entry`;
-  either refuses before anything runs. The RSpec provider MUST run its toolchain from a verified
+  either refuses before anything runs. The digest and the copy run inside the control's command
+  budget and stop when the run is cancelled or the budget is spent (`command budget exhausted`),
+  and the driver then gets only what remains of that budget, so staging never extends the run into
+  the time reserved for cleanup (Codex review of linux-w2). The RSpec provider MUST run its toolchain from a verified
   private copy, as `runPinned` runs every pinned command. A swap of a GOROOT tool, the standard
   library or the RSpec toolchain after its check therefore never runs. Non-goals: pinning GOROOT
   digests in the plan (the check binds the run's own reads, not a plan-time value), and tools
@@ -304,7 +307,7 @@ bounded caller commands, but it diagnoses suite interactions rather than criteri
   copy's time to every control; an RSpec toolchain that resolves paths from its own location no
   longer finds them and fails its run, so such a toolchain must be pinned as a self-contained
   wrapper. Falsifier: a GOROOT tool, a standard library file or the RSpec toolchain swapped between
-  its check and the run whose swapped bytes run. Evidence: `TestBBFV0820ToolsRunFromVerifiedCopies`
+  its check and the run whose swapped bytes run. Evidence: `TestBBFV0820ToolsRunFromVerifiedCopies`, `TestBBFV0820StagingHonorsTheCommandBudget`
   (replaces `TestBBFV0214LimitToolsRunInPlace`, which recorded the swapped runs). Rollback: run the
   driver with the original GOROOT and the RSpec toolchain from its path again.
 - `BBF-V0-215`: (proposed; V1-2524) A plan's `contract_file`, `test_file`, `config_file` and Go
