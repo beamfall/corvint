@@ -36,8 +36,11 @@ unset CORVINT_BIN
 # This wrapper asserts on captured output with ripgrep (rg); without it every rg call below fails
 # as a bare "command not found" partway through, which reads as a real regression instead of a
 # missing prerequisite. Fail closed here, before any fixture is built.
-if ! command -v rg >/dev/null 2>&1; then
-    printf 'dogfood-change_test: REFUSE unsupported-environment-missing-rg\n' >&2
+# DCW-V0-811: a host without rg asserts through the grep -P stand-in; only a host with neither refuses.
+# shellcheck source=script/test-rg-fallback.sh
+source "$(cd "$(dirname "$0")" && pwd)/test-rg-fallback.sh"
+if ! test_rg_fallback; then
+    printf 'dogfood-change_test: REFUSE unsupported-environment-missing-rg (and grep has no -P for the stand-in)\n' >&2
     exit 1
 fi
 
@@ -95,7 +98,7 @@ cleanup() {
     kill -TERM "$active_descendant" 2>/dev/null || :
     wait "$active_descendant" 2>/dev/null || :
   fi
-  rm -rf "$test_root"
+  rm -rf "$test_root" ${rg_fallback_dir:+"$rg_fallback_dir"}
 }
 trap cleanup EXIT
 trap 'exit 129' HUP
