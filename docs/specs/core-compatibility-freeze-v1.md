@@ -248,7 +248,7 @@ no N-1, and each later release's N-1 is the previous release published in it; se
   | `proof.rows[].falsifier` | `prove` | `history-consistent`, `reference-resolves`, `verifier-accepts`, `test-kills-mutant`, `none` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `cmd/corvint/prove.go:43@f81f3f8e` |
   | `proof.rows[].falsified` | `prove` | `PASS`, `FAIL`, `NOT_RUN` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `cmd/corvint/prove.go:49@7313a787` |
   | `proof.affected.scope` | `prove` | `BOUNDED`, `UNKNOWN` | closed | (accepted 2026-09-26, decision 0422; from decision 0398) `cmd/corvint/prove.go:768@f6741c9b`, `internal/liveverify/affected/select.go:74@884d7796` |
-  | `context.exclusions.samples[].reason` | `query`, `impact` | `unsafe-or-non-utf8-path`, `vendor/build excluded`, `protected path`, `generated path`, `source exceeds size bound`, `generated-file header excluded`, `git-lfs pointer, content not in the tree` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/git.go:437@56698a09`, `internal/contextindex/index.go:1401@f6b4c05b`, `internal/contextindex/index.go:1405@14914a09`, `internal/contextindex/index.go:1408@f91f4e9c`, `internal/contextindex/index.go:555@4b59a221`, `internal/contextindex/index.go:756@e27ec283`, `internal/contextindex/index.go:36@b7c4315f` |
+  | `context.exclusions.samples[].reason` | `query`, `impact` | `unsafe-or-non-utf8-path`, `vendor/build excluded`, `protected path`, `generated path`, `source exceeds size bound`, `generated-file header excluded`, `git-lfs pointer, content not in the tree` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/git.go:441@56698a09`, `internal/contextindex/index.go:1401@f6b4c05b`, `internal/contextindex/index.go:1405@14914a09`, `internal/contextindex/index.go:1408@f91f4e9c`, `internal/contextindex/index.go:555@4b59a221`, `internal/contextindex/index.go:756@e27ec283`, `internal/contextindex/index.go:36@b7c4315f` |
   | `coverage.critical[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/taskcontext.go:2454@f3806eef`, `internal/contextindex/taskcontext.go:313@7b32d74a`, `internal/contextindex/taskcontext.go:314@4da20476`, `internal/contextindex/taskcontext.go:315@73a4650c` |
   | `coverage.critical_missing[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed` | open | (accepted 2026-09-26, decision 0422; V1-0350) `internal/contextindex/taskcontext.go:2454@f3806eef`, `internal/contextindex/taskcontext.go:314@4da20476`, `internal/contextindex/taskcontext.go:315@73a4650c` |
   | `coverage.governance_refused[].relation` | `context` | `governing`, `spec-mentioned`, `instruction-routed` | open | (accepted 2026-10-08, decision 0468; V1-0653) `internal/contextindex/trust.go:100@35a83646`, `internal/contextindex/taskcontext.go:313@7b32d74a`, `internal/contextindex/taskcontext.go:314@4da20476`, `internal/contextindex/taskcontext.go:315@73a4650c` |
@@ -435,7 +435,11 @@ no N-1, and each later release's N-1 is the previous release published in it; se
   and `GOTOOLCHAIN=local go test -count=1 -run 'TestClassifyMissingObjectsNamesOnlyAnObjectTheReadNamed' ./internal/contextindex`.
 - The cli-parity replay over the 133-case manifest against a candidate built from this change.
 - The cited N-1 and migration tests in Traceability.
-- (accepted 2026-09-26, decision 0422; from decision 0398) `make core-n1-replay` against `v0.8.1`, at each release (runbook step 8).
+- (accepted 2026-09-26, decision 0422; from decision 0398) `make core-n1-replay` against the N-1, at each release
+  (runbook step 8). (Owner decision 2026-10-30, V1-3177) The N-1 is the previous release published in
+  this repository, never `v0.8.1` or `v1.0.0-rc.1`, which are not restored or replayed; the
+  `core-n1-replay` gate of `.github/workflows/release-gates.yml` runs `script/core-n1-source.sh --replay`,
+  and for the first release, `v1.0.0-rc.3`, its retained `NOT_APPLICABLE FIRST_RELEASE` line is the evidence.
 
 ## Traceability
 

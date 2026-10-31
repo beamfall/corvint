@@ -864,6 +864,25 @@ which is the whole of what the row asserts.
   `TestGPKV0295BlankCommentsAndStringsNestedTemplates`, which leaked `leak` and `Component`
   against the flat reading. Rollback: delete the web template case in
   `evalBlankCommentsAndStrings`.
+- `GPK-V0-336`: (experimental 2026-10-31, standing lane auto-accept; V1-3377) The isolated status
+  read (`gitstatus.Status`) behind `corvint impact` and the standalone `corvint context` probe MUST
+  work in a read-only filesystem sandbox whose ambient temporary directory is not writable. When
+  the private metadata scratch directory cannot be created under `os.TempDir()` (or that directory
+  cannot be resolved), it MUST try `/tmp` (not on Windows) and then the user cache directory, in
+  that order, applying the same containment checks to each: a fallback inside the repository or
+  its Git directory is skipped, never used. When none is writable it MUST refuse
+  `repository-probe-failed` (`scratch-dir`) with the fixed reason naming every location tried and
+  the remedy (set `TMPDIR` to a writable directory outside the repository). A caller that passes
+  its own scratch parent (`StatusIn`, a qualified execution's `TMPDIR`) keeps the single-parent
+  refusals unchanged. Non-goals: no status against the live Git directory, no write to the
+  checkout. Failure mode closed: before, an unwritable `TMPDIR` refused every read command even
+  though `/tmp` was writable. Acceptance evidence:
+  `TestGPKV0336StatusFallsBackFromUnwritableTMPDIROnReadOnlyCheckout`,
+  `TestGPKV0336ScratchRefusalNamesEveryTriedLocation`,
+  `TestGPKV0336ProbeReadsReadOnlyCheckoutUnderUnwritableTMPDIR` (refused with the ticket's
+  message before the change) and
+  `TestGPKV0336StatusSnapshotReadsReadOnlyCheckoutUnderUnwritableTMPDIR`. Rollback: make `Status`
+  call `StatusIn(os.TempDir())` again and delete `ambientScratchParents` and `scratchUnder`.
 
 ### Conformance authority
 
@@ -1991,4 +2010,5 @@ negative result.
 | `GPK-V0-093` (accepted 2026-10-28, V1-2946) | `evalAdmitSiblings`, `evalRelations`, `evalScope`, `evalDiscriminatingWords`, `evalBlankCommentsAndStrings` in `internal/contextindex/eval_admission.go`; `evalConfidentSymbols`, `evalQuery` in `internal/contextindex/eval_query.go` | `TestEvalAdmitSiblingsRequiresDemonstratedRelation`, `TestEvalAdmitSiblingsPythonRelations`, `TestEvalBlankCommentsAndStrings`, `TestEvalQueryScopeRefusesRepositoryVocabulary`, `TestEvalQueryScopeAdmitsLedgerRecordOnCommonWords`, `TestEvalQueryScopeOneSourceWordDiscriminates`, `TestEvalQueryScopeAbsentWordDoesNotWithdrawNamedSymbol`, `TestEvalScopeNamesExactly`, `TestEvalQueryRelevanceFloor`; `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-v2946-v2953-admission-and-candidate-kinds.md` |
 | `GPK-V0-095` (accepted 2026-10-29, V1-3140) | `stripWebNonCode`, `evalWebTemplateEnd`, `evalWebSubstitutionEnd`, `evalWebLineCommentEnd`, `evalWebQuotedEnd` in `internal/contextindex/eval_dependency.go` | `TestGPKV0095StripWebNonCodeBlanksNestedTemplates`, `TestGPKV0095DependencyLinksIgnoreCallsInsideNestedTemplates`, `TestGPKV0095ImpactReadsNoImportInsideNestedTemplates`; `DR-0046` |
 | `GPK-V0-295` (accepted 2026-10-30, V1-3150) | `evalBlankCommentsAndStrings` in `internal/contextindex/eval_admission.go` | `TestGPKV0295BlankCommentsAndStringsNestedTemplates`; `DR-0046` |
+| `GPK-V0-336` (experimental 2026-10-31, V1-3377) | `Status`, `ambientScratchParents`, `scratchUnder` in `internal/gitstatus/status.go`; the standalone status read in `gitExpecting`, `internal/contextindex/git.go` | `TestGPKV0336StatusFallsBackFromUnwritableTMPDIROnReadOnlyCheckout`, `TestGPKV0336ScratchRefusalNamesEveryTriedLocation`, `TestGPKV0336ProbeReadsReadOnlyCheckoutUnderUnwritableTMPDIR`, `TestGPKV0336StatusSnapshotReadsReadOnlyCheckoutUnderUnwritableTMPDIR` |
 | `GPK-V0-091` (accepted 2026-10-25, V1-2716) | `authorityDegradedQueryContext`, `authorityStartUnavailable` in `cmd/corvint/main.go`; `QueryDegradation`, `WithQueryDegradation` in `internal/contextindex/query_degradation.go`; `EvalQuery` degradation disclosure in `internal/contextindex/eval_query.go` | `TestProjectOperationsQueryDegradesWithoutRootAgentsFile`, `TestProjectOperationsQueryStillRefusesSymlinkAuthority`, `TestGPKV0002ManifestReplay` (`RETIRED query-missing-authority-refusal decision=0561`) |

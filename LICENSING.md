@@ -31,7 +31,10 @@ holding those copies, and a recipient may keep using such a copy under its origi
   preregistrations; relicensing the harness bytes needs a new preregistration, not an edit.
   The frozen corpus notice fixtures under
   `internal/cem/corpusbinding/testdata/public-root-history/notices/` quote the former policy text and
-  are byte-pinned by the corpus binding tests.
+  are byte-pinned by the corpus binding tests. The frozen duplicate-check evaluation corpus
+  `internal/tasks/similar/testdata/corpus-2026-10-30.jsonl` is a snapshot of task-store ticket
+  records, which quote the former terms as evidence; its recall thresholds (TCL-V0-009) are measured
+  on those exact records.
   Like every other Corvint file, they are licensed under Apache-2.0; `make license-headers-check`
   admits that historical line in exactly these paths and that directory.
 - Historical records, such as build-log entries, accepted decisions, task-store tickets, sealed

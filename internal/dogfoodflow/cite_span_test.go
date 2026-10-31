@@ -53,13 +53,18 @@ func TestChangeDCWV0063NamesUnalignedCiteSpanCause(t *testing.T) {
 		{"edited by a hunk", "1:1", "plan row 1 cites BASE lines that this change edits or deletes", false},
 	} {
 		evidence := t.TempDir()
-		c := &change{flow: flow{ctx: context.Background(), root: root}, evidence: evidence, runTmp: t.TempDir(), citationCount: 1, options: ChangeOptions{Steps: steps}}
+		c := &change{flow: flow{ctx: context.Background(), root: root, base: base}, evidence: evidence, runTmp: t.TempDir(), citationCount: 1, options: ChangeOptions{Steps: steps}}
 		status, reason := c.cite([]byte("1\tgate.sh\t"+tc.lines+"\timplementation\n"), filepath.Join(evidence, "cem-cite.json"))
 		if status != "NOT_PRODUCED" || reason != "cite-span-not-stable" || c.citeSpanUnaligned != tc.unaligned {
 			t.Fatalf("%s: status=%s reason=%s unaligned=%v", tc.name, status, reason, c.citeSpanUnaligned)
 		}
-		if hint := c.fixHint(step{name: "cem-cite", reason: reason}); !strings.Contains(hint, tc.want) {
+		hint := c.fixHint(step{name: "cem-cite", reason: reason})
+		if !strings.Contains(hint, tc.want) {
 			t.Fatalf("%s: fix line %q, want %q", tc.name, hint, tc.want)
+		}
+		// DCW-V0-845 (V1-3302): every cite-span-not-stable fix names the line basis.
+		if basis := "plan spans are BASE line numbers, counted in the file as it is at BASE " + base + ", not at HEAD"; !strings.Contains(hint, basis) {
+			t.Fatalf("%s: fix line %q does not name the line basis %q", tc.name, hint, basis)
 		}
 	}
 }
