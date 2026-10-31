@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -236,6 +237,46 @@ func TestBuildEvalCarriesEveryTableEvalQueryRanksFrom(t *testing.T) {
 	} {
 		if !reflect.DeepEqual(tables[0], tables[1]) {
 			t.Errorf("BuildEval %s differs from Build: %v vs %v", name, tables[0], tables[1])
+		}
+	}
+}
+
+// AHI-921 (V1-2735): the user-prompt context member's packet_bytes counts the
+// query receipt as compiled, before the harness swaps request.text for
+// request.taskSha256, so it equals the canonical length of the written member
+// with that swap undone, for an in-scope and an out-of-scope task alike.
+func TestHarnessUserPromptPacketBytesDescribeTheWrittenContext(t *testing.T) {
+	t.Parallel()
+	root := ledgerRepository(t)
+	for _, task := range []string{"session expiry device revocation enforcement", "repair the parser"} {
+		var stdout, stderr bytes.Buffer
+		input := strings.NewReader(`{"task":` + strconv.Quote(task) + `}`)
+		if code := run(cliArguments(root, "user-prompt"), input, &stdout, &stderr); code != 0 {
+			t.Fatalf("%q: exit = %d, stderr = %s", task, code, &stderr)
+		}
+		var response struct {
+			Context map[string]any `json:"context"`
+		}
+		if err := json.Unmarshal(stdout.Bytes(), &response); err != nil {
+			t.Fatal(err)
+		}
+		coverage, _ := response.Context["coverage"].(map[string]any)
+		request, _ := response.Context["request"].(map[string]any)
+		if coverage == nil || request == nil || request["text"] != nil || request["taskSha256"] == nil {
+			t.Fatalf("%q: context lacks a sanitized request and coverage: %s", task, stdout.Bytes())
+		}
+		written, err := gokernel.CanonicalJSON(response.Context)
+		if err != nil {
+			t.Fatal(err)
+		}
+		delete(request, "taskSha256")
+		request["text"] = task
+		compiled, err := gokernel.CanonicalJSON(response.Context)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := coverage["packet_bytes"]; got != float64(len(compiled)) {
+			t.Fatalf("%q: packet_bytes = %v, compiled receipt = %d bytes, written member = %d bytes", task, got, len(compiled), len(written))
 		}
 	}
 }

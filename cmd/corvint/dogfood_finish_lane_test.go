@@ -99,7 +99,7 @@ func TestDogfoodFinishLaneDCWV0060MatchesManualRecipe(t *testing.T) {
 		"dogfood-finish-lane: NOT_PRODUCED rows=2\n" +
 		"  bind guarding-tests NOT_PRODUCED guarding-tests-not-run\n" +
 		"  rebind guarding-tests NOT_PRODUCED guarding-tests-not-run\n" +
-		"dogfood-check: SUMMARY cem=accepted hunks=1 supported=1 unknown=0 mechanical=0 unknownShare=0/1 reasonedUnknown=0 ocm=ready-for-review requirements=1 linked=1 unlinked=0 report=.corvint/dogfood-report.json detail=" + detail + "\n" +
+		"dogfood-check: SUMMARY cem=accepted hunks=1 supported=1 unknown=0 mechanical=0 unknownShare=0/1 reasonedUnknown=0 ocm=ready-for-review change-requirements=1 change-traced=1 change-untraced=0 report=.corvint/dogfood-report.json detail=" + detail + "\n" +
 		"dogfood-check: PASS\n" +
 		"dogfood-seal: PASS sealed=.corvint/changes/" + bind + ".cem.json\n"
 	if stdout != want {

@@ -87,7 +87,7 @@ func TestPassiveWitnessSettle(t *testing.T) {
 			}
 			defer cmd.Wait()
 			defer cmd.Process.Kill()
-			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute) // hang detector, not a budget (decision 0082)
 			defer cancel()
 			rows, err := processSnapshot(ctx, t.TempDir())
 			if err != nil {
@@ -98,6 +98,13 @@ func TestPassiveWitnessSettle(t *testing.T) {
 				t.Fatal("child identity missing")
 			}
 			if transient {
+				// V1-0849 (V1-0764): on a loaded host the kill at 150 ms and the
+				// process listings outran the 500 ms production window, so the
+				// transient case lifts it; a survivor still fails at the lifted
+				// bound, and the persistent case keeps the production window.
+				previous := passiveSettleWindow
+				passiveSettleWindow = time.Minute
+				defer func() { passiveSettleWindow = previous }()
 				done := make(chan struct{})
 				timer := time.AfterFunc(150*time.Millisecond, func() { defer close(done); _ = cmd.Process.Kill() })
 				defer func() {

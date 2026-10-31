@@ -198,7 +198,6 @@ docs/specs/experimental-source-views-v0.md	cmd/corvint/source_handoff.go:275
 docs/specs/experimental-source-views-v0.md	cmd/corvint/source_handoff.go:315
 docs/specs/experimental-source-views-v0.md	cmd/corvint/source_handoff.go:62
 docs/specs/falsifiable-packet-v0.md	cmd/corvint/prove.go:1232
-docs/specs/falsifiable-packet-v0.md	cmd/corvint/prove.go:1408
 docs/specs/falsifiable-packet-v0.md	cmd/corvint/prove_observe.go:64
 docs/specs/falsifiable-packet-v0.md	cmd/corvint/prove_rb.go:14
 docs/specs/falsifiable-packet-v0.md	cmd/corvint/prove_rb.go:15

@@ -30,10 +30,9 @@ var stableSchemaCopies = []string{
 // label of an unadmitted fixture map) validates against both RESULT.schema.json
 // copies, that the legacy-labelled result still validates, and that the
 // pre-V1-2107 legacy const and an unknown label are refused (CEM-V1-621,
-// CEM-V1-622). The committed schema's criterionBinding definition still lacks
-// the CEM-V1-083 plain form these results carry; that gap (V1-2615) is pinned
-// here and the rest of each result is validated with only that one definition
-// overlaid (CEM-V1-622).
+// CEM-V1-622). Each result carries the CEM-V1-083 plain criterion binding, so
+// it validates against the committed copies only because CEM-V1-881 admits that
+// form; nothing is overlaid (V1-2615).
 func TestCEMV1622OpaqueReceiptResultValidates(t *testing.T) {
 	t.Parallel()
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
@@ -67,14 +66,7 @@ func TestCEMV1622OpaqueReceiptResultValidates(t *testing.T) {
 	}
 	top := repositoryRoot(t)
 	for _, rel := range stableSchemaCopies {
-		committed := loadStableSchema(t, filepath.Join(top, rel))
-		for profile, v := range results {
-			err := schemaValidate(committed, committed, v, "$")
-			if err == nil || !strings.HasPrefix(err.Error(), "$.references.criterionBindings[0]: ") || !strings.Contains(err.Error(), "evidenceId") {
-				t.Fatalf("%s on the %s verify result: %v, want only the pinned plain criterion binding gap", rel, profile, err)
-			}
-		}
-		schema := withPlainCriterionBinding(loadStableSchema(t, filepath.Join(top, rel)))
+		schema := loadStableSchema(t, filepath.Join(top, rel))
 		for profile, v := range results {
 			if err := schemaValidate(schema, schema, v, "$"); err != nil {
 				t.Fatalf("%s rejects the %s verify result: %v", rel, profile, err)
@@ -86,36 +78,46 @@ func TestCEMV1622OpaqueReceiptResultValidates(t *testing.T) {
 		}
 		// The sealed predecessor node admitted only the legacy label; it must
 		// refuse the opaque/0 result, which is the defect V1-2107 fixed.
-		legacySchema := withPlainCriterionBinding(loadStableSchema(t, filepath.Join(top, rel)))
+		legacySchema := loadStableSchema(t, filepath.Join(top, rel))
 		defs := legacySchema["$defs"].(map[string]any)
 		props := defs["runnerReceipt"].(map[string]any)["properties"].(map[string]any)
 		props["profile"] = map[string]any{"const": wire.StableRunnerReceiptProfile}
 		if err := schemaValidate(legacySchema, legacySchema, results[wire.StableOpaqueReceiptProfile], "$"); err == nil || !strings.Contains(err.Error(), "runnerReceipts[0].profile") {
 			t.Fatalf("the pre-V1-2107 profile const of %s on opaque/0: %v", rel, err)
 		}
+		// The sealed predecessor criterionBinding held only the Tasks form; it
+		// must refuse the plain binding, which is the gap V1-2615 closed.
+		tasksOnly := loadStableSchema(t, filepath.Join(top, rel))
+		tasksDefs := tasksOnly["$defs"].(map[string]any)
+		alts, ok := tasksDefs["criterionBinding"].(map[string]any)["anyOf"].([]any)
+		if !ok || len(alts) != 2 {
+			t.Fatalf("%s criterionBinding is not anyOf the Tasks and plain forms", rel)
+		}
+		tasksDefs["criterionBinding"] = alts[0]
+		if err := schemaValidate(tasksOnly, tasksOnly, results[wire.StableRunnerReceiptProfile], "$"); err == nil || !strings.HasPrefix(err.Error(), "$.references.criterionBindings[0]") {
+			t.Fatalf("the pre-V1-2615 Tasks-only criterionBinding of %s on a plain binding: %v", rel, err)
+		}
+		extra := withPlainBindingMember(t, results[wire.StableRunnerReceiptProfile], "ticketId", "ticket:a:b:c")
+		if err := schemaValidate(schema, schema, extra, "$"); err == nil || !strings.HasPrefix(err.Error(), "$.references.criterionBindings[0]") {
+			t.Fatalf("%s on a plain binding with an extra member: %v", rel, err)
+		}
 	}
 }
 
-// withPlainCriterionBinding overlays the schema's criterionBinding definition
-// with anyOf the committed Tasks form and the CEM-V1-083 plain form (exactly
-// id, criterionIndex, criterionSha256 and evidenceId), the one definition the
-// committed schema does not yet carry.
-func withPlainCriterionBinding(schema map[string]any) map[string]any {
-	defs := schema["$defs"].(map[string]any)
-	tasks := defs["criterionBinding"].(map[string]any)
-	tasksProps := tasks["properties"].(map[string]any)
-	defs["criterionBinding"] = map[string]any{"anyOf": []any{tasks, map[string]any{
-		"type":                 "object",
-		"additionalProperties": false,
-		"required":             []any{"id", "criterionIndex", "criterionSha256", "evidenceId"},
-		"properties": map[string]any{
-			"id":              tasksProps["id"],
-			"criterionIndex":  tasksProps["criterionIndex"],
-			"criterionSha256": tasksProps["criterionSha256"],
-			"evidenceId":      map[string]any{"type": "string", "pattern": "^evidence:sha256:[0-9a-f]{64}$"},
-		},
-	}}}
-	return schema
+// withPlainBindingMember returns a deep copy of a verify result whose first
+// criterion binding also carries member.
+func withPlainBindingMember(t *testing.T, v any, member, value string) any {
+	t.Helper()
+	b, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out map[string]any
+	if err := json.Unmarshal(b, &out); err != nil {
+		t.Fatal(err)
+	}
+	out["references"].(map[string]any)["criterionBindings"].([]any)[0].(map[string]any)[member] = value
+	return out
 }
 
 // TestStableSchemaValidatorRefusesUnknownKeywords keeps the test validator
