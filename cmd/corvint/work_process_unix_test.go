@@ -196,6 +196,13 @@ func TestWorkRunnerCoordinatorInterruptionGuardian(t *testing.T) {
 	root := t.TempDir()
 	guardian, binary := workStartGuardian(t, root)
 	coordinator := exec.Command(binary, "-test.run=^TestWorkProcessHelper$", "--", "--work-process-helper", "coordinator", root)
+	// The coordinator is killed, so its own t.TempDir is never removed: keep it under root, which
+	// this test's cleanup removes, instead of leaking /tmp/TestWorkProcessHelper* (V1-2691).
+	coordinatorTemp := filepath.Join(root, "coordinator-tmp")
+	if err := os.Mkdir(coordinatorTemp, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	coordinator.Env = append(os.Environ(), "TMPDIR="+coordinatorTemp)
 	workContain(coordinator)
 	if err := coordinator.Start(); err != nil {
 		t.Fatal(err)
