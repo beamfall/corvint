@@ -48,6 +48,13 @@ const (
 // Suffixes are the file-name endings this plugin owns (NSA-V0-006).
 var Suffixes = []string{".sh", ".bash", ".zsh", ".ksh", ".bats"}
 
+// HiddenRoots are the hidden top-level directories whose shell files the
+// plugin indexes although the shared source walk skips every hidden
+// directory: CI keeps its scripts there, such as .github/forward-rows/*.sh,
+// and an owned file no unit declares is UNINDEXED_SOURCE_PATH, which forces a
+// full run (NSA-V0-800).
+var HiddenRoots = []string{".github"}
+
 // gitTopLevel is the git rev-parse option that prints the repository root, split
 // so that this package's own source does not read as root-locating to the Go
 // plugin (golang.rootLocatorToken).
@@ -99,6 +106,11 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	if err != nil {
 		return affected.Result{}, err
 	}
+	hidden, err := hiddenFiles(root)
+	if err != nil {
+		return affected.Result{}, err
+	}
+	files = append(files, hidden...)
 	foreign, err := root.Files(func(name string) bool { return hasAnySuffix(name, ForeignSourceSuffixes) })
 	if err != nil {
 		return affected.Result{}, err
@@ -107,7 +119,7 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 	for _, relative := range files {
 		known[relative] = true
 	}
-	frontier := map[string]bool{}
+	frontier, built := map[string]bool{}, map[string]computedNames{}
 	units := make([]affected.Unit, 0, len(files))
 	for _, relative := range files {
 		unit := affected.Unit{ID: "shell:" + relative}
@@ -124,11 +136,31 @@ func (language Language) UnitsSource(root *affected.Source) (affected.Result, er
 			units = append(units, foreignFrontier(unit, len(foreign) > 0))
 			continue
 		}
-		units = append(units, foreignFrontier(observe(relative, string(body), known), len(foreign) > 0))
+		unit, names := observe(relative, string(body), known)
+		if !names.empty() {
+			built[relative] = names
+		}
+		units = append(units, foreignFrontier(unit, len(foreign) > 0))
 	}
 	sort.Slice(units, func(left, right int) bool { return units[left].ID < units[right].ID })
-	applyForeignCallers(root, units, frontier)
+	applyForeignCallers(root, units, built, frontier)
 	return affected.Result{Units: units, Frontier: sortedKeys(frontier)}, nil
+}
+
+// hiddenFiles lists the shell files under each HiddenRoots directory through
+// Source.FilesUnder, which skips hidden directories below it as the shared
+// walk does and stamps each listed directory, so the graph stays cacheable
+// (NSA-V0-800). An absent root contributes nothing.
+func hiddenFiles(root *affected.Source) ([]string, error) {
+	var files []string
+	for _, directory := range HiddenRoots {
+		found, err := root.FilesUnder(directory, func(name string) bool { return hasAnySuffix(name, Suffixes) })
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, found...)
+	}
+	return files, nil
 }
 
 func foreignFrontier(unit affected.Unit, foreign bool) affected.Unit {
@@ -145,10 +177,14 @@ func foreignFrontier(unit affected.Unit, foreign bool) affected.Unit {
 	return unit
 }
 
-// observe builds one readable file's unit.
-func observe(relative, text string, known map[string]bool) affected.Unit {
+// observe builds one readable file's unit and returns the script names it
+// builds without a resolvable literal (TSP-V0-960).
+func observe(relative, text string, known map[string]bool) (affected.Unit, computedNames) {
 	parsed := parse(text)
 	resolve := newResolver(relative, parsed.commands)
+	values := variableValues(parsed.commands)
+	var names computedNames
+	builds := false
 	unit := affected.Unit{ID: "shell:" + relative}
 	test := isTestName(relative) || (inTestDirectory(relative) && executesAtTopLevel(parsed.commands))
 	if test {
@@ -160,6 +196,18 @@ func observe(relative, text string, known map[string]bool) affected.Unit {
 	unitFrontier := map[string]bool{}
 	toolchain, dynamic := false, false
 	loads := strings.HasSuffix(relative, ".bats") || strings.HasSuffix(relative, ".bash")
+	// computed links a run target or expands it as a computed name
+	// (TSP-V0-960). An expansion the value bound cut short may drop a script
+	// it would link, so the unit is then an unbounded reader like a computed
+	// source.
+	computed := func(target string) {
+		if resolve.link(target, nil, known, edges) {
+			return
+		}
+		unresolved, cut := constructed(target, resolve, values, known, edges, &names)
+		builds = builds || unresolved
+		dynamic = dynamic || cut
+	}
 	commands := parsed.commands
 	for index := 0; index < len(commands); index++ {
 		word, args := commandWord(plainWords(commands[index].words))
@@ -178,10 +226,10 @@ func observe(relative, text string, known map[string]bool) affected.Unit {
 				commands = append(commands, parse(script).commands...)
 			}
 			for _, target := range invokedScripts(word, args) {
-				resolve.link(unquote(target), nil, known, edges)
+				computed(unquote(target))
 			}
 		case strings.Contains(word, "/") || strings.HasPrefix(word, "$"):
-			resolve.link(word, nil, known, edges)
+			computed(word)
 		}
 		if isToolchain(word) && (bypassesFunctions(commands[index].words) || !shadowed(parsed, word, index)) {
 			toolchain = true
@@ -189,6 +237,13 @@ func observe(relative, text string, known map[string]bool) affected.Unit {
 	}
 	delete(edges, unit.ID)
 	unit.Imports = sortedKeys(edges)
+	if builds && !test {
+		// What runs the script it builds is unmodelled (TSP-V0-960), so the
+		// caller keeps the frontier, bearing as the foreign one does
+		// (AFP-V0-581). A test is a leaf: nothing runs a script through it.
+		unitFrontier[FrontierForeignInvocation] = true
+		unit.FrontierBears = affected.FrontierBearsOnDependents
+	}
 	unit.Frontier = sortedKeys(unitFrontier)
 	switch {
 	case test && toolchain:
@@ -206,7 +261,7 @@ func observe(relative, text string, known map[string]bool) affected.Unit {
 	} else {
 		unit.PathTokens = sortedKeys(tokens)
 	}
-	return unit
+	return unit, names
 }
 
 // recursiveReaders are the commands that read below a directory they are

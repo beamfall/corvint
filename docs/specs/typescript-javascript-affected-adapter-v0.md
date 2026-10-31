@@ -1549,6 +1549,27 @@ cannot, from the same graph phase and closure walk the plan uses.
   - Non-goals: lookaround, back-references and the `u`, `v`, `g`, `y` flags stay unresolved.
   - Failure modes: the rule is conservative, so an unanchored regex that misses a path keeps the
     site even when no real checkout could match it (safe widening).
+- `TJAA-V0-960`: (experimental under the standing lane auto-accept (2026-10-11); V1-2533; amending
+  `TJAA-V0-037` and `TJAA-V0-012`) The general adapter's alias path MUST read the alias config
+  Playwright reads (AFP-V0-418): in each folder its `tsconfig.json`, or its `jsconfig.json` when no
+  `tsconfig.json` is beside it, the nearest such folder governing an owner. A jsconfig.json that
+  declares `baseUrl` or `paths` is an alias config for the gate exactly as a tsconfig.json is. With
+  the gate open, a bare specifier of a module that is not `.ts` or `.tsx` MUST be mapped only when the
+  nearest config sets a literal `allowJs: true`, or is a jsconfig.json without `allowJs`; otherwise
+  it stays a bare reference and widens as an unresolved bare import. Under a blocked gate
+  (`TJAA-V0-059`) the speculative edge is still added for every owner. `jsconfig*.json` is an
+  observed name, so an edit to one is a resolution input (AFP-V0-511) and changes the source identity.
+  - Non-goals: `checkJs`, `maxNodeModuleJsDepth` and the `.mts`/`.cts` owner rules of tsc.
+  - Failure modes: a runner other than Playwright that reads a jsconfig.json differently is held by
+    the existing gate; an unreadable `tsconfig.json` beside a jsconfig.json is not in the bodies, so
+    the jsconfig.json is read, and the unreadable file raises its own frontier.
+  - Falsifier: `TestGeneralAdapterJSConfigAliasesAndAllowJs_V12533` (a nearer jsconfig.json alias
+    wins over a root tsconfig.json; a tsconfig.json beside it is read first; a `.js` spec's alias
+    is unmapped and widens without allowJs and maps with it; `jsconfig*.json` is a resolution input),
+    failing on base `780f9e970`.
+  - Rollback: restore the `tsconfig.json`-only test in `readTypeScriptAliases` and the declaring
+    loop, drop the allowJs condition in `resolveTypeScriptAliases` and `javaScriptConfigName` from
+    `observedName`; no persisted format or receipt changes.
 
 ## Opt-in Playwright project profile
 
@@ -1912,5 +1933,6 @@ persisted; run-identity documents carrying `corvint-test-closure/0` digests are 
 | `TJAA-V0-142` (V1-2812) | `internal/liveverify/affected/typescript` package tests unchanged and passing after the extraction | experimental |
 | `TJAA-V0-147` (V1-2914; GitHub #1920; `PWR-V0-183`) | `TestPlaywrightTestClosuresIdentityArgvEscape_PWRV0183` in `playwright_test_closure_gh1920_test.go` (identity argv escape admitted; other argv, computed key and plain const escapes still refuse) | experimental |
 | `TJAA-V0-127` (V1-2584) | `TestPlaywrightPathModeRegexTestMatch_V12584` and `TestPlaywrightRegexReachesRoot_V12584` in `playwright_regex_root_test.go` (end-anchored, case-insensitive, alternation and mixed-array regexes resolve; unanchored, start-anchored, slash-matching, word-boundary, `u`-flag and lookahead regexes keep the site); the regex rows of `playwright_gh1688_test.go`, `playwright_gh1737_test.go` and `playwright_gh1737_projects_test.go` | experimental; reporter repository `NOT_OBSERVED` |
+| `TJAA-V0-960` (V1-2533) | `TestGeneralAdapterJSConfigAliasesAndAllowJs_V12533` in `alias_jsconfig_v12533_test.go`; `aliasConfigFile`, `readTypeScriptAliases` and `resolveTypeScriptAliases` in `playwright_aliases.go`; `observedName` and the alias-config loop in `typescript.go` | experimental |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |

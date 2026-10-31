@@ -6044,7 +6044,7 @@
       "command": "corvint test",
       "summary": "Run the affected test set (experimental, STR-V0)",
       "usage": [
-        "corvint [--root PATH] test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci [--confine PATH]] [--go-parallel N] [--dry-run] [--manifest PATH] [--receipt PATH]"
+        "corvint [--root PATH] test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci [--confine PATH]] [--go-parallel N] [--dry-run [--summary]] [--manifest PATH] [--receipt PATH]"
       ],
       "flags": [
         "--base",
@@ -6057,7 +6057,8 @@
         "--receipt",
         "--root",
         "--shard",
-        "--shard-plan"
+        "--shard-plan",
+        "--summary"
       ],
       "required": [
         "--base FULL_COMMIT_ID"

@@ -26,7 +26,7 @@ func (Language) FixtureClosedFrontiers() []string {
 // ResolutionInput reports a path the plugin scans without owning it
 // (AFP-V0-511): the manifests and runner, bundler and TypeScript configuration
 // files observedName admits beside source files, such as `package.json` or a
-// `tsconfig*.json` whose `paths` steer alias resolution. A change there may
+// `tsconfig*.json` or `jsconfig*.json` whose `paths` steer alias resolution. A change there may
 // rebind any import, so the plan keeps every frontier entry.
 func (Language) ResolutionInput(relative string) bool {
 	return observedName(path.Base(relative))

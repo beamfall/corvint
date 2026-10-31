@@ -455,10 +455,11 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 			owned = append(owned, relative)
 		}
 	}
-	// A tsconfig.json declares aliases when it or a config its observed `extends` chain names
-	// holds a paths or baseUrl key; the declaring config is the frontier site (TJAA-V0-114).
+	// An alias config (a tsconfig.json, or a jsconfig.json with none beside it, TJAA-V0-960)
+	// declares aliases when it or a config its observed `extends` chain names holds a paths or
+	// baseUrl key; the declaring config is the frontier site (TJAA-V0-114).
 	for _, relative := range files {
-		if _, read := bodies[relative]; !read || path.Base(relative) != "tsconfig.json" || resolveAliases {
+		if _, read := bodies[relative]; !read || !aliasConfigFile(relative, bodies) || resolveAliases {
 			continue
 		}
 		if declaring := typeScriptAliasDeclaringConfig(relative, bodies); declaring != "" && !slices.Contains(aliasConfigs, declaring) {
@@ -1952,7 +1953,7 @@ func observedName(name string) bool {
 	_, frameworkConfig := configRunner(name, "")
 	return hasSourceExtension(name) || unreadModuleSource(name) || frameworkConfig || prefixedConfig(name, "vite.config") ||
 		name == "package.json" || name == "deno.json" || name == "deno.jsonc" ||
-		name == "bunfig.toml" || typeScriptConfigName(name) || name == "nightwatch.json" ||
+		name == "bunfig.toml" || typeScriptConfigName(name) || javaScriptConfigName(name) || name == "nightwatch.json" ||
 		name == ".detoxrc" || name == ".detoxrc.json" || name == ".testcaferc.json" ||
 		strings.HasSuffix(name, ".feature") || strings.HasSuffix(name, ".yaml") ||
 		strings.HasSuffix(name, ".yml") || strings.HasSuffix(name, ".mdx")

@@ -74,6 +74,9 @@ type anchorFacts struct {
 // ResolveRevision names the evaluated commit.
 func ResolveRevision(ctx context.Context, root, revision string) (string, error) {
 	out, err := git(ctx, root, "rev-parse", "--verify", "--end-of-options", revision+"^{commit}")
+	if errors.Is(err, errPlatformUnsupported) {
+		return "", err
+	}
 	if err != nil {
 		return "", errors.New("evaluated revision is not a commit")
 	}

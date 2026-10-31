@@ -400,3 +400,39 @@ func TestAFPV0392TransientReadFailureStoresNoEntry(t *testing.T) {
 	}
 	assertSameGraph(t, root, graph)
 }
+
+// TestNSAV0800GitHubShellScriptsKeepTheGraphCacheable pins the Codex finding
+// on V1-3382: the shell plugin's .github read used Source.Walk, which pins
+// nothing, so any repository with a .github directory never stored a graph
+// and every plan rebuilt it. FilesUnder stamps each listed directory: the
+// graph is stored, reused unchanged, and a script added under .github
+// invalidates the entry and appears as a unit. Fails on the Walk version,
+// which reported NotStored "walked subtree .github".
+func TestNSAV0800GitHubShellScriptsKeepTheGraphCacheable(t *testing.T) {
+	pinnable(t)
+	root := graphCacheFixture(t)
+	writeCacheFixture(t, root, map[string]string{
+		".github/forward-rows/verdict.sh": "#!/bin/sh\necho verdict\n",
+		".github/workflows/ci.yml":        "name: ci\n",
+	})
+	dir := privateCacheDir(t)
+	if _, outcome := buildCached(t, root, dir, graphCacheIdentity); !outcome.Stored {
+		t.Fatalf("a repository with .github stored no graph: %+v", outcome)
+	}
+	graph, outcome := buildCached(t, root, dir, graphCacheIdentity)
+	if !outcome.Hit {
+		t.Fatalf("an unchanged checkout rebuilt the graph: %+v", outcome)
+	}
+	assertSameGraph(t, root, graph)
+	if _, ok := graph.Unit("shell:.github/forward-rows/verdict.sh"); !ok {
+		t.Fatal("the cached graph lacks the .github script unit")
+	}
+	writeCacheFixture(t, root, map[string]string{".github/forward-rows/added.sh": "#!/bin/sh\n"})
+	graph, outcome = buildCached(t, root, dir, graphCacheIdentity)
+	if outcome.Hit {
+		t.Fatalf("a script added under .github reused the stale entry: %+v", outcome)
+	}
+	if _, ok := graph.Unit("shell:.github/forward-rows/added.sh"); !ok {
+		t.Fatal("the rebuilt graph lacks the added .github script")
+	}
+}

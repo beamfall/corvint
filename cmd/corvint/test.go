@@ -28,8 +28,8 @@ const testHelp = `Run the affected test set (experimental, STR-V0).
 Usage:
   corvint [--root PATH] test --base FULL_COMMIT_ID [--shard I/N]
     [--placement universe|balanced|measured [--shard-plan PATH]]
-    [--profile local|ci [--confine PATH]] [--go-parallel N] [--dry-run]
-    [--manifest PATH] [--receipt PATH]
+    [--profile local|ci [--confine PATH]] [--go-parallel N]
+    [--dry-run [--summary]] [--manifest PATH] [--receipt PATH]
   corvint test verify-shards --manifest PATH RECEIPT...
   corvint test shards --count N --files PATH [--durations PATH]... [--runs K]
       [--test-slices PATH --split-allow PATH]
@@ -84,8 +84,13 @@ value. Example: corvint test --base "$(git merge-base HEAD origin/main)"
 --go-parallel 4.
 
 --dry-run prints the shard's argv as JSON and runs nothing but Git;
---manifest PATH writes the corvint-test-manifest/0 there. Without --dry-run
-a supplied --manifest must equal the recomputed one. Each shard writes one
+--manifest PATH writes the corvint-test-manifest/0 there. With --summary
+a dry run prints instead a text summary of at most 4 KiB: scope, reason,
+unit counts by adapter and slice, the first selected units and the counts
+of checks and incomplete entries (STR-V0-800). Example: corvint test
+--base "$(git merge-base HEAD origin/main)" --dry-run --summary.
+Without --dry-run a supplied --manifest must equal the recomputed one.
+Each shard writes one
 corvint-test-run/0 receipt (default <git-dir>/corvint/test-run[.I].json).
 verify-shards accepts the union only when every shard's receipt binds the
 manifest and every execution unit passed exactly once.
@@ -110,6 +115,9 @@ type testOptions struct {
 	// keeps the declared flags.
 	goParallel int
 	dryRun     bool
+	// summary is --summary: a dry run prints the bounded text summary
+	// instead of the JSON plan (STR-V0-800).
+	summary bool
 }
 
 // testInvocation recognises `[--root PATH] test ...`.
@@ -163,8 +171,9 @@ func parseTestOptions(args []string) (testOptions, error) {
 	goParallel := ""
 	once("go-parallel", &goParallel)
 	f.BoolVar(&options.dryRun, "dry-run", false, "")
+	f.BoolVar(&options.summary, "summary", false, "")
 	requireClean := f.Bool("require-clean", false, "")
-	const usage = "usage: corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci --confine PATH] [--go-parallel N] [--dry-run] [--manifest PATH] [--receipt PATH]"
+	const usage = "usage: corvint test --base FULL_COMMIT_ID [--shard I/N] [--placement universe|balanced|measured [--shard-plan PATH]] [--profile local|ci --confine PATH] [--go-parallel N] [--dry-run [--summary]] [--manifest PATH] [--receipt PATH]"
 	// The refusal names the flag or argument at fault (STR-V0-062), as the
 	// flag package reports it: "flag provided but not defined: -out".
 	if err := f.Parse(args); err != nil {
@@ -174,6 +183,8 @@ func parseTestOptions(args []string) (testOptions, error) {
 		return options, argumentError(fmt.Sprintf("unexpected argument %q; %s", f.Arg(0), usage))
 	}
 	switch {
+	case options.summary && !options.dryRun:
+		return options, argumentError("--summary applies only to --dry-run (STR-V0-800)")
 	case *requireClean:
 		return options, argumentError("test runs the bytes that execute, dirty paths included; --require-clean is not accepted")
 	case !validGitObjectID(options.base):
@@ -615,12 +626,16 @@ func testDryRun(m sessiontest.Manifest, digest string, declared sessiontest.Decl
 			return 2
 		}
 	}
-	encoded, err := gokernel.CanonicalJSON(document)
-	if err != nil {
-		emitError(stderr, err)
-		return 2
+	if options.summary {
+		_, _ = io.WriteString(stdout, testDryRunSummary(m, digest, invocations, options.shard))
+	} else {
+		encoded, err := gokernel.CanonicalJSON(document)
+		if err != nil {
+			emitError(stderr, err)
+			return 2
+		}
+		_, _ = stdout.Write(append(encoded, '\n'))
 	}
-	_, _ = stdout.Write(append(encoded, '\n'))
 	testWholeReasons(invocations, m.Reason, stderr)
 	if len(m.Incomplete) != 0 {
 		return testCommandExit[sessiontest.ResultIncomplete]

@@ -55,6 +55,8 @@ AFP-V0-423	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the 
 AFP-V0-424	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1688))	standing	2026-10-11; #1688
 AFP-V0-425	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1688);	standing	2026-10-11; #1688
 AFP-V0-426	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1688))	standing	2026-10-11; #1688
+AFP-V0-960	docs/specs/affected-plan-python-playwright-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2562,	standing	2026-10-11; V1-2562
+AFP-V0-961	docs/specs/affected-plan-python-playwright-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2582)	standing	2026-10-11; V1-2582
 AFP-V0-442	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2693, Git	standing	2026-10-11; V1-2693; #1751
 AFP-V0-443	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2693, Git	standing	2026-10-11; V1-2693; #1751
 AFP-V0-472	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2760)	standing	2026-10-11; V1-2760
@@ -168,6 +170,7 @@ AFP-V0-402	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-403	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2370; amends	standing	2026-10-11; V1-2370
 AFP-V0-415	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2488))	standing	2026-10-11; V1-2488
 AFP-V0-416	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2488))	standing	2026-10-11; V1-2488
+AFP-V0-850	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11; V1-2488))	standing	2026-10-11; V1-2488
 AFP-V0-390	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601; amended 2026-10-24 by AFP-V0-436, V1-2572)	unrecorded	-
 AFP-V0-391	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
 AFP-V0-392	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
@@ -1196,6 +1199,7 @@ CEM-V1-692	docs/specs/cem-stable-v1.md	(experimental under the standing lane aut
 CEM-V1-693	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2995)) a reverted run is `	standing	V1-2995
 CEM-V1-694	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3168)) `cem cite --replace	standing	V1-3168
 CEM-V1-695	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3168)) `cem mark	standing	V1-3168
+CEM-V1-960	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2519)	standing	2026-10-11; V1-2519
 CEM-V1-980	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) Amends `CEM-V1-037`	standing	V1-2752
 CEM-V1-981	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) A binary group adds	standing	V1-2752
 CEM-V1-982	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) Base simulation	standing	V1-2752
@@ -1740,6 +1744,7 @@ PRS-V1-019	docs/specs/corvint-1.0-product-and-release-v1.md	The root module and 
 PRS-V1-020	docs/specs/corvint-1.0-product-and-release-v1.md	`corvint --version --json` (also after `--root PATH`) MUST print one canonical J	unrecorded	-
 PRS-V1-021	docs/specs/corvint-1.0-product-and-release-v1.md	windows/amd64 is UNSUPPORTED for 1.0 and MUST fail closed (decision 0559). A	unrecorded	-
 PRS-V1-022	docs/specs/corvint-1.0-product-and-release-v1.md	Off darwin and linux, every docs corpus input read (`ReadCorpusFile`,	unrecorded	-
+PRS-V1-840	docs/specs/corvint-1.0-product-and-release-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-31; V1-2487)	standing	2026-10-31; V1-2487
 PRS-V1-920	docs/specs/corvint-1.0-product-and-release-v1.md	Every receipt-read caller outside the docs corpus MUST report the	unrecorded	-
 CRB-V0-001	docs/specs/corvint-rebrand-v0.md	The current product display name MUST be `Corvint`, with lowercase slug `corvint	unrecorded	-
 CRB-V0-002	docs/specs/corvint-rebrand-v0.md	The root and repository-owned nested Go modules, active Go self-imports, and ope	unrecorded	-
@@ -3077,10 +3082,20 @@ DCW-V0-800	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-801	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3280; amends `DCW-V0-384`)	standing	V1-3280
 DCW-V0-802	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3279; amends `DCW-V0-350`)	standing	V1-3279
 DCW-V0-803	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3268; refines `DCW-V0-150`	standing	V1-3268
+DCW-V0-804	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3378; amends `DCW-V0-801`)	standing	V1-3378
+DCW-V0-805	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3380; refines `DCW-V0-161`	standing	V1-3380
+DCW-V0-806	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3381; refines `DCW-V0-062`	standing	V1-3381
+DCW-V0-807	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3383; refines `DCW-V0-351`	standing	V1-3383
+DCW-V0-808	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; lane friction F2; refines	standing	-
+DCW-V0-809	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; lane friction F3; refines	standing	-
+DCW-V0-810	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; lane friction F11; amends	standing	-
+DCW-V0-811	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; lane friction F10) On a host	standing	-
+DCW-V0-812	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; lane friction F4; refines	standing	-
 DCW-V0-844	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3318; refines `DCW-V0-400`	standing	V1-3318
 DCW-V0-845	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3302; refines `DCW-V0-063`	standing	V1-3302
 DCW-V0-846	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-1724; refines `DCW-V0-439`	standing	V1-1724
 DCW-V0-920	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3043; refines `DCW-V0-150`	standing	V1-3043
+DCW-V0-813	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; lane friction F13; refines	standing	-
 DCW-V0-170	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2344) When	standing	2026-10-11; V1-2344
 DCW-V0-171	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2171) A	standing	2026-10-11; V1-2171
 DCW-V0-940	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2445; refines `DCW-V0-150`	standing	V1-2445
@@ -3235,6 +3250,8 @@ DCG-V0-045	docs/specs/documentation-citation-gate-v0.md	(experimental under the 
 DCG-V0-046	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-2821)) The gate MUST print	standing	V1-2821
 DCG-V0-047	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3124); refines DCG-V0-045)	standing	V1-3124
 DCG-V0-048	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3228); refines DCG-V0-045	standing	V1-3228
+DCG-V0-800	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3384); refines DCG-V0-013)	standing	V1-3384
+DCG-V0-801	docs/specs/documentation-citation-gate-v0.md	(experimental under the standing lane auto-accept (V1-3384)) `make repin`	standing	V1-3384
 DCX-V1-370	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) The	standing	2026-10-11; #1582
 DCX-V1-371	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) Eac	standing	2026-10-11; #1582
 DCX-V1-372	docs/specs/documentation-corpus-extraction-delta-v1.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1582) Eac	standing	2026-10-11; #1582
@@ -4649,6 +4666,7 @@ LOD-V0-032	docs/specs/local-observability-dashboard-v0.md	A test receipt is a pr
 LOD-V0-033	docs/specs/local-observability-dashboard-v0.md	Generated-doc state is a proposed docs-state JSON document, a map keyed by ticke	unrecorded	-
 LOD-V0-034	docs/specs/local-observability-dashboard-v0.md	Given identical `atm` output, `REQUIREMENTS.tsv`, receipts, docs-state, and tree	unrecorded	-
 LOD-V0-035	docs/specs/local-observability-dashboard-v0.md	A scan MUST validate schema-2 trace rows using the closed codec and screening in	unrecorded	-
+LOD-V0-960	docs/specs/local-observability-dashboard-v0.md	A v1-only store MUST be compared between the actual	unrecorded	-
 LTPM-V0-001	docs/specs/local-trace-producer-migration-v0.md	`record_trace` MUST obtain the clean `HEAD` commit and its tree from one reposit	unrecorded	-
 LTPM-V0-002	docs/specs/local-trace-producer-migration-v0.md	The Python reader MUST accept canonical rows only when their filename and row na	unrecorded	-
 LTPM-V0-003	docs/specs/local-trace-producer-migration-v0.md	Dry-run MUST be read-only and bind its plan digest to the stable current commit/	unrecorded	-
@@ -4866,6 +4884,7 @@ NSA-V0-013	docs/specs/native-shell-affected-test-v0.md	Neither plugin may execut
 NSA-V0-014	docs/specs/native-shell-affected-test-v0.md	Units, paths, imports, path tokens and frontier reasons MUST be sorted and uniqu	unrecorded	-
 NSA-V0-015	docs/specs/native-shell-affected-test-v0.md	Both plugins MUST pass the shared seam conformance suite (`core <- mid <- leaf`	unrecorded	-
 NSA-V0-016	docs/specs/native-shell-affected-test-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2708) Ame	standing	2026-10-11; V1-2708
+NSA-V0-800	docs/specs/native-shell-affected-test-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3382)	standing	2026-10-11; V1-3382
 NTP-V0-001	docs/specs/native-taskman-planning-v0.md	The opt-in `corvint work plan-fixture --executor ABSOLUTE_FILE --observations FI	unrecorded	-
 NTP-V0-002	docs/specs/native-taskman-planning-v0.md	The receipt MUST bind the immutable source commit/tree, executor digest, native	unrecorded	-
 NTP-V0-003	docs/specs/native-taskman-planning-v0.md	Eligible tickets MUST be processed by priority P0..P3, numeric order, then ticke	unrecorded	-
@@ -5680,6 +5699,7 @@ RUBY-AFFECTED-V0-045	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under
 RUBY-AFFECTED-V0-046	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2363,	standing	2026-10-11; V1-2363
 RUBY-AFFECTED-V0-047	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2363,	standing	2026-10-11; V1-2363
 RUBY-AFFECTED-V0-048	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2363,	standing	2026-10-11; V1-2363
+RUBY-AFFECTED-V0-960	docs/specs/ruby-affected-test-adapter-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 RUBY-AFFECTED-V0-049	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2448,	standing	2026-10-11; V1-2448
 RUBY-AFFECTED-V0-050	docs/specs/ruby-affected-test-adapter-v0.md	(experimental under the standing lane auto-accept; V1-2473, GH #1601)	standing	V1-2473; #1601
 RVN-V0-001	docs/specs/run-verified-navigation-v0.md	`corvint flows appmap screen` and `flow` MUST accept repeatable	unrecorded	-
@@ -5822,6 +5842,7 @@ STR-V0-072	docs/specs/session-test-runner-v0.md	(experimental under the standing
 STR-V0-073	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-29; V1-3120) For each	standing	2026-10-29; V1-3120
 STR-V0-173	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3149) `corvint	standing	2026-10-11; V1-3149
 STR-V0-174	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3155) When the	standing	2026-10-11; V1-3155
+STR-V0-800	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3382)	standing	2026-10-11; V1-3382
 SHA-V0-001	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	accept only exact finite language/version/toolchain/stage tuples, never a neares	unrecorded	-
 SHA-V0-002	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	use the experimental `shader` family extension: a request has the fixed transpor	unrecorded	-
 SHA-V0-003	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	facts carry an inclusive/exclusive byte span (zero-based bytes, one-based byte c	unrecorded	-
@@ -6032,6 +6053,7 @@ SRG-V0-046	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the
 SRG-V0-047	docs/specs/spec-requirement-index-generator-v0.md	(proposed; V1-2867; experimental under the standing lane auto-accept) When a	standing	V1-2867
 SRG-V0-547	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)	standing	2026-10-11; V1-3049
 SRG-V0-548	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)	standing	2026-10-11; V1-3049
+SRG-V0-800	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3379;	standing	2026-10-11; V1-3379
 SRG-V0-900	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; tasks-w1 lane	standing	2026-10-31
 SRG-V0-980	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-10-31); V1-3458) Ever	standing	2026-10-31; V1-3458
 SRG-V0-981	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-10-31); V1-3458) A ch	standing	2026-10-31; V1-3458
@@ -6193,6 +6215,12 @@ TCP-V0-150	docs/specs/task-context-packet-v0.md	(accepted under the owner's stan
 TCP-V0-152	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1010, V1-1015;	standing	2026-10-11; V1-1010; V1-1015
 TCP-V0-162	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2262, V1-1015	standing	2026-10-11; V1-2262; V1-1015
 TCP-V0-163	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2953) The	standing	2026-10-11; V1-2953
+TCP-V0-990	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)	standing	2026-10-11; V1-1269
+TCP-V0-991	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)	standing	2026-10-11; V1-1269
+TCP-V0-992	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)	standing	2026-10-11; V1-1269
+TCP-V0-993	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)	standing	2026-10-11; V1-1269
+TCP-V0-995	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)	standing	2026-10-11; V1-1269
+TCP-V0-994	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)	standing	2026-10-11; V1-1269
 TCB-V0-001	docs/specs/tasks-criterion-binding-v0.md	Core MUST import only Tasks wire. Full ticket/attempt/policy validation stays Ta	unrecorded	-
 TCB-V0-002	docs/specs/tasks-criterion-binding-v0.md	`criterion-binding capture --ticket ID --attempt ID` MUST be a bounded read with	unrecorded	-
 TCB-V0-003	docs/specs/tasks-criterion-binding-v0.md	`criterion-binding verify` MUST consume a closed bounded capture on stdin with n	unrecorded	-
@@ -6432,6 +6460,7 @@ TSP-V0-005	docs/specs/test-selection-precision-v0.md	(experimental, under the ow
 TSP-V0-006	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2806)	standing	2026-10-11; V1-2806
 TSP-V0-007	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3050)	standing	2026-10-11; V1-3050
 TSP-V0-940	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-31; V1-3346;	standing	2026-10-31; V1-3346
+TSP-V0-960	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-005, under the owner's standing lane auto-accept,	standing	-
 TSA-V0-010	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1589, V1-1592) Lint and duplicates MUST re	standing	2026-10-11; V1-1589; V1-1592
 TSA-V0-011	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587, V1-1589) Comments MUST be returned a	standing	2026-10-11; V1-1587; V1-1589
 TSA-V0-001	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) `corvint tests setup-select --specs	standing	2026-10-11; V1-1587
@@ -6844,6 +6873,7 @@ TJAA-V0-141	docs/specs/typescript-javascript-affected-adapter-v0.md	(same accept
 TJAA-V0-142	docs/specs/typescript-javascript-affected-adapter-v0.md	(same acceptance) The whole-suite plan MUST be unchanged: the graph phase is	unrecorded	-
 TJAA-V0-147	docs/specs/typescript-javascript-affected-adapter-v0.md	(experimental under the standing lane auto-accept (2026-10-28); V1-2914; GitHub	standing	2026-10-28; V1-2914
 TJAA-V0-127	docs/specs/typescript-javascript-affected-adapter-v0.md	(standing auto-accept, 2026-10-27; V1-2584, AFP-V0-404, TJAA-V0-091) A static	standing	2026-10-27; V1-2584
+TJAA-V0-960	docs/specs/typescript-javascript-affected-adapter-v0.md	(experimental under the standing lane auto-accept (2026-10-11); V1-2533; amendin	standing	2026-10-11; V1-2533
 URE-V0-001	docs/specs/unplanned-read-events-v0.md	`Classify(packetPaths, toolName, toolInput, root)` MUST return an `Event` for a	unrecorded	-
 URE-V0-002	docs/specs/unplanned-read-events-v0.md	The recognized tools are `Read` (`file_path`), `Grep` and `Glob` (`path`), and	unrecorded	-
 URE-V0-003	docs/specs/unplanned-read-events-v0.md	`Append(root, event)` MUST be a no-op returning `nil` unless the opt-in marker	unrecorded	-

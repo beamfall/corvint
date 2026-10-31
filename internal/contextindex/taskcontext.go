@@ -61,7 +61,7 @@ func taskContext(ctx context.Context, index *Index, task, subject string, limit 
 		return nil, compiler.historyErr
 	}
 	compiler.answerability = compiler.answer()
-	compiler.answerability.relations = relationRows(rows)
+	compiler.answerability.relations = relationRows(rows, compiler.promoted)
 	if compiler.answerability.unsupported() {
 		compiler.answerability.nearest = compiler.withheldClaims(rows)
 		rows = compiler.reservedOnly(rows)
@@ -130,6 +130,9 @@ type taskContextCompiler struct {
 	// omittedPairs is the subjectless counterpart tests that found no unfilled
 	// budget, in admission order (TCP-V0-161).
 	omittedPairs []string
+	// omittedSpecCited is the spec-cited candidates the relation's cap held
+	// back, in citation order (TCP-V0-992).
+	omittedSpecCited []specCitation
 	// lexical caches the scored posting walk (TCP-V0-014) across the test
 	// slot and the lexical fill.
 	lexical []lexicalHit
@@ -1854,7 +1857,7 @@ func (compiler *taskContextCompiler) reserve(rows []contextRow) []contextRow {
 func orderRelations(relations []string) []string {
 	present := stringSetOf(relations)
 	ordered := make([]string, 0, len(present))
-	for _, relation := range contextRelationOrder {
+	for _, relation := range contextRankOrder {
 		if _, ok := present[relation]; ok {
 			ordered = append(ordered, relation)
 		}
@@ -1865,7 +1868,8 @@ func orderRelations(relations []string) []string {
 func (compiler *taskContextCompiler) reservedRows() []contextRow {
 	rows := compiler.screenAuthority(compiler.governingRows())
 	rows = append(rows, compiler.screenAuthority(compiler.specMentionedRows(rows))...)
-	return demoteScreened(append(rows, compiler.screenAuthority(compiler.instructionRoutedRows(rows))...))
+	rows = append(rows, compiler.screenAuthority(compiler.instructionRoutedRows(rows))...)
+	return demoteScreened(append(rows, compiler.screenAuthority(compiler.specCitedRows(rows))...))
 }
 
 // governingRow keeps the subjectless local-prompt caller's single-row API.
@@ -2386,7 +2390,7 @@ func (compiler *taskContextCompiler) governance() string {
 // looked and how many candidates its generator held back (TCP-V0-011). It is
 // measured from what the generators already produced and widens nothing.
 func (compiler *taskContextCompiler) unexamined() []any {
-	report := make([]any, 0, len(contextRelationOrder)+1)
+	report := make([]any, 0, len(contextRankOrder)+1)
 	for _, relation := range compiler.contextRelations() {
 		state := compiler.relationState[relation]
 		if state == "" {
@@ -2443,8 +2447,8 @@ func (compiler *taskContextCompiler) criticalSelectors(rows []contextRow) ([]any
 	carried, missing := make([]any, 0), make([]any, 0)
 	ordered := compiler.governanceRows()
 	sort.SliceStable(ordered, func(left, right int) bool {
-		leftRank := slices.Index(contextRelationOrder, ordered[left].kind)
-		rightRank := slices.Index(contextRelationOrder, ordered[right].kind)
+		leftRank := relationRank(ordered[left].kind)
+		rightRank := relationRank(ordered[right].kind)
 		if leftRank != rightRank {
 			return leftRank < rightRank
 		}
@@ -2648,6 +2652,7 @@ func (compiler *taskContextCompiler) packet(rows []contextRow, limit int) map[st
 	}
 	compiler.unresolvedAnchors(packet["coverage"].(map[string]any))
 	compiler.omittedPairCoverage(packet["coverage"].(map[string]any))
+	compiler.omittedSpecCitedCoverage(packet["coverage"].(map[string]any), rows)
 	compiler.recencyCoverage(packet["coverage"].(map[string]any), rows)
 	compiler.lexicalCoverage(packet["coverage"].(map[string]any), rows, limit)
 	worktreeCoverage(packet["coverage"].(map[string]any), compiler.index)
@@ -2728,6 +2733,8 @@ func rowAction(row contextRow) string {
 		return "Read the requirement clause this task names before changing its behavior."
 	case instructionRoutedRelation:
 		return "Read this file: the governing instructions name it in a passage that shares this task's terms, so the project routes work like this through it."
+	case specCitedRelation:
+		return "Read this file before changing the behavior: the spec this task routes to cites it, so the change edits or reuses it."
 	case "pair":
 		if contextIsTest(row.path) {
 			return "Update this test: it is the subject's test counterpart, so a behaviour change in the subject changes what it must assert."
@@ -3327,6 +3334,13 @@ func (compiler *taskContextCompiler) reservedOnly(rows []contextRow) []contextRo
 }
 
 func reservedRelation(kind string) bool {
+	return instructionReservation(kind) || kind == specCitedRelation
+}
+
+// instructionReservation is the project-authority reservations: the
+// `spec-cited` reservation is the task's code, so it keeps the spans and
+// rescue relation an ordinary row has (TCP-V0-995).
+func instructionReservation(kind string) bool {
 	return kind == governingRelation || kind == specMentionedRelation || kind == instructionRoutedRelation
 }
 
@@ -3358,10 +3372,17 @@ func (verdict answerability) namesUnsupported() bool {
 // relationRows counts only the rescue relations named by TCP-V0-016.
 // Test rows may derive solely from lexical anchors, so neither they nor
 // unrecognized future row kinds establish independent support for a task.
-func relationRows(rows []contextRow) int {
+// A `spec-cited` row counts the relation of the ordinary row it took over
+// (promoted), so the reservation never withdraws that row's rescue
+// (TCP-V0-995).
+func relationRows(rows []contextRow, promoted map[string]string) int {
 	count := 0
 	for _, row := range rows {
-		switch row.kind {
+		kind := row.kind
+		if kind == specCitedRelation {
+			kind = promoted[row.path]
+		}
+		switch kind {
 		case "mentioned", "pair", "definition", "reverse-import", "reference", "cochange", "sibling":
 			count++
 		}

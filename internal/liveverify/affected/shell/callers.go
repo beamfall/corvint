@@ -118,7 +118,7 @@ func callerCandidate(name string) bool {
 // candidate files other than the script whose text holds the script's file
 // name are exactly its callers and mentions. Any failure declares nothing and names
 // FrontierForeignCallersInvalid.
-func applyForeignCallers(root *affected.Source, units []affected.Unit, frontier map[string]bool) {
+func applyForeignCallers(root *affected.Source, units []affected.Unit, built map[string]computedNames, frontier map[string]bool) {
 	declared, err := readForeignCallers(root)
 	if declared == nil && err == nil {
 		return
@@ -135,13 +135,18 @@ func applyForeignCallers(root *affected.Source, units []affected.Unit, frontier 
 			}
 		}
 	}
-	if len(indexes) != len(declared) || !foreignCallersComplete(root, declared) {
+	if len(indexes) != len(declared) || !foreignCallersComplete(root, declared, built) {
 		frontier[FrontierForeignCallersInvalid] = true
 		return
 	}
 	for script, index := range indexes {
 		unit := &units[index]
 		unit.Callers = slices.Clone(declared[script].Callers)
+		if !built[script].empty() {
+			// A script that itself runs a name it builds keeps the frontier
+			// (TSP-V0-960); only its callers are declared.
+			continue
+		}
 		unit.Frontier = slices.DeleteFunc(unit.Frontier, func(reason string) bool { return reason == FrontierForeignInvocation })
 		if len(unit.Frontier) == 0 {
 			unit.Frontier, unit.FrontierBears = nil, ""
@@ -151,8 +156,10 @@ func applyForeignCallers(root *affected.Source, units []affected.Unit, frontier 
 
 // foreignCallersComplete reports whether every declared script's callers and
 // mentions are exactly the candidate files, other than the script, whose text holds the
-// script's file name. An unreadable candidate fails it.
-func foreignCallersComplete(root *affected.Source, declared map[string]ForeignCallers) bool {
+// script's file name. A shell file that runs a script name it builds names
+// every script that name may be (TSP-V0-960), so it must be listed too. An
+// unreadable candidate fails it.
+func foreignCallersComplete(root *affected.Source, declared map[string]ForeignCallers, built map[string]computedNames) bool {
 	candidates, err := root.Files(callerCandidate)
 	if err != nil {
 		return false
@@ -164,7 +171,7 @@ func foreignCallersComplete(root *affected.Source, declared map[string]ForeignCa
 			return false
 		}
 		for script := range declared {
-			if candidate != script && bytes.Contains(body, []byte(path.Base(script))) {
+			if candidate != script && (bytes.Contains(body, []byte(path.Base(script))) || built[candidate].names(path.Base(script))) {
 				found[script] = append(found[script], candidate)
 			}
 		}

@@ -10,8 +10,8 @@ import (
 // kind the packet renders belongs to exactly one candidate class.
 var candidateClassOfKind = map[string]string{
 	governingRelation: "governing-instruction", specMentionedRelation: "governing-instruction",
-	instructionRoutedRelation: "governing-instruction",
-	"mentioned":               "named-subject", "definition": "named-subject", "reverse-import": "named-subject",
+	instructionRoutedRelation: "governing-instruction", specCitedRelation: "governing-instruction",
+	"mentioned": "named-subject", "definition": "named-subject", "reverse-import": "named-subject",
 	"reference": "named-subject", "cochange": "named-subject", "sibling": "named-subject",
 	contextGraphRelation: "named-subject",
 	"pair":               "paired-test", "test": "paired-test",
@@ -44,7 +44,7 @@ func candidateKindFixture(t *testing.T) *Index {
 // not outrank the subject's paired test or importer.
 func TestTaskContextResultsNameTheirCandidateKind_TCPV0163(t *testing.T) {
 	t.Parallel()
-	for _, relation := range append(slices.Clone(contextRelationOrder), contextGraphRelation) {
+	for _, relation := range append(slices.Clone(contextRankOrder), contextGraphRelation) {
 		if _, ok := candidateClassOfKind[relation]; !ok {
 			t.Fatalf("relation %q has no candidate class", relation)
 		}

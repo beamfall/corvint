@@ -65,23 +65,61 @@ func quotedRunFix(path string) string {
 	return fmt.Sprintf("%s line %d: quote the -run alternation as one word: %s (DCW-V0-403)", path, line, quoted)
 }
 
+// envAssignment is one leading NAME=value word of a verify line whose value
+// may be single-quoted (printable ASCII but ') or double-quoted (printable
+// ASCII but ", $, `, \ and !), so that every quoted byte is literal to a POSIX
+// shell; an unquoted value holds only the recorder's v1 bytes (DCW-V0-804).
+var envAssignment = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_]*)=(?:'([\x20-\x26\x28-\x7e]*)'|"([\x20\x23\x25-\x5b\x5d-\x5f\x61-\x7e]*)"|([A-Za-z0-9_./:@=+,-]*)) +`)
+
+// envAssignments splits the leading NAME=value words off a verify line. It
+// returns each as one argv word with its quotes removed and the rest of the
+// line, and quoted reports whether any value was quoted; a line with no
+// quoted value keeps its v1 command form (DCW-V0-804).
+func envAssignments(line string) (words []string, rest string, quoted bool) {
+	rest = line
+	for {
+		match := envAssignment.FindStringSubmatch(rest)
+		if match == nil {
+			return words, rest, quoted
+		}
+		if opening := rest[len(match[1])+1]; opening == '\'' || opening == '"' {
+			quoted = true
+		}
+		words = append(words, match[1]+"="+match[2]+match[3]+match[4])
+		rest = rest[len(match[0]):]
+	}
+}
+
 // verifyLineArguments is one verify line's recorder argument pair: a quoted
 // -run alternation becomes a typed argv entry whose quoted word is exactly
-// one argument, so no shell ever parses it (LTPM-V0-013); every other line
-// stays a v1 command under the unchanged grammar.
+// one argument, so no shell ever parses it (LTPM-V0-013); a line led by
+// quoted NAME=value assignments, such as RUN_REASON='whole run'
+// script/run.sh go test ./a, becomes a typed argv entry whose first words
+// are those assignments verbatim, without their quotes (DCW-V0-804); every
+// other line stays a v1 command under the unchanged grammar.
 func verifyLineArguments(line string) []string {
-	match := quotedRunAlternation.FindStringSubmatch(strings.TrimSpace(line))
+	assignments, rest, quoted := envAssignments(strings.TrimSpace(line))
+	match := quotedRunAlternation.FindStringSubmatch(rest)
 	if match == nil {
-		return []string{"--verify", line}
+		if !quoted || trace.ValidateVerificationCommands([]string{rest}) != nil {
+			return []string{"--verify", line}
+		}
+		return typedVerifyArguments(line, append(assignments, strings.Fields(rest)...))
 	}
 	word := match[3] + match[4]
-	argv := strings.Fields(match[1])
+	argv := append(assignments, strings.Fields(match[1])...)
 	if match[2] == "=" {
 		argv = append(argv, "-run="+word)
 	} else {
 		argv = append(argv, "-run", word)
 	}
 	argv = append(argv, strings.Fields(match[5])...)
+	return typedVerifyArguments(line, argv)
+}
+
+// typedVerifyArguments is the typed recorder argument pair for argv, or the
+// v1 pair for line when argv has no canonical encoding.
+func typedVerifyArguments(line string, argv []string) []string {
 	encoded, err := trace.CanonicalArgv(argv)
 	if err != nil {
 		return []string{"--verify", line}

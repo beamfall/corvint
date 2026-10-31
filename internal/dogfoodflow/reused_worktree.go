@@ -44,6 +44,16 @@ func (f *flow) requireFreshWorktree(base, gitDir string, retire bool) {
 	if len(stranded) == 0 && len(stale) == 0 {
 		return
 	}
+	// DCW-V0-810: the pre-flight runs no OCM step, and finish-lane moves stale
+	// sidecars aside byte-preserved before it prepares, so sidecars alone are
+	// a note there; a stranded trace, whose retirement is a migration, still
+	// refuses.
+	if !retire && len(stranded) == 0 {
+		for _, name := range stale {
+			f.say("%s: NOTE stale sidecar %s is ignored and was last written before BASE %s was committed; dogfood finish-lane moves it under %s/corvint/stale-ocm before it prepares (DCW-V0-406, DCW-V0-810)\n", f.prefix, name, base[:12], gitDir)
+		}
+		return
+	}
 	if retire {
 		if legacy > 0 {
 			digest = ""
