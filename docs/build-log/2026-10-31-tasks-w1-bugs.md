@@ -118,3 +118,29 @@ spec). Its CAL-V0-215, CAL-V0-070, CAL-V0-074 and CAL-V0-089 lines are cited as 
 instead; omitting the spec does not claim its requirements hold. The intents are the
 journal-segments, lease-gate-latency, pool-safe-reuse, scope-lease and test-claim-qualification
 specs (244 requirements).
+
+## Friction fixes (owner request, 2026-10-31)
+
+- Rewritten bound segment: LGL-V0-900 now also covers a bound segment rewritten in place at a stable
+  head. Under the writer lock, when the preparation failure names a bound segment, the commit
+  re-hashes that one segment against its manifest entry and refuses `JOURNAL_FORKED` in round 1.
+  It previously spent 16 rounds and refused `SNAPSHOT_MOVED`. Only the named segment is read, so
+  the locked work stays bounded by one segment.
+- Full `/tmp` on the WSL lane host: the shared `/tmp/corvint-go-build-cache` had reached 15 GiB on
+  the 16 GiB tmpfs, because the `go-cache-trim` default bound of 20 GiB exceeds that file system
+  (ASD-V0-900). Decision: without `--max-gib`, a cache's bound is the smaller of 20 GiB and 40% of
+  its file system. I ran the documented trim once (`--apply --max-gib 8`, entries older than 12 h
+  only), which freed 4.5 GB; `/tmp` went from 98% to 71% used.
+- OCM bound early warning (SRG-V0-900): `spec-requirements-check`, and so `make doc-gates`, now runs
+  `TestSpecsStayWithinTheOCMObligationBound`. `affected-plan-v0.md`, already over the bound on
+  main, is listed in `overBoundSpecs` and must stay over it. A probe requirement added to the
+  agent-leases spec fails the check.
+- Closeout order (DCW-V0-900): `dogfood-closeout` runs the input pre-flight, then batch-precheck,
+  then `dogfood-finish`, then batch-precheck again for the sealed head's receipt. That costs one
+  more precheck run per closeout; the alternative, moving the single run ahead of the bind, would
+  leave the receipt naming a pre-bind head.
+- Not changed here: the V1-2625 READY mode (phase READY, no leader spawned) has not reproduced since
+  the first sighting, in about 130 loaded runs with RunRole's error now in the failure message.
+  The truncated ticket text in the lane input file belongs to the orchestrator. The CORVINT_BIN
+  refusal and the propose-citations unknowns are existing behaviour; V1-2360 and V1-2423 cover
+  propose-citations.
