@@ -180,16 +180,22 @@ func (l *finishLane) run() int {
 		// A refused prepare stops with its map in place for the next pass to
 		// remove; the pre-flight leaves no map either way.
 		defer func() { _ = removeFile(l.root + "/" + finishLaneSidecar) }()
-		l.prepare()
+		l.removePreflight()
+		l.recordPreflight(l.prepare())
 		l.line("inputs-check PASS nothing was bound or committed")
 		return 0
 	}
 	if resume {
+		l.removePreflight()
 		l.line("prepare SKIP bind-commit=%s", l.target)
 		l.line("bind SKIP bind-commit=%s", l.target)
 		l.line("commit SKIP bind-commit=%s", l.target)
 	} else {
-		l.prepare()
+		// A passing inputs-check over the same inputs already ran this exact
+		// prepare pass (DCW-V0-887).
+		if !l.reusePreflight() {
+			l.prepare()
+		}
 		l.bind()
 		l.commitBind()
 	}
@@ -549,19 +555,24 @@ func (l *finishLane) removeSidecar(name string) {
 // prepare is pass 0: it prepares the map whose hunk IDs the plan names. Only
 // a refusal or an unprepared map stops it; the rows it cannot produce without
 // a plan or a committed sidecar are the bind's to decide.
-func (l *finishLane) prepare() {
+func (l *finishLane) prepare() []string {
 	defer l.timed("prepare")()
 	if len(l.stageFiles) == 0 {
-		l.line("prepare PASS hunks=%d", l.preparePass(l.options.Change.Citations, false))
-		return
+		line := fmt.Sprintf("prepare PASS hunks=%d", l.preparePass(l.options.Change.Citations, false))
+		l.line("%s", line)
+		return []string{line}
 	}
 	// Each stage's plan is prechecked against a freshly prepared map, so a
 	// refused row of any stage stops before the first bind (DCW-V0-446).
+	lines := []string{}
 	for k, file := range l.stageFiles {
 		l.stage = fmt.Sprintf(" stage=%d/%d", k+1, len(l.stageFiles))
-		l.line("prepare PASS hunks=%d%s", l.preparePass(file, k == 0), l.stage)
+		line := fmt.Sprintf("prepare PASS hunks=%d%s", l.preparePass(file, k == 0), l.stage)
+		l.line("%s", line)
+		lines = append(lines, line)
 	}
 	l.stage = ""
+	return lines
 }
 
 // preparePass runs one prepare pass with citations and returns the prepared

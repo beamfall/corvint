@@ -339,3 +339,40 @@ func TestDogfoodFinishLaneDCWV0061ResumesAfterRejectedSeal(t *testing.T) {
 		t.Fatalf("dirty sealed rerun exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 }
+
+// DCW-V0-887 (V1-2978): a finish-lane run after a passing inputs-check with
+// the same base, HEAD, inputs and binary replays the pre-flight's prepare line
+// and runs no cem prepare of its own; an input changed in between forces a
+// fresh prepare.
+func TestDogfoodFinishLaneDCWV0887ReusesThePreflightPrepare(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	for _, changed := range []bool{false, true} {
+		root, base := portableDogfoodRepo(t)
+		env, args := finishLaneInputs(t, "1\tintent.md\t1:5\tspecification\n", "intent.md\n")
+		if code, stdout, stderr := run.exec(t, root, env[:3], append([]string{"dogfood", "inputs-check", "--base", base}, args...)...); code != 0 {
+			t.Fatalf("inputs-check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+		}
+		if changed {
+			if err := os.WriteFile(args[1], []byte("1\tintent.md\t1:4\tspecification\n"), 0644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		code, stdout, stderr := run.exec(t, root, append(env[:3:3], finishLaneIdentity...), append([]string{"dogfood", "finish-lane", "--base", base}, args...)...)
+		if code != 0 {
+			t.Fatalf("changed=%t finish-lane exit=%d stdout=%s stderr=%s", changed, code, stdout, stderr)
+		}
+		table, err := os.ReadFile(cemGit(t, root, "rev-parse", "--absolute-git-dir") + "/corvint/dogfood-finish-lane.timings.tsv")
+		if err != nil {
+			t.Fatal(err)
+		}
+		prepared := strings.Contains(string(table), "\nprepare\tcem prepare\t")
+		reused := strings.HasPrefix(stdout, "dogfood-finish-lane: prepare PASS hunks=1 reused=inputs-check\n")
+		if prepared == !changed || reused == changed {
+			t.Errorf("changed=%t: prepare ran=%t reused=%t\nstdout=%s\ntimings=%s", changed, prepared, reused, stdout, table)
+		}
+		if _, err := os.Stat(cemGit(t, root, "rev-parse", "--absolute-git-dir") + "/corvint/inputs-check-pass"); !os.IsNotExist(err) {
+			t.Errorf("changed=%t: the pre-flight receipt was not consumed: %v", changed, err)
+		}
+	}
+}

@@ -2021,7 +2021,8 @@ DOGFOOD_CITATIONS, DOGFOOD_INTENTS_FILE, DOGFOOD_VERIFY_FILE and DOGFOOD_OUTCOME
 inputs-check runs only finish-lane's input checks and prepare pass, naming the
 offending input file and row or line, then removes the prepared map: it binds,
 commits and seals nothing. make dogfood-closeout runs it before any bind work
-(DCW-V0-380).
+(DCW-V0-380); a finish-lane run with the same base, HEAD, inputs and binary
+reuses its prepare pass instead of preparing again (DCW-V0-887).
 
 batch-check is read-only. It checks that every commit in BASE..HEAD belongs to a
 sealed change the range adds, verifies each sealed CEM against its own base, and
