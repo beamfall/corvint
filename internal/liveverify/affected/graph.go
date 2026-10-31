@@ -61,6 +61,8 @@ type Graph struct {
 	// documentation is the repository's declared documentation entries
 	// (AFP-V0-160), sorted; it is part of the digest when present.
 	documentation []string
+	// runtimeEdges is the repository's declared runtime edges (AFP-V0-819).
+	runtimeEdges []RuntimeEdge
 	// runtimeReaders is the repository's declared runtime-readers entries
 	// (AFP-V0-602), sorted by path; it is part of the digest when present.
 	runtimeReaders []RuntimeReader
@@ -111,6 +113,9 @@ type digestBody struct {
 	// RuntimeReaders appears only when the repository declares runtime-readers
 	// paths (AFP-V0-602), so graphs without the declaration keep their digest.
 	RuntimeReaders []RuntimeReader `json:"runtimeReaders,omitempty"`
+	// RuntimeEdges appears only when the repository declares runtime edges
+	// (AFP-V0-819).
+	RuntimeEdges []RuntimeEdge `json:"runtimeEdges,omitempty"`
 	// Unobserved appears only when a plugin reports a directory it owns but
 	// does not observe (AFP-V0-191), as "namespace:directory", sorted.
 	Unobserved []string `json:"unobserved,omitempty"`
@@ -227,6 +232,7 @@ func buildDisk(ctx context.Context, reader *Source, languages []Language) (*Grap
 type declarations struct {
 	documentation  []string
 	runtimeReaders []RuntimeReader
+	runtimeEdges   []RuntimeEdge
 }
 
 // declarationsOf reads both declarations through reader.
@@ -240,7 +246,11 @@ func declarationsOf(reader *Source) func() (declarations, error) {
 		if err != nil {
 			return declarations{}, err
 		}
-		return declarations{documentation: documentation, runtimeReaders: runtimeReaders}, nil
+		runtimeEdges, err := readRuntimeEdges(reader)
+		if err != nil {
+			return declarations{}, err
+		}
+		return declarations{documentation: documentation, runtimeReaders: runtimeReaders, runtimeEdges: runtimeEdges}, nil
 	}
 }
 
@@ -297,6 +307,10 @@ func build(ctx context.Context, languages []Language, declared func() (declarati
 	}
 	graph.documentation = repository.documentation
 	graph.runtimeReaders = repository.runtimeReaders
+	graph.runtimeEdges = repository.runtimeEdges
+	if err := graph.applyRuntimeEdges(); err != nil {
+		return nil, err
+	}
 	graph.finish()
 	digest, err := graph.computeDigest()
 	if err != nil {
@@ -612,6 +626,7 @@ func (graph *Graph) Canonical() ([]byte, error) {
 		Units:          units,
 		Documentation:  graph.documentation,
 		RuntimeReaders: graph.runtimeReaders,
+		RuntimeEdges:   graph.runtimeEdges,
 		Unobserved:     namespacedEntries(graph.unobserved),
 		Runnable:       namespacedEntries(graph.runnable),
 	}, json.Deterministic(true))
