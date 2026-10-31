@@ -60,6 +60,7 @@ case $action in
       printf '{"code": "unknown-hunk-id", "error": "no such hunk", "ok": false}\n' >&2
       exit 2
     fi
+    printf "cite %s %s %s\n" "$8" "${11}" "${12}" >> "$DOGFOOD_TEST_LOG"
     # A cite or mark adds a member, so the sidecar stays one JSON object, as a real map does.
     sed 's/}$/,"cited'"$8"'":true}/' "$root/.corvint/change.cem.json" > "$root/.corvint/edit.json"
     mv "$root/.corvint/edit.json" "$root/.corvint/change.cem.json"
@@ -73,6 +74,10 @@ case $action in
     [[ ${15:-} != --artifacts ]] || printf 'artifacts %s\n' "${16}" >> "$DOGFOOD_TEST_LOG"
     git -C "$root" show "${10}:.corvint/change.cem.json" | cmp -s - "$root/.corvint/change.cem.json" ||
       { printf '{"code": "excluded-artifact-mismatch", "ok": false}\n' >&2; exit 2; }
+    if [[ ${DOGFOOD_TEST_STATUS:-} == policy ]]; then
+      printf '{"counts":{"mechanical":0,"supported":0,"total":2,"unknown":2},"map":{"filler":"%s"},"ok":false,"policyIssues":[{"code":"unknown-ceiling","detail":"unknown 2 > 0"}],"policyState":"over-ceiling","state":"incomplete","tool":"corvint"}\n' "$(printf 'x%.0s' {1..4096})"
+      exit 1
+    fi
     [[ ${DOGFOOD_TEST_STATUS:-} != incomplete ]] || { printf '{"ok":false,"state":"incomplete"}\n'; exit 1; }
     printf '{"ok":true,"state":"ready-for-ci"}\n'
     ;;
@@ -236,6 +241,69 @@ printf '2\tno-evidence\t%s\n' "$pin" > "$test_root/unknown-pin.tsv"
 output=$(bind DOGFOOD_CITATIONS="$test_root/citations.tsv" DOGFOOD_UNKNOWN="$test_root/unknown-pin.tsv" \
   script/dogfood-bind-range.sh "$s1" "$g2" 2>&1)
 rg -q "^dogfood-bind-range: NOTE cem-mark NOT_PRODUCED hunk=2 reason=no-evidence detail=$pin\$" <<< "$output"
+
+# DCW-V0-825 (V1-3366): a policy failure prints only the counts, the policy issues, the state and
+# the published status file, never the whole status document.
+status=0
+output=$(bind DOGFOOD_TEST_STATUS=policy script/dogfood-bind-range.sh "$s1" "$g2" 2>&1) || status=$?
+test "$status" = 1
+test "$output" = "dogfood-bind-range: NOTE cem-cite NOT_PRODUCED citation-plan-not-provided
+dogfood-bind-range: cem-policy counts={\"mechanical\":0,\"supported\":0,\"total\":2,\"unknown\":2} policyIssues=[{\"code\":\"unknown-ceiling\",\"detail\":\"unknown 2 > 0\"}] state=incomplete
+dogfood-bind-range: cem-policy status=$evidence/bind-range.${s1:0:12}..${g2:0:12}.cem-status.json
+dogfood-bind-range: FAIL cem-policy"
+test "$(wc -c < "$evidence/bind-range.${s1:0:12}..${g2:0:12}.cem-status.json")" -gt 4096
+
+# DCW-V0-827 (V1-3368): a citation row's span is `--lines S:E` or, as `bytes:S:E`, `--bytes S:E`.
+printf '1\tdoc.md\t1:1\tspecification\n2\tdoc.md\tbytes:0:3\tspecification\n' > "$test_root/citations-forms.tsv"
+: > "$test_root/corvint.log"
+output=$(bind DOGFOOD_TEST_HUNKS=2 DOGFOOD_CITATIONS="$test_root/citations-forms.tsv" \
+  script/dogfood-bind-range.sh "$s1" "$g2" 2>&1)
+rg -q '^dogfood-bind-range: PASS retroactive binding=' <<< "$output"
+test "$(rg '^cite ' "$test_root/corvint.log")" = 'cite 1 --lines 1:1
+cite 2 --bytes 0:3'
+printf '1\tdoc.md\tbytes:0\tspecification\n' > "$test_root/citations-bad-bytes.tsv"
+: > "$test_root/corvint.log"
+bind DOGFOOD_CITATIONS="$test_root/citations-bad-bytes.tsv" script/dogfood-bind-range.sh "$s1" "$g2" >/dev/null 2>&1
+test "$(rg '^cite ' "$test_root/corvint.log")" = 'cite 1 --lines bytes:0'
+
+# DCW-V0-824 (V1-3365): DOGFOOD_CITATIONS=auto-inherit cites the helper's plan rows and keeps every
+# uninherited hunk a visible unknown with a bounded NOTE naming the private list.
+cat > "$test_root/inherit-stub" <<'EOF'
+#!/usr/bin/env bash
+printf '1\tdoc.md\tbytes:0:3\tspecification\n' > "$5"
+printf '2\thunk:test:2\tdoc.md\tno-constituent-hunk\n' > "$6"
+printf 'hunks=2 inherited=1 rows=1 uninherited=1 constituents=1\n'
+EOF
+chmod +x "$test_root/inherit-stub"
+: > "$test_root/corvint.log"
+status=0
+output=$(bind CORVINT_INHERIT_CITATIONS_BIN="$test_root/inherit-stub" DOGFOOD_TEST_HUNKS=2 DOGFOOD_CITATIONS=auto-inherit \
+  script/dogfood-bind-range.sh "$s1" "$g2" 2>&1) || status=$?
+test "$status" = 0
+inherited_plan="$evidence/bind-range.${s1:0:12}..${g2:0:12}.inherited.tsv"
+rg -qF "dogfood-bind-range: NOTE cem-cite inherited hunks=2 inherited=1 rows=1 uninherited=1 constituents=1 plan=$inherited_plan" <<< "$output"
+rg -qF "dogfood-bind-range: NOTE cem-cite NOT_PRODUCED uninherited count=1 list=$evidence/bind-range.${s1:0:12}..${g2:0:12}.uninherited.tsv" <<< "$output"
+test "$(rg '^cite ' "$test_root/corvint.log")" = 'cite 1 --bytes 0:3'
+status=0
+output=$(bind CORVINT_INHERIT_CITATIONS_BIN=false DOGFOOD_CITATIONS=auto-inherit \
+  script/dogfood-bind-range.sh "$s1" "$g2" 2>&1) || status=$?
+test "$status" = 1
+test "$output" = 'dogfood-bind-range: FAIL cem-cite inherit-failed exit-1'
+
+# DCW-V0-826 (V1-3367): no child reads the caller's stdin, so a while-read loop binds every piece
+# even when a git on PATH drains its stdin.
+mkdir -p "$test_root/shim"
+printf '#!/usr/bin/env bash\ncat >/dev/null\nexec %q "$@"\n' "$(command -v git)" > "$test_root/shim/git"
+chmod +x "$test_root/shim/git"
+bound=0
+while read -r from to; do
+  output=$(bind PATH="$test_root/shim:$PATH" script/dogfood-bind-range.sh "$from" "$to" 2>&1)
+  rg -q "^dogfood-bind-range: PASS retroactive binding=[0-9a-f]{40} range=$from\\.\\.$to\$" <<< "$output"
+  bound=$((bound + 1))
+done <<< "$s1 $g1
+$g1 $g2
+$g2 $c3"
+test "$bound" = 3
 
 # DOGFOOD-012: once merged, the check names the range as retroactively bound, apart from the
 # still-unbound commit after it.
