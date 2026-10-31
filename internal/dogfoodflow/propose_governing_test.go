@@ -50,6 +50,9 @@ func TestProposeCitationsDCWV0805CitesTheDecisionGoverningAnAmendedRequirement(t
 	testGit(t, root, "commit", "-q", "-m", "base")
 	base := testGit(t, root, "rev-parse", "HEAD")
 	amended := strings.Replace(spec, "at least 20 complete rows,\n  at least 5 of them", "at least 8 complete rows,\n  at least 1 of them", 1)
+	// The real case also rewrote the definition line itself, which amends
+	// AFP-V0-029 rather than adding a requirement.
+	amended = strings.Replace(amended, "intent decision 0431) Every", "intent decision 0431; amended 2026-10-31) Every", 1)
 	amended = strings.Replace(amended, "Plain prose before the requirements.", "Plain prose, edited, before the requirements.", 1)
 	// A new requirement after AFP-V0-030 adds a requirement; it amends none,
 	// so it is never drafted to a decision AFP-V0-030 cites.

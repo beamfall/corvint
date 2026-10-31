@@ -103,20 +103,32 @@ func (p *proposal) amendedRequirement(name string, hunk *patch.Hunk) (string, in
 	lines := p.baseLines(name)
 	first, removed, added := int(hunk.OldRange.Start), false, []byte(nil)
 	leading := true
+	definitions := map[string]int{}
 	for _, body := range hunk.Body {
+		match := requirementDefinition.FindSubmatch(body.Payload)
 		switch {
 		case body.Prefix == ' ' && leading:
 			first++
 		case body.Prefix == '-':
 			removed, leading = true, false
+			if match != nil {
+				definitions[string(match[1])+string(match[2])]--
+			}
 		case body.Prefix == '+':
-			if requirementDefinition.Match(body.Payload) {
-				return "", 0
+			if match != nil {
+				definitions[string(match[1])+string(match[2])]++
 			}
 			if added == nil {
 				added = body.Payload
 			}
 			leading = false
+		}
+	}
+	// A definition the hunk adds without removing it, rather than one it
+	// rewrites in place, is a new requirement.
+	for _, count := range definitions {
+		if count > 0 {
+			return "", 0
 		}
 	}
 	if !removed {
