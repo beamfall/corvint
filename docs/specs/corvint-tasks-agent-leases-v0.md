@@ -1102,7 +1102,13 @@ how much of it a read must replay, never what a read may conclude.
   `receipt unretire` (JRT-V0) and segment sealing rewrite or remove receipts, so they delete the
   derived checkpoints (`internal/tasks/store/compact.go`, `retire.go`, `segment_seal.go`) and the next
   read or write pays one complete audit. The retention rule above applies to ordinary mutation and
-  lease writers only.
+  lease writers only. The whole-store administrative writer (`policy update`, `import amend-map`,
+  cutover, execution cutover and relocate, `internal/tasks/store/policy.go`) neither retains nor
+  removes either derived checkpoint (V1-0673, clarified 2026-10-31): its receipts rewrite nothing,
+  so a checkpoint retained before it stays a valid resume point and the next read replays the
+  administrative receipt in its tail, while a store with none keeps paying complete audits until
+  the next ordinary writer retains one. This is the intended complete-audit fallback, not missing
+  coverage.
 - `CAL-V0-061`: A read command MUST perform at most one journal audit and derive every
   projection it prints from that one observation. Where a checkpoint is present, a read MAY
   resume from it: it MUST confirm the queue ID, primary worktree, init digest and generation
@@ -7861,7 +7867,7 @@ and removes the new configuration members.
 | CAL-V0-110 | `TestCALV0110_ReasonRecordedAtLevelChange`, `TestCALV0110_ThrottledEventReportsReason`, `TestCALV0110_LedgerReasonAndMemoryLevelValidated` (`internal/tasks/dispatch`); `TestCALV0110_DispatchStatusReason` (`internal/tasks/cli`) |
 | CAL-V0-069 | `TestGH494_LeaseTimingIsOptInDiagnostic` (`internal/tasks/cli`); `TestGH494_LeaseTimingSumsEveryTransaction`, `TestGH494_TimedOutClaimReplaysExactly` (`internal/tasks/store`) |
 | CAL-V0-059 | `TestCALV0059_CheckpointCodecAndDerivation` (`internal/tasks/journal`) |
-| CAL-V0-060 | `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`), including `pending`, which shares the lease audit with writers |
+| CAL-V0-060 | `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`), including `pending`, which shares the lease audit with writers; `TestCALV0060_AdministrativeWriterLeavesCheckpoints` (`internal/tasks/store`) for the administrative writer (V1-0673) |
 | CAL-V0-061 | `TestCALV0061_CheckpointTailEqualsFullAudit`, `TestCALV0061_CheckpointFallsBackToFullAudit`, `TestCALV0061_CheckpointScopeAndMovement`, `TestCALV0061_CheckpointLimitsStayWithFullAudit` (`internal/tasks/journal`); `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`); live-store measurement in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-01-tasks-read-checkpoint.md` |
 | CAL-V0-062 | `TestCALV0062_PolicyEffortAllowlist` (`internal/tasks/intent`); `TestCALV0062_StageEffortSelection`, `TestCALV0062_CheckProgramConfigEffort`, `TestCALV0062_BaseEffortRequired`, `TestCALV0062_StageRechecksCurrentPolicy`, `TestCALV0062_OpenWorkflowRefusesBeforeMutation` (`internal/tasks/store`); live Codex at non-low effort NOT_RUN |
 | CAL-V0-063 | `TestCALV0063_PolicyStageWallBound` (`internal/tasks/intent`); `TestCALV0063_CheckProgramConfigStageWall`, `TestCALV0062_OpenWorkflowRefusesBeforeMutation` (`internal/tasks/store`); live stage beyond one hour NOT_RUN |
