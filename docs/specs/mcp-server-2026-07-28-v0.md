@@ -890,9 +890,12 @@ Each row cites the first emitting site and states only the condition checked the
   path does not exist (`lstat` reports it missing), and neither `--follow-ref` nor
   `--corpus-artifact` is given, the server MUST bind instead the Git worktree enclosing its launch
   directory: the nearest ancestor of the resolved working directory, itself included, holding a
-  `.git` directory or gitfile, observed once at startup. That worktree then passes every
-  `MCPV0-001` check exactly as if it had been given as `--root`. The substitution MUST be visible:
-  one stderr line, `corvint-mcp: --root does not exist; serving the Git worktree enclosing the
+  `.git` entry of any kind, or whose `.git` lookup fails other than not-exist, observed once at
+  startup; the walk never passes such an entry to reach an outer repository. That candidate then
+  passes every `MCPV0-001` check exactly as if it had been given as `--root`; one that fails (a
+  symlink `.git` marker, an unreadable entry) refuses `corvint-mcp: repository unavailable`, exit
+  2, with no substitution line, as a direct `--root` of it would. The substitution MUST be
+  visible: once the candidate opens, one stderr line, `corvint-mcp: --root does not exist; serving the Git worktree enclosing the
   launch directory instead`, and on every routed tool result and tool error a second text content
   block in the `MMR-V0-009` notice schema (`corvint-mcp-worktree-notice/0`) with code
   `missing-root-launch-worktree`. The first block and `structuredContent` are those of a direct
@@ -903,7 +906,9 @@ Each row cites the first emitting site and states only the condition checked the
   a Git worktree`, exit 2. Why: Claude desktop starts a spare-claimed session's plugin server with
   the `${CLAUDE_PROJECT_DIR}` of a deleted `~/.claude/spares/spare-*` directory while the process
   runs in the claimed worktree, so the plain refusal left the server failed for the whole session,
-  reconnects included (V1-3497); the hook adapter already falls back to the working directory.
+  reconnects included (V1-3497). The hook adapter behaves differently and is not changed here: it
+  falls back to the working directory only when `CLAUDE_PROJECT_DIR` is empty, so a nonempty
+  deleted path is kept and its hooks return no context.
   Both `corvint-mcp` and `corvint mcp` (`AHI-373`) get it from the shared `internal/mcp/cli` run.
   Non-goals: requesting `roots/list` or using client roots (still ignored, `MCPV0-015`,
   `MMR-V0-005`); request data selecting a root; re-reading the launch directory after startup. A
@@ -914,7 +919,8 @@ Each row cites the first emitting site and states only the condition checked the
   host meant; the notice says so on every result and tells the caller to restart with an existing
   `--root`. Falsifier: a substituted session without the stderr line or the notice, a notice or
   line naming a path, a substitution for any non-goal argv, or a changed refusal for any argv other
-  than a missing plain root. Rollback: delete `missingRootFallback` and its two uses in `run`; a
+  than a missing plain root, or a substituted root outside the nearest `.git` entry of the launch
+  directory. Rollback: delete `missingRootFallback` and its two uses in `run`; a
   missing root then refuses as `corvint-mcp: repository unavailable` again, and no state depends on
   it.
 - `MCPV0-112`: (proposed; owner decision 2 of 2026-10-24, V1-1003; amends `MCPV0-031`) An impact

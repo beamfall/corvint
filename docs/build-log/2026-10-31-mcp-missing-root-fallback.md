@@ -6,9 +6,10 @@ Claude desktop can start a spare-claimed session's plugin MCP server with
 `--root ${CLAUDE_PROJECT_DIR}` naming the session's spare directory, `~/.claude/spares/spare-*`,
 after that directory has been deleted. The process itself runs in the claimed worktree. The
 server refused with `corvint-mcp: repository unavailable`, exit 2, and stayed failed for the
-session, reconnects included. Hooks kept working, because the hook adapter already falls back
-from `CLAUDE_PROJECT_DIR` to the working directory (`claudeAdapterRoot`). The stale argument comes
-from the host; Corvint can only mitigate it.
+session, reconnects included. The stale argument comes from the host; Corvint can only mitigate
+it. The hook adapter (`claudeAdapterRoot`) falls back to the working directory only when
+`CLAUDE_PROJECT_DIR` is empty; with a nonempty deleted path it keeps that path, and its hooks
+return no context. This change does not alter the hooks; that gap is tracked separately.
 
 ## Decision
 
@@ -19,9 +20,11 @@ deliberately narrow:
 
 - **Scope.** It applies only when there is exactly one plain `--root`, `lstat` reports it missing,
   and neither `--follow-ref` nor `--corpus-artifact` is given.
-- **What it serves.** The substitute is the nearest enclosing `.git` directory or gitfile,
-  observed once at startup. It then passes every `MCPV0-001` check as if it had been the
-  `--root`.
+- **What it serves.** The candidate is the nearest ancestor of the launch directory holding a
+  `.git` entry of any kind, or whose `.git` lookup fails other than not-exist, observed once at
+  startup. The walk never passes such an entry to reach an outer repository. The candidate then
+  passes every `MCPV0-001` check as if it had been the `--root`; a symlink marker or unreadable
+  entry refuses `corvint-mcp: repository unavailable`, as a direct `--root` of it would.
 - **Visibility.** It prints one path-free stderr line, and adds an `MMR-V0-009`-schema notice
   block (code `missing-root-launch-worktree`) to every routed tool result. The first block and
   `structuredContent` are those of a direct `--root` run.
@@ -40,8 +43,8 @@ deliberately narrow:
   plugin change.
 
 **Why not a typed refusal.** A refusal that keeps the server up still leaves every tool unusable
-for the whole session. The fallback serves the worktree the process actually runs in, which is the
-same root the hooks already use. The notice keeps the substitution visible to the model.
+for the whole session. The fallback serves the worktree the process actually runs in. The notice
+keeps the substitution visible to the model.
 
 **Specs.** `MCPV0-015` and `MCPV0-001` now point to `MCPV0-115`. `AHI-198` and `AHI-373` carry
 amendment notes. `AHI-198`'s "nowhere else" is unchanged: it says where the server is declared,
@@ -56,7 +59,11 @@ not where its root comes from.
     direct `--root` run, the notice code, and that no path appears.
   - `TestMCPV0115MissingRootOutsideWorktreeRefuses` checks the exact refusal, and the
     unobservable-launch-directory case.
-  - `TestMCPV0115FallbackIsNarrow` checks five refusals that must stay unchanged.
+  - `TestMCPV0115FallbackIsNarrow` checks five refusals that must stay unchanged, and that a
+    nested directory whose `.git` is a symlink to another repository's metadata is refused like a
+    direct `--root` of it instead of serving the outer repository. Review finding (Codex, one
+    round): the first walk reused `enclosingWorktree`, which skips such markers; with that walk
+    restored, this case serves the outer repository and fails.
 - **Mutation check.** With `main.go` reverted to base, the first two tests fail with the
   production symptom: `exit=2 stderr="corvint-mcp: repository unavailable\n"`.
 - **Built binaries.** Both `corvint-mcp --root ~/.claude/spares/<deleted>` and

@@ -160,4 +160,25 @@ func TestMCPV0115FallbackIsNarrow(t *testing.T) {
 			}
 		})
 	}
+	// A nested directory whose .git is a symlink to another repository's metadata is the
+	// candidate, not the enclosing outer repository; it is refused as a direct --root would be.
+	t.Run("symlink marker inside an outer repository", func(t *testing.T) {
+		other := makeHostileRepository(t, "other")
+		inner := filepath.Join(main, "inner")
+		if err := os.Mkdir(inner, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(filepath.Join(other, ".git"), filepath.Join(inner, ".git")); err != nil {
+			t.Fatal(err)
+		}
+		t.Chdir(inner)
+		exit, stderr, responses := startupSession(t, []string{"--root", missing}, toolCall(1, "corvint.status", map[string]any{}))
+		if exit != 2 || len(responses) != 0 || stderr != "corvint-mcp: repository unavailable\n" {
+			t.Fatalf("exit=%d stderr=%q responses=%#v", exit, stderr, responses)
+		}
+		direct, directStderr, _ := startupSession(t, []string{"--root", inner}, toolCall(1, "corvint.status", map[string]any{}))
+		if direct != 2 || directStderr != stderr {
+			t.Fatalf("direct --root of the symlink-marker directory: exit=%d stderr=%q", direct, directStderr)
+		}
+	})
 }

@@ -143,7 +143,6 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 	}
 	if substituted {
 		roots[0].root = fallbackRoot
-		_, _ = fmt.Fprintln(stderr, missingRootStderr)
 	}
 	git, err := gitstatus.Pin()
 	if err != nil {
@@ -159,6 +158,9 @@ func run(ctx context.Context, arguments []string, stdin io.Reader, stdout, stder
 		if registryErr != nil {
 			_, _ = fmt.Fprintln(stderr, "corvint-mcp: repository unavailable")
 			return 2
+		}
+		if substituted {
+			_, _ = fmt.Fprintln(stderr, missingRootStderr)
 		}
 		handler.registry = registry
 		bindings[registry] = roots[0].root

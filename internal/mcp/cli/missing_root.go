@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"path/filepath"
 
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/rootalias"
@@ -46,9 +47,31 @@ func missingRootFallback(roots []rootDeclaration, follows, corpus bool, getwd fu
 	if err != nil {
 		return "", false, missingRootRefusal
 	}
-	top, ok := enclosingWorktree(launch)
+	top, ok := launchWorktreeCandidate(launch)
 	if !ok {
 		return "", false, missingRootRefusal
 	}
 	return top, true, ""
+}
+
+// launchWorktreeCandidate returns the nearest ancestor of directory, itself included, holding a
+// .git entry of any kind, or the first ancestor whose .git lookup fails other than not-exist. It
+// never skips such a marker to reach an outer repository: the caller opens the candidate with the
+// MCPV0-001 checks, so a symlink marker or an unreadable entry is refused there as it would be for
+// a direct --root.
+func launchWorktreeCandidate(directory string) (string, bool) {
+	resolved, err := filepath.EvalSymlinks(directory)
+	if err != nil || !filepath.IsAbs(resolved) {
+		return "", false
+	}
+	for current := resolved; ; {
+		if _, err := os.Lstat(filepath.Join(current, ".git")); !errors.Is(err, fs.ErrNotExist) {
+			return current, true
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", false
+		}
+		current = parent
+	}
 }
