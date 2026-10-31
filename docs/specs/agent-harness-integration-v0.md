@@ -1388,7 +1388,7 @@ separate exact extension tuple remains governed by AHI-024.
   no per-session overhead for a workflow it never enrolled in. An unreadable `go.mod` or `.git`
   marker counts as not applicable. Non-goals: changing the projection, the Codex adapter, a new
   enrollment marker or setting, and the Claude Code versus OpenCode UserPromptSubmit selection
-  difference of the V1-2754 audit, which stays an open measurement (NOT_OBSERVED here). Failure
+  difference of the V1-2754 audit, which `AHI-880` names as intended (2026-10-31). Failure
   mode: a Corvint-using repository that has not yet enrolled loses the hint until it runs
   `corvint dogfood begin` or the skills say so; an unenrolled fork of Corvint with a renamed
   module loses it. Rollback: revert `dogfoodWorkflowApplies` and its call in
@@ -1396,6 +1396,29 @@ separate exact extension tuple remains governed by AHI-024.
   non-symlinked `go.mod` only, opened without blocking, and only when the first line ends within
   4,096 bytes; a FIFO, device, symlink or over-long first line counts as not applicable, so the
   hook never blocks or buffers an unbounded line on it.
+- `AHI-880`: (experimental under the standing lane auto-accept, 2026-10-31; V1-2754; closes the
+  open measurement named in the `AHI-230` non-goals) The Claude Code and OpenCode prompt hooks MAY
+  select different context for the same prompt and revision, and this is the intended difference.
+  Both apply the same `AHI-016` prompt bound, but they ask Core different questions:
+  1. Claude Code sends the prompt as the `task` of a dogfood `user-prompt` event, which compiles
+     the explicit-anchor prompt context (`DogfoodPromptContext`; `LCP-V0-010`, `LCP-V0-039`), and
+     renders the `AHI-045` projection: the pinned rows of the anchors the prompt names (a path, a
+     requirement ID or a declaration), with no `resolution` member when every anchor resolved and
+     no governance row the host already loads (`AHI-216`); an anchorless prompt is silent.
+  2. OpenCode sends it to `harness event` `user-prompt`, which runs the ranked repository query
+     the CLI query uses (`repositoryQueryContext`), and renders the `AHI-215` frame: no frame for a
+     prompt that names an existing checkout path, decided before any query (`AHI-247`), or whose
+     rows carry only syntax-class authority or whose anchors do not resolve; otherwise at most
+     five ranked candidates within 600 bytes.
+  So an anchorless prompt is silent on both hosts, a path-naming prompt gets its pinned rows on
+  Claude Code and no frame on OpenCode, and an identifier or requirement-ID prompt gets its
+  explicit rows on Claude Code and ranked candidates on OpenCode. Each form is the one its own
+  host's evidence measured (`AHI-215` replay for OpenCode; `LCP-V0-010` frozen anchor cases and
+  the V1-2762 hook rerun for Claude Code); neither measurement covers the other host's form.
+  Non-goals: making the two projections byte-identical, and changing either projection; a change
+  that equalizes them needs a paired measurement on both hosts first. Failure mode: an agent
+  moved between hosts sees different prompt context for the same task, which this requirement
+  names rather than hides. Rollback: delete this requirement; no code depends on it.
 - `AHI-048`: (proposed; V1-0734) When an adapter process exits through `exitProcess`, including
   `os.Exit` after the `AHI-017` watchdog or a dogfood event deadline (`LCP-V0-008`) abandoned a
   read, it MUST first SIGKILL, synchronously, every child process group it started whose leader
@@ -2433,6 +2456,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-043` | `cmd/corvint/host_adapter.go` Claude SessionStart/UserPromptSubmit output | `cmd/corvint/host_adapter_stability_test.go::TestAHI043ClaudeContextPacketsAreByteStableAcrossTime` (fake-clock 61 s and 25 h gaps, unchanged dirty fixture, full envelope required) |
 | `AHI-044` | `cmd/corvint/host_exit.go` (`adapterStdout`, `hookStdout`, `exitProcess`), `cmd/corvint/signals_unix.go` `notifyBrokenPipe`, `internal/gitstatus/scratch.go`, `integrations/gemini-cli/hooks/corvint-hook.mjs` | `cmd/corvint/host_adapter_fail_open_test.go::TestAHI044HookAdaptersFailOpen` (every shipped Claude Code and Codex hook × seven faults: exit 0, named cause, spawn cap, no shell, no writes outside live ledgers), `internal/gitstatus/scratch_test.go` (`TestAHI044ScratchRemovedAtClose`, `TestAHI044ScratchCloseRacesReads`) and the AHI-044 Gemini case under `TestHostAdapterJavaScriptHosts` |
 | `AHI-230` (experimental; V1-2754) | `cmd/corvint/host_adapter_dogfood_scope.go` (`dogfoodWorkflowApplies`, `privateGitDir`), `claudeSessionGuidance` | `cmd/corvint/host_adapter_projection_test.go`'s `TestAHI230GuidanceOnlyForCorvintOrEnrolledRepository`; V1-3022 (`goModFirstLine`): `TestDogfoodWorkflowGoModReadIsBounded` |
+| `AHI-880` (experimental 2026-10-31; V1-2754) | `hookContextProjection`, `hookUnresolved` in `cmd/corvint/host_adapter_projection.go`; `harnessIndexedContext` in `cmd/corvint/harness_context.go`; `candidateFrame`, `onPrompt` in `integrations/opencode/src/index.js` | `TestV12762CorvintShapedPromptEnvelopesResolveOrAbstain` (`cmd/corvint/host_adapter_prompt_resolution_test.go`); `AHI-210 AHI-211 AHI-215 prompt hook abstains by default and delivers compact candidates, not the packet` (`integrations/host-adapters.test.mjs`) |
 | `AHI-045`–`AHI-047` (accepted by decision 0441; V1-0939, V1-0942) | `cmd/corvint/host_adapter_projection.go` (`hookContextProjection`, `hookCompaction`, `claudeSubagent`, `claudeSessionGuidance`, `withHookContextSuffix`), `renderAdapterResult` and both adapters in `cmd/corvint/host_adapter.go`, `recordDeliveredPacket`, `conformance/host-lifecycle-v1` | `cmd/corvint/host_adapter_projection_test.go` (`TestAHI046HookContextProjectionSilenceRule`, `TestAHI046SilentProjectionRendersNothing`, `TestAHI047GuidanceIsMainThreadSessionStartOnly`, `TestAHI046CodexPromptSilenceAndProjection`); `TestClaudeNativeDogfoodLifecycle` subtests for the first blocked Stop, the anchored prompt, the silent anchorless prompt and main-thread versus `agent_id` SessionStart; `TestAHI003ClaudeCompactSessionStartRehydratesDirtyPaths` (projected compaction results equal the receipt's); the silent-prompt case of `TestClaudeAdapterUnplannedReadCallSites`; `conformance/host-lifecycle-v1` projection case |
 | `AHI-048` (proposed; V1-0734) | `internal/groupreap/live.go` (`StartLive`, `KillLive`), the release in `groupreap.Wait`, `groupreap.Drain` and the `Owner` reap, `StartLive` in `internal/gokernel/repository.go`, `Drain` in `internal/contextindex/git_execution.go`, `internal/cem/gitrun`, `internal/gitstatus/executable.go`; `cmd/corvint/host_exit.go` `exitProcess` | `cmd/corvint/host_exit_unix_test.go::TestAHI048ExitProcessKillsLiveChildGroups`; `cmd/corvint/host_adapter_fail_open_test.go::TestAHI044HookAdaptersFailOpen` (slow-Git outlive bound, `failOpenOutliveBound`); `internal/gitstatus/executable_unix_test.go::TestAHI048LookupKeepsOwnedWorkerGroup`; `internal/groupreap/live_unix_test.go` (`TestAHI048KillLiveRetiresRecordedGroups`, `TestAHI048StartLiveRecordsOnlyOwnGroups`, `TestAHI048WaitAndOwnerReleaseBeforeReap`, `TestAHI048DrainKeepsGroupRecordedUntilReap`, `TestAHI048ConcurrentStartsReleasesAndKill`) |
 | `AHI-049` (accepted by decision 0477, amended by decision 0479; V1-1040, V1-1055) | `internal/procgroup/process_posix.go` (`startProcessCommand`, `releaseProcessCommand`), the release before the reap in `internal/procgroup/process.go` `run`, `internal/groupreap/live.go` `ReleaseLive`; V1-1055 pre-reap `proveProcessGroupQuiescent`, the `groupOwnership` lock of `internal/procgroup/process.go` and `internal/groupreap/owner_waitid.go` `HeldGroupQuiet` | `cmd/corvint/host_exit_unix_test.go::TestAHI049ExitProcessKillsProcgroupGroup`; `internal/procgroup/process_posix_test.go` (`TestAHI049RunReleasesGroupBeforeReap`, `TestAHI049FailedExitObservationSendsNoGroupSignal`, `TestV11055NoNumericGroupProbeAfterReap`, `TestV11055QuiescenceProvedWhileLeaderHeld`, `TestV11055NoGroupOperationAfterConcurrentRelease`); `internal/gitstatus/executable_unix_test.go::TestAHI048LookupKeepsOwnedWorkerGroup` |

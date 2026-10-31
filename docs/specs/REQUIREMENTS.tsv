@@ -352,6 +352,7 @@ AHI-045	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0441; V
 AHI-046	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0441; V1-0942) Outside a main-thread	owner	decision 0441; V1-0942
 AHI-047	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0441; V1-0939) The Claude Code trusted	owner	decision 0441; V1-0939
 AHI-230	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept; V1-2754; amends `AHI-047`) Th	standing	V1-2754
+AHI-880	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-2754; closes t	standing	2026-10-31; V1-2754
 AHI-048	docs/specs/agent-harness-integration-v0.md	(proposed; V1-0734) When an adapter process exits through `exitProcess`, includi	unrecorded	-
 AHI-049	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0477, amended by decision 0479; V1-1040, V1-1055) Every Se	owner	decision 0477; decision 0479; V1-1040; V1-1055
 AHI-050	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0474; V1-0371) The OpenCode and Gemini adapters MUST send	owner	decision 0474; V1-0371
