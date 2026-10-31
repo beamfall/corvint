@@ -160,6 +160,7 @@ AFP-V0-425	docs/specs/affected-plan-v0.md	(accepted under the owner's standing a
 AFP-V0-426	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1688))	standing	2026-10-11; #1688
 AFP-V0-415	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2488))	standing	2026-10-11; V1-2488
 AFP-V0-416	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2488))	standing	2026-10-11; V1-2488
+AFP-V0-850	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11; V1-2488))	standing	2026-10-11; V1-2488
 AFP-V0-390	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601; amended 2026-10-24 by AFP-V0-436, V1-2572)	unrecorded	-
 AFP-V0-391	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
 AFP-V0-392	docs/specs/affected-plan-v0.md	(proposed; V1-2473, GH #1601)	unrecorded	-
@@ -1725,6 +1726,7 @@ PRS-V1-019	docs/specs/corvint-1.0-product-and-release-v1.md	The root module and 
 PRS-V1-020	docs/specs/corvint-1.0-product-and-release-v1.md	`corvint --version --json` (also after `--root PATH`) MUST print one canonical J	unrecorded	-
 PRS-V1-021	docs/specs/corvint-1.0-product-and-release-v1.md	windows/amd64 is UNSUPPORTED for 1.0 and MUST fail closed (decision 0559). A	unrecorded	-
 PRS-V1-022	docs/specs/corvint-1.0-product-and-release-v1.md	Off darwin and linux, every docs corpus input read (`ReadCorpusFile`,	unrecorded	-
+PRS-V1-840	docs/specs/corvint-1.0-product-and-release-v1.md	(experimental under the owner's standing lane auto-accept, 2026-10-31; V1-2487)	standing	2026-10-31; V1-2487
 CRB-V0-001	docs/specs/corvint-rebrand-v0.md	The current product display name MUST be `Corvint`, with lowercase slug `corvint	unrecorded	-
 CRB-V0-002	docs/specs/corvint-rebrand-v0.md	The root and repository-owned nested Go modules, active Go self-imports, and ope	unrecorded	-
 CRB-V0-003	docs/specs/corvint-rebrand-v0.md	The main native CLI version output MUST be `Corvint <version> (build <N>, commit	unrecorded	-
