@@ -835,6 +835,18 @@ separate exact extension tuple remains governed by AHI-024.
   GitHub #1982 shapes (lifecycle 257 and 296 ms at slowdown 7.7 and 10 qualify; 400 ms stays
   retry-later; 3000 ms is a regression). Rollback: revert the AHI-372 branches in `contention.go`,
   `native.go` and `record.go` so a contended miss is `RETRY_LATER` again.
+- `AHI-820`: (experimental under the standing lane auto-accept; V1-2513; amends `AHI-373`) The
+  Claude Code plugin's `corvint` server MUST be declared with args `mcp --root
+  ${CLAUDE_PROJECT_DIR} --protocol-version 2025-11-25 --tool-profile test-validity,docs`, so the
+  `corvint.test_validity`, `corvint.docs_draft` and `corvint.docs_consume` tools of
+  `corvint-test-validity-mcp` and `corvint-docs-mcp` are reachable in-session through the core
+  binary's tool groups (`MMR-V0-012`, `MMR-V0-013`) without shipping those binaries. The default
+  tools stay listed. Non-goals: the Codex launcher, the `corpus` group (it needs an artifact), and
+  any tool change. Failure mode: an older `corvint` without the groups refuses the selector with
+  `invalid arguments`, so the plugin server fails as before an upgrade. Evidence:
+  `TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups`; live `claude mcp list` receipt in
+  `docs/build-log/2026-10-31-linux-w2-bugs.md`. Rollback: drop the `--tool-profile` pair under a new
+  plugin version.
 - `AHI-373`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3244) Amendment to
   `AHI-198` and `AHI-207`. The core `corvint` binary MUST serve the read-only stdio MCP server as
   `corvint mcp ARGS`, passing every argument after the verb unchanged to the same server code as the
@@ -2464,6 +2476,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-199` (accepted under the owner's standing auto-accept (2026-10-11); V1-2440) | `script/heavy.sh` (`HEAVY_NICE`), `Makefile` (`HEAVY_NICE_PREFIX`); the pinned `ledger/go-test` stays unprefixed | the `AHI-199` group in `script/lane-scripts_test.sh`; the user-prompt timing runs in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-23-claude-code-integration-matrix.md` |
 | `AHI-206` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/profiles/corvint-review.config.toml` | `TestAHI206CodexReviewProfileClosesBothWriteDoors` (exactly the three keys, repeated as the README's `-c` overrides); live receipt with a conflicting trusted project config in the 2026-10-23 Codex matrix entry |
 | `AHI-207` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/plugins/corvint/.mcp.json`, `.codex-plugin/plugin.json` | `TestAHI207CodexPluginMCPServerBindsLaunchWorktree` (nested launch binds the top level with the legacy protocol; a non-worktree launch exits 2 before exec); live receipt in the 2026-10-23 Codex matrix entry |
+| `AHI-820` (experimental under the standing lane auto-accept; V1-2513) | `integrations/claude-code/plugins/corvint/.mcp.json` | `TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups`; live receipt in `docs/build-log/2026-10-31-linux-w2-bugs.md` |
 | `AHI-373` (accepted under the owner's standing auto-accept (2026-10-11); V1-3244) | `cmd/corvint/mcp.go`, `internal/mcp/cli`, `internal/update` (`CoreExecutables`), both plugin `.mcp.json` files | `TestAHI373PluginCommandsShipInCoreRelease`; `AHI-198` and `AHI-207` tests; live receipt in `docs/build-log/2026-10-30-corvint-mcp-subcommand.md` |
 | `AHI-208` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/plugins/corvint/hooks/hooks.json` | `TestAHI208CodexHooksRegisterOnlyMappedEvents` (with empty-group, extra-event and matcher negatives), `TestAdapterSilentAbstentionsAreLedgered` (unregistered events); live hook-invocation log in the 2026-10-23 Codex matrix entry |
 | `AHI-209` (accepted under the owner's standing auto-accept (2026-10-11); CODEX-NATIVE-APPROVAL-RELAY-VISIBILITY-1) | `integrations/codex/plugins/corvint/skills/corvint/SKILL.md`, `integrations/codex/README.md` | `TestAHI209CodexApprovalGuidanceNamesRootGrantAndRecord`; live guardian verdicts in the 2026-10-23 Codex matrix entry |
