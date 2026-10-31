@@ -423,9 +423,10 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 // closeoutPlan is the TCD-V0-871 proposal set.
 type closeoutPlan struct {
 	byPR    []closeoutPRProposal
-	ticket  map[string]string // ticket ID -> proposal
-	prOf    map[string]int64  // ticket ID -> proposing PR
-	reviews []string          // locals, sorted
+	ticket  map[string]string  // ticket ID -> proposal
+	prOf    map[string]int64   // ticket ID -> proposing PR
+	prsOf   map[string][]int64 // ticket ID -> every delivering PR, ascending (TCD-V0-874)
+	reviews []string           // locals, sorted
 }
 
 type closeoutPRProposal struct {
@@ -454,18 +455,23 @@ func closeoutProposals(root string, index *closeoutIndex, prs []ghPR, commits []
 		}
 	}
 	slices.Sort(numbers)
-	plan := &closeoutPlan{ticket: map[string]string{}, prOf: map[string]int64{}}
+	plan := &closeoutPlan{ticket: map[string]string{}, prOf: map[string]int64{}, prsOf: map[string][]int64{}}
 	for _, n := range numbers {
 		in := &batchInput{number: n, batch: byNumber[n], byNumber: byNumber}
 		in.deriveLanes(root)
 		delivered, _ := in.hits(index)
 		pp := closeoutPRProposal{number: n, merge: in.batch.mergeOid()}
 		for _, h := range delivered {
-			if local, open := locals[h.ticketID]; open {
+			local, open := locals[h.ticketID]
+			if !open {
+				continue
+			}
+			plan.prsOf[h.ticketID] = append(plan.prsOf[h.ticketID], n)
+			// A ticket an earlier PR already proposes is listed there only
+			// (TCD-V0-874).
+			if _, ok := plan.prOf[h.ticketID]; !ok {
 				pp.tickets = append(pp.tickets, local)
-				if _, ok := plan.prOf[h.ticketID]; !ok {
-					plan.ticket[h.ticketID], plan.prOf[h.ticketID] = proposeBatchClose, n
-				}
+				plan.ticket[h.ticketID], plan.prOf[h.ticketID] = proposeBatchClose, n
 			}
 		}
 		if len(pp.tickets) != 0 {
@@ -502,6 +508,11 @@ func (p *closeoutPlan) render(item wire.Value, rows []closeoutRow, exported int,
 		} else {
 			c.Obj.Set("pr", wire.Null())
 		}
+		prs := make([]string, 0, len(p.prsOf[r.ticketID]))
+		for _, n := range p.prsOf[r.ticketID] {
+			prs = append(prs, strconv.FormatInt(n, 10))
+		}
+		c.Obj.Set("prs", wire.Strings(prs))
 	}
 	hv, _ := item.Obj.Get("human")
 	human := slices.Clone(hv.Arr)

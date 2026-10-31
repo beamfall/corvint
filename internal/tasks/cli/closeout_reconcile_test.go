@@ -256,3 +256,60 @@ func sortedLocals(ls ...string) []string {
 	}
 	return out
 }
+
+// TestTCDV0874_TicketDeliveredByTwoPRsIsProposedOnce covers V1-3551: a
+// second merged PR whose merge commit cites a, already delivered by #35,
+// and d proposes only d; a stays under #35 and each of its rows names both
+// PRs (TCD-V0-874).
+func TestTCDV0874_TicketDeliveredByTwoPRsIsProposedOnce(t *testing.T) {
+	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
+	root, l, _, _ := reconcileRepo(t)
+	first := revParse(t, root, "HEAD~2")
+	firstTitle := "Tasks: OPEN reads skip archived tickets (" + l["a"] + ", " + l["b"] + ")"
+	firstBody := "- **" + l["a"] + "**: x.\n- **" + l["b"] + "**: y.\nDelivers " + l["c"]
+	git(t, root, "checkout", "-q", "-b", "second")
+	tcdCommit(t, root, "second lane work")
+	git(t, root, "checkout", "-q", "main")
+	title := "Tasks: follow-up (" + l["a"] + ", " + l["d"] + ")"
+	git(t, root, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "merge", "-q", "--no-ff", "-m", "Merge pull request #37 from x/second\n\n"+title, "second")
+	second := revParse(t, root, "HEAD")
+	prs := tdsExport(t, "prs2.json", `[
+{"number":37,"state":"MERGED","title":"`+tdsJSON(title)+`","body":"","headRefOid":"`+revParse(t, root, "second")+`","mergeCommit":{"oid":"`+second+`"},"labels":[]},
+{"number":35,"state":"MERGED","title":"`+tdsJSON(firstTitle)+`","body":"`+tdsJSON(firstBody)+`","headRefOid":"`+revParse(t, root, "side")+`","mergeCommit":{"oid":"`+first+`"},"labels":[]}]`)
+
+	_, res := tcdRun(t, root, "--prs", prs)
+	item, _ := tcdRows(t, res)
+	got := map[string]string{}
+	for _, p := range field(item, "proposals").Arr {
+		var tickets []string
+		for _, v := range field(p, "tickets").Arr {
+			tickets = append(tickets, v.Str)
+		}
+		got[field(p, "pr").Str] = strings.Join(tickets, " ")
+	}
+	want := map[string]string{"35": strings.Join(sortedLocals(l["a"], l["b"], l["c"]), " "), "37": l["d"]}
+	if len(got) != len(want) || got["35"] != want["35"] || got["37"] != want["37"] {
+		t.Fatalf("proposals %v, want %v", got, want)
+	}
+	rowsOfA := 0
+	for _, c := range field(item, "candidates").Arr {
+		var prsOf []string
+		for _, v := range field(c, "prs").Arr {
+			prsOf = append(prsOf, v.Str)
+		}
+		switch field(c, "local").Str {
+		case l["a"]:
+			rowsOfA++
+			if field(c, "pr").Str != "35" || strings.Join(prsOf, " ") != "35 37" {
+				t.Fatalf("a's row: pr %q prs %v", field(c, "pr").Str, prsOf)
+			}
+		case l["e"], l["f"], l["g"]:
+			if _, has := c.Obj.Get("prs"); !has || len(prsOf) != 0 {
+				t.Fatalf("a row no PR delivers must carry an empty prs: %+v", c)
+			}
+		}
+	}
+	if rowsOfA != 2 {
+		t.Fatalf("a has %d candidate rows, want one per citing merge", rowsOfA)
+	}
+}
