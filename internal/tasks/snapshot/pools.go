@@ -6,9 +6,9 @@ import (
 	"sort"
 )
 
-// MaxPoolStateBytes bounds pools.json. It is 2 MiB so a full roster of
-// QUARANTINED members carrying quarantinedAt and a recovery record still
-// fits under the worst-case reason bound (PSR-V0-266).
+// MaxPoolStateBytes bounds pools.json. It is 3 MiB, derived from a superset
+// of every reachable state: every entry with every optional field, every
+// identifier all-escaping and full slot and waiter lists (PSR-V0-900).
 const MaxPoolStateBytes = wire.MaxPoolStateBytes
 const ProfilePools = "taskman-pool-state/0"
 

@@ -8224,7 +8224,7 @@ The classification, as `wire.RetryOf` records it:
 
 | Codes | Retryable | Condition or reason |
 | --- | --- | --- |
-| `RESOURCE_EXHAUSTED` | yes (CAL-V0-215, decision 0519) | EMFILE/ENFILE descriptor pressure clears; same-request retry, unless an explicit non-retryable mark forbids it |
+| `RESOURCE_EXHAUSTED` | yes (CAL-V0-215, decision 0519; PSR-V0-901) | EMFILE/ENFILE descriptor pressure, or ENOSPC disk or inotify watch exhaustion, clears; same-request retry, unless an explicit non-retryable mark forbids it |
 | `LOCK_TIMEOUT` | yes | Lock or preparation admission held by another writer past the wait; nothing locked or written |
 | `SNAPSHOT_MOVED` | yes | Store, head, intent tree or worktree moved during a read or before commit; nothing decided. A release or attestation candidate whose head no longer matches, and a criterion capture wrapping a refused read, repeat until their input changes |
 | `REDO_PENDING` | yes | A writer is between receipt link-in and head rename; the next mutating command redoes a crashed writer's receipt |

@@ -117,6 +117,12 @@ false admission costs a silent concurrent edit.
   content is untrusted, so `acquire`, `release`, and `renew` MUST refuse, before creating the lock
   or any document, when `.corvint` or `.corvint/leases` exists as a symlink or other non-directory
   (security amendment 2026-09-13).
+- `SCL-V0-900`: (proposed; V1-2489) On a deferred platform the `O_EXCL` lock MUST treat a create
+  refused with a permission error as contention, not as a failure: on Windows a lock another
+  writer has removed but not yet closed (delete-pending) refuses its re-creation with
+  `ERROR_ACCESS_DENIED`. Such a refusal MUST be retried within the same `LockWait` and, when the
+  wait is spent, reported as `ErrLockBusy` carrying the last refusal's text, so a directory that is
+  never writable still names its cause. Every other create failure is reported at once as before.
 - `SCL-V0-009`: `scopelease.Check(root, paths)` MUST report, without writing, every touched path that
   no live lease covers or that two or more live leases cover. A scope covers a path when they are
   equal or match segment by segment: a whole `**` segment matches zero or more segments (at least
@@ -182,6 +188,7 @@ Each row cites the first emitting site and states only the condition checked the
 | `SCL-V0-006` | `TestStatusAndListReportExpiredWithoutWriting`, `TestReadCommandsCreateNoLeaseDirectory` |
 | `SCL-V0-007` | `TestAcquireReapsExpiredLease` |
 | `SCL-V0-008` | `TestConcurrentAcquireAdmitsExactlyOneHolder`, `TestStaleLockIsReclaimed`, `TestStaleLockContentionGrantsAtMostOneLease`, `TestMutatingActionsRefuseSymlinkedLeaseDirectory` |
+| `SCL-V0-900` | `TestExclusiveLockTreatsDeletePendingAsContention` (`internal/scopelease`, every platform through the open seam); the Windows-host rerun of `TestStaleLockContentionGrantsAtMostOneLease` is NOT_RUN |
 | `SCL-V0-009` | `TestCheckReportsUncoveredAndMultiplyCoveredPaths`, `TestCoversMatchesDoubleStarOnlyAsWholeSegment`, `TestCoversManyDoubleStarsInBoundedTime` |
 | `SCL-V0-010` | `TestLeaseCommandAcquireRefusesOverlapAndListsWithoutWriting`, `TestLeaseListIsSortedByIdentifier`, `TestLeaseCommandRejectsMissingArguments`, `TestLeaseCommandLabelsRequestRefusalsAsInvalidArguments`, `TestLeaseCommandReportsAnInvalidActionBeforeItsFlags` |
 | `SCL-V0-011` | `TestUnreadableLeaseDocumentBlocksOnlyNewClaims`, `TestMismatchedLeaseIdentifierCannotRemoveAnotherLease`, `TestListReportsASymlinkedLeaseDocumentUnreadableWithoutReadingIt`, `TestAnOversizeLeaseDocumentIsNeverWrittenOrRead` |
