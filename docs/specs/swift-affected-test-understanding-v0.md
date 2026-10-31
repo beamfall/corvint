@@ -105,6 +105,16 @@ a complete executable plan. An absent shared scheme or XCUITest app-host edge is
   source text, preserving `LPCV-V0-013` witnesses and `LPCV-V0-019` canonical plans.
 - `SATS-V0-012`: The adapter MUST remain a static reader. It MUST NOT invoke SwiftPM, Xcode, package
   resolution, a simulator, Appium, or Maestro.
+- `SATS-V0-761`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2055)
+  A `Package.swift` dependency on another repository whose changes this graph cannot see MUST be
+  the named cross-repository frontier `swift:cross-repository-package:<dependency>`: a literal
+  `.package(path:)` resolving outside the repository root, named by the path as written, and a
+  literal `.package(url:, revision:)` pin, named `url@revision`. A local package inside the root,
+  and a version, range or branch requirement on a remote package, raise nothing. The sibling's
+  units and edges stay absent, so the frontier widens the plan to `UNKNOWN` and names the
+  dependency for the cross-repository route; `corvint breakage` (BKM-V0) covers Go relations only,
+  so no route resolves it yet. Non-goals: no fetch or checkout of the dependency, no resolution
+  of `Package.resolved`. Rollback: remove `crossRepositoryPackages` and the frontier.
 
 ## Detection and known unknowns
 
@@ -188,3 +198,4 @@ Go/Python behavior remain unchanged.
 | `SATS-V0-010` | external-harness observation without ownership | Maestro/Appium non-ownership fixture |
 | `SATS-V0-011` | canonical sorting plus unchanged `affected.Select` | shared determinism, witness, and exclusion conformance |
 | `SATS-V0-012` | static `Units` implementation | source inspection; no process invocation in production package |
+| `SATS-V0-761` | `crossRepositoryPackages` in `internal/liveverify/affected/swift/swift.go` | `TestCrossRepositoryPackageIsANamedFrontier_SATSV0761` |

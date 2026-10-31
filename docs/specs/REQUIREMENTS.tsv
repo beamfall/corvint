@@ -4431,6 +4431,7 @@ KAT-V0-007	docs/specs/kotlin-jvm-affected-test-v0.md	Unparsed source, dynamic/re
 KAT-V0-008	docs/specs/kotlin-jvm-affected-test-v0.md	Fixed inputs MUST reproduce byte-identical graph and selection bodies	unrecorded	-
 KAT-V0-009	docs/specs/kotlin-jvm-affected-test-v0.md	Only a Gradle manifest that may assign a project directory (`projectDir = ...`,	unrecorded	-
 KAT-V0-761	docs/specs/kotlin-jvm-affected-test-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2054)	standing	2026-10-11; V1-2054
+KAT-V0-763	docs/specs/kotlin-jvm-affected-test-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2055)	standing	2026-10-11; V1-2055
 KAT-V0-762	docs/specs/kotlin-jvm-affected-test-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2054)	standing	2026-10-11; V1-2054
 LTA-V0-001	docs/specs/learned-trace-admission-v0.md	`corvint eval` MUST score a baseline arm and a second learned-trace arm over the	unrecorded	-
 LTA-V0-002	docs/specs/learned-trace-admission-v0.md	Before either scored arm runs, the evaluation MUST fail closed when any frozen	unrecorded	-
@@ -6181,6 +6182,7 @@ SATS-V0-009	docs/specs/swift-affected-test-understanding-v0.md	Unreadable source
 SATS-V0-010	docs/specs/swift-affected-test-understanding-v0.md	Maestro and non-Swift Appium presence MAY be observed without owning their body	unrecorded	-
 SATS-V0-011	docs/specs/swift-affected-test-understanding-v0.md	Unit, path, import, framework, and frontier ordering MUST be deterministic for f	unrecorded	-
 SATS-V0-012	docs/specs/swift-affected-test-understanding-v0.md	The adapter MUST remain a static reader. It MUST NOT invoke SwiftPM, Xcode, pack	unrecorded	-
+SATS-V0-761	docs/specs/swift-affected-test-understanding-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2055)	standing	2026-10-11; V1-2055
 SAC-001	docs/specs/swift-apple-analyzer-candidate-v0.md	`internal/analyzerswift` and `cmd/corvint-analyzer-swift` remain isolated native	unrecorded	-
 SAC-002	docs/specs/swift-apple-analyzer-candidate-v0.md	The request is the frozen experimental envelope with family `swift-apple`, exact	unrecorded	-
 SAC-003	docs/specs/swift-apple-analyzer-candidate-v0.md	The closed coordinate descriptor binds Swift language `6.3`, SwiftPM tools `6.0`	unrecorded	-

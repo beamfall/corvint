@@ -67,6 +67,14 @@ claim safe test omission, or amend the LPCV promotion tranche.
   resolution is not modelled, so a catalog change selects every test of that build rather than
   guessing which aliases a module reads. Catalogs named by `versionCatalogs { from(...) }` elsewhere
   stay unowned. Rollback: drop the catalog from `Owns` and the config edge.
+- `KAT-V0-763`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2055) A
+  literal Gradle `includeBuild` (Kotlin call or Groovy command form) in any build script whose path
+  resolves outside the repository root MUST raise the named cross-repository frontier
+  `kotlin:cross-repository-build:<path>`, the path as the script writes it, beside the composite
+  layout's existing `kotlin:build-target-unresolved`. The included build's units and edges stay
+  absent, so the plan widens and names the dependency path; `corvint breakage` (BKM-V0) covers Go
+  relations only, so no route resolves it yet. An `includeBuild` inside the root raises nothing new.
+  Rollback: remove `includeBuildPattern`, `crossBuilds` and the frontier.
 - `KAT-V0-762`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2054) A
   module whose Gradle build script applies the `com.android.test` plugin (the literal plugin id, or
   `alias(libs.plugins.NAME)` where a version catalog of that build maps `NAME` to that id) is an
@@ -192,6 +200,7 @@ remain unowned and a dirty one correctly widens with `UNOWNED_DIRTY_PATH`.
 | `KAT-V0-001..007`, `KAT-V0-009` | `internal/liveverify/affected/kotlin/kotlin_test.go` |
 | `KAT-V0-761` | `TestVersionCatalogIsABuildConfigurationOfItsBuild_KATV0761` in `internal/liveverify/affected/kotlin/catalog_test.go` |
 | `KAT-V0-762` | `TestAndroidTestModuleYieldsATypedUnit_KATV0762` in `internal/liveverify/affected/kotlin/catalog_test.go` |
+| `KAT-V0-763` | `TestIncludeBuildOutsideTheRootIsANamedFrontier_KATV0763` in `internal/liveverify/affected/kotlin/catalog_test.go` |
 | `KAT-V0-008` | `internal/liveverify/affected/conformance_test.go` |
 | real-repository recall | pinned AndroidX Media ground-truth run described in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` |
 
