@@ -227,6 +227,18 @@ or Cucumber scenarios.
   `ruby:frontier-declaration-invalid:.corvint/ruby-frontiers.json`. A declared line that no longer
   matches a site resolves nothing. The declaration is the caller's claim that the site's tests are
   covered; Corvint does not verify it.
+- `RUBY-AFFECTED-V0-960`: (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-2369, amends `RUBY-AFFECTED-V0-048`) A declared entry that resolves no observed site MUST NOT be
+  dropped silently: an exact `reason:path:line` entry whose site moved, changed reason or is gone,
+  and a `reason:path` entry whose file holds no site of its reason, MUST each raise the plugin-wide
+  `ruby:frontier-declaration-stale:path[:line]` site at the entry's own path and line, bounded per
+  reason like every other site (`RUBY-AFFECTED-V0-046`). Corvint MUST NOT re-anchor an entry to a
+  shifted line: the declaration is an unverified claim about one site, so after a line shift both
+  the stale entry and the undeclared site at its new line stay visible until the caller updates the
+  declaration. Failure mode: a line shift leaves a dead entry the caller still believes resolves its
+  site. Falsifier: a declaration naming a moved, changed or deleted site whose plan names no stale
+  site. Rollback: drop `staleDeclarations` and its call in `Language.Units`; a stale entry again
+  resolves nothing silently. Acceptance: `TestFrontierDeclarationStaleEntryIsReported_V12369`.
 - `RUBY-AFFECTED-V0-049`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2448,
   GH #1565) The controller and view-helper edges of `RUBY-AFFECTED-V0-011` MUST be carried as
   `Unit.RouteDispatchImports`, a sorted list that is part of the graph digest only when non-empty
@@ -383,6 +395,7 @@ affected tuple.
 | `RUBY-AFFECTED-V0-043` | `maskHeredocBodies`, `scanLexicalScopes` in `internal/liveverify/affected/ruby/nesting.go` | `TestHeredocAndLexicalNestingBoundConstantEdges_RUBYAFFECTEDV0043`, `TestHeredocMaskKeepsEvaluatedAndUnterminatedBodies_RUBYAFFECTEDV0043`, `TestLexicalScopesBalanceModifiersAndFallBack_RUBYAFFECTEDV0043`, `TestHeredocMaskRejectsShiftsAndKeepsInterpolation_RUBYAFFECTEDV0043`, `TestRegexKeywordFallsBack_RUBYAFFECTEDV0043` |
 | `RUBY-AFFECTED-V0-044` | `maskQuotedLiteralsAndInlineComments`, `rubySlashRegex` in `internal/liveverify/affected/ruby/ruby.go` | `TestRegexLiteralMaskHidesQuotesNotDivision_RUBYAFFECTEDV0044` |
 | `RUBY-AFFECTED-V0-046..048` | `UnitsSource`, `scanLoads`, `resolveLoads` in `internal/liveverify/affected/ruby/ruby.go`; `internal/liveverify/affected/ruby/frontier.go`; `edges`, `mapAutoload` in `autoload.go`; `UnresolvedConfigSites` in `internal/rubyautoload/rubyautoload.go` | `TestLocatedFrontierCountsOnlyCrossedSites_RUBYAFFECTEDV0047`, `TestRepositoryWideLoadSitesStayPluginWideAndLocated_RUBYAFFECTEDV0046`, `TestFrontierDeclarationResolvesNamedSites_RUBYAFFECTEDV0048`, `TestLoadsResolveOnlyUniqueRepositoryTargets`, `TestRubyProfileAffectedRows_RUBYAFFECTEDV0014` |
+| `RUBY-AFFECTED-V0-960` | `staleDeclarations` in `internal/liveverify/affected/ruby/frontier.go`, its call in `ruby.go` | `TestFrontierDeclarationStaleEntryIsReported_V12369` |
 | `RUBY-AFFECTED-V0-049` | `bootEdges` in `internal/liveverify/affected/ruby/autoload.go`; `UnitsSource` in `internal/liveverify/affected/ruby/ruby.go`; `Unit.RouteDispatchImports` and `traverse` in `internal/liveverify/affected/`; `tierAffectedSelections` in `cmd/corvint/affected_tiers.go`; `request-spec` and `controller-spec` rows in `conformance/ruby-profile-v0/rows.json` | `TestRouteDispatchEdgesCarryTheirOwnWitness_RUBYAFFECTEDV0049`, `TestRubyRouteDispatchSpecsAreTierTwo_RUBYAFFECTEDV0049`, `TestRubyProfileAffectedRows_RUBYAFFECTEDV0014` |
 | `RUBY-AFFECTED-V0-050` | `supportIndex.supportEdges` and `bootEdges` in `internal/liveverify/affected/ruby/autoload.go`; `UnitsSource` in `internal/liveverify/affected/ruby/ruby.go` | `TestMemoizedSupportAndBootEdgesMatchPerTestScan_RUBYAFFECTEDV0050`, `TestSuiteHelpersAndSupportSelectEverySpec_RUBYAFFECTEDV0012`, `TestRailsBootAndRouteEdgesSelectTheirSpecs_RUBYAFFECTEDV0011` |
 | `RUBY-AFFECTED-V0-045` | `newConventionAutoload`, `mapAutoload` in `internal/liveverify/affected/ruby/autoload.go`; `UnitsSource` in `internal/liveverify/affected/ruby/ruby.go` | `TestConventionAutoloadEdgesWithoutRailsApplication_RUBYAFFECTEDV0045`, `TestConventionAutoloadFailsClosed_RUBYAFFECTEDV0045`, `TestRailsSignalsWithoutApplicationStayUnbounded_RUBYAFFECTEDV0045`, `TestAffectedSelectsEveryImpactAutoloadTest_RUBYAFFECTEDV0045` |
