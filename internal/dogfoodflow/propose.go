@@ -125,6 +125,7 @@ func ProposeCitations(ctx context.Context, options ProposeOptions, stdout, stder
 
 func (p *proposal) run() int {
 	p.requireRoot()
+	p.requireTrustedAncestry()
 	p.readRefreshPlan()
 	base, status := p.git(true, "rev-parse", "--verify", "-q", p.options.Base+"^{commit}")
 	if status != 0 {
