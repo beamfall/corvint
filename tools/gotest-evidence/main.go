@@ -16,7 +16,8 @@
 // ledger byte-identical, and a renamed test is a new identity. Provenance the
 // caller does not declare is NOT_OBSERVED. summary prints per-identity outcome
 // counts and marks a test flaky only when it both passed and failed on the
-// same tree, toolchain and platform. Nothing reads the ledger for ranking,
+// same tree, toolchain and platform, all observed; an unobserved toolchain or
+// platform makes such a pair unknown. Nothing reads the ledger for ranking,
 // authority or learning.
 package main
 
@@ -200,9 +201,8 @@ func Derive(stream []byte, p Provenance) ([]Record, error) {
 			continue
 		}
 		var e event
-		dec := json.NewDecoder(bytes.NewReader(line))
-		if err := dec.Decode(&e); err != nil || dec.More() {
-			return nil, fmt.Errorf("line %d is not a go test -json event", events+1)
+		if err := oneValue(line, &e, false); err != nil {
+			return nil, fmt.Errorf("line %d is not one go test -json event", events+1)
 		}
 		events++
 		if !actions[e.Action] {
@@ -245,6 +245,23 @@ func Derive(stream []byte, p Provenance) ([]Record, error) {
 		}
 	}
 	return records, nil
+}
+
+// oneValue decodes exactly one JSON value from line into v and refuses any
+// content after it but white space (GTE-V0-824): Decoder.More alone would
+// admit a trailing stray "}".
+func oneValue(line []byte, v any, strict bool) error {
+	dec := json.NewDecoder(bytes.NewReader(line))
+	if strict {
+		dec.DisallowUnknownFields()
+	}
+	if err := dec.Decode(v); err != nil {
+		return err
+	}
+	if _, err := dec.Token(); err != io.EOF {
+		return errors.New("trailing content after the JSON value")
+	}
+	return nil
 }
 
 func recordID(r Record) string {
@@ -335,9 +352,7 @@ func readLedger(ledger string) ([]Record, error) {
 			break
 		}
 		var r Record
-		dec := json.NewDecoder(bytes.NewReader(line))
-		dec.DisallowUnknownFields()
-		if err := dec.Decode(&r); err != nil || r.Schema != schema || r.ID != recordID(r) || r.Sha256 != recordSum(r) {
+		if err := oneValue(line, &r, true); err != nil || r.Schema != schema || r.ID != recordID(r) || r.Sha256 != recordSum(r) {
 			return nil, fmt.Errorf("ledger line %d is not a verified %s record", n+1, schema)
 		}
 		if len(records) >= maxRecords {
@@ -349,31 +364,51 @@ func readLedger(ledger string) ([]Record, error) {
 }
 
 // summary prints one tab-separated row per package and test: outcome counts,
-// distinct runs, and whether the test is flaky, that is, passed and failed on
-// the same tree, toolchain and platform.
+// distinct runs, and flaky: true when the test passed and failed on the same
+// observed tree, toolchain and platform, unknown when only an unobserved
+// toolchain or platform could make a pass and a fail on one tree the same
+// environment, false otherwise.
 func summary(records []Record) string {
 	type row struct {
 		counts map[string]int
 		runs   map[string]bool
 		passed map[string]bool
 		failed map[string]bool
+		// passedUnobserved and failedUnobserved hold the trees of
+		// outcomes whose toolchain or platform is NOT_OBSERVED: such an
+		// environment never counts as the same as another (GTE-V0-825).
+		passedUnobserved map[string]bool
+		failedUnobserved map[string]bool
+		passedTree       map[string]bool
+		failedTree       map[string]bool
 	}
 	rows := map[[2]string]*row{}
 	for _, r := range records {
 		k := [2]string{r.Package, r.Test}
 		x := rows[k]
 		if x == nil {
-			x = &row{map[string]int{}, map[string]bool{}, map[string]bool{}, map[string]bool{}}
+			x = &row{map[string]int{}, map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{}}
 			rows[k] = x
 		}
 		x.counts[r.Outcome]++
 		x.runs[r.Run] = true
 		env := r.Tree + "\x00" + r.Toolchain + "\x00" + r.Platform
-		if r.Outcome == "pass" {
-			x.passed[env] = true
-		}
-		if r.Outcome == "fail" {
-			x.failed[env] = true
+		unobserved := r.Toolchain == notObserved || r.Platform == notObserved
+		switch r.Outcome {
+		case "pass":
+			x.passedTree[r.Tree] = true
+			if unobserved {
+				x.passedUnobserved[r.Tree] = true
+			} else {
+				x.passed[env] = true
+			}
+		case "fail":
+			x.failedTree[r.Tree] = true
+			if unobserved {
+				x.failedUnobserved[r.Tree] = true
+			} else {
+				x.failed[env] = true
+			}
 		}
 	}
 	keys := make([][2]string, 0, len(rows))
@@ -390,11 +425,20 @@ func summary(records []Record) string {
 	b.WriteString("package\ttest\tpass\tfail\tskip\tnot_observed\truns\tflaky\n")
 	for _, k := range keys {
 		x := rows[k]
-		flaky := false
+		flaky := "false"
 		for env := range x.passed {
-			flaky = flaky || x.failed[env]
+			if x.failed[env] {
+				flaky = "true"
+			}
 		}
-		fmt.Fprintf(&b, "%s\t%s\t%d\t%d\t%d\t%d\t%d\t%t\n", k[0], k[1], x.counts["pass"], x.counts["fail"], x.counts["skip"], x.counts[notObserved], len(x.runs), flaky)
+		if flaky == "false" {
+			for tree := range x.passedTree {
+				if x.failedTree[tree] && (x.passedUnobserved[tree] || x.failedUnobserved[tree]) {
+					flaky = "unknown"
+				}
+			}
+		}
+		fmt.Fprintf(&b, "%s\t%s\t%d\t%d\t%d\t%d\t%d\t%s\n", k[0], k[1], x.counts["pass"], x.counts["fail"], x.counts["skip"], x.counts[notObserved], len(x.runs), flaky)
 	}
 	return b.String()
 }

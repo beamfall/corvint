@@ -127,6 +127,8 @@ func TestGTEV0824UnfinishedTestIsNotObserved(t *testing.T) {
 	ledger := filepath.Join(dir, "evidence.jsonl")
 	for name, bad := range map[string][]byte{
 		"prefixed log":   append([]byte("2026-10-31T00:00:00Z "), s...),
+		"stray brace":    []byte(`{"Action":"pass","Package":"p","Test":"TestX"}}` + "\n"),
+		"two values":     []byte(`{"Action":"pass","Package":"p","Test":"TestX"} {"Action":"fail","Package":"p","Test":"TestX"}` + "\n"),
 		"unknown action": []byte(`{"Action":"explode","Package":"p"}` + "\n"),
 		"empty":          {},
 	} {
@@ -149,6 +151,17 @@ func TestGTEV0824UnfinishedTestIsNotObserved(t *testing.T) {
 	}
 	if _, err := readLedger(ledger); err == nil {
 		t.Fatal("tampered ledger line verified")
+	}
+	// A verified record followed by trailing bytes is not one record.
+	lines := bytes.SplitAfter(data, []byte("\n"))
+	for _, tail := range []string{"}", " garbage", `{"schema":"x"}`} {
+		trailing := append(bytes.TrimSuffix(append([]byte{}, lines[0]...), []byte("\n")), tail+"\n"...)
+		if err := os.WriteFile(ledger, append(trailing, bytes.Join(lines[1:], nil)...), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := readLedger(ledger); err == nil {
+			t.Fatalf("ledger record followed by %q verified", tail)
+		}
 	}
 }
 
@@ -195,6 +208,17 @@ func TestGTEV0825SummaryMeasuresFlakes(t *testing.T) {
 	run([]string{"summary", "-ledger", split}, nil, &out, &out)
 	if !strings.Contains(out.String(), "\tTestTable/two/nested\t2\t1\t0\t0\t2\tfalse\n") {
 		t.Fatalf("cross-tree outcome marked flaky:\n%s", out.String())
+	}
+	// Undeclared toolchain and platform are never the same environment: the
+	// same pass and fail on one tree are unknown, not flaky.
+	undeclared := filepath.Join(t.TempDir(), "undeclared.jsonl")
+	bare := Provenance{Tree: tree, Toolchain: notObserved, Platform: notObserved, Command: notObserved}
+	recordFile(t, undeclared, stream(t, "count2.json"), bare)
+	recordFile(t, undeclared, stream(t, "flaky-fail.json"), bare)
+	out.Reset()
+	run([]string{"summary", "-ledger", undeclared}, nil, &out, &out)
+	if !strings.Contains(out.String(), "\tTestTable/two/nested\t2\t1\t0\t0\t2\tunknown\n") || strings.Contains(out.String(), "\ttrue\n") {
+		t.Fatalf("undeclared environments joined as one:\n%s", out.String())
 	}
 }
 
