@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"regexp"
+	"slices"
+	"sort"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/patch"
@@ -172,4 +174,52 @@ func (p *proposal) decisionPath(number string) string {
 		}
 	}
 	return p.decisions[number]
+}
+
+// addedRequirementRows returns a requirement ID this change defines in the
+// hunk's own file when the hunk adds that definition, or when every
+// non-blank line it adds names such an ID (its traceability rows or status
+// entries); it returns "" otherwise, so an amendment that mentions a new ID
+// in passing keeps its draft (DCW-V0-809).
+func (p *proposal) addedRequirementRows(hunk *patch.Hunk) string {
+	if hunk == nil {
+		return ""
+	}
+	own := []string{}
+	for id, where := range p.changeIDs {
+		if where == hunk.DisplayPath {
+			own = append(own, id)
+		}
+	}
+	if len(own) == 0 {
+		return ""
+	}
+	sort.Strings(own)
+	named, every, lines := "", true, 0
+	for _, body := range hunk.Body {
+		if body.Prefix != '+' || len(bytes.TrimSpace(body.Payload)) == 0 {
+			continue
+		}
+		lines++
+		found := ""
+		for _, id := range own {
+			if namesToken(body.Payload, id) {
+				found = id
+				break
+			}
+		}
+		if match := requirementDefinition.FindSubmatch(body.Payload); match != nil && found != "" &&
+			slices.Contains(own, string(match[1])+string(match[2])) {
+			return string(match[1]) + string(match[2])
+		}
+		if found == "" {
+			every = false
+		} else if named == "" {
+			named = found
+		}
+	}
+	if lines > 0 && every {
+		return named
+	}
+	return ""
 }

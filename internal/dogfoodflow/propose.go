@@ -393,6 +393,13 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 		return unknownProposal(ordinal, "the hunk names requirement "+id+", which this change itself adds in "+where+
 			", and same-change intent is not BASE evidence (cem cite cites BASE spans only), so it cannot be cited (DCW-V0-440): keep this row unknown, or cite the BASE contract "+id+" refines"), "", ""
 	}
+	// The defining spec's own hunk that adds a requirement, or only its
+	// rows, has no BASE contract either; a path anchor would cite another
+	// requirement's decision (DCW-V0-809).
+	if id := p.addedRequirementRows(p.derivedHunk(hunk)); id != "" {
+		return unknownProposal(ordinal, "the hunk adds requirement "+id+" or rows naming it, which this change itself defines in "+hunk.path+
+			", and same-change intent is not BASE evidence (cem cite cites BASE spans only), so it cannot be cited (DCW-V0-440, DCW-V0-809): keep this row unknown"), "", ""
+	}
 	if row, cite, note := p.sealedProposal(hunk, ordinal, edited, used); row != "" {
 		return row, cite, note
 	}

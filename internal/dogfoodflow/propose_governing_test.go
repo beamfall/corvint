@@ -102,3 +102,58 @@ func TestProposeCitationsDCWV0805CitesTheDecisionGoverningAnAmendedRequirement(t
 		t.Errorf("draft cites the unrelated decision 0131:\n%s", stdout.String())
 	}
 }
+
+// TestProposeCitationsDCWV0809AddedRequirementRowsStayUnknown pins lane
+// friction F3: a spec hunk adding a requirement, and the hunk adding only its
+// traceability row, were drafted to a decision that names the spec path and
+// accepts another requirement of the family (decision 0388 for
+// DCW-V0-804..806 on 2026-10-31). Both now draft unknown rows naming the
+// same-change requirement; a hunk outside them keeps its path anchor. Fails
+// on BASE, which cited the decision for both.
+func TestProposeCitationsDCWV0809AddedRequirementRowsStayUnknown(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	spec := "# X v0\n\nIntro prose.\n" + numbered("intro", 6) + "\n## Requirements\n\n" +
+		"- `XYZ-V0-001`: (accepted, decision 0388) the widget MUST frob.\n" + numbered("between", 8) +
+		"\n## Traceability\n\n| Requirement | Evidence |\n|---|---|\n| `XYZ-V0-001` | `TestFrob` |\n" + numbered("tail", 4)
+	writeTree(t, root, map[string]string{
+		"docs/specs/x-v0.md": spec,
+		"docs/decisions/0388-accept-xyz-v0-001-2026-09-25.md": "# Decision 0388\n\n" +
+			"1. **`XYZ-V0-001` is accepted as written** (`docs/specs/x-v0.md`; V1-0001).\n" + numbered("d", 4),
+		"docs/specs/other-v0.md": "# Other\n\nIt builds on `docs/specs/x-v0.md` XYZ-V0-001.\n" + numbered("o", 4),
+	})
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	changed := strings.Replace(spec, "- `XYZ-V0-001`: (accepted, decision 0388) the widget MUST frob.\n",
+		"- `XYZ-V0-001`: (accepted, decision 0388) the widget MUST frob.\n- `XYZ-V0-002`: (proposed) the gadget MUST spin.\n", 1)
+	changed = strings.Replace(changed, "| `XYZ-V0-001` | `TestFrob` |\n", "| `XYZ-V0-001` | `TestFrob` |\n| `XYZ-V0-002` | `TestSpin` |\n", 1)
+	changed = strings.Replace(changed, "Intro prose.", "Intro prose, edited.", 1)
+	writeTree(t, root, map[string]string{"docs/specs/x-v0.md": changed})
+	testGit(t, root, "commit", "-q", "-am", "add XYZ-V0-002")
+
+	var stdout, stderr bytes.Buffer
+	if code, err := ProposeCitations(context.Background(), ProposeOptions{Root: root, Base: base}, &stdout, &stderr); code != 0 || err != nil {
+		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
+	}
+	rows := textLines(stdout.Bytes())
+	if len(rows) != 3 {
+		t.Fatalf("draft has %d rows; want 3:\n%s\n%s", len(rows), stdout.String(), stderr.String())
+	}
+	unknown := 0
+	for _, row := range rows {
+		fields := strings.Split(row, "\t")
+		if strings.Contains(fields[1], "0388") {
+			t.Errorf("a hunk was drafted to another requirement's decision: %q", row)
+		}
+		if reasonedUnknownRow(fields) && strings.Contains(fields[3], "adds requirement XYZ-V0-002") && strings.Contains(fields[3], "(DCW-V0-440, DCW-V0-809)") {
+			unknown++
+		}
+	}
+	if unknown != 2 {
+		t.Errorf("%d rows name the added requirement as unknown; want 2 (definition and traceability row):\n%s", unknown, stdout.String())
+	}
+	if !strings.Contains(stdout.String(), "docs/specs/other-v0.md\t3:3\tspecification") {
+		t.Errorf("the prose hunk lost its path anchor:\n%s", stdout.String())
+	}
+}
