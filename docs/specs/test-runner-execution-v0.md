@@ -1881,3 +1881,51 @@ complete FAILED suites.
 | TRE-V0-118 | `sql/sqllogictest.go` `parseSQLite`; `TestSQLiteRejectedQueryIsNotAnAssertion`, `TestNativeMatrix` | Captured native `sqlite/infra` is incomplete with `SQL_QUERY_REJECTED`; `sqlite/fail` stays a complete FAILED suite; the test fails without the check, 2026-10-21 |
 | TRE-V0-119 | `sql/sqllogictest.go` `parseSQLite`; `TestSQLiteStatementErrorIsNotAVerdict` | The `statement error` line shape is read from sqllogictest.c (`fprintf(stderr, "%s:%d: statement error\n", ...)` for both statement directions); the test fails without the check, 2026-10-22. A live capture is NOT_RUN |
 | TRE-V0-120 | `validate.go` `undeclaredTools`; `TestNormalizeUndeclaredToolIsNamedNotAFailure` | A go test shelling out to git with no PATH is an `undeclared-tool` problem naming git, not a FAILED verdict; passing and unrelated failures unchanged. |
+
+## Android installed-APK identity (experimental)
+
+V1-1554: a platform lane request bound the built test and app APK digests, but only the lane
+harness compared them with the APKs installed on the emulator; the runner ran the
+instrumentation against whatever was installed.
+
+- `TRE-V0-820`: (experimental under the standing lane auto-accept; V1-1554) The Android
+  instrumentation profiles (`android-junit`, `espresso`, `uiautomator`) MUST bind the installed
+  APKs: the request's `inputFiles` MUST name one or two `.apk` files (the test APK, and the app
+  APK unless the instrumentation targets its own package), each with its SHA-256, and `Build`
+  MUST refuse a request without them. The single TEST phase MUST run one fixed device shell
+  script that, before the instrumentation starts, resolves the instrumentation's target package
+  from `pm list instrumentation`, reads `pm path` for the test package and the target package,
+  requires exactly one `package:` path for each (a split install is unobservable), hashes each
+  installed APK with `sha256sum`, and requires the set of installed digests to equal the set of
+  bound `.apk` digests. Only then does it print the fixed line `INSTALLED_APK_IDENTITY: verified`
+  and run `am instrument`. Otherwise it prints `INSTALLED_APK_IDENTITY: <reason>` (`unresolved`,
+  `unobservable`, `mismatch`) and exits without instrumenting. The parser MUST require the
+  verified line as the first stdout line and MUST record `INSTALLED_APK_UNVERIFIED` with the
+  reason otherwise, so the observation is incomplete. Because the parser checks a fixed line,
+  an adb build that drops the remote exit status cannot pass a mismatch.
+
+Non-goals. The runner still never installs, clears or grants: installation stays a caller
+admission obligation. It does not parse the APK manifest; it compares digests as sets, so it
+does not say which bound APK is which package. Split APKs and dynamic feature modules are not
+supported and fail closed as `unobservable`.
+
+Failure modes. An uninstalled or mistyped component is `unresolved`. A missing package, a
+failing `pm path`, more than one `package:` path or a failing `sha256sum` is `unobservable`. A
+reinstall from another build, or a bound APK that is not installed, is `mismatch`. Stdout from
+before this requirement (no verified line) is `INSTALLED_APK_UNVERIFIED`, so a historical raw
+capture is not a complete observation. An Android plan written before this requirement differs
+in its TEST argv, so `corvint-test-runner run` refuses it and asks for a re-plan.
+
+| Requirements | Source/tests | Evidence |
+| --- | --- | --- |
+| TRE-V0-820 | `platform/android.go` `buildAndroid`, `androidIdentityScript`, `parseAndroid`; `TestAndroidInstalledAPKIdentity`, `TestAndroidRequiresBoundAPKs`, `TestNativeAndroidOutcomesAndNeutralTransportExit`, `TestAndroidTimeoutStopsDeviceProcesses` | A recording fake `adb` with a stateful fake device shell (`pm path`, `sha256sum`) runs the real script: a matching install is verified and instrumented, a mismatching, split or missing install is never instrumented and is incomplete, including when the transport drops the exit status; focused unit tests, 2026-10-31 |
+
+Recorded limits.
+- The live witness is NOT_RUN: no emulator or adb was available to the lane host. Whether every
+  supported emulator image ships toybox `sha256sum` is inferred from AOSP toybox, not observed.
+- The check and the instrumentation run in one shell session, but a concurrent reinstall
+  between the hash and `am instrument` is not excluded.
+
+Rollback removes the `.apk` input requirement, the identity script and the parser's first-line
+check, with their tests and this section. Android TEST argv returns to the bare `am instrument`
+command, so plans written with the script would need a re-plan.
