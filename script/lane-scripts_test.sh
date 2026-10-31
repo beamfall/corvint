@@ -745,6 +745,10 @@ out=$(finish 1 "$sha" '' plan.tsv plan.tsv passed)
 [[ $out == *'REFUSE missing-inputs CITATIONS'$'\n'* && $out == *"corvint dogfood propose-citations $sha > plan.tsv"* &&
   $out == *"make dogfood-inputs-check BASE=$sha CITATIONS=plan.tsv"* && $out == *'nothing was built, prepared or bound'* ]] ||
   fail "finish refusal for a missing plan names no recovery: $out"
+# ASD-V0-961 (V1-3394): the same refusal names the record-only recipe and its DOGFOOD.md section.
+[[ $out == *'fix: a record-only change (only docs/build-log/ or .agent-evidence/ paths): put the entry path in the INTENTS file'*'relation decision'*'docs/DOGFOOD.md "Record-only closeout"'* ]] ||
+  fail "finish refusal for a missing plan names no record-only recipe: $out"
+grep -q '^Record-only closeout (`ASD-V0-961`' "$script/../docs/DOGFOOD.md" || fail "docs/DOGFOOD.md has no record-only closeout section"
 ok
 
 # DCW-V0-090: a committed spec edit without regenerated indexes is refused before any build;

@@ -970,6 +970,21 @@ class; a `cem/0.x` map is classed by its paths under the chore rule above.
 A record change touches only `docs/build-log/` or `.agent-evidence/` paths, with at most the two sidecar paths: name its build-log entry or decision in `DOGFOOD_INTENTS_FILE` (reported as `no-intent-declared`), and cite each hunk to BASE lines of the decision or entry it records with relation `decision`; one span may serve every hunk (`DCW-V0-057`, `DCW-V0-058`).
 Its sealed map has no role and reads `citationClass` `{"class": "record", "role": "change"}`, which the baseline summarizes apart from `change` (`CEM-V1-170`, `DCW-V0-059`).
 
+Record-only closeout (`ASD-V0-961`, V1-3394). A lane whose only change is its build-log entry closes
+out in one try:
+
+```sh
+printf '%s\n' docs/build-log/YYYY-MM-DD-LANE.md > "$LANE_DIR/intents.txt"
+corvint dogfood propose-citations "$BASE" > "$LANE_DIR/plan.tsv"   # one row per hunk to review
+# replace each row with HUNK<TAB>docs/specs/SPEC.md<TAB>START:END<TAB>decision, citing the BASE
+# lines of the decision or spec the entry records; one span may serve every hunk
+make dogfood-inputs-check BASE="$BASE" CITATIONS="$LANE_DIR/plan.tsv" INTENTS="$LANE_DIR/intents.txt" VERIFY="$LANE_DIR/verify.txt" OUTCOME=passed
+make dogfood-closeout BASE="$BASE" CITATIONS="$LANE_DIR/plan.tsv" INTENTS="$LANE_DIR/intents.txt" VERIFY="$LANE_DIR/verify.txt" OUTCOME=passed
+```
+
+with `LANE_DIR=$(git rev-parse --absolute-git-dir)` (not `GIT_DIR`, which Git itself reads). A `dogfood-closeout` without `CITATIONS` names
+this recipe in its refusal, before any build.
+
 ### Staged binding of one oversized commit
 
 Accepted, decision 0510 (V1-1107; `DCW-V0-037`). The normal coordinator supports one
