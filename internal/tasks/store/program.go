@@ -173,7 +173,7 @@ func programTransition(ctx context.Context, repo *intent.Repository, actor mutat
 		}
 		return f, nil
 	}
-	report, _, e := administrativeWriteWith(WithClock(ctx, poolClock), repo, req, poolClock(), nil, facts)
+	report, _, e := administrativeWriteWith(WithClock(ctx, storeClock(repo)), repo, req, storeClock(repo)(), nil, facts)
 	return report, e
 }
 
@@ -257,7 +257,7 @@ func SupervisorTransition(ctx context.Context, repo *intent.Repository, actor mu
 			}
 			return f, nil
 		}
-		r, _, e := administrativeWriteWith(WithClock(ctx, poolClock), repo, req, poolClock(), nil, facts)
+		r, _, e := administrativeWriteWith(WithClock(ctx, storeClock(repo)), repo, req, storeClock(repo)(), nil, facts)
 		return r, e
 	}
 	report, e := execute(choice)

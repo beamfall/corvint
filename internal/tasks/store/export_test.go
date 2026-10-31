@@ -179,3 +179,19 @@ func (w *Workflow) PersistForTest(phase string) error { return w.persist(phase) 
 
 // RemoverStoppedForTest is removerStopped (CAL-V0-368).
 var RemoverStoppedForTest = removerStopped
+
+// SetStoreClockForTest makes the workflow, supervisor and pool writers of the
+// store at stateDir read clock instead of time.Now until restore runs
+// (V1-2743). Other stores keep real time, so parallel tests are unaffected.
+func SetStoreClockForTest(stateDir string, clock func() time.Time) (restore func()) {
+	testClocks.Store(stateDir, clock)
+	return func() { testClocks.Delete(stateDir) }
+}
+
+// SetStageWallForTest makes every supervised stage over the store at stateDir
+// derive its own wall from the context wall returns, until restore runs
+// (V1-3046). The program wall is unaffected.
+func SetStageWallForTest(stateDir string, wall func(context.Context) (context.Context, func())) (restore func()) {
+	stageWalls.Store(stateDir, wall)
+	return func() { stageWalls.Delete(stateDir) }
+}

@@ -123,7 +123,7 @@ func sweepWrite(ctx context.Context, repo *intent.Repository, actor mutation.Bin
 			return nil, e
 		}
 	}
-	report, _, e := administrativeWriteWith(WithClock(ctx, poolClock), repo, req, poolClock(), nil, observe)
+	report, _, e := administrativeWriteWith(WithClock(ctx, storeClock(repo)), repo, req, storeClock(repo)(), nil, observe)
 	if hook, ok := ctx.Value(sweepResponseKey{}).(func(LeaseChoice, *Report, error) error); ok {
 		e = hook(c, report, e)
 	}
