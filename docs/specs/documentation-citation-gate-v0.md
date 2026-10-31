@@ -408,27 +408,27 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | Requirement | Implementation | Evidence |
 |---|---|---|
 | DCG-V0-001, DCG-V0-004, DCG-V0-005, DCG-V0-015 | the citation scanner loop in `script/check-line-citations.sh` | `line-citations-check`; cases 9 and 10 |
-| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:279-283@ac0b3493` and `:328-331@087dfc00` | `line-citations-check`; case 14 |
+| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:344-348@3dd28600` and `:393-396@087dfc00` | `line-citations-check`; case 14 |
 | DCG-V0-006, DCG-V0-009, DCG-V0-010 | the anchor comparison in `check` | `line-citations_test.sh` cases 1-4, 6 |
-| DCG-V0-007 | `anchor_of`, `script/check-line-citations.sh:190-196@ca6f1248` | case 2 |
-| DCG-V0-008 | `anchored_numbers`, `script/check-line-citations.sh:182-188@9a3cc62d` | case 5 |
-| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:585-602@e1697d2d` | cases 1 and 14 |
+| DCG-V0-007 | `anchor_of`, `script/check-line-citations.sh:255-261@ca6f1248` | case 2 |
+| DCG-V0-008 | `anchored_numbers`, `script/check-line-citations.sh:247-253@9a3cc62d` | case 5 |
+| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:650-667@e1697d2d` | cases 1 and 14 |
 | DCG-V0-012 | `make gate` target list | gate run 2026-09-07 |
 | DCG-V0-013 | the tracked set, the `index_blob` batch reader, and `lines_of`, `script/check-line-citations.sh:79-165@4888d14b` | cases 7, 8, and 13 |
-| DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:198-203@fce1154d` and `:273-278@e5963c48` | case 11 |
-| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:279-283@ac0b3493` and `:328-331@087dfc00` | `line-citations-check`; case 14 |
+| DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:263-268@fce1154d` and `:338-343@e5963c48` | case 11 |
+| DCG-V0-002, DCG-V0-003 | `check` in `script/check-line-citations.sh:344-348@3dd28600` and `:393-396@087dfc00` | `line-citations-check`; case 14 |
 | DCG-V0-006, DCG-V0-009, DCG-V0-010 | the anchor comparison in `check` | `line-citations_test.sh` cases 1-4, 6 |
-| DCG-V0-007 | `anchor_of`, `script/check-line-citations.sh:190-196@ca6f1248` | case 2 |
-| DCG-V0-008 | `anchored_numbers`, `script/check-line-citations.sh:182-188@9a3cc62d` | case 5 |
-| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:585-602@e1697d2d` | cases 1 and 14 |
+| DCG-V0-007 | `anchor_of`, `script/check-line-citations.sh:255-261@ca6f1248` | case 2 |
+| DCG-V0-008 | `anchored_numbers`, `script/check-line-citations.sh:247-253@9a3cc62d` | case 5 |
+| DCG-V0-011 | the `--hash` mode, `script/check-line-citations.sh:650-667@e1697d2d` | cases 1 and 14 |
 | DCG-V0-012 | `make gate` target list | gate run 2026-09-07 |
 | DCG-V0-013 | the tracked set, the `index_blob` batch reader, and `lines_of`, `script/check-line-citations.sh:79-165@4888d14b` | cases 7, 8, and 13 |
-| DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:198-203@fce1154d` and `:273-278@e5963c48` | case 11 |
+| DCG-V0-014 | `log_or_backlog_doc` and the unpinned-target branch in `check`, `script/check-line-citations.sh:263-268@fce1154d` and `:338-343@e5963c48` | case 11 |
 | DCG-V0-016 | `check_malformed` and the backticked-token pre-scan in `script/check-line-citations.sh` | case 16; `line-citations-check` |
 | DCG-V0-017 | the unpinned counter and committed ceiling in `script/check-line-citations.sh` | case 17; `line-citations-check` |
 | DCG-V0-018 | `script/line-citation-legacy-documents.txt` and the new-document branch in `check` | case 18; decision 0176's manual admission of decision 0158 |
 | DCG-V0-019 | the citation-token regex in the scanner loop (no alternative matches a suffix-less token) | decision 0105's `Makefile@3c41cad3` conversion; `line-citations-check` |
-| DCG-V0-020 | the drift-waiver loading block and `$waived` gating in `check`, `script/check-line-citations.sh:229-247@5e2147f9` and `:284@851bb9b7` | `script/line-citation-drift-waivers.txt`; `line-citations-check` |
+| DCG-V0-020 | the drift-waiver loading block and `$waived` gating in `check`, `script/check-line-citations.sh:294-312@5e2147f9` and `:349@851bb9b7` | `script/line-citation-drift-waivers.txt`; `line-citations-check` |
 | DCG-V0-021 | the unstaged-edit note before `close_index` in `script/check-line-citations.sh` | case 21 |
 | DCG-V0-042 | the `scanned_doc` pattern in `script/check-line-citations.sh`; the pinned citations in `docs/AUTOMATION.md` and `docs/GLOSSARY.md` | full-index run |
 | DCG-V0-041 | the inventory loader after the legacy allowlist, the inventory branch in `check` and the unused-row failure loop, `script/check-line-citations.sh`; `script/line-citation-unpinned-inventory.txt` | case 27 |
