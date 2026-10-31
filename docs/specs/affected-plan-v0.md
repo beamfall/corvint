@@ -4633,8 +4633,10 @@ selected package unrun. The full fallback is unchanged.
   the real Go and TypeScript plugins: a `server/server.go` change selects `e2e/login.spec.ts`
   through `cmd/server` with the edge and not without it); the `internal/liveverify/affected`,
   `typescript`, `internal/appflows`, `internal/gateselect` and `cmd/corvint` affected tests
-  unchanged. A frozen affected replay was `NOT_RUN` in the lane: without a declaration no
-  selection changes and AFP-V0-818 only adds unknowns, so recall cannot fall.
+  unchanged. Replay (2026-10-31, linux/WSL2): `corvint affected --base <first parent> --no-cache`
+  with the base (`6c967b21c`) and the changed binary over the 20 newest merges of that base: 0
+  selections lost in 20 merges and every scope equal (UNKNOWN); one merge, `6c967b21c` itself,
+  names 17 more `typescript:e2e-runtime-dependency` unknowns that the base had excluded.
 - **AFP-V0-640:** (accepted under the owner's standing lane auto-accept (2026-10-11); V1-2647;
   witness contract decided by the orchestrator: reference, not copy) In the `affected-plan/1`
   document (AFP-V0-035) each `selected` witness MUST replace `via` with `viaLength`, the length of
