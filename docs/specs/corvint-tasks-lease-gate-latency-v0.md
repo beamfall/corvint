@@ -12,7 +12,7 @@ They change no lease semantics, stored state, wire format or receipt.
 
 ## Agent digest
 - Claim: Lease rounds skip the ready-route cleanup lock, keep fdinfo files open, parse tickets in parallel, skip liveness staging syncs, overlap stage and publish syncs.
-- Status: proposed; experimental; LGL-V0-001, 002, 004, 005, 006, 007, 009 and 010 are implemented with focused tests; LGL-V0-011 measured a 47k-receipt pool release at p99 1.03 s (target 2 s); LGL-V0-003 is a measured target that is NOT MET (claim gate-wait p99 1.7 s against 500 ms); LGL-V0-008 keeps every published artifact's sync and records why; LGL-V0-013 stages a lease write's artifacts together (heartbeat median 82.0 to 63.0 ms, indicative); LGL-V0-014 decodes a large ticket inventory concurrently (claim hold p50 228 to 172 ms at 880 tickets, WSL2); LGL-V0-016 overlaps one phase's publish directory syncs (claim hold about 16 ms lower, WSL2); the V1-0887 heartbeat median of 50 ms is still NOT MET (65.5 ms at 13.5k and 80.8 ms at 40k receipts, WSL2, 2026-10-27), and LGL-V0-003 is still NOT MET (gate-wait p99 1.78 s at 31 tickets, 2.32 s at 880 with LGL-V0-016); LGL-V0-800 decodes each attempt post once per receipt in the `receipt audit` binding fold (complete audit 25 to 29 % lower wall time at 3k to 40k receipts, Darwin).
+- Status: proposed; experimental; LGL-V0-001, 002, 004, 005, 006, 007, 009 and 010 are implemented with focused tests; LGL-V0-011 measured a 47k-receipt pool release at p99 1.03 s (target 2 s); LGL-V0-003 is a measured target that is NOT MET (claim gate-wait p99 1.7 s against 500 ms); LGL-V0-008 keeps every published artifact's sync and records why; LGL-V0-013 stages a lease write's artifacts together (heartbeat median 82.0 to 63.0 ms, indicative); LGL-V0-014 decodes a large ticket inventory concurrently (claim hold p50 228 to 172 ms at 880 tickets, WSL2); LGL-V0-016 overlaps one phase's publish directory syncs (claim hold about 16 ms lower, WSL2); the V1-0887 heartbeat median of 50 ms is still NOT MET (65.5 ms at 13.5k and 80.8 ms at 40k receipts, WSL2, 2026-10-27), and LGL-V0-003 is still NOT MET (gate-wait p99 1.78 s at 31 tickets, 2.32 s at 880 with LGL-V0-016); LGL-V0-800 decodes each attempt post once per receipt in the `receipt audit` binding fold (complete audit 25 to 29 % lower wall time at 3k to 40k receipts, Darwin); LGL-V0-801 adds non-lease mutator workers and a post-run audit to the load harness (V1-0757: 248 mixed calls, no error code, audit CONSISTENT AGREES, Darwin).
 - Exists: the writer-route staging decline, retained Linux fdinfo files, the single-parse ticket loader and its concurrent decode, the wire ASCII scan, the heartbeat/renew staging-sync skip and the together staging of lease writes and the overlapped publish syncs, each with a focused test.
 - Blocked on: V1-2539 (claim wait: serial FIFO admission of a claim burst, about 13 claim holds at p99; 500 ms needs a design decision on non-serial admission or a claim staging-sync skip (concurrent publish directory syncs are LGL-V0-016); the 2026-10-27 claim hold floor is commit near 80 ms plus observe near 47 ms) and V1-2203/V1-2205 (the rest of the heartbeat floor, commit syncs near 38-54 ms, observe near 20 ms and Qualify near 15 ms before the gate, needs an owner store-format or sync decision: LGL-V0-008).
 - Read next: Requirements; Failure modes; Acceptance evidence.
@@ -201,6 +201,17 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   load, the complete audit's median wall time at 3k, 13k and 40k synthetic receipts and on a copy
   of the live queue is at least 20 % below the base binary's in interleaved runs; the steps only
   read the shared records.
+- `LGL-V0-801`: (proposed; V1-0757; experimental under the standing lane auto-accept) The
+  CAL-V0-263 load harness MUST accept `CORVINT_TASKS_LEASE_GATE_LOAD_MUTATORS=N` (default 0, which
+  keeps every earlier run unchanged) and then start N more worker processes that take no lease and
+  cycle through creating a ticket, refining it, completing it by hand (`COMPLETE_MANUAL`) and
+  setting a note on a ticket of their own that no lease writer claims, each through `Mutate`, so
+  lease and non-lease writers contend for the writer lock on one store. Each such write MUST be
+  recorded as a sample with verb `create`, `refine`, `complete-manual` or `note`, its whole-call
+  wall time, writer-lock hold and code, and summarized per verb beside the lease verbs. After the
+  run the harness MUST run the complete audit and record it in the report's `audit` field, failing
+  unless it is `CONSISTENT AGREES`; the report names the mutator count. The harness measures and
+  checks; it sets no latency target and no production path reads the knob.
 
 ## Non-goals
 
@@ -408,6 +419,16 @@ head retrying. `TestLGLV0009_TailRemovedBaseBlobKeepsTheResume`
 tail removed keeps a sealed-base resume, while one rewritten in place declines it; blobs are
 content-addressed, so no write can give a base blob's path other bytes.
 
+For `LGL-V0-801`, `TestCALV0263_LeaseGateLoad` with `CORVINT_TASKS_LEASE_GATE_LOAD_MUTATORS=3`, 6 lease
+writers, 7,000 receipts, 100 tickets, 30 s and 1 s think time (Darwin arm64, 12 CPUs, 1-minute
+load 7.09, labelled QUALIFIED) made 248 calls, 102 of them non-lease, with no error code and no
+`LOCK_TIMEOUT`, and the audit after the run was `CONSISTENT AGREES`; wall p50/p99 was create
+133/705 ms, refine 108/220 ms, complete-manual 103/241 ms and note 106/240 ms, beside heartbeat
+120/1089 ms and renew 117/780 ms. The run and a mixed-binary probe (a build of
+`32aa5a3f` of 2026-10-03 from the pre-1.0 lineage, against a store the current build initialized and wrote, which
+refuses `MALFORMED: policy.json: closed object violated` without writing) are in the build-log
+entry `docs/build-log/2026-10-31-tasks-core-w2.md`.
+
 ## Rollback
 
 revert the source; the guards again take the cleanup lock whenever staging is present
@@ -428,4 +449,5 @@ Reverting LGL-V0-015 returns the harness default to writers+16 tickets; set
 directories before the next is published; nothing it writes differs in format, and the same
 binary or an older one reads and redoes the store unchanged. Reverting LGL-V0-800 (the
 `TicketPosts.attempt` memo, or passing a nil memo) returns each binding step to reading and
-decoding its own attempt posts; nothing is stored.
+decoding its own attempt posts; nothing is stored. Reverting LGL-V0-801 removes the mutator
+workers and the post-run audit; with the knob unset the harness runs as before.
