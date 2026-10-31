@@ -77,7 +77,10 @@ def counts($rows):
    epoch: costs($unique), window: costs($window.rows)} as $shadowCost
 | if ($ARGS.named.format // "") == "json" then
     {status: $status, epoch: ($epoch | tonumber), covered: $covered, epochRows: $e,
-     window: $w, windowInfra: $window.infra, killSwitch: $kill, narrowed: $narrowed, shadowCost: $shadowCost}
+     window: $w, windowInfra: $window.infra, killSwitch: $kill, narrowed: $narrowed, shadowCost: $shadowCost,
+     # CIN-V0-004: the window's row names, newest first, so a pull request re-checks the kill
+     # switch over the rows since the verdict plus these instead of listing back to the window.
+     windowNames: [$window.rows[] | "ci-forward-\(.class)-pr\(.pr)-\(.sha)-e\(.epoch)-f\(.f)"]}
   else
   "### AFP-V0-029 forward rows, epoch \($epoch)",
   "",

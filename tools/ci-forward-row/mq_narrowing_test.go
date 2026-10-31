@@ -235,6 +235,7 @@ func TestAFPV0733NarrowedQueueRunIsNoRow(t *testing.T) {
 		p := strs(f.sel[0]["selected"])[0]
 		fail(f.out[0], p, "fail", "RAN", "pass")
 		f.nar = map[int]doc{0: narrowingRecord(0, "NARROWED", prRun, nil, []string{p})}
+		f.stampEpoch(1) // CIN-V0-001: the collector runs at FORWARD_EPOCH=1
 		selDir, outDir := f.write(t, filepath.Join(dir, "src"))
 		move := func(src, run string) []string {
 			var names []string

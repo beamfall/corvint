@@ -11,6 +11,10 @@
 # AFP-V0-480: with --slurpfile tiers TIERS (tiers.sh output) the document also carries the
 # additive `tiers` (changed, hop1, hop2, full, universe, millis) and `tierIncomplete`
 # fields; without it they are absent, as in every older document.
+# CIN-V0-001 (Codex P2): with --arg forwardEpoch E the document also carries forwardEpoch, the
+# forward-evidence epoch of the ci.yml that produced it (CORVINT_PR_FORWARD_EPOCH). collect.sh
+# names the row with this value, never its own; a document without it, as every document
+# produced before the field, belongs to no epoch the collector can count.
 def num: if type == "string" and test("^[0-9]+$") then tonumber else null end;
 def opt: if type == "string" and length > 0 then . else null end;
 ($dry[0] // {}) as $d
@@ -42,6 +46,7 @@ def opt: if type == "string" and length > 0 then . else null end;
    partitionDigest: ($m.partitionDigest // null),
    sourceDigest: ($m.sourceDigest // null),
    notProduced: ["selectionDigest: the AFP-V0-013 selector/driver selection digest; the driver pins are empty, so no selector runs"]}
+| if $ARGS.named.forwardEpoch == null then . else . + {forwardEpoch: ($ARGS.named.forwardEpoch | num)} end
 | if $ARGS.named.tiers == null then .
   else ($ARGS.named.tiers[0] // {}) as $t
     | . + {tiers: (if ($t.tiers | type) == "object" then $t.tiers + {millis: ($t.millis // null)} else null end),

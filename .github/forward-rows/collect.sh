@@ -19,6 +19,10 @@
 # no row.
 # AFP-V0-481/483: the row prices its selectors with ../cishards/package-costs.json of this same
 # trusted checkout, and a complete row also writes the step output `cost`, its cost artifact name.
+# CIN-V0-001 (Codex P2): the row's epoch is the forwardEpoch its producing run stamped into every
+# retained selection document, never FORWARD_EPOCH: a run that predates an epoch advance and
+# completes, or is rerun, after it keeps its own epoch. A missing, mixed or other epoch writes no
+# row, so such a run is never counted toward FORWARD_EPOCH, not even as INCOMPLETE.
 set -u
 here=$(cd "$(dirname "$0")" && pwd)
 dir="$RUNNER_TEMP/forward-row"
@@ -205,6 +209,14 @@ fi
 # step of its own: the hosted runner failed before the job ran. Its shard numbers go to the
 # classifier, which reads them as infrastructure only when they are exactly the missing shards.
 # An unreadable job list names none, so the row stays INCOMPLETE.
+epoch=$(find "$dir/selection" -name selection.json -type f -exec cat {} + 2> /dev/null | jq -er -s '
+  if length > 0 then (map(.forwardEpoch) | unique) as $e
+    | if ($e | length) == 1 and ($e[0] | type) == "number" and $e[0] >= 0 and $e[0] == ($e[0] | floor) then $e[0] else empty end
+  else empty end' 2> /dev/null) || epoch=""
+if [ -z "$epoch" ] || [ "$epoch" != "$FORWARD_EPOCH" ]; then
+  say "forward row: the selection run ${selection_run:-none} stamped no single forward epoch, or epoch ${epoch:-none} rather than $FORWARD_EPOCH (CIN-V0-001); no row"
+  exit 0
+fi
 infra=""
 if [ -n "$outcomes_run" ]; then
   infra=$(gh api "repos/$REPO/actions/runs/$outcomes_run/jobs?filter=latest&per_page=100" --jq '.jobs[]
@@ -216,7 +228,7 @@ if [ -n "$outcomes_run" ]; then
   }
 fi
 class=$(ROW_KIND=$kind ROW_PR=$pr ROW_SHA=$sha ROW_HEAD=$head ROW_RUN=$RUN_ID ROW_SELECTION_RUN=$selection_run \
-  ROW_OUTCOMES_RUN=$outcomes_run ROW_SHARDS=$FORWARD_SHARDS ROW_EPOCH=$FORWARD_EPOCH \
+  ROW_OUTCOMES_RUN=$outcomes_run ROW_SHARDS=$FORWARD_SHARDS ROW_EPOCH=$epoch \
   ROW_SELECTION_DIR="$dir/selection" ROW_OUTCOMES_DIR="$dir/outcomes" ROW_NARROWING_DIR="$dir/narrowing" ROW_REUSE=$reuse ROW_COLLECT=$collect ROW_INFRA=$infra \
   ROW_COSTS="$here/../cishards/package-costs.json" sh "$here/classify.sh" "$dir/row.json")
 case "$class" in CLEAN | FLAKY | MISS | INCOMPLETE | INFRA | NARROWED) ;; *) class=INCOMPLETE ;; esac
@@ -224,7 +236,7 @@ row_sha=$(jq -r '.sha // empty' "$dir/row.json" 2> /dev/null) || row_sha=""
 hex40 "$row_sha" || row_sha=$HEAD_SHA
 failing=$(jq -r 'if (.counts.failed // 0) > 0 then 1 else 0 end' "$dir/row.json" 2> /dev/null) || failing=0
 [ "$failing" = 1 ] || failing=0
-name="ci-forward-$class-pr$pr-$row_sha-e$FORWARD_EPOCH-f$failing"
+name="ci-forward-$class-pr$pr-$row_sha-e$epoch-f$failing"
 echo "name=$name" >> "$GITHUB_OUTPUT"
 # AFP-V0-483: a complete row also names its shadow cost, so the bar can aggregate it from artifact
 # names alone: each selector's share of Full in permille (or na) and whether it missed (1, 0 or n).
@@ -238,7 +250,7 @@ CLEAN | FLAKY | MISS)
       | "s\($c.selection | slot)-b\($c.changed | slot)-c\($c.hop1 | slot)-d\($c.hop2 | slot)-m\([$c.selection, $c.changed, $c.hop1, $c.hop2] | map(miss) | join(""))"' \
     "$dir/row.json" 2> /dev/null) || cost=""
   if printf '%s' "$cost" | grep -Eqx 's([0-9]{4}|na)-b([0-9]{4}|na)-c([0-9]{4}|na)-d([0-9]{4}|na)-m[01n]{4}'; then
-    echo "cost=ci-forward-cost-pr$pr-$row_sha-e$FORWARD_EPOCH-$class-f$failing-$cost" >> "$GITHUB_OUTPUT"
+    echo "cost=ci-forward-cost-pr$pr-$row_sha-e$epoch-$class-f$failing-$cost" >> "$GITHUB_OUTPUT"
   fi
   ;;
 esac

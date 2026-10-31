@@ -136,7 +136,7 @@ jobs:
     env:
       # Must equal the go-product-shard matrix length and CORVINT_PR_FORWARD_EPOCH in ci.yml.
       FORWARD_SHARDS: "8"
-      FORWARD_EPOCH: "1"
+      FORWARD_EPOCH: "2"
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:

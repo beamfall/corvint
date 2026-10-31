@@ -367,3 +367,24 @@ func TestAFPV0812NamesTheNarrowedRecordOfAMovedBase(t *testing.T) {
 		t.Fatalf("failed run: delta = %+v", d.Delta)
 	}
 }
+
+// TestCINV0005PushNeverReusesANarrowedQueueRecord (V1-3158, Codex P1): a main push reuses only a
+// merge-queue run that recorded its tree FULL. A narrowed queue record is refused even when it
+// names this exact tree, target, base, head and shard count, so the full push stays the backstop
+// for any package both narrowed selections omitted; the queue run's full record is still reused.
+func TestCINV0005PushNeverReusesANarrowedQueueRecord(t *testing.T) {
+	good := narrowedLog(testTree, testTarget, testBase, testHead, 4)
+	narrowed := evidence{jobs: map[int64][]job{}, logs: map[int64]string{}}
+	narrowed.jobs[11] = append(shardJobs(11, testTarget, 4), job{ID: 110, RunID: 11, Name: NarrowedRecordJob, HeadSHA: testTarget, Status: "completed", Conclusion: "success"})
+	narrowed.logs[110] = good
+	for _, base := range []string{"", testBase} {
+		if d := Decide(testRepo, "push", testTree, testHead, testTarget, base, 4, []run{passedQueueRun(11)}, narrowed.listJobs, narrowed.readLog); d.Mode != "FULL" || d.RunID != nil || d.Delta != nil {
+			t.Errorf("base %q: a narrowed queue record was reused for a push: %+v", base, d)
+		}
+	}
+	narrowed.jobs[11] = append(narrowed.jobs[11], job{ID: 111, RunID: 11, Name: RecordJob, HeadSHA: testTarget, Status: "completed", Conclusion: "success"})
+	narrowed.logs[111] = recordLog(testTree, testTarget, testHead, 4)
+	if d := Decide(testRepo, "push", testTree, testHead, testTarget, "", 4, []run{passedQueueRun(11)}, narrowed.listJobs, narrowed.readLog); d.Mode != "REUSE" || d.Scope != "FULL" || d.RecordJobID == nil || *d.RecordJobID != 111 {
+		t.Fatalf("the queue run's full record: decision = %+v, want REUSE FULL", d)
+	}
+}

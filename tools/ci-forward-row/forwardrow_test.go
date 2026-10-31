@@ -146,6 +146,14 @@ func prFixture(t *testing.T) *fixture {
 	return f
 }
 
+// stampEpoch stamps every selection document with the forwardEpoch its producing run wrote
+// (CIN-V0-001); the retained documents predate the field.
+func (f *fixture) stampEpoch(epoch any) {
+	for _, d := range f.sel {
+		d["forwardEpoch"] = epoch
+	}
+}
+
 func (f *fixture) write(t *testing.T, dir string) (selDir, outDir string) {
 	selDir, outDir = filepath.Join(dir, "selection"), filepath.Join(dir, "outcomes")
 	for k, d := range f.sel {
@@ -654,6 +662,18 @@ func TestAFPV0047SelectionDocument(t *testing.T) {
 		d["manifestDigest"] != nil || d["manifestUnits"] != nil {
 		t.Fatalf("empty dry-run selection = %v", d)
 	}
+	if _, ok := d["forwardEpoch"]; ok {
+		t.Fatalf("a document produced without --arg forwardEpoch carries one: %v", d)
+	}
+	// CIN-V0-001: the producing run's CORVINT_PR_FORWARD_EPOCH is stamped as a number.
+	got = run(t, nil, "jq", append([]string{"--arg", "forwardEpoch", "2"}, args(empty, empty, want)...)...)
+	d = nil
+	if err := json.Unmarshal([]byte(got), &d); err != nil {
+		t.Fatal(err)
+	}
+	if d["forwardEpoch"] != float64(2) {
+		t.Fatalf("stamped selection forwardEpoch = %#v, want 2", d["forwardEpoch"])
+	}
 }
 
 // fakeGH writes a gh stand-in that answers collect.sh and bar.sh from DIR: the commit,
@@ -667,6 +687,8 @@ func fakeGH(t *testing.T, dir string) string {
 set -eu
 d='`+dir+`'
 if [ "$1" = api ]; then
+  # CIN-V0-004: every API path read, for the request counts.
+  printf '%s\n' "$2" >> "$d/requests"
   case "$2" in
   */commits/*) [ "$3" = --jq ]; jq -r "$4" "$d/commit.json" ;;
   */compare/*) [ "$3" = --jq ]; f="$d/compare-${2##*/}.json"; [ -f "$f" ] || f="$d/compare.json"; jq -r "$4" "$f" ;;
@@ -723,8 +745,15 @@ func TestAFPV0047CollectorNamesRows(t *testing.T) {
 	eventBase := mainBase
 	var comparisons map[string]doc
 	parents := []any{doc{"sha": mainBase}, doc{"sha": prHead}}
+	// CIN-V0-001: producerEpoch is the forwardEpoch stamped into each selection document (nil
+	// keeps the documents as retained, without one); collectorEpoch is the collector's FORWARD_EPOCH.
+	var producerEpoch any = 1
+	collectorEpoch := "1"
 	collect := func(t *testing.T, f *fixture, runID, event, branch, pr string, reuse doc) result {
 		dir := t.TempDir()
+		if producerEpoch != nil {
+			f.stampEpoch(producerEpoch)
+		}
 		gh := fakeGH(t, dir)
 		writeDoc(t, filepath.Join(dir, "commit.json"), doc{"parents": parents})
 		writeDoc(t, filepath.Join(dir, "compare.json"), doc{"files": changed, "status": "identical"})
@@ -784,7 +813,7 @@ func TestAFPV0047CollectorNamesRows(t *testing.T) {
 		cmd := exec.Command("sh", script(t, "collect.sh"))
 		cmd.Env = []string{"PATH=" + gh + string(os.PathListSeparator) + os.Getenv("PATH"), "HOME=" + dir,
 			"GH_TOKEN=x", "REPO=beamfall/corvint", "RUN_ID=" + runID, "EVENT=" + event, "HEAD_SHA=" + head,
-			"HEAD_BRANCH=" + branch, "PR_NUMBER=" + pr, "PR_BASE_SHA=" + eventBase, "FORWARD_SHARDS=8", "FORWARD_EPOCH=1",
+			"HEAD_BRANCH=" + branch, "PR_NUMBER=" + pr, "PR_BASE_SHA=" + eventBase, "FORWARD_SHARDS=8", "FORWARD_EPOCH=" + collectorEpoch,
 			"RUNNER_TEMP=" + temp, "GITHUB_OUTPUT=" + output, "GITHUB_STEP_SUMMARY=" + summary}
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("collect.sh: %v\n%s", err, out)
@@ -963,6 +992,46 @@ func TestAFPV0047CollectorNamesRows(t *testing.T) {
 		t.Fatalf("mixed targets: %+v", r)
 	}
 
+	// CIN-V0-001 (Codex P2): the row's epoch is its producing run's, never the collector's. The
+	// retained artifacts, produced before any run stamped an epoch, replayed under collector
+	// epoch 2 write no row, as do an epoch-1 producer, a mixed or malformed stamp, and a run
+	// whose selection is missing; none is counted toward epoch 2, not even as INCOMPLETE.
+	t.Run("producer epoch names the row", func(t *testing.T) {
+		defer func() { producerEpoch, collectorEpoch = 1, "1" }()
+		collectorEpoch = "2"
+		excluded := func(name string, f *fixture, runID, event, branch, pr string, reuse doc) {
+			t.Helper()
+			if r := collect(t, f, runID, event, branch, pr, reuse); r.name != "" || r.cost != "" ||
+				!strings.Contains(r.summary, "stamped no single forward epoch") {
+				t.Errorf("%s: row %q cost %q\n%s", name, r.name, r.cost, r.summary)
+			}
+		}
+		for name, epoch := range map[string]any{"retained, unstamped": nil, "epoch 1": 1, "epoch \"2\"": "2", "epoch 2.5": 2.5, "epoch -2": -2} {
+			producerEpoch = epoch
+			excluded(name+" queue", queueFixture(t), queueRun, "merge_group", queueBranch, "", full)
+			excluded(name+" pull request", prFixture(t), prRun, "pull_request", "claude/x", "868", nil)
+		}
+		producerEpoch = nil
+		f := queueFixture(t)
+		for k, d := range f.sel {
+			d["forwardEpoch"] = 2
+			if k == 3 {
+				d["forwardEpoch"] = 1
+			}
+		}
+		excluded("mixed", f, queueRun, "merge_group", queueBranch, "", full)
+		f = queueFixture(t)
+		f.sel = map[int]doc{}
+		excluded("no selection", f, queueRun, "merge_group", queueBranch, "", full)
+		producerEpoch = 2
+		if r := collect(t, queueFixture(t), queueRun, "merge_group", queueBranch, "", full); r.name != "ci-forward-CLEAN-pr868-"+queueSHA+"-e2-f0" ||
+			!strings.HasPrefix(r.cost, "ci-forward-cost-pr868-"+queueSHA+"-e2-CLEAN-f0-") {
+			t.Fatalf("epoch-2 producer: row %q cost %q\n%s", r.name, r.cost, r.summary)
+		}
+		// An epoch-2 producer read by a collector still on epoch 1 is not relabelled either.
+		collectorEpoch = "1"
+		excluded("epoch-2 producer, collector 1", queueFixture(t), queueRun, "merge_group", queueBranch, "", full)
+	})
 }
 
 func TestAFPV0047BarCountsArtifactNames(t *testing.T) {
@@ -1126,6 +1195,10 @@ func TestAFPV0047WorkflowBindings(t *testing.T) {
 		!strings.Contains(shadow, `sh .github/forward-rows/tiers.sh "$PR_BASE" "$TESTED_MERGE" "$d/tiers.json" || true`) ||
 		!strings.Contains(shadow, `--slurpfile tiers "$d/tiers.json"`) {
 		t.Fatalf("the shadow step does not plan with the shadow-pinned binary into selection.json")
+	}
+	// CIN-V0-001: the producing run stamps its own epoch, the one that names its rows.
+	if !strings.Contains(shadow, `--arg forwardEpoch "$CORVINT_PR_FORWARD_EPOCH"`) {
+		t.Fatalf("the shadow step does not stamp CORVINT_PR_FORWARD_EPOCH into selection.json")
 	}
 	for _, want := range []string{"name: ci-outcomes-${{ github.event_name }}-${{ strategy.job-index }}",
 		"sh .github/forward-rows/outcomes.sh first", "sh .github/forward-rows/outcomes.sh rerun",

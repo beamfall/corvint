@@ -547,12 +547,24 @@ batch-push-check:
 batch-precheck-test:
 	@script/batch-precheck_test.sh
 
-# ai-coauthor-trailers-check [DOGFOOD_BASE=<sha>] refuses, naming each commit, when base..HEAD
-# (default origin/main..HEAD) has a Co-authored-by trailer for an AI agent; make batch-precheck runs
-# it as a step. script/check-ai-coauthor-trailers.sh --install-hook refuses one before the commit
+# ai-coauthor-trailers-check DOGFOOD_BASE=<sha> refuses, naming each commit, when base..HEAD has a
+# Co-authored-by trailer for an AI agent; make batch-precheck runs the script as a step. script/check-ai-coauthor-trailers.sh --install-hook refuses one before the commit
 # exists (ASD-V0-560, V1-3227).
+# CIN-V0-006: the doc-gates job of ci.yml runs it on a pull request with BASE_SHA set to the pull
+# request's base. A pull request without BASE_SHA fails; any other CI run without BASE_SHA (a
+# merge-queue run or a push) or a tree without the check script says so and passes. With
+# DOGFOOD_BASE set it checks DOGFOOD_BASE..HEAD; batch-precheck calls the script directly.
+.PHONY: ai-coauthor-trailers-check
 ai-coauthor-trailers-check:
-	@script/check-ai-coauthor-trailers.sh $(if $(DOGFOOD_BASE),'$(DOGFOOD_BASE)')
+	@if [ -n "$(DOGFOOD_BASE)" ]; then \
+	  script/check-ai-coauthor-trailers.sh $(if $(DOGFOOD_BASE),'$(DOGFOOD_BASE)'); \
+	elif [ -z "$${BASE_SHA-}" ] && [ "$${GITHUB_EVENT_NAME-}" = pull_request ]; then \
+	  echo 'CIN-V0-006: a pull request run has no BASE_SHA; the trailer check cannot run' >&2; exit 1; \
+	elif [ -z "$${BASE_SHA-}" ]; then \
+	  echo 'CIN-V0-006: no BASE_SHA (not a pull request); the trailer check is skipped.'; \
+	elif [ ! -f script/check-ai-coauthor-trailers.sh ]; then \
+	  echo 'CIN-V0-006: this tree has no script/check-ai-coauthor-trailers.sh; the trailer check is skipped.'; \
+	else bash script/check-ai-coauthor-trailers.sh "$$BASE_SHA" HEAD; fi
 
 ai-coauthor-trailers-test:
 	@script/check-ai-coauthor-trailers_test.sh
