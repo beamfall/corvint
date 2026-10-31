@@ -585,7 +585,8 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
 - `CEM-V1-644`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2809)
   `corvint cem defer --map MAP --intent PATH --reason TEXT` MUST read a `cem/1.0` map, look up
   PATH at the map's base revision (a non-file there refuses), count PATH's worktree obligations
-  with the host's intent counter (the `OCM-V0-001` Requirements rule in `corvint`), and merge the
+  with the host's intent counter (the `OCM-V0-001` Requirements rule in `corvint`, without the
+  per-map OCM obligation bound, so an intent too large to declare can still be deferred), and merge the
   entry into the worktree's one record absent at base, replacing an entry for the same path. It
   publishes the new content-named record, removes the record it replaced and prints
   `{"ok":true,"mutates":true,"tool":"cem-defer","profile",...,"record","deferredIntents","count"}`.
@@ -5315,7 +5316,7 @@ on the change.
 | Requirement | Test | Evidence |
 | --- | --- | --- |
 | CEM-V1-643 | `TestCEMV1643DeferredIntentsRecordEncoding` (`internal/cem/workflow`) | Exact canonical bytes, round trip and content name; pretty, unterminated, unknown-member, missing-member, wrong-profile and empty records, and unsorted, duplicate, five-entry, multi-line or over-long reason, zero-count, reserved-path and unclean-path entries refuse |
-| CEM-V1-644 | `TestCEMV1644To646DeferRecordsAndStatusChecks` (`internal/cem/workflow`); `TestAnchorActionsParseLikeTheirSiblings` (`internal/cem/cli`) | `defer` publishes the content-named record, replaces it on a second call, and refuses with no counter; the CLI parses `defer` and its required flags |
+| CEM-V1-644 | `TestCEMV1644To646DeferRecordsAndStatusChecks` (`internal/cem/workflow`); `TestAnchorActionsParseLikeTheirSiblings` (`internal/cem/cli`); `TestCEMV1644CounterAdmitsAnIntentOverTheOCMBound` (`cmd/corvint`) | `defer` publishes the content-named record, replaces it on a second call, and refuses with no counter; the CLI parses `defer` and its required flags; the installed counter counts 257 obligations, one over the OCM bound, and still refuses a non-intent |
 | CEM-V1-645 | `TestCEMV1644To646DeferRecordsAndStatusChecks`, `TestCEMV1645StatusRefusesMisnamedAndMismatchedRecords` (`internal/cem/workflow`) | Default bound exits 1 `exceed-bound`; `--max-deferred-intents 1` is `within-bound`; no counter is `NOT_CHECKED`; a miscounted record, a misnamed record and a wrong base blob refuse; verify refuses the flag; a change without a record has no member |
 | CEM-V1-646 | `TestCEMV1644To646DeferRecordsAndStatusChecks` (`internal/cem/workflow`) | JSON `review.deferredIntents` within bound; `recordSetSha256` excludes the member; the preview Markdown renders the section, the entry, the reason and the bound issue |
 
