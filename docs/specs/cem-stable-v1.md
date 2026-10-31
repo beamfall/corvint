@@ -461,7 +461,9 @@ An agent and an independent reviewer can follow a changed Git hunk to its govern
   --any-of --record`). The closed record names a reason, the RFC 6901 pointer of the node (object
   members only), the SHA-256 of the node's compact JSON and the branch, a JSON object schema. The
   tool MUST refuse before any write: an unknown record member, an empty reason, a root or
-  array-crossing pointer, a missing member, a node that is not an object, an `anyOf` node with any
+  array-crossing pointer, a missing member, a pointer whose last member is a map of schemas
+  (`$defs`, `definitions`, `properties`, `patternProperties` or `dependentSchemas`, since wrapping
+  that map breaks the references into it), a node that is not an object, an `anyOf` node with any
   other keyword, a predecessor digest that differs, a branch that is not a non-empty object, and a
   branch whose compact JSON equals an existing alternative. It MUST rewrite a node that is not yet
   exactly `{"anyOf": [...]}` as `{"anyOf": [OLD, BRANCH]}` with the old bytes kept and only
