@@ -60,7 +60,7 @@ case $last in
   'LIFECYCLE_PASSED cases='*' binary=SUPPLIED suite=SUPPLIED '*) ;;
   *) fail "clean run over supplied inputs ended '$last'" ;;
 esac
-grep -q '"pass": false' "$test_root/clean/results.jsonl" && fail "clean run retained a failed case"
+jq -e 'select(.pass != true)' "$test_root/clean/results.jsonl" >/dev/null && fail "clean run retained a failed case"
 
 status=0
 QUALIFY_TASKS_BASIC_TAMPER=claim-replay \
@@ -68,15 +68,16 @@ QUALIFY_TASKS_BASIC_TAMPER=claim-replay \
   >"$test_root/tamper.out" 2>&1 || status=$?
 [ "$status" -eq 1 ] || fail "tampered run exited $status, want 1"
 grep -q '^FAIL case=claim-replay ' "$test_root/tamper.out" || fail "tampered case not reported FAIL"
-[ "$(grep -c '"pass": false' "$test_root/tamper/results.jsonl")" -eq 1 ] || fail "tamper failed other cases"
-grep -q '"case": "claim-before-cutover".*"pass": true' "$test_root/tamper/results.jsonl" || fail "cutover-missing reachability case did not pass"
-grep -q '"case": "init-nonfixture".*"pass": true' "$test_root/tamper/results.jsonl" || fail "non-fixture reachability case did not pass"
+[ "$(jq -s 'map(select(.pass != true)) | length' "$test_root/tamper/results.jsonl")" -eq 1 ] || fail "tamper failed other cases"
+jq -e 'select(.case == "claim-before-cutover" and .pass == true)' "$test_root/tamper/results.jsonl" >/dev/null || fail "cutover-missing reachability case did not pass"
+jq -e 'select(.case == "init-nonfixture" and .pass == true)' "$test_root/tamper/results.jsonl" >/dev/null || fail "non-fixture reachability case did not pass"
 tail -n 1 "$test_root/tamper.out" | grep -q '^FAILED cases=[0-9]* failed=1$' || fail "tampered run summary not FAILED"
 
 # TBS-V1-452: a refusal that exits 0, or an envelope of another profile, fails its case.
 real=$test_root/corvint-tasks
 printf '#!/bin/sh\n"%s" "$@"\nexit 0\n' "$real" >"$test_root/exit0-tasks"
-printf '#!/bin/sh\nset -o pipefail 2>/dev/null || :\n"%s" "$@" | sed "s#taskman-command-result/0#taskman-command-result/1#"\n' "$real" >"$test_root/profile1-tasks"
+# bash, not sh: dash exits 2 on `set -o pipefail` even behind `|| :` (V1-3055).
+printf '#!/usr/bin/env bash\nset -o pipefail\n"%s" "$@" | sed "s#taskman-command-result/0#taskman-command-result/1#"\n' "$real" >"$test_root/profile1-tasks"
 chmod +x "$test_root/exit0-tasks" "$test_root/profile1-tasks"
 for wrap in exit0 profile1; do
   status=0
@@ -85,5 +86,24 @@ for wrap in exit0 profile1; do
   [ "$status" -eq 1 ] || fail "$wrap run exited $status, want 1"
   grep -q '^FAIL case=claim-before-cutover ' "$test_root/$wrap.out" || fail "$wrap run passed the cutover refusal"
 done
+
+# An empty version item list fails with a named reason before any case, never as version:null.
+printf '#!/bin/sh\nif [ "$1" = version ]; then echo %s; exit 0; fi\nexec "%s" "$@"\n' "'{\"items\":[]}'" "$real" >"$test_root/emptyver-tasks"
+# A non-array codes field is UNPARSED: the case is recorded and the run ends FAILED, not a jq abort.
+printf '#!/usr/bin/env bash\nset -o pipefail\nif [ "$1 $2" = "queue status" ]; then "%s" "$@" | jq -c ".codes = 7"; exit; fi\nexec "%s" "$@"\n' "$real" "$real" >"$test_root/badcodes-tasks"
+chmod +x "$test_root/emptyver-tasks" "$test_root/badcodes-tasks"
+status=0
+"$qualify" "$test_root/emptyver" --tasks-binary "$test_root/emptyver-tasks" --suite-run "$test_root/suite.jsonl" \
+  >"$test_root/emptyver.out" 2>&1 || status=$?
+[ "$status" -eq 1 ] || fail "empty version items exited $status, want 1"
+grep -q '^FAIL case=version: corvint-tasks version printed no items\[0\] object' "$test_root/emptyver.out" || fail "empty version items not named"
+[ ! -e "$test_root/emptyver/identity.json" ] || fail "identity written for empty version items"
+status=0
+"$qualify" "$test_root/badcodes" --tasks-binary "$test_root/badcodes-tasks" --suite-run "$test_root/suite.jsonl" \
+  >"$test_root/badcodes.out" 2>&1 || status=$?
+[ "$status" -eq 1 ] || fail "non-array codes exited $status, want 1"
+jq -e 'select(.case == "init-nonfixture" and .outcome == "UNPARSED" and .pass == false)' \
+  "$test_root/badcodes/results.jsonl" >/dev/null || fail "non-array codes case not recorded UNPARSED"
+tail -n 1 "$test_root/badcodes.out" | grep -q '^FAILED cases=[0-9]* failed=1$' || fail "non-array codes run summary not FAILED"
 
 echo "PASS: qualify-tasks-basic refusals, supplied-input labelling, exit and profile checks, tamper injection"

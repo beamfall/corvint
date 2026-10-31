@@ -50,7 +50,6 @@ results=$out/results.jsonl
 : >"$results"
 
 sha256() { shasum -a 256 "$1" | cut -d' ' -f1; }
-pyjson() { python3 -I -c "$@"; }
 
 # Identity: source, toolchain, binary.
 src_commit=$(git -C "$source_root" rev-parse HEAD)
@@ -67,6 +66,10 @@ else
 fi
 tasks=$out/bin/corvint-tasks
 "$tasks" version >"$out/version.json"
+# The identity records items[0]; an empty or non-object first item fails here, never as version:null.
+jq -e '(.items | type) == "array" and (.items[0] | type) == "object"' "$out/version.json" >/dev/null 2>&1 ||
+  { echo "FAIL case=version: corvint-tasks version printed no items[0] object in $out/version.json" >&2
+    echo "FAILED cases=0 failed=1"; exit 1; }
 
 # The CAL-V0-019 suite.
 suite_source=RUN
@@ -94,9 +97,14 @@ if grep -q '"Action":"fail"' "$out/cal019.jsonl"; then
   echo "FAIL case=cal019-suite: the run has a fail event" >&2; echo "FAILED cases=0 failed=1"; exit 1
 fi
 
-pyjson 'import json,sys; print(json.dumps({"profile":"tasks-basic-qualification-identity/0","sourceCommit":sys.argv[1],"sourceTree":sys.argv[2],"sourceDirty":sys.argv[3]=="true","goVersion":sys.argv[4],"binary":{"source":sys.argv[5],"sha256":sys.argv[6],"version":{k:v for k,v in json.load(open(sys.argv[7]))["items"][0].items() if k!="formats"}},"suite":{"source":sys.argv[8],"sha256":sys.argv[9],"tests":sys.argv[10].split()},"host":{"os":sys.argv[11],"arch":sys.argv[12]}},sort_keys=True))' \
-  "$src_commit" "$src_tree" "$src_dirty" "$go_version" "$binary_source" "$(sha256 "$tasks")" "$out/version.json" \
-  "$suite_source" "$(sha256 "$out/cal019.jsonl")" "$suite_names" "$(uname -s)" "$(uname -m)" >"$out/identity.json"
+jq -cnS --arg commit "$src_commit" --arg tree "$src_tree" --arg dirty "$src_dirty" --arg go "$go_version" \
+  --arg bsrc "$binary_source" --arg bsha "$(sha256 "$tasks")" --slurpfile ver "$out/version.json" \
+  --arg ssrc "$suite_source" --arg ssha "$(sha256 "$out/cal019.jsonl")" --arg tests "$suite_names" \
+  --arg os "$(uname -s)" --arg arch "$(uname -m)" \
+  '{profile:"tasks-basic-qualification-identity/0",sourceCommit:$commit,sourceTree:$tree,sourceDirty:($dirty=="true"),
+    goVersion:$go,binary:{source:$bsrc,sha256:$bsha,version:($ver[0].items[0]|del(.formats))},
+    suite:{source:$ssrc,sha256:$ssha,tests:($tests|[splits("[[:space:]]+")|select(.!="")])},host:{os:$os,arch:$arch}}' \
+  >"$out/identity.json"
 
 # A disposable non-fixture queue from the maintained external-agent templates. The required gate
 # is a real command: it passes exactly when the candidate tree holds a/PASS.
@@ -130,46 +138,43 @@ check() {
   (cd "$repo" && "$tasks" "$@") >"$last" 2>"$out/last.err" || status=$?
   cases=$((cases + 1))
   local verdict
-  verdict=$(pyjson '
-import json,sys
-name,want_o,want_c,want_f,status,path=sys.argv[1:7]
-argv=sys.argv[7:]
-try:
-    d=json.load(open(path)); outcome=d.get("outcome"); codes=sorted(d.get("codes") or [])
-    item=(d.get("items") or [{}])[0]
-except Exception as e:
-    d=None; outcome="UNPARSED"; codes=[]; item={}
-profile=(d or {}).get("profile")
-field_ok=True; observed_field=None
-if want_f:
-    k,v=want_f.split("=",1); cur=item
-    for part in k.split("."):
-        cur=cur.get(part) if isinstance(cur,dict) else None
-    observed_field=cur; field_ok=json.dumps(cur)==v or str(cur)==v
-want=sorted(c for c in want_c.split(",") if c)
+  verdict=$(jq -cnS --rawfile raw "$last" --arg name "$name" --arg want_o "$want_outcome" --arg want_c "$want_codes" \
+    --arg want_f "$want_field" --argjson status "$status" '
+# A non-object envelope, or a codes, items or warnings field that is not an array, is UNPARSED and
+# fails its case through the normal path rather than stopping jq.
+($raw | try fromjson catch null
+  | if type == "object" and all(.codes, .items, .warnings; . == null or type == "array") then . else null end) as $d
+| (if $d == null then "UNPARSED" else $d.outcome end) as $outcome
+| (($d.codes // []) | sort) as $codes
+| ((($d.items // [])[0]) // {}) as $item
+| (if $want_f == "" then {ok: true, cur: null} else
+     ($want_f | index("=")) as $i | $want_f[$i + 1:] as $v
+     | (reduce ($want_f[:$i] | split("."))[] as $p ($item; if type == "object" then .[$p] else null end)) as $cur
+     | {ok: (($cur | tojson) == $v or (($cur | type) == "string" and $cur == $v)), cur: $cur} end) as $field
+| ($want_c | split(",") | map(select(. != "")) | sort) as $want
 # TBS-V1-452: one taskman-command-result/0 envelope; OK exits 0 and every other outcome exits 1.
-want_exit=0 if want_o=="OK" else 1
-ok=(profile=="taskman-command-result/0" and outcome==want_o and codes==want and field_ok
-    and int(status)==want_exit)
-print(json.dumps({"case":name,"argv":argv,"exit":int(status),"profile":profile,"outcome":outcome,"codes":codes,
-  "expected":{"profile":"taskman-command-result/0","exit":want_exit,"outcome":want_o,"codes":want,"field":want_f or None},
-  "observedField":observed_field,
-  "warnings":[w for w in (d or {}).get("warnings",[]) if "actor binding" not in w],"pass":ok},sort_keys=True))
-' "$name" "$want_outcome" "$want_codes" "$want_field" "$status" "$last" "$@")
+| (if $want_o == "OK" then 0 else 1 end) as $want_exit
+| {case: $name, argv: $ARGS.positional, exit: $status, profile: $d.profile, outcome: $outcome, codes: $codes,
+   expected: {profile: "taskman-command-result/0", exit: $want_exit, outcome: $want_o, codes: $want,
+     field: (if $want_f == "" then null else $want_f end)},
+   observedField: $field.cur,
+   warnings: [($d.warnings // [])[] | select(tostring | contains("actor binding") | not)],
+   pass: ($d.profile == "taskman-command-result/0" and $outcome == $want_o and $codes == $want and $field.ok
+     and $status == $want_exit)}
+' --args -- "$@")
   printf '%s\n' "$verdict" >>"$results"
-  if [[ $verdict == *'"pass": true'* ]]; then
+  if jq -e .pass <<<"$verdict" >/dev/null; then
     echo "PASS case=$name"
   else
     failed=$((failed + 1))
-    echo "FAIL case=$name $(pyjson 'import json,sys; v=json.loads(sys.argv[1]); print("observed",v["profile"],v["exit"],v["outcome"],v["codes"],v["observedField"],"expected",v["expected"])' "$verdict")"
+    echo "FAIL case=$name $(jq -r '"observed \(.profile) \(.exit) \(.outcome) \(.codes) \(.observedField) expected \(.expected)"' <<<"$verdict")"
   fi
 }
-item() { pyjson 'import json,sys; d=json.load(open(sys.argv[1])); print((d.get("items") or [{}])[0].get(sys.argv[2]) or "")' "$last" "$1"; }
+item() { jq -r --arg k "$1" '((.items // [])[0] // {})[$k] // ""' "$last"; }
 payload() {
-  pyjson 'import json,sys
-p=json.load(open(sys.argv[1])); p["source"]["sourceQueueId"]="queue:qual:main"; p["title"]=sys.argv[2]
-p["effects"]={"coverage":"QUALIFIED","externalUnbounded":False,"resources":[],"touchPaths":[sys.argv[3]]}
-print(json.dumps(p))' "$templates/ticket-create.json" "$1" "$2"
+  jq -c --arg title "$1" --arg path "$2" '.source.sourceQueueId = "queue:qual:main" | .title = $title
+    | .effects = {coverage: "QUALIFIED", externalUnbounded: false, resources: [], touchPaths: [$path]}' \
+    "$templates/ticket-create.json"
 }
 at=2026-10-30T00:00:00Z
 

@@ -13,7 +13,10 @@ import (
 // GATE_PASSED and self edges).
 type Inventory struct {
 	QueueID wire.QueueID
-	byID    map[string]*Record
+	byID    map[string]*Record     // records held whole
+	sum     map[string]*Summary    // every ticket, whole or lazy
+	lazy    map[string]*lazyRecord // closed tickets loaded on first Get
+	load    Loader
 	ids     []string
 	inCycle map[string][]string // ticketId → sorted members of its strongly connected component
 }
@@ -24,35 +27,16 @@ type Inventory struct {
 // the inventory: they are reported per ticket by Problems, because a queue
 // with one bad edge must still be listable.
 func NewInventory(queue wire.QueueID, records []*Record) (*Inventory, error) {
-	if len(records) > wire.MaxTicketsPerQueue {
-		return nil, wire.Errorf(wire.CodeLimitExceeded, "/", "more than %d tickets in queue", wire.MaxTicketsPerQueue)
-	}
-	inv := &Inventory{QueueID: queue, byID: map[string]*Record{}, inCycle: map[string][]string{}}
-	folded := map[string]string{}
-	for _, r := range records {
-		if r.TicketID.QueueID() != queue.Raw {
-			return nil, wire.Errorf(wire.CodeMalformed, "/ticketId", "ticket %s is outside queue %s", r.TicketID.Raw, queue.Raw)
-		}
-		if _, dup := inv.byID[r.TicketID.Raw]; dup {
-			return nil, wire.Errorf(wire.CodeDuplicateID, "/ticketId", "duplicate ticket %s", r.TicketID.Raw)
-		}
-		f := wire.FoldToken(r.TicketID.Local)
-		if other, dup := folded[f]; dup {
-			return nil, wire.Errorf(wire.CodeDuplicateID, "/ticketId", "local tokens %q and %q collide under ASCII case folding", other, r.TicketID.Local)
-		}
-		folded[f] = r.TicketID.Local
-		inv.byID[r.TicketID.Raw] = r
-		inv.ids = append(inv.ids, r.TicketID.Raw)
-	}
-	sort.Strings(inv.ids)
-	inv.findCycles()
-	return inv, nil
+	return NewLazyInventory(queue, records, nil, nil)
 }
 
-// Get returns a record by ID.
+// Get returns a record by ID, loading a lazily held one; a load failure
+// panics with MaterializeError.
 func (inv *Inventory) Get(id string) (*Record, bool) {
-	r, ok := inv.byID[id]
-	return r, ok
+	if r, ok := inv.byID[id]; ok {
+		return r, true
+	}
+	return inv.materialize(id)
 }
 
 // IDs returns every ticket ID in byte order.
@@ -83,12 +67,12 @@ func (inv *Inventory) findCycles() {
 		stack = append(stack, v)
 		onStack[v] = true
 		self := false
-		for _, d := range inv.byID[v].Dependencies {
+		for _, d := range inv.sum[v].Dependencies {
 			w := d.TicketID.Raw
 			if w == v {
 				self = true
 			}
-			if _, ok := inv.byID[w]; !ok {
+			if _, ok := inv.sum[w]; !ok {
 				continue
 			}
 			if _, seen := indices[w]; !seen {
@@ -156,13 +140,13 @@ type Problem struct {
 // Problems returns the TM-V0-005 structural problems of one ticket: missing
 // dependencies and cycle membership.
 func (inv *Inventory) Problems(id string) []Problem {
-	r, ok := inv.byID[id]
+	r, ok := inv.sum[id]
 	if !ok {
 		return nil
 	}
 	var out []Problem
 	for _, d := range r.Dependencies {
-		if _, ok := inv.byID[d.TicketID.Raw]; !ok {
+		if _, ok := inv.sum[d.TicketID.Raw]; !ok {
 			out = append(out, Problem{Code: wire.CodeDependencyMissing, TicketID: d.TicketID.Raw, Detail: "dependency " + d.TicketID.Raw + " does not exist in the queue"})
 		}
 	}
@@ -184,7 +168,7 @@ func (inv *Inventory) CheckDependencies(proposed *Record) error {
 		if d.TicketID.Raw == proposed.TicketID.Raw {
 			return wire.Errorf(wire.CodeCycle, where, "ticket depends on itself")
 		}
-		if _, ok := inv.byID[d.TicketID.Raw]; !ok {
+		if _, ok := inv.sum[d.TicketID.Raw]; !ok {
 			return wire.Errorf(wire.CodeDependencyMissing, where, "dependency %s does not exist in the queue", d.TicketID.Raw)
 		}
 	}
@@ -206,7 +190,7 @@ func (inv *Inventory) CheckDependencies(proposed *Record) error {
 			continue
 		}
 		visited[v] = true
-		rec, ok := inv.byID[v]
+		rec, ok := inv.sum[v]
 		if !ok {
 			continue
 		}
@@ -222,7 +206,7 @@ func (inv *Inventory) CheckDependencies(proposed *Record) error {
 func (inv *Inventory) CheckLocalToken(local string) error {
 	f := wire.FoldToken(local)
 	for _, id := range inv.ids {
-		if wire.FoldToken(inv.byID[id].TicketID.Local) == f {
+		if wire.FoldToken(inv.sum[id].TicketID.Local) == f {
 			return wire.Errorf(wire.CodeDuplicateID, "/ticketId", "local token %q collides with %s under ASCII case folding", local, id)
 		}
 	}
@@ -234,7 +218,7 @@ func (inv *Inventory) CheckLocalToken(local string) error {
 func (inv *Inventory) Sorted() []string {
 	ids := inv.IDs()
 	sort.SliceStable(ids, func(i, j int) bool {
-		a, b := inv.byID[ids[i]], inv.byID[ids[j]]
+		a, b := inv.sum[ids[i]], inv.sum[ids[j]]
 		if a.Priority != b.Priority {
 			return a.Priority < b.Priority
 		}
@@ -257,7 +241,7 @@ type UnmetDependency struct {
 // id that are neither COMPLETED nor ARCHIVED from COMPLETED (the §3.1 test),
 // a missing ticket included, in ticketId byte order (CAL-V0-186).
 func (inv *Inventory) UnmetCompletedDependencies(id string) []UnmetDependency {
-	r, ok := inv.byID[id]
+	r, ok := inv.sum[id]
 	if !ok {
 		return nil
 	}
@@ -266,7 +250,7 @@ func (inv *Inventory) UnmetCompletedDependencies(id string) []UnmetDependency {
 		if d.Obligation != "COMPLETED" {
 			continue
 		}
-		dep, ok := inv.byID[d.TicketID.Raw]
+		dep, ok := inv.sum[d.TicketID.Raw]
 		switch {
 		case !ok:
 			out = append(out, UnmetDependency{TicketID: d.TicketID.Raw})
