@@ -1240,7 +1240,7 @@ as withheld. This amendment reserves what the routed spec cites.
   above carries none of the three paths and names none of them under TCP-V0-992. Test:
   `TestTaskContextReservesTheCodeTheRoutedSpecCites_TCPV0990`.
 - `TCP-V0-991`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)
-  `spec-cited` rows are reserved in every other respect: they cost positions of `--limit`, pass
+  `spec-cited` rows are reserved in every other respect except TCP-V0-995's: they cost positions of `--limit`, pass
   TCP-V0-056's authority screen and its demotion order, count in TCP-V0-011's `critical`, and a
   row the limit cuts is named in `critical_missing`. Selector and row order follow
   TCP-V0-011's relation order with `spec-cited` directly after `instruction-routed`. Falsifier: a
@@ -1264,6 +1264,16 @@ as withheld. This amendment reserves what the routed spec cites.
   wire, core-freeze and recipe goldens are unchanged). Falsifier: a changed golden or a
   `spec-cited` relation in a packet with no spec citation. Test:
   `TestTaskContextWithoutASpecCitationKeepsItsReceipt_TCPV0993`.
+- `TCP-V0-995`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)
+  A `spec-cited` row is the task's code, not project authority, so the exceptions to TCP-V0-991
+  keep what the ordinary row it takes over had. When it takes over a row of one of TCP-V0-016's
+  rescue relations (TCP-V0-003 promotion), that relation still counts toward the verdict, so two
+  names no source carries do not withdraw the packet a task's explicit path keeps. With
+  `CORVINT_CONTEXT_SPANS=on` the row stays eligible for TCP-V0-025's core spans, which skip only
+  the three instruction reservations. Falsifier: a task naming a path its routed spec cites that
+  turns `unsupported-conjunction`, or a spec-cited file with no core span. Tests:
+  `TestTaskContextSpecCitedPromotionKeepsTheRescueRelation_TCPV0995`,
+  `TestTaskContextSpecCitedRowsKeepTheirCoreSpans_TCPV0995`.
 - `TCP-V0-994`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)
   A frozen `tools/retrieval-bench --arms context` run over the `v2_code2test`,
   `v2_comment2context`, `v2_edit2ripple` and `v2_trace2code` releases MUST show no recall@20,
@@ -1769,4 +1779,5 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-162 (accepted, standing auto-accept, V1-2262) | `goStructFieldNames`, `goSymbols` (`internal/contextindex/parse.go`), `eligibleDefiners`, `symbolRows`, `Index.Fields` persistence | `TestGoStructFieldsAreIndexedWithFileAndLine_TCPV0162`, `TestTaskContextRetrievesTheStructFieldDefiner_TCPV0162`, `TestParenthesizedStructTypeFieldsAreIndexed_TCPV0162`, `TestDefinitionRowKeepsTheStrongestMatchPerPath_TCPV0162`, `TestStructFieldNeverJoinsADeclaredNamesDefiners_TCPV0162`, `TestTaskContextDisclosesUnresolvedIDAnchors` |
 | TCP-V0-163 (accepted, standing auto-accept, V1-2953) | `contextRelationOrder`, `orderBySlotWeight`, `corroborate`, `renderRow` | `TestTaskContextResultsNameTheirCandidateKind_TCPV0163`, `TestTaskContextAuthorityLabelsDoNotOrderRows_TCPV0163` |
 | TCP-V0-990..993 (experimental, standing lane auto-accept, V1-1269) | `specCitedRows`, `specCitations`, `specCitedPath`, `contextRankOrder`, `omittedSpecCitedCoverage`, `contextRelations` | `TestTaskContextReservesTheCodeTheRoutedSpecCites_TCPV0990`, `TestTaskContextSpecCitedRowsTheLimitCutsAreCriticalMissing_TCPV0991`, `TestTaskContextOmittedSpecCitedNamesOnlyUncarriedPaths_TCPV0992`, `TestTaskContextWithoutASpecCitationKeepsItsReceipt_TCPV0993`, `TestTaskContextResultsNameTheirCandidateKind_TCPV0163` |
+| TCP-V0-995 (experimental, standing lane auto-accept, V1-1269) | `relationRows`, `instructionReservation`, `spanRanker.coreSpans` | `TestTaskContextSpecCitedPromotionKeepsTheRescueRelation_TCPV0995`, `TestTaskContextSpecCitedRowsKeepTheirCoreSpans_TCPV0995` |
 | TCP-V0-994 (experimental, standing lane auto-accept, V1-1269) | frozen `tools/retrieval-bench --arms context` run | `docs/build-log/2026-10-31-ctxpkt-w1-bugs.md` |
