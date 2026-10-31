@@ -1,7 +1,7 @@
 {
   "host": "pi",
   "surface": "extension",
-  "adapterVersion": "0.3.11",
+  "adapterVersion": "0.3.12",
   "apiReferenceVersion": "0.99.1",
   "support": "FALLBACK",
   "testedHostVersions": [

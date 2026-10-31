@@ -286,7 +286,30 @@ bounded caller commands, but it diagnoses suite interactions rather than criteri
   `GOROOT` key is refused at plan time. Limit: only the driver is digest-pinned. The compiler,
   linker and standard library under `GOROOT` and the RSpec toolchain, which may be a wrapper that
   resolves paths from its own location, still run in place; `TestBBFV0214LimitToolsRunInPlace`
-  confirms both swaps run (V1-2215).
+  recorded both swaps running (V1-2215); `BBF-V0-820` closes both.
+- `BBF-V0-820`: (experimental under the standing lane auto-accept; V1-2215; amends the
+  `BBF-V0-214` limit) The go-test provider MUST, right after the driver's digest check, digest the
+  GOROOT members a `go test` run reads (`VERSION`, `go.env`, `bin`, `lib`, `pkg/include`,
+  `pkg/tool` and `src`, without any `testdata` directory), then copy them into a private GOROOT
+  under the run's scratch directory, digesting the bytes it copies, put the verified driver bytes
+  at its `bin/<driver>`, and run that driver with `GOROOT` set to the private copy, in place of the
+  `BBF-V0-214` root two levels above the pinned path. A difference
+  between the two digests is `provider toolchain GOROOT changed before staging`; a member entry that
+  is not a regular file or directory is `provider toolchain GOROOT holds an unsupported entry`;
+  either refuses before anything runs. The digest and the copy run inside the control's command
+  budget and stop when the run is cancelled or the budget is spent (`command budget exhausted`),
+  and the driver then gets only what remains of that budget, so staging never extends the run into
+  the time reserved for cleanup (Codex review of linux-w2). The RSpec provider MUST run its toolchain from a verified
+  private copy, as `runPinned` runs every pinned command. A swap of a GOROOT tool, the standard
+  library or the RSpec toolchain after its check therefore never runs. Non-goals: pinning GOROOT
+  digests in the plan (the check binds the run's own reads, not a plan-time value), and tools
+  outside GOROOT. Failure modes: each go-test provider run copies about 220 MB, which adds that
+  copy's time to every control; an RSpec toolchain that resolves paths from its own location no
+  longer finds them and fails its run, so such a toolchain must be pinned as a self-contained
+  wrapper. Falsifier: a GOROOT tool, a standard library file or the RSpec toolchain swapped between
+  its check and the run whose swapped bytes run. Evidence: `TestBBFV0820ToolsRunFromVerifiedCopies`, `TestBBFV0820StagingHonorsTheCommandBudget`
+  (replaces `TestBBFV0214LimitToolsRunInPlace`, which recorded the swapped runs). Rollback: run the
+  driver with the original GOROOT and the RSpec toolchain from its path again.
 - `BBF-V0-215`: (proposed; V1-2524) A plan's `contract_file`, `test_file`, `config_file` and Go
   provider `package` MUST be judged as canonical slash Git paths on every host: nonempty, not
   rooted at `/`, unchanged by slash path cleaning, not `..` or below `../`, and free of `\` and
@@ -474,7 +497,8 @@ default commands remain unchanged.
 | BBF-V0-018 | `internal/behaviorfalsify/receipt.go` capture, `unobservedAttemptVerifies` and `unadmittedAttemptVerifies` | `TestBBFV0018InfrastructureFailedAttemptVerifies`, `TestBBFV0018ForgedNilReceiptAttempts`, `TestBBFV0018ForgedUnobservedAndHiddenReceipts`, `TestBBFV0018PreHookAttemptShapesVerify` |
 | BBF-V0-019..028 | `internal/behaviorfalsify/profiles.go`; `executeAttempt`, `classifyAttempt`, `ExecuteReceipt` and `VerifyReceipt` | `TestBBFV0019IsolationProfileIsExplicitAndBounded`, `TestBBFV0021IsolationFailureIsNeverKilled`, `TestBBFV0022IsolationEvidenceReceipt`, `TestBBFV0023LegacyWireIsByteIdentical`, `TestBBFV0024ProviderPlanIsBounded`, `TestBBFV0026GoProviderEndToEnd`, `TestBBFV0027ProviderEventsAreClosed`, `TestBBFV0028ProviderEvidenceReceiptIsRefused` |
 | BBF-V0-029..033 | `internal/behaviorfalsify/profiles.go` (`validateProvider`, `runRSpecProvider`, `rspecReceipt`) and `plan.go` (`observationIDValid`) | `TestBBFV0029RSpecProviderPlanIsBounded`, `TestBBFV0030RSpecProviderEndToEnd`, `TestBBFV0031RSpecReportIsClosed`, `TestBBFV0032RSpecEvidenceReceiptIsRefused`, `TestBBFV0033LiveRSpecNegativeControls` |
-| BBF-V0-214 | `internal/behaviorfalsify/execute.go` (`stageVerified`), `profiles.go` (`runProvider`, `validateProvider`) | `TestBBFV0214ToolchainRunsVerifiedBytes`; limit: `TestBBFV0214LimitToolsRunInPlace` |
+| BBF-V0-820 | `internal/behaviorfalsify/goroot_stage.go` (`stageGOROOT`), `profiles.go` (`runProvider`, `runRSpecProvider`) | `TestBBFV0820ToolsRunFromVerifiedCopies` |
+| BBF-V0-214 | `internal/behaviorfalsify/execute.go` (`stageVerified`), `profiles.go` (`runProvider`, `validateProvider`) | `TestBBFV0214ToolchainRunsVerifiedBytes`; limit superseded by BBF-V0-820 |
 | BBF-V0-215 | `internal/behaviorfalsify/plan.go` (`repositoryRelative`) | `TestBBFV0215RepositoryRelativeUsesSlashSyntaxOnEveryHost`; native Windows rerun NEEDS-HOST |
 | BBF-V0-217..219 | `internal/behaviorfalsify/authentication.go` (`validateAuthentication`, `AuthenticationMaterial`), `execute.go` (`execute`), `receipt.go` (`ExecuteReceipt`, `VerifyReceipt`) | `TestBBFV0217AuthenticationPlanIsBounded`, `TestBBFV0218AuthenticationDriftAndMaterial`, `TestBBFV0218AuthenticationReceiptBinding`, `TestBBFV0219LegacyWireUnchanged` |
 | BBF-V0-216 | `internal/behaviorfalsify/profiles.go` (`isolationIdentity`, `hookReportedIsolation`, `declaredServer`), `execute.go` (`Execute`), `receipt.go` (`recountReport`) | `TestBBFV0216HookReportedIdentityCapsVerdict` |

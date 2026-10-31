@@ -407,10 +407,33 @@ func SetDoctorTestHost(h DoctorTestHost) func() {
 // RealDoctorFileTable reads the host's file table with the real probe.
 func RealDoctorFileTable() (uint64, uint64, error) { return realDoctorProbes.files() }
 
+// RealDoctorLockHolder runs the real lock-holder probe on path.
+func RealDoctorLockHolder(path string) (bool, int, error) { return realDoctorProbes.holder(path) }
+
 // ParseDoctorProcLocksForTest, ParseDoctorLsofForTest, ParseDoctorFileNrForTest
 // and ParseDoctorElapsedForTest expose the neutral probe parsers.
 func ParseDoctorProcLocksForTest(text string, major, minor, ino uint64) []int {
 	return parseDoctorProcLocks(text, major, minor, ino)
+}
+
+// DoctorFdForTest is one descriptor for DoctorOwnsFlockForTest.
+type DoctorFdForTest struct {
+	Dev, Ino uint64
+	Fdinfo   string
+}
+
+// DoctorOwnsFlockForTest exposes the TQD-V0-821 ownership decision.
+func DoctorOwnsFlockForTest(fds []DoctorFdForTest, dev, ino uint64) bool {
+	in := make([]doctorFd, len(fds))
+	for i, fd := range fds {
+		in[i] = doctorFd{dev: fd.Dev, ino: fd.Ino, fdinfo: fd.Fdinfo}
+	}
+	return doctorOwnsFlock(in, dev, ino)
+}
+
+// ParseDoctorProcLocksByInodeForTest exposes the TQD-V0-821 same-inode parser.
+func ParseDoctorProcLocksByInodeForTest(text string, ino uint64) []int {
+	return parseDoctorProcLocksByInode(text, ino)
 }
 func ParseDoctorLsofForTest(text string) map[uint64][]int       { return parseDoctorLsof(text) }
 func ParseDoctorFileNrForTest(s string) (uint64, uint64, error) { return parseDoctorFileNr(s) }

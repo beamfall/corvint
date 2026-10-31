@@ -834,6 +834,8 @@ func Test03GitDirectChildControls(t *testing.T) {
 		cancel             bool
 	}{
 		{"normal", "#!/bin/sh\nprintf 'ok'\n", "", 64, false},
+		// A descendant holds stdout for 1 s after a complete, successful output (CEM-V1-820).
+		{"pipe-held-briefly", "#!/bin/sh\nprintf 'ok'\n/bin/sleep 1 &\n", "", 64, false},
 		{"output-limit", "#!/bin/sh\nprintf '0123456789abcdef'\n", "unsupported-resource-limit", 8, false},
 		// exec replaces the shell: this test admits exactly one child, not descendants.
 		{"cancel", "#!/bin/sh\nexec /bin/sleep 30\n", "git-timeout", 64, true},
