@@ -5,7 +5,7 @@ Date: 2026-10-30
 Requirement prefix: `TSP-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3160); TSP-V0-001 amends AFP-V0-580
 Delivery status: experimental
-Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-861: V1-3348. These requirements narrow
+Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-861: V1-3348; TSP-V0-862: V1-3346. These requirements narrow
 when the [affected plan](affected-plan-v0.md) names a unit frontier; that spec's Requirements
 section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 
@@ -168,6 +168,16 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   the parsed comments: a file names it when one of its comments starts with `//go:linkname`, the
   only form the compiler honours, so a string literal or prose naming the directive (this
   slicer's own source does) no longer keeps its package whole.
+- **TSP-V0-862:** (experimental, amending TSP-V0-003 and its non-goal, under the owner's standing
+  lane auto-accept, 2026-10-11; V1-3346) `internal/gateselect`'s `Select` (gate-affected-select,
+  the CI PR tier) SHALL read `.corvint/gated-root-locators.json` under the same closed profile and
+  bounds as TSP-V0-003 and, when every declared directory is an indexed package whose non-test code
+  locates the root and whose non-test Go sources carry the gate as an interpreted string literal,
+  SHALL stop treating each declared package as a root locator, so its dependents leave rule (d)
+  while the package keeps its own reason. A missing declaration SHALL change nothing; an invalid
+  one, or one this change makes dirty, SHALL declare nothing, so rule (d) keeps the wider closure.
+  On a change in a nested module that imports a declared locator, Select's run set SHALL equal the
+  planner's. `SelectStructural`, `Unresolved` and `Bounds` are unchanged.
 - **TSP-V0-860:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2892)
   `tools/selection-baseline` SHALL replay a corvint binary and a gate-affected-select binary over
   the fixed change set `benchmarks/selection-baseline/changes.json`
@@ -192,7 +202,8 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
 Evaluating build constraints for a host or running non-host variants; scoping the frontier to the
 dirty file's own constraint (a plain file in the directory can be what a variant calls, which
 AFP-V0-580's review withdrew a narrower scoping over); selecting a dependent nested module's tests
-(AFP-V0-582); mirroring the gated declaration in `internal/gateselect`.
+(AFP-V0-582); reading the gated declaration in gateselect's `Unresolved` and `Bounds`
+(tools/gate-ledger), which keep the wider closure.
 
 ## Failure modes
 
@@ -211,8 +222,9 @@ names this repository) runs its locating code in a dependent's test; the planner
 read only if the dependent is not otherwise reached, the declared gate is unchanged and the
 package's proof test still passes, which the test's call-order and constructor checks are there to
 prevent. The proof is static over the package's own sources: a reflective or `unsafe` call path
-it does not model is out of its reach. `internal/gateselect` (the CI PR tier) does not read the
-declaration; it keeps the wider closure, which over-selects but never under-selects.
+it does not model is out of its reach. `internal/gateselect`'s `Select` (the CI PR tier) reads the
+declaration since TSP-V0-862 and shares this failure mode; its `Unresolved` and `Bounds` keep the
+wider closure, which over-selects but never under-selects.
 (5) TSP-V0-004: the rule is static over one file's text. A sourced runtime file that rebinds NAME
 is excluded by refusing any source after the first; an `eval` of computed text naming NAME, a
 nameref (`declare -n`) or an indirect `${!x}` assignment it cannot see would let the read escape,
@@ -307,6 +319,7 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | TSP-V0-006 | `testSourceEligibles`, `testSourceEligible`, `testSourceSlice`, `testSourcePlainFunctions`, `testSourceValueUse`, `testSourceQualifiers`, `testSourceDeclOf`, `testSourceReferenceSignature` and `testSourceWrite` in `cmd/corvint/test_source_slices.go`; their call and the shared base read in `testGoSlices` in `cmd/corvint/test_slices.go`; the TSP-V0-006 verdict line in `testVerdict` in `cmd/corvint/test.go` | `TestTSPV0006DryRunSlicesSourceChanges` in `cmd/corvint/test_source_slices_tspv0006_unix_test.go` (a called function, a doc comment, a function a method calls and an added function slice to the reaching and external tests; a function no test reaches builds only; every test reaching, an own test file, a value use, a package variable reached, initialization reaching, a method, an import, a variable, a comment outside functions, a dependency also changed, a new file, an assembly file, `go:linkname` and cgo stay whole, and so do a function that stopped reaching a package variable, a pointer parameter, a write through another package's variable in the head or only in the base body, a function reaching such a write, and a dot import; the importer stays whole); `TestTSPV0006PlainFunctionsAndQualifiers` and `TestTSPV0006ReferenceSignatureAndWrites` (basic-only signatures; pointer, slice, map, channel, function, interface, named, struct, array, variadic, `uintptr`, pointer-result, generic and redeclared-basic signatures and writes through a selector, pointer, index or range target or by `copy`, `delete` or `clear` are named) in `cmd/corvint/test_source_slices_tspv0006_test.go`; `TestSTRV0072SliceWalksDoNotGrowWithPackages` (two Git processes with a source change present); the mutation check in `docs/build-log/2026-10-30-v1-2806-source-slices.md` |
 | TSP-V0-007 | `readPrior`, `rerun`, `buildPrior` and `readPriorEvents` in `tools/corvint-pr-tests/rerun.go`; `selectSince` and the `--prior` branch of `planOnly` in `tools/corvint-pr-tests/main.go` | `TestTSPV0007RerunReusesPriorPasses` in `tools/corvint-pr-tests/rerun_tspv0007_test.go` (the fixed package alone reruns while the base-relative selection keeps both; nothing passed, everything passed and one passed; a missing, malformed, unknown-field, other-schema or invalid-package record, another identity, tree, unresolvable merge or head, a rewritten head, a planner failure, a non-`run` verdict, an unavailable tool profile, a refused plan and a `.github` delta each run `./...`; a record followed by a stray `}` or a second value is malformed); `TestTSPV0007PriorRecordFromRunEvidence` (only whole-package passes no directory contradicts; no directories, another merge, an unobserved merge, another identity, a source-drift or planner-drift fallback reason, an execution error, an unreadable or missing event stream each refuse); the replay in `docs/build-log/2026-10-30-v1-3050-pr-rerun-reuse.md` |
 | TSP-V0-861 | `tests` of `testSourceCandidate`, `testSourceEligible`, `testSourceOwnPaths` and the TSP-V0-861 union in `testSourceSlice` in `cmd/corvint/test_source_slices.go` | `TestTSPV0861DryRunSlicesSourceAndTestChanges` in `cmd/corvint/test_source_slices_tspv0861_unix_test.go` (a new internal test file, an edited external test file and a new test of a function no test reached slice to the union; every test kept, a `TestMain`, an `init`, a new import, a failing source proof and a test file with no test function stay whole; a string literal and a prose comment naming the directive slice, and a `//go:linkname` comment stays whole); the "its test file changed too" case of `TestTSPV0006DryRunSlicesSourceChanges`; the replay in build log `docs/build-log/2026-10-31-ci-select-w1.md` |
+| TSP-V0-862 | `applyGatedLocators`, `readGatedLocators` and `carriesGate` in `internal/gateselect/gatedlocators.go`; their call before rule (d) in `selectPackages` in `internal/gateselect/select.go` | `TestGatedRootLocatorParity_TSP_V0_862` in `internal/gateselect/gatedlocators_test.go` (on a nested-module change, declared: neither Select nor the planner selects the locator's dependent and their run sets are equal, also on an unrelated change; undeclared, a gate not carried, a package that does not locate the root, an unknown member and unparsed JSON: both select it and agree; a dirty declaration: Select keeps it) |
 | TSP-V0-860 | `replay`, `measure`, `CIScope`, `checkFailures`, `Summarize` and `Failures` in `tools/selection-baseline/main.go`; `benchmarks/selection-baseline/changes.json`; the `selection-baseline-check` target in `Makefile` | `TestSelectionBaselineGateFailsOnFloorOrMiss_V12892`, `TestSelectionBaselineUnknownKindsAndManifest_V12892` and `TestSelectionBaselineChangeSetIsValid_V12892` in `tools/selection-baseline/main_test.go`; the replays in `benchmarks/results/v2892-selection-baseline-*.json` and build log `docs/build-log/2026-10-31-ci-select-w1.md` |
 
 ## Rollback
@@ -324,4 +337,5 @@ make `applyForeignCallers` return at once; every script then carries the frontie
 original reason. No stored state depends on it. TSP-V0-007: stop passing `--prior`; `rerun.json` is then
 not written and only `selection.json` decides, as before. TSP-V0-860: delete the
 `selection-baseline-check` target; no other target or stored state depends on it. TSP-V0-861: in
-`testSourceEligible`, return the fallback again when a test file of the package is dirty.
+`testSourceEligible`, return the fallback again when a test file of the package is dirty. TSP-V0-862: remove the
+`applyGatedLocators` call in `selectPackages`; Select then keeps the wider closure, as before.
