@@ -375,3 +375,29 @@ dogfood-bind-coverage: commits=2 covered=1 no-change=1 unbound=0"
 status=0
 (cd "$cov" && "$source_root/script/dogfood-bind-coverage.sh" "$m" "$cb" 2>/dev/null) || status=$?
 test "$status" = 2
+# A seal must be the byte-identical rename of its parent's sidecar: altered bytes stay UNBOUND.
+printf 'c3\n' > "$cov/f"; c3=$(cov_commit c3)
+printf '{"baseRevision":"%s","hunks":[]}\n' "$m" > "$cov/.corvint/change.cem.json"; k3=$(cov_commit bind3)
+git -C "$cov" rm -q .corvint/change.cem.json
+printf '{"hunks":[]}\n' > "$cov/.corvint/changes/$k3.cem.json"; x=$(cov_commit altered-seal)
+# A clean merge of a bound side is covered; a merge whose resolution adds a line in no parent is not.
+git -C "$cov" checkout -q -b side
+printf 'g\n' > "$cov/g"; cov_commit side >/dev/null
+printf '{"baseRevision":"%s","hunks":[]}\n' "$x" > "$cov/.corvint/change.cem.json"; ks=$(cov_commit bind-side)
+git -C "$cov" checkout -q main
+printf 'h\n' > "$cov/h"; mc=$(cov_commit main-change)
+(cd "$cov" && GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@example.invalid GIT_COMMITTER_NAME=t \
+  GIT_COMMITTER_EMAIL=t@example.invalid git merge -q --no-ff -m "merge side" side)
+mm1=$(git -C "$cov" rev-parse HEAD)
+git -C "$cov" checkout -q -b side2
+printf 'i\n' > "$cov/i"; cov_commit side2 >/dev/null
+printf '{"baseRevision":"%s","hunks":[]}\n' "$mm1" > "$cov/.corvint/change.cem.json"; cov_commit bind-side2 >/dev/null
+git -C "$cov" checkout -q main
+printf 'h2\n' > "$cov/h"; me=$(cov_commit main-change-2)
+(cd "$cov" && git merge -q --no-ff --no-commit side2 && printf 'resolution only\n' >> h)
+mm2=$(cov_commit "merge side2 with a resolution edit")
+output=$(cd "$cov" && "$source_root/script/dogfood-bind-coverage.sh" "$m" "$mm2")
+test "$output" = "$(printf '%s\t%s\n' "$c3" "bind:$k3" "$k3" "bind:$k3" "$x" UNBOUND "$mc" UNBOUND \
+  "$mm1" "merged:bind:$ks" "$me" UNBOUND "$mm2" UNBOUND:resolution)
+dogfood-bind-coverage: commits=7 covered=3 no-change=0 unbound=4" || {
+  printf '%s\n' "$output" >&2; exit 1; }

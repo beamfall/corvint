@@ -2509,14 +2509,18 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   index, reproduces the file byte for byte (cites `SRG-V0-012` and `ASD-V0-033`);
   `line-citation-repin` for a `.md` hunk equal after masking backtick `path:N@anchor` tokens when
   TARGET's `script/check-line-citations.sh` passes (cites `DCG-V0-007`); `use-case-receipt-repin` for
-  a use-case ledger or receipt hunk equal after masking 64- and 40-hex values when each new sha256 is
-  that of a TARGET file the receipt names and each new revision is a commit (cites `UCV0-004` and
-  `UCV0-005`). Each cited span is the whole requirement list entry at BASE. The helper summary counts
+  a use-case ledger or receipt hunk equal after masking 64- and 40-hex values when, reading the TARGET
+  file as JSON, each new 64-hex value is the `sha256` of an object whose own `path` names a TARGET file
+  with that SHA-256 (swapping two subjects' digests stays `unknown`) and each new 40-hex value is a
+  revision field naming a commit or a `blobOid` naming a blob, whatever the JSON formatting (cites
+  `UCV0-004` and `UCV0-005`). Each cited span is the whole requirement list entry at BASE. The helper summary counts
   `proposed=N`. Non-goals: proposing for a hand-edited generated file, writing the caller's index or
   worktree. Failure modes: a generator missing at TARGET or a failing checker leaves the hunk
   `unknown`. Evidence: `TestProposeGeneratedSpecIndexDCWV0828`,
   `TestProposeLineCitationRepinDCWV0828`, `TestProposeUseCaseReceiptRepinDCWV0828` (each with a hand
-  edit that stays unknown). Rollback: remove `classes.go` and the `propose` call.
+  edit that stays unknown), `TestProposeUseCaseReceiptBindsEachDigestToItsPath` (swapped digests and a
+  compact revision naming no commit stay unknown), `TestInheritCitationsFindsBindingMergedWithOurs`
+  (the constituent walk uses `--full-history`, so a binding merged with `-s ours` is read). Rollback: remove `classes.go` and the `propose` call.
 - `DCW-V0-829`: (experimental under the standing lane auto-accept; V1-3370; refines `DCW-V0-824`)
   The byte-identical move of a sealed CEM MUST be proposed as one `sealed-cem-rename` class citing
   the `docs/DOGFOOD.md` seal clause: a whole-file add of `.corvint/changes/X.cem.json` whose blob is
@@ -2534,13 +2538,18 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
 - `DCW-V0-831`: (experimental under the standing lane auto-accept; V1-3372)
   `script/dogfood-bind-coverage.sh BASE TARGET` MUST list, read-only, each first-parent commit of the
   half-open range `BASE..TARGET` with the evidence covering it (`sealed:PATH`, `bind:SHA`,
-  `seal:EVIDENCE`, `merged:EVIDENCE`, `no-change` or `UNBOUND`) and end with
+  `seal:EVIDENCE`, `merged:EVIDENCE`, `no-change`, `UNBOUND:resolution` or `UNBOUND`) and end with
   `dogfood-bind-coverage: commits=N covered=C no-change=M unbound=U`; it exits 0 with unbound
-  commits and 2 when BASE or TARGET is unusable or BASE is not an ancestor. Non-goals: binding, a
+  commits and 2 when BASE or TARGET is unusable or BASE is not an ancestor. A binding is a non-merge
+  commit writing `.corvint/change.cem.json`; `seal:` requires the byte-identical rename of the first
+  parent's sidecar (same blob) and nothing else; a merge whose result differs from every parent outside
+  CEM paths (`git diff-tree --cc`) is `UNBOUND:resolution`, counted unbound, even when its merged side
+  holds a binding. Non-goals: binding, a
   verdict (`corvint dogfood check` keeps its unbound and retroactive notes). Evidence:
   `script/dogfood-bind-range_test.sh` DCW-V0-831 case (a sealed lane, a seal commit, an unbound
   commit, a retroactive `-s ours` binding; a later BASE drops earlier commits; reversed arguments
-  exit 2). Rollback: delete the script.
+  exit 2; an altered-bytes seal stays `UNBOUND`; a clean merge of a bound side is `merged:`, a merge
+  carrying its own resolution edit is `UNBOUND:resolution`). Rollback: delete the script.
 - `DCW-V0-170`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2344) When
   `dogfood finish-lane` refuses a verify input as `unsupported-verify-syntax` (`DCW-V0-092`), it
   MUST also print an `accepted form:` line that names the common quoted `-run 'TestA|TestB'`
