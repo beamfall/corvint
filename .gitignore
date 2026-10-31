@@ -38,3 +38,39 @@ node_modules/
 
 # Exact local OpenCode qualification; produced after the frozen gates.
 /integrations/opencode-qualification.json
+
+# ASD-V0-582 (V1-3364): `go build ./tools/NAME` writes ./NAME at the root; script/check-binary-blobs.sh
+# fails a tools/ main whose output is not ignored here, and any binary blob outside a fixture path.
+/beamfall-shadow
+/capabilities-check
+/cem-citation-baseline
+/cem-release-suites
+/cem-stable-regen
+/cem-structural-closure
+/cem-trial
+/ci-flake-report
+/ci-reuse-plan
+/ci-shard-costs
+/ci-test-slices
+/compat-trial
+/corvint-pr-tests
+/cw-trial
+/docs-blinded-task
+/docs-ci-plan
+/dogfood-guard-hunks
+/dogfood-inherit-citations
+/gate-affected-select
+/gate-ledger
+/heading-nav-bench
+/local-authority
+/native-hook-observer
+/paired-trial
+/pi-tui-fixture
+/qualify-opencode
+/retrieval-bench
+/str-parity
+/test-commands-check
+/test-commands-run
+/test-read-scopes-check
+/test-shards
+/unbounded-readers
