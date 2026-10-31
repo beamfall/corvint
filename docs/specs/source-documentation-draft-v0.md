@@ -370,7 +370,7 @@ returned under its own draft code (`unsupported-documentation-source` or
 | Code | First emitting site | At the cited site |
 |---|---|---|
 | `apply-not-authorized` | `internal/docmaintain/docmaintain.go:222@9451df78` | `Apply` was called with `policy.Apply` false |
-| `internal-error` | `internal/docmaintain/docmaintain.go:286@fd6f8ddc` | a `DraftSources` failure is not a `doccompiler.Error` |
+| `internal-error` | `internal/docmaintain/docmaintain.go:286@fa68fda3` | a `DraftSources` failure is not a `doccompiler.Error` |
 | `invalid-page-path` | `internal/docmaintain/docmaintain.go:124` | the joined page path is not contained in the root, crosses a symlink, has a component naming `.git` in any letter case, or does not end in `.md` (`Preview` and `Apply`; `TestGitMetadataPageIsRefused`, `TestNonMarkdownPageIsRefused`) |
 | `invalid-root` | `internal/docmaintain/docmaintain.go:120` | the root cannot be made absolute (`Preview` and `Apply`) |
 | `invalid-selector` | `internal/docmaintain/docmaintain.go:153` | a selector source or package contains `-->` or any character Go `%q` escapes (a double quote, backslash, or non-printable rune), since the marker records the escaped value and the block could never be re-found (`TestSelectorCommentBreakoutRefused`, `TestSelectorThatQuotingChangesIsRefused`) |
