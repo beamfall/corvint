@@ -1601,7 +1601,8 @@ Verification options:
                        .corvint/change.cem.json --expected-base B --target T
                        --artifacts DIR --max-unknown 0 --path-policy base
   --guarding-tests     verify only, opt-in: after an ACCEPT, search the base
-                       tests of each uncited Go source hunk's directory for one
+                       tests of each uncited Go source hunk's directory (or,
+                       when it has none, of up to 16 direct importers) for one
                        that passes at the target and fails with only that hunk
                        reverted in a disposable export; adds the guardingTests
                        report (cem-guarding-tests/0) with citation-plan rows. It

@@ -189,18 +189,37 @@ func guardHunks(c *stableCapture) []guardHunk {
 // build, a test failing without the revert, a skip or a timeout guards nothing.
 func judgeGuards(total context.Context, tree string, hunks []guardHunk, rows []GuardRow, limits HunkRevertLimits, run testRunner, loadBase func(string) []byte) {
 	packages := map[string]*goPackage{}
+	load := func(dir string) *goPackage {
+		if packages[dir] == nil {
+			packages[dir] = loadGoPackage(tree, dir, loadBase)
+		}
+		return packages[dir]
+	}
+	var importers *importIndex
 	candidates := make([]revertCandidate, len(hunks))
 	for i, h := range hunks {
 		candidate := revertCandidate{hunk: h.hunk, kind: h.kind, tests: []string{}}
 		if h.kind == patch.KindModify && h.hunk.NewPath != nil {
 			dir := path.Dir(*h.hunk.NewPath)
-			if packages[dir] == nil {
-				packages[dir] = loadGoPackage(tree, dir, loadBase)
-			}
-			if names := packages[dir].candidates(*h.hunk.NewPath, changedLines(h.hunk)); len(names) > 0 {
+			reached := load(dir).closure(*h.hunk.NewPath, changedLines(h.hunk))
+			if names := load(dir).testsMentioning(reached); len(names) > 0 {
 				candidate.units = []testUnit{{dir: dir, names: names}}
-				for _, name := range names {
-					candidate.tests = append(candidate.tests, dir+"::"+name)
+			} else if exported := exportedNames(reached); len(exported) > 0 {
+				// No test of the hunk's own directory reaches it, so the
+				// tests of its direct importers that reach an exported name
+				// it changes are the candidates (TCQ-V0-761).
+				if importers == nil {
+					importers = indexImporters(tree)
+				}
+				for _, importer := range importers.of(dir) {
+					if names := load(importer).testsMentioning(load(importer).grow(exported)); len(names) > 0 {
+						candidate.units = append(candidate.units, testUnit{dir: importer, names: names})
+					}
+				}
+			}
+			for _, unit := range candidate.units {
+				for _, name := range unit.names {
+					candidate.tests = append(candidate.tests, unit.dir+"::"+name)
 				}
 			}
 		}
@@ -373,6 +392,12 @@ func parseDecls(file string, data []byte, isTest bool) []goDecl {
 // Matching is by identifier name, so it over-approximates; the revert run
 // decides.
 func (p *goPackage) candidates(file string, changed map[int64]bool) []string {
+	return p.testsMentioning(p.closure(file, changed))
+}
+
+// closure returns the names of the declarations the changed lines of file
+// touch and of every package declaration that transitively mentions one.
+func (p *goPackage) closure(file string, changed map[int64]bool) map[string]bool {
 	reached := map[string]bool{}
 	for _, d := range p.decls {
 		if d.file != file || d.test {
@@ -387,6 +412,16 @@ func (p *goPackage) candidates(file string, changed map[int64]bool) []string {
 			}
 		}
 	}
+	return p.grow(reached)
+}
+
+// grow adds to a copy of seed the names of every package declaration that
+// transitively mentions one of its names.
+func (p *goPackage) grow(seed map[string]bool) map[string]bool {
+	reached := make(map[string]bool, len(seed))
+	for name := range seed {
+		reached[name] = true
+	}
 	for grew := len(reached) > 0; grew; {
 		grew = false
 		for _, d := range p.decls {
@@ -400,6 +435,12 @@ func (p *goPackage) candidates(file string, changed map[int64]bool) []string {
 			}
 		}
 	}
+	return reached
+}
+
+// testsMentioning names, sorted, the base tests of the package that mention
+// one of reached.
+func (p *goPackage) testsMentioning(reached map[string]bool) []string {
 	seen := map[string]bool{}
 	var names []string
 	for _, d := range p.decls {
