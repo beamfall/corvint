@@ -58,6 +58,15 @@ them anywhere in `coverage`. The spec cites all three in backquotes (`corvint af
   --repin` rewrote 14 citations whose content is unchanged, including one in decision 0377. Only
   line numbers changed, and the lane rule against editing decision files yields to that gate.
 
+- **Review repair (TCP-V0-995).** The Codex review of `f586f8a69..f71949e17` found two P2s. In both,
+  a `spec-cited` row that took over an ordinary row lost what that row had, because it was treated
+  as project authority. `relationRows` now counts the relation of the row a `spec-cited` row
+  promoted, so a task's explicit path still rescues two unknown names from
+  `unsupported-conjunction`. `spanRanker.coreSpans` now skips only the three instruction
+  reservations (`instructionReservation`), as TCP-V0-025 states. The withdrawal itself
+  (`reservedOnly`) still keeps every reservation. Both fail-first tests failed on `764b90ec2` and
+  pass after the fix.
+
 ## Evidence
 
 - Acceptance criterion 1, exact frozen replay with limit 25 and the branch binary:

@@ -591,7 +591,7 @@ func TestTaskContextAbstainsOnAnUnsupportedConjunction(t *testing.T) {
 		for _, kind := range []string{"mentioned", "pair", "definition", "reverse-import", "reference", "cochange", "sibling", "test", "lexical", "documentation", governingRelation, specMentionedRelation, "future-relation"} {
 			rows = append(rows, contextRow{kind: kind})
 		}
-		if got := relationRows(rows); got != 7 {
+		if got := relationRows(rows, nil); got != 7 {
 			t.Fatalf("only the seven relations in TCP-V0-016(c) may rescue a conjunction, got %d", got)
 		}
 	})

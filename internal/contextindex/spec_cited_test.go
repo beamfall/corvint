@@ -184,3 +184,52 @@ func TestTaskContextOmittedSpecCitedNamesOnlyUncarriedPaths_TCPV0992(t *testing.
 		t.Fatalf("spec-cited state = %s withheld = %v, want examined and 0", states[specCitedRelation], withheld[specCitedRelation])
 	}
 }
+
+// TestTaskContextSpecCitedPromotionKeepsTheRescueRelation_TCPV0995: a task
+// that names a path its routed spec also cites keeps that explicit mention as
+// a TCP-V0-016 rescue relation after `spec-cited` takes the row over, so two
+// names no source carries do not withdraw the packet.
+func TestTaskContextSpecCitedPromotionKeepsTheRescueRelation_TCPV0995(t *testing.T) {
+	t.Parallel()
+	task := "Per docs/specs/runner-v0.md, make cmd/tool/plan.go call `zorbQuux` and `flimFlam`."
+	packet, err := TaskContext(context.Background(), specCitedFixture(t), task, "", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pairs := contextPairs(t, packet)
+	if !slices.Contains(pairs, "spec-cited cmd/tool/plan.go") {
+		t.Fatalf("results = %v, want the mentioned path promoted to spec-cited", pairs)
+	}
+	answer := contextCoverage(t, packet)["answerability"].(map[string]any)
+	if answer["verdict"] != "relations-answer" || packet["state"] != "READY" {
+		t.Fatalf("state = %v answerability = %v, want READY relations-answer", packet["state"], answer)
+	}
+}
+
+// TestTaskContextSpecCitedRowsKeepTheirCoreSpans_TCPV0995: a spec-cited row is
+// the task's code, not project authority, so with CORVINT_CONTEXT_SPANS=on a
+// file the reservation took over from a mentioned row still yields its core
+// span, so the task's path anchor stays carried (TCP-V0-025).
+func TestTaskContextSpecCitedRowsKeepTheirCoreSpans_TCPV0995(t *testing.T) {
+	files := map[string]string{"docs/specs/engine-v0.md": "# Engine\n\n- `ENG-V0-001`: the engine lives in `pkg/core/engine.go`.\n"}
+	for path, body := range spanFixtureFiles {
+		files[path] = body
+	}
+	index, err := Build(context.Background(), impactRepositoryWithFiles(t, files))
+	if err != nil {
+		t.Fatal(err)
+	}
+	packet := spanPacket(t, index, "on", "Why does `RunEngine` in pkg/core/engine.go return the wrong value? See docs/specs/engine-v0.md.")
+	if pairs := contextPairs(t, packet); !slices.Contains(pairs, "spec-cited pkg/core/engine.go") {
+		t.Fatalf("results = %v, want pkg/core/engine.go reserved as spec-cited", pairs)
+	}
+	_, rows := spanRowsOf(t, packet)
+	if core := findSpan(rows, "core", "pkg/core/engine.go"); core == nil || core["symbol"] != "RunEngine" {
+		t.Fatalf("core span for the spec-cited file = %#v in %#v", core, rows)
+	}
+	// The spec path stays unread: the instruction reservations take no core span.
+	sufficiency := contextCoverage(t, packet)["sufficiency"].(map[string]any)
+	if missing := sufficiency["missing"].([]any); len(missing) != 1 || missing[0] != "docs/specs/engine-v0.md" {
+		t.Fatalf("sufficiency = %#v, want only the spec path missing", sufficiency)
+	}
+}

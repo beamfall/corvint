@@ -61,7 +61,7 @@ func taskContext(ctx context.Context, index *Index, task, subject string, limit 
 		return nil, compiler.historyErr
 	}
 	compiler.answerability = compiler.answer()
-	compiler.answerability.relations = relationRows(rows)
+	compiler.answerability.relations = relationRows(rows, compiler.promoted)
 	if compiler.answerability.unsupported() {
 		compiler.answerability.nearest = compiler.withheldClaims(rows)
 		rows = compiler.reservedOnly(rows)
@@ -3334,8 +3334,14 @@ func (compiler *taskContextCompiler) reservedOnly(rows []contextRow) []contextRo
 }
 
 func reservedRelation(kind string) bool {
-	return kind == governingRelation || kind == specMentionedRelation || kind == instructionRoutedRelation ||
-		kind == specCitedRelation
+	return instructionReservation(kind) || kind == specCitedRelation
+}
+
+// instructionReservation is the project-authority reservations: the
+// `spec-cited` reservation is the task's code, so it keeps the spans and
+// rescue relation an ordinary row has (TCP-V0-995).
+func instructionReservation(kind string) bool {
+	return kind == governingRelation || kind == specMentionedRelation || kind == instructionRoutedRelation
 }
 
 // withheldClaims are the first slot rows the verdict withholds, as the
@@ -3366,10 +3372,17 @@ func (verdict answerability) namesUnsupported() bool {
 // relationRows counts only the rescue relations named by TCP-V0-016.
 // Test rows may derive solely from lexical anchors, so neither they nor
 // unrecognized future row kinds establish independent support for a task.
-func relationRows(rows []contextRow) int {
+// A `spec-cited` row counts the relation of the ordinary row it took over
+// (promoted), so the reservation never withdraws that row's rescue
+// (TCP-V0-995).
+func relationRows(rows []contextRow, promoted map[string]string) int {
 	count := 0
 	for _, row := range rows {
-		switch row.kind {
+		kind := row.kind
+		if kind == specCitedRelation {
+			kind = promoted[row.path]
+		}
+		switch kind {
 		case "mentioned", "pair", "definition", "reverse-import", "reference", "cochange", "sibling":
 			count++
 		}
