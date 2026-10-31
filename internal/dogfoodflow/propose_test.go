@@ -30,6 +30,11 @@ type proposeHunk struct {
 
 var diffHunkHeader = regexp.MustCompile(`^@@ -(\d+)(?:,(\d+))? \+\d+(?:,\d+)? @@`)
 
+// proposalRow reports a draft row stderr marks as a DCW-V0-962 proposal.
+func proposalRow(stderr, row string) bool {
+	return strings.Contains(stderr, "  drafted proposal: "+row+"\n")
+}
+
 func diffHunks(t *testing.T, root, base string) []proposeHunk {
 	t.Helper()
 	hunks := []proposeHunk{}
@@ -161,6 +166,11 @@ func TestProposeCitationsDCWV0150DraftsPerHunkPlan(t *testing.T) {
 			byPath[hunk.Path] += "unknown;"
 			continue
 		}
+		// DCW-V0-962: only a marked proposal cites a modified file, its own.
+		if proposalRow(stderr.String(), row) && fields[1] == hunk.Path {
+			byPath[hunk.Path] += "proposal;"
+			continue
+		}
 		if changed[fields[1]] {
 			t.Errorf("row %q cites a file the change modifies", row)
 		}
@@ -181,11 +191,11 @@ func TestProposeCitationsDCWV0150DraftsPerHunkPlan(t *testing.T) {
 		byPath[hunk.Path] += fields[1] + ";"
 	}
 	for name, want := range map[string]string{
-		"docs/specs/x-v0.md":       "docs/specs/README.md;unknown;",
+		"docs/specs/x-v0.md":       "docs/specs/README.md;proposal;",
 		"internal/x/x.go":          "docs/specs/README.md;",
 		"AGENTS.md":                "unknown;",
 		"internal/x/new.go":        "unknown;",
-		"docs/decisions/0001-x.md": "unknown;",
+		"docs/decisions/0001-x.md": "proposal;",
 	} {
 		if byPath[name] != want {
 			t.Errorf("%s rows = %q; want %q", name, byPath[name], want)
@@ -230,8 +240,10 @@ func TestProposeCitationsDCWV0150NeverDraftsUniformPlan(t *testing.T) {
 		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
 	}
 	rows := textLines(stdout.Bytes())
-	if len(rows) != 2 || !strings.HasPrefix(rows[0], "1\tindex.md\t2:2\t") || !strings.HasPrefix(rows[1], "2\tunknown\tinsufficient-evidence\tproposed: ") {
-		t.Errorf("draft = %q; want one cite of index.md:2 and one unknown row", stdout.String())
+	// DCW-V0-962: the second hunk takes its own file's heading as a marked
+	// proposal, a second span, so the draft is not uniform.
+	if len(rows) != 2 || !strings.HasPrefix(rows[0], "1\tindex.md\t2:2\t") || rows[1] != "2\tdocs/alpha.md\t1:1\tspecification" || !proposalRow(stderr.String(), rows[1]) {
+		t.Errorf("draft = %q; want one cite of index.md:2 and one marked proposal", stdout.String())
 	}
 }
 
@@ -369,8 +381,12 @@ func TestProposeCitationsDCWV0393NeverCitesChangedPaths(t *testing.T) {
 	}
 	for _, row := range rows {
 		fields := strings.Split(row, "\t")
+		// DCW-V0-962: the spec hunk's own heading is a marked proposal.
+		if fields[1] == "docs/specs/p-v0.md" && proposalRow(stderr.String(), row) {
+			continue
+		}
 		if !unknownRow(fields) || !reasonedUnknownRow(fields) {
-			t.Errorf("row %q cites a changed file; want an unknown row", row)
+			t.Errorf("row %q cites a changed file; want an unknown row or its own marked proposal", row)
 		}
 	}
 	if !strings.Contains(stdout.String(), "internal/p/p_test.go is absent at BASE") || !strings.Contains(stdout.String(), "runner receipt") {
@@ -530,5 +546,41 @@ func TestProposeCitationsDCWV0920SkipsSpansOverTheCiteBound(t *testing.T) {
 				t.Fatalf("cites=%v skipped=%v, want cited=%v:\n%.2000s", cites, skipped, tc.cited, out)
 			}
 		})
+	}
+}
+
+// TestProposeCitationsDCWV0963UnknownRowsNameHunkPath (V1-3270): every
+// unknown row names, in its note, the path and BASE range its hunk edits, so
+// the stdout draft alone says which file each row stands for: here a one-line
+// file (never proposed) and a file the change adds.
+func TestProposeCitationsDCWV0963UnknownRowsNameHunkPath(t *testing.T) {
+	root := t.TempDir()
+	testGit(t, root, "init", "-q")
+	writeTree(t, root, map[string]string{"one.txt": "one\n"})
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	writeTree(t, root, map[string]string{"one.txt": "two\n", "internal/n/new.go": "package n\n"})
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "change")
+	var stdout, stderr bytes.Buffer
+	if code, err := ProposeCitations(context.Background(), ProposeOptions{Root: root, Base: base}, &stdout, &stderr); code != 0 || err != nil {
+		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
+	}
+	rows := textLines(stdout.Bytes())
+	want := map[string]bool{"proposed: hunk edits internal/n/new.go at BASE 0,0; ": false, "proposed: hunk edits one.txt at BASE 1,1; ": false}
+	for _, row := range rows {
+		fields := strings.Split(row, "\t")
+		if !reasonedUnknownRow(fields) {
+			t.Fatalf("row %q is not a reasoned unknown row", row)
+		}
+		for prefix := range want {
+			want[prefix] = want[prefix] || strings.HasPrefix(fields[3], prefix)
+		}
+	}
+	for prefix, seen := range want {
+		if !seen || len(rows) != 2 {
+			t.Errorf("no row's note starts %q:\n%s", prefix, stdout.String())
+		}
 	}
 }

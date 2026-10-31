@@ -100,14 +100,16 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    `python3 -c "import json; print(len(json.load(open('.corvint/change.cem.json'))['hunks']))"`.
    `corvint dogfood propose-citations $BASE > plan.tsv` prints a draft with one row per owed hunk,
    each citing a base line of a file the change leaves untouched that names that hunk's path, or
-   leaving it `unknown`; it never cites a file the diff adds or modifies (`DCW-V0-150`,
+   leaving it `unknown`; it never anchors a hunk on a file the diff adds or modifies (`DCW-V0-150`,
    `DCW-V0-393`). It is not a plan until you have checked that every cited line is the evidence
    the hunk relies on. Run before any map exists, or with an unreadable or other-base map
    (`DCW-V0-394`), it drafts one row per hunk of the canonical `BASE..HEAD` patch, keyed by
    full hunk ID and labelled `map=NOT_PREPARED keyed=hunk-id`; ID keys survive a later commit
    reordering hunks, and the bind's plan precheck still judges every row (`DCW-V0-350`).
-   A hunk whose only nearby evidence is its own modified file gets an `unknown` row that names
-   that file's nearest stable heading or declaration as a review hint only (`DCW-V0-439`). It cites no one-line, JSON or `.agent-evidence/`
+   A hunk whose only nearby evidence is its own modified file gets a cite row on that file's
+   nearest stable heading or declaration, marked `drafted proposal:` on stderr: confirm or
+   replace each before binding (`DCW-V0-962`). An `unknown` row's note names the path and BASE
+   range its hunk edits (`DCW-V0-963`). It cites no one-line, JSON or `.agent-evidence/`
    record, and keeps `unknown` a hunk that names a requirement ID this same change adds, naming
    the ID, since same-change intent is not BASE evidence (`DCW-V0-440`). Write the build-log entry
    and commit it before drafting (`docs/CHANGE-FLOW.md`): a new file edited after the draft gets a
