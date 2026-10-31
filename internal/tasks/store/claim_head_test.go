@@ -3,8 +3,11 @@
 package store
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
@@ -102,6 +105,9 @@ func TestPSRV0224_HeadFilesResolveAsGit(t *testing.T) {
 		if oid, ok := resolve(t, unborn); ok {
 			t.Fatalf("unborn branch resolved to %q", oid)
 		}
+		if reason := reftableUnsupported(t, "git"); reason != "" {
+			t.Skip(reason)
+		}
 		reftable := filepath.Join(t.TempDir(), "reftable")
 		holdGit(t, reftable, "init", "-q", "--ref-format=reftable", "-b", "main")
 		holdGit(t, reftable, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "base")
@@ -109,6 +115,47 @@ func TestPSRV0224_HeadFilesResolveAsGit(t *testing.T) {
 			t.Fatal("a reftable store was accepted for file resolution")
 		}
 	})
+}
+
+// reftableUnsupported names why git cannot create a reftable store, or ""
+// when it can. Git before 2.45 rejects --ref-format as an unknown option
+// (exit 129); any other failure is a broken git, not a missing capability.
+func reftableUnsupported(t *testing.T, git string) string {
+	t.Helper()
+	c := exec.Command(git, "init", "-q", "--ref-format=reftable", filepath.Join(t.TempDir(), "probe"))
+	c.Env = append(os.Environ(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1")
+	out, err := c.CombinedOutput()
+	if err == nil {
+		return ""
+	}
+	var exit *exec.ExitError
+	if errors.As(err, &exit) && exit.ExitCode() == 129 && bytes.Contains(out, []byte("ref-format")) {
+		line, _, _ := strings.Cut(strings.TrimSpace(string(out)), "\n")
+		return "git lacks --ref-format=reftable (needs git 2.45 or later): " + line
+	}
+	t.Fatalf("reftable probe: %v %s", err, out)
+	return ""
+}
+
+// PSR-V0-224: the reftable probe skips only for the unknown-option refusal of
+// a git older than 2.45, and reports support when init accepts the format.
+func TestPSRV0224_ReftableProbeNamesMissingSupport(t *testing.T) {
+	t.Parallel()
+	fake := func(t *testing.T, body string) string {
+		t.Helper()
+		path := filepath.Join(t.TempDir(), "git")
+		if err := os.WriteFile(path, []byte("#!/bin/sh\n"+body+"\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	old := fake(t, "echo \"error: unknown option \\`ref-format=reftable'\" >&2\necho 'usage: git init' >&2\nexit 129")
+	if reason := reftableUnsupported(t, old); reason != "git lacks --ref-format=reftable (needs git 2.45 or later): error: unknown option `ref-format=reftable'" {
+		t.Fatalf("old git reason %q", reason)
+	}
+	if reason := reftableUnsupported(t, fake(t, "exit 0")); reason != "" {
+		t.Fatalf("supporting git reported %q", reason)
+	}
 }
 
 // PSR-V0-224: a HEAD-bound base is confirmed against the ref files under the
