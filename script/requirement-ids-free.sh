@@ -21,6 +21,11 @@ if (($# < 1 || $# > 4)); then
   printf 'requirement-ids-free: REFUSE bad-arguments\n%s\n' "$usage" >&2
   exit 2
 fi
+# Review fix: git grep with a tree searches only the caller's directory, so run from the top level.
+top=$(git rev-parse --show-toplevel 2> /dev/null) && cd "$top" || {
+  printf 'requirement-ids-free: REFUSE not-a-checkout %q: run it inside a Git checkout\n' "$PWD" >&2
+  exit 2
+}
 prefix=$1
 [[ $prefix =~ ^[A-Z][A-Z0-9]*(-[A-Z0-9]+)*$ ]] || {
   printf 'requirement-ids-free: REFUSE bad-prefix %q: a requirement prefix is upper-case letters and digits joined by -, such as DCW-V0\n' "$prefix" >&2
@@ -70,8 +75,8 @@ sha=$(git rev-parse --verify -q --end-of-options "$ref^{commit}") || {
   exit 2
 }
 lo=$((10#$lo)) hi=$((10#$hi))
-# git grep prints SHA:PATH:LINE:MATCH; a path may hold ':', so the line and match are the last two
-# fields. The leading byte keeps XDCW-V0-960 from counting as DCW-V0-960; four digits never match.
+# git grep prints SHA:PATH:LINE:MATCH; a path may hold ':' and MATCH may start with one, so the
+# parse anchors on LINE:, the one leading byte and the ID at the end. The leading byte keeps XDCW-V0-960 from counting as DCW-V0-960; four digits never match.
 # git grep exits 1 when nothing matches, which is a free range, not a failure.
 matches=$(mktemp "${TMPDIR:-/tmp}/requirement-ids-free.XXXXXX") || exit 2
 trap '/bin/rm -f "$matches"' EXIT
@@ -84,7 +89,8 @@ fi
 used=$(awk -v prefix="$prefix-" -v lo="$lo" -v hi="$hi" -v sha="$sha:" '
     {
       record = substr($0, length(sha) + 1)
-      match_at = match(record, ":[0-9]+:[^:]*$")
+      # Anchor on LINE:, the one leading byte (which may itself be a colon) and the ID.
+      match_at = match(record, ":[0-9]+:.?" prefix "[0-9]+$")
       path = substr(record, 1, match_at - 1)
       rest = substr(record, match_at + 1)
       line = substr(rest, 1, index(rest, ":") - 1)

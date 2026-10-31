@@ -1286,6 +1286,13 @@ printf 'ABC-V0-104\n' > "$ids/uncommitted.txt"
 out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 100 105 HEAD 2> "$tmp/ids.err")
 [[ $? == 1 && $out == $'used ABC-V0-101 b.txt:1\nused ABC-V0-105 b.txt:1' && $(cat "$tmp/ids.err") == *'2 of 6 IDs in ABC-V0-100..ABC-V0-105 are used at HEAD'* ]] ||
   fail "used IDs: $out $(cat "$tmp/ids.err")"
+# Review fixes: a run from a subdirectory still searches the whole tree, and a match whose leading
+# byte is a colon (`:ABC-V0-103`) keeps its path and line.
+mkdir -p "$ids/sub/deeper" && printf 'key:ABC-V0-103\n' > "$ids/sub/colon.txt" && git -C "$ids" add sub/colon.txt &&
+  git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm colon || fail "colon fixture"
+out=$(cd "$ids/sub/deeper" && "$script/requirement-ids-free.sh" ABC-V0 101 103 HEAD 2> /dev/null)
+[[ $? == 1 && $out == $'used ABC-V0-101 b.txt:1\nused ABC-V0-103 sub/colon.txt:1' ]] || fail "subdirectory or colon-prefixed match: $out"
+git -C "$ids" rm -q sub/colon.txt && git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm uncolon || fail "colon fixture removal"
 out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 102 104 HEAD 2>&1)
 [[ $? == 0 && $out == "free ABC-V0-102..ABC-V0-104 at HEAD ($(git -C "$ids" rev-parse HEAD))" ]] || fail "free range: $out"
 out=$(cd "$ids" && "$script/requirement-ids-free.sh" ZZZ-V1 1 9 HEAD 2>&1)
@@ -1300,6 +1307,11 @@ out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 HEAD 2>&1)
   fail "in-use prefix: $out"
 out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABX-V0 HEAD 2>&1)
 [[ $? == 0 && $out == 'free-prefix ABX-V0 at HEAD ('* ]] || fail "free prefix: $out"
+# Review fix: the make target refuses any RANGE but <digits>..<digits>.
+for range in ..979 1..2..3 960.. abc; do
+  out=$(make -s -C "$script/.." requirement-ids-free PREFIX=ABC-V0 RANGE="$range" 2>&1)
+  [[ $? == 2 && $out == *"REFUSE bad-range RANGE=$range"* ]] || fail "make target admitted RANGE=$range: $out"
+done
 for bad in 'abc 1 2 HEAD:bad-prefix' 'ABC-V0 5 2 HEAD:bad-range' 'ABC-V0 1 1000 HEAD:bad-range' 'ABC-V0 1 2 no-such-ref:ref-not-a-commit' 'ABC-V0 1 2 3 4:bad-arguments'; do
   read -r -a argv <<< "${bad%:*}"
   out=$(cd "$ids" && "$script/requirement-ids-free.sh" "${argv[@]}" 2>&1)
