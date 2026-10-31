@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -44,12 +45,30 @@ func parseContextParams(raw []byte, root string) (contextWorkerInput, string, er
 	if err != nil || len(uri) > 4096 || u.Scheme != "file" || u.Host != "" || u.User != nil || u.Opaque != "" || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || (&url.URL{Scheme: "file", Path: u.Path}).String() != uri {
 		return contextWorkerInput{}, "", ErrFraming
 	}
-	subject, err := filepath.Rel(root, u.Path)
+	native, ok := uriNativePath(u.Path, runtime.GOOS)
+	if !ok {
+		return contextWorkerInput{}, "", ErrFraming
+	}
+	subject, err := filepath.Rel(root, native)
 	input := contextWorkerInput{Subject: filepath.ToSlash(subject), Task: *p.Task, Limit: *p.Limit}
-	if err != nil || !validWorkerInput(input) || filepath.Clean(u.Path) != u.Path || strings.ContainsAny(u.Path, "\\\x00") {
+	if err != nil || !validWorkerInput(input) {
 		return contextWorkerInput{}, "", ErrFraming
 	}
 	return input, uri, nil
+}
+
+// uriNativePath is the native path a file URI path names. The URI path must be slash-clean and
+// free of `\` and NUL on every host; on Windows a drive path `/C:/x` drops its leading slash, so
+// it relates to a `C:\` root instead of being refused as framing (V1-2488).
+func uriNativePath(uriPath, goos string) (string, bool) {
+	if path.Clean(uriPath) != uriPath || strings.ContainsAny(uriPath, "\\\x00") {
+		return "", false
+	}
+	if goos == "windows" && len(uriPath) >= 3 && uriPath[0] == '/' && uriPath[2] == ':' &&
+		('A' <= uriPath[1] && uriPath[1] <= 'Z' || 'a' <= uriPath[1] && uriPath[1] <= 'z') {
+		uriPath = uriPath[1:]
+	}
+	return filepath.FromSlash(uriPath), true
 }
 
 type repositoryObservation struct {
