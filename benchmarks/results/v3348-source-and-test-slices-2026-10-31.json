@@ -1,0 +1,791 @@
+{
+  "profile": "corvint-tsp-v0-861-per-commit-replay/0",
+  "note": "corvint test --base C^ --dry-run at every non-merge commit of origin/main up to 85d5ad4b7 that changes a Go package's source and test files in one directory; base = planner built at 85d5ad4b7, lane = TSP-V0-861 planner",
+  "base": {
+    "commits": 87,
+    "whole": 14581,
+    "sliced": 0,
+    "sourceWhole": 152,
+    "sourceAndTestsWhole": 135
+  },
+  "lane": {
+    "commits": 87,
+    "whole": 14581,
+    "sliced": 0,
+    "sourceWhole": 152,
+    "sourceAndTestsWhole": 0,
+    "reasons": {
+      "whole: DIRECT_SOURCE_CHANGE (FILE changes more than plain functions)": 36,
+      "whole: DIRECT_SOURCE_CHANGE (FILE has a parameter or result of a type that may share memory)": 16,
+      "whole: DIRECT_SOURCE_CHANGE (FILE is new)": 3,
+      "whole: DIRECT_SOURCE_CHANGE (FILE reaches the package variable admittedUnsupportedCodes)": 1,
+      "whole: DIRECT_SOURCE_CHANGE (also selected by BINARY_EXEC)": 2,
+      "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH)": 64,
+      "whole: DIRECT_SOURCE_CHANGE (also selected by ENCLOSING_PACKAGE)": 4,
+      "whole: DIRECT_SOURCE_CHANGE (also selected by PATH_LITERAL_READER)": 19,
+      "whole: DIRECT_SOURCE_CHANGE (also selected by UNBOUNDED_READER)": 4,
+      "whole: DIRECT_SOURCE_CHANGE (FILE uses NAME other than in a call)": 3
+    }
+  },
+  "perCommit": [
+    {
+      "commit": "eacaf05a0737ddce31b22fd3b970b817afe38af9",
+      "whole": 68,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (tools/cem-stable-regen/anyof.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "7d2aafc31c853ddd17aed9c68bc571cc6f7a05a1",
+      "whole": 185,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by PATH_LITERAL_READER via integrations/host-adapters.test.mjs)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by BINARY_EXEC via cmd/corvint/host_adapter_experimental.go)"
+      ]
+    },
+    {
+      "commit": "6c4363cbf162514d687f72e4326b9f7a178335a4",
+      "whole": 122,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (boundManifestHeld in internal/tasks/store/guards.go has a parameter or result of a type that may share memory)"
+      ]
+    },
+    {
+      "commit": "fb3d0b6dd7503491be43196f52aba67bfdc3e6c8",
+      "whole": 139,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (cmd/corvint/work_runner.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "396db5a05851892aa97bb1c717c1ff9dd764caf0",
+      "whole": 180,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (internal/tasks/wire/codes.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "a41d3a6017087d4a63676370b2513fd9ea518390",
+      "whole": 233,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by ENCLOSING_PACKAGE via tools/cem-stable-regen/testdata/v1-2615-any-of-record.json)"
+      ]
+    },
+    {
+      "commit": "5cb8c78bd0f56a41358563d925171adecc2e9c43",
+      "whole": 139,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (sanitizeHarnessQueryContext in cmd/corvint/harness_context.go has a parameter or result of a type that may share memory)"
+      ]
+    },
+    {
+      "commit": "944cf64d8523fc36fc4924f63f16028084336399",
+      "whole": 105,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (terseHelp in internal/tasks/cli/command_help.go has a parameter or result of a type that may share memory)"
+      ]
+    },
+    {
+      "commit": "d9cddbdd1c03efe20367a73b8715e4ffdae576fe",
+      "whole": 203,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/appflows/docs_maintain.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/testvaliditydoc/platform.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/testvaliditydoc/platform.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/testvaliditydoc/platform.go)",
+        "whole: DIRECT_SOURCE_CHANGE (internal/testvaliditydoc/platform.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "6dc14ec9e4a07bb2799008121559b65cb3ed1e83",
+      "whole": 139,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (proveStatusRefusal in cmd/corvint/prove.go has a parameter or result of a type that may share memory)"
+      ]
+    },
+    {
+      "commit": "3dcbe5d8596d43021777dbfa206cb74538407c7d",
+      "whole": 139,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (localEventContext in cmd/corvint/local_completion_event.go has a parameter or result of a type that may share memory)"
+      ]
+    },
+    {
+      "commit": "4a6e8b21485ed2bec827b0d81f3427cf0d9daea0",
+      "whole": 162,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (internal/dogfoodflow/ocm_coverage.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "52df31d746cae2cad062b0b6cb73cc4444a4e86d",
+      "whole": 135,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via docs/specs/README.md)"
+      ]
+    },
+    {
+      "commit": "d78aa30bc57680ac9cecd36084cb46647ffb6bd5",
+      "whole": 224,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/gitstatus/status.go)",
+        "whole: DIRECT_SOURCE_CHANGE (internal/gitstatus/status.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "653404deace0fa9b1f2fe246a6c68e8e70f8f5bf",
+      "whole": 100,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (internal/dogfoodflow/propose.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "34a631473fddd34933817c5f60d93f9982fb177a",
+      "whole": 98,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (internal/scopelease/store_excl.go is new)"
+      ]
+    },
+    {
+      "commit": "d9f645ae5e1b11d27579598e1bf61e1f382ce6d0",
+      "whole": 170,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/capcatalog/trees/corvint.json)"
+      ]
+    },
+    {
+      "commit": "536fe9a09bd4563666a3cdec4b966453f8c60206",
+      "whole": 122,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (boundManifestHeld in internal/tasks/store/guards.go has a parameter or result of a type that may share memory)"
+      ]
+    },
+    {
+      "commit": "14ec92afa1574d59d03580894ebe1271b6c24f74",
+      "whole": 180,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/tasks/wire/codes.go)",
+        "whole: DIRECT_SOURCE_CHANGE (internal/tasks/wire/codes.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "c529f8e1d7a870a6d128c1c4029c87d6407ba01e",
+      "whole": 169,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (internal/liveverify/affected/shell/fresh.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "334f3f3ac1e2bba4d6947c88be2d8d9c86a8d5c9",
+      "whole": 138,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by PATH_LITERAL_READER via docs/specs/test-selection-precision-v0.md)"
+      ]
+    },
+    {
+      "commit": "be30ca569dc75d355d11c49bb5f48e7bd1548d97",
+      "whole": 73,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (readPrior in tools/corvint-pr-tests/rerun.go has a parameter or result of a type that may share memory)"
+      ]
+    },
+    {
+      "commit": "95c415600195e3b894b241d40036d4c3c036a3d1",
+      "whole": 118,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by ENCLOSING_PACKAGE via tools/corvint-pr-tests/README.md)"
+      ]
+    },
+    {
+      "commit": "988130b15b3abefa028945f10a254581a561c3a6",
+      "whole": 139,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by PATH_LITERAL_READER via docs/build-log/2026-10-30-v1-2806-source-slices.md)"
+      ]
+    },
+    {
+      "commit": "7f37edd7f774bf6ae865f3120be1a531abfd61dd",
+      "whole": 195,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/liveverify/affected/shell/callers.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/liveverify/affected/graph.go)"
+      ]
+    },
+    {
+      "commit": "621d44a8b099961abaf0bd065d8cf9f7fd07a31b",
+      "whole": 157,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (internal/liveverify/affected/shell/fresh.go is new)"
+      ]
+    },
+    {
+      "commit": "ccf6c05f7a24200bf18174c380b7a747d4393795",
+      "whole": 394,
+      "sliced": 0,
+      "sourceWhole": []
+    },
+    {
+      "commit": "54a4469c96ef214ec9cadd0901cd058bed710d7c",
+      "whole": 163,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/liveverify/affected/golang/golang.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/liveverify/affected/source.go)"
+      ]
+    },
+    {
+      "commit": "baf947665c8f26df168a448bb0a2e3bfdfe50821",
+      "whole": 83,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (tools/ci-reuse-plan/control_plane_workflow_test.go uses main other than in a call)"
+      ]
+    },
+    {
+      "commit": "8fd710335159e66b2dc74f2c93595cdcfdf41506",
+      "whole": 158,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/liveverify/affected/golang/golang.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/liveverify/affected/select.go)"
+      ]
+    },
+    {
+      "commit": "c9ff36e95bfad00ac151e2c9211719b88a71bca7",
+      "whole": 83,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (tools/ci-reuse-plan/control_plane_workflow_test.go uses main other than in a call)"
+      ]
+    },
+    {
+      "commit": "146fd826179e7a34c7ffb47725d08fdac3544a6b",
+      "whole": 106,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (internal/tracemigraterepo/adapter.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "0a4ad77f0cafe8a7c41d81077bdb88432e8e2cde",
+      "whole": 145,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (scanImports in internal/liveverify/affected/python/python.go has a parameter or result of a type that may share memory)"
+      ]
+    },
+    {
+      "commit": "6ce885800a54a3fe1ea6ee840c172797c0897ded",
+      "whole": 172,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by PATH_LITERAL_READER via docs/build-log/2026-10-30-v1-0607-hook-refresh-qualification.md)"
+      ]
+    },
+    {
+      "commit": "69ffd04cdb423c06e6fa623b194e926867d59328",
+      "whole": 138,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by PATH_LITERAL_READER via docs/build-log/2026-10-30-v1-0607-hook-refresh-qualification.md)"
+      ]
+    },
+    {
+      "commit": "3ee4401576062869497a626ab9599366056f4701",
+      "whole": 173,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by PATH_LITERAL_READER via docs/build-log/2026-10-30-v1-0607-hook-refresh-qualification.md)"
+      ]
+    },
+    {
+      "commit": "dc89ab41bbe10df414ede4d7dd526c26fb10a731",
+      "whole": 126,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (internal/trace/migration.go changes more than plain functions)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/trace/migration.go)"
+      ]
+    },
+    {
+      "commit": "6ca594ec388f52dd85e030cb314219b285609ceb",
+      "whole": 144,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (internal/liveverify/affected/python/python.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "1d2557f521d10a7c25f54784a8878fc7a707272a",
+      "whole": 133,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by PATH_LITERAL_READER via docs/specs/REQUIREMENTS.tsv)"
+      ]
+    },
+    {
+      "commit": "6684d851b0fe39707f7cef0c6362add49e1c2a11",
+      "whole": 135,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (internal/update/update.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "14c7414e83da09b914688882f6a1338791dbcefa",
+      "whole": 169,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (LineScreens in internal/appmap/site_knowledge_lines.go has a parameter or result of a type that may share memory)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/appmap/site_knowledge_lines.go)"
+      ]
+    },
+    {
+      "commit": "c4adc2ad5a9e81f9fcdc8355a4698aac9c2d69e1",
+      "whole": 139,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by PATH_LITERAL_READER via docs/RELEASE-RUNBOOK.md)"
+      ]
+    },
+    {
+      "commit": "5a502e2c159e04370193fd069c7babb61bde3bc9",
+      "whole": 132,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (internal/dogfoodflow/propose.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "9a3d75e87ff5588c9faebb9991ff8d6bdcf3168e",
+      "whole": 104,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (internal/dogfoodflow/propose.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "4a709335b2045f8ad187c15f929ed908418f8bee",
+      "whole": 134,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (nonCommandLineParams in internal/clitree/childargv.go has a parameter or result of a type that may share memory)"
+      ]
+    },
+    {
+      "commit": "e592901377dab7dc7a5649c7063b4ec7f4f8fd45",
+      "whole": 169,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/capcatalog/catalog.json)",
+        "whole: DIRECT_SOURCE_CHANGE (internal/sessiontest/run.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "a0226cc40ce06f5a3bf6d198b4b62e2c52de9da1",
+      "whole": 219,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/appmap/site_knowledge_lines.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/appmap/site_knowledge_lines.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/testvalidity/source_rules_outcome.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/appmap/site_knowledge_lines.go)",
+        "whole: DIRECT_SOURCE_CHANGE (finishWithProfile in internal/localcompletion/finish.go has a parameter or result of a type that may share memory)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/appmap/site_knowledge_lines.go)",
+        "whole: DIRECT_SOURCE_CHANGE (internal/testvalidity/source_rules_outcome.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "dadd1fc22e2e7606956af6f8fd6d7d21489d1a55",
+      "whole": 137,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/tracerecordrepo/aggregate_schema_error.go)",
+        "whole: DIRECT_SOURCE_CHANGE (internal/tracerecordrepo/aggregate_schema_error.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "840f7b68d8eb8a13de8e6b66d6f0fb0b57f9ca3f",
+      "whole": 176,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (internal/dogfoodflow/change.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "be0895013083b35662aa02991b089ed18f625186",
+      "whole": 225,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/capcatalog/catalog.json)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/tracerecordrepo/aggregate_outcome.go)",
+        "whole: DIRECT_SOURCE_CHANGE (internal/tracerecordrepo/aggregate_outcome.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "bc9233504b2c74dd7cb57ea130f2f7bf14e4f5e1",
+      "whole": 212,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/capcatalog/trees/corvint-tasks.json)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/tasks/similar/digest.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/contextindex/lexrank.go)"
+      ]
+    },
+    {
+      "commit": "a805f08916d6e3d46468289ff6a0d73e36c65f03",
+      "whole": 220,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/capcatalog/catalog.json)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/liveverify/affected/select.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/gateselect/readers.go)",
+        "whole: DIRECT_SOURCE_CHANGE (internal/sessiontest/declared.go changes more than plain functions)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/sessiontest/declared.go)"
+      ]
+    },
+    {
+      "commit": "a239a33c1793ae4a06a4abad357010814602d1b3",
+      "whole": 394,
+      "sliced": 0,
+      "sourceWhole": []
+    },
+    {
+      "commit": "743aca4f1af2eef1f01dc2415c0d253f646dad50",
+      "whole": 180,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/clitree/childargv.go)",
+        "whole: DIRECT_SOURCE_CHANGE (internal/clitree/childargv.go is new)"
+      ]
+    },
+    {
+      "commit": "7635084e3876b37629800d956c472d37068cd979",
+      "whole": 115,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (internal/appmap/endpoints_link_test.go uses next other than in a call)"
+      ]
+    },
+    {
+      "commit": "c4390e8c5c0bf4e4ef05c5770c1eec3b888ee28c",
+      "whole": 112,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (parameterSpread in internal/appmap/stateinject.go has a parameter or result of a type that may share memory)"
+      ]
+    },
+    {
+      "commit": "1020cf7f4ea504cf34af5314f0cd6637a7e24c86",
+      "whole": 180,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (internal/clitree/scan.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "21675153f1500ebe5bfe0e4bd79b6e70c1b0742a",
+      "whole": 104,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (internal/dogfoodflow/reused_worktree.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "240b6d68e5a6ef72ce809f297918dbfa0d192dbb",
+      "whole": 183,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/contextindex/eval_admission.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/doccorpus/compile.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/contextindex/eval_admission.go)"
+      ]
+    },
+    {
+      "commit": "c174cbe2caee5b8e4d14e5adb099c5cec779097f",
+      "whole": 177,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by PATH_LITERAL_READER via docs/AUTOMATION.md)"
+      ]
+    },
+    {
+      "commit": "75d07b61a869fbd0232a73a85d1c54f3a5b0dcf1",
+      "whole": 164,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by PATH_LITERAL_READER via docs/DOGFOOD.md)"
+      ]
+    },
+    {
+      "commit": "e53d5df9c8f867b73f72944c62bba28815a438f7",
+      "whole": 104,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (internal/dogfoodflow/finishlane.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "f6471c5c4a02246436cca78f7f2e6a9c8ba4d13c",
+      "whole": 109,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (internal/dogfoodflow/finishlane.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "80fce85648503ce5a13d7149c597a773abcf5455",
+      "whole": 187,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by PATH_LITERAL_READER via docs/AUTOMATION.md)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by BINARY_EXEC via cmd/corvint/affected.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by ENCLOSING_PACKAGE via conformance/use-cases-v0/ledger.json)"
+      ]
+    },
+    {
+      "commit": "72d741b6293eda6051f1b39df737c887493e028d",
+      "whole": 246,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by PATH_LITERAL_READER via .corvint/test-read-scopes.json)"
+      ]
+    },
+    {
+      "commit": "91e0d0b38a67437c0b81c14b0cf0215862d8025f",
+      "whole": 187,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by UNBOUNDED_READER via cmd/corvint/work_adopt_test.go)"
+      ]
+    },
+    {
+      "commit": "1c43e54bee61a311c5cbc9cdd909a439086c8945",
+      "whole": 162,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/observations/observations.go)",
+        "whole: DIRECT_SOURCE_CHANGE (validDogfoodReason reaches the package variable admittedUnsupportedCodes)"
+      ]
+    },
+    {
+      "commit": "12225150f4ad67b03f12ed594484cdc7c9028d5c",
+      "whole": 165,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (internal/dogfoodflow/batch.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "8a440206385a155639c3649fabb4672998f087de",
+      "whole": 161,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (internal/dogfoodflow/regenerated.go changes more than plain functions)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by UNBOUNDED_READER via docs/DOGFOOD.md)"
+      ]
+    },
+    {
+      "commit": "9971cddbd64aeb3d9210d0243f0fb66d428a3c29",
+      "whole": 300,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/cem/cemcode/cemcode.go)",
+        "whole: DIRECT_SOURCE_CHANGE (internal/cem/cemcode/cemcode.go changes more than plain functions)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/cem/cemcode/cemcode.go)"
+      ]
+    },
+    {
+      "commit": "8f8d56d6a9a43bbfbd2a063bb8bde7dd11ef6c13",
+      "whole": 273,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by PATH_LITERAL_READER via .corvint/test-read-scopes.json)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by PATH_LITERAL_READER via .corvint/test-read-scopes.json)"
+      ]
+    },
+    {
+      "commit": "4286af92910f28a71e7f63c97f99cab31fbe36bc",
+      "whole": 273,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by PATH_LITERAL_READER via .corvint/test-read-scopes.json)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by PATH_LITERAL_READER via .corvint/test-read-scopes.json)"
+      ]
+    },
+    {
+      "commit": "5c7b387bbcbeda2706f4e5f0063f401cfb5aa0e2",
+      "whole": 200,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/gokernel/repository.go)",
+        "whole: DIRECT_SOURCE_CHANGE (internal/gokernel/repository.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "27e8cfd3c059b86981aa70d85e7454c9536abad6",
+      "whole": 114,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by PATH_LITERAL_READER via docs/specs/README.md)"
+      ]
+    },
+    {
+      "commit": "60f9cc2090db5ab50c69694d2f25ff6b1c386b16",
+      "whole": 165,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/jstestprovider/sensitive_input_grammar.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/appmap/site_knowledge_edges.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/jstestprovider/sensitive_input_grammar.go)"
+      ]
+    },
+    {
+      "commit": "5ceb414352dfe90c80d05b23f1bcc7991b076d6d",
+      "whole": 104,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (internal/dogfoodflow/propose.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "bc4d74be2be544e156c2739d767ac329c4613f6d",
+      "whole": 164,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/dogfoodflow/propose.go)",
+        "whole: DIRECT_SOURCE_CHANGE (internal/dogfoodflow/propose.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "432a7cebc5fbfc1c772861b62299fe30a34a1847",
+      "whole": 138,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by PATH_LITERAL_READER via docs/specs/INDEX.json)"
+      ]
+    },
+    {
+      "commit": "6dab8728a4c796ee0fa8c2f7b14cf54b9b73a0bd",
+      "whole": 285,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/capcatalog/catalog.json)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/cem/cemcode/cemcode.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/cem/cemcode/cemcode.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/cem/cemcode/cemcode.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/cem/wire/hunk_digest.go)"
+      ]
+    },
+    {
+      "commit": "e5bd8534d3b7bd008a4d1142e9a6a0f581cc4a20",
+      "whole": 171,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/tasks/release/mutation.go)",
+        "whole: DIRECT_SOURCE_CHANGE (internal/tasks/release/mutation.go changes more than plain functions)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/tasks/release/mutation.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/tasks/release/mutation.go)"
+      ]
+    },
+    {
+      "commit": "3419af731532a14aa50b6bbcbcb52c6ae182c90f",
+      "whole": 253,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/appmap/site_knowledge_edges.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/jstestprovider/sensitive_input_grammar.go)",
+        "whole: DIRECT_SOURCE_CHANGE (internal/cem/cli/cli.go changes more than plain functions)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/appmap/site_knowledge_edges.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/jstestprovider/sensitive_input_grammar.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by PATH_LITERAL_READER via internal/cem/cli/cli.go)"
+      ]
+    },
+    {
+      "commit": "fae25e5f1654482b1518e0cded312c83f3c9d2ec",
+      "whole": 166,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by UNBOUNDED_READER via docs/build-log/2026-10-30-go-archive-containment.md)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by UNBOUNDED_READER via conformance/cli-parity-v0/snapshot.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/archivepath/archivepath.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/archivepath/archivepath.go)",
+        "whole: DIRECT_SOURCE_CHANGE (unretireLocked in internal/tasks/store/retire.go has a parameter or result of a type that may share memory)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/archivepath/archivepath.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/archivepath/archivepath.go)"
+      ]
+    },
+    {
+      "commit": "7f4cd0af90b807b38b5739a44e2becaa53074a45",
+      "whole": 188,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/localcompletion/finish.go)",
+        "whole: DIRECT_SOURCE_CHANGE (internal/localcompletion/finish.go changes more than plain functions)"
+      ]
+    },
+    {
+      "commit": "8201973d33cf7d872c4ed68daed4811ff71b5a45",
+      "whole": 177,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (internal/dogfoodflow/check.go changes more than plain functions)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/dogfoodflow/check.go)"
+      ]
+    },
+    {
+      "commit": "88136389e79d1e413a202b8d421ca4a22aeb7ec6",
+      "whole": 177,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (also selected by ENCLOSING_PACKAGE via internal/cem/corpusbinding/testdata/public-root-history/README.md)"
+      ]
+    },
+    {
+      "commit": "ff0751bc4b22f5971cff6c0f10ef0ee5d6f29cf5",
+      "whole": 177,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (preAuthenticationEncoding in internal/attest/dsse.go has a parameter or result of a type that may share memory)",
+        "whole: DIRECT_SOURCE_CHANGE (parseBound in internal/cem/workflow/discriminate.go has a parameter or result of a type that may share memory)",
+        "whole: DIRECT_SOURCE_CHANGE (descendantFactsV2 in internal/postmergeproof/native_refs_v2.go has a parameter or result of a type that may share memory)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/tasks/store/program.go)",
+        "whole: DIRECT_SOURCE_CHANGE (also selected by DEPENDENCY_PATH via internal/tasks/cli/batch_close.go)"
+      ]
+    },
+    {
+      "commit": "8aa0763d252e1263ddfbc59e6f14b9bcc54d27ef",
+      "whole": 305,
+      "sliced": 0,
+      "sourceWhole": [
+        "whole: DIRECT_SOURCE_CHANGE (tools/pi-tui-fixture/main.go changes more than plain functions)"
+      ]
+    }
+  ]
+}

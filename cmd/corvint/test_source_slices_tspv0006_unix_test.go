@@ -167,7 +167,8 @@ func TestTSPV0006DryRunSlicesSourceChanges(t *testing.T) {
 	}{
 		{"every test reaches it", "go:example.test/m/r", "whole: DIRECT_SOURCE_CHANGE via r/r.go",
 			map[string]string{"r/r.go": "package r\n\nfunc R() int { return 4 }\n\nfunc S() int { return 2 }\n"}},
-		{"its test file changed too", "go:example.test/m/p", "whole: DIRECT_SOURCE_CHANGE via p/p.go (its test file p/p_test.go changed too)",
+		// TSP-V0-861: the changed test file's tests run, with TestExternal every test.
+		{"its test file changed too", "go:example.test/m/p", "whole: DIRECT_SOURCE_CHANGE via p/p.go (every test function of the package reaches Upper changed in p/p.go and the tests of p/p_test.go)",
 			map[string]string{"p/p.go": edit("strings.ToUpper(s) +", "strings.ToTitle(s) +"), "p/p_test.go": "package p\n\nimport \"testing\"\n\nfunc TestUpper(t *testing.T) { _ = Upper(\"b\") }\n"}},
 		{"a function used as a value", "go:example.test/m/p", "whole: DIRECT_SOURCE_CHANGE via p/p.go (p/p.go uses Lower other than in a call)",
 			map[string]string{"p/p.go": edit("strings.ToLower(s)", "strings.ToLower(s + \"\")")}},

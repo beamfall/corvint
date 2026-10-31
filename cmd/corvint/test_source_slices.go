@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"go/ast"
 	"go/parser"
 	"go/scanner"
@@ -24,14 +23,18 @@ import (
 // with the missing proof named:
 //
 //   - the package's own dirty paths are existing non-test .go files present
-//     at base, none of its test files is dirty, and the plan of the other
-//     dirty paths does not select the package (no dependency, reader or
-//     declared read reaches it);
+//     at base, and its test files, and the plan of the other dirty paths does
+//     not select the package (no dependency, reader or declared read reaches
+//     it);
+//   - when its test files changed too (TSP-V0-861), they pass every
+//     STR-V0-063 proof testGoSlice makes (no initialization effect then or
+//     now, no name an unchanged test file uses, the same imports), and their
+//     test functions join the kept set;
 //   - each changed file, with its receiver-less functions other than init
 //     removed, is byte-identical to base, so only plain functions changed
 //     (no import, type, method, variable, constant, init or build line);
 //   - the package directory holds no assembly, C or other non-Go source, no
-//     file names go:linkname, and none imports "C";
+//     file has a //go:linkname comment, and none imports "C";
 //   - no file of the package names a changed function other than in call
 //     position or as its own declaration, so the function is never a value
 //     that could travel into another package;
@@ -71,6 +74,8 @@ type testSourceCandidate struct {
 	unit     affected.Unit
 	fallback string
 	own      []string
+	// tests are the package's own changed test files (TSP-V0-861).
+	tests []string
 }
 
 // testSourceEligibles records in sliced the fallback of each candidate
@@ -91,20 +96,20 @@ func testSourceEligibles(plan affected.Plan, graph *affected.Graph, candidates [
 func testSourceOwnPaths(eligible []testSourceCandidate) []string {
 	var paths []string
 	for _, candidate := range eligible {
-		paths = append(paths, candidate.own...)
+		paths = append(append(paths, candidate.own...), candidate.tests...)
 	}
 	return paths
 }
 
-// testSourceEligible fills candidate.own and returns "" when the package's
-// own dirty paths are its non-test .go files alone and the other dirty paths
-// do not select it.
+// testSourceEligible fills candidate.own and candidate.tests and returns ""
+// when the package's own dirty paths are its non-test .go files and its test
+// files, and the other dirty paths do not select it.
 func testSourceEligible(plan affected.Plan, graph *affected.Graph, candidate *testSourceCandidate, planned int) string {
 	var rest []string
 	for _, dirty := range plan.Dirty {
 		switch {
 		case testFileOf(candidate.unit, dirty):
-			return candidate.fallback + " (its test file " + dirty + " changed too)"
+			candidate.tests = append(candidate.tests, dirty)
 		case slices.Contains(candidate.unit.Sources, dirty):
 			if !strings.HasSuffix(dirty, ".go") {
 				return candidate.fallback + " (" + dirty + " is not Go source)"
@@ -177,12 +182,12 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 		if err != nil {
 			return whole(relative + " cannot be read")
 		}
-		if bytes.Contains(source, []byte("go:linkname")) {
-			return whole(relative + " names go:linkname")
-		}
 		file, err := parser.ParseFile(fileSet, relative, source, parser.ParseComments|parser.SkipObjectResolution)
 		if err != nil {
 			return whole(relative + " does not parse")
+		}
+		if testSourceLinkname(file) {
+			return whole(relative + " names go:linkname")
 		}
 		for _, spec := range file.Imports {
 			if spec.Path.Value == `"C"` {
@@ -369,14 +374,31 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 			kept = append(kept, decl.test)
 		}
 	}
+	changedIn := strings.Join(names, ", ") + " changed in " + strings.Join(candidate.own, ", ")
+	if len(candidate.tests) != 0 {
+		// TSP-V0-861: the changed test files' own STR-V0-063 slice, under its
+		// own proofs, joins the tests reaching the changed functions.
+		changedTests := make(map[string]bool, len(candidate.tests))
+		for _, test := range candidate.tests {
+			changedTests[test] = true
+		}
+		own := testGoSlice(root, testSliceCandidate{id: "go:" + candidate.pkg, unit: candidate.unit, changed: changedTests}, testBaseDeclarations(atBase, candidate.tests))
+		if own.Pattern == "" {
+			return whole(strings.TrimPrefix(own.Reason, "whole: "))
+		}
+		kept = append(kept, strings.Split(strings.TrimSuffix(strings.TrimPrefix(own.Pattern, "^("), ")$"), "|")...)
+		changedIn += " and the tests of " + strings.Join(candidate.tests, ", ")
+	}
 	slices.Sort(all)
 	all = slices.Compact(all)
 	slices.Sort(kept)
 	kept = slices.Compact(kept)
 	if len(kept) == len(all) {
+		if len(candidate.tests) != 0 {
+			return whole("every test function of the package reaches " + changedIn)
+		}
 		return sessiontest.GoSlice{Reason: candidate.fallback}
 	}
-	changedIn := strings.Join(names, ", ") + " changed in " + strings.Join(candidate.own, ", ")
 	if len(kept) == 0 {
 		return sessiontest.GoSlice{Pattern: "^$", Reason: "selected: no test reaches " + changedIn + "; build and vet only"}
 	}
@@ -385,6 +407,20 @@ func testSourceSlice(root string, candidate testSourceCandidate, atBase map[stri
 		return whole("the -run pattern exceeds the bound")
 	}
 	return sessiontest.GoSlice{Pattern: pattern, Reason: "selected: the tests reaching " + changedIn}
+}
+
+// testSourceLinkname reports whether a comment of file is a //go:linkname
+// directive, the only form the compiler honours (TSP-V0-861); a string or
+// prose naming it is no directive.
+func testSourceLinkname(file *ast.File) bool {
+	for _, group := range file.Comments {
+		for _, comment := range group.List {
+			if strings.HasPrefix(comment.Text, "//go:linkname") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // testSourcePlainFunctions splits a file into its receiver-less functions
