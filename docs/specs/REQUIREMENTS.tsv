@@ -3913,6 +3913,7 @@ FPK-V0-053	docs/specs/falsifiable-packet-v0.md	(accepted, decision 0515; experim
 FPK-V0-054	docs/specs/falsifiable-packet-v0.md	(accepted, decision 0515; experimental)	owner	decision 0515
 FPK-V0-055	docs/specs/falsifiable-packet-v0.md	(accepted, decision 0515; experimental)	owner	decision 0515
 FPK-V0-056	docs/specs/falsifiable-packet-v0.md	(accepted, decision 0515; experimental)	owner	decision 0515
+FPK-V0-920	docs/specs/falsifiable-packet-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3042) a `prov	standing	2026-10-31; V1-3042
 FDM-V0-001	docs/specs/flow-document-maintenance-v0.md	`flows docs maintain --preview` MUST write nothing, returning proposed page and	unrecorded	-
 FDM-V0-002	docs/specs/flow-document-maintenance-v0.md	`--apply --expected-proposal SHA256` MUST freshly derive the proposal and refuse	unrecorded	-
 FDM-V0-003	docs/specs/flow-document-maintenance-v0.md	Both outputs absent permits exclusive creation. Both present requires an explici	unrecorded	-
