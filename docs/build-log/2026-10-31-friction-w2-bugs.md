@@ -129,6 +129,30 @@ Decisions:
 The analyzer input digest still changes on any input edit. Making the digest output-only was out of
 scope: IDX-SNAP-V0-107 keeps the input pin as the audit.
 
+## Lane friction fixed in place (DCW-V0-808..810)
+
+At the owner's request ("make sure you are fixing friction"), the lane's own friction findings in
+its area were fixed rather than only listed:
+- F2 (DCW-V0-808): `dogfood finish-lane --verify-file` printed only
+  `invalid-local-completion-option`. Option refusals now name the option, the accepted options and,
+  for `--verify-file`, `--verify FILE`. A positional BASE names `--base`.
+- F3 (DCW-V0-809): a spec hunk that adds a same-change requirement, or only its rows, was drafted to
+  another requirement's decision (0388, 0543), and the lane rewrote those rows by hand twice. Such a
+  hunk now drafts an unknown row. The lane's redraft has no such row, and the 2865c23b9 drafts are
+  unchanged.
+- F11 (DCW-V0-810): the `inputs-check` pre-flight that `make dogfood-finish` runs first refused the
+  stale OCM sidecars of the lane's first bind, which `finish-lane` itself retires. Sidecars alone
+  are now a NOTE. A stranded trace still refuses.
+- F6 is covered by `make repin` (DCG-V0-801). It also repins the unrelated Makefile citation that a
+  Makefile line shift breaks.
+
+Not fixed, with reasons:
+- F9 and F10 are host setup: this host has no `node` and no `rg`. `make host-adapter-node-test`
+  fails at the base, and the dogfood shell test refuses up front.
+- F1 is the orchestrator's ID allocation.
+- F4, F5, F7 and F8 are design questions about other gates (foreign-caller declarations, read-scope
+  literals, selection width, same-change intent) that need their own tickets.
+
 ## Verification
 
 Focused tests only, because `corvint test --base 780f9e97 --dry-run` selects 212 packages whole.
