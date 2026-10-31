@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"slices"
@@ -47,6 +48,18 @@ func TestRepositoryShellForeignCallersComplete_TSP_V0_005(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The declaration covers tracked files: an ignored build product in the
+	// checkout, such as the ./corvint binary `go build ./cmd/corvint` writes,
+	// embeds every script name and is no caller (V1-1819).
+	listing, err := exec.Command("git", "-C", root, "ls-files", "-z").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tracked := map[string]bool{}
+	for _, name := range strings.Split(string(listing), "\x00") {
+		tracked[name] = true
+	}
+	files = slices.DeleteFunc(files, func(name string) bool { return !tracked[name] })
 	exempt := func(name string) bool {
 		return strings.HasSuffix(name, ".md") || strings.HasSuffix(name, ".json") || strings.HasSuffix(name, ".jsonl") || strings.HasSuffix(name, ".tsv")
 	}
