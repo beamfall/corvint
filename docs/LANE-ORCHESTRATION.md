@@ -399,6 +399,13 @@ every session, subagent or not: a backgrounded `make dogfood-closeout`, `-finish
 `-seal`, `script/dogfood-finish.sh` or `corvint dogfood finish-lane`/`finish`/`check`/`seal` is
 denied with this foreground recipe.
 
+The orchestrator's landing step is `script/pr-landing-watch.sh [--act] PR` (ASD-V0-833, V1-1735),
+run once per CI or merge-queue event, never in a loop. It prints one decision: a failed head run
+whose failing Go tests all match `script/known-flakes.txt` is rerun (at most 3 times per head
+commit); auto-merge turned off by a bot's merge-queue removal is re-armed (at most 2 times); a
+real failure, an exhausted cap or a human dequeue prints `ESCALATE` and appends one line to the
+alerts file that the session's Monitor tails. Without `--act` it only reports.
+
 The 2026-10-23..25 counts come from `script/lane-transcript-metrics.py`
 (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-25-lane-infra-p0-evidence.md`): 48 tool calls ran 600 s or longer, 15 of
 them unclassified Bash commands; the timeout target in section 7 was not yet met.

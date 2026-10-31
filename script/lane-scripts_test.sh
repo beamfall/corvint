@@ -5,8 +5,8 @@
 # lane-clean.sh (ASD-V0-018), lane-guard.sh (ASD-V0-024),
 # install-local-bin.sh (ASD-V0-025), install-cem-verifiers.sh (TCB-V0-046),
 # wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), codex-review.sh
-# (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831), heavy-groups.sh (ASD-V0-832). No Go build
-# runs.
+# (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831), heavy-groups.sh (ASD-V0-832),
+# pr-landing-watch.sh (ASD-V0-833). No Go build runs.
 set -uo pipefail
 export LC_ALL=C
 # The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
@@ -1307,6 +1307,73 @@ hg_want='./big
   fail "heavy-groups ignored --budget, HEAVY_SELECTION_LOG or the trailing slash"
 "$script/heavy-groups.sh" --budget 0 ./a > /dev/null 2>&1
 [[ $? == 2 ]] || fail "heavy-groups accepted a zero budget"
+ok
+
+# ASD-V0-833 (V1-1735): pr-landing-watch.sh decides one landing step per pass against a stub gh;
+# the stub prints the scenario files (already in --jq form) and records every mutating call.
+lw=$tmp/landing
+mkdir -p "$lw/s"
+cat > "$lw/gh" << 'EOF'
+#!/usr/bin/env bash
+s=$LW_SCENARIO
+case "$1 $2" in
+  'pr view') cat "$s/view" ;;
+  'run list') cat "$s/runs" 2> /dev/null || true ;;
+  'run view') cat "$s/log" ;;
+  'api graphql') cat "$s/event" 2> /dev/null || true ;;
+  'repo view') echo o/r ;;
+  'run rerun' | 'pr merge') echo "$*" >> "$s/calls" ;;
+  *) echo "stub gh: unexpected $*" >&2; exit 1 ;;
+esac
+EOF
+chmod +x "$lw/gh"
+printf 'TestFlaky.*\n# comment\n' > "$lw/flakes"
+head40=0123456789abcdef0123456789abcdef01234567
+lwr() { GH=$lw/gh LW_SCENARIO=$lw/s "$script/pr-landing-watch.sh" --state-dir "$lw/state" --flakes "$lw/flakes" --repo o/r "$@" 2> "$lw/err"; }
+printf 'MERGED\tfalse\t%s\n' "$head40" > "$lw/s/view"
+[[ $(lwr 7) == MERGED ]] || fail "landing watch missed a merged PR"
+printf 'OPEN\ttrue\t%s\n' "$head40" > "$lw/s/view"
+[[ $(lwr 7) == WAITING ]] || fail "landing watch did not wait on a queued PR"
+# A listed flake reruns three times under --act, then escalates rerun-cap once into the alerts file.
+echo 99 > "$lw/s/runs"
+printf 'x\n--- FAIL: TestFlakyThing (0.1s)\n' > "$lw/s/log"
+for k in 1 2 3; do
+  out=$(lwr --act 7)
+  [[ $out == "RERUN run=99 attempt=$k/3" ]] || fail "flake rerun $k: $out"
+done
+[[ $(grep -c 'run rerun 99 --repo o/r --failed' "$lw/s/calls") == 3 ]] || fail "rerun calls: $(cat "$lw/s/calls")"
+out=$(lwr --act 7); rc=$?
+[[ $rc == 3 && $out == 'ESCALATE reason=rerun-cap run=99 tests=TestFlakyThing' ]] || fail "rerun cap: rc=$rc $out"
+lwr --act 7 > /dev/null
+[[ $(grep -c 'pr=7 reason=rerun-cap' "$lw/state/alerts.log") == 1 ]] || fail "rerun-cap alert not exactly once: $(cat "$lw/state/alerts.log")"
+[[ $(grep -c 'run rerun' "$lw/s/calls") == 3 ]] || fail "a capped flake was rerun again"
+# A test outside the list, or a failure naming no test, is a real failure.
+printf -- '--- FAIL: TestFlakyThing (0.1s)\n--- FAIL: TestReal (0.1s)\n' > "$lw/s/log"
+out=$(lwr 8); rc=$?
+[[ $rc == 3 && $out == 'ESCALATE reason=real-failure run=99 tests=TestReal' ]] || fail "unlisted test: rc=$rc $out"
+echo 'build failed' > "$lw/s/log"
+out=$(lwr 8); [[ $out == 'ESCALATE reason=real-failure run=99 names no failing Go test' ]] || fail "no-test failure: $out"
+# A bot ejection re-arms twice, once per removal event; a third event escalates requeue-cap.
+/bin/rm -f "$lw/s/runs" "$lw/s/calls"
+printf 'OPEN\tfalse\t%s\n' "$head40" > "$lw/s/view"
+printf 'RemovedFromMergeQueueEvent\tBot\tgithub-merge-queue\t2026-10-31T01:00:00Z\n' > "$lw/s/event"
+[[ $(lwr 9) == 'REQUEUE attempt=1/2' ]] || fail "dry-run bot ejection"
+[[ ! -e $lw/s/calls ]] || fail "a dry run changed GitHub: $(cat "$lw/s/calls")"
+[[ $(lwr --act 9) == 'REQUEUE attempt=1/2' ]] || fail "the same removal event was counted twice"
+printf 'RemovedFromMergeQueueEvent\tBot\tgithub-merge-queue\t2026-10-31T02:00:00Z\n' > "$lw/s/event"
+[[ $(lwr --act 9) == 'REQUEUE attempt=2/2' ]] || fail "second bot ejection"
+[[ $(grep -c '^pr merge 9 --repo o/r --auto$' "$lw/s/calls") == 2 ]] || fail "re-arm calls: $(cat "$lw/s/calls")"
+printf 'RemovedFromMergeQueueEvent\tBot\tgithub-merge-queue\t2026-10-31T03:00:00Z\n' > "$lw/s/event"
+out=$(lwr --act 9); rc=$?
+[[ $rc == 3 && $out == 'ESCALATE reason=requeue-cap by=github-merge-queue at=2026-10-31T03:00:00Z' ]] || fail "requeue cap: rc=$rc $out"
+# A human dequeue escalates and is never re-armed.
+/bin/rm -f "$lw/s/calls"
+printf 'RemovedFromMergeQueueEvent\tUser\towner\t2026-10-31T04:00:00Z\n' > "$lw/s/event"
+out=$(lwr --act 10); rc=$?
+[[ $rc == 3 && $out == 'ESCALATE reason=human-dequeue by=owner at=2026-10-31T04:00:00Z' ]] || fail "human dequeue: rc=$rc $out"
+[[ ! -e $lw/s/calls ]] || fail "a human dequeue was re-armed"
+grep -q 'pr=10 reason=human-dequeue by=owner' "$lw/state/alerts.log" || fail "human dequeue not alerted"
+lwr abc > /dev/null; [[ $? == 2 ]] || fail "a non-numeric PR was accepted"
 ok
 
 # ASD-V0-014: no fixture outlives the run, so nothing can write after the summary line. Every
