@@ -9,7 +9,8 @@ set -eu
 #      `docs/decisions/**`, `.taskman/**` and `.corvint/**`; they quote former terms as evidence.
 #      The two preregistered benchmark harnesses `LICENSING.md` names keep their byte-pinned historical
 #      line (their sealed preregistrations pin the harness digest), and
-#      the frozen public-root-history notice fixtures quote the former terms as historical text.
+#      the frozen public-root-history notice fixtures quote the former terms as historical text, and
+#      so does the frozen task-store ticket corpus of the duplicate-check evaluation (TCL-V0-009).
 #   2. Every non-Markdown file under `examples/` carries exactly `SPDX-License-Identifier: Apache-2.0`,
 #      with no further licence expression, in its first five lines.
 
@@ -28,7 +29,8 @@ IFS='
 former=$(git grep -l -I -E "$former_pattern" -- . ':(exclude)*.md' \
     ':(exclude)docs/build-log/' ':(exclude)docs/decisions/' ':(exclude).taskman/' ':(exclude).corvint/' \
     ':(exclude)benchmarks/daily-loop-v0/harness.py' ':(exclude)benchmarks/untouched-repository-v1/harness.py' \
-    ':(exclude)internal/cem/corpusbinding/testdata/public-root-history/notices/') || true
+    ':(exclude)internal/cem/corpusbinding/testdata/public-root-history/notices/' \
+    ':(exclude)internal/tasks/similar/testdata/corpus-2026-10-30.jsonl') || true
 for path in $former; do
     printf 'license-headers: %s carries a former AGPL SPDX identifier; the repository is Apache-2.0 (decision 0586)\n' "$path" >&2
     failures=$((failures + 1))

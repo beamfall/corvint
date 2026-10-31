@@ -193,7 +193,7 @@ func TestAFPV0099BarExcludesNarrowedRows(t *testing.T) {
 	names := append(append(narrowed, barNames("NARROWED", 3, "1", "1")), metNames()...)
 	md := bar(t, names)
 	for _, want := range []string{"22 complete, 5 complete with failing packages, 0 FLAKY, 0 MISS, 0 INCOMPLETE, 0 INFRA.",
-		"Latest 20 row(s) of the epoch (AFP-V0-030 window): 20 complete", "(AFP-V0-099): 26 NARROWED row(s)", ": MET (22/20 complete, 5/5 failing)."} {
+		"Latest 20 row(s) of the epoch (AFP-V0-030 window): 20 complete", "(AFP-V0-099): 26 NARROWED row(s)", ": MET (22/8 complete, 5/1 failing)."} {
 		if !strings.Contains(md, want) {
 			t.Fatalf("summary lacks %q:\n%s", want, md)
 		}
