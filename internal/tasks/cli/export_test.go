@@ -416,6 +416,21 @@ func ParseDoctorProcLocksForTest(text string, major, minor, ino uint64) []int {
 	return parseDoctorProcLocks(text, major, minor, ino)
 }
 
+// DoctorFdForTest is one descriptor for DoctorOwnsFlockForTest.
+type DoctorFdForTest struct {
+	Dev, Ino uint64
+	Fdinfo   string
+}
+
+// DoctorOwnsFlockForTest exposes the TQD-V0-821 ownership decision.
+func DoctorOwnsFlockForTest(fds []DoctorFdForTest, dev, ino uint64) bool {
+	in := make([]doctorFd, len(fds))
+	for i, fd := range fds {
+		in[i] = doctorFd{dev: fd.Dev, ino: fd.Ino, fdinfo: fd.Fdinfo}
+	}
+	return doctorOwnsFlock(in, dev, ino)
+}
+
 // ParseDoctorProcLocksByInodeForTest exposes the TQD-V0-821 same-inode parser.
 func ParseDoctorProcLocksByInodeForTest(text string, ino uint64) []int {
 	return parseDoctorProcLocksByInode(text, ino)

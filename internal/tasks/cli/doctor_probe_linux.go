@@ -32,10 +32,10 @@ var doctorLockHolder = func(path string) (bool, int, error) {
 	pids := parseDoctorProcLocks(string(raw), major, minor, uint64(st.Ino))
 	if len(pids) == 0 {
 		// TQD-V0-821: the stat device can differ from the one /proc/locks
-		// prints (btrfs subvolumes); accept a same-inode holder only when it
-		// has this very file open.
+		// prints (btrfs subvolumes); accept a same-inode holder only through a
+		// descriptor on this very file that owns the lock.
 		for _, pid := range parseDoctorProcLocksByInode(string(raw), uint64(st.Ino)) {
-			if doctorHasOpen(pid, uint64(st.Dev), uint64(st.Ino)) {
+			if doctorHoldsFlock(pid, uint64(st.Dev), uint64(st.Ino)) {
 				return true, pid, nil
 			}
 		}
@@ -44,9 +44,10 @@ var doctorLockHolder = func(path string) (bool, int, error) {
 	return true, pids[0], nil
 }
 
-// doctorHasOpen reports whether pid has a descriptor on the file with this
-// stat device and inode.
-func doctorHasOpen(pid int, dev, ino uint64) bool {
+// doctorHoldsFlock reads pid's descriptors and asks doctorOwnsFlock whether
+// one of them owns a FLOCK on the file with this stat device and inode
+// (TQD-V0-821).
+func doctorHoldsFlock(pid int, dev, ino uint64) bool {
 	dir := fmt.Sprintf("/proc/%d/fd", pid)
 	d, err := os.Open(dir)
 	if err != nil {
@@ -54,13 +55,21 @@ func doctorHasOpen(pid int, dev, ino uint64) bool {
 	}
 	names, _ := d.Readdirnames(doctorPsProcs)
 	d.Close()
+	var fds []doctorFd
 	for _, n := range names {
 		var st syscall.Stat_t
-		if syscall.Stat(filepath.Join(dir, n), &st) == nil && uint64(st.Dev) == dev && uint64(st.Ino) == ino {
-			return true
+		if syscall.Stat(filepath.Join(dir, n), &st) != nil {
+			continue
 		}
+		fd := doctorFd{dev: uint64(st.Dev), ino: uint64(st.Ino)}
+		if fd.dev == dev && fd.ino == ino {
+			if info, err := readBounded(fmt.Sprintf("/proc/%d/fdinfo/%s", pid, n), 64<<10); err == nil {
+				fd.fdinfo = string(info)
+			}
+		}
+		fds = append(fds, fd)
 	}
-	return false
+	return doctorOwnsFlock(fds, dev, ino)
 }
 
 // doctorLockOpeners maps each lock path to the candidate pids with an open
