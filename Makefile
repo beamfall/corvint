@@ -590,6 +590,16 @@ install-lifecycle-test:
 	@script/core-n1-source_test.sh
 	@script/core-n1-replay-default_test.sh
 
+.PHONY: hlq-local hlq-local-test
+# Local host lifecycle qualification (HLQ-V1-056): builds the runner and runs the binary, so its exit
+# code survives (go run collapses exit 2 to 1). Example:
+#   make hlq-local HLQ_ARGS='--host cli --corvint ./corvint --snapshot-dirty'
+hlq-local:
+	@script/hlq-local.sh $(HLQ_ARGS)
+
+hlq-local-test:
+	@script/hlq-local_test.sh
+
 hostile-regressions-check:
 	@script/check-hostile-regressions.sh
 

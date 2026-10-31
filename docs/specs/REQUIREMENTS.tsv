@@ -4177,6 +4177,7 @@ HLQ-V1-012	docs/specs/host-lifecycle-qualification-v1.md	(proposed; V1-2955) `--
 HLQ-V1-013	docs/specs/host-lifecycle-qualification-v1.md	(proposed; V1-2955) A live report MUST contain one row per case, in order:	unrecorded	-
 HLQ-V1-014	docs/specs/host-lifecycle-qualification-v1.md	(proposed; V1-2955) Verdicts MUST be reported separately as `verdict	unrecorded	-
 HLQ-V1-015	docs/specs/host-lifecycle-qualification-v1.md	(proposed; V1-2955) The nine-case report MUST add the same three verdict rows	unrecorded	-
+HLQ-V1-056	docs/specs/host-lifecycle-qualification-v1.md	(experimental 2026-10-31, standing lane auto-accept; V1-3376) A local	standing	2026-10-31; V1-3376
 HDCV0-CAP-001	docs/specs/human-documentation-compiler-v0.md	`corvint-human-documentation-request/0` remains the request profile. Its	unrecorded	-
 HDCV0-CAP-002	docs/specs/human-documentation-compiler-v0.md	The request additionally binds the existing repository/config/intent/output/limi	unrecorded	-
 HDCV0-CAP-003	docs/specs/human-documentation-compiler-v0.md	Admission requires a native Linux host, kernel 5.12 or newer, systemd exactly 26	unrecorded	-
