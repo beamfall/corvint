@@ -93,4 +93,20 @@ set +e
 set -e
 ((rc1 == 2 && rc2 == 2 && rc3 == 2)) || fail "refusal exit codes $rc1 $rc2 $rc3"
 
+# 7. ASD-V0-900: without --max-gib the bound is at most 40% of the cache's file system. A fake df
+# reports a 5 MiB file system, so three old 1 MiB entries trim to 2 MiB; an explicit --max-gib
+# keeps its own bound.
+small="$tmp/small-cache"
+mkdir -p "$small/0a" "$tmp/fakebin"
+echo 'This directory holds cached build artifacts from the Go build system.' > "$small/README"
+for e in a b c; do mib "$small/0a/old-$e" 1 && touch -t "$old" "$small/0a/old-$e"; done
+touch -t "$older" "$small/0a/old-a"
+printf '#!/bin/sh\nprintf "Filesystem 1024-blocks Used Available Capacity Mounted\\nfake 5120 4096 1024 80%%%% /\\n"\n' > "$tmp/fakebin/df"
+chmod +x "$tmp/fakebin/df"
+real_small=$(cd "$small" && pwd -P)
+PATH="$tmp/fakebin:$PATH" "$tool" --cache "$small" --temp-root "$tmp/none" > "$tmp/fs-bound" 2>&1
+expect "WOULD-TRIM cache $real_small entries=1 bytes=1048576 kept-bytes=2097152" "$tmp/fs-bound"
+PATH="$tmp/fakebin:$PATH" "$tool" --cache "$small" --temp-root "$tmp/none" --max-gib 1 > "$tmp/fs-explicit" 2>&1
+expect "KEEP within-bound cache $real_small bytes=3145728" "$tmp/fs-explicit"
+
 echo "go-cache-trim_test: ok"
