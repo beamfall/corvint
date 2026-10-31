@@ -1,7 +1,9 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # core-n1-source.sh: N-1 is a published release, FIRST_RELEASE is explicit, and a predecessor that
 # exists but cannot be selected or verified fails closed (V1-3177).
-set -euo pipefail
+# POSIX sh: per-call variables go through run's NAME=value arguments and env(1), never a prefix
+# assignment on a function call, which persists after the call under POSIX sh (V1-3375).
+set -eu
 source_root=$(cd "$(dirname "$0")/.." && pwd -P)
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/corvint-core-n1-source.XXXXXX")
 trap 'rm -rf "$scratch"' EXIT
@@ -38,11 +40,17 @@ SHIM
 chmod +x "$scratch/bin/gh" "$scratch/bin/make"
 export PATH="$scratch/bin:$PATH" GITHUB_REPOSITORY=beamfall/corvint SHA="$candidate"
 export PREVIOUS_RELEASE_TAG='' PREVIOUS_RELEASE_OID='' GITHUB_STEP_SUMMARY="$scratch/summary"
+nl='
+'
+# run WANT [NAME=value...] [ARG...]: the leading NAME=value words are exported only in a subshell.
 run() {
-  local want=$1; shift
-  local code=0
+  want=$1; shift
+  code=0
   rm -f "$scratch/gh-invoked" "$scratch/make-invoked" "$scratch/summary"
-  script/core-n1-source.sh "$@" >"$scratch/out" 2>"$scratch/err" || code=$?
+  (
+    while case ${1-} in [A-Z_]*=*) true ;; *) false ;; esac; do export "$1"; shift; done
+    exec script/core-n1-source.sh "$@"
+  ) >"$scratch/out" 2>"$scratch/err" </dev/null || code=$?
   if [ "$code" -ne "$want" ]; then
     echo "exit $code, want $want" >&2; cat "$scratch/err" >&2; exit 1
   fi
@@ -63,36 +71,36 @@ test ! -e "$scratch/make-invoked"
 # A published release at the candidate itself or a descendant is not a predecessor.
 git tag v1.0.0-rc.3 "$candidate"
 git tag v1.0.0 "$future"
-GH_LIST=$'v1.0.0\nv1.0.0-rc.3' run 3
+run 3 GH_LIST="v1.0.0${nl}v1.0.0-rc.3"
 # A published release that is not a reachable predecessor, or has no local tag, fails closed.
 git tag v0.9.0 "$other"
-GH_LIST=$'v1.0.0\nv0.9.0' refused
+refused GH_LIST="v1.0.0${nl}v0.9.0"
 grep -Fq 'published release v0.9.0 of beamfall/corvint is not a reachable predecessor' "$scratch/err"
-GH_LIST=v0.8.1 refused
+refused GH_LIST=v0.8.1
 grep -Fq 'published release v0.8.1 of beamfall/corvint has no local tag' "$scratch/err"
-GH_LIST_FAIL=1 refused
+refused GH_LIST_FAIL=1
 grep -Fq 'cannot list published releases of beamfall/corvint' "$scratch/err"
-GH_LIST_FAIL=1 refused --replay
+refused GH_LIST_FAIL=1 --replay
 # A reachable tag must be a published, non-draft release of this repository.
 git tag v0.8.1 "$base"
-SHA="$future" GH_VIEW='v1.0.0-rc.3 false' run 0
+run 0 SHA="$future" GH_VIEW='v1.0.0-rc.3 false'
 test "$(cat "$scratch/out")" = v1.0.0-rc.3
 grep -Fq 'core-n1-source: N-1 v1.0.0-rc.3 is a published release of beamfall/corvint' "$scratch/err"
-SHA="$future" GH_VIEW='v1.0.0-rc.3 false' run 0 --replay
+run 0 SHA="$future" GH_VIEW='v1.0.0-rc.3 false' --replay
 test "$(cat "$scratch/make-invoked")" = 'core-n1-replay CORE_N1_TAG=v1.0.0-rc.3'
-SHA="$future" GH_VIEW='v1.0.0-rc.3 true' refused --replay
+refused SHA="$future" GH_VIEW='v1.0.0-rc.3 true' --replay
 grep -Fq 'N-1 tag v1.0.0-rc.3 is not a published release in beamfall/corvint' "$scratch/err"
-SHA="$future" refused --replay
+refused SHA="$future" --replay
 grep -Fq 'N-1 tag v1.0.0-rc.3 has no readable published release in beamfall/corvint' "$scratch/err"
 # The explicit predecessor inputs are honoured, and a refused selection never reaches gh.
-SHA="$future" PREVIOUS_RELEASE_TAG=v0.8.1 PREVIOUS_RELEASE_OID="$base" GH_VIEW='v0.8.1 false' run 0
+run 0 SHA="$future" PREVIOUS_RELEASE_TAG=v0.8.1 PREVIOUS_RELEASE_OID="$base" GH_VIEW='v0.8.1 false'
 test "$(cat "$scratch/out")" = v0.8.1
-SHA="$future" PREVIOUS_RELEASE_TAG=v0.8.1 PREVIOUS_RELEASE_OID="$candidate" refused
+refused SHA="$future" PREVIOUS_RELEASE_TAG=v0.8.1 PREVIOUS_RELEASE_OID="$candidate"
 grep -Fq 'previous release selection refused (exit 2)' "$scratch/err"
 test ! -e "$scratch/gh-invoked"
-SHA=abc refused
+refused SHA=abc
 test ! -e "$scratch/gh-invoked"
-GITHUB_REPOSITORY='beamfall/corvint;x' refused
+refused GITHUB_REPOSITORY='beamfall/corvint;x'
 refused --bogus
 refused --replay extra
 printf 'core-n1 source selection: PASS\n'

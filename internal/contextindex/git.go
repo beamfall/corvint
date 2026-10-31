@@ -165,9 +165,10 @@ func gitExpecting(ctx context.Context, root string, outputLimit, expected int, s
 			}
 			return out, err
 		}
-		temporaryParent := os.TempDir()
+		var result []byte
+		var err error
 		if execution, qualified := ctx.Value(gitExecutionKey{}).(gitExecution); qualified {
-			temporaryParent = "/tmp" // The Unix default, independent of ambient TMPDIR.
+			temporaryParent := "/tmp" // The Unix default, independent of ambient TMPDIR.
 			for _, entry := range execution.environment {
 				if value, found := strings.CutPrefix(entry, "TMPDIR="); found {
 					temporaryParent = value
@@ -176,8 +177,11 @@ func gitExpecting(ctx context.Context, root string, outputLimit, expected int, s
 					}
 				}
 			}
+			result, err = gitstatus.StatusIn(ctx, root, temporaryParent, outputLimit, run, arguments...)
+		} else {
+			// The ambient parent with its read-only-sandbox fallbacks (GPK-V0-336).
+			result, err = gitstatus.Status(ctx, root, outputLimit, run, arguments...)
 		}
-		result, err := gitstatus.StatusIn(ctx, root, temporaryParent, outputLimit, run, arguments...)
 		if err != nil {
 			if cancelled := contextCancellation(err); cancelled != nil {
 				return nil, cancelled
