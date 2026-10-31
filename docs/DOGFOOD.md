@@ -826,10 +826,18 @@ target already carries an older sidecar that `CEM-CB-009` requires to equal the 
   detail=D`, and the binding commit message carries the same `NOT_PRODUCED` line per row before its
   trailer. A malformed plan fails as `cem-mark invalid-unknown-plan`.
 
+- `DCW-V0-824` to `DCW-V0-827` (experimental; V1-3365 to V1-3368, `docs/specs/daily-change-evidence-workflow-v0.md`)
+  refine this contract: `DOGFOOD_CITATIONS=auto-inherit` drafts the plan from the sealed constituent
+  CEMs of the range through `tools/dogfood-inherit-citations` (hunk ID, then added-line overlap;
+  each span relocated to BASE by exact text) and leaves every uninherited hunk a visible
+  `NOT_PRODUCED` unknown; a plan row may name `bytes:START:END` for `cem cite --bytes`; the script
+  reads no caller stdin; and a `cem-policy` failure prints only the counts, the `policyIssues` and
+  the status file path.
+
 Failure modes: a failing prepare, citation, binding-commit, or status step exits 1 with
 `dogfood-bind-range: FAIL STEP REASON` (`cem-prepare`, `cem-cite` including
 `invalid-citation-plan`, `cem-mark` including `invalid-unknown-plan`, `binding-commit-failed`, `cem-status`, or `cem-policy` after printing the
-status line) and prints no `PASS` or `next:` line. A failure after the binding commit is written
+bounded policy summary of `DCW-V0-825`) and prints no `PASS` or `next:` line. A failure after the binding commit is written
 leaves only an unreferenced commit object that `git gc` may prune. A citation that no longer
 survives the change, or an uncited hunk absent from the unknown plan, fails status rather than
 being marked.
