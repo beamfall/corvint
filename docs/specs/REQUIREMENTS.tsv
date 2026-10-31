@@ -315,6 +315,7 @@ AHI-057	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's s
 AHI-053	docs/specs/agent-harness-integration-v0.md	(accepted, decision 0517 (V1-1128)) Amendment to `AHI-031`	owner	decision 0517; V1-1128
 AHI-031	docs/specs/agent-harness-integration-v0.md	(accepted 2026-09-25, decision 0400; panel blocker B8) When no index snapshot	owner	2026-09-25; decision 0400
 AHI-920	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3311; amends	standing	2026-10-31; V1-3311
+AHI-921	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-2735) The	standing	2026-10-31; V1-2735
 AHI-055	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1280) A Claude	standing	2026-10-11; V1-1280
 AHI-032	docs/specs/agent-harness-integration-v0.md	At the owner’s request (2026-09-28), stock OpenCode native integration qualifica	unrecorded	-
 AHI-056	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1969; GitHub #	standing	2026-10-11; V1-1969; #1218
