@@ -974,12 +974,34 @@ type dispatchQueue struct {
 	// ledgers carries obligation ledger folds across ticks (TOL-V0-123);
 	// nil folds every OPEN or HELD ledger on every observation.
 	ledgers *ledgerFoldCache
+	// statuses returns the ticket statuses some role of the applied config
+	// matches; nil reads every noted ticket's note (ON-V0-870).
+	statuses func() map[string]bool
 }
 
 // newDispatchQueue is the queue of a dispatcher running config c, with its
 // ticket pools; `dispatch` and `service run` share it (CAL-V0-142).
 func newDispatchQueue(env Env, c *dispatch.Config) dispatchQueue {
-	return dispatchQueue{env: env, pools: c.TicketPools, reviews: &store.ReviewFold{}, ledgers: &ledgerFoldCache{}}
+	return dispatchQueue{env: env, pools: c.TicketPools, reviews: &store.ReviewFold{}, ledgers: &ledgerFoldCache{},
+		statuses: func() map[string]bool { return matchedStatuses(c) }}
+}
+
+// matchedStatuses are the ticket statuses some ticket role of c can match:
+// its match.statuses, OPEN when empty (ON-V0-870).
+func matchedStatuses(c *dispatch.Config) map[string]bool {
+	out := map[string]bool{}
+	for _, r := range c.Roles {
+		if r.Match == nil {
+			continue
+		}
+		if len(r.Match.Statuses) == 0 {
+			out["OPEN"] = true
+		}
+		for _, s := range r.Match.Statuses {
+			out[s] = true
+		}
+	}
+	return out
 }
 
 func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, error) {
@@ -1030,9 +1052,17 @@ func (q dispatchQueue) Observe(ctx context.Context) (*dispatch.Observation, erro
 		// fold that refuses leaves every gate unobserved (ERG-V0-009).
 		var fold *transaction.ExternalReviewReceiptAudit
 		folded := false
+		var matched map[string]bool
+		if q.statuses != nil {
+			matched = q.statuses()
+		}
 		for i := range obs.Tickets {
 			r, _ := in.Tickets.Get(obs.Tickets[i].ID)
-			obs.Tickets[i].OperatorNote = dispatchOperatorNote(rc, r)
+			// ON-V0-870: a terminal ticket no role can match never launches,
+			// so its note is not read.
+			if terminal := r.Status == "COMPLETED" || r.Status == "ARCHIVED"; !terminal || matched == nil || matched[r.Status] {
+				obs.Tickets[i].OperatorNote = dispatchOperatorNote(rc, r)
+			}
 			// ERG-V0-009: a gate set that cannot be read stays unobserved
 			// (every gate UNKNOWN) instead of failing the whole observation.
 			if len(r.ExternalReviews) > 0 && !folded {
