@@ -107,7 +107,7 @@ func ImpactWithRecords(ctx context.Context, m *Map, l *EdgeLedger, rec *UIRecord
 	}
 	headOID, err := r.resolve(head)
 	if err != nil {
-		return nil, verifyError("appmap-invalid-query", "evaluated revision is not a commit")
+		return nil, orPlatform(err, verifyError("appmap-invalid-query", "evaluated revision is not a commit"))
 	}
 	if err = checkLedgerBinding(m, l, headOID); err != nil {
 		return nil, err
@@ -117,7 +117,7 @@ func ImpactWithRecords(ctx context.Context, m *Map, l *EdgeLedger, rec *UIRecord
 	}
 	baseOID, err := r.resolve(base)
 	if err != nil {
-		return nil, verifyError("appmap-invalid-query", "--base is not a commit")
+		return nil, orPlatform(err, verifyError("appmap-invalid-query", "--base is not a commit"))
 	}
 	out, err := r.git(8<<20, nil, "diff", "--name-only", "-z", "--no-renames", "--no-ext-diff", baseOID, headOID, "--")
 	if err != nil {

@@ -168,6 +168,9 @@ func OpenCheckout(ctx context.Context, root, source string) (dir, head, reason s
 	// Git walks up to an enclosing repository, so the directory must be the top level itself: an
 	// empty prefix inside a worktree proves that without naming the top as a path (AFP-V0-156).
 	where, err := git(ctx, canonical, "rev-parse", "--is-inside-work-tree", "--show-prefix")
+	if errors.Is(err, errPlatformUnsupported) {
+		return "", "", err.Error()
+	}
 	if err != nil || !strings.HasPrefix(string(where), "true\n") {
 		return "", "", "not a Git checkout"
 	}
