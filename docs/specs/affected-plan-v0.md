@@ -349,7 +349,9 @@ bounds), walks at most `affected.MaxWalkEntries` entries, reads at most
   Queue-backstopped PR narrowing SHALL follow AFP-V0-028, without requiring the historical
   qualification artifact; missing/malformed/stale qualification still forces FULL for the
   historical qualification profile. PR execution SHALL use the full branch's argv, environment,
-  AFP-V0-023 `test-confine` wrapper and cache policy, not the driver's closed replay environment. Cancellation MUST exit nonzero and kill owned process
+  AFP-V0-023 `test-confine` wrapper and cache policy, not the driver's closed replay environment.
+  The driver's own selected and historical shadow executions run under that wrapper when given
+  `--confine`, which then joins their frozen argv and identity (AFP-V0-766 to AFP-V0-769). Cancellation MUST exit nonzero and kill owned process
   groups without starting fallback. Main/release, static/security/vet/format/build/interop and
   JavaScript/E2E checks MUST remain full. PR workflow permissions MUST be read-only, with no
   persisted credentials, secrets or pull_request_target execution. Initial empty trusted pins
@@ -761,7 +763,8 @@ and container qualification; full fallback remains available.
   another package) inherits the ruleset, so such a package cannot be declared narrowly; the
   AFP-V0-013 driver's selected and shadow runs are not confined until its frozen argv and
   identity carry the wrapper, which MUST precede any AFP-V0-014 campaign that relies on a
-  declaration; and `make gate-ledger` `-unresolved`/`-bounds` stay whole-tree for declared
+  declaration (bound by AFP-V0-766 to AFP-V0-769, V1-0633: `--confine` carries it, and the
+  campaign refuses to start without it when a declaration exists); and `make gate-ledger` `-unresolved`/`-bounds` stay whole-tree for declared
   packages. Rollback deletes the declaration, which restores rule (d) for every package; removing
   the `-exec` wrapper alone without deleting the declaration is not a supported state.
 - **AFP-V0-024:** (owner-directed, proposed, 2026-10-04; V1-0717; merge-queue amendment under the owner's standing auto-accept (2026-10-11); V1-0760) A push to `main` MAY reuse a
@@ -5333,6 +5336,57 @@ filed from its plan. Nothing in the receipt said the binary was older than the s
   run in that order, before any other option check. Rollback: restore the single
   `invalid-arguments` refusal.
 
+### Confined driver runs (AFP-V0-766 to AFP-V0-769; V1-0633)
+
+Intent (V1-0633, found 2026-10-01 while delivering V1-0246): full CI runs the root Go test under
+the AFP-V0-023 Landlock wrapper, but the AFP-V0-013 driver's selected and shadow runs did not, so
+a read-scope declaration that is too narrow passed a driver run and an AFP-V0-014 campaign could
+admit a selection that under-selects without detection.
+
+- **AFP-V0-766:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-0633)
+  `tools/corvint-pr-tests` SHALL accept `--confine WRAPPER`, the owner-protected `test-confine`
+  binary built from `.github/testconfine` outside the tested checkout. The path MUST be absolute
+  and resolve outside the tested repository, like the planner and selector. When it is given the
+  frozen identity SHALL carry its SHA256 (`Confine`), its `Args` SHALL be
+  `test -exec WRAPPER -json -p 1 -count=1 -race -timeout 50m`, and it SHALL record as
+  `ConfinedEnv` the environment `testconfine.ConfinedEnv` gives a confined test binary, which
+  appends `-buildvcs=false` to the otherwise empty `GOFLAGS` because a confined binary cannot
+  read `.git`. Every go test invocation of a run, fallback or historical shadow execution, slice
+  invocations included, SHALL use those `Args` and add exactly one `CORVINT_CONFINE_ROOT=<root>`,
+  the resolved tested checkout, to the identity `Env`; `execution.json` records both. Without
+  `--confine` the identity, argv and environment are byte-identical to before. A wrapper whose
+  identity is unavailable, or a wrapper or argv that differs from the selection's frozen identity,
+  MUST fail the execution (exit 2) and never run unconfined. The container profile refuses
+  `--confine`: it stays unqualified for confinement.
+- **AFP-V0-767:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-0633)
+  Under `--confine`, a package declared in `.corvint/test-read-scopes.json` whose test reads a
+  repository path outside its own subtree and its declared entries SHALL fail in the driver's
+  `go.json`, while the same read passes when the path is declared and an undeclared package still
+  runs unconfined; in a shadow row that failure outside the selection is a selected-set miss.
+  Without Landlock ABI 2 the test skips with the typed reason `AFP-V0-767: landlock ABI N`.
+- **AFP-V0-768:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-0633)
+  `--mode freeze` SHALL refuse to write a corpus, and `--mode shadow` SHALL refuse before creating
+  its checkout, when any frozen target it covers (every one of the 200 for freeze, the requested
+  rows for shadow) carries `.corvint/test-read-scopes.json` and the identity has no `Confine`, or
+  when `WRAPPER -probe` fails (a Landlock ABI below 2). `--mode run` SHALL run the full root suite
+  with the reason `read-scope declaration without --confine` when the target carries a
+  declaration and no wrapper was given. A corpus frozen without a wrapper cannot be resumed with
+  one, nor the reverse, because the identities differ.
+- **AFP-V0-769:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-0633)
+  A confined execution SHALL be measured in a real clone whose root holds `.git` (the shadow
+  mode's owned `git clone`, or the tested checkout in run mode) and MUST fail otherwise, never in
+  a `.git`-less snapshot, so `.git` denial and the `-buildvcs=false` stamping change are
+  exercised as in full CI. Row validation (`validateRow`, resume and `qualify`) SHALL require the
+  retained `execution.json` argv to equal the frozen `Args` plus `./...` and its environment to
+  equal the frozen `Env`, plus exactly one absolute `CORVINT_CONFINE_ROOT` entry when `Confine` is
+  set. Non-goals: wiring `--confine` into `.github/workflows/pr-tests-qualification.yml`, an
+  owner-protected path, which stays a separate change; confinement in the container profile;
+  closing the AFP-V0-023 metadata and subprocess residuals. Failure modes: a wrapper built from
+  other source has another digest and changes the identity, so a qualification frozen with one
+  wrapper is not admitted with another; a host without Landlock refuses the campaign rather than
+  observing declared packages unconfined. Rollback: remove the flag and the `Confine` and
+  `ConfinedEnv` members; identities frozen without the wrapper are unchanged by it.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
@@ -5695,6 +5749,10 @@ traceability table.
 | AFP-V0-762 | `binaryExecsFile.Consumers`, `readBinaryExecs`, `matchBinaryConsumers` in `internal/liveverify/affected/golang/binaryexecs.go`; `unselectedConsumers` in `internal/liveverify/affected/execs.go`; `.corvint/test-binary-execs.json` | `TestDeclaredBinaryConsumerIsAnExplicitUnknown_AFPV0762` (a library or command change names the consumer, a test-only command change and an unrelated change do not); `TestInvalidBinaryConsumerDeclaresNothing_AFPV0762`; `TestRepositoryDeclaresWebFlowsConsumers_AFPV0762` |
 | AFP-V0-763 | `instructionHints`, `instructionUnownedHint` in `internal/liveverify/affected/documentation.go`, called from `selectPlan`; `.corvint/documentation-paths.json` | `TestInstructionFileUnknownNamesTheDeclarationRoute_AFPV0763` (an undeclared root or nested instruction file carries the hint and stays `UNKNOWN`, another unowned path none; declared, both are `DECLARED_DOCUMENTATION` and `BOUNDED`); `TestRepositoryDeclaresItsInstructionFiles_AFPV0763` |
 | AFP-V0-764 | `affectedPathProfileRefusal`, `affectedPathProfileCode` in `cmd/corvint/affected.go`; the `--path` paragraph of `affected` help in `cmd/corvint/help.go` | `TestAFPV0094PathListRefusals` (snapshot, provider, Playwright config and discovery, AppMap and `--paths-from` refuse typed with their recovery; `--base` stays `invalid-arguments`) |
+| AFP-V0-766 | `options.confine`, `identity.Confine`, `identity.ConfinedEnv`, `goTestArgs`, `runEnv` and the wrapper checks of `toolIdentity` and `execute` in `tools/corvint-pr-tests/main.go` | `TestConfinedDriverRunsFailUndeclaredReads` (identity, argv and environment of a confined run; drift and a missing wrapper refused); `TestSelectedFailureAndFallback` (unconfined identity unchanged) |
+| AFP-V0-767 | the `-exec` argv of `execute` in `tools/corvint-pr-tests/main.go`; `.github/testconfine` | `TestConfinedDriverRunsFailUndeclaredReads` (declared undeclared-read package fails, declared entry passes, undeclared package unconfined, unconfined control passes); skipped with a typed reason without Landlock ABI 2 |
+| AFP-V0-768 | `requireConfinement` and `declaresReadScopes` in `tools/corvint-pr-tests/shadow.go`; the guard in `runPR` | `TestCampaignRefusesDeclarationWithoutConfine` (freeze and shadow refuse, no corpus or checkout written; run mode falls back to FULL with the reason) |
+| AFP-V0-769 | the `.git` check of `execute`; `validRunEnv` and the argv check of `validateRow` in `tools/corvint-pr-tests/shadow.go` | `TestConfinedDriverRunsFailUndeclaredReads` (a root without `.git` refused; tampered argv and env refused); `TestCampaignRefusesDeclarationWithoutConfine` (a confined row frozen in the source runs in the owned clone and resumes); `TestConfinedRowValidationBindsArgvAndEnv` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`
