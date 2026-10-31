@@ -1474,13 +1474,29 @@ requirements record the failure, count it and make the stall a typed condition.
   member is stalled, even when room is reported, and each held ticket's `pool-wait` event MUST
   carry reason `POOL_MEMBER_RECOVERY_STALLED` and a message naming the condition and `pool status
   --pool ID`. A role without a pool requirement is unaffected.
-- `PSR-V0-266`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2636) The
+- `PSR-V0-266`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2636; bound amended
+  to 3 MiB by PSR-V0-900) The
   pools.json bound MUST be 2 MiB (`wire.MaxPoolStateBytes`) for the store, archive layout and
   fixture sessions: the PSR-V0-202 worst case with a `quarantinedAt` and a widest `recovery` record
   on every entry and every reason at the cap measures 1,117,753 bytes. `quarantinedAt` and
   `recovery` are additive optional keys valid only on a QUARANTINED or CLEANING entry; an entry
   without them encodes byte-identically to before, and receipt, request preimage and journal
   formats do not change.
+- `PSR-V0-900`: (proposed; V1-2447; decision 0552) Amends PSR-V0-266. The pools.json bound MUST be
+  3 MiB (`wire.MaxPoolStateBytes`), derived from a superset of every reachable state: 256 entries
+  each carrying every optional field at once (sweep owner, three shares, a pending operation with a
+  source, a hold, a running process and a stage, `quarantinedAt` and a recovery record), every
+  Identifier, label and prose field at its maximum length made of `"` and `\` (each escaped to two
+  bytes), every reason the recover prefix plus an all-escaping 224-byte reason, 256 identities,
+  512 operation receipts, `MaxSlotEntries` (512) slots and `MaxPoolWaiters` (512) waiters. It
+  measures 2,542,455 bytes, so no reachable pool state is refused for size; the 2 MiB bound left
+  the escaping, sweep-owner and full slot and waiter shapes PSR-V0-202 named outside it. Every
+  contributing field keeps its existing admission bound, refused before a write (PSR-V0-202's
+  reason cap, the slot and waiter list caps, the Identifier and label codecs), and an encoding
+  over the bound is still refused `LIMIT_EXCEEDED` by `PoolState.Encode` before anything is
+  posted. Formats do not change; a binary from before this bound refuses a pools.json over
+  2 MiB as before. Rollback: restore 2 MiB; a store whose pools.json then exceeds it refuses pool
+  writes `LIMIT_EXCEEDED` until it shrinks.
 - `PSR-V0-267`: (accepted under the owner's standing auto-accept (2026-10-11), V1-2637) Amends
   CAL-V0-097 and PSR-V0-265. When the default plan defers a ticket because its required pool has
   no free member and every member of that pool is a stalled QUARANTINED one (PSR-V0-263, at the
@@ -1783,3 +1799,4 @@ Prepare is additive: omitting it keeps every existing byte. Older decoders refus
 | PSR-V0-270 | `TestPSRV0270_RenewIsBounded` (`internal/tasks/transaction`); `TestPSRV0268_OperatorHoldLifecycle` (`internal/tasks/cli`) |
 | PSR-V0-271 | `TestPSRV0271_ReleaseQuarantines` (`internal/tasks/transaction`); `TestPSRV0268_OperatorHoldLifecycle` (`internal/tasks/cli`) |
 | PSR-V0-272 | `TestPSRV0268_OperatorHoldLifecycle` (`internal/tasks/cli`); `TestPSRV0269_ExpiredHoldStaysOccupied`; `TestPSRV0270_RenewIsBounded` (`internal/tasks/transaction`, PoolHoldExpired) |
+| PSR-V0-900 | `TestPSRV0900_PoolsSupersetWorstCaseStaysBounded`, `TestPSRV0202_WorstCasePoolsStayBoundedAtReasonCap`, `TestPSRV0202_OverlongFreshRecoverRefusedTyped` (`internal/tasks/transaction`) |
