@@ -442,6 +442,11 @@ func (s *Source) FilesUnder(relative string, accept func(string) bool) (filesOut
 	return files, nil
 }
 
+// Walk visits every entry below the directory relative, hidden and skipped
+// directories included, with fs.WalkDir semantics. On a disk source a walk of
+// a directory that exists makes the whole graph uncacheable: BuildCached then
+// reports NotStored "walked subtree <relative>" and every later run rebuilds.
+// A plugin that only lists files should use FilesUnder, which stays cacheable.
 func (s *Source) Walk(relative string, visit fs.WalkDirFunc) (errOut error) {
 	if err := s.stopped(); err != nil {
 		return err
