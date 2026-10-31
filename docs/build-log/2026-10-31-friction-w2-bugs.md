@@ -146,12 +146,20 @@ its area were fixed rather than only listed:
 - F6 is covered by `make repin` (DCG-V0-801). It also repins the unrelated Makefile citation that a
   Makefile line shift breaks.
 
+On the owner's second request ("fix"), two more were fixed:
+- F10 (DCW-V0-811): on a host without `rg`, the dogfood-change and dogfood-bind-range shell tests
+  now assert through a strict `grep -P` stand-in on their own PATH. Unsupported flags exit 2. Both
+  pass end to end here, and `make rg-fallback-test` checks the stand-in on every host.
+- F4 (DCW-V0-812): doc-gates now runs the TSP-V0-005 shell foreign-callers test (about 5 s), so a
+  new `heavy.sh` mention fails early. A probe file proved it.
+
 Not fixed, with reasons:
-- F9 and F10 are host setup: this host has no `node` and no `rg`. `make host-adapter-node-test`
-  fails at the base, and the dogfood shell test refuses up front.
+- F9 is host setup: no `node` here. `make host-adapter-node-test` and case 1b of
+  `batch-precheck_test.sh` fail at the base too. Installing Node is the remedy.
 - F1 is the orchestrator's ID allocation.
-- F4, F5, F7 and F8 are design questions about other gates (foreign-caller declarations, read-scope
-  literals, selection width, same-change intent) that need their own tickets.
+- F5 is the AFP-V0-828 detector being conservative by design: a test function that calls into a
+  non-standard import is never exempt, because that callee's reads are not visible.
+- F7 and F8 are design questions (selection width, same-change intent) for their own tickets.
 
 ## Verification
 
