@@ -2,6 +2,7 @@ package shell
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -70,6 +71,39 @@ func TestComputedInvocation_TSP_V0_960(t *testing.T) {
 			script := unitOf(t, result, "run/run.sh")
 			if bears := slices.Contains(script.Frontier, FrontierForeignInvocation); bears != (tc.keeps || !tc.declared) {
 				t.Errorf("script frontier %v, want bearing %v", script.Frontier, tc.keeps || !tc.declared)
+			}
+		})
+	}
+}
+
+// TSP-V0-960: a computed run target whose values exceed the 64-value bound
+// is not silently cut. Two nine-word loops build 81 names; the kept values
+// stay edges and the test becomes an unbounded reader, so a change to a
+// dropped script still selects it. Eight by eight fits and stays bounded.
+func TestComputedInvocationValueBoundIsUnbounded_TSP_V0_960(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		letters string
+		cut     bool
+	}{
+		{name: "81 values exceed the bound", letters: "abcdefghi", cut: true},
+		{name: "64 values fit the bound", letters: "abcdefgh"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			words := strings.Join(strings.Split(tc.letters, ""), " ")
+			for _, x := range tc.letters {
+				for _, y := range tc.letters {
+					write(t, root, "scripts/"+string(x)+string(y)+".sh", "echo ok\n")
+				}
+			}
+			write(t, root, "use_test.sh", "for x in "+words+"\ndo\n  for y in "+words+"\n  do\n    sh \"./scripts/${x}${y}.sh\"\n  done\ndone\n")
+			unit := unitOf(t, units(t, root), "use_test.sh")
+			if got := unit.UnboundedReads == UnboundedDynamicSource; got != tc.cut {
+				t.Errorf("unbounded reads %q, want unbounded %v", unit.UnboundedReads, tc.cut)
+			}
+			if len(unit.Imports) != 64 {
+				t.Errorf("imports %d, want the 64 kept edges", len(unit.Imports))
 			}
 		})
 	}

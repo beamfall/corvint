@@ -168,6 +168,18 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 	unitFrontier := map[string]bool{}
 	toolchain, dynamic := false, false
 	loads := strings.HasSuffix(relative, ".bats") || strings.HasSuffix(relative, ".bash")
+	// computed links a run target or expands it as a computed name
+	// (TSP-V0-960). An expansion the value bound cut short may drop a script
+	// it would link, so the unit is then an unbounded reader like a computed
+	// source.
+	computed := func(target string) {
+		if resolve.link(target, nil, known, edges) {
+			return
+		}
+		unresolved, cut := constructed(target, resolve, values, known, edges, &names)
+		builds = builds || unresolved
+		dynamic = dynamic || cut
+	}
 	commands := parsed.commands
 	for index := 0; index < len(commands); index++ {
 		word, args := commandWord(plainWords(commands[index].words))
@@ -186,14 +198,10 @@ func observe(relative, text string, known map[string]bool) (affected.Unit, compu
 				commands = append(commands, parse(script).commands...)
 			}
 			for _, target := range invokedScripts(word, args) {
-				if !resolve.link(unquote(target), nil, known, edges) && constructed(unquote(target), resolve, values, known, edges, &names) {
-					builds = true
-				}
+				computed(unquote(target))
 			}
 		case strings.Contains(word, "/") || strings.HasPrefix(word, "$"):
-			if !resolve.link(word, nil, known, edges) && constructed(word, resolve, values, known, edges, &names) {
-				builds = true
-			}
+			computed(word)
 		}
 		if isToolchain(word) && (bypassesFunctions(commands[index].words) || !shadowed(parsed, word, index)) {
 			toolchain = true

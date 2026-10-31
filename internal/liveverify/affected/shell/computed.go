@@ -98,14 +98,16 @@ func variableValues(commands []command) map[string][]string {
 }
 
 // expand lists the values word may take, with wildcard for each part the
-// file does not fix, at most maxValueCount of them.
-func expand(word string, values map[string][]string, depth int) []string {
+// file does not fix, at most maxValueCount of them. It sets *cut when the
+// bound drops a value, so the caller can record that the list is incomplete.
+func expand(word string, values map[string][]string, depth int, cut *bool) []string {
 	out := []string{""}
 	appendAll := func(alternatives []string) {
 		next := make([]string, 0, len(out)*len(alternatives))
 		for _, prefix := range out {
 			for _, alternative := range alternatives {
 				if len(next) == maxValueCount {
+					*cut = true
 					break
 				}
 				next = append(next, prefix+alternative)
@@ -131,7 +133,7 @@ func expand(word string, values map[string][]string, depth int) []string {
 			if word[index+1] == '(' {
 				appendAll([]string{wildcard})
 			} else {
-				appendAll(braced(inner, values, depth))
+				appendAll(braced(inner, values, depth, cut))
 			}
 			index = end + 1
 		case word[index] == '$':
@@ -146,7 +148,7 @@ func expand(word string, values map[string][]string, depth int) []string {
 					end++
 				}
 			} else {
-				appendAll(named(word[index+1:end], values, depth))
+				appendAll(named(word[index+1:end], values, depth, cut))
 			}
 			index = end
 		default:
@@ -185,7 +187,7 @@ func closing(word string, open int) int {
 // braced expands `${...}`: a plain name, or a name with a `-`, `:-`, `=` or
 // `:=` default, takes the name's values and the default's; any other operator
 // transforms the value in a way the model does not follow.
-func braced(inner string, values map[string][]string, depth int) []string {
+func braced(inner string, values map[string][]string, depth int, cut *bool) []string {
 	end := 0
 	for end < len(inner) && (inner[end] == '_' || inner[end] >= 'a' && inner[end] <= 'z' || inner[end] >= 'A' && inner[end] <= 'Z' || end > 0 && inner[end] >= '0' && inner[end] <= '9') {
 		end++
@@ -195,16 +197,16 @@ func braced(inner string, values map[string][]string, depth int) []string {
 	}
 	name, rest := inner[:end], inner[end:]
 	if rest == "" {
-		return named(name, values, depth)
+		return named(name, values, depth, cut)
 	}
 	for _, operator := range []string{":-", ":=", "-", "="} {
 		if strings.HasPrefix(rest, operator) {
 			if depth >= maxValueDepth {
 				return []string{wildcard}
 			}
-			alternatives := append(named(name, values, depth), expand(unquote(rest[len(operator):]), values, depth+1)...)
+			alternatives := append(named(name, values, depth, cut), expand(unquote(rest[len(operator):]), values, depth+1, cut)...)
 			if len(alternatives) > maxValueCount {
-				alternatives = alternatives[:maxValueCount]
+				alternatives, *cut = alternatives[:maxValueCount], true
 			}
 			return alternatives
 		}
@@ -214,30 +216,30 @@ func braced(inner string, values map[string][]string, depth int) []string {
 
 // named expands one variable: its in-file values, or wildcard for a name the
 // file never sets, sets more often than the bound, or that recurses too deep.
-func named(name string, values map[string][]string, depth int) []string {
+func named(name string, values map[string][]string, depth int, cut *bool) []string {
 	given := values[name]
 	if len(given) == 0 || len(given) > maxNameValues || depth >= maxValueDepth {
 		return []string{wildcard}
 	}
 	var out []string
 	for _, value := range given {
-		out = append(out, expand(value, values, depth+1)...)
+		out = append(out, expand(value, values, depth+1, cut)...)
 	}
 	if len(out) > maxValueCount {
-		out = out[:maxValueCount]
+		out, *cut = out[:maxValueCount], true
 	}
 	return out
 }
 
 // constructed links each fully literal value of a computed target and
 // collects the script names among its other values. It reports whether some
-// value is a script name the resolver could not link.
-func constructed(target string, resolve *resolver, values map[string][]string, known, edges map[string]bool, names *computedNames) bool {
+// value is a script name the resolver could not link, and whether the value
+// bound dropped values, which may be scripts it links to no edge.
+func constructed(target string, resolve *resolver, values map[string][]string, known, edges map[string]bool, names *computedNames) (unresolved, cut bool) {
 	if !strings.ContainsAny(target, "$`") {
-		return false
+		return false, false
 	}
-	unresolved := false
-	for _, value := range expand(target, values, 0) {
+	for _, value := range expand(target, values, 0, &cut) {
 		if !strings.Contains(value, wildcard) {
 			if resolve.link(value, nil, known, edges) {
 				continue
@@ -253,5 +255,5 @@ func constructed(target string, resolve *resolver, values map[string][]string, k
 			slices.Sort(*names)
 		}
 	}
-	return unresolved
+	return unresolved, cut
 }

@@ -40,6 +40,7 @@ func TestPlaywrightTagClosureParseValuesCounter_V12562(t *testing.T) {
 		{"counter reassigned", loop("    i = rows.length;\n    const v = rows[i];\n"), stop + "7: a computed member access can reach a tag array without naming it)"},
 		{"counter grows by a value", loop("    i += rows.length;\n    const v = rows[i];\n"), stop + "7: a computed member access can reach a tag array without naming it)"},
 		{"counter shadowed by a parameter", loop("    rows.forEach((i) => rows[i]);\n"), stop + "6: a computed member access can reach a tag array without naming it)"},
+		{"counter shadowed by destructuring", loop("    for (const [i] of [['ta' + 'g']]) {\n      rows[i].push('@x');\n    }\n"), stop + "6: a computed member access can reach a tag array without naming it)"},
 		{"counter read outside its loop", head + "const rows = ['a'];\nlet i = 0;\nconst v = rows[i];\ntest('plain', async () => {});\n", stop + "5: a computed member access can reach a tag array without naming it)"},
 		{"counter as a computed write", loop("    rows[i] = 'b';\n"), stop + "6: a computed member write can set a tag)"},
 		{"url parse query reaches a test", "import url from 'url';\nconst s = process.argv[2];\ntest('plain', url.parse(s, true).query, async () => {});\n", stop + "3: `parse` builds an object from text, so a `tag` key can exist without its name)"},

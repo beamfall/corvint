@@ -1524,6 +1524,12 @@ func playwrightCounterUse(clean string, lexed playwrightLexed, at int, name stri
 		return true
 	}
 	if previous >= 0 && clean[previous] == '[' && next < len(clean) && clean[next] == ']' && playwrightMemberAccessAt(clean, playwrightPreviousCode(clean, previous)) {
+		// `const [NAME]`, `let [NAME]` or `var [NAME]` is a destructuring that rebinds the
+		// name, not an index read of the counter.
+		switch playwrightWordBefore(clean, playwrightPreviousCode(clean, previous)) {
+		case "const", "let", "var":
+			return false
+		}
 		return true
 	}
 	for _, operator := range []string{"===", "!==", "==", "!=", "<=", ">="} {

@@ -873,12 +873,14 @@ func TestAFUV1125FlowLimitIsTyped(t *testing.T) {
 // TestFlowDocsGenericCallMaskedOnlyThroughTypeArguments (AFU-V1-043, V1-2415):
 // a generic call's type-argument list (useMemo<T>(, useState<Map<K, V>>() is
 // not JSX, so the statement it starts and the declarations after it stay
-// code; a JSX element still blanks its text.
+// code; a JSX element still blanks its text, also right after a keyword such
+// as return, which is no generic callee.
 func TestFlowDocsGenericCallMaskedOnlyThroughTypeArguments(t *testing.T) {
 	text := "const value = useMemo<Item[]>(() => {\n  return persist(items);\n}, [items]);\n" +
 		"const [state, setState] = useState<Map<string, Item>>(new Map());\n" +
 		"const onSave = useCallback(() => {\n  save(state);\n}, [state]);\n" +
-		"export function View() {\n  return <div>save(text) here</div>;\n}\n"
+		"export function View() {\n  return <div>save(text) here</div>;\n}\n" +
+		"export function Render() {\n  return<div>(required) save(text)</div>;\n}\n"
 	ds, _ := extract(contextindex.Source{Path: "app/view.tsx", Data: []byte(text)})
 	got := []string{}
 	for _, d := range ds {
@@ -888,7 +890,7 @@ func TestFlowDocsGenericCallMaskedOnlyThroughTypeArguments(t *testing.T) {
 		}
 		got = append(got, d.name+"="+strings.Join(calls, "+"))
 	}
-	want := []string{"View=", "onSave=side_effect:save", "value=side_effect:persist"}
+	want := []string{"Render=", "View=", "onSave=side_effect:save", "value=side_effect:persist"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Fatalf("declarations=%v want=%v", got, want)
 	}
