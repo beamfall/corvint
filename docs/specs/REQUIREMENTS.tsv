@@ -2026,7 +2026,6 @@ CAL-V0-211	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted, decision 0499;
 CAL-V0-214	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted, decision 0513) When `corvint-tasks ticket create`	owner	decision 0513
 CAL-V0-217	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted, decision 0518; V1-0913) Amends CAL-V0-139. The safety-net interval	owner	decision 0518; V1-0913
 CAL-V0-215	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted, decision 0519 (V1-1129)) The shared Tasks error classifier	owner	decision 0519; V1-1129
-CAL-V0-900	docs/specs/corvint-tasks-agent-leases-v0.md	(proposed, V1-2483) The shared Tasks error classifier MUST also classify an	unrecorded	-
 CAL-V0-216	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted, decision 0518; V1-1130) `claim`, `renew`, `submit`,	owner	decision 0518; V1-1130
 CAL-V0-218	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted, decision 0519 (V1-1195)) Amends what CAL-V0-056 counts as	owner	decision 0519; V1-1195
 CAL-V0-222	docs/specs/corvint-tasks-agent-leases-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1352) A lease	standing	2026-10-11; V1-1352
@@ -2749,6 +2748,7 @@ PSR-V0-264	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the ow
 PSR-V0-265	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2636) Amends	standing	2026-10-11; V1-2636
 PSR-V0-266	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2636; bound am	standing	2026-10-11; V1-2636
 PSR-V0-900	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(proposed; V1-2447; decision 0552) Amends PSR-V0-266. The pools.json bound MUST	unrecorded	-
+PSR-V0-901	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(proposed, V1-2483) Amends CAL-V0-215 and PSR-V0-221; defined here because the	unrecorded	-
 PSR-V0-267	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2637) Amends	standing	2026-10-11; V1-2637
 PSR-V0-273	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2711) Amends	standing	2026-10-11; V1-2711
 PSR-V0-268	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2704) `corvint	standing	2026-10-11; V1-2704
