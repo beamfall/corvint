@@ -149,6 +149,31 @@ func guardsWith(repo *intent.Repository, operation string, locked bool) (*snapsh
 	return head, nil
 }
 
+// boundManifestHeld checks, for a caller holding the writer lock, that the
+// segment manifest the head binds has the digest the head records
+// (LGL-V0-900). An unlocked read reports a mismatch SNAPSHOT_MOVED, because a
+// seal may have replaced the manifest between its reads; under the lock any
+// interrupted seal is settled and none is in flight, so a mismatch at this
+// head is a corrupt store and is refused, without retry, as JOURNAL_FORKED.
+func boundManifestHeld(repo *intent.Repository) error {
+	head, err := readHead(repo)
+	if err != nil || head.Segments == nil {
+		return err
+	}
+	name := snapshot.SegmentManifestName(head.Segments.Through.Uint64())
+	raw, err := intent.ReadFile(filepath.Join(repo.StateDir, filepath.FromSlash(name)), snapshot.MaxSegmentManifestBytes)
+	if errors.Is(err, fs.ErrNotExist) || os.IsNotExist(err) {
+		return wire.Errorf(wire.CodeJournalForked, name, "bound segment manifest absent at a stable head")
+	}
+	if err != nil {
+		return err
+	}
+	if wire.Sum(raw) != head.Segments.ManifestSha256 {
+		return wire.Errorf(wire.CodeJournalForked, name, "segment manifest differs from the digest a stable head binds")
+	}
+	return nil
+}
+
 func journalReader(repo *intent.Repository, head *snapshot.Head) journal.Reader {
 	return journal.Reader{Source: journal.Native{StateDir: repo.StateDir, PrimaryWorktree: repo.IntentRoot()}, QueueID: head.QueueID, PrimaryWorktree: repo.PrimaryWorktree}
 }

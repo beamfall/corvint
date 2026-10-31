@@ -13,6 +13,7 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
+	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 // newSealedBaseFixture is newSealedResumeFixture run through validated
@@ -120,7 +121,8 @@ func TestLGLV0009_PoolVerbsResumeFromSealedBase(t *testing.T) {
 // place with its modification time restored, before the command derives the
 // sealed base, after the resume precheck, or while the resumed write
 // observes under the writer lock, is never committed over: the resume
-// declines and the command keeps the complete route's own decision.
+// declines and the command keeps the complete route's own decision, which for
+// the manifest is a non-retryable JOURNAL_FORKED (LGL-V0-900).
 func TestLGLV0009_SealedBaseDeclinesRewrittenSegment(t *testing.T) {
 	t.Parallel()
 	if !journal.ResumableAudits() {
@@ -158,6 +160,13 @@ func TestLGLV0009_SealedBaseDeclinesRewrittenSegment(t *testing.T) {
 				}
 				if run.completed() || run.fast() || run.timing.Resumed != 0 || run.timing.ResumeDeclines != declines {
 					t.Fatalf("acquire over a rewritten %s: %+v %v resumed %d declines %d stages %v", target, run.rep, run.err, run.timing.Resumed, run.timing.ResumeDeclines, run.stages)
+				}
+				// LGL-V0-900 (V1-2623): a manifest rewritten at a stable head
+				// is corrupt, not moving: the command refuses JOURNAL_FORKED,
+				// not SNAPSHOT_MOVED after every round, and once before it.
+				t.Logf("refusal %v after %d rounds", run.err, run.timing.Rounds)
+				if target == "manifest" && (wire.CodeOf(run.err) != wire.CodeJournalForked || stage == "before" && run.timing.Rounds != 1) {
+					t.Fatalf("acquire over a rewritten manifest: %v after %d rounds", run.err, run.timing.Rounds)
 				}
 				if got := headSeqOf(t, f.repo); got != tampered {
 					t.Fatalf("head moved from %d to %d over a rewritten %s", tampered, got, target)
