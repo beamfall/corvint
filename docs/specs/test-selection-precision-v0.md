@@ -5,7 +5,7 @@ Date: 2026-10-30
 Requirement prefix: `TSP-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3160); TSP-V0-001 amends AFP-V0-580
 Delivery status: experimental
-Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050. These requirements narrow
+Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892. These requirements narrow
 when the [affected plan](affected-plan-v0.md) names a unit frontier; that spec's Requirements
 section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 
@@ -152,6 +152,25 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   the current head, M0..M1 changes a `.github` path, the planner or selector fails or gives no `run`
   verdict, the universe is unavailable, or the source drifts after planning.
 
+- **TSP-V0-860:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2892)
+  `tools/selection-baseline` SHALL replay a corvint binary and a gate-affected-select binary over
+  the fixed change set `benchmarks/selection-baseline/changes.json`
+  (`corvint-selection-baseline-changes/0`): every lane change merged to `origin/main` (base its
+  first parent) and every merged-branch commit whose pull-request CI run failed (base the newest
+  first-parent ancestor on `main`), with the packages each failed run's shard annotations name. It
+  SHALL check each head out detached and clean in a `--shared` clone, so the repository's index,
+  worktrees and refs are not written, and record per change the plan scope, the dirty, selected,
+  unknown and universe counts, the unknown kinds (a language frontier by its name without the
+  site) and witness kinds, the selector verdict, whether `.github/` changed, the CI scope (`FULL`
+  for a `.github/` change or a verdict other than `run` or `NOTHING`), the selected share of the
+  Go packages and of the milliseconds in `.github/cishards/package-costs.json` (1 for `FULL`),
+  and the Go packages `corvint test --dry-run` runs whole, sliced, and whole because their source
+  and test files both changed. A failing package a `NARROW` or `NOTHING` change does not select
+  SHALL be a miss with its cause; a failure naming no package SHALL be counted as unattributed,
+  never as covered. The narrow count SHALL only be reported together with the miss count.
+  `make selection-baseline-check` SHALL build both binaries from the tree under test, replay them
+  and fail when fewer merged changes narrow than the file's `floor.narrowMerged` or any miss
+  appears.
 ## Non-goals
 
 Evaluating build constraints for a host or running non-host variants; scoping the frontier to the
@@ -217,6 +236,14 @@ at M0 by chance (flaky, time or network dependent) is not rerun; a record is onl
 the run that produced it, which executed PR code, so a run able to forge its own go.json could mark a
 package passed; the FULL merge-queue run is the backstop for all three. Packages the prior run did
 not execute, ran in slices, or skipped (no test files) are never reused.
+(9) TSP-V0-860: the change set is as old as the repository (19 merged changes on 2026-10-31,
+fewer than V1-2892's 50, because the 1.0 repository was minted on 2026-10-30); the failures are
+package-level (a shard annotation names a failing package, not a test), so a narrowed selection
+that keeps the package but slices the failing test away is not seen; a failed job whose annotations
+name no package is unattributed; a failure that only a non-host variant or another workflow
+(Release gates, `cross-vet`) shows is out of the set. The replay uses the tree under test's
+planner on historical trees, so it measures today's selection of yesterday's changes, not what CI
+ran then.
 
 ## Open questions
 
@@ -260,6 +287,7 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | TSP-V0-005 | `readForeignCallers`, `applyForeignCallers` and `foreignCallersComplete` in `internal/liveverify/affected/shell/callers.go` and their call in `internal/liveverify/affected/shell/shell.go`; `Unit.Callers` in `internal/liveverify/affected/unit.go`; `callerEdges` in `internal/liveverify/affected/graph.go`; `foreignCallersChanged` in `internal/liveverify/affected/readers.go`; `.corvint/shell-foreign-callers.json` | `TestForeignCallerDeclaration_TSP_V0_005` in `internal/liveverify/affected/shell/callers_test.go` (declared: the frontier is gone, the plan on an unrelated change is `BOUNDED` and selects the caller, test-file caller and upstream dependents' tests but not a mention's; undeclared keeps it bearing; an unlisted Go, shell, Make, Python or workflow caller or mention, a stale caller or mention, unsorted lists, a script that is no unit, an empty reason, a bad profile, an unknown member, unparsed JSON and a file both caller and mention each name the invalid frontier and keep it bearing; a dirty declaration is `UNKNOWN`); `TestRepositoryShellForeignCallersComplete_TSP_V0_005` in `internal/liveverify/affected/shell_callers_repo_test.go`; `TestBatchReplayDeclaredRuntimeReaders_V12941` frontier floor in `internal/liveverify/affected/replay_v12941_test.go` |
 | TSP-V0-006 | `testSourceEligibles`, `testSourceEligible`, `testSourceSlice`, `testSourcePlainFunctions`, `testSourceValueUse`, `testSourceQualifiers`, `testSourceDeclOf`, `testSourceReferenceSignature` and `testSourceWrite` in `cmd/corvint/test_source_slices.go`; their call and the shared base read in `testGoSlices` in `cmd/corvint/test_slices.go`; the TSP-V0-006 verdict line in `testVerdict` in `cmd/corvint/test.go` | `TestTSPV0006DryRunSlicesSourceChanges` in `cmd/corvint/test_source_slices_tspv0006_unix_test.go` (a called function, a doc comment, a function a method calls and an added function slice to the reaching and external tests; a function no test reaches builds only; every test reaching, an own test file, a value use, a package variable reached, initialization reaching, a method, an import, a variable, a comment outside functions, a dependency also changed, a new file, an assembly file, `go:linkname` and cgo stay whole, and so do a function that stopped reaching a package variable, a pointer parameter, a write through another package's variable in the head or only in the base body, a function reaching such a write, and a dot import; the importer stays whole); `TestTSPV0006PlainFunctionsAndQualifiers` and `TestTSPV0006ReferenceSignatureAndWrites` (basic-only signatures; pointer, slice, map, channel, function, interface, named, struct, array, variadic, `uintptr`, pointer-result, generic and redeclared-basic signatures and writes through a selector, pointer, index or range target or by `copy`, `delete` or `clear` are named) in `cmd/corvint/test_source_slices_tspv0006_test.go`; `TestSTRV0072SliceWalksDoNotGrowWithPackages` (two Git processes with a source change present); the mutation check in `docs/build-log/2026-10-30-v1-2806-source-slices.md` |
 | TSP-V0-007 | `readPrior`, `rerun`, `buildPrior` and `readPriorEvents` in `tools/corvint-pr-tests/rerun.go`; `selectSince` and the `--prior` branch of `planOnly` in `tools/corvint-pr-tests/main.go` | `TestTSPV0007RerunReusesPriorPasses` in `tools/corvint-pr-tests/rerun_tspv0007_test.go` (the fixed package alone reruns while the base-relative selection keeps both; nothing passed, everything passed and one passed; a missing, malformed, unknown-field, other-schema or invalid-package record, another identity, tree, unresolvable merge or head, a rewritten head, a planner failure, a non-`run` verdict, an unavailable tool profile, a refused plan and a `.github` delta each run `./...`; a record followed by a stray `}` or a second value is malformed); `TestTSPV0007PriorRecordFromRunEvidence` (only whole-package passes no directory contradicts; no directories, another merge, an unobserved merge, another identity, a source-drift or planner-drift fallback reason, an execution error, an unreadable or missing event stream each refuse); the replay in `docs/build-log/2026-10-30-v1-3050-pr-rerun-reuse.md` |
+| TSP-V0-860 | `replay`, `measure`, `CIScope`, `checkFailures`, `Summarize` and `Failures` in `tools/selection-baseline/main.go`; `benchmarks/selection-baseline/changes.json`; the `selection-baseline-check` target in `Makefile` | `TestSelectionBaselineGateFailsOnFloorOrMiss_V12892`, `TestSelectionBaselineUnknownKindsAndManifest_V12892` and `TestSelectionBaselineChangeSetIsValid_V12892` in `tools/selection-baseline/main_test.go`; the replays in `benchmarks/results/v2892-selection-baseline-*.json` and build log `docs/build-log/2026-10-31-ci-select-w1.md` |
 
 ## Rollback
 
@@ -274,4 +302,5 @@ make `applyForeignCallers` return at once; every script then carries the frontie
 `Callers` edges are empty. TSP-V0-006: in `testGoSlices`, stop collecting `sources` (leave every
 `DIRECT_SOURCE_CHANGE` selection on the `reason` path); every such package then runs whole with its
 original reason. No stored state depends on it. TSP-V0-007: stop passing `--prior`; `rerun.json` is then
-not written and only `selection.json` decides, as before.
+not written and only `selection.json` decides, as before. TSP-V0-860: delete the
+`selection-baseline-check` target; no other target or stored state depends on it.
