@@ -6,15 +6,15 @@ Intent status: proposed
 Delivery status: experimental
 
 Authoritative inputs: native tickets V1-3193, V1-3189, V1-3190 and V1-3191 (friction filed from
-lane self-use), the release mutation contract `taskman-release-mutation/0` (TM-V0-028, TM-V0-029) and
+lane self-use) and V1-0232 (release gate attestations unbound to the policy gate argv), the release mutation contract `taskman-release-mutation/0` (TM-V0-028, TM-V0-029) and
 the [agent lease contract](corvint-tasks-agent-leases-v0.md) CAL-V0-021 and CAL-V0-025. The lease
 contract's Requirements section is at the 256-obligation OCM limit (`maxObligations`), so these
 amendments live here.
 
 ## Agent digest
 - Claim: Release membership edits alone; widen PAUSED names admission and recovery; a resumed claim restores its widened scope.
-- Status: proposed; experimental; TRM-V0-001 to TRM-V0-007 and TRM-V0-800 to TRM-V0-802 are implemented with focused CLI tests.
-- Exists: `release membership --add/--remove` (wire op `RELEASE_MEMBERSHIP`), CLI flag-built membership payload sorted (create/update keep V1-0750 strict set order), the widen PAUSED remedy detail, claim scope restoration with a `restoredScope` claim-result field, and the `--admit-under-barrier` claim/widen exemption for one named ticket under an OPERATOR admission barrier.
+- Status: proposed; experimental; TRM-V0-001 to TRM-V0-007 and TRM-V0-800 to TRM-V0-804 are implemented with focused tests.
+- Exists: `release membership --add/--remove` (wire op `RELEASE_MEMBERSHIP`), CLI flag-built membership payload sorted (create/update keep V1-0750 strict set order), the widen PAUSED remedy detail, claim scope restoration with a `restoredScope` claim-result field, and the `--admit-under-barrier` claim/widen exemption for one named ticket under an OPERATOR admission barrier, and release attestations of a COMMAND gate bound to the policy gate argv.
 - Blocked on: nothing.
 - Read next: Requirements; Failure modes; Acceptance evidence.
 
@@ -87,6 +87,16 @@ barrier the widen was refused too (V1-3190).
   changes nothing.
 - `TRM-V0-802`: (proposed; V1-3191) The `PAUSED` refusal of a named claim, and the widen remedy of
   TRM-V0-005, MUST name the `--admit-under-barrier` route alongside unpause and pause.
+- `TRM-V0-803`: (proposed; V1-0232) A release attestation (`taskman-release-attestation/0`) MAY
+  carry `argv`, the ordered, nonempty command vector that produced it; it is omitted when absent,
+  so every earlier attestation keeps its bytes and digest. `release external-attest` of a gate whose
+  policy kind is `COMMAND` MUST be refused `MALFORMED`, writing nothing, unless `argv` equals that
+  gate's policy `argv` element by element. An attestation that carries `argv` for a gate that is
+  not a policy `COMMAND` gate MUST be refused `MALFORMED` too.
+- `TRM-V0-804`: (proposed; V1-0232) Readiness (`release show`) and `release promote` MUST NOT
+  count an attestation of a `COMMAND` gate whose `argv` is absent or differs from the gate's
+  current policy `argv`. Readiness then lists `gate-argv:<gateId>` in `missing`, beside the
+  unsatisfied `gate:<gateId>`, and promotion binds only attestations that pass this check.
 
 ## Non-goals
 
@@ -94,7 +104,9 @@ No new barrier kind; no exemption other than the explicit, per-request TRM-V0-80
 for `claim --next` or a non-OPERATOR barrier; no change to the CAL-V0-021 precedence for a claim
 without `--scope`; no restoration across acceptance revisions, from a COMPLETED attempt, or from
 an attempt whose scope was WHOLE_REPOSITORY, REQUESTED or DERIVED; no new stored attempt or receipt
-field; no policy operation name for membership.
+field; no policy operation name for membership. The store does not run the attested command or
+verify its output: TRM-V0-803 binds the attestation to the declared argv, and the attestor's
+evidence and source identity remain the proof that it ran.
 
 ## Failure modes
 
@@ -111,6 +123,13 @@ from passing `--admit-under-barrier`; the gate is that the flag is explicit, per
 in the receipt's request digest, the same trust as an `unpause` a lane may already run, but scoped
 to one ticket. An exempted claim still refuses a colliding path (CAL-V0-023), so the exemption never
 takes a path another attempt holds.
+
+A policy edit of a `COMMAND` gate's argv already moves the policy digest the candidate binds, so
+readiness reports `candidate-source-or-policy` until a new candidate is captured and attested
+with the new argv. An attestation recorded before TRM-V0-803 carries no `argv`, so for a
+`COMMAND` gate it no longer counts and the gate must be attested again. This store's promoted
+releases keep their recorded promotion, and its open releases carried no attestations when this
+change landed.
 
 ## Acceptance evidence
 
@@ -139,6 +158,12 @@ takes a path another attempt holds.
   `internal/tasks/transaction/lease_barrier_exemption_test.go` covers the planner rule: no barrier,
   no flag, OWNER and OPERATOR admitted, WORKER and REVIEWER refused, and `EMERGENCY`, `CUTOVER`
   and `DRAIN` barriers refused, each with its detail.
+- `TestTRMV0803_CommandGateAttestationBindsPolicyArgv` (TRM-V0-803, TRM-V0-804) in
+  `internal/tasks/release/attestation_argv_test.go` covers a COMMAND gate attested with the
+  policy argv counted by readiness and promotion, an absent or different argv refused at attest
+  time, an argv on a MANUAL gate refused, a stored argv-less or mismatched attestation reported
+  `gate-argv:<gateId>` and not counted, an attestation without `argv` keeping its digest, and
+  `argv` surviving a decode round trip.
 
 ## Rollback
 
@@ -149,3 +174,6 @@ membership request ID is refused there, as an unknown operation. A reverted clai
 `OUT_OF_SCOPE` again; attempts admitted with restored scope are ordinary DECLARED-source attempts.
 A reverted binary refuses `--admit-under-barrier` as an unknown flag; attempts admitted under the
 exemption are ordinary attempts, and their recorded request digests replay only under this binary.
+An attestation that carries `argv` is a closed-object member that older binaries reject, so once a
+release record holds one, they refuse the store. Roll back only with a compatible reader or a
+verified pre-change backup, as for any new record member.
