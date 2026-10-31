@@ -331,20 +331,23 @@ func captureTree(rootPath string, plan []plannedFile, read func(full, rel string
 	files := make([]File, 0, len(plan))
 	captured := 0
 	for _, p := range plan {
+		var f File
 		if p.known != nil {
-			captured += int(p.known.Size)
-			files = append(files, File{Path: p.path, Sha256: p.known.Sha, Bytes: int(p.known.Size)})
-			continue
+			f = File{Path: p.path, Sha256: p.known.Sha, Bytes: int(p.known.Size)}
+		} else {
+			raw, err := read(filepath.Join(rootPath, filepath.FromSlash(p.path)), p.path, p.max)
+			if err != nil {
+				return Tree{}, err
+			}
+			f = File{Path: p.path, Sha256: wire.Sum(raw), Bytes: len(raw), Raw: raw}
 		}
-		raw, err := read(filepath.Join(rootPath, filepath.FromSlash(p.path)), p.path, p.max)
-		if err != nil {
-			return Tree{}, err
-		}
-		captured += len(raw)
+		// Indexed entries count too: a file read here may have grown since
+		// the stat pass, so the bound is checked after either branch.
+		captured += f.Bytes
 		if captured > wire.MaxIntentTreeBytes {
 			return Tree{}, wire.Errorf(wire.CodeLimitExceeded, rootPath, "intent tree larger than %d bytes", wire.MaxIntentTreeBytes)
 		}
-		files = append(files, File{Path: p.path, Sha256: wire.Sum(raw), Bytes: len(raw), Raw: raw})
+		files = append(files, f)
 	}
 	sort.Slice(files, func(i, j int) bool { return files[i].Path < files[j].Path })
 	return Tree{Files: files, TotalBytes: captured, Sha256: DigestOfFiles(files)}, nil
