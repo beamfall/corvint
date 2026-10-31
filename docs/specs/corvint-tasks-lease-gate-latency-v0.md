@@ -180,6 +180,14 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   test. Only this harness reads it, so one test binary pairs serial and concurrent runs for
   `LGL-V0-003` and V1-0887 measurements; no production path reads it, the store format is
   unchanged, and the report names the mode in `publishSyncs`.
+- `LGL-V0-900`: (proposed; V1-2623) When a lease command's preparation failed `SNAPSHOT_MOVED`,
+  its commit step MUST, under the writer lock, re-read the head and the segment manifest it binds;
+  a manifest that is absent or whose SHA-256 differs from the head's binding MUST refuse at once
+  as `JOURNAL_FORKED` (non-retryable), not spend every preparation round and refuse
+  `SNAPSHOT_MOVED`, because under the lock an interrupted seal is settled and none is in flight,
+  so the store is corrupt rather than moving. A head that moved still retries and reports
+  `SNAPSHOT_MOVED` as before (CAL-V0-372). A bound segment rewritten in place is outside this
+  requirement.
 
 ## Non-goals
 
@@ -360,6 +368,15 @@ fails, nothing is published after the failed sync, staging is empty, and the ret
 completes with a clean audit. The before/after hold-profile (two runs each) and 880-ticket
 gate-load (one run each) reports with host loads are in the build-log entry
 `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-27-tasks-lease-publish-sync-overlap.md`.
+
+`TestLGLV0009_SealedBaseDeclinesRewrittenSegment` (`internal/tasks/store/lease_sealed_base_test.go`)
+rewrites the bound manifest in place with its stamps kept, before the command, after the resume
+precheck and under the writer lock: each acquire refuses `JOURNAL_FORKED` (LGL-V0-900), the one
+before the command in its first round; `TestCALV0372_TornGuardReadSpendsOneRound` keeps a moved
+head retrying. `TestLGLV0009_TailRemovedBaseBlobKeepsTheResume`
+(`internal/tasks/journal/resume_tail_blob_test.go`, V1-2622) shows a base evidence blob the walked
+tail removed keeps a sealed-base resume, while one rewritten in place declines it; blobs are
+content-addressed, so no write can give a base blob's path other bytes.
 
 ## Rollback
 
