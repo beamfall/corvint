@@ -2667,6 +2667,7 @@ ON-V0-006	docs/specs/corvint-tasks-operator-notes-v0.md	Note mutation, receipt a
 ON-V0-007	docs/specs/corvint-tasks-operator-notes-v0.md	Every successful fresh or replayed claim and claim-next MUST deliver the operato	unrecorded	-
 ON-V0-008	docs/specs/corvint-tasks-operator-notes-v0.md	Current-note and anchored-history reads MUST be bounded, immutable reads with ex	unrecorded	-
 ON-V0-011	docs/specs/corvint-tasks-operator-notes-v0.md	The dispatcher MUST render the observed current note only through the opt-in rol	unrecorded	-
+ON-V0-870	docs/specs/corvint-tasks-operator-notes-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0814) The per-	standing	2026-10-11; V1-0814
 ON-V0-009	docs/specs/corvint-tasks-operator-notes-v0.md	The codec/transition foundation and integrated capability MUST have distinct evi	unrecorded	-
 ON-V0-010	docs/specs/corvint-tasks-operator-notes-v0.md	Promotion and rollback MUST preserve all existing evidence and explicit integrat	unrecorded	-
 ON-V0-012	docs/specs/corvint-tasks-operator-notes-v0.md	(proposed; V1-1650; amends the CAL-V0-116 decline list) A writer audit resumed f	unrecorded	-
