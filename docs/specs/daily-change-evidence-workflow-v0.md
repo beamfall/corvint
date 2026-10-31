@@ -2553,12 +2553,17 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   hunk adds that definition, or when every non-blank line it adds names a requirement this change
   defines in that spec (its traceability rows or status entries). The check runs before every
   anchor, so no path anchor drafts another requirement's decision for it. A hunk that also adds
-  other lines keeps the earlier order. Design: this lane's own drafts cited decision 0388
+  other lines keeps the earlier order. A requirement is same-change only when BASE's copy of its
+  defining file holds no definition line of that ID, here and for `DCW-V0-440`: a definition
+  rewritten in place amends the requirement and reaches the `DCW-V0-805` ranking. Design: this
+  lane's own drafts cited decision 0388
   (accepting `DCW-V0-025`) for the hunk adding `DCW-V0-804..806` and decision 0543 for the hunk
   adding `SRG-V0-800`, which the lane rewrote to unknown by hand twice. Non-goals: an amendment
   that mentions a new ID in passing. Evidence:
   `TestProposeCitationsDCWV0809AddedRequirementRowsStayUnknown` (fails on BASE, which drafted the
-  decision); the redraft of this lane's change has no such row. Rollback: remove
+  decision), `TestProposeCitationsDCWV0809AmendedDefinitionReachesItsDecision` (an in-place
+  definition rewrite drafts its cited decision; fails when every added definition counts as new);
+  the redraft of this lane's change has no such row. Rollback: remove
   `addedRequirementRows` and its call in `propose`.
 - `DCW-V0-810`: (experimental under the standing lane auto-accept; lane friction F11; amends
   `DCW-V0-400`) When the only stale state the `dogfood inputs-check` pre-flight finds is ignored OCM
@@ -2949,7 +2954,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-806` (experimental under the standing lane auto-accept; V1-3381) | `internal/dogfoodflow/finishlane.go` `pass`, `stop`; `internal/dogfoodflow/change.go` `fixHints`, `fixHint`; `TestFinishLaneDCWV0806NamesTheOriginatingRefusal` in `cmd/corvint/dogfood_finish_lane_cause_test.go` | implemented; focused tests PASS |
 | `DCW-V0-807` (experimental under the standing lane auto-accept; V1-3383) | `script/dogfood-change_test.sh` scrub block and `report_failed_case`; `TestGoOnlyContextAbstentionRemainsClosed` (run with ambient dogfood inputs) | implemented; focused tests PASS |
 | `DCW-V0-808` (experimental under the standing lane auto-accept; lane friction F2) | `dogfoodFlagError`, `dogfoodUnknownOption` and `dogfoodFlowArguments` in `cmd/corvint/dogfood_flow.go`; `TestDCWV0808DogfoodOptionRefusalNamesTheFault` | implemented; focused tests PASS |
-| `DCW-V0-809` (experimental under the standing lane auto-accept; lane friction F3) | `addedRequirementRows` in `internal/dogfoodflow/propose_governing.go` and its call in `propose`; `TestProposeCitationsDCWV0809AddedRequirementRowsStayUnknown` | implemented; focused tests PASS |
+| `DCW-V0-809` (experimental under the standing lane auto-accept; lane friction F3) | `addedRequirementRows` and `definedAtBase` in `internal/dogfoodflow/propose_governing.go`, their calls in `propose` and `prepareAnchors`; `TestProposeCitationsDCWV0809AddedRequirementRowsStayUnknown`, `TestProposeCitationsDCWV0809AmendedDefinitionReachesItsDecision` | implemented; focused tests PASS |
 | `DCW-V0-810` (experimental under the standing lane auto-accept; lane friction F11) | the pre-flight note branch of `requireFreshWorktree` in `internal/dogfoodflow/reused_worktree.go`; `TestInputsCheckDCWV0810NotesAStaleSidecar` | implemented; focused tests PASS |
 | `DCW-V0-811` (experimental under the standing lane auto-accept; lane friction F10) | `script/test-rg-fallback.sh`; its use in `script/dogfood-change_test.sh` and `script/dogfood-bind-range_test.sh`; `script/test-rg-fallback_test.sh` (`make rg-fallback-test`) | implemented; focused tests PASS |
 | `DCW-V0-812` (experimental under the standing lane auto-accept; lane friction F4) | the `shell-foreign-callers-check` target and its `DOC_GATE_TARGETS` entry in `Makefile` | implemented; probe and doc-gates PASS |
