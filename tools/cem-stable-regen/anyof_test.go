@@ -188,6 +188,7 @@ func TestAnyOfRefusals(t *testing.T) {
 		{"wrong predecessor", with(func(r *anyOfRecord) { r.PredecessorSHA256 = strings.Repeat("0", 64) }), "the record names predecessor"},
 		{"existing alternative", with(func(r *anyOfRecord) { r.Branch = append(json.RawMessage(nil), alts[0].raw(src)...) }), "already admits the recorded branch"},
 		{"not an object node", with(func(r *anyOfRecord) { r.Pointer = "/$defs/criterionId/pattern" }), "is not an object schema"},
+		{"definitions map", with(func(r *anyOfRecord) { r.Pointer = "/$defs" }), "map of schemas"},
 		{"missing member", with(func(r *anyOfRecord) { r.Pointer = "/$defs/noSuchDef" }), "names no member"},
 		{"through an array", with(func(r *anyOfRecord) { r.Pointer = "/required/0" }), "does not name an object member"},
 		{"root pointer", with(func(r *anyOfRecord) { r.Pointer = "" }), "is not a non-root JSON pointer"},

@@ -73,6 +73,10 @@ func alternatives(n *jnode) (alts []*jnode, wrap bool, err error) {
 	return nil, false, errors.New("the node's anyOf is not a non-empty array")
 }
 
+// schemaMapKeywords hold a map of named schemas rather than one schema, so an
+// anyOf wrapping such a map would break every reference into it (CEM-V1-880).
+var schemaMapKeywords = map[string]bool{"$defs": true, "definitions": true, "properties": true, "patternProperties": true, "dependentSchemas": true}
+
 // anyOf adds one recorded alternative to one object-schema node of both
 // RESULT.schema.json copies (CEM-V1-880): the old node's bytes stay, only
 // re-indented when the node is first wrapped, and the same chain is re-bound
@@ -92,6 +96,9 @@ func anyOf(t *tree, o options) (string, error) {
 	parent, i, err := resolveMember(schema.root, schema.src, rec.Pointer)
 	if err != nil {
 		return "", err
+	}
+	if schemaMapKeywords[parent.keys[i]] {
+		return "", fmt.Errorf("pointer %q names the %q map of schemas, not a schema node", rec.Pointer, parent.keys[i])
 	}
 	node := parent.elems[i]
 	alts, wrap, err := alternatives(node)
