@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# usage: dogfood-bind-range.sh BASE TARGET
+# usage: dogfood-bind-range.sh [--prepare-only] BASE TARGET
 # Binds the already-landed range BASE..TARGET to one CEM after the fact
 # (docs/DOGFOOD.md section 4, DOGFOOD-011). DOGFOOD_CITATIONS optionally names a
 # four-column citation plan written against this range's private prepared map, and
 # DOGFOOD_UNKNOWN a three-column plan of hunks that no base evidence supports. A citation row's
 # third column is a `--lines` START:END or `bytes:START:END` for `--bytes` (DCW-V0-827), and
 # DOGFOOD_CITATIONS=auto-inherit derives the plan from the range's sealed CEMs (DCW-V0-824).
+# --prepare-only (or DOGFOOD_CITATIONS=none) writes the private prepared map, prints its path and
+# hunk count, and exits 0 before any citation, binding commit or status (DCW-V0-830).
 # The main worktree, its sidecar and its dogfood report are never written.
 set -uo pipefail
 export LC_ALL=C
@@ -21,6 +23,9 @@ inherit_bin_set=${CORVINT_INHERIT_CITATIONS_BIN+x}
 inherit_bin=${CORVINT_INHERIT_CITATIONS_BIN-}
 auto_inherit=
 [[ ${DOGFOOD_CITATIONS:-} != auto-inherit ]] || auto_inherit=1
+prepare_only=
+[[ ${DOGFOOD_CITATIONS:-} != none ]] || prepare_only=1
+[[ ${1:-} != --prepare-only ]] || { prepare_only=1; shift; }
 
 base_arg=${1:?usage: dogfood-bind-range.sh BASE TARGET}
 target_arg=${2:?usage: dogfood-bind-range.sh BASE TARGET}
@@ -269,7 +274,7 @@ git_dir=$(git -C "$repo" rev-parse --absolute-git-dir) || exit 2
 git -C "$repo" merge-base --is-ancestor "$base" "$target" || refuse base-not-ancestor-of-target
 git -C "$repo" merge-base --is-ancestor "$target" "$head" || refuse target-not-landed
 [[ $(git -C "$repo" rev-list --count "$base..$target") -le 256 ]] || refuse range-exceeds-256-commits
-if [[ -z $auto_inherit && -n ${DOGFOOD_CITATIONS:-} && ! -f $DOGFOOD_CITATIONS ]]; then
+if [[ -z $auto_inherit$prepare_only && -n ${DOGFOOD_CITATIONS:-} && ! -f $DOGFOOD_CITATIONS ]]; then
   refuse citation-plan-unavailable
 fi
 if [[ -n ${DOGFOOD_UNKNOWN:-} && ! -f $DOGFOOD_UNKNOWN ]]; then
@@ -296,6 +301,11 @@ fi
 map="$worktree/.corvint/change.cem.json"
 # The uncited prepared map is the one a citation plan is written against.
 cp "$map" "$prepared_copy" || exit 2
+if [[ -n $prepare_only ]]; then
+  hunks=$(grep -o '"id": *"hunk:' "$prepared_copy" | wc -l | tr -d ' ')
+  printf 'dogfood-bind-range: PASS prepare-only map=%s hunks=%s range=%s..%s\n' "$prepared_copy" "$hunks" "$base" "$target"
+  exit 0
+fi
 if [[ -n $auto_inherit ]]; then
   inherit_citations
 elif [[ -n ${DOGFOOD_CITATIONS:-} ]]; then

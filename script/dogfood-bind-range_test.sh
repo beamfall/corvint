@@ -290,6 +290,25 @@ output=$(bind CORVINT_INHERIT_CITATIONS_BIN=false DOGFOOD_CITATIONS=auto-inherit
 test "$status" = 1
 test "$output" = 'dogfood-bind-range: FAIL cem-cite inherit-failed exit-1'
 
+# DCW-V0-830 (V1-3371): --prepare-only and DOGFOOD_CITATIONS=none write the prepared map, print its
+# path and hunk count, exit 0, and run no cite, binding commit or status.
+for mode in flag env; do
+  : > "$test_root/corvint.log"
+  heads_before=$(git -C "$repo" for-each-ref --format='%(objectname) %(refname)' | sort)
+  status=0
+  if [[ $mode == flag ]]; then
+    output=$(bind DOGFOOD_TEST_HUNKS=3 script/dogfood-bind-range.sh --prepare-only "$s1" "$g2" 2>&1) || status=$?
+  else
+    output=$(bind DOGFOOD_TEST_HUNKS=3 DOGFOOD_CITATIONS=none script/dogfood-bind-range.sh "$s1" "$g2" 2>&1) || status=$?
+  fi
+  test "$status" = 0
+  prepared="$evidence/bind-range.${s1:0:12}..${g2:0:12}.cem.json"
+  test "$output" = "dogfood-bind-range: PASS prepare-only map=$prepared hunks=3 range=$s1..$g2"
+  test -s "$prepared"
+  test "$(cat "$test_root/corvint.log")" = 'cem prepare'
+  test "$(git -C "$repo" for-each-ref --format='%(objectname) %(refname)' | sort)" = "$heads_before"
+done
+
 # DCW-V0-826 (V1-3367): no child reads the caller's stdin, so a while-read loop binds every piece
 # even when a git on PATH drains its stdin.
 mkdir -p "$test_root/shim"
