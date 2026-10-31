@@ -46,7 +46,7 @@ AFP-V0-025	docs/specs/affected-plan-v0.md	(owner-directed, proposed, 2026-10-04;
 AFP-V0-026	docs/specs/affected-plan-v0.md	(accepted (decision 0431); amended by decision 0431; owner-directed, 2026-10-04;	standing	decision 0431; 2026-10-04; V1-0752; 2026-10-11; V1-1360
 AFP-V0-027	docs/specs/affected-plan-v0.md	(owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled	unrecorded	-
 AFP-V0-028	docs/specs/affected-plan-v0.md	(accepted, decision 0509; intent decision 0431) Queue-backstopped narrowing SHAL	owner	decision 0509; decision 0431
-AFP-V0-029	docs/specs/affected-plan-v0.md	(accepted, decision 0509; intent decision 0431; amended decision 0537; amended b	owner	decision 0509; decision 0431; decision 0537; 2026-10-20; V1-0812
+AFP-V0-029	docs/specs/affected-plan-v0.md	(accepted, decision 0509; intent decision 0431; amended decision 0537; amended b	owner	decision 0509; decision 0431; decision 0537; 2026-10-20; V1-0812; 2026-10-31
 AFP-V0-030	docs/specs/affected-plan-v0.md	(accepted, decision 0509; intent decision 0431; amended decision 0537; amended b	owner	decision 0509; decision 0431; decision 0537; 2026-10-20; V1-0812
 AFP-V0-031	docs/specs/affected-plan-v0.md	(accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module	owner	decision 0438; V1-0867
 AFP-V0-190	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-0874)) The Go	standing	2026-10-11; V1-0874
@@ -3062,6 +3062,9 @@ DCW-V0-828	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-829	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3370; refines `DCW-V0-824`	standing	V1-3370
 DCW-V0-830	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3371) `DOGFOOD_CITATIONS=n	standing	V1-3371
 DCW-V0-831	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3372)	standing	V1-3372
+DCW-V0-844	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3318; refines `DCW-V0-400`	standing	V1-3318
+DCW-V0-845	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3302; refines `DCW-V0-063`	standing	V1-3302
+DCW-V0-846	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-1724; refines `DCW-V0-439`	standing	V1-1724
 DCW-V0-170	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2344) When	standing	2026-10-11; V1-2344
 DCW-V0-171	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2171) A	standing	2026-10-11; V1-2171
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-
@@ -4107,6 +4110,7 @@ GPK-V0-092	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-26,
 GPK-V0-093	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-28, standing auto-accept; V1-2946) `EvalQuery` MUST compile in	standing	2026-10-28; V1-2946
 GPK-V0-095	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-29, standing auto-accept; V1-3140) The web mask that the	standing	2026-10-29; V1-3140
 GPK-V0-295	docs/specs/go-production-kernel-migration-v0.md	(accepted 2026-10-30, standing auto-accept; V1-3150) Amending the `GPK-V0-095`	standing	2026-10-30; V1-3150
+GPK-V0-336	docs/specs/go-production-kernel-migration-v0.md	(experimental 2026-10-31, standing lane auto-accept; V1-3377) The isolated statu	standing	2026-10-31; V1-3377
 GPK-V0-033	docs/specs/go-production-kernel-migration-v0.md	The frozen spec, not the Python implementation, is the conformance authority.	unrecorded	-
 GPK-V0-034	docs/specs/go-production-kernel-migration-v0.md	Every adjudication under `GPK-V0-033` MUST be recorded in	unrecorded	-
 GPK-V0-035	docs/specs/go-production-kernel-migration-v0.md	Known-divergent cases MUST NOT accumulate unexamined. Every one carries an	unrecorded	-
@@ -4187,6 +4191,7 @@ HLQ-V1-012	docs/specs/host-lifecycle-qualification-v1.md	(proposed; V1-2955) `--
 HLQ-V1-013	docs/specs/host-lifecycle-qualification-v1.md	(proposed; V1-2955) A live report MUST contain one row per case, in order:	unrecorded	-
 HLQ-V1-014	docs/specs/host-lifecycle-qualification-v1.md	(proposed; V1-2955) Verdicts MUST be reported separately as `verdict	unrecorded	-
 HLQ-V1-015	docs/specs/host-lifecycle-qualification-v1.md	(proposed; V1-2955) The nine-case report MUST add the same three verdict rows	unrecorded	-
+HLQ-V1-056	docs/specs/host-lifecycle-qualification-v1.md	(experimental 2026-10-31, standing lane auto-accept; V1-3376) A local	standing	2026-10-31; V1-3376
 HDCV0-CAP-001	docs/specs/human-documentation-compiler-v0.md	`corvint-human-documentation-request/0` remains the request profile. Its	unrecorded	-
 HDCV0-CAP-002	docs/specs/human-documentation-compiler-v0.md	The request additionally binds the existing repository/config/intent/output/limi	unrecorded	-
 HDCV0-CAP-003	docs/specs/human-documentation-compiler-v0.md	Admission requires a native Linux host, kernel 5.12 or newer, systemd exactly 26	unrecorded	-

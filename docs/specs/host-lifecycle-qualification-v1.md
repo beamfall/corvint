@@ -182,6 +182,21 @@ behaviour inside a live model session.
   2.2.0 live report under `results/2026-10-28-v1-2955-live/`. Rollback: revert `live.go`,
   `live_other.go`, the verdict rows in `render` and these requirements; the runner writes nothing
   outside its workspace.
+- **HLQ-V1-056:** (experimental 2026-10-31, standing lane auto-accept; V1-3376) A local
+  reproduction MUST be able to keep the runner's exit codes (0 pass, 1 a failed or `NOT_RUN` case,
+  2 a setup error), which `go run` collapses to 1. `script/hlq-local.sh` (`make hlq-local
+  HLQ_ARGS='...'`) builds `./conformance/host-lifecycle-v1` into a private directory, runs that
+  binary with the remaining arguments and exits with its exact code. Its opt-in `--snapshot-dirty`
+  runs a dirty `--source` as a private clone of its HEAD with the uncommitted tracked edits and
+  untracked, non-ignored files applied and committed, and names the snapshot on stderr; without
+  the flag a dirty `--source` is still refused by the runner (exit 2). The runner itself and the
+  release-gates workflow are unchanged. Non-goals: a snapshot as qualification evidence (a retained
+  report still names a clean, committed source revision), ignored files in the snapshot. Failure
+  modes: a patch that does not apply refuses before the runner starts; the private directory is
+  removed on exit. Acceptance: `script/hlq-local_test.sh` (`make hlq-local-test`): exits 0, 1 and
+  2 pass through, a dirty source is refused without the flag, and with it the runner sees a clean
+  clone holding the edit and the untracked file while the source stays dirty. Rollback: delete the
+  script, its test and the two Make targets.
 
 ## Runner
 
@@ -202,6 +217,10 @@ GOTOOLCHAIN=local go run ./conformance/host-lifecycle-v1 \
 
 The live mode (`HLQ-V1-012`..`HLQ-V1-014`) runs three host sessions against the loopback provider
 and reports the four live cases and the three verdicts; it never installs the plugin.
+
+For a local reproduction that keeps the runner's exit code, and optionally snapshots a dirty
+checkout, use `make hlq-local HLQ_ARGS='--host cli --corvint FILE [--snapshot-dirty] ...'`
+(`HLQ-V1-056`); `--source` defaults to the repository root.
 
 ## Results
 
@@ -397,6 +416,7 @@ It binds only that tuple and is not a release qualification.
 | HLQ-V1-013 | `TestLiveVerdicts`, `TestLiveFixtureRun` (`dispatchStatus`, `timeoutStatus`, `cancellationStatus`, `cleanupStatus`) |
 | HLQ-V1-014 | `TestLiveVerdicts`, `TestLiveUnsupportedHostIsNotRun` (`liveDispatchVerdict`, `authorityVerdict`) |
 | HLQ-V1-015 | `TestLiveVerdicts`, `TestHookTimeBoundDegradation` (`installationVerdict`, `render`) |
+| HLQ-V1-056 | `script/hlq-local_test.sh` (`make hlq-local-test`; `script/hlq-local.sh`) |
 | HLQ-V1-011 | `TestShippedHooksPassDiscovery`, `TestDiscoverHooksIsExact`, `TestHookBeforeDiscoveryNamesDiscovery`, `TestReadHooks` (`readHooks`, `discoverHooks` in `conformance/host-lifecycle-v1`) |
 
 ## Rollback
