@@ -186,8 +186,10 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   as `JOURNAL_FORKED` (non-retryable), not spend every preparation round and refuse
   `SNAPSHOT_MOVED`, because under the lock an interrupted seal is settled and none is in flight,
   so the store is corrupt rather than moving. A head that moved still retries and reports
-  `SNAPSHOT_MOVED` as before (CAL-V0-372). A bound segment rewritten in place is outside this
-  requirement.
+  `SNAPSHOT_MOVED` as before (CAL-V0-372). When that failure names a bound segment, the same
+  locked step MUST re-read that one segment and refuse `JOURNAL_FORKED` when it is absent or its
+  size or SHA-256 differs from the manifest entry; no other segment is re-read, so the check is
+  bounded by one segment.
 
 ## Non-goals
 
@@ -371,8 +373,8 @@ gate-load (one run each) reports with host loads are in the build-log entry
 
 `TestLGLV0009_SealedBaseDeclinesRewrittenSegment` (`internal/tasks/store/lease_sealed_base_test.go`)
 rewrites the bound manifest in place with its stamps kept, before the command, after the resume
-precheck and under the writer lock: each acquire refuses `JOURNAL_FORKED` (LGL-V0-900), the one
-before the command in its first round; `TestCALV0372_TornGuardReadSpendsOneRound` keeps a moved
+precheck and under the writer lock, and does the same to a bound segment: each acquire refuses
+`JOURNAL_FORKED` (LGL-V0-900), the one before the command in its first round; `TestCALV0372_TornGuardReadSpendsOneRound` keeps a moved
 head retrying. `TestLGLV0009_TailRemovedBaseBlobKeepsTheResume`
 (`internal/tasks/journal/resume_tail_blob_test.go`, V1-2622) shows a base evidence blob the walked
 tail removed keeps a sealed-base resume, while one rewritten in place declines it; blobs are
