@@ -485,7 +485,7 @@ func (reader *ocmBlobReader) blob(revision, path, oid string) ([]byte, error) {
 	return blob, nil
 }
 
-func requirementsFromBlob(path, oid string, data []byte) (ocmIntent, []string, []byte, error) {
+func scanRequirements(path, oid string, data []byte, limit int) (ocmIntent, []string, []byte, error) {
 	if !utf8.Valid(data) {
 		return ocmIntent{}, nil, nil, fail("invalid-intent", "intent scope must be UTF-8 Markdown")
 	}
@@ -534,7 +534,7 @@ func requirementsFromBlob(path, oid string, data []byte) (ocmIntent, []string, [
 	if len(requirements) == 0 {
 		return ocmIntent{}, nil, nil, fail("missing-requirements", "Requirements section has no requirement IDs")
 	}
-	if len(requirements) > maxObligations {
+	if len(requirements) > limit {
 		return ocmIntent{}, nil, nil, fail("too-many-obligations", "Requirements section exceeds the obligation limit")
 	}
 	scope := data[start:end]
