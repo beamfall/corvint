@@ -11,6 +11,10 @@ set -eu
 # is the regenerated one. A reflow that changes a requirement's first line, and so its title, is
 # the recorded limit: next to an inserted row it conflicts in REQUIREMENTS.tsv. The test drives the real Makefile target against a temporary repository
 # holding a copy of the generator.
+# Covers SRG-V0-981..983 (V1-3458): two lanes that amend different requirements of one spec on
+# their own definition lines and add different phony make targets, each on its own `.PHONY:` line,
+# merge in both orders with no conflict, while the same amendments as header segments and the same
+# targets on one shared `.PHONY:` line conflict; the repository Makefile has no shared line.
 
 source_root=$(CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P)
 test_root=$(mktemp -d "${TMPDIR:-/tmp}/corvint-spec-conflict-test.XXXXXX")
@@ -297,5 +301,89 @@ for order in 'lane-n1 lane-n2' 'lane-n2 lane-n1'; do
   grep -q 'newone.md' "$repo/docs/specs/INDEX.json" && grep -q 'newtwo.md' "$repo/docs/specs/README.md" ||
     fail "the resolved merge of $2 into $1 lost a new spec's INDEX.json entry or README.md row"
 done
+
+
+# SRG-V0-982: each phony target has its own `.PHONY:` line. multi_phony FILE names every line that
+# declares more than one.
+multi_phony() {
+  awk -v file="$1" '/^[ \t]*\.PHONY[ \t]*:/ { line = $0; sub(/#.*/, "", line); sub(/^[^:]*:/, "", line); n = split(line, words, /[ \t]+/)
+    for (i = 1; i <= n; i++) if (words[i] == "") --count; count += n
+    if (count > 1) printf "%s:%d: .PHONY declares %d targets\n", file, NR, count; count = 0 }' "$1"
+}
+shared_phony=$(multi_phony "$source_root/Makefile")
+test -z "$shared_phony" || fail "declare each phony target on its own .PHONY: line next to its rule (SRG-V0-982): $shared_phony"
+
+# SRG-V0-983 replay. The base adds a Makefile with one `.PHONY:` line per target and a control
+# makefile with one shared line.
+git checkout -q -b replay "$sections"
+printf '.PHONY: alpha\nalpha:\n\t@echo alpha\n\n.PHONY: mid\nmid:\n\t@echo mid\n\n.PHONY: omega\nomega:\n\t@echo omega\n' > "$repo/Makefile"
+printf '.PHONY:alpha omega # shared\nalpha:\n\t@echo alpha\n\nomega:\n\t@echo omega\n' > "$repo/shared.mk"
+test "$(multi_phony "$repo/shared.mk")" = "$repo/shared.mk:1: .PHONY declares 2 targets" ||
+  fail "a shared .PHONY: line was not named: $(multi_phony "$repo/shared.mk")"
+git add -- Makefile shared.mk
+git commit -q -m replay
+replay=$(git rev-parse HEAD)
+
+# amend_lane BRANCH ID TICKET TARGET AFTER: one lane amends ID's own note (SRG-V0-981) and adds the
+# phony TARGET after the rule of AFTER.
+amend_lane() {
+  git checkout -q -b "$1" "$replay"
+  awk -v id="$2" -v ticket="$3" 'index($0, "- " id ": (accepted, decision 0003) ") == 1 {
+         sub(/\(accepted, decision 0003\)/, "(accepted, decision 0003; amended under the owner'"'"'s standing auto-accept (2026-10-31); " ticket ")")
+         sub(/\.$/, ", amended.") }
+       { print }' "$repo/docs/specs/sections.md" > "$test_root/spec" && cp "$test_root/spec" "$repo/docs/specs/sections.md"
+  awk -v target="$4" -v after="$5" '{ print } $0 == "\t@echo " after { printf "\n.PHONY: %s\n%s:\n\t@echo %s\n", target, target, target }' \
+    "$repo/Makefile" > "$test_root/mk" && cp "$test_root/mk" "$repo/Makefile"
+  git add -- Makefile
+  regen
+  git commit -q -m "$1"
+}
+amend_lane lane-am1 SEC-V0-001 V1-9101 beta alpha
+amend_lane lane-am2 SEC-V0-011 V1-9102 psi mid
+merges_cleanly lane-am1 lane-am2 'SEC-V0-001 SEC-V0-011'
+for pair in 'SEC-V0-001 V1-9101' 'SEC-V0-011 V1-9102'; do
+  set -- $pair
+  grep -q "^$1	docs/specs/sections.md	.*	standing	decision 0003; 2026-10-31; $2\$" "$repo/docs/specs/REQUIREMENTS.tsv" ||
+    fail "the amended $1 row does not carry standing and its anchors: $(grep "^$1	" "$repo/docs/specs/REQUIREMENTS.tsv")"
+done
+test "$(make -s --no-print-directory -C "$repo" alpha beta mid psi omega | tr '\n' ' ')" = 'alpha beta mid psi omega ' ||
+  fail "the merged Makefile lost a target"
+# SRG-V0-983 limit: amendments to adjacent definition lines still conflict, only in those spec lines
+# and the two REQUIREMENTS.tsv rows.
+amend_lane lane-am3 SEC-V0-002 V1-9103 gamma omega
+git checkout -q -b merge-adjacent lane-am1
+if git merge -q --no-edit lane-am3 > /dev/null 2>&1; then fail "adjacent amendments merged without a conflict; drop the SRG-V0-983 limit"; fi
+conflicted=$(git diff --name-only --diff-filter=U | tr '\n' ' ')
+test "$conflicted" = "docs/specs/REQUIREMENTS.tsv docs/specs/sections.md " ||
+  fail "adjacent amendments conflicted in $conflicted, want only the spec and REQUIREMENTS.tsv"
+git merge --abort
+
+# Controls: the same amendments as header segments are refused by the generator (SRG-V0-980) and
+# conflict, and the same targets appended to one shared `.PHONY:` line conflict.
+control_lane() {
+  git checkout -q -b "$1" "$replay"
+  sed "s/^Intent status: accepted\$/Intent status: accepted; $2 amended under the owner's standing auto-accept (2026-10-31; $3)/" \
+    "$repo/docs/specs/sections.md" > "$test_root/spec" && cp "$test_root/spec" "$repo/docs/specs/sections.md"
+  sed "1s/ #/ $4 #/" "$repo/shared.mk" > "$test_root/mk" && printf '\n%s:\n\t@echo %s\n' "$4" "$4" >> "$test_root/mk" &&
+    cp "$test_root/mk" "$repo/shared.mk"
+  make -np -f "$repo/shared.mk" 2> /dev/null | grep '^\.PHONY:' | tr ' ' '\n' | grep -qx "$4" ||
+    fail "the control did not add $4 to the shared .PHONY: list"
+  git add -- docs/specs/sections.md shared.mk
+  ctl_err=$( (cd "$repo" && script/gen-spec-requirements.sh) 2>&1 > /dev/null) &&
+    fail "a header segment naming $2 was not refused"
+  case $ctl_err in
+    *"docs/specs/sections.md: its Intent status names $2"*'(SRG-V0-980)'*) ;;
+    *) fail "the header-segment refusal does not name $2 and the rule: $ctl_err" ;;
+  esac
+  git commit -q -m "$1"
+}
+control_lane lane-hs1 SEC-V0-001 V1-9101 beta
+control_lane lane-hs2 SEC-V0-011 V1-9102 psi
+git checkout -q -b merge-hs lane-hs1
+if git merge -q --no-edit lane-hs2 > /dev/null 2>&1; then fail "header segments and a shared .PHONY: line merged without a conflict"; fi
+conflicted=$(git diff --name-only --diff-filter=U | tr '\n' ' ')
+test "$conflicted" = "docs/specs/sections.md shared.mk " ||
+  fail "the controls conflicted in $conflicted, want the spec header and the shared .PHONY: line"
+git merge --abort
 
 printf 'ok\n'

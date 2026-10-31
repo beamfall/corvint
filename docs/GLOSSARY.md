@@ -177,7 +177,7 @@ expired, or unretained input produces `NOT_OBSERVED`, `PARTIAL`, or `INVALID`, n
 **Normative definition.** A named gate, trial, or promotion step has not been executed. It
 describes **delivery evidence about Corvint itself**, never a value inside a receipt. `NOT_RUN`
 evidence stays visible and is never converted into a pass
-(`docs/SPEC-DRIVEN-DEVELOPMENT.md:143@ef8f012f`).
+(`docs/SPEC-DRIVEN-DEVELOPMENT.md:160@ef8f012f`).
 
 **Declared variants.** Used throughout the specification index and candidate profiles as a delivery
 state (`docs/specs/README.md:14,15,21,32,40,44,46@a62af3de`;
