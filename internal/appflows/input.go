@@ -490,6 +490,14 @@ func scalar(v any) error {
 	return errors.New("only bounded scalar expectations are supported")
 }
 
+// runGit runs one Git read; tests replace it to force a process outcome.
+var runGit = procgroup.Run
+
+// errPlatformUnsupported reports a Git read refused by the platform, not by its input (PRS-V1-021,
+// V1-2487); the message ends with the procgroup refusal so the platform-refusal list names it.
+var errPlatformUnsupported = &gokernel.Error{Code: "process-platform-unsupported",
+	Message: "flow Git source unavailable: process-platform-unsupported"}
+
 func git(ctx context.Context, root string, args ...string) ([]byte, error) {
 	// The process-wide pinned Git: an MCP server pins it at start, so no call repeats a PATH lookup.
 	gitPath := gitstatus.Executable()
@@ -499,7 +507,10 @@ func git(ctx context.Context, root string, args ...string) ([]byte, error) {
 	// The gokernel environment and credential prefix keep a read from lazily fetching into a partial
 	// clone's object store, so a flows read never writes the repository (invariant 4, MCPV0-017).
 	argv := append([]string{gitPath, "--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "credential.helper=", "-C", root}, args...)
-	o := procgroup.Run(ctx, procgroup.Spec{Argv: argv, Dir: root, Env: gokernel.SanitizedGitEnvironment(), Timeout: 10 * time.Second, OutputLimit: MaxBytes})
+	o := runGit(ctx, procgroup.Spec{Argv: argv, Dir: root, Env: gokernel.SanitizedGitEnvironment(), Timeout: 10 * time.Second, OutputLimit: MaxBytes})
+	if errors.Is(o.Err, procgroup.ErrPlatformUnsupported) {
+		return nil, errPlatformUnsupported
+	}
 	if o.Err != nil || o.ExitStatus != 0 {
 		return nil, errors.New("flow Git source unavailable")
 	}

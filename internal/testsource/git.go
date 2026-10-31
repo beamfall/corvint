@@ -32,9 +32,25 @@ const (
 )
 
 // Error is a refusal with a stable code (TSA-V0-012).
-type Error struct{ Code, Message string }
+type Error struct {
+	Code, Message string
+	cause         error
+}
 
 func (e *Error) Error() string { return e.Code + ": " + e.Message }
+
+// Unwrap names the process refusal behind a platform-refused Git read (V1-2487).
+func (e *Error) Unwrap() error { return e.cause }
+
+// runGit runs one Git read; tests replace it to force a process outcome.
+var runGit = procgroup.Run
+
+// platformRefusal reports a Git read refused by the platform, not by its input (PRS-V1-021,
+// V1-2487); it wraps the procgroup refusal so the platform-refusal list names it.
+func platformRefusal() error {
+	return &Error{Code: "tests-source-unavailable", Message: "Git reads are unsupported on this platform: process-platform-unsupported",
+		cause: procgroup.ErrPlatformUnsupported}
+}
 
 func refuse(code, format string, args ...any) error {
 	return &Error{Code: code, Message: fmt.Sprintf(format, args...)}
@@ -56,8 +72,11 @@ func (r Repo) git(limit int, stdin []byte, args ...string) ([]byte, error) {
 	}
 	argv := append([]string{gitPath, "--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "core.quotePath=false",
 		"-c", "credential.helper=", "-C", r.root}, args...)
-	o := procgroup.Run(r.ctx, procgroup.Spec{Argv: argv, Dir: r.root, Env: gokernel.SanitizedGitEnvironment(), Stdin: stdin,
+	o := runGit(r.ctx, procgroup.Spec{Argv: argv, Dir: r.root, Env: gokernel.SanitizedGitEnvironment(), Stdin: stdin,
 		Timeout: 120 * time.Second, OutputLimit: limit})
+	if errors.Is(o.Err, procgroup.ErrPlatformUnsupported) {
+		return nil, platformRefusal()
+	}
 	if o.Err != nil || o.ExitStatus != 0 {
 		return nil, refuse("tests-source-unavailable", "a Git read failed")
 	}
@@ -70,6 +89,9 @@ func (r Repo) Resolve(revision string) (string, error) {
 		return "", refuse("tests-invalid-revision", "the revision is not a commit")
 	}
 	out, err := r.git(4096, nil, "rev-parse", "--verify", "--end-of-options", revision+"^{commit}")
+	if errors.Is(err, procgroup.ErrPlatformUnsupported) {
+		return "", err
+	}
 	if err != nil {
 		return "", refuse("tests-invalid-revision", "the revision is not a commit")
 	}

@@ -36,6 +36,23 @@ type repo struct {
 	alias string
 }
 
+// runGit runs one Git read; tests replace it to force a process outcome.
+var runGit = procgroup.Run
+
+// errPlatformUnsupported reports a Git read refused by the platform, not by its input (PRS-V1-021,
+// V1-2487); the message ends with the procgroup refusal so the platform-refusal list names it.
+var errPlatformUnsupported = &gokernel.Error{Code: "process-platform-unsupported",
+	Message: "application map Git source unavailable: process-platform-unsupported"}
+
+// orPlatform is fallback unless err is the platform refusal, which no caller may rename as an
+// input defect.
+func orPlatform(err, fallback error) error {
+	if errors.Is(err, errPlatformUnsupported) {
+		return err
+	}
+	return fallback
+}
+
 func rootUnavailable(alias, why string) error {
 	return &gokernel.Error{Code: "appmap-root-unavailable", Message: fmt.Sprintf("root %s %s", alias, why)}
 }
@@ -66,7 +83,7 @@ func openRoot(ctx context.Context, primary, alias, root, stated string) (repo, s
 	// is its top without naming the top as a path (AFP-V0-156).
 	where, err := r.git(4096, nil, "rev-parse", "--is-inside-work-tree", "--show-prefix")
 	if err != nil || !strings.HasPrefix(string(where), "true\n") {
-		return repo{}, "", rootUnavailable(alias, "is not a Git worktree")
+		return repo{}, "", orPlatform(err, rootUnavailable(alias, "is not a Git worktree"))
 	}
 	if string(where) != "true\n\n" {
 		return repo{}, "", rootUnavailable(alias, "is not the top of a Git worktree")
@@ -75,13 +92,13 @@ func openRoot(ctx context.Context, primary, alias, root, stated string) (repo, s
 		// A stated revision is read from committed objects only (AMAP-V0-200).
 		rev, err := r.resolve(stated)
 		if err != nil {
-			return repo{}, "", rootUnavailable(alias, "revision "+stated+" is not a commit of the root")
+			return repo{}, "", orPlatform(err, rootUnavailable(alias, "revision "+stated+" is not a commit of the root"))
 		}
 		return r, rev, nil
 	}
 	rev, err := r.resolve("HEAD")
 	if err != nil {
-		return repo{}, "", rootUnavailable(alias, "has no HEAD commit")
+		return repo{}, "", orPlatform(err, rootUnavailable(alias, "has no HEAD commit"))
 	}
 	return r, rev, nil
 }
@@ -104,8 +121,11 @@ func (r repo) git(limit int, stdin []byte, args ...string) ([]byte, error) {
 		return nil, errors.New("Git unavailable")
 	}
 	argv := append([]string{gitPath, "--no-optional-locks", "-c", "core.fsmonitor=false", "-c", "credential.helper=", "-C", r.root}, args...)
-	o := procgroup.Run(r.ctx, procgroup.Spec{Argv: argv, Dir: r.root, Env: gokernel.SanitizedGitEnvironment(), Stdin: stdin,
+	o := runGit(r.ctx, procgroup.Spec{Argv: argv, Dir: r.root, Env: gokernel.SanitizedGitEnvironment(), Stdin: stdin,
 		Timeout: 60 * time.Second, OutputLimit: limit})
+	if errors.Is(o.Err, procgroup.ErrPlatformUnsupported) {
+		return nil, errPlatformUnsupported
+	}
 	if o.Err != nil || o.ExitStatus != 0 {
 		return nil, errors.New("application map Git source unavailable")
 	}
@@ -119,7 +139,7 @@ func (r repo) resolve(revision string) (string, error) {
 	}
 	out, err := r.git(4096, nil, "rev-parse", "--verify", "--end-of-options", revision+"^{commit}")
 	if err != nil {
-		return "", errors.New("evaluated revision is not a commit")
+		return "", orPlatform(err, errors.New("evaluated revision is not a commit"))
 	}
 	return strings.TrimSpace(string(out)), nil
 }
