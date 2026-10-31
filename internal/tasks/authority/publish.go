@@ -111,14 +111,14 @@ func (d *Dir) Close() error { return d.root.Close() }
 func (d *Dir) Sync() error {
 	f, err := d.root.Open(".")
 	if err != nil {
-		return fsErr(d.path, "cannot open the directory for sync: %v", err)
+		return fsErr(d.path, "cannot open the directory for sync: %w", err)
 	}
 	defer f.Close()
 	if err := syncDirectory(f); err != nil {
 		if isFullSyncUnsupported(err) {
-			return fsErr(d.path, "directory sync is unsupported here: %v", err)
+			return fsErr(d.path, "directory sync is unsupported here: %w", err)
 		}
-		return fsErr(d.path, "directory sync failed: %v", err)
+		return fsErr(d.path, "directory sync failed: %w", err)
 	}
 	return nil
 }
@@ -129,14 +129,14 @@ func (d *Dir) Sync() error {
 func SyncDirectory(path string) error {
 	f, err := os.Open(path)
 	if err != nil {
-		return fsErr(path, "cannot open the directory for sync: %v", err)
+		return fsErr(path, "cannot open the directory for sync: %w", err)
 	}
 	defer f.Close()
 	if err := syncDirectory(f); err != nil {
 		if isFullSyncUnsupported(err) {
-			return fsErr(path, "directory sync is unsupported here: %v", err)
+			return fsErr(path, "directory sync is unsupported here: %w", err)
 		}
-		return fsErr(path, "directory sync failed: %v", err)
+		return fsErr(path, "directory sync failed: %w", err)
 	}
 	return nil
 }
@@ -150,9 +150,9 @@ func Fsync(f *os.File) error {
 	}
 	if err := syncFile(f); err != nil {
 		if isFullSyncUnsupported(err) {
-			return fsErr(f.Name(), "full sync is unsupported on this filesystem: %v", err)
+			return fsErr(f.Name(), "full sync is unsupported on this filesystem: %w", err)
 		}
-		return fsErr(f.Name(), "full sync failed: %v", err)
+		return fsErr(f.Name(), "full sync failed: %w", err)
 	}
 	return nil
 }
@@ -254,9 +254,9 @@ func (d *Dir) LinkIn(name string, data []byte) error {
 	}
 	if err := syncFile(f); err != nil {
 		if isFullSyncUnsupported(err) {
-			return fail(fsErr(tmpPath, "full sync is unsupported on this filesystem: %v", err))
+			return fail(fsErr(tmpPath, "full sync is unsupported on this filesystem: %w", err))
 		}
-		return fail(fsErr(tmpPath, "full sync failed: %v", err))
+		return fail(fsErr(tmpPath, "full sync failed: %w", err))
 	}
 	if err := f.Close(); err != nil {
 		return withCleanup(fsErr(tmpPath, "close failed: %v", err), remove())

@@ -9,7 +9,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -260,9 +259,10 @@ func TestLGLV0016_FaultAtEachPublishSyncStopsTheNextStep(t *testing.T) {
 				choice := store.LeaseChoice{QueueID: fixture.QueueID, RequestID: verb + "-1", Root: s.root, Lease: l}
 				r, err := store.Lease(context.Background(), s.repo, operator(), choice, s.at(t, 1))
 				events := rec.resolved()
-				// A sync the session's open makes is reported as an
-				// unsupported filesystem rather than wrapped.
-				if err == nil || (!errors.Is(err, rec.inject) && !strings.Contains(err.Error(), rec.inject.Error())) {
+				// Every sync failure, including sync 0 that the session's
+				// open makes and reports as UNSUPPORTED_FILESYSTEM, wraps
+				// the injected cause (V1-2878).
+				if err == nil || !errors.Is(err, rec.inject) {
 					t.Fatalf("failing sync %d did not fail the %s: %+v %v", k, verb, r, err)
 				}
 				failed := false

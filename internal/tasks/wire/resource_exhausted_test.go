@@ -75,3 +75,25 @@ func TestPSRV0901_NoSpaceIsResourceExhausted(t *testing.T) {
 		t.Fatal("post-effect mark lost")
 	}
 }
+
+// TestErrorfWrapsCause: a %w operand in Errorf's format is reachable through
+// errors.Is and errors.As, the message reads as %v would, and the code is the
+// outer one (V1-2878).
+func TestErrorfWrapsCause(t *testing.T) {
+	cause := syscall.EROFS
+	err := Errorf(CodeUnsupportedFilesystem, "/repo/.git", "directory sync failed: %w", cause)
+	if !errors.Is(err, syscall.EROFS) {
+		t.Fatalf("errors.Is did not reach the cause: %v", err)
+	}
+	if want := "UNSUPPORTED_FILESYSTEM: /repo/.git: directory sync failed: " + cause.Error(); err.Error() != want {
+		t.Fatalf("message %q, want %q", err.Error(), want)
+	}
+	inner := Errorf(CodeAdjudication, "", "inner")
+	outer := Errorf(CodeUnsupportedFilesystem, "", "%w and %w", inner, syscall.ENOSPC)
+	if CodeOf(outer) != CodeUnsupportedFilesystem || !errors.Is(outer, inner) || !errors.Is(outer, syscall.ENOSPC) {
+		t.Fatalf("multi-%%w: code %s, is inner %v", CodeOf(outer), errors.Is(outer, inner))
+	}
+	if plain := Errorf(CodeAdjudication, "", "no cause %v", syscall.EIO); errors.Is(plain, syscall.EIO) || plain.Unwrap() != nil {
+		t.Fatal("a plain operand must not be wrapped")
+	}
+}
