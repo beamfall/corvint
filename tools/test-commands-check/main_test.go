@@ -265,9 +265,10 @@ func TestSTRV0004ShellTestIsTheGateShellSteps(t *testing.T) {
 		return recipeLines
 	}
 	// The recipe must start the script itself (after make's @, + or -
-	// prefixes), so a recipe that only names it, such as `@echo
+	// prefixes, or through bash for a script without the executable bit,
+	// ASD-V0-942), so a recipe that only names it, such as `@echo
 	// script/x_test.sh`, does not count as running it.
-	shellTest := regexp.MustCompile(`^\t[@+-]*script/[^\s/]+_test\.sh(\s|$)`)
+	shellTest := regexp.MustCompile(`^\t[@+-]*(?:bash )?script/[^\s/]+_test\.sh(\s|$)`)
 	var want []string
 	for _, step := range gateSteps {
 		if len(rules[step]) != 1 {
@@ -312,5 +313,46 @@ func TestSTRV0019GateGoTestHasTimeout(t *testing.T) {
 	eq := mutate(t, filepath.Join(root, "Makefile"), "-timeout $(GO_TEST_TIMEOUT) ./cmd/corvint", "-timeout=30m ./cmd/corvint")
 	if got := checkGoTestTimeouts(filepath.Dir(eq), filepath.Base(eq), steps); len(got) != 0 {
 		t.Errorf("-timeout=30m: %q, want pass", got)
+	}
+}
+
+// unstartedScriptTests returns, sorted, each script/*_test.sh under root that
+// no recipe line of the Makefile at makefile starts (ASD-V0-942), read as
+// TestSTRV0004ShellTestIsTheGateShellSteps reads a recipe.
+func unstartedScriptTests(t *testing.T, root, makefile string) []string {
+	t.Helper()
+	tests, err := filepath.Glob(filepath.Join(root, "script", "*_test.sh"))
+	if err != nil || len(tests) == 0 {
+		t.Fatalf("no script/*_test.sh under %s (%v)", root, err)
+	}
+	text, err := os.ReadFile(makefile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	started := map[string]bool{}
+	recipe := regexp.MustCompile(`(?m)^\t[@+-]*(?:bash )?script/([^\s/]+_test\.sh)(\s|$)`)
+	for _, match := range recipe.FindAllStringSubmatch(string(text), -1) {
+		started[match[1]] = true
+	}
+	var missing []string
+	for _, test := range tests {
+		if name := filepath.Base(test); !started[name] {
+			missing = append(missing, "script/"+name)
+		}
+	}
+	slices.Sort(missing)
+	return missing
+}
+
+// ASD-V0-942 (V1-2393): every script/*_test.sh is started by a Makefile
+// recipe; removing one target's recipe names its script.
+func TestASDV0942EveryScriptTestHasAMakeTarget(t *testing.T) {
+	root := requireMake(t)
+	if missing := unstartedScriptTests(t, root, filepath.Join(root, "Makefile")); len(missing) != 0 {
+		t.Fatalf("script tests no Makefile recipe starts: %q; add a <name>-test target (the SHELL-TEST-REGISTRATION note under docs)", missing)
+	}
+	bad := mutate(t, filepath.Join(root, "Makefile"), "\t@script/agent-preflight_test.sh\n", "\t@true\n")
+	if got := unstartedScriptTests(t, root, bad); !slices.Equal(got, []string{"script/agent-preflight_test.sh"}) {
+		t.Errorf("a removed recipe: %q, want [script/agent-preflight_test.sh]", got)
 	}
 }

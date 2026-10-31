@@ -88,6 +88,10 @@ var moduleLevelFrontiers = map[string]bool{
 	"go:cgo-frontier":                    true,
 	"go:test-read-scopes-invalid":        true,
 	"go:test-binary-execs-invalid":       true,
+	// TSP-V0-940: the planner leaves an invalid or dirty gated root-locator
+	// declaration UNKNOWN, so the selector does not narrow under it.
+	"go:gated-root-locators-invalid": true,
+	"go:gated-root-locators-changed": true,
 }
 
 var rootModuleDefinitions = map[string]bool{"go.mod": true, "go.sum": true, "go.work": true, "go.work.sum": true}

@@ -393,7 +393,7 @@ func verifyOCMBinding(ctx context.Context, repository *gitauth.Repository, cem *
 		return err
 	}
 	if err != nil || resolvedTarget != document.target {
-		return fail("repository-object-unavailable", "repository object unavailable")
+		return fail("repository-object-unavailable", "repository object unavailable: the map's target commit %s does not resolve in this repository", document.target)
 	}
 	if options.Target != "" {
 		callerTarget, err := repository.Resolve(ctx, options.Target)
@@ -471,14 +471,14 @@ func (reader *ocmBlobReader) blob(revision, path, oid string) ([]byte, error) {
 		return nil, err
 	}
 	if !exists || entry.OID != oid || entry.Type != "blob" || entry.Mode != "100644" && entry.Mode != "100755" {
-		return nil, fail("repository-object-unavailable", "repository object unavailable")
+		return nil, fail("repository-object-unavailable", "repository object unavailable: %s at %s is not the regular blob %s", path, revision, oid)
 	}
 	blob, err := reader.repository.BlobBytes(reader.ctx, oid)
 	if err != nil {
 		return nil, err
 	}
 	if len(blob) > maxOCMBlob || len(blob) > maxOCMBlobTotal-reader.total {
-		return nil, fail("repository-object-unavailable", "repository object unavailable")
+		return nil, fail("repository-object-unavailable", "repository object unavailable: blob %s of %s at %s exceeds the OCM read bound", oid, path, revision)
 	}
 	reader.total += len(blob)
 	reader.cache[cacheKey] = blob

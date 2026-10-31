@@ -3557,6 +3557,7 @@
         "--shard",
         "--shard-plan",
         "--split-allow",
+        "--summary",
         "--test-slices"
       ],
       "schemaIds": [

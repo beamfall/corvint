@@ -76,6 +76,9 @@ type proposal struct {
 	// moves maps each side of a file the change moves, the deleted BASE path
 	// and the added path, to that move (DCW-V0-803).
 	moves map[string]movedFile
+	// decisions maps each BASE decision number to its path, read once
+	// (DCW-V0-805).
+	decisions map[string]string
 	// accepts holds, by row key, the nearest stable BASE span of a modified
 	// file as a ready plan row the lane may accept in place of that hunk's
 	// unknown row; it is printed on stderr, never drafted (DCW-V0-846).
@@ -408,10 +411,20 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 		return unknownProposal(ordinal, "the hunk names requirement "+id+", which this change itself adds in "+where+
 			", and same-change intent is not BASE evidence (cem cite cites BASE spans only), so it cannot be cited (DCW-V0-440): keep this row unknown, or cite the BASE contract "+id+" refines"), "", ""
 	}
+	// The defining spec's own hunk that adds a requirement, or only its
+	// rows, has no BASE contract either; a path anchor would cite another
+	// requirement's decision (DCW-V0-809).
+	if id := p.addedRequirementRows(p.derivedHunk(hunk)); id != "" {
+		return unknownProposal(ordinal, "the hunk adds requirement "+id+" or rows naming it, which this change itself defines in "+hunk.path+
+			", and same-change intent is not BASE evidence (cem cite cites BASE spans only), so it cannot be cited (DCW-V0-440, DCW-V0-809): keep this row unknown"), "", ""
+	}
 	if row, cite, note := p.sealedProposal(hunk, ordinal, edited, used); row != "" {
 		return row, cite, note
 	}
 	if row, cite, note := p.movedProposal(hunk, ordinal, edited, used); row != "" {
+		return row, cite, note
+	}
+	if row, cite, note := p.governingProposal(hunk, ordinal, edited, used); row != "" {
 		return row, cite, note
 	}
 	if row, cite := p.anchoredProposal(hunk, ordinal, edited, used); row != "" {
@@ -633,7 +646,10 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 					p.changed[hunk.DisplayPath], p.changed[anchorPath(hunk)] = true, true
 				}
 				for _, id := range addedDefinitions(hunk) {
-					if _, seen := p.changeIDs[id]; !seen {
+					// A definition rewritten in place amends a requirement
+					// BASE already defines; only a new one is same-change
+					// intent (DCW-V0-440, DCW-V0-809).
+					if _, seen := p.changeIDs[id]; !seen && !p.definedAtBase(hunk.DisplayPath, id) {
 						p.changeIDs[id] = hunk.DisplayPath
 					}
 				}

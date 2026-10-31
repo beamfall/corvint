@@ -55,6 +55,9 @@ type finishLane struct {
 	stages     [][]string
 	// stage labels the running stage in kept rows and step lines.
 	stage string
+	// cause is the last pass's first failing row, which a stop names before
+	// the rows that follow from it (DCW-V0-806).
+	cause *step
 }
 
 // laneInput is one supplied input file and its content digest at run start.
@@ -189,6 +192,7 @@ func (l *finishLane) run() int {
 		l.bind()
 		l.commitBind()
 	}
+	l.settleDeferralRecord()
 	l.rebind()
 	return l.checkAndSeal()
 }
@@ -288,7 +292,7 @@ func (l *finishLane) requireVerifyInput() {
 		for _, suggestion := range quotedRunSuggestions(l.options.Change) {
 			l.say("  quoted form: %s\n", suggestion)
 		}
-		l.say("  accepted form: one quoted -run alternation of test names, -run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (single or double quotes, or attached as -run='TestA|TestB'), is admitted as one argv word (DCW-V0-384, DCW-V0-801); an unquoted alternation, a single anchored name such as -run '^TestA$' or any other quoted regex is refused; write one command per test name (go test -run TestA ./pkg, then go test -run TestB ./pkg), use a shared name prefix (-run TestA matches TestA*), or commit a script and list it as sh path/to/script.sh\n")
+		l.say("  accepted form: one quoted -run alternation of test names, -run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (single or double quotes, or attached as -run='TestA|TestB'), is admitted as one argv word (DCW-V0-384, DCW-V0-801), as are leading NAME='value' or NAME=\"value\" assignments such as GOFLAGS='-count=1 -v' go test ./pkg (DCW-V0-804); an unquoted alternation, a single anchored name such as -run '^TestA$' or any other quoted regex is refused; write one command per test name (go test -run TestA ./pkg, then go test -run TestB ./pkg), use a shared name prefix (-run TestA matches TestA*), or commit a script and list it as sh path/to/script.sh\n")
 	}
 	l.exit(2)
 }
@@ -418,9 +422,13 @@ func (l *finishLane) pass(name, citations string) (int, *change, []byte) {
 	run := &change{flow: flow{ctx: l.ctx, prefix: "dogfood-change", root: options.Root, stderr: &captured}, options: options, scope: passScopes[name], nested: true}
 	code, err := boundary(l.ctx, run.run, run.cleanup)
 	run.releaseOperation()
+	l.cause = nil
 	for _, row := range run.rows {
 		if row.status != "PRODUCED" {
 			l.missing = append(l.missing, name+l.stage+" "+row.name+" "+row.status+" "+row.reason)
+		}
+		if l.cause == nil && run.rowFailing(row) {
+			l.cause = &row
 		}
 	}
 	if err != nil {
@@ -476,6 +484,15 @@ func (l *finishLane) stop(name string, code int, output []byte) {
 	}
 	if code == 0 {
 		code = 1
+	}
+	// The first failing row is the originating refusal; an ocm-aggregate
+	// intent-scope-drift after a refused ocm-prepare only follows from it
+	// (DCW-V0-806).
+	if l.cause != nil {
+		l.line("CAUSE %s%s %s %s", name, l.stage, l.cause.name, l.cause.reason)
+		if name != "prepare" && isRegular(l.root+"/"+finishLaneSidecar) {
+			_, _ = fmt.Fprintf(l.stdout, "  recover: this pass left the uncommitted %s, which the next finish-lane run removes before it prepares again when it is the only uncommitted path; fix the cause above, then rerun the same command\n", finishLaneSidecar)
+		}
 	}
 	l.line("%s FAIL exit=%d", name, code)
 	l.reportMissing()
@@ -633,6 +650,69 @@ func (l *finishLane) gitPassthrough(args ...string) int {
 	status := exitStatus(command.Run())
 	l.checkpoint()
 	return status
+}
+
+// bindCarriesRecord reports whether the bind commit adds or changes a
+// deferral record beside the sidecar (DCW-V0-370).
+func (l *finishLane) bindCarriesRecord() bool {
+	changed, status := l.git(false, "diff-tree", "-r", "--no-renames", "--no-commit-id", "--name-only", l.target+"^1", l.target)
+	if status != 0 {
+		return false
+	}
+	for _, path := range nonEmpty(strings.Split(changed, "\n")) {
+		if strings.HasPrefix(path, workflow.DeferredIntentsDir+"/") {
+			return true
+		}
+	}
+	return false
+}
+
+// settleDeferralRecord folds the deferral record's own hunk into the bind
+// commit (DCW-V0-941, V1-3036). The record is a hunk of the map at the bind
+// commit that the bind pass could not see, so the rebind would prepare and
+// cite it into an uncommitted sidecar and refuse. One bind-scope pass with the
+// same plan settles the map; when only the sidecar changed, the bind commit
+// is amended with it, so it still changes only the sidecar and the record.
+func (l *finishLane) settleDeferralRecord() {
+	if !l.bindCarriesRecord() {
+		return
+	}
+	defer l.timed("settle")()
+	citations := l.options.Change.Citations
+	if n := len(l.stageFiles); n > 0 {
+		citations = l.stageFiles[n-1]
+	}
+	// The settle pass refuses its OCM rows on the uncommitted sidecar by
+	// design; the rebind decides every row, so none is listed from here.
+	listed := len(l.missing)
+	code, run, output := l.pass("bind", citations)
+	l.missing = l.missing[:listed]
+	l.step = "settle"
+	if code != 0 && code != 1 {
+		l.stop("settle", code, output)
+	}
+	for _, row := range run.rows {
+		if (row.name == "cem-prepare" || row.name == "cem-cite" || strings.HasPrefix(row.name, deferStep)) && row.status != "PRODUCED" {
+			l.stop("settle", code, output)
+		}
+	}
+	l.requireInputsUnchanged("settle")
+	changed, _ := l.git(true, "status", "--porcelain", "--untracked-files=all")
+	paths := nonEmpty(strings.Split(changed, "\n"))
+	if len(paths) == 0 {
+		l.line("settle SKIP map-unchanged")
+		return
+	}
+	if len(paths) != 1 || len(paths[0]) < 4 || paths[0][3:] != finishLaneSidecar {
+		l.stop("settle", 1, append(output, []byte("dogfood-finish-lane: settle changed more than the sidecar:\n"+changed)...))
+	}
+	if l.gitPassthrough("add", "--", finishLaneSidecar) != 0 || l.gitPassthrough("commit", "-q", "--amend", "--no-edit", "--", finishLaneSidecar) != 0 {
+		l.line("settle FAIL")
+		l.reportMissing()
+		l.exit(2)
+	}
+	l.target = l.gitValue("rev-parse", "HEAD^{commit}")
+	l.line("settle PASS bind=%s", l.target)
 }
 
 // rebind reruns the bind on the committed sidecar; it must complete.

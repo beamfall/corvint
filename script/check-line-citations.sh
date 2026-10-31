@@ -164,6 +164,71 @@ sub lines_of {
     return $lines_of{$path} = \@lines;
 }
 
+# DCG-V0-800 (V1-3384): a decision record is written once (decision 0423 and every lane charter
+# forbid editing one), so a citation in it names the code as it stood when the record was written.
+# Each docs/decisions document whose index copy equals its blob in the newest commit that wrote it
+# resolves its citations against that commit's tree, never the moving index: an output-neutral
+# edit of a cited file then needs no repin of a record nobody may edit. A decision this change
+# writes or edits, one no commit has written yet, and a clone whose history lacks the commit keep
+# the index, as before.
+my %written_at;
+my $written_scanned;
+sub decision_commit {
+    my ($doc) = @_;
+    return undef unless $doc =~ m{\Adocs/decisions/[^/]+\.md\z};
+    unless ($written_scanned) {
+        $written_scanned = 1;
+        my %index_blob;
+        if (open my $staged, '-|', 'git', 'ls-files', '-s', '-z', '--', 'docs/decisions') {
+            local $/ = "\0";
+            while (my $entry = <$staged>) {
+                chomp $entry;
+                my ($blob, $path) = $entry =~ /\A\d+ ([0-9a-f]+) 0\t(.*)\z/s or next;
+                $index_blob{$path} = $blob;
+            }
+            close $staged;
+        }
+        if (open my $log, '-|', 'git', 'log', '--no-renames', '--format=@%H', '--raw', '--no-abbrev',
+            '--diff-filter=AM', '--', 'docs/decisions') {
+            local $/ = "\n";
+            my ($commit, %seen);
+            while (my $line = <$log>) {
+                chomp $line;
+                if ($line =~ /\A\@([0-9a-f]+)\z/) { $commit = $1; next; }
+                my ($blob, $path) = $line =~ /\A:\d+ \d+ [0-9a-f]+ ([0-9a-f]+) [AM]\t(.*)\z/ or next;
+                next if $seen{$path}++;
+                $written_at{$path} = $commit if defined $commit && ($index_blob{$path} // '') eq $blob;
+            }
+            close $log;
+        }
+    }
+    return $written_at{$doc};
+}
+
+# lines_at returns PATH's lines in COMMIT's tree, or undef when that tree has no such blob.
+my %lines_at;
+sub lines_at {
+    my ($commit, $path) = @_;
+    my $key = "$commit:$path";
+    return $lines_at{$key} if exists $lines_at{$key};
+    return $lines_at{$key} = undef if $path =~ /\n/;
+    open my $fh, '-|', 'git', 'cat-file', '-p', $key or return $lines_at{$key} = undef;
+    binmode $fh;
+    my $blob = do { local $/; <$fh> };
+    return $lines_at{$key} = undef unless close $fh;
+    my @lines = split /^/, $blob // '';
+    chomp @lines;
+    return $lines_at{$key} = \@lines;
+}
+
+# lines_for is the content DOC's citation of PATH is checked against (DCG-V0-800).
+sub lines_for {
+    my ($doc, $path) = @_;
+    my $commit = decision_commit($doc);
+    return lines_of($path) unless defined $commit && $tracked{$path};
+    return lines_at($commit, $path) // lines_of($path);
+}
+
 my %spec_of_id;
 if (my $rows = lines_of('docs/specs/REQUIREMENTS.tsv')) {
     for my $row (@$rows) {
@@ -276,7 +341,7 @@ sub check {
             . (defined $last ? "-$last" : '') . ") or cite a stable anchor instead of a line number";
         return;
     }
-    my $lines = lines_of($path);
+    my $lines = lines_for($doc, $path);
     if (!$lines) {
         push @failures, "$doc:$line_number  $token  no such file in the Git index: $path";
         return;

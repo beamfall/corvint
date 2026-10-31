@@ -582,3 +582,21 @@ func TestCorvintTestNarrowsReadScopeDeclarationEdit_AFPV0050(t *testing.T) {
 		t.Fatalf("dry run printed %s", stdout)
 	}
 }
+
+// STR-V0-800: --dry-run --summary prints the bounded text summary of the
+// same plan in place of the JSON, with the same stderr.
+func TestSTRV0800CLIDryRunSummary(t *testing.T) {
+	root, base, log := sessionFixture(t, "pass")
+	code, stdout, stderr := runCLI(t, "--root", root, "test", "--base", base, "--dry-run", "--summary")
+	if code != 0 || !strings.HasPrefix(stderr, "corvint-test: NARROWED 1 execution units\n") {
+		t.Fatalf("code %d stderr %q", code, stderr)
+	}
+	if !strings.HasPrefix(stdout, "corvint-test: DRY-RUN scope=NARROWED placement=universe shard=0/1 manifest=sha256:") ||
+		!strings.Contains(stdout, "\n  reason: none\n  units: 1; go 1 (whole=1); invocations=1\n") ||
+		!strings.Contains(stdout, "\n  selected: go:example.test/m/a\n") || len(stdout) > testSummaryLimit {
+		t.Fatalf("summary:\n%s", stdout)
+	}
+	if got := sessionRunnerLog(t, log); got != "" {
+		t.Fatalf("a dry run launched runners:\n%s", got)
+	}
+}
