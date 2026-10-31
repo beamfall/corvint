@@ -71,6 +71,9 @@ type proposal struct {
 	// moves maps each side of a file the change moves, the deleted BASE path
 	// and the added path, to that move (DCW-V0-803).
 	moves map[string]movedFile
+	// decisions maps each BASE decision number to its path, read once
+	// (DCW-V0-805).
+	decisions map[string]string
 }
 
 // spanLine is one line of a BASE file.
@@ -394,6 +397,9 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 		return row, cite, note
 	}
 	if row, cite, note := p.movedProposal(hunk, ordinal, edited, used); row != "" {
+		return row, cite, note
+	}
+	if row, cite, note := p.governingProposal(hunk, ordinal, edited, used); row != "" {
 		return row, cite, note
 	}
 	if row, cite := p.anchoredProposal(hunk, ordinal, edited, used); row != "" {
