@@ -7,8 +7,8 @@ Intent status: experimental under the owner's standing lane auto-accept (2026-10
 Delivery status: experimental
 Authoritative inputs: native tickets V1-3123 (related V1-0417), V1-3129 (related V1-2450) and
 V1-3138. These requirements narrow the selection of the [affected plan](affected-plan-v0.md)
-and of `corvint test`; that spec's Requirements section holds 250 requirements, near the
-256-obligation OCM limit (`maxObligations`), so they live here.
+and of `corvint test`; they live here to keep that spec's Requirements section under the
+256-obligation OCM limit (`maxObligations`).
 
 ## Agent digest
 - Claim: Additive Go changes select only importers that reference a new declaration; documentation and sealed-CEM paths take their readers from the plan.

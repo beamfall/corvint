@@ -24,6 +24,17 @@ func flowWebMask(text string) string {
 	markupDepth, expressionDepth := 0, 0
 	for i := 0; i < len(code); i++ {
 		c := code[i]
+		if c == '<' && i > 0 && webIdentifierByte(code[i-1]) && !flowExpressionKeywords[flowWordBefore(code, i)] {
+			// A type-argument list right after a name and before a call
+			// (useMemo<T>(, useState<Map<K, V>>() is not markup: only the list
+			// is passed over, so the call and what follows stay code (V1-2415).
+			// A keyword such as return is no callee: return<div>(x) y</div>
+			// is markup.
+			if end := typeArgumentsEnd(code, i); end > 0 {
+				i = end
+				continue
+			}
+		}
 		if c == '<' && i+1 < len(code) && (code[i+1] >= 'A' && code[i+1] <= 'Z' || code[i+1] >= 'a' && code[i+1] <= 'z' || code[i+1] == '/') {
 			end := i + 1
 			for end < len(code) && code[end] != '>' {
@@ -73,4 +84,51 @@ func flowWebMask(text string) string {
 		}
 	}
 	return string(code)
+}
+
+// flowExpressionKeywords are the words an expression, and so a JSX element,
+// can follow; a `<` after one opens markup, never a type-argument list.
+var flowExpressionKeywords = map[string]bool{
+	"return": true, "yield": true, "await": true, "case": true, "default": true, "else": true,
+	"do": true, "in": true, "of": true, "typeof": true, "instanceof": true, "void": true,
+	"delete": true, "throw": true, "new": true,
+}
+
+// flowWordBefore returns the identifier that ends just before end.
+func flowWordBefore(code []byte, end int) string {
+	start := end
+	for start > 0 && webIdentifierByte(code[start-1]) {
+		start--
+	}
+	return string(code[start:end])
+}
+
+// typeArgumentsEnd returns the index of the '>' that closes the type-argument
+// list opening at code[open] when only a call's '(' follows it, or 0. The list
+// holds names, nested lists and the type punctuation of one line; a '(' ,
+// ')', ';', '=' or line break inside it means it is not a type-argument list.
+func typeArgumentsEnd(code []byte, open int) int {
+	depth := 0
+	for i := open; i < len(code); i++ {
+		switch c := code[i]; {
+		case c == '<':
+			depth++
+		case c == '>':
+			depth--
+			if depth == 0 {
+				next := i + 1
+				for next < len(code) && (code[next] == ' ' || code[next] == '\t') {
+					next++
+				}
+				if next < len(code) && code[next] == '(' {
+					return i
+				}
+				return 0
+			}
+		case webIdentifierByte(c) || strings.IndexByte(" \t,.[]|&{}:?'\"", c) >= 0:
+		default:
+			return 0
+		}
+	}
+	return 0
 }

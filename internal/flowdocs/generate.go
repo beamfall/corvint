@@ -21,12 +21,15 @@ const Schema = "corvint-flow-documentation/1"
 // from it, so a version 1 manifest can no longer be rederived byte for byte.
 // Version 3 (V1-0461, AFU-V1-043) stops treating member-call arrows and
 // non-route HTTP-verb member calls as web declarations, so version 2
-// manifests can no longer be rederived byte for byte either.
-const Version = "3"
+// manifests can no longer be rederived byte for byte either. Version 4
+// (V1-2415, AFU-V1-043) passes over a generic call's type-argument list
+// instead of masking the rest of the file as JSX text, so a version 3
+// manifest of such a file can no longer be rederived byte for byte.
+const Version = "4"
 
 // predecessorVersions are generator versions whose manifests are refused with
 // StaleGeneratorCode rather than the generic unsupported-version failure.
-var predecessorVersions = map[string]bool{"1": true, "2": true}
+var predecessorVersions = map[string]bool{"1": true, "2": true, "3": true}
 
 // StaleGeneratorCode is the typed refusal of a manifest an older generator
 // wrote: it must be regenerated, not compared (AFU-V1-045).

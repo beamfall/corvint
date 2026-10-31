@@ -87,6 +87,11 @@ func (a *stableAdmission) directory(path, what string) (fs.FileInfo, error) {
 	}
 	for index := len(chain.names) - 1; index >= 0; index-- {
 		info, err := a.lstat(chain.names[index])
+		if err == nil && info.Mode()&fs.ModeSymlink != 0 {
+			// A symbolic link is refused here, before anything is retained, so
+			// Validate never reports it as a change (CEM-V1-960).
+			return nil, unavailable("%s is reached through the symbolic link %s; pass the resolved path", what, chain.names[index])
+		}
 		if err != nil || !info.IsDir() {
 			return nil, unavailable("%s is not reached through ordinary directories", what)
 		}

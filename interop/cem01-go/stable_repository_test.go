@@ -32,6 +32,9 @@ import (
 	"time"
 )
 
+// stableTestSleeperEnv makes the test binary sleep instead of running tests.
+const stableTestSleeperEnv = "CEM01_TEST_SLEEPER"
+
 const (
 	s0eBase           = "bff36ef7f94a44f0b43dd71ba7125e0185f01fe1"
 	s0eSealed         = "df752f00a5487e6f913b728a1a4addbfe194b989"
@@ -46,6 +49,12 @@ func TestMain(m *testing.M) {
 	}
 	if os.Getenv("CEM01_TEST_CLI") == "1" {
 		main()
+	}
+	if os.Getenv(stableTestSleeperEnv) == "1" {
+		// A process leader whose lifetime is the test binary's own, whatever
+		// name it was executed under (V1-2511).
+		time.Sleep(300 * time.Second)
+		os.Exit(0)
 	}
 	code := m.Run()
 	s0eWriteConformance()

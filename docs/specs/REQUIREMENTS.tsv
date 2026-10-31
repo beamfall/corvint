@@ -55,6 +55,8 @@ AFP-V0-423	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the 
 AFP-V0-424	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1688))	standing	2026-10-11; #1688
 AFP-V0-425	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1688);	standing	2026-10-11; #1688
 AFP-V0-426	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; GH #1688))	standing	2026-10-11; #1688
+AFP-V0-960	docs/specs/affected-plan-python-playwright-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2562,	standing	2026-10-11; V1-2562
+AFP-V0-961	docs/specs/affected-plan-python-playwright-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2582)	standing	2026-10-11; V1-2582
 AFP-V0-442	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2693, Git	standing	2026-10-11; V1-2693; #1751
 AFP-V0-443	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2693, Git	standing	2026-10-11; V1-2693; #1751
 AFP-V0-472	docs/specs/affected-plan-python-playwright-v0.md	(accepted under the owner's standing lane auto-accept (2026-10-11); V1-2760)	standing	2026-10-11; V1-2760
@@ -1197,6 +1199,7 @@ CEM-V1-692	docs/specs/cem-stable-v1.md	(experimental under the standing lane aut
 CEM-V1-693	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2995)) a reverted run is `	standing	V1-2995
 CEM-V1-694	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3168)) `cem cite --replace	standing	V1-3168
 CEM-V1-695	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-3168)) `cem mark	standing	V1-3168
+CEM-V1-960	docs/specs/cem-stable-v1.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2519)	standing	2026-10-11; V1-2519
 CEM-V1-980	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) Amends `CEM-V1-037`	standing	V1-2752
 CEM-V1-981	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) A binary group adds	standing	V1-2752
 CEM-V1-982	docs/specs/cem-stable-v1.md	(experimental under the standing lane auto-accept (V1-2752)) Base simulation	standing	V1-2752
@@ -4663,6 +4666,7 @@ LOD-V0-032	docs/specs/local-observability-dashboard-v0.md	A test receipt is a pr
 LOD-V0-033	docs/specs/local-observability-dashboard-v0.md	Generated-doc state is a proposed docs-state JSON document, a map keyed by ticke	unrecorded	-
 LOD-V0-034	docs/specs/local-observability-dashboard-v0.md	Given identical `atm` output, `REQUIREMENTS.tsv`, receipts, docs-state, and tree	unrecorded	-
 LOD-V0-035	docs/specs/local-observability-dashboard-v0.md	A scan MUST validate schema-2 trace rows using the closed codec and screening in	unrecorded	-
+LOD-V0-960	docs/specs/local-observability-dashboard-v0.md	A v1-only store MUST be compared between the actual	unrecorded	-
 LTPM-V0-001	docs/specs/local-trace-producer-migration-v0.md	`record_trace` MUST obtain the clean `HEAD` commit and its tree from one reposit	unrecorded	-
 LTPM-V0-002	docs/specs/local-trace-producer-migration-v0.md	The Python reader MUST accept canonical rows only when their filename and row na	unrecorded	-
 LTPM-V0-003	docs/specs/local-trace-producer-migration-v0.md	Dry-run MUST be read-only and bind its plan digest to the stable current commit/	unrecorded	-
@@ -5695,6 +5699,7 @@ RUBY-AFFECTED-V0-045	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under
 RUBY-AFFECTED-V0-046	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2363,	standing	2026-10-11; V1-2363
 RUBY-AFFECTED-V0-047	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2363,	standing	2026-10-11; V1-2363
 RUBY-AFFECTED-V0-048	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2363,	standing	2026-10-11; V1-2363
+RUBY-AFFECTED-V0-960	docs/specs/ruby-affected-test-adapter-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11);	standing	2026-10-11
 RUBY-AFFECTED-V0-049	docs/specs/ruby-affected-test-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2448,	standing	2026-10-11; V1-2448
 RUBY-AFFECTED-V0-050	docs/specs/ruby-affected-test-adapter-v0.md	(experimental under the standing lane auto-accept; V1-2473, GH #1601)	standing	V1-2473; #1601
 RVN-V0-001	docs/specs/run-verified-navigation-v0.md	`corvint flows appmap screen` and `flow` MUST accept repeatable	unrecorded	-
@@ -6451,6 +6456,7 @@ TSP-V0-005	docs/specs/test-selection-precision-v0.md	(experimental, under the ow
 TSP-V0-006	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2806)	standing	2026-10-11; V1-2806
 TSP-V0-007	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-3050)	standing	2026-10-11; V1-3050
 TSP-V0-940	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-31; V1-3346;	standing	2026-10-31; V1-3346
+TSP-V0-960	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-005, under the owner's standing lane auto-accept,	standing	-
 TSA-V0-010	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1589, V1-1592) Lint and duplicates MUST re	standing	2026-10-11; V1-1589; V1-1592
 TSA-V0-011	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587, V1-1589) Comments MUST be returned a	standing	2026-10-11; V1-1587; V1-1589
 TSA-V0-001	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) `corvint tests setup-select --specs	standing	2026-10-11; V1-1587
@@ -6863,6 +6869,7 @@ TJAA-V0-141	docs/specs/typescript-javascript-affected-adapter-v0.md	(same accept
 TJAA-V0-142	docs/specs/typescript-javascript-affected-adapter-v0.md	(same acceptance) The whole-suite plan MUST be unchanged: the graph phase is	unrecorded	-
 TJAA-V0-147	docs/specs/typescript-javascript-affected-adapter-v0.md	(experimental under the standing lane auto-accept (2026-10-28); V1-2914; GitHub	standing	2026-10-28; V1-2914
 TJAA-V0-127	docs/specs/typescript-javascript-affected-adapter-v0.md	(standing auto-accept, 2026-10-27; V1-2584, AFP-V0-404, TJAA-V0-091) A static	standing	2026-10-27; V1-2584
+TJAA-V0-960	docs/specs/typescript-javascript-affected-adapter-v0.md	(experimental under the standing lane auto-accept (2026-10-11); V1-2533; amendin	standing	2026-10-11; V1-2533
 URE-V0-001	docs/specs/unplanned-read-events-v0.md	`Classify(packetPaths, toolName, toolInput, root)` MUST return an `Event` for a	unrecorded	-
 URE-V0-002	docs/specs/unplanned-read-events-v0.md	The recognized tools are `Read` (`file_path`), `Grep` and `Glob` (`path`), and	unrecorded	-
 URE-V0-003	docs/specs/unplanned-read-events-v0.md	`Append(root, event)` MUST be a no-op returning `nil` unless the opt-in marker	unrecorded	-

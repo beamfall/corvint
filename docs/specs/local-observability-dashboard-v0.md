@@ -1497,6 +1497,27 @@ anything in a snapshot. Acceptance: `TestLODV0035MixedTraceSnapshot` (v1, legacy
 in one member) and `TestProducerTraceConformance` (the standalone verifier and the actual
 producer agree on a v1/v3 store).
 
+Actual-producer v1 comparison (V1-0571, 2026-10-31, decision 0548).
+
+- `LOD-V0-960`: A v1-only store MUST be compared between the actual
+  `cmd/corvint-dashboard-snapshot` producer and the standalone verifier. The comparison is
+  byte-exact except for two disputed qualifications, which stay `NOT_PRODUCED` until this
+  specification is accepted:
+  - Source and inventory `authorityClass`. The producer emits `ADAPTER_QUALIFIED`; the verifier and
+    the frozen v1 fixture `valid-observed.json` keep `ADVISORY`. Line 80 ("strongest authority that
+    actually supports the value") and the advisory local-trace-use row conflict.
+  - Zero outcome buckets. The producer emits a `usage.trace.retained` row for every outcome,
+    including zeroes. The verifier emits only the outcomes that are present.
+
+  Every other field MUST agree, and both disputed differences MUST still be present. The test then
+  fails when either side changes. A real v1 row whose task holds non-ASCII text carries a
+  `trace_id` over the production writer's ASCII JSON, and both sides MUST admit it. The producer
+  stays unchanged (decision 0548).
+  - Known gap: an invalid v1 store is not covered by this comparison. Its source `byteCount`,
+    `contentSha256`, `epistemicClass` and `currency` also differ between the two sides.
+  - Acceptance: `TestProducerTraceConformanceV1Only_V10571`.
+  - Rollback: delete the test. No product behavior changes.
+
 ## Staged deterministic acceptance
 
 ### P0 snapshot compiler
