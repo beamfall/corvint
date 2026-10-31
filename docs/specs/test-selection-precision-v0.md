@@ -210,7 +210,9 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   never as covered. The narrow count SHALL only be reported together with the miss count.
   `make selection-baseline-check` SHALL build both binaries from the tree under test, replay them
   and fail when fewer merged changes narrow than the file's `floor.narrowMerged` or any miss
-  appears.
+  appears. It SHALL be one of `DOC_GATE_TARGETS`, so `make doc-gates` (the CI `doc-gates` job, which
+  checks out full history) and `make batch-precheck` run it (owner ci-control-plane approval
+  delegated to the orchestrator, 2026-10-31).
 ## Non-goals
 
 Evaluating build constraints for a host or running non-host variants; scoping the frontier to the
