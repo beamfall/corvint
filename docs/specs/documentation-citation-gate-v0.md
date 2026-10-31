@@ -312,7 +312,12 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   two-line comment above `import` in `git.go` at `780f9e97`): before, 15 failing citations
   (13 mechanical, 2 manual in decision 0158) plus a failing `analyzer-schema-check`; after,
   `make repin` in about 4 s, then `line-citations-check` and `analyzer-schema-check` pass with no
-  manual step. Rollback: delete `script/repin.sh` and the target.
+  manual step. The target's base MUST be `origin/main` unless `BASE` is given on the command line
+  or in the environment: the Makefile's own `BASE ?= main` names a local `main` that can lag
+  `origin/main` (schema 128 against 150 on 2026-10-31), so the bump could keep a stale schema
+  number and fail the origin/main collision check. Evidence for the default: `script/repin_test.sh`
+  (`make repin-test`; fails when the target passes `$(BASE)`). Rollback: delete `script/repin.sh`,
+  its test and the targets.
 
 ## Non-goals and simpler baseline
 
@@ -438,7 +443,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-046 | `@skipped`, `print_skipped`, `--verbose` and the failures-first ordering in `script/check-line-citations.sh` | case 22 |
 | DCG-V0-048 | the staging and rerun at the end of the `--repin` block and `CHECK_LINE_CITATIONS_SELF` in `script/check-line-citations.sh` | cases 24, 24b, 33 and 33b |
 | DCG-V0-800 | `decision_commit`, `lines_at` and `lines_for` in `script/check-line-citations.sh` | case 34 |
-| DCG-V0-801 | `script/repin.sh` and the `repin` target in `Makefile` | the measurement in DCG-V0-801; case 34 |
+| DCG-V0-801 | `script/repin.sh`, `REPIN_BASE` and the `repin` target in `Makefile` | the measurement in DCG-V0-801; case 34; `script/repin_test.sh` |
 | DCG-V0-047 | `token_reanchor`, `citation_prefix` and the call in the pinned-span branch of `script/check-line-citations.sh` | cases 33 and 33b |
 | DCG-V0-040 | the relocation branch in `check`, `relocations`, `relocatable`, `shifted_token`, `$token_at` and the `--repin` block before the final `close_index` in `script/check-line-citations.sh` | cases 24-26, 28-29 |
 
