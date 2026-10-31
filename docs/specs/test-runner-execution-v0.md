@@ -137,6 +137,21 @@ analyzer families need explicit runtime/domain disposition; their presence is no
   record `undeclared-tool` naming the tool, so the observation is incomplete and the verdict is an
   environment problem (the tool must be declared in the request tools), not a test failure. A passing
   test, or a failure without that message, is unchanged.
+- `TRE-V0-820`: (experimental under the standing lane auto-accept; V1-1554) The Android
+  instrumentation profiles (`android-junit`, `espresso`, `uiautomator`) MUST bind the installed
+  APKs: the request's `inputFiles` MUST name one or two `.apk` files (the test APK, and the app
+  APK unless the instrumentation targets its own package), each with its SHA-256, and `Build`
+  MUST refuse a request without them. The single TEST phase MUST run one fixed device shell
+  script that, before the instrumentation starts, resolves the instrumentation's target package
+  from `pm list instrumentation`, reads `pm path` for the test package and the target package,
+  requires exactly one `package:` path for each (a split install is unobservable), hashes each
+  installed APK with `sha256sum`, and requires the set of installed digests to equal the set of
+  bound `.apk` digests. Only then does it print the fixed line `INSTALLED_APK_IDENTITY: verified`
+  and run `am instrument`. Otherwise it prints `INSTALLED_APK_IDENTITY: <reason>` (`unresolved`,
+  `unobservable`, `mismatch`) and exits without instrumenting. The parser MUST require the
+  verified line as the first stdout line and MUST record `INSTALLED_APK_UNVERIFIED` with the
+  reason otherwise, so the observation is incomplete. Because the parser checks a fixed line,
+  an adb build that drops the remote exit status cannot pass a mismatch.
 
 ## Runner inventory
 
@@ -1888,21 +1903,7 @@ V1-1554: a platform lane request bound the built test and app APK digests, but o
 harness compared them with the APKs installed on the emulator; the runner ran the
 instrumentation against whatever was installed.
 
-- `TRE-V0-820`: (experimental under the standing lane auto-accept; V1-1554) The Android
-  instrumentation profiles (`android-junit`, `espresso`, `uiautomator`) MUST bind the installed
-  APKs: the request's `inputFiles` MUST name one or two `.apk` files (the test APK, and the app
-  APK unless the instrumentation targets its own package), each with its SHA-256, and `Build`
-  MUST refuse a request without them. The single TEST phase MUST run one fixed device shell
-  script that, before the instrumentation starts, resolves the instrumentation's target package
-  from `pm list instrumentation`, reads `pm path` for the test package and the target package,
-  requires exactly one `package:` path for each (a split install is unobservable), hashes each
-  installed APK with `sha256sum`, and requires the set of installed digests to equal the set of
-  bound `.apk` digests. Only then does it print the fixed line `INSTALLED_APK_IDENTITY: verified`
-  and run `am instrument`. Otherwise it prints `INSTALLED_APK_IDENTITY: <reason>` (`unresolved`,
-  `unobservable`, `mismatch`) and exits without instrumenting. The parser MUST require the
-  verified line as the first stdout line and MUST record `INSTALLED_APK_UNVERIFIED` with the
-  reason otherwise, so the observation is incomplete. Because the parser checks a fixed line,
-  an adb build that drops the remote exit status cannot pass a mismatch.
+Requirement: `TRE-V0-820` (in Requirements above).
 
 Non-goals. The runner still never installs, clears or grants: installation stays a caller
 admission obligation. It does not parse the APK manifest; it compares digests as sets, so it

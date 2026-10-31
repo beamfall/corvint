@@ -61,6 +61,7 @@ node_modules/
 /dogfood-inherit-citations
 /gate-affected-select
 /gate-ledger
+/gotest-evidence
 /heading-nav-bench
 /local-authority
 /native-hook-observer
