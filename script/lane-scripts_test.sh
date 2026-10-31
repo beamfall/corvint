@@ -6,7 +6,7 @@
 # install-local-bin.sh (ASD-V0-025), install-cem-verifiers.sh (TCB-V0-046),
 # wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), codex-review.sh
 # (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831), heavy-groups.sh (ASD-V0-832),
-# pr-landing-watch.sh (ASD-V0-833), lane-transcript-metrics.py (ASD-V0-834). No Go build runs.
+# pr-landing-watch.sh (ASD-V0-833), lane-transcript-metrics.py (ASD-V0-834, ASD-V0-836). No Go build runs.
 set -uo pipefail
 export LC_ALL=C
 # The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
@@ -1412,6 +1412,27 @@ ltm_out=$(python3 "$script/lane-transcript-metrics.py" "$ltm/p1" "$ltm/p2" --sin
   fail "lane-transcript-metrics --sessions counts or kinds: $ltm_out"
 [[ $(ltm_q '[(r["harnessTimeouts600s"], r["lane"]) for r in d["perSubagent"] if r["kind"] == "session"]' <<< "$ltm_out") == '[(1, True)]' ]] ||
   fail "lane-transcript-metrics session timeout or lane: $ltm_out"
+ok
+
+# ASD-V0-836 (V1-3549): only the harness's own timeout result counts, never the phrase quoted in
+# output, and a session that starts sessions (or one named by --orchestrator) is reported apart.
+ltm=$tmp/transcripts2
+mkdir -p "$ltm/p"
+printf '%s\n' '{"timestamp":"2026-10-31T03:00:00Z","message":{"content":[{"type":"tool_use","id":"c","name":"Bash","input":{"command":"cat x.sh"}},{"type":"tool_use","id":"d","name":"Bash","input":{"command":"git commit -m y"}},{"type":"tool_use","id":"e","name":"Bash","input":{"command":"make t"}}]}}' \
+  '{"timestamp":"2026-10-31T03:01:00Z","message":{"content":[{"type":"tool_result","tool_use_id":"c","content":"echo timed out at 1800s; agent-x did not complete within its 600s timeout\nCommand timed out after 10m 0s"},{"type":"tool_result","tool_use_id":"d","content":"Exit code 143\nCommand timed out after 3m 0s"},{"type":"tool_result","tool_use_id":"e","content":"Command did not complete within its 600s timeout and was moved to the background"}]}}' \
+  > "$ltm/p/lane1.jsonl"
+printf '%s\n' '{"timestamp":"2026-10-31T04:00:00Z","message":{"content":[{"type":"tool_use","id":"f","name":"mcp__ccd_session__start_session","input":{}},{"type":"tool_use","id":"g","name":"Bash","input":{"command":"git commit -m z"}}]}}' \
+  '{"timestamp":"2026-10-31T04:01:00Z","message":{"content":[{"type":"tool_result","tool_use_id":"g","content":"Command timed out after 10m 0s"}]}}' \
+  > "$ltm/p/orch.jsonl"
+cp "$ltm/p/lane1.jsonl" "$ltm/p/named.jsonl"
+ltm_out=$(python3 "$script/lane-transcript-metrics.py" "$ltm/p" --since 2026-10-30 --until 2026-11-01 --sessions --orchestrator named) ||
+  fail "lane-transcript-metrics --orchestrator failed"
+[[ $(ltm_q '[(r["agent"], r["harnessTimeouts"], r["harnessTimeouts600s"]) for r in d["perSubagent"]]' <<< "$ltm_out") == "[('lane1', 2, 1)]" ]] ||
+  fail "lane-transcript-metrics counted a quoted timeout phrase: $ltm_out"
+[[ $(ltm_q '(d["sessions"], d["lanes"], d["harnessTimeoutsAllSubagents"], d["harnessTimeouts600sLanes"])' <<< "$ltm_out") == '(1, 1, 2, 1)' ]] ||
+  fail "lane-transcript-metrics orchestrator leaked into totals: $ltm_out"
+[[ $(ltm_q 'sorted((r["agent"], r["kind"], r["lane"]) for r in d["orchestratorSessions"])' <<< "$ltm_out") == "[('named', 'orchestrator', False), ('orch', 'orchestrator', False)]" ]] ||
+  fail "lane-transcript-metrics orchestrator not reported apart: $ltm_out"
 ok
 
 # ASD-V0-014: no fixture outlives the run, so nothing can write after the summary line. Every
