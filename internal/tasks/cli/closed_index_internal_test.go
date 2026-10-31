@@ -49,7 +49,7 @@ func tcxRepo(t *testing.T, journal, aged bool) *fixture.Repo {
 	r := fixture.TempRepo(t)
 	recs := tcxRecords()
 	if journal {
-		fixture.WriteState(t, r)
+		fixture.WriteWritableState(t, r)
 	}
 	fixture.WriteIntent(t, r, recs...)
 	if journal {
@@ -240,21 +240,87 @@ func TestTCXV0_IndexedReadParity(t *testing.T) {
 		if err := os.Remove(path); err != nil {
 			t.Fatal(err)
 		}
-		// A refused write leaves no index; a committed one rewrites it.
+		// A refused write leaves no index (TestTCXV0_RefreshAfterRealMutation
+		// covers a committed one).
 		tcxRun(Env{Cwd: r.Root, Args: []string{"ticket", "archive", "--target", fixture.TicketID("B")}})
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
 			t.Fatalf("a refused command wrote the index: %v", err)
 		}
-		refresh := closedIndexRefresher(Env{Cwd: r.Root})
-		head := filepath.Join(r.StateDir, "head.json")
-		later := time.Now().Add(time.Minute)
-		if err := os.Chtimes(head, later, later); err != nil {
-			t.Fatal(err)
+	}
+}
+
+// tcxArchive archives local at revision rev through the CLI.
+func tcxArchive(r *fixture.Repo, local, rev string) []byte {
+	return tcxRun(Env{Cwd: r.Root, Args: []string{"ticket", "archive", "--target", local, "--expected-revision", rev, "--request-id", "archive-" + local, "--payload-stdin"}, Stdin: strings.NewReader(`{"reason":"gone"}`)})
+}
+
+// TestTCXV0_RefreshAfterRealMutation commits real `ticket archive` mutations
+// on the fixture's writable journaled store: each rewrites the index, the
+// newly closed file joins it once outside the racy window, and every indexed
+// read equals a full read (TCX-V0-983, TCX-V0-987).
+func TestTCXV0_RefreshAfterRealMutation(t *testing.T) {
+	r := tcxRepo(t, true, true)
+	path := intent.ClosedIndexPath(r.StateDir)
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if res, err := wire.DecodeResult(tcxArchive(r, "B", "1")); err != nil || res.Outcome != wire.OutcomeOK {
+		t.Fatalf("archive B: %+v %v", res, err)
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("a committed mutation did not rewrite the index: %v", err)
+	}
+	if !bytes.Contains(raw, []byte("tickets/A.json\t")) || bytes.Contains(raw, []byte("tickets/B.json\t")) {
+		t.Fatalf("index after archive B kept the old entries and left B out of the racy window:\n%s", raw)
+	}
+	old := time.Now().Add(-time.Hour)
+	if err := os.Chtimes(tcxTicketPath(r, "B"), old, old); err != nil {
+		t.Fatal(err)
+	}
+	if res, err := wire.DecodeResult(tcxArchive(r, "D", "1")); err != nil || res.Outcome != wire.OutcomeOK {
+		t.Fatalf("archive D: %+v %v", res, err)
+	}
+	if raw, _ = os.ReadFile(path); !bytes.Contains(raw, []byte("tickets/B.json\t")) {
+		t.Fatalf("index after archive D left B out:\n%s", raw)
+	}
+	reads := tcxReads(true)
+	indexed := make([][]byte, len(reads))
+	for i, args := range reads {
+		indexed[i] = tcxRun(Env{Cwd: r.Root, Args: args})
+		if res, err := wire.DecodeResult(indexed[i]); err != nil || res.Outcome != wire.OutcomeOK {
+			t.Fatalf("%v: %s", args, indexed[i])
 		}
-		refresh()
-		if _, err := os.Stat(path); err != nil {
-			t.Fatalf("a committed mutation did not rewrite the index: %v", err)
+	}
+	useClosedIndex = false
+	defer func() { useClosedIndex = true }()
+	for i, args := range reads {
+		if got := tcxRun(Env{Cwd: r.Root, Args: args}); !bytes.Equal(tcxClock(indexed[i]), tcxClock(got)) {
+			t.Fatalf("%v:\nindexed %s\nfull    %s", args, indexed[i], got)
 		}
+	}
+}
+
+// TestTCXV0_PlainFixtureStateRefusesWrites documents the case the fixture
+// still refuses: fixture.WriteState alone has no staging directory, so a real
+// mutation is refused MALFORMED and nothing is written (TCX-V0-987).
+func TestTCXV0_PlainFixtureStateRefusesWrites(t *testing.T) {
+	r := fixture.TempRepo(t)
+	fixture.WriteState(t, r)
+	recs := tcxRecords()
+	fixture.WriteIntent(t, r, recs...)
+	posts := map[string][]byte{}
+	for _, rec := range recs {
+		posts["intent/tickets/"+rec.TicketID.Local+".json"] = rec.Encode()
+	}
+	fixture.CommitPosts(t, r, "MUTATION", "", posts)
+	out := tcxArchive(r, "B", "1")
+	res, err := wire.DecodeResult(out)
+	if err != nil || res.Outcome != wire.OutcomeError || len(res.Codes) != 1 || res.Codes[0] != wire.CodeMalformed || !bytes.Contains(out, []byte("fixture filesystem identity, role or lifetime refused")) {
+		t.Fatalf("archive on plain fixture state: %s", out)
+	}
+	if _, err := os.Stat(intent.ClosedIndexPath(r.StateDir)); !os.IsNotExist(err) {
+		t.Fatalf("a refused mutation wrote the index: %v", err)
 	}
 }
 

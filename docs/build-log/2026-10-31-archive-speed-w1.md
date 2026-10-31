@@ -2,7 +2,7 @@
 
 Base `bb52a888317f28539c04c885d3771bad59495ac3`, branch `claude/archive-speed-w1-1031`, Darwin arm64,
 go1.27.3 local toolchain. Contract: `docs/specs/corvint-tasks-closed-ticket-index-v0.md`
-(`TCX-V0-980` to `TCX-V0-985`, from the lane block 980-999; prefix TCX because TCD is closeout debt).
+(`TCX-V0-980` to `TCX-V0-988`, from the lane block 980-999; prefix TCX because TCD is closeout debt).
 
 ## Problem
 
@@ -109,14 +109,30 @@ are noisy; the ratios interleave samples across stores.
 - Refreshing after every non-read command wrote the index after refused commands; it is now gated on
   a journal head change.
 
+## Fixture mutations and the index build tool (V1-3473, V1-3474)
+
+- The fixture's journaled store refused every real CLI mutation with `MALFORMED` ("fixture
+  filesystem identity, role or lifetime refused"). The cause: the fixture writer session needs the
+  state directory's `staging` directory, which `store.Init` creates with `evidence`, `pinned` and
+  `requests`, but `fixture.WriteState` creates only `receipts`. `fixture.WriteWritableState` adds
+  them. `TestTCXV0_RefreshAfterRealMutation` runs `ticket archive` on it twice and checks that the
+  index is rewritten, that the just-archived ticket joins only after its file ages past the racy
+  window, and that every indexed read equals a full read. `TestTCXV0_PlainFixtureStateRefusesWrites`
+  keeps the refusal for `WriteState` alone documented and tested (TCX-V0-987).
+- `go run ./internal/tasks/cmd/closed-index DIR` writes the index of a store with or without a state
+  directory, replacing the lane's scratch helper (TCX-V0-988). `doctor` could not host it: it
+  refuses a store without a journal. On the scratch benchmark stores its index equals the scratch
+  helper's (0, 2,457 and 3,457 entries; the header equal but for capture time). On the live store,
+  copied twice with file times kept, the index built on the copy with the state directory equals
+  the one built on the journal-free copy: 2,458 entries, one per closed ticket file.
+  `TestTCXV0_ToolIndexMatchesJournaled` checks the tool against the index the CLI writes after a real mutation.
+
 ## Limits
 
 - A same-size rewrite that keeps the same mtime outside the racy window is not detected (the Git
   limit); Corvint Tasks writers always change the mtime.
 - Benchmarks used journal-absent copies; journaled reads add the audit, which shares the same
   digests.
-- The refresh-after-commit path is tested by moving the journal head directly: the fixture's
-  journaled store refuses real CLI mutations.
 
 ## Rollback
 
