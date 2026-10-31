@@ -943,9 +943,11 @@ would not be HEAD's; one only a TypeScript unit lists, such as a gitignored
 playwright-report/ bundle, is instead excluded from the graph. One --path
 takes every following value up to the next option, so --path a b c and
 --path a --path b --path c plan the same bytes. Write --path=VALUE for a name
-that begins with -. It does not combine with
---snapshot, --base, --provider, --playwright-config,
---playwright-discovery or --appmap-impact.
+that begins with -. It does not combine with --base (invalid-arguments).
+Under --snapshot, --provider, the Playwright profile (--playwright-config,
+--playwright-discovery) or --appmap-impact it refuses with exit 2 and
+unsupported-affected-path-profile, naming why that profile plans its own
+change set and the recovery: commit the paths and plan with --base <HEAD>.
 
 --paths-from FILE (experimental) adds the --path values listed in FILE, one
 per LF-separated line, blank lines skipped; FILE is relative to the root unless
