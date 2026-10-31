@@ -2358,6 +2358,7 @@ TQD-V0-012	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHu
 TQD-V0-013	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0519; V1-1176; GitHub #791) NO_PROGRESS_HANDOFF is not repor	owner	decision 0519; V1-1176; #791
 TQD-V0-020	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-17, V1-1598, standing lane auto-accept; GitHub #1041) `--confi	standing	2026-10-17; V1-1598; #1041
 TQD-V0-021	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-17, V1-1598, standing lane auto-accept; GitHub #1041; amended	standing	2026-10-17; V1-1598; #1041; #1060
+TQD-V0-821	docs/specs/corvint-tasks-doctor-v0.md	(experimental under the standing lane auto-accept; amends `TQD-V0-021` on linux)	standing	-
 TQD-V0-022	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-17, V1-1598, standing lane auto-accept; GitHub #1041) SLOW_QUE	standing	2026-10-17; V1-1598; #1041
 TQD-V0-023	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-17, V1-1598, standing lane auto-accept; GitHub #1041) NO_COMPL	standing	2026-10-17; V1-1598; #1041
 TQD-V0-024	docs/specs/corvint-tasks-doctor-v0.md	(accepted 2026-10-17, V1-1598, standing lane auto-accept; GitHub #1041) FD_PRESS	standing	2026-10-17; V1-1598; #1041
