@@ -185,7 +185,7 @@ func TestSelectPackagesTaskStateOnlyDiffSelectsNothing(t *testing.T) {
 		{"classified task state selects nothing", plain, plan("BOUNDED", []string{queue, ticket}, queue, ticket), "NOTHING 2 dirty path(s) are Tasks store projection task state; no Go package names or reads them"},
 		{"unclassified path keeps the fallback", plain, plan("BOUNDED", []string{queue}, queue, ticket), "FALLBACK the selection is empty while 2 path(s) are dirty"},
 		{"no nonSource member keeps the fallback", plain, plan("BOUNDED", nil, queue), "FALLBACK the selection is empty while 1 path(s) are dirty"},
-		{"unknown plan keeps the fallback", plain, plan("UNKNOWN", []string{queue}, queue), "FALLBACK the selection is empty while 1 path(s) are dirty"},
+		{"unknown plan keeps the fallback", plain, plan("UNKNOWN", []string{queue}, queue), "FALLBACK the plan is UNKNOWN but names no unknown"},
 		{"out-of-layout path keeps the fallback", plain, plan("BOUNDED", []string{".taskman/notes.txt"}, ".taskman/notes.txt"), "FALLBACK the selection is empty while 1 path(s) are dirty"},
 		{"a reader of the record is still selected", reading, plan("BOUNDED", []string{queue}, queue), "run example.com/fixture/store"},
 	}

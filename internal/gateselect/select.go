@@ -204,6 +204,11 @@ func selectPackages(plan Receipt, module, root string, withUnresolved bool) []st
 			return fallback("an unattributed path contains a control character")
 		}
 	}
+	if withUnresolved {
+		if reason := unknownNarrowing(plan); reason != "" {
+			return fallback(reason)
+		}
+	}
 	index, err := indexRepository(root, module)
 	if err != nil {
 		return fallback(fmt.Sprintf("the repository could not be indexed for attribution: %q", err.Error()))
@@ -313,6 +318,35 @@ func selectPackages(plan Receipt, module, root string, withUnresolved bool) []st
 // (a) to (d) and the declared scopes to those paths and selected nothing, so
 // the gate's own attribution agrees with the planner; any other empty
 // selection keeps the full-suite fallback.
+// unknownNarrowing is CIN-V0-860's rule for Select, the CI PR tier: a plan
+// may still run narrowed while UNKNOWN only when every unknown it names is a
+// LANGUAGE_FRONTIER, the AFP-V0-935 case. Selection falls back on a
+// module-level frontier above and attributes every dirty path itself under
+// rules (a) to (d), which a unit frontier does not change: the frontier names
+// what a language's model cannot see inside the units the dirty paths reach,
+// and those units are selected whole. Any other unknown (an unowned or
+// unindexed dirty path, a unit with no selectable test) is a path the planner
+// could not attribute, and an UNKNOWN plan that names no unknown is malformed;
+// both return the fallback reason.
+func unknownNarrowing(plan Receipt) string {
+	if plan.Plan.Scope == "UNKNOWN" && len(plan.Plan.Unknown) == 0 {
+		return "the plan is UNKNOWN but names no unknown"
+	}
+	for _, entry := range plan.Plan.Unknown {
+		if entry.Reason == "LANGUAGE_FRONTIER" {
+			continue
+		}
+		reason := entry.Reason
+		if !unknownReason.MatchString(reason) {
+			reason = "a malformed reason"
+		}
+		return "the plan names the unknown " + reason + ", not a language frontier"
+	}
+	return ""
+}
+
+var unknownReason = regexp.MustCompile(`^[A-Z][A-Z_]{0,63}$`)
+
 func taskStateOnly(plan Receipt) bool {
 	if plan.Plan.Scope != "BOUNDED" {
 		return false
