@@ -48,7 +48,7 @@ func TestRepositoryShellForeignCallersComplete_TSP_V0_005(t *testing.T) {
 		t.Fatal(err)
 	}
 	exempt := func(name string) bool {
-		return strings.HasSuffix(name, ".md") || strings.HasSuffix(name, ".json") || strings.HasSuffix(name, ".tsv")
+		return strings.HasSuffix(name, ".md") || strings.HasSuffix(name, ".json") || strings.HasSuffix(name, ".jsonl") || strings.HasSuffix(name, ".tsv")
 	}
 	for script, entry := range declared.Scripts {
 		var naming []string

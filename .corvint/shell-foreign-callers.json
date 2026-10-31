@@ -18,7 +18,8 @@
         "script/batch-precheck.sh",
         "script/batch-precheck_test.sh"
       ],
-      "reason": "Every tracked file naming batch-regen.sh: make batch-regen, batch-precheck.sh and its test run it, and internal/dogfoodflow replays a parent's copy (DCW-V0-401) (TSP-V0-005)."
+      "reason": "Every tracked file naming batch-regen.sh: make batch-regen, batch-precheck.sh and its test run it, and internal/dogfoodflow replays a parent's copy (DCW-V0-401) (TSP-V0-005).",
+      "mentions": null
     },
     "script/heavy.sh": {
       "callers": [
@@ -31,10 +32,13 @@
       ],
       "mentions": [
         "cmd/corvint/session_test_command_unix_test.go",
+        "cmd/corvint/test.go",
         "cmd/corvint/test_module_strv0064_unix_test.go",
         "cmd/corvint/test_whole_reason.go",
         "cmd/corvint/test_whole_reason_cli_unix_test.go",
         "cmd/corvint/test_whole_reason_test.go",
+        "internal/sessiontest/declared.go",
+        "internal/tasks/cli/command_help.go",
         "script/lane-guard.sh",
         "script/lane-transcript-metrics.py",
         "tools/test-shards/main.go"
