@@ -4,10 +4,10 @@ Base `780f9e97099aa3ccd52744a0c239a744c4a30adf`. Loaded runs used 44 CPU burners
 test's own niceness under `heavy.sh`) on the 32-thread WSL2 box, so the 1-minute load average sat
 between 35 and 57 while the tests ran. Each command stayed under the lane's 600 s bound.
 
-## V1-2483: ENOSPC is RESOURCE_EXHAUSTED (CAL-V0-900)
+## V1-2483: ENOSPC is RESOURCE_EXHAUSTED (PSR-V0-901)
 
 Fork: classify only the change guard's inotify refusal, or every untyped `ENOSPC`. Decision: every
-`ENOSPC`, through `errors.Is`, like EMFILE/ENFILE under CAL-V0-215. Disk space and the per-user
+`ENOSPC`, through `errors.Is`, like EMFILE/ENFILE under CAL-V0-215. The requirement was first written as CAL-V0-900, but the agent-leases `## Requirements` section is at the 256-obligation OCM bound (the dogfood batch-precheck caught `internal/lrfrepo` failing), so it is defined as PSR-V0-901 beside the change-guard requirements, as CAL-V0-364 was re-homed to PSR-V0-221. Disk space and the per-user
 watch allowance are both host resources that can clear. An explicit code and a `WithoutRetry` mark
 still take precedence. The change guard's directory-watch refusal moves from
 `UNSUPPORTED_FILESYSTEM` to `RESOURCE_EXHAUSTED`, which amends the code PSR-V0-221 named. The
@@ -115,6 +115,6 @@ therefore waits 2 s before reporting, which is the accepted cost. The Windows-ho
 requirements, over the 256-obligation bound of one map, so `ocm prepare` refuses it on its own
 (`too-many-obligations`, DOGFOOD.md, which says that needs an owner-reviewed restructuring of the
 spec). Its CAL-V0-215, CAL-V0-070, CAL-V0-074 and CAL-V0-089 lines are cited as `specification`
-instead. CAL-V0-900 still applies; omitting the spec does not claim it holds. The intents are the
+instead; omitting the spec does not claim its requirements hold. The intents are the
 journal-segments, lease-gate-latency, pool-safe-reuse, scope-lease and test-claim-qualification
 specs (244 requirements).

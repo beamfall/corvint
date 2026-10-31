@@ -333,7 +333,7 @@ func TestPSRV0222_AncestorAddKeepsTheContentMask(t *testing.T) {
 	}
 }
 
-// CAL-V0-364, PSR-V0-222, CAL-V0-900: a directory the kernel refuses to watch
+// CAL-V0-364, PSR-V0-222, PSR-V0-901: a directory the kernel refuses to watch
 // still fails the registration, as RESOURCE_EXHAUSTED naming the path and the
 // allowance, because
 // only directory events report entries created or removed at any time.
