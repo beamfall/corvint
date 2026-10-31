@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -194,5 +195,38 @@ func TestSDDV0012PreviewBlockAppliedMeansIncluded(t *testing.T) {
 	current := session("--preview")
 	if got := block(current); got["applied"] != false || got["skipped"] != "unchanged" {
 		t.Fatalf("current-page preview block = %v, want applied:false skipped unchanged", got)
+	}
+}
+
+// TestSDDV0005DocsMaintainLimitRefusalNamesLimitAndSize: a docs maintain
+// refusal at a draft bound names the bound, its value and the observed size,
+// instead of repeating the bare code (V1-2416).
+func TestSDDV0005DocsMaintainLimitRefusalNamesLimitAndSize(t *testing.T) {
+	t.Parallel()
+	root := docsRepository(t)
+	owner := "# Cache\n\n## Agent digest\n" + strings.Repeat("- Claim: splits keys\n", 80)
+	if err := os.WriteFile(filepath.Join(root, "owner.md"), []byte(owner), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	docsCommit(t, root)
+	options, isMaintain, err := parseDocsMaintainInvocation([]string{"--root", root, "docs", "maintain", "--page", "docs/page.md", "--source", "owner.md", "--package", "cache", "--enable", "--preview"})
+	if !isMaintain || err != nil {
+		t.Fatalf("parse: isMaintain=%v err=%v", isMaintain, err)
+	}
+	var stdout, stderr bytes.Buffer
+	if code := runDocsMaintain(context.Background(), options, &stdout, &stderr); code != 2 {
+		t.Fatalf("exit=%d stderr=%s", code, stderr.String())
+	}
+	var envelope struct{ Code, Error string }
+	if err := json.Unmarshal(stderr.Bytes(), &envelope); err != nil || envelope.Code != "documentation-limit-exceeded" {
+		t.Fatalf("refusal %q: %v", stderr.String(), err)
+	}
+	var observed int
+	at := strings.Index(envelope.Error, "the limit of 64 lines: observed ")
+	if at < 0 {
+		t.Fatalf("refusal %q does not name the 64-line limit", envelope.Error)
+	}
+	if _, err := fmt.Sscanf(envelope.Error[at:], "the limit of 64 lines: observed %d lines", &observed); err != nil || observed <= 64 {
+		t.Fatalf("refusal %q: observed %d, %v", envelope.Error, observed, err)
 	}
 }

@@ -368,7 +368,7 @@ func beginOCM(ctx context.Context, repository *gitauth.Repository, root string, 
 		return wire.Value{}, intentDerivation{}, "", err
 	}
 	if !exists || entry.Type != "blob" {
-		return wire.Value{}, intentDerivation{}, "", fail("repository-object-unavailable", "repository object unavailable")
+		return wire.Value{}, intentDerivation{}, "", fail("repository-object-unavailable", "repository object unavailable: intent %s is not a blob at %s", options.IntentPath, target)
 	}
 	blob, err := reader.blob(target, options.IntentPath, entry.OID)
 	if err != nil {
@@ -767,7 +767,7 @@ func selectClaims(ctx context.Context, repository *gitauth.Repository, target st
 		return nil, err
 	}
 	if !exists || entry.Type != "blob" {
-		return nil, fail("repository-object-unavailable", "repository object unavailable")
+		return nil, fail("repository-object-unavailable", "repository object unavailable: test %s is not a blob at %s", options.TestPath, target)
 	}
 	reader := &ocmBlobReader{ctx: ctx, repository: repository, cache: map[string][]byte{}}
 	blob, err := reader.blob(target, options.TestPath, entry.OID)

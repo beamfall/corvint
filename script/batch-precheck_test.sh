@@ -346,6 +346,51 @@ PATH=$bin:$PATH BATCH_PRECHECK_HEAVY=$hv drift="./pkg TestDriftOne
 ./internal/g TestGoldenWriter" fixture || fail "quoted heavy run failed: $(cat "$tmp/out")"
 grep -qx heavy "$tmp/calls" || fail "heavy path with a space not run: $(cat "$tmp/calls")"
 [[ -e $repo/pwned || -e $script/pwned || -e pwned ]] && fail "a substitution in BATCH_PRECHECK_HEAVY ran"
+# 3b. ASD-V0-941 (V1-3037): BATCH_PRECHECK_GO_WRAPPER, one quoted path, wraps every make and go run
+# step; unset, none is wrapped. Two concurrent prechecks whose wrapper takes one shared lock never
+# run two wrapped steps at once.
+gw="$tmp/g w/wrap\$(touch pwned)"
+mkdir -p "$tmp/g w"
+# The lock is flock(2), not mkdir: uutils mkdir (0.8.0) lets two racing calls both succeed.
+cat > "$gw" <<'WRAP'
+#!/usr/bin/env perl
+use strict;
+use warnings;
+use Fcntl qw(:flock);
+my $tmp = $ENV{GW_TMP};
+open(my $lock, ">>", "$tmp/gw.lock") or die "gw: lock: $!\n";
+flock($lock, LOCK_EX) or die "gw: flock: $!\n";
+sub note { open(my $w, ">>", "$tmp/wrapped") or die "gw: log: $!\n"; print $w "@_\n"; close $w }
+note("start @ARGV");
+my $status = system { $ARGV[0] } @ARGV;
+note("end");
+exit($status == -1 ? 127 : $status & 127 ? 128 + ($status & 127) : $status >> 8);
+WRAP
+export GW_TMP=$tmp
+chmod +x "$gw"
+: > "$tmp/calls"; : > "$tmp/wrapped"
+run || fail "unwrapped run failed: $(cat "$tmp/out")"
+[[ -s $tmp/wrapped ]] && fail "an unset BATCH_PRECHECK_GO_WRAPPER wrapped a step: $(cat "$tmp/wrapped")"
+wrapped_targets() { sed -nE 's/^start .* (make -s|go run) ([^ ]*)$/\1 \2/p' "$tmp/wrapped" | tr -d "'" | sort; }
+called_targets() { sed -nE 's/^(make -s|go run) ([^ ]*).*$/\1 \2/p' "$tmp/calls" | sort; }
+: > "$tmp/calls"
+(export BATCH_PRECHECK_GO_WRAPPER=$gw; run) || fail "wrapped run failed: $(cat "$tmp/out")"
+[[ -n $(called_targets) && $(wrapped_targets) == "$(called_targets)" ]] ||
+  fail "not every make or go run step was wrapped: wrapped $(wrapped_targets | paste -sd ' ' -), called $(called_targets | paste -sd ' ' -)"
+[[ -e $repo/pwned || -e $script/pwned || -e pwned || -e "$tmp/g w/pwned" ]] && fail "a substitution in BATCH_PRECHECK_GO_WRAPPER ran"
+/bin/rm -rf "$tmp/repo2" && /bin/cp -R "$repo" "$tmp/repo2" || fail "second fixture copy"
+: > "$tmp/wrapped"
+run2() {
+  (unset GOPROXY; export PATH=$bin:$PATH BATCH_PRECHECK_HEAVY='' BATCH_PRECHECK_GO_WRAPPER=$gw BATCH_PRECHECK_ROOT=$1 \
+    BATCH_PRECHECK_REGEN=$tmp/regen-stub BATCH_PRECHECK_DRIFT="./pkg TestDriftOne
+./internal/g TestGoldenWriter"; "$pre" > "$2" 2>&1)
+}
+run2 "$repo" "$tmp/out1" & p1=$!
+run2 "$tmp/repo2" "$tmp/out2" & p2=$!
+wait "$p1" || fail "first concurrent wrapped run failed: $(cat "$tmp/out1")"
+wait "$p2" || fail "second concurrent wrapped run failed: $(cat "$tmp/out2")"
+[[ $(grep -c '^start ' "$tmp/wrapped") -ge 2 && -z $(awk '{ k = $1 } k == last { print NR; exit } { last = k }' "$tmp/wrapped") ]] ||
+  fail "concurrent prechecks ran two wrapped steps at once: $(cat "$tmp/wrapped")"
 git -C "$repo" commit -q --allow-empty -m moved
 (cd "$repo" && "$pre" --verify-receipt) > "$tmp/out" 2>&1 && fail "guard passed after HEAD moved"
 grep -q "refused: the precheck receipt names $head, not " "$tmp/out" || fail "mismatch: $(cat "$tmp/out")"

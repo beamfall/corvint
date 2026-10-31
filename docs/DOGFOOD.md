@@ -487,7 +487,11 @@ from `git diff -U0`. A few checks need the bind's own state and stay with the bi
 `make dogfood-closeout` takes the same variables, runs `dogfood-finish` (so the pre-flight runs
 first), then `batch-precheck`, and stops at the first step that fails (`DCW-V0-349`). CI and the
 precheck both run `make doc-gates`, using the single `DOC_GATE_TARGETS` list and the existing
-use-case conformance command. The precheck also retains its other drift checks.
+use-case conformance command. The precheck also retains its other drift checks. Its drift tests
+run through `script/heavy.sh` (`BATCH_PRECHECK_HEAVY`); set `BATCH_PRECHECK_GO_WRAPPER` to one
+executable path, such as `script/heavy.sh`, to run every `make` and `go run` step through that
+host semaphore or offload hook too, so concurrent lane prechecks do not overload the host
+(`ASD-V0-941`). Unset, those steps run directly.
 
 Before pushing, the optional pre-push hook `script/pre-push-dogfood-seal.sh` runs
 `script/dogfood-batch-check.sh` against each pushed branch's merge base with `origin/main` and
@@ -510,7 +514,12 @@ $ make dogfood-seal BASE=BASE_SHA
 A plan with `deferred` rows (`DCW-V0-370`) writes its record before the bind commit: add
 `.corvint/deferred-intents/` beside the sidecar in that commit. If a bind stops after the record
 was written, remove the uncommitted record before rerunning `finish-lane`, which otherwise refuses
-`dirty-worktree`.
+`dirty-worktree`. The committed record is itself a hunk of the map at the bind commit, which the
+bind pass could not see, so `finish-lane` settles it before the rebind (`DCW-V0-941`): one more
+bind pass cites that hunk (`DCW-V0-372`) and, when only the sidecar changed, amends the bind
+commit with it (`settle PASS bind=<commit>`). That amend records no trace: no clean pass has run
+on the bind commit yet, since a rebind there would have seen the uncommitted sidecar. By hand,
+rerun the bind pass after the bind commit and amend the commit with the sidecar before the rebind.
 
 `dogfood-seal` reruns `dogfood-check` and, only on PASS, commits `chore: seal change evidence`,
 which does nothing but rename `.corvint/change.cem.json` to
@@ -803,7 +812,7 @@ target already carries an older sidecar that `CEM-CB-009` requires to equal the 
 - `DOGFOOD-BIND-007`: a hunk whose intent no stable base content records (for example an intent
   added or removed inside the range) is not cited. A fixing commit that removes its backlog entry
   MUST cite a stable owning spec requirement or accepted decision instead. The producer reads a
-  requested span from `baseRevision` (`internal/cem/workflow/commands.go:482-499@c79ac767`), but
+  requested span from `baseRevision` (`internal/cem/workflow/commands.go:489-506@c79ac767`), but
   both its stability precheck and canonical target-drift verification reject that removed span
   (`internal/cem/verify/verify.go:422-482@166fa7f2`). A backlog entry that was the only recorded
   intent therefore binds as `NOT_PRODUCED`, never as an

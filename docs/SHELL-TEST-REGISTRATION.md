@@ -6,6 +6,9 @@ note is the one place that lists them; the checks point here when one is missing
 1. **A `Makefile` target and a `GATE_STEPS` entry.** Add `<name>-test:` with a recipe that runs
    `@script/<name>_test.sh`, and append `<name>-test` to the single plain `GATE_STEPS = ...` line.
    `make gate` runs only `GATE_STEPS` (AFP-V0-025 names the same line for `unbounded-readers-check`).
+   The target is required even for a suite kept out of the gate: `TestASDV0942EveryScriptTestHasAMakeTarget`
+   (`make test-commands-check`) fails naming any `script/*_test.sh` no recipe starts (ASD-V0-942).
+   A suite left out of `GATE_STEPS` says why in the comment above its target.
 2. **The `shell-test` prerequisites.** `shell-test` must list exactly the `GATE_STEPS` steps whose
    recipe runs a `script/*_test.sh`, with no recipe of its own. This is the shell full command
    that `.github/cishards/test-commands.json` declares (`STR-V0-004`, `docs/specs/session-test-runner-v0.md`).

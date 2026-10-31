@@ -193,7 +193,7 @@ func inherited(ctx context.Context, repository *gitauth.Repository, document *wi
 	if baseOID != document.BaseRevision {
 		return nil, cemcode.New(cemcode.BaseRevisionMismatch, "baseRevision does not resolve to itself as a full commit OID")
 	}
-	parsed, err := patch.Parse(patchBytes)
+	parsed, err := parseBinaryBounded(ctx, repository, patchBytes)
 	if err != nil {
 		return nil, err
 	}

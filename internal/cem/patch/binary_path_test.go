@@ -14,15 +14,15 @@ import (
 func TestBinaryRefusalNamesPath(t *testing.T) {
 	cases := []struct{ name, input, want string }{
 		{"modify", "diff --git a/img/x.png b/img/x.png\nindex 1111111..2222222 100644\nBinary files a/img/x.png and b/img/x.png differ\n",
-			`binary change to "img/x.png" is outside the CEM patch grammar; cem/1.0 cannot represent binary content`},
+			`binary change to "img/x.png" is outside the CEM patch grammar; cem/1.0 binds only Git's canonical full-index Binary files section`},
 		{"git-binary-patch", "diff --git a/img/x.png b/img/x.png\nindex 1111111..2222222 100644\nGIT binary patch\nliteral 3\n",
-			`binary change to "img/x.png" is outside the CEM patch grammar; cem/1.0 cannot represent binary content`},
+			`binary change to "img/x.png" is outside the CEM patch grammar; cem/1.0 binds only Git's canonical full-index Binary files section`},
 		{"rename", "diff --git a/old.bin b/new.bin\nsimilarity index 60%\nrename from old.bin\nrename to new.bin\nindex 1111111..2222222\nBinary files a/old.bin and b/new.bin differ\n",
-			`binary change to "new.bin" is outside the CEM patch grammar; cem/1.0 cannot represent binary content`},
+			`binary change to "new.bin" is outside the CEM patch grammar; cem/1.0 binds only Git's canonical full-index Binary files section`},
 		{"bare-creation-marker", "Binary files /dev/null and b/a.bin differ\n",
-			`binary change to "a.bin" is outside the CEM patch grammar; cem/1.0 cannot represent binary content`},
+			`binary change to "a.bin" is outside the CEM patch grammar; cem/1.0 binds only Git's canonical full-index Binary files section`},
 		{"bare-deletion-marker", "Binary files a/a.bin and /dev/null differ\n",
-			`binary change to "a.bin" is outside the CEM patch grammar; cem/1.0 cannot represent binary content`},
+			`binary change to "a.bin" is outside the CEM patch grammar; cem/1.0 binds only Git's canonical full-index Binary files section`},
 		{"bare-git-binary-patch", "GIT binary patch\nliteral 3\n", "binary patches are outside the CEM patch grammar"},
 		{"traversal-marker", "Binary files a/../x and b/../x differ\n", "binary patches are outside the CEM patch grammar"},
 	}
