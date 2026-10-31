@@ -132,8 +132,17 @@ func TestDCWV0351ShellTestFailureNamesTheFailingCase(t *testing.T) {
 		t.Fatalf("anchor %q not in dogfood-change_test.sh", anchor)
 	}
 	forced := strings.Replace(string(source), anchor, "# Forced failing case (V1-2827).\ntest forced = failure\n"+anchor, 1)
-	script := filepath.Join(t.TempDir(), "dogfood-change_test.sh")
+	dir := t.TempDir()
+	script := filepath.Join(dir, "dogfood-change_test.sh")
 	if err := os.WriteFile(script, []byte(forced), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// The script sources its sibling rg fallback helper.
+	helper, err := os.ReadFile(filepath.Join(moduleRoot(t), "script", "test-rg-fallback.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "test-rg-fallback.sh"), helper, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	line := strings.Count(forced[:strings.Index(forced, "test forced = failure")], "\n") + 1
