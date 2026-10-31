@@ -340,6 +340,8 @@ grep -qE "${phase}created\$" "$off/err" || fail "heavy.sh first offload phase li
 grep -qE '^heavy.sh: remote bound -p=[0-9]+ GOMAXPROCS=[0-9]+$' "$off/err" &&
   [[ $(cat "$off/gmp.last") == "$(sed -n 's/^heavy.sh: remote bound -p=\([0-9]*\) GOMAXPROCS=.*/\1/p' "$off/err")" ]] ||
   fail "heavy.sh remote GOMAXPROCS default is not the remote -p: $(cat "$off/gmp.last") $(cat "$off/err")"
+HEAVY_REMOTE_HOST=box HEAVY_REMOTE_GOMAXPROCS= hv go test -exit=0 ./... > /dev/null 2> "$off/err" &&
+  [[ $(cat "$off/gmp.last") =~ ^[1-9][0-9]*$ ]] || fail "heavy.sh empty HEAVY_REMOTE_GOMAXPROCS is not the default: $(cat "$off/err")"
 HEAVY_REMOTE_HOST=box HEAVY_REMOTE_GOMAXPROCS=3 hv go test -exit=0 ./... > /dev/null 2> "$off/err"
 [[ $(cat "$off/gmp.last") == 3 ]] || fail "heavy.sh HEAVY_REMOTE_GOMAXPROCS=3 not applied: $(cat "$off/gmp.last")"
 HEAVY_REMOTE_HOST=box HEAVY_REMOTE_GOMAXPROCS=0 hv go test -exit=0 ./... > /dev/null 2> "$off/err"

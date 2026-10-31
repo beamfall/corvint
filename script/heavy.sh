@@ -1146,7 +1146,7 @@ main() {
       [[ $retry =~ ^[0-9]{1,3}$ ]] || refuse "invalid-retry HEAVY_REMOTE_RETRY=$retry (want 0..999 seconds)"
       fallback_limit=${HEAVY_FALLBACK_ALERT:-3}
       [[ $fallback_limit =~ ^[0-9]{1,3}$ ]] && ((10#$fallback_limit <= 100)) || refuse "invalid-fallback-alert HEAVY_FALLBACK_ALERT=$fallback_limit (want 0..100)"
-      [[ ${HEAVY_REMOTE_GOMAXPROCS-0} =~ ^(0|[1-9][0-9]{0,3})$ ]] || refuse "invalid-remote-gomaxprocs HEAVY_REMOTE_GOMAXPROCS=$HEAVY_REMOTE_GOMAXPROCS (want 0..9999)"
+      [[ ${HEAVY_REMOTE_GOMAXPROCS:-0} =~ ^(0|[1-9][0-9]{0,3})$ ]] || refuse "invalid-remote-gomaxprocs HEAVY_REMOTE_GOMAXPROCS=$HEAVY_REMOTE_GOMAXPROCS (want 0..9999)"
       darwin_notice "$@"
       offload_traps
       try_offload "$@"
