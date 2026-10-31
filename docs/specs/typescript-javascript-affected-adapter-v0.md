@@ -1727,10 +1727,39 @@ Non-goals and named gaps:
 - Runtime loading outside JavaScript module syntax is not modelled. This includes bundler globs and
   `import.meta.glob`, HTML script tags, file reads, worker-shared state, and a test-support module
   that changes application state through a server.
-- An observer frontier other than a dynamic import keeps the whole narrowing `NOT_NARROWED`.
-- A multi-binding declaration is keyed by its first name.
+- An observer frontier other than a dynamic import keeps the whole narrowing `NOT_NARROWED` only
+  when it is unsited or sited outside the graph (`TJAA-V0-762`).
+- A multi-binding variable declaration is keyed per bound name (`TJAA-V0-761`); a destructuring
+  declarator binds no name there.
 - The narrowed set has no live recall measurement. Its recall stays `NOT_RUN`, and callers that run
   only the candidates plus the `UNRESOLVED` projects accept that risk themselves.
+
+V1-2060 amendments (experimental under the owner's standing lane auto-accept (2026-10-11)):
+
+- `TJAA-V0-761`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2060)
+  Amending `TJAA-V0-033`: an exported `const`, `let` or `var` statement that binds more than one
+  plain name MUST key one symbol per bound name, each by its own declarator text split at commas
+  outside brackets, strings and templates, so a change to one initializer modifies only that name
+  and an added declarator adds only its name. A statement binding one name, or a destructuring
+  declarator, is keyed as before.
+- `TJAA-V0-762`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2060)
+  Amending `TJAA-V0-031`: a frontier reason other than a dynamic import (in the observed frontier
+  or the shared plan's `LANGUAGE_FRONTIER` unknowns) whose every recorded site is a file of the
+  TypeScript graph MUST NOT refuse the narrowing; instead the tests whose static import closure
+  reaches one of those files are added as candidates with witness `FRONTIER_SITE_REACH`, as a
+  dynamic import's are. A reason with no site, or with a site outside the graph, still gives
+  `NOT_NARROWED GRAPH_FRONTIER`. The narrowing stays advisory: a hidden edge the frontier stands for
+  can only reach a test through its site's file, but its recall stays `NOT_RUN`.
+- `TJAA-V0-763`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2060)
+  Decision on further profiles and runners, each deferred with its reason: `affected-plan/0` gets
+  no `narrowed` member, because its fallback is the plan's own `UNKNOWN` scope over every plugin,
+  and a TypeScript-only candidate set beside a multi-language plan would read as a selection of the
+  whole plan; Vitest, Jest and the Node test runner get none, because their plans have no
+  Playwright-style project fallback whose full-suite runs narrowing could shorten; other languages
+  get none, because each lacks a test-side/source-side split like `TJAA-V0-031`'s. Runtime loading
+  outside JavaScript module syntax (bundler globs and `import.meta.glob`, HTML script tags, file
+  reads, worker-shared state, server-side state) stays unmodelled and keeps refusing through the
+  existing frontiers and the not-test-side rule; no class of it is modelled by this amendment.
 
 ## Acceptance evidence and rollback
 
@@ -1875,6 +1904,7 @@ persisted; run-identity documents carrying `corvint-test-closure/0` digests are 
 | `TJAA-V0-020` (accepted, decision 0483) | `TestPlaywrightDiscoveryMalformedReason_V1_1067` in `playwright_discovery_test.go`; `TestAffectedPlaywrightDiscoveryProducer_GH709` | experimental |
 | `TJAA-V0-021` (accepted, decision 0519; V1-1175) | `TestPlaywrightDiscoveryGrepOmission_TJAA_V0_021` (GitHub #790 three-project repro, unexplained and no-grep refusals, dynamic and non-partwise grep, title-derived and explicit tags, `unverifiedUnits` validation), `TestPlaywrightRegexBodyPartwise_TJAA_V0_021`, `TestPlaywrightTitleTags_TJAA_V0_021` in `playwright_grep_omission_test.go`; grep-title construction checked against Playwright 1.63 source, not a live run | experimental; hand-built listings, `NOT_RUN` live |
 | `TJAA-V0-030..032` (V1-2042) | `TestPlaywrightNarrowingSharedFixture_TJAA_V0_030` (GitHub #1294 repro, determinism), `TestPlaywrightNarrowingAbsentFromBoundedPlan_TJAA_V0_030`, `TestPlaywrightNarrowingRefusals_TJAA_V0_031` (application, unowned, dirty-config and global-config refusals), `TestPlaywrightNarrowingPerProject_TJAA_V0_032` (unknown dependency, dynamic-import taint, application dynamic import, discovery matched, differing and undeclared project) in `playwright_narrowing_test.go`; `TestAffectedPlaywrightNarrowedSymbols_TJAA_V0_033` in `cmd/corvint/affected_playwright_test.go` | experimental; synthetic fixtures, live recall `NOT_RUN` |
+| `TJAA-V0-761..763` (V1-2060) | `TestMultiBindingExportKeysEachName_TJAA_V0_761`, `TestPlaywrightNarrowingFrontierTaintsOnlyReachingTests_TJAA_V0_762`; `TJAA-V0-763` is a decision with no test |
 | `TJAA-V0-033` (V1-2042) | `TestChangedSymbols_TJAA_V0_033`, `TestChangedSymbolsUnresolved_TJAA_V0_033`, `TestPlaywrightNarrowingReportsSymbols_TJAA_V0_033` in `playwright_symbols_test.go`; `TestAffectedPlaywrightNarrowedSymbols_TJAA_V0_033` (HEAD and `--base` comparison) | experimental; syntactic only |
 | `TJAA-V0-034` (V1-2455; GitHub #1575) | `TestScanImportsSeparatesImportTypesAndLiteralTextFromDynamicImports` in `typescript_test.go` | experimental |
 | `TJAA-V0-035` (V1-2456; GitHub #1576) | `TestPlaywrightEnvUseValuesKeepIdentity_GH1576`, `TestPlaywrightComputedExecutablePathIsExecutionUnknown_GH1576` in `playwright_gh1576_test.go`; `TestPlaywrightUseValueSideEffects_V1_1065`, `TestPlaywrightMemberReadRoots_GH709Round8` in `playwright_example_app_test.go` | experimental |
