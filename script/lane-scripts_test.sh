@@ -196,6 +196,19 @@ HEAVY_SLOTS=0 "$heavy" true 2> "$tmp/err"
 [[ $? == 2 ]] && grep -q 'REFUSE invalid-slots' "$tmp/err" || fail "heavy.sh accepted HEAVY_SLOTS=0"
 ok
 
+# ASD-V0-940 (V1-3247): a non-zero exit ends stderr with its cause; a zero exit adds no line.
+HEAVY_SLOTS=1 "$heavy" false 2> "$tmp/err"
+[[ $? == 1 && $(tail -n 1 "$tmp/err") == 'heavy.sh: exit rc=1 cause=command cmd=false' ]] ||
+  fail "heavy.sh false: no exit cause line: $(cat "$tmp/err")"
+HEAVY_SLOTS=1 "$heavy" sh -c 'kill -TERM $$' 2> "$tmp/err"
+[[ $? == 143 && $(tail -n 1 "$tmp/err") == 'heavy.sh: exit rc=143 cause=signal-TERM cmd=sh' ]] ||
+  fail "heavy.sh signalled command: no exit cause line: $(cat "$tmp/err")"
+HEAVY_SLOTS=1 "$heavy" true 2> "$tmp/err" && ! grep -q 'exit rc=' "$tmp/err" || fail "heavy.sh true printed an exit line: $(cat "$tmp/err")"
+(cd "$pin/mod" && env -u HEAVY_WHOLE_REASON HEAVY_SLOTS=1 "$heavy" go test ./sub > /dev/null 2> "$tmp/err")
+[[ $? == 2 && $(tail -n 1 "$tmp/err") == 'heavy.sh: exit rc=2 cause=refused' ]] ||
+  fail "heavy.sh refusal: no exit cause line: $(cat "$tmp/err")"
+ok
+
 # ASD-V0-014: the slot covers the workload. Each case synchronises on a marker its own workload
 # writes once admitted. Killing only the wrapper keeps the slot until the workload exits; killing
 # wrapper and workload frees it at once; a forwarded TERM reaches the workload's whole group.
@@ -328,6 +341,9 @@ out=$(HEAVY_REMOTE_HOST=box hv go test -exit=5 ./... 2> "$off/err")
 [[ $? == 5 ]] || fail "heavy.sh offload did not return the remote command's status"
 [[ $out == *wip-uncommitted* && $out != *stale* && ! -e $rwt/sub/stale.txt ]] && grep -qE "${phase}reused\$" "$off/err" ||
   fail "heavy.sh did not reset the reused worktree to the tested tree: $out $(cat "$off/err")"
+# ASD-V0-940: the remote holder's cause line is relayed, then the calling shell names the offload.
+grep -qx 'heavy.sh: exit rc=5 cause=command cmd=go' "$off/err" && [[ $(tail -n 1 "$off/err") == 'heavy.sh: exit rc=5 cause=offload host=box' ]] ||
+  fail "heavy.sh offload failure: no exit cause lines: $(tail -n 3 "$off/err")"
 # ASD-V0-037 (V1-2905): each run names its runner by hash, and the offload line carries the remote's
 # phase line and the runner's short hash.
 sha=$( { shasum -a 256 "$script/heavy.sh" || sha256sum "$script/heavy.sh"; } 2> /dev/null | awk 'NR == 1 { print $1 }')
@@ -487,7 +503,7 @@ ok
 # ASD-V0-028 (V1-2802): one small untracked file with no uncommitted diff still travels (its tar
 # is the same 10240 bytes as an empty one), and is labelled +wip; with no untracked file and no
 # diff, no untracked archive is sent and the run is not +wip.
-payload() { sed -n '/^main "\$@"; exit \$?$/,$p' "$off/payload.last" | tail -n +2 | base64 -d | tar -tf - | sort | tr '\n' ' '; }
+payload() { sed -n '/^main "\$@"; heavy_exit \$?$/,$p' "$off/payload.last" | tail -n +2 | base64 -d | tar -tf - | sort | tr '\n' ' '; }
 printf 'keep\n' > "$off/lc/sub/keep.txt"
 g -C "$off/lc" add sub/keep.txt && g -C "$off/lc" commit -qm wip wip.txt sub/keep.txt || fail "offload fixture wip commit failed"
 out=$(HEAVY_REMOTE_HOST=box hv go test ./... 2> "$off/err")
