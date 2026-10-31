@@ -810,8 +810,9 @@ func commitLease(ctx context.Context, repo *intent.Repository, request transacti
 	if p.failure != nil {
 		if wire.CodeOf(p.failure) == wire.CodeSnapshotMoved {
 			// LGL-V0-900: under the lock no seal is in flight, so a bound
-			// manifest that still differs is corrupt, not moving.
-			if err := boundManifestHeld(repo); err != nil {
+			// manifest or named segment that still differs is corrupt, not
+			// moving.
+			if err := boundManifestHeld(repo, p.failure); err != nil {
 				return err
 			}
 		}
