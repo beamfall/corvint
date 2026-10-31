@@ -171,7 +171,7 @@ func (ctx Context) attempts() AttemptOracle {
 
 // View derives the §3.2 eligibility for one ticket. It never writes.
 func (inv *Inventory) View(id string, ctx Context) (View, bool) {
-	rec, ok := inv.byID[id]
+	rec, ok := inv.Get(id)
 	if !ok {
 		return View{}, false
 	}
@@ -213,7 +213,7 @@ func (inv *Inventory) View(id string, ctx Context) (View, bool) {
 	}
 	// §3.1 dependency obligations at the dependency's current acceptanceRevision.
 	for _, d := range rec.Dependencies {
-		dep, ok := inv.byID[d.TicketID.Raw]
+		dep, ok := inv.sum[d.TicketID.Raw]
 		if !ok {
 			continue // already DEPENDENCY_MISSING
 		}
@@ -243,7 +243,7 @@ func (inv *Inventory) View(id string, ctx Context) (View, bool) {
 			continue
 		}
 		scope := " (execution prerequisite for stages " + strings.Join(p.Stages, ",") + ")"
-		pre, ok := inv.byID[p.TicketID.Raw]
+		pre, ok := inv.sum[p.TicketID.Raw]
 		if !ok {
 			add(wire.CodePrerequisiteUnsatisfied, p.TicketID.Raw, "prerequisite "+p.TicketID.Raw+" does not exist in the queue"+scope)
 			continue

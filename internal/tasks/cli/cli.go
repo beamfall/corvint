@@ -56,6 +56,10 @@ type Env struct {
 	// still keeps a result (ATR-V0-053).
 	leaseInterrupted context.Context
 
+	// lazyClosed opts a read into the closed-ticket index (TCX-V0-982):
+	// only reads that never touch Store.Tickets set it.
+	lazyClosed bool
+
 	afterRead  func()                                   // deterministic snapshot-move tests only
 	leaseProbe func(string) (*snapshot.Snapshot, error) // deterministic pre-write I/O failures
 	Cwd        string
@@ -147,6 +151,9 @@ func Run(env Env) int {
 	}
 	if result := snapshotRefusal(env, args); result != nil {
 		return emit(env.Stdout, result)
+	}
+	if !readOnlyVerbs[verbPath(args)] {
+		defer closedIndexRefresher(env)()
 	}
 	switch args[0] {
 	case "criterion-binding":
@@ -645,6 +652,7 @@ func withStore(env Env, body func(rc *readCtx) error) (*readCtx, error) {
 		return nil, err
 	}
 	rc := &readCtx{repo: repo}
+	idx := closedIndexFor(env, repo)
 	// probed is the tree the latest probe hashed. Reader.Read runs probe,
 	// body, probe in turn, so inside body it is the tree that produced
 	// s.IntentTree; body decodes those bytes instead of reading the tree a
@@ -652,7 +660,7 @@ func withStore(env Env, body func(rc *readCtx) error) (*readCtx, error) {
 	var probed *intent.Tree
 	rd := snapshot.Reader{StateDir: repo.StateDir, IntentTree: func() (wire.Digest, error) {
 		probed = nil
-		t, err := intent.TreeDigest(repo.IntentRoot())
+		t, err := intent.TreeDigestIndexed(repo.IntentRoot(), idx)
 		if err != nil {
 			return "", err
 		}
@@ -666,7 +674,7 @@ func withStore(env Env, body func(rc *readCtx) error) (*readCtx, error) {
 		var st *intent.Store
 		var err error
 		if probed != nil && probed.Sha256 == s.IntentTree && reuseProbedTree {
-			st, err = intent.LoadTree(repo.IntentRoot(), *probed, s.IntentTree)
+			st, err = intent.LoadTreeIndexed(repo.IntentRoot(), *probed, s.IntentTree, idx)
 		} else {
 			st, err = intent.LoadExpecting(repo.IntentRoot(), s.IntentTree)
 		}
@@ -683,7 +691,7 @@ func withStore(env Env, body func(rc *readCtx) error) (*readCtx, error) {
 		if probed != nil && probed.Sha256 == s.IntentTree && reuseProbedTree {
 			rc.tree = probed
 		}
-		err = body(rc)
+		err = runBody(rc, body)
 		rc.tree = nil
 		if env.afterRead != nil {
 			env.afterRead()
@@ -1198,7 +1206,10 @@ func parseSearchFilter(fl map[string]string) (searchFilter, error) {
 	return f, nil
 }
 
-func (f searchFilter) matches(rec *ticket.Record) bool {
+// matchesSummary applies every filter but --text, from the ticket summary
+// alone, so a closed ticket a status filter excludes is never decoded
+// (TCX-V0-982).
+func (f searchFilter) matchesSummary(rec *ticket.Summary) bool {
 	if f.status != nil && rec.Status != *f.status {
 		return false
 	}
@@ -1226,6 +1237,11 @@ func (f searchFilter) matches(rec *ticket.Record) bool {
 			return false
 		}
 	}
+	return true
+}
+
+// matchesText applies --text, which needs the whole record.
+func (f searchFilter) matchesText(rec *ticket.Record) bool {
 	if f.text != nil {
 		// Token-based (CTS-V0-012): every whitespace-separated word must occur,
 		// case-insensitively, in the title or the body, in any order, so a
@@ -1247,6 +1263,7 @@ func (f searchFilter) matches(rec *ticket.Record) bool {
 // order, paging and the untrusted label are exactly those of `ticket list`.
 func ticketSearch(env Env, args []string) *wire.Result {
 	cmd := []string{"ticket", "search"}
+	env.lazyClosed = true
 	fm, args, err := facetFlags(args, searchValueFlags)
 	if err != nil {
 		return failure(cmd, nil, err)
@@ -1269,11 +1286,17 @@ func ticketSearch(env Env, args []string) *wire.Result {
 	matched := 0
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		var ids []string
-		for _, id := range rc.store.Inventory.Sorted() {
-			rec, _ := rc.store.Inventory.Get(id)
-			if f.matches(rec) {
-				ids = append(ids, id)
+		inv := rc.store.Inventory
+		for _, id := range inv.Sorted() {
+			if s, _ := inv.Summary(id); !f.matchesSummary(s) {
+				continue
 			}
+			if f.text != nil {
+				if rec, _ := inv.Get(id); !f.matchesText(rec) {
+					continue
+				}
+			}
+			ids = append(ids, id)
 		}
 		matched = len(ids)
 		if fm.facets || fm.count {
@@ -1359,6 +1382,7 @@ func ticketExport(env Env, args []string) *wire.Result {
 // NOT_OBSERVED (invariant 5), never omitted or assumed.
 func roadmap(env Env, args []string) *wire.Result {
 	cmd := []string{"roadmap"}
+	env.lazyClosed = true
 	fm, args, err := facetFlags(args, pageValueFlags)
 	if err != nil {
 		return failure(cmd, nil, err)
@@ -1387,7 +1411,7 @@ func roadmap(env Env, args []string) *wire.Result {
 			return nil
 		}
 		milestone := func(id string) (string, bool) {
-			rec, _ := rc.store.Inventory.Get(id)
+			rec, _ := rc.store.Inventory.Summary(id)
 			if rec.Milestone == nil {
 				return "", false
 			}
@@ -1444,7 +1468,7 @@ func roadmap(env Env, args []string) *wire.Result {
 func openWithoutMilestone(inv *ticket.Inventory) int64 {
 	n := int64(0)
 	for _, id := range inv.IDs() {
-		if rec, ok := inv.Get(id); ok && rec.Status == ticket.StatusOpen && rec.Milestone == nil {
+		if rec, ok := inv.Summary(id); ok && rec.Status == ticket.StatusOpen && rec.Milestone == nil {
 			n++
 		}
 	}
@@ -1590,6 +1614,7 @@ func ticketShow(env Env, args []string, includeRecord bool) *wire.Result {
 		verb = "show"
 	}
 	cmd := []string{"ticket", verb}
+	env.lazyClosed = true
 	if len(args) != 1 || strings.HasPrefix(args[0], "--") {
 		return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "argv", "ticket %s takes exactly one ticket id or local token", verb))
 	}
@@ -1713,6 +1738,7 @@ func journalAbsentNotFound(rc *readCtx, id string) string {
 
 func queueStatus(env Env, args []string) *wire.Result {
 	cmd := []string{"queue", "status"}
+	env.lazyClosed = true
 	withRetries := len(args) == 1 && args[0] == "--retries"
 	if len(args) != 0 && !withRetries {
 		return failure(cmd, nil, wire.Errorf(wire.CodeMalformed, "argv", "queue status takes only --retries, --fields or --summary"))
@@ -1727,6 +1753,13 @@ func queueStatus(env Env, args []string) *wire.Result {
 		unknown, blocked := 0, 0
 		ctx := st.Context()
 		for _, id := range st.Inventory.IDs() {
+			// A closed ticket always has a TICKET_STATE blocker, so its
+			// summary alone counts it (TCX-V0-982).
+			if s, _ := st.Inventory.Summary(id); ticket.Closed(s.Status) {
+				by[s.Status]++
+				blocked++
+				continue
+			}
 			v, _ := st.Inventory.View(id, ctx)
 			by[v.Record.Status]++
 			if v.Eligibility == ticket.EligibilityUnknown {
@@ -1825,6 +1858,9 @@ func queueStatus(env Env, args []string) *wire.Result {
 		if withRetries {
 			retries := []wire.Value{}
 			for _, id := range st.Inventory.IDs() {
+				if closedTicket(st.Inventory, id) {
+					continue
+				}
 				rec, _ := st.Inventory.Get(id)
 				if rec.Status != "OPEN" && rec.Status != "HELD" {
 					continue
@@ -1860,6 +1896,9 @@ func queueStatus(env Env, args []string) *wire.Result {
 func obligationsSummary(inv *ticket.Inventory) (wire.Value, bool) {
 	var n, witnessed, total, deferred, coreWitnessed, coreTotal int64
 	for _, id := range inv.IDs() {
+		if closedTicket(inv, id) {
+			continue
+		}
 		rec, _ := inv.Get(id)
 		if rec == nil || rec.ObligationsRef == nil || rec.Source.Kind != "NATIVE" || rec.Status != ticket.StatusOpen && rec.Status != ticket.StatusHeld {
 			continue
@@ -1885,6 +1924,9 @@ func obligationsSummary(inv *ticket.Inventory) (wire.Value, bool) {
 // plan and reports an empty list.
 func serialFallbackDeferredValue(in transaction.PlanInput) wire.Value {
 	for _, id := range in.Tickets.IDs() {
+		if closedTicket(in.Tickets, id) {
+			continue
+		}
 		rec, _ := in.Tickets.Get(id)
 		if (rec.Status == ticket.StatusOpen || rec.Status == ticket.StatusHeld) && transaction.UnboundedEffects(rec.Effects) {
 			return wire.Strings(transaction.PriorityFirst(in).SerialFallbackDeferred())
@@ -1907,16 +1949,18 @@ func serialFallbackDeferredValue(in transaction.PlanInput) wire.Value {
 // REOPEN removed from its record is not counted.
 func completionSummary(rc *readCtx, observedAt time.Time) (wire.Value, wire.Value) {
 	observedAt = observedAt.UTC().Truncate(time.Second)
-	var last *ticket.Record
+	// The scan reads summaries; only the latest completion's record is
+	// decoded (TCX-V0-982).
+	var latest *ticket.Summary
 	hour, day := 0, 0
 	for _, id := range rc.store.Inventory.IDs() {
-		rec, ok := rc.store.Inventory.Get(id)
-		if !ok || rec.Completion == nil {
+		rec, ok := rc.store.Inventory.Summary(id)
+		if !ok || rec.CompletedAt == nil {
 			continue
 		}
-		c := rec.Completion.RecordedAt
-		if last == nil || c > last.Completion.RecordedAt || (c == last.Completion.RecordedAt && rec.TicketID.Raw > last.TicketID.Raw) {
-			last = rec
+		c := *rec.CompletedAt
+		if latest == nil || c > *latest.CompletedAt || (c == *latest.CompletedAt && rec.TicketID.Raw > latest.TicketID.Raw) {
+			latest = rec
 		}
 		at, err := time.Parse("2006-01-02T15:04:05Z", string(c))
 		if err != nil || at.After(observedAt) {
@@ -1934,9 +1978,10 @@ func completionSummary(rc *readCtx, observedAt time.Time) (wire.Value, wire.Valu
 	counts.Set("observedAt", wire.String(observedAt.Format("2006-01-02T15:04:05Z")))
 	counts.Set("lastHour", wire.String(string(wire.CountOf(int64(hour)))))
 	counts.Set("last24Hours", wire.String(string(wire.CountOf(int64(day)))))
-	if last == nil {
+	if latest == nil {
 		return wire.Null(), wire.ObjectValue(counts)
 	}
+	last, _ := rc.store.Inventory.Get(latest.TicketID.Raw)
 	receipt := wire.String(string(ticket.NotObserved))
 	if !rc.journalAbsent {
 		path := "intent/tickets/" + last.TicketID.Local + ".json"
