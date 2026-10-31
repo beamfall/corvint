@@ -35,13 +35,25 @@ var staleOCMPatterns = []string{"change.ocm.[0-9][0-9][0-9].json", "change.ocm-s
 // something is still stale after that, naming the exact manual recovery.
 // Nothing is deleted. A trace store that cannot be evaluated is left to the
 // steps that already report it. The dogfood inputs-check pre-flight passes
-// retire=false: it only checks, and still refuses with the manual recovery
-// (DCW-V0-400). The refusal names the reset-after-bind case, a lane that reset
+// retire=false: it only checks, notes stale sidecars alone (DCW-V0-964), and
+// refuses a stranded trace with the manual recovery (DCW-V0-400). The refusal names the reset-after-bind case, a lane that reset
 // its own unpushed bind/seal commits, and its one-step recovery (DCW-V0-844).
 func (f *flow) requireFreshWorktree(base, gitDir string, retire bool) {
 	stranded, digest, legacy := f.strandedTraces()
 	stale := f.staleOCMSidecars(base)
 	if len(stranded) == 0 && len(stale) == 0 {
+		return
+	}
+	// DCW-V0-964 (V1-3303): stale sidecars alone are what finish-lane moves
+	// aside itself, so the pre-flight names them and the move, and goes on.
+	if !retire && len(stranded) == 0 {
+		f.say("%s: NOTE reused-worktree-state\n", f.prefix)
+		for _, name := range stale {
+			f.say("  stale sidecar: %s is ignored and was last written before BASE %s was committed\n", name, base[:12])
+		}
+		aside := gitDir + "/corvint/stale-ocm"
+		f.say("  finish-lane moves each one, byte-preserved, into a new directory under %s before its prepare (DCW-V0-406), so this does not stop the closeout; to clear it now: mkdir -p %s && mv %s %s/\n",
+			shellQuote(aside), shellQuote(aside), strings.Join(quoteAll(stale), " "), shellQuote(aside))
 		return
 	}
 	if retire {
