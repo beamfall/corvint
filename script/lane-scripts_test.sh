@@ -821,9 +821,12 @@ printf '#!/bin/sh\nfor a in "$@"; do [ "$a" = "$LANE_TEST_FAIL_GIT" ] && exit 12
 chmod +x "$tmp/shim/git"
 real_git=$(command -v git)
 for sub in stash:git-unreadable for-each-ref:git-unreadable worktree:has-worktrees; do
-  PATH=$tmp/shim:$PATH LANE_TEST_REAL_GIT=$real_git LANE_TEST_FAIL_GIT=${sub%%:*} clean > "$tmp/out"
+  # A subshell scopes the shim: bash 3.2 keeps prefix assignments to a function after it returns,
+  # so the failing git would otherwise reach the dry run below (V1-2312).
+  (PATH=$tmp/shim:$PATH LANE_TEST_REAL_GIT=$real_git LANE_TEST_FAIL_GIT=${sub%%:*}; export PATH LANE_TEST_REAL_GIT LANE_TEST_FAIL_GIT; clean > "$tmp/out")
   grep -q "^KEEP ${sub#*:} .*/merged\$" "$tmp/out" || fail "lane-clean with failing git ${sub%%:*}: $(cat "$tmp/out")"
 done
+[[ -z ${LANE_TEST_FAIL_GIT+x} && $(command -v git) == "$real_git" ]] || fail "lane-clean failing-git shim leaked past its case"
 clean > "$tmp/out" || fail "lane-clean dry run failed"
 expect='KEEP active LANES/active
 KEEP dirty LANES/dirty
