@@ -265,9 +265,10 @@ func TestSTRV0004ShellTestIsTheGateShellSteps(t *testing.T) {
 		return recipeLines
 	}
 	// The recipe must start the script itself (after make's @, + or -
-	// prefixes), so a recipe that only names it, such as `@echo
+	// prefixes, or through bash for a script without the executable bit,
+	// ASD-V0-942), so a recipe that only names it, such as `@echo
 	// script/x_test.sh`, does not count as running it.
-	shellTest := regexp.MustCompile(`^\t[@+-]*script/[^\s/]+_test\.sh(\s|$)`)
+	shellTest := regexp.MustCompile(`^\t[@+-]*(?:bash )?script/[^\s/]+_test\.sh(\s|$)`)
 	var want []string
 	for _, step := range gateSteps {
 		if len(rules[step]) != 1 {
@@ -329,7 +330,7 @@ func unstartedScriptTests(t *testing.T, root, makefile string) []string {
 		t.Fatal(err)
 	}
 	started := map[string]bool{}
-	recipe := regexp.MustCompile(`(?m)^\t[@+-]*script/([^\s/]+_test\.sh)(\s|$)`)
+	recipe := regexp.MustCompile(`(?m)^\t[@+-]*(?:bash )?script/([^\s/]+_test\.sh)(\s|$)`)
 	for _, match := range recipe.FindAllStringSubmatch(string(text), -1) {
 		started[match[1]] = true
 	}

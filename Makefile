@@ -738,7 +738,7 @@ dogfood-change-test:
 	@script/dogfood-change_test.sh
 
 runtime-environment-test:
-	@script/runtime-environment_test.sh
+	@bash script/runtime-environment_test.sh
 
 vscode-check-install-test:
 	@script/vscode-check-install_test.sh
@@ -750,7 +750,7 @@ public-release-check-test:
 	@script/public-release-check_test.sh
 
 release-env-compat-test:
-	@script/release-env-compat_test.sh
+	@bash script/release-env-compat_test.sh
 
 seed-planning-store-test:
 	@script/seed-planning-store_test.sh
