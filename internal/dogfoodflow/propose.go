@@ -76,6 +76,10 @@ type proposal struct {
 	// moves maps each side of a file the change moves, the deleted BASE path
 	// and the added path, to that move (DCW-V0-803).
 	moves map[string]movedFile
+	// accepts holds, by row key, the nearest stable BASE span of a modified
+	// file as a ready plan row the lane may accept in place of that hunk's
+	// unknown row; it is printed on stderr, never drafted (DCW-V0-846).
+	accepts map[string]string
 }
 
 // spanLine is one line of a BASE file.
@@ -146,6 +150,7 @@ func (p *proposal) run() int {
 	rows, notes := p.draft(hunks)
 	p.say("%s: PROPOSED rows=%d hunks=%d base=%s%s\n", p.prefix, len(rows), len(hunks), p.base, p.refreshLabel())
 	p.say("  this draft is not a plan: review every row, replace each with the evidence the hunk really depends on or implements, then write it to the DOGFOOD_CITATIONS file; nothing is cited until dogfood change runs with that file (DCW-V0-150)\n")
+	p.say("  line basis: every START:END in a plan row is a BASE line number, counted in each file as it is at BASE %s, not at HEAD or in the working tree (DCW-V0-845)\n", p.base)
 	p.printDraft(hunks, rows, notes)
 	return 0
 }
@@ -165,6 +170,9 @@ func (p *proposal) printDraft(hunks []proposedHunk, rows, notes []string) {
 		key, _, _ := strings.Cut(row, "\t")
 		if hunk, ok := edits[key]; ok && key != "" {
 			p.say("  hunk %s edits %s at BASE %d,%d\n", key, hunk.path, hunk.oldStart, hunk.oldCount)
+		}
+		if accept, ok := p.accepts[key]; ok && key != "" {
+			p.say("  proposed, not drafted: %s\n    the nearest stable BASE span of the file this hunk edits; it is not BASE evidence for the change (DCW-V0-393), so accept it only after review by writing it over the unknown row above (DCW-V0-846)\n", accept)
 		}
 		_, _ = fmt.Fprintln(p.stdout, row)
 	}
@@ -251,6 +259,7 @@ func (p *proposal) template(mapState string) int {
 	p.say("%s: PROPOSED rows=%d hunks=%d base=%s map=%s keyed=hunk-id%s\n", p.prefix, len(rows), len(hunks), p.base, mapState, p.refreshLabel())
 	p.say("  no usable map is prepared, so the hunks come from the canonical BASE..HEAD patch and each row is keyed by its full hunk ID, valid in any map order; no probe bind pass is needed, and the bind's plan precheck still judges every row (DCW-V0-350)\n")
 	p.say("  this draft is not a plan: review every row, replace each with the evidence the hunk really depends on or implements, then write it to the DOGFOOD_CITATIONS file; nothing is cited until dogfood change runs with that file (DCW-V0-150)\n")
+	p.say("  line basis: every START:END in a plan row is a BASE line number, counted in each file as it is at BASE %s, not at HEAD or in the working tree (DCW-V0-845)\n", p.base)
 	p.printDraft(hunks, rows, notes)
 	return 0
 }
@@ -319,6 +328,7 @@ func editedRanges(hunks []proposedHunk) map[string][][2]int {
 func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 	edited := editedRanges(hunks)
 	owed := []proposedHunk{}
+	p.accepts = map[string]string{}
 	p.changed = map[string]bool{}
 	for _, hunk := range hunks {
 		p.changed[hunk.path] = true
@@ -434,6 +444,7 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 		for _, line := range candidates {
 			if p.stable(hunk.path, line, edited) {
 				hint = fmt.Sprintf("; its nearest stable line %s %d:%d %s is a review hint only (DCW-V0-439)", hunk.path, line, line, relation)
+				p.accepts[ordinal] = fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, hunk.path, line, line, relation)
 				break
 			}
 		}

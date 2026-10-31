@@ -19,7 +19,6 @@ docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/c
 docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/companionrelease/clean.go:26
 docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/console/code.go:51
 docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/contextindex/git.go:203
-docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/contextindex/git.go:353
 docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/contextindex/range_impact.go:74
 docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/dashboard/repository/process.go:111
 docs/decisions/0158-local-excludes-remain-status-policy-2026-09-12.md	internal/dashboard/roadmap/atm.go:131

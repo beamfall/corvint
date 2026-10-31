@@ -31,7 +31,8 @@ test (V1-2902); no CI check refused an AI co-author trailer (V1-3227); and no CI
 of the nested module `tools/local-authority` (V1-3329).
 
 Unchanged and binding: a `.github/` change forces FULL; UNKNOWN or any unreadable input forces
-FULL; the AFP-V0-029 bar (20 complete rows, at least 5 failing, 0 `MISS`) and the AFP-V0-030
+FULL; the AFP-V0-029 bar (8 complete rows, at least 1 failing, 0 `MISS`; lowered from 20 and 5
+by the orchestrator under owner delegation, owner chat 2026-10-31) and the AFP-V0-030
 kill switch keep their thresholds; no row is seeded or synthetic.
 
 ## Requirements
@@ -115,7 +116,7 @@ created during the verdict's own listing could be missed by the incremental acce
 hour of overlap before `listedAt` covers it. (3) A run with no retained selection document
 (no shadow, a dead shadow pin, or a failed artifact download) writes no row under CIN-V0-001, so
 a sustained shadow outage no longer counts `INCOMPLETE` toward the kill switch; the bar still
-needs 20 complete epoch-2 rows, so narrowing stays FULL through it. A queue row takes the epoch
+needs 8 complete epoch-2 rows, so narrowing stays FULL through it. A queue row takes the epoch
 of its pull-request selection run. (4) A dead pin turns every shard red until repinned
 (CIN-V0-002); that is the intended loud failure. (5) An old `ci-reuse-plan` refusing `--base` on a
 push fails the reuse step, so `docs-plan` fails and every shard runs FULL. (6) The CIN-V0-008
