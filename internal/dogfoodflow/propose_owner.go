@@ -8,17 +8,20 @@ import (
 
 // governingSpecs names the change's governing specs for path anchors
 // (DCW-V0-886): of the specifications whose requirement-bearing BASE lines
-// name an owed hunk's path, including those the change modifies and so never
-// cites, the ones naming the most distinct owed paths. A change of several paths where no
-// specification names two of them has none.
+// name an owed hunk's path, the ones naming the most distinct owed paths. A
+// spec the change modifies, though never cited, is the change's own contract,
+// so when any modified spec names an owed path only modified specs compete. A
+// change of several paths where no specification names two of them has none.
 func (p *proposal) governingSpecs(owed []proposedHunk) map[string]bool {
 	named := map[string]map[string]bool{}
+	modified := false
 	for _, hunk := range owed {
 		name := anchorPath(p.derivedHunk(hunk))
 		if name == "" {
 			continue
 		}
 		specs := append([]string(nil), p.modifiedOwners[name]...)
+		modified = modified || len(specs) > 0
 		for _, candidate := range p.matches[name] {
 			if documentRank(candidate.path) == 0 && requirementToken.Match(p.lineText(candidate)) {
 				specs = append(specs, candidate.path)
@@ -29,6 +32,13 @@ func (p *proposal) governingSpecs(owed []proposedHunk) map[string]bool {
 				named[spec] = map[string]bool{}
 			}
 			named[spec][name] = true
+		}
+	}
+	if modified {
+		for spec := range named {
+			if !p.changed[spec] {
+				delete(named, spec)
+			}
 		}
 	}
 	best := 1

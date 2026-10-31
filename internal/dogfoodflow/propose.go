@@ -737,7 +737,7 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 		if !p.basenames && p.changed[name] {
 			// A spec the change modifies is never cited, but it may still
 			// be the change's governing spec (DCW-V0-886).
-			if documentRank(name) == 0 && requirementToken.MatchString(text) {
+			if documentRank(name) == 0 && requirementToken.Match(p.lineText(spanLine{name, line})) {
 				for _, pattern := range sorted {
 					if strings.Contains(text, pattern) {
 						p.modifiedOwners[pattern] = append(p.modifiedOwners[pattern], name)

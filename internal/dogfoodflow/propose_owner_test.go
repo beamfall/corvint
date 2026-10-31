@@ -58,3 +58,44 @@ func TestProposeCitationsDCWV0886PrefersTheGoverningSpec(t *testing.T) {
 		t.Errorf("the bare-mention row is not marked low-confidence alone:\n%s", notes)
 	}
 }
+
+// TestDCWV0886AModifiedSpecGovernsTheChange: when the change amends a spec
+// whose requirement lines name its paths, that spec governs, though it names
+// fewer of them than an untouched spec and is never cited; the untouched
+// spec's cites are kept and marked low-confidence.
+func TestDCWV0886AModifiedSpecGovernsTheChange(t *testing.T) {
+	body := func(name string) string {
+		return "// " + name + " head\n" + numbered("// "+name, 8) + "// " + name + " tail\n"
+	}
+	own := "# Own\n\n## Requirements\n\n- `OWN-V0-001`: internal/x/a.go and internal/x/b.go.\n- `OWN-V0-002`: more.\n"
+	files := map[string]string{
+		"docs/specs/own-v0.md":   own,
+		"docs/specs/broad-v0.md": "# Broad\n\n## Requirements\n\n- `BRD-V0-001`: internal/x/a.go.\n- `BRD-V0-002`: internal/x/b.go.\n- `BRD-V0-003`: internal/x/c.go.\n",
+	}
+	changed := []string{"internal/x/a.go", "internal/x/b.go", "internal/x/c.go"}
+	for _, name := range changed {
+		files[name] = body(name)
+	}
+	root, _ := preflightRepository(t, nil)
+	writeTree(t, root, files)
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "base")
+	base := testGit(t, root, "rev-parse", "HEAD")
+	edits := map[string]string{"docs/specs/own-v0.md": strings.Replace(own, "# Own\n", "# Own, amended\n", 1)}
+	for _, name := range changed {
+		edits[name] = strings.Replace(body(name), "line 4\n", "line 4 changed\n", 1)
+	}
+	writeTree(t, root, edits)
+	testGit(t, root, "add", ".")
+	testGit(t, root, "commit", "-q", "-m", "amend own spec and code")
+	var stdout, stderr bytes.Buffer
+	if code, err := ProposeCitations(context.Background(), ProposeOptions{Root: root, Base: base}, &stdout, &stderr); code != 0 || err != nil {
+		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
+	}
+	if got := strings.Count(stderr.String(), "outside the change's governing spec docs/specs/own-v0.md (modified by this change)"); got != 3 {
+		t.Errorf("low-confidence notes naming the amended spec = %d, want 3:\n%s", got, stderr.String())
+	}
+	if strings.Contains(stderr.String(), "governing spec docs/specs/broad-v0.md") {
+		t.Errorf("the untouched spec was named governing:\n%s", stderr.String())
+	}
+}
