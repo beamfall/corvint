@@ -2490,7 +2490,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   letters) and numbers with the hunk's BASE side, at least three, else the first such line naming
   the requirement, and the note MUST name the requirement and its BASE definition line as a review
   hint, since that row lies in the file the hunk modifies (`DCW-V0-393`). A hunk that adds a
-  requirement definition adds a requirement and amends none, and a pure insertion amends the item
+  requirement definition it does not also remove adds a requirement and amends none, and a pure insertion amends the item
   before it only when its first added line is an indented continuation of that item. A hunk
   outside any requirement, or whose requirement cites no usable decision, keeps the earlier order. Design: the
   2026-10-31 AFP-V0-029 bar hunks drafted `documentation-ci-v0.md` 9:9, `session-test-runner-v0.md`
