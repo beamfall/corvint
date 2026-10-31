@@ -461,3 +461,22 @@ func doctorAdmission(d doctorDispatcher, th doctorThresholds, scan *doctorScan, 
 	}
 	return out
 }
+
+// parseDoctorProcLocksByInode lists the pids of every FLOCK line for ino on
+// any device. A btrfs subvolume's stat device differs from the superblock
+// device /proc/locks prints, so the exact match finds nothing there; the
+// caller then keeps only a pid with a descriptor on the same file (TQD-V0-821).
+func parseDoctorProcLocksByInode(text string, ino uint64) []int {
+	suffix := ":" + strconv.FormatUint(ino, 10)
+	var out []int
+	for _, line := range strings.Split(text, "\n") {
+		f := strings.Fields(line)
+		if len(f) < 6 || f[1] != "FLOCK" || !strings.HasSuffix(f[5], suffix) || strings.Count(f[5], ":") != 2 {
+			continue
+		}
+		if pid, err := strconv.Atoi(f[4]); err == nil && pid > 0 && !containsInt(out, pid) {
+			out = append(out, pid)
+		}
+	}
+	return out
+}

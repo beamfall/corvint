@@ -833,3 +833,37 @@ func TestTQDV0033_ReadModesEquivalent(t *testing.T) {
 	}
 	assertDoctorModesEqual(t, perRead, session)
 }
+
+// TQD-V0-821: when the stat device differs from the one /proc/locks prints
+// (btrfs), the same-inode FLOCK lines are candidates on any device; a real
+// holder is then named only through a descriptor on the same file.
+func TestTQDV0821LockHolderMatchesByOpenDescriptor(t *testing.T) {
+	locks := "1: FLOCK  ADVISORY  WRITE 4242 00:2f:1234 0 EOF\n" +
+		"2: POSIX  ADVISORY  WRITE 5151 00:2f:1234 0 EOF\n" +
+		"3: FLOCK  ADVISORY  WRITE 6262 00:30:91234 0 EOF\n" +
+		"4: FLOCK  ADVISORY  WRITE 7373 08:01:1234 0 EOF\n"
+	if got := cli.ParseDoctorProcLocksForTest(locks, 0, 0x48, 1234); len(got) != 0 {
+		t.Fatalf("exact match on the stat device 00:48 = %v, want none", got)
+	}
+	if got := cli.ParseDoctorProcLocksByInodeForTest(locks, 1234); len(got) != 2 || got[0] != 4242 || got[1] != 7373 {
+		t.Fatalf("same-inode FLOCK candidates = %v, want [4242 7373]", got)
+	}
+	// A real flock on this host's temporary filesystem, held by this
+	// process, is named whatever device /proc/locks prints.
+	path := filepath.Join(t.TempDir(), "taskman.lock")
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		t.Fatal(err)
+	}
+	held, pid, err := cli.RealDoctorLockHolder(path)
+	if runtime.GOOS != "linux" {
+		return
+	}
+	if err != nil || !held || pid != os.Getpid() {
+		t.Fatalf("held=%v pid=%d err=%v, want this process %d", held, pid, err, os.Getpid())
+	}
+}
