@@ -87,6 +87,12 @@ including one added after the listing. Run one shard per command. Placement is n
 on 2026-10-21 (load 16-170) the slowest store shard took 447 s and the slowest cli shard 154 s. A
 shard that nears the limit needs a larger `SHARDS`. `TEST_SHARD_FLAGS=-json` adds `go test` flags.
 
+The other way round, `script/heavy-groups.sh [--budget 480] PACKAGE...` packs several small
+packages into as few commands as fit the budget (ASD-V0-832). It reads each package's latest
+completed whole-package `run=` seconds from the heavy.sh selection log and prints one group per
+line, to run as one `script/heavy.sh go test ... GROUP` each. A package with no recorded cost, or
+one over the budget alone, gets its own line and a stderr note; the latter needs `make test-shard`.
+
 The light-weight prototype this replaces (`mkdir` slots with a PID file and dead-owner reclaim)
 could remove a live owner's slot when two waiters reclaimed the same dead slot at once; the
 `flock` form has no reclaim step. Cut over all lanes of a host together, because the two forms do

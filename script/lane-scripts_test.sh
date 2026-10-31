@@ -5,7 +5,8 @@
 # lane-clean.sh (ASD-V0-018), lane-guard.sh (ASD-V0-024),
 # install-local-bin.sh (ASD-V0-025), install-cem-verifiers.sh (TCB-V0-046),
 # wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), codex-review.sh
-# (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831). No Go build runs.
+# (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831), heavy-groups.sh (ASD-V0-832). No Go build
+# runs.
 set -uo pipefail
 export LC_ALL=C
 # The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
@@ -1277,6 +1278,35 @@ dogfood_fixture_copy "$script/.." "$real" dogfood-change.sh dogfood-check.sh dog
 printf 'source "$repo/script/missing-helper.sh"\n' > "$fsrc/script/dogfood-broken.sh"
 out=$(dogfood_fixture_copy "$fsrc" "$fdst" dogfood-broken.sh 2>&1) && fail "a missing helper was copied silently"
 [[ $out == *'REFUSE missing-script script/missing-helper.sh'*'fix: '* ]] || fail "missing-helper refusal names no recovery: $out"
+ok
+
+# ASD-V0-832 (V1-3344): heavy-groups.sh packs packages by their latest completed whole-package cost.
+hg=$tmp/heavy-groups
+mkdir -p "$hg"
+cat > "$hg/sel.log" << 'EOF'
+2026-10-31T01:00:00Z local wait=0.0s run=300.0s rc=0 pwd=/w cmd=go test -count=1 ./a script=abc
+2026-10-31T01:00:01Z local wait=0.0s run=5.0s rc=0 pwd=/w cmd=go test -count=1 -run X ./b script=abc
+2026-10-31T01:00:02Z local wait=0.0s run=200.0s rc=0 pwd=/w cmd=env GOTOOLCHAIN=local go test -count=1 -timeout 30m ./b/ script=abc
+2026-10-31T01:00:03Z local wait=0.0s run=100.0s rc=1 pwd=/w cmd=go test ./c script=abc
+2026-10-31T01:00:04Z local wait=0.0s run=1.0s rc=2 pwd=/w cmd=go test ./c script=abc
+2026-10-31T01:00:05Z offload host=h pack=1.0s remote=700.0s rc=0 receive=0.1s wait=0s prepare=0.1s run=690.0s worktree=reused pwd=/w cmd=go test ./big script=abc
+2026-10-31T01:00:06Z local wait=0.0s run=50.0s rc=0 pwd=/w cmd=go test ./c ./d script=abc
+2026-10-31T01:00:07Z offload host=h pack=1.0s remote=60.0s rc=0 run=150.0s pwd=/w cmd=go test ./d script=abc
+EOF
+hgo=$("$script/heavy-groups.sh" --log "$hg/sel.log" ./c ./new ./d ./big ./b ./a 2> "$hg/err")
+hg_want='./big
+./new
+./a ./d
+./b ./c'
+[[ $hgo == "$hg_want" ]] || fail "heavy-groups packed: $hgo"
+[[ $(cat "$hg/err") == *'unknown cost ./new'* && $(cat "$hg/err") == *'over budget ./big 690s; shard it (make test-shard)'* ]] ||
+  fail "heavy-groups stderr: $(cat "$hg/err")"
+[[ $("$script/heavy-groups.sh" --log "$hg/sel.log" ./a ./b ./c ./d ./big ./new 2> /dev/null) == "$hg_want" ]] ||
+  fail "heavy-groups output depends on argument order"
+[[ $(HEAVY_SELECTION_LOG=$hg/sel.log "$script/heavy-groups.sh" --budget 250 ./a/ ./c 2> /dev/null) == $'./a/\n./c' ]] ||
+  fail "heavy-groups ignored --budget, HEAVY_SELECTION_LOG or the trailing slash"
+"$script/heavy-groups.sh" --budget 0 ./a > /dev/null 2>&1
+[[ $? == 2 ]] || fail "heavy-groups accepted a zero budget"
 ok
 
 # ASD-V0-014: no fixture outlives the run, so nothing can write after the summary line. Every
