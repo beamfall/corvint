@@ -74,7 +74,7 @@ func TestProposeCitationsDCWV0333SkipsBookkeepingPaths(t *testing.T) {
 			}
 		default:
 			// DCW-V0-963: the note names the path and BASE range first.
-			if want := fmt.Sprintf("%shunk edits %s at BASE %d,%d; %s is a bookkeeping record (DCW-V0-333)", bookkeeping, path, hunks[index].OldRange.Start, hunks[index].OldRange.Count, path); !strings.HasPrefix("\t"+rest, want) {
+			if want := fmt.Sprintf("%shunk edits %s at BASE %d,%d HEAD ", bookkeeping, path, hunks[index].OldRange.Start, hunks[index].OldRange.Count); !strings.HasPrefix("\t"+rest, want) || !strings.Contains(rest, "; "+path+" is a bookkeeping record (DCW-V0-333)") {
 				t.Errorf("row for %s = %q; want an unknown bookkeeping row", path, row)
 			}
 		}

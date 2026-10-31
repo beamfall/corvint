@@ -352,10 +352,10 @@ func TestProposeCitationsDCWV0394DraftsWithoutUsableMap(t *testing.T) {
 	}
 }
 
-// DCW-V0-393 (V1-3144): a draft never cites a file the change adds or
-// modifies, even a specification or test that names the hunk's path; with no
-// untouched anchor every hunk gets an unknown row, and an added file's row
-// names the runner receipt that carries it to the verdict gate (DCW-V0-395).
+// DCW-V0-393 (V1-3144), amended by DCW-V0-962 and DCW-V0-966: a draft never
+// cites the change's own text: a modified file lends only a BASE line no hunk
+// edits, and an added file's row names the runner receipt that carries it to
+// the verdict gate (DCW-V0-395).
 func TestProposeCitationsDCWV0393NeverCitesChangedPaths(t *testing.T) {
 	root := t.TempDir()
 	testGit(t, root, "init", "-q")
@@ -381,8 +381,9 @@ func TestProposeCitationsDCWV0393NeverCitesChangedPaths(t *testing.T) {
 	}
 	for _, row := range rows {
 		fields := strings.Split(row, "\t")
-		// DCW-V0-962: the spec hunk's own heading is a marked proposal.
-		if fields[1] == "docs/specs/p-v0.md" && proposalRow(stderr.String(), row) {
+		// DCW-V0-962: the spec hunk's own heading is a marked proposal, and
+		// DCW-V0-966 anchors p.go on the spec's unedited BASE line naming it.
+		if fields[1] == "docs/specs/p-v0.md" && proposalRow(stderr.String(), row) || row == fields[0]+"\tdocs/specs/p-v0.md\t5:5\tspecification" {
 			continue
 		}
 		if !unknownRow(fields) || !reasonedUnknownRow(fields) {
@@ -568,7 +569,7 @@ func TestProposeCitationsDCWV0963UnknownRowsNameHunkPath(t *testing.T) {
 		t.Fatalf("ProposeCitations = %d, %v\n%s", code, err, stderr.String())
 	}
 	rows := textLines(stdout.Bytes())
-	want := map[string]bool{"proposed: hunk edits internal/n/new.go at BASE 0,0; ": false, "proposed: hunk edits one.txt at BASE 1,1; ": false}
+	want := map[string]bool{"proposed: hunk edits internal/n/new.go at BASE 0,0 HEAD 1,1; ": false, "proposed: hunk edits one.txt at BASE 1,1 HEAD 1,1; ": false}
 	for _, row := range rows {
 		fields := strings.Split(row, "\t")
 		if !reasonedUnknownRow(fields) {

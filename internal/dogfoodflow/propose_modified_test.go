@@ -59,6 +59,15 @@ func TestProposeCitationsDCWV0962DraftsNearestStableLineAsProposal(t *testing.T)
 		if strings.Contains(row, "unrelated-v0.md") {
 			t.Errorf("row %d cites the unrelated spec: %q", index+1, row)
 		}
+		// DCW-V0-966: the hunk naming XYZ-V0-001 is anchored on that
+		// requirement's unedited BASE definition in the modified spec.
+		if index == 1 {
+			if row != "2\tdocs/specs/x-v0.md\t5:5\tspecification" || proposalRow(stderr.String(), row) {
+				t.Errorf("row 2 = %q; want the anchored, unmarked XYZ-V0-001 definition", row)
+			}
+			spans[fields[1]+":"+fields[2]] = true
+			continue
+		}
 		if len(fields) != 4 || fields[0] != fmt.Sprint(index+1) || fields[1] != hunks[index].Path || spans[fields[1]+":"+fields[2]] {
 			t.Errorf("row %d = %q; want a distinct cite of its own file %s", index+1, row, hunks[index].Path)
 		}
@@ -73,7 +82,7 @@ func TestProposeCitationsDCWV0962DraftsNearestStableLineAsProposal(t *testing.T)
 	if rows[0] != "1\tdocs/specs/x-v0.md\t3:3\tspecification" {
 		t.Errorf("spec row does not draft its enclosing heading: %q", rows[0])
 	}
-	if !strings.Contains(stderr.String(), "  proposals=4 rows cite the nearest stable BASE span of the file their hunk edits") {
+	if !strings.Contains(stderr.String(), "  proposals=3 rows are drafted proposals") {
 		t.Errorf("draft header does not count the proposals:\n%s", stderr.String())
 	}
 	// DCW-V0-845 (V1-3302): the header names the line basis and the BASE sha.

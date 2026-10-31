@@ -80,6 +80,13 @@ type proposal struct {
 	// stable BASE span of the modified file its hunk edits; stderr marks each
 	// one for the author to confirm or replace (DCW-V0-962).
 	proposals map[string]bool
+	// refines maps each requirement ID this change defines to the BASE IDs
+	// its entry says it refines or amends (DCW-V0-967); inventoryRead is set
+	// once git's changed-path list was read whole (DCW-V0-966).
+	refines       map[string][]string
+	inventoryRead bool
+	// reasons holds, by row key, why a drafted proposal was chosen.
+	reasons map[string]string
 }
 
 // spanLine is one line of a BASE file.
@@ -160,7 +167,7 @@ func (p *proposal) run() int {
 // git diff; the rows themselves keep the four-field plan grammar (DCW-V0-382).
 func (p *proposal) printDraft(hunks []proposedHunk, rows, notes []string) {
 	if len(p.proposals) > 0 {
-		p.say("  proposals=%d rows cite the nearest stable BASE span of the file their hunk edits, each marked drafted proposal below; review each before binding (DCW-V0-962)\n", len(p.proposals))
+		p.say("  proposals=%d rows are drafted proposals, each marked drafted proposal below with why it was chosen; review each before binding (DCW-V0-962, DCW-V0-967)\n", len(p.proposals))
 	}
 	for _, note := range notes {
 		p.say("  %s\n", note)
@@ -172,9 +179,11 @@ func (p *proposal) printDraft(hunks []proposedHunk, rows, notes []string) {
 	for _, row := range rows {
 		key, _, _ := strings.Cut(row, "\t")
 		if hunk, ok := edits[key]; ok && key != "" {
-			p.say("  hunk %s edits %s at BASE %d,%d\n", key, hunk.path, hunk.oldStart, hunk.oldCount)
+			p.say("  hunk %s edits %s\n", key, p.hunkSpan(hunk))
 		}
-		if p.proposals[key] && key != "" {
+		if reason := p.reasons[key]; p.proposals[key] && key != "" && reason != "" {
+			p.say("  drafted proposal: %s\n    %s\n", row, reason)
+		} else if p.proposals[key] && key != "" {
 			p.say("  drafted proposal: %s\n    the nearest stable BASE span of the file this hunk edits, a same-file proposal rather than an anchor (DCW-V0-393): confirm it, or replace it with the BASE contract the hunk depends on or implements, before binding (DCW-V0-962)\n", row)
 		}
 		_, _ = fmt.Fprintln(p.stdout, row)
@@ -331,7 +340,7 @@ func editedRanges(hunks []proposedHunk) map[string][][2]int {
 func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 	edited := editedRanges(hunks)
 	owed := []proposedHunk{}
-	p.proposals = map[string]bool{}
+	p.proposals, p.reasons = map[string]bool{}, map[string]string{}
 	p.changed = map[string]bool{}
 	for _, hunk := range hunks {
 		p.changed[hunk.path] = true
@@ -343,6 +352,7 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 	// change still counts; without it no file is provably untouched, so the
 	// draft cites nothing (DCW-V0-393).
 	names, status, bounded := p.boundedGit("diff", "--name-only", "-z", "--no-renames", "--end-of-options", p.base, p.target, "--")
+	p.inventoryRead = status == 0 && bounded
 	for _, name := range strings.Split(names, "\x00") {
 		if name != "" {
 			p.changed[name] = true
@@ -360,7 +370,8 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 	lastCite := ""
 	uniform := true
 	for _, hunk := range owed {
-		if carried, ok := p.carried[hunk.id]; ok {
+		// A prior seal's CEM carried as unknown is redrafted (DCW-V0-966).
+		if carried, ok := p.carried[hunk.id]; ok && !(sealedCEMPath.MatchString(hunk.path) && allUnknown(carried)) {
 			rows = append(rows, carried...)
 			uniform = false
 			continue
@@ -385,7 +396,7 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 		last := len(rows) - 1
 		ordinal, _, _ := strings.Cut(rows[last], "\t")
 		delete(p.proposals, ordinal)
-		rows[last] = unknownProposal(owed[len(owed)-1], ordinal, "no second stable span was found near this hunk")
+		rows[last] = p.unknownProposal(owed[len(owed)-1], ordinal, "no second stable span was found near this hunk")
 	}
 	for _, cite := range sortedKeys(p.oversized) {
 		notes = append(notes, fmt.Sprintf("%s not cited: its BASE line is %d bytes, over the %d-byte evidence span cem cite admits (DCW-V0-920)", cite, p.oversized[cite], wire.MaxCitationSpanBytes))
@@ -401,15 +412,18 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 		ordinal = hunk.id
 	}
 	if workflow.GoverningInstructionPath(hunk.path) {
-		return unknownProposal(hunk, ordinal, hunk.path+" is a governing file this change modifies, so it cannot govern its own hunk (CEM-V1-114)"), "", ""
+		return p.unknownProposal(hunk, ordinal, hunk.path+" is a governing file this change modifies, so it cannot govern its own hunk (CEM-V1-114)"), "", ""
 	}
 	if bookkeepingPath(hunk.path) {
-		return unknownProposal(hunk, ordinal, hunk.path+" is a bookkeeping record (DCW-V0-333); name the BASE contract the record describes"), "", ""
+		return p.unknownProposal(hunk, ordinal, hunk.path+" is a bookkeeping record (DCW-V0-333); name the BASE contract the record describes"), "", ""
 	}
 	// Checked before any anchor: a BASE line that happens to name the path
 	// must not displace the mandatory unknown row (DCW-V0-440).
 	if id, where := p.sameChangeRequirement(p.derivedHunk(hunk)); id != "" {
-		return unknownProposal(hunk, ordinal, "the hunk names requirement "+id+", which this change itself adds in "+where+
+		if row, cite := p.refinedProposal(hunk, ordinal, id, edited, used); row != "" {
+			return row, cite, ""
+		}
+		return p.unknownProposal(hunk, ordinal, "the hunk names requirement "+id+", which this change itself adds in "+where+
 			", and same-change intent is not BASE evidence (cem cite cites BASE spans only), so it cannot be cited (DCW-V0-440): keep this row unknown, or cite the BASE contract "+id+" refines"), "", ""
 	}
 	if row, cite, note := p.sealedProposal(hunk, ordinal, edited, used); row != "" {
@@ -424,21 +438,31 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 	// A draft anchors only on files the change leaves untouched (DCW-V0-393):
 	// a hunk with no anchor elsewhere gets its own file's nearest stable line
 	// as a marked proposal, or stays unknown (DCW-V0-962).
-	missing := "no stable BASE line of a file this change leaves untouched names " + hunk.path + " or defines a requirement ID the hunk adds"
+	missing := "no stable BASE line of another file names " + hunk.path + " or defines a requirement ID the hunk adds"
 	if _, ok := p.blob(p.base, hunk.path); !ok {
 		// An added file has no BASE line of its own; it reaches the verdict
 		// gate through a cite row plus a passed runner receipt (DCW-V0-395).
-		return unknownProposal(hunk, ordinal, hunk.path+" is absent at BASE and "+missing+"; name the BASE contract this new file implements, and bind a passed runner receipt for it (CEM-V1-606)"), "", ""
+		return p.unknownProposal(hunk, ordinal, hunk.path+" is absent at BASE and "+missing+"; name the BASE contract this new file implements, and bind a passed runner receipt for it (CEM-V1-606)"), "", ""
 	}
 	// The nearest stable heading or declaration of the modified file, on a
 	// span no other row cites, is drafted as a marked proposal (DCW-V0-962,
 	// amending DCW-V0-439 and DCW-V0-846). None is drafted for a data record
 	// or a one-line file (DCW-V0-440), nor for a hunk that defines a
 	// requirement, which is same-change intent.
-	if lines := p.baseLines(hunk.path); len(lines) > 1 && !dataPath(hunk.path) && !p.definesRequirement(hunk) {
+	if defined := p.definedRequirements(hunk); len(defined) > 0 {
+		for _, id := range defined {
+			if row, cite := p.refinedProposal(hunk, ordinal, id, edited, used); row != "" {
+				return row, cite, ""
+			}
+		}
+		return p.unknownProposal(hunk, ordinal, "the hunk defines requirement "+strings.Join(defined, ", ")+", which is same-change intent, not BASE evidence (DCW-V0-440), and its entry names no BASE requirement it refines or amends with a stable definition line; cite the BASE contract it refines (DCW-V0-967)"), "", ""
+	}
+	if lines := p.baseLines(hunk.path); len(lines) > 1 && !dataPath(hunk.path) {
 		anchor := min(max(hunk.oldStart, 1), len(lines))
 		relation, preferred := proposalRelation(hunk.path), preferredAnchor(hunk.path)
-		candidates := []int{}
+		// A hunk editing a requirement's entry proposes that requirement's
+		// own definition line first (DCW-V0-967).
+		candidates := p.ownDefinitionLines(hunk)
 		for line := anchor; line >= 1; line-- {
 			if preferred(string(lines[line-1])) {
 				candidates = append(candidates, line)
@@ -455,24 +479,7 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 			}
 		}
 	}
-	return unknownProposal(hunk, ordinal, missing+"; the change modifies "+hunk.path+" and no stable line of it is left to propose; name the BASE contract the hunk depends on or implements"), "", ""
-}
-
-// definesRequirement reports a hunk whose edited lines hold the definition of
-// a requirement ID it adds (- `ID`:).
-func (p *proposal) definesRequirement(hunk proposedHunk) bool {
-	derived := p.derivedHunk(hunk)
-	if derived == nil {
-		return false
-	}
-	_, ids := verify.SpanAnchors(derived, nil)
-	edits, _ := hunkText(derived)
-	for _, id := range ids {
-		if bytes.Contains(edits, []byte(definitionPattern(id))) {
-			return true
-		}
-	}
-	return false
+	return p.unknownProposal(hunk, ordinal, missing+p.editedDefinitions(hunk, edited)+"; the change modifies "+hunk.path+" and no stable line of it is left to propose; name the BASE contract the hunk depends on or implements"), "", ""
 }
 
 // sealContract is the BASE document whose lines define the sealed CEM path
@@ -486,7 +493,9 @@ const sealContract = "docs/DOGFOOD.md"
 // seal gets a distinct span. It returns "" for any other hunk, a sealed file
 // already present at BASE, or when no such line is stable.
 func (p *proposal) sealedProposal(hunk proposedHunk, ordinal string, edited map[string][][2]int, used map[string]bool) (string, string, string) {
-	if !sealedCEMPath.MatchString(hunk.path) || p.changed[sealContract] {
+	// DCW-V0-966: a modified docs/DOGFOOD.md still lends its stable lines;
+	// only an unread changed-path inventory leaves none provably stable.
+	if !sealedCEMPath.MatchString(hunk.path) || !p.inventoryRead {
 		return "", "", ""
 	}
 	if _, atBase := p.blob(p.base, hunk.path); atBase {
@@ -501,6 +510,9 @@ func (p *proposal) sealedProposal(hunk proposedHunk, ordinal string, edited map[
 		}
 		return fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, sealContract, line, line, relation), cite,
 			hunk.path + " is a prior seal's CEM a later commit carries into BASE..HEAD; cited to the seal contract that writes it (DCW-V0-385)"
+	}
+	if row, cite := p.sealedFallback(ordinal, edited, used); row != "" {
+		return row, cite, hunk.path + " is a prior seal's CEM a later commit carries into BASE..HEAD; no line of " + sealContract + " is stable, so it is cited to the DCW-V0-385 definition (DCW-V0-966)"
 	}
 	return "", "", ""
 }
@@ -524,7 +536,8 @@ func (p *proposal) anchoredProposal(hunk proposedHunk, ordinal string, edited ma
 	}
 	for index, candidate := range candidates {
 		cite := fmt.Sprintf("%s:%d:%d", candidate.path, candidate.line, candidate.line)
-		if used[cite] || !p.stable(candidate.path, candidate.line, edited) {
+		// The hunk's own file is a proposal, never an anchor (DCW-V0-962).
+		if candidate.path == hunk.path || used[cite] || !p.stable(candidate.path, candidate.line, edited) {
 			continue
 		}
 		lines := p.baseLines(candidate.path)
@@ -644,20 +657,30 @@ func relevantRequirementLine(families map[string]bool, text []byte) bool {
 // leaves no candidates, and the drafts fall back to nearby lines; it reports
 // whether both reads completed.
 func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
-	p.derived, p.matches, p.changeIDs = map[string]*patch.Hunk{}, map[string][]spanLine{}, map[string]string{}
+	p.derived, p.matches, p.changeIDs, p.refines = map[string]*patch.Hunk{}, map[string][]spanLine{}, map[string]string{}, map[string][]string{}
 	complete := false
+	patched := map[string]bool{}
 	if raw, status, bounded := p.boundedGit(p.canonicalDiffArguments()...); status == 0 && bounded {
 		if parsed, err := patch.Parse([]byte(raw)); err == nil {
 			complete = true
 			for _, hunk := range parsed.Hunks {
 				p.derived[hunk.ID] = hunk
+				patched[hunk.DisplayPath] = true
 				p.derived[rangeKey(hunk.DisplayPath, hunk.OldRange.Start, hunk.OldRange.Count)] = hunk
 				if p.changed != nil {
 					p.changed[hunk.DisplayPath], p.changed[anchorPath(hunk)] = true, true
 				}
+				// A definition the file already holds at BASE is an edited
+				// requirement, not one this change adds (DCW-V0-967).
+				baseText, _ := p.blob(p.base, hunk.DisplayPath)
 				for _, id := range addedDefinitions(hunk) {
-					if _, seen := p.changeIDs[id]; !seen {
+					if _, seen := p.changeIDs[id]; !seen && !bytes.Contains(baseText, []byte(definitionPattern(id))) {
 						p.changeIDs[id] = hunk.DisplayPath
+					}
+				}
+				for id, refined := range refinedRequirements(hunk) {
+					if _, added := p.changeIDs[id]; added {
+						p.refines[id] = refined
 					}
 				}
 			}
@@ -684,6 +707,13 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 		_, ids := verify.SpanAnchors(derived, nil)
 		for _, id := range ids {
 			patterns[definitionPattern(id)] = true
+		}
+	}
+	for _, refined := range p.refines {
+		for _, id := range refined {
+			if id != insertionMarker {
+				patterns[definitionPattern(id)] = true
+			}
 		}
 	}
 	if len(patterns) == 0 {
@@ -717,7 +747,12 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 		name, rest, named := strings.Cut(strings.TrimPrefix(record, p.base+":"), "\x00")
 		number, text, numbered := strings.Cut(rest, "\x00")
 		line, err := strconv.Atoi(number)
-		if !named || !numbered || err != nil || line < 1 || workflow.GoverningInstructionPath(name) || strings.HasPrefix(name, ".corvint/") || bookkeepingPath(name) || !p.basenames && (dataPath(name) || p.changed[name]) {
+		// DCW-V0-966 (amending DCW-V0-393): a modified file's BASE line is kept
+		// as a candidate; stable drops every line a hunk edits or the change
+		// repeats, so the draft never cites the change's own text.
+		// A path git lists as changed that the patch holds no hunk for (a
+		// mode-only change) is still never cited.
+		if !named || !numbered || err != nil || line < 1 || workflow.GoverningInstructionPath(name) || strings.HasPrefix(name, ".corvint/") || bookkeepingPath(name) || !p.basenames && (dataPath(name) || p.changed[name] && !patched[name]) {
 			continue
 		}
 		for _, pattern := range sorted {
@@ -729,8 +764,16 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 	// Specifications first, then other documents; git grep's path order
 	// within each (DCW-V0-381). A draft has already dropped every path the
 	// change touches (DCW-V0-393).
+	// A file the change leaves untouched ranks before a modified one
+	// (DCW-V0-966).
+	rank := func(name string) int {
+		if p.changed[name] && !p.basenames {
+			return documentRank(name) + 100
+		}
+		return documentRank(name)
+	}
 	for _, found := range p.matches {
-		sort.SliceStable(found, func(i, j int) bool { return documentRank(found[i].path) < documentRank(found[j].path) })
+		sort.SliceStable(found, func(i, j int) bool { return rank(found[i].path) < rank(found[j].path) })
 	}
 	return complete
 }
@@ -922,9 +965,19 @@ func declaration(line string) bool {
 	return strings.HasSuffix(strings.TrimRight(line, "\n"), "() {")
 }
 
-func unknownProposal(hunk proposedHunk, ordinal, note string) string {
-	// DCW-V0-963: the note names the file and BASE range the hunk edits.
-	note = fmt.Sprintf("hunk edits %s at BASE %d,%d; %s", hunk.path, hunk.oldStart, hunk.oldCount, note)
+// hunkSpan names the hunk's path, its BASE range and, when the canonical
+// patch holds it, its new range at HEAD (DCW-V0-963).
+func (p *proposal) hunkSpan(hunk proposedHunk) string {
+	span := fmt.Sprintf("%s at BASE %d,%d", hunk.path, hunk.oldStart, hunk.oldCount)
+	if derived := p.derivedHunk(hunk); derived != nil && derived.Body != nil {
+		span += fmt.Sprintf(" HEAD %d,%d", derived.NewRange.Start, derived.NewRange.Count)
+	}
+	return span
+}
+
+func (p *proposal) unknownProposal(hunk proposedHunk, ordinal, note string) string {
+	// DCW-V0-963: the note names the file, BASE and HEAD range the hunk edits.
+	note = "hunk edits " + p.hunkSpan(hunk) + "; " + note
 	return ordinal + "\tunknown\tinsufficient-evidence\tproposed: " + strings.NewReplacer("\t", " ", "\n", " ").Replace(note)
 }
 

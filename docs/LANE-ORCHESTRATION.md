@@ -316,7 +316,7 @@ The charter or the lane's first step fixes every dogfood input before work start
 
 - `BASE`: the full 40-hex `origin/main` commit the branch starts from (a merge commit after the one
   allowed main merge);
-- `CITATIONS`: the citation plan file (distinct spans, anchored on files the diff does not modify;
+- `CITATIONS`: the citation plan file (distinct spans, anchored on BASE lines the diff does not edit;
   a `drafted proposal` row citing the hunk's own file is confirmed or replaced, `DCW-V0-962`);
 - `INTENTS`: the governing spec paths; `VERIFY`: one shell-free command per line;
 - `OUTCOME`: `passed`, `failed` or `blocked`.
