@@ -161,14 +161,9 @@ func TestDCWV0379InputsCheckRefusesEachPlanAndManifestDefect(t *testing.T) {
 			plan:  "1\tpre.go\t3:3\timplementation\n2\tpre.go\t20:20\timplementation\n",
 			want:  []string{"prepare cem-prepare NOT_PRODUCED metadata-only-change-unsupported"},
 		},
-		{
-			name:    "unsorted intents manifest",
-			plan:    "1\tpre.go\t3:3\timplementation\n2\tpre.go\t20:20\timplementation\n",
-			intents: "docs/specs/b.md\ndocs/specs/a.md\n",
-			// DCW-V0-387: the fix names the first out-of-order line and the sort rule.
-			want: []string{"FAIL dogfood-inputs-precheck ocm-aggregate missing-intent-scope input=--intents ", "prepare dogfood-inputs-precheck NOT_PRODUCED missing-intent-scope",
-				`line 2 "docs/specs/a.md" does not sort after line 1 "docs/specs/b.md"`, "LC_ALL=C sort -u"},
-		},
+		// An unsorted intents manifest no longer reaches prepare: it is
+		// refused before any step (DCW-V0-882,
+		// TestDCWV0882InputsCheckRefusesUnsortedIntentsFirst).
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			root, base := preflightRepository(t, tc.extra)
