@@ -41,13 +41,50 @@ func TestNativeJVMBuildReports(t *testing.T) {
 	}
 }
 
+// verifiedAndroid is a retained native instrumentation capture behind the
+// installed-APK identity line the runner's device script prints (TRE-V0-820).
+func verifiedAndroid(t *testing.T, name string) []byte {
+	t.Helper()
+	return append([]byte(installedAPKVerified+"\n"), fixture(t, name)...)
+}
+
+// TestAndroidRequiresBoundAPKs binds TRE-V0-820 (V1-1554): an Android run
+// binds one or two installed APK digests, and stdout without the verified
+// identity line, including a raw capture from before the check, is never a
+// complete observation.
+func TestAndroidRequiresBoundAPKs(t *testing.T) {
+	sum := strings.Repeat("a", 64)
+	r := tr.Request{Runner: "android-junit", Root: "/source", Executable: "/sdk/platform-tools/adb", ExecutableSha256: sum, Target: "emulator-5554", Project: "local.proof.test/androidx.test.runner.AndroidJUnitRunner", ReportDir: "/fresh"}
+	for name, files := range map[string]map[string]string{
+		"none":       {"src/Case.kt": sum},
+		"three":      {"a.apk": strings.Repeat("1", 64), "b.apk": strings.Repeat("2", 64), "c.apk": strings.Repeat("3", 64)},
+		"bad-digest": {"a.apk": "not-a-digest; reboot"},
+	} {
+		r.InputFiles = files
+		if _, err := Build(r); err == nil {
+			t.Fatalf("%s: Android request without bound APKs admitted", name)
+		}
+	}
+	r.InputFiles = map[string]string{"test.apk": sum, "app.apk": strings.Repeat("b", 64), "src/Case.kt": sum}
+	i, err := Build(r)
+	if err != nil || len(i.Argv) != 4 || !strings.Contains(i.Argv[3], `w=" `+sum+" "+strings.Repeat("b", 64)+` "`) {
+		t.Fatalf("%q %v", i.Argv, err)
+	}
+	for _, stdout := range [][]byte{fixture(t, "android.txt"), append([]byte("INSTALLED_APK_IDENTITY: mismatch\n"), fixture(t, "android.txt")...), []byte(installedAPKVerified + "\n")} {
+		in := tr.Input{Runner: "android-junit", Stdout: stdout, ExitCode: 0, OutcomeNeutralExitCodes: []int{0}}
+		if o, err := Parse(in); err == nil && tr.Normalize(in, o).Complete {
+			t.Fatalf("unverified stdout observed complete: %.60q", stdout)
+		}
+	}
+}
+
 func TestNativeAndroidOutcomesAndNeutralTransportExit(t *testing.T) {
 	for _, tc := range []struct {
 		runner, file     string
 		pass, fail, skip int
 	}{{"android-junit", "android.txt", 1, 2, 1}, {"uiautomator", "uiautomator.txt", 1, 1, 1}, {"espresso", "espresso-infrastructure.txt", 0, 2, 1}, {"espresso", "espresso.txt", 1, 1, 1}} {
 		t.Run(tc.runner, func(t *testing.T) {
-			in := tr.Input{Runner: tc.runner, ExitCode: 0, OutcomeNeutralExitCodes: []int{0}, Stdout: fixture(t, tc.file)}
+			in := tr.Input{Runner: tc.runner, ExitCode: 0, OutcomeNeutralExitCodes: []int{0}, Stdout: verifiedAndroid(t, tc.file)}
 			o, e := Parse(in)
 			if e != nil {
 				t.Fatal(e)
@@ -93,6 +130,7 @@ func TestExtendedFixedBuilds(t *testing.T) {
 		t.Fatal(e)
 	}
 	r.Runner = "android-junit"
+	r.InputFiles = map[string]string{"app-debug-androidTest.apk": strings.Repeat("d", 64)}
 	r.Target = "emulator-5554"
 	r.Project = "local.proof.test/androidx.test.runner.AndroidJUnitRunner"
 	r.Selectors = []string{"local.proof.Case#test"}
@@ -107,7 +145,7 @@ func TestExtendedFixedBuilds(t *testing.T) {
 }
 
 func TestAndroidNativeZeroTestsAbstains(t *testing.T) {
-	o, e := Parse(tr.Input{Runner: "android-junit", Stdout: fixture(t, "android-zero.txt"), ExitCode: 0, OutcomeNeutralExitCodes: []int{0}})
+	o, e := Parse(tr.Input{Runner: "android-junit", Stdout: verifiedAndroid(t, "android-zero.txt"), ExitCode: 0, OutcomeNeutralExitCodes: []int{0}})
 	if e != nil || o.Complete || len(o.Tests) != 0 {
 		t.Fatalf("%+v %v", o, e)
 	}

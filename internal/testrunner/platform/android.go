@@ -3,6 +3,7 @@ package platform
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -21,22 +22,77 @@ func buildAndroid(r tr.Request, i *tr.Invocation) error {
 	}
 	// APK installation and device state are independent admission obligations;
 	// this profile never installs, grants permissions, or clears data. The adb server is an external runtime dependency.
-	i.Argv = []string{"-s", r.Target, "shell", "am", "instrument", "-w", "-r"}
+	// The bound APKs are checked against the installed ones before the
+	// instrumentation starts (TRE-V0-820).
+	apks, err := boundAPKs(r.InputFiles)
+	if err != nil {
+		return err
+	}
+	instrument := "am instrument -w -r"
 	if len(r.Selectors) > 0 {
 		for _, s := range r.Selectors {
 			if !javaSelector.MatchString(s) {
 				return fmt.Errorf("Android selectors require exact class#method")
 			}
 		}
-		i.Argv = append(i.Argv, "-e", "class", strings.Join(r.Selectors, ","))
+		instrument += " -e class " + strings.Join(r.Selectors, ",")
 	}
-	i.Argv = append(i.Argv, r.Project)
+	instrument += " " + r.Project
+	i.Argv = []string{"-s", r.Target, "shell", androidIdentityScript(r.Project, apks) + "exec " + instrument}
 	// adb's zero means the shell command completed, even if native tests failed.
 	i.SuccessExitCodes = nil
 	i.FailureExitCodes = nil
 	i.OutcomeNeutralExitCodes = []int{0}
 	i.DeviceCleanup = androidCleanup(r.Target, r.Project)
 	return nil
+}
+
+// installedAPKVerified is the fixed first stdout line of an Android run whose
+// installed APKs match the bound ones (TRE-V0-820).
+const installedAPKVerified = "INSTALLED_APK_IDENTITY: verified"
+
+// boundAPKs returns the distinct sorted digests of the request's .apk input
+// files: the test APK, and the app APK unless the instrumentation targets its
+// own package (TRE-V0-820).
+func boundAPKs(files map[string]string) ([]string, error) {
+	seen := map[string]bool{}
+	for name, sum := range files {
+		if !strings.HasSuffix(name, ".apk") {
+			continue
+		}
+		if !digest.MatchString(sum) {
+			return nil, fmt.Errorf("Android APK input %q needs a SHA-256 digest", name)
+		}
+		seen[sum] = true
+	}
+	if len(seen) < 1 || len(seen) > 2 {
+		return nil, fmt.Errorf("Android profile requires the installed test and app APKs bound as one or two .apk input files")
+	}
+	apks := make([]string, 0, len(seen))
+	for sum := range seen {
+		apks = append(apks, sum)
+	}
+	sort.Strings(apks)
+	return apks, nil
+}
+
+// androidIdentityScript is the device shell prefix that hashes the installed
+// APKs of the test package and the instrumentation's target package and
+// requires their digest set to equal the bound one before it prints
+// installedAPKVerified (TRE-V0-820). A split install is unobservable. The
+// component and digests are regex-bounded, so the script needs no quoting.
+func androidIdentityScript(component string, apks []string) string {
+	testPackage, _, _ := strings.Cut(component, "/")
+	fail := func(reason string) string { return `{ echo "INSTALLED_APK_IDENTITY: ` + reason + `"; exit 10; }` }
+	return `c=` + component + `; w=" ` + strings.Join(apks, " ") + ` "; l=$(pm list instrumentation | grep -F "instrumentation:$c "); t=${l##*target=}; t=${t%?}; ` +
+		`if [ -z "$l" ] || [ -z "$t" ]; then ` + fail("unresolved") + `; fi; h=" "; ` +
+		`for p in ` + testPackage + ` "$t"; do o=$(pm path "$p") || ` + fail("unobservable") + `; set -- $o; ` +
+		`if [ $# -ne 1 ]; then ` + fail("unobservable") + `; fi; case "$1" in package:/*) ;; *) ` + fail("unobservable") + `;; esac; ` +
+		`s=$(sha256sum "${1#package:}") || ` + fail("unobservable") + `; d=${s%% *}; if [ ${#d} -ne 64 ]; then ` + fail("unobservable") + `; fi; ` +
+		`case "$h" in *" $d "*) ;; *) h="$h$d ";; esac; done; ` +
+		`for d in $h; do case "$w" in *" $d "*) ;; *) ` + fail("mismatch") + `;; esac; done; ` +
+		`for d in $w; do case "$h" in *" $d "*) ;; *) ` + fail("mismatch") + `;; esac; done; ` +
+		`echo "` + installedAPKVerified + `"; `
 }
 
 // androidCleanup stops a timed-out or interrupted instrumentation on the
@@ -63,6 +119,21 @@ func parseAndroid(in tr.Input, o *tr.Observation) error {
 	if len(in.Reports) != 0 || !utf8.Valid(in.Stdout) || len(in.Stdout) == 0 || in.Stdout[len(in.Stdout)-1] != '\n' {
 		return fmt.Errorf("Android requires complete native instrumentation stdout")
 	}
+	// The identity line is fixed, so a transport that drops the remote exit
+	// status cannot pass a mismatch (TRE-V0-820).
+	first, rest, _ := strings.Cut(string(in.Stdout), "\n")
+	if first = strings.TrimSuffix(first, "\r"); first != installedAPKVerified {
+		detail := "no installed-APK identity line before the instrumentation"
+		if reason, ok := strings.CutPrefix(first, "INSTALLED_APK_IDENTITY: "); ok && len(reason) <= 64 {
+			detail = "installed APK identity " + reason
+		}
+		problem(o, "INSTALLED_APK_UNVERIFIED", detail)
+		return nil
+	}
+	if rest == "" {
+		return fmt.Errorf("Android requires complete native instrumentation stdout")
+	}
+	in.Stdout = []byte(rest)
 	status := map[string]string{}
 	last := ""
 	resultStream := ""
