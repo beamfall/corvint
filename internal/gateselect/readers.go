@@ -117,6 +117,7 @@ func indexRepository(root, module string) (*repositoryIndex, error) {
 		return nil, walkErr
 	}
 	index.link(imports)
+	index.applyGatedLocators(root, files)
 	return index, nil
 }
 

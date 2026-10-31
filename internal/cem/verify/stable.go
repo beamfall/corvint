@@ -412,6 +412,10 @@ func Stable(ctx context.Context, raw []byte, o StableOptions) (r StableResult, e
 		exit = fail("verification", stablePatchRefusal(err))
 		return r, exit
 	}
+	if _, err = BinaryBlobSizes(ctx, repo, parsed); err != nil {
+		exit = fail("repository", err)
+		return r, exit
+	}
 	source := &baseSource{ctx: ctx, repository: repo, base: d.Change.BaseRevision}
 	createAbsent, createBlocked, err := stableAuthenticatedCreateAbsences(parsed, createDestinations)
 	if err != nil {

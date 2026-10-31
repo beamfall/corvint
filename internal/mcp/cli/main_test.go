@@ -606,3 +606,109 @@ func TestContextLSPToolProfileSelector(t *testing.T) {
 		}
 	})
 }
+
+// TestMCPV0820DefaultProfileNamesLegacyFlag: the default corvint-mcp answers
+// a 2025-11-25 initialize with -32602 naming --protocol-version 2025-11-25,
+// not a bare method-not-found, and keeps serving (V1-2507).
+func TestMCPV0820DefaultProfileNamesLegacyFlag(t *testing.T) {
+	root := filepath.Clean(t.TempDir())
+	if err := os.Mkdir(filepath.Join(root, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	input := `{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"pi","version":"0.99.1"}}}` + "\n" +
+		`{"jsonrpc":"2.0","id":1,"method":"ping"}` + "\n"
+	var stdout, stderr bytes.Buffer
+	if exit := run(context.Background(), []string{"--root", root}, strings.NewReader(input), &stdout, &stderr); exit != 0 {
+		t.Fatalf("exit=%d stderr=%q", exit, stderr.String())
+	}
+	lines := bytes.Split(bytes.TrimSpace(stdout.Bytes()), []byte("\n"))
+	if len(lines) != 2 {
+		t.Fatalf("responses=%s", stdout.Bytes())
+	}
+	type answer struct {
+		ID    int
+		Error struct {
+			Code    int
+			Message string
+			Data    struct {
+				Flag      string
+				Supported []string
+				Requested string
+			}
+		}
+	}
+	answers := map[int]answer{}
+	for _, line := range lines {
+		var decoded answer
+		if err := json.Unmarshal(line, &decoded); err != nil {
+			t.Fatal(err)
+		}
+		answers[decoded.ID] = decoded
+	}
+	initialize := answers[0].Error
+	if initialize.Code != -32602 || !strings.Contains(initialize.Message, "--protocol-version 2025-11-25") ||
+		initialize.Data.Flag != "--protocol-version 2025-11-25" || initialize.Data.Requested != "2025-11-25" ||
+		len(initialize.Data.Supported) != 1 || initialize.Data.Supported[0] != "2026-07-28" {
+		t.Fatalf("initialize answers=%s", stdout.Bytes())
+	}
+	if answers[1].Error.Code != -32601 {
+		t.Fatalf("ping answers=%s, want MCPV0-006 method-not-found", stdout.Bytes())
+	}
+}
+
+// TestAHI820ClaudePluginArgsServeTestValidityAndDocs serves the Claude Code
+// plugin's declared args, after the leading `mcp` verb, over the legacy
+// handshake and lists the test-validity and docs tools beside the default ones
+// (AHI-820, V1-2513). cmd/corvint holds the declared args themselves.
+func TestAHI820ClaudePluginArgsServeTestValidityAndDocs(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", "..", "integrations", "claude-code", "plugins", "corvint", ".mcp.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var declared struct {
+		MCPServers map[string]struct {
+			Args []string `json:"args"`
+		} `json:"mcpServers"`
+	}
+	if err := json.Unmarshal(raw, &declared); err != nil {
+		t.Fatal(err)
+	}
+	args := declared.MCPServers["corvint"].Args
+	if len(args) == 0 || args[0] != "mcp" {
+		t.Fatalf("declared args %q do not start with the mcp verb", args)
+	}
+	root := filepath.Clean(t.TempDir())
+	if output, err := exec.Command("git", "init", "-q", root).CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v %s", err, output)
+	}
+	args = append([]string(nil), args[1:]...)
+	for i, arg := range args {
+		if arg == "${CLAUDE_PROJECT_DIR}" {
+			args[i] = root
+		}
+	}
+	input := `{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"claude-code","version":"2.1.311"}}}` + "\n" +
+		`{"jsonrpc":"2.0","method":"notifications/initialized"}` + "\n" +
+		`{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}` + "\n"
+	var stdout, stderr bytes.Buffer
+	if exit := run(context.Background(), args, strings.NewReader(input), &stdout, &stderr); exit != 0 {
+		t.Fatalf("exit=%d stderr=%q", exit, stderr.String())
+	}
+	var names []string
+	for _, line := range bytes.Split(bytes.TrimSpace(stdout.Bytes()), []byte("\n")) {
+		var listed struct {
+			ID     int
+			Result struct{ Tools []struct{ Name string } }
+		}
+		if json.Unmarshal(line, &listed) == nil && listed.ID == 1 {
+			for _, tool := range listed.Result.Tools {
+				names = append(names, tool.Name)
+			}
+		}
+	}
+	for _, name := range []string{"corvint.status", "corvint.test_validity", "corvint.docs_draft", "corvint.docs_consume"} {
+		if !slices.Contains(names, name) {
+			t.Fatalf("tools/list %q lacks %s: %s", names, name, stdout.String())
+		}
+	}
+}

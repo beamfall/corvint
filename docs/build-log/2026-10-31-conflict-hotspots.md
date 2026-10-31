@@ -97,3 +97,11 @@ the segment into the requirement's leading note and regenerate.
   exhaustive gate is `NOT_RUN`.
 - `make no-python-runtime-dependency-test` fails on the base too (`script/qualify-tasks-basic.sh:53`
   names `python3`); not this change.
+
+## Merge with main 030efaed1
+
+The freeze baseline is the header state at the commit where the freeze lands on main. PR #21
+(ASD-V0-940..942) and the new `affected-plan-python-playwright-v0.md` changed headers on main after
+85d5ad4b7. Those two rows were rebuilt from 030efaed1 with the same reader, which reproduces the
+base rows exactly. No other spec header changed between those two commits. The new main targets
+in the Makefile each got their own `.PHONY` line (SRG-V0-982).

@@ -833,3 +833,98 @@ func TestTQDV0033_ReadModesEquivalent(t *testing.T) {
 	}
 	assertDoctorModesEqual(t, perRead, session)
 }
+
+// TQD-V0-821: when the stat device differs from the one /proc/locks prints
+// (btrfs), the same-inode FLOCK lines are candidates on any device; a real
+// holder is then named only through a descriptor on the same file.
+func TestTQDV0821LockHolderMatchesByOpenDescriptor(t *testing.T) {
+	locks := "1: FLOCK  ADVISORY  WRITE 4242 00:2f:1234 0 EOF\n" +
+		"2: POSIX  ADVISORY  WRITE 5151 00:2f:1234 0 EOF\n" +
+		"3: FLOCK  ADVISORY  WRITE 6262 00:30:91234 0 EOF\n" +
+		"4: FLOCK  ADVISORY  WRITE 7373 08:01:1234 0 EOF\n"
+	if got := cli.ParseDoctorProcLocksForTest(locks, 0, 0x48, 1234); len(got) != 0 {
+		t.Fatalf("exact match on the stat device 00:48 = %v, want none", got)
+	}
+	if got := cli.ParseDoctorProcLocksByInodeForTest(locks, 1234); len(got) != 2 || got[0] != 4242 || got[1] != 7373 {
+		t.Fatalf("same-inode FLOCK candidates = %v, want [4242 7373]", got)
+	}
+	// A real flock on this host's temporary filesystem, held by this
+	// process, is named whatever device /proc/locks prints.
+	path := filepath.Join(t.TempDir(), "taskman.lock")
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
+		t.Fatal(err)
+	}
+	held, pid, err := cli.RealDoctorLockHolder(path)
+	if runtime.GOOS != "linux" {
+		return
+	}
+	if err != nil || !held || pid != os.Getpid() {
+		t.Fatalf("held=%v pid=%d err=%v, want this process %d", held, pid, err, os.Getpid())
+	}
+}
+
+// TQD-V0-821, Codex review of linux-w2: an open descriptor on the lock file is
+// not ownership. A pid that holds a same-inode flock on another filesystem's
+// file while merely having this queue's file open is not the holder; only a
+// descriptor on this very file whose fdinfo lists the FLOCK is.
+func TestTQDV0821OpenDescriptorWithoutLockIsNotOwnership(t *testing.T) {
+	const dev, ino, otherDev = 0x48, 1234, 0x31
+	lock := "pos:\t0\nflags:\t02100001\nmnt_id:\t120\nino:\t1234\nlock:\t1: FLOCK  ADVISORY  WRITE 4242 00:2f:1234 0 EOF\n"
+	open := "pos:\t0\nflags:\t02100000\nmnt_id:\t120\nino:\t1234\n"
+	for name, tc := range map[string]struct {
+		fds  []cli.DoctorFdForTest
+		want bool
+	}{
+		"owning descriptor on this file": {[]cli.DoctorFdForTest{{Dev: dev, Ino: ino, Fdinfo: lock}}, true},
+		"this file merely open, the lock on another filesystem's same-inode file": {[]cli.DoctorFdForTest{
+			{Dev: dev, Ino: ino, Fdinfo: open},
+			{Dev: otherDev, Ino: ino, Fdinfo: lock},
+		}, false},
+		"this file merely open":         {[]cli.DoctorFdForTest{{Dev: dev, Ino: ino, Fdinfo: open}}, false},
+		"a lock line for another inode": {[]cli.DoctorFdForTest{{Dev: dev, Ino: ino, Fdinfo: strings.Replace(lock, "00:2f:1234", "00:2f:91234", 1)}}, false},
+	} {
+		if got := cli.DoctorOwnsFlockForTest(tc.fds, dev, ino); got != tc.want {
+			t.Errorf("%s: owns = %v, want %v", name, got, tc.want)
+		}
+	}
+	// A real second descriptor on a flocked file does not own the lock: only
+	// the locking descriptor's fdinfo lists it.
+	path := filepath.Join(t.TempDir(), "taskman.lock")
+	locker, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer locker.Close()
+	reader, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reader.Close()
+	if err := syscall.Flock(int(locker.Fd()), syscall.LOCK_EX); err != nil {
+		t.Fatal(err)
+	}
+	if runtime.GOOS != "linux" {
+		return
+	}
+	read := func(f *os.File) string {
+		raw, err := os.ReadFile(fmt.Sprintf("/proc/self/fdinfo/%d", f.Fd()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(raw)
+	}
+	var st syscall.Stat_t
+	if err := syscall.Stat(path, &st); err != nil {
+		t.Fatal(err)
+	}
+	only := []cli.DoctorFdForTest{{Dev: uint64(st.Dev), Ino: uint64(st.Ino), Fdinfo: read(reader)}}
+	both := append(only, cli.DoctorFdForTest{Dev: uint64(st.Dev), Ino: uint64(st.Ino), Fdinfo: read(locker)})
+	if cli.DoctorOwnsFlockForTest(only, uint64(st.Dev), uint64(st.Ino)) || !cli.DoctorOwnsFlockForTest(both, uint64(st.Dev), uint64(st.Ino)) {
+		t.Fatalf("real fdinfo: reader alone owns=%v, with the locker owns=%v; want false, true", cli.DoctorOwnsFlockForTest(only, uint64(st.Dev), uint64(st.Ino)), cli.DoctorOwnsFlockForTest(both, uint64(st.Dev), uint64(st.Ino)))
+	}
+}
