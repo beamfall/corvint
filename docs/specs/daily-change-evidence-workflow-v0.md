@@ -2482,14 +2482,17 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   assignment phrase of both remediation lines.
 - `DCW-V0-805`: (experimental under the standing lane auto-accept; V1-3380; refines `DCW-V0-161`
   and `DCW-V0-404`) When a `propose-citations` hunk edits a `docs/specs/*.md` list item opened at
-  BASE by a requirement definition (`` - `ID`: `` or `- **ID:**`, with no heading, blank line or
-  other list item between), and that definition cites decisions (`decision NNNN`), the draft MUST
+  BASE by a requirement definition (`` - `ID`: `` or `- **ID:**`, with no heading, blank line,
+  table row or other list item between), and that definition cites decisions (`decision NNNN`),
+  the draft MUST
   rank the decision before every path or definition anchor: it cites the stable, unused line of a
   cited decision the change leaves untouched that shares the most distinct words (four or more
   letters) and numbers with the hunk's BASE side, at least three, else the first such line naming
   the requirement, and the note MUST name the requirement and its BASE definition line as a review
-  hint, since that row lies in the file the hunk modifies (`DCW-V0-393`). A hunk outside any
-  requirement, or whose requirement cites no usable decision, keeps the earlier order. Design: the
+  hint, since that row lies in the file the hunk modifies (`DCW-V0-393`). A hunk that adds a
+  requirement definition adds a requirement and amends none, and a pure insertion amends the item
+  before it only when its first added line is an indented continuation of that item. A hunk
+  outside any requirement, or whose requirement cites no usable decision, keeps the earlier order. Design: the
   2026-10-31 AFP-V0-029 bar hunks drafted `documentation-ci-v0.md` 9:9, `session-test-runner-v0.md`
   9:9 and decision 0131, lines that only list the spec path, while the governing text was decision
   0431 lines 126-129, which the requirement's definition names as its intent. Non-goals: citing
@@ -2497,7 +2500,8 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   Failure modes: a cited decision whose best line is unrelated prose can still win on shared words;
   the reviewer reads the drafted row as with every draft. Evidence:
   `TestProposeCitationsDCWV0805CitesTheDecisionGoverningAnAmendedRequirement` (fixture of the
-  2026-10-31 case; fails on BASE, which drafted decision 0131); a draft of commit `2865c23b9`
+  2026-10-31 case; fails on BASE, which drafted decision 0131; a new requirement inserted after
+  another is not drafted to that one's decision, which this lane's own first draft did); a draft of commit `2865c23b9`
   cites decision 0431 lines 105, 128 and 131 for its three requirement hunks. Rollback: remove
   `propose_governing.go` and its call in `propose`.
 - `DCW-V0-806`: (experimental under the standing lane auto-accept; V1-3381; refines `DCW-V0-062`
