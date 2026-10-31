@@ -693,11 +693,15 @@ doc-gates:
 	@$(MAKE) --no-print-directory $(DOC_GATE_TARGETS)
 	@GOTOOLCHAIN=local go run ./conformance/use-cases-v0
 
-# dogfood-closeout is the one lane closeout command (DCW-V0-349, V1-1894): dogfood-finish with the
-# same variables, whose input pre-flight refuses a bad VERIFY, INTENTS or CITATIONS file before the
-# base build or any bind (DCW-V0-380), then batch-precheck, which derives the shared doc-gates
-# target from ci.yml; batch-precheck-test checks that connection; it stops at the first failing step.
+# dogfood-closeout is the one lane closeout command (DCW-V0-349, V1-1894; DCW-V0-900): the input
+# pre-flight, which refuses a bad VERIFY, INTENTS or CITATIONS file before any build (DCW-V0-380);
+# batch-precheck, which derives the shared doc-gates target from ci.yml, so drift stops the closeout
+# before any bind or seal; dogfood-finish with the same variables; and batch-precheck again for the
+# receipt of the sealed head. batch-precheck-test checks the ci.yml connection; it stops at the first
+# failing step.
 dogfood-closeout:
+	@$(MAKE) --no-print-directory dogfood-inputs-check
+	@$(MAKE) --no-print-directory batch-precheck
 	@$(MAKE) --no-print-directory dogfood-finish
 	@$(MAKE) --no-print-directory batch-precheck
 
