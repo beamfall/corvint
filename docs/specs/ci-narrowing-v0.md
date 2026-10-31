@@ -6,7 +6,7 @@ Requirement prefix: `CIN-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3309, V1-3091, V1-3158, V1-3227, V1-2902, V1-3329); CIN-V0-001 decided by the orchestrator under owner delegation (V1-3314), applying the AFP-V0-030 re-arm rule; effective only after the owner's `ci-control-plane` review of the `.github` change
 Delivery status: experimental
 Authoritative inputs: native tickets V1-3314, V1-3309 (AC3), V1-3091, V1-3158, V1-3227,
-V1-2902 and V1-3329. These requirements operate the CI narrowing of the [affected plan](affected-plan-v0.md)
+V1-2902 and V1-3329; CIN-V0-860: V1-3354. These requirements operate the CI narrowing of the [affected plan](affected-plan-v0.md)
 (AFP-V0-028..030, AFP-V0-046, AFP-V0-097, AFP-V0-670, AFP-V0-730..734); that spec's
 Requirements section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 Requirement IDs CIN-V0-001 to CIN-V0-049 are reserved for this spec.
@@ -97,6 +97,18 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   with `GOFLAGS=-mod=readonly`, which fails on a hash missing from or differing with the module's
   `go.sum`; the test and vet commands then run with the job's `GOPROXY=off`. A failure fails
   `go-static` and therefore `go-product`.
+- **CIN-V0-860:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3354)
+  gate-affected-select (`gateselect.Select`, the CI PR tier's selector, and so every
+  `corvint-pr-tests` plan and rerun) SHALL run a plan narrowed while it names unknowns only when
+  every unknown is a `LANGUAGE_FRONTIER`, the AFP-V0-935 case: it falls back on a module-level Go
+  frontier, and it attributes every dirty path itself under AFP-V0-012 rules (a) to (d), which a
+  unit frontier does not change, since the frontier names what a language model cannot see inside
+  units the dirty paths already reach, and those are selected whole. Any other unknown (an
+  `UNOWNED_DIRTY_PATH`, `UNINDEXED_SOURCE_PATH` or `NO_SELECTABLE_TEST` among them), alone or beside
+  frontiers and whatever the scope, a reason that is not an upper-case identifier, and an
+  `UNKNOWN` plan that names no unknown SHALL answer `FALLBACK` with the reason named. The rule binds
+  `Select` only; `SelectStructural` (`corvint test`, the shadow) is unchanged, so the driver's
+  FULL is a superset of the shadow's selection (AFP-V0-603).
 
 ## Non-goals
 
@@ -121,7 +133,11 @@ of its pull-request selection run. (4) A dead pin turns every shard red until re
 (CIN-V0-002); that is the intended loud failure. (5) An old `ci-reuse-plan` refusing `--base` on a
 push fails the reuse step, so `docs-plan` fails and every shard runs FULL. (6) The CIN-V0-008
 fetch needs the module proxy; an unreachable proxy or a `go.sum` mismatch fails `go-static`
-loudly rather than skipping the module.
+loudly rather than skipping the module. (7) CIN-V0-860: every merged change of the V1-2892 replay names an unknown other than a
+language frontier on all but 4 of 19 (an unowned `Makefile`, `LICENSING.md`, `protocol/**` or
+`.corvint/*.json`, an unindexed source, a unit with no selectable test), so the PR tier now runs
+those FULL where it narrowed before; the selector's own rules (c) and (d) did attribute such paths,
+but nothing documented that as safe, and the merge-queue reuse (AFP-V0-935) already refused them.
 
 ## Acceptance evidence and traceability
 
@@ -141,9 +157,11 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-006 | the "Refuse AI co-author trailers" step of `doc-gates` in `ci.yml`; the `ai-coauthor-trailers-check` target in `Makefile` | `TestCINV0006DocGatesRefusesAICoauthorTrailersOnPullRequests`; `TestAFPV0670GatesWireExactTreeReuse` |
 | CIN-V0-007 | the `go-product-shard` job condition and the `go-product` shard check of `ci.yml` | `TestCINV0007ShardsSkipAtJobLevelOnlyForADocsOrReuseDecision` |
 | CIN-V0-008 | the "Nested module tools/local-authority tests and vet" step of `go-static` in `ci.yml` | `TestCINV0008LocalAuthorityModuleTestsRunInGoStatic`; `TestAFPV0380InteropTestsRunOnceInGoStatic` |
+| CIN-V0-860 | `unknownNarrowing` and its call in `selectPackages` in `internal/gateselect/select.go` | `TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860` in `internal/gateselect/unknown_cinv0860_test.go` (language frontiers alone run; a module-level frontier, an unowned path alone or beside frontiers, an unindexed path, no selectable test, a malformed or empty reason, an UNKNOWN plan naming none and a BOUNDED receipt naming one fall back; SelectStructural unchanged); the "unknown plan keeps the fallback" case of `TestSelectPackagesTaskStateOnlyDiffSelectsNothing`; the replay in build log `docs/build-log/2026-10-31-ci-select-w1.md` |
 
 ## Rollback
 
 R1: revert the lane's `.github` commits and their test commits; the epoch returns to 1 only by an
 owner decision, since epoch-1 rows hold the dead-pin `INCOMPLETE` rows. No stored state depends on
-these requirements; verdict artifacts without `listedAt` keep the whole listing.
+these requirements; verdict artifacts without `listedAt` keep the whole listing. CIN-V0-860: remove the `unknownNarrowing` call in `selectPackages`; Select then
+runs every RUNNABLE plan without a module-level frontier narrowed, as before.
