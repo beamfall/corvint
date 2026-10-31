@@ -2457,6 +2457,7 @@ CTW-V0-002	docs/specs/corvint-tasks-intent-worktree-v0.md	When the primary workt
 CTW-V0-003	docs/specs/corvint-tasks-intent-worktree-v0.md	The intent branch and queue ID used for routing are read from the primary worktr	unrecorded	-
 CTW-V0-004	docs/specs/corvint-tasks-intent-worktree-v0.md	A linked worktree is admitted only when all of the following hold. It is among t	unrecorded	-
 CTW-V0-005	docs/specs/corvint-tasks-intent-worktree-v0.md	When the primary is not on the intent branch and no admitted linked worktree hol	unrecorded	-
+CTW-V0-780	docs/specs/corvint-tasks-intent-worktree-v0.md	(accepted under the owner's standing auto-accept (2026-10-31); V1-3525) When an	standing	2026-10-31; V1-3525
 CTW-V0-006	docs/specs/corvint-tasks-intent-worktree-v0.md	When two or more admitted linked worktrees hold the intent branch, none is selec	unrecorded	-
 CTW-V0-007	docs/specs/corvint-tasks-intent-worktree-v0.md	Repair text is appended only to `INTENT_BRANCH_MISMATCH` and `INTENT_DIVERGED`	unrecorded	-
 CTW-V0-008	docs/specs/corvint-tasks-intent-worktree-v0.md	A writer's fixture session retains a linked intent root as a second pinned root.	unrecorded	-

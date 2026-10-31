@@ -41,6 +41,24 @@ After customizing both files, initialize the queue:
 corvint-tasks init --request-id initialize-queue
 ```
 
+If the primary checkout is not on `intentBranch` (for example a feature branch while
+`intentBranch` is `main`), the store writes its records into a linked worktree on that branch
+(CTW-V0-002). Then both checkouts need the files before `init`: the primary's
+`.taskman/queue.json` routes to the intent branch, and the intent worktree's `.taskman/` is
+where records are written, so it needs `queue.json` and `policy.json` naming the same `queueId`
+and `intentBranch`:
+
+```sh
+git worktree add ../app-main main
+mkdir ../app-main/.taskman
+cp .taskman/queue.json .taskman/policy.json ../app-main/.taskman/
+corvint-tasks init --request-id initialize-queue
+```
+
+Tickets and receipts then land only in `../app-main/.taskman/`; commit them on `main`. A
+refusal names only the missing step: once the worktree exists it asks for its `.taskman` files,
+not for `git worktree add` again (CTW-V0-780).
+
 ## Qualify before claims
 
 A native non-fixture queue intentionally refuses claims until the owner records an execution
