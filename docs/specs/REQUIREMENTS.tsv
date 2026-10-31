@@ -6194,6 +6194,12 @@ TCP-V0-150	docs/specs/task-context-packet-v0.md	(accepted under the owner's stan
 TCP-V0-152	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11) (V1-1010, V1-1015;	standing	2026-10-11; V1-1010; V1-1015
 TCP-V0-162	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2262, V1-1015	standing	2026-10-11; V1-2262; V1-1015
 TCP-V0-163	docs/specs/task-context-packet-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2953) The	standing	2026-10-11; V1-2953
+TCP-V0-990	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)	standing	2026-10-11; V1-1269
+TCP-V0-991	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)	standing	2026-10-11; V1-1269
+TCP-V0-992	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)	standing	2026-10-11; V1-1269
+TCP-V0-993	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)	standing	2026-10-11; V1-1269
+TCP-V0-995	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)	standing	2026-10-11; V1-1269
+TCP-V0-994	docs/specs/task-context-packet-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1269)	standing	2026-10-11; V1-1269
 TCB-V0-001	docs/specs/tasks-criterion-binding-v0.md	Core MUST import only Tasks wire. Full ticket/attempt/policy validation stays Ta	unrecorded	-
 TCB-V0-002	docs/specs/tasks-criterion-binding-v0.md	`criterion-binding capture --ticket ID --attempt ID` MUST be a bounded read with	unrecorded	-
 TCB-V0-003	docs/specs/tasks-criterion-binding-v0.md	`criterion-binding verify` MUST consume a closed bounded capture on stdin with n	unrecorded	-
