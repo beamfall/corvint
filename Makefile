@@ -39,7 +39,7 @@ pi-protected-test: pi-protected-build
 # not a gate prerequisite because it depends on
 # untracked, gitignored .corvint/ artifacts that a clean checkout never has.
 # GATE_STEPS are the gate prerequisites after gate-receipt-clear.
-GATE_STEPS = host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements-check spec-requirements-test requirement-definitions-check requirement-definitions-test traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test analyzer-schema-check analyzer-schema-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check release-checklist-test gate-receipt-test error-code-ownership-check error-code-ownership-test host-package-versions-check host-package-versions-test diagnostic-coverage-check no-python-runtime-dependency-test goos-filenames-check goos-filenames-test go-cache-trim-test scratch-sweep-test rg-fallback-test repin-test pre-push-windows-vet-test pre-push-dogfood-seal-test batch-precheck-test documentation-paths-check documentation-paths-test qualify-tasks-basic-test ai-coauthor-trailers-test dogfood-cache-test dogfood-bin-reuse-test agent-preflight-test codex-review-test companion-release-gate-test dogfood-change-test runtime-environment-test hlq-local-test
+GATE_STEPS = host-adapter-test go-version go-test go-vet cross-vet go-format-check go-format-test go-archive-gate go-archive-gate-test interop-gate spec-requirements-check spec-requirements-test requirement-definitions-check requirement-definitions-test traceability-tests-check traceability-tests-test decision-numbers-check decision-numbers-test analyzer-schema-check analyzer-schema-test instruction-conflicts-test eol-policy-check eol-policy-test license-headers-check license-headers-test line-citations-check line-citations-test ci-least-privilege-check ci-least-privilege-test unbounded-readers-check test-read-scopes-check test-commands-check release-checklist-test gate-receipt-test error-code-ownership-check error-code-ownership-test host-package-versions-check host-package-versions-test diagnostic-coverage-check no-python-runtime-dependency-test goos-filenames-check goos-filenames-test go-cache-trim-test scratch-sweep-test rg-fallback-test repin-test pre-push-windows-vet-test pre-push-dogfood-seal-test batch-precheck-test documentation-paths-check documentation-paths-test qualify-tasks-basic-test ai-coauthor-trailers-test dogfood-cache-test dogfood-bin-reuse-test agent-preflight-test codex-review-test companion-release-gate-test dogfood-change-test runtime-environment-test hlq-local-test binary-blobs-check legal-file-pins-check mkfifo-build-tags-check
 .PHONY: gate
 gate: gate-receipt-clear $(addprefix ledger/,$(GATE_STEPS))
 	@script/gate-receipt record
@@ -507,6 +507,23 @@ documentation-paths-check:
 documentation-paths-test:
 	@script/gen-documentation-paths_test.sh
 
+# ASD-V0-582 (V1-3364): no binary blob outside a declared fixture path, and every tools/ main's
+# root build output ignored. A doc gate, so CI and batch-precheck both run it.
+.PHONY: binary-blobs-check
+binary-blobs-check:
+	@script/check-binary-blobs.sh
+
+# ASD-V0-584 (V1-3374): a legal-file edit without its release-artifact manifest repin fails in
+# doc-gates, before bind and seal, not only in batch-precheck.
+.PHONY: legal-file-pins-check
+legal-file-pins-check:
+	@script/check-legal-file-pins.sh
+
+# ASD-V0-583 (V1-3373): a Go file calling syscall.Mkfifo must exclude solaris and illumos.
+.PHONY: mkfifo-build-tags-check
+mkfifo-build-tags-check:
+	@script/check-mkfifo-build-tags.sh
+
 # AHI-173: bump every version location of one host package together (VERSION defaults to the next
 # patch), or verify that every package's locations agree.
 .PHONY: host-package-version-bump
@@ -840,7 +857,7 @@ shell-test-registration-check:
 	$(GO_TEST_COMMAND) -run '^TestSTRV0004ShellTestIsTheGateShellSteps$$' ./tools/test-commands-check
 
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
-DOC_GATE_TARGETS := host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check spec-requirements-check requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check line-citations-check error-code-ownership-check unbounded-readers-check test-read-scopes-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check
+DOC_GATE_TARGETS := host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check spec-requirements-check requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check line-citations-check error-code-ownership-check unbounded-readers-check test-read-scopes-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check license-headers-check legal-file-pins-check mkfifo-build-tags-check
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813).
 .PHONY: doc-gates
 doc-gates:

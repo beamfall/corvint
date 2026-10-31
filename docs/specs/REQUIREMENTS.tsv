@@ -1844,6 +1844,9 @@ ASD-V0-106	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-107	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3224; refines	standing	2026-10-30; V1-3224
 ASD-V0-108	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3156, V1-3132;	standing	2026-10-30; V1-3156; V1-3132
 ASD-V0-109	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3267) Before i	standing	2026-10-30; V1-3267
+ASD-V0-582	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3364) `script/	standing	2026-10-31; V1-3364
+ASD-V0-583	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3373) `make li	standing	2026-10-31; V1-3373
+ASD-V0-584	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3374; refines	standing	2026-10-31; V1-3374
 ASD-V0-900	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; tasks-w1 lane fri	standing	2026-10-31
 ASD-V0-940	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3247; refines	standing	2026-10-31; V1-3247
 ASD-V0-941	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3037; refines	standing	2026-10-31; V1-3037
@@ -3091,6 +3094,14 @@ DCW-V0-809	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-810	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; lane friction F11; amends	standing	-
 DCW-V0-811	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; lane friction F10) On a host	standing	-
 DCW-V0-812	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; lane friction F4; refines	standing	-
+DCW-V0-824	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3365; refines DOGFOOD-BIND	standing	V1-3365
+DCW-V0-825	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3366) When `cem status`	standing	V1-3366
+DCW-V0-826	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3367) `script/dogfood-bind	standing	V1-3367
+DCW-V0-827	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3368) A citation-plan row'	standing	V1-3368
+DCW-V0-828	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3369; refines `DCW-V0-824`	standing	V1-3369
+DCW-V0-829	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3370; refines `DCW-V0-824`	standing	V1-3370
+DCW-V0-830	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3371) `DOGFOOD_CITATIONS=n	standing	V1-3371
+DCW-V0-831	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3372)	standing	V1-3372
 DCW-V0-844	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3318; refines `DCW-V0-400`	standing	V1-3318
 DCW-V0-845	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3302; refines `DCW-V0-063`	standing	V1-3302
 DCW-V0-846	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-1724; refines `DCW-V0-439`	standing	V1-1724
