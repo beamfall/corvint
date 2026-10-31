@@ -48,6 +48,14 @@ hunks, where it used to cite `documentation-ci-v0.md` 9:9 and decision 0131. Lin
 the governing lines 126-129. The fourth hunk sits in AFP-V0-047, whose definition cites no
 decision, so it keeps the old path anchor.
 
+Dogfood finding: this lane's own first draft cited the decisions of the requirement *before* each
+newly added requirement, such as decision 0388 for the inserted DCW-V0-804 to DCW-V0-806 block. A
+hunk that adds a definition without removing it is a new requirement and amends none. A pure
+insertion amends the item before it only when its first added line is an indented continuation.
+Table rows stop the walk. A definition line rewritten in place (removed and re-added with the same
+ID) still amends, which keeps the AFP-V0-029 definition hunk of `2865c23b9` on decision 0431
+line 105.
+
 ## V1-3381: originating refusal of a stopped closeout (DCW-V0-806)
 
 Repro: an intent spec with 257 requirements under `finish-lane`. `ocm-prepare-001` refuses
