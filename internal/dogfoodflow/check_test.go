@@ -259,7 +259,7 @@ func TestDCWV0033CheckSummaryAbstainsOnUnobservedFields(t *testing.T) {
 	// OCM-V0-019: the requirement members come from the change's own
 	// coverage, never the aggregate's whole intent scope (total 56 here).
 	ocm := []byte(`{"aggregate":{"state":"ready-for-review","coverage":{"total":56,"linked":0,"unknown":56}},"tool":"dogfood-ocm-status"}` + "\n")
-	unobserved := " requirements=NOT_OBSERVED linked=NOT_OBSERVED unlinked=NOT_OBSERVED"
+	unobserved := " change-requirements=NOT_OBSERVED change-traced=NOT_OBSERVED change-untraced=NOT_OBSERVED"
 	cases := []struct {
 		name     string
 		cem, ocm []byte
@@ -267,8 +267,8 @@ func TestDCWV0033CheckSummaryAbstainsOnUnobservedFields(t *testing.T) {
 		coverage *changeCoverage
 		want     string
 	}{
-		{"complete", cem, ocm, false, &changeCoverage{requirements: 2, linked: 1}, "cem=ready-for-ci hunks=3 supported=2 unknown=1 mechanical=0 unknownShare=1/3 reasonedUnknown=0 ocm=ready-for-review requirements=2 linked=1 unlinked=1"},
-		{"cites none", cem, ocm, false, &changeCoverage{}, "cem=ready-for-ci hunks=3 supported=2 unknown=1 mechanical=0 unknownShare=1/3 reasonedUnknown=0 ocm=ready-for-review requirements=0 linked=0 unlinked=0"},
+		{"complete", cem, ocm, false, &changeCoverage{requirements: 2, linked: 1}, "cem=ready-for-ci hunks=3 supported=2 unknown=1 mechanical=0 unknownShare=1/3 reasonedUnknown=0 ocm=ready-for-review change-requirements=2 change-traced=1 change-untraced=1"},
+		{"cites none", cem, ocm, false, &changeCoverage{}, "cem=ready-for-ci hunks=3 supported=2 unknown=1 mechanical=0 unknownShare=1/3 reasonedUnknown=0 ocm=ready-for-review change-requirements=0 change-traced=0 change-untraced=0"},
 		{"coverage unread", cem, ocm, false, nil, "cem=ready-for-ci hunks=3 supported=2 unknown=1 mechanical=0 unknownShare=1/3 reasonedUnknown=0 ocm=ready-for-review" + unobserved},
 		{"no intent", cem, []byte("dogfood-check: NOTE intent-linkage NOT_ASSESSED no-intent-declared\n"), true, nil, "cem=ready-for-ci hunks=3 supported=2 unknown=1 mechanical=0 unknownShare=1/3 reasonedUnknown=0 ocm=NOT_ASSESSED"},
 		{"malformed", []byte("not json\n"), []byte("{}\n"), false, nil, "cem=NOT_OBSERVED hunks=NOT_OBSERVED unknownShare=NOT_OBSERVED reasonedUnknown=0 ocm=NOT_OBSERVED"},
@@ -419,7 +419,7 @@ func TestOCMV0019SummaryCountsRequirementsTheChangeCitesOrTraces(t *testing.T) {
 // and prints nothing when every referenced requirement is linked or the
 // coverage could not be read.
 func TestOCMV0025CheckNamesUnlinkedRequirementIDs(t *testing.T) {
-	if got := (&changeCoverage{requirements: 3, linked: 1, unlinked: "FIX-V0-002,FIX-V0-003"}).unlinkedNote(); got != "dogfood-check: NOTE unlinked-requirements count=2 ids=FIX-V0-002,FIX-V0-003" {
+	if got := (&changeCoverage{requirements: 3, linked: 1, unlinked: "FIX-V0-002,FIX-V0-003"}).unlinkedNote(); got != "dogfood-check: NOTE untraced-requirements count=2 ids=FIX-V0-002,FIX-V0-003" {
 		t.Fatalf("note %q", got)
 	}
 	for _, coverage := range []*changeCoverage{nil, {}, {requirements: 2, linked: 2}} {
@@ -472,5 +472,26 @@ func TestSealDCWV0166CommitsUnderTheEnvironmentIdentity(t *testing.T) {
 	got := testGit(t, root, "log", "-1", "--format=%s|%an|%ae|%cn|%ce")
 	if want := "chore: seal change evidence|Seal Author|author@example.invalid|Seal Committer|committer@example.invalid"; got != want {
 		t.Fatalf("seal commit identity %q; want %q", got, want)
+	}
+}
+
+// OCM-V0-920: when the aggregate links 0 of N, the SUMMARY names the change
+// population and prints no bare linked member above 0 for a reader to take as
+// the aggregate's count.
+func TestOCMV0920SummaryNamesTheChangePopulation(t *testing.T) {
+	t.Parallel()
+	cem := []byte(`{"state":"ready-for-ci","counts":{"total":1,"supported":1,"unknown":0,"mechanical":0},"tool":"cem-status"}` + "\n")
+	ocm := []byte(`{"aggregate":{"state":"ready-for-review","coverage":{"total":56,"linked":0,"unknown":56}},"tool":"dogfood-ocm-status"}` + "\n")
+	got := checkSummary(cem, ocm, false, 0, &changeCoverage{requirements: 2, linked: 2}, "", "/g/detail")
+	if !strings.Contains(got, " change-requirements=2 change-traced=2 change-untraced=0 ") {
+		t.Fatalf("summary does not name the change population: %q", got)
+	}
+	for _, field := range strings.Fields(got) {
+		if strings.HasPrefix(field, "linked=") || strings.HasPrefix(field, "requirements=") || strings.HasPrefix(field, "unlinked=") {
+			t.Fatalf("summary prints bare member %q that reads as the aggregate: %q", field, got)
+		}
+	}
+	if note := (&changeCoverage{requirements: 1, unlinked: "OCM-V0-001"}).unlinkedNote(); !strings.HasPrefix(note, "dogfood-check: NOTE untraced-requirements count=1 ") {
+		t.Fatalf("note %q", note)
 	}
 }

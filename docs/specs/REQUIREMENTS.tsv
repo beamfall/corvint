@@ -314,6 +314,8 @@ AHI-030	docs/specs/agent-harness-integration-v0.md	Every compact `SessionStart` 
 AHI-057	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1974) Amendmen	standing	2026-10-11; V1-1974
 AHI-053	docs/specs/agent-harness-integration-v0.md	(accepted, decision 0517 (V1-1128)) Amendment to `AHI-031`	owner	decision 0517; V1-1128
 AHI-031	docs/specs/agent-harness-integration-v0.md	(accepted 2026-09-25, decision 0400; panel blocker B8) When no index snapshot	owner	2026-09-25; decision 0400
+AHI-920	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3311; amends	standing	2026-10-31; V1-3311
+AHI-921	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-2735) The	standing	2026-10-31; V1-2735
 AHI-055	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1280) A Claude	standing	2026-10-11; V1-1280
 AHI-032	docs/specs/agent-harness-integration-v0.md	At the owner’s request (2026-09-28), stock OpenCode native integration qualifica	unrecorded	-
 AHI-056	docs/specs/agent-harness-integration-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1969; GitHub #	standing	2026-10-11; V1-1969; #1218
@@ -1728,6 +1730,7 @@ PRS-V1-019	docs/specs/corvint-1.0-product-and-release-v1.md	The root module and 
 PRS-V1-020	docs/specs/corvint-1.0-product-and-release-v1.md	`corvint --version --json` (also after `--root PATH`) MUST print one canonical J	unrecorded	-
 PRS-V1-021	docs/specs/corvint-1.0-product-and-release-v1.md	windows/amd64 is UNSUPPORTED for 1.0 and MUST fail closed (decision 0559). A	unrecorded	-
 PRS-V1-022	docs/specs/corvint-1.0-product-and-release-v1.md	Off darwin and linux, every docs corpus input read (`ReadCorpusFile`,	unrecorded	-
+PRS-V1-920	docs/specs/corvint-1.0-product-and-release-v1.md	Every receipt-read caller outside the docs corpus MUST report the	unrecorded	-
 CRB-V0-001	docs/specs/corvint-rebrand-v0.md	The current product display name MUST be `Corvint`, with lowercase slug `corvint	unrecorded	-
 CRB-V0-002	docs/specs/corvint-rebrand-v0.md	The root and repository-owned nested Go modules, active Go self-imports, and ope	unrecorded	-
 CRB-V0-003	docs/specs/corvint-rebrand-v0.md	The main native CLI version output MUST be `Corvint <version> (build <N>, commit	unrecorded	-
@@ -3071,6 +3074,7 @@ DCW-V0-812	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-844	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3318; refines `DCW-V0-400`	standing	V1-3318
 DCW-V0-845	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3302; refines `DCW-V0-063`	standing	V1-3302
 DCW-V0-846	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-1724; refines `DCW-V0-439`	standing	V1-1724
+DCW-V0-920	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3043; refines `DCW-V0-150`	standing	V1-3043
 DCW-V0-170	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2344) When	standing	2026-10-11; V1-2344
 DCW-V0-171	docs/specs/daily-change-evidence-workflow-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2171) A	standing	2026-10-11; V1-2171
 DNG-V0-001	docs/specs/decision-number-gate-v0.md	The gate MUST scan only direct children of `docs/decisions/` whose name matches	unrecorded	-
@@ -3933,6 +3937,7 @@ FPK-V0-053	docs/specs/falsifiable-packet-v0.md	(accepted, decision 0515; experim
 FPK-V0-054	docs/specs/falsifiable-packet-v0.md	(accepted, decision 0515; experimental)	owner	decision 0515
 FPK-V0-055	docs/specs/falsifiable-packet-v0.md	(accepted, decision 0515; experimental)	owner	decision 0515
 FPK-V0-056	docs/specs/falsifiable-packet-v0.md	(accepted, decision 0515; experimental)	owner	decision 0515
+FPK-V0-920	docs/specs/falsifiable-packet-v0.md	(experimental under the standing lane auto-accept (2026-10-31); V1-3042) a `prov	standing	2026-10-31; V1-3042
 FDM-V0-001	docs/specs/flow-document-maintenance-v0.md	`flows docs maintain --preview` MUST write nothing, returning proposed page and	unrecorded	-
 FDM-V0-002	docs/specs/flow-document-maintenance-v0.md	`--apply --expected-proposal SHA256` MUST freshly derive the proposal and refuse	unrecorded	-
 FDM-V0-003	docs/specs/flow-document-maintenance-v0.md	Both outputs absent permits exclusive creation. Both present requires an explici	unrecorded	-
@@ -5034,6 +5039,7 @@ OCM-V0-025	docs/specs/ocm-v0-dogfood.md	(accepted under the owner's standing aut
 OCM-V0-026	docs/specs/ocm-v0-dogfood.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2170) when	standing	2026-10-11; V1-2170
 OCM-V0-027	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-2894, decision 0585) withi	standing	V1-2894; decision 0585
 OCM-V0-028	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-2893, decision 0585) the	standing	V1-2893; decision 0585
+OCM-V0-920	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-3092) amends `OCM-V0-019`,	standing	V1-3092
 OCM-V0-013	docs/specs/ocm-v0-dogfood.md	one dogfood change MAY declare an ordered set of pinned Markdown intent	unrecorded	-
 UPD-V0-001	docs/specs/operator-update-v0.md	`check` MUST require explicit network opt-in, distinguish Core `v*` and standalo	unrecorded	-
 UPD-V0-002	docs/specs/operator-update-v0.md	`apply` MUST verify the release archive checksum before extraction, verify inter	unrecorded	-
@@ -7057,6 +7063,7 @@ WQO-V0-093	docs/specs/work-queue-observation-v0.md	(proposed; V1-2476, V1-2550) 
 WQO-V0-096	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept, 2026-10-28; V1-3063) The work	standing	2026-10-28; V1-3063
 WQO-V0-095	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept; V1-2769) The remaining fixed	standing	V1-2769
 WQO-V0-094	docs/specs/work-queue-observation-v0.md	(accepted under the owner's standing lane-requirement auto-accept (2026-10-11);	standing	2026-10-11
+WQO-V0-920	docs/specs/work-queue-observation-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-2741) After an	standing	2026-10-31; V1-2741
 WQO-V0-033	docs/specs/work-queue-observation-v0.md	Corvint core makes no network request, model call, database, daemon, embedding,	unrecorded	-
 WQO-V0-034	docs/specs/work-queue-observation-v0.md	Independent Go conformance validates every schema, identity, decision row, bound	unrecorded	-
 WQO-V0-035	docs/specs/work-queue-observation-v0.md	Rollout is frozen conformance, Corvint self-dogfood, Beamfall shadow, 500 consec	unrecorded	-

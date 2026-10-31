@@ -19,6 +19,7 @@ import (
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/patch"
 	"github.com/Beamfall/corvint/internal/cem/verify"
+	"github.com/Beamfall/corvint/internal/cem/wire"
 	"github.com/Beamfall/corvint/internal/cem/workflow"
 )
 
@@ -64,6 +65,10 @@ type proposal struct {
 	refreshRows []refreshRow
 	carried     map[string][]string
 	carryNotes  []string
+	// oversized holds each PATH:LINE:LINE candidate whose BASE line is longer
+	// than cem cite's evidence span bound, with its byte length; the draft
+	// never cites one and names each it skipped (DCW-V0-920).
+	oversized map[string]int
 	// refreshPlan is the --refresh plan as read; refreshDeferred holds its
 	// validated deferred rows, carried as written (DCW-V0-370).
 	refreshPlan     []byte
@@ -380,6 +385,9 @@ func (p *proposal) draft(hunks []proposedHunk) ([]string, []string) {
 		last := len(rows) - 1
 		ordinal, _, _ := strings.Cut(rows[last], "\t")
 		rows[last] = unknownProposal(ordinal, "no second stable span was found near this hunk")
+	}
+	for _, cite := range sortedKeys(p.oversized) {
+		notes = append(notes, fmt.Sprintf("%s not cited: its BASE line is %d bytes, over the %d-byte evidence span cem cite admits (DCW-V0-920)", cite, p.oversized[cite], wire.MaxCitationSpanBytes))
 	}
 	return append(rows, p.refreshDeferred...), notes
 }
@@ -849,6 +857,15 @@ func (p *proposal) stable(name string, line int, edited map[string][][2]int) boo
 	}
 	lines := p.baseLines(name)
 	if line < 1 || line > len(lines) || strings.TrimSpace(string(lines[line-1])) == "" {
+		return false
+	}
+	// cem cite refuses a span over wire.MaxCitationSpanBytes, such as the
+	// only line of a large one-line JSON document (DCW-V0-920).
+	if size := len(lines[line-1]); size > wire.MaxCitationSpanBytes {
+		if p.oversized == nil {
+			p.oversized = map[string]int{}
+		}
+		p.oversized[fmt.Sprintf("%s:%d:%d", name, line, line)] = size
 		return false
 	}
 	baseBlob, _ := p.blob(p.base, name)

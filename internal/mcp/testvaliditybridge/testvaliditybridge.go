@@ -201,6 +201,15 @@ func namesGitDirectory(inside string) bool {
 	return false
 }
 
+// readReceiptFile is testvaliditydoc.ReadFile; tests force its platform
+// refusal (PRS-V1-920).
+var readReceiptFile = testvaliditydoc.ReadFile
+
+// platformFailure is the typed receipt platform refusal (PRS-V1-920).
+func platformFailure() *ToolFailure {
+	return &ToolFailure{Code: testvaliditydoc.PlatformUnsupportedCode, Message: testvaliditydoc.ErrPlatformUnsupported.Error()}
+}
+
 func (registry *Registry) readResolved(inside string) ([]byte, *ToolFailure) {
 	unreadable := &ToolFailure{Code: "invalid-test-validity-receipt", Message: "receipt is not a readable regular file"}
 	root, err := os.OpenRoot(registry.root)
@@ -212,9 +221,12 @@ func (registry *Registry) readResolved(inside string) ([]byte, *ToolFailure) {
 	if err != nil || !os.SameFile(registry.rootIdentity, opened) {
 		return nil, unreadable
 	}
-	data, err := testvaliditydoc.ReadFile(root, inside)
+	data, err := readReceiptFile(root, inside)
 	if errors.Is(err, testvaliditydoc.ErrInputTooLarge) {
 		return nil, &ToolFailure{Code: "invalid-test-validity-receipt", Message: "receipt exceeds 4 MiB"}
+	}
+	if errors.Is(err, testvaliditydoc.ErrPlatformUnsupported) {
+		return nil, platformFailure()
 	}
 	if err != nil {
 		return nil, unreadable

@@ -517,7 +517,7 @@ func checkpointRevision(ctx context.Context, gitExecutable, root string) (string
 func checkpointClosingRead(ctx context.Context, gitExecutable, root, commit, revision string, dirtyBefore []string) error {
 	dirtyAfter, err := affected.DirtyPaths(ctx, gitExecutable, root)
 	if err != nil {
-		return checkpointError("unsupported-prove-history", "cannot read the worktree status")
+		return proveStatusRefusal(ctx, err)
 	}
 	head, tree, err := checkpointRevision(ctx, gitExecutable, root)
 	if err != nil {
