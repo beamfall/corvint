@@ -515,6 +515,10 @@ func leaseResult(cmd []string, report *store.Report) *wire.Result {
 			reused = wire.ObjectValue(wire.NewObject().Set("result", wire.String(string(r.Result))).Set("attemptId", wire.String(r.AttemptID)))
 		}
 		o.Set("reusedFrom", reused)
+		// TCD-V0-806: a descendant PASS that integration would let a rerun reuse.
+		if p := report.GateReusePending; p != nil {
+			res.Warnings = append(res.Warnings, "gate "+p.Gate+": attempt "+p.AttemptID+" passed it at tree "+p.Tree+" (result "+string(p.Result)+"), which is not yet a commit on the protected intent branch "+p.Branch+"; integrate the commit carrying that tree, which must descend from this attempt's candidate, then rerun gate run: it reuses that PASS without executing and complete records a verified completion (TCD-V0-806)")
+		}
 		gate, warning := gateResultValue(report.GateExecuted)
 		o.Set("gateResult", gate)
 		if warning != "" {
