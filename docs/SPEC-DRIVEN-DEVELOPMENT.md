@@ -63,7 +63,20 @@ A spec header's `Intent status:` and its Agent digest `Status:` hold the current
 optionally followed by the pointer `(history: REQUIREMENTS.tsv acceptance columns and
 docs/build-log)`. A change that accepts or amends requirements records that in each requirement's
 marker and in its build-log entry; it does not append to the header (`SRG-V0-011`). Older headers
-keep their tails until a change touches them.
+keep their tails, frozen: `docs/specs/INTENT-STATUS-FROZEN.tsv` records each such header's length
+and the requirement IDs it names, and every `make spec-requirements` mode refuses a header or digest
+`Status:` that names a requirement ID its frozen text did not, or an `Intent status:` longer than
+160 characters and its frozen length, naming the spec and the repair (`SRG-V0-980`). A tail may be
+cut back without touching the frozen file.
+
+To amend an accepted requirement, edit its own definition line: rewrite its leading note to name
+the amendment and its anchor, for example `(accepted, decision NNNN; amended under the owner's
+standing auto-accept (YYYY-MM-DD); V1-NNNN)`, which `REQUIREMENTS.tsv` carries as `standing` with
+every anchor in `acceptedBy` until the owner reads the amendment back (`SRG-V0-981`). Two changes
+that amend different requirements of one spec then touch different lines and rows and merge
+without a conflict. The same holds for `Makefile` targets: each phony target is declared on its
+own `.PHONY:` line next to its rule, never appended to a shared line (`SRG-V0-982`).
+`script/spec-requirements-conflict_test.sh` replays both merges (`SRG-V0-983`).
 
 A qualified `Delivery status:` header (more than one word, for example `experimental (file transport
 only)`) appears verbatim in the digest `Status:`; the digest may add only a new sentence after it,

@@ -359,6 +359,41 @@ No requirement below diverges from the implementation.
   before this, adding one requirement to the agent-leases spec, which sat at the bound, passed the
   doc gates and was caught only by `internal/lrfrepo`'s enumeration tests in the closeout
   batch-precheck, after the CEM was sealed. Rollback: drop the test and its Makefile line.
+- `SRG-V0-980`: (experimental under the owner's standing auto-accept (2026-10-31); V1-3458) Every
+  generator mode MUST refuse, before printing or writing anything, a tracked spec whose header
+  `Intent status:` or Agent digest `Status:` names a requirement ID (the SRG-V0-003 token) that the
+  spec's row in `docs/specs/INTENT-STATUS-FROZEN.tsv` does not list, or whose `Intent status:` is
+  longer than 160 characters and longer than that row's frozen length. Each refusal MUST name the
+  spec, the field and the ID or the two lengths, and MUST say to record the acceptance in the
+  requirement's own leading note (SRG-V0-009, SRG-V0-981) and its build-log entry instead. The
+  frozen file is tab-separated `path`, `chars` (the header's character length) and `ids`
+  (space-separated), sorted by path, read from the Git index like the specs, and absent means
+  empty. It holds a row for every spec whose header at the freeze named an ID or exceeded 160
+  characters; it is written once and never appended to, so a header may shrink or drop IDs without
+  an edit to it. Non-goal: deciding which old tails to cut back. Failure mode: before this, every
+  amendment appended a segment to the one-line header (up to about 14.5 KB), which the generator
+  mirrored into the digest, INDEX.json and README.md, so two lanes amending one spec conflicted in
+  four files. Rollback: delete the frozen file and the refusal block.
+- `SRG-V0-981`: (experimental under the owner's standing auto-accept (2026-10-31); V1-3458) A change
+  that amends an existing requirement MUST record the amendment in that requirement's leading note
+  on its definition line, naming the standing approval or the owner decision and its anchor, so the
+  SRG-V0-009 reader classifies it and REQUIREMENTS.tsv carries its anchors in `acceptedBy`. An
+  `owner` requirement amended under the standing approval therefore reads `standing` until the owner
+  reads the amendment back. Rollback: none needed; the rule only names where the record goes.
+- `SRG-V0-982`: (experimental under the owner's standing auto-accept (2026-10-31); V1-3458) The
+  repository `Makefile` MUST declare each phony target on its own `.PHONY:` line, placed with that
+  target's rule, and `make spec-requirements-test` MUST fail naming each `.PHONY:` line that lists
+  more than one target. Failure mode: one shared `.PHONY:` line of about 1,560 characters took a
+  word from every lane that added a target, so any two such lanes conflicted on it. Rollback:
+  rejoin the lines and drop the check.
+- `SRG-V0-983`: (experimental under the owner's standing auto-accept (2026-10-31); V1-3458)
+  `script/spec-requirements-conflict_test.sh` MUST replay two branches of one synthetic repository
+  that each amend a different requirement of one spec under SRG-V0-981 and each add a different
+  phony make target under SRG-V0-982, and MUST fail unless they merge in both orders with no
+  conflict in any file and every merged generated file equals the regenerated one. As negative
+  controls it MUST show that the same amendments written as header segments, and the same targets
+  appended to one shared `.PHONY:` line, do conflict, and that the generator refuses the new header
+  segment under SRG-V0-980. Rollback: drop the case.
 
 ## Non-goals and simpler baseline
 
@@ -432,6 +467,9 @@ definition line (SRG-V0-017).
 | The `internal/specindex` read scope is narrowed so a spec-metadata input leaves it | `TestSRGV0045SpecMetadataStaysInSelectedScope` fails naming the input and the scope |
 | An author edits a spec's header Intent status but not its Agent digest Status, or the reverse | `spec-requirements-check` names the digest `- Status:` line and both header status lines as `path:line` and says to edit them together (SRG-V0-047) |
 | Two specs, or two lines of one spec, define the same requirement id | every generator mode exits non-zero naming each `path:line`, so `make spec-requirements` and `spec-requirements-check` fail instead of keeping one definition (SRG-V0-547) |
+| A lane appends an acceptance segment naming a new requirement ID to a spec's `Intent status:` or digest `Status:`, or grows a header past 160 characters and its frozen length | every generator mode exits non-zero naming the spec, the field and the ID or lengths, and says to record the acceptance in the requirement's leading note and build-log entry (SRG-V0-980) |
+| A lane adds a phony make target to a shared multi-target `.PHONY:` line | `make spec-requirements-test` fails naming the line (SRG-V0-982) |
+| Two lanes re-pin the same line citations in `docs/AUTOMATION.md`, or the same use-case receipt digest in `conformance/use-cases-v0/ledger.json`, after both edit a cited file | a conflict in those derived pins only; take either side and run `make batch-regen`, which re-pins both; not prevented here, since dropping the content pin would weaken the evidence (V1-3458 build log) |
 | An agent needs a requirement's line | `rg -n -F` on the id in the row's file, or `script/gen-spec-requirements.sh --lines` |
 
 ## Acceptance criteria and testing matrix
@@ -468,6 +506,10 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-547 | `script/gen-spec-requirements_test.sh` case 12: `DUP-V0-001` defined in two specs and `DUP-V0-002` twice in one are refused in the TSV, `--lines`, `--index` and `--readme` modes naming both `path:line` locations, and `--all` writes nothing; the case fails on the pre-change generator |
 | SRG-V0-548 | `script/gen-spec-requirements_test.sh` case 12: a wrapped `` `DUP-V0-001`. `` citation before the real definition is neither refused nor chosen as the row; regenerating the committed index moves only the `AHI-246` and `DCI-V1-030` rows to their real definitions |
 | SRG-V0-046 | `script/gen-spec-requirements_test.sh` case 11: `NEAR-008`, an owner-chat note whose date wraps to the next line, is refused as still open at the end of the definition line with the closed-note example, the no-anchor reason and closing line carry their examples, and `NEAR-009`, the same note nested and closed on one line, classifies as `owner` with `2026-10-27; V1-2763`; the open-note and example cases fail on the pre-change generator |
+| SRG-V0-980 | `script/gen-spec-requirements_test.sh` case 13: a header and a digest that name an ID absent from the frozen row, and a header grown past 160 characters and its frozen length, are refused in the TSV and `--all` modes with the spec, field, ID or lengths and the repair, and `--all` writes nothing; a frozen header, a shortened one and an absent frozen file with a short ID-free header pass; the case fails on the pre-change generator. The committed frozen file regenerates the live corpus unchanged |
+| SRG-V0-981 | `script/spec-requirements-conflict_test.sh` replay: each branch's amended note yields a `standing` row whose `acceptedBy` carries the amendment's date and ticket |
+| SRG-V0-982 | `script/spec-requirements-conflict_test.sh`: the repository `Makefile` has no multi-target `.PHONY:` line, and a fixture with one is named; `make -pn` lists the same phony set before and after the split |
+| SRG-V0-983 | `script/spec-requirements-conflict_test.sh` replay: the line-amending branches merge in both orders with no conflict and regenerate to the merged bytes, while the header-segment and shared-`.PHONY:` controls conflict |
 
 ## Traceability
 
@@ -502,6 +544,10 @@ Evidence is `script/gen-spec-requirements_test.sh`, run by `make spec-requiremen
 | SRG-V0-548 | the fence and continuation tracking and the wrapped flag in the `%best` key in `script/gen-spec-requirements.sh`; `DefinitionLine` in `internal/specindex/requirements.go` | `spec-requirements-test`; `spec-requirements-check`; `TestSRGV0017DefinitionLineFollowsGeneratorRanks`, `TestSRGV0017DefinitionLineLocatesEveryRow` |
 | SRG-V0-047 | `statusDriftMessage` and `headerLine` in `internal/specindex/index_test.go` | `TestSRGV0047StatusDriftNamesBothFieldsWithLines`; `spec-requirements-check` |
 | SRG-V0-900 | `TestSpecsStayWithinTheOCMObligationBound` in `internal/lrfrepo/ocm_spec_bound_test.go`, run by `spec-requirements-check` |
+| SRG-V0-980 | `docs/specs/INTENT-STATUS-FROZEN.tsv`; the frozen-header refusal block in `script/gen-spec-requirements.sh` | `spec-requirements-test`; `spec-requirements-check` |
+| SRG-V0-981 | `docs/SPEC-DRIVEN-DEVELOPMENT.md` Status model; the SRG-V0-009 reader | `spec-requirements-test` |
+| SRG-V0-982 | the per-target `.PHONY:` lines in `Makefile`; the `.PHONY` check in `script/spec-requirements-conflict_test.sh` | `spec-requirements-test` |
+| SRG-V0-983 | the replay case in `script/spec-requirements-conflict_test.sh` | `spec-requirements-test` |
 
 ## Rollout, rollback, and drift
 
@@ -533,6 +579,9 @@ so no generated file moves.
 SRG-V0-547 and SRG-V0-548 roll back as one revert of their commit: the duplicate refusal goes away
 and the `AHI-246` and `DCI-V1-030` rows return to their wrapped citations after `make
 spec-requirements`.
+
+SRG-V0-980..983 roll back as one revert of their commits: the frozen file and refusal go, the
+`.PHONY:` lines may be rejoined, and no generated file moves, since the freeze changed no header.
 
 Drift rule: enumeration MUST measure the Git index, never a worktree listing, for the same reason
 `decision-number-gate-v0.md` pins it. A future change that reintroduces a directory listing,

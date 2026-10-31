@@ -6015,6 +6015,10 @@ SRG-V0-047	docs/specs/spec-requirement-index-generator-v0.md	(proposed; V1-2867;
 SRG-V0-547	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)	standing	2026-10-11; V1-3049
 SRG-V0-548	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)	standing	2026-10-11; V1-3049
 SRG-V0-900	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; tasks-w1 lane	standing	2026-10-31
+SRG-V0-980	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-10-31); V1-3458) Ever	standing	2026-10-31; V1-3458
+SRG-V0-981	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-10-31); V1-3458) A ch	standing	2026-10-31; V1-3458
+SRG-V0-982	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-10-31); V1-3458) The	standing	2026-10-31; V1-3458
+SRG-V0-983	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing auto-accept (2026-10-31); V1-3458)	standing	2026-10-31; V1-3458
 STA-V0-001	docs/specs/spec-toolchain-adapters-v0.md	One manifest, `interop/spec-toolchains/versions.json`, records the supported ups	unrecorded	-
 STA-V0-002	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob	unrecorded	-
 STA-V0-003	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-delta` reads one OpenSpec delta file.	unrecorded	-
