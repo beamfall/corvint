@@ -197,6 +197,9 @@ func inherited(ctx context.Context, repository *gitauth.Repository, document *wi
 	if err != nil {
 		return nil, err
 	}
+	if _, err := BinaryBlobSizes(ctx, repository, parsed); err != nil {
+		return nil, err
+	}
 	source := &baseSource{ctx: ctx, repository: repository, base: baseOID}
 	if err := sim.Simulate(parsed, source); err != nil {
 		return nil, err

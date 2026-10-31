@@ -82,6 +82,7 @@ type metadata struct {
 	deleteMode  string
 	renameFrom  string
 	renameTo    string
+	renameSeen  bool // a rename from/to line was present, whatever its value
 	similarity  bool
 }
 
@@ -321,11 +322,13 @@ func metadataOnlyKind(first, second string) string {
 // full-index `Binary files` section (CEM-V1-980): a symmetric diff --git
 // line, at most one new or deleted file mode, one index line whose full
 // object IDs have one length (all zeros on the absent side, a mode suffix only
-// for a modification), and the marker whose labels match. Any other shape
-// returns nil, so the caller keeps the CEM-V1-037 refusal.
+// for a modification), and the marker whose labels match. Rename and
+// similarity metadata refuse by presence, so an empty `rename from ` value
+// cannot pass. Any other shape returns nil, so the caller keeps the
+// CEM-V1-037 refusal.
 func canonicalBinaryGroup(diffLine string, meta *metadata, marker string) *Group {
 	path, ok := symmetricDiffPath(diffLine)
-	if !ok || !meta.indexSeen || meta.renameFrom != "" || meta.renameTo != "" || meta.similarity {
+	if !ok || !meta.indexSeen || meta.renameSeen || meta.similarity {
 		return nil
 	}
 	oldOID, newOID := meta.indexOld, meta.indexNew
@@ -466,12 +469,12 @@ func (p *parser) parseMetadata() (*metadata, error) {
 			if meta.renameFrom != "" {
 				return nil, malformed("repeated rename from line")
 			}
-			meta.renameFrom = strings.TrimPrefix(text, "rename from ")
+			meta.renameFrom, meta.renameSeen = strings.TrimPrefix(text, "rename from "), true
 		case strings.HasPrefix(text, "rename to "):
 			if meta.renameTo != "" {
 				return nil, malformed("repeated rename to line")
 			}
-			meta.renameTo = strings.TrimPrefix(text, "rename to ")
+			meta.renameTo, meta.renameSeen = strings.TrimPrefix(text, "rename to "), true
 		case strings.HasPrefix(text, "similarity index ") || strings.HasPrefix(text, "dissimilarity index "):
 			if meta.similarity {
 				return nil, malformed("repeated similarity metadata")

@@ -96,6 +96,27 @@ func TestCEMV1980BinaryGroupGrammar(t *testing.T) {
 		})
 	}
 
+	// Rename metadata is refused by its presence, not by its value: an empty
+	// `rename from ` / `rename to ` line must not let the section through
+	// (CEM-V1-980). Copy metadata is outside the grammar and also refuses.
+	modify := "index " + sha1Old + ".." + sha1New + " 100644\nBinary files a/img/x.png and b/img/x.png differ\n"
+	present := []struct{ name, metadata string }{
+		{"empty-rename-from-and-to", "rename from \nrename to \n"},
+		{"empty-rename-from", "rename from \n"},
+		{"empty-rename-to", "rename to \n"},
+		{"similarity", "similarity index 100%\n"},
+		{"copy", "copy from img/x.png\ncopy to img/x.png\n"},
+		{"empty-copy", "copy from \ncopy to \n"},
+	}
+	for _, tc := range present {
+		t.Run("metadata-present/"+tc.name, func(t *testing.T) {
+			parsed, err := Parse([]byte("diff --git a/img/x.png b/img/x.png\n" + tc.metadata + modify + text))
+			if err == nil {
+				t.Fatalf("Parse accepted a binary section carrying %q metadata: %d binary groups", tc.metadata, len(parsed.Binary))
+			}
+		})
+	}
+
 	t.Run("binary-only", func(t *testing.T) {
 		_, err := Parse([]byte(accepted[0].section))
 		if cemcode.CodeOf(err) != cemcode.BinaryPatch ||

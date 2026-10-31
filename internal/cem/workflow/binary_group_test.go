@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
+	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/verify"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
@@ -116,5 +117,71 @@ func TestCEMV1984CiteRefusesBinaryPath(t *testing.T) {
 		MapPath: wire.ExcludedCEMPath, Hunk: hunk, EvidencePath: "t.txt", Lines: "2:2", Relation: "specification",
 	}); err != nil {
 		t.Fatalf("cite into the text file of a map with binary groups: %v", err)
+	}
+}
+
+// TestCEMV1985OverBoundBinaryRefuses pins CEM-V1-985 (V1-2752): a binary
+// fixture whose blob exceeds gitauth.MaxBlobBytes is never bound silently.
+// Prepare refuses repository-object-unavailable naming the path before any
+// map is written, and a map begun over the same canonical patch is refused
+// with the same code by the candidate (`cem verify`) and stable verifiers,
+// although binary bodies are never read and a creation's base side is absent.
+func TestCEMV1985OverBoundBinaryRefuses(t *testing.T) {
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	gitCmd(t, root, "init", "-q", "-b", "main")
+	writeFile(t, root, "t.txt", "a\nkeep\n")
+	gitCmd(t, root, "add", ".")
+	gitCmd(t, root, "commit", "-qm", "base")
+	base := gitCmd(t, root, "rev-parse", "HEAD")
+	writeFile(t, root, "t.txt", "b\nkeep\n")
+	writeFile(t, root, "testdata/big.bin", "\x00"+strings.Repeat("x", gitauth.MaxBlobBytes))
+	gitCmd(t, root, "add", "-A")
+	gitCmd(t, root, "commit", "-qm", "target")
+	target := gitCmd(t, root, "rev-parse", "HEAD")
+	overBound := func(stage string, err error) {
+		t.Helper()
+		if cemcode.CodeOf(err) != cemcode.RepositoryObjectUnavailable ||
+			!strings.Contains(cemcode.MessageOf(err), `"testdata/big.bin"`) || !strings.Contains(cemcode.MessageOf(err), "CEM-V1-985") {
+			t.Fatalf("%s over a %d-byte binary blob: %v", stage, gitauth.MaxBlobBytes+1, err)
+		}
+	}
+
+	_, err = openSession(t, root).Prepare(ctx(), PrepareOptions{Base: base, Target: target})
+	overBound("prepare", err)
+	if _, statErr := os.Stat(filepath.Join(root, wire.ExcludedCEMPath)); !os.IsNotExist(statErr) {
+		t.Fatalf("refused prepare left a map: %v", statErr)
+	}
+
+	session := openSession(t, root)
+	if err := session.openRepository(); err != nil {
+		t.Fatal(err)
+	}
+	patchBytes, err := session.repository.CanonicalDiff(ctx(), base, target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	patchPath := filepath.Join(t.TempDir(), "change.patch")
+	if err := os.WriteFile(patchPath, patchBytes, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := session.Begin(ctx(), BeginOptions{PatchPath: patchPath, Base: base, Output: wire.ExcludedCEMPath}); err != nil {
+		t.Fatalf("begin over the canonical patch: %v", err)
+	}
+	_, document, err := openSession(t, root).readProducerMap(wire.ExcludedCEMPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	overBound("candidate verify", verify.Candidate(ctx(), session.repository, document, patchBytes))
+
+	raw, err := os.ReadFile(filepath.Join(root, wire.ExcludedCEMPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	verdict, _ := verify.Stable(ctx(), raw, verify.StableOptions{Repository: root, ExpectedBase: base, Target: target, ArtifactRoot: root})
+	if encoded, _ := json.Marshal(verdict); verdict.Code == nil || *verdict.Code != cemcode.RepositoryObjectUnavailable {
+		t.Fatalf("stable verify over a %d-byte binary blob: %s", gitauth.MaxBlobBytes+1, encoded)
 	}
 }

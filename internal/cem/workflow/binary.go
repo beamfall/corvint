@@ -5,28 +5,20 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/patch"
+	"github.com/Beamfall/corvint/internal/cem/verify"
 )
 
 // binaryRows renders each binary group of the prepared patch, in patch order,
 // as an excluded row bound by its blob identity (CEM-V1-983). The sizes are
 // Git's object headers for the bound object IDs; the absent side of a
-// creation or deletion is null. It returns nil when the patch has no binary
-// group, so a text-only prepare result is unchanged.
+// creation or deletion is null. An over-bound blob on either side refuses
+// (CEM-V1-985). It returns nil when the patch has no binary group, so a
+// text-only prepare result is unchanged.
 func (s *Session) binaryRows(ctx context.Context, parsed *patch.Patch) ([]any, error) {
 	if len(parsed.Binary) == 0 {
 		return nil, nil
 	}
-	var oids []string
-	seen := map[string]bool{}
-	for _, group := range parsed.Binary {
-		for _, oid := range []string{group.OldOID, group.NewOID} {
-			if oid != "" && !seen[oid] {
-				seen[oid] = true
-				oids = append(oids, oid)
-			}
-		}
-	}
-	sizes, err := s.repository.BlobHeaders(ctx, oids)
+	sizes, err := verify.BinaryBlobSizes(ctx, s.repository, parsed)
 	if err != nil {
 		return nil, err
 	}
