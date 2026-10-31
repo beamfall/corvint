@@ -3,7 +3,7 @@
 Owner: Russell Lewis
 Date: 2026-09-07
 Requirement prefix: `DCG-V0`
-Intent status: accepted (owner instruction 2026-09-07); DCG-V0-048 experimental under the standing lane auto-accept (V1-3228); DCG-V0-800/801 experimental under the standing lane auto-accept (V1-3384)
+Intent status: accepted (owner instruction 2026-09-07); DCG-V0-048 experimental under the standing lane auto-accept (V1-3228); DCG-V0-800/801 experimental under the standing lane auto-accept (V1-3384); DCG-V0-810 experimental under the standing lane auto-accept (V1-3467)
 Delivery status: implemented
 Authoritative inputs: `../../AGENTS.md` invariants 1, 2 and 8, `../SPEC-DRIVEN-DEVELOPMENT.md`,
 `../DOGFOOD.md` §4, `falsifiable-packet-v0.md` FPK-V0-004 (the packet-side citation check this
@@ -14,7 +14,7 @@ gate mirrors for prose), `../decisions/0136-extensionless-root-line-citations-20
 
 ## Agent digest
 - Claim: Path:line citations resolve against the Git index, including decisions; malformed tokens fail, legacy unpinned debt cannot grow, new docs need content anchors.
-- Status: accepted (owner instruction 2026-09-07); DCG-V0-048 experimental under the standing lane auto-accept (V1-3228); DCG-V0-800/801 experimental under the standing lane auto-accept (V1-3384) / implemented
+- Status: accepted (owner instruction 2026-09-07); DCG-V0-048 experimental under the standing lane auto-accept (V1-3228); DCG-V0-800/801 experimental under the standing lane auto-accept (V1-3384); DCG-V0-810 experimental under the standing lane auto-accept (V1-3467) / implemented
 - Exists: `script/check-line-citations.sh`, `script/check-line-citations_test.sh`, `make` targets `line-citations-check` and `line-citations-test`.
 - Blocked on: nothing for this gate. The three sibling gate scripts named in `../agent-memory/fixes.md` remain unspecified.
 - Read next: Requirements; Non-goals; Failure modes.
@@ -319,13 +319,31 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   (`make repin-test`; fails when the target passes `$(BASE)`). Rollback: delete `script/repin.sh`,
   its test and the targets.
 
+- `DCG-V0-810`: (experimental under the standing lane auto-accept (V1-3467); refines DCG-V0-045)
+  When the base's diff proves no move for a pinned span, `--repin` MUST try the diff from the newest
+  of the last 50 commits at or before the base that touched the cited file and at which the cited
+  lines, at the same numbers, hash to the pin, and relocate the span exactly as DCG-V0-045 does
+  from that commit: every cited line unchanged, all moved by one nonzero offset, and the moved
+  lines still hashing to the pin. That commit is where the cited text last stood at its cited
+  numbers, so the diff tracks those very lines, and a repeated or short line (under the
+  DCG-V0-044 threshold) relocates by context rather than by its text alone. A span whose own text
+  changed since that commit is never rewritten, and no matching commit leaves the DCG-V0-045
+  result. Design: on 2026-10-31 a lane that had already committed its `Makefile` insertion could
+  not repin `Makefile:122` in `docs/specs/go-archive-gate-v0.md`, a line under 20 characters, since
+  `HEAD`'s diff to the index was empty. Non-goals: following renames, and history deeper than 50
+  commits of the cited file. Failure modes: a pin whose text sat at its numbers only before a
+  rename, or more than 50 commits back, keeps the DCG-V0-044 refusal. Evidence: case 35 of
+  `script/check-line-citations_test.sh` (a repeated short `go build` line moved by a committed
+  insertion repins; a changed short line is left; fails on BASE). Rollback: drop the
+  `history_relocation` call in `check`.
+
 ## Non-goals and simpler baseline
 
 The simpler baseline is the three structural checks alone, retained for legacy unpinned citations
 subject to DCG-V0-014 and the DCG-V0-017 ceiling. This gate does not judge whether a citation is relevant, well chosen, or supports the
 sentence around it; an anchor is a staleness detector, not a correctness proof. It does not rewrite
 or repin documents, does not check citations outside the DCG-V0-001 document set, does not resolve a bare
-basename that the index does not track at the repository root, does not read Git history or any revision other than the index (the DCG-V0-021 note compares the worktree with the index only to name unstaged files, and resolves nothing against the worktree; only the opt-in DCG-V0-045 `--repin` reads the diff from a base commit, as move evidence, and it never changes the check's result), and does not
+basename that the index does not track at the repository root, does not read Git history or any revision other than the index (the DCG-V0-021 note compares the worktree with the index only to name unstaged files, and resolves nothing against the worktree; only the opt-in DCG-V0-045 `--repin` reads the diff from a base commit, and DCG-V0-810 the cited file's recent commits, as move evidence, and it never changes the check's result), and does not
 extend to the machine-readable packet, whose equivalent check is FPK-V0-004's `history-consistent`
 against `blob_hash` at the packet revision. `docs/plans`, `docs/reviews`, `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md` and
 `docs/build-log`, and nested conformance result READMEs stay outside the set. They are dated
@@ -403,6 +421,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-043 | test case 30: `--hash` on a path carrying only stage 1 and 2 entries exits non-zero naming `stages 1,2, no stage 0`; the base script exited 128 with only git's own message |
 | DCG-V0-044 | test case 31: a pinned one-line span whose line of 52 non-whitespace characters moved down two lines reported as moved to line 6, `--repin` printing that relocation and rewriting it to a passing citation; the same line appearing twice reported with the position count and left alone; an edited line reported as changed with no move and left alone; case 28's `return nil` still not relocated; with the threshold raised to 999 case 31 fails |
 | DCG-V0-045 | test case 32: three lines inserted above a committed file move a repeated three-line span and a lone `return nil` line, which the check reports as ambiguous; `--repin` rewrites both to their diff-proven lines, leaves a changed span written as it was and prints the span the diff maps it to with that span's `--hash` anchor; after staging only the changed span fails; an unstaged cited file is named with `git add -- internal/demo/shift.go`; `--base no-such-rev` refuses. With the diff relocation disabled, case 32 fails |
+| DCG-V0-810 | test case 35: a repeated short `go build` line pinned, then moved down three lines by a committed insertion, fails the check without a move; `--repin` relocates it by the diff from the commit where its pin matched, leaves a short line whose text changed written as it was, and after staging only that line fails. Without `history_relocation`, case 35 fails |
 | DCG-V0-046 | test case 22: a root-basename skip prints one counted note line and no per-citation note, `--verbose` lists it, and a failing run prints its failure before the count, with the exit status unchanged in both modes; case 21 prints its failure before the DCG-V0-021 note |
 | DCG-V0-048 | test case 24: `--repin` names what it staged, leaves no unstaged diff and the check then passes with no `git add`; case 24b: a held `index.lock` exits 1 naming the `git add`, a fifth pass that rewrote exits 1 as not converged, and a `[fx].md` document leaves its unstaged sibling `f.md` unstaged; test case 33: one `--repin` call moves the inner citation, stages it and in its second pass re-anchors the outer citation, leaving nothing unstaged, and the check passes; case 33b: the second pass still refuses a prose change and the call exits 0 |
 | DCG-V0-047 | test case 33: a fixture pins a spec line that cites a moved source line; `--repin` moves the spec's token, and after staging a second `--repin` re-anchors the fixture's citation, including a moved continuation token, with no `--hash`, and the check passes; case 33b: changing a backticked prose `name:number` value still refuses |
@@ -440,6 +459,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-043 | the `%unmerged` loader from `git ls-files -u` and its refusal in `lines_of`, `script/check-line-citations.sh` | case 30 |
 | DCG-V0-044 | `$distinctive_line`, `distinctive` and the lone-line branch of `relocatable` in `script/check-line-citations.sh` | case 31 |
 | DCG-V0-045 | `base_hunks`, `base_lines`, `map_line`, `diff_relocation`, `diff_suggestion`, the `--base` parser and `print_unstaged` in `script/check-line-citations.sh` | case 32 |
+| DCG-V0-810 | `path_history`, `history_relocation`, `diff_relocation_from` and the commit argument of `base_lines` and `base_hunks` in `script/check-line-citations.sh` | case 35 |
 | DCG-V0-046 | `@skipped`, `print_skipped`, `--verbose` and the failures-first ordering in `script/check-line-citations.sh` | case 22 |
 | DCG-V0-048 | the staging and rerun at the end of the `--repin` block and `CHECK_LINE_CITATIONS_SELF` in `script/check-line-citations.sh` | cases 24, 24b, 33 and 33b |
 | DCG-V0-800 | `decision_commit`, `lines_at` and `lines_for` in `script/check-line-citations.sh` | case 34 |
