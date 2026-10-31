@@ -79,8 +79,26 @@ EXPECTED_REFUSAL = {"M1-stale-target": "patch-digest-mismatch", "M2-hunk-removed
 # check refuses each as a dirty worktree.
 NOT_DISCRIMINATING = {name for name, want in EXPECTED_REFUSAL.items()
                       if list(EXPECTED_REFUSAL.values()).count(want) > 1}
-# No host Git configuration or identity reaches a Git or Corvint subprocess.
-ENV = dict({k: v for k, v in os.environ.items() if not k.startswith("GIT_")},
+
+
+def go_caches():
+    """The operator's Go build, module and settings locations, pinned before HOME moves so the
+    candidate build reuses them instead of resolving new ones under the harness HOME."""
+    try:
+        out = subprocess.run(["go", "env", "-json", "GOCACHE", "GOMODCACHE", "GOPATH", "GOENV"],
+                             capture_output=True, text=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return {}
+    return {k: v for k, v in json.loads(out).items() if v}
+
+
+# No host Git configuration or identity, and no inherited DOGFOOD_* or CORVINT_* input, reaches a Git
+# or Corvint subprocess. HOME is a harness-owned empty directory, so neither ~/.gitconfig nor any
+# other per-user configuration read through HOME or XDG_CONFIG_HOME applies (V1-0382).
+ENV = dict({k: v for k, v in os.environ.items()
+            if not k.startswith(("GIT_", "DOGFOOD_", "CORVINT_")) and k != "XDG_CONFIG_HOME"},
+           **go_caches(),
+           HOME=tempfile.mkdtemp(prefix="daily-loop-home-"),
            GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_SYSTEM=os.devnull,
            GIT_AUTHOR_NAME="bench", GIT_AUTHOR_EMAIL="bench@invalid",
            GIT_COMMITTER_NAME="bench", GIT_COMMITTER_EMAIL="bench@invalid")
@@ -444,7 +462,7 @@ class Loop:
 
     # An input a variant omits, or a Corvint binary the operator selected, never arrives from the shell.
     def env(self, omit):
-        env = {k: v for k, v in ENV.items() if not k.startswith(("DOGFOOD_", "CORVINT_"))}
+        env = dict(ENV)
         env.update(DOGFOOD_OUTCOME="passed",
                    DOGFOOD_TASK="Preregister the daily-loop sealed benchmark corpus and harness.")
         env.update({k: v for k, v in self.files.items() if k not in omit})

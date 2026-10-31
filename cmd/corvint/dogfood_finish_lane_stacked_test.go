@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// DCW-V0-964 (V1-3303): a sealed finish leaves its ignored OCM sidecars, and a
+// DCW-V0-964 (V1-3303; the note is DCW-V0-810): a sealed finish leaves its ignored OCM sidecars, and a
 // stacked follow-up in the same worktree, bound against that seal, needs no
 // manual cleanup: inputs-check notes the sidecars and passes, and finish-lane
 // moves them aside byte-preserved and seals.
@@ -37,7 +37,7 @@ func TestDogfoodFinishLaneDCWV0964StackedFinishNeedsNoCleanup(t *testing.T) {
 	cemWrite(t, root, "fixture/fixture.go", "package fixture\n\n// Answer is two.\nfunc Answer() int { return 2 }\n")
 	cemGit(t, root, "commit", "-qam", "stacked follow-up")
 	code, stdout, stderr := run.exec(t, root, env, append([]string{"dogfood", "inputs-check", "--base", seal}, args...)...)
-	if code != 0 || !strings.Contains(stderr, "dogfood-inputs-check: NOTE reused-worktree-state\n") || strings.Contains(stderr, "REFUSE") {
+	if code != 0 || !strings.Contains(stderr, "dogfood-inputs-check: NOTE stale sidecar .corvint/change.ocm") || strings.Contains(stderr, "REFUSE") {
 		t.Fatalf("inputs-check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
 	}
 	code, stdout, stderr = run.exec(t, root, env, append([]string{"dogfood", "finish-lane", "--base", seal}, args...)...)

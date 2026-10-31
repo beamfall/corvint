@@ -46,7 +46,7 @@ func BuildRoots(ctx context.Context, root, manifestPath, revision string, roots 
 	r := repo{ctx: ctx, root: root}
 	rev, err := r.resolve(revision)
 	if err != nil {
-		return nil, &gokernel.Error{Code: "appmap-invalid-revision", Message: err.Error()}
+		return nil, orPlatform(err, &gokernel.Error{Code: "appmap-invalid-revision", Message: err.Error()})
 	}
 	if !safeRelative(manifestPath) {
 		return nil, invalidManifest("--manifest must be a repository-relative path")

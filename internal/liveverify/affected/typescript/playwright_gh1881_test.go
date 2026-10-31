@@ -53,7 +53,8 @@ func TestPlaywrightTagClosureFreshObjectTypeKeyAndEntries_GH1881(t *testing.T) {
 		{"117", "entries over a nested spread", walk("const seen = {};", "const seen = { a: { ...keys } };"), helperStop + "4: " + reflective},
 		{"117", "entries over a parameter", walk("Object.entries(seen)", "Object.entries(keys)"), helperStop + "4: " + reflective},
 		{"117", "entries with a second argument", walk("Object.entries(seen)", "Object.entries(seen, keys)"), helperStop + "4: " + reflective},
-		{"117", "values over a fresh object", walk("Object.entries(seen)", "Object.values(seen)"), helperStop + "4: " + reflective},
+		// AFP-V0-960 admits Object.values on the same terms as Object.entries.
+		{"117", "values over a fresh object", walk("Object.entries(seen)", "Object.values(seen)"), ""},
 		{"117", "entries over an escaping fresh object", walk("  return", "  keep(seen);\n  return"), helperStop + "5: " + reflective},
 		{"117", "entries over a parenthesized argument", walk("Object.entries(seen)", "Object.entries((seen))"), helperStop + "4: " + reflective},
 		{"117", "optional entries call", walk("Object.entries(seen)", "Object.entries?.(seen)"), helperStop + "4: " + reflective},

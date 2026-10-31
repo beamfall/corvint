@@ -44,16 +44,14 @@ func (f *flow) requireFreshWorktree(base, gitDir string, retire bool) {
 	if len(stranded) == 0 && len(stale) == 0 {
 		return
 	}
-	// DCW-V0-964 (V1-3303): stale sidecars alone are what finish-lane moves
-	// aside itself, so the pre-flight names them and the move, and goes on.
+	// DCW-V0-810: the pre-flight runs no OCM step, and finish-lane moves stale
+	// sidecars aside byte-preserved before it prepares, so sidecars alone are
+	// a note there; a stranded trace, whose retirement is a migration, still
+	// refuses.
 	if !retire && len(stranded) == 0 {
-		f.say("%s: NOTE reused-worktree-state\n", f.prefix)
 		for _, name := range stale {
-			f.say("  stale sidecar: %s is ignored and was last written before BASE %s was committed\n", name, base[:12])
+			f.say("%s: NOTE stale sidecar %s is ignored and was last written before BASE %s was committed; dogfood finish-lane moves it under %s/corvint/stale-ocm before it prepares (DCW-V0-406, DCW-V0-810)\n", f.prefix, name, base[:12], gitDir)
 		}
-		aside := gitDir + "/corvint/stale-ocm"
-		f.say("  finish-lane moves each one, byte-preserved, into a new directory under %s before its prepare (DCW-V0-406), so this does not stop the closeout; to clear it now: mkdir -p %s && mv %s %s/\n",
-			shellQuote(aside), shellQuote(aside), strings.Join(quoteAll(stale), " "), shellQuote(aside))
 		return
 	}
 	if retire {

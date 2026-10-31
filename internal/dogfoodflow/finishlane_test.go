@@ -636,23 +636,6 @@ func TestFinishLaneDCWV0406RetiresAStaleSidecarAndContinues(t *testing.T) {
 	}
 }
 
-// TestDCWV0964InputsCheckNotesRetirableSidecars (V1-3303): a stale sidecar
-// alone, which finish-lane moves aside itself, does not stop the pre-flight:
-// it is named with the move and the fix, left in place, and the prepare runs.
-func TestDCWV0964InputsCheckNotesRetirableSidecars(t *testing.T) {
-	_, stale, run := staleSidecarLane(t)
-	_, calls, out := run(true)
-	if calls == 0 || strings.Contains(out, "REFUSE reused-worktree-state") || !strings.HasPrefix(out, "dogfood-inputs-check: NOTE reused-worktree-state\n") ||
-		!strings.Contains(out, "  stale sidecar: .corvint/change.ocm-status.json is ignored and was last written before BASE ") ||
-		!strings.Contains(out, "finish-lane moves each one, byte-preserved, into a new directory under ") ||
-		!strings.Contains(out, "/corvint/stale-ocm' && mv .corvint/change.ocm-status.json ") {
-		t.Fatalf("step calls=%d stderr=%q, want NOTE reused-worktree-state and the prepare run", calls, out)
-	}
-	if _, err := os.Lstat(stale); err != nil {
-		t.Fatalf("the pre-flight moved the stale sidecar: %v", err)
-	}
-}
-
 // DCW-V0-400 (V1-3211): inputs-check refuses, before any prepare, a reused
 // worktree whose local trace store names a commit HEAD does not reach, and
 // names the migrate-traces recovery with the dry run's digest.
@@ -815,5 +798,46 @@ func TestFinishLaneDCWV0800RefusesMissingOutcomeInputsBeforePrepare(t *testing.T
 				t.Fatalf("worktree changed: %q", status)
 			}
 		})
+	}
+}
+
+// TestInputsCheckDCWV0810NotesAStaleSidecar pins lane friction F11: make
+// dogfood-finish runs the inputs-check pre-flight first, which refused a stale
+// OCM sidecar that finish-lane itself retires, so a second bind in one
+// worktree stopped until the operator moved it by hand. The pre-flight now
+// notes the sidecar, moves nothing and continues to its prepare pass. Fails on
+// BASE, which refused reused-worktree-state.
+func TestInputsCheckDCWV0810NotesAStaleSidecar(t *testing.T) {
+	root, stale, _ := staleSidecarLane(t)
+	scratch := t.TempDir()
+	plan := filepath.Join(scratch, "cites.tsv")
+	verify := filepath.Join(scratch, "verify.txt")
+	for path, data := range map[string]string{plan: "1\ta.txt\t1:1\tspecification\n", verify: "go test -count=1 -run TestA ./internal/a\n"} {
+		if err := os.WriteFile(path, []byte(data), 0o666); err != nil {
+			t.Fatal(err)
+		}
+	}
+	calls := 0
+	steps := Runner{Path: "corvint", Run: func(context.Context, string, []string, io.Writer, io.Writer) int {
+		calls++
+		return 1
+	}}
+	var stdout, stderr bytes.Buffer
+	// DCW-V0-960: the pre-flight also needs an intent manifest.
+	intents := filepath.Join(t.TempDir(), "intents.txt")
+	if err := os.WriteFile(intents, []byte("#no-intent-declared\n"), 0o666); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := FinishLane(context.Background(), FinishLaneOptions{Preflight: true, Change: ChangeOptions{Root: root, Base: testGit(t, root, "rev-parse", "HEAD^"), Steps: steps, Citations: plan, IntentsFile: intents, VerifyFile: verify, Outcome: "passed"}}, &stdout, &stderr); err != nil {
+		t.Fatal(err)
+	}
+	out := stderr.String()
+	if calls == 0 || strings.Contains(out, "reused-worktree-state") ||
+		!strings.HasPrefix(out, "dogfood-inputs-check: NOTE stale sidecar .corvint/change.ocm-status.json is ignored and was last written before BASE ") ||
+		!strings.Contains(out, "dogfood finish-lane moves it under ") {
+		t.Fatalf("step calls=%d stderr=%q, want a note and the prepare pass", calls, out)
+	}
+	if _, err := os.Lstat(stale); err != nil {
+		t.Fatalf("the pre-flight moved the sidecar: %v", err)
 	}
 }

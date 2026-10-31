@@ -76,6 +76,9 @@ type proposal struct {
 	// moves maps each side of a file the change moves, the deleted BASE path
 	// and the added path, to that move (DCW-V0-803).
 	moves map[string]movedFile
+	// decisions maps each BASE decision number to its path, read once
+	// (DCW-V0-805).
+	decisions map[string]string
 	// proposals holds, by row key, each drafted row that cites the nearest
 	// stable BASE span of the modified file its hunk edits; stderr marks each
 	// one for the author to confirm or replace (DCW-V0-962).
@@ -426,10 +429,20 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 		return p.unknownProposal(hunk, ordinal, "the hunk names requirement "+id+", which this change itself adds in "+where+
 			", and same-change intent is not BASE evidence (cem cite cites BASE spans only), so it cannot be cited (DCW-V0-440): keep this row unknown, or cite the BASE contract "+id+" refines"), "", ""
 	}
+	// The defining spec's own hunk that adds a requirement, or only its
+	// rows, has no BASE contract either; a path anchor would cite another
+	// requirement's decision (DCW-V0-809).
+	if id := p.addedRequirementRows(p.derivedHunk(hunk)); id != "" {
+		return p.unknownProposal(hunk, ordinal, "the hunk adds requirement "+id+" or rows naming it, which this change itself defines in "+hunk.path+
+			", and same-change intent is not BASE evidence (cem cite cites BASE spans only), so it cannot be cited (DCW-V0-440, DCW-V0-809): keep this row unknown"), "", ""
+	}
 	if row, cite, note := p.sealedProposal(hunk, ordinal, edited, used); row != "" {
 		return row, cite, note
 	}
 	if row, cite, note := p.movedProposal(hunk, ordinal, edited, used); row != "" {
+		return row, cite, note
+	}
+	if row, cite, note := p.governingProposal(hunk, ordinal, edited, used); row != "" {
 		return row, cite, note
 	}
 	if row, cite := p.anchoredProposal(hunk, ordinal, edited, used); row != "" {
@@ -447,8 +460,9 @@ func (p *proposal) propose(hunk proposedHunk, edited map[string][][2]int, used m
 	// The nearest stable heading or declaration of the modified file, on a
 	// span no other row cites, is drafted as a marked proposal (DCW-V0-962,
 	// amending DCW-V0-439 and DCW-V0-846). None is drafted for a data record
-	// or a one-line file (DCW-V0-440), nor for a hunk that defines a
-	// requirement, which is same-change intent.
+	// or a one-line file (DCW-V0-440); a hunk defining a same-change
+	// requirement already stayed unknown above (DCW-V0-809), and one that
+	// still defines a requirement here cites only what it refines.
 	if defined := p.definedRequirements(hunk); len(defined) > 0 {
 		for _, id := range defined {
 			if row, cite := p.refinedProposal(hunk, ordinal, id, edited, used); row != "" {
@@ -670,11 +684,11 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 				if p.changed != nil {
 					p.changed[hunk.DisplayPath], p.changed[anchorPath(hunk)] = true, true
 				}
-				// A definition the file already holds at BASE is an edited
-				// requirement, not one this change adds (DCW-V0-967).
-				baseText, _ := p.blob(p.base, hunk.DisplayPath)
 				for _, id := range addedDefinitions(hunk) {
-					if _, seen := p.changeIDs[id]; !seen && !bytes.Contains(baseText, []byte(definitionPattern(id))) {
+					// A definition rewritten in place amends a requirement
+					// BASE already defines; only a new one is same-change
+					// intent (DCW-V0-440, DCW-V0-809).
+					if _, seen := p.changeIDs[id]; !seen && !p.definedAtBase(hunk.DisplayPath, id) {
 						p.changeIDs[id] = hunk.DisplayPath
 					}
 				}
@@ -711,9 +725,7 @@ func (p *proposal) prepareAnchors(owed []proposedHunk) bool {
 	}
 	for _, refined := range p.refines {
 		for _, id := range refined {
-			if id != insertionMarker {
-				patterns[definitionPattern(id)] = true
-			}
+			patterns[definitionPattern(id)] = true
 		}
 	}
 	if len(patterns) == 0 {

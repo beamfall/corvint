@@ -30,7 +30,7 @@ var webDef = regexp.MustCompile(`^\s*(?:export\s+(?:default\s+)?)?(?:async\s+)?f
 // webArrow accepts an arrow function only as the direct initializer, optionally
 // wrapped in a React hook/HOC call. A member call such as messages.map(x => ...)
 // is a value, not a declaration (AFU-V1-043).
-var webArrow = regexp.MustCompile(`^\s*(?:export\s+)?(?:const|let)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*(?:(?:React\.)?(?:useCallback|useMemo|memo|forwardRef)\s*\(\s*)?(?:async\s+)?(?:<[^<>()]*>\s*)?(?:\((?:[^()]|\([^()]*\))*\)|[A-Za-z_$][A-Za-z0-9_$]*)\s*(?::[^=]*)?=>`)
+var webArrow = regexp.MustCompile(`^\s*(?:export\s+)?(?:const|let)\s+([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*(?:(?:React\.)?(?:useCallback|useMemo|memo|forwardRef)\s*(?:<[^<>()=;]*(?:<[^<>()=;]*>[^<>()=;]*)*>\s*)?\(\s*)?(?:async\s+)?(?:<[^<>()]*>\s*)?(?:\((?:[^()]|\([^()]*\))*\)|[A-Za-z_$][A-Za-z0-9_$]*)\s*(?::[^=]*)?=>`)
 var call = regexp.MustCompile(`\b([A-Za-z_$][A-Za-z0-9_$]*)(?:[.!?])?\s*\(`)
 var rubyCall = regexp.MustCompile(`(?:^|[.;\s])([A-Za-z_][A-Za-z0-9_]*[!?]?)(?:\s|\(|$)`)
 var rubyBlock = regexp.MustCompile(`^\s*(?:class|module|def|if|unless|case|begin|while|until|for)\b|\bdo\s*(?:\|[^|]*\|)?\s*$`)

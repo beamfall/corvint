@@ -412,9 +412,11 @@ the base to rerun with; set `git config --local corvint.dogfood.anchor refs/remo
 to refuse instead (`DCW-V0-171`). A merged seal commit is a sealed lane or stacked predecessor and
 keeps its own route below:
 
-`dogfood-change` and `dogfood-check` require `rg` (ripgrep) on `PATH` to assert on their own evidence
-output; a host missing it gets a `REFUSE unsupported-environment-missing-rg` line instead of a
-misleading failure partway through the run.
+The `dogfood-change` and `dogfood-bind-range` shell tests assert on their own evidence output with
+`rg` (ripgrep). A host without it runs them through a strict `grep -P` stand-in
+(`script/test-rg-fallback.sh`, `DCW-V0-811`). Only a host whose grep also lacks `-P` gets a
+`REFUSE unsupported-environment-missing-rg` line instead of a misleading failure partway through
+the run.
 
 First-run order (`DCW-V0-802`). Each command needs only the inputs named here, so supply them in
 this order:

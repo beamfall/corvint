@@ -4,12 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"regexp"
-	"slices"
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/cem/patch"
 	"github.com/Beamfall/corvint/internal/cem/verify"
-	"github.com/Beamfall/corvint/internal/cem/wire"
 )
 
 // refinesClause is the part of a requirement entry's opening parenthesis that
@@ -51,64 +49,16 @@ func refinedRequirements(hunk *patch.Hunk) map[string][]string {
 				}
 			}
 		}
-		// The defining hunk's place in its spec, for insertionProposal.
-		refined[ids[0]] = append(refined[ids[0]], insertionMarker)
 	}
 	return refined
 }
 
-// insertionMarker ends each refines list: past the named BASE IDs, the draft
-// falls back to the nearest stable BASE entry or heading to the defining hunk.
-const insertionMarker = ""
-
-// insertionProposal cites, in the spec that defines id, the nearest stable,
-// unused BASE requirement entry or heading above the hunk that adds it, or
-// else below it.
-func (p *proposal) insertionProposal(ordinal, id string, edited map[string][][2]int, used map[string]bool) (string, string) {
-	// p.derived holds each hunk under two keys; sorted keys keep the pick
-	// deterministic.
-	for _, key := range sortedKeys(p.derived) {
-		defining := p.derived[key]
-		if !strings.HasPrefix(key, wire.HunkPrefix) || defining.DisplayPath != p.changeIDs[id] || !slices.Contains(addedDefinitions(defining), id) {
-			continue
-		}
-		lines := p.baseLines(defining.DisplayPath)
-		// Above the insertion first, nearest first, then below it.
-		start := min(int(defining.OldRange.Start)+int(defining.OldRange.Count), len(lines))
-		order := []int{}
-		for line := start; line >= 1; line-- {
-			order = append(order, line)
-		}
-		for line := start + 1; line <= len(lines); line++ {
-			order = append(order, line)
-		}
-		for _, line := range order {
-			text := string(lines[line-1])
-			cite := fmt.Sprintf("%s:%d:%d", defining.DisplayPath, line, line)
-			if !strings.HasPrefix(text, "- `") && !strings.HasPrefix(text, "#") || used[cite] || !p.stable(defining.DisplayPath, line, edited) {
-				continue
-			}
-			p.reasons[ordinal] = fmt.Sprintf("the nearest stable BASE entry or heading to where %s adds the same-change requirement %s; no BASE requirement the entry names has a stable definition, so confirm it, or cite the BASE contract %s refines (DCW-V0-440, DCW-V0-967)", defining.DisplayPath, id, id)
-			return fmt.Sprintf("%s\t%s\t%d:%d\t%s", ordinal, defining.DisplayPath, line, line, proposalRelation(defining.DisplayPath)), cite
-		}
-	}
-	return "", ""
-}
-
 // refinedProposal drafts, for a hunk that defines or names the same-change
 // requirement id, a cite of the first stable BASE definition line of
-// a requirement id's entry refines, amends or names, then of the stable entry
-// or heading above where id is added, marked as a proposal with that reason
-// (DCW-V0-967). It returns "" when there is none.
+// a requirement id's entry refines, amends or names, marked as a proposal with
+// that reason (DCW-V0-967). It returns "" when there is none.
 func (p *proposal) refinedProposal(hunk proposedHunk, ordinal, id string, edited map[string][][2]int, used map[string]bool) (string, string) {
 	for _, refined := range p.refines[id] {
-		if refined == insertionMarker {
-			if row, cite := p.insertionProposal(ordinal, id, edited, used); row != "" {
-				p.proposals[ordinal] = true
-				return row, cite
-			}
-			continue
-		}
 		// Every hunk implementing the same refined requirement may cite its
 		// one definition line, an exception to the span dedupe of DCW-V0-382;
 		// the uniform-plan rule (DCW-V0-048) still holds.

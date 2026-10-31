@@ -61,11 +61,6 @@ func TestProposeCitationsDCWV0440SameChangeRequirementStaysUnknown(t *testing.T)
 	}
 	for _, row := range rows {
 		fields := strings.Split(row, "\t")
-		// DCW-V0-967: the spec hunk defining XYZ-V0-002 proposes the stable
-		// heading above its entry, marked; it is not a one-line file.
-		if edits[fields[0]] == "docs/specs/x-v0.md" && proposalRow(stderr.String(), row) && strings.Contains(stderr.String(), "the nearest stable BASE entry or heading to where docs/specs/x-v0.md adds the same-change requirement XYZ-V0-002") {
-			continue
-		}
 		if fields[2] == "1:1" || strings.HasSuffix(fields[1], ".json") || strings.HasPrefix(fields[1], ".agent-evidence/") || fields[1] == "docs/LIST.txt" {
 			t.Errorf("row cites a whole-file or data record: %q", row)
 		}

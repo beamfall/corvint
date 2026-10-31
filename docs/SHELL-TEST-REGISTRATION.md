@@ -13,7 +13,8 @@ note is the one place that lists them; the checks point here when one is missing
    recipe runs a `script/*_test.sh`, with no recipe of its own. This is the shell full command
    that `.github/cishards/test-commands.json` declares (`STR-V0-004`, `docs/specs/session-test-runner-v0.md`).
    Add the same `<name>-test` to the `shell-test:` line. `TestSTRV0004ShellTestIsTheGateShellSteps`
-   (`tools/test-commands-check`, run by `make test-commands-check`) fails when the two lists differ.
+   (`tools/test-commands-check`, run alone by `make shell-test-registration-check`) fails when the
+   two lists differ.
 3. **The unbounded-readers record.** A shell test is a test unit identified by its own file, so the
    planner selects it on every change unless its reads are bounded. Either declare its reads in
    `.corvint/test-read-scopes.json` (`AFP-V0-023`) or add the file path (for example
@@ -21,5 +22,6 @@ note is the one place that lists them; the checks point here when one is missing
    that names the unbounded read and why it cannot be declared (`AFP-V0-025`, `AFP-V0-033`).
    `make unbounded-readers-check` fails naming the file when neither is done.
 
-Run `make -s unbounded-readers-check test-commands-check` after editing. Both are `GATE_STEPS`
-members and run in CI's `doc-gates` job.
+Run `make -s --keep-going unbounded-readers-check shell-test-registration-check` after editing, or
+`make doc-gates`, which keeps going past a failing gate and so names every missing registration in
+one run (`DCW-V0-813`).
