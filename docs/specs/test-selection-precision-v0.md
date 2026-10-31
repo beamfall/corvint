@@ -5,7 +5,7 @@ Date: 2026-10-30
 Requirement prefix: `TSP-V0`
 Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; V1-3160); TSP-V0-001 amends AFP-V0-580
 Delivery status: experimental
-Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-861: V1-3348; TSP-V0-862: V1-3346; TSP-V0-863: V1-3347. These requirements narrow
+Authoritative inputs: native ticket V1-3160 (related V1-2763, V1-2896); TSP-V0-006: V1-2806; TSP-V0-007: V1-3050; TSP-V0-860: V1-2892; TSP-V0-861: V1-3348; TSP-V0-862: V1-3346; TSP-V0-863: V1-3347; TSP-V0-864: V1-3348. These requirements narrow
 when the [affected plan](affected-plan-v0.md) names a unit frontier; that spec's Requirements
 section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 
@@ -192,6 +192,17 @@ to the changes it can actually bear on, and SHALL still make the plan `UNKNOWN` 
   (naming `shell:foreign-callers-invalid`) when a computed run's shape matches a declared script's
   file name and the running file's text does not hold that name, since the text scan cannot tell
   whether it runs the script.
+- **TSP-V0-864:** (experimental, amending TSP-V0-006, under the owner's standing lane auto-accept,
+  2026-10-11; V1-3348) A changed file whose residue (the file less its receiver-less functions
+  other than `init`) differs from base SHALL still be sliced when, comments ignored, the head
+  residue less each wholly new `const` or `type` declaration (none of whose names base declares)
+  equals base's residue, and the files' directive comments (`//go:`, `//line `, `/*line `,
+  `// +build`) are the same multiset. The new names SHALL seed reach beside the changed
+  functions; they are no function, so the value-use, signature and write proofs apply to the
+  changed functions alone. A new name that a method's receiver names, a changed or removed
+  declaration, a new import, `var`, method or `init`, and a changed package clause SHALL keep the
+  package whole as before. An external test SHALL be kept only when a function changed or a name
+  is new: a comment-only change is observed by no test, so it runs `-run ^$` (build and vet).
 - **TSP-V0-860:** (experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2892)
   `tools/selection-baseline` SHALL replay a corvint binary and a gate-affected-select binary over
   the fixed change set `benchmarks/selection-baseline/changes.json`
@@ -299,6 +310,9 @@ the check does not list (an `eval`, a nameref, an indirect assignment) is not se
 words are trusted though the variable may hold another value at the run; a computed run
 through a function or alias the file defines is seen only at its call. A computed run of a binary
 whose name happens to match a shell file's shape still carries the frontier (an over-approximation).
+(12) TSP-V0-864: a new type or const is observed only by code that names it, which lexical reach
+finds; a new type's method set could satisfy an interface, so any method on it keeps the package
+whole. A comment is no input to the compiled program except a directive, which must match.
 
 ## Open questions
 
@@ -343,6 +357,7 @@ The tests below, failing on base `fd51f53a2`; the measured plans in build log
 | TSP-V0-861 | `tests` of `testSourceCandidate`, `testSourceEligible`, `testSourceOwnPaths` and the TSP-V0-861 union in `testSourceSlice` in `cmd/corvint/test_source_slices.go` | `TestTSPV0861DryRunSlicesSourceAndTestChanges` in `cmd/corvint/test_source_slices_tspv0861_unix_test.go` (a new internal test file, an edited external test file and a new test of a function no test reached slice to the union; every test kept, a `TestMain`, an `init`, a new import, a failing source proof and a test file with no test function stay whole; a string literal and a prose comment naming the directive slice, and a `//go:linkname` comment stays whole); the "its test file changed too" case of `TestTSPV0006DryRunSlicesSourceChanges`; the replay in build log `docs/build-log/2026-10-31-ci-select-w1.md` |
 | TSP-V0-862 | `applyGatedLocators`, `readGatedLocators` and `carriesGate` in `internal/gateselect/gatedlocators.go`; their call before rule (d) in `selectPackages` in `internal/gateselect/select.go` | `TestGatedRootLocatorParity_TSP_V0_862` in `internal/gateselect/gatedlocators_test.go` (on a nested-module change, declared: neither Select nor the planner selects the locator's dependent and their run sets are equal, also on an unrelated change; undeclared, a gate not carried, a package that does not locate the root, an unknown member and unparsed JSON: both select it and agree; a dirty declaration: Select keeps it) |
 | TSP-V0-863 | `computedShapes`, `literalLoops`, `computedFrontier` and the computed-run cases of `observe` in `internal/liveverify/affected/shell/shell.go`; `computedNamesDeclared` and the kept frontier in `applyForeignCallers` in `internal/liveverify/affected/shell/callers.go`; the unique loop variable in `script/batch-precheck_test.sh` | `TestComputedScriptRunKeepsTheFrontier_TSP_V0_863` in `internal/liveverify/affected/shell/computed_test.go` (a wildcard name, a computed command word, a literal loop and an untrusted loop variable keep the frontier on the caller and a plan reaching it is `UNKNOWN`; a loop over unmatched names, one expansion alone, the caller's arguments, an unmatched shape and a literal do not; a wildcard or loop naming a declared script in parts makes the declaration invalid, one naming another script does not, and a declared script's own computed run keeps its frontier); `TestRepositoryShellForeignCallersComplete_TSP_V0_005` |
+| TSP-V0-864 | `testSourceAdditive` and the `added`, `additive` and `seeds` handling in `testSourceSlice` in `cmd/corvint/test_source_slices.go` | `TestTSPV0864DryRunSlicesAdditiveDeclarations` in `cmd/corvint/test_source_slices_tspv0861_unix_test.go` (a file comment, a new const no test names, a new const a changed function uses, and a new type with its new test slice; a new var, import, method on a new type, directive and a changed declaration stay whole); the "a comment outside functions" case of `TestTSPV0006DryRunSlicesSourceChanges`; the replay in build log `docs/build-log/2026-10-31-ci-select-w1.md` |
 | TSP-V0-860 | `replay`, `measure`, `CIScope`, `checkFailures`, `Summarize` and `Failures` in `tools/selection-baseline/main.go`; `benchmarks/selection-baseline/changes.json`; the `selection-baseline-check` target in `Makefile` | `TestSelectionBaselineGateFailsOnFloorOrMiss_V12892`, `TestSelectionBaselineUnknownKindsAndManifest_V12892` and `TestSelectionBaselineChangeSetIsValid_V12892` in `tools/selection-baseline/main_test.go`; the replays in `benchmarks/results/v2892-selection-baseline-*.json` and build log `docs/build-log/2026-10-31-ci-select-w1.md` |
 
 ## Rollback
@@ -362,4 +377,5 @@ not written and only `selection.json` decides, as before. TSP-V0-860: delete the
 `selection-baseline-check` target; no other target or stored state depends on it. TSP-V0-861: in
 `testSourceEligible`, return the fallback again when a test file of the package is dirty. TSP-V0-862: remove the
 `applyGatedLocators` call in `selectPackages`; Select then keeps the wider closure, as before. TSP-V0-863: make
-`computedShapes` return nil; computed runs are then ignored, as before.
+`computedShapes` return nil; computed runs are then ignored, as before. TSP-V0-864: make
+`testSourceAdditive` return false; every residue change keeps the package whole again.
