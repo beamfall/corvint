@@ -161,7 +161,24 @@ Not fixed, with reasons:
   non-standard import is never exempt, because that callee's reads are not visible.
 - F7 and F8 are design questions (selection width, same-change intent) for their own tickets.
 
-## Verification
+## Friction found by the Codex-fix round (DCW-V0-813)
+
+On the owner's third request ("fix"), the two findings from the Codex-fix round were fixed:
+- F13 (DCW-V0-813): a new shell test's missing registrations surfaced one run at a time. Two causes
+  were found. First, `make doc-gates` stopped at the first failing gate. Second, the `shell-test`
+  list check (`TestSTRV0004ShellTestIsTheGateShellSteps`) ran only under `go test`. The
+  `test-commands-check` target that `docs/SHELL-TEST-REGISTRATION.md` names never ran it: a probe
+  that dropped `repin-test` from `shell-test` passed that target. `doc-gates` now runs with
+  `--keep-going` and includes `shell-test-registration-check`, and the note and the AGENT-ROUTES row
+  now point at `make doc-gates`. With both registrations removed, one `make doc-gates` run names both
+  `shell-test-registration-check` and `unbounded-readers-check`.
+
+  A single Makefile-only registration check (a draft STR-V0-801, dropped before it was committed
+  anywhere else) was rejected. It flagged 20 correctly bounded shell tests, because whether a test
+  needs a `units` entry depends on the affected graph.
+- F14: `Source.Walk`'s doc comment now says that walking a present directory makes the graph
+  uncacheable (`NotStored walked subtree`), and points to `FilesUnder`.
+
 
 Focused tests only, because `corvint test --base 780f9e97 --dry-run` selects 212 packages whole.
 The packages run were `internal/dogfoodflow` (whole), `internal/liveverify/affected/shell` (whole),
