@@ -47,3 +47,17 @@ func BinaryBlobSizes(ctx context.Context, repository *gitauth.Repository, parsed
 	}
 	return sizes, nil
 }
+
+// parseBinaryBounded parses the canonical patch and refuses an over-bound
+// binary blob before base simulation (CEM-V1-985), for `cem verify` and the
+// candidate check.
+func parseBinaryBounded(ctx context.Context, repository *gitauth.Repository, patchBytes []byte) (*patch.Patch, error) {
+	parsed, err := patch.Parse(patchBytes)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := BinaryBlobSizes(ctx, repository, parsed); err != nil {
+		return nil, err
+	}
+	return parsed, nil
+}
