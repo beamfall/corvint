@@ -546,6 +546,13 @@
       "benchmarks/results/"
     ],
     "tools/dogfood-guard-hunks": [],
+    "tools/dogfood-inherit-citations": [
+      "docs/specs/",
+      "script/check-line-citations.sh",
+      "script/gen-spec-requirements.sh",
+      "script/line-citation-legacy-documents.txt",
+      "script/line-citation-unpinned-inventory.txt"
+    ],
     "tools/fixture-maintenance-check": [
       "cmd/",
       "conformance/",
