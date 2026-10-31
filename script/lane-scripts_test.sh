@@ -5,7 +5,8 @@
 # lane-clean.sh (ASD-V0-018), lane-guard.sh (ASD-V0-024),
 # install-local-bin.sh (ASD-V0-025), install-cem-verifiers.sh (TCB-V0-046),
 # wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), codex-review.sh
-# (ASD-V0-064), lane-setup.sh (ASD-V0-071, ASD-V0-072). No Go build runs.
+# (ASD-V0-064), lane-setup.sh (ASD-V0-071, ASD-V0-072), requirement-ids-free.sh (ASD-V0-960). No
+# Go build runs.
 set -uo pipefail
 export LC_ALL=C
 # The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
@@ -1269,6 +1270,27 @@ dogfood_fixture_copy "$script/.." "$real" dogfood-change.sh dogfood-check.sh dog
 printf 'source "$repo/script/missing-helper.sh"\n' > "$fsrc/script/dogfood-broken.sh"
 out=$(dogfood_fixture_copy "$fsrc" "$fdst" dogfood-broken.sh 2>&1) && fail "a missing helper was copied silently"
 [[ $out == *'REFUSE missing-script script/missing-helper.sh'*'fix: '* ]] || fail "missing-helper refusal names no recovery: $out"
+ok
+
+# ASD-V0-960 (V1-3472): requirement-ids-free reports each used ID with its first location and exits
+# 1, a free range with exit 0, and refuses a bad prefix, range or REF with exit 2.
+ids=$tmp/ids
+git init -q "$ids" && printf '# Spec\n- `ABC-V0-101`: one.\nXABC-V0-102 is another family; ABC-V0-1030 has four digits.\n' > "$ids/spec.md" &&
+  printf 'see ABC-V0-101 and ABC-V0-105\n' > "$ids/b.txt" && git -C "$ids" add . &&
+  git -C "$ids" -c user.name=t -c user.email=t@example.invalid commit -qm ids || fail "ids fixture"
+printf 'ABC-V0-104\n' > "$ids/uncommitted.txt"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 100 105 HEAD 2> "$tmp/ids.err")
+[[ $? == 1 && $out == $'used ABC-V0-101 b.txt:1\nused ABC-V0-105 b.txt:1' && $(cat "$tmp/ids.err") == *'2 of 6 IDs in ABC-V0-100..ABC-V0-105 are used at HEAD'* ]] ||
+  fail "used IDs: $out $(cat "$tmp/ids.err")"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ABC-V0 102 104 HEAD 2>&1)
+[[ $? == 0 && $out == "free ABC-V0-102..ABC-V0-104 at HEAD ($(git -C "$ids" rev-parse HEAD))" ]] || fail "free range: $out"
+out=$(cd "$ids" && "$script/requirement-ids-free.sh" ZZZ-V1 1 9 HEAD 2>&1)
+[[ $? == 0 && $out == 'free ZZZ-V1-001..ZZZ-V1-009 at HEAD ('* ]] || fail "unknown prefix: $out"
+for bad in 'abc 1 2 HEAD:bad-prefix' 'ABC-V0 5 2 HEAD:bad-range' 'ABC-V0 1 1000 HEAD:bad-range' 'ABC-V0 1 2 no-such-ref:ref-not-a-commit' 'ABC-V0 1:bad-arguments'; do
+  read -r -a argv <<< "${bad%:*}"
+  out=$(cd "$ids" && "$script/requirement-ids-free.sh" "${argv[@]}" 2>&1)
+  [[ $? == 2 && $out == *"REFUSE ${bad##*:}"* ]] || fail "refusal ${bad##*:}: $out"
+done
 ok
 
 # ASD-V0-014: no fixture outlives the run, so nothing can write after the summary line. Every
