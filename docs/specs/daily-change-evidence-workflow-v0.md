@@ -2802,9 +2802,10 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   a requirement ID the hunk adds: first a requirement-bearing line (one carrying a requirement ID) of
   a governing spec, then any line of a governing spec, then a requirement-bearing line of another
   document, then a bare mention, keeping the earlier order within a rank. The governing specs are
-  the specifications whose requirement-bearing BASE lines name the most distinct owed paths,
-  counting specs the change modifies (which are still never cited); with several owed paths a spec
-  must name at least two. When a governing spec exists and the drafted cite lies outside every
+  the specifications whose requirement-bearing BASE lines name the most distinct owed paths; when
+  a spec the change modifies (still never cited) names an owed path, only modified specs compete,
+  since an amended spec is the change's own contract; with several owed paths a spec must name at
+  least two. When a governing spec exists and the drafted cite lies outside every
   governing spec, the draft MUST keep the row and print `row KEY cited low-confidence (DCW-V0-886):
   PATH:LINE names HUNK_PATH outside the change's governing spec SPEC, ...; review the cite, or keep
   the row unknown`. The `dogfood check` anchor search is unchanged. Design: the drafter cited the
@@ -2813,9 +2814,11 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `TestProposeCitationsDCWV0886PrefersTheGoverningSpec` (five paths each mentioned first by an
   unrelated spec: four rows cite the governing spec's requirement lines, the fifth, named only by
   the unrelated spec, is marked low-confidence; fails on BASE with all five citing the unrelated
-  spec); the dogfood-w6 change (`840f7b6` from `c5d5f08`) now names its governing spec
-  `daily-change-evidence-workflow-v0.md` (modified by that change) and marks both of its remaining
-  cites low-confidence. Rollback: drop `rankAnchors` and the note.
+  spec); `TestDCWV0886AModifiedSpecGovernsTheChange` (an amended spec naming two paths governs
+  over an untouched spec naming three, whose cites are kept and marked); the dogfood-w6 change
+  (`840f7b6` from `c5d5f08`) and this lane's own change now name their governing spec
+  `daily-change-evidence-workflow-v0.md` (modified by each) and mark their two remaining cites
+  low-confidence. Rollback: drop `rankAnchors` and the note.
 - `DCW-V0-887`: (experimental under the standing lane auto-accept; V1-2978; refines `DCW-V0-380`)
   A passing `dogfood inputs-check` MUST leave `<git-dir>/corvint/inputs-check-pass` holding a key
   and the prepare lines it printed. The key is the SHA-256 over BASE, HEAD, HEAD's tree, the
@@ -3305,7 +3308,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-883` (experimental under the standing lane auto-accept; V1-3285) | `internal/dogfoodflow/change.go` `uniformPlan`, `carriedUniform`; `TestChangeDCWV0883RefusesUniformStagedPlan`, `TestDogfoodSingleCommitStagedCitationPlans` | implemented; focused tests PASS |
 | `DCW-V0-884` (experimental under the standing lane auto-accept; V1-3289) | `internal/dogfoodflow/propose_refresh.go` `carry`, `staleNotePrefix`; `TestProposeCitationsDCWV0441V0442RefreshRekeysReHunkedNewFile`, `TestDCWV0884StaleNoteMarkIsReplaced` | implemented; focused tests PASS |
 | `DCW-V0-885` (experimental under the standing lane auto-accept; V1-3293) | `internal/dogfoodflow/propose_refresh.go` `sealedOrdinalIDs`, `sealedHolds`; `TestProposeCitationsDCWV0885RefreshCarriesOrdinalsThroughSealedCEM` | implemented; focused tests PASS |
-| `DCW-V0-886` (experimental under the standing lane auto-accept; V1-3283) | `internal/dogfoodflow/propose_owner.go` `governingSpecs`, `rankAnchors`, `weakAnchorNote`; `internal/dogfoodflow/propose.go` `anchoredProposal`; `TestProposeCitationsDCWV0886PrefersTheGoverningSpec` | implemented; focused tests PASS |
+| `DCW-V0-886` (experimental under the standing lane auto-accept; V1-3283) | `internal/dogfoodflow/propose_owner.go` `governingSpecs`, `rankAnchors`, `weakAnchorNote`; `internal/dogfoodflow/propose.go` `anchoredProposal`, `prepareAnchors`; `TestProposeCitationsDCWV0886PrefersTheGoverningSpec`, `TestDCWV0886AModifiedSpecGovernsTheChange` | implemented; focused tests PASS |
 | `DCW-V0-887` (experimental under the standing lane auto-accept; V1-2978) | `internal/dogfoodflow/finishlane_reuse.go` `preflightKey`, `recordPreflight`, `reusePreflight`; `TestDogfoodFinishLaneDCWV0887ReusesThePreflightPrepare` | implemented; focused tests PASS |
 | `DCW-V0-844` (experimental under the standing lane auto-accept; V1-3318) | `internal/dogfoodflow/reused_worktree.go` `requireFreshWorktree`; `TestDCWV0844BindResetRerunNamesAndRetiresTheResetCase` | implemented; focused tests PASS |
 | `DCW-V0-845` (experimental under the standing lane auto-accept; V1-3302) | `internal/dogfoodflow/propose.go` `run`, `template`; `internal/dogfoodflow/change.go` `fixHints`, `citeSpanUnalignedHint`; `TestProposeCitationsDCWV0439NeverDraftsModifiedFileLines`, `TestChangeDCWV0063NamesUnalignedCiteSpanCause`, `script/dogfood-change_test.sh` | implemented; focused Go tests PASS |
