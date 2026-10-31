@@ -788,7 +788,7 @@ func TestFlowDocsMemberKeywordCallsAreDrift(t *testing.T) {
 }
 
 // TestFlowDocsPredecessorGeneratorManifestIsTypedStale (AFU-V1-045, V1-0461):
-// a manifest that generator version 1 or 2 wrote is refused with the typed
+// a manifest that generator version 1, 2 or 3 wrote is refused with the typed
 // flowdocs-generator-stale code at its own unchanged revision, by Open,
 // check and generate --previous alike, instead of the generic rederivation
 // mismatch; regenerating with the current generator is clean.
@@ -799,7 +799,7 @@ func TestFlowDocsPredecessorGeneratorManifestIsTypedStale(t *testing.T) {
 		t.Fatal(e)
 	}
 	current := r.Files["generation.json"]
-	for _, version := range []string{"1", "2"} {
+	for _, version := range []string{"1", "2", "3"} {
 		predecessor := bytes.Replace(current, []byte(`"version":"`+Version+`"`), []byte(`"version":"`+version+`"`), 1)
 		if bytes.Equal(predecessor, current) {
 			t.Fatal("fixture did not carry the generator version")
@@ -867,5 +867,29 @@ func TestAFUV1125FlowLimitIsTyped(t *testing.T) {
 	}
 	if r, e := Generate(context.Background(), root, Options{Revision: rev, Scope: "edge"}); e != nil || len(r.Manifest.Flows) != MaxFlows {
 		t.Fatalf("exactly MaxFlows: %v", e)
+	}
+}
+
+// TestFlowDocsGenericCallMaskedOnlyThroughTypeArguments (AFU-V1-043, V1-2415):
+// a generic call's type-argument list (useMemo<T>(, useState<Map<K, V>>() is
+// not JSX, so the statement it starts and the declarations after it stay
+// code; a JSX element still blanks its text.
+func TestFlowDocsGenericCallMaskedOnlyThroughTypeArguments(t *testing.T) {
+	text := "const value = useMemo<Item[]>(() => {\n  return persist(items);\n}, [items]);\n" +
+		"const [state, setState] = useState<Map<string, Item>>(new Map());\n" +
+		"const onSave = useCallback(() => {\n  save(state);\n}, [state]);\n" +
+		"export function View() {\n  return <div>save(text) here</div>;\n}\n"
+	ds, _ := extract(contextindex.Source{Path: "app/view.tsx", Data: []byte(text)})
+	got := []string{}
+	for _, d := range ds {
+		calls := []string{}
+		for _, o := range d.observations {
+			calls = append(calls, o.key)
+		}
+		got = append(got, d.name+"="+strings.Join(calls, "+"))
+	}
+	want := []string{"View=", "onSave=side_effect:save", "value=side_effect:persist"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Fatalf("declarations=%v want=%v", got, want)
 	}
 }
