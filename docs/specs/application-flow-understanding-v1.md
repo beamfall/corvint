@@ -927,7 +927,10 @@ accepted variation, or a replacement for independent application/browser qualifi
   A `<` directly after a name that opens a balanced one-line type-argument list followed by `(`
   (`useMemo<T>(`, `useState<Map<K, V>>(`) is a generic call, not JSX: only that list is passed over,
   so the call and the declarations after it stay code, and a hook-wrapped arrow may carry it (since
-  V1-2415, `TestFlowDocsGenericCallMaskedOnlyThroughTypeArguments`). A list holding `(`, `)`, `;`,
+  V1-2415, `TestFlowDocsGenericCallMaskedOnlyThroughTypeArguments`). An expression keyword (`return`,
+  `yield`, `await`, `case`, `default`, `else`, `do`, `in`, `of`, `typeof`, `instanceof`, `void`,
+  `delete`, `throw`, `new`) is no callee: `return<div>(x) save(t)</div>` is JSX whose text stays
+  masked, so `save` is no observation. A list holding `(`, `)`, `;`,
   `=` or a line break (`useCallback<(x: T) => void>(`) is not recognized and stays conservatively
   masked as before.
 - **AFU-V1-044**: Logical flow and paragraph IDs depend on provider namespace, repository-relative
