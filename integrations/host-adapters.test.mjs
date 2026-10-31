@@ -1359,12 +1359,22 @@ test('AHI-032 deleting a session cancels its active compaction child',async t=>{
  const slow=fixture(t,'hang'),valid=fixture(t),binary=join(slow.dir,'route')
  writeFileSync(binary,`#!/bin/sh\ncase " $* " in *" --event session-start "*) exec ${shellQuote(slow.binary)} "$@";; esac\nexec ${shellQuote(valid.binary)} "$@"\n`,{mode:0o700})
  spyConsole(t,'info');spyConsole(t,'warn');const host=await openCode(t,slow.root,{corvintBinary:binary,...OPEN_TIMEOUTS})
- await host.emit('session.compaction.ended',{sessionID:'deleted-compact'})
- const request={sessionID:'deleted-compact',system:[]};const pending=host.hooks['session.context'](request)
- for(let i=0;i<100&&!existsSync(slow.childPID);i++)await new Promise(r=>setTimeout(r,10))
- assert.ok(existsSync(slow.childPID));const pid=Number(readFileSync(slow.childPID,'utf8'))
- await host.emit('session.deleted',{sessionID:'deleted-compact'});await pending
+ // V1-0849 (V1-0774): the case needs a compaction child that started inside the 2 s automatic
+ // timeout. On a loaded host that timeout can end the run before the child writes its PID; only
+ // then is the attempt retried, with a fresh session. The PID and reap waits are hang detectors.
+ let pid=0,request,sessionID
+ for(let attempt=0;!pid&&attempt<5;attempt++){
+  sessionID=`deleted-compact-${attempt}`;rmSync(slow.childPID,{force:true})
+  await host.emit('session.compaction.ended',{sessionID})
+  request={sessionID,system:[]};let settled=false;const pending=host.hooks['session.context'](request).finally(()=>{settled=true})
+  for(const end=Date.now()+60000;!pid&&!settled&&Date.now()<end;)if(!(pid=existsSync(slow.childPID)?Number(readFileSync(slow.childPID,'utf8'))||0:0))await new Promise(r=>setTimeout(r,10))
+  if(!pid){await pending;t.diagnostic(`attempt ${attempt}: the automatic timeout ended the run before the compaction child started`);continue}
+  await host.emit('session.deleted',{sessionID});await pending
+ }
+ assert.ok(pid>0,'the compaction child never started inside the automatic timeout')
  assert.deepEqual(request.system,[])
+ const signalable=()=>{try{process.kill(pid,0);return true}catch(e){if(e.code==='ESRCH')return false;throw e}}
+ for(const end=Date.now()+10000;signalable()&&Date.now()<end;)await new Promise(r=>setTimeout(r,20))
  assert.throws(()=>process.kill(pid,0),/ESRCH/)
 })
 
