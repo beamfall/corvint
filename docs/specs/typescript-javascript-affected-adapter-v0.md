@@ -10,7 +10,7 @@ Authoritative inputs: operator task of 2026-08-29,
 
 ## Agent digest
 - Claim: Static JavaScript and TypeScript analysis conservatively maps changes to runner-addressable tests and widens on ambiguity.
-- Status: proposed/experimental; TJAA-V0-019 accepted (decision 0483) with its V1-1175 amendment and TJAA-V0-021 accepted (decision 0519); TJAA-V0-030..033 (V1-2042) and TJAA-V0-034..037 (GitHub #1575-#1578) and TJAA-V0-038..045 (GitHub #1593, #1594) and TJAA-V0-046..053 (GitHub #1604, #1605) and TJAA-V0-054..060 (GitHub #1604 re-test, #1625, PR #1628 review) and TJAA-V0-090/091 (GitHub #1701) and TJAA-V0-092/093 (GitHub #1717) and TJAA-V0-094/095 (GitHub #1737) and TJAA-V0-096..099 (GitHub #1737 item 2) and TJAA-V0-100 (GitHub #1750) and TJAA-V0-101 (GitHub #1751) and TJAA-V0-102 (GitHub #1751) and TJAA-V0-103/104 (GitHub #1737) and TJAA-V0-105 (GitHub #1737 residual) and TJAA-V0-106..115 (GitHub #1877-#1880) and TJAA-V0-116/117 (GitHub #1881) and TJAA-V0-118..120 (GitHub #1881 item 3) under the standing lane auto-accept; TJAA-V0-121..125 (GitHub #1883-#1887), TJAA-V0-126 (GitHub #1751, V1-2667), TJAA-V0-127 (V1-2584) and TJAA-V0-140..142 (V1-2812 per-test closures) experimental under the standing lane auto-accept
+- Status: proposed/experimental; TJAA-V0-019 accepted (decision 0483) with its V1-1175 amendment and TJAA-V0-021 accepted (decision 0519); TJAA-V0-030..033 (V1-2042) and TJAA-V0-034..037 (GitHub #1575-#1578) and TJAA-V0-038..045 (GitHub #1593, #1594) and TJAA-V0-046..053 (GitHub #1604, #1605) and TJAA-V0-054..060 (GitHub #1604 re-test, #1625, PR #1628 review) and TJAA-V0-090/091 (GitHub #1701) and TJAA-V0-092/093 (GitHub #1717) and TJAA-V0-094/095 (GitHub #1737) and TJAA-V0-096..099 (GitHub #1737 item 2) and TJAA-V0-100 (GitHub #1750) and TJAA-V0-101 (GitHub #1751) and TJAA-V0-102 (GitHub #1751) and TJAA-V0-103/104 (GitHub #1737) and TJAA-V0-105 (GitHub #1737 residual) and TJAA-V0-106..115 (GitHub #1877-#1880) and TJAA-V0-116/117 (GitHub #1881) and TJAA-V0-118..120 (GitHub #1881 item 3) under the standing lane auto-accept; TJAA-V0-121..125 (GitHub #1883-#1887), TJAA-V0-126 (GitHub #1751, V1-2667), TJAA-V0-127 (V1-2584), TJAA-V0-140..142 (V1-2812 per-test closures) and TJAA-V0-810 (V1-2611) experimental under the standing lane auto-accept
 - Exists: `internal/liveverify/affected/typescript` static runner/dependency adapter and seam tests.
 - Blocked on: runtime tuple, command/config execution, cancellation, and full-CI recall qualification.
 - Read next: Requirements; Explicit unknown frontier; Traceability.
@@ -923,7 +923,7 @@ reaches only an `in` test and `route.fulfill({ response, json: { ...body, settin
     outside the static model, as are patched globals (`AFP-V0-409`).
   - A computed read on an object-literal receiver (`{ ... }[key]`) is not yet treated as a member
     access by the closure's receiver test, and neither is `value![key]`. `TJAA-V0-103` later stops
-    at `{ ... }[key]`.
+    at `{ ... }[key]`, and `TJAA-V0-810` at `value![key]`.
   - A membership-unknown site, `projects` and `owns <file>` still name the config without a line.
     `TJAA-V0-104` later names each line, or why it has none.
   - The reporter's repository was not available (`NOT_OBSERVED`).
@@ -1535,6 +1535,16 @@ cannot, from the same graph phase and closure walk the plan uses.
     `playwright_test_closure_gh1920_test.go` (the issue's identity argv admitted with and without a
     dynamic `launchOptions`; the same escape in another argv, a computed key or a plain const still
     refuses).
+- `TJAA-V0-810`: (experimental under the standing lane auto-accept (2026-10-31); V1-2611; amending
+  `TJAA-V0-093` and closing the `TJAA-V0-095` residual) A `[` whose previous code byte is a
+  TypeScript non-null assertion `!` MUST be a member access, and so stop the tag closure at its line
+  as any computed member read or write does, when the code byte before that `!` (skipping further
+  `!`) ends an operand: an identifier other than a keyword that precedes an expression, a `)` or a
+  `]`. `x![k]`, `x()![k]`, `x[0]![k]` and `x ! ! [k]` stop; a logical not before an array literal
+  (`![a].length`, `= ![a]`) stays exact.
+  - Acceptance: `TestPlaywrightTagClosureNonNullComputedMember_V12611` in
+    `playwright_nonnull_v12611_test.go` (failing first on the base: each assertion form was verified).
+  - Rollback: drop the `!` case from `playwrightMemberAccessAt`.
 - `TJAA-V0-127`: (standing auto-accept, 2026-10-27; V1-2584, AFP-V0-404, TJAA-V0-091) A static
   regular-expression `testMatch` of a Playwright project (a body that `playwrightRegexBodyStatic`
   accepts, flags only `i`, `m`, `s`) MUST resolve in path mode when its verdict on each test path
@@ -1932,6 +1942,7 @@ persisted; run-identity documents carrying `corvint-test-closure/0` digests are 
 | `TJAA-V0-140`, `TJAA-V0-141` (V1-2812) | `TestPlaywrightTestClosures_TJAA140` and `TestPlaywrightTestClosuresFailClosed_TJAA141` in `playwright_test_closure_tjaa140_test.go` (disjoint helpers excluded, a helper application code reaches kept; dynamic import in a test unknown for that test only; frontier outside the suite widens; unresolved config unknown; dependency project tests joined) | experimental; real Playwright run `NOT_RUN` |
 | `TJAA-V0-142` (V1-2812) | `internal/liveverify/affected/typescript` package tests unchanged and passing after the extraction | experimental |
 | `TJAA-V0-147` (V1-2914; GitHub #1920; `PWR-V0-183`) | `TestPlaywrightTestClosuresIdentityArgvEscape_PWRV0183` in `playwright_test_closure_gh1920_test.go` (identity argv escape admitted; other argv, computed key and plain const escapes still refuse) | experimental |
+| `TJAA-V0-810` (V1-2611) | `TestPlaywrightTagClosureNonNullComputedMember_V12611` in `playwright_nonnull_v12611_test.go` (identifier, call, index and spaced assertions stop; logical not of an array literal stays exact) | experimental |
 | `TJAA-V0-127` (V1-2584) | `TestPlaywrightPathModeRegexTestMatch_V12584` and `TestPlaywrightRegexReachesRoot_V12584` in `playwright_regex_root_test.go` (end-anchored, case-insensitive, alternation and mixed-array regexes resolve; unanchored, start-anchored, slash-matching, word-boundary, `u`-flag and lookahead regexes keep the site); the regex rows of `playwright_gh1688_test.go`, `playwright_gh1737_test.go` and `playwright_gh1737_projects_test.go` | experimental; reporter repository `NOT_OBSERVED` |
 | `TJAA-V0-960` (V1-2533) | `TestGeneralAdapterJSConfigAliasesAndAllowJs_V12533` in `alias_jsconfig_v12533_test.go`; `aliasConfigFile`, `readTypeScriptAliases` and `resolveTypeScriptAliases` in `playwright_aliases.go`; `observedName` and the alias-config loop in `typescript.go` | experimental |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
