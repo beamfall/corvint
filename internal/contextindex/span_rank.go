@@ -163,14 +163,14 @@ func coveredBy(selected []contextSpan, span contextSpan) bool {
 	return false
 }
 
-// coreSpans takes, per result row in rank order and reserved rows excluded
-// (project authority is not the task's code), the definitions of task names
+// coreSpans takes, per result row in rank order and the instruction
+// reservations excluded (project authority is not the task's code), the definitions of task names
 // the file declares, at most contextSpanRowCap of them, else one span located
 // by a task name or task terms; at most contextSpanCoreCap in all.
 func (ranker *spanRanker) coreSpans() []contextSpan {
 	cores := make([]contextSpan, 0, contextSpanCoreCap)
 	for _, row := range ranker.rows {
-		if reservedRelation(row.kind) {
+		if instructionReservation(row.kind) {
 			continue
 		}
 		cores = append(cores, ranker.rowSpans(row.path)...)
