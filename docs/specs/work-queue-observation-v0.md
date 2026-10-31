@@ -3,7 +3,7 @@
 **Owner:** Russell Lewis  
 **Date:** 2026-08-23  
 **Intent status:** accepted (decision 0046, 2026-09-04)  
-**Delivery status:** experimental (core library, `corvint work observe` and `propose-wave`, the Corvint self-dogfood adapter, and `conformance/work-queue-v0` landed 2026-09-04; repository adoption through `corvint work init` and `corvint work adapter` landed 2026-09-19 under decision 0321; Beamfall adapter, independent recorder, and the 500 shadow cycles NOT_RUN)  
+**Delivery status:** experimental (core library, `corvint work observe` and `propose-wave`, the Corvint self-dogfood adapter, and `conformance/work-queue-v0` landed 2026-09-04; repository adoption through `corvint work init` and `corvint work adapter` landed 2026-09-19 under decision 0321; Beamfall adapter, independent recorder, and the 500 shadow cycles NOT_RUN; adapter capture drain detector WQO-V0-920 experimental 2026-10-31)  
 **Rollout class:** shadow-only  
 **Wire profiles:** `work-queue-policy/0`, `work-queue-snapshot/0`,
 `work-queue-detail/0`, `work-queue-checkpoint/0`, `work-queue-observation/0`,
@@ -11,7 +11,7 @@
 
 ## Agent digest
 - Claim: Read-only queue snapshots produce deterministic shadow proposals, derived path clashes, and the largest collision-free wave, authorizing nothing.
-- Status: accepted (decision 0046, 2026-09-04)/experimental (core library, `corvint work observe` and `propose-wave`, the Corvint self-dogfood adapter, and `conformance/work-queue-v0` landed 2026-09-04; repository adoption through `corvint work init` and `corvint work adapter` landed 2026-09-19 under decision 0321; Beamfall adapter, independent recorder, and the 500 shadow cycles NOT_RUN)
+- Status: accepted (decision 0046, 2026-09-04)/experimental (core library, `corvint work observe` and `propose-wave`, the Corvint self-dogfood adapter, and `conformance/work-queue-v0` landed 2026-09-04; repository adoption through `corvint work init` and `corvint work adapter` landed 2026-09-19 under decision 0321; Beamfall adapter, independent recorder, and the 500 shadow cycles NOT_RUN; adapter capture drain detector WQO-V0-920 experimental 2026-10-31)
 - Exists: a closed read-only observation and deterministic non-operative wave-proposal contract.
 - Blocked on: the Beamfall adapter and the independent recorder; the Corvint-side algorithm, its conformance, and the Corvint self-dogfood adapter are unblocked.
 - Read next: Decision; Authority and trust boundary; §5.6 Corvint-derived collision closure and maximal wave; §5.7 Repository adoption; Traceability and owner inputs.
@@ -769,6 +769,29 @@ Explicit unknowns for an adopted repository:
   and run root until `Close` removes them, and relative, unclean, missing, symlinked,
   through-symlink, non-directory, group/world-open and (as root) other-owner values are refused.
   Rollback: remove the override and the test `TestMain` wiring; the parent is then always `/tmp`.
+- `WQO-V0-920`: (experimental under the standing lane auto-accept, 2026-10-31; V1-2741) After an
+  adapter leader is reaped, an open stdout or stderr capture pipe is reported as WQO-V0-032
+  `incomplete pipe capture` only after the drain has watched one second of awake time: it
+  samples a 25 ms ticker and counts only intervals delivered within twice the tick, so a host
+  stall that delivers EOF and the expiry together never misreports a complete capture. The former
+  250 ms wall timer misreported complete captures on a loaded host; a 250 ms awake budget alone
+  still failed once in a loaded run, consistent with a transient holder outside the group (a
+  concurrently forked child keeps an inherited write end until its exec closes it; inferred, not
+  observed). An idle escaped holder on an awake host is still reported within seconds, as the
+  WQO-V0-034 escaped-pipe fixture requires (its bound is now three seconds, inside the fixture
+  guardian's four). A one-minute wall-time
+  drain detector bounds a continuously stalled host; it is a hang detector, not a performance
+  budget (decision 0082), matching the source-Git drain above. Cancellation or a shorter parent
+  deadline still wins: the drain closes both read ends at once and the run keeps that context
+  error. Non-goals: the 1 s reap bound, the output limits and residue detection are unchanged;
+  this is not a stronger containment claim. Failure mode: on a host stalled for every tick, an
+  idle escaped holder delays the result by at most one minute. Acceptance:
+  `TestWorkDrainCaptureIgnoresHostStalls`, `TestWorkDrainCaptureExpiresWhileAwake`,
+  `TestWorkDrainCaptureHangDetector`, `TestWorkDrainCaptureStopsOnCancellation` and
+  `TestWorkDrainCaptureCopyError` drive the drain with a fake clock; `TestWorkRunnerEscapedPipeHolder`
+  stays green; 21 consecutive loaded `TestWorkFinalCheckCaptureBinding` runs are retained in
+  `docs/build-log/2026-10-31-cmd-w1-bugs.md`. Rollback: restore the single 250 ms wall timer in
+  `run`.
 
 - `WQO-V0-033`: Corvint core makes no network request, model call, database, daemon, embedding, or
   hosted-service call. Adapter network is `DENIED` only under enforced denial; otherwise
@@ -861,6 +884,7 @@ repository's existing roadmap files; a repository with another queue writes its 
 | Repository adoption | WQO-V0-047..048 | `cmd/corvint/work_adopt.go`, `internal/worklistadapter`, `TestWorkAdoptedRepositoryWorklist`, `TestWorkMappingReproduced` |
 | Bound adoption executable | WQO-V0-049..050 | `cmd/corvint/work_executable_binding.go`, `TestWorkInitBindsExplicitExecutableWQOV0049`, `TestWorkInitBindsResolvedSymlinkTargetWQOV0049`, `TestWorkInitRejectsUnqualifiedExecutableWQOV0049`, `TestWorkExecutableMissingAndSymlinkSwapWQOV0049`, `TestWorkExecutableChangeRequiresReviewedRebindWQOV0050`; the `group-writable-0775` and `world-writable-0777` cases of `TestWorkInitRejectsUnqualifiedExecutableWQOV0049` refuse group/world-writable executable bytes, and every fixture sets its executable and parent modes explicitly (`workMkdirAll`, `workFixtureRoot`, `workBuildExecutable`), so the tests pass under `umask 0002` (V1-3220) |
 | Source refusal reason | WQO-V0-051 | `cmd/corvint/work.go` `workSourceReasons`, `internal/worksource/source.go` `RefusalReason`, `cmd/corvint/work_adopt.go`, `TestWorkSourceUnqualifiedNamesReasonWQOV0051`, `TestWorkRebindUnqualifiedAdoptionOmitsGitStderr` |
+| Adapter capture drain detector | WQO-V0-920 | `cmd/corvint/work_runner.go` `workDrainCapture`, `run`; `cmd/corvint/work_runner_drain_test.go` `TestWorkDrainCapture*`; `TestWorkRunnerEscapedPipeHolder` |
 | Killed-producer Git groups | WQO-V0-052 | `internal/worksource/process_unix.go` `recordGitGroup`, `RetireGitGroups`; `internal/groupreap/argv.go` `GroupLeadersWithArgument`, `StopKillGroup`; `cmd/corvint/work_materialization.go` `Close`; `TestRetireGitGroupsAfterProducerKill`, `TestRetireGitGroupsAfterProducerDiesAtGitStart`, `TestRetireGitGroupsNeverSignalsAnUnpinnedGroup`, `TestRetireGitGroupsLeavesFinishedRecords`, `TestGitRunRemovesItsGroupRecord`, `TestGroupLeadersWithArgumentAndStopKillGroup`, `TestWorkCloseRetiresKilledProducerGit`, `TestWorkCloseKeepsScratchWhenRetirementIsUnconfirmed` |
 | Fork-safe executable materialization | WQO-V0-093 | `internal/execfile/execfile.go` `Guard`, `WriteFile`; `cmd/corvint/work_materialization.go` `writeEntries`, `workWriteEntry`; `TestWriteFileExcludesForkInheritance`, `TestWriteFileMatchesOSWriteFile` |
 | Work child user cache root | WQO-V0-096 | `cmd/corvint/work_materialization.go` `workChildEnvironment`, `workUserCacheDir`; `TestWorkChildEnvironmentUserCache`, `TestWorkMaterializationExactEnvironment`, `TestWorkSelfAdapterSourceParity` (the producer compiles into the shared user cache, never `<run>/home/.cache` or `corvint-work-queue-owner/build/cache`; it fails on that path without the fix); timings in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-v1-3060-macos-cmd-corvint-wall-time.md` |
