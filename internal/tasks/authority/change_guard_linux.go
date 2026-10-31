@@ -9,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+
+	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
 // notifyWatch registers directories with inotify and no regular file
@@ -121,7 +123,7 @@ func (w *notifyWatch) add(path string, contents bool) (os.FileInfo, error) {
 	wd, err := inotifyAddWatch(w.fd, path, mask)
 	if err != nil {
 		if errors.Is(err, syscall.ENOSPC) {
-			return nil, fsErr(path, "inotify watch limit reached (fs.inotify.max_user_watches): %v", err)
+			return nil, wire.Errorf(wire.CodeResourceExhausted, path, "inotify watch limit reached (fs.inotify.max_user_watches): %v", err)
 		}
 		return nil, err
 	}

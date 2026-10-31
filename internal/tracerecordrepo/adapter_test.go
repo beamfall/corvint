@@ -162,6 +162,10 @@ func newAdapterFixture(t *testing.T) string {
 	writeAdapterFixture(t, root, "go.mod", "module example.test/admission\n\ngo 1.27.0\n")
 	writeAdapterFixture(t, root, "internal/value.go", "package internal\n")
 	gitAdapterFixture(t, root, "init", "-q")
+	// V1-0849 (V1-0766): no detached auto maintenance or gc may outlive the
+	// test and race TempDir's RemoveAll of .git (the V1-0662 fixture class).
+	gitAdapterFixture(t, root, "config", "maintenance.auto", "false")
+	gitAdapterFixture(t, root, "config", "gc.auto", "0")
 	gitAdapterFixture(t, root, "config", "user.name", "Corvint Test")
 	gitAdapterFixture(t, root, "config", "user.email", "corvint@example.test")
 	gitAdapterFixture(t, root, "add", ".")

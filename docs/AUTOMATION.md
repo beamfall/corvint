@@ -53,7 +53,7 @@ storage failure never alters the response (`cmd/corvint/help.go:405-406@3c9a8d56
 
 The second ledger, `.corvint/unplanned-reads.jsonl`, is written only by host-adapter hook paths
 while the operator marker `.corvint/unplanned-reads.enabled` exists
-(`cmd/corvint/host_adapter.go:352@45edc402`, `cmd/corvint/host_adapter_experimental.go:107-124@765210a5`) and the
+(`cmd/corvint/host_adapter.go:352@45edc402`, `cmd/corvint/host_adapter_experimental.go:111-128@765210a5`) and the
 marker only by `corvint reads` (`cmd/corvint/reads.go:92-96@19937f8b`). None of the commands below writes
 either file.
 

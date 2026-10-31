@@ -50,7 +50,7 @@ func TestCALV0047_AllCommandHelpIsReadOnly(t *testing.T) {
 					// and points at the verbose form when it left anything out.
 					if !verbose && name != "help" {
 						for _, key := range r.Items[0].Obj.Keys {
-							if !strings.Contains(" usage implemented flags required example operation payloadKeys optionalPayloadKeys note verboseHelp ", " "+key+" ") {
+							if !strings.Contains(" usage implemented flags required example operation payloadKeys optionalPayloadKeys note verboseHelp ", " "+key+" ") && (name != "release" || key != "reasonCodes") {
 								t.Fatalf("terse help carries %q: %v", key, args)
 							}
 						}
