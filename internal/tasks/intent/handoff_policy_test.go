@@ -219,3 +219,48 @@ func TestCALV0123_HolderLivenessIsHandoffCompatible(t *testing.T) {
 		}
 	}
 }
+
+// KHN-V0-800: a change limited to the optional knowHow key (WORKER grant and
+// value screen, read under the writer lock at each write) is
+// handoff-compatible; another key changed in the same update still fences.
+func TestKHNV0800_KnowHowIsHandoffCompatible(t *testing.T) {
+	original := wire.EncodeFile(handoffPolicyValue())
+	knowHow := func(add bool) wire.Value {
+		return wire.ObjectValue(wire.NewObject().Set("workerAdd", wire.Bool(add)))
+	}
+	v, _ := wire.Parse(original)
+	v.Obj.Set("knowHow", knowHow(true))
+	if _, err := intent.DecodePolicy(wire.EncodeFile(v)); err != nil {
+		t.Fatalf("policy with knowHow: %v", err)
+	}
+	for _, step := range []struct {
+		name string
+		set  func(v wire.Value)
+		want bool
+	}{
+		{"added", func(v wire.Value) { v.Obj.Set("knowHow", knowHow(true)) }, true},
+		{"changed-and-member-added", func(v wire.Value) {
+			v.Obj.Set("knowHow", knowHow(false))
+			pools, _ := v.Obj.Get("pools")
+			pools.Arr[0].Obj.Set("members", wire.Strings([]string{"lane-3", "one", "two"}))
+		}, true},
+		{"with-budget", func(v wire.Value) {
+			v.Obj.Set("knowHow", knowHow(true))
+			x, _ := v.Obj.Get("budgets")
+			x.Obj.Set("ticketMultiplier", wire.String("5"))
+		}, false},
+	} {
+		v, _ := wire.Parse(original)
+		v.Obj.Set("policyVersion", wire.String("2"))
+		step.set(v)
+		current := wire.EncodeFile(v)
+		for _, alloc := range [][2]string{{"lanes", "one"}, {"", ""}} {
+			if got, err := intent.HandoffPolicyCompatible(original, current, alloc[0], alloc[1]); err != nil || got != step.want {
+				t.Fatalf("%s %v: compatible=%v error=%v", step.name, alloc, got, err)
+			}
+			if got, err := intent.HandoffPolicyCompatible(current, original, alloc[0], alloc[1]); step.name == "added" && (err != nil || !got) {
+				t.Fatalf("removed %v: compatible=%v error=%v", alloc, got, err)
+			}
+		}
+	}
+}
