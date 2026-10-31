@@ -84,7 +84,8 @@ const CodeRedoPending = "REDO_PENDING"
 const CodeRequestIDConflict = "REQUEST_ID_CONFLICT"
 const CodeResourceCollision = "RESOURCE_COLLISION"
 
-// CodeResourceExhausted reports transient descriptor exhaustion (CAL-V0-215).
+// CodeResourceExhausted reports transient descriptor exhaustion (CAL-V0-215)
+// or a host out of disk space or inotify watches (PSR-V0-901).
 const CodeResourceExhausted = "RESOURCE_EXHAUSTED"
 const CodeRestored = "RESTORED"
 const CodeRestoreIncomplete = "RESTORE_INCOMPLETE"
@@ -177,7 +178,8 @@ func Errorf(detailCode, where, format string, args ...interface{}) *Error {
 }
 
 // CodeOf returns the §11 code carried by err or by any error it wraps, or
-// RESOURCE_EXHAUSTED for EMFILE/ENFILE (CAL-V0-215), MALFORMED for any other
+// RESOURCE_EXHAUSTED for EMFILE/ENFILE (CAL-V0-215) and ENOSPC (PSR-V0-901),
+// MALFORMED for any other
 // error, or "" for nil. Wrapping with %w keeps the
 // code (CAL-V0-131).
 func CodeOf(err error) string {
@@ -188,7 +190,7 @@ func CodeOf(err error) string {
 	if errors.As(err, &e) {
 		return e.Code
 	}
-	if errors.Is(err, syscall.EMFILE) || errors.Is(err, syscall.ENFILE) {
+	if errors.Is(err, syscall.EMFILE) || errors.Is(err, syscall.ENFILE) || errors.Is(err, syscall.ENOSPC) {
 		return CodeResourceExhausted
 	}
 	return CodeMalformed

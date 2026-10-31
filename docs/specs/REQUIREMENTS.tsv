@@ -1823,6 +1823,7 @@ ASD-V0-106	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-107	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3224; refines	standing	2026-10-30; V1-3224
 ASD-V0-108	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3156, V1-3132;	standing	2026-10-30; V1-3156; V1-3132
 ASD-V0-109	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-30; V1-3267) Before i	standing	2026-10-30; V1-3267
+ASD-V0-900	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; tasks-w1 lane fri	standing	2026-10-31
 CAL-V0-001	docs/specs/corvint-tasks-agent-leases-v0.md	The §5.2 writer MUST apply ticket mutations, `import`, `pause`, `unpause` and	unrecorded	-
 CAL-V0-002	docs/specs/corvint-tasks-agent-leases-v0.md	A non-fixture queue MUST refuse `claim` until its `executionCutover` names an ow	unrecorded	-
 CAL-V0-003	docs/specs/corvint-tasks-agent-leases-v0.md	Fixture queues MUST behave byte-for-byte as before S1: the same receipts, outcom	unrecorded	-
@@ -2501,6 +2502,7 @@ LGL-V0-014	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2539,
 LGL-V0-015	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2866; experimental under the standing lane auto-accept)	standing	V1-2866
 LGL-V0-016	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203, V1-2539; owner decision 2026-10-27 "Try concurrent publish	owner	V1-2203; V1-2539; 2026-10-27
 LGL-V0-017	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2877; experimental under the standing lane auto-accept)	standing	V1-2877
+LGL-V0-900	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2623) When a lease command's preparation failed `SNAPSHOT_MOVED`,	unrecorded	-
 TOL-V0-001	docs/specs/corvint-tasks-obligation-ledger-v0.md	A NATIVE ticket record MAY carry the optional member `obligations`, a closed	unrecorded	-
 TOL-V0-002	docs/specs/corvint-tasks-obligation-ledger-v0.md	Each `OBLIGATIONS_*` write MUST derive exactly one immutable canonical ledger	unrecorded	-
 TOL-V0-003	docs/specs/corvint-tasks-obligation-ledger-v0.md	A folded obligation entry MUST be the closed object `{id, title, core, state,	unrecorded	-
@@ -2745,7 +2747,9 @@ PSR-V0-262	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the ow
 PSR-V0-263	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2636) `pool	standing	2026-10-11; V1-2636
 PSR-V0-264	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2636) When an	standing	2026-10-11; V1-2636
 PSR-V0-265	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2636) Amends	standing	2026-10-11; V1-2636
-PSR-V0-266	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2636) The	standing	2026-10-11; V1-2636
+PSR-V0-266	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2636; bound am	standing	2026-10-11; V1-2636
+PSR-V0-900	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(proposed; V1-2447; decision 0552) Amends PSR-V0-266. The pools.json bound MUST	unrecorded	-
+PSR-V0-901	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(proposed, V1-2483) Amends CAL-V0-215 and PSR-V0-221; defined here because the	unrecorded	-
 PSR-V0-267	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2637) Amends	standing	2026-10-11; V1-2637
 PSR-V0-273	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2711) Amends	standing	2026-10-11; V1-2711
 PSR-V0-268	docs/specs/corvint-tasks-pool-safe-reuse-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2704) `corvint	standing	2026-10-11; V1-2704
@@ -2993,6 +2997,7 @@ DCW-V0-346	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-347	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2810) A `dogfood check` th	standing	V1-2810
 DCW-V0-348	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2805, V1-1773)	standing	V1-2805; V1-1773
 DCW-V0-349	docs/specs/daily-change-evidence-workflow-v0.md	(owner-requested V1-1894 repair) `make dogfood-closeout` MUST run	unrecorded	-
+DCW-V0-900	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; tasks-w1 lane	standing	2026-10-31
 DCW-V0-350	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2810; amends `DCW-V0-150`)	standing	V1-2810
 DCW-V0-351	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2827) When	standing	V1-2827
 DCW-V0-352	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-2835; refines `SRG-V0-018`	standing	V1-2835
@@ -5687,6 +5692,7 @@ SCL-V0-005	docs/specs/scope-lease-v0.md	`lease renew --id ID --holder H --ttl D`
 SCL-V0-006	docs/specs/scope-lease-v0.md	`lease status` and `lease list` MUST NOT write, create, or delete any path, incl	unrecorded	-
 SCL-V0-007	docs/specs/scope-lease-v0.md	Expired leases MUST be reaped only inside `acquire`, `release`, and `renew`, und	unrecorded	-
 SCL-V0-008	docs/specs/scope-lease-v0.md	Mutating actions MUST serialize through one single-writer lock at	unrecorded	-
+SCL-V0-900	docs/specs/scope-lease-v0.md	(proposed; V1-2489) On a deferred platform the `O_EXCL` lock MUST treat a create	unrecorded	-
 SCL-V0-009	docs/specs/scope-lease-v0.md	`scopelease.Check(root, paths)` MUST report, without writing, every touched path	unrecorded	-
 SCL-V0-010	docs/specs/scope-lease-v0.md	Every action MUST emit one deterministic canonical JSON line on stdout with a st	unrecorded	-
 SCL-V0-011	docs/specs/scope-lease-v0.md	An unreadable or unparsable lease document MUST NOT block actions on other lease	unrecorded	-
@@ -5999,6 +6005,7 @@ SRG-V0-046	docs/specs/spec-requirement-index-generator-v0.md	(accepted under the
 SRG-V0-047	docs/specs/spec-requirement-index-generator-v0.md	(proposed; V1-2867; experimental under the standing lane auto-accept) When a	standing	V1-2867
 SRG-V0-547	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)	standing	2026-10-11; V1-3049
 SRG-V0-548	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3049)	standing	2026-10-11; V1-3049
+SRG-V0-900	docs/specs/spec-requirement-index-generator-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; tasks-w1 lane	standing	2026-10-31
 STA-V0-001	docs/specs/spec-toolchain-adapters-v0.md	One manifest, `interop/spec-toolchains/versions.json`, records the supported ups	unrecorded	-
 STA-V0-002	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-spec` reads an OpenSpec main spec. The blob	unrecorded	-
 STA-V0-003	docs/specs/spec-toolchain-adapters-v0.md	`ocm prepare --intent-form openspec-delta` reads one OpenSpec delta file.	unrecorded	-

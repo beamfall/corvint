@@ -138,6 +138,7 @@ func TestDiscriminateRecordsWitnessAndReportDowngrades(t *testing.T) {
 	if first.State == wire.DiscriminationNotRun && hostRefusedNestedSandbox(first.Detail) {
 		t.Skipf("host refused the nested sandbox: %s", first.Detail)
 	}
+	skipOnLoadAbstention(t, first)
 	if result["discriminates"] != 1 || result["notRun"] != 1 || result["survived"] != 0 {
 		t.Fatalf("discriminate envelope = %v\nfirst witness %+v\nsecond witness %+v", result, first, second)
 	}
@@ -168,6 +169,7 @@ func TestDiscriminateRecordsWitnessAndReportDowngrades(t *testing.T) {
 	}
 	t.Logf("weak run: %s", time.Since(started).Round(time.Millisecond))
 	first = readMapAt(t, root, witnessMap).Hunks[0].Discriminates
+	skipOnLoadAbstention(t, first)
 	if result["survived"] != 1 || result["notRun"] != 1 {
 		t.Fatalf("weak envelope = %v\nfirst witness %+v", result, first)
 	}
@@ -182,6 +184,19 @@ func TestDiscriminateRecordsWitnessAndReportDowngrades(t *testing.T) {
 	text = reportTextAt(t, root, base, head, witnessMap)
 	if !strings.Contains(text, "discrimination `survived`") {
 		t.Fatalf("report with survivors:\n%s", text)
+	}
+}
+
+// skipOnLoadAbstention skips when the witness abstained because its runs
+// spent the wall-time budget (V1-2559): under -race full-suite load the cold
+// mutant builds outlast the per-run share of the bound, and the runner then
+// records an explicit not-run witness with a BUDGET_EXCEEDED reason. That is
+// the product's abstention, not a verdict this test can check; any other
+// not-run detail still fails.
+func skipOnLoadAbstention(t *testing.T, w *wire.DiscriminationWitness) {
+	t.Helper()
+	if w != nil && w.State == wire.DiscriminationNotRun && strings.Contains(w.Detail, strings.ToLower(string(mutate.BudgetExceeded))+": ") {
+		t.Skipf("the witness abstained on its wall-time budget under host load: %s", w.Detail)
 	}
 }
 

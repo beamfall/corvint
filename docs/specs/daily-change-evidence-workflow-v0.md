@@ -1526,6 +1526,16 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   shared-target/syntax regression. Sealed enrolled completion follows the local-completion
   contract and preserves distinct evidence and current check targets. Rollback restores the
   former explicit CI list and two-step closeout; it does not remove any gate.
+- `DCW-V0-900`: (experimental under the standing lane auto-accept, 2026-10-31; tasks-w1 lane
+  friction; amends `DCW-V0-349`) `make dogfood-closeout` MUST run `make dogfood-inputs-check`,
+  then `make batch-precheck`, then `make dogfood-finish`, then `make batch-precheck` again, all
+  with the caller's variables, stopping at the first failing step with its output and exit status.
+  The first precheck finds drift before any bind or seal, so a failing gate no longer costs a
+  sealed CEM and a further closeout attempt; the second records the receipt for the sealed head,
+  which `batch-push-check` verifies. A missing or invalid input is still refused before any
+  build or precheck step (`DCW-V0-380`, `ASD-V0-045`). Cost: one more precheck run per closeout.
+  Failure mode: before this, the agent-leases spec pushed past the OCM bound was found only
+  after the seal. Rollback: drop the first two steps.
 - `DCW-V0-350`: (experimental under the standing lane auto-accept; V1-2810; amends `DCW-V0-150`)
   When `.corvint/change.cem.json` does not exist, `corvint dogfood propose-citations BASE` MUST
   draft the plan from the canonical `BASE..HEAD` patch that `cem prepare` derives the map from,
@@ -2802,6 +2812,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-347` (experimental under the standing lane auto-accept; V1-2810) | `internal/dogfoodflow/check_reuse.go` `passInputs`, `reusePass`, `capturePass`; `script/dogfood-seal.sh`; `TestDCWV0347SealReusesOnlyABoundPass` | implemented; focused tests PASS; end-to-end seal time NOT_MEASURED |
 | `DCW-V0-348` (experimental under the standing lane auto-accept; V1-2805, V1-1773) | `script/pre-push-dogfood-seal.sh`; `make pre-push-dogfood-seal-test` (`script/pre-push-dogfood-seal_test.sh`) | implemented; shell test PASS; CI job NOT_PRODUCED (needs `.github`) |
 | `DCW-V0-349` (V1-1894) | `Makefile` `dogfood-closeout`/`doc-gates`; `script/batch-precheck_test.sh` | shared CI gate definition; live closeout evidence retained with the repair |
+| `DCW-V0-900` (tasks-w1 friction) | `Makefile` `dogfood-closeout`; `script/dogfood-cache_test.sh` (recipe order and the ASD-V0-045 missing-input refusal before any precheck) | recipe-order regression; live closeout NOT_RUN in this change |
 | `DCW-V0-350` (experimental under the standing lane auto-accept; V1-2810) | `internal/dogfoodflow/propose.go` `template`, `keyByID`; `TestProposeCitationsDCWV0350DraftsHunkIDTemplateWithoutMap`, `TestProposeCitationsDCWV0394DraftsWithoutUsableMap` | implemented; focused tests PASS |
 | `DCW-V0-351` (experimental under the standing lane auto-accept; V1-2827) | `script/dogfood-change_test.sh` `report_failed_case`; `cmd/corvint/go_only_cutover_test.go` `shellTestFailure`; `TestDCWV0351ShellTestFailureNamesTheFailingCase`, `TestGoOnlyContextAbstentionRemainsClosed` | implemented; focused tests PASS |
 | `DCW-V0-352` (experimental under the standing lane auto-accept; V1-2835) | `script/gen-spec-requirements.sh` `--all` warning block; `script/gen-spec-requirements_test.sh` | implemented; shell test PASS |

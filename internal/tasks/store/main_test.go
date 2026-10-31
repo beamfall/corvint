@@ -15,11 +15,35 @@ import (
 // while CORVINT_TEST_LEADER_FAULT is set in its environment.
 var leaderFault func(dir string)
 
+// holderStopEnv names a file whose creation, or its directory's removal,
+// releases the output holder (V1-2625).
+const holderStopEnv = "CORVINT_TEST_HOLDER_STOP"
+
+// holdOutput keeps the inherited standard output open. Without a stop file it
+// holds 3s. With one it holds until the test creates the file or removes its
+// directory, at most two minutes: a fixed hold ended before the drain under
+// load, so the drain proved the output closed and the stage was released.
+func holdOutput() {
+	stop := os.Getenv(holderStopEnv)
+	if stop == "" {
+		time.Sleep(3 * time.Second)
+		return
+	}
+	for deadline := time.Now().Add(2 * time.Minute); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
+		if _, err := os.Stat(filepath.Dir(stop)); err != nil {
+			return
+		}
+		if _, err := os.Stat(stop); err == nil {
+			return
+		}
+	}
+}
+
 // TestMain lets supervised-workflow tests use the test binary itself as the
 // pinned lane leader (`self lane-leader --directory DIR --capsule DIGEST`).
 func TestMain(m *testing.M) {
 	if len(os.Args) == 2 && os.Args[1] == "output-holder" {
-		time.Sleep(3 * time.Second)
+		holdOutput()
 		os.Exit(0)
 	}
 	if len(os.Args) == 6 && os.Args[1] == "lane-leader" {

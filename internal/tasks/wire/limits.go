@@ -54,7 +54,7 @@ const (
 	MaxCommandResultBytes   = 64 * KiB // excluding paginated items
 	MaxListResultBytes      = 16 * MiB
 	MaxReservationSetBytes  = 64 * MiB
-	MaxPoolStateBytes       = 2 * MiB // pools.json (PSR-V0-266)
+	MaxPoolStateBytes       = 3 * MiB // pools.json (PSR-V0-266, PSR-V0-900)
 	MaxEvidenceBlobBytes    = 64 * MiB
 	MaxEvidenceStoreBytes   = 16 * GiB
 	MaxImportPlanBytes      = 16 * MiB
