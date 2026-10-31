@@ -41,7 +41,6 @@ func TestGatedRootLocatorParity_TSP_V0_862(t *testing.T) {
 		dirty             []string
 		userChosen        bool
 		plannerUser       bool
-		fallback          bool
 	}{
 		{name: "undeclared", dirty: []string{"nested/n.go"}, userChosen: true, plannerUser: true},
 		{name: "declared", declaration: valid, dirty: []string{"nested/n.go"}},
@@ -50,9 +49,9 @@ func TestGatedRootLocatorParity_TSP_V0_862(t *testing.T) {
 		{name: "not a locator", declaration: `{"profile":"corvint-gated-root-locators/0","packages":{"loc":{"gate":"/gate/root","reason":"r"},"other":{"gate":"/gate/root","reason":"r"}}}`, dirty: []string{"nested/n.go"}, userChosen: true, plannerUser: true},
 		{name: "unknown member", declaration: `{"profile":"corvint-gated-root-locators/0","packages":{"loc":{"gate":"/gate/root","reason":"r","reads":[]}}}`, dirty: []string{"nested/n.go"}, userChosen: true, plannerUser: true},
 		{name: "unparsed", declaration: `{`, dirty: []string{"nested/n.go"}, userChosen: true, plannerUser: true},
-		// The planner names the dirty declaration an unowned path, so Select
-		// falls back (CIN-V0-860); without that rule it keeps the wider closure.
-		{name: "dirty declaration", declaration: valid, dirty: []string{affected.GatedRootLocatorsPath, "nested/n.go"}, fallback: true},
+		// The planner reads the head declaration; Select keeps the wider
+		// closure for the edit itself, so it still selects the dependent.
+		{name: "dirty declaration", declaration: valid, dirty: []string{affected.GatedRootLocatorsPath, "nested/n.go"}, userChosen: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			files := maps.Clone(base)
@@ -85,18 +84,6 @@ func TestGatedRootLocatorParity_TSP_V0_862(t *testing.T) {
 			receipt.Provider.Go.Packages = planned
 			lines := selectPackages(receipt, fixtureModule, root, true)
 			last := strings.Fields(lines[len(lines)-1])
-			if tc.fallback {
-				if len(last) == 0 || last[0] != "FALLBACK" {
-					t.Fatalf("verdict %q, want FALLBACK", lines[len(lines)-1])
-				}
-				receipt.Plan.Unknown = nil
-				receipt.Plan.Scope = "BOUNDED"
-				lines = selectPackages(receipt, fixtureModule, root, true)
-				if !strings.Contains(strings.Join(lines, "\n"), "unresolved "+fixtureModule+"/user") {
-					t.Fatalf("a dirty declaration keeps the wider closure: %q", lines)
-				}
-				return
-			}
 			if len(last) == 0 || last[0] != "run" {
 				t.Fatalf("verdict %q", lines[len(lines)-1])
 			}
