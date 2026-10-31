@@ -458,61 +458,92 @@
       "pattern": "^criterion:sha256:[0-9a-f]{64}$"
     },
     "criterionBinding": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "id",
-        "ticketId",
-        "acceptanceRevision",
-        "criterionIndex",
-        "acceptanceSha256",
-        "criterionSha256",
-        "captureSha256",
-        "verificationSha256",
-        "claimTicketSha256",
-        "snapshotHeadReceiptSha256",
-        "snapshotHeadArtifactSha256"
-      ],
-      "properties": {
-        "id": {
-          "$ref": "#/$defs/criterionId"
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "ticketId",
+            "acceptanceRevision",
+            "criterionIndex",
+            "acceptanceSha256",
+            "criterionSha256",
+            "captureSha256",
+            "verificationSha256",
+            "claimTicketSha256",
+            "snapshotHeadReceiptSha256",
+            "snapshotHeadArtifactSha256"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/criterionId"
+            },
+            "ticketId": {
+              "type": "string",
+              "maxLength": 128,
+              "pattern": "^ticket:[A-Za-z0-9][A-Za-z0-9._-]*:[A-Za-z0-9][A-Za-z0-9._-]*:[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
+            },
+            "acceptanceRevision": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]{0,15}$"
+            },
+            "criterionIndex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "acceptanceSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "criterionSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "captureSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "verificationSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "claimTicketSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "snapshotHeadReceiptSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "snapshotHeadArtifactSha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
         },
-        "ticketId": {
-          "type": "string",
-          "maxLength": 128,
-          "pattern": "^ticket:[A-Za-z0-9][A-Za-z0-9._-]*:[A-Za-z0-9][A-Za-z0-9._-]*:[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"
-        },
-        "acceptanceRevision": {
-          "type": "string",
-          "pattern": "^[1-9][0-9]{0,15}$"
-        },
-        "criterionIndex": {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 255
-        },
-        "acceptanceSha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "criterionSha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "captureSha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "verificationSha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "claimTicketSha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "snapshotHeadReceiptSha256": {
-          "$ref": "#/$defs/sha256"
-        },
-        "snapshotHeadArtifactSha256": {
-          "$ref": "#/$defs/sha256"
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "criterionIndex",
+            "criterionSha256",
+            "evidenceId"
+          ],
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/criterionId"
+            },
+            "criterionIndex": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "criterionSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "evidenceId": {
+              "type": "string",
+              "pattern": "^evidence:sha256:[0-9a-f]{64}$"
+            }
+          }
         }
-      }
+      ]
     },
     "runnerReceipt": {
       "type": "object",
