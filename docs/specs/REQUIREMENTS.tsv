@@ -2356,6 +2356,7 @@ TCD-V0-870	docs/specs/corvint-tasks-closeout-debt-v0.md	(V1-3496; amends TCD-V0-
 TCD-V0-871	docs/specs/corvint-tasks-closeout-debt-v0.md	(V1-3496) `ticket closeout-debt` takes an optional `--prs FILE|-` export	unrecorded	-
 TCD-V0-872	docs/specs/corvint-tasks-closeout-debt-v0.md	(V1-3496) `make tasks-reconcile` runs `script/tasks-reconcile.sh`: it exports	unrecorded	-
 TCD-V0-873	docs/specs/corvint-tasks-closeout-debt-v0.md	(V1-3496) A merged PR whose body declares `Delivers ID` leaves no OPEN ticket af	unrecorded	-
+TCD-V0-874	docs/specs/corvint-tasks-closeout-debt-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3551; amends	standing	2026-10-11; V1-3551
 TCT-V0-001	docs/specs/corvint-tasks-create-payload-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2703) `corvint	standing	2026-10-11; V1-2703
 TCT-V0-002	docs/specs/corvint-tasks-create-payload-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2703) When the	standing	2026-10-11; V1-2703
 TDR-V0-001	docs/specs/corvint-tasks-defect-register-v0.md	Policy MAY declare `defects` as a closed object with optional `prefix` (matching	unrecorded	-
