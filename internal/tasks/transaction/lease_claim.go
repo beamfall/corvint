@@ -512,7 +512,7 @@ func (c leaseContext) admit(rec *ticket.Record, sc *snapshot.Scope) leaseOutcome
 		}
 	}
 	if other := c.collision(sc.Resources, ""); other != "" {
-		return c.refuse(mutation.OutcomeBlocked, wire.CodeResourceCollision, "scope collides with live "+c.collisionDetail(other, sc.Resources))
+		return c.refuse(mutation.OutcomeBlocked, wire.CodeResourceCollision, "scope collides with live "+c.collisionDetail(other, sc.Resources)+c.collisionNextAction(other, sc))
 	}
 	if int64(len(c.st.reservations.Entries)) >= c.st.policy.MaxActiveAttempts.Int() {
 		return c.refuse(mutation.OutcomeCapacityExhausted, wire.CodeLimitExceeded, "maxActiveAttempts "+string(c.st.policy.MaxActiveAttempts)+" attempts are live")
