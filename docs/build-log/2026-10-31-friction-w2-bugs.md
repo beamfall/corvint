@@ -85,6 +85,50 @@ graph cache keys. The `verdict.sh` edit now narrows to the same 42 packages.
 that edit, against 10 KB of JSON (66 KB on the FULL fallback). The JSON stays the contract. The
 summary is for reading only.
 
+## V1-3383: dogfood-change_test.sh stopping at line 835 (DCW-V0-807)
+
+Added to the lane after the first seal. This host has no ripgrep and the lane could not fetch
+one, so the script ran under a scratch `rg` stand-in built on GNU grep (`-F`, `-x`, `-q`, `-c`, `-P`
+for regexes). On the clean base `780f9e97` the script passes end to end. Line 835 is the closing
+`)` of a scenario subshell. The `case='Literal backticks…'` label is only the nearest comment above
+that line; the real failure is the line the subshell reported first. Exporting any one of
+`DOGFOOD_OUTCOME`, `DOGFOOD_CITATIONS`, `DOGFOOD_INTENTS_FILE` or `CORVINT_BIN`, as lanes do for
+closeout, reproduces exactly that `line=835` report with a different real failure inside. The exact
+verifier-disagreement symptom seen on the misc-1031 host was NOT_REPRODUCED here.
+
+Decisions:
+- The script scrubs every `DOGFOOD_*` variable and `CORVINT_BIN`, and points
+  `CORVINT_DOGFOOD_BIN_CACHE` at its own temp directory.
+- The enclosing shell's repeat report of a failed subshell now says `enclosing-block` instead of a
+  case name.
+- CI already runs the script, in `TestGoOnlyContextAbstentionRemainsClosed` (cmd/corvint go test).
+  That test now passes those four variables in, so a leak fails CI.
+
+The run also caught this lane's own V1-3381 change: the script pinned the old
+`ocm-aggregate: intent-scope-drift` fix text, and that assertion now pins the DCW-V0-806 text. It
+passes end to end with no variables and with each one exported.
+
+## V1-3384: repin cost of an output-neutral edit (DCG-V0-800, DCG-V0-801)
+
+Measured on `780f9e97` with a two-line comment above `import` in `internal/contextindex/git.go`:
+- Before: 15 failing citations. 13 moved unchanged and `--repin` fixes them. 2 are in decision
+  0158 and `--repin` cannot fix them: unpinned `git.go:203` now lands on a blank line, and anchor
+  `@ea64e6ab` matches at 2 positions. `analyzer-schema-check` also failed and needed
+  `script/analyzer-schema.sh bump` plus a manual `git add` before `--repin` could read the new pins.
+- After: `make repin` (about 4 s), then `line-citations-check` and `analyzer-schema-check` both
+  pass, with no manual step.
+
+Decisions:
+- Decision records are write-once, and lanes may not edit them. A citation in one now resolves
+  against the commit that last wrote the record, as long as its index copy is unchanged; it no
+  longer resolves against the moving index. A record being edited, or not yet committed, still
+  resolves against the index.
+- `make repin` chains the analyzer bump, staging of its pins, and `--repin`. It deliberately does
+  not repin a citation whose text changed: a person must read that one.
+
+The analyzer input digest still changes on any input edit. Making the digest output-only was out of
+scope: IDX-SNAP-V0-107 keeps the input pin as the audit.
+
 ## Verification
 
 Focused tests only, because `corvint test --base 780f9e97 --dry-run` selects 212 packages whole.
