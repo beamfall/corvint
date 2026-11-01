@@ -93,8 +93,8 @@ func BuildRoots(ctx context.Context, root, manifestPath, revision string, roots 
 		dirs = append([]string{m.Tests.Root}, dirs...) // "." is the repository itself (AMAP-V0-075)
 	}
 	dirs = append(append(append(dirs, m.Tests.PageObjects...), m.Tests.Workflows...), m.Tests.Scenarios...)
-	if m.Tests.WebRoot != "" {
-		dirs = append(dirs, m.Tests.WebRoot)
+	if m.Tests.WebRoot != "" && m.Tests.WebRoot != "." {
+		dirs = append(dirs, m.Tests.WebRoot) // "." is the repository itself
 	}
 	if m.Flows != "" && m.Tests.Repo == "" {
 		dirs = append(dirs, m.Flows)
@@ -330,6 +330,16 @@ func bareConfigImport(resolver *contextindex.WebImportResolver, importer, specif
 	return "", false
 }
 
+// testTarget is the test file an import resolves to as an edge of the test import graph: only a
+// resolved Node import is one. A browser-context reference's Resolved names the module the page
+// loads, never a test edge, even when it lies inside tests.root (AMAP-V0-781).
+func (imp Import) testTarget() string {
+	if imp.Status != importResolved {
+		return ""
+	}
+	return imp.Resolved
+}
+
 // browserCalls are the member calls whose callback Playwright runs in the page (AMAP-V0-781).
 var browserCalls = map[string]bool{"evaluate": true, "evaluateHandle": true, "addInitScript": true}
 
@@ -342,8 +352,8 @@ type testLoads struct {
 }
 
 // readLoads finds the `import(...)` and `require(...)` calls of a test source. A call lexically
-// inside the arguments of a `.evaluate(`, `.evaluateHandle(` or `.addInitScript(` member call runs
-// in the page, so it is a browser-context reference, not a load the index can resolve for the
+// inside the first argument of a `.evaluate(`, `.evaluateHandle(` or `.addInitScript(` member call
+// runs in the page, so it is a browser-context reference, not a load the index can resolve for the
 // test file. A literal specifier is browser-only when no occurrence of it lies outside such a
 // call, so a static or Node-context import of the same module keeps the AMAP-V0-005 rules.
 func readLoads(text string) testLoads {
@@ -351,7 +361,9 @@ func readLoads(text string) testLoads {
 	inBrowser := make([]bool, len(toks))
 	for i := range toks {
 		if toks[i].kind == tokIdent && browserCalls[toks[i].text] && property(toks, i) && next(toks, i+1, "(") {
-			for j, end := i+1, closeParen(toks, i+1); j <= end; j++ {
+			// Only the first argument, the callback or script the page runs, is browser
+			// context; the later arguments are evaluated by Node before the call.
+			for j, end := i+2, skipValue(toks, i+2); j < end && j < len(toks); j++ {
 				inBrowser[j] = true
 			}
 		}
@@ -771,7 +783,7 @@ func (b *builder) closure(p string) (map[string][]string, bool, bool) {
 		nextFrontier := []string{}
 		for _, cur := range frontier {
 			for _, imp := range b.files[cur].Imports {
-				t := imp.Resolved
+				t := imp.testTarget()
 				if t == "" || b.files[t] == nil {
 					continue
 				}
@@ -802,8 +814,8 @@ func (b *builder) sequence(tf *TestFile) {
 	classes := map[string]string{}
 	for _, bd := range b.binds[tf.Path] {
 		for _, imp := range tf.Imports {
-			if imp.Specifier == bd.Module && imp.Resolved != "" {
-				classes[bd.Local] = imp.Resolved
+			if t := imp.testTarget(); imp.Specifier == bd.Module && t != "" {
+				classes[bd.Local] = t
 			}
 		}
 	}

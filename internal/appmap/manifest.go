@@ -126,7 +126,7 @@ func decodeManifest(raw []byte) (Manifest, error) {
 			}
 		}
 	}
-	if t.WebRoot != "" && !safeRelative(t.WebRoot) {
+	if t.WebRoot != "" && t.WebRoot != "." && !safeRelative(t.WebRoot) {
 		return m, invalidManifest("tests.web_root must be a repository-relative directory")
 	}
 	bound := map[string]bool{}
