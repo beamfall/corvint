@@ -40,7 +40,9 @@ set -eu
 # the rest is malformed; the gate reports it instead of silently treating it as prose.
 #
 # Exempt: Go standard-library paths cited as `src/syscall/...` (GOROOT-relative, not this
-# repository's `src/`), and anything inside a fenced code block.
+# repository's `src/`), and anything inside a fenced code block. Out of scope (DCG-V0-922): a
+# `path:N` in a code comment (Go, shell or any other source file), since only the document set
+# above is scanned, and whether an unpinned legacy citation still names the line it meant.
 #
 # Every path this gate reads is resolved against the Git index, never the working
 # filesystem: the scanned document set and the tracked set come from `git ls-files`, and
@@ -244,6 +246,12 @@ sub trivial {
     return $text eq '' || $text =~ /^[\}\)\]\,;]+$/;
 }
 
+# The span text of a citation, as --hash takes it: N, N-M or N,M[,M...].
+sub anchored_span {
+    my ($first, $last, @extra) = @_;
+    return join(',', $first, @extra) . (defined $last ? "-$last" : '');
+}
+
 # The anchored line set is what the citation reads as one span: a range covers its endpoints,
 # and a comma list covers the listed lines in written order. Each line is right-trimmed, so
 # indentation stays part of the anchor and trailing whitespace churn does not break it.
@@ -277,6 +285,12 @@ my @repins;
 # DCG-V0-045: under --repin, the commit whose diff to the index proves a whole-span move, and the
 # changed citations whose span that diff maps to new lines (suggested, never written).
 my ($repin_base, $repin_base_label, @suggestions);
+# DCG-V0-920/921: --repin --changed, and the files --selects REV names as changed.
+my ($repin_changed, %selects_changed);
+# DCG-V0-921: the pinned citations into a file --selects REV names as changed.
+my @selected;
+# DCG-V0-920: the changed spans --repin --changed rewrote, printed for a read.
+my @changed_repins;
 # DCG-V0-046: root-basename skips are counted, and listed only under --verbose.
 my @skipped;
 # The byte offset of the token being checked in its document line, so --repin rewrites exactly
@@ -347,6 +361,7 @@ sub check {
         return;
     }
     my $waived = $drift_waiver{drift_waiver_key($doc, $path, $first, $last)};
+    push @selected, "$doc:$line_number  $token" if defined $pin && $selects_changed{$path};
     # DCG-V0-022: a pin whose text moved unchanged is reported as a move before any range or
     # blank-line finding, since those describe the old position, not the cited text.
     if (defined $pin && !$waived) {
@@ -376,6 +391,15 @@ sub check {
             }
             if (defined $repin_base) {
                 my $suggested = diff_suggestion($token, $path, $lines, $pin, $first, $last, @extra);
+                # DCG-V0-920 (V1-3342, V1-3413): --repin --changed writes the diff's mapping and the
+                # new anchor too, each listed for a read; without --changed it is only suggested.
+                if (defined $suggested && $repin_changed) {
+                    push @failures, "$doc:$line_number  $token  cited content changed; --repin --changed re-anchors it as $suggested "
+                        . "(script/check-line-citations.sh --repin rewrites it)";
+                    push @repins, [$doc, $line_number, $token, $suggested, $token_at];
+                    push @changed_repins, [$doc, $line_number, $token, $suggested];
+                    return;
+                }
                 push @suggestions, [$doc, $line_number, $token, $suggested] if defined $suggested;
             }
         }
@@ -423,7 +447,10 @@ sub check {
     push @failures, "$doc:$line_number  $token  cited content changed: anchor \@$pin, now \@" . substr($actual, 0, 8)
         . $why
         . " (read the lines before repinning; when only citation tokens in them changed, "
-        . "script/check-line-citations.sh --repin re-anchors it, DCG-V0-047)";
+        . "script/check-line-citations.sh --repin re-anchors it, DCG-V0-047; when the sentence still holds, "
+        . "print the new anchor with script/check-line-citations.sh --hash $path:" . anchored_span($first, $last, @extra)
+        . ", or let script/check-line-citations.sh --repin --changed --base <rev> rewrite every such span the diff "
+        . "from <rev> maps, DCG-V0-920)";
 }
 
 # DCG-V0-022: every whole-span shift under which the cited lines hash to the pin again. A pin
@@ -619,8 +646,8 @@ sub shifted_token {
 
 # --hash prints one citation with its anchor appended, so an author can pin a citation
 # without computing the digest by hand.
-my $usage = "usage: check-line-citations.sh [--verbose] [--repin [--base <rev>]] | --hash <path:line[-line][,line]> ...\n";
-my ($repin, $verbose, $base_arg);
+my $usage = "usage: check-line-citations.sh [--verbose] [--repin [--changed] [--base <rev>]] | --selects <rev> | --hash <path:line[-line][,line]> ...\n";
+my ($repin, $verbose, $base_arg, $selects_base);
 my @original_argv = @ARGV;
 if (@ARGV && $ARGV[0] ne '--hash') {
     my @flags = @ARGV;
@@ -629,9 +656,13 @@ if (@ARGV && $ARGV[0] ne '--hash') {
         if ($flag eq '--repin') { $repin = 1 }
         elsif ($flag eq '--verbose') { $verbose = 1 }
         elsif ($flag eq '--base' && @flags) { $base_arg = shift @flags }
+        elsif ($flag eq '--changed') { $repin_changed = 1 }
+        elsif ($flag eq '--selects' && @flags) { $selects_base = shift @flags }
         else { die $usage }
     }
     die "--base needs --repin\n$usage" if defined $base_arg && !$repin;
+    die "--changed needs --repin\n$usage" if $repin_changed && !$repin;
+    die "--selects takes no other flag\n$usage" if defined $selects_base && ($repin || $verbose);
 }
 # DCG-V0-045: --repin proves moves against the diff from --base (default HEAD) to the index. An
 # unborn HEAD leaves only the hash search; a named base that does not resolve refuses.
@@ -647,7 +678,15 @@ if ($repin) {
         die "--base $base_arg does not name a commit\n";
     }
 }
-if (@ARGV && !defined $repin && !$verbose) {
+# DCG-V0-921 (V1-3323): --selects REV lists the pinned citations whose cited file differs between
+# REV and the index, so a lane whose change touches a cited file knows to run line-citations-check.
+if (defined $selects_base) {
+    open my $diff, '-|', 'git', 'diff', '--cached', '--name-only', '--no-renames', '--end-of-options', $selects_base, '--'
+        or die "git diff: $!\n";
+    while (my $path = <$diff>) { chomp $path; $selects_changed{$path} = 1; }
+    close $diff or die "--selects $selects_base: not a revision git diff can read\n";
+}
+if (@ARGV && !defined $repin && !$verbose && !defined $selects_base) {
     my ($flag, @tokens) = @ARGV;
     die $usage unless $flag eq '--hash' && @tokens;
     for my $token (@tokens) {
@@ -770,6 +809,18 @@ for my $key (sort keys %unpinned_inventory) {
 push @failures, "unpinned citation count $unpinned_count exceeds committed ceiling $unpinned_ceiling; read and pin citations or lower the ceiling"
     if $unpinned_count > $unpinned_ceiling;
 
+if (defined $selects_base) {
+    close_index();
+    if (@selected) {
+        print "line citations: selects line-citations-check: " . scalar(@selected)
+            . " pinned citation(s) cite a file changed since $selects_base; run make line-citations-check\n";
+        print "  $_\n" for @selected;
+    } else {
+        print "line citations: no pinned citation cites a file changed since $selects_base\n";
+    }
+    exit 0;
+}
+
 # DCG-V0-022: --repin rewrites the worktree copy of each document whose citations moved
 # unchanged, and only when that copy is byte-identical to the index copy the scan read. DCG-V0-048:
 # it then stages exactly those rewritten documents (the index held their pre-rewrite bytes, so
@@ -807,6 +858,11 @@ if ($repin) {
         rename $temporary, $doc or die "$doc: $!\n";
     }
     close_index();
+    for my $changed (@changed_repins) {
+        my ($doc, $line_number, $from, $to) = @$changed;
+        print "$doc:$line_number  $from changed since $repin_base_label; --changed re-anchored it as $to (read those lines: "
+            . "the anchor now asserts this content)\n";
+    }
     # DCG-V0-045: a changed span is never rewritten; the diff's mapping and the new anchor are
     # printed so the author reads those lines and pastes the token only if the sentence holds.
     for my $suggestion (@suggestions) {

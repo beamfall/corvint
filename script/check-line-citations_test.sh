@@ -689,6 +689,37 @@ case $output in
 *'1 citation(s) do not resolve'*"$body"*'cited content changed'*) ;;
 *) fail "after --repin, anything but the changed span failed: $output" ;;
 esac
+# DCG-V0-920 (V1-3408): the changed-content refusal names the --hash command for the cited span
+# and the --repin --changed rewrite.
+case $output in
+*'print the new anchor with script/check-line-citations.sh --hash internal/demo/shift.go:10-11,'*'--repin --changed --base <rev>'*) ;;
+*) fail "the changed-content refusal does not name --hash path:span and --repin --changed: $output" ;;
+esac
+# DCG-V0-921 (V1-3323): a script edit that shifted cited lines selects line-citations-check.
+out=$(cd "$test_root" && script/check-line-citations.sh --selects HEAD 2>&1) || fail "--selects HEAD failed: $out"
+case $out in
+*'selects line-citations-check: 3 pinned citation(s) cite a file changed since HEAD'*'docs/agent-memory/fixture.md:3'*internal/demo/shift.go*) ;;
+*) fail "--selects did not select line-citations-check for the shifted script: $out" ;;
+esac
+rc=0
+out=$(cd "$test_root" && script/check-line-citations.sh --changed 2>&1) || rc=$?
+[ "$rc" != 0 ] && case $out in *'--changed needs --repin'*) true ;; *) false ;; esac || fail "--changed without --repin was not refused: $out"
+# DCG-V0-920 (V1-3342, V1-3413): --repin --changed re-anchors the changed span to the lines the diff
+# maps it to, lists it for a read, and the check then passes.
+rc=0
+out=$(cd "$test_root" && script/check-line-citations.sh --repin --changed 2>/dev/null) || rc=$?
+[ "$rc" = 0 ] || fail "--repin --changed exited $rc: $out"
+case $out in
+*"$body"*' --changed re-anchored it as `'"$suggested"'`'*) ;;
+*) fail "--repin --changed did not list the re-anchored changed span: $out" ;;
+esac
+grep -qF "$suggested" "$test_root/docs/agent-memory/fixture.md" || fail "--repin --changed did not rewrite the span: $(cat "$test_root/docs/agent-memory/fixture.md")"
+run >/dev/null || fail "the check failed after --repin --changed"
+# A later commit holds every cited file unchanged: nothing is selected.
+git -C "$test_root" -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false \
+  -c core.hooksPath=/dev/null commit -q -m changed
+out=$(cd "$test_root" && script/check-line-citations.sh --selects HEAD 2>&1) || fail "--selects HEAD failed: $out"
+case $out in *'no pinned citation cites a file changed since HEAD'*) ;; *) fail "--selects on an unchanged tree: $out" ;; esac
 printf '%s\n' '// unstaged' >> "$test_root/internal/demo/shift.go"
 output=$(cd "$test_root" && script/check-line-citations.sh --repin 2>&1) || true
 case $output in
