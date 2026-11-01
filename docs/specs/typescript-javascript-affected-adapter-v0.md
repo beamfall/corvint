@@ -1685,6 +1685,45 @@ cannot, from the same graph phase and closure walk the plan uses.
   (`TJAA-V0-037`, `TJAA-V0-057`, GitHub #1880), so no second resolver is added. Rollback: restore
   the alias reason at the bare-import site, the `\bfrom` pattern and the unstripped specifier.
 
+### VanillaTwisted frontier triage (TJAA-V0-871; V1-3612)
+
+Intent (orchestrator observation, 2026-10-31; V1-3612): on the VanillaTwisted range
+`bb4547e3..60de6c0c` the plan stays `scope=UNKNOWN` with 115 `LANGUAGE_FRONTIER` unknowns after
+V1-0970, and each remaining class is to be resolved where a sound rule exists or kept fail-closed
+with its reason.
+
+- **TJAA-V0-871:** (experimental under the owner's standing lane auto-accept (2026-10-11);
+  V1-3612) Amending `TJAA-V0-005`: in a `.jsx` or `.tsx` source, `<` MUST be a recognized
+  literal-opening context for a `'`- or `"`-quoted token, beside the listed punctuators, so a
+  string literal type argument (`useState<"idle" | "busy">("idle")`,
+  `ComponentProps<"button">["style"]`) or a comparison (`a < "b"`) no longer raises
+  `typescript:unparsed-source`. It is sound because JSX text cannot hold `<`: there it always opens
+  a tag, and a tag name cannot begin with a quote. `>` stays unrecognized, because a quote after
+  `>` may be JSX text (`<p>"quoted"</p>`); the line-crossing and `require` rules are unchanged.
+  Decision (lane aff-w23), the other classes on that range, each kept fail-closed:
+  `typescript:dynamic-import` (31 sites: `import()` calls in Playwright specs, server tests and
+  `App.tsx` lazy routes) is computed loading `TJAA-V0-005` keeps opaque; `relative-import-unresolved`
+  (36: `.json` and `.css` imports such as `./catalogue.json`, `./index.css`, and one import of
+  an unbuilt `dist/` file) names files that are no source unit, so no unit edge can carry them
+  without a non-source asset model this amendment does not add; `runtime-flags-unresolved` (26,
+  `node:test` suites whose `node --test` flags and loaders are unread), `test-runner-ambiguous`
+  (45, e2e files four Playwright configs claim, and fixtures both Playwright and Vitest claim),
+  `executable-config-unresolved` (5, computed `testMatch` and `setupFiles`), `test-runner-unknown`
+  (4 `.test.mjs` scripts no runner claims), `e2e-runtime-dependency` (41 specs that drive a running
+  server) and `bare-import-undeclared` (2: `pg`, which no manifest above the importer declares,
+  and the virtual `corecrypto-wasm-url`) each stay as their requirements define. The two
+  `unparsed-source` sites on `.d.mts` declaration files stay, because `.mts` and `.cts` sources
+  are not read. The range also keeps 7 `UNOWNED_DIRTY_PATH` unknowns (`CLAUDE.md`,
+  `docs/agent-memory/*.md`), which the adopter can retire with `.corvint/documentation-paths.json`
+  (AFP-V0-160), so this amendment alone cannot make that range's plan bounded. Non-goals: a
+  general JSX parser; resolving any other class. Failure mode: a source whose text the scanner
+  already misreads as code could put a quote after `<`; that source is invalid JSX, which the
+  frontier never vouched for. Acceptance evidence: `TestJSXQuoteAfterLessThanIsALiteral_V13612`
+  in `jsx_less_than_v13612_test.go`; live, the same range went from 15 to 2 `unparsed-source`
+  sites and from 115 to 103 `LANGUAGE_FRONTIER` unknowns (selected 42 both times); one of the 13
+  files now read past its type argument, `PrivateJoin.tsx`, raises `typescript:scan-unresolved`
+  for a JSX-text `/` at line 412, as `TJAA-V0-039` requires. Rollback: remove `<` from the `jsxQuoteStartsLiteral` punctuators.
+
 ## Opt-in Playwright project profile
 
 `corvint affected --playwright-config PATH --playwright-discovery FILE` emits `playwright-affected/0`; it does not alter the
@@ -2056,5 +2095,6 @@ persisted; run-identity documents carrying `corvint-test-closure/0` digests are 
 | `TJAA-V0-810` (V1-2611) | `TestPlaywrightTagClosureNonNullComputedMember_V12611` in `playwright_nonnull_v12611_test.go` (identifier, call, index and spaced assertions stop; logical not of an array literal stays exact) | experimental |
 | `TJAA-V0-127` (V1-2584) | `TestPlaywrightPathModeRegexTestMatch_V12584` and `TestPlaywrightRegexReachesRoot_V12584` in `playwright_regex_root_test.go` (end-anchored, case-insensitive, alternation and mixed-array regexes resolve; unanchored, start-anchored, slash-matching, word-boundary, `u`-flag and lookahead regexes keep the site); the regex rows of `playwright_gh1688_test.go`, `playwright_gh1737_test.go` and `playwright_gh1737_projects_test.go` | experimental; reporter repository `NOT_OBSERVED` |
 | `TJAA-V0-960` (V1-2533) | `TestGeneralAdapterJSConfigAliasesAndAllowJs_V12533` in `alias_jsconfig_v12533_test.go`; `aliasConfigFile`, `readTypeScriptAliases` and `resolveTypeScriptAliases` in `playwright_aliases.go`; `observedName` and the alias-config loop in `typescript.go` | experimental |
+| `TJAA-V0-871` (V1-3612) | `TestJSXQuoteAfterLessThanIsALiteral_V13612` in `jsx_less_than_v13612_test.go` (a quoted type argument and a comparison after `<` build the edge; a quote after `>` in JSX text still raises `typescript:unparsed-source`) | experimental |
 | independent real-repository recall | 2026-08-29 build-log evidence | observed |
 | runtime/framework/OS qualification | `LPCV-V0-043..046` promotion matrix | `NOT_RUN` |
