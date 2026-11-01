@@ -627,6 +627,30 @@ func TestCAPV0961DocumentedSubcommandsParse(t *testing.T) {
 	}
 }
 
+// TestCAPV0965SubcommandSpansAreNames (V1-3661) proves the Subcommands sentence is typed: a flag,
+// an argument or an example written as a depth-zero span is subcommand-span-malformed, the same
+// detail inside parentheses is not, and the committed catalog has no such span.
+func TestCAPV0965SubcommandSpansAreNames(t *testing.T) {
+	inv, catalog, readme := load(t)
+	if got := kinds(Check(catalog, readme, inv, linkBase))["subcommand-span-malformed"]; len(got) != 0 {
+		t.Fatalf("committed catalog: subcommand-span-malformed %v", got)
+	}
+	for _, c := range []struct{ span, want string }{
+		{"`acquire --lease-minutes N`", "lease `acquire --lease-minutes N`"},
+		{"`--json`", "lease `--json`"},
+		{"`corvint lease acquire`", "lease `corvint lease acquire`"},
+	} {
+		bad := replaceOnce(t, catalog, "Subcommands `acquire`, `renew`,", "Subcommands `acquire`, "+c.span+", `renew`,")
+		if got := kinds(Check(bad, readme, inv, linkBase))["subcommand-span-malformed"]; !contains(got, c.want) || len(got) != 1 {
+			t.Errorf("%s: subcommand-span-malformed %v", c.span, got)
+		}
+	}
+	parenthesised := replaceOnce(t, catalog, "Subcommands `acquire`, `renew`,", "Subcommands `acquire` (`acquire --lease-minutes N`), `renew`,")
+	if got := kinds(Check(parenthesised, readme, inv, linkBase))["subcommand-span-malformed"]; len(got) != 0 {
+		t.Errorf("parenthesised detail: subcommand-span-malformed %v", got)
+	}
+}
+
 // TestCAPV0962RefusalCodeMatchesWholeLiteral proves a refusal code no longer passes because some
 // longer literal contains it as a word; only a literal equal to the code keeps it accepted.
 func TestCAPV0962RefusalCodeMatchesWholeLiteral(t *testing.T) {
