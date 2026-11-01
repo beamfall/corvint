@@ -9,13 +9,15 @@ import (
 
 // usageText is the synopsis text the command tree derives from (CAP-V0-972).
 const usageText = `corvint-postmerge-workflow replay --change ID --dry-run --fixture FILE --policy FILE [--root REPO]
+corvint-postmerge-workflow encode-id VALUE
 `
 
 var commandSummaries = map[string]string{
-	"replay": "Replay one historical change through recording connectors and print the replay report",
+	"replay":    "Replay one historical change through recording connectors and print the replay report",
+	"encode-id": "Print VALUE, such as a branch name, encoded as a workflow identifier (PMR-V0-960)",
 }
 
-var commandExamples = map[string]string{}
+var commandExamples = map[string]string{"encode-id": "corvint-postmerge-workflow encode-id claude/lane-a"}
 
 // companionHelp is corvint-postmerge-workflow's command tree and help (CAP-V0-973).
 var companionHelp = sync.OnceValue(func() clitree.Help {

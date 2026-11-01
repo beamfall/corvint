@@ -94,11 +94,14 @@ func TestAnalyzerBoundsFailClosed(t *testing.T) {
 	cases := map[string]func(t *testing.T, bound *analyzerBound){
 		"setup-closure": func(t *testing.T, bound *analyzerBound) {
 			lowerBound(t, bound, 2)
+			// The unrelated setup file keeps the universe non-empty, so the
+			// exceeded closure is not reported as no-setups (TSA-V0-960).
 			setupAll(t, bound, map[string]string{
-				"tests/x.spec.ts": "import './a';\ntest('x', () => 1);\n",
-				"tests/a.ts":      "import './b';\n",
-				"tests/b.ts":      "import './c';\n",
-				"tests/c.ts":      "export const c = 1;\n",
+				"setup/x.setup.ts": "export default () => 1;\n",
+				"tests/x.spec.ts":  "import './a';\ntest('x', () => 1);\n",
+				"tests/a.ts":       "import './b';\n",
+				"tests/b.ts":       "import './c';\n",
+				"tests/c.ts":       "export const c = 1;\n",
 			}, "tests/x.spec.ts")
 		},
 		"shared-reexport": func(t *testing.T, bound *analyzerBound) {
