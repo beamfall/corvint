@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io"
 
+	"github.com/Beamfall/corvint/internal/jsonend"
 	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/snapshot"
 	"github.com/Beamfall/corvint/internal/tasks/wire"
@@ -91,13 +91,10 @@ func identityClass(stdout []byte) (string, *intent.PoolSource) {
 	}
 	d := json.NewDecoder(bytes.NewReader(stdout))
 	d.DisallowUnknownFields()
-	if d.Decode(&out) != nil || out.Revision == nil || out.Tree == nil || d.More() {
-		return "MALFORMED_OUTPUT", nil
-	}
-	// Only white space may follow: a stray '}' or ']' is a syntax error,
-	// not the end of input (PSR-V0-084).
-	var rest json.RawMessage
-	if d.Decode(&rest) != io.EOF {
+	// Only white space may follow: a stray '}' or ']' is trailing content,
+	// not the end of input, so More() alone cannot decide it (PSR-V0-084,
+	// V1-3358).
+	if d.Decode(&out) != nil || out.Revision == nil || out.Tree == nil || !jsonend.Done(d) {
 		return "MALFORMED_OUTPUT", nil
 	}
 	s, e := intent.ParsePoolSource("identity", *out.Revision+":"+*out.Tree)
