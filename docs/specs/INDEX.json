@@ -4224,5 +4224,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/go-test-evidence-v0.md",
+    "title": "Go Test Evidence V0",
+    "reqPrefix": "GTE-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "An operator tool derives test records from `go test -json` under a stable per-test identity, so flaky tests gain a measured cross-run history.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
