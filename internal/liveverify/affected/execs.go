@@ -72,7 +72,7 @@ func (graph *Graph) execUsersOf(reached, built map[string]Witness) {
 // no unit's test, so the plan states it rather than leaving the run out
 // silently. A command reached only for its own test files, or as a reader,
 // was not rebuilt and names no consumer. The hint names the nearest command.
-func (graph *Graph) unselectedConsumers(reached map[string]Witness, selected []Selection) []Unknown {
+func (graph *Graph) unselectedConsumers(reached map[string]Witness, rebuilt map[string]bool, selected []Selection) []Unknown {
 	tests := map[string]bool{}
 	for _, selection := range selected {
 		for _, test := range selection.Tests {
@@ -82,7 +82,7 @@ func (graph *Graph) unselectedConsumers(reached map[string]Witness, selected []S
 	commands := map[string]string{}
 	for _, id := range graph.order {
 		witness, hit := reached[id]
-		if !hit || !strings.HasPrefix(id, "go:") || !rebuilds(witness.Kind) {
+		if !hit || !strings.HasPrefix(id, "go:") || !rebuilt[id] && !rebuilds(witness.Kind) {
 			continue
 		}
 		for _, file := range graph.units[id].ExecConsumers {

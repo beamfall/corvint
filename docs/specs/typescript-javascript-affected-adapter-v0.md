@@ -1585,9 +1585,11 @@ cannot, from the same graph phase and closure walk the plan uses.
 - `TJAA-V0-761`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2060)
   Amending `TJAA-V0-033`: an exported `const`, `let` or `var` statement that binds more than one
   plain name MUST key one symbol per bound name, each by its own declarator text split at commas
-  outside brackets, strings and templates, so a change to one initializer modifies only that name
-  and an added declarator adds only its name. A statement binding one name, or a destructuring
-  declarator, is keyed as before.
+  outside brackets, generic angle brackets (a `<`, and a `>` that does not end `=>`), strings and
+  templates, so a change to one initializer modifies only that name and an added declarator adds
+  only its name; a type argument such as `Record<string, number>` is never a declarator. A
+  statement whose angle brackets do not balance (it may hold a comparison), one binding one name,
+  or a destructuring declarator is keyed whole, as before.
 - `TJAA-V0-762`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2060)
   Amending `TJAA-V0-031`: a frontier reason other than a dynamic import (in the observed frontier
   or the shared plan's `LANGUAGE_FRONTIER` unknowns) whose every recorded site is a file of the
@@ -1946,7 +1948,7 @@ persisted; run-identity documents carrying `corvint-test-closure/0` digests are 
 | `TJAA-V0-020` (accepted, decision 0483) | `TestPlaywrightDiscoveryMalformedReason_V1_1067` in `playwright_discovery_test.go`; `TestAffectedPlaywrightDiscoveryProducer_GH709` | experimental |
 | `TJAA-V0-021` (accepted, decision 0519; V1-1175) | `TestPlaywrightDiscoveryGrepOmission_TJAA_V0_021` (GitHub #790 three-project repro, unexplained and no-grep refusals, dynamic and non-partwise grep, title-derived and explicit tags, `unverifiedUnits` validation), `TestPlaywrightRegexBodyPartwise_TJAA_V0_021`, `TestPlaywrightTitleTags_TJAA_V0_021` in `playwright_grep_omission_test.go`; grep-title construction checked against Playwright 1.63 source, not a live run | experimental; hand-built listings, `NOT_RUN` live |
 | `TJAA-V0-030..032` (V1-2042) | `TestPlaywrightNarrowingSharedFixture_TJAA_V0_030` (GitHub #1294 repro, determinism), `TestPlaywrightNarrowingAbsentFromBoundedPlan_TJAA_V0_030`, `TestPlaywrightNarrowingRefusals_TJAA_V0_031` (application, unowned, dirty-config and global-config refusals), `TestPlaywrightNarrowingPerProject_TJAA_V0_032` (unknown dependency, dynamic-import taint, application dynamic import, discovery matched, differing and undeclared project) in `playwright_narrowing_test.go`; `TestAffectedPlaywrightNarrowedSymbols_TJAA_V0_033` in `cmd/corvint/affected_playwright_test.go` | experimental; synthetic fixtures, live recall `NOT_RUN` |
-| `TJAA-V0-761..763` (V1-2060) | `TestMultiBindingExportKeysEachName_TJAA_V0_761`, `TestPlaywrightNarrowingFrontierTaintsOnlyReachingTests_TJAA_V0_762`; `TJAA-V0-763` is a decision with no test |
+| `TJAA-V0-761..763` (V1-2060) | `TestMultiBindingExportKeysEachName_TJAA_V0_761`, `TestTypedExportGenericCommaKeysTheBinding_TJAA_V0_761`, `TestPlaywrightNarrowingFrontierTaintsOnlyReachingTests_TJAA_V0_762`; `TJAA-V0-763` is a decision with no test |
 | `TJAA-V0-770` (V1-3524) | `TestPlaywrightGlobalTestIgnoreIsAnExclusion_TJAA_V0_770`; `TestPathAliasResolvesUnderALiteralGlobalTestIgnore_TJAA_V0_770`; the `global testIgnore` rows of `TestPlaywrightPathModeLiteralTestIgnore_GH1737` |
 | `TJAA-V0-771` (V1-0970) | `TestVanillaTwistedFrontierSitesClassify_TJAA_V0_771`; `TestFrontierSiteIsTheParsedSpecifier_PR1596`; `TestFrontierSitesNameEveryReason_GH1593`; `TestPlaywrightSymlinkedNodeModules_GH1885` |
 | `TJAA-V0-033` (V1-2042) | `TestChangedSymbols_TJAA_V0_033`, `TestChangedSymbolsUnresolved_TJAA_V0_033`, `TestPlaywrightNarrowingReportsSymbols_TJAA_V0_033` in `playwright_symbols_test.go`; `TestAffectedPlaywrightNarrowedSymbols_TJAA_V0_033` (HEAD and `--base` comparison) | experimental; syntactic only |

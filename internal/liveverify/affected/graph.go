@@ -688,7 +688,7 @@ func sortedKeys(set map[string]bool) []string {
 // units with no tests. Keep this walk aligned with Select; witness chains alone
 // enumerate only one path and cannot establish the denominator of a diamond.
 func (graph *Graph) ReachedUnitIDs(dirty []string) []string {
-	reached, _, _, _, _, _, _, _ := graph.reach(NormalizePaths(dirty), true)
+	reached, _, _, _, _, _, _, _, _ := graph.reach(NormalizePaths(dirty), true)
 	ids := make([]string, 0, len(reached))
 	for id := range reached {
 		ids = append(ids, id)
@@ -706,7 +706,7 @@ func (graph *Graph) ReachedUnitIDs(dirty []string) []string {
 // paths are added, so a unit absent here is absent from Select on any subset
 // of the dirty paths too (STR-V0-072).
 func (graph *Graph) ReachedBeyondOwnTests(dirty []string) map[string]Witness {
-	reached, _, _, _, _, _, _, _ := graph.reach(NormalizePaths(dirty), false)
+	reached, _, _, _, _, _, _, _, _ := graph.reach(NormalizePaths(dirty), false)
 	// The walk holds chains by reference (V1-2979); copy them into Via as
 	// MaterializeVia does, so each witness equals Select's.
 	for id, witness := range reached {
@@ -724,7 +724,7 @@ func (graph *Graph) ReachedBeyondOwnTests(dirty []string) map[string]Witness {
 // check covers (AFP-V0-468). A unit reached only as a reader of the dirty path
 // is left out: its own code did not change and nothing it imports did.
 func (graph *Graph) UntestedCodeReached(dirty []string) []string {
-	reached, _, _, _, _, _, _, _ := graph.reach(NormalizePaths(dirty), true)
+	reached, _, _, _, _, _, _, _, _ := graph.reach(NormalizePaths(dirty), true)
 	var ids []string
 	for id, witness := range reached {
 		if witness.Kind != WitnessDirectSource && witness.Kind != WitnessDependency {

@@ -237,7 +237,7 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 			plan.FrontierSites[reason] = count
 		}
 	}
-	reached, seeds, unknown, narrowed, reads, carried, followed, additive := graph.reach(normalized, true)
+	reached, seeds, unknown, narrowed, reads, carried, followed, additive, rebuilt := graph.reach(normalized, true)
 	plan.GoAdditive = additiveSummary(additive)
 	through := graph.additiveExclusions(normalized, additive)
 	plan.NonSource, unknown = graph.taskState(unknown)
@@ -287,7 +287,7 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 		})
 	}
 	graph.rank(plan.Selected)
-	plan.Unknown = append(plan.Unknown, graph.unselectedConsumers(reached, plan.Selected)...)
+	plan.Unknown = append(plan.Unknown, graph.unselectedConsumers(reached, rebuilt, plan.Selected)...)
 	graph.symlinkHints(plan.Unknown)
 	instructionHints(plan.Unknown)
 	if len(plan.Unknown) != 0 {
@@ -313,7 +313,12 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 // expand only from paths and readers, so dropping it changes no other unit.
 //
 // additive holds the ADN-V0-001 records with their final states.
-func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds map[string]Witness, unknown []Unknown, narrowed, reads, carried, followed map[string]bool, additive []GoAdditive) {
+//
+// rebuilt holds the units whose build the change reaches: those the
+// dependency traversal walks to and those an enclosed path reaches, before a
+// later step replaces a unit's witness with its own test change
+// (AFP-V0-762).
+func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds map[string]Witness, unknown []Unknown, narrowed, reads, carried, followed map[string]bool, additive []GoAdditive, rebuilt map[string]bool) {
 	seeds, unknown = graph.seed(normalized)
 	changed, traversed, enclosing := graph.goStructure(normalized)
 	contained := graph.testOnlyGoUnits(seeds, normalized, changed, traversed)
@@ -326,8 +331,13 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	}
 	reached, allowed, additive := graph.additiveTraverse(start, traversed, enclosing, normalized)
 	followed = make(map[string]bool, len(reached))
+	rebuilt = make(map[string]bool, len(reached)+len(enclosing))
 	for id := range reached {
 		followed[id] = true
+		rebuilt[id] = true
+	}
+	for id := range enclosing {
+		rebuilt[id] = true
 	}
 	unbounded := graph.unboundedDirty(normalized)
 	if len(unbounded) != 0 {
@@ -348,7 +358,7 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	carried = graph.testlessReaderUsers(reached, normalized, followed)
 	graph.unboundedReadersOf(reached, unbounded)
 	graph.scopedReadersOf(reached, normalized)
-	return reached, seeds, unknown, narrowed, reads, carried, followed, additive
+	return reached, seeds, unknown, narrowed, reads, carried, followed, additive, rebuilt
 }
 
 func relativeDirectory(relative string) string {
