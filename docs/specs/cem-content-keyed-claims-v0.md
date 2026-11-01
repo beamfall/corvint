@@ -43,7 +43,7 @@ At base `b7ffc233396da54e2ac5a094ec314dc3b067f6fb`:
     - `oldStart` and `oldCount`: its BASE range.
     - `anchor`: the SHA-256 of the BASE lines that range covers.
     - `occurrences`: how many times those lines occur, line-aligned, in the BASE file. A zero-line range counts 1.
-    - `rows` and `tombstones`.
+    - `rows` and `tombstones`. A claim holds at least one of them; a claim with only tombstones is CKC-V0-017's.
   - A cite row stores `path`, `lines` (BASE `START:END`), `relation` and `text`, the SHA-256 of the cited BASE lines. An unknown row stores `reason` and `note`.
   - Claims are sorted by path, BASE range and content, and rows keep plan order, so equal inputs give equal bytes.
   - The file is at most 4 MiB, with at most 256 claims and 256 rows in all. It is written mode 0600 through a temporary file and rename.
@@ -74,6 +74,8 @@ At base `b7ffc233396da54e2ac5a094ec314dc3b067f6fb`:
   - `cite-unlocated`: a cite row's text is absent, ambiguous or changed in the current BASE.
 
   Each refused hunk is drafted afresh. stderr marks each refusal `REASSESS` with its class, the hunk and the claim's earlier rows. A claim that overlaps no hunk is `gone` and is noted.
+
+  When a fix reverts every claimed edit, the canonical patch is empty. An empty patch that was read is a patch with no hunks, as the draft's patch read has it: every claim is `gone` and the refresh succeeds. Only a patch that could not be read or parsed refuses `claims-patch-unavailable`.
 - `CKC-V0-006`: Cite relocation.
   - When BASE changed, a carried cite row's `START:END` is moved to the single line-aligned occurrence of its cited text in the current BASE file. The text hash must match the claim's BASE bytes.
   - With BASE unchanged, cite rows carry as recorded.
@@ -108,7 +110,9 @@ At base `b7ffc233396da54e2ac5a094ec314dc3b067f6fb`:
 - `CKC-V0-015`: Batch blob reader.
   - A draft or record reads each blob it has not prefetched through one long-lived `git cat-file --batch` reader per invocation, not an `ls-tree` and a `cat-file` process a blob.
   - The reader answers exactly as the per-file read: absent for a missing path, a directory, a symlink or a submodule, and the regular blob's bytes otherwise.
-  - A commit or name that is not a clean literal, a blob past the flow's Git output bound and every read after a reader failure use the per-file read, which keeps that read's refusal.
+  - A commit or name that is not a clean literal, and every read after a reader failure, use the per-file read, which keeps that read's refusal.
+  - Any object past the flow's Git output bound stops the reader before its body is read or allocated, whatever its mode or type: a blob, a symlink, a tree or a gitlink. The per-file read then answers, refusing an oversized blob and reading a non-regular entry as absent.
+  - A Git whose `cat-file` lacks the `%(objectmode)` atom fails the reader's first read, and every read falls back with the same answers. The reader-stays-up assertion runs only where Git has the atom; the fallback's parity is tested on every Git.
   - The flow's boundary closes the reader, so no Git process outlives the command.
   - Drafts, recorded claims, record stderr and claims refreshes are byte-identical with and without the reader.
 - `CKC-V0-016`: Draft anchor search skips data files.
@@ -116,6 +120,14 @@ At base `b7ffc233396da54e2ac5a094ec314dc3b067f6fb`:
   - Its output is byte-identical to the unexcluded search.
   - One disclosed exception: a search that went past the Git output bound only through data files now completes instead of refusing.
   - The check-tier proposal keeps its own search unchanged.
+- `CKC-V0-017`: Tombstone-only claims.
+  - When the reviewed plan holds no row for an edit that has a tombstone (CKC-V0-003), `record-claims` still writes a claim for that edit, with empty `rows` and its tombstones.
+  - A refresh compiles that claim like any other. It carries no row, so the edit is drafted afresh and marked `; drafted`, and the tombstones keep the removed cites out of the draft (CKC-V0-007).
+  - Re-recording over such a claims file keeps its tombstones on every hunk the claim matches or overlaps.
+- `CKC-V0-018`: Strict claims grammar.
+  - A claim cites `START:END` line spans only. A plan row with a `bytes:` span refuses the record by row number, naming the byte span. A claims file holding one refuses the refresh, because a byte span has no text hash to relocate or tombstone by.
+  - A claim whose BASE range is negative, starts before line 1 with a nonzero count, or ends past the largest int64 refuses the decode by name (`invalid BASE range`). The range reader checks its end by subtraction, so no range can overflow the slice.
+  - The claims JSON document must be the file's only value; any data after it except whitespace refuses the decode by name.
 
 ## Failure modes
 
@@ -135,10 +147,15 @@ At base `b7ffc233396da54e2ac5a094ec314dc3b067f6fb`:
 | Batch reader fails mid-flow, or Git lacks `%(objectmode)` | Per-file reads from then on, same bytes and refusals |
 | Blob past the Git output bound through the batch reader | Per-file read refuses with the existing over-bound code |
 | Anchor matches only in excluded data files | Same draft; the search no longer refuses on data-only overflow |
+| Symlink, tree or gitlink past the Git output bound through the batch reader | Reader stops before the body is read; the per-file read answers absent |
+| Author removed every row of an edit that had a drafted cite | Tombstone-only claim; the edit is drafted afresh without the removed cites |
+| Fix reverts every claimed edit (empty patch) | Every claim `gone`; no `claims-patch-unavailable` refusal |
+| Claims file with a byte-span row, an invalid BASE range or data after the JSON document | Named `claims-unreadable` refusal, nothing drafted |
+| Plan row with a byte span at record | Named refusal by row, nothing written |
 
 ## Acceptance evidence
 
-These focused tests live in `internal/dogfoodflow/claims_test.go`:
+These focused tests live in `internal/dogfoodflow/claims_test.go` and `internal/dogfoodflow/claims_strict_test.go`:
 
 - `TestClaimsCompileByteIdenticalCEM` covers the AC1 differential test and the incremental-equals-full check.
 - `TestClaimsAmbiguousRefused` covers the injected duplicate, split, merge, reorder and changed cases.
@@ -148,7 +165,11 @@ These focused tests live in `internal/dogfoodflow/claims_test.go`:
 - `TestClaimsPrefetchBlobsMatchesBlob` covers CKC-V0-012: the batched cache equals the per-file read for regular, empty, executable, missing, directory and symlink names, unbatchable names stay uncached, and the bound skips an oversized blob.
 - `TestClaimsTombstones` also covers CKC-V0-013's carried and drafted marks.
 - `TestClaimsAllCarriedSkipsAnchorSearch` covers CKC-V0-014 for a claims refresh and a plan refresh, and checks that a refresh with a drafted hunk still searches.
-- `TestClaimsBatchBlobMatchesBlob` covers CKC-V0-015. It compares batched and per-file reads across two commits and an unknown commit, for regular, empty, executable, symlink, submodule, directory, missing, spaced, glob and unclean names. It checks the bound refusal, the fallback after it and the boundary close. It also checks that the draft, record stderr, claims bytes and a post-fix claims refresh are byte-identical with and without the reader.
+- `TestClaimsBatchBlobMatchesBlob` covers CKC-V0-015. It compares batched and per-file reads across two commits and an unknown commit, for regular, empty, executable, symlink, submodule, directory, missing, spaced, glob and unclean names. It checks the bound refusal, the fallback after it and the boundary close. It also checks that the draft, record stderr, claims bytes and a post-fix claims refresh are byte-identical with and without the reader. It asserts that the reader stays up only where Git's `cat-file` has `%(objectmode)`, and its `without objectmode` subtest swaps in a format Git rejects and checks the fallback's parity on every Git.
+- `TestClaimsBatchBoundsEveryObject` covers CKC-V0-015's bound for a symlink and a tree past it: the reader stops before reading the object, and both reads answer absent.
+- `TestClaimsEveryEditRevertedIsGone` covers CKC-V0-005's empty patch: every claim is `gone` and nothing refuses.
+- `TestClaimsTombstoneOnlyClaim` covers CKC-V0-017.
+- `TestClaimsStrictDecode` and `TestClaimsRangeRecordsBounds` cover CKC-V0-018.
 - `TestClaimsDataExcludesKeepDraft` covers CKC-V0-016: a draft whose anchors also match JSON, JSONL and `.agent-evidence/` files is byte-identical with and without the excludes.
 
 `TestClaimsReplay` runs only when `CKC_REPLAY_REPO` and `CKC_REPLAY_SEQUENCES` are set. It replays real history and prints the raw counts and timings recorded in `docs/build-log/2026-11-01-ckc-w15.md`. CLI wiring is covered in `cmd/corvint`.
