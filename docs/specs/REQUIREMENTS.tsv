@@ -2533,7 +2533,7 @@ TLF-V0-880	docs/specs/corvint-tasks-lane-flow-v0.md	`corvint-tasks ticket progre
 TLF-V0-881	docs/specs/corvint-tasks-lane-flow-v0.md	A ticket's effective progress MUST be its latest entry while the ticket is DRAFT	unrecorded	-
 TLF-V0-882	docs/specs/corvint-tasks-lane-flow-v0.md	`ticket show` MUST list the entries and the effective progress, each `ticket	unrecorded	-
 TLF-V0-883	docs/specs/corvint-tasks-lane-flow-v0.md	`ticket closeout-debt` MUST report each OPEN ticket whose effective progress nam	unrecorded	-
-TLF-V0-886	docs/specs/corvint-tasks-lane-flow-v0.md	`tools/requirement-id-collisions` MUST read every local branch and worktree head	unrecorded	-
+TLF-V0-886	docs/specs/corvint-tasks-lane-flow-v0.md	`tools/requirement-id-collisions` MUST read every local branch and detached work	unrecorded	-
 TLF-V0-887	docs/specs/corvint-tasks-lane-flow-v0.md	`ticket delivery-screen --lane-refs` MUST additionally scan every local branch a	unrecorded	-
 TLF-V0-888	docs/specs/corvint-tasks-lane-flow-v0.md	`ticket effects-proposals` MUST, for each OPEN ticket whose effects coverage is	unrecorded	-
 TLF-V0-889	docs/specs/corvint-tasks-lane-flow-v0.md	A proposal MUST NOT change claimability, eligibility, blockers, planning or any	unrecorded	-

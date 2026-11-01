@@ -71,16 +71,22 @@ done and number requirements that a peer branch already used.
 - `TLF-V0-885` (proposed, not implemented): `ticket split --dry-run` MUST print the two resulting
   records and write nothing; after a split the parent MUST complete on its remaining criteria and
   receipt audit MUST stay CONSISTENT.
-- `TLF-V0-886`: `tools/requirement-id-collisions` MUST read every local branch and worktree head not
-  contained in the base ref (default `origin/main`) and report, as `REQUIREMENT_ID_COLLISION`, each
-  requirement ID whose defining bullet (`` - `ID`: `` in `docs/specs/*.md`) differs between two of
-  those refs, or between one of them and the base. It MUST exit 1 on a collision, 0 when none, and 2
-  on a read failure, and MUST write nothing.
+- `TLF-V0-886`: `tools/requirement-id-collisions` MUST read every local branch and detached worktree
+  head that shares history with the base ref (default `origin/main`; it contains one of the base's
+  root commits) and is not contained in it, and report, as `REQUIREMENT_ID_COLLISION`, each
+  requirement ID whose defining bullet (`` - `ID`: `` in `docs/specs/*.md`) is new on two of those
+  refs with a different file or first line, is defined in two files of one ref, or is defined on a
+  ref in a different file than on the base. An amendment of an existing ID's text in its own file is
+  not a collision. It MUST exit 1 on a collision, 0 when none, and 2 on a read failure or more than
+  256 lane heads, MUST print the scanned heads, and MUST write nothing.
 - `TLF-V0-887`: `ticket delivery-screen --lane-refs` MUST additionally scan every local branch and
-  worktree head whose commits are not on the screened ref, and report a candidate ticket cited by
-  such a commit as `DELIVERED_ON_LANE` with the ref and commit, ahead of `CLEAR`, and a candidate
-  whose effective progress phase is past `IN_PROGRESS` as `IN_FLIGHT`. Without the flag the screen
-  MUST be unchanged.
+  detached worktree head not contained in the screened ref, at most `--limit` commits each outside
+  it, and report a candidate ticket that such a commit delivers (a delivery line or ticket-scoped
+  subject of `TCD-V0-167`) as `DELIVERED_ON_LANE` with `laneCommits` (ref, commit, subject), after
+  `DELIVERED` and ahead of `TRUNCATED` and `CLEAR`, and a candidate whose effective progress phase is
+  `DELIVERED_ON_BRANCH`, `IN_REVIEW`, `IN_MERGE_QUEUE` or `MERGED_AWAITING_CLOSEOUT` as `IN_FLIGHT`;
+  the item lists the scanned `laneHeads`, and more than 256 local heads is refused
+  `LIMIT_EXCEEDED`. Without the flag the screen MUST be unchanged.
 - `TLF-V0-888`: `ticket effects-proposals` MUST, for each OPEN ticket whose effects coverage is
   `UNKNOWN`, propose touch paths derived from repository paths named in the ticket's title, body
   and acceptance criteria that exist in the worktree, each with the text span that named it, and
