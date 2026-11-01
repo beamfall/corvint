@@ -354,6 +354,7 @@ AHI-041	docs/specs/agent-harness-integration-v0.md	The terminal MUST show at mos
 AHI-042	docs/specs/agent-harness-integration-v0.md	The owner-approved OpenCode presentation polish (2026-09-30, “ok, update it”, ex	unrecorded	-
 AHI-043	docs/specs/agent-harness-integration-v0.md	For an unchanged committed tree, worktree state, hook input and session key, the	unrecorded	-
 AHI-044	docs/specs/agent-harness-integration-v0.md	Every shipped hook adapter MUST fail open under the faults a host or machine can	unrecorded	-
+AHI-910	docs/specs/agent-harness-integration-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3312) A Claude	standing	2026-10-31; V1-3312
 AHI-045	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0441; V1-0942) The Claude Code and Codex	owner	decision 0441; V1-0942
 AHI-046	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0441; V1-0942) Outside a main-thread	owner	decision 0441; V1-0942
 AHI-047	docs/specs/agent-harness-integration-v0.md	(accepted by decision 0441; V1-0939) The Claude Code trusted	owner	decision 0441; V1-0939

@@ -1371,6 +1371,14 @@ separate exact extension tuple remains governed by AHI-024.
   - Real hosts remain NOT_OBSERVED.
   Rollback: delete the tests and this requirement. Restoring default `SIGPIPE` handling and the
   plain scratch removal reintroduces the observed death on a closed stdout and the scratch leak.
+- `AHI-910`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3312) A Claude Code
+  or Codex `SessionStart` or `UserPromptSubmit` hook that ran Corvint successfully but found nothing
+  actionable to inject MUST print `{"hookSpecificOutput":{"hookEventName":EVENT}}`, the host's own
+  event name with no `additionalContext`, instead of `{}`. Both hosts accept that shape and inject
+  nothing, while a host or qualification driver can tell the successful empty result apart from a
+  fault (a `FALLBACK degraded:` or `Corvint fallback:` message), a killed hook (no output) and the
+  outputs that stay `{}`: an event the adapter does not handle, a `cwd` outside a repository and
+  `SessionEnd`. Rollback: return `{}` again.
 - `AHI-045`: (accepted by decision 0441; V1-0942) The Claude Code and Codex
   `corvint-dogfood-event/0` adapters MUST inject, inside the unchanged `AHI-004` envelope, the
   `corvint-hook-context/0` projection of the engine receipt rather than the whole receipt. The
