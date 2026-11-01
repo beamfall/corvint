@@ -96,6 +96,25 @@ func (s *e2eSelector) planUnbounded(u affected.Unknown) bool {
 	return unbounded(u)
 }
 
+// frontierExclusions lists each plan.frontierExcluded plugin with the entries planUnbounded would
+// read as unbounding the closure, so a narrowed result states the exclusion it rests on; entries
+// the profile answers itself are left out, and so is a plugin with none left (ACX-V0-856).
+func (s *e2eSelector) frontierExclusions() []E2EFrontierExclusion {
+	var out []E2EFrontierExclusion
+	for _, exclusion := range s.in.Plan.FrontierExcluded {
+		frontier := []string{}
+		for _, entry := range exclusion.Frontier {
+			if s.planUnbounded(affected.Unknown{Reason: affected.UnknownLanguageFrontier, Detail: entry}) {
+				frontier = append(frontier, entry)
+			}
+		}
+		if len(frontier) != 0 {
+			out = append(out, E2EFrontierExclusion{Language: exclusion.Language, Frontier: frontier, Units: append([]string{}, exclusion.Units...)})
+		}
+	}
+	return out
+}
+
 // frontierReason returns the `namespace:reason` prefix of a frontier entry.
 func frontierReason(entry string) string {
 	fields := strings.SplitN(entry, ":", 3)
@@ -202,6 +221,17 @@ type E2ESelection struct {
 	// Refusal is present only on a blocked provider-unavailable result: which document was refused
 	// and its closed refusal class, never the refused text (AFU-V1-127).
 	Refusal *E2EFallback `json:"refusal,omitempty"`
+	// FrontierExcluded names the plan's frontier exclusions that this decision relies on: the
+	// entries it would read as unbounded had they stayed in plan.unknown (ACX-V0-856).
+	FrontierExcluded []E2EFrontierExclusion `json:"frontier_excluded,omitempty"`
+}
+
+// E2EFrontierExclusion is one plugin's excluded frontier entries that bear on the e2e decision,
+// with the terminal units the change reaches in it (AFP-V0-560, ACX-V0-856).
+type E2EFrontierExclusion struct {
+	Language string   `json:"language"`
+	Frontier []string `json:"frontier"`
+	Units    []string `json:"units"`
 }
 
 type E2EDiscovery struct {
@@ -311,6 +341,7 @@ func SelectE2E(ctx context.Context, root string, in E2EInput) E2ESelection {
 	}
 	s := newE2ESelector(ctx, root, in, provider, records, repos)
 	out.Base = s.base
+	out.FrontierExcluded = s.frontierExclusions()
 	discovery, discovered := s.discover()
 	out.Discovery = discovery
 	codes := s.boundCodes()
