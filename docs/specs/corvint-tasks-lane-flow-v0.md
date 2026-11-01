@@ -108,6 +108,16 @@ done and number requirements that a peer branch already used.
   (fails on BASE with a false collision), the updated `TestTLFV0886_ReproducesASDV0Collisions`;
   on the WSL host (2026-10-31) the check scanned 16 of 28 heads, skipped 12 contained ones, and
   kept the one real collision (`CAP-V0-970`). Rollback: drop `outermost`.
+- `TLF-V0-805`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4093; refines
+  `TLF-V0-886` and `TLF-V0-960`) `tools/requirement-id-collisions` MUST find the contained heads with
+  one `git merge-base --independent` over every scanned head, MUST read every head's and the base's
+  defining bullets with one `git grep` over all their trees, and MUST NOT run an ancestry check for a
+  branch tip the `--no-merged` listing already admitted, so its Git spawns grow with the detached
+  worktree heads, not with the square of the lane heads. Its output MUST equal the pairwise
+  result byte for byte. Evidence: `TestTLFV0805_BatchedReadsEqualPerHeadReads` (batched against
+  pairwise and per-commit reads); on the WSL host (2026-11-01, 70 heads) 20.5 s and 1,949 Git
+  spawns fell to 1.7 s and 16 spawns with identical output. Rollback: restore the pairwise loop and
+  per-head grep.
 - `TLF-V0-887`: `ticket delivery-screen --lane-refs` MUST additionally scan every local branch and
   detached worktree head not contained in the screened ref that shares a root commit with it (an
   unrelated lineage is no lane), at most `--limit` commits each outside
@@ -174,6 +184,7 @@ done and number requirements that a peer branch already used.
 | TLF-V0-884, TLF-V0-885 | V1-3577 | `internal/tasks/cli/split.go` | `TestTLFV0884_SplitMovesCriteriaToALinkedChild`; `TestTLFV0884_InterruptedSplitResumes`; `TestTLFV0884_SplitRefusals`; `TestTLFV0885_DryRunWritesNothing`; `TestTLFV0885_ParentCompletesOnRemainingCriteria`; `TestTLFV0884_SplitKeepsExecutionConstraints`; `TestTLFV0884_ResumeRefusesARefinedChild`; `TestTLFV0884_ResumeSettlesAPendingReceipt`; `TestTLFV0884_RecordedRefineMustBeThisSplit`; `TestTLFV0884_ParentBodyAtTheLimitRefusesFirst`; `TestTLFV0884_EvidenceProvenanceSurvivesRepeatedDigests` | durable qualification |
 | TLF-V0-886 | V1-2909 | `tools/requirement-id-collisions` | `TestTLFV0886_ReproducesASDV0Collisions`; `TestTLFV0886_LineNumberConfigStillParses`; `TestTLFV0886_PartialCloneNeverFetches` | none |
 | TLF-V0-960 | V1-3650 | `tools/requirement-id-collisions` (`outermost`) | `TestTLFV0960_LaneHeadMergedIntoBatchIsSkipped`; `TestTLFV0886_ReproducesASDV0Collisions` | none |
+| TLF-V0-805 | V1-4093 | `tools/requirement-id-collisions` (`outermost`, `definitions`) | `TestTLFV0805_BatchedReadsEqualPerHeadReads` | none |
 | TLF-V0-887 | V1-3331 | `internal/tasks/cli/delivery_screen.go` | `TestTLFV0887_DeliveryScreenSeesUnmergedLaneHead`; `TestTLFV0887_TruncatedLaneScanIsNotClear` | none |
 | TLF-V0-888, TLF-V0-889 | V1-3576 criteria 1 and 3 | `internal/tasks/cli/effects_proposals.go` | `TestTLFV0888_EffectsProposals`; `TestTLFV0888_RootFilesWithoutExtension`; `TestTLFV0889_ProposalsAreNotAuthority` | V1-3576 criterion 2 (operator-applied batch set-effects) BLOCKED: lanes may not write the store |
 

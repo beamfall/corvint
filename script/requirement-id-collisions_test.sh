@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Covers ASD-V0-950..952 (V1-2909, V1-1009, V1-3614): the 2026-10-27 ASD-V0-032 and ASD-V0-036
+# Covers ASD-V0-950..952 (V1-2909, V1-1009, V1-3614) and ASD-V0-805 (V1-4093): the 2026-10-27 ASD-V0-032 and ASD-V0-036
 # collisions and the batch C CAL-V0 collision replayed on a synthetic repository, each found from
 # local branches and worktrees before either side merges, and a lane block check that sees an
 # unmerged branch.
@@ -107,6 +107,15 @@ for want in 'used ASD-V0-032 claude/batch-drift (' 'used ASD-V0-032 claude/prech
 done
 case $output in *ASD-V0-040*) fail "this checkout's own ID was reported as used by another ref: $output" ;; esac
 output=$(check --block ASD-V0 050 059) || fail "a free block was refused: $output"
+# ASD-V0-805 (V1-4093): a detached worktree HEAD on no branch takes the per-commit path and is seen.
+g checkout -q --detach claude/lane-free
+define self ASD-V0-055 'a detached worktree clause.'
+detached=$(g rev-parse HEAD)
+g checkout -q claude/lane-free
+g worktree add -q --detach "$test_root/detached" "$detached"
+dout=$(check --block ASD-V0 050 059) && fail "a block a detached worktree defines passed: $dout"
+case $dout in *"used ASD-V0-055 $test_root/detached ("*) ;; *) fail "the detached worktree was not named: $dout" ;; esac
+g worktree remove --force "$test_root/detached"
 case $output in *'free ASD-V0-050..ASD-V0-059 on'*) ;; *) fail "the free block line is missing: $output" ;; esac
 
 # Review fix (fail closed): an open ref whose committed index blob cannot be read refuses with
