@@ -606,13 +606,16 @@ func ocmJSONFailure(value wire.Value, parseErr error) error {
 
 // LinkOptions configure one `ocm link` invocation.
 type LinkOptions struct {
-	MapPath      string
-	CEMPath      string
-	Output       string
-	Obligation   string
-	Hunks        []string
-	TestPath     string
-	Claims       []string
+	MapPath    string
+	CEMPath    string
+	Output     string
+	Obligation string
+	Hunks      []string
+	TestPath   string
+	Claims     []string
+	// Accumulate keeps the obligation's earlier hunk and claim IDs and adds
+	// this invocation's (OCM-V0-940); without it a link replaces them.
+	Accumulate   bool
 	ExpectedBase string
 	Target       string
 	// beforeVerification is a test seam for replacing the map between reads.
@@ -685,7 +688,7 @@ func LinkOCM(ctx context.Context, root string, options LinkOptions) (*LinkResult
 	if err != nil {
 		return nil, err
 	}
-	updated, err := linkObligation(document, obligationID, hunkIDs, selected)
+	updated, linkedHunks, linkedClaims, err := linkObligation(document, obligationID, hunkIDs, selected, options.TestPath, options.Accumulate)
 	if err != nil {
 		return nil, err
 	}
@@ -712,11 +715,7 @@ func LinkOCM(ctx context.Context, root string, options LinkOptions) (*LinkResult
 	if err != nil {
 		return nil, err
 	}
-	claimIDs := make([]string, 0, len(selected))
-	for _, claim := range selected {
-		claimIDs = append(claimIDs, claim.id)
-	}
-	return &LinkResult{MapPath: written, ObligationID: obligationID, HunkIDs: hunkIDs, ClaimIDs: claimIDs}, nil
+	return &LinkResult{MapPath: written, ObligationID: obligationID, HunkIDs: linkedHunks, ClaimIDs: linkedClaims}, nil
 }
 
 // withAnchorBoundaryHint explains a link refusal claim-obligation-mismatch whose
@@ -901,32 +900,34 @@ func matchClaims(claims []ocmClaim, selector string) []ocmClaim {
 // linkObligation records the link and merges the selected claims into the map's
 // claim set. A claim id that already exists with different fields is a conflict,
 // not an overwrite: the id is content-derived, so disagreement means one of the
-// two was not derived from what it claims to describe.
-func linkObligation(document wire.Value, obligationID string, hunkIDs []string, claims []ocmClaim) (wire.Value, error) {
+// two was not derived from what it claims to describe. It returns the row's
+// resulting hunk and claim IDs: with accumulate the row keeps its earlier ones,
+// and without it a row holding claims at another path refuses (OCM-V0-940).
+func linkObligation(document wire.Value, obligationID string, hunkIDs []string, claims []ocmClaim, testPath string, accumulate bool) (wire.Value, []string, []string, error) {
 	unique := map[string]struct{}{}
 	for _, id := range hunkIDs {
 		unique[id] = struct{}{}
 	}
 	if len(unique) == 0 || len(unique) != len(hunkIDs) || len(unique) > maxReferences {
-		return wire.Value{}, &Error{Code: "invalid-hunk-references", Message: "hunk references must be non-empty and unique"}
+		return wire.Value{}, nil, nil, &Error{Code: "invalid-hunk-references", Message: "hunk references must be non-empty and unique"}
 	}
 	claimIDs := make([]string, 0, len(claims))
 	for _, claim := range claims {
 		claimIDs = append(claimIDs, claim.id)
 	}
 	if len(claimIDs) == 0 || len(claimIDs) > maxReferences {
-		return wire.Value{}, &Error{Code: "invalid-claim-references", Message: "claim references must be non-empty and unique"}
+		return wire.Value{}, nil, nil, &Error{Code: "invalid-claim-references", Message: "claim references must be non-empty and unique"}
 	}
+	paths := claimPaths(document)
 	merged, err := mergeClaims(document, claims)
 	if err != nil {
-		return wire.Value{}, err
+		return wire.Value{}, nil, nil, err
 	}
-	objectMember(document.Obj, "claims", merged)
 	obligations, err := requireArray(document.Obj, "obligations")
 	if err != nil {
-		return wire.Value{}, err
+		return wire.Value{}, nil, nil, err
 	}
-	matched := 0
+	var row *wire.Object
 	for _, item := range obligations {
 		if item.Kind != wire.KindObject {
 			continue
@@ -934,16 +935,95 @@ func linkObligation(document wire.Value, obligationID string, hunkIDs []string, 
 		if id, ok := item.Obj.Get("id"); !ok || id.Kind != wire.KindString || id.Str != obligationID {
 			continue
 		}
-		matched++
-		objectMember(item.Obj, "disposition", stringValue("linked"))
-		objectMember(item.Obj, "reason", stringValue("change-and-test-linked"))
-		objectMember(item.Obj, "hunkIds", stringArray(sortedCopy(hunkIDs)))
-		objectMember(item.Obj, "claimIds", stringArray(sortedCopy(claimIDs)))
+		if row != nil {
+			row = nil
+			break
+		}
+		row = item.Obj
 	}
-	if matched != 1 {
-		return wire.Value{}, &Error{Code: "unknown-obligation-id", Message: "obligation ID must select exactly one row"}
+	if row == nil {
+		return wire.Value{}, nil, nil, &Error{Code: "unknown-obligation-id", Message: "obligation ID must select exactly one row"}
 	}
-	return document, nil
+	// A replace reports the IDs in invocation order, as before OCM-V0-940.
+	resultHunks, resultClaims := hunkIDs, claimIDs
+	if disposition, _ := row.Get("disposition"); disposition.Kind == wire.KindString && disposition.Str == "linked" {
+		earlierHunks, earlierClaims := stringMembers(row, "hunkIds"), stringMembers(row, "claimIds")
+		if accumulate {
+			hunkIDs = unionSorted(earlierHunks, hunkIDs)
+			claimIDs = unionSorted(earlierClaims, claimIDs)
+			if len(hunkIDs) > maxReferences {
+				return wire.Value{}, nil, nil, &Error{Code: "invalid-hunk-references", Message: "hunk references must be non-empty and unique"}
+			}
+			if len(claimIDs) > maxReferences {
+				return wire.Value{}, nil, nil, &Error{Code: "invalid-claim-references", Message: "claim references must be non-empty and unique"}
+			}
+			resultHunks, resultClaims = hunkIDs, claimIDs
+		} else if retained := retainedOtherPaths(earlierClaims, paths, testPath); len(retained) != 0 {
+			return wire.Value{}, nil, nil, &Error{Code: "link-would-drop-claims", Message: fmt.Sprintf(
+				"obligation %s already links claims at %s; pass --accumulate to keep them, or ocm mark it unknown first to replace them",
+				obligationID, strings.Join(retained, ", "))}
+		}
+	}
+	objectMember(document.Obj, "claims", merged)
+	objectMember(row, "disposition", stringValue("linked"))
+	objectMember(row, "reason", stringValue("change-and-test-linked"))
+	objectMember(row, "hunkIds", stringArray(sortedCopy(hunkIDs)))
+	objectMember(row, "claimIds", stringArray(sortedCopy(claimIDs)))
+	return document, resultHunks, resultClaims, nil
+}
+
+// claimPaths maps each claim ID already in the map to its test path.
+func claimPaths(document wire.Value) map[string]string {
+	paths := map[string]string{}
+	existing, _ := document.Obj.Get("claims")
+	for _, claim := range existing.Arr {
+		if claim.Kind != wire.KindObject {
+			continue
+		}
+		id, _ := claim.Obj.Get("id")
+		path, _ := claim.Obj.Get("path")
+		paths[id.Str] = path.Str
+	}
+	return paths
+}
+
+// retainedOtherPaths names, sorted, the paths of earlier claims that a plain
+// replace on testPath would drop.
+func retainedOtherPaths(claimIDs []string, paths map[string]string, testPath string) []string {
+	seen := map[string]bool{}
+	var retained []string
+	for _, id := range claimIDs {
+		if path := paths[id]; path != testPath && !seen[path] {
+			seen[path] = true
+			retained = append(retained, path)
+		}
+	}
+	sort.Strings(retained)
+	return retained
+}
+
+func stringMembers(object *wire.Object, key string) []string {
+	value, _ := object.Get(key)
+	var result []string
+	for _, item := range value.Arr {
+		if item.Kind == wire.KindString {
+			result = append(result, item.Str)
+		}
+	}
+	return result
+}
+
+func unionSorted(earlier, added []string) []string {
+	seen := map[string]bool{}
+	var result []string
+	for _, id := range append(append([]string(nil), earlier...), added...) {
+		if !seen[id] {
+			seen[id] = true
+			result = append(result, id)
+		}
+	}
+	sort.Strings(result)
+	return result
 }
 
 func mergeClaims(document wire.Value, incoming []ocmClaim) (wire.Value, error) {

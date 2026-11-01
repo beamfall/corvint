@@ -30,6 +30,7 @@ type ocmCLIOptions struct {
 	intent        string
 	intentForm    string
 	replace       bool
+	accumulate    bool
 	mapPath       string
 	cemPath       string
 	expectedBase  string
@@ -494,11 +495,17 @@ func addIntentFormMembers(envelope map[string]any, form string, prepared *lrfrep
 }
 
 // parseOCMLinkFlags mirrors the oracle's link subparser. --hunk and --claim are
-// append actions, so they may repeat and each occurrence is kept.
+// append actions, so they may repeat and each occurrence is kept. --accumulate
+// takes no value (OCM-V0-940).
 func parseOCMLinkFlags(result ocmCLIOptions, arguments []string) (ocmCLIOptions, error) {
 	present := map[string]bool{}
 	var unrecognized []string
 	for index := 0; index < len(arguments); {
+		if arguments[index] == "--accumulate" {
+			result.accumulate = true
+			index++
+			continue
+		}
 		name, value, inline := strings.Cut(arguments[index], "=")
 		single := map[string]*string{
 			"--map": &result.mapPath, "--cem": &result.cemPath, "--obligation": &result.obligation,
@@ -556,6 +563,7 @@ func runOCMLink(ctx context.Context, root string, options ocmCLIOptions, stdout,
 		MapPath: options.mapPath, CEMPath: options.cemPath, Output: options.output,
 		Obligation: options.obligation, Hunks: options.hunks, TestPath: options.testPath,
 		Claims: options.claims, ExpectedBase: options.expectedBase, Target: options.target,
+		Accumulate: options.accumulate,
 	})
 	if err != nil {
 		emitOCMInputOrError(stderr, err)
