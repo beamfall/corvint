@@ -55,27 +55,30 @@ func (a *GateReuseReceiptAudit) fail(rc *snapshot.Receipt, f string, args ...any
 
 // Step folds one validated receipt; sum is unused but keeps the audit
 // signature of the other material binding folds.
-func (a *GateReuseReceiptAudit) Step(rc *snapshot.Receipt, _ wire.Digest, blob ExternalReviewBlob) error {
+func (a *GateReuseReceiptAudit) Step(rc *snapshot.Receipt, sum wire.Digest, blob ExternalReviewBlob) error {
+	return a.StepPosts(rc, sum, blob, nil)
+}
+
+// StepPosts is Step reading attempt posts through memo, which a fold shares
+// with its other binding steps; nil reads them afresh.
+func (a *GateReuseReceiptAudit) StepPosts(rc *snapshot.Receipt, _ wire.Digest, blob ExternalReviewBlob, memo *TicketPosts) error {
 	if a.attempts == nil {
 		a.attempts = map[string]*snapshot.Attempt{}
 		a.accepted = map[string]bool{}
 		a.policyErr = "no policy was posted"
 	}
 	next := map[string]*snapshot.Attempt{}
-	for _, p := range rc.Post {
+	for i, p := range rc.Post {
 		if !strings.HasPrefix(p.Path, "attempts/") || p.Sha256 == nil {
 			continue
 		}
-		raw, err := externalPostBytes(p, blob)
-		if err != nil {
-			// Unretained attempt bytes cannot carry a reuse this audit could
-			// check; the generic journal audit owns their integrity.
+		// Unretained attempt bytes cannot carry a reuse this audit could
+		// check; the generic journal audit owns their integrity.
+		post := memo.attempt(rc, i, blob)
+		if post.rawErr != nil || post.decErr != nil {
 			continue
 		}
-		at, err := snapshot.DecodeAttempt(raw)
-		if err != nil {
-			continue
-		}
+		at := post.at
 		if err := a.bind(rc, at, blob); err != nil {
 			return err
 		}

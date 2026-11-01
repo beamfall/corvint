@@ -98,7 +98,7 @@ func (a *EscalationReceiptAudit) Seed(posts []snapshot.PostEntry, blob ExternalR
 	}
 	// admit folds the attempt and reservation posts; a SEED receipt admits
 	// nothing.
-	return a.admit(&snapshot.Receipt{Kind: "SEED", Post: posts}, "", blob)
+	return a.admit(&snapshot.Receipt{Kind: "SEED", Post: posts}, "", blob, nil)
 }
 
 // Seed starts the obligation fold at a retired prefix's anchor.

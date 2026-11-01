@@ -9,9 +9,11 @@ import (
 // handoffIgnoredKeys are the top-level policy keys that never bind a live
 // attempt's clean handoff. policyVersion changes on every update;
 // holderLiveness (CAL-V0-120/121) sets only a derived read-time holder status
-// that never fences (CAL-V0-123). A profile without a key rejects it in
-// DecodePolicy before the projection runs, so naming it here grants nothing.
-var handoffIgnoredKeys = []string{"policyVersion", "holderLiveness"}
+// that never fences (CAL-V0-123); knowHow (KHN-V0-800) is re-read from the
+// canonical policy under the writer lock at each write. A profile without a
+// key rejects it in DecodePolicy before the projection runs, so naming it
+// here grants nothing.
+var handoffIgnoredKeys = []string{"policyVersion", "holderLiveness", "knowHow"}
 
 // HandoffPolicyCompatible is the narrow release-only projection. DecodePolicy
 // validates both profiles, but its sorted Pools are not the comparison input:

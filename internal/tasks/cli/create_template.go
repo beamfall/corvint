@@ -144,7 +144,7 @@ func createTemplateFields(queueID string, policy *intent.Policy) *wire.Object {
 	f.Set("order", templateField("Count decimal string", false, nil, "rank within priority; a string such as \"0\", not a number"))
 	f.Set("owner", templateField("Label", true, nil, ""))
 	f.Set("priority", templateField("enum", false, ticket.Priorities, ""))
-	f.Set("requiredGates", withValues(templateField(set("Label naming a policy gate", wire.MaxRequiredGates), false, nil, ""), "elementValues", gates))
+	f.Set("requiredGates", withValues(templateField(set("Label naming a policy gate", wire.MaxRequiredGates), false, nil, "policy gates marked required apply to every ticket without being named here; name the others this ticket needs (TCD-V0-807)"), "elementValues", gates))
 	f.Set("requiredRoles", withValues(templateField("optional object {implement, review, integrate}, each a non-empty sorted array of roles", false, nil, "keys: "+strings.Join(ticket.Stages, ", ")), "elementValues", ticket.StageRoles))
 	f.Set("requirementRefs", templateField(set("Identifier", wire.MaxRequirementRefs), false, nil, ""))
 	f.Set("requiresPool", templateField("optional Label naming a policy pool", false, pools, ""))

@@ -57,7 +57,13 @@ func (a *ObligationReceiptAudit) fail(rc *snapshot.Receipt, f string, args ...an
 
 // Step folds one validated receipt; sum is unused but keeps the audit
 // signature of the other material binding folds.
-func (a *ObligationReceiptAudit) Step(rc *snapshot.Receipt, _ wire.Digest, blob ExternalReviewBlob) error {
+func (a *ObligationReceiptAudit) Step(rc *snapshot.Receipt, sum wire.Digest, blob ExternalReviewBlob) error {
+	return a.StepPosts(rc, sum, blob, nil)
+}
+
+// StepPosts is Step reading ticket and attempt posts through memo, which a
+// fold shares with its other binding steps; nil reads them afresh.
+func (a *ObligationReceiptAudit) StepPosts(rc *snapshot.Receipt, _ wire.Digest, blob ExternalReviewBlob, memo *TicketPosts) error {
 	if a.tickets == nil {
 		a.tickets = map[string]obligationTicket{}
 		a.attempts = map[string]*snapshot.Attempt{}
@@ -69,7 +75,7 @@ func (a *ObligationReceiptAudit) Step(rc *snapshot.Receipt, _ wire.Digest, blob 
 			tickets++
 		}
 	}
-	for _, p := range rc.Post {
+	for i, p := range rc.Post {
 		if !strings.HasPrefix(p.Path, "intent/tickets/") {
 			continue
 		}
@@ -81,14 +87,14 @@ func (a *ObligationReceiptAudit) Step(rc *snapshot.Receipt, _ wire.Digest, blob 
 			delete(a.tickets, p.Path)
 			continue
 		}
-		raw, err := externalPostBytes(p, blob)
-		if err != nil {
-			return a.fail(rc, "%s post: %v", p.Path, err)
+		post := memo.post(rc, i, blob)
+		if post.rawErr != nil {
+			return a.fail(rc, "%s post: %v", p.Path, post.rawErr)
 		}
-		rec, err := ticket.Decode(raw)
-		if err != nil {
-			return a.fail(rc, "%s post is not a ticket record: %v", p.Path, err)
+		if post.decErr != nil {
+			return a.fail(rc, "%s post is not a ticket record: %v", p.Path, post.decErr)
 		}
+		rec := post.rec
 		cur := obligationTicket{post: p}
 		if rec.ObligationsRef != nil {
 			cur.ref = wire.EncodeFile(rec.ObligationsRef.Value())
@@ -103,13 +109,13 @@ func (a *ObligationReceiptAudit) Step(rc *snapshot.Receipt, _ wire.Digest, blob 
 			if !known || rc.Kind != "MUTATION" || rc.Outcome != mutation.OutcomeCompleted || rc.RequestID == nil || tickets != 1 {
 				return a.fail(rc, "%s changed its obligation ledger outside one OBLIGATIONS_* mutation", p.Path)
 			}
-			if err := a.bind(rc, prior, p.Path, rec, raw, blob); err != nil {
+			if err := a.bind(rc, prior, p.Path, rec, post.raw, blob); err != nil {
 				return err
 			}
 		}
 		a.tickets[p.Path] = cur
 	}
-	for _, p := range rc.Post {
+	for i, p := range rc.Post {
 		switch {
 		case strings.HasPrefix(p.Path, "attempts/"):
 			id := strings.TrimSuffix(strings.TrimPrefix(p.Path, "attempts/"), ".json")
@@ -117,12 +123,12 @@ func (a *ObligationReceiptAudit) Step(rc *snapshot.Receipt, _ wire.Digest, blob 
 			if p.Sha256 == nil {
 				continue
 			}
-			raw, err := externalPostBytes(p, blob)
-			if err != nil {
-				return a.fail(rc, "attempt post %s: %v", p.Path, err)
+			post := memo.attempt(rc, i, blob)
+			if post.rawErr != nil {
+				return a.fail(rc, "attempt post %s: %v", p.Path, post.rawErr)
 			}
-			if at, err := snapshot.DecodeAttempt(raw); err == nil {
-				a.attempts[id] = at
+			if post.decErr == nil {
+				a.attempts[id] = post.at
 			}
 		case p.Path == "intent/policy.json":
 			a.policy, a.policyErr = nil, "the retained policy was removed"

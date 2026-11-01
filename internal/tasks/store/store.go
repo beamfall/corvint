@@ -85,6 +85,10 @@ type Report struct {
 	// GateReusedFrom names the earlier result a committed gate run reused
 	// instead of executing the gate, nil otherwise (CAL-V0-240).
 	GateReusedFrom *GateReuse
+	// GateReusePending names a qualifying descendant PASS a gate run could
+	// not reuse only because its tree is not yet on the protected intent
+	// branch, nil otherwise (TCD-V0-806).
+	GateReusePending *GateReuse
 	// GateInterrupted reports that the gate run's context ended while or
 	// after its program ran; that run's result is still recorded
 	// (CAL-V0-319).

@@ -221,7 +221,7 @@ func releaseRead(env Env, verb string, args []string) *wire.Result {
 	}
 	gates := make([]release.Gate, len(st.Policy.Gates))
 	for i, g := range st.Policy.Gates {
-		gates[i] = release.Gate{GateID: g.GateID, Kind: g.Kind, Required: g.Required}
+		gates[i] = release.Gate{GateID: g.GateID, Kind: g.Kind, Required: g.Required, Argv: g.Argv}
 	}
 	ready := release.Assess(target, gates, release.Observation{HeadCommit: head, SourceSha256: source, PolicySha256: wire.Sum(st.Policy.Raw), Tickets: tickets, TicketDigests: td, PredecessorPromotions: pred})
 	o := releaseDetail(target).Obj
@@ -257,7 +257,11 @@ func releaseDetail(r *release.Record) wire.Value {
 		for j, digest := range a.Evidence {
 			evidence[j] = string(digest)
 		}
-		attestations[i] = wire.ObjectValue(wire.NewObject().Set("profile", wire.String(release.AttestationProfile)).Set("attestationId", wire.String(a.AttestationID)).Set("attestationSha256", wire.String(string(release.AttestationDigest(a)))).Set("candidateSha256", wire.String(string(a.CandidateSha256))).Set("gateId", wire.String(a.GateID)).Set("provenance", wire.String(a.Provenance)).Set("actor", wire.String(a.Actor)).Set("recordedAt", wire.String(string(a.RecordedAt))).Set("result", wire.String(a.Result)).Set("criteria", wire.Strings(criteria)).Set("evidence", wire.Strings(evidence)).Set("sourceIdentity", wire.String(a.SourceIdentity)))
+		ao := wire.NewObject().Set("profile", wire.String(release.AttestationProfile)).Set("attestationId", wire.String(a.AttestationID)).Set("attestationSha256", wire.String(string(release.AttestationDigest(a)))).Set("candidateSha256", wire.String(string(a.CandidateSha256))).Set("gateId", wire.String(a.GateID)).Set("provenance", wire.String(a.Provenance)).Set("actor", wire.String(a.Actor)).Set("recordedAt", wire.String(string(a.RecordedAt))).Set("result", wire.String(a.Result)).Set("criteria", wire.Strings(criteria)).Set("evidence", wire.Strings(evidence)).Set("sourceIdentity", wire.String(a.SourceIdentity))
+		if a.Argv != nil {
+			ao.Set("argv", wire.Strings(a.Argv))
+		}
+		attestations[i] = wire.ObjectValue(ao)
 	}
 	o.Set("attestations", wire.Array(attestations...))
 	if r.Promotion == nil {

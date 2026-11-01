@@ -2244,6 +2244,11 @@ ATR-V0-241	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the own
 ATR-V0-214	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2709) A claim	standing	2026-10-11; V1-2709
 ATR-V0-215	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2709) A claim	standing	2026-10-11; V1-2709
 ATR-V0-216	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2709)	standing	2026-10-11; V1-2709
+ATR-V0-800	docs/specs/corvint-tasks-attempt-runner-v0.md	A claim refused `RESOURCE_COLLISION` against a live attempt MUST, after the	unrecorded	-
+ATR-V0-801	docs/specs/corvint-tasks-attempt-runner-v0.md	Two tickets whose declared touchPaths are distinct exact files under one directo	unrecorded	-
+ATR-V0-806	docs/specs/corvint-tasks-attempt-runner-v0.md	A fresh claim whose scope fell back to `WHOLE_REPOSITORY` (the ticket declares n	unrecorded	-
+ATR-V0-807	docs/specs/corvint-tasks-attempt-runner-v0.md	A fresh `widen` that commits a requested PATH key without a trailing `/` naming	unrecorded	-
+ATR-V0-808	docs/specs/corvint-tasks-attempt-runner-v0.md	`claim --base REV` MUST resolve any revision naming one commit, as	unrecorded	-
 ATR-V0-213	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2189) The	standing	2026-10-11; V1-2189
 ATR-V0-270	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0830) The usag	standing	2026-10-11; V1-0830
 ATR-V0-271	docs/specs/corvint-tasks-attempt-runner-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0828) A `FENCE	standing	2026-10-11; V1-0828
@@ -2360,6 +2365,8 @@ TCD-V0-187	docs/specs/corvint-tasks-closeout-debt-v0.md	each required gate is pl
 TCD-V0-188	docs/specs/corvint-tasks-closeout-debt-v0.md	before the claim, each closed ticket receives one `ATTACH_EVIDENCE` mutation	unrecorded	-
 TCD-V0-189	docs/specs/corvint-tasks-closeout-debt-v0.md	a failure after the claim releases the attempt (with the failure code as the	unrecorded	-
 TCD-V0-190	docs/specs/corvint-tasks-closeout-debt-v0.md	the `receipt audit` item adds `completions` `{verified, manual}`, counting COMPL	unrecorded	-
+TCD-V0-806	docs/specs/corvint-tasks-closeout-debt-v0.md	when a `gate run` of a reusable gate finds no qualifying result	unrecorded	-
+TCD-V0-807	docs/specs/corvint-tasks-closeout-debt-v0.md	a committed `ticket create` whose payload names no `requiredGates`, under a poli	unrecorded	-
 TCT-V0-001	docs/specs/corvint-tasks-create-payload-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2703) `corvint	standing	2026-10-11; V1-2703
 TCT-V0-002	docs/specs/corvint-tasks-create-payload-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2703) When the	standing	2026-10-11; V1-2703
 TDR-V0-001	docs/specs/corvint-tasks-defect-register-v0.md	Policy MAY declare `defects` as a closed object with optional `prefix` (matching	unrecorded	-
@@ -2524,6 +2531,7 @@ KHN-V0-020	docs/specs/corvint-tasks-know-how-notes-v0.md	The change MUST be wire
 KHN-V0-021	docs/specs/corvint-tasks-know-how-notes-v0.md	Policy MAY carry the optional closed member `knowHow: {workerAdd: boolean}`.	unrecorded	-
 KHN-V0-022	docs/specs/corvint-tasks-know-how-notes-v0.md	A WORKER `KNOWHOW_ADD` admitted by KHN-V0-021 MUST be checked, after request	unrecorded	-
 KHN-V0-023	docs/specs/corvint-tasks-know-how-notes-v0.md	An entry written under KHN-V0-022 MUST record actor role WORKER together with th	unrecorded	-
+KHN-V0-800	docs/specs/corvint-tasks-know-how-notes-v0.md	A policy change limited to the top-level `knowHow` key (added, changed or remove	unrecorded	-
 KHN-V0-024	docs/specs/corvint-tasks-know-how-notes-v0.md	`ticket know-how add` MUST accept at most one `--repo ALIAS=ROOT`. ALIAS is a	unrecorded	-
 KHN-V0-025	docs/specs/corvint-tasks-know-how-notes-v0.md	The ADD entry and the `KNOWHOW_ADD` payload MAY carry the optional key	unrecorded	-
 KHN-V0-026	docs/specs/corvint-tasks-know-how-notes-v0.md	A repository note's anchors are matched in their stored, qualified form by the	unrecorded	-
@@ -2550,6 +2558,8 @@ LGL-V0-015	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2866;
 LGL-V0-016	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203, V1-2539; owner decision 2026-10-27 "Try concurrent publish	owner	V1-2203; V1-2539; 2026-10-27
 LGL-V0-017	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2877; experimental under the standing lane auto-accept)	standing	V1-2877
 LGL-V0-900	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2623) When a lease command's preparation failed `SNAPSHOT_MOVED`,	unrecorded	-
+LGL-V0-800	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-3186) The `receipt audit` receipt binding fold (CAL-V0-135) MUST	unrecorded	-
+LGL-V0-801	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-0757; experimental under the standing lane auto-accept) The	standing	V1-0757
 TOL-V0-001	docs/specs/corvint-tasks-obligation-ledger-v0.md	A NATIVE ticket record MAY carry the optional member `obligations`, a closed	unrecorded	-
 TOL-V0-002	docs/specs/corvint-tasks-obligation-ledger-v0.md	Each `OBLIGATIONS_*` write MUST derive exactly one immutable canonical ledger	unrecorded	-
 TOL-V0-003	docs/specs/corvint-tasks-obligation-ledger-v0.md	A folded obligation entry MUST be the closed object `{id, title, core, state,	unrecorded	-
@@ -2811,6 +2821,11 @@ TRM-V0-004	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(propose
 TRM-V0-005	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3189) Widen on a live attempt under an admission barrier MUST stay	unrecorded	-
 TRM-V0-006	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3190) A claim whose requested `--scope` paths fall outside the	unrecorded	-
 TRM-V0-007	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3190) A requested path that no attempt of the ticket held MUST	unrecorded	-
+TRM-V0-800	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3191) `corvint-tasks claim <ticket> --admit-under-barrier` and	unrecorded	-
+TRM-V0-801	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3191) The exemption MUST be explicit and recorded: the flag joins	unrecorded	-
+TRM-V0-802	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-3191) The `PAUSED` refusal of a named claim, and the widen remedy	unrecorded	-
+TRM-V0-803	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-0232) A release attestation (`taskman-release-attestation/0`) MAY	unrecorded	-
+TRM-V0-804	docs/specs/corvint-tasks-release-membership-and-resume-v0.md	(proposed; V1-0232) Readiness (`release show`) and `release promote` MUST NOT	unrecorded	-
 SCC-V0-001	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) `store.S	standing	2026-10-11; V1-1920
 SCC-V0-002	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) An ABSEN	standing	2026-10-11; V1-1920
 SCC-V0-003	docs/specs/corvint-tasks-source-containment-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-1920) The patc	standing	2026-10-11; V1-1920
@@ -2846,6 +2861,7 @@ CTS-V0-023	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's
 CTS-V0-024	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11), V1-2400) The CTS-	standing	2026-10-11; V1-2400
 CTS-V0-025	docs/specs/corvint-tasks-store-init-v0.md	(proposed 2026-10-24, V1-2523, not accepted) On every GOOS but darwin and linux	unrecorded	-
 CTS-V0-026	docs/specs/corvint-tasks-store-init-v0.md	(accepted 2026-10-24 under the owner's standing lane auto-accept (2026-10-11),	standing	2026-10-24; 2026-10-11
+CTS-V0-800	docs/specs/corvint-tasks-store-init-v0.md	(accepted 2026-10-31 under the owner's standing lane auto-accept (2026-10-11),	standing	2026-10-31; 2026-10-11
 TRL-V0-001	docs/specs/corvint-tasks-store-relocation-v0.md	`corvint-tasks relocate --from OLD --request-id ID [--role OWNER|OPERATOR]	unrecorded	-
 TRL-V0-002	docs/specs/corvint-tasks-store-relocation-v0.md	A completed relocation commits one RELOCATE receipt that posts exactly one pinne	unrecorded	-
 TRL-V0-003	docs/specs/corvint-tasks-store-relocation-v0.md	Relocation refuses `QUIESCENCE_UNPROVED`, writing nothing, while any attempt hol	unrecorded	-
