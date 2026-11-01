@@ -446,6 +446,13 @@ unbounded-readers-check:
 test-read-scopes-check:
 	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/test-read-scopes-check >/dev/null
 
+# declaration-compat-check fails, naming the file, position, member and pin, when a closed-shape
+# .corvint planner declaration holds a member the same file lacks at a CI planner pin in
+# .github/workflows/ci.yml, which that planner would refuse (AFP-V0-710, docs/specs/affected-plan-v0.md).
+.PHONY: declaration-compat-check
+declaration-compat-check:
+	@GOCACHE=$(CORVINT_GOCACHE) GOTOOLCHAIN=local go run ./tools/declaration-compat-check >/dev/null
+
 # test-commands-check reads this Makefile's text (not make's output) and fails unless the go-test
 # rule is exactly `go-test:` + `go run ./tools/test-commands-run` (the runner of the declaration
 # .github/cishards/test-commands.json), no line here or in an included file sets SHELL,
@@ -878,7 +885,7 @@ shell-test-registration-check:
 	$(GO_TEST_COMMAND) -run '^TestSTRV0004ShellTestIsTheGateShellSteps$$' ./tools/test-commands-check
 
 # V1-1894 / DCW-V0-349: CI and local closeout consume this same ordered list.
-DOC_GATE_TARGETS := host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check spec-requirements-check requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check line-citations-check error-code-ownership-check unbounded-readers-check test-read-scopes-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check
+DOC_GATE_TARGETS := host-package-versions-check host-package-versions-test shell-foreign-callers-check shell-test-registration-check spec-requirements-check requirement-definitions-check traceability-tests-check traceability-tests-test decision-numbers-check line-citations-check error-code-ownership-check unbounded-readers-check test-read-scopes-check declaration-compat-check test-commands-check use-case-receipts-check use-case-receipts-test documentation-paths-check binary-blobs-check license-headers-check legal-file-pins-check mkfifo-build-tags-check selection-baseline-check
 # --keep-going: one run names every failing doc gate, and still exits non-zero (DCW-V0-813).
 .PHONY: doc-gates
 doc-gates:
