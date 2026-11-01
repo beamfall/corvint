@@ -92,9 +92,11 @@ No requirement below diverges from the implementation.
   rows. It MUST exclude `docs/specs/README.md`, which is the index of specs rather than a spec.
 - `SRG-V0-002`: (accepted, decision 0506) The generator MUST recognise a requirement id as a token matching an uppercase
   letter followed by uppercase letters, digits, and hyphens, then a hyphen and exactly three
-  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:316@86a5b2d6`). An id with a suffix
+  digits, bounded by word boundaries (`script/gen-spec-requirements.sh:323@e23d2d1f`). An id with a suffix
   that is not exactly three digits MUST NOT be indexed. Matching the token alone MUST NOT
   establish a definition; the occurrence MUST also meet SRG-V0-003.
+  Amended 2026-11-01 by SRG-V0-790 (V1-3793): the token accepts three or more digits, and an ID of
+  four or more digits is indexed only under a prefix that has a three-digit ID.
 - `SRG-V0-003`: (accepted, decision 0506) The generator MUST classify each occurrence of an id into exactly one of three
   ranks: rank 0 when the line begins with the id, optionally preceded by a list bullet and
   optionally wrapped in bold or backticks, and followed either by a period and whitespace or by a
