@@ -859,8 +859,8 @@ another lane's checkout (Roles above).
 ## 14. Remote (SSH) lane hosts: inputs and closeout channel
 
 An SSH lane host (WSL, Unraid) has no `gh` login (Unraid) or no `gh` at all (WSL), no Tasks journal
-and no route to the orchestrator session. SendMessage fails there with `session not visible from
-the Unraid SSH host` (V1-3620). So dispatch to an SSH host stages, before the lane starts:
+and no route to the orchestrator session. SendMessage from there failed on 2026-10-31 with `session not visible from the Unraid SSH host`
+(V1-3620); on 2026-11-01 it worked (see "Closeout channel" below). So dispatch to an SSH host stages, before the lane starts:
 
 - `~/lane-inputs/ticket-bodies-<lane>/<ID>.json`: `corvint-tasks ticket show <ID>` JSON for every
   assigned ticket, exported on the owning host. A lane host may instead read a queue snapshot
@@ -872,13 +872,17 @@ the Unraid SSH host` (V1-3620). So dispatch to an SSH host stages, before the la
   is staged files; the lane never needs `gh`.
 - the charter, requirement-ID block and digest files, as for a local lane.
 
-Closeout channel. A remote lane writes its final report and the full numbered Friction list
-(section 11 format) to `~/lane-reports/<lane>/final.md` and `~/lane-reports/<lane>/friction.md`
-before wrap_up, and names both paths in its last message. The orchestrator fetches them with
-`ssh HOST 'cat "$HOME/lane-reports/<lane>/final.md"'` and the same for `friction.md` (single-quoted so the remote shell expands `$HOME`; or `scp`) in the round the lane ends and treats the
-files as the section 11 message. NOT DELIVERED: AC2 of V1-3620, a delivered test message from a live
-SSH lane; it needs a lane host and an orchestrator session, and this lane changes no host. The
-orchestrator verifies the route with the first remote lane of the next batch.
+Closeout channel. A remote lane sends its final report and full numbered Friction list (section 11
+format) to the orchestrator with SendMessage, `to` set to the orchestrator's `local_...` session id
+from the lane brief. Observed 2026-11-01 from the Unraid lane spectool-r: the send returned
+`Forwarded to Claude Desktop's session messaging: Message queued` (message 669b8253) while the
+orchestrator was mid-turn, and the orchestrator acted on it, staging the requested ticket bodies as
+`~/lanes/spectool-r-tickets.txt` at 03:23Z. The tool reports queued delivery only, not a read, so
+the lane also keeps the file fallback: it writes the same report and list to
+`~/lane-reports/<lane>/final.md` and `~/lane-reports/<lane>/friction.md` before wrap_up and names
+both paths in its last message. The orchestrator fetches them with
+`ssh HOST 'cat "$HOME/lane-reports/<lane>/final.md"'` and the same for `friction.md` (single-quoted
+so the remote shell expands `$HOME`; or `scp`) when no message arrived in the round the lane ends.
 
 ## 15. In-lane subagents and test-writing rules (V1-3253, V1-3259)
 
