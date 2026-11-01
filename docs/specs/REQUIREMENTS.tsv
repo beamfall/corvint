@@ -5426,6 +5426,10 @@ PMR-V0-006	docs/specs/postmerge-replay-v0.md	Build and validate the actual conne
 PMR-V0-007	docs/specs/postmerge-replay-v0.md	Emit a separate report with fixture/policy/binding identities, canonical JSONL,	unrecorded	-
 PMR-V0-008	docs/specs/postmerge-replay-v0.md	Provide local/CI invocation `corvint-postmerge-workflow replay --change ID --dry	unrecorded	-
 PMR-V0-009	docs/specs/postmerge-replay-v0.md	Replay does not parse or reimplement the issue #389 delta record. The adapter	unrecorded	-
+PMR-V0-940	docs/specs/postmerge-replay-v0.md	Author stage. A result may carry `authored`: at most one entry per kind `docs` o	unrecorded	-
+PMR-V0-941	docs/specs/postmerge-replay-v0.md	Draft stage. For each authored commit the harness adds a connector draft of that	unrecorded	-
+PMR-V0-942	docs/specs/postmerge-replay-v0.md	The adapter still reports author and draft stages as `deferred` under `PMR-V0-00	unrecorded	-
+PMR-V0-943	docs/specs/postmerge-replay-v0.md	Historical replay set and campaign. `internal/postmergeworkflow/testdata/histori	unrecorded	-
 PMR-V1-001	docs/specs/postmerge-runtime-v1.md	Independently pin full binding, input snapshots, source/tool/runtime/profile and	unrecorded	-
 PMR-V1-002	docs/specs/postmerge-runtime-v1.md	Execute real connector/intake/delta joins, retain exact native inputs/outputs an	unrecorded	-
 PMR-V1-003	docs/specs/postmerge-runtime-v1.md	Each applicable real author step requires enforced credential/network/filesystem	unrecorded	-
