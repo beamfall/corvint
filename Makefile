@@ -338,12 +338,14 @@ repin:
 	@script/repin.sh --base "$(REPIN_BASE)"
 
 # SRG-V0-800 (V1-3379): it also fails when an unstaged spec edit would change the generated files.
+# ASD-V0-1145 (V1-3841): it also runs the internal/lrfrepo spec enumeration pins, so a lane's doc
+# gates, not only batch-precheck's drift tests, catch a requirement edit that drifts a pin.
 .PHONY: spec-requirements-check
 spec-requirements-check:
 	@script/gen-spec-requirements.sh --check
 	@script/spec-requirements-worktree-check.sh
 	HEAVY_WHOLE_REASON='spec-requirements-check runs internal/specindex whole' $(DOC_GATE_GO_TEST) ./internal/specindex
-	$(DOC_GATE_GO_TEST) -run '^TestSpecsStayWithinTheOCMObligationBound$$' ./internal/lrfrepo
+	$(DOC_GATE_GO_TEST) -run '^(TestSpecsStayWithinTheOCMObligationBound$$|Test[A-Za-z0-9]*Specs?Enumerat)' ./internal/lrfrepo
 
 # spec-requirements-test pins SRG-V0-001: the generator enumerates the Git index, so no
 # untracked, deleted-from-the-worktree, or unstaged spec can change the index a fresh clone
