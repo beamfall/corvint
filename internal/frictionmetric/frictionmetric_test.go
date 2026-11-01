@@ -106,6 +106,8 @@ func TestURE996RefusesMalformedRecords(t *testing.T) {
 		"profile":   `{"profile":"x","sessions":[{"id":"s","events":[]}]}`,
 		"unknown":   `{"profile":"corvint-friction-sessions/0","sessions":[{"id":"s","events":[]}],"extra":1}`,
 		"trailing":  `{"profile":"corvint-friction-sessions/0","sessions":[{"id":"s","events":[]}]} {}`,
+		"bracket":   `{"profile":"corvint-friction-sessions/0","sessions":[{"id":"s","events":[]}]}]`,
+		"brace":     `{"profile":"corvint-friction-sessions/0","sessions":[{"id":"s","events":[]}]} }`,
 		"no-id":     `{"profile":"corvint-friction-sessions/0","sessions":[{"events":[]}]}`,
 		"duplicate": `{"profile":"corvint-friction-sessions/0","sessions":[{"id":"s","events":[]},{"id":"s","events":[]}]}`,
 		"kind":      `{"profile":"corvint-friction-sessions/0","sessions":[{"id":"s","events":[{"kind":"write","path":"a"}]}]}`,

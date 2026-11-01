@@ -78,7 +78,9 @@ func Evaluate(reader io.Reader) (map[string]any, error) {
 	if err := decoder.Decode(&parsed); err != nil {
 		return nil, fmt.Errorf("malformed friction record: %w", err)
 	}
-	if decoder.More() {
+	// More reports false before a stray closing delimiter, so require end of input.
+	var trailing json.RawMessage
+	if err := decoder.Decode(&trailing); err != io.EOF {
 		return nil, errors.New("malformed friction record: trailing data")
 	}
 	if err := validate(parsed); err != nil {
