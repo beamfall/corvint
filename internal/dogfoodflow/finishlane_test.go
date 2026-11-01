@@ -738,7 +738,8 @@ func TestFinishLaneDCWV0800RefusesMissingOutcomeInputsBeforePrepare(t *testing.T
 		preflight                      bool
 	}{
 		{name: "finish-both", missing: "--verify,--outcome"},
-		{name: "preflight-both", missing: "--verify,--outcome", preflight: true},
+		// DCW-V0-848: the pre-flight binds nothing, so it needs no outcome.
+		{name: "preflight-both", missing: "--verify", preflight: true},
 		{name: "finish-outcome", verify: "go version", missing: "--outcome"},
 		{name: "preflight-verify", outcome: "passed", missing: "--verify", preflight: true},
 	} {

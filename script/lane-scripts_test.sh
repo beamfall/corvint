@@ -888,6 +888,9 @@ out=$(finish '' '' '')
 [[ $out == *'REFUSE missing-inputs BASE CITATIONS'$'\n''fix: '* ]] || fail "finish refusal: $out"
 out=$(finish 1 '' '' '' '' '')
 [[ $out == *'REFUSE missing-inputs BASE CITATIONS INTENTS VERIFY OUTCOME'* ]] || fail "lane finish refusal: $out"
+# DCW-V0-848 (V1-3836): the pre-flight binds nothing, so LANE=1 inputs-check needs no OUTCOME.
+out=$(DOGFOOD_FINISH_PREFLIGHT=1 finish 1 '' '' '' '' '')
+[[ $out == *'REFUSE missing-inputs BASE CITATIONS INTENTS VERIFY'$'\n'* ]] || fail "inputs-check required OUTCOME: $out"
 # ASD-V0-903: a plan needs a row to count as supplied.
 printf '1\tunknown\tinsufficient-evidence\tx\n' > "$tmp/plan.tsv"
 out=$(finish 1 0123 plan.tsv absent.txt absent.txt bogus)

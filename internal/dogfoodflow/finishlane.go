@@ -350,7 +350,8 @@ func (l *finishLane) requireIntentsInput() {
 // a run without a verification command or an outcome: the rebind's
 // local-outcome row records both, so without them it can only refuse
 // outcome-input-not-provided after the bind commit exists (DCW-V0-800). The
-// refusal names both inputs, as the rebind's fix line does.
+// refusal names both inputs, as the rebind's fix line does. The pre-flight
+// binds nothing, so it does not require the outcome (DCW-V0-848).
 func (l *finishLane) requireOutcomeInputs() {
 	verify, _ := verifyInput(l.options.Change)
 	// DCW-V0-960: the full pass's ocm-aggregate refuses missing-intent-scope
@@ -364,7 +365,7 @@ func (l *finishLane) requireOutcomeInputs() {
 	if len(verify) == 0 {
 		missing = append(missing, "--verify")
 	}
-	if l.options.Change.Outcome == "" {
+	if l.options.Change.Outcome == "" && !l.options.Preflight {
 		missing = append(missing, "--outcome")
 	}
 	if len(missing) == 0 {
