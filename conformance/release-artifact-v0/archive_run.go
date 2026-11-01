@@ -405,6 +405,15 @@ func archiveTargetName(target Target) (string, string) {
 	return base + ".tar.gz", "tar.gz"
 }
 
+// revisionNotHeadError refuses a --revision that is not the checked-out HEAD.
+// The CLI prints it alone: no witness can name a revision that was never
+// checked out, so a witness note would only suggest a witness defect (V1-3491).
+type revisionNotHeadError struct{ revision string }
+
+func (e revisionNotHeadError) Error() string {
+	return fmt.Sprintf("selected revision %s is not the checked-out HEAD; check it out in a detached worktree (git worktree add --detach DIR %s) and run archive there", e.revision, e.revision)
+}
+
 func resolveCleanState(ctx context.Context, options ArchiveOptions, scratch string) (gitState, error) {
 	commitBytes, err := closedGit(ctx, options.Root, scratch, "rev-parse", "--verify", options.Revision+"^{commit}")
 	if err != nil {
@@ -416,7 +425,7 @@ func resolveCleanState(ctx context.Context, options ArchiveOptions, scratch stri
 	}
 	headBytes, err := closedGit(ctx, options.Root, scratch, "rev-parse", "--verify", "HEAD^{commit}")
 	if err != nil || strings.TrimSpace(string(headBytes)) != commit {
-		return gitState{}, fmt.Errorf("selected revision is not the checked-out HEAD")
+		return gitState{}, revisionNotHeadError{revision: commit}
 	}
 	treeBytes, err := closedGit(ctx, options.Root, scratch, "rev-parse", "--verify", commit+"^{tree}")
 	if err != nil {
