@@ -46,6 +46,50 @@ implemented", so this change implements those IDs instead of allocating new ones
   with a new request ID against the new revision.
 - Request IDs are at most 64 bytes, so `Q` is at most 52 bytes to fit `Q/evidence/NN`.
 
+## Review fixes
+
+The one-round Codex review of `524bef161..950240cbf` reported five P2 findings and one P3, all in
+`internal/tasks/cli/split.go`. All six were confirmed and fixed. Each test is in
+`internal/tasks/cli/split_test.go`, except the REDO_PENDING test, which is in `split_redo_test.go`
+(darwin and linux).
+
+1. P2: the child dropped `requiresPool`, `requiredRoles` and `executionPrerequisites`. The child
+   CREATE now carries the roles (deep copy) and the pool. CREATE has no prerequisites field, so a
+   parent with prerequisites gets its child created without criteria (DRAFT, not claimable). A
+   `Q/child` REFINE then sets the criteria and prerequisites together, which opens it. A MANUAL or
+   EXTERNAL parent with prerequisites refuses `TICKET_STATE`, because its child would open at
+   CREATE. Test: `TestTLFV0884_SplitKeepsExecutionConstraints`.
+2. P2: after an interruption, the resumed parent REFINE could drop criteria that another writer had
+   since removed from the child. The parent REFINE now runs through the new `store.MutateGuarded`
+   with a `TicketGuard`. The guard reads the child under the same writer lock, after redo, and
+   refuses `STALE_TICKET` unless the child carries the moved criteria at the acceptance revision the
+   split gave it and is not ARCHIVED. A replayed request skips the guard. Test:
+   `TestTLFV0884_ResumeRefusesARefinedChild`.
+3. P2: a receipt linked but not yet in head.json left `REDO_PENDING`, so the initial inventory read
+   refused before any writer could recover. The new `store.Settle` runs the writer guards and redo
+   under the lock. The split calls it when its first read returns `REDO_PENDING`, then reads again,
+   and reports the redo warning. Test: `TestTLFV0884_ResumeSettlesAPendingReceipt` holds one
+   receipt pending using the existing `holdPending` injection.
+4. P2: any recorded `Q/refine` was reported as `alreadySplit`. It now counts only when all of these
+   hold, and otherwise refuses `REQUEST_ID_CONFLICT`:
+   - the recorded refine changed this parent, to revision R+1;
+   - `Q/create` is recorded;
+   - its child supersedes the parent;
+   - the child's body starts with this split's note, which names R and the criteria.
+   Test: `TestTLFV0884_RecordedRefineMustBeThisSplit`, covering a plain body refine under `Q/refine`
+   and a rerun with other criteria.
+5. P2: a parent body near 64 KiB passed the dry run, then failed after the child was created. The
+   parent's final REFINE payload is now built and canonicalized before any write, using the longest
+   possible child ID in the parent's queue as the stand-in. A note that does not fit refuses
+   `LIMIT_EXCEEDED`, in the dry run too. The note's length is bounded by the criteria list, the
+   revision and the ID. Test: `TestTLFV0884_ParentBodyAtTheLimitRefusesFirst`.
+6. P3: deduplicating by digest dropped later entries and their provenance. Each digest is still
+   copied once, because the child has one acceptance revision and a repeat would refuse
+   DUPLICATE_ID. An entry whose digests were all copied already now appends its segment
+   (`[acceptanceRevision A, ACTOR] REASON`) to the reason of the copy that carries its first digest.
+   Within the 512-byte reason bound, each segment gets an equal share. Test:
+   `TestTLFV0884_EvidenceProvenanceSurvivesRepeatedDigests`.
+
 ## Friction
 
 1. The orchestrator-assigned IDs TLF-V0-888 and TLF-V0-889 collided with wave 4's own definitions on
@@ -61,3 +105,15 @@ implemented", so this change implements those IDs instead of allocating new ones
    filter such as `--kind FEATURE`.
 7. heavy.sh offloads `internal/tasks/cli` to wsl-lanes even though the package holds darwin-only
    files, which that host neither builds nor runs.
+8. The store had no exported way to settle `REDO_PENDING` before a read-driven writer. This change
+   adds `store.Settle`.
+9. The writer had no cross-ticket precondition, so a command that must check one ticket while
+   writing another could not do it atomically. This change adds `store.TicketGuard` and
+   `store.MutateGuarded`.
+10. Receipt post-records can be compacted into segments, so the CLI cannot reliably read a recorded
+    step's post-state from its receipt. Validation (fix 4) uses the request index and the live
+    inventory instead.
+11. CREATE cannot carry `executionPrerequisites`, so creating a constrained ticket takes two
+    receipts.
+12. A `requiresPool` naming a pool absent from policy is refused MALFORMED, which needed a
+    pool-bearing policy fixture for fix 1.

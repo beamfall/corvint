@@ -66,15 +66,24 @@ done and number requirements that a peer branch already used.
   when no commit message names the ticket.
 - `TLF-V0-884`: `corvint-tasks ticket split ID --criteria N,M --expected-revision R --request-id Q`
   MUST create one NATIVE child ticket carrying the named acceptance criteria (1-based, in parent
-  order), a copy of each of the parent's attached-evidence entries and a `supersedes` link to the
-  parent, and then remove those criteria from the parent. It runs as an ordered sequence of ordinary
-  single-ticket mutations under derived request IDs (`Q/create`, `Q/evidence/I`, `Q/refine`) sharing
-  one `issuedAt`, so each step writes its own receipt. The parent is changed last: an interrupted
-  split leaves the criteria on both tickets, never on neither, and rerunning the same command with
-  the same `--request-id` and `--issued-at` replays the finished steps and completes the rest. A split
-  whose `Q/refine` is already recorded writes nothing. It MUST refuse, writing nothing, a parent that
-  is not OPEN or DRAFT or not at revision R, an empty, repeated or out-of-range criterion list, and a
-  list naming every criterion.
+  order), the parent's `requiredRoles`, `requiresPool` and `executionPrerequisites`, a copy of every
+  digest of the parent's attached-evidence entries with each entry's acceptance revision, actor and
+  reason kept in a copy's reason, and a `supersedes` link to the parent, and then remove those
+  criteria from the parent. It runs as an ordered sequence of ordinary single-ticket mutations under
+  derived request IDs (`Q/create`, `Q/child` when the parent has executionPrerequisites, which CREATE
+  cannot carry, so the child opens only with them, then `Q/evidence/I`, `Q/refine`) sharing one
+  `issuedAt`, so each step writes its own receipt. The parent is changed last, and its REFINE MUST
+  refuse `STALE_TICKET`, under the same writer lock, unless the child still carries the moved
+  criteria at the acceptance revision the split gave it: an interrupted split leaves the criteria on
+  both tickets, never on neither, and rerunning the same command with the same `--request-id` and
+  `--issued-at` replays the finished steps and completes the rest, first settling a receipt the
+  interruption left `REDO_PENDING`. A split whose `Q/refine` is already recorded writes nothing only
+  when that record is this split (the parent at R+1, a recorded `Q/create` whose child supersedes
+  the parent with this split's note); any other record refuses `REQUEST_ID_CONFLICT`. It MUST
+  refuse, writing nothing, a parent that is not OPEN or DRAFT or not at revision R, an empty,
+  repeated or out-of-range criterion list, a list naming every criterion, a parent body that cannot
+  take the bounded split note (`LIMIT_EXCEEDED`, also in `--dry-run`), and a MANUAL or EXTERNAL
+  parent with executionPrerequisites (`TICKET_STATE`).
 - `TLF-V0-885`: `ticket split --dry-run` MUST print the child CREATE payload and the parent's
   resulting criteria and write nothing; after a split the parent MUST complete on its remaining
   criteria and receipt audit MUST stay CONSISTENT.
@@ -135,7 +144,7 @@ done and number requirements that a peer branch already used.
 | TLF-V0-881 | V1-3569 criteria 3-4 | `internal/tasks/ticket` (EffectiveProgress) | `TestTLFV0881_BarrierAdmitsProgressAndStillRefusesClaims`; `TestTLFV0881_EffectiveProgress` | none |
 | TLF-V0-882 | V1-3569 criterion 2; V1-3463 criterion 2 | `internal/tasks/cli` (search, roadmap, show) | `TestTLFV0882_SearchAndRoadmapByPhase` | none |
 | TLF-V0-883 | V1-3569 criterion 3 | `internal/tasks/cli/closeout_debt.go` | `TestTLFV0883_CloseoutDebtReportsMergedProgressHead` | integration with V1-3496 closeout-debt changes |
-| TLF-V0-884, TLF-V0-885 | V1-3577 | `internal/tasks/cli/split.go` | `TestTLFV0884_SplitMovesCriteriaToALinkedChild`; `TestTLFV0884_InterruptedSplitResumes`; `TestTLFV0884_SplitRefusals`; `TestTLFV0885_DryRunWritesNothing`; `TestTLFV0885_ParentCompletesOnRemainingCriteria` | concurrent writer between steps; durable qualification |
+| TLF-V0-884, TLF-V0-885 | V1-3577 | `internal/tasks/cli/split.go` | `TestTLFV0884_SplitMovesCriteriaToALinkedChild`; `TestTLFV0884_InterruptedSplitResumes`; `TestTLFV0884_SplitRefusals`; `TestTLFV0885_DryRunWritesNothing`; `TestTLFV0885_ParentCompletesOnRemainingCriteria`; `TestTLFV0884_SplitKeepsExecutionConstraints`; `TestTLFV0884_ResumeRefusesARefinedChild`; `TestTLFV0884_ResumeSettlesAPendingReceipt`; `TestTLFV0884_RecordedRefineMustBeThisSplit`; `TestTLFV0884_ParentBodyAtTheLimitRefusesFirst`; `TestTLFV0884_EvidenceProvenanceSurvivesRepeatedDigests` | durable qualification |
 | TLF-V0-886 | V1-2909 | `tools/requirement-id-collisions` | `TestTLFV0886_ReproducesASDV0Collisions` | none |
 | TLF-V0-887 | V1-3331 | `internal/tasks/cli/delivery_screen.go` | `TestTLFV0887_DeliveryScreenSeesUnmergedLaneHead` | none |
 | TLF-V0-888, TLF-V0-889 | V1-3576 criteria 1 and 3 | `internal/tasks/cli/effects_proposals.go` | `TestTLFV0888_EffectsProposals`; `TestTLFV0889_ProposalsAreNotAuthority` | V1-3576 criterion 2 (operator-applied batch set-effects) BLOCKED: lanes may not write the store |
