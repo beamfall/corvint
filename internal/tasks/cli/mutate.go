@@ -458,7 +458,22 @@ func submitMutationContext(ctx context.Context, env Env, cmd []string, operation
 		res.Warnings = append(res.Warnings, w)
 	}
 	if report.Outcome.Outcome == mutation.OutcomeRequestIDConflict && flags.issuedAt == "" {
-		res.Warnings = append(res.Warnings, defaultedIssuedAtConflict(repo, store0, operation, actor, flags, payload, issued))
+		// A plain retry differs only in the defaulted issuedAt: resubmit at the
+		// recorded issuedAt so the store replays the recorded result
+		// (TCL-V0-735, V1-3958). The digest match proves every other byte equal.
+		if at, _, ok := recordedIssuedAt(repo, store0, operation, actor, flags, payload, issued); ok {
+			if replay, err := buildEnvelope(operation, store0.Queue.QueueID.Raw, actor, flags, payload, at); err == nil {
+				if again, err := store.Mutate(ctx, repo, actor, replay, now); err == nil && again.Outcome.Outcome != mutation.OutcomeRequestIDConflict {
+					report = again
+					res = mutateResult(cmd, report)
+					res.Warnings = append(res.Warnings, "issuedAt defaulted to "+string(issued)+" because --issued-at was not given; request "+flags.requestID+
+						" is recorded with issuedAt "+string(at)+" and identical other bytes, so the retry was submitted with that issuedAt and replayed the recorded result")
+				}
+			}
+		}
+		if report.Outcome.Outcome == mutation.OutcomeRequestIDConflict {
+			res.Warnings = append(res.Warnings, defaultedIssuedAtConflict(repo, store0, operation, actor, flags, payload, issued))
+		}
 	}
 	if report.Kind == "Transaction" && report.Outcome.Outcome == mutation.OutcomeCompleted {
 		if w := unboundedEffectsWarning(store0, operation, payload, report.Ticket); w != "" {

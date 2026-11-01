@@ -278,6 +278,14 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   it MUST submit the earlier revision whose rebuilt envelope digest equals the recorded digest,
   so a retry of an applied hold replays its recorded result instead of refusing
   `REQUEST_ID_CONFLICT`. A changed payload under the same request ID still conflicts.
+- `TCL-V0-735`: (experimental under the standing lane auto-accept (2026-11-01); V1-3958; refines
+  CAL-V0-250 and ATR-V0-275) A mutation given no `--issued-at` that the store refuses
+  `REQUEST_ID_CONFLICT` MUST be resubmitted once at the recorded issuedAt that the CAL-V0-250 /
+  ATR-V0-275 reconstruction proves (the rebuilt envelope digest equals the recorded digest), so a
+  plain retry with the same request ID and payload replays the recorded result (`replayed: true`,
+  the original ticket) and warns with the recovered issuedAt. Every mutate verb shares this path.
+  A retry whose other bytes differ still refuses `REQUEST_ID_CONFLICT` with the CAL-V0-250
+  explanation, and nothing is written.
 
 ## Non-goals
 
@@ -354,6 +362,9 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `TestTCLV0821_PolicyDryRunHeadAdvanceWritesNoClosedIndex` (TCL-V0-821).
 - `internal/tasks/cli/review_fixes_test.go`:
   `TestTCLV0822_DefaultRevisionHoldRetryReplays` (TCL-V0-822).
+- `internal/tasks/cli/create_retry_issued_at_test.go`:
+  `TestCALV0250_DefaultedIssuedAtRetryNamesTheDifference`,
+  `TestATRV0275_LostOutputRetryAfterLaterUpdateRecovers` (TCL-V0-735).
 
 ## Rollback
 
