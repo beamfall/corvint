@@ -103,6 +103,7 @@ GATE_STEPS = \
   repin-test \
   requirement-definitions-check \
   requirement-definitions-test \
+  review-head-check-test \
   rg-fallback-test \
   runtime-environment-test \
   scratch-sweep-test \
@@ -110,6 +111,7 @@ GATE_STEPS = \
   spec-requirements-test \
   test-commands-check \
   test-read-scopes-check \
+  test-run-pattern-test \
   traceability-tests-check \
   traceability-tests-test \
   unbounded-readers-check \
@@ -1107,6 +1109,14 @@ agent-preflight-test:
 codex-review-test:
 	@script/codex-review_test.sh
 
+.PHONY: review-head-check-test
+review-head-check-test:
+	@script/review-head-check_test.sh
+
+.PHONY: test-run-pattern-test
+test-run-pattern-test:
+	@script/test-run-pattern_test.sh
+
 .PHONY: companion-release-gate-test
 companion-release-gate-test:
 	@script/corvint-companion-release-gate_test.sh
@@ -1208,10 +1218,12 @@ shell-test: \
   release-checklist-test \
   repin-test \
   requirement-definitions-test \
+  review-head-check-test \
   rg-fallback-test \
   runtime-environment-test \
   scratch-sweep-test \
   spec-requirements-test \
+  test-run-pattern-test \
   traceability-tests-test \
   # end of shell-test prerequisites: add one above, in sorted order, ending its line with a backslash
 

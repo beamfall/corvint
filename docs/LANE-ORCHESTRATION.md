@@ -814,6 +814,22 @@ logged-out one prints one `codex-review: NOT_AVAILABLE` line with the fix (`code
 `codex login --with-api-key` on a headless host) and exits 3 without any review call; the lane
 records the review as `NOT_RUN` with that line instead of retrying.
 
+Before a review starts, the script prints its first line,
+`codex-review: reviewed-head=SHA tree=SHA dirty=yes|no` (ASD-V0-1020). Save the whole output to a
+file: it is the record of which head the findings are about. Before sending findings to a fix
+round, or after the lane head moved, compare the review with the head (ASD-V0-1021, V1-3959):
+
+```sh
+script/review-head-check.sh review.txt   # CURRENT (exit 0) or MOVED with one line per finding (exit 1)
+```
+
+`MOVED` marks each `[Pn]` finding POSSIBLY_FIXED (a cited path changed, at the cited lines when
+it names lines), OPEN or UNKNOWN (no cited path); send only OPEN and UNKNOWN findings back and
+review the new head again. `REFUSE reviewed-head-not-ancestor` means the findings are about a
+commit the lane head does not contain (on 2026-11-01 the cem-u11 P2s, made on a later commit,
+were sent against an earlier lane head); `REFUSE unpinned-review` means the review was not run
+through this script, and `--reviewed-head REV` names the commit by hand.
+
 ## 11. Friction goes up to the orchestrator (ASD-V0-076)
 
 Lane friction (stale binaries, missing logins, requirement ID collisions, parked background jobs)
@@ -906,7 +922,9 @@ One lane runs this flow, in order; each step names the command and the section t
 2. Build in the lane's own worktree and branch; spec first when behavior changes (AGENTS.md "Spec-driven
    development"). Check requirement IDs with `make requirement-ids-free`.
 3. Focused tests through `script/heavy.sh`, one package per command, `set -o pipefail` when piped
-   (section 2).
+   (section 2). `script/test-run-pattern.sh BASE` adds the tests that read a changed file or name
+   a changed requirement ID, as `-run` patterns per package (ASD-V0-1025, V1-3892); a `whole:`
+   line means that package runs whole.
 4. Doc gates before the final commit: `make doc-gates`, `make line-citations-check`, `gofmt -l`.
    Repins are mechanical: `make repin` (line citations and the analyzer-schema pin) and
    `script/repin-use-case-receipts.sh` (use-case receipts); both stage what they rewrite.
@@ -921,6 +939,13 @@ One lane runs this flow, in order; each step names the command and the section t
    INTENTS=.. VERIFY=.. OUTCOME=..` in the foreground (ASD-V0-015). A charter may instead hand the
    finish to the orchestrator (review-before-seal): the lane then stops at the final commit plus a
    passing `dogfood-inputs-check` and reports the input file paths.
+   Review before the seal, so a change seals once (ASD-V0-1023, V1-3668): review the bind-ready
+   head through `script/codex-review.sh` and save the output; run `script/review-head-check.sh`
+   on it before each fix round and send only OPEN and UNKNOWN findings; review the fixed head
+   again; then bind, check and seal once with `DOGFOOD_REVIEW=review.txt make dogfood-seal
+   BASE=..`. The bind commit changes only `.corvint/`, so a current review passes, and
+   `dogfood-seal: REFUSE review-not-current` stops a seal over a head the review did not read
+   before its check runs (ASD-V0-1024).
 6. Report: head SHA, one line per ticket, tests and results, then the Friction list (section 11).
 
 Common refusals and their recovery:
@@ -932,6 +957,8 @@ Common refusals and their recovery:
 | `missing-inputs CITATIONS` (`make dogfood-inputs-check`) | pass `CITATIONS=`, `INTENTS=`, `VERIFY=` and `OUTCOME=` make variables (DOGFOOD "Inputs") |
 | `reused-worktree-state` | `corvint migrate-traces --dry-run`, inspect it, then `corvint migrate-traces --apply --plan-digest DIGEST` with the digest the dry run printed; rerun |
 | `unsupported-object-alternates` | `git repack -a -d`, delete `.git/objects/info/alternates`, rerun (DOGFOOD "Inputs") |
+| `dogfood-seal: REFUSE review-not-current` | review HEAD^ (the bind-ready head) through `script/codex-review.sh`, save the output, rerun with `DOGFOOD_REVIEW` set to it |
+| `review-head-check: REFUSE unpinned-review` | run the review through `script/codex-review.sh`, or pass `--reviewed-head REV` with the commit the reviewer read |
 | `patch-unavailable reason=<code>` | make every changed path a regular file with a textual hunk, commit, rerun `propose-citations` |
 | `citation-plan-uniform` | cite each hunk with the base lines it depends on, not one span for all |
 | `bootstrap-intent-not-unknown` | give the intent spec this change creates no row, or an `unknown` row |
