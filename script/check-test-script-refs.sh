@@ -18,6 +18,7 @@ cd "$top" || exit 2
 bad=0 refs=0
 while IFS= read -r f; do
   [[ -f $f ]] || continue
+  # shellcheck disable=SC2016 # the pattern matches a literal $script in the scanned file
   while IFS=: read -r line ref; do
     refs=$((refs + 1))
     name=${ref##*/}

@@ -557,11 +557,13 @@ want_steps=$("$regen" --list | cut -f1 | tr '\n' ' ')
 # 4c. ASD-V0-641 (V1-3745): the test-script-refs step fails when a shell test names a script that is
 # not in the tree, naming the file, line and path, and passes once the script exists.
 mkdir -p "$repo/script"
-printf '#!/bin/sh\nscript=$(cd "$(dirname "$0")" && pwd)\n"$script/gone.sh" --check\n' > "$repo/script/caller_test.sh"
+# The reference is assembled, so this file does not itself name a missing script.
+gone='$'script/gone.sh
+printf '#!/bin/sh\nscript=$(cd "$(dirname "$0")" && pwd)\n"%s" --check\n' "$gone" > "$repo/script/caller_test.sh"
 git -C "$repo" add script/caller_test.sh && git -C "$repo" commit -q -m caller || fail "caller commit"
 run && fail "a test naming a missing script passed: $(cat "$tmp/out")"
 grep -q '^batch-precheck: | FAIL | *[0-9]*s | test-script-refs$' "$tmp/out" || fail "test-script-refs row: $(cat "$tmp/out")"
-grep -qF 'check-test-script-refs: FAIL script/caller_test.sh:3 names $script/gone.sh, but script/gone.sh does not exist' "$tmp/out" || fail "missing script not named: $(cat "$tmp/out")"
+grep -qF "check-test-script-refs: FAIL script/caller_test.sh:3 names $gone, but script/gone.sh does not exist" "$tmp/out" || fail "missing script not named: $(cat "$tmp/out")"
 printf '#!/bin/sh\n' > "$repo/script/gone.sh"
 git -C "$repo" add script/gone.sh && git -C "$repo" commit -q -m gone || fail "gone commit"
 run || fail "an existing script failed: $(cat "$tmp/out")"
