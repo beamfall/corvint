@@ -306,6 +306,14 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   is its only write. A repository with no store, or a tree that does not load, MUST refuse with
   the read's own code and write nothing; a snapshot bundle refuses `UNSUPPORTED`; the flag with
   any other argument refuses `MALFORMED`.
+- `TCL-V0-739`: (experimental under the standing lane auto-accept (2026-11-01); V1-3272; extends
+  TCL-V0-004) The record's existing typed `supersedes` link (written by a create or refine payload
+  and by `ticket split`) is the duplicate-of link. `ticket search --supersedes TICKET` MUST match
+  exactly the tickets whose `supersedes` names TICKET, given as a full or local ID in the queue,
+  in conjunction with the other filters. The `TCL-V0-004` guard MUST treat a payload whose
+  `supersedes` resolves to a candidate as naming that candidate, so the create records the
+  duplicate as the typed link; a link to any other ticket names nothing, and the refusal names the
+  link as a remedy. No record, payload or wire format changes.
 
 ## Non-goals
 
@@ -394,6 +402,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 - `internal/tasks/cli/doctor_closed_index_test.go`:
   `TestTCLV0738_RebuildClosedIndexMatchesJournaled`; the wsl-lanes live rebuild in
   `docs/build-log/2026-11-01-tcl-w31.md` (TCL-V0-738).
+- `internal/tasks/cli/supersedes_link_test.go`:
+  `TestTCLV0739_DuplicateRecordedAsSupersedesLink`; `TestTCLV0004_CreateGuard` (TCL-V0-739).
 
 ## Rollback
 

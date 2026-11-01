@@ -137,6 +137,7 @@ func fullCommandHelp(cmd []string) *wire.Result {
 	}
 	if name == "ticket search" {
 		o.Set("all", wire.String("--all is the explicit unfiltered listing: every ticket in search order, paged by --offset and --limit; it takes no filter flag, and a search with neither a filter nor --all is refused (TCD-V0-966)."))
+		o.Set("supersedes", wire.String("--supersedes TICKET matches tickets whose typed supersedes link names TICKET (a ticket id or local id in this queue): the link a create or refine payload writes, a split child carries, and the agent-memory duplicate guard accepts as naming its candidate (TCL-V0-739)."))
 	}
 	if name == "release readiness" {
 		o.Set("membership", wire.String("The item adds memberCounts (member tickets by status and priority, plus absent member ids) and milestoneDrift: unfinishedNonMembers are DRAFT, OPEN or HELD tickets whose milestone equals the releaseId but are not members, and membersOutsideMilestone are members whose milestone differs; each lists an exact count and at most 100 ids. Membership is never changed. A release without a candidate is BLOCKED on candidate without observing the source tree (CAL-V0-208, CAL-V0-209). memberCounts.byLifecycle counts members by derived delivery lifecycle; --lifecycle STATE adds lifecycleMembers, an exact count and at most 100 ids in that state (TLC-V0-011)."))
@@ -318,7 +319,7 @@ var commandUsage = map[string]string{
 
 	"version":                  "corvint-tasks version (alias --version)",
 	"ticket list":              "corvint-tasks ticket list [--status S[,S...]] [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
-	"ticket search":            "corvint-tasks ticket search (--all | [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--phase PHASE|NONE] [--lifecycle STATE]) [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
+	"ticket search":            "corvint-tasks ticket search (--all | [--status S] [--kind K] [--priority P] [--owner L] [--milestone L] [--label L] [--text T] [--phase PHASE|NONE] [--lifecycle STATE] [--supersedes TICKET]) [--offset N] [--limit N] [--summary | --fields KEY[.SUB],...] [--facets | --count]",
 	"ticket show":              "corvint-tasks [--root DIR] ticket show <ticketId|local> [--json] [--summary | --fields KEY[.SUB],...]   (output is always JSON, so --json is a no-op; ticket fields such as body and acceptanceCriteria live under record.: items[0].record.acceptanceCriteria, --fields record.body,record.acceptanceCriteria; the revision is items[0].revision; an unpadded token such as QB-1 resolves the one ticket QB-0001; an unknown key is refused naming the valid keys)",
 	"ticket blockers":          "corvint-tasks ticket blockers <ticketId|local>",
 	"ticket closeout-debt":     "corvint-tasks ticket closeout-debt [--ref REF] [--since REV] [--limit N] [--skip N] [--prs FILE|-]",

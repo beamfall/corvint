@@ -874,7 +874,7 @@ func flagsBool(args []string, bools []string, known ...string) (map[string]strin
 var (
 	pageValueFlags   = []string{"--offset", "--limit"}
 	listValueFlags   = []string{"--offset", "--limit", "--status"}
-	searchValueFlags = []string{"--offset", "--limit", "--status", "--kind", "--priority", "--owner", "--milestone", "--label", "--text", "--phase", "--lifecycle"}
+	searchValueFlags = []string{"--offset", "--limit", "--status", "--kind", "--priority", "--owner", "--milestone", "--label", "--text", "--phase", "--lifecycle", "--supersedes"}
 	// recordFieldRoutes names where ticket list and search items' omitted
 	// record keys are read (CTS-V0-012): the items drop the full record.
 	recordFieldRoutes = map[string]string{
@@ -1227,6 +1227,9 @@ type searchFilter struct {
 	text      *string // lower-cased substring of title or body
 	phase     *string // effective progress phase or NONE (TLF-V0-882)
 	lifecycle *string // derived delivery lifecycle (TLC-V0-009)
+	// supersedes is the ticket argument whose typed supersedes link a
+	// match must carry (TCL-V0-739); it is resolved against the store.
+	supersedes *string
 }
 
 func enumFlag(fl map[string]string, name string, allowed []string) (*string, error) {
@@ -1319,12 +1322,18 @@ func parseSearchFilter(fl map[string]string, all bool) (searchFilter, error) {
 	if f.lifecycle, err = enumFlag(fl, "lifecycle", lifecycleStates); err != nil {
 		return f, err
 	}
-	filtered := f.status != nil || f.kind != nil || f.priority != nil || f.owner != nil || f.milestone != nil || f.label != nil || f.text != nil || f.phase != nil || f.lifecycle != nil
+	if v, ok := fl["supersedes"]; ok {
+		if v == "" {
+			return f, wire.Errorf(wire.CodeMalformed, "--supersedes", "--supersedes names a ticket")
+		}
+		f.supersedes = &v
+	}
+	filtered := f.status != nil || f.kind != nil || f.priority != nil || f.owner != nil || f.milestone != nil || f.label != nil || f.text != nil || f.phase != nil || f.lifecycle != nil || f.supersedes != nil
 	if all && filtered {
 		return f, wire.Errorf(wire.CodeMalformed, "--all", "--all lists every ticket and takes no filter flag")
 	}
 	if !all && !filtered {
-		return f, wire.Errorf(wire.CodeMalformed, "argv", "ticket search needs at least one filter (--status, --kind, --priority, --owner, --milestone, --label, --text, --phase, --lifecycle); `ticket list` is the unfiltered read, and --all lists every ticket in search pages of --limit")
+		return f, wire.Errorf(wire.CodeMalformed, "argv", "ticket search needs at least one filter (--status, --kind, --priority, --owner, --milestone, --label, --text, --phase, --lifecycle, --supersedes); `ticket list` is the unfiltered read, and --all lists every ticket in search pages of --limit")
 	}
 	return f, nil
 }
@@ -1414,7 +1423,7 @@ func ticketSearch(env Env, args []string) *wire.Result {
 	if err != nil {
 		return failure(cmd, nil, err)
 	}
-	fl, p, err := pagedFlags("ticket search", args, "status", "kind", "priority", "owner", "milestone", "label", "text", "phase", "lifecycle")
+	fl, p, err := pagedFlags("ticket search", args, "status", "kind", "priority", "owner", "milestone", "label", "text", "phase", "lifecycle", "supersedes")
 	if err == nil {
 		err = fm.checkCount(fl)
 	}
@@ -1433,12 +1442,21 @@ func ticketSearch(env Env, args []string) *wire.Result {
 	rc, err := withInventoryStore(env, func(rc *readCtx) error {
 		var ids []string
 		inv := rc.store.Inventory
+		supersedes := ""
+		if f.supersedes != nil {
+			id, err := resolveTicketArg(rc, *f.supersedes)
+			if err != nil {
+				return err
+			}
+			supersedes = id
+		}
 		for _, id := range inv.Sorted() {
 			if s, _ := inv.Summary(id); !f.matchesSummary(s) || !f.matchesPhase(inv, id, s) {
 				continue
 			}
-			if f.text != nil {
-				if rec, _ := inv.Get(id); !f.matchesText(rec) {
+			if f.text != nil || supersedes != "" {
+				rec, _ := inv.Get(id)
+				if !f.matchesText(rec) || (supersedes != "" && (rec.Supersedes == nil || rec.Supersedes.Raw != supersedes)) {
 					continue
 				}
 			}
