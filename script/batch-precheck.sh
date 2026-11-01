@@ -129,7 +129,11 @@ CATALOG_INPUTS=(@go @root 'docs/*.md')
 planner=${BATCH_PRECHECK_PLANNER-corvint}
 # Steps with wall-clock bounds (node process-lifecycle tests) run alone after the parallel steps
 # (ASD-V0-047, V1-3142).
-SERIAL_TARGETS=(host-adapter-node-test)
+SERIAL_TARGETS=(host-adapter-node-test lane-scripts-test)
+# What script/lane-scripts_test.sh reads: its groups drive the scripts under script/ and read the
+# Makefile and docs/DOGFOOD.md. Its groups run in sequence and share fixtures, so the step runs the
+# whole file, on the merged tree, when one of these changed (ASD-V0-640, V1-3744).
+LST_INPUTS='^(script/|Makefile$|docs/DOGFOOD\.md$)'
 # "<dir>|<gofmt -l arguments>": go-static runs from the root, go-interop from interop/cem01-go.
 GOFMT_SETS=(
   ".|cmd internal tools .github/cishards .github/testconfine"
@@ -436,6 +440,30 @@ wanted() {
   return 1
 }
 
+# lst_report sets lst_skip when --base names a commit and no LST_INPUTS path changed since it
+# (ASD-V0-640); without a base, or when the diff cannot be read, lane-scripts-test runs.
+lst_skip=''
+lst_report() {
+  local sha changed untracked
+  if [[ -z $base ]]; then
+    printf 'batch-precheck: lane-scripts-test runs (no --base)\n'
+  elif sha=$(git rev-parse --verify -q "$base^{commit}") &&
+    changed=$(git -c core.quotePath=true diff --name-only --no-renames "$sha" --) &&
+    untracked=$(git -c core.quotePath=true ls-files -o --exclude-standard); then
+    changed=$(printf '%s\n%s\n' "$changed" "$untracked")
+    if grep -q '^"' <<< "$changed"; then
+      printf 'batch-precheck: lane-scripts-test runs (a changed path needs quoting)\n'
+    elif grep -qE "$LST_INPUTS" <<< "$changed"; then
+      printf 'batch-precheck: lane-scripts-test runs (a script/, Makefile or docs/DOGFOOD.md path changed since %s)\n' "$sha"
+    else
+      lst_skip="no lane-scripts-test input (script/, Makefile, docs/DOGFOOD.md) changed since $sha"
+      printf 'batch-precheck: lane-scripts-test skipped: %s\n' "$lst_skip"
+    fi
+  else
+    printf 'batch-precheck: lane-scripts-test runs (the diff against %s could not be read)\n' "$base"
+  fi
+}
+
 # select_report decides drift_on and cat_skip from the selection and prints the outcome.
 select_report() {
   local i n=${#DRIFT_TESTS[@]} k=0 pkg prefix inputs decl=() skipped=() pkgs
@@ -552,6 +580,12 @@ steps() {
       printf 'make %s\t%senv CORVINT_GOCACHE=%q make -s %s\n' "$t" "$go_wrap" "$gocache" "$t"
     fi
   done
+  # ASD-V0-640 (V1-3744): the lane shell tests on the merged tree, where two lanes' fixtures meet.
+  if [[ -n $lst_skip ]]; then
+    printf 'make lane-scripts-test\tprintf "%%s\\n" %q\n' "skipped: $lst_skip"
+  else
+    printf 'make lane-scripts-test\t%senv CORVINT_GOCACHE=%q make -s lane-scripts-test\n' "$go_wrap" "$gocache"
+  fi
   while IFS= read -r line; do envs+=("$(printf '%q' "$line")"); done < <(doc_gate_env)
   expanded=$(doc_gate_expansion)
   while IFS=$'\t' read -r kind value; do
@@ -870,6 +904,7 @@ fi
 # Drift and catalog selection against the base (ASD-V0-050, ASD-V0-051).
 select_plan
 select_report
+lst_report
 steps > "$dir/steps"
 n=$(wc -l < "$dir/steps" | tr -d ' ')
 # run_one N runs step N, through the ledger when reuse is on; its rc file holds "RC SECS" and, for

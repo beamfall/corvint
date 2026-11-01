@@ -340,6 +340,9 @@ grep -q -- '-run ^(TestDriftOne|TestGoldenWriter|TestVacant) ./pkg ./internal/g 
 grep -q '^make -s use-case-receipts-test GOPROXY=off$' "$tmp/calls" || fail "doc-gates env not applied: $(cat "$tmp/calls")"
 grep -q '^make -s capability-catalog-check GOPROXY=unset$' "$tmp/calls" || fail "extra target: $(cat "$tmp/calls")"
 grep -q '^make -s host-adapter-node-test GOPROXY=unset$' "$tmp/calls" || fail "host-adapter-node-test not run: $(cat "$tmp/calls")"
+# ASD-V0-640 (V1-3744): with no base the lane shell tests run on the merged tree.
+grep -q '^make -s lane-scripts-test GOPROXY=unset$' "$tmp/calls" || fail "lane-scripts-test not run without a base: $(cat "$tmp/calls")"
+grep -q '^batch-precheck: lane-scripts-test runs (no --base)$' "$tmp/out" || fail "lane-scripts-test reason: $(cat "$tmp/out")"
 grep -q "^batch-precheck: $((rows - 3)) passed, 3 failed in " "$tmp/out" || fail "summary: $(cat "$tmp/out")"
 grep -q '^batch-precheck: failed: ' "$tmp/out" || fail "failed list: $(cat "$tmp/out")"
 [[ -f $receipt ]] && fail "a failing run wrote a receipt"
@@ -354,6 +357,7 @@ STUB_SERIAL_PROBE=1 run
 [[ $? == 0 ]] || fail "serial probe run failed: $(cat "$tmp/out")"
 [[ -s $tmp/overlap ]] && fail "host-adapter-node-test ran beside: $(sort -u "$tmp/overlap" | paste -sd ' ' -)"
 grep -q '^batch-precheck: | PASS | *[0-9]*s | make host-adapter-node-test$' "$tmp/out" || fail "serial row: $(cat "$tmp/out")"
+grep -q '^batch-precheck: | PASS | *[0-9]*s | make lane-scripts-test$' "$tmp/out" || fail "lane-scripts-test serial row: $(cat "$tmp/out")"
 read -r w s <<< "$(sed -n 's/.* in \([0-9]*\)s wall, \([0-9]*\)s summed$/\1 \2/p' "$tmp/out")"
 ((w < s)) || fail "the other steps no longer ran in parallel (wall $w, summed $s)"
 /bin/rm -f "$receipt"
@@ -732,6 +736,17 @@ grep -q "^batch-precheck: capability-catalog-check skipped: no catalog input cha
 row_is PASS 'batch-drift (0 of 3 tests)'
 row_is PASS 'make capability-catalog-check'
 grep -q 'capability-catalog-check' "$tmp/scalls" && fail "a skipped catalog check ran: $(cat "$tmp/scalls")"
+# ASD-V0-640 (V1-3744): no script/, Makefile or docs/DOGFOOD.md path changed, so lane-scripts-test
+# is a print-only skip; a new file under script/ runs it.
+grep -q "^batch-precheck: lane-scripts-test skipped: no lane-scripts-test input (script/, Makefile, docs/DOGFOOD.md) changed since $sbase\$" "$tmp/out" || fail "lane-scripts-test not skipped: $(cat "$tmp/out")"
+row_is PASS 'make lane-scripts-test'
+grep -q 'lane-scripts-test' "$tmp/scalls" && fail "a skipped lane-scripts-test ran: $(cat "$tmp/scalls")"
+mkdir -p "$srepo/script" && printf '#!/bin/sh\n' > "$srepo/script/new.sh"
+: > "$tmp/scalls"
+srun --base "$sbase" || fail "a script/ change failed: $(cat "$tmp/out")"
+grep -q "^batch-precheck: lane-scripts-test runs (a script/, Makefile or docs/DOGFOOD.md path changed since $sbase)\$" "$tmp/out" || fail "lane-scripts-test reason: $(cat "$tmp/out")"
+grep -qx 'make -s lane-scripts-test' "$tmp/scalls" || fail "lane-scripts-test not run for a script/ change: $(cat "$tmp/scalls")"
+/bin/rm -rf "$srepo/script"
 # A changed golden (a non-Go file in a Go package directory) runs that package and fails on the
 # real drift, introduced since the base.
 printf 'v2\n' > "$srepo/golden/testdata/want.txt"

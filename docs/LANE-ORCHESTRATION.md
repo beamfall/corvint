@@ -694,6 +694,14 @@ integrator therefore:
   A lane runs it as `make batch-precheck BASE=<lane base sha>` (ASD-V0-032): a failure the base
   already shows prints as a base-present `WARN` and does not fail the lane, but it still fails
   batch CI, so the lane names it in its report for the integrator to fix or file;
+- relies on the precheck's `make lane-scripts-test` step (ASD-V0-640, V1-3744) to run the lane
+  shell tests on the merged tree, where two lanes' fixtures first meet: it runs alone after the
+  parallel steps, and under `BASE` only when a `script/`, `Makefile` or `docs/DOGFOOD.md` path
+  changed (a print-only skip row says so otherwise);
+- runs `go vet` through `script/heavy.sh` like any heavy Go command, from the batch worktree:
+  `set -o pipefail; script/heavy.sh env GOTOOLCHAIN=local go vet ./... 2>&1 | tail -n 40` for the
+  root module, and `(cd interop/cem01-go && ../../script/heavy.sh env GOTOOLCHAIN=local go vet ./...)`
+  for the interop module (heavy.sh runs it in the same subdirectory of its tree);
 - after a CI failure, fixes every failure the run reported, then pushes once more (one push per
   failure round);
 - never pushes a partial batch to "start CI early"; a constituent that arrives late joins the next
