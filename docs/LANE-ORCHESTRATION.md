@@ -830,11 +830,19 @@ Common refusals and their recovery:
 | `unarchived-base-cem` | run the `fix:` line it prints (commits the inherited archive), rerun with the same BASE |
 | `RESOURCE_COLLISION`, `OUT_OF_SCOPE`, `DUPLICATE_ID` (Tasks) | orchestrator-owned; report the exact line, do not work around it |
 
-Drift. A refusal named here that the product renames is a docs defect; the map is checked against
-the real CLI by the guide-drift test of V1-3239 AC2 (NOT DELIVERED in this lane: it is a Go test
-under `internal/`, outside this docs lane's scope). The refusal audit and the check that a new
-refusal code carries a recovery hint (AC3, AC4) are likewise NOT DELIVERED here and stay open on
-V1-3239.
+Drift. `make flow-guide-check` (a doc gate, ASD-V0-996) checks this section and the repository
+skill `.claude/skills/corvint-lane-flow/SKILL.md` against the real CLI: every `corvint`,
+`corvint-tasks`, `make` and `script/` span must name an existing subcommand, flag, Makefile rule or
+script, and every code in the table above must occur in source. A refusal the product renames
+therefore fails the gate instead of misleading a lane.
+
+New refusals (ASD-V0-997). The same check gates the refusal sites of `script/*.sh` (`refuse "CODE
+..."`) and `internal/dogfoodflow` (`.fail` and `.refuse`): a site must name its recovery (a `fix:`
+line, a valid form such as `want` or `usage:`, a `failRecoveries` default) or have its code in the
+table above. The pairs that did not on 2026-11-01 are listed in
+`tools/flow-guide-check/unhinted-refusals.tsv`, which only shrinks; a new unhinted code fails.
+`go run ./tools/flow-guide-check --audit` prints the counts (ASD-V0-998). A `dogfood check` FAIL
+without its own fix line now prints the code's default recovery.
 
 Lane notes (V1-3610). A lane starts with no seeded sibling hand-over by design: its inputs are the
 charter, the open-friction digest (section 12) and `~/lane-inputs`. The orchestrator names an

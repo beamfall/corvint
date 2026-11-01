@@ -566,6 +566,15 @@
       "interop/",
       "tools/"
     ],
+    "tools/flow-guide-check": [
+      ".claude/",
+      "Makefile",
+      "cmd/",
+      "docs/",
+      "internal/",
+      "script/",
+      "tools/"
+    ],
     "tools/gate-affected-select": [],
     "tools/gate-ledger": [
       "internal/gateselect/",
