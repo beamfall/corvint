@@ -66,6 +66,15 @@ To repair it, run `git repack -a -d`, delete `.git/objects/info/alternates` and
 Every `dogfood-change` refusal caused by one of these inputs prints the step and reason, then a
 `fix:` line naming the correction (`DCW-V0-014`).
 
+Variable names (V1-3258). The table names the environment variables that `corvint dogfood change`,
+`make dogfood-change`, `dogfood-check` and `dogfood-seal` read. `make dogfood-inputs-check`,
+`make dogfood-finish` and `make dogfood-closeout` take the same inputs under shorter make-variable
+names, one for one: `CITATIONS=` (`DOGFOOD_CITATIONS`), `INTENTS=` (`DOGFOOD_INTENTS_FILE`),
+`VERIFY=` (`DOGFOOD_VERIFY_FILE`), `OUTCOME=` (`DOGFOOD_OUTCOME`), with `BASE=` and `LANE=1`. They
+are the only names those three targets read, so exporting `DOGFOOD_CITATIONS` does not satisfy
+`make dogfood-inputs-check` (it refuses `missing-inputs CITATIONS`). `script/lane-scripts_test.sh`
+pins this agreement (group V1-3258).
+
 ### Steps and expected state
 
 1. Orient before editing: read `corvint context --task` for the files the change touches and retain
@@ -569,6 +578,43 @@ own base and bind commit, as `dogfood batch-check` does, prints `NOTE sealed-cem
 and the plan cites each sealed file's hunk like any other. A modified, deleted, misnamed, drifted or
 unverifiable sealed CEM still refuses `sealed-cem-in-change`, naming each path and its reason
 (`DCW-V0-042`, proposed).
+
+#### Integrating sealed branches (V1-0527)
+
+A batch or integration branch that merges several already-sealed leaves (`git merge --no-ff`, the
+batch-PR default) imports each leaf's `.corvint/changes/<commit>.cem.json`. Workflow, in order:
+
+1. Keep every leaf's original bind and seal commits and sealed map in the branch's Git ancestry. The
+   merge commits preserve them; never rewrite, squash or rebase them, and never lower `BASE` below
+   the integration base to hide them.
+2. Bind the whole range from the unchanged base: `make dogfood-change BASE=<integration base>`.
+   Unmodified, verifiable sealed maps the range adds are re-verified against their own base and bind
+   commit and printed `NOTE sealed-cem-merged` (above); the plan cites each sealed file's hunk like
+   any other, and the new CEM certifies only the integration's own hunks and checks.
+3. `REFUSE sealed-cem-in-change` is the guard working, not a bug to bypass. It names each path and
+   reason: a modified, deleted, misnamed, drifted or unverifiable map, a map named for a commit
+   outside HEAD's history (`ASD-V0-109`), or any difference under `.corvint/changes` that is not a
+   verifiable add (`internal/dogfoodflow/change.go` refuses every such difference, not only new
+   files). Recovery for a refused import is the preservation disposition: record the exact raw seal
+   file path, Git blob ID and SHA-256 of each refused map in a preservation manifest (for example
+   under the build log), keep the originals reachable in the merged ancestry, remove only the
+   final-tree copies absent at the base, leave every pre-existing base map byte-for-byte unchanged,
+   and rebind the whole range. A separate reviewer reads the manifest against `git cat-file` before
+   the rebind.
+4. A conflict resolution inside a merge commit carries no CEM binding of its own: `dogfood-check`'s
+   unbound-commit scan does not examine merge commits (reported 2026-10-05, batch #570: five sealed
+   leaves, three conflict resolutions). Cite the resolved hunks in the whole-range plan, because the
+   range diff contains them, and list each conflicted path in the build log.
+
+Evidence classes. The leaves' original binds and seals are historical evidence for their own
+hunks, produced by their own checks at their own bases; they are not re-run or re-qualified by the
+integration. The new whole-range CEM, its fresh four checks and the integration's gate runs are new
+evidence for the composition only. Failed outcomes observed while integrating (the 2026-09 to
+2026-10 reproductions: LSP stack, GH408 PR413, PR476/PR443, GH468 and batch #570, all
+`sealed-cem-in-change` on a naive retained-tree import) stay in the retained build-log entries. Their
+fixes, preservation manifests and qualification limits are per exact engine and scope; no broad
+outcome follows. Not reproduced in this lane: whether current main still refuses the cases above
+(the `NOTE sealed-cem-merged` text predates them); a lane that meets the refusal retains the log.
 
 #### Stacking on a sealed predecessor
 

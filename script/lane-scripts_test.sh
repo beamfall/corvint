@@ -1571,6 +1571,17 @@ ltm_out=$(python3 "$script/lane-transcript-metrics.py" "$ltm/p" --since 2026-10-
   fail "lane-transcript-metrics orchestrator leaked into totals: $ltm_out"
 [[ $(ltm_q 'sorted((r["agent"], r["kind"], r["lane"]) for r in d["orchestratorSessions"])' <<< "$ltm_out") == "[('named', 'orchestrator', False), ('orch', 'orchestrator', False)]" ]] ||
   fail "lane-transcript-metrics orchestrator not reported apart: $ltm_out"
+# ASD-V0-990 (V1-3258): docs/DOGFOOD.md and the Makefile agree on the dogfood-inputs-check variable names. The
+# target reads CITATIONS, INTENTS, VERIFY and OUTCOME, and the Inputs section maps each
+# DOGFOOD_* name to them and shows the same make invocation.
+repo=$(cd "$script/.." && pwd)
+mk=$(sed -n '/^dogfood-inputs-check:/,/^$/p' "$repo/Makefile")
+for v in CITATIONS INTENTS VERIFY OUTCOME; do
+  [[ $mk == *"\$($v)"* ]] || fail "Makefile dogfood-inputs-check does not read \$($v)"
+  grep -q "\`$v=\` (\`DOGFOOD_" "$repo/docs/DOGFOOD.md" || fail "DOGFOOD.md does not map $v= to its DOGFOOD_ name"
+done
+grep -q 'make dogfood-inputs-check BASE=BASE_SHA CITATIONS=cites.tsv INTENTS=intents.txt VERIFY=verify.txt OUTCOME=passed' "$repo/docs/DOGFOOD.md" ||
+  fail "DOGFOOD.md lost the dogfood-inputs-check invocation with the make variable names"
 ok
 
 # ASD-V0-014: no fixture outlives the run, so nothing can write after the summary line. Every
