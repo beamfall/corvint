@@ -59,7 +59,7 @@ format (V1-3771).
   `external-provider` and `tool-output` (`internal/contextindex/trust.go`, TCP-V0-023).
 - The tamper matrix records ACCEPT for `span-hash-recomputed`, `evidence-ids-swapped` and
   `hunk-reorder`, and hunk order is never checked against patch order (V1-3771).
-- Measurements re-taken on this base's 180 committed maps are in the build-log entry above.
+- Measurements re-taken on this base's 180 committed maps are in `docs/build-log/2026-11-01-cem2-w14.md`.
 
 ## Plan sections (reconstructed slots)
 
