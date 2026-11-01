@@ -243,6 +243,12 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   or carries another version is refused with the decoder's code or `MALFORMED`. Over a pending
   receipt `handoffFences` is `null` with a `NOT_OBSERVED` warning, as for a committed update. The
   preview is advisory: the later write still takes its own version check under the writer lock.
+- `TCL-V0-822`: (experimental under the standing lane auto-accept (2026-11-01); V1-3925; refines
+  TCL-V0-860) A single-target `ticket hold` given no `--expected-revision` reads the live revision
+  as before, and when it is given `--issued-at` and the request index records its `--request-id`,
+  it MUST submit the earlier revision whose rebuilt envelope digest equals the recorded digest,
+  so a retry of an applied hold replays its recorded result instead of refusing
+  `REQUEST_ID_CONFLICT`. A changed payload under the same request ID still conflicts.
 
 ## Non-goals
 
@@ -308,6 +314,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `TestTCLV0820_BoundedAuditIgnoresLaterInconsistentReceipt` (TCL-V0-820).
 - `internal/tasks/cli/policy_dry_run_test.go`:
   `TestTCLV0821_PolicyDryRunPreviewsFencesAndWritesNothing` (TCL-V0-821).
+- `internal/tasks/cli/review_fixes_test.go`:
+  `TestTCLV0822_DefaultRevisionHoldRetryReplays` (TCL-V0-822).
 
 ## Rollback
 
