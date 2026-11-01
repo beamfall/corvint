@@ -48,12 +48,15 @@ parameter-transformation	echo ${d}{name@Q}
 negative-array-index	echo ${d}{list[-1]}
 nameref	local -""n ref=x
 test-variable-set	[[ -""v name ]]
+test-variable-set	[[ -n ${d}x && -""v y ]]
+case-modification	echo "${d}{name,,}"
 globstar	shopt -s glob""star
 co""proc	co""proc cat
 pipe-stderr	make |""& tee log
 append-both	make &"">> log
 case-fallthrough	a) echo a ;;""&
 automatic-fd	exec {f""d}> log
+automatic-fd	: {f""d}>log
 wait-next	wa""it -n
 brace-step	echo {1..9..""2}"
 while IFS=$'\t' read -r label text; do
@@ -82,7 +85,57 @@ absent 'tool.py' "$tmp/out"
 run_gate || { cat "$tmp/out" >&2; fail "Bash 3.2 forms refused"; }
 expect 'check-bash32: ok, 1 scripts' "$tmp/out"
 
-# 6. The gate is a doc gate, so make doc-gates and batch-precheck run it (ASD-V0-750).
+# 6. Quoted text and comments are not code: no rule fires on a word in a string or a comment.
+{
+  echo '#!/usr/bin/env bash'
+  printf '%s\n' "echo \"map""file is unavailable\"" "echo x # map""file is Bash 4" "echo 'wa""it -n' \"co""proc\""
+  printf '%s\n' "msg='a" "dec""lare -A in a multi-line string'"
+  printf '%s\n' '[[ $(command -''v git) == x ]] || echo none'
+} > "$repo/ok.sh"
+run_gate || { cat "$tmp/out" >&2; fail "quoted text or a comment refused"; }
+expect 'check-bash32: ok, 1 scripts' "$tmp/out"
+
+# 7. An apostrophe in here-document prose does not hide the code after the terminator.
+{
+  echo '#!/usr/bin/env bash'
+  echo 'cat <<EOF'
+  echo "don't stop"
+  echo 'EOF'
+  printf '%s\n' "map""file -t lines < f"
+} > "$repo/ok.sh"
+if run_gate; then fail "here-document apostrophe hid a construct"; fi
+expect "check-bash32: FAIL map""file ok.sh:5:" "$tmp/out"
+
+# 8. An incomplete scan refuses and never prints ok: an unreadable script exits 2.
+printf '#!/bin/bash\necho ok\n' > "$repo/ok.sh"
+git -C "$repo" add -A
+chmod 000 "$repo/ok.sh"
+if [[ -r $repo/ok.sh ]]; then
+  echo 'check-bash32_test: SKIP unreadable-script case (running as a user who can read mode 000)'
+else
+  set +e
+  (cd "$repo" && script/check-bash32.sh) > "$tmp/out" 2>&1
+  rc=$?
+  set -e
+  [[ $rc == 2 ]] || { cat "$tmp/out" >&2; fail "unreadable script exited $rc, want 2"; }
+  expect 'check-bash32: FAIL incomplete scan' "$tmp/out"
+  absent 'check-bash32: ok' "$tmp/out"
+fi
+chmod 644 "$repo/ok.sh"
+
+# 9. The gate needs no temporary file: with TMPDIR unusable it still refuses a construct (the
+# Bash 3.2 here-string failure that once skipped every rule and printed ok).
+printf '#!/bin/bash\n%s\n' "map""file x" > "$repo/ok.sh"
+git -C "$repo" add -A
+set +e
+(cd "$repo" && TMPDIR="$tmp/missing" script/check-bash32.sh) > "$tmp/out" 2>&1
+rc=$?
+set -e
+[[ $rc == 1 ]] || { cat "$tmp/out" >&2; fail "TMPDIR unusable exited $rc, want 1"; }
+expect "check-bash32: FAIL map""file ok.sh:2:" "$tmp/out"
+/bin/rm -f "$repo/ok.sh"
+
+# 10. The gate is a doc gate, so make doc-gates and batch-precheck run it (ASD-V0-750).
 grep -qE '^DOC_GATE_TARGETS := (.* )?bash32-check( |$)' "$root/Makefile" || fail "bash32-check is not in DOC_GATE_TARGETS"
 grep -qE '^GATE_STEPS = (.* )?bash32-check( |$)' "$root/Makefile" || fail "bash32-check is not in GATE_STEPS"
 
