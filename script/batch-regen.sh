@@ -12,7 +12,7 @@
 #   script/batch-regen.sh --golden-tests  print the "<package> <test>" goldens it rewrites
 #
 # Order: spec-requirements (REQUIREMENTS.tsv, INDEX.json, README.md), capability-catalog
-# (internal/capcatalog), analyzer-schema (bump only when `script/analyzer-schema.sh check` fails),
+# (internal/capcatalog), analyzer-schema (bump only when `script/analyzer-schema.sh check --output` fails),
 # the GOLDEN_TESTS goldens (CORVINT_UPDATE_GOLDEN=1, always local: HEAVY_REMOTE=0), host package
 # version bumps, the line-citation repin (`script/check-line-citations.sh --repin`), and last the
 # use-case receipt repin, because receipts pin the other outputs.
@@ -60,7 +60,7 @@ goldens() {
 }
 
 analyzer() {
-  script/analyzer-schema.sh check > /dev/null 2>&1 && return 0
+  script/analyzer-schema.sh check --output > /dev/null 2>&1 && return 0 # IDX-SNAP-V0-891
   script/analyzer-schema.sh bump
 }
 

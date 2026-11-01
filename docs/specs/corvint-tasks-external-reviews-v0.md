@@ -360,6 +360,13 @@ artifact and stays within the generic maximal derived-event descriptor of 1669 b
   attempt, writes the note without `commit`, so its packet checkpoint stays `NOT_OBSERVED`. The
   resolution runs only when a note is written. Accepted under the owner's standing auto-accept of lane requirements (2026-10-11; V1-2246).
 
+- `ERG-V0-870`: The external review binding fold a read runs MUST walk only the receipts after the newest retire anchor, so its per-call cost is bounded by the receipts since the last `receipt retire`, not by the store's whole history (accepted under the owner's standing auto-accept (2026-10-11); V1-0907).
+  `gate state`, the completion offer and the dispatcher fold the receipts at most once per command,
+  seeded from the anchor's afterimages (JRT-V0-008). A read never persists a fold checkpoint:
+  product invariant 4 forbids a read writing derived state, so the bound is the retire cadence, not
+  a cache. Two stores whose histories differ only before the anchor fold the same number of
+  receipts and report the same gate state.
+
 ## Non-goals
 
 No prose interpreter, side database, daemon, network read, automatic reviewer spawning or worker
@@ -421,6 +428,7 @@ links, two writers and the descriptor. The last column stays NOT_RUN.
 | ERG-V0-027 | V1-1921 | `TestERGV0027_HistoryBoundNamesNextCursor` (with the bound shrunk to two one-event pages, `omitted` and `readOnDemand.history` name the cursor, and the named command returns exactly the two unread events) | none beyond promotion |
 | ERG-V0-022 | GitHub #1217 | `TestERGV0022_PacketFromSourceRepository` (two repositories: `--commit` with `--source PATH` and with a configured name resolves and diffs in the source, records `repository`, writes neither `.git`; a task-repository commit still resolves; an absent commit refuses `COMMIT_NOT_FOUND:` naming both roots; an undeclared name or a non-root path refuses `SOURCE_REPOSITORY_UNKNOWN:`; `--config` alone is a usage error), `TestERGV0022_DispatchSourceBuildsWithoutSource` (the dispatch source with the role's source builds a `SOURCE_HEAD` packet without `--source`), `TestERGV0022_RoleSourceRepositoryConfig` (`internal/tasks/dispatch`: the role's source reaches the queue; an undeclared name, a bad name or path and 17 entries refuse) | operator use in a live two-repository program |
 | ERG-V0-023 | V1-1923 | `TestERGV0023_ReasonsCanonicalizedNotRefused` (four `--reason` flags out of order with a repeat record one RETURN whose history carries the three sorted reasons, `TEST` before `TESTS`; the same request id with the flags reordered replays), `TestERGV0023_MalformedEvidenceNeverDroppedAsDuplicate` (a malformed flag spelling a valid flag's element bytes is kept and sorted first in either order), `TestERGV0002_EvidenceCandidatesNeedAnArtifactLink` (adding that colliding flag to a retained request id refuses `REQUEST_ID_CONFLICT` instead of replaying, and a fresh request refuses `MALFORMED`, in both orders), `TestERGV0023_EvidenceFlagsComposeSortedSet` (reordered `--evidence` flags with a repeat compose a sorted set the §2 check accepts; a malformed flag is kept for composition to refuse) | none |
+| ERG-V0-870 | V1-0907 | `TestERGV0870_ReviewFoldIsBoundedByTheRetireAnchor` (stores with 2 and 12 tickets planned before `receipt retire` reach different head sequences but fold the same number of receipts after the anchor, and the reviewed ticket's gate is PASS in both) | none |
 
 ## Rollout and rollback
 

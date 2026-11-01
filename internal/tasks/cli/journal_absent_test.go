@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -96,10 +97,18 @@ func TestCTS002NoFallbackForExistingJournal(t *testing.T) {
 					fixture.PlantReceipt(t, r, 2)
 				}
 			}
-			for _, args := range [][]string{{"queue", "status"}, {"roadmap"}, {"ticket", "show", "A"}, {"ticket", "search"}} {
+			// ticket search carries a filter so it refuses for the journal, not as an
+			// unfiltered usage error (V1-3278); every read refuses with the same reason.
+			var want []string
+			for i, args := range [][]string{{"queue", "status"}, {"roadmap"}, {"ticket", "show", "A"}, {"ticket", "search", "--status", "OPEN"}} {
 				got := projectionRead(t, Env{Cwd: r.Root, Args: args})
-				if got.Outcome == wire.OutcomeOK || strings.Contains(strings.Join(got.Warnings, " "), "unaudited") {
-					t.Fatalf("fallback for %s: %+v", name, got)
+				if got.Outcome == wire.OutcomeOK || strings.Contains(strings.Join(got.Warnings, " "), "unaudited") || len(got.Codes) == 0 || strings.Contains(strings.Join(got.Warnings, " "), "argv") {
+					t.Fatalf("fallback for %s %v: %+v", name, args, got)
+				}
+				if i == 0 {
+					want = got.Warnings
+				} else if !slices.Equal(got.Warnings, want) {
+					t.Fatalf("%s %v: warnings %v, want %v", name, args, got.Warnings, want)
 				}
 			}
 		})

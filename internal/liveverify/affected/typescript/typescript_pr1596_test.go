@@ -95,7 +95,7 @@ func TestFrontierSiteIsTheParsedSpecifier_PR1596(t *testing.T) {
 	if !sites.has(FrontierUnresolvedImport, "src/a.ts:2") || len(sites[FrontierUnresolvedImport]) != 1 {
 		t.Fatalf("relative import site: %v", sites[FrontierUnresolvedImport])
 	}
-	if !sites.has(FrontierPathAlias, "src/a.ts:4") || len(sites[FrontierPathAlias]) != 1 {
-		t.Fatalf("bare import site: %v", sites[FrontierPathAlias])
+	if !sites.has(FrontierBareImportUndeclared, "src/a.ts:4") || len(sites[FrontierBareImportUndeclared]) != 1 {
+		t.Fatalf("bare import site: %v", sites[FrontierBareImportUndeclared])
 	}
 }

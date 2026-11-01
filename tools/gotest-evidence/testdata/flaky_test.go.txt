@@ -1,0 +1,21 @@
+package flaky
+
+import (
+	"os"
+	"testing"
+)
+
+func TestPass(t *testing.T) {}
+
+func TestFail(t *testing.T) { t.Fatal("deliberate failure") }
+
+func TestSkip(t *testing.T) { t.Skip("deliberate skip") }
+
+func TestTable(t *testing.T) {
+	t.Run("one", func(t *testing.T) {})
+	t.Run("two/nested", func(t *testing.T) {
+		if os.Getenv("FLAKY_FAIL") != "" {
+			t.Fatal("flaky")
+		}
+	})
+}

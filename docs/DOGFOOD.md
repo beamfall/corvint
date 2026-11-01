@@ -66,6 +66,15 @@ To repair it, run `git repack -a -d`, delete `.git/objects/info/alternates` and
 Every `dogfood-change` refusal caused by one of these inputs prints the step and reason, then a
 `fix:` line naming the correction (`DCW-V0-014`).
 
+Variable names (V1-3258). The table names the environment variables that `corvint dogfood change`,
+`make dogfood-change`, `dogfood-check` and `dogfood-seal` read. `make dogfood-inputs-check`,
+`make dogfood-finish` and `make dogfood-closeout` take the same inputs under shorter make-variable
+names, one for one: `CITATIONS=` (`DOGFOOD_CITATIONS`), `INTENTS=` (`DOGFOOD_INTENTS_FILE`),
+`VERIFY=` (`DOGFOOD_VERIFY_FILE`), `OUTCOME=` (`DOGFOOD_OUTCOME`), with `BASE=` and `LANE=1`. They
+are the only names those three targets read, so exporting `DOGFOOD_CITATIONS` does not satisfy
+`make dogfood-inputs-check` (it refuses `missing-inputs CITATIONS`). `script/lane-scripts_test.sh`
+pins this agreement (group V1-3258).
+
 ### Steps and expected state
 
 1. Orient before editing: read `corvint context --task` for the files the change touches and retain
@@ -123,7 +132,10 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    A change to dogfood tooling (`internal/dogfoodflow/`, `internal/cem/`, `cmd/corvint/dogfood_*.go`)
    needs the lane-built binary: draft with `"$(git rev-parse --absolute-git-dir)/corvint/corvint" dogfood propose-citations $BASE`
    after a `make dogfood-inputs-check` built it, and leave `CORVINT_BIN` unset for closeout, which
-   otherwise refuses `corvint-bin-predates-tree-tooling` before any build (`ASD-V0-087`).
+   otherwise refuses `corvint-bin-predates-tree-tooling` before any build (`ASD-V0-087`), unless its
+   Go build stamp is `HEAD` with no uncommitted change, or only `*_test.go` tooling files changed
+   (`ASD-V0-901`). A plan with no row is refused up front as `CITATIONS:empty` (`ASD-V0-903`), and
+   every up-front refusal names the target you ran (`ASD-V0-902`).
    A plan written for an earlier map, such as nine rows kept after a later commit added a tenth
    hunk, refuses `cem-cite: citation-plan-map-mismatch` and cites nothing; rewrite it from the
    current map. So does the same plan rerun after a commit moved a hunk it named by ordinal to
@@ -211,8 +223,11 @@ Every `dogfood-change` refusal caused by one of these inputs prints the step and
    in place of the summary, and a failing CEM policy always prints it. A base whose committed CEM names a base outside its history also prints
    `dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-base-unavailable`; a base whose
    window since the previous bound CEM contains commits no sidecar covers instead prints one
-   `dogfood-check: NOTE unbound-commits count=N window=PREVIOUS_BASE..BASE newest=SHA oldest=SHA
-   before-base list=FILE` line whose private list file names every commit (`DCW-V0-343`);
+   `dogfood-check: NOTE unbound-commits count=N window=PREVIOUS_BASE..BASE
+   window-start=cem-base-of:BINDING newest=SHA oldest=SHA before-base list=FILE` line whose private
+   list file names every commit (`DCW-V0-343`); BINDING is the previous binding (the CEM committed
+   at BASE, else the bind commit under the newest seal reachable from BASE) whose CEM base starts
+   the window, so a rebased lane's window may start before its own BASE (`DCW-V0-903`);
    neither note changes the verdict.
 10. Run `make dogfood-seal BASE=$BASE`. Expected: the step 9 lines, then `dogfood-seal: PASS
     sealed=.corvint/changes/<bind-commit>.cem.json` and one rename-only commit. When the step 9
@@ -300,6 +315,25 @@ $ corvint context --task "THE CHANGE" --limit 20 > "$corvint_git_dir/corvint/pre
 $ corvint query --task "THE CHANGE" --limit 1 > "$corvint_git_dir/corvint/prechange-query.json"
 $ corvint impact PATH... --limit 10 > "$corvint_git_dir/corvint/prechange-impact.json"
 ```
+
+The supported recorder runs those three reads for you and binds them (`DCW-V0-880`), so no file
+needs forwarding to closeout. Run it before the first edit, while `HEAD` is BASE:
+
+```console
+$ make dogfood-prechange BASE=BASE_SHA TASK="THE CHANGE" PATHS="PATH..."
+```
+
+It writes the same three receipts plus `prechange-binding.json`, which names BASE, its tree, this Git
+directory, the task and each receipt's digest. `prechange-query` is satisfied by `corvint query
+--task`, `prechange-impact` by `corvint impact PATH...`; `prechange-context` is orientation and
+satisfies neither slot. It refuses `prechange-after-change` once a commit or tracked edit exists,
+since a receipt is never written retrospectively, and `prechange-receipt-exists` rather than overwrite
+a receipt you wrote yourself. Every later `dogfood change` pass, including each `make
+dogfood-closeout` pass, prints `NOTE prechange-query OBSERVED bound sha256=... command=corvint query`
+for a bound receipt, or the reason it is not: `agent-receipt-unsupported tool=...` (for example a
+context receipt saved as the query receipt), `agent-receipt-binding-mismatch`,
+`agent-receipt-binding-other-base` or `agent-receipt-wrong-worktree` (`DCW-V0-881`). The notes stay
+non-blocking.
 
 `context --task` is the orientation read: which tracked files a ticket-to-change task touches. The
 frozen Beamfall roadmap orientation gate admitted it against a grep baseline before this route
@@ -425,8 +459,10 @@ this order:
    and that committed `HEAD`: no prepared map, `DOGFOOD_INTENTS_FILE`, `DOGFOOD_VERIFY_FILE` or
    `DOGFOOD_OUTCOME`. When it refuses `patch-unavailable reason=<code>`, `cem prepare` refuses the
    same patch with that code, so do not run `dogfood change` first: make every changed path a
-   regular file with a textual hunk (no empty, mode-only, binary or symbolic-link change), commit,
-   and rerun it.
+   regular file with content (no empty, mode-only or symbolic-link change), commit, and rerun it.
+   A binary file beside a textual hunk binds (`CEM-V1-980`); only a binary-only patch, a binary
+   rename, copy or mode change, a `GIT binary patch` body and abbreviated object IDs still refuse
+   (`DCW-V0-902`).
 2. Review the draft into `cites.tsv`. Write `intents.txt` (one owning spec path per line,
    `LC_ALL=C sort -u`) and `verify.txt` (one verification command per line), and choose
    `OUTCOME=passed|failed|blocked`.
@@ -543,6 +579,43 @@ and the plan cites each sealed file's hunk like any other. A modified, deleted, 
 unverifiable sealed CEM still refuses `sealed-cem-in-change`, naming each path and its reason
 (`DCW-V0-042`, proposed).
 
+#### Integrating sealed branches (V1-0527)
+
+A batch or integration branch that merges several already-sealed leaves (`git merge --no-ff`, the
+batch-PR default) imports each leaf's `.corvint/changes/<commit>.cem.json`. Workflow, in order:
+
+1. Keep every leaf's original bind and seal commits and sealed map in the branch's Git ancestry. The
+   merge commits preserve them; never rewrite, squash or rebase them, and never lower `BASE` below
+   the integration base to hide them.
+2. Bind the whole range from the unchanged base: `make dogfood-change BASE=<integration base>`.
+   Unmodified, verifiable sealed maps the range adds are re-verified against their own base and bind
+   commit and printed `NOTE sealed-cem-merged` (above); the plan cites each sealed file's hunk like
+   any other, and the new CEM certifies only the integration's own hunks and checks.
+3. `REFUSE sealed-cem-in-change` is the guard working, not a bug to bypass. It names each path and
+   reason: a modified, deleted, misnamed, drifted or unverifiable map, a map named for a commit
+   outside HEAD's history (`ASD-V0-109`), or any difference under `.corvint/changes` that is not a
+   verifiable add (`internal/dogfoodflow/change.go` refuses every such difference, not only new
+   files). Recovery for a refused import is the preservation disposition: record the exact raw seal
+   file path, Git blob ID and SHA-256 of each refused map in a preservation manifest (for example
+   under the build log), keep the originals reachable in the merged ancestry, remove only the
+   final-tree copies absent at the base, leave every pre-existing base map byte-for-byte unchanged,
+   and rebind the whole range. A separate reviewer reads the manifest against `git cat-file` before
+   the rebind.
+4. A conflict resolution inside a merge commit carries no CEM binding of its own: `dogfood-check`'s
+   unbound-commit scan does not examine merge commits (reported 2026-10-05, batch #570: five sealed
+   leaves, three conflict resolutions). Cite the resolved hunks in the whole-range plan, because the
+   range diff contains them, and list each conflicted path in the build log.
+
+Evidence classes. The leaves' original binds and seals are historical evidence for their own
+hunks, produced by their own checks at their own bases; they are not re-run or re-qualified by the
+integration. The new whole-range CEM, its fresh four checks and the integration's gate runs are new
+evidence for the composition only. Failed outcomes observed while integrating (the 2026-09 to
+2026-10 reproductions: LSP stack, GH408 PR413, PR476/PR443, GH468 and batch #570, all
+`sealed-cem-in-change` on a naive retained-tree import) stay in the retained build-log entries. Their
+fixes, preservation manifests and qualification limits are per exact engine and scope; no broad
+outcome follows. Not reproduced in this lane: whether current main still refuses the cases above
+(the `NOTE sealed-cem-merged` text predates them); a lane that meets the refusal retains the log.
+
 #### Stacking on a sealed predecessor
 
 Binding from the shared `BASE_SHA` counts every merged sealed change's hunks, and the specs they
@@ -635,7 +708,7 @@ the sidecar commit and the commits after that CEM's own `baseRevision`. A seal c
 only renames its parent's CEM to `.corvint/changes/<parent>.cem.json`, is covered by that parent;
 any other commit that removes the CEM is not a seal. Every other commit is
 reported on stderr in one line, `dogfood-check: NOTE unbound-commits count=N window=PREV..BASE
-newest=SHA oldest=SHA before-base list=FILE`, where the private file
+window-start=cem-base-of:BINDING newest=SHA oldest=SHA before-base list=FILE`, where the private file
 `<git-dir>/corvint/dogfood-check.unbound-commits` holds one `unbound SHA` line per commit, newest
 first (`DCW-V0-343`); when that file cannot be written the `  unbound SHA` lines print inline
 instead. Nothing is printed when all are bound. When the
@@ -647,8 +720,8 @@ the check's verdict or exit status. It looks only at the window before this base
 reported by the check of the first change that follows it; merge commits and history before the
 previous binding are not examined. A commit covered only by a retroactive binding (below) is not
 unbound and is not normally bound: it is reported on stderr as
-`dogfood-check: NOTE retroactive-bound-commits count=N window=PREV..BASE newest=SHA oldest=SHA
-before-base list=FILE`, where `<git-dir>/corvint/dogfood-check.retroactive-bound-commits` holds one
+`dogfood-check: NOTE retroactive-bound-commits count=N window=PREV..BASE
+window-start=cem-base-of:BINDING newest=SHA oldest=SHA before-base list=FILE`, where `<git-dir>/corvint/dogfood-check.retroactive-bound-commits` holds one
 `retroactive SHA binding=BINDING_SHA` line per commit, newest first, naming the newest such
 binding (inline when the file cannot be written). A normal binding of the same commit takes precedence. The retroactive label is read from
 the binding commit's trailer and is not re-verified by the check, just as window CEMs are not.
@@ -1005,6 +1078,31 @@ make dogfood-closeout BASE="$BASE" CITATIONS="$LANE_DIR/plan.tsv" INTENTS="$LANE
 with `LANE_DIR=$(git rev-parse --absolute-git-dir)` (not `GIT_DIR`, which Git itself reads). A `dogfood-closeout` without `CITATIONS` names
 this recipe in its refusal, before any build.
 
+#### Close a merged cited-only delivery through `cem-verdict`
+
+Before every `gate run cem-verdict`, run the read-only preflight with the gate's own inputs. It
+charges no attempt and names `no-governed-hunk` or `tier-below-anchored` (`TCB-V0-871`):
+
+```console
+$ corvint cem gate-verdict --base BASE --candidate SEAL --predicate touched-anchored \
+    --touch-paths '["PATH",...]' --portable-consumer "$(command -v cem01-go)"
+```
+
+A merged delivery whose sealed map recomputes its code hunks as `cited` refuses
+`tier-below-anchored` over its code touchPaths. An anchored addendum under `docs/build-log/` is not
+a closeout, because no touchPath governs it, so it refuses `no-governed-hunk`. The supported route
+gates the delivered code itself (`TCB-V0-870`):
+
+1. Plan and run the delivered code's tests with `corvint-test-runner` so the plan pins those files.
+2. Commit the plan and receipt on top of the merged delivery.
+3. Assemble a runner-bound map over the delivery's base and that commit. Use
+   `corvint-cem-candidate assemble-stable` with runner pairs, and link each delivered hunk to the
+   passed receipt (`CEM-V1-280..287`).
+4. Seal the map.
+
+Then rerun the preflight. It should GRANT, with each code hunk `cited` and satisfied on
+`runner-input` (`CEM-V1-606`). Run the gate only after that.
+
 ### Staged binding of one oversized commit
 
 Accepted, decision 0510 (V1-1107; `DCW-V0-037`). The normal coordinator supports one
@@ -1232,7 +1330,13 @@ NOT_PRODUCED verify-file-unavailable`). Each line becomes one recorder `--verify
 512-character, shell-syntax-free grammar applies per command; a refused command names its first
 offending byte and the admitted set. A command that needs quotes or regular-expression syntax, such
 as a split `-run '^Test[A-C]'` group, goes in a script committed with the change and is listed as
-`sh path/to/script.sh`; the refusal's fix line names this escape (`DCW-V0-065`). The outcome comes from `DOGFOOD_OUTCOME`. The commands and
+`sh path/to/script.sh`; the refusal's fix line names this escape (`DCW-V0-065`). One quoted `-run`
+word is admitted as one argv word: an alternation (`-run 'TestA|TestB'`, `DCW-V0-384`,
+`DCW-V0-801`), one plain or anchored name (`-run '^TestA$'`) or the whole package (`-run '.'`,
+`-run '.*'`, `DCW-V0-904`), so a heavy.sh whole-package run is listed as
+`HEAVY_WHOLE_REASON='<reason>' /abs/path/heavy.sh go test -count=1 -run '.' ./pkg`
+(`DCW-V0-804`). Write every path in full: a `~` or `~/` path is refused, and the fix line gives it
+with the absolute home directory (`DCW-V0-905`). The outcome comes from `DOGFOOD_OUTCOME`. The commands and
 the outcome must both be non-empty, or the step records nothing and emits `local-outcome
 NOT_PRODUCED outcome-input-not-provided`. A successful classification with no
 admitted source emits `local-outcome NOT_PRODUCED no-source-paths`, writes no trace, and does not by
@@ -1261,7 +1365,7 @@ are shared. A different session must use its own worktree or wait for explicit c
 
 A linked Git worktree is a supported checkout for the loop; it is run at that worktree's top level
 like any other and does not refuse. The loop resolves its private evidence and session directory
-with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:167@8a79d4fb`), which for a linked
+with `git rev-parse --absolute-git-dir` (`internal/dogfoodflow/change.go:168@8a79d4fb`), which for a linked
 worktree (whose `.git` is a file) is that worktree's own directory under the main repository's
 `.git/worktrees/NAME`, so sessions and evidence stay per worktree.
 The `.corvint/` outputs live in the worktree root. Repository-wide Git state (objects, refs, and
@@ -1343,6 +1447,26 @@ on an active enrollment is refused with `cancel-reason-required`, naming the sel
 saved observations it would close, unless `--reason TEXT` records why it is being abandoned. The
 reason is echoed as `cancelReason` in the result and is not persisted (LCP-V0-038). Cancelling an
 already satisfied or cancelled enrollment needs no reason.
+
+When a coordinator's instruction is to preserve that ACTIVE enrollment, it records the instruction
+with `corvint dogfood hold --session-key KEY --reason TEXT`. While the hold exists, `dogfood
+cancel` refuses `enrollment-preservation-hold`, quoting the reason and naming the distinct-checkout
+route; only `dogfood hold --session-key KEY --release-authorization TEXT`, which keeps the released
+hold and its authorization as a record, admits the cancel (LCP-V0-880, LCP-V0-881). Before a managed
+worktree is archived, export its enrollment to a file outside the Git directory:
+
+```console
+$ corvint dogfood export --session-key KEY --output "$HOME/enrollments/KEY.json"
+```
+
+After restore, check out the exported commit and run `corvint dogfood import --session-key KEY
+--input "$HOME/enrollments/KEY.json"` in the restored worktree. The import is bound to that exact
+commit and tree, never replaces an existing enrollment, relocates the saved paths into the new Git
+directory and evaluates as the source did; it never makes the enrollment more satisfied
+(LCP-V0-883..885). Without a bundle a restored worktree reads `inactive`: whether it ever held an
+enrollment cannot be told from it, so report that as `NOT_OBSERVED` and never re-enroll over it.
+Aggregate-outcome and sealed-continuation enrollments cannot be exported yet
+(`enrollment-export-unsupported`); keep their original checkout.
 
 `status` and native events are read-only. An enrolled incomplete Stop permits one remediation;
 recursive Stop releases with an unresolved notice. `cancel` explicitly records non-success and is

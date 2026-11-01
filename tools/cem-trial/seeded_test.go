@@ -206,6 +206,9 @@ func TestThreeArmSummaryKeepsPilotKeysAndDecomposesTheSeededArm(t *testing.T) {
 	if contrast["delta"] != 0.25 || contrast["pairs_scored"] != 2 {
 		t.Fatalf("seeded_vs_treatment = %v", contrast)
 	}
+	if _, killed := contrast["kill_reading"]; killed {
+		t.Fatalf("seeded_vs_treatment upper bound above 0.05 carries a kill reading: %v", contrast)
+	}
 	for _, item := range document.Lanes {
 		if item.Arm == "seeded" && (len(item.SeedHits) != 1 || item.SeedHits[0] != item.GoldHits[0]) {
 			t.Fatalf("seed hits not scored on lane %s/%d: %v", item.ID, item.Repeat, item.SeedHits)

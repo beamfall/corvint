@@ -5,8 +5,8 @@ Date: 2026-10-30
 Intent status: proposed
 Delivery status: experimental
 
-Authoritative inputs: native tickets V1-3193, V1-3189 and V1-3190 (friction filed from lane
-self-use), the release mutation contract `taskman-release-mutation/0` (TM-V0-028, TM-V0-029) and
+Authoritative inputs: native tickets V1-3193, V1-3189, V1-3190 and V1-3191 (friction filed from
+lane self-use) and V1-0232 (release gate attestations unbound to the policy gate argv), the release mutation contract `taskman-release-mutation/0` (TM-V0-028, TM-V0-029) and
 the [agent lease contract](corvint-tasks-agent-leases-v0.md) CAL-V0-021 and CAL-V0-025. The lease
 contract's Requirements section is at the 256-obligation OCM limit (`maxObligations`), so these
 amendments live here.
@@ -14,7 +14,7 @@ amendments live here.
 ## Agent digest
 - Claim: Release membership edits alone; widen PAUSED names admission and recovery; a resumed claim restores its widened scope.
 - Status: proposed; experimental; TRM-V0-001 to TRM-V0-007 are implemented with focused CLI tests.
-- Exists: `release membership --add/--remove` (wire op `RELEASE_MEMBERSHIP`), CLI flag-built membership payload sorted (create/update keep V1-0750 strict set order), the widen PAUSED remedy detail, claim scope restoration with a `restoredScope` claim-result field.
+- Exists: `release membership --add/--remove` (wire op `RELEASE_MEMBERSHIP`), CLI flag-built membership payload sorted (create/update keep V1-0750 strict set order), the widen PAUSED remedy detail, claim scope restoration with a `restoredScope` claim-result field, and the `--admit-under-barrier` claim/widen exemption for one named ticket under an OPERATOR admission barrier, and release attestations of a COMMAND gate bound to the policy gate argv.
 - Blocked on: nothing.
 - Read next: Requirements; Failure modes; Acceptance evidence.
 
@@ -70,13 +70,43 @@ barrier the widen was refused too (V1-3190).
   declared scope unchanged, and a `--scope-from-diff` path is never restored (TCD-V0-175).
 - `TRM-V0-007`: (proposed; V1-3190) A requested path that no attempt of the ticket held MUST
   still be refused `OUT_OF_SCOPE` with the ATR-V0-214 detail, naming only the unrestorable paths.
+- `TRM-V0-800`: (proposed; V1-3191) `corvint-tasks claim <ticket> --admit-under-barrier` and
+  `corvint-tasks widen --attempt A --generation G --admit-under-barrier` MUST be admitted under an
+  admission barrier whose scope is `ADMISSION` and whose reason is `OPERATOR`, when the actor role
+  is `OWNER` or `OPERATOR`, and MUST otherwise apply every check a claim or widen applies without a
+  barrier. The exemption covers only the one named ticket or live attempt of that request; it
+  never changes, lifts or restores the barrier record, so every other request stays refused
+  `PAUSED` while the barrier holds.
+- `TRM-V0-801`: (proposed; V1-3191) The exemption MUST be explicit and recorded: the flag joins
+  the lease request preimage as `admitUnderBarrier: true` (and is omitted when absent, so every
+  earlier request keeps its digest), so the ADMIT or WIDEN receipt's request index entry binds it
+  and a replay without the flag conflicts. `claim --next`, a `WORKER`, `REVIEWER` or other role,
+  a barrier of scope `ALL`, and a barrier with reason `CUTOVER`, `EMERGENCY` or `DRAIN` MUST NOT
+  be exempted: the flag on `--next` is refused `MALFORMED`, and the other cases stay refused
+  `PAUSED` with a detail naming why the exemption does not apply. Without a barrier the flag
+  changes nothing.
+- `TRM-V0-802`: (proposed; V1-3191) The `PAUSED` refusal of a named claim, and the widen remedy of
+  TRM-V0-005, MUST name the `--admit-under-barrier` route alongside unpause and pause.
+- `TRM-V0-803`: (proposed; V1-0232) A release attestation (`taskman-release-attestation/0`) MAY
+  carry `argv`, the ordered, nonempty command vector that produced it; it is omitted when absent,
+  so every earlier attestation keeps its bytes and digest. `release external-attest` of a gate whose
+  policy kind is `COMMAND` MUST be refused `MALFORMED`, writing nothing, unless `argv` equals that
+  gate's policy `argv` element by element. An attestation that carries `argv` for a gate that is
+  not a policy `COMMAND` gate MUST be refused `MALFORMED` too.
+- `TRM-V0-804`: (proposed; V1-0232) Readiness (`release show`) and `release promote` MUST NOT
+  count an attestation of a `COMMAND` gate whose `argv` is absent or differs from the gate's
+  current policy `argv`. Readiness then lists `gate-argv:<gateId>` in `missing`, beside the
+  unsatisfied `gate:<gateId>`, and promotion binds only attestations that pass this check.
 
 ## Non-goals
 
-No new barrier kind or widen exemption; no change to the CAL-V0-021 precedence for a claim
+No new barrier kind; no exemption other than the explicit, per-request TRM-V0-800 one, and none
+for `claim --next` or a non-OPERATOR barrier; no change to the CAL-V0-021 precedence for a claim
 without `--scope`; no restoration across acceptance revisions, from a COMPLETED attempt, or from
 an attempt whose scope was WHOLE_REPOSITORY, REQUESTED or DERIVED; no new stored attempt or receipt
-field; no policy operation name for membership.
+field; no policy operation name for membership. The store does not run the attested command or
+verify its output: TRM-V0-803 binds the attestation to the declared argv, and the attestor's
+evidence and source identity remain the proof that it ran.
 
 ## Failure modes
 
@@ -88,7 +118,18 @@ another lane holds. A restored scope larger than `MaxScopeResources` fails `LIMI
 before any write. Because restoration keys on the last attempt at the same acceptance revision, an
 acceptance edit after the widen ends restoration; the claim then refuses `OUT_OF_SCOPE` as before
 and the lane widens. The PAUSED widen detail is prose; machine callers keep keying on the
-`PAUSED` code.
+`PAUSED` code. The CLI's default role is `OPERATOR`, so the role check alone does not stop a lane
+from passing `--admit-under-barrier`; the gate is that the flag is explicit, per request and bound
+in the receipt's request digest, the same trust as an `unpause` a lane may already run, but scoped
+to one ticket. An exempted claim still refuses a colliding path (CAL-V0-023), so the exemption never
+takes a path another attempt holds.
+
+A policy edit of a `COMMAND` gate's argv already moves the policy digest the candidate binds, so
+readiness reports `candidate-source-or-policy` until a new candidate is captured and attested
+with the new argv. An attestation recorded before TRM-V0-803 carries no `argv`, so for a
+`COMMAND` gate it no longer counts and the gate must be attested again. This store's promoted
+releases keep their recorded promotion, and its open releases carried no attestations when this
+change landed.
 
 ## Acceptance evidence
 
@@ -107,6 +148,23 @@ and the lane widens. The PAUSED widen detail is prose; machine callers keep keyi
   (one claim: 1 mutation) restoring the widened scope with `restoredScope`, the same attempt
   identity, the receipt's Pre/Post binding of the attempt record and `priorGenerations`.
 
+- `TestTRMV0800_AdmitUnderBarrierNamesOneTicket` (TRM-V0-800 to TRM-V0-802) in
+  `internal/tasks/cli/widen_resume_test.go` covers an OPERATOR admission pause, a plain claim
+  refused `PAUSED` naming the route, an exempted claim and widen of one ticket admitted with the
+  barrier record byte-identical afterwards, another ticket's plain claim and `claim --next` still
+  refused, the flag on `--next` refused `MALFORMED`, a replay of the exempted request id without
+  the flag not reusing it, and a clean `receipt audit`.
+  `TestTRMV0801_BarrierExemptionAppliesOnlyToOperatorAdmission` in
+  `internal/tasks/transaction/lease_barrier_exemption_test.go` covers the planner rule: no barrier,
+  no flag, OWNER and OPERATOR admitted, WORKER and REVIEWER refused, and `EMERGENCY`, `CUTOVER`
+  and `DRAIN` barriers refused, each with its detail.
+- `TestTRMV0803_CommandGateAttestationBindsPolicyArgv` (TRM-V0-803, TRM-V0-804) in
+  `internal/tasks/release/attestation_argv_test.go` covers a COMMAND gate attested with the
+  policy argv counted by readiness and promotion, an absent or different argv refused at attest
+  time, an argv on a MANUAL gate refused, a stored argv-less or mismatched attestation reported
+  `gate-argv:<gateId>` and not counted, an attestation without `argv` keeping its digest, and
+  `argv` surviving a decode round trip.
+
 ## Rollback
 
 Revert the source. A membership edit writes an ordinary release record under an ordinary
@@ -114,3 +172,8 @@ Revert the source. A membership edit writes an ordinary release record under an 
 store written with TRM-V0-001 reads unchanged under the reverted binary; only a replay of a
 membership request ID is refused there, as an unknown operation. A reverted claim refuses restored paths
 `OUT_OF_SCOPE` again; attempts admitted with restored scope are ordinary DECLARED-source attempts.
+A reverted binary refuses `--admit-under-barrier` as an unknown flag; attempts admitted under the
+exemption are ordinary attempts, and their recorded request digests replay only under this binary.
+An attestation that carries `argv` is a closed-object member that older binaries reject, so once a
+release record holds one, they refuse the store. Roll back only with a compatible reader or a
+verified pre-change backup, as for any new record member.

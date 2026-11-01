@@ -103,6 +103,21 @@ func New() Language { return Language{} }
 // Name is the plugin namespace.
 func (Language) Name() string { return "go" }
 
+// WorkspaceOutsideRootRoute is the route AFP-V0-761 names for
+// FrontierWorkspaceModuleOutsideRoot: affected plans one checkout, so the
+// sibling is planned in its own checkout and the edges between the two are
+// the cross-repository route's declared relations.
+const WorkspaceOutsideRootRoute = "affected plans one repository root and does not follow a go.work use outside it: run corvint affected in that module's own checkout for its change, and declare its Go API relations to this repository for corvint breakage --manifest (BKM-V0) to see which dependents here a sibling change touches"
+
+// FrontierRoute names the supported route past a frontier reason
+// (AFP-V0-761), or nothing.
+func (Language) FrontierRoute(reason string) string {
+	if reason == FrontierWorkspaceModuleOutsideRoot {
+		return WorkspaceOutsideRootRoute
+	}
+	return ""
+}
+
 // ReadsAnyPath reports that Go units carry path tokens and rule (d) reads, so a
 // unit this plugin could not observe may read any dirty path (V1-0289).
 func (Language) ReadsAnyPath() bool { return true }

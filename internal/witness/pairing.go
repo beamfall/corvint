@@ -53,6 +53,8 @@ func ReadPairingTrailer(ctx context.Context, root, revision string) (*TrailerPai
 		return nil, fmt.Errorf("cannot read a %s trailer: %w", PairingTrailerKey, err)
 	}
 	budget := gitrun.NewDefaultBudget()
+	// Safe unguarded (EEP-V0-771): grafts are off in gitEnvironment, and a shallow boundary
+	// commit lists no parent, which refuses the trailer.
 	parents, err := run(ctx, budget, root, 4096, "rev-list", "--parents", "-n", "1", commit)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read the parents of %s", commit)
@@ -133,6 +135,8 @@ func CheckPairedApplication(ctx context.Context, root string, pairing *TrailerPa
 			return fmt.Errorf("%s %s is not a commit in the mapped checkout", side.label, side.id)
 		}
 	}
+	// Safe unguarded (EEP-V0-771): gitEnvironment sets GIT_GRAFT_FILE=/dev/null and a shallow
+	// boundary only removes parents, so a wrong answer can only refuse the pairing, never admit it.
 	if _, err := run(ctx, gitrun.NewDefaultBudget(), root, 64, "merge-base", "--is-ancestor", pairing.Base, pairing.Head); err != nil {
 		return fmt.Errorf("stale pairing: base %s is not an ancestor of head %s in the mapped checkout", pairing.Base, pairing.Head)
 	}

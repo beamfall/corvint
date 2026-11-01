@@ -1081,10 +1081,14 @@
         "cancel",
         "change",
         "check",
+        "export",
         "finish",
         "finish-lane",
         "handoff",
+        "hold",
+        "import",
         "inputs-check",
+        "prechange",
         "propose-citations",
         "review",
         "seal",
@@ -1096,9 +1100,15 @@
         "dogfood begin": [
           "--plan"
         ],
+        "dogfood export": [
+          "--output"
+        ],
         "dogfood finish-lane": [
           "--base",
           "--citations"
+        ],
+        "dogfood import": [
+          "--input"
         ],
         "dogfood inputs-check": [
           "--base",
@@ -1119,15 +1129,19 @@
         "--check",
         "--citations",
         "--corvint-bin",
+        "--input",
         "--intents",
         "--outcome",
+        "--output",
         "--override-verifier",
         "--plan",
         "--reason",
         "--receipt",
         "--refresh",
+        "--release-authorization",
         "--report-set",
         "--session-key",
+        "--task",
         "--task-state",
         "--tree-verifier",
         "--verifier",
@@ -1143,13 +1157,15 @@
       "selfObservationLedger": "not-listed",
       "writeStatements": [
         "Status is read-only.",
+        "export writes the enrollment, its session files and the artifacts it names to a new FILE bound to HEAD's commit and tree, changing nothing; keep FILE outside the Git directory before a worktree is archived.",
         "handoff is read-only.",
         "change writes the private evidence under the Git directory and .corvint/change.cem.json and .corvint/dogfood-report.json; check verifies the committed binding; seal checks, then commits the CEM rename to .corvint/changes/COMMIT.cem.json.",
         "Prepare also cites each plan row against the prepared map without writing it, so a row cem cite would refuse stops the run before any bind (DCW-V0-335), and so does an intents manifest or a plan the bind would refuse before any cite: invalid, past the map's hunks, or citing one span for every hunk (DCW-V0-379).",
         "batch-check is read-only.",
         "propose-citations is read-only.",
         "The draft is labelled PROPOSED on stderr; review it and write it to the DOGFOOD_CITATIONS file yourself (DCW-V0-150).",
-        "--refresh PLAN carries an earlier plan forward after a later edit, amend or renumber re-hunked it (DCW-V0-442): rows whose hunk ID is current are kept as written, a row whose hunk was re-hunked is re-keyed to the hunk with the same path and content (else the same path and BASE range), and every re-keyed or dropped row is noted on stderr; only the remaining hunks are drafted afresh."
+        "--refresh PLAN carries an earlier plan forward after a later edit, amend or renumber re-hunked it (DCW-V0-442): rows whose hunk ID is current are kept as written, a row whose hunk was re-hunked is re-keyed to the hunk with the same path and content (else the same path and BASE range), and every re-keyed or dropped row is noted on stderr, a re-keyed unknown row's NOTE marked stale for review (DCW-V0-884); only the remaining hunks are drafted afresh.",
+        "It refuses prechange-after-change once the change began, and prechange-receipt-exists rather than overwrite a receipt it did not write."
       ],
       "unknowns": [
         {
@@ -4518,6 +4534,16 @@
       "binary": "corvint",
       "command": "corvint help --tree",
       "snapshot": "internal/capcatalog/trees/corvint.json"
+    },
+    {
+      "binary": "corvint-cem-candidate",
+      "command": "corvint-cem-candidate help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-cem-candidate.json"
+    },
+    {
+      "binary": "corvint-cem-experiments",
+      "command": "corvint-cem-experiments help --json",
+      "snapshot": "internal/capcatalog/trees/corvint-cem-experiments.json"
     },
     {
       "binary": "corvint-tasks",

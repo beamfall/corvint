@@ -55,6 +55,10 @@ func BuildManifestWith(ctx context.Context, bindings map[string]string, sources 
 		if err != nil {
 			return m, errors.New(id + ": " + err.Error())
 		}
+		// A shallow boundary or graft would be pinned as the origin root commit (EEP-V0-773).
+		if reason := ancestryRewritten(ctx, root); reason != "" {
+			return m, errors.New(id + ": " + reason)
+		}
 		commit, err := git(ctx, root, "rev-parse", "--verify", rev+"^{commit}")
 		if err != nil {
 			return m, errors.New(id + ": " + rev + " commit unavailable")

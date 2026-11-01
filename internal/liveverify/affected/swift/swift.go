@@ -35,6 +35,10 @@ const (
 	FrontierAmbiguousImport        = "swift:module-import-ambiguous"
 	FrontierAppiumExternal         = "swift:appium-external-test-body"
 	FrontierMaestroExternal        = "swift:maestro-yaml-flow"
+	// FrontierCrossRepositoryPackage prefixes the frontier of a SwiftPM
+	// dependency on another repository's working copy or revision, suffixed
+	// with its local path or url@revision (V1-2055).
+	FrontierCrossRepositoryPackage = "swift:cross-repository-package"
 	// FrontierExclusionContract reports that the frozen Unit/Exclusion seam
 	// cannot carry LPCV-V0-014's provider and evidence identities.
 	FrontierExclusionContract = "swift:exclusion-evidence-unrepresentable"
@@ -147,6 +151,9 @@ func observePackage(root *affected.Source, manifest string, swiftFiles []string,
 	if strings.Contains(manifestCode, ".plugin(") || strings.Contains(manifestCode, "plugins:") {
 		frontier[FrontierManifestUnresolved] = true
 	}
+	for _, dependency := range crossRepositoryPackages(manifest, string(body)) {
+		frontier[FrontierCrossRepositoryPackage+":"+dependency] = true
+	}
 	targets, complete := scanPackageTargets(string(body))
 	if !complete {
 		frontier[FrontierManifestUnresolved] = true
@@ -173,6 +180,30 @@ func observePackage(root *affected.Source, manifest string, swiftFiles []string,
 		candidates = append(candidates, candidate{unit: unit, module: target.name, rawImports: rawImports, priority: 0})
 	}
 	return candidates, nil
+}
+
+// packagePathPattern and packageRevisionPattern match a literal local or
+// revision-pinned `.package(...)` dependency.
+var (
+	packagePathPattern     = regexp.MustCompile(`\.package\(\s*(?:name:\s*"[^"]*"\s*,\s*)?path:\s*"([^"\n]+)"`)
+	packageRevisionPattern = regexp.MustCompile(`\.package\(\s*(?:name:\s*"[^"]*"\s*,\s*)?url:\s*"([^"\n]+)"\s*,\s*revision:\s*"([^"\n]+)"`)
+)
+
+// crossRepositoryPackages names the manifest's dependencies on another
+// repository whose changes this graph cannot see: a local path outside the
+// root, as written, and a revision pin, as url@revision (V1-2055). A version
+// or branch requirement on a remote package is an ordinary dependency.
+func crossRepositoryPackages(manifest, text string) []string {
+	var dependencies []string
+	for _, match := range packagePathPattern.FindAllStringSubmatch(text, -1) {
+		if local := path.Join(path.Dir(manifest), match[1]); path.IsAbs(match[1]) || local == ".." || strings.HasPrefix(local, "../") {
+			dependencies = append(dependencies, match[1])
+		}
+	}
+	for _, match := range packageRevisionPattern.FindAllStringSubmatch(text, -1) {
+		dependencies = append(dependencies, match[1]+"@"+match[2])
+	}
+	return dependencies
 }
 
 func scanPackageTargets(text string) ([]packageTarget, bool) {

@@ -322,6 +322,23 @@ proposed, experimental; GitHub #1665.
   `TestDCSV1568DerivationStopsAtTheRecordBound` (2 compiles before the change),
   `TestDCSV1484RefusedFirstDeclarationRestoresShardCache`,
   `TestDCSV1484RetryAnswersOnlyCorpusRefusals`.
+- `DCS-V1-814`: (proposed, experimental under the standing lane auto-accept; V1-2748, GitHub
+  #1665) The per-declaration encoding is recorded, not reduced, in this version. Measured
+  2026-10-31 on linux/WSL2 over 401 derived declarations of one records-owned Ruby controller: a
+  derived declaration adds 2,032 bytes (subject 962, declaration claim 1,070), of which its two
+  anchors take 1,085; the rest is member names, the evidence states and the one limitation
+  string. The anchors are the cost: each carries the repository, revision, blob, file and span
+  digests that let every reader, the verified read, `delta` and carry-forward verify that record
+  alone (product invariant 1), and a provider's compact `/2` record (`DCX-V1-487`) is already
+  expanded to those anchors at admission. Halving it needs an artifact-level file table, a new
+  artifact schema that every reader, the streamed decode (`DCR-V1-431`), `delta` and the MCP
+  bridge would decode, with a `DerivationVersion` bump; that is its own change with owner review
+  and is not taken here. Until then `DCS-V1-568` and `DCS-V1-569` keep the build within the
+  128 MiB bound by deriving the prefix that fits and naming the rest in one gap, and a derive
+  filter scopes the declarations a caller wants. Acceptance:
+  `TestDCSV1814DerivedDeclarationEncodedSize` (logs the size and its parts; fails above 2,048
+  bytes, so an encoding change that grows a declaration is caught), the ranking and declaration
+  tests unchanged.
 - `DCS-V1-569`: Amending `DCS-V1-484`, a compile the output byte bound refused is retried once
   deriving the prefix of the same declarations that fits under the bound with a 4096-byte reserve,
   not none. It drops declarations until a lower bound on their encoded bytes (subject, claim, their
@@ -731,5 +748,6 @@ DCPV1.
 | DCS-V1-575 | `internal/doccorpus/compile.go`, `encoding.go`, `docs/RELEASE-NOTES.md` | `TestDCSV1575AnchoredInputsDeriveFirst`, `TestGH1665ResidualTruncatedDeclarationRecoveredByFilter`, `TestDCSV1568DerivationStopsAtTheRecordBound`, `TestDCSV1569DerivationStopsAtTheOutputBound`, `TestDCXV1471DerivationVersionGuard`, `TestDCXV1564ReleaseNotesListEveryDerivation` |
 | DCS-V1-580..582 | `internal/doccorpus/search_rank.go`, `types.go`, `receipt_annotations.go`, `internal/capcatalog/AGENT-GUIDE.md` | `TestDCSV1580MixedQueryRanksExactSymbolToken`, `TestDCSV1581DocumentResultCarriesMatchingParagraphAnchor`, `TestDCSV1582SearchReportsUnmatchedTerms`, `TestDCSV1541IdentifierTokenTier`; recorded in https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-corpus-mixed-query-unmatched-terms-config-keys.md |
 | DCS-V1-583..584 | `internal/contextindex/webimports.go`, `internal/doccorpus/compile.go`, `encoding.go`, `docs/RELEASE-NOTES.md` | `TestDCSV1583WebExportedObjectKeys`, `TestDCSV1583WebExportedObjectKeysAreBounded`, `TestDCSV1583ExportedObjectKeysAreDeclarations`, `TestDCSV1571TypeScriptClassMembersAreDeclarations`, `TestDCXV1471DerivationVersionGuard`, `TestDCXV1564ReleaseNotesListEveryDerivation` |
+| DCS-V1-814 | `internal/doccorpus/declaration_size_v12748_test.go` (measurement only; no encoding change) | `TestDCSV1814DerivedDeclarationEncodedSize` |
 | DCS-V1-590 | `DerivationFilter.Native`, `native`, `validDerivationFilter`, `repositoryQualifier` in `internal/doccorpus/compile.go`, `types.go`; `docs/DOCUMENTATION-CORPUS.md` | `TestDCSV1590NativeDerivationFilterRestrictsNativeOwnedInputs`, `TestDCSV1573DerivationFilterKeepsTheSelectedDeclarations`, `TestDCSV1573DerivationFilterRefusesMalformedFilters` |
 | DCS-V1-591..597 | `ClaimKinds`, `ValidClaimKinds` in `internal/doccorpus/adoption.go`; `types.go`, `query.go`, `typed_query.go`, `path_owners.go`, `receipt_annotations.go`; `internal/mcp/corpusbridge/corpusbridge.go`; `cmd/corvint/docs_corpus.go`, `docs_corpus_help.go` | `TestDCSV1591ClaimsReceiptLabelsClaimKinds`, `TestDCSV1592ClaimsKindFilter`, `TestDCSV1593ClaimsQueryRanksTestRunsAfterOtherClaims`, `TestDCSV1594LocateReturnsDocumentingOwners`, `TestDCSV1595RecommendTestsFollowsOwnerTestLinks`, `TestDCSV1596NavigationQuery`, `TestDCSV1594CorpusPathOperationsReturnDocumentingOwners`, `TestDCSV1592CorpusClaimKindsCLIAndMCP`, `TestDCSV1597CorpusNavigationQueryCLIAndMCP`, `TestDCPV1313ClaimTextQueryReachesClaimRecall`, `TestDocsCorpusOperationFlagMatrix`, `TestDocsCorpusOperationHelpPrintsFlags`; recorded in https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-29-corpus-claim-kinds-path-owners-navigation-query.md |

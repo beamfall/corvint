@@ -62,11 +62,13 @@ func TestPlaywrightExampleAppQualification(t *testing.T) {
 	t.Run("TJAA-V0-015 known widening frontiers", func(t *testing.T) {
 		for _, row := range []struct{ name, file, body, reason string }{
 			{"computed import", "support/page0.ts", `export const value = import(process.env.PAGE)`, FrontierDynamicImport},
-			{"missing alias", "support/page0.ts", `export { value } from "@missing/page"`, FrontierPathAlias},
+			// A specifier no alias config claims is an undeclared bare import (TJAA-V0-771).
+			{"missing alias", "support/page0.ts", `export { value } from "@missing/page"`, FrontierBareImportUndeclared},
 			{"missing target", "support/page0.ts", `export { value } from "@pages/missing"`, FrontierPathAlias},
 			{"inherited tsconfig", "tsconfig.json", `{"extends":"./base.json","compilerOptions":{"baseUrl":"."}}`, FrontierPathAlias},
-			{"equal prefix alias overlap", "tsconfig.json", `{"compilerOptions":{"baseUrl":".","paths":{"@pages/*":["support/page*"],"@pages/*0":["support/helper0"]}}}`, FrontierPathAlias},
-			{"multiple existing targets", "tsconfig.json", `{"compilerOptions":{"baseUrl":".","paths":{"@pages/*":["support/page*","support/helper*"]}}}`, FrontierPathAlias},
+			// Replacing the tsconfig leaves the fixture's other aliases claimed by none (TJAA-V0-771).
+			{"equal prefix alias overlap", "tsconfig.json", `{"compilerOptions":{"baseUrl":".","paths":{"@pages/*":["support/page*"],"@pages/*0":["support/helper0"]}}}`, FrontierBareImportUndeclared},
+			{"multiple existing targets", "tsconfig.json", `{"compilerOptions":{"baseUrl":".","paths":{"@pages/*":["support/page*","support/helper*"]}}}`, FrontierBareImportUndeclared},
 			{"ambiguous target", "support/helper0.js", `export const value = 1`, FrontierPathAlias},
 			{"dynamic global use", "playwright.config.ts", `export default { use: inheritedUse, projects: [{name:"chromium"},{name:"angular"},{name:"react"},{name:"setup"},{name:"cleanup"}] }`, PlaywrightUnknownBrowserIdentity},
 			{"explicit global browser default", "playwright.config.ts", `export default { use: {defaultBrowserType:"firefox"}, projects: [{name:"chromium"},{name:"angular"},{name:"react"},{name:"setup"},{name:"cleanup"}] }`, PlaywrightUnknownBrowserIdentity},

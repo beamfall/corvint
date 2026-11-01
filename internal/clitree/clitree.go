@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"regexp"
 	"slices"
 	"strings"
@@ -543,4 +544,54 @@ func (t Tree) Words() map[string]bool {
 		words[internal.Word] = true
 	}
 	return words
+}
+
+// Answer serves a binary's help from its tree before any flag parsing (CAP-V0-931): `help --json`
+// prints the encoded tree; `help`, a lone --help or -h prints root; `help PATH...` and an
+// invocation whose leading words name a node and whose arguments carry --help or -h before `--`
+// print that node's Render. It reports false for every other invocation, which the binary's own
+// dispatch then handles unchanged.
+func Answer(tree Tree, args []string, root string, stdout io.Writer) (bool, error) {
+	if len(args) == 0 {
+		return false, nil
+	}
+	isHelp := func(arg string) bool { return arg == "--help" || arg == "-h" }
+	var words []string
+	switch {
+	case len(args) == 2 && args[0] == "help" && args[1] == "--json":
+		encoded, err := Encode(tree)
+		if err != nil {
+			return true, err
+		}
+		_, err = stdout.Write(encoded)
+		return true, err
+	case args[0] == "help":
+		words = slices.DeleteFunc(slices.Clone(args[1:]), isHelp)
+	case len(args) == 1 && isHelp(args[0]):
+	default:
+		asked := false
+		for _, arg := range args {
+			if arg == "--" {
+				break
+			}
+			asked = asked || isHelp(arg)
+		}
+		if !asked {
+			return false, nil
+		}
+		words = LeadingWords(args, nil)
+		if len(words) == 0 {
+			return false, nil
+		}
+	}
+	if len(words) == 0 {
+		_, err := io.WriteString(stdout, root)
+		return true, err
+	}
+	node, ok := tree.Find(words)
+	if !ok || (args[0] == "help" && len(node.Path) != len(words)) {
+		return true, fmt.Errorf("unknown command %q; run `%s help`", strings.Join(words, " "), tree.Binary)
+	}
+	_, err := io.WriteString(stdout, Render(tree, node))
+	return true, err
 }

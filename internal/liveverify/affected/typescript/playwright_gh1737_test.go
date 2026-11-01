@@ -38,7 +38,9 @@ func TestPlaywrightPathModeLiteralTestIgnore_GH1737(t *testing.T) {
 		{"word-boundary regular expression testIgnore", "/\\bsetup\\.ts$/", "", line8, nil},
 		{"computed testIgnore", "process.env.IGNORE", "", line8, nil},
 		{"trailing globstar testIgnore", "'tests/skip/**'", "", line8, nil},
-		{"global testIgnore", "", "'**/*.setup.ts'", FrontierConfig + ":playwright.config.ts:5 `testIgnore`", nil},
+		// TJAA-V0-770 (V1-3524): a literal global testIgnore is inherited and resolves.
+		{"global testIgnore", "", "'**/*.setup.ts'", "", nil},
+		{"computed global testIgnore", "", "process.env.IGNORE", FrontierConfig + ":playwright.config.ts:5 `testIgnore`", nil},
 	} {
 		t.Run(row.label, func(t *testing.T) {
 			root := gh1717Repository(t, gh1737Config(row.chromium, row.global))

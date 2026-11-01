@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -35,6 +36,7 @@ var mutationVerbs = map[string]string{
 	"grant-approval":   mutation.OpGrantApproval,
 	"revoke-approval":  mutation.OpRevokeApproval,
 	"attach-evidence":  mutation.OpAttachEvidence,
+	"progress":         mutation.OpProgressSet,
 }
 
 type mutateFlags struct {
@@ -290,6 +292,9 @@ func mutationHelp(cmd []string, operation string) *wire.Result {
 	if operation == mutation.OpAttachEvidence {
 		o.Set("attachEvidence", wire.String("Records 1..16 sha256 digests (sorted unique; the CLI sorts them) and a nonblank reason of at most 512 bytes on an OPEN native ticket (TEA-V0-001). Revision advances by one; acceptanceRevision, status, gates, attempts and every other record field are unchanged, so attached evidence never satisfies a gate or acceptance criterion. A digest already attached at the current acceptanceRevision refuses DUPLICATE_ID; at most 32 entries per ticket. OWNER by default; OPERATOR only through an explicit policy row. Retry with the same --request-id and --issued-at to replay."))
 	}
+	if operation == mutation.OpProgressSet {
+		o.Set("progress", wire.String("Appends one advisory progress entry {phase, lane, host, branch, head, pr, reason} to a DRAFT, OPEN or HELD native ticket (TLF-V0-880). phase is IN_PROGRESS, DELIVERED_ON_BRANCH (needs branch, head), IN_REVIEW or IN_MERGE_QUEUE (need pr), MERGED_AWAITING_CLOSEOUT (needs head), BLOCKED (needs reason) or CLEARED (reason only); absent members are null. Revision advances by one; acceptanceRevision, status, gates and claims are unchanged, and no admission, claim, ranking or completion read consults progress (TLF-V0-881), so it is admitted under an OPERATOR/ADMISSION barrier. Completion and archive clear it. A mark equal to the latest entry refuses DUPLICATE_ID; at most 64 entries. OWNER and OPERATOR by default. Example: corvint-tasks ticket progress --request-id r1 --target V1-1 --expected-revision 3 --payload '{\"branch\":null,\"head\":null,\"host\":\"mac\",\"lane\":\"w4\",\"phase\":\"IN_REVIEW\",\"pr\":\"42\",\"reason\":null}'"))
+	}
 	if operation == mutation.OpCompleteManual {
 		o.Set("completeManual", wire.String(completeManualHelp))
 	}
@@ -322,7 +327,7 @@ func mutateResult(cmd []string, report *store.Report) *wire.Result {
 	res := &wire.Result{Command: cmd, Outcome: wire.OutcomeOK, Items: []wire.Value{wire.ObjectValue(o)}}
 	if report.Outcome.Outcome != mutation.OutcomeCompleted {
 		res.Outcome = wire.OutcomeRefused
-		res.Codes = report.Outcome.Codes
+		res.Codes = refusalCodes(report.Outcome)
 		if report.Detail != "" {
 			res.Warnings = append(res.Warnings, prose(report.Detail))
 		}
@@ -410,6 +415,9 @@ func submitMutationContext(ctx context.Context, env Env, cmd []string, operation
 	}
 	if report.Kind == "Transaction" && report.Outcome.Outcome == mutation.OutcomeCompleted {
 		if w := unboundedEffectsWarning(store0, operation, payload, report.Ticket); w != "" {
+			res.Warnings = append(res.Warnings, w)
+		}
+		if w := requiredGatesWarning(store0.Policy, operation, payload, report.Ticket); w != "" {
 			res.Warnings = append(res.Warnings, w)
 		}
 		if report.MutationEffects != nil {
@@ -547,6 +555,37 @@ func unboundedEffectsWarning(st *intent.Store, operation string, payload wire.Va
 	}
 	return fmt.Sprintf("%s: ticket %s declares no PATH scope under coverage QUALIFIED (coverage %s, %d touchPaths, %d resources), so plan and claim reserve WHOLE_REPOSITORY and it will serialize against every other attempt (policy serialFallback %s); declare its scope with ticket set-effects, or claim a committed change with --scope-from-diff REV (TCD-V0-174)",
 		WarningEffectsUnbounded, ticketID, e.Coverage, len(e.TouchPaths), len(e.Resources), st.Policy.SerialFallback)
+}
+
+// WarningRequiredGatesEmpty prefixes the TCD-V0-807 warning.
+const WarningRequiredGatesEmpty = "REQUIRED_GATES_EMPTY"
+
+// requiredGatesWarning names, for a CREATE that names no requiredGates under
+// a policy with gates, the gates complete still demands and the ones it will
+// not (TCD-V0-807).
+func requiredGatesWarning(p *intent.Policy, operation string, payload wire.Value, ticketID string) string {
+	if operation != mutation.OpCreate || len(p.Gates) == 0 || payload.Obj == nil {
+		return ""
+	}
+	if v, ok := payload.Obj.Get("requiredGates"); !ok || len(v.Arr) != 0 {
+		return ""
+	}
+	required := transaction.RequiredGates(p, &ticket.Record{})
+	optional := []string{}
+	for _, g := range slices.Sorted(maps.Keys(p.GateIDs())) {
+		if !slices.Contains(required, g) {
+			optional = append(optional, g)
+		}
+	}
+	demanded := "no policy gate"
+	if len(required) > 0 {
+		demanded = "the policy-required gates " + strings.Join(required, " ")
+	}
+	tail := ""
+	if len(optional) > 0 {
+		tail = "; it will not demand " + strings.Join(optional, " ") + " unless the ticket names them with ticket set-gates"
+	}
+	return fmt.Sprintf("%s: ticket %s names no requiredGates; complete still demands %s (ticket show effectiveRequiredGates)%s (TCD-V0-807)", WarningRequiredGatesEmpty, ticketID, demanded, tail)
 }
 
 // unmetDependencyWarnings names each COMPLETED-obligation dependency that a

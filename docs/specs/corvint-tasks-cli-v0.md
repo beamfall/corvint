@@ -141,6 +141,17 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `corvint-tasks` CLI requirement that would extend `CAL-V0` MUST take the next `TCL-V0` number in
   this spec; requirements already numbered elsewhere (for example `CAP-V0-060`) stay where they
   are and are cross-referenced.
+- `TCL-V0-870`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3552) A
+  mutation the store refused (any `taskman-outcome/0` outcome other than `COMPLETED`) MUST put at
+  least one closed §11 code in the command result's top-level `codes`, and a `--batch` entry MUST
+  do the same in its own `codes`. The outcome's recorded codes are used when it has any. An
+  outcome recorded without codes gets one derived code: `REVISION_CONFLICT` → `STALE_TICKET`,
+  `VALIDATION_FAILED` and `UNAUTHORIZED` → `MALFORMED` (as `wire.CodeOf` and the lease writer
+  already report an uncoded refusal), `BLOCKED` → `TICKET_STATE`, `UNSUPPORTED` →
+  `UNSUPPORTED`, `CAPACITY_EXHAUSTED` → `RESOURCE_EXHAUSTED`, `UNCERTAIN_EFFECT` →
+  `UNCERTAIN_EFFECT`, `REQUEST_ID_CONFLICT` → `REQUEST_ID_CONFLICT`, `STORAGE_FAILED` →
+  `UNSUPPORTED_FILESYSTEM`. The item's `outcome` field still names the store outcome. The
+  derivation happens only in the CLI envelope: receipts and recorded outcome codes are unchanged.
 
 ## Non-goals
 
@@ -184,6 +195,11 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 - `internal/tasks/boundary_test.go`: the `similar/terms.go` exception and its controls
   (TCL-V0-003).
 - `tools/capabilities-check` and the command-tree snapshot (TCL-V0-013).
+- `internal/tasks/cli/refusal_codes_internal_test.go`: `TestTCLV0870_EveryRefusalOutcomeHasACode`;
+  `internal/tasks/cli/refusal_codes_test.go`:
+  `TestTCLV0870_StaleUpdateCarriesStaleTicket`; `internal/tasks/cli/attach_evidence_witness_test.go`:
+  `TestTEAV0001_TwoProcessAttachEvidenceCAS` asserts `STALE_TICKET` in the loser's codes
+  (TCL-V0-870).
 
 ## Rollback
 

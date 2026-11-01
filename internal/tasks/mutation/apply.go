@@ -562,6 +562,23 @@ func (ctx *Context) step(work *ticket.Record, p Payload) *refusal {
 			RecordedAt:         ctx.Now,
 		}
 		work.AttachedEvidence = append(append([]ticket.AttachedEvidence{}, work.AttachedEvidence...), entry)
+	case *ProgressSetPayload:
+		// TLF-V0-880: one advisory entry on a live native ticket. Nothing
+		// acceptance-relevant changes, so finalize bumps revision alone, and
+		// no admission or claim read consults it (TLF-V0-881).
+		if !ticket.Live(work.Status) {
+			return refuse(OutcomeBlocked, wire.CodeTicketState, "PROGRESS_SET requires status DRAFT, OPEN or HELD (is %s)", work.Status)
+		}
+		if work.Source.Kind != "NATIVE" {
+			return refuse(OutcomeBlocked, wire.CodeTicketState, "PROGRESS_SET requires a native record (source.kind is %s)", work.Source.Kind)
+		}
+		if n := len(work.Progress); n > 0 && work.Progress[n-1].Equal(p.Mark) {
+			return refuse(OutcomeValidationFailed, wire.CodeDuplicateID, "progress mark equals the latest entry")
+		}
+		if len(work.Progress) >= wire.ProgressMaxEntries {
+			return refuse(OutcomeValidationFailed, wire.CodeLimitExceeded, "more than %d progress entries", wire.ProgressMaxEntries)
+		}
+		work.Progress = append(append([]ticket.Progress{}, work.Progress...), ticket.Progress{ProgressMark: p.Mark, Actor: ctx.Binding.ID, RecordedAt: ctx.Now})
 	case *KnowHowAddPayload, *KnowHowRetractPayload, *KnowHowReconfirmPayload:
 		return ctx.knowHowStep(work, p)
 	case *GrantApprovalPayload:

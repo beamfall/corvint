@@ -239,10 +239,10 @@ func (f *bindingFold) step(rc *snapshot.Receipt, sum wire.Digest) error {
 	if err := f.escalations.StepPosts(rc, sum, blob, f.memo); err != nil {
 		return err
 	}
-	if err := f.obligations.Step(rc, sum, blob); err != nil {
+	if err := f.obligations.StepPosts(rc, sum, blob, f.memo); err != nil {
 		return err
 	}
-	return f.reuses.Step(rc, sum, blob)
+	return f.reuses.StepPosts(rc, sum, blob, f.memo)
 }
 
 // foldReceipts folds receipts 1..last, then pending. On a sealed store it

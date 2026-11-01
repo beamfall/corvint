@@ -14,7 +14,7 @@ import (
 // workState when no reader is configured or recorded.
 func TestCALV0270_DispatchStatusWorkState(t *testing.T) {
 	now := time.Date(2026, 10, 16, 0, 0, 0, 0, time.UTC)
-	c := &dispatch.Config{TickSeconds: 30, WorkState: &dispatch.WorkState{Kind: "command", Argv: []string{"/bin/true"}, EscalateAfterTicks: 2, HoldLaunchesAfterTicks: 4}}
+	c := &dispatch.Config{TickSeconds: 30, WorkState: &dispatch.WorkState{Kind: "command", Argv: []string{"/usr/bin/true"}, EscalateAfterTicks: 2, HoldLaunchesAfterTicks: 4}}
 	l := &dispatch.Ledger{Program: "prog", WorkState: &dispatch.WorkStateHealth{OK: true, Since: now}}
 	ws := pressureField(t, dispatchStatusValue(c, "/s", l, nil, now), "workState")
 	for key, want := range map[string]string{"health": "OK", "since": "2026-10-16T00:00:00Z", "lastError": "NONE", "failedTicks": "0", "escalateAfterTicks": "2", "holdLaunchesAfterTicks": "4", "timeoutSeconds": "60", "staleAfterSeconds": "30"} {

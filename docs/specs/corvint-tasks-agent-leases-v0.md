@@ -1102,7 +1102,13 @@ how much of it a read must replay, never what a read may conclude.
   `receipt unretire` (JRT-V0) and segment sealing rewrite or remove receipts, so they delete the
   derived checkpoints (`internal/tasks/store/compact.go`, `retire.go`, `segment_seal.go`) and the next
   read or write pays one complete audit. The retention rule above applies to ordinary mutation and
-  lease writers only.
+  lease writers only. The whole-store administrative writer (`policy update`, `import amend-map`,
+  cutover, execution cutover and relocate, `internal/tasks/store/policy.go`) neither retains nor
+  removes either derived checkpoint (V1-0673, clarified 2026-10-31): its receipts rewrite nothing,
+  so a checkpoint retained before it stays a valid resume point and the next read replays the
+  administrative receipt in its tail, while a store with none keeps paying complete audits until
+  the next ordinary writer retains one. This is the intended complete-audit fallback, not missing
+  coverage.
 - `CAL-V0-061`: A read command MUST perform at most one journal audit and derive every
   projection it prints from that one observation. Where a checkpoint is present, a read MAY
   resume from it: it MUST confirm the queue ID, primary worktree, init digest and generation
@@ -3680,7 +3686,9 @@ subsection of S20. That subsection governs nothing and differs from this one: it
   - Refresh.
     1. Read the invalidation token.
     2. Audit from receipt 1 without the lock (amended by the proposed `CAL-V0-265`: a prefix walk
-       to the captured head when the journal moves).
+       to the captured head when the journal moves; and by `PSR-V0-891` in
+       `corvint-tasks-pool-safe-reuse-v0.md`: an incremental audit from the bound checkpoint, with
+       the complete audit as its backstop).
     3. Under the lock, read the token again. If either read failed, or the token changed, another
        refresh refused after this audit began: publish nothing (stage `refresh.superseded`).
     4. Otherwise retain the derived writer checkpoint, bound to the receipt head it audited, unless
@@ -7864,7 +7872,7 @@ and removes the new configuration members.
 | CAL-V0-110 | `TestCALV0110_ReasonRecordedAtLevelChange`, `TestCALV0110_ThrottledEventReportsReason`, `TestCALV0110_LedgerReasonAndMemoryLevelValidated` (`internal/tasks/dispatch`); `TestCALV0110_DispatchStatusReason` (`internal/tasks/cli`) |
 | CAL-V0-069 | `TestGH494_LeaseTimingIsOptInDiagnostic` (`internal/tasks/cli`); `TestGH494_LeaseTimingSumsEveryTransaction`, `TestGH494_TimedOutClaimReplaysExactly` (`internal/tasks/store`) |
 | CAL-V0-059 | `TestCALV0059_CheckpointCodecAndDerivation` (`internal/tasks/journal`) |
-| CAL-V0-060 | `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`), including `pending`, which shares the lease audit with writers |
+| CAL-V0-060 | `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`), including `pending`, which shares the lease audit with writers; `TestCALV0060_AdministrativeWriterLeavesCheckpoints` (`internal/tasks/store`) for the administrative writer (V1-0673) |
 | CAL-V0-061 | `TestCALV0061_CheckpointTailEqualsFullAudit`, `TestCALV0061_CheckpointFallsBackToFullAudit`, `TestCALV0061_CheckpointScopeAndMovement`, `TestCALV0061_CheckpointLimitsStayWithFullAudit` (`internal/tasks/journal`); `TestCALV0060_WritersRetainACheckpointReadsResumeFromIt` (`internal/tasks/cli`); live-store measurement in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-01-tasks-read-checkpoint.md` |
 | CAL-V0-062 | `TestCALV0062_PolicyEffortAllowlist` (`internal/tasks/intent`); `TestCALV0062_StageEffortSelection`, `TestCALV0062_CheckProgramConfigEffort`, `TestCALV0062_BaseEffortRequired`, `TestCALV0062_StageRechecksCurrentPolicy`, `TestCALV0062_OpenWorkflowRefusesBeforeMutation` (`internal/tasks/store`); live Codex at non-low effort NOT_RUN |
 | CAL-V0-063 | `TestCALV0063_PolicyStageWallBound` (`internal/tasks/intent`); `TestCALV0063_CheckProgramConfigStageWall`, `TestCALV0062_OpenWorkflowRefusesBeforeMutation` (`internal/tasks/store`); live stage beyond one hour NOT_RUN |
@@ -8207,7 +8215,13 @@ stale records count zero. A registration held by another process is counted. A p
 record hides the rank. An unsafe slot object, an unavailable lock query, an incomplete Linux lock
 table, a Darwin record lock, and a slot or registry that disappears or is replaced after its
 first stat or after its open, and a common directory renamed away and replaced after the root is
-pinned, each report `NOT_OBSERVED`. Linux POSIX and OFD record locks on stale slots count zero. The status read creates no registry file. Rollback removes the observation and
+pinned, each report `NOT_OBSERVED`. Linux POSIX and OFD record locks on stale slots count zero. The status read creates no registry file. On a
+Linux btrfs subvolume, `stat` reports the subvolume's anonymous device while `/proc/locks` names
+the superblock's (also anonymous) `s_dev`, so every held slot reads as ambiguous. There the
+counting subtests first require that real read to report `NOT_OBSERVED` with `lock table device
+mapping is ambiguous`, then skip naming both devices; the other subtests still run, and a mismatch
+off btrfs fails (observed 2026-10-31 in an Unraid btrfs container, PID namespace not initial).
+Rollback removes the observation and
 the field; no store, wire profile or coordination file depends on it.
 
 | Requirement | Evidence |

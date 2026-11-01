@@ -164,6 +164,7 @@ func (c *change) path(name string) string {
 
 func (c *change) run() int {
 	c.requireRoot()
+	c.requireTrustedAncestry()
 	c.gitDir = c.gitValue("rev-parse", "--absolute-git-dir")
 	c.acquireOperation()
 	c.target = c.gitValue("rev-parse", "HEAD^{commit}")
@@ -677,40 +678,15 @@ const maxIntentManifestBytes = 16 * 513
 // declaration. It reads at most the bound plus one sentinel byte and returns
 // the ocm-aggregate refusal code, or "" when the manifest is valid.
 func (c *change) validateIntentManifest() string {
-	source := c.options.IntentsFile
-	c.manifestIssue = ""
-	if source == "" || !isRegular(source) || isSymlink(source) {
-		return "missing-intent-scope"
-	}
-	data, err := readPrefix(source, maxIntentManifestBytes+1)
-	if err == nil && len(data) > maxIntentManifestBytes {
-		return "intent-manifest-over-bound"
-	}
-	if err != nil || len(data) == 0 || data[len(data)-1] != '\n' {
-		switch {
-		case err == nil && len(data) == 0:
-			c.manifestIssue = "the file is empty"
-		case err == nil:
-			c.manifestIssue = "the last line does not end with LF"
-		}
-		return "missing-intent-scope"
+	data, paths, reason, issue := readIntentManifest(c.options.IntentsFile)
+	c.manifestIssue = issue
+	if reason != "" {
+		return reason
 	}
 	c.intentSource = data
-	if bytes.Equal(data, noIntentManifest) {
+	if paths == nil {
 		c.intentSnapshot, c.noIntent = data, true
 		return ""
-	}
-	paths := readLines(data)
-	for number, path := range paths {
-		if !canonicalIntentPath(path) {
-			c.manifestIssue = fmt.Sprintf("line %d %q is not a canonical repository-relative path", number+1, path)
-			return "missing-intent-scope"
-		}
-		if number > 0 && paths[number-1] >= path {
-			// DCW-V0-387: name the first line out of byte order and the rule.
-			c.manifestIssue = fmt.Sprintf("line %d %q does not sort after line %d %q; the lines must be in strictly increasing byte order with no duplicates (LC_ALL=C sort -u)", number+1, path, number, paths[number-1])
-			return "missing-intent-scope"
-		}
 	}
 	if len(paths) > maxAggregateScopes {
 		// A well-formed list over the scope bound is not a missing scope
@@ -726,6 +702,43 @@ func (c *change) validateIntentManifest() string {
 	}
 	c.intentSnapshot, c.intents = data, paths
 	return ""
+}
+
+// readIntentManifest is the grammar check of DOGFOOD_INTENTS_FILE, which needs
+// no Git read: the bytes and paths of a well-formed manifest (nil paths for the
+// no-intent declaration), or the refusal code and the first fault it names
+// (DCW-V0-387). finish-lane runs it before any step (DCW-V0-882).
+func readIntentManifest(source string) (data []byte, paths []string, reason, issue string) {
+	if source == "" || !isRegular(source) || isSymlink(source) {
+		return nil, nil, "missing-intent-scope", ""
+	}
+	data, err := readPrefix(source, maxIntentManifestBytes+1)
+	if err == nil && len(data) > maxIntentManifestBytes {
+		return nil, nil, "intent-manifest-over-bound", ""
+	}
+	if err != nil || len(data) == 0 || data[len(data)-1] != '\n' {
+		switch {
+		case err == nil && len(data) == 0:
+			issue = "the file is empty"
+		case err == nil:
+			issue = "the last line does not end with LF"
+		}
+		return nil, nil, "missing-intent-scope", issue
+	}
+	if bytes.Equal(data, noIntentManifest) {
+		return data, nil, "", ""
+	}
+	paths = readLines(data)
+	for number, path := range paths {
+		if !canonicalIntentPath(path) {
+			return nil, nil, "missing-intent-scope", fmt.Sprintf("line %d %q is not a canonical repository-relative path", number+1, path)
+		}
+		if number > 0 && paths[number-1] >= path {
+			// DCW-V0-387: name the first line out of byte order and the rule.
+			return nil, nil, "missing-intent-scope", fmt.Sprintf("line %d %q does not sort after line %d %q; the lines must be in strictly increasing byte order with no duplicates (LC_ALL=C sort -u)", number+1, path, number, paths[number-1])
+		}
+	}
+	return data, paths, "", ""
 }
 
 // recordIntent reports a record change whose manifest names only build-log
@@ -959,11 +972,71 @@ func (c *change) uniformPlan(plan []byte) bool {
 		return false
 	}
 	hunks, span, uniform := uniformCitation(plan, mapHunks(data))
+	if !uniform {
+		hunks, span, uniform = c.carriedUniform(plan)
+	}
 	if !uniform || c.choreRole() != "" || c.recordChange() {
 		return false
 	}
 	c.uniformHunks, c.uniformSpan = hunks, span
 	return true
+}
+
+// carriedUniform reports a staged plan (DCW-V0-037) that completes a uniform
+// citation: its rows all cite one span, and every hunk it does not name
+// already cites only that span in the map, read as the BASE byte span cem cite
+// records for the rows' BASE lines, so the stages together cite one span for
+// every hunk (DCW-V0-883).
+func (c *change) carriedUniform(plan []byte) (int, string, bool) {
+	m, ok := c.readCitationMap()
+	if !ok || len(m.Hunks) < 2 {
+		return 0, "", false
+	}
+	named, span, path, lines := map[string]bool{}, "", "", ""
+	for _, line := range textLines(plan) {
+		fields := strings.SplitN(line, "\t", 4)
+		if len(fields) != 4 || unknownRow(fields) {
+			return 0, "", false
+		}
+		rowSpan, ok := canonicalSpan(fields[1], fields[2])
+		if !ok || span != "" && rowSpan != span {
+			return 0, "", false
+		}
+		span, path, lines, named[fields[0]] = rowSpan, fields[1], fields[2], true
+	}
+	if span == "" {
+		return 0, "", false
+	}
+	// A plan row names BASE lines and map evidence a BASE byte span, so the
+	// row is compared as the byte span cem cite records for it.
+	cited, ok := c.baseLineSpan(map[string][]byte{}, path, lines)
+	if !ok {
+		return 0, "", false
+	}
+	cited = path + ":" + cited
+	spans := map[string]string{}
+	for _, evidence := range m.Evidence {
+		spans[evidence.ID] = evidence.Path + ":" + strconv.FormatInt(evidence.Span.Start, 10) + ":" + strconv.FormatInt(evidence.Span.End, 10)
+	}
+	carried := 0
+	for index, hunk := range m.Hunks {
+		if named[strconv.Itoa(index+1)] || named[hunk.ID] {
+			continue
+		}
+		if len(hunk.Basis) == 0 {
+			return 0, "", false
+		}
+		for _, basis := range hunk.Basis {
+			if spans[basis.EvidenceID] != cited {
+				return 0, "", false
+			}
+		}
+		carried++
+	}
+	if carried == 0 {
+		return 0, "", false
+	}
+	return len(m.Hunks), span, true
 }
 
 // recitesCitedHunk reports, before any cite or mark runs, a plan row that
@@ -1024,12 +1097,29 @@ func citeSpanArgs(span string) []string {
 // one-based, inclusive line span of path at BASE, or false when the blob or
 // span does not resolve (CEM evidenceSpan).
 func (c *change) baseLineSpan(blobs map[string][]byte, path, lines string) (string, bool) {
+	blob, cached := blobs[path]
+	if !cached {
+		output, status, bounded := c.boundedGit("cat-file", "blob", c.base+":"+path)
+		if status != 0 || !bounded {
+			return "", false
+		}
+		blob = []byte(output)
+		blobs[path] = blob
+	}
+	return lineByteSpan(blob, lines)
+}
+
+// lineByteSpan is the byte span START:END that cem cite derives from a
+// one-based, inclusive line span of blob, or false when the span does not
+// resolve (CEM evidenceSpan).
+func lineByteSpan(blob []byte, lines string) (string, bool) {
 	if span, ok := strings.CutPrefix(lines, bytesSpanPrefix); ok {
-		// A bytes:START:END row already names the byte span the map records.
+		// A bytes:START:END row already names the byte span the map records
+		// (DCW-V0-990); it must lie inside the blob.
 		start, end, found := strings.Cut(span, ":")
 		first, firstErr := strconv.Atoi(start)
 		last, lastErr := strconv.Atoi(end)
-		if !found || firstErr != nil || lastErr != nil || first < 0 || last < first {
+		if !found || firstErr != nil || lastErr != nil || first < 0 || last < first || last > len(blob) {
 			return "", false
 		}
 		return fmt.Sprintf("%d:%d", first, last), true
@@ -1039,15 +1129,6 @@ func (c *change) baseLineSpan(blobs map[string][]byte, path, lines string) (stri
 	last, lastErr := strconv.Atoi(right)
 	if !found || firstErr != nil || lastErr != nil || first < 1 || last < first {
 		return "", false
-	}
-	blob, cached := blobs[path]
-	if !cached {
-		output, status, bounded := c.boundedGit("cat-file", "blob", c.base+":"+path)
-		if status != 0 || !bounded {
-			return "", false
-		}
-		blob = []byte(output)
-		blobs[path] = blob
 	}
 	records := bytes.SplitAfter(blob, []byte("\n"))
 	if len(records) > 0 && len(records[len(records)-1]) == 0 {
@@ -2252,7 +2333,7 @@ var fixHints = []struct{ pattern, hint string }{
 	{"local-outcome:outcome-input-not-provided", "set DOGFOOD_OUTCOME (passed, failed or blocked) and DOGFOOD_VERIFY_FILE (one verification command per line)"},
 	{"local-outcome:verify-file-unavailable", "DOGFOOD_VERIFY_FILE must be the path of a regular file holding one verification command per line, not the commands themselves"},
 	{"local-outcome:verify-file-over-bound", "DOGFOOD_VERIFY_FILE is larger than 64 KiB; keep at most 50 verification commands of at most 512 characters, one per line"},
-	{"local-outcome:unsupported-verify-syntax", "each DOGFOOD_VERIFY_FILE line is one command of ASCII letters, digits and _./:@=+, - only, with no quotes, ^, $, |, parentheses or other shell syntax, except one quoted -run alternation of test names such as -run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$', or one name with a bracket class such as -run 'TestX88[45]_' (DCW-V0-384, DCW-V0-801, DCW-V0-991), and leading NAME='value' or NAME=\"value\" assignments such as GOFLAGS='-count=1 -v' go test ./pkg (DCW-V0-804); write -run TestName instead of -run '^TestName$'; a command that needs quotes or regular-expression syntax, such as a split -run '^Test[A-C]' group, goes in a script committed with the change and is listed as sh path/to/script.sh (DCW-V0-065)"},
+	{"local-outcome:unsupported-verify-syntax", "each DOGFOOD_VERIFY_FILE line is one command of ASCII letters, digits and _./:@=+, - only, with no quotes, ^, $, |, parentheses or other shell syntax, except one quoted -run word: an alternation of test names such as -run 'TestA|TestB', -run '^(TestA|TestB)$' or -run '^TestA$|^TestB$' (DCW-V0-384, DCW-V0-801), or one name, anchored or not, such as -run '^TestA$', or one name with a bracket class such as -run 'TestX88[45]_' (DCW-V0-991), or the whole package as -run '.' or -run '.*' (DCW-V0-904), and leading NAME='value' or NAME=\"value\" assignments such as GOFLAGS='-count=1 -v' go test ./pkg (DCW-V0-804); write paths in full, not with ~ (DCW-V0-905); a command that needs quotes or regular-expression syntax, such as a split -run '^Test[A-C]' group, goes in a script committed with the change and is listed as sh path/to/script.sh (DCW-V0-065)"},
 	{"local-outcome:record-failed", "read {evidence}/local-outcome.stderr for the cause; DOGFOOD_VERIFY_FILE holds at most 50 commands of at most 512 characters each, so split a longer command into several lines"},
 }
 
@@ -2595,14 +2676,23 @@ func (c *change) aggregateSchemaHint() string {
 }
 
 // noteAgentReceipts reports, without blocking, an agent pre-change receipt that
-// is absent, over the 4 MiB bound, malformed, or was not written against the
-// base tree (DCW-V0-031, DCW-V0-032).
+// is absent, over the 4 MiB bound, malformed, from another tool, or was not
+// written against the base tree, and how a base-tree receipt matches its
+// dogfood prechange binding (DCW-V0-031, DCW-V0-032, DCW-V0-881).
 func (c *change) noteAgentReceipts() {
 	baseTree := c.gitValue("rev-parse", c.base+"^{tree}")
 	for _, name := range []string{"prechange-query", "prechange-impact"} {
 		c.noteAgentReceipt(name, baseTree)
 	}
+	// A context receipt is orientation and never stands in for the query
+	// receipt (DCW-V0-881).
+	if !isRegular(c.evidence+"/prechange-query.json") && isRegular(c.evidence+"/prechange-context.json") {
+		c.say("dogfood-change: NOTE prechange-context orientation-only satisfies-no-slot\n")
+	}
 }
+
+// receiptTools names the tool each agent receipt slot must come from (DCW-V0-881).
+var receiptTools = map[string]string{"prechange-query": "query", "prechange-impact": "impact"}
 
 func (c *change) noteAgentReceipt(name, baseTree string) {
 	path := c.evidence + "/" + name + ".json"
@@ -2611,6 +2701,7 @@ func (c *change) noteAgentReceipt(name, baseTree string) {
 		return
 	}
 	var receipt struct {
+		Tool    *string `json:"tool"`
 		Context struct {
 			Revision string `json:"revision"`
 		} `json:"context"`
@@ -2627,8 +2718,13 @@ func (c *change) noteAgentReceipt(name, baseTree string) {
 		c.say("dogfood-change: NOTE %s NOT_OBSERVED agent-receipt-malformed\n", name)
 		return
 	}
+	if receipt.Tool != nil && *receipt.Tool != receiptTools[name] {
+		c.say("dogfood-change: NOTE %s NOT_OBSERVED agent-receipt-unsupported tool=%s\n", name, strconv.Quote(*receipt.Tool))
+		return
+	}
 	switch tree := receipt.Context.Revision; tree {
 	case baseTree:
+		c.noteBoundReceipt(name, path)
 	case "":
 		c.say("dogfood-change: NOTE %s NOT_OBSERVED agent-receipt-tree-unknown\n", name)
 	default:

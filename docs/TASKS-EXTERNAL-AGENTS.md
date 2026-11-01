@@ -227,6 +227,29 @@ unvalidated-history intent projection and report its limits, but cannot claim or
 `receipt audit` still requires a journal. Do not run `init` over copied populated records;
 use the explicit import/authority-cutover route or a worktree of the existing primary checkout.
 
+### Declare execution effects, not store administration
+
+A ticket's `effects` and a claim's `--scope` declare what the work itself will write: its
+repository paths and any external resource it touches (CAL-V0-021). Store administration is a
+different thing. That covers `claim`, `renew`, `submit`, `gate run`, `release`, notes and ticket
+mutations. Each is a native transaction under the store's writer lock (CAL-V0-026). It adds no
+resource to any reservation, and two attempts collide only when their declared resource sets
+collide (CAL-V0-023). Never declare `.git/taskman`, `.taskman/`, the lock file or a probe path as
+a `PATH` or `OTHER` resource. Such a resource gives every claim that declares it the same key, so
+independently scoped private work is serialized for no reason. Disjoint scopes on one store are
+admitted side by side, through renew, gate and release, and administration reserves nothing
+beyond each scope. `TestCALV0023_AdministrationReservesOnlyExecutionEffects` and
+`TestCALV0023_DisjointPathScopesAreBothAdmitted` retain that evidence.
+
+Two limits stay explicit. First, a dedicated store for one lane is a separate qualification
+decision; same-store admission evidence does not qualify it. Second, a direct write to the shared
+store files outside `corvint-tasks` is unsupported, and `receipt audit` reports the result as
+inconsistent. Change a ticket's effects only after its live attempts end. While one is live,
+`set-effects` refuses `ATTEMPT_LIVE` and writes nothing. No live reservation is ever shrunk or
+rewritten in place, and the acceptance-revision bump that follows the change fences the old attempt's
+gate results. Earlier reservations stay in the journal as history, and coverage that no read
+observed stays `NOT_OBSERVED`.
+
 ## Isolated environment pools
 
 Add optional `pools` to policy through `policy update`, for example:

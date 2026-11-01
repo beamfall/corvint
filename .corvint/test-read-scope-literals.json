@@ -53,6 +53,7 @@
       "artifacts/runner-plan-0.json": "a path committed into the test's temporary fixture repository and named by its fixture map; the repository's artifacts/ file is not read",
       "artifacts/runner-receipt-0.json": "a path committed into the test's temporary fixture repository and named by its fixture map; the repository's artifacts/ file is not read",
       "artifacts/runner-receipt-1.json": "a path committed into the test's temporary fixture repository and named by its fixture map; the repository's artifacts/ file is not read",
+      "docs/build-log": "a cem-verdict touch key over a temporary fixture repository; nothing is read",
       "docs/specs": "a scope-verdict fixture key; nothing is read",
       "internal/tasks/store/lease_gate.go": "a scope-verdict fixture key; nothing is read"
     },

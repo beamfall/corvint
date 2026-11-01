@@ -66,7 +66,7 @@ func preparePlaywrightGraph(root, configPath string, environment []PlaywrightEnv
 			p.filtered.Frontier = append(p.filtered.Frontier, reason)
 		}
 	}
-	p.graph, err = affected.Build(context.Background(), root, observedTypeScript{result: p.filtered})
+	p.graph, err = affected.BuildPartial(context.Background(), root, observedTypeScript{result: p.filtered})
 	if err != nil {
 		return playwrightPrepared{}, err
 	}

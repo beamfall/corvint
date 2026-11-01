@@ -38,6 +38,9 @@ const (
 	rubyConstantTestScore        = 500
 	rubyTransitiveReferenceScore = 475
 	rubyTransitiveTestScore      = 450
+	// A request spec named only by the controller-to-request-spec
+	// convention ranks below every constant reference (NGI-V0-761).
+	rubyRequestSpecConventionScore = 440
 )
 
 // The reference index is bounded (NGI-V0-040, TSA-V0-460): an unbalanced
@@ -671,6 +674,9 @@ func (autoload *rubyAutoload) impact(index *Index, changedPath string) ([]ranked
 			ranked = append(ranked, item)
 		}
 	}
+	if item, ok := autoload.requestSpec(index, changedPath, reached); ok {
+		ranked = append(ranked, item)
+	}
 	if lookups != 0 {
 		unknowns = append(unknowns, row("ruby-constant-lookup-dynamic", lookups))
 	}
@@ -684,6 +690,33 @@ func (autoload *rubyAutoload) impact(index *Index, changedPath string) ([]ranked
 		unknowns = append(unknowns, row("ruby-reference-index-bounded", bounded))
 	}
 	return ranked, unknowns
+}
+
+// requestSpec is the advisory row of the request spec a Rails controller's
+// path names by convention (NGI-V0-761): app/controllers/<x>_controller.rb is
+// exercised by spec/requests/<x>_spec.rb through route dispatch, which no
+// constant names. A controller whose conventional request spec is not tracked,
+// or was already reached, adds nothing: the reading abstains rather than
+// guess a route, and config/routes.rb is not read.
+func (autoload *rubyAutoload) requestSpec(index *Index, changedPath string, reached map[string]bool) (rankedResult, bool) {
+	stem, controller := strings.CutPrefix(changedPath, "app/controllers/")
+	stem, suffixed := strings.CutSuffix(stem, "_controller.rb")
+	if !controller || !suffixed || stem == "" || path.Base(stem) == "application" {
+		return rankedResult{}, false
+	}
+	name := "spec/requests/" + stem + "_spec.rb"
+	source, tracked := index.Sources[name]
+	if !tracked || reached[name] {
+		return rankedResult{}, false
+	}
+	reason := "request spec named by the Rails convention spec/requests/<name>_spec.rb for app/controllers/<name>_controller.rb; the route dispatch to " + changedPath + " is not read"
+	result := map[string]any{
+		"kind": "test", "id": name, "score": rubyRequestSpecConventionScore,
+		"summary":  "request spec for " + changedPath + " by the controller-to-request-spec convention (advisory; route dispatch is not read)",
+		"evidence": []any{evidence(name, 1, source.BlobHash, reason, "low", "syntax")},
+		"advisory": true,
+	}
+	return rankedResult{score: rubyRequestSpecConventionScore, order: 1, key: name, result: result}, true
 }
 
 // cutReferences counts the cut references outside changedPath that could

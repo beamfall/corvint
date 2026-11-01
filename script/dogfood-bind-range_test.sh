@@ -129,7 +129,7 @@ test "$output" = 'dogfood-bind-range: REFUSE target-not-landed'
 
 # DOGFOOD-012: before a retroactive binding the gap is reported as unbound.
 before=$(cd "$repo" && "$test_root/driver" dogfood check "$g2" 2>&1) || :
-rg -q "^dogfood-check: NOTE unbound-commits count=2 window=$b0\\.\\.$g2 newest=[0-9a-f]{40} oldest=[0-9a-f]{40} before-base list=.*/dogfood-check\\.unbound-commits\$" <<< "$before"
+rg -q "^dogfood-check: NOTE unbound-commits count=2 window=$b0\\.\\.$g2 window-start=cem-base-of:[0-9a-f]{40} newest=[0-9a-f]{40} oldest=[0-9a-f]{40} before-base list=.*/dogfood-check\\.unbound-commits\$" <<< "$before"
 if rg -q '^  unbound '; then exit 1; fi <<< "$before"
 if rg -q retroactive; then exit 1; fi <<< "$before"
 
@@ -334,9 +334,9 @@ merge=$(git -C "$repo" rev-parse HEAD)
 work c4 >/dev/null
 after=$(cd "$repo" && "$test_root/driver" dogfood check "$merge" 2>&1) || :
 # DCW-V0-343: one NOTE line per window; the private list file names every commit.
-rg -q "^dogfood-check: NOTE unbound-commits count=1 window=$b0\\.\\.$merge newest=$c3 oldest=$c3 before-base list=.*/dogfood-check\\.unbound-commits\$" <<< "$after"
+rg -q "^dogfood-check: NOTE unbound-commits count=1 window=$b0\\.\\.$merge window-start=cem-base-of:[0-9a-f]{40} newest=$c3 oldest=$c3 before-base list=.*/dogfood-check\\.unbound-commits\$" <<< "$after"
 test "$(cat "$(printf '%s\n' "$after" | sed -n 's/^dogfood-check: NOTE unbound-commits .* list=//p')")" = "unbound $c3"
-rg -q "^dogfood-check: NOTE retroactive-bound-commits count=3 window=$b0\\.\\.$merge newest=[0-9a-f]{40} oldest=[0-9a-f]{40} before-base list=.*/dogfood-check\\.retroactive-bound-commits\$" <<< "$after"
+rg -q "^dogfood-check: NOTE retroactive-bound-commits count=3 window=$b0\\.\\.$merge window-start=cem-base-of:[0-9a-f]{40} newest=[0-9a-f]{40} oldest=[0-9a-f]{40} before-base list=.*/dogfood-check\\.retroactive-bound-commits\$" <<< "$after"
 if rg -q '^  (unbound|retroactive) '; then exit 1; fi <<< "$after"
 test "$(sort "$(printf '%s\n' "$after" | sed -n 's/^dogfood-check: NOTE retroactive-bound-commits .* list=//p')")" = \
   "$(printf 'retroactive %s binding=%s\n' "$g1" "$binding" "$g2" "$binding" "$binding" "$binding" | sort)"

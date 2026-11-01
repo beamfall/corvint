@@ -2,7 +2,7 @@
 // (TM-V0-022, §3.5 taskman-archive/0). Export is a TM-V0-008 read: it takes
 // no lock and creates nothing under the state dir or the repository; the
 // only files it writes are its staging file, which it verifies and removes.
-// `archive restore` is TCP-02's.
+// `archive restore` is internal/tasks/store's RestoreArchive (TRL-V0-870).
 package archive
 
 import (

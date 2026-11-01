@@ -17,7 +17,7 @@ baseline).
 
 ## Agent digest
 - Claim: `tools/cem-trial` runs one agent over frozen Beamfall changes under control, treatment and seeded arms and scores base-reachable withheld test-or-spec evidence.
-- Status: proposed/experimental; the owner accepted the 2026-10-01 amendments to CRT-V0-004, CRT-V0-005 (`seeded` arm), CRT-V0-007, CRT-V0-008 and CRT-V0-012 on 2026-10-25 (V1-0836 closeout); the scorer's CRT-V0-008 reading lags (V1-2673).
+- Status: proposed/experimental; the owner accepted the 2026-10-01 amendments to CRT-V0-004, CRT-V0-005 (`seeded` arm), CRT-V0-007, CRT-V0-008 and CRT-V0-012 on 2026-10-25 (V1-0836 closeout).
 - Exists: `tools/cem-trial` (`select`, `run`, `score`), the five-change pilot manifest under `tools/cem-trial/testdata/pilot`, and `tools/cem-trial/testdata/fake-agent.sh`; added 2026-10-11 (V1-1261, accepted under the owner's standing auto-accept (2026-10-11)): the cited-not-gold precision rate (CRT-V0-013) and the registration file and its order check (CRT-V0-014); added 2026-10-28 (V1-2948): every summary pairs each arm with the mechanical stem baseline and says plainly when it is not beaten (CRT-V0-017, optional `stem` worklist arm), and scores evidence discovery apart from adjudicated defect detection, which is `NOT_OBSERVED` (CRT-V0-018); the compact CEM worklist arm is not built.
 - Blocked on: an arm builder for the shipped profile's artifact (CRT-V0-015), which needs decision 0523 P2 to land and have a baseline; and the owner-commissioned held-out run, run on 2026-10-24 (N 57, valid; neither hypothesis supported; `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-cem-trial-heldout-run.md`). Since 2026-10-24 (V1-0836) the `treatment` and `seeded` arms build an all-`unknown` cem/1.0 worklist for development and pilot runs (CRT-V0-005), and the ten-pair development run froze the held-out pair count at 57 (CRT-V0-008). Since the 2026-10-24 owner decision a registered run may carry that map (CRT-V0-015). The real-agent pilot is run and valid (2026-09-04) but its treatment carried no evidence and three of its five changes had gold no arm could cite; no run before decision 0523 P2 has a baseline is outcome evidence.
 - Read next: Requirements (selection, withheld patch, arms, metrics, CRT-V0-012..018); Power; Non-goals; Stopping and publication.
@@ -165,8 +165,9 @@ name is exactly what the change's author also wrote and the harness removed.
   variability, so `delta_ci95` is `NOT_OBSERVED` and the reading is
   "not estimable: fewer than two scored pairs", never met. The pair count is a manifest parameter
   (`--limit`) so the owner can widen it. Amendment (2026-10-01, accepted by the owner 2026-10-25; the
-  scorer still prints the reading above until V1-2673 lands, and neither arm of the 2026-10-24
-  held-out report is met under either reading because both lower bounds are below 0): the decision-grade run is powered for the
+  scorer prints the amended reading and kill readings since V1-2673; the 2026-10-24 held-out report
+  is not rescored, and neither of its arms is met under either reading because both lower bounds
+  are below 0): the decision-grade run is powered for the
   `seeded` contrast at the gold-reachability-corrected control miss. With two repeats per arm,
   about four gold items per change and between-change heterogeneity τ² ≈ 0.02, 80% power at
   α = 0.05 two-sided needs about 55 pairs for a 20% relative reduction from a control miss of
@@ -176,7 +177,14 @@ name is exactly what the change's author also wrote and the harness removed.
   target; requiring the point estimate to reach the target as well has only 50% pass
   probability at a true 20% effect. Kill readings: an upper bound below `0.10` absolute rules
   out a 20% gain, and a `seeded_vs_treatment` upper bound at or below `0.05` reads as "the
-  map's evidence adds nothing beyond its worklist". The ten-pair run that estimates the
+  map's evidence adds nothing beyond its worklist". Under the amended gate "met: at least 20% fewer
+  missed-evidence findings" requires `low > 0` and `high >= 0.20 × mean control miss` (inclusive),
+  whatever the point estimate; a lower bound above 0 with an upper bound below the target reads
+  "below target but interval excludes 0", and the other readings are unchanged. Each arm's
+  `verdict.kill_readings` lists "upper bound below 0.10 absolute: rules out a 20% gain" when its
+  upper bound is below `0.10`, and `seeded_vs_treatment.kill_reading` is "the map's evidence adds
+  nothing beyond its worklist" when that contrast's upper bound is at or below `0.05` (empty list or
+  no key otherwise, and none without an interval). The ten-pair run that estimates the
   between-change variance before the pair count is frozen is drawn from the development
   partition and is development forever. Recorded 2026-10-24 (V1-0836): the development run
   (`benchmarks/results/cem-reviewer-trial-development-2026-10-24.json`, manifest
@@ -319,12 +327,28 @@ name is exactly what the change's author also wrote and the harness removed.
   `run` refuses any other earlier registration, an earlier registration committed after that
   report's first lane, and an earlier report with a completed lane that recorded no start. Lane
   reuse is otherwise unchanged (CRT-V0-010): a byte-identical prompt, no error, an observed wall time.
-  The report carries the earlier registration and that report's manifest digest as `re_registered`.
-  A lane reused from it is checked against the earlier registration's commit time, and every other
-  lane is checked against this run's (CRT-V0-014). Lanes resumed from a checkpoint of the same
-  manifest count as this run's own. On rescore the report is invalid when the carried registration
-  differs beyond the scorer digest, when it is newer than a lane reused from it, or when a lane was
-  reused from any other report. The run's build-log entry must name the scorer change, the reused
+  The earlier registration is the same registration only when it has the same commit and an
+  identical document; two registration files committed together are still compared (V1-2624). A
+  never-started pending lane (no start, no observed wall time) of the earlier report does not count
+  as a completed lane without a start. When `--reuse` and a `--resume` checkpoint both hold a lane,
+  the first eligible one is reused, so an ineligible `--reuse` lane never shadows an eligible
+  checkpoint lane. The report carries the earlier registration and that report's manifest digest as
+  `re_registered`; `--resume` restores a checkpoint's `re_registered` record and refuses a
+  checkpoint carrying a different one. Each reused lane records `reused_from` (the manifest digest)
+  and `reused_registration` (the digest of the registration it first ran under), so a lane reused
+  across a scorer-only re-registration of an unchanged manifest is told apart from a resumed one. A
+  lane reused from the earlier registration is checked against that registration's commit time,
+  and every other lane is checked against this run's (CRT-V0-014). Lanes resumed from a checkpoint
+  of the same manifest and registration count as this run's own. On rescore the report is invalid
+  when the carried registration differs beyond the scorer digest, when it is newer than a lane
+  reused from it, when a lane was reused from any other report, or when a report carries
+  `re_registered` with no registration of its own, partition aside. `select` presents each patch
+  byte for byte as `internal/cem/gitauth` `CanonicalDiff` derives it for those paths: the same
+  pinned diff configuration (`diff.noprefix=false` and the other pins), `--attr-source` set to the
+  empty tree, `--full-index`, `a/` and `b/` prefixes and `--end-of-options`, run under gitauth's scrubbed
+  allowlist environment, so neither `GIT_DIFF_OPTS` nor `GIT_CONFIG_PARAMETERS` changes the bytes. These V1-2624 fixes
+  change the scorer digest; the 2026-10-24 held-out report stays rescored at the registered tree
+  `bc580295f`, where it was registered and run. The run's build-log entry must name the scorer change, the reused
   lane count, and that the reused pairs were already observed in the earlier run. Limit: the scorer
   change itself is not checked to leave the reused lanes' prompts and scoring unchanged. Prompt
   identity covers the prompts. Scoring is recomputed from raw fields on every `finalize`.
@@ -411,7 +435,7 @@ executables named on the command line; it downloads nothing. Manifest 16 MiB; pa
 | CRT-V0-005 | `skeleton`, `treatmentPrologue`, `buildPrompt`, `buildArtefacts`, `prepareTarget`, `commitTarget`, `renderArtefacts`, `alignedHunks`, `patchHunks`, `mapTarget`, `cloneAtBase`, `resolvable`, `laneClone` | `TestBothArmsShareTheSamePromptDigestApartFromThePrologue`; `TestMapArmsCarryAPreparedCEM10Map` (2026-10-24 amendment: prepared map, leak control, pristine restore, symlinked `TMPDIR`); `TestMisalignedMapIsRefused`; `TestCloneCannotResolveTheChangeCommit` |
 | CRT-V0-006 | `extractCitations`, `citationsBlock`, `extractUnknown`, `scoreLane` | `TestMissRateAndPairedBootstrapAreDeterministicUnderASeed`; `TestScoreRebuildsTheReportByteIdentically`; `TestExtractCitationsKeepsEmptyAbsentAndMalformedDistinct`, `TestCodexRunBoundsTheReplyAndRecordsStdoutTruncation` (2026-10-04 amendment) |
 | CRT-V0-007 | `scoreLane`, `summarize`, `bca`, `mcnemar`, `exactBinomial`, `citable`, `verifierRates`, `applyCitations`, `replayCitations`, `replayCitation` | `TestMissRateAndPairedBootstrapAreDeterministicUnderASeed`; `TestReplayCheckerDisagreesWithVerifyOnAKnownGoodCitation`; `TestCitableAndVerifierSkipNonZeroExitLanes`; 2026-09-04 pilot (`citable` 0.815 over 200 material hunks, verifier incorrect-hard-failure rate 0 over 25 citing lanes) |
-| CRT-V0-008 | `verdicts`, `verdictAtLeast`, `verdictBelow`, `relativeGate`, `citableGate`, `hardFailureGate`; absolute interval target is `relativeGate × controlMiss` | `TestMissedEvidenceVerdictIntervalCompatibility` (`CRT-V0-008` subtests cover all five readings, absolute target scaling, and inclusive endpoints); `TestMissRateAndPairedBootstrapAreDeterministicUnderASeed`; `benchmarks/results/cem-reviewer-trial-pilot-2026-09-04.json`'s stored `missed_evidence` wording predates the 2026-09-04 amendment (control miss 0.90, interval [0, 0.06] now reads "consistent with 0 but not with 20%"); the stored report is history, not rescored; 2026-10-24 development run `benchmarks/results/cem-reviewer-trial-development-2026-10-24.json` and `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-cem-trial-dev-run.md` (frozen held-out N 57) |
+| CRT-V0-008 | `verdicts`, `killReadings`, `seededKillReading`, `verdictAtLeast`, `verdictBelow`, `relativeGate`, `citableGate`, `hardFailureGate`; absolute interval target is `relativeGate × controlMiss` | `TestKillReadings`; `TestMissedEvidenceVerdictIntervalCompatibility` (`CRT-V0-008` subtests cover all five readings, absolute target scaling, and inclusive endpoints); `TestMissRateAndPairedBootstrapAreDeterministicUnderASeed`; `benchmarks/results/cem-reviewer-trial-pilot-2026-09-04.json`'s stored `missed_evidence` wording predates the 2026-09-04 amendment (control miss 0.90, interval [0, 0.06] now reads "consistent with 0 but not with 20%"); the stored report is history, not rescored; 2026-10-24 development run `benchmarks/results/cem-reviewer-trial-development-2026-10-24.json` and `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-cem-trial-dev-run.md` (frozen held-out N 57) |
 | CRT-V0-009 | `--partition`/`--seed`/`--exclude` on `select`, `excludedCommits`, `objectName`, `withoutExcluded`, `inertExclusion`, `excludeError`, `poolError` (`tools/cem-trial/select.go`), `report.Pilot`; the manifest's `population` and the summary's `population N, excluded M` are the pool after the M drops | `tools/cem-trial/testdata/pilot/tasks.json` carries `partition: pilot`; `benchmarks/results/cem-reviewer-trial-pilot-2026-09-04.json` (seed `pilot-2026-09-03`, 5 pairs, 50 lanes, `gpt-5.6-sol` at medium); `TestExcludedPilotChangesAreDroppedAndCounted` (three qualifying changes, one-commit pilot, non-empty disjoint held-out set of population qualifying − excluded), `TestExcludeFileWithoutIdentifiersIsRefused`, `TestExcludeIdentifiersMustBeFullLowercaseHex`, `TestExcludeThatDropsNothingIsRefused`, `TestEmptyPoolIsRefusedAndAShortPoolWarns`, `TestExplicitlyEmptyExcludeListIsRefused` |
 | CRT-V0-010 | `finalize`, `rescore`, `write`, `checkpointer`, `loadReuse`, `reuseSource.apply`, `laneFailed`, `report.Invalid` | `TestScoreRebuildsTheReportByteIdentically`; `TestErroredLaneDropsItsPair`; `TestNonZeroAgentExitErrorsTheLaneAndInvalidatesTheRun`; 2026-09-03 pilot rescored to `invalid` (31 errored lanes); 2026-09-04 re-run valid (`invalid: null`, 0 errored lanes) |
 | CRT-V0-011 | `runCommand`; `internal/procgroup.Run`, `OverflowPolicy`, `Spec.StderrLimit` | `TestRunProcessLifecycleMatrix`; `TestRunProcessTruncateOverflowPolicy`; `TestRunProcessDefaultOverflowPolicyStillTerminates`; `TestRunProcessRejectsInvalidOverflowPolicyBeforeSpawn`; `TestTruncateCaptureConsumesCrossingWrite`; `TestRunCommandPreservesExitShapes`; `TestRunCommandNormalizesPathsAndEnvironment`; `TestRunCommandRefusesBeforeDispatch`; `TestRunCommandTruncatesOutput`; `TestRunCommandCancellationKillsDescendant`; `TestTrialMainSignalsCleanOwnedAgentGroup`; 2026-10-04 amendment: `TestCodexRunBoundsTheReplyAndRecordsStdoutTruncation`, `TestScriptRunRecordsStdoutTruncation`, `TestNegativeTokenCountsAreNotObservations` |
@@ -419,7 +443,7 @@ executables named on the command line; it downloads nothing. Manifest 16 MiB; pa
 | CRT-V0-013 | `scoreCitedNotGold`, `citedNotGold`, `mergeIntervals`, `overlap`, `citedNotGoldArms`, `changeMeta.GoldSpans`, `goldSpansOf` (`tools/cem-trial/score.go`, `main.go`) | `TestCiteEverySuggestionAgentLosesOnCitedNotGold` (the cite-every-suggestion agent wins on miss, Δ 0.5, and loses on both rates); `TestCitedNotGoldCountsDistinctPathsAndLines`; `TestRunChecksItsRegistration` (a run carries `gold_spans` and scores the rate) |
 | CRT-V0-014, CRT-V0-010 (2026-10-11 amendment) | `registration`, `parseRegistration`, `loadRegistration`, `registrationRecord`, `registrationProblems`, `registrationMismatches`, `registrationInvalid`, `firstLaneStart`, `unstampedLanes`, `registeredPrior`, `registrationRecord.UnmarshalJSON`, `checkRegistration`, `scorerDigest`, `scorerFiles`, `lane.StartedAt`, `finalize` (`tools/cem-trial/register.go`, `score.go`, `main.go`) | `TestScorerDigestCoversEveryScorerSource`; `TestRegistrationRefusesAnIncompletePlan`; `TestRegistrationMustBeCommitted`; `TestReportRefusesARegistrationNewerThanItsFirstLane`; `TestRunChecksItsRegistration`; no registered run yet: the run is post-rc.3 and owner-commissioned (`NOT_RUN`) |
 | CRT-V0-015 | `registrationMismatches` (no arm refusal since the 2026-10-24 owner decision), `armsNeedCorvint` | `TestReportRefusesARegistrationNewerThanItsFirstLane` (`CRT-V0-015` subtest: a registered cem/1.0 map arm is valid); the held-out run is recorded in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-cem-trial-heldout-run.md` |
-| CRT-V0-016 | `reRegistration`, `reRegister`, `reRegistrationProblems`, `reRegistrationInvalid`, `firstFreshLaneStart`, `reuseSource.identities`, `report.ReRegistered` (`tools/cem-trial/register.go`, `main.go`, `score.go`) | `TestReuseAcrossAReRegistration`; the held-out run is recorded in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-cem-trial-heldout-run.md` |
+| CRT-V0-016 | `reRegistration`, `reRegister`, `adoptReRegistration`, `resumeReRegistration`, `reRegistrationProblems`, `reRegistrationInvalid`, `firstFreshLaneStart`, `ownLane`, `reuseSource`, `reuseCandidate`, `lane.ReusedRegistration`, `report.ReRegistered`, `canonicalPatch` (`tools/cem-trial/register.go`, `main.go`, `score.go`, `select.go`) | `TestReuseAcrossAReRegistration`, `TestReuseCodexRoundFindings`, `TestSelectPatchMatchesCanonicalDiffUnderHostileConfig`; the held-out run is recorded in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-24-cem-trial-heldout-run.md` |
 | CRT-V0-017 | `stemBaselineBlock`, `stemMiss`, `stemPrologue`, `stemWorklist`, `buildPrompt`, `prologueIdentity`, `parseRunOptions`, `invokeLane` (no replay for `stem`), `summarize` (`stem_contrasts`) (`tools/cem-trial/score.go`, `main.go`) | `TestCRTV0017StemWorklistArmCarriesOnlyTheStemGuesses`; `TestCRTV0017ReportSaysPlainlyWhenTheStemBaselineIsNotBeaten`; compact CEM worklist arm and any run `NOT_RUN` |
 | CRT-V0-018 | `separateOutcomes` (`tools/cem-trial/score.go`) | `TestCRTV0018DiscoveryAndDefectDetectionAreSeparateOutcomes`; adjudicated defect detection `NOT_OBSERVED` |
 | CRT-V0-005 (seeded arm), CRT-V0-012 | `seededPrologue`, `suggestEvidence`, `suggestedPaths`, `buildArtefacts`, `buildPrompt`, `prologueIdentity`, `armsNeedCorvint`, `lane.Suggested`, `lane.SeedHits`, `seedCoverage`, `contrast`, `mcnemarLanes`, `armSummary`, `citableArm`, `verifierRatesArm` (`tools/cem-trial/main.go`, `score.go`) | `TestSeededArmSharesThePromptApartFromItsPrologue`; `TestRunRefusesSeededArmWithoutCorvint`; `TestThreeArmSummaryKeepsPilotKeysAndDecomposesTheSeededArm`; `TestTwoArmSummaryIsUnchanged`; `TestLaneLevelMcNemarKeepsDiscordance`; 2026-10-24 three-arm development run (`benchmarks/results/cem-reviewer-trial-development-2026-10-24.json`, 60 lanes); the held-out run is owner-commissioned (decision 0427) and `NOT_RUN` |

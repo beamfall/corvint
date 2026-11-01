@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -37,11 +38,79 @@ const (
 type RuntimeReader struct {
 	Path   string `json:"path"`
 	Reason string `json:"reason"`
+	// NoUnboundedReaders is the project's statement, in
+	// UnboundedReaderExclusionsPath, that no unbounded reader (AFP-V0-012 rule
+	// (d)) reads the path: a dirty path the entry holds then selects no
+	// unbounded reader and follows no root locator (AFP-V0-772). It is never
+	// read from RuntimeReadersPath, whose closed grammar older planners share.
+	NoUnboundedReaders bool `json:"noUnboundedReaders,omitempty"`
+}
+
+// UnboundedReaderExclusionsPath is the repository's declaration of the
+// runtime-readers entries no unbounded reader reads (AFP-V0-772). It is a
+// file of its own, so a planner that predates it ignores it and keeps the
+// AFP-V0-602 selection rather than refusing the runtime-readers declaration.
+const UnboundedReaderExclusionsPath = ".corvint/unbounded-reader-exclusions.json"
+
+// UnboundedReaderExclusionsProfile is that declaration's closed profile name.
+const UnboundedReaderExclusionsProfile = "corvint-unbounded-reader-exclusions/0"
+
+type runtimeReaderFileEntry struct {
+	Path   string `json:"path"`
+	Reason string `json:"reason"`
+}
+
+type unboundedExclusionsFile struct {
+	Profile string   `json:"profile"`
+	Paths   []string `json:"paths"`
+}
+
+// applyUnboundedExclusions marks each runtime-readers entry the exclusions
+// declaration names (AFP-V0-772). Absent, it marks nothing; one that is
+// unreadable, oversized, not exactly its grammar, or that names a path no
+// runtime-readers entry declares, refuses the graph build.
+func applyUnboundedExclusions(root *Source, entries []RuntimeReader) error {
+	body, err := root.ReadBounded(UnboundedReaderExclusionsPath, maxRuntimeReadersBytes)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("%s: %w", UnboundedReaderExclusionsPath, err)
+	}
+	var declared unboundedExclusionsFile
+	if err := json.UnmarshalRead(bytes.NewReader(body), &declared, json.RejectUnknownMembers(true)); err != nil {
+		return fmt.Errorf("%s: %w", UnboundedReaderExclusionsPath, err)
+	}
+	if declared.Profile != UnboundedReaderExclusionsProfile || len(declared.Paths) == 0 || len(declared.Paths) > maxRuntimeReadersEntries {
+		return fmt.Errorf("%s: profile must be %s with 1 to %d paths", UnboundedReaderExclusionsPath, UnboundedReaderExclusionsProfile, maxRuntimeReadersEntries)
+	}
+	previous := ""
+	for _, path := range declared.Paths {
+		index := slices.IndexFunc(entries, func(entry RuntimeReader) bool { return entry.Path == path })
+		if path <= previous || index < 0 {
+			return fmt.Errorf("%s: path %q is not a declared runtime-readers entry in order", UnboundedReaderExclusionsPath, path)
+		}
+		entries[index].NoUnboundedReaders = true
+		previous = path
+	}
+	return nil
+}
+
+// unboundedDirty returns dirty without the paths an entry with
+// NoUnboundedReaders holds (AFP-V0-772).
+func (graph *Graph) unboundedDirty(dirty []string) []string {
+	kept := make([]string, 0, len(dirty))
+	for _, path := range dirty {
+		if index := graph.runtimeReaderEntry(path); index < 0 || !graph.runtimeReaders[index].NoUnboundedReaders {
+			kept = append(kept, path)
+		}
+	}
+	return kept
 }
 
 type runtimeReadersFile struct {
-	Profile string          `json:"profile"`
-	Entries []RuntimeReader `json:"entries"`
+	Profile string                   `json:"profile"`
+	Entries []runtimeReaderFileEntry `json:"entries"`
 }
 
 // readRuntimeReaders returns the declared entries: nil with no declaration,
@@ -60,7 +129,9 @@ func readRuntimeReaders(root *Source) ([]RuntimeReader, error) {
 	}
 	body, err := root.ReadBounded(RuntimeReadersPath, maxRuntimeReadersBytes)
 	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
+		// The exclusions are read, and so stamped, either way; with no entry
+		// to name, any exclusion refuses (AFP-V0-772).
+		return nil, applyUnboundedExclusions(root, nil)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", RuntimeReadersPath, err)
@@ -82,7 +153,14 @@ func readRuntimeReaders(root *Source) ([]RuntimeReader, error) {
 		}
 		previous = entry.Path
 	}
-	return declared.Entries, nil
+	entries := make([]RuntimeReader, 0, len(declared.Entries))
+	for _, entry := range declared.Entries {
+		entries = append(entries, RuntimeReader{Path: entry.Path, Reason: entry.Reason})
+	}
+	if err := applyUnboundedExclusions(root, entries); err != nil {
+		return nil, err
+	}
+	return entries, nil
 }
 
 // validRuntimeReaderPath refuses an entry that is, or as a directory covers,

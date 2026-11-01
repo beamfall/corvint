@@ -45,6 +45,8 @@ var commandTreeInternal = []clitree.Internal{
 // companion binary's with subcommands. The capabilities check reads the snapshots (CAP-V0-045).
 var commandTreeRefs = []capcatalog.CommandTreeRef{
 	{Binary: "corvint", Command: "corvint help --tree", Snapshot: "internal/capcatalog/trees/corvint.json"},
+	{Binary: "corvint-cem-candidate", Command: "corvint-cem-candidate help --json", Snapshot: "internal/capcatalog/trees/corvint-cem-candidate.json"},
+	{Binary: "corvint-cem-experiments", Command: "corvint-cem-experiments help --json", Snapshot: "internal/capcatalog/trees/corvint-cem-experiments.json"},
 	{Binary: "corvint-tasks", Command: "corvint-tasks help --json", Snapshot: "internal/capcatalog/trees/corvint-tasks.json"},
 	{Binary: "corvint-test", Command: "corvint-test help --json", Snapshot: "internal/capcatalog/trees/corvint-test.json"},
 }

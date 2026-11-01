@@ -182,6 +182,7 @@ func gateReviewCommand(env Env, verb string, args []string) *wire.Result {
 		*dest = rest[i]
 	}
 	if f.acceptance != "" {
+		f.acceptance = commandPath(env.Cwd, f.acceptance)
 		if err := acceptanceFlags(&f); err != nil {
 			return errorResult(cmd, err)
 		}

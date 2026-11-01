@@ -220,7 +220,7 @@ func TestTMV0028_AS38_ReleaseGraphRejectsUnknownAndCycles(t *testing.T) {
 
 func TestTMV0028_AS38_AttestationCompatibilityAndDerivedObligations(t *testing.T) {
 	policyDigest := digest("policy")
-	policy := []Gate{{GateID: "command", Kind: "COMMAND", Required: true}, {GateID: "manual", Kind: "MANUAL"}}
+	policy := []Gate{{GateID: "command", Kind: "COMMAND", Required: true, Argv: []string{"make", "check"}}, {GateID: "manual", Kind: "MANUAL"}}
 	id := "ticket:acme:main:AT-0001"
 	r := &Record{QueueID: wire.QueueID{Raw: "queue:acme:main"}, ReleaseID: "v1", Revision: "1", Version: "1.0", Title: "1.0", TicketIDs: []wire.TicketID{{Raw: id}}, AcceptanceCriteria: []string{"criterion"}, RequiredGates: []string{"manual"}}
 	td := digest("ticket")
@@ -235,7 +235,7 @@ func TestTMV0028_AS38_AttestationCompatibilityAndDerivedObligations(t *testing.T
 		t.Fatalf("incompatible provenance must block: %+v", got)
 	}
 	r.Attestations = append(r.Attestations,
-		Attestation{AttestationID: "command-ok", CandidateSha256: cd, GateID: "command", Provenance: External, Result: "PASS", Criteria: []wire.Count{"0"}},
+		Attestation{AttestationID: "command-ok", CandidateSha256: cd, GateID: "command", Provenance: External, Result: "PASS", Criteria: []wire.Count{"0"}, Argv: []string{"make", "check"}},
 		Attestation{AttestationID: "manual-ok", CandidateSha256: cd, GateID: "manual", Provenance: Manual, Result: "PASS"},
 	)
 	if got := Assess(r, policy, o); got.State != ReadyAttested {

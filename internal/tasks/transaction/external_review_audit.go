@@ -51,22 +51,26 @@ func externalPostBytes(p snapshot.PostEntry, blob ExternalReviewBlob) ([]byte, e
 // post is read and fully decoded first: one that cannot be is JOURNAL_FORKED,
 // never a skipped entry.
 func ExternalBuiltPosts(rc *snapshot.Receipt, blob ExternalReviewBlob) ([]ExternalBuilt, error) {
+	return externalBuiltPosts(rc, blob, nil)
+}
+
+func externalBuiltPosts(rc *snapshot.Receipt, blob ExternalReviewBlob, memo *TicketPosts) ([]ExternalBuilt, error) {
 	var out []ExternalBuilt
-	for _, p := range rc.Post {
+	for i, p := range rc.Post {
 		if !strings.HasPrefix(p.Path, "attempts/") || p.Sha256 == nil {
 			continue
 		}
-		raw, err := externalPostBytes(p, blob)
-		if err != nil {
-			return nil, err
+		post := memo.attempt(rc, i, blob)
+		if post.rawErr != nil {
+			return nil, post.rawErr
 		}
 		// Every attempt post is decoded before it is filtered, so a
 		// hash-consistent record with missing or mistyped fields cannot drop
 		// out of the submission history.
-		a, err := snapshot.DecodeAttempt(raw)
-		if err != nil {
-			return nil, wire.Errorf(wire.CodeJournalForked, p.Path, "attempt post is not an attempt record: %v", err)
+		if post.decErr != nil {
+			return nil, wire.Errorf(wire.CodeJournalForked, p.Path, "attempt post is not an attempt record: %v", post.decErr)
 		}
+		a := post.at
 		if a.Phase != "BUILT" || a.PhaseSinceSeq != rc.Seq {
 			continue
 		}
@@ -266,11 +270,11 @@ func (a *ExternalReviewReceiptAudit) StepPosts(rc *snapshot.Receipt, sum wire.Di
 		}
 		a.refs[path] = rec.ExternalReviews
 	}
-	posts, err := ExternalBuiltPosts(rc, blob)
+	posts, err := externalBuiltPosts(rc, blob, memo)
 	if err != nil {
 		return a.fail(rc, "attempt post: %v", err)
 	}
-	for _, l := range ExternalArtifactPosts(rc, blob) {
+	for _, l := range externalArtifactPosts(rc, blob, memo) {
 		a.artifacts[l] = true
 	}
 	if len(posts) != 0 {

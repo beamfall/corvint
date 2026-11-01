@@ -15,6 +15,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/gitancestry/ancestrytest"
 )
 
 // The whole report rests on the claim that no V0 authority closes an
@@ -733,4 +734,87 @@ func coverageOf(stageName, changedPath string, receipt map[string]any) map[strin
 	decoded := map[string]any{}
 	_ = json.Unmarshal(raw, &decoded)
 	return decoded
+}
+
+// EEP-V0-771: grafts are off in gitEnvironment (TestBaseTreeIgnoresGraftedAncestry); a shallow
+// boundary only removes parents, so --base past it is refused, never admitted.
+func TestBaseTreeShallowBoundaryRefuses_EEPV0771(t *testing.T) {
+	git, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := initTestRepo(t, git)
+	run := func(args ...string) string {
+		t.Helper()
+		command := exec.Command(git, append([]string{"-c", "user.name=F", "-c", "user.email=f@example.test"}, args...)...)
+		command.Dir, command.Env = root, gitEnvironment()
+		raw, err := command.Output()
+		if err != nil {
+			t.Fatalf("git %v: %v", args, err)
+		}
+		return strings.TrimSpace(string(raw))
+	}
+	parent := run("rev-parse", "HEAD")
+	run("commit", "--quiet", "--allow-empty", "-m", "child")
+	index := &contextindex.Index{Root: root, Revision: run("rev-parse", "HEAD^{tree}"), CommitRevision: run("rev-parse", "HEAD")}
+	if _, err := resolveBaseTree(context.Background(), gitrun.NewDefaultBudget(), index, parent); err != nil {
+		t.Fatalf("real parent refused: %v", err)
+	}
+	undo := ancestrytest.Graft(t, root, "HEAD")
+	if _, err := resolveBaseTree(context.Background(), gitrun.NewDefaultBudget(), index, parent); err != nil {
+		t.Errorf("grafted checkout lost the real parent: %v", err)
+	}
+	undo()
+	ancestrytest.Shallow(t, root, "HEAD")
+	if _, err := resolveBaseTree(context.Background(), gitrun.NewDefaultBudget(), index, parent); err == nil {
+		t.Error("parent past the shallow boundary admitted")
+	}
+}
+
+// EEP-V0-770: the committed-range engine's merge-base honours info/grafts, so a grafted checkout is
+// refused before admission; a shallow one is not, since the engine's exact --base check holds there.
+func TestAdmitRefusesGraftedAncestry_EEPV0770(t *testing.T) {
+	git, err := exec.LookPath("git")
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := initTestRepo(t, git)
+	run := func(args ...string) string {
+		t.Helper()
+		command := exec.Command(git, append([]string{"-c", "user.name=F", "-c", "user.email=f@example.test"}, args...)...)
+		command.Dir, command.Env = root, gitEnvironment()
+		raw, err := command.Output()
+		if err != nil {
+			t.Fatalf("git %v: %v", args, err)
+		}
+		return strings.TrimSpace(string(raw))
+	}
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/witness\n\ngo 1.22\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run("add", "go.mod")
+	run("commit", "--quiet", "-m", "module")
+	base := run("rev-parse", "HEAD")
+	if err := os.WriteFile(filepath.Join(root, "a.go"), []byte("package witness\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run("add", "a.go")
+	run("commit", "--quiet", "-m", "change")
+	index, err := contextindex.Build(context.Background(), root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const refusal = "--base ancestry cannot be trusted: "
+	if got := admit(context.Background(), index, base, false); strings.Contains(got.detail, refusal) {
+		t.Fatalf("plain checkout refused: %+v", got)
+	}
+	undo := ancestrytest.Graft(t, root, "HEAD")
+	if got := admit(context.Background(), index, base, false); got.status != "REFUSED" || got.detail != refusal+"checkout rewrites ancestry with info/grafts" {
+		t.Errorf("grafted checkout admitted: %+v", got)
+	}
+	undo()
+	ancestrytest.Shallow(t, root, "HEAD")
+	if got := admit(context.Background(), index, base, false); strings.Contains(got.detail, refusal) {
+		t.Errorf("shallow checkout refused by the graft guard: %+v", got)
+	}
 }

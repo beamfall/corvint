@@ -33,8 +33,16 @@ func finishLaneInputs(t *testing.T, plan, intents string) ([]string, []string) {
 // vary per run.
 func dropFinishLaneTiming(stderr string) string {
 	var kept strings.Builder
+	review := false
 	for _, line := range strings.SplitAfter(stderr, "\n") {
-		if !strings.HasPrefix(line, "dogfood-finish-lane: TIMING ") {
+		// The RUNS line (ASD-V0-907) and the REVIEW line with its next-step
+		// line (DCW-V0-908) name per-run paths and digests, as TIMING does.
+		if review && strings.HasPrefix(line, "  next: ") {
+			review = false
+			continue
+		}
+		review = strings.HasPrefix(line, "dogfood-finish-lane: REVIEW ")
+		if !review && !strings.HasPrefix(line, "dogfood-finish-lane: TIMING ") && !strings.HasPrefix(line, "dogfood-finish-lane: RUNS ") {
 			kept.WriteString(line)
 		}
 	}
@@ -79,6 +87,11 @@ func TestDogfoodFinishLaneDCWV0060MatchesManualRecipe(t *testing.T) {
 	code, stdout, stderr := run.exec(t, root, append(env[:3:3], finishLaneIdentity...), append([]string{"dogfood", "finish-lane", "--base", base}, args...)...)
 	if code != 0 || dropGuardingNote(dropFinishLaneTiming(stderr)) != absentAgentReceipts+"dogfood-check: NOTE unbound-commits NOT_OBSERVED previous-cem-absent\n" {
 		t.Fatalf("finish-lane exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	// ASD-V0-907 and DCW-V0-908: a sealed run names its dogfood-change count
+	// and the exact report still to be reviewed.
+	if !strings.Contains(stderr, "\ndogfood-finish-lane: RUNS dogfood-change=") || !strings.Contains(stderr, "\ndogfood-finish-lane: REVIEW report="+filepath.Join(root, ".corvint", "dogfood-report.json")+" sha256=") {
+		t.Fatalf("finish-lane printed no RUNS or REVIEW line: %s", stderr)
 	}
 	bind := cemGit(t, root, "rev-parse", "HEAD^")
 	seal := cemGit(t, root, "rev-parse", "HEAD")
@@ -337,5 +350,42 @@ func TestDogfoodFinishLaneDCWV0061ResumesAfterRejectedSeal(t *testing.T) {
 	cemWrite(t, root, "notes.txt", "draft\n")
 	if code, stdout, stderr = run.exec(t, root, nil, finish...); code != 2 || stdout != "" || stderr != "dogfood-finish-lane: REFUSE dirty-worktree\n  uncommitted: \"notes.txt\"\n  fix: HEAD is sealed; commit or remove every uncommitted path, then rerun corvint dogfood finish-lane --base "+base+"\n" {
 		t.Fatalf("dirty sealed rerun exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+}
+
+// DCW-V0-887 (V1-2978): a finish-lane run after a passing inputs-check with
+// the same base, HEAD, inputs and binary replays the pre-flight's prepare line
+// and runs no cem prepare of its own; an input changed in between forces a
+// fresh prepare.
+func TestDogfoodFinishLaneDCWV0887ReusesThePreflightPrepare(t *testing.T) {
+	t.Parallel()
+	run := portableDogfoodRunner(t)
+	for _, changed := range []bool{false, true} {
+		root, base := portableDogfoodRepo(t)
+		env, args := finishLaneInputs(t, "1\tintent.md\t1:5\tspecification\n", "intent.md\n")
+		if code, stdout, stderr := run.exec(t, root, env[:3], append([]string{"dogfood", "inputs-check", "--base", base}, args...)...); code != 0 {
+			t.Fatalf("inputs-check exit=%d stdout=%s stderr=%s", code, stdout, stderr)
+		}
+		if changed {
+			if err := os.WriteFile(args[1], []byte("1\tintent.md\t1:4\tspecification\n"), 0644); err != nil {
+				t.Fatal(err)
+			}
+		}
+		code, stdout, stderr := run.exec(t, root, append(env[:3:3], finishLaneIdentity...), append([]string{"dogfood", "finish-lane", "--base", base}, args...)...)
+		if code != 0 {
+			t.Fatalf("changed=%t finish-lane exit=%d stdout=%s stderr=%s", changed, code, stdout, stderr)
+		}
+		table, err := os.ReadFile(cemGit(t, root, "rev-parse", "--absolute-git-dir") + "/corvint/dogfood-finish-lane.timings.tsv")
+		if err != nil {
+			t.Fatal(err)
+		}
+		prepared := strings.Contains(string(table), "\nprepare\tcem prepare\t")
+		reused := strings.HasPrefix(stdout, "dogfood-finish-lane: prepare PASS hunks=1 reused=inputs-check\n")
+		if prepared == !changed || reused == changed {
+			t.Errorf("changed=%t: prepare ran=%t reused=%t\nstdout=%s\ntimings=%s", changed, prepared, reused, stdout, table)
+		}
+		if _, err := os.Stat(cemGit(t, root, "rev-parse", "--absolute-git-dir") + "/corvint/inputs-check-pass"); !os.IsNotExist(err) {
+			t.Errorf("changed=%t: the pre-flight receipt was not consumed: %v", changed, err)
+		}
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/gitancestry"
 )
 
 // Identity states for a declared repository (EEP-V1-002).
@@ -109,6 +110,12 @@ func resolveCheckout(ctx context.Context, root, source string) checkout {
 		entry.reason = "checkout has no HEAD commit"
 		return entry
 	}
+	// A grafted or shallow checkout's root commits are not its origin, so it binds nothing
+	// (EEP-V0-773).
+	if reason := ancestryRewritten(ctx, canonical); reason != "" {
+		entry.reason = reason
+		return entry
+	}
 	entry.dir, entry.head, entry.state = canonical, strings.TrimSpace(string(head)), "resolved"
 	entry.roots = rootCommits(ctx, canonical, entry.head)
 	entry.reason = "checkout resolved at HEAD " + entry.head
@@ -116,9 +123,14 @@ func resolveCheckout(ctx context.Context, root, source string) checkout {
 }
 
 // rootCommits lists the parentless commits reachable from revision, the only
-// repository identity V1 accepts as authoritative (EEP-V1-002).
+// repository identity V1 accepts as authoritative (EEP-V1-002). A grafted or
+// shallow checkout lists none: its parentless commits are the graft or the
+// shallow boundary, not the origin (EEP-V0-773).
 func rootCommits(ctx context.Context, dir, revision string) map[string]struct{} {
 	roots := make(map[string]struct{})
+	if ancestryRewritten(ctx, dir) != "" {
+		return roots
+	}
 	output, err := runGit(ctx, dir, nil, "rev-list", "--max-parents=0", revision)
 	if err != nil {
 		return roots
@@ -496,4 +508,11 @@ func ParseCheckout(value string) (Checkout, error) {
 		return Checkout{}, fmt.Errorf("expected ID=DIR with an identifier ID of at most %d bytes", maxIdentifier)
 	}
 	return Checkout{ID: id, Source: dir}, nil
+}
+
+// ancestryRewritten names why dir's commit ancestry cannot be trusted, or returns "".
+func ancestryRewritten(ctx context.Context, dir string) string {
+	return gitancestry.Rewritten(ctx, func(ctx context.Context, args ...string) ([]byte, error) {
+		return runGit(ctx, dir, nil, args...)
+	})
 }

@@ -52,7 +52,7 @@ func barrier(ctx context.Context, repo *intent.Repository, actor mutation.Bindin
 		}
 		return report, err
 	}
-	if _, err := authority.Qualify(repo.CommonDir); err != nil {
+	if _, err := authority.QualifyReused(repo.CommonDir); err != nil {
 		return report, err
 	}
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})

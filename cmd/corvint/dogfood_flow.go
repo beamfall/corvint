@@ -28,6 +28,9 @@ var dogfoodFlowOptions = map[string]map[string]bool{
 	// propose-citations is read-only and prints a draft plan (DCW-V0-150);
 	// --refresh carries an earlier plan's rows forward (DCW-V0-442).
 	"propose-citations": {"--refresh": true},
+	// prechange records the agent pre-change receipts at BASE and binds them
+	// (DCW-V0-880); every positional after BASE is an impact path.
+	"prechange": {"--task": true},
 	// finish-lane runs change, check and seal in turn, so it takes both
 	// option sets plus the bind loop's inputs; BASE is --base (DCW-V0-060).
 	"finish-lane": {"--base": true, "--citations": true, "--intents": true, "--verify": true, "--outcome": true,
@@ -105,13 +108,21 @@ func dogfoodFlowArguments(action string, args []string) (map[string]string, stri
 		}
 		return flags, flags["--base"], nil
 	}
+	if action == "prechange" && len(positional) > 1 {
+		flags[prechangePathsFlag] = strings.Join(positional[1:], "\x00")
+		positional = positional[:1]
+	}
 	if len(positional) != 1 {
 		return nil, "", errors.New("dogfood-base-required")
 	}
 	return flags, positional[0], nil
 }
 
-// runDogfoodFlow runs `dogfood change|check|seal|batch-check BASE` or
+// prechangePathsFlag carries the prechange impact paths, NUL-joined, in the
+// parsed flags; it is never an accepted option name.
+const prechangePathsFlag = "\x00paths"
+
+// runDogfoodFlow runs `dogfood change|check|seal|batch-check|prechange BASE` or
 // `dogfood finish-lane|inputs-check --base BASE` with this executable
 // unless an option names another one, reading the DOGFOOD_* inputs the
 // make targets have always taken.
@@ -201,6 +212,17 @@ func runDogfoodAction(ctx context.Context, root, action, base string, flags map[
 	if action == "propose-citations" {
 		return dogfoodflow.ProposeCitations(ctx, dogfoodflow.ProposeOptions{Root: root, Base: base, Refresh: flags["--refresh"]}, stdout, stderr)
 	}
+	if action == "prechange" {
+		var paths []string
+		if joined := flags[prechangePathsFlag]; joined != "" {
+			paths = strings.Split(joined, "\x00")
+		}
+		task := flags["--task"]
+		if task == "" {
+			task = os.Getenv("DOGFOOD_TASK")
+		}
+		return dogfoodflow.Prechange(ctx, dogfoodflow.PrechangeOptions{Root: root, Base: base, Task: task, Paths: paths, Steps: runner("--corvint-bin")}, stdout, stderr)
+	}
 	if action == "inputs-check" {
 		return dogfoodflow.FinishLane(ctx, dogfoodflow.FinishLaneOptions{Change: change, Preflight: true}, stdout, stderr)
 	}
@@ -211,6 +233,8 @@ func runDogfoodAction(ctx context.Context, root, action, base string, flags map[
 		Root: root, Base: base, BaseVerifier: runner("--base-verifier"), TreeVerifier: runner("--tree-verifier"),
 		Exception: os.Getenv("DOGFOOD_EXCEPTION"), Verbose: os.Getenv("DOGFOOD_VERBOSE") == "1", OutputChange: os.Getenv("DOGFOOD_OUTPUT_CHANGE"),
 		ReusePass: os.Getenv("DOGFOOD_CHECK_REUSE") == "1",
+		// DCW-V0-907: the base and tree cem status commands run at once.
+		ConcurrentVerifiers: true,
 	}
 	if _, ok := flags["--override-verifier"]; ok {
 		override := runner("--override-verifier")

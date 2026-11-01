@@ -96,7 +96,7 @@ func reuseArtifact(ctx context.Context, root string, m Manifest, data []byte) (*
 	if err := validateManifest(m); err != nil {
 		return nil, false, err
 	}
-	c := &compiler{root: root, manifest: m, indexes: map[string]*contextindex.Index{}, sources: map[string]contextindex.Source{}}
+	c := &compiler{root: root, manifest: m, indexes: map[string]*contextindex.Index{}, sources: map[string]contextindex.Source{}, verifyOnly: true}
 	if err := c.pin(gitstatus.WithIsolation(ctx)); err != nil {
 		return nil, false, err
 	}

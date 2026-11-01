@@ -11,14 +11,15 @@ import (
 	"testing"
 )
 
-// This audit deliberately includes every production source of contextindex
-// and its extraction dependencies, across platforms. It over-invalidates
-// consumer-only changes rather than risk reusing stale facts. Additions are
-// discovered, not an enumerated filename allowlist. Review new imports too.
+// This audit deliberately names every production source of contextindex and
+// its extraction dependencies, across platforms; additions are discovered, not
+// an enumerated filename allowlist. Review new imports too. It pins no digest:
+// an input edit moves no pin unless TestAnalyzerSchemaOutput's golden output
+// moves, so two branches editing one input do not conflict on a pin line
+// (IDX-SNAP-V0-890). script/analyzer-schema.sh reads the directory list below
+// to name the changed inputs.
 func TestAnalyzerSchemaInputs(t *testing.T) {
 	t.Run("IDX-SNAP-V0-017", func(t *testing.T) {
-		const auditedSchema = "corvint-analyzer/150"
-		const auditedSHA256 = "9123b1706d8f43ac12ff752577b0eccd13bc047bb5a4726a5f7bf1181c9c4de0"
 		root := filepath.Join("..", "..")
 		paths := []string{"go.mod"}
 		if _, err := os.Stat(filepath.Join(root, "go.sum")); err == nil {
@@ -49,25 +50,64 @@ func TestAnalyzerSchemaInputs(t *testing.T) {
 			}
 			fmt.Fprintf(digest, "%s\x00%s\x00", filepath.ToSlash(path), content)
 		}
-		got := fmt.Sprintf("%x", digest.Sum(nil))
-		if analyzerSchemaID != auditedSchema || got != auditedSHA256 {
-			t.Fatalf("analyzer inputs drift: schema=%s SHA256=%s; review extraction/encoding changes, then run script/analyzer-schema.sh bump, which sets the schema number past origin/main's, rewrites both audit pins and repins use-case receipts (IDX-SNAP-V0-060)", analyzerSchemaID, got)
+		t.Logf("analyzer inputs SHA256=%x over %d files", digest.Sum(nil), len(paths))
+	})
+}
+
+// TestAnalyzerSchemaOutput pins the analyzer's output next to its schema
+// number: the SHA-256 of the pack a fixed multi-language corpus compiles to,
+// under a fixed engine name so the schema number itself is not part of it, and
+// the SHA-256 of the blob-shard facts the same corpus yields. An input edit that
+// leaves both unchanged keeps its schema number and moves no pin
+// (IDX-SNAP-V0-107, IDX-SNAP-V0-890, IDX-SNAP-V0-892, V1-2289).
+func TestAnalyzerSchemaOutput(t *testing.T) {
+	t.Run("IDX-SNAP-V0-107", func(t *testing.T) {
+		const auditedSchema = "corvint-analyzer/150"
+		const auditedOutputSHA256 = "edd4d3a241552c95c49e65dff4ef2ffea3355f5b8d4ea32984c165711fe77261"
+		const auditedShardSHA256 = "d7e6c60b732d28b544c25b1d3bffea24ee374bb3bd87051e432eb6f6b30f5554"
+		got, shards := analyzerGoldenOutput(t, nil)
+		t.Logf("analyzer output SHA256=%s", got)
+		t.Logf("analyzer shard SHA256=%s", shards)
+		if analyzerSchemaID != auditedSchema || got != auditedOutputSHA256 || shards != auditedShardSHA256 {
+			t.Fatalf("analyzer output drift: schema=%s output SHA256=%s shard SHA256=%s; the golden corpus compiles to other facts, so the facts or their encoding changed: run script/analyzer-schema.sh bump, which moves the schema number past origin/main's and rewrites the pins (IDX-SNAP-V0-107)", analyzerSchemaID, got, shards)
 		}
 	})
 }
 
-// TestAnalyzerSchemaOutput pins the analyzer's output: the SHA-256 of the
-// pack a fixed multi-language corpus compiles to, under a fixed engine name
-// so the schema number itself is not part of it. An input edit that leaves
-// this digest unchanged keeps its schema number; script/analyzer-schema.sh
-// bump then repins only the input digest (IDX-SNAP-V0-107, V1-2289).
-func TestAnalyzerSchemaOutput(t *testing.T) {
-	t.Run("IDX-SNAP-V0-107", func(t *testing.T) {
-		const auditedOutputSHA256 = "edd4d3a241552c95c49e65dff4ef2ffea3355f5b8d4ea32984c165711fe77261"
-		got := analyzerGoldenOutput(t)
-		t.Logf("analyzer output SHA256=%s", got)
-		if got != auditedOutputSHA256 {
-			t.Fatalf("analyzer output drift: SHA256=%s; the golden corpus compiles to another pack, so the facts or their encoding changed: run script/analyzer-schema.sh bump, which moves the schema number past origin/main's and rewrites the pins (IDX-SNAP-V0-107)", got)
+// TestAnalyzerSchemaOutputCoversMarkersAndShards: the golden corpus yields a
+// marker, and a change to the markers alone, or to one shard fact alone, moves
+// the pinned digests (IDX-SNAP-V0-892, V1-2356).
+func TestAnalyzerSchemaOutputCoversMarkersAndShards(t *testing.T) {
+	t.Run("IDX-SNAP-V0-892", func(t *testing.T) {
+		var markers int
+		pack, shards := analyzerGoldenOutput(t, func(index *Index) {
+			for _, list := range index.Markers {
+				markers += len(list)
+			}
+		})
+		if markers == 0 {
+			t.Fatal("the golden corpus yields no marker")
+		}
+		markerPack, markerShards := analyzerGoldenOutput(t, func(index *Index) {
+			for key, list := range index.Markers {
+				moved := slices.Clone(list)
+				moved[0].Line++
+				index.Markers[key] = moved
+			}
+		})
+		if markerPack == pack {
+			t.Fatal("a marker-only change left the output digest unchanged")
+		}
+		if markerShards != shards {
+			t.Fatal("an index-only marker change moved the shard digest")
+		}
+		_, sourceShards := analyzerGoldenOutput(t, func(index *Index) {
+			source := index.Sources["cache/split.go"]
+			source.Data = append(slices.Clone(source.Data), []byte("\nfunc Extra() {}\n")...)
+			index.Sources["cache/split.go"] = source
+		})
+		if sourceShards == shards {
+			t.Fatal("a changed shard fact left the shard digest unchanged")
 		}
 	})
 }
@@ -105,8 +145,10 @@ var analyzerGoldenCorpus = map[string]string{
 }
 
 // analyzerGoldenOutput commits the corpus with fixed identities and dates,
-// compiles it, and returns the SHA-256 of its pack.
-func analyzerGoldenOutput(t *testing.T) string {
+// compiles it, applies mutate (when not nil) to the built index, and returns
+// the SHA-256 of its pack and of its blob-shard facts, each shard hashed as
+// "path NUL payload NUL" in path order under the fixed engine.
+func analyzerGoldenOutput(t *testing.T, mutate func(*Index)) (string, string) {
 	t.Helper()
 	for name, value := range map[string]string{
 		"GIT_CONFIG_GLOBAL": os.DevNull, "GIT_CONFIG_NOSYSTEM": "1",
@@ -127,6 +169,20 @@ func analyzerGoldenOutput(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if mutate != nil {
+		mutate(index)
+	}
+	shards := sha256.New()
+	tokeniser := newTokeniser()
+	for _, path := range blobSourcePaths(index.Sources) {
+		payload, ok, err := blobShardPayload(index.ObjectFormat, "golden", path, index.Sources[path], tokeniser)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if ok {
+			fmt.Fprintf(shards, "%s\x00%s\x00", path, payload)
+		}
+	}
 	history, historyCommit := packHistoryForWrite(ctx, index)
 	file, err := os.Create(filepath.Join(t.TempDir(), "golden.aip"))
 	if err != nil {
@@ -140,7 +196,7 @@ func analyzerGoldenOutput(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return fmt.Sprintf("%x", sha256.Sum256(content))
+	return fmt.Sprintf("%x", sha256.Sum256(content)), fmt.Sprintf("%x", shards.Sum(nil))
 }
 
 func TestAnalyzerPackEngineIgnoresExecutableIdentity(t *testing.T) {

@@ -49,6 +49,7 @@ type notifyWatch struct {
 	ancestors map[int32]*ancestorWatch // ancestor watch descriptors and their entries on the path
 	files     []statWatch              // every regular file, re-read by sweep
 	uncovered []int                    // indexes into files that poll re-reads too
+	byDir     []sweepDir               // files grouped by directory, built by the first sweep
 }
 
 // ancestorWatch names the entries of an ancestor directory on the path to an
@@ -68,6 +69,15 @@ type statWatch struct {
 	id   statIdentity
 }
 
+// sweepDir is one directory's tracked files, which sweep re-reads with
+// fstatat relative to one descriptor of the directory instead of resolving
+// each full path (V1-2530): names are NUL-terminated for the raw call.
+type sweepDir struct {
+	path  string
+	files []int    // indexes into notifyWatch.files
+	names [][]byte // their base names, NUL-terminated
+}
+
 type statIdentity struct {
 	dev, ino     uint64
 	mode         uint32
@@ -76,12 +86,19 @@ type statIdentity struct {
 	mtime, ctime int64
 }
 
-// inotifyAddWatch and sweepLstat are the seams of the tests that exhaust the
-// watch allowance, count the watches of a guard and the stat reads of a sweep.
+// inotifyAddWatch, sweepLstat and sweepStatAt are the seams of the tests that
+// exhaust the watch allowance, count the watches of a guard and the stat reads
+// of a sweep. sweepLstat re-reads one uncovered file in poll; sweepStatAt
+// re-reads a file relative to its directory's descriptor in sweep.
 var (
 	inotifyAddWatch = syscall.InotifyAddWatch
 	sweepLstat      = syscall.Lstat
+	sweepStatAt     = fstatat
 )
+
+// atSymlinkNoFollow is AT_SYMLINK_NOFOLLOW: fstatat reads a final symlink
+// itself, as lstat does.
+const atSymlinkNoFollow = 0x100
 
 func newChangeWatch() (changeWatch, error) {
 	fd, err := syscall.InotifyInit1(syscall.IN_NONBLOCK | syscall.IN_CLOEXEC)
@@ -262,14 +279,72 @@ func (w *notifyWatch) invalidated(buf []byte) bool {
 // sweep re-reads the stat identity of every regular file, which reports a
 // link made to it, or a write or mode change through a link or descriptor
 // that bypasses its watched directory, made before the read (PSR-V0-223).
+// sweep re-reads every tracked file's stat identity (PSR-V0-223). Each
+// directory is opened once and its files are read with fstatat relative to
+// it (V1-2530), which resolves only the base name: the identity fields and
+// the symlink handling are lstat's, and the directory is resolved by its path
+// at the sweep as lstat would resolve it, so a replaced directory or a file
+// that cannot be read marks the watch dirty exactly as before. A directory
+// that cannot be opened is swept by full path.
 func (w *notifyWatch) sweep() bool {
-	for i := 0; !w.dirty && i < len(w.files); i++ {
-		w.changed(&w.files[i])
+	if w.byDir == nil {
+		w.groupByDir()
+	}
+	var st syscall.Stat_t
+	for d := 0; !w.dirty && d < len(w.byDir); d++ {
+		dir := &w.byDir[d]
+		fd, err := openSweepDir(dir.path)
+		if err != nil {
+			// A directory that cannot be opened (no descriptor left, or
+			// no search permission) is read by full path as before, so the
+			// result never depends on the descriptor.
+			for _, i := range dir.files {
+				if w.changed(&w.files[i]) {
+					break
+				}
+			}
+			continue
+		}
+		for k, i := range dir.files {
+			if sweepStatAt(fd, dir.names[k], &st) != nil || identityOf(&st) != w.files[i].id {
+				w.dirty = true
+				break
+			}
+		}
+		_ = syscall.Close(fd)
 	}
 	return w.dirty
 }
 
+// groupByDir groups the tracked files by their directory, in first-seen
+// order, once per watch.
+func (w *notifyWatch) groupByDir() {
+	at := map[string]int{}
+	w.byDir = []sweepDir{}
+	for i, f := range w.files {
+		dir, name := filepath.Split(f.path)
+		d, ok := at[dir]
+		if !ok {
+			d = len(w.byDir)
+			at[dir] = d
+			w.byDir = append(w.byDir, sweepDir{path: dir})
+		}
+		w.byDir[d].files = append(w.byDir[d].files, i)
+		w.byDir[d].names = append(w.byDir[d].names, append([]byte(name), 0))
+	}
+}
+
+// openSweepDir opens a directory only to name it to fstatat.
+func openSweepDir(path string) (int, error) {
+	for {
+		fd, err := syscall.Open(path, syscall.O_RDONLY|syscall.O_DIRECTORY|syscall.O_CLOEXEC, 0)
+		if !errors.Is(err, syscall.EINTR) {
+			return fd, err
+		}
+	}
+}
+
 func (w *notifyWatch) close() error {
-	w.dirs, w.ancestors, w.files, w.uncovered = nil, nil, nil, nil
+	w.dirs, w.ancestors, w.files, w.uncovered, w.byDir = nil, nil, nil, nil, nil
 	return syscall.Close(w.fd)
 }

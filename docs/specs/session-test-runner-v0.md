@@ -542,6 +542,24 @@ two requirements make its version name its content and make each receipt carry i
   named; `--summary` alone is refused) and `TestSTRV0800CLIDryRunSummary`. Rollback: remove
   `testDryRunSummary` and the flag.
 
+- **STR-V0-770:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3573)
+  Every whole-package unit of a `corvint test` manifest MUST carry a `reason` naming the reader it
+  rests on. A plan selection's `whole: KIND via PATH` reason SHALL add, for `BINARY_EXEC`, the
+  command whose built binary the package runs (`(runs the built UNIT binary)`), for
+  `UNBOUNDED_READER`, the cause of its unbounded reads, and for `DEPENDENCY_PATH`, the unit its
+  dependency path comes through (`(imports UNIT)`); other witnesses already name the package. A
+  package the AFP-V0-012 attribution adds beyond the plan's selections, which had no reason
+  before, SHALL carry `whole: attributed: LINE`, its own attribution line from
+  `gateselect.SelectStructural` (for example `reader PKG <- PATH` or `frontier PKG ...`). The
+  selection, its slices and every verdict are unchanged. Measured on this lane's head with a
+  probe change to `internal/appmap/compile.go` and `docs/E2E-ADOPTION.md`: 109 whole Go packages,
+  47 of them with no reason before and none after; 30 `BINARY_EXEC` consumers of `cmd/corvint`,
+  14 dependency paths, 12 and 32 unbounded readers (code and documentation path), and 46
+  attribution-only packages (36 `reader`, 10 `frontier`). The base binary and this head select the
+  same 109 packages on it, so a stale binary accounts for none of the count here; the attribution-only
+  `reader` lines come from the fast-tier lexicon (AFP-V0-765 difference (4)). Rollback: remove
+  `wholeReader` and `testAttributionReasons`.
+
 ## Non-goals
 
 - A watch daemon, IDE integration, or per-keystroke runs; that is LPCV's live loop.
@@ -771,6 +789,7 @@ CI immediately (AFP-V0-030). Removing the command removes no other capability.
 | STR-V0-064 | `ModuleUnitPrefix`, `moduleDirectory`, `ModuleCovered` and the module units of `Build` in `internal/sessiontest/plan.go`; `Unit.Dir` in `manifest.go`; `Invocation.Dir`, `Planned.Dir`, the module case of `Invocations`, `runnerKey`, `discover`, `workDir`, `probe`, `launch` and `moduleOutcome` in `run.go`; `testFillPlan` and the dry-run `dir` in `cmd/corvint/test.go` | `internal/sessiontest/module_test.go` TestSTRV0064NestedModuleUnit, TestSTRV0064ModuleInvocation, TestSTRV0064ModuleOutcome, TestSTRV0064ModuleCovered; `internal/sessiontest/module_unix_test.go` TestSTRV0064RunnerExecutesNestedModule; `cmd/corvint/test_module_strv0064_unix_test.go` TestSTRV0064CLINestedModuleRuns; replay and real run in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-nested-module-test-unit.md` |
 | STR-V0-060 | `pathDigest` in `internal/sessiontest/identity.go` (no-follow, non-blocking `openInput` plus an fstat identity check against the Lstat) | `internal/sessiontest/identity_swap_unix_test.go` TestSTRV0060PathDigestRefusesSwap (symlink, symlink-to-same-inode, FIFO and other-file swaps between the Lstat and the open are refused with the typed error inside a deadline) |
 | STR-V0-800 | `testDryRunSummary`, `summaryList` and `summaryClip` in `cmd/corvint/test_summary.go`; the `--summary` flag and its refusal in `parseTestOptions` (`cmd/corvint/test.go`) | `TestSTRV0800DryRunSummaryIsBounded`, `TestSTRV0800CLIDryRunSummary` |
+| STR-V0-770 | `wholeReader` in `cmd/corvint/test_slices.go`; `testAttributionReasons` in `cmd/corvint/test.go` | `TestWholePackageSelectionsNameTheirReader_V13573` |
 
 ## Open decisions
 

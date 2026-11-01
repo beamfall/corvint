@@ -33,7 +33,7 @@ func PoolOperate(ctx context.Context, repo *intent.Repository, actor mutation.Bi
 
 func poolOperate(ctx context.Context, repo *intent.Repository, actor mutation.Binding, choice LeaseChoice) (*Report, error) {
 	choice.Lease.Verb = transaction.LeasePoolOperate
-	report, e := leaseOnce(WithClock(ctx, poolClock), repo, actor, choice, poolClock())
+	report, e := leaseOnce(WithClock(ctx, storeClock(repo)), repo, actor, choice, storeClock(repo)())
 	if report.Receipt != "" {
 		// The receipt may commit before a post/head write fails (CAL-V0-215).
 		report.Unretryable = true

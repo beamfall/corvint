@@ -160,7 +160,17 @@ and 0.2 specifications remain their historical identities; the text below is the
    rejected; a created file needs `new file mode` and an old range of `0,0`; a
    deleted file needs `deleted file mode` and a new range of `0,0`. Hunk headers
    follow `@@ -start[,count] +start[,count] @@`, and `\ No newline at end of file`
-   applies only to the immediately preceding record.
+   applies only to the immediately preceding record. Revision r2 (CEM-V1-934)
+   admits one more group shape, Git's canonical full-index binary section, and
+   only in a patch with at least one textual hunk: a symmetric
+   `diff --git a/P b/P` line; no rename, similarity or mode-pair record;
+   `new file mode M` for a create or `deleted file mode M` for a delete; one
+   `index OLD..NEW` line whose two full lowercase object IDs have one length
+   (40 or 64), all zeros on the absent side, with a ` M` suffix only for a
+   modification of two distinct nonzero IDs; and, as the group's last record,
+   `Binary files a/P and b/P differ` with `/dev/null` on the absent side. A
+   binary-only patch, `GIT binary patch` data and every other binary marker
+   are rejected.
 7. Base simulation. `baseRevision` resolves to a commit whose full lowercase OID
    equals the supplied value byte for byte. Hunks are grouped by
    `(oldPath,newPath)` in patch order and replayed against base blobs read from
@@ -168,7 +178,11 @@ and 0.2 specifications remain their historical identities; the text below is the
    absent; a delete needs the old path with a matching mode and yields empty
    bytes; a rename needs the old path and an absent destination. Every context
    and removed record is compared byte for byte and every cursor is checked. The
-   patch is simulated, never executed.
+   patch is simulated, never executed. A binary group (revision r2,
+   CEM-V1-935) is not simulated and no blob body is read for it: each present
+   base and target entry must be a regular file in the group's mode whose
+   object ID equals the one its index line names, and its path still counts
+   toward the changed-path inventory.
 8. Evidence. An evidence record names a regular blob (mode 100644 or 100755,
    never a symlink or gitlink; 40- or 64-hex OID) at `baseRevision`, a nonempty half-open byte span `[start,end)` within it, and the
    SHA-256 of those span bytes. At most 64 MiB is read per blob and 128 MiB in

@@ -106,9 +106,15 @@ for it or a governing release policy explicitly requires repository-wide validat
 
 ```sh
 test "$(GOTOOLCHAIN=local go env GOVERSION)" = "go1.27.3"
+```
+
+Then, one command per line, each in a form a dogfood `VERIFY` file accepts (`ASD-V0-905`):
+
+```sh
 GOTOOLCHAIN=local go test -count=1 -timeout 30m ./...
 GOTOOLCHAIN=local go vet ./...
-(cd interop/cem01-go && GOTOOLCHAIN=local go test -count=1 -timeout 30m ./... && GOTOOLCHAIN=local go vet ./...)
+GOTOOLCHAIN=local go -C interop/cem01-go test -count=1 -timeout 30m ./...
+GOTOOLCHAIN=local go -C interop/cem01-go vet ./...
 ```
 
 `-timeout 30m` matches `GO_TEST_TIMEOUT` in the Makefile: it is a per-package hang detector, not

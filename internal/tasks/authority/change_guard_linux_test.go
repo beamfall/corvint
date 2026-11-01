@@ -586,3 +586,76 @@ func TestPSRV0274_ChangeGuardReportsAnEventBehindAnIgnoredBacklog(t *testing.T) 
 		t.Fatalf("check events after a backlog and an on-path chmod = %q", got)
 	}
 }
+
+// PSR-V0-223 (V1-2530): sweep reads every tracked file with fstatat relative
+// to its directory's descriptor. Each read gives the identity lstat gives,
+// every file is read that way and none by full path, and a change sweep must
+// see is still seen: a later link, a mode change, a file renamed over, and a
+// directory that can no longer be opened.
+func TestPSRV0223_SweepReadsByDirectoryDescriptor(t *testing.T) {
+	for _, name := range []string{"none", "link", "chmod", "renamed-over", "directory-gone"} {
+		t.Run(name, func(t *testing.T) {
+			repo, file := guardRepo(t)
+			second := filepath.Join(repo.StateDir, "receipts", "r1.json")
+			if err := os.MkdirAll(filepath.Dir(second), 0700); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(second, []byte("r1"), 0600); err != nil {
+				t.Fatal(err)
+			}
+			g, err := WatchChanges(repo)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer g.Close()
+			w := g.watch.(*notifyWatch)
+			reads, lstats := 0, 0
+			statAt, lstat := sweepStatAt, sweepLstat
+			t.Cleanup(func() { sweepStatAt, sweepLstat = statAt, lstat })
+			sweepStatAt = func(fd int, name []byte, st *syscall.Stat_t) error {
+				reads++
+				return statAt(fd, name, st)
+			}
+			sweepLstat = func(path string, st *syscall.Stat_t) error {
+				lstats++
+				return lstat(path, st)
+			}
+			if w.sweep() || reads != len(w.files) || lstats != 0 {
+				t.Fatalf("clean sweep: dirty %v, %d fstatat reads and %d lstats for %d files", w.dirty, reads, lstats, len(w.files))
+			}
+			for _, f := range w.files {
+				var st syscall.Stat_t
+				if err := syscall.Lstat(f.path, &st); err != nil || identityOf(&st) != f.id {
+					t.Fatalf("%s: lstat identity differs from the tracked one: %v", f.path, err)
+				}
+			}
+			switch name {
+			case "link":
+				err = os.Link(second, filepath.Join(t.TempDir(), "alias"))
+			case "chmod":
+				err = os.Chmod(second, 0640)
+			case "renamed-over":
+				tmp := second + ".tmp"
+				if err = os.WriteFile(tmp, []byte("r1"), 0600); err == nil {
+					err = os.Rename(tmp, second)
+				}
+			case "directory-gone":
+				err = os.Chmod(filepath.Dir(second), 0)
+				t.Cleanup(func() { os.Chmod(filepath.Dir(second), 0700) })
+				if os.Geteuid() == 0 {
+					t.Skip("root opens a mode-0 directory")
+				}
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := w.sweep(); got != (name != "none") {
+				t.Fatalf("sweep after %s reported %v", name, got)
+			}
+			if name == "directory-gone" && lstats == 0 {
+				t.Fatal("a directory that cannot be opened was not swept by full path")
+			}
+			_ = file
+		})
+	}
+}

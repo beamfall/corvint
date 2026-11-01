@@ -16,8 +16,6 @@ corvint-analyzer-sql-native	analyzer process the analyzer host starts over its o
 corvint-analyzer-structured-data	analyzer process the analyzer host starts over its own protocol; no command tree yet
 corvint-analyzer-swift	analyzer process the analyzer host starts over its own protocol; no command tree yet
 corvint-behavior-falsify	folded into corvint-test falsify, whose tree covers it; the shim keeps its recorded help (CTF-V0-002)
-corvint-cem-candidate	no command-tree snapshot yet; remove this row when the binary ships one
-corvint-cem-experiments	no command-tree snapshot yet; remove this row when the binary ships one
 corvint-companion-release	no command-tree snapshot yet; remove this row when the binary ships one
 corvint-console	no command-tree snapshot yet; remove this row when the binary ships one
 corvint-corpus-http	no command-tree snapshot yet; remove this row when the binary ships one

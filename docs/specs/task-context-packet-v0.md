@@ -1285,6 +1285,57 @@ as withheld. This amendment reserves what the routed spec cites.
   `omitted_spec_cited` call, and repin the analyzer input digest; packets without a spec citation
   are unaffected either way.
 
+- `TCP-V0-270`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1272)
+  A TCP-V0-008 governing candidate whose tree entry is a symlink (mode `120000`) stands for its
+  one-hop target, resolved lexically from the link's directory against the pinned Git tree at
+  `Revision`, never the working tree. The candidate is admitted as that target only when the
+  target is a tracked regular blob (mode `100644` or `100755`) inside the repository root that
+  the index pinned and can read. The candidate's position in TCP-V0-008's order is unchanged.
+  Test: `TestGoverningSymlinkAdmittedAsItsPinnedTarget_TCPV0270`.
+- `TCP-V0-271`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1272)
+  An admitted link reserves its `governing` row under the target's path, and the row's evidence
+  binds both entries: `path` and `blob_hash` are the target's, `link_path` and `link_blob_hash`
+  the link's. The text TCP-V0-055's authority screen and every consumer read is the target blob;
+  the link blob is only its pointer. TCP-V0-056 screens the target's text, and a modified working
+  tree copy of either the target or the link downgrades the row as self-modified authority.
+  Tests: `TestGoverningSymlinkAdmittedAsItsPinnedTarget_TCPV0270`,
+  `TestGoverningSymlinkScreenedWhenTargetOrLinkModified_TCPV0271`.
+- `TCP-V0-272`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1272)
+  Every other link is refused with one typed reason, recorded in TCP-V0-011's `governing` entry
+  as `link_refusals: [{path, reason}]` in path order: `symlink-target-outside-tree` (absolute,
+  or `..` past the root at any step), `symlink-target-not-in-tree` (no entry at the target in the
+  pinned tree: an untracked file and a dangling link are indistinguishable there, and the
+  resolver deliberately reads nothing else), `symlink-target-not-regular-file` (a tree or
+  gitlink), `symlink-chain` (the target, or any intermediate component of the link text, is itself
+  a tracked entry, so lexical resolution would bypass a second link), `symlink-cycle` (the link
+  names itself, or its target is a link back to it or to itself), `symlink-target-is-subject`,
+  and `symlink-target-invalid` (empty, undecodable, over the source bound, or containing a NUL,
+  line break, backslash or colon). Test:
+  `TestGoverningSymlinkRefusalsStayUnavailableWithTypedReasons_TCPV0272`.
+- `TCP-V0-273`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1272)
+  A target reached twice, by a link and directly or by two links, reserves one row, at its first
+  position; the later candidate is neither a second row nor counted in `withheld`. Every link
+  that reached the row still binds TCP-V0-271's screen: a modified working-tree copy of any of
+  them downgrades it, and its evidence carries the TCP-V0-057 warning. Tests:
+  `TestGoverningSymlinkTargetReachedTwiceReservesOneRow_TCPV0273`,
+  `TestGoverningSymlinkLaterLinkModifiedStillScreens_TCPV0271`.
+- `TCP-V0-274`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1272)
+  The local completion packet's `governance` row (`docs/specs/local-completion-policy-v0.md`)
+  carries the same `link_path` and `link_blob_hash` beside the target's `path` and `blob_hash`.
+  A refused link's `unavailable_selectors` entry carries the TCP-V0-272 `reason`; an admitted link
+  whose row TCP-V0-056 downgraded carries the downgrade's warning codes as its `reason`. Tests:
+  `TestGoverningSymlinkAdmittedAsItsPinnedTarget_TCPV0270`,
+  `TestGoverningSymlinkScreenedWhenTargetOrLinkModified_TCPV0271`,
+  `TestGoverningSymlinkRefusalsStayUnavailableWithTypedReasons_TCPV0272`.
+- `TCP-V0-275`: (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-1272)
+  A refused link, or an admitted link whose target is unread or screened, is an unread
+  candidate under TCP-V0-008: no lower-precedence instruction file is substituted for it. A
+  tree without symlinked instruction candidates produces byte-identical packets. Falsifier: a
+  `CLAUDE.md` row behind a refused `AGENTS.md` link. Test:
+  `TestGoverningSymlinkRefusalsStayUnavailableWithTypedReasons_TCPV0272`. Rollback for
+  TCP-V0-270..275: delete `instructionLink`, `linkTarget`, the `link`, `linked` and
+  `linkRefusals` fields and their uses; a symlinked candidate is then unread again.
+
 ## Non-goals and authority
 
 Forward imports of the subject, cross-directory definition-to-reference edges, and re-export
@@ -1366,6 +1417,10 @@ outside TCP-V0-008.
 
 ## Failure modes
 
+- A governing instruction file committed as a symlink: admitted as its one-hop tracked regular
+  in-tree target with both pins (TCP-V0-270, TCP-V0-271); any other link stays an unread candidate
+  with a typed reason and no substitute (TCP-V0-272, TCP-V0-275). Other slots, `query`'s
+  authority start and `task_evidence` for an explicit link path are unchanged.
 - An untracked or absent subject: refused with an error naming the revision (TCP-V0-002). An
   excluded or unread-kind subject is admitted without a blob hash and contributes no identifier
   evidence; its pairing and sibling slots still work from the path alone.
@@ -1781,3 +1836,4 @@ cancellation then returns its packet again; no state persists and no uncancelled
 | TCP-V0-990..993 (experimental, standing lane auto-accept, V1-1269) | `specCitedRows`, `specCitations`, `specCitedPath`, `contextRankOrder`, `omittedSpecCitedCoverage`, `contextRelations` | `TestTaskContextReservesTheCodeTheRoutedSpecCites_TCPV0990`, `TestTaskContextSpecCitedRowsTheLimitCutsAreCriticalMissing_TCPV0991`, `TestTaskContextOmittedSpecCitedNamesOnlyUncarriedPaths_TCPV0992`, `TestTaskContextWithoutASpecCitationKeepsItsReceipt_TCPV0993`, `TestTaskContextResultsNameTheirCandidateKind_TCPV0163` |
 | TCP-V0-995 (experimental, standing lane auto-accept, V1-1269) | `relationRows`, `instructionReservation`, `spanRanker.coreSpans` | `TestTaskContextSpecCitedPromotionKeepsTheRescueRelation_TCPV0995`, `TestTaskContextSpecCitedRowsKeepTheirCoreSpans_TCPV0995` |
 | TCP-V0-994 (experimental, standing lane auto-accept, V1-1269) | frozen `tools/retrieval-bench --arms context` run | `docs/build-log/2026-10-31-ctxpkt-w1-bugs.md` |
+| TCP-V0-270..275 (experimental, standing lane auto-accept, V1-1272) | `instructionLink`, `linkTarget`, `governingRows`, `withheld`, `unexamined`, `renderRow`, `localPromptCompiler.addGovernance` | `TestGoverningSymlinkAdmittedAsItsPinnedTarget_TCPV0270`, `TestGoverningSymlinkRefusalsStayUnavailableWithTypedReasons_TCPV0272`, `TestGoverningSymlinkTargetReachedTwiceReservesOneRow_TCPV0273`; `docs/build-log/2026-10-31-governance-symlink.md` |

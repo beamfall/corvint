@@ -247,7 +247,7 @@ func (a *commonRunArgs) check(cmd []string) *wire.Result {
 // prepareJob reads the config, checks the checkout is a clean checkout of
 // the commit, and resolves the spec files there. It creates nothing.
 func prepareJob(env Env, a *commonRunArgs) (*runJob, wire.Digest, []string, error) {
-	cfg, cfgSum, err := readRunConfig(a.config)
+	cfg, cfgSum, err := readRunConfig(commandPath(env.Cwd, a.config))
 	if err != nil {
 		return nil, "", nil, err
 	}
@@ -276,7 +276,7 @@ func prepareJob(env Env, a *commonRunArgs) (*runJob, wire.Digest, []string, erro
 	if len(files) == 0 {
 		return nil, "", nil, wire.Errorf(wire.CodeMissingEvidence, "--spec", "no spec file lies under the named --spec paths at %s", commit)
 	}
-	out, err := filepath.Abs(a.out)
+	out, err := filepath.Abs(commandPath(env.Cwd, a.out))
 	if err != nil {
 		return nil, "", nil, wire.Annotatef(err, "--out", "cannot resolve the results directory: %v", err)
 	}

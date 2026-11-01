@@ -4,6 +4,10 @@
 // repository path outside that package's directory and declared entries
 // (AFP-V0-023). The confined CI shard would deny that read with an error that
 // looks like a content failure; this check names the package and path first.
+// A literal that is only a fixture path, such as a path written into a
+// temporary repository, is exempt when its line ends with the comment
+// //corvint:fixture-path and no unmarked literal of the same file holds the
+// same token (ASD-V0-895).
 package main
 
 import (
@@ -18,6 +22,7 @@ import (
 	"go/token"
 	"io"
 	"io/fs"
+	"maps"
 	"os"
 	"os/exec"
 	"path"
@@ -630,11 +635,14 @@ func recordedAbove(recorded map[string]string, dependency string) (string, bool)
 // check returns the unrecorded findings and the recorded literals that no test
 // file names any more.
 func check(root string) ([]finding, []string, error) {
-	graph, err := affected.Build(context.Background(), root, golang.New())
+	graph, err := affected.BuildPartial(context.Background(), root, golang.New())
 	if err != nil {
 		return nil, nil, err
 	}
 	if slices.Contains(graph.Frontier(), golang.FrontierReadScopesInvalid) {
+		if reasons := unsupportedKeys(root, graph); len(reasons) > 0 {
+			return nil, nil, errors.New(strings.Join(reasons, "\n"))
+		}
 		return nil, nil, errors.New(affected.ReadScopesPath + " is invalid, so no package is declared")
 	}
 	paths, err := tracked(root)
@@ -728,10 +736,18 @@ func check(root string) ([]finding, []string, error) {
 		if err != nil {
 			return nil, nil, err
 		}
+		marked, err := fixtureMarked(unit.Tests, bodies)
+		if err != nil {
+			return nil, nil, err
+		}
 		for index, file := range unit.Tests {
 			seen := map[string]bool{}
 			values := append(slices.Clone(tokens[index]), runs[index]...)
 			for position, value := range values {
+				// A token only //corvint:fixture-path literals hold is no read (ASD-V0-895).
+				if marked[index][value] {
+					continue
+				}
 				// A join run resolves against the package directory only: fixture
 				// repositories join the same segments onto temporary roots, so a
 				// run is no evidence of a repository-root read (V1-2117). Nor is a
@@ -765,6 +781,63 @@ func check(root string) ([]finding, []string, error) {
 	}
 	slices.Sort(stale)
 	return findings, stale, nil
+}
+
+// unsupportedKeys names, for a declaration the planner found invalid, each key
+// that binds no root-module package unit and why no confined shard can enforce
+// it (AFP-V0-817): a dependent nested module (AFP-V0-582) is one synthetic unit
+// with no files that the root module's go list ./... never lists, and any other
+// directory without a package names no test process at all. A declaration that
+// does not parse yields nothing, so the generic refusal stands.
+func unsupportedKeys(root string, graph *affected.Graph) []string {
+	body, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(affected.ReadScopesPath)))
+	if err != nil {
+		return nil
+	}
+	var declared struct {
+		Packages map[string]any `json:"packages"`
+	}
+	if json.Unmarshal(body, &declared) != nil {
+		return nil
+	}
+	packages := map[string]bool{}
+	for _, id := range graph.UnitIDs() {
+		unit, _ := graph.Unit(id)
+		for _, file := range append(slices.Clone(unit.Sources), unit.Tests...) {
+			packages[path.Dir(file)] = true
+		}
+	}
+	var reasons []string
+	for _, directory := range slices.Sorted(maps.Keys(declared.Packages)) {
+		if packages[directory] {
+			continue
+		}
+		if id, ok := dependentModule(root, graph, directory); ok {
+			reasons = append(reasons, fmt.Sprintf("%s declares %q, the dependent nested module unit %s (AFP-V0-582), which has no files of its own and which the root module's go list ./... never lists, so no confined CI shard runs it under the AFP-V0-023 wrapper; remove the key (the module's own tests run from its directory)",
+				affected.ReadScopesPath, directory, id))
+			continue
+		}
+		reasons = append(reasons, fmt.Sprintf("%s declares %q, which holds no Go package unit of the root module, so no test process exists to confine; remove the key",
+			affected.ReadScopesPath, directory))
+	}
+	return reasons
+}
+
+// dependentModule returns the synthetic unit of the dependent nested module
+// whose go.mod sits in directory, if the plan observed one there.
+func dependentModule(root string, graph *affected.Graph, directory string) (string, bool) {
+	manifest, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(directory), "go.mod"))
+	if err != nil {
+		return "", false
+	}
+	for _, line := range strings.Split(string(manifest), "\n") {
+		if fields := strings.Fields(line); len(fields) == 2 && fields[0] == "module" {
+			id := "go:" + strings.Trim(fields[1], `"`)
+			unit, ok := graph.Unit(id)
+			return id, ok && golang.DependentModuleUnit(unit)
+		}
+	}
+	return "", false
 }
 
 func run(root string, stdout, stderr io.Writer) int {
@@ -804,8 +877,8 @@ func run(root string, stdout, stderr io.Writer) int {
 			// V1-3234: name the literal and the rule that resolve the token from the root.
 			rooted = fmt.Sprintf("; it is read from the repository root because %s, which locates the root (AFP-V0-021: such a literal in any test file makes the package's tokens root-relative; only a token whose every literal lies in a temp-root-only test function is exempt, AFP-V0-828)", found.rootedBy)
 		}
-		fmt.Fprintf(stderr, "test-read-scopes-check: package %s: %s names %s, outside its entries in %s; declare it there (AFP-V0-023), keep the read inside the package, or record in %s why it is no read%s\n",
-			found.pkg, found.file, found.path, affected.ReadScopesPath, literalsPath, rooted)
+		fmt.Fprintf(stderr, "test-read-scopes-check: package %s: %s names %s, outside its entries in %s; declare it there (AFP-V0-023), keep the read inside the package, or record in %s why it is no read, or end the line of a fixture-only literal with %s (ASD-V0-895)%s\n",
+			found.pkg, found.file, found.path, affected.ReadScopesPath, literalsPath, fixtureMarker, rooted)
 	}
 	if len(findings) > 0 {
 		return 1

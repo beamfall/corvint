@@ -511,6 +511,64 @@ closeout step is missing.
 - `TCD-V0-190`: the `receipt audit` item adds `completions` `{verified, manual}`, counting COMPLETED
   tickets by completion kind. An operator can then tell gated closes from manual ones without
   reading each ticket. The audit's existing members and verdict are unchanged.
+- `TCD-V0-806`: (experimental under the standing lane auto-accept; V1-3548; refines TCD-V0-151) when a `gate run` of a reusable gate finds no qualifying result
+  (`TCD-V0-151`) but a qualifying PASSED result at another tree is refused only because that tree
+  is not yet a commit on the protected intent branch, the result adds a warning. The warning names
+  the gate, the source attempt, the result digest and the tree, and gives the route. Integrate the
+  commit carrying that tree, which must descend from this attempt's candidate, into the intent
+  branch, then rerun `gate run`, which reuses that PASS without executing. `complete` then records
+  a verified completion, and `receipt audit` counts it under `completions.verified` and verifies
+  the reused result against the descendant ancestry (`TCD-V0-153`, `TCD-V0-190`). This route
+  closes a lower stacked attempt whose tree fails a joint gate alone. With several such results,
+  the lowest digest is named. The gate still executes as before, and no record or receipt changes.
+- `TCD-V0-807`: (experimental under the standing lane auto-accept; V1-3541) a committed `ticket create` whose payload names no `requiredGates`, under a policy
+  that defines gates, adds a `REQUIRED_GATES_EMPTY` warning. It names the policy gates `complete`
+  still demands because they are marked required (`effectiveRequiredGates`), and the policy gates
+  it will not demand unless the ticket names them with `ticket set-gates`. The ticket record is
+  unchanged: required policy gates already apply to every ticket, so nothing is defaulted. `ticket
+  create --template` states the same in the `requiredGates` field note.
+- `TCD-V0-870`: (experimental under the standing lane auto-accept; V1-3496; amends TCD-V0-163 and TCD-V0-169) In `ticket batch-delivered` and
+  `ticket batch-close`, every PR whose text is read (each lane PR, then the batch PR) delivers a
+  ticket on a `TCD-V0-160` line of its body, on a body line whose first word after leading
+  punctuation and markup is the ticket's ID (`- **V1-3459**: ...`), or through its title read as a
+  commit subject under `TCD-V0-167` (first word, conventional-commit scope or final parenthetical).
+  The `TCD-V0-160` veto words still demote every such line to a mention. A direct PR, one whose
+  text names no lane PR, therefore delivers the tickets its own title and body declare. Non-goal:
+  `delivery-screen` keeps the `TCD-V0-160` rule. Rollback: revert; PR bodies again deliver only on
+  lead or `DELIVERED` lines.
+- `TCD-V0-871`: (experimental under the standing lane auto-accept; V1-3496) `ticket closeout-debt` takes an optional `--prs FILE|-` export
+  (the `batch-delivered` field list). With it, each candidate row adds `proposal` and `pr`, and the
+  item adds `proposals`, `prsExported` and `reviewTickets`. A candidate's `proposal` is
+  `BATCH_CLOSE` with the lowest-numbered exported MERGED PR whose `mergeCommit` is a scanned commit
+  and whose `batch-delivered` set (TCD-V0-163, TCD-V0-870) delivers the ticket. Otherwise it is
+  `COMMIT_DELIVERED` (`pr` null) when the row is `direct-id` and the commit delivers the ticket
+  under `TCD-V0-167`, and `REVIEW` for every other row, including umbrella, issue-link and
+  mention-only citations. A ticket takes the strongest proposal of its rows. `proposals` is one
+  entry per proposing PR, ascending: `pr`, `mergeCommit`, the sorted delivered OPEN `tickets`, and
+  the `command` `corvint-tasks ticket batch-close --pr N --prs FILE --runs RUNS`. `reviewTickets`
+  is the sorted OPEN tickets whose proposal is not `BATCH_CLOSE`; `tickets` and `reviewTickets`
+  hold local ticket tokens. Nothing is completed, claimed or written, and a proposal is never a
+  delivery claim. With `--prs` the exit is also 1 when `proposals` is non-empty, so a delivered
+  ticket a scanned commit never cites still fails the reconcile. Without `--prs` the result bytes
+  are those of TCD-V0-007. An undecodable export is refused `MALFORMED`.
+- `TCD-V0-872`: (experimental under the standing lane auto-accept; V1-3496) `make tasks-reconcile` runs `script/tasks-reconcile.sh`: it exports
+  merged PRs (`gh pr list --state merged --limit RECONCILE_PRS`) and CI runs, runs
+  `corvint-tasks ticket closeout-debt --ref REF --prs EXPORT`, and retains the export and the report
+  under `<git-common-dir>/corvint/reconcile/<refCommit>/`. It prints each proposal's command and
+  the review tickets, and exits with the closeout-debt status (0 no debt, 1 debt, 2 refusal). A
+  failed export, a missing binary or an unparsable report exits 2 with the reason on stderr; the
+  reconcile is never skipped silently. With `RECONCILE_APPLY=dry-run|manual|gated` it then runs
+  each proposal's `batch-close` in that mode (`--dry-run --manual`, `--manual`, or the gated
+  default) and exits non-zero when any of them does. The default applies nothing.
+- `TCD-V0-873`: (experimental under the standing lane auto-accept; V1-3496) A merged PR whose body declares `Delivers ID` leaves no OPEN ticket after
+  the reconcile: closeout-debt proposes `BATCH_CLOSE` for its PR, the proposed `batch-close
+  --manual` completes the ticket, and a rerun of closeout-debt reports no candidate for it.
+- `TCD-V0-874`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3551; amends
+  TCD-V0-871) A ticket that several exported PRs deliver is listed under one proposal only, that of
+  its proposing `pr`, the lowest-numbered of them. Each candidate row adds `prs`, the ascending list
+  of every proposing-eligible PR that delivers the ticket (empty when none does), so the row names
+  each citing PR. A PR all of whose delivered tickets an earlier PR already proposes adds no
+  proposal. Rollback: revert; a ticket is again listed under every PR that delivers it.
 
 ## Failure modes
 
@@ -616,6 +674,12 @@ closeout step is missing.
 - The tail is reported only in the executing call's result. `attempt show` and `ticket show` still
   list only result digests; read `evidence/<sha256>` from the store to inspect an older failure.
 
+- The TCD-V0-806 warning is advisory and is read before the store lock. A PASS whose tree reaches
+  the protected branch later is reused only by a rerun; a commit that does not descend from the
+  candidate is still refused `STALE_TREE` under `TCD-V0-152` on that rerun.
+- The TCD-V0-807 warning reads the policy loaded before the write; a policy changed in between can
+  make it name a stale gate set. `ticket show` `effectiveRequiredGates` stays the authority.
+
 ## Non-goals
 
 - Completing, claiming or submitting anything, or proposing a completion payload.
@@ -712,11 +776,24 @@ closeout step is missing.
 | TCD-V0-188 | V1-2984 | `internal/tasks/cli` (`mergeDocument`, `batchPRURL`, `runGated`), `internal/tasks/cli` (`ghPR.URL`) | `TestTCDV0185_GatedBatchCloseRunsRequiredGates` (the row document's digest equals `mergeEvidence.sha256` and is attached to the closed ticket; header `prUrl` and `mergedAt`) | none |
 | TCD-V0-189 | V1-2984 | `internal/tasks/cli` (`gatedRequestID`, `release`, `gatedRowValue`) | `TestTCDV0185_GatedBatchCloseRunsRequiredGates` (closed row request id `batch-close-50-<local>-a0-complete`; failed rows released and OPEN; rerun replays `ALREADY_COMPLETED` and the failing ticket's request id carries `-a1-`) | none |
 | TCD-V0-190 | V1-2984 | `internal/tasks/cli` (`receiptAudit` completions) | `TestTCDV0185_GatedBatchCloseRunsRequiredGates` (`receipt audit` `completions` `{verified: 2, manual: 3}`) | none |
+| TCD-V0-806 | V1-3548 | `internal/tasks/store` (`reusableRun`, `descendantSource`, `Report.GateReusePending`), `internal/tasks/cli` (`gate run` warning) | `TestTCDV0806_StackedLowerAttemptCompletesVerifiedFromDescendantPass` (a joint gate fails the lower stacked attempt alone and the report names the upper attempt's PASS, tree and branch as pending; after a fast-forward integration the rerun reuses it without executing, `complete` records kind `VERIFIED` whose evidence names the descendant result in `reusedFrom`, and the receipt audit passes); `TestTCDV0151_DescendantPassCoversAMergedSeal` and `TestTCDV0152_DescendantReuseRefusals` unchanged | none |
+| TCD-V0-807 | V1-3541 | `internal/tasks/cli` (`requiredGatesWarning`, `createTemplateFields`) | `TestTCDV0807_CreateWithoutGatesNamesThePolicyGates` (a required and an optional policy gate: an empty-gates create warns naming both; a create naming the optional gate, a replay and a policy without gates warn nothing) | none |
+| TCD-V0-870 | V1-3496 | `internal/tasks/cli` (`closeoutIndex.prReferences`, `batchHits`) | `TestTCDV0870_DirectPRDeliversItsOwnTickets` (a direct PR's title parenthetical, `- **ID**:` lines and `Delivers` line deliver; a `Follow-up` prose line and a vetoed line only mention) | none |
+| TCD-V0-871 | V1-3496 | `internal/tasks/cli` (`closeoutProposals`, `closeoutDebtCommand`) | `TestTCDV0871_CloseoutDebtProposesBatchClose` (BATCH_CLOSE for the PR whose merge commit cites the ticket; COMMIT_DELIVERED for a scoped direct commit; REVIEW for an umbrella mention; bytes unchanged without `--prs`; undecodable export `MALFORMED`) | none |
+| TCD-V0-872 | V1-3496 | `script/tasks-reconcile.sh`, `Makefile` (`tasks-reconcile`) | `TestTCDV0872_ReconcileScriptRetainsReportAndExitStatus` (stub `gh`: report retained, exit 1 with debt, proposal command printed; failed export exit 2) | live reconcile of origin/main 6c967b21c: build log 2026-10-31-tasks-cli-w2 |
+| TCD-V0-873 | V1-3496 | `internal/tasks/cli` | `TestTCDV0871_CloseoutDebtProposesBatchClose` (proposed `batch-close --manual` completes the ticket, rerun has no candidate for it) | none |
+| TCD-V0-874 | V1-3551 | `internal/tasks/cli` | `TestTCDV0874_TicketDeliveredByTwoPRsIsProposedOnce` (one ticket delivered by two merged PRs: one proposal lists it, its row's `prs` names both) | none |
 
 ## Rollout and rollback
 
 The verb is additive and read-only. There is no store format, wire codec or policy change. To roll
 back, revert the change. Nothing persisted depends on the verb.
+
+TCD-V0-806 adds one warning to the `gate run` result and changes no record, receipt or policy.
+To roll back, revert the change.
+
+TCD-V0-807 adds one `ticket create` warning and one template note and changes no record, receipt
+or policy. To roll back, revert the change.
 
 TCD-V0-165..166 add one result field and change no store format, wire codec, receipt or policy. To
 roll back, revert the change; the output blobs stay retained as before.
@@ -769,3 +846,9 @@ TCD-V0-185..190 make the gated close the default. They add one output-only profi
 receipt, wire codec or policy change, and `--manual` keeps the `/0` bytes. To roll back without a
 revert, pass `--manual`. To roll back fully, revert the change. Gated completions stay ordinary
 `VERIFIED` completions, which an older binary audits as before.
+
+TCD-V0-870..873 widen which batch PR lines deliver, add one optional `closeout-debt` flag with
+additive output members, and add one script and make target. There is no store format, receipt,
+wire codec or policy change; the reconcile writes only its retained report outside the store. To
+roll back, revert the change. Batch reads then deliver only on lead lines again, and closeout-debt
+lists candidates without proposals.

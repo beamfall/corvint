@@ -91,6 +91,10 @@ GOTOOLCHAIN=local go run ./conformance/release-artifact-v0 archive \
   --revision HEAD --output "$parent/corvint-go-release"
 ```
 
+`--revision` must name the checked-out `HEAD`. Any other commit is refused with one line naming
+the revision and the fix, checking it out in a detached worktree; no witness is written for it,
+so no witness note precedes the refusal (V1-3491).
+
 The retained directory contains exactly five archives, archive-level `SHA256SUMS`, and
 `verification-report.json`. `archive-report.schema.json` and `archive-witness.schema.json` freeze
 the compact, path-free V1 schemas as conformance detail. The report derives its archive and total

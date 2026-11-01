@@ -156,7 +156,14 @@ type Error struct {
 	// committed a step a same-request retry would not finish; its result is
 	// never retryable whatever the code (CAL-V0-078). See WithoutRetry.
 	NotRetryable bool
+	// cause is what a %w verb in Errorf's format named, so errors.Is and
+	// errors.As reach the underlying failure (V1-2878); the message is
+	// unchanged.
+	cause []error
 }
+
+// Unwrap returns the errors Errorf's format wrapped with %w, if any.
+func (e *Error) Unwrap() []error { return e.cause }
 
 func (e *Error) Error() string {
 	if e.Where == "" {
@@ -174,7 +181,17 @@ func Errorf(detailCode, where, format string, args ...interface{}) *Error {
 	if !IsCode(detailCode) {
 		detailCode = CodeMalformed
 	}
-	return &Error{Code: detailCode, Where: where, Msg: fmt.Sprintf(format, args...)}
+	// fmt.Errorf formats exactly as fmt.Sprintf does and also records each
+	// %w operand, which the Error then unwraps to.
+	formatted := fmt.Errorf(format, args...)
+	e := &Error{Code: detailCode, Where: where, Msg: formatted.Error()}
+	switch w := formatted.(type) {
+	case interface{ Unwrap() error }:
+		e.cause = []error{w.Unwrap()}
+	case interface{ Unwrap() []error }:
+		e.cause = w.Unwrap()
+	}
+	return e
 }
 
 // CodeOf returns the §11 code carried by err or by any error it wraps, or

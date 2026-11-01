@@ -1,6 +1,7 @@
 package testplatform
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -134,4 +135,49 @@ func TestDocsCorpusAndReceiptRefusalsSkipOnlyOnWindows(t *testing.T) {
 	if _, skip := windowsRefusalSkip("windows", opaque); skip {
 		t.Fatalf("windows: %v skipped without the platform refusal", opaque)
 	}
+}
+
+// V1-2715: TestPlatformRefusalsMatchTheirSources opens every Source, so a sandboxed runner
+// refuses one the package's declared read scope does not cover. This test reads the scope and
+// fails locally, before push, when a PlatformRefusals Source falls outside it.
+func TestPlatformRefusalSourcesAreInTheReadScope(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("..", "..", ".corvint", "test-read-scopes.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var scopes struct {
+		Packages map[string][]string `json:"packages"`
+	}
+	if err := json.Unmarshal(raw, &scopes); err != nil {
+		t.Fatal(err)
+	}
+	scope, ok := scopes.Packages["internal/testplatform"]
+	if !ok {
+		t.Fatal(".corvint/test-read-scopes.json declares no read scope for internal/testplatform")
+	}
+	if missing := sourcesOutsideScope(PlatformRefusals, scope); len(missing) != 0 {
+		t.Fatalf("PlatformRefusals sources outside internal/testplatform's read scope in .corvint/test-read-scopes.json: %v", missing)
+	}
+	if missing := sourcesOutsideScope([]PlatformRefusal{{Source: "internal/elsewhere/new.go"}}, scope); len(missing) != 1 {
+		t.Fatalf("an undeclared source was not reported: %v", missing)
+	}
+}
+
+// sourcesOutsideScope lists each refusal Source no scope entry names: an entry is a file, or a
+// directory ending in "/" that covers every path under it.
+func sourcesOutsideScope(refusals []PlatformRefusal, scope []string) []string {
+	var missing []string
+	for _, refusal := range refusals {
+		covered := false
+		for _, entry := range scope {
+			if refusal.Source == entry || strings.HasSuffix(entry, "/") && strings.HasPrefix(refusal.Source, entry) {
+				covered = true
+				break
+			}
+		}
+		if !covered {
+			missing = append(missing, refusal.Source)
+		}
+	}
+	return missing
 }
