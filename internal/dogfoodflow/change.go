@@ -304,6 +304,12 @@ func (c *change) reportNoDiffYet() int {
 // each absent agent receipt, since only a run before the first edit can still
 // write it against BASE (DCW-V0-921).
 func (c *change) absentReceiptHints() {
+	// One command writes both receipts with the binding a later run reports
+	// OBSERVED bound (DCW-V0-819); the per-receipt lines stay the unbound
+	// alternative (DCW-V0-921).
+	if !isRegular(c.evidence+"/prechange-query.json") || !isRegular(c.evidence+"/prechange-impact.json") {
+		c.say("  agent receipts absent: record them bound to BASE before the first edit: make dogfood-prechange BASE=%s TASK=\"THE CHANGE\" PATHS=\"PATH...\" (corvint dogfood prechange --task \"THE CHANGE\" %s PATH...)\n", c.base, c.base)
+	}
 	for _, receipt := range []struct{ name, command string }{
 		{"prechange-query", `corvint query --task "THE CHANGE" --limit 1`},
 		{"prechange-impact", "corvint impact PATH... --limit 10"},
