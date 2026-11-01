@@ -713,8 +713,8 @@ func setAffectedBase(invocation *affectedInvocation, baseSet *bool, value string
 	if *baseSet {
 		return argumentError("--base requires exactly one full commit id")
 	}
-	if !validGitObjectID(value) && !validAbbreviatedObjectID(value) {
-		return argumentError("--base must be a full commit id or an unambiguous lowercase-hex prefix of at least 7 digits, got " + value)
+	if !validGitObjectID(value) && !validAbbreviatedObjectID(value) && !validAffectedBaseRevision(value) {
+		return argumentError("--base must be a full commit id, an unambiguous lowercase-hex prefix of at least 7 digits or a revision such as HEAD~1, got " + value + affectedBaseHint(value))
 	}
 	*baseSet, invocation.Base = true, value
 	return nil
