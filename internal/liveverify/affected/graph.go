@@ -64,6 +64,12 @@ type Graph struct {
 	// runtimeReaders is the repository's declared runtime-readers entries
 	// (AFP-V0-602), sorted by path; it is part of the digest when present.
 	runtimeReaders []RuntimeReader
+	// existenceReaders is the repository's declared existence readers with
+	// their manifest names (AFP-V0-980), sorted by package; it is part of the
+	// digest when present. existenceUnits maps each entry's package to its
+	// Go unit.
+	existenceReaders []ExistenceReader
+	existenceUnits   map[string]string
 	// unobserved maps each plugin to the directories it owns but builds no
 	// unit for (AFP-V0-191), each list sorted.
 	unobserved map[string][]string
@@ -111,6 +117,9 @@ type digestBody struct {
 	// RuntimeReaders appears only when the repository declares runtime-readers
 	// paths (AFP-V0-602), so graphs without the declaration keep their digest.
 	RuntimeReaders []RuntimeReader `json:"runtimeReaders,omitempty"`
+	// ExistenceReaders appears only when the repository declares existence
+	// readers (AFP-V0-980), so graphs without the declaration keep their digest.
+	ExistenceReaders []ExistenceReader `json:"existenceReaders,omitempty"`
 	// Unobserved appears only when a plugin reports a directory it owns but
 	// does not observe (AFP-V0-191), as "namespace:directory", sorted.
 	Unobserved []string `json:"unobserved,omitempty"`
@@ -222,14 +231,15 @@ func buildDisk(ctx context.Context, reader *Source, languages []Language) (*Grap
 }
 
 // declarations is what the repository's own Corvint declarations add to the
-// observed graph: the documentation entries (AFP-V0-160) and the
-// runtime-readers entries (AFP-V0-602).
+// observed graph: the documentation entries (AFP-V0-160), the
+// runtime-readers entries (AFP-V0-602) and the existence readers (AFP-V0-980).
 type declarations struct {
-	documentation  []string
-	runtimeReaders []RuntimeReader
+	documentation    []string
+	runtimeReaders   []RuntimeReader
+	existenceReaders []ExistenceReader
 }
 
-// declarationsOf reads both declarations through reader.
+// declarationsOf reads the declarations through reader.
 func declarationsOf(reader *Source) func() (declarations, error) {
 	return func() (declarations, error) {
 		documentation, err := readDocumentationPaths(reader)
@@ -240,7 +250,11 @@ func declarationsOf(reader *Source) func() (declarations, error) {
 		if err != nil {
 			return declarations{}, err
 		}
-		return declarations{documentation: documentation, runtimeReaders: runtimeReaders}, nil
+		existenceReaders, err := readExistenceReaders(reader)
+		if err != nil {
+			return declarations{}, err
+		}
+		return declarations{documentation: documentation, runtimeReaders: runtimeReaders, existenceReaders: existenceReaders}, nil
 	}
 }
 
@@ -297,7 +311,11 @@ func build(ctx context.Context, languages []Language, declared func() (declarati
 	}
 	graph.documentation = repository.documentation
 	graph.runtimeReaders = repository.runtimeReaders
+	graph.existenceReaders = repository.existenceReaders
 	graph.finish()
+	if graph.existenceUnits, err = graph.existenceReaderUnits(); err != nil {
+		return nil, err
+	}
 	digest, err := graph.computeDigest()
 	if err != nil {
 		return nil, err
@@ -607,13 +625,14 @@ func (graph *Graph) Canonical() ([]byte, error) {
 		units = append(units, projectUnit(graph.units[id]))
 	}
 	return json.Marshal(digestBody{
-		Languages:      graph.languages,
-		Frontier:       graph.frontier,
-		Units:          units,
-		Documentation:  graph.documentation,
-		RuntimeReaders: graph.runtimeReaders,
-		Unobserved:     namespacedEntries(graph.unobserved),
-		Runnable:       namespacedEntries(graph.runnable),
+		Languages:        graph.languages,
+		Frontier:         graph.frontier,
+		Units:            units,
+		Documentation:    graph.documentation,
+		RuntimeReaders:   graph.runtimeReaders,
+		ExistenceReaders: graph.existenceReaders,
+		Unobserved:       namespacedEntries(graph.unobserved),
+		Runnable:         namespacedEntries(graph.runnable),
 	}, json.Deterministic(true))
 }
 

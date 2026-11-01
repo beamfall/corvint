@@ -127,6 +127,9 @@ type finding struct {
 	// root-relative, when path is reached only from the repository root
 	// (V1-3234); it is empty when the package directory resolves it.
 	rootedBy string
+	// stat names, as file:line, a test's existence check of a repository
+	// path it read from data (AFP-V0-981); path is then empty.
+	stat string
 }
 
 // rootLocator names the first test-file literal of a package that locates the
@@ -310,6 +313,58 @@ func joinRuns(name string, body []byte) ([]string, error) {
 		return true
 	})
 	return runs, nil
+}
+
+// statReaders returns, as "file:line", every os.Stat, os.Lstat or os.Readlink
+// call of a test file on a filepath.Join or path.Join whose first argument is a
+// parent-only string literal and some later argument is no string literal
+// (AFP-V0-981): the test tests the existence of a repository path it read from
+// data, which neither the read scope nor Landlock bounds.
+func statReaders(name string, body []byte) ([]string, error) {
+	fileSet := token.NewFileSet()
+	file, err := parser.ParseFile(fileSet, name, body, parser.SkipObjectResolution)
+	if err != nil {
+		return nil, err
+	}
+	var sites []string
+	ast.Inspect(file, func(node ast.Node) bool {
+		call, ok := node.(*ast.CallExpr)
+		if !ok || len(call.Args) != 1 {
+			return true
+		}
+		selector, ok := call.Fun.(*ast.SelectorExpr)
+		if pkg, isIdent := selectorPackage(selector, ok); !isIdent || pkg != "os" || selector.Sel.Name != "Stat" && selector.Sel.Name != "Lstat" && selector.Sel.Name != "Readlink" {
+			return true
+		}
+		join, ok := call.Args[0].(*ast.CallExpr)
+		if !ok || len(join.Args) < 2 {
+			return true
+		}
+		joinSelector, ok := join.Fun.(*ast.SelectorExpr)
+		if pkg, isIdent := selectorPackage(joinSelector, ok); !isIdent || pkg != "filepath" && pkg != "path" || joinSelector.Sel.Name != "Join" {
+			return true
+		}
+		if first, ok := stringLiteral(join.Args[0]); !ok || !parentOnly(first) {
+			return true
+		}
+		if slices.ContainsFunc(join.Args[1:], func(argument ast.Expr) bool { _, literal := stringLiteral(argument); return !literal }) {
+			sites = append(sites, fmt.Sprintf("%s:%d", name, fileSet.Position(call.Pos()).Line))
+		}
+		return true
+	})
+	return sites, nil
+}
+
+// selectorPackage returns the identifier a selector expression selects from.
+func selectorPackage(selector *ast.SelectorExpr, ok bool) (string, bool) {
+	if !ok {
+		return "", false
+	}
+	ident, isIdent := selector.X.(*ast.Ident)
+	if !isIdent {
+		return "", false
+	}
+	return ident.Name, true
 }
 
 // goListTargets returns the package patterns of every `go list` command a test
@@ -651,6 +706,7 @@ func check(root string) ([]finding, []string, error) {
 	}
 	used := map[string]bool{}
 	var findings []finding
+	existence := graph.ExistenceReaderPackages()
 	for _, id := range graph.UnitIDs() {
 		unit, _ := graph.Unit(id)
 		if !unit.ReadScoped || len(unit.Tests) == 0 {
@@ -674,6 +730,15 @@ func check(root string) ([]finding, []string, error) {
 			}
 			if runs[index], err = joinRuns(file, body); err != nil {
 				return nil, nil, fmt.Errorf("%s: %w", file, err)
+			}
+			if !slices.Contains(existence, directory) {
+				sites, err := statReaders(file, body)
+				if err != nil {
+					return nil, nil, fmt.Errorf("%s: %w", file, err)
+				}
+				for _, site := range sites {
+					findings = append(findings, finding{pkg: directory, file: file, stat: site})
+				}
 			}
 			targets, err := goListTargets(file, body)
 			if err != nil {
@@ -787,6 +852,11 @@ func run(root string, stdout, stderr io.Writer) int {
 		if found.sandbox != "" {
 			fmt.Fprintf(stderr, "test-read-scopes-check: package %s is declared in %s, but %s records that its tests launch a nested sandbox (%s), which the confined CI shard refuses; remove its entry and add it to units of %s with a reason (AFP-V0-615)\n",
 				found.pkg, affected.ReadScopesPath, sandboxesPath, found.sandbox, unboundedPath)
+			continue
+		}
+		if found.stat != "" {
+			fmt.Fprintf(stderr, "test-read-scopes-check: package %s: %s stats a repository path read from data, which neither its entries in %s nor the confined shard bound; declare the package and the manifest naming the paths in %s (AFP-V0-980, AFP-V0-981)\n",
+				found.pkg, found.stat, affected.ReadScopesPath, affected.ExistenceReadersPath)
 			continue
 		}
 		if found.listed {

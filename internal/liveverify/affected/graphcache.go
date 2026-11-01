@@ -216,8 +216,10 @@ type cacheEntry struct {
 	Documentation []string         `json:"documentation"`
 	// RuntimeReaders is the AFP-V0-602 declaration the graph was built with.
 	RuntimeReaders []RuntimeReader `json:"runtimeReaders,omitempty"`
-	Digest         string          `json:"digest"`
-	Stamps         []cachedStamp   `json:"stamps"`
+	// ExistenceReaders is the AFP-V0-980 declaration, with its manifest names.
+	ExistenceReaders []ExistenceReader `json:"existenceReaders,omitempty"`
+	Digest           string            `json:"digest"`
+	Stamps           []cachedStamp     `json:"stamps"`
 }
 
 // GraphCacheEntryPath names the one entry for root and language set inside
@@ -291,7 +293,7 @@ func newCacheEntry(root, identity string, names []string, graph *Graph, results 
 	if record.uncacheable != "" {
 		return cacheEntry{}, record.uncacheable
 	}
-	entry := cacheEntry{Profile: GraphCacheProfile, Root: root, Identity: identity, Documentation: graph.documentation, RuntimeReaders: graph.runtimeReaders, Digest: graph.digest}
+	entry := cacheEntry{Profile: GraphCacheProfile, Root: root, Identity: identity, Documentation: graph.documentation, RuntimeReaders: graph.runtimeReaders, ExistenceReaders: graph.existenceReaders, Digest: graph.digest}
 	for index, result := range results {
 		units := make([]cachedUnit, 0, len(result.Units))
 		for _, unit := range result.Units {
@@ -447,7 +449,7 @@ func completeStamps(entry cacheEntry) string {
 	if stamp, ok := stamps[observedPath{relative: "."}]; !ok || !stamp.Present || !fs.FileMode(stamp.Mode).IsDir() {
 		return incomplete
 	}
-	for _, declaration := range []string{DocumentationPathsPath, RuntimeReadersPath} {
+	for _, declaration := range []string{DocumentationPathsPath, RuntimeReadersPath, ExistenceReadersPath} {
 		if _, ok := stamps[observedPath{relative: declaration}]; !ok {
 			return incomplete
 		}
@@ -512,7 +514,7 @@ const verifyWorkers = 8
 func restoreGraph(ctx context.Context, entry cacheEntry, languages []Language) (*Graph, error) {
 	index := 0
 	return build(ctx, languages, func() (declarations, error) {
-		return declarations{documentation: entry.Documentation, runtimeReaders: entry.RuntimeReaders}, nil
+		return declarations{documentation: entry.Documentation, runtimeReaders: entry.RuntimeReaders, existenceReaders: entry.ExistenceReaders}, nil
 	}, func(language Language) (Result, error) {
 		cached := entry.Languages[index]
 		index++
