@@ -285,3 +285,24 @@ func TestTCLV0866_ClaimRefusesWholeRepository(t *testing.T) {
 		t.Fatalf("claim usage lists --whole-repository: %s", help.stdout)
 	}
 }
+
+// TestTCLV0867_JournalPresentReadsWarnNoAbsence pins V1-3715 (GH #409):
+// with the journal at <git-common-dir>/taskman, ticket search, list and
+// show report no journal-absent unknown or store-wide warning.
+func TestTCLV0867_JournalPresentReadsWarnNoAbsence(t *testing.T) {
+	r, local, _ := papercutRepo(t)
+	for _, args := range [][]string{
+		{"ticket", "search", "--priority", "P2"},
+		{"ticket", "list"},
+		{"ticket", "list", "--facets"},
+		{"ticket", "show", local},
+	} {
+		got := atm(t, r.Root, nil, args...)
+		if got.res.Outcome != wire.OutcomeOK || len(got.res.Items) == 0 {
+			t.Fatalf("%v: %s", args, got.stdout)
+		}
+		if strings.Contains(string(got.stdout), "no journal available") || strings.Contains(string(got.stdout), "store-wide unknown") || strings.Contains(string(got.stdout), "journal-absent") {
+			t.Fatalf("%v reports a missing journal where one exists: %s", args, got.stdout)
+		}
+	}
+}

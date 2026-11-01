@@ -935,10 +935,13 @@ func pagedFlags(verb string, args []string, extra ...string) (map[string]string,
 // (CAL-V0-182); ended, when non-nil, supplies lastAttemptEndedAt for the
 // page's tickets (CAL-V0-183, `ticket list` only; a missing entry is null).
 func listViews(rc *readCtx, ids []string, p page, ended map[string]wire.Value) ([]wire.Value, *wire.Page, []string) {
-	ctx := rc.store.Context()
+	ctx, why := listContext(rc)
 	start, end := p.window(len(ids))
 	items := make([]wire.Value, 0, end-start)
 	var hoisted []string
+	if why != "" {
+		hoisted = []string{"store-wide unknown " + wire.CodeAttemptLive + " for every listed ticket: attempt liveness NOT_OBSERVED (" + why + "); list items do not repeat it"}
+	}
 	for _, id := range ids[start:end] {
 		v, _ := rc.store.Inventory.View(id, ctx)
 		terminal := v.Record.Status == ticket.StatusCompleted || v.Record.Status == ticket.StatusArchived
@@ -972,6 +975,22 @@ func listViews(rc *readCtx, ids []string, p page, ended map[string]wire.Value) (
 		}
 	}
 	return items, p.result(len(ids), len(items)), hoisted
+}
+
+// listContext is the ticket context list items and facets are judged in:
+// with a journal it carries the reservation set, as ticket show does, so
+// attempt liveness is observed and no journal-absent unknown is reported
+// where the journal exists (V1-3715). When the reservation set cannot be
+// read, liveness stays NOT_OBSERVED and the returned reason says why.
+func listContext(rc *readCtx) (ticket.Context, string) {
+	if rc.journalAbsent {
+		return rc.store.Context(), ""
+	}
+	ctx, err := ticketContext(rc)
+	if err != nil {
+		return rc.store.Context(), "the reservation set was not readable: " + err.Error()
+	}
+	return ctx, ""
 }
 
 // addTransitionTimes sets completedAt and statusChangedAt (CAL-V0-182) from
