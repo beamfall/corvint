@@ -707,7 +707,7 @@ func TestSDDV0630OwnerRelationLabelsUnrelatedOwner(t *testing.T) {
 func richFixture() *contextindex.Index {
 	index := draftFixture()
 	api := "// Package compiler plans offline builds.\npackage compiler\n\n// Plan builds a plan.\n// It never runs a build.\nfunc Plan() {\n\treturn\n}\n\n// Options configures Plan.\ntype Options struct {\n\t// Name is the target.\n\tName string\n\tlimit int\n}\n\n// Runner runs plans.\ntype Runner interface {\n\tRun() error\n}\n\nconst (\n\t// Fast is quick.\n\tFast = \"fast\"\n\tSlow = \"slow\"\n)\n"
-	extra := "package compiler\n\n// Extra is a second-file declaration.\nvar Extra = 1\n"
+	extra := "package compiler\n\n// Extra is a second-file declaration.\nvar Extra = 1\n\n// Settings controls execution.\ntype (\n\tSettings struct{ Enabled bool }\n)\n"
 	index.Sources["compiler/api.go"] = contextindex.Source{Path: "compiler/api.go", BlobHash: strings.Repeat("a", 40), Data: []byte(api), Mode: "100644"}
 	index.Sources["compiler/extra.go"] = contextindex.Source{Path: "compiler/extra.go", BlobHash: strings.Repeat("d", 40), Data: []byte(extra), Mode: "100644"}
 	index.Symbols = []contextindex.Symbol{
@@ -717,6 +717,7 @@ func richFixture() *contextindex.Index {
 		{Path: "compiler/api.go", Name: "Fast", Kind: "const", Line: 24},
 		{Path: "compiler/api.go", Name: "Slow", Kind: "const", Line: 25},
 		{Path: "compiler/extra.go", Name: "Extra", Kind: "var", Line: 4},
+		{Path: "compiler/extra.go", Name: "Settings", Kind: "type", Line: 8},
 	}
 	return index
 }
@@ -739,6 +740,8 @@ func TestSDDV0631DeclarationsCarryDocCommentsAndFields(t *testing.T) {
 		"const Fast":       {23, 24, "\t// Fast is quick.\n\tFast = \"fast\""},
 		"const Slow":       {25, 25, "\tSlow = \"slow\""},
 		"var Extra":        {3, 4, "// Extra is a second-file declaration.\nvar Extra = 1"},
+		// A single-spec group keeps the GenDecl doc comment, as go/doc does.
+		"type Settings": {6, 8, "// Settings controls execution.\ntype (\n\tSettings struct{ Enabled bool }"},
 	}
 	seen := 0
 	for _, entry := range draft.Entries {

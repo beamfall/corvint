@@ -739,6 +739,10 @@ func goDeclarationSpans(cache map[string]map[int]goSpan, source contextindex.Sou
 					continue
 				}
 				span := goSpan{from(doc, spec.Pos()), line(spec.End())}
+				if grouped && doc == nil && declaration.Doc != nil && len(declaration.Specs) == 1 {
+					// A single-spec group's comment documents its spec, as in go/doc.
+					span.start = line(declaration.Doc.Pos())
+				}
 				if !grouped {
 					span = goSpan{from(declaration.Doc, declaration.Pos()), line(declaration.End())}
 				}
