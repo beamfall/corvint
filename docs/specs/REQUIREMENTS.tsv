@@ -5963,6 +5963,7 @@ RDG-V0-007	docs/specs/requirement-definition-gate-v0.md	The gate MUST NOT write 
 RDG-V0-021	docs/specs/requirement-definition-gate-v0.md	In every scanned spec with exactly one unfenced `## Requirements` heading, the g	unrecorded	-
 RDG-V0-022	docs/specs/requirement-definition-gate-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2168) The gate	standing	2026-10-11; V1-2168
 RDG-V0-023	docs/specs/requirement-definition-gate-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2403) The gate	standing	2026-10-11; V1-2403
+RDG-V0-741	docs/specs/requirement-definition-gate-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3699; refines	standing	2026-11-01; V1-3699
 RBD-V0-001	docs/specs/retrieval-bench-diagnostics-v0.md	The benchmark MUST accept opt-in `--context-packets FILE` only with a context ar	unrecorded	-
 RBD-V0-002	docs/specs/retrieval-bench-diagnostics-v0.md	Capture MUST create a new exclusive mode-0600 file, refuse existing paths and	unrecorded	-
 RBD-V0-003	docs/specs/retrieval-bench-diagnostics-v0.md	After ordinary registration and before retrieval, capture MUST write a JSONL hea	unrecorded	-

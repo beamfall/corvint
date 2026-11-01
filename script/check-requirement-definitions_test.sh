@@ -171,6 +171,23 @@ stage
 rm "$test_root/docs/specs/alpha.md"
 run > /dev/null || fail "a spec deleted from the worktree alone must still be read from the index"
 
+# RDG-V0-741 (V1-3699): the table-row-only failure names the regeneration fix.
+saved_tsv=$(git -C "$test_root" show :docs/specs/REQUIREMENTS.tsv)
+saved_alpha=$(git -C "$test_root" show :docs/specs/alpha.md)
+printf 'id\tfile\tline\ttitle\nALPHA-V0-001\tdocs/specs/alpha.md\t5\tthe clause\nALPHA-V0-009\tdocs/specs/alpha.md\t7\tgone\n' \
+    > "$test_root/docs/specs/REQUIREMENTS.tsv"
+# shellcheck disable=SC2016
+printf '# Alpha\n\n## Requirements\n\n- `ALPHA-V0-001`: the clause.\n' > "$test_root/docs/specs/alpha.md"
+stage
+if out=$(run); then fail "a stale REQUIREMENTS.tsv row should fail"; fi
+case $out in
+    *'ALPHA-V0-009'*'stage the spec, then run make spec-requirements to regenerate docs/specs/REQUIREMENTS.tsv'*) ;;
+    *) fail "the table-row-only failure should name make spec-requirements, got: $out" ;;
+esac
+printf '%s\n' "$saved_tsv" > "$test_root/docs/specs/REQUIREMENTS.tsv"
+printf '%s\n' "$saved_alpha" > "$test_root/docs/specs/alpha.md"
+stage
+
 # A Git operational failure is not evidence that the tracked TSV is absent.
 real_git=$(command -v git)
 mkdir -p "$test_root/failing-git"
