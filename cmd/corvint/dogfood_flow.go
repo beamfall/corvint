@@ -20,17 +20,20 @@ import (
 // (DCW-V0-020). The script wrappers pass the executables they built or
 // resolved; the subverbs never build, resolve or version-check one.
 var dogfoodFlowOptions = map[string]map[string]bool{
-	"change": {"--corvint-bin": true},
-	"check":  {"--base-verifier": true, "--tree-verifier": true, "--override-verifier": true},
-	"seal":   {"--base-verifier": true, "--tree-verifier": true, "--override-verifier": true},
+	// Each subverb that takes BASE as a positional also takes it as --base
+	// (ACX-V0-858).
+	"change": {"--base": true, "--corvint-bin": true},
+	"check":  {"--base": true, "--base-verifier": true, "--tree-verifier": true, "--override-verifier": true},
+	"seal":   {"--base": true, "--base-verifier": true, "--tree-verifier": true, "--override-verifier": true},
 	// batch-check is read-only and verifies sealed constituents (DCW-V0-039).
-	"batch-check": {"--verifier": true},
+	"batch-check": {"--base": true, "--verifier": true},
 	// propose-citations is read-only and prints a draft plan (DCW-V0-150);
 	// --refresh carries an earlier plan's rows forward (DCW-V0-442).
-	"propose-citations": {"--refresh": true},
+	"propose-citations": {"--base": true, "--refresh": true},
 	// prechange records the agent pre-change receipts at BASE and binds them
-	// (DCW-V0-880); every positional after BASE is an impact path.
-	"prechange": {"--task": true},
+	// (DCW-V0-880); every positional after BASE is an impact path, and every
+	// positional is one when BASE is --base.
+	"prechange": {"--base": true, "--task": true},
 	// finish-lane runs change, check and seal in turn, so it takes both
 	// option sets plus the bind loop's inputs; BASE is --base (DCW-V0-060).
 	"finish-lane": {"--base": true, "--citations": true, "--intents": true, "--verify": true, "--outcome": true,
@@ -107,6 +110,19 @@ func dogfoodFlowArguments(action string, args []string) (map[string]string, stri
 			return nil, "", dogfoodFlagError{"dogfood-base-required", "dogfood " + action + " takes the base as --base BASE, never as a positional argument"}
 		}
 		return flags, flags["--base"], nil
+	}
+	if base, ok := flags["--base"]; ok {
+		delete(flags, "--base")
+		if action == "prechange" {
+			if len(positional) > 0 {
+				flags[prechangePathsFlag] = strings.Join(positional, "\x00")
+			}
+			return flags, base, nil
+		}
+		if len(positional) != 0 {
+			return nil, "", errors.New("duplicate-local-completion-option")
+		}
+		return flags, base, nil
 	}
 	if action == "prechange" && len(positional) > 1 {
 		flags[prechangePathsFlag] = strings.Join(positional[1:], "\x00")

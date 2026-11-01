@@ -917,6 +917,7 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		emitError(stderr, argumentError("argument command: mcp takes its own --root after the verb: corvint mcp --root ABSOLUTE_ROOT"))
 		return 2
 	}
+	arguments = withHeadAlias(arguments)
 	if code, handled := runCEMInvocation(ctx, arguments, stdout, stderr); handled {
 		return code
 	}
