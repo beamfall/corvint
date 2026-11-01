@@ -197,7 +197,13 @@ func (inv *Inventory) View(id string, ctx Context) (View, bool) {
 	case StatusHeld:
 		add(wire.CodeTicketHeld, "", "ticket is HELD by "+holdIDs(rec))
 	default:
-		add(wire.CodeTicketState, "", "status "+rec.Status+" is not OPEN")
+		detail := "status " + rec.Status + " is not OPEN"
+		if Closed(rec.Status) {
+			// TCL-V0-865: intent checks are admission checks, so a closed
+			// ticket fails this one by status alone.
+			detail += "; intent checks are admission checks, so a closed ticket fails this one by its status alone: the completion itself is not in question, and reopen is only for rework"
+		}
+		add(wire.CodeTicketState, "", detail)
 	}
 	// ESC-V0-006: current OPEN decision, scope or blocked questions hold.
 	if ids := rec.EscalationPending(); len(ids) != 0 {

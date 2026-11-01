@@ -1864,6 +1864,14 @@ func (sr *showReader) item(id string, includeRecord bool) wire.Value {
 	val := v.Value(includeRecord)
 	if includeRecord {
 		val.Obj.Set("operatorNote", operatorNoteShowValue(rc, v.Record))
+		// TCL-V0-865: every failing intent check named beside the verdict.
+		failed := []string{}
+		for _, b := range v.Blockers {
+			if !slices.Contains(failed, b.Code) {
+				failed = append(failed, b.Code)
+			}
+		}
+		val.Obj.Set("intentChecksFailed", wire.Strings(failed))
 	}
 	val.Obj.Set("retries", retryObservation(rc, attempts, v.Record))
 	// ATR-V0-191: the ticket's live attempt, its holder and recovery.

@@ -205,3 +205,31 @@ func TestTCLV0864_RoadmapStatusFilter(t *testing.T) {
 		}
 	}
 }
+
+// TestTCLV0865_ShowNamesFailingIntentChecks: show names each failing intent
+// check, and a manually completed ticket's status blocker says why it fails.
+func TestTCLV0865_ShowNamesFailingIntentChecks(t *testing.T) {
+	r, local, revision := papercutRepo(t)
+	open := atm(t, r.Root, nil, "ticket", "show", local)
+	if open.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("show: %+v", open.res)
+	}
+	item := open.res.Items[0]
+	failed := field(item, "intentChecksFailed")
+	if failed.Kind != wire.KindArray || (field(item, "intentChecks").Str == "PASSED") != (len(failed.Arr) == 0) {
+		t.Fatalf("intentChecks %q with intentChecksFailed %s", field(item, "intentChecks").Str, wire.Encode(failed))
+	}
+	done := atm(t, r.Root, nil, "ticket", "complete-manual", "--request-id", "cm", "--target", local,
+		"--expected-revision", revision, "--payload", `{"evidence":[],"reason":"migrated manual completion"}`)
+	if done.res.Outcome != wire.OutcomeOK {
+		t.Fatalf("complete-manual: %+v", done.res)
+	}
+	item = atm(t, r.Root, nil, "ticket", "show", local).res.Items[0]
+	if field(item, "intentChecks").Str != "FAILED" || string(wire.Encode(field(item, "intentChecksFailed"))) != `["TICKET_STATE"]` {
+		t.Fatalf("completed: intentChecks %q intentChecksFailed %s", field(item, "intentChecks").Str, wire.Encode(field(item, "intentChecksFailed")))
+	}
+	detail := field(field(item, "blockers").Arr[0], "detail").Str
+	if !strings.Contains(detail, "admission checks") || !strings.Contains(detail, "completion itself is not in question") {
+		t.Errorf("TICKET_STATE detail does not explain the closed status: %q", detail)
+	}
+}
