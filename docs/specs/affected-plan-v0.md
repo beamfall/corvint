@@ -5531,6 +5531,8 @@ refuse the file and fall back from narrowing, and nothing warned when the member
   `tools/declaration-compat-check`, run by `make declaration-compat-check` (one of
   `DOC_GATE_TARGETS`), SHALL read the distinct `CORVINT_PR_TOOL_SOURCE` and
   `CORVINT_TEST_SHADOW_SOURCE` pins from `.github/workflows/ci.yml` and, for every planner
+  declaration (the dogfood report, change-evidence and change-outcome maps, `change.cem.json` and
+  `change.ocm.*.json`, the evidence-reach and work-queue files are no planner input), and for every planner
   declaration of its closed-shape table (each `.corvint/*.json` the planner or selector decodes
   with unknown members refused, and the object positions inside it whose member set is closed),
   compare the members at each closed position in the working tree with those the same file holds

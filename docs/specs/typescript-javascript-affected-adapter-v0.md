@@ -1451,7 +1451,9 @@ the out-of-suite unknown is never removed by frontier scoping.
   install may copy the source into `node_modules`): the import keeps the bare-import frontier
   (`TJAA-V0-771`) unless a workspace package of that name is observed (`localPackage`, which
   already gives it a graph edge). A local specifier that climbs out of the root or names a
-  `node_modules` path stays a declared external dependency.
+  `node_modules` path stays a declared external dependency. A manifest whose only dependencies are
+  local specifiers is still a package scope, and a local specifier still names its test runner
+  (`dependencyRunners`), as any declared dependency does.
   - Non-goals: resolving the alias to the linked source as a graph edge; tarball (`file:x.tgz`)
     contents.
   - Failure modes, each keeping the frontier: an aliased `workspace:` dependency naming another
