@@ -5,7 +5,7 @@
 // requirements in docs/specs/source-documentation-draft-v0.md (SDD-V0-007+).
 //
 // A session never renders a document (docs/specs/human-documentation-compiler-v0.md
-// remains not-started) and never promotes generated prose to accepted intent
+// remains partial (HDCV0-023..029, HDCV0-041)) and never promotes generated prose to accepted intent
 // (AGENTS.md invariant 8); it only refreshes source-pinned Markdown blocks that
 // the same native corvint.docs_draft compiler
 // (internal/doccompiler.DraftSources over internal/contextindex.BuildContext)
