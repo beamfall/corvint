@@ -1361,8 +1361,8 @@ auto-accept (2026-10-11).
 
 Failure modes: a stale inventory naming renamed declarations reports them unresolved rather than
 guessing the rename; overlapping members across different flows are allowed and give each flow its
-own identities for the shared declaration; flow-diagram call lines name lines without a path, so a
-multi-file flow's diagram is read with the member paragraphs. Rollback: revert this section,
+own identities for the shared declaration; a multi-file flow's diagram names each call's path
+(AFU-V1-811). Rollback: revert this section,
 `flowinventory.go`, `flowbuild.go` and the `--flows` flag; the declaration-per-flow path is unchanged
 and manifests without an inventory remain valid.
 
@@ -1732,3 +1732,23 @@ member.
 Non-goals: re-deciding the plan's exclusion; changing `internal/liveverify/affected`.
 
 Rollback: remove the member and its field; the selection decision is unchanged.
+
+## Multi-file flow-diagram call lines (V1-2338)
+
+Human-owned intent: a flow whose members span several files has a diagram whose call lines can be
+traced to source without reading the member paragraphs. Accepted under the owner's standing
+auto-accept (2026-10-11).
+
+- **AFU-V1-811**: When a flow's static calls are anchored in more than one path, each flow-diagram
+  call line MUST name the call's path and line (`Source contains call NAME in PATH at line N`),
+  with PATH reduced to `[A-Za-z0-9_./-]` (any other byte becomes `_`) so it stays inside the
+  Mermaid note. A flow whose calls are all in one path renders exactly as before, so its pages and
+  `check` freshness are byte-identical.
+
+Acceptance: `TestAFUV1811MultiFileDiagramCallsNamePath` generates the inventory fixture, whose
+`checkout` flow spans `app/a.rb` and `app/b.js`, and checks that every call line of its diagram
+names its path and line, and that a single-file flow's diagram has no path in its call lines.
+
+Non-goals: ordering calls or joining them across files; a path in single-file diagrams.
+
+Rollback: revert the render change; manifests and bindings are unchanged.

@@ -611,6 +611,7 @@ AFU-V1-251	docs/specs/application-flow-understanding-v1.md	A `playwright-list` i
 AFU-V1-252	docs/specs/application-flow-understanding-v1.md	A variation's `no-test` gap MUST read `only inferred test links, which count onc	unrecorded	-
 AFU-V1-950	docs/specs/application-flow-understanding-v1.md	Three decoders of a Playwright `--reporter=json` report remain, each a different	unrecorded	-
 AFU-V1-810	docs/specs/application-flow-understanding-v1.md	`e2e-safe-selection/1` MUST carry `frontier_excluded`, one entry per plan	unrecorded	-
+AFU-V1-811	docs/specs/application-flow-understanding-v1.md	When a flow's static calls are anchored in more than one path, each flow-diagram	unrecorded	-
 AMSP-V0-001	docs/specs/application-map-scenario-planner-v0.md	`map_plan` MUST accept 1..8 application maps, each naming a distinct app,	unrecorded	-
 AMSP-V0-002	docs/specs/application-map-scenario-planner-v0.md	Each request step MUST resolve to at most one flow. `flow:<flow_id>` names a	unrecorded	-
 AMSP-V0-003	docs/specs/application-map-scenario-planner-v0.md	Freshness MUST come from one Git read at the evaluated revision. That read	unrecorded	-
