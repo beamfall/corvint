@@ -1038,12 +1038,23 @@ func TestFreshProcessPermutationMatrix(t *testing.T) {
 }
 func TestFreshHelperInterruptionReapsChild(t *testing.T) {
 	marker := filepath.Join(t.TempDir(), "descendant.pid")
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	// Interrupt once the descendant has written its marker, not after a fixed
+	// 100 ms: a loaded host or Windows process start can exceed that (V1-2488).
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	go func() {
+		for ctx.Err() == nil {
+			if _, err := os.Stat(marker); err == nil {
+				cancel()
+				return
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+	}()
 	command := exec.Command(os.Args[0], "-test.run=^TestBridgeInterruptionHelper$")
 	command.Env = append(os.Environ(), "CORVINT_NATIVE_BRIDGE_HELPER=block", "CORVINT_NATIVE_BRIDGE_HELPER_MARKER="+marker)
 	output, err := boundedCombinedOutput(ctx, command)
-	if ctx.Err() != context.DeadlineExceeded {
+	if ctx.Err() != context.Canceled {
 		t.Fatalf("context=%v err=%v output=%s", ctx.Err(), err, output)
 	}
 	if err == nil || command.ProcessState == nil {
@@ -1123,6 +1134,10 @@ func candidateExecutables() []candidateExecutable {
 func buildCandidate(t testing.TB, candidate candidateExecutable) string {
 	t.Helper()
 	binary := filepath.Join(t.TempDir(), candidate.name)
+	if runtime.GOOS == "windows" {
+		// exec.LookPath on Windows needs a PATHEXT extension even for an absolute path.
+		binary += ".exe"
+	}
 	cache := filepath.Join(t.TempDir(), "gocache")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
