@@ -26,7 +26,7 @@ set -eu
 #                                                  digests differ from the pins (IDX-SNAP-V0-891).
 #
 # The output test runs through script/heavy.sh, the host semaphore, when it is executable
-# (IDX-SNAP-V0-892); CORVINT_ANALYZER_OUTPUT_COMMAND replaces the command, which must print
+# (IDX-SNAP-V0-892; CORVINT_ANALYZER_HEAVY replaces that path, and empty runs it directly); CORVINT_ANALYZER_OUTPUT_COMMAND replaces the command, which must print
 # "analyzer output SHA256=<hex>" and "analyzer shard SHA256=<hex>". The Go test stays the
 # authority that the pinned digests are the real ones.
 #
@@ -99,8 +99,9 @@ same_output() {
 
 # actual_output runs TestAnalyzerSchemaOutput and prints "OUTPUT SHARD", the digests it reports.
 actual_output() {
-    heavy=
-    [ -x script/heavy.sh ] && heavy=script/heavy.sh
+    # CORVINT_ANALYZER_HEAVY names the semaphore wrapper; empty runs the test directly.
+    heavy=${CORVINT_ANALYZER_HEAVY-script/heavy.sh}
+    [ -z "$heavy" ] || [ -x "$heavy" ] || heavy=
     command=${CORVINT_ANALYZER_OUTPUT_COMMAND:-"$heavy env GOTOOLCHAIN=local go test -count=1 -run '^TestAnalyzerSchemaOutput\$' -v ./internal/contextindex/"}
     report=$(sh -c "$command" 2>&1) || true
     found=$(printf '%s\n' "$report" | sed -n 's/.*analyzer output SHA256=\([0-9a-f]\{64\}\).*/\1/p' | head -n 1)
@@ -112,17 +113,8 @@ actual_output() {
     printf '%s %s\n' "$found" "$found_shard"
 }
 
-# changed_inputs REV prints the audited analyzer inputs that differ between REV and the worktree:
-# go.mod, go.sum and the non-test .go files directly under the internal/ directories the input
-# audit test lists (read from the test, so the two cannot disagree on the set).
-changed_inputs() {
-    rev=$1
-    directories=$(sed -n 's/.*for _, directory := range \[\]string{\([^}]*\)}.*/\1/p' "$schema_test" | tr ',' '\n' | tr -d '" \t')
-    [ -n "$directories" ] || { printf 'analyzer schema: cannot find the audited directory list in %s\n' "$schema_test" >&2; exit 1; }
-    set -- go.mod go.sum
-    for directory in $directories; do set -- "$@" "internal/$directory"; done
-    git diff --name-only "$rev" -- "$@" 2>/dev/null | grep -E '^go\.(mod|sum)$|^internal/[^/]+/[^/]+\.go$' | grep -v '_test\.go$' || true
-}
+# changed_inputs REV prints the audited analyzer inputs that differ between REV and the worktree.
+changed_inputs() { script/analyzer-inputs.sh "$1"; }
 
 current=$(pins -)
 [ -n "$current" ] || {

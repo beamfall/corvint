@@ -63,7 +63,9 @@ if [[ $PWD != "$repo" ]]; then
 fi
 # IDX-SNAP-V0-891 (V1-3574): name an analyzer input change and its check at change start, before
 # any focused test selection can leave TestAnalyzerSchemaOutput out.
-if [[ -f internal/contextindex/analyzer_schema_test.go && -x script/analyzer-schema.sh ]]; then
-  script/analyzer-schema.sh check --base "$base_arg" 2>&1 | sed -n 's/^analyzer schema: NOTE /dogfood-change: NOTE analyzer-schema: /p'
+if [[ -f internal/contextindex/analyzer_schema_test.go && -x script/analyzer-inputs.sh ]] &&
+  analyzer_inputs=$(script/analyzer-inputs.sh "$base_arg" 2> /dev/null) && [[ -n $analyzer_inputs ]]; then
+  printf 'dogfood-change: NOTE analyzer-schema: %s analyzer input(s) changed since %s, first %s: script/analyzer-schema.sh check --output decides whether a bump is needed, and dogfood-finish runs it before the bind\n' \
+    "$(grep -c . <<< "$analyzer_inputs")" "$base_arg" "${analyzer_inputs%%$'\n'*}"
 fi
 exec "$corvint_bin" dogfood change --corvint-bin "$corvint_bin" "$base_arg"

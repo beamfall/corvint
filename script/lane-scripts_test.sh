@@ -784,7 +784,7 @@ ok
 # the fixture's missing build helper).
 ax=$tmp/analyzerfix
 mkdir -p "$ax/script" "$ax/internal/contextindex"
-cp "$script/dogfood-finish.sh" "$script/analyzer-schema.sh" "$ax/script/"
+cp "$script/dogfood-finish.sh" "$script/analyzer-schema.sh" "$script/analyzer-inputs.sh" "$ax/script/"
 printf '#!/bin/sh\n' > "$ax/script/repin-use-case-receipts.sh" && chmod +x "$ax/script/repin-use-case-receipts.sh"
 printf 'module example.test/a\n' > "$ax/go.mod"
 printf 'package contextindex\n\nconst analyzerSchemaID = "corvint-analyzer/3"\n' > "$ax/internal/contextindex/analyzer_schema.go"

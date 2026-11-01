@@ -29,7 +29,7 @@ shard_2=$(printf '2%.0s' $(seq 64))
 schema_test=$test_root/internal/contextindex/analyzer_schema_test.go
 
 mkdir -p "$test_root/script" "$test_root/internal/contextindex"
-cp "$source_root/script/analyzer-schema.sh" "$test_root/script/"
+cp "$source_root/script/analyzer-schema.sh" "$source_root/script/analyzer-inputs.sh" "$test_root/script/"
 printf '#!/bin/sh\necho repinned >>repin.log\n' >"$test_root/script/repin-use-case-receipts.sh"
 chmod +x "$test_root/script/repin-use-case-receipts.sh"
 printf 'module example.test/fixture\n' >"$test_root/go.mod"
