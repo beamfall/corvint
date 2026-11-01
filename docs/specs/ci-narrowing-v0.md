@@ -136,7 +136,11 @@ kill switch keep their thresholds; no row is seeded or synthetic.
   `.github/workflows/ci.yml`. A `tools/ci-forward-row` test that needs the live epoch SHALL read it
   there and derive the epochs around it (the previous and the next), and a test SHALL fail when the
   `FORWARD_EPOCH` and `CORVINT_PR_FORWARD_EPOCH` values in `ci.yml`, `FORWARD_EPOCH` in
-  `ci-forward-bar.yml` and `FORWARD_EPOCH` in `ci-control-plane.yml` are missing or disagree.
+  `ci-forward-bar.yml` and `FORWARD_EPOCH` in `ci-control-plane.yml` are missing or disagree. The
+  live `FORWARD_EPOCH_SINCE` of `ci-forward-bar.yml` SHALL be checked against the live epoch read the
+  same way: equal to the time recorded for an epoch already advanced (epoch 2:
+  `2026-10-30T00:00:00Z`), and later than the newest recorded time for a newer epoch, so a
+  synchronized advance of every site passes without editing the tests.
   Fixtures that pin a historical epoch transition (the epoch-1 dead-pin rows of CIN-V0-001, and the
   self-contained `bar.jq` fixtures that pass their own epoch) stay literal, since they do not move
   with the live epoch.
@@ -190,7 +194,7 @@ the tests in the traceability rows; the V1-3091 request counts in build log
 | CIN-V0-007 | the `go-product-shard` job condition and the `go-product` shard check of `ci.yml` | `TestCINV0007ShardsSkipAtJobLevelOnlyForADocsOrReuseDecision` |
 | CIN-V0-008 | the "Nested module tools/local-authority tests and vet" step of `go-static` in `ci.yml` | `TestCINV0008LocalAuthorityModuleTestsRunInGoStatic`; `TestAFPV0380InteropTestsRunOnceInGoStatic` |
 | CIN-V0-860 | `unknownNarrowing` and `deletedGoSource` and their calls in `selectPackages` in `internal/gateselect/select.go` | `TestUnknownPlanNarrowsOnlyThroughLanguageFrontiers_CINV0860` in `internal/gateselect/unknown_cinv0860_test.go` (language frontiers, an unowned path alone or beside frontiers, no selectable test and a deleted source of an existing package run, the deleted package and its importer selected; a module-level frontier, an unindexed existing source, a deleted source of a removed package, a malformed or empty reason, an UNKNOWN plan naming none and another reason fall back; SelectStructural unchanged); the "unknown plan keeps the fallback" case of `TestSelectPackagesTaskStateOnlyDiffSelectsNothing`; the replay in build log `docs/build-log/2026-10-31-ci-select-w1.md` |
-| CIN-V0-960 | `forwardEpoch`, `forwardEpochSites` (`tools/ci-forward-row/epoch_test.go`) | `TestCINV0960WorkflowsAgreeOnTheForwardEpoch`; `TestCINV0861RowAbsenceTripsTheKillSwitch` and `TestCINV0001EpochTwoLeavesTheDeadPinRowsBehind` read the live epoch from `ci.yml` |
+| CIN-V0-960 | `forwardEpoch`, `forwardEpochSites`, `forwardEpochSinceProblem`, `epochSinces` (`tools/ci-forward-row/epoch_test.go`) | `TestCINV0960WorkflowsAgreeOnTheForwardEpoch`, `TestCINV0960SynchronizedAdvancePasses`, `TestCINV0003VerdictListsBackToTheEpochSince`; `TestCINV0861RowAbsenceTripsTheKillSwitch` and `TestCINV0001EpochTwoLeavesTheDeadPinRowsBehind` read the live epoch from `ci.yml` |
 | CIN-V0-861 | `tools/ci-forward-row/absence.jq` (to move to `.github/forward-rows/absence.jq`); the `collect.sh`, `verdict.sh` and `ci-control-plane.yml` changes in build log `docs/build-log/2026-10-31-ci-select-w1.md`, not applied (no `.github` edit in this lane) | `TestCINV0861RowAbsenceTripsTheKillSwitch` in `tools/ci-forward-row/absence_test.go` (three NOROW markers trip, with rows beside too, and at a lower threshold; two do not; epoch-1 markers and rows, another epoch's marker, INFRA and NARROWED rows and an unknown reason take no place; a re-run's row replaces its NOROW; markers older than 20 entries do not trip; a malformed threshold trips) |
 
 ## Rollback
