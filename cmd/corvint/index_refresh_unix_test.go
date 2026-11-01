@@ -592,11 +592,13 @@ func TestSnapshotRefreshCPUBudgetCancelsWork_IDXSNAPV0912(t *testing.T) {
 		t.Fatalf("an idle wait spent the CPU budget: %v", context.Cause(waiting))
 	}
 	stopWaiting()
+	// Busy work must advance the process CPU clock. Poll for progress rather than assume a wall
+	// share: under contention the loop may get little CPU, so only a hang bound limits it.
 	before := snapshotRefreshCPUTime()
-	for deadline := time.Now().Add(200 * time.Millisecond); time.Now().Before(deadline); {
-	}
-	if after := snapshotRefreshCPUTime(); after-before < 50*time.Millisecond {
-		t.Fatalf("CPU time %s -> %s across a 200 ms busy loop", before, after)
+	for hang := time.Now().Add(time.Minute); snapshotRefreshCPUTime()-before < 20*time.Millisecond; {
+		if time.Now().After(hang) {
+			t.Fatalf("CPU time stayed at %s across a minute of busy work", snapshotRefreshCPUTime())
+		}
 	}
 	if snapshotRefreshWallBound != 10*time.Minute || snapshotRefreshCPUBudget != 55*time.Second {
 		t.Fatalf("bounds %s wall, %s CPU", snapshotRefreshWallBound, snapshotRefreshCPUBudget)

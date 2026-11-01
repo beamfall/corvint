@@ -6,10 +6,13 @@ import (
 	"context"
 	"errors"
 	"github.com/Beamfall/corvint/internal/execfile"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -100,6 +103,10 @@ func TestGitStartErrorClass_DRCV0910(t *testing.T) {
 		{"exit", failing, ""},
 	} {
 		t.Run(test.name, func(t *testing.T) {
+			if test.class == "ETXTBSY" && runtime.GOOS != "linux" {
+				// Darwin executes a script that is still open for writing; the race is Linux's.
+				t.Skip("ETXTBSY on exec of a write-open file is Linux behavior")
+			}
 			ctx := withGitExecution(context.Background(), test.executable, os.Environ())
 			_, err := git(ctx, root, 1<<20, nil, "rev-parse", "HEAD")
 			if err == nil {
@@ -115,5 +122,27 @@ func TestGitStartErrorClass_DRCV0910(t *testing.T) {
 	}
 	if GitStartErrorClass(errors.New("unrelated")) != "" {
 		t.Fatal("a non-Git error has a start class")
+	}
+}
+
+// DRC-V0-910: the classification itself, on every platform, for start errors
+// wrapped as os/exec returns them.
+func TestGitStartErrorClassMapsEachErrno_DRCV0910(t *testing.T) {
+	for start, want := range map[error]string{
+		&fs.PathError{Op: "fork/exec", Path: "/x/git", Err: syscall.ETXTBSY}: "ETXTBSY",
+		&fs.PathError{Op: "fork/exec", Path: "/x/git", Err: syscall.ENOENT}:  "ENOENT",
+		&exec.Error{Name: "git", Err: exec.ErrNotFound}:                      "ENOENT",
+		&fs.PathError{Op: "fork/exec", Path: "/x/git", Err: syscall.EACCES}:  "EACCES",
+		&fs.PathError{Op: "fork/exec", Path: "/x/git", Err: syscall.EPERM}:   "EPERM",
+		&fs.PathError{Op: "fork/exec", Path: "/x/git", Err: syscall.ENOEXEC}: "ENOEXEC",
+		errors.New("something else"):                                         "other",
+	} {
+		err := &Error{Message: "Git error: cannot start Git", gitFailure: &GitFailure{ExitCode: -1, StartError: start}}
+		if got := GitStartErrorClass(err); got != want {
+			t.Errorf("%v: class %q, want %q", start, got, want)
+		}
+	}
+	if got := GitStartErrorClass(&Error{Message: "Git error: x", gitFailure: &GitFailure{ExitCode: 3}}); got != "" {
+		t.Errorf("exit failure class %q", got)
 	}
 }
