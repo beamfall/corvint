@@ -437,6 +437,10 @@ type screenIndex struct {
 	byKey      map[string][]string
 	bySegments map[int][]routable
 	splats     []routable
+	// ranked names the screens a react-router/0 file declared; a URL matching only such screens
+	// takes the single best React Router rank (AMAP-V0-600).
+	ranked map[string]bool
+	score  map[string]int
 }
 
 type routable struct {
@@ -446,13 +450,14 @@ type routable struct {
 }
 
 func newScreenIndex(hashPrefix, basePath string, screens []Screen) *screenIndex {
-	x := &screenIndex{hashPrefix: hashPrefix, basePath: basePath, byKey: map[string][]string{}, bySegments: map[int][]routable{}}
+	x := &screenIndex{hashPrefix: hashPrefix, basePath: basePath, byKey: map[string][]string{}, bySegments: map[int][]routable{}, score: map[string]int{}}
 	for _, s := range screens {
 		if s.Status != StatusResolved || s.Abstract {
 			continue
 		}
 		x.byKey[s.Key] = append(x.byKey[s.Key], s.ID)
 		segs := splitSegments(s.Key)
+		x.score[s.ID] = reactRouteScore(segs)
 		if len(segs) > 0 && segs[len(segs)-1] == "{*}" {
 			x.splats = append(x.splats, routable{id: s.ID, segments: segs[:len(segs)-1], nonempty: s.SplatNonEmpty})
 		} else {
@@ -510,7 +515,76 @@ func pick(ids []string, reason string) (string, string) {
 // whole-segment ${} substitution and match only parameter segments; a partial substitution
 // cannot be placed and is UNKNOWN.
 func (x *screenIndex) byURL(raw string) (string, string) {
-	return pick(x.urlMatches(raw))
+	ids, reason := x.urlMatches(raw)
+	return pick(x.rank(ids), reason)
+}
+
+// rank keeps the single best-scoring candidate when every candidate is a ranked react-router/0
+// screen, as React Router's own matcher does; otherwise, or on a tie, it returns ids unchanged
+// (AMAP-V0-600).
+func (x *screenIndex) rank(ids []string) []string {
+	if len(ids) < 2 || len(x.ranked) == 0 {
+		return ids
+	}
+	best, top, tied := "", 0, false
+	for _, id := range ids {
+		if !x.ranked[id] {
+			return ids
+		}
+		switch score := x.score[id]; {
+		case best == "" || score > top:
+			best, top, tied = id, score, false
+		case score == top:
+			tied = true
+		}
+	}
+	if tied {
+		return ids
+	}
+	return []string{best}
+}
+
+// reactRouteScore is React Router's computeScore over a shared template key: one per segment of
+// the path split on `/` (the leading empty segment included), 10 per static segment, 3 per
+// parameter, 1 for each empty segment and -2 for a trailing splat (AMAP-V0-600).
+func reactRouteScore(segs []string) int {
+	score := len(segs) + 1
+	if len(segs) == 0 {
+		return score + 2 // "/" splits into two empty segments
+	}
+	score++ // the leading empty segment
+	for _, s := range segs {
+		switch {
+		case s == "{*}":
+			score -= 2
+		case strings.Contains(s, "{}"):
+			score += 3
+		default:
+			score += 10
+		}
+	}
+	return score
+}
+
+// rankReact marks the screens only react-router/0 files declared, from each router file's span of
+// raw states, so byURL may rank them (AMAP-V0-600).
+func (x *screenIndex) rankReact(app string, routers []RouterFile, raws []rawState, spans [][2]int) {
+	react, other := map[string]bool{}, map[string]bool{}
+	for i, span := range spans {
+		for _, raw := range raws[span[0]:span[1]] {
+			if routers[i].Dialect == DialectReact {
+				react[screenID(app, raw.name)] = true
+			} else {
+				other[screenID(app, raw.name)] = true
+			}
+		}
+	}
+	x.ranked = map[string]bool{}
+	for id := range react {
+		if !other[id] {
+			x.ranked[id] = true
+		}
+	}
 }
 
 var urlScheme = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]*://`)

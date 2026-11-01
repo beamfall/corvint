@@ -789,7 +789,7 @@ but does not read it; only non-Go syntax impact does.
   `internal/appmap/endpoints.go`, `cmd/corvint/flows_appmap_endpoints.go` and the verb's dispatch.
   Status: experimental under the standing lane auto-accept (2026-10-11; V1-2850; GitHub #1907).
 - `AMAP-V0-215`: A map MUST carry `builder`, the compiler's `appmap.BuilderVersion`
-  (`appmap-builder/1`), which is bumped in the same change as any change to what a build derives
+  (`appmap-builder/2`; bumped from `/1` by the V1-3932 React route ranking), which is bumped in the same change as any change to what a build derives
   from the same inputs. The map digest is computed with `builder` and `digest` both empty, so the
   member is provenance, not content, and a map written before it keeps its digest. `BuildFrom`
   rebuilds in full with the reason `builder-version-differs` when MAP's `builder` is absent or
@@ -2149,6 +2149,55 @@ but does not read it; only non-Go syntax impact does.
   or `browser-target-missing` (no such file). A relative or bare browser-context specifier is
   `browser-reference` reason `browser-specifier-unread`. Browser-reference unknowns never make the
   map's `test_join` `UNKNOWN`, since the browser module graph is not the test join.
+- `AMAP-V0-600`: (experimental under the standing lane auto-accept (2026-11-01); V1-3932; amending
+  `AMAP-V0-003` and `AMAP-V0-005`) When a literal test URL (a spec's or page object's own `goto`,
+  `waitForURL` or `toHaveURL`) matches several routable screens and every candidate was declared by a
+  `react-router/0` router file, the build MUST rank them as React Router does: each candidate scores
+  its path segments plus one, plus 10 per static segment, 3 per parameter segment and 1 for the
+  leading empty segment, and a trailing splat subtracts 2. The single highest score is the match, so
+  `/new` beside `/*` places `/new` and `/dynamic/new` beside `/dynamic/:id` places `/dynamic/new`.
+  A tie, or any candidate from another dialect (Rails and UI-Router keep declaration-order or
+  their own ranking), keeps `ambiguous-template`. A render guard (`AMAP-V0-193`) never changes the
+  match: a guarded route is ranked like any other. Template lookups and the `ambiguous-template`
+  unknown for two screens sharing one key are unchanged.
+  - Non-goals: ranking for other dialects; index-route and optional-segment bonuses, since the
+    shared template key has neither.
+  - Failure modes: a screen that shares its state name with another dialect's state is not
+    ranked, so the lookup stays `UNKNOWN`.
+  - Falsifier: `TestAMAPV0600SpecificRouteBeatsSplat_V13932` in `goto_splat_v13932_test.go`
+    (render-guarded react routes beside a `/*` splat: `/new` and `/dynamic/new` gotos attribute to
+    their screens, `/dynamic/42` to `/dynamic/{id}`, `/kindred` to the splat), failing on base
+    `e9a5d6c80`; `TestAMAPV0600RankingStaysWithinReact_V13932` (a mixed-dialect or tied match stays
+    ambiguous).
+  - Rollback: drop `screenIndex.ranked` and the ranking in `byURL`; map bytes change only in the
+    newly attributed specs.
+- `AMAP-V0-601`: (experimental under the standing lane auto-accept (2026-11-01); V1-2770) `flows
+  appmap coverage --map FILE [--budget N | --full]` MUST emit a read-only, deterministic
+  `application-map-coverage/0` document computed from the map file alone. Screens are grouped by
+  module, the repository alias and path of the router file that declares them (`screens[].anchor`).
+  Each module row reports `total` (resolved screens that are not abstract), `reached` (those with at
+  least one spec attribution), `reached_by_basis` (the reached screens counted per attribution
+  basis, such as `goto` or `import`; a screen with several bases counts once under each), `unreached`
+  (the resolved screen IDs with no spec), `abstract` (the number of abstract screens, which are
+  excluded from `total`) and `unknown` (each screen whose status is not `RESOLVED`, with its reason;
+  these are counted in neither `total` nor `reached`, because the map cannot establish them). The
+  head carries `count_sources`, which names the map field each count is read from, plus totals
+  across modules. When the map's `test_join` is `UNKNOWN`, every module's `unreached_status` reads
+  `UNKNOWN` with reason `test-join-unknown`, since an unread or unresolved test file may reach a
+  listed screen. Otherwise it reads `RESOLVED`. The head's `evaluated_revision` is `NOT_READ`, as in
+  `flows appmap stats`: no checkout is read, so identical map bytes give identical output from any
+  root. The document follows the projection budget of `AMAP-V0-011`: modules are trimmed before the
+  head.
+  - Non-goals: runtime reach, flow-step or page-object-only reach, and per-module gating.
+  - Failure modes: a map with no screens reports no modules. A test file the index excluded is
+    covered only by `test_join` being `UNKNOWN`, which affects every module at once.
+  - Falsifier: `TestAMAPV0601CoverageReport_V12770` in `coverage_report_v12770_test.go` (a fixture
+    with two router files, a reached and an unreached screen in each, an unresolved screen and an
+    abstract screen: expected counts per module, and `unreached_status` `UNKNOWN` once a test
+    file's join is `UNKNOWN`; identical map bytes from two roots at different HEADs give identical
+    output); `TestFlowsAppmapCoverageCLI_V12770` (the verb emits the schema and refuses without
+    `--map`).
+  - Rollback: delete `coverage_report.go`, the CLI verb and its tests.
 
 ## Wire contract
 
@@ -2470,6 +2519,8 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-780 | `TestAMAPV0780FlatLayout` (omitted and empty `page_objects` build with no page objects; a directory in both specs and page objects builds with spec-named files as specs and the helper as a page object; a directory repeated within specs, or across specs and workflows, still refuses) |
 | AMAP-V0-781 | `TestAMAPV0781BrowserTargetIsNoTestEdge` (a browser target inside `tests.root` joins no screen; a Node import passed as a later `page.evaluate` argument stays resolved and attributed; `web_root` `.` resolves from the repository root); `TestAMAPV0781BrowserContextImports` (a literal and a computed `import(...)` inside `page.evaluate` read `browser-context` and `browser-computed-specifier`, never `unresolved-import`, and the spec's join stays RESOLVED; the same specifier also imported in Node context stays unresolved) |
 | AMAP-V0-782 | `TestAMAPV0781BrowserContextImports` (with `tests.web_root` a root-relative specifier resolves to the tracked file; an absent file reads `browser-target-missing`; without `web_root`, `browser-root-undeclared`); `TestAMAPV0780FlatLayout` (a `web_root` that is not a directory refuses) |
+| AMAP-V0-600 | `TestAMAPV0600SpecificRouteBeatsSplat_V13932`, `TestAMAPV0600RankingStaysWithinReact_V13932` in `goto_splat_v13932_test.go` (VanillaTwisted shape; VanillaTwisted rebuild `NOT_RUN` in the lane) |
+| AMAP-V0-601 | `TestAMAPV0601CoverageReport_V12770`, `TestFlowsAppmapCoverageCLI_V12770` in `coverage_report_v12770_test.go` and `cmd/corvint/flows_appmap_coverage_v12770_test.go` |
 | AMAP-V0-200 | `TestAMAPV0200StatedAliasRevision` (stated pin; HEAD pin unstated; a later commit and a dirty file leave the bytes identical; a non-commit REV and an unread alias refuse `appmap-root-unavailable`) |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,

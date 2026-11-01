@@ -18,7 +18,7 @@ const (
 	// change to what BuildRoots derives from the same inputs, so `--from` rebuilds a map an
 	// earlier compiler wrote instead of carrying it forward. A binary built from a VCS checkout
 	// also binds its revision (builderIdentity), so an unbumped compiler change still rebuilds.
-	BuilderVersion = "appmap-builder/1"
+	BuilderVersion = "appmap-builder/2"
 
 	DialectUIRouter = "ui-router-states/0"
 	DialectRails    = "rails-routes/0"
