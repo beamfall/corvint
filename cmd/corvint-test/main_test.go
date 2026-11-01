@@ -15,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/changee2e"
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func gitTest(t *testing.T, root string, args ...string) string {
@@ -237,7 +238,7 @@ func TestCCEV0015NeverExecutesCorvint(t *testing.T) {
 	}
 	fake := t.TempDir()
 	marker := filepath.Join(t.TempDir(), "called")
-	if err := os.WriteFile(filepath.Join(fake, "corvint"), []byte("#!/bin/sh\necho \"$@\" >> '"+marker+"'\nexit 1\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(fake, "corvint"), []byte("#!/bin/sh\necho \"$@\" >> '"+marker+"'\nexit 1\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", fake+string(os.PathListSeparator)+os.Getenv("PATH"))

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
@@ -58,7 +59,7 @@ case " $* " in
   *) exit 22 ;;
 esac
 `
-		if err := os.WriteFile(filepath.Join(bin, "gh"), []byte(stub), 0o700); err != nil {
+		if err := execfile.WriteFile(filepath.Join(bin, "gh"), []byte(stub), 0o700); err != nil {
 			t.Fatal(err)
 		}
 		cmd := exec.Command("bash", "--noprofile", "--norc", "-eo", "pipefail", script)

@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/groupreap"
 )
 
@@ -102,7 +103,7 @@ func (r *s0eRun) sleeper(ordinal int) {
 // /usr/bin/git, which on hosted macOS-15 rejects --attr-source.
 func (r *s0eRun) script(ordinal int, body string) {
 	path := filepath.Join(r.base, "shim.sh")
-	if err := os.WriteFile(path, []byte("PATH=/bin:/usr/bin\n"+body+"\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(path, []byte("PATH=/bin:/usr/bin\n"+body+"\n"), 0o755); err != nil {
 		r.t.Fatal(err)
 	}
 	r.commands[ordinal] = func(binary string, args []string) (string, []string) {

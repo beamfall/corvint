@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	dashboardauthority "github.com/Beamfall/corvint/internal/dashboard/authority"
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestAuthorityQualifiesRealRepositoryAndTerminalBlob(t *testing.T) {
@@ -156,7 +157,7 @@ func writeGitOutputProxy(t *testing.T, upstream, cat, intercepted, payload strin
 		"  if [ \"$argument\" = " + shellQuote(intercepted) + " ]; then exec " + shellQuote(cat) + " " + shellQuote(payload) + "; fi\n" +
 		"done\n" +
 		"exec " + shellQuote(upstream) + " \"$@\"\n"
-	if err := os.WriteFile(proxy, []byte(script), 0o700); err != nil {
+	if err := execfile.WriteFile(proxy, []byte(script), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	return proxy

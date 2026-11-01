@@ -14,6 +14,7 @@ import (
 
 	"github.com/Beamfall/corvint/conformance/release-artifact-v0/archiveverify"
 	"github.com/Beamfall/corvint/conformance/release-artifact-v0/archivewire"
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestArchiveIdentityVersions(t *testing.T) {
@@ -152,7 +153,7 @@ func testCorvintHostArchivePartialProof(t *testing.T) {
 			t.Fatal(err)
 		}
 		if header.Name == "corvint_darwin_arm64/corvint" {
-			if err := os.WriteFile(extracted, data, 0755); err != nil {
+			if err := execfile.WriteFile(extracted, data, 0755); err != nil {
 				t.Fatal(err)
 			}
 		}

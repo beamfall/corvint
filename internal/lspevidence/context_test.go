@@ -1,15 +1,16 @@
 package lspevidence
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // TCP-V0-051: relative PATH entries must not authorize an executable.
 func TestContextLSPExecutableRefusesRelativePATH(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "gopls"), []byte("#!/bin/sh\nexit 0\n"), 0755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(dir, "gopls"), []byte("#!/bin/sh\nexit 0\n"), 0755); err != nil {
 		t.Fatal(err)
 	}
 	t.Chdir(dir)

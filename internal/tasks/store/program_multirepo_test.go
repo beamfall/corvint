@@ -43,7 +43,7 @@ func multiCommitted(t *testing.T, dir, file, body string) {
 func multiScript(t *testing.T, path, body string) []byte {
 	t.Helper()
 	raw := []byte(body)
-	if err := os.WriteFile(path, raw, 0o755); err != nil {
+	if err := fixture.WriteExecutable(path, raw, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chmod(path, 0o755); err != nil {

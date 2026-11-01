@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
@@ -434,7 +435,7 @@ func TestWorktreeDigestImportFailureRunsWithoutRecord(t *testing.T) {
 		}
 		bin := t.TempDir()
 		wrapper := "#!/bin/sh\nfor arg do\n if [ \"$arg\" = update-index ]; then exit 47; fi\ndone\nexec \"$ACTUAL_TEST_GIT\" \"$@\"\n"
-		if err := os.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
+		if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		t.Setenv("ACTUAL_TEST_GIT", actualGit)

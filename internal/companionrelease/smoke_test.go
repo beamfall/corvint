@@ -2,16 +2,17 @@ package companionrelease
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestInitSmokeRepoPinsIntentBranch(t *testing.T) {
 	root := t.TempDir()
 	git := filepath.Join(root, "git")
-	if err := os.WriteFile(git, []byte(`#!/bin/sh
+	if err := execfile.WriteFile(git, []byte(`#!/bin/sh
 if [ "$1" = init ]; then
 	case " $* " in
 		*" -b main "*) ;;
@@ -39,7 +40,7 @@ exec /usr/bin/git "$@"
 func TestRunAtmJSONRetainsStructuredStdoutOnFailure(t *testing.T) {
 	root := t.TempDir()
 	binary := filepath.Join(root, "corvint-tasks")
-	if err := os.WriteFile(binary, []byte("#!/bin/sh\nprintf '%s\\n' '{\"outcome\":\"REFUSED\",\"codes\":[\"INTENT_BRANCH_MISMATCH\"]}'\nexit 1\n"), 0o700); err != nil {
+	if err := execfile.WriteFile(binary, []byte("#!/bin/sh\nprintf '%s\\n' '{\"outcome\":\"REFUSED\",\"codes\":[\"INTENT_BRANCH_MISMATCH\"]}'\nexit 1\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	observed, _, err := runAtmJSON(context.Background(), binary, root, "tasks-init", "init")

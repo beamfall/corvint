@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/trace"
 	"github.com/Beamfall/corvint/internal/tracerecordrepo"
 )
@@ -258,7 +259,7 @@ for argument in "$@"; do
 done
 exec %s "$@"
 `, strconv.Quote(realGit))
-	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	command := candidateCommand("--root", root, "query", "--task", repositoryQueryTask)
@@ -288,7 +289,7 @@ for argument in "$@"; do
 done
 exec %s "$@"
 `, strconv.Quote(marker), strconv.Quote(marker), strconv.Quote(target), strconv.Quote(realGit))
-	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	command := candidateCommand("--root", root, "query", "--task", repositoryQueryTask)
@@ -473,7 +474,7 @@ if [ "$is_log" = true ] && [ ! -e %s ]; then
 fi
 exec %s "$@"
 `, strconv.Quote(marker), strconv.Quote(marker), strconv.Quote(target), strconv.Quote(realGit))
-	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
 		t.Fatal(err)
 	}
 

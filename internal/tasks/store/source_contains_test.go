@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/tasks/fixture"
 	"github.com/Beamfall/corvint/internal/tasks/store"
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
 )
@@ -174,7 +175,7 @@ func TestSCCV0003DeadlineCoversEveryCommand(t *testing.T) {
 	}
 	bin := t.TempDir()
 	wrapper := "#!/bin/sh\ncase \"$*\" in *--count*) exec sleep 30;; esac\nexec '" + real + "' \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
+	if err := fixture.WriteExecutable(filepath.Join(bin, "git"), []byte(wrapper), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -208,7 +209,7 @@ func TestSCCV0003SignedCommitStartsNoVerifier(t *testing.T) {
 	xs := strings.TrimSpace(string(out))
 	marker := filepath.Join(t.TempDir(), "verifier-ran")
 	verifier := filepath.Join(t.TempDir(), "gpg")
-	if err := os.WriteFile(verifier, []byte("#!/bin/sh\ntouch '"+marker+"'\nexit 1\n"), 0o755); err != nil {
+	if err := fixture.WriteExecutable(verifier, []byte("#!/bin/sh\ntouch '"+marker+"'\nexit 1\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	sccGit(t, dir, "config", "log.showSignature", "true")

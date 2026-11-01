@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/evalrepo"
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func TestManifestAndRegisteredEvidence(t *testing.T) {
@@ -218,7 +219,7 @@ func TestGitCancellationReapsDescendant(t *testing.T) {
 	bin := t.TempDir()
 	pidFile := filepath.Join(bin, "child.pid")
 	script := "#!/bin/sh\nsleep 30 &\necho $! > '" + pidFile + "'\nwait\n"
-	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))

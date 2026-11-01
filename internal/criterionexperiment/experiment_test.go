@@ -11,6 +11,7 @@ import (
 
 	"github.com/Beamfall/corvint/internal/cem/gitauth"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 func requestFixture() Request {
@@ -165,7 +166,7 @@ func TestImmutableInventoryOverlayAndRefusals(t *testing.T) {
 			t.Fatal(e)
 		}
 	}
-	if e := os.WriteFile(filepath.Join(dir, "sample/helper"), []byte("helper"), 0755); e != nil {
+	if e := execfile.WriteFile(filepath.Join(dir, "sample/helper"), []byte("helper"), 0755); e != nil {
 		t.Fatal(e)
 	}
 	gitTest(t, dir, "add", ".")

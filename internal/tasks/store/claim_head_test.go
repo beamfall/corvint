@@ -154,7 +154,7 @@ func TestPSRV0224_ReftableProbeNamesMissingSupport(t *testing.T) {
 	fake := func(t *testing.T, body string) string {
 		t.Helper()
 		path := filepath.Join(t.TempDir(), "git")
-		if err := os.WriteFile(path, []byte("#!/bin/sh\n"+body+"\n"), 0o755); err != nil {
+		if err := fixture.WriteExecutable(path, []byte("#!/bin/sh\n"+body+"\n"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		return path

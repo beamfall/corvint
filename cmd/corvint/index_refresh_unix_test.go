@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 )
 
@@ -170,7 +171,7 @@ func slowRefreshGit(t *testing.T, root string) (string, string) {
 	dir := t.TempDir()
 	ready := filepath.Join(dir, "ready")
 	script := fmt.Sprintf("#!/bin/sh\nfor arg do\n if [ \"$arg\" = rev-parse ]; then\n /bin/sleep 120 &\n child=$!\n echo \"$child\" > '%s'\n wait \"$child\"\n exit 1\n fi\ndone\nexec '%s' \"$@\"\n", ready, realGit)
-	if err := os.WriteFile(filepath.Join(dir, "git"), []byte(script), 0o700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(dir, "git"), []byte(script), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	return "PATH=" + dir + string(os.PathListSeparator) + os.Getenv("PATH"), ready

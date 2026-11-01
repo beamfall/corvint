@@ -555,7 +555,7 @@ func TestStableLifecycleKeeperOwnerExitWhileHolding(t *testing.T) {
 // included, when its owner exits.
 func TestStableLifecycleKeeperOwnerExitWhileRunning(t *testing.T) {
 	git := filepath.Join(s0eTemp(t), "git")
-	if err := os.WriteFile(git, []byte("#!/bin/sh\nexec /bin/sleep 300\n"), 0o755); err != nil {
+	if err := writeExecutable(git, []byte("#!/bin/sh\nexec /bin/sleep 300\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	keeper, kind, child := lifecycleOrphan(t, git)

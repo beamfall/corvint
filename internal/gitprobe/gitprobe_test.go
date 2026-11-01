@@ -1,11 +1,12 @@
 package gitprobe
 
 import (
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // fakeGit writes a POSIX shell stand-in for git that answers `version` with
@@ -22,7 +23,7 @@ func fakeGit(t *testing.T, version string, code int) string {
 	} else {
 		script += "exit 0\n"
 	}
-	if err := os.WriteFile(path, []byte(script), 0o700); err != nil {
+	if err := execfile.WriteFile(path, []byte(script), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	return path
@@ -44,14 +45,14 @@ func TestGraftAdviceDetectsTheHint(t *testing.T) {
 	}
 	path := filepath.Join(t.TempDir(), "git")
 	script := "#!/bin/sh\ncase \"$*\" in *rev-list*) [ -n \"$GIT_GRAFT_FILE\" ] && echo 'hint: Support for <GIT_DIR>/info/grafts is deprecated' >&2; exit 1;; esac\nexit 0\n"
-	if err := os.WriteFile(path, []byte(script), 0o700); err != nil {
+	if err := execfile.WriteFile(path, []byte(script), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if !GraftAdvice(path) {
 		t.Fatal("a git printing graft advice was not detected")
 	}
 	quiet := filepath.Join(t.TempDir(), "git")
-	if err := os.WriteFile(quiet, []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil {
+	if err := execfile.WriteFile(quiet, []byte("#!/bin/sh\nexit 0\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if GraftAdvice(quiet) {

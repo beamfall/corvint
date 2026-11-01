@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/goplsclient"
 	"github.com/Beamfall/corvint/internal/mcp/bridge"
 )
@@ -37,7 +38,7 @@ func fakeServer(t *testing.T, scratch, name, mode string) string {
 	if name == "" {
 		body = "#!/bin/sh\nexport CORVINT_SEMANTIC_FAKE=" + mode + "\nexport CORVINT_SEMANTIC_SCRATCH='" + scratch + "'\nexec '" + exe + "' -test.run '^TestSemanticHost$' -- serve\n"
 	}
-	if e := os.WriteFile(binary, []byte(body), 0700); e != nil {
+	if e := execfile.WriteFile(binary, []byte(body), 0700); e != nil {
 		t.Fatal(e)
 	}
 	return binary

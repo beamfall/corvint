@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 const (
@@ -72,7 +74,7 @@ func rspecControl(t *testing.T, id, env string) ControlSpec {
 func writeToolchain(t *testing.T, dir, script string) Command {
 	t.Helper()
 	path := filepath.Join(dir, "rspec")
-	if err := os.WriteFile(path, []byte(script), 0o700); err != nil {
+	if err := execfile.WriteFile(path, []byte(script), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	return Command{Path: path, ExecutableSHA256: mustFileDigest(t, path)}

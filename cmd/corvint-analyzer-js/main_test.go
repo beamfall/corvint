@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/analyzerjs"
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 type deniedReader struct{}
@@ -130,7 +131,7 @@ func TestRunHasNoAmbientProcessOrNetworkDependency(t *testing.T) {
 	}
 	temporary := t.TempDir()
 	marker := filepath.Join(temporary, "process-spy")
-	if err := os.WriteFile(filepath.Join(temporary, "git"), []byte("#!/bin/sh\ntouch "+marker+"\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(temporary, "git"), []byte("#!/bin/sh\ntouch "+marker+"\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	connected := make(chan struct{}, 1)
@@ -426,7 +427,7 @@ func TestBuiltCLIAmbientSpy(t *testing.T) {
 	}
 	marker := filepath.Join(directory, "process-marker")
 	probe := filepath.Join(directory, "ambient-probe")
-	if err := os.WriteFile(probe, []byte("#!/bin/sh\ntouch "+marker+"\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(probe, []byte("#!/bin/sh\ntouch "+marker+"\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if output, err := exec.Command(probe).CombinedOutput(); err != nil {

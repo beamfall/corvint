@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 )
 
@@ -58,7 +59,7 @@ func TestInventoryPrivateStatusPreservesEightProcessBudget(t *testing.T) {
 				counter := filepath.Join(bin, "calls")
 				quote := func(value string) string { return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'" }
 				wrapper := "#!/bin/sh\nprintf x >> " + quote(counter) + "\nexec " + quote(git) + " \"$@\"\n"
-				if err := os.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0700); err != nil {
+				if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0700); err != nil {
 					t.Fatal(err)
 				}
 				t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -99,7 +100,7 @@ func TestInventoryBudgetCoversSparseIndexStatusProbes(t *testing.T) {
 	counter := filepath.Join(bin, "calls")
 	quote := func(value string) string { return "'" + strings.ReplaceAll(value, "'", "'\\''") + "'" }
 	wrapper := "#!/bin/sh\nprintf x >> " + quote(counter) + "\nexec " + quote(git) + " \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -230,7 +231,7 @@ func TestBlobReadFailureCountsOnlyEntriesItWouldRead(t *testing.T) {
 	genesisGit(t, git, root, "commit", "-qm", "unread entries")
 	bin := t.TempDir()
 	wrapper := "#!/bin/sh\ncase \" $* \" in *\" cat-file --batch \"*) exit 1;; esac\nexec '" + git + "' \"$@\"\n"
-	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(wrapper), 0700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))

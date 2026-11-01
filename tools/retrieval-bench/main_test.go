@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/testplatform"
 )
 
@@ -106,7 +107,7 @@ func fixtureOptions(t *testing.T, snapshot string) options {
 		t.Fatal(err)
 	}
 	corvintGo := filepath.Join(t.TempDir(), "corvint")
-	if err := os.WriteFile(corvintGo, []byte("#!/bin/sh\necho Corvint test\n"), 0o755); err != nil {
+	if err := execfile.WriteFile(corvintGo, []byte("#!/bin/sh\necho Corvint test\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	return options{samples: samples, snapshots: map[string]string{"clap-rs/clap@68b5ff900bae8ee1a0e328c1a2301a7985e4f1c6": snapshot}, corvintGo: corvintGo, limit: 5, taskTypes: map[string]bool{}, arms: allArms()}
@@ -507,7 +508,7 @@ git -C "$2" status --porcelain > "$AFFECTED_STATUS"
 if [ -n "$AFFECTED_REFUSE" ]; then printf '{"code": "unsupported-affected-status", "ok": false}' >&2; exit 2; fi
 printf '{"plan":{"scope":"UNKNOWN","selected":[{"tests":["a_test.go"],"witness":{}},{"tests":["a_test.go","b_test.go"]}]}}'
 `
-	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+	if err := execfile.WriteFile(script, []byte(body), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	answer, err := runAffected(ctx, script, root, "a.go", 5)
@@ -710,7 +711,7 @@ case "$3" in
     printf '{"context":{"state":"READY","results":[{"evidence":[{"path":"a.go"},{"path":"a_test.go"}]},{"evidence":[{"path":"a.go"}]}]}}' ;;
 esac
 `
-	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+	if err := execfile.WriteFile(script, []byte(body), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	ctx := context.Background()

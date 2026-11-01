@@ -12,6 +12,8 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/execfile"
 )
 
 // EEP-V0-027: cancellation of the actual provider retires its spawned child,
@@ -24,7 +26,7 @@ func TestContextLSPCancellationRetiresDescendants(t *testing.T) {
 		cacheFile := filepath.Join(dir, "cache")
 		executable := filepath.Join(dir, "gopls")
 		body := fmt.Sprintf("#!/bin/sh\nsleep 60 &\nprintf '%%s' $! > '%s'\nprintf '%%s' \"$GOPLSCACHE\" > '%s'\nwait\n", pidFile, cacheFile)
-		if err := os.WriteFile(executable, []byte(body), 0755); err != nil {
+		if err := execfile.WriteFile(executable, []byte(body), 0755); err != nil {
 			t.Fatal(err)
 		}
 		ctx, cancel := context.WithCancel(context.Background())

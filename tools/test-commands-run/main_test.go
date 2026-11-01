@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/sessiontest"
 )
 
@@ -19,7 +20,7 @@ func fakeGo(t *testing.T) string {
 	t.Helper()
 	bin, record := t.TempDir(), filepath.Join(t.TempDir(), "record")
 	script := "#!/bin/sh\n{ printf '%s\\n' \"$@\"; pwd; printf 'GOCACHE=%s\\nGOTOOLCHAIN=%s\\nGOFLAGS=%s\\n' \"$GOCACHE\" \"$GOTOOLCHAIN\" \"$GOFLAGS\"; } > " + record + "\nexit ${GO_FAKE_EXIT:-0}\n"
-	if err := os.WriteFile(filepath.Join(bin, "go"), []byte(script), 0o700); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "go"), []byte(script), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))

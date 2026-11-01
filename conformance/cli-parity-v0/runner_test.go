@@ -16,6 +16,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/procgroup"
 )
 
@@ -325,7 +326,7 @@ func TestGPKV0005CandidateIdentityBindsTheStagedExecutable(t *testing.T) {
 		t.Fatal(err)
 	}
 	source := filepath.Join(t.TempDir(), "candidate")
-	if err := os.WriteFile(source, raw, 0o700); err != nil {
+	if err := execfile.WriteFile(source, raw, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	stagedArgv, err := stageCandidate(t.TempDir(), []string{source, "--version"})
@@ -336,7 +337,7 @@ func TestGPKV0005CandidateIdentityBindsTheStagedExecutable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(source, []byte("replacement"), 0o700); err != nil {
+	if err := execfile.WriteFile(source, []byte("replacement"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	after, err := readCandidateIdentity(context.Background(), stagedArgv[0])

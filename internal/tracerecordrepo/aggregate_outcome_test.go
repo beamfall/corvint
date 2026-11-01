@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/execfile"
 	"github.com/Beamfall/corvint/internal/trace"
 	"os"
 	"os/exec"
@@ -222,7 +223,7 @@ func TestAggregateChangedPathsPhysicalBounds(t *testing.T) {
 	bin := t.TempDir()
 	payload := filepath.Join(bin, "names")
 	script := "#!/bin/sh\nexec /bin/cat \"" + payload + "\"\n"
-	if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0755); err != nil {
+	if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(script), 0755); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -696,7 +697,7 @@ func TestAggregateOutcomeSlowOpeningAndClosingAcquisition(t *testing.T) {
 			script := "#!/bin/sh\ncase \" $* \" in *' ls-tree '*) n=0; [ ! -f \"$QUAL_COUNT\" ] || n=$(/bin/cat \"$QUAL_COUNT\"); n=$((n+1)); printf '%s' \"$n\" > \"$QUAL_COUNT\"; if [ \"$n\" = \"$QUAL_SLOW\" ]; then printf '%s' \"$n\" > \"$QUAL_MARKER\"; /bin/sleep $(/bin/cat \"$QUAL_SLEEP\"); fi;; esac\nexec \"$QUAL_REAL_GIT\" \"$@\"\n"
 			quote := func(v string) string { return "'" + strings.ReplaceAll(v, "'", "'\\''") + "'" }
 			script = strings.NewReplacer("\"$QUAL_COUNT\"", quote(counter), "\"$QUAL_MARKER\"", quote(marker), "\"$QUAL_SLEEP\"", quote(slow), "\"$QUAL_SLOW\"", quote(fmt.Sprint(which)), "\"$QUAL_REAL_GIT\"", quote(realGit)).Replace(script)
-			if err := os.WriteFile(filepath.Join(bin, "git"), []byte(script), 0755); err != nil {
+			if err := execfile.WriteFile(filepath.Join(bin, "git"), []byte(script), 0755); err != nil {
 				t.Fatal(err)
 			}
 			t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
