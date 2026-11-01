@@ -25,9 +25,12 @@ continue the CEM 2.0 umbrella on the answer. Nothing ships from this experiment.
 `origin/main` at `b7ffc233396da54e2ac5a094ec314dc3b067f6fb`, excluding the root snapshot
 `9477995d7`, whose subject matches `^fix(\(scope\))?!?:` and names at least one ticket or
 requirement ID. F's touched lines are the old-side code lines (not blank, not a `//`, `/*` or `*`
-line) of its `-U0` myers diff over non-test `.go` files; a pure insertion of code touches its two
-neighbouring old lines; a hunk that only renumbers IDs touches nothing. Each touched line is blamed
-at F^ (`git blame --porcelain`, no `-M`/`-C`). The linked change P is the blamed commit sharing an
+line) of its `-U0` myers diff over non-test `.go` files, with inter-hunk context 0, no textconv,
+no external diff and no renames, and no system or global Git configuration read (`VRP-V0-056`); a
+pure insertion of code touches its two neighbouring old lines; a hunk whose removed and added lines
+are equal line by line, in order, once every ID is masked only renumbers IDs and touches nothing
+(`VRP-V0-060`). Each touched line is blamed at F^ (`git blame --porcelain --no-textconv`, no
+`-M`/`-C`, no ignored revisions). The linked change P is the blamed commit sharing an
 ID with F's subject that owns the most touched lines (ties: earlier committer date, then SHA); P
 qualifies with 1..60 non-test Go source hunks. One row per P (the earliest F is the fix, later
 ones are `laterFixes`). Rows are ordered by P's committer date; above 50, 40 are taken at
@@ -41,8 +44,17 @@ ones are `laterFixes`). Rows are ordered by P's committer date; above 50, 40 are
 `python3 -I select.py REPO b7ffc233396da54e2ac5a094ec314dc3b067f6fb --repository-label
 https://github.com/beamfall/corvint`; two runs were byte-identical.
 
-**sha256(selection-manifest.json) = `5a51e33a42dc6a329e9e3f90350653b395b6270f21953df0b90eee5b5cd29cda`**
+**sha256(selection-manifest.json) = `876c890b15b3403ceca42abce3a7837585360b47ee1970d9066eb46043383515`**
 (also in [`selection-manifest.sha256`](selection-manifest.sha256); `harness.py check` refuses a mismatch).
+The review repair of 2026-11-01 replaced `5a51e33a42dc6a329e9e3f90350653b395b6270f21953df0b90eee5b5cd29cda`:
+only the `selectionRule` text changed; every row, count and the selected set are unchanged.
+
+**Registration** (`VRP-V0-055`): [`registration.sha256`](registration.sha256) lists, in
+`sha256sum` format and fixed order, this file, `thresholds.json`, the manifest, its digest file,
+`select.py` and `harness.py`. Its own sha256 is the registration digest. `check`, `run` and `score`
+exit 5 when any listed file differs; every capture's `run.json` records the digest, and `score`
+refuses captures made under another one. The digest is recorded in the build log, not here, since
+this file is one of its inputs.
 
 Per change the manifest records `change` (P), `base` (P^), `fix` (F), both subjects, `sharedIds`,
 `qualifies` (why), `touchedLinesBlamedToChange`, `touchedLines` ([path, line in P] — the ground
@@ -94,6 +106,15 @@ cites every O(P) file **that exists at P^** in its directory as a whole-file `te
 unknown`. O(P) files added by P are passed to discrimination as `--same-change-test` (co-authored
 oracle, TCQ-V0-071) and cannot be cited at base. Maps stay repository-relative in the worktree
 (CEM-V1-647, `cmd/corvint/help.go:1660-1663`) and are copied out after each step.
+
+Capture safety (`VRP-V0-057`, `VRP-V0-058`, `VRP-V0-061`): the module path is read from `go.mod`
+at P (`git cat-file`) before any step runs. `run` refuses (exit 4) a work or output directory that
+overlaps the repository, its Git common directory or the other directory, after resolving symbolic
+links. A change whose worktree path already exists is recorded `refused: worktree-path-exists` and
+the existing path is left untouched; the harness removes only a worktree it created, in a `finally`
+block, so a failure or interrupt never removes another tree. Each step runs in its own process
+group; on exit, timeout or interrupt the whole group is killed and the harness waits, at most 10 s,
+until the group is empty (`groupRetired` in `run.json`).
 
 Existing machinery and its real bounds (no new mutation code is written for this experiment):
 
@@ -167,8 +188,9 @@ cost against dogfood) are reported and never change the verdict.
 | **Y** — maximum typed false-alarm rate (`FA_typed`) | **0.60** | set by the owner 2026-11-01 (the proposed default) |
 
 The owner sets both in [`thresholds.json`](thresholds.json) and in this table in one commit before
-any `run`; `harness.py run` and `score` exit 3 while either is not a number, and refuse when this
-file, `thresholds.json` or the manifest differ from the committed HEAD.
+any `run`; `harness.py run` and `score` exit 3 while either is not a number, exit 5 when a
+registered file differs from `registration.sha256`, and exit 4 when the executing harness is not the
+one inside `--repo` or a registered file is untracked or differs from that repository's HEAD.
 
 Proposed-default reasoning (for the owner; not binding): with 40 paired changes, `X = 0.15` means
 at least 6 more changes caught by typed than by baseline net of the reverse; with `c = 2`, `b = 8`
@@ -190,5 +212,12 @@ python3 -I $H/harness.py score --repo "$PWD" --out "$HOME/vrp/out" > "$HOME/vrp/
 ```
 
 `run` keeps the first observation: a change whose output directory exists is skipped, never
-overwritten. Work and output directories must be outside the repository. The verdict and every
+overwritten. Work and output directories must be outside the repository and its Git directory,
+and must not overlap each other. `score` binds every artifact to its change before folding labels
+(`VRP-V0-059`): `run.json` must name the change, its commit, its base and the registration digest;
+the artifact files and their sha256 must equal `run.json`; every map's `baseRevision` and
+`patchSha256`, the hunk-revert `expectedBase`, `targetRevision` and `patchSha256`, discrimination's
+`treeRevision`, and coverage's `profileSha256` and `testRun` must match the change and its capture;
+hunk ids must agree across maps; and all captures must come from one Corvint build and Go version.
+Any mismatch exits 6. The verdict and every
 per-change row go into a build-log entry (`docs/build-log/YYYY-MM-DD-v1-2600-replay.md`).

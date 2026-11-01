@@ -14,8 +14,8 @@ rule); `AGENTS.md` invariants 2, 4 and 8; the existing machinery this replay reu
 ## Agent digest
 - Claim: A pre-registered replay of 40 later-fixed agent changes decides if typed per-unit labels beat coverage-diff at flagging the unit the fix touched.
 - Status: proposed/experimental; **pre-registration only, not run**. The owner set X = 0.15 and Y = 0.60 on 2026-11-01.
-- Exists: `benchmarks/cem2-discovery-replay-v0/` — `PROTOCOL.md`, `select.py`, `selection-manifest.json` (+ `.sha256`, `5a51e33a...29cda`), `thresholds.json`, `harness.py` (`check`, `plan`, `run`, `score`, `selftest`).
-- Blocked on: the owner setting X and Y; an external-repository clone (beamfall/core selection is NOT_PRODUCED); a host with capacity for about 53 h worst-case wall-clock.
+- Exists: `benchmarks/cem2-discovery-replay-v0/` — `PROTOCOL.md`, `select.py`, `selection-manifest.json` (+ `.sha256`, `876c890b...43515`), `thresholds.json`, `registration.sha256`, `harness.py` (`check`, `plan`, `run`, `score`, `selftest`).
+- Blocked on: an external-repository clone (beamfall/core selection is NOT_PRODUCED); a host with capacity for about 53 h worst-case wall-clock.
 - Read next: `benchmarks/cem2-discovery-replay-v0/PROTOCOL.md` sections 2, 4 and 6; Requirements below.
 
 ## Intent and scope
@@ -70,6 +70,15 @@ result. It ships no product behaviour and writes no Go.
 - `VRP-V0-053`: Secondary measures never change the verdict.
 - `VRP-V0-054`: The verdict and every per-change row are recorded in a build-log entry; a KILL is recorded as a failed evaluation, not softened.
 
+### Review repair
+- `VRP-V0-055`: `registration.sha256` lists the sha256 of `PROTOCOL.md`, `thresholds.json`, the manifest, its digest file, `select.py` and `harness.py` in that order; its own sha256 is the registration digest. `check`, `run` and `score` exit 5 when a listed file differs; `run` and `score` exit 4 unless the executing harness is the one inside `--repo` and every registered file is tracked and unmodified there; every capture records the digest.
+- `VRP-V0-056`: `select.py` reads no system or global Git configuration and no `GIT_*` environment, and pins every diff and blame setting that changes output: `-U0`, `--inter-hunk-context=0`, myers, no indent heuristic, no textconv, no external diff, no renames, no relative paths, fixed prefixes, no attributes file and no ignored revisions.
+- `VRP-V0-057`: `run` refuses (exit 4) a work or output directory that, after symbolic links are resolved, overlaps the repository, its Git common directory or the other directory.
+- `VRP-V0-058`: Every step runs in its own process group; on exit, timeout or interrupt the harness kills the group and waits, bounded at 10 s, until it is empty, recording `groupRetired`.
+- `VRP-V0-059`: `score` exits 6 unless each capture's `run.json` names the change, its commit, its base and the registration digest; the artifact files and sha256 equal `run.json`; map, hunk-revert, discrimination and coverage identities match the change, its patch and its profile; hunk ids agree across maps; and one Corvint build and Go version produced every capture.
+- `VRP-V0-060`: A fix hunk counts as ID renumbering only when its removed and added lines are equal line by line, in order, once every ID is masked.
+- `VRP-V0-061`: The module path is read from `go.mod` at the change before any step runs; an existing worktree path is refused and left untouched; the harness removes only a worktree it created, in a `finally` block; a refused or incomplete capture scores `NOT_OBSERVED`.
+
 ## Non-goals
 - No new mutation operator, equivalence screen, label producer or CEM wire field.
 - No product claim, ranking input or shipped default from this slice.
@@ -84,6 +93,7 @@ result. It ships no product behaviour and writes no Go.
 
 ## Acceptance evidence
 - Pre-registration (this slice): committed protocol, manifest digest `5a51e33a42dc6a329e9e3f90350653b395b6270f21953df0b90eee5b5cd29cda` reproduced twice byte-identically, `harness.py selftest` passing on synthetic witnesses, and `harness.py check` reporting OWNER-BLOCKER (build log `docs/build-log/2026-11-01-drp-u15.md`).
+- Review repair (`VRP-V0-055..061`): manifest regenerated under the pinned Git settings to `876c890b15b3403ceca42abce3a7837585360b47ee1970d9066eb46043383515` (was `5a51e33a...29cda`), twice byte-identically; only `selectionRule` text changed and the selected set is unchanged. Registration digest `20ce42c3c64fbc9796e0f64122b4ade8f561a39f9beb23ae50e48d60be7c3af2`. `harness.py selftest` covers capture, path, identity, ordering, configuration and timeout cases, each shown to fail when its fix is reverted (build log "Review repair").
 - Run (later): per-change rows and the verdict in a dated build-log entry, under `VRP-V0-054`.
 
 ## Rollback

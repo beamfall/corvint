@@ -7,23 +7,34 @@ Reads only Git history (log, diff, blame); runs no test, no Corvint command and 
 result. The rule it implements is frozen verbatim in the manifest's selectionRule and in PROTOCOL.md.
 Deterministic: the same REPO at the same REF yields byte-identical output.
 """
-import json, re, subprocess, sys
+import json, os, re, subprocess, sys
 
 ID = re.compile(r"\b(?:V1-\d{4}|[A-Z][A-Z0-9]{1,7}-V\d+-\d{3})\b")
 FIX = re.compile(r"^fix(\([^)]*\))?!?:")
 HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
-DIFF = ["-c", "core.quotePath=false", "diff", "--no-color", "--no-ext-diff", "-U0",
-        "--diff-algorithm=myers", "--no-indent-heuristic", "--no-renames"]
+# VRP-V0-056: selection depends on repository content alone. System and global configuration are not
+# read (git_env); repository-local settings that change diff, blame or log output are overridden.
+NEUTRAL = ["-c", "core.quotePath=false", "-c", "core.attributesFile=" + os.devnull,
+           "-c", "diff.noprefix=false", "-c", "diff.mnemonicPrefix=false", "-c", "diff.relative=false",
+           "-c", "diff.algorithm=myers", "-c", "log.showSignature=false", "-c", "i18n.logOutputEncoding=UTF-8",
+           "-c", "blame.ignoreRevsFile=", "-c", "blame.markIgnoredLines=false",
+           "-c", "blame.markUnblamableLines=false"]
+DIFF = ["diff", "--no-color", "--no-ext-diff", "--no-textconv", "--text", "-U0", "--inter-hunk-context=0",
+        "--diff-algorithm=myers", "--no-indent-heuristic", "--no-renames", "--no-relative",
+        "--src-prefix=a/", "--dst-prefix=b/"]
 TARGET, LOW, HIGH = 40, 30, 50
 MAX_SOURCE_HUNKS = 60
 RULE = (
     "Population: non-merge commits F reachable from REF, excluding the root snapshot, whose subject "
     "matches ^fix(\\(scope\\))?!?: and names at least one ticket or requirement ID "
-    "(V1-NNNN or PREFIX-VN-NNN). Touched lines: the old-side lines of F's -U0 myers diff over non-test "
+    "(V1-NNNN or PREFIX-VN-NNN). Every diff is -U0 myers with inter-hunk context 0, no textconv, no "
+    "external diff and no renames, and Git system/global configuration is not read. Touched lines: the "
+    "old-side lines of F's diff over non-test "
     ".go files that are code (not blank, not starting with //, /* or *); a pure insertion of at least "
     "one code line touches the old-side lines immediately before and after it; a hunk whose removed "
-    "and added lines are equal once every ID is masked (an ID renumbering) touches nothing. Each "
-    "touched line is blamed at F^ (git blame --porcelain, no -M/-C); blame to the root snapshot is "
+    "and added lines are equal line by line, in order, once every ID is masked (an ID renumbering) "
+    "touches nothing. Each "
+    "touched line is blamed at F^ (git blame --porcelain, no -M/-C, no ignored revisions); blame to the root snapshot is "
     "dropped. Linked change P: among blamed commits that share at least one ID with F's subject, the "
     "one owning the most touched lines (ties: earlier committer date, then SHA). P qualifies when it "
     "has between 1 and 60 non-test .go source hunks in its -U0 myers diff against its first parent. "
@@ -34,9 +45,16 @@ RULE = (
     "commit than F, else same-merge (found by review or integration before P reached main).")
 
 
+def git_env():
+    """The caller's environment without GIT_* overrides, system or global Git configuration."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    env.update(GIT_CONFIG_NOSYSTEM="1", GIT_CONFIG_GLOBAL=os.devnull, GIT_NO_REPLACE_OBJECTS="1")
+    return env
+
+
 def git(repo, *args):
-    return subprocess.run(["git", "-C", repo, *args], check=True, capture_output=True, text=True,
-                          errors="surrogateescape").stdout
+    return subprocess.run(["git", "-C", repo, *NEUTRAL, *args], check=True, capture_output=True, text=True,
+                          errors="surrogateescape", env=git_env()).stdout
 
 
 def is_source(path):
@@ -74,8 +92,8 @@ def touched_lines(repo, f):
         if current is None or path is None or not is_source(path):
             return
         os_, oc, removed, added = current
-        if sorted(ID.sub("ID", r) for r in removed) == sorted(ID.sub("ID", a) for a in added):
-            return  # pure requirement/ticket ID renumbering
+        if [ID.sub("ID", r) for r in removed] == [ID.sub("ID", a) for a in added]:
+            return  # pure requirement/ticket ID renumbering, line order preserved (VRP-V0-060)
         picked = lines.setdefault(path, set())
         if oc > 0:
             picked.update(os_ + i for i, r in enumerate(removed) if code(r))
@@ -102,7 +120,7 @@ def touched_lines(repo, f):
 def blame(repo, f, path, wanted):
     """Map touched old-side lines at F^ to (commit, original path, original line)."""
     try:
-        total = int(git(repo, "show", f"{f}^:{path}").count("\n"))
+        total = int(git(repo, "cat-file", "blob", f"{f}^:{path}").count("\n"))
     except subprocess.CalledProcessError:
         return []
     args, owners = [], []
@@ -111,7 +129,7 @@ def blame(repo, f, path, wanted):
             args += ["-L", f"{x},{x}"]
     if not args:
         return []
-    out = git(repo, "blame", "--porcelain", *args, f + "^", "--", path)
+    out = git(repo, "blame", "--porcelain", "--no-textconv", "--ignore-revs-file=", *args, f + "^", "--", path)
     meta, current = {}, None
     for line in out.splitlines():
         head = line.split(" ")
