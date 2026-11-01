@@ -23,6 +23,7 @@ func TestJSGV0003_CompleteRouteVerifiesRetainedCheckpoint(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				t.Parallel()
 				repo := writerStore(t, 70)
+				completeRefreshOnly(t, repo)
 				// At the base's own sequence the codec itself refuses a forged
 				// aggregate, because the base carries its aggregates (JSG-V0-009);
 				// one advanced writer-route write puts the delta past the base,
