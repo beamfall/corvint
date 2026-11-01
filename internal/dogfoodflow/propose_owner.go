@@ -9,8 +9,9 @@ import (
 // governingSpecs names the change's governing specs for path anchors
 // (DCW-V0-886): of the specifications whose requirement-bearing BASE lines
 // name an owed hunk's path, the ones naming the most distinct owed paths. A
-// spec the change modifies, though never cited, is the change's own contract,
-// so when any modified spec names an owed path only modified specs compete. A
+// spec the change modifies is the change's own contract, so when any modified
+// spec names an owed path only modified specs compete; its stable lines are
+// cited like an untouched spec's, never a line the change edits. A
 // change of several paths where no specification names two of them has none.
 func (p *proposal) governingSpecs(owed []proposedHunk) map[string]bool {
 	named := map[string]map[string]bool{}
@@ -96,12 +97,13 @@ func (p *proposal) weakAnchorNote(row string, candidate spanLine, hunkPath strin
 	}
 	sort.Strings(specs)
 	key, _, _ := strings.Cut(row, "\t")
-	why := "no stable line of which names it"
 	for index, spec := range specs {
 		if p.changed[spec] {
 			specs[index] = spec + " (modified by this change)"
-			why = "which a draft never cites"
 		}
 	}
-	return fmt.Sprintf("row %s cited low-confidence (DCW-V0-886): %s:%d names %s outside the change's governing spec %s, %s; review the cite, or keep the row unknown", key, candidate.path, candidate.line, hunkPath, strings.Join(specs, ", "), why)
+	// V1-3640: a modified governing spec is cited like an untouched one
+	// (DCW-V0-886), so the reason is the same for both: no stable line names
+	// the path.
+	return fmt.Sprintf("row %s cited low-confidence (DCW-V0-886): %s:%d names %s outside the change's governing spec %s, no stable line of which names it; review the cite, or keep the row unknown", key, candidate.path, candidate.line, hunkPath, strings.Join(specs, ", "))
 }
