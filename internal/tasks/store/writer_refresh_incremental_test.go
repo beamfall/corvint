@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/tasks/fixture"
-	"github.com/Beamfall/corvint/internal/tasks/intent"
 	"github.com/Beamfall/corvint/internal/tasks/journal"
 	"github.com/Beamfall/corvint/internal/tasks/transaction"
 )
@@ -116,12 +115,4 @@ func TestPSRV0891_FullRefreshStaysTheBackstop(t *testing.T) {
 	if run := writerMutate(t, f.repo, "backstop-after", nil); !run.completed() || !run.fast() {
 		t.Fatalf("write after the incremental refresh: %+v %v %v", run.rep, run.err, run.stages)
 	}
-}
-
-// completeRefreshOnly makes repo's scheduled refresh the complete audit until
-// t ends: for tests of what only the complete refresh, the PSR-V0-891
-// backstop, detects or retains.
-func completeRefreshOnly(t testing.TB, repo *intent.Repository) {
-	completeRefreshes.Store(repo.StateDir, struct{}{})
-	t.Cleanup(func() { completeRefreshes.Delete(repo.StateDir) })
 }
