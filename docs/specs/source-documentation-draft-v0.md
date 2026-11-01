@@ -353,9 +353,10 @@ the combined refusal. Status: experimental under the standing lane auto-accept (
 `docs consume` and `docs draft --dry-run` accept `--owner-section HEADING`: the owner entry is then
 exactly one literal `## HEADING` line outside fenced code, and its excerpt is that section alone
 (heading through the line before the next `## ` line or end of file), at most 64 lines and 4 KiB.
-HEADING is 1..200 bytes of printable UTF-8 without a newline. A non-default section adds the header
-line `Owner section: "HEADING"`; the default `Agent digest` keeps the preamble-plus-digest excerpt and
-its bytes. `corvint docs citations check [--root PATH] [PATH...]` is the product line-citation
+HEADING is 1..200 bytes of printable UTF-8 without a newline or surrounding spaces. A non-default
+section adds the header line `Owner section: ` followed by the backticked quoted heading, like the
+other header metadata; the default `Agent digest` keeps the preamble-plus-digest excerpt and its
+bytes. The product check lives in `internal/doccitations`. `corvint docs citations check [--root PATH] [PATH...]` is the product line-citation
 check for any Git repository: it scans tracked Markdown (or the named tracked files) for backticked
 `path:N`, `path:N-M` or `path:N,M[,…]` tokens with an optional `@HEX` anchor whose path is a tracked
 file, reads each cited file's index blob, and reports per citation `out-of-range`, `trivial-span`
