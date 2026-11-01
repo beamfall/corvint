@@ -31,6 +31,8 @@ type taskContextOptions struct {
 	summarySet, limitSet    bool
 	summaryBytesSet, maxSet bool
 	expandSet               bool
+	// overlay is --worktree-overlay (DIRTY-CACHE-940); absent, the wire is unchanged.
+	overlay bool
 }
 
 const taskContextDefaultLimit = 20
@@ -65,6 +67,10 @@ func parseTaskContextInvocation(arguments []string) (taskContextOptions, bool, e
 		}
 		if rest[index] == "--summary" {
 			options.summary, options.summarySet = true, true
+			continue
+		}
+		if rest[index] == worktreeOverlayFlag {
+			options.overlay = true
 			continue
 		}
 		flag, value, inline := strings.Cut(rest[index], "=")
@@ -167,6 +173,9 @@ func checkContextViewArguments(options taskContextOptions, taskSet bool) error {
 			return argumentError("instruction prediction is not allowed with --expand or --summary")
 		}
 	}
+	if options.overlay && options.expandSet {
+		return argumentError("argument " + worktreeOverlayFlag + ": not allowed with --expand")
+	}
 	if options.lspSet && (options.expandSet || options.summarySet) {
 		return argumentError("argument --lsp: not allowed with --expand or --summary")
 	}
@@ -192,7 +201,12 @@ func runTaskContext(ctx context.Context, options taskContextOptions, stdout, std
 	if options.expandSet {
 		return runContextExpand(ctx, options, stdout, stderr)
 	}
-	packet, hit, built, err := compileTaskContext(ctx, options, loadContextSnapshot)
+	load := loadContextSnapshot
+	if options.overlay {
+		// The overlay reuses every HEAD source, so it loads them eagerly.
+		load = contextindex.LoadContextSnapshot
+	}
+	packet, hit, built, err := compileTaskContext(ctx, options, load)
 	if errors.Is(err, contextindex.ErrSnapshotRefused) {
 		packet, hit, built, err = compileTaskContext(ctx, options, contextindex.LoadContextSnapshot)
 	}
@@ -280,6 +294,12 @@ and combining --lsp with --summary or --expand are refused. Missing or failed
 gopls is visible as an unavailable provider; rankings remain unchanged.
 See docs/LSP.md for setup, MCP integration, resource limits and qualification.
 
+--worktree-overlay (experimental, DIRTY-CACHE-940..942) reads tracked dirty
+paths from the worktree over the HEAD snapshot instead of the committed tree.
+Rows citing them carry authority worktree-overlay, low confidence and the
+worktree blob id; untracked paths are never read. It writes nothing and is
+refused with --expand.
+
 Experimental opt-in views (experimental-source-views-v0, ESV-V0-008..010);
 without these flags the packet bytes are unchanged:
 
@@ -322,6 +342,11 @@ func compileTaskContext(ctx context.Context, options taskContextOptions, load fu
 	}
 	if err != nil {
 		return nil, hit, built, err
+	}
+	if options.overlay {
+		if index, err = contextindex.OverlayWorktree(ctx, index); err != nil {
+			return nil, hit, built, err
+		}
 	}
 	admitted, err := contextindex.LoadAdmittedSlotWeights(options.root)
 	if err != nil {

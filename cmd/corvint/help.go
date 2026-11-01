@@ -1725,6 +1725,10 @@ Options:
                BuildEval -> EvalQuery path as harness user-prompt.
   --limit N    Maximum results (default: 10; range: 1-50).
   --budget-bytes N  Optional packet budget (range: 1024-1000000 bytes).
+  --worktree-overlay  Experimental opt-in (DIRTY-CACHE-940..942): read tracked
+               dirty paths from the worktree over the HEAD snapshot. Their
+               results are advisory, low confidence and cite the worktree blob
+               id; freshness scope is git+worktree-overlay. Writes nothing.
 
 Requirements:
   Darwin or Linux and a Git repository accepted by the bounded Go index. The

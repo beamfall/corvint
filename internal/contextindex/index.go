@@ -280,6 +280,9 @@ type Index struct {
 	// bodies: a deferred load's pack bodies (SnapshotRefusal); lease: a mapped read's reference, ended by Release.
 	bodies *packSection
 	lease  *snapshotLease
+	// worktreeOverlay maps each path an overlay view read from the worktree
+	// to that content's blob id; nil on every other index (DIRTY-CACHE-940).
+	worktreeOverlay map[string]string
 }
 
 // vocabulary returns the term table, building it once for an index compiled
