@@ -77,7 +77,7 @@ func TestImprovementLoopSpecsEnumerateEveryObligation(t *testing.T) {
 		want []string
 	}{
 		{"docs/specs/retrieval-bench-diagnostics-v0.md", []string{"RBD-V0-001", "RBD-V0-002", "RBD-V0-003", "RBD-V0-004", "RBD-V0-005", "RBD-V0-006", "RBD-V0-007"}},
-		{"docs/specs/source-documentation-draft-v0.md", []string{"SDD-V0-001", "SDD-V0-002", "SDD-V0-003", "SDD-V0-004", "SDD-V0-005", "SDD-V0-006", "SDD-V0-007", "SDD-V0-008", "SDD-V0-009", "SDD-V0-010", "SDD-V0-011", "SDD-V0-012", "SDD-V0-013", "SDD-V0-014", "SDD-V0-015", "SDD-V0-018", "SDD-V0-019"}},
+		{"docs/specs/source-documentation-draft-v0.md", []string{"SDD-V0-001", "SDD-V0-002", "SDD-V0-003", "SDD-V0-004", "SDD-V0-005", "SDD-V0-006", "SDD-V0-007", "SDD-V0-008", "SDD-V0-009", "SDD-V0-010", "SDD-V0-011", "SDD-V0-012", "SDD-V0-013", "SDD-V0-014", "SDD-V0-015", "SDD-V0-018", "SDD-V0-019", "SDD-V0-630", "SDD-V0-631", "SDD-V0-632", "SDD-V0-633", "SDD-V0-634"}},
 		{"docs/specs/rust-analyzer-candidate-v0.md", []string{"RAC-001", "RAC-002", "RAC-003", "RAC-004", "RAC-005", "RAC-006", "RAC-007", "RAC-008", "RAC-009", "RAC-010", "RAC-011"}},
 	}
 	for _, test := range cases {
