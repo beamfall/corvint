@@ -2149,6 +2149,15 @@ but does not read it; only non-Go syntax impact does.
   or `browser-target-missing` (no such file). A relative or bare browser-context specifier is
   `browser-reference` reason `browser-specifier-unread`. Browser-reference unknowns never make the
   map's `test_join` `UNKNOWN`, since the browser module graph is not the test join.
+- `AMAP-V0-880`: (accepted under the owner's standing auto-accept (2026-11-01); V1-3911) The
+  JavaScript lexer MUST lex an identifier written with a well-formed `\uHHHH` or `\u{H+}` escape,
+  at its start or inside it, as one identifier token marked `escaped`, whose text is the raw
+  source and never the decoded name, so it equals no name or keyword. The shared object reader
+  MUST treat an escaped identifier key as doubt (a non-plain member, never the key it decodes to),
+  and the readers that refuse an escaped identifier (the React routes binding, the state-constant
+  export audit) MUST read the token flag; a malformed escape stays a backslash punctuation token,
+  as before. Non-goals: decoding escaped identifiers into names. Failure mode closed: each keyed
+  reader repeated its own backslash check, and one that did not read an escaped key as plain.
 
 ## Wire contract
 
@@ -2470,6 +2479,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-780 | `TestAMAPV0780FlatLayout` (omitted and empty `page_objects` build with no page objects; a directory in both specs and page objects builds with spec-named files as specs and the helper as a page object; a directory repeated within specs, or across specs and workflows, still refuses) |
 | AMAP-V0-781 | `TestAMAPV0781BrowserTargetIsNoTestEdge` (a browser target inside `tests.root` joins no screen; a Node import passed as a later `page.evaluate` argument stays resolved and attributed; `web_root` `.` resolves from the repository root); `TestAMAPV0781BrowserContextImports` (a literal and a computed `import(...)` inside `page.evaluate` read `browser-context` and `browser-computed-specifier`, never `unresolved-import`, and the spec's join stays RESOLVED; the same specifier also imported in Node context stays unresolved) |
 | AMAP-V0-782 | `TestAMAPV0781BrowserContextImports` (with `tests.web_root` a root-relative specifier resolves to the tracked file; an absent file reads `browser-target-missing`; without `web_root`, `browser-root-undeclared`); `TestAMAPV0780FlatLayout` (a `web_root` that is not a directory refuses) |
+| AMAP-V0-880 | `TestAMAPV0880EscapedIdentifierToken` (an escaped identifier is one raw-text token marked escaped; a malformed escape stays punctuation), `TestAMAPV0880EscapedIdentifierKeyIsDoubt` (the shared object reader reads an escaped key as doubt, a plain key as its name) |
 | AMAP-V0-200 | `TestAMAPV0200StatedAliasRevision` (stated pin; HEAD pin unstated; a later commit and a dirty file leave the bytes identical; a non-commit REV and an unread alias refuse `appmap-root-unavailable`) |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
