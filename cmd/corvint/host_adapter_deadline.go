@@ -19,26 +19,28 @@ import (
 type dogfoodEventProbeKey struct{}
 
 type dogfoodEventProbe struct {
-	mu             sync.Mutex
-	start          time.Time
-	limit          time.Duration
-	phase          string
-	frozen         bool
-	frozenAt       time.Duration
-	statusDone     bool
-	statusElapsed  time.Duration
-	changedPaths   int
-	commitRevision string
+	mu              sync.Mutex
+	start           time.Time
+	limit           time.Duration
+	phase           string
+	frozen          bool
+	frozenAt        time.Duration
+	statusDone      bool
+	statusElapsed   time.Duration
+	identityElapsed time.Duration
+	changedPaths    int
+	commitRevision  string
 }
 
 // dogfoodEventMeasurement is a probe's frozen copy.
 type dogfoodEventMeasurement struct {
-	Phase          string
-	Elapsed, Limit time.Duration
-	StatusDone     bool
-	StatusElapsed  time.Duration
-	ChangedPaths   int
-	CommitRevision string
+	Phase           string
+	Elapsed, Limit  time.Duration
+	StatusDone      bool
+	StatusElapsed   time.Duration
+	IdentityElapsed time.Duration
+	ChangedPaths    int
+	CommitRevision  string
 }
 
 // withDogfoodEventProbe gives ctx a probe, keeping one an outer caller already attached.
@@ -62,7 +64,7 @@ func (probe *dogfoodEventProbe) begin(limit time.Duration) {
 	probe.mu.Lock()
 	defer probe.mu.Unlock()
 	probe.start, probe.limit, probe.phase, probe.frozen, probe.frozenAt = time.Now(), limit, "input-read", false, 0
-	probe.statusDone, probe.statusElapsed, probe.changedPaths, probe.commitRevision = false, 0, 0, ""
+	probe.statusDone, probe.statusElapsed, probe.identityElapsed, probe.changedPaths, probe.commitRevision = false, 0, 0, 0, ""
 }
 
 // enter records the phase the read is in. A frozen probe keeps the phase the deadline found.
@@ -77,8 +79,9 @@ func (probe *dogfoodEventProbe) enter(phase string) {
 	}
 }
 
-// observed records the finished opening repository observation (its git status read).
-func (probe *dogfoodEventProbe) observed(changed int, revision string) {
+// observed records the finished opening repository observation: the status and identity reads'
+// own durations as the observation timed them (AHI-800), not the time since the event began.
+func (probe *dogfoodEventProbe) observed(changed int, revision string, statusElapsed, identityElapsed time.Duration) {
 	if probe == nil {
 		return
 	}
@@ -87,7 +90,8 @@ func (probe *dogfoodEventProbe) observed(changed int, revision string) {
 	if probe.frozen || probe.start.IsZero() {
 		return
 	}
-	probe.statusDone, probe.statusElapsed, probe.changedPaths, probe.commitRevision = true, time.Since(probe.start), changed, revision
+	probe.statusDone, probe.statusElapsed, probe.identityElapsed = true, statusElapsed, identityElapsed
+	probe.changedPaths, probe.commitRevision = changed, revision
 }
 
 // freeze stops the probe at the moment the event reports its expiry, so a read the event abandoned
@@ -117,7 +121,7 @@ func (probe *dogfoodEventProbe) measurement() (dogfoodEventMeasurement, bool) {
 		elapsed = probe.frozenAt
 	}
 	return dogfoodEventMeasurement{Phase: probe.phase, Elapsed: elapsed, Limit: probe.limit, StatusDone: probe.statusDone,
-		StatusElapsed: probe.statusElapsed, ChangedPaths: probe.changedPaths, CommitRevision: probe.commitRevision}, true
+		StatusElapsed: probe.statusElapsed, IdentityElapsed: probe.identityElapsed, ChangedPaths: probe.changedPaths, CommitRevision: probe.commitRevision}, true
 }
 
 // hostLoadMeasureBound is the most time the deadline notice spends reading the host load average
@@ -158,8 +162,8 @@ func boundedHostLoad(ctx context.Context) (float64, bool) {
 
 // deadlineMeasuredLines is AHI-800's measured part of a deadline notice: the phase that ran out of
 // time, the measurements already taken, and the dominant cause, named only when a measurement
-// supports it. A large worktree is supported when the opening git status finished but used at
-// least half the event's limit; host load when the 1-minute load average is at least the CPU count.
+// supports it. A large worktree is supported when the opening git status finished and its own
+// read took at least half the event's limit; host load when the 1-minute load average is at least the CPU count.
 func deadlineMeasuredLines(ctx context.Context) string {
 	measured, ok := dogfoodEventProbeOf(ctx).measurement()
 	load, loadOK := boundedHostLoad(ctx)
@@ -172,7 +176,7 @@ func deadlineMeasuredLines(ctx context.Context) string {
 	}
 	status := "git status: did not finish before the limit, not measured."
 	if ok && measured.StatusDone {
-		status = fmt.Sprintf("git status: finished in %d ms with %d changed paths.", measured.StatusElapsed.Milliseconds(), measured.ChangedPaths)
+		status = fmt.Sprintf("git status: finished in %d ms with %d changed paths; identity read: %d ms.", measured.StatusElapsed.Milliseconds(), measured.ChangedPaths, measured.IdentityElapsed.Milliseconds())
 	}
 	hostLoad := "Host load: not measured on this OS."
 	if loadOK {

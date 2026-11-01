@@ -8,38 +8,43 @@ import (
 )
 
 // runClaudePreToolRead is the `claude-code pre-tool` hook event for Read and Grep (AHI-805,
-// V1-0402). Corvint holds no authority over a read, so every answer is permissionDecision
-// `defer`. A Read file_path or Grep path inside the project is compiled as a one-path user-prompt
-// anchor, adding that path's evidence as additionalContext or a named degradation; any other tool
-// or target gets the bare defer. It records nothing the user-prompt path does not already record:
-// unplanned-read rows stay gated on the operator marker (AGENTS.md invariant 4, SOL-V0-010). An
-// ExitPlanMode call gets the same answer for its plan text (AHI-806): evidence, never approval.
+// V1-0402). Corvint holds no authority over a read, so the answer never carries a permission
+// decision: `defer` is not neutral (the host honours it only under -p, where it ends the turn and
+// drops additionalContext), so the host's own permission flow always runs unchanged. A Read
+// file_path or Grep path inside the project is compiled as a one-path user-prompt anchor, adding
+// that path's evidence as PreToolUse additionalContext or a named degradation; any other tool or
+// target gets {}. It records nothing the user-prompt path does not already record: unplanned-read
+// rows stay gated on the operator marker (AGENTS.md invariant 4, SOL-V0-010). An ExitPlanMode call
+// gets the same answer for its plan text (AHI-806): evidence, never approval.
 func runClaudePreToolRead(ctx context.Context, payload map[string]any) map[string]any {
-	output := map[string]any{}
-	if text, ok := preToolPrompt(ctx, payload); ok {
-		prompt := maps.Clone(payload)
-		prompt["prompt"] = text
-		prompt["hook_event_name"] = "UserPromptSubmit"
-		output = runClaudeAdapter(ctx, "user-prompt", prompt)
+	text, ok := preToolPrompt(ctx, payload)
+	if !ok {
+		return map[string]any{}
 	}
+	prompt := maps.Clone(payload)
+	prompt["prompt"] = text
+	prompt["hook_event_name"] = "UserPromptSubmit"
+	output := runClaudeAdapter(ctx, "user-prompt", prompt)
 	for _, member := range []string{"decision", "reason", "continue", "stopReason"} {
 		delete(output, member)
 	}
-	hook, _ := output["hookSpecificOutput"].(map[string]any)
-	hook = maps.Clone(hook)
-	if hook == nil {
-		hook = map[string]any{}
+	hook, isHook := output["hookSpecificOutput"].(map[string]any)
+	if !isHook {
+		return output
 	}
-	delete(hook, "permissionDecisionReason")
-	hook["hookEventName"] = "PreToolUse"
-	hook["permissionDecision"] = "defer"
-	output["hookSpecificOutput"] = hook
+	contextText, _ := hook["additionalContext"].(string)
+	if contextText == "" {
+		delete(output, "hookSpecificOutput")
+		return output
+	}
+	// Only the event name and the context are kept: no decision, reason or updated input.
+	output["hookSpecificOutput"] = map[string]any{"hookEventName": "PreToolUse", "additionalContext": contextText}
 	return output
 }
 
 // preToolPrompt is the prompt text a pre-tool call compiles: the backticked target of a Read or
 // Grep, or the submitted plan of an ExitPlanMode call (AHI-806, V1-0878), whose path, requirement
-// ID and identifier anchors resolve as a prompt's do. False means the bare defer.
+// ID and identifier anchors resolve as a prompt's do. False means no output.
 func preToolPrompt(ctx context.Context, payload map[string]any) (string, bool) {
 	if payload["tool_name"] == "ExitPlanMode" {
 		input, _ := payload["tool_input"].(map[string]any)

@@ -46,12 +46,12 @@ func TestAHI800DeadlineNamesLoadDominatedCause(t *testing.T) {
 	loaded := func() (float64, bool) { return float64(4 * runtime.NumCPU()), true }
 	ctx, _, release := deadlineAdapterContext(t, 100*time.Millisecond, loaded, func(ctx context.Context) {
 		probe := dogfoodEventProbeOf(ctx)
-		probe.observed(12, deadlineTestRevision)
+		probe.observed(12, deadlineTestRevision, 5*time.Millisecond, 3*time.Millisecond)
 		probe.enter("context-packet")
 	})
 	defer release()
 	text := deadlineContextText(t, runClaudeAdapter(ctx, "user-prompt", map[string]any{"session_id": "s", "prompt": "inspect requirement"}))
-	for _, want := range []string{"Phase that ran out of time: context-packet, after ", " ms of the 100 ms limit.", "with 12 changed paths.", "Host load: 1-minute load average ", "\nDominant cause: host load.\n"} {
+	for _, want := range []string{"Phase that ran out of time: context-packet, after ", " ms of the 100 ms limit.", "with 12 changed paths; identity read: 3 ms.", "Host load: 1-minute load average ", "\nDominant cause: host load.\n"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("load-dominated notice lacks %q: %q", want, text)
 		}
@@ -68,17 +68,36 @@ func TestAHI800DeadlineNamesDirtySetDominatedCause(t *testing.T) {
 	quiet := func() (float64, bool) { return 0.05, true }
 	ctx, _, release := deadlineAdapterContext(t, 600*time.Millisecond, quiet, func(ctx context.Context) {
 		time.Sleep(350 * time.Millisecond) // the stand-in for a slow git status over a large dirty set
-		dogfoodEventProbeOf(ctx).observed(48200, deadlineTestRevision)
+		dogfoodEventProbeOf(ctx).observed(48200, deadlineTestRevision, 350*time.Millisecond, 4*time.Millisecond)
 	})
 	defer release()
 	text := deadlineContextText(t, runClaudeAdapter(ctx, "user-prompt", map[string]any{"session_id": "s", "prompt": "inspect requirement"}))
-	for _, want := range []string{"Phase that ran out of time: repository-observation, after ", "with 48200 changed paths.", "\nDominant cause: large worktree.\n"} {
+	for _, want := range []string{"Phase that ran out of time: repository-observation, after ", "with 48200 changed paths; identity read: 4 ms.", "\nDominant cause: large worktree.\n"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("dirty-set-dominated notice lacks %q: %q", want, text)
 		}
 	}
 	if strings.Contains(text, "host load.") {
 		t.Fatalf("quiet host named host load: %q", text)
+	}
+}
+
+// AHI-800 (V1-1496): a slow identity read and a slow input read on a quiet host are not a large
+// worktree: the status read's own duration decides, and both reads are reported separately.
+func TestAHI800SlowIdentityReadIsNotReportedAsSlowStatus(t *testing.T) {
+	t.Parallel()
+	quiet := func() (float64, bool) { return 0.05, true }
+	ctx, _, release := deadlineAdapterContext(t, 600*time.Millisecond, quiet, func(ctx context.Context) {
+		time.Sleep(350 * time.Millisecond) // the input read and the identity read used most of the limit
+		dogfoodEventProbeOf(ctx).observed(9, deadlineTestRevision, 20*time.Millisecond, 340*time.Millisecond)
+	})
+	defer release()
+	text := deadlineContextText(t, runClaudeAdapter(ctx, "user-prompt", map[string]any{"session_id": "s", "prompt": "inspect requirement"}))
+	if !strings.Contains(text, "git status: finished in 20 ms with 9 changed paths; identity read: 340 ms.") {
+		t.Fatalf("notice does not time each read separately: %q", text)
+	}
+	if strings.Contains(text, "large worktree") || !strings.Contains(text, "\nDominant cause: not measured.\n") {
+		t.Fatalf("a slow identity read was reported as a large worktree: %q", text)
 	}
 }
 
@@ -160,7 +179,7 @@ func TestAHI801CompactSessionStartDeadlineEmitsReducedPacket(t *testing.T) {
 func TestAHI801UserPromptDeadlineEmitsReducedPacket(t *testing.T) {
 	t.Parallel()
 	ctx, _, release := deadlineAdapterContext(t, 100*time.Millisecond, func() (float64, bool) { return 0, false }, func(ctx context.Context) {
-		dogfoodEventProbeOf(ctx).observed(7, deadlineTestRevision)
+		dogfoodEventProbeOf(ctx).observed(7, deadlineTestRevision, time.Millisecond, time.Millisecond)
 	})
 	defer release()
 	output := runClaudeAdapter(ctx, "user-prompt", map[string]any{"session_id": "s", "prompt": "inspect requirement"})

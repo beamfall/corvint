@@ -69,6 +69,14 @@ var adapterDeclaredHostKill = map[string]time.Duration{
 	"claude-code post-compact":  2 * time.Second,
 }
 
+// adapterOptInHostKill bounds the opt-in events no shipped hooks.json registers (AHI-804, AHI-805):
+// an operator who wires one under a host timeout gets the same 2 s watchdog and degradation as a
+// registered event. It is kept apart from adapterDeclaredHostKill, which AHI-017 pins to hooks.json.
+var adapterOptInHostKill = map[string]time.Duration{
+	"claude-code subagent-start": 2 * time.Second,
+	"claude-code pre-tool":       2 * time.Second,
+}
+
 const (
 	// Wall time the process clock cannot see: exec and Go runtime start before package
 	// initialisation, then the stdout write and exit after emit. Measured 2026-09-12 on a
@@ -92,7 +100,11 @@ func adapterHostKillContext(parent context.Context, arguments []string, start ti
 	if len(arguments) < 2 || arguments[0] != "adapter" {
 		return parent, func() {}
 	}
-	kill, ok := adapterDeclaredHostKill[strings.Join(arguments[1:], " ")]
+	key := strings.Join(arguments[1:], " ")
+	kill, ok := adapterDeclaredHostKill[key]
+	if !ok {
+		kill, ok = adapterOptInHostKill[key]
+	}
 	if !ok {
 		return parent, func() {}
 	}
@@ -1163,7 +1175,7 @@ func postToolOwningRepository(root string, payload map[string]any) (string, stri
 
 // invokeSiblingClaudePostTool runs the shared post-tool harness event against the repository that
 // owns the target (AHI-803), with the target spelled as its resolved absolute path, and returns
-// its AHI-019 receipt with one trusted line naming that repository. A failing call keeps its own
+// its AHI-019 receipt followed by the framed sibling root (siblingAttribution). A failing call keeps its own
 // degradation.
 func invokeSiblingClaudePostTool(ctx context.Context, owner, target string, payload map[string]any) map[string]any {
 	routed := map[string]any{}
@@ -1188,11 +1200,33 @@ func invokeSiblingClaudePostTool(ctx context.Context, owner, target string, payl
 		return output
 	}
 	text, _ := hook["additionalContext"].(string)
-	attributed := claudeContextOutput("PostToolUse", text+"\nCorvint attributed this edit to the sibling repository at "+owner+".")
+	attribution, ok := siblingAttribution(owner)
+	if !ok {
+		return output
+	}
+	attributed := claudeContextOutput("PostToolUse", text+"\n"+attribution)
 	if !withinAdapterOutputLimit(attributed) {
 		return output
 	}
 	return attributed
+}
+
+// siblingAttributionLine is the trusted text that precedes a sibling repository's framed root.
+const siblingAttributionLine = "Corvint attributed this edit to a sibling repository; its root is repository data:"
+
+// siblingAttribution renders the AHI-803 attribution with the owner's root inside the repository
+// data envelope, since a directory name can carry newlines or instructions. False when the
+// envelope refuses the root; the caller then keeps the receipt without the attribution.
+func siblingAttribution(owner string) (string, bool) {
+	raw, err := json.Marshal(map[string]string{"siblingRepository": owner})
+	if err != nil {
+		return "", false
+	}
+	framed, err := repoenvelope.Frame(string(raw))
+	if err != nil {
+		return "", false
+	}
+	return siblingAttributionLine + "\n" + framed, true
 }
 
 // outsideProject reports whether path is established to lie outside the

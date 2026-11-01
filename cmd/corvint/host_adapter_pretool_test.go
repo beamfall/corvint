@@ -8,9 +8,10 @@ import (
 	"testing"
 )
 
-// AHI-805 (V1-0402), AHI-806 (V1-0878): Read, Grep and ExitPlanMode PreToolUse calls are answered with permissionDecision defer and
-// bounded evidence or a named degradation; no case ever emits deny, ask or a blocking member.
-func TestAHI805PreToolReadAlwaysDefers(t *testing.T) {
+// AHI-805 (V1-0402), AHI-806 (V1-0878): Read, Grep and ExitPlanMode PreToolUse calls get bounded
+// evidence or a named degradation as additionalContext, or {}; no case ever carries a permission
+// decision (defer included: under -p it ends the turn), a reason, updated input or a blocking member.
+func TestAHI805PreToolReadNeverDecidesPermission(t *testing.T) {
 	t.Parallel()
 	root := queryCLIRepository(t)
 	run := func(tool string, input map[string]any) (map[string]any, string) {
@@ -38,9 +39,14 @@ func TestAHI805PreToolReadAlwaysDefers(t *testing.T) {
 				t.Fatalf("%s: pre-tool output carries %q: %s", tool, member, &stdout)
 			}
 		}
-		hook := claudeHookOutput(t, output)
-		if hook["hookEventName"] != "PreToolUse" || hook["permissionDecision"] != "defer" || strings.Contains(stdout.String(), `"deny"`) || strings.Contains(stdout.String(), `"ask"`) {
-			t.Fatalf("%s: pre-tool answer is not a bare defer: %s", tool, &stdout)
+		for _, member := range []string{"permissionDecision", "permissionDecisionReason", "updatedInput"} {
+			if strings.Contains(stdout.String(), `"`+member+`"`) {
+				t.Fatalf("%s: pre-tool output changes the permission outcome with %q: %s", tool, member, &stdout)
+			}
+		}
+		hook, _ := output["hookSpecificOutput"].(map[string]any)
+		if hook != nil && (hook["hookEventName"] != "PreToolUse" || len(hook) != 2) {
+			t.Fatalf("%s: pre-tool hook output is not context only: %s", tool, &stdout)
 		}
 		return hook, stdout.String()
 	}
@@ -59,20 +65,18 @@ func TestAHI805PreToolReadAlwaysDefers(t *testing.T) {
 	if hook, text := run("ExitPlanMode", map[string]any{"plan": plan}); !strings.Contains(text, "internal/parser/token.go") || !strings.Contains(hook["additionalContext"].(string), untrustedDataPrefix) {
 		t.Fatalf("plan has no evidence: %s", text)
 	}
-	if hook, text := run("ExitPlanMode", map[string]any{"plan": "  "}); len(hook) != 2 {
-		t.Fatalf("an empty plan must get the bare defer: %s", text)
+	if _, text := run("ExitPlanMode", map[string]any{"plan": "  "}); strings.TrimSpace(text) != "{}" {
+		t.Fatalf("an empty plan must get no output: %s", text)
 	}
-	// A missing file is a named path degradation, still deferred.
-	if _, text := run("Read", map[string]any{"file_path": "internal/parser/absent.go"}); !strings.Contains(text, "defer") {
-		t.Fatalf("missing target: %s", text)
-	}
-	// Another tool, an absent path and an outside path get the bare defer.
+	// A missing file still leaves the permission outcome to the host (checked inside run).
+	run("Read", map[string]any{"file_path": "internal/parser/absent.go"})
+	// Another tool, an absent path and an outside path get no output.
 	for _, call := range []struct {
 		tool  string
 		input map[string]any
 	}{{"Bash", map[string]any{"command": "ls"}}, {"Grep", map[string]any{"pattern": "x"}}, {"Read", map[string]any{"file_path": filepath.Join(t.TempDir(), "x.go")}}} {
-		if hook, text := run(call.tool, call.input); len(hook) != 2 {
-			t.Fatalf("%s: expected a bare defer: %s", call.tool, text)
+		if _, text := run(call.tool, call.input); strings.TrimSpace(text) != "{}" {
+			t.Fatalf("%s: expected no output: %s", call.tool, text)
 		}
 	}
 }

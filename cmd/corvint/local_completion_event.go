@@ -361,7 +361,7 @@ func localEventRead(ctx context.Context, options options, input map[string]any,
 	probe := dogfoodEventProbeOf(ctx)
 	after, err := gokernel.ProbeRepositoryAroundPrefetching(ctx, options.root, prefetch, func(ctx context.Context, observation gokernel.Observation) error {
 		// AHI-800: the opening observation's status read is done; record what it measured.
-		probe.observed(len(observation.DirtyPaths), observation.CommitRevision)
+		probe.observed(len(observation.DirtyPaths), observation.CommitRevision, observation.StatusElapsed, observation.IdentityElapsed)
 		probe.enter("policy-evaluation")
 		var err error
 		if before, err = observation.Repository(); err != nil {
