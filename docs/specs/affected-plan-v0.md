@@ -3182,7 +3182,8 @@ they do not change any plan, wire member or exit code of a plan call.
   produce; it is never repository, Git, trace or `.corvint/` state, never evidence, and never an
   input to ranking, authority or learning. No daemon, watcher, eviction process or network access
   is added (invariant 7). Failure mode: entries of deleted roots accumulate, one per root, until
-  the user deletes the directory; `affected cache` reports its size. Rollback: drop the default
+  the user deletes the directory; `affected cache` reports its size (amended by AFP-V0-970: the
+  directory is capped at 32 entries, oldest evicted first). Rollback: drop the default
   branch in `resolveAffectedBatchAndCache`, restoring the explicit-only cache.
 - **AFP-V0-437:** (proposed, experimental; V1-2572, GH #1601)
   `--cache DIR` MUST replace the default location, under the AFP-V0-390 refusals, and the default
@@ -3203,7 +3204,8 @@ they do not change any plan, wire member or exit code of a plan call.
   `corvint [--root PATH] affected cache [--format json|doctor-plugin]` MUST report the default
   location for the root without creating, opening an entry of or writing anything: one canonical
   JSON object, profile `affected-cache-status/0`, with exactly `bytes` (the sum of regular file
-  sizes in the directory), `entries` (files named `affected-graph-*.json`), `location` (resolved,
+  sizes in the directory), `entries` (files named `affected-graph-*.json`), `entryLimit` (the
+  AFP-V0-970 cap), `location` (resolved,
   or empty when there is none), `mutates` (false), `ok` (true), `profile`, `reason` and `state`:
   `PRESENT`, `ABSENT` (not yet created), `UNAVAILABLE` (no user cache directory, a placement the
   AFP-V0-390 rules refuse, or a directory the planner's handle and privacy checks refuse, such
@@ -3216,6 +3218,26 @@ they do not change any plan, wire member or exit code of a plan call.
   `corvint-tasks doctor --plugins DIR` can show the cache; there is no `corvint doctor` command.
   It exits 0 in every state and 2 (`invalid-arguments`) for any other argument or a repeated or
   unknown `--format`. Rollback: drop the `cache` dispatch and `runAffectedCacheStatus`.
+- **AFP-V0-970:** (proposed, experimental; V1-2610; amends AFP-V0-436 and AFP-V0-439)
+  The graph cache directory MUST hold at most 32 entries (`affected-graph-*.json`,
+  `GraphCacheMaxEntries`). After a successful entry write, the writer MUST list the directory
+  through the handle it wrote with (at most 4096 names, the AFP-V0-439 bound), and while more than
+  32 regular entry files remain, remove the one with the oldest modification time (ties by name),
+  never the entry it just wrote. Only regular files whose names match the entry pattern are
+  removed, each through that handle and by its own name, so no file outside the cache directory,
+  no subdirectory or symbolic-link target, and no other name in it is touched. The cap replaces
+  AFP-V0-436's failure mode (entries of deleted roots accumulate without bound): the entry of a
+  removed worktree is evicted once 32 newer entries are written. Eviction runs after the plan's
+  graph is built or loaded and changes no plan, wire member or exit code: an evicted root's next
+  call is a cold-cache call, whose receipt AFP-V0-438 already makes byte-identical. A listing or
+  removal failure is ignored and leaves the entries in place. The `affected-cache-status/0`
+  report (AFP-V0-439) gains the member `entryLimit` (32), and the `doctor-plugin` detail reads
+  `STATE: N entries (limit 32), B bytes`. Non-goals: a byte cap, eviction on read, and pruning by
+  whether an entry's root still exists, which would need each entry opened. Evidence:
+  `TestAFPV0970EvictionKeepsTheNewestEntries` and `TestAFPV0970EvictionLeavesOtherFiles`
+  (`internal/liveverify/affected`), `TestAFPV0970EvictionNeverChangesPlanBytes` and the
+  AFP-V0-439 status tests (`cmd/corvint`). Rollback: drop `evictGraphCache` and the `entryLimit`
+  member, restoring the unbounded directory.
 - **AFP-V0-441:** (accepted under the owner's standing auto-accept (2026-10-11; V1-2682); its
   `.github` change under the owner's `ci-control-plane` OK, owner chat 2026-10-25) In
   `go-product-shard` only, and only on a `pull_request` or `merge_group` run whose outcomes were
@@ -5534,6 +5556,7 @@ traceability table.
 | AFP-V0-437 | `--no-cache` and the `--cache`/`--no-cache` check in `parseAffectedOptions`; `affectedHelp` | `TestAFPV0437NoCacheAndCacheOverrideTheDefault` (`--no-cache` observes no cache; `--cache DIR` stores then hits in DIR and the default is never created; the combination, a repetition and a value refuse), `TestAFPV0437HelpDocumentsTheDefaultCache` |
 | AFP-V0-438 | the swallowed refusal in `resolveAffectedBatchAndCache`; `BuildCachedExcluding`'s fall-back | `TestAFPV0438DefaultCacheDegradesToUncached` (a failing lookup, an empty or relative base, a base inside the root or `.git`, an unwritable base and a file in place of `corvint/`: exit 0, no stderr, the `--no-cache` bytes, no entry read or stored, repository status unchanged); `TestAFPV0436DefaultCacheLivesUnderTheUserCacheDirectory` (cold and warm parity) |
 | AFP-V0-439 | `parseAffectedCacheStatusOptions`, `inspectAffectedDefaultCache` and `runAffectedCacheStatus` in `cmd/corvint/affected_cache.go`; `InspectCacheDirectory` in `internal/liveverify/affected/graphcache_dir.go` | `TestAFPV0439CacheStatusReportsLocationAndSize` (ABSENT creates nothing; PRESENT counts the one entry and its bytes; the doctor-plugin item; UNAVAILABLE inside the root, for a group-writable directory and with no user cache directory; argument refusals) |
+| AFP-V0-970 | `GraphCacheMaxEntries` and `evictGraphCache` in `internal/liveverify/affected/graphcache_evict.go`, called by `writeGraphCache`; `entryLimit` in `cmd/corvint/affected_cache.go` | `TestAFPV0970EvictionKeepsTheNewestEntries`, `TestAFPV0970EvictionLeavesOtherFiles`, `TestAFPV0970EvictionNeverChangesPlanBytes` |
 | AFP-V0-446 | `localizeFixtureFrontier`, `escapedFixtureUnits`, `fixtureDirectory` and `siteFile` in `internal/liveverify/affected/typescript/fixture_frontier.go`, called from `unitsSource`; `promoteUnhostedFixtureFrontier`, `goUnitAbove` and `Graph.promoted` in `internal/liveverify/affected/fixtures.go`, called from `build` and honoured by `frontierSites` | `internal/liveverify/affected/typescript/fixture_frontier_test.go` TestFixtureFrontierIsTheFixtureUnitsOwn_AFPV0446 (the site leaves the plugin frontier for the fixture unit; a plan over an unrelated source or the host package is `BOUNDED`; one over the fixture is `UNKNOWN` with the site; counted once), TestFixtureFrontierStaysPluginWideWhenEscapedOrUnhosted_AFPV0446 (an outside suite importing a connected fixture file, a fixture importing outside directly or through a connected file, and no Go unit above each keep `UNKNOWN`; an outside import of an unconnected fixture file does not), TestFixtureFrontierKeepsUnboundedSpecifiersPluginWide_AFPV0446 (a specifier leaving the `testdata` directory or the repository and a computed import stay plugin-wide and keep a plan over an unrelated source `UNKNOWN`), TestInsideFixture_AFPV0446, TestSiteFile_AFPV0446; `internal/liveverify/affected/fixtures_test.go` TestFixtureFrontierBearsOnlyWhereAGoUnitHostsIt_AFPV0446 (fake plugins: unhosted sites widen, hosted ones bear only when reached, two sites counted), TestPromotedFixtureSitesAreListedInFull_AFPV0446 (20 promoted sites listed, outside the `+N` bound), TestFixtureDirectory_AFPV0446; measured on PR #1816: `LANGUAGE_FRONTIER` unknowns 107 to 96, the 11 removed being every in-fixture `relative-import-unresolved` site under a Go package's `testdata`; the 26 other-reason `testdata` sites stay plugin-wide (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-25-v1-2708-selection-precision.md`) |
 | AFP-V0-440 | `affectedPathListGraph`, `affectedGraphListsIgnored`, `affectedGraphsAgreeOutsideTypeScript` and the `PathList` drift check in `compileAffectedGraph` (`cmd/corvint/affected.go`) | `TestAffectedPathListIgnoredReportPlans_GH1774` in `cmd/corvint/affected_path_ignored_gh1774_test.go` (a gitignored untracked `playwright-report/` bundle: `--no-cache`, cold and warm `--cache` plan and never name it; listing it, an unignored untracked report a modified tracked spec, an ignored `.py` file and an ignored unparsable `.go` file beside the report still refuse `unsupported-affected-mixed-worktree`); `TestAFPV0094PathListRefusesIgnoredFilesTheGraphReads` and `TestAFPV0094PathListRefusesIgnoredFilesUnitsRead` (Go refusals unchanged); reporter repository `NOT_OBSERVED` |
 | AFP-V0-441 | the Go tests step (`rerun_invocations`, `forward_outcomes`, the `flaky.sh` decision) and the `Retain the FLAKY record (AFP-V0-441)` step of `go-product-shard` in `.github/workflows/ci.yml`; `.github/forward-rows/flaky.sh` | `TestAFPV0441FlakyShard` (the recorded PR shard-7 flake passes as FLAKY with summary, annotation and `flaky.json`; a second failure, a failed rerun outcome, a rerun timeout, a package not rerun, an interrupted or bounded rerun, a failed whole-package invocation without a whole-package rerun, a passing first attempt and a lost failed-slice record each refuse with no record); `TestAFPV0441WorkflowBindings` (only `go-product-shard` calls `flaky.sh`, the rerun is bounded, FLAKY needs complete outcomes and a written output, the record upload cannot fail open, one `status=0`); a scratch run of the extracted step with a fake `go` (FLAKY pass, double failure exits 1, a hung rerun exits 1 with `rerun-status` 124); a runner run is `NOT_OBSERVED` |
