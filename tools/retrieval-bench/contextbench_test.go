@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -135,7 +136,7 @@ func TestContextBenchAbstentionAndLengthMatchedPrecision(t *testing.T) {
 		Arms:    map[string]arm{"context": {Ranked: []string{"a.go", "b.go"}}, lengthMatchedBaseline: {Ranked: baseline}, "grep": {}, "impact": {Error: "refused"}},
 		Metrics: map[string]metrics{"context": {}, lengthMatchedBaseline: {}, "grep": {}, "impact": {}},
 	}
-	contextBenchLengthMatched(report, item, 20)
+	contextBenchLengthMatched(report, goldFiles(item), 20)
 	if got := report.Metrics["context"]["cb_file_baseline_precision_length_matched"]; got != 0.5 {
 		t.Fatalf("length-matched baseline precision = %v, want 0.5", got)
 	}
@@ -143,5 +144,55 @@ func TestContextBenchAbstentionAndLengthMatchedPrecision(t *testing.T) {
 		if _, present := report.Metrics[name]["cb_file_baseline_precision_length_matched"]; present {
 			t.Errorf("%s carries a length-matched baseline precision", name)
 		}
+	}
+}
+
+// CEP-V0-960 (Codex review): --summarize rederives every ContextBench file metric from the merged
+// rankings and the stored gold, so a replaced bm25:ident baseline never leaves a stale
+// length-matched precision, and an earlier report without the metric gains it.
+func TestSummarizeRederivesContextBenchFileMetrics(t *testing.T) {
+	stored := func(t *testing.T, details []sampleReport) string {
+		t.Helper()
+		data, err := json.Marshal(storedReport{SamplesSHA256: "s", Limit: 10, Details: details})
+		if err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(t.TempDir(), "report.json")
+		if err := os.WriteFile(path, data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return path
+	}
+	sample := func(arms map[string]arm, metricsByArm map[string]metrics) sampleReport {
+		return sampleReport{ID: "cb-1", TaskType: contextBenchTask, Repo: "o/n", Gold: []string{"a.go", "b.go"}, Arms: arms, Metrics: metricsByArm}
+	}
+	context := arm{Ranked: []string{"a.go", "q.go"}}
+	// The first run: context and a baseline whose first two files hold one gold file (0.5).
+	first := stored(t, []sampleReport{sample(
+		map[string]arm{"context": context, lengthMatchedBaseline: {Ranked: []string{"b.go", "r.go", "a.go"}}},
+		map[string]metrics{"context": {"cb_file_baseline_precision_length_matched": 0.5}, lengthMatchedBaseline: {}})})
+	// A later baseline run replaces it with a ranking whose first two files hold no gold.
+	replaced := stored(t, []sampleReport{sample(
+		map[string]arm{lengthMatchedBaseline: {Ranked: []string{"x.go", "y.go", "a.go"}}},
+		map[string]metrics{lengthMatchedBaseline: {}})})
+	derived := func(t *testing.T, paths ...string) metrics {
+		t.Helper()
+		report, err := resummarize(options{summaries: paths})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return report["details"].([]sampleReport)[0].Metrics["context"]
+	}
+	if got := derived(t, first, replaced); got["cb_file_baseline_precision_length_matched"] != 0 {
+		t.Fatalf("replaced baseline: length-matched precision %v, want 0 (stale 0.5)", got["cb_file_baseline_precision_length_matched"])
+	}
+	// An earlier report written before the metric: context alone, no stored derived metrics.
+	older := stored(t, []sampleReport{sample(map[string]arm{"context": context}, map[string]metrics{"context": {}})})
+	got := derived(t, older, first)
+	if got["cb_file_baseline_precision_length_matched"] != 0.5 || got["cb_file_precision_answered"] != 0.5 || got["cb_file_abstained"] != 0 {
+		t.Fatalf("older report: %v", got)
+	}
+	if got := derived(t, older); func() bool { _, ok := got["cb_file_baseline_precision_length_matched"]; return ok }() {
+		t.Fatalf("no baseline: length-matched precision present: %v", got)
 	}
 }

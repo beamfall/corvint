@@ -973,7 +973,7 @@ func judge(ctx context.Context, configuration options, corvint retriever, contex
 		}
 	}
 	if item.TaskType == contextBenchTask {
-		contextBenchLengthMatched(report, item, configuration.limit)
+		contextBenchLengthMatched(report, goldFiles(item), configuration.limit)
 	}
 	return report
 }
