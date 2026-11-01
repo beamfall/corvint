@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -118,6 +119,9 @@ func Typed(err error) error {
 	return gitCapacity(err, "")
 }
 
+// operationBound reads the bound from gitrun's budget refusal.
+var operationBound = regexp.MustCompile(`at its (\d+)-operation bound`)
+
 // gitCapacity is Typed with the phase and input count named when known.
 func gitCapacity(err error, phase string) error {
 	var coded *Error
@@ -127,7 +131,11 @@ func gitCapacity(err error, phase string) error {
 	var limit string
 	switch cemcode.CodeOf(err) {
 	case cemcode.GitBudgetExceeded:
-		limit = fmt.Sprintf("Git operation budget of %d operations exhausted", gitrun.DefaultOperations)
+		// DCP-V1-630: name the bound in force, which gitrun carries in its refusal.
+		limit = "Git operation budget exhausted"
+		if m := operationBound.FindStringSubmatch(err.Error()); m != nil {
+			limit = "Git operation budget of " + m[1] + " operations exhausted"
+		}
 	case cemcode.GitOutputExceeded:
 		limit = "Git output byte bound exceeded"
 	default:
