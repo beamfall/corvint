@@ -3444,6 +3444,14 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   ticket's wish to cite the same-change requirement itself is not met by design: evidence is pinned
   to BASE content (invariant 1) and `DCW-V0-440` keeps that bullet uncitable. Evidence:
   `TestProposeCitationsDCWV0749UndefinedRequirementStaysUnknown`. Rollback: drop the test.
+- `DCW-V0-750`: (experimental under the standing lane auto-accept, 2026-11-01; V1-3615, V1-3790;
+  refines `DCW-V0-813`) `make doc-gates-timed` MUST run each `DOC_GATE_TARGETS` entry as its own make
+  call, record target, exit and whole seconds per gate in the git directory's
+  `doc-gates.timings.tsv`, print the slowest gates, keep going after a failure, and exit non-zero
+  naming every failed gate with the `DOC_GATES='...'` command that reruns only those; `DOC_GATES`
+  splits the gates into bounded calls. `make doc-gates` is unchanged. Evidence: the `DCW-V0-750`
+  case of `script/dogfood-cache_test.sh` and the per-gate timing in
+  `docs/build-log/2026-11-01-dsl-w32.md`. Rollback: delete the target and the test case.
 
 ## Code vocabulary
 
@@ -3803,6 +3811,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-747` (experimental under the standing lane auto-accept; V1-3334) | `script/batch-precheck_test.sh` skip-drift `--list` assertion | implemented; shell test PASS |
 | `DCW-V0-748` (experimental under the standing lane auto-accept; V1-4091) | `internal/dogfoodflow/propose_entryspan.go` `entryEnd`; `propose.go` `anchoredProposal`; `propose_samechange.go` `refinedProposal`; `TestProposeCitationsDCWV0748CitesTheWholeRequirementEntry` | implemented; focused tests PASS |
 | `DCW-V0-749` (experimental under the standing lane auto-accept; V1-3955) | `TestProposeCitationsDCWV0749UndefinedRequirementStaysUnknown` | implemented; focused test PASS |
+| `DCW-V0-750` (experimental under the standing lane auto-accept; V1-3615, V1-3790) | `script/dogfood-cache_test.sh` (`DCW-V0-750` case) | implemented; shell test PASS |
 | `DCW-V0-800` (experimental under the standing lane auto-accept; V1-3269) | `internal/dogfoodflow/finishlane.go` `requireOutcomeInputs`; `TestFinishLaneDCWV0800RefusesMissingOutcomeInputsBeforePrepare` | implemented; focused test PASS |
 | `DCW-V0-801` (experimental under the standing lane auto-accept; V1-3280) | `internal/dogfoodflow/verify_argv.go` `quotedRunAlternation`, `quotedRunSuggestion`, `quotedRunSuggestions`; `internal/dogfoodflow/change.go`; `internal/dogfoodflow/finishlane.go` `requireVerifyInput`; `TestVerifyArgumentsDCWV0801AdmitsAnchoredAndAttachedRunAlternation`, `TestDogfoodChangeNamesVerifySyntaxRemediation` | implemented; focused tests PASS |
 | `DCW-V0-802` (experimental under the standing lane auto-accept; V1-3279) | `internal/dogfoodflow/propose.go` `readCanonicalPatch`, `refusePatchUnavailable`; `docs/DOGFOOD.md` §4 first-run order; `TestProposeCitationsDCWV0802NamesWhyThePatchIsUnavailable` | implemented; focused test PASS |

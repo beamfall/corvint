@@ -340,6 +340,32 @@ EOF
   rg -q "^dogfood-closeout: unwind: NOT_RUN commit [0-9a-f]{40} changes other.txt, which is not a bind or seal path; HEAD stays [0-9a-f]{40} \(to unwind by hand: git reset --keep $start\)$" "$root/output" || { cat "$root/output" >&2; exit 1; }
   [[ $sealed != "$start" ]] || exit 1
 ) || { printf 'DCW-V0-745/746 closeout phase lines and unwind: FAIL\n' >&2; exit 1; }
+# DCW-V0-750 (V1-3615, V1-3790): doc-gates-timed runs each named gate as its own make call, records
+# target, exit and seconds per gate, keeps going after a failure, and exits non-zero naming it.
+(
+  td="$root/timed"
+  mkdir -p "$td"
+  /bin/cp -f "$source_root/Makefile" "$td/"
+  cat > "$root/bin/fake-gate-make" <<'EOF'
+#!/usr/bin/env bash
+target=${!#}
+printf '%s\n' "$target" >> "$TEST_MAKE_LOG"
+[[ $target != gate-b ]]
+EOF
+  chmod +x "$root/bin/fake-gate-make"
+  cd "$td"
+  git init -q
+  export TEST_MAKE_LOG="$root/gate.log"
+  : > "$TEST_MAKE_LOG"
+  status=0
+  CI=1 make -s doc-gates-timed MAKE="$root/bin/fake-gate-make" DOC_GATES='gate-a gate-b gate-c' > "$root/output" 2>&1 || status=$?
+  [[ $status != 0 && $(tr '\n' ' ' < "$TEST_MAKE_LOG") == 'gate-a gate-b gate-c ' ]] || { cat "$root/output" >&2; exit 1; }
+  rg -qx 'doc-gates-timed: FAIL gate-b' "$root/output" || { cat "$root/output" >&2; exit 1; }
+  rg -qxF "rerun only those: make doc-gates-timed DOC_GATES='gate-b'" "$root/output" || { cat "$root/output" >&2; exit 1; }
+  timings=$(git rev-parse --git-path doc-gates.timings.tsv)
+  [[ $(cut -f1,2 "$timings" | tr '\t\n' ': ') == 'target:exit gate-a:0 gate-b:1 gate-c:0 ' ]] || { cat "$timings" >&2; exit 1; }
+  awk -F '\t' 'NR > 1 && $3 !~ /^[0-9]+$/ { exit 1 }' "$timings" || exit 1
+) || { printf 'DCW-V0-750 doc-gates-timed per-gate timing: FAIL\n' >&2; exit 1; }
 # ASD-V0-087 (V1-3154): when the change touches dogfood tooling, a CORVINT_BIN override is refused
 # before any build, naming the binary, the changed path and the recovery; unset, the lane-built tree
 # binary runs the steps. A change outside that tooling keeps the override.

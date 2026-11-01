@@ -1048,6 +1048,22 @@ doc-gates: ## Run the documentation gates
 	@$(HEAVY_ADMIT) $(MAKE) --no-print-directory --keep-going $(DOC_GATE_TARGETS)
 	@$(HEAVY_ADMIT) env GOTOOLCHAIN=local go run ./conformance/use-cases-v0
 
+# DCW-V0-750 (V1-3615, V1-3790): doc-gates-timed runs each doc gate as its own make call and records
+# target, exit and seconds per gate in the git directory's doc-gates.timings.tsv, so a slow gate is
+# named and the gates split into bounded calls: DOC_GATES='a b' runs or resumes only those. Like
+# doc-gates it runs every gate and exits non-zero naming each one that failed.
+DOC_GATES ?= $(DOC_GATE_TARGETS)
+.PHONY: doc-gates-timed
+doc-gates-timed: ## Run each documentation gate separately and record its seconds
+	@out=$$(git rev-parse --git-path doc-gates.timings.tsv); printf 'target\texit\tseconds\n' > "$$out"; failed=; \
+	for gate in $(DOC_GATES); do start=$$(date +%s); rc=0; \
+	  $(HEAVY_ADMIT) $(MAKE) --no-print-directory $$gate || rc=$$?; \
+	  printf '%s\t%s\t%s\n' "$$gate" "$$rc" "$$(( $$(date +%s) - start ))" >> "$$out"; \
+	  [ "$$rc" = 0 ] || failed="$$failed $$gate"; \
+	done; \
+	printf 'doc-gates-timed: per-gate seconds in %s; slowest:\n' "$$out"; tail -n +2 "$$out" | sort -t '	' -k3,3nr | head -n 5; \
+	if [ -n "$$failed" ]; then printf 'doc-gates-timed: FAIL%s\nrerun only those: make doc-gates-timed DOC_GATES='"'"'%s'"'"'\n' "$$failed" "$${failed# }"; exit 1; fi
+
 # dogfood-closeout is the one lane closeout command (DCW-V0-349, V1-1894; DCW-V0-900): the input
 # pre-flight, which refuses a bad VERIFY, INTENTS or CITATIONS file before any build (DCW-V0-380);
 # batch-precheck, which derives the shared doc-gates target from ci.yml, so drift stops the closeout
