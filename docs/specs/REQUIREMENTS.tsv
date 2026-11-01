@@ -6507,6 +6507,7 @@ TSA-V0-011	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-001	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) `corvint tests setup-select --specs	standing	2026-10-11; V1-1587
 TSA-V0-002	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) A registry declaration file and a hu	standing	2026-10-11; V1-1587
 TSA-V0-003	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) When the closure cannot be proved, t	standing	2026-10-11; V1-1587
+TSA-V0-960	docs/specs/test-source-analysis-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3655; amends	standing	2026-10-31; V1-3655
 TSA-V0-004	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) A comment-only mention of an import	standing	2026-10-11; V1-1587
 TSA-V0-005	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) The JSON output (schema	standing	2026-10-11; V1-1587
 TSA-V0-871	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587 AC6, 2026-10-30) The `--format lines`	standing	2026-10-11; V1-1587; 2026-10-30
