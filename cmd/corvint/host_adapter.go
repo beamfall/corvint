@@ -624,7 +624,9 @@ func renderAdapterResult(host, eventName, event, root string, input, result map[
 	}
 	projection := hookContextProjection(event, result, event == "session-start" && !subagent)
 	if projection == nil {
-		return map[string]any{}
+		// AHI-910: a successful hook with nothing to inject names its event, so it is not
+		// mistaken for a fault or a killed hook.
+		return map[string]any{"hookSpecificOutput": map[string]any{"hookEventName": eventName}}
 	}
 	raw, _ := json.Marshal(withoutHostLoadedGovernance(projection, hostLoadedGovernance(host, root)))
 	if host == "claude-code" {

@@ -107,7 +107,7 @@ func TestClaudeNativeDogfoodLifecycle(t *testing.T) {
 	})
 	t.Run("LCP-V0-010 LCP-V0-011 AHI-046 anchorless prompt keeps scope and uncertainty in the receipt and injects nothing", func(t *testing.T) {
 		output := runClaudeAdapterTest(lifecycleDeadlineContext(), t, root, "user-prompt", map[string]any{"session_id": "native-session-é", "prompt": "what about it"})
-		if len(output) != 0 {
+		if !emptyHookOutput(output, "UserPromptSubmit") {
 			t.Fatalf("anchorless prompt injected context: %v", output)
 		}
 		result, reason := invokeDogfoodEvent(lifecycleDeadlineContext(), root, "claude-code", "user-prompt", map[string]any{"sessionIdSha256": key, "task": "what about it"}, adapterOutputLimit)
@@ -154,7 +154,7 @@ func TestClaudeNativeDogfoodLifecycle(t *testing.T) {
 			// A subagent SessionStart (agent_id present) takes the prompt rule: a clean tree with
 			// nothing actionable injects nothing, guidance included.
 			subagent := runClaudeAdapterTest(lifecycleDeadlineContext(), t, root, "session-start", map[string]any{"session_id": "native-session-é", "source": source, "agent_id": "a1b2c3", "agent_type": "general-purpose"})
-			if len(subagent) != 0 {
+			if !emptyHookOutput(subagent, "SessionStart") {
 				t.Fatalf("subagent %s start injected: %v", source, subagent)
 			}
 		}
