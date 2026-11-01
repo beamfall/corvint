@@ -799,6 +799,7 @@ AMAP-V0-780	docs/specs/application-map-v0.md	(accepted under the owner's standin
 AMAP-V0-781	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-31); V1-3527) A dynami	standing	2026-10-31; V1-3527
 AMAP-V0-782	docs/specs/application-map-v0.md	(accepted under the owner's standing auto-accept (2026-10-31); V1-3527) The opti	standing	2026-10-31; V1-3527
 AMAP-V0-600	docs/specs/application-map-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-3932; amendin	standing	2026-11-01; V1-3932
+AMAP-V0-601	docs/specs/application-map-v0.md	(experimental under the standing lane auto-accept (2026-11-01); V1-2770) `flows	standing	2026-11-01; V1-2770
 ANL-V0-001	docs/specs/application-navigation-ledger-v0.md	Derive one edge per distinct (from screen ID, to screen ID, trigger, selector ID	unrecorded	-
 ANL-V0-002	docs/specs/application-navigation-ledger-v0.md	Reuse RVN verification for each common test key bound to both endpoint steps,	unrecorded	-
 ANL-V0-003	docs/specs/application-navigation-ledger-v0.md	Deduplicate crossings by test key; choose the proven test with fewest declared	unrecorded	-

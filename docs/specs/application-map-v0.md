@@ -2171,6 +2171,30 @@ but does not read it; only non-Go syntax impact does.
     ambiguous).
   - Rollback: drop `screenIndex.ranked` and the ranking in `byURL`; map bytes change only in the
     newly attributed specs.
+- `AMAP-V0-601`: (experimental under the standing lane auto-accept (2026-11-01); V1-2770) `flows
+  appmap coverage --map FILE [--budget N | --full]` MUST emit a read-only, deterministic
+  `application-map-coverage/0` document computed from the map file alone. Screens are grouped by
+  module, the repository alias and path of the router file that declares them (`screens[].anchor`).
+  Each module row reports `total` (resolved screens that are not abstract), `reached` (those with at
+  least one spec attribution), `reached_by_basis` (the reached screens counted per attribution
+  basis, such as `goto` or `import`; a screen with several bases counts once under each), `unreached`
+  (the resolved screen IDs with no spec), `abstract` (the number of abstract screens, which are
+  excluded from `total`) and `unknown` (each screen whose status is not `RESOLVED`, with its reason;
+  these are counted in neither `total` nor `reached`, because the map cannot establish them). The
+  head carries `count_sources`, which names the map field each count is read from, plus totals
+  across modules. When the map's `test_join` is `UNKNOWN`, every module's `unreached_status` reads
+  `UNKNOWN` with reason `test-join-unknown`, since an unread or unresolved test file may reach a
+  listed screen. Otherwise it reads `RESOLVED`. The document follows the projection budget of
+  `AMAP-V0-011`: modules are trimmed before the head.
+  - Non-goals: runtime reach, flow-step or page-object-only reach, and per-module gating.
+  - Failure modes: a map with no screens reports no modules. A test file the index excluded is
+    covered only by `test_join` being `UNKNOWN`, which affects every module at once.
+  - Falsifier: `TestAMAPV0601CoverageReport_V12770` in `coverage_report_v12770_test.go` (a fixture
+    with two router files, a reached and an unreached screen in each, an unresolved screen and an
+    abstract screen: expected counts per module, and `unreached_status` `UNKNOWN` once a test
+    file's join is `UNKNOWN`); `TestFlowsAppmapCoverageCLI_V12770` (the verb emits the schema and
+    refuses without `--map`).
+  - Rollback: delete `coverage_report.go`, the CLI verb and its tests.
 
 ## Wire contract
 
@@ -2493,6 +2517,7 @@ optional `tests` array to map steps (declared AFU-V1 `test` links) and supplies 
 | AMAP-V0-781 | `TestAMAPV0781BrowserTargetIsNoTestEdge` (a browser target inside `tests.root` joins no screen; a Node import passed as a later `page.evaluate` argument stays resolved and attributed; `web_root` `.` resolves from the repository root); `TestAMAPV0781BrowserContextImports` (a literal and a computed `import(...)` inside `page.evaluate` read `browser-context` and `browser-computed-specifier`, never `unresolved-import`, and the spec's join stays RESOLVED; the same specifier also imported in Node context stays unresolved) |
 | AMAP-V0-782 | `TestAMAPV0781BrowserContextImports` (with `tests.web_root` a root-relative specifier resolves to the tracked file; an absent file reads `browser-target-missing`; without `web_root`, `browser-root-undeclared`); `TestAMAPV0780FlatLayout` (a `web_root` that is not a directory refuses) |
 | AMAP-V0-600 | `TestAMAPV0600SpecificRouteBeatsSplat_V13932`, `TestAMAPV0600RankingStaysWithinReact_V13932` in `goto_splat_v13932_test.go` (VanillaTwisted shape; VanillaTwisted rebuild `NOT_RUN` in the lane) |
+| AMAP-V0-601 | `TestAMAPV0601CoverageReport_V12770`, `TestFlowsAppmapCoverageCLI_V12770` in `coverage_report_v12770_test.go` and `cmd/corvint/flows_appmap_coverage_v12770_test.go` |
 | AMAP-V0-200 | `TestAMAPV0200StatedAliasRevision` (stated pin; HEAD pin unstated; a later commit and a dirty file leave the bytes identical; a non-commit REV and an unread alias refuse `appmap-root-unavailable`) |
 
 Implementation: `internal/appmap`, `internal/contextindex/webimport_api.go`,
