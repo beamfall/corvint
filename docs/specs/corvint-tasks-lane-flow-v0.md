@@ -130,6 +130,14 @@ done and number requirements that a peer branch already used.
 - `TLF-V0-889`: A proposal MUST NOT change claimability, eligibility, blockers, planning or any
   record until an operator applies it with `ticket set-effects`; the proposal output is labelled
   `proposal: not authority` and carries no request id or payload that the writer accepts as-is.
+- `TLF-V0-820`: (experimental under the owner's standing lane auto-accept (2026-11-01; V1-3603);
+  refines TLF-V0-880) The CLI MUST read an absent `branch`, `head`, `host`, `lane`, `pr` or
+  `reason` key of a `ticket progress` payload as null, filling it before the canonical payload and
+  its request digest, so a payload that omits a nullable key and the same payload spelling it
+  `null` are one request. An absent `phase` MUST still refuse MALFORMED, and the refusal MUST name
+  the missing key. The mutation envelope's payload stays the closed seven-key object. Non-goals:
+  default values for any other operation's payload. Rollback: revert; an omitted key refuses
+  MALFORMED naming it.
 
 ## Failure modes and trust
 
@@ -159,6 +167,7 @@ done and number requirements that a peer branch already used.
 | Requirement | Ticket acceptance | Implementation boundary | Delivered evidence | Required integrated evidence (NOT_RUN) |
 |---|---|---|---|---|
 | TLF-V0-880 | V1-3569 criterion 1; V1-3463 criterion 1 | `internal/tasks/ticket` (progress codec, view); `internal/tasks/mutation` (payload, Apply, adopt); `internal/tasks/intent` (role matrix); `internal/tasks/transaction` (import guard); `internal/taskman` (Core reader); `internal/tasks/cli` (verb, help) | `TestTLFV0880_ProgressSetLeavesTheRecordUnchanged`; `TestTLFV0880_ProgressSetRefusals`; `TestTLFV0880_RecordCodec`; `TestTLFV0880_ReaderProgress`; `TestTLFV0880_AdoptFileRefusesProgress` | concurrent two-process CAS; durable qualification |
+| TLF-V0-820 | V1-3603 | `internal/tasks/mutation` (`CanonicalPayload`) | `TestTLFV0820_ProgressPayloadOmittedNullableKeys` | none |
 | TLF-V0-881 | V1-3569 criteria 3-4 | `internal/tasks/ticket` (EffectiveProgress) | `TestTLFV0881_BarrierAdmitsProgressAndStillRefusesClaims`; `TestTLFV0881_EffectiveProgress` | none |
 | TLF-V0-882 | V1-3569 criterion 2; V1-3463 criterion 2 | `internal/tasks/cli` (search, roadmap, show) | `TestTLFV0882_SearchAndRoadmapByPhase` | none |
 | TLF-V0-883 | V1-3569 criterion 3 | `internal/tasks/cli/closeout_debt.go` | `TestTLFV0883_CloseoutDebtReportsMergedProgressHead` | integration with V1-3496 closeout-debt changes |

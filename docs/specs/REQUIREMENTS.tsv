@@ -2672,6 +2672,7 @@ TLF-V0-960	docs/specs/corvint-tasks-lane-flow-v0.md	(experimental under the stan
 TLF-V0-887	docs/specs/corvint-tasks-lane-flow-v0.md	`ticket delivery-screen --lane-refs` MUST additionally scan every local branch a	unrecorded	-
 TLF-V0-888	docs/specs/corvint-tasks-lane-flow-v0.md	`ticket effects-proposals` MUST, for each OPEN ticket whose effects coverage is	unrecorded	-
 TLF-V0-889	docs/specs/corvint-tasks-lane-flow-v0.md	A proposal MUST NOT change claimability, eligibility, blockers, planning or any	unrecorded	-
+TLF-V0-820	docs/specs/corvint-tasks-lane-flow-v0.md	(experimental under the owner's standing lane auto-accept (2026-11-01; V1-3603);	standing	2026-11-01; V1-3603
 LGL-V0-001	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2531) A lease write round MUST clear orphan stages under a cleanup	unrecorded	-
 LGL-V0-002	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2203) On Linux a session MUST open each pinned descriptor's procfs	unrecorded	-
 LGL-V0-003	docs/specs/corvint-tasks-lease-gate-latency-v0.md	(proposed; V1-2539) The claim latency target under `TestCALV0263_LeaseGateLoad`	unrecorded	-
