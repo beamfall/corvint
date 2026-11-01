@@ -3,7 +3,9 @@ package cem2proto
 import (
 	"bytes"
 	"errors"
-	"os/exec"
+	"io/fs"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -16,13 +18,34 @@ func TestCEM2V0001PrototypeIsUnwired(t *testing.T) {
 	if ProtoSpec == "cem/2.0" || !strings.HasSuffix(ProtoSpec, "-proto") {
 		t.Fatalf("label %q must stay non-final", ProtoSpec)
 	}
-	out, err := exec.Command("git", "-C", "../..", "grep", "-l", "-F", `"github.com/Beamfall/corvint/internal/cem2proto"`, "--", "*.go", ":!internal/cem2proto/").CombinedOutput()
-	var exit *exec.ExitError
-	if err != nil && !(errors.As(err, &exit) && exit.ExitCode() == 1) {
-		t.Fatalf("git grep: %v\n%s", err, out)
-	}
-	if len(bytes.TrimSpace(out)) > 0 {
-		t.Fatalf("cem2proto is imported outside itself:\n%s", out)
+	// Each tree is named, so the affected planner bounds these reads by path.
+	self := []byte(`"github.com/Beamfall/corvint/internal/cem2proto"`)
+	own := filepath.FromSlash("../../internal/cem2proto")
+	skip := map[string]bool{".git": true, "node_modules": true, "testdata": true, "vendor": true}
+	for _, tree := range []string{"../../.github", "../../benchmarks", "../../cmd", "../../conformance", "../../examples", "../../experimental", "../../integrations", "../../internal", "../../interop", "../../protocol", "../../script", "../../tools"} {
+		root := filepath.FromSlash(tree)
+		if _, err := os.Stat(root); errors.Is(err, fs.ErrNotExist) {
+			continue
+		}
+		err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if entry.IsDir() && (path == own || (path != root && skip[entry.Name()])) {
+				return filepath.SkipDir
+			}
+			if !entry.IsDir() && strings.HasSuffix(path, ".go") {
+				if data, err := os.ReadFile(path); err != nil {
+					return err
+				} else if bytes.Contains(data, self) {
+					t.Errorf("%s imports cem2proto; wiring the prototype needs owner acceptance", path)
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 

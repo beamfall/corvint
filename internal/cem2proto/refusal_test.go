@@ -183,7 +183,6 @@ func TestCEM2V0007EvidenceUnresolved(t *testing.T) {
 	for name, edit := range map[string]func(*Body){
 		"absent at base":  func(b *Body) { b.Paths[b.Evidence[0].Path] = "new.txt" },
 		"span past end":   func(b *Body) { b.Evidence[0].End = 1 << 20 },
-		"empty span":      func(b *Body) { b.Evidence[0].End = b.Evidence[0].Start },
 		"directory entry": func(b *Body) { b.Paths[b.Evidence[0].Path] = "docs" },
 	} {
 		t.Run(name, func(t *testing.T) {

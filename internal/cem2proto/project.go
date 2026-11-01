@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 
+	"github.com/Beamfall/corvint/internal/cem/cemcode"
 	"github.com/Beamfall/corvint/internal/cem/patch"
 	"github.com/Beamfall/corvint/internal/cem/wire"
 )
@@ -88,6 +89,11 @@ func Project(ctx context.Context, src Source, target string, header, body []byte
 	}
 	out, err := wire.EncodeStable(m)
 	if err != nil {
+		// CEM2-V0-024: the expanded map is held to the cem/1.0 byte bound,
+		// which EncodeStable enforces by reparsing its own output.
+		if cemcode.CodeOf(err) == cemcode.MapUnavailable {
+			return nil, fail(CodeBoundExceeded, "projection exceeds %d bytes: %v", wire.MaxMapBytes, err)
+		}
 		return nil, fail(CodeMalformed, "projection is not a valid cem/1.0 map: %v", err)
 	}
 	return out, nil
@@ -107,7 +113,7 @@ func resolveEvidence(ctx context.Context, src Source, base string, b Body) ([]wi
 		if !ok || (blob.Mode != "100644" && blob.Mode != "100755") {
 			return nil, fail(CodeEvidenceUnresolved, "evidence path %q is not a regular blob at the base", path)
 		}
-		if row.Start >= row.End || row.End > int64(len(blob.Data)) {
+		if row.Start < 0 || row.Start >= row.End || row.End > int64(len(blob.Data)) {
 			return nil, fail(CodeEvidenceUnresolved, "evidence span [%d,%d) outside %q", row.Start, row.End, path)
 		}
 		digest := sha256.Sum256(blob.Data[row.Start:row.End])

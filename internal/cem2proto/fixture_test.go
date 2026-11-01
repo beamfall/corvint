@@ -55,7 +55,7 @@ var fixtureTarget = map[string]string{
 	"new.txt":      "fresh\n",
 }
 
-func git(t *testing.T, root string, args ...string) string {
+func git(t testing.TB, root string, args ...string) string {
 	t.Helper()
 	cmd := exec.Command("git", append([]string{"-C", root}, args...)...)
 	cmd.Env = append(fixtureEnviron(), "GIT_CONFIG_GLOBAL="+os.DevNull, "GIT_CONFIG_NOSYSTEM=1",
@@ -81,7 +81,7 @@ func fixtureEnviron() []string {
 	return env
 }
 
-func writeTree(t *testing.T, root string, files map[string]string) {
+func writeTree(t testing.TB, root string, files map[string]string) {
 	t.Helper()
 	entries, _ := os.ReadDir(root)
 	for _, entry := range entries {
@@ -103,7 +103,7 @@ func writeTree(t *testing.T, root string, files map[string]string) {
 }
 
 // span locates text in a base file as a byte span.
-func span(t *testing.T, path, text string) wire.Span {
+func span(t testing.TB, path, text string) wire.Span {
 	t.Helper()
 	start := strings.Index(fixtureBase[path], text)
 	if start < 0 {
@@ -115,7 +115,7 @@ func span(t *testing.T, path, text string) wire.Span {
 // newFixture commits the base and target trees and builds the cem/1.0 map:
 // the first hunk is evidence-backed by two spec spans, whitespace hunks are
 // mechanical, and the rest are no-evidence.
-func newFixture(t *testing.T, mutate func(*wire.StableMap)) *fixture {
+func newFixture(t testing.TB, mutate func(*wire.StableMap)) *fixture {
 	t.Helper()
 	root := t.TempDir()
 	git(t, root, "init", "-q", "-b", "main")
@@ -188,7 +188,7 @@ func newFixture(t *testing.T, mutate func(*wire.StableMap)) *fixture {
 	return &fixture{root: root, base: base, target: target, original: original, stable: stable}
 }
 
-func mustSource(t *testing.T, root string) *GitSource {
+func mustSource(t testing.TB, root string) *GitSource {
 	t.Helper()
 	src, err := NewGitSource(root)
 	if err != nil {

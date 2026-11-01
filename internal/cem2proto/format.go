@@ -44,6 +44,16 @@ const (
 	MaxHeaderEntries = 64
 )
 
+// Expansion bound (CEM2-V0-024). Each cem/1.0 basis reference projects to at
+// least minProjectedBasisBytes canonical bytes: the shortest relation code in
+// {"evidenceId":"evidence:sha256:<64 hex>","relation":"<code>"}. A body with
+// more than MaxBasisReferences references therefore cannot project to a map
+// within wire.MaxMapBytes, and is refused before any Git read.
+const (
+	minProjectedBasisBytes = 119
+	MaxBasisReferences     = wire.MaxMapBytes / minProjectedBasisBytes
+)
+
 // Error is a typed prototype refusal or abstention.
 type Error struct{ Code, Detail string }
 
@@ -327,8 +337,10 @@ func DecodeBody(raw []byte) (Body, error) {
 		if e.Path, err = intIn(row.Arr[0], len(b.Paths), CodeIndexOutOfRange, "evidence path index"); err != nil {
 			return Body{}, err
 		}
-		if row.Arr[1].Kind != wire.KindInt || row.Arr[2].Kind != wire.KindInt || row.Arr[1].Int > row.Arr[2].Int {
-			return Body{}, fail(CodeMalformed, "evidence row %d span", i)
+		// CEM2-V0-023: the cem/1.0 span rule, 0 <= start < end; the wire
+		// parser already refuses an integer above wire.MaxWireInteger.
+		if row.Arr[1].Kind != wire.KindInt || row.Arr[2].Kind != wire.KindInt || row.Arr[1].Int < 0 || row.Arr[1].Int >= row.Arr[2].Int {
+			return Body{}, fail(CodeMalformed, "evidence row %d span must satisfy 0 <= start < end", i)
 		}
 		e.Start, e.End = row.Arr[1].Int, row.Arr[2].Int
 		if len(row.Arr) == 5 {
@@ -346,9 +358,18 @@ func DecodeBody(raw []byte) (Body, error) {
 	if len(hunksV.Arr) > wire.MaxHunks {
 		return Body{}, fail(CodeBoundExceeded, "%d hunk rows; limit %d", len(hunksV.Arr), wire.MaxHunks)
 	}
+	references := 0
 	for i, row := range hunksV.Arr {
 		if row.Kind != wire.KindArray || len(row.Arr) == 0 {
 			return Body{}, fail(CodeMalformed, "hunk row %d must be a non-empty array", i)
+		}
+		// CEM2-V0-024: the cem/1.0 per-hunk basis bound and the aggregate
+		// expansion bound, both checked before the row is expanded.
+		if len(row.Arr)-1 > wire.MaxBases {
+			return Body{}, fail(CodeBoundExceeded, "hunk row %d has %d basis references; limit %d", i, len(row.Arr)-1, wire.MaxBases)
+		}
+		if references += len(row.Arr) - 1; references > MaxBasisReferences {
+			return Body{}, fail(CodeBoundExceeded, "body has more than %d basis references", MaxBasisReferences)
 		}
 		var h HunkRow
 		if h.Reason, err = intIn(row.Arr[0], len(Reasons), CodeCodeOutOfRange, "hunk reason code"); err != nil {

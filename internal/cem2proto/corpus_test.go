@@ -17,8 +17,15 @@ import (
 )
 
 // committedChanges is the repository's sealed CEM corpus. One literal names
-// it, so the affected planner bounds this package's corpus reads by path.
+// it, so the affected planner bounds this package's corpus reads by path. The
+// only other input is Git objects named by those maps' base and target
+// commits; they are content-addressed, so no working-tree edit can change
+// them. Git runs from this directory and the projection opens the repository
+// that holds it, so no test literal names the repository root.
 var committedChanges = filepath.FromSlash("../../.corvint/changes")
+
+// corpusRepository is the repository holding committedChanges.
+func corpusRepository() string { return filepath.Dir(filepath.Dir(committedChanges)) }
 
 // corpusSampleSize bounds the default round-trip; CEM2PROTO_CORPUS=all
 // projects every committed map.
@@ -64,7 +71,7 @@ func readCorpus(t *testing.T) []corpusMap {
 }
 
 func hasCommit(oid string) bool {
-	return exec.Command("git", "-C", "../..", "cat-file", "-e", oid+"^{commit}").Run() == nil
+	return exec.Command("git", "-C", committedChanges, "cat-file", "-e", oid+"^{commit}").Run() == nil
 }
 
 // CEM2-V0-005, -021: committed maps project back byte-identically from Git.
@@ -100,7 +107,7 @@ func TestCEM2V0005CorpusRoundTrip(t *testing.T) {
 			continue
 		}
 		start := time.Now()
-		src, err := NewGitSource("../..")
+		src, err := NewGitSource(corpusRepository())
 		if err != nil {
 			t.Fatal(err)
 		}
