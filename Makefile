@@ -95,6 +95,7 @@ GATE_STEPS = \
   license-headers-test \
   line-citations-check \
   line-citations-test \
+  merge-drivers-test \
   mkfifo-build-tags-check \
   no-python-runtime-dependency-test \
   pre-push-dogfood-seal-test \
@@ -1232,6 +1233,7 @@ shell-test: \
   instruction-conflicts-test \
   license-headers-test \
   line-citations-test \
+  merge-drivers-test \
   no-python-runtime-dependency-test \
   pre-push-dogfood-seal-test \
   pre-push-windows-vet-test \
@@ -1302,3 +1304,7 @@ cce-live:
 .PHONY: register-shell-test-test
 register-shell-test-test:
 	@script/register-shell-test_test.sh
+
+.PHONY: merge-drivers-test
+merge-drivers-test:
+	@script/merge-drivers_test.sh
