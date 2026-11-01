@@ -2375,6 +2375,22 @@ const uncommittedHint = "the worktree has uncommitted changes (often the prepare
 // hide a path a personal excludes file covers.
 const untrackedHint = "the recorder requires a clean tree and counts these untracked paths as dirty: {paths}; it ignores core.excludesFile, so git status may not show them; move them out of the worktree or list them in the repository .gitignore, then rerun corvint dogfood change {base} (DCW-V0-091)"
 
+// metadataDriftMarker is the gitstatus refusal text for repository metadata
+// (index, HEAD or refs) that changed while the recorder observed it.
+const metadataDriftMarker = "repository metadata changed during observation"
+
+// metadataDriftHint replaces the uncommitted-worktree advice when the
+// recorder's own stderr names metadata drift: the tree may be clean, and the
+// refusal stays fail-closed (DCW-V0-729).
+const metadataDriftHint = "the recorder refused because repository metadata (index, HEAD or refs) changed while it observed git status, which is often concurrent Git activity such as another worktree's command or an index refresh sharing this .git, not an uncommitted change; nothing was recorded; wait until no other Git command runs against this repository, then rerun corvint dogfood change {base} (DCW-V0-729)"
+
+// metadataDrifted reports whether the local-outcome stderr kept in evidence
+// names metadata drift (DCW-V0-729).
+func metadataDrifted(evidence string) bool {
+	data, err := readPrefix(evidence+"/local-outcome.stderr", 64*1024)
+	return err == nil && strings.Contains(string(data), metadataDriftMarker)
+}
+
 // maxNamedUntracked bounds how many untracked paths untrackedHint names.
 const maxNamedUntracked = 8
 
@@ -2583,6 +2599,9 @@ func (c *change) fixHint(row step) string {
 		return strings.NewReplacer("{evidence}", c.evidence, "{staleBinding}", c.staleBinding).Replace(staleBindingHint)
 	}
 	if value == "local-outcome:record-index-failed" {
+		if metadataDrifted(c.evidence) {
+			return strings.ReplaceAll(metadataDriftHint, "{base}", c.base)
+		}
 		if paths := c.untrackedPaths(); len(paths) > 0 {
 			named := strings.Join(paths[:min(len(paths), maxNamedUntracked)], ", ")
 			if len(paths) > maxNamedUntracked {
