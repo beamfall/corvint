@@ -5878,6 +5878,7 @@ STR-V0-073	docs/specs/session-test-runner-v0.md	(experimental under the standing
 STR-V0-173	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3149) `corvint	standing	2026-10-11; V1-3149
 STR-V0-174	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3155) When the	standing	2026-10-11; V1-3155
 STR-V0-800	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-11; V1-3382)	standing	2026-10-11; V1-3382
+STR-V0-920	docs/specs/session-test-runner-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3470; refines	standing	2026-10-31; V1-3470
 SHA-V0-001	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	accept only exact finite language/version/toolchain/stage tuples, never a neares	unrecorded	-
 SHA-V0-002	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	use the experimental `shader` family extension: a request has the fixed transpor	unrecorded	-
 SHA-V0-003	docs/specs/shader-glsl-metal-analyzer-candidate-v0.md	facts carry an inclusive/exclusive byte span (zero-based bytes, one-based byte c	unrecorded	-
