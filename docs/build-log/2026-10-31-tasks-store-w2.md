@@ -242,6 +242,23 @@ rebuilt from the lane head `f1680433b` (the old ones kept as `*.pre-r35.bak`), w
   the re-base disabled it fails. It passed 12/12 under load. The LGL-V0-011 47k real-disk harness
   run is NOT_RUN.
 
+### V1-3596: TestJSGV0015_MovedClaimResumesOnTheWriterRoute (test expectation, not product)
+
+- Reported as failing on every run at origin/main 6c967b21 and at lane heads with "rounds 1 resumed
+  0". On this Linux host it passes at 6c967b21 (2/2), at origin/main 8daec98ce (4/4) and at the lane
+  head, so the failure depends on the host.
+- Cause, inferred from the guard contract and not reproduced here (no macOS on this host): the
+  test's outside edit was an in-place `os.WriteFile` of a ticket under the first commit's lock,
+  which the locked `CheckEvents` must report for the claim to take a second round. Linux inotify
+  reports it. On macOS, PSR-V0-223 and CAL-V0-026 document that an in-place write to a file beyond
+  the vnode descriptor budget is not reported until a sweep, so there the claim commits in one
+  round. That is the reported output.
+- Decision: fix the test, not the product. Store writers change files only by creating, renaming,
+  linking or removing entries, which watched directories report on every platform. The edit now
+  writes a new file and renames it over the ticket, which keeps the test's intent (an outside change
+  under the first commit's lock moves the snapshot). It passes 4/4 here; confirmation on macOS is
+  NOT_RUN from this lane.
+
 ## Friction
 
 - `TestCALV0095_PreparationQueueObservation*` (internal/tasks/authority) fails at the base on this

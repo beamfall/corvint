@@ -113,13 +113,21 @@ func completeRouteClaimMoved(t *testing.T, tickets int, move bool) (*intent.Repo
 	var timing LeaseTiming
 	ctx := WithLeaseTiming(context.Background(), &timing)
 	if move {
+		// The outside edit replaces the ticket by renaming a new file over
+		// it, a directory event every platform's locked CheckEvents reports.
+		// An in-place rewrite is reported on Linux but, on macOS, not for a
+		// file beyond the vnode descriptor budget until a sweep (PSR-V0-223,
+		// CAL-V0-026), so the claim then took one round there (V1-3596).
 		ticket := filepath.Join(repo.PrimaryWorktree, intent.Dir, "tickets", entries[1].Name())
 		ctx = context.WithValue(ctx, mutationStageKey{}, at("fast.complete.guards", func() {
 			raw, err := os.ReadFile(ticket)
 			if err != nil {
 				t.Fatal(err)
 			}
-			historyWrite(t, ticket, raw)
+			historyWrite(t, ticket+".moved", raw)
+			if err := os.Rename(ticket+".moved", ticket); err != nil {
+				t.Fatal(err)
+			}
 		}))
 	}
 	report, err := Lease(ctx, repo, historyActor, LeaseChoice{QueueID: fixture.QueueID, RequestID: fmt.Sprintf("staged-claim-%d", tickets), Root: root, Lease: transaction.LeaseRequest{Verb: transaction.LeaseClaim, TicketID: fixture.TicketID(local), Holder: "agent-1", LeaseMinutes: "60"}}, WallClock())
