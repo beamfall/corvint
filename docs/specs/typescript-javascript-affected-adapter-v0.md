@@ -164,7 +164,9 @@ exact command execution, config interpretation, cancellation, and full-CI recall
   `NGI-V0-780` rule over the root `package.json` and the root lockfiles and workspace files
   present in the worktree: `pnpm exec playwright`, `yarn playwright`, `bunx playwright`, or
   `npx playwright` for npm, the default, and for files that name more than one manager with no
-  `packageManager` member to settle it. This amends the `npx` prefix of `TJAA-V0-015`. A chosen
+  `packageManager` member to settle it. This amends the `npx` prefix of `TJAA-V0-015`. The
+  manager is read once, inside the source observation that the plan's final source check
+  validates, and the argv use that reading; nothing rereads it afterwards. A chosen
   manager other than npm is a plan input: the source digest binds it, so a manager change between
   discovery and plan reads as a binding mismatch. A repository whose manager is npm keeps its exact
   plan bytes and source digest. Non-goals: per-workspace-package managers, `--filter` or
@@ -1879,7 +1881,7 @@ persisted; run-identity documents carrying `corvint-test-closure/0` digests are 
 |---|---|---|
 | `TJAA-V0-001..004`, `TJAA-V0-006..008` | `internal/liveverify/affected/typescript/` focused tests | experimental |
 | `TJAA-V0-005` | `TestTemplateSubstitutionRequireBuildsDependencyEdge`, `TestMultilineJSXQuoteAmbiguityRaisesFrontier`, `TestSameLineJSXApostropheAmbiguityRaisesFrontier`, `TestStandaloneJSXApostrophesRaiseFrontier`, `TestJSXTextCannotImitateALiteralOpeningContext`, `TestKeywordEndingJSXTextCannotHideRequireWithoutBraces`, `TestJSXAttributeAndExpressionStringsRemainParsed`, `TestOrdinaryTSXStringsAndJSXExpressionLiteralsRemainParsed`, `TestWorkspacePackageImportReachesTheImportingTest_V1_0283`, and import-resolution focused tests in `internal/liveverify/affected/typescript/` | experimental |
-| `TJAA-V0-780` (V1-3498) | `TestPlaywrightArgvFollowsPackageManager_V13498` in `playwright_package_manager_test.go` (pnpm via `packageManager` and via `pnpm-lock.yaml` rewrites selected, project and fallback argv and changes the source digest; npm and conflicting lockfiles keep `npx` and the npm digest) | experimental |
+| `TJAA-V0-780` (V1-3498) | `TestPlaywrightArgvUseTheValidatedManager_V13498` (a lockfile switched from pnpm to Yarn after the final source check leaves the pnpm argv and the pnpm-bound digest); `TestPlaywrightArgvFollowsPackageManager_V13498` in `playwright_package_manager_test.go` (pnpm via `packageManager` and via `pnpm-lock.yaml` rewrites selected, project and fallback argv and changes the source digest; npm and conflicting lockfiles keep `npx` and the npm digest) | experimental |
 | `TJAA-V0-009` | `internal/liveverify/affected/conformance_test.go` TypeScript seam case | experimental |
 | `TJAA-V0-010..017` | `internal/liveverify/affected/typescript/playwright.go`, `playwright_test.go`, and `cmd/corvint/affected_playwright_test.go` | experimental |
 | `TJAA-V0-013` bounded helper exclusion (V1-0211) | `TestPlaywrightUnreachedHelperBoundedExclusion_V1_0211` in `internal/liveverify/affected/typescript/playwright_test.go` | accepted, decision 0514; synthetic matched discovery |
