@@ -542,6 +542,11 @@ change edits or an empty file exits naming the file and line before any bind wor
 Run it alone, with the same variables, as `make dogfood-inputs-check` while writing the inputs.
 That target first runs `script/repin-use-case-receipts.sh --check` and refuses a stale use-case
 receipt, naming it, before the pre-flight; repin, commit and rerun (`DCW-V0-725`).
+A passing inputs-check prints `inputs-check NOTE verify-run-subset package=PKG` for each Go
+package whose non-test source the change edits while every verify line that runs it narrows it
+with `-run`; `corvint affected` selects such a package whole, so compare with the affected plan and
+add a whole-package line where it does. The NOTE comes from the changed paths, not a second
+affected run, and changes no exit status (`DCW-V0-727`).
 It also refuses `reused-worktree-state` for a trace or OCM sidecar an earlier lane left in a reused
 worktree and prints the `corvint migrate-traces --apply` recovery (`DCW-V0-400`). A pass records
 the plan's digest and the `HEAD` it passed at in `$(git rev-parse --git-dir)/corvint/inputs-check-plan-head`;
