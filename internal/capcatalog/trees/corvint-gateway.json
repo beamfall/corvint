@@ -1,0 +1,49 @@
+{
+  "schema": "corvint-command-tree/0",
+  "binary": "corvint-gateway",
+  "helpJson": "corvint-gateway help --json",
+  "source": "cmd/corvint-gateway usageText",
+  "dispatchSources": [
+    "cmd/corvint-gateway"
+  ],
+  "globalFlags": [],
+  "internalEntryPoints": [],
+  "nodes": [
+    {
+      "path": [
+        "report"
+      ],
+      "command": "corvint-gateway report",
+      "summary": "Summarise the gateway's usage ledger without writing anything",
+      "usage": [
+        "corvint-gateway report [--state DIR]"
+      ],
+      "flags": [
+        "--state"
+      ],
+      "required": [],
+      "example": "corvint-gateway report",
+      "help": "corvint-gateway report --help"
+    },
+    {
+      "path": [
+        "serve"
+      ],
+      "command": "corvint-gateway serve",
+      "summary": "Proxy Anthropic Messages API traffic on a loopback address, recording token usage and folding large Bash output",
+      "usage": [
+        "corvint-gateway serve [--addr HOST:PORT] [--upstream URL] [--state DIR] [--fold-threshold BYTES] [--no-fold]"
+      ],
+      "flags": [
+        "--addr",
+        "--fold-threshold",
+        "--no-fold",
+        "--state",
+        "--upstream"
+      ],
+      "required": [],
+      "example": "corvint-gateway serve --addr 127.0.0.1:8787",
+      "help": "corvint-gateway serve --help"
+    }
+  ]
+}

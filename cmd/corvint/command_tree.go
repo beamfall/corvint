@@ -49,6 +49,7 @@ var commandTreeRefs = []capcatalog.CommandTreeRef{
 	{Binary: "corvint-cem-experiments", Command: "corvint-cem-experiments help --json", Snapshot: "internal/capcatalog/trees/corvint-cem-experiments.json"},
 	{Binary: "corvint-corpus-republish", Command: "corvint-corpus-republish help --json", Snapshot: "internal/capcatalog/trees/corvint-corpus-republish.json"},
 	{Binary: "corvint-dashboard-snapshot", Command: "corvint-dashboard-snapshot help --json", Snapshot: "internal/capcatalog/trees/corvint-dashboard-snapshot.json"},
+	{Binary: "corvint-gateway", Command: "corvint-gateway help --json", Snapshot: "internal/capcatalog/trees/corvint-gateway.json"},
 	{Binary: "corvint-go-test-provider", Command: "corvint-go-test-provider help --json", Snapshot: "internal/capcatalog/trees/corvint-go-test-provider.json"},
 	{Binary: "corvint-intake", Command: "corvint-intake help --json", Snapshot: "internal/capcatalog/trees/corvint-intake.json"},
 	{Binary: "corvint-js-test-provider", Command: "corvint-js-test-provider help --json", Snapshot: "internal/capcatalog/trees/corvint-js-test-provider.json"},

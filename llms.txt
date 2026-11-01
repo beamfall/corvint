@@ -34,6 +34,8 @@
   ([snapshot](internal/capcatalog/trees/corvint-corpus-republish.json))
 - `corvint-dashboard-snapshot help --json`: the dashboard snapshot compiler's tree
   ([snapshot](internal/capcatalog/trees/corvint-dashboard-snapshot.json))
+- `corvint-gateway help --json`: the experimental loopback model gateway's tree
+  ([snapshot](internal/capcatalog/trees/corvint-gateway.json))
 - `corvint-go-test-provider help --json`: the Go live-test provider's tree
   ([snapshot](internal/capcatalog/trees/corvint-go-test-provider.json))
 - `corvint-intake help --json`: the local intake validator's tree
