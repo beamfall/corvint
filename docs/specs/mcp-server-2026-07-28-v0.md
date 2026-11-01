@@ -895,6 +895,26 @@ Each row cites the first emitting site and states only the condition checked the
   service. Falsifier: a subdirectory root that exits, an unusable root that exits 2 or answers a
   repository call without `isError`, or a reason line that carries the path. Rollback: restore the
   exit-2 branch in `run` and drop `rootbind.Resolve` and `internal/mcp/cli/unavailable.go`.
+- `MCPV0-951`: (experimental under the standing lane auto-accept; V1-3702; amends `MCPV0-001`
+  and `AHI-820`) `corvint mcp` MUST report the core binary's own build identity as
+  `serverInfo.version` and in `corvint mcp --version`: its `corvint --version` line without the
+  leading `Corvint ` (`1.0.0-rc.3 (build N, commit SHA)`, `PUB-V0-053`). The standalone
+  `corvint-mcp` and every in-process caller keep `0.1.0-experimental`, so the profile goldens and
+  companion smoke are unchanged. A launcher MAY declare its plugin with `CORVINT_PLUGIN_VERSION`
+  (`HOST/VERSION`) and `CORVINT_PLUGIN_TOOLS` (a comma list of 1 to 64 `corvint.*` tool names), read
+  once at startup; the Claude Code plugin's `.mcp.json` declares both, with the version equal to
+  its `plugin.json` and the tools equal to what its args list. With a declaration, every
+  `corvint.status` result (success or `isError`) MUST carry `_meta` member
+  `io.corvint/pluginCompatibility` (profile `corvint-plugin-compatibility/0`: `plugin`, `server`,
+  `expectedTools`, sorted `missingTools`, `compatible` true exactly when every expected tool is
+  listed) and one added text block naming the result; a declaration outside the bounds is
+  `compatible:false`, `reason:"malformed-declaration"`, and is never partly used. The status
+  receipt and `structuredContent` never change, and without a declaration the result bytes are
+  unchanged. Non-goals: version ranges, refusing to serve a skewed plugin, a CLI flag (an older
+  binary would refuse it and close the connection). Falsifier: a stamped `corvint mcp` that reports
+  `0.1.0-experimental`, a missing expected tool reported compatible, or an undeclared launch whose
+  status bytes change. Rollback: pass the empty version from `cmd/corvint/mcp.go`, drop
+  `internal/mcp/cli/plugin.go` and the `.mcp.json` `env`.
 - `MCPV0-114`: (experimental under the standing lane auto-accept; V1-3030; amends `MCPV0-039`)
   Under `--follow-ref`, `tools/list` MUST advertise every tool a call binds to the ref with
   `readOnlyHint` false and its description followed by one fixed sentence stating that each call
@@ -1048,6 +1068,7 @@ cleanup remain outside that receipt.
 | `MCPV0-111` | `internal/contextsummary` (`Summarize`, `SafePath`), `internal/mcp/bridge` (`contextInput.SummaryBytes`, `summarizedContext`), `cmd/corvint` (`summarizeContextPacket`) | `TestMCPV0111ContextSummaryBytesIsCLISummary` (summary equals `Summarize` over the canonical receipt plus LF, digest and MCP continuation, binding kept, five invalid values refused, `SUMMARY_SHAPE` reason); CLI bytes unchanged under the existing `cmd/corvint` context-summary tests |
 | `MCPV0-113` | `internal/mcp/cli` (`run`, `usage`) | `usage_test.go`'s `TestMCPV0113HelpAndRelativeRoot`; `roots_test.go` relative aliased root |
 | `MCPV0-950` | `internal/mcp/rootbind` (`Resolve`), `internal/mcp/bridge` (`Profile.Tools`), `internal/mcp/cli` (`run`, `startUnavailable`, `answerUnavailable`), `script/check-install-lifecycle.sh` | `internal/mcp/cli/unavailable_test.go`'s `TestMCPV0950SubdirectoryRootBindsToplevel`, `TestMCPV0950UnusableRootServesListAndRefusesCalls` (eight unusable roots: same `tools/list`, every tool `invalid-root` but help, unknown tool `-32602`, exact reason line), `TestMCPV0950UnusableRootStillExitsWhereARepositoryIsRequired`, `TestMCPV0950ProfileToolsMatchRegistries`; `script/check-install-lifecycle_test.sh` step `mcp-unavailable-root` |
+| `MCPV0-951` | `cmd/corvint` (`mcpServerVersion`), `internal/mcp/cli` (`Serve`, `runVersioned`, `declaredPlugin`, `notePluginCompatibility`), `integrations/claude-code/plugins/corvint/.mcp.json` | `internal/mcp/cli/plugin_test.go`'s `TestMCPV0951ServerInfoCarriesTheBuildVersion`, `TestMCPV0951DeclaredPluginIsBounded`, `TestMCPV0951StatusReportsPluginCompatibility`; `cmd/corvint/mcp_test.go`'s `TestMCPV0951MCPVerbReportsTheBuildVersion`; `TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups` and `TestAHI820ClaudePluginArgsServeTestValidityAndDocs` (declared version and tools); `AHI-198` in `integrations/host-adapters.test.mjs` |
 | `MCPV0-114` | `internal/mcp/cli` (`followRefTools`, `toolHandler.Handle`) | `follow_ref_tools_test.go`'s `TestMCPV0114FollowRefToolsNotReadOnly`: both modes' `tools/list` compared; the profile goldens keep the plain list |
 | `MCPV0-112` | `contextindex` (`noteEvidenceTruncated`, `evidenceTruncatedDisclosure`, `mergeEvidence`, `recordResultWithSortedPaths`, `registryCaller`, `rubyAutoload.referrers`, range impact) | `internal/contextindex/impact_caps_test.go`'s `TestMCPV0112ImpactCountsEvidenceCeilingSeparately` (15 reference lines: 10 kept, `evidence_truncated` 5, `evidence_omitted` 6, disclosure line, untruncated result without the key, merge count) |
 | `MCPV0-034` | `Registry.Call` (post-operation `ctx.Err()` check) | `TestContextCancellationNeverReturnsReady` (early, cold-loader and late cases; healthy receipt and root digest unchanged), `TestContextTimedCancellationRetiresWork` (measured cancel-to-return, no surviving context-index goroutine), `TestCancelledCallFailsClosed` |
