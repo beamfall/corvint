@@ -197,6 +197,8 @@ type taskContextCompiler struct {
 	roles bool
 	// graphRanking is TCP-V0-034's opt-in, set by `CORVINT_CONTEXT_GRAPH=on`.
 	graphRanking bool
+	// fuzzy is TCP-V0-650's opt-in fallback, set by `CORVINT_CONTEXT_FUZZY=on`.
+	fuzzy bool
 	// undefinedIDs are the requirement ids the spec-mentioned pass found no
 	// defining clause for (TCP-V0-152).
 	undefinedIDs []string
@@ -346,7 +348,7 @@ var (
 )
 
 func newTaskContextCompiler(index *Index, task, subject string) *taskContextCompiler {
-	return configureContextGraph(configureContextRoles(configureContextAnchors(configureContextTerms(&taskContextCompiler{
+	return configureContextFuzzy(configureContextGraph(configureContextRoles(configureContextAnchors(configureContextTerms(&taskContextCompiler{
 		index:         index,
 		task:          task,
 		subject:       subject,
@@ -359,7 +361,7 @@ func newTaskContextCompiler(index *Index, task, subject string) *taskContextComp
 		promoted:      map[string]string{},
 		linked:        map[string]string{},
 		linkRefusals:  map[string]string{},
-	}))))
+	})))))
 }
 
 // compile runs the slots in evidence order and fills the remainder lexically.
@@ -1311,6 +1313,8 @@ type lexicalHit struct {
 	data    bool
 	anchors []anchorHit
 	role    *roleHit
+	// fuzzy lists the TCP-V0-650 credits this source took, in credit order.
+	fuzzy []fuzzyMatch
 }
 
 // lexicalHits is the scored posting walk, run once per compile: the test slot
@@ -1341,6 +1345,8 @@ func (compiler *taskContextCompiler) lexicalHits() []lexicalHit {
 	scores := make([]float64, len(table.Paths))
 	rarestIDF := make([]float64, len(table.Paths))
 	rarest := make([]string, len(table.Paths))
+	// pathNamed counts the path-field credits of each source (TCP-V0-652).
+	pathNamed := make([]int, len(table.Paths))
 	credit := func(field int, source uint32, term string, idf, gain float64) {
 		gain = compiler.queryTermGain(field, term, gain)
 		scores[source] += gain
@@ -1367,8 +1373,13 @@ func (compiler *taskContextCompiler) lexicalHits() []lexicalHit {
 			idf := idfOf(high - low)
 			for index := low; index < high; index++ {
 				credit(1, table.PathTerms.Sources[index], term, idf, idf*(k1+1)/(1+k1)*pathGain)
+				pathNamed[table.PathTerms.Sources[index]]++
 			}
 		}
+	}
+	var fuzzyHits map[uint32][]fuzzyMatch
+	if compiler.fuzzy {
+		fuzzyHits = compiler.fuzzyCredits(table, idfOf, lengths, average, occurrences, pathNamed, credit)
 	}
 	// A whole identifier the task names (`stripFinalNewline`) is a third
 	// field over the as-written identifier vocabulary: the body postings
@@ -1423,9 +1434,13 @@ func (compiler *taskContextCompiler) lexicalHits() []lexicalHit {
 			hits = append(hits, lexicalHit{
 				path: table.Paths[source], source: uint32(source), distinct: count, occurrences: occurrences[source],
 				score: scores[source], rarestIDF: rarestIDF[source], rarest: rarest[source],
-				documentation: isDocumentationSuffix(table.Paths[source]), data: isRecordDataSuffix(table.Paths[source]),
+				documentation: isDocumentationSuffix(table.Paths[source]),
+				// TCP-V0-652: a record-data path naming two task terms is the
+				// configuration the task names, ranked as code.
+				data:    isRecordDataSuffix(table.Paths[source]) && !(compiler.fuzzy && pathNamed[source] >= 2),
 				anchors: anchorHits[uint32(source)],
 				role:    roles[uint32(source)],
+				fuzzy:   fuzzyHits[uint32(source)],
 			})
 		}
 	}
@@ -1569,6 +1584,9 @@ func lexicalContextRow(item lexicalHit, strongest float64) contextRow {
 	}
 	if item.role != nil {
 		reason = roleReason(item.role) + reason
+	}
+	if len(item.fuzzy) > 0 {
+		reason = fuzzyReason(item.fuzzy) + reason
 	}
 	if item.documentation {
 		kind = "documentation"
