@@ -72,3 +72,54 @@ func TestGoServerChangeSelectsDeclaredE2ESpec_V12906(t *testing.T) {
 		})
 	}
 }
+
+const runtimeEdgeGoDeclaration = `{"profile":"corvint-runtime-edges/0","edges":[{"tests":"e2e/","runs":"go:example.test/app/cmd/server","reason":"the Playwright specs drive the server cmd/server builds"}]}`
+
+// AFP-V0-819: a graph built from a subset of the plugins skips an edge whose
+// other side it does not hold, while the full build still refuses a stale
+// edge and every build refuses an invalid declaration.
+func TestPartialGraphSkipsOutOfGraphRuntimeEdges_AFP_V0_819(t *testing.T) {
+	root := runtimeEdgeRepository(t, runtimeEdgeGoDeclaration)
+	for name, languages := range map[string][]affected.Language{"go only": {golang.New()}, "typescript only": {New()}} {
+		if _, err := affected.BuildPartial(context.Background(), root, languages...); err != nil {
+			t.Errorf("%s partial graph: %v", name, err)
+		}
+	}
+	if _, err := affected.Build(context.Background(), root, golang.New()); err == nil || !strings.Contains(err.Error(), "holds no test file") {
+		t.Fatalf("full Go-only build err=%v, want the stale-edge refusal", err)
+	}
+	write(t, root, affected.RuntimeEdgesPath, `{"profile":"corvint-runtime-edges/1","edges":[]}`)
+	if _, err := affected.BuildPartial(context.Background(), root, golang.New()); err == nil || !strings.Contains(err.Error(), "profile must be") {
+		t.Fatalf("partial build of an invalid declaration err=%v", err)
+	}
+}
+
+// AFP-V0-819: the Playwright graph, built from the TypeScript plugin alone,
+// accepts a valid Go-to-Playwright edge.
+func TestPlaywrightGraphAcceptsGoRuntimeEdge_AFP_V0_819(t *testing.T) {
+	root := runtimeEdgeRepository(t, runtimeEdgeGoDeclaration)
+	if _, err := preparePlaywrightGraph(root, "playwright.config.ts", nil); err != nil {
+		t.Fatalf("preparePlaywrightGraph: %v", err)
+	}
+}
+
+// AFP-V0-819: the Playwright source identity binds the runtime-edges
+// declaration's presence and bytes, so an edge retargeted mid-plan fails the
+// final source check.
+func TestPlaywrightSourcesBindRuntimeEdges_AFP_V0_819(t *testing.T) {
+	root := runtimeEdgeRepository(t, "")
+	absent, err := ObservePlaywrightSources(root, "playwright.config.ts")
+	if err != nil {
+		t.Fatal(err)
+	}
+	write(t, root, affected.RuntimeEdgesPath, runtimeEdgeGoDeclaration)
+	present, err := ObservePlaywrightSources(root, "playwright.config.ts")
+	if err != nil || present == absent {
+		t.Fatalf("presence not bound: absent=%s present=%s err=%v", absent, present, err)
+	}
+	write(t, root, affected.RuntimeEdgesPath, strings.Replace(runtimeEdgeGoDeclaration, `"e2e/"`, `"e2e/login.spec.ts"`, 1))
+	retargeted, err := ObservePlaywrightSources(root, "playwright.config.ts")
+	if err != nil || retargeted == present {
+		t.Fatalf("bytes not bound: present=%s retargeted=%s err=%v", present, retargeted, err)
+	}
+}

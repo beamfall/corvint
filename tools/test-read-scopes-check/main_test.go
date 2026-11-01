@@ -379,3 +379,21 @@ func TestUnsupportedReadScopeKeysNameTheirReason_V1_3326(t *testing.T) {
 		}
 	}
 }
+
+// AFP-V0-819: the checker builds a Go-only graph, which cannot observe the
+// Playwright specs a declared Go-to-Playwright runtime edge names, so it must
+// skip that edge rather than refuse it as holding no test file.
+func TestCheckAcceptsCrossLanguageRuntimeEdge_AFP_V0_819(t *testing.T) {
+	files := map[string]string{
+		"go.mod":                      "module example.test/m\n\ngo 1.27\n",
+		"server/server.go":            "package server\n\nfunc Handle() string { return \"ok\" }\n",
+		"server/server_test.go":       "package server\n",
+		"cmd/server/main.go":          "package main\n\nimport \"example.test/m/server\"\n\nfunc main() { println(server.Handle()) }\n",
+		"e2e/login.spec.ts":           "import { test } from '@playwright/test';\ntest('login', async () => {});\n",
+		".corvint/runtime-edges.json": `{"profile":"corvint-runtime-edges/0","edges":[{"tests":"e2e/","runs":"go:example.test/m/cmd/server","reason":"the Playwright specs drive the server"}]}`,
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run(writeRepository(t, files), &stdout, &stderr); code != 0 {
+		t.Fatalf("code=%d output %q", code, stdout.String()+stderr.String())
+	}
+}

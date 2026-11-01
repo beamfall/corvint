@@ -99,27 +99,37 @@ func runtimeEdgeHolds(entry, path string) bool {
 // with a test file the edge holds, so the unit is selected with a BINARY_EXEC
 // witness whenever a change reaches the unit it runs (AFP-V0-037, AFP-V0-819).
 // An edge whose Runs names no unit of the graph, or whose tests hold no test
-// file, fails the build: a stale declaration must not silently stop selecting.
-func (graph *Graph) applyRuntimeEdges() error {
+// file, fails a full build: a stale declaration must not silently stop
+// selecting. A partial graph, built from a subset of the plugins, cannot tell
+// a stale edge from one whose other side an absent plugin observes, so it
+// skips such an edge instead.
+func (graph *Graph) applyRuntimeEdges(partial bool) error {
 	for _, edge := range graph.runtimeEdges {
 		if _, exists := graph.units[edge.Runs]; !exists {
-			return fmt.Errorf("%s: runs %q names no unit", RuntimeEdgesPath, edge.Runs)
-		}
-		held := false
-		for _, id := range graph.order {
-			unit := graph.units[id]
-			if id == edge.Runs || !slices.ContainsFunc(unit.Tests, func(path string) bool { return runtimeEdgeHolds(edge.Tests, path) }) {
+			if partial {
 				continue
 			}
-			held = true
+			return fmt.Errorf("%s: runs %q names no unit", RuntimeEdgesPath, edge.Runs)
+		}
+		var holders []string
+		for _, id := range graph.order {
+			if id != edge.Runs && slices.ContainsFunc(graph.units[id].Tests, func(path string) bool { return runtimeEdgeHolds(edge.Tests, path) }) {
+				holders = append(holders, id)
+			}
+		}
+		if len(holders) == 0 {
+			if partial {
+				continue
+			}
+			return fmt.Errorf("%s: tests %q holds no test file", RuntimeEdgesPath, edge.Tests)
+		}
+		for _, id := range holders {
+			unit := graph.units[id]
 			if !slices.Contains(unit.Execs, edge.Runs) {
 				unit.Execs = append(slices.Clone(unit.Execs), edge.Runs)
 				slices.Sort(unit.Execs)
 				graph.units[id] = unit
 			}
-		}
-		if !held {
-			return fmt.Errorf("%s: tests %q holds no test file", RuntimeEdgesPath, edge.Tests)
 		}
 	}
 	return nil

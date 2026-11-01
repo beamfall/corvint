@@ -631,7 +631,7 @@ func recordedAbove(recorded map[string]string, dependency string) (string, bool)
 // check returns the unrecorded findings and the recorded literals that no test
 // file names any more.
 func check(root string) ([]finding, []string, error) {
-	graph, err := affected.Build(context.Background(), root, golang.New())
+	graph, err := affected.BuildPartial(context.Background(), root, golang.New())
 	if err != nil {
 		return nil, nil, err
 	}

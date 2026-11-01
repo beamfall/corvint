@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	json "encoding/json/v2"
 	"errors"
+	"io/fs"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -325,6 +326,15 @@ func ObservePlaywrightSources(root, configPath string) (string, error) {
 		if entries != nil {
 			identities = append(identities, sourceIdentity{Path: declared[0], SHA256: sum})
 		}
+	}
+	// The runtime-edges declaration changes which specs a plan selects, so its presence and
+	// bytes are a plan input too (AFP-V0-819); without the file the identity is unchanged.
+	switch body, readErr := affected.ReadSource(root, affected.RuntimeEdgesPath); {
+	case readErr == nil:
+		sum := sha256.Sum256(body)
+		identities = append(identities, sourceIdentity{Path: affected.RuntimeEdgesPath, SHA256: hex.EncodeToString(sum[:])})
+	case !errors.Is(readErr, fs.ErrNotExist):
+		return "", readErr
 	}
 	for _, relative := range files {
 		body, readErr := affected.ReadSource(root, relative)
