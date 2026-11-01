@@ -381,11 +381,27 @@ func closeoutDebtCommand(env Env, args []string) (*wire.Result, int) {
 		}
 		return snapshot.DecodeGateResult(raw)
 	}
+	// A merge commit's citation of a ticket that another scanned commit also
+	// cites repeats that constituent's row, so it is dropped (TCD-V0-731); a
+	// merge commit that is the only citer still lists.
+	cites := make([][]closeoutCite, len(scan.Commits))
+	constituent := map[string]bool{}
+	for i, c := range scan.Commits {
+		cites[i] = index.cites(c.Message)
+		if c.Parents < 2 {
+			for _, cite := range cites[i] {
+				constituent[cite.ticketID] = true
+			}
+		}
+	}
 	collected := closeoutRows{max: maxCloseoutRows}
-	for _, c := range scan.Commits {
+	for i, c := range scan.Commits {
 		subject := truncateUTF8(c.Subject, maxCloseoutSubjectBytes)
 		var refs map[string]string
-		for _, cite := range index.cites(c.Message) {
+		for _, cite := range cites[i] {
+			if c.Parents > 1 && constituent[cite.ticketID] {
+				continue
+			}
 			if local, open := locals[cite.ticketID]; open {
 				if prsGiven && refs == nil {
 					refs = index.commitReferences(c.Message)

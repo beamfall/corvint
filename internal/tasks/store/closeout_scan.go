@@ -24,6 +24,9 @@ var MaxCloseoutScanBytes int64 = 64 << 20
 // ScannedCommit is one commit of the scan, newest first.
 type ScannedCommit struct {
 	Commit, Subject, Message string
+	// Parents is the commit's parent count; more than one is a merge
+	// (TCD-V0-731).
+	Parents int
 }
 
 // CommitScan is the bounded result of ScanCommits.
@@ -75,7 +78,7 @@ func OriginSlug(root string) string {
 // hold NUL bytes the -z split treats as record ends.
 func CloseoutLogArgs(ref, since string, limit int) []string {
 	args := append(append([]string{}, preflightGitConfig...), "-c", "credential.helper=", "log", "--no-show-signature", "--no-color", "--encoding=UTF-8", "-z",
-		"--format=%H%n%B", "--max-count="+strconv.Itoa(limit+1), "--end-of-options", ref)
+		"--format=%H %P%n%B", "--max-count="+strconv.Itoa(limit+1), "--end-of-options", ref)
 	if since != "" {
 		args = append(args, "^"+since)
 	}
@@ -86,7 +89,35 @@ func CloseoutLogArgs(ref, since string, limit int) []string {
 // output is read through MaxCloseoutScanBytes; a larger output stops git and
 // is refused LIMIT_EXCEEDED.
 func ScanCommits(root, ref, since string, limit int) (CommitScan, error) {
-	c := exec.Command("git", CloseoutLogArgs(ref, since, limit)...)
+	return scanLog(root, CloseoutLogArgs(ref, since, limit), limit)
+}
+
+// LaneLogArgs is the `git log` argv for the lane commits of a merge whose
+// parents are first and second: the first-parent chain from second that is
+// not reachable from first (TCD-V0-731).
+func LaneLogArgs(first, second string, limit int) []string {
+	args := CloseoutLogArgs(second, first, limit)
+	i := slices.Index(args, "--end-of-options")
+	return slices.Insert(args, i, "--first-parent")
+}
+
+// ScanLaneCommits reads at most limit lane commits of merge, newest first
+// (TCD-V0-731). A merge that does not resolve or has fewer than two parents
+// is refused MISSING_EVIDENCE: its lane range is unknown.
+func ScanLaneCommits(root, merge string, limit int) (CommitScan, error) {
+	if _, err := wire.ParseOID("mergeCommit", merge); err != nil {
+		return CommitScan{}, err
+	}
+	out, _, err := boundedGit(root, 4096, "rev-list", "--parents", "--max-count=1", "--end-of-options", merge)
+	f := strings.Fields(string(out))
+	if err != nil || len(f) < 3 {
+		return CommitScan{}, wire.Errorf(wire.CodeMissingEvidence, "mergeCommit", "merge commit %s does not resolve locally with two parents", merge)
+	}
+	return scanLog(root, LaneLogArgs(f[1], f[2], limit), limit)
+}
+
+func scanLog(root string, argv []string, limit int) (CommitScan, error) {
+	c := exec.Command("git", argv...)
 	c.Dir, c.Env = root, gitEnvironment()
 	var stderr bytes.Buffer
 	c.Stderr = &stderr
@@ -120,8 +151,12 @@ func ScanCommits(root, ref, since string, limit int) (CommitScan, error) {
 			scan.Truncated = true
 			break
 		}
-		commit, message, _ := strings.Cut(rec, "\n")
-		scan.Commits = append(scan.Commits, ScannedCommit{Commit: commit, Subject: subjectOf(message), Message: message})
+		header, message, _ := strings.Cut(rec, "\n")
+		ids := strings.Fields(header)
+		if len(ids) == 0 {
+			continue
+		}
+		scan.Commits = append(scan.Commits, ScannedCommit{Commit: ids[0], Subject: subjectOf(message), Message: message, Parents: len(ids) - 1})
 	}
 	return scan, nil
 }
