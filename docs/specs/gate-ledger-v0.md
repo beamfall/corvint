@@ -5,7 +5,7 @@ Date: 2026-09-21
 Requirement prefix: `GL-V0`
 Intent status: accepted (owner instruction 2026-09-21)
 Delivery status: implemented
-Amendment status: GL-V0-002 and GL-V0-009 amendments accepted, decision 0511; GL-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-0634); GL-V0-051 experimental under the standing lane auto-accept (2026-10-28; V1-2985); GL-V0-720 experimental under the standing lane auto-accept (2026-11-01; V1-3846)
+Amendment status: GL-V0-002 and GL-V0-009 amendments accepted, decision 0511; GL-V0-050 accepted under the owner's standing auto-accept (2026-10-11; V1-0634); GL-V0-051 experimental under the standing lane auto-accept (2026-10-28; V1-2985); GL-V0-720 experimental under the standing lane auto-accept (2026-11-01; V1-3846); GL-V0-775 and GL-V0-776 experimental under the standing lane auto-accept (2026-11-01; V1-4160)
 Authoritative inputs: `../../AGENTS.md` invariants 4 and 8 and its Verify block, the owner
 instruction of 2026-09-21 that Corvint manage which gate work is already proven so parallel agents
 stop repeating a full gate each, `go-only-cutover-v0.md` GOC-V0-010 for the receipt the gate
@@ -175,6 +175,23 @@ therefore come from something keyed on content, not from Go's cache.
   Non-goals: choosing the packages; a Makefile scope variable. Failure mode: a scope that
   leaves out an affected package does not test it. The SCOPE line and the record show what ran. Rollback: remove
   `--packages` and `record.Scope`; `go-test` then runs `./...` only.
+- `GL-V0-775`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4160; refines
+  `GL-V0-051`) A scope entry `@test:DIR` MUST key the step on the gate tooling, the scope's other
+  entries, every file `go list -deps -test ./DIR` compiles or embeds into DIR's test binary within
+  the module, and every worktree path `.corvint/test-read-scopes.json` admits for DIR as GL-V0-050
+  states it (the declaration, DIR's subtree, each declared entry and the paths under it). When
+  that closure cannot be proven (DIR has no declaration, the declaration does not decode exactly,
+  `go list` fails or names a file the worktree digest lacks) the step MUST key on the whole tree and
+  print `gate-ledger: SCOPE @test:DIR unavailable: REASON; keyed on the whole tree`. It never
+  narrows on a doubt; the declared-read trust is GL-V0-050's. Rollback: delete
+  `tools/gate-ledger/test_scope.go` and call `inputs` from `key` again.
+- `GL-V0-776`: (experimental under the standing lane auto-accept, 2026-11-01; V1-4160) The
+  batch-precheck steps `shell-test-registration-check` and `go-version-pins-check`, each exactly one
+  `go test -run PATTERN ./DIR` of a declared package, MUST be declared with `@test:DIR`, so a seal
+  that adds only a CEM, or a lane edit outside the package's closure, reuses their pass instead of
+  rerunning them on the whole-tree key of an undeclared salted name. The audit of the other
+  undeclared salted steps, with each one's reason to stay tree-keyed, is in
+  `docs/build-log/2026-11-01-csp-w33.md`. Rollback: drop `testScopes`; both return to the tree key.
 
 ## Non-goals and simpler baseline
 
@@ -274,6 +291,8 @@ directory; `internal/gateselect/select_test.go` covers the `-unresolved` listing
 | GL-V0-050 | `undeclaredUnresolved`, `packageBounds`, `unresolvedPackages` in `internal/gateselect/select.go`; the declared proof count in `packageKey`, `tools/gate-ledger/main.go` | `TestGoTestKeysDeclaredPackagesByTheirScope`; `TestDeclaredPackagesAreBoundByTheirScope` |
 | GL-V0-051 | `key` in `tools/gate-ledger/main.go`; the ledger wrapper in `script/batch-precheck.sh` | `TestRunStepKeysSaltedStepsByBaseScope`; `make batch-precheck-test` |
 | GL-V0-720 | `run` and `goTest` `--packages`, `partition` and `record.Scope` in `tools/gate-ledger/main.go` | `TestGoTestScopedPackages`: only the listed package runs, the SCOPE line prints, each record carries the scope, an empty list or a `-x` pattern refuses with exit 2, and a list that matches no package fails with exit 1 |
+| GL-V0-775 | `scopedInputs`, `testClosure`, `readTestScopes`, `inTestReadScope` in `tools/gate-ledger/test_scope.go`; `listedFilesFor` in `tools/gate-ledger/main.go` | `TestRunStepKeysTestScopeOnPackageClosure`: a CEM-only change, a build-log edit and an unrelated package edit hit; a subtree, dependency source, embedded file, declared entry or declaration edit reruns; `TestRunStepTestScopeFallsBackToTheTree`: an undeclared package, an unknown member, a wrong profile and a `..` entry key on the tree with the reason printed |
+| GL-V0-776 | `testScopes` in `tools/gate-ledger/test_scope.go` | `TestDeclaredTestScopesNameOnePackage`: each declared step's Makefile recipe is one go test of its package; the batch-precheck REUSE lines in `docs/build-log/2026-11-01-csp-w33.md` |
 
 ## Rollout, rollback, and drift
 

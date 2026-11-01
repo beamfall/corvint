@@ -407,7 +407,7 @@ func (l *ledger) key(step string, packages []string) (string, string) {
 	if l.digestErr != "" {
 		return "", l.digestErr
 	}
-	return l.digestKey(step, l.inputs(scope), packages), ""
+	return l.digestKey(step, l.scopedInputs(scope), packages), ""
 }
 
 // digestKey is the key of step over inputs: the schema, the tool identity,
@@ -523,7 +523,12 @@ func (l *ledger) selectorBounds(module string) (map[string]map[string]string, er
 // of its test binary's transitive closure within the module, from one
 // `go list -deps -test -json ./...`.
 func (l *ledger) listedFiles(module string) (map[string][]string, error) {
-	out, err := output(l.root, "go", "list", "-deps", "-test", "-json="+listFields, "./...")
+	return l.listedFilesFor(module, "./...")
+}
+
+// listedFilesFor is listedFiles over the packages patterns match and their deps.
+func (l *ledger) listedFilesFor(module string, patterns ...string) (map[string][]string, error) {
+	out, err := output(l.root, "go", append([]string{"list", "-deps", "-test", "-json=" + listFields}, patterns...)...)
 	if err != nil {
 		return nil, errors.New("go list -deps -test failed: " + err.Error())
 	}
