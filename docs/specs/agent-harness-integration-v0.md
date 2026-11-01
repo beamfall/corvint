@@ -764,6 +764,23 @@ separate exact extension tuple remains governed by AHI-024.
   the degradation ledger names the event `user-prompt`. Evidence:
   `TestAHI804SubagentStartReturnsBoundedPacketWithoutBlocking` (`cmd/corvint`). Rollback: drop the
   `subagent-start` case so the event returns `unsupported-hook-event`.
+- `AHI-805`: (experimental under the standing lane auto-accept (2026-11-01); V1-0402) The Claude
+  Code adapter MUST accept a `pre-tool` event for the host's PreToolUse payload and MUST answer
+  every call with `hookSpecificOutput.permissionDecision` `defer` and `hookEventName`
+  `PreToolUse`, never `deny`, `ask`, `decision`, `continue` or `stopReason`: Corvint holds no
+  authority over a read. A `Read` `file_path` or `Grep` `path` that resolves inside the project
+  (not the root itself) is compiled as a one-path `user-prompt` anchor and its packet or named
+  degradation is the `additionalContext`; another tool, an absent path or an outside path gets the
+  bare defer. Invariant 4 decision: hook-driven unplanned-read recording is NOT admitted; the
+  event writes only what the `user-prompt` path already writes, so unplanned-read rows stay gated
+  on the operator marker (`SOL-V0-010`; decision recorded in
+  `docs/build-log/2026-11-01-hook-w13.md`). Measured on a fresh-snapshot copy of this repository
+  (WSL, n=30 per tool): Read p95 813 ms, Grep p95 843 ms, under the 2 s hook timeout; a stale
+  snapshot answers in about 100 ms with `dogfood-event-index-snapshot-stale`. Non-goals: shipping
+  the matcher in the plugin `hooks.json` before a live host qualification of `defer` and the
+  productivity measure; co-change neighbours beyond what the prompt packet already carries.
+  Evidence: `TestAHI805PreToolReadAlwaysDefers` (`cmd/corvint`). Rollback: drop the `pre-tool`
+  case so the event returns `unsupported-hook-event`.
 
 - `AHI-032`: At the owner’s request (2026-09-28), stock OpenCode native integration qualification
   MUST be reported separately from execution authority. The `opencode-native-integration/1`
@@ -2751,6 +2768,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-802` (experimental under the standing lane auto-accept (2026-11-01); V1-3676) | `cmd/corvint/host_adapter.go` (`alternatesCauseLine`) | `TestAHI802SharedCloneFallbackNamesObjectAlternates` |
 | `AHI-803` (experimental under the standing lane auto-accept (2026-11-01); V1-3728) | `cmd/corvint/host_adapter.go` (`postToolOwningRepository`, `invokeSiblingClaudePostTool`) | `TestAHI803SiblingRepositoryEditIsAttributedToItsOwner` |
 | `AHI-804` (experimental under the standing lane auto-accept (2026-11-01); V1-0401) | `cmd/corvint/host_adapter_subagent.go` (`runClaudeSubagentStart`) | `TestAHI804SubagentStartReturnsBoundedPacketWithoutBlocking` |
+| `AHI-805` (experimental under the standing lane auto-accept (2026-11-01); V1-0402) | `cmd/corvint/host_adapter_pretool.go` (`runClaudePreToolRead`, `preToolReadTarget`) | `TestAHI805PreToolReadAlwaysDefers` |
 | `AHI-820` (experimental under the standing lane auto-accept; V1-2513) | `integrations/claude-code/plugins/corvint/.mcp.json` | `TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups`, `TestAHI820ClaudePluginArgsServeTestValidityAndDocs`; live receipt in `docs/build-log/2026-10-31-linux-w2-bugs.md` |
 | `AHI-373` (accepted under the owner's standing auto-accept (2026-10-11); V1-3244) | `cmd/corvint/mcp.go`, `internal/mcp/cli`, `internal/update` (`CoreExecutables`), both plugin `.mcp.json` files | `TestAHI373PluginCommandsShipInCoreRelease`; `AHI-198` and `AHI-207` tests; live receipt in `docs/build-log/2026-10-30-corvint-mcp-subcommand.md` |
 | `AHI-208` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/plugins/corvint/hooks/hooks.json` | `TestAHI208CodexHooksRegisterOnlyMappedEvents` (with empty-group, extra-event and matcher negatives), `TestAdapterSilentAbstentionsAreLedgered` (unregistered events); live hook-invocation log in the 2026-10-23 Codex matrix entry |
