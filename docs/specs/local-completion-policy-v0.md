@@ -665,6 +665,18 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   file keeps its `TCP-V0-272`/`TCP-V0-274` `reason` (batch 1101a, 2026-11-01). Rollback: drop the two
   members.
 
+- `LCP-V0-800`: (proposed, not accepted; V1-0320, 2026-11-01) When a prompt carries no
+  `LCP-V0-010` anchor, automatic prompt context MAY fall back to the task-context compiler
+  (`context --task`) with the prompt text as its subject, and a bare ticket ID (for example
+  `V1-0320`) MAY resolve to task evidence through the project's own roadmap rows. The fallback
+  stays bounded by `LCP-V0-012`, keeps `explicit-task-anchor-required` visible beside any
+  fallback rows, never counts a roadmap row as authority, and abstains when the ID has no row.
+  Non-goals: pronoun resolution, transcript reconstruction, a hosted ticket lookup. Failure
+  modes: an unpromoted `context --task` (the fallback stays off), an ambiguous ticket ID (named
+  `ambiguous`), a roadmap read that fails (named, never silent). Acceptance requires reversing
+  the accepted `LCP-V0-010` withholding, so it needs an owner decision and the `context --task`
+  promotion first; until then no code implements it. Rollback: delete this entry.
+
 ## Non-goals and simpler baseline
 
 The baseline is the documented agent-driven DOGFOOD loop. This slice removes orchestration gaps and
@@ -877,6 +889,7 @@ review acknowledgments remain caller-owned observations even when their bytes ar
 | LCP-V0-043 | `TestLocalCompletionRealEvidenceWorkflow` (`cmd/corvint/local_completion_test.go`: a caller cancellation during the final strict check returns `finish-interrupted` with step `final-check`, both retained logs on disk, the rerun command and byte-identical state; a genuine checker failure returns `final-check-failed` naming the logs; the following real finish is satisfied without new verification); `TestTransportAdaptedRecoveryNative` keeps `final-check-failed` |
 | LCP-V0-060 | `TestLocalCompletionRealEvidenceWorkflow` via `assertFinishSignalCLI` (`cmd/corvint/local_completion_signal_unix_test.go`: the test binary re-executes the real `--root R dogfood finish --session-key K` argv through `runProfiledContext` under `signal.NotifyContext(terminationSignals())`, holds only the final strict check open, delivers a real SIGINT and then SIGTERM, and parses exit 2, the stderr `finish-interrupted` refusal naming step, both retained log paths on disk and the rerun, the stdout `ok:false` active policy envelope, and byte-identical state); the following real finish is satisfied with the check observations unchanged |
 | LCP-V0-955 | `TestLocalPromptDowngradedGovernanceNamesItsReason` (`internal/contextindex/local_completion_context_test.go`: a modified `AGENTS.md` yields `downgraded-authority` with `self-modified-authority`) |
+| LCP-V0-800 | none (proposed; implementation waits for acceptance and the `context --task` promotion) | NOT_PRODUCED: a test that a natural-language prompt and a ticket ID each get task evidence follows acceptance |
 
 ## Rollout, rollback and remaining gates
 
