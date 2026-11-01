@@ -8,8 +8,8 @@
   "files": [
     {
       "path": "ALGORITHMS.md",
-      "sha256": "70d3b19300f2f9aecae477d46c5958aeb1e70c35a696841622a07ad18dc67c16",
-      "bytes": 56633
+      "sha256": "99771474da27547af48ff421475487e2d1db59590e9a9609362a1c93a0fa43bc",
+      "bytes": 57644
     },
     {
       "path": "FIXTURES.pack.json",
@@ -43,8 +43,8 @@
     },
     {
       "path": "README.md",
-      "sha256": "517f6b5e8c3ed38d0d68e184ce70cde0bc757fc241f32c8862b20cfe18e0cbe2",
-      "bytes": 4550
+      "sha256": "73e58dcaec67b4762f68893d2ce6a773163a4973cdffcac0e8217a358ee3ac46",
+      "bytes": 4893
     },
     {
       "path": "REPOSITORY-ENVELOPE.cells.json",
@@ -600,6 +600,16 @@
       "path": "repository-envelope-packet/stable.schema.json",
       "sha256": "e4b0c453e43af858dc4cc431044e71051c6ae46eae45fbeb95a50d73dde5bddc",
       "bytes": 17107
+    },
+    {
+      "path": "revisions/r1/ALGORITHMS.md",
+      "sha256": "70d3b19300f2f9aecae477d46c5958aeb1e70c35a696841622a07ad18dc67c16",
+      "bytes": 56633
+    },
+    {
+      "path": "revisions/r1/manifest.json",
+      "sha256": "105567fcbb2b910ce940ed30df4c6e277a07c47d9a5d1f51c31f359f2ac98847",
+      "bytes": 26448
     },
     {
       "path": "stable.schema.json",

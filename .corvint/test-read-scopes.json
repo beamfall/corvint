@@ -220,6 +220,7 @@
       "interop/cem01-go/testdata/inherited-vectors/"
     ],
     "internal/cem/verify": [
+      "interop/cem01-go/testdata/binary-section/",
       "interop/cem01-go/testdata/multi-runner/",
       "interop/cem01-go/testdata/non-regular/",
       "interop/cem01-go/testdata/omission/",

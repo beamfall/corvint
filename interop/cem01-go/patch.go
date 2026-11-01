@@ -31,11 +31,17 @@ type filePatch struct {
 	newPath *string
 	mode    string
 	hunks   []*patchHunk
+	// binary marks a hunk-less group parsed from Git's canonical full-index
+	// `Binary files` section; oldOID and newOID are its full object IDs, ""
+	// on the absent side (CEM-V1-934).
+	binary         bool
+	oldOID, newOID string
 }
 
 type parsedPatch struct {
-	files []*filePatch
-	hunks []*patchHunk
+	files  []*filePatch
+	hunks  []*patchHunk
+	binary bool // some group is a canonical binary section (CEM-V1-934)
 }
 
 type patchLines struct {
@@ -75,12 +81,25 @@ func parsePatch(raw []byte) (*parsedPatch, *cemError) {
 	if err != nil {
 		return nil, err
 	}
+	markers := false
 	for _, line := range lines {
 		// A binary marker is a whole record; hunk body records always begin with a prefix byte.
-		if hasPrefixLine(line, "GIT binary patch") || hasPrefixLine(line, "Binary files ") {
+		if hasPrefixLine(line, "GIT binary patch") {
 			return nil, invalid("patch")
 		}
+		markers = markers || hasPrefixLine(line, "Binary files ")
 	}
+	p, err := parseGroups(lines)
+	// Only a canonical binary section beside a textual hunk is admitted
+	// (CEM-V1-934); any other binary marker keeps the patch refusal.
+	if err != nil && markers || err == nil && len(p.hunks) == 0 && p.binary {
+		return nil, invalid("patch")
+	}
+	return p, err
+}
+
+func parseGroups(lines [][]byte) (*parsedPatch, *cemError) {
+	var err *cemError
 	p := &parsedPatch{}
 	in := &patchLines{lines: lines}
 	seenPairs, oldUsed, newUsed, hunkIDs := map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{}
@@ -120,6 +139,7 @@ func parsePatch(raw []byte) (*parsedPatch, *cemError) {
 			hunkIDs[h.ID] = true
 			p.hunks = append(p.hunks, h)
 		}
+		p.binary = p.binary || f.binary
 		p.files = append(p.files, f)
 	}
 	if len(p.hunks) == 0 || len(p.hunks) > maxHunks {
@@ -181,6 +201,7 @@ func parseGitFile(in *patchLines) (*filePatch, *cemError) {
 	}
 	var indexMode, createMode, deleteMode, renameFrom, renameTo *string
 	var similaritySeen bool
+	var indexLine string
 	for in.pos < len(in.lines) && !hasPrefixLine(in.peek(), "--- ") {
 		lineBytes := in.take()
 		line, lf := trimLF(lineBytes)
@@ -197,7 +218,7 @@ func parseGitFile(in *patchLines) (*filePatch, *cemError) {
 			if err != nil {
 				return nil, err
 			}
-			indexMode = &mode
+			indexMode, indexLine = &mode, s
 		case strings.HasPrefix(s, "new file mode "):
 			if createMode != nil || deleteMode != nil {
 				return nil, invalid("metadata-repeat")
@@ -249,6 +270,9 @@ func parseGitFile(in *patchLines) (*filePatch, *cemError) {
 			}
 		case strings.HasPrefix(s, "old mode ") || strings.HasPrefix(s, "new mode "):
 			return nil, errModeChange
+		case strings.HasPrefix(s, "Binary files "):
+			renamed := renameFrom != nil || renameTo != nil || similaritySeen
+			return canonicalBinaryFile(in, diffHeader, s, indexLine, indexMode, createMode, deleteMode, renamed)
 		default:
 			return nil, invalid("metadata")
 		}
@@ -318,6 +342,93 @@ func parseGitFile(in *patchLines) (*filePatch, *cemError) {
 		return nil, err
 	}
 	return f, nil
+}
+
+// canonicalBinaryFile returns the hunk-less group for Git's exact full-index
+// `Binary files` section (CEM-V1-934), with the native grammar of CEM-V1-980:
+// a symmetric diff --git line, no rename or similarity metadata, at most one
+// new or deleted file mode, one index line whose full object IDs have one
+// length (all zeros on the absent side, a mode suffix only for a
+// modification), and the marker as the group's last record with matching
+// labels. Any other shape is refused with the patch refusal.
+func canonicalBinaryFile(in *patchLines, diffHeader, marker, index string, indexMode, createMode, deleteMode *string, renamed bool) (*filePatch, *cemError) {
+	refused := invalid("patch")
+	if renamed || indexMode == nil || in.pos < len(in.lines) && !hasPrefixLine(in.peek(), "diff --git ") {
+		return nil, refused
+	}
+	n := len(diffHeader) - 5
+	if n < 2 || n%2 != 0 {
+		return nil, refused
+	}
+	path := diffHeader[2 : 2+n/2]
+	if diffHeader != "a/"+path+" b/"+path || !validPath(path) {
+		return nil, refused
+	}
+	oids := strings.Split(strings.Fields(strings.TrimPrefix(index, "index "))[0], "..")
+	oldOID, newOID := oids[0], oids[1]
+	if len(oldOID) != len(newOID) || len(oldOID) != 40 && len(oldOID) != 64 {
+		return nil, refused
+	}
+	zero := strings.Repeat("0", len(oldOID))
+	oldLabel, newLabel := "a/"+path, "b/"+path
+	f := &filePatch{binary: true}
+	switch {
+	case createMode != nil:
+		if oldOID != zero || newOID == zero || *indexMode != "" {
+			return nil, refused
+		}
+		oldLabel = "/dev/null"
+		f.newPath, f.mode, f.newOID = &path, *createMode, newOID
+	case deleteMode != nil:
+		if newOID != zero || oldOID == zero || *indexMode != "" {
+			return nil, refused
+		}
+		newLabel = "/dev/null"
+		f.oldPath, f.mode, f.oldOID = &path, *deleteMode, oldOID
+	default:
+		if oldOID == zero || newOID == zero || oldOID == newOID || *indexMode == "" {
+			return nil, refused
+		}
+		newPath := path
+		f.oldPath, f.newPath, f.mode, f.oldOID, f.newOID = &path, &newPath, *indexMode, oldOID, newOID
+	}
+	if marker != "Binary files "+oldLabel+" and "+newLabel+" differ" {
+		return nil, refused
+	}
+	return f, nil
+}
+
+// binaryEntriesMatch checks a canonical binary group against its base and
+// target tree entries without reading either body (CEM-V1-935): each present
+// entry is a regular file in the group's mode whose object ID is the one the
+// index line names.
+func binaryEntriesMatch(f *filePatch, base, target *treeEntry) *cemError {
+	for _, side := range []struct {
+		entry *treeEntry
+		oid   string
+	}{{base, f.oldOID}, {target, f.newOID}} {
+		if side.entry == nil {
+			continue
+		}
+		if !regularFile(side.entry) {
+			return operational("unsupported-tree-mode")
+		}
+		if side.entry.mode != f.mode {
+			return invalid("diff-metadata-mismatch")
+		}
+		if side.entry.oid != side.oid {
+			return invalid("invalid-field")
+		}
+	}
+	return nil
+}
+
+// stableStage names the stable route stage that reports e.
+func stableStage(e *cemError) string {
+	if e.operational {
+		return "repository"
+	}
+	return "verification"
 }
 
 // metadataOnlyRefusal recognizes the exact headerless group Git emits for an
@@ -604,7 +715,7 @@ func (v *verifier) verifyPatchSimulation(commit string, p *parsedPatch) *cemErro
 				return err
 			}
 			if entry == nil || entry.typ != "blob" || entry.mode != "100644" && entry.mode != "100755" {
-				return invalid("patch-base")
+				return invalid("invalid-field")
 			}
 			base, err = v.blob(entry.oid)
 			if err != nil {

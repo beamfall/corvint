@@ -58,6 +58,12 @@ construction provenance, not product implementations or executable manifest
 instructions. Do not regenerate a frozen reviewed packet in place. A later
 revision must preserve the frozen manifest and bytes first.
 
+Revision r2 (V1-3443, CEM-V1-936) amends `ALGORITHMS.md` items 6 and 7 to admit
+Git's canonical full-index binary section beside a textual hunk. The r1
+`ALGORITHMS.md` and `manifest.json` bytes are preserved unchanged under
+`revisions/r1/`, and this manifest lists them. The shared parity case is
+`interop/cem01-go/testdata/binary-section/`.
+
 Materialized `fixtures/repositories/**` Git administrative directories and
 `construction-history/**` are scratch-only, excluded from the proposed public
 payload. Public literal object bytes and hashes live in `fixtures/git-objects/`;

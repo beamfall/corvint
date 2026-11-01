@@ -1674,6 +1674,10 @@ func verifyCandidate(ctx context.Context, repo string, raw []byte, base, target,
 	if e != nil {
 		return e
 	}
+	if parsed.binary {
+		// The candidate route stays text-only (CEM-V1-934).
+		return invalid("patch")
+	}
 	seen := map[string]bool{}
 	for _, f := range parsed.files {
 		path := ""
@@ -3824,6 +3828,12 @@ func runStableExternal(ctx context.Context, repo string, raw []byte, base, targe
 			return failStable(&r, "verification", invalid("invalid-field"), true)
 		}
 		mapped[path] = true
+		if f.binary {
+			if e := binaryEntriesMatch(f, a, b); e != nil {
+				return failStable(&r, stableStage(e), e, !e.operational)
+			}
+			continue
+		}
 		var old, new []byte
 		for _, x := range []struct {
 			entry *treeEntry
