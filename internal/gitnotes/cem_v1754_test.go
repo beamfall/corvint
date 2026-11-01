@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
@@ -210,8 +211,9 @@ func flatNotes(t *testing.T, root string, count int) {
 // CEM-V1-754: the portable reader admits the repository and bounds its Git
 // reads as the native reader does: a subdirectory, a bare repository, an
 // alternates-backed clone and effective info/attributes refuse with the native
-// code, a linked worktree is read, a notes listing over 4 MiB and a note over
-// 1 MiB refuse git-output-exceeded, and each bound admits its limit.
+// code, a linked worktree and a repository below a search-only ancestor are
+// read, a notes listing over 4 MiB and a note over 1 MiB refuse
+// git-output-exceeded, and each bound admits its limit.
 func TestCEMV1754PortableLedgerAdmissionAndBoundsMatchNative(t *testing.T) {
 	binary := buildPortableLedgerReader(t)
 	cases := []struct {
@@ -262,6 +264,21 @@ func TestCEMV1754PortableLedgerAdmissionAndBoundsMatchNative(t *testing.T) {
 		{"notes list over 4 MiB", cemcode.GitOutputExceeded, "", func(t *testing.T) string {
 			root := fixtureRepo(t)
 			flatNotes(t, root, MaxListBytes/82+1)
+			return root
+		}},
+		// An ancestor with search but no read permission, as an 0711 home or
+		// the CI Landlock confinement presents "/", is admitted on both.
+		{"search-only ancestor", "", "absent", func(t *testing.T) string {
+			root := fixtureRepo(t)
+			parent := filepath.Dir(root)
+			if err := os.Chmod(parent, 0o311); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = os.Chmod(parent, 0o755) })
+			if dir, err := os.Open(parent); err == nil {
+				dir.Close()
+				t.Skip("this host opens a directory without read permission")
+			}
 			return root
 		}},
 	}

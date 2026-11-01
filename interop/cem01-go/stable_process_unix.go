@@ -586,20 +586,24 @@ func stableProbe(h *stableHooks, path string, kind int, limit int) ([]byte, stab
 	return data, stableIdentOf(&st), isDir, false, nil
 }
 
+// stableProbeAncestry admits the clean absolute directory path: every named
+// ancestor must be an ordinary directory, examined by Lstat as the native
+// admission examines it, so an ancestor needs only search permission, not
+// read permission (an 0711 home, or a Landlock domain that denies listing
+// "/"); only the leaf is opened (CEM-V1-754).
 func stableProbeAncestry(h *stableHooks, path string) (stableIdent, *cemError) {
-	parts := strings.Split(strings.TrimPrefix(path, "/"), "/")
 	cur := "/"
-	_, id, _, absent, e := stableProbe(h, cur, stableKindDir, 0)
-	for _, p := range parts {
-		if e != nil || absent {
-			break
-		}
+	for _, p := range strings.Split(strings.TrimPrefix(path, "/"), "/") {
 		if p == "" {
 			continue
 		}
+		var st syscall.Stat_t
+		if syscall.Lstat(cur, &st) != nil || st.Mode&syscall.S_IFMT != syscall.S_IFDIR {
+			return stableIdent{}, operational("repository-object-unavailable")
+		}
 		cur = filepath.Join(cur, p)
-		_, id, _, absent, e = stableProbe(h, cur, stableKindDir, 0)
 	}
+	_, id, _, absent, e := stableProbe(h, cur, stableKindDir, 0)
 	if e == nil && absent {
 		e = operational("repository-object-unavailable")
 	}
