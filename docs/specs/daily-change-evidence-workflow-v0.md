@@ -2426,7 +2426,7 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   with the `DCW-V0-170` remediation plus one `quoted form: line N: <line with the word in single
   quotes>` line, so the operator sees the admitted A|B form; reconciled with `DCW-V0-403` at
   batch integration, a `finish-lane` verify file whose line is such an alternation gets the one-line
-  `DCW-V0-403` fix instead, and both share one unquoted-alternation grammar. A character class, a nested group, a
+  `DCW-V0-403` fix instead, and both share one unquoted-alternation grammar. A character class (other than the bracket class `DCW-V0-991` admits), a nested group, a
   single anchored name, a second quoted word and a shell operator stay refused. Design: lanes
   wrote `-run TestA|TestB` and `-run '^(TestA|TestB)$'`, both refused with a remediation that did
   not show the accepted form. Non-goals: a general shell-quoting grammar. Evidence:
@@ -2434,6 +2434,21 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   argv, refused forms, the suggestion for each unquoted form; fails on BASE),
   `TestDogfoodChangeNamesVerifySyntaxRemediation`. Rollback: restore the `DCW-V0-384`
   `quotedRunAlternation` and remove `quotedRunSuggestion(s)`.
+- `DCW-V0-991`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3642; amends
+  `DCW-V0-801`) A test name inside the quoted `-run` word MAY hold bracket classes of name
+  characters (`[A-Za-z0-9_-]+`, such as `[45]` or `[0-9]`), in each admitted alternation form, and
+  one such name MAY stand alone, `go test ./pkg -run 'TestX88[45]_'`; inside either quote every
+  byte of it is literal to a POSIX shell, and it is recorded as one typed argv word. Any other
+  quoted `-run` word stays refused, and `finish-lane` and `inputs-check` MUST add one `refused:`
+  line naming the word and its first character outside names, `|`, `^`, `$`, `(`, `)`, `[` and
+  `]`, with its byte offset, or, when every character is admitted, that its shape is none of the
+  admitted forms (a single anchored name, a negated or empty class). Design: the class is admitted
+  rather than refused because its quoting is valid and lanes select related tests by it. Evidence:
+  `TestVerifyArgumentsDCWV0991AdmitsQuotedBracketClass` (fails on BASE), and the updated
+  `TestVerifyArgumentsDCWV0384AdmitsOneQuotedRunAlternation`,
+  `TestFinishLaneDCWV0092RefusesVerifySyntaxBeforePrepare` and
+  `TestDCWV0380InputsCheckRefusesVerifySyntaxBeforeAnyStep`. Rollback: remove `runClass` from
+  `runAlternation` and `quotedRunRefusal`.
 - `DCW-V0-802`: (experimental under the standing lane auto-accept; V1-3279; amends `DCW-V0-350`)
   When `propose-citations` cannot read or parse the canonical BASE..HEAD patch it MUST print
   `REFUSE patch-unavailable reason=<code>` (the `cem prepare` refusal code, `git-diff-failed` or
@@ -3288,6 +3303,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-826` (experimental under the standing lane auto-accept; V1-3367) | `script/dogfood-bind-range.sh` `exec </dev/null`; `script/dogfood-bind-range_test.sh` DCW-V0-826 case | implemented; shell test PASS |
 | `DCW-V0-827` (experimental under the standing lane auto-accept; V1-3368) | `script/dogfood-bind-range.sh` cite loop `span_flag`; `script/dogfood-bind-range_test.sh` DCW-V0-827 case | implemented; shell test PASS |
 | `DCW-V0-990` (experimental under the standing lane auto-accept; V1-3637) | `internal/dogfoodflow/change.go` `citeSpanArgs`, `baseLineSpan`; `chore.go` `canonicalSpan`; `TestChangeDCWV0990PlanRowsAcceptByteSpans`, `TestDCWV0990CanonicalSpanKeepsByteKind` | implemented; focused tests PASS |
+| `DCW-V0-991` (experimental under the standing lane auto-accept; V1-3642) | `internal/dogfoodflow/verify_argv.go` `runClass`, `runAlternation`, `quotedRunRefusal`; `finishlane.go` `requireVerifyInput`; `TestVerifyArgumentsDCWV0991AdmitsQuotedBracketClass` | implemented; focused tests PASS |
 | `DCW-V0-828` (experimental under the standing lane auto-accept; V1-3369) | `tools/dogfood-inherit-citations/classes.go` `spec-index`, `line-citation-repin`, `use-case-receipt-repin`; `classes_test.go` DCW-V0-828 tests | implemented; go test PASS |
 | `DCW-V0-829` (experimental under the standing lane auto-accept; V1-3370) | `tools/dogfood-inherit-citations/classes.go` `sealed-cem-rename`; `TestProposeSealedCEMRenameDCWV0829` | implemented; go test PASS |
 | `DCW-V0-830` (experimental under the standing lane auto-accept; V1-3371) | `script/dogfood-bind-range.sh` `prepare_only`; `script/dogfood-bind-range_test.sh` DCW-V0-830 case | implemented; shell test PASS |
