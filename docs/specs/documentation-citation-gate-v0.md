@@ -318,6 +318,19 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   number and fail the origin/main collision check. Evidence for the default: `script/repin_test.sh`
   (`make repin-test`; fails when the target passes `$(BASE)`). Rollback: delete `script/repin.sh`,
   its test and the targets.
+- `DCG-V0-840`: (experimental under the standing lane auto-accept (V1-3613); refines DCG-V0-048)
+  `script/check-line-citations.sh --repin` MUST report the number of citations it rewrote across
+  all of its passes, and MUST NOT say that nothing moved when an earlier pass rewrote citations.
+  Evidence: `script/check-line-citations_test.sh` case 37. Rollback: drop the carried total.
+- `DCG-V0-841`: (experimental under the standing lane auto-accept (V1-3671); refines DCG-V0-920)
+  When the plain check finds a pinned citation's content at other lines but the change deleted the
+  cited lines, the hint MUST NOT suggest `--repin`, which refuses that case, and MUST name the
+  recovery: restore the deleted lines, or cite the surviving copy with a new anchor from
+  `--hash PATH:SPAN`. Evidence: case 32c. Rollback: restore the single relocation hint.
+- `DCG-V0-842`: (experimental under the standing lane auto-accept (V1-3672); refines DCG-V0-048)
+  `--repin` MUST print every failure reason it found before it exits, and MUST exit 1 when any
+  citation still fails after its passes. Evidence: case 38 (a deleted citation under `--repin`).
+  Rollback: restore the early exit.
 - `DCG-V0-920`: (experimental under the standing lane auto-accept (2026-10-31); V1-3342, V1-3408,
   V1-3413; refines DCG-V0-045) `script/check-line-citations.sh --repin --changed [--base REV]` MUST
   also rewrite each pinned span whose content changed when the diff from REV (default HEAD) to the
@@ -462,6 +475,9 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-048 | test case 24: `--repin` names what it staged, leaves no unstaged diff and the check then passes with no `git add`; case 24b: a held `index.lock` exits 1 naming the `git add`, a fifth pass that rewrote exits 1 as not converged, and a `[fx].md` document leaves its unstaged sibling `f.md` unstaged; test case 33: one `--repin` call moves the inner citation, stages it and in its second pass re-anchors the outer citation, leaving nothing unstaged, and the check passes; case 33b: the second pass still refuses a prose change and the call exits 0 |
 | DCG-V0-047 | test case 33: a fixture pins a spec line that cites a moved source line; `--repin` moves the spec's token, and after staging a second `--repin` re-anchors the fixture's citation, including a moved continuation token, with no `--hash`, and the check passes; case 33b: changing a backticked prose `name:number` value still refuses |
 | DCG-V0-040 | test cases 24-26: a two-line insertion above a pinned two-line span reported as moved to lines 5-6, `--repin` refused on a dirty document and then rewriting it to a passing citation; text that now appears twice reported as changed with the position count and left alone by `--repin`; changed text never reported as a move; cases 28-29: a one-line unique match left unresolved and untouched by `--repin`, and of two identical continuations on one line only the moved one rewritten. This change also repinned its own spec's moved script citations with `--repin` |
+| DCG-V0-840 | `script/check-line-citations_test.sh` case 37: a `--repin` that moves citations names their number |
+| DCG-V0-841 | `script/check-line-citations_test.sh` case 32c: the plain check names the restore or `--hash` recovery and not `--repin` |
+| DCG-V0-842 | `script/check-line-citations_test.sh` case 38: `--repin` over a deleted citation prints its reason and exits 1 |
 | DCG-V0-920 | the `--changed` branch in `check` and its listing after the rewrite, `anchored_span` and the changed-content message in `script/check-line-citations.sh`; `changed_citations` in `script/batch-regen.sh` | `script/check-line-citations_test.sh` case 32 additions: the refusal names `--hash internal/demo/shift.go:10-11` and `--repin --changed`; `--changed` alone is refused; `--repin --changed` rewrites the changed span to the suggested token, lists it, and the check passes; case 32c: a deleted two-line block with a surviving identical copy is neither moved nor re-anchored by `--repin` or `--repin --changed` |
 | DCG-V0-921 | `--selects` parsing, `%selects_changed`, `@selected` and its report in `script/check-line-citations.sh`; `line-citations-selects` in `Makefile` | `script/check-line-citations_test.sh` case 32 additions: a shifted, staged cited file selects 3 pinned citations; after a commit nothing is selected; case 32d: deleted `README.md` and `Makefile` targets still select their 2 pinned citations |
 | DCG-V0-922 | the header of `script/check-line-citations.sh` | decision record; no code |
@@ -498,11 +514,14 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-043 | the `%unmerged` loader from `git ls-files -u` and its refusal in `lines_of`, `script/check-line-citations.sh` | case 30 |
 | DCG-V0-044 | `$distinctive_line`, `distinctive` and the lone-line branch of `relocatable` in `script/check-line-citations.sh` | case 31 |
 | DCG-V0-045 | `base_hunks`, `base_lines`, `map_line`, `diff_relocation`, `diff_suggestion`, the `--base` parser and `print_unstaged` in `script/check-line-citations.sh` | case 32 |
-| DCG-V0-810 | `path_history`, `history_relocation`, `diff_relocation_from` and the commit argument of `base_lines` and `base_hunks` in `script/check-line-citations.sh` | case 35 |
+| DCG-V0-810 | `path_history`, `history_relocation`, `diff_relocation_from` and the commit argument of `base_lines` and `base_hunks` in `script/check-line-citations.sh` | case 37 |
 | DCG-V0-046 | `@skipped`, `print_skipped`, `--verbose` and the failures-first ordering in `script/check-line-citations.sh` | case 22 |
 | DCG-V0-048 | the staging and rerun at the end of the `--repin` block and `CHECK_LINE_CITATIONS_SELF` in `script/check-line-citations.sh` | cases 24, 24b, 33 and 33b |
 | DCG-V0-800 | `decision_commit`, `lines_at` and `lines_for` in `script/check-line-citations.sh` | case 34 |
 | DCG-V0-801 | `script/repin.sh`, `REPIN_BASE` and the `repin` target in `Makefile` | the measurement in DCG-V0-801; case 34; `script/repin_test.sh` |
+| DCG-V0-840 | `CHECK_LINE_CITATIONS_REPIN_TOTAL` and the repin report in `script/check-line-citations.sh` | case 37 |
+| DCG-V0-841 | the relocation hint in `script/check-line-citations.sh` | case 32c |
+| DCG-V0-842 | the end of the `--repin` block in `script/check-line-citations.sh` | case 38 |
 | DCG-V0-047 | `token_reanchor`, `citation_prefix` and the call in the pinned-span branch of `script/check-line-citations.sh` | cases 33 and 33b |
 | DCG-V0-040 | the relocation branch in `check`, `relocations`, `relocatable`, `shifted_token`, `$token_at` and the `--repin` block before the final `close_index` in `script/check-line-citations.sh` | cases 24-26, 28-29 |
 
