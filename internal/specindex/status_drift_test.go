@@ -33,7 +33,9 @@ func TestSRGV0047StatusDriftNamesBothFieldsWithLines(t *testing.T) {
 	want := `docs/specs/fixture-v0.md:7 Agent digest "- Status: accepted / experimental" does not agree with ` +
 		`the header docs/specs/fixture-v0.md:3 "Intent status: proposed" and docs/specs/fixture-v0.md:4 ` +
 		`"Delivery status: experimental"; the digest Status must contain both header values, so edit ` +
-		`these fields together`
+		`these fields together; expected "- Status: proposed / experimental", and an acceptance or ` +
+		`amendment clause goes on the requirement's own line, not in either status field ` +
+		`(SRG-V0-011, SRG-V0-970)`
 	if len(findings) != 1 || findings[0] != want {
 		t.Fatalf("findings %q, want exactly [%q]", findings, want)
 	}

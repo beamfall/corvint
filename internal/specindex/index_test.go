@@ -256,13 +256,16 @@ func readREADME(root string) (map[string][]readmeRow, error) {
 
 // statusDriftMessage is the SRG-V0-047 refusal for an Agent digest Status that does not carry the
 // header statuses: it names the digest field and both header fields with their file:line and says
-// they are edited together, since changing only one of them is how they drift apart.
+// they are edited together, since changing only one of them is how they drift apart. It names the
+// expected digest line and where an acceptance clause goes instead (SRG-V0-970, V1-2830).
 func statusDriftMessage(e entry, status string, statusLine int, text string) string {
 	return fmt.Sprintf("%s:%d Agent digest \"- Status: %s\" does not agree with the header "+
 		"%s:%d \"Intent status: %s\" and %s:%d \"Delivery status: %s\"; the digest Status must "+
-		"contain both header values, so edit these fields together",
+		"contain both header values, so edit these fields together; expected \"- Status: %s / %s\", "+
+		"and an acceptance or amendment clause goes on the requirement's own line, not in either "+
+		"status field (SRG-V0-011, SRG-V0-970)",
 		e.Path, statusLine, status, e.Path, headerLine(text, "Intent status:"), e.Intent,
-		e.Path, headerLine(text, "Delivery status:"), e.Delivery)
+		e.Path, headerLine(text, "Delivery status:"), e.Delivery, e.Intent, e.Delivery)
 }
 
 // headerLine is the 1-based line of the first header that header reads for key, or 0 when absent.
