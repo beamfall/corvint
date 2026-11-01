@@ -2088,7 +2088,9 @@ func (c *change) linkRowsValid(plan []byte) bool {
 
 // runOCMLinks applies each author row naming this scope through the verified
 // `ocm link`; a link is never inferred, and each row reports ocm-link-<plan row>.
+// A later row for an obligation an earlier row linked accumulates (OCM-V0-940).
 func (c *change) runOCMLinks(mapPath, path string) {
+	linked := map[string]bool{}
 	for index, line := range readLines(c.linkPlan) {
 		fields := strings.SplitN(line, "\t", 5)
 		if fields[0] != path {
@@ -2097,6 +2099,10 @@ func (c *change) runOCMLinks(mapPath, path string) {
 		name := fmt.Sprintf("ocm-link-%03d", index+1)
 		args := []string{"ocm", "link", "--map", mapPath, "--cem", ".corvint/change.cem.json", "--obligation", fields[1],
 			"--test-path", fields[3], "--expected-base", c.base, "--target", c.target}
+		if linked[fields[1]] {
+			args = append(args, "--accumulate")
+		}
+		linked[fields[1]] = true
 		for _, hunk := range strings.Split(fields[2], ",") {
 			args = append(args, "--hunk", hunk)
 		}

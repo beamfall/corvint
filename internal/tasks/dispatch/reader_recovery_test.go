@@ -475,3 +475,107 @@ func TestCALV0227_StandaloneReaderKeepsQuarantineUntilEventLands(t *testing.T) {
 		t.Fatalf("reader-recovered events = %d, want 1: %+v", count, events)
 	}
 }
+
+func recoveryEvents(t *testing.T, dir, kind string) []Event {
+	t.Helper()
+	events, err := ReadEvents(dir, 200)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []Event
+	for _, e := range events {
+		if e.Kind == kind {
+			out = append(out, e)
+		}
+	}
+	return out
+}
+
+// DSG-V0-940: an operator recovery links its record before the removal, and
+// the next start announces it once, removing the link only after the event
+// line is appended.
+func TestDSGV0940_OperatorRecoveryAnnouncedAtNextStart(t *testing.T) {
+	fakeHost(t, digestHex("m"), digestHex("b1"))
+	c, dir, mark := quarantinedProgram(t, "announce")
+	name := "operator-" + digestHex("req-1")[:32] + ".json"
+	link := filepath.Join(dir, readerRecoveryDir, readerUnannouncedDir, name)
+	now := time.Date(2026, 10, 31, 9, 0, 0, 0, time.UTC)
+	rec, _, err := RecoverReader(c, "announce", recoverReq("req-1"), now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	li, err := os.Lstat(link)
+	ri, err2 := os.Lstat(filepath.Join(dir, readerRecoveryDir, name))
+	if err != nil || err2 != nil || !os.SameFile(li, ri) {
+		t.Fatal("no unannounced link to the record", err, err2)
+	}
+	if len(recoveryEvents(t, dir, "reader-recovered")) != 0 {
+		t.Fatal("recover-reader wrote the event log")
+	}
+	if _, replayed, err := RecoverReader(c, "announce", recoverReq("req-1"), now); err != nil || !replayed {
+		t.Fatal("replay", replayed, err)
+	}
+
+	// An append that fails keeps the link, so the next start repeats it.
+	prev := appendEvent
+	appendEvent = func(dir string, e Event) error {
+		if e.Kind == "reader-recovered" {
+			return errors.New("injected event append failure")
+		}
+		return prev(dir, e)
+	}
+	openAdmitted(t, c, "announce")
+	appendEvent = prev
+	if _, err := os.Lstat(link); err != nil {
+		t.Fatal("link removed although its event was not appended", err)
+	}
+
+	openAdmitted(t, c, "announce")
+	got := recoveryEvents(t, dir, "reader-recovered")
+	if len(got) != 1 {
+		t.Fatalf("want one reader-recovered event, got %+v", got)
+	}
+	e := got[0]
+	if e.Detail["kind"] != RecoveryOperator || e.Detail["run"] != mark.marker.Run || e.Detail["requestId"] != "req-1" || e.Detail["recordedAt"] != rec.RecordedAt ||
+		!strings.Contains(e.Message, rec.Reason) || !strings.Contains(e.Message, rec.Evidence) {
+		t.Fatalf("event %+v", e)
+	}
+	if _, err := os.Lstat(link); !errors.Is(err, os.ErrNotExist) {
+		t.Fatal("link kept after the announcement", err)
+	}
+	if _, err := ReadReaderRecovery(dir, name); err != nil {
+		t.Fatal("the announcement removed the record", err)
+	}
+	openAdmitted(t, c, "announce")
+	if n := len(recoveryEvents(t, dir, "reader-recovered")); n != 1 {
+		t.Fatalf("announced again: %d events", n)
+	}
+}
+
+// DSG-V0-940: a linked record that does not decode stays linked and is
+// reported by an alert; nothing is announced for it.
+func TestDSGV0940_UnreadableLinkedRecordAlertsAndStays(t *testing.T) {
+	fakeHost(t, digestHex("m"), digestHex("b1"))
+	c, dir, _ := quarantinedProgram(t, "garbled")
+	if _, _, err := RecoverReader(c, "garbled", recoverReq("req-1"), time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	name := "operator-" + digestHex("req-1")[:32] + ".json"
+	if err := os.WriteFile(filepath.Join(dir, readerRecoveryDir, name), []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	openAdmitted(t, c, "garbled")
+	if n := len(recoveryEvents(t, dir, "reader-recovered")); n != 0 {
+		t.Fatalf("announced an unreadable record: %d", n)
+	}
+	alerted := false
+	for _, e := range recoveryEvents(t, dir, "alert") {
+		alerted = alerted || strings.Contains(e.Message, name)
+	}
+	if !alerted {
+		t.Fatal("no alert names the unreadable record")
+	}
+	if _, err := os.Lstat(filepath.Join(dir, readerRecoveryDir, readerUnannouncedDir, name)); err != nil {
+		t.Fatal("unreadable record unlinked", err)
+	}
+}

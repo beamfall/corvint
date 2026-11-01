@@ -893,6 +893,25 @@ reads as before.
   `TestCCEV0116SideLoss`, `TestCCEV0116LossTextRedactsHostPaths`,
   `TestCCEV0116HookDetailWithinBBFBound`, `TestCCEV0116EncodeRefusalReasonNamesCode`.
 
+The 2026-10-31 internal-mac lane (V1-2620) adds CCE-V0-940, proposed and experimental under the
+standing auto-accept of 2026-10-11 until the owner accepts it. Rollback is to remove the rerun and the
+`retried_lost_attempts` field; no stored state migrates, and a report written without the field reads
+as before.
+
+- `CCE-V0-940`: (proposed, standing lane auto-accept 2026-10-11; V1-2620) When the CCE-V0-018
+  controls run and a control reads `infrastructure_failed` without a located `teardown-failed` reason (CCE-V0-087), prove MUST rerun
+  exactly those lost controls once, through a fresh BBF plan in a fresh control workspace, before it
+  reads the verdict. It MUST NOT rerun a control that read `killed`, `survived`, `invalid_control` or
+  `not_run`, nor one whose loss is a located teardown failure, since neither is an infrastructure
+  loss. The rerun's status, reasons, `lost_attempts` and plan digest replace the lost control's; the
+  first run's losses move to the control's additive `retried_lost_attempts` field, so no loss is
+  hidden. One rerun is the bound: a control lost again keeps reading `control-not-killed:<id>` with
+  both runs' losses, and a rerun that survives reads `CONTROL_SURVIVED` as any survivor does. The
+  rerun never runs when no control was lost. Failure mode: one control attempt lost to hosted-runner
+  infrastructure (`control:omitted-event:setup-1`, CI runs 40129429349, 40196868668, 40202373049)
+  turns a live `PRESERVES` or `DISCRIMINATES` into `INCONCLUSIVE` while every other control killed.
+  Acceptance: `TestCCEV0940LostControlRerunOnce`.
+
 - `CCE-V0-117`: (proposed, standing lane auto-accept 2026-10-11; V1-2377) On darwin/arm64, when
   the `@playwright/test` version has a qualified bundled tuple (1.63.0, 1.64.0), `e2e prove` MUST
   refuse `e2e-toolchain-unavailable` before any side runs if that tuple's headless shell
@@ -1462,6 +1481,7 @@ row's status says what is delivered.
 | CCE-V0-114 | base-declared API contract widens reach only | V1-1685 | PASS offline: `TestCCEV0114APIContractWidensReach` |
 | CCE-V0-115 | no reach source, alone or combined, turns `UNKNOWN` into `NONE` | V1-1685 | PASS offline: `TestCCEV0115NoReachSourceTurnsUnknownToNone`, `TestCCEV0046CoverageOnlyWidensReach`, `TestCCEV0054ModuleGraphWidensReach` |
 | CCE-V0-116 | each unqualified side and lost control attempt keeps its qualify reason, bounded secret-safe error message and location or `unlocated`; classification unchanged; live verdict failures print the losses | V1-2620 | PASS offline: `TestCCEV0116LostControlAttemptDetail` (unlocated run-level error on `control:omitted-event:setup-1` through the hook detail, a BBF report and the fake runner: verdict and reasons unchanged, no tree root, absolute path, secret or ANSI in the proof, failure output names each loss), `TestCCEV0116TeardownDetailCompatible`, `TestCCEV0116SideLoss`, `TestCCEV0116LossTextRedactsHostPaths` and `TestCCEV0116HookDetailWithinBBFBound` (each failed before the review fix), `TestCCEV0116EncodeRefusalReasonNamesCode` (a secret-shaped document's loss reason is `qualified-document-secret-shaped`); the live cause is fixed by PWP-V3-010 |
+| CCE-V0-940 | a control lost to infrastructure reruns once, alone, and its first losses stay in `retried_lost_attempts`; killed, survived and teardown-attributed controls never rerun; a second loss stays `control-not-killed` | V1-2620 | PASS offline: `TestCCEV0940LostControlRerunOnce`; hosted macos-15 cce-live 5-run criterion NOT_RUN (needs hosted CI) |
 | CCE-V0-117 | prove refuses a missing qualified headless shell before any side runs | V1-2377 | PASS: `TestCCEV0117MissingHeadlessShellRefused` (missing 1248 beside a stale 1234 names the path; other platforms and unqualified versions unchecked; installed reads present; `PLAYWRIGHT_BROWSERS_PATH=0`; relative browsers path refused; `proveToolchain` refusal); live 2026-10-25: stale browsers path refuses `e2e-toolchain-unavailable` (was `project-location-unknown`), qualified tuple live set PASS (377.8 s) |
 | CCE-V0-118 | `flows appmap build` and every `e2e` subcommand print their step help on `--help` and `-h` and exit 0; flag set options equal the catalog step's flags | GH-1784, V1-2684 | PASS: `TestCCEV0118SubcommandHelp`, `TestCCEV0118FlowsAppmapBuildHelp`, `TestCAPV0030HelpJSONCarriesTheE2EWorkflow` |
 | CCE-V0-119 | `e2e-map-unavailable` names `corvint flows appmap build`, the manifest schema and its spec, code unchanged | GH-1784, V1-2684 | PASS: `TestCCEV0119MapUnavailableNamesProducer` (catalog, missing manifest, obligations base) |

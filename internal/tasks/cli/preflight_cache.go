@@ -110,6 +110,10 @@ type preflightInputs struct {
 	plan           string
 	deep           bool
 	gates          []string
+	witnesses      bool
+	// candidate is the witness candidate branch and the commit it resolves
+	// to, so a repaired candidate is a new input (TOL-V0-940).
+	candidate string
 }
 
 func (p preflightInputs) key() wire.Digest {
@@ -123,6 +127,14 @@ func (p preflightInputs) key() wire.Digest {
 	}
 	for _, g := range p.gates {
 		lines = append(lines, "gate "+strconv.Quote(g))
+	}
+	// TOL-V0-940: only a --witnesses run adds a line, so every earlier key
+	// keeps its bytes.
+	if p.witnesses {
+		lines = append(lines, "witnesses true")
+		if p.candidate != "" {
+			lines = append(lines, "candidate "+strconv.Quote(p.candidate))
+		}
 	}
 	return wire.Sum([]byte(strings.Join(lines, "\n") + "\n"))
 }

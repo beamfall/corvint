@@ -1554,6 +1554,7 @@ CCE-V0-113	docs/specs/change-compiled-e2e-v0.md	Each vocabulary addition MUST ha
 CCE-V0-114	docs/specs/change-compiled-e2e-v0.md	`api_contracts` at base (each a `contract:` ID, one or more relative path globs	unrecorded	-
 CCE-V0-115	docs/specs/change-compiled-e2e-v0.md	A reach source MUST NOT turn `UNKNOWN` into `NONE`: with runtime coverage naming	unrecorded	-
 CCE-V0-116	docs/specs/change-compiled-e2e-v0.md	The prove report MUST keep, for each run that ends without a qualified receipt,	unrecorded	-
+CCE-V0-940	docs/specs/change-compiled-e2e-v0.md	(proposed, standing lane auto-accept 2026-10-11; V1-2620) When the CCE-V0-018	standing	2026-10-11; V1-2620
 CCE-V0-117	docs/specs/change-compiled-e2e-v0.md	(proposed, standing lane auto-accept 2026-10-11; V1-2377) On darwin/arm64, when	standing	2026-10-11; V1-2377
 CCE-V0-118	docs/specs/change-compiled-e2e-v0.md	`corvint flows appmap build --help` and `-h`, and `corvint-test e2e SUBCOMMAND	unrecorded	-
 CCE-V0-119	docs/specs/change-compiled-e2e-v0.md	When the manifest is missing or does not build at the catalog revision or the	unrecorded	-
@@ -2483,6 +2484,7 @@ DSG-V0-012	docs/specs/corvint-tasks-dispatch-signals-v0.md	(proposed; V1-2710) A
 DSG-V0-013	docs/specs/corvint-tasks-dispatch-signals-v0.md	(proposed; V1-2710) The handed-over dispatcher lock MUST pass as an inherited fi	unrecorded	-
 DSG-V0-014	docs/specs/corvint-tasks-dispatch-signals-v0.md	(proposed; V1-2710) The new image MUST emit `upgraded` with `from`, `fromSha256`	unrecorded	-
 DSG-V0-015	docs/specs/corvint-tasks-dispatch-signals-v0.md	(proposed; V1-2710) A start that finds phase `EXEC` with no inherited lock (the	unrecorded	-
+DSG-V0-940	docs/specs/corvint-tasks-dispatch-signals-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1389, moved fr	standing	2026-10-11; V1-1389
 TQD-V0-001	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715; `--config` and `dispatchers` amendment ac	standing	decision 0481; #715; 2026-10-17; V1-1519
 TQD-V0-002	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715) `summary` is `{lanes:{free,total}, runnin	owner	decision 0481; #715
 TQD-V0-003	docs/specs/corvint-tasks-doctor-v0.md	(accepted, decision 0481; GitHub #715) Each finding is `{kind, source, who, deta	owner	decision 0481; #715
@@ -2765,6 +2767,8 @@ TOL-V0-106	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the 
 TOL-V0-107	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1949, GitHub	standing	2026-10-11; V1-1949
 TOL-V0-108	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1949)) The read	standing	2026-10-11; V1-1949
 TOL-V0-109	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1949)) The	standing	2026-10-11; V1-1949
+TOL-V0-940	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1961)	standing	2026-10-11; V1-1961
+TOL-V0-941	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1961) The	standing	2026-10-11; V1-1961
 TOL-V0-120	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1966, GitHub	standing	2026-10-11; V1-1966
 TOL-V0-121	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1966, GitHub	standing	2026-10-11; V1-1966
 TOL-V0-122	docs/specs/corvint-tasks-obligation-ledger-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1966, GitHub	standing	2026-10-11; V1-1966
@@ -4718,6 +4722,8 @@ LPCV-V0-262	docs/specs/live-proof-carrying-verification-v0.md	(accepted under th
 LPCV-V0-290	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2015) Step	standing	2026-10-11; V1-2015
 LPCV-V0-291	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2090) After th	standing	2026-10-11; V1-2090
 LPCV-V0-292	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2091) A	standing	2026-10-11; V1-2091
+LPCV-V0-940	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1032; lane	standing	2026-10-11; V1-1032
+LPCV-V0-941	docs/specs/live-proof-carrying-verification-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1032) `corvint	standing	2026-10-11; V1-1032
 LPCV-V0-057	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) `corvint [--root R] test-validi	owner	decision 0458; V1-1024; #682
 LPCV-V0-058	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) negate runs only in Playwright	owner	decision 0458; V1-1024; #682
 LPCV-V0-059	docs/specs/live-proof-carrying-verification-v0.md	(accepted (decision 0458; V1-1024; GitHub #682)) Each invocation first runs the	owner	decision 0458; V1-1024; #682
@@ -5302,6 +5308,7 @@ OCM-V0-920	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane au
 OCM-V0-880	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-2083; amends `OCM-V0-019`)	standing	V1-2083
 OCM-V0-950	docs/specs/ocm-v0-dogfood.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-3455;	standing	2026-11-01; V1-3455
 OCM-V0-951	docs/specs/ocm-v0-dogfood.md	(experimental under the owner's standing auto-accept (2026-11-01); V1-0585)	standing	2026-11-01; V1-0585
+OCM-V0-940	docs/specs/ocm-v0-dogfood.md	(experimental under the standing lane auto-accept; V1-0585) `ocm link` has an	standing	V1-0585
 OCM-V0-013	docs/specs/ocm-v0-dogfood.md	one dogfood change MAY declare an ordered set of pinned Markdown intent	unrecorded	-
 UPD-V0-001	docs/specs/operator-update-v0.md	`check` MUST require explicit network opt-in, distinguish Core `v*` and standalo	unrecorded	-
 UPD-V0-002	docs/specs/operator-update-v0.md	`apply` MUST verify the release archive checksum before extraction, verify inter	unrecorded	-
@@ -5630,6 +5637,10 @@ PMR-V0-007	docs/specs/postmerge-replay-v0.md	Emit a separate report with fixture
 PMR-V0-008	docs/specs/postmerge-replay-v0.md	Provide local/CI invocation `corvint-postmerge-workflow replay --change ID --dry	unrecorded	-
 PMR-V0-009	docs/specs/postmerge-replay-v0.md	Replay does not parse or reimplement the issue #389 delta record. The adapter	unrecorded	-
 PMR-V0-960	docs/specs/postmerge-replay-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3662) Free tex	standing	2026-10-31; V1-3662
+PMR-V0-940	docs/specs/postmerge-replay-v0.md	Author stage. A result may carry `authored`: at most one entry per kind `docs` o	unrecorded	-
+PMR-V0-941	docs/specs/postmerge-replay-v0.md	Draft stage. For each authored commit the harness adds a connector draft of that	unrecorded	-
+PMR-V0-942	docs/specs/postmerge-replay-v0.md	The adapter still reports author and draft stages as `deferred` under `PMR-V0-00	unrecorded	-
+PMR-V0-943	docs/specs/postmerge-replay-v0.md	Historical replay set and campaign. `internal/postmergeworkflow/testdata/histori	unrecorded	-
 PMR-V1-001	docs/specs/postmerge-runtime-v1.md	Independently pin full binding, input snapshots, source/tool/runtime/profile and	unrecorded	-
 PMR-V1-002	docs/specs/postmerge-runtime-v1.md	Execute real connector/intake/delta joins, retain exact native inputs/outputs an	unrecorded	-
 PMR-V1-003	docs/specs/postmerge-runtime-v1.md	Each applicable real author step requires enforced credential/network/filesystem	unrecorded	-
@@ -5908,7 +5919,7 @@ DIRTY-CACHE-006	docs/specs/revision-cache-dirty-worktree-v0.md	worktree status c
 DIRTY-CACHE-007	docs/specs/revision-cache-dirty-worktree-v0.md	existing cache bounds remain: 128 MiB per disk entry, eight disk entries,	unrecorded	-
 DIRTY-CACHE-008	docs/specs/revision-cache-dirty-worktree-v0.md	regressions MUST cover memory and fresh-process disk dirty hits, dirty cold	unrecorded	-
 DIRTY-CACHE-009	docs/specs/revision-cache-dirty-worktree-v0.md	a 30-sample dogfood run MUST distinguish cold and primed-dirty phases, keep	unrecorded	-
-DIRTY-CACHE-010	docs/specs/revision-cache-dirty-worktree-v0.md	the implementation MUST add no overlay, session, background process, database,	unrecorded	-
+DIRTY-CACHE-010	docs/specs/revision-cache-dirty-worktree-v0.md	the implementation MUST add no overlay (except the explicit opt-in	unrecorded	-
 DIRTY-CACHE-011	docs/specs/revision-cache-dirty-worktree-v0.md	each index build MUST resolve the repository storage object format and exact	unrecorded	-
 DIRTY-CACHE-012	docs/specs/revision-cache-dirty-worktree-v0.md	the separate `working-tree-untracked` impact authority profile (`GPK-V0-029`)	unrecorded	-
 DIRTY-CACHE-013	docs/specs/revision-cache-dirty-worktree-v0.md	the native disk snapshot store (`index-snapshot-v0`) MUST live at	unrecorded	-
@@ -5918,6 +5929,9 @@ DIRTY-CACHE-016	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted (decis
 DIRTY-CACHE-017	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted under the owner's delegated 1.0 feature cut (decision 0548; V1-2068)*	unrecorded	-
 DIRTY-CACHE-018	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted under the owner's standing auto-accept (2026-10-11; V1-2218)**.	unrecorded	-
 DIRTY-CACHE-019	docs/specs/revision-cache-dirty-worktree-v0.md	**accepted under the owner's standing auto-accept (2026-10-11; V1-2880)**.	unrecorded	-
+DIRTY-CACHE-940	docs/specs/revision-cache-dirty-worktree-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0418)	standing	2026-10-11; V1-0418
+DIRTY-CACHE-941	docs/specs/revision-cache-dirty-worktree-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0418)	standing	2026-10-11; V1-0418
+DIRTY-CACHE-942	docs/specs/revision-cache-dirty-worktree-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0418)	standing	2026-10-11; V1-0418
 RUBY-AFFECTED-V0-001	docs/specs/ruby-affected-test-adapter-v0.md	The plugin namespace MUST be `ruby` and `Owns` MUST claim exactly regular	unrecorded	-
 RUBY-AFFECTED-V0-002	docs/specs/ruby-affected-test-adapter-v0.md	One unit MUST be one repository-relative `.rb` file, the smallest common	unrecorded	-
 RUBY-AFFECTED-V0-003	docs/specs/ruby-affected-test-adapter-v0.md	Discovery MUST admit all concurrently present conventional RSpec	unrecorded	-

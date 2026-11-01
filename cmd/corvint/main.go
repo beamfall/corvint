@@ -72,6 +72,7 @@ type options struct {
 	queryTaskSet       bool
 	queryBudget        *int
 	queryIntent        string
+	queryOverlay       bool // --worktree-overlay (DIRTY-CACHE-940)
 	version            string
 }
 
@@ -242,6 +243,11 @@ func parseQueryArgumentsForPlatform(result options, arguments []string, platform
 		return result, queryPlatformRefusal(platform)
 	}
 	for index := 0; index < len(arguments); {
+		if arguments[index] == worktreeOverlayFlag {
+			result.queryOverlay = true
+			index++
+			continue
+		}
 		name, value, inline := strings.Cut(arguments[index], "=")
 		if name != "--task" && name != "--limit" && name != "--budget-bytes" {
 			return result, argumentError("unrecognized arguments: " + arguments[index])
@@ -1253,7 +1259,14 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 		return emitVersion(stdout, stderr, options.version == "--json")
 	}
 	if options.command == "query" {
-		contextReceipt, err := standaloneQueryContext(withQueryWidening(withSnapshotMissNotice(ctx, stderr, "query", options.root)), options)
+		queryContext := withQueryWidening(withSnapshotMissNotice(ctx, stderr, "query", options.root))
+		var contextReceipt map[string]any
+		var err error
+		if options.queryOverlay {
+			contextReceipt, err = overlayQueryContext(queryContext, stderr, options)
+		} else {
+			contextReceipt, err = standaloneQueryContext(queryContext, options)
+		}
 		if err != nil {
 			emitError(stderr, err)
 			return 2

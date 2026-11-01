@@ -38,6 +38,9 @@ type Policy struct {
 	RuntimeSHA256    string           `json:"runtime_sha256"`
 	Registry         string           `json:"registry"`
 	RegistrySHA256   string           `json:"registry_sha256"`
+	// DraftURL is the host-pinned evidence URL that harness-authored draft
+	// requests name (PMR-V0-941); it is recorded, never contacted.
+	DraftURL string `json:"draft_url,omitempty"`
 }
 type Approval struct {
 	Binding     connector.Binding `json:"binding"`
@@ -68,6 +71,17 @@ type Result struct {
 	Defects              []connector.Finding `json:"defects"`
 	Input                connector.Input     `json:"connector_input"`
 	Stages               []Stage             `json:"stages"`
+	// Authored is adapter-supplied content for the harness-owned author stage
+	// (PMR-V0-940); the harness, not the adapter, makes and records any commit.
+	Authored []Authored `json:"authored,omitempty"`
+}
+type AuthoredFile struct {
+	Path    string `json:"path"`
+	Content string `json:"content"`
+}
+type Authored struct {
+	Kind  string         `json:"kind"` // docs | tests
+	Files []AuthoredFile `json:"files"`
 }
 type Mismatch struct {
 	Field          string `json:"field"`
@@ -87,10 +101,12 @@ type Report struct {
 	HumanVerifiedMismatches []Mismatch `json:"human_verified_mismatches"`
 	GeneratedMismatches     []Mismatch `json:"generated_mismatches"`
 	DeferredStages          []string   `json:"deferred_stages"`
-	RecordingSHA256         string     `json:"recording_sha256"`
-	Recording               string     `json:"recording_jsonl"`
-	WorkflowQualification   string     `json:"workflow_qualification"`
-	Limits                  []string   `json:"limits"`
+	// ReplayedStages are stages the harness itself replayed (PMR-V0-942).
+	ReplayedStages        []Stage  `json:"replayed_stages"`
+	RecordingSHA256       string   `json:"recording_sha256"`
+	Recording             string   `json:"recording_jsonl"`
+	WorkflowQualification string   `json:"workflow_qualification"`
+	Limits                []string `json:"limits"`
 }
 
 // NativeProfile is the experimental intake/refusal route, not whole-workflow qualification.

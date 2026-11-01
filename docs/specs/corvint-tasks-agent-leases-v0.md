@@ -6471,8 +6471,8 @@ hand, which the #464 amendment says proves nothing.
 
 Non-goals: inferring containment from a missing pid, an exited leader or elapsed time; a
 host-wide process scan for escaped descendants; a native Tasks journal entry for the recovery
-(the attestation lives in the program state directory and the dispatcher event log); an event for
-the operator path (no dispatcher runs then); re-sampling host pressure after a killed sample
+(the attestation lives in the program state directory and the dispatcher event log); an event
+written by the operator path itself (DSG-V0-940 has the next start announce it); re-sampling host pressure after a killed sample
 (issue 899 item (d)); changing the safe open's own refusal of relative paths.
 
 V1-1389 rationale (accepted under the owner's standing auto-accept (2026-10-11)). A pressure
@@ -6486,8 +6486,8 @@ fence. Its only consumer is the program's dispatcher, which reads the same state
 the same program lock. The record is written exclusively, fsynced with its directory, never removed
 by Corvint, and checked against the marker before any removal. A journal write would make reader
 recovery depend on the store being writable, and it would add no fence that the program lock does
-not already give. An observable event for the operator path, and live and Linux qualification, stay
-open on V1-1389.
+not already give. The operator path's event is DSG-V0-940. Live dispatcher qualification and a
+real Linux reboot stay open on V1-1389.
 
 Failure modes: a machine identity cloned onto another host with the same hostname could present
 a foreign boot as a reboot; the digest binds the hostname to narrow this, and an operator who
@@ -6526,6 +6526,12 @@ and resolve or preserve every `reader-lifecycle.json`: an older binary refuses a
 malformed, which keeps the quarantine (fail closed), and does not see a
 `reader-lifecycle.json.clearing` left by a crash, so resolve that file first. Keep
 `reader-recoveries/` as evidence; nothing reads it after a revert.
+
+### V1-1389 operator reader recovery event
+
+The operator recovery event (V1-1389) that announces a `recover-reader` attestation at the next
+dispatch start is DSG-V0-940 in the [dispatch signals contract](corvint-tasks-dispatch-signals-v0.md),
+because this Requirements section is at the 256-obligation OCM limit.
 
 ### V1-1313, V1-1320 and V1-1321 renew liveness, superseded generations and claim scope
 

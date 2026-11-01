@@ -410,7 +410,7 @@ func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 	}
 	// The reservations are known before the lexical fill so the fill can
 	// count the positions `reserve` prepends (TCP-V0-059).
-	compiler.reserved = compiler.reservedRows()
+	compiler.reserved = compiler.markWorktreeRows(compiler.reservedRows())
 	rows = compiler.takeSlot(rows, compiler.recencyLexical(compiler.lexicalRows(len(rows), limit)), limit)
 	if compiler.stopped("ordered") {
 		return nil
@@ -429,7 +429,7 @@ func (compiler *taskContextCompiler) compile(limit int) []contextRow {
 	if len(rows) > limit {
 		rows, compiler.truncated = rows[:limit], true
 	}
-	return rows
+	return compiler.markWorktreeRows(rows)
 }
 
 // admitLexicalPairs adds the naming counterparts of the selected lexical
@@ -2817,6 +2817,12 @@ func (compiler *taskContextCompiler) packet(rows []contextRow, limit int) map[st
 // the member is unchanged.
 func worktreeCoverage(coverage map[string]any, index *Index) {
 	if len(index.DirtyPaths) == 0 {
+		return
+	}
+	if index.WorktreeOverlaid() { // DIRTY-CACHE-941
+		coverage["uncertainty"] = append(anySlice(coverage["uncertainty"]), fmt.Sprintf(
+			"the worktree has %d uncommitted paths; with --worktree-overlay %d tracked paths are read from their worktree bytes as low-confidence worktree-overlay evidence cited by worktree blob id, and every other path reads commit %s (tree %s, the \"revision\"); untracked paths are not evidence",
+			len(index.DirtyPaths), len(index.worktreeOverlay), index.CommitRevision, index.Revision))
 		return
 	}
 	coverage["uncertainty"] = append(anySlice(coverage["uncertainty"]), fmt.Sprintf(

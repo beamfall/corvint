@@ -45,6 +45,50 @@ func preflightGit(root string, args ...string) ([]byte, error) {
 // paths, or one path longer than 64 KiB, refuses LIMIT_EXCEEDED while
 // reading, before the rest of the listing is read.
 func TreePathsAtCommit(root, commit string, prefixes []string, keep func(string) bool) (paths []string, err error) {
+	err = streamTreeAtCommit(root, commit, prefixes, func(p string) (bool, error) {
+		if !keep(p) {
+			return false, nil
+		}
+		if len(paths) == MaxPreflightSpecFiles {
+			return true, wire.Errorf(wire.CodeLimitExceeded, "--path", "more than %d spec files at %s; narrow them with --path", MaxPreflightSpecFiles, commit)
+		}
+		paths = append(paths, p)
+		return false, nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return paths, nil
+}
+
+// TreePathsAtCommitUpTo lists, in Git's tree order, at most limit blob paths
+// of commit's tree in root under prefixes for which keep returns true, and
+// reports over when the tree holds another. It stops reading the listing,
+// and stops Git, at the first path past the bound, so its cost follows the
+// bound rather than the size of the tree (TOL-V0-941). A path longer than
+// 64 KiB refuses LIMIT_EXCEEDED.
+func TreePathsAtCommitUpTo(root, commit string, prefixes []string, limit int, keep func(string) bool) (paths []string, over bool, err error) {
+	err = streamTreeAtCommit(root, commit, prefixes, func(p string) (bool, error) {
+		if !keep(p) {
+			return false, nil
+		}
+		if len(paths) >= limit {
+			over = true
+			return true, nil
+		}
+		paths = append(paths, p)
+		return false, nil
+	})
+	if err != nil {
+		return nil, false, err
+	}
+	return paths, over, nil
+}
+
+// streamTreeAtCommit streams one `git ls-tree -r` of commit under prefixes
+// to visit, path by path, until the listing ends, visit asks to stop, or
+// visit or the listing fails. A stop kills Git without reading the rest.
+func streamTreeAtCommit(root, commit string, prefixes []string, visit func(string) (stop bool, err error)) (err error) {
 	args := append(append([]string{}, preflightGitConfig...), "-c", "credential.helper=", "ls-tree", "-r", "-z", "--name-only", "--full-tree", commit, "--")
 	for _, p := range prefixes {
 		args = append(args, path.Clean(p))
@@ -54,13 +98,14 @@ func TreePathsAtCommit(root, commit string, prefixes []string, keep func(string)
 	c.Env = append(gitEnvironment(), "GIT_LITERAL_PATHSPECS=1")
 	stdout, err := c.StdoutPipe()
 	if err != nil {
-		return nil, gitObservationFailed(err)
+		return gitObservationFailed(err)
 	}
 	if err := c.Start(); err != nil {
-		return nil, gitObservationFailed(err)
+		return gitObservationFailed(err)
 	}
+	stopped := false
 	defer func() {
-		if err != nil {
+		if err != nil || stopped {
 			_ = c.Process.Kill()
 			_ = c.Wait()
 		}
@@ -70,23 +115,23 @@ func TreePathsAtCommit(root, commit string, prefixes []string, keep func(string)
 		entry, rerr := r.ReadSlice(0)
 		switch {
 		case rerr == bufio.ErrBufferFull:
-			return nil, wire.Errorf(wire.CodeLimitExceeded, "--path", "a path at %s is longer than %d bytes", commit, maxPreflightTreeEntryBytes)
+			return wire.Errorf(wire.CodeLimitExceeded, "--path", "a path at %s is longer than %d bytes", commit, maxPreflightTreeEntryBytes)
 		case rerr == io.EOF && len(entry) == 0:
 			if werr := c.Wait(); werr != nil {
-				return nil, gitObservationFailed(werr)
+				return gitObservationFailed(werr)
 			}
-			return paths, nil
+			return nil
 		case rerr != nil:
-			return nil, wire.Errorf(wire.CodeUnsupported, "git", "git answered short: %v", rerr)
+			return wire.Errorf(wire.CodeUnsupported, "git", "git answered short: %v", rerr)
 		}
-		p := string(entry[:len(entry)-1])
-		if !keep(p) {
-			continue
+		stop, verr := visit(string(entry[:len(entry)-1]))
+		if verr != nil {
+			return verr
 		}
-		if len(paths) == MaxPreflightSpecFiles {
-			return nil, wire.Errorf(wire.CodeLimitExceeded, "--path", "more than %d spec files at %s; narrow them with --path", MaxPreflightSpecFiles, commit)
+		if stop {
+			stopped = true
+			return nil
 		}
-		paths = append(paths, p)
 	}
 }
 

@@ -96,7 +96,7 @@ func TestOCMV0951LinkKeepsOtherTestPaths(t *testing.T) {
 		}
 		for _, item := range obligations {
 			if id, _ := item.Obj.Get("id"); id.Str == "OCM-TEST-001" {
-				claims, hunks = memberStrings(item.Obj, "claimIds"), memberStrings(item.Obj, "hunkIds")
+				claims, hunks = stringMembers(item.Obj, "claimIds"), stringMembers(item.Obj, "hunkIds")
 				sort.Strings(claims)
 				sort.Strings(hunks)
 				return claims, hunks

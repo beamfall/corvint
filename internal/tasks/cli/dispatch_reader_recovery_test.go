@@ -89,6 +89,20 @@ func TestCALV0226_DispatchRecoverReaderOperator(t *testing.T) {
 		t.Fatalf("replay: %s", r.stdout)
 	}
 	startsCleanly(t, root, config, dir)
+	// DSG-V0-940: the start announces the operator recovery.
+	events, err := dispatch.ReadEvents(dir, 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	announced := 0
+	for _, e := range events {
+		if e.Kind == "reader-recovered" && e.Detail["kind"] == dispatch.RecoveryOperator && e.Detail["requestId"] == "recover-1" && e.Detail["run"] == recoveryRun {
+			announced++
+		}
+	}
+	if announced != 1 {
+		t.Fatalf("operator recovery announced %d times: %+v", announced, events)
+	}
 	fixture.Write(t, filepath.Join(dir, "reader-lifecycle.json"), recoveryMarker("", ""))
 	if r := atm(t, root, nil, recoverArgs(config, "recover-1")...); !hasCode(r.res, wire.CodeRequestIDConflict) {
 		t.Fatalf("reused request ID: %s", r.stdout)
@@ -183,7 +197,7 @@ func TestCALV0228_DispatchHelpNamesRecovery(t *testing.T) {
 	root := t.TempDir()
 	for _, args := range [][]string{{"dispatch", "--help", "--verbose"}, {"dispatch", "recover-reader", "--help", "--verbose"}} {
 		r := atm(t, root, nil, args...)
-		if r.res.Outcome != wire.OutcomeOK || !strings.Contains(string(r.stdout), "recover-reader") || !strings.Contains(string(r.stdout), "reboot") {
+		if r.res.Outcome != wire.OutcomeOK || !strings.Contains(string(r.stdout), "recover-reader") || !strings.Contains(string(r.stdout), "reboot") || !strings.Contains(string(r.stdout), "reader-recovered") {
 			t.Fatalf("%v: %s", args, r.stdout)
 		}
 	}

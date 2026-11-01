@@ -1697,7 +1697,8 @@ Usage:
   corvint [--root PATH] ocm prepare --target REV --intent PATH [OPTIONS]
   corvint [--root PATH] ocm link --map MAP --obligation ID_OR_ORDINAL
     --hunk ID [--hunk ID...] --test-path PATH --claim SELECTOR
-    [--claim SELECTOR...] --expected-base REV --target REV [OPTIONS]
+    [--claim SELECTOR...] [--accumulate] --expected-base REV --target REV
+    [OPTIONS]
   corvint [--root PATH] ocm mark --map MAP --obligation ID_OR_ORDINAL
     --reason REASON [--output MAP]
   corvint [--root PATH] ocm status --map MAP --expected-base REV --target REV
@@ -1721,6 +1722,10 @@ Options:
                       replaced map's links, marks and assessments are
                       discarded, not carried over; copy the map aside first
                       to keep that review.
+  --accumulate        link only: union the obligation's earlier hunks and
+                      claims with the new ones. Without it a link replaces
+                      only the claims on its own --test-path and keeps
+                      those on every other test path.
 
 report writes by default to .git/corvint/ocm-review.md, private Git metadata
 that never dirties the worktree. An explicit --output must be a normalized,
@@ -1755,6 +1760,10 @@ Options:
                BuildEval -> EvalQuery path as harness user-prompt.
   --limit N    Maximum results (default: 10; range: 1-50).
   --budget-bytes N  Optional packet budget (range: 1024-1000000 bytes).
+  --worktree-overlay  Experimental opt-in (DIRTY-CACHE-940..942): read tracked
+               dirty paths from the worktree over the HEAD snapshot. Their
+               results are advisory, low confidence and cite the worktree blob
+               id; freshness scope is git+worktree-overlay. Writes nothing.
 
 Requirements:
   Darwin or Linux and a Git repository accepted by the bounded Go index. The

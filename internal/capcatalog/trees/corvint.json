@@ -5213,7 +5213,7 @@
       "command": "corvint ocm",
       "summary": "Prepare, close, or verify an Obligation Closure Map and its bound CEM",
       "usage": [
-        "corvint [--root PATH] ocm link --map MAP --obligation ID_OR_ORDINAL --hunk ID [--hunk ID...] --test-path PATH --claim SELECTOR [--claim SELECTOR...] --expected-base REV --target REV [OPTIONS]",
+        "corvint [--root PATH] ocm link --map MAP --obligation ID_OR_ORDINAL --hunk ID [--hunk ID...] --test-path PATH --claim SELECTOR [--claim SELECTOR...] [--accumulate] --expected-base REV --target REV [OPTIONS]",
         "corvint [--root PATH] ocm mark --map MAP --obligation ID_OR_ORDINAL --reason REASON [--output MAP]",
         "corvint [--root PATH] ocm prepare --target REV --intent PATH [OPTIONS]",
         "corvint [--root PATH] ocm report --map MAP --expected-base REV --target REV [--output REPORT] [OPTIONS]",
@@ -5221,6 +5221,7 @@
         "corvint [--root PATH] ocm verify --map MAP --expected-base REV --target REV [OPTIONS]"
       ],
       "flags": [
+        "--accumulate",
         "--claim",
         "--expected-base",
         "--hunk",
@@ -5245,9 +5246,10 @@
       "command": "corvint ocm link",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] ocm link --map MAP --obligation ID_OR_ORDINAL --hunk ID [--hunk ID...] --test-path PATH --claim SELECTOR [--claim SELECTOR...] --expected-base REV --target REV [OPTIONS]"
+        "corvint [--root PATH] ocm link --map MAP --obligation ID_OR_ORDINAL --hunk ID [--hunk ID...] --test-path PATH --claim SELECTOR [--claim SELECTOR...] [--accumulate] --expected-base REV --target REV [OPTIONS]"
       ],
       "flags": [
+        "--accumulate",
         "--claim",
         "--expected-base",
         "--hunk",

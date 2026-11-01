@@ -342,6 +342,7 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 	if recovered != nil {
 		d.emit(Event{Kind: "reader-recovered", Message: fmt.Sprintf("reader run %s quarantine lifted: %s (%s); recorded in %s", recovered.Run, recovered.Reason, recovered.Evidence, readerRecoveryDir), Detail: map[string]string{"kind": recovered.Kind, "run": recovered.Run}})
 	}
+	d.announceReaderRecoveries()
 	for _, w := range l.Workers {
 		msg := fmt.Sprintf("adopted %s worker %s (pid %d) on %s; its exit code will not be observed", w.Role, w.ID, w.PID, d.keyText(w.Key))
 		if inherited {

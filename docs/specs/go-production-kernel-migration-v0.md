@@ -245,7 +245,7 @@ requirements below have evidence. File existence is not parity.
   unadmitted-suffix, query, budget, unsupported-platform, and oversized inputs explicitly
   rather than approximate them: a platform other than Darwin or Linux returns
   `unsupported-impact-platform` and `--budget-bytes` with `--base` or `--working-tree-untracked` returns `unsupported-impact-option`
-  (`cmd/corvint/main.go:306,318@fcf14b13`). Every evidence array MUST be emitted in a deterministic total order derived
+  (`cmd/corvint/main.go:312,324@fcf14b13`). Every evidence array MUST be emitted in a deterministic total order derived
   from stable content — the referenced relation's first-occurrence path, then line, then column, then
   the relation key, then the occurrence's own line and column — so that the `MAX_EVIDENCE` truncation
   retains the same entries on every run and in every runtime. An order derived from index insertion

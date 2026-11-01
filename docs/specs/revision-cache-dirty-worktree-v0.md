@@ -60,7 +60,8 @@ snapshot the worktree, or claim that revision-only context is complete.
 - `DIRTY-CACHE-009`: a 30-sample dogfood run MUST distinguish cold and primed-dirty phases, keep
   complete output within the configured packet bound, and require primed-dirty p95 below the
   accepted one-second V4 gate. Relative speedup is diagnostic until measured on more repositories.
-- `DIRTY-CACHE-010`: the implementation MUST add no overlay, session, background process, database,
+- `DIRTY-CACHE-010`: the implementation MUST add no overlay (except the explicit opt-in
+  `DIRTY-CACHE-940..942` view, which never changes a default packet), session, background process, database,
   network access, ignored-path scan or exception, or secret-content scanner. Ignored files are
   outside the observed freshness universe, not evidence that the filesystem or repository has no
   additional context. Delete the dirty-view and bounded-read helpers and restore clean-only cache
@@ -189,6 +190,44 @@ snapshot the worktree, or claim that revision-only context is complete.
   mode: a source file hidden by the exclusion; guarded by the exact-layout match and its
   regression. Rollback: remove the `sealedChangeEvidencePath` arm of `forbiddenPath` with an
   analyzer schema bump.
+- `DIRTY-CACHE-940`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0418)
+  Delivery experimental. `corvint query` and `corvint context` accept the boolean flag
+  `--worktree-overlay`, the explicit consent this section's kill criteria require. Without it every
+  byte, exit code and read is unchanged, and `DIRTY-CACHE-001` and `DIRTY-CACHE-010` keep governing
+  the default path. With it the verb loads the HEAD tree's verified snapshot (a hit), or builds the
+  full HEAD index in memory on a miss, and derives one unshared in-memory view: every source keeps
+  its HEAD-pinned bytes and per-source facts, except a captured dirty path that is tracked at HEAD,
+  passes the index path screen (`forbiddenPath`, the admitted-suffix rule) and whose worktree file
+  is a regular file within the source size bound read by the no-follow bounded reader; only those
+  paths are pinned, extracted and tokenised again (the snapshot-reuse rule of `IDX-SNAP-V0-037`
+  with the HEAD snapshot as the prior). A dirty path whose worktree bytes rehash to its HEAD blob
+  keeps the HEAD source. A tracked path deleted in the worktree is dropped from the view's sources;
+  one whose worktree file is unreadable, not a regular file, over the bound, generated or an LFS
+  pointer is dropped with a named exclusion, never served as its stale HEAD bytes. Untracked paths
+  are never overlaid. The view writes nothing: no snapshot, cache, trace, ledger or repository
+  state, and worktree bytes are never persisted. The batch, MCP, host-hook and every other verb are
+  unchanged. Non-goals: overlaying untracked files, a persistent overlay cache, a daemon or
+  watcher, and making the overlay the default. Failure mode: a stale HEAD row for a dirty path
+  presented as current; guarded by the drop-on-unreadable rule and its regression. Rollback:
+  delete the flag, `OverlayWorktree` and the row-marking helpers; the default wire never carried
+  them.
+- `DIRTY-CACHE-941`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0418)
+  Delivery experimental. In the overlay view a re-derived source's `blob_hash` is the Git blob id
+  of its worktree bytes under the repository's object format (`git hash-object` of those bytes), so
+  every row citing it names the exact bytes read. The packet's `revision` and `commit` remain the
+  HEAD tree and commit. A query receipt's freshness keeps `state=mixed-worktree` while the captured
+  dirty set is non-empty, sets `scope=git+worktree-overlay` (distinct from `DIRTY-CACHE-012`'s
+  `git+working-tree`) and adds `overlay_path_count`, the number of overlaid paths. A context packet
+  states the overlaid count beside the `TCP-V0-141` worktree line in `coverage.uncertainty`.
+- `DIRTY-CACHE-942`: (accepted under the owner's standing auto-accept (2026-10-11); V1-0418)
+  Delivery experimental. Content read from the worktree is never committed authority (AGENTS.md
+  invariants 1 and 3). Every context row and span citing an overlaid path, other than a reserved
+  row the authority screen already downgraded (`TCP-V0-056`), carries authority `worktree-overlay`,
+  whose trust class is `tool-output`, and confidence `low`, so it cannot satisfy governance or a
+  critical selector. A query result citing an overlaid path is marked `advisory: true` and
+  `worktree_overlay: true`, its evidence rows carry authority `worktree-overlay` and confidence
+  `low`, it is never a critical result, and coverage adds one uncertainty line naming worktree
+  overlay rows as advisory. Rollback: as `DIRTY-CACHE-940`.
 
 ## V1-1141 scope and acceptance
 
@@ -238,7 +277,11 @@ diagnostic evidence; it proves neither token savings nor product value. Keep the
 repair but remove dirty cache reuse if it changes clean receipt bytes, admits any mutable-content
 canary, leaves a child process after interruption, or creates treatment-only critical evidence
 misses. Do not add worktree overlays unless a separately accepted contract defines explicit consent,
-snapshot identity, secret handling, and independent outcome gates.
+snapshot identity, secret handling, and independent outcome gates. `DIRTY-CACHE-940..942` define the
+consent (an explicit per-call flag), snapshot identity (the HEAD snapshot plus Git blob ids of the
+read worktree bytes) and secret handling (the unchanged path screen, no persistence); no
+independent outcome gate has run, so the overlay stays experimental and may not be promoted or
+made a default until one does.
 
 Measured evidence, linked worktrees (V1-0198, 2026-09-23, `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/BUILD-LOG.md`, before V1-0212):
 the native Go snapshot then lived in each worktree's own `.corvint/index/`, so the "repository
@@ -278,3 +321,6 @@ Go receipt and its query, impact, prove, and harness regressions.
 | `DIRTY-CACHE-017` | `internal/taskprojection/taskprojection.go`, `internal/contextindex/index.go`, `internal/contextindex/task_state.go`, `internal/contextindex/receipt.go`, `internal/contextindex/local_completion_context.go`, `cmd/corvint/host_adapter_projection.go`, `cmd/corvint/main.go` | `TestOnlyProjection`, `TestTaskStoreProjectionDirtIsSourceClean`, `TestDogfoodPromptTaskStoreProjectionDirtIsClean`, `TestImpactTaskStoreProjectionDirtIsSourceCleanCLI`, `TestHookProjectionCarriesTaskState`, `TestImpactTrackedTaskStoreProjectionIsNotEvidence` |
 | `DIRTY-CACHE-018` | `internal/contextindex/impact_freshness.go`, `internal/contextindex/receipt.go` | `TestImpactMixedWarningNamesDirtyPaths`, `TestImpactMixedWarningNamesWithinBudget` |
 | `DIRTY-CACHE-019` | `internal/contextindex/index.go`, `internal/contextindex/taskcontext.go` | `TestSealedChangeEvidencePathLayout`, `TestBuildExcludesSealedChangeEvidence`, `TestAnalyzerSchemaOutput` |
+| `DIRTY-CACHE-940` | `internal/contextindex/worktree_overlay.go`, `cmd/corvint/main.go`, `cmd/corvint/taskcontext.go`, `cmd/corvint/worktree_overlay.go` | `TestOverlayWorktreeRederivesOnlyDirtyTrackedPaths`, `TestOverlayWorktreeDropsDeletedAndUnreadablePaths`, `TestOverlayWorktreeWritesNothing`, `TestWorktreeOverlayFlagParses`, `TestQueryWorktreeOverlayCLI`, `TestContextWorktreeOverlayCLI` |
+| `DIRTY-CACHE-941` | `internal/contextindex/worktree_overlay.go`, `internal/contextindex/receipt.go`, `internal/contextindex/taskcontext.go` | `TestOverlayWorktreeRederivesOnlyDirtyTrackedPaths`, `TestQueryWorktreeOverlayCLI`, `TestContextWorktreeOverlayCLI` |
+| `DIRTY-CACHE-942` | `internal/contextindex/worktree_overlay.go`, `internal/contextindex/trust.go`, `internal/contextindex/receipt.go`, `internal/contextindex/taskcontext.go`, `internal/contextindex/span_rank.go` | `TestWorktreeOverlayRowsAreNeverAuthority`, `TestQueryWorktreeOverlayCLI` |

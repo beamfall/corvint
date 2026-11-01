@@ -172,7 +172,8 @@
       "flags": [
         "--budget-bytes",
         "--limit",
-        "--task"
+        "--task",
+        "--worktree-overlay"
       ],
       "schemaIds": [],
       "inputs": null,
@@ -183,6 +184,7 @@
       "writes": "none",
       "selfObservationLedger": "not-listed",
       "writeStatements": [
+        "Writes nothing.",
         "The command is read-only and local-only."
       ],
       "unknowns": [
@@ -832,6 +834,7 @@
         ]
       },
       "flags": [
+        "--accumulate",
         "--cem",
         "--claim",
         "--expected-base",
@@ -973,7 +976,8 @@
         "--subject",
         "--summary",
         "--summary-bytes",
-        "--task"
+        "--task",
+        "--worktree-overlay"
       ],
       "schemaIds": [],
       "inputs": null,
@@ -983,6 +987,7 @@
       "selfObservationLedger": "not-listed",
       "writeStatements": [
         "Writes nothing; Go-only (task-context-packet-v0, experimental).",
+        "It writes nothing and is refused with --expand.",
         "Structural lookups (experimental, TCP-V0-017 proposed), read-only, JSON:",
         "CORVINT_CPUPROFILE=PATH (operator env var, off by default): writes a pprof CPU profile for this invocation to PATH.",
         "CORVINT_MEMPROFILE=PATH (operator env var, off by default): writes a pprof heap profile for this invocation to PATH.",
