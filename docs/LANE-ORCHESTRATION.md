@@ -87,6 +87,12 @@ including one added after the listing. Run one shard per command. Placement is n
 on 2026-10-21 (load 16-170) the slowest store shard took 447 s and the slowest cli shard 154 s. A
 shard that nears the limit needs a larger `SHARDS`. `TEST_SHARD_FLAGS=-json` adds `go test` flags.
 
+The other way round, `script/heavy-groups.sh [--budget 480] PACKAGE...` packs several small
+packages into as few commands as fit the budget (ASD-V0-832). It reads each package's latest
+completed whole-package `run=` seconds from the heavy.sh selection log and prints one group per
+line, to run as one `script/heavy.sh go test ... GROUP` each. A package with no recorded cost, or
+one over the budget alone, gets its own line and a stderr note; the latter needs `make test-shard`.
+
 The light-weight prototype this replaces (`mkdir` slots with a PID file and dead-owner reclaim)
 could remove a live owner's slot when two waiters reclaimed the same dead slot at once; the
 `flock` form has no reclaim step. Cut over all lanes of a host together, because the two forms do
@@ -399,6 +405,13 @@ every session, subagent or not: a backgrounded `make dogfood-closeout`, `-finish
 `-seal`, `script/dogfood-finish.sh` or `corvint dogfood finish-lane`/`finish`/`check`/`seal` is
 denied with this foreground recipe.
 
+The orchestrator's landing step is `script/pr-landing-watch.sh [--act] PR` (ASD-V0-833, V1-1735),
+run once per CI or merge-queue event, never in a loop. It prints one decision: a failed head run
+whose failing Go tests all match `script/known-flakes.txt` is rerun (at most 3 times per head
+commit); auto-merge turned off by a bot's merge-queue removal is re-armed (at most 2 times); a
+real failure, an exhausted cap or a human dequeue prints `ESCALATE` and appends one line to the
+alerts file that the session's Monitor tails. Without `--act` it only reports.
+
 The 2026-10-23..25 counts come from `script/lane-transcript-metrics.py`
 (`https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-25-lane-infra-p0-evidence.md`): 48 tool calls ran 600 s or longer, 15 of
 them unclassified Bash commands; the timeout target in section 7 was not yet met.
@@ -445,11 +458,11 @@ every gap above the threshold with the time the watchdog would have flagged it.
   `batch-review-packet` and `batch-precheck --base` refuse one up front with `REFUSE
   shallow-repository` and the recovery `git -C <shared> fetch --unshallow origin` (or a reclone
   without `--depth`).
-- No commit carries an AI co-author or "Generated with" trailer (ASD-V0-071, V1-3227). The
-  commit-msg hook `lane-setup.sh` installs (`script/check-ai-trailers.sh --install`, shared by every
-  worktree of the clone) refuses one at commit time, and `make batch-precheck` refuses any commit in
-  `BASE..HEAD` (default `origin/main..HEAD`) that carries one, naming the commit and the line;
-  remove it with `git commit --amend` or a reword before the batch push. The dogfood
+- No commit carries an AI co-author or "Generated with" trailer (ASD-V0-560, ASD-V0-831, V1-3227).
+  The commit-msg hook `lane-setup.sh` installs (`script/check-ai-coauthor-trailers.sh
+  --install-hook`, shared by every worktree of the clone) refuses one at commit time, and
+  `make batch-precheck` refuses any commit in `BASE..HEAD` (default `origin/main..HEAD`) that
+  carries one, naming the commit and the line, and prints the `--strip` rebase that removes it. The dogfood
   loop supports linked worktrees with per-worktree trace stores and locks (`DCW-V0-044`); never
   switch one checkout between lanes. A fresh plain clone remains the fallback until a live lane has
   run `dogfood-finish` and `dogfood-batch-check` in a linked worktree

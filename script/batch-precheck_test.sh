@@ -310,7 +310,7 @@ grep -q -- '-run ^(TestDriftOne|TestGoldenWriter|TestVacant) ./pkg ./internal/g 
 grep -q '^make -s use-case-receipts-test GOPROXY=off$' "$tmp/calls" || fail "doc-gates env not applied: $(cat "$tmp/calls")"
 grep -q '^make -s capability-catalog-check GOPROXY=unset$' "$tmp/calls" || fail "extra target: $(cat "$tmp/calls")"
 grep -q '^make -s host-adapter-node-test GOPROXY=unset$' "$tmp/calls" || fail "host-adapter-node-test not run: $(cat "$tmp/calls")"
-grep -q '^batch-precheck: 14 passed, 3 failed in ' "$tmp/out" || fail "summary: $(cat "$tmp/out")"
+grep -q '^batch-precheck: 13 passed, 3 failed in ' "$tmp/out" || fail "summary: $(cat "$tmp/out")"
 grep -q '^batch-precheck: failed: ' "$tmp/out" || fail "failed list: $(cat "$tmp/out")"
 [[ -f $receipt ]] && fail "a failing run wrote a receipt"
 # Parallel: the two 3-second steps overlap, so the wall time is below the summed time.
@@ -335,10 +335,20 @@ head=$(git -C "$repo" rev-parse HEAD)
 grep -q 'refused: no precheck receipt' "$tmp/out" || fail "no receipt: $(cat "$tmp/out")"
 run || fail "passing run failed: $(cat "$tmp/out")"
 grep -q "^batch-precheck: receipt for $head written" "$tmp/out" || fail "receipt not written: $(cat "$tmp/out")"
-grep -qx 'steps 17' "$receipt" && grep -qx 'passed 17' "$receipt" || fail "receipt counts: $(cat "$receipt")"
+grep -qx 'steps 16' "$receipt" && grep -qx 'passed 16' "$receipt" || fail "receipt counts: $(cat "$receipt")"
 [[ $(head -n 1 "$receipt") == corvint-batch-precheck-receipt/0 ]] || fail "receipt profile: $(cat "$receipt")"
 (cd "$repo" && "$pre" --verify-receipt) > "$tmp/out" 2>&1 || fail "guard refused HEAD: $(cat "$tmp/out")"
 (cd "$repo" && "$pre" --verify-receipt "$head") > /dev/null 2>&1 || fail "guard refused an explicit REV"
+# ASD-V0-837 (V1-3550): the pre-bind run of dogfood-closeout leaves out the batch-drift go test and
+# writes no receipt, so the receipt and each drift step come from the one run on the sealed head.
+/bin/rm -f "$receipt"
+: > "$tmp/calls"
+BATCH_PRECHECK_SKIP_DRIFT=1 run || fail "skip-drift run failed: $(cat "$tmp/out")"
+grep -q '^go test' "$tmp/calls" && fail "skip-drift ran the drift go test: $(cat "$tmp/calls")"
+grep -q '^batch-precheck: | PASS | *[0-9]*s | batch-drift (skipped before the bind)$' "$tmp/out" || fail "skip-drift row: $(cat "$tmp/out")"
+grep -q '^batch-precheck: no receipt: BATCH_PRECHECK_SKIP_DRIFT=1' "$tmp/out" || fail "skip-drift receipt line: $(cat "$tmp/out")"
+[[ -f $receipt ]] && fail "a skip-drift run wrote a receipt"
+run || fail "passing run after skip-drift failed: $(cat "$tmp/out")"
 # BATCH_PRECHECK_HEAVY is one quoted path: a space does not split it and $(...) never runs.
 hv="$tmp/h d/heavy\$(touch pwned)"
 mkdir -p "$tmp/h d"
@@ -459,9 +469,9 @@ lrun || fail "reuse run failed: $(cat "$tmp/out")"
 grep -q '^batch-precheck: | REUSE | *[0-9]*s | make test-commands-check$' "$tmp/out" || fail "make step not reused: $(cat "$tmp/out")"
 grep -q '^batch-precheck: | REUSE | *[0-9]*s | batch-drift (2 packages)$' "$tmp/out" || fail "drift not reused: $(cat "$tmp/out")"
 grep -q '^batch-precheck: REUSE make slow-a ([0-9]*s): .*recorded ' "$tmp/out" || fail "reuse line: $(cat "$tmp/out")"
-grep -q '^batch-precheck: 17 passed, 0 failed in ' "$tmp/out" || fail "reuse summary: $(cat "$tmp/out")"
-grep -q '^batch-precheck: 16 of 16 steps reused a ledger pass on identical inputs' "$tmp/out" || fail "reuse count: $(cat "$tmp/out")"
-grep -q '^batch-precheck: receipt for ' "$tmp/out" && grep -qx 'passed 17' "$receipt" || fail "reuse receipt: $(cat "$tmp/out")"
+grep -q '^batch-precheck: 16 passed, 0 failed in ' "$tmp/out" || fail "reuse summary: $(cat "$tmp/out")"
+grep -q '^batch-precheck: 15 of 15 steps reused a ledger pass on identical inputs' "$tmp/out" || fail "reuse count: $(cat "$tmp/out")"
+grep -q '^batch-precheck: receipt for ' "$tmp/out" && grep -qx 'passed 16' "$receipt" || fail "reuse receipt: $(cat "$tmp/out")"
 grep -q '^make \|^gofmt \|^go test' "$tmp/calls" && fail "a reused step ran: $(cat "$tmp/calls")"
 printf 'note\n' > "$repo/notes.txt"
 lrun || fail "tree-change run failed: $(cat "$tmp/out")"
@@ -816,7 +826,10 @@ grep -q 'low-tmp-space' "$tmp/out" && fail "low-tmp-space warned above the floor
 printf '#!/bin/sh\nprintf "%%s\\n" "$TMPDIR" >> "%s/step-tmpdirs"\nexit 0\n' "$tmp" > "$fbin/make"
 : > "$tmp/step-tmpdirs"
 frun || fail "BATCH_PRECHECK_TMPDIR run failed: $(cat "$tmp/out")"
-[[ $(sort -u "$tmp/step-tmpdirs") == "$tmp/step-tmp" ]] || fail "steps did not use BATCH_PRECHECK_TMPDIR: $(sort -u "$tmp/step-tmpdirs")"
+# A mismatch prints both values byte-visibly (V1-3464): equal-looking paths differed by `//`.
+step_tmp_diff() { diff <(printf '%s\n' "$1" | od -c) <(sort -u "$tmp/step-tmpdirs" | od -c) | head -n 20; }
+[[ $(sort -u "$tmp/step-tmpdirs") == "$tmp/step-tmp" ]] ||
+  fail "steps did not use BATCH_PRECHECK_TMPDIR: expected $tmp/step-tmp, got $(sort -u "$tmp/step-tmpdirs"); od -c diff (< expected, > got): $(step_tmp_diff "$tmp/step-tmp")"
 grep -q 'RAM-backed' "$tmp/out" && fail "an explicit BATCH_PRECHECK_TMPDIR was replaced: $(cat "$tmp/out")"
 if [[ $(uname -s) == Linux && $(stat -f -c %T /dev/shm 2> /dev/null) == tmpfs ]]; then
   : > "$tmp/step-tmpdirs"
@@ -926,32 +939,16 @@ grep -q 'unbound variable' "$tmp/out" && fail "env -i aborted on an unbound vari
 (cd "$script/.." && env -i "$pre" --sync-check) > "$tmp/out" 2>&1 || fail "env -i --sync-check: $(cat "$tmp/out")"
 (cd "$script/.." && env -i CORVINT_GOCACHE=$tmp/gc "$pre" --list) > /dev/null 2>&1 || fail "env -i with CORVINT_GOCACHE --list failed"
 
-# 10. ASD-V0-071 (V1-3227): the ai-trailers step refuses a commit since the base carrying an AI
-# co-author or "Generated with" trailer, naming the commit and the line; a human co-author, a
-# prose "regenerated with" line and a clean range pass. The commit-msg hook refuses the same
-# message and installs only over its own hook.
+# 10. ASD-V0-831 (V1-3337): ai-coauthor-trailers is the one AI-trailer step (ASD-V0-071's
+# ai-trailers step is retired; make ai-coauthor-trailers-test covers the check itself). A --base run
+# with an AI trailer since the base fails it as introduced, never base-present.
 trepo=$tmp/trepo
 git init -q "$trepo" && git -C "$trepo" commit -q --allow-empty -m base || fail "trailer fixture"
 tbase=$(git -C "$trepo" rev-parse HEAD)
-git -C "$trepo" commit -q --allow-empty -m 'fix: regenerated with batch-regen' -m 'Co-authored-by: Pat Doe <pat@example.invalid>' || fail "human trailer commit"
-(cd "$trepo" && "$script/check-ai-trailers.sh" --range "$tbase") > "$tmp/out" 2>&1 || fail "a human co-author was refused: $(cat "$tmp/out")"
-ai_line=$(printf 'Co-Authored-By: Claude Opus <noreply@%s>' anthropic.com)
-gen_line=$(printf '\xf0\x9f\xa4\x96 Generated with [Claude Code](https://claude.example.invalid)')
-git -C "$trepo" commit -q --allow-empty -m 'feat: x' -m "$ai_line" || fail "ai trailer commit"
-bad1=$(git -C "$trepo" rev-parse HEAD)
-git -C "$trepo" commit -q --allow-empty -m 'feat: y' -m "$gen_line" || fail "generated trailer commit"
-bad2=$(git -C "$trepo" rev-parse HEAD)
-(cd "$trepo" && "$script/check-ai-trailers.sh" --range "$tbase") > "$tmp/out" 2>&1
-[[ $? == 1 ]] || fail "an AI trailer passed: $(cat "$tmp/out")"
-grep -qF "check-ai-trailers: REFUSE ai-trailer $bad1: $ai_line" "$tmp/out" || fail "co-author line not named: $(cat "$tmp/out")"
-grep -qF "check-ai-trailers: REFUSE ai-trailer $bad2: $gen_line" "$tmp/out" || fail "generated line not named: $(cat "$tmp/out")"
-(cd "$trepo" && "$script/check-ai-trailers.sh" --range "$tbase" "$tbase") > /dev/null 2>&1 || fail "an empty range was refused"
-(cd "$trepo" && "$script/check-ai-trailers.sh" --range no-such-rev) > /dev/null 2>&1
-[[ $? == 2 ]] || fail "an unresolvable base did not exit 2"
-# The precheck step itself, on the fixture with --base: the ai-trailers row fails.
-(cd "$trepo" && BATCH_PRECHECK_ROOT=$trepo BATCH_PRECHECK_BASE=$tbase "$pre" --list) | grep -qx 'ai-trailers' || fail "no ai-trailers step"
-# A full --base run with an AI trailer since the base fails: the step reruns at the base on the
-# same pinned range and fails the same way there, but a history check is never base-present.
+(cd "$trepo" && BATCH_PRECHECK_ROOT=$trepo BATCH_PRECHECK_BASE=$tbase "$pre" --list) > "$tmp/out" || fail "trailer --list: $(cat "$tmp/out")"
+[[ $(grep -c '^ai-coauthor-trailers (' "$tmp/out") == 1 ]] || fail "not one ai-coauthor-trailers step: $(cat "$tmp/out")"
+grep -qx 'ai-trailers' "$tmp/out" && fail "the retired ai-trailers step is still listed"
+ai_line=$(printf 'Co-Authored-By: Claude Opus 5.5 <noreply@%s>' anthropic.com)
 gclone=$tmp/gclone
 git clone -q "$frepo" "$gclone" 2> /dev/null && rm -f "$gclone/flaky-test-read-scopes-check" &&
   git -C "$gclone" commit -qam 'no flaky' && gbase=$(git -C "$gclone" rev-parse HEAD) &&
@@ -960,43 +957,9 @@ mkdir -p "$tmp/gmark"
 (cd "$gclone" && PATH=$fbin:$PATH FLAKY_MARK=$tmp/gmark BATCH_PRECHECK_ROOT=$gclone BATCH_PRECHECK_HEAVY= BATCH_PRECHECK_REGEN= \
   BATCH_PRECHECK_PLANNER= BATCH_PRECHECK_DRIFT="./pkg TestDrift" "$pre" --base "$gbase") > "$tmp/out" 2>&1
 [[ $? == 1 ]] || fail "a --base run with an AI trailer did not fail: $(cat "$tmp/out")"
-grep -Eq '^batch-precheck: \| FAIL \| +[0-9]+s \| ai-trailers$' "$tmp/out" || fail "ai-trailers not an introduced FAIL: $(cat "$tmp/out")"
-grep -q 'WARN ai-trailers' "$tmp/out" && fail "ai-trailers was downgraded to base-present: $(cat "$tmp/out")"
-printf 'feat: z\n\n%s\n' "$ai_line" > "$tmp/msg"
-(cd "$trepo" && "$script/check-ai-trailers.sh" --install) > "$tmp/out" 2>&1 || fail "hook install: $(cat "$tmp/out")"
-(cd "$trepo" && "$script/check-ai-trailers.sh" --install) > /dev/null 2>&1 || fail "hook reinstall over its own hook failed"
-git -C "$trepo" commit -q --allow-empty -F "$tmp/msg" > "$tmp/out" 2>&1 && fail "the commit-msg hook let an AI trailer through"
-grep -q 'REFUSE ai-trailer in this commit message' "$tmp/out" || fail "hook refusal: $(cat "$tmp/out")"
-git -C "$trepo" commit -q --allow-empty -m 'feat: clean' || fail "the hook refused a clean message"
-printf '#!/bin/sh\nexit 0\n' > "$(git -C "$trepo" rev-parse --path-format=absolute --git-path hooks/commit-msg)"
-(cd "$trepo" && "$script/check-ai-trailers.sh" --install) > /dev/null 2>&1
-[[ $? == 2 ]] || fail "install replaced a foreign commit-msg hook"
-# A marked hook a user extended is not replaced either, and stays as it was.
-hookf=$(git -C "$trepo" rev-parse --path-format=absolute --git-path hooks/commit-msg)
-rm -f "$hookf" && (cd "$trepo" && "$script/check-ai-trailers.sh" --install) > /dev/null 2>&1 || fail "install into an empty hooks dir"
-printf 'echo extra-user-logic\n' >> "$hookf"
-cp "$hookf" "$tmp/hook.before"
-(cd "$trepo" && "$script/check-ai-trailers.sh" --install) > "$tmp/out" 2>&1
-[[ $? == 2 ]] && cmp -s "$hookf" "$tmp/hook.before" || fail "install replaced a marked hook with user logic: $(cat "$tmp/out")"
-grep -q 'is not exactly this guard' "$tmp/out" || fail "modified-hook refusal: $(cat "$tmp/out")"
-rm -f "$hookf"
-# A "#" line is checked too (-m, -F and --cleanup=verbatim keep it in the commit); below a
-# `git commit -v` scissors line is the diff, which is not.
-printf 'feat: c\n\n# %s\n' "${gen_line#* }" > "$tmp/msg"
-"$script/check-ai-trailers.sh" --commit-msg "$tmp/msg" > /dev/null 2>&1
-[[ $? == 1 ]] || fail "a commented Generated-with line passed the hook"
-printf 'feat: d\n# ------------------------ >8 ------------------------\n+%s\n' "$ai_line" > "$tmp/msg"
-"$script/check-ai-trailers.sh" --commit-msg "$tmp/msg" || fail "a trailer inside the -v diff was refused"
-# A failing git read is an error (exit 2), never a clean range.
-gstub=$tmp/gstub
-mkdir -p "$gstub"
-realgit=$(command -v git)
-for verb in rev-list log; do
-  printf '#!/bin/sh\n[ "$1" = %s ] && { echo "fatal: simulated" >&2; exit 128; }\nexec %q "$@"\n' "$verb" "$realgit" > "$gstub/git"
-  chmod +x "$gstub/git"
-  (cd "$trepo" && PATH=$gstub:$PATH "$script/check-ai-trailers.sh" --range "$tbase") > "$tmp/out" 2>&1
-  [[ $? == 2 ]] && grep -q "git $verb .*failed" "$tmp/out" || fail "a failed git $verb did not exit 2: $(cat "$tmp/out")"
-done
+grep -Eq '^batch-precheck: \| FAIL \| +[0-9]+s \| ai-coauthor-trailers \([0-9a-f]+\)$' "$tmp/out" ||
+  fail "ai-coauthor-trailers not an introduced FAIL: $(cat "$tmp/out")"
+grep -q 'WARN ai-coauthor-trailers' "$tmp/out" && fail "ai-coauthor-trailers was downgraded to base-present: $(cat "$tmp/out")"
 
 # 11. ASD-V0-073 (V1-3238): the legal-file-pins step refuses a legal file whose manifest sha256 is
 # stale, naming the file and the manifest, and a missing one; matching pins pass.

@@ -2,17 +2,24 @@
 # SPDX-License-Identifier: Apache-2.0
 """Aggregate lane-procedure counts from Claude Code subagent transcripts (V1-1629, V1-1630).
 
-usage: script/lane-transcript-metrics.py PROJECT_DIR --since YYYY-MM-DD --until YYYY-MM-DD
+usage: script/lane-transcript-metrics.py PROJECT_DIR... --since YYYY-MM-DD --until YYYY-MM-DD [--sessions]
+                                        [--orchestrator SESSION_ID]...
 
-PROJECT_DIR is a Claude Code project transcript directory (~/.claude/projects/<slug>). Every
-<session>/subagents/agent-*.jsonl whose first record falls in [since, until) is read. Only counts,
-durations and agent ids are printed (JSON on stdout); no transcript text is retained.
+Each PROJECT_DIR is a Claude Code project transcript directory (~/.claude/projects/<slug>); all of
+them aggregate into one window. Every <session>/subagents/agent-*.jsonl whose first record falls in
+[since, until) is read. With --sessions each directory's top-level <session>.jsonl is read too, so
+lanes that run as their own worktree sessions are counted with the same rules (ASD-V0-834). A
+session that starts other sessions (mcp__ccd_session__start_session), or one named by --orchestrator,
+is the orchestrator: it is reported under orchestratorSessions and left out of every lane and
+all-subagent total (ASD-V0-836). Only
+counts, durations and agent ids are printed (JSON on stdout); no transcript text is retained.
 
 Per subagent: Bash calls; dogfood-change and dogfood-finish invocations (make targets or the
 scripts, not reads such as grep); seconds spent in polling tool calls (Bash with sleep, until/while
-loops, --watch, gh run watch or tail -f, plus Monitor calls); tool calls the harness timed out
-("Command timed out after", "did not complete within its Ns timeout"), split into those whose
-limit was 600 s or more; tool calls that
+loops, --watch, gh run watch or tail -f, plus Monitor calls); tool calls the harness timed out,
+split into those whose limit was 600 s or more (only a result that begins with the harness's own
+"Command timed out after" or "Command did not complete within its Ns timeout", optionally after an
+"Exit code N" line, counts; the phrase quoted in command output does not, ASD-V0-836); tool calls that
 ran 600 s or longer; and the wall time of single-package `go test` calls (through heavy.sh or not,
 offloaded or not; it includes slot wait and compile time). A lane is a subagent that committed, pushed, or ran a dogfood target.
 Commands are split at &&, ||, ;, | and newlines; a part that starts with a read or print command
@@ -32,7 +39,8 @@ READ_ONLY = re.compile(r"^\s*(grep|rg|sed|cat|head|tail|less|echo|printf|git (lo
 POLL = re.compile(r"(\bsleep\s+[0-9]|\buntil\b[^\n]*\bdo\b|\bwhile\b[^\n]*\bdo\b|--watch\b|\bgh run watch\b|\btail -f\b)")
 DOGFOOD_ANY = re.compile(r"(\bmake\b[^;&|\n]*\bdogfood-(change|finish|check|seal)\b|dogfood-(change|finish|check|seal)\.sh)")
 SPLIT = re.compile(r"&&|\|\||;|\||\n")
-TIMEOUT = re.compile(r"Command timed out after (?:(?P<m>\d+)m )?(?P<s>\d+)s|timed out at (?P<a>\d+)s|did not complete within its (?P<b>\d+)s timeout")
+TIMEOUT = re.compile(r"\A(?:Exit code \d+\n)?Command (?:timed out after (?:(?P<m>\d+)m )?(?P<s>\d+)s|did not complete within its (?P<b>\d+)s timeout)")
+SPAWNS_SESSIONS = "mcp__ccd_session__start_session"
 
 
 def ts(record):
@@ -116,13 +124,14 @@ def go_test_packages(command):
     return out
 
 
-def scan(path):
+def scan(path, kind="subagent"):
     calls = {}  # tool_use_id -> (name, command, started)
-    row = {"agent": path.stem.removeprefix("agent-"), "bashCalls": 0, "dogfoodChange": 0, "dogfoodFinish": 0,
+    row = {"agent": path.stem.removeprefix("agent-"), "kind": kind, "bashCalls": 0, "dogfoodChange": 0, "dogfoodFinish": 0,
            "pollCalls": 0, "pollSeconds": 0.0, "harnessTimeouts": 0, "harnessTimeouts600s": 0, "calls600s": 0, "lane": False}
     long = []  # tool calls of 600 s or more, as a command class and duration only
     focused = []  # single-package go test calls: package, seconds, through heavy.sh, offloaded
     first = last = None
+    orchestrator = False
     with path.open(encoding="utf-8") as fh:
         for line in fh:
             try:
@@ -143,6 +152,7 @@ def scan(path):
                     inp = block.get("input") or {}
                     cmd = inp.get("command", "") if block.get("name") == "Bash" else ""
                     calls[block.get("id")] = (block.get("name"), cmd, t)
+                    orchestrator = orchestrator or block.get("name") == SPAWNS_SESSIONS
                     if block.get("name") == "Bash":
                         row["bashCalls"] += 1
                         row["dogfoodChange"] += invokes(DOGFOOD_CHANGE, cmd)
@@ -158,7 +168,7 @@ def scan(path):
                     if hit:
                         row["harnessTimeouts"] += 1
                         g = hit.groupdict()
-                        limit = int(g["a"] or g["b"] or 0) or int(g["m"] or 0) * 60 + int(g["s"])
+                        limit = int(g["b"] or 0) or int(g["m"] or 0) * 60 + int(g["s"])
                         row["harnessTimeouts600s"] += limit >= 600
                     if name == "Bash":
                         runs = go_test_packages(cmd)
@@ -170,6 +180,8 @@ def scan(path):
                         row["calls600s"] += 1
                         long.append({"class": classify(name, cmd), "seconds": round(secs)})
     row["pollSeconds"] = round(row["pollSeconds"])
+    if orchestrator and kind == "session":
+        row["kind"], row["lane"] = "orchestrator", False
     return first, last, row, long, focused
 
 
@@ -200,20 +212,33 @@ def focused_summary(calls):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("project_dir")
+    ap.add_argument("project_dir", nargs="+")
     ap.add_argument("--since", required=True)
     ap.add_argument("--until", required=True)
+    ap.add_argument("--sessions", action="store_true", help="also read top-level session transcripts")
+    ap.add_argument("--orchestrator", action="append", default=[], metavar="SESSION_ID",
+                    help="a session id to report as the orchestrator, not a lane (repeatable)")
     a = ap.parse_args()
     lo = dt.datetime.fromisoformat(a.since).replace(tzinfo=dt.timezone.utc)
     hi = dt.datetime.fromisoformat(a.until).replace(tzinfo=dt.timezone.utc)
-    rows, long, focused = [], [], []
-    for p in sorted(pathlib.Path(a.project_dir).glob("*/subagents/agent-*.jsonl")):
-        first, last, row, calls, tests = scan(p)
+    rows, orchestrators, long, focused = [], [], [], []
+    paths = []
+    for d in a.project_dir:
+        paths += [(p, "subagent") for p in sorted(pathlib.Path(d).glob("*/subagents/agent-*.jsonl"))]
+        if a.sessions:
+            paths += [(p, "session") for p in sorted(pathlib.Path(d).glob("*.jsonl"))]
+    for p, kind in paths:
+        first, last, row, calls, tests = scan(p, kind)
+        if kind == "session" and p.stem in a.orchestrator:
+            row["kind"], row["lane"] = "orchestrator", False
         if first and lo <= first < hi:
-            long += calls
-            focused += tests
             row["start"] = first.strftime("%Y-%m-%dT%H:%MZ")
             row["hours"] = round((last - first).total_seconds() / 3600, 2)
+            if row["kind"] == "orchestrator":
+                orchestrators.append(row)
+                continue
+            long += calls
+            focused += tests
             rows.append(row)
     lanes = [r for r in rows if r["lane"]]
     dogfood_lanes = [r for r in lanes if r["dogfoodChange"] or r["dogfoodFinish"]]
@@ -224,7 +249,8 @@ def main():
     out = {
         "profile": "corvint-lane-transcript-metrics/0",
         "window": {"since": a.since, "until": a.until},
-        "subagents": len(rows),
+        "subagents": sum(r["kind"] == "subagent" for r in rows),
+        "sessions": sum(r["kind"] == "session" for r in rows),
         "lanes": len(lanes),
         "lanesRunningDogfood": len(dogfood_lanes),
         "dogfoodChangePerDogfoodLane": {
@@ -242,6 +268,7 @@ def main():
         "toolCalls600sByClass": by_class(long),
         "focusedGoTests": focused_summary(focused),
         "perSubagent": rows,
+        "orchestratorSessions": orchestrators,
     }
     json.dump(out, sys.stdout, indent=1)
     sys.stdout.write("\n")

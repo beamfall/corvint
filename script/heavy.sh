@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# usage: script/heavy.sh COMMAND [ARG...]
+# usage: script/heavy.sh [NAME=VALUE...] COMMAND [ARG...]
 #        script/heavy.sh --print-lock-dir
 #
 # --print-lock-dir prints the slot lock directory a run would use (HEAVY_LOCK_DIR, else HEAVY_CONFIG,
@@ -72,6 +72,10 @@
 #   HEAVY_REMOTE_CLONE    remote clone of this repository's origin; default $HOME/corvint.
 #   HEAVY_REMOTE_ROOT     remote scratch and lock root; default $HOME/.cache/corvint-heavy.
 #   HEAVY_REMOTE_SLOTS    remote concurrent commands; default max(1, remote CPUs/4).
+#   HEAVY_REMOTE_GOMAXPROCS  GOMAXPROCS the remote command runs with, so each slot's test binaries
+#                         stay within their share of the remote CPUs (V1-1628); default the remote
+#                         -p, max(1, remote CPUs/slots); 0 sets none. A GOMAXPROCS the remote
+#                         environment file sets, or a leading GOMAXPROCS=N word, still wins.
 #   HEAVY_REMOTE_ENV      remote file sourced first (for example one putting the pinned go on PATH).
 #   HEAVY_REMOTE_TIMEOUT  bound on the remote command's run once it holds a remote slot, enforced with
 #                         timeout(1), which the remote must have; the slot wait is not bounded; default 40m.
@@ -131,7 +135,8 @@
 # 143, 130 or 129; the remote command keeps running until it ends or HEAVY_REMOTE_TIMEOUT stops it.
 # Each local run of an offloadable command (unavailable, HEAVY_REMOTE=0, a file-writing flag) is
 # appended to HEAVY_FALLBACK_LOG, so host load from local runs stays visible. Only the argv travels:
-# set test environment with `env K=V` inside the command. GOCACHE/GOMODCACHE assignments are
+# set test environment with `env K=V` inside the command, or as leading K=V words, which become
+# `env K=V ...` (ASD-V0-830). GOCACHE/GOMODCACHE assignments are
 # dropped remotely, and a command with a file-writing flag (-o, -c, -outputdir, -coverprofile, the
 # profiles, -trace, -test.*), as an argument, in a GOFLAGS= argument or in the exported GOFLAGS,
 # always runs locally, because its files would stay on the remote.
@@ -423,7 +428,7 @@ offload() {
     printf 'TREE=%q\nDIRTY=%q\nBACK=%q\n' "$heavy_tree" "$heavy_dirty" "$back"
     printf 'CLONE=%q\nROOT=%q\nSLOTS=%q\nENVFILE=%q\nTIMEOUT=%q\n' "${HEAVY_REMOTE_CLONE-}" "${HEAVY_REMOTE_ROOT-}" \
       "${HEAVY_REMOTE_SLOTS-}" "${HEAVY_REMOTE_ENV-}" "${HEAVY_REMOTE_TIMEOUT:-40m}"
-    printf 'BUSY=%q\n' "${HEAVY_REMOTE_BUSY_PROCESS-}"
+    printf 'BUSY=%q\nGMP=%q\n' "${HEAVY_REMOTE_BUSY_PROCESS-}" "${HEAVY_REMOTE_GOMAXPROCS-}"
     [[ -n ${heavy_build-} ]] && printf 'BUILD=1\nXGOOS=%q\nXGOARCH=%q\nMAXLOAD=%q\n' "$xgoos" "$xgoarch" "$heavy_build"
     printf 'CMD=('
     printf '%q ' "$@"
@@ -650,6 +655,10 @@ serve() {
   export CORVINT_GOCACHE GOCACHE
   mkdir -p "$GOCACHE" || infra "go cache $GOCACHE unavailable"
   bound_parallelism "$par"
+  # V1-1628: -p bounds how many packages build or test at once, not the threads inside one test
+  # binary, so a whole-package run on every slot would still contend for all the CPUs.
+  if [[ -z ${GOMAXPROCS-} ]] && ((${GMP:-$par} > 0)); then export GOMAXPROCS=${GMP:-$par}; fi
+  printf 'heavy.sh: remote bound -p=%s GOMAXPROCS=%s\n' "$par" "${GOMAXPROCS:-unset}" >&2
   printf 'heavy.sh: running on %s %s/%s %s at %s%s tree=%s dirty=%s\n' "$(hostname)" "$(go env GOOS 2> /dev/null)" \
     "$(go env GOARCH 2> /dev/null)" "$(go env GOVERSION 2> /dev/null)" "$HEAD" "${WIP:+ +wip}" "$TREE" "$DIRTY" >&2
   if [[ -n ${BUILD-} ]]; then
@@ -1137,6 +1146,10 @@ main() {
     printf '%s\n' "$lock_dir"
     return 0
   fi
+  # ASD-V0-830 (V1-3256): leading NAME=VALUE words are environment, as for env(1), so
+  # `heavy.sh GOTOOLCHAIN=local go test ...` runs `env GOTOOLCHAIN=local go test ...` locally and
+  # remotely instead of failing with `cannot run` after the load wait.
+  [[ $1 =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] && set -- env "$@"
   heavy_script=$(script_hash "${BASH_SOURCE[0]}")
   printf 'heavy.sh: script sha256=%s %s\n' "$heavy_script" "${BASH_SOURCE[0]}" >&2
   cpus=$(cpu_count)
@@ -1156,6 +1169,7 @@ main() {
       [[ $retry =~ ^[0-9]{1,3}$ ]] || refuse "invalid-retry HEAVY_REMOTE_RETRY=$retry (want 0..999 seconds)"
       fallback_limit=${HEAVY_FALLBACK_ALERT:-3}
       [[ $fallback_limit =~ ^[0-9]{1,3}$ ]] && ((10#$fallback_limit <= 100)) || refuse "invalid-fallback-alert HEAVY_FALLBACK_ALERT=$fallback_limit (want 0..100)"
+      [[ ${HEAVY_REMOTE_GOMAXPROCS:-0} =~ ^(0|[1-9][0-9]{0,3})$ ]] || refuse "invalid-remote-gomaxprocs HEAVY_REMOTE_GOMAXPROCS=$HEAVY_REMOTE_GOMAXPROCS (want 0..9999)"
       darwin_notice "$@"
       offload_traps
       try_offload "$@"

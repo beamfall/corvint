@@ -5,8 +5,9 @@
 # lane-clean.sh (ASD-V0-018), lane-guard.sh (ASD-V0-024),
 # install-local-bin.sh (ASD-V0-025), install-cem-verifiers.sh (TCB-V0-046),
 # wsl-keepalive-check.sh (ASD-V0-039), batch-review-packet.sh (ASD-V0-043), codex-review.sh
-# (ASD-V0-064), lane-setup.sh (ASD-V0-071, ASD-V0-072), requirement-ids-free.sh (ASD-V0-960). No
-# Go build runs.
+# (ASD-V0-064), lane-setup.sh (ASD-V0-072, ASD-V0-831), requirement-ids-free.sh (ASD-V0-960),
+# heavy-groups.sh (ASD-V0-832), pr-landing-watch.sh (ASD-V0-833), lane-transcript-metrics.py
+# (ASD-V0-834, ASD-V0-836). No Go build runs.
 set -uo pipefail
 export LC_ALL=C
 # The fixtures run real Git commands, commits and pushes; a caller's leaked repository environment
@@ -75,7 +76,7 @@ export HEAVY_WHOLE_REASON='lane-scripts-test fixture' HEAVY_MAX_LOAD=999999 HEAV
 unset HEAVY_LOCAL_REASON HEAVY_LOAD_WAIT
 unset HEAVY_REMOTE_HOST HEAVY_REMOTE HEAVY_REMOTE_SHELL HEAVY_REMOTE_SSH HEAVY_REMOTE_CLONE HEAVY_REMOTE_ROOT \
   HEAVY_REMOTE_SLOTS HEAVY_REMOTE_ENV HEAVY_REMOTE_TIMEOUT HEAVY_REMOTE_BUSY_PROCESS HEAVY_REMOTE_BUILD_MAX_LOAD \
-  HEAVY_BUILD_OFFLOAD HEAVY_CI_GH HEAVY_CI_STATUSES HEAVY_CI_TIMEOUT
+  HEAVY_REMOTE_GOMAXPROCS HEAVY_BUILD_OFFLOAD HEAVY_CI_GH HEAVY_CI_STATUSES HEAVY_CI_TIMEOUT
 # ASD-V0-040: no fixture queries a real CI; the guard's own group sets a repository and a stub gh.
 export HEAVY_CI_REPO=off
 # DCW-V0-355 (V1-2853): every heavy.sh fixture run goes through $heavy, a guard that asks heavy.sh
@@ -281,7 +282,7 @@ if [[ \$1 == build ]]; then
   exit 0
 fi
 [[ \$1 == test || \$1 == vet || \$1 == windows-vet ]] || exit 0
-case \$PWD in */off/rhome/.cache/corvint-heavy/wt/*) where=remote; printf '%s\n' "\$TMPDIR" > "$off/tmpdir.last"; : > "\$TMPDIR/leak" ;; *) where=local ;; esac
+case \$PWD in */off/rhome/.cache/corvint-heavy/wt/*) where=remote; printf '%s\n' "\$TMPDIR" > "$off/tmpdir.last"; printf '%s\n' "\${GOMAXPROCS-unset}" > "$off/gmp.last"; : > "\$TMPDIR/leak" ;; *) where=local ;; esac
 printf 'where=%s dir=%s gocache=%s mark=%s\n' "\$where" "\${PWD##*/}" "\${GOCACHE-unset}" "\${FAKE_MARK-}"
 cat ../committed.txt ../wip.txt untracked.txt 2> /dev/null
 for a in "\$@"; do
@@ -312,7 +313,7 @@ printf 'wip-uncommitted\n' > "$off/lc/wip.txt"
 printf 'untracked\n' > "$off/lc/sub/untracked.txt"
 printf 'export FAKE_MARK=sourced\n' > "$off/rhome/go.env"
 # shellcheck disable=SC2088 # the remote expands ~
-hv() { (cd "$off/lc/sub" && env PATH="$off/bin:$PATH" TMPDIR="$off/ltmp" HEAVY_REMOTE_SSH="$off/bin/ssh" \
+hv() { (cd "$off/lc/sub" && env -u GOMAXPROCS PATH="$off/bin:$PATH" TMPDIR="$off/ltmp" HEAVY_REMOTE_SSH="$off/bin/ssh" \
   HEAVY_REMOTE_SHELL='bash -s' HEAVY_REMOTE_ENV='~/go.env' HEAVY_SLOTS=1 HEAVY_REMOTE_RETRY=0 \
   HEAVY_FALLBACK_LOG="$off/fallback.log" "$heavy" "$@"); }
 out=$(HEAVY_REMOTE_HOST=box hv env GOCACHE=/no/such/cache go test -exit=0 ./... 2> "$off/err")
@@ -335,6 +336,21 @@ grep -qE "^heavy.sh: running on .* at $(g -C "$off/lc" rev-parse HEAD) \+wip tre
 # slot's worktree at a fixed path that later runs reuse after resetting it to the tested tree.
 phase='^heavy.sh: phase receive=[0-9]+\.[0-9]s wait=[0-9]+\.[0-9]s prepare=[0-9]+\.[0-9]s run=[0-9]+\.[0-9]s worktree=heavy-slot1/'
 grep -qE "${phase}created\$" "$off/err" || fail "heavy.sh first offload phase line: $(cat "$off/err")"
+# V1-1628 (ASD-V0-835): the remote command runs with GOMAXPROCS set to the remote -p (CPUs/slots)
+# by default, HEAVY_REMOTE_GOMAXPROCS overrides it, 0 sets none, and a malformed value is refused.
+grep -qE '^heavy.sh: remote bound -p=[0-9]+ GOMAXPROCS=[0-9]+$' "$off/err" &&
+  [[ $(cat "$off/gmp.last") == "$(sed -n 's/^heavy.sh: remote bound -p=\([0-9]*\) GOMAXPROCS=.*/\1/p' "$off/err")" ]] ||
+  fail "heavy.sh remote GOMAXPROCS default is not the remote -p: $(cat "$off/gmp.last") $(cat "$off/err")"
+HEAVY_REMOTE_HOST=box HEAVY_REMOTE_GOMAXPROCS= hv go test -exit=0 ./... > /dev/null 2> "$off/err" &&
+  [[ $(cat "$off/gmp.last") =~ ^[1-9][0-9]*$ ]] || fail "heavy.sh empty HEAVY_REMOTE_GOMAXPROCS is not the default: $(cat "$off/err")"
+HEAVY_REMOTE_HOST=box HEAVY_REMOTE_GOMAXPROCS=3 hv go test -exit=0 ./... > /dev/null 2> "$off/err"
+[[ $(cat "$off/gmp.last") == 3 ]] || fail "heavy.sh HEAVY_REMOTE_GOMAXPROCS=3 not applied: $(cat "$off/gmp.last")"
+HEAVY_REMOTE_HOST=box HEAVY_REMOTE_GOMAXPROCS=0 hv go test -exit=0 ./... > /dev/null 2> "$off/err"
+[[ $(cat "$off/gmp.last") == unset ]] && grep -q 'GOMAXPROCS=unset$' "$off/err" ||
+  fail "heavy.sh HEAVY_REMOTE_GOMAXPROCS=0 still set one: $(cat "$off/gmp.last")"
+HEAVY_REMOTE_HOST=box HEAVY_REMOTE_GOMAXPROCS=x hv go test -exit=0 ./... > /dev/null 2> "$off/err"
+[[ $? == 2 ]] && grep -q 'invalid-remote-gomaxprocs' "$off/err" ||
+  fail "heavy.sh did not refuse HEAVY_REMOTE_GOMAXPROCS=x: $(cat "$off/err")"
 rwt=$off/rhome/.cache/corvint-heavy/wt/heavy-slot1
 printf 'stale\n' > "$rwt/wip.txt"
 printf 'stale\n' > "$rwt/sub/stale.txt"
@@ -939,6 +955,12 @@ STUB_LOAD=9.99 HEAVY_MAX_LOAD=9 pv true 2> "$pol/err" && ! grep -q waited "$pol/
   fail "heavy.sh waited at a load whose integer part is within HEAVY_MAX_LOAD"
 HEAVY_MAX_LOAD=x pv true 2> "$pol/err"
 [[ $? == 2 ]] && grep -q 'REFUSE invalid-max-load' "$pol/err" || fail "heavy.sh accepted HEAVY_MAX_LOAD=x"
+# ASD-V0-830 (V1-3256): leading NAME=VALUE words are the command's environment, as with env(1).
+[[ $(pv HEAVY_T1=a HEAVY_T2='b c' sh -c 'printf "%s|%s" "$HEAVY_T1" "$HEAVY_T2"' 2> "$pol/err") == 'a|b c' ]] ||
+  fail "heavy.sh did not run leading assignments as environment: $(cat "$pol/err")"
+pv GOTOOLCHAIN=local go test -run TestA ./x 2> "$pol/err" || fail "heavy.sh refused GOTOOLCHAIN=local go test: $(cat "$pol/err")"
+grep -q ' selected .*cmd=env GOTOOLCHAIN=local go test -run TestA ./x script=' "$pol/sel.log" ||
+  fail "a leading assignment hid the go test from the selection policy: $(tail -n 3 "$pol/sel.log")"
 ok
 # ASD-V0-024 (V1-1953): lane-guard.sh refuses real polling loops and unwrapped go test, but never
 # matches heredoc bodies, which are file content. Inputs are built as JSON by perl so the cases
@@ -1229,12 +1251,14 @@ limit=0 spv go test ./tools/small
 [[ $? == 2 ]] || fail "HEAVY_SMALL_TEST_BYTES=0 did not disable the exemption"
 ok
 
-# ASD-V0-072 (V1-3230), ASD-V0-071 (V1-3227): lane-setup.sh refuses a shallow shared clone with the
+# ASD-V0-072 (V1-3230), ASD-V0-831 (V1-3337): lane-setup.sh refuses a shallow shared clone with the
 # `git fetch --unshallow` recovery and creates nothing; on the full clone it adds the lane worktree
-# on its branch at origin/main and installs the commit-msg hook that refuses an AI trailer.
+# on its branch at origin/main and installs the commit-msg hook that refuses an AI trailer. The hook
+# runs the lane's own script/check-ai-coauthor-trailers.sh, so the source commits it.
 ls_src=$tmp/lane-setup-src
 git init -q "$ls_src" && git -C "$ls_src" -c user.name=t -c user.email=t@t commit -q --allow-empty -m one &&
-  git -C "$ls_src" -c user.name=t -c user.email=t@t commit -q --allow-empty -m two || fail "lane-setup source"
+  mkdir -p "$ls_src/script" && /bin/cp -f "$script/check-ai-coauthor-trailers.sh" "$ls_src/script/" &&
+  git -C "$ls_src" add script && git -C "$ls_src" -c user.name=t -c user.email=t@t commit -q -m two || fail "lane-setup source"
 git clone -q --depth 1 "file://$ls_src" "$tmp/lane-setup-shallow" 2> /dev/null || fail "lane-setup shallow clone"
 out=$("$script/lane-setup.sh" --repo "$tmp/lane-setup-shallow" --dir "$tmp/lane-a" --branch claude/a 2>&1)
 rc=$?
@@ -1328,6 +1352,146 @@ for bad in 'abc 1 2 HEAD:bad-prefix' 'ABC-V0 5 2 HEAD:bad-range' 'ABC-V0 1 1000 
   out=$(cd "$ids" && "$script/requirement-ids-free.sh" "${argv[@]}" 2>&1)
   [[ $? == 2 && $out == *"REFUSE ${bad##*:}"* ]] || fail "refusal ${bad##*:}: $out"
 done
+ok
+
+# ASD-V0-832 (V1-3344): heavy-groups.sh packs packages by their latest completed whole-package cost.
+hg=$tmp/heavy-groups
+mkdir -p "$hg"
+cat > "$hg/sel.log" << 'EOF'
+2026-10-31T01:00:00Z local wait=0.0s run=300.0s rc=0 pwd=/w cmd=go test -count=1 ./a script=abc
+2026-10-31T01:00:01Z local wait=0.0s run=5.0s rc=0 pwd=/w cmd=go test -count=1 -run X ./b script=abc
+2026-10-31T01:00:02Z local wait=0.0s run=200.0s rc=0 pwd=/w cmd=env GOTOOLCHAIN=local go test -count=1 -timeout 30m ./b/ script=abc
+2026-10-31T01:00:03Z local wait=0.0s run=100.0s rc=1 pwd=/w cmd=go test ./c script=abc
+2026-10-31T01:00:04Z local wait=0.0s run=1.0s rc=2 pwd=/w cmd=go test ./c script=abc
+2026-10-31T01:00:05Z offload host=h pack=1.0s remote=700.0s rc=0 receive=0.1s wait=0s prepare=0.1s run=690.0s worktree=reused pwd=/w cmd=go test ./big script=abc
+2026-10-31T01:00:06Z local wait=0.0s run=50.0s rc=0 pwd=/w cmd=go test ./c ./d script=abc
+2026-10-31T01:00:07Z offload host=h pack=1.0s remote=60.0s rc=0 run=150.0s pwd=/w cmd=go test ./d script=abc
+EOF
+hgo=$("$script/heavy-groups.sh" --log "$hg/sel.log" ./c ./new ./d ./big ./b ./a 2> "$hg/err")
+hg_want='./big
+./new
+./a ./d
+./b ./c'
+[[ $hgo == "$hg_want" ]] || fail "heavy-groups packed: $hgo"
+[[ $(cat "$hg/err") == *'unknown cost ./new'* && $(cat "$hg/err") == *'over budget ./big 690s; shard it (make test-shard)'* ]] ||
+  fail "heavy-groups stderr: $(cat "$hg/err")"
+[[ $("$script/heavy-groups.sh" --log "$hg/sel.log" ./a ./b ./c ./d ./big ./new 2> /dev/null) == "$hg_want" ]] ||
+  fail "heavy-groups output depends on argument order"
+[[ $(HEAVY_SELECTION_LOG=$hg/sel.log "$script/heavy-groups.sh" --budget 250 ./a/ ./c 2> /dev/null) == $'./a/\n./c' ]] ||
+  fail "heavy-groups ignored --budget, HEAVY_SELECTION_LOG or the trailing slash"
+"$script/heavy-groups.sh" --budget 0 ./a > /dev/null 2>&1
+[[ $? == 2 ]] || fail "heavy-groups accepted a zero budget"
+ok
+
+# ASD-V0-833 (V1-1735): pr-landing-watch.sh decides one landing step per pass against a stub gh;
+# the stub prints the scenario files (already in --jq form) and records every mutating call.
+lw=$tmp/landing
+mkdir -p "$lw/s"
+cat > "$lw/gh" << 'EOF'
+#!/usr/bin/env bash
+s=$LW_SCENARIO
+case "$1 $2" in
+  'pr view') cat "$s/view" ;;
+  'run list') cat "$s/runs" 2> /dev/null || true ;;
+  'run view') cat "$s/log" ;;
+  'api graphql') cat "$s/event" 2> /dev/null || true ;;
+  'repo view') echo o/r ;;
+  'run rerun' | 'pr merge') echo "$*" >> "$s/calls" ;;
+  *) echo "stub gh: unexpected $*" >&2; exit 1 ;;
+esac
+EOF
+chmod +x "$lw/gh"
+printf 'TestFlaky.*\n# comment\n' > "$lw/flakes"
+head40=0123456789abcdef0123456789abcdef01234567
+lwr() { GH=$lw/gh LW_SCENARIO=$lw/s "$script/pr-landing-watch.sh" --state-dir "$lw/state" --flakes "$lw/flakes" --repo o/r "$@" 2> "$lw/err"; }
+printf 'MERGED\tfalse\t%s\n' "$head40" > "$lw/s/view"
+[[ $(lwr 7) == MERGED ]] || fail "landing watch missed a merged PR"
+printf 'OPEN\ttrue\t%s\n' "$head40" > "$lw/s/view"
+[[ $(lwr 7) == WAITING ]] || fail "landing watch did not wait on a queued PR"
+# A listed flake reruns three times under --act, then escalates rerun-cap once into the alerts file.
+echo 99 > "$lw/s/runs"
+printf 'x\n--- FAIL: TestFlakyThing (0.1s)\n' > "$lw/s/log"
+for k in 1 2 3; do
+  out=$(lwr --act 7)
+  [[ $out == "RERUN run=99 attempt=$k/3" ]] || fail "flake rerun $k: $out"
+done
+[[ $(grep -c 'run rerun 99 --repo o/r --failed' "$lw/s/calls") == 3 ]] || fail "rerun calls: $(cat "$lw/s/calls")"
+out=$(lwr --act 7); rc=$?
+[[ $rc == 3 && $out == 'ESCALATE reason=rerun-cap run=99 tests=TestFlakyThing' ]] || fail "rerun cap: rc=$rc $out"
+lwr --act 7 > /dev/null
+[[ $(grep -c 'pr=7 reason=rerun-cap' "$lw/state/alerts.log") == 1 ]] || fail "rerun-cap alert not exactly once: $(cat "$lw/state/alerts.log")"
+[[ $(grep -c 'run rerun' "$lw/s/calls") == 3 ]] || fail "a capped flake was rerun again"
+# A test outside the list, or a failure naming no test, is a real failure.
+printf -- '--- FAIL: TestFlakyThing (0.1s)\n--- FAIL: TestReal (0.1s)\n' > "$lw/s/log"
+out=$(lwr 8); rc=$?
+[[ $rc == 3 && $out == 'ESCALATE reason=real-failure run=99 tests=TestReal' ]] || fail "unlisted test: rc=$rc $out"
+echo 'build failed' > "$lw/s/log"
+out=$(lwr 8); [[ $out == 'ESCALATE reason=real-failure run=99 names no failing Go test' ]] || fail "no-test failure: $out"
+# A bot ejection re-arms twice, once per removal event; a third event escalates requeue-cap.
+/bin/rm -f "$lw/s/runs" "$lw/s/calls"
+printf 'OPEN\tfalse\t%s\n' "$head40" > "$lw/s/view"
+printf 'RemovedFromMergeQueueEvent\tBot\tgithub-merge-queue\t2026-10-31T01:00:00Z\n' > "$lw/s/event"
+[[ $(lwr 9) == 'REQUEUE attempt=1/2' ]] || fail "dry-run bot ejection"
+[[ ! -e $lw/s/calls ]] || fail "a dry run changed GitHub: $(cat "$lw/s/calls")"
+[[ $(lwr --act 9) == 'REQUEUE attempt=1/2' ]] || fail "the same removal event was counted twice"
+printf 'RemovedFromMergeQueueEvent\tBot\tgithub-merge-queue\t2026-10-31T02:00:00Z\n' > "$lw/s/event"
+[[ $(lwr --act 9) == 'REQUEUE attempt=2/2' ]] || fail "second bot ejection"
+[[ $(grep -c '^pr merge 9 --repo o/r --auto$' "$lw/s/calls") == 2 ]] || fail "re-arm calls: $(cat "$lw/s/calls")"
+printf 'RemovedFromMergeQueueEvent\tBot\tgithub-merge-queue\t2026-10-31T03:00:00Z\n' > "$lw/s/event"
+out=$(lwr --act 9); rc=$?
+[[ $rc == 3 && $out == 'ESCALATE reason=requeue-cap by=github-merge-queue at=2026-10-31T03:00:00Z' ]] || fail "requeue cap: rc=$rc $out"
+# A human dequeue escalates and is never re-armed.
+/bin/rm -f "$lw/s/calls"
+printf 'RemovedFromMergeQueueEvent\tUser\towner\t2026-10-31T04:00:00Z\n' > "$lw/s/event"
+out=$(lwr --act 10); rc=$?
+[[ $rc == 3 && $out == 'ESCALATE reason=human-dequeue by=owner at=2026-10-31T04:00:00Z' ]] || fail "human dequeue: rc=$rc $out"
+[[ ! -e $lw/s/calls ]] || fail "a human dequeue was re-armed"
+grep -q 'pr=10 reason=human-dequeue by=owner' "$lw/state/alerts.log" || fail "human dequeue not alerted"
+lwr abc > /dev/null; [[ $? == 2 ]] || fail "a non-numeric PR was accepted"
+ok
+
+# ASD-V0-834 (V1-1630): lane-transcript-metrics.py aggregates several project directories and, with
+# --sessions, counts top-level session transcripts with the subagent rules and names each row's kind.
+ltm=$tmp/transcripts
+mkdir -p "$ltm/p1/s1/subagents" "$ltm/p2"
+printf '%s\n' '{"timestamp":"2026-10-31T01:00:00Z","message":{"content":[{"type":"tool_use","id":"a","name":"Bash","input":{"command":"ls"}}]}}' \
+  > "$ltm/p1/s1/subagents/agent-sub1.jsonl"
+printf '%s\n' '{"timestamp":"2026-10-31T02:00:00Z","message":{"content":[{"type":"tool_use","id":"b","name":"Bash","input":{"command":"git commit -m x"}}]}}' \
+  '{"timestamp":"2026-10-31T02:10:00Z","message":{"content":[{"type":"tool_result","tool_use_id":"b","content":"Command timed out after 10m 0s"}]}}' \
+  > "$ltm/p2/sess1.jsonl"
+printf '%s\n' '{"timestamp":"2026-11-02T00:00:00Z","message":{"content":[]}}' > "$ltm/p2/late.jsonl"
+ltm_q() { python3 -c 'import json,sys; d=json.load(sys.stdin); print(eval(sys.argv[1]))' "$1"; }
+ltm_out=$(python3 "$script/lane-transcript-metrics.py" "$ltm/p1" "$ltm/p2" --since 2026-10-30 --until 2026-11-01) ||
+  fail "lane-transcript-metrics without --sessions failed"
+[[ $(ltm_q '(d["subagents"], d["sessions"], d["lanes"])' <<< "$ltm_out") == '(1, 0, 0)' ]] ||
+  fail "lane-transcript-metrics counted sessions without --sessions: $ltm_out"
+ltm_out=$(python3 "$script/lane-transcript-metrics.py" "$ltm/p1" "$ltm/p2" --since 2026-10-30 --until 2026-11-01 --sessions) ||
+  fail "lane-transcript-metrics --sessions failed"
+[[ $(ltm_q '(d["subagents"], d["sessions"], d["lanes"], sorted(r["kind"] for r in d["perSubagent"]))' <<< "$ltm_out") == "(1, 1, 1, ['session', 'subagent'])" ]] ||
+  fail "lane-transcript-metrics --sessions counts or kinds: $ltm_out"
+[[ $(ltm_q '[(r["harnessTimeouts600s"], r["lane"]) for r in d["perSubagent"] if r["kind"] == "session"]' <<< "$ltm_out") == '[(1, True)]' ]] ||
+  fail "lane-transcript-metrics session timeout or lane: $ltm_out"
+ok
+
+# ASD-V0-836 (V1-3549): only the harness's own timeout result counts, never the phrase quoted in
+# output, and a session that starts sessions (or one named by --orchestrator) is reported apart.
+ltm=$tmp/transcripts2
+mkdir -p "$ltm/p"
+printf '%s\n' '{"timestamp":"2026-10-31T03:00:00Z","message":{"content":[{"type":"tool_use","id":"c","name":"Bash","input":{"command":"cat x.sh"}},{"type":"tool_use","id":"d","name":"Bash","input":{"command":"git commit -m y"}},{"type":"tool_use","id":"e","name":"Bash","input":{"command":"make t"}}]}}' \
+  '{"timestamp":"2026-10-31T03:01:00Z","message":{"content":[{"type":"tool_result","tool_use_id":"c","content":"echo timed out at 1800s; agent-x did not complete within its 600s timeout\nCommand timed out after 10m 0s"},{"type":"tool_result","tool_use_id":"d","content":"Exit code 143\nCommand timed out after 3m 0s"},{"type":"tool_result","tool_use_id":"e","content":"Command did not complete within its 600s timeout and was moved to the background"}]}}' \
+  > "$ltm/p/lane1.jsonl"
+printf '%s\n' '{"timestamp":"2026-10-31T04:00:00Z","message":{"content":[{"type":"tool_use","id":"f","name":"mcp__ccd_session__start_session","input":{}},{"type":"tool_use","id":"g","name":"Bash","input":{"command":"git commit -m z"}}]}}' \
+  '{"timestamp":"2026-10-31T04:01:00Z","message":{"content":[{"type":"tool_result","tool_use_id":"g","content":"Command timed out after 10m 0s"}]}}' \
+  > "$ltm/p/orch.jsonl"
+cp "$ltm/p/lane1.jsonl" "$ltm/p/named.jsonl"
+ltm_out=$(python3 "$script/lane-transcript-metrics.py" "$ltm/p" --since 2026-10-30 --until 2026-11-01 --sessions --orchestrator named) ||
+  fail "lane-transcript-metrics --orchestrator failed"
+[[ $(ltm_q '[(r["agent"], r["harnessTimeouts"], r["harnessTimeouts600s"]) for r in d["perSubagent"]]' <<< "$ltm_out") == "[('lane1', 2, 1)]" ]] ||
+  fail "lane-transcript-metrics counted a quoted timeout phrase: $ltm_out"
+[[ $(ltm_q '(d["sessions"], d["lanes"], d["harnessTimeoutsAllSubagents"], d["harnessTimeouts600sLanes"])' <<< "$ltm_out") == '(1, 1, 2, 1)' ]] ||
+  fail "lane-transcript-metrics orchestrator leaked into totals: $ltm_out"
+[[ $(ltm_q 'sorted((r["agent"], r["kind"], r["lane"]) for r in d["orchestratorSessions"])' <<< "$ltm_out") == "[('named', 'orchestrator', False), ('orch', 'orchestrator', False)]" ]] ||
+  fail "lane-transcript-metrics orchestrator not reported apart: $ltm_out"
 ok
 
 # ASD-V0-014: no fixture outlives the run, so nothing can write after the summary line. Every
