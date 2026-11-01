@@ -121,6 +121,11 @@ func TestCEM2V0005CorpusRoundTrip(t *testing.T) {
 		}
 		projected++
 	}
+	if projected == 0 && abstained == 0 && unavailable > 0 {
+		// A shallow clone (CI's checkout) lacks the corpus objects; that is
+		// absent evidence, not a projection failure.
+		t.Skipf("NOT_RUN: corpus objects absent from this clone (unavailable=%d)", unavailable)
+	}
 	if projected == 0 {
 		notRun(t, "no committed map was projectable (abstained=%d unavailable=%d)", abstained, unavailable)
 	}
