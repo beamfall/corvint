@@ -329,6 +329,14 @@ on a fixture queue remain non-goals.
   ticket whose token differs only by leading zeros in that number (`QB-0001`); an exact token
   always wins. When two or more such tickets exist the read MUST refuse as not found and name each
   candidate. Non-goals: prefix or fuzzy matching. Rollback: revert; an unpadded token is not found.
+- `CTS-V0-820`: (accepted 2026-11-01 under the owner's standing lane auto-accept (2026-10-11);
+  V1-3904) `corvint-tasks init` in a repository whose intent store lacks `queue.json` or
+  `policy.json`, such as a fresh `git init`, MUST refuse before it creates the state directory or
+  any journal byte. The refusal MUST carry outcome `REFUSED`, the existing code
+  `PREREQUISITE_UNSATISFIED`, and a warning naming each missing file by path and the fix: author the
+  queue and policy from the `docs/TASKS-EXTERNAL-AGENTS.md` templates, then rerun `init`. Before,
+  init exited `ERROR` `MALFORMED` with a raw `lstat` message. Non-goals: writing a default queue or
+  policy, and any change to genesis bytes. Rollback: revert; the raw `MALFORMED` returns.
 
 ## Import export and batching
 
@@ -362,6 +370,7 @@ revision 1, a broken revision chain, and a target held by a native record or ano
 | Failure | Behavior |
 |---|---|
 | Init over committed tickets or releases | Refused with `INTENT_DIVERGED`; no state directory is created (CTS-V0-001). |
+| Init with no `.taskman/queue.json` or `policy.json` | Refused with `PREREQUISITE_UNSATISFIED` naming each missing file and the template fix; nothing is created (CTS-V0-820). |
 | Intent directory unreadable | Refused with `UNSUPPORTED_FILESYSTEM`; nothing is created. |
 | Repository reached through a symlinked ancestor | Resolved; the canonical primary worktree is recorded (CTS-V0-004). |
 | Primary worktree or `.git` is a symbolic link | Refused with `UNSUPPORTED_FILESYSTEM`, unchanged (CTS-V0-004). |
@@ -619,3 +628,4 @@ restored byte-identical afterwards. Rollback restores the wall-clock deadline in
 | CTS-V0-871 | `internal/tasks/cli/cli.go` (`Run`, `globalRoot`), `internal/tasks/cli/compact.go` (`compactRead`), `internal/tasks/cli/command_help.go` | TestCTSV0871_JSONIsANoOpAndRootPrecedesTheVerb, TestCTSV0871_RootGovernsRelativeFileArguments |
 | CTS-V0-872 | `cmd/corvint-tasks/main.go` (`SIGPIPE` notify) | TestCTSV0872_ClosedStdoutPipeKeepsTheOutcomeStatus |
 | CTS-V0-873 | `internal/tasks/cli/cli.go` (`resolveTicketArg`, `paddedCandidates`, `ticketShow`) | TestCTSV0873_UnpaddedTokenResolvesTheOnePaddedTicket |
+| CTS-V0-820 | `internal/tasks/cli/init.go` (`initPrerequisites`) | TestCTSV0820_InitInFreshRepositoryNamesMissingQueueAndPolicy |
