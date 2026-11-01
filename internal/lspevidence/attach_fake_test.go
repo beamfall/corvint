@@ -1,101 +1,19 @@
 package lspevidence
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
-	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/contextindex"
+	"github.com/Beamfall/corvint/internal/testsupport"
 )
-
-// fakeGoplsEnv makes the test binary act as a scripted gopls: every
-// definition query answers the comma-separated LSPEVIDENCE_FAKE_DEFINITIONS
-// paths (repository-relative, or absolute for outside the root), and every
-// references query answers nothing.
-const fakeGoplsEnv = "LSPEVIDENCE_FAKE_DEFINITIONS"
-
-func serveFakeGopls() {
-	reader := bufio.NewReader(os.Stdin)
-	root := ""
-	for {
-		length := -1
-		for {
-			line, err := reader.ReadString('\n')
-			if err != nil {
-				return
-			}
-			line = strings.TrimRight(line, "\r\n")
-			if line == "" {
-				break
-			}
-			if name, value, ok := strings.Cut(line, ":"); ok && strings.EqualFold(strings.TrimSpace(name), "Content-Length") {
-				length, _ = strconv.Atoi(strings.TrimSpace(value))
-			}
-		}
-		body := make([]byte, max(length, 0))
-		if _, err := io.ReadFull(reader, body); err != nil {
-			return
-		}
-		var request struct {
-			ID     json.RawMessage `json:"id"`
-			Method string          `json:"method"`
-			Params struct {
-				RootURI string `json:"rootUri"`
-			} `json:"params"`
-		}
-		_ = json.Unmarshal(body, &request)
-		if request.Method == "exit" {
-			return
-		}
-		if len(request.ID) == 0 {
-			continue
-		}
-		var result any
-		switch request.Method {
-		case "initialize":
-			parsed, _ := url.Parse(request.Params.RootURI)
-			root = parsed.Path
-			result = map[string]any{"serverInfo": map[string]any{"name": "gopls", "version": "v0.0.0-fake"}, "capabilities": map[string]any{"positionEncoding": "utf-16", "definitionProvider": true, "referencesProvider": true}}
-		case "textDocument/definition":
-			locations := []any{}
-			for _, path := range strings.Split(os.Getenv(fakeGoplsEnv), ",") {
-				if !filepath.IsAbs(path) {
-					path = filepath.Join(root, filepath.FromSlash(path))
-				}
-				locations = append(locations, map[string]any{"uri": (&url.URL{Scheme: "file", Path: path}).String(), "range": map[string]any{"start": map[string]any{"line": 0, "character": 0}, "end": map[string]any{"line": 0, "character": 1}}})
-			}
-			result = locations
-		case "textDocument/references":
-			result = []any{}
-		}
-		reply, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": request.ID, "result": result})
-		fmt.Fprintf(os.Stdout, "Content-Length: %d\r\n\r\n%s", len(reply), reply)
-	}
-}
-
-func fakeGoplsExecutable(t *testing.T, definitions string) string {
-	t.Helper()
-	binary, err := os.Executable()
-	if err != nil {
-		t.Fatal(err)
-	}
-	path := filepath.Join(t.TempDir(), "gopls")
-	script := fmt.Sprintf("#!/bin/sh\n%s=%q LSPEVIDENCE_FAKE_SERVE=1 exec %q \"$@\"\n", fakeGoplsEnv, definitions, binary)
-	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	return path
-}
 
 // TestAttachCarriesProvenanceAndDedupes runs Attach against a scripted gopls
 // whose definition answers repeat a path, name a path outside the root, name
@@ -141,7 +59,7 @@ func TestAttachCarriesProvenanceAndDedupes(t *testing.T) {
 	}
 	packet := map[string]any{"results": []any{map[string]any{"id": "a/a.go", "rank": 1}}, "schema_version": 1}
 	before, _ := json.Marshal(packet)
-	executable := fakeGoplsExecutable(t, "b/b.go,b/b.go,"+filepath.Join(t.TempDir(), "z.go")+",x.py,d/d.go")
+	executable := testsupport.FakeGoplsExecutable(t, "b/b.go,b/b.go,"+filepath.Join(t.TempDir(), "z.go")+",x.py,d/d.go")
 	if err := Attach(ctx, index, "a/a.go", packet, 6, executable); err != nil {
 		t.Fatal(err)
 	}
@@ -173,8 +91,10 @@ func TestAttachCarriesProvenanceAndDedupes(t *testing.T) {
 			!strings.Contains(fmt.Sprint(item["reason"]), "related by inferred path-to-path relation") {
 			t.Fatalf("relation lacks its inclusion reason: %v", item)
 		}
-		if fmt.Sprint(from["blob"]) == "" || fmt.Sprint(to["blob"]) == "" {
-			t.Fatalf("relation endpoint is not pinned to a blob: %v", relation)
+		for _, endpoint := range []map[string]any{from, to} {
+			if blob, ok := endpoint["blob"].(string); !ok || len(blob) != 40 {
+				t.Fatalf("relation endpoint is not pinned to a blob: %v", relation)
+			}
 		}
 	}
 	if want := []string{"b/b.go", "x.py"}; !reflect.DeepEqual(targets, want) {

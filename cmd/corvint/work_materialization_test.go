@@ -195,6 +195,7 @@ func workCaptureSlot(t *testing.T) {
 // left alone because record fixtures key on it. A native-hook replacement of
 // this binary keeps its exact two-entry environment.
 func TestMain(m *testing.M) {
+	testsupport.ServeFakeGoplsIfRequested()
 	executable, _ := os.Executable()
 	removeRunParent := func() error { return nil }
 	if !exactNativeHookEnvironment(os.Environ(), nativeHookEnvironment(executable)) {
