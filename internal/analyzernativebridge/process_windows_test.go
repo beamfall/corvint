@@ -50,7 +50,6 @@ type jobObjectBasicLimitInformation struct {
 	Affinity                uintptr
 	PriorityClass           uint32
 	SchedulingClass         uint32
-	_                       [8 - unsafe.Sizeof(uintptr(0))]byte
 }
 
 type ioCounters struct {
@@ -64,6 +63,11 @@ type ioCounters struct {
 
 type jobExtendedLimitInformation struct {
 	BasicLimitInformation jobObjectBasicLimitInformation
+	// The Win32 LARGE_INTEGER members make the basic struct 48 bytes on 32-bit
+	// Windows. The pad lives here, not as the basic struct's last field, because
+	// Go pads a trailing zero-size field: on 64-bit that made the basic struct 72
+	// bytes and SetInformationJobObject fail with ERROR_BAD_LENGTH (V1-2488).
+	_                     [8 - unsafe.Sizeof(uintptr(0))]byte
 	IoInfo                ioCounters
 	ProcessMemoryLimit    uintptr
 	JobMemoryLimit        uintptr
@@ -158,9 +162,9 @@ func TestWindowsJobObjectABI(t *testing.T) {
 		t.Fatal("process was not configured for pre-assignment suspension")
 	}
 	pointerBytes := unsafe.Sizeof(uintptr(0))
-	wantBasic, wantExtended := uintptr(64), uintptr(144)
+	wantBasic, wantIoOffset, wantExtended := uintptr(64), uintptr(64), uintptr(144)
 	if pointerBytes == 4 {
-		wantBasic, wantExtended = 48, 112
+		wantBasic, wantIoOffset, wantExtended = 44, 48, 112
 	}
 	if got := unsafe.Sizeof(jobObjectBasicLimitInformation{}); got != wantBasic {
 		t.Fatalf("basic bytes=%d want=%d", got, wantBasic)
@@ -168,8 +172,8 @@ func TestWindowsJobObjectABI(t *testing.T) {
 	if got := unsafe.Sizeof(ioCounters{}); got != 48 {
 		t.Fatalf("io counters bytes=%d", got)
 	}
-	if got := unsafe.Offsetof(jobExtendedLimitInformation{}.IoInfo); got != wantBasic {
-		t.Fatalf("io offset=%d want=%d", got, wantBasic)
+	if got := unsafe.Offsetof(jobExtendedLimitInformation{}.IoInfo); got != wantIoOffset {
+		t.Fatalf("io offset=%d want=%d", got, wantIoOffset)
 	}
 	if got := unsafe.Sizeof(jobExtendedLimitInformation{}); got != wantExtended {
 		t.Fatalf("extended bytes=%d want=%d", got, wantExtended)
