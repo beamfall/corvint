@@ -115,6 +115,52 @@ Evidence: `TestCTWV0780_InitFromFeatureBranchWithLinkedIntentWorktree` runs real
 add` and init. `internal/tasks/intent` and `internal/tasks/store` pass whole, and
 `internal/tasks/cli -run CTW` passes.
 
+## V1-2539 and V1-2592: lease-gate load on WSL2 (orchestrator add-on)
+
+Both tickets name `TestCALV0263_LeaseGateLoad` reports, before and after, as their acceptance
+evidence. Neither ticket is in this checkout's committed `.taskman`, and WSL has no journal. The
+bodies and acceptance criteria were read from `internal/tasks/similar/testdata/corpus-2026-10-30.jsonl`.
+
+Host: WSL2, 32 CPUs, go1.27.3. Harness defaults: 40000 receipts, 880 tickets, 15 writers, 120 s,
+concurrent publish syncs. The raw reports are kept outside the repository, at
+`~/lanes/vt-w3-lgl/base-1.json` (before) and `~/lanes/vt-w3-lgl/head-1.json` (after).
+
+| Run | Qualification | claim wall p50/p99 | claim gate-wait p50/p99 | widen wall p50/p99 (n=16) | reap wall p50/p99 (n=8) | widen / reap gate-hold p99 |
+| --- | --- | --- | --- | --- | --- | --- |
+| before, base `dbc171377` | QUALIFIED, 1-min load 6.81 | 1024 / 1671 ms (n=14) | 831 / 1466 ms | 10531 / 12148 ms | 10241 / 11308 ms | 340 / 246 ms |
+| after, head `9a4c78d53` | QUALIFIED, 1-min load 9.54 | 1007 / 1632 ms (n=14) | 801 / 1440 ms | 10345 / 10828 ms | 10509 / 11005 ms | 149 / 151 ms |
+
+The head carries no lease or journal change, so the second run is the same code measured again.
+The two runs agree within noise.
+
+- **V1-2539 (LGL-V0-003): NOT MET, not delivered.** Claim gate-wait p99 is 1440-1466 ms against a
+  500 ms target, and claim wall p99 is 1632-1671 ms against 1500 ms. Gate hold is about 100 ms per
+  claim, and the 14 claims start together and are admitted first-in-first-out. The spec already
+  records that 500 ms cannot be reached by trimming in-gate work: it needs non-serial admission
+  or a claim staging-sync skip, an owner design decision named under "Blocked on" in
+  `corvint-tasks-lease-gate-latency-v0.md`. The lane made no change.
+- **V1-2592 (LGL-V0-012): NOT MET, not delivered.** Widen and reap wall p99 are 10.8-12.1 s
+  against 2 s. 95% or more of it is `SnapshotReadMS`, the full audit before the gate.
+  - Cause, found with temporary instrumentation in `sealedResume` (not committed): in a 40 s base
+    run all 9 sealed-resume attempts declined with `no base at the sealed sequence`. Segments are
+    sealed through S=39424, but the retained writer checkpoint has FullSeq 40001.
+  - Only a writer seal (`SealCheckpoint`) gives a checkpoint a base at S. The harness seals in
+    convert mode, which retains no checkpoint. Its warm-up claim then takes the complete route,
+    and a complete audit's checkpoint has no base (JSG-V0-004).
+  - A writer seal fires only once the tail is 1024 receipts past S, and it rebases only a
+    checkpoint whose FullSeq lies inside the segment it seals. The first such seal comes about
+    1000 commits after any complete audit, more than a 120 s run makes (about 310).
+  - The LGL-V0-012 resume itself works when a sealed base exists
+    (`lease_sealed_widen_reap_test.go`). What fails is that no sealed base exists after a
+    complete-route write.
+  - Two ways to meet the target, both needing an owner decision: (a) a complete audit over a
+    segmented store retains its checkpoint with a base at the sealed sequence. That amends
+    JSG-V0-004 and the journal checkpoint contract, which is authority-bearing code. (b) The
+    harness models a store in steady use, with a writer seal after a complete audit, so it measures
+    resumed widens and reaps; a store just after a complete-route write would still pay the full
+    audit. The lane did not choose between them, and no requirement ID from the 780-799 block
+    was used.
+
 ## Verification
 
 - Focused and whole-package tests, listed per ticket above. They ran through `~/lanes/heavy.sh`
@@ -158,3 +204,12 @@ add` and init. `internal/tasks/intent` and `internal/tasks/store` pass whole, an
    receipts come from an agent's own query and impact calls, not from `dogfood-change`. Repro: in
    a fresh worktree, run `make dogfood-change BASE=<base>`, commit a change, then run
    `make dogfood-finish` and read its NOTE lines.
+8. `TestCALV0263_LeaseGateLoad` cannot measure LGL-V0-012's sealed-base resume. Its fixture seals in
+   convert mode and then runs a complete warm-up claim, so no checkpoint has a base at the sealed
+   sequence, and every widen and reap declines the resume. Repro: add a stderr line to the
+   `sealedResume` decline in `internal/tasks/store/lease_write.go`, then run the harness: every
+   decline reads `no base at the sealed sequence`, with `fullSeq=40001` and `through=39424`.
+9. The tickets V1-2539 and V1-2592 cannot be read on WSL: `corvint-tasks ticket show` refuses
+   because there is no journal, and the tickets are not in the committed `.taskman`. Their text
+   was found only in a test corpus snapshot. Repro: `corvint-tasks ticket show V1-2539` in
+   `~/projects/corvint`.
