@@ -111,6 +111,12 @@ func newServiceHome(t *testing.T) *serviceHome {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// t.TempDir makes its numbered directory 0777 less the umask, so under a
+	// umask of 0002 the home is group-writable and the installer rightly
+	// refuses every root below it; the fixture home is private like a real one.
+	if err := os.Chmod(home, 0o700); err != nil {
+		t.Fatal(err)
+	}
 	s := &serviceHome{home: home, work: filepath.Join(home, "project"), exe: filepath.Join(home, "bin", "corvint-tasks"), config: filepath.Join(home, "config", "dispatch.json"), profile: filepath.Join(home, "config", "service.json")}
 	for _, d := range []string{s.work, filepath.Dir(s.exe), filepath.Dir(s.config)} {
 		if err := os.MkdirAll(d, 0o700); err != nil {
