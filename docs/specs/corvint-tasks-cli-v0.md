@@ -175,6 +175,12 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `widen --attempt A --generation G --whole-repository` as the verb that takes it and saying that
   a claim without `--scope` of a ticket that declares no scope already claims
   `WHOLE_REPOSITORY`. The claim usage never lists the flag.
+- `TCL-V0-867`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3715) Where
+  the journal at `<git-common-dir>/taskman` exists, `ticket list`, `ticket search` and their
+  facets MUST judge each ticket with the journal's reservation set, as `ticket show` does, so
+  attempt liveness is observed and no `no journal available to this reader` unknown or
+  CAL-V0-173 store-wide warning appears. When that reservation set cannot be read, the
+  store-wide ATTEMPT_LIVE warning MUST name the read failure rather than a missing journal.
 - `TCL-V0-870`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3552) A
   mutation the store refused (any `taskman-outcome/0` outcome other than `COMPLETED`) MUST put at
   least one closed §11 code in the command result's top-level `codes`, and a `--batch` entry MUST
@@ -232,7 +238,8 @@ that tokenizer and that scoring function for tickets instead of adding a second 
 - `internal/tasks/cli/cli_papercuts_test.go`: `TestTCLV0860_PositionalAndCurrentRevision`,
   `TestTCLV0861_MutationExamplesRun`, `TestTCLV0862_ListFieldsAcceptShowKeys`,
   `TestTCLV0863_SearchQueryNamesText`, `TestTCLV0864_RoadmapStatusFilter`,
-  `TestTCLV0865_ShowNamesFailingIntentChecks`, `TestTCLV0866_ClaimRefusesWholeRepository`.
+  `TestTCLV0865_ShowNamesFailingIntentChecks`, `TestTCLV0866_ClaimRefusesWholeRepository`,
+  `TestTCLV0867_JournalPresentReadsWarnNoAbsence`.
 - `internal/tasks/cli/refusal_codes_internal_test.go`: `TestTCLV0870_EveryRefusalOutcomeHasACode`;
   `internal/tasks/cli/refusal_codes_test.go`:
   `TestTCLV0870_StaleUpdateCarriesStaleTicket`; `internal/tasks/cli/attach_evidence_witness_test.go`:
