@@ -714,6 +714,7 @@ func TestTQDV0031_WorkStateHealth(t *testing.T) {
 // TQD-V0-032: a reopen ends the NO_PROGRESS_HANDOFF streak; hand-offs
 // before it never count toward the reopened ticket's streak.
 func TestTQDV0032_ReopenResetsNoProgressStreak(t *testing.T) {
+	t.Parallel() // no env, cwd, reaper or package-variable writes (V1-4027)
 	root, _ := leaseCLIStore(t, 0, time.Now().UTC().Add(-time.Minute))
 	id := planTicket(t, root, "reopened", "P1", `["src/"]`)
 	loopCLIHandoffs(t, root, id, 3)
