@@ -1458,6 +1458,24 @@ the out-of-suite unknown is never removed by frontier scoping.
     which has no on-disk resolution; an unresolvable root or package directory. A `..`, `.` or
     empty package segment is not looked up; an immutable-tree stat error other than not-exist is a
     source error.
+- `TJAA-V0-710`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2789)
+  A `package.json` dependency whose specifier starts with `file:`, `link:` or `portal:` and whose
+  path, joined to the manifest's directory, stays inside the root and outside every `node_modules`
+  directory, or whose specifier starts with `workspace:`, names repository source, not an external
+  package. Such a dependency MUST NOT make `declaredPackage` accept the bare import, and
+  `unresolvedBareImport` MUST NOT then accept it through `installedPackage` either (a `file:`
+  install may copy the source into `node_modules`): the import keeps the bare-import frontier
+  (`TJAA-V0-771`) unless a workspace package of that name is observed (`localPackage`, which
+  already gives it a graph edge). A local specifier that climbs out of the root or names a
+  `node_modules` path stays a declared external dependency. A manifest whose only dependencies are
+  local specifiers is still a package scope, and a local specifier still names its test runner
+  (`dependencyRunners`), as any declared dependency does.
+  - Non-goals: resolving the alias to the linked source as a graph edge; tarball (`file:x.tgz`)
+    contents.
+  - Failure modes, each keeping the frontier: an aliased `workspace:` dependency naming another
+    workspace package; a `file:` tarball inside the root.
+  - Rollback: drop the `localSpecifiers` map from `packageScope` and its check in
+    `unresolvedBareImport`; such dependencies are then declared again.
 - `TJAA-V0-123`: (same acceptance; GitHub #1887, V1-2787) A top-level `metadata` member of the
   Playwright config MUST NOT raise a config-syntax unknown or refuse discovery, as project-level
   `metadata` already does not: Playwright uses it only for reporting. `config.sha256` still binds
@@ -2028,6 +2046,7 @@ persisted; run-identity documents carrying `corvint-test-closure/0` digests are 
 | `TJAA-V0-118..120` (GitHub #1881 item 3) | `TestPlaywrightDiscoveryUngreppedListing_GH1881` in `playwright_gh1881_list_test.go` (agreeing listing verifies; prediction mismatch, missing pair, missing discovery case, repeated key, dynamic grep and no-grep-project mismatch stay unverified; an otherwise refused omission is verified; foreign, filtered and malformed ungrepped listings are refused); `TestAffectedPlaywrightDiscoveryProducer_GH709` ungrepped rows in `cmd/corvint/affected_playwright_test.go` | experimental; reporter repository `NOT_OBSERVED` |
 | `TJAA-V0-121` (GitHub #1884) | `TestPlaywrightOutOfSuiteSourceAnyLanguage_GH1884` in `playwright_gh1884_test.go` (undeclared TypeScript and Ruby paths widen; a declared Ruby directory applies; package.json, test-directory and spec-named declarations refuse) | experimental; reporter repository `NOT_OBSERVED` |
 | `TJAA-V0-122` (GitHub #1885) | `TestPlaywrightSymlinkedNodeModules_GH1885` and `TestInstalledPackageLinkIntoRepositorySource_GH1885` in `playwright_gh1885_test.go` (symlinked store installed: no alias frontier, `BOUNDED`; not installed: frontier stays; link into repository source or a tree source: not installed, frontier stays; in-repository pnpm store link: installed) | experimental; reporter repository `NOT_OBSERVED` |
+| `TJAA-V0-710` (V1-2789) | `TestLocalSpecifierDependencyKeepsBareImportFrontier_V12789` in `typescript_v12789_test.go` (`file:`, `link:`, `portal:` and `workspace:` aliases of repository source keep the frontier, also with a copied `node_modules` install; a `file:` path outside the root and a version range stay declared; fails before the change), `TestNamelessManifestLocalSpecifierKeepsFrontier_V12789` (a nameless manifest with only a local specifier stays a scope, so a node:test import keeps the frontier past a copied install) and `TestLocalSpecifierRunnerStillRecognised_V12789` (a locally specified jest keeps a convention-only `__tests__` file a test), both failing before the Codex P2 fixes | experimental |
 | `TJAA-V0-123` (GitHub #1887) | `TestPlaywrightDiscoveryTopLevelMetadata_GH1887` in `playwright_gh1887_test.go` (empty and run-identity `metadata` accepted; `config.sha256` differs for each) | experimental; reporter repository `NOT_OBSERVED` |
 | `TJAA-V0-124`, `TJAA-V0-125` (GitHub #1883) | `TestPlaywrightUngreppedWrapperConfig_GH1883` in `playwright_gh1883_test.go` (canonical and formatting-variant wrappers accepted; altered, foreign, other-directory, self, absent and unaccompanied wrappers refused); the wrapper rows of `TestAffectedPlaywrightDiscoveryProducer_GH709` in `cmd/corvint/affected_playwright_test.go` (held out of the digest, tracked wrapper and bad flags refused) | experimental; reporter repository `NOT_OBSERVED` |
 | `TJAA-V0-126` (GitHub #1751, V1-2667) | `TestResolvedImportSpecifierIsNotPathToken_TJAA126` and `TestPathTokensSkipOnlyTheResolvedSpecifier_TJAA126` in `gh1751_residuals_test.go` and `TestCreateRequireKeepsResolvedSpecifierToken_TJAA126` (a dirty `src/a/helper.js` selects its importer and a test reading the same text, not a test importing another `./helper.js`; only the literal at the specifier's offset is skipped; a `createRequire` module keeps its tokens) | experimental; reporter repository `NOT_OBSERVED` |

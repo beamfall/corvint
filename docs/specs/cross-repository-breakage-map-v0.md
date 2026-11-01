@@ -158,6 +158,7 @@ with the embedded provider bytes' SHA-256. Entity declarations are not source an
 - `BKM-V0-094`: (standing lane auto-accept, 2026-10-28; V1-2915) `breakage manifest` MUST accept `--repository ID=CHECKOUT@COMMIT` (full commit id; tree and origin derive from it), `--source ID:PATH:START-END` (that line span, default whole file), and `--provider-skeleton`, which appends one empty `external-evidence-provider/3` record whose repositories equal the manifest's pins.
 - `BKM-V0-099`: (standing lane auto-accept, 2026-10-28; V1-2915) With `--base`, the report MUST also carry `endpoint_span_changes`: one `{start, end, change}` per distinct line span that a relation endpoint of an EEP /3 record whose repository pins match the manifest declares on the selected source, sorted by start then end, each compared positionally as in `BKM-V0-092` (`declared-span-changed`, `declared-span-unchanged`, or `span-unavailable` when the base path, the target source or either blob's lines are missing). A symbol-only endpoint declares no span and is not compared; without `--base` the field is absent. It resolves no declaration and changes no edge.
 - `BKM-V0-955`: (standing lane auto-accept, 2026-11-01; V1-3529) When `BKM-V0-004` withholds Go syntax mapping for the selected API, the unknown MUST name the exact ancestor go.mod path(s) and why each failed: tracked at the pinned commit but not a declared manifest source (with the `breakage manifest --source REPO:PATH` remedy), declared with a blob that differs from the pinned tree, or none tracked at any probed ancestor path (each listed). The withholding rule itself is unchanged: a module boundary is admitted only through declared, pinned go.mod sources. Non-goal: auto-declaring go.mod. Rollback: restore the fixed reason text.
+- `BKM-V0-710`: (standing lane auto-accept, 2026-11-01; V1-3529) When the selected Go API's bounded ancestor `go.mod` check withholds the syntax mapping, the unknown MUST keep its `module boundary` prefix and name the exact `REPOSITORY:PATH` it rests on and why: a `go.mod` tracked at the pinned commit but not declared as a manifest source (with the `--source REPOSITORY:PATH` that declares it), a declared `go.mod` whose pinned bytes could not be read (its own unknown says why, for example a blob that differs from the pinned tree's), no `go.mod` tracked in the source's directory or any ancestor, or a pinned tree that cannot be listed. The check and its withholding are unchanged; only the reason is named.
 
 ## Failure modes and non-goals
 
@@ -221,6 +222,10 @@ unresolved, off-span and out-of-source refusals, and `/2` refusal of a symbol.
 `TestBreakageModuleBoundaryNamesMissingGoMod` covers `BKM-V0-955` across two repositories:
 an undeclared tracked SDK-root go.mod, a stale declared blob, and no tracked go.mod each name
 the path, and declaring the go.mod yields the caller edge.
+`TestModuleBoundaryNamesTheMissingGoMod_V13529` (`module_boundary_v13529_test.go`) covers
+`BKM-V0-710` with two repositories: an omitted root `go.mod` is named with its `--source`, a
+declared one yields syntax edges, and an unreadable declared one is named as such. Rollback of
+`BKM-V0-710`: return the bare reason from `moduleBoundary` again.
 
 Non-goals of `BKM-V0-009` to `BKM-V0-012`: no parser for languages other than Go and the
 JS/TS declaration shapes above, no JSX/TSX, no dotted or member symbol resolution (a dotted

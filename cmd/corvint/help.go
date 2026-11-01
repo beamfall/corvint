@@ -863,13 +863,12 @@ Usage:
   corvint [--root PATH] affected [--full] [--require-clean]
           [--cache DIR | --no-cache] [--format json|text]
   corvint [--root PATH] affected [--full] --path PATH [PATH ...] [--path PATH ...]
-          [--paths-from FILE] [--cache DIR | --no-cache]
-  corvint [--root PATH] affected --by-path --path PATH [PATH ...]
           [--paths-from FILE] [--cache DIR | --no-cache] [--format json|text]
+  corvint [--root PATH] affected --by-path --path PATH [PATH ...]
   corvint [--root PATH] affected [--full] --snapshot RECEIPT
   corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH
   corvint [--root PATH] affected [--full] [--require-clean]
-          --base FULL_COMMIT_ID
+          --base FULL_COMMIT_ID [--format json|text]
   corvint [--root PATH] affected [--base FULL_COMMIT_ID]
           --playwright-config PATH [--playwright-discovery FILE]
           [--playwright-env NAME[=VALUE] ...]

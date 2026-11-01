@@ -304,6 +304,7 @@ AFP-V0-981	docs/specs/affected-plan-v0.md	(experimental under the owner's standi
 AFP-V0-982	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3749)	standing	2026-10-11; V1-3749
 AFP-V0-983	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3750;	standing	2026-10-11; V1-3750
 AFP-V0-984	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3751;	standing	2026-10-11; V1-3751
+AFP-V0-710	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-3600)	standing	2026-10-11; V1-3600
 AHI-001	docs/specs/agent-harness-integration-v0.md	Every adapter MUST consume and produce the transport-neutral Corvint request, re	unrecorded	-
 AHI-002	docs/specs/agent-harness-integration-v0.md	Installation, discovery, upgrade, disable, and uninstall MUST be documented and	unrecorded	-
 AHI-003	docs/specs/agent-harness-integration-v0.md	On session/task start, the adapter MUST resolve repository identity, exact Git	unrecorded	-
@@ -3117,6 +3118,7 @@ BKM-V0-093	docs/specs/cross-repository-breakage-map-v0.md	(standing lane auto-ac
 BKM-V0-094	docs/specs/cross-repository-breakage-map-v0.md	(standing lane auto-accept, 2026-10-28; V1-2915) `breakage manifest` MUST accept	standing	2026-10-28; V1-2915
 BKM-V0-099	docs/specs/cross-repository-breakage-map-v0.md	(standing lane auto-accept, 2026-10-28; V1-2915) With `--base`, the report MUST	standing	2026-10-28; V1-2915
 BKM-V0-955	docs/specs/cross-repository-breakage-map-v0.md	(standing lane auto-accept, 2026-11-01; V1-3529) When `BKM-V0-004` withholds Go	standing	2026-11-01; V1-3529
+BKM-V0-710	docs/specs/cross-repository-breakage-map-v0.md	(standing lane auto-accept, 2026-11-01; V1-3529) When the selected Go API's boun	standing	2026-11-01; V1-3529
 DCW-V0-001	docs/specs/daily-change-evidence-workflow-v0.md	Core MUST remain one native Go binary with no required account, network, daemon,	unrecorded	-
 DCW-V0-002	docs/specs/daily-change-evidence-workflow-v0.md	The three jobs MUST use exactly `UC-TASK-ORIENTATION`, `UC-CHANGE-CONSEQUENCE`,	unrecorded	-
 DCW-V0-003	docs/specs/daily-change-evidence-workflow-v0.md	Task orientation MUST locate governing intent and original revision-pinned evide	unrecorded	-
@@ -6830,6 +6832,7 @@ TSP-V0-864	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP
 TSP-V0-860	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2892)	standing	2026-10-11; V1-2892
 TSP-V0-950	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2167)	standing	2026-10-11; V1-2167
 TSP-V0-951	docs/specs/test-selection-precision-v0.md	(experimental, under the owner's standing lane auto-accept, 2026-10-11; V1-2167)	standing	2026-10-11; V1-2167
+TSP-V0-710	docs/specs/test-selection-precision-v0.md	(experimental, amending TSP-V0-860, under the owner's standing lane auto-accept,	standing	-
 TSA-V0-010	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1589, V1-1592) Lint and duplicates MUST re	standing	2026-10-11; V1-1589; V1-1592
 TSA-V0-011	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587, V1-1589) Comments MUST be returned a	standing	2026-10-11; V1-1587; V1-1589
 TSA-V0-001	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) `corvint tests setup-select --specs	standing	2026-10-11; V1-1587
@@ -7236,6 +7239,7 @@ TJAA-V0-114	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted un
 TJAA-V0-115	docs/specs/typescript-javascript-affected-adapter-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); GitHub #1880,	standing	2026-10-11; #1880
 TJAA-V0-121	docs/specs/typescript-javascript-affected-adapter-v0.md	(experimental under the standing lane auto-accept (2026-10-11); GitHub #1884,	standing	2026-10-11; #1884
 TJAA-V0-122	docs/specs/typescript-javascript-affected-adapter-v0.md	(same acceptance; GitHub #1885, V1-2786) A bare import specifier MUST NOT raise	unrecorded	-
+TJAA-V0-710	docs/specs/typescript-javascript-affected-adapter-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2789)	standing	2026-10-11; V1-2789
 TJAA-V0-123	docs/specs/typescript-javascript-affected-adapter-v0.md	(same acceptance; GitHub #1887, V1-2787) A top-level `metadata` member of the	unrecorded	-
 TJAA-V0-124	docs/specs/typescript-javascript-affected-adapter-v0.md	(same acceptance; GitHub #1883, V1-2784) `PlaywrightDiscoveryFromWrappedLists`	unrecorded	-
 TJAA-V0-125	docs/specs/typescript-javascript-affected-adapter-v0.md	(same acceptance; GitHub #1883, V1-2784) `corvint affected discovery` MUST accep	unrecorded	-
