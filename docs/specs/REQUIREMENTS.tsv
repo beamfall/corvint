@@ -3113,6 +3113,7 @@ DCW-V0-824	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-825	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3366) When `cem status`	standing	V1-3366
 DCW-V0-826	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3367) `script/dogfood-bind	standing	V1-3367
 DCW-V0-827	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3368) A citation-plan row'	standing	V1-3368
+DCW-V0-990	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3637; extends	standing	2026-10-31; V1-3637
 DCW-V0-828	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3369; refines `DCW-V0-824`	standing	V1-3369
 DCW-V0-829	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3370; refines `DCW-V0-824`	standing	V1-3370
 DCW-V0-830	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3371) `DOGFOOD_CITATIONS=n	standing	V1-3371

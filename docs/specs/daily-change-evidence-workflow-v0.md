@@ -2647,6 +2647,15 @@ The published starting point is 0.5.0a3; choosing a candidate version does not q
   `cem cite --bytes START:END`; any other value stays a `--lines` range. Evidence:
   `script/dogfood-bind-range_test.sh` DCW-V0-827 case (both forms, and a malformed `bytes:0` falls
   back to `--lines` for the cite pre-flight to refuse). Rollback: drop the `bytes:` branch.
+- `DCW-V0-990`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3637; extends
+  `DCW-V0-827`) `corvint dogfood change`, `inputs-check` and `finish-lane` MUST accept the same
+  `bytes:START:END` span field: every cite, cite probe and cite pre-check passes it as
+  `cem cite --bytes START:END`, the recite check (`DCW-V0-117`) compares it to the map's recorded
+  byte span directly, and the uniform-plan check (`DCW-V0-048`) keeps a byte span distinct from a
+  line span with the same numbers. A line span still passes `--lines`. Known gap: a line span and a
+  byte span naming the same BASE bytes are not joined by the uniform-plan check. Evidence:
+  `TestChangeDCWV0990PlanRowsAcceptByteSpans` (a fixture CEM whose line span 1:2 is bytes 0:8) and
+  `TestDCWV0990CanonicalSpanKeepsByteKind`. Rollback: drop `citeSpanArgs` and the `bytes:` branches.
 - `DCW-V0-828`: (experimental under the standing lane auto-accept; V1-3369; refines `DCW-V0-824`)
   A range hunk with no inherited row MUST be proposed a citation when TARGET's own generator or
   checker reproduces or admits it, and stays `unknown` otherwise: `spec-index` for
@@ -3278,6 +3287,7 @@ may qualify the explicitly named `T`. No such acceptance is recorded here.
 | `DCW-V0-825` (experimental under the standing lane auto-accept; V1-3366) | `script/dogfood-bind-range.sh` `policy_summary`; `script/dogfood-bind-range_test.sh` DCW-V0-825 case | implemented; shell test PASS |
 | `DCW-V0-826` (experimental under the standing lane auto-accept; V1-3367) | `script/dogfood-bind-range.sh` `exec </dev/null`; `script/dogfood-bind-range_test.sh` DCW-V0-826 case | implemented; shell test PASS |
 | `DCW-V0-827` (experimental under the standing lane auto-accept; V1-3368) | `script/dogfood-bind-range.sh` cite loop `span_flag`; `script/dogfood-bind-range_test.sh` DCW-V0-827 case | implemented; shell test PASS |
+| `DCW-V0-990` (experimental under the standing lane auto-accept; V1-3637) | `internal/dogfoodflow/change.go` `citeSpanArgs`, `baseLineSpan`; `chore.go` `canonicalSpan`; `TestChangeDCWV0990PlanRowsAcceptByteSpans`, `TestDCWV0990CanonicalSpanKeepsByteKind` | implemented; focused tests PASS |
 | `DCW-V0-828` (experimental under the standing lane auto-accept; V1-3369) | `tools/dogfood-inherit-citations/classes.go` `spec-index`, `line-citation-repin`, `use-case-receipt-repin`; `classes_test.go` DCW-V0-828 tests | implemented; go test PASS |
 | `DCW-V0-829` (experimental under the standing lane auto-accept; V1-3370) | `tools/dogfood-inherit-citations/classes.go` `sealed-cem-rename`; `TestProposeSealedCEMRenameDCWV0829` | implemented; go test PASS |
 | `DCW-V0-830` (experimental under the standing lane auto-accept; V1-3371) | `script/dogfood-bind-range.sh` `prepare_only`; `script/dogfood-bind-range_test.sh` DCW-V0-830 case | implemented; shell test PASS |
