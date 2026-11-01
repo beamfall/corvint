@@ -10,7 +10,6 @@ Supersession note: its Stop-hook and acknowledgement-under-policy language contr
 Authoritative successor: `docs/specs/change-frontier-v0.md`
 
 ## Agent digest
-- Claim: The Verified Absence Frontier draft is superseded by Change Frontier after its Stop-hook authority conflict.
 - Successor: `docs/specs/change-frontier-v0.md` is the authoritative replacement.
 - Why: this draft's Stop-hook acknowledgement conflicts with `CF-V0-005` and `CF-V0-027`; decision 0012 withdraws its imported outcome gates, while its non-goals remain.
 

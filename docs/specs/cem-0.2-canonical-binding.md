@@ -11,7 +11,6 @@ Authoritative inputs: `docs/PRODUCT.md`, `docs/CHANGE-EVIDENCE-MAP.md`,
 `docs/specs/verified-absence-frontier-v0.md`, and `docs/specs/ocm-v0-dogfood.md`
 
 ## Agent digest
-- Claim: CEM 0.2 canonical patch binding is retired by decision 0525 and superseded by the CEM 1.0 stable contract.
 - Successor: `docs/specs/cem-stable-v1.md` is the authoritative replacement.
 - Why: decision 0525 removes `cem/0.2`; V1-1278 S2b deleted its native reader and S3 deleted `protocol/cem-0.2` and `conformance/cem-0.2`, so the canonical-patch rules live on only in `cem/1.0` and Git history.
 

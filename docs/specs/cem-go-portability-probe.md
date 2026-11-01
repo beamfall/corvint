@@ -12,7 +12,6 @@ Authoritative inputs: `docs/CHANGE-EVIDENCE-MAP.md`, `docs/specs/cem-pilot-kit.m
 `interop/cem-0.1/ADAPTER.md`, `ALGORITHMS.md`, and `manifest.json`
 
 ## Agent digest
-- Claim: The CEM 0.1 Go portability probe is retired by decision 0525; cem01-go now verifies CEM 1.0 only.
 - Successor: `docs/specs/cem-stable-v1.md` is the authoritative replacement.
 - Why: decision 0525 removes `cem/0.1`; S3 deleted `interop/cem-0.1` and the probe's 0.1 routes, and `interop/cem01-go` refuses every `cem/0.x` map with `unsupported-spec` (`CEM-V1-222`).
 

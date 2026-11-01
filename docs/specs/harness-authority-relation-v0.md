@@ -10,7 +10,6 @@ Delivery status: superseded
 Successor (option 2 accepted 2026-09-06): `docs/decisions/0009-harness-authority-boundary.md`
 
 ## Agent digest
-- Claim: The harness-authority draft is superseded because no accepted same-UID harness authority root exists.
 - Successor: `docs/decisions/0009-harness-authority-boundary.md` accepts local non-authority workflow policy; it accepts no execution authority root or Frontier closure.
 - Why: this draft's conditional relation was superseded because no accepted same-UID harness authority root exists.
 

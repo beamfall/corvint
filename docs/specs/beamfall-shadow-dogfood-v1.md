@@ -7,7 +7,6 @@ Delivery status: superseded
 Authoritative successor: `docs/specs/analyzer-capability-contract-v0.md`
 
 ## Agent digest
-- Claim: Beamfall shadow fixtures remain evidence only; analyzer authority moved to the Analyzer Capability Contract.
 - Successor: `analyzer-capability-contract-v0.md`.
 - Why: the fixture/receipt evidence is retained, while analyzer selection, launch, admission, and support authority moved to the successor contract.
 

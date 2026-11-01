@@ -11,7 +11,6 @@ Authoritative inputs: `ROADMAP.md`, `docs/specs/cem-pilot-kit.md`,
 `interop/cem-0.1/manifest.json`
 
 ## Agent digest
-- Claim: The CEM 0.1 external consumer runner and packet are retired by decision 0525 and superseded by the CEM 1.0 stable contract.
 - Successor: `docs/specs/cem-stable-v1.md` is the authoritative replacement.
 - Why: decision 0525 removes `cem/0.1`; S3 deleted `interop/cem-0.1` and `tools/cem-interop-runner`, whose only mode read that packet (`CEM-V1-223`).
 
