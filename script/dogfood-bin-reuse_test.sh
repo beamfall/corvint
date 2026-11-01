@@ -95,7 +95,7 @@ expect_builds check 0 'unchanged check'
 # to the process ID the exec'd check runs as.
 # expect_build_rows GITDIR TREE BASE checks the wrapper's build file under GITDIR.
 expect_build_rows() {
-  local file="$1/corvint/dogfood-check.build.tsv"
+  local file="$1/corvint/dogfood-check.build.$(cat "$TEST_PID_LOG").tsv"
   [[ -f $file ]] || { printf 'no build timings at %s\n' "$file" >&2; exit 1; }
   awk -v pid="$(cat "$TEST_PID_LOG")" -v tree="$2" -v base="$3" -F '\t' '
     NR == 1 { ok = $0 == "corvint-dogfood-check-build/0" }

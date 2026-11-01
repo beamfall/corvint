@@ -37,14 +37,18 @@ func TestDCWV0942CheckWritesPhaseTimings(t *testing.T) {
 		var stderr bytes.Buffer
 		c := newCheck(context.Background(), "dogfood-check", CheckOptions{BaseVerifier: base, TreeVerifier: tree}, io.Discard, &stderr)
 		c.evidence = evidence
+		c.operationUnlock = func() {}
 		return c, &stderr
 	}
-	buildFile := evidence + "/" + checkBuildTimings
+	buildFile := buildTimingsPath(evidence, os.Getpid())
 	started := time.Now().Add(-2 * time.Second)
 	buildRows := fmt.Sprintf("%s\npid %%d\nstarted %d.%06d\nsetup\t-\t0.250\nbuild-tree\treuse\t0.250\nbuild-base\tbuild\t1.000\n",
 		checkBuildProfile, started.Unix(), started.Nanosecond()/1000)
 
-	// A build file of another process is not counted and stays.
+	// A concurrent wrapper's build file, and a file at this process's name
+	// headed with another PID, are not counted and stay.
+	other := buildTimingsPath(evidence, os.Getpid()+1)
+	write(other, fmt.Sprintf(buildRows, os.Getpid()+1))
 	write(buildFile, fmt.Sprintf(buildRows, os.Getpid()+1))
 	c, _ := newRun()
 	c.adoptBuildTimings()
@@ -52,8 +56,15 @@ func TestDCWV0942CheckWritesPhaseTimings(t *testing.T) {
 	if rows := readTimingRows(t, evidence); len(rows) != 1 || rows[0][0] != "startup" {
 		t.Fatalf("a foreign build file was counted: %q", rows)
 	}
-	if !isRegular(buildFile) {
+	if !isRegular(buildFile) || !isRegular(other) {
 		t.Fatal("a foreign build file was removed")
+	}
+	// A run that does not hold the operation lock leaves the previous file.
+	before := readFile(evidence + "/" + checkTimings)
+	c, _ = newRun()
+	c.operationUnlock = nil
+	if _, _, detail := c.writeTimings(); detail != "" || !bytes.Equal(readFile(evidence+"/"+checkTimings), before) {
+		t.Fatalf("a run without the lock wrote timings: %q", detail)
 	}
 
 	// This process's build file is prepended and consumed; each phase and
@@ -105,7 +116,7 @@ func TestDCWV0942CheckWritesPhaseTimings(t *testing.T) {
 	}
 
 	// The timing files never enter the DCW-V0-347 inputs digest.
-	if !passExcluded[checkTimings] || !passExcluded[checkBuildTimings] {
+	if !isTimingFile(checkTimings) || !isTimingFile(filepath.Base(other)) || isTimingFile("local-outcome.json") {
 		t.Fatal("a timing file is a reuse input")
 	}
 	// An unknown evidence directory writes nothing.

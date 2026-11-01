@@ -352,8 +352,9 @@ FRONTIER_OK='["go:build-constraint-variants","go:nested-module-frontier","shell:
 # and sets sel_on=1, or leaves sel_on=0 with the reason in sel_why. It never fails the run.
 select_plan() {
   local plan module reasons untracked
-  [[ -n $base ]] || return 0
-  sel_sha=$(git rev-parse --verify -q "$base^{commit}") || { sel_why="base $base is not a commit"; return 0; }
+  local sbase=${since_base:-$base}
+  [[ -n $sbase ]] || return 0
+  sel_sha=$(git rev-parse --verify -q "$sbase^{commit}") || { sel_why="base $sbase is not a commit"; return 0; }
   [[ -n $planner ]] || { sel_why='BATCH_PRECHECK_PLANNER is empty'; return 0; }
   command -v jq > /dev/null 2>&1 || { sel_why='jq is not installed'; return 0; }
   module=$(awk '$1 == "module" { print $2; exit }' go.mod 2> /dev/null)
@@ -736,8 +737,10 @@ cleanup() {
 
 # ASD-V0-943 (V1-3550): with BATCH_PRECHECK_SINCE_RECEIPT=1 (the sealed-head run of make
 # dogfood-closeout), a passing receipt for a clean HEAD ends the run, and one for a strict ancestor
-# R becomes the base: R passed every step, so only the steps R..HEAD can reach run. Read before the
-# receipt is removed below; any other state runs with the base given.
+# R becomes the selection base (since_base): R passed every step, so only the steps R..HEAD can
+# reach run. The base-present rerun and the trailer ranges keep the base given, so a failure R would
+# now also show stays an introduced FAIL. Read before the receipt is removed below; any other state
+# runs with the base given.
 since_receipt() {
   local named head
   named=$(awk '$1 == "head" { print $2 }' "$(receipt_path)" 2> /dev/null) || named=
@@ -750,12 +753,13 @@ since_receipt() {
   elif [[ $named == "$head" ]]; then
     printf 'batch-precheck: since-receipt not used: the receipt names HEAD but the checkout is not clean\n'
   elif git merge-base --is-ancestor "$named" HEAD 2> /dev/null; then
-    base=$named
+    since_base=$named
     printf 'batch-precheck: since-receipt base %s: its receipt passed every step, so only the steps %s..HEAD can reach run (ASD-V0-943)\n' "$named" "$(git rev-parse --short "$named")"
   else
     printf 'batch-precheck: since-receipt not used: the receipt names %s, which HEAD does not contain\n' "$named"
   fi
 }
+since_base=
 [[ ${BATCH_PRECHECK_SINCE_RECEIPT:-} != 1 ]] || since_receipt
 receipt=$(receipt_path) || exit 2
 /bin/rm -f "$receipt"

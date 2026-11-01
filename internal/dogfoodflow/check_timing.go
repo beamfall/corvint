@@ -13,11 +13,12 @@ import (
 )
 
 // checkTimings is the file, in the evidence directory, that keeps one row per
-// phase of a dogfood check or seal, and checkBuildTimings the file
-// script/dogfood-check.sh leaves there for the check it execs (DCW-V0-942).
+// phase of a dogfood check or seal, and checkBuildTimings the prefix of the
+// file script/dogfood-check.sh leaves there for the check it execs, named
+// checkBuildTimings + PID + ".tsv" (DCW-V0-942).
 const (
 	checkTimings      = "dogfood-check.timings.tsv"
-	checkBuildTimings = "dogfood-check.build.tsv"
+	checkBuildTimings = "dogfood-check.build."
 	checkBuildProfile = "corvint-dogfood-check-build/0"
 	// maxBuildTimingsBytes bounds the wrapper file read; a larger file is ignored.
 	maxBuildTimingsBytes = 4 << 10
@@ -162,19 +163,32 @@ func readBuildTimings(path string, pid int) ([]phaseRow, time.Time, bool) {
 // is known; the time from the wrapper's last row to now is the check's
 // startup.
 func (c *check) adoptBuildTimings() {
-	rows, started, ok := readBuildTimings(c.evidence+"/"+checkBuildTimings, os.Getpid())
+	rows, started, ok := readBuildTimings(buildTimingsPath(c.evidence, os.Getpid()), os.Getpid())
 	if !ok || c.clock == nil {
 		return
 	}
 	c.clock.prepend(rows, started)
 }
 
+// buildTimingsPath names the wrapper's build file for process pid.
+func buildTimingsPath(evidence string, pid int) string {
+	return evidence + "/" + checkBuildTimings + strconv.Itoa(pid) + ".tsv"
+}
+
+// isTimingFile reports whether an evidence-directory entry is a timing file,
+// which the DCW-V0-347 inputs digest leaves out.
+func isTimingFile(name string) bool {
+	return name == checkTimings || strings.HasPrefix(name, checkBuildTimings)
+}
+
 // writeTimings keeps the phase rows, however the run ended, and returns the
-// wall total, the row count and the file written ("" when it was not). A run
-// that never learned its evidence directory writes nothing. Nothing is
-// printed: the check's output stays what it was (DCW-V0-942).
+// wall total, the row count and the file written ("" when it was not). Only a
+// run holding the operation lock writes, so a check refused for a busy lock
+// leaves the previous file; a run that never learned its evidence directory
+// writes nothing. Nothing is printed: the check's output stays what it was
+// (DCW-V0-942).
 func (c *check) writeTimings() (float64, int, string) {
-	if c.clock == nil || c.evidence == "" {
+	if c.clock == nil || c.evidence == "" || c.operationUnlock == nil {
 		return 0, 0, ""
 	}
 	data, total, phases := c.clock.tsv()

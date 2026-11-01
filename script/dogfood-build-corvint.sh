@@ -142,7 +142,7 @@ dogfood_corvint_store() {
 # verification or rename then fails and it builds instead. A failure only skips the prune.
 dogfood_corvint_prune() {
   local max=${CORVINT_DOGFOOD_BIN_CACHE_MAX:-16} name n=0
-  [[ -n $dogfood_bin_cache && $max =~ ^[0-9]+$ ]] && ((max > 0)) || return 0
+  [[ -n $dogfood_bin_cache && $max =~ ^[1-9][0-9]*$ ]] || return 0
   while IFS= read -r name; do
     [[ $name =~ ^[0-9a-f]{40,64}$ ]] || continue
     n=$((n + 1))

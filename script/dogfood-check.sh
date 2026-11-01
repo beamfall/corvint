@@ -108,9 +108,10 @@ elif ((base_status != 0)); then
   dogfood_build_fix dogfood-check base
   exit 2
 fi
-# The build rows go to a file bound to this process ID, which the exec below keeps, so the check
-# prepends them to its own phase rows and never counts a stale file (DCW-V0-942).
-timings="$evidence/dogfood-check.build.tsv"
+# The build rows go to a file named and headed with this process ID, which the exec below keeps, so
+# the check prepends them to its own phase rows and never counts a stale or concurrent wrapper's
+# file (DCW-V0-942).
+timings="$evidence/dogfood-check.build.$$.tsv"
 if [[ -n $dogfood_check_started ]] &&
   awk -v pid="$$" -v s="$dogfood_check_started" -v a="$dogfood_check_setup_end" -v b="$dogfood_check_tree_end" \
     -v c="${EPOCHREALTIME-}" -v t="$dogfood_check_tree_outcome" -v o="$dogfood_bin_outcome" 'BEGIN {
