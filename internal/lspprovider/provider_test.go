@@ -3,12 +3,15 @@ package lspprovider
 import (
 	"bufio"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -205,10 +208,21 @@ func TestMain(m *testing.M) {
 
 func fakeServer(name string) {
 	s := &session{reader: bufio.NewReader(os.Stdin), writer: os.Stdout}
+	capabilities := map[string]any{"definitionProvider": true, "referencesProvider": map[string]any{}}
+	if raw := os.Getenv("LSPPROVIDER_FAKE_CAPABILITIES"); raw != "" {
+		capabilities = nil
+		_ = json.Unmarshal([]byte(raw), &capabilities)
+	}
 	for {
 		request, err := s.read()
 		if err != nil || request.Method == "exit" {
 			return
+		}
+		if log := os.Getenv("LSPPROVIDER_FAKE_LOG"); log != "" {
+			if file, err := os.OpenFile(log, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600); err == nil {
+				_, _ = fmt.Fprintln(file, request.Method)
+				_ = file.Close()
+			}
 		}
 		if len(request.ID) == 0 {
 			continue
@@ -216,7 +230,10 @@ func fakeServer(name string) {
 		reply := map[string]any{"jsonrpc": "2.0", "id": request.ID}
 		switch {
 		case request.Method == "initialize":
-			reply["result"] = map[string]any{"serverInfo": map[string]any{"name": name, "version": "v0.0.0-fake"}}
+			reply["result"] = map[string]any{"capabilities": capabilities, "serverInfo": map[string]any{"name": name, "version": "v0.0.0-fake"}}
+		case strings.HasPrefix(request.Method, "textDocument/") && os.Getenv("LSPPROVIDER_FAKE_CRASH") != "":
+			// The server dies mid-session, after a successful initialize.
+			os.Exit(0)
 		case strings.HasPrefix(request.Method, "textDocument/"):
 			// Real gopls names the document by its absolute file URI.
 			var params struct {
@@ -235,12 +252,19 @@ func fakeServer(name string) {
 // fake server under the given serverInfo name.
 func fakeGopls(t *testing.T, name string) string {
 	t.Helper()
+	return fakeGoplsWith(t, name, "", "")
+}
+
+// fakeGoplsWith also sets the initialize capabilities (JSON, default both
+// providers and no encoding) and a log file receiving each request method.
+func fakeGoplsWith(t *testing.T, name, capabilities, log string) string {
+	t.Helper()
 	binary, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
 	}
 	path := filepath.Join(t.TempDir(), "gopls")
-	script := fmt.Sprintf("#!/bin/sh\nLSPPROVIDER_FAKE=%s exec %q \"$@\"\n", name, binary)
+	script := fmt.Sprintf("#!/bin/sh\nLSPPROVIDER_FAKE=%s LSPPROVIDER_FAKE_CAPABILITIES='%s' LSPPROVIDER_FAKE_LOG=%q exec %q \"$@\"\n", name, capabilities, log, binary)
 	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -371,5 +395,93 @@ func TestRecordExplainsOmissions_EEPV0820(t *testing.T) {
 				t.Fatalf("query %v, relations %d", query, len(document.Relations))
 			}
 		})
+	}
+}
+
+// TestExpandNegotiatesBeforeQuerying_EEPV0821 binds EEP-V0-821 (V1-0479): the
+// provider offers only UTF-16, refuses another encoding or a server with no
+// admitted method before any query, queries only advertised methods, and
+// reports the negotiation and the executable digest in the query summary.
+func TestExpandNegotiatesBeforeQuerying_EEPV0821(t *testing.T) {
+	t.Parallel()
+	m := newModule(t)
+	cases := []struct {
+		name, capabilities, failure string
+		methods, unavailable        []string
+	}{
+		{"default encoding, both providers", "", "", []string{queryDefinition, queryReferences}, []string{}},
+		{"explicit utf-16, definition only", `{"positionEncoding":"utf-16","definitionProvider":true,"referencesProvider":false}`, "", []string{queryDefinition}, []string{queryReferences}},
+		{"references options only", `{"referencesProvider":{"workDoneProgress":false}}`, "", []string{queryReferences}, []string{queryDefinition}},
+		{"utf-8 refused", `{"positionEncoding":"utf-8","definitionProvider":true,"referencesProvider":true}`, "gopls negotiated an unsupported position encoding; refused", nil, nil},
+		{"null encoding refused", `{"positionEncoding":null,"definitionProvider":true}`, "gopls negotiated an unsupported position encoding; refused", nil, nil},
+		{"no providers refused", `{"definitionProvider":null,"referencesProvider":"yes"}`, "gopls advertised neither definition nor references; refused", []string{}, []string{queryDefinition, queryReferences}},
+	}
+	for _, c := range cases {
+		log := filepath.Join(t.TempDir(), "methods.log")
+		executable := fakeGoplsWith(t, "gopls", c.capabilities, log)
+		bytes, err := os.ReadFile(executable)
+		if err != nil {
+			t.Fatal(err)
+		}
+		digest := sha256.Sum256(bytes)
+		result := Expand(context.Background(), m.request(t, executable, "a/a.go"))
+		if result.Query["executable_sha256"] != hex.EncodeToString(digest[:]) {
+			t.Errorf("%s: executable digest %v", c.name, result.Query["executable_sha256"])
+		}
+		raw, _ := os.ReadFile(log)
+		sent := strings.Fields(string(raw))
+		var queried []string
+		for _, method := range sent {
+			if strings.HasPrefix(method, "textDocument/") {
+				queried = append(queried, method)
+			}
+		}
+		if len(sent) == 0 || sent[0] != "initialize" {
+			t.Fatalf("%s: methods sent %v", c.name, sent)
+		}
+		if c.failure != "" {
+			if result.Failure != c.failure || result.Record != nil || len(queried) != 0 {
+				t.Errorf("%s: failure %q, record %s, queried %v", c.name, result.Failure, result.Record, queried)
+			}
+			if c.methods == nil {
+				if _, reported := result.Query["position_encoding"]; reported {
+					t.Errorf("%s: a refused encoding is reported as negotiated: %v", c.name, result.Query)
+				}
+				continue
+			}
+		}
+		if result.Query["position_encoding"] != "utf-16" || !slices.Equal(result.Query["methods"].([]string), c.methods) || !slices.Equal(result.Query["unavailable_methods"].([]string), c.unavailable) {
+			t.Errorf("%s: summary %v", c.name, result.Query)
+		}
+		for _, method := range queried {
+			if !slices.Contains(c.methods, method) {
+				t.Errorf("%s: unadvertised %s queried", c.name, method)
+			}
+		}
+		if c.failure == "" && len(queried) == 0 {
+			t.Errorf("%s: no admitted query was sent", c.name)
+		}
+	}
+	// A server that dies on its first query after negotiating fails the
+	// session but still reports what it negotiated.
+	binary, err := os.Executable()
+	if err != nil {
+		t.Fatal(err)
+	}
+	crashing := filepath.Join(t.TempDir(), "gopls")
+	script := fmt.Sprintf("#!/bin/sh\nLSPPROVIDER_FAKE=gopls LSPPROVIDER_FAKE_CAPABILITIES='{\"definitionProvider\":true}' LSPPROVIDER_FAKE_CRASH=1 exec %q \"$@\"\n", binary)
+	if err := os.WriteFile(crashing, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	crashed := Expand(context.Background(), m.request(t, crashing, "a/a.go"))
+	if crashed.Failure != "gopls session failed" || crashed.Record != nil {
+		t.Fatalf("mid-session crash: failure %q, record %s", crashed.Failure, crashed.Record)
+	}
+	if crashed.Query["position_encoding"] != "utf-16" || !slices.Equal(crashed.Query["methods"].([]string), []string{queryDefinition}) || !slices.Equal(crashed.Query["unavailable_methods"].([]string), []string{queryReferences}) {
+		t.Fatalf("mid-session crash dropped the negotiated summary: %v", crashed.Query)
+	}
+	unreadable := Expand(context.Background(), m.request(t, t.TempDir(), "a/a.go"))
+	if unreadable.Failure != "gopls executable unreadable" || unreadable.Record != nil {
+		t.Fatalf("unreadable executable: failure %q", unreadable.Failure)
 	}
 }

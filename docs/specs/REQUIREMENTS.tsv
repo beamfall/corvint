@@ -4127,6 +4127,7 @@ EEP-V0-026	docs/specs/external-evidence-provider-v0.md	An absent or failing prov
 EEP-V0-027	docs/specs/external-evidence-provider-v0.md	The shared CLI/MCP Go provider reads root ancestry through the bounded Git	unrecorded	-
 EEP-V0-028	docs/specs/external-evidence-provider-v0.md	(accepted under the owner's standing auto-accept, 2026-10-11; V1-1757) Before	standing	2026-10-11; V1-1757
 EEP-V0-820	docs/specs/external-evidence-provider-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-0482) The Go	standing	2026-10-31; V1-0482
+EEP-V0-821	docs/specs/external-evidence-provider-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-0479) The Go	standing	2026-11-01; V1-0479
 EEP-V0-770	docs/specs/external-evidence-provider-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2259)	standing	2026-10-11; V1-2259
 EEP-V0-771	docs/specs/external-evidence-provider-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2259)	standing	2026-10-11; V1-2259
 EEP-V0-772	docs/specs/external-evidence-provider-v0.md	(experimental under the owner's standing lane auto-accept (2026-10-11); V1-2259)	standing	2026-10-11; V1-2259
