@@ -4236,5 +4236,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/corvint-tasks-delivery-lifecycle-v0.md",
+    "title": "Corvint Tasks delivery lifecycle V0",
+    "reqPrefix": "TLC-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Show, search, roadmap and release readiness report one derived delivery lifecycle per ticket, with evidence from status, holds, attempts, progress and Git.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

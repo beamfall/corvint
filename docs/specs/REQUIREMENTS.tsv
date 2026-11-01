@@ -2484,6 +2484,18 @@ TDR-V0-007	docs/specs/corvint-tasks-defect-register-v0.md	`preflight` reads the 
 TDR-V0-008	docs/specs/corvint-tasks-defect-register-v0.md	A `DEFECT` or `BLOCKED` obligation whose cited register ids all resolve (through	unrecorded	-
 TDR-V0-009	docs/specs/corvint-tasks-defect-register-v0.md	The default register is `<git-common-dir>/taskman-defects/register.jsonl`	unrecorded	-
 TDR-V0-010	docs/specs/corvint-tasks-defect-register-v0.md	`corvint-tasks defects add|update <id>|list [--status S] [--category C]` return	unrecorded	-
+TLC-V0-001	docs/specs/corvint-tasks-delivery-lifecycle-v0.md	Every read that reports a lifecycle MUST compute it at read time from the record	unrecorded	-
+TLC-V0-002	docs/specs/corvint-tasks-delivery-lifecycle-v0.md	Precedence MUST be, first match wins: status COMPLETED or ARCHIVED; status DRAFT	unrecorded	-
+TLC-V0-003	docs/specs/corvint-tasks-delivery-lifecycle-v0.md	A `DELIVERED_ON_BRANCH` or `MERGED_AWAITING_CLOSEOUT` progress phase MUST be che	unrecorded	-
+TLC-V0-004	docs/specs/corvint-tasks-delivery-lifecycle-v0.md	A delivered phase that Git does not confirm MUST fall back with a named reason:	unrecorded	-
+TLC-V0-005	docs/specs/corvint-tasks-delivery-lifecycle-v0.md	The `lifecycle` value MUST be the closed object `{state, reason, derivedFrom,	unrecorded	-
+TLC-V0-006	docs/specs/corvint-tasks-delivery-lifecycle-v0.md	One read MUST observe Git for all of its tickets at once with a fixed number of	unrecorded	-
+TLC-V0-007	docs/specs/corvint-tasks-delivery-lifecycle-v0.md	A lifecycle read MUST NOT change the repository, the store or the journal.	unrecorded	-
+TLC-V0-008	docs/specs/corvint-tasks-delivery-lifecycle-v0.md	`ticket show` MUST report member `lifecycle`.	unrecorded	-
+TLC-V0-009	docs/specs/corvint-tasks-delivery-lifecycle-v0.md	`ticket search` MUST report `lifecycle` on each row, MUST accept	unrecorded	-
+TLC-V0-010	docs/specs/corvint-tasks-delivery-lifecycle-v0.md	`roadmap` rows MUST report `lifecycle`.	unrecorded	-
+TLC-V0-011	docs/specs/corvint-tasks-delivery-lifecycle-v0.md	`release readiness` MUST report `memberCounts.byLifecycle` with a count for ever	unrecorded	-
+TLC-V0-012	docs/specs/corvint-tasks-delivery-lifecycle-v0.md	Recording delivery is the existing `ticket progress` phase `DELIVERED_ON_BRANCH`	unrecorded	-
 DSG-V0-001	docs/specs/corvint-tasks-dispatch-signals-v0.md	(proposed; V1-2724) A ticket deferred for its work state MUST read	unrecorded	-
 DSG-V0-002	docs/specs/corvint-tasks-dispatch-signals-v0.md	(proposed; V1-2724) The admission record MUST list `unmatchedStates`, one entry	unrecorded	-
 DSG-V0-003	docs/specs/corvint-tasks-dispatch-signals-v0.md	(proposed; V1-2724) Each tick that launches nothing while the global cap has fre	unrecorded	-
