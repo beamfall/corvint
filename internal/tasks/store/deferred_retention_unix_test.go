@@ -26,15 +26,15 @@ func TestJSGV0891_WritersRetainCheckpointsOutsideWriterLock(t *testing.T) {
 		out := map[string]derivedBytes{}
 		run := func(name string, f func()) {
 			got := derivedBytes{locked: map[string]int{}, unlocked: map[string]int{}}
-			derivedWritten = func(path string, n int) {
+			stop := observeDerived(t, repo.StateDir, func(path string, n int) {
 				if writerLockProbe(t, repo) {
 					got.locked[filepath.Base(path)] += n
 				} else {
 					got.unlocked[filepath.Base(path)] += n
 				}
-			}
+			})
 			f()
-			derivedWritten = nil
+			stop()
 			out[name] = got
 			t.Logf("%d tickets %-15s locked %v unlocked %v", tickets, name, got.locked, got.unlocked)
 		}
@@ -128,12 +128,11 @@ func TestJSGV0891_FailedStagingRetainsNothingUnderTheLock(t *testing.T) {
 	repo, _ := completeRouteClaim(t, 40)
 	stageCreate = func(string, string) (*os.File, error) { return nil, os.ErrPermission }
 	locked := map[string]int{}
-	derivedWritten = func(path string, n int) {
+	observeDerived(t, repo.StateDir, func(path string, n int) {
 		if writerLockProbe(t, repo) {
 			locked[filepath.Base(path)] += n
 		}
-	}
-	defer func() { derivedWritten = nil }()
+	})
 	if r := writerMutate(t, repo, "failed-stage-w", nil); !r.completed() || !r.fast() {
 		t.Fatalf("writer-route mutate: %v %v", r.err, r.stages)
 	}

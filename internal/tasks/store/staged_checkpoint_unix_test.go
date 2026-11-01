@@ -101,14 +101,13 @@ func completeRouteClaimMoved(t *testing.T, tickets int, move bool) (*intent.Repo
 		t.Fatal(err)
 	}
 	got := derivedBytes{locked: map[string]int{}, unlocked: map[string]int{}}
-	derivedWritten = func(path string, n int) {
+	defer observeDerived(t, repo.StateDir, func(path string, n int) {
 		if writerLockProbe(t, repo) {
 			got.locked[filepath.Base(path)] += n
 		} else {
 			got.unlocked[filepath.Base(path)] += n
 		}
-	}
-	defer func() { derivedWritten = nil }()
+	})()
 	local := strings.TrimSuffix(entries[0].Name(), ".json")
 	var timing LeaseTiming
 	ctx := WithLeaseTiming(context.Background(), &timing)
