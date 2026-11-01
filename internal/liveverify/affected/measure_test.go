@@ -56,6 +56,45 @@ func TestIncrementalSelectionMeetsTheLiveBudget(t *testing.T) {
 	if len(edits) < 3 {
 		t.Fatalf("too few representative edits: %v", edits)
 	}
+	// A contended tail can slow selection without slowing the probe alike
+	// (V1-2728: p95 150 ms once under concurrent heavy.sh runs, passing on the
+	// identical rerun). So a round over the bound is remeasured, up to
+	// selectionBudgetRounds rounds, and the test fails only when every round
+	// is over it: a slower Select is over it in each, a transient spike is
+	// not. The best round is the one enforced (AFP-V0-549).
+	var best selectionRound
+	for attempt := 1; attempt <= selectionBudgetRounds; attempt++ {
+		round := measureIncrementalSelection(graph, edits)
+		t.Logf("round %d: incremental select over %d units: n=%d p50=%s p95=%s max=%s widest-plan=%d units; probe p50=%s p95=%s",
+			attempt, len(graph.UnitIDs()), round.n, round.p50, round.p95, round.max, round.widest, round.probe50, round.probe95)
+		if attempt == 1 || round.ratio() < best.ratio() {
+			best = round
+		}
+		if exceeded, _, _ := selectionBudgetExceeded(round.p95, round.probe95, referenceProbeP95, IncrementalBudget); !exceeded {
+			break
+		}
+	}
+	// Both p95s come from interleaved samples, so a contended tail inflates
+	// both alike. On the reference host the ratio measures about 1.3.
+	enforceSelectionBudget(t, "incremental select p95", best.p95, best.probe95, referenceProbeP95, IncrementalBudget)
+}
+
+// selectionBudgetRounds is how many measurement rounds the incremental
+// budget test takes before a miss fails it (AFP-V0-549).
+const selectionBudgetRounds = 3
+
+// selectionRound is one measurement round of the incremental budget test.
+type selectionRound struct {
+	n, widest        int
+	p50, p95, max    time.Duration
+	probe50, probe95 time.Duration
+}
+
+func (r selectionRound) ratio() float64 { return float64(r.p95) / float64(max(r.probe95, 1)) }
+
+// measureIncrementalSelection times 32 rounds of Select over each edit, with a
+// calibration probe interleaved before each selection.
+func measureIncrementalSelection(graph *affected.Graph, edits []string) selectionRound {
 	samples := make([]time.Duration, 0, len(edits)*32)
 	probes := make([]time.Duration, 0, len(edits)*32)
 	var widest int
@@ -72,15 +111,11 @@ func TestIncrementalSelectionMeetsTheLiveBudget(t *testing.T) {
 	}
 	sortDurations(samples)
 	sortDurations(probes)
-	p50 := samples[len(samples)/2]
-	p95 := samples[len(samples)*95/100]
-	worst := samples[len(samples)-1]
-	probe95 := probes[len(probes)*95/100]
-	t.Logf("incremental select over %d units: n=%d p50=%s p95=%s max=%s widest-plan=%d units; probe p50=%s p95=%s",
-		len(graph.UnitIDs()), len(samples), p50, p95, worst, widest, probes[len(probes)/2], probe95)
-	// Both p95s come from interleaved samples, so a contended tail inflates
-	// both alike. On the reference host the ratio measures about 1.3.
-	enforceSelectionBudget(t, "incremental select p95", p95, probe95, referenceProbeP95, IncrementalBudget)
+	return selectionRound{
+		n: len(samples), widest: widest,
+		p50: samples[len(samples)/2], p95: samples[len(samples)*95/100], max: samples[len(samples)-1],
+		probe50: probes[len(probes)/2], probe95: probes[len(probes)*95/100],
+	}
 }
 
 // The calibration probe's p95 and median on the reference host (Apple
