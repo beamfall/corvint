@@ -120,6 +120,10 @@ type finding struct {
 	// built marks a dependency directory a go build, run, vet, test or install
 	// of repository source by the test loads (AFP-V0-847).
 	built bool
+	// own marks a built dependency that a go command on the package's own
+	// directory loads: its import closure, which a confined run must read
+	// too, but which a re-executed test binary never reads (V1-3658).
+	own bool
 	// sandbox is the reason a declared package's tests launch a nested
 	// sandbox (AFP-V0-615); file and path are then empty.
 	sandbox string
@@ -616,6 +620,29 @@ func dependencyCovered(directory, dependency string, entries []string) bool {
 	return false
 }
 
+// buildGroup is one set of go command targets a test file spells; test marks
+// verbs that also load test-file imports, and own marks targets naming the
+// package's own directory.
+type buildGroup struct {
+	targets   []string
+	test, own bool
+}
+
+// splitOwnTargets separates the "." targets, the package's own directory,
+// from the others, so their findings can name the own-package remedies.
+func splitOwnTargets(group buildGroup) []buildGroup {
+	own, other := group, group
+	own.targets, other.targets, own.own = nil, nil, true
+	for _, target := range group.targets {
+		if target == "." || target == "./" {
+			own.targets = append(own.targets, target)
+		} else {
+			other.targets = append(other.targets, target)
+		}
+	}
+	return []buildGroup{other, own}
+}
+
 // recordedAbove returns the recorded path of a package that is dependency or a
 // directory above it (AFP-V0-847).
 func recordedAbove(recorded map[string]string, dependency string) (string, bool) {
@@ -694,10 +721,11 @@ func check(root string) ([]finding, []string, error) {
 			if err != nil {
 				return nil, nil, fmt.Errorf("%s: %w", file, err)
 			}
-			for _, group := range []struct {
-				targets []string
-				test    bool
-			}{{builds, false}, {tests, true}} {
+			var groups []buildGroup
+			for _, group := range []buildGroup{{targets: builds}, {targets: tests, test: true}} {
+				groups = append(groups, splitOwnTargets(group)...)
+			}
+			for _, group := range groups {
 				if len(group.targets) == 0 {
 					continue
 				}
@@ -715,7 +743,7 @@ func check(root string) ([]finding, []string, error) {
 						used[directory+" "+target] = true
 						continue
 					}
-					findings = append(findings, finding{pkg: directory, file: file, path: dependency, built: true})
+					findings = append(findings, finding{pkg: directory, file: file, path: dependency, built: true, own: group.own})
 				}
 			}
 		}
@@ -792,6 +820,13 @@ func run(root string, stdout, stderr io.Writer) int {
 		if found.listed {
 			fmt.Fprintf(stderr, "test-read-scopes-check: package %s: %s runs go list -deps, which loads %s, outside its entries in %s; declare the directory there (AFP-V0-023)\n",
 				found.pkg, found.file, found.path, affected.ReadScopesPath)
+			continue
+		}
+		if found.built && found.own {
+			// V1-3658: a build of the package itself reads its whole import
+			// closure under confinement; name the two cheaper remedies.
+			fmt.Fprintf(stderr, "test-read-scopes-check: package %s: %s builds its own package with go, which reads its import closure, including %s, outside its entries in %s; declare the directory there (AFP-V0-023), or run the already-built test binary instead of rebuilding the package (re-execute os.Args[0] with a marker environment variable, which reads no source), or, when the confined shard never runs that test, record %s for the package in %s with that reason (AFP-V0-847)\n",
+				found.pkg, found.file, found.path, affected.ReadScopesPath, found.path, literalsPath)
 			continue
 		}
 		if found.built {
