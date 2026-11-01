@@ -355,6 +355,24 @@ after admission is 927 against the unchanged 941 ceiling. The gate passes. On me
   detection is added, and the fix for a doubted one is to read it and pin it with `--hash`.
   Non-goals: scanning source comments; a semantic check of unpinned citations.
 
+- `DCG-V0-630`: (experimental under the standing lane auto-accept (2026-11-01); V1-3722; refines
+  DCG-V0-045 and DCG-V0-920)
+  `script/check-line-citations.sh --repin --show-changed [--base <rev>]` MUST, for each pinned
+  citation whose cited content changed and whose span the diff from the base maps to new lines,
+  print the citation, the old span's lines as they stood at the base (each `- N: text`) and the
+  mapped span's lines in the index (each `+ N: text`), then read one answer line from standard
+  input: `y` or `yes` writes the mapped token with its new anchor (as `--repin --changed` would),
+  and anything else, including end of input, leaves the citation unwritten and prints the
+  DCG-V0-045 suggestion. Only the first pass prompts; a DCG-V0-048 rerun pass never asks again,
+  so a declined citation stays a suggestion. `--show-changed` needs `--repin` and excludes
+  `--changed`. Design: the audit of 2026-11-01 found the only paths for changed content were
+  reading lines by hand or the unconfirmed bulk `--changed`; the side-by-side read is the review
+  DCG-V0-045 asks for, and the write follows it. Non-goals: an editor, a TTY requirement, spans
+  the diff does not map (deleted or out of range) which keep the refusal. Failure modes: no
+  answer writes nothing. Evidence: case 36 of `script/check-line-citations_test.sh` (an answer
+  `n` leaves the citation and prints both spans; `y` writes it and the check passes). Rollback:
+  drop the `--show-changed` flag and its prompt loop.
+
 - `DCG-V0-810`: (experimental under the standing lane auto-accept (V1-3467); refines DCG-V0-045)
   When the base's diff proves no move for a pinned span, `--repin` MUST try the diff from the newest
   of the last 50 commits at or before the base that touched the cited file and at which the cited
@@ -462,6 +480,7 @@ a malformed token, an untracked file, a reversed range, or an out-of-range line,
 | DCG-V0-048 | test case 24: `--repin` names what it staged, leaves no unstaged diff and the check then passes with no `git add`; case 24b: a held `index.lock` exits 1 naming the `git add`, a fifth pass that rewrote exits 1 as not converged, and a `[fx].md` document leaves its unstaged sibling `f.md` unstaged; test case 33: one `--repin` call moves the inner citation, stages it and in its second pass re-anchors the outer citation, leaving nothing unstaged, and the check passes; case 33b: the second pass still refuses a prose change and the call exits 0 |
 | DCG-V0-047 | test case 33: a fixture pins a spec line that cites a moved source line; `--repin` moves the spec's token, and after staging a second `--repin` re-anchors the fixture's citation, including a moved continuation token, with no `--hash`, and the check passes; case 33b: changing a backticked prose `name:number` value still refuses |
 | DCG-V0-040 | test cases 24-26: a two-line insertion above a pinned two-line span reported as moved to lines 5-6, `--repin` refused on a dirty document and then rewriting it to a passing citation; text that now appears twice reported as changed with the position count and left alone by `--repin`; changed text never reported as a move; cases 28-29: a one-line unique match left unresolved and untouched by `--repin`, and of two identical continuations on one line only the moved one rewritten. This change also repinned its own spec's moved script citations with `--repin` |
+| DCG-V0-630 | `--show-changed` parsing, `@show_changed` and its prompt in the `--repin` block of `script/check-line-citations.sh` | `script/check-line-citations_test.sh` case 36 |
 | DCG-V0-920 | the `--changed` branch in `check` and its listing after the rewrite, `anchored_span` and the changed-content message in `script/check-line-citations.sh`; `changed_citations` in `script/batch-regen.sh` | `script/check-line-citations_test.sh` case 32 additions: the refusal names `--hash internal/demo/shift.go:10-11` and `--repin --changed`; `--changed` alone is refused; `--repin --changed` rewrites the changed span to the suggested token, lists it, and the check passes; case 32c: a deleted two-line block with a surviving identical copy is neither moved nor re-anchored by `--repin` or `--repin --changed` |
 | DCG-V0-921 | `--selects` parsing, `%selects_changed`, `@selected` and its report in `script/check-line-citations.sh`; `line-citations-selects` in `Makefile` | `script/check-line-citations_test.sh` case 32 additions: a shifted, staged cited file selects 3 pinned citations; after a commit nothing is selected; case 32d: deleted `README.md` and `Makefile` targets still select their 2 pinned citations |
 | DCG-V0-922 | the header of `script/check-line-citations.sh` | decision record; no code |
