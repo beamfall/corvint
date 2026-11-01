@@ -3,6 +3,7 @@ package localcompletion
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -27,9 +28,19 @@ func TestLCPV0883ExportImportRestoresActiveEnrollment(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	bundle := filepath.Join(t.TempDir(), "bundle.json")
+	// The bundle sits under a symlinked ancestor, as macOS /tmp and /var are
+	// (LCP-V0-884); a symlinked bundle itself is still refused.
+	linked := filepath.Join(t.TempDir(), "linked")
+	if err = os.Symlink(t.TempDir(), linked); err != nil {
+		t.Fatal(err)
+	}
+	bundle := filepath.Join(linked, "bundle.json")
 	if _, err = Export(ctx, root, key, bundle); err != nil {
 		t.Fatalf("export: %v", err)
+	}
+	symlinked := filepath.Join(t.TempDir(), "symlinked.json")
+	if err = os.Symlink(bundle, symlinked); err != nil {
+		t.Fatal(err)
 	}
 	if _, err = Export(ctx, root, key, bundle); err == nil || err.Error() != "export-output-exists" {
 		t.Fatalf("export over a file: %v", err)
@@ -48,6 +59,9 @@ func TestLCPV0883ExportImportRestoresActiveEnrollment(t *testing.T) {
 	}
 	if _, err = Import(ctx, restored, key, tampered); err == nil || err.Error() != "import-bundle-invalid" {
 		t.Fatalf("tampered bundle: %v", err)
+	}
+	if _, err = Import(ctx, restored, key, symlinked); err == nil || err.Error() != "import-bundle-unreadable" {
+		t.Fatalf("symlinked bundle: %v", err)
 	}
 	if _, err = Import(ctx, restored, HashSession("another"), bundle); err == nil || err.Error() != "import-session-mismatch" {
 		t.Fatalf("another key: %v", err)
@@ -79,6 +93,80 @@ func TestLCPV0883ExportImportRestoresActiveEnrollment(t *testing.T) {
 	// The restored enrollment is live: its owner can keep working.
 	if result, err := Verify(ctx, restored, key, "test"); err != nil || !result.Checks[0].Qualified {
 		t.Fatalf("verify after import: %#v %v", result, err)
+	}
+}
+
+// restoreFixture exports key's enrollment from root and adds a detached
+// worktree at HEAD to import it into.
+func restoreFixture(t *testing.T, root, key string) (bundle, restored string) {
+	t.Helper()
+	bundle = filepath.Join(t.TempDir(), "bundle.json")
+	if _, err := Export(context.Background(), root, key, bundle); err != nil {
+		t.Fatalf("export: %v", err)
+	}
+	restored = filepath.Join(t.TempDir(), "restored")
+	localGit(t, root, "worktree", "add", "-q", "--detach", restored, "HEAD")
+	restored, _ = filepath.EvalSymlinks(restored)
+	return bundle, restored
+}
+
+// TestLCPV0884ImportRefusesPlanNamingSourceRoot: a frozen plan whose check
+// names the source root cannot move to another worktree, since relocating
+// its argv would break the plan digest; the import refuses before writing
+// anything and the restored worktree stays inactive (LCP-V0-884).
+func TestLCPV0884ImportRefusesPlanNamingSourceRoot(t *testing.T) {
+	ctx := context.Background()
+	root, key, plan := fixture(t, nil)
+	plan.Checks[0].Argv = []string{"test", "-d", filepath.Join(root, "fixture")}
+	beginFixture(t, root, key, plan)
+	bundle, restored := restoreFixture(t, root, key)
+	if _, err := Import(ctx, restored, key, bundle); err == nil || err.Error() != "import-plan-not-relocatable" {
+		t.Fatalf("import of a plan naming the source root: %v", err)
+	}
+	target, err := open(restored, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"owner", target.session} {
+		if _, err := os.Lstat(filepath.Join(target.directory, name)); !os.IsNotExist(err) {
+			t.Errorf("the refused import wrote %s: %v", name, err)
+		}
+	}
+	if after, err := Evaluate(ctx, restored, key); err != nil || after.Lifecycle != "inactive" {
+		t.Fatalf("restored worktree after the refusal: %#v %v", after, err)
+	}
+}
+
+// TestLCPV0883RestoredHoldStillGuardsCancel: the preservation hold and its
+// release history travel with the bundle, so a restored held ACTIVE
+// enrollment still refuses a cancel (LCP-V0-880, LCP-V0-883).
+func TestLCPV0883RestoredHoldStillGuardsCancel(t *testing.T) {
+	ctx := context.Background()
+	root, key, plan := fixture(t, []string{"true"})
+	repo := beginFixture(t, root, key, plan)
+	for _, step := range [][2]string{{"first hold", ""}, {"", "coordinator released the first hold"}, {"second hold", ""}} {
+		if _, err := Hold(ctx, root, key, step[0], step[1]); err != nil {
+			t.Fatalf("hold %q: %v", step, err)
+		}
+	}
+	release, err := os.ReadFile(filepath.Join(repo.releasesPath(), "release-001.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bundle, restored := restoreFixture(t, root, key)
+	if _, err = Import(ctx, restored, key, bundle); err != nil {
+		t.Fatalf("import: %v", err)
+	}
+	var held *HoldError
+	if _, err = Cancel(ctx, restored, key, "base moved"); !errors.As(err, &held) || held.Reason != "second hold" {
+		t.Fatalf("cancel of the restored held enrollment: %v", err)
+	}
+	target, err := open(restored, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.ReadFile(filepath.Join(target.releasesPath(), "release-001.json")); err != nil || string(got) != string(release) {
+		t.Errorf("release record not restored: %q %v", got, err)
 	}
 }
 

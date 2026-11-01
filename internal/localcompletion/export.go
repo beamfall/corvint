@@ -122,6 +122,18 @@ func Export(ctx context.Context, root, key, output string) (Evaluation, error) {
 	if err != nil {
 		return Evaluation{}, err
 	}
+	// The preservation hold and its release records live beside the session
+	// directory; a restore without them would admit a cancel the hold refuses
+	// (LCP-V0-880, LCP-V0-883).
+	holds, err := repo.holdFiles()
+	if err != nil {
+		return Evaluation{}, err
+	}
+	for _, name := range holds {
+		if err = add("gitdir", repo.auth.GitDir, name); err != nil {
+			return Evaluation{}, err
+		}
+	}
 	seen := map[string]bool{}
 	for _, item := range repo.referencedArtifacts(saved) {
 		if seen[item.Path] || strings.HasPrefix(item.Path, session+string(filepath.Separator)) {
@@ -152,6 +164,27 @@ func Export(ctx context.Context, root, key, output string) (Evaluation, error) {
 	return repo.evaluate(ctx, saved)
 }
 
+// holdFiles are the session's hold and release records that exist.
+func (repo *repository) holdFiles() ([]string, error) {
+	var names []string
+	if _, err := os.Lstat(repo.holdPath()); err == nil {
+		names = append(names, repo.holdPath())
+	} else if !os.IsNotExist(err) {
+		return nil, err
+	}
+	entries, err := os.ReadDir(repo.releasesPath())
+	if os.IsNotExist(err) {
+		return names, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	for _, entry := range entries {
+		names = append(names, filepath.Join(repo.releasesPath(), entry.Name()))
+	}
+	return names, nil
+}
+
 // referencedArtifacts are the artifacts the saved state names by absolute
 // path: report-set bindings and reports, terminal artifacts and coordination.
 func (repo *repository) referencedArtifacts(saved *state) []artifact {
@@ -165,9 +198,15 @@ func (repo *repository) referencedArtifacts(saved *state) []artifact {
 	return append(items, saved.Coordination...)
 }
 
-// readBundle reads and verifies an export bundle for key.
+// readBundle reads and verifies an export bundle for key. As ReadPlan does,
+// it reads through the resolved parent directory, so a symlinked ancestor
+// such as macOS /tmp is admitted while a symlinked bundle is not (LCP-V0-884).
 func readBundle(input, key string) (*exportBundle, error) {
-	raw, err := readFile(input, maxExportBytes*2)
+	parent, err := filepath.EvalSymlinks(filepath.Dir(input))
+	if err != nil {
+		return nil, errors.New("import-bundle-unreadable")
+	}
+	raw, err := readFile(filepath.Join(parent, filepath.Base(input)), maxExportBytes*2)
 	if err != nil {
 		return nil, errors.New("import-bundle-unreadable")
 	}
@@ -263,14 +302,18 @@ func Import(ctx context.Context, root, key, input string) (Evaluation, error) {
 		pending = append(pending, file)
 	}
 	sort.SliceStable(pending, func(i, j int) bool { return pending[i].Path != "state.json" && pending[j].Path == "state.json" })
-	for _, file := range pending {
-		data, _ := base64.StdEncoding.DecodeString(file.Data)
+	// The state is relocated, and may refuse, before anything is written.
+	contents := make([][]byte, len(pending))
+	for index, file := range pending {
+		contents[index], _ = base64.StdEncoding.DecodeString(file.Data)
 		if file.Anchor == "session" && file.Path == "state.json" {
-			if data, err = relocateState(data, bundle, repo); err != nil {
+			if contents[index], err = relocateState(contents[index], bundle, repo); err != nil {
 				return Evaluation{}, err
 			}
 		}
-		if err = writeFile(destination(file), data); err != nil {
+	}
+	for index, file := range pending {
+		if err = writeFile(destination(file), contents[index]); err != nil {
 			return Evaluation{}, err
 		}
 	}
@@ -287,12 +330,18 @@ func Import(ctx context.Context, root, key, input string) (Evaluation, error) {
 // relocateState rewrites every saved path under the bundle's source Git
 // directory or root to this repository's, then recomputes the report-set
 // digest, when it held at the source, and carries the review and terminal
-// acknowledgments only when they named that exact report set.
+// acknowledgments only when they named that exact report set. The frozen plan
+// is carried unchanged, since its digest binds it; one that names the source
+// root or Git directory cannot move to another location (LCP-V0-884,
+// LCP-V0-885).
 func relocateState(raw []byte, bundle *exportBundle, repo *repository) ([]byte, error) {
-	var value any
+	var value map[string]any
 	var source state
 	if json.Unmarshal(raw, &value) != nil || json.Unmarshal(raw, &source) != nil {
 		return nil, errors.New("import-bundle-invalid")
+	}
+	if (bundle.Root != repo.auth.Root || bundle.GitDir != repo.auth.GitDir) && namesAny(value["plan"], bundle.Root, bundle.GitDir) {
+		return nil, errors.New("import-plan-not-relocatable")
 	}
 	// Only a report set whose digest held at its source is re-digested, so a
 	// stale one stays stale after the move.
@@ -323,7 +372,11 @@ func relocateState(raw []byte, bundle *exportBundle, repo *repository) ([]byte, 
 		}
 		return node
 	}
-	relocated, err := json.Marshal(walk(value))
+	plan := value["plan"]
+	delete(value, "plan")
+	walk(value)
+	value["plan"] = plan
+	relocated, err := json.Marshal(value)
 	if err != nil {
 		return nil, err
 	}
@@ -347,4 +400,37 @@ func relocateState(raw []byte, bundle *exportBundle, repo *repository) ([]byte, 
 		return nil, err
 	}
 	return append(out, '\n'), nil
+}
+
+// namesAny reports whether any string in node names one of dirs: holds it
+// followed by a path separator or the end of the string.
+func namesAny(node any, dirs ...string) bool {
+	switch typed := node.(type) {
+	case map[string]any:
+		for _, member := range typed {
+			if namesAny(member, dirs...) {
+				return true
+			}
+		}
+	case []any:
+		for _, member := range typed {
+			if namesAny(member, dirs...) {
+				return true
+			}
+		}
+	case string:
+		for _, dir := range dirs {
+			for rest := typed; dir != ""; {
+				at := strings.Index(rest, dir)
+				if at < 0 {
+					break
+				}
+				rest = rest[at+len(dir):]
+				if rest == "" || rest[0] == filepath.Separator {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
