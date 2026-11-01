@@ -985,9 +985,25 @@ nothing to run.
   stable or relocated is cited instead; with none, the row stays `guarded` with no citation and no
   plan row is printed. A header exactly at the bound is cited.
 
+- `TCQ-V0-761`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-1450)
+  Amending `TCQ-V0-062`: when the tests of a hunk's own directory name no candidate, the search
+  MUST also name the base tests of the hunk package's direct importers: the directories of the
+  copy's root module (from its `go.mod` module line; hidden, `testdata` and `vendor` directories
+  and nested modules skipped) holding a Go file, test files included, that imports the package, at
+  most `MaxGuardImporterDirectories` (16) in directory order and never the package's own
+  directory. In an importer, a candidate is a test whose body mentions, directly or through the
+  importer's other declarations, an exported name of the hunk's package closure. The bound is one
+  import hop and 16 directories: an indirect importer, or an importer past the sixteenth, is never
+  a candidate. Each importer is its own run unit under the same revert-and-run classification and
+  bounds; a row with exactly one candidate unit is cited from that unit's package as before. A hunk
+  whose own directory has a candidate searches no importer, so its candidates, runs and cost are
+  unchanged. Rollback: remove `indexImporters`, `importIndex.of`, `exportedNames` and the fallback
+  in `judgeGuards`.
+
 Recorded limits of `TCQ-V0-062`: candidates match identifier names, so they over-approximate and
-the revert run decides; only tests in the hunk's own directory are candidates, so a test elsewhere
-that exercises the hunk (for example in `cmd/corvint`) is never found; tests added by the change
+the revert run decides; only tests in the hunk's own directory are candidates, and only when they
+name none the direct importers' tests (`TCQ-V0-761`), so a test two imports away, or beside an own
+candidate, that exercises the hunk is never found; tests added by the change
 are not candidates because `cem cite` needs base evidence. Only `go test` runs; no other runner is
 supported or qualified (an rc.3 limit). The bounds are the falsifier's (300 seconds per run, 1200
 seconds in total), and a package whose candidate run exceeds them is `not-run: timeout` or
@@ -1144,6 +1160,7 @@ non-authoritative and slated for separate removal.
 | `TCQ-V0-060` | `docs/DOGFOOD.md` section 4 "Cite the guarding test" | `TestCEMV1088HeldOnlyFromConsumerReexecution` (a plan citing the guarding test's declaration line yields `held`) |
 | `TCQ-V0-061` | `declaredTests` and `revertCandidates` in `internal/cem/verify/hunkrevert.go` | `TestCEMV1088DeclaredTestsAreWhatGoTestRuns`, `TestCEMV1088ForgedWitnessNeverCounts` (a span declaring no test is `no-named-test`) |
 | `TCQ-V0-062` | `internal/cem/verify/guards.go`, `internal/cem/workflow/stable_read.go`, `internal/cem/cli/cli.go` | `TestTCQV0062GuardingTestsNameObservedGuards`, `TestTCQV0062FlagIsVerifyOnly` (`internal/cem/workflow`); `TestTCQV0062VerifyGuardingTestsIsOptIn` (`internal/cem/cli`); `TestTCQV0062CandidatesFollowThePackageClosure`, `TestTCQV0062CitationNeedsAStableBaseHeader`, `TestTCQV0062LineDirectivesKeepPhysicalLines`, `TestTCQV0062ChangedLinesFindTheEditedDeclaration`, `TestTCQV0062SpentBudgetKeepsNoCandidateReason` (`internal/cem/verify`): on an uncited prepared map the search guards the Clamp hunk with its one asserting test only, keeps a revert that breaks the build and a test failing without the revert `not-run`, prints the plan row `cem cite` admits, and the consumer then holds the hunk |
+| `TCQ-V0-761` | `indexImporters`, `importIndex.of`, `exportedNames` in `internal/cem/verify/guard_importers.go`; the importer fallback in `judgeGuards` (`guards.go`) | `TestTCQV0761GuardInAnImportingPackageIsFound` (a real `go test` revert run: an importer test guards a hunk whose package has no test, and an equivalent revert is unguarded); `TestTCQV0761ImporterSearchIsBounded` |
 | `TCQ-V0-063` | `goPackage.citation` in `internal/cem/verify/guards.go`; `wire.MaxCitationSpanBytes` read by `cem cite` in `internal/cem/workflow/commands.go` | `TestTCQV0063PlanRowRespectsTheCiteSpanBound` (`internal/cem/verify`): a guard header of exactly 1 MiB is cited, one byte over is skipped and the next guard by name is cited |
 | `TCQ-V0-064` | `internal/liveverify/mutate/gotest.go` (`launcherRefusals`, `launcherRefused`, `ErrBubblewrapUnavailable`); `internal/liveverify/mutate/sandbox.go` (`nestingRefused`, `preflightRefused`) | `TestTCQV0064InconclusiveNamesABubblewrapSetupRefusal`, `TestTCQV0064PreflightFindsABubblewrapRefusal` (`internal/liveverify/mutate`); `TestFPKV0142PreflightRetriesATransientRefusalOnce` and `TestFPKV0142NestingRefusalCarriesTheLauncherLine` (V1-2940: a transient `EAGAIN` line retried once, the persisting line carried); measured 2026-10-24 on the linux/WSL2 box under test-confine `-race`: `TestDiscriminateRecordsWitnessAndReportDowngrades` SKIP with detail `unsupported: cited tests cannot be sandboxed: the host refused to apply the sandbox profile (an enclosing sandbox forbids nesting)`, and PASS unconfined |
 | `TCQ-V0-092` | `layoutTree`, `writeBlobs`, `readLink`, `linkEscape`, `SymlinkRefusal` in `internal/liveverify/mutate/export.go`; `unlinkedRegularFile` in `mutate/gotest.go` and `rbmutate/rbmutate.go`; `runnerUnavailable` in `internal/cem/workflow/discriminate.go` | `TestOpenRefusesATreeEntryItCannotReproduce`, `TestLinkEscapeAdmitsOnlyInTreeTargets` (`internal/liveverify/mutate`); `TestDiscriminateNamesAnEscapingSymlinkRefusal`, `TestDiscriminateWithoutRunnerIsNotRun` (`internal/cem/workflow`); `TestTCQV0092SymlinkRefusalIsTheWorkflowReason` (`internal/cemdiscriminate`) |

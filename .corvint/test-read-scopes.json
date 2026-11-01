@@ -48,6 +48,7 @@
       "internal/analyzerswift/"
     ],
     "cmd/corvint-cem-candidate": [
+      "internal/capcatalog/trees/corvint-cem-candidate.json",
       "protocol/cem-1.0/stable/neutral-criterion/"
     ],
     "cmd/corvint-companion-release": [
@@ -220,6 +221,7 @@
       "interop/cem01-go/testdata/inherited-vectors/"
     ],
     "internal/cem/verify": [
+      "interop/cem01-go/testdata/binary-section/",
       "interop/cem01-go/testdata/multi-runner/",
       "interop/cem01-go/testdata/non-regular/",
       "interop/cem01-go/testdata/omission/",
@@ -457,6 +459,7 @@
       "internal/appmap/testdata/"
     ],
     "internal/testplatform": [
+      ".corvint/test-read-scopes.json",
       "internal/analyzerexec/platform_other.go",
       "internal/cem/cli/stable_other.go",
       "internal/cem/publish/lock_other.go",
@@ -540,6 +543,7 @@
     ],
     "tools/corvint-pr-tests": [
       ".github/cishards/",
+      ".github/testconfine/",
       "cmd/",
       "go.mod",
       "go.sum",
@@ -551,7 +555,6 @@
     ],
     "tools/dogfood-guard-hunks": [],
     "tools/dogfood-inherit-citations": [
-      "docs/specs/",
       "script/check-line-citations.sh",
       "script/gen-spec-requirements.sh",
       "script/line-citation-legacy-documents.txt",

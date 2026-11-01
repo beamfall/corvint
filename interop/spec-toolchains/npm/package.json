@@ -5,6 +5,6 @@
   "description": "Pinned OpenSpec CLI for make spec-toolchain-conformance (STA-V0-011). Not a product dependency.",
   "license": "Apache-2.0",
   "dependencies": {
-    "@fission-ai/openspec": "1.14.3"
+    "@fission-ai/openspec": "1.16.0"
   }
 }

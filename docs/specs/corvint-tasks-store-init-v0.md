@@ -1,7 +1,7 @@
 # Corvint Tasks store initialization V0
 
 Owner: Russell Lewis
-Date: 2026-09-25 (CTS-V0-001, CTS-V0-003 and CTS-V0-004 accepted 2026-09-27; CTS-V0-002 accepted 2026-09-28; CTS-V0-006 requested 2026-10-01 in issue 433; CTS-V0-008 proposed 2026-10-10 in V1-0825 and accepted 2026-10-10, decision 0490; CTS-V0-010 accepted 2026-10-15 under the owner's standing auto-accept, V1-1379; CTS-V0-011 accepted 2026-10-21 under the same auto-accept, V1-0758; CTS-V0-012 accepted 2026-10-21 under the same auto-accept, V1-2143; CTS-V0-013 accepted 2026-10-21; CTS-V0-014 to CTS-V0-017 accepted 2026-10-22 under the same auto-accept, V1-1660; CTS-V0-018 accepted 2026-10-22 under the same auto-accept, V1-2401; CTS-V0-020 and CTS-V0-021 accepted 2026-10-23 under the same auto-accept, V1-2400; CTS-V0-022 accepted 2026-10-23 under the same auto-accept, V1-0903; CTS-V0-025 proposed 2026-10-24 in V1-2523, not accepted; CTS-V0-026 accepted 2026-10-24 under the standing lane auto-accept, V1-2506)
+Date: 2026-09-25 (CTS-V0-001, CTS-V0-003 and CTS-V0-004 accepted 2026-09-27; CTS-V0-002 accepted 2026-09-28; CTS-V0-006 requested 2026-10-01 in issue 433; CTS-V0-008 proposed 2026-10-10 in V1-0825 and accepted 2026-10-10, decision 0490; CTS-V0-010 accepted 2026-10-15 under the owner's standing auto-accept, V1-1379; CTS-V0-011 accepted 2026-10-21 under the same auto-accept, V1-0758; CTS-V0-012 accepted 2026-10-21 under the same auto-accept, V1-2143; CTS-V0-013 accepted 2026-10-21; CTS-V0-014 to CTS-V0-017 accepted 2026-10-22 under the same auto-accept, V1-1660; CTS-V0-018 accepted 2026-10-22 under the same auto-accept, V1-2401; CTS-V0-020 and CTS-V0-021 accepted 2026-10-23 under the same auto-accept, V1-2400; CTS-V0-022 accepted 2026-10-23 under the same auto-accept, V1-0903; CTS-V0-025 proposed 2026-10-24 in V1-2523, not accepted; CTS-V0-026 accepted 2026-10-24 under the standing lane auto-accept, V1-2506; CTS-V0-800 accepted 2026-10-31 under the same auto-accept, V1-2479; CTS-V0-870 to CTS-V0-873 accepted 2026-10-31 under the same auto-accept, V1-3278, V1-3263, V1-3287 and V1-3304)
 Intent status: accepted (owner decisions 2026-09-27 and explicit two-issue fix request 2026-09-28)
 Delivery status: experimental
 Authoritative inputs: owner request [issue 336](https://github.com/beamfall/corvint/issues/336), decision 0397 (corvint-tasks built in tree), `AGENTS.md`,
@@ -290,6 +290,45 @@ on a fixture queue remain non-goals.
   writer or to the state format. Rollback: revert the commit; reads beside a killed writer's orphan
   slots refuse `MALFORMED` again until the next writer, and no state format, code or envelope
   changes.
+- `CTS-V0-800`: (accepted 2026-10-31 under the owner's standing lane auto-accept (2026-10-11),
+  V1-2479) amends CTS-V0-021. An amendment MUST NOT rename the source item of a ticket the store
+  holds as an import: when an existing ticket was imported from source item S of queue Q and the
+  amended map names that ticket, the entry naming it MUST be (Q, S). The importer derives the
+  ticket from the source item ID, so a renamed entry would make the ticket's re-import refuse
+  under CTS-V0-017; the amendment is refused `VALIDATION_FAILED` `DUPLICATE_ID` naming the ticket,
+  its import source and the refused rename, with nothing written, beside every other CTS-V0-021
+  conflict. A mapped ticket the store does not hold yet keeps the CTS-V0-021 rename. Non-goals:
+  the importer following a renamed source item (still a CTS-V0-021 non-goal) and any change to
+  how an import chooses tickets. Rollback: revert the commit; such a rename commits again and its
+  re-import refuses as before, and no state format, code or envelope changes.
+- `CTS-V0-870`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3278)
+  A `ticket search` with no filter is a defined usage error, not a read: it MUST refuse
+  `MALFORMED` at field `argv` with a null snapshot before any store read, and its warning MUST name
+  `ticket list` as the unfiltered read. A test that expects a store refusal from `ticket search`
+  MUST pass a filter and assert the refusal's own reason, so the usage error cannot stand in for it.
+  Non-goals: making an unfiltered search succeed. Rollback: revert; the warning loses the route.
+- `CTS-V0-871`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3263)
+  Every read that takes `--summary` or `--fields` (`ticket show`, `list`, `search`, `roadmap`, `queue status` and the
+  other compact reads) MUST accept `--json` as a no-op, because its output is always one JSON
+  envelope. A leading global `--root DIR` (or `--root=DIR`) before the verb MUST run the command as
+  if started in `DIR` (a relative `DIR` is taken from the working directory), so a relative file
+  argument the verb reads or writes (`archive verify FILE`, `archive restore FILE`,
+  `ticket obligations plan --plan`, `ticket similar --digest`, `run-batch`/`qualify` `--config` and `--out`)
+  is taken from `DIR` too; `--root` without a
+  directory is a `MALFORMED` usage error naming the form. `ticket show` help MUST name
+  `items[0].revision` and `items[0].record.acceptanceCriteria`. Non-goals: a non-JSON output mode.
+  Rollback: revert; `--json` and a leading `--root` are refused again.
+- `CTS-V0-872`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3287)
+  A write to a stdout whose reader has closed MUST NOT kill `corvint-tasks` with `SIGPIPE` or add an error report: the write
+  fails `EPIPE` and is dropped, and the exit status stays the command's outcome status (0 for an OK
+  read), so a `set -o pipefail` pipeline into `head` sees the command's result. A child process
+  (a gate command) keeps the default `SIGPIPE` disposition. Non-goals: retrying the write.
+  Rollback: revert; a large read into a closed pipe dies with status 141 again.
+- `CTS-V0-873`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3304)
+  A ticket argument whose local token ends in an unpadded number (`QB-1`) that names no ticket MUST resolve to the one
+  ticket whose token differs only by leading zeros in that number (`QB-0001`); an exact token
+  always wins. When two or more such tickets exist the read MUST refuse as not found and name each
+  candidate. Non-goals: prefix or fuzzy matching. Rollback: revert; an unpadded token is not found.
 
 ## Import export and batching
 
@@ -352,6 +391,7 @@ revision 1, a broken revision chain, and a target held by a native record or ano
 | Import plan with one or more import-map conflicts | Refused `DUPLICATE_ID` before the first batch, naming every conflicting source item; no batch is written, including any earlier conflict-free one (CTS-V0-018). |
 | Import-map amendment by a non-OWNER binding, or naming a map other than the journaled one | `UNAUTHORIZED`, or `REVISION_CONFLICT`; nothing is written (CTS-V0-020). |
 | Import-map amendment on a queue without a map, a fixture queue, or with a malformed or other-queue map | `MALFORMED`; nothing is written (CTS-V0-020). |
+| Import-map amendment that renames the source item of a ticket the store holds as an import | `VALIDATION_FAILED` `DUPLICATE_ID` naming the ticket, its import source and the rename; nothing is written, so the ticket's re-import stays usable (CTS-V0-800). |
 | Import-map amendment that moves a mapped item, drops or doubles a mapped ticket, or claims a ticket that is not that item's import | `VALIDATION_FAILED` `DUPLICATE_ID` naming every conflict; nothing is written (CTS-V0-021). |
 | An older binary reads a store with an `IMPORT_PLAN` receipt | Its journal audit admits the receipt kind and validates the posts as canonical intent records, and its redo completes an amendment interrupted after link-in; only a new amendment request is refused (CTS-V0-024). |
 | Export of a store with more listed directories than the root bound (`requests/` shards) | Least recently used roots are released and reopened under their parent; the stream is unchanged (CTS-V0-023). |
@@ -509,6 +549,13 @@ skip on darwin or linux. On a Windows host (2026-10-24, batch 1024c) the CTS-V0-
 `TestCriterionBindingOfflineVerify` (skips) and the help tests passed; 13 other
 `internal/tasks/cli` tests that do not reach this refusal still fail there, out of this scope. Rollback is a revert; no state format or code changes.
 
+CTS-V0-800 (V1-2479) is accepted by `TestCTSV0800_ImportMapAmendRefusesImportedSourceRename`
+(`internal/tasks/store`): on a store that imported BF-1 under the map (BF-1 -> BF-1), the amendment
+(NEW-1 -> BF-1) is refused `DUPLICATE_ID` naming the ticket and its import source with the store
+byte-identical, the unchanged re-import of BF-1 still completes as a no-change, and a rename of a
+mapped ticket the store does not hold yet still commits (CTS-V0-021). Without the check the
+amendment commits and the re-import refuses `DUPLICATE_ID`, which is the reported defect.
+
 CTS-V0-026 (V1-2506) is accepted by journal tests that drive the wait with the stage-pause hook:
 `TestCTSV0026_FreeWriterLockSetsAsideKilledWritersOrphans` (two orphans beside a free lock: the
 audit, a ticket read and a mutation audit succeed after exactly the budget, both slots are named and
@@ -559,6 +606,7 @@ restored byte-identical afterwards. Rollback restores the wall-clock deadline in
 | CTS-V0-018 | `internal/tasks/transaction/import_map.go` (`ImportMapConflicts`, `importMapConflict`), `internal/tasks/store/import.go` (`importWith`) | TestCTSV0018_ImportPlanNamesEveryMapConflict |
 | CTS-V0-020 | `internal/tasks/transaction/model.go` (`ImportPlan`, `Digest`, model posts), `internal/tasks/transaction/import_map.go` (`importMapUnchanged`), `internal/tasks/snapshot/stage.go` (`StageImportPlan`), `internal/tasks/snapshot/stage_observation.go`, `internal/tasks/store/policy.go` (`ImportMapAmend`, `administrativeWriteRound`), `internal/tasks/cli/import_map.go` | TestCTSV0020_ImportMapAmendCommitsAndReplays, TestCTSV0020_ImportMapAmendRefusesUnmappedQueue, TestTMV0002_AS10_StageCodecActualMaxima |
 | CTS-V0-021 | `internal/tasks/transaction/import_map.go` (`importMapAmendConflicts`) | TestCTSV0021_ImportMapAmendRefusesConflicts |
+| CTS-V0-800 | `internal/tasks/transaction/import_map.go` (`importMapAmendConflicts`) | TestCTSV0800_ImportMapAmendRefusesImportedSourceRename |
 | CTS-V0-022 | `internal/tasks/snapshot/probe.go` (`Reader.Read`, `AfterWait`), `internal/tasks/archive/stage_read.go` (`readArchive`) | TestCTSV0022_LongBodyKeepsPausePatience, TestCTSV0022_SlowExportStillWaitsOutWriter, TestCTSV0006_MovedReadsPauseBetweenAttempts |
 | CTS-V0-023 | `internal/tasks/archive/stage_read.go` (`maxOpenRoots`, `archiveRead.parent`, `reserve`, `binding`) | TestCTSV0023_ExportHoldsBoundedRoots, TestCTSV0023_ReopenedShardMustBeTheListedDirectory |
 | CTS-V0-024 | `docs/specs/corvint-tasks-store-init-v0.md` (rollback guidance); `internal/tasks/store/redo.go`, `internal/tasks/journal` (unchanged) | TestCTSV0024_RollbackDistinguishesInterruptedAmendment |
@@ -567,3 +615,7 @@ restored byte-identical afterwards. Rollback restores the wall-clock deadline in
 | CTS-V0-010 | `internal/tasks/cli/cli.go` (`ticketShow`, `journalAbsentNotFound`) | TestCTSV0010_JournalAbsentShowNamesTheStaleSnapshot; `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-15-v1-1384-1379-tasks-cli-refusals.md` |
 | CTS-V0-009 | `internal/tasks/cli/attempt_detach.go` (`attemptAttach`), `internal/tasks/snapshot/probe.go` (`Reader.Read`) | TestCTSV0009_AttachWaitsForReceiptLinkBeforeHeadRename, TestCTSV0009_AttachReportsPendingAfterPatience; loaded qualification: TestATRV0008_DetachedRunSurvivesItsLauncher |
 | CTS-V0-008 | `internal/tasks/snapshot/stage_slot_wait.go` (`StageSlotWait`), `internal/tasks/journal/stage_read.go` (`readStage`, `slotsInFlight`), `internal/tasks/journal/audit.go` (`audit`, `Reader.WriterLocked`, `stageSleep`), `internal/tasks/store/guards.go` (`lockedJournalReader`) and its writer-locked call sites, `internal/tasks/archive/stage_read.go` (`readStage`, `slotsInFlight`, `readArchive`) | TestCTSV0008_StageSlotWaitBackoffAndBudget, TestCTSV0008_AuditWaitsForWriterHeldStageSlot, TestCTSV0008_OrphanStageSlotStillMalformedAfterBoundedWait, TestCTSV0008_UnassignedSlotBesideDescriptorRefusedAtOnce, TestCTSV0008_WriterLockedAuditRefusesOrphanSlotWithoutPause, TestCTSV0008_MovedObservationsAndSpentWaitCompose, TestCTSV0008_LockedReconcileRefusesOrphanSlotWithoutWaiting, TestCTSV0008_ArchiveWaitsForWriterHeldStageSlot, TestCTSV0008_ArchiveOrphanSlotMalformedAfterBoundedWait, TestCTSV0008_ArchiveSlotBesideDescriptorRefusedAtOnce, TestCTSV0008_ArchiveMovedAttemptsAndSpentWaitCompose, TestCTSV0008_ArchiveStagePauseLeavesPatienceForPending; unchanged refusal order: TestCALV0114_DivergentProjectionRefusalIsDeterministic |
+| CTS-V0-870 | `internal/tasks/cli/cli.go` (unfiltered `ticket search` refusal) | TestCTSV0870_UnfilteredSearchNamesTicketList, TestCTS002NoFallbackForExistingJournal |
+| CTS-V0-871 | `internal/tasks/cli/cli.go` (`Run`, `globalRoot`), `internal/tasks/cli/compact.go` (`compactRead`), `internal/tasks/cli/command_help.go` | TestCTSV0871_JSONIsANoOpAndRootPrecedesTheVerb, TestCTSV0871_RootGovernsRelativeFileArguments |
+| CTS-V0-872 | `cmd/corvint-tasks/main.go` (`SIGPIPE` notify) | TestCTSV0872_ClosedStdoutPipeKeepsTheOutcomeStatus |
+| CTS-V0-873 | `internal/tasks/cli/cli.go` (`resolveTicketArg`, `paddedCandidates`, `ticketShow`) | TestCTSV0873_UnpaddedTokenResolvesTheOnePaddedTicket |

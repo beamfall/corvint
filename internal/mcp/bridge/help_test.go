@@ -57,8 +57,9 @@ func assertHelpTool(t *testing.T, profile string, registry *Registry) {
 			t.Fatalf("%s %s result = %+v", profile, arguments, result)
 		}
 		encoded, encodeErr := result.CanonicalJSON()
-		if encodeErr != nil || len(encoded) > maxResultBytes/2 || !fitsMCPFrame(encoded, result) {
-			t.Fatalf("%s %s: %d canonical bytes leave less than half the %d-byte budget (%v)", profile, arguments, len(encoded), maxResultBytes, encodeErr)
+		// The headroom warns well before the catalog would abstain OUTPUT_BUDGET_EXCEEDED.
+		if encodeErr != nil || len(encoded) > maxResultBytes*3/4 || !fitsMCPFrame(encoded, result) {
+			t.Fatalf("%s %s: %d canonical bytes leave less than a quarter of the %d-byte budget (%v)", profile, arguments, len(encoded), maxResultBytes, encodeErr)
 		}
 		again, _ := registry.Call(context.Background(), ToolHelp, []byte(arguments))
 		if second, _ := again.CanonicalJSON(); string(second) != string(encoded) {

@@ -182,6 +182,7 @@ func Compile(parent context.Context, raw []byte, bindings map[string]string, api
 	if base != "" && ready[parts[0]] {
 		repo := repos[parts[0]]
 		root := bindings[parts[0]]
+		// ready means bind admitted this checkout, which refuses rewritten ancestry (EEP-V0-770).
 		ancestry, e := git(ctx, root, "merge-base", "--all", base, repo.Commit)
 		if e != nil || strings.TrimSpace(string(ancestry)) != base {
 			return r, errors.New("base must be an available ancestor in the API repository")

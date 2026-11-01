@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 type pair struct{ Base, Target string }
@@ -54,6 +55,9 @@ func freeze(ctx context.Context, o options) error {
 	if len(commits) != 201 {
 		return errors.New("exactly 201 commits required for 200 distinct pairs")
 	}
+	if err = requireConfinement(ctx, o, id, commits[:200]); err != nil {
+		return err
+	}
 	c := corpus{Schema: schema, Identity: id}
 	for i := 199; i >= 0; i-- {
 		c.Pairs = append(c.Pairs, pair{Base: commits[i+1], Target: commits[i]})
@@ -97,6 +101,13 @@ func shadow(ctx context.Context, o options) error {
 	}
 	if !equal(id, c.Identity) {
 		return errors.New("frozen tool/profile identity mismatch")
+	}
+	var targets []string
+	for _, i := range indices {
+		targets = append(targets, c.Pairs[i].Target)
+	}
+	if err = requireConfinement(ctx, o, id, targets); err != nil {
+		return err
 	}
 	// The output directory owns this checkout. Never reset or clean the input repository.
 	checkout := shadowCheckout(o)
@@ -349,11 +360,11 @@ func validateRow(dir string, r row, p pair, id identity) error {
 	if err := readJSON(filepath.Join(dir, "selection.json"), &s); err != nil {
 		return err
 	}
-	if s.Base != p.Base || s.Target != p.Target || !equal(s.Identity, id) || !equal(e.Args, append(append([]string{}, testArgs...), "./...")) {
+	if s.Base != p.Base || s.Target != p.Target || !equal(s.Identity, id) || len(id.Args) == 0 || !equal(e.Args, append(append([]string{}, id.Args...), "./...")) {
 		return errors.New("row source/profile mismatch")
 	}
 
-	if e.Selection.Base != p.Base || e.Selection.Target != p.Target || e.Selection.Tree != s.Tree || e.Selection.ObservedTarget != p.Target || e.Selection.ObservedTree != s.Tree || !equal(e.Selection.Identity, id) || !equal(e.Selection.Packages, []string{"./..."}) || e.Selection.Reason != "historical shadow: full-suite observation" || !equal(e.Env, id.Env) {
+	if e.Selection.Base != p.Base || e.Selection.Target != p.Target || e.Selection.Tree != s.Tree || e.Selection.ObservedTarget != p.Target || e.Selection.ObservedTree != s.Tree || !equal(e.Selection.Identity, id) || !equal(e.Selection.Packages, []string{"./..."}) || e.Selection.Reason != "historical shadow: full-suite observation" || !validRunEnv(e.Env, id) {
 		return errors.New("execution selection/environment link mismatch")
 	}
 	for _, link := range []struct{ name, hash string }{{"plan.json", s.PlanSHA}, {"selector.txt", s.AuditSHA}} {
@@ -500,4 +511,75 @@ func shadowCheckout(o options) string {
 		return containerCheckout
 	}
 	return filepath.Join(o.out, "checkout")
+}
+
+// declarationPath is the AFP-V0-023 read-scope declaration.
+const declarationPath = ".corvint/test-read-scopes.json"
+
+// declaresReadScopes reports whether commit's tree carries the declaration.
+func declaresReadScopes(ctx context.Context, o options, commit string) (bool, error) {
+	if !oid.MatchString(commit) {
+		return false, errors.New("invalid commit OID")
+	}
+	listed, err := git(ctx, o, "ls-tree", "--name-only", commit, "--", declarationPath)
+	if err != nil {
+		return false, err
+	}
+	return listed != "", nil
+}
+
+// requireConfinement refuses a campaign over any target that carries a
+// declaration unless the identity is confined by a wrapper whose Landlock
+// probe passes (AFP-V0-768): an unconfined row cannot detect a declaration
+// that is too narrow.
+func requireConfinement(ctx context.Context, o options, id identity, targets []string) error {
+	for _, target := range targets {
+		declared, err := declaresReadScopes(ctx, o, target)
+		if err != nil {
+			return fmt.Errorf("read-scope declaration at %s: %w", target, err)
+		}
+		if !declared {
+			continue
+		}
+		if id.Confine == "" || o.confine == "" {
+			return fmt.Errorf("refusing campaign: %s declares %s but no --confine wrapper binds the frozen identity (AFP-V0-768)", target, declarationPath)
+		}
+		probe := &boundedBuffer{limit: 4096}
+		code, err := command(ctx, o.root, closedEnv(o), probe, probe, time.Minute, o.confine, "-probe")
+		if err != nil || code != 0 {
+			return fmt.Errorf("refusing campaign: confinement wrapper probe failed (exit %d, %v): %s", code, err, strings.TrimSpace(probe.String()))
+		}
+		return nil
+	}
+	return nil
+}
+
+// unconfinedDeclaration is the FULL reason of a run whose target carries a
+// declaration that no wrapper enforces (AFP-V0-768), or "".
+func unconfinedDeclaration(ctx context.Context, o options, id identity) string {
+	if id.Confine != "" {
+		return ""
+	}
+	declared, err := declaresReadScopes(ctx, o, o.target)
+	if err != nil {
+		return "read-scope declaration unknown: " + err.Error()
+	}
+	if declared {
+		return "read-scope declaration without --confine"
+	}
+	return ""
+}
+
+// validRunEnv reports whether a retained execution environment is the frozen
+// one: equal to the identity's, plus exactly one absolute confinement root
+// when the identity is confined (AFP-V0-769).
+func validRunEnv(env []string, id identity) bool {
+	if id.Confine == "" {
+		return equal(env, id.Env)
+	}
+	if len(env) != len(id.Env)+1 || !equal(env[:len(id.Env)], id.Env) {
+		return false
+	}
+	root, ok := strings.CutPrefix(env[len(id.Env)], confineRootVariable)
+	return ok && filepath.IsAbs(root) && filepath.Clean(root) == root
 }

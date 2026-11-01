@@ -1000,7 +1000,7 @@ unbound_c1=$(unbound_commit c1)
 unbound_c2=$(unbound_commit c2)
 unbound_commit c3 >/dev/null
 unbound_gap=$(cd "$unbound_repo" && "$DOGFOOD_TEST_DRIVER" dogfood check "$unbound_c2" 2>&1) || :
-rg -q "^dogfood-check: NOTE unbound-commits count=2 window=$unbound_b0\\.\\.$unbound_c2 newest=$unbound_c2 oldest=$unbound_c1 before-base list=.*/dogfood-check\\.unbound-commits\$" <<< "$unbound_gap"
+rg -q "^dogfood-check: NOTE unbound-commits count=2 window=$unbound_b0\\.\\.$unbound_c2 window-start=cem-base-of:[0-9a-f]{40} newest=$unbound_c2 oldest=$unbound_c1 before-base list=.*/dogfood-check\\.unbound-commits\$" <<< "$unbound_gap"
 test "$(cat "$(printf '%s\n' "$unbound_gap" | sed -n 's/^dogfood-check: NOTE unbound-commits .* list=//p')")" = "$(printf 'unbound %s\n' "$unbound_c2" "$unbound_c1")"
 unbound_none=$(cd "$unbound_repo" && "$DOGFOOD_TEST_DRIVER" dogfood check "$unbound_s1" 2>&1) || :
 if rg -q 'unbound'; then exit 1; fi <<< "$unbound_none"
@@ -1041,7 +1041,7 @@ sealed_c1=$(sealed_commit c1)
 sealed_c2=$(sealed_commit c2)
 sealed_commit c3 >/dev/null
 sealed_gap=$(cd "$sealed_repo" && "$DOGFOOD_TEST_DRIVER" dogfood check "$sealed_c2" 2>&1) || :
-rg -q "^dogfood-check: NOTE unbound-commits count=2 window=$sealed_b0\\.\\.$sealed_c2 newest=$sealed_c2 oldest=$sealed_c1 before-base list=.*/dogfood-check\\.unbound-commits\$" <<< "$sealed_gap"
+rg -q "^dogfood-check: NOTE unbound-commits count=2 window=$sealed_b0\\.\\.$sealed_c2 window-start=cem-base-of:[0-9a-f]{40} newest=$sealed_c2 oldest=$sealed_c1 before-base list=.*/dogfood-check\\.unbound-commits\$" <<< "$sealed_gap"
 test "$(cat "$(printf '%s\n' "$sealed_gap" | sed -n 's/^dogfood-check: NOTE unbound-commits .* list=//p')")" = "$(printf 'unbound %s\n' "$sealed_c2" "$sealed_c1")"
 if rg -q '^  review:'; then exit 1; fi <<< "$sealed_gap"
 sealed_none=$(cd "$sealed_repo" && "$DOGFOOD_TEST_DRIVER" dogfood check "$sealed_z1" 2>&1) || :

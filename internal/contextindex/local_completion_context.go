@@ -119,11 +119,23 @@ type localPromptCompiler struct {
 func (compiler *localPromptCompiler) addGovernance() {
 	row, ok := compiler.context.governingRow()
 	if ok && row.downgrade == "" {
+		admitted := len(compiler.rows)
 		compiler.addEvidence("governance", row.path, row.line, "governing", "project-instructions")
+		if row.link != "" && len(compiler.rows) > admitted {
+			// TCP-V0-274: both paths and both pins, the target's as blob_hash.
+			compiler.rows[admitted].value["link_path"] = row.link
+			compiler.rows[admitted].value["link_blob_hash"] = compiler.index.Sources[row.link].BlobHash
+		}
 		return
 	}
 	for _, candidate := range compiler.context.candidates[governingRelation] {
-		compiler.unavailable = append(compiler.unavailable, localSelector("governance", candidate))
+		selector := localSelector("governance", candidate)
+		if reason := compiler.context.linkRefusals[candidate]; reason != "" {
+			selector["reason"] = reason
+		} else if ok && row.link != "" {
+			selector["reason"] = row.downgrade // TCP-V0-274
+		}
+		compiler.unavailable = append(compiler.unavailable, selector)
 		break // TaskContext never substitutes a lower-precedence unread authority.
 	}
 }

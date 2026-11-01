@@ -283,7 +283,7 @@ func obligationsPlan(env Env, cmd []string, args []string) *wire.Result {
 	if target == "" || file == "" {
 		return usage(cmd, "--target and --plan FILE are required")
 	}
-	raw, err := readPlanFile(file, ticket.MaxObligationPlanBytes)
+	raw, err := readPlanFile(commandPath(env.Cwd, file), ticket.MaxObligationPlanBytes)
 	if err != nil {
 		return errorResult(cmd, err)
 	}
@@ -508,7 +508,11 @@ func obligationsWitnessJob(job context.Context, wantReport wire.Digest, env Env,
 	if retain && report == "" {
 		return usage(cmd, "--retain belongs to --from-playwright-report")
 	}
+	if report != "" {
+		report = commandPath(env.Cwd, report)
+	}
 	if postCheck != "" {
+		postCheck = commandPath(env.Cwd, postCheck)
 		if err := checkPostCheck(postCheck, postStatus, open); err != nil {
 			return errorResult(cmd, err)
 		}

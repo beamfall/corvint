@@ -101,7 +101,7 @@ func administrativeWriteRound(ctx context.Context, repo *intent.Repository, requ
 		}
 		return report, nil, err
 	}
-	if _, err := authority.Qualify(repo.CommonDir); err != nil {
+	if _, err := authority.QualifyReused(repo.CommonDir); err != nil {
 		return report, nil, err
 	}
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})

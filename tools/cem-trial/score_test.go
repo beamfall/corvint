@@ -14,6 +14,10 @@ func TestMissedEvidenceVerdictIntervalCompatibility(t *testing.T) {
 		want                       string
 	}{
 		{"met", 0.1, 0.2, 0.01, 0.15, 0.5, "met: at least 20% fewer missed-evidence findings"},
+		{"met below the point target", 0.06, 0.12, 0.01, 0.15, 0.5, "met: at least 20% fewer missed-evidence findings"},
+		{"met at the inclusive target endpoint", 0.06, 0.12, 0.001, 0.1, 0.5, "met: at least 20% fewer missed-evidence findings"},
+		{"just below the target endpoint", 0.06, 0.12, 0.001, 0.0999, 0.5, "below target but interval excludes 0"},
+		{"zero lower bound is not met", 0.1, 0.2, 0, 0.2, 0.5, "consistent with 20% and with 0"},
 		{"treatment missed more", -0.05, -0.1, -0.08, -0.01, 0.5, "not met: treatment missed more evidence than control"},
 		{"below target excludes zero", 0.04, 0.05, 0.03, 0.06, 0.8, "below target but interval excludes 0"},
 		{"covers zero and absolute target", 0.05, 0.1, -0.01, 0.12, 0.5, "consistent with 20% and with 0"},
@@ -146,5 +150,27 @@ func TestCitedNotGoldCountsDistinctPathsAndLines(t *testing.T) {
 	meta.GoldSpans = nil
 	if got := scoreCitedNotGold(citations, meta); got.Paths != 0.5 || got.Spans != notObserved {
 		t.Fatalf("no recorded span gold = %+v", got)
+	}
+}
+
+// V1-2673: the amended CRT-V0-008 kill readings, with their boundaries.
+func TestKillReadings(t *testing.T) {
+	summary := map[string]any{"citable": map[string]any{}, "verifier": map[string]any{}}
+	for _, tt := range []struct {
+		high float64
+		kill bool
+	}{{0.0999, true}, {0.10, false}, {-0.2, true}, {0.3, false}} {
+		got := verdicts(0, 0, -0.1, tt.high, 0.5, summary)["kill_readings"].([]string)
+		if (len(got) == 1 && got[0] == killGain) != tt.kill || len(got) > 1 {
+			t.Errorf("CRT-V0-008/upper bound %v: kill_readings %v, want kill=%t", tt.high, got, tt.kill)
+		}
+	}
+	for _, tt := range []struct {
+		high float64
+		kill bool
+	}{{0.05, true}, {0.0501, false}, {-0.1, true}} {
+		if reading, killed := seededKillReading(tt.high); killed != tt.kill || reading != killSeeded {
+			t.Errorf("CRT-V0-008/seeded_vs_treatment upper bound %v: killed %t, want %t", tt.high, killed, tt.kill)
+		}
 	}
 }

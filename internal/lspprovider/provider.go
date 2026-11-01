@@ -28,6 +28,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Beamfall/corvint/internal/cem/gitrun"
+	"github.com/Beamfall/corvint/internal/gitancestry"
 	"github.com/Beamfall/corvint/internal/gitstatus"
 	"github.com/Beamfall/corvint/internal/gokernel"
 	"github.com/Beamfall/corvint/internal/procgroup"
@@ -171,10 +172,19 @@ func querySummary(request Request, seeds []string) map[string]any {
 // rootCommit reads the revision's root commit under Core's sanitized Git
 // environment, with no credential helper and no transport, so replace refs,
 // ambient configuration and a promisor remote cannot change the origin.
+//
+// A grafted or shallow checkout has no trustworthy root commit: its parentless commits are the
+// graft or the shallow boundary (EEP-V0-773), so the origin is unavailable.
 func rootCommit(ctx context.Context, root, revision string) (string, error) {
-	output, err := gitrun.RunReserved(ctx, 10*time.Second, gitrun.Options{
-		Binary: gitstatus.Executable(), Dir: root, Env: gokernel.SanitizedGitEnvironment(), StdoutLimit: 64 << 10,
-	}, "-c", "credential.helper=", "rev-list", "--max-parents=0", revision)
+	read := func(ctx context.Context, args ...string) ([]byte, error) {
+		return gitrun.RunReserved(ctx, 10*time.Second, gitrun.Options{
+			Binary: gitstatus.Executable(), Dir: root, Env: gokernel.SanitizedGitEnvironment(), StdoutLimit: 64 << 10,
+		}, append([]string{"-c", "credential.helper="}, args...)...)
+	}
+	if reason := gitancestry.Rewritten(ctx, read); reason != "" {
+		return "", errors.New(reason)
+	}
+	output, err := read(ctx, "rev-list", "--max-parents=0", revision)
 	if err != nil {
 		return "", err
 	}
@@ -427,7 +437,8 @@ func record(request Request, origin string, found expansion, query map[string]an
 	seen := map[key]bool{}
 	relations := []any{}
 	var origins []string
-	omitted := 0
+	// Each omission is counted by its cause (EEP-V0-820).
+	unpinned, rowBound, byteBound := 0, 0, 0
 	for _, found := range found.links {
 		kind := relationType(found.method)
 		if seen[key{found.from, found.to, kind}] {
@@ -435,8 +446,12 @@ func record(request Request, origin string, found expansion, query map[string]an
 		}
 		seen[key{found.from, found.to, kind}] = true
 		fromBlob, toBlob, ok := blobs(request, found)
-		if !ok || len(relations) == MaxRows {
-			omitted++
+		if !ok {
+			unpinned++
+			continue
+		}
+		if len(relations) == MaxRows {
+			rowBound++
 			continue
 		}
 		relations = append(relations, relation(found, kind, fromBlob, toBlob, query["sha256"].(string)))
@@ -458,10 +473,13 @@ func record(request Request, origin string, found expansion, query map[string]an
 	for len(encoded) > MaxRecordBytes && len(relations) > 0 {
 		relations = relations[:len(relations)-1]
 		document["relations"] = relations
-		omitted++
+		byteBound++
 		encoded, _ = json.Marshal(document)
 	}
-	query["omitted_rows"] = omitted
+	query["omitted_rows"] = unpinned + rowBound + byteBound
+	query["omitted_unpinned"] = unpinned
+	query["omitted_row_bound"] = rowBound
+	query["omitted_byte_bound"] = byteBound
 	return encoded, origins
 }
 

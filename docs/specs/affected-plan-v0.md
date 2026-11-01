@@ -349,7 +349,9 @@ bounds), walks at most `affected.MaxWalkEntries` entries, reads at most
   Queue-backstopped PR narrowing SHALL follow AFP-V0-028, without requiring the historical
   qualification artifact; missing/malformed/stale qualification still forces FULL for the
   historical qualification profile. PR execution SHALL use the full branch's argv, environment,
-  AFP-V0-023 `test-confine` wrapper and cache policy, not the driver's closed replay environment. Cancellation MUST exit nonzero and kill owned process
+  AFP-V0-023 `test-confine` wrapper and cache policy, not the driver's closed replay environment.
+  The driver's own selected and historical shadow executions run under that wrapper when given
+  `--confine`, which then joins their frozen argv and identity (AFP-V0-766 to AFP-V0-769). Cancellation MUST exit nonzero and kill owned process
   groups without starting fallback. Main/release, static/security/vet/format/build/interop and
   JavaScript/E2E checks MUST remain full. PR workflow permissions MUST be read-only, with no
   persisted credentials, secrets or pull_request_target execution. Initial empty trusted pins
@@ -761,7 +763,8 @@ and container qualification; full fallback remains available.
   another package) inherits the ruleset, so such a package cannot be declared narrowly; the
   AFP-V0-013 driver's selected and shadow runs are not confined until its frozen argv and
   identity carry the wrapper, which MUST precede any AFP-V0-014 campaign that relies on a
-  declaration; and `make gate-ledger` `-unresolved`/`-bounds` stay whole-tree for declared
+  declaration (bound by AFP-V0-766 to AFP-V0-769, V1-0633: `--confine` carries it, and the
+  campaign refuses to start without it when a declaration exists); and `make gate-ledger` `-unresolved`/`-bounds` stay whole-tree for declared
   packages. Rollback deletes the declaration, which restores rule (d) for every package; removing
   the `-exec` wrapper alone without deleting the declaration is not a supported state.
 - **AFP-V0-024:** (owner-directed, proposed, 2026-10-04; V1-0717; merge-queue amendment under the owner's standing auto-accept (2026-10-11); V1-0760) A push to `main` MAY reuse a
@@ -4582,6 +4585,72 @@ selected package unrun. The full fallback is unchanged.
   lists for which the check exits 0. Rollback: delete the record and `readSandboxes`; the check
   returns to AFP-V0-051 alone.
 
+- **AFP-V0-817:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3326)
+  A `.corvint/test-read-scopes.json` key binds only a root-module package directory: AFP-V0-023
+  confines a declared package by running its test binary under the Landlock wrapper on a confined CI
+  shard, and only the root module's `go list ./...` packages reach that shard. A dependent nested
+  module (AFP-V0-582) is one synthetic unit (`go:<module>`) with no files of its own that the root
+  module never lists, and a directory with no package names no test process, so neither key can be
+  enforced; the planner keeps refusing the whole declaration (`go:test-read-scopes-invalid`,
+  unchanged). `test-read-scopes-check` (AFP-V0-051) MUST then exit 2 naming each such key and its
+  reason instead of only `is invalid`: `declares "<dir>", the dependent nested module unit
+  go:<module> (AFP-V0-582), ... no confined CI shard runs it ...; remove the key`, or `declares
+  "<dir>", which holds no Go package unit of the root module, so no test process exists to
+  confine; remove the key`. A root-module package key is accepted and enforced as before.
+  Non-goals: confining a nested module's own `go test ./...` (its tests run unconfined from its
+  directory, AFP-V0-650), which needs a `.github` change under the owner's `ci-control-plane`
+  review. Failure modes: a declaration that does not parse keeps the generic refusal; a
+  `go.mod` without a `module` line is named as holding no package. Rollback: drop
+  `unsupportedKeys` from `check`.
+- **AFP-V0-818:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2906;
+  amending `AFP-V0-560`) A plugin may name, through `affected.CrossLanguageFrontier`, the frontier
+  reasons that stand for a runtime edge from another plugin's code into its units; the TypeScript
+  plugin names `typescript:e2e-runtime-dependency` (an end-to-end runner drives a server or binary
+  the repository may build in another language). A plugin left out only by the `AFP-V0-560`
+  terminal rule MUST still name each such entry as a `LANGUAGE_FRONTIER` unknown, never in
+  `plan.frontierExcluded`, unless a declared runtime edge (`AFP-V0-819`) holds the entry's site
+  file. The `AFP-V0-560` (4) soundness argument assumed no hidden edge crosses languages; this
+  removes the one the e2e runtime dependency breaks. Non-goal, unchanged from `AFP-V0-004` and the
+  `AFP-V0-560` non-goals: a plugin no change reaches at all still takes no part, since naming its
+  cross-language entries for every change of another plugin would leave every Go plan of this
+  repository UNKNOWN (17 `typescript:e2e-runtime-dependency` entries come from Playwright fixtures
+  under `cmd/corvint/testdata/`); `AFP-V0-819` is how a repository models such an edge. Failure
+  modes: a summary entry without a site path (`...:+N`) is never covered and stays named.
+  Rollback: drop the cross-language loop in `frontierUnknowns`.
+- **AFP-V0-819:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2906)
+  `.corvint/runtime-edges.json` (`{"profile":"corvint-runtime-edges/0","edges":[{"tests","runs",
+  "reason"}]}`, at most 256 edges strictly ascending by `tests` then `runs`) declares runtime edges
+  no plugin models: every unit with a test file at `tests` (a repository-relative file, or a
+  directory ending in `/`) runs the built binary of the unit `runs` names. The graph adds `runs` to
+  each such unit's `Execs`, so the unit is selected with a `BINARY_EXEC` witness whenever a change
+  reaches that unit (`AFP-V0-037`), and its sites are modelled for `AFP-V0-818`. The declaration is
+  part of the graph digest and of the graph cache's declaration stamps (`AFP-V0-436..439`). An
+  invalid declaration, an edge whose `runs` names no unit, and one whose `tests` holds no test file
+  fail the build naming the declaration, so a stale edge never silently stops selecting. That
+  refusal is full-repository validation: a graph a caller builds from a subset of the plugins
+  (`BuildPartial`: the Playwright graph and `tools/test-read-scopes-check`) cannot tell a stale
+  edge from one whose other side an absent plugin observes, so it applies only the edges whose
+  `runs` unit and a `tests` test file it holds and skips the rest, while still refusing an invalid
+  declaration. The Playwright source identity (`ObservePlaywrightSources`) binds the
+  declaration's presence and bytes, so an edge retargeted while a Playwright plan compiles fails
+  its final source check; without the file the identity is unchanged. Non-goals:
+  inferring edges, and edges between non-test units. Rollback: delete the declaration file and
+  `runtime_edges.go`; without the file the graph and every plan are byte-identical to before.
+  Acceptance (both): `TestCrossLanguageRuntimeFrontierIsNeverExcluded_AFP_V0_818`,
+  `TestDeclaredRuntimeEdgeSelectsTheSpec_AFP_V0_819`, `TestRuntimeEdgesDeclarationRefusals_AFP_V0_819`
+  (`internal/liveverify/affected`, fake plugins; the AFP-V0-818 test fails first on the base) and
+  `TestGoServerChangeSelectsDeclaredE2ESpec_V12906` (`internal/liveverify/affected/typescript`,
+  the real Go and TypeScript plugins: a `server/server.go` change selects `e2e/login.spec.ts`
+  through `cmd/server` with the edge and not without it),
+  `TestPartialGraphSkipsOutOfGraphRuntimeEdges_AFP_V0_819`,
+  `TestPlaywrightGraphAcceptsGoRuntimeEdge_AFP_V0_819` and
+  `TestPlaywrightSourcesBindRuntimeEdges_AFP_V0_819` (`typescript`), and
+  `TestCheckAcceptsCrossLanguageRuntimeEdge_AFP_V0_819` (`tools/test-read-scopes-check`); the `internal/liveverify/affected`,
+  `typescript`, `internal/appflows`, `internal/gateselect` and `cmd/corvint` affected tests
+  unchanged. Replay (2026-10-31, linux/WSL2): `corvint affected --base <first parent> --no-cache`
+  with the base (`6c967b21c`) and the changed binary over the 20 newest merges of that base: 0
+  selections lost in 20 merges and every scope equal (UNKNOWN); one merge, `6c967b21c` itself,
+  names 17 more `typescript:e2e-runtime-dependency` unknowns that the base had excluded.
 - **AFP-V0-640:** (accepted under the owner's standing lane auto-accept (2026-10-11); V1-2647;
   witness contract decided by the orchestrator: reference, not copy) In the `affected-plan/1`
   document (AFP-V0-035) each `selected` witness MUST replace `via` with `viaLength`, the length of
@@ -5263,6 +5332,195 @@ filed from its plan. Nothing in the receipt said the binary was older than the s
   in both outputs. Rollback: delete `cmd/corvint/self_binary.go` and its three call sites, and the
   `Degradations` members.
 
+### Frontier routes (AFP-V0-761; V1-2051)
+
+- **AFP-V0-761:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2051)
+  Amending AFP-V0-008: a plugin MAY implement `affected.FrontierRoute`, naming for a frontier reason
+  the supported route past it. `Select` SHALL append that route to the reason's `unknown` entry
+  `hint` (after any AFP-V0-929 hint, joined by `; `), so selection, scope and the bare `detail`
+  consumers key on are unchanged. The Go plugin SHALL name, for `go:workspace-module-outside-root`,
+  that affected plans one repository root and does not follow a `go.work` use outside it: the
+  sibling's own change is planned by `corvint affected` in that module's checkout, and the Go API
+  relations between the two are declared for `corvint breakage --manifest` (BKM-V0), the
+  cross-repository route. Every other Go reason names no route. Non-goals: affected still does not
+  read outside its root, follow a sibling, or select root dependents of a sibling change; the
+  frontier still widens the plan to `UNKNOWN`. Failure mode: a route text that drifts from BKM-V0
+  is advisory only and changes no plan. Rollback: remove `FrontierRoute`, its `Select` loop and
+  the Go route text.
+
+### Declared binary consumers (AFP-V0-762; V1-1017)
+
+- **AFP-V0-762:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-1017)
+  Amending AFP-V0-037: a repository MAY declare `.corvint/test-binary-consumers.json`, the closed
+  object `{"profile":"corvint-test-binary-consumers/0","consumers":{FILE:[COMMAND_DIR...]}}`,
+  naming a repository file that no Go package holds (such as a Node script) and the commands whose
+  built binary it runs: 1 to 4096 keys under the AFP-V0-037 `packages` entry grammar, each entry an
+  observed command. It is a file of its own, never a member of `.corvint/test-binary-execs.json`,
+  whose closed grammar a planner pinned to an older commit (the CI driver, AFP-V0-098) still reads:
+  that planner ignores the new file instead of refusing the old one. A consumer declaration that is
+  present but invalid keeps no consumer and raises `go:test-binary-execs-invalid`; the `packages`
+  edges stay. A dirty consumer declaration is an unowned path, like AFP-V0-037's. The Go
+  plugin SHALL record each consumer file in the named command units' `execConsumers` member (sorted
+  paths, part of the AFP-V0-005 projection when non-empty, and of the graph cache entry), which adds
+  no edge: a consumer that runs only a built binary is no importer of the command's code, and an
+  edge would make it inherit the command's root-locating closure and be selected on every change.
+  When a plan reaches a command's build (the dependency traversal walks to
+  it or an enclosed path reaches it, whatever witness the plan then gives it, so a change to both a
+  dependency and the command's own test file still counts; or its witness is
+  `DIRECT_SOURCE_CHANGE`, `DEPENDENCY_PATH` or `ENCLOSING_PACKAGE`) and no selection carries a
+  declared consumer file as a test, the plan SHALL name that file once as the unknown
+  `{reason: "UNSELECTED_BINARY_CONSUMER", detail: FILE, hint}`, the hint naming the nearest such command, which
+  widens it to `UNKNOWN` instead of leaving the run out silently. A command reached only for its
+  own test files, or only as a reader, names no consumer. This repository declares `tools/web-flows/test/e2e.mjs` and
+  `tools/web-flows/test/navigation-e2e.mjs` as consumers of `cmd/corvint-web-flows`, which
+  `script/web-flows-gate` builds and hands them, so a change to that command's build names both; they also run `cmd/corvint`, but nearly every
+  change reaches that build, so that edge is left undeclared rather than naming them on almost
+  every plan (a `cmd/corvint` change is left to its own tests and the web-flows gate). Non-goals: no
+  driver run of the consumer, no inference of a consumer from environment variables. Rollback:
+  remove `.corvint/test-binary-consumers.json`, `readBinaryConsumers`, `Unit.ExecConsumers`, `matchBinaryConsumers`, `unselectedConsumers` and the
+  repository entries.
+
+### Agent instruction files (AFP-V0-763; V1-2077)
+
+- **AFP-V0-763:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2077)
+  Decision: affected gives agent instruction files (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, at any
+  depth) no built-in ownership class. Only the project knows whether a build, a test or a tool
+  reads one (Corvint's own `affected` advice reads the target's `AGENTS.md` Verify block), so a
+  built-in class would be a Corvint guess outranking project authority (invariant 3); the existing
+  project-owned route is the AFP-V0-160 documentation declaration, which still selects every unit
+  whose path literal or declared read scope reaches the file. An undeclared instruction file stays
+  `UNOWNED_DIRTY_PATH`, and its entry SHALL carry an AFP-V0-494 `hint` naming that declaration
+  route (a symlink hint wins), changing neither selection nor scope. This repository SHALL declare
+  its root `AGENTS.md` and `CLAUDE.md` in `.corvint/documentation-paths.json`, so a change to them
+  alone is `DECLARED_DOCUMENTATION` here; the ASD-V0-105 generator
+  (`script/gen-documentation-paths.sh`) adds each of them the Git index tracks. Rollback: remove `instructionHints` and the two entries.
+
+### Typed --path profile refusals (AFP-V0-764; V1-2082)
+
+- **AFP-V0-764:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2082)
+  Amending AFP-V0-094: each profile that `--path` (and `--paths-from`) does not combine with is
+  decided one by one, and every one keeps a refusal: none plans a path list, because each plans its
+  own change set. The refusal is exit 2, code `unsupported-affected-path-profile`, no stdout
+  document, and a message naming the profile, why, and the recovery: `--snapshot` carries its own
+  frozen tree and changed set, not HEAD's (plan the snapshot alone); `--provider` hands a provider
+  the worktree or `--base` change set and its checkouts, and the provider protocol carries no path
+  list; the Playwright profile (`--playwright-config`, `--playwright-discovery`) narrows the
+  worktree or `--base` set against a discovery taken from the worktree, which a HEAD path list does
+  not pin; `--appmap-impact` binds a report to the `--base` range it was recorded over (ANL-V0-060).
+  For the last three the message names `corvint affected --base <HEAD>` after committing the
+  paths. `--base` with `--path` names two change sets and stays `invalid-arguments`. The checks
+  run in that order, before any other option check. Rollback: restore the single
+  `invalid-arguments` refusal.
+
+### Confined driver runs (AFP-V0-766 to AFP-V0-769; V1-0633)
+
+Intent (V1-0633, found 2026-10-01 while delivering V1-0246): full CI runs the root Go test under
+the AFP-V0-023 Landlock wrapper, but the AFP-V0-013 driver's selected and shadow runs did not, so
+a read-scope declaration that is too narrow passed a driver run and an AFP-V0-014 campaign could
+admit a selection that under-selects without detection.
+
+- **AFP-V0-766:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-0633)
+  `tools/corvint-pr-tests` SHALL accept `--confine WRAPPER`, the owner-protected `test-confine`
+  binary built from `.github/testconfine` outside the tested checkout. The path MUST be absolute
+  and resolve outside the tested repository, like the planner and selector. When it is given the
+  frozen identity SHALL carry its SHA256 (`Confine`), its `Args` SHALL be
+  `test -exec WRAPPER -json -p 1 -count=1 -race -timeout 50m`, and it SHALL record as
+  `ConfinedEnv` the environment `testconfine.ConfinedEnv` gives a confined test binary, which
+  appends `-buildvcs=false` to the otherwise empty `GOFLAGS` because a confined binary cannot
+  read `.git`. Every go test invocation of a run, fallback or historical shadow execution, slice
+  invocations included, SHALL use those `Args` and add exactly one `CORVINT_CONFINE_ROOT=<root>`,
+  the resolved tested checkout, to the identity `Env`; `execution.json` records both. Without
+  `--confine` the identity, argv and environment are byte-identical to before. A wrapper whose
+  identity is unavailable, or a wrapper or argv that differs from the selection's frozen identity,
+  MUST fail the execution (exit 2) and never run unconfined. The container profile refuses
+  `--confine`: it stays unqualified for confinement.
+- **AFP-V0-767:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-0633)
+  Under `--confine`, a package declared in `.corvint/test-read-scopes.json` whose test reads a
+  repository path outside its own subtree and its declared entries SHALL fail in the driver's
+  `go.json`, while the same read passes when the path is declared and an undeclared package still
+  runs unconfined; in a shadow row that failure outside the selection is a selected-set miss.
+  Without Landlock ABI 2 the test skips with the typed reason `AFP-V0-767: landlock ABI N`; a test
+  binary that CI's wrapper already confines skips with `AFP-V0-767: nested confinement` (amended
+  2026-11-01), since it cannot list the ancestors a nested wrapper's rules need, so the confined
+  observation comes from an unconfined Landlock host such as the heavy.sh remote.
+- **AFP-V0-768:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-0633)
+  `--mode freeze` SHALL refuse to write a corpus, and `--mode shadow` SHALL refuse before creating
+  its checkout, when any frozen target it covers (every one of the 200 for freeze, the requested
+  rows for shadow) carries `.corvint/test-read-scopes.json` and the identity has no `Confine`, or
+  when `WRAPPER -probe` fails (a Landlock ABI below 2). `--mode run` SHALL run the full root suite
+  with the reason `read-scope declaration without --confine` when the target carries a
+  declaration and no wrapper was given. A corpus frozen without a wrapper cannot be resumed with
+  one, nor the reverse, because the identities differ.
+- **AFP-V0-769:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-0633)
+  A confined execution SHALL be measured in a real clone whose root holds `.git` (the shadow
+  mode's owned `git clone`, or the tested checkout in run mode) and MUST fail otherwise, never in
+  a `.git`-less snapshot, so `.git` denial and the `-buildvcs=false` stamping change are
+  exercised as in full CI. Row validation (`validateRow`, resume and `qualify`) SHALL require the
+  retained `execution.json` argv to equal the frozen `Args` plus `./...` and its environment to
+  equal the frozen `Env`, plus exactly one absolute `CORVINT_CONFINE_ROOT` entry when `Confine` is
+  set. Non-goals: wiring `--confine` into `.github/workflows/pr-tests-qualification.yml`, an
+  owner-protected path, which stays a separate change; confinement in the container profile;
+  closing the AFP-V0-023 metadata and subprocess residuals. Failure modes: a wrapper built from
+  other source has another digest and changes the identity, so a qualification frozen with one
+  wrapper is not admitted with another; a host without Landlock refuses the campaign rather than
+  observing declared packages unconfined. Rollback: remove the flag and the `Confine` and
+  `ConfinedEnv` members; identities frozen without the wrapper are unchanged by it.
+
+### Two Go lexers (AFP-V0-765; V1-2206)
+
+- **AFP-V0-765:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2206)
+  Decision on sharing one Go lexer between the affected graph scan (`pathTokens` in
+  `internal/liveverify/affected/golang`) and the fast-tier index (`scanSource` in
+  `internal/gateselect`): their token streams are not equal, so no lexer is shared and the
+  `corvint test --dry-run` 3.90 s median (AFP-V0-316) is not re-measured. The four differences and
+  their selection impact: (1) region: the graph lexes from the end of an imports-only parse, the
+  index lexes the whole file and skips import declarations by its own recognizer; on a file both
+  parse, the literals outside imports are the same. (2) comment mode: the index lexes with
+  `ScanComments` (for `//go:embed`), the graph without; a comment between `os.` and `Getwd` would
+  hide a root-locating call from the index alone. Measured over every tracked Go file of this
+  repository at the lane base (6146 files), the streams are equal with comments dropped and no
+  comment splits a qualified identifier, so this reaches no file today. (3) root-locator table:
+  one function per import path in the index, a set in the graph, with equal contents
+  (`os.Getwd`). (4) literal lexicon: the index splits a literal with printf verbs as spaces and
+  none of the AFP-V0-505, AFP-V0-506, AFP-V0-840 and V1-1818 rules, so a closing tag, a `..\x`
+  path or a short sed component yields other path tokens there; that is a selection difference
+  between `corvint test` and `affected` by design of each lexicon, not a lexer difference
+  sharing could remove. Falsifier: a token-stream difference beyond comments on the repository,
+  or a comment-split qualifier. Rollback: delete the two tests.
+
+### Unbounded readers of declared CEM paths (AFP-V0-772; V1-3571)
+
+- **AFP-V0-772:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3571)
+  Amending AFP-V0-602: a repository MAY declare `.corvint/unbounded-reader-exclusions.json`, the
+  closed object `{"profile":"corvint-unbounded-reader-exclusions/0","paths":[PATH...]}`, 1 to 256
+  strictly ascending paths each equal to a runtime-readers entry's path: the project's statement
+  that no unbounded reader (AFP-V0-012 rule (d)) reads that entry's paths. It is a file of its own,
+  never a member of `.corvint/runtime-readers.json`, whose closed grammar the pinned CI planner
+  (AFP-V0-098) still reads, so that planner keeps the AFP-V0-602 selection rather than refusing the
+  graph. A present declaration that is unreadable, oversized, not exactly this grammar or that names
+  a path no entry declares refuses the graph build; it is read, and stamped in the graph cache
+  entry, whether or not the runtime-readers declaration exists, and a dirty copy no unit reaches is
+  a `CORVINT_DECLARATION` path (AFP-V0-443). A dirty path an excluded entry holds SHALL then select no unbounded
+  reader and follow no root locator's dependents; the path's literal, glob, embed and
+  declared-read-scope readers, and the test-less reader traversal, are unchanged, and any other
+  dirty path still selects every unbounded reader. The exclusion is part of the entry in the graph
+  digest and cache, only when present. This repository SHALL declare both CEM paths that way: the
+  shared bind path `.corvint/change.cem.json`, newly declared, because a seal commit deletes it
+  and an undeclared deletion made every path-open frontier bear; and `.corvint/changes/`, after
+  measuring that none of the 37 unbounded readers a sealed CEM selected reads sealed CEMs other
+  than through a literal. It also declares the TSP-V0-005 callers of `script/proof-tour.sh`.
+  Measured on this lane's own seal (`f36fa9f14..25daa0b3d`, a rename of the bind path into
+  `.corvint/changes/`): `corvint affected` went from 63 selected units and 86 unknowns to 29 units
+  (23 literal readers, one declared read scope, five dependents of test-less literal readers) and
+  one unknown. Post-seal `script/batch-precheck.sh` with `CORVINT_GATE_LEDGER=off` went from
+  103 s wall and 470 s summed (every drift test and the catalog check ran) to 36 s and 55 s (no
+  drift test, catalog check skipped), at host load 35 to 68. Residual: the remaining unknown is
+  `shell:foreign-invocation-unmodelled` from `script/check-install-lifecycle.sh`, which a
+  `.github` workflow runs and the shell plugin's universe cannot declare, and from
+  `script/dogfood-bind-coverage.sh`, whose name a shell file builds (TSP-V0-960); it keeps
+  `scope` `UNKNOWN` but is one of batch-precheck's repository-wide frontier details. Rollback:
+  remove the exclusions declaration, `applyUnboundedExclusions`, `unboundedDirty` and the repository entries.
+
 ## Non-goals and authority
 
 No provider modification; execution only through the explicitly admitted AFP-V0-013 driver; no watcher or daemon (invariant 7,
@@ -5588,6 +5846,8 @@ traceability table.
 | AFP-V0-601 | `goReadData`, `namedGoReadData`, `confinedReaders` and `driverInput` in `internal/liveverify/affected/select.go`, called from `seed` | `TestGoReadDataIsAttributedToItsReader_AFPV0601` (`ownership_test.go`: read-scope entry, declared subtree, read-scoped package subtree, hosted fixture, declared documentation, unattributed and root-scope paths), `TestEmbeddedDriverInputStaysUnowned_AFPV0601`, `TestUnconfinedReaderKeepsReadDataUnowned_AFPV0601` (`ownership_test.go`); `TestEmbeddedFilesAreOwnedByTheEmbeddingPackage_AFPV0600` (`golang/embed_test.go`: unconfined then declared readers); `TestTestdataIsFixtureDataNotAPackage_AFPV0008` (`golang/golang_test.go`); measured counts in the build-log entry |
 | AFP-V0-602 | `readRuntimeReaders`, `validRuntimeReaderPath`, `runtimeReaderPaths` in `internal/liveverify/affected/runtime_readers.go`; `declarations`, `declarationsOf`, `digestBody.RuntimeReaders` in `graph.go`; `cacheEntry.RuntimeReaders`, `completeStamps`, `restoreGraph` in `graphcache.go`; `declarationPath` in `documentation.go`; `selectPlan` in `select.go`; the repository declaration `.corvint/runtime-readers.json` | `TestDeclaredRuntimeReadersIsNonSourceNotUnknown_AFPV0602`, `TestDeclaredRuntimeReadersKeepsEveryReader_AFPV0602`, `TestRuntimeReadersDeclarationIsValidated_AFPV0602`, `TestRuntimeReadersDeclarationIsInTheDigest_AFPV0602`, `TestRuntimeReadersDeclarationIsCorvintDeclaration_AFPV0602`, `TestDeclaredRuntimeReadersLeavesDriversAndSelectionAlone_AFPV0602` (`runtime_readers_test.go`); the `runtime readers declaration appears at a path read as absent` row of `TestAFPV0392CacheFailsClosedOnAnyMismatch` (`graphcache_test.go`); `TestBatchReplayDeclaredRuntimeReaders_V12941` (`replay_v12941_test.go`, built over the repository with every plugin: batch 1028c and 1028a replays and a documentation-only plan); measured counts in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-v1-2941-runtime-readers-declaration.md` |
 | AFP-V0-603 | `Select` and `SelectStructural` in `internal/gateselect/select.go`; `plan` in `tools/corvint-pr-tests/main.go`; `CORVINT_TEST_SHADOW_SOURCE` in `.github/workflows/ci.yml` (rule (3)) | `TestDriverSelectionCoversTheShadow_V13067` (`internal/liveverify/affected/replay_v13067_test.go`: PR #1961 replay, `benchmarks/runner` pin; mutation-checked against `resolvedEvidence`); measured counts in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-28-v1-3067-driver-shadow-pin-skew.md` |
+| AFP-V0-818, AFP-V0-819 | `runtime_edges.go`, the cross-language loop in `frontierUnknowns`, `declarationsOf`, `applyRuntimeEdges` in `build` and the graph cache's declaration stamps in `internal/liveverify/affected`; `CrossLanguageFrontiers` in `internal/liveverify/affected/typescript/frontier_reach.go` | `TestCrossLanguageRuntimeFrontierIsNeverExcluded_AFP_V0_818`, `TestDeclaredRuntimeEdgeSelectsTheSpec_AFP_V0_819`, `TestRuntimeEdgesDeclarationRefusals_AFP_V0_819`, `TestGoServerChangeSelectsDeclaredE2ESpec_V12906`, `TestPartialGraphSkipsOutOfGraphRuntimeEdges_AFP_V0_819`, `TestPlaywrightGraphAcceptsGoRuntimeEdge_AFP_V0_819`, `TestPlaywrightSourcesBindRuntimeEdges_AFP_V0_819`, `TestCheckAcceptsCrossLanguageRuntimeEdge_AFP_V0_819` |
+| AFP-V0-817 | `unsupportedKeys` and `dependentModule` in `tools/test-read-scopes-check/main.go` | `TestUnsupportedReadScopeKeysNameTheirReason_V1_3326` (a root package key passes; a dependent nested module key and a package-less key each exit 2 naming the reason; fails first on the generic refusal) |
 | AFP-V0-615 | `readSandboxes` and the `sandbox` finding in `check` and `run` of `tools/test-read-scopes-check`; `.corvint/test-nested-sandboxes.json`; the unrecorded message in `tools/unbounded-readers` | `TestDeclaredNestedSandboxPackageFails_V1_2952` (`tools/test-read-scopes-check/main_test.go`: declared, undeclared and unrecorded packages; blank-reason, unclean-package and unknown-member refusals); the real tree with `internal/liveverify/mutate` declared exits 1 naming the package, the bubblewrap reason and `.corvint/unbounded-readers.json`, and the current tree exits 0 (build log 2026-10-28-test-selection-isolation) |
 | AFP-V0-620 | `deletedGoTest` in `internal/liveverify/affected/deletedtests.go`, called from `seed` in `select.go` | `TestMovedGoTestIsAttributedToItsBasePackage_AFPV0620` in `internal/liveverify/affected/golang/deletedtests_test.go` (a test file moved to a new package selects its base package and the new one at `BOUNDED` scope; a test file on disk but unindexed, a deleted test file whose directory holds no package, and a deleted non-test file keep `UNINDEXED_SOURCE_PATH`; fails before the change); the V1-2973 case `e7c6398aa` against base `aa3b6e4f0` goes from `FALLBACK` to `NARROWED 199 execution units` in build log 2026-10-28-moved-test-base-package |
 | AFP-V0-640 | `compactAffectedSelections`, `linkAffectedChain`, `expandAffectedVia` in `cmd/corvint/affected_compact.go` | `TestAFPV0640CompactWitnessChainsAreSharedLinks`, `TestAFPV0640CompactWitnessKeepsAChainTheLinksCannotState` (`affected_via_links_test.go`); chain rebuild parity in `TestAFPV0035CompactDefaultPlanSummarizesTheFullPlan`; core-freeze golden `affected-committed-range.json`; measured bytes and time in the build-log entry |
@@ -5621,6 +5881,16 @@ traceability table.
 | AFP-V0-483 | the `cost` output of `.github/forward-rows/collect.sh`; the `Retain the forward row's shadow cost name` step in `.github/workflows/ci-control-plane.yml` | `TestAFPV0047CollectorNamesRows` (a CLEAN queue row names `-CLEAN-f0-…-bna-cna-dna-m0nnn`, an INCOMPLETE row names none); `TestAFPV0099CollectorFetchesNarrowing` (a MISS row names `-MISS-f1-…-m1nnn`); `TestAFPV0047WorkflowBindings` |
 | AFP-V0-484 | the `$costNames`, `costs` and `$shadowCost` block and the `Shadow cost` lines of `.github/forward-rows/bar.jq`; `shadowCost` in `.github/forward-rows/verdict.sh` | `TestAFPV0484BarShadowCost` (cost names leave the status, counts and tripped kill switch identical; the nearest name listed before its row prices it, while a name listed after it, other epochs, INCOMPLETE rows and malformed names do not; a CLEAN re-run without its own cost is unpriced, not priced by an older MISS or CLEAN run; median, mean and miss rows per selector) |
 | AFP-V0-520 | `sealedCEM`, `validEntry`, `documentation`, `declared` and the non-Go branch of `.github/forward-rows/tiers.jq`; the `.corvint/documentation-paths.json` read and `--rawfile documentation` in `.github/forward-rows/tiers.sh` | `TestAFPV0520TierExemptions` in `tools/ci-forward-row/shadowcost_test.go` (a sealed CEM alone, declared documentation alone, and both beside a Go file keep the Go file's tiers; a `Makefile`, a script, undeclared docs, the CEM sidecar, a nested or empty-stem CEM, a CEM outside `.corvint/changes/` and the declaration itself stay FULL; a declared `testdata`, embedded or `.github/` path stays FULL; sixteen invalid declarations declare nothing); `TestAFPV0480Tiers` (`tiers.sh` end to end: adding the declaration is FULL, then a CEM and a declared spec are not, and a `Makefile` is) |
+| AFP-V0-761 | `FrontierRoute` in `internal/liveverify/affected/unit.go`, its loop in `frontierUnknowns` (`select.go`); `Language.FrontierRoute` and `WorkspaceOutsideRootRoute` in `internal/liveverify/affected/golang/golang.go` | `TestWorkspaceOutsideRootFrontierNamesTheRoute_AFPV0761` (an outside-root `go.work` sibling: the entry's hint names the `corvint breakage` route for a root and a `go.work` change, scope stays `UNKNOWN`; the nested-module reason names none); `TestWorkspaceDirtySourceSelectsTheOtherModulesTest` |
+| AFP-V0-762 | `binaryConsumersFile`, `readBinaryConsumers`, `matchBinaryConsumers` in `internal/liveverify/affected/golang/binaryexecs.go`; `Unit.ExecConsumers` (`unit.go`, `graph.go`, `graphcache.go`); `unselectedConsumers` in `internal/liveverify/affected/execs.go`; `.corvint/test-binary-execs.json` | `TestDeclaredBinaryConsumerIsAnExplicitUnknown_AFPV0762`; `TestMixedChangeStillNamesTheBinaryConsumer_AFPV0762` (a library or command change names the consumer, a test-only command change and an unrelated change do not); `TestInvalidBinaryConsumerDeclaresNothing_AFPV0762`; `TestRepositoryDeclaresWebFlowsConsumers_AFPV0762` |
+| AFP-V0-763 | `instructionHints`, `instructionUnownedHint` in `internal/liveverify/affected/documentation.go`, called from `selectPlan`; `INSTRUCTIONS` in `script/gen-documentation-paths.sh`; `.corvint/documentation-paths.json` | `TestInstructionFileUnknownNamesTheDeclarationRoute_AFPV0763` (an undeclared root or nested instruction file carries the hint and stays `UNKNOWN`, another unowned path none; declared, both are `DECLARED_DOCUMENTATION` and `BOUNDED`); `TestRepositoryDeclaresItsInstructionFiles_AFPV0763` |
+| AFP-V0-764 | `affectedPathProfileRefusal`, `affectedPathProfileCode` in `cmd/corvint/affected.go`; the `--path` paragraph of `affected` help in `cmd/corvint/help.go` | `TestAFPV0094PathListRefusals` (snapshot, provider, Playwright config and discovery, AppMap and `--paths-from` refuse typed with their recovery; `--base` stays `invalid-arguments`) |
+| AFP-V0-766 | `options.confine`, `identity.Confine`, `identity.ConfinedEnv`, `goTestArgs`, `runEnv` and the wrapper checks of `toolIdentity` and `execute` in `tools/corvint-pr-tests/main.go` | `TestConfinedDriverRunsFailUndeclaredReads` (identity, argv and environment of a confined run; drift and a missing wrapper refused); `TestSelectedFailureAndFallback` (unconfined identity unchanged) |
+| AFP-V0-767 | the `-exec` argv of `execute` in `tools/corvint-pr-tests/main.go`; `.github/testconfine` | `TestConfinedDriverRunsFailUndeclaredReads` (declared undeclared-read package fails, declared entry passes, undeclared package unconfined, unconfined control passes); skipped with a typed reason without Landlock ABI 2 or when already confined |
+| AFP-V0-768 | `requireConfinement` and `declaresReadScopes` in `tools/corvint-pr-tests/shadow.go`; the guard in `runPR` | `TestCampaignRefusesDeclarationWithoutConfine` (freeze and shadow refuse, no corpus or checkout written; run mode falls back to FULL with the reason) |
+| AFP-V0-769 | the `.git` check of `execute`; `validRunEnv` and the argv check of `validateRow` in `tools/corvint-pr-tests/shadow.go` | `TestConfinedDriverRunsFailUndeclaredReads` (a root without `.git` refused; tampered argv and env refused); `TestCampaignRefusesDeclarationWithoutConfine` (a confined row frozen in the source runs in the owned clone and resumes); `TestConfinedRowValidationBindsArgvAndEnv` |
+| AFP-V0-765 | decision only; the two lexers stay | `TestTwoGoLexersAgreeBeyondComments_AFPV0765` (`internal/liveverify/affected`: repository measurement of difference (2)); `TestFastTierLiteralLexiconDiffers_AFPV0765` (`internal/gateselect`: difference (4)) |
+| AFP-V0-772 | `UnboundedReaderExclusionsPath`, `applyUnboundedExclusions`, `RuntimeReader.NoUnboundedReaders`, `unboundedDirty` in `internal/liveverify/affected/runtime_readers.go`, used by `reach` in `select.go`; `.corvint/runtime-readers.json`, `.corvint/unbounded-reader-exclusions.json`; `.corvint/shell-foreign-callers.json` | `TestUnboundedReaderExclusionsDropOnlyUnboundedReaders_AFPV0772` (seal-shaped change selects the literal reader and no unbounded reader; an entry the exclusions do not name, another dirty path, and no exclusions file still select it; an exclusion naming no entry, or the member inside the runtime-readers file, refuses); `TestRepositoryShellForeignCallersComplete_TSP_V0_005` |
 
 Compatibility and drift: the provider bundle grammar is consumed, not redefined; if
 `go-live-test-provider-v0.md` changes its pattern grammar or bound, `providerMaxPackagePatterns`

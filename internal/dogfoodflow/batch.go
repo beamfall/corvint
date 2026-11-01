@@ -138,6 +138,7 @@ func (b *batch) failure(reason, detail string) {
 
 func (b *batch) run() int {
 	b.requireRoot()
+	b.requireTrustedAncestry()
 	base, status := b.git(true, "rev-parse", "--verify", "-q", b.options.Base+"^{commit}")
 	if status != 0 {
 		b.refuse("base-unavailable")

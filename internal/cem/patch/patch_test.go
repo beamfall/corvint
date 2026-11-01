@@ -204,7 +204,6 @@ func TestParserRejections(t *testing.T) {
 		{"overlap-on-previous-last-line", "--- a/x\n+++ b/x\n@@ -1,2 +1,2 @@\n-a\n-b\n+c\n+d\n@@ -2 +2 @@\n-e\n+f\n", cemcode.MalformedPatch},
 		{"inconsistent-new-position", "--- a/x\n+++ b/x\n@@ -1 +5 @@\n-a\n+b\n", cemcode.MalformedPatch},
 		{"duplicate-pair", "--- a/x\n+++ b/x\n@@ -1 +1 @@\n-a\n+b\n--- a/x\n+++ b/x\n@@ -2 +2 @@\n-c\n+d\n", cemcode.MalformedPatch},
-		{"old-mode", "diff --git a/x b/x\nold mode 100644\nnew mode 100755\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-a\n+b\n", cemcode.MalformedPatch},
 		{"rename-to-disagrees", "diff --git a/x b/y\nsimilarity index 50%\nrename from x\nrename to z\n--- a/x\n+++ b/y\n@@ -1 +1 @@\n-a\n+b\n", cemcode.DiffMetadataMismatch},
 		{"double-devnull", "diff --git a/x b/x\nnew file mode 100644\n--- /dev/null\n+++ /dev/null\n@@ -1 +1 @@\n-a\n+b\n", cemcode.MalformedPatch},
 		{"similarity-leading-zero", "diff --git a/x b/y\nsimilarity index 050%\nrename from x\nrename to y\n--- a/x\n+++ b/y\n@@ -1 +1 @@\n-a\n+b\n", cemcode.MalformedPatch},

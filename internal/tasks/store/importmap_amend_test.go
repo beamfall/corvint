@@ -127,6 +127,36 @@ func TestCTSV0021_ImportMapAmendRefusesConflicts(t *testing.T) {
 	}
 }
 
+// TestCTSV0800_ImportMapAmendRefusesImportedSourceRename (V1-2479): an
+// amendment that renames the source item of a ticket the store holds as an
+// import is refused DUPLICATE_ID naming the ticket and its import source,
+// with nothing written, so the ticket's unchanged re-import stays a no-change;
+// a mapped ticket the store does not hold yet may still be renamed.
+func TestCTSV0800_ImportMapAmendRefusesImportedSourceRename(t *testing.T) {
+	t.Parallel()
+	old := importMapBytes(fixture.QueueID, [3]string{"queue:beamfall:main", "BF-1", "BF-1"}, [3]string{"queue:beamfall:main", "BF-5", "BF-5"})
+	repo := mappedStore(t, "ROADMAP", old)
+	export := importExport(importItem("BF-1", "one\n", nil))
+	runImport(t, repo, export)
+	before := storeDigest(t, repo)
+	renamed := importMapBytes(fixture.QueueID, [3]string{"queue:beamfall:main", "BF-5", "BF-5"}, [3]string{"queue:beamfall:main", "NEW-1", "BF-1"})
+	report := amendMap(t, repo, operator(), "amend-rename-imported", wire.Sum(old), renamed)
+	if report.Outcome.Outcome != mutation.OutcomeValidationFailed || len(report.Outcome.Codes) != 1 || report.Outcome.Codes[0] != wire.CodeDuplicateID || !strings.Contains(report.Detail, "BF-1 is the import of source item BF-1 of queue:beamfall:main; its source item cannot be renamed") {
+		t.Fatalf("rename of an imported ticket's source item: %+v, want DUPLICATE_ID naming BF-1's import source", report)
+	}
+	if storeDigest(t, repo) != before {
+		t.Fatal("a refused rename wrote")
+	}
+	if again := runImport(t, repo, export); again.Planned != 0 {
+		t.Fatalf("re-import after the refused rename planned %d records, want none", again.Planned)
+	}
+	pending := importMapBytes(fixture.QueueID, [3]string{"queue:beamfall:main", "BF-1", "BF-1"}, [3]string{"queue:beamfall:main", "NEW-5", "BF-5"})
+	if r := amendMap(t, repo, operator(), "amend-rename-pending", wire.Sum(old), pending); r.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("rename of a ticket the store does not hold yet: %+v", r)
+	}
+	auditOK(t, repo)
+}
+
 // TestCTSV0020_ImportMapAmendRefusesUnmappedQueue: a queue that names no
 // import map has nothing to amend; the amendment is refused MALFORMED with
 // nothing written (adding a map to an unmapped queue is out of scope).

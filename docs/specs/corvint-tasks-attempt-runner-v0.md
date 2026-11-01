@@ -1909,6 +1909,62 @@ refusal returns to naming only the rejected paths and `declaredScope` disappears
 Acceptance evidence: `TestATRV0214_OutOfScopeClaimNamesDeclaredPathsAndRetry`
 (`internal/tasks/cli`) covers the refusal payload and detail, subset admission, and `declaredScope`
 for a declared and an undeclared ticket.
+
+Precise path reservations, ATR-V0-800 and ATR-V0-801, are proposed (V1-3185). A ticket that
+declares a directory such as `docs/build-log/` reserves every path beneath it, so tickets that
+write distinct files there serialize behind it, and ATR-V0-215 keeps a narrower `--scope` from
+shrinking a declared scope. The supported workflow is to declare the exact files before admission:
+`ticket create` or `ticket set-effects` with file touchPaths. Collision semantics, ATR-V0-215 and a
+live holder's reservation are unchanged; nothing narrows another worker.
+
+- `ATR-V0-800`: (proposed; V1-3185) A claim refused `RESOURCE_COLLISION` against a live attempt MUST, after the
+  ATR-V0-192 detail, name the safe next action. When a colliding pair involves a directory key on
+  either side, the detail MUST say that a directory key reserves every path beneath it and that
+  tickets writing distinct files declare exact file touchPaths with `ticket set-effects` before
+  claiming. When the claim took the `DECLARED` scope although `--scope` was given, the detail MUST
+  say the claim holds the declared scope, not `--scope` (ATR-V0-215). Code, outcome and the
+  absence of a write are unchanged.
+- `ATR-V0-801`: (proposed; V1-3185) Two tickets whose declared touchPaths are distinct exact files under one directory
+  MUST both be admitted while both attempts are live, including when the two claims race. A third
+  claim declaring the same file, or the parent directory key, MUST refuse `RESOURCE_COLLISION`, as
+  MUST two exact-file claims that both declare one non-`PATH` resource. A submitted change outside
+  an exact-file scope still refuses `OUT_OF_SCOPE` (CAL-V0-024) and a stale generation is still
+  fenced (CAL-V0-009).
+Non-goals: automatic narrowing of a declared or live scope; changing PATH-prefix exclusion.
+Failure mode: a caller matching the old collision text sees a longer detail. Rollback: revert the
+detail suffix; the tests of ATR-V0-801 pin existing admission and stay.
+Acceptance evidence: `TestATRV0801_DistinctDeclaredFilesAdmitConcurrently` and
+`TestATRV0800_CollisionNamesTheNextAction` (`internal/tasks/store`);
+`TestCALV0024_SubmitOutsideTheScopeIsRefused`; `TestCALV0009_StaleGenerationIsFencedAndRecorded`.
+
+Claim scope diagnostics, ATR-V0-806..808, are proposed (V1-3185, V1-3540, V1-3547). They add
+warnings and one revision resolution; scope precedence (CAL-V0-021), collision semantics and the
+recorded attempt are unchanged.
+
+- `ATR-V0-806`: (proposed; V1-3185) A fresh claim whose scope fell back to `WHOLE_REPOSITORY` (the ticket declares no
+  PATH scope, for example coverage `INCOMPLETE` with no touchPaths, and the claim gave no `--scope`
+  or `--scope-from-diff`) MUST commit as before and warn `WHOLE_REPOSITORY_FALLBACK`. The warning names the ticket and attempt, says the attempt reserves
+  every path so every other claim collides with it until it ends, and names the narrowing routes:
+  release and claim again with `--scope PATHS` or `--scope-from-diff REV`, or declare the ticket's
+  paths with `ticket set-effects` first. A replay and a declared, requested or derived scope add
+  none.
+- `ATR-V0-807`: (proposed; V1-3540) A fresh `widen` that commits a requested PATH key without a trailing `/` naming a
+  directory at the attempt's base commit MUST commit as before and add the CAL-V0-211
+  `EXACT_KEY_NAMES_DIRECTORY` warning for that key. Keys the widen did not request, a widen that
+  changed nothing, and a replay add none.
+- `ATR-V0-808`: (proposed; V1-3547) `claim --base REV` MUST resolve any revision naming one commit, as
+  `--scope-from-diff` resolves its revision, and record the full commit OID in the request and the
+  attempt; the replay of a request is keyed on that OID. A revision that names no commit MUST
+  refuse `MALFORMED` naming the revision, the checkout and `git rev-parse --verify REV^{commit}`,
+  and write nothing. A full OID is used unchanged.
+Non-goals: refusing a WHOLE_REPOSITORY fallback; narrowing a live attempt; normalising scope keys.
+Failure mode: a caller that treated any warning as failure now sees one on a fallback claim; the
+outcome and code are unchanged. A short `--base` that is ambiguous in the checkout refuses as Git
+does. Rollback: revert the change; claims fall back silently again and `--base` again needs a full
+OID.
+Acceptance evidence: `TestATRV0806_WholeRepositoryFallbackWarns`,
+`TestATRV0807_WidenWarnsOnExactDirectoryKey` and `TestATRV0808_ClaimBaseResolvesARevision`
+(`internal/tasks/store`).
 - `ATR-V0-213`: (accepted under the owner's standing auto-accept (2026-10-11); V1-2189) The
   `internal/tasks/dispatch` test binary MUST start, before any test runs, a dead-man reaper: a copy
   of itself in its own session whose standard input is a pipe whose write end only the test binary

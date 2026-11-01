@@ -128,7 +128,7 @@ func (f fixture) regenerateSpecIndex() {
 		if err != nil {
 			f.t.Fatal(err)
 		}
-		f.write("docs/specs/"+name, string(data))
+		f.write("docs/specs/"+name, string(data)) //corvint:fixture-path
 	}
 }
 
@@ -147,35 +147,35 @@ func TestProposeGeneratedSpecIndexDCWV0828(t *testing.T) {
 	copyRepoScript(f, "gen-spec-requirements.sh")
 	srg := specFixture("Spec Requirement Index Generator V0", "SRG-V0-012", "The generator MUST project the staged spec headers.")
 	asd := specFixture("Corvint Self Development V0", "ASD-V0-033", "Batch regeneration MUST rerun every generator.")
-	f.write("docs/specs/spec-requirement-index-generator-v0.md", srg)
-	f.write("docs/specs/corvint-self-development-v0.md", asd)
-	f.write("docs/specs/README.md", "# Specs\n\n| Scope | Contract | Intent | Delivery | Binding evidence or next gate |\n|---|---|---:|---:|---|\n"+
+	f.write("docs/specs/spec-requirement-index-generator-v0.md", srg)                                                                                 //corvint:fixture-path
+	f.write("docs/specs/corvint-self-development-v0.md", asd)                                                                                         //corvint:fixture-path
+	f.write("docs/specs/README.md", "# Specs\n\n| Scope | Contract | Intent | Delivery | Binding evidence or next gate |\n|---|---|---:|---:|---|\n"+ //corvint:fixture-path
 		"| SRG V0 | [`spec-requirement-index-generator-v0.md`](spec-requirement-index-generator-v0.md) SRG-V0-012 | proposed | experimental | It holds. |\n"+
 		"| ASD V0 | [`corvint-self-development-v0.md`](corvint-self-development-v0.md) ASD-V0-033 | proposed | experimental | It holds. |\n")
 	f.regenerateSpecIndex()
 	base := f.commit("base")
 
 	// The change adds a spec and regenerates the index: every index hunk is generated.
-	f.write("docs/specs/demo-v0.md", specFixture("Demo V0", "DEMO-V0-001", "The demo MUST hold."))
-	readme, _ := os.ReadFile(filepath.Join(f.repo, "docs/specs/README.md"))
-	f.write("docs/specs/README.md", string(readme)+"| Demo V0 | [`demo-v0.md`](demo-v0.md) DEMO-V0-001 | proposed | experimental | The demo holds. |\n")
+	f.write("docs/specs/demo-v0.md", specFixture("Demo V0", "DEMO-V0-001", "The demo MUST hold."))                                                       //corvint:fixture-path
+	readme, _ := os.ReadFile(filepath.Join(f.repo, "docs/specs/README.md"))                                                                              //corvint:fixture-path
+	f.write("docs/specs/README.md", string(readme)+"| Demo V0 | [`demo-v0.md`](demo-v0.md) DEMO-V0-001 | proposed | experimental | The demo holds. |\n") //corvint:fixture-path
 	f.regenerateSpecIndex()
 	target := f.commit("demo spec")
 
 	summary, plan, reasons := f.bindRange(base, target)
-	for _, path := range []string{"docs/specs/REQUIREMENTS.tsv", "docs/specs/INDEX.json", "docs/specs/README.md"} {
+	for _, path := range []string{"docs/specs/REQUIREMENTS.tsv", "docs/specs/INDEX.json", "docs/specs/README.md"} { //corvint:fixture-path
 		if _, ok := reasons[path]; ok {
 			t.Fatalf("%s stayed unknown (%v); summary %q", path, reasons, summary)
 		}
 	}
-	if reasons["docs/specs/demo-v0.md"] != "no-constituent-hunk" {
+	if reasons["docs/specs/demo-v0.md"] != "no-constituent-hunk" { //corvint:fixture-path
 		t.Fatalf("reasons = %v: the hand-written spec must stay unknown", reasons)
 	}
 	srgAt := strings.Index(srg, "- `SRG-V0-012`:")
 	asdAt := strings.Index(asd, "- `ASD-V0-033`:")
 	for _, want := range []string{
-		fmt.Sprintf("\tdocs/specs/spec-requirement-index-generator-v0.md\tbytes:%d:%d\tspecification\n", srgAt, len(srg)-1),
-		fmt.Sprintf("\tdocs/specs/corvint-self-development-v0.md\tbytes:%d:%d\tspecification\n", asdAt, len(asd)-1),
+		fmt.Sprintf("\tdocs/specs/spec-requirement-index-generator-v0.md\tbytes:%d:%d\tspecification\n", srgAt, len(srg)-1), //corvint:fixture-path
+		fmt.Sprintf("\tdocs/specs/corvint-self-development-v0.md\tbytes:%d:%d\tspecification\n", asdAt, len(asd)-1),         //corvint:fixture-path
 	} {
 		if !strings.Contains(plan, want) {
 			t.Fatalf("plan:\n%s\nwant row %q", plan, want)
@@ -184,14 +184,14 @@ func TestProposeGeneratedSpecIndexDCWV0828(t *testing.T) {
 
 	// A hand edit to REQUIREMENTS.tsv is not what the generator writes, so it stays unknown;
 	// INDEX.json is still byte-identical to the generator's output and stays proposed.
-	tsv, _ := os.ReadFile(filepath.Join(f.repo, "docs/specs/REQUIREMENTS.tsv"))
-	f.write("docs/specs/REQUIREMENTS.tsv", string(tsv)+"HAND-V0-001\tdocs/specs/demo-v0.md\n")
+	tsv, _ := os.ReadFile(filepath.Join(f.repo, "docs/specs/REQUIREMENTS.tsv"))                //corvint:fixture-path
+	f.write("docs/specs/REQUIREMENTS.tsv", string(tsv)+"HAND-V0-001\tdocs/specs/demo-v0.md\n") //corvint:fixture-path
 	hand := f.commit("hand edit")
 	_, _, reasons = f.bindRange(base, hand)
-	if reasons["docs/specs/REQUIREMENTS.tsv"] != "no-constituent-hunk" {
+	if reasons["docs/specs/REQUIREMENTS.tsv"] != "no-constituent-hunk" { //corvint:fixture-path
 		t.Fatalf("reasons = %v: a hand-edited generated file must stay unknown", reasons)
 	}
-	if _, ok := reasons["docs/specs/INDEX.json"]; ok {
+	if _, ok := reasons["docs/specs/INDEX.json"]; ok { //corvint:fixture-path
 		t.Fatalf("reasons = %v: INDEX.json is still generated", reasons)
 	}
 }
@@ -202,7 +202,7 @@ func TestProposeGeneratedSpecIndexDCWV0828(t *testing.T) {
 func TestProposeUseCaseReceiptRepinDCWV0828(t *testing.T) {
 	f := newFixture(t)
 	ucv := "# Use Case Conformance V0\n\n- `UCV0-004`: A receipt MUST pin its inputs.\n- `UCV0-005`: The ledger MUST pin each receipt.\n\n## Next\n"
-	f.write("docs/specs/use-case-conformance-v0.md", ucv)
+	f.write("docs/specs/use-case-conformance-v0.md", ucv) //corvint:fixture-path
 	receipt := func(content string) string {
 		sum := sha256.Sum256([]byte(content))
 		return "{\n  \"path\": \"cmd/demo/main.go\",\n  \"sha256\": \"" + hex.EncodeToString(sum[:]) + "\"\n}\n"
@@ -219,8 +219,8 @@ func TestProposeUseCaseReceiptRepinDCWV0828(t *testing.T) {
 		t.Fatalf("summary %q reasons %v: the repinned receipt must be proposed", summary, reasons)
 	}
 	at4, at5 := strings.Index(ucv, "- `UCV0-004`:"), strings.Index(ucv, "- `UCV0-005`:")
-	want := fmt.Sprintf("\tdocs/specs/use-case-conformance-v0.md\tbytes:%d:%d\tspecification\n", at4, at5-1) +
-		fmt.Sprintf("%s\tdocs/specs/use-case-conformance-v0.md\tbytes:%d:%d\tspecification\n",
+	want := fmt.Sprintf("\tdocs/specs/use-case-conformance-v0.md\tbytes:%d:%d\tspecification\n", at4, at5-1) + //corvint:fixture-path
+		fmt.Sprintf("%s\tdocs/specs/use-case-conformance-v0.md\tbytes:%d:%d\tspecification\n", //corvint:fixture-path
 			strings.SplitN(plan, "\t", 2)[0], at5, strings.Index(ucv, "\n\n## Next"))
 	if !strings.Contains(plan, want) {
 		t.Fatalf("plan:\n%s\nwant rows %q", plan, want)
@@ -243,7 +243,7 @@ func TestProposeLineCitationRepinDCWV0828(t *testing.T) {
 	f.write("script/line-citation-legacy-documents.txt", "")
 	f.write("script/line-citation-unpinned-inventory.txt", "")
 	dcg := "# Documentation Citation Gate V0\n\n- `DCG-V0-007`: A moved citation MUST be repinned.\n"
-	f.write("docs/specs/documentation-citation-gate-v0.md", dcg)
+	f.write("docs/specs/documentation-citation-gate-v0.md", dcg) //corvint:fixture-path
 	f.write("src/a.go", "package a\n\nfunc A() {}\n")
 	f.git("add", "-A")
 	anchor := func(citation string) string {
@@ -256,19 +256,19 @@ func TestProposeLineCitationRepinDCWV0828(t *testing.T) {
 		return strings.TrimSpace(string(out))
 	}
 	doc := func(citation string) string { return "# Notes\n\nSee `" + citation + "` for A.\n" }
-	f.write("docs/specs/notes-v0.md", doc(anchor("src/a.go:3")))
+	f.write("docs/specs/notes-v0.md", doc(anchor("src/a.go:3"))) //corvint:fixture-path
 	base := f.commit("base")
 
 	f.write("src/a.go", "package a\n\n// A is the entry point.\nfunc A() {}\n")
 	f.git("add", "-A")
-	f.write("docs/specs/notes-v0.md", doc(anchor("src/a.go:4")))
+	f.write("docs/specs/notes-v0.md", doc(anchor("src/a.go:4"))) //corvint:fixture-path
 	target := f.commit("move and repin")
 	summary, plan, reasons := f.bindRange(base, target)
-	if _, ok := reasons["docs/specs/notes-v0.md"]; ok || !strings.Contains(summary, "proposed=1 ") {
+	if _, ok := reasons["docs/specs/notes-v0.md"]; ok || !strings.Contains(summary, "proposed=1 ") { //corvint:fixture-path
 		t.Fatalf("summary %q reasons %v: the repinned citation must be proposed", summary, reasons)
 	}
 	at := strings.Index(dcg, "- `DCG-V0-007`:")
-	if want := fmt.Sprintf("\tdocs/specs/documentation-citation-gate-v0.md\tbytes:%d:%d\tspecification\n", at, len(dcg)-1); !strings.Contains(plan, want) {
+	if want := fmt.Sprintf("\tdocs/specs/documentation-citation-gate-v0.md\tbytes:%d:%d\tspecification\n", at, len(dcg)-1); !strings.Contains(plan, want) { //corvint:fixture-path
 		t.Fatalf("plan:\n%s\nwant row %q", plan, want)
 	}
 	if reasons["src/a.go"] != "no-constituent-hunk" {
@@ -276,10 +276,10 @@ func TestProposeLineCitationRepinDCWV0828(t *testing.T) {
 	}
 
 	// A repin onto the blank line is refused by the gate, so it is not a generated repin.
-	f.write("docs/specs/notes-v0.md", doc("src/a.go:2"))
+	f.write("docs/specs/notes-v0.md", doc("src/a.go:2")) //corvint:fixture-path
 	refused := f.commit("bad repin")
 	_, _, reasons = f.bindRange(base, refused)
-	if reasons["docs/specs/notes-v0.md"] != "no-constituent-hunk" {
+	if reasons["docs/specs/notes-v0.md"] != "no-constituent-hunk" { //corvint:fixture-path
 		t.Fatalf("reasons = %v: a repin the gate refuses must stay unknown", reasons)
 	}
 }
@@ -290,7 +290,7 @@ func TestProposeLineCitationRepinDCWV0828(t *testing.T) {
 // no commit; the receipt is read as JSON, so its formatting cannot hide either.
 func TestProposeUseCaseReceiptBindsEachDigestToItsPath(t *testing.T) {
 	f := newFixture(t)
-	f.write("docs/specs/use-case-conformance-v0.md",
+	f.write("docs/specs/use-case-conformance-v0.md", //corvint:fixture-path
 		"# Use Case Conformance V0\n\n- `UCV0-004`: A receipt MUST pin its inputs.\n- `UCV0-005`: The ledger MUST pin each receipt.\n")
 	sum := func(content string) string {
 		digest := sha256.Sum256([]byte(content))

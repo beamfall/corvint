@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -34,7 +35,10 @@ func load(t *testing.T) (Inventory, []byte, []byte) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if inv.Words, err = ScanWords([]string{cmdPath, internalDir}); err != nil {
+	if err := MergeSubcommands(&inv, "../.."); err != nil {
+		t.Fatal(err)
+	}
+	if inv.Literals, err = ScanLiterals([]string{cmdPath, internalDir}); err != nil {
 		t.Fatal(err)
 	}
 	catalog, err := os.ReadFile(catalogPath)
@@ -559,10 +563,10 @@ func TestCAPV0009RemovedRefusalCodeFails(t *testing.T) {
 	if got := kinds(Check(stale, readme, inv, linkBase))["refusal-unknown"]; !contains(got, "corvint prove") || len(got) != 1 {
 		t.Errorf("renamed code: refusal-unknown %v", got)
 	}
-	if !inv.Words["attest-public-key-unavailable"] {
+	if !inv.Literals["attest-public-key-unavailable"] {
 		t.Fatal("refusal code literal not scanned")
 	}
-	delete(inv.Words, "attest-public-key-unavailable")
+	delete(inv.Literals, "attest-public-key-unavailable")
 	if got := kinds(Check(catalog, readme, inv, linkBase))["refusal-unknown"]; !contains(got, "corvint prove") || len(got) != 1 {
 		t.Errorf("removed code: refusal-unknown %v", got)
 	}
@@ -570,5 +574,78 @@ func TestCAPV0009RemovedRefusalCodeFails(t *testing.T) {
 		if refusalCode.MatchString(prose) {
 			t.Errorf("%q matched as a refusal code", prose)
 		}
+	}
+}
+
+// TestCAPV0960TreeSubcommandUndocumentedFails proves a subcommand dispatched outside the declared
+// tables is checked through the corvint command tree: `flows coverage` is in no table, yet
+// dropping it from the flows row fails.
+func TestCAPV0960TreeSubcommandUndocumentedFails(t *testing.T) {
+	declared, err := parseSubcommands("../../cmd/corvint")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if contains(declared["flows"], "coverage") {
+		t.Fatal("flows coverage is now in a declared table; pick another tree-only subcommand")
+	}
+	inv, catalog, readme := load(t)
+	if !contains(inv.Subcommands["flows"], "coverage") || !contains(inv.Subcommands["runs"], "identity") {
+		t.Fatalf("tree subcommands not merged: flows %v, runs %v", inv.Subcommands["flows"], inv.Subcommands["runs"])
+	}
+	dropped := replaceOnce(t, catalog, "include `coverage`, ", "include ")
+	if got := kinds(Check(dropped, readme, inv, linkBase))["subcommand-undocumented"]; !contains(got, "flows coverage") || len(got) != 1 {
+		t.Errorf("dropped tree subcommand: subcommand-undocumented %v", got)
+	}
+	if err := MergeSubcommands(&Inventory{}, t.TempDir()); err == nil {
+		t.Error("missing corvint tree: want an error")
+	}
+}
+
+// TestCAPV0961StaleDocumentedSubcommandFails proves a subcommand a row still lists after the code
+// dropped it is reported, while option spans and parenthesised detail are not read as subcommands.
+func TestCAPV0961StaleDocumentedSubcommandFails(t *testing.T) {
+	inv, catalog, readme := load(t)
+	stale := replaceOnce(t, catalog, "Subcommands `acquire`, `renew`,", "Subcommands `acquire`, `transfer`, `renew`,")
+	if got := kinds(Check(stale, readme, inv, linkBase))["subcommand-stale"]; !contains(got, "lease transfer") || len(got) != 1 {
+		t.Errorf("stale lease subcommand: subcommand-stale %v", got)
+	}
+	inv.Subcommands["lease"] = slices.DeleteFunc(slices.Clone(inv.Subcommands["lease"]), func(s string) bool { return s == "renew" })
+	got := kinds(Check(catalog, readme, inv, linkBase))
+	if !contains(got["subcommand-stale"], "lease renew") || len(got["subcommand-stale"]) != 1 {
+		t.Errorf("removed lease subcommand: subcommand-stale %v", got["subcommand-stale"])
+	}
+}
+
+// TestCAPV0961DocumentedSubcommandsParse pins the Subcommands sentence reader.
+func TestCAPV0961DocumentedSubcommandsParse(t *testing.T) {
+	cells := []string{"`corvint x`", "Use it. Subcommands include `a`, `b c` (detail; `--flag F` and `d`), `-x`, `e`. Later `f` is prose."}
+	if got := strings.Join(documentedSubcommands(cells), ","); got != "a,b,e" {
+		t.Errorf("got %s, want a,b,e", got)
+	}
+	if got := documentedSubcommands([]string{"no sentence `a`"}); len(got) != 0 {
+		t.Errorf("no Subcommands sentence: got %v", got)
+	}
+}
+
+// TestCAPV0962RefusalCodeMatchesWholeLiteral proves a refusal code no longer passes because some
+// longer literal contains it as a word; only a literal equal to the code keeps it accepted.
+func TestCAPV0962RefusalCodeMatchesWholeLiteral(t *testing.T) {
+	inv, catalog, readme := load(t)
+	delete(inv.Literals, "attest-public-key-unavailable")
+	inv.Literals["refused: attest-public-key-unavailable for this key"] = true
+	if got := kinds(Check(catalog, readme, inv, linkBase))["refusal-unknown"]; !contains(got, "corvint prove") || len(got) != 1 {
+		t.Errorf("code only inside prose: refusal-unknown %v", got)
+	}
+	dir := t.TempDir()
+	src := "package p\n\nconst code = \"owned-code\"\nvar msg = `see other-code here`\n"
+	if err := os.WriteFile(filepath.Join(dir, "p.go"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	literals, err := ScanLiterals([]string{dir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !literals["owned-code"] || literals["other-code"] || !literals["see other-code here"] {
+		t.Errorf("literals %v", literals)
 	}
 }

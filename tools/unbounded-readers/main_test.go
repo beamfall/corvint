@@ -231,3 +231,29 @@ func TestAFPV0500RefusalNamesTheImportChain(t *testing.T) {
 		t.Errorf("recorded unit explained:\n%s", stderr.String())
 	}
 }
+
+// V1-3320, V1-2159: a shell test that runs a toolchain, here `make -n` pinning a recipe
+// expansion, is refused with the one registration route that applies to it: units plus a reason
+// in .corvint/unbounded-readers.json, never .corvint/test-read-scopes.json. A Go reader keeps
+// the generic message only.
+func TestRunsToolchainRefusalNamesTheUnitsEntry(t *testing.T) {
+	root := repository(t, `{"profile":"corvint-unbounded-reader-set/0","units":["reader"],"reasons":{"reader":"calls os.Getwd"}}`)
+	test := filepath.Join(root, "script", "pin-recipe_test.sh")
+	if err := os.MkdirAll(filepath.Dir(test), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(test, []byte("#!/bin/sh\nset -eu\nout=$(make -s -n instruction-conflicts)\ntest \"$out\" = \"script/check-instruction-conflicts.sh --repository-only\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var stdout, stderr bytes.Buffer
+	if code := run(root, &stdout, &stderr); code != 1 {
+		t.Fatalf("exit %d, want 1: %s", code, stderr.String())
+	}
+	want := `script/pin-recipe_test.sh runs a build or language toolchain (shell:runs-toolchain): add "script/pin-recipe_test.sh" to units in .corvint/unbounded-readers.json with a reasons entry naming the toolchain read; .corvint/test-read-scopes.json is keyed by Go package and cannot bound a shell unit (docs/SHELL-TEST-REGISTRATION.md).`
+	if !strings.Contains(stderr.String(), want) {
+		t.Fatalf("refusal lacks the units route:\n%s", stderr.String())
+	}
+	if strings.Count(stderr.String(), "runs a build or language toolchain") != 1 {
+		t.Fatalf("the toolchain route is named for a non-shell unit too:\n%s", stderr.String())
+	}
+}

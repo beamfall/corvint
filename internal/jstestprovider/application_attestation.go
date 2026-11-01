@@ -342,6 +342,9 @@ func observeTestRepository(ctx context.Context, dir string) (*ApplicationReposit
 	if len(lines) != 2 || !gitOIDPattern.MatchString(lines[0]) || !gitOIDPattern.MatchString(lines[1]) {
 		return nil, "test-repository-identity-unavailable"
 	}
+	// Safe unguarded (EEP-V0-771): gitObservationEnvironment disables info/grafts, so no graft
+	// can name a foreign root; a shallow boundary is listed as the root, but it is a real commit
+	// of this history, so an identity comparison can only fail to match a full-history identity.
 	roots, failure := gitObservation(ctx, canonicalRoot, "rev-list", "--max-parents=0", "HEAD")
 	if failure != "" {
 		return nil, "test-repository-identity-unavailable"
@@ -380,7 +383,8 @@ func gitObservationEnvironment() []string {
 			clean = append(clean, entry)
 		}
 	}
-	return clean
+	// Git honours info/grafts even with replace objects disabled; /dev/null disables it.
+	return append(clean, "GIT_GRAFT_FILE="+os.DevNull)
 }
 
 func testRepositoryUnknown(start, publish *ApplicationRepositoryIdentity) bool {

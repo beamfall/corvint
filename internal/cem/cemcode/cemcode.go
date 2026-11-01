@@ -8,7 +8,10 @@
 // protocol/cem-1.0/stable/inherited/cem-0.1-algorithms.md.
 package cemcode
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 // Error is a registered CEM failure: a stable machine code plus a human message.
 type Error struct {
@@ -103,19 +106,10 @@ func CodeOf(err error) string {
 	return ""
 }
 
+// asError finds the first *Error in err's tree, walking errors.Join and
+// fmt.Errorf multi-%w branches as errors.As does (V1-3415).
 func asError(err error, target **Error) bool {
-	for err != nil {
-		if e, ok := err.(*Error); ok {
-			*target = e
-			return true
-		}
-		unwrapper, ok := err.(interface{ Unwrap() error })
-		if !ok {
-			return false
-		}
-		err = unwrapper.Unwrap()
-	}
-	return false
+	return errors.As(err, target)
 }
 
 // Frozen wire/verification codes.

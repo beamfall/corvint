@@ -29,8 +29,11 @@
 # the GitHub no-reply address of one of the agent logins claude, claude[bot], copilot,
 # copilot[bot] or chatgpt-codex-connector[bot] (exact login, so a human `claude-smith` passes);
 # or an agent name: Claude Code, Claude <Opus|Sonnet|Haiku|Fable> <version>, claude[bot],
-# copilot[bot], GitHub Copilot, OpenAI Codex, or a bare Claude with no address. Exit 0 clean,
-# 1 refused, 2 usage or a Git failure (fail closed).
+# copilot[bot], GitHub Copilot, OpenAI Codex, or a bare Claude with no address. A line that
+# starts, after any non-alphanumeric prefix such as an emoji, with "Generated with" or "Generated
+# by" and names Claude, Anthropic, OpenAI, ChatGPT, Codex or Copilot is refused too (ASD-V0-831).
+# This is the one AI-trailer check and hook installer (ASD-V0-831 retired check-ai-trailers.sh).
+# Exit 0 clean, 1 refused, 2 usage or a Git failure (fail closed).
 set -uo pipefail
 export LC_ALL=C
 me=check-ai-coauthor-trailers
@@ -77,6 +80,10 @@ scan() {
       shopt -u nocasematch
       reason=$(ai_reason "$value")
     fi
+    # ASD-V0-831 (V1-3337): the "Generated with" attribution line the retired check refused.
+    if [[ -z $reason && $line =~ ^[^[:alnum:]]*generated[[:space:]]+(with|by)[^[:alnum:]]*.*(claude|anthropic|openai|chatgpt|codex|copilot) ]]; then
+      reason='an AI "Generated with" attribution line'
+    fi
     shopt -u nocasematch
     if [[ $mode == strip ]]; then
       [[ -n $reason ]] || printf '%s\n' "$line"
@@ -86,11 +93,19 @@ scan() {
   done
 }
 
+# retired_guard FILE succeeds when FILE is exactly the commit-msg hook check-ai-trailers.sh
+# --install wrote (ASD-V0-071, retired by ASD-V0-831), with any fallback path on line 4.
+retired_guard() {
+  local fallback
+  fallback=$(sed -n '4s/^\[ -x "\$s" \] || s=//p' "$1") && [[ -n $fallback ]] || return 1
+  [[ $(cat "$1"; printf x) == "$(printf '#!/bin/sh\n# corvint ai-trailer guard (ASD-V0-071)\ns="$(git rev-parse --show-toplevel 2> /dev/null)/script/check-ai-trailers.sh"\n[ -x "$s" ] || s=%s\n[ -x "$s" ] || { echo "commit-msg: the ai-trailer guard is gone; message not checked" >&2; exit 0; }\nexec "$s" --commit-msg "$1"\n' "$fallback"; printf x)" ]]
+}
+
 settings_fix='set the Claude Code attribution setting so no future commit gets one: "attribution": {"commit": "", "pr": ""} in ${CLAUDE_CONFIG_DIR:-~/.claude}/settings.json (script/agent-preflight.sh reports it)'
 
 case ${1-} in
   -h|--help)
-    sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
+    sed -n '2,36p' "$0" | sed 's/^# \{0,1\}//'
     exit 0
     ;;
   --message)
@@ -125,6 +140,12 @@ case ${1-} in
 check="$(git rev-parse --show-toplevel)/script/check-ai-coauthor-trailers.sh"
 if [ -x "$check" ]; then exec "$check" --message "$1"; fi
 echo "commit-msg: $check is absent in this checkout; AI co-author trailers are not checked here" >&2'
+    # ASD-V0-831: the retired ASD-V0-071 guard, exactly as its --install wrote it (any fallback
+    # path), is replaced so a clone set up before the retirement moves to this hook.
+    if [[ -e $hook ]] && retired_guard "$hook"; then
+      printf '%s: replacing the retired check-ai-trailers.sh guard at %s\n' "$me" "$hook"
+      rm -f "$hook"
+    fi
     if [[ -e $hook ]]; then
       if [[ $(cat "$hook") == "$body" ]]; then
         printf '%s: commit-msg hook already installed at %s\n' "$me" "$hook"

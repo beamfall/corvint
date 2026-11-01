@@ -22,7 +22,13 @@ import (
 // checkout is left at S for the seal's gate run.
 func descendantCase(t *testing.T, sideSeal, sideLater bool) (*leaseStore, *store.Report, *store.Report, string) {
 	t.Helper()
-	s := newLeaseStore(t, reuseGate("verify", "0", "30", true, true))
+	return descendantCaseWith(t, reuseGate("verify", "0", "30", true, true), sideSeal, sideLater)
+}
+
+// descendantCaseWith is descendantCase under the given "verify" gate.
+func descendantCaseWith(t *testing.T, gate wire.Value, sideSeal, sideLater bool) (*leaseStore, *store.Report, *store.Report, string) {
+	t.Helper()
+	s := newLeaseStore(t, gate)
 	store.SetDescentRootForTest(s.repo, s.root)
 	sealTicket, laterTicket := s.ticket(t, "src"), s.ticket(t, "lib")
 	seal := s.claim(t, "claim-seal", sealTicket, 0, "src/")
@@ -133,4 +139,58 @@ func TestTCDV0152_DescendantReuseRefusals(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestTCDV0806_StackedLowerAttemptCompletesVerifiedFromDescendantPass
+// (V1-3548): a joint gate passes only once both stacked changes are in the
+// tree. The lower attempt's own run fails and names the upper attempt's PASS
+// as awaiting integration; once the stack is integrated, a rerun reuses that
+// PASS without executing, and complete records a VERIFIED completion whose
+// evidence names the descendant result.
+func TestTCDV0806_StackedLowerAttemptCompletesVerifiedFromDescendantPass(t *testing.T) {
+	t.Parallel()
+	joint := reuseGate("verify", "0", "30", true, true)
+	argv, _ := joint.Obj.Get("argv")
+	argv.Arr[2] = wire.String("printf x >> .git/runs-verify; test -e lib/a.go")
+	s, seal, later, sCommit := descendantCaseWith(t, joint, false, true)
+	source := s.resultOf(t, later.AttemptID, "verify")
+	alone, err := s.gate(t, "gate-seal", gateOf(seal, "verify"), 3)
+	if err != nil || alone.Outcome.Outcome != mutation.OutcomeCompleted || alone.GateReusedFrom != nil || s.runs(t, "verify") != 2 {
+		t.Fatalf("lower attempt alone: %+v %v, runs %d", alone, err, s.runs(t, "verify"))
+	}
+	if g := s.results(t, seal.AttemptID)["verify"]; g == nil || g.State != "FAILED" {
+		t.Fatalf("the joint gate passed the lower tree alone: %+v", g)
+	}
+	p := alone.GateReusePending
+	if p == nil || string(p.Result) != source || p.AttemptID != later.AttemptID || p.Gate != "verify" || p.Branch != "main" || p.Tree != *s.attempt(t, later.AttemptID).CandidateTreeOid {
+		t.Fatalf("pending reuse %+v, want %s of %s", p, source, later.AttemptID)
+	}
+	gitRun(t, s.root, "checkout", "-q", "main")
+	gitRun(t, s.root, "merge", "-q", "--ff-only", "side")
+	gitRun(t, s.root, "checkout", "-q", "--detach", sCommit)
+	rerun, err := s.gate(t, "gate-seal-integrated", gateOf(seal, "verify"), 4)
+	if err != nil || rerun.Outcome.Outcome != mutation.OutcomeCompleted || rerun.GateReusePending != nil || s.runs(t, "verify") != 2 {
+		t.Fatalf("rerun after integration: %+v %v, runs %d", rerun, err, s.runs(t, "verify"))
+	}
+	if r := rerun.GateReusedFrom; r == nil || string(r.Result) != source || r.AttemptID != later.AttemptID {
+		t.Fatalf("rerun reused %+v, want %s", r, source)
+	}
+	done := s.lease(t, "complete-seal", completeOf(seal, sCommit), 5, nil)
+	if done.Outcome.Outcome != mutation.OutcomeCompleted {
+		t.Fatalf("complete: %+v", done)
+	}
+	rec := s.record(t, s.attempt(t, seal.AttemptID).TicketID.Raw)
+	if rec.Completion == nil || rec.Completion.Kind != "VERIFIED" {
+		t.Fatalf("completion: %+v", rec.Completion)
+	}
+	cited := false
+	for _, d := range rec.Completion.Evidence {
+		if g, err := snapshot.DecodeGateResult(s.evidence(t, string(d))); err == nil && g.ReusedFrom != nil && string(*g.ReusedFrom) == source {
+			cited = true
+		}
+	}
+	if !cited {
+		t.Fatalf("the completion evidence does not name the descendant result %s: %+v", source, rec.Completion.Evidence)
+	}
+	auditOK(t, s.repo)
 }

@@ -2967,13 +2967,18 @@
         "corvint [--root PATH] dogfood cancel [--reason TEXT] [--session-key HASH]",
         "corvint [--root PATH] dogfood change [--corvint-bin PATH] BASE",
         "corvint [--root PATH] dogfood check [--base-verifier PATH] [--tree-verifier PATH] [--override-verifier PATH] BASE",
+        "corvint [--root PATH] dogfood export --output FILE [--session-key HASH]",
         "corvint [--root PATH] dogfood finish [--session-key HASH]",
         "corvint [--root PATH] dogfood finish-lane --base BASE --citations FILE [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH] [--base-verifier PATH] [--tree-verifier PATH] [--override-verifier PATH]",
         "corvint [--root PATH] dogfood handoff [--anchors \"ANCHOR...\"] [--session-key HASH]",
         "corvint [--root PATH] dogfood handoff --receipt FILE [--session-key HASH]",
         "corvint [--root PATH] dogfood handoff --task-state FILE [--session-key HASH]",
         "corvint [--root PATH] dogfood handoff --bundle FILE --session-key HASH",
+        "corvint [--root PATH] dogfood hold --reason TEXT [--session-key HASH]",
+        "corvint [--root PATH] dogfood hold --release-authorization TEXT [--session-key HASH]",
+        "corvint [--root PATH] dogfood import --input FILE [--session-key HASH]",
         "corvint [--root PATH] dogfood inputs-check --base BASE --citations FILE [--intents FILE] [--verify FILE] [--outcome VALUE] [--corvint-bin PATH]",
+        "corvint [--root PATH] dogfood prechange [--task TEXT] BASE [PATH...]",
         "corvint [--root PATH] dogfood propose-citations [--refresh PLAN] BASE",
         "corvint [--root PATH] dogfood review --report-set DIGEST [--session-key HASH]",
         "corvint [--root PATH] dogfood seal [--base-verifier PATH] [--tree-verifier PATH] [--override-verifier PATH] BASE",
@@ -2988,16 +2993,20 @@
         "--check",
         "--citations",
         "--corvint-bin",
+        "--input",
         "--intents",
         "--outcome",
+        "--output",
         "--override-verifier",
         "--plan",
         "--reason",
         "--receipt",
         "--refresh",
+        "--release-authorization",
         "--report-set",
         "--root",
         "--session-key",
+        "--task",
         "--task-state",
         "--tree-verifier",
         "--verifier",
@@ -3112,6 +3121,27 @@
     {
       "path": [
         "dogfood",
+        "export"
+      ],
+      "command": "corvint dogfood export",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] dogfood export --output FILE [--session-key HASH]"
+      ],
+      "flags": [
+        "--output",
+        "--root",
+        "--session-key"
+      ],
+      "required": [
+        "--output FILE"
+      ],
+      "example": "corvint dogfood export --output FILE",
+      "help": "corvint dogfood export --help"
+    },
+    {
+      "path": [
+        "dogfood",
         "finish"
       ],
       "command": "corvint dogfood finish",
@@ -3184,6 +3214,48 @@
     {
       "path": [
         "dogfood",
+        "hold"
+      ],
+      "command": "corvint dogfood hold",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] dogfood hold --reason TEXT [--session-key HASH]",
+        "corvint [--root PATH] dogfood hold --release-authorization TEXT [--session-key HASH]"
+      ],
+      "flags": [
+        "--reason",
+        "--release-authorization",
+        "--root",
+        "--session-key"
+      ],
+      "required": [],
+      "example": "corvint dogfood hold --reason TEXT",
+      "help": "corvint dogfood hold --help"
+    },
+    {
+      "path": [
+        "dogfood",
+        "import"
+      ],
+      "command": "corvint dogfood import",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] dogfood import --input FILE [--session-key HASH]"
+      ],
+      "flags": [
+        "--input",
+        "--root",
+        "--session-key"
+      ],
+      "required": [
+        "--input FILE"
+      ],
+      "example": "corvint dogfood import --input FILE",
+      "help": "corvint dogfood import --help"
+    },
+    {
+      "path": [
+        "dogfood",
         "inputs-check"
       ],
       "command": "corvint dogfood inputs-check",
@@ -3206,6 +3278,26 @@
       ],
       "example": "corvint dogfood inputs-check --base BASE --citations FILE",
       "help": "corvint dogfood inputs-check --help"
+    },
+    {
+      "path": [
+        "dogfood",
+        "prechange"
+      ],
+      "command": "corvint dogfood prechange",
+      "summary": "",
+      "usage": [
+        "corvint [--root PATH] dogfood prechange [--task TEXT] BASE [PATH...]"
+      ],
+      "flags": [
+        "--root",
+        "--task"
+      ],
+      "required": [
+        "BASE"
+      ],
+      "example": "corvint dogfood prechange BASE",
+      "help": "corvint dogfood prechange --help"
     },
     {
       "path": [

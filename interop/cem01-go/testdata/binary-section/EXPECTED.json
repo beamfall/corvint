@@ -1,0 +1,18 @@
+{
+  "profile": "cem-binary-section-case/1",
+  "baseRevision": "ffc84bd2a3beafddeb6429c0381dd7e262ef3a07",
+  "targetRevision": "eb696ca7202b69d19ca6f25acf9ffa1ec66272cf",
+  "map": "stable.json",
+  "artifactRoot": ".",
+  "patchSha256": "f551fd0ac280ca071c0089ad7b1f8aa1d5c4a4fff2f63a0b17aabfdef957126d",
+  "mappedPaths": [
+    "text.txt"
+  ],
+  "binaryPaths": [
+    "added.bin",
+    "image.bin",
+    "removed.bin"
+  ],
+  "outcome": "ACCEPT",
+  "stage": "complete"
+}

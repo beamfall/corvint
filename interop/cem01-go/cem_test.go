@@ -130,18 +130,87 @@ func TestBinaryMarkerTextInHunkPayloadIsText(t *testing.T) {
 	}
 }
 
-// TestCEMV1986PortableRefusesCanonicalBinarySection pins CEM-V1-986
-// (V1-2752): the portable cem/1.0 consumer is unchanged, so Git's canonical
-// full-index binary section, which the native producer binds by blob
-// identity beside a textual group, still fails closed here with the patch
-// refusal rather than being accepted or skipped.
-func TestCEMV1986PortableRefusesCanonicalBinarySection(t *testing.T) {
+// TestCEMV1934PortableBinarySectionGrammar pins CEM-V1-934 (V1-3443), which
+// amends CEM-V1-986: the portable consumer admits Git's canonical full-index
+// binary section beside a textual hunk, with the native CEM-V1-980 grammar,
+// and keeps the patch refusal for every other binary shape.
+func TestCEMV1934PortableBinarySectionGrammar(t *testing.T) {
 	t.Parallel()
-	binary := "diff --git a/img/x.png b/img/x.png\nindex " + strings.Repeat("a", 40) + ".." + strings.Repeat("b", 40) + " 100644\nBinary files a/img/x.png and b/img/x.png differ\n"
+	a, b, z := strings.Repeat("a", 40), strings.Repeat("b", 40), strings.Repeat("0", 40)
 	text := "diff --git a/t.txt b/t.txt\nindex " + strings.Repeat("c", 40) + ".." + strings.Repeat("d", 40) + " 100644\n--- a/t.txt\n+++ b/t.txt\n@@ -1 +1 @@\n-a\n+b\n"
-	for _, patch := range []string{binary + text, text + binary} {
-		if _, err := parsePatch([]byte(patch)); err == nil || err.code != "patch" {
-			t.Errorf("portable consumer err=%v, want the patch refusal", err)
+	modify := "diff --git a/img/x.png b/img/x.png\nindex " + a + ".." + b + " 100644\nBinary files a/img/x.png and b/img/x.png differ\n"
+	create := "diff --git a/img/n.png b/img/n.png\nnew file mode 100755\nindex " + z + ".." + b + "\nBinary files /dev/null and b/img/n.png differ\n"
+	remove := "diff --git a/img/d.png b/img/d.png\ndeleted file mode 100644\nindex " + a + ".." + z + "\nBinary files a/img/d.png and /dev/null differ\n"
+	sha256 := "diff --git a/img/x.png b/img/x.png\nindex " + strings.Repeat("a", 64) + ".." + strings.Repeat("b", 64) + " 100644\nBinary files a/img/x.png and b/img/x.png differ\n"
+	for name, patch := range map[string]string{"modify-first": modify + text, "modify-last": text + modify, "create": text + create, "delete": remove + text, "sha256": sha256 + text} {
+		p, err := parsePatch([]byte(patch))
+		if err != nil {
+			t.Errorf("%s: err=%v, want accepted", name, err)
+			continue
+		}
+		if !p.binary || len(p.hunks) != 1 || len(p.files) != 2 {
+			t.Errorf("%s: binary=%v hunks=%d files=%d", name, p.binary, len(p.hunks), len(p.files))
+		}
+	}
+	if p, err := parsePatch([]byte(text + create)); err != nil {
+		t.Errorf("create: err=%v", err)
+	} else if f := p.files[1]; !f.binary || f.oldPath != nil || f.mode != "100755" || f.oldOID != "" || f.newOID != b {
+		t.Errorf("create group = %+v", f)
+	}
+	refused := map[string]string{
+		"abbreviated":     strings.Replace(modify, a+".."+b, "aaaaaaa..bbbbbbb", 1),
+		"mixed-length":    strings.Replace(modify, ".."+b, ".."+strings.Repeat("b", 64), 1),
+		"no-mode-suffix":  strings.Replace(modify, " 100644\n", "\n", 1),
+		"equal-oids":      strings.Replace(modify, ".."+b, ".."+a, 1),
+		"zero-on-modify":  strings.Replace(modify, ".."+b, ".."+z, 1),
+		"create-suffix":   strings.Replace(create, ".."+b+"\n", ".."+b+" 100755\n", 1),
+		"create-nonzero":  strings.Replace(create, z+"..", a+"..", 1),
+		"delete-label":    strings.Replace(remove, "and /dev/null", "and b/img/d.png", 1),
+		"wrong-label":     strings.Replace(modify, "and b/img/x.png", "and b/img/y.png", 1),
+		"asymmetric":      strings.Replace(modify, "b/img/x.png\nindex", "b/img/y.png\nindex", 1),
+		"rename":          strings.Replace(modify, "\nindex", "\nsimilarity index 90%\nindex", 1),
+		"mode-pair":       strings.Replace(modify, "\nindex", "\nold mode 100644\nnew mode 100755\nindex", 1),
+		"no-index":        "diff --git a/img/x.png b/img/x.png\nBinary files a/img/x.png and b/img/x.png differ\n",
+		"trailing-record": strings.TrimSuffix(modify, "\n") + "\nextra\n",
+		"literal":         "diff --git a/img/x.png b/img/x.png\nindex " + a + ".." + b + " 100644\nGIT binary patch\nliteral 1\nIcmZp200001\n\n",
+		"bare-marker":     "Binary files a/img/x.png and b/img/x.png differ\n",
+	}
+	for name, binary := range refused {
+		for _, patch := range []string{binary + text, text + binary} {
+			if _, err := parsePatch([]byte(patch)); err == nil || err.code != "patch" {
+				t.Errorf("%s: err=%v, want the patch refusal", name, err)
+			}
+		}
+	}
+	if _, err := parsePatch([]byte(modify)); err == nil || err.code != "patch" {
+		t.Errorf("binary-only: err=%v, want the patch refusal", err)
+	}
+}
+
+// TestCEMV1935PortableBinaryEntries pins CEM-V1-935: a binary group's base
+// and target entries are checked by mode and object ID, never read.
+func TestCEMV1935PortableBinaryEntries(t *testing.T) {
+	t.Parallel()
+	a, b := strings.Repeat("a", 40), strings.Repeat("b", 40)
+	f := &filePatch{binary: true, mode: "100644", oldOID: a, newOID: b}
+	entry := func(mode, oid string) *treeEntry { return &treeEntry{mode: mode, typ: "blob", oid: oid} }
+	for name, c := range map[string]struct {
+		base, target *treeEntry
+		want         string
+	}{
+		"match":      {entry("100644", a), entry("100644", b), ""},
+		"create":     {nil, entry("100644", b), ""},
+		"symlink":    {entry("120000", a), entry("100644", b), "unsupported-tree-mode"},
+		"mode":       {entry("100755", a), entry("100644", b), "diff-metadata-mismatch"},
+		"base-oid":   {entry("100644", b), entry("100644", b), "invalid-field"},
+		"target-oid": {entry("100644", a), entry("100644", a), "invalid-field"},
+	} {
+		got := ""
+		if e := binaryEntriesMatch(f, c.base, c.target); e != nil {
+			got = e.code
+		}
+		if got != c.want {
+			t.Errorf("%s: code=%q, want %q", name, got, c.want)
 		}
 	}
 }

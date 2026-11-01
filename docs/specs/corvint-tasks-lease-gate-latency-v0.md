@@ -5,7 +5,7 @@ Date: 2026-10-24
 Intent status: proposed
 Delivery status: experimental
 
-Authoritative inputs: native tickets V1-2531, V1-2537, V1-2539, V1-2203, V1-2205, V1-1702, V1-2592, V1-2866 and the owner decision of 2026-10-27 on concurrent publish directory syncs. These requirements
+Authoritative inputs: native tickets V1-2531, V1-2537, V1-2539, V1-2203, V1-2205, V1-1702, V1-2592, V1-2866, V1-3186 and the owner decision of 2026-10-27 on concurrent publish directory syncs. These requirements
 amend the write rounds of the [agent lease contract](corvint-tasks-agent-leases-v0.md), whose
 Requirements section is at the 256-obligation OCM limit (`maxObligations`), so they live here.
 They change no lease semantics, stored state, wire format or receipt.
@@ -180,6 +180,27 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   test. Only this harness reads it, so one test binary pairs serial and concurrent runs for
   `LGL-V0-003` and V1-0887 measurements; no production path reads it, the store format is
   unchanged, and the report names the mode in `publishSyncs`.
+- `LGL-V0-890`: (proposed; V1-2203; experimental under the standing lane auto-accept and the owner's
+  2026-11-01 allowance to change the heartbeat durability path) A writer MUST qualify the Git common
+  dir (the §5.1 probe: allowlisted type, a fully synced probe file, a working flock and a directory
+  sync) before its first write in a process, and MAY reuse that successful qualification for every
+  later write of the same process while the directory is the same file (`os.SameFile` on a fresh
+  `Lstat` before each write). A failed qualification MUST NOT be reused, and a directory replaced
+  or remounted at the same path MUST be qualified again. Reuse removes only the probe: every
+  artifact a write publishes keeps its file sync and its destination directory sync (LGL-V0-008),
+  so an acknowledged heartbeat is as durable as before. A one-shot command line still qualifies
+  once per process; a supervisor or other long-lived writer pays the probe once.
+- `LGL-V0-891`: (proposed; V1-2621; experimental under the standing lane auto-accept and the owner's
+  2026-11-01 direction to add a base-at-S capture) On a segmented store whose manifest seals through S,
+  a lease or Mutate write that takes the complete route while the bound writer checkpoint has
+  `FullSeq` S and its base at S MUST retain its complete audit's checkpoint re-based on that sealed
+  base (`WriterCheckpoint.RebaseOnSealedBase`): `FullSeq` S, every entry, request and note posted after
+  S in the delta. The re-base MUST refuse, and the write retain the complete audit's own checkpoint
+  (`FullSeq` at its head, as before), unless every entry, request and note that audit derived from
+  receipt 1 at or before S is exactly the sealed base's and the base's segment digests are the
+  manifest's; and it MUST NOT be used when that write's verify (JSG-V0-003) refuted the bound
+  checkpoint. The next pool acquire or release then still resumes from the sealed base (LGL-V0-009).
+  No store format changes and no process stays resident.
 - `LGL-V0-900`: (proposed; V1-2623) When a lease command's preparation failed `SNAPSHOT_MOVED`,
   its commit step MUST, under the writer lock, re-read the head and the segment manifest it binds;
   a manifest that is absent or whose SHA-256 differs from the head's binding MUST refuse at once
@@ -190,6 +211,28 @@ closing `/proc/self/fdinfo/<fd>` (decision 0411).
   locked step MUST re-read that one segment and refuse `JOURNAL_FORKED` when it is absent or its
   size or SHA-256 differs from the manifest entry; no other segment is re-read, so the check is
   bounded by one segment.
+- `LGL-V0-800`: (proposed; V1-3186) The `receipt audit` receipt binding fold (CAL-V0-135) MUST
+  read and decode each `attempts/` post of a receipt at most once, sharing the bytes, the decoded
+  attempt and any read or decode error between the external review, escalation, obligation and
+  gate reuse steps, as it already shares `intent/tickets/` posts between the review and escalation
+  steps. The shared result MUST be exactly what each step computed for itself, errors included,
+  and MUST be discarded when the fold moves to another receipt; no result is reused across
+  receipts, processes or invocations, so the explicit audit still reads and checks every receipt,
+  post and blob, and reports the same outcome, refusals and unknowns. Target: on the same host and
+  load, the complete audit's median wall time at 3k, 13k and 40k synthetic receipts and on a copy
+  of the live queue is at least 20 % below the base binary's in interleaved runs; the steps only
+  read the shared records.
+- `LGL-V0-801`: (proposed; V1-0757; experimental under the standing lane auto-accept) The
+  CAL-V0-263 load harness MUST accept `CORVINT_TASKS_LEASE_GATE_LOAD_MUTATORS=N` (default 0, which
+  keeps every earlier run unchanged) and then start N more worker processes that take no lease and
+  cycle through creating a ticket, refining it, completing it by hand (`COMPLETE_MANUAL`) and
+  setting a note on a ticket of their own that no lease writer claims, each through `Mutate`, so
+  lease and non-lease writers contend for the writer lock on one store. Each such write MUST be
+  recorded as a sample with verb `create`, `refine`, `complete-manual` or `note`, its whole-call
+  wall time, writer-lock hold and code, and summarized per verb beside the lease verbs. After the
+  run the harness MUST run the complete audit and record it in the report's `audit` field, failing
+  unless it is `CONSISTENT AGREES`; the report names the mutator count. The harness measures and
+  checks; it sets no latency target and no production path reads the knob.
 
 ## Non-goals
 
@@ -259,7 +302,24 @@ the barrier deletion or the head is published, as a failed immediate sync did. T
 the filesystem grouping concurrent directory fsyncs; one that serializes them pays the sequential
 cost, never more syncs.
 
+With LGL-V0-800 a fold step that mutated a shared attempt or ticket record would change what a
+later step of the same receipt sees; every step only reads them, which
+`TestLGLV0800_AttemptMemoMatchesFreshDecode` and the unchanged audit outcomes guard. Reuse within
+one receipt is the whole boundary: a cached audit result across invocations would need its own
+input binding and is not part of this contract.
+
 ## Acceptance evidence
+
+`TestLGLV0800_AttemptMemoMatchesFreshDecode` (`internal/tasks/transaction/ticket_posts_test.go`,
+V1-3186) shows the memo returns what a fresh read and decode return for a valid attempt, a
+non-record, a malformed attempt and an absent blob, reads each blob once however often it is asked,
+and starts afresh for another receipt. The transaction package and the store fold, audit and review
+tests pass unchanged. Interleaved runs (five per binary per size, Darwin arm64, 12 CPUs, load 9 to
+14) gave median wall times base to new of 0.93 to 0.66 s at 3,000 synthetic receipts, 3.20 to
+2.43 s at 13,000, 6.43 to 4.69 s on a 15,147-receipt copy of the live queue and 10.06 to 7.43 s at
+40,000, with byte-identical audit items; total allocation on the live copy fell from 7.95 to
+5.42 GB. The runs and profiles are in the build-log entry
+`docs/build-log/2026-10-31-tasks-core-w2.md`.
 
 `TestLGLV0001_ReadyRouteTakesNoCleanupLockOutsideGate`
 (`internal/tasks/store/lease_orphan_route_test.go`) holds the writer lock 600 ms over an orphan
@@ -380,6 +440,16 @@ head retrying. `TestLGLV0009_TailRemovedBaseBlobKeepsTheResume`
 tail removed keeps a sealed-base resume, while one rewritten in place declines it; blobs are
 content-addressed, so no write can give a base blob's path other bytes.
 
+For `LGL-V0-801`, `TestCALV0263_LeaseGateLoad` with `CORVINT_TASKS_LEASE_GATE_LOAD_MUTATORS=3`, 6 lease
+writers, 7,000 receipts, 100 tickets, 30 s and 1 s think time (Darwin arm64, 12 CPUs, 1-minute
+load 7.09, labelled QUALIFIED) made 248 calls, 102 of them non-lease, with no error code and no
+`LOCK_TIMEOUT`, and the audit after the run was `CONSISTENT AGREES`; wall p50/p99 was create
+133/705 ms, refine 108/220 ms, complete-manual 103/241 ms and note 106/240 ms, beside heartbeat
+120/1089 ms and renew 117/780 ms. The run and a mixed-binary probe (a build of
+`32aa5a3f` of 2026-10-03 from the pre-1.0 lineage, against a store the current build initialized and wrote, which
+refuses `MALFORMED: policy.json: closed object violated` without writing) are in the build-log
+entry `docs/build-log/2026-10-31-tasks-core-w2.md`.
+
 ## Rollback
 
 revert the source; the guards again take the cleanup lock whenever staging is present
@@ -398,4 +468,7 @@ Reverting LGL-V0-015 returns the harness default to writers+16 tickets; set
 `CORVINT_TASKS_LEASE_GATE_LOAD_TICKETS=880` to keep live-sized runs. Reverting LGL-V0-016
 (`leasePublishSyncsOverlap` false, or the source) returns lease writes to syncing each publication's
 directories before the next is published; nothing it writes differs in format, and the same
-binary or an older one reads and redoes the store unchanged.
+binary or an older one reads and redoes the store unchanged. Reverting LGL-V0-800 (the
+`TicketPosts.attempt` memo, or passing a nil memo) returns each binding step to reading and
+decoding its own attempt posts; nothing is stored. Reverting LGL-V0-801 removes the mutator
+workers and the post-run audit; with the knob unset the harness runs as before.

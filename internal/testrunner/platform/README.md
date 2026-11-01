@@ -76,9 +76,12 @@ engine/spec/test identity, including native parameter/nesting segments.
 
 Android profiles execute only an explicit local `emulator-NNNN` serial and the
 literal `package/androidx.test.runner.AndroidJUnitRunner` component. They never
-install APKs, clear data or grant permissions. APK identity, existing adb server,
-emulator image, application state and SDK dependencies remain caller admission
-and qualification obligations. Adb exit zero is outcome-neutral: native per-test
+install APKs, clear data or grant permissions. The request binds the installed
+test and app APKs as `.apk` input files, and the device script compares their
+digests with the installed `pm path` APKs before it instruments; a mismatch,
+split install or missing package is never instrumented and is incomplete
+(TRE-V0-820). Installation, existing adb server, emulator image, application
+state and SDK dependencies remain caller admission and qualification obligations. Adb exit zero is outcome-neutral: native per-test
 start/terminal records, ordinal/count consistency, aggregate summary and final
 instrumentation code determine observed outcomes. A native exception without
 recognized assertion evidence remains UNKNOWN failure kind. Espresso and

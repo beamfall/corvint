@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -8,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"sort"
@@ -27,9 +29,78 @@ const selectionRule = "non-merge commits since --since, oldest first, touching b
 	"hunks alone in the canonical CEM diff form (myers, no indent heuristic, three context lines), at most 64 KiB, over which `cem begin` parses between 3 and 20 hunks; a change is rejected when any " +
 	"source hunk contains a gold path literal; select index floor(i*N/n) for i in 0..n-1 over the candidates in commit order"
 
-// canonicalDiffArguments are the git diff options of the canonical CEM patch.
-var canonicalDiffArguments = []string{"diff", "--no-color", "--no-ext-diff", "--no-textconv", "--no-renames",
-	"--no-indent-heuristic", "--diff-algorithm=myers", "--unified=3", "--inter-hunk-context=0"}
+// canonicalDiffConfig pins every diff setting that internal/cem/gitauth
+// CanonicalDiff pins, so repository, global or system configuration such as
+// diff.noprefix=true cannot change the presented patch bytes (CRT-V0-016).
+var canonicalDiffConfig = []string{
+	"-c", "core.attributesFile=" + os.DevNull, "-c", "core.quotePath=false",
+	"-c", "diff.suppressBlankEmpty=false", "-c", "diff.orderFile=" + os.DevNull,
+	"-c", "diff.noprefix=false", "-c", "diff.mnemonicPrefix=false", "-c", "diff.renames=false",
+	"-c", "diff.algorithm=myers", "-c", "diff.wsErrorHighlight=none",
+	"-c", "diff.srcPrefix=a/", "-c", "diff.dstPrefix=b/", "-c", "diff.external=",
+	"-c", "diff.ignoreSubmodules=none",
+}
+
+// canonicalDiffArguments are the git diff options of the canonical CEM patch,
+// as internal/cem/gitauth CanonicalDiff passes them after --attr-source.
+var canonicalDiffArguments = []string{"diff", "--full-index", "--no-color", "--no-ext-diff", "--no-textconv",
+	"--no-renames", "--no-indent-heuristic", "--diff-algorithm=myers", "--unified=3", "--inter-hunk-context=0",
+	"--src-prefix=a/", "--dst-prefix=b/", "--ignore-submodules=none", "--end-of-options"}
+
+// Empty tree object names, the --attr-source that neutralises worktree and
+// tree attributes as gitauth does.
+const (
+	emptyTreeSHA1   = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+	emptyTreeSHA256 = "6ef19b41225c5369f1c104d45d8d85efa9b057b53b14b4b9b939dd74decc5321"
+)
+
+// canonicalPatch derives the presented patch over the change's source files
+// byte for byte as gitauth CanonicalDiff would for those paths.
+func canonicalPatch(ctx context.Context, repo, parent, commit string, sourceFiles []string) (string, error) {
+	format, err := canonicalGit(ctx, repo, "rev-parse", "--show-object-format")
+	if err != nil {
+		return "", err
+	}
+	empty := emptyTreeSHA1
+	if strings.TrimSpace(format) == "sha256" {
+		empty = emptyTreeSHA256
+	}
+	arguments := append(append([]string{}, canonicalDiffConfig...), "--attr-source="+empty)
+	arguments = append(append(arguments, canonicalDiffArguments...), parent, commit, "--")
+	return canonicalGit(ctx, repo, append(arguments, sourceFiles...)...)
+}
+
+// canonicalEnvironment is gitauth's scrubbed allowlist environment: only the
+// process lookup variables pass, and every Git setting the environment can
+// carry (GIT_DIFF_OPTS, GIT_EXTERNAL_DIFF, GIT_CONFIG_*, global and system
+// files, replace objects, grafts) is dropped or pinned, so the caller's
+// environment cannot change the presented patch bytes (CRT-V0-016).
+func canonicalEnvironment() []string {
+	result := []string{}
+	for _, key := range []string{"PATH", "SystemRoot", "TMPDIR", "TEMP", "TMP", "USERPROFILE"} {
+		if value, ok := os.LookupEnv(key); ok {
+			result = append(result, key+"="+value)
+		}
+	}
+	return append(result,
+		"LANG=C", "LC_ALL=C", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull,
+		"GIT_CONFIG_SYSTEM="+os.DevNull, "GIT_TERMINAL_PROMPT=0", "GIT_OPTIONAL_LOCKS=0",
+		"GIT_NO_LAZY_FETCH=1", "GIT_NO_REPLACE_OBJECTS=1", "GIT_GRAFT_FILE="+os.DevNull, "GIT_ASKPASS=",
+		"GIT_ATTR_NOSYSTEM=1", "GCM_INTERACTIVE=never", "GIT_ALLOW_PROTOCOL=",
+	)
+}
+
+// canonicalGit runs git in repo under canonicalEnvironment.
+func canonicalGit(ctx context.Context, repo string, arguments ...string) (string, error) {
+	command := exec.CommandContext(ctx, "git", append([]string{"-C", repo, "--no-optional-locks"}, arguments...)...)
+	command.Env = canonicalEnvironment()
+	var stdout, stderr bytes.Buffer
+	command.Stdout, command.Stderr = &stdout, &stderr
+	if err := command.Run(); err != nil {
+		return "", fmt.Errorf("git %s: %w: %s", strings.Join(arguments, " "), err, strings.TrimSpace(stderr.String()))
+	}
+	return stdout.String(), nil
+}
 
 const (
 	selectMinFiles = 3
@@ -396,7 +467,7 @@ func inspectCommit(ctx context.Context, repo, commit, parent string) (candidate,
 	// (internal/cem/gitauth CanonicalDiff), so a slidable hunk lands on the
 	// same line in both; git's default indent heuristic moved one by a line
 	// and errored all six lanes of a held-out pair (V1-2619).
-	patch, err := gitOutput(ctx, repo, append(append(append([]string{}, canonicalDiffArguments...), parent, commit, "--"), sourceFiles...)...)
+	patch, err := canonicalPatch(ctx, repo, parent, commit, sourceFiles)
 	if err != nil {
 		return candidate{}, false, err
 	}

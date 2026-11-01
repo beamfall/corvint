@@ -441,8 +441,10 @@ func parseAffectedOptions(rest []string) (affectedInvocation, error) {
 	if invocation.Cache != "" && (invocation.Snapshot != "" || invocation.PlaywrightConfig != "") {
 		return affectedInvocation{}, argumentError("--cache cannot be combined with --snapshot or --playwright-config")
 	}
-	if (len(invocation.PathList) != 0 || invocation.PathsFrom != "") && (invocation.Snapshot != "" || invocation.Base != "" || len(invocation.Providers) != 0 || invocation.PlaywrightConfig != "" || invocation.PlaywrightDiscovery != "" || len(invocation.AppmapImpacts) != 0) {
-		return affectedInvocation{}, argumentError("--path and --paths-from cannot be combined with --snapshot, --base, --provider, --playwright-config, --playwright-discovery or --appmap-impact")
+	if len(invocation.PathList) != 0 || invocation.PathsFrom != "" {
+		if err := affectedPathProfileRefusal(invocation); err != nil {
+			return affectedInvocation{}, err
+		}
 	}
 	if invocation.Snapshot != "" && (invocation.Base != "" || len(invocation.Providers) != 0 || invocation.PlaywrightDiscovery != "") {
 		return affectedInvocation{}, argumentError("--snapshot cannot be combined with --base, --provider or --playwright-discovery")
@@ -580,6 +582,33 @@ func addAffectedRepositoryBase(invocation *affectedInvocation, value string) err
 		invocation.RepositoryBases = map[string]string{}
 	}
 	invocation.RepositoryBases[id] = commit
+	return nil
+}
+
+// affectedPathProfileCode is the typed refusal of a `--path` plan under a
+// profile that plans its own change set (AFP-V0-764).
+const affectedPathProfileCode = "unsupported-affected-path-profile"
+
+// affectedPathProfileRefusal refuses `--path` or `--paths-from` with a profile
+// whose plan is not a HEAD path-list plan, each with its own reason and
+// recovery (AFP-V0-764); `--base` is a second change set, so it stays
+// invalid-arguments.
+func affectedPathProfileRefusal(invocation affectedInvocation) error {
+	refuse := func(profile, reason string) error {
+		return &gokernel.Error{Code: affectedPathProfileCode, Message: "--path and --paths-from do not plan under " + profile + ": " + reason}
+	}
+	switch {
+	case invocation.Snapshot != "":
+		return refuse("--snapshot", "a snapshot carries its own frozen tree and changed set, not HEAD's; plan the snapshot alone")
+	case len(invocation.Providers) != 0:
+		return refuse("--provider", "a selection provider receives the worktree or --base change set and its own checkouts, and its protocol carries no path list; commit the paths and run corvint affected --base <HEAD> --provider ...")
+	case invocation.PlaywrightConfig != "" || invocation.PlaywrightDiscovery != "":
+		return refuse("the Playwright profile", "the playwright-affected/0 plan narrows the worktree or --base change set against a Playwright discovery taken from the worktree, which a HEAD path list does not pin; commit the paths and run corvint affected --base <HEAD> --playwright-config ...")
+	case len(invocation.AppmapImpacts) != 0:
+		return refuse("--appmap-impact", "an AppMap impact report is bound to the --base range it was recorded over (ANL-V0-060); commit the paths and run corvint affected --base <HEAD> --appmap-impact ...")
+	case invocation.Base != "":
+		return argumentError("--path and --paths-from cannot be combined with --base: each names the change set")
+	}
 	return nil
 }
 

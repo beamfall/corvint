@@ -16,6 +16,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/Beamfall/corvint/internal/gitancestry/ancestrytest"
 )
 
 func gitTest(t *testing.T, root string, args ...string) string {
@@ -302,6 +304,26 @@ func TestCompileRefusesShallowCheckout(t *testing.T) {
 			t.Fatalf("complete checkout refused: %v", e)
 		}
 	})
+}
+
+// EEP-V0-770: info/grafts rewrites the range as a shallow boundary does, so a grafted checkout is
+// refused the same way, before the ancestry read; a shallow marker on the full clone is too.
+func TestCompileRefusesGraftedCheckout_EEPV0770(t *testing.T) {
+	root, base := repoTest(t)
+	head := gitTest(t, root, "rev-parse", "HEAD")
+	for name, apply := range map[string]func() func(){
+		"grafted": func() func() { return ancestrytest.Graft(t, root, "HEAD") },
+		"shallow": func() func() { return ancestrytest.Shallow(t, root, "HEAD") },
+	} {
+		undo := apply()
+		if _, e := Compile(context.Background(), Request{Root: root, From: base, To: head}); e == nil || e.Error() != "changes-range-unavailable" {
+			t.Errorf("%s checkout accepted: %v", name, e)
+		}
+		undo()
+	}
+	if _, e := Compile(context.Background(), Request{Root: root, From: base, To: head}); e != nil {
+		t.Fatalf("complete checkout refused: %v", e)
+	}
 }
 
 // stalledRefs models a descriptor whose read blocks until it is closed.

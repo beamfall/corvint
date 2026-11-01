@@ -66,6 +66,10 @@ const (
 	// UnknownNoSelectableTest reports a changed unit (one owning a dirty path)
 	// that no selectable test checks under its plugin's rule (AFP-V0-020).
 	UnknownNoSelectableTest = "NO_SELECTABLE_TEST"
+	// UnknownUnselectedBinaryConsumer reports a file the project declares as
+	// running the built binary of a Go command this change reaches, when no
+	// selected unit carries it as a test (AFP-V0-762).
+	UnknownUnselectedBinaryConsumer = "UNSELECTED_BINARY_CONSUMER"
 )
 
 // Scope axes, per the LPCV result-axis rule. Selection produces scope only;
@@ -233,7 +237,7 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 			plan.FrontierSites[reason] = count
 		}
 	}
-	reached, seeds, unknown, narrowed, reads, carried, followed, additive := graph.reach(normalized, true)
+	reached, seeds, unknown, narrowed, reads, carried, followed, additive, rebuilt := graph.reach(normalized, true)
 	plan.GoAdditive = additiveSummary(additive)
 	through := graph.additiveExclusions(normalized, additive)
 	plan.NonSource, unknown = graph.taskState(unknown)
@@ -283,7 +287,9 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 		})
 	}
 	graph.rank(plan.Selected)
+	plan.Unknown = append(plan.Unknown, graph.unselectedConsumers(reached, rebuilt, plan.Selected)...)
 	graph.symlinkHints(plan.Unknown)
+	instructionHints(plan.Unknown)
 	if len(plan.Unknown) != 0 {
 		plan.Scope = ScopeUnknown
 	}
@@ -307,7 +313,12 @@ func selectPlan(graph *Graph, dirty []string) Plan {
 // expand only from paths and readers, so dropping it changes no other unit.
 //
 // additive holds the ADN-V0-001 records with their final states.
-func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds map[string]Witness, unknown []Unknown, narrowed, reads, carried, followed map[string]bool, additive []GoAdditive) {
+//
+// rebuilt holds the units whose build the change reaches: those the
+// dependency traversal walks to and those an enclosed path reaches, before a
+// later step replaces a unit's witness with its own test change
+// (AFP-V0-762).
+func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds map[string]Witness, unknown []Unknown, narrowed, reads, carried, followed map[string]bool, additive []GoAdditive, rebuilt map[string]bool) {
 	seeds, unknown = graph.seed(normalized)
 	changed, traversed, enclosing := graph.goStructure(normalized)
 	contained := graph.testOnlyGoUnits(seeds, normalized, changed, traversed)
@@ -320,10 +331,16 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	}
 	reached, allowed, additive := graph.additiveTraverse(start, traversed, enclosing, normalized)
 	followed = make(map[string]bool, len(reached))
+	rebuilt = make(map[string]bool, len(reached)+len(enclosing))
 	for id := range reached {
 		followed[id] = true
+		rebuilt[id] = true
 	}
-	if len(normalized) != 0 {
+	for id := range enclosing {
+		rebuilt[id] = true
+	}
+	unbounded := graph.unboundedDirty(normalized)
+	if len(unbounded) != 0 {
 		for id := range graph.locatorReach {
 			followed[id] = true
 		}
@@ -339,9 +356,9 @@ func (graph *Graph) reach(normalized []string, ownTests bool) (reached, seeds ma
 	graph.execUsersOf(reached, built)
 	narrowed, reads = graph.readers(reached, normalized)
 	carried = graph.testlessReaderUsers(reached, normalized, followed)
-	graph.unboundedReadersOf(reached, normalized)
+	graph.unboundedReadersOf(reached, unbounded)
 	graph.scopedReadersOf(reached, normalized)
-	return reached, seeds, unknown, narrowed, reads, carried, followed, additive
+	return reached, seeds, unknown, narrowed, reads, carried, followed, additive, rebuilt
 }
 
 func relativeDirectory(relative string) string {
@@ -550,6 +567,26 @@ func (graph *Graph) frontierUnknowns(reached map[string]Witness, narrowed, reads
 					reasons[entry] = true
 					hints[entry] = hint
 				}
+			}
+		}
+	}
+	// A plugin left out only by the terminal rule still names the entries
+	// that stand for a runtime edge from another plugin's code into its units,
+	// which no traversal can see, unless a declared runtime edge models the
+	// entry's site (AFP-V0-818, AFP-V0-819).
+	for name := range terminal {
+		for _, entry := range graph.crossLanguageEntries(name) {
+			reasons[entry] = true
+		}
+	}
+	for _, name := range graph.languages {
+		route, names := graph.claimants[name].(FrontierRoute)
+		if !names {
+			continue
+		}
+		for _, entry := range graph.frontierBy[name] {
+			if text := route.FrontierRoute(entry); reasons[entry] && text != "" {
+				hints[entry] = strings.TrimPrefix(hints[entry]+"; "+text, "; ")
 			}
 		}
 	}

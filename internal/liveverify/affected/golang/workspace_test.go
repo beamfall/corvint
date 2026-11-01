@@ -4,6 +4,7 @@ import (
 	"context"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/Beamfall/corvint/internal/liveverify/affected"
@@ -79,7 +80,7 @@ func TestWorkspaceDirtySourceSelectsTheOtherModulesTest(t *testing.T) {
 	// The stray module imports nothing listed, so the change cannot reach it
 	// (AFP-V0-582).
 	want := []affected.Unknown{
-		{Reason: affected.UnknownLanguageFrontier, Detail: golang.FrontierWorkspaceModuleOutsideRoot},
+		{Reason: affected.UnknownLanguageFrontier, Detail: golang.FrontierWorkspaceModuleOutsideRoot, Hint: golang.WorkspaceOutsideRootRoute},
 	}
 	if !reflect.DeepEqual(plan.Unknown, want) {
 		t.Errorf("unknown = %+v, want ../outside", plan.Unknown)
@@ -124,6 +125,44 @@ func TestWorkspaceUseOutsideRootIsAFrontier_AFPV0008(t *testing.T) {
 	}
 	if plan := affected.Select(graph, []string{"app/app.go"}); plan.Scope != affected.ScopeUnknown {
 		t.Fatalf("scope = %s, want %s while a used module is outside the root", plan.Scope, affected.ScopeUnknown)
+	}
+}
+
+// AFP-V0-761 (V1-2051): the outside-root frontier entry names the supported
+// cross-repository route in its Hint, for an explicit sibling change as for a
+// root change, while its Detail, scope and selection stay as before.
+func TestWorkspaceOutsideRootFrontierNamesTheRoute_AFPV0761(t *testing.T) {
+	parent := t.TempDir()
+	root := filepath.Join(parent, "repo")
+	writeFiles(t, root, map[string]string{
+		"go.work":         "go 1.22\n\nuse (\n\t./app\n\t../sibling\n)\n",
+		"app/go.mod":      "module example.test/app\n",
+		"app/app.go":      "package app\n\nimport _ \"example.test/sibling\"\n",
+		"app/app_test.go": "package app\n",
+	})
+	writeFiles(t, parent, map[string]string{"sibling/go.mod": "module example.test/sibling\n", "sibling/s.go": "package sibling\n"})
+	graph, err := affected.Build(context.Background(), root, golang.New())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, dirty := range [][]string{{"app/app.go"}, {"go.work"}} {
+		plan := affected.Select(graph, dirty)
+		want := []affected.Unknown{{Reason: affected.UnknownLanguageFrontier, Detail: golang.FrontierWorkspaceModuleOutsideRoot, Hint: golang.WorkspaceOutsideRootRoute}}
+		var frontier []affected.Unknown
+		for _, unknown := range plan.Unknown {
+			if unknown.Reason == affected.UnknownLanguageFrontier {
+				frontier = append(frontier, unknown)
+			}
+		}
+		if !reflect.DeepEqual(frontier, want) || plan.Scope != affected.ScopeUnknown {
+			t.Fatalf("dirty %v: frontier = %+v scope %s, want %+v UNKNOWN", dirty, frontier, plan.Scope, want)
+		}
+	}
+	if !strings.Contains(golang.WorkspaceOutsideRootRoute, "corvint breakage") {
+		t.Fatalf("route does not name corvint breakage: %s", golang.WorkspaceOutsideRootRoute)
+	}
+	if route := affected.FrontierRoute(golang.New()).FrontierRoute(golang.FrontierNestedModule); route != "" {
+		t.Fatalf("nested-module frontier names a route %q, want none", route)
 	}
 }
 

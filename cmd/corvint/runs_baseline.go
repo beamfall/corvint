@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Beamfall/corvint/internal/gitancestry"
 	"github.com/Beamfall/corvint/internal/playwrightruns"
 )
 
@@ -218,6 +219,14 @@ func baselineStaleness(ctx context.Context, root, revision, base string, maxAge 
 	baseOID, ok := runsResolveCommit(ctx, root, base)
 	if !ok {
 		s.Reason = "REVISION_UNRESOLVED"
+		return s
+	}
+	// A grafted or shallow checkout rewrites every ancestry read below, so the branch point is
+	// unresolved rather than a STALE or FRESH answer from rewritten parents (EEP-V0-770).
+	if gitancestry.Rewritten(ctx, func(ctx context.Context, args ...string) ([]byte, error) {
+		return sourceGit(ctx, root, 8192, args...)
+	}) != "" {
+		s.Reason = "BRANCH_POINT_UNRESOLVED"
 		return s
 	}
 	point, err := sourceGitText(ctx, root, 8192, "merge-base", "HEAD", baseOID)

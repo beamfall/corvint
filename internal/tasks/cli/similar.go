@@ -217,7 +217,7 @@ func ticketSimilar(env Env, args []string) *wire.Result {
 	}
 	filter := statusFilter(statuses, fl["label"])
 	if d := fl["digest"]; len(d) > 0 {
-		raw, err := os.ReadFile(d[0])
+		raw, err := os.ReadFile(commandPath(env.Cwd, d[0]))
 		if err != nil {
 			return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "--digest", "cannot read digest: %v", err))
 		}

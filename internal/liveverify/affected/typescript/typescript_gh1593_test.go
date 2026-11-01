@@ -144,11 +144,11 @@ func TestFrontierSitesNameEveryReason_GH1593(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := map[string]string{
-		FrontierConfig:           "vitest.config.ts:2",
-		FrontierUnresolvedImport: "src/a.test.ts:2",
-		FrontierPathAlias:        "src/a.test.ts:3",
-		FrontierDynamicImport:    "src/a.test.ts:4",
-		FrontierUnparsedSource:   "src/b.ts:2",
+		FrontierConfig:               "vitest.config.ts:2",
+		FrontierUnresolvedImport:     "src/a.test.ts:2",
+		FrontierBareImportUndeclared: "src/a.test.ts:3",
+		FrontierDynamicImport:        "src/a.test.ts:4",
+		FrontierUnparsedSource:       "src/b.ts:2",
 	}
 	for reason, site := range want {
 		if !slices.Contains(result.Frontier, reason) || !sites.has(reason, site) {

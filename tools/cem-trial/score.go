@@ -68,7 +68,11 @@ type lane struct {
 	PromptSHA256 string `json:"prompt_sha256"`
 	PromptBytes  int    `json:"prompt_bytes"`
 	ReusedFrom   string `json:"reused_from,omitempty"`
-	Error        string `json:"error,omitempty"`
+	// ReusedRegistration is the sha256 of the registration the reused lane
+	// first ran under, so a lane reused across a scorer-only re-registration of
+	// an unchanged manifest is told apart from a resumed one (CRT-V0-016).
+	ReusedRegistration string `json:"reused_registration,omitempty"`
+	Error              string `json:"error,omitempty"`
 }
 
 type report struct {
@@ -449,6 +453,7 @@ func armSummary(document *report, meta map[string]changeMeta, byChange map[strin
 		summary["delta_ci95"] = notObserved
 		summary["verdict"] = verdicts(delta, relative, 0, 0, controlMiss, summary)
 		summary["verdict"].(map[string]any)["missed_evidence"] = notEstimable
+		summary["verdict"].(map[string]any)["kill_readings"] = []string{}
 		return summary
 	}
 	low, high := bca(deltas, document.Seed)
@@ -479,6 +484,9 @@ func contrast(document *report, meta map[string]changeMeta, byChange map[string]
 	}
 	low, high := bca(deltas, document.Seed+"\x00"+reference+"\x00"+compared)
 	result["delta_ci95"] = map[string]any{"low": round(low), "high": round(high), "resamples": bootstrapResamples, "method": "BCa"}
+	if reading, killed := seededKillReading(high); killed && reference == "treatment" && compared == "seeded" {
+		result["kill_reading"] = reading
+	}
 	return result
 }
 
@@ -762,24 +770,25 @@ func verifierRatesArm(document *report, arm string) map[string]any {
 // notEstimable is the missed-evidence reading when fewer than two pairs scored.
 const notEstimable = "not estimable: fewer than two scored pairs"
 
-// verdicts states each target in the wording CRT-V0-008 fixes: 30 pairs is an
-// estimation run, so the missed-evidence gate is met only when the point
-// estimate reaches the target and the interval excludes zero.
+// verdicts states each target in the wording of the amended CRT-V0-008
+// (accepted 2026-10-25): the missed-evidence gate is met when the interval's
+// lower bound exceeds 0 and the interval does not exclude the 20% target,
+// whatever the point estimate; kill_readings lists the amended kill reading.
 func verdicts(delta, relative, low, high, controlMiss float64, summary map[string]any) map[string]any {
 	// The bootstrap interval is in absolute deltas, so scale the relative target.
 	targetDelta := relativeGate * controlMiss
 	missed := "consistent with 0 but not with 20%"
 	switch {
-	case relative >= relativeGate && low > 0:
+	case low > 0 && high >= targetDelta:
 		missed = "met: at least 20% fewer missed-evidence findings"
 	case high < 0:
 		missed = "not met: treatment missed more evidence than control"
 	case low > 0:
 		missed = "below target but interval excludes 0"
-	case low <= 0 && high >= 0 && low <= targetDelta && high >= targetDelta:
+	case high >= targetDelta:
 		missed = "consistent with 20% and with 0"
 	}
-	result := map[string]any{"missed_evidence": missed, "delta": round(delta)}
+	result := map[string]any{"missed_evidence": missed, "delta": round(delta), "kill_readings": killReadings(high)}
 	if fraction, ok := number(summary["citable"].(map[string]any)["fraction"]); ok {
 		result["citable_material_hunks"] = verdictAtLeast(fraction, citableGate)
 	} else {
@@ -791,6 +800,29 @@ func verdicts(delta, relative, low, high, controlMiss float64, summary map[strin
 		result["incorrect_hard_failures"] = notObserved
 	}
 	return result
+}
+
+// killGainBound and killSeededBound are the amended CRT-V0-008 kill bounds.
+const (
+	killGainBound   = 0.10
+	killSeededBound = 0.05
+	killGain        = "upper bound below 0.10 absolute: rules out a 20% gain"
+	killSeeded      = "the map's evidence adds nothing beyond its worklist"
+)
+
+// killReadings is the amended CRT-V0-008 kill reading for one arm against
+// control: an upper bound below 0.10 absolute rules out a 20% gain.
+func killReadings(high float64) []string {
+	if high < killGainBound {
+		return []string{killGain}
+	}
+	return []string{}
+}
+
+// seededKillReading is the amended CRT-V0-008 kill reading of the
+// seeded_vs_treatment contrast: an upper bound at or below 0.05.
+func seededKillReading(high float64) (string, bool) {
+	return killSeeded, high <= killSeededBound
 }
 
 func verdictAtLeast(value, gate float64) string {

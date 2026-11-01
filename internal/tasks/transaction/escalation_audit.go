@@ -126,7 +126,7 @@ func (a *EscalationReceiptAudit) StepPosts(rc *snapshot.Receipt, sum wire.Digest
 		}
 		a.tickets[p.Path] = escalationTicket{post: p, refs: refs}
 	}
-	if err := a.admit(rc, sum, blob); err != nil {
+	if err := a.admit(rc, sum, blob, memo); err != nil {
 		return err
 	}
 	for _, p := range rc.Post {
@@ -151,9 +151,9 @@ func (a *EscalationReceiptAudit) StepPosts(rc *snapshot.Receipt, sum wire.Digest
 // admit retains the source a completed ADMIT receipt grants, read from its
 // POST attempt exactly as the writer's admission audit reads it, and folds
 // the latest attempt and reservation posts.
-func (a *EscalationReceiptAudit) admit(rc *snapshot.Receipt, sum wire.Digest, blob ExternalReviewBlob) error {
+func (a *EscalationReceiptAudit) admit(rc *snapshot.Receipt, sum wire.Digest, blob ExternalReviewBlob, memo *TicketPosts) error {
 	admitted := rc.Kind == "ADMIT" && rc.Outcome == mutation.OutcomeCompleted && rc.AttemptID != nil && rc.Generation != nil
-	for _, p := range rc.Post {
+	for i, p := range rc.Post {
 		if p.Path == "reservations.json" {
 			a.reservations = p
 		}
@@ -165,14 +165,14 @@ func (a *EscalationReceiptAudit) admit(rc *snapshot.Receipt, sum wire.Digest, bl
 		if p.Sha256 == nil {
 			continue
 		}
-		raw, err := externalPostBytes(p, blob)
-		if err != nil {
-			return a.fail(rc, "attempt post %s: %v", p.Path, err)
+		post := memo.attempt(rc, i, blob)
+		if post.rawErr != nil {
+			return a.fail(rc, "attempt post %s: %v", p.Path, post.rawErr)
 		}
-		at, err := snapshot.DecodeAttempt(raw)
-		if err != nil {
+		if post.decErr != nil {
 			continue
 		}
+		at := post.at
 		cur := escalationAttempt{ticketRevision: at.TicketRevision, live: at.Live(), supervised: at.Supervision != nil,
 			source: ticket.EscalationSource{TicketID: at.TicketID.Raw, AttemptID: at.AttemptID, Generation: at.Generation, TicketRecordSha256: at.TicketRecordSha256}}
 		if at.Lease != nil {

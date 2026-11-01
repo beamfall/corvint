@@ -70,7 +70,7 @@ func reconcile(ctx context.Context, repo *intent.Repository, actor mutation.Bind
 		}
 		return report, err
 	}
-	if _, err := authority.Qualify(repo.CommonDir); err != nil {
+	if _, err := authority.QualifyReused(repo.CommonDir); err != nil {
 		return report, err
 	}
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})
@@ -200,7 +200,7 @@ func reconcileRelease(ctx context.Context, repo *intent.Repository, actor mutati
 	if err == nil && resolved.Queue.Fixture && (resolved.Queue.ImportMapSha256 != nil || resolved.Queue.ExecutionCutover != nil) {
 		return report, wire.Errorf(wire.CodeUnsupported, "queue", "unsupported release queue state")
 	}
-	if _, err = authority.Qualify(repo.CommonDir); err != nil {
+	if _, err = authority.QualifyReused(repo.CommonDir); err != nil {
 		return report, err
 	}
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})

@@ -28,7 +28,11 @@ type fake struct {
 	unobserved []string
 	// runnable is the Result.Runnable the fake reports (AFP-V0-650).
 	runnable []string
+	// crossLanguage is the fake's CrossLanguageFrontiers (AFP-V0-818).
+	crossLanguage []string
 }
+
+func (language fake) CrossLanguageFrontiers() []string { return language.crossLanguage }
 
 func (language fake) Name() string { return language.name }
 

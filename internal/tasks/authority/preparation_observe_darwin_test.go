@@ -12,6 +12,10 @@ import (
 // Darwin's lock query sees every process; nothing to assume.
 func assumeCompleteLockTable(*testing.T) {}
 
+// Darwin's lock query reads the owner from the file itself, so no device
+// mapping can disagree.
+func requireObservableFlocks(*testing.T) {}
+
 // recordLockKinds are the non-flock locks a foreign process can hold here.
 var recordLockKinds = []string{"posix"}
 

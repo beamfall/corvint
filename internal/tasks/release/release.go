@@ -3,6 +3,7 @@
 package release
 
 import (
+	"slices"
 	"sort"
 
 	"github.com/Beamfall/corvint/internal/tasks/ticket"
@@ -53,6 +54,9 @@ type Attestation struct {
 	Criteria        []wire.Count
 	Evidence        []wire.Digest
 	SourceIdentity  string
+	// Argv is the command vector that produced the attestation, nil when
+	// absent (TRM-V0-803).
+	Argv []string
 }
 
 type Promotion struct {
@@ -154,7 +158,12 @@ func decodePredecessor(r *wire.Reader) PredecessorBinding {
 
 func decodeAttestation(r *wire.Reader) Attestation {
 	r.Profile(AttestationProfile)
-	r.Closed("profile", "attestationId", "candidateSha256", "gateId", "provenance", "actor", "recordedAt", "result", "criteria", "evidence", "sourceIdentity")
+	keys := []string{"profile", "attestationId", "candidateSha256", "gateId", "provenance", "actor", "recordedAt", "result", "criteria", "evidence", "sourceIdentity"}
+	withArgv := wire.Has(r.Value(), "argv")
+	if withArgv {
+		keys = append(keys, "argv")
+	}
+	r.Closed(keys...)
 	if r.Field("profile").String() != AttestationProfile {
 		r.Fail(wire.CodeMalformed, "invalid attestation profile")
 	}
@@ -164,6 +173,12 @@ func decodeAttestation(r *wire.Reader) Attestation {
 	}
 	for _, q := range r.Field("evidence").Array(wire.MaxJSONArrayElements, false) {
 		a.Evidence = append(a.Evidence, q.Digest())
+	}
+	if withArgv {
+		f := r.Field("argv")
+		if a.Argv = f.Strings(wire.MaxGateArgv, true, (*wire.Reader).Identifier); f.Err() == nil && len(a.Argv) == 0 {
+			f.Fail(wire.CodeMalformed, "attestation argv must name at least one element; omit it when no command produced the attestation (TRM-V0-803)")
+		}
 	}
 	return a
 }
@@ -405,7 +420,11 @@ func attestationValue(a Attestation) wire.Value {
 	for i, e := range a.Evidence {
 		es[i] = string(e)
 	}
-	return wire.ObjectValue(wire.NewObject().Set("profile", wire.String(AttestationProfile)).Set("attestationId", wire.String(a.AttestationID)).Set("candidateSha256", wire.String(string(a.CandidateSha256))).Set("gateId", wire.String(a.GateID)).Set("provenance", wire.String(a.Provenance)).Set("actor", wire.String(a.Actor)).Set("recordedAt", wire.String(string(a.RecordedAt))).Set("result", wire.String(a.Result)).Set("criteria", wire.Strings(cs)).Set("evidence", wire.Strings(es)).Set("sourceIdentity", wire.String(a.SourceIdentity)))
+	o := wire.NewObject().Set("profile", wire.String(AttestationProfile)).Set("attestationId", wire.String(a.AttestationID)).Set("candidateSha256", wire.String(string(a.CandidateSha256))).Set("gateId", wire.String(a.GateID)).Set("provenance", wire.String(a.Provenance)).Set("actor", wire.String(a.Actor)).Set("recordedAt", wire.String(string(a.RecordedAt))).Set("result", wire.String(a.Result)).Set("criteria", wire.Strings(cs)).Set("evidence", wire.Strings(es)).Set("sourceIdentity", wire.String(a.SourceIdentity))
+	if a.Argv != nil {
+		o.Set("argv", wire.Strings(a.Argv))
+	}
+	return wire.ObjectValue(o)
 }
 func promotionValue(p *Promotion) wire.Value {
 	ds := make([]string, len(p.AttestationSha256s))
@@ -445,6 +464,8 @@ type Readiness struct {
 type Gate struct {
 	GateID, Kind string
 	Required     bool
+	// Argv is the policy argv of a COMMAND gate (TRM-V0-803).
+	Argv []string
 }
 
 func Assess(r *Record, gates []Gate, o Observation) Readiness {
@@ -474,10 +495,10 @@ func Assess(r *Record, gates []Gate, o Observation) Readiness {
 			missing = append(missing, "predecessor:"+b.ReleaseID)
 		}
 	}
-	defined := map[string]string{}
+	defined := map[string]Gate{}
 	required := map[string]string{}
 	for _, g := range gates {
-		defined[g.GateID] = g.Kind
+		defined[g.GateID] = g
 		if g.Required {
 			required[g.GateID] = g.Kind
 		}
@@ -494,13 +515,17 @@ func Assess(r *Record, gates []Gate, o Observation) Readiness {
 	}
 	covered := make([]bool, len(r.AcceptanceCriteria))
 	satisfied := map[string]bool{}
+	argvDiffers := map[string]bool{}
 	for _, a := range r.Attestations {
 		if a.CandidateSha256 != cd || a.Result != "PASS" {
 			continue
 		}
-		kind, known := defined[a.GateID]
+		g, known := defined[a.GateID]
 		_, requiredGate := required[a.GateID]
-		compatible := a.Provenance == Manual && kind == "MANUAL" || a.Provenance == External && externalKind(kind)
+		compatible := provenanceFits(a, g.Kind)
+		if compatible && !argvFits(a, g) {
+			compatible, argvDiffers[a.GateID] = false, true
+		}
 		if requiredGate && compatible {
 			satisfied[a.GateID] = true
 		}
@@ -516,6 +541,9 @@ func Assess(r *Record, gates []Gate, o Observation) Readiness {
 	for id := range required {
 		if !satisfied[id] {
 			missing = append(missing, "gate:"+id)
+			if argvDiffers[id] {
+				missing = append(missing, "gate-argv:"+id)
+			}
 		}
 	}
 	for i, ok := range covered {
@@ -544,8 +572,42 @@ func passingAttestation(a Attestation, candidate wire.Digest, gates []Gate) bool
 	}
 	for _, g := range gates {
 		if g.GateID == a.GateID {
-			return a.Provenance == Manual && g.Kind == "MANUAL" || a.Provenance == External && externalKind(g.Kind)
+			return provenanceFits(a, g.Kind) && argvFits(a, g)
 		}
 	}
 	return false
+}
+
+func provenanceFits(a Attestation, kind string) bool {
+	return a.Provenance == Manual && kind == "MANUAL" || a.Provenance == External && externalKind(kind)
+}
+
+// argvFits reports whether a counts for g under TRM-V0-804: an attestation of
+// a COMMAND gate counts only with the gate's current policy argv.
+func argvFits(a Attestation, g Gate) bool {
+	return g.Kind != "COMMAND" || a.Argv != nil && slices.Equal(a.Argv, g.Argv)
+}
+
+// AttestationArgvRefusal is the TRM-V0-803 write-time check of attestation
+// a, whose provenance is already bound, against the policy gates; "" admits
+// it.
+func AttestationArgvRefusal(a Attestation, gates []Gate) string {
+	for _, g := range gates {
+		if g.GateID != a.GateID {
+			continue
+		}
+		switch {
+		case g.Kind == "COMMAND" && a.Provenance == External && a.Argv == nil:
+			return "attestation of COMMAND gate " + g.GateID + " must carry argv equal to the policy gate argv (TRM-V0-803)"
+		case g.Kind == "COMMAND" && a.Argv != nil && !slices.Equal(a.Argv, g.Argv):
+			return "attestation argv differs from the policy argv of COMMAND gate " + g.GateID + " (TRM-V0-803)"
+		case g.Kind != "COMMAND" && a.Argv != nil:
+			return "attestation argv belongs only to a policy COMMAND gate; " + g.GateID + " is " + g.Kind + " (TRM-V0-803)"
+		}
+		return ""
+	}
+	if a.Argv != nil {
+		return "attestation argv belongs only to a policy COMMAND gate; " + a.GateID + " is not a policy gate (TRM-V0-803)"
+	}
+	return ""
 }

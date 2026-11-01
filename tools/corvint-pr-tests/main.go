@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/Beamfall/corvint/.github/cishards"
+	"github.com/Beamfall/corvint/.github/testconfine"
 )
 
 const schema = "corvint-pr-tests/0"
@@ -39,6 +40,8 @@ type options struct {
 	profile, evidence, dockerContext, trusted, containerMode                                                         string
 	mode, root, base, head, target, planner, selector, source, out, qualification, qualificationSHA, corpus, runtime string
 	prior                                                                                                            string
+	// confine is the trusted AFP-V0-023 test-confine wrapper (AFP-V0-766); empty runs unconfined.
+	confine string
 	// seedCache is nil outside this package's tests. A test sets it to fill
 	// the build cache that resetPrivateRuntime has just emptied, so fixture
 	// executions do not each recompile the race standard library (V1-2740).
@@ -53,6 +56,11 @@ type identity struct {
 	Source, Planner, Selector, Driver, GoBinary, GoVersion, OS, Arch, OSRelease, Compiler string
 	Git                                                                                   string
 	Args, Env                                                                             []string
+	// Confine is the SHA256 of the AFP-V0-023 wrapper every go test of this identity runs
+	// under, and ConfinedEnv the environment it gives a confined test binary (AFP-V0-766).
+	// Both are absent for an unconfined identity, which therefore keeps its earlier bytes.
+	Confine     string   `json:",omitempty"`
+	ConfinedEnv []string `json:",omitempty"`
 }
 type selection struct {
 	EventBase                                                              string `json:",omitempty"`
@@ -122,6 +130,7 @@ func main() {
 	flag.IntVar(&o.shard, "shard", 0, "zero-based PR shard index")
 	flag.IntVar(&o.shards, "shards", 1, "complete-universe PR partition count (1..64)")
 	flag.StringVar(&o.partitionDigest, "partition-digest", "", "required matching protected fallback profile for sharded PR execution")
+	flag.StringVar(&o.confine, "confine", "", "absolute path of the trusted test-confine wrapper built from .github/testconfine outside the tested checkout; run, freeze and shadow execute go test with -exec under it (AFP-V0-766), and freeze/shadow refuse a corpus target carrying .corvint/test-read-scopes.json without it")
 	flag.Parse()
 	flag.Visit(func(f *flag.Flag) {
 		if f.Name == "rows" {
@@ -152,6 +161,9 @@ func dispatch(ctx context.Context, o options) (code int, err error) {
 	if o.mode == "container" {
 		if o.shards != 1 || o.partitionDigest != "" {
 			return 2, errors.New("sharded container profile is not qualified")
+		}
+		if o.confine != "" {
+			return 2, errors.New("the container profile is not qualified for --confine")
 		}
 		return launchContainer(ctx, o)
 	}
@@ -300,6 +312,29 @@ func closedEnv(o options) []string {
 	r := runtimePath(o)
 	return []string{"PATH=" + filepath.Dir(goPath) + ":/usr/bin:/bin", "HOME=" + filepath.Join(r, "home"), "TMPDIR=" + filepath.Join(r, "tmp"), "TMP=" + filepath.Join(r, "tmp"), "TEMP=" + filepath.Join(r, "tmp"), "LANG=C", "LC_ALL=C", "TZ=UTC", "CC=/usr/bin/cc", "GOENV=off", "GOTOOLCHAIN=local", "GOPROXY=off", "GOWORK=off", "GOFLAGS=", "GOSUMDB=off", "CGO_ENABLED=1", "GOCACHE=" + filepath.Join(r, "cache"), "GOMODCACHE=" + filepath.Join(r, "modules"), "GIT_NO_REPLACE_OBJECTS=1", "GIT_GRAFT_FILE=" + os.DevNull, "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=" + os.DevNull, "GIT_CONFIG_COUNT=0", "GIT_TERMINAL_PROMPT=0", "GOMAXPROCS=2"}
 }
+
+// goTestArgs is the frozen go test argv prefix: under a wrapper (AFP-V0-766) it
+// gains `-exec WRAPPER` in the position the full CI branch uses.
+func goTestArgs(o options) []string {
+	if o.confine == "" {
+		return append([]string{}, testArgs...)
+	}
+	return append([]string{testArgs[0], "-exec", o.confine}, testArgs[1:]...)
+}
+
+// runEnv is the environment of each go test invocation: the identity's testEnv
+// plus, under a wrapper, the one root the wrapper confines against. The root is
+// kept out of the identity because a shadow campaign freezes it in the source
+// repository and executes it in the owned clone (AFP-V0-766, AFP-V0-769).
+func runEnv(o options) []string {
+	env := testEnv(o)
+	if o.confine != "" {
+		env = append(env, confineRootVariable+o.root)
+	}
+	return env
+}
+
+const confineRootVariable = "CORVINT_CONFINE_ROOT="
 
 // testEnv is the closed environment of the go test process. It keeps the
 // driver's GIT_GRAFT_FILE=/dev/null, so tests also run with grafts refused,
@@ -494,7 +529,10 @@ func readJSON(path string, v any) error {
 	return json.Unmarshal(b, v)
 }
 func toolIdentity(ctx context.Context, o options) (identity, error) {
-	id := identity{CachePolicy: "empty-immediately-before-test/1", Source: o.source, OS: runtime.GOOS, Arch: runtime.GOARCH, Args: append([]string{}, testArgs...), Env: testEnv(o), Limits: []int64{maxStdout, maxStderr}}
+	id := identity{CachePolicy: "empty-immediately-before-test/1", Source: o.source, OS: runtime.GOOS, Arch: runtime.GOARCH, Args: goTestArgs(o), Env: testEnv(o), Limits: []int64{maxStdout, maxStderr}}
+	if o.confine != "" {
+		id.ConfinedEnv = testconfine.ConfinedEnv(testEnv(o))
+	}
 	id.PartitionDigest = cishards.ProfileDigest()
 	id.Shards = o.shards
 	if id.Shards == 0 {
@@ -512,6 +550,9 @@ func toolIdentity(ctx context.Context, o options) (identity, error) {
 			return id, err
 		}
 		id.Container = &p
+		if o.confine != "" {
+			return id, errors.New("the container profile is not qualified for --confine")
+		}
 	}
 	goPath, err := executable("go", closedEnv(o))
 	if err != nil {
@@ -587,6 +628,9 @@ func toolIdentity(ctx context.Context, o options) (identity, error) {
 	paths = append(paths, self)
 	paths = append(paths, goPath)
 	hashes := []*string{&id.Planner, &id.Selector, &id.Driver, &id.GoBinary}
+	if o.confine != "" {
+		paths, hashes = append(paths, o.confine), append(hashes, &id.Confine)
+	}
 	for i, p := range paths {
 		if !filepath.IsAbs(p) {
 			return id, errors.New("tool paths must be absolute")
@@ -791,6 +835,9 @@ func runPR(ctx context.Context, o options) (int, error) {
 	s := selection{Schema: schema, Base: o.base, Head: o.head, Target: o.target, Identity: id, Packages: []string{"./..."}}
 	if err != nil {
 		s.Reason = "tool profile unavailable: " + err.Error()
+	} else if reason := unconfinedDeclaration(ctx, o, id); reason != "" {
+		// AFP-V0-768: a declaration narrows only under the wrapper that enforces it.
+		s.Reason = reason
 	} else {
 		s = plan(ctx, o, id, true)
 	}
@@ -842,6 +889,18 @@ func execute(ctx context.Context, o options, s selection) (int, error) {
 	}
 	if s.Identity.GoBinary != "" && (current.GoBinary != s.Identity.GoBinary || current.Compiler != s.Identity.Compiler || current.Git != s.Identity.Git || !equal(current.Env, s.Identity.Env)) {
 		return 2, errors.New("Go/compiler/Git/environment drift before execution")
+	}
+	// AFP-V0-766/769: a requested wrapper is never dropped, swapped or run outside a real clone.
+	if o.confine != "" && current.Confine == "" {
+		return 2, fmt.Errorf("confinement wrapper identity unavailable: %v", identityErr)
+	}
+	if s.Identity.GoBinary != "" && (current.Confine != s.Identity.Confine || !equal(current.Args, s.Identity.Args) || !equal(current.ConfinedEnv, s.Identity.ConfinedEnv)) {
+		return 2, errors.New("confinement wrapper/argv drift before execution")
+	}
+	if o.confine != "" {
+		if _, err := os.Lstat(filepath.Join(o.root, ".git")); err != nil {
+			return 2, fmt.Errorf("confined execution requires a real clone with .git: %w", err)
+		}
 	}
 	if s.Reason == "" && (identityErr != nil || !equal(current, s.Identity)) {
 		s.Reason = "planner/selector/driver drift before execution"
@@ -921,7 +980,7 @@ func execute(ctx context.Context, o options, s selection) (int, error) {
 	for _, slice := range slices {
 		fmt.Fprintf(os.Stderr, "corvint-pr-tests: shard-slice %s %d/%d %s %s\n", slice.Package, slice.Index+1, slice.Count, slice.Flag, slice.Pattern)
 	}
-	args := append(append([]string{}, testArgs...), executed...)
+	args := append(goTestArgs(o), executed...)
 	out, err := os.Create(filepath.Join(o.out, "go.json"))
 	if err != nil {
 		return 2, err
@@ -945,14 +1004,14 @@ func execute(ctx context.Context, o options, s selection) (int, error) {
 		// and any failed invocation fails the shard.
 		runCtx, cancelRun := context.WithTimeout(ctx, 70*time.Minute)
 		if len(executed) > 0 {
-			code, runErr = command(runCtx, o.root, testEnv(o), boundedOut, boundedErr, 70*time.Minute, "go", args...)
+			code, runErr = command(runCtx, o.root, runEnv(o), boundedOut, boundedErr, 70*time.Minute, "go", args...)
 		}
 		for _, slice := range slices {
 			if runErr != nil {
 				break
 			}
-			run := sliceRun{Package: slice.Package, Index: slice.Index, Count: slice.Count, Args: append(append([]string{}, testArgs...), slice.Flag, slice.Pattern, slice.Package)}
-			run.Exit, runErr = command(runCtx, o.root, testEnv(o), boundedOut, boundedErr, 70*time.Minute, "go", run.Args...)
+			run := sliceRun{Package: slice.Package, Index: slice.Index, Count: slice.Count, Args: append(goTestArgs(o), slice.Flag, slice.Pattern, slice.Package)}
+			run.Exit, runErr = command(runCtx, o.root, runEnv(o), boundedOut, boundedErr, 70*time.Minute, "go", run.Args...)
 			runs = append(runs, run)
 			if run.Exit > code {
 				code = run.Exit
@@ -966,7 +1025,7 @@ func execute(ctx context.Context, o options, s selection) (int, error) {
 	if ctx.Err() != nil && runErr == nil {
 		code, runErr = 130, ctx.Err()
 	}
-	e := execution{Env: testEnv(o), Selection: s, Args: args, Exit: code, ElapsedSeconds: time.Since(start).Seconds(), SkippedEmptyShard: len(executed) == 0 && len(slices) == 0, Slices: runs}
+	e := execution{Env: runEnv(o), Selection: s, Args: args, Exit: code, ElapsedSeconds: time.Since(start).Seconds(), SkippedEmptyShard: len(executed) == 0 && len(slices) == 0, Slices: runs}
 	if runErr != nil {
 		e.Error = runErr.Error()
 	}

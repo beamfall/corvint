@@ -199,6 +199,7 @@ type cachedUnit struct {
 	Frontier             []string `json:"frontier"`
 	FrontierBears        string   `json:"frontierBears"`
 	Callers              []string `json:"callers"`
+	ExecConsumers        []string `json:"execConsumers"`
 }
 
 type cachedStamp struct {
@@ -216,8 +217,10 @@ type cacheEntry struct {
 	Documentation []string         `json:"documentation"`
 	// RuntimeReaders is the AFP-V0-602 declaration the graph was built with.
 	RuntimeReaders []RuntimeReader `json:"runtimeReaders,omitempty"`
-	Digest         string          `json:"digest"`
-	Stamps         []cachedStamp   `json:"stamps"`
+	// RuntimeEdges is the AFP-V0-819 declaration the graph was built with.
+	RuntimeEdges []RuntimeEdge `json:"runtimeEdges,omitempty"`
+	Digest       string        `json:"digest"`
+	Stamps       []cachedStamp `json:"stamps"`
 }
 
 // GraphCacheEntryPath names the one entry for root and language set inside
@@ -266,7 +269,7 @@ func BuildCachedExcluding(ctx context.Context, root, dir string, excluded []stri
 	started := time.Now()
 	reader := DiskSourceContext(ctx, root)
 	reader.record = newRecording()
-	graph, results, err := buildDisk(ctx, reader, languages)
+	graph, results, err := buildDisk(ctx, reader, languages, false)
 	if err != nil {
 		return nil, outcome, err
 	}
@@ -291,7 +294,7 @@ func newCacheEntry(root, identity string, names []string, graph *Graph, results 
 	if record.uncacheable != "" {
 		return cacheEntry{}, record.uncacheable
 	}
-	entry := cacheEntry{Profile: GraphCacheProfile, Root: root, Identity: identity, Documentation: graph.documentation, RuntimeReaders: graph.runtimeReaders, Digest: graph.digest}
+	entry := cacheEntry{Profile: GraphCacheProfile, Root: root, Identity: identity, Documentation: graph.documentation, RuntimeReaders: graph.runtimeReaders, RuntimeEdges: graph.runtimeEdges, Digest: graph.digest}
 	for index, result := range results {
 		units := make([]cachedUnit, 0, len(result.Units))
 		for _, unit := range result.Units {
@@ -447,7 +450,7 @@ func completeStamps(entry cacheEntry) string {
 	if stamp, ok := stamps[observedPath{relative: "."}]; !ok || !stamp.Present || !fs.FileMode(stamp.Mode).IsDir() {
 		return incomplete
 	}
-	for _, declaration := range []string{DocumentationPathsPath, RuntimeReadersPath} {
+	for _, declaration := range []string{DocumentationPathsPath, RuntimeReadersPath, RuntimeEdgesPath, UnboundedReaderExclusionsPath} {
 		if _, ok := stamps[observedPath{relative: declaration}]; !ok {
 			return incomplete
 		}
@@ -512,7 +515,7 @@ const verifyWorkers = 8
 func restoreGraph(ctx context.Context, entry cacheEntry, languages []Language) (*Graph, error) {
 	index := 0
 	return build(ctx, languages, func() (declarations, error) {
-		return declarations{documentation: entry.Documentation, runtimeReaders: entry.RuntimeReaders}, nil
+		return declarations{documentation: entry.Documentation, runtimeReaders: entry.RuntimeReaders, runtimeEdges: entry.RuntimeEdges}, nil
 	}, func(language Language) (Result, error) {
 		cached := entry.Languages[index]
 		index++

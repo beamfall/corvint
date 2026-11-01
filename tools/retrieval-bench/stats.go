@@ -412,6 +412,7 @@ func resummarize(configuration options) (map[string]any, error) {
 	}
 	reports := make([]sampleReport, 0, len(order))
 	for _, id := range order {
+		rederiveContextBench(*merged[id], first.Limit)
 		reports = append(reports, *merged[id])
 	}
 	registered := registration(first.SamplesSHA256, identity, armSet(presentArms(reports)))

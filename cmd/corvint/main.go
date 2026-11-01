@@ -1293,6 +1293,11 @@ func runContext(ctx context.Context, arguments []string, stdin io.Reader, stdout
 			if options.impactWorktree {
 				return worktreeimpact.Compile(ctx, index, options.impactRawPaths, options.impactLimit)
 			}
+			if options.impactBaseSet {
+				if err := impactRangeAncestryRefusal(ctx, index.Root); err != nil {
+					return nil, err
+				}
+			}
 			if options.impactBaseSet && options.impactProfile == "expanded-256" {
 				return contextindex.ExpandedPerPathRangeImpact(ctx, index, options.impactBase, options.impactLimit)
 			}

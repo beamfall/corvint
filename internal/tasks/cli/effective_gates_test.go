@@ -44,7 +44,7 @@ func TestV12038_CompleteRefusesTheGateShowAndBlockersReport(t *testing.T) {
 	t.Setenv("CORVINT_TASKS_ACTOR", "tester")
 	t.Setenv("ATM_ACTOR", "tester")
 	root, tree := ergStore(t)
-	gate := commandGate("verify", "/bin/true")
+	gate := commandGate("verify", "/bin/sh", "-c", "exit 0") // portable: macOS has no /bin/true
 	gate.Obj.Set("required", wire.Bool(true))
 	ergPolicyUpdateRoles(t, root, "3", []string{"implement"}, []string{"review"}, []string{"OPERATOR", "OWNER"}, false, gate)
 	runOK := func(args ...string) run {

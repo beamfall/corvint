@@ -132,7 +132,7 @@ func mutateChunk(ctx context.Context, repo *intent.Repository, envs []*mutation.
 		report, err := guardFailure(&Report{}, envs[start].RequestID, err)
 		return fail(start, report, err)
 	}
-	if _, err := authority.Qualify(repo.CommonDir); err != nil {
+	if _, err := authority.QualifyReused(repo.CommonDir); err != nil {
 		return opened(err)
 	}
 	// Each entry's change watch closes after the lock is released, as in Mutate.

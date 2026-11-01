@@ -13,18 +13,11 @@ import (
 	"time"
 )
 
-// liveEpoch is the forward-evidence epoch the CI workflows name today (AFP-V0-030).
+// liveEpoch is the forward-evidence epoch the CI workflows name today (AFP-V0-030), read from
+// ci.yml, the single source (CIN-V0-960).
 func liveEpoch(t *testing.T) string {
 	t.Helper()
-	b, err := os.ReadFile("../../.github/workflows/ci-forward-bar.yml")
-	if err != nil {
-		t.Fatal(err)
-	}
-	m := regexp.MustCompile(`(?m)^      FORWARD_EPOCH: "([0-9]+)"$`).FindStringSubmatch(string(b))
-	if m == nil {
-		t.Fatal("ci-forward-bar.yml names no FORWARD_EPOCH")
-	}
-	return m[1]
+	return forwardEpoch(t)
 }
 
 // barJSON runs bar.jq for EPOCH over NAMES, newest first, with the reviewed AFP-V0-463 list.
@@ -207,12 +200,9 @@ func TestCINV0003VerdictListsBackToTheEpochSince(t *testing.T) {
 	if _, _, _, err = verdict(t, "2026-10-30", "400", false); err == nil || !strings.Contains(err.Error(), "is not a UTC time") {
 		t.Fatalf("malformed FORWARD_EPOCH_SINCE: %v", err)
 	}
-	// The live value names a time no later than today's epoch advance (V1-3314).
-	b, err := os.ReadFile("../../.github/workflows/ci-forward-bar.yml")
-	if err != nil {
+	// The live FORWARD_EPOCH_SINCE belongs to the live epoch (V1-3314, CIN-V0-960): both are read
+	// from the workflows, so a synchronized advance passes without editing this test.
+	if err := forwardEpochSinceProblem(liveEpoch(t), liveEpochSince(t)); err != nil {
 		t.Fatal(err)
-	}
-	if !strings.Contains(string(b), "      FORWARD_EPOCH_SINCE: \"2026-10-30T00:00:00Z\"\n") || liveEpoch(t) != "2" {
-		t.Fatal("ci-forward-bar.yml must name FORWARD_EPOCH_SINCE 2026-10-30T00:00:00Z for epoch 2; move both together")
 	}
 }

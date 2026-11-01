@@ -133,9 +133,7 @@ type lineInterval struct{ start, end int }
 // the snapshot, because a packet names files, not line spans.
 func contextBenchMetrics(result metrics, answer arm, item sample, root string, limit int) {
 	ranked := answer.Ranked[:min(limit, len(answer.Ranked))]
-	gold := goldFiles(item)
-	hits := len(intersection(ranked, gold))
-	result["cb_file_coverage"], result["cb_file_precision"] = coveragePrecision(len(ranked), len(gold), hits)
+	contextBenchFileMetrics(result, ranked, goldFiles(item))
 	goldLines := goldLineIntervals(item)
 	predicted := map[string][]lineInterval{}
 	for _, path := range ranked {
@@ -144,6 +142,67 @@ func contextBenchMetrics(result metrics, answer arm, item sample, root string, l
 		}
 	}
 	result["cb_line_coverage"], result["cb_line_precision"] = coveragePrecision(totalLines(predicted), totalLines(goldLines), sharedLines(predicted, goldLines))
+}
+
+// contextBenchFileMetrics sets the file granularity from the cut ranking and
+// the gold files alone, so --summarize can rederive it from a stored report
+// (CEP-V0-002, CEP-V0-960).
+func contextBenchFileMetrics(result metrics, ranked, gold []string) {
+	hits := len(intersection(ranked, gold))
+	result["cb_file_coverage"], result["cb_file_precision"] = coveragePrecision(len(ranked), len(gold), hits)
+	// CEP-V0-960: separate abstention from ranking quality.
+	delete(result, "cb_file_precision_answered")
+	if len(ranked) == 0 {
+		result["cb_file_abstained"], result["cb_file_precision_abst0"] = 1, 0
+	} else {
+		result["cb_file_abstained"], result["cb_file_precision_abst0"] = 0, result["cb_file_precision"]
+		result["cb_file_precision_answered"] = result["cb_file_precision"]
+	}
+}
+
+// rederiveContextBench recomputes, after --summarize merged arms by sample id,
+// every file metric of a ContextBench sample from the final rankings and the
+// stored gold, so an arm replaced by a later report never keeps a cross-arm
+// metric computed against the arm it replaced (CEP-V0-960).
+func rederiveContextBench(report sampleReport, limit int) {
+	if report.TaskType != contextBenchTask {
+		return
+	}
+	for name, answer := range report.Arms {
+		result := report.Metrics[name]
+		if result == nil || answer.Error != "" {
+			continue
+		}
+		delete(result, "cb_file_baseline_precision_length_matched")
+		contextBenchFileMetrics(result, answer.Ranked[:min(limit, len(answer.Ranked))], report.Gold)
+	}
+	contextBenchLengthMatched(report, report.Gold, limit)
+}
+
+// lengthMatchedBaseline is the arm whose ranking is cut to each other arm's
+// prediction length (CEP-V0-960).
+const lengthMatchedBaseline = "bm25:ident"
+
+// contextBenchLengthMatched adds, to every arm that answered L > 0 files on a
+// ContextBench sample, the baseline's file precision over its ranking cut at L,
+// when the baseline also answered without error (CEP-V0-960).
+func contextBenchLengthMatched(report sampleReport, gold []string, limit int) {
+	baseline, ran := report.Arms[lengthMatchedBaseline]
+	if !ran || baseline.Error != "" {
+		return
+	}
+	for name, answer := range report.Arms {
+		length := min(limit, len(answer.Ranked))
+		if name == lengthMatchedBaseline || answer.Error != "" || length == 0 || report.Metrics[name] == nil {
+			continue
+		}
+		cut := baseline.Ranked[:min(length, len(baseline.Ranked))]
+		_, precision := coveragePrecision(len(cut), len(gold), len(intersection(cut, gold)))
+		if len(cut) == 0 {
+			precision = 0
+		}
+		report.Metrics[name]["cb_file_baseline_precision_length_matched"] = precision
+	}
 }
 
 func coveragePrecision(predicted, gold, shared int) (float64, float64) {

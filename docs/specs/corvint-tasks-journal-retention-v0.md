@@ -110,7 +110,7 @@ with decode reuse.
 ## Non-goals
 
 - No automatic, scheduled or threshold-triggered retire; JOURNAL_GROWTH is advisory.
-- No repeated retire on a sealed store, no export, compaction or import of a sealed store, and no CLI `archive restore` (TCP-02's). Unretire first.
+- No repeated retire on a sealed store, no export, compaction or import of a sealed store, and no `archive restore` over a store (`TRL-V0-870` restores only into an absent state dir). Unretire first.
 - No change to the receipt chain, the CAL-V0-116 fast route on unsealed stores, the elided receipt format or any retained receipt.
 - No retention of `evidence/`, `pinned/` or `requests/` blobs: they stay in the live store.
 - No new ticket identity: the anchor keeps every ticket's journal identity (option (b), a fresh genesis, was rejected; see the build log).

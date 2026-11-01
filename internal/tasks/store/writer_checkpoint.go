@@ -456,11 +456,10 @@ func observedEntry(p string, phys map[string]journal.PhysicalFile) (archive.File
 // is due on an unsegmented store: the head this write produced is exactly
 // WriterRefreshInterval receipts past the complete audit the checkpoint
 // descends from, or a further multiple of writerRefreshRetry (PSR-V0-169).
-func advanceWriterCheckpoint(repo *intent.Repository, w *writerObservation) (refresh bool) {
+func advanceWriterCheckpoint(ctx context.Context, repo *intent.Repository, w *writerObservation) (refresh bool) {
 	if w.tail() >= journal.WriterAdvanceTail {
-		if next, err := w.proof.WriterCheckpoint(w.phys); err == nil {
-			retainWriterCheckpoint(repo, next, w.token)
-		}
+		proof, phys := w.proof, w.phys
+		keepWriterCheckpoint(ctx, repo, func() (*journal.WriterCheckpoint, error) { return proof.WriterCheckpoint(phys) }, w.token)
 	}
 	if w.proof.Head.Segments != nil {
 		// On a segmented store each seal re-runs the complete validators
@@ -505,18 +504,35 @@ func refreshWriterCheckpoint(ctx context.Context, repo *intent.Repository) {
 	if err != nil {
 		return
 	}
-	proof, obs, err := journalReader(repo, head).AuditWriterRefresh()
-	if obs.Cleanup != nil || wire.CodeOf(err) == wire.CodeSnapshotMoved {
-		return
-	}
-	var next *journal.WriterCheckpoint
-	if err == nil && proof != nil && proof.IntentError != nil {
-		return
-	}
-	if err == nil {
-		next, err = proof.WriterCheckpoint(obs.Files)
+	proof, obs, next, ok := incrementalRefresh(repo, head)
+	if ok {
+		mutationStage(ctx, "refresh.incremental")
+	} else {
+		proof, obs, err = journalReader(repo, head).AuditWriterRefresh()
+		if obs.Cleanup != nil || wire.CodeOf(err) == wire.CodeSnapshotMoved {
+			return
+		}
+		if err == nil && proof != nil && proof.IntentError != nil {
+			return
+		}
+		if err == nil {
+			next, err = proof.WriterCheckpoint(obs.Files)
+		}
 	}
 	mutationStage(ctx, "refresh.audited")
+	// The derived checkpoints grow with the store, so they are encoded and
+	// staged before the lock; under it the refresh only renames them into
+	// place (V1-2358, JSG-V0-891, as JSG-V0-015 does for a lease commit).
+	var stagedRead *stagedFile
+	var stagedWriter *stagedWriterCheckpoint
+	if err == nil {
+		stagedWriter = stageWriterCheckpoint(repo, next, token)
+		if proof.Mode == journal.ModeFull {
+			stagedRead = stageReadCheckpoint(repo, proof)
+		}
+	}
+	defer stagedRead.discard()
+	defer stagedWriter.discard()
 	lock, lockErr := authority.AcquireLock(ctx, repo, authority.LockOptions{})
 	if lockErr != nil {
 		return
@@ -540,13 +556,56 @@ func refreshWriterCheckpoint(ctx context.Context, repo *intent.Repository) {
 	if current, _ := boundWriterCheckpoint(repo); current != nil && current.FullSeq > next.FullSeq {
 		return
 	}
-	retainWriterCheckpoint(repo, next, token)
+	retainStagedWriterCheckpoint(repo, next, token, stagedWriter)
 	if proof.Mode != journal.ModeFull {
 		return
 	}
 	if raw, err := intent.ReadFile(filepath.Join(repo.StateDir, "head.json"), wire.MaxJournalHeadBytes); err == nil && wire.Sum(raw) == proof.Identity.HeadSha256 {
-		retainCheckpoint(repo, proof)
+		// A read checkpoint that could not be staged or renamed is not
+		// retained under the lock (JSG-V0-891).
+		stagedRead.publish()
 	}
+}
+
+// completeRefreshes holds the state directories a test set to refresh only by
+// the complete audit (PSR-V0-891's switch, per store so parallel tests keep
+// it apart). It is empty in production.
+var completeRefreshes sync.Map // state directory -> struct{}
+
+// incrementalRefresh is the scheduled refresh's incremental audit
+// (PSR-V0-891, extending CAL-V0-265): on an unsegmented store with a bound
+// writer checkpoint, unless the head has crossed a WriterFullBound multiple
+// since the checkpoint's FullSeq, it resumes the complete audit's per-receipt
+// validators from that checkpoint, walks only its tail and derives the
+// checkpoint a complete refresh at that head retains. It reports false, and
+// the caller runs the complete refresh, on every decline, so a refusal is only
+// ever the complete audit's; it never retains a read checkpoint.
+func incrementalRefresh(repo *intent.Repository, head *snapshot.Head) (*journal.Result, journal.PhysicalObservation, *journal.WriterCheckpoint, bool) {
+	var none journal.PhysicalObservation
+	if _, complete := completeRefreshes.Load(repo.StateDir); complete || head.Segments != nil {
+		return nil, none, nil, false
+	}
+	wc, _ := boundWriterCheckpoint(repo)
+	if wc == nil || fullRefreshDue(wc.FullSeq, head.LastSeq.Uint64()) {
+		return nil, none, nil, false
+	}
+	proof, obs, err := journalReader(repo, head).AuditForWriter(wc, "", false)
+	if err != nil || obs.Cleanup != nil || proof.Pending || proof.StagingPresent || proof.IntentError != nil {
+		return nil, none, nil, false
+	}
+	next, err := proof.IncrementalWriterCheckpoint(obs.Files)
+	if err != nil {
+		return nil, none, nil, false
+	}
+	return proof, obs, next, true
+}
+
+// fullRefreshDue reports whether a refresh from a checkpoint at fullSeq to
+// head runs the complete audit as the PSR-V0-891 backstop: whenever the head
+// has crossed a multiple of WriterFullBound since fullSeq, so no receipt goes
+// more than WriterFullBound receipts without a complete audit from receipt 1.
+func fullRefreshDue(fullSeq, head uint64) bool {
+	return head/journal.WriterFullBound != fullSeq/journal.WriterFullBound
 }
 
 // writerStage reports one writer-route phase to the mutation stage hook.

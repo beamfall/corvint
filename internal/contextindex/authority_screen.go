@@ -121,12 +121,29 @@ func (compiler *taskContextCompiler) screenPath(candidate string) authorityScree
 	return screen
 }
 
+// screenRow screens a row's target text and every link that reached it:
+// a modified link no longer points where its pin says (TCP-V0-271). Both the
+// downgrade and its rendered warnings use it, so they cannot disagree.
+func (compiler *taskContextCompiler) screenRow(row contextRow) authorityScreen {
+	screen := compiler.screenPath(row.path)
+	if slices.Contains(screen.codes, SelfModifiedAuthorityWarning) {
+		return screen
+	}
+	for _, link := range row.links {
+		if slices.Contains(compiler.index.DirtyPaths, link) {
+			screen.codes = append(screen.codes, SelfModifiedAuthorityWarning)
+			break
+		}
+	}
+	return screen
+}
+
 // screenAuthority downgrades every reserved row the screen does not clear:
 // the row keeps its relation, path and reason, and loses its authority label,
 // score and confidence (TCP-V0-056).
 func (compiler *taskContextCompiler) screenAuthority(rows []contextRow) []contextRow {
 	for index := range rows {
-		screen := compiler.screenPath(rows[index].path)
+		screen := compiler.screenRow(rows[index])
 		if len(screen.codes) == 0 {
 			continue
 		}
@@ -182,7 +199,7 @@ func (compiler *taskContextCompiler) withAuthorityWarnings(entry map[string]any,
 	if row.downgrade == "" {
 		return entry
 	}
-	screen := compiler.screenPath(row.path)
+	screen := compiler.screenRow(row)
 	warnings := make([]any, 0, len(screen.codes))
 	for _, code := range screen.codes {
 		warning := map[string]any{"code": code}

@@ -589,7 +589,7 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 				if e != nil {
 					return supervisor.Outcome{}, e
 				}
-				left := time.Until(start.Add(time.Duration(cap.WallClockMinutes.Int()) * time.Minute))
+				left := start.Add(time.Duration(cap.WallClockMinutes.Int()) * time.Minute).Sub(storeNow(w.repo))
 				if left < remaining {
 					remaining = left
 					programBound = true
@@ -597,7 +597,14 @@ func (w *Workflow) stage(ctx context.Context, stage string) (supervisor.Outcome,
 			}
 		}
 	}
-	deadline, cancel := context.WithTimeout(ctx, remaining)
+	// A package test may stand an event in for the stage's own wall
+	// (stageWalls); the program wall and the caller's context are unchanged.
+	wallBase, stopWall := ctx, func() {}
+	if hook, ok := stageWalls.Load(w.repo.StateDir); ok && !programBound {
+		wallBase, stopWall = hook.(func(context.Context) (context.Context, func()))(ctx)
+	}
+	defer stopWall()
+	deadline, cancel := context.WithTimeout(wallBase, remaining)
 	defer cancel()
 	watcherDone := make(chan struct{})
 	watcherStop := make(chan struct{})
@@ -844,7 +851,7 @@ func OpenWorkflow(ctx context.Context, repo *intent.Repository, actor mutation.B
 		if !programID(group) {
 			return nil, fmt.Errorf("invalid program group")
 		}
-		w.program = snapshot.Program{Group: group, StartedAt: time.Now().UTC().Format(time.RFC3339), UsageKnown: true, Assignment: 1, ID: id, Profile: c.Profile, OwnerPID: os.Getpid(), OwnerStarted: started, Epoch: 1, ConfigSHA256: supervisor.Digest(config), Phase: "ADMITTED", Base: base, Quiescence: "PROVED"}
+		w.program = snapshot.Program{Group: group, StartedAt: storeNow(w.repo).UTC().Format(time.RFC3339), UsageKnown: true, Assignment: 1, ID: id, Profile: c.Profile, OwnerPID: os.Getpid(), OwnerStarted: started, Epoch: 1, ConfigSHA256: supervisor.Digest(config), Phase: "ADMITTED", Base: base, Quiescence: "PROVED"}
 		w.program.CommonIdentity, e = supervisor.DirectoryIdentity(repo.CommonDir)
 		if e != nil {
 			return nil, e
@@ -989,6 +996,14 @@ func OpenWorkflow(ctx context.Context, repo *intent.Repository, actor mutation.B
 // lets tests over different stores run in parallel; it is empty in production.
 var runFaults sync.Map // state directory -> func(point string) error
 
+// stageWalls holds, per store state directory, a package test's stand-in for
+// a stage's own wall (V1-3046): given the caller's context it returns the
+// context the stage deadline derives from, which the test ends with
+// context.DeadlineExceeded when its event happens, and a stop the stage calls
+// when it returns. A test then need not size a real wall that both stops a
+// stalled host and spares a loaded one. It is empty in production.
+var stageWalls sync.Map // state directory -> func(context.Context) (context.Context, func())
+
 // watchReadTolerance bounds how long the stage watcher tolerates failing
 // unlocked program reads before it stops the stage.
 const watchReadTolerance = 30 * time.Second
@@ -1108,7 +1123,7 @@ func (w *Workflow) RunRole(ctx context.Context, role, grant string) (a *snapshot
 				return w.attempt, e
 			}
 			choice := LeaseChoice{QueueID: w.queue.QueueID.Raw, RequestID: w.requestID(), Root: w.repo.PrimaryWorktree, Lease: transaction.LeaseRequest{Verb: transaction.LeaseGateRun, AttemptID: w.attempt.AttemptID, Generation: w.attempt.Generation, Gate: id}}
-			r, e := GateRun(ctx, w.repo, w.actor, choice, *w.attempt.WorktreePath, time.Now)
+			r, e := GateRun(ctx, w.repo, w.actor, choice, *w.attempt.WorktreePath, func() time.Time { return storeNow(w.repo) })
 			if e = transitionOK(r, e); e != nil {
 				return w.attempt, e
 			}
@@ -1169,7 +1184,7 @@ func (w *Workflow) continuable(ctx context.Context, stage string, n int) bool {
 		}
 		turns += p.Turns
 		start, e := time.Parse(time.RFC3339, p.StartedAt)
-		if e != nil || time.Until(start.Add(time.Duration(cap.WallClockMinutes.Int())*time.Minute)) <= 0 {
+		if e != nil || start.Add(time.Duration(cap.WallClockMinutes.Int())*time.Minute).Sub(storeNow(w.repo)) <= 0 {
 			return false
 		}
 	}
@@ -1252,7 +1267,7 @@ func (w *Workflow) integrate() error {
 		return e
 	}
 	choice := LeaseChoice{QueueID: w.queue.QueueID.Raw, RequestID: w.requestID(), Root: root, Lease: transaction.LeaseRequest{Verb: transaction.LeaseComplete, AttemptID: w.attempt.AttemptID, Generation: w.attempt.Generation, Commit: w.program.CandidateCommit}}
-	r, e := Lease(WithClock(context.Background(), poolClock), w.repo, w.actor, choice, poolClock())
+	r, e := Lease(WithClock(context.Background(), storeClock(w.repo)), w.repo, w.actor, choice, storeClock(w.repo)())
 	if e = transitionOK(r, e); e != nil {
 		return e
 	}
@@ -1373,7 +1388,7 @@ func (w *Workflow) recoverIntegration() error {
 		}
 	}
 	choice := LeaseChoice{QueueID: w.queue.QueueID.Raw, RequestID: w.requestID(), Root: w.repo.PrimaryWorktree, Lease: transaction.LeaseRequest{Verb: transaction.LeaseComplete, AttemptID: w.attempt.AttemptID, Generation: w.attempt.Generation, Commit: head}}
-	r, e := Lease(WithClock(context.Background(), poolClock), w.repo, w.actor, choice, poolClock())
+	r, e := Lease(WithClock(context.Background(), storeClock(w.repo)), w.repo, w.actor, choice, storeClock(w.repo)())
 	if e = transitionOK(r, e); e != nil {
 		return e
 	}
@@ -1817,7 +1832,7 @@ func (w *Workflow) claimAndAttach(ctx context.Context, ticketID string) error {
 			verb = transaction.LeaseClaimNext
 		}
 		choice := LeaseChoice{QueueID: w.queue.QueueID.Raw, RequestID: w.requestID(), Root: w.repo.PrimaryWorktree, Lease: transaction.LeaseRequest{Verb: verb, TicketID: ticketID, Holder: w.program.ID + "-implement", LeaseMinutes: "60", Base: w.program.Base, Pool: w.cfg.Pool, Stage: "implement"}}
-		r, e := Lease(WithClock(ctx, poolClock), w.repo, w.actor, choice, poolClock())
+		r, e := Lease(WithClock(ctx, storeClock(w.repo)), w.repo, w.actor, choice, storeClock(w.repo)())
 		if e == nil && r != nil && r.Outcome.Outcome != mutation.OutcomeCompleted && strings.Contains(r.Detail, "no ticket is") {
 			return fmt.Errorf("%w: %s", ErrProgramIdle, r.Detail)
 		}
