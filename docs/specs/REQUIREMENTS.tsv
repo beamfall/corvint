@@ -5331,6 +5331,7 @@ OUE-V0-043	docs/specs/observed-ui-evidence-v0.md	The diff MUST be labelled signa
 OUE-V0-044	docs/specs/observed-ui-evidence-v0.md	The diff MUST count, per side, the traces that carried no ARIA snapshot, so abse	unrecorded	-
 OUE-V0-075	docs/specs/observed-ui-evidence-v0.md	Scrubbing MUST keep a role only from the closed WAI-ARIA 1.2 role vocabulary (pl	unrecorded	-
 OUE-V0-076	docs/specs/observed-ui-evidence-v0.md	Each `structure-changed` screen in the diff MUST name, sorted, the tests that sa	unrecorded	-
+OUE-V0-685	docs/specs/observed-ui-evidence-v0.md	(standing lane auto-accept, 2026-11-01; V1-2723) `observe --records` MUST read t	standing	2026-11-01; V1-2723
 OUE-V0-070	docs/specs/observed-ui-evidence-v0.md	`flows appmap impact --records FILE` MUST refuse with `appmap-invalid-query` rec	unrecorded	-
 OUE-V0-071	docs/specs/observed-ui-evidence-v0.md	A changed path with an observed binding in the `--root` repository MUST touch ea	unrecorded	-
 OUE-V0-072	docs/specs/observed-ui-evidence-v0.md	Bindings MUST only add: they MUST NOT remove an unknown or turn `full-suite-requ	unrecorded	-
