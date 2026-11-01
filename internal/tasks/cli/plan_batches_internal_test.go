@@ -402,3 +402,38 @@ func TestNTPV0024_MissingNestedTreeIsUngrouped(t *testing.T) {
 		t.Fatalf("ungrouped %v", got)
 	}
 }
+
+// NTP-V0-022, V1-3901: merge-tree sides are view-only parentless commits
+// over each tree, so Git 2.40 to 2.44 (which refuses a tree there) plans;
+// the wrapper is fixed, cached per tree and never reaches the repository.
+func TestNTPV0022_MergeSidesAreViewOnlyCommits(t *testing.T) {
+	root, base := pbRepo(t)
+	tree := pbTree(t, root, base, map[string]string{"a/x": "A\n"})
+	repo := batchGit{ctx: t.Context(), gitDir: filepath.Join(root, ".git")}
+	view, err := batchView(repo, t.TempDir(), filepath.Join(root, ".git", "objects"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := view.wrap(tree)
+	if err != nil {
+		t.Fatal(err)
+	}
+	again, err := view.wrap(tree)
+	if err != nil || again != first {
+		t.Fatalf("wrap is not cached per tree: %q %q %v", first, again, err)
+	}
+	out, _, err := view.run("cat-file", "-p", first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body := string(out); !strings.HasPrefix(body, "tree "+tree+"\nauthor corvint-tasks <corvint-tasks@invalid> 0 +0000\n") || strings.Contains(body, "\nparent ") {
+		t.Fatalf("wrapper commit:\n%s", body)
+	}
+	if _, code, err := repo.run("cat-file", "-e", first); err != nil || code == 0 {
+		t.Fatalf("the wrapper commit reached the repository: code %d %v", code, err)
+	}
+	merged, conflicts, err := view.merge(base, tree, tree)
+	if err != nil || conflicts != nil || merged != tree {
+		t.Fatalf("merge of a tree onto itself: %q %v %v", merged, conflicts, err)
+	}
+}
