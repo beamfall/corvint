@@ -4212,5 +4212,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/tasks-mcp-read-profile-v0.md",
+    "title": "Tasks MCP read profile V0",
+    "reqPrefix": "TMR-V0",
+    "intent": "experimental under the standing lane auto-accept (V1-3707, 2026-11-01)",
+    "delivery": "experimental",
+    "claim": "`corvint-tasks mcp` is a local read-only stdio MCP server whose five typed, paged tools answer with the Corvint Tasks CLI read verbs' own envelopes.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]
