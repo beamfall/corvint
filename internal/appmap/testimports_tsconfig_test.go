@@ -150,3 +150,40 @@ func TestAMAPV0195ResolverRefusalAndComputedLoadStayUnknown(t *testing.T) {
 		t.Fatalf("a spec outside the unreadable config lost its package import: %+v", login)
 	}
 }
+
+// AMAP-V0-195, V1-2714 decision: a package-named `extends` leaves only the fields no config before
+// it declares unknown, so a leaf tsconfig that itself declares every resolution field (baseUrl,
+// paths, moduleSuffixes, typeRoots, moduleResolution, module, target) reads @playwright/test as
+// external while an alias its paths do not declare stays unresolved.
+func TestAMAPV0195LeafDeclaredFieldsOutrankPackageExtends(t *testing.T) {
+	root, _ := fixtureRepo(t)
+	files := map[string]string{
+		"e2e/sub/tsconfig.json": `{"extends": "@tsconfig/node20/tsconfig.json", "compilerOptions": {"baseUrl": ".", "paths": {"@pages/*": ["pages/*"]},` +
+			` "moduleSuffixes": [""], "typeRoots": [], "moduleResolution": "bundler", "module": "esnext", "target": "es2022"}}` + "\n",
+		"e2e/sub/specs/ext.spec.ts":   "import { test } from '@playwright/test';\ntest('extends', async () => {});\n",
+		"e2e/sub/specs/alias.spec.ts": "import { test } from '@playwright/test';\nimport { x } from '@undeclared/x';\ntest('alias', async () => {});\n",
+	}
+	for p, body := range files {
+		dst := filepath.Join(root, p)
+		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(dst, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	m := build(t, root, commitAll(t, root, "leaf-declared resolution fields"))
+	ext := m.file("e2e/sub/specs/ext.spec.ts")
+	if ext == nil || hasUnknown(m, "import", ext.ID, "unresolved-import") {
+		t.Fatalf("a fully declared leaf config left @playwright/test unresolved: %+v %+v", ext, m.Unknowns)
+	}
+	for _, imp := range ext.Imports {
+		if imp.Specifier == "@playwright/test" && imp.Status != importExternal {
+			t.Fatalf("@playwright/test = %+v, want external", imp)
+		}
+	}
+	alias := m.file("e2e/sub/specs/alias.spec.ts")
+	if alias == nil || !hasUnknown(m, "import", alias.ID, "unresolved-import") || !strings.HasPrefix(alias.Join, StatusUnknown) {
+		t.Fatalf("an undeclared alias did not stay unresolved: %+v %+v", alias, m.Unknowns)
+	}
+}
