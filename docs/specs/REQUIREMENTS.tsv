@@ -1915,6 +1915,7 @@ ASD-V0-901	docs/specs/corvint-self-development-v0.md	(experimental under the sta
 ASD-V0-902	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3481; refines	standing	2026-10-31; V1-3481
 ASD-V0-903	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3482; refines	standing	2026-10-31; V1-3482
 ASD-V0-904	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3441; refines	standing	2026-10-31; V1-3441
+ASD-V0-880	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3882) `make go	standing	2026-11-01; V1-3882
 ASD-V0-905	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3446) Every li	standing	2026-10-31; V1-3446
 ASD-V0-906	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3259; refines	standing	2026-10-31; V1-3259
 ASD-V0-907	docs/specs/corvint-self-development-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-1629) `script/	standing	2026-10-31; V1-1629
@@ -4391,6 +4392,8 @@ GPK-V0-025	docs/specs/go-production-kernel-migration-v0.md	Python production ret
 GPK-V0-026	docs/specs/go-production-kernel-migration-v0.md	Promotion claims are per command and per integration surface. Reports MUST state	unrecorded	-
 GPK-V0-042	docs/specs/go-production-kernel-migration-v0.md	A **beta rung** exists in `GPK-V0-023`'s order, between opt-in candidate use and	unrecorded	-
 GPK-V0-960	docs/specs/go-production-kernel-migration-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3663) The quer	standing	2026-10-31; V1-3663
+GPK-V0-880	docs/specs/go-production-kernel-migration-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-3873) The	standing	2026-11-01; V1-3873
+GPK-V0-881	docs/specs/go-production-kernel-migration-v0.md	(experimental under the standing lane auto-accept, 2026-11-01; V1-2081) The	standing	2026-11-01; V1-2081
 GPK-V0-043	docs/specs/go-production-kernel-migration-v0.md	`corvint query` MAY add a general `repository`-intent profile on Darwin	unrecorded	-
 GPK-V0-044	docs/specs/go-production-kernel-migration-v0.md	The standalone `corvint query` `repository`-intent profile introduced	unrecorded	-
 GPK-V0-047	docs/specs/go-production-kernel-migration-v0.md	`EvalQuery`'s confident-symbol selection has two members that `GPK-V0-043` leave	unrecorded	-
