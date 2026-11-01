@@ -19,7 +19,8 @@ set -eu
 #      a project settings file overrides the user file.
 #   5. The landlock row (ASD-V0-643, V1-3741): a probe reporting abi 0 warns and
 #      names the CI route, abi 3 reports enforcement, a probe that prints nothing
-#      usable is UNKNOWN, and none of them changes the exit status.
+#      usable, exits other than its ABI implies, or has no temporary directory is
+#      UNKNOWN, and none of them changes the exit status.
 #
 # Each case runs the real script (copied into an isolated fixture repo, per the
 # gate-enumeration_test.sh pattern) against a small git history it controls.
@@ -173,7 +174,22 @@ landlock() { # probe-output probe-exit expected-text
 }
 landlock 'landlock abi 0' 1 'WARN abi 0 on .*: test-confine refuses confined runs here (exit 2); read-scope violations surface only in CI, so run confined tests in CI'
 landlock 'landlock abi 3' 0 'abi 3 on .*, confined test runs enforce read scopes'
-landlock 'exec failed' 2 "UNKNOWN on .*: test-confine -probe printed 'exec failed'"
-printf '  %-24s %s\n' "landlock" "abi 0 warns with the CI route, abi 3 enforces, a failed probe is UNKNOWN, exit unchanged"
+landlock 'exec failed' 2 "UNKNOWN on .*: test-confine -probe exited 2 and printed 'exec failed'"
+# A probe whose exit disagrees with its ABI line (test-confine exits 0 at abi 2 or more, 1 below)
+# is not a result: an enforcing line with exit 2, or abi 0 with exit 0, is UNKNOWN.
+landlock 'landlock abi 3' 2 "UNKNOWN on .*: test-confine -probe exited 2 and printed 'landlock abi 3'"
+landlock 'landlock abi 0' 0 "UNKNOWN on .*: test-confine -probe exited 0 and printed 'landlock abi 0'"
+assertions=21
+# The probe's temporary directory cannot be created: the row is UNKNOWN and the preflight still
+# finishes (ASD-V0-643), rather than set -e aborting it. Linux only: elsewhere the probe is skipped.
+if [ "$(uname -s)" = Linux ]; then
+    output=$(cd "$fixture" && TMPDIR="$harness_root/no-such-dir" CLAUDE_CONFIG_DIR="$claude_dir" PATH=/usr/bin:/bin \
+        sh script/agent-preflight.sh 2>&1) && status=0 || status=$?
+    test "$status" = 0 || fail "landlock: an unwritable TMPDIR changed the exit status to $status: $output"
+    printf '%s\n' "$output" | grep -q '^landlock  *UNKNOWN on .*: cannot create a temporary directory for the test-confine build' ||
+        fail "landlock: an unwritable TMPDIR is not UNKNOWN: $output"
+    assertions=23
+fi
+printf '  %-24s %s\n' "landlock" "abi 0 warns with the CI route, abi 3 enforces, a failed or inconsistent probe or no temp dir is UNKNOWN, exit unchanged"
 
-printf 'agent-preflight_test: 19 assertions passed\n'
+printf 'agent-preflight_test: %s assertions passed\n' "$assertions"

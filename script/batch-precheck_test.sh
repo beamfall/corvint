@@ -777,17 +777,25 @@ grep -q "^batch-precheck: capability-catalog-check skipped: no catalog input cha
 row_is PASS 'batch-drift (0 of 3 tests)'
 row_is PASS 'make capability-catalog-check'
 grep -q 'capability-catalog-check' "$tmp/scalls" && fail "a skipped catalog check ran: $(cat "$tmp/scalls")"
-# ASD-V0-640 (V1-3744): no script/, Makefile or docs/DOGFOOD.md path changed, so lane-scripts-test
-# is a print-only skip; a new file under script/ runs it.
-grep -q "^batch-precheck: lane-scripts-test skipped: no lane-scripts-test input (script/, Makefile, docs/DOGFOOD.md) changed since $sbase\$" "$tmp/out" || fail "lane-scripts-test not skipped: $(cat "$tmp/out")"
+# ASD-V0-640 (V1-3744): no script/, Makefile, docs/DOGFOOD.md or benchmarks/retained-data.tsv path
+# changed, so lane-scripts-test is a print-only skip; a new file under script/ runs it, and so does a
+# change to the retained-data manifest alone, which the ASD-V0-646 group validates.
+grep -q "^batch-precheck: lane-scripts-test skipped: no lane-scripts-test input (script/, Makefile, docs/DOGFOOD.md, benchmarks/retained-data.tsv) changed since $sbase\$" "$tmp/out" || fail "lane-scripts-test not skipped: $(cat "$tmp/out")"
 row_is PASS 'make lane-scripts-test'
 grep -q 'lane-scripts-test' "$tmp/scalls" && fail "a skipped lane-scripts-test ran: $(cat "$tmp/scalls")"
 mkdir -p "$srepo/script" && printf '#!/bin/sh\n' > "$srepo/script/new.sh"
 : > "$tmp/scalls"
 srun --base "$sbase" || fail "a script/ change failed: $(cat "$tmp/out")"
-grep -q "^batch-precheck: lane-scripts-test runs (a script/, Makefile or docs/DOGFOOD.md path changed since $sbase)\$" "$tmp/out" || fail "lane-scripts-test reason: $(cat "$tmp/out")"
+grep -q "^batch-precheck: lane-scripts-test runs (a script/, Makefile, docs/DOGFOOD.md or benchmarks/retained-data.tsv path changed since $sbase)\$" "$tmp/out" || fail "lane-scripts-test reason: $(cat "$tmp/out")"
 grep -qx 'make -s lane-scripts-test' "$tmp/scalls" || fail "lane-scripts-test not run for a script/ change: $(cat "$tmp/scalls")"
 /bin/rm -rf "$srepo/script"
+mkdir -p "$srepo/benchmarks" && printf 'id\n' > "$srepo/benchmarks/retained-data.tsv"
+: > "$tmp/scalls"
+srun --base "$sbase" || fail "a retained-data manifest change failed: $(cat "$tmp/out")"
+grep -q "^batch-precheck: lane-scripts-test runs (a script/, Makefile, docs/DOGFOOD.md or benchmarks/retained-data.tsv path changed since $sbase)\$" "$tmp/out" ||
+  fail "lane-scripts-test skipped for a manifest-only change: $(cat "$tmp/out")"
+grep -qx 'make -s lane-scripts-test' "$tmp/scalls" || fail "lane-scripts-test not run for a manifest-only change: $(cat "$tmp/scalls")"
+/bin/rm -rf "$srepo/benchmarks"
 # A changed golden (a non-Go file in a Go package directory) runs that package and fails on the
 # real drift, introduced since the base.
 printf 'v2\n' > "$srepo/golden/testdata/want.txt"

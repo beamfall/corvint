@@ -1972,6 +1972,15 @@ out=$(ldcrun --base HEAD --waive T:V1-5 n="$ldc/new.json")
 [[ $? == 0 ]] || fail "lane-dispatch-check absent waived: $out"
 out=$(ldcrun a="$ldc/bad.json")
 [[ $? == 2 && $out == *'is not a JSON array of tickets'* ]] || fail "lane-dispatch-check malformed: $out"
+# A tab or newline in a ticket ID would shift the path out of its TSV column and hide the overlap
+# of two lanes on one file, so the ID is refused.
+printf '[%s]\n' "$(tk 'T:V1-1\tx' '"pkg/a.go"')" > "$ldc/tab.json"
+printf '[%s]\n' "$(tk 'T:V1-6\nx' '"pkg/a.go"')" > "$ldc/nl.json"
+printf '[%s]\n' "$(tk T:V1-2 '"pkg/a.go"')" > "$ldc/same.json"
+out=$(ldcrun a="$ldc/tab.json" b="$ldc/same.json")
+[[ $? == 2 && $out == *'lane a: ticketId "T:V1-1\tx" in '*'holds a control character'* ]] || fail "lane-dispatch-check tab in a ticket ID: $out"
+out=$(ldcrun b="$ldc/same.json" n="$ldc/nl.json")
+[[ $? == 2 && $out == *'lane n: ticketId "T:V1-6\nx" in '* ]] || fail "lane-dispatch-check newline in a ticket ID: $out"
 out=$(ldcrun a="$ldc/a.json" a="$ldc/b.json")
 [[ $? == 2 && $out == *'lane a is named twice'* ]] || fail "lane-dispatch-check duplicate lane: $out"
 out=$(ldcrun --base nope a="$ldc/a.json")
@@ -2000,6 +2009,46 @@ printf 'three\n' > "$rdd/b/sub/2.txt"
 [[ $("$script/retained-data-digest.sh" "$rdd/b") != "$da" ]] || fail "retained-data digest ignored a content change"
 out=$("$script/retained-data-digest.sh" "$rdd/missing" 2>&1)
 [[ $? == 2 && $out == *'is not a readable directory'* ]] || fail "retained-data missing directory: $out"
+# A failed byte count (cat fails) or listing hash (sha256sum on stdin fails) exits 2, never
+# printing bytes=0 or an empty sha256 with exit 0.
+mkdir -p "$rdd/bin-cat" "$rdd/bin-hash"
+printf '#!/bin/sh\nexit 1\n' > "$rdd/bin-cat/cat"
+real_sha=$(command -v sha256sum)
+printf '#!/bin/sh\n[ $# -gt 0 ] && exec %s "$@"\nexit 1\n' "$real_sha" > "$rdd/bin-hash/sha256sum"
+chmod +x "$rdd/bin-cat/cat" "$rdd/bin-hash/sha256sum"
+out=$(PATH="$rdd/bin-cat:$PATH" "$script/retained-data-digest.sh" "$rdd/a" 2>&1)
+[[ $? == 2 && $out == *'cannot read the files under'* && $out != *bytes=* ]] || fail "retained-data failed byte count: $out"
+out=$(PATH="$rdd/bin-hash:$PATH" "$script/retained-data-digest.sh" "$rdd/a" 2>&1)
+[[ $? == 2 && $out == *'cannot hash the listing of'* && $out != *sha256=* ]] || fail "retained-data failed listing hash: $out"
+ok
+
+# ASD-V0-641 (V1-3745): check-test-script-refs matches the full file name (a test naming
+# exists.sh.bak is not read as exists.sh), scans a tracked test whose name Git would quote
+# (core.quotePath), and exits 2 when git ls-files fails instead of scanning nothing and passing. The
+# references are assembled, so this file does not itself name a missing script.
+tsr=$tmp/tsr
+mkdir -p "$tsr/script" && printf '#!/bin/sh\n' > "$tsr/script/exists.sh"
+printf '"$%s/exists.sh" --check\n' script > "$tsr/script/a_test.sh"
+git -C "$tsr" init -q && git -C "$tsr" add -A &&
+  git -C "$tsr" -c user.name=t -c user.email=t@example.invalid commit -qm base || fail "check-test-script-refs fixture repo"
+sref='$'script
+tsrrun() { (cd "$tsr" && GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.quotePath GIT_CONFIG_VALUE_0=true "$script/check-test-script-refs.sh" 2>&1); }
+out=$(tsrrun)
+[[ $? == 0 && $out == 'check-test-script-refs: PASS 1 script references resolve' ]] || fail "check-test-script-refs pass: $out"
+printf '"$%s/exists.sh.bak" --check\n' script > "$tsr/script/b_test.sh"
+git -C "$tsr" add -A && git -C "$tsr" -c user.name=t -c user.email=t@example.invalid commit -qm bak || fail "check-test-script-refs bak commit"
+out=$(tsrrun)
+[[ $? == 1 && $out == *"FAIL script/b_test.sh:1 names $sref/exists.sh.bak, but script/exists.sh.bak does not exist"* ]] ||
+  fail "check-test-script-refs read exists.sh.bak as exists.sh: $out"
+git -C "$tsr" rm -q script/b_test.sh && git -C "$tsr" -c user.name=t -c user.email=t@example.invalid commit -qm 'drop bak' || fail "check-test-script-refs bak cleanup"
+printf '"$%s/gone.sh"\n' script > "$tsr/script/"$'caf\303\251_test.sh'
+git -C "$tsr" add -A && git -C "$tsr" -c user.name=t -c user.email=t@example.invalid commit -qm cafe || fail "check-test-script-refs quoted-name commit"
+out=$(tsrrun)
+[[ $? == 1 && $out == *$'FAIL script/caf\303\251_test.sh:1 names '"$sref/gone.sh, but script/gone.sh does not exist"* ]] ||
+  fail "check-test-script-refs skipped a quoted file name: $out"
+printf 'not an index' > "$tsr/.git/index"
+out=$(tsrrun)
+[[ $? == 2 && $out == *'git ls-files failed'* && $out != *PASS* ]] || fail "check-test-script-refs passed when git ls-files failed: $out"
 ok
 
 # ASD-V0-014: no fixture outlives the run, so nothing can write after the summary line. Every

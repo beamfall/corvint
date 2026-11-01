@@ -11,7 +11,8 @@
 #       decimal files and bytes, a 40-hex producing_commit and a YYYY-MM-DD recorded date, where any
 #       value but id, ticket, host, path and recorded may be NOT_OBSERVED with the reason in note.
 #
-# Exit 0 on success, 1 on a manifest finding, 2 on a usage error or an unreadable input.
+# Exit 0 on success, 1 on a manifest finding, 2 on a usage error, an unreadable input, or a failed
+# read, count or hash while digesting DIR.
 set -uo pipefail
 export LC_ALL=C
 me='retained-data-digest'
@@ -52,11 +53,16 @@ esac
 (($# == 1)) || usage
 dir=$1
 [[ -d $dir && -r $dir ]] || { printf '%s: %s is not a readable directory\n' "$me" "$dir" >&2; exit 2; }
-listing=$(cd "$dir" && find . -type f -print0 | sort -z | xargs -0 -r sha256sum) || { printf '%s: cannot hash the files under %s\n' "$me" "$dir" >&2; exit 2; }
+# Every pipeline fails closed (pipefail): a failed find, read or hash exits 2 instead of printing
+# bytes=0 or an empty sha256.
+die() { printf '%s: %s\n' "$me" "$*" >&2; exit 2; }
+listing=$(cd "$dir" && find . -type f -print0 | sort -z | xargs -0 -r sha256sum) || die "cannot hash the files under $dir"
 files=0 bytes=0
 if [[ -n $listing ]]; then
-  files=$(printf '%s\n' "$listing" | wc -l | tr -d ' ')
-  bytes=$(cd "$dir" && find . -type f -print0 | xargs -0 -r cat | wc -c | tr -d ' ')
+  files=$(printf '%s\n' "$listing" | wc -l | tr -d ' ') || die "cannot count the files under $dir"
+  bytes=$(cd "$dir" && find . -type f -print0 | xargs -0 -r cat | wc -c | tr -d ' ') || die "cannot read the files under $dir to count their bytes"
 fi
-digest=$(printf '%s' "$listing" | sha256sum | cut -d' ' -f1)
+[[ $files =~ ^[0-9]+$ && $bytes =~ ^[0-9]+$ ]] || die "the file or byte count for $dir is not a number (files=$files bytes=$bytes)"
+digest=$(printf '%s' "$listing" | sha256sum | cut -d' ' -f1) || die "cannot hash the listing of $dir"
+[[ $digest =~ ^[0-9a-f]{64}$ ]] || die "the listing digest of $dir is not 64 hex digits ('$digest')"
 printf 'sha256=%s files=%s bytes=%s\n' "$digest" "$files" "$bytes"

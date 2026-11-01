@@ -17,7 +17,8 @@
 #              git ls-tree); --waive a ticket that creates its paths
 # --waive takes a full ticket ID or its last segment (V1-3768) and waives EMPTY and ABSENT for that
 # ticket only. Exit 0 with a PASS line, 1 on any finding, 2 on a usage error, an unreadable file,
-# malformed JSON, a base that is not a commit or a missing jq.
+# malformed JSON, an empty ticketId or one holding a control character, a base that is not a commit
+# or a missing jq.
 set -uo pipefail
 export LC_ALL=C
 me='lane-dispatch-check'
@@ -48,6 +49,11 @@ for ((i = 0; i < ${#lanes[@]}; i++)); do
   jq -e 'type == "array" and all(.[]; type == "object" and (.ticketId | type) == "string"
       and ((.record.effects.touchPaths // []) | type == "array" and all(.[]; type == "string" and test("^[^\t\n]+$"))))' \
     "$file" > /dev/null 2>&1 || refuse "lane $lane: $file is not a JSON array of tickets with a string ticketId and string touchPaths; want the charter tickets-file form"
+  # The rows below are unescaped TSV: a tab or newline in a ticket ID would shift its path into
+  # another column and hide an overlap, so a non-empty ID without control characters is required.
+  bad_id=$(jq -r 'map(.ticketId | select(. == "" or test("[[:cntrl:]]"))) | first // empty | @json' "$file") ||
+    refuse "lane $lane: cannot read the ticket IDs of $file; run jq on it to see the error"
+  [[ -z $bad_id ]] || refuse "lane $lane: ticketId $bad_id in $file is empty or holds a control character (tab, newline); use a non-empty ticket ID without control characters"
   # One row per ticket and path: lane, ticket, path ("" for a ticket with none).
   jq -r --arg lane "$lane" '.[] | .ticketId as $t | ((.record.effects.touchPaths // []) | if length == 0 then [""] else . end)[]
       | [$lane, $t, .] | join("\t")' "$file" >> "$rows" || refuse "lane $lane: cannot read the tickets of $file; run jq on it to see the error"

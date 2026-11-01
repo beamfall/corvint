@@ -133,9 +133,9 @@ planner=${BATCH_PRECHECK_PLANNER-corvint}
 # (ASD-V0-047, V1-3142).
 SERIAL_TARGETS=(host-adapter-node-test lane-scripts-test)
 # What script/lane-scripts_test.sh reads: its groups drive the scripts under script/ and read the
-# Makefile and docs/DOGFOOD.md. Its groups run in sequence and share fixtures, so the step runs the
+# Makefile, docs/DOGFOOD.md and benchmarks/retained-data.tsv (the ASD-V0-646 group). Its groups run in sequence and share fixtures, so the step runs the
 # whole file, on the merged tree, when one of these changed (ASD-V0-640, V1-3744).
-LST_INPUTS='^(script/|Makefile$|docs/DOGFOOD\.md$)'
+LST_INPUTS='^(script/|Makefile$|docs/DOGFOOD\.md$|benchmarks/retained-data\.tsv$)'
 # "<dir>|<gofmt -l arguments>": go-static runs from the root, go-interop from interop/cem01-go.
 GOFMT_SETS=(
   ".|cmd internal tools .github/cishards .github/testconfine"
@@ -456,9 +456,9 @@ lst_report() {
     if grep -q '^"' <<< "$changed"; then
       printf 'batch-precheck: lane-scripts-test runs (a changed path needs quoting)\n'
     elif grep -qE "$LST_INPUTS" <<< "$changed"; then
-      printf 'batch-precheck: lane-scripts-test runs (a script/, Makefile or docs/DOGFOOD.md path changed since %s)\n' "$sha"
+      printf 'batch-precheck: lane-scripts-test runs (a script/, Makefile, docs/DOGFOOD.md or benchmarks/retained-data.tsv path changed since %s)\n' "$sha"
     else
-      lst_skip="no lane-scripts-test input (script/, Makefile, docs/DOGFOOD.md) changed since $sha"
+      lst_skip="no lane-scripts-test input (script/, Makefile, docs/DOGFOOD.md, benchmarks/retained-data.tsv) changed since $sha"
       printf 'batch-precheck: lane-scripts-test skipped: %s\n' "$lst_skip"
     fi
   else

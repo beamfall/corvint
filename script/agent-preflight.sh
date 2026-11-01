@@ -144,22 +144,35 @@ probe_dir=
 if [ -z "$probe" ] && [ "$(uname -s)" != Linux ]; then
 	note "landlock" "probe is Linux-only ($(uname -s) on $host) -- confined test runs happen on a Linux host or in CI"
 else
+	why="cannot build test-confine from .github/testconfine/cmd"
 	if [ -z "$probe" ]; then
-		probe_dir=$(mktemp -d)
-		probe=$probe_dir/test-confine
-		(cd "$root" && go build -trimpath -buildvcs=false -o "$probe" ./.github/testconfine/cmd >/dev/null 2>&1) || probe=
+		# A temporary-directory failure is an UNKNOWN row, not a set -e abort of the preflight.
+		if probe_dir=$(mktemp -d 2>/dev/null) && [ -n "$probe_dir" ]; then
+			probe=$probe_dir/test-confine
+			(cd "$root" && go build -trimpath -buildvcs=false -o "$probe" ./.github/testconfine/cmd >/dev/null 2>&1) || probe=
+		else
+			probe_dir=
+			why="cannot create a temporary directory for the test-confine build (TMPDIR=${TMPDIR:-unset})"
+		fi
 	fi
 	if [ -z "$probe" ]; then
-		note "landlock" "UNKNOWN on $host: cannot build test-confine from .github/testconfine/cmd"
+		note "landlock" "UNKNOWN on $host: $why"
 	else
-		probed=$("$probe" -probe 2>&1) || true
+		probed=$("$probe" -probe 2>&1) && probe_rc=0 || probe_rc=$?
 		abi=${probed#landlock abi }
 		case $probed in
 		'landlock abi '*) ;;
 		*) abi= ;;
 		esac
+		# test-confine -probe exits 0 for an ABI of 2 or more and 1 below it; any other exit, or one
+		# that disagrees with the printed ABI, is not a probe result.
 		case $abi in
-		'' | *[!0-9]*) note "landlock" "UNKNOWN on $host: test-confine -probe printed '$probed'" ;;
+		'' | *[!0-9]*) ;;
+		0 | 1) [ "$probe_rc" = 1 ] || abi= ;;
+		*) [ "$probe_rc" = 0 ] || abi= ;;
+		esac
+		case $abi in
+		'' | *[!0-9]*) note "landlock" "UNKNOWN on $host: test-confine -probe exited $probe_rc and printed '$probed'" ;;
 		0 | 1) note "landlock" "WARN abi $abi on $host: test-confine refuses confined runs here (exit 2); read-scope violations surface only in CI, so run confined tests in CI or on a host whose probe reports abi 2 or more" ;;
 		*) note "landlock" "abi $abi on $host, confined test runs enforce read scopes" ;;
 		esac
