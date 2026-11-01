@@ -4344,5 +4344,17 @@
     "supersededBy": null,
     "closableToday": false,
     "implementation": []
+  },
+  {
+    "path": "docs/specs/corvint-tasks-agent-workflow-v0.md",
+    "title": "Corvint Tasks agent workflow V0",
+    "reqPrefix": "TAW-V0",
+    "intent": "proposed",
+    "delivery": "experimental",
+    "claim": "Lanes report ticket transitions as commit trailers that the store host ingests; agent work verbs dedupe findings, sync releases and guard status edits.",
+    "dependsOn": [],
+    "supersededBy": null,
+    "closableToday": false,
+    "implementation": []
   }
 ]

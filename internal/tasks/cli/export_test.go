@@ -20,6 +20,14 @@ import (
 	"github.com/Beamfall/corvint/internal/tasks/wire"
 )
 
+// SetCloseMergedRefResolved runs f after work close-merged pins the REF
+// commit (TAW-V0-018) and returns the restore function.
+func SetCloseMergedRefResolved(f func()) func() {
+	was := closeMergedRefResolved
+	closeMergedRefResolved = f
+	return func() { closeMergedRefResolved = was }
+}
+
 // SetAttemptBeatInterval shortens the attempt runner's heartbeat interval for
 // a test and returns the restore function.
 func SetAttemptBeatInterval(d time.Duration) func() {

@@ -273,6 +273,7 @@ For a bounded lookup, use [Agent evidence routes](../AGENT-ROUTES.md#from-index-
 | Tasks MCP read profile V0 | [`tasks-mcp-read-profile-v0.md`](tasks-mcp-read-profile-v0.md) | experimental under the standing lane auto-accept (V1-3707, 2026-11-01) | experimental | The `corvint mcp` tasks group: five typed, paged read-only tools that run the installed `corvint-tasks` read verbs and return their envelopes. |
 | Affected and CLI Consistency V0 | [`affected-cli-consistency-v0.md`](affected-cli-consistency-v0.md) | experimental under the owner's standing lane auto-accept (2026-10-11; lane aff-w12) | experimental | Affected source walks, worktree path plans, test-file readers, revspec bases and the CLI flag, error and Makefile surface follow one contract. |
 | Corvint Tasks delivery lifecycle V0 | [`corvint-tasks-delivery-lifecycle-v0.md`](corvint-tasks-delivery-lifecycle-v0.md) | proposed | experimental | Show, search, roadmap and release readiness report one derived delivery lifecycle per ticket, with evidence from status, holds, attempts, progress and Git. |
+| Corvint Tasks agent workflow V0 | [`corvint-tasks-agent-workflow-v0.md`](corvint-tasks-agent-workflow-v0.md) | proposed | experimental | Lanes report ticket transitions as commit trailers that the store host ingests; agent work verbs dedupe findings, sync releases and guard status edits. |
 
 “Accepted direction” means the repository owner has explicitly selected the product outcome, while
 individual generated or inferred claims still require review. A spec can be accepted and still have
