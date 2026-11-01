@@ -245,6 +245,24 @@ sub acceptance_near_miss {
     return '';
 }
 
+# leading_note is the text of the parenthetical that opens TEXT, nested parentheses included, up to
+# its matching close or the end of TEXT (SRG-V0-953), so `(owner chat (2026-10-27), accepted)` is
+# read whole rather than cut at the inner close.
+sub leading_note {
+    my ($text) = @_;
+    my ($depth, $end) = (0, length $text);
+    for my $i (0 .. length($text) - 1) {
+        my $char = substr($text, $i, 1);
+        if ($char eq '(') {
+            ++$depth;
+        } elsif ($char eq ')' && --$depth == 0) {
+            $end = $i;
+            last;
+        }
+    }
+    return substr($text, 1, $end - 1);
+}
+
 sub trim {
     my ($text) = @_;
     $text =~ s/\A\s+|\s+\z//g;
@@ -327,8 +345,8 @@ for my $file (sort @specs) {
         if (defined $pending) {
             push @continuation_notes, "$file:$line_number: $pending: the acceptance note starts on the "
                 . "continuation line, and only the definition line is read"
-                if $continues && $line !~ /^\s*[-*]\s/
-                && $line =~ /^\s*\(([^)]*)/ && $1 =~ /\b(?:accepted|approved|standing)\b|\bauto-?accept/i;
+                if $continues && $line !~ /^\s*[-*]\s/ && $line =~ /^\s*(\(.*)/s
+                && leading_note($1) =~ /\b(?:accepted|approved|standing)\b|\bauto-?accept/i;
             undef $pending;
         }
         # SRG-V0-003: unmarked definitions start paragraphs, not wrapped prose.

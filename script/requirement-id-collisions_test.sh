@@ -109,6 +109,34 @@ case $output in *ASD-V0-040*) fail "this checkout's own ID was reported as used 
 output=$(check --block ASD-V0 050 059) || fail "a free block was refused: $output"
 case $output in *'free ASD-V0-050..ASD-V0-059 on'*) ;; *) fail "the free block line is missing: $output" ;; esac
 
+# Review fix (fail closed): an open ref whose committed index blob cannot be read refuses with
+# exit 2 naming it, rather than reading as a ref that defines nothing; a ref with no index at all
+# is skipped with a note.
+missing=0123456789abcdef0123456789abcdef01234567
+tree=$(GIT_INDEX_FILE="$test_root/broken.index" sh -c '
+  git -C "$1" read-tree main &&
+  git -C "$1" update-index --cacheinfo "100644,$2,docs/specs/REQUIREMENTS.tsv" &&
+  git -C "$1" write-tree --missing-ok' _ "$repo" "$missing")
+broken=$(g commit-tree -p main -m 'broken index blob' "$tree")
+g branch claude/broken "$broken"
+status=0
+output=$(check) || status=$?
+test "$status" = 2 || fail "an unreadable open ref did not exit 2 (status $status): $output"
+case $output in
+  *"REFUSE ref-unreadable claude/broken ("*"blob $missing cannot be read"*) ;;
+  *) fail "the unreadable ref was not named: $output" ;;
+esac
+status=0
+output=$(check --block ASD-V0 050 059) || status=$?
+test "$status" = 2 || fail "the block check passed over an unreadable open ref: $output"
+g branch -D -q claude/broken
+tree=$(GIT_INDEX_FILE="$test_root/noindex.index" sh -c '
+  git -C "$1" read-tree main && git -C "$1" update-index --force-remove docs/specs/REQUIREMENTS.tsv && git -C "$1" write-tree' _ "$repo")
+g branch claude/no-index "$(g commit-tree -p main -m 'no index' "$tree")"
+output=$(check) || fail "a ref without an index was refused: $output"
+case $output in *'claude/no-index ('*') has no docs/specs/REQUIREMENTS.tsv; skipped'*) ;; *) fail "the skipped ref was not noted: $output" ;; esac
+g branch -D -q claude/no-index
+
 for bad in '--block ASD-V0 9 1' '--block asd 1 2' '--base no-such-ref' '--bogus'; do
   # shellcheck disable=SC2086
   status=0

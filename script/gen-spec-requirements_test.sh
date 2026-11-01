@@ -640,6 +640,10 @@ cat > "$test_root/docs/specs/para.md" <<'SPEC'
   (with a parenthetical continuation) passes.
 - `PAR-V0-003`: A plain wrap
   (as an aside) passes.
+- `PAR-V0-004`: A wrap whose note nests its anchor
+  (by the owner (owner chat, 2026-10-27), accepted; V1-3553) before the word.
+- `PAR-V0-005`: A wrap whose aside nests
+  (see (the table) below) and names no acceptance.
 SPEC
 stage docs/specs/para.md
 for mode in '' --lines --index; do
@@ -648,10 +652,11 @@ for mode in '' --lines --index; do
     fail "mode '${mode:-tsv}' accepted a note on the continuation line"
   for want in \
     'docs/specs/para.md:2: PAR-V0-001: the acceptance note starts on the continuation line' \
+    'docs/specs/para.md:8: PAR-V0-004: the acceptance note starts on the continuation line' \
     "move the note to the start of the text on the id's line" '(SRG-V0-953)'; do
     case $para_err in *"$want"*) ;; *) fail "mode '${mode:-tsv}' continuation refusal lacks '$want': $para_err" ;; esac
   done
-  case $para_err in *PAR-V0-00[23]*) fail "a note on the id's line or a plain aside was refused: $para_err" ;; esac
+  case $para_err in *PAR-V0-00[235]*) fail "a note on the id's line or a plain aside was refused: $para_err" ;; esac
 done
 git -C "$test_root" rm -q --cached -- docs/specs/para.md
 

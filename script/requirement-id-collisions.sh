@@ -19,7 +19,8 @@
 # in it that an open ref newly defines prints `used ID REF_NAME (SHA) FILE` and the exit is 1;
 # otherwise `free ... on open refs`. `make requirement-ids-free` runs it after the REF tree check.
 #
-# Malformed input, a REF that is not a commit or a generator failure exits 2. It reads only Git
+# Malformed input, a REF that is not a commit, an open ref whose committed index cannot be read, or
+# a generator failure exits 2. It reads only Git
 # objects and the index; it writes nothing.
 set -uo pipefail
 export LC_ALL=C
@@ -72,8 +73,19 @@ while read -r sha name; do
   git merge-base --is-ancestor "$sha" "$base_sha" 2> /dev/null && continue
   git merge-base "$sha" "$base_sha" > /dev/null 2>&1 || continue
   open=$((open + 1))
-  git show "$sha:docs/specs/REQUIREMENTS.tsv" 2> /dev/null | new_rows |
-    awk -F'\t' -v ref="$name (${sha:0:12})" '{ print $0 "\t" ref }' >> "$work/open"
+  # A ref whose tree has no index has nothing to compare; one whose index blob cannot be read is
+  # an error, never an empty definition set (fail closed).
+  if ! blob=$(git rev-parse -q --verify "$sha:docs/specs/REQUIREMENTS.tsv" 2> /dev/null); then
+    printf '%s: NOTE %s (%s) has no docs/specs/REQUIREMENTS.tsv; skipped\n' "$me" "$name" "${sha:0:12}" >&2
+    continue
+  fi
+  git cat-file blob "$blob" > "$work/ref.tsv" 2> /dev/null || {
+    printf '%s: REFUSE ref-unreadable %s (%s): docs/specs/REQUIREMENTS.tsv blob %s cannot be read, so its definitions are unknown; repair or fetch the object, or delete the branch\n' \
+      "$me" "$name" "${sha:0:12}" "$blob" >&2
+    exit 2
+  }
+  new_rows < "$work/ref.tsv" | awk -F'\t' -v ref="$name (${sha:0:12})" '{ print $0 "\t" ref }' >> "$work/open" ||
+    { printf '%s: REFUSE could not read the rows of %s\n' "$me" "$name" >&2; exit 2; }
 done < "$work/refs"
 
 if [[ -n $block ]]; then

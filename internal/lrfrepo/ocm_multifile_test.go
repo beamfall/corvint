@@ -33,20 +33,22 @@ func TestOCMV0951LinkKeepsOtherTestPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := session.Cite(context.Background(), workflow.CiteOptions{
-		MapPath: wire.ExcludedCEMPath, Hunk: "1", EvidencePath: "docs/specs/intent.md", Lines: "5:5", Relation: "specification",
-	}); err != nil {
-		t.Fatal(err)
+	for _, ordinal := range []string{"1", "2"} {
+		if _, err := session.Cite(context.Background(), workflow.CiteOptions{
+			MapPath: wire.ExcludedCEMPath, Hunk: ordinal, EvidencePath: "docs/specs/intent.md", Lines: "5:5", Relation: "specification",
+		}); err != nil {
+			t.Fatal(err)
+		}
 	}
 	raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(wire.ExcludedCEMPath)))
 	if err != nil {
 		t.Fatal(err)
 	}
 	document, err := wire.ParseStable(raw)
-	if err != nil || len(document.Change.Hunks) == 0 {
+	if err != nil || len(document.Change.Hunks) < 2 {
 		t.Fatalf("stable map: err=%v", err)
 	}
-	hunk := document.Change.Hunks[0].ID
+	first, other := document.Change.Hunks[0].ID, document.Change.Hunks[1].ID
 	if _, err := PrepareOCM(context.Background(), root, PrepareOptions{
 		MapPath: DefaultOCMMapPath, CEMPath: wire.ExcludedCEMPath, IntentPath: "docs/specs/intent.md", ExpectedBase: base, Target: target,
 	}); err != nil {
@@ -66,7 +68,7 @@ func TestOCMV0951LinkKeepsOtherTestPaths(t *testing.T) {
 		t.Fatalf("no %q case claim in %s: %+v", caseText, path, claims)
 		return ocmClaim{}
 	}
-	link := func(path, caseText string) {
+	link := func(path, caseText, hunk string) {
 		t.Helper()
 		if _, err := LinkOCM(context.Background(), root, LinkOptions{
 			MapPath: DefaultOCMMapPath, CEMPath: wire.ExcludedCEMPath, Obligation: "OCM-TEST-001", Hunks: []string{hunk},
@@ -75,7 +77,7 @@ func TestOCMV0951LinkKeepsOtherTestPaths(t *testing.T) {
 			t.Fatalf("link %s: %v", path, err)
 		}
 	}
-	linked := func() []string {
+	linked := func() (claims, hunks []string) {
 		t.Helper()
 		checked, err := ReadOCM(context.Background(), root, OCMReadOptions{
 			OCMPath: DefaultOCMMapPath, CEMPath: wire.ExcludedCEMPath, ExpectedBase: base, Target: target,
@@ -94,13 +96,14 @@ func TestOCMV0951LinkKeepsOtherTestPaths(t *testing.T) {
 		}
 		for _, item := range obligations {
 			if id, _ := item.Obj.Get("id"); id.Str == "OCM-TEST-001" {
-				ids := memberStrings(item.Obj, "claimIds")
-				sort.Strings(ids)
-				return ids
+				claims, hunks = memberStrings(item.Obj, "claimIds"), memberStrings(item.Obj, "hunkIds")
+				sort.Strings(claims)
+				sort.Strings(hunks)
+				return claims, hunks
 			}
 		}
 		t.Fatal("no OCM-TEST-001 obligation")
-		return nil
+		return nil, nil
 	}
 	reducer, second, cli := claimFor("reducer_test.go", "reducer-keep"), claimFor("reducer_test.go", "second-case"), claimFor("cli_test.go", "cli-keep")
 	want := func(claims ...ocmClaim) []string {
@@ -112,14 +115,23 @@ func TestOCMV0951LinkKeepsOtherTestPaths(t *testing.T) {
 		return ids
 	}
 
-	link("reducer_test.go", "reducer-keep")
-	link("cli_test.go", "cli-keep")
-	if got := linked(); strings.Join(got, ",") != strings.Join(want(reducer, cli), ",") {
-		t.Fatalf("after linking two files the obligation holds %v, want both paths %v", got, want(reducer, cli))
+	both := []string{first, other}
+	sort.Strings(both)
+	check := func(step string, wantClaims, wantHunks []string) {
+		t.Helper()
+		claims, hunks := linked()
+		if strings.Join(claims, ",") != strings.Join(wantClaims, ",") || strings.Join(hunks, ",") != strings.Join(wantHunks, ",") {
+			t.Fatalf("%s: claims %v hunks %v, want claims %v hunks %v", step, claims, hunks, wantClaims, wantHunks)
+		}
 	}
-	// Relinking the first path replaces that path's claim and keeps the other path's.
-	link("reducer_test.go", "second-case")
-	if got := linked(); strings.Join(got, ",") != strings.Join(want(second, cli), ",") {
-		t.Fatalf("relinking one path holds %v, want %v", got, want(second, cli))
-	}
+
+	link("reducer_test.go", "reducer-keep", first)
+	check("one path", want(reducer), []string{first})
+	// A second path keeps the first path's claim, and the kept link's hunk joins the new one.
+	link("cli_test.go", "cli-keep", other)
+	check("two paths", want(reducer, cli), both)
+	// Relinking the first path replaces that path's claim, keeps the other path's, and keeps the
+	// union of hunks while a claim is kept.
+	link("reducer_test.go", "second-case", first)
+	check("relinked path", want(second, cli), both)
 }
