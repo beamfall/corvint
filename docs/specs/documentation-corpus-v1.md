@@ -1293,6 +1293,12 @@ intent. The frozen core MCP surface and CEM wire remain unchanged.
   freshness is `corpus-capacity-exceeded`, naming the bound and the phase, and never surfaces as
   `internal-error`. The native CLI and the corpus MCP server map such a failure to the same code
   through one shared function.
+- `DCP-V1-630`: (experimental under the standing lane auto-accept (2026-11-01); V1-3762; refines
+  DCP-V1-158) The `corpus-capacity-exceeded` message for an exhausted Git operation budget MUST name
+  the bound in force, read from the `gitrun` refusal (`at its N-operation bound`), not the default
+  1,024; when the refusal names no bound it says `Git operation budget exhausted` with no number.
+  Evidence: `TestDCPV1630BudgetRefusalNamesBoundInForce` (bound 1, two pinned revisions). Rollback:
+  restore the `gitrun.DefaultOperations` format.
 - `DCP-V1-159`: (accepted under the owner's standing auto-accept (2026-10-11) (GitHub #1240;
   V1-1984)) Batched loading changes no artifact byte: a corpus that built before builds to the same
   bytes, apart from the builder identity and the digest that covers it.
