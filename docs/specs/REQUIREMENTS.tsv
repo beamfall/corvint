@@ -6303,6 +6303,11 @@ SDD-V0-014	docs/specs/source-documentation-draft-v0.md	A page holding `internal/
 SDD-V0-015	docs/specs/source-documentation-draft-v0.md	The blinded maintainer task (audit section 13) is defined by	unrecorded	-
 SDD-V0-018	docs/specs/source-documentation-draft-v0.md	`docs draft`, `docs consume` and `corvint-docs-mcp` accept a module directory in	unrecorded	-
 SDD-V0-019	docs/specs/source-documentation-draft-v0.md	`docs draft --dry-run` and `corvint.docs_draft` with `dry_run: true` preview a f	unrecorded	-
+SDD-V0-630	docs/specs/source-documentation-draft-v0.md	Every draft states whether its owner excerpt names the drafted package (V1-3719)	unrecorded	-
+SDD-V0-631	docs/specs/source-documentation-draft-v0.md	A Go declaration entry spans its doc comment and its full declaration surface, n	unrecorded	-
+SDD-V0-632	docs/specs/source-documentation-draft-v0.md	Declarations and importers are paged independently, 64 entries per list per page	unrecorded	-
+SDD-V0-633	docs/specs/source-documentation-draft-v0.md	Foreign repositories need no Corvint-specific heading (V1-3721). `docs draft`,	unrecorded	-
+SDD-V0-634	docs/specs/source-documentation-draft-v0.md	Maturity statements in Go help strings and package docs of the form	unrecorded	-
 SEA-V0-001	docs/specs/source-evidence-axes-v0.md	The source MUST assign all six axes with a claim, exact scalar scope, witnesses,	unrecorded	-
 SEA-V0-002	docs/specs/source-evidence-axes-v0.md	The source MUST preserve the six independent vocabularies and initial assignment	unrecorded	-
 SEA-V0-003	docs/specs/source-evidence-axes-v0.md	The opted-in wrapper MUST bind the unchanged payload and captured producer/Git/i	unrecorded	-
