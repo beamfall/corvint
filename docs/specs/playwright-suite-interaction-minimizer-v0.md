@@ -161,9 +161,9 @@ canonical gate belongs to the frozen integrated candidate.
 
 | Code | Emitted condition | Site |
 |---|---|---|
-| `live-plan-drift` | Rebuilding the live plan from its bound input no longer reproduces the approved plan. | `internal/playwrightminimize/live.go:158@0fdb09c7` |
+| `live-plan-drift` | Rebuilding the live plan from its bound input no longer reproduces the approved plan. | `internal/playwrightminimize/live.go:160@0fdb09c7` |
 | `operator-authorization-required` | Operator approval is absent or its approved digest does not match the plan. | `internal/playwrightminimize/executor.go:20@a6c4fe51` |
-| `reset-failed` | The operator-owned reset command does not complete successfully. | `internal/playwrightminimize/live.go:189@a7ad6655` |
+| `reset-failed` | The operator-owned reset command does not complete successfully. | `internal/playwrightminimize/live.go:191@a7ad6655` |
 | `trial-runner-required` | Execution is requested without a trial runner. | `internal/playwrightminimize/executor.go:23@817fd5c2` |
 
 ## Rollout, rollback, compatibility, and promotion
