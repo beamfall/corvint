@@ -5665,3 +5665,33 @@ Rollback: revert the change commit; it adds a test, a test helper parameter and 
 | --- | --- | --- |
 | CEM-V1-961 | `TestCEMV1961CanonicalRouteHasNoLegacyTreeOrConfigBound` (`interop/cem01-go`) | canonical ACCEPT over 5000+ entries and an ordinary config; 111/111 corpus parity |
 | CEM-V1-962 | `TestCEMV1961CanonicalRouteHasNoLegacyTreeOrConfigBound` (`interop/cem01-go`); `candidateRepository` and `repository03` in `interop/cem01-go/cem.go` | ordinary config refused `unsupported-repository-envelope` on the legacy route |
+
+## Committed map base retention (V1-3758, 2026-11-01)
+
+Status: experimental under the owner's standing lane auto-accept (2026-10-11); V1-3758; decision
+0588.
+
+- `CEM-V1-963`: (experimental under the owner's standing lane auto-accept (2026-10-11); V1-3758)
+  Every tracked `.corvint/changes/NAME.cem.json` MUST have a `baseRevision` that a retained ref
+  (default `refs/remotes/origin/main`) reaches, or a `.corvint/cem-lineage.tsv` row
+  (`corvint-cem-lineage/1`: target, base, label, retained ref) labelling that exact base
+  `archive-lineage`, `rebased-lane-base` or `base-unavailable`. `make cem-base-retention-check`
+  MUST refuse any other map, a register row whose map is not tracked or whose base differs, and an
+  unknown label, naming each; with no resolvable retained ref it MUST print that it was skipped.
+  A label is a disclosure and changes no verdict.
+
+Non-goals: no rewrite of a sealed map, no new ref, no verification of the archive repository.
+
+Failure modes: a shallow or remote-less clone skips the check, saying so; a label cannot make an
+absent object verify, so a `base-unavailable` map stays `UNSUPPORTED`.
+
+Acceptance evidence: `script/check-cem-base-retained_test.sh` (retained base passes; a base only a
+deleted branch held and a missing base are refused with the fix; a label admits exactly its base;
+stale, mismatched and unknown-label rows are refused; no retained ref skips). The committed corpus
+passes with 111 maps and 17 labelled rows (decision 0588).
+
+Rollback: delete the register, the scripts and their Makefile targets; no map changes.
+
+| Requirement | Test | Evidence |
+| --- | --- | --- |
+| CEM-V1-963 | `script/check-cem-base-retained_test.sh` (`make cem-base-retention-test`) | `make cem-base-retention-check` over the committed corpus |
