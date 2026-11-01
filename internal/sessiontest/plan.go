@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/Beamfall/corvint/.github/cishards"
+	"github.com/Beamfall/corvint/internal/gateselect"
 )
 
 // Unknown is one plan.unknown entry.
@@ -140,17 +141,11 @@ func ModuleCovered(dirty []string, unknown []Unknown) bool {
 	return len(dirty) != 0
 }
 
-// allowedUnknown is the closed AFP-V0-028 allowlist: every other plan.unknown
-// entry forces FULL (STR-V0-003).
+// allowedUnknown is the closed AFP-V0-028 allowlist, the one the deciding
+// driver shares (gateselect.AllowedUnknown, AFP-V0-982): every other
+// plan.unknown entry forces FULL (STR-V0-003).
 func allowedUnknown(entry Unknown) bool {
-	switch entry.Reason {
-	case "LANGUAGE_FRONTIER":
-		return !strings.HasPrefix(entry.Detail, "go:") ||
-			entry.Detail == "go:build-constraint-variants" || entry.Detail == "go:nested-module-frontier"
-	case "UNOWNED_DIRTY_PATH", "NO_SELECTABLE_TEST":
-		return true
-	}
-	return false
+	return gateselect.AllowedUnknown(entry.Reason, entry.Detail)
 }
 
 // PartitionDigest binds the cishards profile and the three repository
