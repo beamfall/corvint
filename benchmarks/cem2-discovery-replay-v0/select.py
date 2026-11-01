@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: Apache-2.0
 """V1-2600 change-set selector (VRP-V0-010..019): reproduce selection-manifest.json from Git alone.
 
 Usage: python3 -I select.py REPO REF [--repository-label LABEL] > selection-manifest.json

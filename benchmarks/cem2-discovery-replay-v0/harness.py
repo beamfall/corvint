@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: Apache-2.0
 """V1-2600 discovery replay harness (VRP-V0-030..049, 055..061). Pre-registered in PROTOCOL.md.
 
   python3 -I harness.py check                     manifest + registration digests, threshold status (exit 3 = OWNER-BLOCKER)
