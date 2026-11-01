@@ -89,58 +89,58 @@ AFP-V0-021	docs/specs/affected-plan-v0.md	(accepted, decision 0376; ticket V1-01
 AFP-V0-022	docs/specs/affected-plan-v0.md	(accepted (decision 0431); amended by decision 0431; owner-directed experimental	owner	decision 0431
 AFP-V0-041	docs/specs/affected-plan-v0.md	(accepted by decision 0488, 2026-10-10; V1-1096; no GitHub issue) Full	owner	decision 0488; 2026-10-10; V1-1096
 AFP-V0-023	docs/specs/affected-plan-v0.md	(owner-directed, proposed, 2026-10-01; V1-0246, V1-0081; declaration-edit	unrecorded	-
-AFP-V0-024	docs/specs/affected-plan-v0.md	(owner-directed, proposed, 2026-10-04; V1-0717; merge-queue amendment under the	standing	2026-10-04; V1-0717; 2026-10-11; V1-0760
 AFP-V0-025	docs/specs/affected-plan-v0.md	(owner-directed, proposed, 2026-10-04; V1-0719, V1-0752) The repository SHALL	unrecorded	-
+AFP-V0-192	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2075)) Every	standing	2026-10-11; V1-2075
+AFP-V0-033	docs/specs/affected-plan-v0.md	(accepted by decision 0438; V1-0868) Every `units` directory of	owner	decision 0438; V1-0868
+AFP-V0-050	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1298; (3)	standing	2026-10-11; V1-1298
+AFP-V0-051	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1351) A local	standing	2026-10-11; V1-1351
+AFP-V0-024	docs/specs/affected-plan-v0.md	(owner-directed, proposed, 2026-10-04; V1-0717; merge-queue amendment under the	standing	2026-10-04; V1-0717; 2026-10-11; V1-0760
 AFP-V0-026	docs/specs/affected-plan-v0.md	(accepted (decision 0431); amended by decision 0431; owner-directed, 2026-10-04;	standing	decision 0431; 2026-10-04; V1-0752; 2026-10-11; V1-1360
 AFP-V0-027	docs/specs/affected-plan-v0.md	(owner-directed, proposed, 2026-10-05; V1-0809) A pull request labelled	unrecorded	-
+AFP-V0-046	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1360) A	standing	2026-10-11; V1-1360
+AFP-V0-170	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2271) The	standing	2026-10-11; V1-2271
+AFP-V0-171	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1847) When	standing	2026-10-11; V1-1847
+AFP-V0-079	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642);	standing	2026-10-11; V1-1778; V1-1642
+AFP-V0-080	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642);	standing	2026-10-11; V1-1778; V1-1642
+AFP-V0-081	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642);	standing	2026-10-11; V1-1778; V1-1642
+AFP-V0-082	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642);	standing	2026-10-11; V1-1778; V1-1642; V1-0728
 AFP-V0-028	docs/specs/affected-plan-v0.md	(accepted, decision 0509; intent decision 0431) Queue-backstopped narrowing SHAL	owner	decision 0509; decision 0431
 AFP-V0-029	docs/specs/affected-plan-v0.md	(accepted, decision 0509; intent decision 0431; amended decision 0537; amended b	owner	decision 0509; decision 0431; decision 0537; 2026-10-20; V1-0812; 2026-10-31
 AFP-V0-030	docs/specs/affected-plan-v0.md	(accepted, decision 0509; intent decision 0431; amended decision 0537; amended b	owner	decision 0509; decision 0431; decision 0537; 2026-10-20; V1-0812
-AFP-V0-031	docs/specs/affected-plan-v0.md	(accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module	owner	decision 0438; V1-0867
-AFP-V0-190	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-0874)) The Go	standing	2026-10-11; V1-0874
-AFP-V0-191	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-0922)) A langua	standing	2026-10-11; V1-0922
-AFP-V0-192	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2075)) Every	standing	2026-10-11; V1-2075
-AFP-V0-032	docs/specs/affected-plan-v0.md	(accepted by decision 0438; V1-0865) Only a declaration path that	owner	decision 0438; V1-0865
-AFP-V0-033	docs/specs/affected-plan-v0.md	(accepted by decision 0438; V1-0868) Every `units` directory of	owner	decision 0438; V1-0868
-AFP-V0-034	docs/specs/affected-plan-v0.md	(accepted by decision 0439; V1-0416; no GitHub issue) The disk source reader (`R	owner	decision 0439; V1-0416
-AFP-V0-035	docs/specs/affected-plan-v0.md	(proposed; V1-0943; no GitHub issue) Without `--full`, the worktree,	unrecorded	-
-AFP-V0-036	docs/specs/affected-plan-v0.md	(proposed (V1-0984); no GitHub issue) A dirty-path set whose only paths in an	unrecorded	-
-AFP-V0-037	docs/specs/affected-plan-v0.md	(proposed (V1-0991); no GitHub issue) A package whose code or tests run the buil	unrecorded	-
-AFP-V0-038	docs/specs/affected-plan-v0.md	(proposed (V1-0995); no GitHub issue) In the `affected-plan/1` default, the	unrecorded	-
-AFP-V0-039	docs/specs/affected-plan-v0.md	(proposed (V1-0662); no GitHub issue) A Go test fixture under	unrecorded	-
-AFP-V0-040	docs/specs/affected-plan-v0.md	(accepted by decision 0487, 2026-10-10; no ticket; no GitHub issue) CI SHALL	owner	decision 0487; 2026-10-10
-AFP-V0-042	docs/specs/affected-plan-v0.md	(accepted, decision 0496; V1-1117; no GitHub issue; owner consent for the	owner	decision 0496; V1-1117
-AFP-V0-043	docs/specs/affected-plan-v0.md	(accepted, decision 0505) Cost-table	owner	decision 0505
-AFP-V0-044	docs/specs/affected-plan-v0.md	(accepted, decision 0519 (V1-1141); GitHub #783) When `--base`	owner	decision 0519; V1-1141; #783
-AFP-V0-045	docs/specs/affected-plan-v0.md	(accepted, decision 0519 (V1-1141); GitHub #783) `affected` MUST	owner	decision 0519; V1-1141; #783
-AFP-V0-094	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2044); GitHub #	standing	2026-10-11; V1-2044; #1301
-AFP-V0-095	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2044); GitHub #	standing	2026-10-11; V1-2044; #1301
-AFP-V0-096	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2044); GitHub #	standing	2026-10-11; V1-2044; #1301
 AFP-V0-097	docs/specs/affected-plan-v0.md	(decided by the orchestrator under owner delegation (owner chat, 2026-10-20;	unrecorded	-
 AFP-V0-098	docs/specs/affected-plan-v0.md	(decided by the orchestrator under owner delegation (owner chat, 2026-10-20;	unrecorded	-
 AFP-V0-800	docs/specs/affected-plan-v0.md	(accepted by the owner, V1-3093, 2026-10-28) Effective PR base.	owner	V1-3093; 2026-10-28
 AFP-V0-801	docs/specs/affected-plan-v0.md	(accepted by the owner, V1-3093, 2026-10-28) Range consistency.	owner	V1-3093; 2026-10-28
 AFP-V0-802	docs/specs/affected-plan-v0.md	(accepted by the owner, V1-3093, 2026-10-28) Forward-row ownership.	owner	V1-3093; 2026-10-28
 AFP-V0-099	docs/specs/affected-plan-v0.md	(decided by the orchestrator under owner delegation (owner chat, 2026-10-20;	unrecorded	-
-AFP-V0-046	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1360) A	standing	2026-10-11; V1-1360
-AFP-V0-170	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-2271) The	standing	2026-10-11; V1-2271
-AFP-V0-171	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1847) When	standing	2026-10-11; V1-1847
 AFP-V0-047	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-0811) The	standing	2026-10-11; V1-0811
+AFP-V0-052	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1514; the	standing	2026-10-11; V1-1514
+AFP-V0-040	docs/specs/affected-plan-v0.md	(accepted by decision 0487, 2026-10-10; no ticket; no GitHub issue) CI SHALL	owner	decision 0487; 2026-10-10
+AFP-V0-043	docs/specs/affected-plan-v0.md	(accepted, decision 0505) Cost-table	owner	decision 0505
 AFP-V0-048	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1361) A	standing	2026-10-11; V1-1361
 AFP-V0-049	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1371)	standing	2026-10-11; V1-1371
-AFP-V0-050	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1298; (3)	standing	2026-10-11; V1-1298
-AFP-V0-051	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1351) A local	standing	2026-10-11; V1-1351
-AFP-V0-052	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1514; the	standing	2026-10-11; V1-1514
-AFP-V0-053	docs/specs/affected-plan-v0.md	(accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat))	owner	2026-10-16
-AFP-V0-054	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1719; no	standing	2026-10-11; V1-1719
 AFP-V0-060	docs/specs/affected-plan-v0.md	(accepted by the owner in owner chat, 2026-10-18, which also gave AFP-V0-016	owner	2026-10-18
+AFP-V0-042	docs/specs/affected-plan-v0.md	(accepted, decision 0496; V1-1117; no GitHub issue; owner consent for the	owner	decision 0496; V1-1117
+AFP-V0-054	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1719; no	standing	2026-10-11; V1-1719
+AFP-V0-031	docs/specs/affected-plan-v0.md	(accepted by decision 0438; V1-0867; narrows the AFP-V0-008 nested-module	owner	decision 0438; V1-0867
+AFP-V0-190	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-0874)) The Go	standing	2026-10-11; V1-0874
+AFP-V0-191	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-0922)) A langua	standing	2026-10-11; V1-0922
+AFP-V0-037	docs/specs/affected-plan-v0.md	(proposed (V1-0991); no GitHub issue) A package whose code or tests run the buil	unrecorded	-
+AFP-V0-032	docs/specs/affected-plan-v0.md	(accepted by decision 0438; V1-0865) Only a declaration path that	owner	decision 0438; V1-0865
+AFP-V0-034	docs/specs/affected-plan-v0.md	(accepted by decision 0439; V1-0416; no GitHub issue) The disk source reader (`R	owner	decision 0439; V1-0416
+AFP-V0-035	docs/specs/affected-plan-v0.md	(proposed; V1-0943; no GitHub issue) Without `--full`, the worktree,	unrecorded	-
+AFP-V0-036	docs/specs/affected-plan-v0.md	(proposed (V1-0984); no GitHub issue) A dirty-path set whose only paths in an	unrecorded	-
+AFP-V0-038	docs/specs/affected-plan-v0.md	(proposed (V1-0995); no GitHub issue) In the `affected-plan/1` default, the	unrecorded	-
+AFP-V0-044	docs/specs/affected-plan-v0.md	(accepted, decision 0519 (V1-1141); GitHub #783) When `--base`	owner	decision 0519; V1-1141; #783
+AFP-V0-045	docs/specs/affected-plan-v0.md	(accepted, decision 0519 (V1-1141); GitHub #783) `affected` MUST	owner	decision 0519; V1-1141; #783
 AFP-V0-066	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1796; GitHub	standing	2026-10-11; V1-1796
 AFP-V0-072	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-1806; no	standing	2026-10-11; V1-1806
-AFP-V0-079	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642);	standing	2026-10-11; V1-1778; V1-1642
-AFP-V0-080	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642);	standing	2026-10-11; V1-1778; V1-1642
-AFP-V0-081	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642);	standing	2026-10-11; V1-1778; V1-1642
-AFP-V0-082	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1778/V1-1642);	standing	2026-10-11; V1-1778; V1-1642; V1-0728
 AFP-V0-088	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2049); (2) amen	standing	2026-10-11; V1-2049; V1-2069
+AFP-V0-094	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2044); GitHub #	standing	2026-10-11; V1-2044; #1301
+AFP-V0-095	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2044); GitHub #	standing	2026-10-11; V1-2044; #1301
+AFP-V0-096	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-2044); GitHub #	standing	2026-10-11; V1-2044; #1301
+AFP-V0-039	docs/specs/affected-plan-v0.md	(proposed (V1-0662); no GitHub issue) A Go test fixture under	unrecorded	-
+AFP-V0-053	docs/specs/affected-plan-v0.md	(accepted by the owner (2026-10-16; ticket ci-shadow-historical-compat))	owner	2026-10-16
 AFP-V0-150	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1087))	standing	2026-10-11; V1-1087
 AFP-V0-151	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-0875))	standing	2026-10-11; V1-0875
 AFP-V0-152	docs/specs/affected-plan-v0.md	(accepted under the owner's standing auto-accept (2026-10-11; V1-1820))	standing	2026-10-11; V1-1820
