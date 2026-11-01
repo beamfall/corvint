@@ -1,0 +1,65 @@
+# Affected and CLI Consistency V0
+
+Owner: Russell Lewis
+Date: 2026-11-01
+Requirement prefix: `ACX-V0`
+Intent status: experimental under the owner's standing lane auto-accept (2026-10-11; lane aff-w12)
+Delivery status: experimental
+Authoritative inputs: native tickets V1-3583, V1-3327, V1-3578, V1-3726, V1-3727, V1-3045,
+V1-2907, V1-3734, V1-3731 and V1-3736. These requirements refine the
+[affected plan](affected-plan-v0.md) and the command-line surface around it; they live here to
+keep that spec's Requirements section under the 256-obligation OCM limit (`maxObligations`).
+
+## Agent digest
+- Claim: Affected source walks, worktree path plans, test-file readers, revspec bases and the CLI flag, error and Makefile surface follow one contract.
+- Status: experimental under the owner's standing lane auto-accept (2026-10-11; lane aff-w12).
+- Exists: `Source.Files` and `ByName` in `internal/liveverify/affected/source.go`; `--worktree` in `cmd/corvint/affected.go`.
+- Blocked on: nothing.
+- Read next: Requirements; Failure modes; Acceptance evidence and traceability.
+
+## Intent and scope
+
+Intent (orchestrator lane request aff-w12, 2026-11-01): close ten friction tickets in
+`corvint affected`, test selection and the CLI surface, each with the smallest complete slice that
+meets its acceptance criteria. Affected user: an agent or engineer planning tests for a change or
+driving Corvint from scripts.
+
+## Requirements
+
+- **ACX-V0-850:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3583)
+  `Source.Files` and `Source.FilesIncluding` SHALL call `accept` with each walked file's
+  repository-relative slash path and its base name, on a supplied filesystem, a disk source and a
+  context-scoped disk source alike, so a directory-scoped rule such as the Gradle default version
+  catalog `gradle/libs.versions.toml` matches. `ByName` SHALL adapt a name-only predicate, and
+  every existing name-only caller SHALL keep its selection unchanged.
+- **ACX-V0-851:** (experimental, amending AFP-V0-094, under the owner's standing lane
+  auto-accept, 2026-10-11; V1-3327) `corvint affected --worktree` with `--path` or `--paths-from`
+  SHALL plan the named paths against the working tree, dirty paths and ignored files included,
+  instead of refusing `unsupported-affected-mixed-worktree`. Its receipt SHALL carry the
+  degradation `worktree-path-plan` and a warning that names HEAD and the dirty count and says the
+  plan is worktree-derived and is not pinned evidence. `--worktree` without `--path` or
+  `--paths-from`, or with `--require-clean`, `--snapshot` or `--base`, SHALL be an argument
+  error. Without `--worktree` the AFP-V0-094 refusal SHALL stay the default.
+
+## Non-goals
+
+Pinning a worktree-derived plan as evidence; a repository-wide flag rename.
+
+## Failure modes
+
+(1) A caller that still compares the first `accept` argument with a base name would match nothing;
+the signature change makes every such caller a compile error. (2) A `--worktree` plan can be
+read as evidence by a consumer that ignores `degradations`; the warning and the degradation name
+it.
+
+## Acceptance evidence and traceability
+
+| Requirement | Implementation | Evidence |
+|---|---|---|
+| ACX-V0-850 | `Source.Files`, `Source.FilesIncluding` and `ByName` in `internal/liveverify/affected/source.go`; the catalog filters in `internal/liveverify/affected/kotlin/kotlin.go` | `TestSourceFilesOffersRelativePath_V1_3583`; the plugin package tests |
+| ACX-V0-851 | `Worktree` in `parseAffectedOptions` and `compileAffectedGraph`, `affectedWorktreeWarning` in `cmd/corvint/affected.go` | `TestACXV0851WorktreePathPlan` |
+
+## Rollback
+
+Revert the commits naming these requirements; each is local to its ticket's files and no stored
+state depends on them.
