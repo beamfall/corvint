@@ -1379,6 +1379,18 @@ separate exact extension tuple remains governed by AHI-024.
   fault (a `FALLBACK degraded:` or `Corvint fallback:` message), a killed hook (no output) and the
   outputs that stay `{}`: an event the adapter does not handle, a `cwd` outside a repository and
   `SessionEnd`. Rollback: return `{}` again.
+- `AHI-911`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3423) When the
+  Claude Code adapter's watchdog ends an event whose degradation is a user-visible `systemMessage`
+  (every event but the quiet `SessionStart` and `UserPromptSubmit` context events, for example
+  `PostToolUse`) with `adapter-host-kill-deadline`, the banner is shown once per cause: only when
+  its `SOL-V0-010` row is new for that host, event and UTC hour window (the ledger's existing
+  deduplication key). A repeat within the window prints `{}` and is still ledgered. A shown banner
+  keeps its `Corvint FALLBACK degraded: adapter-host-kill-deadline; coding continues` frame and adds
+  one line naming the action: refresh the index snapshot with the exact `corvint --root ROOT index
+  --if-stale` argv, and inspect repeats with `corvint --root ROOT observations`. When the ledger
+  cannot be written (not ignored, unwritable, or past its 50 ms bound) the banner is shown, so a
+  fault is never hidden. The ledger row decides only whether the banner repeats; it feeds no
+  ranking, evidence, authority or learning (invariant 4). Rollback: always show the banner.
 - `AHI-045`: (accepted by decision 0441; V1-0942) The Claude Code and Codex
   `corvint-dogfood-event/0` adapters MUST inject, inside the unchanged `AHI-004` envelope, the
   `corvint-hook-context/0` projection of the engine receipt rather than the whole receipt. The
