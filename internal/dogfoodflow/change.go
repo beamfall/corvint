@@ -2361,7 +2361,7 @@ var fixHints = []struct{ pattern, hint string }{
 
 // intentScopeHint is the missing-intent-scope fix; a manifest that was read
 // is prefixed with the first line it refused (DCW-V0-387).
-const intentScopeHint = "DOGFOOD_INTENTS_FILE must be the path of a sorted, LF-terminated file listing 1-16 repository-relative spec paths, or of a file holding the one line #no-intent-declared when no requirements spec governs the change"
+const intentScopeHint = "DOGFOOD_INTENTS_FILE must be the path of a sorted, LF-terminated file listing 1-16 repository-relative spec paths, or of a file holding the one line #no-intent-declared when no requirements spec governs the change; a docs/build-log/*.md entry or docs/decisions/*.md file is an intent only of a record change, one that touches nothing else but CEM sidecars (DCW-V0-058, DCW-V0-817)"
 
 const uncommittedHint = "the worktree has uncommitted changes (often the prepared sidecar); commit them, then rerun corvint dogfood change {base}"
 
@@ -2666,7 +2666,10 @@ func objectUnavailableHint(step, evidence, base string) string {
 // for an intent present at BASE; requirementsSectionBootstrapHint is the fix for
 // a bootstrap intent this change adds (ASD-V0-092, V1-3254; DCW-V0-449).
 const (
-	requirementsSectionHint          = `the intent on line N of DOGFOOD_INTENTS_FILE, {step} being ocm-prepare-N, must be a spec Markdown file with exactly one "## Requirements" heading outside code fences; give it one, or name instead the spec that holds this change's requirements, then rerun corvint dogfood change {base}`
+	requirementsSectionHint = `the intent on line N of DOGFOOD_INTENTS_FILE, {step} being ocm-prepare-N, must be a spec Markdown file with exactly one "## Requirements" heading outside code fences; give it one, or name instead the spec that holds this change's requirements, then rerun corvint dogfood change {base}`
+	// recordIntentHint names the record-change rule for a build-log entry or
+	// decision named as an intent of a change that is not a record (DCW-V0-817).
+	recordIntentHint                 = `%s on line %s of DOGFOOD_INTENTS_FILE is a build-log entry or decision, which is an intent only of a record change: one that touches nothing but docs/build-log/*.md entries, docs/decisions/*.md files and CEM sidecars, and that edits the named build-log entry (DCW-V0-058); this change touches other paths, so name instead the spec Markdown file with a "## Requirements" heading that governs it, or the one line #no-intent-declared when no spec does, then rerun corvint dogfood change {base} (DCW-V0-817)`
 	requirementsSectionBootstrapHint = `%s on line %s of DOGFOOD_INTENTS_FILE is absent at BASE, a bootstrap intent this change adds (such as a new companion spec, DCW-V0-449); it is read at the change's commit and must hold exactly one "## Requirements" heading outside code fences: add the heading to that new spec and commit it, keep each of its hunks as no row or an unknown row in DOGFOOD_CITATIONS, then rerun corvint dogfood change {base}`
 )
 
@@ -2675,6 +2678,9 @@ const (
 func (c *change) requirementsSectionHint(name string) string {
 	number := strings.TrimPrefix(name, "ocm-prepare-")
 	index, err := strconv.Atoi(number)
+	if err == nil && index >= 1 && index <= len(c.intents) && recordIntentPath(c.intents[index-1]) {
+		return strings.ReplaceAll(fmt.Sprintf(recordIntentHint, strconv.Quote(c.intents[index-1]), number), "{base}", c.base)
+	}
 	if err != nil || index < 1 || index > len(c.intents) || c.gitSucceeds("cat-file", "-e", c.base+":"+c.intents[index-1]) {
 		return strings.NewReplacer("{step}", name, "{base}", c.base).Replace(requirementsSectionHint)
 	}

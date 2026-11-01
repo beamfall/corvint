@@ -705,7 +705,7 @@ phase_jobs="$phase_jobs $!"
   # silently (regression check for the swallowed-reason bug).
   rg -q '^dogfood-change: FAIL not-complete$' <<< "$missing_manifest_output"
   rg -q '^  ocm-aggregate: missing-intent-scope$' <<< "$missing_manifest_output"
-  rg -Fxq '    fix: DOGFOOD_INTENTS_FILE must be the path of a sorted, LF-terminated file listing 1-16 repository-relative spec paths, or of a file holding the one line #no-intent-declared when no requirements spec governs the change' <<< "$missing_manifest_output"
+  rg -Fxq '    fix: DOGFOOD_INTENTS_FILE must be the path of a sorted, LF-terminated file listing 1-16 repository-relative spec paths, or of a file holding the one line #no-intent-declared when no requirements spec governs the change; a docs/build-log/*.md entry or docs/decisions/*.md file is an intent only of a record change, one that touches nothing else but CEM sidecars (DCW-V0-058, DCW-V0-817)' <<< "$missing_manifest_output"
   rg -q '^  full report: .*/\.corvint/dogfood-report\.json$' <<< "$missing_manifest_output"
 
   # DCW-V0-024: the explicit no-intent declaration passes through the wrapper,
