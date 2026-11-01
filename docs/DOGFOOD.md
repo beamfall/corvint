@@ -516,7 +516,10 @@ leave no map, so a `|` in the verify file, a uniform plan, a stale ordinal, a ci
 change edits or an empty file exits naming the file and line before any bind work (`DCW-V0-380`).
 Run it alone, with the same variables, as `make dogfood-inputs-check` while writing the inputs.
 It also refuses `reused-worktree-state` for a trace or OCM sidecar an earlier lane left in a reused
-worktree and prints the `corvint migrate-traces --apply` recovery (`DCW-V0-400`). Before the first
+worktree and prints the `corvint migrate-traces --apply` recovery (`DCW-V0-400`). Before any build
+it runs the requirement-definitions check, and the test read-scopes check when a `*_test.go` file or
+`.corvint/test-read-scopes.json` changed, refusing `requirement-definitions-invalid` or
+`test-read-scopes-invalid` (`DCW-V0-815`). Before the first
 bind, also run `make doc-gates` on the working tree: it is the doc-gate list closeout and CI run, so
 a spec whose Agent digest `Status` no longer repeats its header `Status`, a stale
 `REQUIREMENTS.tsv` or a missing read scope fails there, before any bind (`DCW-V0-399`).
