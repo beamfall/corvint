@@ -5209,15 +5209,16 @@
       "command": "corvint ocm",
       "summary": "Prepare, close, or verify an Obligation Closure Map and its bound CEM",
       "usage": [
-        "corvint [--root PATH] ocm link --map MAP --obligation ID_OR_ORDINAL --hunk ID [--hunk ID...] --test-path PATH --claim SELECTOR [--claim SELECTOR...] [OPTIONS]",
+        "corvint [--root PATH] ocm link --map MAP --obligation ID_OR_ORDINAL --hunk ID [--hunk ID...] --test-path PATH --claim SELECTOR [--claim SELECTOR...] --expected-base REV --target REV [OPTIONS]",
         "corvint [--root PATH] ocm mark --map MAP --obligation ID_OR_ORDINAL --reason REASON [--output MAP]",
         "corvint [--root PATH] ocm prepare --target REV --intent PATH [OPTIONS]",
-        "corvint [--root PATH] ocm report --map MAP [--output REPORT] [OPTIONS]",
-        "corvint [--root PATH] ocm status --map MAP [OPTIONS]",
-        "corvint [--root PATH] ocm verify --map MAP [OPTIONS]"
+        "corvint [--root PATH] ocm report --map MAP --expected-base REV --target REV [--output REPORT] [OPTIONS]",
+        "corvint [--root PATH] ocm status --map MAP --expected-base REV --target REV [OPTIONS]",
+        "corvint [--root PATH] ocm verify --map MAP --expected-base REV --target REV [OPTIONS]"
       ],
       "flags": [
         "--claim",
+        "--expected-base",
         "--hunk",
         "--intent",
         "--map",
@@ -5229,7 +5230,7 @@
         "--test-path"
       ],
       "required": [],
-      "example": "corvint ocm link --map MAP --obligation ID_OR_ORDINAL --hunk ID --test-path PATH --claim SELECTOR",
+      "example": "corvint ocm link --map MAP --obligation ID_OR_ORDINAL --hunk ID --test-path PATH --claim SELECTOR --expected-base REV --target REV",
       "help": "corvint ocm --help"
     },
     {
@@ -5240,14 +5241,16 @@
       "command": "corvint ocm link",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] ocm link --map MAP --obligation ID_OR_ORDINAL --hunk ID [--hunk ID...] --test-path PATH --claim SELECTOR [--claim SELECTOR...] [OPTIONS]"
+        "corvint [--root PATH] ocm link --map MAP --obligation ID_OR_ORDINAL --hunk ID [--hunk ID...] --test-path PATH --claim SELECTOR [--claim SELECTOR...] --expected-base REV --target REV [OPTIONS]"
       ],
       "flags": [
         "--claim",
+        "--expected-base",
         "--hunk",
         "--map",
         "--obligation",
         "--root",
+        "--target",
         "--test-path"
       ],
       "required": [
@@ -5255,9 +5258,11 @@
         "--obligation ID_OR_ORDINAL",
         "--hunk ID",
         "--test-path PATH",
-        "--claim SELECTOR"
+        "--claim SELECTOR",
+        "--expected-base REV",
+        "--target REV"
       ],
-      "example": "corvint ocm link --map MAP --obligation ID_OR_ORDINAL --hunk ID --test-path PATH --claim SELECTOR",
+      "example": "corvint ocm link --map MAP --obligation ID_OR_ORDINAL --hunk ID --test-path PATH --claim SELECTOR --expected-base REV --target REV",
       "help": "corvint ocm link --help"
     },
     {
@@ -5315,17 +5320,21 @@
       "command": "corvint ocm report",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] ocm report --map MAP [--output REPORT] [OPTIONS]"
+        "corvint [--root PATH] ocm report --map MAP --expected-base REV --target REV [--output REPORT] [OPTIONS]"
       ],
       "flags": [
+        "--expected-base",
         "--map",
         "--output",
-        "--root"
+        "--root",
+        "--target"
       ],
       "required": [
-        "--map MAP"
+        "--map MAP",
+        "--expected-base REV",
+        "--target REV"
       ],
-      "example": "corvint ocm report --map MAP",
+      "example": "corvint ocm report --map MAP --expected-base REV --target REV",
       "help": "corvint ocm report --help"
     },
     {
@@ -5336,16 +5345,20 @@
       "command": "corvint ocm status",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] ocm status --map MAP [OPTIONS]"
+        "corvint [--root PATH] ocm status --map MAP --expected-base REV --target REV [OPTIONS]"
       ],
       "flags": [
+        "--expected-base",
         "--map",
-        "--root"
+        "--root",
+        "--target"
       ],
       "required": [
-        "--map MAP"
+        "--map MAP",
+        "--expected-base REV",
+        "--target REV"
       ],
-      "example": "corvint ocm status --map MAP",
+      "example": "corvint ocm status --map MAP --expected-base REV --target REV",
       "help": "corvint ocm status --help"
     },
     {
@@ -5356,16 +5369,20 @@
       "command": "corvint ocm verify",
       "summary": "",
       "usage": [
-        "corvint [--root PATH] ocm verify --map MAP [OPTIONS]"
+        "corvint [--root PATH] ocm verify --map MAP --expected-base REV --target REV [OPTIONS]"
       ],
       "flags": [
+        "--expected-base",
         "--map",
-        "--root"
+        "--root",
+        "--target"
       ],
       "required": [
-        "--map MAP"
+        "--map MAP",
+        "--expected-base REV",
+        "--target REV"
       ],
-      "example": "corvint ocm verify --map MAP",
+      "example": "corvint ocm verify --map MAP --expected-base REV --target REV",
       "help": "corvint ocm verify --help"
     },
     {

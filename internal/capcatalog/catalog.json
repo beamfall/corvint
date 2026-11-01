@@ -795,9 +795,11 @@
       "requiredFlags": {
         "ocm link": [
           "--claim",
+          "--expected-base",
           "--hunk",
           "--map",
           "--obligation",
+          "--target",
           "--test-path"
         ],
         "ocm mark": [
@@ -810,13 +812,19 @@
           "--target"
         ],
         "ocm report": [
-          "--map"
+          "--expected-base",
+          "--map",
+          "--target"
         ],
         "ocm status": [
-          "--map"
+          "--expected-base",
+          "--map",
+          "--target"
         ],
         "ocm verify": [
-          "--map"
+          "--expected-base",
+          "--map",
+          "--target"
         ]
       },
       "flags": [
