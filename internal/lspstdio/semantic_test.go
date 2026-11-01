@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"slices"
 	"strconv"
@@ -468,9 +469,15 @@ func publishFakeDiagnostics(params json.RawMessage) {
 // LQP-V0-012 for the unqualified companion (V1-0481): diagnostics are not a
 // qualified method, so across open, change, definition and close the client
 // receives no publishDiagnostics, even when the backend pushes them. With
-// none published there is no stale diagnostic left to withdraw.
+// none published there is no stale diagnostic left to withdraw. The unsaved
+// change and the read leave the root's files byte-identical (V1-0481: no read
+// writes source).
 func TestSemanticWithholdsUpstreamDiagnostics(t *testing.T) {
 	h := semanticHarnessNew(t, "diagnostics")
+	if err := os.WriteFile(filepath.Join(h.root, "main.go"), []byte("package p\nvar disk int\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	beforeFiles := fixtureContents(t, h.root)
 	h.bound(t, time.Minute)
 	h.init(t)
 	h.open(t)
@@ -501,5 +508,12 @@ func TestSemanticWithholdsUpstreamDiagnostics(t *testing.T) {
 	published, _ := os.ReadFile(filepath.Join(h.scratch, "diagnostics-published"))
 	if n := strings.Count(string(published), "\n"); n < 4 {
 		t.Fatalf("backend published %d diagnostics, want at least 4", n)
+	}
+	// The fake backend logs into the shared scratch root; only its logs may be new.
+	afterFiles := fixtureContents(t, h.root)
+	delete(afterFiles, "diagnostics-published")
+	delete(afterFiles, "backend-pid")
+	if !reflect.DeepEqual(beforeFiles, afterFiles) {
+		t.Fatalf("the session changed a file under the root: before %x after %x", beforeFiles, afterFiles)
 	}
 }
