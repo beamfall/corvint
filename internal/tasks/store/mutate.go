@@ -51,7 +51,7 @@ func Mutate(ctx context.Context, repo *intent.Repository, actor mutation.Binding
 		}
 		return guardFailure(report, env.RequestID, err)
 	}
-	if _, err = authority.Qualify(repo.CommonDir); err != nil {
+	if _, err = authority.QualifyReused(repo.CommonDir); err != nil {
 		return guardFailure(report, env.RequestID, err)
 	}
 	// The CAL-V0-070 change watch holds a descriptor per watched path on some

@@ -706,7 +706,7 @@ func Init(ctx context.Context, repo *intent.Repository, actor mutation.Binding, 
 		report.Outcome = mutation.Outcome{RequestID: requestID, Outcome: mutation.OutcomeBlocked, Codes: []string{wire.CodeIntentDiverged}}
 		return report, nil
 	}
-	if _, err := authority.Qualify(repo.CommonDir); err != nil {
+	if _, err := authority.QualifyReused(repo.CommonDir); err != nil {
 		return guardFailure(report, requestID, err)
 	}
 	lock, err := authority.AcquireLock(ctx, repo, authority.LockOptions{})

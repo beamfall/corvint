@@ -97,7 +97,7 @@ func redoLeaseProof(repo *intent.Repository, session *authority.Session, proof *
 // settleLease releases the lock before auditing a pending receipt. The common
 // no-recovery path only inspects bounded head/receipt/staging records.
 func settleLease(ctx context.Context, repo *intent.Repository) (bool, error) {
-	if _, err := authority.Qualify(repo.CommonDir); err != nil {
+	if _, err := authority.QualifyReused(repo.CommonDir); err != nil {
 		return false, err
 	}
 	redone := false

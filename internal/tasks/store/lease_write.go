@@ -521,7 +521,7 @@ func leaseWrite(ctx context.Context, repo *intent.Repository, request transactio
 	if _, err := transaction.Digest(request); err != nil {
 		return report, nil, err
 	}
-	if _, err := authority.Qualify(repo.CommonDir); err != nil {
+	if _, err := authority.QualifyReused(repo.CommonDir); err != nil {
 		return report, nil, err
 	}
 	// The preparation gate serializes cooperating lease writers' bounded
