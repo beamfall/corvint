@@ -370,8 +370,9 @@ select_plan() {
       if ($0 ~ /\.go$/ || b == "go.mod" || b == "go.sum" || b == "go.work" || b == "go.work.sum") { print; next }
       d = $0; while (sub(/\/[^\/]*$/, "", d)) if (d in dirs) { print; next } }' "$dir/select-go" "$dir/select-changed") || { sel_why='the Go input match failed'; return 0; }
   # ASD-V0-904 (V1-3441): a diff of documentation alone, with no Go input, cannot reach an @go entry
-  # even when the plan below cannot narrow the run.
-  [[ -n $sel_changed && -z $sel_go ]] && ! grep -v -E '(\.md$|^docs/)' <<< "$sel_changed" | grep -q . && sel_docs=1
+  # even when the plan below cannot narrow the run. One grep, not a pipeline: under pipefail an early
+  # `grep -q` exit SIGPIPEs the writer, and the negation would read that as documentation alone.
+  [[ -n $sel_changed && -z $sel_go ]] && ! grep -qvE '(\.md$|^docs/)' <<< "$sel_changed" && sel_docs=1
   plan=$("$planner" affected --base "$sel_sha" 2> "$dir/planner.err" < /dev/null) || { sel_why="$planner affected exited $? ($(head -c 200 "$dir/planner.err" | tr '\n' ' '))"; return 0; }
   jq -e '.ok == true and .profile == "affected-plan/1" and .provider.go.state == "RUNNABLE" and (.plan.selected | type) == "array" and (.plan.unknown | type) == "array"' <<< "$plan" > /dev/null 2>&1 ||
     { sel_why="the plan is not a runnable affected-plan/1: $(jq -r '.summary.line // .code // "unparsable"' <<< "$plan" 2> /dev/null | head -n 1)"; return 0; }

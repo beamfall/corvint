@@ -759,6 +759,14 @@ STUB_PLAN_RC=3 srun --base "$sbase" || fail "Go fallback run failed: $(cat "$tmp
 grep -q 'NOT_RUN' "$tmp/out" && fail "a Go change skipped an @go entry: $(cat "$tmp/out")"
 row_is PASS 'batch-drift (2 packages)'
 /bin/rm -f "$srepo/golden/extra.go"
+# A docs change beside many non-documentation paths is not docs-only: the check must not read a
+# pipe whose writer a SIGPIPE killed under pipefail as "no such path" (review of V1-3441).
+mkdir -p "$srepo/notes"
+(cd "$srepo/notes" && seq -f 'n%05g.txt' 1 10000 | xargs touch)
+: > "$tmp/scalls"
+STUB_PLAN_RC=3 srun --base "$sbase" || fail "many-path fallback run failed: $(cat "$tmp/out")"
+grep -q 'NOT_RUN' "$tmp/out" && fail "10000 non-documentation paths skipped an @go entry: $(cat "$tmp/out")"
+/bin/rm -rf "$srepo/notes"
 git -C "$srepo" checkout -q -- docs/specs/freeze.md
 
 # 8. ASD-V0-046 (V1-3122): a failed step reruns once before it is classified. A pass on the rerun
