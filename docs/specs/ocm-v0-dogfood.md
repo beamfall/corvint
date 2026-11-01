@@ -96,7 +96,7 @@ claim, and mutation ordering deltas below.
   MUST refuse linking with its first issue code and optional message before selector, claim,
   or destination handling; a nil operational error does not mean that verification passed. A hunk
   selector that does not resolve to exactly one `supported` CEM hunk refuses with
-  `unsupported-hunk-selector` (`internal/lrfrepo/ocm_write.go:826`).
+  `unsupported-hunk-selector` (`internal/lrfrepo/ocm_write.go:825@7dffb065`).
 - `OCM-V0-007`: `corvint ocm prepare|link|mark|status|verify|report` MUST provide a resumable,
   deterministic JSON-first workflow with numbered worklists and argv-array next actions.
   `prepare`, `link`, `status`, `verify`, and `report` MUST accept `--expected-base` and `--target` as
@@ -467,7 +467,7 @@ what the row asserts.
 | `claim-conflict` | `internal/lrfrepo/ocm_write.go:983` | "claim ID has conflicting fields" |
 | `claim-not-reextractable` | `internal/lrfrepo/ocm.go:736` | "claim cannot be re-extracted at target" |
 | `duplicate-claim-reference` | `internal/lrfrepo/ocm_write.go:866` | "claim selectors must be unique" |
-| `duplicate-hunk-reference` | `internal/lrfrepo/ocm_write.go:799` | "hunk selectors must be unique" |
+| `duplicate-hunk-reference` | `internal/lrfrepo/ocm_write.go:798@c947a99d` | "hunk selectors must be unique" |
 | `duplicate-key` | `internal/lrfrepo/ocm_write.go:614` | "JSON contains a duplicate key" |
 | `duplicate-obligation` | `internal/lrfrepo/ocm.go:306` | "obligation IDs must be unique" |
 | `duplicate-or-unsorted-claims` | `internal/lrfrepo/ocm.go:260` | "claims must be sorted and unique" |
@@ -487,7 +487,7 @@ what the row asserts.
 | `invalid-intent-blob` | `internal/lrfrepo/ocm.go:226` | "intent blob OID is invalid" |
 | `invalid-intent-scope` | `internal/lrfrepo/ocm_write.go:558` | "intentScope must be an object" |
 | `invalid-linked` | `internal/lrfrepo/ocm.go:713` | "linked obligation has invalid fields" |
-| `invalid-map` | `internal/lrfrepo/ocm_read.go:257@361a9362` | the code recorded for a verification failure that carries none, with that failure's message; `internal/lrfrepo/ocm_write.go:758` returns it as "OCM verification failed" |
+| `invalid-map` | `internal/lrfrepo/ocm_read.go:257@361a9362` | the code recorded for a verification failure that carries none, with that failure's message; `internal/lrfrepo/ocm_write.go:757@bd4c9e59` returns it as "OCM verification failed" |
 | `invalid-object` | `internal/lrfrepo/ocm.go:311` | "<value> must be an object" |
 | `invalid-obligation` | `internal/lrfrepo/ocm_write.go:68` | "selected obligation has no valid id" |
 | `invalid-obligation-id` | `internal/lrfrepo/ocm.go:303` | "obligation ID is invalid" |
