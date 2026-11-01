@@ -428,8 +428,10 @@ this order:
    and that committed `HEAD`: no prepared map, `DOGFOOD_INTENTS_FILE`, `DOGFOOD_VERIFY_FILE` or
    `DOGFOOD_OUTCOME`. When it refuses `patch-unavailable reason=<code>`, `cem prepare` refuses the
    same patch with that code, so do not run `dogfood change` first: make every changed path a
-   regular file with a textual hunk (no empty, mode-only, binary or symbolic-link change), commit,
-   and rerun it.
+   regular file with content (no empty, mode-only or symbolic-link change), commit, and rerun it.
+   A binary file beside a textual hunk binds (`CEM-V1-980`); only a binary-only patch, a binary
+   rename, copy or mode change, a `GIT binary patch` body and abbreviated object IDs still refuse
+   (`DCW-V0-902`).
 2. Review the draft into `cites.tsv`. Write `intents.txt` (one owning spec path per line,
    `LC_ALL=C sort -u`) and `verify.txt` (one verification command per line), and choose
    `OUTCOME=passed|failed|blocked`.
