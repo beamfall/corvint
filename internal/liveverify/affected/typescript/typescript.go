@@ -27,12 +27,18 @@ import (
 
 // Frontier reasons this plugin can raise.
 const (
-	FrontierUnreadableSource       = "typescript:unreadable-source"
-	FrontierUnparsedSource         = "typescript:unparsed-source"
-	FrontierDynamicImport          = "typescript:dynamic-import"
-	FrontierScanUnresolved         = "typescript:scan-unresolved"
-	FrontierUnresolvedImport       = "typescript:relative-import-unresolved"
-	FrontierPathAlias              = "typescript:path-alias-unresolved"
+	FrontierUnreadableSource = "typescript:unreadable-source"
+	FrontierUnparsedSource   = "typescript:unparsed-source"
+	FrontierDynamicImport    = "typescript:dynamic-import"
+	FrontierScanUnresolved   = "typescript:scan-unresolved"
+	FrontierUnresolvedImport = "typescript:relative-import-unresolved"
+	FrontierPathAlias        = "typescript:path-alias-unresolved"
+	// FrontierBareImportUndeclared reports a bare specifier no package.json at or above the
+	// importing file declares and no node_modules installs: an npm dependency the manifest
+	// omits, or a bundler alias or virtual module (a Vite resolve.alias), either of which may
+	// hide an edge, so it fails closed under its own name rather than as a tsconfig alias
+	// (TJAA-V0-771).
+	FrontierBareImportUndeclared   = "typescript:bare-import-undeclared"
 	FrontierAmbiguousRunner        = "typescript:test-runner-ambiguous"
 	FrontierUnknownRunner          = "typescript:test-runner-unknown"
 	FrontierConfig                 = "typescript:executable-config-unresolved"
@@ -527,13 +533,18 @@ func (language Language) observe(root *affected.Source, resolveAliases bool) (af
 	if resolveAliases {
 		aliases = readTypeScriptAliases(bodies, frontier)
 	}
+	// declared is every alias config, read once for the reason of an unresolved bare import.
+	var declared []typeScriptAliases
 	for index := range observations {
 		observation := &observations[index]
 		if resolveAliases {
 			observation.refs = resolveTypeScriptAliases(observation.path, observation.refs, aliases, bodies, sites, frontier, keep)
 		}
 		if ref, unresolved := unresolvedBareImport(root, observation.path, observation.refs, scopes); unresolved {
-			sites.raiseRef(frontier, FrontierPathAlias, observation.path, ref)
+			if declared == nil {
+				declared = readTypeScriptAliases(bodies, frontierSet{})
+			}
+			sites.raiseRef(frontier, bareImportReason(observation.path, ref, declared, bodies), observation.path, ref)
 		}
 	}
 	return buildResult(observations, configs, scopes, sites, frontier, root.HeldIgnored()), frontier, nil
@@ -1011,6 +1022,7 @@ func scanImportSites(relative, body string) importScan {
 	offsets := make(map[string]int)
 	scan.specifiers = make(map[int]string)
 	add := func(ref string, offset int) {
+		ref = withoutBundlerQuery(ref)
 		if previous, seen := offsets[ref]; !seen || offset < previous {
 			offsets[ref] = offset
 		}
@@ -1043,6 +1055,19 @@ func scanImportSites(relative, body string) importScan {
 	}
 	scan.refs, scan.offsets, scan.err = sortedKeys(offsets), offsets, parseErr
 	return scan
+}
+
+// withoutBundlerQuery drops a bundler query suffix, such as Vite's `?url`, `?raw` or
+// `?worker`, from a specifier that names no URL scheme, so the module it loads is resolved as the
+// path or package before it (TJAA-V0-771).
+func withoutBundlerQuery(ref string) string {
+	if externalScheme(ref) {
+		return ref
+	}
+	if cut := strings.IndexByte(ref, '?'); cut > 0 {
+		return ref[:cut]
+	}
+	return ref
 }
 
 // loadingWord matches a word that can begin module loading anywhere, literal text included.
@@ -1204,7 +1229,9 @@ func relativeReference(reference string) string {
 
 var staticImportPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?m)(?:^|;)[\t ]*import(?:[\t ]+type)?[\t ]*["']([^"'\r\n]+)["']`),
-	regexp.MustCompile(`(?ms)(?:^|;)[\t ]*(?:import|export)\b[^;]*?\bfrom[\t \r\n]*["']([^"'\r\n]+)["']`),
+	// The from keyword follows whitespace, `}` or `*`, never a quote, so a string "from" in an
+	// exported word list is no clause (TJAA-V0-771).
+	regexp.MustCompile(`(?ms)(?:^|;)[\t ]*(?:import|export)\b[^;]*?[\s}*]from[\t \r\n]*["']([^"'\r\n]+)["']`),
 }
 
 // scanRequires reads literal `require("x")` calls and reports computed loading: a `require` or
@@ -2219,6 +2246,18 @@ func unresolvedBareImport(root *affected.Source, relative string, refs []string,
 		return ref, true
 	}
 	return "", false
+}
+
+// bareImportReason names an unresolved bare specifier's frontier: a tsconfig or jsconfig alias
+// when the nearest alias config's paths claim it, so the alias was declared but not applied,
+// else an undeclared bare import (TJAA-V0-771).
+func bareImportReason(owner, ref string, configs []typeScriptAliases, bodies map[string]string) string {
+	if nearest := nearestTypeScriptAliases(owner, configs); nearest != nil {
+		if _, claimed := nearest.resolve(ref, bodies); claimed {
+			return FrontierPathAlias
+		}
+	}
+	return FrontierBareImportUndeclared
 }
 
 // installedPackage reports whether packageName is installed as a dependency where Node module

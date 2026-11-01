@@ -14,7 +14,7 @@ import (
 // adapter keeps the membership static (no executable-config site, which the base raised at the
 // testIgnore line), resolves a tsconfig paths alias reached through an extends chain, and selects
 // the spec that imports the changed module through it; an alias no tsconfig names keeps the
-// fail-closed path-alias frontier.
+// fail-closed undeclared-bare-import frontier (TJAA-V0-771).
 func TestPathAliasResolvesUnderALiteralGlobalTestIgnore_TJAA_V0_770(t *testing.T) {
 	root := globalIgnoreFixture(t, `"**/legacy/*.spec.ts"`)
 	write(t, root, "playwright.config.ts", `
@@ -49,9 +49,9 @@ export default defineConfig({
 	}
 	unresolved := false
 	for _, unknown := range affected.Select(graph, []string{"src/app.ts"}).Unknown {
-		unresolved = unresolved || strings.HasPrefix(unknown.Detail, FrontierPathAlias)
+		unresolved = unresolved || strings.HasPrefix(unknown.Detail, FrontierBareImportUndeclared)
 	}
 	if !unresolved {
-		t.Fatal("an alias no tsconfig names lost its fail-closed frontier")
+		t.Fatal("a bare specifier no tsconfig claims and no manifest declares lost its fail-closed frontier")
 	}
 }

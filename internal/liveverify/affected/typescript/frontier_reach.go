@@ -11,7 +11,7 @@ import "path"
 // `require(expr)` can load JSON or any other file, so it stays path-open, as do
 // the runtime, config, scan and parse frontiers.
 func (Language) SourceBoundFrontiers() []string {
-	return []string{FrontierUnresolvedImport, FrontierPathAlias}
+	return []string{FrontierUnresolvedImport, FrontierPathAlias, FrontierBareImportUndeclared}
 }
 
 // FixtureClosedFrontiers names the path-open reasons whose hidden edge is a
