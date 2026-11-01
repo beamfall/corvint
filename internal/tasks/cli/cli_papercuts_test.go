@@ -233,3 +233,32 @@ func TestTCLV0865_ShowNamesFailingIntentChecks(t *testing.T) {
 		t.Errorf("TICKET_STATE detail does not explain the closed status: %q", detail)
 	}
 }
+
+// TestTMV0008_AS08_ExportOverLimitIsAnError (V1-3533): an over-limit export
+// is an ERROR with LIMIT_EXCEEDED in codes and a nonzero exit, and it names
+// the allowed range; it never looks like an empty successful page.
+func TestTMV0008_AS08_ExportOverLimitIsAnError(t *testing.T) {
+	r := papercutStore(t)
+	x := atm(t, r.Root, nil, "ticket", "export", "--limit", "2000")
+	if x.code == 0 || x.res.Outcome != wire.OutcomeError || !hasCode(x.res, wire.CodeLimitExceeded) || len(x.res.Items) != 0 {
+		t.Fatalf("export --limit 2000: code %d %+v", x.code, x.res)
+	}
+	if w := strings.Join(x.res.Warnings, " "); !strings.Contains(w, "1..1000") {
+		t.Errorf("refusal does not name the maximum: %q", w)
+	}
+}
+
+// TestCAPV0060_CompleteManualHintNamesTicketVerb (V1-3828): the top-level
+// `complete-manual` is an unknown verb whose hint names `ticket
+// complete-manual`, and help lists that form.
+func TestCAPV0060_CompleteManualHintNamesTicketVerb(t *testing.T) {
+	r := fixture.TempRepo(t)
+	x := atm(t, r.Root, nil, "complete-manual")
+	if x.code == 0 || x.res.Outcome == wire.OutcomeOK || !strings.Contains(strings.Join(x.res.Warnings, " "), "corvint-tasks ticket complete-manual") {
+		t.Fatalf("complete-manual: code %d %+v", x.code, x.res)
+	}
+	help := atm(t, r.Root, nil, "help")
+	if !strings.Contains(string(help.stdout), "|complete-manual|") {
+		t.Errorf("help does not list ticket complete-manual")
+	}
+}
