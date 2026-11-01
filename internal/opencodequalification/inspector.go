@@ -2,10 +2,12 @@ package opencodequalification
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -31,8 +33,12 @@ func currentFrame(root string) frame {
 	}
 	return frame{x, strings.Join(lines, "\n"), int(number(x["width"]))}
 }
+
+// frameWitnessTimeout bounds each native UI witness wait; tests shorten it.
+var frameWitnessTimeout = 60 * time.Second
+
 func waitFrame(ctx context.Context, root, label string, has, absent []string, width int) error {
-	timer := time.NewTimer(60 * time.Second)
+	timer := time.NewTimer(frameWitnessTimeout)
 	defer timer.Stop()
 	ticker := time.NewTicker(20 * time.Millisecond)
 	defer ticker.Stop()
@@ -53,11 +59,87 @@ func waitFrame(ctx context.Context, root, label string, has, absent []string, wi
 			return ctx.Err()
 		case <-timer.C:
 			_ = os.WriteFile(root+"/failed-frame.txt", []byte(f.text), 0600)
-			return errors.New("native UI witness missing: " + label)
+			return errors.New("native UI witness missing: " + label + ": " + frameWitnessCause(root, f, has, absent, width))
 		case <-ticker.C:
 		}
 	}
 }
+
+// frameWitnessCause names why a witness frame never matched (AHI-620): no
+// captured frame, or the frame's size and each expected string it lacks or
+// forbidden string it shows, plus the witness plugin's last logged error.
+func frameWitnessCause(root string, f frame, has, absent []string, width int) string {
+	var parts []string
+	if len(f.data) == 0 {
+		loaded := "the witness plugin never logged loaded"
+		if witnessLogged(root, "loaded") {
+			loaded = "the witness plugin logged loaded"
+		}
+		parts = append(parts, "no native frame captured ("+loaded+")")
+	} else {
+		parts = append(parts, fmt.Sprintf("frame %dx%d", f.width, int(number(f.data["height"]))))
+		if width != 0 && f.width != width {
+			parts = append(parts, fmt.Sprintf("expected width %d", width))
+		}
+		var missing, shown []string
+		for _, s := range has {
+			if !strings.Contains(f.text, s) {
+				missing = append(missing, strconv.Quote(s))
+			}
+		}
+		for _, s := range absent {
+			if strings.Contains(f.text, s) {
+				shown = append(shown, strconv.Quote(s))
+			}
+		}
+		if len(missing) != 0 {
+			parts = append(parts, "lacks "+strings.Join(missing, ", "))
+		}
+		if len(shown) != 0 {
+			parts = append(parts, "still shows "+strings.Join(shown, ", "))
+		}
+	}
+	if logged := witnessLastError(root); logged != "" {
+		parts = append(parts, "witness plugin error "+strconv.Quote(logged))
+	}
+	return strings.Join(append(parts, "frame saved to "+root+"/failed-frame.txt"), "; ")
+}
+
+// witnessEntries reads the witness plugin's JSON-lines log; unreadable lines are skipped.
+func witnessEntries(root string) []map[string]any {
+	bytes, err := os.ReadFile(root + "/witness.jsonl")
+	if err != nil {
+		return nil
+	}
+	var entries []map[string]any
+	for _, line := range strings.Split(string(bytes), "\n") {
+		var entry map[string]any
+		if json.Unmarshal([]byte(line), &entry) == nil {
+			entries = append(entries, entry)
+		}
+	}
+	return entries
+}
+
+func witnessLogged(root, stage string) bool {
+	for _, entry := range witnessEntries(root) {
+		if entry["stage"] == stage {
+			return true
+		}
+	}
+	return false
+}
+
+func witnessLastError(root string) string {
+	last := ""
+	for _, entry := range witnessEntries(root) {
+		if text, ok := entry["error"].(string); ok {
+			last = text
+		}
+	}
+	return last
+}
+
 func waitFrameSize(ctx context.Context, root string, width, height int) error {
 	timer := time.NewTimer(60 * time.Second)
 	defer timer.Stop()
