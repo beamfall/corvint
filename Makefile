@@ -275,6 +275,7 @@ spec-requirements-test:
 	@script/gen-spec-requirements_test.sh
 	@script/spec-requirements-conflict_test.sh
 	@script/spec-requirements-worktree-check_test.sh
+	@script/requirement-id-collisions_test.sh
 
 # spec-acceptance-audit lists the requirements of one acceptance mode by spec, standing by
 # default, and reports a validated spec that holds a standing requirement as NOT_PROMOTABLE
@@ -912,12 +913,21 @@ dogfood-bin-reuse-test:
 	@script/dogfood-bin-reuse_test.sh
 
 # ASD-V0-960 (V1-3472): before a charter names a requirement-ID block, check it is free on origin/main,
-# for example make requirement-ids-free PREFIX=DCW-V0 RANGE=960..979 (REF= names another commit).
+# for example make requirement-ids-free PREFIX=DCW-V0 RANGE=960..979 (REF= names another commit);
+# with RANGE it then checks the block is free on every unmerged local branch and worktree too
+# (ASD-V0-952, V1-3614).
 # Without RANGE it checks PREFIX as a new family and names the next free one (ASD-V0-962, V1-3472).
 .PHONY: requirement-ids-free
 requirement-ids-free:
 	@printf '%s\n' '$(RANGE)' | grep -Eqx '([0-9]+\.\.[0-9]+)?' || { echo "requirement-ids-free: REFUSE bad-range RANGE=$(RANGE): pass PREFIX=<prefix> [RANGE=<lo>..<hi>] [REF=<commit>], for example PREFIX=DCW-V0 RANGE=960..979" >&2; exit 2; }
 	@script/requirement-ids-free.sh "$(PREFIX)" $(if $(RANGE),"$(firstword $(subst .., ,$(RANGE)))" "$(lastword $(subst .., ,$(RANGE)))") $(if $(REF),"$(REF)")
+	@$(if $(RANGE),script/requirement-id-collisions.sh --block "$(PREFIX)" "$(firstword $(subst .., ,$(RANGE)))" "$(lastword $(subst .., ,$(RANGE)))" $(if $(REF),--base "$(REF)"),true)
+
+# ASD-V0-950 (V1-2909, V1-1009): names each requirement ID this checkout's staged specs and another
+# local branch or worktree not yet in origin/main (REF= names another base) define differently.
+.PHONY: requirement-id-collisions
+requirement-id-collisions:
+	@script/requirement-id-collisions.sh $(if $(REF),--base "$(REF)")
 
 # The lane procedure scripts (docs/LANE-ORCHESTRATION.md, ASD-V0-014..018); no Go build.
 .PHONY: lane-scripts-test

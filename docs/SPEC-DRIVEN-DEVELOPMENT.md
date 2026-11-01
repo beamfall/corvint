@@ -160,6 +160,25 @@ Tests cite requirement IDs in test names, docstrings, or the spec traceability t
 `NOT_RUN` evidence stays visible. An agent may repair implementation to meet an accepted spec; it
 must request human review before changing accepted intent.
 
+A spec amendment committed before the commit that adds its test may cite that test in its
+traceability table: `make traceability-tests-check TRACE_RANGE=BASE..HEAD` resolves every commit's
+rows against the change head, so the spec-first commit passes once the test lands and a test that
+never lands still fails (`TTG-V0-950`); without the range the index check names that route.
+
+Evidence that names a test in a nested Go module (a directory with its own `go.mod`, such as
+`tools/local-authority`, `interop/cem01-go` or `benchmarks/snapshot-reader`) names the module
+directory, because `go test ./tools/local-authority` from the repository root fails with `main
+module does not contain package`: cite `(cd tools/local-authority && go test -run '^TestName$' .)`.
+
+Requirement IDs are numbered by hand, so parallel lines of work can take the same next number.
+A lane takes IDs only from the block its charter assigned, which `make requirement-ids-free
+PREFIX=... RANGE=...` checked free on `origin/main` and on every unmerged local branch and worktree
+(`ASD-V0-952`). After staging a spec that adds an ID, and again before its final commit, it runs
+`make requirement-id-collisions`, which names each ID this checkout and another open local branch
+or worktree define differently (`ASD-V0-950`); an orchestrator runs the same check in the batch
+checkout before it integrates each lane. A collision found at merge is refused by the generator
+(`SRG-V0-547`) and costs a renumber of spec rows, tests and build logs.
+
 `docs/specs/REQUIREMENTS.tsv`, `docs/specs/INDEX.json` and the `docs/specs/README.md` spec table are
 generated. A change edits its spec, stages it, and runs `make spec-requirements`, which regenerates
 the index and projects each header's intent and delivery status and its digest claim onto the two

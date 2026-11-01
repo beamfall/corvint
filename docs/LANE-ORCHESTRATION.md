@@ -324,7 +324,11 @@ The charter or the lane's first step fixes every dogfood input before work start
 A charter that hands the lane a requirement-ID block checks each block first with
 `make requirement-ids-free PREFIX=<prefix> RANGE=<lo>..<hi>` (exit 0 and `free ...` when no tracked
 file on `origin/main` names any ID in it; exit 1 with one `used ID PATH:LINE` line per taken ID;
-`ASD-V0-960`).
+`ASD-V0-960`); with a `RANGE` the same target also checks every unmerged local branch and worktree
+and names each ID one of them defines as `used ID NAME (SHA) FILE` (`ASD-V0-952`). The charter tells
+the lane to run `make requirement-id-collisions` after staging a spec that adds an ID and before its
+final commit, and the orchestrator runs it in the batch checkout before integrating each lane
+(`ASD-V0-950`, `ASD-V0-951`).
 
 A charter also tells the lane where a new requirement range goes: on each requirement's own
 definition line (its leading note), in the spec's acceptance and traceability rows and in the
