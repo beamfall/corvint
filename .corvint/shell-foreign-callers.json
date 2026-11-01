@@ -149,7 +149,10 @@
       "callers": [
         "script/lane-scripts_test.sh"
       ],
-      "reason": "Every tracked file naming pr-landing-watch.sh: the lane-scripts test runs it; the known-flakes list is data (TSP-V0-005; V1-3571)."
+      "reason": "Every tracked file naming pr-landing-watch.sh: the lane-scripts test runs it; the known-flakes list is data and check-bash32_test.sh names it only in a comment (TSP-V0-005; V1-3571).",
+      "mentions": [
+        "script/check-bash32_test.sh"
+      ]
     },
     "script/proof-tour.sh": {
       "callers": [
