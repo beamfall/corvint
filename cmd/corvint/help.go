@@ -2065,7 +2065,7 @@ Usage:
 
 Features are bounded heuristic candidates with immutable blob/line evidence, not
 accepted feature IDs. A label that is a canonical feature ID also carries featureId
-and featureCall, the inert argv of corvint feature for it, which answers READY only
+and featureCall, the inert argv of corvint feature for it with --limit 1, which answers READY only
 for a declared feature record. Overview includes inert suggested argv. Review composes
 advisory affected advice and local refs/heads overlap hints; max-refs is 1..32.
 review.affected is the compact affected-plan/1 document; review.affectedFull

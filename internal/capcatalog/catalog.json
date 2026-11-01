@@ -2690,6 +2690,7 @@
       "requiredFlags": {},
       "flags": [
         "--base",
+        "--limit",
         "--max-refs",
         "--no-workspace",
         "--workspace"
@@ -2738,6 +2739,7 @@
       "requiredFlags": {},
       "flags": [
         "--base",
+        "--limit",
         "--max-refs",
         "--no-workspace",
         "--workspace"
@@ -2790,6 +2792,7 @@
       },
       "flags": [
         "--base",
+        "--limit",
         "--max-refs",
         "--no-workspace",
         "--workspace"

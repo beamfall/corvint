@@ -653,6 +653,9 @@ func TestRepositoryGuidanceFeaturesRoundTripToFeature(t *testing.T) {
 	guidanceWrite(t, root, "cmd/demo/main.go", "package main\n// Feature: greeting\nfunc main() {}\n")
 	guidanceWrite(t, root, "testing/features.yaml", "features:\n  - id: greeting\n    title: Greeting\n")
 	guidanceWrite(t, root, "testing/scenarios.yaml", "scenarios:\n")
+	// A mixed-language repository: feature refuses more than the ledger record here.
+	guidanceWrite(t, root, "web/greeting.ts", "export function greet(): string { return 'hi'; }\n")
+	guidanceWrite(t, root, "tools/greet.py", "def greet():\n    return 'hi'\n")
 	guidanceGit(t, root, "add", ".")
 	guidanceGit(t, root, "commit", "-qm", "base")
 	out, _ := guidanceRead(t, root, "features", "")
@@ -660,7 +663,7 @@ func TestRepositoryGuidanceFeaturesRoundTripToFeature(t *testing.T) {
 	for _, f := range out.Features {
 		switch f.Label {
 		case "greeting":
-			if f.FeatureID != "greeting" || !reflect.DeepEqual(f.FeatureCall, []string{"corvint", "feature", "greeting"}) {
+			if f.FeatureID != "greeting" || !reflect.DeepEqual(f.FeatureCall, []string{"corvint", "feature", "greeting", "--limit", "1"}) {
 				t.Fatalf("canonical label lacks its feature call: %+v", f)
 			}
 			call = f.FeatureCall
