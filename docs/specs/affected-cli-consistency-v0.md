@@ -58,6 +58,12 @@ driving Corvint from scripts.
   no units. Otherwise the advice SHALL omit it and SHALL carry the unknown entry
   `FOCUSED_TEST_COMMAND_UNDECLARED`, which names the missing declaration and points to the
   declared mandatory checks (the Makefile gate or the AGENTS.md Verify commands) as the next step.
+  Compatibility: the change moves one `advice.checks` entry into `advice.unknown` and keeps
+  `advice.status` `PLAN_ONLY`. `advice.unknown` is free text outside the CCF-V1-007 (d) register
+  and no member, type or CCF-V1-002 identifier changes, so under CCF-V1-006 it is compatible and
+  ships no new `affected-plan` profile version; the CCF-V1-002 goldens
+  `affected-committed-range.json` and `affected-full-committed-range.json`, whose fixture has no
+  declaration, are regenerated in the same change.
 - **ACX-V0-854:** (experimental, amending AFP-V0-230, under the owner's standing lane
   auto-accept, 2026-10-11; V1-3727) `corvint affected --base` SHALL also accept a revision such
   as `HEAD~1` or `origin/main`: a value of 1 to 256 printable non-space ASCII characters that is
@@ -129,7 +135,7 @@ still runs it.
 | ACX-V0-854 | `setAffectedBase` in `cmd/corvint/affected.go`, `resolveAffectedAbbrevBase` and `affectedBaseHint` in `cmd/corvint/affected_abbrev_base.go` | `TestACXV0854RevisionBase`; `TestAFPV0230AbbreviatedBaseAndTrailingRoot` |
 | ACX-V0-855 | `UnitsSource` in `internal/liveverify/affected/python/python.go` | `TestModuleAndPackageInitShareOneOwner_ACX_V0_855` |
 | ACX-V0-856 | `frontierExclusions` and `SelectE2E` in `internal/appflows/selection.go` | `TestE2ESelectionNamesFrontierExclusions_ACXV0856` |
-| ACX-V0-853 | `withFocusedNextStep` in `cmd/corvint/affected.go` | `TestAffectedAdviceFocusedNextStep_AFPV0496`; `TestAffectedAdviceOmitsFocusedCommandWithoutDeclaration_ACXV0853` |
+| ACX-V0-853 | `withFocusedNextStep` in `cmd/corvint/affected.go` | `TestAffectedAdviceFocusedNextStep_AFPV0496`; `TestAffectedAdviceOmitsFocusedCommandWithoutDeclaration_ACXV0853`; `TestCoreVerbsEmitTheFrozenProfiles` |
 | ACX-V0-857 | `.DEFAULT_GOAL`, `BASE` and `help` in `Makefile` | `TestMakeDefaultGoalIsHelp_ACXV0857` |
 | ACX-V0-859 | `suggestChoices` in `cmd/corvint/suggest.go`; `conformance/cli-errors-v0` | `TestUnknownCommandSuggestsNearChoices_ACXV0859`; `TestCLIErrorContracts_ACXV0859` |
 | ACX-V0-858 | `withHeadAlias` in `cmd/corvint/flag_aliases.go`, `dogfoodFlowArguments` in `cmd/corvint/dogfood_flow.go` | `TestHeadAliasOnTargetVerbs_ACXV0858`; `TestDogfoodFlowBaseOption_ACXV0858`; `TestRangeAndOutputFlagVocabulary_ACXV0858` |
