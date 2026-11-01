@@ -300,7 +300,10 @@ on a fixture queue remain non-goals.
   Every read that takes `--summary` or `--fields` (`ticket show`, `list`, `search`, `roadmap`, `queue status` and the
   other compact reads) MUST accept `--json` as a no-op, because its output is always one JSON
   envelope. A leading global `--root DIR` (or `--root=DIR`) before the verb MUST run the command as
-  if started in `DIR` (a relative `DIR` is taken from the working directory); `--root` without a
+  if started in `DIR` (a relative `DIR` is taken from the working directory), so a relative file
+  argument the verb reads or writes (`archive verify FILE`, `archive restore FILE`,
+  `ticket obligations plan --plan`, `ticket similar --digest`, `run-batch`/`qualify` `--config` and `--out`)
+  is taken from `DIR` too; `--root` without a
   directory is a `MALFORMED` usage error naming the form. `ticket show` help MUST name
   `items[0].revision` and `items[0].record.acceptanceCriteria`. Non-goals: a non-JSON output mode.
   Rollback: revert; `--json` and a leading `--root` are refused again.
@@ -593,6 +596,6 @@ restored byte-identical afterwards. Rollback restores the wall-clock deadline in
 | CTS-V0-009 | `internal/tasks/cli/attempt_detach.go` (`attemptAttach`), `internal/tasks/snapshot/probe.go` (`Reader.Read`) | TestCTSV0009_AttachWaitsForReceiptLinkBeforeHeadRename, TestCTSV0009_AttachReportsPendingAfterPatience; loaded qualification: TestATRV0008_DetachedRunSurvivesItsLauncher |
 | CTS-V0-008 | `internal/tasks/snapshot/stage_slot_wait.go` (`StageSlotWait`), `internal/tasks/journal/stage_read.go` (`readStage`, `slotsInFlight`), `internal/tasks/journal/audit.go` (`audit`, `Reader.WriterLocked`, `stageSleep`), `internal/tasks/store/guards.go` (`lockedJournalReader`) and its writer-locked call sites, `internal/tasks/archive/stage_read.go` (`readStage`, `slotsInFlight`, `readArchive`) | TestCTSV0008_StageSlotWaitBackoffAndBudget, TestCTSV0008_AuditWaitsForWriterHeldStageSlot, TestCTSV0008_OrphanStageSlotStillMalformedAfterBoundedWait, TestCTSV0008_UnassignedSlotBesideDescriptorRefusedAtOnce, TestCTSV0008_WriterLockedAuditRefusesOrphanSlotWithoutPause, TestCTSV0008_MovedObservationsAndSpentWaitCompose, TestCTSV0008_LockedReconcileRefusesOrphanSlotWithoutWaiting, TestCTSV0008_ArchiveWaitsForWriterHeldStageSlot, TestCTSV0008_ArchiveOrphanSlotMalformedAfterBoundedWait, TestCTSV0008_ArchiveSlotBesideDescriptorRefusedAtOnce, TestCTSV0008_ArchiveMovedAttemptsAndSpentWaitCompose, TestCTSV0008_ArchiveStagePauseLeavesPatienceForPending; unchanged refusal order: TestCALV0114_DivergentProjectionRefusalIsDeterministic |
 | CTS-V0-870 | `internal/tasks/cli/cli.go` (unfiltered `ticket search` refusal) | TestCTSV0870_UnfilteredSearchNamesTicketList, TestCTS002NoFallbackForExistingJournal |
-| CTS-V0-871 | `internal/tasks/cli/cli.go` (`Run`, `globalRoot`), `internal/tasks/cli/compact.go` (`compactRead`), `internal/tasks/cli/command_help.go` | TestCTSV0871_JSONIsANoOpAndRootPrecedesTheVerb |
+| CTS-V0-871 | `internal/tasks/cli/cli.go` (`Run`, `globalRoot`), `internal/tasks/cli/compact.go` (`compactRead`), `internal/tasks/cli/command_help.go` | TestCTSV0871_JSONIsANoOpAndRootPrecedesTheVerb, TestCTSV0871_RootGovernsRelativeFileArguments |
 | CTS-V0-872 | `cmd/corvint-tasks/main.go` (`SIGPIPE` notify) | TestCTSV0872_ClosedStdoutPipeKeepsTheOutcomeStatus |
 | CTS-V0-873 | `internal/tasks/cli/cli.go` (`resolveTicketArg`, `paddedCandidates`, `ticketShow`) | TestCTSV0873_UnpaddedTokenResolvesTheOnePaddedTicket |
