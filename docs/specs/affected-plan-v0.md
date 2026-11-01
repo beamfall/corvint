@@ -5479,6 +5479,24 @@ unbounded floor that every change selects, though most of those packages read on
   after counts in `docs/build-log/2026-11-01-aff-w23.md`. Rollback: delete the two declarations
   and restore the two units and their reasons in `.corvint/unbounded-readers.json`.
 
+### Remediation files are documented (AFP-V0-874; V1-3934)
+
+Intent (lane friction relayed by the orchestrator, 2026-11-01; V1-3934): a Playwright plan told
+the reader to declare a path in `.corvint/playwright-unreached-paths.json`, a file no help text
+explained.
+
+- **AFP-V0-874:** (experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3934)
+  `corvint help affected` SHALL document `.corvint/playwright-unreached-paths.json`: its location,
+  the TJAA-V0-106 schema, an example and its effect on the plan. Every `.corvint/*.json` file that
+  a remediation message of the affected planner (non-test Go under `internal/liveverify/affected`
+  and `cmd/corvint/affected*.go`) names right after a "declare ... in", "record ... in", "list ...
+  in" or "add ... in" phrase SHALL appear in that help text. Non-goals: documenting every
+  declaration file the planner reads; messages of other commands. Failure mode: a remediation
+  phrased another way escapes the scan; the scan fails when it finds no Playwright remediation, so
+  a rewording that hides the known one is caught. Acceptance evidence:
+  `TestAffectedRemedyDeclarationsAreDocumented_AFPV0874` (it failed before the help paragraph).
+  Rollback: delete the paragraph and the test.
+
 ### Frontier routes (AFP-V0-761; V1-2051)
 
 - **AFP-V0-761:** (experimental under the owner's standing lane auto-accept (2026-10-11); V1-2051)

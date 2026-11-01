@@ -1088,6 +1088,20 @@ A dirty path that .corvint/runtime-readers.json declares (AFP-V0-602) is listed
 in plan.nonSource as DECLARED_RUNTIME_READERS with the entry's own reason, not
 as UNOWNED_DIRTY_PATH; the units that embed, enclose, name or read it are still
 selected.
+.corvint/playwright-unreached-paths.json (TJAA-V0-106, AFP-V0-874) lists the
+source paths the Playwright suite cannot reach, even through the application
+under test. Without it, a dirty TypeScript or JavaScript path that reaches no
+Playwright test by a static edge raises playwright:out-of-suite-source and the
+plan runs the full suite. Schema: a closed JSON object of at most 64 KiB,
+{"profile":"corvint-playwright-unreached-paths/0","paths":[...]}, at most 256
+strictly ascending repository-relative files or /-ended directories, none under
+.corvint/. Example:
+  {"profile":"corvint-playwright-unreached-paths/0","paths":["scripts/","tools/seed.ts"]}
+Effect: a matched dirty path is excluded, and recorded in plan.declaration, only
+when the Playwright closure provably leaves it out; a matched path the closure
+may load (its unit is in the closure, it is the config, or membership is
+incomplete) refuses the record and raises a second playwright:out-of-suite-source
+unknown naming the path. An invalid file is an error, never an empty list.
 --playwright-env (repeatable, requires --playwright-config, not with --snapshot)
 records one environment variable in plan.environment with its value and SHA-256:
 NAME=VALUE is a value the caller supplies, and NAME reads only that variable from

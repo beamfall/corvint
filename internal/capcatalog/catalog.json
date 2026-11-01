@@ -1419,6 +1419,7 @@
         "corvint-affected-audit-input/0",
         "corvint-affected-audit/1",
         "corvint-planning-snapshot/0",
+        "corvint-playwright-unreached-paths/0",
         "e2e-safe-selection/1",
         "external-evidence-provider/2",
         "external-test-selection/0",
