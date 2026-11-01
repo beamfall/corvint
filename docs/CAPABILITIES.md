@@ -238,7 +238,8 @@ metadata) unless started with `--protocol-version 2025-11-25` for an `initialize
 `corvint.status`.
 `--tool-profile task-review` and `task-review-lsp` add `corvint.context` and `corvint.cem.report`. The separate `--tool-profile import-graph` adds `corvint.graph.imports`.
 `--tool-profile flows` adds the five `corvint.flows.*` tools. `corvint-docs-mcp`,
-`corvint-corpus-mcp` and `corvint-test-validity-mcp` also list `corvint.help`. `corvint-corpus-mcp` lists only the
+`corvint-corpus-mcp` and `corvint-test-validity-mcp` also list `corvint.help`. `corvint-tasks mcp` is a
+separate read-only server over the Corvint Tasks read verbs (`TMR-V0`). `corvint-corpus-mcp` lists only the
 tools that the artifact's capabilities support; `corvint.map_plan` and `corvint.map_knowledge` also
 need `--map`, `corvint.consolidate_tests` needs `--consolidation`, and `corvint.docs_search_cases`
 needs `--legacy-cases`.
@@ -260,6 +261,11 @@ needs `--legacy-cases`.
 | `corvint.flows.navigate` | `corvint-mcp` flows | Navigation within the flow map | experimental | Missing inputs stay unknown | [Flow coverage](FLOW-COVERAGE.md) |
 | `corvint.docs_draft` | `corvint-docs-mcp` | Source-pinned documentation draft of a module directory in any language the native index extracts declarations from; `dry_run` previews an untracked or inline owner as NOT_ADMISSIBLE (SDD-V0-019) | experimental | Paths outside the root, unsupported sources, languages the index reads only as text (named) | [MCP guide](MCP-SERVER.md) |
 | `corvint.docs_consume` | `corvint-docs-mcp` | Recheck a draft's exact bytes against source | experimental | Drafts that no longer match | [MCP guide](MCP-SERVER.md) |
+| `corvint.tasks.queue_status` | `corvint-tasks mcp` | Same envelope as `corvint-tasks queue status` | experimental | `CLI_REFUSED` with the CLI's codes | [TMR-V0](specs/tasks-mcp-read-profile-v0.md) |
+| `corvint.tasks.roadmap` | `corvint-tasks mcp` | One `offset`/`limit` page of `corvint-tasks roadmap` | experimental | `CLI_REFUSED` with the CLI's codes | [TMR-V0](specs/tasks-mcp-read-profile-v0.md) |
+| `corvint.tasks.ticket_search` | `corvint-tasks mcp` | One page of `corvint-tasks ticket search` by status, kind, priority, owner, milestone, label or text | experimental | `CLI_REFUSED` with the CLI's codes | [TMR-V0](specs/tasks-mcp-read-profile-v0.md) |
+| `corvint.tasks.ticket_show` | `corvint-tasks mcp` | Same envelope as `corvint-tasks ticket show ID` | experimental | An unknown ticket is `CLI_REFUSED` | [TMR-V0](specs/tasks-mcp-read-profile-v0.md) |
+| `corvint.tasks.receipt_audit` | `corvint-tasks mcp` | Same envelope as `corvint-tasks receipt audit` | experimental | `CLI_REFUSED` with the CLI's codes | [TMR-V0](specs/tasks-mcp-read-profile-v0.md) |
 | `corvint.test_validity` | `corvint-test-validity-mcp` | Five-axis projection of retained test evidence | experimental | `UNPROVEN`, `STALE`, `NOT_PRODUCED` axes | [MTV-V0](specs/mcp-test-validity-profile-v0.md) |
 | `corvint.docs_inventory` | `corvint-corpus-mcp` (`/2` artifacts) | Page through the corpus inventory | experimental | Capability absent from the artifact | [DCP-V1](specs/documentation-corpus-v1.md) |
 | `corvint.docs_info` | `corvint-corpus-mcp` | Corpus header, revision and capabilities | experimental | Capability absent | [DCP-V1](specs/documentation-corpus-v1.md) |

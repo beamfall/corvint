@@ -80,7 +80,7 @@ type Env struct {
 // `ticket` mutations write: they commit through the §5.2 journal writer.
 var ReadVerbs = []string{
 	"criterion-binding capture", "criterion-binding verify",
-	"help", "version", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket delivery-screen", "ticket batch-delivered", "ticket export", "ticket similar", "ticket digest",
+	"help", "version", "mcp", "ticket list", "ticket search", "ticket show", "ticket blockers", "ticket closeout-debt", "ticket delivery-screen", "ticket batch-delivered", "ticket export", "ticket similar", "ticket digest",
 	"queue status", "queue snapshot", "roadmap", "critical-path", "gate list", "gate show", "archive export", "archive verify", "receipt audit", "receipt compact", "receipt retire", "receipt unretire", "receipt put", "receipt get", "receipt path", "receipt prune", "journal seal", "journal unseal", "reconcile inspect", "reconcile intent",
 	"init", "pause", "unpause", "policy show", "policy update", "import", "import amend-map", "cutover", "relocate",
 	"ticket create", "ticket refine", "ticket prioritize", "ticket set-dependencies",
@@ -143,6 +143,9 @@ func Run(env Env) int {
 	}
 	if result := commandHelp(args); result != nil {
 		return emit(env.Stdout, result)
+	}
+	if len(args) > 0 && args[0] == "mcp" { // TMR-V0-950: each tool call runs its read verb through Run.
+		return mcpCommand(env, args[1:])
 	}
 	if result := platformRefusal(args); result != nil {
 		return emit(env.Stdout, result)
@@ -560,6 +563,7 @@ func helpResult() *wire.Result {
 		"corvint-tasks complete --attempt ID --generation G --request-id ID --commit OID",
 		"corvint-tasks service install|status|uninstall|stop|resume --program ID [...]   (per-user launchd/systemd --user dispatcher service)",
 		"corvint-tasks version",
+		"corvint-tasks mcp [--protocol-version 2026-07-28|2025-11-25]   (read-only stdio MCP server: queue status, roadmap, ticket search and show, receipt audit)",
 		"corvint-tasks help --json|--tree   (every command at every depth as one corvint-command-tree/0 document: usage, flags, required inputs and an example)",
 	}))
 	o.Set("note", wire.String("every read takes no lock and writes nothing, and reports journal facts it cannot observe as NOT_OBSERVED; `init`, `policy update` and the fourteen `ticket` mutations commit through the §5.2 writer (TCP-02/TCP-02b); new external-agent queue setup: docs/TASKS-EXTERNAL-AGENTS.md; ticket blockers reports static intent checks, while plan preview reports claim selection; releaseReasonCodes lists every accepted --reason value"))

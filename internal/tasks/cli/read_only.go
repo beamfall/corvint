@@ -18,7 +18,7 @@ const ReadOnlyEnv = "CORVINT_TASKS_READ_ONLY"
 // readOnlyVerbs are the pure reads a read-only session may run: they take no
 // store lock and write nothing under the store (TM-V0-008).
 var readOnlyVerbs = map[string]bool{
-	"version": true, "--version": true, "roadmap": true, "critical-path": true, "pending": true, "doctor": true,
+	"version": true, "--version": true, "mcp": true, "roadmap": true, "critical-path": true, "pending": true, "doctor": true,
 	"queue status": true, "queue snapshot": true, "program show": true, "attempt show": true, "plan preview": true, "plan batches": true,
 	"policy show": true, "pool status": true, "dispatch status": true, "defects list": true, "source contains": true,
 	"receipt audit": true, "receipt get": true, "receipt path": true, "archive verify": true, "gate list": true, "gate show": true, "gate history": true,
