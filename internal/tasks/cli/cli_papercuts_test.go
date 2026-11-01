@@ -262,3 +262,26 @@ func TestCAPV0060_CompleteManualHintNamesTicketVerb(t *testing.T) {
 		t.Errorf("help does not list ticket complete-manual")
 	}
 }
+
+// TestTCLV0866_ClaimRefusesWholeRepository pins V1-3597: claim
+// --whole-repository is a parse-time MALFORMED refusal naming widen, not a
+// transaction misfit, and the claim usage does not list the flag.
+func TestTCLV0866_ClaimRefusesWholeRepository(t *testing.T) {
+	r, local, _ := papercutRepo(t)
+	for _, args := range [][]string{
+		{"claim", local, "--holder", "h", "--request-id", "r866", "--whole-repository"},
+		{"claim", "--next", "--holder", "h", "--request-id", "r866n", "--whole-repository"},
+	} {
+		got := atm(t, r.Root, nil, args...)
+		if got.code == 0 || !hasCode(got.res, wire.CodeMalformed) {
+			t.Fatalf("%v: code=%d stdout=%s", args, got.code, got.stdout)
+		}
+		if !strings.Contains(string(got.stdout), "widen --attempt A --generation G --whole-repository") || !strings.Contains(string(got.stdout), "TCL-V0-866") || strings.Contains(string(got.stdout), "lease arguments do not fit") {
+			t.Fatalf("%v: refusal does not name widen: %s", args, got.stdout)
+		}
+	}
+	help := atm(t, r.Root, nil, "claim", "--help")
+	if strings.Contains(string(help.stdout), "--whole-repository") {
+		t.Fatalf("claim usage lists --whole-repository: %s", help.stdout)
+	}
+}

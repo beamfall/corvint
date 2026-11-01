@@ -306,7 +306,13 @@ func leaseCommand(env Env, name string, args []string) (res *wire.Result) {
 	// the lease request.
 	scopeFromDiff, fromDiff := parsed.values["--scope-from-diff"]
 	if fromDiff && (name != "claim" || scopeFromDiff == "" || parsed.next || parsed.whole || len(parsed.scope) > 0) {
-		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--scope-from-diff belongs to claim of one named ticket, needs a revision and excludes --scope, --whole-repository and --next"))
+		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "--scope-from-diff belongs to claim of one named ticket, needs a revision and excludes --scope and --next"))
+	}
+	// TCL-V0-866: only widen takes --whole-repository; a claim reaches
+	// WHOLE_REPOSITORY as its fallback scope, so the flag is refused here
+	// before any store read rather than as a misfit lease request.
+	if parsed.whole && name == "claim" {
+		return errorResult(cmd, wire.Errorf(wire.CodeMalformed, "argv", "claim takes no --whole-repository: a claim without --scope of a ticket that declares no scope already claims WHOLE_REPOSITORY; to widen a live attempt to the whole repository run widen --attempt A --generation G --whole-repository (TCL-V0-866)"))
 	}
 	// TRM-V0-801: the barrier exemption names one ticket or attempt, so it
 	// belongs to a named claim or a widen and never to claim --next.
