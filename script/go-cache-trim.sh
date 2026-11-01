@@ -18,7 +18,7 @@
 # miss and rebuilds it.
 #
 # Work directories: each `go-build*` directory directly under every --temp-root (default
-# $TMPDIR, /tmp and ${XDG_CACHE_HOME:-$HOME/.cache}/corvint-tmp, the TMPDIR script/heavy.sh gives a
+# $TMPDIR, /tmp and ${XDG_CACHE_HOME:-$HOME/.cache}/corvint-tmp, the TMPDIR the heavy runner gives a
 # local run on a tmpfs /tmp, ASD-V0-063) last modified more than --work-age-hours (default 24) ago, unless a running
 # process names it in its arguments (KEEP in-use) or the process list cannot be read (KEEP
 # ps-unavailable).
