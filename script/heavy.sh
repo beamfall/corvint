@@ -1363,7 +1363,7 @@ unwrap_shell() {
   fi
   while IFS= read -r -d '' w; do words+=("$w"); done < <(perl -e "$unwrap_perl" "$3")
   [[ ${words[0]-} =~ ^[A-Za-z_][A-Za-z0-9_]*= ]] && words=(env ${words[@]+"${words[@]}"})
-  printf 'heavy.sh: unwrapped %s -c: %s\n' "${1##*/}" "${words[*]}" >&2
+  printf 'heavy.sh: unwrapped %s -c: %s\n' "${1##*/}" "${words[*]-}" >&2
   heavy_argv=(${words[@]+"${words[@]}"})
 }
 
