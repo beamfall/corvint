@@ -157,6 +157,15 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   refused `MALFORMED` naming the flag. A verb with a boolean flag MUST declare it to the parser
   instead of removing it from argv by hand; `ticket delivery-screen` declares `--lane-refs` and
   the no-op `--json`. Value flags parse unchanged.
+- `TCL-V0-802`: (V1-3948) The `taskman-policy/0` fields `reviewLane.required`,
+  `docsLane.required`, `cemRequired`, `ocmRequired` and `capacity.classes` are RESERVED: the
+  store parses and validates them, but no claim, submit, gate, review or completion path reads
+  them, so a value changes no outcome. `policy show`, and `policy update` when it commits, MUST add
+  one warning naming each reserved field the policy sets to a non-default value (`true`, or a
+  non-empty class list); a policy that sets none adds no warning. Values stay accepted, so
+  existing stores (including ones that set `reviewLane.required: true`) keep loading. Enforcing
+  any of these fields is an owner policy decision outside this requirement; until a spec defines
+  its enforcement, the field stays reserved.
 - `TCL-V0-870`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3552) A
   mutation the store refused (any `taskman-outcome/0` outcome other than `COMPLETED`) MUST put at
   least one closed §11 code in the command result's top-level `codes`, and a `--batch` entry MUST
@@ -229,6 +238,9 @@ that tokenizer and that scoring function for tickets instead of adding a second 
   `TestATRV0275_LostOutputRetryAfterLaterUpdateRecovers` (TCL-V0-800).
 - `internal/tasks/cli/flags_boolean_internal_test.go`: `TestTCLV0801_DeclaredBooleanFlags`;
   `internal/tasks/cli/delivery_screen_test.go` keeps `--lane-refs` green (TCL-V0-801).
+- `internal/tasks/intent/reserved_policy_test.go`: `TestTCLV0802_ReservedPolicyFields`;
+  `internal/tasks/cli/reserved_policy_cli_test.go`:
+  `TestTCLV0802_PolicyShowAndUpdateWarnReservedFields` (TCL-V0-802).
 - `internal/tasks/cli/replay_receipt_test.go`: `TestTCLV0991_ReplayNamesTheOriginalReceipt`.
 - `internal/tasks/store/writer_checkpoint_test.go`: `TestCALV0190_WriterRouteServesReplaysAndRefusals`
   (writer-checkpoint replays name the same `originalReceipt` as the complete route; TCL-V0-991).

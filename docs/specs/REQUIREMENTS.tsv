@@ -2428,6 +2428,7 @@ TCL-V0-013	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standi
 TCL-V0-014	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3236) A new	standing	2026-10-11; V1-3236
 TCL-V0-800	docs/specs/corvint-tasks-cli-v0.md	(V1-3958; supersedes the "MUST NOT synthesize" clause of `CAL-V0-250`) A	unrecorded	-
 TCL-V0-801	docs/specs/corvint-tasks-cli-v0.md	(V1-3606) The CLI's shared flag parser MUST accept declared boolean flags: a	unrecorded	-
+TCL-V0-802	docs/specs/corvint-tasks-cli-v0.md	(V1-3948) The `taskman-policy/0` fields `reviewLane.required`,	unrecorded	-
 TCL-V0-870	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3552) A	standing	2026-10-11; V1-3552
 TCL-V0-990	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3517) The	standing	2026-10-11; V1-3517
 TCL-V0-991	docs/specs/corvint-tasks-cli-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3766) A	standing	2026-10-11; V1-3766
