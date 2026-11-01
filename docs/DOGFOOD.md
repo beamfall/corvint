@@ -347,6 +347,15 @@ context receipt saved as the query receipt), `agent-receipt-binding-mismatch`,
 `agent-receipt-binding-other-base` or `agent-receipt-wrong-worktree` (`DCW-V0-881`). The notes stay
 non-blocking.
 
+Mid-lane base change: when a lane merges its mainline after its pre-change reads, its dogfood BASE
+moves to the merged mainline commit, so every later pass notes the receipts `STALE`
+(`agent-receipt-not-base-tree`, or `agent-receipt-binding-other-base`). Keep the new BASE. The
+receipts still describe the pre-edit context at the old base, and they are not rebound: a pre-change
+read needs HEAD's tree to equal BASE's, which no lane has after its first edit. The note changes no
+row or exit status, and `dogfood change` names this rule once in a `fix:` line when the receipts'
+base is an ancestor of BASE. When it is not an ancestor, BASE is likely mistyped: pass the BASE the
+lane started from (`DCW-V0-925`).
+
 `context --task` is the orientation read: which tracked files a ticket-to-change task touches. The
 frozen Beamfall roadmap orientation gate admitted it against a grep baseline before this route
 changed (`CWT-V0-017`, `benchmarks/results/orientation-gate-beamfall-roadmap-v1.json`); a READY

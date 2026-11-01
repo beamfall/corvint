@@ -65,6 +65,8 @@ type change struct {
 	// (V1-1147).
 	citationFailedValues string
 	citeSpanUnaligned    bool // no hunk edits the refused span (DCW-V0-063)
+	// otherBaseNoted is set once the other-base recovery is named (DCW-V0-925).
+	otherBaseNoted bool
 	// mergedSeals are the sealed CEM paths BASE..HEAD adds that re-verified
 	// (DCW-V0-042); an aggregate bound refusal names them (DCW-V0-113).
 	mergedSeals []string
@@ -2751,6 +2753,11 @@ func (c *change) noteAgentReceipt(name, baseTree string) {
 		c.say("dogfood-change: NOTE %s NOT_OBSERVED agent-receipt-tree-unknown\n", name)
 	default:
 		c.say("dogfood-change: NOTE %s STALE agent-receipt-not-base-tree tree=%s base-tree=%s\n", name, tree, baseTree)
+		// A receipt read at the base its binding names, now another BASE,
+		// gets the mid-lane base change recovery (DCW-V0-925).
+		if binding, err := readBinding(c.evidence); err == nil && binding.Base != c.base {
+			c.noteOtherBaseRecovery(binding.Base)
+		}
 	}
 }
 
