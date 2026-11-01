@@ -1120,7 +1120,7 @@ above and add a failure-code vector per mapping; until then no mapping is assert
 | `pymdown-pin-mismatch` | `internal/doccompiler/discover.go:176` | 1 | "expected PyMdown Extensions <value>, found <value>" |
 | `receipt-encoding-failed` | `internal/doccompiler/receipt.go:75` | 1 | "cannot encode canonical receipt" |
 | `receipt-input-invalid` | `internal/doccompiler/receipt.go:37` | 1 | "environment and plan must be closed before receipt creation" |
-| `stale-documentation-draft` | `internal/doccompiler/draft.go:939@4090f21c` | 1 | "draft differs from original-source and policy rederivation" |
+| `stale-documentation-draft` | `internal/doccompiler/draft.go:943@4090f21c` | 1 | "draft differs from original-source and policy rederivation" |
 | `stale-source` | `internal/doccompiler/admittedplan.go:498@9a12a50a` | 4 | "plan revision <value> is not the index revision" |
 | `stale-toolchain` | `internal/doccompiler/paths.go:199@08aa9ed3` | 1 | "<value> no longer matches its pin" |
 | `symlink-rejected` | `internal/doccompiler/build.go:288` | 3 | "staged corpus contains a symlink: <value>" |
