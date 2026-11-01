@@ -105,6 +105,17 @@ At base `b7ffc233396da54e2ac5a094ec314dc3b067f6fb`:
   - The canonical patch is still read, because carrying needs its hunks.
   - The compiled plan and the stderr are byte-identical to the searching path.
   - A refresh that drafts any hunk searches as before.
+- `CKC-V0-015`: Batch blob reader.
+  - A draft or record reads each blob it has not prefetched through one long-lived `git cat-file --batch` reader per invocation, not an `ls-tree` and a `cat-file` process a blob.
+  - The reader answers exactly as the per-file read: absent for a missing path, a directory, a symlink or a submodule, and the regular blob's bytes otherwise.
+  - A commit or name that is not a clean literal, a blob past the flow's Git output bound and every read after a reader failure use the per-file read, which keeps that read's refusal.
+  - The flow's boundary closes the reader, so no Git process outlives the command.
+  - Drafts, recorded claims, record stderr and claims refreshes are byte-identical with and without the reader.
+- `CKC-V0-016`: Draft anchor search skips data files.
+  - The draft's BASE `git grep` excludes `**/*.json`, `**/*.jsonl` and `.agent-evidence/`, the data paths whose matches the draft already discards.
+  - Its output is byte-identical to the unexcluded search.
+  - One disclosed exception: a search that went past the Git output bound only through data files now completes instead of refusing.
+  - The check-tier proposal keeps its own search unchanged.
 
 ## Failure modes
 
@@ -121,6 +132,9 @@ At base `b7ffc233396da54e2ac5a094ec314dc3b067f6fb`:
 | Plan row unresolved or stale at record | Named refusal by row, nothing written |
 | Every owed hunk carried | No anchor search, output byte-identical to the searching path |
 | Batched blob read fails, is over the bound, or a name is not batchable | Per-file read for those names, same bytes and absent cases |
+| Batch reader fails mid-flow, or Git lacks `%(objectmode)` | Per-file reads from then on, same bytes and refusals |
+| Blob past the Git output bound through the batch reader | Per-file read refuses with the existing over-bound code |
+| Anchor matches only in excluded data files | Same draft; the search no longer refuses on data-only overflow |
 
 ## Acceptance evidence
 
@@ -134,6 +148,8 @@ These focused tests live in `internal/dogfoodflow/claims_test.go`:
 - `TestClaimsPrefetchBlobsMatchesBlob` covers CKC-V0-012: the batched cache equals the per-file read for regular, empty, executable, missing, directory and symlink names, unbatchable names stay uncached, and the bound skips an oversized blob.
 - `TestClaimsTombstones` also covers CKC-V0-013's carried and drafted marks.
 - `TestClaimsAllCarriedSkipsAnchorSearch` covers CKC-V0-014 for a claims refresh and a plan refresh, and checks that a refresh with a drafted hunk still searches.
+- `TestClaimsBatchBlobMatchesBlob` covers CKC-V0-015. It compares batched and per-file reads across two commits and an unknown commit, for regular, empty, executable, symlink, submodule, directory, missing, spaced, glob and unclean names. It checks the bound refusal, the fallback after it and the boundary close. It also checks that the draft, record stderr, claims bytes and a post-fix claims refresh are byte-identical with and without the reader.
+- `TestClaimsDataExcludesKeepDraft` covers CKC-V0-016: a draft whose anchors also match JSON, JSONL and `.agent-evidence/` files is byte-identical with and without the excludes.
 
 `TestClaimsReplay` runs only when `CKC_REPLAY_REPO` and `CKC_REPLAY_SEQUENCES` are set. It replays real history and prints the raw counts and timings recorded in `docs/build-log/2026-11-01-ckc-w15.md`. CLI wiring is covered in `cmd/corvint`.
 
@@ -141,6 +157,7 @@ These focused tests live in `internal/dogfoodflow/claims_test.go`:
 
 - No cem/1.0 wire change and no CEM 2.0 encoding.
 - No caching of cite or check results.
+- No persisted anchor-search cache. A cache written by a read command sits outside invariant 4, and the replays measured no cross-step repeat of a search.
 - No semantic judgment that a carried row still holds: an exact content match is the boundary, and the bind's precheck still judges every row.
 - No automatic recording in the bind loop. The `docs/DOGFOOD.md` adoption is proposed text only.
 - Relocation is line-aligned exact text. A BASE edit inside a hunk's range or context refuses rather than guesses.

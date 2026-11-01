@@ -1086,6 +1086,8 @@ CKC-V0-011	docs/specs/cem-content-keyed-claims-v0.md	Evidence.	unrecorded	-
 CKC-V0-012	docs/specs/cem-content-keyed-claims-v0.md	Batched blob reads.	unrecorded	-
 CKC-V0-013	docs/specs/cem-content-keyed-claims-v0.md	In a refresh, each stderr hunk note (`hunk ID edits PATH at BASE ...`) ends with	unrecorded	-
 CKC-V0-014	docs/specs/cem-content-keyed-claims-v0.md	Carried-only refresh skips the anchor search.	unrecorded	-
+CKC-V0-015	docs/specs/cem-content-keyed-claims-v0.md	Batch blob reader.	unrecorded	-
+CKC-V0-016	docs/specs/cem-content-keyed-claims-v0.md	Draft anchor search skips data files.	unrecorded	-
 CEX-V0-001	docs/specs/cem-criterion-experiments-v0.md	The companion MUST remain explicitly experimental and opt-in, with separate	unrecorded	-
 CEX-V0-002	docs/specs/cem-criterion-experiments-v0.md	Planning MUST bind independently supplied full base/candidate identities, exact	unrecorded	-
 CEX-V0-003	docs/specs/cem-criterion-experiments-v0.md	Each supported scenario MUST reconstruct a committed Go module in one literal	unrecorded	-
