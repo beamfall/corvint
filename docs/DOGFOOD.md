@@ -654,8 +654,11 @@ evidence for the composition only. Failed outcomes observed while integrating (t
 2026-10 reproductions: LSP stack, GH408 PR413, PR476/PR443, GH468 and batch #570, all
 `sealed-cem-in-change` on a naive retained-tree import) stay in the retained build-log entries. Their
 fixes, preservation manifests and qualification limits are per exact engine and scope; no broad
-outcome follows. Not reproduced in this lane: whether current main still refuses the cases above
-(the `NOTE sealed-cem-merged` text predates them); a lane that meets the refusal retains the log.
+outcome follows. Reproduced 2026-11-01 (V1-3683, `DCW-V0-728`): current main admits an unmodified,
+verifiable sealed leaf with `NOTE sealed-cem-merged` and refuses only the classes in step 3
+(`TestChangeDCWV0042AdmitsOnlyVerifiableSealedCEMs`); V1-0527's "unmodified leaves are refused" text
+describes those naive imports before `DCW-V0-042`, not current behaviour. A lane that meets the refusal
+for an unmodified, verifiable leaf retains the log as a regression.
 
 #### Stacking on a sealed predecessor
 
