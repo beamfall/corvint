@@ -128,7 +128,7 @@ var sourceLine = regexp.MustCompile(`^\s*(?:source|\.|load)\s+("[^"]*"|'[^']*'|\
 
 // dynamicSources names, as file:line hints, each `source`, `.` or `load` line
 // of the unit whose own read is shell:dynamic-source, the unit's import chain
-// ends at, with a computed target (ASD-V0-1144): the line and the literal path
+// ends at, with a computed target (ASD-V0-614): the line and the literal path
 // that would bound it, or, for a script that sources itself through "$0", the
 // helper file that would.
 func dynamicSources(root string, graph *affected.Graph, id string) []string {

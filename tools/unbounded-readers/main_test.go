@@ -258,11 +258,11 @@ func TestRunsToolchainRefusalNamesTheUnitsEntry(t *testing.T) {
 	}
 }
 
-// ASD-V0-1144, V1-3806: a shell test whose own read is shell:dynamic-source is
+// ASD-V0-614, V1-3806: a shell test whose own read is shell:dynamic-source is
 // refused with each computed `source` or `.` line as file:line and the literal
 // path that bounds it; a test that sources itself through "$0" is told to move
 // the shared functions into a helper. A literal source line is not named.
-func TestDynamicSourceRefusalNamesTheLine_ASD_V0_1144(t *testing.T) {
+func TestDynamicSourceRefusalNamesTheLine_ASD_V0_614(t *testing.T) {
 	root := repository(t, `{"profile":"corvint-unbounded-reader-set/0","units":["reader"],"reasons":{"reader":"calls os.Getwd"}}`)
 	for name, body := range map[string]string{
 		"script/self_test.sh": "#!/bin/sh\nset -eu\nif [ \"${1-}\" = lib ]; then return 0; fi\n. \"$0\" lib\n",

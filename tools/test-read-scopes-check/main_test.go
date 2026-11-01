@@ -514,12 +514,12 @@ func TestOwnPackageBuildNamesRemedies_V1_3658(t *testing.T) {
 	}
 }
 
-// ASD-V0-1140, V1-4117 case 1: a package whose tests find the repository root
+// ASD-V0-610, V1-4117 case 1: a package whose tests find the repository root
 // by walking up with filepath.Dir until go.mod exists, or by climbing from a
 // runtime.Caller path with nested Dir calls, reads its tokens from the root,
 // as a parent-only literal makes it, so filepath.Join(root, "docs/...") is
 // checked; the finding names the climb.
-func TestRootClimbMakesTokensRootRelative_ASD_V0_1140(t *testing.T) {
+func TestRootClimbMakesTokensRootRelative_ASD_V0_610(t *testing.T) {
 	walk := "package walk\n\nimport (\n\t\"os\"\n\t\"path/filepath\"\n\t\"testing\"\n)\n\n" +
 		"func moduleRoot() string {\n\tdirectory, _ := os.Getwd()\n\tfor {\n" +
 		"\t\tif _, err := os.Stat(filepath.Join(directory, \"go.mod\")); err == nil {\n\t\t\treturn directory\n\t\t}\n" +
@@ -560,10 +560,10 @@ func TestRootClimbMakesTokensRootRelative_ASD_V0_1140(t *testing.T) {
 	}
 }
 
-// ASD-V0-1141, V1-4117 case 2: a go build of "../../cmd/"+pkg inside a range
+// ASD-V0-611, V1-4117 case 2: a go build of "../../cmd/"+pkg inside a range
 // over a []string of literal names loads only those commands, the
 // internal/perfbudget shape, not every package under cmd/.
-func TestRangeConcatenationNarrowsBuildTargets_ASD_V0_1141(t *testing.T) {
+func TestRangeConcatenationNarrowsBuildTargets_ASD_V0_611(t *testing.T) {
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("go tool unavailable")
 	}
@@ -597,10 +597,10 @@ func TestRangeConcatenationNarrowsBuildTargets_ASD_V0_1141(t *testing.T) {
 	}
 }
 
-// ASD-V0-1142, V1-4117 case 3: a go command target that names no repository
+// ASD-V0-612, V1-4117 case 3: a go command target that names no repository
 // directory is a finding of its package, not an abort, so one run reports it
 // for every package and still reports the other findings.
-func TestUnresolvedGoTargetsAreAllReported_ASD_V0_1142(t *testing.T) {
+func TestUnresolvedGoTargetsAreAllReported_ASD_V0_612(t *testing.T) {
 	if _, err := exec.LookPath("go"); err != nil {
 		t.Skip("go tool unavailable")
 	}
@@ -637,12 +637,12 @@ func TestUnresolvedGoTargetsAreAllReported_ASD_V0_1142(t *testing.T) {
 	}
 }
 
-// ASD-V0-1143, V1-4152: in a package whose tests locate the root, a path that
+// ASD-V0-613, V1-4152: in a package whose tests locate the root, a path that
 // is expected text, an argument of t.Errorf, the searched-for argument of
 // strings.Contains, or an operand of ==, names no read; the same path passed
 // to os.ReadFile, even inside an assertion, or in any other literal of the
 // file is still refused.
-func TestAssertionLiteralNamesNoRead_ASD_V0_1143(t *testing.T) {
+func TestAssertionLiteralNamesNoRead_ASD_V0_613(t *testing.T) {
 	files := func(test string) map[string]string {
 		return map[string]string{
 			"go.mod":                         "module example.test/m\n\ngo 1.27\n",

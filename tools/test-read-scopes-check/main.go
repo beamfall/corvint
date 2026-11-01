@@ -142,7 +142,7 @@ type finding struct {
 	// refusal is why a go command a test file runs cannot be modelled, such
 	// as a target that names no repository directory; path is then empty. It
 	// is a finding, not an abort, so one run reports every package
-	// (ASD-V0-1142).
+	// (ASD-V0-612).
 	refusal string
 }
 
@@ -190,7 +190,7 @@ func rootLocator(files []string, bodies [][]byte, tokens [][]string) string {
 
 // rootClimb names, as file:line and the form, the first test-file function of
 // the package in directory that finds the repository root without a literal
-// rootLocator sees (ASD-V0-1140): a loop that climbs with filepath.Dir or
+// rootLocator sees (ASD-V0-610): a loop that climbs with filepath.Dir or
 // path.Dir until a "go.mod" exists, or a runtime.Caller file path that nested
 // Dir calls climb from the package directory to the root. Either makes the
 // package's tokens root-relative, as a parent-only literal does.
@@ -548,7 +548,7 @@ var goValueFlags = []string{
 // concatenation of one literal and the value of an enclosing range over a
 // string-literal slice, such as "../../cmd/"+pkg in
 // `for _, pkg := range []string{"corvint", "corvint-x"}`, stands for exactly
-// the packages it can name (ASD-V0-1141).
+// the packages it can name (ASD-V0-611).
 func goBuildTargets(name string, body []byte) (builds, tests []string, err error) {
 	file, err := parser.ParseFile(token.NewFileSet(), name, body, parser.SkipObjectResolution)
 	if err != nil {
@@ -747,7 +747,7 @@ func isIdent(expression ast.Expr, name string) bool {
 // rangeTargets returns the package patterns a "literal"+name concatenation
 // spells when name is the value of the innermost enclosing literalRange: one
 // target per range value, each a relative pattern buildTarget would accept
-// as a literal (ASD-V0-1141). Any other argument returns false, and the
+// as a literal (ASD-V0-611). Any other argument returns false, and the
 // buildTarget over-approximation stands.
 func rangeTargets(argument ast.Expr, ranges []literalRange) ([]string, bool) {
 	binary, ok := argument.(*ast.BinaryExpr)
@@ -801,7 +801,7 @@ func stringLiteral(expression ast.Expr) (string, bool) {
 // against the package directory, where `go test` runs, or, when no directory
 // is there, against the root, where a test that sets the command's Dir to the
 // root runs it; a target that is neither is an error, not a silent pass, which
-// check reports as a finding of that package (ASD-V0-1142). With test, the
+// check reports as a finding of that package (ASD-V0-612). With test, the
 // imports of the targets' test files are loaded too.
 func dependencyDirectories(root, directory string, targets []string, test bool) ([]string, error) {
 	var resolved []string
@@ -817,7 +817,7 @@ func dependencyDirectories(root, directory string, targets []string, test bool) 
 			}
 		}
 		if found == "" || found == ".." || strings.HasPrefix(found, "../") {
-			return nil, fmt.Errorf("runs a go command on %s, which names no repository directory; spell the target as a literal package path, or range over a []string of literal names (ASD-V0-1141)", target)
+			return nil, fmt.Errorf("runs a go command on %s, which names no repository directory; spell the target as a literal package path, or range over a []string of literal names (ASD-V0-611)", target)
 		}
 		if below {
 			found += "/..."

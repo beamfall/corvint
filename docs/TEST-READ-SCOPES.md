@@ -15,11 +15,11 @@ else (a spec, `go.mod`, another package's sources, a repository walk) fails ther
    names a tracked path outside the package's entries, including a path resolved from the
    repository root once a test locates it (`".."`, `"../.."` or the Git top-level lookup, `V1-3234`;
    a loop that climbs with `filepath.Dir` until `go.mod` exists, or a `runtime.Caller` path climbed
-   by nested `Dir` calls to the root, `ASD-V0-1140`), and the dependency directories a test's
+   by nested `Dir` calls to the root, `ASD-V0-610`), and the dependency directories a test's
    `go list -deps` or `go build` loads (`V1-2037`, `AFP-V0-847`). A target built as
    `"./cmd/"+name` inside `for _, name := range []string{...}` loads only the listed packages
-   (`ASD-V0-1141`). It reports every finding in one run, including a go target it cannot resolve
-   (`ASD-V0-1142`). It runs in `make doc-gates` and the closeout precheck; run it by hand as soon as
+   (`ASD-V0-611`). It reports every finding in one run, including a go target it cannot resolve
+   (`ASD-V0-612`). It runs in `make doc-gates` and the closeout precheck; run it by hand as soon as
    the test exists, because a lane's focused `go test` runs unconfined and passes.
 2. **Runtime twin, Linux with Landlock ABI 2 or later.** The static check cannot see a path the test
    computes (a walk from the root, `git ls-files`, a path read from a file). Build the same wrapper
@@ -47,10 +47,10 @@ remove the package's declaration and list it in `.corvint/unbounded-readers.json
 reason in `.corvint/test-read-scope-literals.json`, or marked `//corvint:fixture-path` on its line
 (`ASD-V0-895`). A literal that is only compared or reported (an operand of `==` or `!=`, an argument
 of `t.Errorf` and the other report methods, or the searched-for argument of `strings.Contains` and
-the other `strings`/`bytes` search functions) names no read and needs neither (`ASD-V0-1143`).
+the other `strings`/`bytes` search functions) names no read and needs neither (`ASD-V0-613`).
 
 A package listed in `.corvint/unbounded-readers.json` because its tests `source` a computed path
 (`shell:dynamic-source`) is not bounded by `.corvint/shell-read-scopes.json`, which bounds only
 `shell:runs-toolchain` units (`TSP-V0-950`). `make unbounded-readers-check` names each computed
 `source` line and the fix: source a literal path, such as a helper file beside the script
-(`ASD-V0-1144`).
+(`ASD-V0-614`).

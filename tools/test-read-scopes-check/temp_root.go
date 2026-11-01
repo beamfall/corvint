@@ -479,7 +479,7 @@ const fixtureMarker = "//corvint:fixture-path"
 // or assertion literals of that file hold; a token any other literal also
 // holds is never exempt, so neither a marker nor an assertion can hide a real
 // read the same file makes. An assertion literal is expected text, which names
-// no read (ASD-V0-1143): an argument of a testing report method such as
+// no read (ASD-V0-613): an argument of a testing report method such as
 // t.Errorf, the second or later argument of a strings or bytes search such as
 // strings.Contains, or an operand of == or !=.
 func fixtureMarked(files []string, bodies [][]byte) ([]map[string]bool, error) {
@@ -542,7 +542,7 @@ var reportMethods = map[string]bool{"Error": true, "Errorf": true, "Fatal": true
 var searchFunctions = map[string]bool{"Contains": true, "ContainsAny": true, "HasPrefix": true, "HasSuffix": true, "Index": true, "LastIndex": true, "Count": true, "EqualFold": true}
 
 // assertionLiterals returns the string literals of file that are expected
-// text (ASD-V0-1143). A literal nested inside such an argument, as in
+// text (ASD-V0-613). A literal nested inside such an argument, as in
 // t.Errorf("%s", "x"+y), counts too.
 func assertionLiterals(file *ast.File) map[*ast.BasicLit]bool {
 	asserted := map[*ast.BasicLit]bool{}

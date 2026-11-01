@@ -338,7 +338,7 @@ repin:
 	@script/repin.sh --base "$(REPIN_BASE)"
 
 # SRG-V0-800 (V1-3379): it also fails when an unstaged spec edit would change the generated files.
-# ASD-V0-1145 (V1-3841): it also runs the internal/lrfrepo spec enumeration pins, so a lane's doc
+# ASD-V0-615 (V1-3841): it also runs the internal/lrfrepo spec enumeration pins, so a lane's doc
 # gates, not only batch-precheck's drift tests, catch a requirement edit that drifts a pin.
 .PHONY: spec-requirements-check
 spec-requirements-check:
