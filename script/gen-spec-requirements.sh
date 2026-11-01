@@ -10,7 +10,8 @@ set -eu
 #
 # With no argument the script prints docs/specs/REQUIREMENTS.tsv. `--index` prints
 # docs/specs/INDEX.json and `--readme` prints docs/specs/README.md, each projected from the
-# staged spec headers onto the staged file (SRG-V0-012). `--lines` prints the uncommitted locator
+# staged spec headers onto the staged file (SRG-V0-012); a superseded digest's Successor path
+# becomes the INDEX.json supersededBy (SRG-V0-979). `--lines` prints the uncommitted locator
 # view: the same rows with each definition's line number, ordered by id (SRG-V0-015). Those modes
 # write stdout only. `--all DIR` writes REQUIREMENTS.tsv, INDEX.json and README.md into the existing
 # directory DIR from one read of the staged specs, each byte for byte what its own mode prints
@@ -646,6 +647,15 @@ sub default_prefix {
     return defined $id ? $id =~ s/-[0-9]{3}\z//r : '';
 }
 
+# successor_path is the repository path a digest `- Successor:` value names: its first backticked
+# `*.md` path, with a bare file name taken as a sibling in docs/specs/ (SRG-V0-979), or undef.
+sub successor_path {
+    my ($value) = @_;
+    return undef unless defined $value && $value =~ /`([^`\s]+\.md)`/;
+    my $path = $1;
+    return $path =~ m{/} ? $path : "docs/specs/$path";
+}
+
 sub new_spec_title {
     my ($file) = @_;
     my $title = $header{$file}{title} // die "$file: a new spec needs a `# Title` line\n";
@@ -667,6 +677,10 @@ sub index_text {
         !$listed{$path}++ or die "docs/specs/INDEX.json: duplicate entry $path\n";
         my $spec = $header{$path} or die "docs/specs/INDEX.json: $path is not a tracked spec\n";
         $entry->{$_} = $spec->{$_} for grep { defined $spec->{$_} } qw(intent delivery claim);
+        # SRG-V0-979 (V1-3797): a superseded digest's Successor owns supersededBy, so retiring a
+        # spec needs no hand edit of INDEX.json for internal/specindex to accept it.
+        my $successor = successor_path($spec->{successor});
+        $entry->{supersededBy} = $successor if defined $successor;
     }
     for my $file (grep { !$listed{$_} } sort @specs) {
         my $prefix = default_prefix($file);
@@ -679,7 +693,7 @@ sub index_text {
             delivery => $header{$file}{delivery},
             claim => $header{$file}{claim},
             dependsOn => [],
-            supersededBy => undef,
+            supersededBy => successor_path($header{$file}{successor}),
             closableToday => JSON::PP::false,
             implementation => [],
         };
