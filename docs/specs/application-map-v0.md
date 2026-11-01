@@ -2149,7 +2149,8 @@ but does not read it; only non-Go syntax impact does.
   or `browser-target-missing` (no such file). A relative or bare browser-context specifier is
   `browser-reference` reason `browser-specifier-unread`. Browser-reference unknowns never make the
   map's `test_join` `UNKNOWN`, since the browser module graph is not the test join.
-- `AMAP-V0-960`: (accepted under the owner's standing lane auto-accept (2026-10-11); V1-4077)
+- `AMAP-V0-960`: (accepted under the owner's standing lane auto-accept (2026-10-11); V1-4077; refines
+  `AMAP-V0-215`)
   Map version rule: `application-map/0` readers decode strictly, and the map digest is computed
   over the members the reader decodes, so a reader cannot tolerate a member it does not know
   without either dropping it from the digest or accepting content it never checked. An additive
