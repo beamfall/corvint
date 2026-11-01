@@ -229,7 +229,12 @@ func gen(args []string) error {
 	if err := os.MkdirAll(filepath.Join(*root, ".taskman"), 0o755); err != nil {
 		return err
 	}
-	store, err := filepath.EvalSymlinks(*root)
+	// An absolute root, so relocate of a copy passes the right --from.
+	abs, err := filepath.Abs(*root)
+	if err != nil {
+		return err
+	}
+	store, err := filepath.EvalSymlinks(abs)
 	if err != nil {
 		return err
 	}
@@ -747,7 +752,11 @@ func relocate(args []string) error {
 		if err := json.Unmarshal(raw, &m); err != nil {
 			return err
 		}
-		if m.Root, err = filepath.EvalSymlinks(*store); err != nil {
+		abs, err := filepath.Abs(*store)
+		if err != nil {
+			return err
+		}
+		if m.Root, err = filepath.EvalSymlinks(abs); err != nil {
 			return err
 		}
 		if err := writeJSONFile(manifestPath(*store), m); err != nil {
