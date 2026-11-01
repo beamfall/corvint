@@ -877,6 +877,20 @@ separate exact extension tuple remains governed by AHI-024.
   `internal/parser/token.go` carries its object; absent, parent and absolute tokens are not paths).
   Rollback: drop the `ExitPlanMode` plan-affected branch of `runClaudePreToolRead` and
   `cmd/corvint/host_adapter_plan_affected.go`.
+- `AHI-633`: (experimental under the standing lane auto-accept (2026-11-01); V1-2929) Every
+  `SyntaxStyle` the OpenCode TUI plugin constructs MUST name the host renderer's native scene,
+  `ctx.renderer?.nativeScene`, as its resource owner. OpenTUI 0.7 (bundled in OpenCode 2.2.0)
+  refuses an ownerless `SyntaxStyle.fromStyles` at plugin setup, which left the
+  `corvint.inspector.ui` plugin unregistered and the sidebar showing the host's stock panel; the
+  `AHI-620` cause named that frame, and the host log named the refusal. Older OpenTUI ignores the
+  extra argument. Live receipt (Mac, OpenCode v2.2.0, scratch `HOME`, 2026-11-01): before the
+  change `qualify-opencode --inspector` failed `native UI witness missing: sidebar` with the log
+  error `SyntaxStyle requires an explicit resource owner`; after it the dark and light inspector
+  witnesses PASS (46 checks). Non-goals: any change to the witnessed strings or the plugin's
+  panels. Failure mode: a later OpenTUI owner contract would fail setup again, which the
+  inspector witness and `AHI-620` cause report. Evidence: the `AHI-633` case in
+  `integrations/opencode/ui-presentation.test.mjs` (fails without the owner) and the retained
+  live run in `docs/build-log/2026-11-01-hst-m27.md`. Rollback: drop the owner argument.
 
 - `AHI-032`: At the owner’s request (2026-09-28), stock OpenCode native integration qualification
   MUST be reported separately from execution authority. The `opencode-native-integration/1`
@@ -2891,6 +2905,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-630` (experimental under the standing lane auto-accept (2026-11-01); V1-0401) | `internal/observations/observations.go` (`admittedAdapterEvents`) | `TestAHI630OptInAbstentionReachesTheLedger` |
 | `AHI-631` (experimental under the standing lane auto-accept (2026-11-01); V1-3894) | `integrations/claude-code/plugins/corvint/.mcp.json` | `TestAHI631ClaudePluginMCPLaunchHandshakes` |
 | `AHI-632` (experimental under the standing lane auto-accept (2026-11-01); V1-0878) | `cmd/corvint/host_adapter_plan_affected.go` (`planAffectedPaths`, `startPlanAffected`); `cmd/corvint/host_adapter_pretool.go` (`runClaudePreToolRead`) | `TestAHI805PreToolReadNeverDecidesPermission` (ExitPlanMode cases) |
+| `AHI-633` (experimental under the standing lane auto-accept (2026-11-01); V1-2929) | `integrations/opencode/src/tui.tsx` (`SyntaxStyle.fromStyles` owner) | `integrations/opencode/ui-presentation.test.mjs` (AHI-633 case); live `qualify-opencode --inspector` on OpenCode 2.2.0 |
 | `AHI-807` (experimental under the standing lane auto-accept (2026-11-01); V1-2514) | `cmd/corvint/host_adapter_done_list.go` (`doneListOptedIn`); `integrations/claude-code/plugins/corvint/.claude-plugin/plugin.json` (`userConfig.stop_done_list`) | `TestAHI807StopDoneListPluginOptionAndPrecedence` |
 | `AHI-808` (experimental under the standing lane auto-accept (2026-11-01); V1-3543) | `cmd/corvint/host_adapter.go` (`unsupportedHookEvent`, `claudeCodeAdapterEvents`, `codexHookEvents`); `cmd/corvint/help.go` (`adapterHelp`) | `TestAHI808AdapterEventsAreDiscoverable` |
 | `AHI-820` (experimental under the standing lane auto-accept; V1-2513) | `integrations/claude-code/plugins/corvint/.mcp.json` | `TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups`, `TestAHI820ClaudePluginArgsServeTestValidityAndDocs`; live receipt in `docs/build-log/2026-10-31-linux-w2-bugs.md` |
