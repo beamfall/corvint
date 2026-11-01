@@ -76,4 +76,5 @@ node_modules/
 /test-commands-run
 /test-read-scopes-check
 /test-shards
+/tiers-replay
 /unbounded-readers

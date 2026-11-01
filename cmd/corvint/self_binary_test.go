@@ -118,6 +118,15 @@ func TestSelfBinaryStaleIsReportedByAffectedAndTest(t *testing.T) {
 			t.Fatalf("%v: stderr does not name the degradation: %s", options, stderr)
 		}
 	}
+	// AFP-V0-990 (V1-3648 review): --by-path keeps the degradation in both formats.
+	byPath, _, stderr, code := runAffectedCLI(t, root, "--by-path", "--path", "self.go")
+	if degradations, _ := byPath["degradations"].([]any); code != 0 || len(degradations) != 1 || degradations[0] != selfBinaryStaleCode || !strings.Contains(stderr, "corvint: DEGRADED self-binary-stale") {
+		t.Fatalf("--by-path: degradations %v, exit %d: %s", byPath["degradations"], code, stderr)
+	}
+	var text, textStderr bytes.Buffer
+	if code := runContext(context.Background(), []string{"--root", root, "affected", "--by-path", "--path", "self.go", "--format", "text"}, strings.NewReader(""), &text, &textStderr); code != 0 || !strings.Contains(text.String(), "\ndegraded self-binary-stale\n") {
+		t.Fatalf("--by-path text: exit %d\n%s%s", code, text.String(), textStderr.String())
+	}
 	var stdout, testStderr bytes.Buffer
 	runContext(context.Background(), []string{"--root", root, "test", "--base", built, "--dry-run"}, strings.NewReader(""), &stdout, &testStderr)
 	if !strings.Contains(testStderr.String(), "corvint-test: DEGRADED self-binary-stale: ") {

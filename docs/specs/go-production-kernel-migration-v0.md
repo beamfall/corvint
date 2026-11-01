@@ -998,6 +998,14 @@ which is the whole of what the row asserts.
   emphasized `**OPEN**`, or a missing Status bullet reads as open and obliges that disclosure
   (Go evidence: `TestOpenRegisterEntriesTreatAnUnrecognizedStatusAsOpen`). Rollback under
   `GPK-V0-024` applies to a beta-rung command unchanged.
+- `GPK-V0-960`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3663) The query
+  receipt's top-level `revision` and `freshness.revision` hold the Git tree id of the captured
+  content, not a commit id; `learning.history_tip` holds the commit Git history was read from. The
+  wire is unchanged (the core-freeze receipts stay byte-identical); `corvint query --help` MUST
+  label both members under "Receipt fields", stating that `revision` never equals
+  `history_tip` and that their difference is not staleness, and name the binding route
+  (`git rev-parse COMMIT^{tree}`). Evidence: `TestQueryHelpExposesRepositoryAndFrozenAuthorityProfiles`
+  pins the label. Rollback: drop the "Receipt fields" paragraph.
 
 ## Non-goals and simpler baseline
 

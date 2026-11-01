@@ -845,6 +845,8 @@ Usage:
           [--cache DIR | --no-cache] [--format json|text]
   corvint [--root PATH] affected [--full] --path PATH [PATH ...] [--path PATH ...]
           [--paths-from FILE] [--cache DIR | --no-cache]
+  corvint [--root PATH] affected --by-path --path PATH [PATH ...]
+          [--paths-from FILE] [--cache DIR | --no-cache] [--format json|text]
   corvint [--root PATH] affected [--full] --snapshot RECEIPT
   corvint [--root PATH] affected --snapshot RECEIPT --playwright-config PATH
   corvint [--root PATH] affected [--full] [--require-clean]
@@ -929,6 +931,19 @@ count: the plan mixes that commit with mutable worktree content.
 --require-clean (experimental; not with --snapshot) refuses with exit 2 and
 unsupported-affected-mixed-worktree when the worktree status has any entry,
 before the range diff, graph walk or provider; a clean worktree is unchanged.
+
+--by-path (experimental, AFP-V0-990; requires --path or --paths-from, not
+with --full) builds the graph once and writes one affected-by-path/1 document
+instead of the plan: sharedUnboundedReaders lists once the units the union plan
+selects as UNBOUNDED_READER (they are selected on any path), and paths gives
+each named path's scope, how many of that shared set it selects, its unknowns
+and only the units it adds. --format text writes "affected by-path scope=S
+paths=N shared=K revision=SHA", one "shared UNIT tests=N WITNESS" line per
+shared unit, then per path "path P scope=S shared=J/K additions=M" with its
+"  added UNIT tests=N WITNESS" and "  unknown REASON DETAIL" lines. A stale
+or unverified binary (AFP-V0-846) is named on stderr, in degradations, and on a
+"degraded CODE" text line.
+Example: corvint affected --by-path --path docs/GLOSSARY.md docs/README.md --format text
 
 --path PATH [PATH ...] (experimental; repeatable, up to 4096 paths in all) plans
 exactly the named repository-relative paths at HEAD instead of the worktree status or a range,
@@ -1739,6 +1754,13 @@ Requirements:
 
 The command is read-only and local-only. It emits one canonical JSON receipt on
 stdout. Unsupported profiles emit one structured error on stderr and exit 2.
+
+Receipt fields:
+  revision and freshness.revision are the Git tree id of the captured
+  content (HEAD^{tree} for a clean worktree), not a commit id, so they never
+  equal learning.history_tip, the commit Git history was read from; the two
+  differing is not staleness (GPK-V0-960). Bind evidence by comparing revision
+  with a commit's tree (git rev-parse COMMIT^{tree}), then each blob.
 
 Recovery for unsupported-query-trace-state:
   Keep the trace store and original task unchanged. Read the repository's

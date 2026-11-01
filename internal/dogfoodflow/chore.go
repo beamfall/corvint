@@ -86,6 +86,10 @@ func uniformCitation(plan []byte, hunks []map[string]string) (int, string, bool)
 // integers cem cite parses, so spellings such as 01:02 or +1:2 compare equal to
 // 1:2; a span cem cite would refuse is not canonical.
 func canonicalSpan(path, span string) (string, bool) {
+	kind := ""
+	if bytesSpan, ok := strings.CutPrefix(span, bytesSpanPrefix); ok {
+		kind, span = bytesSpanPrefix, bytesSpan
+	}
 	left, right, found := strings.Cut(span, ":")
 	if !found {
 		return "", false
@@ -95,7 +99,7 @@ func canonicalSpan(path, span string) (string, bool) {
 	if startErr != nil || endErr != nil {
 		return "", false
 	}
-	return path + ":" + strconv.FormatInt(start, 10) + ":" + strconv.FormatInt(end, 10), true
+	return path + ":" + kind + strconv.FormatInt(start, 10) + ":" + strconv.FormatInt(end, 10), true
 }
 
 // markChoreRole writes role into the regular cem/1.0 map at mapPath and keeps

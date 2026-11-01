@@ -45,8 +45,9 @@ type SetupNotFollowed struct {
 }
 
 // SetupSelection is the setup files a spec list depends on at one revision (TSA-V0-001..006).
-// Mode is "selected" when every dependency closed, or "all" with at least one reason, in which
-// case SetupFiles is the whole setup universe.
+// Mode is "selected" when every dependency closed, "all" with at least one reason, in which
+// case SetupFiles is the whole setup universe, or "none" with reason no-setups when that universe
+// is empty (TSA-V0-960).
 type SetupSelection struct {
 	Schema      string              `json:"schema"`
 	Revision    string              `json:"revision"`
@@ -394,8 +395,22 @@ func (s *setupSelector) result(index *Index, specs []string) SetupSelection {
 		}
 	}
 	sort.Strings(out.SetupFiles)
-	if len(s.reasons) != 0 {
+	if len(s.universe) == 0 {
+		// TSA-V0-960 (V1-3655): with no setup file at the revision no spec can
+		// depend on one, so an unproved closure widens nothing; only the
+		// reasons about the input itself are kept.
+		reasons := []SetupSelectReason{{Code: "no-setups", Detail: "the revision tracks no *.setup.* or *.seed.* file"}}
+		for _, reason := range s.reasons {
+			if reason.Code == "missing-path" || reason.Code == "empty-spec-list" {
+				reasons = append(reasons, reason)
+			}
+		}
+		out.Mode, s.reasons = "none", reasons
+	}
+	if len(s.reasons) != 0 && out.Mode != "none" {
 		out.Mode = "all"
+	}
+	if len(s.reasons) != 0 {
 		sort.Slice(s.reasons, func(a, b int) bool {
 			x, y := s.reasons[a], s.reasons[b]
 			if x.Code != y.Code {

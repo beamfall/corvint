@@ -280,6 +280,8 @@ AFP-V0-928	docs/specs/affected-plan-v0.md	(experimental under the owner's standi
 AFP-V0-929	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3152)	standing	2026-10-11; V1-3152
 AFP-V0-930	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3147)	standing	2026-10-11; V1-3147
 AFP-V0-931	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3146;	standing	2026-10-11; V1-3146
+AFP-V0-990	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3648)	standing	2026-10-11; V1-3648
+AFP-V0-991	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3664)	standing	2026-10-11; V1-3664
 AFP-V0-933	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3109;	standing	2026-10-11; V1-3109
 AFP-V0-934	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3159;	standing	2026-10-11; V1-3159
 AFP-V0-935	docs/specs/affected-plan-v0.md	(experimental under the owner's standing lane auto-accept, 2026-10-11; V1-3160;	standing	2026-10-11; V1-3160
@@ -2615,6 +2617,7 @@ TLF-V0-883	docs/specs/corvint-tasks-lane-flow-v0.md	`ticket closeout-debt` MUST 
 TLF-V0-884	docs/specs/corvint-tasks-lane-flow-v0.md	`corvint-tasks ticket split ID --criteria N,M --expected-revision R --request-id	unrecorded	-
 TLF-V0-885	docs/specs/corvint-tasks-lane-flow-v0.md	`ticket split --dry-run` MUST print the child CREATE payload and the parent's	unrecorded	-
 TLF-V0-886	docs/specs/corvint-tasks-lane-flow-v0.md	`tools/requirement-id-collisions` MUST read every local branch and detached work	unrecorded	-
+TLF-V0-960	docs/specs/corvint-tasks-lane-flow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3650; refines	standing	2026-10-31; V1-3650
 TLF-V0-887	docs/specs/corvint-tasks-lane-flow-v0.md	`ticket delivery-screen --lane-refs` MUST additionally scan every local branch a	unrecorded	-
 TLF-V0-888	docs/specs/corvint-tasks-lane-flow-v0.md	`ticket effects-proposals` MUST, for each OPEN ticket whose effects coverage is	unrecorded	-
 TLF-V0-889	docs/specs/corvint-tasks-lane-flow-v0.md	A proposal MUST NOT change claimability, eligibility, blockers, planning or any	unrecorded	-
@@ -3219,6 +3222,7 @@ DCW-V0-448	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-449	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3108; refines `DCW-V0-379`	standing	V1-3108
 DCW-V0-800	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3269; refines `DCW-V0-380`	standing	V1-3269
 DCW-V0-801	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3280; amends `DCW-V0-384`)	standing	V1-3280
+DCW-V0-991	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3642; amends	standing	2026-10-31; V1-3642
 DCW-V0-802	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3279; amends `DCW-V0-350`)	standing	V1-3279
 DCW-V0-803	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3268; refines `DCW-V0-150`	standing	V1-3268
 DCW-V0-804	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3378; amends `DCW-V0-801`)	standing	V1-3378
@@ -3234,6 +3238,7 @@ DCW-V0-824	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under t
 DCW-V0-825	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3366) When `cem status`	standing	V1-3366
 DCW-V0-826	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3367) `script/dogfood-bind	standing	V1-3367
 DCW-V0-827	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3368) A citation-plan row'	standing	V1-3368
+DCW-V0-990	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3637; extends	standing	2026-10-31; V1-3637
 DCW-V0-828	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3369; refines `DCW-V0-824`	standing	V1-3369
 DCW-V0-829	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3370; refines `DCW-V0-824`	standing	V1-3370
 DCW-V0-830	docs/specs/daily-change-evidence-workflow-v0.md	(experimental under the standing lane auto-accept; V1-3371) `DOGFOOD_CITATIONS=n	standing	V1-3371
@@ -4337,6 +4342,7 @@ GPK-V0-024	docs/specs/go-production-kernel-migration-v0.md	Rollback MUST require
 GPK-V0-025	docs/specs/go-production-kernel-migration-v0.md	Python production retirement is staged. First, Go is default for one release whi	unrecorded	-
 GPK-V0-026	docs/specs/go-production-kernel-migration-v0.md	Promotion claims are per command and per integration surface. Reports MUST state	unrecorded	-
 GPK-V0-042	docs/specs/go-production-kernel-migration-v0.md	A **beta rung** exists in `GPK-V0-023`'s order, between opt-in candidate use and	unrecorded	-
+GPK-V0-960	docs/specs/go-production-kernel-migration-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3663) The quer	standing	2026-10-31; V1-3663
 GPK-V0-043	docs/specs/go-production-kernel-migration-v0.md	`corvint query` MAY add a general `repository`-intent profile on Darwin	unrecorded	-
 GPK-V0-044	docs/specs/go-production-kernel-migration-v0.md	The standalone `corvint query` `repository`-intent profile introduced	unrecorded	-
 GPK-V0-047	docs/specs/go-production-kernel-migration-v0.md	`EvalQuery`'s confident-symbol selection has two members that `GPK-V0-043` leave	unrecorded	-
@@ -4822,6 +4828,7 @@ LCP-V0-882	docs/specs/local-completion-policy-v0.md	(experimental under the stan
 LCP-V0-883	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept; V1-0580)	standing	V1-0580
 LCP-V0-884	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept; V1-0580)	standing	V1-0580
 LCP-V0-885	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept; V1-0580) Import MUST relocate	standing	V1-0580
+LCP-V0-960	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3634; refines	standing	2026-10-31; V1-3634
 LCP-V0-039	docs/specs/local-completion-policy-v0.md	(experimental under the standing lane auto-accept; V1-2762) Amending	standing	V1-2762
 LCP-V0-040	docs/specs/local-completion-policy-v0.md	(owner-requested V1-1894 repair, 2026-10-30) A legacy enrolled change	unrecorded	-
 LCP-V0-041	docs/specs/local-completion-policy-v0.md	(V1-3194, 2026-10-30) The supported order is: enrolled strict `finish` satisfied	unrecorded	-
@@ -5454,6 +5461,7 @@ PWP-V0-092	docs/specs/playwright-external-provider-v0.md	A preflight that did no
 PWP-V0-093	docs/specs/playwright-external-provider-v0.md	The receipt shape check requires a preflight member to appear only on an externa	unrecorded	-
 PWP-V0-153	docs/specs/playwright-external-provider-v0.md	When `corvint test-validity` (`internal/testvaliditydoc`) projects an external	unrecorded	-
 PWP-V0-154	docs/specs/playwright-external-provider-v0.md	The same projection states the freshness of an external run and of each of its	unrecorded	-
+PWP-V0-960	docs/specs/playwright-external-provider-v0.md	The qualified reporter records an attempt of a test whose `expectedStatus` is	unrecorded	-
 PTF-V0-001	docs/specs/playwright-per-test-freshness-v0.md	The profile is explicit, separate and bounded to trusted local source-direct ser	unrecorded	-
 PTF-V0-002	docs/specs/playwright-per-test-freshness-v0.md	Capture clean product/test repository and file identities before and after execu	unrecorded	-
 PTF-V0-003	docs/specs/playwright-per-test-freshness-v0.md	Record the actual reporter-selected semantic test identity, source anchor/digest	unrecorded	-
@@ -5593,6 +5601,7 @@ PMR-V0-006	docs/specs/postmerge-replay-v0.md	Build and validate the actual conne
 PMR-V0-007	docs/specs/postmerge-replay-v0.md	Emit a separate report with fixture/policy/binding identities, canonical JSONL,	unrecorded	-
 PMR-V0-008	docs/specs/postmerge-replay-v0.md	Provide local/CI invocation `corvint-postmerge-workflow replay --change ID --dry	unrecorded	-
 PMR-V0-009	docs/specs/postmerge-replay-v0.md	Replay does not parse or reimplement the issue #389 delta record. The adapter	unrecorded	-
+PMR-V0-960	docs/specs/postmerge-replay-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3662) Free tex	standing	2026-10-31; V1-3662
 PMR-V1-001	docs/specs/postmerge-runtime-v1.md	Independently pin full binding, input snapshots, source/tool/runtime/profile and	unrecorded	-
 PMR-V1-002	docs/specs/postmerge-runtime-v1.md	Execute real connector/intake/delta joins, retain exact native inputs/outputs an	unrecorded	-
 PMR-V1-003	docs/specs/postmerge-runtime-v1.md	Each applicable real author step requires enforced credential/network/filesystem	unrecorded	-
@@ -6691,6 +6700,7 @@ TSA-V0-011	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-
 TSA-V0-001	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) `corvint tests setup-select --specs	standing	2026-10-11; V1-1587
 TSA-V0-002	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) A registry declaration file and a hu	standing	2026-10-11; V1-1587
 TSA-V0-003	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) When the closure cannot be proved, t	standing	2026-10-11; V1-1587
+TSA-V0-960	docs/specs/test-source-analysis-v0.md	(experimental under the standing lane auto-accept, 2026-10-31; V1-3655; amends	standing	2026-10-31; V1-3655
 TSA-V0-004	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) A comment-only mention of an import	standing	2026-10-11; V1-1587
 TSA-V0-005	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587) The JSON output (schema	standing	2026-10-11; V1-1587
 TSA-V0-871	docs/specs/test-source-analysis-v0.md	(standing auto-accept, 2026-10-11; V1-1587 AC6, 2026-10-30) The `--format lines`	standing	2026-10-11; V1-1587; 2026-10-30

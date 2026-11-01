@@ -318,8 +318,8 @@ func TestFinishLaneDCWV0092RefusesVerifySyntaxBeforePrepare(t *testing.T) {
 		name, verifyFile, verify, reason string
 	}{
 		{name: "quoted-run-regex", verifyFile: write("quoted.txt", []byte("go test -count=1 -run '^TestA' ./internal/a\n")), reason: "unsupported-verify-syntax"},
-		{name: "env-quoted", verify: "go test -run \"Test[A]\" ./internal/a", reason: "unsupported-verify-syntax"},
-		{name: "quoted-run-class-alternation", verifyFile: write("alternation.txt", []byte("go test -count=1 -run '^(TestA|Test[B])$' ./internal/a\n")), reason: "unsupported-verify-syntax"},
+		{name: "env-quoted", verify: "go test -run \"Test.*\" ./internal/a", reason: "unsupported-verify-syntax"},
+		{name: "quoted-run-class-alternation", verifyFile: write("alternation.txt", []byte("go test -count=1 -run '^(TestA|Test.*)$' ./internal/a\n")), reason: "unsupported-verify-syntax"},
 		{name: "unquoted-run-alternation", verifyFile: write("unquoted.txt", []byte("go test -count=1 ./internal/b\ngo test -count=1 -run TestA|TestB ./internal/a\n")), reason: "unsupported-verify-syntax"},
 		{name: "over-bound", verifyFile: write("big.txt", bytes.Repeat([]byte("\n"), maxVerifyFileBytes+1)), reason: "verify-file-over-bound"},
 		{name: "unavailable", verifyFile: filepath.Join(scratch, "missing.txt"), reason: "verify-file-unavailable"},

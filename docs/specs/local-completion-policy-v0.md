@@ -516,6 +516,15 @@ frozen broad query profile. None of those legacy profile meanings is changed her
   satisfied enrollment imported into a `git worktree add` restore evaluates satisfied there with
   the same target, check and reports). Rollback: delete `internal/localcompletion/export.go` and the
   `export` and `import` subverbs.
+- `LCP-V0-960`: (experimental under the standing lane auto-accept, 2026-10-31; V1-3634; refines
+  `LCP-V0-884`) A bundle file anchored at the Git directory MUST name a path under `corvint/`,
+  the only Git-directory subtree an export carries (the local-completion state, holds and the
+  `corvint/` terminal artifacts). Any other `gitdir` path, such as `hooks/pre-commit`,
+  `config.worktree` or `info/exclude`, MUST refuse the whole import with
+  `import-gitdir-path-refused` before anything is written, even when every digest holds, so a
+  crafted bundle can never plant code or configuration Git reads. Evidence:
+  `TestLCPV0960ImportRefusesGitDirPathOutsideCorvint` (fails on BASE: the hook was written).
+  Rollback: drop the `gitDirExportPrefix` check in `readBundle`.
 - `LCP-V0-039`: (experimental under the standing lane auto-accept; V1-2762) Amending
   `LCP-V0-010` and `LCP-V0-013`, prompt context MUST count a token as an anchor only when it can
   name something in this repository's tree, so prose is neither resolved nor missing:
@@ -695,6 +704,7 @@ elsewhere are not repeated.
 | `cancel-reason-required` | `internal/localcompletion/lifecycle.go` (`Cancel`) | an `active` enrollment is cancelled without a nonempty `--reason`; the message names the selected checks and saved observations it would close (`LCP-V0-038`, V1-2177) |
 | `enrollment-preservation-hold` | `internal/localcompletion/lifecycle.go` (`Cancel`), `internal/localcompletion/hold.go` | a coordinator's preservation hold keeps the ACTIVE enrollment; the detail names the distinct-checkout route and the authorized release (`LCP-V0-880`, V1-0581) |
 | `import-would-replace`, `import-target-mismatch`, `import-artifact-conflict`, `import-plan-not-relocatable` | `internal/localcompletion/export.go` (`Import`) | a restore never replaces an enrollment, is bound to the exported commit and tree, never overwrites other bytes, and never rewrites a frozen plan that names the source root or Git directory (`LCP-V0-884`, V1-0580) |
+| `import-gitdir-path-refused` | `internal/localcompletion/export.go` (`readBundle`) | a bundle names a Git-directory file outside `corvint/`, such as `hooks/pre-commit` (`LCP-V0-960`, V1-3634) |
 | `cem-bindings-required` | `internal/localcompletion/finish.go` (`prepareBindings`) | the public `cem status` run against the plan base and current target returned an error |
 | `check-executable-unavailable` | `internal/localcompletion/storage.go` (`resolveExecutable`) | `exec.LookPath` cannot resolve a check's executable |
 | `completion-evidence-drift` | `internal/localcompletion/finish.go` (`revalidate`) | after finishing, the tree is not clean, the target or tree differs from the pre-finish snapshot, or the saved report is no longer current |

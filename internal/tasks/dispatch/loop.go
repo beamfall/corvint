@@ -290,7 +290,7 @@ func Open(program string, c *Config, q Queue, out io.Writer) (*Dispatcher, error
 	// A host reboot is the one automatic containment proof (CAL-V0-227); it
 	// is recorded before the marker goes. Any other prior unresolved reader
 	// refuses before owner/ledger/event writes or adoption.
-	recovered, err := resolveReaderByReboot(dir, program, time.Now())
+	recovered, err := resolveReaderByReboot(dir, program, time.Now(), nil)
 	if err != nil {
 		lock.Close()
 		return nil, fmt.Errorf("%w: the reboot proof was not recorded: %v", ErrReaderQuiescence, err)

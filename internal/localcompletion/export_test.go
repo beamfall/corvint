@@ -2,6 +2,7 @@ package localcompletion
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"os"
@@ -212,5 +213,56 @@ func TestLCPV0885RelocationNeverLaundersAStaleReportSet(t *testing.T) {
 		if recomputed != valid || got.Review != got.ReportSet.Digest || (!valid && got.ReportSet.Digest != strings.Repeat("a", 64)) {
 			t.Errorf("valid=%t: digest %s recomputed=%t review %s", valid, got.ReportSet.Digest, recomputed, got.Review)
 		}
+	}
+}
+
+// TestLCPV0960ImportRefusesGitDirPathOutsideCorvint covers LCP-V0-960
+// (V1-3634): a bundle whose digest is valid but which names a gitdir-anchored
+// file outside the Git directory's corvint/ subtree, such as
+// hooks/pre-commit, is refused before anything is written, so an import can
+// never plant a Git hook.
+func TestLCPV0960ImportRefusesGitDirPathOutsideCorvint(t *testing.T) {
+	ctx := context.Background()
+	root, key, plan := fixture(t, []string{"true"})
+	beginFixture(t, root, key, plan)
+	bundle := filepath.Join(t.TempDir(), "bundle.json")
+	if _, err := Export(ctx, root, key, bundle); err != nil {
+		t.Fatalf("export: %v", err)
+	}
+	restored := filepath.Join(t.TempDir(), "restored")
+	localGit(t, root, "worktree", "add", "-q", "--detach", restored, "HEAD")
+	gitDir := localGit(t, restored, "rev-parse", "--absolute-git-dir")
+	for _, name := range []string{"hooks/pre-commit", "config.worktree", "corvint-other/x", "info/exclude"} {
+		raw, err := os.ReadFile(bundle)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var crafted exportBundle
+		if err = json.Unmarshal(raw, &crafted); err != nil {
+			t.Fatal(err)
+		}
+		payload := []byte("#!/bin/sh\necho planted\n")
+		crafted.Files = append(crafted.Files, exportFile{Anchor: "gitdir", Path: name, SHA256: digest(payload), Data: base64.StdEncoding.EncodeToString(payload)})
+		crafted.Digest = crafted.digest()
+		if raw, err = json.Marshal(crafted); err != nil {
+			t.Fatal(err)
+		}
+		hostile := filepath.Join(t.TempDir(), "hostile.json")
+		if err = os.WriteFile(hostile, raw, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if _, err = Import(ctx, restored, key, hostile); err == nil || err.Error() != "import-gitdir-path-refused" {
+			t.Errorf("%s: import = %v, want import-gitdir-path-refused", name, err)
+		}
+		if _, statErr := os.Lstat(filepath.Join(gitDir, filepath.FromSlash(name))); !errors.Is(statErr, os.ErrNotExist) && name != "info/exclude" {
+			t.Errorf("%s was written into %s: %v", name, gitDir, statErr)
+		}
+		if _, statErr := os.Lstat(filepath.Join(gitDir, "corvint", "local-completion", key)); !errors.Is(statErr, os.ErrNotExist) {
+			t.Errorf("%s: the refused import enrolled the session: %v", name, statErr)
+		}
+	}
+	// The unmodified bundle still imports.
+	if _, err := Import(ctx, restored, key, bundle); err != nil {
+		t.Fatalf("clean import: %v", err)
 	}
 }

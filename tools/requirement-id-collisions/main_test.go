@@ -85,11 +85,13 @@ func TestTLFV0886_ReproducesASDV0Collisions(t *testing.T) {
 	}
 	for _, want := range []string{
 		"REQUIREMENT_ID_COLLISION ASD-V0-032 new on two refs with different definitions",
-		"refs/heads/lane-a:docs/specs/" + self, "refs/heads/lane-b:docs/specs/" + self,
+		// lane-a-stack contains lane-a, so it is scanned in lane-a's place (TLF-V0-960).
+		"refs/heads/lane-a-stack:docs/specs/" + self, "refs/heads/lane-b:docs/specs/" + self,
 		"REQUIREMENT_ID_COLLISION ASD-V0-036 defined in more than one file of one ref",
 		"REQUIREMENT_ID_COLLISION ASD-V0-036 defined in a different file than on the base",
 		"refs/heads/lane-c:docs/specs/affected-plan-v0.md",
-		"scanned 4 lane head(s) against main",
+		"scanned 3 lane head(s) against main",
+		"skipped 1 lane head(s) another scanned head contains: refs/heads/lane-a@",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("output lacks %q\n%s", want, text)
@@ -168,5 +170,38 @@ func TestTLFV0886_PartialCloneNeverFetches(t *testing.T) {
 	}
 	if code != 2 {
 		t.Fatalf("exit %d, want 2 on missing promisor blobs\n%s%s", code, out.String(), errb.String())
+	}
+}
+
+// TestTLFV0960_LaneHeadMergedIntoBatchIsSkipped (V1-3650): a lane head that
+// a batch branch already contains is not scanned beside it, so the batch's
+// later wording of the lane's bullet is no collision; a lane the batch does
+// not contain is still compared with it.
+func TestTLFV0960_LaneHeadMergedIntoBatchIsSkipped(t *testing.T) {
+	dir := t.TempDir()
+	tgit(t, dir, "init", "-q", "-b", "main")
+	base := "- `ASD-V0-031`: base.\n"
+	commitSpec(t, dir, "s.md", base)
+	tgit(t, dir, "checkout", "-q", "-b", "lane-x", "main")
+	commitSpec(t, dir, "s.md", base+"- `ASD-V0-500`: lane x as first written.\n")
+	tgit(t, dir, "checkout", "-q", "-b", "batch", "main")
+	tgit(t, dir, "merge", "-q", "--no-ff", "-m", "merge lane-x", "lane-x")
+	commitSpec(t, dir, "s.md", base+"- `ASD-V0-500`: lane x as the batch reworded it.\n")
+	tgit(t, dir, "checkout", "-q", "main")
+
+	var out, errb bytes.Buffer
+	if code := run([]string{"--repo", dir, "--base", "main"}, &out, &errb); code != 0 {
+		t.Fatalf("lane head inside the batch: exit %d\n%s%s", code, out.String(), errb.String())
+	}
+	if text := out.String(); !strings.Contains(text, "scanned 1 lane head(s) against main: refs/heads/batch@") || !strings.Contains(text, "skipped 1 lane head(s) another scanned head contains: refs/heads/lane-x@") {
+		t.Fatalf("output:\n%s", text)
+	}
+
+	tgit(t, dir, "checkout", "-q", "-b", "lane-y", "main")
+	commitSpec(t, dir, "s.md", base+"- `ASD-V0-500`: lane y took the same ID.\n")
+	tgit(t, dir, "checkout", "-q", "main")
+	out.Reset()
+	if code := run([]string{"--repo", dir, "--base", "main"}, &out, &errb); code != 1 || !strings.Contains(out.String(), "REQUIREMENT_ID_COLLISION ASD-V0-500 new on two refs with different definitions refs/heads/batch:docs/specs/s.md refs/heads/lane-y:docs/specs/s.md") {
+		t.Fatalf("a lane outside the batch: exit %d\n%s%s", code, out.String(), errb.String())
 	}
 }

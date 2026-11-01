@@ -584,6 +584,10 @@
       "Makefile",
       "script/"
     ],
-    "tools/test-commands-run": []
+    "tools/test-commands-run": [],
+    "tools/tiers-replay": [
+      ".github/forward-rows/tiers.jq",
+      ".github/forward-rows/tiers.sh"
+    ]
   }
 }
