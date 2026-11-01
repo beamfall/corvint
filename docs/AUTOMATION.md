@@ -94,7 +94,7 @@ Where each row was verified:
   (`cmd/corvint/help.go:453-454@b8d79ae9`). It builds the index in memory when no snapshot exists
   (`cmd/corvint/index_snapshot.go:103-108@15aca3d7`); the fresh-clone run wrote no snapshot store (`.git/corvint/index`).
 - `impact --base`: profile `internal/contextindex/range_impact.go:24@49493543`; exits and ledger calls
-  `cmd/corvint/main.go:1237-1242@53443dcf` and `cmd/corvint/main.go:1266-1349@b2b338b9`; envelope
+  `cmd/corvint/main.go:1237-1242@53443dcf` and `cmd/corvint/main.go:1266-1354@17c42df8`; envelope
   `cmd/corvint/main.go:1510@dedd82e3`; range capacity from `corvint impact --help`. With no snapshot it builds
   the index in memory (`cmd/corvint/main.go:1270@7219f23e`) and writes no snapshot store (`.git/corvint/index`).
 - 1.0 labels: `docs/specs/corvint-1.0-product-and-release-v1.md` classification table.
