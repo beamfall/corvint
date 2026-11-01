@@ -1,3 +1,15 @@
+# ASD-V0-845 (V1-3500): any extension-less file at the repository root is a build output (a new
+# `go build ./tools/NAME` or ./cmd/NAME writes one) unless re-included below, so a new tool needs no
+# line here. A new extension-less root source file needs its own `!/NAME` line; check-binary-blobs.sh
+# refuses a tracked path these rules ignore. This block comes first so the directory rules below
+# still ignore their directories after `!/*/` re-includes every root directory.
+/*
+!/*/
+!/*.*
+!/LICENSE
+!/Makefile
+!/VERSION
+
 __pycache__/
 *.egg-info/
 .pytest_cache/
@@ -80,14 +92,3 @@ node_modules/
 /test-shards
 /tiers-replay
 /unbounded-readers
-
-# ASD-V0-845 (V1-3500): any extension-less file at the repository root is a build output (a new
-# `go build ./tools/NAME` or ./cmd/NAME writes one) unless re-included below, so a new tool needs no
-# line here. A new extension-less root source file needs its own `!/NAME` line; check-binary-blobs.sh
-# refuses a tracked path these rules ignore.
-/*
-!/*/
-!/*.*
-!/LICENSE
-!/Makefile
-!/VERSION
