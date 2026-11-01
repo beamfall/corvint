@@ -337,6 +337,19 @@ on a fixture queue remain non-goals.
   queue and policy from the `docs/TASKS-EXTERNAL-AGENTS.md` templates, then rerun `init`. Before,
   init exited `ERROR` `MALFORMED` with a raw `lstat` message. Non-goals: writing a default queue or
   policy, and any change to genesis bytes. Rollback: revert; the raw `MALFORMED` returns.
+- `CTS-V0-821`: (accepted 2026-11-01 under the owner's standing lane auto-accept (2026-10-11);
+  V1-3465; refines CTS-V0-010) A journal-absent `ticket show` miss MUST also consult this
+  repository's own remote-tracking ref, `refs/remotes/origin/HEAD` or else `refs/remotes/origin/main`,
+  read-only and without fetching. When that commit's tree holds `.taskman/tickets/LOCAL.json`, the
+  CTS-V0-010 warning MUST name the ref, the commit SHA and the exact sync steps: read the record
+  read-only with `git show SHA:.taskman/tickets/LOCAL.json`, or update this checkout's projection
+  with `git merge --ff-only REF` on a checkout of that branch, then retry. When the tree lacks it,
+  the warning MUST say so and name `git fetch origin` as the step that refreshes the ref. The read
+  stays a refusal: the remote record is never decoded, served or trusted, so the outcome, code,
+  item and snapshot of CTS-V0-010 are unchanged, and no other store or worktree is searched. A
+  repository without either ref, a ticket id whose local part is not a plain file name, or a git
+  failure or timeout leaves the CTS-V0-010 warning as it is. Non-goals: serving a ticket from a
+  ref, fetching, and writing the projection. Rollback: revert; the CTS-V0-010 wording returns.
 
 ## Import export and batching
 
@@ -371,6 +384,7 @@ revision 1, a broken revision chain, and a target held by a native record or ano
 |---|---|
 | Init over committed tickets or releases | Refused with `INTENT_DIVERGED`; no state directory is created (CTS-V0-001). |
 | Init with no `.taskman/queue.json` or `policy.json` | Refused with `PREREQUISITE_UNSATISFIED` naming each missing file and the template fix; nothing is created (CTS-V0-820). |
+| A lane clone's `.taskman` predates a ticket its origin holds | The journal-absent miss names `origin`'s commit, the read-only `git show` and the `merge --ff-only` sync step; nothing is fetched or served (CTS-V0-821). |
 | Intent directory unreadable | Refused with `UNSUPPORTED_FILESYSTEM`; nothing is created. |
 | Repository reached through a symlinked ancestor | Resolved; the canonical primary worktree is recorded (CTS-V0-004). |
 | Primary worktree or `.git` is a symbolic link | Refused with `UNSUPPORTED_FILESYSTEM`, unchanged (CTS-V0-004). |
@@ -629,3 +643,4 @@ restored byte-identical afterwards. Rollback restores the wall-clock deadline in
 | CTS-V0-872 | `cmd/corvint-tasks/main.go` (`SIGPIPE` notify) | TestCTSV0872_ClosedStdoutPipeKeepsTheOutcomeStatus |
 | CTS-V0-873 | `internal/tasks/cli/cli.go` (`resolveTicketArg`, `paddedCandidates`, `ticketShow`) | TestCTSV0873_UnpaddedTokenResolvesTheOnePaddedTicket |
 | CTS-V0-820 | `internal/tasks/cli/init.go` (`initPrerequisites`) | TestCTSV0820_InitInFreshRepositoryNamesMissingQueueAndPolicy |
+| CTS-V0-821 | `internal/tasks/cli/journal_absent_remote.go` (`remoteProjectionHint`) | TestCTSV0821_JournalAbsentMissNamesOriginSyncStep |

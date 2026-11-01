@@ -3014,6 +3014,7 @@ CTS-V0-871	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's
 CTS-V0-872	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3287)	standing	2026-10-11; V1-3287
 CTS-V0-873	docs/specs/corvint-tasks-store-init-v0.md	(accepted under the owner's standing auto-accept (2026-10-11); V1-3304)	standing	2026-10-11; V1-3304
 CTS-V0-820	docs/specs/corvint-tasks-store-init-v0.md	(accepted 2026-11-01 under the owner's standing lane auto-accept (2026-10-11);	standing	2026-11-01; 2026-10-11
+CTS-V0-821	docs/specs/corvint-tasks-store-init-v0.md	(accepted 2026-11-01 under the owner's standing lane auto-accept (2026-10-11);	standing	2026-11-01; 2026-10-11
 TRL-V0-001	docs/specs/corvint-tasks-store-relocation-v0.md	`corvint-tasks relocate --from OLD --request-id ID [--role OWNER|OPERATOR]	unrecorded	-
 TRL-V0-002	docs/specs/corvint-tasks-store-relocation-v0.md	A completed relocation commits one RELOCATE receipt that posts exactly one pinne	unrecorded	-
 TRL-V0-003	docs/specs/corvint-tasks-store-relocation-v0.md	Relocation refuses `QUIESCENCE_UNPROVED`, writing nothing, while any attempt hol	unrecorded	-
