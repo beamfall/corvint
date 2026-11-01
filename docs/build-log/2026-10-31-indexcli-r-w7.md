@@ -65,6 +65,15 @@ freeze goldens (`cmd/corvint/core_freeze_test.go`) and the `internal/contextinde
 frozen retrieval-bench and benchmark-runner corpora were NOT_RUN: they need external checkouts this
 lane host does not hold.
 
+Review fix (Codex, relayed by the orchestrator, head df23fd53b): the lowercased full-path lookup
+kept one path per case-folded key, so with `src/Foo.go` and `src/foo.go` both tracked, map
+iteration order picked the surviving path and made ranking nondeterministic. A case-folded mention
+now names every path it matches, in sorted order: the lowercased task cannot tell the two apart,
+and picking either one would be a guess. A shared basename still names neither path.
+`TestEvalNamedPathsKeepsEveryCaseFoldedMatch_GPKV0975` uses the existing case-fold fixture to
+assert the named paths and 32 repeated `EvalQuery` packets byte for byte. GPK-V0-975 states the
+rule. The analyzer input digest was repinned again; the schema stays at 150.
+
 ## V1-2362: ALREADY-DELIVERED
 
 The per-path equivalence oracle cost was fixed by V1-2342's 1-in-10 stride sample, recorded in the
