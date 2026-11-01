@@ -51,10 +51,23 @@ fix. It extends the existing `adopt` verb instead of adding a parallel `doctor` 
   root as regular files of at most 1 MiB, after an `Lstat` that rejects a FIFO, device or link
   without opening it, and Git runs as one `check-ignore --no-index` with
   `GIT_OPTIONAL_LOCKS=0` and a 10 s timeout.
+- `ADS-V0-650`: (accepted under the owner's standing auto-accept (2026-10-11); V1-3732,
+  2026-11-01) `script/adopter-ci-advisory.sh RELEASE_DIR [BASE]` is the reusable adopter CI step.
+  It MUST select the one archive for the host platform from `RELEASE_DIR/SHA256SUMS` and verify
+  it before extracting anything, extract into a fresh directory, verify the archive's own
+  `SHA256SUMS`, and probe `--version`; any failure exits 1 before a Corvint binary runs, or with
+  only that probe run. Then it runs `adopt --setup` and, when a full 40-hex `BASE` is given,
+  `affected --base BASE` as advisory steps: each output and exit code is retained under the
+  output directory and a failure prints a warning but still exits 0. `docs/AUTOMATION.md` gives
+  the recipe. Non-goals: downloading the release (the CI host does that), signature or publisher
+  checks (archives are unsigned), and failing a pull request on Corvint's findings. Failure modes:
+  a checksum file that names the archive twice or not at all is refused; a host platform outside
+  the four release targets is refused. Rollback: delete the script, its test, its Makefile target
+  and the recipe; no state depends on them.
 
 ## Non-goals
 
-No automatic fix, no network access, no reading of user-scope host configuration, no judgment of
+No automatic fix, no network access (ADS-V0-650's script also downloads nothing), no reading of user-scope host configuration, no judgment of
 instruction-file quality beyond naming Corvint, and no CI or release-channel checks.
 
 ## Failure modes
@@ -73,6 +86,7 @@ instruction-file quality beyond naming Corvint, and no CI or release-channel che
 | ADS-V0-001,003,006 | `TestAdoptSetupUnobservedChecksCarryAFix` (snapshot probe error, git not on PATH), `TestAdoptSetupUnreadableIgnoreFileIsUnobserved` |
 | ADS-V0-007 | `TestAdoptSetupRejectsFIFOWithoutOpening` |
 | ADS-V0-002 | `TestAdoptSetupRefusesOtherOptions` |
+| ADS-V0-650 | `script/adopter-ci-advisory_test.sh` (`make adopter-ci-advisory-test`): verified install with both advisory steps, an advisory failure that still exits 0, an outer and an inner checksum mismatch refused before the binary runs, a missing archive line, and a skipped `affected` without `BASE` |
 
 Measured output is in `https://github.com/beamfall/corvint-history/blob/1c4d8793cf71cbb01b8509b68a6cb1502a40a13e/docs/build-log/2026-10-20-v1-2052-adopt-setup-report.md`. Rollback: remove
 the `--setup` flag, `cmd/corvint/adopt_setup.go`, its test, the help paragraph and this spec; no
