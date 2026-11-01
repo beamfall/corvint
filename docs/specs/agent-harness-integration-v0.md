@@ -781,6 +781,21 @@ separate exact extension tuple remains governed by AHI-024.
   productivity measure; co-change neighbours beyond what the prompt packet already carries.
   Evidence: `TestAHI805PreToolReadAlwaysDefers` (`cmd/corvint`). Rollback: drop the `pre-tool`
   case so the event returns `unsupported-hook-event`.
+- `AHI-806`: (experimental under the standing lane auto-accept (2026-11-01); V1-0878) A plan-time
+  event is a host's plan submission before code is written (Claude Code: PreToolUse for
+  `ExitPlanMode`, whose `tool_input.plan` is the plan text; other hosts map their own plan
+  submission to the same contract). The adapter MUST compile the plan text as a `user-prompt`
+  prompt, so its paths, requirement IDs and identifiers resolve or abstain under `LCP-V0-010`,
+  `LCP-V0-013` and `LCP-V0-039` with the usual governance, uncertainty and degradation codes, and
+  MUST answer with `permissionDecision` `defer` under `AHI-805`: it never approves, rejects or
+  blocks a plan, and its output is not an input to ranking or learning. Affected checks for the
+  plan's paths are part of this contract but NOT_PRODUCED: they need an affected plan over named
+  paths rather than a diff, which `internal/liveverify/affected` does not offer. Non-goals:
+  plan-revision diffs, scope-violation verdicts. Promotion needs a frozen evaluation that
+  plan-time evidence improves plan scope accuracy (V1-0878 criterion 3). Evidence:
+  `TestAHI805PreToolReadAlwaysDefers` (`cmd/corvint`: an `ExitPlanMode` plan naming a path gets
+  that path's evidence; an empty plan gets the bare defer). Rollback: drop the `ExitPlanMode`
+  branch of `preToolPrompt`.
 
 - `AHI-032`: At the owner’s request (2026-09-28), stock OpenCode native integration qualification
   MUST be reported separately from execution authority. The `opencode-native-integration/1`
@@ -2769,6 +2784,7 @@ and rejection of package versions as wire versions (V1-0444).
 | `AHI-803` (experimental under the standing lane auto-accept (2026-11-01); V1-3728) | `cmd/corvint/host_adapter.go` (`postToolOwningRepository`, `invokeSiblingClaudePostTool`) | `TestAHI803SiblingRepositoryEditIsAttributedToItsOwner` |
 | `AHI-804` (experimental under the standing lane auto-accept (2026-11-01); V1-0401) | `cmd/corvint/host_adapter_subagent.go` (`runClaudeSubagentStart`) | `TestAHI804SubagentStartReturnsBoundedPacketWithoutBlocking` |
 | `AHI-805` (experimental under the standing lane auto-accept (2026-11-01); V1-0402) | `cmd/corvint/host_adapter_pretool.go` (`runClaudePreToolRead`, `preToolReadTarget`) | `TestAHI805PreToolReadAlwaysDefers` |
+| `AHI-806` (experimental under the standing lane auto-accept (2026-11-01); V1-0878) | `cmd/corvint/host_adapter_pretool.go` (`preToolPrompt`) | `TestAHI805PreToolReadAlwaysDefers` (ExitPlanMode cases) |
 | `AHI-820` (experimental under the standing lane auto-accept; V1-2513) | `integrations/claude-code/plugins/corvint/.mcp.json` | `TestAHI820ClaudePluginDeclaresTestValidityAndDocsGroups`, `TestAHI820ClaudePluginArgsServeTestValidityAndDocs`; live receipt in `docs/build-log/2026-10-31-linux-w2-bugs.md` |
 | `AHI-373` (accepted under the owner's standing auto-accept (2026-10-11); V1-3244) | `cmd/corvint/mcp.go`, `internal/mcp/cli`, `internal/update` (`CoreExecutables`), both plugin `.mcp.json` files | `TestAHI373PluginCommandsShipInCoreRelease`; `AHI-198` and `AHI-207` tests; live receipt in `docs/build-log/2026-10-30-corvint-mcp-subcommand.md` |
 | `AHI-208` (accepted under the owner's standing auto-accept (2026-10-11); V1-2326) | `integrations/codex/plugins/corvint/hooks/hooks.json` | `TestAHI208CodexHooksRegisterOnlyMappedEvents` (with empty-group, extra-event and matcher negatives), `TestAdapterSilentAbstentionsAreLedgered` (unregistered events); live hook-invocation log in the 2026-10-23 Codex matrix entry |
